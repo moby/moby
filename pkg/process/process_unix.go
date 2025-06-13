@@ -4,6 +4,7 @@ package process
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -33,7 +34,7 @@ func Alive(pid int) bool {
 
 		// Either the PID was found (no error) or we get an EPERM, which means
 		// the PID exists, but we don't have permissions to signal it.
-		return err == nil || err == unix.EPERM
+		return err == nil || errors.Is(err, unix.EPERM)
 	default:
 		_, err := os.Stat(filepath.Join("/proc", strconv.Itoa(pid)))
 		return err == nil
@@ -51,7 +52,7 @@ func Kill(pid int) error {
 		return fmt.Errorf("invalid PID (%d): only positive PIDs are allowed", pid)
 	}
 	err := unix.Kill(pid, unix.SIGKILL)
-	if err != nil && err != unix.ESRCH {
+	if err != nil && !errors.Is(err, unix.ESRCH) {
 		return err
 	}
 	return nil

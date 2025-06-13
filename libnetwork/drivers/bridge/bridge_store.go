@@ -5,6 +5,7 @@ package bridge
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -43,12 +44,12 @@ func (d *driver) initStore() error {
 
 func (d *driver) populateNetworks() error {
 	kvol, err := d.store.List(&networkConfiguration{})
-	if err != nil && err != datastore.ErrKeyNotFound {
-		return fmt.Errorf("failed to get bridge network configurations from store: %v", err)
+	if err != nil && !errors.Is(err, datastore.ErrKeyNotFound) {
+		return fmt.Errorf("failed to get bridge network configurations from store: %w", err)
 	}
 
 	// It's normal for network configuration state to be empty. Just return.
-	if err == datastore.ErrKeyNotFound {
+	if errors.Is(err, datastore.ErrKeyNotFound) {
 		return nil
 	}
 
@@ -68,11 +69,11 @@ func (d *driver) populateNetworks() error {
 
 func (d *driver) populateEndpoints() error {
 	kvol, err := d.store.List(&bridgeEndpoint{})
-	if err != nil && err != datastore.ErrKeyNotFound {
-		return fmt.Errorf("failed to get bridge endpoints from store: %v", err)
+	if err != nil && !errors.Is(err, datastore.ErrKeyNotFound) {
+		return fmt.Errorf("failed to get bridge endpoints from store: %w", err)
 	}
 
-	if err == datastore.ErrKeyNotFound {
+	if errors.Is(err, datastore.ErrKeyNotFound) {
 		return nil
 	}
 

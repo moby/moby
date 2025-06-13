@@ -71,7 +71,7 @@ func (s *DockerAPISuite) TestExecResizeImmediatelyAfterExecStart(c *testing.T) {
 		_, rc, err := request.Post(testutil.GetContext(c), fmt.Sprintf("/exec/%s/resize?h=24&w=80", execID), request.ContentType("text/plain"))
 		if err != nil {
 			// It's probably a panic of the daemon if io.ErrUnexpectedEOF is returned.
-			if err == io.ErrUnexpectedEOF {
+			if errors.Is(err, io.ErrUnexpectedEOF) {
 				return errors.New("the daemon might have crashed")
 			}
 			// Other error happened, should be reported.

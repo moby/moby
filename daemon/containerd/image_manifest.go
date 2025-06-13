@@ -31,7 +31,7 @@ func (i *ImageService) walkImageManifests(ctx context.Context, img c8dimages.Ima
 	handleManifest := func(ctx context.Context, d ocispec.Descriptor) error {
 		platformImg, err := i.NewImageManifest(ctx, img, d)
 		if err != nil {
-			if err == errNotManifest {
+			if errors.Is(err, errNotManifest) {
 				return nil
 			}
 			return err
@@ -59,7 +59,7 @@ func (i *ImageService) walkReachableImageManifests(ctx context.Context, img c8di
 	handleManifest := func(ctx context.Context, d ocispec.Descriptor) error {
 		platformImg, err := i.NewImageManifest(ctx, img, d)
 		if err != nil {
-			if err == errNotManifest {
+			if errors.Is(err, errNotManifest) {
 				return nil
 			}
 			return err

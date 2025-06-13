@@ -3,6 +3,7 @@
 package main
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -143,7 +144,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *testing.T) {
 	}
 
 	for {
-		if err := unix.Kill(s.d.Pid(), 0); err == unix.ESRCH {
+		if err := unix.Kill(s.d.Pid(), 0); errors.Is(err, unix.ESRCH) {
 			break
 		}
 	}

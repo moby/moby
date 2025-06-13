@@ -107,7 +107,7 @@ func (a *pluginAdapterWithRead) ReadLogs(ctx context.Context, config ReadConfig)
 
 			var buf logdriver.LogEntry
 			if err := dec.Decode(&buf); err != nil {
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					return
 				}
 				watcher.Err <- errors.Wrap(err, "error decoding log message")

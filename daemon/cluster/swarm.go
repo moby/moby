@@ -314,7 +314,7 @@ func (c *Cluster) UnlockSwarm(req types.UnlockRequest) error {
 	if !state.IsActiveManager() {
 		// when manager is not active,
 		// unless it is locked, otherwise return error.
-		if err := c.errNoManager(state); err != errSwarmLocked {
+		if err := c.errNoManager(state); !errors.Is(err, errSwarmLocked) {
 			c.mu.RUnlock()
 			return err
 		}

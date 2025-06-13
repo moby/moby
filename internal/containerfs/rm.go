@@ -61,7 +61,7 @@ func EnsureRemoveAll(dir string) error {
 			continue
 		}
 
-		if pe.Err != syscall.EBUSY {
+		if !errors.Is(pe.Err, syscall.EBUSY) {
 			return err
 		}
 

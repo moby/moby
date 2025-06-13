@@ -5,6 +5,7 @@ package macvlan
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 
@@ -55,11 +56,11 @@ func (d *driver) initStore() error {
 // populateNetworks is invoked at driver init to recreate persistently stored networks
 func (d *driver) populateNetworks() error {
 	kvol, err := d.store.List(&configuration{})
-	if err != nil && err != datastore.ErrKeyNotFound {
-		return fmt.Errorf("failed to get macvlan network configurations from store: %v", err)
+	if err != nil && !errors.Is(err, datastore.ErrKeyNotFound) {
+		return fmt.Errorf("failed to get macvlan network configurations from store: %w", err)
 	}
 	// If empty it simply means no macvlan networks have been created yet
-	if err == datastore.ErrKeyNotFound {
+	if errors.Is(err, datastore.ErrKeyNotFound) {
 		return nil
 	}
 	for _, kvo := range kvol {
@@ -74,11 +75,11 @@ func (d *driver) populateNetworks() error {
 
 func (d *driver) populateEndpoints() error {
 	kvol, err := d.store.List(&endpoint{})
-	if err != nil && err != datastore.ErrKeyNotFound {
-		return fmt.Errorf("failed to get macvlan endpoints from store: %v", err)
+	if err != nil && !errors.Is(err, datastore.ErrKeyNotFound) {
+		return fmt.Errorf("failed to get macvlan endpoints from store: %w", err)
 	}
 
-	if err == datastore.ErrKeyNotFound {
+	if errors.Is(err, datastore.ErrKeyNotFound) {
 		return nil
 	}
 

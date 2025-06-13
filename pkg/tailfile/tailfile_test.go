@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -130,10 +131,10 @@ truncated line`)
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := TailFile(f, -1); err != ErrNonPositiveLinesNumber {
+	if _, err := TailFile(f, -1); !errors.Is(err, ErrNonPositiveLinesNumber) {
 		t.Fatalf("Expected ErrNonPositiveLinesNumber, got %v", err)
 	}
-	if _, err := TailFile(f, 0); err != ErrNonPositiveLinesNumber {
+	if _, err := TailFile(f, 0); !errors.Is(err, ErrNonPositiveLinesNumber) {
 		t.Fatalf("Expected ErrNonPositiveLinesNumber, got %s", err)
 	}
 }
@@ -255,7 +256,7 @@ func TestNewTailReader(t *testing.T) {
 							return
 						}
 						if len(test.data) == 0 {
-							assert.Assert(t, err == ErrNonPositiveLinesNumber, err)
+							assert.Assert(t, errors.Is(err, ErrNonPositiveLinesNumber), err)
 							return
 						}
 
@@ -285,7 +286,7 @@ func TestNewTailReader(t *testing.T) {
 			assert.Check(t, string(data) == "b", string(data))
 
 			_, _, err = rdr.ReadLine()
-			assert.Assert(t, err == io.EOF, err)
+			assert.Assert(t, errors.Is(err, io.EOF), err)
 		})
 	})
 	t.Run("truncated last line", func(t *testing.T) {
@@ -304,7 +305,7 @@ func TestNewTailReader(t *testing.T) {
 			assert.Check(t, string(data) == "b", string(data))
 
 			_, _, err = rdr.ReadLine()
-			assert.Assert(t, err == io.EOF, err)
+			assert.Assert(t, errors.Is(err, io.EOF), err)
 		})
 	})
 
@@ -320,7 +321,7 @@ func TestNewTailReader(t *testing.T) {
 			assert.Check(t, string(data) == "b", string(data))
 
 			_, _, err = rdr.ReadLine()
-			assert.Assert(t, err == io.EOF, err)
+			assert.Assert(t, errors.Is(err, io.EOF), err)
 		})
 	})
 }

@@ -591,7 +591,7 @@ func (na *cnmNetworkAllocator) allocateVIP(vip *api.Endpoint_VirtualIP) error {
 
 	for _, poolID := range localNet.pools {
 		ip, _, err := ipam.RequestAddress(poolID, addr, opts)
-		if err != nil && err != ipamapi.ErrNoAvailableIPs && err != ipamapi.ErrIPOutOfRange {
+		if err != nil && !errors.Is(err, ipamapi.ErrNoAvailableIPs) && !errors.Is(err, ipamapi.ErrIPOutOfRange) {
 			return errors.Wrap(err, "could not allocate VIP from IPAM")
 		}
 
@@ -682,7 +682,7 @@ func (na *cnmNetworkAllocator) allocateNetworkIPs(nAttach *api.NetworkAttachment
 			var err error
 
 			ip, _, err = ipam.RequestAddress(poolID, addr, opts)
-			if err != nil && err != ipamapi.ErrNoAvailableIPs && err != ipamapi.ErrIPOutOfRange {
+			if err != nil && !errors.Is(err, ipamapi.ErrNoAvailableIPs) && !errors.Is(err, ipamapi.ErrIPOutOfRange) {
 				return errors.Wrap(err, "could not allocate IP from IPAM")
 			}
 

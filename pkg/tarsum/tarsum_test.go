@@ -10,6 +10,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -545,7 +546,7 @@ func renderSumForHeader(v Version, h *tar.Header, data []byte) (string, error) {
 	tr := tar.NewReader(ts)
 	for {
 		hdr, err := tr.Next()
-		if hdr == nil || err == io.EOF {
+		if hdr == nil || errors.Is(err, io.EOF) {
 			// Signals the end of the archive.
 			break
 		}

@@ -125,7 +125,7 @@ func TestCancelledUpload(t *testing.T) {
 
 	descriptors := uploadDescriptors(nil)
 	err := lum.Upload(ctx, descriptors, progress.ChanOutput(progressChan))
-	if err != context.Canceled {
+	if !errors.Is(err, context.Canceled) {
 		t.Fatal("expected upload to be cancelled")
 	}
 

@@ -1,6 +1,7 @@
 package v2
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 )
@@ -23,7 +24,7 @@ func TestNewSettable(t *testing.T) {
 
 	for _, c := range contexts {
 		s, err := newSettable(c.arg)
-		if err != c.err {
+		if !errors.Is(err, c.err) {
 			t.Fatalf("expected error to be %v, got %v", c.err, err)
 		}
 
@@ -61,7 +62,7 @@ func TestIsSettable(t *testing.T) {
 	for _, c := range contexts {
 		if res, err := c.set.isSettable(c.allowedSettableFields, c.settable); res != c.result {
 			t.Fatalf("expected result to be %t, got %t", c.result, res)
-		} else if err != c.err {
+		} else if !errors.Is(err, c.err) {
 			t.Fatalf("expected error to be %v, got %v", c.err, err)
 		}
 	}

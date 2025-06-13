@@ -65,7 +65,7 @@ func addDigestReference(store refstore.Store, ref reference.Named, dgst digest.D
 			log.G(context.TODO()).Errorf("Image ID for digest %s changed from %s to %s, cannot update", dgst.String(), oldTagID, id)
 		}
 		return nil
-	} else if err != refstore.ErrDoesNotExist {
+	} else if !errors.Is(err, refstore.ErrDoesNotExist) {
 		return err
 	}
 

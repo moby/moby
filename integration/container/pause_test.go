@@ -1,6 +1,7 @@
 package container
 
 import (
+	"errors"
 	"io"
 	"testing"
 
@@ -80,7 +81,7 @@ func getEventActions(t *testing.T, messages <-chan events.Message, errs <-chan e
 	for {
 		select {
 		case err := <-errs:
-			assert.Check(t, err == nil || err == io.EOF)
+			assert.Check(t, err == nil || errors.Is(err, io.EOF))
 			return actions
 		case e := <-messages:
 			actions = append(actions, e.Action)

@@ -107,7 +107,7 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, _ error) {
 			var nr2 int
 			nr2, err = src.Read(buf[nr:])
 			nr += nr2
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				if nr < stdWriterPrefixLen {
 					return written, nil
 				}
@@ -153,7 +153,7 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, _ error) {
 			var nr2 int
 			nr2, err = src.Read(buf[nr:])
 			nr += nr2
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				if nr < frameSize+stdWriterPrefixLen {
 					return written, nil
 				}

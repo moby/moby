@@ -208,7 +208,7 @@ func (ts *tarSum) Read(buf []byte) (int, error) {
 
 	n, err := ts.tarR.Read(buf2)
 	if err != nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			if _, err := ts.h.Write(buf2[:n]); err != nil {
 				return 0, err
 			}

@@ -28,7 +28,7 @@ func handle(t *testing.T, mux *http.ServeMux, method string, h func(map[string]i
 	mux.HandleFunc(fmt.Sprintf("/%s.%s", driverapi.NetworkPluginEndpointType, method), func(w http.ResponseWriter, r *http.Request) {
 		var ask map[string]interface{}
 		err := json.NewDecoder(r.Body).Decode(&ask)
-		if err != nil && err != io.EOF {
+		if err != nil && !errors.Is(err, io.EOF) {
 			t.Fatal(err)
 		}
 		answer := h(ask)

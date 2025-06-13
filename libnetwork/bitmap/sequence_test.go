@@ -1,6 +1,7 @@
 package bitmap
 
 import (
+	"errors"
 	"math/rand"
 	"testing"
 	"time"
@@ -677,13 +678,13 @@ func TestSetUnset(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := hnd.SetAny(false); err != ErrNoBitAvailable {
+	if _, err := hnd.SetAny(false); !errors.Is(err, ErrNoBitAvailable) {
 		t.Fatal("Expected error. Got success")
 	}
-	if _, err := hnd.SetAnyInRange(10, 20, false); err != ErrNoBitAvailable {
+	if _, err := hnd.SetAnyInRange(10, 20, false); !errors.Is(err, ErrNoBitAvailable) {
 		t.Fatal("Expected error. Got success")
 	}
-	if err := hnd.Set(50); err != ErrBitAllocated {
+	if err := hnd.Set(50); !errors.Is(err, ErrBitAllocated) {
 		t.Fatalf("Expected error. Got %v: %s", err, hnd)
 	}
 	i := uint64(0)
@@ -706,11 +707,11 @@ func TestOffsetSetUnset(t *testing.T) {
 		}
 	}
 
-	if _, err := hnd.SetAny(false); err != ErrNoBitAvailable {
+	if _, err := hnd.SetAny(false); !errors.Is(err, ErrNoBitAvailable) {
 		t.Fatal("Expected error. Got success")
 	}
 
-	if _, err := hnd.SetAnyInRange(10, 20, false); err != ErrNoBitAvailable {
+	if _, err := hnd.SetAnyInRange(10, 20, false); !errors.Is(err, ErrNoBitAvailable) {
 		t.Fatal("Expected error. Got success")
 	}
 
@@ -812,7 +813,7 @@ func TestSetInRange(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
-	if err != ErrNoBitAvailable {
+	if !errors.Is(err, ErrNoBitAvailable) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
@@ -829,7 +830,7 @@ func TestSetInRange(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
-	if err != ErrNoBitAvailable {
+	if !errors.Is(err, ErrNoBitAvailable) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
@@ -844,7 +845,7 @@ func TestSetInRange(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
-	if err != ErrNoBitAvailable {
+	if !errors.Is(err, ErrNoBitAvailable) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 }

@@ -86,7 +86,7 @@ func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) <-chan erro
 			} else {
 				_, err = pools.Copy(cfg.CStdin, cfg.Stdin)
 			}
-			if err == io.ErrClosedPipe {
+			if errors.Is(err, io.ErrClosedPipe) {
 				err = nil
 			}
 			if err != nil {
@@ -109,7 +109,7 @@ func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) <-chan erro
 		}()
 
 		_, err := pools.Copy(stream, streamPipe)
-		if err == io.ErrClosedPipe {
+		if errors.Is(err, io.ErrClosedPipe) {
 			err = nil
 		}
 		if err != nil {

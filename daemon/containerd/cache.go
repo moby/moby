@@ -102,7 +102,7 @@ func (c cacheAdaptor) Get(id image.ID) (*image.Image, error) {
 		}
 		return nil
 	})
-	if err != nil && err != errFound {
+	if err != nil && !errors.Is(err, errFound) {
 		return nil, err
 	}
 
@@ -217,7 +217,7 @@ func findContentByUncompressedDigest(ctx context.Context, cs content.Manager, un
 		return errStopWalk
 	}, `labels."containerd.io/uncompressed"==`+uncompressed.String())
 
-	if err != nil && err != errStopWalk {
+	if err != nil && !errors.Is(err, errStopWalk) {
 		return out, err
 	}
 	if out.Digest == "" {

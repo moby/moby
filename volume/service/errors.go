@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"strings"
 )
 
@@ -101,5 +102,5 @@ func isErr(err error, expected error) bool {
 		}
 		return false
 	}
-	return err == expected
+	return errors.Is(err, expected)
 }

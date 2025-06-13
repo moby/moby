@@ -6,6 +6,7 @@ package libnetwork
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -1334,7 +1335,7 @@ func (ep *Endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 			ep.mu.Unlock()
 			return nil
 		}
-		if err != ipamapi.ErrNoAvailableIPs || progAdd != nil {
+		if !errors.Is(err, ipamapi.ErrNoAvailableIPs) || progAdd != nil {
 			return err
 		}
 	}
