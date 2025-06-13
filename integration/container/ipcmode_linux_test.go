@@ -53,7 +53,7 @@ func testIpcCheckDevExists(mm string) (bool, error) {
 
 // testIpcNonePrivateShareable is a helper function to test "none",
 // "private" and "shareable" modes.
-func testIpcNonePrivateShareable(t *testing.T, mode string, mustBeMounted bool, mustBeShared bool) {
+func testIpcNonePrivateShareable(t *testing.T, mode string, mustBeMounted, mustBeShared bool) {
 	ctx := setupTest(t)
 
 	cfg := containertypes.Config{
