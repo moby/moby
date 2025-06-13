@@ -183,7 +183,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 	}
 
 	if checkpoint != "" {
-		checkpointDir, err = getCheckpointDir(checkpointDir, checkpoint, container.Name, container.ID, container.CheckpointDir(), false)
+		checkpointDir, err = getCheckpointDir(checkpointDir, checkpoint, container.Name, container.CheckpointDir(), false)
 		if err != nil {
 			return err
 		}

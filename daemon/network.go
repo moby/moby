@@ -155,7 +155,7 @@ func (daemon *Daemon) startIngressWorker() {
 	go func() {
 		for r := range ingressJobsChannel {
 			if r.create != nil {
-				daemon.setupIngress(&daemon.config().Config, r.create, r.ip, ingressID)
+				daemon.setupIngress(&daemon.config().Config, r.create, ingressID)
 				ingressID = r.create.ID
 			} else {
 				daemon.releaseIngress(ingressID)
@@ -193,7 +193,7 @@ func (daemon *Daemon) ReleaseIngress() (<-chan struct{}, error) {
 	return done, nil
 }
 
-func (daemon *Daemon) setupIngress(cfg *config.Config, create *clustertypes.NetworkCreateRequest, ip net.IP, staleID string) {
+func (daemon *Daemon) setupIngress(cfg *config.Config, create *clustertypes.NetworkCreateRequest, staleID string) {
 	controller := daemon.netController
 	controller.AgentInitWait()
 
