@@ -141,7 +141,6 @@ linters:
         - preferStringWriter
         - ptrToRefParam
         - rangeValCopy
-        - regexpMust
         - sloppyReassign
         - uncheckedInlineErr
         - unnamedResult
