@@ -32,14 +32,8 @@ import (
 //
 // TODO(thaJeztah): produce JSON stream progress response and image events; see https://github.com/moby/moby/issues/43910
 func (i *ImageService) ExportImage(ctx context.Context, names []string, platformList []ocispec.Platform, outStream io.Writer) error {
-	var pm platforms.MatchComparer
-
-	// Get the platform matcher for the requested platforms
-	if len(platformList) == 0 {
-		pm = matchAllWithPreference(i.hostPlatformMatcher())
-	} else {
-		pm = matchAnyWithPreference(i.hostPlatformMatcher(), platformList)
-	}
+	// Get the platform matcher for the requested platforms (matches all platforms if none specified)
+	pm := matchAnyWithPreference(i.hostPlatformMatcher(), platformList)
 
 	opts := []archive.ExportOpt{
 		archive.WithSkipNonDistributableBlobs(),
@@ -249,14 +243,8 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 
 	specificPlatforms := len(platformList) > 0
 
-	// Get the platform matcher for the requested platforms
-	var pm platforms.MatchComparer
-	if specificPlatforms {
-		pm = platforms.Any(platformList...)
-	} else {
-		// All platforms
-		pm = matchAllWithPreference(i.hostPlatformMatcher())
-	}
+	// Get the platform matcher for the requested platforms (matches all platforms if none specified)
+	pm := matchAnyWithPreference(i.hostPlatformMatcher(), platformList)
 
 	opts := []containerd.ImportOpt{
 		containerd.WithImportPlatform(pm),
