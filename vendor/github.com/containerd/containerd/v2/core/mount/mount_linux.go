@@ -459,7 +459,11 @@ func optionsSize(opts []string) int {
 
 func mountAt(chdir string, source, target, fstype string, flags uintptr, data string) error {
 	if chdir == "" {
-		return unix.Mount(source, target, fstype, flags, data)
+		err := unix.Mount(source, target, fstype, flags, data)
+		if err != nil {
+			return fmt.Errorf("mount source: %q, target: %q, fstype: %s, flags: %d, data: %q, err: %w", source, target, fstype, flags, data, err)
+		}
+		return nil
 	}
 
 	ch := make(chan error, 1)
@@ -481,8 +485,11 @@ func mountAt(chdir string, source, target, fstype string, flags uintptr, data st
 			ch <- err
 			return
 		}
-
-		ch <- unix.Mount(source, target, fstype, flags, data)
+		err := unix.Mount(source, target, fstype, flags, data)
+		if err != nil {
+			err = fmt.Errorf("mount source: %q, target: %q, fstype: %s, flags: %d, data: %q, err: %w", source, target, fstype, flags, data, err)
+		}
+		ch <- err
 	}()
 	return <-ch
 }

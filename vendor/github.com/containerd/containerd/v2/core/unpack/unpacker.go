@@ -428,7 +428,7 @@ func (u *Unpacker) unpack(
 		diff, err := a.Apply(ctx, desc, mounts, unpack.ApplyOpts...)
 		if err != nil {
 			cleanup.Do(ctx, abort)
-			return fmt.Errorf("failed to extract layer %s: %w", diffIDs[i], err)
+			return fmt.Errorf("failed to extract layer (%s %s) to %s as %q: %w", desc.MediaType, desc.Digest, unpack.SnapshotterKey, key, err)
 		}
 		if diff.Digest != diffIDs[i] {
 			cleanup.Do(ctx, abort)
