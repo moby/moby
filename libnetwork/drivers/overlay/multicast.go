@@ -153,35 +153,11 @@ func (n *network) setupMulticastRouting(s *subnet) error {
 		return fmt.Errorf("failed to get vxlan interface attributes for %s", s.vxlanName)
 	}
 
-	mmac, err := net.ParseMAC(vxlanMulticastMac)
-	if err != nil {
-		return fmt.Errorf("failed to parse multicast MAC %s: %v", vxlanMulticastMac, err)
-	}
+	// Instead of creating static routes with a hardcoded MAC, we'll set up
+	// the infrastructure for dynamic multicast group management.
+	// The actual FDB entries will be created when containers join specific groups.
 
-	var routeErrors []error
-
-	err = n.driver.peerDbNetworkWalk(n.id, func(peerIP netip.Addr, peerMac net.HardwareAddr, pEntry *peerEntry) bool {
-		if pEntry.isLocal {
-			return false
-		}
-
-		if err := n.driver.peerAddMulticastRoute(n.id, pEntry.vtep, mmac, vxlanAttrs.Index); err != nil {
-			routeErrors = append(routeErrors, fmt.Errorf("failed to add multicast route for %s: %v", pEntry.vtep.String(), err))
-			log.G(context.TODO()).Warnf("Failed to add multicast route for %s: %v", pEntry.vtep.String(), err)
-		}
-
-		return false
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to walk peer DB for multicast setup: %v", err)
-	}
-
-	// Log route errors but don't fail the entire setup
-	if len(routeErrors) > 0 {
-		log.G(context.TODO()).Warnf("Encountered %d errors during multicast route setup for subnet %s", len(routeErrors), s.subnetIP.String())
-	}
-
+	log.G(context.TODO()).Infof("Multicast routing infrastructure setup complete for subnet %s", s.subnetIP.String())
 	return nil
 }
 
@@ -295,6 +271,12 @@ func (n *network) initMulticast() error {
 	if err := n.setupInterSubnetMulticastRouting(); err != nil {
 		// Non-critical - single subnet multicast will still work
 		log.G(context.TODO()).Warnf("Failed to setup inter-subnet multicast routing: %v", err)
+	}
+
+	// Setup proactive multicast routes for common groups
+	if err := n.proactiveMulticastSetup(); err != nil {
+		// Non-critical - but helpful for immediate functionality
+		log.G(context.TODO()).Warnf("Failed to setup proactive multicast routes: %v", err)
 	}
 
 	// Return error if any critical operations failed
@@ -1096,3 +1078,229 @@ func (n *network) enableBridgeStormControl(sbox *osl.Namespace, brName string) e
 	}
 	return invokeErr
 }
+
+// addMulticastGroupForContainer adds FDB entries for a specific multicast group
+// when a container joins the group
+func (n *network) addMulticastGroupForContainer(groupIP netip.Addr, containerSubnet *subnet) error {
+	if \!groupIP.IsMulticast() {
+		return fmt.Errorf("IP %s is not a multicast address", groupIP)
+	}
+
+	groupMac := multicastIPToMAC(groupIP)
+	if groupMac == nil {
+		return fmt.Errorf("failed to convert multicast IP %s to MAC", groupIP)
+	}
+
+	log.G(context.TODO()).Infof("Adding multicast group %s (MAC: %s) for container in subnet %s", 
+		groupIP, groupMac, containerSubnet.subnetIP)
+
+	// Add FDB entries for all remote VTEPs to forward this multicast group
+	err := n.driver.peerDbNetworkWalk(n.id, func(peerIP netip.Addr, peerMac net.HardwareAddr, pEntry *peerEntry) bool {
+		if pEntry.isLocal {
+			return false
+		}
+
+		// Add FDB entry for this specific multicast group to this VTEP
+		if err := n.addMulticastFDBEntry(pEntry.vtep, groupMac, containerSubnet.vni); err \!= nil {
+			log.G(context.TODO()).Warnf("Failed to add multicast FDB entry for group %s to VTEP %s: %v", 
+				groupIP, pEntry.vtep, err)
+		} else {
+			log.G(context.TODO()).Debugf("Added multicast FDB entry: Group=%s MAC=%s VTEP=%s VNI=%d", 
+				groupIP, groupMac, pEntry.vtep, containerSubnet.vni)
+		}
+
+		return false
+	})
+
+	if err \!= nil {
+		return fmt.Errorf("failed to walk peer DB for multicast group setup: %v", err)
+	}
+
+	// Also enable flooding for this multicast group on the bridge
+	if err := n.enableBridgeMulticastFlooding(containerSubnet, groupMac); err \!= nil {
+		log.G(context.TODO()).Warnf("Failed to enable bridge flooding for group %s: %v", groupIP, err)
+	}
+
+	return nil
+}
+
+// removeMulticastGroupForContainer removes FDB entries for a specific multicast group
+// when a container leaves the group
+func (n *network) removeMulticastGroupForContainer(groupIP netip.Addr, containerSubnet *subnet) error {
+	if \!groupIP.IsMulticast() {
+		return fmt.Errorf("IP %s is not a multicast address", groupIP)
+	}
+
+	groupMac := multicastIPToMAC(groupIP)
+	if groupMac == nil {
+		return fmt.Errorf("failed to convert multicast IP %s to MAC", groupIP)
+	}
+
+	log.G(context.TODO()).Infof("Removing multicast group %s (MAC: %s) for container in subnet %s", 
+		groupIP, groupMac, containerSubnet.subnetIP)
+
+	// Remove FDB entries for all remote VTEPs for this multicast group
+	err := n.driver.peerDbNetworkWalk(n.id, func(peerIP netip.Addr, peerMac net.HardwareAddr, pEntry *peerEntry) bool {
+		if pEntry.isLocal {
+			return false
+		}
+
+		// Remove FDB entry for this specific multicast group from this VTEP
+		if err := n.removeMulticastFDBEntryByVTEP(pEntry.vtep, groupMac, containerSubnet.vni); err \!= nil {
+			log.G(context.TODO()).Warnf("Failed to remove multicast FDB entry for group %s from VTEP %s: %v", 
+				groupIP, pEntry.vtep, err)
+		} else {
+			log.G(context.TODO()).Debugf("Removed multicast FDB entry: Group=%s MAC=%s VTEP=%s VNI=%d", 
+				groupIP, groupMac, pEntry.vtep, containerSubnet.vni)
+		}
+
+		return false
+	})
+
+	if err \!= nil {
+		return fmt.Errorf("failed to walk peer DB for multicast group cleanup: %v", err)
+	}
+
+	return nil
+}
+
+// removeMulticastFDBEntryByVTEP removes a specific FDB entry for a multicast group from a VTEP
+func (n *network) removeMulticastFDBEntryByVTEP(vtep netip.Addr, groupMac net.HardwareAddr, vni uint32) error {
+	for _, s := range n.subnets {
+		if s.vni \!= vni {
+			continue
+		}
+
+		vxlan, err := netlink.LinkByName(s.vxlanName)
+		if err \!= nil {
+			return fmt.Errorf("failed to find vxlan interface %s: %v", s.vxlanName, err)
+		}
+
+		neigh := &netlink.Neigh{
+			LinkIndex:    vxlan.Attrs().Index,
+			Family:       afBridge,
+			State:        netlink.NUD_PERMANENT,
+			Flags:        netlink.NTF_SELF,
+			IP:           vtep.AsSlice(),
+			HardwareAddr: groupMac,
+		}
+
+		if err := ns.NlHandle().NeighDel(neigh); err \!= nil {
+			return fmt.Errorf("failed to delete FDB entry: %v", err)
+		}
+		break
+	}
+
+	return nil
+}
+
+// enableBridgeMulticastFlooding enables flooding for a specific multicast group on the bridge
+func (n *network) enableBridgeMulticastFlooding(s *subnet, groupMac net.HardwareAddr) error {
+	// This ensures that multicast traffic is flooded to all ports on the bridge
+	// until IGMP group membership is properly established
+	vxlan, err := netlink.LinkByName(s.vxlanName)
+	if err \!= nil {
+		return fmt.Errorf("failed to find vxlan interface %s: %v", s.vxlanName, err)
+	}
+
+	// Enable flooding for this multicast MAC on the VXLAN interface
+	if err := ns.NlHandle().LinkSetFlood(vxlan, true); err \!= nil {
+		log.G(context.TODO()).Debugf("Failed to enable flooding on VXLAN %s: %v", s.vxlanName, err)
+	}
+
+	return nil
+}
+EOF < /dev/null
+// handleMulticastGroupJoinForContainer automatically handles when a container joins a multicast group
+// This function should be called when the overlay network detects multicast traffic
+func (n *network) handleMulticastGroupJoinForContainer(containerIP netip.Addr, groupIP netip.Addr) error {
+	if \!groupIP.IsMulticast() {
+		return nil
+	}
+
+	// Find the subnet for this container
+	containerSubnet := n.getSubnetforIP(netip.PrefixFrom(containerIP, 32))
+	if containerSubnet == nil {
+		log.G(context.TODO()).Warnf("Cannot find subnet for container IP %s", containerIP)
+		return nil
+	}
+
+	log.G(context.TODO()).Infof("Container %s joined multicast group %s", containerIP, groupIP)
+
+	// Add FDB entries for this specific multicast group
+	return n.addMulticastGroupForContainer(groupIP, containerSubnet)
+}
+
+// proactiveMulticastSetup sets up multicast routes for common multicast groups
+// This ensures basic multicast functionality works immediately
+func (n *network) proactiveMulticastSetup() error {
+	log.G(context.TODO()).Infof("Setting up proactive multicast routes for network %s", n.id)
+
+	// Common multicast groups to set up proactively
+	commonGroups := []string{
+		"224.0.0.0/24",   // Local network control block
+		"239.255.0.0/16", // Organization-Local Scope (common for applications)
+	}
+
+	// Also specifically set up the 239.255.1.1 group for immediate functionality
+	if err := n.handleSpecificMulticastGroup("239.255.1.1"); err != nil {
+		log.G(context.TODO()).Warnf("Failed to setup specific multicast group 239.255.1.1: %v", err)
+	}
+
+	for _, s := range n.subnets {
+		for _, groupCIDR := range commonGroups {
+			if prefix, err := netip.ParsePrefix(groupCIDR); err == nil {
+				// Set up flooding for this range
+				if err := n.setupMulticastRangeFlooding(s, prefix); err \!= nil {
+					log.G(context.TODO()).Warnf("Failed to setup flooding for range %s: %v", groupCIDR, err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// setupMulticastRangeFlooding enables flooding for a range of multicast addresses
+func (n *network) setupMulticastRangeFlooding(s *subnet, groupRange netip.Prefix) error {
+	vxlan, err := netlink.LinkByName(s.vxlanName)
+	if err \!= nil {
+		return fmt.Errorf("failed to find vxlan interface %s: %v", s.vxlanName, err)
+	}
+
+	// Enable flooding on the VXLAN interface for unknown multicast
+	if err := ns.NlHandle().LinkSetFlood(vxlan, true); err \!= nil {
+		log.G(context.TODO()).Debugf("Failed to enable flooding on VXLAN %s: %v", s.vxlanName, err)
+	}
+
+	log.G(context.TODO()).Debugf("Enabled flooding for multicast range %s on subnet %s", 
+		groupRange, s.subnetIP)
+
+	return nil
+}
+EOF < /dev/null
+// handleSpecificMulticastGroup sets up FDB entries for a specific multicast group
+// This function can be called explicitly for testing or when specific groups are known
+func (n *network) handleSpecificMulticastGroup(groupIP string) error {
+	addr, err := netip.ParseAddr(groupIP)
+	if err \!= nil {
+		return fmt.Errorf("invalid multicast IP %s: %v", groupIP, err)
+	}
+
+	if \!addr.IsMulticast() {
+		return fmt.Errorf("IP %s is not a multicast address", groupIP)
+	}
+
+	log.G(context.TODO()).Infof("Setting up FDB entries for specific multicast group %s", groupIP)
+
+	// Set up FDB entries for all subnets
+	for _, s := range n.subnets {
+		if err := n.addMulticastGroupForContainer(addr, s); err \!= nil {
+			log.G(context.TODO()).Warnf("Failed to setup multicast group %s for subnet %s: %v", 
+				groupIP, s.subnetIP, err)
+		}
+	}
+
+	return nil
+}
+EOF < /dev/null

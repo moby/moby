@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -443,6 +444,7 @@ func (n *network) getBridgeNamePrefix(s *subnet) string {
 }
 
 func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error {
+	log.G(context.TODO()).Infof("SETUP_SUBNET_SANDBOX called for network %s subnet %s bridge %s vxlan %s", n.id, s.subnetIP.String(), brName, vxlanName)
 	// Try to find this subnet's vni is being used in some
 	// other namespace by looking at vniTbl that we just
 	// populated in the once init. If a hit is found then
@@ -511,6 +513,16 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 
 	if err := n.enableBridgeStormControl(sbox, brName); err != nil {
 		log.G(context.TODO()).WithError(err).Warnf("failed to enable storm control on bridge %s", brName)
+	}
+
+	// Initialize multicast functionality now that all interfaces are ready
+	// Use "br0" as the actual bridge name in the overlay network namespace
+	log.G(context.TODO()).Infof("About to initialize multicast for network %s subnet %s", n.id, s.subnetIP.String())
+	if err := n.initMulticastForSubnet(s, sbox, "br0", vxlanName); err != nil {
+		log.G(context.TODO()).Warnf("Failed to initialize multicast for network %s: %v", n.id, err)
+		// Non-fatal error - network can still function without full multicast support
+	} else {
+		log.G(context.TODO()).Infof("Successfully initialized multicast for network %s", n.id)
 	}
 
 	return nil
@@ -587,6 +599,12 @@ func (n *network) enableBridgeMulticast(sbox *osl.Namespace, brName string) erro
 			log.G(context.TODO()).Debugf("Failed to enable IGMP snooping: %v", err)
 		}
 
+		// Enable unknown multicast flooding (critical for initial multicast traffic)
+		floodingPath := fmt.Sprintf("/sys/class/net/%s/bridge/multicast_flood", brName)
+		if err := os.WriteFile(floodingPath, []byte("1"), 0644); err != nil {
+			log.G(context.TODO()).Debugf("Failed to enable multicast flooding: %v", err)
+		}
+
 		// Set multicast router mode (2 = auto)
 		routerPath := fmt.Sprintf("/sys/class/net/%s/bridge/multicast_router", brName)
 		if err := os.WriteFile(routerPath, []byte("2"), 0644); err != nil {
@@ -625,6 +643,7 @@ func (n *network) enableBridgeMulticast(sbox *osl.Namespace, brName string) erro
 
 // Must be called with the network lock
 func (n *network) initSubnetSandbox(s *subnet) error {
+	log.G(context.TODO()).Infof("INIT_SUBNET_SANDBOX called for network %s subnet %s", n.id, s.subnetIP.String())
 	brName := n.generateBridgeName(s)
 	vxlanName := n.generateVxlanName(s)
 
@@ -737,6 +756,17 @@ func (n *network) getSubnetforIP(ip netip.Prefix) *subnet {
 			continue
 		}
 		if s.subnetIP.Contains(ip.Addr()) {
+			return s
+		}
+	}
+	return nil
+}
+
+
+// getSubnetforIPPrefix returns the subnet to which the given IP prefix belongs
+func (n *network) getSubnetforIPPrefix(ip netip.Prefix) *subnet {
+	for _, s := range n.subnets {
+		if s.subnetIP.Contains(ip.Addr().AsSlice()) {
 			return s
 		}
 	}
