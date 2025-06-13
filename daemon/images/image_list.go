@@ -105,7 +105,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 
 	var (
 		summaries     = make([]*imagetypes.Summary, 0, len(selectedImages))
-		summaryMap    map[*image.Image]*imagetypes.Summary
+		summaryMap    = make(map[*image.Image]*imagetypes.Summary, len(selectedImages))
 		allContainers []*container.Container
 	)
 	for id, img := range selectedImages {
@@ -198,30 +198,20 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 			continue
 		}
 
-		if opts.ContainerCount {
-			// Lazily init allContainers.
-			if allContainers == nil {
-				allContainers = i.containers.List()
-			}
-
-			// Get container count
-			var containers int64
-			for _, c := range allContainers {
-				if c.ImageID == id {
-					containers++
-				}
-			}
-			// NOTE: By default, Containers is -1, or "not set"
-			summary.Containers = containers
+		// Lazily init allContainers.
+		if allContainers == nil {
+			allContainers = i.containers.List()
 		}
 
-		if opts.ContainerCount || opts.SharedSize {
-			// Lazily init summaryMap.
-			if summaryMap == nil {
-				summaryMap = make(map[*image.Image]*imagetypes.Summary, len(selectedImages))
+		// Get container count
+		var containersCount int64
+		for _, c := range allContainers {
+			if c.ImageID == id {
+				containersCount++
 			}
-			summaryMap[img] = summary
 		}
+		summary.Containers = containersCount
+		summaryMap[img] = summary
 		summaries = append(summaries, summary)
 	}
 

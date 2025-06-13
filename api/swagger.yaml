@@ -2196,8 +2196,7 @@ definitions:
           Number of containers using this image. Includes both stopped and running
           containers.
 
-          This size is not calculated by default, and depends on which API endpoint
-          is used. `-1` indicates that the value has not been set / calculated.
+          `-1` indicates that the value has not been set / calculated.
         x-nullable: false
         type: "integer"
         example: 2

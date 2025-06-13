@@ -75,6 +75,8 @@ type ListOptions struct {
 	SharedSize bool
 
 	// ContainerCount indicates whether container count should be computed.
+	//
+	// Deprecated: This field has been unused and is no longer required and will be removed in a future version.
 	ContainerCount bool
 
 	// Manifests indicates whether the image manifests should be returned.

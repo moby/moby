@@ -57,9 +57,8 @@ func (daemon *Daemon) imageDiskUsage(ctx context.Context) ([]*image.Summary, err
 	imgs, _, err := daemon.usageImages.Do(ctx, struct{}{}, func(ctx context.Context) ([]*image.Summary, error) {
 		// Get all top images with extra attributes
 		imgs, err := daemon.imageService.Images(ctx, image.ListOptions{
-			Filters:        filters.NewArgs(),
-			SharedSize:     true,
-			ContainerCount: true,
+			Filters:    filters.NewArgs(),
+			SharedSize: true,
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to retrieve image list")
