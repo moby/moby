@@ -119,7 +119,6 @@ linters:
         - appendAssign
         - appendCombine
         - builtinShadow
-        - builtinShadowDecl
         - commentedOutCode
         - deferInLoop
         - dupImport
