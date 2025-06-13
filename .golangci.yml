@@ -118,7 +118,6 @@ linters:
       disabled-checks:
         - appendAssign
         - appendCombine
-        - builtinShadow
         - commentedOutCode
         - deferInLoop
         - dupImport
