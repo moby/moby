@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/moby/moby/api/types/build"
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 )
 
@@ -87,7 +86,7 @@ func (cli *Client) imageBuildOptionsToQuery(ctx context.Context, options build.I
 		query.Set("squash", "1")
 	}
 
-	if !container.Isolation.IsDefault(options.Isolation) {
+	if !options.Isolation.IsDefault() {
 		query.Set("isolation", string(options.Isolation))
 	}
 
