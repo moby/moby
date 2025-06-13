@@ -27,7 +27,7 @@ import (
 
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/namespaces"
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 )
 
 const (
@@ -64,7 +64,7 @@ func ReadSpec(path string) (*Spec, error) {
 // GenerateSpec will generate a default spec from the provided image
 // for use as a containerd container
 func GenerateSpec(ctx context.Context, client Client, c *containers.Container, opts ...SpecOpts) (*Spec, error) {
-	return GenerateSpecWithPlatform(ctx, client, platforms.DefaultString(), c, opts...)
+	return GenerateSpecWithPlatform(ctx, client, platforms.Format(platforms.DefaultSpec()), c, opts...) // For 1.7 continue using the old format without os-version included.
 }
 
 // GenerateSpecWithPlatform will generate a default spec from the provided image

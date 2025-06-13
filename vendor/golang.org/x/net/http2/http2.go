@@ -17,24 +17,28 @@ package http2 // import "golang.org/x/net/http2"
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
-	"io"
+	"net"
 	"net/http"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/net/http/httpguts"
 )
 
 var (
-	VerboseLogs    bool
-	logFrameWrites bool
-	logFrameReads  bool
-	inTests        bool
+	VerboseLogs                    bool
+	logFrameWrites                 bool
+	logFrameReads                  bool
+	inTests                        bool
+	disableExtendedConnectProtocol bool
 )
 
 func init() {
@@ -46,6 +50,9 @@ func init() {
 		VerboseLogs = true
 		logFrameWrites = true
 		logFrameReads = true
+	}
+	if strings.Contains(e, "http2xconnect=0") {
+		disableExtendedConnectProtocol = true
 	}
 }
 
@@ -138,6 +145,10 @@ func (s Setting) Valid() error {
 		if s.Val < 16384 || s.Val > 1<<24-1 {
 			return ConnectionError(ErrCodeProtocol)
 		}
+	case SettingEnableConnectProtocol:
+		if s.Val != 1 && s.Val != 0 {
+			return ConnectionError(ErrCodeProtocol)
+		}
 	}
 	return nil
 }
@@ -147,21 +158,23 @@ func (s Setting) Valid() error {
 type SettingID uint16
 
 const (
-	SettingHeaderTableSize      SettingID = 0x1
-	SettingEnablePush           SettingID = 0x2
-	SettingMaxConcurrentStreams SettingID = 0x3
-	SettingInitialWindowSize    SettingID = 0x4
-	SettingMaxFrameSize         SettingID = 0x5
-	SettingMaxHeaderListSize    SettingID = 0x6
+	SettingHeaderTableSize       SettingID = 0x1
+	SettingEnablePush            SettingID = 0x2
+	SettingMaxConcurrentStreams  SettingID = 0x3
+	SettingInitialWindowSize     SettingID = 0x4
+	SettingMaxFrameSize          SettingID = 0x5
+	SettingMaxHeaderListSize     SettingID = 0x6
+	SettingEnableConnectProtocol SettingID = 0x8
 )
 
 var settingName = map[SettingID]string{
-	SettingHeaderTableSize:      "HEADER_TABLE_SIZE",
-	SettingEnablePush:           "ENABLE_PUSH",
-	SettingMaxConcurrentStreams: "MAX_CONCURRENT_STREAMS",
-	SettingInitialWindowSize:    "INITIAL_WINDOW_SIZE",
-	SettingMaxFrameSize:         "MAX_FRAME_SIZE",
-	SettingMaxHeaderListSize:    "MAX_HEADER_LIST_SIZE",
+	SettingHeaderTableSize:       "HEADER_TABLE_SIZE",
+	SettingEnablePush:            "ENABLE_PUSH",
+	SettingMaxConcurrentStreams:  "MAX_CONCURRENT_STREAMS",
+	SettingInitialWindowSize:     "INITIAL_WINDOW_SIZE",
+	SettingMaxFrameSize:          "MAX_FRAME_SIZE",
+	SettingMaxHeaderListSize:     "MAX_HEADER_LIST_SIZE",
+	SettingEnableConnectProtocol: "ENABLE_CONNECT_PROTOCOL",
 }
 
 func (s SettingID) String() string {
@@ -210,12 +223,6 @@ type stringWriter interface {
 	WriteString(s string) (n int, err error)
 }
 
-// A gate lets two goroutines coordinate their activities.
-type gate chan struct{}
-
-func (g gate) Done() { g <- struct{}{} }
-func (g gate) Wait() { <-g }
-
 // A closeWaiter is like a sync.WaitGroup but only goes 1 to 0 (open to closed).
 type closeWaiter chan struct{}
 
@@ -241,13 +248,19 @@ func (cw closeWaiter) Wait() {
 // Its buffered writer is lazily allocated as needed, to minimize
 // idle memory usage with many connections.
 type bufferedWriter struct {
-	_  incomparable
-	w  io.Writer     // immutable
-	bw *bufio.Writer // non-nil when data is buffered
+	_           incomparable
+	group       synctestGroupInterface // immutable
+	conn        net.Conn               // immutable
+	bw          *bufio.Writer          // non-nil when data is buffered
+	byteTimeout time.Duration          // immutable, WriteByteTimeout
 }
 
-func newBufferedWriter(w io.Writer) *bufferedWriter {
-	return &bufferedWriter{w: w}
+func newBufferedWriter(group synctestGroupInterface, conn net.Conn, timeout time.Duration) *bufferedWriter {
+	return &bufferedWriter{
+		group:       group,
+		conn:        conn,
+		byteTimeout: timeout,
+	}
 }
 
 // bufWriterPoolBufferSize is the size of bufio.Writer's
@@ -274,7 +287,7 @@ func (w *bufferedWriter) Available() int {
 func (w *bufferedWriter) Write(p []byte) (n int, err error) {
 	if w.bw == nil {
 		bw := bufWriterPool.Get().(*bufio.Writer)
-		bw.Reset(w.w)
+		bw.Reset((*bufferedWriterTimeoutWriter)(w))
 		w.bw = bw
 	}
 	return w.bw.Write(p)
@@ -290,6 +303,38 @@ func (w *bufferedWriter) Flush() error {
 	bufWriterPool.Put(bw)
 	w.bw = nil
 	return err
+}
+
+type bufferedWriterTimeoutWriter bufferedWriter
+
+func (w *bufferedWriterTimeoutWriter) Write(p []byte) (n int, err error) {
+	return writeWithByteTimeout(w.group, w.conn, w.byteTimeout, p)
+}
+
+// writeWithByteTimeout writes to conn.
+// If more than timeout passes without any bytes being written to the connection,
+// the write fails.
+func writeWithByteTimeout(group synctestGroupInterface, conn net.Conn, timeout time.Duration, p []byte) (n int, err error) {
+	if timeout <= 0 {
+		return conn.Write(p)
+	}
+	for {
+		var now time.Time
+		if group == nil {
+			now = time.Now()
+		} else {
+			now = group.Now()
+		}
+		conn.SetWriteDeadline(now.Add(timeout))
+		nn, err := conn.Write(p[n:])
+		n += nn
+		if n == len(p) || nn == 0 || !errors.Is(err, os.ErrDeadlineExceeded) {
+			// Either we finished the write, made no progress, or hit the deadline.
+			// Whichever it is, we're done now.
+			conn.SetWriteDeadline(time.Time{})
+			return n, err
+		}
+	}
 }
 
 func mustUint31(v int32) uint32 {
@@ -383,3 +428,14 @@ func validPseudoPath(v string) bool {
 // makes that struct also non-comparable, and generally doesn't add
 // any size (as long as it's first).
 type incomparable [0]func()
+
+// synctestGroupInterface is the methods of synctestGroup used by Server and Transport.
+// It's defined as an interface here to let us keep synctestGroup entirely test-only
+// and not a part of non-test builds.
+type synctestGroupInterface interface {
+	Join()
+	Now() time.Time
+	NewTimer(d time.Duration) timer
+	AfterFunc(d time.Duration, f func()) timer
+	ContextWithTimeout(ctx context.Context, d time.Duration) (context.Context, context.CancelFunc)
+}

@@ -26,15 +26,16 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/containerd/log"
+	"github.com/containerd/platforms"
+	digest "github.com/opencontainers/go-digest"
+	ocispecs "github.com/opencontainers/image-spec/specs-go"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/labels"
-	"github.com/containerd/containerd/platforms"
-	"github.com/containerd/log"
-	digest "github.com/opencontainers/go-digest"
-	ocispecs "github.com/opencontainers/image-spec/specs-go"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type exportOptions struct {
@@ -148,7 +149,7 @@ func WithSkipNonDistributableBlobs() ExportOpt {
 // The manifest itself is excluded only if it's not present locally.
 // This allows to export multi-platform images if not all platforms are present
 // while still persisting the multi-platform index.
-func WithSkipMissing(store ContentProvider) ExportOpt {
+func WithSkipMissing(store content.InfoReaderProvider) ExportOpt {
 	return func(ctx context.Context, o *exportOptions) error {
 		o.blobRecordOptions.childrenHandler = images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) (subdescs []ocispec.Descriptor, err error) {
 			children, err := images.Children(ctx, store, desc)
@@ -209,12 +210,6 @@ func copySourceLabels(ctx context.Context, infoProvider content.InfoProvider, de
 		}
 	}
 	return desc, nil
-}
-
-// ContentProvider provides both content and info about content
-type ContentProvider interface {
-	content.Provider
-	content.InfoProvider
 }
 
 // Export implements Exporter.
@@ -477,6 +472,7 @@ func ociIndexRecord(manifests []ocispec.Descriptor) tarRecord {
 		Versioned: ocispecs.Versioned{
 			SchemaVersion: 2,
 		},
+		MediaType: ocispec.MediaTypeImageIndex,
 		Manifests: manifests,
 	}
 

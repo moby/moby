@@ -26,10 +26,11 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/containerd/log"
+	"github.com/opencontainers/go-digest"
+
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/log"
-	"github.com/opencontainers/go-digest"
 )
 
 // writer represents a write transaction against the blob store.

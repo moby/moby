@@ -6,8 +6,8 @@ import (
 	"context"
 	"sort"
 
-	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/log"
+	"github.com/containerd/platforms"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

@@ -12,9 +12,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
+	"github.com/moby/sys/userns"
 	"golang.org/x/sys/unix"
 )
 

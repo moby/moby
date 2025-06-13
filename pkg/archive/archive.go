@@ -20,7 +20,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/log"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
@@ -29,6 +28,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 	"github.com/moby/patternmatcher"
 	"github.com/moby/sys/sequential"
+	"github.com/moby/sys/userns"
 	"github.com/pkg/errors"
 )
 

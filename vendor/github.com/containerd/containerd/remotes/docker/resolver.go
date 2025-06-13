@@ -25,20 +25,23 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"strings"
+	"sync"
+
+	"github.com/containerd/log"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker/schema1" //nolint:staticcheck // Ignore SA1019. Need to keep deprecated package for compatibility.
 	remoteerrors "github.com/containerd/containerd/remotes/errors"
 	"github.com/containerd/containerd/tracing"
 	"github.com/containerd/containerd/version"
-	"github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 var (
@@ -704,9 +707,92 @@ func IsLocalhost(host string) bool {
 	return ip.IsLoopback()
 }
 
+// NewHTTPFallback returns http.RoundTripper which allows fallback from https to
+// http for registry endpoints with configurations for both http and TLS,
+// such as defaulted localhost endpoints.
+func NewHTTPFallback(transport http.RoundTripper) http.RoundTripper {
+	return &httpFallback{
+		super: transport,
+	}
+}
+
+type httpFallback struct {
+	super http.RoundTripper
+	host  string
+	mu    sync.Mutex
+}
+
+func (f *httpFallback) RoundTrip(r *http.Request) (*http.Response, error) {
+	f.mu.Lock()
+	fallback := f.host == r.URL.Host
+	f.mu.Unlock()
+
+	// only fall back if the same host had previously fell back
+	if !fallback {
+		resp, err := f.super.RoundTrip(r)
+		if !isTLSError(err) && !isPortError(err, r.URL.Host) {
+			return resp, err
+		}
+	}
+
+	plainHTTPUrl := *r.URL
+	plainHTTPUrl.Scheme = "http"
+
+	plainHTTPRequest := *r
+	plainHTTPRequest.URL = &plainHTTPUrl
+
+	if !fallback {
+		f.mu.Lock()
+		if f.host != r.URL.Host {
+			f.host = r.URL.Host
+		}
+		f.mu.Unlock()
+
+		// update body on the second attempt
+		if r.Body != nil && r.GetBody != nil {
+			body, err := r.GetBody()
+			if err != nil {
+				return nil, err
+			}
+			plainHTTPRequest.Body = body
+		}
+	}
+
+	return f.super.RoundTrip(&plainHTTPRequest)
+}
+
+func isTLSError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var tlsErr tls.RecordHeaderError
+	if errors.As(err, &tlsErr) && string(tlsErr.RecordHeader[:]) == "HTTP/" {
+		return true
+	}
+	if strings.Contains(err.Error(), "TLS handshake timeout") {
+		return true
+	}
+
+	return false
+}
+
+func isPortError(err error, host string) bool {
+	if isConnError(err) || os.IsTimeout(err) {
+		if _, port, _ := net.SplitHostPort(host); port != "" {
+			// Port is specified, will not retry on different port with scheme change
+			return false
+		}
+		return true
+	}
+
+	return false
+}
+
 // HTTPFallback is an http.RoundTripper which allows fallback from https to http
 // for registry endpoints with configurations for both http and TLS, such as
 // defaulted localhost endpoints.
+//
+// Deprecated: Use NewHTTPFallback instead.
 type HTTPFallback struct {
 	http.RoundTripper
 }
@@ -721,6 +807,14 @@ func (f HTTPFallback) RoundTrip(r *http.Request) (*http.Response, error) {
 
 		plainHTTPRequest := *r
 		plainHTTPRequest.URL = &plainHTTPUrl
+
+		if r.Body != nil && r.GetBody != nil {
+			body, err := r.GetBody()
+			if err != nil {
+				return nil, err
+			}
+			plainHTTPRequest.Body = body
+		}
 
 		return f.RoundTripper.RoundTrip(&plainHTTPRequest)
 	}
