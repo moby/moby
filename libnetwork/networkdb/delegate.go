@@ -135,9 +135,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 	}
 
 	// This remote network join is being seen the first time.
-	nodeNetworks[nEvent.NetworkID] = &network{
-		ltime: nEvent.LTime,
-	}
+	nodeNetworks[nEvent.NetworkID] = &network{ltime: nEvent.LTime}
 
 	nDB.addNetworkNode(nEvent.NetworkID, nEvent.NodeName)
 	return true
@@ -154,8 +152,7 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 	defer nDB.Unlock()
 
 	// Ignore the table events for networks that are in the process of going away
-	networks := nDB.networks[nDB.config.NodeID]
-	network, ok := networks[tEvent.NetworkID]
+	network, ok := nDB.thisNodeNetworks[tEvent.NetworkID]
 	// Check if the owner of the event is still part of the network
 	nodes := nDB.networkNodes[tEvent.NetworkID]
 	var nodePresent bool
@@ -286,11 +283,11 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 		}
 
 		nDB.RLock()
-		n, ok := nDB.networks[nDB.config.NodeID][tEvent.NetworkID]
+		n, ok := nDB.thisNodeNetworks[tEvent.NetworkID]
 		nDB.RUnlock()
 
-		// if the network is not there anymore, OR we are leaving the network OR the broadcast queue is not present
-		if !ok || n.leaving || n.tableBroadcasts == nil {
+		// if the network is not there anymore, OR we are leaving the network
+		if !ok || n.leaving {
 			return
 		}
 
@@ -450,6 +447,14 @@ func (d *delegate) LocalState(join bool) []byte {
 		NodeName: d.nDB.config.NodeID,
 	}
 
+	for nid, n := range d.nDB.thisNodeNetworks {
+		pp.Networks = append(pp.Networks, &NetworkEntry{
+			LTime:     n.ltime,
+			NetworkID: nid,
+			NodeName:  d.nDB.config.NodeID,
+			Leaving:   n.leaving,
+		})
+	}
 	for name, nn := range d.nDB.networks {
 		for nid, n := range nn {
 			pp.Networks = append(pp.Networks, &NetworkEntry{

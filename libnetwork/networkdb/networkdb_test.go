@@ -111,25 +111,23 @@ func (nDB *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id strin
 	}
 	for i := int64(0); i < maxRetries; i++ {
 		nDB.RLock()
-		nn, nnok := nDB.networks[node]
-		if nnok {
-			n, ok := nn[id]
-			var leaving bool
-			if ok {
-				leaving = n.leaving
-			}
-			nDB.RUnlock()
-			if present && ok {
-				return
-			}
-
-			if !present &&
-				((ok && leaving) ||
-					!ok) {
-				return
+		var vn *network
+		if node == nDB.config.NodeID {
+			if n, ok := nDB.thisNodeNetworks[id]; ok {
+				vn = &n.network
 			}
 		} else {
-			nDB.RUnlock()
+			if nn, nnok := nDB.networks[node]; nnok {
+				if n, ok := nn[id]; ok {
+					vn = n
+				}
+			}
+		}
+		exists := vn != nil && !vn.leaving
+		nDB.RUnlock()
+
+		if present == exists {
+			return
 		}
 
 		time.Sleep(sleepInterval)
@@ -546,15 +544,15 @@ func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 	// Wait for the propagation on db[0]
 	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
 	witness0("network1", 2)
-	if n, ok := dbs[0].networks[dbs[0].config.NodeID]["network1"]; !ok || n.leaving {
-		t.Fatalf("The network should not be marked as leaving:%t", n.leaving)
+	if n, ok := dbs[0].thisNodeNetworks["network1"]; !ok || n.leaving {
+		t.Fatal("The network should not be marked as leaving")
 	}
 
 	// Wait for the propagation on db[1]
 	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
 	witness1("network1", 2)
-	if n, ok := dbs[1].networks[dbs[1].config.NodeID]["network1"]; !ok || n.leaving {
-		t.Fatalf("The network should not be marked as leaving:%t", n.leaving)
+	if n, ok := dbs[1].thisNodeNetworks["network1"]; !ok || n.leaving {
+		t.Fatal("The network should not be marked as leaving")
 	}
 
 	// Try a quick leave/join
@@ -599,7 +597,7 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 	}
 	for i := 0; i < 2; i++ {
 		dbs[i].Lock()
-		assert.Check(t, is.Equal(int64(keysWriteDelete), dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber.Load()), "entries number should match")
+		assert.Check(t, is.Equal(int64(keysWriteDelete), dbs[i].thisNodeNetworks["network1"].entriesNumber.Load()), "entries number should match")
 		dbs[i].Unlock()
 	}
 
@@ -610,14 +608,14 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 	assert.NilError(t, err)
 	for i := 0; i < 3; i++ {
 		dbs[i].Lock()
-		assert.Check(t, is.Equal(int64(keysWriteDelete), dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber.Load()), "entries number should match")
+		assert.Check(t, is.Equal(int64(keysWriteDelete), dbs[i].thisNodeNetworks["network1"].entriesNumber.Load()), "entries number should match")
 		dbs[i].Unlock()
 	}
 	// at this point the entries should had been all deleted
 	time.Sleep(30 * time.Second)
 	for i := 0; i < 3; i++ {
 		dbs[i].Lock()
-		assert.Check(t, is.Equal(int64(0), dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber.Load()), "entries should had been garbage collected")
+		assert.Check(t, is.Equal(int64(0), dbs[i].thisNodeNetworks["network1"].entriesNumber.Load()), "entries should had been garbage collected")
 		dbs[i].Unlock()
 	}
 
@@ -625,7 +623,7 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 	time.Sleep(15 * time.Second)
 	for i := 0; i < 3; i++ {
 		dbs[i].Lock()
-		assert.Check(t, is.Equal(int64(0), dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber.Load()), "entries should had been garbage collected")
+		assert.Check(t, is.Equal(int64(0), dbs[i].thisNodeNetworks["network1"].entriesNumber.Load()), "entries should had been garbage collected")
 		dbs[i].Unlock()
 	}
 
