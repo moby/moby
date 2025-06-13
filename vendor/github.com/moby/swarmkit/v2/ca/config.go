@@ -15,14 +15,15 @@ import (
 
 	cfconfig "github.com/cloudflare/cfssl/config"
 	events "github.com/docker/go-events"
+	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
+	"google.golang.org/grpc/credentials"
+
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/connectionbroker"
 	"github.com/moby/swarmkit/v2/identity"
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/watch"
-	"github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
-	"google.golang.org/grpc/credentials"
 )
 
 const (
@@ -649,6 +650,7 @@ func NewServerTLSConfig(certs []tls.Certificate, rootCAPool *x509.CertPool) (*tl
 		ClientCAs:                rootCAPool,
 		PreferServerCipherSuites: true,
 		MinVersion:               tls.VersionTLS12,
+		NextProtos:               alpnProtoStr,
 	}, nil
 }
 
