@@ -17,7 +17,7 @@ var (
 // PreserveTrailingDotOrSeparator returns the given cleaned path.
 //
 // Deprecated: use [archive.PreserveTrailingDotOrSeparator] instead.
-func PreserveTrailingDotOrSeparator(cleanedPath string, originalPath string) string {
+func PreserveTrailingDotOrSeparator(cleanedPath, originalPath string) string {
 	return archive.PreserveTrailingDotOrSeparator(cleanedPath, originalPath)
 }
 
@@ -49,7 +49,7 @@ func TarResourceRebase(sourcePath, rebaseName string) (content io.ReadCloser, _ 
 // parameters to be sent to TarWithOptions.
 //
 // Deprecated: use [archive.TarResourceRebaseOpts] instead.
-func TarResourceRebaseOpts(sourceBase string, rebaseName string) *TarOptions {
+func TarResourceRebaseOpts(sourceBase, rebaseName string) *TarOptions {
 	filter := []string{sourceBase}
 	return &TarOptions{
 		Compression:      compression.None,

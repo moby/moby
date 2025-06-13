@@ -711,7 +711,7 @@ func (d *driver) NetworkFree(id string) error {
 func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
 }
 
-func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
+func (d *driver) DecodeTableEntry(tablename, key string, value []byte) (string, map[string]string) {
 	return "", nil
 }
 
@@ -1417,7 +1417,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, epOpts, sbOpts map[string]interface{}) error {
+func (d *driver) Join(ctx context.Context, nid, eid, sboxKey string, jinfo driverapi.JoinInfo, epOpts, sbOpts map[string]interface{}) error {
 	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".Join", trace.WithAttributes(
 		attribute.String("nid", nid),
 		attribute.String("eid", eid),

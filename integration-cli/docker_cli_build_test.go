@@ -1546,7 +1546,7 @@ func (s *DockerCLIBuildSuite) TestBuildContextCleanupFailedBuild(c *testing.T) {
 
 // compareDirectoryEntries compares two sets of DirEntry (usually taken from a directory)
 // and returns an error if different.
-func compareDirectoryEntries(e1 []os.DirEntry, e2 []os.DirEntry) error {
+func compareDirectoryEntries(e1, e2 []os.DirEntry) error {
 	var (
 		e1Entries = make(map[string]struct{})
 		e2Entries = make(map[string]struct{})
