@@ -30,7 +30,7 @@ func testRunWithCgroupNs(ctx context.Context, t *testing.T, daemonNsMode string,
 
 // Bring up a daemon with the specified default cgroup namespace mode. Create a container with the container options,
 // expecting an error with the specified string
-func testCreateFailureWithCgroupNs(ctx context.Context, t *testing.T, daemonNsMode string, errStr string, containerOpts ...func(*container.TestContainerConfig)) {
+func testCreateFailureWithCgroupNs(ctx context.Context, t *testing.T, daemonNsMode, errStr string, containerOpts ...func(*container.TestContainerConfig)) {
 	d := daemon.New(t, daemon.WithDefaultCgroupNamespaceMode(daemonNsMode))
 	apiClient := d.NewClientT(t)
 
