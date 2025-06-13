@@ -120,7 +120,6 @@ linters:
         - dupImport
         - dupSubExpr
         - equalFold
-        - evalOrder
         - exitAfterDefer
         - exposedSyncMutex
         - filepathJoin
