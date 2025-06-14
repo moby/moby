@@ -956,7 +956,7 @@ func (d *driver) deleteNetwork(nid string) error {
 		// it's not in d.networks. To prevent the driver's state from getting out of step
 		// with its parent, make sure it's not in the store before reporting that it does
 		// not exist.
-		if err := d.storeDelete(&networkConfiguration{ID: nid}); err != nil && err != datastore.ErrKeyNotFound {
+		if err := d.storeDelete(&networkConfiguration{ID: nid}); err != nil && !errors.Is(err, datastore.ErrKeyNotFound) {
 			log.G(context.TODO()).WithFields(log.Fields{
 				"error":   err,
 				"network": nid,

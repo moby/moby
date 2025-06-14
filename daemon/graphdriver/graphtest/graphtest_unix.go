@@ -5,6 +5,7 @@ package graphtest
 import (
 	"bytes"
 	"crypto/rand"
+	"errors"
 	"os"
 	"path"
 	"testing"
@@ -312,7 +313,7 @@ func DriverTestSetQuota(t *testing.T, drivername string, required bool) {
 	createOpts.StorageOpt = make(map[string]string, 1)
 	createOpts.StorageOpt["size"] = "50M"
 	layerName := drivername + "Test"
-	if err := driver.CreateReadWrite(layerName, "Base", createOpts); err == quota.ErrQuotaNotSupported && !required {
+	if err := driver.CreateReadWrite(layerName, "Base", createOpts); errors.Is(err, quota.ErrQuotaNotSupported) && !required {
 		t.Skipf("Quota not supported on underlying filesystem: %v", err)
 	} else if err != nil {
 		t.Fatal(err)
@@ -337,7 +338,7 @@ func DriverTestSetQuota(t *testing.T, drivername string, required bool) {
 	if err == nil {
 		t.Fatalf("expected write to fail(), instead had success")
 	}
-	if pathError, ok := err.(*os.PathError); ok && pathError.Err != unix.EDQUOT && pathError.Err != unix.ENOSPC {
+	if pathError, ok := err.(*os.PathError); ok && !errors.Is(pathError.Err, unix.EDQUOT) && !errors.Is(pathError.Err, unix.ENOSPC) {
 		os.Remove(path.Join(mountPath, "bigfile"))
 		t.Fatalf("expect write() to fail with %v or %v, got %v", unix.EDQUOT, unix.ENOSPC, pathError.Err)
 	}

@@ -2,6 +2,7 @@ package defaultipam
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -404,7 +405,7 @@ func TestRequestReleaseAddressFromSubPool(t *testing.T) {
 			ip = c
 		}
 	}
-	if err != ipamapi.ErrNoAvailableIPs {
+	if !errors.Is(err, ipamapi.ErrNoAvailableIPs) {
 		t.Fatal(err)
 	}
 	if !types.CompareIPNet(expected, ip) {
@@ -436,7 +437,7 @@ func TestRequestReleaseAddressFromSubPool(t *testing.T) {
 			ip = c
 		}
 	}
-	if err != ipamapi.ErrNoAvailableIPs {
+	if !errors.Is(err, ipamapi.ErrNoAvailableIPs) {
 		t.Fatal(err)
 	}
 	if !types.CompareIPNet(expected, ip) {
@@ -528,7 +529,7 @@ func TestSerializeRequestReleaseAddressFromSubPool(t *testing.T) {
 			ip = c
 		}
 	}
-	if err != ipamapi.ErrNoAvailableIPs {
+	if !errors.Is(err, ipamapi.ErrNoAvailableIPs) {
 		t.Fatal(err)
 	}
 	if !types.CompareIPNet(expected, ip) {
@@ -560,7 +561,7 @@ func TestSerializeRequestReleaseAddressFromSubPool(t *testing.T) {
 			ip = c
 		}
 	}
-	if err != ipamapi.ErrNoAvailableIPs {
+	if !errors.Is(err, ipamapi.ErrNoAvailableIPs) {
 		t.Fatal(err)
 	}
 	if !types.CompareIPNet(expected, ip) {
@@ -853,7 +854,7 @@ func TestUnusualSubnets(t *testing.T) {
 
 	for _, outside := range outsideTheRangeAddresses {
 		_, _, errx := allocator.RequestAddress(alloc.PoolID, net.ParseIP(outside.address), nil)
-		if errx != ipamapi.ErrIPOutOfRange {
+		if !errors.Is(errx, ipamapi.ErrIPOutOfRange) {
 			t.Fatalf("Address %s failed to throw expected error: %s", outside.address, errx.Error())
 		}
 	}
@@ -873,7 +874,7 @@ func TestUnusualSubnets(t *testing.T) {
 	}
 
 	_, _, err = allocator.RequestAddress(alloc.PoolID, nil, nil)
-	if err != ipamapi.ErrNoAvailableIPs {
+	if !errors.Is(err, ipamapi.ErrNoAvailableIPs) {
 		t.Fatal("Did not get expected error when pool is exhausted.")
 	}
 }
@@ -890,7 +891,7 @@ func TestRelease(t *testing.T) {
 	}
 
 	// Allocate all addresses
-	for err != ipamapi.ErrNoAvailableIPs {
+	for !errors.Is(err, ipamapi.ErrNoAvailableIPs) {
 		_, _, err = a.RequestAddress(alloc.PoolID, nil, nil)
 	}
 
@@ -948,7 +949,7 @@ func assertGetAddress(t *testing.T, subnet string) {
 
 	start := time.Now()
 	run := 0
-	for err != ipamapi.ErrNoAvailableIPs {
+	for !errors.Is(err, ipamapi.ErrNoAvailableIPs) {
 		_, err = getAddress(sub, bm, netip.Addr{}, netip.Prefix{}, false)
 		run++
 	}
@@ -997,7 +998,7 @@ func assertNRequests(t *testing.T, subnet string, numReq int, lastExpectedIP str
 
 func benchmarkRequest(b *testing.B, a *Allocator, subnet string) {
 	alloc, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: subnet})
-	for err != ipamapi.ErrNoAvailableIPs {
+	for !errors.Is(err, ipamapi.ErrNoAvailableIPs) {
 		_, _, err = a.RequestAddress(alloc.PoolID, nil, nil)
 	}
 }

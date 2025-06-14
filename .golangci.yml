@@ -21,6 +21,7 @@ linters:
     - dogsled                   # Detects assignments with too many blank identifiers.
     - dupword                   # Detects duplicate words.
     - durationcheck             # Detect cases where two time.Duration values are being multiplied in possibly erroneous ways.
+    - errorlint                 # Detects code that will cause problems with the error wrapping scheme introduced in Go 1.13.
     - errchkjson                # Detects unsupported types passed to json encoding functions and reports if checks for the returned error can be omitted.
     - exhaustive                # Detects missing options in enum switch statements.
     - exptostd                  # Detects functions from golang.org/x/exp/ that can be replaced by std functions.
@@ -74,6 +75,13 @@ linters:
         - "true"    # some tests use this as expected output
         - "false"   # some tests use this as expected output
         - "root"    # for tests using "ls" output with files owned by "root:root"
+
+    errorlint:
+      # Check whether fmt.Errorf uses the %w verb for formatting errors.
+      # See the https://github.com/polyfloyd/go-errorlint for caveats.
+      errorf: false
+      # Check for plain type assertions and type switches.
+      asserts: false
 
     exhaustive:
       # Program elements to check for exhaustiveness.

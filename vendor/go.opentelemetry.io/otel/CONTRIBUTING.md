@@ -181,6 +181,18 @@ patterns in the spec.
 For a deeper discussion, see
 [this](https://github.com/open-telemetry/opentelemetry-specification/issues/165).
 
+## Tests
+
+Each functionality should be covered by tests.
+
+Performance-critical functionality should also be covered by benchmarks.
+
+- Pull requests adding a performance-critical functionality
+should have `go test -bench` output in their description.
+- Pull requests changing a performance-critical functionality
+should have [`benchstat`](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat)
+output in their description.
+
 ## Documentation
 
 Each (non-internal, non-test) package must be documented using
@@ -629,6 +641,10 @@ should be canceled.
 
 ## Approvers and Maintainers
 
+### Triagers
+
+- [Cheng-Zhen Yang](https://github.com/scorpionknifes), Independent
+
 ### Approvers
 
 ### Maintainers
@@ -641,13 +657,13 @@ should be canceled.
 
 ### Emeritus
 
-- [Aaron Clawson](https://github.com/MadVikingGod), LightStep
-- [Anthony Mirabella](https://github.com/Aneurysm9), AWS
-- [Chester Cheung](https://github.com/hanyuancheung), Tencent
-- [Evan Torrie](https://github.com/evantorrie), Yahoo
-- [Gustavo Silva Paiva](https://github.com/paivagustavo), LightStep
-- [Josh MacDonald](https://github.com/jmacd), LightStep
-- [Liz Fong-Jones](https://github.com/lizthegrey), Honeycomb
+- [Aaron Clawson](https://github.com/MadVikingGod)
+- [Anthony Mirabella](https://github.com/Aneurysm9)
+- [Chester Cheung](https://github.com/hanyuancheung)
+- [Evan Torrie](https://github.com/evantorrie)
+- [Gustavo Silva Paiva](https://github.com/paivagustavo)
+- [Josh MacDonald](https://github.com/jmacd)
+- [Liz Fong-Jones](https://github.com/lizthegrey)
 
 ### Become an Approver or a Maintainer
 

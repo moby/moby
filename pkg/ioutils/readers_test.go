@@ -46,7 +46,7 @@ func TestCancelReadCloser(t *testing.T) {
 	for {
 		var buf [128]byte
 		_, err := crc.Read(buf[:])
-		if err == context.DeadlineExceeded {
+		if errors.Is(err, context.DeadlineExceeded) {
 			break
 		} else if err != nil {
 			t.Fatalf("got unexpected error: %v", err)

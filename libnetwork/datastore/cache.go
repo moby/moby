@@ -1,6 +1,7 @@
 package datastore
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
@@ -35,7 +36,7 @@ func (c *cache) kmap(kvObject KVObject) (kvMap, error) {
 
 	kvList, err := c.ds.List(keyPrefix)
 	if err != nil {
-		if err == store.ErrKeyNotFound {
+		if errors.Is(err, store.ErrKeyNotFound) {
 			// If the store doesn't have anything then there is nothing to
 			// populate in the cache. Just bail out.
 			goto out

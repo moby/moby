@@ -459,6 +459,7 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 	useNone := versions.LessThan(version, "1.43")
 	withVirtualSize := versions.LessThan(version, "1.44")
 	noDescriptor := versions.LessThan(version, "1.48")
+	noContainers := versions.LessThan(version, "1.51")
 	for _, img := range images {
 		if useNone {
 			if len(img.RepoTags) == 0 && len(img.RepoDigests) == 0 {
@@ -478,6 +479,9 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 		}
 		if noDescriptor {
 			img.Descriptor = nil
+		}
+		if noContainers {
+			img.Containers = -1
 		}
 	}
 

@@ -2,6 +2,8 @@ package solver
 
 import (
 	"context"
+	"errors"
+	"slices"
 
 	digest "github.com/opencontainers/go-digest"
 )
@@ -102,18 +104,29 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 		exportRecord = true
 	}
 
-	if e.record == nil && exportRecord {
-		e.record = getBestResult(e.records)
-	}
+	records := slices.Clone(e.records)
+	slices.SortStableFunc(records, compareCacheRecord)
 
 	var remote *Remote
-	if v := e.record; v != nil && exportRecord && addRecord {
+	var i int
+	for exportRecord && addRecord {
 		var variants []CacheExporterRecord
-
+		v := e.record
+		if v == nil {
+			if i < len(records) {
+				v = records[i]
+				i++
+			} else {
+				break
+			}
+		}
 		cm := v.cacheManager
 		key := cm.getID(v.key)
 		res, err := cm.backend.Load(key, v.ID)
 		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				continue
+			}
 			return nil, err
 		}
 
@@ -160,6 +173,7 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 			}
 		}
 		allRec = append(allRec, variants...)
+		break
 	}
 
 	if remote != nil && opt.Mode == CacheExportModeMin {
@@ -228,13 +242,28 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 }
 
 func getBestResult(records []*CacheRecord) *CacheRecord {
-	var rec *CacheRecord
-	for _, r := range records {
-		if rec == nil || rec.CreatedAt.Before(r.CreatedAt) || (rec.CreatedAt.Equal(r.CreatedAt) && rec.Priority < r.Priority) {
-			rec = r
-		}
+	records = slices.Clone(records)
+	slices.SortStableFunc(records, compareCacheRecord)
+	if len(records) == 0 {
+		return nil
 	}
-	return rec
+	return records[0]
+}
+
+func compareCacheRecord(a, b *CacheRecord) int {
+	if a == nil && b == nil {
+		return 0
+	}
+	if a == nil {
+		return 1
+	}
+	if b == nil {
+		return -1
+	}
+	if v := b.CreatedAt.Compare(a.CreatedAt); v != 0 {
+		return v
+	}
+	return a.Priority - b.Priority
 }
 
 type mergedExporter struct {

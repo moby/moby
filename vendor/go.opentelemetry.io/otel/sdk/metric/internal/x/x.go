@@ -8,6 +8,7 @@
 package x // import "go.opentelemetry.io/otel/sdk/metric/internal/x"
 
 import (
+	"context"
 	"os"
 	"strconv"
 )
@@ -66,4 +67,15 @@ func (f Feature[T]) Lookup() (v T, ok bool) {
 func (f Feature[T]) Enabled() bool {
 	_, ok := f.Lookup()
 	return ok
+}
+
+// EnabledInstrument informs whether the instrument is enabled.
+//
+// EnabledInstrument interface is implemented by synchronous instruments.
+type EnabledInstrument interface {
+	// Enabled returns whether the instrument will process measurements for the given context.
+	//
+	// This function can be used in places where measuring an instrument
+	// would result in computationally expensive operations.
+	Enabled(context.Context) bool
 }

@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -26,7 +27,7 @@ func resolveListenAddr(specifiedAddr string) (string, string, error) {
 	// system? If so, use the address from that interface.
 	specifiedIP, err := resolveInputIPAddr(specifiedHost, true)
 	if err != nil {
-		if err == errBadNetworkIdentifier {
+		if errors.Is(err, errBadNetworkIdentifier) {
 			err = errBadListenAddr
 		}
 		return "", "", err
@@ -57,7 +58,7 @@ func (c *Cluster) resolveAdvertiseAddr(advertiseAddr, listenAddrPort string) (st
 		// system? If so, use the address from that interface.
 		advertiseIP, err := resolveInputIPAddr(advertiseHost, false)
 		if err != nil {
-			if err == errBadNetworkIdentifier {
+			if errors.Is(err, errBadNetworkIdentifier) {
 				err = errBadAdvertiseAddr
 			}
 			return "", "", err
@@ -72,7 +73,7 @@ func (c *Cluster) resolveAdvertiseAddr(advertiseAddr, listenAddrPort string) (st
 		// that interface.
 		defaultAdvertiseIP, err := resolveInputIPAddr(c.config.DefaultAdvertiseAddr, false)
 		if err != nil {
-			if err == errBadNetworkIdentifier {
+			if errors.Is(err, errBadNetworkIdentifier) {
 				err = errBadDefaultAdvertiseAddr
 			}
 			return "", "", err
@@ -151,7 +152,7 @@ func resolveDataPathAddr(dataPathAddr string) (string, error) {
 	// If a data path flag is specified try to resolve the IP address.
 	dataPathIP, err := resolveInputIPAddr(dataPathAddr, false)
 	if err != nil {
-		if err == errBadNetworkIdentifier {
+		if errors.Is(err, errBadNetworkIdentifier) {
 			err = errBadDataPathAddr
 		}
 		return "", err
@@ -216,7 +217,7 @@ func resolveInputIPAddr(input string, isUnspecifiedValid bool) (net.IP, error) {
 		return interfaceAddr, nil
 	}
 	// String matched interface but there is a potential ambiguity to be resolved
-	if err != errNoSuchInterface {
+	if !errors.Is(err, errNoSuchInterface) {
 		return nil, err
 	}
 

@@ -48,18 +48,18 @@ type expoHistogramDataPoint[N int64 | float64] struct {
 	zeroCount  uint64
 }
 
-func newExpoHistogramDataPoint[N int64 | float64](attrs attribute.Set, maxSize int, maxScale int32, noMinMax, noSum bool) *expoHistogramDataPoint[N] {
+func newExpoHistogramDataPoint[N int64 | float64](attrs attribute.Set, maxSize int, maxScale int32, noMinMax, noSum bool) *expoHistogramDataPoint[N] { // nolint:revive // we need this control flag
 	f := math.MaxFloat64
-	max := N(f) // if N is int64, max will overflow to -9223372036854775808
-	min := N(-f)
+	ma := N(f) // if N is int64, max will overflow to -9223372036854775808
+	mi := N(-f)
 	if N(maxInt64) > N(f) {
-		max = N(maxInt64)
-		min = N(minInt64)
+		ma = N(maxInt64)
+		mi = N(minInt64)
 	}
 	return &expoHistogramDataPoint[N]{
 		attrs:    attrs,
-		min:      max,
-		max:      min,
+		min:      ma,
+		max:      mi,
 		maxSize:  maxSize,
 		noMinMax: noMinMax,
 		noSum:    noSum,
@@ -283,7 +283,7 @@ func (b *expoBuckets) downscale(delta int32) {
 // newExponentialHistogram returns an Aggregator that summarizes a set of
 // measurements as an exponential histogram. Each histogram is scoped by attributes
 // and the aggregation cycle the measurements were made in.
-func newExponentialHistogram[N int64 | float64](maxSize, maxScale int32, noMinMax, noSum bool, limit int, r func() FilteredExemplarReservoir[N]) *expoHistogram[N] {
+func newExponentialHistogram[N int64 | float64](maxSize, maxScale int32, noMinMax, noSum bool, limit int, r func(attribute.Set) FilteredExemplarReservoir[N]) *expoHistogram[N] {
 	return &expoHistogram[N]{
 		noSum:    noSum,
 		noMinMax: noMinMax,
@@ -306,7 +306,7 @@ type expoHistogram[N int64 | float64] struct {
 	maxSize  int
 	maxScale int32
 
-	newRes   func() FilteredExemplarReservoir[N]
+	newRes   func(attribute.Set) FilteredExemplarReservoir[N]
 	limit    limiter[*expoHistogramDataPoint[N]]
 	values   map[attribute.Distinct]*expoHistogramDataPoint[N]
 	valuesMu sync.Mutex
@@ -327,7 +327,7 @@ func (e *expoHistogram[N]) measure(ctx context.Context, value N, fltrAttr attrib
 	v, ok := e.values[attr.Equivalent()]
 	if !ok {
 		v = newExpoHistogramDataPoint[N](attr, e.maxSize, e.maxScale, e.noMinMax, e.noSum)
-		v.res = e.newRes()
+		v.res = e.newRes(attr)
 
 		e.values[attr.Equivalent()] = v
 	}

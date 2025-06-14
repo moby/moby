@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -19,7 +20,7 @@ func cleanupNetworkNamespace(t testing.TB, d *Daemon) {
 	// cleaned up when a new daemon is instantiated with a
 	// new exec root.
 	filepath.WalkDir(filepath.Join(d.execRoot, "netns"), func(path string, _ os.DirEntry, _ error) error {
-		if err := unix.Unmount(path, unix.MNT_DETACH); err != nil && err != unix.EINVAL && err != unix.ENOENT {
+		if err := unix.Unmount(path, unix.MNT_DETACH); err != nil && !errors.Is(err, unix.EINVAL) && !errors.Is(err, unix.ENOENT) {
 			t.Logf("[%s] unmount of %s failed: %v", d.id, path, err)
 		}
 		os.Remove(path)

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -780,7 +781,7 @@ func TestBuildEmitsImageCreateEvent(t *testing.T) {
 						imageCreateEvts++
 					}
 				case err := <-errs:
-					assert.Check(t, err == nil || err == io.EOF)
+					assert.Check(t, err == nil || errors.Is(err, io.EOF))
 					finished = true
 				}
 			}

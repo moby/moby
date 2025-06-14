@@ -32,10 +32,16 @@ type CimFsFileMetadata struct {
 	EACount            uint32
 }
 
+type CimFsImagePath struct {
+	ImageDir  *uint16
+	ImageName *uint16
+}
+
 //sys CimMountImage(imagePath string, fsName string, flags uint32, volumeID *g) (hr error) = cimfs.CimMountImage?
 //sys CimDismountImage(volumeID *g) (hr error) = cimfs.CimDismountImage?
 
 //sys CimCreateImage(imagePath string, oldFSName *uint16, newFSName *uint16, cimFSHandle *FsHandle) (hr error) = cimfs.CimCreateImage?
+//sys CimCreateImage2(imagePath string, flags uint32, oldFSName *uint16, newFSName *uint16, cimFSHandle *FsHandle) (hr error) = cimfs.CimCreateImage2?
 //sys CimCloseImage(cimFSHandle FsHandle) = cimfs.CimCloseImage?
 //sys CimCommitImage(cimFSHandle FsHandle) (hr error) = cimfs.CimCommitImage?
 
@@ -45,3 +51,8 @@ type CimFsFileMetadata struct {
 //sys CimDeletePath(cimFSHandle FsHandle, path string) (hr error) = cimfs.CimDeletePath?
 //sys CimCreateHardLink(cimFSHandle FsHandle, newPath string, oldPath string) (hr error) = cimfs.CimCreateHardLink?
 //sys CimCreateAlternateStream(cimFSHandle FsHandle, path string, size uint64, cimStreamHandle *StreamHandle) (hr error) = cimfs.CimCreateAlternateStream?
+//sys CimAddFsToMergedImage(cimFSHandle FsHandle, path string) (hr error) = cimfs.CimAddFsToMergedImage?
+//sys CimAddFsToMergedImage2(cimFSHandle FsHandle, path string, flags uint32) (hr error) = cimfs.CimAddFsToMergedImage2?
+//sys CimMergeMountImage(numCimPaths uint32, backingImagePaths *CimFsImagePath, flags uint32, volumeID *g) (hr error) = cimfs.CimMergeMountImage?
+//sys CimTombstoneFile(cimFSHandle FsHandle, path string) (hr error) = cimfs.CimTombstoneFile?
+//sys CimCreateMergeLink(cimFSHandle FsHandle, newPath string, oldPath string) (hr error) = cimfs.CimCreateMergeLink?

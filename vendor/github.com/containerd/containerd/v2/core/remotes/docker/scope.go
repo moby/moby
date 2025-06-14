@@ -88,7 +88,7 @@ func GetTokenScopes(ctx context.Context, common []string) []string {
 
 	l := 0
 	for idx := 1; idx < len(scopes); idx++ {
-		// Note: this comparison is unaware of the scope grammar (https://docs.docker.com/registry/spec/auth/scope/)
+		// Note: this comparison is unaware of the scope grammar (https://distribution.github.io/distribution/spec/auth/scope/)
 		// So, "repository:foo/bar:pull,push" != "repository:foo/bar:push,pull", although semantically they are equal.
 		if scopes[l] == scopes[idx] {
 			continue

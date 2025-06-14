@@ -38,9 +38,16 @@ const (
 	DefaultAddress = `\\.\pipe\containerd-containerd`
 	// DefaultDebugAddress is the default winpipe address for pprof data
 	DefaultDebugAddress = `\\.\pipe\containerd-debug`
+	// DefaultDiffer will set the default differ for the platform.
+	// This differ should be compatible with the windows snapshotter.
+	DefaultDiffer = "windows"
 	// DefaultFIFODir is the default location used by client-side cio library
 	// to store FIFOs. Unused on Windows.
 	DefaultFIFODir = ""
 	// DefaultRuntime is the default windows runtime
 	DefaultRuntime = "io.containerd.runhcs.v1"
+	// DefaultSnapshotter will set the default snapshotter for the platform.
+	// This will be based on the client compilation target, so take that into
+	// account when choosing this value.
+	DefaultSnapshotter = "windows"
 )

@@ -44,7 +44,7 @@ delta.tar.gz  initrd.img  rootfs.tar.gz
 
 ### Containerd Shim
 
-For info on the [Runtime V2 API](https://github.com/containerd/containerd/blob/master/runtime/v2/README.md).
+For info on the [Runtime V2 API](https://github.com/containerd/containerd/blob/main/core/runtime/v2/README.md).
 
 Contrary to the typical Linux architecture of shim -> runc, the runhcs shim is used both to launch and manage the lifetime of containers.
 

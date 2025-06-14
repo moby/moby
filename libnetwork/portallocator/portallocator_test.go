@@ -93,7 +93,7 @@ func TestReleaseUnreadledPort(t *testing.T) {
 func TestUnknowProtocol(t *testing.T) {
 	p := newInstance()
 
-	if _, err := p.RequestPort(net.IPv4zero, "tcpp", 0); err != errUnknownProtocol {
+	if _, err := p.RequestPort(net.IPv4zero, "tcpp", 0); !errors.Is(err, errUnknownProtocol) {
 		t.Fatalf("Expected error %s got %s", errUnknownProtocol, err)
 	}
 }
@@ -112,7 +112,7 @@ func TestAllocateAllPorts(t *testing.T) {
 		}
 	}
 
-	if _, err := p.RequestPort(net.IPv4zero, "tcp", 0); err != errAllPortsAllocated {
+	if _, err := p.RequestPort(net.IPv4zero, "tcp", 0); !errors.Is(err, errAllPortsAllocated) {
 		t.Fatalf("Expected error %s got %s", errAllPortsAllocated, err)
 	}
 
@@ -281,7 +281,7 @@ func TestPortAllocationWithCustomRange(t *testing.T) {
 		t.Fatal("Allocated the same port from a custom range")
 	}
 	// request 3rd port from the range of 2
-	if _, err := p.RequestPortInRange(net.IPv4zero, "tcp", start, end); err != errAllPortsAllocated {
+	if _, err := p.RequestPortInRange(net.IPv4zero, "tcp", start, end); !errors.Is(err, errAllPortsAllocated) {
 		t.Fatalf("Expected error %s got %s", errAllPortsAllocated, err)
 	}
 }

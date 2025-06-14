@@ -21,6 +21,7 @@ import (
 	"io"
 
 	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/transfer"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -49,6 +50,12 @@ type Resolver interface {
 	// The returned Pusher should satisfy content.Ingester and concurrent attempts
 	// to push the same blob using the Ingester API should result in ErrUnavailable.
 	Pusher(ctx context.Context, ref string) (Pusher, error)
+}
+
+// ResolverWithOptions is a Resolver that also supports setting options.
+type ResolverWithOptions interface {
+	Resolver
+	SetOptions(options ...transfer.ImageResolverOption)
 }
 
 // Fetcher fetches content.

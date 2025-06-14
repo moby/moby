@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -104,7 +105,7 @@ func TestEncodeDecode(t *testing.T) {
 	assert.Assert(t, string(msg.Line) == "hello 3\n")
 
 	_, err = dec.Decode()
-	assert.Assert(t, err == io.EOF)
+	assert.Assert(t, errors.Is(err, io.EOF))
 }
 
 func TestReadLogs(t *testing.T) {

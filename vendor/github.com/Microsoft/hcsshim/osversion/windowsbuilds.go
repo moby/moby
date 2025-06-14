@@ -81,4 +81,11 @@ const (
 
 	// V22H2Win11 corresponds to Windows 11 (2022 Update).
 	V22H2Win11 = 22621
+
+	// V23H2 is the 23H2 release in the Windows Server annual channel.
+	V23H2 = 25398
+
+	// Windows Server 2025 build 26100
+	V25H1Server = 26100
+	LTSC2025    = V25H1Server
 )

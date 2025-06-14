@@ -49,7 +49,7 @@ func copyRegular(srcPath, dstPath string, fileinfo os.FileInfo, copyWithFileRang
 		}
 
 		*copyWithFileClone = false
-		if err == unix.EXDEV {
+		if errors.Is(err, unix.EXDEV) {
 			*copyWithFileRange = false
 		}
 	}
@@ -57,7 +57,7 @@ func copyRegular(srcPath, dstPath string, fileinfo os.FileInfo, copyWithFileRang
 		err = doCopyWithFileRange(srcFile, dstFile, fileinfo)
 		// Trying the file_clone may not have caught the exdev case
 		// as the ioctl may not have been available (therefore EINVAL)
-		if err == unix.EXDEV || err == unix.ENOSYS {
+		if errors.Is(err, unix.EXDEV) || errors.Is(err, unix.ENOSYS) {
 			*copyWithFileRange = false
 		} else {
 			return err

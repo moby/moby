@@ -42,7 +42,7 @@ func NewMeterProvider(options ...Option) *MeterProvider {
 	flush, sdown := conf.readerSignals()
 
 	mp := &MeterProvider{
-		pipes:      newPipelines(conf.res, conf.readers, conf.views),
+		pipes:      newPipelines(conf.res, conf.readers, conf.views, conf.exemplarFilter),
 		forceFlush: flush,
 		shutdown:   sdown,
 	}
@@ -76,15 +76,17 @@ func (mp *MeterProvider) Meter(name string, options ...metric.MeterOption) metri
 
 	c := metric.NewMeterConfig(options...)
 	s := instrumentation.Scope{
-		Name:      name,
-		Version:   c.InstrumentationVersion(),
-		SchemaURL: c.SchemaURL(),
+		Name:       name,
+		Version:    c.InstrumentationVersion(),
+		SchemaURL:  c.SchemaURL(),
+		Attributes: c.InstrumentationAttributes(),
 	}
 
 	global.Info("Meter created",
 		"Name", s.Name,
 		"Version", s.Version,
 		"SchemaURL", s.SchemaURL,
+		"Attributes", s.Attributes,
 	)
 
 	return mp.meters.Lookup(s, func() *meter {

@@ -409,10 +409,7 @@ func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, pl
 	image.Manifests = summary.Manifests
 	target := img.Target
 	image.Descriptor = &target
-
-	if opts.ContainerCount {
-		image.Containers = summary.ContainersCount
-	}
+	image.Containers = summary.ContainersCount
 	return image, summary, nil
 }
 
@@ -699,7 +696,7 @@ func setupLabelFilter(ctx context.Context, store content.Store, fltrs filters.Ar
 			return nil, errFoundConfig
 		})), nil, image.Target)
 
-		if err == errFoundConfig {
+		if errors.Is(err, errFoundConfig) {
 			return true
 		}
 		if err != nil {

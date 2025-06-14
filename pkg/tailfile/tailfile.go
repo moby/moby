@@ -189,7 +189,7 @@ func (s *scanner) Scan(ctx context.Context) bool {
 
 			offset := s.pos - int64(readSize)
 			n, err := s.r.ReadAt(s.buf[:readSize], offset)
-			if err != nil && err != io.EOF {
+			if err != nil && !errors.Is(err, io.EOF) {
 				s.err = err
 				return false
 			}

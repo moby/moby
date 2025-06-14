@@ -3,6 +3,7 @@ package logger
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"io"
 	"sync"
 	"testing"
@@ -118,7 +119,7 @@ func (l *mockLoggingPlugin) waitLen(i int) {
 }
 
 func (l *mockLoggingPlugin) check(t *testing.T) {
-	if l.err != nil && l.err != io.EOF {
+	if l.err != nil && !errors.Is(l.err, io.EOF) {
 		t.Fatal(l.err)
 	}
 }

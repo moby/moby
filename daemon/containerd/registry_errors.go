@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	remoteerrors "github.com/containerd/containerd/v2/core/remotes/errors"
@@ -21,6 +22,21 @@ func translateRegistryError(ctx context.Context, err error) error {
 			if jerr := json.Unmarshal(remoteErr.Body, &derrs); jerr != nil {
 				log.G(ctx).WithError(derrs).Debug("unable to unmarshal registry error")
 				return fmt.Errorf("%w: %w", cerrdefs.ErrUnknown, err)
+			}
+			if len(derrs) == 0 {
+				if remoteErr.StatusCode == http.StatusUnauthorized || remoteErr.StatusCode == http.StatusForbidden {
+					// Some registries or token servers may use an old deprecated error format
+					// which only has a "details" field and not the OCI defined "errors" array.
+					var tokenErr struct {
+						Details string `json:"details"`
+					}
+					if jerr := json.Unmarshal(remoteErr.Body, &tokenErr); jerr == nil && tokenErr.Details != "" {
+						if remoteErr.StatusCode == http.StatusUnauthorized {
+							return cerrdefs.ErrUnauthenticated.WithMessage(fmt.Sprintf("%s - %s", docker.ErrorCodeUnauthorized.Message(), tokenErr.Details))
+						}
+						return cerrdefs.ErrPermissionDenied.WithMessage(fmt.Sprintf("%s - %s", docker.ErrorCodeDenied.Message(), tokenErr.Details))
+					}
+				}
 			}
 		} else {
 			var derr docker.Error

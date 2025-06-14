@@ -8,16 +8,15 @@ import (
 	"github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/remotes"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
-	"github.com/containerd/containerd/v2/core/remotes/docker/schema1" //nolint:staticcheck // SA1019 deprecated
 	"github.com/containerd/containerd/v2/pkg/labels"
 	"github.com/containerd/containerd/v2/pkg/reference"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/imageutil"
 	"github.com/moby/buildkit/util/progress/logs"
-	"github.com/moby/buildkit/util/pull/pullprogress"
 	"github.com/moby/buildkit/util/resolver/limited"
 	"github.com/moby/buildkit/util/resolver/retryhandler"
 	digest "github.com/opencontainers/go-digest"
@@ -133,56 +132,31 @@ func (p *Puller) PullManifests(ctx context.Context, getResolver SessionResolver)
 		return nil, err
 	}
 
-	var schema1Converter *schema1.Converter
 	if p.desc.MediaType == images.MediaTypeDockerSchema1Manifest {
-		// schema1 images are not lazy at this time, the converter will pull the whole image
-		// including layer blobs
-		schema1Converter, err = schema1.NewConverter(p.ContentStore, &pullprogress.FetcherWithProgress{
-			Fetcher: fetcher,
-			Manager: p.ContentStore,
-		})
-		if err != nil {
-			return nil, err
-		}
-		handlers = append(handlers, schema1Converter)
-	} else {
-		// Get all the children for a descriptor
-		childrenHandler := images.ChildrenHandler(p.ContentStore)
-		// Filter the children by the platform
-		childrenHandler = images.FilterPlatforms(childrenHandler, platform)
-		// Limit manifests pulled to the best match in an index
-		childrenHandler = images.LimitManifests(childrenHandler, platform, 1)
-
-		dslHandler, err := docker.AppendDistributionSourceLabel(p.ContentStore, p.ref)
-		if err != nil {
-			return nil, err
-		}
-		handlers = append(handlers,
-			filterLayerBlobs(metadata, &mu),
-			retryhandler.New(limited.FetchHandler(p.ContentStore, fetcher, p.ref), logs.LoggerFromContext(ctx)),
-			childrenHandler,
-			dslHandler,
-		)
+		errMsg := "support Docker Image manifest version 2, schema 1 has been removed. " +
+			"More information at https://docs.docker.com/go/deprecated-image-specs/"
+		return nil, errors.WithStack(cerrdefs.ErrConflict.WithMessage(errMsg))
 	}
+	// Get all the children for a descriptor
+	childrenHandler := images.ChildrenHandler(p.ContentStore)
+	// Filter the children by the platform
+	childrenHandler = images.FilterPlatforms(childrenHandler, platform)
+	// Limit manifests pulled to the best match in an index
+	childrenHandler = images.LimitManifests(childrenHandler, platform, 1)
+
+	dslHandler, err := docker.AppendDistributionSourceLabel(p.ContentStore, p.ref)
+	if err != nil {
+		return nil, err
+	}
+	handlers = append(handlers,
+		filterLayerBlobs(metadata, &mu),
+		retryhandler.New(limited.FetchHandler(p.ContentStore, fetcher, p.ref), logs.LoggerFromContext(ctx)),
+		childrenHandler,
+		dslHandler,
+	)
 
 	if err := images.Dispatch(ctx, images.Handlers(handlers...), nil, p.desc); err != nil {
 		return nil, err
-	}
-
-	if schema1Converter != nil {
-		p.desc, err = schema1Converter.Convert(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		// this just gathers metadata about the converted descriptors making up the image, does
-		// not fetch anything
-		if err := images.Dispatch(ctx, images.Handlers(
-			filterLayerBlobs(metadata, &mu),
-			images.FilterPlatforms(images.ChildrenHandler(p.ContentStore), platform),
-		), nil, p.desc); err != nil {
-			return nil, err
-		}
 	}
 
 	for _, desc := range metadata {

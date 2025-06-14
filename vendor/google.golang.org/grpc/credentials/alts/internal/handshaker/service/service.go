@@ -50,7 +50,7 @@ func Dial(hsAddress string) (*grpc.ClientConn, error) {
 		// Disable the service config to avoid unnecessary TXT record lookups that
 		// cause timeouts with some versions of systemd-resolved.
 		var err error
-		hsConn, err = grpc.Dial(hsAddress, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithDisableServiceConfig())
+		hsConn, err = grpc.NewClient(hsAddress, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithDisableServiceConfig())
 		if err != nil {
 			return nil, err
 		}

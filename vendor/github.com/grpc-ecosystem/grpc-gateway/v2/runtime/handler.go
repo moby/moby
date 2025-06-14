@@ -64,7 +64,13 @@ func ForwardResponseStream(ctx context.Context, mux *ServeMux, marshaler Marshal
 		}
 
 		if !wroteHeader {
-			w.Header().Set("Content-Type", marshaler.ContentType(respRw))
+			var contentType string
+			if sct, ok := marshaler.(StreamContentType); ok {
+				contentType = sct.StreamContentType(respRw)
+			} else {
+				contentType = marshaler.ContentType(respRw)
+			}
+			w.Header().Set("Content-Type", contentType)
 		}
 
 		var buf []byte
@@ -190,11 +196,11 @@ func ForwardResponseMessage(ctx context.Context, mux *ServeMux, marshaler Marsha
 		return
 	}
 
-	if !doForwardTrailers {
+	if !doForwardTrailers && mux.writeContentLength {
 		w.Header().Set("Content-Length", strconv.Itoa(len(buf)))
 	}
 
-	if _, err = w.Write(buf); err != nil {
+	if _, err = w.Write(buf); err != nil && !errors.Is(err, http.ErrBodyNotAllowed) {
 		grpclog.Errorf("Failed to write response: %v", err)
 	}
 

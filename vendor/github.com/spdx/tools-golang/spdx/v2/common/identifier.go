@@ -3,9 +3,10 @@
 package common
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/spdx/tools-golang/json/marshal"
 )
 
 const (
@@ -21,7 +22,7 @@ type ElementID string
 
 // MarshalJSON returns an SPDXRef- prefixed JSON string
 func (d ElementID) MarshalJSON() ([]byte, error) {
-	return json.Marshal(prefixElementId(d))
+	return marshal.JSON(prefixElementId(d))
 }
 
 // UnmarshalJSON validates SPDXRef- prefixes and removes them when processing ElementIDs
@@ -85,11 +86,11 @@ type DocElementID struct {
 func (d DocElementID) MarshalJSON() ([]byte, error) {
 	if d.DocumentRefID != "" && d.ElementRefID != "" {
 		idStr := prefixElementId(d.ElementRefID)
-		return json.Marshal(fmt.Sprintf("%s%s:%s", documentRefPrefix, d.DocumentRefID, idStr))
+		return marshal.JSON(fmt.Sprintf("%s%s:%s", documentRefPrefix, d.DocumentRefID, idStr))
 	} else if d.ElementRefID != "" {
-		return json.Marshal(prefixElementId(d.ElementRefID))
+		return marshal.JSON(prefixElementId(d.ElementRefID))
 	} else if d.SpecialID != "" {
-		return json.Marshal(d.SpecialID)
+		return marshal.JSON(d.SpecialID)
 	}
 
 	return []byte{}, fmt.Errorf("failed to marshal empty DocElementID")

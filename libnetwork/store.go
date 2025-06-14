@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/containerd/log"
@@ -23,7 +24,7 @@ func (c *Controller) getNetworks() ([]*Network, error) {
 	var nl []*Network
 
 	kvol, err := c.store.List(&Network{ctrlr: c})
-	if err != nil && err != datastore.ErrKeyNotFound {
+	if err != nil && !errors.Is(err, datastore.ErrKeyNotFound) {
 		return nil, fmt.Errorf("failed to get networks: %w", err)
 	}
 
@@ -45,7 +46,7 @@ func (c *Controller) getNetworksFromStore(ctx context.Context) []*Network { // F
 
 	kvol, err := c.store.List(&Network{ctrlr: c})
 	if err != nil {
-		if err != datastore.ErrKeyNotFound {
+		if !errors.Is(err, datastore.ErrKeyNotFound) {
 			log.G(ctx).Debugf("failed to get networks from store: %v", err)
 		}
 		return nil
@@ -80,7 +81,7 @@ func (n *Network) getEndpointsFromStore() ([]*Endpoint, error) {
 
 	kvol, err := n.getController().store.List(&Endpoint{network: n})
 	if err != nil {
-		if err != datastore.ErrKeyNotFound {
+		if !errors.Is(err, datastore.ErrKeyNotFound) {
 			return nil, fmt.Errorf("failed to get endpoints for network %s: %w",
 				n.Name(), err)
 		}
@@ -101,7 +102,7 @@ func (c *Controller) updateToStore(ctx context.Context, kvObject datastore.KVObj
 	defer span.End()
 
 	if err := c.store.PutObjectAtomic(kvObject); err != nil {
-		if err == datastore.ErrKeyModified {
+		if errors.Is(err, datastore.ErrKeyModified) {
 			return err
 		}
 		return fmt.Errorf("failed to update store for object type %T: %v", kvObject, err)
@@ -113,7 +114,7 @@ func (c *Controller) updateToStore(ctx context.Context, kvObject datastore.KVObj
 func (c *Controller) deleteFromStore(kvObject datastore.KVObject) error {
 retry:
 	if err := c.store.DeleteObjectAtomic(kvObject); err != nil {
-		if err == datastore.ErrKeyModified {
+		if errors.Is(err, datastore.ErrKeyModified) {
 			if err := c.store.GetObject(kvObject); err != nil {
 				return fmt.Errorf("could not update the kvobject to latest when trying to delete: %v", err)
 			}

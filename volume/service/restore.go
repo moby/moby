@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"github.com/containerd/log"
@@ -35,7 +36,7 @@ func (s *VolumeStore) restore() {
 			var err error
 			if meta.Driver != "" {
 				v, err = lookupVolume(ctx, s.drivers, meta.Driver, meta.Name)
-				if err != nil && err != errNoSuchVolume {
+				if err != nil && !errors.Is(err, errNoSuchVolume) {
 					log.G(ctx).WithError(err).WithField("driver", meta.Driver).WithField("volume", meta.Name).Warn("Error restoring volume")
 					return
 				}
@@ -47,7 +48,7 @@ func (s *VolumeStore) restore() {
 			} else {
 				v, err = s.getVolume(ctx, meta.Name, meta.Driver)
 				if err != nil {
-					if err == errNoSuchVolume {
+					if errors.Is(err, errNoSuchVolume) {
 						chRemove <- &meta
 					}
 					return

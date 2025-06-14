@@ -96,11 +96,12 @@ func NewView(criteria Instrument, mask Stream) View {
 	return func(i Instrument) (Stream, bool) {
 		if matchFunc(i) {
 			return Stream{
-				Name:            nonZero(mask.Name, i.Name),
-				Description:     nonZero(mask.Description, i.Description),
-				Unit:            nonZero(mask.Unit, i.Unit),
-				Aggregation:     agg,
-				AttributeFilter: mask.AttributeFilter,
+				Name:                              nonZero(mask.Name, i.Name),
+				Description:                       nonZero(mask.Description, i.Description),
+				Unit:                              nonZero(mask.Unit, i.Unit),
+				Aggregation:                       agg,
+				AttributeFilter:                   mask.AttributeFilter,
+				ExemplarReservoirProviderSelector: mask.ExemplarReservoirProviderSelector,
 			}, true
 		}
 		return Stream{}, false

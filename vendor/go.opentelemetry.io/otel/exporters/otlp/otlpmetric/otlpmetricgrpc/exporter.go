@@ -5,6 +5,7 @@ package otlpmetricgrpc // import "go.opentelemetry.io/otel/exporters/otlp/otlpme
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -114,7 +115,7 @@ func (e *Exporter) Shutdown(ctx context.Context) error {
 	return err
 }
 
-var errShutdown = fmt.Errorf("gRPC exporter is shutdown")
+var errShutdown = errors.New("gRPC exporter is shutdown")
 
 type shutdownClient struct{}
 

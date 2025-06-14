@@ -5,9 +5,6 @@ run:
     - admin
     - functional
     - integration
-  skip-dirs:
-    # paths are relative to module root
-    - cri-containerd/test-images
 
 linters:
   enable:
@@ -34,13 +31,15 @@ linters-settings:
       # struct order is often for Win32 compat
       # also, ignore pointer bytes/GC issues for now until performance becomes an issue
       - fieldalignment
-    check-shadowing: true
 
   stylecheck:
     # https://staticcheck.io/docs/checks
     checks: ["all"]
 
 issues:
+  exclude-dirs:
+    # paths are relative to module root
+    - cri-containerd/test-images
   exclude-rules:
     # err is very often shadowed in nested scopes
     - linters:
@@ -70,22 +69,22 @@ issues:
     - path: layer.go
       linters:
         - stylecheck
-      Text: "ST1003:"
+      text: "ST1003:"
 
     - path: hcsshim.go
       linters:
         - stylecheck
-      Text: "ST1003:"
+      text: "ST1003:"
 
     - path: cmd\\ncproxy\\nodenetsvc\\
       linters:
         - stylecheck
-      Text: "ST1003:"
+      text: "ST1003:"
 
     - path: cmd\\ncproxy_mock\\
       linters:
         - stylecheck
-      Text: "ST1003:"
+      text: "ST1003:"
 
     - path: internal\\hcs\\schema2\\
       linters:
@@ -95,67 +94,67 @@ issues:
     - path: internal\\wclayer\\
       linters:
         - stylecheck
-      Text: "ST1003:"
+      text: "ST1003:"
 
     - path: hcn\\
       linters:
         - stylecheck
-      Text: "ST1003:"
+      text: "ST1003:"
 
     - path: internal\\hcs\\schema1\\
       linters:
         - stylecheck
-      Text: "ST1003:"
+      text: "ST1003:"
 
     - path: internal\\hns\\
       linters:
         - stylecheck
-      Text: "ST1003:"
+      text: "ST1003:"
 
     - path: ext4\\internal\\compactext4\\
       linters:
         - stylecheck
-      Text: "ST1003:"
+      text: "ST1003:"
 
     - path: ext4\\internal\\format\\
       linters:
         - stylecheck
-      Text: "ST1003:"
+      text: "ST1003:"
 
     - path: internal\\guestrequest\\
       linters:
         - stylecheck
-      Text: "ST1003:"
+      text: "ST1003:"
 
     - path: internal\\guest\\prot\\
       linters:
         - stylecheck
-      Text: "ST1003:"
+      text: "ST1003:"
 
     - path: internal\\windevice\\
       linters:
         - stylecheck
-      Text: "ST1003:"
+      text: "ST1003:"
 
     - path: internal\\winapi\\
       linters:
         - stylecheck
-      Text: "ST1003:"
+      text: "ST1003:"
 
     - path: internal\\vmcompute\\
       linters:
         - stylecheck
-      Text: "ST1003:"
+      text: "ST1003:"
 
     - path: internal\\regstate\\
       linters:
         - stylecheck
-      Text: "ST1003:"
+      text: "ST1003:"
 
     - path: internal\\hcserror\\
       linters:
         - stylecheck
-      Text: "ST1003:"
+      text: "ST1003:"
 
     # v0 APIs are deprecated, but still retained for backwards compatability
     - path: cmd\\ncproxy\\
@@ -171,4 +170,4 @@ issues:
     - path: internal\\vhdx\\info
       linters:
         - stylecheck
-      Text: "ST1003:"
+      text: "ST1003:"

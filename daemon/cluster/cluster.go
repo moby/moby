@@ -354,7 +354,7 @@ func (c *Cluster) errNoManager(st nodeState) error {
 		if errors.Is(st.err, errSwarmLocked) {
 			return errSwarmLocked
 		}
-		if st.err == errSwarmCertificatesExpired {
+		if errors.Is(st.err, errSwarmCertificatesExpired) {
 			return errSwarmCertificatesExpired
 		}
 		return errors.WithStack(notAvailableError(`This node is not a swarm manager. Use "docker swarm init" or "docker swarm join" to connect this node to swarm and try again.`))
@@ -426,7 +426,7 @@ func managerStats(client swarmapi.ControlClient, currentNodeID string) (current 
 }
 
 func detectLockedError(err error) error {
-	if err == swarmnode.ErrInvalidUnlockKey {
+	if errors.Is(err, swarmnode.ErrInvalidUnlockKey) {
 		return errors.WithStack(errSwarmLocked)
 	}
 	return err

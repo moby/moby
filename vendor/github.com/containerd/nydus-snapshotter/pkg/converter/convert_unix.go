@@ -913,7 +913,7 @@ func ConvertHookFunc(opt MergeOption) converter.ConvertHookFunc {
 		}
 		switch {
 		case images.IsIndexType(newDesc.MediaType):
-			return convertIndex(ctx, cs, orgDesc, newDesc)
+			return convertIndex(ctx, cs, newDesc)
 		case images.IsManifestType(newDesc.MediaType):
 			return convertManifest(ctx, cs, orgDesc, newDesc, opt)
 		default:
@@ -922,35 +922,12 @@ func ConvertHookFunc(opt MergeOption) converter.ConvertHookFunc {
 	}
 }
 
-// convertIndex modifies the original index by appending "nydus.remoteimage.v1"
-// to the Platform.OSFeatures of each modified manifest descriptors.
-func convertIndex(ctx context.Context, cs content.Store, orgDesc ocispec.Descriptor, newDesc *ocispec.Descriptor) (*ocispec.Descriptor, error) {
-	var orgIndex ocispec.Index
-	if _, err := readJSON(ctx, cs, &orgIndex, orgDesc); err != nil {
-		return nil, errors.Wrap(err, "read target image index json")
-	}
-	// isManifestModified is a function to check whether the manifest is modified.
-	isManifestModified := func(manifest ocispec.Descriptor) bool {
-		for _, oldManifest := range orgIndex.Manifests {
-			if manifest.Digest == oldManifest.Digest {
-				return false
-			}
-		}
-		return true
-	}
-
+// convertIndex modifies the original index converting it to manifest directly if it contains only one manifest.
+func convertIndex(ctx context.Context, cs content.Store, newDesc *ocispec.Descriptor) (*ocispec.Descriptor, error) {
 	var index ocispec.Index
-	indexLabels, err := readJSON(ctx, cs, &index, *newDesc)
+	_, err := readJSON(ctx, cs, &index, *newDesc)
 	if err != nil {
 		return nil, errors.Wrap(err, "read index json")
-	}
-	for i, manifest := range index.Manifests {
-		if !isManifestModified(manifest) {
-			// Skip the manifest which is not modified.
-			continue
-		}
-		manifest.Platform.OSFeatures = append(manifest.Platform.OSFeatures, ManifestOSFeatureNydus)
-		index.Manifests[i] = manifest
 	}
 
 	// If the converted manifest list contains only one manifest,
@@ -958,13 +935,7 @@ func convertIndex(ctx context.Context, cs content.Store, orgDesc ocispec.Descrip
 	if len(index.Manifests) == 1 {
 		return &index.Manifests[0], nil
 	}
-
-	// Update image index in content store.
-	newIndexDesc, err := writeJSON(ctx, cs, index, *newDesc, indexLabels)
-	if err != nil {
-		return nil, errors.Wrap(err, "write index json")
-	}
-	return newIndexDesc, nil
+	return newDesc, nil
 }
 
 // convertManifest merges all the nydus blob layers into a
@@ -1054,6 +1025,8 @@ func convertManifest(ctx context.Context, cs content.Store, oldDesc ocispec.Desc
 		// See the `subject` field description in
 		// https://github.com/opencontainers/image-spec/blob/main/manifest.md#image-manifest-property-descriptions
 		manifest.Subject = &oldDesc
+		// Remove the platform field as it is not supported by certain registries like ECR.
+		manifest.Subject.Platform = nil
 	}
 
 	// Update image manifest in content store.

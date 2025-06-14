@@ -1,3 +1,6 @@
+// Code created by gotmpl. DO NOT MODIFY.
+// source: internal/shared/semconv/util.go.tmpl
+
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
@@ -14,14 +17,14 @@ import (
 	semconvNew "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
-// splitHostPort splits a network address hostport of the form "host",
+// SplitHostPort splits a network address hostport of the form "host",
 // "host%zone", "[host]", "[host%zone], "host:port", "host%zone:port",
 // "[host]:port", "[host%zone]:port", or ":port" into host or host%zone and
 // port.
 //
 // An empty host is returned if it is not provided or unparsable. A negative
 // port is returned if it is not provided or unparsable.
-func splitHostPort(hostport string) (host string, port int) {
+func SplitHostPort(hostport string) (host string, port int) {
 	port = -1
 
 	if strings.HasPrefix(hostport, "[") {
@@ -75,7 +78,16 @@ func serverClientIP(xForwardedFor string) string {
 
 func netProtocol(proto string) (name string, version string) {
 	name, version, _ = strings.Cut(proto, "/")
-	name = strings.ToLower(name)
+	switch name {
+	case "HTTP":
+		name = "http"
+	case "QUIC":
+		name = "quic"
+	case "SPDY":
+		name = "spdy"
+	default:
+		name = strings.ToLower(name)
+	}
 	return name, version
 }
 
@@ -95,4 +107,14 @@ func handleErr(err error) {
 	if err != nil {
 		otel.Handle(err)
 	}
+}
+
+func standardizeHTTPMethod(method string) string {
+	method = strings.ToUpper(method)
+	switch method {
+	case http.MethodConnect, http.MethodDelete, http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodPatch, http.MethodPost, http.MethodPut, http.MethodTrace:
+	default:
+		method = "_OTHER"
+	}
+	return method
 }

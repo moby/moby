@@ -413,11 +413,11 @@ func makeBackingFsDev(home string) (string, error) {
 	// Re-create just in case someone copied the home directory over to a new device
 	unix.Unlink(backingFsBlockDev)
 	err := unix.Mknod(backingFsBlockDev, unix.S_IFBLK|0o600, int(stat.Dev))
-	switch err {
-	case nil:
+	switch {
+	case err == nil:
 		return backingFsBlockDev, nil
 
-	case unix.ENOSYS, unix.EPERM:
+	case errors.Is(err, unix.ENOSYS), errors.Is(err, unix.EPERM):
 		return "", ErrQuotaNotSupported
 
 	default:

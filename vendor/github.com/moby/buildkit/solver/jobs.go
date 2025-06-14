@@ -54,6 +54,7 @@ type state struct {
 
 	mpw      *progress.MultiWriter
 	allPw    map[progress.Writer]struct{}
+	allPwMu  sync.Mutex // protects allPw
 	mspan    *tracing.MultiSpan
 	execSpan trace.Span
 
@@ -180,10 +181,12 @@ func (s *state) setEdge(index Index, targetEdge *edge, targetState *state) {
 	if targetState != nil {
 		targetState.addJobs(s, map[*state]struct{}{})
 
+		targetState.allPwMu.Lock()
 		if _, ok := targetState.allPw[s.mpw]; !ok {
 			targetState.mpw.Add(s.mpw)
 			targetState.allPw[s.mpw] = struct{}{}
 		}
+		targetState.allPwMu.Unlock()
 	}
 }
 
@@ -297,6 +300,7 @@ func (sb *subBuilder) EachValue(ctx context.Context, key string, fn func(any) er
 }
 
 type Job struct {
+	mu            sync.Mutex // protects completedTime, pw, span
 	list          *Solver
 	pr            *progress.MultiReader
 	pw            progress.Writer
@@ -580,14 +584,20 @@ func (jl *Solver) loadUnlocked(ctx context.Context, v, parent Vertex, j *Job, ca
 
 func (jl *Solver) connectProgressFromState(target, src *state) {
 	for j := range src.jobs {
-		if _, ok := target.allPw[j.pw]; !ok {
-			target.mpw.Add(j.pw)
-			target.allPw[j.pw] = struct{}{}
-			j.pw.Write(identity.NewID(), target.clientVertex)
-			if j.span != nil && j.span.SpanContext().IsValid() {
-				target.mspan.Add(j.span)
+		j.mu.Lock()
+		pw := j.pw
+		span := j.span
+		j.mu.Unlock()
+		target.allPwMu.Lock()
+		if _, ok := target.allPw[pw]; !ok {
+			target.mpw.Add(pw)
+			target.allPw[pw] = struct{}{}
+			pw.Write(identity.NewID(), target.clientVertex)
+			if span != nil && span.SpanContext().IsValid() {
+				target.mspan.Add(span)
 			}
 		}
+		target.allPwMu.Unlock()
 	}
 	for p := range src.parents {
 		jl.connectProgressFromState(target, jl.actives[p])
@@ -693,7 +703,9 @@ func (jl *Solver) deleteIfUnreferenced(k digest.Digest, st *state) {
 
 func (j *Job) Build(ctx context.Context, e Edge) (CachedResultWithProvenance, error) {
 	if span := trace.SpanFromContext(ctx); span.SpanContext().IsValid() {
+		j.mu.Lock()
 		j.span = span
+		j.mu.Unlock()
 	}
 
 	v, err := j.list.load(ctx, e.Vertex, nil, j)
@@ -796,6 +808,8 @@ func (j *Job) StartedTime() time.Time {
 }
 
 func (j *Job) RegisterCompleteTime() time.Time {
+	j.mu.Lock()
+	defer j.mu.Unlock()
 	if j.completedTime.IsZero() {
 		j.completedTime = time.Now()
 	}

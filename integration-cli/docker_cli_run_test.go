@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -2190,7 +2191,7 @@ func (s *DockerCLIRunSuite) TestRunVolumesCleanPaths(c *testing.T) {
 	cli.DockerCmd(c, "run", "-v", prefix+"/foo", "-v", prefix+"/bar/", "--name", "dark_helmet", "run_volumes_clean_paths")
 
 	out, err := inspectMountSourceField("dark_helmet", prefix+slash+"foo"+slash)
-	if err != errMountNotFound {
+	if !errors.Is(err, errMountNotFound) {
 		c.Fatalf("Found unexpected volume entry for '%s/foo/' in volumes\n%q", prefix, out)
 	}
 
@@ -2201,7 +2202,7 @@ func (s *DockerCLIRunSuite) TestRunVolumesCleanPaths(c *testing.T) {
 	}
 
 	out, err = inspectMountSourceField("dark_helmet", prefix+slash+"bar"+slash)
-	if err != errMountNotFound {
+	if !errors.Is(err, errMountNotFound) {
 		c.Fatalf("Found unexpected volume entry for '%s/bar/' in volumes\n%q", prefix, out)
 	}
 

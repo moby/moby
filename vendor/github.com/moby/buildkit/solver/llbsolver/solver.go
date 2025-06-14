@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
-	slsa02 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.2"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/cache"
 	cacheconfig "github.com/moby/buildkit/cache/config"
@@ -32,6 +32,7 @@ import (
 	sessionexporter "github.com/moby/buildkit/session/exporter"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver/provenance"
+	provenancetypes "github.com/moby/buildkit/solver/llbsolver/provenance/types"
 	"github.com/moby/buildkit/solver/result"
 	spb "github.com/moby/buildkit/sourcepolicy/pb"
 	"github.com/moby/buildkit/util/bklog"
@@ -229,15 +230,22 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 			}
 		}
 
+		slsaVersion := provenancetypes.ProvenanceSLSA02
+		if v, ok := req.FrontendOpt["build-arg:BUILDKIT_HISTORY_PROVENANCE_V1"]; ok {
+			if b, err := strconv.ParseBool(v); err == nil && b {
+				slsaVersion = provenancetypes.ProvenanceSLSA1
+			}
+		}
+
 		makeProvenance := func(name string, res solver.ResultProxy, cap *provenance.Capture) (*controlapi.Descriptor, func(), error) {
 			span, ctx := tracing.StartSpan(ctx, fmt.Sprintf("create %s history provenance", name))
 			defer span.End()
 
-			prc, err := NewProvenanceCreator(ctx2, cap, res, attrs, j, usage)
+			pc, err := NewProvenanceCreator(ctx2, slsaVersion, cap, res, attrs, j, usage)
 			if err != nil {
 				return nil, nil, err
 			}
-			pr, err := prc.Predicate(ctx)
+			pr, err := pc.Predicate(ctx)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -267,7 +275,7 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 				Size:      desc.Size,
 				MediaType: desc.MediaType,
 				Annotations: map[string]string{
-					"in-toto.io/predicate-type": slsa02.PredicateSLSAProvenance,
+					"in-toto.io/predicate-type": pc.PredicateType(),
 				},
 			}, release, nil
 		}
@@ -933,6 +941,7 @@ func addProvenanceToResult(res *frontend.Result, br *provenanceBridge) (*Result,
 	}
 	for k, ref := range res.Refs {
 		if ref == nil {
+			out.Provenance.Refs[k] = nil
 			continue
 		}
 		cp, err := getProvenance(ref, reqs.refs[k].bridge, k, reqs)

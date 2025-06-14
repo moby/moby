@@ -4,6 +4,7 @@ package authz
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -255,7 +256,7 @@ func TestAuthZPluginAllowEventStream(t *testing.T) {
 				}
 			}
 		case err := <-errs:
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				t.Fatal("premature end of event stream")
 			}
 			assert.NilError(t, err)

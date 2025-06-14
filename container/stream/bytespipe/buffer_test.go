@@ -2,6 +2,7 @@ package bytespipe
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 )
 
@@ -42,7 +43,7 @@ func TestFixedBufferLen(t *testing.T) {
 	if n != 0 {
 		t.Fatalf("expected no bytes to be written to buffer, got %d", n)
 	}
-	if err != errBufferFull {
+	if !errors.Is(err, errBufferFull) {
 		t.Fatalf("expected errBufferFull, got %v", err)
 	}
 
@@ -99,7 +100,7 @@ func TestFixedBufferWrite(t *testing.T) {
 	if n != 59 {
 		t.Fatalf("expected 59 bytes written before buffer is full, got %d", n)
 	}
-	if err != errBufferFull {
+	if !errors.Is(err, errBufferFull) {
 		t.Fatalf("expected errBufferFull, got %v - %v", err, buf.buf[:64])
 	}
 }

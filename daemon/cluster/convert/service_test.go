@@ -1,6 +1,7 @@
 package convert
 
 import (
+	"errors"
 	"testing"
 
 	containertypes "github.com/docker/docker/api/types/container"
@@ -148,7 +149,7 @@ func TestServiceConvertToGRPCGenericRuntimeCustom(t *testing.T) {
 		},
 	}
 
-	if _, err := ServiceSpecToGRPC(s); err != ErrUnsupportedRuntime {
+	if _, err := ServiceSpecToGRPC(s); !errors.Is(err, ErrUnsupportedRuntime) {
 		t.Fatal(err)
 	}
 }
@@ -409,7 +410,7 @@ func TestServiceConvertToGRPCNetworkAttachmentRuntime(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error %v but got no error", ErrUnsupportedRuntime)
 	}
-	if err != ErrUnsupportedRuntime {
+	if !errors.Is(err, ErrUnsupportedRuntime) {
 		t.Fatalf("expected error %v but got error %v", ErrUnsupportedRuntime, err)
 	}
 }
@@ -436,7 +437,7 @@ func TestServiceConvertToGRPCMismatchedRuntime(t *testing.T) {
 			}
 			s.TaskTemplate.Runtime = rt
 
-			if _, err := ServiceSpecToGRPC(s); err != ErrMismatchedRuntime {
+			if _, err := ServiceSpecToGRPC(s); !errors.Is(err, ErrMismatchedRuntime) {
 				t.Fatalf("expected %v got %v", ErrMismatchedRuntime, err)
 			}
 		}

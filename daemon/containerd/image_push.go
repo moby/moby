@@ -143,21 +143,6 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 	realStore := store
 	wrapped := wrapWithFakeMountableBlobs(store, mountableBlobs)
 	store = wrapped
-
-	// Annotate ref with digest to push only push tag for single digest
-	ref := targetRef
-	if _, digested := ref.(reference.Digested); !digested {
-		ref, err = reference.WithDigest(ref, target.Digest)
-		if err != nil {
-			return err
-		}
-	}
-
-	pusher, err := resolver.Pusher(ctx, ref.String())
-	if err != nil {
-		return err
-	}
-
 	addLayerJobs := c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		if showBlobProgress(desc) {
 			jobsQueue.Add(desc)
@@ -170,7 +155,25 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 		return c8dimages.Handlers(addLayerJobs, h)
 	}
 
-	err = remotes.PushContent(ctx, pusher, target, store, limiter, platforms.All, handlerWrapper)
+	push := func(ctx context.Context, desc ocispec.Descriptor) error {
+		ref := targetRef
+
+		if _, digested := ref.(reference.Digested); !digested {
+			// Annotate ref with digest to push only push tag for single digest
+			ref, err = reference.WithDigest(ref, target.Digest)
+			if err != nil {
+				return err
+			}
+		}
+		pusher, err := resolver.Pusher(ctx, ref.String())
+		if err != nil {
+			return err
+		}
+
+		return remotes.PushContent(ctx, pusher, desc, store, limiter, platforms.All, handlerWrapper)
+	}
+
+	err = push(ctx, target)
 	if err != nil {
 		// If push failed because of a missing content, no specific platform was requested
 		// and the target is an index, select a platform-specific manifest to push instead.
@@ -186,7 +189,7 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 				orgTarget := target
 				target = newTarget
 				pp.TurnNotStartedIntoUnavailable()
-				err = remotes.PushContent(ctx, pusher, target, store, limiter, platforms.All, handlerWrapper)
+				err = push(ctx, target)
 
 				if err == nil {
 					progress.Aux(out, auxprogress.ManifestPushedInsteadOfIndex{

@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
 
 	contentapi "github.com/containerd/containerd/api/services/content/v1"
 	"github.com/containerd/errdefs/pkg/errgrpc"
@@ -78,14 +79,8 @@ func (rw *remoteWriter) Digest() digest.Digest {
 
 func (rw *remoteWriter) Write(p []byte) (n int, err error) {
 	const maxBufferSize = defaults.DefaultMaxSendMsgSize >> 1
-	for i := 0; i < len(p); i += maxBufferSize {
+	for data := range slices.Chunk(p, maxBufferSize) {
 		offset := rw.offset
-
-		end := i + maxBufferSize
-		if end > len(p) {
-			end = len(p)
-		}
-		data := p[i:end]
 
 		resp, err := rw.send(&contentapi.WriteContentRequest{
 			Action: contentapi.WriteAction_WRITE,

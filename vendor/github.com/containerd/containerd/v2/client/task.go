@@ -416,7 +416,7 @@ func (t *task) Delete(ctx context.Context, opts ...ProcessDeleteOpts) (*ExitStat
 	return &ExitStatus{code: r.ExitStatus, exitedAt: protobuf.FromTimestamp(r.ExitedAt)}, nil
 }
 
-func (t *task) Exec(ctx context.Context, id string, spec *specs.Process, ioCreate cio.Creator) (_ Process, err error) {
+func (t *task) Exec(ctx context.Context, id string, spec *specs.Process, ioCreate cio.Creator) (_ Process, retErr error) {
 	ctx, span := tracing.StartSpan(ctx, "task.Exec",
 		tracing.WithAttribute("task.id", t.ID()),
 	)
@@ -430,7 +430,7 @@ func (t *task) Exec(ctx context.Context, id string, spec *specs.Process, ioCreat
 		return nil, err
 	}
 	defer func() {
-		if err != nil && i != nil {
+		if retErr != nil && i != nil {
 			i.Cancel()
 			i.Close()
 		}

@@ -34,6 +34,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	HTTPAuthHeaderSecretPrefix = "HTTP_AUTH_HEADER_"
+	HTTPAuthTokenSecretPrefix  = "HTTP_AUTH_TOKEN_"
+)
+
 // supportedUserHeaders defines supported user-defined header fields. Fields
 // not included here will be silently dropped.
 var supportedUserDefinedHeaders = map[string]bool{
@@ -506,18 +511,36 @@ func (hs *httpSourceHandler) newHTTPRequest(ctx context.Context, g session.Group
 		req.Header.Set(field.Name, field.Value)
 	}
 
+	type authSecret struct {
+		name  string
+		token bool
+	}
+
+	var secretNames []authSecret
 	if hs.src.AuthHeaderSecret != "" {
+		secretNames = append(secretNames, authSecret{name: hs.src.AuthHeaderSecret})
+	} else {
+		u, err := url.Parse(hs.src.URL)
+		if err == nil {
+			secretNames = append(secretNames, authSecret{name: HTTPAuthHeaderSecretPrefix + u.Hostname()})
+			secretNames = append(secretNames, authSecret{name: HTTPAuthTokenSecretPrefix + u.Hostname(), token: true})
+		}
+	}
+
+	for _, secret := range secretNames {
 		err := hs.sm.Any(ctx, g, func(ctx context.Context, _ string, caller session.Caller) error {
-			dt, err := secrets.GetSecret(ctx, caller, hs.src.AuthHeaderSecret)
+			dt, err := secrets.GetSecret(ctx, caller, secret.name)
 			if err != nil {
 				return err
 			}
-
-			req.Header.Set("Authorization", string(dt))
-
+			v := string(dt)
+			if secret.token {
+				v = "Bearer " + v
+			}
+			req.Header.Set("Authorization", v)
 			return nil
 		})
-		if err != nil {
+		if err != nil && hs.src.AuthHeaderSecret != "" {
 			return nil, errors.Wrapf(err, "failed to retrieve HTTP auth secret %s", hs.src.AuthHeaderSecret)
 		}
 	}

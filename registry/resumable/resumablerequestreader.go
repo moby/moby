@@ -2,6 +2,7 @@ package resumable
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -77,7 +78,7 @@ func (r *requestReader) Read(p []byte) (n int, _ error) {
 	if err != nil {
 		r.cleanUpResponse()
 	}
-	if err != nil && err != io.EOF {
+	if err != nil && !errors.Is(err, io.EOF) {
 		log.G(context.TODO()).Infof("encountered error during pull and clearing it before resume: %s", err)
 		err = nil
 	}

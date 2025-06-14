@@ -153,7 +153,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 				c.CheckpointTo(context.TODO(), daemon.containersReplica)
 				c.Unlock()
 				defer daemon.autoRemove(&cfg.Config, c)
-				if waitErr != restartmanager.ErrRestartCanceled {
+				if !errors.Is(waitErr, restartmanager.ErrRestartCanceled) {
 					log.G(ctx).Errorf("restartmanger wait error: %+v", waitErr)
 				}
 			}

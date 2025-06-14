@@ -117,7 +117,7 @@ func TestWaitCancel(t *testing.T) {
 	cancel()
 	select {
 	case err := <-chErr:
-		if err != context.Canceled {
+		if !errors.Is(err, context.Canceled) {
 			t.Fatal(err)
 		}
 	case <-time.After(10 * time.Second):

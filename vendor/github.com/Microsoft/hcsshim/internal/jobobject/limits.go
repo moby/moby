@@ -150,6 +150,7 @@ func (job *JobObject) SetCPUAffinity(affinityBitMask uint64) error {
 		return fmt.Errorf("affinity bitmask (%d) exceeds max allowable value (%d)", affinityBitMask, maxUintptr)
 	}
 
+	// CodeQL [SM03681] checked against max value above (there is no math.MaxUintPtr ...)
 	info.BasicLimitInformation.Affinity = uintptr(affinityBitMask)
 	return job.setExtendedInformation(info)
 }

@@ -9,8 +9,9 @@
 
 package hcsschema
 
-// TODO: This is pre-release support in schema 2.3. Need to add build number
+// TODO: PropagateNumaAffinity is pre-release/experimental field in schema 2.11. Need to add build number
 // docs when a public build with this is out.
 type VirtualPciDevice struct {
 	Functions []VirtualPciFunction `json:",omitempty"`
+	PropagateNumaAffinity *bool	`json:"PropagateNumaAffinity,omitempty"`
 }

@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/containerd/containerd/v2/core/leases"
@@ -31,6 +30,7 @@ import (
 	"github.com/containerd/errdefs"
 	digest "github.com/opencontainers/go-digest"
 	bolt "go.etcd.io/bbolt"
+	errbolt "go.etcd.io/bbolt/errors"
 )
 
 // leaseManager manages the create/delete lifecycle of leases
@@ -72,7 +72,7 @@ func (lm *leaseManager) Create(ctx context.Context, opts ...leases.Opt) (leases.
 
 		txbkt, err := topbkt.CreateBucket([]byte(l.ID))
 		if err != nil {
-			if err == bolt.ErrBucketExists {
+			if err == errbolt.ErrBucketExists {
 				err = errdefs.ErrAlreadyExists
 			}
 			return fmt.Errorf("lease %q: %w", l.ID, err)
@@ -114,13 +114,13 @@ func (lm *leaseManager) Delete(ctx context.Context, lease leases.Lease, _ ...lea
 			return fmt.Errorf("lease %q: %w", lease.ID, errdefs.ErrNotFound)
 		}
 		if err := topbkt.DeleteBucket([]byte(lease.ID)); err != nil {
-			if err == bolt.ErrBucketNotFound {
+			if err == errbolt.ErrBucketNotFound {
 				err = fmt.Errorf("lease %q: %w", lease.ID, errdefs.ErrNotFound)
 			}
 			return err
 		}
 
-		atomic.AddUint32(&lm.db.dirty, 1)
+		lm.db.dirty.Add(1)
 
 		return nil
 	})
@@ -243,7 +243,7 @@ func (lm *leaseManager) DeleteResource(ctx context.Context, lease leases.Lease, 
 			}
 		}
 
-		atomic.AddUint32(&lm.db.dirty, 1)
+		lm.db.dirty.Add(1)
 
 		return nil
 	})

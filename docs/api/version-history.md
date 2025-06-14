@@ -13,6 +13,14 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.51 API changes
+
+[Docker Engine API v1.51](https://docs.docker.com/reference/api/engine/version/v1.51/) documentation
+
+* `GET /images/json` now sets the value of `Containers` field for all images
+  to the count of containers using the image.
+  This field was previously always -1.
+
 ## v1.50 API changes
 
 [Docker Engine API v1.50](https://docs.docker.com/reference/api/engine/version/v1.50/) documentation

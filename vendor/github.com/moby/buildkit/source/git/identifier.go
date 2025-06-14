@@ -32,9 +32,9 @@ func NewGitIdentifier(remoteURL string) (*GitIdentifier, error) {
 	}
 
 	repo := GitIdentifier{Remote: u.Remote}
-	if u.Fragment != nil {
-		repo.Ref = u.Fragment.Ref
-		repo.Subdir = u.Fragment.Subdir
+	if u.Opts != nil {
+		repo.Ref = u.Opts.Ref
+		repo.Subdir = u.Opts.Subdir
 	}
 	if sd := path.Clean(repo.Subdir); sd == "/" || sd == "." {
 		repo.Subdir = ""

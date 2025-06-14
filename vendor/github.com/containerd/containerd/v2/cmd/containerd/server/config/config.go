@@ -61,10 +61,6 @@ type Config struct {
 	State string `toml:"state"`
 	// TempDir is the path to a directory where to place containerd temporary files
 	TempDir string `toml:"temp"`
-	// PluginDir is the directory for dynamic plugins to be stored
-	//
-	// Deprecated: Please use proxy or binary external plugins.
-	PluginDir string `toml:"plugin_dir"`
 	// GRPC configuration settings
 	GRPC GRPCConfig `toml:"grpc"`
 	// TTRPC configuration settings

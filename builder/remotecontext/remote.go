@@ -96,7 +96,7 @@ func inspectResponse(ct string, r io.Reader, clen int64) (string, io.Reader, err
 	if rlen == 0 {
 		return ct, r, errors.New("empty response")
 	}
-	if err != nil && err != io.EOF {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return ct, r, err
 	}
 

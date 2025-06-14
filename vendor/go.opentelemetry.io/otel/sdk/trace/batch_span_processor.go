@@ -201,10 +201,9 @@ func (bsp *batchSpanProcessor) ForceFlush(ctx context.Context) error {
 			}
 		}
 
-		wait := make(chan error)
+		wait := make(chan error, 1)
 		go func() {
 			wait <- bsp.exportSpans(ctx)
-			close(wait)
 		}()
 		// Wait until the export is finished or the context is cancelled/timed out
 		select {
@@ -280,6 +279,7 @@ func (bsp *batchSpanProcessor) exportSpans(ctx context.Context) error {
 		//
 		// It is up to the exporter to implement any type of retry logic if a batch is failing
 		// to be exported, since it is specific to the protocol and backend being sent to.
+		clear(bsp.batch) // Erase elements to let GC collect objects
 		bsp.batch = bsp.batch[:0]
 
 		if err != nil {

@@ -108,14 +108,14 @@ func (dr *distributionRouter) fetchManifest(ctx context.Context, distrepo distri
 	}
 	mnfst, err := mnfstsrvc.Get(ctx, distributionInspect.Descriptor.Digest)
 	if err != nil {
-		switch err {
-		case reference.ErrReferenceInvalidFormat,
-			reference.ErrTagInvalidFormat,
-			reference.ErrDigestInvalidFormat,
-			reference.ErrNameContainsUppercase,
-			reference.ErrNameEmpty,
-			reference.ErrNameTooLong,
-			reference.ErrNameNotCanonical:
+		switch {
+		case errors.Is(err, reference.ErrReferenceInvalidFormat),
+			errors.Is(err, reference.ErrTagInvalidFormat),
+			errors.Is(err, reference.ErrDigestInvalidFormat),
+			errors.Is(err, reference.ErrNameContainsUppercase),
+			errors.Is(err, reference.ErrNameEmpty),
+			errors.Is(err, reference.ErrNameTooLong),
+			errors.Is(err, reference.ErrNameNotCanonical):
 			return registry.DistributionInspect{}, errdefs.InvalidParameter(err)
 		}
 		return registry.DistributionInspect{}, err

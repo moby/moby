@@ -347,54 +347,99 @@ func truncateAttr(limit int, attr attribute.KeyValue) attribute.KeyValue {
 	}
 	switch attr.Value.Type() {
 	case attribute.STRING:
-		if v := attr.Value.AsString(); len(v) > limit {
-			return attr.Key.String(safeTruncate(v, limit))
-		}
+		v := attr.Value.AsString()
+		return attr.Key.String(truncate(limit, v))
 	case attribute.STRINGSLICE:
 		v := attr.Value.AsStringSlice()
 		for i := range v {
-			if len(v[i]) > limit {
-				v[i] = safeTruncate(v[i], limit)
-			}
+			v[i] = truncate(limit, v[i])
 		}
 		return attr.Key.StringSlice(v)
 	}
 	return attr
 }
 
-// safeTruncate truncates the string and guarantees valid UTF-8 is returned.
-func safeTruncate(input string, limit int) string {
-	if trunc, ok := safeTruncateValidUTF8(input, limit); ok {
-		return trunc
+// truncate returns a truncated version of s such that it contains less than
+// the limit number of characters. Truncation is applied by returning the limit
+// number of valid characters contained in s.
+//
+// If limit is negative, it returns the original string.
+//
+// UTF-8 is supported. When truncating, all invalid characters are dropped
+// before applying truncation.
+//
+// If s already contains less than the limit number of bytes, it is returned
+// unchanged. No invalid characters are removed.
+func truncate(limit int, s string) string {
+	// This prioritize performance in the following order based on the most
+	// common expected use-cases.
+	//
+	//  - Short values less than the default limit (128).
+	//  - Strings with valid encodings that exceed the limit.
+	//  - No limit.
+	//  - Strings with invalid encodings that exceed the limit.
+	if limit < 0 || len(s) <= limit {
+		return s
 	}
-	trunc, _ := safeTruncateValidUTF8(strings.ToValidUTF8(input, ""), limit)
-	return trunc
-}
 
-// safeTruncateValidUTF8 returns a copy of the input string safely truncated to
-// limit. The truncation is ensured to occur at the bounds of complete UTF-8
-// characters. If invalid encoding of UTF-8 is encountered, input is returned
-// with false, otherwise, the truncated input will be returned with true.
-func safeTruncateValidUTF8(input string, limit int) (string, bool) {
-	for cnt := 0; cnt <= limit; {
-		r, size := utf8.DecodeRuneInString(input[cnt:])
-		if r == utf8.RuneError {
-			return input, false
+	// Optimistically, assume all valid UTF-8.
+	var b strings.Builder
+	count := 0
+	for i, c := range s {
+		if c != utf8.RuneError {
+			count++
+			if count > limit {
+				return s[:i]
+			}
+			continue
 		}
 
-		if cnt+size > limit {
-			return input[:cnt], true
+		_, size := utf8.DecodeRuneInString(s[i:])
+		if size == 1 {
+			// Invalid encoding.
+			b.Grow(len(s) - 1)
+			_, _ = b.WriteString(s[:i])
+			s = s[i:]
+			break
 		}
-		cnt += size
 	}
-	return input, true
+
+	// Fast-path, no invalid input.
+	if b.Cap() == 0 {
+		return s
+	}
+
+	// Truncate while validating UTF-8.
+	for i := 0; i < len(s) && count < limit; {
+		c := s[i]
+		if c < utf8.RuneSelf {
+			// Optimization for single byte runes (common case).
+			_ = b.WriteByte(c)
+			i++
+			count++
+			continue
+		}
+
+		_, size := utf8.DecodeRuneInString(s[i:])
+		if size == 1 {
+			// We checked for all 1-byte runes above, this is a RuneError.
+			i++
+			continue
+		}
+
+		_, _ = b.WriteString(s[i : i+size])
+		i += size
+		count++
+	}
+
+	return b.String()
 }
 
 // End ends the span. This method does nothing if the span is already ended or
 // is not being recorded.
 //
-// The only SpanOption currently supported is WithTimestamp which will set the
-// end time for a Span's life-cycle.
+// The only SpanEndOption currently supported are [trace.WithTimestamp], and
+// [trace.WithStackTrace].
 //
 // If this method is called while panicking an error event is added to the
 // Span before ending it and the panic is continued.
@@ -639,10 +684,7 @@ func (s *recordingSpan) dedupeAttrsFromRecord(record map[attribute.Key]int) {
 			record[a.Key] = len(unique) - 1
 		}
 	}
-	// s.attributes have element types of attribute.KeyValue. These types are
-	// not pointers and they themselves do not contain pointer fields,
-	// therefore the duplicate values do not need to be zeroed for them to be
-	// garbage collected.
+	clear(s.attributes[len(unique):]) // Erase unneeded elements to let GC collect objects.
 	s.attributes = unique
 }
 

@@ -2,6 +2,7 @@ package gcplogs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -187,7 +188,7 @@ func New(info logger.Info) (logger.Logger, error) {
 	// without overly spamming /var/log/docker.log so we log the first time
 	// we overflow and every 1000th time after.
 	c.OnError = func(err error) {
-		if err == logging.ErrOverflow {
+		if errors.Is(err, logging.ErrOverflow) {
 			if i := droppedLogs.Add(1); i%1000 == 1 {
 				log.G(context.TODO()).Errorf("gcplogs driver has dropped %v logs", i)
 			}
