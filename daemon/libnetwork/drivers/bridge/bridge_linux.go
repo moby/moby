@@ -409,7 +409,7 @@ func parseErr(label, value, errString string) error {
 	return types.InvalidParameterErrorf("failed to parse %s value: %v (%s)", label, value, errString)
 }
 
-func (n *bridgeNetwork) newFirewallerNetwork(ctx context.Context) (firewaller.Network, error) {
+func (n *bridgeNetwork) newFirewallerNetwork(ctx context.Context) (_ firewaller.Network, retErr error) {
 	config4, err := makeNetworkConfigFam(n.config.HostIPv4, n.bridge.bridgeIPv4, n.gwMode(firewaller.IPv4))
 	if err != nil {
 		return nil, err
@@ -418,6 +418,18 @@ func (n *bridgeNetwork) newFirewallerNetwork(ctx context.Context) (firewaller.Ne
 	if err != nil {
 		return nil, err
 	}
+
+	if err := iptables.AddInterfaceFirewalld(n.config.BridgeName); err != nil {
+		return nil, err
+	}
+	defer func() {
+		if retErr != nil {
+			if err := iptables.DelInterfaceFirewalld(n.config.BridgeName); err != nil {
+				log.G(ctx).WithError(err).Errorf("failed to delete network level rules following error")
+			}
+		}
+	}()
+
 	return n.driver.firewaller.NewNetwork(ctx, firewaller.NetworkConfig{
 		IfName:                n.config.BridgeName,
 		Internal:              n.config.Internal,
@@ -1040,6 +1052,9 @@ func (d *driver) deleteNetwork(nid string) error {
 
 	if err := n.firewallerNetwork.DelNetworkLevelRules(context.TODO()); err != nil {
 		log.G(context.TODO()).WithError(err).Warnf("Failed to clean iptables rules for bridge network")
+	}
+	if err := iptables.DelInterfaceFirewalld(n.config.BridgeName); err != nil {
+		log.G(context.TODO()).WithError(err).Warnf("Failed to clean firewalld rules for bridge network")
 	}
 
 	return d.storeDelete(config)
@@ -1750,6 +1765,14 @@ func (d *driver) handleFirewalldReloadNw(nid string) {
 	// gateway network. So, this is a no-op for networks that aren't providing endpoints
 	// with the gateway.
 	nw.reapplyPerPortIptables()
+
+	if err := iptables.AddInterfaceFirewalld(nw.config.BridgeName); err != nil {
+		log.G(context.Background()).WithFields(log.Fields{
+			"error":  err,
+			"nid":    nw.id,
+			"bridge": nw.config.BridgeName,
+		}).Error("Failed to add interface to docker zone on firewalld reload")
+	}
 }
 
 func LegacyContainerLinkOptions(parentEndpoints, childEndpoints []string) map[string]interface{} {

@@ -19,10 +19,6 @@ func (c *Controller) selectFirewallBackend() error {
 	}
 	// If configured to use nftables, but it can't be initialised, return an error.
 	if c.cfg.FirewallBackend == "nftables" {
-		// Don't try to enable nftables if firewalld is running.
-		if iptables.UsingFirewalld() {
-			return errors.New("firewall-backend is set to nftables, but firewalld is running")
-		}
 		if err := nftables.Enable(); err != nil {
 			return fmt.Errorf("firewall-backend is set to nftables: %v", err)
 		}

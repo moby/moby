@@ -1145,7 +1145,7 @@ func TestNoIP6Tables(t *testing.T) {
 			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
 
 			var cmd *exec.Cmd
-			if d.FirewallBackendDriver(t) == "nftables" {
+			if strings.HasPrefix(d.FirewallBackendDriver(t), "nftables") {
 				cmd = exec.Command("nft", "list", "table", "ip6", "docker-bridges")
 			} else {
 				cmd = exec.Command("/usr/sbin/ip6tables-save")
@@ -1302,6 +1302,7 @@ func TestContainerDisabledIPv6(t *testing.T) {
 	ctx := setupTest(t)
 	d := daemon.New(t)
 	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
 
 	c := d.NewClientT(t)
 	defer c.Close()

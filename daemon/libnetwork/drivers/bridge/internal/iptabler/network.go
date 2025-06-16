@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/netip"
 
-	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/daemon/libnetwork/iptables"
@@ -94,16 +93,6 @@ func (n *network) setupIPTables(ctx context.Context, ipVersion iptables.IPVersio
 		}
 		n.registerCleanFunc(func() error {
 			return n.setupNonInternalNetworkRules(ctx, ipVersion, config, false)
-		})
-
-		if err := iptables.AddInterfaceFirewalld(n.config.IfName); err != nil {
-			return err
-		}
-		n.registerCleanFunc(func() error {
-			if err := iptables.DelInterfaceFirewalld(n.config.IfName); err != nil && !cerrdefs.IsNotFound(err) {
-				return err
-			}
-			return nil
 		})
 
 		if err := deleteLegacyFilterRules(ipVersion, n.config.IfName); err != nil {
@@ -429,17 +418,6 @@ func removeIPChains(ctx context.Context, version iptables.IPVersion) {
 func setupInternalNetworkRules(ctx context.Context, bridgeIface string, prefix netip.Prefix, icc, insert bool) error {
 	var version iptables.IPVersion
 	var inDropRule, outDropRule iptables.Rule
-
-	// Either add or remove the interface from the firewalld zone, if firewalld is running.
-	if insert {
-		if err := iptables.AddInterfaceFirewalld(bridgeIface); err != nil {
-			return err
-		}
-	} else {
-		if err := iptables.DelInterfaceFirewalld(bridgeIface); err != nil && !cerrdefs.IsNotFound(err) {
-			return err
-		}
-	}
 
 	if prefix.Addr().Is4() {
 		version = iptables.IPv4
