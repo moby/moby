@@ -55,9 +55,25 @@ func (cli *Client) ContainerExecStart(ctx context.Context, execID string, config
 }
 
 // ContainerExecAttach attaches a connection to an exec process in the server.
+//
 // It returns a types.HijackedConnection with the hijacked connection
 // and the a reader to get output. It's up to the called to close
 // the hijacked connection by calling types.HijackedResponse.Close.
+//
+// The stream format on the response will be in one of two formats:
+//
+// If the container is using a TTY, there is only a single stream (stdout), and
+// data is copied directly from the container output stream, no extra
+// multiplexing or headers.
+//
+// If the container is *not* using a TTY, streams for stdout and stderr are
+// multiplexed.
+//
+// You can use github.com/docker/docker/pkg/stdcopy.StdCopy to demultiplex this
+// stream.
+//
+// For more technical informations about the multiplexed stream, check the
+// [ContainerAttach] documentation.
 func (cli *Client) ContainerExecAttach(ctx context.Context, execID string, config container.ExecAttachOptions) (types.HijackedResponse, error) {
 	if versions.LessThan(cli.ClientVersion(), "1.42") {
 		config.ConsoleSize = nil
