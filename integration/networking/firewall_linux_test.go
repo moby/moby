@@ -20,8 +20,9 @@ func TestInfoFirewallBackend(t *testing.T) {
 	expDriver := defaultFirewallBackend
 	if val := os.Getenv("DOCKER_FIREWALL_BACKEND"); val != "" {
 		expDriver = val
-	} else if !testEnv.IsRootless() && networking.FirewalldRunning() {
-		expDriver = "iptables+firewalld"
+	}
+	if !testEnv.IsRootless() && networking.FirewalldRunning() {
+		expDriver += "+firewalld"
 	}
 	info, err := c.Info(ctx)
 	assert.NilError(t, err)

@@ -93,7 +93,7 @@ func TestHostIPv4BridgeLabel(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, len(out.IPAM.Config) > 0)
 	// Make sure the SNAT rule exists
-	if testEnv.FirewallBackendDriver() == "nftables" {
+	if strings.HasPrefix(testEnv.FirewallBackendDriver(), "nftables") {
 		chain := testutil.RunCommand(ctx, "nft", "--stateless", "list", "chain", "ip", "docker-bridges", "nat-postrouting-out__hostIPv4Bridge").Combined()
 		exp := fmt.Sprintf(`oifname != "hostIPv4Bridge" ip saddr %s counter snat to %s comment "SNAT"`,
 			out.IPAM.Config[0].Subnet, ipv4SNATAddr)

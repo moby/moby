@@ -29,9 +29,6 @@ func (c *Controller) selectFirewallBackend() error {
 	// If configured to use nftables, but it can't be initialised, return an error.
 	if c.cfg.FirewallBackend == "nftables" {
 		// Don't try to enable nftables if firewalld is running.
-		if iptables.UsingFirewalld() {
-			return errors.New("firewall-backend is set to nftables, but firewalld is running")
-		}
 		if err := nftables.Enable(); err != nil {
 			return fmt.Errorf("firewall-backend is set to nftables: %v", err)
 		}
@@ -40,9 +37,6 @@ func (c *Controller) selectFirewallBackend() error {
 	// Default to nftables if enabled by env-var.
 	// (Used for integration tests that launch their own daemons in CI.)
 	if os.Getenv("DOCKER_FIREWALL_BACKEND") == "nftables" {
-		if iptables.UsingFirewalld() {
-			return errors.New("firewall-backend is not set and DOCKER_FIREWALL_BACKEND=nftables, but firewalld is running")
-		}
 		if err := nftables.Enable(); err != nil {
 			return fmt.Errorf("firewall-backend is not set and DOCKER_FIREWALL_BACKEND=nftables: %v", err)
 		}
