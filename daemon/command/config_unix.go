@@ -27,6 +27,7 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.BoolVar(&conf.BridgeConfig.DisableFilterForwardDrop, "ip-forward-no-drop", false, "Do not set the filter-FORWARD policy to DROP when enabling IP forwarding")
 	flags.BoolVar(&conf.BridgeConfig.EnableIPMasq, "ip-masq", true, "Enable IP masquerading for the default bridge network")
 	flags.BoolVar(&conf.BridgeConfig.EnableIPv6, "ipv6", false, "Enable IPv6 networking for the default bridge network")
+	flags.Var(opts.NewNamedMapOpts("bridge-nftables-priorities", conf.BridgeConfig.NftablesPriorities, nil), "bridge-nftables-priority", "Base chain priorities for bridge driver nftables")
 	flags.StringVar(&conf.BridgeConfig.IP, "bip", "", "IPv4 address for the default bridge")
 	flags.StringVar(&conf.BridgeConfig.IP6, "bip6", "", "IPv6 address for the default bridge")
 	flags.StringVarP(&conf.BridgeConfig.Iface, "bridge", "b", "", "Attach containers to a network bridge")
