@@ -304,7 +304,7 @@ linters:
           - staticcheck
 
         # FIXME(thaJeztah): ignoring these transitional utilities until BuildKit is vendored with https://github.com/moby/moby/pull/49743
-      - text: "SA1019: idtools\\.(ToUserIdentityMapping|FromUserIdentityMapping) is deprecated"
+      - text: "SA1019: idtools\\.(ToUserIdentityMapping|FromUserIdentityMapping|IdentityMapping) is deprecated"
         linters:
           - staticcheck
 

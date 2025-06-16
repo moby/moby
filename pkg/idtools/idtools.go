@@ -108,12 +108,16 @@ type Identity struct {
 }
 
 // Chown changes the numeric uid and gid of the named file to id.UID and id.GID.
+//
+// Deprecated: this method is deprecated and will be removed in the next release.
 func (id Identity) Chown(name string) error {
 	return os.Chown(name, id.UID, id.GID)
 }
 
 // IdentityMapping contains a mappings of UIDs and GIDs.
 // The zero value represents an empty mapping.
+//
+// Deprecated: this type is deprecated and will be removed in the next release.
 type IdentityMapping struct {
 	UIDMaps []IDMap `json:"UIDMaps"`
 	GIDMaps []IDMap `json:"GIDMaps"`
