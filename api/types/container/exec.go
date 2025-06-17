@@ -18,11 +18,13 @@ type ExecOptions struct {
 	AttachStdin  bool     // Attach the standard input, makes possible user interaction
 	AttachStderr bool     // Attach the standard error
 	AttachStdout bool     // Attach the standard output
-	Detach       bool     // Execute in detach mode
 	DetachKeys   string   // Escape keys for detach
 	Env          []string // Environment variables
 	WorkingDir   string   // Working directory
 	Cmd          []string // Execution commands and args
+
+	// Deprecated: the Detach field is not used, and will be removed in a future release.
+	Detach bool
 }
 
 // ExecStartOptions is a temp struct used by execStart
