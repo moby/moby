@@ -1,0 +1,47 @@
+table ip docker-bridges {
+	map filter-forward-in-jumps {
+		type ifname : verdict
+	}
+
+	map filter-forward-out-jumps {
+		type ifname : verdict
+	}
+
+	map nat-postrouting-in-jumps {
+		type ifname : verdict
+	}
+
+	map nat-postrouting-out-jumps {
+		type ifname : verdict
+	}
+
+	chain filter-FORWARD {
+		type filter hook forward priority filter; policy accept;
+		oifname vmap @filter-forward-in-jumps
+		iifname vmap @filter-forward-out-jumps
+	}
+
+	chain nat-OUTPUT {
+		type nat hook output priority -100; policy accept;
+		ip daddr != 127.0.0.0/8 fib daddr type local counter packets 0 bytes 0 jump nat-prerouting-and-output
+	}
+
+	chain nat-POSTROUTING {
+		type nat hook postrouting priority srcnat; policy accept;
+		iifname vmap @nat-postrouting-out-jumps
+		oifname vmap @nat-postrouting-in-jumps
+	}
+
+	chain nat-PREROUTING {
+		type nat hook prerouting priority dstnat; policy accept;
+		fib daddr type local counter packets 0 bytes 0 jump nat-prerouting-and-output
+	}
+
+	chain nat-prerouting-and-output {
+		iifname "loopback0" ip daddr 127.0.0.0/8 counter packets 0 bytes 0 return
+	}
+
+	chain raw-PREROUTING {
+		type filter hook prerouting priority raw; policy accept;
+	}
+}
