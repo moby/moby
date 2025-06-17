@@ -6,6 +6,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/remote"
 	"github.com/docker/docker/libnetwork/drvregistry"
@@ -15,7 +16,6 @@ import (
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/api"
-	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 	"github.com/pkg/errors"
 )
@@ -39,9 +39,6 @@ type cnmNetworkAllocator struct {
 
 	// The driver registry for all internal and external network drivers.
 	networkRegistry drvregistry.Networks
-
-	// The port allocator instance for allocating node ports
-	portAllocator *portAllocator
 
 	// Local network state used by cnmNetworkAllocator to do network management.
 	networks map[string]*network
@@ -87,27 +84,14 @@ type networkDriver struct {
 	capability *driverapi.Capability
 }
 
-// NetworkConfig is used to store network related cluster config in the Manager.
-type NetworkConfig struct {
-	// DefaultAddrPool specifies default subnet pool for global scope networks
-	DefaultAddrPool []string
-
-	// SubnetSize specifies the subnet size of the networks created from
-	// the default subnet pool
-	SubnetSize uint32
-
-	// VXLANUDPPort specifies the UDP port number for VXLAN traffic
-	VXLANUDPPort uint32
-}
-
-// New returns a new NetworkAllocator handle
-func New(pg plugingetter.PluginGetter, netConfig *NetworkConfig) (networkallocator.NetworkAllocator, error) {
+// NewAllocator returns a new NetworkAllocator handle
+func (p *Provider) NewAllocator(netConfig *networkallocator.Config) (networkallocator.NetworkAllocator, error) {
 	na := &cnmNetworkAllocator{
 		networks: make(map[string]*network),
 		services: make(map[string]struct{}),
 		tasks:    make(map[string]struct{}),
 		nodes:    make(map[string]map[string]struct{}),
-		pg:       pg,
+		pg:       p.pg,
 	}
 
 	for ntype, i := range initializers {
@@ -115,23 +99,17 @@ func New(pg plugingetter.PluginGetter, netConfig *NetworkConfig) (networkallocat
 			return nil, fmt.Errorf("failed to register %q network driver: %w", ntype, err)
 		}
 	}
-	if err := remote.Register(&na.networkRegistry, pg); err != nil {
+	if err := remote.Register(&na.networkRegistry, p.pg); err != nil {
 		return nil, fmt.Errorf("failed to initialize network driver plugins: %w", err)
 	}
 
 	if err := initIPAMDrivers(&na.ipamRegistry, netConfig); err != nil {
 		return nil, err
 	}
-	if err := remoteipam.Register(&na.ipamRegistry, pg); err != nil {
+	if err := remoteipam.Register(&na.ipamRegistry, p.pg); err != nil {
 		return nil, fmt.Errorf("failed to initialize IPAM driver plugins: %w", err)
 	}
 
-	pa, err := newPortAllocator()
-	if err != nil {
-		return nil, err
-	}
-
-	na.portAllocator = pa
 	return na, nil
 }
 
@@ -209,11 +187,8 @@ func (na *cnmNetworkAllocator) Deallocate(n *api.Network) error {
 }
 
 // AllocateService allocates all the network resources such as virtual
-// IP and ports needed by the service.
+// IP needed by the service.
 func (na *cnmNetworkAllocator) AllocateService(s *api.Service) (err error) {
-	if err = na.portAllocator.serviceAllocatePorts(s); err != nil {
-		return err
-	}
 	defer func() {
 		if err != nil {
 			na.DeallocateService(s)
@@ -300,7 +275,7 @@ networkLoop:
 }
 
 // DeallocateService de-allocates all the network resources such as
-// virtual IP and ports associated with the service.
+// virtual IP associated with the service.
 func (na *cnmNetworkAllocator) DeallocateService(s *api.Service) error {
 	if s.Endpoint == nil {
 		return nil
@@ -316,7 +291,6 @@ func (na *cnmNetworkAllocator) DeallocateService(s *api.Service) error {
 	}
 	s.Endpoint.VirtualIPs = nil
 
-	na.portAllocator.serviceDeallocatePorts(s)
 	delete(na.services, s.ID)
 
 	return nil
@@ -373,19 +347,8 @@ func (na *cnmNetworkAllocator) IsTaskAllocated(t *api.Task) bool {
 	return true
 }
 
-// HostPublishPortsNeedUpdate returns true if the passed service needs
-// allocations for its published ports in host (non ingress) mode
-func (na *cnmNetworkAllocator) HostPublishPortsNeedUpdate(s *api.Service) bool {
-	return na.portAllocator.hostPublishPortsNeedUpdate(s)
-}
-
 // IsServiceAllocated returns false if the passed service needs to have network resources allocated/updated.
 func (na *cnmNetworkAllocator) IsServiceAllocated(s *api.Service, flags ...func(*networkallocator.ServiceAllocationOpts)) bool {
-	var options networkallocator.ServiceAllocationOpts
-	for _, flag := range flags {
-		flag(&options)
-	}
-
 	specNetworks := serviceNetworks(s)
 
 	// If endpoint mode is VIP and allocator does not have the
@@ -447,10 +410,6 @@ func (na *cnmNetworkAllocator) IsServiceAllocated(s *api.Service, flags ...func(
 		}
 	}
 
-	if (s.Spec.Endpoint != nil && len(s.Spec.Endpoint.Ports) != 0) ||
-		(s.Endpoint != nil && len(s.Endpoint.Ports) != 0) {
-		return na.portAllocator.isPortsAllocatedOnInit(s, options.OnInit)
-	}
 	return true
 }
 

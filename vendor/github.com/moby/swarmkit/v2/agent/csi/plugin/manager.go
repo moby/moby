@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/docker/docker/pkg/plugingetter"
-
 	"github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/node/plugin"
 )
 
 const (
@@ -35,15 +34,15 @@ type pluginManager struct {
 	// newNodePluginFunc usually points to NewNodePlugin. However, for testing,
 	// NewNodePlugin can be swapped out with a function that creates fake node
 	// plugins
-	newNodePluginFunc func(string, plugingetter.CompatPlugin, plugingetter.PluginAddr, SecretGetter) NodePlugin
+	newNodePluginFunc func(string, plugin.AddrPlugin, SecretGetter) NodePlugin
 
 	// secrets is a SecretGetter for use by node plugins.
 	secrets SecretGetter
 
-	pg plugingetter.PluginGetter
+	pg plugin.Getter
 }
 
-func NewManager(pg plugingetter.PluginGetter, secrets SecretGetter) Manager {
+func NewManager(pg plugin.Getter, secrets SecretGetter) Manager {
 	return &pluginManager{
 		plugins:           map[string]NodePlugin{},
 		newNodePluginFunc: NewNodePlugin,
@@ -104,17 +103,17 @@ func (pm *pluginManager) getPlugin(name string) (NodePlugin, error) {
 		return p, nil
 	}
 
-	pc, err := pm.pg.Get(name, DockerCSIPluginCap, plugingetter.Lookup)
+	pc, err := pm.pg.Get(name, DockerCSIPluginCap)
 	if err != nil {
 		return nil, err
 	}
 
-	pa, ok := pc.(plugingetter.PluginAddr)
+	pa, ok := pc.(plugin.AddrPlugin)
 	if !ok {
 		return nil, fmt.Errorf("plugin does not implement PluginAddr interface")
 	}
 
-	p := pm.newNodePluginFunc(name, pc, pa, pm.secrets)
+	p := pm.newNodePluginFunc(name, pa, pm.secrets)
 	pm.plugins[name] = p
 	return p, nil
 }
