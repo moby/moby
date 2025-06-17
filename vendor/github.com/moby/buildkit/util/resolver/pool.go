@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/remotes"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
+	cerrdefs "github.com/containerd/errdefs"
 	distreference "github.com/distribution/reference"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver/pb"
@@ -225,7 +226,7 @@ func (r *Resolver) Fetcher(ctx context.Context, ref string) (remotes.Fetcher, er
 // Resolve attempts to resolve the reference into a name and descriptor.
 func (r *Resolver) Resolve(ctx context.Context, ref string) (string, ocispecs.Descriptor, error) {
 	if r.mode == ResolveModePreferLocal && r.is != nil {
-		if img, err := r.is.Get(ctx, ref); err == nil {
+		if img, err := getImageByRef(ctx, r.is, ref); err == nil {
 			return ref, img.Target, nil
 		}
 	}
@@ -237,12 +238,36 @@ func (r *Resolver) Resolve(ctx context.Context, ref string) (string, ocispecs.De
 	}
 
 	if r.mode == ResolveModeDefault && r.is != nil {
-		if img, err := r.is.Get(ctx, ref); err == nil {
+		if img, err := getImageByRef(ctx, r.is, ref); err == nil {
 			return ref, img.Target, nil
 		}
 	}
 
 	return "", ocispecs.Descriptor{}, err
+}
+
+func getImageByRef(ctx context.Context, is images.Store, ref string) (images.Image, error) {
+	named, err := distreference.ParseNormalizedNamed(ref)
+	if err != nil {
+		return images.Image{}, err
+	}
+
+	name := named.Name()
+	tag := "latest"
+	if t, ok := named.(distreference.Tagged); ok {
+		tag = t.Tag()
+	}
+	name = name + ":" + tag
+	img, err := is.Get(ctx, name)
+	if err != nil {
+		return images.Image{}, err
+	}
+	if c, ok := named.(distreference.Canonical); ok {
+		if img.Target.Digest != c.Digest() {
+			return images.Image{}, errors.WithStack(cerrdefs.ErrNotFound)
+		}
+	}
+	return img, nil
 }
 
 type ResolveMode int
