@@ -43,20 +43,13 @@ The filter table is the same as with the userland proxy enabled.
     Chain DOCKER-FORWARD (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
     1        0     0 DOCKER-CT  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    2        0     0 DOCKER-ISOLATION-STAGE-1  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    2        0     0 DOCKER-INTERNAL  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     3        0     0 DOCKER-BRIDGE  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
     4        0     0 ACCEPT     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
     5        0     0 ACCEPT     0    --  bridge1 *       0.0.0.0/0            0.0.0.0/0           
     
-    Chain DOCKER-ISOLATION-STAGE-1 (1 references)
+    Chain DOCKER-INTERNAL (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 DOCKER-ISOLATION-STAGE-2  0    --  docker0 !docker0  0.0.0.0/0            0.0.0.0/0           
-    2        0     0 DOCKER-ISOLATION-STAGE-2  0    --  bridge1 !bridge1  0.0.0.0/0            0.0.0.0/0           
-    
-    Chain DOCKER-ISOLATION-STAGE-2 (2 references)
-    num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 DROP       0    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
-    2        0     0 DROP       0    --  *      docker0  0.0.0.0/0            0.0.0.0/0           
     
     Chain DOCKER-USER (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -69,8 +62,7 @@ The filter table is the same as with the userland proxy enabled.
     -N DOCKER-BRIDGE
     -N DOCKER-CT
     -N DOCKER-FORWARD
-    -N DOCKER-ISOLATION-STAGE-1
-    -N DOCKER-ISOLATION-STAGE-2
+    -N DOCKER-INTERNAL
     -N DOCKER-USER
     -A FORWARD -j DOCKER-USER
     -A FORWARD -j DOCKER-FORWARD
@@ -82,14 +74,10 @@ The filter table is the same as with the userland proxy enabled.
     -A DOCKER-CT -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
     -A DOCKER-CT -o bridge1 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
     -A DOCKER-FORWARD -j DOCKER-CT
-    -A DOCKER-FORWARD -j DOCKER-ISOLATION-STAGE-1
+    -A DOCKER-FORWARD -j DOCKER-INTERNAL
     -A DOCKER-FORWARD -j DOCKER-BRIDGE
     -A DOCKER-FORWARD -i docker0 -j ACCEPT
     -A DOCKER-FORWARD -i bridge1 -j ACCEPT
-    -A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
-    -A DOCKER-ISOLATION-STAGE-1 -i bridge1 ! -o bridge1 -j DOCKER-ISOLATION-STAGE-2
-    -A DOCKER-ISOLATION-STAGE-2 -o bridge1 -j DROP
-    -A DOCKER-ISOLATION-STAGE-2 -o docker0 -j DROP
     
 
 </details>
@@ -144,8 +132,6 @@ Differences from [running with the proxy][0] are:
 
   - The jump from the OUTPUT chain to DOCKER happens even for loopback addresses.
     [ProgramChain][1].
-  - The "SKIP DNAT" RETURN rule for packets routed to the bridge is omitted from
-    the DOCKER chain [setupIPTablesInternal][2].
   - A MASQUERADE rule is added for packets sent from the container to one of its
     own published ports on the host.
   - A MASQUERADE rule for packets from a LOCAL source address is included in
@@ -154,6 +140,5 @@ Differences from [running with the proxy][0] are:
 
 [0]: usernet-portmap.md
 [1]: https://github.com/moby/moby/blob/333cfa640239153477bf635a8131734d0e9d099d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L302
-[2]: https://github.com/moby/moby/blob/333cfa640239153477bf635a8131734d0e9d099d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L293
 [3]: https://github.com/moby/moby/blob/333cfa640239153477bf635a8131734d0e9d099d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L302
 [4]: https://github.com/moby/moby/blob/675c2ac2db93e38bb9c5a6615d4155a969535fd9/libnetwork/drivers/bridge/port_mapping_linux.go#L772
