@@ -32,6 +32,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/skip"
 )
 
@@ -1011,6 +1012,81 @@ func TestDisableIPv6Addrs(t *testing.T) {
 	}
 }
 
+// TestDisableIPv6OnInterface checks that it's possible to disable IPv6 on an
+// endpoint in an IPv6 network using a sysctl.
+func TestDisableIPv6OnInterface(t *testing.T) {
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t, "--ipv6")
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	tests := []struct {
+		name    string
+		netName string
+	}{
+		{
+			name:    "default bridge",
+			netName: "bridge",
+		},
+		{
+			name:    "user defined bridge",
+			netName: "testnet",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.netName, func(t *testing.T) {
+			if tc.netName != "bridge" {
+				network.CreateNoError(ctx, t, c, tc.netName, network.WithIPv6())
+				defer network.RemoveNoError(ctx, t, c, tc.netName)
+			}
+
+			const ctrName = "ctr"
+			ctrId := container.Run(ctx, t, c,
+				container.WithName(ctrName),
+				container.WithNetworkMode(tc.netName),
+				container.WithExposedPorts("80/tcp"),
+				container.WithPortMap(nat.PortMap{"80/tcp": {{HostPort: "8080"}}}),
+				container.WithEndpointSettings(tc.netName, &networktypes.EndpointSettings{
+					DriverOpts: map[string]string{
+						netlabel.EndpointSysctls: "net.ipv6.conf.IFNAME.disable_ipv6=1",
+					},
+				}),
+			)
+			defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+
+			// The interface should not have any IPv6 addresses.
+			execRes := container.ExecT(ctx, t, c, ctrId, []string{"ip", "a", "show", "eth0"})
+			assert.Check(t, !strings.Contains(execRes.Stdout(), "inet6"),
+				"Unexpected IPv6 address in: %s", execRes.Stdout())
+
+			// Inspect should not show an IPv6 container address.
+			inspRes2 := container.Inspect(ctx, t, c, ctrId)
+			assert.Check(t, is.Equal("", inspRes2.NetworkSettings.Networks[tc.netName].GlobalIPv6Address))
+			assert.Check(t, is.Equal(0, inspRes2.NetworkSettings.Networks[tc.netName].GlobalIPv6PrefixLen))
+
+			// Port mappings should be IPv4-only - but can't see the proxy processes in the rootless netns.
+			if !testEnv.IsRootless() {
+				checkProxies(ctx, t, c, d.Pid(), []expProxyCfg{
+					{"tcp", "0.0.0.0", "8080", ctrName, tc.netName, true, "80"},
+					{"tcp", "::", "8080", ctrName, tc.netName, true, "80"},
+				})
+			}
+
+			// There should not be an IPv6 DNS or /etc/hosts entry.
+			runRes := container.RunAttach(ctx, t, c,
+				container.WithNetworkMode(tc.netName),
+				container.WithCmd("ping", "-6", ctrName),
+			)
+			assert.Check(t, is.Equal(runRes.ExitCode, 1))
+			assert.Check(t, is.Contains(runRes.Stderr.String(), "bad address"))
+		})
+	}
+}
+
 // Check that a container in a network with IPv4 disabled doesn't get
 // IPv4 addresses.
 func TestDisableIPv4(t *testing.T) {
@@ -1474,10 +1550,13 @@ func checkProxies(ctx context.Context, t *testing.T, c *client.Client, daemonPid
 		wantProxies = append(wantProxies, makeExpStr(e.proto, e.hostIP, e.hostPort, ctrIP, e.ctrPort))
 	}
 
-	gotProxies := make([]string, 0, len(exp))
-	res, err := exec.Command("ps", "-f", "--ppid", strconv.Itoa(daemonPid)).CombinedOutput()
-	assert.NilError(t, err)
-	for _, line := range strings.Split(string(res), "\n") {
+	gotProxies := make([]string, len(exp))
+	res := icmd.RunCommand("ps", "-f", "--ppid", strconv.Itoa(daemonPid))
+	if res.Error != nil {
+		t.Error(res)
+		return
+	}
+	for _, line := range strings.Split(res.Stdout(), "\n") {
 		_, args, ok := strings.Cut(line, "docker-proxy")
 		if !ok {
 			continue
@@ -1495,7 +1574,7 @@ func checkProxies(ctx context.Context, t *testing.T, c *client.Client, daemonPid
 		gotProxies = append(gotProxies, makeExpStr(proto, hostIP, hostPort, ctrIP, ctrPort))
 	}
 
-	assert.DeepEqual(t, gotProxies, wantProxies)
+	assert.Check(t, is.DeepEqual(gotProxies, wantProxies))
 }
 
 // Check that a gratuitous ARP / neighbour advertisement is sent for a new

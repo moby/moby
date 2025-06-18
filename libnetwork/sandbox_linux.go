@@ -10,9 +10,6 @@ import (
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // Linux-specific container configuration flags.
@@ -198,10 +195,12 @@ func (sb *Sandbox) SetKey(ctx context.Context, basePath string) error {
 		return err
 	}
 
-	for _, ep := range sb.Endpoints() {
-		if err = sb.populateNetworkResources(ctx, ep); err != nil {
-			return err
-		}
+	// If the Sandbox already has endpoints it's because sbJoin has been called for
+	// them - but configuration of addresses/routes (and so on) didn't complete because
+	// there was nowhere for it to go before the osSbox was set up. So, finish that
+	// configuration now.
+	if eps := sb.Endpoints(); len(eps) > 0 {
+		sb.finishEndpointConfig(ctx)
 	}
 
 	return nil
@@ -314,15 +313,40 @@ func (sb *Sandbox) restoreOslSandbox() error {
 	return nil
 }
 
-func (sb *Sandbox) populateNetworkResources(ctx context.Context, ep *Endpoint) error {
-	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Sandbox.populateNetworkResources", trace.WithAttributes(
-		attribute.String("endpoint.Name", ep.Name())))
-	defer span.End()
+// finishEndpointConfig is to finish configuration of any Endpoint that was added to the
+// Sandbox (via sbJoin) before sb.osSbox had been set up.
+func (sb *Sandbox) finishEndpointConfig(ctx context.Context) error {
+	for _, ep := range sb.Endpoints() {
+		if err := sb.populateNetworkResources(ctx, ep); err != nil {
+			return err
+		}
+	}
 
+	gwep4, gwep6 := sb.getGatewayEndpoint()
+	if gwep4 != nil {
+		if err := gwep4.updateExternalConnectivity(ctx, sb, nil, nil); err != nil {
+			return err
+		}
+	}
+	if gwep6 != nil && gwep6 != gwep4 {
+		if err := gwep6.updateExternalConnectivity(ctx, sb, nil, nil); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (sb *Sandbox) canPopulateNetworkResources() bool {
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
+	return sb.osSbox != nil
+}
+
+func (sb *Sandbox) populateNetworkResourcesOS(ctx context.Context, ep *Endpoint) error {
 	sb.mu.Lock()
 	if sb.osSbox == nil {
 		sb.mu.Unlock()
-		return nil
+		return fmt.Errorf("cannot populate network resources for container %s, no osSbox", sb.ContainerID())
 	}
 	inDelete := sb.inDelete
 	sb.mu.Unlock()
@@ -367,6 +391,24 @@ func (sb *Sandbox) populateNetworkResources(ctx context.Context, ep *Endpoint) e
 			return fmt.Errorf("failed to add interface %s to sandbox: %v", i.srcName, err)
 		}
 
+		// If IPv6 is configured and the address isn't on the interface, it was applied successfully
+		// but then removed by a sysctl setting. Release the address and update the interface config.
+		if i.addrv6 != nil && !inDelete {
+			if oslIface := sb.osSbox.InterfaceBySrcName(i.srcName); oslIface != nil {
+				if oslIface.AddressIPv6() == nil {
+					var err error
+					joinInfo, err = ep.releaseIPv6Address(ctx)
+					if err != nil {
+						return err
+					}
+					// The Sandbox's list of endpoints is sorted based on IPv6 connectivity, so
+					// make sure this one's in the right place.
+					sb.removeEndpoint(ep)
+					sb.addEndpoint(ep)
+				}
+			}
+		}
+
 		if len(ep.virtualIP) > 0 && lbModeIsDSR {
 			if sb.loadBalancerNID == "" {
 				if err := sb.osSbox.DisableARPForVIP(i.srcName); err != nil {
@@ -399,6 +441,12 @@ func (sb *Sandbox) populateNetworkResources(ctx context.Context, ep *Endpoint) e
 		if err := sb.updateGateway(gw4, gw6); err != nil {
 			return fmt.Errorf("updating gateway endpoint: %w", err)
 		}
+	}
+
+	sb.addHostsEntries(ctx, ep.getEtcHostsAddrs())
+	// Make sure /etc/resolv.conf is set up.
+	if err := sb.updateDNS(ep.getNetwork().enableIPv6); err != nil {
+		return err
 	}
 
 	// Populate load balancer only after updating all the other
