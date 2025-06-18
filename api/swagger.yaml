@@ -315,8 +315,8 @@ definitions:
           items:
             type: "string"
         example:
-          # gpu AND nvidia AND compute
-          - ["gpu", "nvidia", "compute"]
+          # gpu AND nvidia
+          - ["gpu", "nvidia"]
       Options:
         description: |
           Driver-specific options, specified as a key/value pairs. These options
@@ -7887,7 +7887,6 @@ paths:
                   - Driver: "nvidia"
                     Count: -1
                     DeviceIDs": ["0", "1", "GPU-fef8089b-4820-abfc-e83e-94318197576e"]
-                    Capabilities: [["gpu", "nvidia", "compute"]]
                     Options:
                       property1: "string"
                       property2: "string"

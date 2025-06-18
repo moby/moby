@@ -6,41 +6,23 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/containerd/containerd/v2/contrib/nvidia"
 	"github.com/docker/docker/daemon/internal/capabilities"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
 
-// TODO: nvidia should not be hard-coded, and should be a device plugin instead on the daemon object.
-// TODO: add list of device capabilities in daemon/node info
-
 var errConflictCountDeviceIDs = errors.New("cannot set both Count and DeviceIDs on device request")
 
 const (
-	nvidiaHook                        = "nvidia-container-runtime-hook"
-	amdContainerRuntimeExecutableName = "amd-container-runtime"
+	nvidiaContainerRuntimeHookExecutableName = "nvidia-container-runtime-hook"
+	amdContainerRuntimeExecutableName        = "amd-container-runtime"
 )
 
-// These are NVIDIA-specific capabilities stolen from github.com/containerd/containerd/contrib/nvidia.allCaps
-var allNvidiaCaps = map[nvidia.Capability]struct{}{
-	nvidia.Compute:  {},
-	nvidia.Compat32: {},
-	nvidia.Graphics: {},
-	nvidia.Utility:  {},
-	nvidia.Video:    {},
-	nvidia.Display:  {},
-}
-
 func init() {
-	// Register Nvidia driver if Nvidia helper binary is present.
-	if _, err := exec.LookPath(nvidiaHook); err == nil {
-		capset := capabilities.Set{"gpu": struct{}{}, "nvidia": struct{}{}}
-		for c := range allNvidiaCaps {
-			capset[string(c)] = struct{}{}
-		}
+	// Register nvidia driver if the NVIDIA Container Runtime Hook binary is present.
+	if _, err := exec.LookPath(nvidiaContainerRuntimeHookExecutableName); err == nil {
 		registerDeviceDriver("nvidia", &deviceDriver{
-			capset:     capset,
+			capset:     capabilities.Set{"gpu": struct{}{}, "nvidia": struct{}{}},
 			updateSpec: setNvidiaGPUs,
 		})
 		return
@@ -75,23 +57,7 @@ func setNvidiaGPUs(s *specs.Spec, dev *deviceInstance) error {
 		s.Process.Env = append(s.Process.Env, "NVIDIA_VISIBLE_DEVICES=void")
 	}
 
-	var nvidiaCaps []string
-	// req.Capabilities contains device capabilities, some but not all are NVIDIA driver capabilities.
-	for _, c := range dev.selectedCaps {
-		nvcap := nvidia.Capability(c)
-		if _, isNvidiaCap := allNvidiaCaps[nvcap]; isNvidiaCap {
-			nvidiaCaps = append(nvidiaCaps, c)
-			continue
-		}
-		// TODO: nvidia.WithRequiredCUDAVersion
-		// for now we let the prestart hook verify cuda versions but errors are not pretty.
-	}
-
-	if nvidiaCaps != nil {
-		s.Process.Env = append(s.Process.Env, "NVIDIA_DRIVER_CAPABILITIES="+strings.Join(nvidiaCaps, ","))
-	}
-
-	path, err := exec.LookPath(nvidiaHook)
+	path, err := exec.LookPath(nvidiaContainerRuntimeHookExecutableName)
 	if err != nil {
 		return err
 	}
@@ -108,7 +74,7 @@ func setNvidiaGPUs(s *specs.Spec, dev *deviceInstance) error {
 	s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{ //nolint:staticcheck // FIXME(thaJeztah); replace prestart hook with a non-deprecated one.
 		Path: path,
 		Args: []string{
-			nvidiaHook,
+			nvidiaContainerRuntimeHookExecutableName,
 			"prestart",
 		},
 		Env: os.Environ(),
