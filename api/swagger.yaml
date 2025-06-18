@@ -309,6 +309,9 @@ definitions:
       Capabilities:
         description: |
           A list of capabilities; an OR list of AND lists of capabilities.
+
+          Note that if no driver is specified the capabilities are used to
+          select a driver with the required capabilities.
         type: "array"
         items:
           type: "array"
