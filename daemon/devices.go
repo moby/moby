@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 
+	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/v2/daemon/config"
@@ -39,26 +40,33 @@ func registerDeviceDriver(name string, d *deviceDriver) {
 
 func (daemon *Daemon) handleDevice(req container.DeviceRequest, spec *specs.Spec) error {
 	if req.Driver == "" {
-		for _, dd := range deviceDrivers {
+		// If no driver is explicitly requested, we iterate over the registered
+		// drivers and attempt to match on capabilities.
+		for driver, dd := range deviceDrivers {
 			if selected := dd.capset.Match(req.Capabilities); selected != nil {
+				log.G(context.TODO()).WithFields(log.Fields{
+					"driver": driver,
+					"capabilities": map[string]any{
+						"requested": req.Capabilities,
+						"selected":  selected,
+					},
+				}).Debugf("Selecting device driver by capabilities")
 				return dd.updateSpec(spec, &deviceInstance{req: req, selectedCaps: selected})
 			}
 		}
 	} else if dd := deviceDrivers[req.Driver]; dd != nil {
-		// We add a special case for the CDI driver here as the cdi driver does
-		// not distinguish between capabilities.
-		// Furthermore, the "OR" and "AND" matching logic for the capability
-		// sets requires that a dummy capability be specified when constructing a
-		// DeviceRequest.
-		// This workaround can be removed once these device driver are
-		// refactored to be plugins, with each driver implementing its own
-		// matching logic, for example.
-		if req.Driver == "cdi" {
-			return dd.updateSpec(spec, &deviceInstance{req: req})
-		}
-		if selected := dd.capset.Match(req.Capabilities); selected != nil {
-			return dd.updateSpec(spec, &deviceInstance{req: req, selectedCaps: selected})
-		}
+		selected := dd.capset.Match(req.Capabilities)
+		// If a driver is explicitly requested and registered, then we use the
+		// specified driver, ignoring the capabilities.
+		log.G(context.TODO()).WithFields(log.Fields{
+			"driver": req.Driver,
+			"capabilities": map[string]any{
+				"requested": req.Capabilities,
+				"selected":  selected,
+			},
+		}).Debugf("Selecting device driver by driver name; possibly ignoring capabilities")
+		return dd.updateSpec(spec, &deviceInstance{req: req, selectedCaps: selected})
 	}
+
 	return incompatibleDeviceRequest{req.Driver, req.Capabilities}
 }
