@@ -836,7 +836,7 @@ func (n *Network) handleDriverTableEvent(ev events.Event) {
 		tname = event.Table
 		key = event.Key
 		value = event.Value
-		etype = driverapi.Delete
+		etype = driverapi.Update
 	}
 
 	d.EventNotify(etype, n.ID(), tname, key, value)
