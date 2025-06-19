@@ -115,6 +115,7 @@ require (
 	google.golang.org/grpc v1.72.2
 	google.golang.org/protobuf v1.36.6
 	gotest.tools/v3 v3.5.2
+	pgregory.net/rapid v1.2.0
 	resenje.org/singleflight v0.4.3
 	tags.cncf.io/container-device-interface v1.0.1
 )
