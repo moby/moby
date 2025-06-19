@@ -17,7 +17,7 @@ type PartialOpts struct {
 // and missingPlatforms. However, only the blobs of the storedPlatforms are
 // created and stored, while the missingPlatforms are only referenced in the
 // index.
-func PartialMultiPlatform(dir string, imageRef string, opts PartialOpts) (*ocispec.Index, []ocispec.Descriptor, error) {
+func PartialMultiPlatform(dir, imageRef string, opts PartialOpts) (*ocispec.Index, []ocispec.Descriptor, error) {
 	ref, err := reference.ParseNormalizedNamed(imageRef)
 	if err != nil {
 		return nil, nil, err

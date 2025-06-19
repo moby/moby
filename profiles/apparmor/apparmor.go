@@ -96,7 +96,7 @@ func IsLoaded(name string) (bool, error) {
 	return isLoaded(name, "/sys/kernel/security/apparmor/profiles")
 }
 
-func isLoaded(name string, fileName string) (bool, error) {
+func isLoaded(name, fileName string) (bool, error) {
 	file, err := os.Open(fileName)
 	if err != nil {
 		return false, err

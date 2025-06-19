@@ -427,13 +427,13 @@ func (b *limitedBuffer) String() string {
 
 	out := b.buf.String()
 	if b.truncated {
-		out = out + "..."
+		out += "..."
 	}
 	return out
 }
 
 // If configuredValue is zero, use defaultValue instead.
-func timeoutWithDefault(configuredValue time.Duration, defaultValue time.Duration) time.Duration {
+func timeoutWithDefault(configuredValue, defaultValue time.Duration) time.Duration {
 	if configuredValue == 0 {
 		return defaultValue
 	}

@@ -602,7 +602,7 @@ func (t TableRef) InterfaceVMap(name string) VMapRef {
 
 // AddElement adds an element to a verdict map. The caller must ensure the key has
 // the correct type. It is an error to add a key that already exists.
-func (v VMapRef) AddElement(key string, verdict string) error {
+func (v VMapRef) AddElement(key, verdict string) error {
 	if _, ok := v.v.Elements[key]; ok {
 		return fmt.Errorf("verdict map already contains element %q", key)
 	}

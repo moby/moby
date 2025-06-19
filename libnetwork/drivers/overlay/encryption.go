@@ -154,11 +154,9 @@ func (d *driver) checkEncryption(nid string, rIP netip.Addr, isLocal, add bool) 
 				log.G(context.TODO()).Warnf("Failed to program network encryption between %s and %s: %v", lIP, rIP, err)
 			}
 		}
-	} else {
-		if len(nodes) == 0 {
-			if err := removeEncryption(lIP, rIP, d.secMap); err != nil {
-				log.G(context.TODO()).Warnf("Failed to remove network encryption between %s and %s: %v", lIP, rIP, err)
-			}
+	} else if len(nodes) == 0 {
+		if err := removeEncryption(lIP, rIP, d.secMap); err != nil {
+			log.G(context.TODO()).Warnf("Failed to remove network encryption between %s and %s: %v", lIP, rIP, err)
 		}
 	}
 
@@ -305,7 +303,7 @@ func (d *driver) programInput(vni uint32, add bool) error {
 	return nil
 }
 
-func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (fSA *netlink.XfrmState, rSA *netlink.XfrmState, lastErr error) {
+func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (fSA, rSA *netlink.XfrmState, lastErr error) {
 	var (
 		action      = "Removing"
 		xfrmProgram = ns.NlHandle().XfrmStateDel
@@ -383,7 +381,7 @@ func getMinimalIP(ip net.IP) net.IP {
 	return ip
 }
 
-func programSP(fSA *netlink.XfrmState, rSA *netlink.XfrmState, add bool) error {
+func programSP(fSA, rSA *netlink.XfrmState, add bool) error {
 	action := "Removing"
 	xfrmProgram := ns.NlHandle().XfrmPolicyDel
 	if add {
@@ -638,9 +636,7 @@ func updateNodeKey(lIP, aIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, pr
 
 	// swap
 	if priIdx > 0 {
-		swp := spis[0]
-		spis[0] = spis[priIdx]
-		spis[priIdx] = swp
+		spis[0], spis[priIdx] = spis[priIdx], spis[0]
 	}
 	// prune
 	if delIdx != -1 {
