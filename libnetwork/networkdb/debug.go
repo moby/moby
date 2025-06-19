@@ -3,7 +3,9 @@ package networkdb
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/containerd/log"
 )
@@ -42,4 +44,16 @@ func logEncKeys(ctx context.Context, keys ...[]byte) {
 			return
 		}
 	}
+}
+
+func (nDB *NetworkDB) DebugDumpTable(tname string) string {
+	nDB.RLock()
+	root := nDB.indexes[byTable].Root()
+	nDB.RUnlock()
+	var sb strings.Builder
+	root.WalkPrefix([]byte("/"+tname), func(path []byte, v *entry) bool {
+		fmt.Fprintf(&sb, "    %q: %+v\n", path, v)
+		return false
+	})
+	return sb.String()
 }
