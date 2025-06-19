@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/registry"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/spf13/pflag"
@@ -427,6 +428,17 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			},
 			platform:    "windows",
 			expectedErr: "invalid exec-opt (native.cgroupdriver=systemd): option 'native.cgroupdriver' is only supported on linux",
+		},
+		{
+			name: "invalid mirror",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					ServiceOptions: registry.ServiceOptions{
+						Mirrors: []string{"ftp://example.com"},
+					},
+				},
+			},
+			expectedErr: `invalid mirror: unsupported scheme "ftp" in "ftp://example.com": must use either 'https://' or 'http://'`,
 		},
 	}
 	for _, tc := range testCases {
