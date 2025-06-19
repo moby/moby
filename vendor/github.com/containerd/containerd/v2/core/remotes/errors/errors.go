@@ -20,16 +20,23 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/containerd/typeurl/v2"
 )
 
 var _ error = ErrUnexpectedStatus{}
 
+func init() {
+	typeurl.Register(&ErrUnexpectedStatus{}, "github.com/containerd/containerd/v2/core/remotes/errors", "ErrUnexpectedStatus")
+}
+
 // ErrUnexpectedStatus is returned if a registry API request returned with unexpected HTTP status
 type ErrUnexpectedStatus struct {
-	Status                    string
-	StatusCode                int
-	Body                      []byte
-	RequestURL, RequestMethod string
+	Status        string `json:"status"`
+	StatusCode    int    `json:"statusCode"`
+	Body          []byte `json:"body,omitempty"`
+	RequestURL    string `json:"requestURL,omitempty"`
+	RequestMethod string `json:"requestMethod,omitempty"`
 }
 
 func (e ErrUnexpectedStatus) Error() string {
