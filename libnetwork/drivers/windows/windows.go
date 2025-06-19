@@ -954,14 +954,6 @@ func (d *driver) Leave(nid, eid string) error {
 	return nil
 }
 
-func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string, options map[string]interface{}) error {
-	return nil
-}
-
-func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
-	return nil
-}
-
 func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
 	return nil, types.NotImplementedErrorf("not implemented")
 }
