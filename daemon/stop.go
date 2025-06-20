@@ -74,6 +74,9 @@ func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Containe
 	defer func() {
 		if retErr == nil {
 			daemon.LogContainerEvent(ctr, events.ActionStop)
+			// Ensure container status changes are committed by handler of container exit before returning control to the caller
+			ctr.Lock()
+			defer ctr.Unlock()
 		}
 	}()
 
@@ -93,9 +96,6 @@ func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Containe
 	defer cancel()
 
 	if status := <-ctr.Wait(subCtx, containertypes.WaitConditionNotRunning); status.Err() == nil {
-		// Ensure container status changes are committed by handler of container exit before returning control to the caller
-		ctr.Lock()
-		defer ctr.Unlock()
 		// container did exit, so ignore any previous errors and return
 		return nil
 	}
@@ -124,10 +124,6 @@ func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Containe
 		}
 		// container did exit, so ignore previous errors and continue
 	}
-
-	// Ensure container status changes are committed by handler of container exit before returning control to the caller
-	ctr.Lock()
-	defer ctr.Unlock()
 
 	return nil
 }
