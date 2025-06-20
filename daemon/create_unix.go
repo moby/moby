@@ -64,6 +64,15 @@ func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, con
 
 		v, err := daemon.volumes.Create(context.TODO(), "", hostConfig.VolumeDriver, volumeopts.WithCreateReference(container.ID))
 		if err != nil {
+			if errdefs.IsNotFound(err) {
+				// Using a non-existing plugin is an invalid parameter, and should
+				// not return a "notfound" error on container create, because that
+				// error is used to indicate the container's image isn't found and
+				// must be pulled.
+				//
+				// See https://github.com/moby/moby/issues/48772
+				return errdefs.InvalidParameter(err)
+			}
 			return err
 		}
 
