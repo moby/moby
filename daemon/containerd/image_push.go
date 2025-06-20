@@ -75,7 +75,7 @@ func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named,
 					continue
 				}
 
-				if err := i.pushRef(ctx, named, platform, metaHeaders, authConfig, out); err != nil {
+				if err := i.pushRef(ctx, named, platform, authConfig, out); err != nil {
 					return err
 				}
 			}
@@ -84,10 +84,10 @@ func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named,
 		}
 	}
 
-	return i.pushRef(ctx, sourceRef, platform, metaHeaders, authConfig, out)
+	return i.pushRef(ctx, sourceRef, platform, authConfig, out)
 }
 
-func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, out progress.Output) (retErr error) {
+func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, platform *ocispec.Platform, authConfig *registry.AuthConfig, out progress.Output) (retErr error) {
 	leasedCtx, release, err := i.client.WithLease(ctx)
 	if err != nil {
 		return err
