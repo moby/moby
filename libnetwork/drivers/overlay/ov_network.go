@@ -235,14 +235,6 @@ func (d *driver) DeleteNetwork(nid string) error {
 	return nil
 }
 
-func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string, options map[string]interface{}) error {
-	return nil
-}
-
-func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
-	return nil
-}
-
 func (n *network) joinSandbox(s *subnet, incJoinCount bool) error {
 	// If there is a race between two go routines here only one will win
 	// the other will wait.

@@ -823,14 +823,6 @@ func (b *badDriver) IsBuiltIn() bool {
 	return false
 }
 
-func (b *badDriver) ProgramExternalConnectivity(_ context.Context, nid, eid string, options map[string]interface{}) error {
-	return nil
-}
-
-func (b *badDriver) RevokeExternalConnectivity(nid, eid string) error {
-	return nil
-}
-
 func (b *badDriver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
 	return nil, types.NotImplementedErrorf("not implemented")
 }

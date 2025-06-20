@@ -212,14 +212,6 @@ func (d *driver) DeleteNetwork(nid string) error {
 	return nil
 }
 
-func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string, options map[string]interface{}) error {
-	return nil
-}
-
-func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
-	return nil
-}
-
 func (d *driver) addNetwork(n *network) {
 	d.Lock()
 	d.networks[n.id] = n
