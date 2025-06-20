@@ -14,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/pkg/errors"
 )
 
@@ -277,9 +276,6 @@ func (cli *Client) addHeaders(req *http.Request, headers http.Header) *http.Requ
 	// Add CLI Config's HTTP Headers BEFORE we set the Docker headers
 	// then the user can't change OUR headers
 	for k, v := range cli.customHTTPHeaders {
-		if versions.LessThan(cli.version, "1.25") && http.CanonicalHeaderKey(k) == "User-Agent" {
-			continue
-		}
 		req.Header.Set(k, v)
 	}
 
