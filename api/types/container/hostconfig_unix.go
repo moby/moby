@@ -19,11 +19,6 @@ func (n NetworkMode) IsHost() bool {
 	return n == network.NetworkHost
 }
 
-// IsUserDefined indicates user-created network
-func (n NetworkMode) IsUserDefined() bool {
-	return !n.IsDefault() && !n.IsBridge() && !n.IsHost() && !n.IsNone() && !n.IsContainer()
-}
-
 // NetworkName returns the name of the network stack.
 func (n NetworkMode) NetworkName() string {
 	switch {
