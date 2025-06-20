@@ -79,8 +79,13 @@ func TestCreateByImageID(t *testing.T) {
 	assert.NilError(t, err)
 
 	imgIDWithAlgorithm := img.ID
-	imgID, _ := strings.CutPrefix(imgIDWithAlgorithm, "sha256:")
-	imgShortID := stringid.TruncateID(imgID)
+	assert.Assert(t, imgIDWithAlgorithm != "")
+
+	imgID, _ := strings.CutPrefix(img.ID, "sha256:")
+	assert.Assert(t, imgID != "")
+
+	imgShortID := stringid.TruncateID(img.ID)
+	assert.Assert(t, imgShortID != "")
 
 	testCases := []struct {
 		doc             string
@@ -131,8 +136,8 @@ func TestCreateByImageID(t *testing.T) {
 				assert.Check(t, is.Error(err, tc.expectedErr))
 				assert.Check(t, is.ErrorType(err, tc.expectedErrType))
 			} else {
-				assert.Check(t, resp.ID != "")
 				assert.NilError(t, err)
+				assert.Check(t, resp.ID != "")
 			}
 			// cleanup the container if one was created.
 			_ = apiClient.ContainerRemove(ctx, resp.ID, container.RemoveOptions{Force: true})
