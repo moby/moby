@@ -748,6 +748,12 @@ func Validate(config *Config) error {
 		}
 	}
 
+	for _, mirror := range config.ServiceOptions.Mirrors {
+		if _, err := registry.ValidateMirror(mirror); err != nil {
+			return err
+		}
+	}
+
 	if config.CorsHeaders != "" {
 		// TODO(thaJeztah): option is used to produce error when used; remove in next release
 		return errors.New(`DEPRECATED: The "api-cors-header" config parameter and the dockerd "--api-cors-header" option have been removed; use a reverse proxy if you need CORS headers`)

@@ -298,12 +298,17 @@ func isCIDRMatch(cidrs []*registry.NetIPNet, URLHost string) bool {
 //
 // It is used by the daemon to validate the daemon configuration.
 func ValidateMirror(mirrorURL string) (string, error) {
+	// Fast path for missing scheme, as url.Parse splits by ":", which can
+	// cause the hostname to be considered the "scheme" when using "hostname:port".
+	if scheme, _, ok := strings.Cut(mirrorURL, "://"); !ok || scheme == "" {
+		return "", invalidParamf("invalid mirror: no scheme specified for %q: must use either 'https://' or 'http://'", mirrorURL)
+	}
 	uri, err := url.Parse(mirrorURL)
 	if err != nil {
 		return "", invalidParamWrapf(err, "invalid mirror: %q is not a valid URI", mirrorURL)
 	}
 	if uri.Scheme != "http" && uri.Scheme != "https" {
-		return "", invalidParamf("invalid mirror: unsupported scheme %q in %q", uri.Scheme, uri)
+		return "", invalidParamf("invalid mirror: unsupported scheme %q in %q: must use either 'https://' or 'http://'", uri.Scheme, uri)
 	}
 	if uri.RawQuery != "" || uri.Fragment != "" {
 		return "", invalidParamf("invalid mirror: query or fragment at end of the URI %q", uri)
