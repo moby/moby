@@ -754,6 +754,10 @@ func (a *mockIpam) IsBuiltIn() bool {
 	return true
 }
 
+func (a *mockIpam) UsedAddrs(poolID string) (uint64, uint64, error) {
+	return 0, 0, nil
+}
+
 func TestCorrectlyPassIPAMOptions(t *testing.T) {
 	var err error
 	expectedIpamOptions := map[string]string{"network-name": "freddie"}

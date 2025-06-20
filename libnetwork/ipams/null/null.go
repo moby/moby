@@ -76,6 +76,10 @@ func (a *allocator) IsBuiltIn() bool {
 	return true
 }
 
+func (a *allocator) UsedAddrs(poolID string) (uint64, uint64, error) {
+	return 0, 0, nil
+}
+
 // Register registers the null ipam driver with r.
 func Register(r ipamapi.Registerer) error {
 	return r.RegisterIpamDriver(DriverName, &allocator{})
