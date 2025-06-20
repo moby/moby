@@ -200,7 +200,7 @@ func Copy(ctx context.Context, cw Writer, or io.Reader, size int64, expected dig
 		}
 		if size != 0 && copied < size-ws.Offset {
 			// Short writes would return its own error, this indicates a read failure
-			return fmt.Errorf("failed to read expected number of bytes: %w", io.ErrUnexpectedEOF)
+			return fmt.Errorf("short read: expected %d bytes but got %d: %w", size-ws.Offset, copied, io.ErrUnexpectedEOF)
 		}
 		if err := cw.Commit(ctx, size, expected, opts...); err != nil {
 			if errors.Is(err, ErrReset) {

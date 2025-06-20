@@ -28,15 +28,17 @@ import (
 
 	transferapi "github.com/containerd/containerd/api/services/transfer/v1"
 	transfertypes "github.com/containerd/containerd/api/types/transfer"
-	"github.com/containerd/containerd/v2/core/streaming"
-	"github.com/containerd/containerd/v2/core/transfer"
-	tstreaming "github.com/containerd/containerd/v2/core/transfer/streaming"
-	"github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/errdefs"
+	"github.com/containerd/errdefs/pkg/errgrpc"
 	"github.com/containerd/log"
 	"github.com/containerd/ttrpc"
 	"github.com/containerd/typeurl/v2"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/containerd/containerd/v2/core/streaming"
+	"github.com/containerd/containerd/v2/core/transfer"
+	tstreaming "github.com/containerd/containerd/v2/core/transfer/streaming"
+	"github.com/containerd/containerd/v2/pkg/oci"
 )
 
 type proxyTransferrer struct {
@@ -150,7 +152,7 @@ func (p *proxyTransferrer) Transfer(ctx context.Context, src interface{}, dst in
 		Options: apiOpts,
 	}
 	_, err = p.client.Transfer(ctx, req)
-	return err
+	return errgrpc.ToNative(err)
 }
 func (p *proxyTransferrer) marshalAny(ctx context.Context, i interface{}) (typeurl.Any, error) {
 	switch m := i.(type) {
