@@ -52,7 +52,7 @@ func UsingFirewalld() (bool, error) {
 	// But, if running rootless, the init function is not called because
 	// firewalld will be running in the host's netns, not in rootlesskit's.
 	if !firewalldInitCalled && !rootless.RunningWithRootlessKit() {
-		return false, fmt.Errorf("iptables.firewalld is not initialised")
+		return false, errors.New("iptables.firewalld is not initialised")
 	}
 	return firewalldRunning, nil
 }
@@ -330,10 +330,7 @@ func AddInterfaceFirewalld(intf string) error {
 
 	log.G(context.TODO()).Debugf("Firewalld: adding %s interface to %s zone", intf, dockerZone)
 	// Runtime
-	if err := connection.sysObj.Call(dbusInterface+".zone.addInterface", 0, dockerZone, intf).Err; err != nil {
-		return err
-	}
-	return nil
+	return connection.sysObj.Call(dbusInterface+".zone.addInterface", 0, dockerZone, intf).Err
 }
 
 // DelInterfaceFirewalld removes the interface from the trusted zone It is a
@@ -355,10 +352,7 @@ func DelInterfaceFirewalld(intf string) error {
 
 	log.G(context.TODO()).Debugf("Firewalld: removing %s interface from %s zone", intf, dockerZone)
 	// Runtime
-	if err := connection.sysObj.Call(dbusInterface+".zone.removeInterface", 0, dockerZone, intf).Err; err != nil {
-		return err
-	}
-	return nil
+	return connection.sysObj.Call(dbusInterface+".zone.removeInterface", 0, dockerZone, intf).Err
 }
 
 type interfaceNotFound struct{ error }

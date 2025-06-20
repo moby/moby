@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -242,7 +243,7 @@ func (c *ChannelBuffer) ReadTimeout(p []byte, n time.Duration) (int, error) {
 	case b := <-c.C:
 		return copy(p[0:], b), nil
 	case <-time.After(n):
-		return -1, fmt.Errorf("timeout reading from channel")
+		return -1, errors.New("timeout reading from channel")
 	}
 }
 

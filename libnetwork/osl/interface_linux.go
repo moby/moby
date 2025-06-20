@@ -184,7 +184,7 @@ func (i *Interface) Statistics() (*types.InterfaceStatistics, error) {
 
 	stats := l.Attrs().Statistics
 	if stats == nil {
-		return nil, fmt.Errorf("no statistics were returned")
+		return nil, errors.New("no statistics were returned")
 	}
 
 	return &types.InterfaceStatistics{
@@ -873,11 +873,7 @@ func (n *Namespace) configureInterface(ctx context.Context, nlh nlwrap.Handle, i
 		}
 	}
 
-	if err := n.setSysctls(ctx, i.dstName, i.sysctls); err != nil {
-		return err
-	}
-
-	return nil
+	return n.setSysctls(ctx, i.dstName, i.sysctls)
 }
 
 func setInterfaceMaster(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {

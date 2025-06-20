@@ -2,7 +2,7 @@ package swarm
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net/http"
 
 	"github.com/docker/docker/api/server/httputils"
@@ -23,7 +23,7 @@ func (sr *swarmRouter) swarmLogs(ctx context.Context, w http.ResponseWriter, r *
 	// with the appropriate status code.
 	stdout, stderr := httputils.BoolValue(r, "stdout"), httputils.BoolValue(r, "stderr")
 	if !stdout && !stderr {
-		return fmt.Errorf("Bad parameters: you must choose at least one stream")
+		return errors.New("Bad parameters: you must choose at least one stream")
 	}
 
 	// there is probably a neater way to manufacture the LogsOptions

@@ -66,7 +66,7 @@ func newCDIDeviceDriver(cdiSpecDirs ...string) (*deviceDriver, *cdi.Cache) {
 // If the list of CDI specification directories is empty or the creation of the CDI cache fails, an error is returned.
 func createCDICache(cdiSpecDirs ...string) (*cdi.Cache, error) {
 	if len(cdiSpecDirs) == 0 {
-		return nil, fmt.Errorf("no CDI specification directories specified")
+		return nil, errors.New("no CDI specification directories specified")
 	}
 
 	cache, err := cdi.NewCache(cdi.WithSpecDirs(cdiSpecDirs...))

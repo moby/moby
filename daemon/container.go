@@ -179,7 +179,7 @@ func getEntrypointAndArgs(configEntrypoint, configCmd []string) (string, []strin
 // GetByName returns a container given a name.
 func (daemon *Daemon) GetByName(name string) (*container.Container, error) {
 	if name == "" {
-		return nil, fmt.Errorf("No container name supplied")
+		return nil, errors.New("No container name supplied")
 	}
 	fullName := name
 	if name[0] != '/' {

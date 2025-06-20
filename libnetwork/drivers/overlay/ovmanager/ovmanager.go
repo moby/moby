@@ -2,6 +2,7 @@ package ovmanager
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -62,11 +63,11 @@ func newDriver() *driver {
 
 func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
 	if id == "" {
-		return nil, fmt.Errorf("invalid network id for overlay network")
+		return nil, errors.New("invalid network id for overlay network")
 	}
 
 	if ipV4Data == nil {
-		return nil, fmt.Errorf("empty ipv4 data passed during overlay network creation")
+		return nil, errors.New("empty ipv4 data passed during overlay network creation")
 	}
 
 	n := &network{
@@ -136,7 +137,7 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 
 func (d *driver) NetworkFree(id string) error {
 	if id == "" {
-		return fmt.Errorf("invalid network id passed while freeing overlay network")
+		return errors.New("invalid network id passed while freeing overlay network")
 	}
 
 	d.mu.Lock()

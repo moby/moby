@@ -82,7 +82,7 @@ func (d *driver) NetworkFree(id string) error {
 
 func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	if id == "" {
-		return fmt.Errorf("invalid network id")
+		return errors.New("invalid network id")
 	}
 	if len(ipV4Data) == 0 || ipV4Data[0].Pool.String() == "0.0.0.0/0" {
 		return types.InvalidParameterErrorf("ipv4 pool is empty")
@@ -174,7 +174,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 
 func (d *driver) DeleteNetwork(nid string) error {
 	if nid == "" {
-		return fmt.Errorf("invalid network id")
+		return errors.New("invalid network id")
 	}
 
 	// Make sure driver resources are initialized before proceeding
