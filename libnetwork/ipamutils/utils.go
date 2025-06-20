@@ -44,6 +44,53 @@ func (n NetworkToSplit) Overlaps(p netip.Prefix) bool {
 	return n.Base.Overlaps(p)
 }
 
+// CompareWithPreferredSize is used to order default networks if a preferred size is requested.
+// The goal is to ensure that we attempt to allocate a network that is closest to the preferred
+// size while not exceeding the default size of a given network.
+func (n *NetworkToSplit) CompareWithPreferredSize(other *NetworkToSplit, preferredSize int) int {
+	// If there's no preferred size, both networks are equivalent.
+	if preferredSize <= 0 {
+		return 0
+	}
+
+	contains := preferredSize >= n.Size
+	isValid := netip.PrefixFrom(n.Base.Addr(), preferredSize).IsValid()
+	otherContains := preferredSize >= other.Size
+	otherIsValid := netip.PrefixFrom(other.Base.Addr(), preferredSize).IsValid()
+
+	if isValid && !otherIsValid {
+		// The preferred size is an invalid prefix size for 'pdf' B, so prefer A.
+		return -1
+	} else if otherIsValid && !isValid {
+		// The preferred size is an invalid prefix size for 'pdf' A, so prefer B.
+		return 1
+	} else if !isValid && !otherIsValid {
+		// Preferred size isn't a valid prefix size for either 'pdf'.
+		// Prefer the 'pdf' with the smaller default prefix size.
+		return other.Size - n.Size
+	}
+
+	// The preferred size is a valid prefix for both A and B, so now we want to sort the
+	// 'pdf' networks by how closely they match the preferred size.
+	if contains && !otherContains {
+		// The default size for A is able to accommodate the preferred size, but B cannot.
+		// So we prefer A.
+		return -1
+	} else if otherContains && !contains {
+		// The default size for B is able to accommodate the preferred size, but A cannot.
+		// So we prefer B.
+		return 1
+	} else if !contains && !otherContains {
+		// If the event that the default size for both 'pdf' cannot contain the preferred size,
+		// we prfer the 'pdf' with the larger default size.
+		return n.Size - other.Size
+	} else {
+		// If both 'pdf' can accommodate the preferred prefix size, we prefer the one with the
+		// smaller default prefix size.
+		return other.Size - n.Size
+	}
+}
+
 // GetGlobalScopeDefaultNetworks returns a copy of the global-scope network list.
 func GetGlobalScopeDefaultNetworks() []*NetworkToSplit {
 	return slices.Clone(globalScopeDefaultNetworks)
