@@ -244,18 +244,6 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 
 	pluginStore := plugin.NewStore()
 
-	// Register the CDI driver before the daemon starts, as it might try to restore containers that depend on the CDI driver.
-	// Note that CDI is not inherently linux-specific, there are some linux-specific assumptions / implementations in the code that
-	// queries the properties of device on the host as well as performs the injection of device nodes and their access permissions into the OCI spec.
-	//
-	// In order to lift this restriction the following would have to be addressed:
-	// - Support needs to be added to the cdi package for injecting Windows devices: https://tags.cncf.io/container-device-interface/issues/28
-	// - The DeviceRequests API must be extended to non-linux platforms.
-	var cdiCache *cdi.Cache
-	if cdiEnabled(cli.Config) {
-		cdiCache = daemon.RegisterCDIDriver(cli.Config.CDISpecDirs...)
-	}
-
 	var apiServer apiserver.Server
 	cli.authzMiddleware, err = initMiddlewares(ctx, &apiServer, cli.Config, pluginStore)
 	if err != nil {
@@ -290,7 +278,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	// initialized the cluster.
 	d.RestartSwarmContainers()
 
-	b, shutdownBuildKit, err := initBuildkit(ctx, d, cdiCache)
+	b, shutdownBuildKit, err := initBuildkit(ctx, d, d.CDICache)
 	if err != nil {
 		return fmt.Errorf("error initializing buildkit: %w", err)
 	}
@@ -1054,17 +1042,4 @@ func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Durat
 
 	// Try to wait for containerd to shutdown
 	return r.WaitTimeout, nil
-}
-
-// cdiEnabled returns true if CDI feature wasn't explicitly disabled via
-// features.
-func cdiEnabled(conf *config.Config) bool {
-	if runtime.GOOS != "linux" {
-		return false
-	}
-	val, ok := conf.Features["cdi"]
-	if !ok {
-		return true
-	}
-	return val
 }
