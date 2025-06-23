@@ -114,60 +114,16 @@ func (e *encrMap) String() string {
 	return b.String()
 }
 
-func (d *driver) checkEncryption(nid string, rIP netip.Addr, isLocal, add bool) error {
-	log.G(context.TODO()).Debugf("checkEncryption(%.7s, %v, %t)", nid, rIP, isLocal)
-
-	n := d.network(nid)
-	if n == nil || !n.secure {
-		return nil
-	}
-
-	if len(d.keys) == 0 {
-		return types.ForbiddenErrorf("encryption key is not present")
-	}
-
-	lIP := d.bindAddress
-	aIP := d.advertiseAddress
-	nodes := map[netip.Addr]struct{}{}
-
-	switch {
-	case isLocal:
-		if err := d.peerDbNetworkWalk(nid, func(_ netip.Addr, _ net.HardwareAddr, pEntry *peerEntry) bool {
-			if aIP != pEntry.vtep {
-				nodes[pEntry.vtep] = struct{}{}
-			}
-			return false
-		}); err != nil {
-			log.G(context.TODO()).Warnf("Failed to retrieve list of participating nodes in overlay network %.5s: %v", nid, err)
-		}
-	default:
-		if len(d.network(nid).endpoints) > 0 {
-			nodes[rIP] = struct{}{}
-		}
-	}
-
-	log.G(context.TODO()).Debugf("List of nodes: %s", nodes)
-
-	if add {
-		for rIP := range nodes {
-			if err := setupEncryption(lIP, aIP, rIP, d.secMap, d.keys); err != nil {
-				log.G(context.TODO()).Warnf("Failed to program network encryption between %s and %s: %v", lIP, rIP, err)
-			}
-		}
-	} else {
-		if len(nodes) == 0 {
-			if err := removeEncryption(lIP, rIP, d.secMap); err != nil {
-				log.G(context.TODO()).Warnf("Failed to remove network encryption between %s and %s: %v", lIP, rIP, err)
-			}
-		}
-	}
-
-	return nil
-}
-
 // setupEncryption programs the encryption parameters for secure communication
 // between the local node and a remote node.
-func setupEncryption(localIP, advIP, remoteIP netip.Addr, em *encrMap, keys []*key) error {
+func (d *driver) setupEncryption(remoteIP netip.Addr) error {
+	log.G(context.TODO()).Debugf("setupEncryption(%s)", remoteIP)
+
+	localIP, advIP := d.bindAddress, d.advertiseAddress
+	keys := d.keys // FIXME: data race
+	if len(keys) == 0 {
+		return types.ForbiddenErrorf("encryption key is not present")
+	}
 	log.G(context.TODO()).Debugf("Programming encryption between %s and %s", localIP, remoteIP)
 
 	indices := make([]*spi, 0, len(keys))
@@ -192,17 +148,19 @@ func setupEncryption(localIP, advIP, remoteIP netip.Addr, em *encrMap, keys []*k
 		}
 	}
 
-	em.Lock()
-	em.nodes[remoteIP] = indices
-	em.Unlock()
+	d.secMap.Lock()
+	d.secMap.nodes[remoteIP] = indices
+	d.secMap.Unlock()
 
 	return nil
 }
 
-func removeEncryption(localIP, remoteIP netip.Addr, em *encrMap) error {
-	em.Lock()
-	indices, ok := em.nodes[remoteIP]
-	em.Unlock()
+func (d *driver) removeEncryption(remoteIP netip.Addr) error {
+	log.G(context.TODO()).Debugf("removeEncryption(%s)", remoteIP)
+
+	d.secMap.Lock()
+	indices, ok := d.secMap.nodes[remoteIP]
+	d.secMap.Unlock()
 	if !ok {
 		return nil
 	}
@@ -211,7 +169,7 @@ func removeEncryption(localIP, remoteIP netip.Addr, em *encrMap) error {
 		if i == 0 {
 			dir = bidir
 		}
-		fSA, rSA, err := programSA(localIP.AsSlice(), remoteIP.AsSlice(), idxs, nil, dir, false)
+		fSA, rSA, err := programSA(d.bindAddress.AsSlice(), remoteIP.AsSlice(), idxs, nil, dir, false)
 		if err != nil {
 			log.G(context.TODO()).Warn(err)
 		}
