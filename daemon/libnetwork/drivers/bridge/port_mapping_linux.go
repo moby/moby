@@ -354,10 +354,19 @@ func (n *bridgeNetwork) unmapPBs(ctx context.Context, bindings []portmapperapi.P
 func (n *bridgeNetwork) reapplyPerPortIptables() {
 	n.Lock()
 	var allPBs []portmapperapi.PortBinding
+	var allEPs []*bridgeEndpoint
 	for _, ep := range n.endpoints {
 		allPBs = append(allPBs, ep.portMapping...)
+		allEPs = append(allEPs, ep)
 	}
 	n.Unlock()
+
+	for _, ep := range allEPs {
+		netip4, netip6 := ep.netipAddrs()
+		if err := n.firewallerNetwork.AddEndpoint(context.TODO(), netip4, netip6); err != nil {
+			log.G(context.TODO()).Warnf("Failed to reconfigure Endpoint: %s", err)
+		}
+	}
 
 	if err := n.firewallerNetwork.AddPorts(context.Background(), mergeChildHostIPs(allPBs)); err != nil {
 		log.G(context.TODO()).Warnf("Failed to reconfigure NAT: %s", err)
