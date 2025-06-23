@@ -34,13 +34,9 @@ func (cli *Client) ImagePull(ctx context.Context, refStr string, options image.P
 		query.Set("platform", strings.ToLower(options.Platform))
 	}
 
-	resp, err := cli.tryImageCreate(ctx, query, options.RegistryAuth)
+	resp, err := cli.tryImageCreate(ctx, query, staticAuth(options.RegistryAuth))
 	if cerrdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
-		newAuthHeader, privilegeErr := options.PrivilegeFunc(ctx)
-		if privilegeErr != nil {
-			return nil, privilegeErr
-		}
-		resp, err = cli.tryImageCreate(ctx, query, newAuthHeader)
+		resp, err = cli.tryImageCreate(ctx, query, options.PrivilegeFunc)
 	}
 	if err != nil {
 		return nil, err

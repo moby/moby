@@ -26,15 +26,23 @@ func (cli *Client) ImageCreate(ctx context.Context, parentReference string, opti
 	if options.Platform != "" {
 		query.Set("platform", strings.ToLower(options.Platform))
 	}
-	resp, err := cli.tryImageCreate(ctx, query, options.RegistryAuth)
+	resp, err := cli.tryImageCreate(ctx, query, staticAuth(options.RegistryAuth))
 	if err != nil {
 		return nil, err
 	}
 	return resp.Body, nil
 }
 
-func (cli *Client) tryImageCreate(ctx context.Context, query url.Values, registryAuth string) (*http.Response, error) {
-	return cli.post(ctx, "/images/create", query, nil, http.Header{
-		registry.AuthHeader: {registryAuth},
-	})
+func (cli *Client) tryImageCreate(ctx context.Context, query url.Values, resolveAuth registry.RequestAuthConfig) (*http.Response, error) {
+	hdr := http.Header{}
+	if resolveAuth != nil {
+		registryAuth, err := resolveAuth(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if registryAuth != "" {
+			hdr.Set(registry.AuthHeader, registryAuth)
+		}
+	}
+	return cli.post(ctx, "/images/create", query, nil, hdr)
 }
