@@ -24,42 +24,6 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
-type portBinding struct {
-	types.PortBinding
-	// boundSocket is used to reserve a host port for the binding. If the
-	// userland proxy is in-use, it's passed to the proxy when the proxy is
-	// started, then it's closed and set to nil here.
-	boundSocket *os.File
-	// childHostIP is the host IP address, as seen from the daemon. This
-	// is normally the same as PortBinding.HostIP but, in rootless mode, it
-	// will be an address in the rootless network namespace. RootlessKit
-	// binds the port on the real (parent) host address and maps it to the
-	// same port number on the address dockerd sees in the child namespace.
-	// So, for example, docker-proxy and DNAT rules need to use the child
-	// namespace's host address. (PortBinding.HostIP isn't replaced by the
-	// child address, because it's stored as user-config and the child
-	// address may change if RootlessKit is configured differently.)
-	childHostIP net.IP
-	// portDriverRemove is a function that will inform the RootlessKit
-	// port driver about removal of a port binding, or nil.
-	portDriverRemove func() error
-	// stopProxy is a function to stop the userland proxy for this binding,
-	// if a proxy has been started - else nil.
-	stopProxy func() error
-	// rootlesskitUnsupported is set to true when the port binding is not
-	// supported by the port driver of RootlessKit.
-	rootlesskitUnsupported bool
-}
-
-// childPortBinding is pb.PortBinding, with the host address the daemon
-// will see - which, in rootless mode, will be an address in the RootlessKit's
-// child namespace (see portBinding.childHostIP).
-func (pb portBinding) childPortBinding() types.PortBinding {
-	res := pb.PortBinding
-	res.HostIP = pb.childHostIP
-	return res
-}
-
 // Allow unit tests to supply a dummy StartProxy.
 var startProxy = portmapper.StartProxy
 
@@ -68,17 +32,17 @@ var startProxy = portmapper.StartProxy
 // reserve them, starts docker-proxy if required, and sets up iptables
 // NAT/forwarding rules as necessary. If anything goes wrong, it will undo any
 // work it's done and return an error. Otherwise, the returned slice of
-// portBinding has an entry per address family (if cfg describes a mapping for
+// PortBinding has an entry per address family (if cfg describes a mapping for
 // 'any' host address, it's expanded into mappings for IPv4 and IPv6, because
 // that's how the mapping is presented in 'inspect'). HostPort and HostPortEnd in
-// each returned portBinding are set to the selected and reserved port.
+// each returned PortBinding are set to the selected and reserved port.
 func (n *bridgeNetwork) addPortMappings(
 	ctx context.Context,
 	ep *bridgeEndpoint,
 	cfg []types.PortBinding,
 	defHostIP net.IP,
 	pbmReq portBindingMode,
-) (_ []portBinding, retErr error) {
+) (_ []portmapperapi.PortBinding, retErr error) {
 	if len(defHostIP) == 0 {
 		defHostIP = net.IPv4zero
 	} else if addr4 := defHostIP.To4(); addr4 != nil {
@@ -86,7 +50,7 @@ func (n *bridgeNetwork) addPortMappings(
 		defHostIP = addr4
 	}
 
-	bindings := make([]portBinding, 0, len(cfg)*2)
+	bindings := make([]portmapperapi.PortBinding, 0, len(cfg)*2)
 	defer func() {
 		if retErr != nil {
 			if err := releasePortBindings(bindings, n.firewallerNetwork); err != nil {
@@ -118,7 +82,7 @@ func (n *bridgeNetwork) addPortMappings(
 			continue
 		}
 
-		var newB []portBinding
+		var newB []portmapperapi.PortBinding
 		var err error
 		if c.DisableNAT {
 			newB, err = setupForwardedPorts(ctx, toBind, n.firewallerNetwork)
@@ -137,24 +101,24 @@ func (n *bridgeNetwork) addPortMappings(
 	// Start userland proxy processes.
 	if proxyPath != "" {
 		for i := range bindings {
-			if bindings[i].boundSocket == nil || bindings[i].rootlesskitUnsupported || bindings[i].stopProxy != nil {
+			if bindings[i].BoundSocket == nil || bindings[i].RootlesskitUnsupported || bindings[i].StopProxy != nil {
 				continue
 			}
 			var err error
-			bindings[i].stopProxy, err = startProxy(
-				bindings[i].childPortBinding(), proxyPath, bindings[i].boundSocket,
+			bindings[i].StopProxy, err = startProxy(
+				bindings[i].ChildPortBinding(), proxyPath, bindings[i].BoundSocket,
 			)
 			if err != nil {
 				return nil, fmt.Errorf("failed to start userland proxy for port mapping %s: %w",
 					bindings[i].PortBinding, err)
 			}
-			if err := bindings[i].boundSocket.Close(); err != nil {
+			if err := bindings[i].BoundSocket.Close(); err != nil {
 				log.G(ctx).WithFields(log.Fields{
 					"error":   err,
 					"mapping": bindings[i].PortBinding,
 				}).Warnf("failed to close proxy socket")
 			}
-			bindings[i].boundSocket = nil
+			bindings[i].BoundSocket = nil
 		}
 	}
 
@@ -303,15 +267,15 @@ func needSamePort(a, b portmapperapi.PortBindingReq) bool {
 		a.HostPortEnd == b.HostPortEnd
 }
 
-// mergeChildHostIPs take a slice of portBinding and returns a slice of
+// mergeChildHostIPs take a slice of PortBinding and returns a slice of
 // types.PortBinding, where the HostIP in each of the results has the
 // value of ChildHostIP from the input (if present).
-func mergeChildHostIPs(pbs []portBinding) []types.PortBinding {
+func mergeChildHostIPs(pbs []portmapperapi.PortBinding) []types.PortBinding {
 	res := make([]types.PortBinding, 0, len(pbs))
 	for _, b := range pbs {
 		pb := b.PortBinding
-		if b.childHostIP != nil {
-			pb.HostIP = b.childHostIP
+		if b.ChildHostIP != nil {
+			pb.HostIP = b.ChildHostIP
 		}
 		res = append(res, pb)
 	}
@@ -444,15 +408,15 @@ func setChildHostIP(pdc portDriverClient, req portmapperapi.PortBindingReq) port
 
 // setupForwardedPorts sets up firewall rules to allow direct remote access to
 // the container's ports in cfg.
-func setupForwardedPorts(ctx context.Context, cfg []portmapperapi.PortBindingReq, fwn firewaller.Network) ([]portBinding, error) {
+func setupForwardedPorts(ctx context.Context, cfg []portmapperapi.PortBindingReq, fwn firewaller.Network) ([]portmapperapi.PortBinding, error) {
 	if len(cfg) == 0 {
 		return nil, nil
 	}
 
-	res := make([]portBinding, 0, len(cfg))
+	res := make([]portmapperapi.PortBinding, 0, len(cfg))
 	bindings := make([]types.PortBinding, 0, len(cfg))
 	for _, c := range cfg {
-		pb := portBinding{PortBinding: c.GetCopy()}
+		pb := portmapperapi.PortBinding{PortBinding: c.GetCopy()}
 		if pb.HostPort != 0 || pb.HostPortEnd != 0 {
 			log.G(ctx).WithFields(log.Fields{"mapping": pb}).Infof(
 				"Host port ignored, because NAT is disabled")
@@ -479,7 +443,7 @@ func bindHostPorts(
 	proxyPath string,
 	pdc portDriverClient,
 	fwn firewaller.Network,
-) ([]portBinding, error) {
+) ([]portmapperapi.PortBinding, error) {
 	if len(cfg) == 0 {
 		return nil, nil
 	}
@@ -496,7 +460,7 @@ func bindHostPorts(
 	// Try up to maxAllocatePortAttempts times to get a port that's not already allocated.
 	var err error
 	for i := 0; i < maxAllocatePortAttempts; i++ {
-		var b []portBinding
+		var b []portmapperapi.PortBinding
 		b, err = attemptBindHostPorts(ctx, cfg, proto, hostPort, hostPortEnd, proxyPath, pdc, fwn)
 		if err == nil {
 			return b, nil
@@ -520,7 +484,7 @@ func bindHostPorts(
 // If the allocator doesn't have an available port in the required range, or the
 // port can't be bound (perhaps because another process has already bound it),
 // all resources are released and an error is returned. When ports are
-// successfully reserved, a portBinding is returned for each mapping.
+// successfully reserved, a PortBinding is returned for each mapping.
 func attemptBindHostPorts(
 	ctx context.Context,
 	cfg []portmapperapi.PortBindingReq,
@@ -529,7 +493,7 @@ func attemptBindHostPorts(
 	proxyPath string,
 	pdc portDriverClient,
 	fwn firewaller.Network,
-) (_ []portBinding, retErr error) {
+) (_ []portmapperapi.PortBinding, retErr error) {
 	var err error
 	var port int
 
@@ -558,7 +522,7 @@ func attemptBindHostPorts(
 		return nil, types.InternalErrorf("port allocator returned %d sockets for %d port bindings", len(socks), len(cfg))
 	}
 
-	res := make([]portBinding, 0, len(cfg))
+	res := make([]portmapperapi.PortBinding, 0, len(cfg))
 	defer func() {
 		if retErr != nil {
 			if err := releasePortBindings(res, fwn); err != nil {
@@ -568,10 +532,10 @@ func attemptBindHostPorts(
 	}()
 
 	for i := range cfg {
-		pb := portBinding{
+		pb := portmapperapi.PortBinding{
 			PortBinding: cfg[i].PortBinding.GetCopy(),
-			boundSocket: socks[i],
-			childHostIP: cfg[i].ChildHostIP,
+			BoundSocket: socks[i],
+			ChildHostIP: cfg[i].ChildHostIP,
 		}
 		pb.PortBinding.HostPort = uint16(port)
 		pb.PortBinding.HostPortEnd = pb.HostPort
@@ -601,7 +565,7 @@ func attemptBindHostPorts(
 // configPortDriver passes the port binding's details to rootlesskit, and updates the
 // port binding with callbacks to remove the rootlesskit config (or marks the binding as
 // unsupported by rootlesskit).
-func configPortDriver(ctx context.Context, pbs []portBinding, pdc portDriverClient) error {
+func configPortDriver(ctx context.Context, pbs []portmapperapi.PortBinding, pdc portDriverClient) error {
 	for i := range pbs {
 		b := pbs[i]
 		if pdc != nil && b.HostPort != 0 {
@@ -610,18 +574,18 @@ func configPortDriver(ctx context.Context, pbs []portBinding, pdc portDriverClie
 			if !ok {
 				return fmt.Errorf("invalid host IP address in %s", b)
 			}
-			chip, ok := netip.AddrFromSlice(b.childHostIP)
+			chip, ok := netip.AddrFromSlice(b.ChildHostIP)
 			if !ok {
-				return fmt.Errorf("invalid child host IP address %s in %s", b.childHostIP, b)
+				return fmt.Errorf("invalid child host IP address %s in %s", b.ChildHostIP, b)
 			}
-			pbs[i].portDriverRemove, err = pdc.AddPort(ctx, b.Proto.String(), hip, chip, int(b.HostPort))
+			pbs[i].PortDriverRemove, err = pdc.AddPort(ctx, b.Proto.String(), hip, chip, int(b.HostPort))
 			if err != nil {
 				var pErr *rlkclient.ProtocolUnsupportedError
 				if errors.As(err, &pErr) {
 					log.G(ctx).WithFields(log.Fields{
 						"error": pErr,
 					}).Warnf("discarding request for %q", net.JoinHostPort(hip.String(), strconv.Itoa(int(b.HostPort))))
-					pbs[i].rootlesskitUnsupported = true
+					pbs[i].RootlesskitUnsupported = true
 					continue
 				}
 				return err
@@ -631,12 +595,12 @@ func configPortDriver(ctx context.Context, pbs []portBinding, pdc portDriverClie
 	return nil
 }
 
-func listenBoundPorts(pbs []portBinding, proxyPath string) error {
+func listenBoundPorts(pbs []portmapperapi.PortBinding, proxyPath string) error {
 	for i := range pbs {
-		if pbs[i].boundSocket == nil || pbs[i].rootlesskitUnsupported || pbs[i].Proto == types.UDP {
+		if pbs[i].BoundSocket == nil || pbs[i].RootlesskitUnsupported || pbs[i].Proto == types.UDP {
 			continue
 		}
-		rc, err := pbs[i].boundSocket.SyscallConn()
+		rc, err := pbs[i].BoundSocket.SyscallConn()
 		if err != nil {
 			return fmt.Errorf("raw conn not available on %s socket: %w", pbs[i].Proto, err)
 		}
@@ -668,21 +632,21 @@ func (n *bridgeNetwork) releasePorts(ep *bridgeEndpoint) error {
 	return releasePortBindings(pbs, n.firewallerNetwork)
 }
 
-func releasePortBindings(pbs []portBinding, fwn firewaller.Network) error {
+func releasePortBindings(pbs []portmapperapi.PortBinding, fwn firewaller.Network) error {
 	var errs []error
 	for _, pb := range pbs {
-		if pb.boundSocket != nil {
-			if err := pb.boundSocket.Close(); err != nil {
+		if pb.BoundSocket != nil {
+			if err := pb.BoundSocket.Close(); err != nil {
 				errs = append(errs, fmt.Errorf("failed to close socket for port mapping %s: %w", pb, err))
 			}
 		}
-		if pb.portDriverRemove != nil {
-			if err := pb.portDriverRemove(); err != nil {
+		if pb.PortDriverRemove != nil {
+			if err := pb.PortDriverRemove(); err != nil {
 				errs = append(errs, err)
 			}
 		}
-		if pb.stopProxy != nil {
-			if err := pb.stopProxy(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+		if pb.StopProxy != nil {
+			if err := pb.StopProxy(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 				errs = append(errs, fmt.Errorf("failed to stop userland proxy for port mapping %s: %w", pb, err))
 			}
 		}
@@ -692,7 +656,7 @@ func releasePortBindings(pbs []portBinding, fwn firewaller.Network) error {
 	}
 	for _, pb := range pbs {
 		if pb.HostPort > 0 {
-			portallocator.Get().ReleasePort(pb.childHostIP, pb.Proto.String(), int(pb.HostPort))
+			portallocator.Get().ReleasePort(pb.ChildHostIP, pb.Proto.String(), int(pb.HostPort))
 		}
 	}
 	return errors.Join(errs...)
@@ -700,7 +664,7 @@ func releasePortBindings(pbs []portBinding, fwn firewaller.Network) error {
 
 func (n *bridgeNetwork) reapplyPerPortIptables() {
 	n.Lock()
-	var allPBs []portBinding
+	var allPBs []portmapperapi.PortBinding
 	for _, ep := range n.endpoints {
 		allPBs = append(allPBs, ep.portMapping...)
 	}
