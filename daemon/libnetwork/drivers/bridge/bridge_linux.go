@@ -35,6 +35,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/otelutil"
+	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
@@ -125,7 +126,7 @@ type containerConfiguration struct {
 
 // connectivityConfiguration represents the user specified configuration regarding the external connectivity
 type connectivityConfiguration struct {
-	PortBindings []types.PortBinding
+	PortBindings []portmapperapi.PortBindingReq
 	ExposedPorts []types.TransportPort
 	NoProxy6To4  bool
 }
@@ -1635,9 +1636,9 @@ func (ep *bridgeEndpoint) trimPortBindings(ctx context.Context, n *bridgeNetwork
 	ep.portMapping = toKeep
 
 	undo := func() []portmapperapi.PortBinding {
-		pbReq := make([]types.PortBinding, 0, len(toDrop))
+		pbReq := make([]portmapperapi.PortBindingReq, 0, len(toDrop))
 		for _, pb := range toDrop {
-			pbReq = append(pbReq, pb.PortBinding)
+			pbReq = append(pbReq, portmapperapi.PortBindingReq{PortBinding: pb.GetCopy()})
 		}
 		pbs, err := n.addPortMappings(ctx, ep, pbReq, n.config.DefaultBindingIP, ep.portBindingState)
 		if err != nil {
@@ -1878,8 +1879,12 @@ func parseConnectivityOptions(cOptions map[string]interface{}) (*connectivityCon
 	cc := &connectivityConfiguration{}
 
 	if opt, ok := cOptions[netlabel.PortMap]; ok {
-		if pb, ok := opt.([]types.PortBinding); ok {
-			cc.PortBindings = pb
+		if pbs, ok := opt.([]types.PortBinding); ok {
+			cc.PortBindings = sliceutil.Map(pbs, func(pb types.PortBinding) portmapperapi.PortBindingReq {
+				return portmapperapi.PortBindingReq{
+					PortBinding: pb.GetCopy(),
+				}
+			})
 		} else {
 			return nil, types.InvalidParameterErrorf("invalid port mapping data in connectivity configuration: %v", opt)
 		}

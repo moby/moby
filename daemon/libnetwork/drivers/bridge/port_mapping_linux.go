@@ -39,7 +39,7 @@ var startProxy = portmapper.StartProxy
 func (n *bridgeNetwork) addPortMappings(
 	ctx context.Context,
 	ep *bridgeEndpoint,
-	cfg []types.PortBinding,
+	cfg []portmapperapi.PortBindingReq,
 	defHostIP net.IP,
 	pbmReq portBindingMode,
 ) (_ []portmapperapi.PortBinding, retErr error) {
@@ -143,7 +143,7 @@ func (n *bridgeNetwork) addPortMappings(
 func (n *bridgeNetwork) sortAndNormPBs(
 	ctx context.Context,
 	ep *bridgeEndpoint,
-	cfg []types.PortBinding,
+	cfg []portmapperapi.PortBindingReq,
 	defHostIP net.IP,
 	pbmReq portBindingMode,
 ) []portmapperapi.PortBindingReq {
@@ -244,7 +244,7 @@ func configurePortBindingIPv4(
 	ctx context.Context,
 	pdc portDriverClient,
 	disableNAT bool,
-	bnd types.PortBinding,
+	bnd portmapperapi.PortBindingReq,
 	containerIPv4,
 	defHostIP net.IP,
 ) (portmapperapi.PortBindingReq, bool) {
@@ -285,10 +285,8 @@ func configurePortBindingIPv4(
 	// Unmap the addresses if they're IPv4-mapped IPv6.
 	bnd.HostIP = bnd.HostIP.To4()
 	bnd.IP = containerIPv4.To4()
-	return setChildHostIP(pdc, portmapperapi.PortBindingReq{
-		PortBinding: bnd,
-		DisableNAT:  disableNAT,
-	}), true
+	bnd.DisableNAT = disableNAT
+	return setChildHostIP(pdc, bnd), true
 }
 
 // configurePortBindingIPv6 returns a new port binding with the HostIP field
@@ -298,7 +296,7 @@ func configurePortBindingIPv6(
 	ctx context.Context,
 	pdc portDriverClient,
 	disableNAT bool,
-	bnd types.PortBinding,
+	bnd portmapperapi.PortBindingReq,
 	containerIP, defHostIP net.IP,
 ) (portmapperapi.PortBindingReq, bool) {
 	if containerIP == nil {
@@ -345,10 +343,8 @@ func configurePortBindingIPv6(
 	}
 
 	bnd.IP = containerIP
-	return setChildHostIP(pdc, portmapperapi.PortBindingReq{
-		PortBinding: bnd,
-		DisableNAT:  disableNAT,
-	}), true
+	bnd.DisableNAT = disableNAT
+	return setChildHostIP(pdc, bnd), true
 }
 
 func setChildHostIP(pdc portDriverClient, req portmapperapi.PortBindingReq) portmapperapi.PortBindingReq {
