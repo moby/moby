@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/ns"
 	"github.com/docker/docker/daemon/libnetwork/portallocator"
+	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/internal/testutils/storeutils"
@@ -193,66 +194,8 @@ func loopbackUp() error {
 	return nlHandle.LinkSetUp(iface)
 }
 
-func TestCmpPortBindingReqs(t *testing.T) {
-	pb := portBindingReq{
-		PortBinding: types.PortBinding{
-			Proto:       types.TCP,
-			IP:          net.ParseIP("172.17.0.2"),
-			Port:        80,
-			HostIP:      net.ParseIP("192.168.1.2"),
-			HostPort:    8080,
-			HostPortEnd: 8080,
-		},
-	}
-	var pbA, pbB portBindingReq
-
-	assert.Check(t, cmpPortBindingReqs(pb, pb) == 0)
-
-	pbA, pbB = pb, pb
-	pbB.disableNAT = true
-	assert.Check(t, cmpPortBindingReqs(pbA, pbB) < 0)
-	assert.Check(t, cmpPortBindingReqs(pbB, pbA) > 0)
-
-	pbA, pbB = pb, pb
-	pbA.Port = 22
-	assert.Check(t, cmpPortBindingReqs(pbA, pbB) < 0)
-	assert.Check(t, cmpPortBindingReqs(pbB, pbA) > 0)
-
-	pbA, pbB = pb, pb
-	pbB.Proto = types.UDP
-	assert.Check(t, cmpPortBindingReqs(pbA, pbB) < 0)
-	assert.Check(t, cmpPortBindingReqs(pbB, pbA) > 0)
-
-	pbA, pbB = pb, pb
-	pbA.Port = 22
-	pbA.Proto = types.UDP
-	assert.Check(t, cmpPortBindingReqs(pbA, pbB) < 0)
-	assert.Check(t, cmpPortBindingReqs(pbB, pbA) > 0)
-
-	pbA, pbB = pb, pb
-	pbB.HostPort = 8081
-	assert.Check(t, cmpPortBindingReqs(pbA, pbB) < 0)
-	assert.Check(t, cmpPortBindingReqs(pbB, pbA) > 0)
-
-	pbA, pbB = pb, pb
-	pbB.HostPort, pbB.HostPortEnd = 0, 0
-	assert.Check(t, cmpPortBindingReqs(pbA, pbB) < 0)
-	assert.Check(t, cmpPortBindingReqs(pbB, pbA) > 0)
-
-	pbA, pbB = pb, pb
-	pbB.HostPortEnd = 8081
-	assert.Check(t, cmpPortBindingReqs(pbA, pbB) < 0)
-	assert.Check(t, cmpPortBindingReqs(pbB, pbA) > 0)
-
-	pbA, pbB = pb, pb
-	pbA.HostPortEnd = 8080
-	pbB.HostPortEnd = 8081
-	assert.Check(t, cmpPortBindingReqs(pbA, pbB) < 0)
-	assert.Check(t, cmpPortBindingReqs(pbB, pbA) > 0)
-}
-
 func TestBindHostPortsError(t *testing.T) {
-	cfg := []portBindingReq{
+	cfg := []portmapperapi.PortBindingReq{
 		{
 			PortBinding: types.PortBinding{
 				Proto:       types.TCP,
