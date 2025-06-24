@@ -29,6 +29,7 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/netutils"
 	"github.com/docker/docker/daemon/libnetwork/ns"
 	"github.com/docker/docker/daemon/libnetwork/options"
+	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/errdefs"
@@ -138,8 +139,8 @@ type bridgeEndpoint struct {
 	macAddress       net.HardwareAddr
 	containerConfig  *containerConfiguration
 	extConnConfig    *connectivityConfiguration
-	portMapping      []portBinding   // Operational port bindings
-	portBindingState portBindingMode // Not persisted, even on live-restore port mappings are re-created.
+	portMapping      []portmapperapi.PortBinding // Operational port bindings
+	portBindingState portBindingMode             // Not persisted, even on live-restore port mappings are re-created.
 	dbIndex          uint64
 	dbExists         bool
 }
@@ -1602,14 +1603,14 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 // port bindings that are no longer required.
 //
 // ep.portMapping is updated when bindings are removed.
-func (ep *bridgeEndpoint) trimPortBindings(ctx context.Context, n *bridgeNetwork, pbmReq portBindingMode) (func() []portBinding, error) {
+func (ep *bridgeEndpoint) trimPortBindings(ctx context.Context, n *bridgeNetwork, pbmReq portBindingMode) (func() []portmapperapi.PortBinding, error) {
 	// If the endpoint is the gateway for IPv4 and IPv6, there's nothing to drop.
 	if pbmReq.ipv4 && pbmReq.ipv6 {
 		return nil, nil
 	}
 
-	toDrop := make([]portBinding, 0, len(ep.portMapping))
-	toKeep := slices.DeleteFunc(ep.portMapping, func(pb portBinding) bool {
+	toDrop := make([]portmapperapi.PortBinding, 0, len(ep.portMapping))
+	toKeep := slices.DeleteFunc(ep.portMapping, func(pb portmapperapi.PortBinding) bool {
 		is4 := pb.HostIP.To4() != nil
 		if (is4 && !pbmReq.ipv4) || (!is4 && !pbmReq.ipv6) {
 			toDrop = append(toDrop, pb)
@@ -1633,7 +1634,7 @@ func (ep *bridgeEndpoint) trimPortBindings(ctx context.Context, n *bridgeNetwork
 	}
 	ep.portMapping = toKeep
 
-	undo := func() []portBinding {
+	undo := func() []portmapperapi.PortBinding {
 		pbReq := make([]types.PortBinding, 0, len(toDrop))
 		for _, pb := range toDrop {
 			pbReq = append(pbReq, pb.PortBinding)
