@@ -7,7 +7,9 @@ package networkdb
 
 import (
 	"context"
+	cryptorand "crypto/rand"
 	"fmt"
+	"math/rand/v2"
 	"os"
 	"strings"
 	"sync"
@@ -113,6 +115,9 @@ type NetworkDB struct {
 
 	// lastHealthTimestamp is the last timestamp when the health score got printed
 	lastHealthTimestamp time.Time
+
+	rngMu sync.Mutex
+	rng   *rand.Rand
 }
 
 // PeerInfo represents the peer (gossip cluster) nodes of a network
@@ -291,6 +296,9 @@ func newNetworkDB(c *Config) *NetworkDB {
 	// there is at least 5 extra cycle to make sure that all the entries are properly deleted before deleting the network.
 	c.reapNetworkInterval = c.reapEntryInterval + 5*reapPeriod
 
+	var rngSeed [32]byte
+	_, _ = cryptorand.Read(rngSeed[:]) // Documented never to return an error
+
 	return &NetworkDB{
 		config: c,
 		indexes: map[int]*iradix.Tree[*entry]{
@@ -305,6 +313,7 @@ func newNetworkDB(c *Config) *NetworkDB {
 		networkNodes:     make(map[string][]string),
 		bulkSyncAckTbl:   make(map[string]chan struct{}),
 		broadcaster:      events.NewBroadcaster(),
+		rng:              rand.New(rand.NewChaCha8(rngSeed)), //gosec:disable G404 -- not used in a security sensitive context
 	}
 }
 
