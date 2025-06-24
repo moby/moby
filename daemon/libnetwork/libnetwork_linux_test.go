@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/options"
 	"github.com/docker/docker/daemon/libnetwork/osl"
+	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
@@ -70,13 +71,13 @@ func getEmptyGenericOption() map[string]interface{} {
 	return map[string]interface{}{netlabel.GenericData: map[string]string{}}
 }
 
-func getPortMapping() []types.PortBinding {
-	return []types.PortBinding{
-		{Proto: types.TCP, Port: 230, HostPort: 23000},
-		{Proto: types.UDP, Port: 200, HostPort: 22000},
-		{Proto: types.TCP, Port: 120, HostPort: 12000},
-		{Proto: types.TCP, Port: 320, HostPort: 32000, HostPortEnd: 32999},
-		{Proto: types.UDP, Port: 420, HostPort: 42000, HostPortEnd: 42001},
+func getPortMapping() []portmapperapi.PortBindingReq {
+	return []portmapperapi.PortBindingReq{
+		{PortBinding: types.PortBinding{Proto: types.TCP, Port: 230, HostPort: 23000}},
+		{PortBinding: types.PortBinding{Proto: types.UDP, Port: 200, HostPort: 22000}},
+		{PortBinding: types.PortBinding{Proto: types.TCP, Port: 120, HostPort: 12000}},
+		{PortBinding: types.PortBinding{Proto: types.TCP, Port: 320, HostPort: 32000, HostPortEnd: 32999}},
+		{PortBinding: types.PortBinding{Proto: types.UDP, Port: 420, HostPort: 42000, HostPortEnd: 42001}},
 	}
 }
 

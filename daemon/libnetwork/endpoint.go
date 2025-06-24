@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/ipamapi"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/options"
+	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/errdefs"
@@ -1088,10 +1089,10 @@ func CreateOptionExposedPorts(exposedPorts []types.TransportPort) EndpointOption
 
 // CreateOptionPortMapping function returns an option setter for the mapping
 // ports option to be passed to [Network.CreateEndpoint] method.
-func CreateOptionPortMapping(portBindings []types.PortBinding) EndpointOption {
+func CreateOptionPortMapping(portBindings []portmapperapi.PortBindingReq) EndpointOption {
 	return func(ep *Endpoint) {
 		// Store a copy of the bindings as generic data to pass to the driver
-		pbs := make([]types.PortBinding, len(portBindings))
+		pbs := make([]portmapperapi.PortBindingReq, len(portBindings))
 		copy(pbs, portBindings)
 		ep.generic[netlabel.PortMap] = pbs
 	}

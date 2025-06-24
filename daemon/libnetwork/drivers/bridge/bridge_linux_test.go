@@ -58,13 +58,15 @@ func TestEndpointMarshalling(t *testing.T) {
 					Port:  18,
 				},
 			},
-			PortBindings: []types.PortBinding{
+			PortBindings: []portmapperapi.PortBindingReq{
 				{
-					Proto:       6,
-					IP:          net.ParseIP("17210.33.9.56"),
-					Port:        18,
-					HostPort:    3000,
-					HostPortEnd: 14000,
+					PortBinding: types.PortBinding{
+						Proto:       6,
+						IP:          net.ParseIP("17210.33.9.56"),
+						Port:        18,
+						HostPort:    3000,
+						HostPortEnd: 14000,
+					},
 				},
 			},
 		},
@@ -165,7 +167,7 @@ func compareConnConfig(a, b *connectivityConfiguration) bool {
 		}
 	}
 	for i := 0; i < len(a.PortBindings); i++ {
-		if !comparePortBinding(&a.PortBindings[i], &b.PortBindings[i]) {
+		if !comparePortBinding(&a.PortBindings[i].PortBinding, &b.PortBindings[i].PortBinding) {
 			return false
 		}
 	}
@@ -895,11 +897,11 @@ func getExposedPorts() []types.TransportPort {
 	}
 }
 
-func getPortMapping() []types.PortBinding {
-	return []types.PortBinding{
-		{Proto: types.TCP, Port: 230, HostPort: 23000},
-		{Proto: types.UDP, Port: 200, HostPort: 22000},
-		{Proto: types.TCP, Port: 120, HostPort: 12000},
+func getPortMapping() []portmapperapi.PortBindingReq {
+	return []portmapperapi.PortBindingReq{
+		{PortBinding: types.PortBinding{Proto: types.TCP, Port: 230, HostPort: 23000}},
+		{PortBinding: types.PortBinding{Proto: types.UDP, Port: 200, HostPort: 22000}},
+		{PortBinding: types.PortBinding{Proto: types.TCP, Port: 120, HostPort: 12000}},
 	}
 }
 

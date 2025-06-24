@@ -1,4 +1,5 @@
-//go:build windows
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.23 && windows
 
 // Shim for the Host Network Service (HNS) to manage networking for
 // Windows Server containers and Hyper-V containers. This module
@@ -27,8 +28,10 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/portmapper"
+	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/daemon/libnetwork/types"
+	"github.com/docker/docker/internal/sliceutil"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -651,8 +654,10 @@ func ParseEndpointConnectivity(epOptions map[string]interface{}) (*EndpointConne
 	ec := &EndpointConnectivity{}
 
 	if opt, ok := epOptions[netlabel.PortMap]; ok {
-		if bs, ok := opt.([]types.PortBinding); ok {
-			ec.PortBindings = bs
+		if pbs, ok := opt.([]portmapperapi.PortBindingReq); ok {
+			ec.PortBindings = sliceutil.Map(pbs, func(pb portmapperapi.PortBindingReq) types.PortBinding {
+				return pb.PortBinding
+			})
 		} else {
 			return nil, fmt.Errorf("Invalid endpoint configuration")
 		}
