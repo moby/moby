@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/portallocator"
+	"github.com/docker/docker/libnetwork/portmapperapi"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/vishvananda/netlink"
@@ -67,7 +68,7 @@ func TestEndpointMarshalling(t *testing.T) {
 				},
 			},
 		},
-		portMapping: []portBinding{
+		portMapping: []portmapperapi.PortBinding{
 			{
 				PortBinding: types.PortBinding{
 					Proto:       17,
@@ -113,7 +114,7 @@ func TestEndpointMarshalling(t *testing.T) {
 	// a different port cannot be selected on live-restore if the original is
 	// already in-use). So, fix up portMapping in the original before running
 	// the comparison.
-	epms := make([]portBinding, len(e.portMapping))
+	epms := make([]portmapperapi.PortBinding, len(e.portMapping))
 	for i, p := range e.portMapping {
 		epms[i] = p
 		epms[i].HostPortEnd = epms[i].HostPort
@@ -209,7 +210,7 @@ func comparePortBinding(p *types.PortBinding, o *types.PortBinding) bool {
 	return true
 }
 
-func compareBindings(a, b []portBinding) bool {
+func compareBindings(a, b []portmapperapi.PortBinding) bool {
 	if len(a) != len(b) {
 		return false
 	}
