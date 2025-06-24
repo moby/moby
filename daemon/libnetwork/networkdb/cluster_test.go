@@ -1,5 +1,3 @@
-//go:build xfail
-
 package networkdb
 
 import (
