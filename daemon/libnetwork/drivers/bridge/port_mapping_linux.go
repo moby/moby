@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/netutils"
 	"github.com/docker/docker/daemon/libnetwork/portallocator"
 	"github.com/docker/docker/daemon/libnetwork/portmapper"
+	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
@@ -57,12 +58,6 @@ func (pb portBinding) childPortBinding() types.PortBinding {
 	res := pb.PortBinding
 	res.HostIP = pb.childHostIP
 	return res
-}
-
-type portBindingReq struct {
-	types.PortBinding
-	childHostIP net.IP
-	disableNAT  bool
 }
 
 // Allow unit tests to supply a dummy StartProxy.
@@ -114,10 +109,10 @@ func (n *bridgeNetwork) addPortMappings(
 	// collected them all, for both v4 and v6. The addresses may be 0.0.0.0 and [::],
 	// or multiple addresses of both address families. Once there are no more
 	// bindings to collect, they're applied and toBind is reset.
-	var toBind []portBindingReq
+	var toBind []portmapperapi.PortBindingReq
 	for i, c := range bindingReqs {
 		toBind = append(toBind, c)
-		if i < len(bindingReqs)-1 && c.disableNAT == bindingReqs[i+1].disableNAT && needSamePort(c, bindingReqs[i+1]) {
+		if i < len(bindingReqs)-1 && c.DisableNAT == bindingReqs[i+1].DisableNAT && needSamePort(c, bindingReqs[i+1]) {
 			// This port binding matches the next, apart from host IP. So, continue
 			// collecting bindings, then allocate the same host port for all addresses.
 			continue
@@ -125,7 +120,7 @@ func (n *bridgeNetwork) addPortMappings(
 
 		var newB []portBinding
 		var err error
-		if c.disableNAT {
+		if c.DisableNAT {
 			newB, err = setupForwardedPorts(ctx, toBind, n.firewallerNetwork)
 		} else {
 			newB, err = bindHostPorts(ctx, toBind, proxyPath, pdc, n.firewallerNetwork)
@@ -172,7 +167,7 @@ func (n *bridgeNetwork) addPortMappings(
 //   - HostPortEnd=HostPort (rather than 0) if the host port isn't a range
 //   - HostIP is set to the default host IP if not specified, and the binding is
 //     NATed
-//   - disableNAT is set if the binding is routed, and HostIP is cleared
+//   - DisableNAT is set if the binding is routed, and HostIP is cleared
 //
 // When no HostIP is specified, and the default HostIP is 0.0.0.0, a duplicate
 // IPv6 port binding is created with the same port and protocol, but with
@@ -186,7 +181,7 @@ func (n *bridgeNetwork) sortAndNormPBs(
 	cfg []types.PortBinding,
 	defHostIP net.IP,
 	pbmReq portBindingMode,
-) []portBindingReq {
+) []portmapperapi.PortBindingReq {
 	var containerIPv4, containerIPv6 net.IP
 	if ep.addr != nil {
 		containerIPv4 = ep.addr.IP
@@ -202,7 +197,7 @@ func (n *bridgeNetwork) sortAndNormPBs(
 	add4 := !ep.portBindingState.ipv4 && pbmReq.ipv4
 	add6 := !ep.portBindingState.ipv6 && pbmReq.ipv6
 
-	reqs := make([]portBindingReq, 0, len(cfg))
+	reqs := make([]portmapperapi.PortBindingReq, 0, len(cfg))
 	for _, c := range cfg {
 		if c.HostPortEnd == 0 {
 			c.HostPortEnd = c.HostPort
@@ -259,9 +254,9 @@ func (n *bridgeNetwork) sortAndNormPBs(
 //   - same protocols are adjacent (tcp < udp < sctp), then
 //   - same host ports or ranges are adjacent, then
 //   - ordered by container IP (then host IP, if set).
-func cmpPortBindingReqs(a, b portBindingReq) int {
-	if a.disableNAT != b.disableNAT {
-		if a.disableNAT {
+func cmpPortBindingReqs(a, b portmapperapi.PortBindingReq) int {
+	if a.DisableNAT != b.DisableNAT {
+		if a.DisableNAT {
 			return 1 // NAT disabled bindings come last
 		}
 		return -1
@@ -301,7 +296,7 @@ func cmpPortBindingReqs(a, b portBindingReq) int {
 // meaning they should be allocated the same host port (so that, if v4/v6
 // addresses are returned in a DNS response or similar, clients can bind without
 // needing to adjust the port number depending on which address is used).
-func needSamePort(a, b portBindingReq) bool {
+func needSamePort(a, b portmapperapi.PortBindingReq) bool {
 	return a.Port == b.Port &&
 		a.Proto == b.Proto &&
 		a.HostPort == b.HostPort &&
@@ -310,7 +305,7 @@ func needSamePort(a, b portBindingReq) bool {
 
 // mergeChildHostIPs take a slice of portBinding and returns a slice of
 // types.PortBinding, where the HostIP in each of the results has the
-// value of childHostIP from the input (if present).
+// value of ChildHostIP from the input (if present).
 func mergeChildHostIPs(pbs []portBinding) []types.PortBinding {
 	res := make([]types.PortBinding, 0, len(pbs))
 	for _, b := range pbs {
@@ -333,19 +328,19 @@ func configurePortBindingIPv4(
 	bnd types.PortBinding,
 	containerIPv4,
 	defHostIP net.IP,
-) (portBindingReq, bool) {
+) (portmapperapi.PortBindingReq, bool) {
 	if len(containerIPv4) == 0 {
-		return portBindingReq{}, false
+		return portmapperapi.PortBindingReq{}, false
 	}
 	if len(bnd.HostIP) > 0 && bnd.HostIP.To4() == nil {
 		// The mapping is explicitly IPv6.
-		return portBindingReq{}, false
+		return portmapperapi.PortBindingReq{}, false
 	}
 	// If there's no host address, use the default.
 	if len(bnd.HostIP) == 0 {
 		if defHostIP.To4() == nil {
 			// The default binding address is IPv6.
-			return portBindingReq{}, false
+			return portmapperapi.PortBindingReq{}, false
 		}
 		// The default binding IP is an IPv4 address, use it - unless NAT is disabled,
 		// in which case it's not possible to bind to a specific host address (the port
@@ -371,9 +366,9 @@ func configurePortBindingIPv4(
 	// Unmap the addresses if they're IPv4-mapped IPv6.
 	bnd.HostIP = bnd.HostIP.To4()
 	bnd.IP = containerIPv4.To4()
-	return setChildHostIP(pdc, portBindingReq{
+	return setChildHostIP(pdc, portmapperapi.PortBindingReq{
 		PortBinding: bnd,
-		disableNAT:  disableNAT,
+		DisableNAT:  disableNAT,
 	}), true
 }
 
@@ -386,13 +381,13 @@ func configurePortBindingIPv6(
 	disableNAT bool,
 	bnd types.PortBinding,
 	containerIP, defHostIP net.IP,
-) (portBindingReq, bool) {
+) (portmapperapi.PortBindingReq, bool) {
 	if containerIP == nil {
-		return portBindingReq{}, false
+		return portmapperapi.PortBindingReq{}, false
 	}
 	if len(bnd.HostIP) > 0 && bnd.HostIP.To4() != nil {
 		// The mapping is explicitly IPv4.
-		return portBindingReq{}, false
+		return portmapperapi.PortBindingReq{}, false
 	}
 
 	// If there's no host address, use the default.
@@ -400,7 +395,7 @@ func configurePortBindingIPv6(
 		if defHostIP.Equal(net.IPv4zero) {
 			if !netutils.IsV6Listenable() {
 				// No implicit binding if the host has no IPv6 support.
-				return portBindingReq{}, false
+				return portmapperapi.PortBindingReq{}, false
 			}
 			// Implicit binding to "::", no explicit HostIP and the default is 0.0.0.0
 			bnd.HostIP = net.IPv6zero
@@ -415,7 +410,7 @@ func configurePortBindingIPv6(
 			}
 		} else {
 			// The default binding IP is an IPv4 address, nothing to do here.
-			return portBindingReq{}, false
+			return portmapperapi.PortBindingReq{}, false
 		}
 	}
 
@@ -431,25 +426,25 @@ func configurePortBindingIPv6(
 	}
 
 	bnd.IP = containerIP
-	return setChildHostIP(pdc, portBindingReq{
+	return setChildHostIP(pdc, portmapperapi.PortBindingReq{
 		PortBinding: bnd,
-		disableNAT:  disableNAT,
+		DisableNAT:  disableNAT,
 	}), true
 }
 
-func setChildHostIP(pdc portDriverClient, req portBindingReq) portBindingReq {
+func setChildHostIP(pdc portDriverClient, req portmapperapi.PortBindingReq) portmapperapi.PortBindingReq {
 	if pdc == nil {
-		req.childHostIP = req.HostIP
+		req.ChildHostIP = req.HostIP
 		return req
 	}
 	hip, _ := netip.AddrFromSlice(req.HostIP)
-	req.childHostIP = pdc.ChildHostIP(hip).AsSlice()
+	req.ChildHostIP = pdc.ChildHostIP(hip).AsSlice()
 	return req
 }
 
 // setupForwardedPorts sets up firewall rules to allow direct remote access to
 // the container's ports in cfg.
-func setupForwardedPorts(ctx context.Context, cfg []portBindingReq, fwn firewaller.Network) ([]portBinding, error) {
+func setupForwardedPorts(ctx context.Context, cfg []portmapperapi.PortBindingReq, fwn firewaller.Network) ([]portBinding, error) {
 	if len(cfg) == 0 {
 		return nil, nil
 	}
@@ -480,7 +475,7 @@ func setupForwardedPorts(ctx context.Context, cfg []portBindingReq, fwn firewall
 // container port, and host port range (their host addresses must differ).
 func bindHostPorts(
 	ctx context.Context,
-	cfg []portBindingReq,
+	cfg []portmapperapi.PortBindingReq,
 	proxyPath string,
 	pdc portDriverClient,
 	fwn firewaller.Network,
@@ -528,7 +523,7 @@ func bindHostPorts(
 // successfully reserved, a portBinding is returned for each mapping.
 func attemptBindHostPorts(
 	ctx context.Context,
-	cfg []portBindingReq,
+	cfg []portmapperapi.PortBindingReq,
 	proto types.Protocol,
 	hostPortStart, hostPortEnd uint16,
 	proxyPath string,
@@ -540,7 +535,7 @@ func attemptBindHostPorts(
 
 	addrs := make([]net.IP, 0, len(cfg))
 	for _, c := range cfg {
-		addrs = append(addrs, c.childHostIP)
+		addrs = append(addrs, c.ChildHostIP)
 	}
 
 	pa := portallocator.NewOSAllocator()
@@ -576,7 +571,7 @@ func attemptBindHostPorts(
 		pb := portBinding{
 			PortBinding: cfg[i].PortBinding.GetCopy(),
 			boundSocket: socks[i],
-			childHostIP: cfg[i].childHostIP,
+			childHostIP: cfg[i].ChildHostIP,
 		}
 		pb.PortBinding.HostPort = uint16(port)
 		pb.PortBinding.HostPortEnd = pb.HostPort

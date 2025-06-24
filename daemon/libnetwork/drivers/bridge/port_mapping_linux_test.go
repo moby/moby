@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/ns"
 	"github.com/docker/docker/daemon/libnetwork/portallocator"
+	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/internal/testutils/storeutils"
@@ -194,7 +195,7 @@ func loopbackUp() error {
 }
 
 func TestCmpPortBindingReqs(t *testing.T) {
-	pb := portBindingReq{
+	pb := portmapperapi.PortBindingReq{
 		PortBinding: types.PortBinding{
 			Proto:       types.TCP,
 			IP:          net.ParseIP("172.17.0.2"),
@@ -204,12 +205,12 @@ func TestCmpPortBindingReqs(t *testing.T) {
 			HostPortEnd: 8080,
 		},
 	}
-	var pbA, pbB portBindingReq
+	var pbA, pbB portmapperapi.PortBindingReq
 
 	assert.Check(t, cmpPortBindingReqs(pb, pb) == 0)
 
 	pbA, pbB = pb, pb
-	pbB.disableNAT = true
+	pbB.DisableNAT = true
 	assert.Check(t, cmpPortBindingReqs(pbA, pbB) < 0)
 	assert.Check(t, cmpPortBindingReqs(pbB, pbA) > 0)
 
@@ -252,7 +253,7 @@ func TestCmpPortBindingReqs(t *testing.T) {
 }
 
 func TestBindHostPortsError(t *testing.T) {
-	cfg := []portBindingReq{
+	cfg := []portmapperapi.PortBindingReq{
 		{
 			PortBinding: types.PortBinding{
 				Proto:       types.TCP,
