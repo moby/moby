@@ -1,4 +1,5 @@
-//go:build linux
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.23 && linux
 
 package overlay
 
@@ -18,6 +19,7 @@ import (
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
+	"github.com/docker/docker/libnetwork/internal/countmap"
 	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/ns"
@@ -48,18 +50,27 @@ type subnet struct {
 }
 
 type network struct {
-	id        string
+	id     string
+	driver *driver
+	secure bool
+	mtu    int
+
+	// mu must be held when accessing any of the variable struct fields below,
+	// calling any method on the network not noted as safe for concurrent use,
+	// or manipulating the driver.networks key for this network id.
+	// This mutex is at the top of the lock hierarchy: any other locks in
+	// package structs can be locked while holding this lock.
+	mu        sync.Mutex
 	sbox      *osl.Namespace
 	endpoints endpointTable
-	driver    *driver
 	joinCnt   int
+	// Ref count of VXLAN Forwarding Database entries programmed into the kernel
+	fdbCnt    countmap.Map[ipmac]
 	sboxInit  bool
 	initEpoch int
 	initErr   error
 	subnets   []*subnet
-	secure    bool
-	mtu       int
-	sync.Mutex
+	peerdb    peerMap
 }
 
 func init() {
@@ -99,6 +110,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 		driver:    d,
 		endpoints: endpointTable{},
 		subnets:   []*subnet{},
+		fdbCnt:    countmap.Map[ipmac]{},
 	}
 
 	vnis := make([]uint32, 0, len(ipV4Data))
@@ -146,10 +158,34 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 		n.subnets = append(n.subnets, s)
 	}
 
-	d.Lock()
-	defer d.Unlock()
-	if d.networks[n.id] != nil {
-		return fmt.Errorf("attempt to create overlay network %v that already exists", n.id)
+	// Lock the network before adding it to the networks table so we can
+	// release the big driver lock before we finish initializing the network
+	// while continuing to exclude other operations on the network from
+	// proceeding until we are done.
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	d.mu.Lock()
+	oldnet := d.networks[id]
+	if oldnet == nil {
+		d.networks[id] = n
+		d.mu.Unlock()
+	} else {
+		// The network already exists, but we might be racing DeleteNetwork.
+		// Synchronize and check again.
+		d.mu.Unlock()
+		oldnet.mu.Lock()
+		d.mu.Lock()
+		_, ok := d.networks[id]
+		if !ok {
+			// It's gone! Stake our claim to the network id.
+			d.networks[id] = n
+		}
+		d.mu.Unlock()
+		oldnet.mu.Unlock()
+		if ok {
+			return fmt.Errorf("attempt to create overlay network %v that already exists", n.id)
+		}
 	}
 
 	// Make sure no rule is on the way from any stale secure network
@@ -167,8 +203,6 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 		}
 	}
 
-	d.networks[id] = n
-
 	return nil
 }
 
@@ -182,23 +216,14 @@ func (d *driver) DeleteNetwork(nid string) error {
 		return err
 	}
 
-	d.Lock()
-	// Only perform a peer flush operation (if required) AFTER unlocking
-	// the driver lock to avoid deadlocking w/ the peerDB.
-	var doPeerFlush bool
-	defer func() {
-		d.Unlock()
-		if doPeerFlush {
-			d.peerFlush(nid)
-		}
-	}()
-
-	// This is similar to d.network(), but we need to keep holding the lock
-	// until we are done removing this network.
-	n := d.networks[nid]
+	n := d.lockNetwork(nid)
 	if n == nil {
 		return fmt.Errorf("could not find network with id %s", nid)
 	}
+	// Unlock the network even if it's going to become garbage as another
+	// goroutine could be blocked waiting for the lock, such as in
+	// func (*driver).lockNetwork.
+	defer n.mu.Unlock()
 
 	for _, ep := range n.endpoints {
 		if ep.ifName != "" {
@@ -209,9 +234,6 @@ func (d *driver) DeleteNetwork(nid string) error {
 			}
 		}
 	}
-
-	doPeerFlush = true
-	delete(d.networks, nid)
 
 	if n.secure {
 		for _, s := range n.subnets {
@@ -232,6 +254,10 @@ func (d *driver) DeleteNetwork(nid string) error {
 		}
 	}
 
+	d.mu.Lock()
+	delete(d.networks, nid)
+	d.mu.Unlock()
+
 	return nil
 }
 
@@ -240,22 +266,11 @@ func (n *network) joinSandbox(s *subnet, incJoinCount bool) error {
 	// the other will wait.
 	networkOnce.Do(populateVNITbl)
 
-	n.Lock()
-	// If initialization was successful then tell the peerDB to initialize the
-	// sandbox with all the peers previously received from networkdb. But only
-	// do this after unlocking the network. Otherwise we could deadlock with
-	// on the peerDB channel while peerDB is waiting for the network lock.
-	var doInitPeerDB bool
-	defer func() {
-		n.Unlock()
-		if doInitPeerDB {
-			go n.driver.initSandboxPeerDB(n.id)
-		}
-	}()
+	var initialized bool
 
 	if !n.sboxInit {
 		n.initErr = n.initSandbox()
-		doInitPeerDB = n.initErr == nil
+		initialized = n.initErr == nil
 		// If there was an error, we cannot recover it
 		n.sboxInit = true
 	}
@@ -281,12 +296,19 @@ func (n *network) joinSandbox(s *subnet, incJoinCount bool) error {
 		n.joinCnt++
 	}
 
+	// If initialization was successful then tell the peerDB to initialize the
+	// sandbox with all the peers previously received from networkdb.
+	if initialized {
+		if err := n.initSandboxPeerDB(); err != nil {
+			log.G(context.TODO()).WithFields(log.Fields{"nid": n.id, "error": err}).
+				Warn("failed to initialize network peer database", n.id)
+		}
+	}
+
 	return nil
 }
 
 func (n *network) leaveSandbox() {
-	n.Lock()
-	defer n.Unlock()
 	n.joinCnt--
 	if n.joinCnt != 0 {
 		return
@@ -586,22 +608,39 @@ func (n *network) initSandbox() error {
 
 	// this is needed to let the peerAdd configure the sandbox
 	n.sbox = sbox
+	n.fdbCnt = countmap.Map[ipmac]{}
 
 	return nil
 }
 
-func (d *driver) network(nid string) *network {
-	d.Lock()
+// lockNetwork returns the network object for nid with its lock held.
+//
+// It is the caller's responsibility to unlock the returned network object.
+func (d *driver) lockNetwork(nid string) *network {
+	d.mu.Lock()
 	n := d.networks[nid]
-	d.Unlock()
-
-	return n
-}
-
-func (n *network) sandbox() *osl.Namespace {
-	n.Lock()
-	defer n.Unlock()
-	return n.sbox
+	d.mu.Unlock()
+	for {
+		if n == nil {
+			return nil
+		}
+		// We can't lock the network object while holding the driver
+		// lock or we risk a lock order reversal deadlock.
+		n.mu.Lock()
+		// d.networks[nid] might have been replaced or removed after we
+		// unlocked the driver lock. Double-check that the network we
+		// just locked is the active network object for the nid.
+		d.mu.Lock()
+		n2 := d.networks[nid]
+		d.mu.Unlock()
+		if n2 == n {
+			return n
+		}
+		// We locked a garbage object. Spin until the network we locked
+		// matches up with the one present in the table.
+		n.mu.Unlock()
+		n = n2
+	}
 }
 
 // getSubnetforIP returns the subnet to which the given IP belongs
