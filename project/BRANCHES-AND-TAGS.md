@@ -20,7 +20,7 @@ Currently (and previously) maintained release branches are documented in the tab
 | 27.x                        |                                                | Unmaintained          |                             |                                           |
 | 26.1                        |                                                | Unmaintained          |                             |                                           |
 | 26.0                        |                                                | Unmaintained          |                             |                                           |
-| 25.0                        | @corhere @austinvazquez                        | Maintained            | TBD                         | [Amazon][al2023], [Mirantis][mcr]         |
+| 25.0                        | @corhere                                       | Maintained            | TBD                         | [Amazon][al2023], [Mirantis][mcr]         |
 | 24.0                        |                                                | Unmaintained          |                             |                                           |
 | 23.0                        | @corhere                                       | Maintained (security) | [2025-05-19][mcr23-maint]   | [Mirantis][mcr]                           |
 | Older than 23.0             |                                                | Unmaintained          |                             |                                           |
