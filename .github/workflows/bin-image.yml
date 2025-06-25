@@ -69,6 +69,8 @@ jobs:
             type=semver,pattern={{version}}
             type=ref,event=branch
             type=ref,event=pr
+            type=semver,pattern={{major}}
+            type=semver,pattern={{major}}.{{minor}}
       -
         name: Rename meta bake definition file
         # see https://github.com/docker/metadata-action/issues/381#issuecomment-1918607161
