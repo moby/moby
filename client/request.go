@@ -164,6 +164,10 @@ func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 		err = errors.Unwrap(err)
 		return nil, errConnectionFailed{errors.Wrapf(err, "failed to connect to the docker API at %v; check if the path is correct and if the daemon is running", cli.host)}
 	}
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) {
+		return nil, errConnectionFailed{errors.Wrapf(dnsErr, "failed to connect to the docker API at %v", cli.host)}
+	}
 
 	var nErr net.Error
 	if errors.As(err, &nErr) {
