@@ -1,4 +1,4 @@
-package main
+package command
 
 import (
 	"context"
@@ -39,10 +39,10 @@ import (
 	buildkit "github.com/docker/docker/builder/builder-next"
 	"github.com/docker/docker/builder/builder-next/exporter"
 	"github.com/docker/docker/builder/dockerfile"
-	"github.com/docker/docker/cmd/dockerd/debug"
-	"github.com/docker/docker/cmd/dockerd/trap"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/cluster"
+	"github.com/docker/docker/daemon/command/debug"
+	"github.com/docker/docker/daemon/command/trap"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/listeners"
 	"github.com/docker/docker/dockerversion"

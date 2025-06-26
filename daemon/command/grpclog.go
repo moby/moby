@@ -1,4 +1,4 @@
-package main
+package command
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 // info => trace
 // warn => debug
 // error => warn
-func configureGRPCLog() {
-	l := log.G(context.TODO()).WithField("library", "grpc")
+func configureGRPCLog(ctx context.Context) {
+	l := log.G(ctx).WithField("library", "grpc")
 	grpclog.SetLoggerV2(grpclog.NewLoggerV2(l.WriterLevel(log.TraceLevel), l.WriterLevel(log.DebugLevel), l.WriterLevel(log.WarnLevel)))
 }
