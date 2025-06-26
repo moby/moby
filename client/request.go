@@ -143,14 +143,11 @@ func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	var uErr *url.Error
-	if errors.As(err, &uErr) {
-		var nErr *net.OpError
-		if errors.As(uErr.Err, &nErr) {
-			if os.IsPermission(nErr.Err) {
-				return nil, errConnectionFailed{errors.Wrapf(err, "permission denied while trying to connect to the Docker daemon socket at %v", cli.host)}
-			}
-		}
+	if errors.Is(err, os.ErrPermission) {
+		// Unwrap the error to remove request errors ("Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.51/version"),
+		// which are irrelevant if we weren't able to connect.
+		err = errors.Unwrap(err)
+		return nil, errConnectionFailed{errors.Wrapf(err, "permission denied while trying to connect to the docker API at %v", cli.host)}
 	}
 
 	var nErr net.Error
