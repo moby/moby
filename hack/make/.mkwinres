@@ -16,11 +16,11 @@ VERSION_QUAD=$(printf "%s" "$VERSION" | sed -re 's/^([0-9.]*).*$/\1/' | sed -re 
 # Microsoft Windows Version Information and an icon using go-winres.
 # https://docs.microsoft.com/en-us/windows/win32/menurc/stringfileinfo-block
 # https://github.com/tc-hib/go-winres#json-format
-cat > "./cli/winresources/${BINARY_NAME}/winres.json" << EOL
+cat > "./cmd/${BINARY_NAME}/winresources/winres.json" << EOL
 {
   "RT_GROUP_ICON": {
     "#1": {
-      "0409": "../../winresources/docker.ico"
+      "0409": "docker.ico"
     }
   },
   "RT_MANIFEST": {
@@ -47,7 +47,7 @@ cat > "./cli/winresources/${BINARY_NAME}/winres.json" << EOL
   },
   "RT_MESSAGETABLE": {
     "#1": {
-      "0409": "../../winresources/event_messages.bin"
+      "0409": "event_messages.bin"
     }
   },
   "RT_VERSION": {
@@ -76,10 +76,5 @@ cat > "./cli/winresources/${BINARY_NAME}/winres.json" << EOL
 EOL
 (
 	set -x
-	cat "./cli/winresources/${BINARY_NAME}/winres.json"
+	cat "./cmd/${BINARY_NAME}/winresources/winres.json"
 )
-
-# Create winresources package stub if removed while using tmpfs in Dockerfile
-if [ ! -f "./cli/winresources/${BINARY_NAME}/winresources.go" ]; then
-	echo "package winresources" > "./cli/winresources/${BINARY_NAME}/winresources.go"
-fi

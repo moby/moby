@@ -549,7 +549,8 @@ RUN --mount=type=cache,sharing=locked,id=moby-build-aptlib,target=/var/lib/apt \
         apt-get update && apt-get install --no-install-recommends -y \
             clang \
             lld \
-            llvm
+            llvm \
+            icoutils
 ARG TARGETPLATFORM
 RUN --mount=type=cache,sharing=locked,id=moby-build-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-build-aptcache,target=/var/cache/apt \
@@ -579,7 +580,6 @@ RUN <<EOT
   fi
 EOT
 RUN --mount=type=bind,target=.,rw \
-    --mount=type=tmpfs,target=cli/winresources/dockerd \
     --mount=type=cache,target=/root/.cache/go-build,id=moby-build-$TARGETPLATFORM <<EOT
   set -e
   target=$([ "$DOCKER_STATIC" = "1" ] && echo "binary" || echo "dynbinary")

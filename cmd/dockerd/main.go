@@ -11,8 +11,6 @@ import (
 	"github.com/moby/term"
 
 	"github.com/docker/docker/daemon/command"
-
-	_ "github.com/docker/docker/cmd/dockerd/builtins"
 )
 
 func main() {
