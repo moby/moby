@@ -15,8 +15,8 @@ thumbs.db
 
 # build artifacts
 /bundles/
-/cli/winresources/dockerd/*.syso
-/cli/winresources/dockerd/winres.json
+/cmd/dockerd/winresources/winres.json
+/cmd/dockerd/*.syso
 
 # ci artifacts
 *.exe
