@@ -342,12 +342,12 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 	if img.Parent != "" {
 		for {
 			var loaded bool
-			if parentID, loaded = loadedMap[img.Parent]; !loaded {
-				if err := l.legacyLoadImage(img.Parent, sourceDir, loadedMap, progressOutput); err != nil {
-					return err
-				}
-			} else {
+			parentID, loaded = loadedMap[img.Parent]
+			if loaded {
 				break
+			}
+			if err := l.legacyLoadImage(img.Parent, sourceDir, loadedMap, progressOutput); err != nil {
+				return err
 			}
 		}
 	}
