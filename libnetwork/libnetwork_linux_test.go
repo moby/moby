@@ -939,9 +939,7 @@ func TestValidRemoteDriver(t *testing.T) {
 		}
 		return
 	}
-	defer func() {
-		assert.Check(t, n.Delete())
-	}()
+	assert.Check(t, n.Delete())
 }
 
 func makeTesthostNetwork(t *testing.T, c *libnetwork.Controller) *libnetwork.Network {
@@ -1288,7 +1286,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	checkSandbox(t, ep.Info())
 }
 
-func reexecSetKey(key string, containerID string, controllerID string) error {
+func reexecSetKey(key, containerID, controllerID string) error {
 	type libcontainerState struct {
 		NamespacePaths map[string]string
 	}
@@ -1387,7 +1385,7 @@ func TestResolvConf(t *testing.T) {
 
 			finfo, err := os.Stat(resolvConfPath)
 			assert.NilError(t, err)
-			expFMode := (os.FileMode)(0o644)
+			expFMode := os.FileMode(0o644)
 			assert.Check(t, is.Equal(finfo.Mode().String(), expFMode.String()))
 			content, err := os.ReadFile(resolvConfPath)
 			assert.NilError(t, err)

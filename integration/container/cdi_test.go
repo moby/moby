@@ -179,7 +179,7 @@ func TestCDIInfoDiscoveredDevices(t *testing.T) {
 	cdiDir := testutil.TempDir(t)
 	specFilePath := filepath.Join(cdiDir, "test-device.json")
 
-	err := os.WriteFile(specFilePath, []byte(specContent), 0644)
+	err := os.WriteFile(specFilePath, []byte(specContent), 0o644)
 	assert.NilError(t, err, "Failed to write sample CDI spec file")
 
 	d := daemon.New(t)

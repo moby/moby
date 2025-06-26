@@ -170,27 +170,25 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options
 		}
 
 		removedRepositoryRef = true
-	} else {
+	} else if isSingleReference(repoRefs) {
 		// If an ID reference was given AND there is at most one tag
 		// reference to the image AND all references are within one
 		// repository, then remove all references.
-		if isSingleReference(repoRefs) {
-			c := conflictHard
-			if !force {
-				c |= conflictSoft &^ conflictActiveReference
-			}
-			if conflict := i.checkImageDeleteConflict(imgID, c); conflict != nil {
-				return nil, conflict
-			}
+		c := conflictHard
+		if !force {
+			c |= conflictSoft &^ conflictActiveReference
+		}
+		if conflict := i.checkImageDeleteConflict(imgID, c); conflict != nil {
+			return nil, conflict
+		}
 
-			for _, repoRef := range repoRefs {
-				parsedRef, err := i.removeImageRef(repoRef)
-				if err != nil {
-					return nil, err
-				}
-				i.LogImageEvent(ctx, imgID.String(), imgID.String(), events.ActionUnTag)
-				records = append(records, imagetypes.DeleteResponse{Untagged: reference.FamiliarString(parsedRef)})
+		for _, repoRef := range repoRefs {
+			parsedRef, err := i.removeImageRef(repoRef)
+			if err != nil {
+				return nil, err
 			}
+			i.LogImageEvent(ctx, imgID.String(), imgID.String(), events.ActionUnTag)
+			records = append(records, imagetypes.DeleteResponse{Untagged: reference.FamiliarString(parsedRef)})
 		}
 	}
 

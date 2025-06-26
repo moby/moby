@@ -265,17 +265,18 @@ func (s *DockerCLIVolumeSuite) TestVolumeCLICreateWithOpts(c *testing.T) {
 	mounts := strings.Split(out, "\n")
 	var found bool
 	for _, m := range mounts {
-		if strings.Contains(m, "/foo") {
-			found = true
-			info := strings.Fields(m)
-			// tmpfs on <path> type tmpfs (rw,relatime,size=1024k,uid=1000)
-			assert.Equal(c, info[0], "tmpfs")
-			assert.Equal(c, info[2], "/foo")
-			assert.Equal(c, info[4], "tmpfs")
-			assert.Assert(c, is.Contains(info[5], "uid=1000"))
-			assert.Assert(c, is.Contains(info[5], "size=1024k"))
-			break
+		if !strings.Contains(m, "/foo") {
+			continue
 		}
+		found = true
+		info := strings.Fields(m)
+		// tmpfs on <path> type tmpfs (rw,relatime,size=1024k,uid=1000)
+		assert.Equal(c, info[0], "tmpfs")
+		assert.Equal(c, info[2], "/foo")
+		assert.Equal(c, info[4], "tmpfs")
+		assert.Assert(c, is.Contains(info[5], "uid=1000"))
+		assert.Assert(c, is.Contains(info[5], "size=1024k"))
+		break
 	}
 	assert.Equal(c, found, true)
 }

@@ -65,23 +65,23 @@ func GenerateRandomName(prefix string, length int) (string, error) {
 // ReverseIP accepts a V4 or V6 IP string in the canonical form and returns a reversed IP in
 // the dotted decimal form . This is used to setup the IP to service name mapping in the optimal
 // way for the DNS PTR queries.
-func ReverseIP(IP string) string {
+func ReverseIP(ip string) string {
 	var reverseIP []string
 
-	if net.ParseIP(IP).To4() != nil {
-		reverseIP = strings.Split(IP, ".")
+	if net.ParseIP(ip).To4() != nil {
+		reverseIP = strings.Split(ip, ".")
 		l := len(reverseIP)
 		for i, j := 0, l-1; i < l/2; i, j = i+1, j-1 {
 			reverseIP[i], reverseIP[j] = reverseIP[j], reverseIP[i]
 		}
 	} else {
-		reverseIP = strings.Split(IP, ":")
+		reverseIP = strings.Split(ip, ":")
 
 		// Reversed IPv6 is represented in dotted decimal instead of the typical
 		// colon hex notation
 		for key := range reverseIP {
 			if reverseIP[key] == "" { // expand the compressed 0s
-				reverseIP[key] = strings.Repeat("0000", 8-strings.Count(IP, ":"))
+				reverseIP[key] = strings.Repeat("0000", 8-strings.Count(ip, ":"))
 			} else if len(reverseIP[key]) < 4 { // 0-padding needed
 				reverseIP[key] = strings.Repeat("0", 4-len(reverseIP[key])) + reverseIP[key]
 			}

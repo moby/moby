@@ -61,7 +61,7 @@ var templFuncs = template.FuncMap{
 }
 
 func title(s string) string {
-	if strings.ToLower(s) == "id" {
+	if strings.EqualFold(s, "id") {
 		return "ID"
 	}
 	return strings.Title(s) //nolint:staticcheck // SA1019: strings.Title is deprecated: The rule Title uses for word boundaries does not handle Unicode punctuation properly. Use golang.org/x/text/cases instead.

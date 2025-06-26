@@ -47,7 +47,7 @@ func dockerCmdWithResult(args ...string) *icmd.Result {
 	return cli.Docker(cli.Args(args...))
 }
 
-func findContainerIP(t *testing.T, id string, network string) string {
+func findContainerIP(t *testing.T, id, network string) string {
 	t.Helper()
 	out := cli.DockerCmd(t, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.IPAddress }}'", network), id).Stdout()
 	return strings.Trim(out, " \r\n'")
@@ -62,14 +62,15 @@ func getContainerCount(t *testing.T) int {
 
 	lines := strings.Split(result.Combined(), "\n")
 	for _, line := range lines {
-		if strings.Contains(line, containers) {
-			output := strings.TrimSpace(line)
-			output = strings.TrimPrefix(output, containers)
-			output = strings.Trim(output, " ")
-			containerCount, err := strconv.Atoi(output)
-			assert.NilError(t, err)
-			return containerCount
+		if !strings.Contains(line, containers) {
+			continue
 		}
+		output := strings.TrimSpace(line)
+		output = strings.TrimPrefix(output, containers)
+		output = strings.Trim(output, " ")
+		containerCount, err := strconv.Atoi(output)
+		assert.NilError(t, err)
+		return containerCount
 	}
 	return 0
 }
@@ -201,7 +202,7 @@ func containerStorageFile(containerID, basename string) string {
 }
 
 // docker commands that use this function must be run with the '-d' switch.
-func runCommandAndReadContainerFile(t *testing.T, filename string, command string, args ...string) []byte {
+func runCommandAndReadContainerFile(t *testing.T, filename, command string, args ...string) []byte {
 	t.Helper()
 	result := icmd.RunCommand(command, args...)
 	result.Assert(t, icmd.Success)
@@ -450,7 +451,7 @@ func reducedCheck(r reducer, funcs ...checkF) checkF {
 				comments = append(comments, comment)
 			}
 		}
-		return r(values...), fmt.Sprintf("%v", strings.Join(comments, ", "))
+		return r(values...), strings.Join(comments, ", ")
 	}
 }
 
