@@ -140,7 +140,7 @@ func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 	}
 
 	if cli.scheme != "https" && strings.Contains(err.Error(), "malformed HTTP response") {
-		return nil, errConnectionFailed{fmt.Errorf("%v.\n* Are you trying to connect to a TLS-enabled daemon without TLS?", err)}
+		return nil, errConnectionFailed{fmt.Errorf("%w.\n* Are you trying to connect to a TLS-enabled daemon without TLS?", err)}
 	}
 
 	if cli.scheme == "https" && strings.Contains(err.Error(), "bad certificate") {
