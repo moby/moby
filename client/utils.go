@@ -4,15 +4,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
+	"sync"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/internal/lazyregexp"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-var headerRegexp = lazyregexp.New(`\ADocker/.+\s\((.+)\)\z`)
+var (
+	headerRegexpOnce sync.Once
+	headerRegexp     *regexp.Regexp
+)
 
 type emptyIDError string
 
@@ -33,6 +37,9 @@ func trimID(objType, id string) (string, error) {
 
 // getDockerOS returns the operating system based on the server header from the daemon.
 func getDockerOS(serverHeader string) string {
+	headerRegexpOnce.Do(func() {
+		headerRegexp = regexp.MustCompile(`\ADocker/.+\s\((.+)\)\z`)
+	})
 	var osType string
 	matches := headerRegexp.FindStringSubmatch(serverHeader)
 	if len(matches) > 0 {

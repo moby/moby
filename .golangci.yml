@@ -336,7 +336,7 @@ linters:
         linters:
           - forbidigo
       - text: 'use of `regexp.MustCompile` forbidden'
-        path: "internal/lazyregexp"
+        path: "(internal/lazyregexp|api|client)"
         linters:
           - forbidigo
       - text: 'use of `regexp.MustCompile` forbidden'
