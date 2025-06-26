@@ -4,8 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
-
-	"github.com/docker/docker/internal/multierror"
+	"strings"
 )
 
 // IPAM represents IP Address Management
@@ -72,7 +71,7 @@ func ValidateIPAM(ipam *IPAM, enableIPv6 bool) error {
 		}
 	}
 
-	if err := multierror.Join(errs...); err != nil {
+	if err := errJoin(errs...); err != nil {
 		return fmt.Errorf("invalid network config:\n%w", err)
 	}
 
@@ -131,4 +130,44 @@ func validateAddress(address string, subnet netip.Prefix, subnetFamily ipFamily)
 	}
 
 	return nil
+}
+
+func errJoin(errs ...error) error {
+	n := 0
+	for _, err := range errs {
+		if err != nil {
+			n++
+		}
+	}
+	if n == 0 {
+		return nil
+	}
+	e := &joinError{
+		errs: make([]error, 0, n),
+	}
+	for _, err := range errs {
+		if err != nil {
+			e.errs = append(e.errs, err)
+		}
+	}
+	return e
+}
+
+type joinError struct {
+	errs []error
+}
+
+func (e *joinError) Error() string {
+	if len(e.errs) == 1 {
+		return strings.TrimSpace(e.errs[0].Error())
+	}
+	stringErrs := make([]string, 0, len(e.errs))
+	for _, subErr := range e.errs {
+		stringErrs = append(stringErrs, strings.ReplaceAll(subErr.Error(), "\n", "\n\t"))
+	}
+	return "* " + strings.Join(stringErrs, "\n* ")
+}
+
+func (e *joinError) Unwrap() []error {
+	return e.errs
 }

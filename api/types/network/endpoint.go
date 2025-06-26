@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-
-	"github.com/docker/docker/internal/multierror"
 )
 
 // EndpointSettings stores the network endpoint details
@@ -99,7 +97,7 @@ func (cfg *EndpointIPAMConfig) IsInRange(v4Subnets []NetworkSubnet, v6Subnets []
 		errs = append(errs, err)
 	}
 
-	return multierror.Join(errs...)
+	return errJoin(errs...)
 }
 
 func validateEndpointIPAddress(epAddr string, ipamSubnets []NetworkSubnet) error {
@@ -149,5 +147,5 @@ func (cfg *EndpointIPAMConfig) Validate() error {
 		}
 	}
 
-	return multierror.Join(errs...)
+	return errJoin(errs...)
 }
