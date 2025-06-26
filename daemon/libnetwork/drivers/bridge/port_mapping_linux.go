@@ -156,7 +156,6 @@ func (n *bridgeNetwork) sortAndNormPBs(
 	}
 
 	proxyPath := n.userlandProxyPath()
-	pdc := n.getPortDriverClient()
 	disableNAT4, disableNAT6 := n.getNATDisabled()
 
 	add4 := !ep.portBindingState.ipv4 && pbmReq.ipv4
@@ -169,7 +168,7 @@ func (n *bridgeNetwork) sortAndNormPBs(
 		}
 
 		if add4 {
-			if bindingIPv4, ok := configurePortBindingIPv4(ctx, pdc, disableNAT4, c, containerIPv4, defHostIP); ok {
+			if bindingIPv4, ok := configurePortBindingIPv4(ctx, disableNAT4, c, containerIPv4, defHostIP); ok {
 				reqs = append(reqs, bindingIPv4)
 			}
 		}
@@ -200,7 +199,7 @@ func (n *bridgeNetwork) sortAndNormPBs(
 			}
 		}
 		if add6 {
-			if bindingIPv6, ok := configurePortBindingIPv6(ctx, pdc, disableNAT6, c, containerIP, defHostIP); ok {
+			if bindingIPv6, ok := configurePortBindingIPv6(ctx, disableNAT6, c, containerIP, defHostIP); ok {
 				reqs = append(reqs, bindingIPv6)
 			}
 		}
@@ -242,7 +241,6 @@ func mergeChildHostIPs(pbs []portmapperapi.PortBinding) []types.PortBinding {
 // binding.
 func configurePortBindingIPv4(
 	ctx context.Context,
-	pdc portDriverClient,
 	disableNAT bool,
 	bnd portmapperapi.PortBindingReq,
 	containerIPv4,
@@ -286,7 +284,7 @@ func configurePortBindingIPv4(
 	bnd.HostIP = bnd.HostIP.To4()
 	bnd.IP = containerIPv4.To4()
 	bnd.DisableNAT = disableNAT
-	return setChildHostIP(pdc, bnd), true
+	return bnd, true
 }
 
 // configurePortBindingIPv6 returns a new port binding with the HostIP field
@@ -294,7 +292,6 @@ func configurePortBindingIPv4(
 // binding.
 func configurePortBindingIPv6(
 	ctx context.Context,
-	pdc portDriverClient,
 	disableNAT bool,
 	bnd portmapperapi.PortBindingReq,
 	containerIP, defHostIP net.IP,
@@ -344,7 +341,7 @@ func configurePortBindingIPv6(
 
 	bnd.IP = containerIP
 	bnd.DisableNAT = disableNAT
-	return setChildHostIP(pdc, bnd), true
+	return bnd, true
 }
 
 func setChildHostIP(pdc portDriverClient, req portmapperapi.PortBindingReq) portmapperapi.PortBindingReq {
@@ -449,8 +446,9 @@ func attemptBindHostPorts(
 	var port int
 
 	addrs := make([]net.IP, 0, len(cfg))
-	for _, c := range cfg {
-		addrs = append(addrs, c.ChildHostIP)
+	for i := range cfg {
+		cfg[i] = setChildHostIP(pdc, cfg[i])
+		addrs = append(addrs, cfg[i].ChildHostIP)
 	}
 
 	pa := portallocator.NewOSAllocator()
