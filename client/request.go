@@ -158,6 +158,12 @@ func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 		// which are irrelevant if we weren't able to connect.
 		return nil, errConnectionFailed{fmt.Errorf("permission denied while trying to connect to the docker API at %v", cli.host)}
 	}
+	if errors.Is(err, os.ErrNotExist) {
+		// Unwrap the error to remove request errors ("Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.51/version"),
+		// which are irrelevant if we weren't able to connect.
+		err = errors.Unwrap(err)
+		return nil, errConnectionFailed{errors.Wrapf(err, "failed to connect to the docker API at %v; check if the path is correct and if the daemon is running", cli.host)}
+	}
 
 	var nErr net.Error
 	if errors.As(err, &nErr) {
