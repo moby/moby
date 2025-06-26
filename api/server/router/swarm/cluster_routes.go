@@ -470,7 +470,7 @@ func (sr *swarmRouter) updateSecret(ctx context.Context, w http.ResponseWriter, 
 	rawVersion := r.URL.Query().Get("version")
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
-		return errdefs.InvalidParameter(fmt.Errorf("invalid secret version"))
+		return errdefs.InvalidParameter(errors.New("invalid secret version"))
 	}
 
 	id := vars["id"]
@@ -542,7 +542,7 @@ func (sr *swarmRouter) updateConfig(ctx context.Context, w http.ResponseWriter, 
 	rawVersion := r.URL.Query().Get("version")
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
-		return errdefs.InvalidParameter(fmt.Errorf("invalid config version"))
+		return errdefs.InvalidParameter(errors.New("invalid config version"))
 	}
 
 	id := vars["id"]

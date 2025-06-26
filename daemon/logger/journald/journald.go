@@ -3,6 +3,7 @@
 package journald
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"sync/atomic"
@@ -100,7 +101,7 @@ func sanitizeKeyMod(s string) string {
 // the context.
 func New(info logger.Info) (logger.Logger, error) {
 	if !journal.Enabled() {
-		return nil, fmt.Errorf("journald is not enabled on this host")
+		return nil, errors.New("journald is not enabled on this host")
 	}
 
 	return newJournald(info)

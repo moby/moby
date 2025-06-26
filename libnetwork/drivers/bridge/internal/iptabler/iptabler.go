@@ -260,10 +260,10 @@ func programChainRule(rule iptables.Rule, ruleDescr string, insert bool) error {
 	return nil
 }
 
-func appendOrDelChainRule(rule iptables.Rule, ruleDescr string, append bool) error {
+func appendOrDelChainRule(rule iptables.Rule, ruleDescr string, shouldAppend bool) error {
 	operation := "disable"
 	fn := rule.Delete
-	if append {
+	if shouldAppend {
 		operation = "enable"
 		fn = rule.Append
 	}

@@ -247,7 +247,7 @@ func (c *Controller) SetKeys(keys []*types.EncryptionKey) error {
 	for _, key := range keys {
 		if key.Subsystem != subsysGossip &&
 			key.Subsystem != subsysIPSec {
-			return fmt.Errorf("key received for unrecognized subsystem")
+			return errors.New("key received for unrecognized subsystem")
 		}
 		subsysKeys[key.Subsystem]++
 	}

@@ -46,11 +46,11 @@ func (s *Health) Status() container.HealthStatus {
 // obeying the locking semantics.
 //
 // Status may be set directly if another lock is used.
-func (s *Health) SetStatus(new container.HealthStatus) {
+func (s *Health) SetStatus(healthStatus container.HealthStatus) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.Health.Status = new
+	s.Health.Status = healthStatus
 }
 
 // OpenMonitorChannel creates and returns a new monitor channel. If there

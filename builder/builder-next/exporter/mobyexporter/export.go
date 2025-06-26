@@ -106,12 +106,12 @@ func (e *imageExporterInstance) Attrs() map[string]string {
 
 func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source, inlineCache exptypes.InlineCache, sessionID string) (map[string]string, exporter.DescriptorReference, error) {
 	if len(inp.Refs) > 1 {
-		return nil, nil, fmt.Errorf("exporting multiple references to image store is currently unsupported")
+		return nil, nil, errors.New("exporting multiple references to image store is currently unsupported")
 	}
 
 	ref := inp.Ref
 	if ref != nil && len(inp.Refs) == 1 {
-		return nil, nil, fmt.Errorf("invalid exporter input: Ref and Refs are mutually exclusive")
+		return nil, nil, errors.New("invalid exporter input: Ref and Refs are mutually exclusive")
 	}
 
 	// only one loop

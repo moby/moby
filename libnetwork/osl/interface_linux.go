@@ -184,7 +184,7 @@ func (i *Interface) Statistics() (*types.InterfaceStatistics, error) {
 
 	stats := l.Attrs().Statistics
 	if stats == nil {
-		return nil, fmt.Errorf("no statistics were returned")
+		return nil, errors.New("no statistics were returned")
 	}
 
 	return &types.InterfaceStatistics{

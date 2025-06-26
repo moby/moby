@@ -114,12 +114,12 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	}
 
 	if rootless.RunningWithRootlessKit() && !cli.Config.IsRootless() {
-		return fmt.Errorf("rootless mode needs to be enabled for running with RootlessKit")
+		return errors.New("rootless mode needs to be enabled for running with RootlessKit")
 	}
 
 	// return human-friendly error before creating files
 	if runtime.GOOS == "linux" && os.Geteuid() != 0 {
-		return fmt.Errorf("dockerd needs to be started with root privileges. To run dockerd in rootless mode as an unprivileged user, see https://docs.docker.com/go/rootless/")
+		return errors.New("dockerd needs to be started with root privileges. To run dockerd in rootless mode as an unprivileged user, see https://docs.docker.com/go/rootless/")
 	}
 
 	if err := setDefaultUmask(); err != nil {

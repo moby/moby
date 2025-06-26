@@ -2,7 +2,7 @@ package build
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"testing"
 	"time"
 
@@ -107,7 +107,7 @@ func TestBuildkitHistoryTracePropagation(t *testing.T) {
 		}
 
 		if msg.Record.Ref != he.Record.Ref {
-			return poll.Error(fmt.Errorf("got incorrect history record"))
+			return poll.Error(errors.New("got incorrect history record"))
 		}
 		if msg.Record.Trace != nil {
 			return poll.Success()

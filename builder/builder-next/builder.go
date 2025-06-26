@@ -617,7 +617,7 @@ func toBuildkitExtraHosts(inp []string, hostGatewayIPs []netip.Addr) (string, er
 		// IP address(es) stored in the daemon level HostGatewayIPs config variable.
 		if ip == opts.HostGatewayName {
 			if len(hostGatewayIPs) == 0 {
-				return "", fmt.Errorf("unable to derive the IP value for host-gateway")
+				return "", errors.New("unable to derive the IP value for host-gateway")
 			}
 			for _, gip := range hostGatewayIPs {
 				hosts = append(hosts, host+"="+gip.String())

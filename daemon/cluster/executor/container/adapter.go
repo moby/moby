@@ -166,7 +166,7 @@ func (c *containerAdapter) waitNodeAttachments(ctx context.Context) error {
 	// we'll wait and try again.
 	attachmentStore := c.backend.GetAttachmentStore()
 	if attachmentStore == nil {
-		return fmt.Errorf("error getting attachment store")
+		return errors.New("error getting attachment store")
 	}
 
 	// essentially, we're long-polling here. this is really sub-optimal, but a
@@ -199,7 +199,7 @@ func (c *containerAdapter) waitNodeAttachments(ctx context.Context) error {
 		// otherwise, try polling again, or wait for context canceled.
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("node is missing network attachments, ip addresses may be exhausted")
+			return errors.New("node is missing network attachments, ip addresses may be exhausted")
 		case <-poll.C:
 		}
 	}

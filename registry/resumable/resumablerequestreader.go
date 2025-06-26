@@ -37,7 +37,7 @@ func NewRequestReaderWithInitialResponse(c *http.Client, r *http.Request, maxfai
 
 func (r *requestReader) Read(p []byte) (n int, _ error) {
 	if r.client == nil || r.request == nil {
-		return 0, fmt.Errorf("client and request can't be nil")
+		return 0, errors.New("client and request can't be nil")
 	}
 
 	var err error
@@ -65,13 +65,13 @@ func (r *requestReader) Read(p []byte) (n int, _ error) {
 		return 0, io.EOF
 	} else if r.currentResponse.StatusCode != http.StatusPartialContent && r.lastRange != 0 && isFreshRequest {
 		r.cleanUpResponse()
-		return 0, fmt.Errorf("the server doesn't support byte ranges")
+		return 0, errors.New("the server doesn't support byte ranges")
 	}
 	if r.totalSize == 0 {
 		r.totalSize = r.currentResponse.ContentLength
 	} else if r.totalSize <= 0 {
 		r.cleanUpResponse()
-		return 0, fmt.Errorf("failed to auto detect content length")
+		return 0, errors.New("failed to auto detect content length")
 	}
 	n, err = r.currentResponse.Body.Read(p)
 	r.lastRange += int64(n)

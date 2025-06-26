@@ -4,6 +4,7 @@ package overlay
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -45,13 +46,13 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	}
 
 	if n.secure && len(d.keys) == 0 {
-		return fmt.Errorf("cannot join secure network: encryption keys not present")
+		return errors.New("cannot join secure network: encryption keys not present")
 	}
 
 	nlh := ns.NlHandle()
 
 	if n.secure && !nlh.SupportsNetlinkFamily(syscall.NETLINK_XFRM) {
-		return fmt.Errorf("cannot join secure network: required modules to install IPSEC rules are missing on host")
+		return errors.New("cannot join secure network: required modules to install IPSEC rules are missing on host")
 	}
 
 	s := n.getSubnetforIP(ep.addr)

@@ -1,6 +1,7 @@
 package usergroup
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"sort"
@@ -81,7 +82,7 @@ func addUser(name string) error {
 	case "useradd":
 		args = []string{"-r", "-s", "/bin/false", name}
 	default:
-		return fmt.Errorf("cannot add user; no useradd/adduser binary found")
+		return errors.New("cannot add user; no useradd/adduser binary found")
 	}
 
 	if out, err := exec.Command(userCommand, args...).CombinedOutput(); err != nil {

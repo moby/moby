@@ -674,7 +674,7 @@ func parseNetworkOptions(id string, option options.Generic) (*networkConfigurati
 	}
 
 	if (config.GwModeIPv4.isolated() || config.GwModeIPv6.isolated()) && !config.Internal {
-		return nil, fmt.Errorf("gateway mode 'isolated' can only be used for an internal network")
+		return nil, errors.New("gateway mode 'isolated' can only be used for an internal network")
 	}
 
 	if !exists {
