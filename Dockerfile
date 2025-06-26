@@ -549,7 +549,8 @@ RUN --mount=type=cache,sharing=locked,id=moby-build-aptlib,target=/var/lib/apt \
         apt-get update && apt-get install --no-install-recommends -y \
             clang \
             lld \
-            llvm
+            llvm \
+            icoutils
 ARG TARGETPLATFORM
 RUN --mount=type=cache,sharing=locked,id=moby-build-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-build-aptcache,target=/var/cache/apt \

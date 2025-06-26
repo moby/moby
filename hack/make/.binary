@@ -96,6 +96,18 @@ source "${MAKEDIR}/.go-autogen"
 		set -x
 	fi
 	./hack/with-go-mod.sh go build -mod=vendor -modfile=vendor.mod -o "$DEST/$BINARY_FULLNAME" "${BUILDFLAGS[@]}" -ldflags "$LDFLAGS $LDFLAGS_STATIC $DOCKER_LDFLAGS" -gcflags="${GCFLAGS}" "$GO_PACKAGE"
+
+	# Verify that the built binary contains windows resources
+	if [ "$(go env GOOS)" = "windows" ]; then
+		if command -v wrestool > /dev/null 2>&1; then
+			if ! wrestool -l "$DEST/$BINARY_FULLNAME" | grep -q -- '--type='; then
+				echo "No resources found in $DEST/$BINARY_FULLNAME"
+				exit 1
+			fi
+		else
+			echo "WARNING: wrestool not found, skipping resources check"
+		fi
+	fi
 )
 
 echo "Created binary: $DEST/$BINARY_FULLNAME"
