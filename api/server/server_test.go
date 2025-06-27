@@ -9,7 +9,7 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/server/middleware"
+	"github.com/docker/docker/daemon/server/middleware"
 )
 
 func TestMiddlewares(t *testing.T) {
