@@ -13,7 +13,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/internal/metrics"
+	"github.com/docker/docker/daemon/internal/metrics"
 )
 
 const (

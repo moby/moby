@@ -5,7 +5,7 @@ import (
 	"time"
 
 	eventtypes "github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/internal/metrics"
+	"github.com/docker/docker/daemon/internal/metrics"
 	"github.com/moby/pubsub"
 )
 

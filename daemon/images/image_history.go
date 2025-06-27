@@ -8,7 +8,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/internal/metrics"
+	"github.com/docker/docker/daemon/internal/metrics"
 	"github.com/docker/docker/layer"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )

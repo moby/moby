@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/internal/metrics"
+	"github.com/docker/docker/daemon/internal/metrics"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/restartmanager"
 	"github.com/pkg/errors"
