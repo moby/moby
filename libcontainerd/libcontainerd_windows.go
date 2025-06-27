@@ -4,7 +4,7 @@ import (
 	"context"
 
 	containerd "github.com/containerd/containerd/v2/client"
-	"github.com/docker/docker/libcontainerd/local"
+	"github.com/docker/docker/daemon/internal/libcontainerd/local"
 	"github.com/docker/docker/libcontainerd/remote"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/pkg/system"
