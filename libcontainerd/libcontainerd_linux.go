@@ -5,7 +5,7 @@ import (
 
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/docker/docker/daemon/internal/libcontainerd/remote"
-	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
+	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
 )
 
 // NewClient creates a new libcontainerd client from a containerd client

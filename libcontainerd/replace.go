@@ -9,7 +9,7 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 
-	"github.com/docker/docker/libcontainerd/types"
+	"github.com/docker/docker/daemon/internal/libcontainerd/types"
 )
 
 // ReplaceContainer creates a new container, replacing any existing container

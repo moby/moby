@@ -11,9 +11,9 @@ import (
 	"github.com/containerd/containerd/v2/pkg/cio"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd"
-	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )

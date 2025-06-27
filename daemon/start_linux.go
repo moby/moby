@@ -6,8 +6,8 @@ import (
 
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/daemon/internal/libcontainerd/types"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/oci"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
