@@ -1,6 +1,7 @@
 //go:build windows
 
 package container
+
 import (
 	"strings"
 	"testing"
