@@ -10,7 +10,7 @@ import (
 
 	"github.com/containerd/containerd/v2/pkg/cio"
 	"github.com/containerd/log"
-	"github.com/docker/docker/container/stream/bytespipe"
+	"github.com/docker/docker/daemon/internal/stream/bytespipe"
 	"github.com/docker/docker/pkg/pools"
 )
 
