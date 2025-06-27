@@ -4,7 +4,7 @@
 package system
 
 import (
-	"github.com/docker/docker/api/server/router"
+	"github.com/docker/docker/daemon/server/router"
 	"resenje.org/singleflight"
 )
 

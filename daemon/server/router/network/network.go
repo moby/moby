@@ -1,7 +1,7 @@
 package network
 
 import (
-	"github.com/docker/docker/api/server/router"
+	"github.com/docker/docker/daemon/server/router"
 )
 
 // networkRouter is a router to talk with the network controller

@@ -2,7 +2,7 @@ package checkpoint
 
 import (
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/server/router"
+	"github.com/docker/docker/daemon/server/router"
 )
 
 // checkpointRouter is a router to talk with the checkpoint controller

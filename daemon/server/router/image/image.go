@@ -1,7 +1,7 @@
 package image
 
 import (
-	"github.com/docker/docker/api/server/router"
+	"github.com/docker/docker/daemon/server/router"
 )
 
 // imageRouter is a router to talk with the image controller

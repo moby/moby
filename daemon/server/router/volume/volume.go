@@ -1,6 +1,6 @@
 package volume
 
-import "github.com/docker/docker/api/server/router"
+import "github.com/docker/docker/daemon/server/router"
 
 // volumeRouter is a router to talk with the volumes controller
 type volumeRouter struct {
