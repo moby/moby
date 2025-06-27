@@ -75,19 +75,21 @@ func TestImagePushWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T)
 
 func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
 	const expectedURL = "/images/docker.io/myname/myimage/push"
+	const invalidAuth = "NotValid"
+	const validAuth = "IAmValid"
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
 			auth := req.Header.Get(registry.AuthHeader)
-			if auth == "NotValid" {
+			if auth == invalidAuth {
 				return &http.Response{
 					StatusCode: http.StatusUnauthorized,
 					Body:       io.NopCloser(bytes.NewReader([]byte("Invalid credentials"))),
 				}, nil
 			}
-			if auth != "IAmValid" {
+			if auth != validAuth {
 				return nil, fmt.Errorf("invalid auth header: expected %s, got %s", "IAmValid", auth)
 			}
 			query := req.URL.Query()
@@ -101,12 +103,9 @@ func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
 			}, nil
 		}),
 	}
-	privilegeFunc := func(_ context.Context) (string, error) {
-		return "IAmValid", nil
-	}
 	resp, err := client.ImagePush(context.Background(), "myname/myimage:tag", image.PushOptions{
-		RegistryAuth:  "NotValid",
-		PrivilegeFunc: privilegeFunc,
+		RegistryAuth:  invalidAuth,
+		PrivilegeFunc: staticAuth(validAuth),
 	})
 	assert.NilError(t, err)
 	body, err := io.ReadAll(resp)

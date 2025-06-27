@@ -48,43 +48,41 @@ func TestImagePullWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
-	privilegeFunc := func(_ context.Context) (string, error) {
-		return "", errors.New("Error requesting privilege")
-	}
 	_, err := client.ImagePull(context.Background(), "myimage", image.PullOptions{
-		PrivilegeFunc: privilegeFunc,
+		PrivilegeFunc: func(_ context.Context) (string, error) {
+			return "", errors.New("error requesting privilege")
+		},
 	})
-	assert.Check(t, is.Error(err, "Error requesting privilege"))
+	assert.Check(t, is.Error(err, "error requesting privilege"))
 }
 
 func TestImagePullWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
-	privilegeFunc := func(_ context.Context) (string, error) {
-		return "a-auth-header", nil
-	}
 	_, err := client.ImagePull(context.Background(), "myimage", image.PullOptions{
-		PrivilegeFunc: privilegeFunc,
+		PrivilegeFunc: staticAuth("a-auth-header"),
 	})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsUnauthorized))
 }
 
 func TestImagePullWithPrivilegedFuncNoError(t *testing.T) {
 	const expectedURL = "/images/create"
+	const invalidAuth = "NotValid"
+	const validAuth = "IAmValid"
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
 			auth := req.Header.Get(registry.AuthHeader)
-			if auth == "NotValid" {
+			if auth == invalidAuth {
 				return &http.Response{
 					StatusCode: http.StatusUnauthorized,
 					Body:       io.NopCloser(bytes.NewReader([]byte("Invalid credentials"))),
 				}, nil
 			}
-			if auth != "IAmValid" {
+			if auth != validAuth {
 				return nil, fmt.Errorf("invalid auth header: expected %s, got %s", "IAmValid", auth)
 			}
 			query := req.URL.Query()
@@ -102,12 +100,9 @@ func TestImagePullWithPrivilegedFuncNoError(t *testing.T) {
 			}, nil
 		}),
 	}
-	privilegeFunc := func(_ context.Context) (string, error) {
-		return "IAmValid", nil
-	}
 	resp, err := client.ImagePull(context.Background(), "myimage", image.PullOptions{
-		RegistryAuth:  "NotValid",
-		PrivilegeFunc: privilegeFunc,
+		RegistryAuth:  invalidAuth,
+		PrivilegeFunc: staticAuth(validAuth),
 	})
 	assert.NilError(t, err)
 	body, err := io.ReadAll(resp)
