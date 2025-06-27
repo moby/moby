@@ -191,7 +191,7 @@ func TestImageBuild(t *testing.T) {
 				}
 
 				headers := http.Header{}
-				headers.Add("Server", "Docker/v1.23 (MyOS)")
+				headers.Add("Ostype", "MyOS")
 				return &http.Response{
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
@@ -206,17 +206,5 @@ func TestImageBuild(t *testing.T) {
 		assert.NilError(t, err)
 		buildResponse.Body.Close()
 		assert.Check(t, is.Equal(string(response), "body"))
-	}
-}
-
-func TestGetDockerOS(t *testing.T) {
-	cases := map[string]string{
-		"Docker/v1.22 (linux)":   "linux",
-		"Docker/v1.22 (windows)": "windows",
-		"Foo/v1.22 (bar)":        "",
-	}
-	for header, os := range cases {
-		g := getDockerOS(header)
-		assert.Check(t, is.Equal(g, os))
 	}
 }

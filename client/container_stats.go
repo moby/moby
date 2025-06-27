@@ -28,7 +28,7 @@ func (cli *Client) ContainerStats(ctx context.Context, containerID string, strea
 
 	return container.StatsResponseReader{
 		Body:   resp.Body,
-		OSType: getDockerOS(resp.Header.Get("Server")),
+		OSType: resp.Header.Get("Ostype"),
 	}, nil
 }
 
@@ -51,6 +51,6 @@ func (cli *Client) ContainerStatsOneShot(ctx context.Context, containerID string
 
 	return container.StatsResponseReader{
 		Body:   resp.Body,
-		OSType: getDockerOS(resp.Header.Get("Server")),
+		OSType: resp.Header.Get("Ostype"),
 	}, nil
 }
