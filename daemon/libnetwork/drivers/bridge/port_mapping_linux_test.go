@@ -35,6 +35,7 @@ func TestPortMappingConfig(t *testing.T) {
 
 	config := &configuration{
 		EnableIPTables: true,
+		Hairpin:        true,
 	}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
@@ -299,6 +300,7 @@ func TestAddPortMappings(t *testing.T) {
 		cfg          []portmapperapi.PortBindingReq
 		defHostIP    net.IP
 		proxyPath    string
+		hairpin      bool
 		busyPortIPv4 int
 		rootless     bool
 		hostAddrs    []string
@@ -485,6 +487,7 @@ func TestAddPortMappings(t *testing.T) {
 				{PortBinding: types.PortBinding{Proto: types.TCP, HostIP: net.IPv4zero, Port: 80}},
 				{PortBinding: types.PortBinding{Proto: types.TCP, HostIP: net.IPv6zero, Port: 80}}, // silently ignored
 			},
+			hairpin: true,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: firstEphemPort},
 			},
@@ -627,6 +630,7 @@ func TestAddPortMappings(t *testing.T) {
 			cfg: []portmapperapi.PortBindingReq{
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22, HostIP: net.IPv6loopback}},
 			},
+			hairpin: true,
 			expLogs: []string{"Cannot map from IPv6 to an IPv4-only container because the userland proxy is disabled"},
 		},
 		{
@@ -636,6 +640,7 @@ func TestAddPortMappings(t *testing.T) {
 			cfg: []portmapperapi.PortBindingReq{
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22}},
 			},
+			hairpin: true,
 			expLogs: []string{"Cannot map from default host binding address to an IPv4-only container because the userland proxy is disabled"},
 		},
 		{
@@ -695,6 +700,7 @@ func TestAddPortMappings(t *testing.T) {
 			cfg: []portmapperapi.PortBindingReq{
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22, HostPort: 2222}},
 			},
+			hairpin: true,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero},
@@ -762,6 +768,7 @@ func TestAddPortMappings(t *testing.T) {
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80}},
 			},
 			rootless: true,
+			hairpin:  true,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero, HostPort: firstEphemPort},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero, HostPort: firstEphemPort},
@@ -850,6 +857,7 @@ func TestAddPortMappings(t *testing.T) {
 					EnableIP6Tables:     true,
 					EnableUserlandProxy: tc.proxyPath != "",
 					UserlandProxyPath:   tc.proxyPath,
+					Hairpin:             tc.hairpin,
 					Rootless:            tc.rootless,
 				},
 			}
