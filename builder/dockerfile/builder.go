@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
@@ -113,7 +112,7 @@ type Builder struct {
 
 	Stdout io.Writer
 	Stderr io.Writer
-	Aux    *streamformatter.AuxFormatter
+	Aux    backend.AuxEmitter
 	Output io.Writer
 
 	docker builder.Backend
@@ -218,7 +217,7 @@ func (b *Builder) build(ctx context.Context, source builder.Source, dockerfile *
 	return &builder.Result{ImageID: state.imageID, FromImage: state.baseImage}, nil
 }
 
-func emitImageID(aux *streamformatter.AuxFormatter, state *dispatchState) error {
+func emitImageID(aux backend.AuxEmitter, state *dispatchState) error {
 	if aux == nil || state.imageID == "" {
 		return nil
 	}
