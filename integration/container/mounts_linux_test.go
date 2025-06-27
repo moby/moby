@@ -13,7 +13,9 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
+	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/testutil"
@@ -437,6 +439,61 @@ func TestContainerVolumeAnonymous(t *testing.T) {
 		// require a custom volume plugin to be installed.
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 		assert.Check(t, is.ErrorContains(err, fmt.Sprintf(`plugin %q not found`, testNonExistingPlugin)))
+	})
+}
+
+// TestContainerVolumeInvalidDriver verifies that a volume-mount created
+// using a non-existing driver returns a "invalid parameter", not a "not found",
+// as a "not found" error is used by the CLI to consider the container's
+// image to be missing, and triggers a "docker pull".
+//
+// regression test for https://github.com/moby/moby/issues/48772
+func TestContainerVolumeInvalidDriver(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	t.Run("new volume", func(t *testing.T) {
+		config := container.NewTestConfig(container.WithMount(mounttypes.Mount{
+			Type:   mounttypes.TypeVolume,
+			Source: "new-volume",
+			Target: "/foo",
+			VolumeOptions: &mounttypes.VolumeOptions{
+				DriverConfig: &mounttypes.Driver{
+					Name: testNonExistingPlugin,
+				},
+			},
+		}))
+		ctr, err := apiClient.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Platform, config.Name)
+		assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+		assert.Check(t, is.ErrorContains(err, fmt.Sprintf(`plugin %q not found`, testNonExistingPlugin)))
+		assert.Check(t, is.DeepEqual(ctr, containertypes.CreateResponse{}))
+	})
+
+	// Second code-path is during volumestore.checkConflict(), which checks
+	// if the given volume is conflicting with a volume in the local driver.
+	t.Run("conflicting volume", func(t *testing.T) {
+		conflictingVolume, err := apiClient.VolumeCreate(ctx, volumetypes.CreateOptions{
+			Name:   "conflicting-volume",
+			Driver: volume.DefaultDriverName,
+		})
+		assert.NilError(t, err)
+
+		config := container.NewTestConfig(container.WithMount(mounttypes.Mount{
+			Type:   mounttypes.TypeVolume,
+			Source: conflictingVolume.Name,
+			Target: "/foo",
+			VolumeOptions: &mounttypes.VolumeOptions{
+				DriverConfig: &mounttypes.Driver{
+					Name: testNonExistingPlugin,
+				},
+			},
+		}))
+		ctr, err := apiClient.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Platform, config.Name)
+		assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+		assert.Check(t, is.ErrorContains(err, fmt.Sprintf(`plugin %q not found`, testNonExistingPlugin)))
+		assert.Check(t, is.DeepEqual(ctr, containertypes.CreateResponse{}))
 	})
 }
 

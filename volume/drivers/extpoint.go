@@ -87,7 +87,7 @@ func (s *Store) lookup(name string, mode int) (volume.Driver, error) {
 	if s.pluginGetter != nil {
 		p, err := s.pluginGetter.Get(name, extName, mode)
 		if err != nil {
-			return nil, errors.Wrap(err, "error looking up volume plugin "+name)
+			return nil, errors.Wrap(err, "error looking up volume plugin")
 		}
 
 		d, err := makePluginAdapter(p)
