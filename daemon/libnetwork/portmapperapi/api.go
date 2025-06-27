@@ -1,11 +1,37 @@
 package portmapperapi
 
 import (
+	"context"
 	"net"
 	"os"
 
 	"github.com/docker/docker/daemon/libnetwork/types"
 )
+
+// Registerer provides a callback interface for registering port-mappers.
+type Registerer interface {
+	// Register provides a way for port-mappers to dynamically register with libnetwork.
+	Register(name string, driver PortMapper) error
+}
+
+// PortMapper maps / unmaps container ports to host ports.
+type PortMapper interface {
+	// MapPorts takes a list of port binding requests, and returns a list of
+	// PortBinding. Both lists MUST have the same size.
+	//
+	// Multiple port bindings are passed when they're all requesting the
+	// same port range, or an ephemeral port, over multiple IP addresses and
+	// all pointing to the same container port. In that case, the PortMapper
+	// MUST assign the same HostPort for all IP addresses.
+	//
+	// When an ephemeral port, or a single port from a range is requested
+	// MapPorts should attempt a few times to find a free port available
+	// across all IP addresses.
+	MapPorts(ctx context.Context, reqs []PortBindingReq, fwn Firewaller) ([]PortBinding, error)
+
+	// UnmapPorts takes a list of port bindings to unmap.
+	UnmapPorts(ctx context.Context, pbs []PortBinding, fwn Firewaller) error
+}
 
 type PortBindingReq struct {
 	types.PortBinding

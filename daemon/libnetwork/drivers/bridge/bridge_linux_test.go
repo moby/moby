@@ -15,6 +15,7 @@ import (
 
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
+	"github.com/docker/docker/daemon/libnetwork/drvregistry"
 	"github.com/docker/docker/daemon/libnetwork/internal/netiputil"
 	"github.com/docker/docker/daemon/libnetwork/ipamapi"
 	"github.com/docker/docker/daemon/libnetwork/ipams/defaultipam"
@@ -280,7 +281,7 @@ func getIPv6Data(t *testing.T) []driverapi.IPAMData {
 
 func TestCreateFullOptions(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
 	config := &configuration{
 		EnableIPForwarding: true,
@@ -335,7 +336,7 @@ func TestCreateFullOptions(t *testing.T) {
 
 func TestCreateNoConfig(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 	err := d.configure(nil)
 	assert.NilError(t, err)
 
@@ -350,7 +351,7 @@ func TestCreateNoConfig(t *testing.T) {
 
 func TestCreateFullOptionsLabels(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
 	config := &configuration{
 		EnableIPForwarding: true,
@@ -537,7 +538,7 @@ func TestCreateVeth(t *testing.T) {
 func TestCreate(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
 	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
@@ -563,7 +564,7 @@ func TestCreate(t *testing.T) {
 func TestCreateFail(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
 	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
@@ -582,7 +583,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	useStubFirewaller(t)
 
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
 	checkFirewallerNetworks := func() {
 		t.Helper()
@@ -795,7 +796,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	defer netnsutils.SetupTestOSContext(t)()
 	useStubFirewaller(t)
 
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 	portallocator.Get().ReleaseAll()
 
 	var proxyBinary string
@@ -909,7 +910,7 @@ func TestLinkContainers(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	useStubFirewaller(t)
 
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
 	config := &configuration{
 		EnableIPTables: true,
@@ -1178,7 +1179,7 @@ func TestValidateFixedCIDRV6(t *testing.T) {
 func TestSetDefaultGw(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
 	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
@@ -1228,7 +1229,7 @@ func TestSetDefaultGw(t *testing.T) {
 
 func TestCreateWithExistingBridge(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
 	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
@@ -1300,7 +1301,7 @@ func TestCreateParallel(t *testing.T) {
 	c := netnsutils.SetupTestOSContextEx(t)
 	defer c.Cleanup(t)
 
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 	portallocator.Get().ReleaseAll()
 
 	if err := d.configure(nil); err != nil {
@@ -1351,7 +1352,7 @@ func useStubFirewaller(t *testing.T) {
 // Regression test for https://github.com/moby/moby/issues/46445
 func TestSetupIP6TablesWithHostIPv4(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 	dc := &configuration{
 		EnableIPTables:  true,
 		EnableIP6Tables: true,
