@@ -31,8 +31,9 @@ import (
 // outStream is the writer which the images are written to.
 //
 // TODO(thaJeztah): produce JSON stream progress response and image events; see https://github.com/moby/moby/issues/43910
-func (i *ImageService) ExportImage(ctx context.Context, names []string, platform *ocispec.Platform, outStream io.Writer) error {
-	pm := i.matchRequestedOrDefault(platforms.OnlyStrict, platform)
+func (i *ImageService) ExportImage(ctx context.Context, names []string, platformList []ocispec.Platform, outStream io.Writer) error {
+	// Get the platform matcher for the requested platforms (matches all platforms if none specified)
+	pm := matchAnyWithPreference(i.hostPlatformMatcher(), platformList)
 
 	opts := []archive.ExportOpt{
 		archive.WithSkipNonDistributableBlobs(),
@@ -65,8 +66,12 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, platform
 	exportImage := func(ctx context.Context, img c8dimages.Image, ref reference.Named) error {
 		target := img.Target
 
-		if platform != nil {
-			newTarget, err := i.getPushDescriptor(ctx, img, platform)
+		// If a single platform is requested, export the manifest for the specific platform only
+		// (single-level index). Otherwise export the full index (two-level, nested). Note that
+		// since opts includes WithPlatform and WithSkipMissing, the index will contain the
+		// requested platforms only, and only if they are available in the content store.
+		if len(platformList) == 1 {
+			newTarget, err := i.getPushDescriptor(ctx, img, &platformList[0])
 			if err != nil {
 				return errors.Wrap(err, "no suitable export target found")
 			}
@@ -229,14 +234,17 @@ func (i *ImageService) leaseContent(ctx context.Context, store content.Store, de
 // LoadImage uploads a set of images into the repository. This is the
 // complement of ExportImage.  The input stream is an uncompressed tar
 // ball containing images and metadata.
-func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platform *ocispec.Platform, outStream io.Writer, quiet bool) error {
+func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platformList []ocispec.Platform, outStream io.Writer, quiet bool) error {
 	decompressed, err := compression.DecompressStream(inTar)
 	if err != nil {
 		return errors.Wrap(err, "failed to decompress input tar archive")
 	}
 	defer decompressed.Close()
 
-	pm := i.matchRequestedOrDefault(platforms.OnlyStrict, platform)
+	specificPlatforms := len(platformList) > 0
+
+	// Get the platform matcher for the requested platforms (matches all platforms if none specified)
+	pm := matchAnyWithPreference(i.hostPlatformMatcher(), platformList)
 
 	opts := []containerd.ImportOpt{
 		containerd.WithImportPlatform(pm),
@@ -266,16 +274,19 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 		}),
 	}
 
-	if platform == nil {
+	if !specificPlatforms {
 		// Allow variants to be missing if no specific platform is requested.
 		opts = append(opts, containerd.WithSkipMissing())
 	}
 
 	imgs, err := i.client.Import(ctx, decompressed, opts...)
 	if err != nil {
-		if platform != nil {
-			p := platforms.FormatAll(*platform)
-			log.G(ctx).WithFields(log.Fields{"error": err, "platform": p}).Debug("failed to import image to containerd")
+		if specificPlatforms {
+			platformNames := make([]string, 0, len(platformList))
+			for _, p := range platformList {
+				platformNames = append(platformNames, platforms.FormatAll(p))
+			}
+			log.G(ctx).WithFields(log.Fields{"error": err, "platform(s)": platformNames}).Debug("failed to import image to containerd")
 
 			// Note: ErrEmptyWalk will not be returned in most cases as
 			// index.json will contain a descriptor of the actual OCI index or
@@ -284,22 +295,26 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 			// doesn't have a platform set, so it won't be filtered out by the
 			// FilterPlatform containerd handler.
 			if errors.Is(err, c8dimages.ErrEmptyWalk) {
-				return errdefs.NotFound(errors.Wrapf(err, "requested platform (%s) not found", p))
+				return errdefs.NotFound(errors.Wrapf(err, "requested platform(s) (%v) not found", platformNames))
 			}
 			if cerrdefs.IsNotFound(err) {
-				return errdefs.NotFound(errors.Wrapf(err, "requested platform (%s) found, but some content is missing", p))
+				return errdefs.NotFound(errors.Wrapf(err, "requested platform(s) (%v) found, but some content is missing", platformNames))
 			}
 		}
 		log.G(ctx).WithError(err).Debug("failed to import image to containerd")
 		return errdefs.System(err)
 	}
 
-	if platform != nil {
-		// Verify that the requested platform is available for the loaded images.
+	if specificPlatforms {
+		// Verify that the requested platform(s) are available for the loaded images.
 		// While the ideal behavior here would be to verify whether the input
 		// archive actually supplied them, we're not able to determine that
 		// as the imported index is not returned by the import operation.
-		if err := i.verifyImagesProvidePlatform(ctx, imgs, *platform, pm); err != nil {
+		platformNames := make([]string, 0, len(platformList))
+		for _, p := range platformList {
+			platformNames = append(platformNames, platforms.FormatAll(p))
+		}
+		if err := i.verifyImagesProvidePlatform(ctx, imgs, platformNames, pm); err != nil {
 			return err
 		}
 	}
@@ -308,7 +323,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 	// Unpack only an image of the host platform
 	unpackPm := i.hostPlatformMatcher()
 	// If a load of specific platform is requested, unpack it
-	if platform != nil {
+	if specificPlatforms {
 		unpackPm = pm
 	}
 
@@ -378,9 +393,9 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 
 // verifyImagesProvidePlatform checks if the requested platform is loaded.
 // If the requested platform is not loaded, it returns an error.
-func (i *ImageService) verifyImagesProvidePlatform(ctx context.Context, imgs []c8dimages.Image, platform ocispec.Platform, pm platforms.Matcher) error {
+func (i *ImageService) verifyImagesProvidePlatform(ctx context.Context, imgs []c8dimages.Image, platformNames []string, pm platforms.Matcher) error {
 	if len(imgs) == 0 {
-		return errdefs.NotFound(fmt.Errorf("no images providing the requested platform %s found", platforms.FormatAll(platform)))
+		return errdefs.NotFound(fmt.Errorf("no images providing the requested platform(s) found: %v", platformNames))
 	}
 	var incompleteImgs []string
 	for _, img := range imgs {
@@ -399,7 +414,7 @@ func (i *ImageService) verifyImagesProvidePlatform(ctx context.Context, imgs []c
 			}
 			available, err := platformImg.CheckContentAvailable(ctx)
 			if err != nil {
-				return errors.Wrapf(err, "failed to determine image content availability for platform %s", platforms.FormatAll(platform))
+				return errors.Wrapf(err, "failed to determine image content availability for platform(s) %s", platformNames)
 			}
 
 			if available {
@@ -427,5 +442,5 @@ func (i *ImageService) verifyImagesProvidePlatform(ctx context.Context, imgs []c
 		msg = "images [%s] were loaded, but don't provide the requested platform (%s)"
 	}
 
-	return errdefs.NotFound(fmt.Errorf(msg, strings.Join(incompleteImgs, ", "), platforms.FormatAll(platform)))
+	return errdefs.NotFound(fmt.Errorf(msg, strings.Join(incompleteImgs, ", "), platformNames))
 }
