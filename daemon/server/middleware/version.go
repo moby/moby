@@ -7,8 +7,8 @@ import (
 	"runtime"
 
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/daemon/server/httputils"
 )
 
 // VersionMiddleware is a middleware that

@@ -7,11 +7,11 @@ import (
 	"net/http"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/pkg/errors"

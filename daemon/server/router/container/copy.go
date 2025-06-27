@@ -9,8 +9,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/daemon/server/httputils"
 	gddohttputil "github.com/golang/gddo/httputil"
 )
 
