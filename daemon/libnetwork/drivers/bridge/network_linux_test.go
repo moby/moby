@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/docker/docker/daemon/libnetwork/drvregistry"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
@@ -15,7 +16,7 @@ import (
 
 func TestLinkCreate(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 	err := d.configure(nil)
 	assert.NilError(t, err)
 
@@ -78,7 +79,7 @@ func TestLinkCreate(t *testing.T) {
 
 func TestLinkCreateTwo(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 	err := d.configure(nil)
 	assert.NilError(t, err)
 
@@ -106,7 +107,7 @@ func TestLinkCreateTwo(t *testing.T) {
 
 func TestLinkCreateNoEnableIPv6(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 	err := d.configure(nil)
 	assert.NilError(t, err)
 
@@ -131,7 +132,7 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 
 func TestLinkDelete(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 	err := d.configure(nil)
 	assert.NilError(t, err)
 
