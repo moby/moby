@@ -5,12 +5,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -52,7 +52,7 @@ func TestImageTagInvalidSourceImageName(t *testing.T) {
 		})
 	}
 
-	longTag := testutil.GenerateRandomAlphaOnlyString(121)
+	longTag := generateRandomAlphaOnlyString(121)
 	invalidTags := []string{"repo:fo$z$", "repo:Foo@3cc", "repo:Foo$3", "repo:Foo*3", "repo:Fo^3", "repo:Foo!3", "repo:%goodbye", "repo:#hashtagit", "repo:F)xcz(", "repo:-foo", "repo:..", longTag}
 	for _, repotag := range invalidTags {
 		t.Run("invalidTag/"+repotag, func(t *testing.T) {
@@ -79,6 +79,16 @@ func TestImageTagInvalidSourceImageName(t *testing.T) {
 		err := client.ImageTag(ctx, "busybox:latest", "-index:5000/busybox:test")
 		assert.Check(t, is.ErrorContains(err, "Error parsing reference"))
 	})
+}
+
+func generateRandomAlphaOnlyString(n int) string {
+	// make a really long string
+	letters := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))] //nolint: gosec // G404: Use of weak random number generator (math/rand instead of crypto/rand)
+	}
+	return string(b)
 }
 
 func TestImageTagHexSource(t *testing.T) {
