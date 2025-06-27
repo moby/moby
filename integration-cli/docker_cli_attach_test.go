@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os/exec"
@@ -136,7 +137,7 @@ func (s *DockerCLIAttachSuite) TestAttachTTYWithoutStdin(c *testing.T) {
 			Stdout:  cmd.Stdout,
 		})
 		if result.Error == nil {
-			done <- fmt.Errorf("attach should have failed")
+			done <- errors.New("attach should have failed")
 			return
 		} else if !strings.Contains(result.Combined(), expected) {
 			done <- fmt.Errorf("attach failed with error %q: expected %q", out, expected)

@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -48,7 +49,7 @@ func TestImagePullWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
 	privilegeFunc := func(_ context.Context) (string, error) {
-		return "", fmt.Errorf("Error requesting privilege")
+		return "", errors.New("Error requesting privilege")
 	}
 	_, err := client.ImagePull(context.Background(), "myimage", image.PullOptions{
 		PrivilegeFunc: privilegeFunc,

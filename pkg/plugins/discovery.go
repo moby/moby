@@ -2,7 +2,6 @@ package plugins
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/fs"
 	"net/url"
 	"os"
@@ -152,7 +151,7 @@ func readPluginInfo(name, path string) (*Plugin, error) {
 	}
 
 	if u.Scheme == "" {
-		return nil, fmt.Errorf("Unknown protocol")
+		return nil, errors.New("Unknown protocol")
 	}
 
 	return NewLocalPlugin(name, addr), nil

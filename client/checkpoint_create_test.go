@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -61,7 +62,7 @@ func TestCheckpointCreate(t *testing.T) {
 			}
 
 			if !createOptions.Exit {
-				return nil, fmt.Errorf("expected Exit to be true")
+				return nil, errors.New("expected Exit to be true")
 			}
 
 			return &http.Response{

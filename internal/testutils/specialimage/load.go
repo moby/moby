@@ -52,9 +52,8 @@ func Load(ctx context.Context, t *testing.T, apiClient client.APIClient, imageFu
 		err := decoder.Decode(&msg)
 		if errors.Is(err, io.EOF) {
 			break
-		} else {
-			assert.NilError(t, err)
 		}
+		assert.NilError(t, err)
 
 		msg.Stream = strings.TrimSpace(msg.Stream)
 

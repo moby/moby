@@ -514,7 +514,7 @@ func includeContainerInList(container *container.Snapshot, filter *listContext) 
 			}
 		}
 
-		volumeExist := fmt.Errorf("volume mounted in container")
+		volumeExist := errors.New("volume mounted in container")
 		err := filter.filters.WalkValues("volume", func(value string) error {
 			if _, exist := volumesByDestination[value]; exist {
 				return volumeExist

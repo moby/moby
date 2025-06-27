@@ -57,7 +57,7 @@ func (nlh Handle) Close() {
 }
 
 func retryOnIntr(f func() error) {
-	for attempt := 0; attempt < maxAttempts; attempt += 1 {
+	for attempt := 0; attempt < maxAttempts; attempt++ {
 		if err := f(); !errors.Is(err, netlink.ErrDumpInterrupted) {
 			return
 		}

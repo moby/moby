@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -196,7 +197,7 @@ func (s *DockerCLIExecSuite) TestExecTTYWithoutStdin(c *testing.T) {
 			expected += ".  If you are using mintty, try prefixing the command with 'winpty'"
 		}
 		if out, _, err := runCommandWithOutput(cmd); err == nil {
-			errChan <- fmt.Errorf("exec should have failed")
+			errChan <- errors.New("exec should have failed")
 			return
 		} else if !strings.Contains(out, expected) {
 			errChan <- fmt.Errorf("exec failed with error %q: expected %q", out, expected)

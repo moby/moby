@@ -1,13 +1,13 @@
 package errdefs
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
 	"testing"
 )
 
 func TestFromStatusCode(t *testing.T) {
-	testErr := fmt.Errorf("some error occurred")
+	testErr := errors.New("some error occurred")
 
 	testCases := []struct {
 		err    error

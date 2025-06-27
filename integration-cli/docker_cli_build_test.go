@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -1557,7 +1558,7 @@ func compareDirectoryEntries(e1 []os.DirEntry, e2 []os.DirEntry) error {
 		e2Entries[e.Name()] = struct{}{}
 	}
 	if !reflect.DeepEqual(e1Entries, e2Entries) {
-		return fmt.Errorf("entries differ")
+		return errors.New("entries differ")
 	}
 	return nil
 }

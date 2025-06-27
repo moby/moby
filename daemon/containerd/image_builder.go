@@ -67,7 +67,7 @@ const (
 func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
 	if refOrID == "" { // FROM scratch
 		if runtime.GOOS == "windows" {
-			return nil, nil, fmt.Errorf(`"FROM scratch" is not supported on Windows`)
+			return nil, nil, errors.New(`"FROM scratch" is not supported on Windows`)
 		}
 		if opts.Platform != nil {
 			if err := image.CheckOS(opts.Platform.OS); err != nil {
@@ -189,7 +189,7 @@ Please notify the image author to correct the configuration.`,
 
 func newROLayerForImage(ctx context.Context, imgDesc *ocispec.Descriptor, i *ImageService, platform *ocispec.Platform) (builder.ROLayer, error) {
 	if imgDesc == nil {
-		return nil, fmt.Errorf("can't make an RO layer for a nil image :'(")
+		return nil, errors.New("can't make an RO layer for a nil image :'(")
 	}
 
 	platMatcher := platforms.Default()
@@ -376,7 +376,7 @@ func (rw *rwlayer) Commit() (_ builder.ROLayer, outErr error) {
 	}
 	diffIDStr, ok := info.Labels["containerd.io/uncompressed"]
 	if !ok {
-		return nil, fmt.Errorf("invalid differ response with no diffID")
+		return nil, errors.New("invalid differ response with no diffID")
 	}
 	diffID, err := digest.Parse(diffIDStr)
 	if err != nil {

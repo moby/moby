@@ -5,6 +5,7 @@ package gelf
 import (
 	"compress/flate"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -46,7 +47,7 @@ func New(info logger.Info) (logger.Logger, error) {
 	// collect extra data for GELF message
 	hostname, err := info.Hostname()
 	if err != nil {
-		return nil, fmt.Errorf("gelf: cannot access hostname to set source field")
+		return nil, errors.New("gelf: cannot access hostname to set source field")
 	}
 
 	// parse log tag
@@ -118,7 +119,7 @@ func newGELFTCPWriter(address string, info logger.Info) (gelf.Writer, error) {
 	if v, ok := info.Config["gelf-tcp-max-reconnect"]; ok {
 		i, err := strconv.Atoi(v)
 		if err != nil || i < 0 {
-			return nil, fmt.Errorf("gelf-tcp-max-reconnect must be a positive integer")
+			return nil, errors.New("gelf-tcp-max-reconnect must be a positive integer")
 		}
 		gelfWriter.MaxReconnect = i
 	}
@@ -126,7 +127,7 @@ func newGELFTCPWriter(address string, info logger.Info) (gelf.Writer, error) {
 	if v, ok := info.Config["gelf-tcp-reconnect-delay"]; ok {
 		i, err := strconv.Atoi(v)
 		if err != nil || i < 0 {
-			return nil, fmt.Errorf("gelf-tcp-reconnect-delay must be a positive integer")
+			return nil, errors.New("gelf-tcp-reconnect-delay must be a positive integer")
 		}
 		gelfWriter.ReconnectDelay = time.Duration(i)
 	}
@@ -216,7 +217,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "env-regex":
 		case "gelf-compression-level":
 			if address.Scheme != "udp" {
-				return fmt.Errorf("compression is only supported on UDP")
+				return errors.New("compression is only supported on UDP")
 			}
 			i, err := strconv.Atoi(val)
 			if err != nil || i < flate.DefaultCompression || i > flate.BestCompression {
@@ -224,7 +225,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 			}
 		case "gelf-compression-type":
 			if address.Scheme != "udp" {
-				return fmt.Errorf("compression is only supported on UDP")
+				return errors.New("compression is only supported on UDP")
 			}
 			switch val {
 			case "gzip", "zlib", "none":
@@ -249,7 +250,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 
 func parseAddress(address string) (*url.URL, error) {
 	if address == "" {
-		return nil, fmt.Errorf("gelf-address is a required parameter")
+		return nil, errors.New("gelf-address is a required parameter")
 	}
 	addr, err := url.Parse(address)
 	if err != nil {
@@ -257,11 +258,11 @@ func parseAddress(address string) (*url.URL, error) {
 	}
 
 	if addr.Scheme != "udp" && addr.Scheme != "tcp" {
-		return nil, fmt.Errorf("gelf: endpoint needs to be TCP or UDP")
+		return nil, errors.New("gelf: endpoint needs to be TCP or UDP")
 	}
 
 	if _, _, err = net.SplitHostPort(addr.Host); err != nil {
-		return nil, fmt.Errorf("gelf: please provide gelf-address as proto://host:port")
+		return nil, errors.New("gelf: please provide gelf-address as proto://host:port")
 	}
 
 	return addr, nil

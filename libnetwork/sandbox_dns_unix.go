@@ -327,7 +327,7 @@ func (sb *Sandbox) rebuildDNS() error {
 
 	intNS := sb.resolver.NameServer()
 	if !intNS.IsValid() {
-		return fmt.Errorf("no listen-address for internal resolver")
+		return errors.New("no listen-address for internal resolver")
 	}
 
 	// Work out whether ndots has been set from host config or overrides.

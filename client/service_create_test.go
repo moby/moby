@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -156,7 +157,7 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 				serviceCreateImage = ""
 				var service swarm.ServiceSpec
 				if err := json.NewDecoder(req.Body).Decode(&service); err != nil {
-					return nil, fmt.Errorf("could not parse service create request")
+					return nil, errors.New("could not parse service create request")
 				}
 				serviceCreateImage = service.TaskTemplate.ContainerSpec.Image
 
@@ -172,7 +173,7 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 				}, nil
 			} else if strings.HasPrefix(req.URL.Path, "/v1.30/distribution/cannotresolve") {
 				// unresolvable image
-				return nil, fmt.Errorf("cannot resolve image")
+				return nil, errors.New("cannot resolve image")
 			} else if strings.HasPrefix(req.URL.Path, "/v1.30/distribution/") {
 				// resolvable images
 				b, err := json.Marshal(registrytypes.DistributionInspect{

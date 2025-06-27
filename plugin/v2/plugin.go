@@ -1,6 +1,7 @@
 package v2
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"path/filepath"
@@ -117,7 +118,7 @@ func (p *Plugin) Set(args []string) error {
 	defer p.mu.Unlock()
 
 	if p.PluginObj.Enabled {
-		return fmt.Errorf("cannot set on an active plugin, disable plugin before setting")
+		return errors.New("cannot set on an active plugin, disable plugin before setting")
 	}
 
 	sets, err := newSettables(args)
@@ -160,7 +161,7 @@ next:
 
 				// it is, so lets update the settings in memory
 				if mount.Source == nil {
-					return fmt.Errorf("Plugin config has no mount source")
+					return errors.New("Plugin config has no mount source")
 				}
 				*mount.Source = s.value
 				continue next
@@ -180,7 +181,7 @@ next:
 
 				// it is, so lets update the settings in memory
 				if device.Path == nil {
-					return fmt.Errorf("Plugin config has no device path")
+					return errors.New("Plugin config has no device path")
 				}
 				*device.Path = s.value
 				continue next
