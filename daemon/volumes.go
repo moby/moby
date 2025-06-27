@@ -14,7 +14,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	volumetypes "github.com/docker/docker/api/types/volume"
-	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/volume"

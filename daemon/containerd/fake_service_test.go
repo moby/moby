@@ -16,7 +16,7 @@ import (
 	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/containerd/v2/defaults"
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

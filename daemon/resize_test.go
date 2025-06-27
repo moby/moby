@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/libcontainerd/types"
 	"gotest.tools/v3/assert"
 )

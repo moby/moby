@@ -16,7 +16,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	imagetypes "github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/container"
 	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/daemon/internal/metrics"
 	"github.com/docker/docker/image"

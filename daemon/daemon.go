@@ -39,9 +39,9 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/container"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/container"
 	ctrd "github.com/docker/docker/daemon/containerd"
 	"github.com/docker/docker/daemon/events"
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers

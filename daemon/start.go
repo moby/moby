@@ -9,7 +9,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/container"
 	mobyc8dstore "github.com/docker/docker/daemon/containerd"
 	"github.com/docker/docker/daemon/internal/metrics"
 	"github.com/docker/docker/errdefs"

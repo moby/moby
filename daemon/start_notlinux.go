@@ -5,8 +5,8 @@ package daemon
 import (
 	"context"
 
-	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/libcontainerd/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
