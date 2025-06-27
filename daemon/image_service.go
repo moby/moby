@@ -11,7 +11,7 @@ import (
 	imagetype "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"

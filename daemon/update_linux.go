@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
-	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
+	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 

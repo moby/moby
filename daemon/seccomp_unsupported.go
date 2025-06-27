@@ -7,7 +7,7 @@ import (
 
 	"github.com/containerd/containerd/v2/core/containers"
 	coci "github.com/containerd/containerd/v2/pkg/oci"
-	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/container"
 )
 
 const supportsSeccomp = false

@@ -14,7 +14,7 @@ import (
 	statsV1 "github.com/containerd/cgroups/v3/cgroup1/stats"
 	statsV2 "github.com/containerd/cgroups/v3/cgroup2/stats"
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/container"
 	"github.com/pkg/errors"
 )
 

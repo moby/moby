@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/layer"
 	"github.com/moby/go-archive"
 )

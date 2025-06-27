@@ -2,8 +2,8 @@ package daemon
 
 import (
 	"github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options"
-	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/pkg/system"
 )
 

@@ -6,7 +6,7 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/container"
 )
 
 // ContainerRestart stops and starts a container. It attempts to

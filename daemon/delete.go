@@ -12,11 +12,11 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/daemon/internal/metrics"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/containerfs"
-	"github.com/docker/docker/internal/metrics"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
 )

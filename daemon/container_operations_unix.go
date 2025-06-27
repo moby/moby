@@ -12,8 +12,8 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/links"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"

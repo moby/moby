@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/plugin"
+	"github.com/docker/docker/daemon/pkg/plugin"
 	registrypkg "github.com/docker/docker/registry"
 	"github.com/moby/go-archive"
 	"github.com/pkg/errors"

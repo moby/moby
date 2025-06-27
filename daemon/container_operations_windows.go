@@ -6,8 +6,8 @@ import (
 	"os"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/system"

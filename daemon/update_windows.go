@@ -2,7 +2,7 @@ package daemon
 
 import (
 	"github.com/docker/docker/api/types/container"
-	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
+	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
 )
 
 func toContainerdResources(resources container.Resources) *libcontainerdtypes.Resources {

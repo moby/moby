@@ -11,7 +11,7 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
-	realcontainer "github.com/docker/docker/container"
+	realcontainer "github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
