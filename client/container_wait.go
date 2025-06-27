@@ -8,8 +8,8 @@ import (
 	"io"
 	"net/url"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/versions"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/versions"
 )
 
 const containerWaitErrorMsgLimit = 2 * 1024 /* Max: 2KiB */

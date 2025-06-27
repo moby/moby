@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/versions"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/versions"
 )
 
 // ContainerStop stops a container. In case the container fails to stop

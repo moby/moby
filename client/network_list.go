@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/network"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/network"
 )
 
 // NetworkList returns the list of networks configured in the docker host.

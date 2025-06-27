@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/docker/docker/api/types/checkpoint"
+	"github.com/moby/moby/api/types/checkpoint"
 )
 
 // CheckpointDelete deletes the checkpoint with the given name from the given container

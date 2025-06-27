@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/versions"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/versions"
 )
 
 // ImageList returns a list of images in the docker host.
