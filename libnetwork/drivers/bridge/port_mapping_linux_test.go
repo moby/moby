@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/internal/testutils/storeutils"
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
+	"github.com/docker/docker/libnetwork/drvregistry"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/portallocator"
@@ -31,7 +32,7 @@ func TestPortMappingConfig(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	useStubFirewaller(t)
 
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
 	config := &configuration{
 		EnableIPTables: true,
@@ -116,7 +117,7 @@ func TestPortMappingV6Config(t *testing.T) {
 		t.Fatalf("Could not bring loopback iface up: %v", err)
 	}
 
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
 	config := &configuration{
 		EnableIPTables:  true,
@@ -849,7 +850,7 @@ func TestAddPortMappings(t *testing.T) {
 					GwModeIPv6: tc.gwMode6,
 				},
 				bridge: &bridgeInterface{},
-				driver: newDriver(storeutils.NewTempStore(t)),
+				driver: newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{}),
 			}
 			genericOption := map[string]interface{}{
 				netlabel.GenericData: &configuration{

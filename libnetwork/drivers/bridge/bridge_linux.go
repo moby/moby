@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/iptabler"
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/nftabler"
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/rlkclient"
+	"github.com/docker/docker/libnetwork/drvregistry"
 	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/internal/nftables"
 	"github.com/docker/docker/libnetwork/iptables"
@@ -177,6 +178,7 @@ type driver struct {
 	portDriverClient portDriverClient
 	configNetwork    sync.Mutex
 	firewaller       firewaller.Firewaller
+	portmappers      *drvregistry.PortMappers
 	sync.Mutex
 }
 
@@ -191,17 +193,18 @@ const (
 )
 
 // New constructs a new bridge driver
-func newDriver(store *datastore.Store) *driver {
+func newDriver(store *datastore.Store, pms *drvregistry.PortMappers) *driver {
 	return &driver{
-		store:    store,
-		nlh:      ns.NlHandle(),
-		networks: map[string]*bridgeNetwork{},
+		store:       store,
+		nlh:         ns.NlHandle(),
+		networks:    map[string]*bridgeNetwork{},
+		portmappers: pms,
 	}
 }
 
 // Register registers a new instance of bridge driver.
-func Register(r driverapi.Registerer, store *datastore.Store, config map[string]interface{}) error {
-	d := newDriver(store)
+func Register(r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, config map[string]interface{}) error {
+	d := newDriver(store, pms)
 	if err := d.configure(config); err != nil {
 		return err
 	}

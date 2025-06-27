@@ -933,12 +933,9 @@ func driverOptions(config *config.Config) nwconfig.Option {
 			"EnableIP6Tables":          config.BridgeConfig.EnableIP6Tables,
 			"EnableUserlandProxy":      config.EnableUserlandProxy,
 			"UserlandProxyPath":        config.UserlandProxyPath,
-			// TODO(aker): although the nat portmapper is responsible for starting the userland proxy, this option is
-			//  required to correctly configure the bridge driver. Add a comment specifying that once the nat portmapper
-			//  is moved to libnetwork/portmappers.
-			"Hairpin":            !config.EnableUserlandProxy || config.UserlandProxyPath == "",
-			"AllowDirectRouting": config.BridgeConfig.AllowDirectRouting,
-			"Rootless":           config.Rootless,
+			"Hairpin":                  !config.EnableUserlandProxy || config.UserlandProxyPath == "",
+			"AllowDirectRouting":       config.BridgeConfig.AllowDirectRouting,
+			"Rootless":                 config.Rootless,
 		},
 	})
 }
