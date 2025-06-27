@@ -47,6 +47,7 @@ import (
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/daemon/internal/metrics"
+	pluginexec "github.com/docker/docker/daemon/internal/plugin/executor/containerd"
 	dlogger "github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/daemon/snapshotter"
@@ -68,7 +69,6 @@ import (
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/plugin"
-	pluginexec "github.com/docker/docker/plugin/executor/containerd"
 	refstore "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	volumesservice "github.com/docker/docker/volume/service"
