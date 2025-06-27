@@ -4,8 +4,8 @@ import (
 	"strings"
 	"sync"
 
+	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
 	"github.com/docker/docker/pkg/plugins"
-	v2 "github.com/docker/docker/plugin/v2"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 

@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
 	"github.com/docker/docker/pkg/plugingetter"
-	v2 "github.com/docker/docker/plugin/v2"
 )
 
 func TestFilterByCapNeg(t *testing.T) {
