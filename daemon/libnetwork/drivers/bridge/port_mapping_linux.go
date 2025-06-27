@@ -154,7 +154,7 @@ func (n *bridgeNetwork) sortAndNormPBs(
 		containerIPv6 = ep.addrv6.IP
 	}
 
-	proxyPath := n.userlandProxyPath()
+	hairpin := n.hairpin()
 	disableNAT4, disableNAT6 := n.getNATDisabled()
 
 	add4 := !ep.portBindingState.ipv4 && pbmReq.ipv4
@@ -177,7 +177,7 @@ func (n *bridgeNetwork) sortAndNormPBs(
 		// This change was added to keep backward compatibility
 		containerIP := containerIPv6
 		if containerIPv6 == nil && pbmReq.ipv4 && add6 {
-			if proxyPath == "" {
+			if hairpin {
 				// There's no way to map from host-IPv6 to container-IPv4 with the userland proxy
 				// disabled.
 				// If that is required, don't treat it as an error because, as networks are
