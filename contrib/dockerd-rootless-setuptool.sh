@@ -54,10 +54,13 @@ init() {
 
 	# User verification: deny running as root
 	if [ "$(id -u)" = "0" ]; then
-		ERROR "Refusing to install rootless Docker as the root user"
-		exit 1
+		if [ -z "$OPT_FORCE" ]; then
+			ERROR "Refusing to install rootless Docker as the root user. Use --force to override."
+			exit 1
+		else
+			WARNING "Running installer as root by request (–force)."
+		fi
 	fi
-
 	# set BIN
 	if ! BIN="$(command -v "$DOCKERD_ROOTLESS_SH" 2> /dev/null)"; then
 		ERROR "$DOCKERD_ROOTLESS_SH needs to be present under \$PATH"
