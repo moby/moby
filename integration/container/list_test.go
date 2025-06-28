@@ -1,8 +1,10 @@
 package container
 
 import (
+	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -12,6 +14,7 @@ import (
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -142,4 +145,45 @@ func TestContainerList_ImageManifestPlatform(t *testing.T) {
 		assert.Equal(t, ctr.ImageManifestDescriptor.Platform.OS, testEnv.DaemonInfo.OSType)
 		assert.Check(t, ctr.ImageManifestDescriptor.Platform.Architecture != "")
 	}
+}
+
+func pollForHealthStatusSummary(ctx context.Context, client client.APIClient, containerID string, healthStatus containertypes.HealthStatus) func(log poll.LogT) poll.Result {
+	return func(log poll.LogT) poll.Result {
+		containers, err := client.ContainerList(ctx, containertypes.ListOptions{
+			All:     true,
+			Filters: filters.NewArgs(filters.Arg("id", containerID)),
+		})
+		total := 0
+
+		for _, container := range containers {
+			fmt.Println("healthstatus: ", container.Health.Status)
+			if err != nil {
+				return poll.Error(err)
+			} else if container.Health.Status == healthStatus {
+				total++
+			}
+		}
+
+		if total == len(containers) {
+			return poll.Success()
+		}
+
+		return poll.Continue("waiting for container to become %s", healthStatus)
+	}
+}
+
+func TestContainerList_HealthSummary(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	cID := container.Run(ctx, t, apiClient, container.WithTty(true), container.WithWorkingDir("/foo"), func(c *container.TestContainerConfig) {
+		c.Config.Healthcheck = &containertypes.HealthConfig{
+			Test:     []string{"CMD-SHELL", "if [ \"$PWD\" = \"/foo\" ]; then exit 0; else exit 1; fi;"},
+			Interval: 50 * time.Millisecond,
+			Retries:  3,
+		}
+	})
+
+	poll.WaitOn(t, pollForHealthStatusSummary(ctx, apiClient, cID, containertypes.Healthy))
 }

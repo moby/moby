@@ -138,6 +138,7 @@ type Summary struct {
 		NetworkMode string            `json:",omitempty"`
 		Annotations map[string]string `json:",omitempty"`
 	}
+	Health          HealthSummary
 	NetworkSettings *NetworkSettingsSummary
 	Mounts          []MountPoint
 }
