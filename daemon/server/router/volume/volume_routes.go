@@ -8,12 +8,12 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/volume/service/opts"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/api/types/volume"
 	"github.com/pkg/errors"
 )
 

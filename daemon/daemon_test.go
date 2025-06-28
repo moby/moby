@@ -8,12 +8,12 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/idtools"
 	volumesservice "github.com/docker/docker/volume/service"
 	"github.com/docker/go-connections/nat"
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

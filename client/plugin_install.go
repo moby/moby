@@ -9,8 +9,8 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/registry"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/registry"
 	"github.com/pkg/errors"
 )
 

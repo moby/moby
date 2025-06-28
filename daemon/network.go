@@ -11,11 +11,6 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types/backend"
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/filters"
-	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/daemon/config"
@@ -33,6 +28,11 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/types/backend"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/api/types/filters"
+	networktypes "github.com/moby/moby/api/types/network"
 	"go.opentelemetry.io/otel/baggage"
 )
 

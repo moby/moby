@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/url"
 
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/api/types/container"
 )
 
 // ContainerInspect returns the container information.

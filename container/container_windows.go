@@ -6,10 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/events"
-	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/events"
+	swarmtypes "github.com/moby/moby/api/types/swarm"
 )
 
 const (

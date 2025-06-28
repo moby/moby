@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 
-	"github.com/docker/docker/api/types/registry"
+	"github.com/moby/moby/api/types/registry"
 )
 
 // staticAuth creates a privilegeFn from the given registryAuth.

@@ -3,8 +3,8 @@ package build
 import (
 	"context"
 
-	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/api/types/build"
+	"github.com/moby/moby/api/types/backend"
+	"github.com/moby/moby/api/types/build"
 )
 
 // Backend abstracts an image builder whose only purpose is to build an image referenced by an imageID.

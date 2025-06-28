@@ -10,17 +10,16 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/api/types/build"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
+	"github.com/moby/moby/api/types/backend"
+	"github.com/moby/moby/api/types/build"
+	"github.com/moby/moby/api/types/container"
 	"github.com/moby/sys/user"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -113,7 +112,7 @@ type Builder struct {
 
 	Stdout io.Writer
 	Stderr io.Writer
-	Aux    *streamformatter.AuxFormatter
+	Aux    backend.AuxEmitter
 	Output io.Writer
 
 	docker builder.Backend
@@ -218,7 +217,7 @@ func (b *Builder) build(ctx context.Context, source builder.Source, dockerfile *
 	return &builder.Result{ImageID: state.imageID, FromImage: state.baseImage}, nil
 }
 
-func emitImageID(aux *streamformatter.AuxFormatter, state *dispatchState) error {
+func emitImageID(aux backend.AuxEmitter, state *dispatchState) error {
 	if aux == nil || state.imageID == "" {
 		return nil
 	}

@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 
-	"github.com/docker/docker/api/types/checkpoint"
+	"github.com/moby/moby/api/types/checkpoint"
 )
 
 // CheckpointAPIClient defines API client methods for the checkpoints.

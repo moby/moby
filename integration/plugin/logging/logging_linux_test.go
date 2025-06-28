@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
+	"github.com/moby/moby/api/types"
+	containertypes "github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )

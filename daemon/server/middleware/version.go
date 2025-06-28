@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"runtime"
 
-	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/daemon/server/httputils"
+	"github.com/moby/moby/api"
+	"github.com/moby/moby/api/types/versions"
 )
 
 // VersionMiddleware is a middleware that

@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	cerrdefs "github.com/containerd/errdefs"
-	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/daemon/cluster/convert"
 	"github.com/docker/docker/errdefs"
+	volumetypes "github.com/moby/moby/api/types/volume"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"google.golang.org/grpc"
 )

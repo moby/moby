@@ -11,7 +11,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/api/types/registry"
+	"github.com/moby/moby/api/types/registry"
 )
 
 // v1PingResult contains the information returned when pinging a registry. It
