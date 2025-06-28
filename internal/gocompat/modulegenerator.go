@@ -35,6 +35,11 @@ func generateApp() error {
 		if strings.TrimSpace(p) == "" || strings.Contains(p, "/internal") {
 			continue
 		}
+
+		// When go111module is disabled, the module path is incorrect
+		if strings.HasPrefix(p, "github.com/docker/docker/api") {
+			p = "github.com/moby/moby/api" + strings.TrimPrefix(p, "github.com/docker/docker/api")
+		}
 		pkgs = append(pkgs, p)
 	}
 	tmpl, err := template.New("main").Parse(appTemplate)
@@ -87,6 +92,9 @@ func generateModule() error {
 		return err
 	}
 	if err := mod.AddReplace("github.com/docker/docker", "", "../../", ""); err != nil {
+		return err
+	}
+	if err := mod.AddReplace("github.com/moby/moby/api", "", "../../api", ""); err != nil {
 		return err
 	}
 	if err := mod.AddGoStmt("1.21"); err != nil {
