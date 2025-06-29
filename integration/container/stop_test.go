@@ -5,7 +5,10 @@ import (
 	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
@@ -109,4 +112,40 @@ func TestStopContainerWithTimeout(t *testing.T) {
 			assert.Check(t, is.Equal(inspect.State.ExitCode, tc.expectedExitCode))
 		})
 	}
+}
+
+// TestStopEventsOrder verifies that "stop" and "die" events are produced in the
+// correct order when stopping a container; see
+// https://github.com/moby/moby/pull/50136#discussion_r2152578561
+// https://github.com/docker/compose/pull/12950#issuecomment-2980759296
+func TestStopEventsOrder(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	cID := container.Run(ctx, t, apiClient)
+
+	since := request.DaemonUnixTime(ctx, t, apiClient, testEnv)
+
+	err := apiClient.ContainerStop(ctx, cID, containertypes.StopOptions{})
+	assert.NilError(t, err)
+
+	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID))
+
+	until := request.DaemonUnixTime(ctx, t, apiClient, testEnv)
+
+	messages, errs := apiClient.Events(ctx, events.ListOptions{
+		Since: since,
+		Until: until,
+		Filters: filters.NewArgs(
+			filters.Arg("container", cID),
+
+			// Only consider the event types we want to compare; prevent any
+			// stray "start" event from being included, and don't look for
+			// kill events, because a forced shutdown produces 2 instead of 1
+			// kill event.
+			filters.Arg("event", string(events.ActionStop)),
+			filters.Arg("event", string(events.ActionDie)),
+		),
+	})
+	assert.Check(t, is.DeepEqual([]events.Action{events.ActionStop, events.ActionDie}, getEventActions(t, messages, errs)))
 }
