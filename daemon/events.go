@@ -9,7 +9,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/libnetwork"
 	gogotypes "github.com/gogo/protobuf/types"

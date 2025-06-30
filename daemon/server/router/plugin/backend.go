@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/plugin"
+	"github.com/docker/docker/daemon/pkg/plugin"
 )
 
 // Backend for Plugin

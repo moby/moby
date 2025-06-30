@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/docker/docker/internal/metrics"
+	"github.com/docker/docker/daemon/internal/metrics"
 	"github.com/moby/go-archive"
 )
 

@@ -15,8 +15,8 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm/runtime"
-	"github.com/docker/docker/plugin"
-	v2 "github.com/docker/docker/plugin/v2"
+	"github.com/docker/docker/daemon/pkg/plugin"
+	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
 	"github.com/moby/pubsub"
 	"github.com/sirupsen/logrus"
 )
