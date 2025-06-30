@@ -465,7 +465,7 @@ func (s *DockerCLINetworkSuite) TestDockerNetworkInspectWithID(c *testing.T) {
 }
 
 func (s *DockerCLINetworkSuite) TestDockerInspectMultipleNetwork(c *testing.T) {
-	result := dockerCmdWithResult("network", "inspect", "host", "none")
+	result := cli.Docker(cli.Args("network", "inspect", "host", "none"))
 	result.Assert(c, icmd.Success)
 
 	var networkResources []network.Inspect
@@ -477,7 +477,7 @@ func (s *DockerCLINetworkSuite) TestDockerInspectMultipleNetwork(c *testing.T) {
 func (s *DockerCLINetworkSuite) TestDockerInspectMultipleNetworksIncludingNonexistent(c *testing.T) {
 	// non-existent network was not at the beginning of the inspect list
 	// This should print an error, return an exitCode 1 and print the host network
-	result := dockerCmdWithResult("network", "inspect", "host", "nonexistent")
+	result := cli.Docker(cli.Args("network", "inspect", "host", "nonexistent"))
 	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Error: No such network: nonexistent",
@@ -491,7 +491,7 @@ func (s *DockerCLINetworkSuite) TestDockerInspectMultipleNetworksIncludingNonexi
 
 	// Only one non-existent network to inspect
 	// Should print an error and return an exitCode, nothing else
-	result = dockerCmdWithResult("network", "inspect", "nonexistent")
+	result = cli.Docker(cli.Args("network", "inspect", "nonexistent"))
 	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Error: No such network: nonexistent",
@@ -500,7 +500,7 @@ func (s *DockerCLINetworkSuite) TestDockerInspectMultipleNetworksIncludingNonexi
 
 	// non-existent network was at the beginning of the inspect list
 	// Should not fail fast, and still print host network but print an error
-	result = dockerCmdWithResult("network", "inspect", "nonexistent", "host")
+	result = cli.Docker(cli.Args("network", "inspect", "nonexistent", "host"))
 	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Error: No such network: nonexistent",

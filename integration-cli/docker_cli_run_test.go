@@ -2441,10 +2441,10 @@ func (s *DockerCLIRunSuite) TestRunTLSVerify(c *testing.T) {
 
 	// Regardless of whether we specify true or false we need to
 	// test to make sure tls is turned on if --tlsverify is specified at all
-	result := dockerCmdWithResult("--tlsverify=false", "ps")
+	result := cli.Docker(cli.Args("--tlsverify=false", "ps"))
 	result.Assert(c, icmd.Expected{ExitCode: 1, Err: "error during connect"})
 
-	result = dockerCmdWithResult("--tlsverify=true", "ps")
+	result = cli.Docker(cli.Args("--tlsverify=true", "ps"))
 	result.Assert(c, icmd.Expected{ExitCode: 1, Err: "cert"})
 }
 
@@ -3804,9 +3804,9 @@ func (s *DockerCLIRunSuite) TestRunAttachFailedNoLeak(c *testing.T) {
 	_, err := d.Cmd("run", "--rm", "busybox", "true")
 	assert.NilError(c, err)
 
-	client := d.NewClientT(c)
+	apiClient := d.NewClientT(c)
 
-	nroutines := waitForStableGoroutineCount(ctx, c, client)
+	nroutines := waitForStableGoroutineCount(ctx, c, apiClient)
 
 	out, err := d.Cmd(append([]string{"run", "-d", "--name=test", "-p", "8000:8000", "busybox"}, sleepCommandForDaemonPlatform()...)...)
 	assert.NilError(c, err, out)
@@ -3834,7 +3834,7 @@ func (s *DockerCLIRunSuite) TestRunAttachFailedNoLeak(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	// NGoroutines is not updated right away, so we need to wait before failing
-	waitForGoroutines(ctx, c, client, nroutines)
+	waitForGoroutines(ctx, c, apiClient, nroutines)
 }
 
 // Test for one character directory name case (#20122)
