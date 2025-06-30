@@ -4,37 +4,31 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
+	"net/netip"
 	"sync"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/portallocator"
 	"github.com/containerd/log"
 	"github.com/ishidawataru/sctp"
+	"github.com/moby/moby/v2/daemon/libnetwork/portallocator"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
-type mapping struct {
-	proto             string
-	stopUserlandProxy func() error
-	host              net.Addr
-	container         net.Addr
-}
-
 var (
-	// ErrUnknownBackendAddressType refers to an unknown container or unsupported address type
-	ErrUnknownBackendAddressType = errors.New("unknown container address type not supported")
 	// ErrPortMappedForIP refers to a port already mapped to an ip address
 	ErrPortMappedForIP = errors.New("port is already mapped to ip")
 	// ErrPortNotMapped refers to an unmapped port
 	ErrPortNotMapped = errors.New("port is not mapped")
-	// ErrSCTPAddrNoIP refers to a SCTP address without IP address.
-	ErrSCTPAddrNoIP = errors.New("sctp address does not contain any IP address")
 )
 
 // PortMapper manages the network address translation
 type PortMapper struct {
-	// udp:ip:port
-	currentMappings map[string]*mapping
-	lock            sync.Mutex
+	// osListeners stores listening sockets used by active port mappings
+	// to reserve ports from the OS. Outer map is keyed by protocol, and inner
+	// map is keyed by host address and port.
+	osListeners map[types.Protocol]map[netip.AddrPort]io.Closer
+	lock        sync.Mutex
 
 	allocator *portallocator.PortAllocator
 }
@@ -42,163 +36,119 @@ type PortMapper struct {
 // New returns a new instance of PortMapper
 func New() *PortMapper {
 	return &PortMapper{
-		currentMappings: make(map[string]*mapping),
-		allocator:       portallocator.Get(),
+		osListeners: make(map[types.Protocol]map[netip.AddrPort]io.Closer),
+		allocator:   portallocator.Get(),
 	}
 }
 
 // MapRange maps the specified container transport address to the host's network address and transport port range
-func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart, hostPortEnd int) (host net.Addr, retErr error) {
+func (pm *PortMapper) MapRange(hostIP net.IP, proto types.Protocol, hostPortStart, hostPortEnd int) (_ int, retErr error) {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
 
-	var (
-		m                 *mapping
-		proto             string
-		allocatedHostPort int
-	)
-
-	switch container.(type) {
-	case *net.TCPAddr:
-		proto = "tcp"
-
-		var err error
-		allocatedHostPort, err = pm.allocator.RequestPortInRange(hostIP, proto, hostPortStart, hostPortEnd)
-		if err != nil {
-			return nil, err
-		}
-		defer func() {
-			if retErr != nil {
-				pm.allocator.ReleasePort(hostIP, proto, allocatedHostPort)
-			}
-		}()
-
-		m = &mapping{
-			proto:     proto,
-			host:      &net.TCPAddr{IP: hostIP, Port: allocatedHostPort},
-			container: container,
-		}
-	case *net.UDPAddr:
-		proto = "udp"
-
-		var err error
-		allocatedHostPort, err = pm.allocator.RequestPortInRange(hostIP, proto, hostPortStart, hostPortEnd)
-		if err != nil {
-			return nil, err
-		}
-		defer func() {
-			if retErr != nil {
-				pm.allocator.ReleasePort(hostIP, proto, allocatedHostPort)
-			}
-		}()
-
-		m = &mapping{
-			proto:     proto,
-			host:      &net.UDPAddr{IP: hostIP, Port: allocatedHostPort},
-			container: container,
-		}
-	case *sctp.SCTPAddr:
-		proto = "sctp"
-
-		var err error
-		allocatedHostPort, err = pm.allocator.RequestPortInRange(hostIP, proto, hostPortStart, hostPortEnd)
-		if err != nil {
-			return nil, err
-		}
-		defer func() {
-			if retErr != nil {
-				pm.allocator.ReleasePort(hostIP, proto, allocatedHostPort)
-			}
-		}()
-
-		m = &mapping{
-			proto:     proto,
-			host:      &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: hostIP}}, Port: allocatedHostPort},
-			container: container,
-		}
-	default:
-		return nil, ErrUnknownBackendAddressType
-	}
-
-	key := getKey(m.host)
-	if _, exists := pm.currentMappings[key]; exists {
-		return nil, ErrPortMappedForIP
-	}
-
-	var err error
-	m.stopUserlandProxy, err = newDummyProxy(m.proto, hostIP, allocatedHostPort)
+	allocatedHostPort, err := pm.allocator.RequestPortInRange(hostIP, proto.String(), hostPortStart, hostPortEnd)
 	if err != nil {
-		// FIXME(thaJeztah): both stopping the proxy and deleting iptables rules can produce an error, and both are not currently handled.
-		m.stopUserlandProxy()
-		return nil, err
+		return 0, err
+	}
+	defer func() {
+		if retErr != nil {
+			pm.allocator.ReleasePort(hostIP, proto.String(), allocatedHostPort)
+		}
+	}()
+
+	if pm.osListeners[proto] == nil {
+		pm.osListeners[proto] = make(map[netip.AddrPort]io.Closer)
 	}
 
-	pm.currentMappings[key] = m
-	return m.host, nil
+	addr, ok := netip.AddrFromSlice(hostIP)
+	if !ok {
+		return 0, fmt.Errorf("invalid HostIP: %s", hostIP)
+	}
+
+	hAddrPort := netip.AddrPortFrom(addr, uint16(allocatedHostPort))
+	if _, exists := pm.osListeners[proto][hAddrPort]; exists {
+		return 0, ErrPortMappedForIP
+	}
+
+	var osListener io.Closer
+	osListener, err = allocateHostPort(proto.String(), hostIP, allocatedHostPort)
+	if err != nil {
+		if osListener != nil {
+			if err := osListener.Close(); err != nil {
+				// Prior to v29.0, this error was never checked. So, instead of
+				// returning an error, log it and proceed.
+				log.G(context.TODO()).Infof("failed to stop dummy proxy for %s/%s: %v", hostIP, proto, err)
+			}
+		}
+		return 0, err
+	}
+
+	pm.osListeners[proto][hAddrPort] = osListener
+	return allocatedHostPort, nil
+}
+
+// allocateHostPort allocates a host port by binding to the specified host IP and port.
+func allocateHostPort(proto string, hostIP net.IP, hostPort int) (io.Closer, error) {
+	// detect version of hostIP to bind only to correct version
+	protoVer := proto + "4"
+	if hostIP.To4() == nil {
+		protoVer = proto + "6"
+	}
+
+	switch proto {
+	case "tcp":
+		l, err := net.ListenTCP(protoVer, &net.TCPAddr{IP: hostIP, Port: hostPort})
+		if err != nil {
+			return nil, err
+		}
+		return l, nil
+	case "udp":
+		l, err := net.ListenUDP(protoVer, &net.UDPAddr{IP: hostIP, Port: hostPort})
+		if err != nil {
+			return nil, err
+		}
+		return l, nil
+	case "sctp":
+		l, err := sctp.ListenSCTP(protoVer, &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: hostIP}}, Port: hostPort})
+		if err != nil {
+			return nil, err
+		}
+		return l, nil
+	default:
+		return nil, fmt.Errorf("protocol %s not supported", proto)
+	}
 }
 
 // Unmap removes stored mapping for the specified host transport address
-func (pm *PortMapper) Unmap(host net.Addr) error {
+func (pm *PortMapper) Unmap(hostIP net.IP, proto types.Protocol, hostPort int) error {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
 
-	key := getKey(host)
-	data, exists := pm.currentMappings[key]
+	addr, ok := netip.AddrFromSlice(hostIP)
+	if !ok {
+		return fmt.Errorf("invalid HostIP: %s", hostIP)
+	}
+
+	if pm.osListeners[proto] == nil {
+		return ErrPortNotMapped
+	}
+
+	hAddrPort := netip.AddrPortFrom(addr, uint16(hostPort))
+	osListener, exists := pm.osListeners[proto][hAddrPort]
 	if !exists {
 		return ErrPortNotMapped
 	}
 
-	if data.stopUserlandProxy != nil {
-		data.stopUserlandProxy()
-	}
-
-	delete(pm.currentMappings, key)
-
-	switch a := host.(type) {
-	case *net.TCPAddr:
-		pm.allocator.ReleasePort(a.IP, "tcp", a.Port)
-	case *net.UDPAddr:
-		pm.allocator.ReleasePort(a.IP, "udp", a.Port)
-	case *sctp.SCTPAddr:
-		if len(a.IPAddrs) == 0 {
-			return ErrSCTPAddrNoIP
+	if osListener != nil {
+		if err := osListener.Close(); err != nil {
+			// Prior to v29.0, this error was never checked. So, instead of
+			// returning an error, log it and proceed.
+			log.G(context.TODO()).Infof("failed to stop dummy proxy for %s/%s: %v", hostIP, proto, err)
 		}
-		pm.allocator.ReleasePort(a.IPAddrs[0].IP, "sctp", a.Port)
-	default:
-		return ErrUnknownBackendAddressType
 	}
 
+	delete(pm.osListeners[proto], hAddrPort)
+
+	pm.allocator.ReleasePort(hostIP, proto.String(), int(hostPort))
 	return nil
-}
-
-func getKey(a net.Addr) string {
-	switch t := a.(type) {
-	case *net.TCPAddr:
-		return fmt.Sprintf("%s:%d/%s", t.IP.String(), t.Port, "tcp")
-	case *net.UDPAddr:
-		return fmt.Sprintf("%s:%d/%s", t.IP.String(), t.Port, "udp")
-	case *sctp.SCTPAddr:
-		if len(t.IPAddrs) == 0 {
-			log.G(context.TODO()).Error(ErrSCTPAddrNoIP)
-			return ""
-		}
-		return fmt.Sprintf("%s:%d/%s", t.IPAddrs[0].IP.String(), t.Port, "sctp")
-	}
-	return ""
-}
-
-func getIPAndPort(a net.Addr) (net.IP, int) {
-	switch t := a.(type) {
-	case *net.TCPAddr:
-		return t.IP, t.Port
-	case *net.UDPAddr:
-		return t.IP, t.Port
-	case *sctp.SCTPAddr:
-		if len(t.IPAddrs) == 0 {
-			log.G(context.TODO()).Error(ErrSCTPAddrNoIP)
-			return nil, 0
-		}
-		return t.IPAddrs[0].IP, t.Port
-	}
-	return nil, 0
 }

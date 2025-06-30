@@ -701,12 +701,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	portMapping := epConnectivity.PortBindings
 
 	if n.config.Type == "l2bridge" || n.config.Type == "l2tunnel" {
-		ip := net.IPv4(0, 0, 0, 0)
-		if ifInfo.Address() != nil {
-			ip = ifInfo.Address().IP
-		}
-
-		portMapping, err = AllocatePorts(n.portMapper, portMapping, ip)
+		portMapping, err = AllocatePorts(n.portMapper, portMapping)
 		if err != nil {
 			return err
 		}

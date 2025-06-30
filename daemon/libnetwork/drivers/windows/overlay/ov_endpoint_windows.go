@@ -159,7 +159,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	}
 
 	ep.portMapping = epConnectivity.PortBindings
-	ep.portMapping, err = windows.AllocatePorts(n.portMapper, ep.portMapping, ep.addr.IP)
+	ep.portMapping, err = windows.AllocatePorts(n.portMapper, ep.portMapping)
 	if err != nil {
 		return err
 	}
