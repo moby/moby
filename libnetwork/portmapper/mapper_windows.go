@@ -32,8 +32,6 @@ var (
 
 // PortMapper manages the network address translation
 type PortMapper struct {
-	bridgeName string
-
 	// udp:ip:port
 	currentMappings map[string]*mapping
 	lock            sync.Mutex
