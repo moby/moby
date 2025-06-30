@@ -9,17 +9,20 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/fakecontext"
@@ -859,6 +862,90 @@ func readBuildImageIDs(t *testing.T, rd io.Reader) string {
 	}
 
 	return ""
+}
+
+func TestBuildSecurityOpt(t *testing.T) {
+	ctx := setupTest(t)
+
+	apiclient := testEnv.APIClient()
+
+	tests := []struct {
+		doc         string
+		skip        bool
+		securityOpt []string
+		expectedErr string
+	}{
+		{
+			doc: "no options",
+		},
+		{
+			doc:         "empty options",
+			securityOpt: []string{},
+		},
+		{
+			doc:         "option without value",
+			securityOpt: []string{"=some-value"},
+			expectedErr: `invalid security option: no option passed in supplied value "=some-value"`,
+		},
+		{
+			doc:         "invalid option",
+			securityOpt: []string{"option-without-value"},
+			expectedErr: `invalid security option: no equals sign in supplied value "option-without-value"`,
+		},
+		{
+			doc:         "linux: unsupported security-opt",
+			skip:        runtime.GOOS == "windows",
+			securityOpt: []string{"some-opt=some-value"},
+			expectedErr: "security options are not supported on " + runtime.GOOS,
+		},
+		{
+			doc:         "linux: credentialspec",
+			skip:        runtime.GOOS == "windows",
+			securityOpt: []string{"credentialspec=file://<anything>"},
+			expectedErr: "security options are not supported on " + runtime.GOOS,
+		},
+		{
+			doc:         "windows: credentialspec",
+			skip:        runtime.GOOS != "windows",
+			securityOpt: []string{"credentialspec=file://<anything>"},
+		},
+		{
+			doc:         "windows: credentialspec case-insensitive",
+			skip:        runtime.GOOS != "windows",
+			securityOpt: []string{"cReDeNtIaLsPeC=file://<anything>"},
+		},
+		{
+			doc:         "windows: unsupported security-opt",
+			skip:        runtime.GOOS != "windows",
+			securityOpt: []string{"credentialspec=file://<anything>", "seccomp=unconfined"},
+			expectedErr: "security option not supported: seccomp",
+		},
+	}
+	for _, tc := range tests {
+		if tc.skip {
+			continue
+		}
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			t.Parallel()
+			buf := bytes.NewBuffer(nil)
+			w := tar.NewWriter(buf)
+			writeTarRecord(t, w, "Dockerfile", `FROM busybox`)
+			err := w.Close()
+			assert.NilError(t, err)
+			_, err = apiclient.ImageBuild(ctx, buf, types.ImageBuildOptions{
+				Remove:      true,
+				ForceRemove: true,
+				SecurityOpt: tc.securityOpt,
+			})
+			if tc.expectedErr == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+				assert.ErrorContains(t, err, tc.expectedErr)
+			}
+		})
+	}
 }
 
 func writeTarRecord(t *testing.T, w *tar.Writer, fn, contents string) {
