@@ -38,22 +38,19 @@ type PortMapper struct {
 	currentMappings map[string]*mapping
 	lock            sync.Mutex
 
-	proxyPath string
-
 	allocator *portallocator.PortAllocator
 }
 
 // New returns a new instance of PortMapper
 func New() *PortMapper {
-	return NewWithPortAllocator(portallocator.Get(), "")
+	return NewWithPortAllocator(portallocator.Get())
 }
 
 // NewWithPortAllocator returns a new instance of PortMapper which will use the specified PortAllocator
-func NewWithPortAllocator(allocator *portallocator.PortAllocator, proxyPath string) *PortMapper {
+func NewWithPortAllocator(allocator *portallocator.PortAllocator) *PortMapper {
 	return &PortMapper{
 		currentMappings: make(map[string]*mapping),
 		allocator:       allocator,
-		proxyPath:       proxyPath,
 	}
 }
 
