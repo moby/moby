@@ -264,9 +264,6 @@ linters:
       http-status-code: true
 
   exclusions:
-    paths:
-      - volume/drivers/proxy.go # TODO: this is a generated file but with an invalid header, see https://github.com/moby/moby/pull/46274
-
     rules:
         # We prefer to use an "linters.exclusions.rules" so that new "default" exclusions are not
         # automatically inherited. We can decide whether or not to follow upstream
