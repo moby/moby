@@ -1,7 +1,6 @@
 package portmapper
 
 import (
-	"net"
 	"sync"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/portallocator"
@@ -18,9 +17,4 @@ type PortMapper struct {
 	proxyPath string
 
 	allocator *portallocator.PortAllocator
-}
-
-// DeleteForwardingTableEntry removes a port mapping from the forwarding table
-func (pm *PortMapper) DeleteForwardingTableEntry(proto string, sourceIP net.IP, sourcePort int, containerIP string, containerPort int) error {
-	return nil
 }

@@ -123,15 +123,11 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		return nil, ErrPortMappedForIP
 	}
 
-	containerIP, containerPort := getIPAndPort(m.container)
-
 	var err error
 	m.stopUserlandProxy, err = newDummyProxy(m.proto, hostIP, allocatedHostPort)
 	if err != nil {
 		// FIXME(thaJeztah): both stopping the proxy and deleting iptables rules can produce an error, and both are not currently handled.
 		m.stopUserlandProxy()
-		// need to undo the iptables rules before we return
-		pm.DeleteForwardingTableEntry(m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
 		return nil, err
 	}
 
@@ -155,12 +151,6 @@ func (pm *PortMapper) Unmap(host net.Addr) error {
 	}
 
 	delete(pm.currentMappings, key)
-
-	containerIP, containerPort := getIPAndPort(data.container)
-	hostIP, hostPort := getIPAndPort(data.host)
-	if err := pm.DeleteForwardingTableEntry(data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
-		log.G(context.TODO()).Errorf("Error on iptables delete: %s", err)
-	}
 
 	switch a := host.(type) {
 	case *net.TCPAddr:
