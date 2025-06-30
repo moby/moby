@@ -124,9 +124,6 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 	}
 
 	containerIP, containerPort := getIPAndPort(m.container)
-	if err := pm.AppendForwardingTableEntry(m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort); err != nil {
-		return nil, err
-	}
 
 	var err error
 	m.stopUserlandProxy, err = newDummyProxy(m.proto, hostIP, allocatedHostPort)

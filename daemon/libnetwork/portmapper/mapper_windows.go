@@ -20,11 +20,6 @@ type PortMapper struct {
 	allocator *portallocator.PortAllocator
 }
 
-// AppendForwardingTableEntry adds a port mapping to the forwarding table
-func (pm *PortMapper) AppendForwardingTableEntry(proto string, sourceIP net.IP, sourcePort int, containerIP string, containerPort int) error {
-	return nil
-}
-
 // DeleteForwardingTableEntry removes a port mapping from the forwarding table
 func (pm *PortMapper) DeleteForwardingTableEntry(proto string, sourceIP net.IP, sourcePort int, containerIP string, containerPort int) error {
 	return nil
