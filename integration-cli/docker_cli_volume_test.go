@@ -66,7 +66,7 @@ func (s *DockerCLIVolumeSuite) TestVolumeCLIInspectMulti(c *testing.T) {
 	cli.DockerCmd(c, "volume", "create", "test2")
 	cli.DockerCmd(c, "volume", "create", "test3")
 
-	result := dockerCmdWithResult("volume", "inspect", "--format={{ .Name }}", "test1", "test2", "doesnotexist", "test3")
+	result := cli.Docker(cli.Args("volume", "inspect", "--format={{ .Name }}", "test1", "test2", "doesnotexist", "test3"))
 	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "No such volume: doesnotexist",
