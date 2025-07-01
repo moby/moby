@@ -8,7 +8,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/system"
-	"github.com/docker/docker/libnetwork/internal/nftables"
+	"github.com/docker/docker/daemon/libnetwork/nftables"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/docker/docker/libnetwork/internal/nftables"
+	"github.com/docker/docker/daemon/libnetwork/nftables"
 	"github.com/docker/docker/libnetwork/iptables"
 )
 
