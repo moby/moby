@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/libnetwork/netiputil"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/otelutil"
@@ -21,7 +22,6 @@ import (
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/iptabler"
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/nftabler"
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/rlkclient"
-	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/internal/nftables"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"

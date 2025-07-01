@@ -10,8 +10,8 @@ import (
 	"net/netip"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/libnetwork/netiputil"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/ns"
 )

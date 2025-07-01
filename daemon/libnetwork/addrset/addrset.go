@@ -8,8 +8,8 @@ import (
 	"net/netip"
 	"strings"
 
+	"github.com/docker/docker/daemon/libnetwork/netiputil"
 	"github.com/docker/docker/libnetwork/bitmap"
-	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/ipbits"
 )
 

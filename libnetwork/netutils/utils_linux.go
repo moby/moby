@@ -8,8 +8,8 @@ import (
 	"os"
 	"slices"
 
+	"github.com/docker/docker/daemon/libnetwork/netiputil"
 	"github.com/docker/docker/internal/nlwrap"
-	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/docker/docker/libnetwork/types"

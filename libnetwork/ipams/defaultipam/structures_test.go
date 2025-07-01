@@ -4,7 +4,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/docker/docker/libnetwork/internal/netiputil"
+	"github.com/docker/docker/daemon/libnetwork/netiputil"
 	"gotest.tools/v3/assert"
 )
 
