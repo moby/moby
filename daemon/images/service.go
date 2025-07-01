@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	dockerreference "github.com/docker/docker/reference"
+	refstore "github.com/docker/docker/reference"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
@@ -40,7 +40,7 @@ type ImageServiceConfig struct {
 	MaxConcurrentDownloads    int
 	MaxConcurrentUploads      int
 	MaxDownloadAttempts       int
-	ReferenceStore            dockerreference.Store
+	ReferenceStore            refstore.Store
 	RegistryService           distribution.RegistryResolver
 	ContentStore              content.Store
 	Leases                    leases.Manager
@@ -74,7 +74,7 @@ type ImageService struct {
 	imageStore                image.Store
 	layerStore                layer.Store
 	pruneRunning              atomic.Bool
-	referenceStore            dockerreference.Store
+	referenceStore            refstore.Store
 	registryService           distribution.RegistryResolver
 	uploadManager             *xfer.LayerUploadManager
 	leases                    leases.Manager
@@ -88,7 +88,7 @@ type DistributionServices struct {
 	V2MetadataService metadata.V2MetadataService
 	LayerStore        layer.Store
 	ImageStore        image.Store
-	ReferenceStore    dockerreference.Store
+	ReferenceStore    refstore.Store
 }
 
 // DistributionServices return services controlling daemon image storage

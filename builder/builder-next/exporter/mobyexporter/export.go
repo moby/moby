@@ -9,7 +9,7 @@ import (
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/leases"
 	"github.com/containerd/log"
-	distref "github.com/distribution/reference"
+	"github.com/distribution/reference"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/moby/buildkit/exporter"
@@ -27,7 +27,7 @@ type Differ interface {
 }
 
 type ImageTagger interface {
-	TagImage(ctx context.Context, imageID image.ID, newTag distref.Named) error
+	TagImage(ctx context.Context, imageID image.ID, newTag reference.Named) error
 }
 
 // Opt defines a struct for creating new exporter
@@ -60,7 +60,7 @@ func (e *imageExporter) Resolve(ctx context.Context, id int, attrs map[string]st
 		switch exptypes.ImageExporterOptKey(k) {
 		case exptypes.OptKeyName:
 			for _, v := range strings.Split(v, ",") {
-				ref, err := distref.ParseNormalizedNamed(v)
+				ref, err := reference.ParseNormalizedNamed(v)
 				if err != nil {
 					return nil, err
 				}
@@ -79,7 +79,7 @@ func (e *imageExporter) Resolve(ctx context.Context, id int, attrs map[string]st
 type imageExporterInstance struct {
 	*imageExporter
 	id          int
-	targetNames []distref.Named
+	targetNames []reference.Named
 	meta        map[string][]byte
 	attrs       map[string]string
 }

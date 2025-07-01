@@ -8,9 +8,9 @@ import (
 	"github.com/containerd/containerd/v2/core/content"
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
-	distreference "github.com/distribution/reference"
+	"github.com/distribution/reference"
 	imagestore "github.com/docker/docker/image"
-	"github.com/docker/docker/reference"
+	refstore "github.com/docker/docker/reference"
 	"github.com/moby/buildkit/cache/remotecache"
 	registryremotecache "github.com/moby/buildkit/cache/remotecache/registry"
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
@@ -23,7 +23,7 @@ import (
 )
 
 // ResolveCacheImporterFunc returns a resolver function for local inline cache
-func ResolveCacheImporterFunc(sm *session.Manager, resolverFunc docker.RegistryHosts, cs content.Store, rs reference.Store, is imagestore.Store) remotecache.ResolveCacheImporterFunc {
+func ResolveCacheImporterFunc(sm *session.Manager, resolverFunc docker.RegistryHosts, cs content.Store, rs refstore.Store, is imagestore.Store) remotecache.ResolveCacheImporterFunc {
 	upstream := registryremotecache.ResolveCacheImporterFunc(sm, cs, resolverFunc)
 
 	return func(ctx context.Context, group session.Group, attrs map[string]string) (remotecache.Importer, ocispec.Descriptor, error) {
@@ -34,8 +34,8 @@ func ResolveCacheImporterFunc(sm *session.Manager, resolverFunc docker.RegistryH
 	}
 }
 
-func tryImportLocal(rs reference.Store, is imagestore.Store, refStr string) ([]byte, error) {
-	ref, err := distreference.ParseNormalizedNamed(refStr)
+func tryImportLocal(rs refstore.Store, is imagestore.Store, refStr string) ([]byte, error) {
+	ref, err := reference.ParseNormalizedNamed(refStr)
 	if err != nil {
 		return nil, err
 	}

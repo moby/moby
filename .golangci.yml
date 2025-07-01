@@ -190,6 +190,8 @@ linters:
           alias: cerrdefs
         - pkg: github.com/containerd/containerd/images
           alias: c8dimages
+        - pkg: github.com/docker/docker/reference
+          alias: refstore
         - pkg: github.com/opencontainers/image-spec/specs-go/v1
           alias: ocispec
         - pkg: go.etcd.io/bbolt
