@@ -5,9 +5,9 @@ import (
 
 	"github.com/docker/docker/daemon/libnetwork/datastore"
 	"github.com/docker/docker/daemon/libnetwork/drivers/null"
+	"github.com/docker/docker/daemon/libnetwork/drivers/windows/overlay"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/windows"
-	"github.com/docker/docker/libnetwork/drivers/windows/overlay"
 )
 
 func registerNetworkDrivers(r driverapi.Registerer, store *datastore.Store, _ func(string) map[string]interface{}) error {
