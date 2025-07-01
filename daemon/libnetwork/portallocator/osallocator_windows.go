@@ -1,4 +1,4 @@
-package portmapper
+package portallocator
 
 import (
 	"context"
@@ -11,7 +11,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/ishidawataru/sctp"
-	"github.com/moby/moby/v2/daemon/libnetwork/portallocator"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
@@ -22,42 +21,42 @@ var (
 	ErrPortNotMapped = errors.New("port is not mapped")
 )
 
-// PortMapper manages the network address translation
-type PortMapper struct {
+// OSAllocator allocates ports from the OS by creating listening sockets.
+type OSAllocator struct {
 	// osListeners stores listening sockets used by active port mappings
 	// to reserve ports from the OS. Outer map is keyed by protocol, and inner
 	// map is keyed by host address and port.
 	osListeners map[types.Protocol]map[netip.AddrPort]io.Closer
 	lock        sync.Mutex
 
-	allocator *portallocator.PortAllocator
+	allocator *PortAllocator
 }
 
-// New returns a new instance of PortMapper
-func New() *PortMapper {
-	return &PortMapper{
+// New returns a new instance of OSAllocator
+func New() *OSAllocator {
+	return &OSAllocator{
 		osListeners: make(map[types.Protocol]map[netip.AddrPort]io.Closer),
-		allocator:   portallocator.Get(),
+		allocator:   Get(),
 	}
 }
 
-// MapRange maps the specified container transport address to the host's network address and transport port range
-func (pm *PortMapper) MapRange(hostIP net.IP, proto types.Protocol, hostPortStart, hostPortEnd int) (_ int, retErr error) {
-	pm.lock.Lock()
-	defer pm.lock.Unlock()
+// AllocateHostPort allocates a port from the OS (by creating a listening socket).
+func (pa *OSAllocator) AllocateHostPort(hostIP net.IP, proto types.Protocol, hostPortStart, hostPortEnd int) (_ int, retErr error) {
+	pa.lock.Lock()
+	defer pa.lock.Unlock()
 
-	allocatedHostPort, err := pm.allocator.RequestPortInRange(hostIP, proto.String(), hostPortStart, hostPortEnd)
+	allocatedHostPort, err := pa.allocator.RequestPortInRange(hostIP, proto.String(), hostPortStart, hostPortEnd)
 	if err != nil {
 		return 0, err
 	}
 	defer func() {
 		if retErr != nil {
-			pm.allocator.ReleasePort(hostIP, proto.String(), allocatedHostPort)
+			pa.allocator.ReleasePort(hostIP, proto.String(), allocatedHostPort)
 		}
 	}()
 
-	if pm.osListeners[proto] == nil {
-		pm.osListeners[proto] = make(map[netip.AddrPort]io.Closer)
+	if pa.osListeners[proto] == nil {
+		pa.osListeners[proto] = make(map[netip.AddrPort]io.Closer)
 	}
 
 	addr, ok := netip.AddrFromSlice(hostIP)
@@ -66,7 +65,7 @@ func (pm *PortMapper) MapRange(hostIP net.IP, proto types.Protocol, hostPortStar
 	}
 
 	hAddrPort := netip.AddrPortFrom(addr, uint16(allocatedHostPort))
-	if _, exists := pm.osListeners[proto][hAddrPort]; exists {
+	if _, exists := pa.osListeners[proto][hAddrPort]; exists {
 		return 0, ErrPortMappedForIP
 	}
 
@@ -83,7 +82,7 @@ func (pm *PortMapper) MapRange(hostIP net.IP, proto types.Protocol, hostPortStar
 		return 0, err
 	}
 
-	pm.osListeners[proto][hAddrPort] = osListener
+	pa.osListeners[proto][hAddrPort] = osListener
 	return allocatedHostPort, nil
 }
 
@@ -119,22 +118,22 @@ func allocateHostPort(proto string, hostIP net.IP, hostPort int) (io.Closer, err
 	}
 }
 
-// Unmap removes stored mapping for the specified host transport address
-func (pm *PortMapper) Unmap(hostIP net.IP, proto types.Protocol, hostPort int) error {
-	pm.lock.Lock()
-	defer pm.lock.Unlock()
+// Deallocate removes stored mapping for the specified host transport address
+func (pa *OSAllocator) Deallocate(hostIP net.IP, proto types.Protocol, hostPort int) error {
+	pa.lock.Lock()
+	defer pa.lock.Unlock()
 
 	addr, ok := netip.AddrFromSlice(hostIP)
 	if !ok {
 		return fmt.Errorf("invalid HostIP: %s", hostIP)
 	}
 
-	if pm.osListeners[proto] == nil {
+	if pa.osListeners[proto] == nil {
 		return ErrPortNotMapped
 	}
 
 	hAddrPort := netip.AddrPortFrom(addr, uint16(hostPort))
-	osListener, exists := pm.osListeners[proto][hAddrPort]
+	osListener, exists := pa.osListeners[proto][hAddrPort]
 	if !exists {
 		return ErrPortNotMapped
 	}
@@ -147,8 +146,8 @@ func (pm *PortMapper) Unmap(hostIP net.IP, proto types.Protocol, hostPort int) e
 		}
 	}
 
-	delete(pm.osListeners[proto], hAddrPort)
+	delete(pa.osListeners[proto], hAddrPort)
 
-	pm.allocator.ReleasePort(hostIP, proto.String(), int(hostPort))
+	pa.allocator.ReleasePort(hostIP, proto.String(), int(hostPort))
 	return nil
 }

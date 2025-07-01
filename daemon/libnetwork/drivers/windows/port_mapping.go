@@ -10,20 +10,20 @@ import (
 	"net"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/libnetwork/portmapper"
+	"github.com/moby/moby/v2/daemon/libnetwork/portallocator"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 const maxAllocatePortAttempts = 10
 
-// AllocatePorts allocates ports specified in bindings from the portMapper
-func AllocatePorts(portMapper *portmapper.PortMapper, bindings []types.PortBinding) ([]types.PortBinding, error) {
+// AllocatePorts allocates ports specified in bindings from the port allocator.
+func AllocatePorts(pa *portallocator.OSAllocator, bindings []types.PortBinding) ([]types.PortBinding, error) {
 	bs := make([]types.PortBinding, 0, len(bindings))
 	for _, c := range bindings {
-		b, err := allocatePort(portMapper, c)
+		b, err := allocatePort(pa, c)
 		if err != nil {
 			// On allocation failure, release previously allocated ports. On cleanup error, just log a warning message
-			if cuErr := ReleasePorts(portMapper, bs); cuErr != nil {
+			if cuErr := ReleasePorts(pa, bs); cuErr != nil {
 				log.G(context.TODO()).Warnf("Upon allocation failure for %v, failed to clear previously allocated port bindings: %v", b, cuErr)
 			}
 			return nil, err
@@ -33,9 +33,9 @@ func AllocatePorts(portMapper *portmapper.PortMapper, bindings []types.PortBindi
 	return bs, nil
 }
 
-func allocatePort(portMapper *portmapper.PortMapper, bnd types.PortBinding) (types.PortBinding, error) {
+func allocatePort(pa *portallocator.OSAllocator, bnd types.PortBinding) (types.PortBinding, error) {
 	// Windows does not support a host ip for port bindings (this is validated in ConvertPortBindings()).
-	// If the HostIP is nil, force it to be 0.0.0.0 for use as the key in portMapper.
+	// If the HostIP is nil, force it to be 0.0.0.0 for use as the key in the port allocator.
 	if bnd.HostIP == nil {
 		bnd.HostIP = net.IPv4zero
 	}
@@ -49,7 +49,7 @@ func allocatePort(portMapper *portmapper.PortMapper, bnd types.PortBinding) (typ
 	var allocatedPort int
 	var err error
 	for i := 0; i < maxAllocatePortAttempts; i++ {
-		allocatedPort, err = portMapper.MapRange(bnd.HostIP, bnd.Proto, int(bnd.HostPort), int(bnd.HostPortEnd))
+		allocatedPort, err = pa.AllocateHostPort(bnd.HostIP, bnd.Proto, int(bnd.HostPort), int(bnd.HostPortEnd))
 		if err == nil {
 			break
 		}
@@ -70,13 +70,13 @@ func allocatePort(portMapper *portmapper.PortMapper, bnd types.PortBinding) (typ
 	return bnd, nil
 }
 
-// ReleasePorts releases ports specified in bindings from the portMapper
-func ReleasePorts(portMapper *portmapper.PortMapper, bindings []types.PortBinding) error {
+// ReleasePorts releases ports specified in bindings from the portAlloc
+func ReleasePorts(pa *portallocator.OSAllocator, bindings []types.PortBinding) error {
 	var errorBuf bytes.Buffer
 
 	// Attempt to release all port bindings, do not stop on failure
 	for _, m := range bindings {
-		if err := releasePort(portMapper, m); err != nil {
+		if err := releasePort(pa, m); err != nil {
 			errorBuf.WriteString(fmt.Sprintf("\ncould not release %v because of %v", m, err))
 		}
 	}
@@ -87,6 +87,6 @@ func ReleasePorts(portMapper *portmapper.PortMapper, bindings []types.PortBindin
 	return nil
 }
 
-func releasePort(portMapper *portmapper.PortMapper, bnd types.PortBinding) error {
-	return portMapper.Unmap(bnd.HostIP, bnd.Proto, int(bnd.HostPort))
+func releasePort(pa *portallocator.OSAllocator, bnd types.PortBinding) error {
+	return pa.Deallocate(bnd.HostIP, bnd.Proto, int(bnd.HostPort))
 }
