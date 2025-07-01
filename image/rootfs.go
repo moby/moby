@@ -1,6 +1,13 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.23
+
 package image
 
-import "github.com/docker/docker/layer"
+import (
+	"slices"
+
+	"github.com/docker/docker/layer"
+)
 
 // TypeLayers is used for RootFS.Type for filesystems organized into layers.
 const TypeLayers = "layers"
@@ -25,11 +32,10 @@ func (r *RootFS) Append(id layer.DiffID) {
 
 // Clone returns a copy of the RootFS
 func (r *RootFS) Clone() *RootFS {
-	newRoot := NewRootFS()
-	newRoot.Type = r.Type
-	newRoot.DiffIDs = make([]layer.DiffID, len(r.DiffIDs))
-	copy(newRoot.DiffIDs, r.DiffIDs)
-	return newRoot
+	return &RootFS{
+		Type:    r.Type,
+		DiffIDs: slices.Clone(r.DiffIDs),
+	}
 }
 
 // ChainID returns the ChainID for the top layer in RootFS.
