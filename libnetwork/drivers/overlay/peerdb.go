@@ -13,7 +13,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/libnetwork/internal/setmatrix"
+	"github.com/docker/docker/daemon/libnetwork/setmatrix"
 	"github.com/docker/docker/libnetwork/osl"
 )
 

@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/libnetwork/config"
+	"github.com/docker/docker/daemon/libnetwork/setmatrix"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/internal/setmatrix"
 	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/netlabel"
