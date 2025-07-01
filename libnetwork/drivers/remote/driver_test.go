@@ -16,8 +16,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/libnetwork/discoverapi"
+	"github.com/docker/docker/daemon/libnetwork/options"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/plugins"

@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/libnetwork/config"
+	"github.com/docker/docker/daemon/libnetwork/options"
 	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/options"
 )
 
 func testLocalBackend(t *testing.T, path, bucket string) {
