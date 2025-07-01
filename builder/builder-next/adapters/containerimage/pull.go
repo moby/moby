@@ -24,14 +24,14 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
-	distreference "github.com/distribution/reference"
+	"github.com/distribution/reference"
 	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	pkgprogress "github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/reference"
+	refstore "github.com/docker/docker/reference"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb/sourceresolver"
@@ -59,7 +59,7 @@ import (
 type SourceOpt struct {
 	ContentStore    content.Store
 	CacheAccessor   cache.Accessor
-	ReferenceStore  reference.Store
+	ReferenceStore  refstore.Store
 	DownloadManager *xfer.LayerDownloadManager
 	MetadataStore   metadata.V2MetadataService
 	ImageStore      image.Store
@@ -154,7 +154,7 @@ func parseImageRecordType(v string) (client.UsageRecordType, error) {
 }
 
 func (is *Source) resolveLocal(refStr string) (*image.Image, error) {
-	ref, err := distreference.ParseNormalizedNamed(refStr)
+	ref, err := reference.ParseNormalizedNamed(refStr)
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +347,7 @@ func (p *puller) resolve(ctx context.Context, g session.Group) error {
 			_ = resolveProgressDone(retErr)
 		}()
 
-		ref, err := distreference.ParseNormalizedNamed(p.src.Reference.String())
+		ref, err := reference.ParseNormalizedNamed(p.src.Reference.String())
 		if err != nil {
 			return struct{}{}, err
 		}
@@ -368,7 +368,7 @@ func (p *puller) resolve(ctx context.Context, g session.Group) error {
 		// It may be possible to have a mapping between schema 1 manifests
 		// and the schema 2 manifests they are converted to.
 		if p.config == nil && p.desc.MediaType != c8dimages.MediaTypeDockerSchema1Manifest {
-			refWithDigest, err := distreference.WithDigest(ref, p.desc.Digest)
+			refWithDigest, err := reference.WithDigest(ref, p.desc.Digest)
 			if err != nil {
 				return struct{}{}, err
 			}
