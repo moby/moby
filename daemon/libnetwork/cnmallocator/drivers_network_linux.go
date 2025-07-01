@@ -1,8 +1,8 @@
 package cnmallocator
 
 import (
+	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/brmanager"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/drivers/bridge/brmanager"
 	"github.com/docker/docker/libnetwork/drivers/host"
 	"github.com/docker/docker/libnetwork/drivers/ipvlan/ivmanager"
 	"github.com/docker/docker/libnetwork/drivers/macvlan/mvmanager"
