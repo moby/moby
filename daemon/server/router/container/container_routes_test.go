@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/libnetwork/netlabel"
+	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
