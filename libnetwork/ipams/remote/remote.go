@@ -7,8 +7,8 @@ import (
 	"net/netip"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/libnetwork/ipams/remote/api"
 	"github.com/docker/docker/libnetwork/ipamapi"
-	"github.com/docker/docker/libnetwork/ipams/remote/api"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
