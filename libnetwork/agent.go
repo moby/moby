@@ -15,9 +15,9 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/cluster"
 	"github.com/docker/docker/daemon/libnetwork/discoverapi"
 	"github.com/docker/docker/daemon/libnetwork/networkdb"
+	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/scope"
-	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/go-events"
 	"github.com/gogo/protobuf/proto"
 )

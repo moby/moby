@@ -15,7 +15,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/netiputil"
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/miekg/dns"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"

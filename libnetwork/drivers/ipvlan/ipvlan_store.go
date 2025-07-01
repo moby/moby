@@ -10,8 +10,8 @@ import (
 	"net"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/types"
 )
 
 const (

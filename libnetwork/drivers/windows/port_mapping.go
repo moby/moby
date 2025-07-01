@@ -11,7 +11,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/portmapper"
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/ishidawataru/sctp"
 )
 

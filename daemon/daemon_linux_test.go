@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/internal/testutils/netnsutils"
-	"github.com/docker/docker/libnetwork/types"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"

@@ -6,7 +6,7 @@ import (
 	"context"
 	"net/netip"
 
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
 func (n *network) AddLink(ctx context.Context, parentIP, childIP netip.Addr, ports []types.TransportPort) error {

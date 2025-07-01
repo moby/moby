@@ -5,7 +5,7 @@ import (
 	"net"
 	"net/netip"
 
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
 // IPAM plugin types

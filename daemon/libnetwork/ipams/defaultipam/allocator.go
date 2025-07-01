@@ -11,8 +11,8 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/addrset"
 	"github.com/docker/docker/daemon/libnetwork/ipamutils"
 	"github.com/docker/docker/daemon/libnetwork/netiputil"
+	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/libnetwork/ipamapi"
-	"github.com/docker/docker/libnetwork/types"
 )
 
 const (

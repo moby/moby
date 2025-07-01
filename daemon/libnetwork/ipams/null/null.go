@@ -6,8 +6,8 @@ import (
 	"net"
 	"net/netip"
 
+	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/libnetwork/ipamapi"
-	"github.com/docker/docker/libnetwork/types"
 )
 
 const (

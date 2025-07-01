@@ -8,7 +8,7 @@ import (
 
 	store "github.com/docker/docker/daemon/libnetwork/kvstore"
 	"github.com/docker/docker/daemon/libnetwork/kvstore/boltdb"
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
 // ErrKeyModified is raised for an atomic update when the update is working on a stale state

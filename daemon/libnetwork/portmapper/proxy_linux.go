@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
 // StartProxy starts the proxy process at proxyPath.

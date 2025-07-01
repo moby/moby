@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/daemon/libnetwork/addrset"
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
 // PoolID is the pointer to the configured pools in each address space

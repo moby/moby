@@ -13,9 +13,9 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/etchosts"
+	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/daemon/pkg/resolvconf"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/libnetwork/types"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 )

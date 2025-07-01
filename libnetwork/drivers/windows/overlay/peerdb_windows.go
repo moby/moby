@@ -9,7 +9,7 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/containerd/log"
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
 const ovPeerTable = "overlay_peer_table"

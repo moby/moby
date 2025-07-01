@@ -9,8 +9,8 @@ import (
 	"net/netip"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/libnetwork/ipamapi"
-	"github.com/docker/docker/libnetwork/types"
 )
 
 const (

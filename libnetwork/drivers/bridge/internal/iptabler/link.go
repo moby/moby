@@ -8,8 +8,8 @@ import (
 	"net/netip"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/libnetwork/iptables"
-	"github.com/docker/docker/libnetwork/types"
 )
 
 func (n *network) AddLink(ctx context.Context, parentIP, childIP netip.Addr, ports []types.TransportPort) error {

@@ -9,7 +9,7 @@ import (
 	"net/netip"
 	"slices"
 
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
 // StubFirewaller implements a Firewaller for unit tests. It just tracks what it's been asked for.

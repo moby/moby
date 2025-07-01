@@ -6,7 +6,7 @@ package nftabler
 import (
 	"context"
 
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
 func (n *network) AddPorts(ctx context.Context, pbs []types.PortBinding) error {

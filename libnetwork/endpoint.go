@@ -15,6 +15,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/options"
+	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/libnetwork/datastore"
@@ -22,7 +23,6 @@ import (
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/scope"
-	"github.com/docker/docker/libnetwork/types"
 	"go.opentelemetry.io/otel"
 )
 

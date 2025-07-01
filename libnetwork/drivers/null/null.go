@@ -4,9 +4,9 @@ import (
 	"context"
 	"sync"
 
+	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/scope"
-	"github.com/docker/docker/libnetwork/types"
 )
 
 const NetworkType = "null"

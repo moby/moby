@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	store "github.com/docker/docker/daemon/libnetwork/kvstore"
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
 // MockData exported

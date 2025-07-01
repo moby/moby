@@ -9,7 +9,7 @@ import (
 	"net"
 	"slices"
 
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
 
