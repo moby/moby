@@ -12,8 +12,8 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/libnetwork/etchosts"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/libnetwork/etchosts"
 	"github.com/docker/docker/libnetwork/internal/resolvconf"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/pkg/errors"

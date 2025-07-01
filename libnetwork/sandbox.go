@@ -14,7 +14,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/libnetwork/etchosts"
+	"github.com/docker/docker/daemon/libnetwork/etchosts"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
 	"go.opentelemetry.io/otel"
