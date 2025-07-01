@@ -3,7 +3,6 @@ package container
 import (
 	"time"
 
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/go-connections/nat"
 	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 )
@@ -53,13 +52,13 @@ type Config struct {
 	OpenStdin       bool                // Open stdin
 	StdinOnce       bool                // If true, close stdin after the 1 attached client disconnects.
 	Env             []string            // List of environment variable to set in the container
-	Cmd             strslice.StrSlice   // Command to run when starting the container
+	Cmd             []string            // Command to run when starting the container
 	Healthcheck     *HealthConfig       `json:",omitempty"` // Healthcheck describes how to check the container is healthy
 	ArgsEscaped     bool                `json:",omitempty"` // True if command is already escaped (meaning treat as a command line) (Windows specific).
 	Image           string              // Name of the image as it was passed by the operator (e.g. could be symbolic)
 	Volumes         map[string]struct{} // List of volumes (mounts) used for the container
 	WorkingDir      string              // Current directory (PWD) in the command will be launched
-	Entrypoint      strslice.StrSlice   // Entrypoint to run when starting the container
+	Entrypoint      []string            // Entrypoint to run when starting the container
 	NetworkDisabled bool                `json:",omitempty"` // Is network disabled
 	// Mac Address of the container.
 	//
@@ -69,5 +68,5 @@ type Config struct {
 	Labels      map[string]string // List of labels set to this container
 	StopSignal  string            `json:",omitempty"` // Signal to stop a container
 	StopTimeout *int              `json:",omitempty"` // Timeout (in seconds) to stop a container
-	Shell       strslice.StrSlice `json:",omitempty"` // Shell for shell-form of RUN, CMD, ENTRYPOINT
+	Shell       []string          `json:",omitempty"` // Shell for shell-form of RUN, CMD, ENTRYPOINT
 }
