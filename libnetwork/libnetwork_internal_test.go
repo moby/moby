@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/daemon/libnetwork/config"
 	"github.com/docker/docker/internal/testutils/netnsutils"
-	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/internal/setmatrix"
 	"github.com/docker/docker/libnetwork/ipams/defaultipam"

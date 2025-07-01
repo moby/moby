@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/daemon/libnetwork/config"
 	"github.com/docker/docker/internal/testutils/netnsutils"
-	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/drivers/bridge"
 	"github.com/docker/docker/libnetwork/internal/nftables"
 	"github.com/docker/docker/libnetwork/iptables"

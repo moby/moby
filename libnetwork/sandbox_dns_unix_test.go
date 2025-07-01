@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/libnetwork/config"
+	"github.com/docker/docker/daemon/libnetwork/config"
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

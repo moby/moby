@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/libnetwork/config"
+	"github.com/docker/docker/daemon/libnetwork/config"
 	store "github.com/docker/docker/libnetwork/internal/kvstore"
 )
 

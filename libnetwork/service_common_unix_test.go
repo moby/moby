@@ -7,8 +7,8 @@ import (
 	"net"
 	"testing"
 
+	"github.com/docker/docker/daemon/libnetwork/config"
 	"github.com/docker/docker/internal/testutils/netnsutils"
-	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"gotest.tools/v3/assert"
 )

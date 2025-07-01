@@ -55,8 +55,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/cluster"
+	"github.com/docker/docker/daemon/libnetwork/config"
 	"github.com/docker/docker/internal/otelutil"
-	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/diagnostic"
 	"github.com/docker/docker/libnetwork/discoverapi"
