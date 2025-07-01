@@ -6,7 +6,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/cmd/networkdb-test/dbclient"
-	"github.com/docker/docker/libnetwork/cmd/networkdb-test/dbserver"
+	"github.com/docker/docker/daemon/libnetwork/cmd/networkdb-test/dbserver"
 )
 
 func main() {
