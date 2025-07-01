@@ -13,7 +13,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/libnetwork/ns"
-	"github.com/docker/docker/libnetwork/resolvconf"
+	"github.com/docker/docker/daemon/libnetwork/resolvconf"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"github.com/pkg/errors"
