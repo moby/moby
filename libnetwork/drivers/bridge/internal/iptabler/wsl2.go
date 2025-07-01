@@ -3,7 +3,7 @@
 package iptabler
 
 import (
-	"github.com/docker/docker/libnetwork/iptables"
+	"github.com/docker/docker/daemon/libnetwork/iptables"
 )
 
 // mirroredWSL2Workaround adds or removes an IPv4 NAT rule, depending on whether

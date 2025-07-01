@@ -6,8 +6,8 @@ import (
 	"context"
 	"net/netip"
 
+	"github.com/docker/docker/daemon/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
-	"github.com/docker/docker/libnetwork/iptables"
 )
 
 func (n *network) AddEndpoint(ctx context.Context, epIPv4, epIPv6 netip.Addr) error {
