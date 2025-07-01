@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types/registry"
 	registrypkg "github.com/docker/docker/registry"
+	"github.com/moby/moby/api/types/registry"
 	"gotest.tools/v3/assert"
 )
 

@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"maps"
 
-	"github.com/docker/docker/api/types/image"
+	"github.com/moby/moby/api/types/image"
 )
 
 // legacyConfigFields defines legacy image-config fields to include in

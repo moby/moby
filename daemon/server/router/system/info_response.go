@@ -6,7 +6,7 @@ package system
 import (
 	"encoding/json"
 
-	"github.com/docker/docker/api/types/system"
+	"github.com/moby/moby/api/types/system"
 )
 
 // infoResponse is a wrapper around [system.Info] with a custom
