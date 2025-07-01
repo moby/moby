@@ -9,7 +9,7 @@ import (
 	"net"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/libnetwork/portallocator"
+	"github.com/docker/docker/daemon/libnetwork/portallocator"
 	"github.com/ishidawataru/sctp"
 )
 
