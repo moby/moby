@@ -28,11 +28,7 @@ func (i *ImageService) CreateLayer(ctr *container.Container, initFunc layer.Moun
 		descriptor = ctr.ImageManifest
 	}
 
-	rwLayerOpts := &layer.CreateRWLayerOpts{
-		StorageOpt: ctr.HostConfig.StorageOpt,
-	}
-
-	return i.createLayer(descriptor, ctr.ID, rwLayerOpts, initFunc)
+	return i.createLayer(descriptor, ctr.ID, initFunc)
 }
 
 // CreateLayerFromImage creates a new layer from an image
@@ -42,10 +38,10 @@ func (i *ImageService) CreateLayerFromImage(img *image.Image, layerName string, 
 		descriptor = img.Details.ManifestDescriptor
 	}
 
-	return i.createLayer(descriptor, layerName, rwLayerOpts, nil)
+	return i.createLayer(descriptor, layerName, nil)
 }
 
-func (i *ImageService) createLayer(descriptor *ocispec.Descriptor, layerName string, rwLayerOpts *layer.CreateRWLayerOpts, initFunc layer.MountInit) (container.RWLayer, error) {
+func (i *ImageService) createLayer(descriptor *ocispec.Descriptor, layerName string, initFunc layer.MountInit) (container.RWLayer, error) {
 	ctx := context.TODO()
 	var parentSnapshot string
 	if descriptor != nil {
