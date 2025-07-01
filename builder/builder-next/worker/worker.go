@@ -18,7 +18,6 @@ import (
 	mobyexporter "github.com/docker/docker/builder/builder-next/exporter"
 	distmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/internal/mod"
 	"github.com/docker/docker/layer"
 	pkgprogress "github.com/docker/docker/pkg/progress"
@@ -453,8 +452,7 @@ func (w *Worker) FromRemote(ctx context.Context, remote *solver.Remote) (cache.I
 		}
 	}()
 
-	r := image.NewRootFS()
-	rootFS, release, err := w.DownloadManager.Download(ctx, *r, layers, &discardProgress{})
+	rootFS, release, err := w.DownloadManager.Download(ctx, layers, &discardProgress{})
 	if err != nil {
 		return nil, err
 	}

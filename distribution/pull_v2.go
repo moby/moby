@@ -596,8 +596,7 @@ func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Desc
 				err    error
 				rootFS image.RootFS
 			)
-			downloadRootFS := *image.NewRootFS()
-			rootFS, release, err = p.config.DownloadManager.Download(ctx, downloadRootFS, descriptors, p.config.ProgressOutput)
+			rootFS, release, err = p.config.DownloadManager.Download(ctx, descriptors, p.config.ProgressOutput)
 			if err != nil {
 				// Intentionally do not cancel the config download here
 				// as the error from config download (if there is one)

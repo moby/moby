@@ -642,8 +642,7 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 		<-progressDone
 	}()
 
-	r := image.NewRootFS()
-	rootFS, release, err := p.is.DownloadManager.Download(ctx, *r, layers, pkgprogress.ChanOutput(pchan))
+	rootFS, release, err := p.is.DownloadManager.Download(ctx, layers, pkgprogress.ChanOutput(pchan))
 	stopProgress()
 	if err != nil {
 		return nil, err

@@ -110,7 +110,7 @@ type DigestRegisterer interface {
 // Download method is called to get the layer tar data. Layers are then
 // registered in the appropriate order.  The caller must call the returned
 // release function once it is done with the returned RootFS object.
-func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS image.RootFS, layers []DownloadDescriptor, progressOutput progress.Output) (image.RootFS, func(), error) {
+func (ldm *LayerDownloadManager) Download(ctx context.Context, layers []DownloadDescriptor, progressOutput progress.Output) (image.RootFS, func(), error) {
 	var (
 		topLayer       layer.Layer
 		topDownload    *downloadTransfer
@@ -120,7 +120,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 		downloadsByKey = make(map[string]*downloadTransfer)
 	)
 
-	rootFS := initialRootFS
+	rootFS := image.RootFS{Type: image.TypeLayers}
 	for _, descriptor := range layers {
 		key := descriptor.Key()
 		transferKey += key
