@@ -7,10 +7,10 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/libnetwork/netutils"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/types"
 )
