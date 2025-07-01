@@ -8,8 +8,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/osl"
+	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/pkg/stringid"
 )
 

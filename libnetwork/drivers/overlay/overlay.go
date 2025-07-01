@@ -13,8 +13,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/discoverapi"
+	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/scope"
 )
 
 const (
