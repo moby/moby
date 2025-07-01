@@ -7,7 +7,7 @@ import (
 
 	ctd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/log"
-	"github.com/docker/docker/libnetwork"
+	"github.com/docker/docker/daemon/libnetwork"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/containerdexecutor"
 	"github.com/moby/buildkit/executor/oci"

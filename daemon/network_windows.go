@@ -3,7 +3,7 @@ package daemon
 import (
 	"strings"
 
-	"github.com/docker/docker/libnetwork"
+	"github.com/docker/docker/daemon/libnetwork"
 )
 
 // getEndpointInNetwork returns the container's endpoint to the provided network.

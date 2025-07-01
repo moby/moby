@@ -17,6 +17,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/libnetwork"
 	"github.com/docker/docker/daemon/libnetwork/config"
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
@@ -29,7 +30,6 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
-	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/moby/sys/reexec"
 	"github.com/pkg/errors"
