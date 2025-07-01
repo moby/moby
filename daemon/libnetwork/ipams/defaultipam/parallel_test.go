@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/docker/docker/daemon/libnetwork/ipamapi"
 	"github.com/docker/docker/daemon/libnetwork/ipamutils"
-	"github.com/docker/docker/libnetwork/ipamapi"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 	"gotest.tools/v3/assert"

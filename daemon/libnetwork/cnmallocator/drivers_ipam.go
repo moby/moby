@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/libnetwork/ipamapi"
 	"github.com/docker/docker/daemon/libnetwork/ipams"
 	"github.com/docker/docker/daemon/libnetwork/ipamutils"
-	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 )
 
