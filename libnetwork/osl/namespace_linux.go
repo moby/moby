@@ -14,10 +14,10 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/libnetwork/osl/kernel"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/unshare"
 	"github.com/docker/docker/libnetwork/ns"
-	"github.com/docker/docker/libnetwork/osl/kernel"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
