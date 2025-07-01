@@ -3,7 +3,7 @@ package datastore
 import (
 	"strings"
 
-	store "github.com/docker/docker/libnetwork/internal/kvstore"
+	store "github.com/docker/docker/daemon/libnetwork/kvstore"
 	"github.com/docker/docker/libnetwork/types"
 )
 
