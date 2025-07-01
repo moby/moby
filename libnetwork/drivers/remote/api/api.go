@@ -7,7 +7,7 @@ package api
 import (
 	"net"
 
-	"github.com/docker/docker/libnetwork/discoverapi"
+	"github.com/docker/docker/daemon/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 )
 

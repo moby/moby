@@ -13,7 +13,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/cluster"
-	"github.com/docker/docker/libnetwork/discoverapi"
+	"github.com/docker/docker/daemon/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/networkdb"
 	"github.com/docker/docker/libnetwork/scope"
