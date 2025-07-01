@@ -5,7 +5,6 @@ import (
 
 	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/pkg/streamformatter"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -26,8 +25,13 @@ type ProgressWriter struct {
 	Output             io.Writer
 	StdoutFormatter    io.Writer
 	StderrFormatter    io.Writer
-	AuxFormatter       *streamformatter.AuxFormatter
+	AuxFormatter       AuxEmitter
 	ProgressReaderFunc func(io.ReadCloser) io.ReadCloser
+}
+
+// AuxEmitter is an interface for emitting aux messages during build progress
+type AuxEmitter interface {
+	Emit(string, interface{}) error
 }
 
 // BuildConfig is the configuration used by a BuildManager to start a build
