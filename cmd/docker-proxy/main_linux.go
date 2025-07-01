@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"net"
@@ -128,18 +127,18 @@ func newProxy(config ProxyConfig) (p Proxy, err error) {
 		p, err = NewUDPProxy(listener, container, ipv)
 	case "sctp":
 		var listener *sctp.SCTPListener
-		if config.ListenSock != nil {
-			// There's no way to construct an SCTPListener from a file descriptor at the moment.
-			// If a socket has been passed in, it's probably from a newer daemon using a version
-			// of the sctp module that does allow it.
-			return nil, errors.New("cannot use supplied SCTP socket, check the latest docker-proxy is in your $PATH")
+		if config.ListenSock == nil {
+			hostAddr := &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: config.HostIP}}, Port: config.HostPort}
+			listener, err = sctp.ListenSCTP("sctp"+string(ipv), hostAddr)
+			if err != nil {
+				return nil, fmt.Errorf("failed to listen on %s: %w", hostAddr, err)
+			}
+		} else {
+			if listener, err = sctp.FileListener(config.ListenSock); err != nil {
+				return nil, err
+			}
 		}
-		hostAddr := &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: config.HostIP}}, Port: config.HostPort}
 		container := &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: config.ContainerIP}}, Port: config.ContainerPort}
-		listener, err = sctp.ListenSCTP("sctp"+string(ipv), hostAddr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to listen on %s: %w", hostAddr, err)
-		}
 		p, err = NewSCTPProxy(listener, container)
 	default:
 		return nil, fmt.Errorf("unsupported protocol %s", config.Proto)
@@ -179,7 +178,11 @@ func parseFlags() ProxyConfig {
 	}
 
 	if useListenFd {
-		_ = syscall.SetNonblock(int(listenSockFd), true)
+		// Unlike the stdlib, passing a non-blocking socket to `sctp.FileListener`
+		// will result in a non-blocking Accept(). So, do not set this flag for SCTP.
+		if config.Proto != "sctp" {
+			_ = syscall.SetNonblock(int(listenSockFd), true)
+		}
 		config.ListenSock = os.NewFile(listenSockFd, "listen-sock")
 	}
 
