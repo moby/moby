@@ -2,8 +2,8 @@ package ipams
 
 import (
 	"github.com/docker/docker/daemon/libnetwork/ipams/defaultipam"
+	"github.com/docker/docker/daemon/libnetwork/ipams/null"
 	"github.com/docker/docker/libnetwork/ipamapi"
-	"github.com/docker/docker/libnetwork/ipams/null"
 	remoteIpam "github.com/docker/docker/libnetwork/ipams/remote"
 	"github.com/docker/docker/libnetwork/ipams/windowsipam"
 	"github.com/docker/docker/libnetwork/ipamutils"
