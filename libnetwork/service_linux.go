@@ -14,9 +14,9 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
 	"github.com/docker/docker/daemon/libnetwork/iptables"
 	"github.com/docker/docker/daemon/libnetwork/ns"
-	"github.com/docker/docker/libnetwork/drivers/bridge"
 	"github.com/ishidawataru/sctp"
 	"github.com/moby/ipvs"
 	"github.com/vishvananda/netlink/nl"

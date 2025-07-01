@@ -9,12 +9,12 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/daemon/libnetwork/config"
+	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
 	"github.com/docker/docker/daemon/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/daemon/libnetwork/ipamutils"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/options"
 	"github.com/docker/docker/internal/testutils/netnsutils"
-	"github.com/docker/docker/libnetwork/drivers/bridge"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

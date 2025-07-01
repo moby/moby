@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/daemon/libnetwork/datastore"
+	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/drivers/bridge"
 	"github.com/docker/docker/libnetwork/drivers/host"
 	"github.com/docker/docker/libnetwork/drivers/ipvlan"
 	"github.com/docker/docker/libnetwork/drivers/macvlan"
