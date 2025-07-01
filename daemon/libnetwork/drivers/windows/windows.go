@@ -26,7 +26,7 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/datastore"
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
-	"github.com/docker/docker/daemon/libnetwork/portmapper"
+	"github.com/docker/docker/daemon/libnetwork/portallocator"
 	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"go.opentelemetry.io/otel"
@@ -98,7 +98,7 @@ type hnsNetwork struct {
 	config     *networkConfiguration
 	endpoints  map[string]*hnsEndpoint // key: endpoint id
 	driver     *driver                 // The network's driver
-	portMapper *portmapper.PortMapper
+	portMapper *portallocator.OSAllocator
 	sync.Mutex
 }
 
@@ -318,7 +318,7 @@ func (d *driver) createNetwork(config *networkConfiguration) *hnsNetwork {
 		endpoints:  make(map[string]*hnsEndpoint),
 		config:     config,
 		driver:     d,
-		portMapper: portmapper.New(),
+		portMapper: portallocator.New(),
 	}
 
 	d.Lock()
