@@ -76,7 +76,7 @@ func ReleasePorts(pa *portallocator.OSAllocator, bindings []types.PortBinding) e
 
 	// Attempt to release all port bindings, do not stop on failure
 	for _, m := range bindings {
-		if err := releasePort(pa, m); err != nil {
+		if err := pa.Deallocate(m.HostIP, m.Proto, int(m.HostPort)); err != nil {
 			errorBuf.WriteString(fmt.Sprintf("\ncould not release %v because of %v", m, err))
 		}
 	}
@@ -85,8 +85,4 @@ func ReleasePorts(pa *portallocator.OSAllocator, bindings []types.PortBinding) e
 		return errors.New(errorBuf.String())
 	}
 	return nil
-}
-
-func releasePort(pa *portallocator.OSAllocator, bnd types.PortBinding) error {
-	return pa.Deallocate(bnd.HostIP, bnd.Proto, int(bnd.HostPort))
 }
