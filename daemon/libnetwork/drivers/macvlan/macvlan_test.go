@@ -5,8 +5,8 @@ package macvlan
 import (
 	"testing"
 
+	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/internal/testutils/storeutils"
-	"github.com/docker/docker/libnetwork/driverapi"
 )
 
 const testNetworkType = "macvlan"

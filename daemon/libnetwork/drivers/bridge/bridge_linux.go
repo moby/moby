@@ -13,6 +13,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/datastore"
+	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/iptabler"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/nftabler"
@@ -29,7 +30,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/otelutil"
-	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"

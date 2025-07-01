@@ -17,6 +17,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/countmap"
+	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/drivers/overlay/overlayutils"
 	"github.com/docker/docker/daemon/libnetwork/netiputil"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
@@ -24,7 +25,6 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/osl"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/internal/nlwrap"
-	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/hashicorp/go-multierror"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"

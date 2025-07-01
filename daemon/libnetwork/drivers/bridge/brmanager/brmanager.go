@@ -3,9 +3,9 @@ package brmanager
 import (
 	"context"
 
+	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/docker/docker/libnetwork/driverapi"
 )
 
 const networkType = "bridge"

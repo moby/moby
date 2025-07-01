@@ -5,7 +5,7 @@ package overlay
 import (
 	"testing"
 
-	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/pkg/plugingetter"
 )
 

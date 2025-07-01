@@ -8,7 +8,7 @@ import (
 	"net"
 
 	"github.com/docker/docker/daemon/libnetwork/discoverapi"
-	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/daemon/libnetwork/driverapi"
 )
 
 // Response is the basic response structure used in all responses.

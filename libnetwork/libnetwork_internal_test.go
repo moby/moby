@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/libnetwork/config"
+	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/daemon/libnetwork/ipamutils"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
@@ -21,7 +22,6 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/setmatrix"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/internal/testutils/netnsutils"
-	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
