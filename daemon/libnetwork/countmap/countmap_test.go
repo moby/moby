@@ -3,7 +3,7 @@ package countmap_test
 import (
 	"testing"
 
-	"github.com/docker/docker/libnetwork/internal/countmap"
+	"github.com/docker/docker/daemon/libnetwork/countmap"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
