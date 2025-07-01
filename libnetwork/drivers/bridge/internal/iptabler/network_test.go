@@ -7,9 +7,9 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/daemon/libnetwork/iptables"
 	"github.com/docker/docker/internal/testutils/netnsutils"
-	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

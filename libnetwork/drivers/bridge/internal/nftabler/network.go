@@ -6,7 +6,7 @@ import (
 	"context"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
+	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
 )
 
 type network struct {

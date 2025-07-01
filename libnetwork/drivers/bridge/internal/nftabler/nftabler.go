@@ -7,8 +7,8 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/daemon/libnetwork/nftables"
-	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
 	"go.opentelemetry.io/otel"
 )
 
