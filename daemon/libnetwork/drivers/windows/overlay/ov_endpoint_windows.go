@@ -9,10 +9,10 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/libnetwork/drivers/windows"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/drivers/windows"
 )
 
 type endpointTable map[string]*endpoint
