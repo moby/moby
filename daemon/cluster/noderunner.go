@@ -12,7 +12,7 @@ import (
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
 	"github.com/docker/docker/daemon/cluster/executor/container"
-	lncluster "github.com/docker/docker/libnetwork/cluster"
+	lncluster "github.com/docker/docker/daemon/libnetwork/cluster"
 	"github.com/docker/docker/libnetwork/cnmallocator"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
