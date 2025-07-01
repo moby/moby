@@ -7,7 +7,7 @@ import (
 	"net/netip"
 	"os"
 
-	"github.com/docker/docker/libnetwork/internal/resolvconf"
+	"github.com/docker/docker/daemon/pkg/resolvconf"
 	"github.com/opencontainers/go-digest"
 )
 
