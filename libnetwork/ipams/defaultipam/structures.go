@@ -5,7 +5,7 @@ import (
 	"net/netip"
 	"strings"
 
-	"github.com/docker/docker/libnetwork/internal/addrset"
+	"github.com/docker/docker/daemon/libnetwork/addrset"
 	"github.com/docker/docker/libnetwork/types"
 )
 
