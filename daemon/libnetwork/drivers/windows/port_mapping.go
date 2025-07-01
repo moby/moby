@@ -3,7 +3,6 @@
 package windows
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -72,17 +71,14 @@ func allocatePort(pa *portallocator.OSAllocator, bnd types.PortBinding) (types.P
 
 // ReleasePorts releases ports specified in bindings from the portAlloc
 func ReleasePorts(pa *portallocator.OSAllocator, bindings []types.PortBinding) error {
-	var errorBuf bytes.Buffer
+	var errs []error
 
 	// Attempt to release all port bindings, do not stop on failure
 	for _, m := range bindings {
 		if err := pa.Deallocate(m.HostIP, m.Proto, int(m.HostPort)); err != nil {
-			errorBuf.WriteString(fmt.Sprintf("\ncould not release %v because of %v", m, err))
+			errs = append(errs, fmt.Errorf("could not release %v because of %v", m, err))
 		}
 	}
 
-	if errorBuf.Len() != 0 {
-		return errors.New(errorBuf.String())
-	}
-	return nil
+	return errors.Join(errs...)
 }
