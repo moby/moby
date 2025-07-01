@@ -12,9 +12,9 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/libnetwork/portmapper"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/portmapper"
 	"github.com/docker/docker/libnetwork/types"
 )
 
