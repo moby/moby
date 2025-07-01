@@ -8,7 +8,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/netutils"
-	"github.com/docker/docker/libnetwork/osl"
+	"github.com/docker/docker/daemon/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"

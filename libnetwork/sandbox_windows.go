@@ -3,7 +3,7 @@ package libnetwork
 import (
 	"context"
 
-	"github.com/docker/docker/libnetwork/osl"
+	"github.com/docker/docker/daemon/libnetwork/osl"
 )
 
 func releaseOSSboxResources(*osl.Namespace, *Endpoint) {}

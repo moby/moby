@@ -10,9 +10,9 @@ import (
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/daemon/libnetwork/nftables"
 	"github.com/docker/docker/daemon/libnetwork/options"
+	"github.com/docker/docker/daemon/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/osl"
 )
 
 // FirewallBackend returns the name of the firewall backend for "docker info".

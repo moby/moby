@@ -12,10 +12,10 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/netiputil"
+	"github.com/docker/docker/daemon/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/ns"
-	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/gogo/protobuf/proto"
 	"go.opentelemetry.io/otel"

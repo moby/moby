@@ -13,8 +13,8 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/libnetwork/osl"
 	"github.com/docker/docker/daemon/libnetwork/setmatrix"
-	"github.com/docker/docker/libnetwork/osl"
 )
 
 const ovPeerTable = "overlay_peer_table"

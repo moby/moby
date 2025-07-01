@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/libnetwork/ipams/defaultipam"
+	"github.com/docker/docker/daemon/libnetwork/osl"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/osl"
 )
 
 type platformNetwork struct{} //nolint:nolintlint,unused // only populated on windows
