@@ -5,8 +5,8 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/ipams/null"
 	remoteIpam "github.com/docker/docker/daemon/libnetwork/ipams/remote"
 	"github.com/docker/docker/daemon/libnetwork/ipams/windowsipam"
+	"github.com/docker/docker/daemon/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/ipamapi"
-	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/pkg/plugingetter"
 )
 

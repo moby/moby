@@ -9,8 +9,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/cluster"
+	"github.com/docker/docker/daemon/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/pkg/plugingetter"
 )

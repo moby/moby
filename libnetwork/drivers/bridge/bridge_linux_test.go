@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/libnetwork/ipams/defaultipam"
+	"github.com/docker/docker/daemon/libnetwork/ipamutils"
 	"github.com/docker/docker/daemon/libnetwork/netiputil"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
@@ -21,7 +22,6 @@ import (
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/libnetwork/ipamapi"
-	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/options"

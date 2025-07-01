@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/libnetwork/config"
+	"github.com/docker/docker/daemon/libnetwork/ipamutils"
 	"github.com/docker/docker/internal/testutils/netnsutils"
-	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/miekg/dns"
 )
 

@@ -9,9 +9,9 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/addrset"
+	"github.com/docker/docker/daemon/libnetwork/ipamutils"
 	"github.com/docker/docker/daemon/libnetwork/netiputil"
 	"github.com/docker/docker/libnetwork/ipamapi"
-	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/types"
 )
 
