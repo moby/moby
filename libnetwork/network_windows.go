@@ -16,10 +16,10 @@ import (
 	"github.com/Microsoft/hcsshim"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/ipams/defaultipam"
+	"github.com/docker/docker/daemon/libnetwork/ipams/windowsipam"
 	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/libnetwork/drivers/windows"
 	winlibnetwork "github.com/docker/docker/libnetwork/drivers/windows"
-	"github.com/docker/docker/libnetwork/ipams/windowsipam"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/pkg/errors"
 )
