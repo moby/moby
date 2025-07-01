@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/docker/docker/daemon/libnetwork/kvstore/boltdb"
 	store "github.com/docker/docker/libnetwork/internal/kvstore"
-	"github.com/docker/docker/libnetwork/internal/kvstore/boltdb"
 	"github.com/docker/docker/libnetwork/types"
 )
 
