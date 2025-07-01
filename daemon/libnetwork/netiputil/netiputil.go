@@ -4,7 +4,7 @@ import (
 	"net"
 	"net/netip"
 
-	"github.com/docker/docker/libnetwork/ipbits"
+	"github.com/docker/docker/daemon/libnetwork/ipbits"
 )
 
 // ToIPNet converts p into a *net.IPNet, returning nil if p is not valid.
