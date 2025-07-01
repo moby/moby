@@ -42,11 +42,6 @@ func dockerCmdWithError(args ...string) (string, int, error) {
 	return result.Combined(), result.ExitCode, result.Error
 }
 
-// Deprecated: use cli.Docker or cli.DockerCmd
-func dockerCmdWithResult(args ...string) *icmd.Result {
-	return cli.Docker(cli.Args(args...))
-}
-
 func findContainerIP(t *testing.T, id string, network string) string {
 	t.Helper()
 	out := cli.DockerCmd(t, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.IPAddress }}'", network), id).Stdout()
