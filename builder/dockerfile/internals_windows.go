@@ -11,10 +11,22 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/internal/usergroup"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/moby/sys/user"
 	"golang.org/x/sys/windows"
+)
+
+// seTakeOwnershipPrivilege is "SE_TAKE_OWNERSHIP_NAME" in the win32 API.
+//
+// see https://learn.microsoft.com/en-us/windows/win32/secauthz/privilege-constants
+const seTakeOwnershipPrivilege = "SeTakeOwnershipPrivilege"
+
+// Constants for well-known SIDs in the Windows container.
+// These are currently undocumented.
+// See https://github.com/moby/buildkit/pull/5791#discussion_r1976652227 for more information.
+const (
+	containerAdministratorSidString = "S-1-5-93-2-1" // ContainerAdministrator
+	containerUserSidString          = "S-1-5-93-2-2" // ContainerUser
 )
 
 func parseChownFlag(ctx context.Context, builder *Builder, state *dispatchState, chown, ctrRootPath string, identityMapping user.IdentityMapping) (identity, error) {
@@ -47,9 +59,9 @@ func getAccountIdentity(ctx context.Context, builder *Builder, accountName strin
 
 	// Check if the account name is one unique to containers.
 	if strings.EqualFold(accountName, "ContainerAdministrator") {
-		return identity{SID: usergroup.ContainerAdministratorSidString}, nil
+		return identity{SID: containerAdministratorSidString}, nil
 	} else if strings.EqualFold(accountName, "ContainerUser") {
-		return identity{SID: usergroup.ContainerUserSidString}, nil
+		return identity{SID: containerUserSidString}, nil
 	}
 
 	// All other lookups failed, so therefore determine if the account in

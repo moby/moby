@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/Microsoft/go-winio"
-	"github.com/docker/docker/internal/usergroup"
 	"github.com/docker/docker/pkg/system"
 	"github.com/moby/sys/reexec"
 	"github.com/pkg/errors"
@@ -43,7 +42,7 @@ func fixPermissionsReexec() {
 }
 
 func fixPermissionsWindows(source, destination, SID string) error {
-	privileges := []string{winio.SeRestorePrivilege, usergroup.SeTakeOwnershipPrivilege}
+	privileges := []string{winio.SeRestorePrivilege, seTakeOwnershipPrivilege}
 
 	err := winio.EnableProcessPrivileges(privileges)
 	if err != nil {
