@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/libnetwork/drvregistry"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/remote"
-	"github.com/docker/docker/libnetwork/drvregistry"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/ipams/defaultipam"
 	remoteipam "github.com/docker/docker/libnetwork/ipams/remote"
