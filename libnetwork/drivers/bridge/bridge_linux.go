@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/libnetwork/datastore"
 	"github.com/docker/docker/daemon/libnetwork/iptables"
 	"github.com/docker/docker/daemon/libnetwork/netiputil"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
@@ -24,7 +25,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/otelutil"
-	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/iptabler"
