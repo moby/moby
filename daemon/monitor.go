@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/daemon/container"
 	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
 	"github.com/docker/docker/daemon/internal/metrics"
-	"github.com/docker/docker/restartmanager"
+	"github.com/docker/docker/daemon/internal/restartmanager"
 	"github.com/pkg/errors"
 )
 
