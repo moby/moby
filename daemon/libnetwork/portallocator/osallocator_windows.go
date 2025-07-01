@@ -1,4 +1,4 @@
-package portmapper
+package portallocator
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/portallocator"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/ishidawataru/sctp"
 )
@@ -22,42 +21,42 @@ var (
 	ErrPortNotMapped = errors.New("port is not mapped")
 )
 
-// PortMapper manages the network address translation
-type PortMapper struct {
+// OSAllocator manages the network address translation
+type OSAllocator struct {
 	// allocatedPorts stores listening sockets used by active port mappings
 	// to reserve ports from the OS. Outer map is keyed by protocol, and inner
 	// map is keyed by host address and port.
 	allocatedPorts map[types.Protocol]map[netip.AddrPort]io.Closer
 	lock           sync.Mutex
 
-	allocator *portallocator.PortAllocator
+	allocator *PortAllocator
 }
 
-// New returns a new instance of PortMapper
-func New() *PortMapper {
-	return &PortMapper{
+// New returns a new instance of OSAllocator
+func New() *OSAllocator {
+	return &OSAllocator{
 		allocatedPorts: make(map[types.Protocol]map[netip.AddrPort]io.Closer),
-		allocator:      portallocator.Get(),
+		allocator:      Get(),
 	}
 }
 
-// MapRange maps the specified container transport address to the host's network address and transport port range
-func (pm *PortMapper) MapRange(hostIP net.IP, proto types.Protocol, hostPortStart, hostPortEnd int) (_ int, retErr error) {
-	pm.lock.Lock()
-	defer pm.lock.Unlock()
+// AllocateHostPort allocates a port from the OS (by creating a listening socket).
+func (pa *OSAllocator) AllocateHostPort(hostIP net.IP, proto types.Protocol, hostPortStart, hostPortEnd int) (_ int, retErr error) {
+	pa.lock.Lock()
+	defer pa.lock.Unlock()
 
-	allocatedHostPort, err := pm.allocator.RequestPortInRange(hostIP, proto.String(), hostPortStart, hostPortEnd)
+	allocatedHostPort, err := pa.allocator.RequestPortInRange(hostIP, proto.String(), hostPortStart, hostPortEnd)
 	if err != nil {
 		return 0, err
 	}
 	defer func() {
 		if retErr != nil {
-			pm.allocator.ReleasePort(hostIP, proto.String(), allocatedHostPort)
+			pa.allocator.ReleasePort(hostIP, proto.String(), allocatedHostPort)
 		}
 	}()
 
-	if pm.allocatedPorts[proto] == nil {
-		pm.allocatedPorts[proto] = make(map[netip.AddrPort]io.Closer)
+	if pa.allocatedPorts[proto] == nil {
+		pa.allocatedPorts[proto] = make(map[netip.AddrPort]io.Closer)
 	}
 
 	addr, ok := netip.AddrFromSlice(hostIP)
@@ -66,7 +65,7 @@ func (pm *PortMapper) MapRange(hostIP net.IP, proto types.Protocol, hostPortStar
 	}
 
 	hAddrPort := netip.AddrPortFrom(addr, uint16(allocatedHostPort))
-	if _, exists := pm.allocatedPorts[proto][hAddrPort]; exists {
+	if _, exists := pa.allocatedPorts[proto][hAddrPort]; exists {
 		return 0, ErrPortMappedForIP
 	}
 
@@ -83,7 +82,7 @@ func (pm *PortMapper) MapRange(hostIP net.IP, proto types.Protocol, hostPortStar
 		return 0, err
 	}
 
-	pm.allocatedPorts[proto][hAddrPort] = allocatedPort
+	pa.allocatedPorts[proto][hAddrPort] = allocatedPort
 	return allocatedHostPort, nil
 }
 
@@ -118,22 +117,22 @@ func allocateHostPort(proto string, hostIP net.IP, hostPort int) (io.Closer, err
 	}
 }
 
-// Unmap removes stored mapping for the specified host transport address
-func (pm *PortMapper) Unmap(hostIP net.IP, proto types.Protocol, hostPort int) error {
-	pm.lock.Lock()
-	defer pm.lock.Unlock()
+// Deallocate removes stored mapping for the specified host transport address
+func (pa *OSAllocator) Deallocate(hostIP net.IP, proto types.Protocol, hostPort int) error {
+	pa.lock.Lock()
+	defer pa.lock.Unlock()
 
 	addr, ok := netip.AddrFromSlice(hostIP)
 	if !ok {
 		return fmt.Errorf("invalid HostIP: %s", hostIP)
 	}
 
-	if pm.allocatedPorts[proto] == nil {
+	if pa.allocatedPorts[proto] == nil {
 		return ErrPortNotMapped
 	}
 
 	hAddrPort := netip.AddrPortFrom(addr, uint16(hostPort))
-	allocatedPort, exists := pm.allocatedPorts[proto][hAddrPort]
+	allocatedPort, exists := pa.allocatedPorts[proto][hAddrPort]
 	if !exists {
 		return ErrPortNotMapped
 	}
@@ -146,8 +145,8 @@ func (pm *PortMapper) Unmap(hostIP net.IP, proto types.Protocol, hostPort int) e
 		}
 	}
 
-	delete(pm.allocatedPorts[proto], hAddrPort)
+	delete(pa.allocatedPorts[proto], hAddrPort)
 
-	pm.allocator.ReleasePort(hostIP, proto.String(), int(hostPort))
+	pa.allocator.ReleasePort(hostIP, proto.String(), int(hostPort))
 	return nil
 }
