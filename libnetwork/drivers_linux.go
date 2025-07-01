@@ -9,8 +9,8 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/drivers/ipvlan"
 	"github.com/docker/docker/daemon/libnetwork/drivers/macvlan"
 	"github.com/docker/docker/daemon/libnetwork/drivers/null"
+	"github.com/docker/docker/daemon/libnetwork/drivers/overlay"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/drivers/overlay"
 )
 
 func registerNetworkDrivers(r driverapi.Registerer, store *datastore.Store, driverConfig func(string) map[string]interface{}) error {

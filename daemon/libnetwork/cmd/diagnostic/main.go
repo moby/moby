@@ -14,8 +14,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/diagnostic"
+	"github.com/docker/docker/daemon/libnetwork/drivers/overlay"
 	"github.com/docker/docker/libnetwork"
-	"github.com/docker/docker/libnetwork/drivers/overlay"
 )
 
 const (
