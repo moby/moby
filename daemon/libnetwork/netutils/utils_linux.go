@@ -9,9 +9,9 @@ import (
 	"slices"
 
 	"github.com/docker/docker/daemon/libnetwork/netiputil"
+	"github.com/docker/docker/daemon/libnetwork/ns"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/internal/nlwrap"
-	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"

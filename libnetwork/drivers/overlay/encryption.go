@@ -18,9 +18,9 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/iptables"
+	"github.com/docker/docker/daemon/libnetwork/ns"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
-	"github.com/docker/docker/libnetwork/ns"
 	"github.com/vishvananda/netlink"
 )
 

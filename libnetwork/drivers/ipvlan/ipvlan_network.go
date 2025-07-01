@@ -9,11 +9,11 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
+	"github.com/docker/docker/daemon/libnetwork/ns"
 	"github.com/docker/docker/daemon/libnetwork/options"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/pkg/parsers/kernel"
 )
 
