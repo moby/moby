@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/docker/docker/internal/usergroup"
+	"github.com/docker/docker/daemon/internal/usergroup"
 )
 
 const defaultSocketGroup = "docker"
