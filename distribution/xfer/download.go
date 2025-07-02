@@ -110,17 +110,17 @@ type DigestRegisterer interface {
 // Download method is called to get the layer tar data. Layers are then
 // registered in the appropriate order.  The caller must call the returned
 // release function once it is done with the returned RootFS object.
-func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS image.RootFS, layers []DownloadDescriptor, progressOutput progress.Output) (image.RootFS, func(), error) {
+func (ldm *LayerDownloadManager) Download(ctx context.Context, layers []DownloadDescriptor, progressOutput progress.Output) (image.RootFS, func(), error) {
 	var (
 		topLayer       layer.Layer
 		topDownload    *downloadTransfer
-		watcher        *watcher
+		xferWatcher    *watcher
 		missingLayer   bool
 		transferKey    = ""
 		downloadsByKey = make(map[string]*downloadTransfer)
 	)
 
-	rootFS := initialRootFS
+	rootFS := image.RootFS{Type: image.TypeLayers}
 	for _, descriptor := range layers {
 		key := descriptor.Key()
 		transferKey += key
@@ -156,8 +156,8 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 		var topDownloadUncasted transfer
 		if existingDownload, ok := downloadsByKey[key]; ok {
 			xferFunc := ldm.makeDownloadFuncFromDownload(descriptor, existingDownload, topDownload)
-			defer topDownload.transfer.release(watcher)
-			topDownloadUncasted, watcher = ldm.tm.transfer(transferKey, xferFunc, progressOutput)
+			defer topDownload.transfer.release(xferWatcher)
+			topDownloadUncasted, xferWatcher = ldm.tm.transfer(transferKey, xferFunc, progressOutput)
 			topDownload = topDownloadUncasted.(*downloadTransfer)
 			continue
 		}
@@ -168,11 +168,11 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 		var xferFunc doFunc
 		if topDownload != nil {
 			xferFunc = ldm.makeDownloadFunc(descriptor, "", topDownload)
-			defer topDownload.transfer.release(watcher)
+			defer topDownload.transfer.release(xferWatcher)
 		} else {
 			xferFunc = ldm.makeDownloadFunc(descriptor, rootFS.ChainID(), nil)
 		}
-		topDownloadUncasted, watcher = ldm.tm.transfer(transferKey, xferFunc, progressOutput)
+		topDownloadUncasted, xferWatcher = ldm.tm.transfer(transferKey, xferFunc, progressOutput)
 		topDownload = topDownloadUncasted.(*downloadTransfer)
 		downloadsByKey[key] = topDownload
 	}
@@ -197,7 +197,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 
 	select {
 	case <-ctx.Done():
-		topDownload.transfer.release(watcher)
+		topDownload.transfer.release(xferWatcher)
 		return rootFS, func() {}, ctx.Err()
 	case <-topDownload.done():
 		break
@@ -205,7 +205,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 
 	l, err := topDownload.result()
 	if err != nil {
-		topDownload.transfer.release(watcher)
+		topDownload.transfer.release(xferWatcher)
 		return rootFS, func() {}, err
 	}
 
@@ -213,13 +213,13 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 	// base layer on Windows.
 	for range layers {
 		if l == nil {
-			topDownload.transfer.release(watcher)
+			topDownload.transfer.release(xferWatcher)
 			return rootFS, func() {}, errors.New("internal error: too few parent layers")
 		}
 		rootFS.DiffIDs = append([]layer.DiffID{l.DiffID()}, rootFS.DiffIDs...)
 		l = l.Parent()
 	}
-	return rootFS, func() { topDownload.transfer.release(watcher) }, err
+	return rootFS, func() { topDownload.transfer.release(xferWatcher) }, err
 }
 
 // makeDownloadFunc returns a function that performs the layer download and
