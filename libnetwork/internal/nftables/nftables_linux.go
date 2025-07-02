@@ -408,7 +408,7 @@ type ChainRef struct {
 // It is an error to create a base chain that already exists.
 // If the underlying chain already exists, it will be flushed by the
 // next [TableRef.Apply] before new rules are added.
-func (t TableRef) BaseChain(name string, chainType BaseChainType, hook BaseChainHook, priority int) (ChainRef, error) {
+func (t TableRef) BaseChain(ctx context.Context, name string, chainType BaseChainType, hook BaseChainHook, priority int) (ChainRef, error) {
 	if _, ok := t.t.Chains[name]; ok {
 		return ChainRef{}, fmt.Errorf("chain %q already exists", name)
 	}
@@ -423,7 +423,7 @@ func (t TableRef) BaseChain(name string, chainType BaseChainType, hook BaseChain
 		ruleGroups: map[RuleGroup][]string{},
 	}
 	t.t.Chains[name] = c
-	log.G(context.TODO()).WithFields(log.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"family": t.t.Family,
 		"table":  t.t.Name,
 		"chain":  name,
@@ -442,7 +442,7 @@ func (t TableRef) BaseChain(name string, chainType BaseChainType, hook BaseChain
 //
 // If a new [ChainRef] is created and the underlying chain already exists, it
 // will be flushed by the next [TableRef.Apply] before new rules are added.
-func (t TableRef) Chain(name string) ChainRef {
+func (t TableRef) Chain(ctx context.Context, name string) ChainRef {
 	c, ok := t.t.Chains[name]
 	if !ok {
 		c = &chain{
@@ -453,7 +453,7 @@ func (t TableRef) Chain(name string) ChainRef {
 		}
 		t.t.Chains[name] = c
 	}
-	log.G(context.TODO()).WithFields(log.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"family": t.t.Family,
 		"table":  t.t.Name,
 		"chain":  name,
@@ -462,14 +462,14 @@ func (t TableRef) Chain(name string) ChainRef {
 }
 
 // ChainUpdateFunc is a function that can add rules to a chain, or remove rules from it.
-type ChainUpdateFunc func(RuleGroup, string, ...interface{}) error
+type ChainUpdateFunc func(context.Context, RuleGroup, string, ...interface{}) error
 
 // ChainUpdateFunc returns a [ChainUpdateFunc] to add rules to the named chain if
 // enable is true, or to remove rules from the chain if enable is false.
 // (Written as a convenience function to ease migration of iptables functions
 // originally written with an enable flag.)
-func (t TableRef) ChainUpdateFunc(name string, enable bool) ChainUpdateFunc {
-	c := t.Chain(name)
+func (t TableRef) ChainUpdateFunc(ctx context.Context, name string, enable bool) ChainUpdateFunc {
+	c := t.Chain(ctx, name)
 	if enable {
 		return c.AppendRule
 	}
@@ -477,14 +477,14 @@ func (t TableRef) ChainUpdateFunc(name string, enable bool) ChainUpdateFunc {
 }
 
 // DeleteChain deletes a chain. It is an error to delete a chain that does not exist.
-func (t TableRef) DeleteChain(name string) error {
+func (t TableRef) DeleteChain(ctx context.Context, name string) error {
 	if _, ok := t.t.Chains[name]; !ok {
 		return fmt.Errorf("chain %q does not exist", name)
 	}
 	delete(t.t.Chains, name)
 	t.t.DeleteChainCommands = append(t.t.DeleteChainCommands,
 		fmt.Sprintf("delete chain %s %s %s", t.t.Family, t.t.Name, name))
-	log.G(context.TODO()).WithFields(log.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"family": t.t.Family,
 		"table":  t.t.Name,
 		"chain":  name,
@@ -504,7 +504,7 @@ func (c ChainRef) SetPolicy(policy string) error {
 }
 
 // AppendRule appends a rule to a [RuleGroup] in a [ChainRef].
-func (c ChainRef) AppendRule(group RuleGroup, rule string, args ...interface{}) error {
+func (c ChainRef) AppendRule(ctx context.Context, group RuleGroup, rule string, args ...interface{}) error {
 	if len(args) > 0 {
 		rule = fmt.Sprintf(rule, args...)
 	}
@@ -513,7 +513,7 @@ func (c ChainRef) AppendRule(group RuleGroup, rule string, args ...interface{}) 
 	}
 	c.c.ruleGroups[group] = append(c.c.ruleGroups[group], rule)
 	c.c.Dirty = true
-	log.G(context.TODO()).WithFields(log.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"family": c.c.table.Family,
 		"table":  c.c.table.Name,
 		"chain":  c.c.Name,
@@ -523,10 +523,18 @@ func (c ChainRef) AppendRule(group RuleGroup, rule string, args ...interface{}) 
 	return nil
 }
 
+// AppendRuleCf calls AppendRule and returns a cleanup function or an error.
+func (c ChainRef) AppendRuleCf(ctx context.Context, group RuleGroup, rule string, args ...interface{}) (func(context.Context) error, error) {
+	if err := c.AppendRule(ctx, group, rule, args...); err != nil {
+		return nil, err
+	}
+	return func(ctx context.Context) error { return c.DeleteRule(ctx, group, rule, args...) }, nil
+}
+
 // DeleteRule deletes a rule from a [RuleGroup] in a [ChainRef]. It is an error
 // to delete from a group that does not exist, or to delete a rule that does not
 // exist.
-func (c ChainRef) DeleteRule(group RuleGroup, rule string, args ...interface{}) error {
+func (c ChainRef) DeleteRule(ctx context.Context, group RuleGroup, rule string, args ...interface{}) error {
 	if len(args) > 0 {
 		rule = fmt.Sprintf(rule, args...)
 	}
@@ -540,7 +548,7 @@ func (c ChainRef) DeleteRule(group RuleGroup, rule string, args ...interface{}) 
 		return fmt.Errorf("rule %q does not exist", rule)
 	}
 	c.c.Dirty = true
-	log.G(context.TODO()).WithFields(log.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"family": c.c.table.Family,
 		"table":  c.c.table.Name,
 		"chain":  c.c.Name,
@@ -578,7 +586,7 @@ type VMapRef struct {
 //
 // If a [VMapRef] is created and the underlying map already exists, it will be flushed
 // by the next [TableRef.Apply] before new elements are added.
-func (t TableRef) InterfaceVMap(name string) VMapRef {
+func (t TableRef) InterfaceVMap(ctx context.Context, name string) VMapRef {
 	if vmap, ok := t.t.VMaps[name]; ok {
 		return VMapRef{vmap}
 	}
@@ -592,7 +600,7 @@ func (t TableRef) InterfaceVMap(name string) VMapRef {
 		Dirty:           true,
 	}
 	t.t.VMaps[name] = vmap
-	log.G(context.TODO()).WithFields(log.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"family": t.t.Family,
 		"table":  t.t.Name,
 		"vmap":   name,
@@ -602,13 +610,13 @@ func (t TableRef) InterfaceVMap(name string) VMapRef {
 
 // AddElement adds an element to a verdict map. The caller must ensure the key has
 // the correct type. It is an error to add a key that already exists.
-func (v VMapRef) AddElement(key string, verdict string) error {
+func (v VMapRef) AddElement(ctx context.Context, key string, verdict string) error {
 	if _, ok := v.v.Elements[key]; ok {
 		return fmt.Errorf("verdict map already contains element %q", key)
 	}
 	v.v.Elements[key] = verdict
 	v.v.AddedElements[key] = verdict
-	log.G(context.TODO()).WithFields(log.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"family":  v.v.table.Family,
 		"table":   v.v.table.Name,
 		"vmap":    v.v.Name,
@@ -618,15 +626,23 @@ func (v VMapRef) AddElement(key string, verdict string) error {
 	return nil
 }
 
+// AddElementCf calls AddElement and returns a cleanup function or an error.
+func (v VMapRef) AddElementCf(ctx context.Context, key string, verdict string) (func(context.Context) error, error) {
+	if err := v.AddElement(ctx, key, verdict); err != nil {
+		return nil, err
+	}
+	return func(ctx context.Context) error { return v.DeleteElement(ctx, key) }, nil
+}
+
 // DeleteElement deletes an element from a verdict map. It is an error to delete
 // an element that does not exist.
-func (v VMapRef) DeleteElement(key string) error {
+func (v VMapRef) DeleteElement(ctx context.Context, key string) error {
 	if _, ok := v.v.Elements[key]; !ok {
 		return fmt.Errorf("verdict map does not contain element %q", key)
 	}
 	delete(v.v.Elements, key)
 	v.v.DeletedElements[key] = struct{}{}
-	log.G(context.TODO()).WithFields(log.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"family": v.v.table.Family,
 		"table":  v.v.table.Name,
 		"vmap":   v.v.Name,
@@ -666,7 +682,7 @@ type SetRef struct {
 // change if we need an "inet" table.)
 //
 // See https://wiki.nftables.org/wiki-nftables/index.php/Sets#Named_sets
-func (t TableRef) PrefixSet(name string) SetRef {
+func (t TableRef) PrefixSet(ctx context.Context, name string) SetRef {
 	if s, ok := t.t.Sets[name]; ok {
 		return SetRef{s}
 	}
@@ -684,7 +700,7 @@ func (t TableRef) PrefixSet(name string) SetRef {
 		s.ElementType = nftTypeIPv6Addr
 	}
 	t.t.Sets[name] = s
-	log.G(context.TODO()).WithFields(log.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"family": t.t.Family,
 		"table":  t.t.Name,
 		"set":    name,
@@ -695,13 +711,13 @@ func (t TableRef) PrefixSet(name string) SetRef {
 // AddElement adds an element to a set. It is the caller's responsibility to make sure
 // the element has the correct type. It is an error to add an element that is already
 // in the set.
-func (s SetRef) AddElement(element string) error {
+func (s SetRef) AddElement(ctx context.Context, element string) error {
 	if _, ok := s.s.Elements[element]; ok {
 		return fmt.Errorf("set already contains element %q", element)
 	}
 	s.s.Elements[element] = struct{}{}
 	s.s.AddedElements[element] = struct{}{}
-	log.G(context.TODO()).WithFields(log.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"family":  s.s.table.Family,
 		"table":   s.s.table.Name,
 		"set":     s.s.Name,
@@ -712,13 +728,13 @@ func (s SetRef) AddElement(element string) error {
 
 // DeleteElement deletes an element from the set. It is an error to delete an
 // element that is not in the set.
-func (s SetRef) DeleteElement(element string) error {
+func (s SetRef) DeleteElement(ctx context.Context, element string) error {
 	if _, ok := s.s.Elements[element]; !ok {
 		return fmt.Errorf("set does not contain element %q", element)
 	}
 	delete(s.s.Elements, element)
 	s.s.DeletedElements[element] = struct{}{}
-	log.G(context.TODO()).WithFields(log.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"family":  s.s.table.Family,
 		"table":   s.s.table.Name,
 		"set":     s.s.Name,
