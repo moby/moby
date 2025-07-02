@@ -35,18 +35,18 @@ type PortMapper interface {
 
 type PortBindingReq struct {
 	types.PortBinding
+	// Mapper is the name of the port mapper used to process this PortBindingReq.
+	Mapper string
 	// ChildHostIP is a temporary field used to pass the host IP address as
 	// seen from the daemon. (It'll be removed once the portmapper API is
 	// implemented).
 	ChildHostIP net.IP `json:"-"`
-	// DisableNAT is a temporary field used to indicate whether the port is
-	// mapped on the host or not. (It'll be removed once the portmapper API is
-	// implemented).
-	DisableNAT bool `json:"-"`
 }
 
 type PortBinding struct {
 	types.PortBinding
+	// Mapper is the name of the port mapper used to process this PortBinding.
+	Mapper string
 	// BoundSocket is used to reserve a host port for the binding. If the
 	// userland proxy is in-use, it's passed to the proxy when the proxy is
 	// started, then it's closed and set to nil here.

@@ -1457,8 +1457,9 @@ func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.Plugin
 		nwconfig.OptionDefaultNetwork(network.DefaultNetwork),
 		nwconfig.OptionLabels(conf.Labels),
 		nwconfig.OptionNetworkControlPlaneMTU(conf.NetworkControlPlaneMTU),
-		driverOptions(conf),
 	}
+
+	options = append(options, networkPlatformOptions(conf)...)
 
 	defaultAddressPools := ipamutils.GetLocalScopeDefaultNetworks()
 	if len(conf.NetworkConfig.DefaultAddressPools.Value()) > 0 {
