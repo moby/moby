@@ -180,7 +180,7 @@ func CreateFS(ctx context.Context, sessionID string, k string, ref cache.Immutab
 			return nil, nil, err
 		}
 		stmtFS := staticfs.NewFS()
-		split := opt.UsePlatformSplit(isMap)
+		addPlatformToFilename := isMap && !opt.UsePlatformSplit(isMap)
 
 		names := map[string]struct{}{}
 		for i, stmt := range stmts {
@@ -190,7 +190,7 @@ func CreateFS(ctx context.Context, sessionID string, k string, ref cache.Immutab
 			}
 
 			name := opt.AttestationPrefix + path.Base(attestations[i].Path)
-			if !split {
+			if addPlatformToFilename {
 				nameExt := path.Ext(name)
 				namBase := strings.TrimSuffix(name, nameExt)
 				name = fmt.Sprintf("%s.%s%s", namBase, strings.ReplaceAll(k, "/", "_"), nameExt)
