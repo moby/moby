@@ -3,6 +3,7 @@ package libnetwork
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/docker/docker/daemon/libnetwork/config"
 	"github.com/docker/docker/daemon/libnetwork/datastore"
@@ -14,6 +15,11 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/drivers/null"
 	"github.com/docker/docker/daemon/libnetwork/drivers/overlay"
 	"github.com/docker/docker/daemon/libnetwork/drvregistry"
+	"github.com/docker/docker/daemon/libnetwork/portmapper"
+	"github.com/docker/docker/daemon/libnetwork/portmappers/nat"
+	"github.com/docker/docker/daemon/libnetwork/portmappers/nat/rlkclient"
+	"github.com/docker/docker/daemon/libnetwork/portmappers/routed"
+	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
 func registerNetworkDrivers(r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, driverConfig func(string) map[string]interface{}) error {
@@ -45,5 +51,28 @@ func registerNetworkDrivers(r driverapi.Registerer, store *datastore.Store, pms 
 }
 
 func registerPortMappers(ctx context.Context, r *drvregistry.PortMappers, cfg *config.Config) error {
+	var pdc *rlkclient.PortDriverClient
+	if cfg.Rootless {
+		var err error
+		pdc, err = rlkclient.NewPortDriverClient(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to create port driver client: %w", err)
+		}
+	}
+
+	if err := nat.Register(r, nat.Config{
+		RlkClient: pdc,
+		StartProxy: func(pb types.PortBinding, file *os.File) (func() error, error) {
+			return portmapper.StartProxy(pb, cfg.UserlandProxyPath, file)
+		},
+		EnableProxy: cfg.EnableUserlandProxy && cfg.UserlandProxyPath != "",
+	}); err != nil {
+		return fmt.Errorf("registering nat portmapper: %w", err)
+	}
+
+	if err := routed.Register(r); err != nil {
+		return fmt.Errorf("registering routed portmapper: %w", err)
+	}
+
 	return nil
 }
