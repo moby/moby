@@ -20,7 +20,7 @@ linters:
 run:
   # prevent golangci-lint from deducting the go version to lint for through go.mod,
   # which causes it to fallback to go1.17 semantics.
-  go: "1.24.3"
+  go: "1.25.2"
   concurrency: 2
   # NOTE: modules-download-mode: vendor is NOT supported since this project
   # does not use go.mod (only vendor.mod for CalVer compatibility).
