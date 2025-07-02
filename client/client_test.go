@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/env"
 	"gotest.tools/v3/skip"
 )
 
@@ -86,10 +85,11 @@ func TestNewClientWithOpsFromEnv(t *testing.T) {
 		},
 	}
 
-	env.PatchAll(t, nil)
 	for _, tc := range testcases {
 		t.Run(tc.doc, func(t *testing.T) {
-			env.PatchAll(t, tc.envs)
+			for key, value := range tc.envs {
+				t.Setenv(key, value)
+			}
 			client, err := NewClientWithOpts(FromEnv)
 			if tc.expectedError != "" {
 				assert.Check(t, is.Error(err, tc.expectedError))
@@ -228,12 +228,10 @@ func TestParseHostURL(t *testing.T) {
 }
 
 func TestNewClientWithOpsFromEnvSetsDefaultVersion(t *testing.T) {
-	env.PatchAll(t, map[string]string{
-		"DOCKER_HOST":        "",
-		"DOCKER_API_VERSION": "",
-		"DOCKER_TLS_VERIFY":  "",
-		"DOCKER_CERT_PATH":   "",
-	})
+	t.Setenv("DOCKER_HOST", "")
+	t.Setenv("DOCKER_API_VERSION", "")
+	t.Setenv("DOCKER_TLS_VERIFY", "")
+	t.Setenv("DOCKER_CERT_PATH", "")
 
 	client, err := NewClientWithOpts(FromEnv)
 	assert.NilError(t, err)
