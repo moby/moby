@@ -12,7 +12,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/internal/caller"
-	"github.com/docker/docker/pkg/stack"
 )
 
 // Server when the debug is enabled exposes a
@@ -35,7 +34,6 @@ func New() *Server {
 	s.HandleFunc("/", notImplemented)
 	s.HandleFunc("/help", s.help)
 	s.HandleFunc("/ready", ready)
-	s.HandleFunc("/stackdump", stackTrace)
 	return s
 }
 
@@ -177,25 +175,6 @@ func ready(w http.ResponseWriter, r *http.Request) {
 		"url":       r.URL.String(),
 	}).Info("ready done")
 	_, _ = HTTPReply(w, CommandSucceed(&StringCmd{Info: "OK"}), jsonOutput)
-}
-
-func stackTrace(w http.ResponseWriter, r *http.Request) {
-	_ = r.ParseForm()
-	_, jsonOutput := ParseHTTPFormOptions(r)
-
-	// audit logs
-	logger := log.G(context.TODO()).WithFields(log.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
-	logger.Info("collecting stack trace")
-
-	// FIXME(thaJeztah): make path configurable, or use same location as used by daemon.setupDumpStackTrap
-	path, err := stack.DumpToFile("/tmp/")
-	if err != nil {
-		logger.WithError(err).Error("failed to write stack trace to file")
-		_, _ = HTTPReply(w, FailCommand(err), jsonOutput)
-	} else {
-		logger.WithField("file", path).Info("wrote stack trace to file")
-		_, _ = HTTPReply(w, CommandSucceed(&StringCmd{Info: "goroutine stacks written to " + path + "\n"}), jsonOutput)
-	}
 }
 
 // DebugHTTPForm helper to print the form url parameters
