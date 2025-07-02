@@ -384,8 +384,8 @@ github.com/mitchellh/mapstructure v0.0.0-20160808181253-ca63d7c062ee/go.mod h1:F
 github.com/mitchellh/reflectwalk v1.0.2 h1:G2LzWKi524PWgd3mLHV8Y5k7s6XUvT0Gef6zxSIeXaQ=
 github.com/mitchellh/reflectwalk v1.0.2/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
 github.com/mndrix/tap-go v0.0.0-20171203230836-629fa407e90b/go.mod h1:pzzDgJWZ34fGzaAZGFW22KVZDfyrYW+QABMrWnJBnSs=
-github.com/moby/buildkit v0.23.1 h1:CZtFmPRF+IFG1C8QfPnktGO1Dzzt5JSwtQ5eDqIh+ag=
-github.com/moby/buildkit v0.23.1/go.mod h1:keNXljNmKX1T0AtM0bMObc8OV6mA9cOuquVbPcRpU/Y=
+github.com/moby/buildkit v0.23.2 h1:gt/dkfcpgTXKx+B9I310kV767hhVqTvEyxGgI3mqsGQ=
+github.com/moby/buildkit v0.23.2/go.mod h1:iEjAfPQKIuO+8y6OcInInvzqTMiKMbb2RdJz1K/95a0=
 github.com/moby/docker-image-spec v1.3.1 h1:jMKff3w6PgbfSa69GfNg+zN/XLhfXJGnEx3Nl2EsFP0=
 github.com/moby/docker-image-spec v1.3.1/go.mod h1:eKmb5VW8vQEh/BAr2yvVNvuiJuY6UIocYsFu/DxxRpo=
 github.com/moby/go-archive v0.1.0 h1:Kk/5rdW/g+H8NHdJW2gsXyZ7UnzvJNOy6VKJqueWdcQ=
@@ -559,8 +559,8 @@ github.com/tonistiigi/dchapes-mode v0.0.0-20250318174251-73d941a28323 h1:r0p7fK5
 github.com/tonistiigi/dchapes-mode v0.0.0-20250318174251-73d941a28323/go.mod h1:3Iuxbr0P7D3zUzBMAZB+ois3h/et0shEz0qApgHYGpY=
 github.com/tonistiigi/fsutil v0.0.0-20250605211040-586307ad452f h1:MoxeMfHAe5Qj/ySSBfL8A7l1V+hxuluj8owsIEEZipI=
 github.com/tonistiigi/fsutil v0.0.0-20250605211040-586307ad452f/go.mod h1:BKdcez7BiVtBvIcef90ZPc6ebqIWr4JWD7+EvLm6J98=
-github.com/tonistiigi/go-actions-cache v0.0.0-20250611155157-388a2ec8cdf8 h1:KbACff2cR+ip6/Kmt8zCzieMlKYyypArQT1ZweFxewQ=
-github.com/tonistiigi/go-actions-cache v0.0.0-20250611155157-388a2ec8cdf8/go.mod h1:gJlfrsY8U+1n9RGKSgWryNFfzHRl/b1a99RUVL1L4Qw=
+github.com/tonistiigi/go-actions-cache v0.0.0-20250626083717-378c5ed1ddd9 h1:GWuTlpuUQBaK6u0R3HwE+eWaQ2aXwHgo8CaXgqtDQZU=
+github.com/tonistiigi/go-actions-cache v0.0.0-20250626083717-378c5ed1ddd9/go.mod h1:cD0SB2270BYw6HYKriFn4H6NRLhGj6ytf48YTpsm8LY=
 github.com/tonistiigi/go-archvariant v1.0.0 h1:5LC1eDWiBNflnTF1prCiX09yfNHIxDC/aukdhCdTyb0=
 github.com/tonistiigi/go-archvariant v1.0.0/go.mod h1:TxFmO5VS6vMq2kvs3ht04iPXtu2rUT/erOnGFYfk5Ho=
 github.com/tonistiigi/go-csvvalue v0.0.0-20240814133006-030d3b2625d0 h1:2f304B10LaZdB8kkVEaoXvAMVan2tl9AiK4G0odjQtE=
