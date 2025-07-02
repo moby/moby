@@ -964,6 +964,10 @@ github.com/moby/moby/api/types/system
 github.com/moby/moby/api/types/time
 github.com/moby/moby/api/types/versions
 github.com/moby/moby/api/types/volume
+# github.com/moby/moby/client v0.0.0 => ./client
+## explicit; go 1.23.0
+github.com/moby/moby/client
+github.com/moby/moby/client/buildkit
 # github.com/moby/patternmatcher v0.6.0
 ## explicit; go 1.19
 github.com/moby/patternmatcher
@@ -1709,7 +1713,6 @@ gopkg.in/yaml.v3
 gotest.tools/v3/assert
 gotest.tools/v3/assert/cmp
 gotest.tools/v3/assert/opt
-gotest.tools/v3/env
 gotest.tools/v3/fs
 gotest.tools/v3/golden
 gotest.tools/v3/icmd
@@ -1746,3 +1749,4 @@ tags.cncf.io/container-device-interface/pkg/parser
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
 # github.com/moby/moby/api => ./api
+# github.com/moby/moby/client => ./client
