@@ -19,7 +19,10 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/ns"
 	"github.com/docker/docker/daemon/libnetwork/portallocator"
 	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
+	"github.com/docker/docker/daemon/libnetwork/portmappers/nat"
+	"github.com/docker/docker/daemon/libnetwork/portmappers/routed"
 	"github.com/docker/docker/daemon/libnetwork/types"
+	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/internal/testutils/storeutils"
 	"github.com/sirupsen/logrus"
@@ -32,7 +35,12 @@ func TestPortMappingConfig(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	useStubFirewaller(t)
 
-	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
+	pms := drvregistry.PortMappers{}
+	pm := &stubPortMapper{}
+	err := pms.Register("nat", pm)
+	assert.NilError(t, err)
+
+	d := newDriver(storeutils.NewTempStore(t), &pms)
 
 	config := &configuration{
 		EnableIPTables: true,
@@ -61,7 +69,7 @@ func TestPortMappingConfig(t *testing.T) {
 	}
 
 	ipdList4 := getIPv4Data(t)
-	err := d.CreateNetwork(context.Background(), "dummy", netOptions, nil, ipdList4, getIPv6Data(t))
+	err = d.CreateNetwork(context.Background(), "dummy", netOptions, nil, ipdList4, getIPv6Data(t))
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -117,7 +125,12 @@ func TestPortMappingV6Config(t *testing.T) {
 		t.Fatalf("Could not bring loopback iface up: %v", err)
 	}
 
-	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
+	pms := drvregistry.PortMappers{}
+	pm := &stubPortMapper{}
+	err := pms.Register("nat", pm)
+	assert.NilError(t, err)
+
+	d := newDriver(storeutils.NewTempStore(t), &pms)
 
 	config := &configuration{
 		EnableIPTables:  true,
@@ -147,7 +160,7 @@ func TestPortMappingV6Config(t *testing.T) {
 
 	ipdList4 := getIPv4Data(t)
 	ipdList6 := getIPv6Data(t)
-	err := d.CreateNetwork(context.Background(), "dummy", netOptions, nil, ipdList4, ipdList6)
+	err = d.CreateNetwork(context.Background(), "dummy", netOptions, nil, ipdList4, ipdList6)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -212,7 +225,7 @@ func TestCmpPortBindingReqs(t *testing.T) {
 	assert.Check(t, cmpPortBindingReqs(pb, pb) == 0)
 
 	pbA, pbB = pb, pb
-	pbB.DisableNAT = true
+	pbB.Mapper = "routed"
 	assert.Check(t, cmpPortBindingReqs(pbA, pbB) < 0)
 	assert.Check(t, cmpPortBindingReqs(pbB, pbA) > 0)
 
@@ -254,30 +267,6 @@ func TestCmpPortBindingReqs(t *testing.T) {
 	assert.Check(t, cmpPortBindingReqs(pbB, pbA) > 0)
 }
 
-func TestBindHostPortsError(t *testing.T) {
-	cfg := []portmapperapi.PortBindingReq{
-		{
-			PortBinding: types.PortBinding{
-				Proto:       types.TCP,
-				Port:        80,
-				HostPort:    8080,
-				HostPortEnd: 8080,
-			},
-		},
-		{
-			PortBinding: types.PortBinding{
-				Proto:       types.TCP,
-				Port:        80,
-				HostPort:    8080,
-				HostPortEnd: 8081,
-			},
-		},
-	}
-	pbs, err := bindHostPorts(context.Background(), cfg, "", nil, nil)
-	assert.Check(t, is.Error(err, "port binding mismatch 80/tcp:8080-8080, 80/tcp:8080-8081"))
-	assert.Check(t, is.Nil(pbs))
-}
-
 func newIPNet(t *testing.T, cidr string) *net.IPNet {
 	t.Helper()
 	ip, ipNet, err := net.ParseCIDR(cidr)
@@ -300,7 +289,7 @@ func TestAddPortMappings(t *testing.T) {
 		gwMode6      gwMode
 		cfg          []portmapperapi.PortBindingReq
 		defHostIP    net.IP
-		proxyPath    string
+		enableProxy  bool
 		hairpin      bool
 		busyPortIPv4 int
 		rootless     bool
@@ -325,7 +314,7 @@ func TestAddPortMappings(t *testing.T) {
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22}},
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80}},
 			},
-			proxyPath: "/dummy/path/to/proxy",
+			enableProxy: true,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero, HostPort: firstEphemPort},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero, HostPort: firstEphemPort},
@@ -334,24 +323,24 @@ func TestAddPortMappings(t *testing.T) {
 			},
 		},
 		{
-			name:      "specific host port",
-			epAddrV4:  ctrIP4,
-			epAddrV6:  ctrIP6,
-			cfg:       []portmapperapi.PortBindingReq{{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80, HostPort: 8080}}},
-			proxyPath: "/dummy/path/to/proxy",
+			name:        "specific host port",
+			epAddrV4:    ctrIP4,
+			epAddrV6:    ctrIP6,
+			cfg:         []portmapperapi.PortBindingReq{{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80, HostPort: 8080}}},
+			enableProxy: true,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: 8080, HostPortEnd: 8080},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero, HostPort: 8080, HostPortEnd: 8080},
 			},
 		},
 		{
-			name:      "nat explicitly enabled",
-			epAddrV4:  ctrIP4,
-			epAddrV6:  ctrIP6,
-			cfg:       []portmapperapi.PortBindingReq{{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80, HostPort: 8080}}},
-			gwMode4:   gwModeNAT,
-			gwMode6:   gwModeNAT,
-			proxyPath: "/dummy/path/to/proxy",
+			name:        "nat explicitly enabled",
+			epAddrV4:    ctrIP4,
+			epAddrV6:    ctrIP6,
+			cfg:         []portmapperapi.PortBindingReq{{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80, HostPort: 8080}}},
+			gwMode4:     gwModeNAT,
+			gwMode6:     gwModeNAT,
+			enableProxy: true,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: 8080, HostPortEnd: 8080},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero, HostPort: 8080, HostPortEnd: 8080},
@@ -362,27 +351,27 @@ func TestAddPortMappings(t *testing.T) {
 			epAddrV4:     ctrIP4,
 			epAddrV6:     ctrIP6,
 			cfg:          []portmapperapi.PortBindingReq{{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80, HostPort: 8080}}},
-			proxyPath:    "/dummy/path/to/proxy",
+			enableProxy:  true,
 			busyPortIPv4: 8080,
 			expErr:       "failed to bind host port 0.0.0.0:8080/tcp: address already in use",
 		},
 		{
-			name:      "ipv4 mapped container address with specific host port",
-			epAddrV4:  ctrIP4Mapped,
-			epAddrV6:  ctrIP6,
-			cfg:       []portmapperapi.PortBindingReq{{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80, HostPort: 8080}}},
-			proxyPath: "/dummy/path/to/proxy",
+			name:        "ipv4 mapped container address with specific host port",
+			epAddrV4:    ctrIP4Mapped,
+			epAddrV6:    ctrIP6,
+			cfg:         []portmapperapi.PortBindingReq{{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80, HostPort: 8080}}},
+			enableProxy: true,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: 8080, HostPortEnd: 8080},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero, HostPort: 8080, HostPortEnd: 8080},
 			},
 		},
 		{
-			name:      "ipv4 mapped host address with specific host port",
-			epAddrV4:  ctrIP4,
-			epAddrV6:  ctrIP6,
-			cfg:       []portmapperapi.PortBindingReq{{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80, HostIP: newIPNet(t, "::ffff:127.0.0.1/128").IP, HostPort: 8080}}},
-			proxyPath: "/dummy/path/to/proxy",
+			name:        "ipv4 mapped host address with specific host port",
+			epAddrV4:    ctrIP4,
+			epAddrV6:    ctrIP6,
+			cfg:         []portmapperapi.PortBindingReq{{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80, HostIP: newIPNet(t, "::ffff:127.0.0.1/128").IP, HostPort: 8080}}},
+			enableProxy: true,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: newIPNet(t, "127.0.0.1/32").IP, HostPort: 8080, HostPortEnd: 8080},
 			},
@@ -392,7 +381,7 @@ func TestAddPortMappings(t *testing.T) {
 			epAddrV4:     ctrIP4,
 			epAddrV6:     ctrIP6,
 			cfg:          []portmapperapi.PortBindingReq{{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80, HostPort: 8080, HostPortEnd: 8081}}},
-			proxyPath:    "/dummy/path/to/proxy",
+			enableProxy:  true,
 			busyPortIPv4: 8080,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: 8081, HostPortEnd: 8081},
@@ -407,7 +396,7 @@ func TestAddPortMappings(t *testing.T) {
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80, HostIP: net.IPv4zero, HostPort: 8080, HostPortEnd: 8081}},
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80, HostIP: net.IPv6zero, HostPort: 8080, HostPortEnd: 8081}},
 			},
-			proxyPath:    "/dummy/path/to/proxy",
+			enableProxy:  true,
 			busyPortIPv4: 8080,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: 8081},
@@ -426,7 +415,7 @@ func TestAddPortMappings(t *testing.T) {
 				{PortBinding: types.PortBinding{Proto: types.UDP, Port: 81, HostPort: 8080, HostPortEnd: 8083}},
 				{PortBinding: types.PortBinding{Proto: types.UDP, Port: 82, HostPort: 8080, HostPortEnd: 8083}},
 			},
-			proxyPath:    "/dummy/path/to/proxy",
+			enableProxy:  true,
 			busyPortIPv4: 8082,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: 8080, HostPortEnd: 8080},
@@ -452,7 +441,7 @@ func TestAddPortMappings(t *testing.T) {
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 81, HostPort: 8080, HostPortEnd: 8082}},
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 82, HostPort: 8080, HostPortEnd: 8082}},
 			},
-			proxyPath:    "/dummy/path/to/proxy",
+			enableProxy:  true,
 			busyPortIPv4: 8081,
 			expErr:       "failed to bind host port 0.0.0.0:8081",
 		},
@@ -463,7 +452,7 @@ func TestAddPortMappings(t *testing.T) {
 				{PortBinding: types.PortBinding{Proto: types.TCP, HostIP: net.IPv4zero, Port: 80}},
 				{PortBinding: types.PortBinding{Proto: types.TCP, HostIP: net.IPv6zero, Port: 80}},
 			},
-			proxyPath: "/dummy/path/to/proxy",
+			enableProxy: true,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: firstEphemPort},
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv6zero, HostPort: firstEphemPort},
@@ -475,7 +464,7 @@ func TestAddPortMappings(t *testing.T) {
 			cfg: []portmapperapi.PortBindingReq{
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80}},
 			},
-			proxyPath:   "/dummy/path/to/proxy",
+			enableProxy: true,
 			noProxy6To4: true,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: firstEphemPort},
@@ -494,45 +483,45 @@ func TestAddPortMappings(t *testing.T) {
 			},
 		},
 		{
-			name:      "default host ip is nonzero v4",
-			epAddrV4:  ctrIP4,
-			epAddrV6:  ctrIP6,
-			cfg:       []portmapperapi.PortBindingReq{{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80}}},
-			proxyPath: "/dummy/path/to/proxy",
-			defHostIP: newIPNet(t, "127.0.0.1/8").IP,
+			name:        "default host ip is nonzero v4",
+			epAddrV4:    ctrIP4,
+			epAddrV6:    ctrIP6,
+			cfg:         []portmapperapi.PortBindingReq{{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80}}},
+			enableProxy: true,
+			defHostIP:   newIPNet(t, "127.0.0.1/8").IP,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: newIPNet(t, "127.0.0.1/8").IP, HostPort: firstEphemPort},
 			},
 		},
 		{
-			name:      "default host ip is nonzero IPv4-mapped IPv6",
-			epAddrV4:  ctrIP4,
-			epAddrV6:  ctrIP6,
-			cfg:       []portmapperapi.PortBindingReq{{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80}}},
-			proxyPath: "/dummy/path/to/proxy",
-			defHostIP: newIPNet(t, "::ffff:127.0.0.1/72").IP,
+			name:        "default host ip is nonzero IPv4-mapped IPv6",
+			epAddrV4:    ctrIP4,
+			epAddrV6:    ctrIP6,
+			cfg:         []portmapperapi.PortBindingReq{{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80}}},
+			enableProxy: true,
+			defHostIP:   newIPNet(t, "::ffff:127.0.0.1/72").IP,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: newIPNet(t, "127.0.0.1/8").IP, HostPort: firstEphemPort},
 			},
 		},
 		{
-			name:      "default host ip is v6",
-			epAddrV4:  ctrIP4,
-			epAddrV6:  ctrIP6,
-			cfg:       []portmapperapi.PortBindingReq{{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80}}},
-			proxyPath: "/dummy/path/to/proxy",
-			defHostIP: net.IPv6zero,
+			name:        "default host ip is v6",
+			epAddrV4:    ctrIP4,
+			epAddrV6:    ctrIP6,
+			cfg:         []portmapperapi.PortBindingReq{{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80}}},
+			enableProxy: true,
+			defHostIP:   net.IPv6zero,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero, HostPort: firstEphemPort},
 			},
 		},
 		{
-			name:      "default host ip is nonzero v6",
-			epAddrV4:  ctrIP4,
-			epAddrV6:  ctrIP6,
-			cfg:       []portmapperapi.PortBindingReq{{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80}}},
-			proxyPath: "/dummy/path/to/proxy",
-			defHostIP: newIPNet(t, "::1/128").IP,
+			name:        "default host ip is nonzero v6",
+			epAddrV4:    ctrIP4,
+			epAddrV6:    ctrIP6,
+			cfg:         []portmapperapi.PortBindingReq{{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80}}},
+			enableProxy: true,
+			defHostIP:   newIPNet(t, "::1/128").IP,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: newIPNet(t, "::1/128").IP, HostPort: firstEphemPort},
 			},
@@ -545,17 +534,17 @@ func TestAddPortMappings(t *testing.T) {
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80, HostPort: 8080}},
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22, HostPort: 2222}},
 			},
-			proxyPath: "/dummy/path/to/proxy",
+			enableProxy: true,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero, HostPort: 2222},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero, HostPort: 2222},
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: 8080},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero, HostPort: 8080},
 			},
-			expReleaseErr: "failed to stop userland proxy for port mapping 0.0.0.0:2222:172.19.0.2:22/tcp: can't stop now\n" +
-				"failed to stop userland proxy for port mapping [::]:2222:[fdf8:b88e:bb5c:3483::2]:22/tcp: can't stop now\n" +
-				"failed to stop userland proxy for port mapping 0.0.0.0:8080:172.19.0.2:80/tcp: can't stop now\n" +
-				"failed to stop userland proxy for port mapping [::]:8080:[fdf8:b88e:bb5c:3483::2]:80/tcp: can't stop now",
+			expReleaseErr: "unmapping port binding 0.0.0.0:2222:172.19.0.2:22/tcp: failed to stop userland proxy: can't stop now\n" +
+				"unmapping port binding [::]:2222:[fdf8:b88e:bb5c:3483::2]:22/tcp: failed to stop userland proxy: can't stop now\n" +
+				"unmapping port binding 0.0.0.0:8080:172.19.0.2:80/tcp: failed to stop userland proxy: can't stop now\n" +
+				"unmapping port binding [::]:8080:[fdf8:b88e:bb5c:3483::2]:80/tcp: failed to stop userland proxy: can't stop now",
 		},
 		{
 			name:     "disable nat6",
@@ -565,8 +554,8 @@ func TestAddPortMappings(t *testing.T) {
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22}},
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80}},
 			},
-			proxyPath: "/dummy/path/to/proxy",
-			gwMode6:   gwModeRouted,
+			enableProxy: true,
+			gwMode6:     gwModeRouted,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero, HostPort: firstEphemPort},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero},
@@ -582,9 +571,9 @@ func TestAddPortMappings(t *testing.T) {
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22}},
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80}},
 			},
-			proxyPath: "/dummy/path/to/proxy",
-			gwMode6:   gwModeRouted,
-			defHostIP: net.IPv6loopback,
+			enableProxy: true,
+			gwMode6:     gwModeRouted,
+			defHostIP:   net.IPv6loopback,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero},
@@ -598,8 +587,8 @@ func TestAddPortMappings(t *testing.T) {
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22}},
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80}},
 			},
-			proxyPath: "/dummy/path/to/proxy",
-			gwMode4:   gwModeRouted,
+			enableProxy: true,
+			gwMode4:     gwModeRouted,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero, HostPort: firstEphemPort},
@@ -615,9 +604,9 @@ func TestAddPortMappings(t *testing.T) {
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22}},
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80}},
 			},
-			proxyPath: "/dummy/path/to/proxy",
-			gwMode4:   gwModeRouted,
-			gwMode6:   gwModeRouted,
+			enableProxy: true,
+			gwMode4:     gwModeRouted,
+			gwMode6:     gwModeRouted,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero},
@@ -645,12 +634,12 @@ func TestAddPortMappings(t *testing.T) {
 			expLogs: []string{"Cannot map from default host binding address to an IPv4-only container because the userland proxy is disabled"},
 		},
 		{
-			name:      "routed mode specific address",
-			epAddrV4:  ctrIP4,
-			epAddrV6:  ctrIP6,
-			gwMode4:   gwModeRouted,
-			gwMode6:   gwModeRouted,
-			proxyPath: "/dummy/path/to/proxy",
+			name:        "routed mode specific address",
+			epAddrV4:    ctrIP4,
+			epAddrV6:    ctrIP6,
+			gwMode4:     gwModeRouted,
+			gwMode6:     gwModeRouted,
+			enableProxy: true,
 			cfg: []portmapperapi.PortBindingReq{
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22, HostIP: newIPNet(t, "127.0.0.1/8").IP}},
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22, HostIP: net.IPv6loopback}},
@@ -665,12 +654,12 @@ func TestAddPortMappings(t *testing.T) {
 			},
 		},
 		{
-			name:      "routed4 nat6 with ipv4 default binding",
-			epAddrV4:  ctrIP4,
-			epAddrV6:  ctrIP6,
-			gwMode4:   gwModeRouted,
-			defHostIP: newIPNet(t, "127.0.0.1/8").IP,
-			proxyPath: "/dummy/path/to/proxy",
+			name:        "routed4 nat6 with ipv4 default binding",
+			epAddrV4:    ctrIP4,
+			epAddrV6:    ctrIP6,
+			gwMode4:     gwModeRouted,
+			defHostIP:   newIPNet(t, "127.0.0.1/8").IP,
+			enableProxy: true,
 			cfg: []portmapperapi.PortBindingReq{
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22}},
 			},
@@ -679,12 +668,12 @@ func TestAddPortMappings(t *testing.T) {
 			},
 		},
 		{
-			name:      "routed4 nat6 with ipv6 default binding",
-			epAddrV4:  ctrIP4,
-			epAddrV6:  ctrIP6,
-			gwMode4:   gwModeRouted,
-			defHostIP: net.IPv6loopback,
-			proxyPath: "/dummy/path/to/proxy",
+			name:        "routed4 nat6 with ipv6 default binding",
+			epAddrV4:    ctrIP4,
+			epAddrV6:    ctrIP6,
+			gwMode4:     gwModeRouted,
+			defHostIP:   net.IPv6loopback,
+			enableProxy: true,
 			cfg: []portmapperapi.PortBindingReq{
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22}},
 			},
@@ -730,7 +719,7 @@ func TestAddPortMappings(t *testing.T) {
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 12345, HostPort: 12345, HostPortEnd: 12346}},
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 12345, HostPort: 12345}},
 			},
-			proxyPath: "/dummy/path/to/proxy",
+			enableProxy: true,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 12345, HostIP: net.IPv4zero, HostPort: 12345},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 12345, HostIP: net.IPv6zero, HostPort: 12345},
@@ -751,8 +740,8 @@ func TestAddPortMappings(t *testing.T) {
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22}},
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80}},
 			},
-			proxyPath: "/dummy/path/to/proxy",
-			rootless:  true,
+			enableProxy: true,
+			rootless:    true,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero, HostPort: firstEphemPort},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero, HostPort: firstEphemPort},
@@ -785,17 +774,12 @@ func TestAddPortMappings(t *testing.T) {
 			useStubFirewaller(t)
 
 			// Mock the startProxy function used by the code under test.
-			origStartProxy := startProxy
-			defer func() { startProxy = origStartProxy }()
 			proxies := map[proxyCall]bool{} // proxy -> is not stopped
-			startProxy = func(pb types.PortBinding,
-				proxyPath string,
-				listenSock *os.File,
-			) (stop func() error, retErr error) {
+			startProxy := func(pb types.PortBinding, listenSock *os.File) (stop func() error, retErr error) {
 				if tc.busyPortIPv4 > 0 && tc.busyPortIPv4 == int(pb.HostPort) && pb.HostIP.To4() != nil {
 					return nil, errors.New("busy port")
 				}
-				c := newProxyCall(pb.Proto.String(), pb.HostIP, int(pb.HostPort), pb.IP, int(pb.Port), proxyPath)
+				c := newProxyCall(pb.Proto.String(), pb.HostIP, int(pb.HostPort), pb.IP, int(pb.Port))
 				if _, ok := proxies[c]; ok {
 					return nil, fmt.Errorf("duplicate proxy: %#v", c)
 				}
@@ -810,13 +794,6 @@ func TestAddPortMappings(t *testing.T) {
 					proxies[c] = false
 					return nil
 				}, nil
-			}
-
-			// Mock the RootlessKit port driver.
-			origNewPortDriverClient := newPortDriverClient
-			defer func() { newPortDriverClient = origNewPortDriverClient }()
-			newPortDriverClient = func(ctx context.Context) (portDriverClient, error) {
-				return newMockPortDriverClient(ctx)
 			}
 
 			if len(tc.hostAddrs) > 0 {
@@ -841,6 +818,21 @@ func TestAddPortMappings(t *testing.T) {
 				defer ul.Close()
 			}
 
+			var pdc nat.PortDriverClient
+			if tc.rootless {
+				pdc = newMockPortDriverClient()
+			}
+
+			pms := &drvregistry.PortMappers{}
+			err := nat.Register(pms, nat.Config{
+				RlkClient:   pdc,
+				EnableProxy: tc.enableProxy,
+				StartProxy:  startProxy,
+			})
+			assert.NilError(t, err)
+			err = routed.Register(pms)
+			assert.NilError(t, err)
+
 			n := &bridgeNetwork{
 				config: &networkConfiguration{
 					BridgeName: "dummybridge",
@@ -850,26 +842,22 @@ func TestAddPortMappings(t *testing.T) {
 					GwModeIPv6: tc.gwMode6,
 				},
 				bridge: &bridgeInterface{},
-				driver: newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{}),
+				driver: newDriver(storeutils.NewTempStore(t), pms),
 			}
 			genericOption := map[string]interface{}{
 				netlabel.GenericData: &configuration{
-					EnableIPTables:      true,
-					EnableIP6Tables:     true,
-					EnableUserlandProxy: tc.proxyPath != "",
-					UserlandProxyPath:   tc.proxyPath,
-					Hairpin:             tc.hairpin,
-					Rootless:            tc.rootless,
+					EnableIPTables:  true,
+					EnableIP6Tables: true,
+					Hairpin:         tc.hairpin,
 				},
 			}
-			err := n.driver.configure(genericOption)
+			err = n.driver.configure(genericOption)
 			assert.NilError(t, err)
 			fwn, err := n.newFirewallerNetwork(context.Background())
 			assert.NilError(t, err)
 			assert.Check(t, fwn != nil, "no firewaller network")
 			n.firewallerNetwork = fwn
 
-			assert.Check(t, is.Equal(n.driver.portDriverClient == nil, !tc.rootless))
 			expChildIP := func(hostIP net.IP) net.IP {
 				if !tc.rootless {
 					return hostIP
@@ -918,7 +906,7 @@ func TestAddPortMappings(t *testing.T) {
 			assert.Assert(t, is.Len(pbs, len(tc.expPBs)))
 
 			fw := n.driver.firewaller.(*firewaller.StubFirewaller)
-			assert.Check(t, is.Equal(fw.Hairpin, tc.proxyPath == ""))
+			assert.Check(t, is.Equal(fw.Hairpin, !tc.enableProxy))
 			assert.Check(t, fw.IPv4)
 			assert.Check(t, fw.IPv6)
 
@@ -961,7 +949,7 @@ func TestAddPortMappings(t *testing.T) {
 			}
 
 			// Check a docker-proxy was started and stopped for each expected port binding.
-			if tc.proxyPath != "" {
+			if tc.enableProxy {
 				expProxies := map[proxyCall]bool{}
 				for _, expPB := range tc.expPBs {
 					hip := expChildIP(expPB.HostIP)
@@ -971,7 +959,7 @@ func TestAddPortMappings(t *testing.T) {
 					}
 					p := newProxyCall(expPB.Proto.String(),
 						hip, int(expPB.HostPort),
-						expPB.IP, int(expPB.Port), tc.proxyPath)
+						expPB.IP, int(expPB.Port))
 					expProxies[p] = tc.expReleaseErr != ""
 				}
 				assert.Check(t, is.DeepEqual(expProxies, proxies))
@@ -979,8 +967,8 @@ func TestAddPortMappings(t *testing.T) {
 
 			// Check the port driver has seen the expected port mappings and no others,
 			// and that they have all been closed.
-			if n.driver.portDriverClient != nil {
-				pdc := n.driver.portDriverClient.(*mockPortDriverClient)
+			if pdc != nil {
+				pdc := pdc.(*mockPortDriverClient)
 				expPorts := map[mockPortDriverPort]bool{}
 				for _, expPB := range tc.expPBs {
 					if expPB.HostPort == 0 {
@@ -1001,18 +989,16 @@ func TestAddPortMappings(t *testing.T) {
 }
 
 // Type for tracking calls to StartProxy.
-type proxyCall struct{ proto, host, container, proxyPath string }
+type proxyCall struct{ proto, host, container string }
 
 func newProxyCall(proto string,
 	hostIP net.IP, hostPort int,
 	containerIP net.IP, containerPort int,
-	proxyPath string,
 ) proxyCall {
 	return proxyCall{
 		proto:     proto,
 		host:      fmt.Sprintf("%v:%v", hostIP, hostPort),
 		container: fmt.Sprintf("%v:%v", containerIP, containerPort),
-		proxyPath: proxyPath,
 	}
 }
 
@@ -1033,10 +1019,10 @@ type mockPortDriverClient struct {
 	openPorts map[mockPortDriverPort]bool
 }
 
-func newMockPortDriverClient(_ context.Context) (*mockPortDriverClient, error) {
+func newMockPortDriverClient() *mockPortDriverClient {
 	return &mockPortDriverClient{
 		openPorts: map[mockPortDriverPort]bool{},
-	}, nil
+	}
 }
 
 func (c *mockPortDriverClient) ChildHostIP(hostIP netip.Addr) netip.Addr {
@@ -1059,4 +1045,35 @@ func (c *mockPortDriverClient) AddPort(_ context.Context, proto string, hostIP, 
 		c.openPorts[key] = false
 		return nil
 	}, nil
+}
+
+type stubPortMapper struct {
+	reqs   [][]portmapperapi.PortBindingReq
+	mapped []portmapperapi.PortBinding
+}
+
+func (pm *stubPortMapper) MapPorts(_ context.Context, reqs []portmapperapi.PortBindingReq, _ portmapperapi.Firewaller) ([]portmapperapi.PortBinding, error) {
+	if len(reqs) == 0 {
+		return []portmapperapi.PortBinding{}, nil
+	}
+	reqsCopy := make([]portmapperapi.PortBindingReq, len(reqs))
+	copy(reqsCopy, reqs)
+	pbs := sliceutil.Map(reqs, func(req portmapperapi.PortBindingReq) portmapperapi.PortBinding {
+		return portmapperapi.PortBinding{PortBinding: req.PortBinding}
+	})
+	pm.mapped = append(pm.mapped, pbs...)
+	pm.reqs = append(pm.reqs, reqsCopy)
+	return pbs, nil
+}
+
+func (pm *stubPortMapper) UnmapPorts(_ context.Context, reqs []portmapperapi.PortBinding, _ portmapperapi.Firewaller) error {
+	for _, req := range reqs {
+		for i, mapped := range pm.mapped {
+			if mapped.PortBinding.Proto == req.Proto && mapped.PortBinding.Port == req.Port && mapped.PortBinding.HostPort == req.HostPort && mapped.PortBinding.HostIP.Equal(req.HostIP) {
+				pm.mapped = append(pm.mapped[:i], pm.mapped[i+1:]...)
+				break
+			}
+		}
+	}
+	return nil
 }

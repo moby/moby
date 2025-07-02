@@ -8,7 +8,6 @@ import (
 	"maps"
 	"net"
 	"net/netip"
-	"os/exec"
 	"slices"
 	"strconv"
 	"testing"
@@ -796,21 +795,16 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	defer netnsutils.SetupTestOSContext(t)()
 	useStubFirewaller(t)
 
-	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
+	pms := drvregistry.PortMappers{}
+	pm := &stubPortMapper{}
+	err := pms.Register("nat", pm)
+	assert.NilError(t, err)
+
+	d := newDriver(storeutils.NewTempStore(t), &pms)
 	portallocator.Get().ReleaseAll()
 
-	var proxyBinary string
-	var err error
-	if ulPxyEnabled {
-		proxyBinary, err = exec.LookPath("docker-proxy")
-		if err != nil {
-			t.Fatalf("failed to lookup userland-proxy binary: %v", err)
-		}
-	}
 	config := &configuration{
-		EnableIPTables:      true,
-		EnableUserlandProxy: ulPxyEnabled,
-		UserlandProxyPath:   proxyBinary,
+		EnableIPTables: true,
 	}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
@@ -865,15 +859,15 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	if !ok {
 		t.Fatal("Endpoint operational data does not contain port mapping data")
 	}
-	pm, ok := pmd.([]types.PortBinding)
+	pbs, ok := pmd.([]types.PortBinding)
 	if !ok {
 		t.Fatal("Unexpected format for port mapping in endpoint operational data")
 	}
-	if len(ep.portMapping) != len(pm) {
+	if len(ep.portMapping) != len(pbs) {
 		t.Fatal("Incomplete data for port mapping in endpoint operational data")
 	}
 	for i, pb := range ep.portMapping {
-		if !comparePortBinding(&pb.PortBinding, &pm[i]) {
+		if !comparePortBinding(&pb.PortBinding, &pbs[i]) {
 			t.Fatal("Unexpected data for port mapping in endpoint operational data")
 		}
 	}

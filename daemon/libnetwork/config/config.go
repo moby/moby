@@ -42,6 +42,9 @@ type Config struct {
 	DatastoreBucket        string
 	ActiveSandboxes        map[string]any
 	PluginGetter           plugingetter.PluginGetter
+	Rootless               bool
+	EnableUserlandProxy    bool
+	UserlandProxyPath      string
 }
 
 // New creates a new Config and initializes it with the given Options.
@@ -152,5 +155,23 @@ func OptionNetworkControlPlaneMTU(exp int) Option {
 func OptionActiveSandboxes(sandboxes map[string]any) Option {
 	return func(c *Config) {
 		c.ActiveSandboxes = sandboxes
+	}
+}
+
+// OptionRootless indicates that the daemon is running in rootless mode.
+func OptionRootless(rootless bool) Option {
+	return func(c *Config) {
+		if rootless {
+			c.Rootless = true
+		}
+	}
+}
+
+// OptionUserlandProxy indicates whether the userland proxy should be used by
+// the nat portmapper, and sets the path to the proxy binary.
+func OptionUserlandProxy(enabled bool, proxyPath string) Option {
+	return func(c *Config) {
+		c.EnableUserlandProxy = enabled
+		c.UserlandProxyPath = proxyPath
 	}
 }
