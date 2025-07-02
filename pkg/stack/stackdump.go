@@ -30,8 +30,10 @@ func DumpToFile(dir string) (string, error) {
 		if err != nil {
 			return "", errors.Wrap(err, "failed to open file to write the goroutine stacks")
 		}
-		defer f.Close()
-		defer f.Sync()
+		defer func() {
+			_ = f.Sync()
+			_ = f.Close()
+		}()
 	} else {
 		f = os.Stderr
 	}
