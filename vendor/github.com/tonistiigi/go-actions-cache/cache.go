@@ -593,6 +593,7 @@ type Entry struct {
 	IsAzureBlob bool   `json:"isAzureBlob"`
 
 	client *http.Client
+	reload func(context.Context) error
 }
 
 func (ce *Entry) WriteTo(ctx context.Context, w io.Writer) error {
