@@ -757,7 +757,7 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.23.1
+# github.com/moby/buildkit v0.23.2
 ## explicit; go 1.23.0
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -1190,7 +1190,7 @@ github.com/tonistiigi/dchapes-mode
 github.com/tonistiigi/fsutil
 github.com/tonistiigi/fsutil/copy
 github.com/tonistiigi/fsutil/types
-# github.com/tonistiigi/go-actions-cache v0.0.0-20250611155157-388a2ec8cdf8
+# github.com/tonistiigi/go-actions-cache v0.0.0-20250626083717-378c5ed1ddd9
 ## explicit; go 1.23.0
 github.com/tonistiigi/go-actions-cache
 # github.com/tonistiigi/go-archvariant v1.0.0
