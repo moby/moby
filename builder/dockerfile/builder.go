@@ -329,6 +329,19 @@ func BuildFromConfig(ctx context.Context, config *container.Config, changes []st
 		return nil, errdefs.InvalidParameter(err)
 	}
 
+	// ensure that the commands are valid
+	var commands []instructions.Command
+	for _, n := range dockerfile.AST.Children {
+		if !validCommitCommands[strings.ToLower(n.Value)] {
+			return nil, errdefs.InvalidParameter(errors.Errorf("%s is not a valid change command", n.Value))
+		}
+		cmd, err := instructions.ParseCommand(n)
+		if err != nil {
+			return nil, errdefs.InvalidParameter(err)
+		}
+		commands = append(commands, cmd)
+	}
+
 	b, err := newBuilder(ctx, builderOptions{
 		Options: &build.ImageBuildOptions{NoCache: true},
 	})
@@ -336,25 +349,9 @@ func BuildFromConfig(ctx context.Context, config *container.Config, changes []st
 		return nil, err
 	}
 
-	// ensure that the commands are valid
-	for _, n := range dockerfile.AST.Children {
-		if !validCommitCommands[strings.ToLower(n.Value)] {
-			return nil, errdefs.InvalidParameter(errors.Errorf("%s is not a valid change command", n.Value))
-		}
-	}
-
 	b.Stdout = io.Discard
 	b.Stderr = io.Discard
 	b.disableCommit = true
-
-	var commands []instructions.Command
-	for _, n := range dockerfile.AST.Children {
-		cmd, err := instructions.ParseCommand(n)
-		if err != nil {
-			return nil, errdefs.InvalidParameter(err)
-		}
-		commands = append(commands, cmd)
-	}
 
 	req := newDispatchRequest(b, dockerfile.EscapeToken, nil, NewBuildArgs(b.options.BuildArgs), newStagesBuildResults())
 	// We make mutations to the configuration, ensure we have a copy
