@@ -24,7 +24,7 @@ func TestPortBindingReqsCompare(t *testing.T) {
 	assert.Check(t, pb.Compare(pb) == 0) //nolint:gocritic // ignore "dupArg: suspicious method call with the same argument and receiver (gocritic)"
 
 	pbA, pbB = pb, pb
-	pbB.DisableNAT = true
+	pbB.Mapper = "routed"
 	assert.Check(t, pbA.Compare(pbB) < 0)
 	assert.Check(t, pbB.Compare(pbA) > 0)
 

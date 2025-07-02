@@ -8,24 +8,14 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/netip"
-	"os"
 	"slices"
-	"strconv"
-	"syscall"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
-	"github.com/docker/docker/daemon/libnetwork/internal/rlkclient"
 	"github.com/docker/docker/daemon/libnetwork/netutils"
-	"github.com/docker/docker/daemon/libnetwork/portallocator"
-	"github.com/docker/docker/daemon/libnetwork/portmapper"
 	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 	"github.com/docker/docker/daemon/libnetwork/types"
+	"github.com/docker/docker/internal/sliceutil"
 )
-
-// Allow unit tests to supply a dummy StartProxy.
-var startProxy = portmapper.StartProxy
 
 // addPortMappings takes cfg, the configuration for port mappings, selects host
 // ports when ranges are given, binds host ports to check they're available and
@@ -50,19 +40,22 @@ func (n *bridgeNetwork) addPortMappings(
 		defHostIP = addr4
 	}
 
+	pms := n.portMappers()
+
 	bindings := make([]portmapperapi.PortBinding, 0, len(cfg)*2)
 	defer func() {
 		if retErr != nil {
-			if err := releasePortBindings(bindings, n.firewallerNetwork); err != nil {
-				log.G(ctx).Warnf("Release port bindings: %s", err.Error())
+			if err := n.unmapPBs(ctx, bindings); err != nil {
+				log.G(ctx).WithFields(log.Fields{
+					"bindings": bindings,
+					"error":    err,
+					"origErr":  retErr,
+				}).Warn("Failed to unmap port bindings after error")
 			}
 		}
 	}()
 
 	bindingReqs := n.sortAndNormPBs(ctx, ep, cfg, defHostIP, pbmReq)
-
-	proxyPath := n.userlandProxyPath()
-	pdc := n.getPortDriverClient()
 
 	// toBind accumulates port bindings that should be allocated the same host port
 	// (if required by NAT config). If the host address is unspecified, and defHostIP
@@ -76,50 +69,28 @@ func (n *bridgeNetwork) addPortMappings(
 	var toBind []portmapperapi.PortBindingReq
 	for i, c := range bindingReqs {
 		toBind = append(toBind, c)
-		if i < len(bindingReqs)-1 && c.DisableNAT == bindingReqs[i+1].DisableNAT && needSamePort(c, bindingReqs[i+1]) {
+		if i < len(bindingReqs)-1 && c.Mapper == bindingReqs[i+1].Mapper && needSamePort(c, bindingReqs[i+1]) {
 			// This port binding matches the next, apart from host IP. So, continue
 			// collecting bindings, then allocate the same host port for all addresses.
 			continue
 		}
 
-		var newB []portmapperapi.PortBinding
-		var err error
-		if c.DisableNAT {
-			newB, err = setupForwardedPorts(ctx, toBind, n.firewallerNetwork)
-		} else {
-			newB, err = bindHostPorts(ctx, toBind, proxyPath, pdc, n.firewallerNetwork)
-		}
+		pm, err := pms.Get(c.Mapper)
 		if err != nil {
 			return nil, err
 		}
-		bindings = append(bindings, newB...)
+
+		newB, err := pm.MapPorts(ctx, toBind, n.firewallerNetwork)
+		if err != nil {
+			return nil, err
+		}
+		bindings = append(bindings, sliceutil.Map(newB, func(b portmapperapi.PortBinding) portmapperapi.PortBinding {
+			b.Mapper = c.Mapper
+			return b
+		})...)
 
 		// Reset toBind now the ports are bound.
 		toBind = toBind[:0]
-	}
-
-	// Start userland proxy processes.
-	if proxyPath != "" {
-		for i := range bindings {
-			if bindings[i].BoundSocket == nil || bindings[i].RootlesskitUnsupported || bindings[i].StopProxy != nil {
-				continue
-			}
-			var err error
-			bindings[i].StopProxy, err = startProxy(
-				bindings[i].ChildPortBinding(), proxyPath, bindings[i].BoundSocket,
-			)
-			if err != nil {
-				return nil, fmt.Errorf("failed to start userland proxy for port mapping %s: %w",
-					bindings[i].PortBinding, err)
-			}
-			if err := bindings[i].BoundSocket.Close(); err != nil {
-				log.G(ctx).WithFields(log.Fields{
-					"error":   err,
-					"mapping": bindings[i].PortBinding,
-				}).Warnf("failed to close proxy socket")
-			}
-			bindings[i].BoundSocket = nil
-		}
 	}
 
 	return bindings, nil
@@ -283,7 +254,10 @@ func configurePortBindingIPv4(
 	// Unmap the addresses if they're IPv4-mapped IPv6.
 	bnd.HostIP = bnd.HostIP.To4()
 	bnd.IP = containerIPv4.To4()
-	bnd.DisableNAT = disableNAT
+	bnd.Mapper = "nat"
+	if disableNAT {
+		bnd.Mapper = "routed"
+	}
 	return bnd, true
 }
 
@@ -340,234 +314,11 @@ func configurePortBindingIPv6(
 	}
 
 	bnd.IP = containerIP
-	bnd.DisableNAT = disableNAT
+	bnd.Mapper = "nat"
+	if disableNAT {
+		bnd.Mapper = "routed"
+	}
 	return bnd, true
-}
-
-func setChildHostIP(pdc portDriverClient, req portmapperapi.PortBindingReq) portmapperapi.PortBindingReq {
-	if pdc == nil {
-		req.ChildHostIP = req.HostIP
-		return req
-	}
-	hip, _ := netip.AddrFromSlice(req.HostIP)
-	req.ChildHostIP = pdc.ChildHostIP(hip).AsSlice()
-	return req
-}
-
-// setupForwardedPorts sets up firewall rules to allow direct remote access to
-// the container's ports in cfg.
-func setupForwardedPorts(ctx context.Context, cfg []portmapperapi.PortBindingReq, fwn firewaller.Network) ([]portmapperapi.PortBinding, error) {
-	if len(cfg) == 0 {
-		return nil, nil
-	}
-
-	res := make([]portmapperapi.PortBinding, 0, len(cfg))
-	bindings := make([]types.PortBinding, 0, len(cfg))
-	for _, c := range cfg {
-		pb := portmapperapi.PortBinding{PortBinding: c.GetCopy()}
-		if pb.HostPort != 0 || pb.HostPortEnd != 0 {
-			log.G(ctx).WithFields(log.Fields{"mapping": pb}).Infof(
-				"Host port ignored, because NAT is disabled")
-			pb.HostPort = 0
-			pb.HostPortEnd = 0
-		}
-		res = append(res, pb)
-		bindings = append(bindings, pb.PortBinding)
-	}
-
-	if err := fwn.AddPorts(ctx, bindings); err != nil {
-		return nil, err
-	}
-
-	return res, nil
-}
-
-// bindHostPorts allocates and binds host ports for the given cfg. The
-// caller is responsible for ensuring that all entries in cfg map the same proto,
-// container port, and host port range (their host addresses must differ).
-func bindHostPorts(
-	ctx context.Context,
-	cfg []portmapperapi.PortBindingReq,
-	proxyPath string,
-	pdc portDriverClient,
-	fwn firewaller.Network,
-) ([]portmapperapi.PortBinding, error) {
-	if len(cfg) == 0 {
-		return nil, nil
-	}
-	// Ensure that all of cfg's entries have the same proto and ports.
-	proto, port, hostPort, hostPortEnd := cfg[0].Proto, cfg[0].Port, cfg[0].HostPort, cfg[0].HostPortEnd
-	for _, c := range cfg[1:] {
-		if c.Proto != proto || c.Port != port || c.HostPort != hostPort || c.HostPortEnd != hostPortEnd {
-			return nil, types.InternalErrorf("port binding mismatch %d/%s:%d-%d, %d/%s:%d-%d",
-				port, proto, hostPort, hostPortEnd,
-				port, c.Proto, c.HostPort, c.HostPortEnd)
-		}
-	}
-
-	// Try up to maxAllocatePortAttempts times to get a port that's not already allocated.
-	var err error
-	for i := 0; i < maxAllocatePortAttempts; i++ {
-		var b []portmapperapi.PortBinding
-		b, err = attemptBindHostPorts(ctx, cfg, proto, hostPort, hostPortEnd, proxyPath, pdc, fwn)
-		if err == nil {
-			return b, nil
-		}
-		// There is no point in immediately retrying to map an explicitly chosen port.
-		if hostPort != 0 && hostPort == hostPortEnd {
-			log.G(ctx).WithError(err).Warnf("Failed to allocate and map port")
-			break
-		}
-		log.G(ctx).WithFields(log.Fields{
-			"error":   err,
-			"attempt": i + 1,
-		}).Warn("Failed to allocate and map port")
-	}
-	return nil, err
-}
-
-// attemptBindHostPorts allocates host ports for each NAT port mapping, and
-// reserves those ports by binding them.
-//
-// If the allocator doesn't have an available port in the required range, or the
-// port can't be bound (perhaps because another process has already bound it),
-// all resources are released and an error is returned. When ports are
-// successfully reserved, a PortBinding is returned for each mapping.
-func attemptBindHostPorts(
-	ctx context.Context,
-	cfg []portmapperapi.PortBindingReq,
-	proto types.Protocol,
-	hostPortStart, hostPortEnd uint16,
-	proxyPath string,
-	pdc portDriverClient,
-	fwn firewaller.Network,
-) (_ []portmapperapi.PortBinding, retErr error) {
-	var err error
-	var port int
-
-	addrs := make([]net.IP, 0, len(cfg))
-	for i := range cfg {
-		cfg[i] = setChildHostIP(pdc, cfg[i])
-		addrs = append(addrs, cfg[i].ChildHostIP)
-	}
-
-	pa := portallocator.NewOSAllocator()
-	port, socks, err := pa.RequestPortsInRange(addrs, proto, int(hostPortStart), int(hostPortEnd))
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if retErr != nil {
-			pa.ReleasePorts(addrs, proto, port)
-		}
-	}()
-
-	if len(socks) != len(cfg) {
-		for _, sock := range socks {
-			if err := sock.Close(); err != nil {
-				log.G(ctx).WithError(err).Warn("Failed to close socket")
-			}
-		}
-		return nil, types.InternalErrorf("port allocator returned %d sockets for %d port bindings", len(socks), len(cfg))
-	}
-
-	res := make([]portmapperapi.PortBinding, 0, len(cfg))
-	defer func() {
-		if retErr != nil {
-			if err := releasePortBindings(res, fwn); err != nil {
-				log.G(ctx).WithError(err).Warn("Failed to release port bindings")
-			}
-		}
-	}()
-
-	for i := range cfg {
-		pb := portmapperapi.PortBinding{
-			PortBinding: cfg[i].PortBinding.GetCopy(),
-			BoundSocket: socks[i],
-			ChildHostIP: cfg[i].ChildHostIP,
-		}
-		pb.PortBinding.HostPort = uint16(port)
-		pb.PortBinding.HostPortEnd = pb.HostPort
-		res = append(res, pb)
-	}
-
-	if err := configPortDriver(ctx, res, pdc); err != nil {
-		return nil, err
-	}
-	if err := fwn.AddPorts(ctx, mergeChildHostIPs(res)); err != nil {
-		return nil, err
-	}
-	// Now the firewall rules are set up, it's safe to listen on the socket. (Listening
-	// earlier could result in dropped connections if the proxy becomes unreachable due
-	// to NAT rules sending packets directly to the container.)
-	//
-	// If not starting the proxy, nothing will ever accept a connection on the
-	// socket. Listen here anyway because SO_REUSEADDR is set, so bind() won't notice
-	// the problem if a port's bound to both INADDR_ANY and a specific address. (Also
-	// so the binding shows up in "netstat -at".)
-	if err := listenBoundPorts(res, proxyPath); err != nil {
-		return nil, err
-	}
-	return res, nil
-}
-
-// configPortDriver passes the port binding's details to rootlesskit, and updates the
-// port binding with callbacks to remove the rootlesskit config (or marks the binding as
-// unsupported by rootlesskit).
-func configPortDriver(ctx context.Context, pbs []portmapperapi.PortBinding, pdc portDriverClient) error {
-	for i := range pbs {
-		b := pbs[i]
-		if pdc != nil && b.HostPort != 0 {
-			var err error
-			hip, ok := netip.AddrFromSlice(b.HostIP)
-			if !ok {
-				return fmt.Errorf("invalid host IP address in %s", b)
-			}
-			chip, ok := netip.AddrFromSlice(b.ChildHostIP)
-			if !ok {
-				return fmt.Errorf("invalid child host IP address %s in %s", b.ChildHostIP, b)
-			}
-			pbs[i].PortDriverRemove, err = pdc.AddPort(ctx, b.Proto.String(), hip, chip, int(b.HostPort))
-			if err != nil {
-				var pErr *rlkclient.ProtocolUnsupportedError
-				if errors.As(err, &pErr) {
-					log.G(ctx).WithFields(log.Fields{
-						"error": pErr,
-					}).Warnf("discarding request for %q", net.JoinHostPort(hip.String(), strconv.Itoa(int(b.HostPort))))
-					pbs[i].RootlesskitUnsupported = true
-					continue
-				}
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func listenBoundPorts(pbs []portmapperapi.PortBinding, proxyPath string) error {
-	for i := range pbs {
-		if pbs[i].BoundSocket == nil || pbs[i].RootlesskitUnsupported || pbs[i].Proto == types.UDP {
-			continue
-		}
-		rc, err := pbs[i].BoundSocket.SyscallConn()
-		if err != nil {
-			return fmt.Errorf("raw conn not available on %s socket: %w", pbs[i].Proto, err)
-		}
-		if errC := rc.Control(func(fd uintptr) {
-			somaxconn := 0
-			// SCTP sockets do not support somaxconn=0
-			if proxyPath != "" || pbs[i].Proto == types.SCTP {
-				somaxconn = -1 // silently capped to "/proc/sys/net/core/somaxconn"
-			}
-			err = syscall.Listen(int(fd), somaxconn)
-		}); errC != nil {
-			return fmt.Errorf("failed to Control %s socket: %w", pbs[i].Proto, err)
-		}
-		if err != nil {
-			return fmt.Errorf("failed to listen on %s socket: %w", pbs[i].Proto, err)
-		}
-	}
-	return nil
 }
 
 // releasePorts attempts to release all port bindings, does not stop on failure
@@ -578,36 +329,25 @@ func (n *bridgeNetwork) releasePorts(ep *bridgeEndpoint) error {
 	ep.portBindingState = portBindingMode{}
 	n.Unlock()
 
-	return releasePortBindings(pbs, n.firewallerNetwork)
+	return n.unmapPBs(context.TODO(), pbs)
 }
 
-func releasePortBindings(pbs []portmapperapi.PortBinding, fwn firewaller.Network) error {
+func (n *bridgeNetwork) unmapPBs(ctx context.Context, bindings []portmapperapi.PortBinding) error {
+	pms := n.portMappers()
+
 	var errs []error
-	for _, pb := range pbs {
-		if pb.BoundSocket != nil {
-			if err := pb.BoundSocket.Close(); err != nil {
-				errs = append(errs, fmt.Errorf("failed to close socket for port mapping %s: %w", pb, err))
-			}
+	for _, b := range bindings {
+		pm, err := pms.Get(b.Mapper)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("unmapping port binding %s: %w", b.PortBinding, err))
+			continue
 		}
-		if pb.PortDriverRemove != nil {
-			if err := pb.PortDriverRemove(); err != nil {
-				errs = append(errs, err)
-			}
-		}
-		if pb.StopProxy != nil {
-			if err := pb.StopProxy(); err != nil && !errors.Is(err, os.ErrProcessDone) {
-				errs = append(errs, fmt.Errorf("failed to stop userland proxy for port mapping %s: %w", pb, err))
-			}
+
+		if err := pm.UnmapPorts(ctx, []portmapperapi.PortBinding{b}, n.firewallerNetwork); err != nil {
+			errs = append(errs, fmt.Errorf("unmapping port binding %s: %w", b.PortBinding, err))
 		}
 	}
-	if err := fwn.DelPorts(context.TODO(), mergeChildHostIPs(pbs)); err != nil {
-		errs = append(errs, err)
-	}
-	for _, pb := range pbs {
-		if pb.HostPort > 0 {
-			portallocator.Get().ReleasePort(pb.ChildHostIP, pb.Proto.String(), int(pb.HostPort))
-		}
-	}
+
 	return errors.Join(errs...)
 }
 

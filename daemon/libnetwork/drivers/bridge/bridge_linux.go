@@ -24,7 +24,6 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/drvregistry"
 	"github.com/docker/docker/daemon/libnetwork/internal/netiputil"
 	"github.com/docker/docker/daemon/libnetwork/internal/nftables"
-	"github.com/docker/docker/daemon/libnetwork/internal/rlkclient"
 	"github.com/docker/docker/daemon/libnetwork/iptables"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/netutils"
@@ -51,7 +50,6 @@ const (
 	vethPrefix                 = "veth"
 	vethLen                    = len(vethPrefix) + 7
 	defaultContainerVethPrefix = "eth"
-	maxAllocatePortAttempts    = 10
 )
 
 const (
@@ -74,13 +72,10 @@ type configuration struct {
 	DisableFilterForwardDrop bool
 	EnableIPTables           bool
 	EnableIP6Tables          bool
-	EnableUserlandProxy      bool
-	UserlandProxyPath        string
 	// Hairpin indicates whether packets sent from a container to a host port
 	// published by another container on the same bridge network should be
 	// hairpinned.
 	Hairpin            bool
-	Rootless           bool
 	AllowDirectRouting bool
 }
 
@@ -161,25 +156,14 @@ type bridgeNetwork struct {
 	sync.Mutex
 }
 
-type portDriverClient interface {
-	ChildHostIP(hostIP netip.Addr) netip.Addr
-	AddPort(ctx context.Context, proto string, hostIP, childIP netip.Addr, hostPort int) (func() error, error)
-}
-
-// Allow unit tests to supply a dummy RootlessKit port driver client.
-var newPortDriverClient = func(ctx context.Context) (portDriverClient, error) {
-	return rlkclient.NewPortDriverClient(ctx)
-}
-
 type driver struct {
-	config           configuration
-	networks         map[string]*bridgeNetwork
-	store            *datastore.Store
-	nlh              nlwrap.Handle
-	portDriverClient portDriverClient
-	configNetwork    sync.Mutex
-	firewaller       firewaller.Firewaller
-	portmappers      *drvregistry.PortMappers
+	config        configuration
+	networks      map[string]*bridgeNetwork
+	store         *datastore.Store
+	nlh           nlwrap.Handle
+	configNetwork sync.Mutex
+	firewaller    firewaller.Firewaller
+	portmappers   *drvregistry.PortMappers
 	sync.Mutex
 }
 
@@ -476,15 +460,6 @@ func (n *bridgeNetwork) gwMode(v firewaller.IPVersion) gwMode {
 	return n.config.GwModeIPv6
 }
 
-func (n *bridgeNetwork) userlandProxyPath() string {
-	n.Lock()
-	defer n.Unlock()
-	if n.driver == nil {
-		return ""
-	}
-	return n.driver.userlandProxyPath()
-}
-
 func (n *bridgeNetwork) hairpin() bool {
 	n.Lock()
 	defer n.Unlock()
@@ -494,13 +469,13 @@ func (n *bridgeNetwork) hairpin() bool {
 	return n.driver.config.Hairpin
 }
 
-func (n *bridgeNetwork) getPortDriverClient() portDriverClient {
+func (n *bridgeNetwork) portMappers() *drvregistry.PortMappers {
 	n.Lock()
 	defer n.Unlock()
 	if n.driver == nil {
 		return nil
 	}
-	return n.driver.getPortDriverClient()
+	return n.driver.portmappers
 }
 
 func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
@@ -546,17 +521,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 		return err
 	}
 
-	var pdc portDriverClient
-	if config.Rootless {
-		var err error
-		pdc, err = newPortDriverClient(context.TODO())
-		if err != nil {
-			return err
-		}
-	}
-
 	d.Lock()
-	d.portDriverClient = pdc
 	d.config = config
 	d.Unlock()
 
@@ -602,22 +567,6 @@ func (d *driver) getNetwork(id string) (*bridgeNetwork, error) {
 	}
 
 	return nil, types.NotFoundErrorf("network not found: %s", id)
-}
-
-func (d *driver) userlandProxyPath() string {
-	d.Lock()
-	defer d.Unlock()
-
-	if d.config.EnableUserlandProxy {
-		return d.config.UserlandProxyPath
-	}
-	return ""
-}
-
-func (d *driver) getPortDriverClient() portDriverClient {
-	d.Lock()
-	defer d.Unlock()
-	return d.portDriverClient
 }
 
 func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error) {
@@ -1639,7 +1588,7 @@ func (ep *bridgeEndpoint) trimPortBindings(ctx context.Context, n *bridgeNetwork
 		return nil, nil
 	}
 
-	if err := releasePortBindings(toDrop, n.firewallerNetwork); err != nil {
+	if err := n.unmapPBs(ctx, toDrop); err != nil {
 		log.G(ctx).WithFields(log.Fields{
 			"error": err,
 			"gw4":   pbmReq.ipv4,

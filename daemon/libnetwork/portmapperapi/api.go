@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"strings"
 
 	"github.com/docker/docker/daemon/libnetwork/types"
 )
@@ -36,14 +37,12 @@ type PortMapper interface {
 
 type PortBindingReq struct {
 	types.PortBinding
+	// Mapper is the name of the port mapper used to process this PortBindingReq.
+	Mapper string
 	// ChildHostIP is a temporary field used to pass the host IP address as
 	// seen from the daemon. (It'll be removed once the portmapper API is
 	// implemented).
 	ChildHostIP net.IP `json:"-"`
-	// DisableNAT is a temporary field used to indicate whether the port is
-	// mapped on the host or not. (It'll be removed once the portmapper API is
-	// implemented).
-	DisableNAT bool `json:"-"`
 }
 
 // Compare defines an ordering over PortBindingReq such that bindings that
@@ -58,11 +57,8 @@ type PortBindingReq struct {
 //   - same host ports or ranges are adjacent, then
 //   - ordered by container IP (then host IP, if set).
 func (pbReq PortBindingReq) Compare(other PortBindingReq) int {
-	if pbReq.DisableNAT != other.DisableNAT {
-		if pbReq.DisableNAT {
-			return 1 // NAT disabled bindings come last
-		}
-		return -1
+	if pbReq.Mapper != other.Mapper {
+		return strings.Compare(pbReq.Mapper, other.Mapper)
 	}
 	// Exact host port < host port range.
 	aIsRange := pbReq.HostPort == 0 || pbReq.HostPort != pbReq.HostPortEnd
@@ -97,6 +93,8 @@ func (pbReq PortBindingReq) Compare(other PortBindingReq) int {
 
 type PortBinding struct {
 	types.PortBinding
+	// Mapper is the name of the port mapper used to process this PortBinding.
+	Mapper string
 	// BoundSocket is used to reserve a host port for the binding. If the
 	// userland proxy is in-use, it's passed to the proxy when the proxy is
 	// started, then it's closed and set to nil here.
