@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/netip"
 	"strconv"
+	"strings"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/internal/addrset"
@@ -23,7 +24,7 @@ const (
 	localAddressSpace  = "LocalDefault"
 	globalAddressSpace = "GlobalDefault"
 
-	DefaultAddressPoolSize = "preferred_default_address_pool_size"
+	SubnetSizeOption = "subnet_size"
 )
 
 // Register registers the default ipam driver with libnetwork. It takes
@@ -134,27 +135,70 @@ func (a *Allocator) RequestPool(req ipamapi.PoolRequest) (ipamapi.AllocatedPool,
 	if err != nil {
 		return ipamapi.AllocatedPool{}, err
 	}
+
+	k := PoolID{AddressSpace: req.AddressSpace}
+
+	if req.Pool != "" {
+		if strings.HasPrefix(req.Pool, "/") {
+			if req.V6 {
+				req.Pool = "::" + req.Pool
+			} else {
+				req.Pool = "0.0.0.0" + req.Pool
+			}
+		}
+
+		prefix, err := netip.ParsePrefix(req.Pool)
+		if err != nil {
+			return ipamapi.AllocatedPool{}, parseErr(ipamapi.ErrInvalidPool)
+		}
+
+		if _, found := req.Options[SubnetSizeOption]; found {
+			return ipamapi.AllocatedPool{}, parseErr(ipamapi.ErrInvalidPool)
+		}
+
+		if prefix.Addr().IsUnspecified() {
+			// If the prefix is unspecified, we're only interested in the prefix size.
+			// We'll attempt to use the specified size to allocate a subnet from the
+			// predefined pools.
+			req.Pool = ""
+
+			if req.Options == nil {
+				req.Options = make(map[string]string)
+			}
+
+			req.Options[SubnetSizeOption] = strconv.Itoa(prefix.Bits())
+		} else {
+			k.Subnet = prefix
+		}
+	}
+
 	if req.Pool == "" && req.SubPool != "" {
 		return ipamapi.AllocatedPool{}, parseErr(ipamapi.ErrInvalidSubPool)
 	}
 
-	k := PoolID{AddressSpace: req.AddressSpace}
 	if req.Pool == "" {
-		var preferredSize int
-		if sizeValue, found := req.Options[DefaultAddressPoolSize]; found {
-			if parsedSize, parseErr := strconv.ParseInt(sizeValue, 10, 8); parseErr == nil {
-				preferredSize = int(parsedSize)
+		var subnetSize int
+		if sizeValue, found := req.Options[SubnetSizeOption]; found {
+			var testPrefix string
+			if req.V6 {
+				testPrefix = "::/" + sizeValue
+			} else {
+				testPrefix = "0.0.0.0/" + sizeValue
+			}
+
+			if prefix, err := netip.ParsePrefix(testPrefix); err != nil {
+				return ipamapi.AllocatedPool{}, types.InvalidParameterErrorf("invalid subnet size: %s", sizeValue)
+			} else if !prefix.IsValid() {
+				return ipamapi.AllocatedPool{}, types.InvalidParameterErrorf("invalid subnet size: %s", sizeValue)
+			} else {
+				subnetSize = prefix.Bits()
 			}
 		}
 
-		if k.Subnet, err = aSpace.allocatePredefinedPool(req.Exclude, preferredSize); err != nil {
+		if k.Subnet, err = aSpace.allocatePredefinedPool(req.Exclude, subnetSize); err != nil {
 			return ipamapi.AllocatedPool{}, err
 		}
 		return ipamapi.AllocatedPool{PoolID: k.String(), Pool: k.Subnet}, nil
-	}
-
-	if k.Subnet, err = netip.ParsePrefix(req.Pool); err != nil {
-		return ipamapi.AllocatedPool{}, parseErr(ipamapi.ErrInvalidPool)
 	}
 
 	if req.SubPool != "" {

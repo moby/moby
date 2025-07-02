@@ -289,7 +289,7 @@ func TestPredefinedPoolWithPreferredSubnetSize(t *testing.T) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
 
-	alloc1, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Options: map[string]string{DefaultAddressPoolSize: "24"}})
+	alloc1, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Options: map[string]string{SubnetSizeOption: "24"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -316,21 +316,39 @@ func TestPredefinedPoolWithPreferredSubnetSize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	alloc3, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Options: map[string]string{DefaultAddressPoolSize: "AB"}})
+	alloc3, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "/24"})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if alloc3.Pool != alloc2.Pool {
-		t.Fatalf("Unexpected default network returned: %s != %s", alloc3.Pool, alloc2.Pool)
-	}
-
-	if err := a.ReleasePool(alloc1.PoolID); err != nil {
-		t.Fatal(err)
+	if alloc3.Pool.Bits() != 24 {
+		t.Fatalf("Unexpected default network size: %s != 24", alloc3.Pool)
 	}
 
 	if err := a.ReleasePool(alloc3.PoolID); err != nil {
 		t.Fatal(err)
+	}
+
+	alloc4, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "0.0.0.0/25"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if alloc4.Pool.Bits() != 25 {
+		t.Fatalf("Unexpected default network size: %s != 25", alloc4.Pool)
+	}
+
+	if err := a.ReleasePool(alloc4.PoolID); err != nil {
+		t.Fatal(err)
+	}
+
+	// Check invalid subnet size requests
+	if _, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Options: map[string]string{SubnetSizeOption: "AB"}}); err == nil {
+		t.Fatalf("Expected failure requesting pool with invalid subnet size")
+	}
+
+	if _, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "/24", Options: map[string]string{SubnetSizeOption: "24"}}); err == nil {
+		t.Fatalf("Expected failure requesting pool with invalid subnet size")
 	}
 }
 

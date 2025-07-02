@@ -30,13 +30,13 @@ func TestNewAddrSpaceDedup(t *testing.T) {
 
 func TestDynamicPoolAllocation(t *testing.T) {
 	testcases := []struct {
-		name          string
-		predefined    []*ipamutils.NetworkToSplit
-		preferredSize int
-		allocated     []netip.Prefix
-		reserved      []netip.Prefix
-		expPrefix     netip.Prefix
-		expErr        error
+		name       string
+		predefined []*ipamutils.NetworkToSplit
+		subnetSize int
+		allocated  []netip.Prefix
+		reserved   []netip.Prefix
+		expPrefix  netip.Prefix
+		expErr     error
 	}{
 		{
 			name: "First allocated overlaps at the end of first pool",
@@ -345,42 +345,42 @@ func TestDynamicPoolAllocation(t *testing.T) {
 			expPrefix: netip.MustParsePrefix("192.168.0.0/24"),
 		},
 		{
-			name: "Smaller preferred network subnet size than predefined",
+			name: "Smaller requested network subnet size than predefined",
 			predefined: []*ipamutils.NetworkToSplit{
 				{Base: netip.MustParsePrefix("172.17.0.0/12"), Size: 16},
 			},
-			preferredSize: 24,
-			expPrefix:     netip.MustParsePrefix("172.17.0.0/24"),
+			subnetSize: 24,
+			expPrefix:  netip.MustParsePrefix("172.17.0.0/24"),
 		},
 		{
-			name: "Larger preferred network subnet size than predefined",
+			name: "Larger requested network subnet size than predefined",
 			predefined: []*ipamutils.NetworkToSplit{
 				{Base: netip.MustParsePrefix("172.17.0.0/12"), Size: 20},
 			},
-			preferredSize: 16,
-			expPrefix:     netip.MustParsePrefix("172.17.0.0/20"),
+			subnetSize: 16,
+			expPrefix:  netip.MustParsePrefix("172.17.0.0/16"),
 		},
 		{
-			name: "Invalid preferred network subnet size",
+			name: "Invalid specified network subnet size",
 			predefined: []*ipamutils.NetworkToSplit{
 				{Base: netip.MustParsePrefix("172.17.0.0/12"), Size: 16},
 			},
-			preferredSize: 120,
-			expPrefix:     netip.MustParsePrefix("172.17.0.0/16"),
+			subnetSize: 150,
+			expErr:     ipamapi.ErrInvalidPool,
 		},
 		{
-			name: "Partially allocated predfined pool with preferred size",
+			name: "Partially allocated predfined pool with specified size",
 			predefined: []*ipamutils.NetworkToSplit{
 				{Base: netip.MustParsePrefix("172.17.0.0/12"), Size: 16},
 			},
 			allocated: []netip.Prefix{
 				netip.MustParsePrefix("172.17.0.0/20"),
 			},
-			preferredSize: 24,
-			expPrefix:     netip.MustParsePrefix("172.17.16.0/24"),
+			subnetSize: 24,
+			expPrefix:  netip.MustParsePrefix("172.17.16.0/24"),
 		},
 		{
-			name: "Partially allocated predfined with gap and preferred size",
+			name: "Partially allocated predfined with gap and specified size",
 			predefined: []*ipamutils.NetworkToSplit{
 				{Base: netip.MustParsePrefix("172.17.0.0/12"), Size: 16},
 			},
@@ -388,8 +388,8 @@ func TestDynamicPoolAllocation(t *testing.T) {
 				netip.MustParsePrefix("172.17.0.0/20"),
 				netip.MustParsePrefix("172.18.0.0/20"),
 			},
-			preferredSize: 24,
-			expPrefix:     netip.MustParsePrefix("172.17.16.0/24"),
+			subnetSize: 24,
+			expPrefix:  netip.MustParsePrefix("172.17.16.0/24"),
 		},
 		{
 			name: "Partially allocated avoids overlapping",
@@ -402,33 +402,33 @@ func TestDynamicPoolAllocation(t *testing.T) {
 			expPrefix: netip.MustParsePrefix("172.18.0.0/16"),
 		},
 		{
-			name: "Multiple predefined pools last one satisfies preferred size",
+			name: "Multiple predefined pools last one satisfies specified size",
 			predefined: []*ipamutils.NetworkToSplit{
 				{Base: netip.MustParsePrefix("172.17.0.0/12"), Size: 24},
 				{Base: netip.MustParsePrefix("10.0.0.0/12"), Size: 20},
 			},
-			preferredSize: 20,
-			expPrefix:     netip.MustParsePrefix("10.0.0.0/20"),
+			subnetSize: 20,
+			expPrefix:  netip.MustParsePrefix("10.0.0.0/20"),
 		},
 		{
-			name: "Multiple predefined pools none matching preferred size",
+			name: "Multiple predefined pools none matching specified size",
 			predefined: []*ipamutils.NetworkToSplit{
 				{Base: netip.MustParsePrefix("172.17.0.0/24"), Size: 24},
 				{Base: netip.MustParsePrefix("172.18.0.0/20"), Size: 20},
 				{Base: netip.MustParsePrefix("172.19.0.0/24"), Size: 24},
 			},
-			preferredSize: 16,
-			expPrefix:     netip.MustParsePrefix("172.18.0.0/20"),
+			subnetSize: 16,
+			expErr:     ipamapi.ErrInvalidPool,
 		},
 		{
-			name: "Multiple predefined pools none valid for preferred size",
+			name: "Multiple predefined pools none valid for specified size",
 			predefined: []*ipamutils.NetworkToSplit{
 				{Base: netip.MustParsePrefix("172.17.0.0/24"), Size: 24},
 				{Base: netip.MustParsePrefix("172.18.0.0/20"), Size: 20},
 				{Base: netip.MustParsePrefix("172.19.0.0/24"), Size: 23},
 			},
-			preferredSize: 33,
-			expPrefix:     netip.MustParsePrefix("172.17.0.0/24"),
+			subnetSize: 33,
+			expErr:     ipamapi.ErrInvalidPool,
 		},
 	}
 
@@ -438,7 +438,7 @@ func TestDynamicPoolAllocation(t *testing.T) {
 			assert.NilError(t, err)
 			as.allocated = tc.allocated
 
-			p, err := as.allocatePredefinedPool(tc.reserved, tc.preferredSize)
+			p, err := as.allocatePredefinedPool(tc.reserved, tc.subnetSize)
 
 			assert.Check(t, is.ErrorIs(err, tc.expErr))
 			assert.Check(t, is.Equal(p, tc.expPrefix))
