@@ -71,8 +71,10 @@ func (l *tarexporter) Load(ctx context.Context, inTar io.ReadCloser, outStream i
 		return fmt.Errorf("invalid archive: failed to decode %s: %w", manifestFileName, err)
 	}
 
-	if err := validateManifest(manifest); err != nil {
-		return err
+	// a nil manifest usually indicates a bug, so don't just silently fail.
+	// if someone really needs to pass an empty manifest, they can pass [].
+	if manifest == nil {
+		return errors.New("invalid manifest, manifest cannot be null (but can be [])")
 	}
 
 	var parentLinks []parentLink
@@ -293,14 +295,4 @@ func checkValidParent(img, parent *image.Image) bool {
 		}
 	}
 	return true
-}
-
-func validateManifest(manifest []manifestItem) error {
-	// a nil manifest usually indicates a bug, so don't just silently fail.
-	// if someone really needs to pass an empty manifest, they can pass [].
-	if manifest == nil {
-		return errors.New("invalid manifest, manifest cannot be null (but can be [])")
-	}
-
-	return nil
 }
