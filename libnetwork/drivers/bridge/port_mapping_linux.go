@@ -92,16 +92,7 @@ func (n *bridgeNetwork) addPortMappings(
 		defHostIP = addr4
 	}
 
-	var containerIPv4, containerIPv6 net.IP
-	if ep.addr != nil {
-		containerIPv4 = ep.addr.IP
-	}
-	if ep.addrv6 != nil {
-		containerIPv6 = ep.addrv6.IP
-	}
-
 	bindings := make([]portBinding, 0, len(cfg)*2)
-
 	defer func() {
 		if retErr != nil {
 			if err := releasePortBindings(bindings, n.firewallerNetwork); err != nil {
@@ -110,15 +101,10 @@ func (n *bridgeNetwork) addPortMappings(
 		}
 	}()
 
-	sortedCfg := slices.Clone(cfg)
-	sortAndNormPBs(sortedCfg)
+	bindingReqs := n.sortAndNormPBs(ctx, ep, cfg, defHostIP, pbmReq)
 
 	proxyPath := n.userlandProxyPath()
 	pdc := n.getPortDriverClient()
-	disableNAT4, disableNAT6 := n.getNATDisabled()
-
-	add4 := !ep.portBindingState.ipv4 && pbmReq.ipv4
-	add6 := !ep.portBindingState.ipv6 && pbmReq.ipv6
 
 	// toBind accumulates port bindings that should be allocated the same host port
 	// (if required by NAT config). If the host address is unspecified, and defHostIP
@@ -130,45 +116,9 @@ func (n *bridgeNetwork) addPortMappings(
 	// or multiple addresses of both address families. Once there are no more
 	// bindings to collect, they're applied and toBind is reset.
 	var toBind []portBindingReq
-	for i, c := range sortedCfg {
-		if add4 {
-			if bindingIPv4, ok := configurePortBindingIPv4(ctx, pdc, disableNAT4, c, containerIPv4, defHostIP); ok {
-				toBind = append(toBind, bindingIPv4)
-			}
-		}
-
-		// If the container has no IPv6 address, allow proxying host IPv6 traffic to it
-		// by setting up the binding with the IPv4 interface if the userland proxy is enabled
-		// This change was added to keep backward compatibility
-		containerIP := containerIPv6
-		if containerIPv6 == nil && pbmReq.ipv4 && add6 {
-			if proxyPath == "" {
-				// There's no way to map from host-IPv6 to container-IPv4 with the userland proxy
-				// disabled.
-				// If that is required, don't treat it as an error because, as networks are
-				// connected/disconnected, the container's gateway endpoint might change to a
-				// network where this config makes more sense.
-				if len(c.HostIP) > 0 && c.HostIP.To4() == nil {
-					log.G(ctx).WithFields(log.Fields{"mapping": c}).Info(
-						"Cannot map from IPv6 to an IPv4-only container because the userland proxy is disabled")
-				}
-				if len(c.HostIP) == 0 && defHostIP.To4() == nil {
-					log.G(ctx).WithFields(log.Fields{
-						"mapping": c,
-						"default": defHostIP,
-					}).Info("Cannot map from default host binding address to an IPv4-only container because the userland proxy is disabled")
-				}
-			} else {
-				containerIP = containerIPv4
-			}
-		}
-		if add6 {
-			if bindingIPv6, ok := configurePortBindingIPv6(ctx, pdc, disableNAT6, c, containerIP, defHostIP); ok {
-				toBind = append(toBind, bindingIPv6)
-			}
-		}
-
-		if i < len(sortedCfg)-1 && needSamePort(c, sortedCfg[i+1]) {
+	for i, c := range bindingReqs {
+		toBind = append(toBind, c)
+		if i < len(bindingReqs)-1 && c.disableNAT == bindingReqs[i+1].disableNAT && needSamePort(c, bindingReqs[i+1]) {
 			// This port binding matches the next, apart from host IP. So, continue
 			// collecting bindings, then allocate the same host port for all addresses.
 			continue
@@ -212,27 +162,106 @@ func (n *bridgeNetwork) addPortMappings(
 	return bindings, nil
 }
 
-// sortAndNormPBs normalises cfg by making HostPortEnd=HostPort (rather than 0) if the
-// host port isn't a range - and sorts it into the ordering defined by cmpPortBinding.
-func sortAndNormPBs(cfg []types.PortBinding) {
-	for i := range cfg {
-		if cfg[i].HostPortEnd == 0 {
-			cfg[i].HostPortEnd = cfg[i].HostPort
+// sortAndNormPBs transforms cfg into a list of portBindingReq, with all fields
+// normalized:
+//
+//   - HostPortEnd=HostPort (rather than 0) if the host port isn't a range
+//   - HostIP is set to the default host IP if not specified, and the binding is
+//     NATed
+//   - disableNAT is set if the binding is routed, and HostIP is cleared
+//
+// When no HostIP is specified, and the default HostIP is 0.0.0.0, a duplicate
+// IPv6 port binding is created with the same port and protocol, but with
+// HostIP set to [::].
+//
+// Finally, port bindings are sorted into the ordering defined by cmpPortBindingReqs
+// in order to form groups of port bindings that should be processed in one go.
+func (n *bridgeNetwork) sortAndNormPBs(
+	ctx context.Context,
+	ep *bridgeEndpoint,
+	cfg []types.PortBinding,
+	defHostIP net.IP,
+	pbmReq portBindingMode,
+) []portBindingReq {
+	var containerIPv4, containerIPv6 net.IP
+	if ep.addr != nil {
+		containerIPv4 = ep.addr.IP
+	}
+	if ep.addrv6 != nil {
+		containerIPv6 = ep.addrv6.IP
+	}
+
+	proxyPath := n.userlandProxyPath()
+	pdc := n.getPortDriverClient()
+	disableNAT4, disableNAT6 := n.getNATDisabled()
+
+	add4 := !ep.portBindingState.ipv4 && pbmReq.ipv4
+	add6 := !ep.portBindingState.ipv6 && pbmReq.ipv6
+
+	reqs := make([]portBindingReq, 0, len(cfg))
+	for _, c := range cfg {
+		if c.HostPortEnd == 0 {
+			c.HostPortEnd = c.HostPort
+		}
+
+		if add4 {
+			if bindingIPv4, ok := configurePortBindingIPv4(ctx, pdc, disableNAT4, c, containerIPv4, defHostIP); ok {
+				reqs = append(reqs, bindingIPv4)
+			}
+		}
+
+		// If the container has no IPv6 address, allow proxying host IPv6 traffic to it
+		// by setting up the binding with the IPv4 interface if the userland proxy is enabled
+		// This change was added to keep backward compatibility
+		containerIP := containerIPv6
+		if containerIPv6 == nil && pbmReq.ipv4 && add6 {
+			if proxyPath == "" {
+				// There's no way to map from host-IPv6 to container-IPv4 with the userland proxy
+				// disabled.
+				// If that is required, don't treat it as an error because, as networks are
+				// connected/disconnected, the container's gateway endpoint might change to a
+				// network where this config makes more sense.
+				if len(c.HostIP) > 0 && c.HostIP.To4() == nil {
+					log.G(ctx).WithFields(log.Fields{"mapping": c}).Info(
+						"Cannot map from IPv6 to an IPv4-only container because the userland proxy is disabled")
+				}
+				if len(c.HostIP) == 0 && defHostIP.To4() == nil {
+					log.G(ctx).WithFields(log.Fields{
+						"mapping": c,
+						"default": defHostIP,
+					}).Info("Cannot map from default host binding address to an IPv4-only container because the userland proxy is disabled")
+				}
+			} else {
+				containerIP = containerIPv4
+			}
+		}
+		if add6 {
+			if bindingIPv6, ok := configurePortBindingIPv6(ctx, pdc, disableNAT6, c, containerIP, defHostIP); ok {
+				reqs = append(reqs, bindingIPv6)
+			}
 		}
 	}
-	slices.SortFunc(cfg, cmpPortBinding)
+	slices.SortFunc(reqs, cmpPortBindingReqs)
+	return reqs
 }
 
-// cmpPortBinding defines an ordering over PortBinding such that bindings that differ
+// cmpPortBindingReqs defines an ordering over PortBinding such that bindings that differ
 // only in host IP are adjacent (those bindings should be allocated the same port).
 //
-// Exact host ports are placed before ranges (in case exact ports fall within ranges,
-// giving a better chance of allocating the exact ports), then PortBindings with the:
-// - same container port are adjacent (lowest ports first), then
-// - same protocols are adjacent (tcp < udp < sctp), then
-// - same host ports or ranges are adjacent, then
-// - ordered by container IP (then host IP, if set).
-func cmpPortBinding(a, b types.PortBinding) int {
+// Port bindings are first sorted by their mapper, then:
+//   - exact host ports are placed before ranges (in case exact ports fall within
+//     ranges, giving a better chance of allocating the exact ports), then
+//   - same container port are adjacent (lowest ports first), then
+//   - same protocols are adjacent (tcp < udp < sctp), then
+//   - same host ports or ranges are adjacent, then
+//   - ordered by container IP (then host IP, if set).
+func cmpPortBindingReqs(a, b portBindingReq) int {
+	if a.disableNAT != b.disableNAT {
+		if a.disableNAT {
+			return 1 // NAT disabled bindings come last
+		}
+		return -1
+	}
 	// Exact host port < host port range.
 	aIsRange := a.HostPort == 0 || a.HostPort != a.HostPortEnd
 	bIsRange := b.HostPort == 0 || b.HostPort != b.HostPortEnd
@@ -268,12 +297,11 @@ func cmpPortBinding(a, b types.PortBinding) int {
 // meaning they should be allocated the same host port (so that, if v4/v6
 // addresses are returned in a DNS response or similar, clients can bind without
 // needing to adjust the port number depending on which address is used).
-func needSamePort(a, b types.PortBinding) bool {
+func needSamePort(a, b portBindingReq) bool {
 	return a.Port == b.Port &&
 		a.Proto == b.Proto &&
 		a.HostPort == b.HostPort &&
-		a.HostPortEnd == b.HostPortEnd &&
-		a.IP.Equal(b.IP)
+		a.HostPortEnd == b.HostPortEnd
 }
 
 // mergeChildHostIPs take a slice of portBinding and returns a slice of

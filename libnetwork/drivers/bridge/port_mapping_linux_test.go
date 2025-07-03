@@ -193,55 +193,62 @@ func loopbackUp() error {
 	return nlHandle.LinkSetUp(iface)
 }
 
-func TestCmpPortBindings(t *testing.T) {
-	pb := types.PortBinding{
-		Proto:       types.TCP,
-		IP:          net.ParseIP("172.17.0.2"),
-		Port:        80,
-		HostIP:      net.ParseIP("192.168.1.2"),
-		HostPort:    8080,
-		HostPortEnd: 8080,
+func TestCmpPortBindingReqs(t *testing.T) {
+	pb := portBindingReq{
+		PortBinding: types.PortBinding{
+			Proto:       types.TCP,
+			IP:          net.ParseIP("172.17.0.2"),
+			Port:        80,
+			HostIP:      net.ParseIP("192.168.1.2"),
+			HostPort:    8080,
+			HostPortEnd: 8080,
+		},
 	}
-	var pbA, pbB types.PortBinding
+	var pbA, pbB portBindingReq
 
-	assert.Check(t, cmpPortBinding(pb, pb) == 0)
+	assert.Check(t, cmpPortBindingReqs(pb, pb) == 0)
+
+	pbA, pbB = pb, pb
+	pbB.disableNAT = true
+	assert.Check(t, cmpPortBindingReqs(pbA, pbB) < 0)
+	assert.Check(t, cmpPortBindingReqs(pbB, pbA) > 0)
 
 	pbA, pbB = pb, pb
 	pbA.Port = 22
-	assert.Check(t, cmpPortBinding(pbA, pbB) < 0)
-	assert.Check(t, cmpPortBinding(pbB, pbA) > 0)
+	assert.Check(t, cmpPortBindingReqs(pbA, pbB) < 0)
+	assert.Check(t, cmpPortBindingReqs(pbB, pbA) > 0)
 
 	pbA, pbB = pb, pb
 	pbB.Proto = types.UDP
-	assert.Check(t, cmpPortBinding(pbA, pbB) < 0)
-	assert.Check(t, cmpPortBinding(pbB, pbA) > 0)
+	assert.Check(t, cmpPortBindingReqs(pbA, pbB) < 0)
+	assert.Check(t, cmpPortBindingReqs(pbB, pbA) > 0)
 
 	pbA, pbB = pb, pb
 	pbA.Port = 22
 	pbA.Proto = types.UDP
-	assert.Check(t, cmpPortBinding(pbA, pbB) < 0)
-	assert.Check(t, cmpPortBinding(pbB, pbA) > 0)
+	assert.Check(t, cmpPortBindingReqs(pbA, pbB) < 0)
+	assert.Check(t, cmpPortBindingReqs(pbB, pbA) > 0)
 
 	pbA, pbB = pb, pb
 	pbB.HostPort = 8081
-	assert.Check(t, cmpPortBinding(pbA, pbB) < 0)
-	assert.Check(t, cmpPortBinding(pbB, pbA) > 0)
+	assert.Check(t, cmpPortBindingReqs(pbA, pbB) < 0)
+	assert.Check(t, cmpPortBindingReqs(pbB, pbA) > 0)
 
 	pbA, pbB = pb, pb
 	pbB.HostPort, pbB.HostPortEnd = 0, 0
-	assert.Check(t, cmpPortBinding(pbA, pbB) < 0)
-	assert.Check(t, cmpPortBinding(pbB, pbA) > 0)
+	assert.Check(t, cmpPortBindingReqs(pbA, pbB) < 0)
+	assert.Check(t, cmpPortBindingReqs(pbB, pbA) > 0)
 
 	pbA, pbB = pb, pb
 	pbB.HostPortEnd = 8081
-	assert.Check(t, cmpPortBinding(pbA, pbB) < 0)
-	assert.Check(t, cmpPortBinding(pbB, pbA) > 0)
+	assert.Check(t, cmpPortBindingReqs(pbA, pbB) < 0)
+	assert.Check(t, cmpPortBindingReqs(pbB, pbA) > 0)
 
 	pbA, pbB = pb, pb
 	pbA.HostPortEnd = 8080
 	pbB.HostPortEnd = 8081
-	assert.Check(t, cmpPortBinding(pbA, pbB) < 0)
-	assert.Check(t, cmpPortBinding(pbB, pbA) > 0)
+	assert.Check(t, cmpPortBindingReqs(pbA, pbB) < 0)
+	assert.Check(t, cmpPortBindingReqs(pbB, pbA) > 0)
 }
 
 func TestBindHostPortsError(t *testing.T) {

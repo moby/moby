@@ -97,8 +97,8 @@ func TestDisableNAT(t *testing.T) {
 			gwMode6: "nat",
 			expPortMap: nat.PortMap{
 				"80/tcp": []nat.PortBinding{
-					{HostIP: "0.0.0.0", HostPort: ""},
 					{HostIP: "::", HostPort: "8080"},
+					{HostIP: "0.0.0.0", HostPort: ""},
 				},
 			},
 		},
