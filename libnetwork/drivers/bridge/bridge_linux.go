@@ -1470,6 +1470,10 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 		}
 	}
 
+	if !network.config.EnableICC {
+		return d.link(network, endpoint, true)
+	}
+
 	return nil
 }
 
@@ -1576,10 +1580,6 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 
 	if err = d.storeUpdate(ctx, endpoint); err != nil {
 		return fmt.Errorf("failed to update bridge endpoint %.7s to store: %v", endpoint.id, err)
-	}
-
-	if !network.config.EnableICC {
-		return d.link(network, endpoint, true)
 	}
 
 	return nil
