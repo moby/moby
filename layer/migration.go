@@ -9,6 +9,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/identity"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
 )
@@ -39,7 +40,7 @@ func (ls *layerStore) ChecksumForGraphID(id, parent, newTarDataPath string) (dif
 	if err != nil {
 		return "", 0, err
 	}
-	return DiffID(dgst), size, nil
+	return dgst, size, nil
 }
 
 func (ls *layerStore) RegisterByGraphID(graphID string, parent ChainID, diffID DiffID, tarDataFile string, size int64) (Layer, error) {
@@ -66,6 +67,12 @@ func (ls *layerStore) RegisterByGraphID(graphID string, parent ChainID, diffID D
 		}()
 	}
 
+	var diffIDs []digest.Digest
+	if parent != "" {
+		diffIDs = append(diffIDs, parent)
+	}
+	diffIDs = append(diffIDs, diffID)
+
 	// Create new roLayer
 	layer := &roLayer{
 		parent:         p,
@@ -75,7 +82,7 @@ func (ls *layerStore) RegisterByGraphID(graphID string, parent ChainID, diffID D
 		references:     map[Layer]struct{}{},
 		diffID:         diffID,
 		size:           size,
-		chainID:        createChainIDFromParent(parent, diffID),
+		chainID:        identity.ChainID(diffIDs),
 	}
 
 	ls.layerL.Lock()

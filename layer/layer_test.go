@@ -603,6 +603,7 @@ func tarFromFiles(files ...FileApplier) ([]byte, error) {
 // assertReferences asserts that all the references are to the same
 // image and represent the full set of references to that image.
 func assertReferences(t *testing.T, references ...Layer) {
+	t.Helper()
 	if len(references) == 0 {
 		return
 	}

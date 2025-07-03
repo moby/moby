@@ -16,6 +16,7 @@ import (
 	"github.com/moby/locker"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/identity"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
 )
@@ -319,9 +320,9 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 	}
 
 	if layer.parent == nil {
-		layer.chainID = ChainID(layer.diffID)
+		layer.chainID = layer.diffID
 	} else {
-		layer.chainID = createChainIDFromParent(layer.parent.chainID, layer.diffID)
+		layer.chainID = identity.ChainID([]digest.Digest{layer.parent.chainID, layer.diffID})
 	}
 
 	if cErr = storeLayer(tx, layer); cErr != nil {

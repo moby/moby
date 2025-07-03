@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/docker/docker/layer"
+	"github.com/opencontainers/image-spec/identity"
 )
 
 // TypeLayers is used for RootFS.Type for filesystems organized into layers.
@@ -40,5 +41,5 @@ func (r *RootFS) Clone() *RootFS {
 
 // ChainID returns the ChainID for the top layer in RootFS.
 func (r *RootFS) ChainID() layer.ChainID {
-	return layer.CreateChainID(r.DiffIDs)
+	return identity.ChainID(r.DiffIDs)
 }
