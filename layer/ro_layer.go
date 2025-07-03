@@ -29,7 +29,7 @@ func (rl *roLayer) TarStream() (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	vrc, err := newVerifiedReadCloser(rc, digest.Digest(rl.diffID))
+	vrc, err := newVerifiedReadCloser(rc, rl.diffID)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func (rl *roLayer) TarStreamFrom(parent ChainID) (io.ReadCloser, error) {
 		}
 	}
 
-	if parent != ChainID("") && parentCacheID == "" {
+	if parent != "" && parentCacheID == "" {
 		return nil, fmt.Errorf("layer ID '%s' is not a parent of the specified layer: cannot provide diff to non-parent", parent)
 	}
 	return rl.layerStore.driver.Diff(rl.cacheID, parentCacheID)

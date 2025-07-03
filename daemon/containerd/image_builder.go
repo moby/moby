@@ -387,7 +387,7 @@ func (rw *rwlayer) Commit() (_ builder.ROLayer, outErr error) {
 		key:                key,
 		c:                  rw.c,
 		snapshotter:        rw.snapshotter,
-		diffID:             layer.DiffID(diffID),
+		diffID:             diffID,
 		contentStoreDigest: desc.Digest,
 		lease:              &lease,
 	}, nil

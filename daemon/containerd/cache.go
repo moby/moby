@@ -159,7 +159,7 @@ func (c cacheAdaptor) Create(parent *image.Image, target image.Image, extraLayer
 
 	var layerDigest digest.Digest
 	if extraLayer != "" {
-		info, err := findContentByUncompressedDigest(ctx, c.is.client.ContentStore(), digest.Digest(extraLayer))
+		info, err := findContentByUncompressedDigest(ctx, c.is.client.ContentStore(), extraLayer)
 		if err != nil {
 			return "", fmt.Errorf("failed to find content for diff ID %q: %w", extraLayer, err)
 		}

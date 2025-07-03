@@ -140,8 +140,7 @@ deleteImagesLoop:
 	// Compute how much space was freed
 	for _, d := range rep.ImagesDeleted {
 		if d.Deleted != "" {
-			chid := layer.ChainID(d.Deleted)
-			if l, ok := allLayers[chid]; ok {
+			if l, ok := allLayers[layer.ChainID(d.Deleted)]; ok {
 				rep.SpaceReclaimed += uint64(l.DiffSize())
 			}
 		}

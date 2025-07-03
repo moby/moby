@@ -46,8 +46,7 @@ func newFSMetadataStore(root string) (*fileMetadataStore, error) {
 }
 
 func (fms *fileMetadataStore) getLayerDirectory(layer ChainID) string {
-	dgst := digest.Digest(layer)
-	return filepath.Join(fms.root, string(dgst.Algorithm()), dgst.Encoded())
+	return filepath.Join(fms.root, string(layer.Algorithm()), layer.Encoded())
 }
 
 func (fms *fileMetadataStore) getLayerFilename(layer ChainID, filename string) string {
@@ -83,11 +82,11 @@ func (fm *fileMetadataTransaction) SetSize(size int64) error {
 }
 
 func (fm *fileMetadataTransaction) SetParent(parent ChainID) error {
-	return fm.ws.WriteFile("parent", []byte(digest.Digest(parent).String()), 0o644)
+	return fm.ws.WriteFile("parent", []byte(parent.String()), 0o644)
 }
 
 func (fm *fileMetadataTransaction) SetDiffID(diff DiffID) error {
-	return fm.ws.WriteFile("diff", []byte(digest.Digest(diff).String()), 0o644)
+	return fm.ws.WriteFile("diff", []byte(diff.String()), 0o644)
 }
 
 func (fm *fileMetadataTransaction) SetCacheID(cacheID string) error {
@@ -165,7 +164,7 @@ func (fms *fileMetadataStore) GetParent(layer ChainID) (ChainID, error) {
 		return "", err
 	}
 
-	return ChainID(dgst), nil
+	return dgst, nil
 }
 
 func (fms *fileMetadataStore) GetDiffID(layer ChainID) (DiffID, error) {
@@ -179,7 +178,7 @@ func (fms *fileMetadataStore) GetDiffID(layer ChainID) (DiffID, error) {
 		return "", err
 	}
 
-	return DiffID(dgst), nil
+	return dgst, nil
 }
 
 func (fms *fileMetadataStore) GetCacheID(layer ChainID) (string, error) {
@@ -249,7 +248,7 @@ func (fms *fileMetadataStore) SetMountParent(mount string, parent ChainID) error
 	if err := os.MkdirAll(fms.getMountDirectory(mount), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(fms.getMountFilename(mount, "parent"), []byte(digest.Digest(parent).String()), 0o644)
+	return os.WriteFile(fms.getMountFilename(mount, "parent"), []byte(parent.String()), 0o644)
 }
 
 func (fms *fileMetadataStore) GetMountID(mount string) (string, error) {
@@ -297,7 +296,7 @@ func (fms *fileMetadataStore) GetMountParent(mount string) (ChainID, error) {
 		return "", err
 	}
 
-	return ChainID(dgst), nil
+	return dgst, nil
 }
 
 func (fms *fileMetadataStore) getOrphan() ([]roLayer, error) {
@@ -339,7 +338,7 @@ func (fms *fileMetadataStore) getOrphan() ([]roLayer, error) {
 			}
 
 			l := &roLayer{
-				chainID: ChainID(dgst),
+				chainID: dgst,
 				cacheID: cacheID,
 			}
 			orphanLayers = append(orphanLayers, *l)
@@ -366,7 +365,7 @@ func (fms *fileMetadataStore) List() ([]ChainID, []string, error) {
 				if err := dgst.Validate(); err != nil {
 					log.G(context.TODO()).Debugf("Ignoring invalid digest %s:%s", algorithm, fi.Name())
 				} else {
-					ids = append(ids, ChainID(dgst))
+					ids = append(ids, dgst)
 				}
 			}
 		}
@@ -392,7 +391,7 @@ func (fms *fileMetadataStore) List() ([]ChainID, []string, error) {
 
 // Remove layerdb folder if that is marked for removal
 func (fms *fileMetadataStore) Remove(layer ChainID, cache string) error {
-	dgst := digest.Digest(layer)
+	dgst := layer
 	files, err := os.ReadDir(filepath.Join(fms.root, string(dgst.Algorithm())))
 	if err != nil {
 		return err

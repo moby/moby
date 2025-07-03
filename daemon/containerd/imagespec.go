@@ -1,13 +1,16 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.23
+
 package containerd
 
 import (
+	"slices"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 	"github.com/docker/go-connections/nat"
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
-	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -27,16 +30,12 @@ func dockerOciImageToDockerImagePartial(id image.ID, img imagespec.DockerOCIImag
 		Created:       img.Created,
 	}
 
-	rootFS := &image.RootFS{
-		Type: img.RootFS.Type,
-	}
-	for _, diffId := range img.RootFS.DiffIDs {
-		rootFS.DiffIDs = append(rootFS.DiffIDs, layer.DiffID(diffId))
-	}
-
 	out := image.NewImage(id)
 	out.V1Image = v1Image
-	out.RootFS = rootFS
+	out.RootFS = &image.RootFS{
+		Type:    img.RootFS.Type,
+		DiffIDs: slices.Clone(img.RootFS.DiffIDs),
+	}
 	out.History = img.History
 	out.OSFeatures = img.OSFeatures
 	out.OSVersion = img.OSVersion
@@ -44,14 +43,6 @@ func dockerOciImageToDockerImagePartial(id image.ID, img imagespec.DockerOCIImag
 }
 
 func dockerImageToDockerOCIImage(img image.Image) imagespec.DockerOCIImage {
-	rootfs := ocispec.RootFS{
-		Type:    img.RootFS.Type,
-		DiffIDs: []digest.Digest{},
-	}
-	for _, diffId := range img.RootFS.DiffIDs {
-		rootfs.DiffIDs = append(rootfs.DiffIDs, digest.Digest(diffId))
-	}
-
 	return imagespec.DockerOCIImage{
 		Image: ocispec.Image{
 			Created: img.Created,
@@ -63,7 +54,10 @@ func dockerImageToDockerOCIImage(img image.Image) imagespec.DockerOCIImage {
 				OSVersion:    img.OSVersion,
 				OSFeatures:   img.OSFeatures,
 			},
-			RootFS:  rootfs,
+			RootFS: ocispec.RootFS{
+				Type:    img.RootFS.Type,
+				DiffIDs: slices.Clone(img.RootFS.DiffIDs),
+			},
 			History: img.History,
 		},
 		Config: containerConfigToDockerOCIImageConfig(img.Config),

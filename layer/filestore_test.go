@@ -17,7 +17,7 @@ import (
 
 func randomLayerID(seed int64) ChainID {
 	r := rand.New(rand.NewSource(seed)).Int63()
-	return ChainID(digest.FromBytes([]byte(strconv.FormatInt(r, 10))))
+	return digest.FromBytes([]byte(strconv.FormatInt(r, 10)))
 }
 
 func newFileMetadataStore(t *testing.T) (*fileMetadataStore, string) {

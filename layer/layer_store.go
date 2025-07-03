@@ -243,7 +243,7 @@ func (ls *layerStore) applyTar(tx *fileMetadataTransaction, ts io.Reader, parent
 	}
 
 	layer.size = applySize
-	layer.diffID = DiffID(digester.Digest())
+	layer.diffID = digester.Digest()
 
 	log.G(context.TODO()).Debugf("Applied tar %s to %s, size: %d", layer.diffID, layer.cacheID, applySize)
 
@@ -386,9 +386,8 @@ func (ls *layerStore) deleteLayer(layer *roLayer, metadata *Metadata) error {
 	// if ls.driver.Remove fails
 	var dir string
 	for {
-		dgst := digest.Digest(layer.chainID)
-		tmpID := fmt.Sprintf("%s-%s-removing", dgst.Encoded(), stringid.GenerateRandomID())
-		dir = filepath.Join(ls.store.root, string(dgst.Algorithm()), tmpID)
+		tmpID := fmt.Sprintf("%s-%s-removing", layer.chainID.Encoded(), stringid.GenerateRandomID())
+		dir = filepath.Join(ls.store.root, string(layer.chainID.Algorithm()), tmpID)
 		err := os.Rename(ls.store.getLayerDirectory(layer.chainID), dir)
 		if os.IsExist(err) {
 			continue

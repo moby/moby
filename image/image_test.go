@@ -91,7 +91,7 @@ func TestImageOSNotEmpty(t *testing.T) {
 
 func TestNewChildImageFromImageWithRootFS(t *testing.T) {
 	rootFS := NewRootFS()
-	rootFS.Append(layer.DiffID("ba5e"))
+	rootFS.Append("ba5e")
 	parent := &Image{
 		RootFS: rootFS,
 		History: []History{
@@ -109,7 +109,7 @@ func TestNewChildImageFromImageWithRootFS(t *testing.T) {
 	}
 
 	newImage := NewChildImage(parent, childConfig, "platform")
-	expectedDiffIDs := []layer.DiffID{layer.DiffID("ba5e"), layer.DiffID("abcdef")}
+	expectedDiffIDs := []layer.DiffID{"ba5e", "abcdef"}
 	assert.Check(t, is.DeepEqual(expectedDiffIDs, newImage.RootFS.DiffIDs))
 	assert.Check(t, is.Equal(childConfig.Author, newImage.Author))
 	assert.Check(t, is.DeepEqual(childConfig.Config, newImage.Config))
