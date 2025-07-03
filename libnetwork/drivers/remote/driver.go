@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sync"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/remote/api"
+	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
@@ -24,6 +26,13 @@ type driver struct {
 	endpoint       *plugins.Client
 	networkType    string
 	gwAllocChecker bool
+	nwEndpoints    map[string]*nwEndpoint // Set of endpoint ids that are currently acting as container gateways.
+	nwEndpointsMu  sync.Mutex
+}
+
+type nwEndpoint struct {
+	isGateway4 bool
+	isGateway6 bool
 }
 
 type maybeError interface {
@@ -31,7 +40,11 @@ type maybeError interface {
 }
 
 func newDriver(name string, client *plugins.Client) *driver {
-	return &driver{networkType: name, endpoint: client}
+	return &driver{
+		networkType: name,
+		endpoint:    client,
+		nwEndpoints: make(map[string]*nwEndpoint),
+	}
 }
 
 // Register makes sure a remote driver is registered with r when a network
@@ -336,6 +349,10 @@ func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo 
 	if res.DisableGatewayService {
 		jinfo.DisableGatewayService()
 	}
+
+	d.nwEndpointsMu.Lock()
+	defer d.nwEndpointsMu.Unlock()
+	d.nwEndpoints[eid] = &nwEndpoint{}
 	return nil
 }
 
@@ -345,11 +362,41 @@ func (d *driver) Leave(nid, eid string) error {
 		NetworkID:  nid,
 		EndpointID: eid,
 	}
-	return d.call("Leave", leave, &api.LeaveResponse{})
+	if err := d.call("Leave", leave, &api.LeaveResponse{}); err != nil {
+		return err
+	}
+	d.nwEndpointsMu.Lock()
+	defer d.nwEndpointsMu.Unlock()
+	delete(d.nwEndpoints, eid)
+	return nil
 }
 
 // ProgramExternalConnectivity is invoked to program the rules to allow external connectivity for the endpoint.
-func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string, options map[string]interface{}) error {
+func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string, options map[string]interface{}, gw4Id, gw6Id string) error {
+	d.nwEndpointsMu.Lock()
+	ep, ok := d.nwEndpoints[eid]
+	d.nwEndpointsMu.Unlock()
+	if !ok {
+		return fmt.Errorf("remote network driver: endpoint %s not found", eid)
+	}
+	isGw4, isGw6 := gw4Id == eid, gw6Id == eid
+	if ep.isGateway4 == isGw4 && ep.isGateway6 == isGw6 {
+		return nil
+	}
+	if !isGw4 && !isGw6 {
+		return nil
+	}
+	ep.isGateway4, ep.isGateway6 = isGw4, isGw6
+	if !isGw6 && gw6Id != "" {
+		// If there is an IPv6 gateway, but it's not eid, set NoProxy6To4. This label was
+		// used to tell the bridge driver not to try to use the userland proxy for dual
+		// stack port mappings between host IPv6 and container IPv4 (because a different
+		// endpoint may be dealing with IPv6 host addresses). It was undocumented for the
+		// remote driver, marked as being for internal use and subject to later removal.
+		// But, preserve it here for now as there's no other way for a remote driver to
+		// know it shouldn't try to deal with IPv6 in this case.
+		options[netlabel.NoProxy6To4] = true
+	}
 	data := &api.ProgramExternalConnectivityRequest{
 		NetworkID:  nid,
 		EndpointID: eid,
@@ -365,10 +412,17 @@ func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string,
 
 // RevokeExternalConnectivity method is invoked to remove any external connectivity programming related to the endpoint.
 func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
+	d.nwEndpointsMu.Lock()
+	ep, ok := d.nwEndpoints[eid]
+	d.nwEndpointsMu.Unlock()
+	if !ok {
+		return fmt.Errorf("remote network driver: endpoint %s not found", eid)
+	}
 	data := &api.RevokeExternalConnectivityRequest{
 		NetworkID:  nid,
 		EndpointID: eid,
 	}
+	ep.isGateway4, ep.isGateway6 = false, false
 	err := d.call("RevokeExternalConnectivity", data, &api.RevokeExternalConnectivityResponse{})
 	if err != nil && plugins.IsNotFound(err) {
 		// It is not mandatory yet to support this method

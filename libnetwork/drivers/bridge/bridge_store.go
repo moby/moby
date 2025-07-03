@@ -458,8 +458,22 @@ func (n *bridgeNetwork) restorePortAllocations(ep *bridgeEndpoint) {
 		cfg[i] = b.PortBinding
 	}
 
+	// Calculate a portBindingMode - it need not be accurate but, if there were
+	// IPv4/IPv6 bindings before, ensure they are re-created. (If, for example,
+	// there are no IPv6 bindings, it doesn't matter whether that was because this
+	// endpoint is not an IPv6 gateway and "pbmIPv6" was not set in the port
+	// binding state, or there were just no IPv6 port bindings configured.)
+	var pbm portBindingMode
+	for _, b := range ep.portMapping {
+		if b.HostIP.To4() == nil {
+			pbm.ipv6 = true
+		} else {
+			pbm.ipv4 = true
+		}
+	}
+
 	var err error
-	ep.portMapping, err = n.addPortMappings(context.TODO(), ep.addr, ep.addrv6, cfg, n.config.DefaultBindingIP, ep.extConnConfig.NoProxy6To4)
+	ep.portMapping, err = n.addPortMappings(context.TODO(), ep, cfg, n.config.DefaultBindingIP, pbm)
 	if err != nil {
 		log.G(context.TODO()).Warnf("Failed to reserve existing port mapping for endpoint %.7s:%v", ep.id, err)
 	}

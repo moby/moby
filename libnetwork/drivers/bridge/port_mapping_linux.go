@@ -80,10 +80,10 @@ var startProxy = portmapper.StartProxy
 // each returned portBinding are set to the selected and reserved port.
 func (n *bridgeNetwork) addPortMappings(
 	ctx context.Context,
-	epAddrV4, epAddrV6 *net.IPNet,
+	ep *bridgeEndpoint,
 	cfg []types.PortBinding,
 	defHostIP net.IP,
-	noProxy6To4 bool,
+	pbmReq portBindingMode,
 ) (_ []portBinding, retErr error) {
 	if len(defHostIP) == 0 {
 		defHostIP = net.IPv4zero
@@ -93,11 +93,11 @@ func (n *bridgeNetwork) addPortMappings(
 	}
 
 	var containerIPv4, containerIPv6 net.IP
-	if epAddrV4 != nil {
-		containerIPv4 = epAddrV4.IP
+	if ep.addr != nil {
+		containerIPv4 = ep.addr.IP
 	}
-	if epAddrV6 != nil {
-		containerIPv6 = epAddrV6.IP
+	if ep.addrv6 != nil {
+		containerIPv6 = ep.addrv6.IP
 	}
 
 	bindings := make([]portBinding, 0, len(cfg)*2)
@@ -117,6 +117,9 @@ func (n *bridgeNetwork) addPortMappings(
 	pdc := n.getPortDriverClient()
 	disableNAT4, disableNAT6 := n.getNATDisabled()
 
+	add4 := !ep.portBindingState.ipv4 && pbmReq.ipv4
+	add6 := !ep.portBindingState.ipv6 && pbmReq.ipv6
+
 	// toBind accumulates port bindings that should be allocated the same host port
 	// (if required by NAT config). If the host address is unspecified, and defHostIP
 	// is 0.0.0.0, one iteration of the loop may generate bindings for v4 and v6. If
@@ -128,15 +131,17 @@ func (n *bridgeNetwork) addPortMappings(
 	// bindings to collect, they're applied and toBind is reset.
 	var toBind []portBindingReq
 	for i, c := range sortedCfg {
-		if bindingIPv4, ok := configurePortBindingIPv4(ctx, pdc, disableNAT4, c, containerIPv4, defHostIP); ok {
-			toBind = append(toBind, bindingIPv4)
+		if add4 {
+			if bindingIPv4, ok := configurePortBindingIPv4(ctx, pdc, disableNAT4, c, containerIPv4, defHostIP); ok {
+				toBind = append(toBind, bindingIPv4)
+			}
 		}
 
 		// If the container has no IPv6 address, allow proxying host IPv6 traffic to it
 		// by setting up the binding with the IPv4 interface if the userland proxy is enabled
 		// This change was added to keep backward compatibility
 		containerIP := containerIPv6
-		if containerIPv6 == nil && !noProxy6To4 {
+		if containerIPv6 == nil && pbmReq.ipv4 && add6 {
 			if proxyPath == "" {
 				// There's no way to map from host-IPv6 to container-IPv4 with the userland proxy
 				// disabled.
@@ -157,8 +162,10 @@ func (n *bridgeNetwork) addPortMappings(
 				containerIP = containerIPv4
 			}
 		}
-		if bindingIPv6, ok := configurePortBindingIPv6(ctx, pdc, disableNAT6, c, containerIP, defHostIP); ok {
-			toBind = append(toBind, bindingIPv6)
+		if add6 {
+			if bindingIPv6, ok := configurePortBindingIPv6(ctx, pdc, disableNAT6, c, containerIP, defHostIP); ok {
+				toBind = append(toBind, bindingIPv6)
+			}
 		}
 
 		if i < len(sortedCfg)-1 && needSamePort(c, sortedCfg[i+1]) {
@@ -754,6 +761,7 @@ func (n *bridgeNetwork) releasePorts(ep *bridgeEndpoint) error {
 	n.Lock()
 	pbs := ep.portMapping
 	ep.portMapping = nil
+	ep.portBindingState = portBindingMode{}
 	n.Unlock()
 
 	return releasePortBindings(pbs, n.firewallerNetwork)
