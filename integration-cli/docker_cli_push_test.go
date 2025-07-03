@@ -232,8 +232,8 @@ func (s *DockerCLIPushSuite) TestPushToCentralRegistryUnauthorized(c *testing.T)
 	const imgRepo = "test/busybox"
 	cli.DockerCmd(c, "tag", "busybox", imgRepo)
 	out, _, err := dockerCmdWithError("push", imgRepo)
-	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, !strings.Contains(out, "Retrying"))
+	assert.Check(c, is.ErrorContains(err, ""), out)
+	assert.Check(c, !strings.Contains(out, "Retrying"), out)
 }
 
 func getTestTokenService(status int, body string, retries int) *httptest.Server {
