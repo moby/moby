@@ -12,14 +12,14 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/docker/docker/api/types/build"
-	"github.com/docker/docker/api/types/image"
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
+	"github.com/moby/moby/api/types/build"
+	"github.com/moby/moby/api/types/image"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )

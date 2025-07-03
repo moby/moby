@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
 	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
 	"github.com/docker/go-units"
+	"github.com/moby/moby/api/types/container"
 )
 
 // State holds the current container state, and has methods to get and

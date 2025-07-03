@@ -30,7 +30,6 @@ require (
 	github.com/containerd/containerd/v2 v2.1.3
 	github.com/containerd/continuity v0.4.5
 	github.com/containerd/errdefs v1.0.0
-	github.com/containerd/errdefs/pkg v0.3.0
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/log v0.1.0
 	github.com/containerd/platforms v1.0.0-rc.1
@@ -119,6 +118,8 @@ require (
 	tags.cncf.io/container-device-interface v1.0.1
 )
 
+require github.com/containerd/errdefs/pkg v0.3.0 // indirect
+
 require (
 	cloud.google.com/go v0.112.0 // indirect
 	cloud.google.com/go/longrunning v0.5.5 // indirect
@@ -188,6 +189,8 @@ require (
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
+	github.com/moby/moby/api v0.0.0
+	github.com/moby/moby/client v0.0.0
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/opencontainers/runtime-tools v0.9.1-0.20221107090550-2e043c6bd626 // indirect
 	github.com/package-url/packageurl-go v0.1.1 // indirect
@@ -259,3 +262,7 @@ exclude (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 )
+
+replace github.com/moby/moby/api => ./api
+
+replace github.com/moby/moby/client => ./client

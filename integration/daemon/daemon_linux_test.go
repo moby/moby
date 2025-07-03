@@ -7,11 +7,11 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/networking"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
+	"github.com/moby/moby/api/types/network"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

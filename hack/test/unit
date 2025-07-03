@@ -18,7 +18,9 @@ TESTDIRS="${TESTDIRS:-./...}"
 exclude_paths='/vendor/|/integration'
 pkg_list=$(go list $TESTDIRS | grep -vE "($exclude_paths)")
 
-base_pkg_list=$(echo "${pkg_list}" | grep --fixed-strings -v "/libnetwork" || :)
+base_pkg_list=$(echo "${pkg_list}" | grep --fixed-strings -v "/libnetwork" | grep --fixed-strings -v "/docker/docker/api" | grep --fixed-strings -v "/docker/docker/client" || :)
+api_pkg_list=$(echo "${pkg_list}" | grep --fixed-strings "docker/docker/api" | sed 's/docker\/docker/moby\/moby/' || :)
+client_pkg_list=$(echo "${pkg_list}" | grep --fixed-strings "docker/docker/client" | sed 's/docker\/docker/moby\/moby/' || :)
 libnetwork_pkg_list=$(echo "${pkg_list}" | grep --fixed-strings "/libnetwork" || :)
 
 echo "${libnetwork_pkg_list}" | grep --fixed-strings "libnetwork/drivers/bridge" \
@@ -37,6 +39,31 @@ if [ -n "${base_pkg_list}" ]; then
 		${TESTFLAGS} \
 		${base_pkg_list}
 fi
+
+if [ -n "${api_pkg_list}" ]; then
+	cd api
+	GO111MODULE=on gotestsum --format=standard-quiet --jsonfile=../bundles/go-test-report-api.json --junitfile=../bundles/junit-report-api.xml -- \
+		"${BUILDFLAGS[@]}" \
+		-cover \
+		-coverprofile=../bundles/coverage-api.out \
+		-covermode=atomic \
+		${TESTFLAGS} \
+		${api_pkg_list}
+	cd ..
+fi
+
+if [ -n "${client_pkg_list}" ]; then
+	cd client
+	GO111MODULE=on gotestsum --format=standard-quiet --jsonfile=../bundles/go-test-report-client.json --junitfile=../bundles/junit-report-client.xml -- \
+		"${BUILDFLAGS[@]}" \
+		-cover \
+		-coverprofile=../bundles/coverage-client.out \
+		-covermode=atomic \
+		${TESTFLAGS} \
+		${client_pkg_list}
+	cd ..
+fi
+
 if [ -n "${libnetwork_pkg_list}" ]; then
 	rerun_flaky=1
 

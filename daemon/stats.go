@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types/backend"
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/api/types/backend"
+	containertypes "github.com/moby/moby/api/types/container"
 )
 
 // ContainerStats writes information about the container to the stream

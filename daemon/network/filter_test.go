@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/network"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/network"
 )
 
 func TestFilterNetworks(t *testing.T) {
