@@ -14,8 +14,6 @@ import (
 
 const (
 	manifestFileName           = "manifest.json"
-	legacyLayerFileName        = "layer.tar"
-	legacyConfigFileName       = "json"
 	legacyRepositoriesFileName = "repositories"
 )
 
