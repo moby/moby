@@ -304,11 +304,11 @@ func TestSuccessfulDownload(t *testing.T) {
 		descriptor := d.(*mockDownloadDescriptor)
 
 		if descriptor.diffID != "" {
-			if receivedProgress[d.ID()].Action != "Already exists" {
-				t.Fatalf("did not get 'Already exists' message for %v", d.ID())
+			if actual := receivedProgress[d.ID()].Action; actual != "Already exists" {
+				t.Fatalf("did not get 'Already exists' message for %v: got: %s", d.ID(), actual)
 			}
-		} else if receivedProgress[d.ID()].Action != "Pull complete" {
-			t.Fatalf("did not get 'Pull complete' message for %v", d.ID())
+		} else if actual := receivedProgress[d.ID()].Action; actual != "Pull complete" {
+			t.Fatalf("did not get 'Pull complete' message for %v: got: %s", d.ID(), actual)
 		}
 
 		if rootFS.DiffIDs[i] != descriptor.expectedDiffID {
