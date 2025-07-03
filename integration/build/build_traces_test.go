@@ -3,10 +3,10 @@ package build
 import (
 	"context"
 	"errors"
+	"net"
 	"testing"
 	"time"
 
-	"github.com/docker/docker/client/buildkit"
 	"github.com/docker/docker/testutil"
 	moby_buildkit_v1 "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client"
@@ -33,7 +33,15 @@ func TestBuildkitHistoryTracePropagation(t *testing.T) {
 
 	ctx := testutil.StartSpan(baseContext, t)
 
-	opts := buildkit.ClientOpts(testEnv.APIClient())
+	c := testEnv.APIClient()
+	opts := []client.ClientOpt{
+		client.WithSessionDialer(func(ctx context.Context, proto string, meta map[string][]string) (net.Conn, error) {
+			return c.DialHijack(ctx, "/session", proto, meta)
+		}),
+		client.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
+			return c.DialHijack(ctx, "/grpc", "h2c", nil)
+		}),
+	}
 	bc, err := client.New(ctx, "", opts...)
 	assert.NilError(t, err)
 	defer bc.Close()
