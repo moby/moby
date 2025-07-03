@@ -138,6 +138,10 @@ func (ls *mockLayerStore) ReleaseRWLayer(layer.RWLayer) ([]layer.Metadata, error
 	return nil, errors.New("not implemented")
 }
 
+func (ls *mockLayerStore) GetAllRWLayerID() ([]string, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (ls *mockLayerStore) GetMountID(string) (string, error) {
 	return "", errors.New("not implemented")
 }
