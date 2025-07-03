@@ -26,7 +26,7 @@ import (
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/portmapper"
+	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"go.opentelemetry.io/otel"
@@ -98,7 +98,7 @@ type hnsNetwork struct {
 	config     *networkConfiguration
 	endpoints  map[string]*hnsEndpoint // key: endpoint id
 	driver     *driver                 // The network's driver
-	portMapper *portmapper.PortMapper
+	portMapper *portallocator.OSAllocator
 	sync.Mutex
 }
 
@@ -318,7 +318,7 @@ func (d *driver) createNetwork(config *networkConfiguration) *hnsNetwork {
 		endpoints:  make(map[string]*hnsEndpoint),
 		config:     config,
 		driver:     d,
-		portMapper: portmapper.New(),
+		portMapper: portallocator.New(),
 	}
 
 	d.Lock()
@@ -707,12 +707,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	portMapping := epConnectivity.PortBindings
 
 	if n.config.Type == "l2bridge" || n.config.Type == "l2tunnel" {
-		ip := net.IPv4(0, 0, 0, 0)
-		if ifInfo.Address() != nil {
-			ip = ifInfo.Address().IP
-		}
-
-		portMapping, err = AllocatePorts(n.portMapper, portMapping, ip)
+		portMapping, err = AllocatePorts(n.portMapper, portMapping)
 		if err != nil {
 			return err
 		}
