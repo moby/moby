@@ -76,6 +76,8 @@ func (nDB *NetworkDB) changeNodeState(nodeName string, newState nodeState) (bool
 		// TODO(thaJeztah): make switch exhaustive; add networkdb.nodeNotFound
 	}
 
+	nDB.estNodes.Store(int32(len(nDB.nodes)))
+
 	log.G(context.TODO()).Infof("Node %s change state %s --> %s", nodeName, nodeStateName[currState], nodeStateName[newState])
 
 	if newState == nodeLeftState || newState == nodeFailedState {
@@ -120,4 +122,8 @@ func (nDB *NetworkDB) purgeReincarnation(mn *memberlist.Node) bool {
 	}
 
 	return false
+}
+
+func (nDB *NetworkDB) estNumNodes() int {
+	return int(nDB.estNodes.Load())
 }
