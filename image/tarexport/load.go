@@ -17,7 +17,6 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/image"
-	v1 "github.com/docker/docker/image/v1"
 	"github.com/docker/docker/internal/ioutils"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
@@ -61,19 +60,21 @@ func (l *tarexporter) Load(ctx context.Context, inTar io.ReadCloser, outStream i
 	manifestFile, err := os.Open(manifestPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return l.legacyLoad(tmpDir, outStream, progressOutput)
+			return fmt.Errorf("invalid archive: does not contain a %s", manifestFileName)
 		}
-		return err
+		return fmt.Errorf("invalid archive: failed to load %s: %w", manifestFileName, err)
 	}
 	defer manifestFile.Close()
 
 	var manifest []manifestItem
 	if err := json.NewDecoder(manifestFile).Decode(&manifest); err != nil {
-		return err
+		return fmt.Errorf("invalid archive: failed to decode %s: %w", manifestFileName, err)
 	}
 
-	if err := validateManifest(manifest); err != nil {
-		return err
+	// a nil manifest usually indicates a bug, so don't just silently fail.
+	// if someone really needs to pass an empty manifest, they can pass [].
+	if manifest == nil {
+		return errors.New("invalid manifest, manifest cannot be null (but can be [])")
 	}
 
 	var parentLinks []parentLink
@@ -251,162 +252,6 @@ func (l *tarexporter) setLoadedTag(ref reference.Named, imgID digest.Digest, out
 	return l.rs.AddTag(ref, imgID, true)
 }
 
-func (l *tarexporter) legacyLoad(tmpDir string, outStream io.Writer, progressOutput progress.Output) error {
-	if runtime.GOOS == "windows" {
-		return errors.New("Windows does not support legacy loading of images")
-	}
-
-	legacyLoadedMap := make(map[string]image.ID)
-
-	dirs, err := os.ReadDir(tmpDir)
-	if err != nil {
-		return err
-	}
-
-	// every dir represents an image
-	for _, d := range dirs {
-		if d.IsDir() {
-			if err := l.legacyLoadImage(d.Name(), tmpDir, legacyLoadedMap, progressOutput); err != nil {
-				return err
-			}
-		}
-	}
-
-	// load tags from repositories file
-	repositoriesPath, err := safePath(tmpDir, legacyRepositoriesFileName)
-	if err != nil {
-		return err
-	}
-	repositoriesFile, err := os.Open(repositoriesPath)
-	if err != nil {
-		return err
-	}
-	defer repositoriesFile.Close()
-
-	repositories := make(map[string]map[string]string)
-	if err := json.NewDecoder(repositoriesFile).Decode(&repositories); err != nil {
-		return err
-	}
-
-	for name, tagMap := range repositories {
-		for tag, oldID := range tagMap {
-			imgID, ok := legacyLoadedMap[oldID]
-			if !ok {
-				return fmt.Errorf("invalid target ID: %v", oldID)
-			}
-			named, err := reference.ParseNormalizedNamed(name)
-			if err != nil {
-				return err
-			}
-			ref, err := reference.WithTag(named, tag)
-			if err != nil {
-				return err
-			}
-			l.setLoadedTag(ref, imgID.Digest(), outStream)
-		}
-	}
-
-	return nil
-}
-
-func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[string]image.ID, progressOutput progress.Output) error {
-	if _, loaded := loadedMap[oldID]; loaded {
-		return nil
-	}
-	configPath, err := safePath(sourceDir, filepath.Join(oldID, legacyConfigFileName))
-	if err != nil {
-		return err
-	}
-	imageJSON, err := os.ReadFile(configPath)
-	if err != nil {
-		log.G(context.TODO()).Debugf("Error reading json: %v", err)
-		return err
-	}
-
-	var img struct {
-		OS     string
-		Parent string
-	}
-	if err := json.Unmarshal(imageJSON, &img); err != nil {
-		return err
-	}
-
-	if img.OS == "" {
-		img.OS = runtime.GOOS
-	}
-	if err := image.CheckOS(img.OS); err != nil {
-		return fmt.Errorf("cannot load %s image on %s", img.OS, runtime.GOOS)
-	}
-
-	var parentID image.ID
-	if img.Parent != "" {
-		for {
-			var loaded bool
-			if parentID, loaded = loadedMap[img.Parent]; !loaded {
-				if err := l.legacyLoadImage(img.Parent, sourceDir, loadedMap, progressOutput); err != nil {
-					return err
-				}
-			} else {
-				break
-			}
-		}
-	}
-
-	// todo: try to connect with migrate code
-	rootFS := image.NewRootFS()
-	var history []image.History
-
-	if parentID != "" {
-		parentImg, err := l.is.Get(parentID)
-		if err != nil {
-			return err
-		}
-
-		rootFS = parentImg.RootFS
-		history = parentImg.History
-	}
-
-	layerPath, err := safePath(sourceDir, filepath.Join(oldID, legacyLayerFileName))
-	if err != nil {
-		return err
-	}
-	newLayer, err := l.loadLayer(context.TODO(), layerPath, *rootFS, oldID, distribution.Descriptor{}, progressOutput)
-	if err != nil {
-		return err
-	}
-	rootFS.Append(newLayer.DiffID())
-
-	h, err := v1.HistoryFromConfig(imageJSON, false)
-	if err != nil {
-		return err
-	}
-	history = append(history, h)
-
-	config, err := v1.MakeConfigFromV1Config(imageJSON, rootFS, history)
-	if err != nil {
-		return err
-	}
-	imgID, err := l.is.Create(config)
-	if err != nil {
-		return err
-	}
-
-	metadata, err := l.lss.Release(newLayer)
-	layer.LogReleaseMetadata(metadata)
-	if err != nil {
-		return err
-	}
-
-	if parentID != "" {
-		if err := l.is.SetParent(imgID, parentID); err != nil {
-			return err
-		}
-	}
-
-	loadedMap[oldID] = imgID
-	return nil
-}
-
 func safePath(base, path string) (string, error) {
 	return symlink.FollowSymlinkInScope(filepath.Join(base, path), base)
 }
@@ -450,14 +295,4 @@ func checkValidParent(img, parent *image.Image) bool {
 		}
 	}
 	return true
-}
-
-func validateManifest(manifest []manifestItem) error {
-	// a nil manifest usually indicates a bug, so don't just silently fail.
-	// if someone really needs to pass an empty manifest, they can pass [].
-	if manifest == nil {
-		return errors.New("invalid manifest, manifest cannot be null (but can be [])")
-	}
-
-	return nil
 }

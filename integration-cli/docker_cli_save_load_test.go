@@ -230,8 +230,24 @@ func (s *DockerCLISaveLoadSuite) TestSaveMultipleNames(c *testing.T) {
 
 // Test loading a weird image where one of the layers is of zero size.
 // The layer.tar file is actually zero bytes, no padding or anything else.
-// See issue: 18170
+// See issue: https://github.com/moby/moby/issues/18170
 func (s *DockerCLISaveLoadSuite) TestLoadZeroSizeLayer(c *testing.T) {
+	// The "testdata/emptyLayer.tar" archive uses the legacy format, which fails
+	// to import because there's no "manifest.json" included.
+	//
+	// This test was written for a situation where the user created an archive
+	// that did contain *entries* for (layer) files, but those files were
+	// deliberately empty as an optimization step (to use content already
+	// present);
+	//
+	// - https://github.com/moby/moby/issues/18170
+	// - https://github.com/moby/moby/pull/50324#issuecomment-3033482915
+	//
+	// Keeping the test for now as a reminder that  we may want to verify "empty
+	// files in archive" cases, but we can decide to consider this an invalid
+	// situation (either files must be included and non-empty, or omitted).
+	c.Skip("test is using an archive using the legacy format")
+
 	// TODO(vvoland): Create an OCI image with 0 bytes layer.
 	skip.If(c, testEnv.UsingSnapshotter(), "input archive is not OCI compatible")
 
