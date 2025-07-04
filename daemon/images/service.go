@@ -8,6 +8,7 @@ import (
 
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/leases"
+	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/distribution"
@@ -190,7 +191,9 @@ func (i *ImageService) ReleaseLayer(rwlayer container.RWLayer) error {
 	}
 
 	metaData, err := i.layerStore.ReleaseRWLayer(l)
-	layer.LogReleaseMetadata(metaData)
+	for _, m := range metaData {
+		log.G(context.TODO()).WithField("chainID", m.ChainID).Infof("release RWLayer: cleaned up layer %s", m.ChainID)
+	}
 	if err != nil && !errors.Is(err, layer.ErrMountDoesNotExist) && !errors.Is(err, os.ErrNotExist) {
 		return errors.Wrapf(err, "driver %q failed to remove root filesystem",
 			i.layerStore.DriverName())
