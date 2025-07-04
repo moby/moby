@@ -33,6 +33,17 @@ const (
 	initialRuleGroup nftables.RuleGroup = iota
 )
 
+const (
+	fwdInLegacyLinksRuleGroup = iota + initialRuleGroup + 1
+	fwdInICCRuleGroup
+	fwdInPortsRuleGroup
+	fwdInFinalRuleGroup
+)
+
+const (
+	rawPreroutingPortsRuleGroup = iota + initialRuleGroup + 1
+)
+
 type nftabler struct {
 	config firewaller.Config
 	table4 nftables.TableRef
