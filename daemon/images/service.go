@@ -154,6 +154,10 @@ func (i *ImageService) GetLayerByID(cid string) (container.RWLayer, error) {
 	return i.layerStore.GetRWLayer(cid)
 }
 
+func (i *ImageService) GetAllLayerID() ([]string, error) {
+	return i.layerStore.GetAllRWLayerID()
+}
+
 // LayerStoreStatus returns the status for each layer store
 // called from info.go
 func (i *ImageService) LayerStoreStatus() [][2]string {

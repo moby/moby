@@ -650,6 +650,26 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 	}
 	group.Wait()
 
+	// Clean up leak container layer
+	layerIDList, err := daemon.imageService.GetAllLayerID()
+	if err != nil {
+		log.G(context.TODO()).Errorf("failed to get all mount id: %v", err)
+	}
+	for _, layerID := range layerIDList {
+		if _, exist := containers[layerID]; !exist {
+			log.G(context.TODO()).Warnf("clean up leak container %s rwlayer", layerID)
+			leakLayer, err := daemon.imageService.GetLayerByID(layerID)
+			if err != nil {
+				log.G(context.TODO()).Errorf("failed to GetLayerByID:%v with ID:%s", err, layerID)
+				continue
+			}
+			err = daemon.imageService.ReleaseLayer(leakLayer)
+			if err != nil {
+				log.G(context.TODO()).Errorf("failed to ReleaseLayer:%v with ID:%s", err, layerID)
+			}
+		}
+	}
+
 	log.G(context.TODO()).Info("Loading containers: done.")
 
 	return nil

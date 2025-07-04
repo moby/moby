@@ -176,6 +176,7 @@ type Store interface {
 	Release(Layer) ([]Metadata, error)
 	CreateRWLayer(id string, parent ChainID, opts *CreateRWLayerOpts) (RWLayer, error)
 	GetRWLayer(id string) (RWLayer, error)
+	GetAllRWLayerID() ([]string, error)
 	GetMountID(id string) (string, error)
 	ReleaseRWLayer(RWLayer) ([]Metadata, error)
 	Cleanup() error

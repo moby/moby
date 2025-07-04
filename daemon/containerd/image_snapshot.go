@@ -211,6 +211,19 @@ func (i *ImageService) GetLayerByID(cid string) (container.RWLayer, error) {
 	}, nil
 }
 
+func (i *ImageService) GetAllLayerID() ([]string, error) {
+	ls := i.client.LeasesService()
+	lss, err := ls.List(context.TODO())
+	if err != nil {
+		return nil, err
+	}
+	var IDList = []string{}
+	for _, l := range lss {
+		IDList = append(IDList, l.ID)
+	}
+	return IDList, nil
+}
+
 func (l *rwLayer) Unmount() error {
 	ctx := context.TODO()
 

@@ -552,6 +552,16 @@ func (ls *layerStore) GetRWLayer(id string) (RWLayer, error) {
 	return mount.getReference(), nil
 }
 
+func (ls *layerStore) GetAllRWLayerID() ([]string, error) {
+	ls.mountL.Lock()
+	mountIDS := []string{}
+	for mountID := range ls.mounts {
+		mountIDS = append(mountIDS, mountID)
+	}
+	ls.mountL.Unlock()
+	return mountIDS, nil
+}
+
 func (ls *layerStore) GetMountID(id string) (string, error) {
 	ls.mountL.Lock()
 	mount := ls.mounts[id]
