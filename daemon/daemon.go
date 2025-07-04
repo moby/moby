@@ -575,8 +575,8 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 			logger.Debug("starting container")
 
 			// ignore errors here as this is a best effort to wait for children
-			// (legacy links) to be running before we try to start the container
-			if children := daemon.linkIndex.children(c); len(children) > 0 {
+			// (legacy links or container network) to be running before we try to start the container
+			if children := daemon.GetDependentContainers(c); len(children) > 0 {
 				timeout := time.NewTimer(5 * time.Second)
 				defer timeout.Stop()
 

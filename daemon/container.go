@@ -1,11 +1,16 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.23
+
 package daemon
 
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 
@@ -194,6 +199,31 @@ func (daemon *Daemon) GetByName(name string) (*container.Container, error) {
 		return nil, fmt.Errorf("Could not find container for entity id %s", id)
 	}
 	return e, nil
+}
+
+// GetDependentContainers returns a list of containers that depend on the given container.
+// Dependencies are determined by:
+//   - Network mode dependencies (--network=container:xxx)
+//   - Legacy container links (--link)
+//
+// This is primarily used during daemon startup to determine container startup order,
+// ensuring that dependent containers are started after their dependencies are running.
+// Upon error, it returns the last known dependent containers, which may be empty.
+func (daemon *Daemon) GetDependentContainers(c *container.Container) []*container.Container {
+	var dependentContainers []*container.Container
+
+	if c.HostConfig.NetworkMode.IsContainer() {
+		// If the container is using a network mode that depends on another container,
+		// we need to find that container and add it to the dependency map.
+		dependencyContainer, err := daemon.GetContainer(c.HostConfig.NetworkMode.ConnectedContainer())
+		if err != nil {
+			log.G(context.TODO()).WithError(err).Errorf("Could not find dependent container for %s", c.ID)
+			return dependentContainers
+		}
+		dependentContainers = append(dependentContainers, dependencyContainer)
+	}
+
+	return append(dependentContainers, slices.Collect(maps.Values(daemon.linkIndex.children(c)))...)
 }
 
 func (daemon *Daemon) setSecurityOptions(cfg *config.Config, container *container.Container, hostConfig *containertypes.HostConfig) error {
