@@ -12,7 +12,9 @@ type Composite struct {
 
 // Add adds a cleanup to be called.
 func (c *Composite) Add(f func(context.Context) error) {
-	c.cleanups = append(c.cleanups, f)
+	if f != nil {
+		c.cleanups = append(c.cleanups, f)
+	}
 }
 
 // Call calls all cleanups in reverse order and returns an error combining all

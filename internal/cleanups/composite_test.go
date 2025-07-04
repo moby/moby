@@ -31,6 +31,7 @@ func TestCall(t *testing.T) {
 	c.Add(func(ctx context.Context) error {
 		return errors.Join(errX, fmt.Errorf("joined: %w", errYZ))
 	})
+	c.Add(nil)
 
 	err := c.Call(context.Background())
 
