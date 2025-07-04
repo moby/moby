@@ -360,7 +360,7 @@ func TestAddPortMappings(t *testing.T) {
 			cfg:          []types.PortBinding{{Proto: types.TCP, Port: 80, HostPort: 8080}},
 			proxyPath:    "/dummy/path/to/proxy",
 			busyPortIPv4: 8080,
-			expErr:       "failed to bind host port for 0.0.0.0:8080:172.19.0.2:80/tcp: address already in use",
+			expErr:       "failed to bind host port 0.0.0.0:8080/tcp: address already in use",
 		},
 		{
 			name:      "ipv4 mapped container address with specific host port",
@@ -450,7 +450,7 @@ func TestAddPortMappings(t *testing.T) {
 			},
 			proxyPath:    "/dummy/path/to/proxy",
 			busyPortIPv4: 8081,
-			expErr:       "failed to bind host port 8081 for 0.0.0.0:8080-8082:172.19.0.2:82/tcp",
+			expErr:       "failed to bind host port 0.0.0.0:8081",
 		},
 		{
 			name:     "map host ipv6 to ipv4 container with proxy",

@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/portallocator"
 	"github.com/docker/docker/daemon/libnetwork/portmapper"
 	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/ishidawataru/sctp"
 )
 
 type portBinding struct {
@@ -503,7 +502,7 @@ func bindHostPorts(
 	var err error
 	for i := 0; i < maxAllocatePortAttempts; i++ {
 		var b []portBinding
-		b, err = attemptBindHostPorts(ctx, cfg, proto.String(), hostPort, hostPortEnd, proxyPath, pdc, fwn)
+		b, err = attemptBindHostPorts(ctx, cfg, proto, hostPort, hostPortEnd, proxyPath, pdc, fwn)
 		if err == nil {
 			return b, nil
 		}
@@ -530,7 +529,7 @@ func bindHostPorts(
 func attemptBindHostPorts(
 	ctx context.Context,
 	cfg []portBindingReq,
-	proto string,
+	proto types.Protocol,
 	hostPortStart, hostPortEnd uint16,
 	proxyPath string,
 	pdc portDriverClient,
@@ -544,18 +543,25 @@ func attemptBindHostPorts(
 		addrs = append(addrs, c.childHostIP)
 	}
 
-	pa := portallocator.Get()
-	port, err = pa.RequestPortsInRange(addrs, proto, int(hostPortStart), int(hostPortEnd))
+	pa := portallocator.NewOSAllocator()
+	port, socks, err := pa.RequestPortsInRange(addrs, proto, int(hostPortStart), int(hostPortEnd))
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		if retErr != nil {
-			for _, a := range addrs {
-				pa.ReleasePort(a, proto, port)
-			}
+			pa.ReleasePorts(addrs, proto, port)
 		}
 	}()
+
+	if len(socks) != len(cfg) {
+		for _, sock := range socks {
+			if err := sock.Close(); err != nil {
+				log.G(ctx).WithError(err).Warn("Failed to close socket")
+			}
+		}
+		return nil, types.InternalErrorf("port allocator returned %d sockets for %d port bindings", len(socks), len(cfg))
+	}
 
 	res := make([]portBinding, 0, len(cfg))
 	defer func() {
@@ -566,21 +572,14 @@ func attemptBindHostPorts(
 		}
 	}()
 
-	for _, c := range cfg {
-		var pb portBinding
-		switch proto {
-		case "tcp":
-			pb, err = bindTCPOrUDP(c, port, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
-		case "udp":
-			pb, err = bindTCPOrUDP(c, port, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
-		case "sctp":
-			pb, err = bindSCTP(c, port)
-		default:
-			return nil, fmt.Errorf("Unknown addr type: %s", proto)
+	for i := range cfg {
+		pb := portBinding{
+			PortBinding: cfg[i].PortBinding.GetCopy(),
+			boundSocket: socks[i],
+			childHostIP: cfg[i].childHostIP,
 		}
-		if err != nil {
-			return nil, err
-		}
+		pb.PortBinding.HostPort = uint16(port)
+		pb.PortBinding.HostPortEnd = pb.HostPort
 		res = append(res, pb)
 	}
 
@@ -602,117 +601,6 @@ func attemptBindHostPorts(
 		return nil, err
 	}
 	return res, nil
-}
-
-func bindTCPOrUDP(cfg portBindingReq, port, typ, proto int) (_ portBinding, retErr error) {
-	pb := portBinding{PortBinding: cfg.PortBinding.GetCopy()}
-	pb.HostPort = uint16(port)
-	pb.HostPortEnd = pb.HostPort
-	pb.childHostIP = cfg.childHostIP
-
-	var domain int
-	var sa syscall.Sockaddr
-	if hip := cfg.childHostIP.To4(); hip != nil {
-		domain = syscall.AF_INET
-		sa4 := syscall.SockaddrInet4{Port: port}
-		copy(sa4.Addr[:], hip)
-		sa = &sa4
-	} else {
-		domain = syscall.AF_INET6
-		sa6 := syscall.SockaddrInet6{Port: port}
-		copy(sa6.Addr[:], cfg.childHostIP)
-		sa = &sa6
-	}
-
-	sd, err := syscall.Socket(domain, typ|syscall.SOCK_CLOEXEC, proto)
-	if err != nil {
-		return portBinding{}, fmt.Errorf("failed to create socket for userland proxy for %s: %w", cfg, err)
-	}
-	defer func() {
-		if retErr != nil {
-			syscall.Close(sd)
-		}
-	}()
-
-	if err := syscall.SetsockoptInt(sd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1); err != nil {
-		return portBinding{}, fmt.Errorf("failed to setsockopt(SO_REUSEADDR) for %s: %w", cfg, err)
-	}
-
-	if domain == syscall.AF_INET6 {
-		syscall.SetsockoptInt(sd, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 1)
-	}
-	if typ == syscall.SOCK_DGRAM {
-		// Enable IP_PKTINFO for UDP sockets to get the destination address.
-		// The destination address will be used as the source address when
-		// sending back replies coming from the container.
-		lvl := syscall.IPPROTO_IP
-		opt := syscall.IP_PKTINFO
-		optName := "IP_PKTINFO"
-		if domain == syscall.AF_INET6 {
-			lvl = syscall.IPPROTO_IPV6
-			opt = syscall.IPV6_RECVPKTINFO
-			optName = "IPV6_RECVPKTINFO"
-		}
-		if err := syscall.SetsockoptInt(sd, lvl, opt, 1); err != nil {
-			return portBinding{}, fmt.Errorf("failed to setsockopt(%s) for %s: %w", optName, cfg, err)
-		}
-	}
-	if err := syscall.Bind(sd, sa); err != nil {
-		if cfg.HostPort == cfg.HostPortEnd {
-			return portBinding{}, fmt.Errorf("failed to bind host port for %s: %w", cfg, err)
-		}
-		return portBinding{}, fmt.Errorf("failed to bind host port %d for %s: %w", port, cfg, err)
-	}
-
-	pb.boundSocket = os.NewFile(uintptr(sd), "listener")
-	if pb.boundSocket == nil {
-		return portBinding{}, fmt.Errorf("failed to convert socket for userland proxy for %s", cfg)
-	}
-	return pb, nil
-}
-
-// bindSCTP is based on sctp.ListenSCTP. The socket is created and bound, but
-// does not start listening.
-func bindSCTP(cfg portBindingReq, port int) (_ portBinding, retErr error) {
-	pb := portBinding{PortBinding: cfg.GetCopy()}
-	pb.HostPort = uint16(port)
-	pb.HostPortEnd = pb.HostPort
-	pb.childHostIP = cfg.childHostIP
-
-	domain := syscall.AF_INET
-	if cfg.childHostIP.To4() == nil {
-		domain = syscall.AF_INET6
-	}
-
-	sd, err := syscall.Socket(domain, syscall.SOCK_STREAM|syscall.SOCK_CLOEXEC, syscall.IPPROTO_SCTP)
-	if err != nil {
-		return portBinding{}, fmt.Errorf("failed to create socket for userland proxy for %s: %w", cfg, err)
-	}
-	defer func() {
-		if retErr != nil {
-			syscall.Close(sd)
-		}
-	}()
-
-	if domain == syscall.AF_INET6 {
-		syscall.SetsockoptInt(sd, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 1)
-	}
-
-	if errno := setSCTPInitMsg(sd, sctp.InitMsg{NumOstreams: sctp.SCTP_MAX_STREAM}); errno != 0 {
-		return portBinding{}, errno
-	}
-
-	if err := sctp.SCTPBind(sd,
-		&sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: cfg.childHostIP}}, Port: int(cfg.HostPort)},
-		sctp.SCTP_BINDX_ADD_ADDR); err != nil {
-		return portBinding{}, fmt.Errorf("failed to bind socket for userland proxy for %s: %w", cfg, err)
-	}
-
-	pb.boundSocket = os.NewFile(uintptr(sd), "listener")
-	if pb.boundSocket == nil {
-		return portBinding{}, fmt.Errorf("failed to convert socket for userland proxy for %s", cfg)
-	}
-	return pb, nil
 }
 
 // configPortDriver passes the port binding's details to rootlesskit, and updates the
