@@ -59,13 +59,16 @@ func (l *tarexporter) Load(ctx context.Context, inTar io.ReadCloser, outStream i
 	}
 	manifestFile, err := os.Open(manifestPath)
 	if err != nil {
-		return err
+		if os.IsNotExist(err) {
+			return fmt.Errorf("invalid archive: does not contain a %s", manifestFileName)
+		}
+		return fmt.Errorf("invalid archive: failed to load %s: %w", manifestFileName, err)
 	}
 	defer manifestFile.Close()
 
 	var manifest []manifestItem
 	if err := json.NewDecoder(manifestFile).Decode(&manifest); err != nil {
-		return err
+		return fmt.Errorf("invalid archive: failed to decode %s: %w", manifestFileName, err)
 	}
 
 	if err := validateManifest(manifest); err != nil {
