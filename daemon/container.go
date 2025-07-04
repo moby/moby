@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
@@ -194,6 +195,53 @@ func (daemon *Daemon) GetByName(name string) (*container.Container, error) {
 		return nil, fmt.Errorf("Could not find container for entity id %s", id)
 	}
 	return e, nil
+}
+
+// GetDependentContainers returns a list of containers that depend on the given container.
+func (daemon *Daemon) GetDependentContainers(c *container.Container) []*container.Container {
+	// This function is used to retrieve the containers that depend on the given container.
+	// It is used to determine which containers need to be restarted when the given container is restarted.
+	// It returns a list of containers that depend on the given container.
+	// Upon error, it returns the last known dependent containers, which may be empty.
+	dependentContainers := make([]*container.Container, 0)
+
+	if c.HostConfig.NetworkMode.IsContainer() {
+		// If the container is using a network mode that depends on another container,
+		// we need to find that container and add it to the dependency map.
+		dependencyContainer, err := daemon.GetContainer(c.HostConfig.NetworkMode.ConnectedContainer())
+		if err != nil {
+			log.G(context.TODO()).WithError(err).Errorf("Could not find dependent container for %s", c.ID)
+			return dependentContainers
+		}
+		dependentContainers = append(dependentContainers, dependencyContainer)
+	}
+	// If the container has links, we need to find those containers and add them to the
+	// dependency map.
+	if c.HostConfig.Links != nil {
+		for _, link := range c.HostConfig.Links {
+			name, _, err := opts.ParseLink(link)
+			if err != nil {
+				log.G(context.TODO()).WithError(err).Errorf("Could not parse link %s for %s", link, c.ID)
+				return dependentContainers
+			}
+			child, err := daemon.GetContainer(name)
+			if err != nil {
+				if cerrdefs.IsNotFound(err) {
+					// Trying to link to a non-existing container is not valid, and
+					// should return an "invalid parameter" error. Returning a "not
+					// found" error here would make the client report the container's
+					// image could not be found (see moby/moby#39823)
+					err = errdefs.InvalidParameter(err)
+				}
+				log.G(context.TODO()).WithError(err).Errorf("Could not get container for %s", name)
+				return dependentContainers
+			}
+
+			dependentContainers = append(dependentContainers, child)
+		}
+	}
+	return dependentContainers
+
 }
 
 func (daemon *Daemon) setSecurityOptions(cfg *config.Config, container *container.Container, hostConfig *containertypes.HostConfig) error {
