@@ -124,8 +124,13 @@ func (n *bridgeNetwork) addPortMappings(
 			continue
 		}
 
-		// Allocate and bind a host port.
-		newB, err := bindHostPorts(ctx, toBind, proxyPath, pdc, n.firewallerNetwork)
+		var newB []portBinding
+		var err error
+		if c.disableNAT {
+			newB, err = setupForwardedPorts(ctx, toBind, n.firewallerNetwork)
+		} else {
+			newB, err = bindHostPorts(ctx, toBind, proxyPath, pdc, n.firewallerNetwork)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -443,6 +448,34 @@ func setChildHostIP(pdc portDriverClient, req portBindingReq) portBindingReq {
 	return req
 }
 
+// setupForwardedPorts sets up firewall rules to allow direct remote access to
+// the container's ports in cfg.
+func setupForwardedPorts(ctx context.Context, cfg []portBindingReq, fwn firewaller.Network) ([]portBinding, error) {
+	if len(cfg) == 0 {
+		return nil, nil
+	}
+
+	res := make([]portBinding, 0, len(cfg))
+	bindings := make([]types.PortBinding, 0, len(cfg))
+	for _, c := range cfg {
+		pb := portBinding{PortBinding: c.GetCopy()}
+		if pb.HostPort != 0 || pb.HostPortEnd != 0 {
+			log.G(ctx).WithFields(log.Fields{"mapping": pb}).Infof(
+				"Host port ignored, because NAT is disabled")
+			pb.HostPort = 0
+			pb.HostPortEnd = 0
+		}
+		res = append(res, pb)
+		bindings = append(bindings, pb.PortBinding)
+	}
+
+	if err := fwn.AddPorts(ctx, bindings); err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
 // bindHostPorts allocates and binds host ports for the given cfg. The
 // caller is responsible for ensuring that all entries in cfg map the same proto,
 // container port, and host port range (their host addresses must differ).
@@ -487,17 +520,13 @@ func bindHostPorts(
 	return nil, err
 }
 
-// attemptBindHostPorts allocates host ports for each port mapping that requires
-// one, and reserves those ports by binding them.
+// attemptBindHostPorts allocates host ports for each NAT port mapping, and
+// reserves those ports by binding them.
 //
 // If the allocator doesn't have an available port in the required range, or the
 // port can't be bound (perhaps because another process has already bound it),
 // all resources are released and an error is returned. When ports are
 // successfully reserved, a portBinding is returned for each mapping.
-//
-// If NAT is disabled for any of the bindings, no host port reservation is
-// needed. Include these bindings in results, as the container port itself
-// needs to be opened in the firewall.
 func attemptBindHostPorts(
 	ctx context.Context,
 	cfg []portBindingReq,
@@ -512,25 +541,21 @@ func attemptBindHostPorts(
 
 	addrs := make([]net.IP, 0, len(cfg))
 	for _, c := range cfg {
-		if !c.disableNAT {
-			addrs = append(addrs, c.childHostIP)
-		}
+		addrs = append(addrs, c.childHostIP)
 	}
 
-	if len(addrs) > 0 {
-		pa := portallocator.Get()
-		port, err = pa.RequestPortsInRange(addrs, proto, int(hostPortStart), int(hostPortEnd))
-		if err != nil {
-			return nil, err
-		}
-		defer func() {
-			if retErr != nil {
-				for _, a := range addrs {
-					pa.ReleasePort(a, proto, port)
-				}
-			}
-		}()
+	pa := portallocator.Get()
+	port, err = pa.RequestPortsInRange(addrs, proto, int(hostPortStart), int(hostPortEnd))
+	if err != nil {
+		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			for _, a := range addrs {
+				pa.ReleasePort(a, proto, port)
+			}
+		}
+	}()
 
 	res := make([]portBinding, 0, len(cfg))
 	defer func() {
@@ -543,28 +568,18 @@ func attemptBindHostPorts(
 
 	for _, c := range cfg {
 		var pb portBinding
-		if c.disableNAT {
-			pb = portBinding{PortBinding: c.GetCopy()}
-			if pb.HostPort != 0 || pb.HostPortEnd != 0 {
-				log.G(ctx).WithFields(log.Fields{"mapping": pb}).Infof(
-					"Host port ignored, because NAT is disabled")
-				pb.HostPort = 0
-				pb.HostPortEnd = 0
-			}
-		} else {
-			switch proto {
-			case "tcp":
-				pb, err = bindTCPOrUDP(c, port, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
-			case "udp":
-				pb, err = bindTCPOrUDP(c, port, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
-			case "sctp":
-				pb, err = bindSCTP(c, port)
-			default:
-				return nil, fmt.Errorf("Unknown addr type: %s", proto)
-			}
-			if err != nil {
-				return nil, err
-			}
+		switch proto {
+		case "tcp":
+			pb, err = bindTCPOrUDP(c, port, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+		case "udp":
+			pb, err = bindTCPOrUDP(c, port, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
+		case "sctp":
+			pb, err = bindSCTP(c, port)
+		default:
+			return nil, fmt.Errorf("Unknown addr type: %s", proto)
+		}
+		if err != nil {
+			return nil, err
 		}
 		res = append(res, pb)
 	}
