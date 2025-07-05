@@ -202,7 +202,7 @@ func (l *tarexporter) setParentID(id, parentID image.ID) error {
 	return l.is.SetParent(id, parentID)
 }
 
-func (l *tarexporter) loadLayer(ctx context.Context, filename string, rootFS image.RootFS, id string, foreignSrc distribution.Descriptor, progressOutput progress.Output) (_ layer.Layer, outErr error) {
+func (l *tarexporter) loadLayer(ctx context.Context, filename string, rootFS image.RootFS, id string, _ distribution.Descriptor, progressOutput progress.Output) (_ layer.Layer, outErr error) {
 	ctx, span := tracing.StartSpan(ctx, "loadLayer")
 	span.SetAttributes(tracing.Attribute("image.id", id))
 	defer span.End()
@@ -238,9 +238,6 @@ func (l *tarexporter) loadLayer(ctx context.Context, filename string, rootFS ima
 	}
 	defer inflatedLayerData.Close()
 
-	if ds, ok := l.lss.(layer.DescribableStore); ok {
-		return ds.RegisterWithDescriptor(inflatedLayerData, rootFS.ChainID(), foreignSrc)
-	}
 	return l.lss.Register(inflatedLayerData, rootFS.ChainID())
 }
 
