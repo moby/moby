@@ -1,9 +1,13 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.23
+
 package mobyexporter
 
 import (
 	"bytes"
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/containerd/containerd/v2/core/content"
@@ -151,10 +155,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source
 			return nil, nil, layersDone(err)
 		}
 
-		diffs = make([]digest.Digest, len(diffIDs))
-		for i := range diffIDs {
-			diffs[i] = digest.Digest(diffIDs[i])
-		}
+		diffs = slices.Clone(diffIDs)
 
 		_ = layersDone(nil)
 	}

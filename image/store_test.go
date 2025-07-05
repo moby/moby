@@ -31,6 +31,8 @@ func TestRestore(t *testing.T) {
 	err = fsStore.SetMetadata(id2, "parent", []byte(id1))
 	assert.NilError(t, err)
 
+	// This produces an error log (trying to unmarshal the "invalid" value from above, but doesn't return an error;
+	// ERRO[0000] invalid image                                 digest="sha256:f1234d75178d892a133a410355a5a990cf75d2f33eba25d575943d4df632f3a4" err="invalid character 'i' looking for beginning of value: invalid"
 	imgStore, err := NewImageStore(fsStore, &mockLayerGetReleaser{})
 	assert.NilError(t, err)
 

@@ -117,7 +117,7 @@ func (serv *v2MetadataService) digestNamespace() string {
 }
 
 func (serv *v2MetadataService) diffIDKey(diffID layer.DiffID) string {
-	return string(digest.Digest(diffID).Algorithm()) + "/" + digest.Digest(diffID).Encoded()
+	return string(diffID.Algorithm()) + "/" + diffID.Encoded()
 }
 
 func (serv *v2MetadataService) digestKey(dgst digest.Digest) string {
@@ -145,11 +145,11 @@ func (serv *v2MetadataService) GetMetadata(diffID layer.DiffID) ([]V2Metadata, e
 // GetDiffID finds a layer DiffID from a digest.
 func (serv *v2MetadataService) GetDiffID(dgst digest.Digest) (layer.DiffID, error) {
 	if serv.store == nil {
-		return layer.DiffID(""), errors.New("no metadata storage")
+		return "", errors.New("no metadata storage")
 	}
 	diffIDBytes, err := serv.store.Get(serv.digestNamespace(), serv.digestKey(dgst))
 	if err != nil {
-		return layer.DiffID(""), err
+		return "", err
 	}
 
 	return layer.DiffID(diffIDBytes), nil

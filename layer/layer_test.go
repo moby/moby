@@ -517,7 +517,7 @@ func TestTarStreamStability(t *testing.T) {
 func assertLayerDiff(t *testing.T, expected []byte, layer Layer) {
 	expectedDigest := digest.FromBytes(expected)
 
-	if digest.Digest(layer.DiffID()) != expectedDigest {
+	if layer.DiffID() != expectedDigest {
 		t.Fatalf("Mismatched diff id for %s, got %s, expected %s", layer.ChainID(), layer.DiffID(), expected)
 	}
 
@@ -603,6 +603,7 @@ func tarFromFiles(files ...FileApplier) ([]byte, error) {
 // assertReferences asserts that all the references are to the same
 // image and represent the full set of references to that image.
 func assertReferences(t *testing.T, references ...Layer) {
+	t.Helper()
 	if len(references) == 0 {
 		return
 	}
@@ -697,8 +698,8 @@ func TestTarStreamVerification(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	id1 := digest.Digest(layer1.ChainID())
-	id2 := digest.Digest(layer2.ChainID())
+	id1 := layer1.ChainID()
+	id2 := layer2.ChainID()
 
 	// Replace tar data files
 	src, err := os.Open(filepath.Join(tmpdir, id1.Algorithm().String(), id1.Encoded(), "tar-split.json.gz"))

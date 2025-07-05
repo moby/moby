@@ -631,7 +631,7 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 		ongoing.add(desc)
 		layers = append(layers, &layerDescriptor{
 			desc:    desc,
-			diffID:  layer.DiffID(img.RootFS.DiffIDs[i]),
+			diffID:  img.RootFS.DiffIDs[i],
 			fetcher: fetcher,
 			ref:     p.src.Reference,
 			is:      p.is,

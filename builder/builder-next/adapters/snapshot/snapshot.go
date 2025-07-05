@@ -147,7 +147,7 @@ func (s *snapshotter) chainID(key string) (layer.ChainID, bool) {
 		if err != nil {
 			return "", false
 		}
-		return layer.ChainID(dgst), true
+		return dgst, true
 	}
 	return "", false
 }

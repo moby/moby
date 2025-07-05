@@ -178,7 +178,7 @@ func (l *MockRWLayer) Release() error { return nil }
 func (l *MockRWLayer) Root() string   { return "" }
 func (l *MockRWLayer) Commit() (builder.ROLayer, error) {
 	return &MockROLayer{
-		diffID: layer.DiffID(digest.Digest("sha256:1234")),
+		diffID: "sha256:1234",
 	}, nil
 }
 

@@ -73,13 +73,13 @@ func TestV2MetadataService(t *testing.T) {
 	}
 
 	// Test GetMetadata on a nonexistent entry
-	_, err = metadataService.GetMetadata(layer.DiffID("sha256:82379823067823853223359023576437723560923756b03560378f4497753917"))
+	_, err = metadataService.GetMetadata("sha256:82379823067823853223359023576437723560923756b03560378f4497753917")
 	if err == nil {
 		t.Fatal("expected error looking up nonexistent entry")
 	}
 
 	// Test GetDiffID on a nonexistent entry
-	_, err = metadataService.GetDiffID(digest.Digest("sha256:82379823067823853223359023576437723560923756b03560378f4497753917"))
+	_, err = metadataService.GetDiffID("sha256:82379823067823853223359023576437723560923756b03560378f4497753917")
 	if err == nil {
 		t.Fatal("expected error looking up nonexistent entry")
 	}

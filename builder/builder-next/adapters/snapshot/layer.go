@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/longpath"
+	"github.com/opencontainers/image-spec/identity"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 	"golang.org/x/sync/errgroup"
@@ -52,7 +53,7 @@ func (s *snapshotter) EnsureLayer(ctx context.Context, key string) ([]layer.Diff
 			if err != nil {
 				return err
 			}
-			parentChainID = layer.CreateChainID(diffIDs)
+			parentChainID = identity.ChainID(diffIDs)
 			return nil
 		})
 	}

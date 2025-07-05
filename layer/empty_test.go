@@ -8,7 +8,7 @@ import (
 )
 
 func TestEmptyLayer(t *testing.T) {
-	if EmptyLayer.ChainID() != ChainID(DigestSHA256EmptyTar) {
+	if EmptyLayer.ChainID() != DigestSHA256EmptyTar {
 		t.Fatal("wrong ChainID for empty layer")
 	}
 
@@ -45,7 +45,7 @@ func TestEmptyLayer(t *testing.T) {
 		t.Fatalf("error hashing empty tar layer: %v", err)
 	}
 
-	if digester.Digest() != digest.Digest(DigestSHA256EmptyTar) {
+	if digester.Digest() != DigestSHA256EmptyTar {
 		t.Fatal("empty layer tar stream hashes to wrong value")
 	}
 }

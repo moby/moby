@@ -18,6 +18,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/moby/go-archive"
 	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/identity"
 )
 
 var (
@@ -45,20 +46,10 @@ var (
 )
 
 // ChainID is the content-addressable ID of a layer.
-type ChainID digest.Digest
-
-// String returns a string rendition of a layer ID
-func (id ChainID) String() string {
-	return string(id)
-}
+type ChainID = digest.Digest
 
 // DiffID is the hash of an individual layer tar.
-type DiffID digest.Digest
-
-// String returns a string rendition of a layer DiffID
-func (diffID DiffID) String() string {
-	return string(diffID)
-}
+type DiffID = digest.Digest
 
 // TarStreamer represents an object which may
 // have its contents exported as a tar stream.
@@ -189,21 +180,11 @@ type DescribableStore interface {
 	RegisterWithDescriptor(io.Reader, ChainID, distribution.Descriptor) (Layer, error)
 }
 
-// CreateChainID returns ID for a layerDigest slice
+// CreateChainID returns ID for a layerDigest slice.
+//
+// Deprecated: use [identity.ChainID].
 func CreateChainID(dgsts []DiffID) ChainID {
-	return createChainIDFromParent("", dgsts...)
-}
-
-func createChainIDFromParent(parent ChainID, dgsts ...DiffID) ChainID {
-	if len(dgsts) == 0 {
-		return parent
-	}
-	if parent == "" {
-		return createChainIDFromParent(ChainID(dgsts[0]), dgsts[1:]...) // #nosec G602 -- slice index out of range, which is a false positive
-	}
-	// H = "H(n-1) SHA256(n)"
-	dgst := digest.FromBytes([]byte(string(parent) + " " + string(dgsts[0]))) // #nosec G602 -- slice index out of range, which is a false positive
-	return createChainIDFromParent(ChainID(dgst), dgsts[1:]...)               // #nosec G602 -- slice index out of range, which is a false positive
+	return identity.ChainID(dgsts)
 }
 
 // ReleaseAndLog releases the provided layer from the given layer
