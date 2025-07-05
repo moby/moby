@@ -15,7 +15,6 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/ocischema"
-	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/distribution/metadata"
@@ -30,7 +29,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	archvariant "github.com/tonistiigi/go-archvariant"
+	"github.com/tonistiigi/go-archvariant"
 )
 
 var (
@@ -392,8 +391,6 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 	)
 
 	switch v := manifest.(type) {
-	case *schema1.SignedManifest:
-		return false, DeprecatedSchema1ImageError(ref)
 	case *schema2.DeserializedManifest:
 		id, manifestDigest, err = p.pullSchema2(ctx, ref, v, platform)
 		if err != nil {
@@ -410,6 +407,11 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 			return false, err
 		}
 	default:
+		mediaType, _, _ := manifest.Payload()
+		switch mediaType {
+		case MediaTypeDockerSchema1Manifest, MediaTypeDockerSchema1SignedManifest:
+			return false, DeprecatedSchema1ImageError(ref)
+		}
 		return false, invalidManifestFormatError{}
 	}
 
@@ -735,8 +737,6 @@ func (p *puller) pullManifestList(ctx context.Context, ref reference.Named, mfst
 		}
 
 		switch v := manifest.(type) {
-		case *schema1.SignedManifest:
-			return "", "", DeprecatedSchema1ImageError(ref)
 		case *schema2.DeserializedManifest:
 			id, _, err = p.pullSchema2(ctx, manifestRef, v, toOCIPlatform(match.Platform))
 			if err != nil {
@@ -757,6 +757,12 @@ func (p *puller) pullManifestList(ctx context.Context, ref reference.Named, mfst
 				}
 			}
 		default:
+			mediaType, _, _ := manifest.Payload()
+			switch mediaType {
+			case MediaTypeDockerSchema1Manifest, MediaTypeDockerSchema1SignedManifest:
+				return "", "", DeprecatedSchema1ImageError(ref)
+			}
+
 			// OCI spec requires to skip unknown manifest types
 			continue
 		}

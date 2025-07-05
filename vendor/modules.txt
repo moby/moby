@@ -496,7 +496,6 @@ github.com/docker/distribution
 github.com/docker/distribution/manifest
 github.com/docker/distribution/manifest/manifestlist
 github.com/docker/distribution/manifest/ocischema
-github.com/docker/distribution/manifest/schema1
 github.com/docker/distribution/manifest/schema2
 github.com/docker/distribution/metrics
 github.com/docker/distribution/registry/api/errcode
@@ -523,7 +522,6 @@ github.com/docker/go-metrics
 github.com/docker/go-units
 # github.com/docker/libtrust v0.0.0-20150526203908-9cbd2a1374f4
 ## explicit
-github.com/docker/libtrust
 # github.com/dustin/go-humanize v1.0.0
 ## explicit
 github.com/dustin/go-humanize
