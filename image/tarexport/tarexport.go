@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/containerd/platforms"
-	"github.com/docker/distribution"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -18,11 +17,10 @@ const (
 )
 
 type manifestItem struct {
-	Config       string
-	RepoTags     []string
-	Layers       []string
-	Parent       image.ID                                 `json:",omitempty"`
-	LayerSources map[layer.DiffID]distribution.Descriptor `json:",omitempty"`
+	Config   string
+	RepoTags []string
+	Layers   []string
+	Parent   image.ID `json:",omitempty"`
 }
 
 type tarexporter struct {

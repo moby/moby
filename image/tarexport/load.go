@@ -14,7 +14,6 @@ import (
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/distribution"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/internal/ioutils"
@@ -126,7 +125,7 @@ func (l *tarexporter) Load(ctx context.Context, inTar io.ReadCloser, outStream i
 			r.Append(diffID)
 			newLayer, err := l.lss.Get(r.ChainID())
 			if err != nil {
-				newLayer, err = l.loadLayer(ctx, layerPath, rootFS, diffID.String(), m.LayerSources[diffID], progressOutput)
+				newLayer, err = l.loadLayer(ctx, layerPath, rootFS, diffID.String(), progressOutput)
 				if err != nil {
 					return err
 				}
@@ -202,7 +201,7 @@ func (l *tarexporter) setParentID(id, parentID image.ID) error {
 	return l.is.SetParent(id, parentID)
 }
 
-func (l *tarexporter) loadLayer(ctx context.Context, filename string, rootFS image.RootFS, id string, _ distribution.Descriptor, progressOutput progress.Output) (_ layer.Layer, outErr error) {
+func (l *tarexporter) loadLayer(ctx context.Context, filename string, rootFS image.RootFS, id string, progressOutput progress.Output) (_ layer.Layer, outErr error) {
 	ctx, span := tracing.StartSpan(ctx, "loadLayer")
 	span.SetAttributes(tracing.Attribute("image.id", id))
 	defer span.End()
