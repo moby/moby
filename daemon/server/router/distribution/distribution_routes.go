@@ -8,7 +8,6 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
-	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/daemon/server/httputils"
@@ -125,6 +124,11 @@ func (dr *distributionRouter) fetchManifest(ctx context.Context, distrepo distri
 	if err != nil {
 		return registry.DistributionInspect{}, err
 	}
+	switch mediaType {
+	case distributionpkg.MediaTypeDockerSchema1Manifest, distributionpkg.MediaTypeDockerSchema1SignedManifest:
+		return registry.DistributionInspect{}, distributionpkg.DeprecatedSchema1ImageError(namedRef)
+	}
+
 	// update MediaType because registry might return something incorrect
 	distributionInspect.Descriptor.MediaType = mediaType
 	if distributionInspect.Descriptor.Size == 0 {
@@ -153,10 +157,6 @@ func (dr *distributionRouter) fetchManifest(ctx context.Context, distrepo distri
 				distributionInspect.Platforms = append(distributionInspect.Platforms, platform)
 			}
 		}
-
-	// TODO(thaJeztah); we only use this to produce a nice error, but as a result, we can't remove libtrust as dependency - see if we can reduce the dependencies, but still able to detect it's a deprecated manifest
-	case *schema1.SignedManifest:
-		return registry.DistributionInspect{}, distributionpkg.DeprecatedSchema1ImageError(namedRef)
 	}
 	return distributionInspect, nil
 }
