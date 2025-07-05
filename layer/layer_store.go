@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/distribution"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/locker"
@@ -251,10 +250,6 @@ func (ls *layerStore) applyTar(tx *fileMetadataTransaction, ts io.Reader, parent
 }
 
 func (ls *layerStore) Register(ts io.Reader, parent ChainID) (Layer, error) {
-	return ls.registerWithDescriptor(ts, parent, distribution.Descriptor{})
-}
-
-func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descriptor distribution.Descriptor) (Layer, error) {
 	// cErr is used to hold the error which will always trigger
 	// cleanup of creates sources but may not be an error returned
 	// to the caller (already exists).
@@ -291,7 +286,6 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 		referenceCount: 1,
 		layerStore:     ls,
 		references:     map[Layer]struct{}{},
-		descriptor:     descriptor,
 	}
 
 	if cErr = ls.driver.Create(layer.cacheID, pid, nil); cErr != nil {
