@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/opencontainers/go-digest"
@@ -245,12 +244,12 @@ func (s *DockerRegistrySuite) TestPullManifestList(c *testing.T) {
 		Versioned: specs.Versioned{
 			SchemaVersion: 2,
 		},
-		MediaType: c8dimages.MediaTypeDockerSchema2ManifestList,
+		MediaType: ocispec.MediaTypeImageIndex,
 		Manifests: []ocispec.Descriptor{
 			{
 				Digest:    "sha256:1a9ec845ee94c202b2d5da74a24f0ed2058318bfa9879fa541efaecba272e86b",
 				Size:      3253,
-				MediaType: c8dimages.MediaTypeDockerSchema2Manifest,
+				MediaType: ocispec.MediaTypeImageManifest,
 				Platform: &ocispec.Platform{
 					Architecture: "bogus_arch",
 					OS:           "bogus_os",
@@ -259,7 +258,7 @@ func (s *DockerRegistrySuite) TestPullManifestList(c *testing.T) {
 			{
 				Digest:    pushDigest,
 				Size:      3253,
-				MediaType: c8dimages.MediaTypeDockerSchema2Manifest,
+				MediaType: ocispec.MediaTypeImageManifest,
 				Platform: &ocispec.Platform{
 					Architecture: runtime.GOARCH,
 					OS:           runtime.GOOS,
