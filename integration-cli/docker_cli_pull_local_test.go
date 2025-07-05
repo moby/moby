@@ -9,13 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest"
-	"github.com/docker/distribution/manifest/manifestlist"
-	"github.com/docker/distribution/manifest/schema2"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/specs-go"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
@@ -242,30 +241,26 @@ func (s *DockerRegistrySuite) TestPullManifestList(c *testing.T) {
 	assert.NilError(c, err, "error setting up image")
 
 	// Inject a manifest list into the registry
-	manifestList := &manifestlist.ManifestList{
-		Versioned: manifest.Versioned{
+	manifestList := &ocispec.Index{
+		Versioned: specs.Versioned{
 			SchemaVersion: 2,
-			MediaType:     manifestlist.MediaTypeManifestList,
 		},
-		Manifests: []manifestlist.ManifestDescriptor{
+		MediaType: c8dimages.MediaTypeDockerSchema2ManifestList,
+		Manifests: []ocispec.Descriptor{
 			{
-				Descriptor: distribution.Descriptor{
-					Digest:    "sha256:1a9ec845ee94c202b2d5da74a24f0ed2058318bfa9879fa541efaecba272e86b",
-					Size:      3253,
-					MediaType: schema2.MediaTypeManifest,
-				},
-				Platform: manifestlist.PlatformSpec{
+				Digest:    "sha256:1a9ec845ee94c202b2d5da74a24f0ed2058318bfa9879fa541efaecba272e86b",
+				Size:      3253,
+				MediaType: c8dimages.MediaTypeDockerSchema2Manifest,
+				Platform: &ocispec.Platform{
 					Architecture: "bogus_arch",
 					OS:           "bogus_os",
 				},
 			},
 			{
-				Descriptor: distribution.Descriptor{
-					Digest:    pushDigest,
-					Size:      3253,
-					MediaType: schema2.MediaTypeManifest,
-				},
-				Platform: manifestlist.PlatformSpec{
+				Digest:    pushDigest,
+				Size:      3253,
+				MediaType: c8dimages.MediaTypeDockerSchema2Manifest,
+				Platform: &ocispec.Platform{
 					Architecture: runtime.GOARCH,
 					OS:           runtime.GOOS,
 				},
