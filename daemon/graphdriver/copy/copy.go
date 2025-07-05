@@ -75,7 +75,7 @@ func doCopyWithFileRange(srcFile, dstFile *os.File, fileinfo os.FileInfo) error 
 			return err
 		}
 
-		amountLeftToCopy = amountLeftToCopy - int64(n)
+		amountLeftToCopy -= int64(n)
 	}
 
 	return nil
@@ -185,9 +185,8 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyOpaqueXattrs bool) error 
 				return err
 			}
 
-		case mode&os.ModeNamedPipe != 0:
-			fallthrough
-		case mode&os.ModeSocket != 0:
+		case mode&os.ModeNamedPipe != 0,
+			mode&os.ModeSocket != 0:
 			if err := unix.Mkfifo(dstPath, stat.Mode); err != nil {
 				return err
 			}

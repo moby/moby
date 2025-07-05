@@ -256,7 +256,7 @@ func (i *ImageService) ReleaseLayer(rwlayer container.RWLayer) error {
 	return nil
 }
 
-func (i *ImageService) prepareInitLayer(ctx context.Context, id string, parent string, setupInit func(string) error) error {
+func (i *ImageService) prepareInitLayer(ctx context.Context, id, parent string, setupInit func(string) error) error {
 	sn := i.client.SnapshotService(i.StorageDriver())
 
 	mounts, err := sn.Prepare(ctx, id+"-init-key", parent)

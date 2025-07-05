@@ -294,18 +294,19 @@ func (s *DockerCLIExecSuite) TestExecCgroup(c *testing.T) {
 	}
 
 	for _, cg := range execCgroups {
-		if !reflect.DeepEqual(cg, containerCgroups) {
-			fmt.Println("exec cgroups:")
-			for _, name := range cg {
-				fmt.Printf(" %s\n", name)
-			}
-
-			fmt.Println("container cgroups:")
-			for _, name := range containerCgroups {
-				fmt.Printf(" %s\n", name)
-			}
-			c.Fatal("cgroups mismatched")
+		if reflect.DeepEqual(cg, containerCgroups) {
+			continue
 		}
+		fmt.Println("exec cgroups:")
+		for _, name := range cg {
+			fmt.Printf(" %s\n", name)
+		}
+
+		fmt.Println("container cgroups:")
+		for _, name := range containerCgroups {
+			fmt.Printf(" %s\n", name)
+		}
+		c.Fatal("cgroups mismatched")
 	}
 }
 

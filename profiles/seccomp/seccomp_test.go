@@ -12,7 +12,7 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
-func assertDeepEqual(t *testing.T, expected interface{}, actual interface{}) {
+func assertDeepEqual(t *testing.T, expected, actual interface{}) {
 	t.Helper()
 	if !reflect.DeepEqual(expected, actual) {
 		t.Fatalf("\nexpected: %+#v\ngot     : %+#v", expected, actual)

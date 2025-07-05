@@ -99,9 +99,9 @@ func (e *ExecStore) Commands() map[string]*ExecConfig {
 }
 
 // Add adds a new exec configuration to the store.
-func (e *ExecStore) Add(id string, Config *ExecConfig) {
+func (e *ExecStore) Add(id string, config *ExecConfig) {
 	e.mu.Lock()
-	e.byID[id] = Config
+	e.byID[id] = config
 	e.mu.Unlock()
 }
 

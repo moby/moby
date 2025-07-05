@@ -50,6 +50,17 @@ type EndpointResolver interface {
 	LookupPullEndpoints(hostname string) (endpoints []registry.APIEndpoint, err error)
 }
 
+// Manager controls the plugin subsystem.
+type Manager struct {
+	config    ManagerConfig
+	mu        sync.RWMutex // protects cMap
+	muGC      sync.RWMutex // protects blobstore deletions
+	cMap      map[*v2.Plugin]*controller
+	blobStore content.Store
+	publisher *pubsub.Publisher
+	executor  Executor
+}
+
 func (pm *Manager) restorePlugin(p *v2.Plugin, c *controller) error {
 	if p.IsEnabled() {
 		return pm.restore(p, c)
@@ -73,17 +84,6 @@ type ManagerConfig struct {
 
 // ExecutorCreator is used in the manager config to pass in an `Executor`
 type ExecutorCreator func(*Manager) (Executor, error)
-
-// Manager controls the plugin subsystem.
-type Manager struct {
-	config    ManagerConfig
-	mu        sync.RWMutex // protects cMap
-	muGC      sync.RWMutex // protects blobstore deletions
-	cMap      map[*v2.Plugin]*controller
-	blobStore content.Store
-	publisher *pubsub.Publisher
-	executor  Executor
-}
 
 // controller represents the manager's control on a plugin.
 type controller struct {
@@ -182,12 +182,10 @@ func (pm *Manager) reload() error { // todo: restore
 				continue
 			}
 			plugins[p.GetID()] = p
-		} else {
-			if validFullID.MatchString(strings.TrimSuffix(v.Name(), "-removing")) {
-				// There was likely some error while removing this plugin, let's try to remove again here
-				if err := containerfs.EnsureRemoveAll(v.Name()); err != nil {
-					log.G(context.TODO()).WithError(err).WithField("id", v.Name()).Warn("error while attempting to clean up previously removed plugin")
-				}
+		} else if validFullID.MatchString(strings.TrimSuffix(v.Name(), "-removing")) {
+			// There was likely some error while removing this plugin, let's try to remove again here
+			if err := containerfs.EnsureRemoveAll(v.Name()); err != nil {
+				log.G(context.TODO()).WithError(err).WithField("id", v.Name()).Warn("error while attempting to clean up previously removed plugin")
 			}
 		}
 	}

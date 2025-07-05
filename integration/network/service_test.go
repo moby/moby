@@ -589,7 +589,7 @@ func TestCustomIfnameWithMatchingDynamicPrefix(t *testing.T) {
 	checkIfaceAddr(t, ctx, apiClient, ctrId, "eth0", "inet 10.0.2.2/24")
 }
 
-func checkIfaceAddr(t *testing.T, ctx context.Context, apiClient client.APIClient, ctrId string, iface string, expectedAddr string) {
+func checkIfaceAddr(t *testing.T, ctx context.Context, apiClient client.APIClient, ctrId, iface, expectedAddr string) {
 	res, err := container.Exec(ctx, apiClient, ctrId, []string{"ip", "-o", "addr", "show", iface})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(res.ExitCode, 0))

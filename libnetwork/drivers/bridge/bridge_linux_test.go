@@ -172,7 +172,7 @@ func compareConnConfig(a, b *connectivityConfiguration) bool {
 }
 
 // comparePortBinding returns whether the given PortBindings are equal.
-func comparePortBinding(p *types.PortBinding, o *types.PortBinding) bool {
+func comparePortBinding(p, o *types.PortBinding) bool {
 	if p == o {
 		return true
 	}
@@ -774,7 +774,7 @@ func (te *testEndpoint) AddStaticRoute(destination *net.IPNet, routeType int, ne
 	return nil
 }
 
-func (te *testEndpoint) AddTableEntry(tableName string, key string, value []byte) error {
+func (te *testEndpoint) AddTableEntry(tableName, key string, value []byte) error {
 	return nil
 }
 

@@ -184,7 +184,7 @@ func (tr Reader) testTailEmptyLogs(t *testing.T, live bool) {
 			t.Parallel()
 			lw := l.(logger.LogReader).ReadLogs(context.TODO(), logger.ReadConfig{})
 			defer lw.ConsumerGone()
-			assert.DeepEqual(t, readAll(t, lw), ([]*logger.Message)(nil), cmpopts.EquateEmpty())
+			assert.DeepEqual(t, readAll(t, lw), []*logger.Message(nil), cmpopts.EquateEmpty())
 		})
 	}
 }

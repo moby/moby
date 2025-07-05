@@ -118,7 +118,7 @@ func (v *localVolume) needsMount() bool {
 	return false
 }
 
-func getMountOptions(opts *optsConfig, resolveIP func(string, string) (*net.IPAddr, error)) (mountDevice string, mountOpts string, _ error) {
+func getMountOptions(opts *optsConfig, resolveIP func(string, string) (*net.IPAddr, error)) (mountDevice, mountOpts string, _ error) {
 	if opts.MountDevice == "" {
 		return "", "", errors.New("missing device in volume options")
 	}
