@@ -176,6 +176,8 @@ type Store interface {
 
 // DescribableStore represents a layer store capable of storing
 // descriptors for layers.
+//
+// Deprecated: this interface is no longer used and will be removed in the next release.
 type DescribableStore interface {
 	RegisterWithDescriptor(io.Reader, ChainID, distribution.Descriptor) (Layer, error)
 }
