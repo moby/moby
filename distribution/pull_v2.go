@@ -148,7 +148,6 @@ type layerDescriptor struct {
 	metadataService metadata.V2MetadataService
 	tmpFile         *os.File
 	verifier        digest.Verifier
-	src             distribution.Descriptor
 }
 
 func (ld *layerDescriptor) Key() string {
@@ -200,7 +199,7 @@ func (ld *layerDescriptor) Download(ctx context.Context, progressOutput progress
 
 	tmpFile := ld.tmpFile
 
-	layerDownload, err := ld.open(ctx)
+	layerDownload, err := ld.repo.Blobs(ctx).Open(ctx, ld.digest)
 	if err != nil {
 		log.G(ctx).Errorf("Error initiating layer download: %v", err)
 		return nil, 0, retryOnError(err)
@@ -506,7 +505,6 @@ func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Desc
 			repo:            p.repo,
 			repoName:        p.repoName,
 			metadataService: p.metadataService,
-			src:             d,
 		})
 	}
 
