@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
@@ -565,7 +564,7 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(t *testing.T) {
 	// Load the target manifest blob.
 	manifestBlob := s.reg.ReadBlobContents(t, manifestDigest)
 
-	var imgManifest schema2.Manifest
+	var imgManifest ocispec.Manifest
 	err = json.Unmarshal(manifestBlob, &imgManifest)
 	assert.NilError(t, err)
 
