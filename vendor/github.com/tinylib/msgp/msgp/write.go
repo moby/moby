@@ -1,6 +1,8 @@
 package msgp
 
 import (
+	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"io"
 	"math"
@@ -346,6 +348,16 @@ func (mw *Writer) WriteNil() error {
 	return mw.push(mnil)
 }
 
+// WriteFloat writes a float to the writer as either float64
+// or float32 when it represents the exact same value
+func (mw *Writer) WriteFloat(f float64) error {
+	f32 := float32(f)
+	if float64(f32) == f {
+		return mw.prefix32(mfloat32, math.Float32bits(f32))
+	}
+	return mw.prefix64(mfloat64, math.Float64bits(f))
+}
+
 // WriteFloat64 writes a float64 to the writer
 func (mw *Writer) WriteFloat64(f float64) error {
 	return mw.prefix64(mfloat64, math.Float64bits(f))
@@ -624,6 +636,65 @@ func (mw *Writer) WriteTime(t time.Time) error {
 	return nil
 }
 
+// WriteTimeExt will write t using the official msgpack extension spec.
+// https://github.com/msgpack/msgpack/blob/master/spec.md#timestamp-extension-type
+func (mw *Writer) WriteTimeExt(t time.Time) error {
+	// Time rounded towards zero.
+	secPrec := t.Truncate(time.Second)
+	remain := t.Sub(secPrec).Nanoseconds()
+	asSecs := secPrec.Unix()
+	switch {
+	case remain == 0 && asSecs > 0 && asSecs <= math.MaxUint32:
+		// 4 bytes
+		o, err := mw.require(6)
+		if err != nil {
+			return err
+		}
+		mw.buf[o] = mfixext4
+		mw.buf[o+1] = byte(msgTimeExtension)
+		binary.BigEndian.PutUint32(mw.buf[o+2:], uint32(asSecs))
+		return nil
+	case asSecs < 0 || asSecs >= (1<<34):
+		// 12 bytes
+		o, err := mw.require(12 + 3)
+		if err != nil {
+			return err
+		}
+		mw.buf[o] = mext8
+		mw.buf[o+1] = 12
+		mw.buf[o+2] = byte(msgTimeExtension)
+		binary.BigEndian.PutUint32(mw.buf[o+3:], uint32(remain))
+		binary.BigEndian.PutUint64(mw.buf[o+3+4:], uint64(asSecs))
+	default:
+		// 8 bytes
+		o, err := mw.require(10)
+		if err != nil {
+			return err
+		}
+		mw.buf[o] = mfixext8
+		mw.buf[o+1] = byte(msgTimeExtension)
+		binary.BigEndian.PutUint64(mw.buf[o+2:], uint64(asSecs)|(uint64(remain)<<34))
+	}
+	return nil
+}
+
+// WriteJSONNumber writes the json.Number to the stream as either integer or float.
+func (mw *Writer) WriteJSONNumber(n json.Number) error {
+	if n == "" {
+		// The zero value outputs the 0 integer.
+		return mw.push(0)
+	}
+	ii, err := n.Int64()
+	if err == nil {
+		return mw.WriteInt64(ii)
+	}
+	ff, err := n.Float64()
+	if err == nil {
+		return mw.WriteFloat(ff)
+	}
+	return err
+}
+
 // WriteIntf writes the concrete type of 'v'.
 // WriteIntf will error if 'v' is not one of the following:
 //   - A bool, float, string, []byte, int, uint, or complex
@@ -689,6 +760,8 @@ func (mw *Writer) WriteIntf(v interface{}) error {
 		return mw.WriteTime(v)
 	case time.Duration:
 		return mw.WriteDuration(v)
+	case json.Number:
+		return mw.WriteJSONNumber(v)
 	}
 
 	val := reflect.ValueOf(v)
