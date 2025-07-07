@@ -194,13 +194,7 @@ func ReleaseAndLog(ls Store, l Layer) {
 	if err != nil {
 		log.G(context.TODO()).Errorf("Error releasing layer %s: %v", l.ChainID(), err)
 	}
-	LogReleaseMetadata(metadata)
-}
-
-// LogReleaseMetadata logs a metadata array, uses this to
-// ensure consistent logging for release metadata
-func LogReleaseMetadata(metadatas []Metadata) {
-	for _, metadata := range metadatas {
-		log.G(context.TODO()).Infof("Layer %s cleaned up", metadata.ChainID)
+	for _, m := range metadata {
+		log.G(context.TODO()).WithField("chainID", m.ChainID).Infof("Cleaned up layer %s", m.ChainID)
 	}
 }

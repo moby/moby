@@ -45,7 +45,9 @@ func (l *roLayer) Release() error {
 	}
 	if l.roLayer != nil {
 		metadata, err := l.layerStore.Release(l.roLayer)
-		layer.LogReleaseMetadata(metadata)
+		for _, m := range metadata {
+			log.G(context.TODO()).WithField("chainID", m.ChainID).Infof("release ROLayer: cleaned up layer %s", m.ChainID)
+		}
 		if err != nil {
 			return errors.Wrap(err, "failed to release ROLayer")
 		}
@@ -124,7 +126,9 @@ func (l *rwLayer) Release() error {
 	}
 
 	metadata, err := l.layerStore.ReleaseRWLayer(l.rwLayer)
-	layer.LogReleaseMetadata(metadata)
+	for _, m := range metadata {
+		log.G(context.TODO()).WithField("chainID", m.ChainID).Infof("release RWLayer: cleaned up layer %s", m.ChainID)
+	}
 	if err != nil {
 		return errors.Wrap(err, "failed to release RWLayer")
 	}
