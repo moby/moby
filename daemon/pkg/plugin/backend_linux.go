@@ -21,7 +21,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
@@ -41,6 +40,13 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
+
+// MediaTypePluginConfig specifies the mediaType for plugin configuration.
+//
+// It is a copy of the mediaType defined in [schema2.MediaTypePluginConfig].
+//
+// [schema2.MediaTypePluginConfig]: https://pkg.go.dev/github.com/distribution/distribution/v3@v3.0.0/manifest/schema2#MediaTypePluginConfig
+const MediaTypePluginConfig = "application/vnd.docker.plugin.v1+json"
 
 var acceptedPluginFilterTags = map[string]bool{
 	"enabled":    true,
@@ -169,7 +175,7 @@ func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHead
 
 	h := func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		switch desc.MediaType {
-		case schema2.MediaTypeManifest, ocispec.MediaTypeImageManifest:
+		case c8dimages.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest:
 			data, err := content.ReadBlob(ctx, pm.blobStore, desc)
 			if err != nil {
 				return nil, errors.Wrapf(err, "error reading image manifest from blob store for %s", ref)
@@ -180,7 +186,7 @@ func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHead
 				return nil, errors.Wrapf(err, "error unmarshaling image manifest for %s", ref)
 			}
 			return []ocispec.Descriptor{m.Config}, nil
-		case schema2.MediaTypePluginConfig:
+		case MediaTypePluginConfig:
 			configSeen = true
 			data, err := content.ReadBlob(ctx, pm.blobStore, desc)
 			if err != nil {
