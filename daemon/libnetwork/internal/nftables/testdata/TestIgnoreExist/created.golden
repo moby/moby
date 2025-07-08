@@ -1,0 +1,5 @@
+table ip this_is_a_table {
+	chain this_is_a_chain {
+		counter packets 0 bytes 0
+	}
+}

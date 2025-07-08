@@ -1,6 +1,6 @@
 table ip this_is_a_table {
 	chain this_is_a_base_chain {
-		type filter hook forward priority filter + 10; policy drop;
+		type filter hook forward priority filter + 10; policy accept;
 		jump this_is_a_regular_chain
 	}
 
