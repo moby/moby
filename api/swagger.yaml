@@ -2913,7 +2913,8 @@ definitions:
           be used. If multiple endpoints have the same priority, endpoints are
           lexicographically sorted based on their network name, and the one
           that sorts first is picked.
-        type: "number"
+        type: "integer"
+        format: "int64"
         example:
           - 10
 
