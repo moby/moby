@@ -8,7 +8,7 @@ import (
 	"github.com/docker/docker/libnetwork/internal/nftables"
 )
 
-// mirroredWSL2Workaround adds  IPv4 NAT rule if docker's host Linux appears to
+// mirroredWSL2Workaround adds IPv4 NAT rule if docker's host Linux appears to
 // be a guest running under WSL2 in with mirrored mode networking.
 // https://learn.microsoft.com/en-us/windows/wsl/networking#mirrored-mode-networking
 //
@@ -44,5 +44,6 @@ func mirroredWSL2Workaround(ctx context.Context, table nftables.TableRef) error 
 	if table.Family() != nftables.IPv4 {
 		return nil
 	}
-	return table.Chain(natChain).AppendRule(initialRuleGroup, `iifname "loopback0" ip daddr 127.0.0.0/8 counter return`)
+	return table.Chain(ctx, natChain).AppendRule(ctx,
+		initialRuleGroup, `iifname "loopback0" ip daddr 127.0.0.0/8 counter return`)
 }

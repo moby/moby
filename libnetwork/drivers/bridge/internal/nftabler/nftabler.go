@@ -33,6 +33,11 @@ const (
 	initialRuleGroup nftables.RuleGroup = iota
 )
 
+const (
+	fwdInICCRuleGroup = iota + initialRuleGroup + 1
+	fwdInFinalRuleGroup
+)
+
 type nftabler struct {
 	config firewaller.Config
 	table4 nftables.TableRef
@@ -81,7 +86,7 @@ func (nft *nftabler) getTable(ipv firewaller.IPVersion) nftables.TableRef {
 
 func (nft *nftabler) FilterForwardDrop(ctx context.Context, ipv firewaller.IPVersion) error {
 	table := nft.getTable(ipv)
-	if err := table.Chain(forwardChain).SetPolicy("drop"); err != nil {
+	if err := table.Chain(ctx, forwardChain).SetPolicy("drop"); err != nil {
 		return err
 	}
 	return nftApply(ctx, table)
@@ -104,7 +109,7 @@ func (nft *nftabler) init(ctx context.Context, family nftables.Family) (nftables
 	// So, packets that aren't related to docker don't need to traverse any per-network filter forward
 	// rules - and packets that are entering or leaving docker networks only need to traverse rules
 	// related to those networks.
-	fwdChain, err := table.BaseChain(forwardChain,
+	fwdChain, err := table.BaseChain(ctx, forwardChain,
 		nftables.BaseChainTypeFilter,
 		nftables.BaseChainHookForward,
 		nftables.BaseChainPriorityFilter)
@@ -112,51 +117,51 @@ func (nft *nftabler) init(ctx context.Context, family nftables.Family) (nftables
 		return nftables.TableRef{}, fmt.Errorf("initialising nftables: %w", err)
 	}
 	// Instantiate the verdict maps and add the jumps.
-	_ = table.InterfaceVMap(filtFwdInVMap)
-	if err := fwdChain.AppendRule(initialRuleGroup, "oifname vmap @"+filtFwdInVMap); err != nil {
+	_ = table.InterfaceVMap(ctx, filtFwdInVMap)
+	if err := fwdChain.AppendRule(ctx, initialRuleGroup, "oifname vmap @"+filtFwdInVMap); err != nil {
 		return nftables.TableRef{}, fmt.Errorf("initialising nftables: %w", err)
 	}
-	_ = table.InterfaceVMap(filtFwdOutVMap)
-	if err := fwdChain.AppendRule(initialRuleGroup, "iifname vmap @"+filtFwdOutVMap); err != nil {
+	_ = table.InterfaceVMap(ctx, filtFwdOutVMap)
+	if err := fwdChain.AppendRule(ctx, initialRuleGroup, "iifname vmap @"+filtFwdOutVMap); err != nil {
 		return nftables.TableRef{}, fmt.Errorf("initialising nftables: %w", err)
 	}
 
 	// Set up the NAT postrouting base chain.
 	//
 	// Like the filter-forward chain, its only rules are jumps to network-specific ingress and egress chains.
-	natPostRtChain, err := table.BaseChain(postroutingChain,
+	natPostRtChain, err := table.BaseChain(ctx, postroutingChain,
 		nftables.BaseChainTypeNAT,
 		nftables.BaseChainHookPostrouting,
 		nftables.BaseChainPrioritySrcNAT)
 	if err != nil {
 		return nftables.TableRef{}, err
 	}
-	_ = table.InterfaceVMap(natPostroutingOutVMap)
-	if err := natPostRtChain.AppendRule(initialRuleGroup, "iifname vmap @"+natPostroutingOutVMap); err != nil {
+	_ = table.InterfaceVMap(ctx, natPostroutingOutVMap)
+	if err := natPostRtChain.AppendRule(ctx, initialRuleGroup, "iifname vmap @"+natPostroutingOutVMap); err != nil {
 		return nftables.TableRef{}, fmt.Errorf("initialising nftables: %w", err)
 	}
-	_ = table.InterfaceVMap(natPostroutingInVMap)
-	if err := natPostRtChain.AppendRule(initialRuleGroup, "oifname vmap @"+natPostroutingInVMap); err != nil {
+	_ = table.InterfaceVMap(ctx, natPostroutingInVMap)
+	if err := natPostRtChain.AppendRule(ctx, initialRuleGroup, "oifname vmap @"+natPostroutingInVMap); err != nil {
 		return nftables.TableRef{}, fmt.Errorf("initialising nftables: %w", err)
 	}
 
 	// Instantiate natChain, for the NAT prerouting and output base chains to jump to.
-	_ = table.Chain(natChain)
+	_ = table.Chain(ctx, natChain)
 
 	// Set up the NAT prerouting base chain.
-	natPreRtChain, err := table.BaseChain(preroutingChain,
+	natPreRtChain, err := table.BaseChain(ctx, preroutingChain,
 		nftables.BaseChainTypeNAT,
 		nftables.BaseChainHookPrerouting,
 		nftables.BaseChainPriorityDstNAT)
 	if err != nil {
 		return nftables.TableRef{}, err
 	}
-	if err := natPreRtChain.AppendRule(initialRuleGroup, "fib daddr type local counter jump "+natChain); err != nil {
+	if err := natPreRtChain.AppendRule(ctx, initialRuleGroup, "fib daddr type local counter jump "+natChain); err != nil {
 		return nftables.TableRef{}, fmt.Errorf("initialising nftables: %w", err)
 	}
 
 	// Set up the NAT output base chain
-	natOutputChain, err := table.BaseChain(outputChain,
+	natOutputChain, err := table.BaseChain(ctx, outputChain,
 		nftables.BaseChainTypeNAT,
 		nftables.BaseChainHookOutput,
 		nftables.BaseChainPriorityDstNAT)
@@ -172,12 +177,12 @@ func (nft *nftabler) init(ctx context.Context, family nftables.Family) (nftables
 			skipLoopback = "ip6 daddr != ::1 "
 		}
 	}
-	if err := natOutputChain.AppendRule(initialRuleGroup, skipLoopback+"fib daddr type local counter jump "+natChain); err != nil {
+	if err := natOutputChain.AppendRule(ctx, initialRuleGroup, skipLoopback+"fib daddr type local counter jump "+natChain); err != nil {
 		return nftables.TableRef{}, fmt.Errorf("initialising nftables: %w", err)
 	}
 
 	// Set up the raw prerouting base chain
-	if _, err := table.BaseChain(rawPreroutingChain,
+	if _, err := table.BaseChain(ctx, rawPreroutingChain,
 		nftables.BaseChainTypeFilter,
 		nftables.BaseChainHookPrerouting,
 		nftables.BaseChainPriorityRaw); err != nil {

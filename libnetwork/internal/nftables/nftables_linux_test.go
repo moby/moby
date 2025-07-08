@@ -58,6 +58,7 @@ func TestTable(t *testing.T) {
 
 func TestChain(t *testing.T) {
 	defer testSetup(t)()
+	ctx := context.Background()
 
 	// Create a table.
 	tbl, err := NewTable(IPv4, "this_is_a_table")
@@ -65,68 +66,68 @@ func TestChain(t *testing.T) {
 
 	// Create a base chain.
 	const bcName = "this_is_a_base_chain"
-	bc1, err := tbl.BaseChain(bcName, BaseChainTypeFilter, BaseChainHookForward, BaseChainPriorityFilter+10)
+	bc1, err := tbl.BaseChain(ctx, bcName, BaseChainTypeFilter, BaseChainHookForward, BaseChainPriorityFilter+10)
 	assert.NilError(t, err)
 
 	// Check that it's an error to add a new base chain with the same name.
-	_, err = tbl.BaseChain(bcName, BaseChainTypeNAT, BaseChainHookPrerouting, BaseChainPriorityDstNAT)
+	_, err = tbl.BaseChain(ctx, bcName, BaseChainTypeNAT, BaseChainHookPrerouting, BaseChainPriorityDstNAT)
 	assert.Check(t, is.ErrorContains(err, "already exists"))
 
 	// Add a rule.
-	err = bc1.AppendRule(0, "counter")
+	err = bc1.AppendRule(ctx, 0, "counter")
 	assert.NilError(t, err)
 
 	// Add a regular chain.
 	const regularChainName = "this_is_a_regular_chain"
-	_ = tbl.Chain(regularChainName)
+	_ = tbl.Chain(ctx, regularChainName)
 
 	// Add a rule to the regular chain, use string formatting and a func retrieved
 	// from the table.
-	f := tbl.ChainUpdateFunc(regularChainName, true)
-	err = f(0, "counter %s", "accept")
+	f := tbl.ChainUpdateFunc(ctx, regularChainName, true)
+	err = f(ctx, 0, "counter %s", "accept")
 	assert.Check(t, err)
 
 	// Fetch the base chain by name.
-	bc1 = tbl.Chain(bcName)
+	bc1 = tbl.Chain(ctx, bcName)
 
 	// Add another rule to the base chain, using the newly-retrieved handle.
-	err = bc1.AppendRule(0, "jump %s", regularChainName)
+	err = bc1.AppendRule(ctx, 0, "jump %s", regularChainName)
 	assert.Check(t, err)
 
 	// Update nftables and check what happened.
 	applyAndCheck(t, tbl, t.Name()+"_created.golden")
 
 	// Delete a rule from the base chain.
-	f = tbl.ChainUpdateFunc(bcName, false)
-	err = f(0, "counter")
+	f = tbl.ChainUpdateFunc(ctx, bcName, false)
+	err = f(ctx, 0, "counter")
 	assert.Check(t, err)
 
 	// Check it's an error to delete that rule again. This time, call the delete
 	// function directly on a newly retrieved handle.
-	err = tbl.Chain(bcName).DeleteRule(0, "counter")
+	err = tbl.Chain(ctx, bcName).DeleteRule(ctx, 0, "counter")
 	assert.Check(t, is.ErrorContains(err, "does not exist"))
 
 	// Update the base chain's policy.
-	err = tbl.Chain(bcName).SetPolicy("drop")
+	err = tbl.Chain(ctx, bcName).SetPolicy("drop")
 	assert.Check(t, err)
 
 	// Check it's an error to set a policy on a regular chain.
-	err = tbl.Chain(regularChainName).SetPolicy("drop")
+	err = tbl.Chain(ctx, regularChainName).SetPolicy("drop")
 	assert.Check(t, is.ErrorContains(err, "not a base chain"))
 
 	// Update nftables and check what happened.
 	applyAndCheck(t, tbl, t.Name()+"_modified.golden")
 
 	// Delete the base chain.
-	err = tbl.DeleteChain(bcName)
+	err = tbl.DeleteChain(ctx, bcName)
 	assert.Check(t, err)
 
 	// Delete the regular chain.
-	err = tbl.DeleteChain(regularChainName)
+	err = tbl.DeleteChain(ctx, regularChainName)
 	assert.Check(t, err)
 
 	// Check that it's an error to delete it again.
-	err = tbl.DeleteChain(regularChainName)
+	err = tbl.DeleteChain(ctx, regularChainName)
 	assert.Check(t, is.ErrorContains(err, "does not exist"))
 
 	// Update nftables and check what happened.
@@ -135,19 +136,20 @@ func TestChain(t *testing.T) {
 
 func TestChainRuleGroups(t *testing.T) {
 	defer testSetup(t)()
+	ctx := context.Background()
 
 	tbl, err := NewTable(IPv4, "testtable")
 	assert.NilError(t, err)
-	c := tbl.Chain("testchain")
-	err = c.AppendRule(100, "hello100")
+	c := tbl.Chain(ctx, "testchain")
+	err = c.AppendRule(ctx, 100, "hello100")
 	assert.Check(t, err)
-	err = c.AppendRule(200, "hello200")
+	err = c.AppendRule(ctx, 200, "hello200")
 	assert.Check(t, err)
-	err = c.AppendRule(100, "hello101")
+	err = c.AppendRule(ctx, 100, "hello101")
 	assert.Check(t, err)
-	err = c.AppendRule(200, "hello201")
+	err = c.AppendRule(ctx, 200, "hello201")
 	assert.Check(t, err)
-	err = c.AppendRule(100, "hello102")
+	err = c.AppendRule(ctx, 100, "hello102")
 	assert.Check(t, err)
 
 	assert.Check(t, is.DeepEqual(c.c.Rules(), []string{
@@ -158,6 +160,7 @@ func TestChainRuleGroups(t *testing.T) {
 
 func TestVMap(t *testing.T) {
 	defer testSetup(t)()
+	ctx := context.Background()
 
 	// Create a table.
 	tbl, err := NewTable(IPv6, "this_is_a_table")
@@ -165,32 +168,32 @@ func TestVMap(t *testing.T) {
 
 	// Create a verdict map.
 	const mapName = "this_is_a_vmap"
-	m := tbl.InterfaceVMap(mapName)
+	m := tbl.InterfaceVMap(ctx, mapName)
 
 	// Add an element.
-	err = m.AddElement("eth0", "return")
+	err = m.AddElement(ctx, "eth0", "return")
 	assert.Check(t, err)
 
 	// Check that it's an error to add the element again.
-	err = m.AddElement("eth0", "return")
+	err = m.AddElement(ctx, "eth0", "return")
 	assert.Check(t, is.ErrorContains(err, "already contains element"))
 
 	// Fetch the existing vmap.
-	m = tbl.InterfaceVMap(mapName)
+	m = tbl.InterfaceVMap(ctx, mapName)
 
 	// Add another element.
-	err = m.AddElement("eth1", "drop")
+	err = m.AddElement(ctx, "eth1", "drop")
 	assert.Check(t, err)
 
 	// Update nftables and check what happened.
 	applyAndCheck(t, tbl, t.Name()+"_created.golden")
 
 	// Delete an element.
-	err = m.DeleteElement("eth1")
+	err = m.DeleteElement(ctx, "eth1")
 	assert.Check(t, err)
 
 	// Check it's an error to delete it again.
-	err = m.DeleteElement("eth1")
+	err = m.DeleteElement(ctx, "eth1")
 	assert.Check(t, is.ErrorContains(err, "does not contain element"))
 
 	// Update nftables and check what happened.
@@ -199,6 +202,7 @@ func TestVMap(t *testing.T) {
 
 func TestSet(t *testing.T) {
 	defer testSetup(t)()
+	ctx := context.Background()
 
 	// Create v4 and v6 tables.
 	tbl4, err := NewTable(IPv4, "table4")
@@ -207,19 +211,19 @@ func TestSet(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Create a set in each table.
-	s4 := tbl4.PrefixSet("set4")
-	s6 := tbl6.PrefixSet("set6")
+	s4 := tbl4.PrefixSet(ctx, "set4")
+	s6 := tbl6.PrefixSet(ctx, "set6")
 
 	// Add elements to each set.
-	err = s4.AddElement("192.0.2.1/24")
+	err = s4.AddElement(ctx, "192.0.2.1/24")
 	assert.Check(t, err)
-	err = s6.AddElement("2001:db8::1/64")
+	err = s6.AddElement(ctx, "2001:db8::1/64")
 	assert.Check(t, err)
 
 	// Check it's an error to add those elements again.
-	err = s4.AddElement("192.0.2.1/24")
+	err = s4.AddElement(ctx, "192.0.2.1/24")
 	assert.Check(t, is.ErrorContains(err, "already contains element"))
-	err = s6.AddElement("2001:db8::1/64")
+	err = s6.AddElement(ctx, "2001:db8::1/64")
 	assert.Check(t, is.ErrorContains(err, "already contains element"))
 
 	// Update nftables and check what happened.
@@ -227,15 +231,15 @@ func TestSet(t *testing.T) {
 	applyAndCheck(t, tbl6, t.Name()+"_created46.golden")
 
 	// Delete elements.
-	err = s4.DeleteElement("192.0.2.1/24")
+	err = s4.DeleteElement(ctx, "192.0.2.1/24")
 	assert.Check(t, err)
-	err = s6.DeleteElement("2001:db8::1/64")
+	err = s6.DeleteElement(ctx, "2001:db8::1/64")
 	assert.Check(t, err)
 
 	// Check it's an error to delete those elements again.
-	err = s4.DeleteElement("192.0.2.1/24")
+	err = s4.DeleteElement(ctx, "192.0.2.1/24")
 	assert.Check(t, is.ErrorContains(err, "does not contain element"))
-	err = s6.DeleteElement("2001:db8::1/64")
+	err = s6.DeleteElement(ctx, "2001:db8::1/64")
 	assert.Check(t, is.ErrorContains(err, "does not contain element"))
 
 	// Update nftables and check what happened.
@@ -245,21 +249,22 @@ func TestSet(t *testing.T) {
 
 func TestReload(t *testing.T) {
 	defer testSetup(t)()
+	ctx := context.Background()
 
 	// Create a table with some stuff in it.
 	const tableName = "this_is_a_table"
 	tbl, err := NewTable(IPv4, tableName)
 	assert.NilError(t, err)
-	bc, err := tbl.BaseChain("a_base_chain", BaseChainTypeFilter, BaseChainHookForward, BaseChainPriorityFilter)
+	bc, err := tbl.BaseChain(ctx, "a_base_chain", BaseChainTypeFilter, BaseChainHookForward, BaseChainPriorityFilter)
 	assert.NilError(t, err)
-	err = bc.AppendRule(0, "counter")
+	err = bc.AppendRule(ctx, 0, "counter")
 	assert.NilError(t, err)
-	m := tbl.InterfaceVMap("this_is_a_vmap")
-	err = m.AddElement("eth0", "return")
+	m := tbl.InterfaceVMap(ctx, "this_is_a_vmap")
+	err = m.AddElement(ctx, "eth0", "return")
 	assert.Check(t, err)
-	err = m.AddElement("eth1", "return")
+	err = m.AddElement(ctx, "eth1", "return")
 	assert.Check(t, err)
-	err = tbl.PrefixSet("set4").AddElement("192.0.2.0/24")
+	err = tbl.PrefixSet(ctx, "set4").AddElement(ctx, "192.0.2.0/24")
 	assert.Check(t, err)
 	applyAndCheck(t, tbl, t.Name()+"_created.golden")
 
@@ -284,7 +289,7 @@ func TestReload(t *testing.T) {
 
 	// Check implicit/recovery reload - only deleting something that's gone missing
 	// from a vmap/set will trigger this.
-	err = m.DeleteElement("eth1")
+	err = m.DeleteElement(ctx, "eth1")
 	assert.Check(t, err)
 	applyAndCheck(t, tbl, t.Name()+"_recovered.golden")
 }

@@ -98,25 +98,25 @@ func (r *Resolver) setupNftablesNAT(ctx context.Context, laddr, ltcpaddr, resolv
 		return err
 	}
 
-	dnatChain, err := table.BaseChain("dns-dnat", nftables.BaseChainTypeNAT, nftables.BaseChainHookOutput, nftables.BaseChainPriorityDstNAT)
+	dnatChain, err := table.BaseChain(ctx, "dns-dnat", nftables.BaseChainTypeNAT, nftables.BaseChainHookOutput, nftables.BaseChainPriorityDstNAT)
 	if err != nil {
 		return err
 	}
-	if err := dnatChain.AppendRule(0, "ip daddr %s udp dport %s counter dnat to %s", resolverIP, dnsPort, laddr); err != nil {
+	if err := dnatChain.AppendRule(ctx, 0, "ip daddr %s udp dport %s counter dnat to %s", resolverIP, dnsPort, laddr); err != nil {
 		return err
 	}
-	if err := dnatChain.AppendRule(0, "ip daddr %s tcp dport %s counter dnat to %s", resolverIP, dnsPort, ltcpaddr); err != nil {
+	if err := dnatChain.AppendRule(ctx, 0, "ip daddr %s tcp dport %s counter dnat to %s", resolverIP, dnsPort, ltcpaddr); err != nil {
 		return err
 	}
 
-	snatChain, err := table.BaseChain("dns-snat", nftables.BaseChainTypeNAT, nftables.BaseChainHookPostrouting, nftables.BaseChainPrioritySrcNAT)
+	snatChain, err := table.BaseChain(ctx, "dns-snat", nftables.BaseChainTypeNAT, nftables.BaseChainHookPostrouting, nftables.BaseChainPrioritySrcNAT)
 	if err != nil {
 		return err
 	}
-	if err := snatChain.AppendRule(0, "ip saddr %s udp sport %s counter snat to :%s", resolverIP, ipPort, dnsPort); err != nil {
+	if err := snatChain.AppendRule(ctx, 0, "ip saddr %s udp sport %s counter snat to :%s", resolverIP, ipPort, dnsPort); err != nil {
 		return err
 	}
-	if err := snatChain.AppendRule(0, "ip saddr %s tcp sport %s counter snat to :%s", resolverIP, tcpPort, dnsPort); err != nil {
+	if err := snatChain.AppendRule(ctx, 0, "ip saddr %s tcp sport %s counter snat to :%s", resolverIP, tcpPort, dnsPort); err != nil {
 		return err
 	}
 
