@@ -530,19 +530,7 @@ func attemptBindHostPorts(
 			case "udp":
 				pb, err = bindTCPOrUDP(c, port, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
 			case "sctp":
-				if proxyPath == "" {
-					pb, err = bindSCTP(c, port)
-				} else {
-					// TODO(robmry) - it's not currently possible to pass a bound SCTP port
-					//  to the userland proxy, because the proxy is not able to convert the
-					//  file descriptor into an sctp.SCTPListener (fd is an unexported member
-					//  of the struct, and ListenSCTP is the only constructor).
-					//  If that changes, remove this.
-					//  Until then, it is possible for the proxy to start listening and accept
-					//  connections before iptables rules are created that would bypass
-					//  the proxy for external connections.
-					pb, err = startSCTPProxy(c, port, proxyPath)
-				}
+				pb, err = bindSCTP(c, port)
 			default:
 				return nil, fmt.Errorf("Unknown addr type: %s", proto)
 			}
@@ -567,7 +555,7 @@ func attemptBindHostPorts(
 	// socket. Listen here anyway because SO_REUSEADDR is set, so bind() won't notice
 	// the problem if a port's bound to both INADDR_ANY and a specific address. (Also
 	// so the binding shows up in "netstat -at".)
-	if err := tcpListenBoundPorts(res, proxyPath); err != nil {
+	if err := listenBoundPorts(res, proxyPath); err != nil {
 		return nil, err
 	}
 	return res, nil
@@ -684,20 +672,6 @@ func bindSCTP(cfg portBindingReq, port int) (_ portBinding, retErr error) {
 	return pb, nil
 }
 
-func startSCTPProxy(cfg portBindingReq, port int, proxyPath string) (_ portBinding, retErr error) {
-	pb := portBinding{PortBinding: cfg.GetCopy()}
-	pb.HostPort = uint16(port)
-	pb.HostPortEnd = pb.HostPort
-	pb.childHostIP = cfg.childHostIP
-
-	var err error
-	pb.stopProxy, err = startProxy(pb.childPortBinding(), proxyPath, nil)
-	if err != nil {
-		return portBinding{}, err
-	}
-	return pb, nil
-}
-
 // configPortDriver passes the port binding's details to rootlesskit, and updates the
 // port binding with callbacks to remove the rootlesskit config (or marks the binding as
 // unsupported by rootlesskit).
@@ -731,26 +705,27 @@ func configPortDriver(ctx context.Context, pbs []portBinding, pdc portDriverClie
 	return nil
 }
 
-func tcpListenBoundPorts(pbs []portBinding, proxyPath string) error {
-	somaxconn := 0
-	if proxyPath != "" {
-		somaxconn = -1 // silently capped to "/proc/sys/net/core/somaxconn"
-	}
+func listenBoundPorts(pbs []portBinding, proxyPath string) error {
 	for i := range pbs {
-		if pbs[i].boundSocket == nil || pbs[i].rootlesskitUnsupported || pbs[i].Proto != types.TCP {
+		if pbs[i].boundSocket == nil || pbs[i].rootlesskitUnsupported || pbs[i].Proto == types.UDP {
 			continue
 		}
 		rc, err := pbs[i].boundSocket.SyscallConn()
 		if err != nil {
-			return fmt.Errorf("raw conn not available on TCP socket: %w", err)
+			return fmt.Errorf("raw conn not available on %s socket: %w", pbs[i].Proto, err)
 		}
 		if errC := rc.Control(func(fd uintptr) {
+			somaxconn := 0
+			// SCTP sockets do not support somaxconn=0
+			if proxyPath != "" || pbs[i].Proto == types.SCTP {
+				somaxconn = -1 // silently capped to "/proc/sys/net/core/somaxconn"
+			}
 			err = syscall.Listen(int(fd), somaxconn)
 		}); errC != nil {
-			return fmt.Errorf("failed to Control TCP socket: %w", err)
+			return fmt.Errorf("failed to Control %s socket: %w", pbs[i].Proto, err)
 		}
 		if err != nil {
-			return fmt.Errorf("failed to listen on TCP socket: %w", err)
+			return fmt.Errorf("failed to listen on %s socket: %w", pbs[i].Proto, err)
 		}
 	}
 	return nil

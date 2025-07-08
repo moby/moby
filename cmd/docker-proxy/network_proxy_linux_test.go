@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ishidawataru/sctp"
+	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 )
 
@@ -153,6 +154,65 @@ func udpListener(t *testing.T, nw string, addr *net.UDPAddr) (*os.File, *net.UDP
 	err = l.Close()
 	assert.NilError(t, err)
 	return osFile, l.LocalAddr().(*net.UDPAddr)
+}
+
+func sctpListener(t *testing.T, nw string, addr *sctp.SCTPAddr) (*os.File, *sctp.SCTPAddr) {
+	t.Helper()
+
+	var domain int
+	var sa unix.Sockaddr
+	switch nw {
+	case "sctp4":
+		domain = unix.AF_INET
+		sa = &unix.SockaddrInet4{
+			Addr: [4]uint8(addr.IPAddrs[0].IP.To4()),
+			Port: addr.Port,
+		}
+	case "sctp6":
+		domain = unix.AF_INET6
+		sa = &unix.SockaddrInet6{
+			Addr: [16]uint8(addr.IPAddrs[0].IP.To16()),
+			Port: addr.Port,
+		}
+	default:
+		t.Fatalf("unknown SCTP network type: %s", nw)
+	}
+
+	sockfd, err := unix.Socket(domain, unix.SOCK_STREAM|unix.SOCK_CLOEXEC, unix.IPPROTO_SCTP)
+	assert.NilError(t, err)
+
+	err = unix.Bind(sockfd, sa)
+	assert.NilError(t, err)
+
+	err = unix.Listen(sockfd, -1)
+	assert.NilError(t, err)
+
+	newfd, _, sysErr := unix.Syscall(unix.SYS_FCNTL, uintptr(sockfd), unix.F_DUPFD_CLOEXEC, 0)
+	if sysErr != 0 {
+		t.Fatal(os.NewSyscallError("fcntl", sysErr))
+	}
+
+	err = unix.Close(sockfd)
+	assert.NilError(t, err)
+
+	sockname, err := unix.Getsockname(int(newfd))
+	assert.NilError(t, err)
+
+	var laddr *sctp.SCTPAddr
+	switch sa := sockname.(type) {
+	case *unix.SockaddrInet4:
+		laddr = &sctp.SCTPAddr{
+			IPAddrs: []net.IPAddr{{IP: sa.Addr[:]}},
+			Port:    sa.Port,
+		}
+	case *unix.SockaddrInet6:
+		laddr = &sctp.SCTPAddr{
+			IPAddrs: []net.IPAddr{{IP: sa.Addr[:]}},
+			Port:    sa.Port,
+		}
+	}
+
+	return os.NewFile(newfd, ""), laddr
 }
 
 func testProxyAt(t *testing.T, proto string, proxy Proxy, addr string, halfClose bool) {
@@ -409,6 +469,44 @@ func TestSCTP6ProxyNoListener(t *testing.T) {
 		HostPort:      hopefullyFreePort,
 		ContainerIP:   backendAddr.IPAddrs[0].IP,
 		ContainerPort: backendAddr.Port,
+	}
+	proxy, err := newProxy(config)
+	assert.NilError(t, err)
+	testProxyAt(t, "sctp", proxy, fmt.Sprintf("[%s]:%d", config.HostIP, config.HostPort), false)
+}
+
+func TestSCTP4Proxy(t *testing.T) {
+	backend := NewEchoServer(t, "sctp", "127.0.0.1:0", EchoServerOptions{})
+	defer backend.Close()
+	backend.Run()
+	listener, frontendAddr := sctpListener(t, "sctp4", &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: net.ParseIP("127.0.0.1")}}, Port: 0})
+	backendAddr := backend.LocalAddr().(*sctp.SCTPAddr)
+	config := ProxyConfig{
+		Proto:         "sctp",
+		HostIP:        frontendAddr.IPAddrs[0].IP,
+		HostPort:      frontendAddr.Port,
+		ContainerIP:   backendAddr.IPAddrs[0].IP,
+		ContainerPort: backendAddr.Port,
+		ListenSock:    listener,
+	}
+	proxy, err := newProxy(config)
+	assert.NilError(t, err)
+	testProxyAt(t, "sctp", proxy, fmt.Sprintf("%s:%d", config.HostIP, config.HostPort), false)
+}
+
+func TestSCTP6Proxy(t *testing.T) {
+	backend := NewEchoServer(t, "sctp", "[::1]:0", EchoServerOptions{})
+	defer backend.Close()
+	backend.Run()
+	listener, frontendAddr := sctpListener(t, "sctp6", &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: net.ParseIP("::1")}}, Port: 0})
+	backendAddr := backend.LocalAddr().(*sctp.SCTPAddr)
+	config := ProxyConfig{
+		Proto:         "sctp",
+		HostIP:        frontendAddr.IPAddrs[0].IP,
+		HostPort:      frontendAddr.Port,
+		ContainerIP:   backendAddr.IPAddrs[0].IP,
+		ContainerPort: backendAddr.Port,
+		ListenSock:    listener,
 	}
 	proxy, err := newProxy(config)
 	assert.NilError(t, err)
