@@ -450,21 +450,6 @@ func buildAeadAlgo(k *key, s int) *netlink.XfrmStateAlgo {
 	}
 }
 
-func (d *driver) secMapWalk(f func(netip.Addr, []spi) ([]spi, bool)) error {
-	d.secMap.mu.Lock()
-	for rIP, node := range d.secMap.nodes {
-		idxs, stop := f(rIP, node.spi)
-		if idxs != nil {
-			d.secMap.nodes[rIP] = encrNode{idxs, node.count}
-		}
-		if stop {
-			break
-		}
-	}
-	d.secMap.mu.Unlock()
-	return nil
-}
-
 func (d *driver) setKeys(keys []*key) error {
 	// Remove any stale policy, state
 	clearEncryptionStates()
@@ -520,9 +505,14 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 		return types.InvalidParameterErrorf("attempting to both make a key (index %d) primary and delete it", priIdx)
 	}
 
-	d.secMapWalk(func(rIP netip.Addr, spis []spi) ([]spi, bool) {
-		return updateNodeKey(lIP.AsSlice(), aIP.AsSlice(), rIP.AsSlice(), spis, d.keys, newIdx, priIdx, delIdx), false
-	})
+	d.secMap.mu.Lock()
+	for rIP, node := range d.secMap.nodes {
+		idxs := updateNodeKey(lIP.AsSlice(), aIP.AsSlice(), rIP.AsSlice(), node.spi, d.keys, newIdx, priIdx, delIdx)
+		if idxs != nil {
+			d.secMap.nodes[rIP] = encrNode{idxs, node.count}
+		}
+	}
+	d.secMap.mu.Unlock()
 
 	// swap primary
 	if priIdx != -1 {
