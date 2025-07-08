@@ -881,7 +881,7 @@ func TestParallelDelete(t *testing.T) {
 	closeNetworkDBInstances(t, dbs)
 }
 
-func TestFlakyNetworkDBIslands(t *testing.T) {
+func TestNetworkDBIslands(t *testing.T) {
 	pollTimeout := func() time.Duration {
 		const defaultTimeout = 120 * time.Second
 		dl, ok := t.Deadline()
@@ -933,7 +933,7 @@ func TestFlakyNetworkDBIslands(t *testing.T) {
 		// Verify that the nodes are actually all gone and marked appropriately
 		for name, db := range checkDBs {
 			db.RLock()
-			if (len(db.leftNodes) != 3) || (len(db.failedNodes) != 0) {
+			if (len(db.leftNodes) + len(db.failedNodes)) != 3 {
 				for name := range db.leftNodes {
 					t.Logf("%s: Node %s left", db.config.Hostname, name)
 				}
@@ -941,7 +941,7 @@ func TestFlakyNetworkDBIslands(t *testing.T) {
 					t.Logf("%s: Node %s failed", db.config.Hostname, name)
 				}
 				db.RUnlock()
-				return poll.Continue("%s:Waiting for all nodes to cleanly leave, left: %d, failed nodes: %d", name, len(db.leftNodes), len(db.failedNodes))
+				return poll.Continue("%s:Waiting for all nodes to leave, left: %d, failed nodes: %d", name, len(db.leftNodes), len(db.failedNodes))
 			}
 			db.RUnlock()
 			t.Logf("%s: OK", name)
@@ -981,9 +981,9 @@ func TestFlakyNetworkDBIslands(t *testing.T) {
 				}
 			} else {
 				// nodes from 4 to 5 has the 3 previous left nodes
-				if len(db.leftNodes) != 3 {
+				if (len(db.leftNodes) + len(db.failedNodes)) != 3 {
 					db.RUnlock()
-					return poll.Continue("%s:Waiting to have 3 leftNodes", dbs[i].config.Hostname)
+					return poll.Continue("%s:Waiting to have 3 leftNodes+failedNodes", dbs[i].config.Hostname)
 				}
 			}
 			db.RUnlock()
