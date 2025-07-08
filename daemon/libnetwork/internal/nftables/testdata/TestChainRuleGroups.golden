@@ -1,0 +1,9 @@
+table ip testtable {
+	chain testchain {
+		iifname "hello100" counter packets 0 bytes 0
+		iifname "hello101" counter packets 0 bytes 0
+		iifname "hello102" counter packets 0 bytes 0
+		iifname "hello200" counter packets 0 bytes 0
+		iifname "hello201" counter packets 0 bytes 0
+	}
+}

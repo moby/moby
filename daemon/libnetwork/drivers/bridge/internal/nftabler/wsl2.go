@@ -3,8 +3,6 @@
 package nftabler
 
 import (
-	"context"
-
 	"github.com/docker/docker/daemon/libnetwork/internal/nftables"
 )
 
@@ -39,11 +37,14 @@ import (
 // arriving from any other bridge network. Similarly, this function adds (or
 // removes) a rule to RETURN early for packets delivered via loopback0 with
 // destination 127.0.0.0/8.
-func mirroredWSL2Workaround(ctx context.Context, table nftables.TableRef) error {
+func mirroredWSL2Workaround(tm *nftables.Modifier) {
 	// WSL2 does not (currently) support Windows<->Linux communication via ::1.
-	if table.Family() != nftables.IPv4 {
-		return nil
+	if tm.Family() != nftables.IPv4 {
+		return
 	}
-	return table.Chain(ctx, natChain).AppendRule(ctx,
-		initialRuleGroup, `iifname "loopback0" ip daddr 127.0.0.0/8 counter return`)
+	tm.Create(nftables.Rule{
+		Chain: natChain,
+		Group: initialRuleGroup,
+		Rule:  []string{`iifname "loopback0" ip daddr 127.0.0.0/8 counter return`},
+	})
 }
