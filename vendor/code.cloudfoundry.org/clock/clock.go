@@ -29,7 +29,7 @@ func (clock *realClock) Now() time.Time {
 }
 
 func (clock *realClock) Since(t time.Time) time.Duration {
-	return time.Now().Sub(t)
+	return time.Since(t)
 }
 
 func (clock *realClock) Sleep(d time.Duration) {
