@@ -80,10 +80,14 @@ func (n *network) configure(ctx context.Context, table nftables.TableRef, conf f
 
 	// Filter chain
 
-	fwdInChain := table.Chain(ctx, chainFilterFwdIn(n.config.IfName))
-	cleanup.Add(func(ctx context.Context) error { return table.DeleteChain(ctx, chainFilterFwdIn(n.config.IfName)) })
-	fwdOutChain := table.Chain(ctx, chainFilterFwdOut(n.config.IfName))
-	cleanup.Add(func(ctx context.Context) error { return table.DeleteChain(ctx, chainFilterFwdOut(n.config.IfName)) })
+	fwdInChain, err := addChain(ctx, table, &cleanup, chainFilterFwdIn(n.config.IfName))
+	if err != nil {
+		return nil, err
+	}
+	fwdOutChain, err := addChain(ctx, table, &cleanup, chainFilterFwdOut(n.config.IfName))
+	if err != nil {
+		return nil, err
+	}
 
 	cf, err := table.InterfaceVMap(ctx, filtFwdInVMap).AddElementCf(ctx, n.config.IfName, "jump "+chainFilterFwdIn(n.config.IfName))
 	if err != nil {
@@ -99,16 +103,20 @@ func (n *network) configure(ctx context.Context, table nftables.TableRef, conf f
 
 	// NAT chain
 
-	natPostroutingIn := table.Chain(ctx, chainNatPostRtIn(n.config.IfName))
-	cleanup.Add(func(ctx context.Context) error { return table.DeleteChain(ctx, chainNatPostRtIn(n.config.IfName)) })
+	natPostroutingIn, err := addChain(ctx, table, &cleanup, chainNatPostRtIn(n.config.IfName))
+	if err != nil {
+		return nil, err
+	}
 	cf, err = table.InterfaceVMap(ctx, natPostroutingInVMap).AddElementCf(ctx, n.config.IfName, "jump "+chainNatPostRtIn(n.config.IfName))
 	if err != nil {
 		return nil, fmt.Errorf("adding postrouting ingress jump for %s to %q: %w", conf.Prefix, chainNatPostRtIn(n.config.IfName), err)
 	}
 	cleanup.Add(cf)
 
-	natPostroutingOut := table.Chain(ctx, chainNatPostRtOut(n.config.IfName))
-	cleanup.Add(func(ctx context.Context) error { return table.DeleteChain(ctx, chainNatPostRtOut(n.config.IfName)) })
+	natPostroutingOut, err := addChain(ctx, table, &cleanup, chainNatPostRtOut(n.config.IfName))
+	if err != nil {
+		return nil, err
+	}
 	cf, err = table.InterfaceVMap(ctx, natPostroutingOutVMap).AddElementCf(ctx, n.config.IfName, "jump "+chainNatPostRtOut(n.config.IfName))
 	if err != nil {
 		return nil, fmt.Errorf("adding postrouting egress jump for %s to %q: %w", conf.Prefix, chainNatPostRtOut(n.config.IfName), err)
@@ -253,6 +261,17 @@ func (n *network) DelNetworkLevelRules(ctx context.Context) error {
 		n.cleaner = nil
 	}
 	return nil
+}
+
+func addChain(ctx context.Context, table nftables.TableRef, cleanup *cleanups.Composite, name string) (nftables.ChainRef, error) {
+	chain := table.AddChain(ctx, name)
+	if !chain.IsValid() {
+		return chain, fmt.Errorf("failed to add chain '%s'", name)
+	}
+	cleanup.Add(func(ctx context.Context) error {
+		return table.DeleteChain(ctx, name)
+	})
+	return chain, nil
 }
 
 func chainFilterFwdIn(ifName string) string {

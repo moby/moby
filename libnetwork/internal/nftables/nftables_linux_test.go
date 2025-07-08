@@ -79,13 +79,17 @@ func TestChain(t *testing.T) {
 
 	// Add a regular chain.
 	const regularChainName = "this_is_a_regular_chain"
-	_ = tbl.Chain(ctx, regularChainName)
+	_ = tbl.AddChain(ctx, regularChainName)
 
 	// Add a rule to the regular chain, use string formatting and a func retrieved
 	// from the table.
 	f := tbl.ChainUpdateFunc(ctx, regularChainName, true)
 	err = f(ctx, 0, "counter %s", "accept")
 	assert.Check(t, err)
+
+	// Check that fetching a non-existent chain returns an invalid ref.
+	nsc := tbl.Chain(ctx, "no-such-chain")
+	assert.Check(t, !nsc.IsValid(), "'no-such-chain' should be invalid")
 
 	// Fetch the base chain by name.
 	bc1 = tbl.Chain(ctx, bcName)
@@ -140,7 +144,7 @@ func TestChainRuleGroups(t *testing.T) {
 
 	tbl, err := NewTable(IPv4, "testtable")
 	assert.NilError(t, err)
-	c := tbl.Chain(ctx, "testchain")
+	c := tbl.AddChain(ctx, "testchain")
 	err = c.AppendRule(ctx, 100, "hello100")
 	assert.Check(t, err)
 	err = c.AppendRule(ctx, 200, "hello200")

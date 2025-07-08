@@ -128,7 +128,11 @@ func (nft *nftabler) getTable(ipv firewaller.IPVersion) nftables.TableRef {
 
 func (nft *nftabler) FilterForwardDrop(ctx context.Context, ipv firewaller.IPVersion) error {
 	table := nft.getTable(ipv)
-	if err := table.Chain(ctx, forwardChain).SetPolicy("drop"); err != nil {
+	chain := table.Chain(ctx, forwardChain)
+	if !chain.IsValid() {
+		return fmt.Errorf("failed to set filter-forward policy to drop, no '%s' chain", forwardChain)
+	}
+	if err := chain.SetPolicy("drop"); err != nil {
 		return err
 	}
 	return nftApply(ctx, table)
@@ -200,7 +204,9 @@ func (nft *nftabler) init(ctx context.Context, family nftables.Family, baseChain
 	}
 
 	// Instantiate natChain, for the NAT prerouting and output base chains to jump to.
-	_ = table.Chain(ctx, natChain)
+	if nc := table.AddChain(ctx, natChain); !nc.IsValid() {
+		return nftables.TableRef{}, fmt.Errorf("failed to create nftables chain '%s'", natChain)
+	}
 
 	// Set up the NAT prerouting base chain.
 	natPreRtChain, err := table.BaseChain(ctx, preroutingChain,

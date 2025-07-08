@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"strings"
 
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/libnetwork/internal/nftables"
 )
@@ -62,6 +63,9 @@ func (n *network) filterDirectAccess(ctx context.Context, table nftables.TableRe
 		return nil
 	}
 	updater := table.ChainUpdateFunc(ctx, rawPreroutingChain, enable)
+	if updater == nil {
+		return errdefs.System(fmt.Errorf("filterDirectAccess: no '%s' chain", rawPreroutingChain))
+	}
 	ifNames := strings.Join(n.config.TrustedHostInterfaces, ", ")
 	return updater(ctx, rawPreroutingPortsRuleGroup,
 		`%s daddr %s iifname != { %s, %s } counter drop comment "DROP DIRECT ACCESS"`,

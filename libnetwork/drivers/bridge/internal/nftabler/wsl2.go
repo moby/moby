@@ -4,6 +4,7 @@ package nftabler
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/docker/docker/libnetwork/internal/nftables"
 )
@@ -43,6 +44,10 @@ func mirroredWSL2Workaround(ctx context.Context, table nftables.TableRef) error 
 	// WSL2 does not (currently) support Windows<->Linux communication via ::1.
 	if table.Family() != nftables.IPv4 {
 		return nil
+	}
+	chain := table.Chain(ctx, natChain)
+	if !chain.IsValid() {
+		return fmt.Errorf("failed to add loopback0 rule for WSL2, no '%s' chain", natChain)
 	}
 	return table.Chain(ctx, natChain).AppendRule(ctx,
 		initialRuleGroup, `iifname "loopback0" ip daddr 127.0.0.0/8 counter return`)

@@ -9,6 +9,7 @@ import (
 	"net/netip"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -24,7 +25,11 @@ func (n *network) AddLink(ctx context.Context, parentIP, childIP netip.Addr, por
 		n.fw.cleaner.DelLink(ctx, n.config, parentIP, childIP, ports)
 	}
 
-	chain := n.fw.table4.Chain(ctx, chainFilterFwdIn(n.config.IfName))
+	chainName := chainFilterFwdIn(n.config.IfName)
+	chain := n.fw.table4.Chain(ctx, chainName)
+	if !chain.IsValid() {
+		return errdefs.System(fmt.Errorf("chain '%s' does not exist", chainName))
+	}
 	for _, port := range ports {
 		for _, rule := range legacyLinkRules(parentIP, childIP, port) {
 			if err := chain.AppendRule(ctx, fwdInLegacyLinksRuleGroup, rule); err != nil {
@@ -39,7 +44,11 @@ func (n *network) AddLink(ctx context.Context, parentIP, childIP netip.Addr, por
 }
 
 func (n *network) DelLink(ctx context.Context, parentIP, childIP netip.Addr, ports []types.TransportPort) {
-	chain := n.fw.table4.Chain(ctx, chainFilterFwdIn(n.config.IfName))
+	chainName := chainFilterFwdIn(n.config.IfName)
+	chain := n.fw.table4.Chain(ctx, chainName)
+	if !chain.IsValid() {
+		log.G(ctx).Errorf("DelLink: chain '%s' does not exist", chainName)
+	}
 	for _, port := range ports {
 		for _, rule := range legacyLinkRules(parentIP, childIP, port) {
 			if err := chain.DeleteRule(ctx, fwdInLegacyLinksRuleGroup, rule); err != nil {

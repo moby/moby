@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/libnetwork/internal/nftables"
 	"github.com/docker/docker/libnetwork/types"
@@ -89,7 +90,11 @@ func (n *network) setPerPortRules(ctx context.Context, pbs []types.PortBinding, 
 }
 
 func (n *network) setPerPortForwarding(ctx context.Context, pbs []types.PortBinding, pbc pbContext, enable bool) error {
-	updateFwdIn := pbc.table.ChainUpdateFunc(ctx, chainFilterFwdIn(n.config.IfName), enable)
+	chainName := chainFilterFwdIn(n.config.IfName)
+	updateFwdIn := pbc.table.ChainUpdateFunc(ctx, chainName, enable)
+	if updateFwdIn == nil {
+		return errdefs.System(fmt.Errorf("setPerPortForwarding: no '%s' chain", chainName))
+	}
 	for _, pb := range pbs {
 		if pbc.conf.Unprotected {
 			continue
@@ -114,6 +119,9 @@ func (n *network) setPerPortForwarding(ctx context.Context, pbs []types.PortBind
 
 func (n *network) setPerPortDNAT(ctx context.Context, pbs []types.PortBinding, pbc pbContext, enable bool) error {
 	updater := pbc.table.ChainUpdateFunc(ctx, natChain, enable)
+	if updater == nil {
+		return errdefs.System(fmt.Errorf("setPerPortDNAT: no '%s' chain", natChain))
+	}
 	var proxySkip string
 	if !n.fw.config.Hairpin {
 		proxySkip = fmt.Sprintf("iifname != %s ", n.config.IfName)
@@ -153,7 +161,11 @@ func (n *network) setPerPortHairpinMasq(ctx context.Context, pbs []types.PortBin
 	if !n.fw.config.Hairpin {
 		return nil
 	}
-	updater := pbc.table.ChainUpdateFunc(ctx, chainNatPostRtIn(n.config.IfName), enable)
+	chainName := chainNatPostRtIn(n.config.IfName)
+	updater := pbc.table.ChainUpdateFunc(ctx, chainName, enable)
+	if updater == nil {
+		return errdefs.System(fmt.Errorf("setPerPortHairpinMasq: no '%s' chain", chainName))
+	}
 	for _, pb := range pbs {
 		// Nothing to do if NAT is disabled.
 		if pb.HostPort == 0 {
@@ -194,6 +206,9 @@ func filterPortMappedOnLoopback(ctx context.Context, pbs []types.PortBinding, pb
 		return nil
 	}
 	updater := pbc.table.ChainUpdateFunc(ctx, rawPreroutingChain, enable)
+	if updater == nil {
+		return errdefs.System(fmt.Errorf("filterPortMappedOnLoopback: no '%s' chain", rawPreroutingChain))
+	}
 	for _, pb := range pbs {
 		// Nothing to do if not binding to the loopback address.
 		if pb.HostPort == 0 || !pb.HostIP.IsLoopback() {

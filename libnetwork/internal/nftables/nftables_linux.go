@@ -414,6 +414,11 @@ type ChainRef struct {
 	c *chain
 }
 
+// IsValid returns true if c refers to a chain.
+func (c *ChainRef) IsValid() bool {
+	return c.c != nil
+}
+
 // BaseChain constructs a new nftables base chain and returns a [ChainRef].
 //
 // See https://wiki.nftables.org/wiki-nftables/index.php/Configuring_chains#Adding_base_chains
@@ -447,7 +452,7 @@ func (t TableRef) BaseChain(ctx context.Context, name string, chainType BaseChai
 	return ChainRef{c: c}, nil
 }
 
-// Chain returns a [ChainRef] for an existing chain (which may be a base chain).
+// AddChain returns a [ChainRef] for an existing chain (which may be a base chain).
 // If there is no existing chain, a regular chain is added and its [ChainRef] is
 // returned.
 //
@@ -455,17 +460,17 @@ func (t TableRef) BaseChain(ctx context.Context, name string, chainType BaseChai
 //
 // If a new [ChainRef] is created and the underlying chain already exists, it
 // will be flushed by the next [TableRef.Apply] before new rules are added.
-func (t TableRef) Chain(ctx context.Context, name string) ChainRef {
-	c, ok := t.t.Chains[name]
-	if !ok {
-		c = &chain{
-			table:      t.t,
-			Name:       name,
-			Dirty:      true,
-			ruleGroups: map[RuleGroup][]string{},
-		}
-		t.t.Chains[name] = c
+func (t TableRef) AddChain(ctx context.Context, name string) ChainRef {
+	if _, ok := t.t.Chains[name]; ok {
+		return ChainRef{}
 	}
+	c := &chain{
+		table:      t.t,
+		Name:       name,
+		Dirty:      true,
+		ruleGroups: map[RuleGroup][]string{},
+	}
+	t.t.Chains[name] = c
 	log.G(ctx).WithFields(log.Fields{
 		"family": t.t.Family,
 		"table":  t.t.Name,
@@ -474,15 +479,25 @@ func (t TableRef) Chain(ctx context.Context, name string) ChainRef {
 	return ChainRef{c: c}
 }
 
+// Chain returns a [ChainRef] for an existing chain (which may be a base chain).
+// If there is no existing chain, an invalid [ChainRef] is returned.
+func (t TableRef) Chain(_ context.Context, name string) ChainRef {
+	return ChainRef{c: t.t.Chains[name]}
+}
+
 // ChainUpdateFunc is a function that can add rules to a chain, or remove rules from it.
 type ChainUpdateFunc func(context.Context, RuleGroup, string, ...interface{}) error
 
 // ChainUpdateFunc returns a [ChainUpdateFunc] to add rules to the named chain if
-// enable is true, or to remove rules from the chain if enable is false.
+// enable is true, or to remove rules from the chain if enable is false. Returns
+// nil if the chain does not exist.
 // (Written as a convenience function to ease migration of iptables functions
 // originally written with an enable flag.)
 func (t TableRef) ChainUpdateFunc(ctx context.Context, name string, enable bool) ChainUpdateFunc {
 	c := t.Chain(ctx, name)
+	if !c.IsValid() {
+		return nil
+	}
 	if enable {
 		return c.AppendRule
 	}
