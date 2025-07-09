@@ -49,7 +49,7 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 		Root:        d.Root,
 		GraphDriver: d.StorageDriver(),
 	})
-	i := images.NewImageService(images.ImageServiceConfig{
+	i := images.NewImageService(ctx, images.ImageServiceConfig{
 		LayerStore: layerStore,
 	})
 

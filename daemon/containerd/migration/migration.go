@@ -38,6 +38,7 @@ type LayerMigrator struct {
 }
 
 type Config struct {
+	ImageCount       int
 	LayerStore       layer.Store
 	ReferenceStore   reference.Store
 	DockerImageStore image.Store
