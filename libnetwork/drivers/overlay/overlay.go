@@ -30,12 +30,17 @@ var _ discoverapi.Discover = (*driver)(nil)
 type driver struct {
 	bindAddress, advertiseAddress netip.Addr
 
+	// encrMu guards secMap and keys,
+	// and synchronizes the application of encryption parameters
+	// to the kernel.
+	encrMu sync.Mutex
+	secMap encrMap
+	keys   []*key
+
 	config   map[string]interface{}
 	peerDb   peerNetworkMap
-	secMap   *encrMap
 	networks networkTable
 	initOS   sync.Once
-	keys     []*key
 	peerOpMu sync.Mutex
 	mu       sync.Mutex
 }
@@ -47,7 +52,7 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 		peerDb: peerNetworkMap{
 			mp: map[string]*peerMap{},
 		},
-		secMap: &encrMap{nodes: map[netip.Addr]encrNode{}},
+		secMap: encrMap{},
 		config: config,
 	}
 	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
