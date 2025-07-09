@@ -12,7 +12,6 @@ import (
 	"net"
 	"net/netip"
 	"strconv"
-	"sync"
 	"syscall"
 
 	"github.com/containerd/log"
@@ -95,16 +94,14 @@ type encrNode struct {
 	count int
 }
 
-type encrMap struct {
-	nodes map[netip.Addr]encrNode
-	mu    sync.Mutex
-}
+// encrMap is a map of node IP addresses to their encryption parameters.
+//
+// Like all Go maps, it is not safe for concurrent use.
+type encrMap map[netip.Addr]encrNode
 
-func (e *encrMap) String() string {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+func (e encrMap) String() string {
 	b := new(bytes.Buffer)
-	for k, v := range e.nodes {
+	for k, v := range e {
 		b.WriteString("\n")
 		b.WriteString(k.String())
 		b.WriteString(":")
@@ -123,16 +120,19 @@ func (e *encrMap) String() string {
 func (d *driver) setupEncryption(remoteIP netip.Addr) error {
 	log.G(context.TODO()).Debugf("setupEncryption(%s)", remoteIP)
 
-	localIP, advIP := d.bindAddress, d.advertiseAddress
-	keys := d.keys // FIXME: data race
-	if len(keys) == 0 {
+	d.encrMu.Lock()
+	defer d.encrMu.Unlock()
+	if len(d.keys) == 0 {
 		return types.ForbiddenErrorf("encryption key is not present")
 	}
+	d.mu.Lock()
+	localIP, advIP := d.bindAddress, d.advertiseAddress
+	d.mu.Unlock()
 	log.G(context.TODO()).Debugf("Programming encryption between %s and %s", localIP, remoteIP)
 
-	indices := make([]spi, 0, len(keys))
+	indices := make([]spi, 0, len(d.keys))
 
-	for i, k := range keys {
+	for i, k := range d.keys {
 		spis := spi{buildSPI(advIP.AsSlice(), remoteIP.AsSlice(), k.tag), buildSPI(remoteIP.AsSlice(), advIP.AsSlice(), k.tag)}
 		dir := reverse
 		if i == 0 {
@@ -152,12 +152,10 @@ func (d *driver) setupEncryption(remoteIP netip.Addr) error {
 		}
 	}
 
-	d.secMap.mu.Lock()
-	node := d.secMap.nodes[remoteIP]
+	node := d.secMap[remoteIP]
 	node.spi = indices
 	node.count++
-	d.secMap.nodes[remoteIP] = node
-	d.secMap.mu.Unlock()
+	d.secMap[remoteIP] = node
 
 	return nil
 }
@@ -165,18 +163,18 @@ func (d *driver) setupEncryption(remoteIP netip.Addr) error {
 func (d *driver) removeEncryption(remoteIP netip.Addr) error {
 	log.G(context.TODO()).Debugf("removeEncryption(%s)", remoteIP)
 
-	spi := func() []spi {
-		d.secMap.mu.Lock()
-		defer d.secMap.mu.Unlock()
-		node := d.secMap.nodes[remoteIP]
-		if node.count == 1 {
-			delete(d.secMap.nodes, remoteIP)
-			return node.spi
-		}
+	d.encrMu.Lock()
+	defer d.encrMu.Unlock()
+
+	var spi []spi
+	node := d.secMap[remoteIP]
+	if node.count == 1 {
+		delete(d.secMap, remoteIP)
+		spi = node.spi
+	} else {
 		node.count--
-		d.secMap.nodes[remoteIP] = node
-		return nil
-	}()
+		d.secMap[remoteIP] = node
+	}
 
 	for i, idxs := range spi {
 		dir := reverse
@@ -451,13 +449,14 @@ func buildAeadAlgo(k *key, s int) *netlink.XfrmStateAlgo {
 }
 
 func (d *driver) setKeys(keys []*key) error {
+	d.encrMu.Lock()
+	defer d.encrMu.Unlock()
+
 	// Remove any stale policy, state
 	clearEncryptionStates()
 	// Accept the encryption keys and clear any stale encryption map
-	d.mu.Lock()
+	d.secMap = encrMap{}
 	d.keys = keys
-	d.secMap = &encrMap{nodes: map[netip.Addr]encrNode{}}
-	d.mu.Unlock()
 	log.G(context.TODO()).Debugf("Initial encryption keys: %v", keys)
 	return nil
 }
@@ -465,6 +464,9 @@ func (d *driver) setKeys(keys []*key) error {
 // updateKeys allows to add a new key and/or change the primary key and/or prune an existing key
 // The primary key is the key used in transmission and will go in first position in the list.
 func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
+	d.encrMu.Lock()
+	defer d.encrMu.Unlock()
+
 	log.G(context.TODO()).Debugf("Updating Keys. New: %v, Primary: %v, Pruned: %v", newKey, primary, pruneKey)
 
 	log.G(context.TODO()).Debugf("Current: %v", d.keys)
@@ -476,9 +478,6 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 		lIP    = d.bindAddress
 		aIP    = d.advertiseAddress
 	)
-
-	d.mu.Lock()
-	defer d.mu.Unlock()
 
 	// add new
 	if newKey != nil {
@@ -505,14 +504,12 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 		return types.InvalidParameterErrorf("attempting to both make a key (index %d) primary and delete it", priIdx)
 	}
 
-	d.secMap.mu.Lock()
-	for rIP, node := range d.secMap.nodes {
+	for rIP, node := range d.secMap {
 		idxs := updateNodeKey(lIP.AsSlice(), aIP.AsSlice(), rIP.AsSlice(), node.spi, d.keys, newIdx, priIdx, delIdx)
 		if idxs != nil {
-			d.secMap.nodes[rIP] = encrNode{idxs, node.count}
+			d.secMap[rIP] = encrNode{idxs, node.count}
 		}
 	}
-	d.secMap.mu.Unlock()
 
 	// swap primary
 	if priIdx != -1 {

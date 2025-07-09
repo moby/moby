@@ -4,6 +4,7 @@ package overlay
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -34,8 +35,13 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return fmt.Errorf("could not find endpoint with id %s", eid)
 	}
 
-	if n.secure && len(d.keys) == 0 {
-		return fmt.Errorf("cannot join secure network: encryption keys not present")
+	if n.secure {
+		d.encrMu.Lock()
+		nkeys := len(d.keys)
+		d.encrMu.Unlock()
+		if nkeys == 0 {
+			return errors.New("cannot join secure network: encryption keys not present")
+		}
 	}
 
 	nlh := ns.NlHandle()
