@@ -45,8 +45,13 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 		return fmt.Errorf("could not find endpoint with id %s", eid)
 	}
 
-	if n.secure && len(d.keys) == 0 {
-		return errors.New("cannot join secure network: encryption keys not present")
+	if n.secure {
+		d.encrMu.Lock()
+		nkeys := len(d.keys)
+		d.encrMu.Unlock()
+		if nkeys == 0 {
+			return errors.New("cannot join secure network: encryption keys not present")
+		}
 	}
 
 	nlh := ns.NlHandle()
