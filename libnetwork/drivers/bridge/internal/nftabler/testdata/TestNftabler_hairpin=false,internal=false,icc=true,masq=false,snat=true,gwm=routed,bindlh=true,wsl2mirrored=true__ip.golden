@@ -43,16 +43,20 @@ table ip docker-bridges {
 
 	chain nat-prerouting-and-output {
 		iifname "loopback0" ip daddr 127.0.0.0/8 counter packets 0 bytes 0 return
+		iifname != "br-dummy" ip daddr 127.0.0.1 tcp dport 8080 counter packets 0 bytes 0 dnat to 192.168.0.2:80 comment "DNAT"
 	}
 
 	chain raw-PREROUTING {
 		type filter hook prerouting priority raw; policy accept;
+		iifname "loopback0" ip daddr 127.0.0.1 tcp dport 8080 counter packets 0 bytes 0 accept comment "ACCEPT WSL2 LOOPBACK"
+		iifname != "lo" ip daddr 127.0.0.1 tcp dport 8080 counter packets 0 bytes 0 drop comment "DROP REMOTE LOOPBACK"
 	}
 
 	chain filter-forward-in__br-dummy {
 		ct state established,related counter packets 0 bytes 0 accept
 		ip protocol icmp counter packets 0 bytes 0 accept comment "ICMP"
 		iifname "br-dummy" counter packets 0 bytes 0 accept comment "ICC"
+		ip daddr 192.168.0.2 tcp dport 80 counter packets 0 bytes 0 accept
 		counter packets 0 bytes 0 drop comment "UNPUBLISHED PORT DROP"
 	}
 
