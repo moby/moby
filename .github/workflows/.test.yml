@@ -27,7 +27,7 @@ env:
   ITG_CLI_MATRIX_SIZE: 6
   DOCKER_EXPERIMENTAL: 1
   DOCKER_GRAPHDRIVER: ${{ inputs.storage == 'snapshotter' && 'overlayfs' || 'overlay2' }}
-  TEST_INTEGRATION_USE_SNAPSHOTTER: ${{ inputs.storage == 'snapshotter' && '1' || '' }}
+  TEST_INTEGRATION_USE_GRAPHDRIVER: ${{ inputs.storage == 'graphdriver' && '1' || '' }}
   SETUP_BUILDX_VERSION: edge
   SETUP_BUILDKIT_IMAGE: moby/buildkit:latest
 
