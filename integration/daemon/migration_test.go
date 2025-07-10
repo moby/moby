@@ -9,6 +9,7 @@ import (
 
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/daemon"
@@ -27,7 +28,7 @@ func TestMigrateNativeSnapshotter(t *testing.T) {
 
 func testMigrateSnapshotter(t *testing.T, graphdriver, snapshotter string) {
 	skip.If(t, runtime.GOOS != "linux")
-	skip.If(t, os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != "")
+	skip.If(t, os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") == "")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -89,7 +90,7 @@ func testMigrateSnapshotter(t *testing.T, graphdriver, snapshotter string) {
 
 func TestMigrateSaveLoad(t *testing.T) {
 	skip.If(t, runtime.GOOS != "linux")
-	skip.If(t, os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != "")
+	skip.If(t, os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") == "")
 
 	var (
 		ctx         = testutil.StartSpan(baseContext, t)
@@ -125,7 +126,7 @@ func TestMigrateSaveLoad(t *testing.T) {
 	apiClient := d.NewClientT(t)
 
 	// Save image to buffer
-	rdr, err := apiClient.ImageSave(ctx, []string{"busybox:latest"}, image.SaveOptions{})
+	rdr, err := apiClient.ImageSave(ctx, []string{"busybox:latest"})
 	assert.NilError(t, err)
 	buf := bytes.NewBuffer(nil)
 	io.Copy(buf, rdr)
@@ -135,7 +136,7 @@ func TestMigrateSaveLoad(t *testing.T) {
 	list, err := apiClient.ImageList(ctx, image.ListOptions{})
 	assert.NilError(t, err)
 	for _, i := range list {
-		_, err = apiClient.ImageRemove(ctx, i.ID, image.RemoveOptions{})
+		_, err = apiClient.ImageRemove(ctx, i.ID, image.RemoveOptions{Force: true})
 		assert.NilError(t, err)
 	}
 
@@ -144,7 +145,7 @@ func TestMigrateSaveLoad(t *testing.T) {
 	assert.Equal(t, info.Images, 0)
 
 	// Import
-	lr, err := apiClient.ImageLoad(ctx, bytes.NewReader(buf.Bytes()), image.LoadOptions{Quiet: true})
+	lr, err := apiClient.ImageLoad(ctx, bytes.NewReader(buf.Bytes()), client.ImageLoadWithQuiet(true))
 	assert.NilError(t, err)
 	io.Copy(io.Discard, lr.Body)
 	lr.Body.Close()
