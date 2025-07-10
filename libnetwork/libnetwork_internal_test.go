@@ -700,10 +700,3 @@ func (b *badDriver) NetworkAllocate(id string, option map[string]string, ipV4Dat
 func (b *badDriver) NetworkFree(id string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
-
-func (b *badDriver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
-}
-
-func (b *badDriver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
-	return "", nil
-}

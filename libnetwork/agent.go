@@ -490,17 +490,19 @@ func (n *Network) Services() map[string]ServiceInfo {
 	// Walk through the driver's tables, have the driver decode the entries
 	// and return the tuple {ep ID, value}. value is a string that coveys
 	// relevant info about the endpoint.
-	for _, table := range n.driverTables {
-		if table.objType != driverapi.EndpointObject {
-			continue
-		}
-		for key, value := range agent.networkDB.GetTableByNetwork(table.name, nwID) {
-			epID, info := d.DecodeTableEntry(table.name, key, value.Value)
-			if ep, ok := eps[epID]; !ok {
-				log.G(context.TODO()).Errorf("Inconsistent driver and libnetwork state for endpoint %s", epID)
-			} else {
-				ep.info = info
-				eps[epID] = ep
+	if d, ok := d.(driverapi.TableWatcher); ok {
+		for _, table := range n.driverTables {
+			if table.objType != driverapi.EndpointObject {
+				continue
+			}
+			for key, value := range agent.networkDB.GetTableByNetwork(table.name, nwID) {
+				epID, info := d.DecodeTableEntry(table.name, key, value.Value)
+				if ep, ok := eps[epID]; !ok {
+					log.G(context.TODO()).Errorf("Inconsistent driver and libnetwork state for endpoint %s", epID)
+				} else {
+					ep.info = info
+					eps[epID] = ep
+				}
 			}
 		}
 	}
@@ -813,6 +815,11 @@ func (n *Network) handleDriverTableEvent(ev events.Event) {
 		log.G(context.TODO()).Errorf("Could not resolve driver %s while handling driver table event: %v", n.networkType, err)
 		return
 	}
+	ed, ok := d.(driverapi.TableWatcher)
+	if !ok {
+		log.G(context.TODO()).Errorf("Could not notify driver %s about table event: driver does not implement TableWatcher interface", n.networkType)
+		return
+	}
 
 	var (
 		etype driverapi.EventType
@@ -832,7 +839,7 @@ func (n *Network) handleDriverTableEvent(ev events.Event) {
 		etype = driverapi.Update
 	}
 
-	d.EventNotify(etype, n.ID(), event.Table, event.Key, value)
+	ed.EventNotify(etype, n.ID(), event.Table, event.Key, value)
 }
 
 func (c *Controller) handleNodeTableEvent(ev events.Event) {
