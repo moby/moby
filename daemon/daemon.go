@@ -10,6 +10,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
+	"maps"
 	"math"
 	"net"
 	"net/netip"
@@ -1238,12 +1239,37 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	if d.imageService == nil {
 		log.G(ctx).Info("Starting daemon with containerd snapshotter integration enabled")
 
-		// FIXME(thaJeztah): implement automatic snapshotter-selection similar to graph-driver selection; see https://github.com/moby/moby/issues/44076
-		if driverName == "" {
-			driverName = defaults.DefaultSnapshotter
+		resp, err := d.containerdClient.IntrospectionService().Plugins(ctx, `type=="io.containerd.snapshotter.v1"`)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get containerd plugins: %w", err)
+		}
+		if resp == nil || len(resp.Plugins) == 0 {
+			return nil, fmt.Errorf("failed to get containerd plugins response: %w", cerrdefs.ErrUnavailable)
+		}
+		availableDrivers := map[string]struct{}{}
+		for _, p := range resp.Plugins {
+			if p == nil || p.Type != "io.containerd.snapshotter.v1" {
+				continue
+			}
+			if p.InitErr == nil {
+				availableDrivers[p.ID] = struct{}{}
+			} else if (p.ID == driverName) || (driverName == "" && p.ID == defaults.DefaultSnapshotter) {
+				log.G(ctx).WithField("message", p.InitErr.Message).Warn("Preferred snapshotter not available in containerd")
+			}
 		}
 
-		// TODO: Load containerd drivers and check if the driver is initialized
+		if driverName == "" {
+			if _, ok := availableDrivers[defaults.DefaultSnapshotter]; ok {
+				driverName = defaults.DefaultSnapshotter
+			} else if _, ok := availableDrivers["native"]; ok {
+				driverName = "native"
+			} else {
+				log.G(ctx).WithField("available", maps.Keys(availableDrivers)).Debug("Preferred snapshotter not available in containerd")
+				return nil, fmt.Errorf("snapshotter selection failed, no drivers available: %w", cerrdefs.ErrUnavailable)
+			}
+		} else if _, ok := availableDrivers[driverName]; !ok {
+			return nil, fmt.Errorf("configured driver %q not available: %w", driverName, cerrdefs.ErrUnavailable)
+		}
 
 		// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
 		// operation only, so it is safe to pass *just* the runtime OS graphdriver.
