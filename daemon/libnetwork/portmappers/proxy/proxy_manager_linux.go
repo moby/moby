@@ -1,4 +1,4 @@
-package portmapper
+package proxy
 
 import (
 	"context"
