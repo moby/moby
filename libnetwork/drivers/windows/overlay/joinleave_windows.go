@@ -3,12 +3,10 @@ package overlay
 import (
 	"context"
 	"fmt"
-	"net"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/overlay"
-	"github.com/docker/docker/libnetwork/types"
 	"github.com/gogo/protobuf/proto"
 )
 
@@ -48,7 +46,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	return nil
 }
 
-func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
+func (d *driver) EventNotify(nid, tableName, key string, prev, value []byte) {
 	if tableName != overlay.OverlayPeerTable {
 		log.G(context.TODO()).Errorf("Unexpected table notification for table %s received", tableName)
 		return
@@ -56,49 +54,60 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 
 	eid := key
 
-	var peer overlay.PeerRecord
-	if err := proto.Unmarshal(value, &peer); err != nil {
-		log.G(context.TODO()).Errorf("Failed to unmarshal peer record: %v", err)
-		return
-	}
-
 	n := d.network(nid)
 	if n == nil {
 		return
 	}
 
-	// Ignore local peers. We already know about them and they
-	// should not be added to vxlan fdb.
-	if peer.TunnelEndpointIP == n.providerAddress {
+	var prevPeer, newPeer *overlay.Peer
+	if prev != nil {
+		var err error
+		prevPeer, err = overlay.UnmarshalPeerRecord(prev)
+		if err != nil {
+			log.G(context.TODO()).WithError(err).Error("Failed to unmarshal previous peer record")
+		} else if prevPeer.TunnelEndpointIP.String() == n.providerAddress {
+			// Ignore local peers. We don't add them to the VXLAN
+			// FDB so don't need to remove them.
+			prevPeer = nil
+		}
+	}
+	if value != nil {
+		var err error
+		newPeer, err = overlay.UnmarshalPeerRecord(value)
+		if err != nil {
+			log.G(context.TODO()).WithError(err).Error("Failed to unmarshal peer record")
+		} else if newPeer.TunnelEndpointIP.String() == n.providerAddress {
+			newPeer = nil
+		}
+	}
+
+	if prevPeer == nil && newPeer == nil {
+		// Nothing to do! Either the event was for a local peer,
+		// or unmarshaling failed.
+		return
+	}
+	if prevPeer != nil && newPeer != nil && *prevPeer == *newPeer {
+		// The update did not materially change the FDB entry.
 		return
 	}
 
-	addr, err := types.ParseCIDR(peer.EndpointIP)
-	if err != nil {
-		log.G(context.TODO()).Errorf("Invalid peer IP %s received in event notify", peer.EndpointIP)
-		return
+	if prevPeer != nil {
+		if err := d.peerDelete(nid, eid, prevPeer.EndpointIP.Addr().AsSlice(), true); err != nil {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"error": err,
+				"nid":   n.id,
+				"peer":  prevPeer,
+			}).Warn("overlay: failed to delete peer entry")
+		}
 	}
-
-	mac, err := net.ParseMAC(peer.EndpointMAC)
-	if err != nil {
-		log.G(context.TODO()).Errorf("Invalid mac %s received in event notify", peer.EndpointMAC)
-		return
-	}
-
-	vtep := net.ParseIP(peer.TunnelEndpointIP)
-	if vtep == nil {
-		log.G(context.TODO()).Errorf("Invalid VTEP %s received in event notify", peer.TunnelEndpointIP)
-		return
-	}
-
-	if etype == driverapi.Delete {
-		d.peerDelete(nid, eid, addr.IP, addr.Mask, mac, vtep, true)
-		return
-	}
-
-	err = d.peerAdd(nid, eid, addr.IP, addr.Mask, mac, vtep, true)
-	if err != nil {
-		log.G(context.TODO()).Errorf("peerAdd failed (%v) for ip %s with mac %s", err, addr.IP.String(), mac.String())
+	if newPeer != nil {
+		if err := d.peerAdd(nid, eid, newPeer.EndpointIP.Addr().AsSlice(), newPeer.EndpointMAC.AsSlice(), newPeer.TunnelEndpointIP.AsSlice(), true); err != nil {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"error": err,
+				"nid":   n.id,
+				"peer":  newPeer,
+			}).Warn("overlay: failed to add peer entry")
+		}
 	}
 }
 

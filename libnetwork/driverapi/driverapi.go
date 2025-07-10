@@ -72,7 +72,7 @@ type TableWatcher interface {
 	// happened on a table of its interest as soon as this node
 	// receives such an event in the gossip layer. This method is
 	// only invoked for the global scope driver.
-	EventNotify(event EventType, nid string, tableName string, key string, value []byte)
+	EventNotify(nid string, tableName string, key string, prev, value []byte)
 
 	// DecodeTableEntry passes the driver a key, value pair from table it registered
 	// with libnetwork. Driver should return {object ID, map[string]string} tuple.
@@ -172,18 +172,6 @@ type IPAMData struct {
 	Gateway      *net.IPNet
 	AuxAddresses map[string]*net.IPNet
 }
-
-// EventType defines a type for the CRUD event
-type EventType uint8
-
-const (
-	// Create event is generated when a table entry is created,
-	Create EventType = 1 + iota
-	// Update event is generated when a table entry is updated.
-	Update
-	// Delete event is generated when a table entry is deleted.
-	Delete
-)
 
 // ObjectType represents the type of object driver wants to store in libnetwork's networkDB
 type ObjectType int
