@@ -59,6 +59,15 @@ type Driver interface {
 	// programming that was done so far
 	RevokeExternalConnectivity(nid, eid string) error
 
+	// Type returns the type of this driver, the network type this driver manages
+	Type() string
+
+	// IsBuiltIn returns true if it is a built-in driver
+	IsBuiltIn() bool
+}
+
+// TableWatcher is an optional interface for a network driver.
+type TableWatcher interface {
 	// EventNotify notifies the driver when a CRUD operation has
 	// happened on a table of its interest as soon as this node
 	// receives such an event in the gossip layer. This method is
@@ -74,12 +83,6 @@ type Driver interface {
 	// For example: overlay driver returns the VTEP IP of the host that has the endpoint
 	// which is shown in 'network inspect --verbose'
 	DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string)
-
-	// Type returns the type of this driver, the network type this driver manages
-	Type() string
-
-	// IsBuiltIn returns true if it is a built-in driver
-	IsBuiltIn() bool
 }
 
 // NetworkInfo provides a go interface for drivers to provide network
