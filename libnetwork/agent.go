@@ -821,25 +821,8 @@ func (n *Network) handleDriverTableEvent(ev events.Event) {
 		return
 	}
 
-	var (
-		etype driverapi.EventType
-		value []byte
-	)
-
 	event := ev.(networkdb.WatchEvent)
-	switch {
-	case event.IsCreate():
-		value = event.Value
-		etype = driverapi.Create
-	case event.IsDelete():
-		value = event.Prev
-		etype = driverapi.Delete
-	case event.IsUpdate():
-		value = event.Value
-		etype = driverapi.Update
-	}
-
-	ed.EventNotify(etype, n.ID(), event.Table, event.Key, value)
+	ed.EventNotify(n.ID(), event.Table, event.Key, event.Prev, event.Value)
 }
 
 func (c *Controller) handleNodeTableEvent(ev events.Event) {
