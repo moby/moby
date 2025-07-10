@@ -70,6 +70,7 @@ type configuration struct {
 	UserlandProxyPath        string
 	Rootless                 bool
 	AllowDirectRouting       bool
+	NftablesPriorities       map[string]string
 }
 
 // networkConfiguration for network specific configuration
@@ -518,7 +519,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 		Hairpin:            !config.EnableUserlandProxy || config.UserlandProxyPath == "",
 		AllowDirectRouting: config.AllowDirectRouting,
 		WSL2Mirrored:       isRunningUnderWSL2MirroredMode(context.Background()),
-	})
+	}, config.NftablesPriorities)
 	if err != nil {
 		return err
 	}
@@ -546,10 +547,28 @@ func (d *driver) configure(option map[string]interface{}) error {
 	return d.initStore()
 }
 
-var newFirewaller = func(ctx context.Context, config firewaller.Config) (firewaller.Firewaller, error) {
+// ValidateBaseChainPriorities checks nftables base chain priority configuration.
+func ValidateBaseChainPriorities(prios map[string]string) error {
+	return nftabler.ValidateBaseChainPriorities(prios)
+}
+
+var newFirewaller = func(ctx context.Context, config firewaller.Config, nftablesPriorities map[string]string) (firewaller.Firewaller, error) {
 	if nftables.Enabled() {
-		return nftabler.NewNftabler(ctx, config)
+		fw, err := nftabler.NewNftabler(ctx, config, nftablesPriorities)
+		if err != nil {
+			return nil, err
+		}
+		// Without seeing config (interface names, addresses, and so on), the iptabler's
+		// cleaner can't clean up network or port-specific rules that may have been added
+		// to iptables built-in chains. So, if cleanup is needed, give the cleaner to
+		// the nftabler. Then, it'll use it to delete old rules as networks are restored.
+		fw.(firewaller.FirewallCleanerSetter).SetFirewallCleaner(iptabler.NewCleaner(ctx, config))
+		return fw, nil
 	}
+
+	// The nftabler can clean all of its rules in one go. So, even if there's cleanup
+	// to do, there's no need to pass a cleaner to the iptabler.
+	nftabler.Cleanup(ctx, config)
 	return iptabler.NewIptabler(ctx, config)
 }
 

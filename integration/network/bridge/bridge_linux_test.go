@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -824,4 +826,209 @@ func TestNoSuchExternalBridge(t *testing.T) {
 	defer d.Stop(t)
 	err := d.StartWithError("--bridge", "nosuchbridge")
 	assert.Check(t, err != nil, "Expected daemon startup to fail")
+}
+
+// TestFirewallBackendSwitch checks that when started with an nftables or iptables
+// backend after running with the other backend, old rules are removed.
+func TestFirewallBackendSwitch(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "rootless has its own netns")
+	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
+	ctx := setupTest(t)
+
+	// Run in a clean netns.
+	addr4 := netip.MustParseAddr("192.168.125.1")
+	addr6 := netip.MustParseAddr("fd76:c828:41f9::1")
+	l3 := networking.NewL3Segment(t, "test-fwbeswitch",
+		netip.PrefixFrom(addr4, 24),
+		netip.PrefixFrom(addr6, 64),
+	)
+	defer l3.Destroy(t)
+
+	addr4, addr6 = addr4.Next(), addr6.Next()
+	const hostname = "fwbeswitch"
+	l3.AddHost(t, hostname, hostname+"-netns", "eth0",
+		netip.PrefixFrom(addr4, 24),
+		netip.PrefixFrom(addr6, 64),
+	)
+	host := l3.Hosts[hostname]
+
+	// Run without OTel because there's no routing from this netns for it - which
+	// means the daemon doesn't shut down cleanly, causing the test to fail.
+	d := daemon.New(t, daemon.WithEnvVars("OTEL_EXPORTER_OTLP_ENDPOINT="))
+
+	networkCreated := false
+	runDaemon := func(backend string) {
+		d.SetEnvVar("DOCKER_FIREWALL_BACKEND", backend)
+		host.Do(t, func() {
+			d.StartWithBusybox(ctx, t)
+			defer d.Stop(t)
+
+			// Create a network (and its firewall rules) first time through.
+			// On restarts, the daemon should find it and clean up the rules if the
+			// firewall backend changed.
+			// No need to clean up, the netns will be deleted.
+			// (Ideally, would start a container - but would need to kill the daemon
+			// to leave its firewall rules in place for the next daemon to clean up,
+			// and that risks leaving a container process running on the test host
+			// when things go wrong.)
+			if !networkCreated {
+				c := d.NewClientT(t)
+				defer c.Close()
+				_ = network.CreateNoError(ctx, t, c, "testnet",
+					network.WithIPv6(),
+					network.WithIPAM("192.0.2.0/24", "192.0.2.1"),
+					network.WithIPAM("2001:db8::/64", "2001:db8::1"),
+				)
+				networkCreated = true
+			}
+		})
+	}
+
+	summariseIptables := func() (dockerChains []string, numRules int, dump string) {
+		host.Do(t, func() {
+			dump = icmd.RunCommand("iptables-save").Combined()
+			dump += icmd.RunCommand("ip6tables-save").Combined()
+		})
+		for line := range strings.Lines(dump) {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			// Ignore DOCKER-USER and jumps to it, it's not cleaned.
+			if strings.HasPrefix(line, ":DOCKER") && !strings.HasPrefix(line, ":DOCKER-USER") {
+				dockerChains = append(dockerChains, line[1:])
+			} else if strings.HasPrefix(line, "-A") && !strings.Contains(line, "FORWARD -j DOCKER-USER") {
+				numRules++
+			}
+		}
+		return dockerChains, numRules, dump
+	}
+
+	nftablesTablesExist := func() bool {
+		var exist bool
+		host.Do(t, func() {
+			res4 := icmd.RunCommand("nft", "list table ip docker-bridges")
+			res6 := icmd.RunCommand("nft", "list table ip6 docker-bridges")
+			exist = res4.ExitCode == 0 || res6.ExitCode == 0
+		})
+		return exist
+	}
+
+	// Create iptables rules.
+	runDaemon("iptables")
+	dockerChains, numRules, dump := summariseIptables()
+	t.Logf("iptables created, %d rules, %d docker chains, dump:\n%s", numRules, len(dockerChains), dump)
+	assert.Check(t, numRules > 0, "Expected iptables to have at least one rule")
+	assert.Check(t, len(dockerChains) > 0, "Expected iptables to have at least one docker chain")
+	assert.Check(t, !nftablesTablesExist(), "nftables tables exist after running with iptables")
+
+	// Use nftables, expect the iptables rules to be deleted.
+	runDaemon("nftables")
+	dockerChains, numRules, dump = summariseIptables()
+	t.Logf("iptables cleaned, %d rules, %d docker chains, dump:\n%s", numRules, len(dockerChains), dump)
+	assert.Check(t, numRules == 0, "Unexpected iptables rules after starting with nftables")
+	assert.Check(t, len(dockerChains) == 0, "Unexpected iptables chains after starting with nftables")
+	assert.Check(t, nftablesTablesExist(), "nftables tables do not exist after running with nftables")
+
+	// Use iptables, expect the nftables rules to be deleted.
+	runDaemon("iptables")
+	dockerChains, numRules, dump = summariseIptables()
+	t.Logf("iptables created, %d rules, %d docker chains, dump:\n%s", numRules, len(dockerChains), dump)
+	assert.Check(t, numRules > 0, "Expected iptables to have at least one rule")
+	assert.Check(t, len(dockerChains) > 0, "Expected iptables to have at least one docker chain")
+	assert.Check(t, !nftablesTablesExist(), "nftables tables exist after running with iptables")
+}
+
+// TestBaseChainPriorityOverride checks that priorities of nftables base chains can be configured.
+func TestBaseChainPriorityOverride(t *testing.T) {
+	skip.If(t, !strings.Contains(testEnv.FirewallBackendDriver(), "nftables"),
+		"test is nftables specific, and nftables isn't in use")
+	_ = setupTest(t)
+	d := daemon.New(t)
+	defer d.Stop(t)
+
+	baseChains := []string{"filter-FORWARD", "nat-POSTROUTING", "nat-PREROUTING", "nat-OUTPUT", "raw-PREROUTING"}
+
+	re := regexp.MustCompile("priority ([-]?[0-9]+)")
+	chainPriority := func(name string) int {
+		t.Helper()
+		res := icmd.RunCommand("nft", "-n", "list chain "+name)
+		assert.Assert(t, res.ExitCode == 0, "failed to list chain %s", name)
+		m := re.FindStringSubmatch(res.Stdout())
+		assert.Assert(t, is.Len(m, 2), "failed to find chain priority in %s", res.Stdout())
+		i, err := strconv.Atoi(m[1])
+		assert.NilError(t, err)
+		return i
+	}
+	chainPriorities := func(fam string) map[string]int {
+		t.Helper()
+		res := map[string]int{}
+		for _, chain := range baseChains {
+			res[chain] = chainPriority(fam + " docker-bridges " + chain)
+		}
+		return res
+	}
+
+	d.Start(t)
+	defaults4 := chainPriorities("ip")
+	defaults6 := chainPriorities("ip6")
+	assert.Check(t, is.DeepEqual(defaults4, defaults6), "Expected ip/ip6 base chain priorities to be the same")
+
+	args := make([]string, 0, len(baseChains))
+	for _, chain := range baseChains {
+		args = append(args, fmt.Sprintf("--bridge-nftables-priority=%s=%d", chain, defaults4[chain]+1))
+	}
+
+	d.Stop(t)
+	d.Start(t, args...)
+
+	modified4 := chainPriorities("ip")
+	modified6 := chainPriorities("ip6")
+	assert.Check(t, is.DeepEqual(modified4, modified6), "Expected ip/ip6 base chain priorities to be the same")
+	for _, chain := range baseChains {
+		assert.Check(t, is.Equal(modified4[chain], defaults4[chain]+1))
+	}
+}
+
+// TestBaseChainPriorityValidation checks that nftables priority overrides are validated on startup.
+func TestBaseChainPriorityValidation(t *testing.T) {
+	skip.If(t, !strings.Contains(testEnv.FirewallBackendDriver(), "nftables"),
+		"test is nftables specific, and nftables isn't in use")
+	_ = setupTest(t)
+
+	testcases := []struct {
+		name   string
+		opt    string
+		expErr string
+	}{
+		{
+			name:   "bad base chain name",
+			opt:    "nosuchchain=0",
+			expErr: `"nosuchchain" is not a valid base chain name`,
+		},
+		{
+			name:   "non-integer priority",
+			opt:    "filter-FORWARD=filter+1",
+			expErr: `priority "filter+1" for base chain "filter-FORWARD" is not an integer`,
+		},
+		{
+			name:   "missing priority",
+			opt:    "filter-FORWARD",
+			expErr: `priority "" for base chain "filter-FORWARD" is not an integer`,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			d := daemon.New(t)
+			defer d.Stop(t)
+
+			err := d.StartWithError("--bridge-nftables-priority=" + tc.opt)
+			assert.Check(t, err != nil, "expected startup error")
+			logLine, err := d.TailLogs(1)
+			assert.Check(t, err)
+			assert.Check(t, len(logLine) == 1)
+			assert.Check(t, is.Contains(string(logLine[0]), tc.expErr))
+		})
+	}
 }

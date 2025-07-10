@@ -20,11 +20,7 @@ func (c *Controller) FirewallBackend() *system.FirewallInfo {
 	if nftables.Enabled() {
 		return &system.FirewallInfo{Driver: "nftables"}
 	}
-	usingFirewalld, err := iptables.UsingFirewalld()
-	if err != nil {
-		return nil
-	}
-	if usingFirewalld {
+	if iptables.UsingFirewalld() {
 		info := &system.FirewallInfo{Driver: "iptables+firewalld"}
 		reloadedAt := iptables.FirewalldReloadedAt()
 		if !reloadedAt.IsZero() {
