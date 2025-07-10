@@ -167,7 +167,6 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 
 	if nInfo != nil {
 		if err := nInfo.TableEventRegister(ovPeerTable, driverapi.EndpointObject); err != nil {
-			// XXX Undo writeToStore?  No method to so.  Why?
 			return err
 		}
 	}
