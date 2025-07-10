@@ -1,6 +1,7 @@
 package containerd
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -18,6 +19,8 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/ioutils"
+	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/moby/go-archive/compression"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -230,7 +233,21 @@ func (i *ImageService) leaseContent(ctx context.Context, store content.Store, de
 // complement of ExportImage.  The input stream is an uncompressed tar
 // ball containing images and metadata.
 func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platform *ocispec.Platform, outStream io.Writer, quiet bool) error {
-	decompressed, err := compression.DecompressStream(inTar)
+	var (
+		r   io.Reader
+		err error
+	)
+
+	if !quiet {
+		r, err = progressReader(inTar, outStream)
+		if err != nil {
+			return errors.Wrap(err, "failed to create progress reader")
+		}
+	} else {
+		r = inTar
+	}
+
+	decompressed, err := compression.DecompressStream(ioutils.NewCtxReader(ctx, r))
 	if err != nil {
 		return errors.Wrap(err, "failed to decompress input tar archive")
 	}
@@ -428,4 +445,20 @@ func (i *ImageService) verifyImagesProvidePlatform(ctx context.Context, imgs []c
 	}
 
 	return errdefs.NotFound(fmt.Errorf(msg, strings.Join(incompleteImgs, ", "), platforms.FormatAll(platform)))
+}
+
+// Returns a progress reader to show the loading progress
+func progressReader(inTar io.ReadCloser, outStream io.Writer) (io.Reader, error) {
+	progressOutput := streamformatter.NewJSONProgressOutput(outStream, false)
+
+	// Read input into a buffer to determine its size (need this for progress reader)
+	var buf bytes.Buffer
+	_, err := io.Copy(&buf, inTar)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to copy input")
+	}
+	size := int64(buf.Len())
+	in := io.NopCloser(bytes.NewReader(buf.Bytes()))
+
+	return progress.NewProgressReader(in, progressOutput, size, "Loading image", ""), nil
 }
