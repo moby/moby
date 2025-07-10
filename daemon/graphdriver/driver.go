@@ -16,7 +16,7 @@ import (
 )
 
 // All registered drivers
-var drivers map[string]InitFunc
+var drivers = make(map[string]InitFunc)
 
 // CreateOpts contains optional arguments for Create() and CreateReadWrite()
 // methods.
@@ -109,10 +109,6 @@ type FileGetCloser interface {
 	storage.FileGetter
 	// Close cleans up any resources associated with the FileGetCloser.
 	Close() error
-}
-
-func init() {
-	drivers = make(map[string]InitFunc)
 }
 
 // Register registers an InitFunc for the driver.
