@@ -41,14 +41,15 @@ const (
 type BridgeConfig struct {
 	DefaultBridgeConfig
 
-	EnableIPTables           bool   `json:"iptables,omitempty"`
-	EnableIP6Tables          bool   `json:"ip6tables,omitempty"`
-	EnableIPForward          bool   `json:"ip-forward,omitempty"`
-	DisableFilterForwardDrop bool   `json:"ip-forward-no-drop,omitempty"`
-	EnableIPMasq             bool   `json:"ip-masq,omitempty"`
-	EnableUserlandProxy      bool   `json:"userland-proxy,omitempty"`
-	UserlandProxyPath        string `json:"userland-proxy-path,omitempty"`
-	AllowDirectRouting       bool   `json:"allow-direct-routing,omitempty"`
+	EnableIPTables           bool              `json:"iptables,omitempty"`
+	EnableIP6Tables          bool              `json:"ip6tables,omitempty"`
+	EnableIPForward          bool              `json:"ip-forward,omitempty"`
+	DisableFilterForwardDrop bool              `json:"ip-forward-no-drop,omitempty"`
+	EnableIPMasq             bool              `json:"ip-masq,omitempty"`
+	EnableUserlandProxy      bool              `json:"userland-proxy,omitempty"`
+	UserlandProxyPath        string            `json:"userland-proxy-path,omitempty"`
+	AllowDirectRouting       bool              `json:"allow-direct-routing,omitempty"`
+	NftablesPriorities       map[string]string `json:"bridge-nftables-priorities,omitempty"`
 }
 
 // DefaultBridgeConfig stores all the parameters for the default bridge network.
@@ -147,6 +148,7 @@ func setPlatformDefaults(cfg *Config) error {
 	cfg.SeccompProfile = SeccompProfileDefault
 	cfg.IpcMode = string(DefaultIpcMode)
 	cfg.Runtimes = make(map[string]system.Runtime)
+	cfg.NftablesPriorities = make(map[string]string)
 
 	if cgroups.Mode() != cgroups.Unified {
 		cfg.CgroupNamespaceMode = string(DefaultCgroupV1NamespaceMode)
@@ -241,6 +243,10 @@ func validatePlatformConfig(conf *Config) error {
 
 	if err := bridge.ValidateFixedCIDRV6(conf.FixedCIDRv6); err != nil {
 		return errors.Wrap(err, "invalid fixed-cidr-v6")
+	}
+
+	if err := bridge.ValidateBaseChainPriorities(conf.NftablesPriorities); err != nil {
+		return err
 	}
 
 	return verifyDefaultCgroupNsMode(conf.CgroupNamespaceMode)

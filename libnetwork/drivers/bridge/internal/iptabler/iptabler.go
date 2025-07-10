@@ -223,7 +223,11 @@ func setupIPChains(ctx context.Context, version iptables.IPVersion, iptCfg firew
 		return err
 	}
 
-	// Delete rules that may have been added to the FORWARD chain by moby 28.0.0.
+	return deleteLegacyTopLevelRules(ctx, iptable, version)
+}
+
+// Delete rules that may have been added to the FORWARD chain by moby 28.0.0 or earlier.
+func deleteLegacyTopLevelRules(ctx context.Context, iptable *iptables.IPTable, version iptables.IPVersion) error {
 	ipsetName := "docker-ext-bridges-v4"
 	if version == iptables.IPv6 {
 		ipsetName = "docker-ext-bridges-v6"

@@ -42,6 +42,7 @@ type Config struct {
 	DatastoreBucket        string
 	ActiveSandboxes        map[string]any
 	PluginGetter           plugingetter.PluginGetter
+	FirewallBackend        string
 }
 
 // New creates a new Config and initializes it with the given Options.
@@ -152,5 +153,12 @@ func OptionNetworkControlPlaneMTU(exp int) Option {
 func OptionActiveSandboxes(sandboxes map[string]any) Option {
 	return func(c *Config) {
 		c.ActiveSandboxes = sandboxes
+	}
+}
+
+// OptionFirewallBackend returns an option setter for selection of the firewall backend.
+func OptionFirewallBackend(val string) Option {
+	return func(c *Config) {
+		c.FirewallBackend = val
 	}
 }

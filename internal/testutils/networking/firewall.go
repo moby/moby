@@ -32,11 +32,11 @@ var rePolicy = lazyregexp.New("policy ([A-Za-z]+)")
 // behaviour.
 func SetFilterForwardPolicies(t *testing.T, firewallBackend string, policy string) {
 	t.Helper()
-	if strings.Contains(firewallBackend, "iptables") {
+	if strings.HasPrefix(firewallBackend, "iptables") {
 		setIptablesFFP(t, policy)
 		return
 	}
-	if firewallBackend == "nftables" {
+	if strings.HasPrefix(firewallBackend, "nftables") {
 		setNftablesFFP(t, policy)
 		return
 	}

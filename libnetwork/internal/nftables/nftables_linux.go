@@ -62,12 +62,23 @@ var (
 	// nftPath is the path of the "nft" tool, set by [Enable] and left empty if the tool
 	// is not present - in which case, nftables is disabled.
 	nftPath string
+	// Error returned by Enable if nftables could not be initialised.
+	nftEnableError error
 	// incrementalUpdateTempl is a parsed text/template, used to apply incremental updates.
 	incrementalUpdateTempl *template.Template
 	// reloadTempl is a parsed text/template, used to apply a whole table.
 	reloadTempl *template.Template
 	// enableOnce is used by [Enable] to avoid checking the path for "nft" more than once.
 	enableOnce sync.Once
+)
+
+var (
+	// ErrRuleExist is returned when a rule is added, but it already exists in the same
+	// rule group of a chain.
+	ErrRuleExist = errors.New("rule exists")
+	// ErrRuleNotExist is returned when a rule is removed, but does not exist in the
+	// rule group of a chain.
+	ErrRuleNotExist = errors.New("rule does not exist")
 )
 
 // BaseChainType enumerates the base chain types.
@@ -125,21 +136,23 @@ const (
 	nftTypeIfname      nftType = "ifname"
 )
 
-// Enable checks whether the "nft" tool is available, and returns true if it is.
-// Subsequent calls to [Enabled] will return the same result.
-func Enable() bool {
+// Enable tries once to initialise nftables.
+func Enable() error {
 	enableOnce.Do(func() {
 		path, err := exec.LookPath("nft")
 		if err != nil {
 			log.G(context.Background()).WithError(err).Warnf("Failed to find nft tool")
+			nftEnableError = fmt.Errorf("failed to find nft tool: %w", err)
+			return
 		}
 		if err := parseTemplate(); err != nil {
 			log.G(context.Background()).WithError(err).Error("Internal error while initialising nftables")
+			nftEnableError = fmt.Errorf("internal error while initialising nftables: %w", err)
 			return
 		}
 		nftPath = path
 	})
-	return nftPath != ""
+	return nftEnableError
 }
 
 // Enabled returns true if the "nft" tool is available and [Enable] has been called.
@@ -401,6 +414,11 @@ type ChainRef struct {
 	c *chain
 }
 
+// IsValid returns true if c refers to a chain.
+func (c *ChainRef) IsValid() bool {
+	return c.c != nil
+}
+
 // BaseChain constructs a new nftables base chain and returns a [ChainRef].
 //
 // See https://wiki.nftables.org/wiki-nftables/index.php/Configuring_chains#Adding_base_chains
@@ -434,7 +452,7 @@ func (t TableRef) BaseChain(ctx context.Context, name string, chainType BaseChai
 	return ChainRef{c: c}, nil
 }
 
-// Chain returns a [ChainRef] for an existing chain (which may be a base chain).
+// AddChain returns a [ChainRef] for an existing chain (which may be a base chain).
 // If there is no existing chain, a regular chain is added and its [ChainRef] is
 // returned.
 //
@@ -442,17 +460,17 @@ func (t TableRef) BaseChain(ctx context.Context, name string, chainType BaseChai
 //
 // If a new [ChainRef] is created and the underlying chain already exists, it
 // will be flushed by the next [TableRef.Apply] before new rules are added.
-func (t TableRef) Chain(ctx context.Context, name string) ChainRef {
-	c, ok := t.t.Chains[name]
-	if !ok {
-		c = &chain{
-			table:      t.t,
-			Name:       name,
-			Dirty:      true,
-			ruleGroups: map[RuleGroup][]string{},
-		}
-		t.t.Chains[name] = c
+func (t TableRef) AddChain(ctx context.Context, name string) ChainRef {
+	if _, ok := t.t.Chains[name]; ok {
+		return ChainRef{}
 	}
+	c := &chain{
+		table:      t.t,
+		Name:       name,
+		Dirty:      true,
+		ruleGroups: map[RuleGroup][]string{},
+	}
+	t.t.Chains[name] = c
 	log.G(ctx).WithFields(log.Fields{
 		"family": t.t.Family,
 		"table":  t.t.Name,
@@ -461,15 +479,25 @@ func (t TableRef) Chain(ctx context.Context, name string) ChainRef {
 	return ChainRef{c: c}
 }
 
+// Chain returns a [ChainRef] for an existing chain (which may be a base chain).
+// If there is no existing chain, an invalid [ChainRef] is returned.
+func (t TableRef) Chain(_ context.Context, name string) ChainRef {
+	return ChainRef{c: t.t.Chains[name]}
+}
+
 // ChainUpdateFunc is a function that can add rules to a chain, or remove rules from it.
 type ChainUpdateFunc func(context.Context, RuleGroup, string, ...interface{}) error
 
 // ChainUpdateFunc returns a [ChainUpdateFunc] to add rules to the named chain if
-// enable is true, or to remove rules from the chain if enable is false.
+// enable is true, or to remove rules from the chain if enable is false. Returns
+// nil if the chain does not exist.
 // (Written as a convenience function to ease migration of iptables functions
 // originally written with an enable flag.)
 func (t TableRef) ChainUpdateFunc(ctx context.Context, name string, enable bool) ChainUpdateFunc {
 	c := t.Chain(ctx, name)
+	if !c.IsValid() {
+		return nil
+	}
 	if enable {
 		return c.AppendRule
 	}
@@ -509,7 +537,7 @@ func (c ChainRef) AppendRule(ctx context.Context, group RuleGroup, rule string, 
 		rule = fmt.Sprintf(rule, args...)
 	}
 	if rg, ok := c.c.ruleGroups[group]; ok && slices.Contains(rg, rule) {
-		return fmt.Errorf("rule %q already exists", rule)
+		return ErrRuleExist
 	}
 	c.c.ruleGroups[group] = append(c.c.ruleGroups[group], rule)
 	c.c.Dirty = true
@@ -545,7 +573,7 @@ func (c ChainRef) DeleteRule(ctx context.Context, group RuleGroup, rule string, 
 	origLen := len(rg)
 	c.c.ruleGroups[group] = slices.DeleteFunc(rg, func(r string) bool { return r == rule })
 	if len(c.c.ruleGroups[group]) == origLen {
-		return fmt.Errorf("rule %q does not exist", rule)
+		return ErrRuleNotExist
 	}
 	c.c.Dirty = true
 	log.G(ctx).WithFields(log.Fields{

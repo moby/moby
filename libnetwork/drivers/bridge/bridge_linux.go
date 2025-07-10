@@ -70,6 +70,7 @@ type configuration struct {
 	UserlandProxyPath        string
 	Rootless                 bool
 	AllowDirectRouting       bool
+	NftablesPriorities       map[string]string
 }
 
 // networkConfiguration for network specific configuration
@@ -404,7 +405,7 @@ func parseErr(label, value, errString string) error {
 	return types.InvalidParameterErrorf("failed to parse %s value: %v (%s)", label, value, errString)
 }
 
-func (n *bridgeNetwork) newFirewallerNetwork(ctx context.Context) (firewaller.Network, error) {
+func (n *bridgeNetwork) newFirewallerNetwork(ctx context.Context) (_ firewaller.Network, retErr error) {
 	config4, err := makeNetworkConfigFam(n.config.HostIPv4, n.bridge.bridgeIPv4, n.gwMode(firewaller.IPv4))
 	if err != nil {
 		return nil, err
@@ -413,7 +414,8 @@ func (n *bridgeNetwork) newFirewallerNetwork(ctx context.Context) (firewaller.Ne
 	if err != nil {
 		return nil, err
 	}
-	return n.driver.firewaller.NewNetwork(ctx, firewaller.NetworkConfig{
+
+	fwn, err := n.driver.firewaller.NewNetwork(ctx, firewaller.NetworkConfig{
 		IfName:                n.config.BridgeName,
 		Internal:              n.config.Internal,
 		ICC:                   n.config.EnableICC,
@@ -422,6 +424,21 @@ func (n *bridgeNetwork) newFirewallerNetwork(ctx context.Context) (firewaller.Ne
 		Config4:               config4,
 		Config6:               config6,
 	})
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if retErr != nil {
+			if err := fwn.DelNetworkLevelRules(ctx); err != nil {
+				log.G(ctx).WithError(err).Errorf("failed to delete network level rules following error")
+			}
+		}
+	}()
+
+	if err := iptables.AddInterfaceFirewalld(n.config.BridgeName); err != nil {
+		return nil, err
+	}
+	return fwn, nil
 }
 
 func makeNetworkConfigFam(hostIP net.IP, bridgePrefix *net.IPNet, gwm gwMode) (firewaller.NetworkConfigFam, error) {
@@ -518,7 +535,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 		Hairpin:            !config.EnableUserlandProxy || config.UserlandProxyPath == "",
 		AllowDirectRouting: config.AllowDirectRouting,
 		WSL2Mirrored:       isRunningUnderWSL2MirroredMode(context.Background()),
-	})
+	}, config.NftablesPriorities)
 	if err != nil {
 		return err
 	}
@@ -546,10 +563,28 @@ func (d *driver) configure(option map[string]interface{}) error {
 	return d.initStore()
 }
 
-var newFirewaller = func(ctx context.Context, config firewaller.Config) (firewaller.Firewaller, error) {
+// ValidateBaseChainPriorities checks nftables base chain priority configuration.
+func ValidateBaseChainPriorities(prios map[string]string) error {
+	return nftabler.ValidateBaseChainPriorities(prios)
+}
+
+var newFirewaller = func(ctx context.Context, config firewaller.Config, nftablesPriorities map[string]string) (firewaller.Firewaller, error) {
 	if nftables.Enabled() {
-		return nftabler.NewNftabler(ctx, config)
+		fw, err := nftabler.NewNftabler(ctx, config, nftablesPriorities)
+		if err != nil {
+			return nil, err
+		}
+		// Without seeing config (interface names, addresses, and so on), the iptabler's
+		// cleaner can't clean up network or port-specific rules that may have been added
+		// to iptables built-in chains. So, if cleanup is needed, give the cleaner to
+		// the nftabler. Then, it'll use it to delete old rules as networks are restored.
+		fw.(firewaller.FirewallCleanerSetter).SetFirewallCleaner(iptabler.NewCleaner(ctx, config))
+		return fw, nil
 	}
+
+	// The nftabler can clean all of its rules in one go. So, even if there's cleanup
+	// to do, there's no need to pass a cleaner to the iptabler.
+	nftabler.Cleanup(ctx, config)
 	return iptabler.NewIptabler(ctx, config)
 }
 
@@ -1022,6 +1057,9 @@ func (d *driver) deleteNetwork(nid string) error {
 
 	if err := n.firewallerNetwork.DelNetworkLevelRules(context.TODO()); err != nil {
 		log.G(context.TODO()).WithError(err).Warnf("Failed to clean iptables rules for bridge network")
+	}
+	if err := iptables.DelInterfaceFirewalld(n.config.BridgeName); err != nil {
+		log.G(context.TODO()).WithError(err).Warnf("Failed to clean firewalld rules for bridge network")
 	}
 
 	return d.storeDelete(config)
@@ -1716,6 +1754,14 @@ func (d *driver) handleFirewalldReloadNw(nid string) {
 	// gateway network. So, this is a no-op for networks that aren't providing endpoints
 	// with the gateway.
 	nw.reapplyPerPortIptables()
+
+	if err := iptables.AddInterfaceFirewalld(nw.config.BridgeName); err != nil {
+		log.G(context.Background()).WithFields(log.Fields{
+			"error":  err,
+			"nid":    nw.id,
+			"bridge": nw.config.BridgeName,
+		}).Error("Failed to add interface to docker zone on firewalld reload")
+	}
 }
 
 func LegacyContainerLinkOptions(parentEndpoints, childEndpoints []string) map[string]interface{} {
