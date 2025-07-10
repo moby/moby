@@ -99,14 +99,6 @@ func (s *State) String() string {
 	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCodeValue, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 }
 
-// IsValidHealthString checks if the provided string is a valid
-// [container.HealthStatus].
-//
-// Deprecated: use [container.ValidateHealthStatus] and check for nil-errors.
-func IsValidHealthString(s string) bool {
-	return container.ValidateHealthStatus(s) == nil
-}
-
 // StateString returns the container's current [ContainerState], based on the
 // [State.Running], [State.Paused], [State.Restarting], [State.RemovalInProgress],
 // [State.StartedAt] and [State.Dead] fields.
