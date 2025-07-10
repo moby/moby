@@ -12,9 +12,6 @@ import (
 
 // ServiceConfig stores daemon registry services configuration.
 type ServiceConfig struct {
-	AllowNondistributableArtifactsCIDRs     []*NetIPNet `json:"AllowNondistributableArtifactsCIDRs,omitempty"`     // Deprecated: non-distributable artifacts are deprecated and enabled by default. This field will be removed in the next release.
-	AllowNondistributableArtifactsHostnames []string    `json:"AllowNondistributableArtifactsHostnames,omitempty"` // Deprecated: non-distributable artifacts are deprecated and enabled by default. This field will be removed in the next release.
-
 	InsecureRegistryCIDRs []*NetIPNet           `json:"InsecureRegistryCIDRs"`
 	IndexConfigs          map[string]*IndexInfo `json:"IndexConfigs"`
 	Mirrors               []string
