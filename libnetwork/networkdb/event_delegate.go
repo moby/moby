@@ -40,6 +40,7 @@ func (e *eventDelegate) NotifyJoin(mn *memberlist.Node) {
 	e.nDB.purgeReincarnation(mn)
 
 	e.nDB.nodes[mn.Name] = &node{Node: *mn}
+	e.nDB.estNodes.Store(int32(len(e.nDB.nodes)))
 	log.G(context.TODO()).Infof("Node %s/%s, added to nodes list", mn.Name, mn.Addr)
 }
 

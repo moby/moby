@@ -56,6 +56,10 @@ type NetworkDB struct {
 	// network.
 	nodes map[string]*node
 
+	// An approximation of len(nodes) that can be accessed without
+	// synchronization.
+	estNodes atomic.Int32
+
 	// List of all peer nodes which have failed
 	failedNodes map[string]*node
 
@@ -171,6 +175,10 @@ type thisNodeNetwork struct {
 	// Its use is for statistics purposes. It keep tracks of database size and is printed per network every StatsPrintPeriod
 	// interval
 	entriesNumber atomic.Int64
+
+	// An approximation of len(nDB.networkNodes[nid]) that can be accessed
+	// without synchronization.
+	networkNodes atomic.Int32
 }
 
 // Config represents the configuration of the networkdb instance and
@@ -637,25 +645,18 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 		n.network = network{ltime: ltime}
 		n.inSync = false
 	} else {
-		numNodes := func() int {
-			// TODO fcrisciani this can be optimized maybe avoiding the lock?
-			// this call is done each GetBroadcasts call to evaluate the number of
-			// replicas for the message
-			nDB.RLock()
-			defer nDB.RUnlock()
-			return len(nDB.networkNodes[nid])
-		}
 		n = &thisNodeNetwork{
 			network: network{ltime: ltime},
 			tableBroadcasts: &memberlist.TransmitLimitedQueue{
-				NumNodes:       numNodes,
 				RetransmitMult: 4,
 			},
 			tableRebroadcasts: &memberlist.TransmitLimitedQueue{
-				NumNodes:       numNodes,
 				RetransmitMult: 4,
 			},
 		}
+		numNodes := func() int { return int(n.networkNodes.Load()) }
+		n.tableBroadcasts.NumNodes = numNodes
+		n.tableRebroadcasts.NumNodes = numNodes
 	}
 	nDB.addNetworkNode(nid, nDB.config.NodeID)
 
@@ -664,8 +665,9 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 		return fmt.Errorf("failed to send join network event for %s: %v", nid, err)
 	}
 
-	nDB.thisNodeNetworks[nid] = n
 	networkNodes := nDB.networkNodes[nid]
+	n.networkNodes.Store(int32(len(networkNodes)))
+	nDB.thisNodeNetworks[nid] = n
 	nDB.Unlock()
 
 	log.G(context.TODO()).Debugf("%v(%v): joined network %s", nDB.config.Hostname, nDB.config.NodeID, nid)
@@ -727,6 +729,9 @@ func (nDB *NetworkDB) addNetworkNode(nid string, nodeName string) {
 	}
 
 	nDB.networkNodes[nid] = append(nDB.networkNodes[nid], nodeName)
+	if n, ok := nDB.thisNodeNetworks[nid]; ok {
+		n.networkNodes.Store(int32(len(nDB.networkNodes[nid])))
+	}
 }
 
 // Deletes the node from the list of nodes which participate in the
@@ -745,6 +750,9 @@ func (nDB *NetworkDB) deleteNetworkNode(nid string, nodeName string) {
 		newNodes = append(newNodes, name)
 	}
 	nDB.networkNodes[nid] = newNodes
+	if n, ok := nDB.thisNodeNetworks[nid]; ok {
+		n.networkNodes.Store(int32(len(newNodes)))
+	}
 }
 
 // findCommonNetworks find the networks that both this node and the
