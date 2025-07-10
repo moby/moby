@@ -80,13 +80,6 @@ func watchTableEntries(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleTableEvents(tableName string, ch *events.Channel) {
-	var (
-		// nid   string
-		eid   string
-		value []byte
-		isAdd bool
-	)
-
 	log.G(context.TODO()).Infof("Started watching table:%s", tableName)
 	for {
 		select {
@@ -95,27 +88,17 @@ func handleTableEvents(tableName string, ch *events.Channel) {
 			return
 
 		case evt := <-ch.C:
-			log.G(context.TODO()).Infof("Recevied new event on:%s", tableName)
-			switch event := evt.(type) {
-			case networkdb.CreateEvent:
-				// nid = event.NetworkID
-				eid = event.Key
-				value = event.Value
-				isAdd = true
-			case networkdb.DeleteEvent:
-				// nid = event.NetworkID
-				eid = event.Key
-				value = event.Value
-				isAdd = false
-			default:
+			log.G(context.TODO()).Infof("Received new event on:%s", tableName)
+			event, ok := evt.(networkdb.WatchEvent)
+			if !ok {
 				log.G(context.TODO()).Fatalf("Unexpected table event = %#v", event)
 			}
-			if isAdd {
-				// log.G(ctx).Infof("Add %s %s", tableName, eid)
-				clientWatchTable[tableName].entries[eid] = string(value)
+			if event.Value != nil {
+				// log.G(ctx).Infof("Add %s %s", tableName, event.Key)
+				clientWatchTable[tableName].entries[event.Key] = string(event.Value)
 			} else {
-				// log.G(ctx).Infof("Del %s %s", tableName, eid)
-				delete(clientWatchTable[tableName].entries, eid)
+				// log.G(ctx).Infof("Del %s %s", tableName, event.Key)
+				delete(clientWatchTable[tableName].entries, event.Key)
 			}
 		}
 	}
