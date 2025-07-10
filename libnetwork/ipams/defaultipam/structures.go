@@ -2,10 +2,12 @@ package defaultipam
 
 import (
 	"fmt"
+	"math"
 	"net/netip"
 	"strings"
 
 	"github.com/docker/docker/libnetwork/internal/addrset"
+	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -19,6 +21,8 @@ type PoolID struct {
 type PoolData struct {
 	addrs    *addrset.AddrSet
 	children map[netip.Prefix]struct{}
+
+	usedRange uint64
 
 	// Whether to implicitly release the pool once it no longer has any children.
 	autoRelease bool
@@ -71,6 +75,85 @@ func (s *PoolID) String() string {
 // String returns the string form of the PoolData object
 func (p *PoolData) String() string {
 	return fmt.Sprintf("PoolData[Children: %d]", len(p.children))
+}
+
+func (p *PoolData) RequestAddress(nw, sub netip.Prefix, prefAddress netip.Addr, opts map[string]string) (netip.Addr, error) {
+
+	if prefAddress != (netip.Addr{}) && !nw.Contains(prefAddress) {
+		return netip.Addr{}, ipamapi.ErrIPOutOfRange
+	}
+
+	if sub != (netip.Prefix{}) {
+		if _, ok := p.children[sub]; !ok {
+			return netip.Addr{}, types.NotFoundErrorf("cannot find address pool for poolID:%v/%v", nw, sub)
+		}
+	}
+
+	// In order to request for a serial ip address allocation, callers can pass in the option to request
+	// IP allocation serially or first available IP in the subnet
+	serial := opts[ipamapi.AllocSerialPrefix] == "true"
+	ip, err := getAddress(nw, p.addrs, prefAddress, sub, serial)
+	if err != nil {
+		return netip.Addr{}, err
+	}
+
+	if len(p.children) == 0 {
+		p.incUsedAddrsRange()
+	} else {
+		for ch := range p.children {
+			if ch.Contains(ip) {
+				p.incUsedAddrsRange()
+			}
+		}
+	}
+	return ip, nil
+}
+
+func (p *PoolData) ReleaseAddress(nw, sub netip.Prefix, address netip.Addr) error {
+	if sub != (netip.Prefix{}) {
+		if _, ok := p.children[sub]; !ok {
+			return types.NotFoundErrorf("cannot find address pool for poolID:%v/%v", nw, sub)
+		}
+	}
+
+	if !address.IsValid() {
+		return types.InvalidParameterErrorf("invalid address")
+	}
+
+	if !nw.Contains(address) {
+		return ipamapi.ErrIPOutOfRange
+	}
+
+	if err := p.addrs.Remove(address); err != nil {
+		return err
+	}
+
+	if len(p.children) == 0 {
+		p.decUsedAddrsRange(nw)
+	} else {
+		for sub := range p.children {
+			if sub.Contains(address) {
+				p.decUsedAddrsRange(nw)
+			}
+		}
+	}
+	return nil
+}
+
+func (p *PoolData) incUsedAddrsRange() {
+	if p.usedRange < math.MaxUint64 {
+		p.usedRange += 1
+	}
+}
+
+func (p *PoolData) decUsedAddrsRange(nw netip.Prefix) {
+	if p.usedRange > 0 {
+		p.usedRange -= 1
+	}
+}
+
+func (p *PoolData) UsedAddrs() (usedSubnet uint64, usedRange uint64) {
+	return p.addrs.Selected(), p.usedRange
 }
 
 // mergeIter is used to iterate on both 'a' and 'b' at the same time while

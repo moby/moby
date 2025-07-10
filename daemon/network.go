@@ -637,6 +637,7 @@ func buildNetworkResource(nw *libnetwork.Network) networktypes.Inspect {
 		Driver:     nw.Type(),
 		EnableIPv4: nw.IPv4Enabled(),
 		EnableIPv6: nw.IPv6Enabled(),
+		State:      nw.State(),
 		IPAM:       buildIPAMResources(nw),
 		Internal:   nw.Internal(),
 		Attachable: nw.Attachable(),

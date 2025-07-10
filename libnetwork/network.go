@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/libnetwork/datastore"
@@ -2192,4 +2193,46 @@ func (n *Network) deleteLoadBalancerSandbox() error {
 		return fmt.Errorf("Failed to delete %s sandbox: %v", sandboxName, err)
 	}
 	return nil
+}
+
+func (n *Network) State() *network.NetworkState {
+	if n.hasSpecialDriver() {
+		log.G(context.TODO()).Warnf("special driver %s does not support network state", n.Type())
+		return nil
+	}
+
+	ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
+	if err != nil {
+		fmt.Printf("failed to get ipam driver %s: %v", n.ipamType, err)
+		return nil
+	}
+
+	var state network.NetworkState
+
+	addIPAMState := func(ipamInfos []*IpamInfo) {
+		for _, ii := range ipamInfos {
+			pi, err := defaultipam.PoolIDFromString(ii.PoolID)
+			if err != nil {
+				log.G(context.TODO()).Warnf("failed to parse pool ID %s: %v", ii.PoolID, err)
+				continue
+			}
+			ipamSt := network.IPAMState{
+				Subnet: pi.Subnet.String(),
+			}
+			if pi.ChildSubnet.IsValid() {
+				ipamSt.IPRange = pi.ChildSubnet.String()
+			}
+			if ipamSt.AllocatedIPsInSubnet, ipamSt.AllocatedIPsInPool, err = ipam.UsedAddrs(ii.PoolID); err != nil {
+				log.G(context.TODO()).Warnf("failed to get available IPs for pool %s: %v", ii.PoolID, err)
+				continue
+			}
+			state.IPAM = append(state.IPAM, ipamSt)
+		}
+	}
+
+	ipam4Infos, ipam6Infos := n.IpamInfo()
+	addIPAMState(ipam4Infos)
+	addIPAMState(ipam6Infos)
+
+	return &state
 }
