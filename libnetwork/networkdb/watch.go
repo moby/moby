@@ -7,19 +7,37 @@ import (
 	"github.com/docker/go-events"
 )
 
-type opType uint8
-
-const (
-	opCreate opType = 1 + iota
-	opUpdate
-	opDelete
-)
-
-type event struct {
+type WatchEvent struct {
 	Table     string
 	NetworkID string
 	Key       string
-	Value     []byte
+	Value     []byte // Current value of the entry, or nil if deleted
+	Prev      []byte // Previous value of the entry, or nil if created
+}
+
+func (e WatchEvent) IsCreate() bool {
+	return e.Prev == nil && e.Value != nil
+}
+
+func (e WatchEvent) IsUpdate() bool {
+	return e.Prev != nil && e.Value != nil
+}
+
+func (e WatchEvent) IsDelete() bool {
+	return e.Prev != nil && e.Value == nil
+}
+
+func (e WatchEvent) String() string {
+	kind := "Unknown"
+	switch {
+	case e.IsCreate():
+		kind = "Create"
+	case e.IsUpdate():
+		kind = "Update"
+	case e.IsDelete():
+		kind = "Delete"
+	}
+	return kind + "(" + e.Table + "/" + e.NetworkID + "/" + e.Key + ")"
 }
 
 // NodeTable represents table event for node join and leave
@@ -29,15 +47,6 @@ const NodeTable = "NodeTable"
 type NodeAddr struct {
 	Addr net.IP
 }
-
-// CreateEvent generates a table entry create event to the watchers
-type CreateEvent event
-
-// UpdateEvent generates a table entry update event to the watchers
-type UpdateEvent event
-
-// DeleteEvent generates a table entry delete event to the watchers
-type DeleteEvent event
 
 // Watch creates a watcher with filters for a particular table or
 // network or any combination of the tuple. If any of the
@@ -50,15 +59,7 @@ func (nDB *NetworkDB) Watch(tname, nid string) (*events.Channel, func()) {
 
 	if tname != "" || nid != "" {
 		matcher = events.MatcherFunc(func(ev events.Event) bool {
-			var evt event
-			switch ev := ev.(type) {
-			case CreateEvent:
-				evt = event(ev)
-			case UpdateEvent:
-				evt = event(ev)
-			case DeleteEvent:
-				evt = event(ev)
-			}
+			evt := ev.(WatchEvent)
 
 			if tname != "" && evt.Table != tname {
 				return false
@@ -97,7 +98,12 @@ func (nDB *NetworkDB) Watch(tname, nid string) (*events.Channel, func()) {
 				tuple := strings.SplitN(string(path[1:]), "/", 3)
 				if len(tuple) == 3 {
 					entryNid, entryTname, key := tuple[0], tuple[1], tuple[2]
-					sink.Write(makeEvent(opCreate, entryTname, entryNid, key, v.value))
+					sink.Write(WatchEvent{
+						Table:     entryTname,
+						NetworkID: entryNid,
+						Key:       key,
+						Value:     v.value,
+					})
 				}
 			}
 			return false
@@ -113,7 +119,12 @@ func (nDB *NetworkDB) Watch(tname, nid string) (*events.Channel, func()) {
 				tuple := strings.SplitN(string(path[1:]), "/", 3)
 				if len(tuple) == 3 {
 					entryTname, entryNid, key := tuple[0], tuple[1], tuple[2]
-					sink.Write(makeEvent(opCreate, entryTname, entryNid, key, v.value))
+					sink.Write(WatchEvent{
+						Table:     entryTname,
+						NetworkID: entryNid,
+						Key:       key,
+						Value:     v.value,
+					})
 				}
 			}
 			return false
@@ -126,24 +137,4 @@ func (nDB *NetworkDB) Watch(tname, nid string) (*events.Channel, func()) {
 		ch.Close()
 		sink.Close()
 	}
-}
-
-func makeEvent(op opType, tname, nid, key string, value []byte) events.Event {
-	ev := event{
-		Table:     tname,
-		NetworkID: nid,
-		Key:       key,
-		Value:     value,
-	}
-
-	switch op {
-	case opCreate:
-		return CreateEvent(ev)
-	case opUpdate:
-		return UpdateEvent(ev)
-	case opDelete:
-		return DeleteEvent(ev)
-	}
-
-	return nil
 }
