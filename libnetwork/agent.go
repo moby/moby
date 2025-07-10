@@ -817,30 +817,23 @@ func (n *Network) handleDriverTableEvent(ev events.Event) {
 
 	var (
 		etype driverapi.EventType
-		tname string
-		key   string
 		value []byte
 	)
 
-	switch event := ev.(type) {
-	case networkdb.CreateEvent:
-		tname = event.Table
-		key = event.Key
+	event := ev.(networkdb.WatchEvent)
+	switch {
+	case event.IsCreate():
 		value = event.Value
 		etype = driverapi.Create
-	case networkdb.DeleteEvent:
-		tname = event.Table
-		key = event.Key
-		value = event.Value
+	case event.IsDelete():
+		value = event.Prev
 		etype = driverapi.Delete
-	case networkdb.UpdateEvent:
-		tname = event.Table
-		key = event.Key
+	case event.IsUpdate():
 		value = event.Value
 		etype = driverapi.Update
 	}
 
-	d.EventNotify(etype, n.ID(), tname, key, value)
+	d.EventNotify(etype, n.ID(), event.Table, event.Key, value)
 }
 
 func (c *Controller) handleNodeTableEvent(ev events.Event) {
@@ -849,13 +842,14 @@ func (c *Controller) handleNodeTableEvent(ev events.Event) {
 		isAdd    bool
 		nodeAddr networkdb.NodeAddr
 	)
-	switch event := ev.(type) {
-	case networkdb.CreateEvent:
+	event := ev.(networkdb.WatchEvent)
+	switch {
+	case event.IsCreate():
 		value = event.Value
 		isAdd = true
-	case networkdb.DeleteEvent:
+	case event.IsDelete():
 		value = event.Value
-	case networkdb.UpdateEvent:
+	case event.IsUpdate():
 		log.G(context.TODO()).Errorf("Unexpected update node table event = %#v", event)
 	}
 
@@ -868,37 +862,16 @@ func (c *Controller) handleNodeTableEvent(ev events.Event) {
 }
 
 func (c *Controller) handleEpTableEvent(ev events.Event) {
-	var (
-		nid   string
-		eid   string
-		value []byte
-		epRec EndpointRecord
-	)
-
-	switch event := ev.(type) {
-	case networkdb.CreateEvent:
-		nid = event.NetworkID
-		eid = event.Key
-		value = event.Value
-	case networkdb.DeleteEvent:
-		nid = event.NetworkID
-		eid = event.Key
-		value = event.Value
-	case networkdb.UpdateEvent:
-		nid = event.NetworkID
-		eid = event.Key
-		value = event.Value
-	default:
-		log.G(context.TODO()).Errorf("Unexpected update service table event = %#v", event)
-		return
-	}
-
-	err := proto.Unmarshal(value, &epRec)
+	event := ev.(networkdb.WatchEvent)
+	var epRec EndpointRecord
+	err := proto.Unmarshal(event.LastValue(), &epRec)
 	if err != nil {
 		log.G(context.TODO()).WithError(err).Error("Failed to unmarshal service table value")
 		return
 	}
 
+	nid := event.NetworkID
+	eid := event.Key
 	containerName := epRec.Name
 	svcName := epRec.ServiceName
 	svcID := epRec.ServiceID
@@ -909,21 +882,19 @@ func (c *Controller) handleEpTableEvent(ev events.Event) {
 	taskAliases := epRec.TaskAliases
 
 	logger := log.G(context.TODO()).WithFields(log.Fields{
-		"nid": nid,
-		"eid": eid,
-		"T":   fmt.Sprintf("%T", ev),
+		"evt": event,
 		"R":   epRec,
 	})
 
 	if containerName == "" || ip == nil {
-		logger.Errorf("Invalid endpoint name/ip received while handling service table event %s", value)
+		logger.Errorf("Invalid endpoint name/ip received while handling service table event %s", event.LastValue())
 		return
 	}
 
 	logger.Debug("handleEpTableEvent")
 
-	switch ev.(type) {
-	case networkdb.CreateEvent, networkdb.UpdateEvent:
+	switch {
+	case event.Value != nil:
 		if svcID != "" {
 			// This is a remote task part of a service
 			if epRec.ServiceDisabled {
@@ -944,7 +915,7 @@ func (c *Controller) handleEpTableEvent(ev events.Event) {
 			}
 		}
 
-	case networkdb.DeleteEvent:
+	case event.Prev != nil:
 		if svcID != "" {
 			// This is a remote task part of a service
 			if err := c.rmServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent", true, true); err != nil {

@@ -13,18 +13,32 @@ type eventDelegate struct {
 	nDB *NetworkDB
 }
 
-func (e *eventDelegate) broadcastNodeEvent(addr net.IP, op opType) {
+type nodeEventOp bool
+
+const (
+	notifyNodeJoined nodeEventOp = true
+	notifyNodeLeft   nodeEventOp = false
+)
+
+func (e *eventDelegate) broadcastNodeEvent(addr net.IP, kind nodeEventOp) {
 	value, err := json.Marshal(&NodeAddr{addr})
-	if err == nil {
-		e.nDB.broadcaster.Write(makeEvent(op, NodeTable, "", "", value))
-	} else {
+	if err != nil {
 		log.G(context.TODO()).Errorf("Error marshalling node broadcast event %s", addr.String())
+		return
 	}
+	event := WatchEvent{Table: NodeTable}
+	switch kind {
+	case notifyNodeJoined:
+		event.Value = value
+	case notifyNodeLeft:
+		event.Prev = value
+	}
+	e.nDB.broadcaster.Write(event)
 }
 
 func (e *eventDelegate) NotifyJoin(mn *memberlist.Node) {
 	log.G(context.TODO()).Infof("Node %s/%s, joined gossip cluster", mn.Name, mn.Addr)
-	e.broadcastNodeEvent(mn.Addr, opCreate)
+	e.broadcastNodeEvent(mn.Addr, notifyNodeJoined)
 	e.nDB.Lock()
 	defer e.nDB.Unlock()
 
@@ -46,7 +60,7 @@ func (e *eventDelegate) NotifyJoin(mn *memberlist.Node) {
 
 func (e *eventDelegate) NotifyLeave(mn *memberlist.Node) {
 	log.G(context.TODO()).Infof("Node %s/%s, left gossip cluster", mn.Name, mn.Addr)
-	e.broadcastNodeEvent(mn.Addr, opDelete)
+	e.broadcastNodeEvent(mn.Addr, notifyNodeLeft)
 
 	e.nDB.Lock()
 	defer e.nDB.Unlock()

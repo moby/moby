@@ -97,16 +97,11 @@ func handleTableEvents(tableName string, ch *events.Channel) {
 		case evt := <-ch.C:
 			log.G(context.TODO()).Infof("Received new event on:%s", tableName)
 			switch event := evt.(type) {
-			case networkdb.CreateEvent:
+			case networkdb.WatchEvent:
 				// nid = event.NetworkID
 				eid = event.Key
 				value = event.Value
-				isAdd = true
-			case networkdb.DeleteEvent:
-				// nid = event.NetworkID
-				eid = event.Key
-				value = event.Value
-				isAdd = false
+				isAdd = !event.IsDelete()
 			default:
 				log.G(context.TODO()).Fatalf("Unexpected table event = %#v", event)
 			}
