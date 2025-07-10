@@ -11,12 +11,12 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/api/types/swarm/runtime"
 	"github.com/docker/docker/daemon/pkg/plugin"
 	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/backend"
+	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/api/types/swarm/runtime"
 	"github.com/moby/pubsub"
 	"github.com/sirupsen/logrus"
 )

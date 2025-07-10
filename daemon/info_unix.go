@@ -13,12 +13,12 @@ import (
 
 	runcoptions "github.com/containerd/containerd/api/types/runc/options"
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types"
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/pkg/rootless"
 	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/moby/moby/api/types"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/system"
 	"github.com/pkg/errors"
 	rkclient "github.com/rootless-containers/rootlesskit/v2/pkg/api/client"
 )

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/api/types/build"
+	"github.com/moby/moby/api/types/build"
 	"github.com/moby/sys/user"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

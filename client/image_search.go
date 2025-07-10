@@ -8,8 +8,8 @@ import (
 	"strconv"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/registry"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/registry"
 )
 
 // ImageSearch makes the docker host search by a term in a remote registry.

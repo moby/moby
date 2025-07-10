@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/docker/docker/api/types/checkpoint"
+	"github.com/moby/moby/api/types/checkpoint"
 )
 
 // CheckpointList returns the checkpoints of the given container in the docker host

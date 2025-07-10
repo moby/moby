@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types/events"
+	"github.com/moby/moby/api/types/events"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

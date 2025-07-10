@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api"
 	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/docker/docker/daemon/server/middleware"
+	"github.com/moby/moby/api"
 )
 
 func TestMiddlewares(t *testing.T) {

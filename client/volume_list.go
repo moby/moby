@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/volume"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/volume"
 )
 
 // VolumeList returns the volumes configured in the docker host.

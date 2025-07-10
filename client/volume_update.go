@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/volume"
+	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/api/types/volume"
 )
 
 // VolumeUpdate updates a volume. This only works for Cluster Volumes, and

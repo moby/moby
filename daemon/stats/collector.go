@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/container"
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/pubsub"
 )
 
