@@ -5,7 +5,7 @@ import (
 	nethttp "net/http"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/builder/builder-next/exporter"
+	"github.com/docker/docker/daemon/internal/builder-next/exporter"
 	"github.com/moby/buildkit/client"
 	bkexporter "github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/session"

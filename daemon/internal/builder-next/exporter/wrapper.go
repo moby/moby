@@ -6,7 +6,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/builder/builder-next/exporter/overrides"
+	"github.com/docker/docker/daemon/internal/builder-next/exporter/overrides"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 
