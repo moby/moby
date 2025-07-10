@@ -19,8 +19,7 @@ import (
 func (s *DockerCLICpSuite) TestCpToContainerWithPermissions(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
-	tmpDir := getTestDir(c, "test-cp-to-host-with-permissions")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 
@@ -45,12 +44,11 @@ func (s *DockerCLICpSuite) TestCpToContainerWithPermissions(c *testing.T) {
 // Check ownership is root, both in non-userns and userns enabled modes
 func (s *DockerCLICpSuite) TestCpCheckDestOwnership(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
-	tmpVolDir := getTestDir(c, "test-cp-tmpvol")
+	tmpVolDir := c.TempDir()
 	containerID := makeTestContainer(c,
 		testContainerOptions{volumes: []string{fmt.Sprintf("%s:/tmpvol", tmpVolDir)}})
 
-	tmpDir := getTestDir(c, "test-cp-to-check-ownership")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 
