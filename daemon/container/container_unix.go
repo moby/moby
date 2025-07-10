@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
-	volumemounts "github.com/docker/docker/volume/mounts"
+	volumemounts "github.com/docker/docker/daemon/volume/mounts"
 	"github.com/moby/sys/mount"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"

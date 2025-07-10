@@ -3,7 +3,7 @@ package daemon
 import (
 	"testing"
 
-	volumemounts "github.com/docker/docker/volume/mounts"
+	volumemounts "github.com/docker/docker/daemon/volume/mounts"
 )
 
 func TestParseVolumesFrom(t *testing.T) {

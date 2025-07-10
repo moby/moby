@@ -13,10 +13,10 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/daemon/container"
+	volumemounts "github.com/docker/docker/daemon/volume/mounts"
+	volumeopts "github.com/docker/docker/daemon/volume/service/opts"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/idtools"
-	volumemounts "github.com/docker/docker/volume/mounts"
-	volumeopts "github.com/docker/docker/volume/service/opts"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 )
