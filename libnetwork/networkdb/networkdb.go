@@ -520,92 +520,44 @@ func (nDB *NetworkDB) deleteNodeFromNetworks(deletedNode string) {
 	delete(nDB.networks, deletedNode)
 }
 
-// deleteNodeNetworkEntries is called in 2 conditions with 2 different outcomes:
-// 1) when a notification is coming of a node leaving the network
-//   - Walk all the network entries and mark the leaving node's entries for deletion
-//     These will be garbage collected when the reap timer will expire
-//
-// 2) when the local node is leaving the network
-//   - Walk all the network entries:
-//     A) if the entry is owned by the local node
-//     then we will mark it for deletion. This will ensure that if a node did not
-//     yet received the notification that the local node is leaving, will be aware
-//     of the entries to be deleted.
-//     B) if the entry is owned by a remote node, then we can safely delete it. This
-//     ensures that if we join back this network as we receive the CREATE event for
-//     entries owned by remote nodes, we will accept them and we notify the application
+// deleteNodeNetworkEntries deletes all table entries for a network owned by
+// node from the local store.
 func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
-	// Indicates if the delete is triggered for the local node
-	isNodeLocal := node == nDB.config.NodeID
-
 	nDB.indexes[byNetwork].Root().WalkPrefix([]byte("/"+nid),
-		func(path []byte, v *entry) bool {
-			oldEntry := v
-
-			// If the entry is owned by a remote node and this node is not leaving the network
-			if oldEntry.node != node && !isNodeLocal {
-				// Don't do anything because the event is triggered for a node that does not own this entry
+		func(path []byte, oldEntry *entry) bool {
+			// Do nothing if the entry is owned by a remote node that is not leaving the network
+			// because the event is triggered for a node that does not own this entry.
+			if oldEntry.node != node {
 				return false
 			}
-
-			// If this entry is already marked for deletion and this node is not leaving the network
-			if oldEntry.deleting && !isNodeLocal {
-				// Don't do anything this entry will be already garbage collected using the old reapTime
-				return false
-			}
-
-			newEntry := &entry{
-				ltime:    oldEntry.ltime,
-				node:     oldEntry.node,
-				value:    oldEntry.value,
-				deleting: true,
-				reapTime: nDB.config.reapEntryInterval,
-			}
-
-			// we arrived at this point in 2 cases:
-			// 1) this entry is owned by the node that is leaving the network
-			// 2) the local node is leaving the network
 			params := strings.Split(string(path[1:]), "/")
 			nwID, tName, key := params[0], params[1], params[2]
-			if oldEntry.node == node {
-				if isNodeLocal {
-					// TODO fcrisciani: this can be removed if there is no way to leave the network
-					// without doing a delete of all the objects
-					newEntry.ltime++
-				}
 
-				if !oldEntry.deleting {
-					nDB.createOrUpdateEntry(nwID, tName, key, newEntry)
-				}
-			} else {
-				// the local node is leaving the network, all the entries of remote nodes can be safely removed
-				nDB.deleteEntry(nwID, tName, key)
-			}
+			nDB.deleteEntry(nwID, tName, key)
 
 			// Notify to the upper layer only entries not already marked for deletion
 			if !oldEntry.deleting {
-				nDB.broadcaster.Write(makeEvent(opDelete, tName, nwID, key, newEntry.value))
+				nDB.broadcaster.Write(makeEvent(opDelete, tName, nwID, key, oldEntry.value))
 			}
 			return false
 		})
 }
 
+// deleteNodeTableEntries deletes all table entries owned by node from the local
+// store, across all networks.
 func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
-	nDB.indexes[byTable].Root().Walk(func(path []byte, v *entry) bool {
-		oldEntry := v
+	nDB.indexes[byTable].Root().Walk(func(path []byte, oldEntry *entry) bool {
 		if oldEntry.node != node {
 			return false
 		}
 
 		params := strings.Split(string(path[1:]), "/")
-		tname := params[0]
-		nid := params[1]
-		key := params[2]
+		tName, nwID, key := params[0], params[1], params[2]
 
-		nDB.deleteEntry(nid, tname, key)
+		nDB.deleteEntry(nwID, tName, key)
 
 		if !oldEntry.deleting {
-			nDB.broadcaster.Write(makeEvent(opDelete, tname, nid, key, oldEntry.value))
+			nDB.broadcaster.Write(makeEvent(opDelete, tName, nwID, key, oldEntry.value))
 		}
 		return false
 	})
@@ -702,8 +654,40 @@ func (nDB *NetworkDB) LeaveNetwork(nid string) error {
 	// Remove myself from the list of the nodes participating to the network
 	nDB.deleteNetworkNode(nid, nDB.config.NodeID)
 
-	// Update all the local entries marking them for deletion and delete all the remote entries
-	nDB.deleteNodeNetworkEntries(nid, nDB.config.NodeID)
+	// Mark all the local entries for deletion
+	// so that if we rejoin the network
+	// before another node has received the network-leave notification,
+	// the old entries owned by us will still be purged as expected.
+	// Delete all the remote entries from our local store
+	// without leaving any tombstone.
+	// This ensures that we will accept the CREATE events
+	// for entries owned by remote nodes
+	// if we later rejoin the network.
+	nDB.indexes[byNetwork].Root().WalkPrefix([]byte("/"+nid), func(path []byte, oldEntry *entry) bool {
+		owned := oldEntry.node == nDB.config.NodeID
+		if owned && oldEntry.deleting {
+			return false
+		}
+
+		params := strings.Split(string(path[1:]), "/")
+		nwID, tName, key := params[0], params[1], params[2]
+		if owned {
+			newEntry := &entry{
+				ltime:    nDB.tableClock.Increment(),
+				node:     oldEntry.node,
+				value:    oldEntry.value,
+				deleting: true,
+				reapTime: nDB.config.reapEntryInterval,
+			}
+			nDB.createOrUpdateEntry(nwID, tName, key, newEntry)
+		} else {
+			nDB.deleteEntry(nwID, tName, key)
+		}
+		if !oldEntry.deleting {
+			nDB.broadcaster.Write(makeEvent(opDelete, tName, nwID, key, oldEntry.value))
+		}
+		return false
+	})
 
 	n, ok := nDB.thisNodeNetworks[nid]
 	if !ok {

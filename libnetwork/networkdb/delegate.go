@@ -109,9 +109,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 			n.reapTime = nDB.config.reapNetworkInterval
 
 			// The remote node is leaving the network, but not the gossip cluster.
-			// Mark all its entries in deleted state, this will guarantee that
-			// if some node bulk sync with us, the deleted state of
-			// these entries will be propagated.
+			// Delete all the entries for this network owned by the node.
 			nDB.deleteNodeNetworkEntries(nEvent.NetworkID, nEvent.NodeName)
 		}
 
