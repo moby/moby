@@ -16,8 +16,8 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/drivers/overlay"
 	"github.com/docker/docker/daemon/libnetwork/drvregistry"
 	"github.com/docker/docker/daemon/libnetwork/internal/rlkclient"
-	"github.com/docker/docker/daemon/libnetwork/portmapper"
 	"github.com/docker/docker/daemon/libnetwork/portmappers/nat"
+	"github.com/docker/docker/daemon/libnetwork/portmappers/proxy"
 	"github.com/docker/docker/daemon/libnetwork/portmappers/routed"
 	"github.com/docker/docker/daemon/libnetwork/types"
 )
@@ -63,7 +63,7 @@ func registerPortMappers(ctx context.Context, r *drvregistry.PortMappers, cfg *c
 	if err := nat.Register(r, nat.Config{
 		RlkClient: pdc,
 		StartProxy: func(pb types.PortBinding, file *os.File) (func() error, error) {
-			return portmapper.StartProxy(pb, cfg.UserlandProxyPath, file)
+			return proxy.StartProxy(pb, cfg.UserlandProxyPath, file)
 		},
 		EnableProxy: cfg.EnableUserlandProxy && cfg.UserlandProxyPath != "",
 	}); err != nil {
