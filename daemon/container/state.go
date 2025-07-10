@@ -130,13 +130,6 @@ func (s *State) StateString() container.ContainerState {
 	return container.StateExited
 }
 
-// IsValidStateString checks if the provided string is a valid container state.
-//
-// Deprecated: use [container.ValidateContainerState] instead.
-func IsValidStateString(s container.ContainerState) bool {
-	return container.ValidateContainerState(s) == nil
-}
-
 // Wait waits until the container is in a certain state indicated by the given
 // condition. A context must be used for cancelling the request, controlling
 // timeouts, and avoiding goroutine leaks. Wait must be called without holding
