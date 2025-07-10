@@ -23,6 +23,37 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+type peer struct {
+	EndpointIP       netip.Prefix
+	EndpointMAC      macAddr
+	TunnelEndpointIP netip.Addr
+}
+
+func unmarshalPeerRecord(data []byte) (*peer, error) {
+	var pr PeerRecord
+	if err := proto.Unmarshal(data, &pr); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal peer record: %w", err)
+	}
+	var (
+		p   peer
+		err error
+	)
+	p.EndpointIP, err = netip.ParsePrefix(pr.EndpointIP)
+	if err != nil {
+		return nil, fmt.Errorf("invalid peer IP %q received: %w", pr.EndpointIP, err)
+	}
+	hwaddr, err := net.ParseMAC(pr.EndpointMAC)
+	if err != nil {
+		return nil, fmt.Errorf("invalid MAC %q received: %w", pr.EndpointMAC, err)
+	}
+	p.EndpointMAC = macAddrOf(hwaddr)
+	p.TunnelEndpointIP, err = netip.ParseAddr(pr.TunnelEndpointIP)
+	if err != nil {
+		return nil, fmt.Errorf("invalid VTEP %q received: %w", pr.TunnelEndpointIP, err)
+	}
+	return &p, nil
+}
+
 // Join method is invoked when a Sandbox is attached to an endpoint.
 func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, epOpts, _ map[string]interface{}) error {
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.drivers.overlay.Join", trace.WithAttributes(
@@ -161,7 +192,7 @@ func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (s
 	}
 }
 
-func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
+func (d *driver) EventNotify(nid, tableName, key string, prev, value []byte) {
 	if tableName != ovPeerTable {
 		log.G(context.TODO()).Errorf("Unexpected table notification for table %s received", tableName)
 		return
@@ -169,33 +200,37 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 
 	eid := key
 
-	var peer PeerRecord
-	if err := proto.Unmarshal(value, &peer); err != nil {
-		log.G(context.TODO()).Errorf("Failed to unmarshal peer record: %v", err)
-		return
+	var prevPeer, newPeer *peer
+	if prev != nil {
+		var err error
+		prevPeer, err = unmarshalPeerRecord(prev)
+		if err != nil {
+			log.G(context.TODO()).WithError(err).Error("Failed to unmarshal previous peer record")
+		}
+		if prevPeer.TunnelEndpointIP == d.advertiseAddress {
+			// Ignore local peers. We don't add them to the VXLAN
+			// FDB so don't need to remove them.
+			prevPeer = nil
+		}
+	}
+	if value != nil {
+		var err error
+		newPeer, err = unmarshalPeerRecord(value)
+		if err != nil {
+			log.G(context.TODO()).WithError(err).Error("Failed to unmarshal peer record")
+		}
+		if newPeer.TunnelEndpointIP == d.advertiseAddress {
+			newPeer = nil
+		}
 	}
 
-	// Ignore local peers. We already know about them and they
-	// should not be added to vxlan fdb.
-	if addr, _ := netip.ParseAddr(peer.TunnelEndpointIP); addr == d.advertiseAddress {
+	if prevPeer == nil && newPeer == nil {
+		// Nothing to do! Either the event was for a local peer,
+		// or unmarshaling failed.
 		return
 	}
-
-	addr, err := netip.ParsePrefix(peer.EndpointIP)
-	if err != nil {
-		log.G(context.TODO()).WithError(err).Errorf("Invalid peer IP %s received in event notify", peer.EndpointIP)
-		return
-	}
-
-	mac, err := net.ParseMAC(peer.EndpointMAC)
-	if err != nil {
-		log.G(context.TODO()).WithError(err).Errorf("Invalid mac %s received in event notify", peer.EndpointMAC)
-		return
-	}
-
-	vtep, err := netip.ParseAddr(peer.TunnelEndpointIP)
-	if err != nil {
-		log.G(context.TODO()).WithError(err).Errorf("Invalid VTEP %s received in event notify", peer.TunnelEndpointIP)
+	if prevPeer != nil && newPeer != nil && *prevPeer == *newPeer {
+		// The update did not materially change the FDB entry.
 		return
 	}
 
@@ -209,21 +244,23 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 	}
 	defer unlock()
 
-	var opname string
-	if etype == driverapi.Delete {
-		opname = "delete"
-		err = n.peerDelete(eid, addr, mac, vtep)
-	} else {
-		opname = "add"
-		err = n.peerAdd(eid, addr, mac, vtep)
+	if prevPeer != nil {
+		if err := n.peerDelete(eid, prevPeer.EndpointIP, prevPeer.EndpointMAC.HardwareAddr(), prevPeer.TunnelEndpointIP); err != nil {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"error": err,
+				"nid":   n.id,
+				"peer":  prevPeer,
+			}).Warn("overlay: failed to delete peer entry")
+		}
 	}
-	if err != nil {
-		log.G(context.TODO()).WithFields(log.Fields{
-			"error": err,
-			"nid":   n.id,
-			"peer":  peer,
-			"op":    opname,
-		}).Warn("Peer operation failed")
+	if newPeer != nil {
+		if err := n.peerAdd(eid, newPeer.EndpointIP, newPeer.EndpointMAC.HardwareAddr(), newPeer.TunnelEndpointIP); err != nil {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"error": err,
+				"nid":   n.id,
+				"peer":  newPeer,
+			}).Warn("overlay: failed to add peer entry")
+		}
 	}
 }
 
