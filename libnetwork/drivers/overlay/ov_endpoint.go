@@ -26,25 +26,6 @@ type endpoint struct {
 	addr   netip.Prefix
 }
 
-func (n *network) endpoint(eid string) *endpoint {
-	n.Lock()
-	defer n.Unlock()
-
-	return n.endpoints[eid]
-}
-
-func (n *network) addEndpoint(ep *endpoint) {
-	n.Lock()
-	n.endpoints[ep.id] = ep
-	n.Unlock()
-}
-
-func (n *network) deleteEndpoint(eid string) {
-	n.Lock()
-	delete(n.endpoints, eid)
-	n.Unlock()
-}
-
 func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
 	var err error
 	if err = validateID(nid, eid); err != nil {
@@ -58,10 +39,11 @@ func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo drive
 		return err
 	}
 
-	n := d.network(nid)
-	if n == nil {
-		return fmt.Errorf("network id %q not found", nid)
+	n, unlock, err := d.lockNetwork(nid)
+	if err != nil {
+		return err
 	}
+	defer unlock()
 
 	ep := &endpoint{
 		id:  eid,
@@ -85,7 +67,7 @@ func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo drive
 		}
 	}
 
-	n.addEndpoint(ep)
+	n.endpoints[ep.id] = ep
 
 	return nil
 }
@@ -97,17 +79,18 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 		return err
 	}
 
-	n := d.network(nid)
-	if n == nil {
-		return fmt.Errorf("network id %q not found", nid)
+	n, unlock, err := d.lockNetwork(nid)
+	if err != nil {
+		return err
 	}
+	defer unlock()
 
-	ep := n.endpoint(eid)
+	ep := n.endpoints[eid]
 	if ep == nil {
 		return fmt.Errorf("endpoint id %q not found", eid)
 	}
 
-	n.deleteEndpoint(eid)
+	delete(n.endpoints, eid)
 
 	if ep.ifName == "" {
 		return nil
