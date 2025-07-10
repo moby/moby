@@ -1094,7 +1094,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		case "":
 			// Use graph driver but enable migration
 			driverName = "windowsfilter"
-			migrationThreshold = 0
+			if os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") == "" {
+				// Don't force migration if graph driver is explicit
+				migrationThreshold = 0
+			}
 		default:
 			log.G(ctx).Infof("Using non-default snapshotter %s", driverName)
 
