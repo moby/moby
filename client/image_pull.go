@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"strings"
 
-	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/image"
 )
@@ -34,14 +33,18 @@ func (cli *Client) ImagePull(ctx context.Context, refStr string, options image.P
 		query.Set("platform", strings.ToLower(options.Platform))
 	}
 
-	resp, err := cli.tryImageCreate(ctx, query, options.RegistryAuth)
-	if cerrdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
-		newAuthHeader, privilegeErr := options.PrivilegeFunc(ctx)
-		if privilegeErr != nil {
-			return nil, privilegeErr
-		}
-		resp, err = cli.tryImageCreate(ctx, query, newAuthHeader)
-	}
+	// PrivilegeFunc was added in [18472] as an alternative to passing static
+	// authentication. The default was still to try the static authentication
+	// before calling the PrivilegeFunc (if present).
+	//
+	// For now, we need to keep this behavior, as PrivilegeFunc may be an
+	// interactive prompt, however, we should change this to only use static
+	// auth if not empty. Ultimately, we should deprecate its use in favor of
+	// callers providing a PrivilegeFunc (which can be chained), or a list of
+	// PrivilegeFuncs.
+	//
+	// [18472]: https://github.com/moby/moby/commit/e78f02c4dbc3cada909c114fef6b6643969ab912
+	resp, err := cli.tryImageCreate(ctx, query, ChainPrivilegeFuncs(staticAuth(options.RegistryAuth), options.PrivilegeFunc))
 	if err != nil {
 		return nil, err
 	}

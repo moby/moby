@@ -71,7 +71,7 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 		headers["version"] = []string{cli.version}
 	}
 	if options.EncodedRegistryAuth != "" {
-		headers[registry.AuthHeader] = []string{options.EncodedRegistryAuth}
+		headers.Set(registry.AuthHeader, options.EncodedRegistryAuth)
 	}
 	resp, err := cli.post(ctx, "/services/"+serviceID+"/update", query, service, headers)
 	defer ensureReaderClosed(resp)
