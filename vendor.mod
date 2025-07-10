@@ -30,7 +30,6 @@ require (
 	github.com/containerd/containerd/v2 v2.1.3
 	github.com/containerd/continuity v0.4.5
 	github.com/containerd/errdefs v1.0.0
-	github.com/containerd/errdefs/pkg v0.3.0
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/log v0.1.0
 	github.com/containerd/platforms v1.0.0-rc.1
@@ -147,6 +146,7 @@ require (
 	github.com/container-storage-interface/spec v1.5.0 // indirect
 	github.com/containerd/accelerated-container-image v1.3.0 // indirect
 	github.com/containerd/console v1.0.5 // indirect
+	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/go-cni v1.1.12 // indirect
 	github.com/containerd/go-runc v1.1.0 // indirect
 	github.com/containerd/nydus-snapshotter v0.15.2 // indirect
@@ -189,6 +189,7 @@ require (
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/moby/moby/api v0.0.0
+	github.com/moby/moby/client v0.0.0
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/opencontainers/runtime-tools v0.9.1-0.20221107090550-2e043c6bd626 // indirect
 	github.com/package-url/packageurl-go v0.1.1 // indirect
@@ -262,3 +263,5 @@ exclude (
 )
 
 replace github.com/moby/moby/api => ./api
+
+replace github.com/moby/moby/client => ./client
