@@ -6,41 +6,25 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/containerd/containerd/v2/contrib/nvidia"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/internal/capabilities"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
 
-// TODO: nvidia should not be hard-coded, and should be a device plugin instead on the daemon object.
-// TODO: add list of device capabilities in daemon/node info
-
 var errConflictCountDeviceIDs = errors.New("cannot set both Count and DeviceIDs on device request")
 
 const (
-	nvidiaHook                        = "nvidia-container-runtime-hook"
-	amdContainerRuntimeExecutableName = "amd-container-runtime"
+	nvidiaContainerRuntimeHookExecutableName = "nvidia-container-runtime-hook"
+	nvidiaCDIHookExecutableName              = "nvidia-cdi-hook"
+	amdContainerRuntimeExecutableName        = "amd-container-runtime"
 )
 
-// These are NVIDIA-specific capabilities stolen from github.com/containerd/containerd/contrib/nvidia.allCaps
-var allNvidiaCaps = map[nvidia.Capability]struct{}{
-	nvidia.Compute:  {},
-	nvidia.Compat32: {},
-	nvidia.Graphics: {},
-	nvidia.Utility:  {},
-	nvidia.Video:    {},
-	nvidia.Display:  {},
-}
-
 func init() {
-	// Register Nvidia driver if Nvidia helper binary is present.
-	if _, err := exec.LookPath(nvidiaHook); err == nil {
-		capset := capabilities.Set{"gpu": struct{}{}, "nvidia": struct{}{}}
-		for c := range allNvidiaCaps {
-			capset[string(c)] = struct{}{}
-		}
+	// Register nvidia driver if the NVIDIA Container Runtime Hook binary is present.
+	if _, err := exec.LookPath(nvidiaContainerRuntimeHookExecutableName); err == nil {
 		registerDeviceDriver("nvidia", &deviceDriver{
-			capset:     capset,
+			capset:     capabilities.Set{"gpu": struct{}{}, "nvidia": struct{}{}},
 			updateSpec: setNvidiaGPUs,
 		})
 		return
@@ -55,43 +39,37 @@ func init() {
 		return
 	}
 
+	// Register a driver that handles nvidia devices as CDI devices, converting
+	// non-CDI device names to nvidia.com/gpu devices.
+	if _, err := exec.LookPath(nvidiaCDIHookExecutableName); err == nil {
+		registerDeviceDriver("nvidia", &deviceDriver{
+			capset: capabilities.Set{"gpu": struct{}{}, "nvidia": struct{}{}},
+			updateSpec: (&cdiDeviceInjector{
+				defaultCDIDeviceKind: "nvidia.com/gpu",
+			}).injectDevices,
+		})
+	}
+
 	// No "gpu" capability
 }
 
+// setNvidiaGPUs handles requestes for NVIDIA GPUs.
+// This is done by updating the OCI runtime spec to include the correct value
+// for the NVIDIA_VISIBLE_DEVICES environment variable and injecting the
+// NVIDIA Container Runtime Hook as a container prestart hook.
 func setNvidiaGPUs(s *specs.Spec, dev *deviceInstance) error {
 	req := dev.req
 	if req.Count != 0 && len(req.DeviceIDs) > 0 {
 		return errConflictCountDeviceIDs
 	}
 
-	switch {
-	case len(req.DeviceIDs) > 0:
-		s.Process.Env = append(s.Process.Env, "NVIDIA_VISIBLE_DEVICES="+strings.Join(req.DeviceIDs, ","))
-	case req.Count > 0:
-		s.Process.Env = append(s.Process.Env, "NVIDIA_VISIBLE_DEVICES="+countToDevices(req.Count))
-	case req.Count < 0:
-		s.Process.Env = append(s.Process.Env, "NVIDIA_VISIBLE_DEVICES=all")
-	case req.Count == 0:
-		s.Process.Env = append(s.Process.Env, "NVIDIA_VISIBLE_DEVICES=void")
+	deviceIDs := getRequestedDevicesIDs(req)
+	if len(deviceIDs) == 0 {
+		return nil
 	}
+	s.Process.Env = append(s.Process.Env, "NVIDIA_VISIBLE_DEVICES="+strings.Join(deviceIDs, ","))
 
-	var nvidiaCaps []string
-	// req.Capabilities contains device capabilities, some but not all are NVIDIA driver capabilities.
-	for _, c := range dev.selectedCaps {
-		nvcap := nvidia.Capability(c)
-		if _, isNvidiaCap := allNvidiaCaps[nvcap]; isNvidiaCap {
-			nvidiaCaps = append(nvidiaCaps, c)
-			continue
-		}
-		// TODO: nvidia.WithRequiredCUDAVersion
-		// for now we let the prestart hook verify cuda versions but errors are not pretty.
-	}
-
-	if nvidiaCaps != nil {
-		s.Process.Env = append(s.Process.Env, "NVIDIA_DRIVER_CAPABILITIES="+strings.Join(nvidiaCaps, ","))
-	}
-
-	path, err := exec.LookPath(nvidiaHook)
+	path, err := exec.LookPath(nvidiaContainerRuntimeHookExecutableName)
 	if err != nil {
 		return err
 	}
@@ -108,7 +86,7 @@ func setNvidiaGPUs(s *specs.Spec, dev *deviceInstance) error {
 	s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{ //nolint:staticcheck // FIXME(thaJeztah); replace prestart hook with a non-deprecated one.
 		Path: path,
 		Args: []string{
-			nvidiaHook,
+			nvidiaContainerRuntimeHookExecutableName,
 			"prestart",
 		},
 		Env: os.Environ(),
@@ -117,11 +95,82 @@ func setNvidiaGPUs(s *specs.Spec, dev *deviceInstance) error {
 	return nil
 }
 
+// getRequestedDeviceIDs returns the list of requested devices by ID based on
+// the device request.
+func getRequestedDevicesIDs(req container.DeviceRequest) []string {
+	switch {
+	case len(req.DeviceIDs) > 0:
+		return req.DeviceIDs
+	case req.Count > 0:
+		return countToDevices(req.Count)
+	case req.Count < 0:
+		return []string{"all"}
+	case req.Count == 0:
+		return nil
+	}
+	return nil
+}
+
 // countToDevices returns the list 0, 1, ... count-1 of deviceIDs.
-func countToDevices(count int) string {
+func countToDevices(count int) []string {
 	devices := make([]string, count)
 	for i := range devices {
 		devices[i] = strconv.Itoa(i)
 	}
-	return strings.Join(devices, ",")
+	return devices
+}
+
+// A cdiDeviceInjector is used to map regular device requests to CDI device
+// requests.
+type cdiDeviceInjector struct {
+	defaultCDIDeviceKind string
+}
+
+// injectDevices converts an incoming device request to a request for devices
+// using CDI.
+// The requested device IDs are converted to CDI device names if required using
+// the specified default kind.
+func (i *cdiDeviceInjector) injectDevices(s *specs.Spec, dev *deviceInstance) error {
+	var cdiDeviceIDs []string
+	for _, deviceID := range getRequestedDevicesIDs(dev.req) {
+		cdiDeviceIDs = append(cdiDeviceIDs, i.normalizeDeviceID(deviceID))
+	}
+	if len(cdiDeviceIDs) == 0 {
+		return nil
+	}
+
+	// If the cdi device driver is not available then we return an error.
+	cdiDeviceDriver := deviceDrivers["cdi"]
+	if cdiDeviceDriver == nil {
+		return incompatibleDeviceRequest{dev.req.Driver, dev.req.Capabilities}
+	}
+
+	// We construct a device instance using the CDI device IDs and forward this
+	// to the cdiDeviceDriver.
+	cdiRequest := dev.req
+	cdiRequest.Count = 0
+	cdiRequest.Options = nil
+	cdiRequest.DeviceIDs = cdiDeviceIDs
+
+	cdiDeviceInstance := deviceInstance{
+		req:          cdiRequest,
+		selectedCaps: nil,
+	}
+
+	return cdiDeviceDriver.updateSpec(s, &cdiDeviceInstance)
+}
+
+// normalizeDeviceID ensures that the specified deviceID is a fully-qualified
+// CDI device name.
+// If the deviceID is already a fully-qualified CDI device name it is returned
+// as-is, otherwise, the defailt CDI device kind (vendor/class) is used to
+// construct a fully qualified CDI device name.
+func (i *cdiDeviceInjector) normalizeDeviceID(deviceID string) string {
+	// TODO: We should ideally use the parser from the tags.cncf.io/cdi packages.
+	parts := strings.SplitN(deviceID, "=", 2)
+	if len(parts) == 2 {
+		return deviceID
+	}
+
+	return i.defaultCDIDeviceKind + "=" + deviceID
 }
