@@ -13,6 +13,9 @@ import (
 )
 
 func (n *network) AddEndpoint(ctx context.Context, epIPv4, epIPv6 netip.Addr) error {
+	if n.fw.cleaner != nil {
+		n.fw.cleaner.DelEndpoint(ctx, n.config, epIPv4, epIPv6)
+	}
 	return n.modEndpoint(ctx, epIPv4, epIPv6, true)
 }
 
