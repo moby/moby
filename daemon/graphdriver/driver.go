@@ -121,13 +121,6 @@ func Register(name string, initFunc InitFunc) error {
 	return nil
 }
 
-// GetDriver initializes and returns the registered driver.
-//
-// Deprecated: this function was exported for (integration-)tests, but no longer used, and will be removed in the next release.
-func GetDriver(name string, config Options) (Driver, error) {
-	return getDriver(name, config)
-}
-
 // getDriver initializes and returns the registered driver.
 func getDriver(name string, config Options) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
