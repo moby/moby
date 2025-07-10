@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/scope"
+	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
@@ -488,6 +489,12 @@ func setupDaemonRoot(config *config.Config, rootDir string, uid, gid int) error 
 	if err := system.MkdirAllWithACL(config.Root, 0, system.SddlAdministratorsLocalSystem); err != nil {
 		return err
 	}
+	// make sure the config.Root is a full path, not a symlink
+	realRoot, err := fileutils.ReadSymlinkedDirectory(config.Root)
+	if err != nil {
+		return fmt.Errorf("Unable to get the full path to root (%s): %s", config.Root, err)
+	}
+	config.Root = realRoot
 	return nil
 }
 
