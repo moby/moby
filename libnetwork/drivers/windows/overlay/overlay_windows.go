@@ -18,6 +18,8 @@ const (
 	NetworkType = "overlay"
 )
 
+var _ driverapi.TableWatcher = (*driver)(nil)
+
 type driver struct {
 	networks networkTable
 	sync.Mutex
