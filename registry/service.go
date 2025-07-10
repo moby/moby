@@ -142,7 +142,6 @@ type APIEndpoint struct {
 	Mirror                         bool
 	URL                            *url.URL
 	AllowNondistributableArtifacts bool // Deprecated: non-distributable artifacts are deprecated and enabled by default. This field will be removed in the next release.
-	Official                       bool // Deprecated: this field was only used internally, and will be removed in the next release.
 	TLSConfig                      *tls.Config
 }
 
