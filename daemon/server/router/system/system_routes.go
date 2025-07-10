@@ -382,12 +382,12 @@ func (s *systemRouter) postAuth(ctx context.Context, w http.ResponseWriter, r *h
 	if err != nil {
 		return err
 	}
-	status, token, err := s.backend.AuthenticateToRegistry(ctx, config)
+	token, err := s.backend.AuthenticateToRegistry(ctx, config)
 	if err != nil {
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, &registry.AuthenticateOKBody{
-		Status:        status,
+		Status:        "Login Succeeded",
 		IdentityToken: token,
 	})
 }

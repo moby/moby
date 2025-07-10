@@ -33,7 +33,7 @@ type Backend interface {
 	SystemDiskUsage(ctx context.Context, opts DiskUsageOptions) (*system.DiskUsage, error)
 	SubscribeToEvents(since, until time.Time, ef filters.Args) ([]events.Message, chan interface{})
 	UnsubscribeFromEvents(chan interface{})
-	AuthenticateToRegistry(ctx context.Context, authConfig *registry.AuthConfig) (string, string, error)
+	AuthenticateToRegistry(ctx context.Context, authConfig *registry.AuthConfig) (string, error)
 }
 
 // ClusterBackend is all the methods that need to be implemented
