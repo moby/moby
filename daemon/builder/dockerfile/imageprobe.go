@@ -5,7 +5,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/builder"
+	"github.com/docker/docker/daemon/builder"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
