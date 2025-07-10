@@ -298,7 +298,7 @@ func (s *DockerCLILogsSuite) TestLogsFollowGoroutinesWithStdout(c *testing.T) {
 	assert.NilError(c, err)
 
 	id := strings.TrimSpace(out)
-	assert.NilError(c, d.WaitRun(id))
+	cli.WaitRun(c, id)
 
 	client := d.NewClientT(c)
 	nroutines := waitForStableGoroutineCount(ctx, c, client)
@@ -354,7 +354,7 @@ func (s *DockerCLILogsSuite) TestLogsFollowGoroutinesNoOutput(c *testing.T) {
 	out, err := d.Cmd("run", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 2; done")
 	assert.NilError(c, err)
 	id := strings.TrimSpace(out)
-	assert.NilError(c, d.WaitRun(id))
+	cli.WaitRun(c, id)
 
 	client := d.NewClientT(c)
 	nroutines := waitForStableGoroutineCount(ctx, c, client)
