@@ -2,7 +2,8 @@ package daemon
 
 import (
 	"context"
-	"fmt"
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"sort"
@@ -257,7 +258,11 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 				StorageOpt: container.HostConfig.StorageOpt,
 			}
 
-			layerName := fmt.Sprintf("%s-%s", container.ID, mp.Source)
+			// Include the destination in the layer name to make it unique for each mount point and container.
+			// This makes sure that the same image can be mounted multiple times with different destinations.
+			// Hash the destination to create a safe, unique identifier
+			destHash := sha256.Sum256([]byte(container.ID + "src=" + mp.Source + "dst=" + mp.Destination))
+			layerName := hex.EncodeToString(destHash[:])
 			layer, err := daemon.imageService.CreateLayerFromImage(img, layerName, rwLayerOpts)
 			if err != nil {
 				return err
