@@ -394,25 +394,6 @@ func GetAuthConfigKey(index *registry.IndexInfo) string {
 	return index.Name
 }
 
-// newRepositoryInfo validates and breaks down a repository name into a RepositoryInfo
-func newRepositoryInfo(config *serviceConfig, name reference.Named) *RepositoryInfo {
-	index := newIndexInfo(config, reference.Domain(name))
-	var officialRepo bool
-	if index.Official {
-		// RepositoryInfo.Official indicates whether the image repository
-		// is an official (docker library official images) repository.
-		//
-		// We only need to check this if the image-repository is on Docker Hub.
-		officialRepo = !strings.ContainsRune(reference.FamiliarName(name), '/')
-	}
-
-	return &RepositoryInfo{
-		Name:     reference.TrimNamed(name),
-		Index:    index,
-		Official: officialRepo,
-	}
-}
-
 // ParseRepositoryInfo performs the breakdown of a repository name into a
 // [RepositoryInfo], but lacks registry configuration.
 //

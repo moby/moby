@@ -108,17 +108,6 @@ func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, use
 	return "", "", lastErr
 }
 
-// ResolveRepository splits a repository name into its components
-// and configuration of the associated registry.
-//
-// Deprecated: this function was only used internally and is no longer used. It will be removed in the next release.
-func (s *Service) ResolveRepository(name reference.Named) (*RepositoryInfo, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	// TODO(thaJeztah): remove error return as it's no longer used.
-	return newRepositoryInfo(s.config, name), nil
-}
-
 // ResolveAuthConfig looks up authentication for the given reference from the
 // given authConfigs.
 //
