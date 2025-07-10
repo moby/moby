@@ -28,6 +28,7 @@ type CreateOpt func(*Config)
 type Config struct {
 	*types.PluginConfig
 	binPath        string
+	csiPlugin      bool
 	RegistryConfig registrypkg.ServiceOptions
 }
 
@@ -43,6 +44,13 @@ func WithInsecureRegistry(url string) CreateOpt {
 func WithBinary(bin string) CreateOpt {
 	return func(cfg *Config) {
 		cfg.binPath = bin
+	}
+}
+
+// WithCSI specifies that the "csi" plugin will be used instead of "basic"
+func WithCSI() CreateOpt {
+	return func(cfg *Config) {
+		cfg.csiPlugin = true
 	}
 }
 
@@ -152,8 +160,22 @@ func makePluginBundle(inPath string, opts ...CreateOpt) (io.ReadCloser, error) {
 	for _, o := range opts {
 		o(cfg)
 	}
+	variant := "basic"
+	if cfg.csiPlugin {
+		variant = "csi"
+		p.Interface = types.PluginConfigInterface{
+			Socket: "csi.sock",
+			Types: []types.PluginInterfaceType{
+				{Capability: "csicontroller", Prefix: "docker", Version: "1.0"},
+				{Capability: "csinode", Prefix: "docker", Version: "1.0"},
+			},
+		}
+		p.Entrypoint = []string{"/csi"}
+		p.PropagatedMount = "/data/published"
+	}
+	cfg.PluginConfig = p
 	if cfg.binPath == "" {
-		binPath, err := ensureBasicPluginBin()
+		binPath, err := ensureBasicPluginBin(variant)
 		if err != nil {
 			return nil, err
 		}
@@ -209,8 +231,8 @@ func makePluginBundle(inPath string, opts ...CreateOpt) (io.ReadCloser, error) {
 	return tar, errors.Wrap(err, "error making plugin archive")
 }
 
-func ensureBasicPluginBin() (string, error) {
-	name := "docker-basic-plugin"
+func ensureBasicPluginBin(variant string) (string, error) {
+	name := "docker-" + variant + "-plugin"
 	p, err := exec.LookPath(name)
 	if err == nil {
 		return p, nil
@@ -221,11 +243,11 @@ func ensureBasicPluginBin() (string, error) {
 		return "", err
 	}
 	installPath := filepath.Join(os.Getenv("GOPATH"), "bin", name)
-	sourcePath := filepath.Join("github.com", "docker", "docker", "testutil", "fixtures", "plugin", "basic")
+	sourcePath := filepath.Join("github.com", "docker", "docker", "testutil", "fixtures", "plugin", variant)
 	cmd := exec.Command(goBin, "build", "-o", installPath, sourcePath)
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GO111MODULE=off")
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", errors.Wrapf(err, "error building basic plugin bin: %s", string(out))
+		return "", errors.Wrapf(err, "error building "+variant+" plugin bin: %s", string(out))
 	}
 	return installPath, nil
 }
