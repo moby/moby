@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/docker/docker/daemon/volume"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
-	"github.com/docker/docker/volume"
 )
 
 // NoopVolume is a volume that doesn't perform any operation

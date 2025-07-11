@@ -9,9 +9,9 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/filters"
 	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/daemon/internal/directory"
+	"github.com/docker/docker/daemon/volume"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/internal/directory"
-	"github.com/docker/docker/volume"
 )
 
 // convertOpts are used to pass options to `volumeToAPI`

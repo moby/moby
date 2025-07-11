@@ -9,14 +9,14 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/daemon/internal/directory"
+	"github.com/docker/docker/daemon/volume"
+	"github.com/docker/docker/daemon/volume/drivers"
+	"github.com/docker/docker/daemon/volume/service/opts"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/internal/directory"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/volume"
-	"github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/service/opts"
 	"github.com/pkg/errors"
 )
 
