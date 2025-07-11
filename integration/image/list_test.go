@@ -13,12 +13,10 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
-	buildImage "github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
-	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
@@ -314,30 +312,4 @@ func TestAPIImagesListManifests(t *testing.T) {
 			assert.Check(t, is.DeepEqual(mfst.ImageData.Containers, []string{cid}))
 		}
 	}
-}
-
-func TestAPIImagesHistory(t *testing.T) {
-	ctx := setupTest(t)
-
-	client := testEnv.APIClient()
-
-	dockerfile := "FROM busybox\nENV FOO bar"
-
-	imgID := buildImage.Do(ctx, t, client, fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile)))
-
-	historydata, err := client.ImageHistory(ctx, imgID)
-
-	assert.NilError(t, err)
-
-	assert.Assert(t, len(historydata) != 0)
-
-	var found bool
-	for _, imageLayer := range historydata {
-		if imageLayer.ID == imgID {
-			found = true
-			break
-		}
-	}
-
-	assert.Assert(t, found)
 }
