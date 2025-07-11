@@ -1,6 +1,7 @@
 package portmapper
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -8,9 +9,11 @@ import (
 	"os/exec"
 	"runtime"
 	"strconv"
+	"sync/atomic"
 	"syscall"
 	"time"
 
+	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -68,6 +71,7 @@ func StartProxy(pb types.PortBinding,
 	// proxy from getting terminated early. See https://go.dev/issue/27505
 	// for more details.
 	started := make(chan error)
+	var stopped atomic.Bool
 	go func() {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
@@ -76,7 +80,17 @@ func StartProxy(pb types.PortBinding,
 		if err != nil {
 			return
 		}
-		wait <- cmd.Wait()
+		err = cmd.Wait()
+		if !stopped.Load() {
+			log.G(context.Background()).WithFields(log.Fields{
+				"proto":          pb.Proto,
+				"host-ip":        pb.HostIP,
+				"host-port":      pb.HostPort,
+				"container-ip":   pb.IP,
+				"container-port": pb.Port,
+			}).Info("Userland proxy exited early (this is expected during daemon shutdown)")
+		}
+		wait <- err
 	}()
 	if err := <-started; err != nil {
 		return nil, err
@@ -120,6 +134,7 @@ func StartProxy(pb types.PortBinding,
 		if cmd.Process == nil {
 			return nil
 		}
+		stopped.Store(true)
 		if err := cmd.Process.Signal(os.Interrupt); err != nil {
 			return err
 		}
