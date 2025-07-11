@@ -26,6 +26,12 @@ type Health struct {
 	Log           []*HealthcheckResult // Log contains the last few results (oldest first)
 }
 
+// HealthSummary stores a summary of the container's healthcheck results.
+type HealthSummary struct {
+	Status        HealthStatus // Status is one of [NoHealthcheck], [Starting], [Healthy] or [Unhealthy].
+	FailingStreak int          // FailingStreak is the number of consecutive failures
+}
+
 // HealthcheckResult stores information about a single run of a healthcheck probe
 type HealthcheckResult struct {
 	Start    time.Time // Start is the time this check started
