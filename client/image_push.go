@@ -51,10 +51,18 @@ func (cli *Client) ImagePush(ctx context.Context, image string, options image.Pu
 		query.Set("platform", string(pJson))
 	}
 
-	resp, err := cli.tryImagePush(ctx, ref.Name(), query, staticAuth(options.RegistryAuth))
-	if cerrdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
-		resp, err = cli.tryImagePush(ctx, ref.Name(), query, options.PrivilegeFunc)
-	}
+	// PrivilegeFunc was added in [18472] as an alternative to passing static
+	// authentication. The default was still to try the static authentication
+	// before calling the PrivilegeFunc (if present).
+	//
+	// For now, we need to keep this behavior, as PrivilegeFunc may be an
+	// interactive prompt, however, we should change this to only use static
+	// auth if not empty. Ultimately, we should deprecate its use in favor of
+	// callers providing a PrivilegeFunc (which can be chained), or a list of
+	// PrivilegeFuncs.
+	//
+	// [18472]: https://github.com/moby/moby/commit/e78f02c4dbc3cada909c114fef6b6643969ab912
+	resp, err := cli.tryImagePush(ctx, ref.Name(), query, ChainPrivilegeFuncs(staticAuth(options.RegistryAuth), options.PrivilegeFunc))
 	if err != nil {
 		return nil, err
 	}
@@ -63,14 +71,38 @@ func (cli *Client) ImagePush(ctx context.Context, image string, options image.Pu
 
 func (cli *Client) tryImagePush(ctx context.Context, imageID string, query url.Values, resolveAuth registry.RequestAuthConfig) (*http.Response, error) {
 	hdr := http.Header{}
-	if resolveAuth != nil {
-		registryAuth, err := resolveAuth(ctx)
+	var lastErr error
+	for {
+		registryAuth, tryNext, err := getAuth(ctx, resolveAuth)
 		if err != nil {
+			// TODO(thaJeztah): should we return an "unauthorised error" here to allow the caller to try other options?
+			if errors.Is(err, errNoMorePrivilegeFuncs) && lastErr != nil {
+				return nil, lastErr
+			}
 			return nil, err
 		}
 		if registryAuth != "" {
 			hdr.Set(registry.AuthHeader, registryAuth)
 		}
+		resp, err := cli.post(ctx, "/images/"+imageID+"/push", query, nil, hdr)
+		if err == nil {
+			// Discard previous errors
+			return resp, nil
+		} else {
+			if IsErrConnectionFailed(err) {
+				// Don't retry if we failed to connect to the API.
+				return nil, err
+			}
+
+			// TODO(thaJeztah); only retry with "IsUnauthorized" and/or "rate limit (StatusTooManyRequests)" errors?
+			if !cerrdefs.IsUnauthorized(err) {
+				return nil, err
+			}
+
+			lastErr = err
+		}
+		if !tryNext {
+			return nil, lastErr
+		}
 	}
-	return cli.post(ctx, "/images/"+imageID+"/push", query, nil, hdr)
 }
