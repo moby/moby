@@ -19,7 +19,7 @@ import (
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
-	"github.com/docker/docker/libnetwork/scope"
+	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/go-connections/nat"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/swarmkit/v2/agent/exec"
