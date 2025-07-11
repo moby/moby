@@ -58,14 +58,6 @@ type State struct {
 	task libcontainerdtypes.Task
 }
 
-// StateStatus is used to return container wait results.
-// Implements exec.ExitCode interface.
-// This type is needed as State include a sync.Mutex field which make
-// copying it unsafe.
-//
-// Deprecated: use [container.StateStatus] instead.
-type StateStatus = container.StateStatus
-
 // NewState creates a default state object.
 func NewState() *State {
 	return &State{}
@@ -107,14 +99,6 @@ func (s *State) String() string {
 	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCodeValue, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 }
 
-// IsValidHealthString checks if the provided string is a valid
-// [container.HealthStatus].
-//
-// Deprecated: use [container.ValidateHealthStatus] and check for nil-errors.
-func IsValidHealthString(s string) bool {
-	return container.ValidateHealthStatus(s) == nil
-}
-
 // StateString returns the container's current [ContainerState], based on the
 // [State.Running], [State.Paused], [State.Restarting], [State.RemovalInProgress],
 // [State.StartedAt] and [State.Dead] fields.
@@ -145,27 +129,6 @@ func (s *State) StateString() container.ContainerState {
 
 	return container.StateExited
 }
-
-// IsValidStateString checks if the provided string is a valid container state.
-//
-// Deprecated: use [container.ValidateContainerState] instead.
-func IsValidStateString(s container.ContainerState) bool {
-	return container.ValidateContainerState(s) == nil
-}
-
-// WaitCondition is an enum type for different states to wait for.
-//
-// Deprecated: use [container.WaitCondition] instead.
-type WaitCondition = container.WaitCondition
-
-const (
-	// Deprecated: use [container.WaitConditionNotRunning] instead.
-	WaitConditionNotRunning = container.WaitConditionNotRunning
-	// Deprecated: use [container.WaitConditionNextExit] instead.
-	WaitConditionNextExit = container.WaitConditionNextExit
-	// Deprecated: use [container.WaitConditionRemoved] instead.
-	WaitConditionRemoved = container.WaitConditionRemoved
-)
 
 // Wait waits until the container is in a certain state indicated by the given
 // condition. A context must be used for cancelling the request, controlling
