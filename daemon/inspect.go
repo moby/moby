@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
 	"time"
 
 	containertypes "github.com/moby/moby/api/types/container"
@@ -207,24 +208,37 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, err
 
 	e.Lock()
 	defer e.Unlock()
-	pc := inspectExecProcessConfig(e)
 	var pid int
 	if e.Process != nil {
 		pid = int(e.Process.Pid())
 	}
+	var privileged *bool
+	if runtime.GOOS != "windows" || e.Privileged {
+		// Privileged is not used on Windows, so should always be false
+		// (and omitted in the response), but set it if it happened to
+		// be true. On non-Windows, we always set it, and the field should
+		// not be omitted.
+		privileged = &e.Privileged
+	}
 
 	return &backend.ExecInspect{
-		ID:            e.ID,
-		Running:       e.Running,
-		ExitCode:      e.ExitCode,
-		ProcessConfig: pc,
-		OpenStdin:     e.OpenStdin,
-		OpenStdout:    e.OpenStdout,
-		OpenStderr:    e.OpenStderr,
-		CanRemove:     e.CanRemove,
-		ContainerID:   e.Container.ID,
-		DetachKeys:    e.DetachKeys,
-		Pid:           pid,
+		ID:       e.ID,
+		Running:  e.Running,
+		ExitCode: e.ExitCode,
+		ProcessConfig: &backend.ExecProcessConfig{
+			Tty:        e.Tty,
+			Entrypoint: e.Entrypoint,
+			Arguments:  e.Args,
+			Privileged: privileged, // Privileged is not used on Windows
+			User:       e.User,     // User is not used on Windows
+		},
+		OpenStdin:   e.OpenStdin,
+		OpenStdout:  e.OpenStdout,
+		OpenStderr:  e.OpenStderr,
+		CanRemove:   e.CanRemove,
+		ContainerID: e.Container.ID,
+		DetachKeys:  e.DetachKeys,
+		Pid:         pid,
 	}, nil
 }
 
