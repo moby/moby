@@ -799,7 +799,7 @@ func releasePortBindings(pbs []portBinding, fwn firewaller.Network) error {
 			}
 		}
 		if pb.stopProxy != nil {
-			if err := pb.stopProxy(); err != nil {
+			if err := pb.stopProxy(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 				errs = append(errs, fmt.Errorf("failed to stop userland proxy for port mapping %s: %w", pb, err))
 			}
 		}
