@@ -73,7 +73,7 @@ func TestPortMappingConfig(t *testing.T) {
 		t.Fatalf("Failed to join the endpoint: %v", err)
 	}
 
-	if err = d.ProgramExternalConnectivity(context.Background(), "dummy", "ep1", sbOptions, "ep1", ""); err != nil {
+	if err = d.ProgramExternalConnectivity(context.Background(), "dummy", "ep1", "ep1", ""); err != nil {
 		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
 
@@ -102,7 +102,7 @@ func TestPortMappingConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = d.RevokeExternalConnectivity("dummy", "ep1")
+	err = d.ProgramExternalConnectivity(context.Background(), "dummy", "ep1", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +159,7 @@ func TestPortMappingV6Config(t *testing.T) {
 		t.Fatalf("Failed to join the endpoint: %v", err)
 	}
 
-	if err = d.ProgramExternalConnectivity(context.Background(), "dummy", "ep1", sbOptions, "ep1", ""); err != nil {
+	if err = d.ProgramExternalConnectivity(context.Background(), "dummy", "ep1", "ep1", "ep1"); err != nil {
 		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
 
@@ -178,7 +178,7 @@ func TestPortMappingV6Config(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = d.RevokeExternalConnectivity("dummy", "ep1")
+	err = d.ProgramExternalConnectivity(context.Background(), "dummy", "ep1", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

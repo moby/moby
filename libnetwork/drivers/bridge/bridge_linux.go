@@ -1,3 +1,6 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.23
+
 package bridge
 
 import (
@@ -6,6 +9,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -30,6 +34,7 @@ import (
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
@@ -1442,6 +1447,10 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	if err != nil {
 		return err
 	}
+	endpoint.extConnConfig, err = parseConnectivityOptions(sbOpts)
+	if err != nil {
+		return err
+	}
 
 	iNames := jinfo.InterfaceName()
 	containerVethPrefix := defaultContainerVethPrefix
@@ -1459,6 +1468,10 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 		if err := jinfo.SetGatewayIPv6(network.bridge.gatewayIPv6); err != nil {
 			return err
 		}
+	}
+
+	if !network.config.EnableICC {
+		return d.link(network, endpoint, true)
 	}
 
 	return nil
@@ -1494,7 +1507,7 @@ type portBindingMode struct {
 	ipv6 bool
 }
 
-func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid string, options map[string]interface{}, gw4Id, gw6Id string) error {
+func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid string, gw4Id, gw6Id string) (retErr error) {
 	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".ProgramExternalConnectivity", trace.WithAttributes(
 		attribute.String("nid", nid),
 		attribute.String("eid", eid),
@@ -1521,11 +1534,6 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 		return endpointNotFoundError(eid)
 	}
 
-	endpoint.extConnConfig, err = parseConnectivityOptions(options)
-	if err != nil {
-		return err
-	}
-
 	var pbmReq portBindingMode
 	// Act as the IPv4 gateway if explicitly selected.
 	if gw4Id == eid {
@@ -1538,29 +1546,30 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 		pbmReq.ipv6 = true
 	}
 
-	// Program any required port mapping and store them in the endpoint
-	if endpoint.extConnConfig != nil && endpoint.extConnConfig.PortBindings != nil {
-		endpoint.portMapping, err = network.addPortMappings(
-			ctx,
-			endpoint,
-			endpoint.extConnConfig.PortBindings,
-			network.config.DefaultBindingIP,
-			pbmReq,
-		)
+	// If no change is needed, return.
+	if endpoint.portBindingState == pbmReq {
+		return nil
+	}
+
+	// Remove port bindings that aren't needed due to a change in mode.
+	undoTrim, err := endpoint.trimPortBindings(ctx, network, pbmReq)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if retErr != nil && undoTrim != nil {
+			endpoint.portMapping = append(endpoint.portMapping, undoTrim()...)
+		}
+	}()
+
+	// Set up new port bindings, and store them in the endpoint.
+	if (pbmReq.ipv4 || pbmReq.ipv6) && endpoint.extConnConfig != nil && endpoint.extConnConfig.PortBindings != nil {
+		newPMs, err := network.addPortMappings(ctx, endpoint, endpoint.extConnConfig.PortBindings, network.config.DefaultBindingIP, pbmReq)
 		if err != nil {
 			return err
 		}
+		endpoint.portMapping = append(endpoint.portMapping, newPMs...)
 	}
-
-	defer func() {
-		if err != nil {
-			if e := network.releasePorts(endpoint); e != nil {
-				log.G(ctx).Errorf("Failed to release ports allocated for the bridge endpoint %s on failure %v because of %v",
-					eid, err, e)
-			}
-			endpoint.portMapping = nil
-		}
-	}()
 
 	// Remember the new port binding state.
 	endpoint.portBindingState = pbmReq
@@ -1573,50 +1582,62 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 		return fmt.Errorf("failed to update bridge endpoint %.7s to store: %v", endpoint.id, err)
 	}
 
-	if !network.config.EnableICC {
-		return d.link(network, endpoint, true)
-	}
-
 	return nil
 }
 
-func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
-	// Make sure this function isn't deleting iptables rules while handleFirewalldReloadNw
-	// is restoring those same rules.
-	d.configNetwork.Lock()
-	defer d.configNetwork.Unlock()
-
-	network, err := d.getNetwork(nid)
-	if err != nil {
-		return err
+// trimPortBindings compares pbmReq with the current port bindings, and removes
+// port bindings that are no longer required.
+//
+// ep.portMapping is updated when bindings are removed.
+func (ep *bridgeEndpoint) trimPortBindings(ctx context.Context, n *bridgeNetwork, pbmReq portBindingMode) (func() []portBinding, error) {
+	// If the endpoint is the gateway for IPv4 and IPv6, there's nothing to drop.
+	if pbmReq.ipv4 && pbmReq.ipv6 {
+		return nil, nil
 	}
 
-	endpoint, err := network.getEndpoint(eid)
-	if err != nil {
-		return err
+	toDrop := make([]portBinding, 0, len(ep.portMapping))
+	toKeep := slices.DeleteFunc(ep.portMapping, func(pb portBinding) bool {
+		is4 := pb.HostIP.To4() != nil
+		if (is4 && !pbmReq.ipv4) || (!is4 && !pbmReq.ipv6) {
+			toDrop = append(toDrop, pb)
+			return true
+		}
+		return false
+	})
+	if len(toDrop) == 0 {
+		return nil, nil
 	}
 
-	if endpoint == nil {
-		return endpointNotFoundError(eid)
+	if err := releasePortBindings(toDrop, n.firewallerNetwork); err != nil {
+		log.G(ctx).WithFields(log.Fields{
+			"error": err,
+			"gw4":   pbmReq.ipv4,
+			"gw6":   pbmReq.ipv6,
+			"nid":   stringid.TruncateID(n.id),
+			"eid":   stringid.TruncateID(ep.id),
+		}).Error("Failed to release port bindings")
+		return nil, err
+	}
+	ep.portMapping = toKeep
+
+	undo := func() []portBinding {
+		pbReq := make([]types.PortBinding, 0, len(toDrop))
+		for _, pb := range toDrop {
+			pbReq = append(pbReq, pb.PortBinding)
+		}
+		pbs, err := n.addPortMappings(ctx, ep, pbReq, n.config.DefaultBindingIP, ep.portBindingState)
+		if err != nil {
+			log.G(ctx).WithFields(log.Fields{
+				"error": err,
+				"nid":   stringid.TruncateID(n.id),
+				"eid":   stringid.TruncateID(ep.id),
+			}).Error("Failed to restore port bindings following join failure")
+			return nil
+		}
+		return pbs
 	}
 
-	err = network.releasePorts(endpoint)
-	if err != nil {
-		log.G(context.TODO()).Warn(err)
-	}
-
-	endpoint.portMapping = nil
-
-	// Clean the connection tracker state of the host for the specific endpoint. This is a precautionary measure to
-	// avoid new endpoints getting the same IP address to receive unexpected packets due to bad conntrack state leading
-	// to bad NATing.
-	clearConntrackEntries(d.nlh, endpoint)
-
-	if err = d.storeUpdate(context.TODO(), endpoint); err != nil {
-		return fmt.Errorf("failed to update bridge endpoint %.7s to store: %v", endpoint.id, err)
-	}
-
-	return nil
+	return undo, nil
 }
 
 // clearConntrackEntries flushes conntrack entries matching endpoint IP address
@@ -1677,8 +1698,8 @@ func (d *driver) handleFirewalldReloadNw(nid string) {
 		return
 	}
 
-	// Make sure the network isn't being deleted, and ProgramExternalConnectivity/RevokeExternalConnectivity
-	// aren't modifying iptables rules, while restoring the rules.
+	// Make sure the network isn't being deleted, and ProgramExternalConnectivity
+	// isn't modifying iptables rules, while restoring the rules.
 	d.configNetwork.Lock()
 	defer d.configNetwork.Unlock()
 

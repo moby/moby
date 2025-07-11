@@ -81,13 +81,19 @@ type Driver interface {
 
 // ExtConner is an optional interface for a network driver.
 type ExtConner interface {
-	// ProgramExternalConnectivity invokes the driver method which does the necessary
-	// programming to allow the external connectivity dictated by the passed options
-	ProgramExternalConnectivity(ctx context.Context, nid, eid string, options map[string]interface{}, gw4Id, gw6Id string) error
-
-	// RevokeExternalConnectivity asks the driver to remove any external connectivity
-	// programming that was done so far
-	RevokeExternalConnectivity(nid, eid string) error
+	// ProgramExternalConnectivity tells the driver the ids of the endpoints
+	// currently acting as the container's default gateway for IPv4 and IPv6,
+	// passed as gw4Id/gw6Id. (Those endpoints may be managed by different network
+	// drivers. If there is no gateway, the id will be the empty string.)
+	//
+	// This method is called after Driver.Join, before Driver.Leave, and when eid
+	// is or was equal to gw4Id or gw6Id, and there's a change. It may also be
+	// called when the gateways have not changed.
+	//
+	// When an endpoint acting as a gateway is deleted, this function is called
+	// with that endpoint's id in eid, and empty gateway ids (even if another
+	// is present and will shortly be selected as the gateway).
+	ProgramExternalConnectivity(ctx context.Context, nid, eid string, gw4Id, gw6Id string) error
 }
 
 // GwAllocChecker is an optional interface for a network driver.

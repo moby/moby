@@ -1,8 +1,12 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.23
+
 package remote
 
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net"
 	"sync"
 
@@ -30,8 +34,10 @@ type driver struct {
 	nwEndpointsMu  sync.Mutex
 }
 
+// State info for an endpoint.
 type nwEndpoint struct {
-	isGateway4 bool
+	sbOptions  map[string]any // Sandbox (container) options, from Join.
+	isGateway4 bool           // Whether ProgramExternalConnectivity reported that this ep is a gateway.
 	isGateway6 bool
 }
 
@@ -352,7 +358,7 @@ func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo 
 
 	d.nwEndpointsMu.Lock()
 	defer d.nwEndpointsMu.Unlock()
-	d.nwEndpoints[eid] = &nwEndpoint{}
+	d.nwEndpoints[eid] = &nwEndpoint{sbOptions: options}
 	return nil
 }
 
@@ -372,7 +378,7 @@ func (d *driver) Leave(nid, eid string) error {
 }
 
 // ProgramExternalConnectivity is invoked to program the rules to allow external connectivity for the endpoint.
-func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string, options map[string]interface{}, gw4Id, gw6Id string) error {
+func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string, gw4Id, gw6Id string) error {
 	d.nwEndpointsMu.Lock()
 	ep, ok := d.nwEndpoints[eid]
 	d.nwEndpointsMu.Unlock()
@@ -384,9 +390,10 @@ func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string,
 		return nil
 	}
 	if !isGw4 && !isGw6 {
-		return nil
+		return d.revokeExternalConnectivity(nid, eid)
 	}
 	ep.isGateway4, ep.isGateway6 = isGw4, isGw6
+	options := ep.sbOptions
 	if !isGw6 && gw6Id != "" {
 		// If there is an IPv6 gateway, but it's not eid, set NoProxy6To4. This label was
 		// used to tell the bridge driver not to try to use the userland proxy for dual
@@ -395,6 +402,7 @@ func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string,
 		// remote driver, marked as being for internal use and subject to later removal.
 		// But, preserve it here for now as there's no other way for a remote driver to
 		// know it shouldn't try to deal with IPv6 in this case.
+		options = maps.Clone(ep.sbOptions)
 		options[netlabel.NoProxy6To4] = true
 	}
 	data := &api.ProgramExternalConnectivityRequest{
@@ -410,9 +418,8 @@ func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string,
 	return err
 }
 
-// RevokeExternalConnectivity method is invoked to remove any external connectivity programming related to the endpoint.
-func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
-	d.nwEndpointsMu.Lock()
+// revokeExternalConnectivity method is invoked to remove any external connectivity programming related to the endpoint.
+func (d *driver) revokeExternalConnectivity(nid, eid string) error {
 	ep, ok := d.nwEndpoints[eid]
 	d.nwEndpointsMu.Unlock()
 	if !ok {
