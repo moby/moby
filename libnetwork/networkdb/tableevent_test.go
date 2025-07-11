@@ -46,7 +46,7 @@ func TestWatch_out_of_order(t *testing.T) {
 
 	got := drainChannel(watch.C)
 	assert.Check(t, is.DeepEqual(got, []events.Event{
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "key1", Value: []byte("value1")}),
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Value: []byte("value1")},
 	}))
 
 	// Receive events from node1, with events not received or received out of order
@@ -77,17 +77,17 @@ func TestWatch_out_of_order(t *testing.T) {
 
 	got = drainChannel(watch.C)
 	assert.Check(t, is.DeepEqual(got, []events.Event{
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "key2", Value: []byte("a")}),
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key2", Value: []byte("a")},
 		// Delete value should match last observed value,
 		// irrespective of the content of the delete event over the wire.
-		DeleteEvent(event{Table: "table1", NetworkID: "network1", Key: "key2", Value: []byte("a")}),
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key2", Prev: []byte("a")},
 		// Updates to previously-deleted keys should be observed as creates.
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "key2", Value: []byte("d")}),
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key2", Value: []byte("d")},
 
 		// Out-of-order update events should be observed as creates.
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "key3", Value: []byte("b")}),
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "key4", Value: []byte("b")}),
-		UpdateEvent(event{Table: "table1", NetworkID: "network1", Key: "key4", Value: []byte("c")}),
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key3", Value: []byte("b")},
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key4", Value: []byte("b")},
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key4", Prev: []byte("b"), Value: []byte("c")},
 
 		// key5 should not appear in the events.
 	}))
@@ -197,30 +197,30 @@ L:
 	}
 
 	assert.Check(t, is.DeepEqual(gotAll, []events.Event{
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "network1.table1", Value: []byte("a")}),
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "network1.table1.update", Value: []byte("updated")}),
-		CreateEvent(event{Table: "table2", NetworkID: "network1", Key: "network1.table2", Value: []byte("a")}),
-		CreateEvent(event{Table: "table2", NetworkID: "network1", Key: "network1.table2.update", Value: []byte("updated")}),
-		CreateEvent(event{Table: "table1", NetworkID: "network2", Key: "network2.table1", Value: []byte("a")}),
-		CreateEvent(event{Table: "table1", NetworkID: "network2", Key: "network2.table1.update", Value: []byte("updated")}),
-		CreateEvent(event{Table: "table2", NetworkID: "network2", Key: "network2.table2", Value: []byte("a")}),
-		CreateEvent(event{Table: "table2", NetworkID: "network2", Key: "network2.table2.update", Value: []byte("updated")}),
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "network1.table1", Value: []byte("a")},
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "network1.table1.update", Value: []byte("updated")},
+		WatchEvent{Table: "table2", NetworkID: "network1", Key: "network1.table2", Value: []byte("a")},
+		WatchEvent{Table: "table2", NetworkID: "network1", Key: "network1.table2.update", Value: []byte("updated")},
+		WatchEvent{Table: "table1", NetworkID: "network2", Key: "network2.table1", Value: []byte("a")},
+		WatchEvent{Table: "table1", NetworkID: "network2", Key: "network2.table1.update", Value: []byte("updated")},
+		WatchEvent{Table: "table2", NetworkID: "network2", Key: "network2.table2", Value: []byte("a")},
+		WatchEvent{Table: "table2", NetworkID: "network2", Key: "network2.table2.update", Value: []byte("updated")},
 	}))
 	assert.Check(t, is.DeepEqual(gotNetwork1Tables, []events.Event{
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "network1.table1", Value: []byte("a")}),
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "network1.table1.update", Value: []byte("updated")}),
-		CreateEvent(event{Table: "table2", NetworkID: "network1", Key: "network1.table2", Value: []byte("a")}),
-		CreateEvent(event{Table: "table2", NetworkID: "network1", Key: "network1.table2.update", Value: []byte("updated")}),
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "network1.table1", Value: []byte("a")},
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "network1.table1.update", Value: []byte("updated")},
+		WatchEvent{Table: "table2", NetworkID: "network1", Key: "network1.table2", Value: []byte("a")},
+		WatchEvent{Table: "table2", NetworkID: "network1", Key: "network1.table2.update", Value: []byte("updated")},
 	}))
 	assert.Check(t, is.DeepEqual(gotTable1AllNetworks, []events.Event{
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "network1.table1", Value: []byte("a")}),
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "network1.table1.update", Value: []byte("updated")}),
-		CreateEvent(event{Table: "table1", NetworkID: "network2", Key: "network2.table1", Value: []byte("a")}),
-		CreateEvent(event{Table: "table1", NetworkID: "network2", Key: "network2.table1.update", Value: []byte("updated")}),
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "network1.table1", Value: []byte("a")},
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "network1.table1.update", Value: []byte("updated")},
+		WatchEvent{Table: "table1", NetworkID: "network2", Key: "network2.table1", Value: []byte("a")},
+		WatchEvent{Table: "table1", NetworkID: "network2", Key: "network2.table1.update", Value: []byte("updated")},
 	}))
 	assert.Check(t, is.DeepEqual(gotTable1Network1, []events.Event{
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "network1.table1", Value: []byte("a")}),
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "network1.table1.update", Value: []byte("updated")}),
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "network1.table1", Value: []byte("a")},
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "network1.table1.update", Value: []byte("updated")},
 	}))
 }
 
