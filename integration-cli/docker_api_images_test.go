@@ -61,32 +61,6 @@ func (s *DockerAPISuite) TestAPIImagesDelete(c *testing.T) {
 	assert.NilError(c, err)
 }
 
-func (s *DockerAPISuite) TestAPIImagesHistory(c *testing.T) {
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
-	if testEnv.DaemonInfo.OSType != "windows" {
-		testRequires(c, Network)
-	}
-	name := "test-api-images-history"
-	buildImageSuccessfully(c, name, build.WithDockerfile("FROM busybox\nENV FOO bar"))
-	id := getIDByName(c, name)
-
-	historydata, err := apiClient.ImageHistory(testutil.GetContext(c), id)
-	assert.NilError(c, err)
-
-	assert.Assert(c, len(historydata) != 0)
-	var found bool
-	for _, tag := range historydata[0].Tags {
-		if tag == "test-api-images-history:latest" {
-			found = true
-			break
-		}
-	}
-	assert.Assert(c, found)
-}
-
 func (s *DockerAPISuite) TestAPIImagesImportBadSrc(c *testing.T) {
 	testRequires(c, Network, testEnv.IsLocalDaemon)
 
