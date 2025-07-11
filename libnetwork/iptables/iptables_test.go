@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
 )
 
 const (
@@ -258,10 +259,7 @@ func TestExistsRaw(t *testing.T) {
 }
 
 func TestRule(t *testing.T) {
-	_ = firewalldInit()
-	if res, _ := UsingFirewalld(); res {
-		t.Skip("firewalld in host netns cannot create rules in the test's netns")
-	}
+	skip.If(t, UsingFirewalld(), "firewalld is running in the host netns, it can't modify rules in the test's netns")
 	defer netnsutils.SetupTestOSContext(t)()
 
 	assert.NilError(t, exec.Command("iptables", "-N", "TESTCHAIN").Run())
