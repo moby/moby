@@ -13,6 +13,8 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
+	"maps"
+	"math"
 	"net"
 	"net/netip"
 	"os"
@@ -43,7 +45,9 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
 	ctrd "github.com/docker/docker/daemon/containerd"
+	"github.com/docker/docker/daemon/containerd/migration"
 	"github.com/docker/docker/daemon/events"
+	"github.com/docker/docker/daemon/graphdriver"
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
 	"github.com/docker/docker/daemon/images"
 	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
@@ -206,15 +210,15 @@ func (daemon *Daemon) UsesSnapshotter() bool {
 	return daemon.usesSnapshotter
 }
 
-func (daemon *Daemon) restore(cfg *configStore) error {
+func (daemon *Daemon) loadContainers() (map[string]map[string]*container.Container, error) {
 	var mapLock sync.Mutex
-	containers := make(map[string]*container.Container)
+	driverContainers := make(map[string]map[string]*container.Container)
 
 	log.G(context.TODO()).Info("Loading containers: start.")
 
 	dir, err := os.ReadDir(daemon.repository)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// parallelLimit is the maximum number of parallel startup jobs that we
@@ -242,28 +246,38 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 				logger.WithError(err).Error("failed to load container")
 				return
 			}
-			if c.Driver != daemon.imageService.StorageDriver() {
-				// Ignore the container if it wasn't created with the current storage-driver
-				logger.Debugf("not restoring container because it was created with another storage driver (%s)", c.Driver)
-				return
-			}
-			rwlayer, err := daemon.imageService.GetLayerByID(c.ID)
-			if err != nil {
-				logger.WithError(err).Error("failed to load container mount")
-				return
-			}
-			c.RWLayer = rwlayer
-			logger.WithFields(log.Fields{
-				"running": c.IsRunning(),
-				"paused":  c.IsPaused(),
-			}).Debug("loaded container")
 
 			mapLock.Lock()
-			containers[c.ID] = c
+			if containers, ok := driverContainers[c.Driver]; !ok {
+				driverContainers[c.Driver] = map[string]*container.Container{
+					c.ID: c,
+				}
+			} else {
+				containers[c.ID] = c
+			}
 			mapLock.Unlock()
 		}(v.Name())
 	}
 	group.Wait()
+
+	return driverContainers, nil
+}
+
+func (daemon *Daemon) restore(cfg *configStore, containers map[string]*container.Container) error {
+	var mapLock sync.Mutex
+
+	log.G(context.TODO()).Info("Restoring containers: start.")
+
+	// parallelLimit is the maximum number of parallel startup jobs that we
+	// allow (this is the limited used for all startup semaphores). The multipler
+	// (128) was chosen after some fairly significant benchmarking -- don't change
+	// it unless you've tested it significantly (this value is adjusted if
+	// RLIMIT_NOFILE is small to avoid EMFILE).
+	parallelLimit := adjustParallelLimit(len(containers), 128*runtime.NumCPU())
+
+	// Re-used for all parallel startup jobs.
+	var group sync.WaitGroup
+	sem := semaphore.NewWeighted(int64(parallelLimit))
 
 	removeContainers := make(map[string]*container.Container)
 	restartContainers := make(map[*container.Container]chan struct{})
@@ -277,6 +291,17 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 			defer sem.Release(1)
 
 			logger := log.G(context.TODO()).WithField("container", c.ID)
+
+			rwlayer, err := daemon.imageService.GetLayerByID(c.ID)
+			if err != nil {
+				logger.WithError(err).Error("failed to load container mount")
+				return
+			}
+			c.RWLayer = rwlayer
+			logger.WithFields(log.Fields{
+				"running": c.IsRunning(),
+				"paused":  c.IsPaused(),
+			}).Debug("loaded container")
 
 			if err := daemon.registerName(c); err != nil {
 				logger.WithError(err).Errorf("failed to register container name: %s", c.Name)
@@ -527,7 +552,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 	//
 	// Note that we cannot initialize the network controller earlier, as it
 	// needs to know if there's active sandboxes (running containers).
-	if err = daemon.initNetworkController(&cfg.Config, activeSandboxes); err != nil {
+	if err := daemon.initNetworkController(&cfg.Config, activeSandboxes); err != nil {
 		return fmt.Errorf("Error initializing network controller: %v", err)
 	}
 
@@ -836,11 +861,24 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 	d.configStore.Store(cfgStore)
 
-	// TEST_INTEGRATION_USE_SNAPSHOTTER is used for integration tests only.
-	if os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != "" {
-		d.usesSnapshotter = true
-	} else {
-		d.usesSnapshotter = config.Features["containerd-snapshotter"]
+	migrationThreshold := int64(-1)
+	var tryGraphDriver func(string) bool = graphdriver.IsRegistered
+	if os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") != "" {
+		tryGraphDriver = func(driver string) bool {
+			if driver == "" || graphdriver.IsRegistered(driver) {
+				return true
+			}
+			log.G(ctx).WithField("driver", driver).Warn("TEST_INTEGRATION_USE_GRAPHDRIVER is set but graphdriver is not registered")
+			return false
+		}
+	}
+	if config.Features["containerd-migration"] {
+		// TODO: Allow setting the threshold
+		migrationThreshold = math.MaxInt64
+		log.G(ctx).WithField("max_size", migrationThreshold).Info("(Experimental) Migration to containerd is enabled, driver will be switched to snapshotter after migration is complete")
+	}
+	if config.Features["containerd-snapshotter"] {
+		log.G(ctx).Warn(`"containerd-snapshotter" is now the default and no longer needed to be set`)
 	}
 
 	// Ensure the daemon is properly shutdown if there is a failure during
@@ -1037,50 +1075,45 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	d.linkIndex = newLinkIndex()
 
-	// On Windows we don't support the environment variable, or a user supplied graphdriver
+	containers, err := d.loadContainers()
+	if err != nil {
+		return nil, err
+	}
+
+	// On Windows we don't support the environment variable, or a user supplied graphdriver,
+	// but it is allowed when using snapshotters.
 	// Unix platforms however run a single graphdriver for all containers, and it can
 	// be set through an environment variable, a daemon start parameter, or chosen through
 	// initialization of the layerstore through driver priority order for example.
 	driverName := os.Getenv("DOCKER_DRIVER")
-	if isWindows && d.UsesSnapshotter() {
-		// Containerd WCOW snapshotter
-		driverName = "windows"
-	} else if isWindows {
-		// Docker WCOW graphdriver
-		driverName = "windowsfilter"
+	if isWindows {
+		if driverName == "" {
+			driverName = cfgStore.GraphDriver
+		}
+		switch driverName {
+		case "windows":
+			// Docker WCOW snapshotters
+		case "windowsfilter":
+			// Docker WCOW graphdriver
+		case "":
+			// Use graph driver but enable migration
+			driverName = "windowsfilter"
+			if os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") == "" {
+				// Don't force migration if graph driver is explicit
+				migrationThreshold = 0
+			}
+		default:
+			log.G(ctx).Infof("Using non-default snapshotter %s", driverName)
+
+		}
 	} else if driverName != "" {
 		log.G(ctx).Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", driverName)
 	} else {
 		driverName = cfgStore.GraphDriver
 	}
 
-	if d.UsesSnapshotter() {
-		if os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != "" {
-			log.G(ctx).Warn("Enabling containerd snapshotter through the $TEST_INTEGRATION_USE_SNAPSHOTTER environment variable. This should only be used for testing.")
-		}
-		log.G(ctx).Info("Starting daemon with containerd snapshotter integration enabled")
-
-		// FIXME(thaJeztah): implement automatic snapshotter-selection similar to graph-driver selection; see https://github.com/moby/moby/issues/44076
-		if driverName == "" {
-			driverName = defaults.DefaultSnapshotter
-		}
-
-		// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
-		// operation only, so it is safe to pass *just* the runtime OS graphdriver.
-		if err := configureKernelSecuritySupport(&cfgStore.Config, driverName); err != nil {
-			return nil, err
-		}
-		d.imageService = ctrd.NewService(ctrd.ImageServiceConfig{
-			Client:          d.containerdClient,
-			Containers:      d.containers,
-			Snapshotter:     driverName,
-			RegistryHosts:   d.RegistryHosts,
-			Registry:        d.registryService,
-			EventsService:   d.EventsService,
-			IDMapping:       idMapping,
-			RefCountMounter: snapshotter.NewMounter(config.Root, driverName, idMapping),
-		})
-	} else {
+	var migrationConfig migration.Config
+	if tryGraphDriver(driverName) {
 		layerStore, err := layer.NewStoreFromOptions(layer.StoreOptions{
 			Root:               cfgStore.Root,
 			GraphDriver:        driverName,
@@ -1157,14 +1190,121 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			}
 		}
 
-		// TODO: imageStore, distributionMetadataStore, and ReferenceStore are only
-		// used above to run migration. They could be initialized in ImageService
-		// if migration is called from daemon/images. layerStore might move as well.
-		d.imageService = images.NewImageService(imgSvcConfig)
+		// If no containers are running, check whether can migrate image service
+		if drv := layerStore.DriverName(); len(containers[drv]) == 0 && migrationThreshold >= 0 {
+			switch drv {
+			case "overlay2":
+				driverName = "overlayfs"
+			case "windowsfilter":
+				driverName = "windows"
+			case "vfs":
+				driverName = "native"
+			default:
+				migrationThreshold = -1
+				log.G(ctx).Infof("Not migrating to containerd snapshotter, no migration defined for graph driver %q", drv)
+			}
 
-		log.G(ctx).Debugf("Max Concurrent Downloads: %d", imgSvcConfig.MaxConcurrentDownloads)
-		log.G(ctx).Debugf("Max Concurrent Uploads: %d", imgSvcConfig.MaxConcurrentUploads)
-		log.G(ctx).Debugf("Max Download Attempts: %d", imgSvcConfig.MaxDownloadAttempts)
+			var totalSize int64
+			ic := imgSvcConfig.ImageStore.Len()
+			if migrationThreshold >= 0 && ic > 0 {
+				for _, img := range imgSvcConfig.ImageStore.Map() {
+					if layerID := img.RootFS.ChainID(); layerID != "" {
+						l, err := imgSvcConfig.LayerStore.Get(layerID)
+						if err != nil {
+							if errors.Is(err, layer.ErrLayerDoesNotExist) {
+								continue
+							}
+							return nil, err
+						}
+
+						// Just look at layer sizze for considering maximum size
+						totalSize += l.Size()
+						layer.ReleaseAndLog(imgSvcConfig.LayerStore, l)
+					}
+				}
+
+			}
+
+			if totalSize <= migrationThreshold {
+				log.G(ctx).WithField("total", totalSize).Infof("Enabling containerd snapshotter because migration set with no containers and %d images in graph driver", ic)
+				migrationConfig.ImageCount = ic
+				migrationConfig.LayerStore = imgSvcConfig.LayerStore
+				migrationConfig.DockerImageStore = imgSvcConfig.ImageStore
+				migrationConfig.ReferenceStore = imgSvcConfig.ReferenceStore
+			} else if migrationThreshold >= 0 {
+				log.G(ctx).Warnf("Not migrating to containerd snapshotter because still have %d images in graph driver", ic)
+				d.imageService = images.NewImageService(ctx, imgSvcConfig)
+			}
+		} else {
+			log.G(ctx).Debugf("Not attempting migration with %d containers and %d image threshold", len(containers[drv]), migrationThreshold)
+			d.imageService = images.NewImageService(ctx, imgSvcConfig)
+		}
+	}
+
+	if d.imageService == nil {
+		log.G(ctx).Info("Starting daemon with containerd snapshotter integration enabled")
+
+		resp, err := d.containerdClient.IntrospectionService().Plugins(ctx, `type=="io.containerd.snapshotter.v1"`)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get containerd plugins: %w", err)
+		}
+		if resp == nil || len(resp.Plugins) == 0 {
+			return nil, fmt.Errorf("failed to get containerd plugins response: %w", cerrdefs.ErrUnavailable)
+		}
+		availableDrivers := map[string]struct{}{}
+		for _, p := range resp.Plugins {
+			if p == nil || p.Type != "io.containerd.snapshotter.v1" {
+				continue
+			}
+			if p.InitErr == nil {
+				availableDrivers[p.ID] = struct{}{}
+			} else if (p.ID == driverName) || (driverName == "" && p.ID == defaults.DefaultSnapshotter) {
+				log.G(ctx).WithField("message", p.InitErr.Message).Warn("Preferred snapshotter not available in containerd")
+			}
+		}
+
+		if driverName == "" {
+			if _, ok := availableDrivers[defaults.DefaultSnapshotter]; ok {
+				driverName = defaults.DefaultSnapshotter
+			} else if _, ok := availableDrivers["native"]; ok {
+				driverName = "native"
+			} else {
+				log.G(ctx).WithField("available", maps.Keys(availableDrivers)).Debug("Preferred snapshotter not available in containerd")
+				return nil, fmt.Errorf("snapshotter selection failed, no drivers available: %w", cerrdefs.ErrUnavailable)
+			}
+		} else if _, ok := availableDrivers[driverName]; !ok {
+			return nil, fmt.Errorf("configured driver %q not available: %w", driverName, cerrdefs.ErrUnavailable)
+		}
+
+		// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
+		// operation only, so it is safe to pass *just* the runtime OS graphdriver.
+		if err := configureKernelSecuritySupport(&cfgStore.Config, driverName); err != nil {
+			return nil, err
+		}
+		d.usesSnapshotter = true
+		d.imageService = ctrd.NewService(ctrd.ImageServiceConfig{
+			Client:          d.containerdClient,
+			Containers:      d.containers,
+			Snapshotter:     driverName,
+			RegistryHosts:   d.RegistryHosts,
+			Registry:        d.registryService,
+			EventsService:   d.EventsService,
+			IDMapping:       idMapping,
+			RefCountMounter: snapshotter.NewMounter(config.Root, driverName, idMapping),
+		})
+
+		if migrationConfig.ImageCount > 0 {
+			migrationConfig.Leases = d.containerdClient.LeasesService()
+			migrationConfig.Content = d.containerdClient.ContentStore()
+			migrationConfig.ImageStore = d.containerdClient.ImageService()
+			m := migration.NewLayerMigrator(migrationConfig)
+			err := m.MigrateTocontainerd(ctx, driverName, d.containerdClient.SnapshotService(driverName))
+			if err != nil {
+				log.G(ctx).WithError(err).Errorf("Failed to migrate images to containerd, images in graph driver %q are no longer visible", migrationConfig.LayerStore.DriverName())
+			} else {
+				log.G(ctx).WithField("image_count", migrationConfig.ImageCount).Infof("Successfully migrated images from %q to containerd", migrationConfig.LayerStore.DriverName())
+			}
+		}
 	}
 
 	go d.execCommandGC()
@@ -1173,9 +1313,22 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	if err := d.restore(cfgStore); err != nil {
+	driverContainers, ok := containers[driverName]
+	// Log containers which are not loaded with current driver
+	if (!ok && len(containers) > 0) || len(containers) > 1 {
+		for driver, all := range containers {
+			if driver == driverName {
+				continue
+			}
+			for id := range all {
+				log.G(ctx).WithField("container", id).Debugf("not restoring container because it was created with another storage driver (%s)", driver)
+			}
+		}
+	}
+	if err := d.restore(cfgStore, driverContainers); err != nil {
 		return nil, err
 	}
+	// Wait for migration to complete
 	close(d.startupDone)
 
 	info, err := d.SystemInfo(ctx)
