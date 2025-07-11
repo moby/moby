@@ -1,6 +1,7 @@
 package container
 
 import (
+	"encoding/json"
 	"runtime"
 	"strings"
 	"testing"
@@ -139,6 +140,67 @@ func TestInspectImageManifestPlatform(t *testing.T) {
 				inspect := container.Inspect(ctx, t, oldClient, ctr)
 				assert.Check(t, is.Nil(inspect.ImageManifestDescriptor))
 			})
+		})
+	}
+}
+
+func TestContainerInspectWithRaw(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := request.NewAPIClient(t)
+
+	ctrID := container.Create(ctx, t, apiClient)
+	defer apiClient.ContainerRemove(ctx, ctrID, containertypes.RemoveOptions{Force: true})
+
+	tests := []struct {
+		doc      string
+		withSize bool
+	}{
+		{
+			doc:      "no size",
+			withSize: false,
+		},
+		{
+			doc:      "with size",
+			withSize: true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			ctrInspect, raw, err := apiClient.ContainerInspectWithRaw(ctx, ctrID, tc.withSize)
+			assert.NilError(t, err)
+			assert.Check(t, is.Equal(ctrInspect.ID, ctrID))
+
+			var rawInspect map[string]interface{}
+			err = json.Unmarshal(raw, &rawInspect)
+			assert.NilError(t, err, "Should produce valid JSON")
+
+			if tc.withSize {
+				if testEnv.DaemonInfo.OSType == "windows" {
+					// FIXME(thaJeztah): Windows does not support size at all, so values would always be 0.
+					// See https://github.com/moby/moby/blob/2837112c8ead55cdad36eaac61bafc713b4f669a/daemon/images/image_windows.go#L12-L16
+					t.Log("skip checking SizeRw, SizeRootFs on windows as it's not yet implemented")
+				} else {
+					if assert.Check(t, ctrInspect.SizeRw != nil) {
+						// RW-layer size can be zero.
+						assert.Check(t, *ctrInspect.SizeRw >= 0, "Should have a size: %d", *ctrInspect.SizeRw)
+					}
+					if assert.Check(t, ctrInspect.SizeRootFs != nil) {
+						assert.Check(t, *ctrInspect.SizeRootFs > 0, "Should have a size: %d", *ctrInspect.SizeRootFs)
+					}
+				}
+
+				_, ok := rawInspect["SizeRw"]
+				assert.Check(t, ok)
+				_, ok = rawInspect["SizeRootFs"]
+				assert.Check(t, ok)
+			} else {
+				assert.Check(t, is.Nil(ctrInspect.SizeRw))
+				assert.Check(t, is.Nil(ctrInspect.SizeRootFs))
+				_, ok := rawInspect["SizeRw"]
+				assert.Check(t, !ok, "Should not contain SizeRw:\n%s", string(raw))
+				_, ok = rawInspect["SizeRootFs"]
+				assert.Check(t, !ok, "Should not contain SizeRootFs:\n%s", string(raw))
+			}
 		})
 	}
 }
