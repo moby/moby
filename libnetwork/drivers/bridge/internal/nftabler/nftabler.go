@@ -45,9 +45,10 @@ const (
 )
 
 type nftabler struct {
-	config firewaller.Config
-	table4 nftables.TableRef
-	table6 nftables.TableRef
+	config  firewaller.Config
+	cleaner firewaller.FirewallCleaner
+	table4  nftables.TableRef
+	table6  nftables.TableRef
 }
 
 func NewNftabler(ctx context.Context, config firewaller.Config) (firewaller.Firewaller, error) {
