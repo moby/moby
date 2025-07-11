@@ -18,7 +18,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/testutil"
@@ -28,6 +27,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/command"
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/compression"
+	"github.com/moby/moby/api/types/versions"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/daemon/container"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/events"
 )
 
 // ContainerRestart stops and starts a container. It attempts to

@@ -4,13 +4,13 @@ import (
 	"context"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/build"
-	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/system"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/build"
+	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/api/types/system"
 )
 
 // DiskUsageOptions holds parameters for system disk usage query.

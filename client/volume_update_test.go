@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/api/types/swarm"
-	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/moby/moby/api/types/swarm"
+	volumetypes "github.com/moby/moby/api/types/volume"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

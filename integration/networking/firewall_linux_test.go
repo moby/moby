@@ -4,9 +4,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/internal/testutils/networking"
 	"github.com/docker/docker/testutil/request"
+	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
