@@ -8,7 +8,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/images"
-	"github.com/docker/docker/libnetwork"
+	"github.com/docker/docker/daemon/libnetwork"
 	"github.com/docker/docker/registry"
 	"gotest.tools/v3/assert"
 )
