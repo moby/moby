@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -114,6 +115,14 @@ func TestExec(t *testing.T) {
 	}
 	assert.Check(t, is.Contains(out, expected), "exec command not running in expected /tmp working directory")
 	assert.Check(t, is.Contains(out, "FOO=BAR"), "exec command not running with expected environment variable FOO")
+}
+
+func TestExecResizeStress(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
+
+	for i := range 100 {
+		t.Run(strconv.Itoa(i), TestExecResize)
+	}
 }
 
 func TestExecResize(t *testing.T) {
