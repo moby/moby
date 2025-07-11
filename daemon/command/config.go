@@ -4,8 +4,8 @@ import (
 	"runtime"
 
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/pkg/opts"
 	dopts "github.com/docker/docker/internal/opts"
-	"github.com/docker/docker/opts"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/pflag"
 )
