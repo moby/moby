@@ -124,7 +124,7 @@ The rules are:
   with the same hook._
 - accept packets originating within the network, because inter-container
   communication (ICC) is enabled.
-- drop any other packets, because no there are no containers in the network
+- drop any other packets, because there are no containers in the network
   with published ports. _This means there is no dependency on the filter-FORWARD
   chain's default policy. Even if it is ACCEPT, packets will be dropped unless
   container ports/protocols are published._
