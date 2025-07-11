@@ -428,7 +428,7 @@ func (w *Worker) getRef(ctx context.Context, diffIDs []layer.DiffID, opts ...cac
 
 // FromRemote converts a remote snapshot reference to a local one
 func (w *Worker) FromRemote(ctx context.Context, remote *solver.Remote) (cache.ImmutableRef, error) {
-	rootfs, err := getLayers(ctx, remote.Descriptors)
+	rootfs, err := getLayers(remote.Descriptors)
 	if err != nil {
 		return nil, err
 	}
@@ -555,7 +555,7 @@ func (ld *layerDescriptor) Registered(diffID layer.DiffID) {
 	ld.w.V2MetadataService.Add(diffID, distmetadata.V2Metadata{Digest: ld.desc.Digest})
 }
 
-func getLayers(ctx context.Context, descs []ocispec.Descriptor) ([]rootfs.Layer, error) {
+func getLayers(descs []ocispec.Descriptor) ([]rootfs.Layer, error) {
 	layers := make([]rootfs.Layer, len(descs))
 	for i, desc := range descs {
 		diffIDStr := desc.Annotations["containerd.io/uncompressed"]

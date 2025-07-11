@@ -17,7 +17,7 @@ var (
 )
 
 // getCheckpointDir verifies checkpoint directory for create,remove, list options and checks if checkpoint already exists
-func getCheckpointDir(checkDir, checkpointID, ctrName, ctrID, ctrCheckpointDir string, create bool) (string, error) {
+func getCheckpointDir(checkDir, checkpointID, ctrName, ctrCheckpointDir string, create bool) (string, error) {
 	var checkpointDir string
 	var err2 error
 	if checkDir != "" {
@@ -69,7 +69,7 @@ func (daemon *Daemon) CheckpointCreate(name string, config checkpoint.CreateOpti
 		return fmt.Errorf("Invalid checkpoint ID (%s), only %s are allowed", config.CheckpointID, validCheckpointNameChars)
 	}
 
-	checkpointDir, err := getCheckpointDir(config.CheckpointDir, config.CheckpointID, name, container.ID, container.CheckpointDir(), true)
+	checkpointDir, err := getCheckpointDir(config.CheckpointDir, config.CheckpointID, name, container.CheckpointDir(), true)
 	if err != nil {
 		return fmt.Errorf("cannot checkpoint container %s: %s", name, err)
 	}
@@ -91,7 +91,7 @@ func (daemon *Daemon) CheckpointDelete(name string, config checkpoint.DeleteOpti
 	if err != nil {
 		return err
 	}
-	checkpointDir, err := getCheckpointDir(config.CheckpointDir, config.CheckpointID, name, container.ID, container.CheckpointDir(), false)
+	checkpointDir, err := getCheckpointDir(config.CheckpointDir, config.CheckpointID, name, container.CheckpointDir(), false)
 	if err == nil {
 		return os.RemoveAll(checkpointDir)
 	}
@@ -107,7 +107,7 @@ func (daemon *Daemon) CheckpointList(name string, config checkpoint.ListOptions)
 		return nil, err
 	}
 
-	checkpointDir, err := getCheckpointDir(config.CheckpointDir, "", name, container.ID, container.CheckpointDir(), false)
+	checkpointDir, err := getCheckpointDir(config.CheckpointDir, "", name, container.CheckpointDir(), false)
 	if err != nil {
 		return nil, err
 	}
