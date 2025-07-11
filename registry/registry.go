@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"time"
 
 	"github.com/containerd/log"
@@ -16,16 +18,15 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
-// HostCertsDir returns the config directory for a specific host.
-//
-// Deprecated: this function was only used internally, and will be removed in a future release.
-func HostCertsDir(hostname string) string {
-	return hostCertsDir(hostname)
-}
-
 // hostCertsDir returns the config directory for a specific host.
-func hostCertsDir(hostname string) string {
-	return filepath.Join(CertsDir(), cleanPath(hostname))
+func hostCertsDir(hostnameAndPort string) string {
+	if runtime.GOOS == "windows" {
+		// Ensure that a directory name is valid; hostnameAndPort may contain
+		// a colon (:) if a port is included, and Windows does not allow colons
+		// in directory names.
+		hostnameAndPort = filepath.FromSlash(strings.ReplaceAll(hostnameAndPort, ":", ""))
+	}
+	return filepath.Join(CertsDir(), hostnameAndPort)
 }
 
 // newTLSConfig constructs a client TLS configuration based on server defaults
