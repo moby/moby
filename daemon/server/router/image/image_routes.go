@@ -18,7 +18,7 @@ import (
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/daemon/builder/remotecontext"
 	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/errdefs"
