@@ -9,7 +9,7 @@ Adding a network running a container with a mapped port, equivalent to:
 
 The `ip docker-bridges` table is updated as follows:
 
-        table ip docker-bridges {
+    table ip docker-bridges {
     	map filter-forward-in-jumps {
     		type ifname : verdict
     		elements = { "docker0" : jump filter-forward-in__docker0,
