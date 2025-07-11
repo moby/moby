@@ -49,11 +49,20 @@ func TestContainerInspectWithEmptyID(t *testing.T) {
 			return nil, errors.New("should not make request")
 		}),
 	}
-	_, _, err := client.ContainerInspectWithRaw(context.Background(), "", true)
+
+	_, err := client.ContainerInspect(context.Background(), "")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, _, err = client.ContainerInspectWithRaw(context.Background(), "    ", true)
+	_, err = client.ContainerInspect(context.Background(), "    ")
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	_, _, err = client.ContainerInspectWithRaw(context.Background(), "", false)
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "value is empty"))
+
+	_, _, err = client.ContainerInspectWithRaw(context.Background(), "    ", false)
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
