@@ -3,7 +3,6 @@ package container
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -24,7 +23,6 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -338,74 +336,69 @@ func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	testCases := []struct {
+		doc           string
+		privileged    bool
 		readonlyPaths []string
 		expected      []string
 	}{
 		{
-			readonlyPaths: []string{},
-			expected:      []string{},
-		},
-		{
+			doc:           "default readonly paths",
 			readonlyPaths: nil,
 			expected:      oci.DefaultSpec().Linux.ReadonlyPaths,
 		},
 		{
+			doc:           "empty readonly paths",
+			readonlyPaths: []string{},
+			expected:      []string{},
+		},
+		{
+			doc:           "custom readonly paths",
 			readonlyPaths: []string{"/proc/asound", "/proc/bus"},
 			expected:      []string{"/proc/asound", "/proc/bus"},
 		},
-	}
-
-	checkInspect := func(t *testing.T, ctx context.Context, name string, expected []string) {
-		_, b, err := apiClient.ContainerInspectWithRaw(ctx, name, false)
-		assert.NilError(t, err)
-
-		var inspectJSON map[string]interface{}
-		err = json.Unmarshal(b, &inspectJSON)
-		assert.NilError(t, err)
-
-		cfg, ok := inspectJSON["HostConfig"].(map[string]interface{})
-		assert.Check(t, is.Equal(true, ok), name)
-
-		readonlyPaths, ok := cfg["ReadonlyPaths"].([]interface{})
-		assert.Check(t, is.Equal(true, ok), name)
-
-		rops := make([]string, 0, len(readonlyPaths))
-		for _, rop := range readonlyPaths {
-			rops = append(rops, rop.(string))
-		}
-		assert.DeepEqual(t, expected, rops)
+		{
+			// privileged containers should have no readonly paths by default
+			doc:           "privileged",
+			privileged:    true,
+			readonlyPaths: nil,
+			expected:      nil,
+		},
 	}
 
 	for i, tc := range testCases {
-		name := fmt.Sprintf("create-readonly-paths-%d", i)
-		config := container.Config{
-			Image: "busybox",
-			Cmd:   []string{"true"},
-		}
-		hc := container.HostConfig{}
-		if tc.readonlyPaths != nil {
-			hc.ReadonlyPaths = tc.readonlyPaths
-		}
+		t.Run(tc.doc, func(t *testing.T) {
+			t.Parallel()
+			ctr, err := apiClient.ContainerCreate(ctx,
+				&container.Config{
+					Image: "busybox",
+					Cmd:   []string{"true"},
+				},
+				&container.HostConfig{
+					Privileged:    tc.privileged,
+					ReadonlyPaths: tc.readonlyPaths,
+				},
+				nil,
+				nil,
+				fmt.Sprintf("create-readonly-paths-%d", i),
+			)
+			assert.NilError(t, err)
 
-		// Create the container.
-		c, err := apiClient.ContainerCreate(ctx,
-			&config,
-			&hc,
-			&network.NetworkingConfig{},
-			nil,
-			name,
-		)
-		assert.NilError(t, err)
+			ctrInspect, err := apiClient.ContainerInspect(ctx, ctr.ID)
+			assert.NilError(t, err)
+			assert.DeepEqual(t, ctrInspect.HostConfig.ReadonlyPaths, tc.expected)
 
-		checkInspect(t, ctx, name, tc.expected)
+			// Start the container.
+			err = apiClient.ContainerStart(ctx, ctr.ID, container.StartOptions{})
+			assert.NilError(t, err)
 
-		// Start the container.
-		err = apiClient.ContainerStart(ctx, c.ID, container.StartOptions{})
-		assert.NilError(t, err)
+			// It should die down by itself, but stop it to be sure.
+			err = apiClient.ContainerStop(ctx, ctr.ID, container.StopOptions{})
+			assert.NilError(t, err)
 
-		poll.WaitOn(t, testContainer.IsInState(ctx, apiClient, c.ID, container.StateExited))
-
-		checkInspect(t, ctx, name, tc.expected)
+			ctrInspect, err = apiClient.ContainerInspect(ctx, ctr.ID)
+			assert.NilError(t, err)
+			assert.DeepEqual(t, ctrInspect.HostConfig.ReadonlyPaths, tc.expected)
+		})
 	}
 }
 
