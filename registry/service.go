@@ -128,12 +128,9 @@ func (s *Service) ResolveAuthConfig(authConfigs map[string]registry.AuthConfig, 
 
 // APIEndpoint represents a remote API endpoint
 type APIEndpoint struct {
-	Mirror                         bool
-	URL                            *url.URL
-	AllowNondistributableArtifacts bool // Deprecated: non-distributable artifacts are deprecated and enabled by default. This field will be removed in the next release.
-	Official                       bool // Deprecated: this field was only used internally, and will be removed in the next release.
-	TrimHostname                   bool // Deprecated: hostname is now trimmed unconditionally for remote names. This field will be removed in the next release.
-	TLSConfig                      *tls.Config
+	Mirror    bool
+	URL       *url.URL
+	TLSConfig *tls.Config
 }
 
 // LookupPullEndpoints creates a list of v2 endpoints to try to pull from, in order of preference.
