@@ -1,3 +1,6 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.23
+
 package libnetwork
 
 //go:generate protoc -I=. -I=../vendor/ --gogofaster_out=import_path=github.com/docker/docker/libnetwork:. agent.proto
@@ -7,10 +10,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/netip"
+	"slices"
 	"sort"
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/internal/iterutil"
 	"github.com/docker/docker/libnetwork/cluster"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
@@ -850,82 +856,138 @@ func (c *Controller) handleNodeTableEvent(ev events.Event) {
 	c.processNodeDiscovery([]net.IP{nodeAddr.Addr}, isAdd)
 }
 
-func (c *Controller) handleEpTableEvent(ev events.Event) {
-	var value []byte
-	event := ev.(networkdb.WatchEvent)
-	switch {
-	case event.IsCreate(), event.IsUpdate():
-		value = event.Value
-	case event.IsDelete():
-		value = event.Prev
-	default:
-		log.G(context.TODO()).Errorf("Unexpected update service table event = %#v", event)
-		return
-	}
+type endpointEvent struct {
+	EndpointRecord
+	// Virtual IP of the service to which this endpoint belongs.
+	VirtualIP netip.Addr
+	// IP assigned to this endpoint.
+	EndpointIP netip.Addr
+}
 
+func unmarshalEndpointRecord(data []byte) (*endpointEvent, error) {
 	var epRec EndpointRecord
-	err := proto.Unmarshal(value, &epRec)
-	if err != nil {
-		log.G(context.TODO()).WithError(err).Error("Failed to unmarshal service table value")
-		return
+	if err := proto.Unmarshal(data, &epRec); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal endpoint record: %w", err)
 	}
 
+	vip, _ := netip.ParseAddr(epRec.VirtualIP)
+	eip, _ := netip.ParseAddr(epRec.EndpointIP)
+
+	if epRec.Name == "" || !eip.IsValid() {
+		return nil, fmt.Errorf("invalid endpoint name/ip in service table event %s", data)
+	}
+
+	return &endpointEvent{
+		EndpointRecord: epRec,
+		VirtualIP:      vip,
+		EndpointIP:     eip,
+	}, nil
+}
+
+// EquivalentTo returns true if ev is semantically equivalent to other.
+func (ev *endpointEvent) EquivalentTo(other *endpointEvent) bool {
+	return ev.Name == other.Name &&
+		ev.ServiceName == other.ServiceName &&
+		ev.ServiceID == other.ServiceID &&
+		ev.VirtualIP == other.VirtualIP &&
+		ev.EndpointIP == other.EndpointIP &&
+		ev.ServiceDisabled == other.ServiceDisabled &&
+		iterutil.SameValues(
+			iterutil.Deref(slices.Values(ev.IngressPorts)),
+			iterutil.Deref(slices.Values(other.IngressPorts))) &&
+		iterutil.SameValues(slices.Values(ev.Aliases), slices.Values(other.Aliases)) &&
+		iterutil.SameValues(slices.Values(ev.TaskAliases), slices.Values(other.TaskAliases))
+}
+
+func (c *Controller) handleEpTableEvent(ev events.Event) {
+	event := ev.(networkdb.WatchEvent)
 	nid := event.NetworkID
 	eid := event.Key
-	containerName := epRec.Name
-	svcName := epRec.ServiceName
-	svcID := epRec.ServiceID
-	vip := net.ParseIP(epRec.VirtualIP)
-	ip := net.ParseIP(epRec.EndpointIP)
-	ingressPorts := epRec.IngressPorts
-	serviceAliases := epRec.Aliases
-	taskAliases := epRec.TaskAliases
 
-	logger := log.G(context.TODO()).WithFields(log.Fields{
-		"evt": event,
-		"R":   epRec,
-	})
-
-	if containerName == "" || ip == nil {
-		logger.Errorf("Invalid endpoint name/ip received while handling service table event %s", value)
-		return
+	var prev, epRec *endpointEvent
+	if event.Prev != nil {
+		var err error
+		prev, err = unmarshalEndpointRecord(event.Prev)
+		if err != nil {
+			log.G(context.TODO()).WithError(err).Error("error unmarshaling previous value from service table event")
+			return
+		}
+	}
+	if event.Value != nil {
+		var err error
+		epRec, err = unmarshalEndpointRecord(event.Value)
+		if err != nil {
+			log.G(context.TODO()).WithError(err).Error("error unmarshaling service table event")
+			return
+		}
 	}
 
+	logger := log.G(context.TODO()).WithFields(log.Fields{
+		"evt":  event,
+		"R":    epRec,
+		"prev": prev,
+	})
 	logger.Debug("handleEpTableEvent")
 
-	switch {
-	case event.IsCreate(), event.IsUpdate():
-		if svcID != "" {
+	if prev != nil {
+		if epRec != nil && prev.EquivalentTo(epRec) {
+			// Avoid flapping if we would otherwise remove a service
+			// binding then immediately replace it with an equivalent one.
+			return
+		}
+
+		if prev.ServiceID != "" {
+			// This is a remote task part of a service
+			if !prev.ServiceDisabled {
+				err := c.rmServiceBinding(prev.ServiceName, prev.ServiceID, nid, eid,
+					prev.Name, prev.VirtualIP.AsSlice(), prev.IngressPorts,
+					prev.Aliases, prev.TaskAliases, prev.EndpointIP.AsSlice(),
+					"handleEpTableEvent", true, true)
+				if err != nil {
+					logger.WithError(err).Error("failed removing service binding")
+				}
+			}
+		} else {
+			// This is a remote container simply attached to an attachable network
+			err := c.delContainerNameResolution(nid, eid, prev.Name, prev.TaskAliases,
+				prev.EndpointIP.AsSlice(), "handleEpTableEvent")
+			if err != nil {
+				logger.WithError(err).Errorf("failed removing container name resolution")
+			}
+		}
+	}
+
+	if epRec != nil {
+		if epRec.ServiceID != "" {
 			// This is a remote task part of a service
 			if epRec.ServiceDisabled {
-				if err := c.rmServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent", true, false); err != nil {
-					logger.WithError(err).Error("failed disabling service binding")
-					return
+				// Don't double-remove a service binding
+				if prev == nil || prev.ServiceID != epRec.ServiceID || !prev.ServiceDisabled {
+					err := c.rmServiceBinding(epRec.ServiceName, epRec.ServiceID,
+						nid, eid, epRec.Name, epRec.VirtualIP.AsSlice(),
+						epRec.IngressPorts, epRec.Aliases, epRec.TaskAliases,
+						epRec.EndpointIP.AsSlice(), "handleEpTableEvent", true, false)
+					if err != nil {
+						logger.WithError(err).Error("failed disabling service binding")
+						return
+					}
 				}
 			} else {
-				if err := c.addServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent"); err != nil {
+				err := c.addServiceBinding(epRec.ServiceName, epRec.ServiceID, nid, eid,
+					epRec.Name, epRec.VirtualIP.AsSlice(), epRec.IngressPorts,
+					epRec.Aliases, epRec.TaskAliases, epRec.EndpointIP.AsSlice(),
+					"handleEpTableEvent")
+				if err != nil {
 					logger.WithError(err).Error("failed adding service binding")
 					return
 				}
 			}
 		} else {
 			// This is a remote container simply attached to an attachable network
-			if err := c.addContainerNameResolution(nid, eid, containerName, taskAliases, ip, "handleEpTableEvent"); err != nil {
+			err := c.addContainerNameResolution(nid, eid, epRec.Name, epRec.TaskAliases,
+				epRec.EndpointIP.AsSlice(), "handleEpTableEvent")
+			if err != nil {
 				logger.WithError(err).Errorf("failed adding container name resolution")
-			}
-		}
-
-	case event.IsDelete():
-		if svcID != "" {
-			// This is a remote task part of a service
-			if err := c.rmServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent", true, true); err != nil {
-				logger.WithError(err).Error("failed removing service binding")
-				return
-			}
-		} else {
-			// This is a remote container simply attached to an attachable network
-			if err := c.delContainerNameResolution(nid, eid, containerName, taskAliases, ip, "handleEpTableEvent"); err != nil {
-				logger.WithError(err).Errorf("failed removing container name resolution")
 			}
 		}
 	}
