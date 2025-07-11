@@ -16,7 +16,7 @@ import (
 )
 
 // All registered drivers
-var drivers map[string]InitFunc
+var drivers = make(map[string]InitFunc)
 
 // CreateOpts contains optional arguments for Create() and CreateReadWrite()
 // methods.
@@ -111,10 +111,6 @@ type FileGetCloser interface {
 	Close() error
 }
 
-func init() {
-	drivers = make(map[string]InitFunc)
-}
-
 // Register registers an InitFunc for the driver.
 func Register(name string, initFunc InitFunc) error {
 	if _, exists := drivers[name]; exists {
@@ -125,24 +121,12 @@ func Register(name string, initFunc InitFunc) error {
 	return nil
 }
 
-// GetDriver initializes and returns the registered driver.
-//
-// Deprecated: this function was exported for (integration-)tests, but no longer used, and will be removed in the next release.
-func GetDriver(name string, config Options) (Driver, error) {
-	return getDriver(name, config)
-}
-
 // getDriver initializes and returns the registered driver.
 func getDriver(name string, config Options) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
 		return initFunc(filepath.Join(config.Root, name), config.DriverOptions, config.IDMap)
 	}
 	log.G(context.TODO()).WithFields(log.Fields{"driver": name, "home-dir": config.Root}).Error("Failed to GetDriver graph")
-
-	// TODO(thaJeztah): remove in next release.
-	if os.Getenv("DOCKERD_DEPRECATED_GRAPHDRIVER_PLUGINS") != "" {
-		return nil, errors.New("DEPRECATED: Support for experimental graphdriver plugins has been removed. See https://docs.docker.com/go/deprecated/")
-	}
 
 	return nil, ErrNotSupported
 }
