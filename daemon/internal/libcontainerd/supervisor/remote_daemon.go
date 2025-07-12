@@ -14,13 +14,14 @@ import (
 	"github.com/containerd/containerd/v2/defaults"
 	"github.com/containerd/containerd/v2/pkg/dialer"
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/pidfile"
-	"github.com/docker/docker/pkg/process"
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/pelletier/go-toml"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/docker/docker/pkg/pidfile"
+	"github.com/docker/docker/pkg/process"
 )
 
 const (

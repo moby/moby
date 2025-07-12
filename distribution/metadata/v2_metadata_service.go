@@ -7,9 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/opencontainers/go-digest"
+
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/layer"
-	"github.com/opencontainers/go-digest"
 )
 
 // V2MetadataService maps layer IDs to a set of known metadata for

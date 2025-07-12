@@ -6,6 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -13,9 +17,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/environment"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/poll"
-	"gotest.tools/v3/skip"
 )
 
 // ServicePoll tweaks the pollSettings for `service`

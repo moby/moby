@@ -3,9 +3,10 @@ package container
 import (
 	"time"
 
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/go-connections/nat"
 	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
+
+	"github.com/docker/docker/api/types/strslice"
 )
 
 // MinimumDuration puts a minimum on user configured duration.

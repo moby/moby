@@ -9,8 +9,9 @@ import (
 	"net"
 	"slices"
 
-	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
+
+	"github.com/docker/docker/libnetwork/types"
 )
 
 // Gateway returns the IPv4 gateway for the sandbox.

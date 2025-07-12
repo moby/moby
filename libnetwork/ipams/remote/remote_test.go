@@ -13,10 +13,11 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/docker/docker/libnetwork/ipamapi"
-	"github.com/docker/docker/pkg/plugins"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/pkg/plugins"
 )
 
 func handle(t *testing.T, mux *http.ServeMux, method string, h func(map[string]interface{}) interface{}) {

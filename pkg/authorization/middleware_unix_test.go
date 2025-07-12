@@ -8,8 +8,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/docker/docker/pkg/plugingetter"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/pkg/plugingetter"
 )
 
 func TestMiddlewareWrapHandler(t *testing.T) {

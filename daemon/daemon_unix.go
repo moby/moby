@@ -23,6 +23,16 @@ import (
 	"github.com/containerd/cgroups/v3"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/moby/sys/mount"
+	"github.com/moby/sys/user"
+	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/selinux/go-selinux"
+	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
+	"github.com/vishvananda/netlink"
+	"go.opentelemetry.io/otel/baggage"
+	"golang.org/x/sys/unix"
+
 	"github.com/docker/docker/api/types/blkiodev"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -44,15 +54,6 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/runconfig"
 	volumemounts "github.com/docker/docker/volume/mounts"
-	"github.com/moby/sys/mount"
-	"github.com/moby/sys/user"
-	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/opencontainers/selinux/go-selinux"
-	"github.com/opencontainers/selinux/go-selinux/label"
-	"github.com/pkg/errors"
-	"github.com/vishvananda/netlink"
-	"go.opentelemetry.io/otel/baggage"
-	"golang.org/x/sys/unix"
 )
 
 const (

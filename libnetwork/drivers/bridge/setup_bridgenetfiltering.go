@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/internal/modprobe"
 )
 

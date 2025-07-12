@@ -9,12 +9,13 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/docker/docker/libnetwork/ipamapi"
-	"github.com/docker/docker/libnetwork/ipamutils"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipamutils"
 )
 
 const (

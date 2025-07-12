@@ -3,9 +3,10 @@ package chrootarchive
 import (
 	"io"
 
+	"github.com/moby/go-archive/chrootarchive"
+
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/moby/go-archive/chrootarchive"
 )
 
 // NewArchiver returns a new Archiver which uses chrootarchive.Untar

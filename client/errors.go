@@ -8,6 +8,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/errdefs/pkg/errhttp"
+
 	"github.com/docker/docker/api/types/versions"
 )
 

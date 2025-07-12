@@ -9,11 +9,12 @@ import (
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
 )
 
 const imageKeyPrefix = "moby-image-"

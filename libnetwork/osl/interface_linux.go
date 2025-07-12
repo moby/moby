@@ -19,16 +19,17 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/internal/nlwrap"
-	"github.com/docker/docker/libnetwork/internal/l2disco"
-	"github.com/docker/docker/libnetwork/ns"
-	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sys/unix"
+
+	"github.com/docker/docker/internal/nlwrap"
+	"github.com/docker/docker/libnetwork/internal/l2disco"
+	"github.com/docker/docker/libnetwork/ns"
+	"github.com/docker/docker/libnetwork/types"
 )
 
 const (

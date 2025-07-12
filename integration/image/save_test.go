@@ -15,6 +15,13 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/cpuguy83/tar2go"
+	"github.com/moby/go-archive/compression"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
@@ -23,12 +30,6 @@ import (
 	"github.com/docker/docker/internal/testutils"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/testutil/fakecontext"
-	"github.com/moby/go-archive/compression"
-	"github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/skip"
 )
 
 type imageSaveManifestEntry struct {

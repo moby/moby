@@ -6,11 +6,12 @@ import (
 	"testing"
 
 	"github.com/containerd/log"
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/registry"
-	"gotest.tools/v3/assert"
 )
 
 // muteLogs suppresses logs that are generated during the test

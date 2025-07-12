@@ -6,10 +6,11 @@ import (
 	"io"
 	"os"
 
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/compression"
 	"github.com/moby/go-archive/tarheader"
+
+	"github.com/docker/docker/pkg/idtools"
 )
 
 // ImpliedDirectoryMode represents the mode (Unix permissions) applied to directories that are implied by files in a

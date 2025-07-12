@@ -5,6 +5,10 @@ import (
 	"net/http"
 
 	"github.com/containerd/log"
+	"github.com/gorilla/mux"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/baggage"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/daemon/server/httpstatus"
@@ -13,9 +17,6 @@ import (
 	"github.com/docker/docker/daemon/server/router"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/internal/otelutil"
-	"github.com/gorilla/mux"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"go.opentelemetry.io/otel/baggage"
 )
 
 // versionMatcher defines a variable matcher to be parsed by the router

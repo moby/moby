@@ -10,6 +10,9 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/daemon/container"
@@ -17,8 +20,6 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	volumeopts "github.com/docker/docker/volume/service/opts"
-	"github.com/opencontainers/selinux/go-selinux/label"
-	"github.com/pkg/errors"
 )
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality

@@ -15,12 +15,13 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/libnetwork/types"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-events"
 	iradix "github.com/hashicorp/go-immutable-radix/v2"
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/serf/serf"
+
+	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/pkg/stringid"
 )
 
 const (

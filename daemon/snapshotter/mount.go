@@ -7,10 +7,11 @@ import (
 
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/internal/mountref"
 	"github.com/moby/locker"
 	"github.com/moby/sys/mountinfo"
 	"github.com/moby/sys/user"
+
+	"github.com/docker/docker/daemon/internal/mountref"
 )
 
 // Mounter handles mounting/unmounting things coming in from a snapshotter

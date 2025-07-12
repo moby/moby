@@ -4,12 +4,13 @@ import (
 	"context"
 	"testing"
 
-	networktypes "github.com/docker/docker/api/types/network"
-	dclient "github.com/docker/docker/client"
-	"github.com/docker/docker/integration/internal/network"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	networktypes "github.com/docker/docker/api/types/network"
+	dclient "github.com/docker/docker/client"
+	"github.com/docker/docker/integration/internal/network"
 )
 
 func containsNetwork(nws []networktypes.Inspect, networkID string) bool {

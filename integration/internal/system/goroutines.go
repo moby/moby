@@ -4,8 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/docker/docker/client"
 	"gotest.tools/v3/poll"
+
+	"github.com/docker/docker/client"
 )
 
 // WaitForStableGoroutineCount polls the daemon Info API and returns the reported goroutine count

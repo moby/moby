@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
@@ -17,7 +19,6 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/api/types/volume"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // CommonAPIClient is the common methods between stable and experimental versions of APIClient.

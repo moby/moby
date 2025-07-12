@@ -4,8 +4,9 @@ import (
 	"context"
 	"io"
 
-	"github.com/docker/docker/image/tarexport"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/docker/docker/image/tarexport"
 )
 
 // ExportImage exports a list of images to the given output stream. The

@@ -12,10 +12,11 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/filters"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
 )
 
 func TestEventsErrorInOptions(t *testing.T) {

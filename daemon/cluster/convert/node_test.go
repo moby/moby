@@ -3,9 +3,10 @@ package convert
 import (
 	"testing"
 
-	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"gotest.tools/v3/assert"
+
+	types "github.com/docker/docker/api/types/swarm"
 )
 
 // TestNodeCSIInfoFromGRPC tests that conversion of the NodeCSIInfo from the

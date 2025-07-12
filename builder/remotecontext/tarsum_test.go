@@ -5,11 +5,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/builder"
 	"github.com/moby/go-archive"
 	"github.com/moby/sys/reexec"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/builder"
 )
 
 const (

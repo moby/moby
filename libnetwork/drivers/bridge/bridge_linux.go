@@ -16,6 +16,13 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/otelutil"
@@ -35,12 +42,6 @@ import (
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/pkg/errors"
-	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netns"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 const (

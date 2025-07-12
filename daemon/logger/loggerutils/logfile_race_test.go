@@ -10,11 +10,12 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/pkg/tailfile"
-	"golang.org/x/sync/errgroup"
-	"gotest.tools/v3/assert"
 )
 
 func TestConcurrentLogging(t *testing.T) {

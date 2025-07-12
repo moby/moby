@@ -11,10 +11,11 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/volume"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/volume"
 )
 
 func TestVolumeListError(t *testing.T) {

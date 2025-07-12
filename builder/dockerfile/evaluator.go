@@ -25,14 +25,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/moby/buildkit/frontend/dockerfile/instructions"
+	"github.com/moby/buildkit/frontend/dockerfile/shell"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/oci"
-	"github.com/moby/buildkit/frontend/dockerfile/instructions"
-	"github.com/moby/buildkit/frontend/dockerfile/shell"
-	"github.com/pkg/errors"
 )
 
 func dispatch(ctx context.Context, d dispatchRequest, cmd instructions.Command) (retErr error) {

@@ -5,9 +5,10 @@ import (
 	"os"
 	"time"
 
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/storage"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ContainerUpdateOKBody OK response to ContainerUpdate operation

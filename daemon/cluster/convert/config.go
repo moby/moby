@@ -1,9 +1,10 @@
 package convert
 
 import (
-	swarmtypes "github.com/docker/docker/api/types/swarm"
 	gogotypes "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
+
+	swarmtypes "github.com/docker/docker/api/types/swarm"
 )
 
 // ConfigFromGRPC converts a grpc Config to a Config.

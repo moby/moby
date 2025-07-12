@@ -12,15 +12,16 @@ import (
 
 	"github.com/containerd/continuity/driver"
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/builder"
-	"github.com/docker/docker/builder/remotecontext/urlutil"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/patternmatcher"
 	"github.com/moby/patternmatcher/ignorefile"
 	"github.com/moby/sys/symlink"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/builder"
+	"github.com/docker/docker/builder/remotecontext/urlutil"
+	"github.com/docker/docker/errdefs"
 )
 
 // ClientSessionRemote is identifier for client-session context transport

@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/docker/docker/api/types/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/docker/docker/api/types/image"
 )
 
 // ImageHistoryWithPlatform sets the platform for the image history operation.

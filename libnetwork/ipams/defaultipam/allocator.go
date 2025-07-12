@@ -8,6 +8,7 @@ import (
 	"net/netip"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/libnetwork/internal/addrset"
 	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/ipamapi"

@@ -6,9 +6,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/moby/go-archive"
+
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/graphtest"
-	"github.com/moby/go-archive"
 )
 
 func init() {

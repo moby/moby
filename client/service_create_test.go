@@ -12,12 +12,13 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	registrytypes "github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/api/types/swarm"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/swarm"
 )
 
 func TestServiceCreateError(t *testing.T) {

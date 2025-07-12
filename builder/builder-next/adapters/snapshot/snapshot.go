@@ -11,8 +11,6 @@ import (
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/containerd/v2/core/snapshots"
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/layer"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/util/leaseutil"
@@ -21,6 +19,9 @@ import (
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
+
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/layer"
 )
 
 var (

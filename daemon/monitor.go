@@ -8,6 +8,8 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/daemon/config"
@@ -15,7 +17,6 @@ import (
 	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
 	"github.com/docker/docker/daemon/internal/metrics"
 	"github.com/docker/docker/daemon/internal/restartmanager"
-	"github.com/pkg/errors"
 )
 
 func (daemon *Daemon) setStateCounter(c *container.Container) {

@@ -19,9 +19,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/gorilla/mux"
+
+	"github.com/docker/docker/pkg/plugins"
 )
 
 const (
