@@ -692,12 +692,8 @@ func (d *Daemon) DumpStackAndQuit() {
 func (d *Daemon) Stop(t testing.TB) {
 	t.Helper()
 	err := d.StopWithError()
-	if err != nil {
-		if !errors.Is(err, errDaemonNotStarted) {
-			t.Fatalf("[%s] error while stopping the daemon: %v", d.id, err)
-		} else {
-			t.Logf("[%s] daemon is not started", d.id)
-		}
+	if err != nil && !errors.Is(err, errDaemonNotStarted) {
+		t.Fatalf("[%s] error while stopping the daemon: %v", d.id, err)
 	}
 }
 
