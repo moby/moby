@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/ipamutils"

@@ -14,8 +14,9 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types/registry"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/api/types/registry"
 )
 
 // A session is used to communicate with a V1 registry

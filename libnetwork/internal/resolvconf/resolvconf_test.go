@@ -10,11 +10,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/internal/sliceutil"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
+
+	"github.com/docker/docker/internal/sliceutil"
 )
 
 func TestRCOption(t *testing.T) {

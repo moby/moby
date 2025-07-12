@@ -12,6 +12,10 @@ import (
 	"github.com/Microsoft/hcsshim"
 	coci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/log"
+	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
+	"golang.org/x/sys/windows/registry"
+
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/config"
@@ -20,9 +24,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/system"
-	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
-	"golang.org/x/sys/windows/registry"
 )
 
 const (

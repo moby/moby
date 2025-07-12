@@ -3,8 +3,9 @@ package archive
 import (
 	"io"
 
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/go-archive"
+
+	"github.com/docker/docker/pkg/idtools"
 )
 
 // ChangeType represents the change

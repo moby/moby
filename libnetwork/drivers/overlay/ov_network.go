@@ -16,6 +16,11 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/hashicorp/go-multierror"
+	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
+	"golang.org/x/sys/unix"
+
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
@@ -25,10 +30,6 @@ import (
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/hashicorp/go-multierror"
-	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netns"
-	"golang.org/x/sys/unix"
 )
 
 var (

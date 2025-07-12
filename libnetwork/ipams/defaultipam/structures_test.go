@@ -4,8 +4,9 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/libnetwork/internal/netiputil"
 )
 
 func TestMergeIter(t *testing.T) {

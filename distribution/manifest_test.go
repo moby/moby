@@ -14,13 +14,14 @@ import (
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/ocischema"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/docker/internal/testutils/labelstore"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/internal/testutils/labelstore"
 )
 
 type mockManifestGetter struct {

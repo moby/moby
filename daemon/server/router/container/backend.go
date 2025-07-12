@@ -4,10 +4,11 @@ import (
 	"context"
 	"io"
 
+	"github.com/moby/go-archive"
+
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/moby/go-archive"
 )
 
 // execBackend includes functions to implement to provide exec functionality.

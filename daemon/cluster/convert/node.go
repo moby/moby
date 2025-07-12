@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	types "github.com/docker/docker/api/types/swarm"
 	gogotypes "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
+
+	types "github.com/docker/docker/api/types/swarm"
 )
 
 // NodeFromGRPC converts a grpc Node to a Node.

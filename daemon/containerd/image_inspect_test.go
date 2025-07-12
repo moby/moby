@@ -9,11 +9,12 @@ import (
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/log/logtest"
-	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/internal/testutils/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/internal/testutils/specialimage"
 )
 
 func TestImageInspect(t *testing.T) {

@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/api/types/swarm"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/api/types/swarm"
 )
 
 // ConfigConstructor defines a swarm config constructor

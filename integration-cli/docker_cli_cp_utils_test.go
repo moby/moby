@@ -11,10 +11,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/integration-cli/cli"
 	"github.com/moby/go-archive"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/integration-cli/cli"
 )
 
 type fileType uint32

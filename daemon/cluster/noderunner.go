@@ -9,11 +9,6 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	types "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/daemon/cluster/convert"
-	"github.com/docker/docker/daemon/cluster/executor/container"
-	lncluster "github.com/docker/docker/libnetwork/cluster"
-	"github.com/docker/docker/libnetwork/cnmallocator"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 	swarmnode "github.com/moby/swarmkit/v2/node"
@@ -21,6 +16,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	types "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/daemon/cluster/convert"
+	"github.com/docker/docker/daemon/cluster/executor/container"
+	lncluster "github.com/docker/docker/libnetwork/cluster"
+	"github.com/docker/docker/libnetwork/cnmallocator"
 )
 
 // nodeRunner implements a manager for continuously running swarmkit node, restarting them with backoff delays if needed.

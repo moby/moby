@@ -7,10 +7,11 @@ import (
 	"github.com/containerd/containerd/v2/core/containers"
 	coci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/log"
+	"github.com/opencontainers/runtime-spec/specs-go"
+
 	dconfig "github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/profiles/seccomp"
-	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 const supportsSeccomp = true

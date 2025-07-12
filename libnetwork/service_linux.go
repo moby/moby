@@ -14,12 +14,13 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/libnetwork/drivers/bridge"
-	"github.com/docker/docker/libnetwork/iptables"
-	"github.com/docker/docker/libnetwork/ns"
 	"github.com/ishidawataru/sctp"
 	"github.com/moby/ipvs"
 	"github.com/vishvananda/netlink/nl"
+
+	"github.com/docker/docker/libnetwork/drivers/bridge"
+	"github.com/docker/docker/libnetwork/iptables"
+	"github.com/docker/docker/libnetwork/ns"
 )
 
 // Populate all loadbalancers on the network that the passed endpoint

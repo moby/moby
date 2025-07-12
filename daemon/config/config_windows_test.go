@@ -3,10 +3,11 @@ package config
 import (
 	"testing"
 
-	"github.com/docker/docker/opts"
 	"github.com/spf13/pflag"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/opts"
 )
 
 func TestDaemonConfigurationMerge(t *testing.T) {

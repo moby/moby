@@ -6,13 +6,14 @@ import (
 	"os"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types/system"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/errdefs"
 	"github.com/hashicorp/go-multierror"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"tags.cncf.io/container-device-interface/pkg/cdi"
+
+	"github.com/docker/docker/api/types/system"
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/errdefs"
 )
 
 type cdiHandler struct {

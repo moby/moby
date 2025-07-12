@@ -8,10 +8,11 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
+
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/ipams"
 	"github.com/docker/docker/libnetwork/ipamutils"
-	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 )
 
 func initIPAMDrivers(r ipamapi.Registerer, netConfig *networkallocator.Config) error {

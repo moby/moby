@@ -7,10 +7,11 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
+	"go.opentelemetry.io/otel"
+
 	"github.com/docker/docker/internal/cleanups"
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/libnetwork/internal/nftables"
-	"go.opentelemetry.io/otel"
 )
 
 type network struct {

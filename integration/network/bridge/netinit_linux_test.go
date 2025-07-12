@@ -3,11 +3,12 @@ package bridge
 import (
 	"testing"
 
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/libnetwork/drivers/bridge"
 	"github.com/docker/docker/testutil/daemon"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 // TestNetworkInitError checks that, if the default bridge network can't be restored on startup,

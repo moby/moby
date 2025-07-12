@@ -10,9 +10,10 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/api/types/swarm"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/api/types/swarm"
 )
 
 func TestSwarmUnlockError(t *testing.T) {

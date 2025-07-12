@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/pkg/rootless"
 )
 

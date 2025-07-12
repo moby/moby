@@ -6,13 +6,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/go-connections/nat"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/testutil"
-	"github.com/docker/go-connections/nat"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 // TestNatNetworkICC tries to ping container ctr1 from container ctr2 using its hostname.

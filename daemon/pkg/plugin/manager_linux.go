@@ -10,17 +10,18 @@ import (
 
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/log"
+	"github.com/moby/sys/mount"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/initlayer"
 	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/moby/sys/mount"
-	"github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
-	"golang.org/x/sys/unix"
 )
 
 func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {

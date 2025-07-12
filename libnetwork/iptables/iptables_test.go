@@ -10,10 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/internal/testutils/netnsutils"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/internal/testutils/netnsutils"
 )
 
 const (

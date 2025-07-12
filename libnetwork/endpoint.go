@@ -14,6 +14,8 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"go.opentelemetry.io/otel"
+
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/libnetwork/datastore"
@@ -24,7 +26,6 @@ import (
 	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/stringid"
-	"go.opentelemetry.io/otel"
 )
 
 // ByNetworkType sorts a [Endpoint] slice based on the network-type

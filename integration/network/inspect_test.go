@@ -3,13 +3,14 @@ package network
 import (
 	"testing"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
+
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/testutil"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/poll"
-	"gotest.tools/v3/skip"
 )
 
 func TestInspectNetwork(t *testing.T) {

@@ -3,11 +3,12 @@ package command
 import (
 	"runtime"
 
+	"github.com/spf13/pflag"
+
 	"github.com/docker/docker/daemon/config"
 	dopts "github.com/docker/docker/internal/opts"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/registry"
-	"github.com/spf13/pflag"
 )
 
 // installCommonConfigFlags adds flags to the pflag.FlagSet to configure the daemon

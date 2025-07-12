@@ -13,12 +13,13 @@ import (
 	"github.com/containerd/containerd/v2/plugins/content/local"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/internal/testutils/labelstore"
-	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/moby/go-archive"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/internal/testutils/labelstore"
+	"github.com/docker/docker/internal/testutils/specialimage"
 )
 
 func TestImageLoadMissing(t *testing.T) {

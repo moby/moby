@@ -7,11 +7,12 @@ import (
 	"net"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/internal/testutils/storeutils"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
-	"gotest.tools/v3/assert"
 )
 
 func testNetwork(networkType string, t *testing.T) {

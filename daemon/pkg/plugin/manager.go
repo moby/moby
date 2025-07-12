@@ -15,6 +15,13 @@ import (
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/plugins/content/local"
 	"github.com/containerd/log"
+	"github.com/moby/pubsub"
+	"github.com/moby/sys/atomicwriter"
+	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
@@ -22,12 +29,6 @@ import (
 	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/registry"
-	"github.com/moby/pubsub"
-	"github.com/moby/sys/atomicwriter"
-	"github.com/opencontainers/go-digest"
-	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (

@@ -7,12 +7,13 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
+
 	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
-	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 )
 
 // allowV1PluginsFallback determines daemon's support for V1 plugins.

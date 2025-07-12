@@ -16,6 +16,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/go-connections/nat"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
@@ -28,11 +34,6 @@ import (
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
-	"github.com/docker/go-connections/nat"
-	"github.com/google/go-cmp/cmp/cmpopts"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/skip"
 )
 
 // TestBridgeICC tries to ping container ctr1 from container ctr2 using its hostname. Thus, this test checks:

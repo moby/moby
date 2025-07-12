@@ -4,8 +4,9 @@
 package system
 
 import (
-	"github.com/docker/docker/daemon/server/router"
 	"resenje.org/singleflight"
+
+	"github.com/docker/docker/daemon/server/router"
 )
 
 // systemRouter provides information about the Docker system overall.

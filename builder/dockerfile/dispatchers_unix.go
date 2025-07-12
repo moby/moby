@@ -7,8 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
+
+	"github.com/docker/docker/api/types/container"
 )
 
 // normalizeWorkdir normalizes a user requested working directory in a

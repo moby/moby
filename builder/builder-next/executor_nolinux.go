@@ -7,12 +7,13 @@ import (
 	"errors"
 	"runtime"
 
-	"github.com/docker/docker/libnetwork"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
 	resourcetypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/sys/user"
+
+	"github.com/docker/docker/libnetwork"
 )
 
 type stubExecutor struct{}

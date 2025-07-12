@@ -9,11 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/moby/go-archive"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/jsonmessage"
 )
 
 type SpecialImageFunc func(string) (*ocispec.Index, error)

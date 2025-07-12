@@ -5,12 +5,13 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/moby/sys/signal"
+	"github.com/pkg/errors"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/moby/sys/signal"
-	"github.com/pkg/errors"
 )
 
 // ContainerStop looks for the given container and stops it.

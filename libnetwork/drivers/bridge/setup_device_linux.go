@@ -7,9 +7,10 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/log"
+	"github.com/vishvananda/netlink"
+
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork/netutils"
-	"github.com/vishvananda/netlink"
 )
 
 // SetupDevice create a new bridge interface/

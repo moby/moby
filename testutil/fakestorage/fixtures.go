@@ -9,9 +9,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/docker/docker/api/types/build"
 	"github.com/moby/go-archive"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/api/types/build"
 )
 
 var ensureHTTPServerOnce sync.Once

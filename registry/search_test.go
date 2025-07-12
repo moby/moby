@@ -10,9 +10,10 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/distribution/registry/client/transport"
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
-	"gotest.tools/v3/assert"
 )
 
 func spawnTestRegistrySession(t *testing.T) *session {

@@ -9,13 +9,14 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/moby/sys/userns"
+	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/internal/rootless/mountopts"
 	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/oci"
-	"github.com/moby/sys/userns"
-	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 )
 
 // InitSpec creates an OCI spec from the plugin's config.

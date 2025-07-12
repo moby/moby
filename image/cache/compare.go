@@ -4,8 +4,9 @@ import (
 	"strings"
 
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/api/types/container"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/docker/docker/api/types/container"
 )
 
 func comparePlatform(builderPlatform, imagePlatform ocispec.Platform) bool {

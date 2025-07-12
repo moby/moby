@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/image"
-	"github.com/pkg/errors"
 )
 
 // GetLayerFolders returns the layer folders from an image RootFS.

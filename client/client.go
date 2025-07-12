@@ -53,12 +53,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/go-connections/sockets"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
+	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/versions"
 )
 
 // DummyHost is a hostname used for local communication.

@@ -7,8 +7,6 @@ import (
 	"strconv"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/libnetwork"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
 	"github.com/moby/buildkit/executor/resources"
@@ -18,6 +16,9 @@ import (
 	"github.com/moby/buildkit/util/network"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
+
+	"github.com/docker/docker/libnetwork"
+	"github.com/docker/docker/pkg/stringid"
 )
 
 const networkName = "bridge"

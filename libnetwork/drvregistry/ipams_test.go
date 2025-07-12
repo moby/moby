@@ -5,10 +5,11 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/docker/docker/libnetwork/ipamapi"
-	"github.com/docker/docker/libnetwork/ipams"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipams"
 )
 
 func getNewIPAMs(t *testing.T) *IPAMs {

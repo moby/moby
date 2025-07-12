@@ -3,8 +3,9 @@ package storeutils
 import (
 	"testing"
 
-	"github.com/docker/docker/libnetwork/datastore"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/libnetwork/datastore"
 )
 
 // NewTempStore creates a new temporary libnetwork store for testing purposes.
