@@ -86,6 +86,7 @@ type Controller struct {
 	id               string
 	drvRegistry      drvregistry.Networks
 	ipamRegistry     drvregistry.IPAMs
+	pmRegistry       drvregistry.PortMappers
 	sandboxes        map[string]*Sandbox
 	cfg              *config.Config
 	store            *datastore.Store
@@ -177,11 +178,15 @@ func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retEr
 		return nil, err
 	}
 
-	if err := registerNetworkDrivers(&c.drvRegistry, c.store, c.makeDriverConfig); err != nil {
+	if err := registerNetworkDrivers(&c.drvRegistry, c.store, &c.pmRegistry, c.makeDriverConfig); err != nil {
 		return nil, err
 	}
 
 	if err := ipams.Register(&c.ipamRegistry, c.cfg.PluginGetter, c.cfg.DefaultAddressPool, nil); err != nil {
+		return nil, err
+	}
+
+	if err := registerPortMappers(ctx, &c.pmRegistry, c.cfg); err != nil {
 		return nil, err
 	}
 

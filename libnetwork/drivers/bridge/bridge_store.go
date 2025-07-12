@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/drivers/bridge/internal/firewaller"
+	"github.com/docker/docker/libnetwork/portmapperapi"
 	"github.com/docker/docker/libnetwork/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -460,9 +461,9 @@ func (n *bridgeNetwork) restorePortAllocations(ep *bridgeEndpoint) {
 	// ep.portMapping has HostPort=HostPortEnd, the host port allocated last
 	// time around ... use that in place of ep.extConnConfig.PortBindings, which
 	// may specify host port ranges.
-	cfg := make([]types.PortBinding, len(ep.portMapping))
+	cfg := make([]portmapperapi.PortBindingReq, len(ep.portMapping))
 	for i, b := range ep.portMapping {
-		cfg[i] = b.PortBinding
+		cfg[i] = portmapperapi.PortBindingReq{PortBinding: b.PortBinding}
 	}
 
 	// Calculate a portBindingMode - it need not be accurate but, if there were

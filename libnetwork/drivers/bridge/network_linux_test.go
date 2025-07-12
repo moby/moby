@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/internal/testutils/storeutils"
+	"github.com/docker/docker/libnetwork/drvregistry"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -15,7 +16,7 @@ import (
 
 func TestLinkCreate(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 	err := d.configure(nil)
 	assert.NilError(t, err)
 
@@ -78,7 +79,7 @@ func TestLinkCreate(t *testing.T) {
 
 func TestLinkCreateTwo(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 	err := d.configure(nil)
 	assert.NilError(t, err)
 
@@ -106,7 +107,7 @@ func TestLinkCreateTwo(t *testing.T) {
 
 func TestLinkCreateNoEnableIPv6(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 	err := d.configure(nil)
 	assert.NilError(t, err)
 
@@ -131,7 +132,7 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 
 func TestLinkDelete(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 	err := d.configure(nil)
 	assert.NilError(t, err)
 
