@@ -3,7 +3,6 @@ package libnetwork
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/docker/docker/daemon/libnetwork/config"
 	"github.com/docker/docker/daemon/libnetwork/datastore"
@@ -19,7 +18,6 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/portmappers/nat"
 	"github.com/docker/docker/daemon/libnetwork/portmappers/proxy"
 	"github.com/docker/docker/daemon/libnetwork/portmappers/routed"
-	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
 func registerNetworkDrivers(r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, driverConfig func(string) map[string]interface{}) error {
@@ -60,12 +58,12 @@ func registerPortMappers(ctx context.Context, r *drvregistry.PortMappers, cfg *c
 		}
 	}
 
+	proxyMgr := proxy.ProxyManager{ProxyPath: cfg.UserlandProxyPath}
+
 	if err := nat.Register(r, nat.Config{
-		RlkClient: pdc,
-		StartProxy: func(pb types.PortBinding, file *os.File) (func() error, error) {
-			return proxy.StartProxy(pb, cfg.UserlandProxyPath, file)
-		},
-		EnableProxy: cfg.EnableUserlandProxy && cfg.UserlandProxyPath != "",
+		RlkClient:    pdc,
+		ProxyManager: proxyMgr,
+		EnableProxy:  cfg.EnableUserlandProxy && cfg.UserlandProxyPath != "",
 	}); err != nil {
 		return fmt.Errorf("registering nat portmapper: %w", err)
 	}

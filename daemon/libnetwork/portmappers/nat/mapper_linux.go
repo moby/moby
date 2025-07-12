@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"os"
 	"strconv"
 	"syscall"
 
@@ -27,8 +26,6 @@ type PortDriverClient interface {
 	AddPort(ctx context.Context, proto string, hostIP, childIP netip.Addr, hostPort int) (func() error, error)
 }
 
-type proxyStarter func(types.PortBinding, *os.File) (func() error, error)
-
 // Register the "nat" port-mapper with libnetwork.
 func Register(r portmapperapi.Registerer, cfg Config) error {
 	return r.Register(driverName, NewPortMapper(cfg))
@@ -37,22 +34,22 @@ func Register(r portmapperapi.Registerer, cfg Config) error {
 type PortMapper struct {
 	// pdc is used to interact with rootlesskit port driver.
 	pdc         PortDriverClient
-	startProxy  proxyStarter
+	proxyMgr    portmapperapi.ProxyManager
 	enableProxy bool
 }
 
 type Config struct {
 	// RlkClient is called by MapPorts to determine the ChildHostIP and ask
 	// rootlesskit to map ports in its netns.
-	RlkClient   PortDriverClient
-	StartProxy  proxyStarter
-	EnableProxy bool
+	RlkClient    PortDriverClient
+	ProxyManager portmapperapi.ProxyManager
+	EnableProxy  bool
 }
 
 func NewPortMapper(cfg Config) PortMapper {
 	return PortMapper{
 		pdc:         cfg.RlkClient,
-		startProxy:  cfg.StartProxy,
+		proxyMgr:    cfg.ProxyManager,
 		enableProxy: cfg.EnableProxy,
 	}
 }
@@ -102,11 +99,11 @@ func (pm PortMapper) MapPorts(ctx context.Context, cfg []portmapperapi.PortBindi
 	// Start userland proxy processes.
 	if pm.enableProxy {
 		for i := range bindings {
-			if bindings[i].BoundSocket == nil || bindings[i].RootlesskitUnsupported || bindings[i].StopProxy != nil {
+			if bindings[i].BoundSocket == nil || bindings[i].RootlesskitUnsupported {
 				continue
 			}
 			var err error
-			bindings[i].StopProxy, err = pm.startProxy(
+			bindings[i].Proxy, err = pm.proxyMgr.StartProxy(
 				bindings[i].ChildPortBinding(), bindings[i].BoundSocket,
 			)
 			if err != nil {
@@ -139,8 +136,8 @@ func (pm PortMapper) UnmapPorts(ctx context.Context, pbs []portmapperapi.PortBin
 				errs = append(errs, err)
 			}
 		}
-		if pb.StopProxy != nil {
-			if err := pb.StopProxy(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+		if pb.Proxy != nil {
+			if err := pb.Proxy.Stop(); err != nil {
 				errs = append(errs, fmt.Errorf("failed to stop userland proxy: %w", err))
 			}
 		}

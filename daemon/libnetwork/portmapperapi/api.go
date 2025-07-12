@@ -112,9 +112,9 @@ type PortBinding struct {
 	// PortDriverRemove is a function that will inform the RootlessKit
 	// port driver about removal of a port binding, or nil.
 	PortDriverRemove func() error `json:"-"`
-	// StopProxy is a function to stop the userland proxy for this binding,
-	// if a proxy has been started - else nil.
-	StopProxy func() error `json:"-"`
+	// Proxy is the userland proxy for this binding, if a proxy has been
+	// started - else nil.
+	Proxy Proxy `json:"-"`
 	// RootlesskitUnsupported is set to true when the port binding is not
 	// supported by the port driver of RootlessKit.
 	RootlesskitUnsupported bool `json:"-"`
