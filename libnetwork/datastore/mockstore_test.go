@@ -29,7 +29,7 @@ func (s *MockStore) Put(key string, value []byte) error {
 	if mData == nil {
 		mData = &MockData{value, 0}
 	}
-	mData.Index = mData.Index + 1
+	mData.Index++
 	s.db[key] = mData
 	return nil
 }

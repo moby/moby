@@ -20,7 +20,7 @@ func Retry(f func() error) {
 	}
 }
 
-func Mount(source string, target string, fstype string, flags uintptr, data string) (err error) {
+func Mount(source, target, fstype string, flags uintptr, data string) (err error) {
 	Retry(func() error {
 		err = unix.Mount(source, target, fstype, flags, data)
 		return err

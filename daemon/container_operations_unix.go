@@ -245,12 +245,11 @@ func (daemon *Daemon) setupIPCDirs(ctr *container.Container) error {
 		// Container's /dev/shm mount comes from OCI spec.
 		ctr.ShmPath = ""
 
-	case ipcMode.IsEmpty():
+	case
+		ipcMode.IsEmpty(),
 		// A container was created by an older version of the daemon.
 		// The default behavior used to be what is now called "shareable".
-		fallthrough
-
-	case ipcMode.IsShareable():
+		ipcMode.IsShareable():
 		uid, gid := daemon.idMapping.RootPair()
 		if !ctr.HasMountFor("/dev/shm") {
 			shmPath, err := ctr.ShmResourcePath()
@@ -564,7 +563,7 @@ func buildSandboxPlatformOptions(ctr *container.Container, cfg *config.Config, s
 	return nil
 }
 
-func (daemon *Daemon) initializeNetworkingPaths(ctr *container.Container, nc *container.Container) error {
+func (daemon *Daemon) initializeNetworkingPaths(ctr, nc *container.Container) error {
 	ctr.HostnamePath = nc.HostnamePath
 	ctr.HostsPath = nc.HostsPath
 	ctr.ResolvConfPath = nc.ResolvConfPath

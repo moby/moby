@@ -801,7 +801,7 @@ func updateJoinInfo(networkSettings *network.Settings, n *libnetwork.Network, ep
 }
 
 // ForceEndpointDelete deletes an endpoint from a network forcefully
-func (daemon *Daemon) ForceEndpointDelete(name string, networkName string) error {
+func (daemon *Daemon) ForceEndpointDelete(name, networkName string) error {
 	n, err := daemon.FindNetwork(networkName)
 	if err != nil {
 		return err

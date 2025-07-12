@@ -294,11 +294,10 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			}
 		case ipcMode.IsHost():
 			oci.RemoveNamespace(s, specs.IPCNamespace)
-		case ipcMode.IsEmpty():
+		case ipcMode.IsEmpty(),
 			// A container was created by an older version of the daemon.
 			// The default behavior used to be what is now called "shareable".
-			fallthrough
-		case ipcMode.IsPrivate(), ipcMode.IsShareable(), ipcMode.IsNone():
+			ipcMode.IsPrivate(), ipcMode.IsShareable(), ipcMode.IsNone():
 			setNamespace(s, specs.LinuxNamespace{
 				Type: specs.IPCNamespace,
 			})
