@@ -14,6 +14,8 @@ import (
 // a Dockerfile (which gets translated to \windows\system32 when being processed
 // by the daemon). This SHOULD be treated as absolute from a docker processing
 // perspective.
+//
+// Deprecated: this function was only used internally and will be removed in the next release.
 func IsAbs(path string) bool {
 	return filepath.IsAbs(path) || strings.HasPrefix(path, string(os.PathSeparator))
 }

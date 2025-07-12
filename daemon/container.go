@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/containerd/log"
@@ -19,7 +20,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/oci/caps"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/system"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/sys/signal"
@@ -369,7 +369,7 @@ func translateWorkingDir(config *containertypes.Config) error {
 		return nil
 	}
 	wd := filepath.FromSlash(config.WorkingDir) // Ensure in platform semantics
-	if !system.IsAbs(wd) {
+	if !filepath.IsAbs(wd) && !strings.HasPrefix(wd, string(os.PathSeparator)) {
 		return fmt.Errorf("the working directory '%s' is invalid, it needs to be an absolute path", config.WorkingDir)
 	}
 	config.WorkingDir = filepath.Clean(wd)

@@ -19,9 +19,9 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/oci"
-	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
+	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )
 
@@ -240,7 +240,7 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 	if c.Config.ArgsEscaped {
 		s.Process.CommandLine = c.Path
 		if len(c.Args) > 0 {
-			s.Process.CommandLine += " " + system.EscapeArgs(c.Args)
+			s.Process.CommandLine += " " + escapeArgs(c.Args)
 		}
 	} else {
 		s.Process.Args = append([]string{c.Path}, c.Args...)
@@ -292,6 +292,15 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 	s.Windows.Devices = append(s.Windows.Devices, devices...)
 
 	return nil
+}
+
+// escapeArgs makes a Windows-style escaped command line from a set of arguments
+func escapeArgs(args []string) string {
+	escapedArgs := make([]string, len(args))
+	for i, a := range args {
+		escapedArgs[i] = windows.EscapeArg(a)
+	}
+	return strings.Join(escapedArgs, " ")
 }
 
 // getBackingDeviceForContainerdMount extracts the backing device or directory mounted at mountPoint

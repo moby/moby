@@ -107,10 +107,10 @@ func normalizeDest(workingDir, requested string) (string, error) {
 
 	// Cannot handle relative where WorkingDir is not the system drive.
 	if len(workingDir) > 0 {
-		if ((len(workingDir) > 1) && !system.IsAbs(workingDir[2:])) || (len(workingDir) == 1) {
+		if ((len(workingDir) > 1) && !isAbs(workingDir[2:])) || (len(workingDir) == 1) {
 			return "", fmt.Errorf("Current WorkingDir %s is not platform consistent", workingDir)
 		}
-		if !system.IsAbs(dest) {
+		if !isAbs(dest) {
 			if string(workingDir[0]) != "C" {
 				return "", fmt.Errorf("Windows does not support relative paths when WORKDIR is not the system drive")
 			}

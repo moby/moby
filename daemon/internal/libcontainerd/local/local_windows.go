@@ -24,7 +24,6 @@ import (
 	"github.com/docker/docker/daemon/internal/libcontainerd/queue"
 	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
@@ -532,8 +531,17 @@ func setCommandLineAndArgs(process *specs.Process, createProcessParms *hcsshim.P
 	if process.CommandLine != "" {
 		createProcessParms.CommandLine = process.CommandLine
 	} else {
-		createProcessParms.CommandLine = system.EscapeArgs(process.Args)
+		createProcessParms.CommandLine = escapeArgs(process.Args)
 	}
+}
+
+// escapeArgs makes a Windows-style escaped command line from a set of arguments
+func escapeArgs(args []string) string {
+	escapedArgs := make([]string, len(args))
+	for i, a := range args {
+		escapedArgs[i] = windows.EscapeArg(a)
+	}
+	return strings.Join(escapedArgs, " ")
 }
 
 func newIOFromProcess(newProcess hcsshim.Process, terminal bool) (*cio.DirectIO, error) {
