@@ -21,6 +21,7 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.StringVarP(&conf.GraphDriver, "storage-driver", "s", "", "Storage driver to use")
 	flags.BoolVar(&conf.EnableSelinuxSupport, "selinux-enabled", false, "Enable selinux support")
 	flags.Var(opts.NewNamedUlimitOpt("default-ulimits", &conf.Ulimits), "default-ulimit", "Default ulimits for containers")
+	flags.StringVar(&conf.NetworkConfig.FirewallBackend, "firewall-backend", "", "Firewall backend to use, iptables or nftables")
 	flags.BoolVar(&conf.BridgeConfig.EnableIPTables, "iptables", true, "Enable addition of iptables rules")
 	flags.BoolVar(&conf.BridgeConfig.EnableIP6Tables, "ip6tables", true, "Enable addition of ip6tables rules")
 	flags.BoolVar(&conf.BridgeConfig.EnableIPForward, "ip-forward", true, "Enable IP forwarding in system configuration")

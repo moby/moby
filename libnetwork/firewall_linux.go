@@ -13,16 +13,41 @@ import (
 
 const userChain = "DOCKER-USER"
 
-func (c *Controller) selectFirewallBackend() {
-	// Don't try to enable nftables if firewalld is running.
-	if iptables.UsingFirewalld() {
-		return
+func ValidateFirewallBackend(val string) error {
+	switch val {
+	case "", "iptables", "nftables":
+		return nil
 	}
-	// Only try to use nftables if explicitly enabled by env-var.
-	// TODO(robmry) - command line options?
+	return fmt.Errorf(`firewall-backend %q is invalid, allowed values are "iptables" and "nftables"`, val)
+}
+
+func (c *Controller) selectFirewallBackend() error {
+	// If explicitly configured to use iptables, don't consider nftables.
+	if c.cfg.FirewallBackend == "iptables" {
+		return nil
+	}
+	// If configured to use nftables, but it can't be initialised, return an error.
+	if c.cfg.FirewallBackend == "nftables" {
+		// Don't try to enable nftables if firewalld is running.
+		if iptables.UsingFirewalld() {
+			return errors.New("firewall-backend is set to nftables, but firewalld is running")
+		}
+		if err := nftables.Enable(); err != nil {
+			return fmt.Errorf("firewall-backend is set to nftables: %v", err)
+		}
+		return nil
+	}
+	// Default to nftables if enabled by env-var.
+	// (Used for integration tests that launch their own daemons in CI.)
 	if os.Getenv("DOCKER_FIREWALL_BACKEND") == "nftables" {
-		_ = nftables.Enable()
+		if iptables.UsingFirewalld() {
+			return errors.New("firewall-backend is not set and DOCKER_FIREWALL_BACKEND=nftables, but firewalld is running")
+		}
+		if err := nftables.Enable(); err != nil {
+			return fmt.Errorf("firewall-backend is not set and DOCKER_FIREWALL_BACKEND=nftables: %v", err)
+		}
 	}
+	return nil
 }
 
 // Sets up the DOCKER-USER chain for each iptables version (IPv4, IPv6) that's
