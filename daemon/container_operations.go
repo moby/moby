@@ -341,7 +341,8 @@ func (daemon *Daemon) findAndAttachNetwork(ctr *container.Container, idOrName st
 			// and removed the network while we were in
 			// the process of attaching.
 			if nwCfg != nil {
-				if _, ok := err.(libnetwork.ErrNoSuchNetwork); ok {
+				var noSuchNetworkErr libnetwork.ErrNoSuchNetwork
+				if errors.As(err, &noSuchNetworkErr) {
 					if retryCount >= 5 {
 						return nil, nil, fmt.Errorf("could not find network %s after successful attachment", idOrName)
 					}

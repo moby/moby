@@ -495,7 +495,8 @@ func (s *VolumeStore) Create(ctx context.Context, name, driverName string, creat
 
 	v, created, err := s.create(ctx, name, driverName, cfg.Options, cfg.Labels)
 	if err != nil {
-		if _, ok := err.(*OpErr); ok {
+		var opErr *OpErr
+		if errors.As(err, &opErr) {
 			return nil, err
 		}
 		return nil, &OpErr{Err: err, Name: name, Op: "create"}

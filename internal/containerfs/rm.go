@@ -39,8 +39,8 @@ func EnsureRemoveAll(dir string) error {
 			return nil
 		}
 
-		pe, ok := err.(*os.PathError)
-		if !ok {
+		var pe *os.PathError
+		if !errors.As(err, &pe) {
 			return err
 		}
 

@@ -286,7 +286,8 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				default:
 				}
 
-				if _, isDNR := err.(DoNotRetry); isDNR || attempt >= ldm.maxDownloadAttempts {
+				var e DoNotRetry
+				if errors.As(err, &e) || attempt >= ldm.maxDownloadAttempts {
 					log.G(context.TODO()).Errorf("Download failed after %d attempts: %v", attempt, err)
 					d.err = err
 					return

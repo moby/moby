@@ -209,12 +209,14 @@ func (c *containerAdapter) createNetworks(ctx context.Context) error {
 	for name, nw := range c.container.networks {
 		ncr := networkCreateRequest(name, nw)
 		if err := c.backend.CreateManagedNetwork(ncr); err != nil { // todo name missing
-			if _, ok := err.(libnetwork.NetworkNameError); ok {
+			var activeEndpointsErr *libnetwork.ActiveEndpointsError
+			if errors.As(err, &activeEndpointsErr) {
 				continue
 			}
 			// We will continue if CreateManagedNetwork returns PredefinedNetworkError error.
 			// Other callers still can treat it as Error.
-			if _, ok := err.(daemon.PredefinedNetworkError); ok {
+			var predefinedNetworkErr daemon.PredefinedNetworkError
+			if errors.As(err, &predefinedNetworkErr) {
 				continue
 			}
 			return err

@@ -94,21 +94,24 @@ func translatePullError(err error, ref reference.Named) error {
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return err
 	}
-	switch v := err.(type) {
-	case errcode.Errors:
-		if len(v) != 0 {
-			for _, extra := range v[1:] {
+	var ecsErr errcode.Errors
+	var ecErr errcode.Error
+	var dnrErr xfer.DoNotRetry
+	switch {
+	case errors.As(err, &ecsErr):
+		if len(ecsErr) != 0 {
+			for _, extra := range ecsErr[1:] {
 				log.G(context.TODO()).WithError(extra).Infof("Ignoring extra error returned from registry")
 			}
-			return translatePullError(v[0], ref)
+			return translatePullError(ecsErr[0], ref)
 		}
-	case errcode.Error:
-		switch v.Code {
+	case errors.As(err, &ecErr):
+		switch ecErr.Code {
 		case errcode.ErrorCodeDenied, v2.ErrorCodeManifestUnknown, v2.ErrorCodeNameUnknown:
-			return notFoundError{v, ref}
+			return notFoundError{ecErr, ref}
 		}
-	case xfer.DoNotRetry:
-		return translatePullError(v.Err, ref)
+	case errors.As(err, &dnrErr):
+		return translatePullError(dnrErr.Err, ref)
 	}
 
 	return errdefs.Unknown(err)
@@ -121,25 +124,31 @@ func continueOnError(err error, mirrorEndpoint bool) bool {
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return false
 	}
-	switch v := err.(type) {
-	case errcode.Errors:
-		if len(v) == 0 {
+	var ecsErr errcode.Errors
+	var ecErr errcode.Error
+	var unexpectedHTTPResponseErr *client.UnexpectedHTTPResponseError
+	var imageConfigPullErr imageConfigPullError
+	var unsupportedMediaTypeErr unsupportedMediaTypeError
+	var e error
+	switch {
+	case errors.As(err, &ecsErr):
+		if len(ecsErr) == 0 {
 			return true
 		}
-		return continueOnError(v[0], mirrorEndpoint)
-	case errcode.Error:
+		return continueOnError(ecsErr[0], mirrorEndpoint)
+	case errors.As(err, &ecErr):
 		return mirrorEndpoint
-	case *client.UnexpectedHTTPResponseError:
+	case errors.As(err, &unexpectedHTTPResponseErr):
 		return true
-	case imageConfigPullError:
+	case errors.As(err, &imageConfigPullErr):
 		// imageConfigPullError only happens with v2 images, v1 fallback is
 		// unnecessary.
 		// Failures from a mirror endpoint should result in fallback to the
 		// canonical repo.
 		return mirrorEndpoint
-	case unsupportedMediaTypeError:
+	case errors.As(err, unsupportedMediaTypeErr):
 		return false
-	case error:
+	case errors.As(err, &e):
 		return !strings.Contains(err.Error(), strings.ToLower(syscall.ESRCH.Error()))
 	default:
 		// let's be nice and fallback if the error is a completely
@@ -153,25 +162,31 @@ func continueOnError(err error, mirrorEndpoint bool) bool {
 // retryOnError wraps the error in xfer.DoNotRetry if we should not retry the
 // operation after this error.
 func retryOnError(err error) error {
-	switch v := err.(type) {
-	case errcode.Errors:
-		if len(v) != 0 {
-			return retryOnError(v[0])
+	var ecsErr errcode.Errors
+	var ecErr errcode.Error
+	var urlErr *url.Error
+	var unexpectedHTTPResponseErr *client.UnexpectedHTTPResponseError
+	var unsupportedMediaTypeErr unsupportedMediaTypeError
+	var e error
+	switch {
+	case errors.As(err, &ecsErr):
+		if len(ecsErr) != 0 {
+			return retryOnError(ecsErr[0])
 		}
-	case errcode.Error:
-		switch v.Code {
+	case errors.As(err, &ecErr):
+		switch ecErr.Code {
 		case errcode.ErrorCodeUnauthorized, errcode.ErrorCodeUnsupported, errcode.ErrorCodeDenied, errcode.ErrorCodeTooManyRequests, v2.ErrorCodeNameUnknown:
 			return xfer.DoNotRetry{Err: err}
 		}
-	case *url.Error:
+	case errors.As(err, &urlErr):
 		switch {
-		case errors.Is(v.Err, auth.ErrNoBasicAuthCredentials), errors.Is(v.Err, auth.ErrNoToken):
-			return xfer.DoNotRetry{Err: v.Err}
+		case errors.Is(urlErr.Err, auth.ErrNoBasicAuthCredentials), errors.Is(urlErr.Err, auth.ErrNoToken):
+			return xfer.DoNotRetry{Err: urlErr.Err}
 		}
-		return retryOnError(v.Err)
-	case *client.UnexpectedHTTPResponseError, unsupportedMediaTypeError:
+		return retryOnError(urlErr.Err)
+	case errors.As(err, &unexpectedHTTPResponseErr), errors.As(err, &unsupportedMediaTypeErr):
 		return xfer.DoNotRetry{Err: err}
-	case error:
+	case errors.As(err, &e):
 		if errors.Is(err, distribution.ErrBlobUnknown) {
 			return xfer.DoNotRetry{Err: err}
 		}

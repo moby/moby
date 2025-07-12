@@ -1,6 +1,7 @@
 package libnetwork
 
 import (
+	"errors"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -12,9 +13,8 @@ import (
 func TestErrorInterfaces(t *testing.T) {
 	maskableErrorList := []error{ManagerRedirectError("")}
 	for _, err := range maskableErrorList {
-		switch u := err.(type) {
-		case types.MaskableError:
-		default:
+		var u types.MaskableError
+		if !errors.As(err, &u) {
 			t.Errorf("Failed to detect err %v is of type MaskableError. Got type: %T", err, u)
 		}
 	}

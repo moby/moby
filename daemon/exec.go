@@ -330,7 +330,8 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 		return ctx.Err()
 	case err := <-attachErr:
 		if err != nil {
-			if _, ok := err.(term.EscapeError); !ok {
+			var escapeErr term.EscapeError
+			if !errors.As(err, &escapeErr) {
 				return errdefs.System(errors.Wrap(err, "exec attach failed"))
 			}
 			daemon.LogContainerEventWithAttributes(ec.Container, events.ActionExecDetach, map[string]string{

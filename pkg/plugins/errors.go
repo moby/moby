@@ -1,6 +1,7 @@
 package plugins
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -25,8 +26,8 @@ func isStatusError(err error, status int) bool {
 	if err == nil {
 		return false
 	}
-	e, ok := err.(*statusError)
-	if !ok {
+	var e *statusError
+	if !errors.As(err, &e) {
 		return false
 	}
 	return e.status == status

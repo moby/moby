@@ -129,7 +129,8 @@ func callGetent(database, key string) (io.Reader, error) {
 // exec.ExitError, returns 0 and an error otherwise.
 func getExitCode(err error) (int, error) {
 	exitCode := 0
-	if exiterr, ok := err.(*exec.ExitError); ok {
+	var exiterr *exec.ExitError
+	if errors.As(err, &exiterr) {
 		if procExit, ok := exiterr.Sys().(syscall.WaitStatus); ok {
 			return procExit.ExitStatus(), nil
 		}

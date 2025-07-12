@@ -101,6 +101,8 @@ func (daemon *Daemon) unsubscribeToContainerStats(c *container.Container, ch cha
 // GetContainerStats collects all the stats published by a container
 func (daemon *Daemon) GetContainerStats(container *container.Container) (*containertypes.StatsResponse, error) {
 	stats, err := daemon.stats(container)
+	var conflictErr errdefs.ErrConflict
+	var notFoundErr errdefs.ErrNotFound
 	if err != nil {
 		goto done
 	}
@@ -119,10 +121,10 @@ func (daemon *Daemon) GetContainerStats(container *container.Container) (*contai
 	}
 
 done:
-	switch err.(type) {
-	case nil:
+	switch {
+	case err == nil:
 		return stats, nil
-	case errdefs.ErrConflict, errdefs.ErrNotFound:
+	case errors.As(err, &conflictErr), errors.As(err, &notFoundErr):
 		// return empty stats containing only name and ID if not running or not found
 		return &containertypes.StatsResponse{
 			Name: container.Name,

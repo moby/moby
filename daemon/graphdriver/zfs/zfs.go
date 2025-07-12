@@ -281,7 +281,8 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 	if err == nil {
 		return nil
 	}
-	if zfsError, ok := err.(*zfs.Error); ok {
+	var zfsError *zfs.Error
+	if errors.As(err, &zfsError) {
 		if !strings.HasSuffix(zfsError.Stderr, "dataset already exists\n") {
 			return err
 		}

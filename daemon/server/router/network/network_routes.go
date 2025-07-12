@@ -225,7 +225,8 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 	// below.
 	nw, err := n.backend.CreateNetwork(ctx, create)
 	if err != nil {
-		if _, ok := err.(libnetwork.ManagerRedirectError); !ok {
+		var redirectErr libnetwork.ManagerRedirectError
+		if !errors.As(err, &redirectErr) {
 			return err
 		}
 		id, err := n.cluster.CreateNetwork(create)

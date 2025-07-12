@@ -2,6 +2,7 @@ package distribution
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -99,7 +100,8 @@ func newRepository(
 	challengeManager, err := registry.PingV2Registry(endpoint.URL, authTransport)
 	if err != nil {
 		transportOK := false
-		if responseErr, ok := err.(registry.PingResponseError); ok {
+		var responseErr registry.PingResponseError
+		if errors.As(err, &responseErr) {
 			transportOK = true
 			err = responseErr.Err
 		}

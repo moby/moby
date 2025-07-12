@@ -321,36 +321,35 @@ func (pd *pushDescriptor) Upload(ctx context.Context, progressOutput progress.Ou
 
 		// send the layer
 		lu, err := bs.Create(ctx, createOpts...)
-		switch err := err.(type) {
-		case nil:
+		var blobMountedErr distribution.ErrBlobMounted
+		var ecodesErr errcode.Errors
+		switch {
+		case err == nil:
 			// noop
-		case distribution.ErrBlobMounted:
-			progress.Updatef(progressOutput, pd.ID(), "Mounted from %s", err.From.Name())
+		case errors.As(err, &blobMountedErr):
+			progress.Updatef(progressOutput, pd.ID(), "Mounted from %s", blobMountedErr.From.Name())
 
-			err.Descriptor.MediaType = schema2.MediaTypeLayer
+			blobMountedErr.Descriptor.MediaType = schema2.MediaTypeLayer
 
 			pd.pushState.Lock()
-			pd.pushState.remoteLayers[diffID] = err.Descriptor
+			pd.pushState.remoteLayers[diffID] = blobMountedErr.Descriptor
 			pd.pushState.Unlock()
 
 			// Cache mapping from this layer's DiffID to the blobsum
 			if err := pd.metadataService.TagAndAdd(diffID, pd.hmacKey, metadata.V2Metadata{
-				Digest:           err.Descriptor.Digest,
+				Digest:           blobMountedErr.Descriptor.Digest,
 				SourceRepository: pd.repoName.Name(),
 			}); err != nil {
 				return distribution.Descriptor{}, xfer.DoNotRetry{Err: err}
 			}
-			return err.Descriptor, nil
-		case errcode.Errors:
-			for _, e := range err {
-				switch e := e.(type) {
-				case errcode.Error:
-					if e.Code == errcode.ErrorCodeUnauthorized {
-						// when unauthorized error that indicate user don't has right to push layer to register
-						log.G(ctx).Debugln("failed to push layer to registry because unauthorized error")
-						isUnauthorizedError = true
-					}
-				default:
+			return blobMountedErr.Descriptor, nil
+		case errors.As(err, &ecodesErr):
+			for _, e := range ecodesErr {
+				var ecodeErr errcode.Error
+				if errors.As(e, &ecodeErr) && ecodeErr.Code == errcode.ErrorCodeUnauthorized {
+					// when unauthorized error that indicate user don't has right to push layer to register
+					log.G(ctx).Debugln("failed to push layer to registry because unauthorized error")
+					isUnauthorizedError = true
 				}
 			}
 		default:

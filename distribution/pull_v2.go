@@ -111,7 +111,8 @@ func (p *puller) pullRepository(ctx context.Context, ref reference.Named) error 
 				// Since this is the pull-all-tags case, don't
 				// allow an error pulling a particular tag to
 				// make the whole pull fall back to v1.
-				if fallbackErr, ok := err.(fallbackError); ok {
+				var fallbackErr fallbackError
+				if errors.As(err, &fallbackErr) {
 					return fallbackErr.err
 				}
 				return err
