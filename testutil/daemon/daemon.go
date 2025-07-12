@@ -732,7 +732,7 @@ func (d *Daemon) StopWithError() (retErr error) {
 	d.log.Logf("[%s] stopping daemon", d.id)
 
 	if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
-		if strings.Contains(err.Error(), "os: process already finished") {
+		if errors.Is(err, os.ErrProcessDone) {
 			return errDaemonNotStarted
 		}
 		return errors.Wrapf(err, "[%s] could not send signal", d.id)
