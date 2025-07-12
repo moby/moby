@@ -15,7 +15,6 @@ import (
 	"io"
 
 	"github.com/containerd/log"
-	"github.com/docker/distribution"
 	"github.com/moby/go-archive"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
@@ -172,12 +171,6 @@ type Store interface {
 	Cleanup() error
 	DriverStatus() [][2]string
 	DriverName() string
-}
-
-// DescribableStore represents a layer store capable of storing
-// descriptors for layers.
-type DescribableStore interface {
-	RegisterWithDescriptor(io.Reader, ChainID, distribution.Descriptor) (Layer, error)
 }
 
 // CreateChainID returns ID for a layerDigest slice.

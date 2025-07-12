@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/distribution"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
@@ -345,15 +344,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 			}
 			defer inflatedLayerData.Close()
 
-			var src distribution.Descriptor
-			if fs, ok := descriptor.(distribution.Describable); ok {
-				src = fs.Descriptor()
-			}
-			if ds, ok := d.layerStore.(layer.DescribableStore); ok {
-				d.layer, err = ds.RegisterWithDescriptor(inflatedLayerData, parentLayer, src)
-			} else {
-				d.layer, err = d.layerStore.Register(inflatedLayerData, parentLayer)
-			}
+			d.layer, err = d.layerStore.Register(inflatedLayerData, parentLayer)
 			if err != nil {
 				select {
 				case <-d.transfer.context().Done():
@@ -444,15 +435,7 @@ func (ldm *LayerDownloadManager) makeDownloadFuncFromDownload(descriptor Downloa
 			}
 			defer layerReader.Close()
 
-			var src distribution.Descriptor
-			if fs, ok := l.(distribution.Describable); ok {
-				src = fs.Descriptor()
-			}
-			if ds, ok := d.layerStore.(layer.DescribableStore); ok {
-				d.layer, err = ds.RegisterWithDescriptor(layerReader, parentLayer, src)
-			} else {
-				d.layer, err = d.layerStore.Register(layerReader, parentLayer)
-			}
+			d.layer, err = d.layerStore.Register(layerReader, parentLayer)
 			if err != nil {
 				d.err = fmt.Errorf("failed to register layer: %v", err)
 				return
