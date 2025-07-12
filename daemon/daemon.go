@@ -267,6 +267,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 
 	removeContainers := make(map[string]*container.Container)
 	restartContainers := make(map[*container.Container]chan struct{})
+	dependentContainers := make(map[*container.Container][]*container.Container)
 	activeSandboxes := make(map[string]any)
 
 	for _, c := range containers {
@@ -488,6 +489,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 			if cfg.AutoRestart && c.ShouldRestart() && !c.NetworkSettings.HasSwarmEndpoint && c.HasBeenStartedBefore {
 				mapLock.Lock()
 				restartContainers[c] = make(chan struct{})
+				dependentContainers[c] = daemon.GetDependentContainers(c)
 				mapLock.Unlock()
 			} else if c.HostConfig != nil && c.HostConfig.AutoRemove {
 				// Remove the container if live-restore is disabled or if the container has already exited.
@@ -575,8 +577,8 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 			logger.Debug("starting container")
 
 			// ignore errors here as this is a best effort to wait for children
-			// (legacy links) to be running before we try to start the container
-			if children := daemon.linkIndex.children(c); len(children) > 0 {
+			// (legacy links or container network) to be running before we try to start the container
+			if children := dependentContainers[c]; len(children) > 0 {
 				timeout := time.NewTimer(5 * time.Second)
 				defer timeout.Stop()
 
