@@ -72,5 +72,16 @@ func registerPortMappers(ctx context.Context, r *drvregistry.PortMappers, cfg *c
 		return fmt.Errorf("registering routed portmapper: %w", err)
 	}
 
+	// The proxy portmapper is intended for use on rootful systems with UFW, as
+	// a workaround for UFW's inability to cope with NATed ports.
+	//
+	// Proxying instead of NATing ports in rootless environments would provide
+	// no benefits and inferior performance — disallow this combination.
+	if !cfg.Rootless && cfg.UserlandProxyPath != "" {
+		if err := proxy.Register(r, proxyMgr); err != nil {
+			return fmt.Errorf("registering proxy portmapper: %w", err)
+		}
+	}
+
 	return nil
 }
