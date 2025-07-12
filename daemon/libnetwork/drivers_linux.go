@@ -72,5 +72,9 @@ func registerPortMappers(ctx context.Context, r *drvregistry.PortMappers, cfg *c
 		return fmt.Errorf("registering routed portmapper: %w", err)
 	}
 
+	if err := proxy.Register(r, proxyMgr); err != nil {
+		return fmt.Errorf("registering proxy portmapper: %w", err)
+	}
+
 	return nil
 }

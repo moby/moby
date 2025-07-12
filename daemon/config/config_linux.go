@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/cgroups/v3"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
+	"github.com/docker/docker/daemon/libnetwork/portmappers/proxy"
 	"github.com/docker/docker/daemon/pkg/opts"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/docker/pkg/rootless"
@@ -255,6 +256,9 @@ func validatePlatformConfig(conf *Config) error {
 	if err := validateFwMarkMask(conf.BridgeAcceptFwMark); err != nil {
 		return errors.Wrap(err, "invalid bridge-accept-fwmark")
 	}
+	if err := validateDefaultPortMapper(conf.DefaultPortMapper, conf.Rootless); err != nil {
+		return errors.Wrap(err, "invalid default-port-mapper")
+	}
 	return verifyDefaultCgroupNsMode(conf.CgroupNamespaceMode)
 }
 
@@ -326,6 +330,21 @@ func validateFwMarkMask(val string) error {
 		if _, err := strconv.ParseUint(mask, 0, 32); err != nil {
 			return fmt.Errorf("invalid firewall mask %q: %w", val, err)
 		}
+	}
+	return nil
+}
+
+func validateDefaultPortMapper(val string, rootless bool) error {
+	if val == "" {
+		return nil
+	}
+	// The proxy portmapper is intended for use on rootful systems with UFW, as
+	// a workaround for UFW's inability to cope with NATed ports.
+	//
+	// Proxying instead of NATing ports in rootless environments would provide
+	// no benefits and inferior performance — disallow this combination.
+	if val == proxy.DriverName && rootless {
+		return errors.New("proxy mapper is not compatible with rootless mode")
 	}
 	return nil
 }
