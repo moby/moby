@@ -106,7 +106,8 @@ func pullEndpoints(ctx context.Context, registryService RegistryResolver, ref re
 		log.G(ctx).Debugf("Trying to pull %s from %s", reference.FamiliarName(repoName), endpoint.URL)
 
 		if err := f(ctx, repoName, endpoint); err != nil {
-			if _, ok := err.(fallbackError); !ok && continueOnError(err, endpoint.Mirror) {
+			var fallbackErr fallbackError
+			if !errors.As(err, &fallbackErr) && continueOnError(err, endpoint.Mirror) {
 				err = fallbackError{
 					err:         err,
 					transportOK: true,
@@ -119,7 +120,8 @@ func pullEndpoints(ctx context.Context, registryService RegistryResolver, ref re
 			select {
 			case <-ctx.Done():
 			default:
-				if fallbackErr, ok := err.(fallbackError); ok {
+				var fallbackErr fallbackError
+				if errors.As(err, &fallbackErr) {
 					fallback = true
 					if fallbackErr.transportOK && endpoint.URL.Scheme == "https" {
 						confirmedTLSRegistries[endpoint.URL.Host] = struct{}{}

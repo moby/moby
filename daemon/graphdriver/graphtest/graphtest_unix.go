@@ -338,7 +338,8 @@ func DriverTestSetQuota(t *testing.T, drivername string, required bool) {
 	if err == nil {
 		t.Fatalf("expected write to fail(), instead had success")
 	}
-	if pathError, ok := err.(*os.PathError); ok && !errors.Is(pathError.Err, unix.EDQUOT) && !errors.Is(pathError.Err, unix.ENOSPC) {
+	var pathError *os.PathError
+	if errors.As(err, &pathError) && !errors.Is(pathError.Err, unix.EDQUOT) && !errors.Is(pathError.Err, unix.ENOSPC) {
 		os.Remove(path.Join(mountPath, "bigfile"))
 		t.Fatalf("expect write() to fail with %v or %v, got %v", unix.EDQUOT, unix.ENOSPC, pathError.Err)
 	}

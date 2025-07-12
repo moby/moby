@@ -60,7 +60,8 @@ func Push(ctx context.Context, ref reference.Named, config *ImagePushConfig) err
 			select {
 			case <-ctx.Done():
 			default:
-				if fallbackErr, ok := err.(fallbackError); ok {
+				var fallbackErr fallbackError
+				if errors.As(err, &fallbackErr) {
 					if fallbackErr.transportOK && endpoint.URL.Scheme == "https" {
 						confirmedTLSRegistries[endpoint.URL.Host] = struct{}{}
 					}

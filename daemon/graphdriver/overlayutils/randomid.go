@@ -5,6 +5,7 @@ package overlayutils
 import (
 	"crypto/rand"
 	"encoding/base32"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -66,16 +67,16 @@ func GenerateID(l int, logger *log.Entry) string {
 
 // retryOnError tries to detect whether or not retrying would be fruitful.
 func retryOnError(err error) bool {
-	switch err := err.(type) {
-	case *os.PathError:
-		return retryOnError(err.Err) // unpack the target error
-	case syscall.Errno:
-		if err == unix.EPERM {
-			// EPERM represents an entropy pool exhaustion, a condition under
-			// which we backoff and retry.
-			return true
-		}
+	var pathErr *os.PathError
+	var syscallErr syscall.Errno
+	switch {
+	case errors.As(err, &pathErr):
+		return retryOnError(pathErr.Err) // unpack the target error
+	case errors.As(err, &syscallErr):
+		// EPERM represents an entropy pool exhaustion, a condition under
+		// which we backoff and retry.
+		return syscallErr == unix.EPERM
+	default:
+		return false
 	}
-
-	return false
 }

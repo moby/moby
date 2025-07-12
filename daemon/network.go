@@ -207,7 +207,8 @@ func (daemon *Daemon) setupIngress(cfg *config.Config, create *clustertypes.Netw
 	if _, err := daemon.createNetwork(ctx, cfg, create.CreateRequest, create.ID, true); err != nil {
 		// If it is any other error other than already
 		// exists error log error and return.
-		if _, ok := err.(libnetwork.NetworkNameError); !ok {
+		var networkNameErr libnetwork.NetworkNameError
+		if !errors.As(err, &networkNameErr) {
 			log.G(ctx).Errorf("Failed creating ingress network: %v", err)
 			return
 		}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"runtime"
@@ -22,7 +23,8 @@ func TestParseEmptyInterface(t *testing.T) {
 
 func TestParseNonInterfaceType(t *testing.T) {
 	_, err := Parse(testFixture, "wobble")
-	if _, ok := err.(errUnexpectedType); !ok {
+	var unexpectedTypeErr errUnexpectedType
+	if !errors.As(err, &unexpectedTypeErr) {
 		t.Fatal("expected type error when parsing non-interface type")
 	}
 }

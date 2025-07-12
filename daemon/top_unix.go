@@ -185,7 +185,8 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.TopRe
 		// so retry without it
 		output, err = exec.Command("ps", args...).Output()
 		if err != nil {
-			if ee, ok := err.(*exec.ExitError); ok {
+			var ee *exec.ExitError
+			if errors.As(err, &ee) {
 				// first line of stderr shows why ps failed
 				line := bytes.SplitN(ee.Stderr, []byte{'\n'}, 2)
 				if len(line) > 0 && len(line[0]) > 0 {

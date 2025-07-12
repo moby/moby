@@ -140,7 +140,8 @@ func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) doFun
 				}
 
 				retries++
-				if _, isDNR := err.(DoNotRetry); isDNR || retries == maxUploadAttempts {
+				var e DoNotRetry
+				if errors.As(err, &e) || retries == maxUploadAttempts {
 					log.G(context.TODO()).Errorf("Upload failed: %v", err)
 					u.err = err
 					return

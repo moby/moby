@@ -46,10 +46,10 @@ func downloadRemote(remoteURL string) (string, io.ReadCloser, error) {
 func GetWithStatusError(address string) (*http.Response, error) {
 	resp, err := http.Get(address) // #nosec G107 -- ignore G107: Potential HTTP request made with variable url
 	if err != nil {
-		if uErr, ok := err.(*url.Error); ok {
-			if dErr, ok := uErr.Err.(*net.DNSError); ok && !dErr.IsTimeout {
-				return nil, errdefs.NotFound(err)
-			}
+		var uErr *url.Error
+		var dErr *net.DNSError
+		if errors.As(err, &uErr) && errors.As(uErr.Err, &dErr) && !dErr.IsTimeout {
+			return nil, errdefs.NotFound(err)
 		}
 		return nil, errdefs.System(err)
 	}

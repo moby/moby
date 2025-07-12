@@ -2,6 +2,7 @@ package filters
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"testing"
@@ -501,8 +502,10 @@ func TestGetBoolOrDefault(t *testing.T) {
 				assert.Check(t, is.ErrorType(err, tc.expectedErr))
 
 				// Check if error is the same.
-				expected := tc.expectedErr.(*invalidFilter)
-				actual := err.(*invalidFilter)
+				var expected *invalidFilter
+				var actual *invalidFilter
+				errors.As(tc.expectedErr, &expected)
+				errors.As(err, &actual)
 
 				assert.Check(t, is.Equal(expected.Filter, actual.Filter))
 

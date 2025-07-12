@@ -3,6 +3,7 @@
 package trap
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -47,8 +48,8 @@ func TestTrap(t *testing.T) {
 			err := cmd.Start()
 			assert.NilError(t, err)
 			err = cmd.Wait()
-			e, ok := err.(*exec.ExitError)
-			assert.Assert(t, ok, "expected exec.ExitError, got %T", e)
+			var e *exec.ExitError
+			assert.Assert(t, errors.As(err, &e), "expected exec.ExitError, got %T", e)
 
 			code := e.Sys().(syscall.WaitStatus).ExitStatus()
 			if v.multiple {

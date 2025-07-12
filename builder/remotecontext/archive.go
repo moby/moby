@@ -25,13 +25,18 @@ func (c *archiveContext) Close() error {
 }
 
 func convertPathError(err error, cleanpath string) error {
-	switch err := err.(type) {
-	case *os.PathError:
-		err.Path = cleanpath
-	case *system.XattrError:
-		err.Path = cleanpath
+	var pathErr *os.PathError
+	var xattrErr *system.XattrError
+	switch {
+	case errors.As(err, &pathErr):
+		pathErr.Path = cleanpath
+		return pathErr
+	case errors.As(err, &xattrErr):
+		xattrErr.Path = cleanpath
+		return xattrErr
+	default:
+		return err
 	}
-	return err
 }
 
 type modifiableContext interface {

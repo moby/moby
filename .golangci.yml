@@ -81,7 +81,7 @@ linters:
       # See the https://github.com/polyfloyd/go-errorlint for caveats.
       errorf: false
       # Check for plain type assertions and type switches.
-      asserts: false
+      asserts: true
 
     exhaustive:
       # Program elements to check for exhaustiveness.

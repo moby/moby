@@ -2,6 +2,7 @@ package httpstatus
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -50,11 +51,13 @@ func FromError(err error) int {
 		if statusCode := statusCodeFromDistributionError(err); statusCode != http.StatusInternalServerError {
 			return statusCode
 		}
-		switch e := err.(type) {
-		case interface{ Unwrap() error }:
-			return FromError(e.Unwrap())
-		case interface{ Unwrap() []error }:
-			for _, ue := range e.Unwrap() {
+		var ue interface{ Unwrap() error }
+		var ues interface{ Unwrap() []error }
+		switch {
+		case errors.As(err, &ue):
+			return FromError(ue.Unwrap())
+		case errors.As(err, &ues):
+			for _, ue := range ues.Unwrap() {
 				if statusCode := FromError(ue); statusCode != http.StatusInternalServerError {
 					return statusCode
 				}
@@ -109,16 +112,20 @@ func statusCodeFromGRPCError(err error) int {
 // statusCodeFromDistributionError returns status code according to registry errcode
 // code is loosely based on errcode.ServeJSON() in docker/distribution
 func statusCodeFromDistributionError(err error) int {
-	switch errs := err.(type) {
-	case errcode.Errors:
-		if len(errs) < 1 {
+	var codeErr errcode.Errors
+	var codeErrCoder errcode.ErrorCoder
+	switch {
+	case errors.As(err, &codeErr):
+		if len(codeErr) < 1 {
 			return http.StatusInternalServerError
 		}
-		if _, ok := errs[0].(errcode.ErrorCoder); ok {
-			return statusCodeFromDistributionError(errs[0])
+		if _, ok := codeErr[0].(errcode.ErrorCoder); ok {
+			return statusCodeFromDistributionError(codeErr[0])
 		}
-	case errcode.ErrorCoder:
-		return errs.ErrorCode().Descriptor().HTTPStatusCode
+		return http.StatusInternalServerError
+	case errors.As(err, &codeErrCoder):
+		return codeErrCoder.ErrorCode().Descriptor().HTTPStatusCode
+	default:
+		return http.StatusInternalServerError
 	}
-	return http.StatusInternalServerError
 }

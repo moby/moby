@@ -1,5 +1,7 @@
 package graphdriver
 
+import "errors"
+
 const (
 	// ErrNotSupported returned when driver is not supported.
 	ErrNotSupported NotSupportedError = "driver not supported"
@@ -27,10 +29,6 @@ func (e NotSupportedError) NotSupported() {}
 // IsDriverNotSupported returns true if the error initializing
 // the graph driver is a non-supported error.
 func IsDriverNotSupported(err error) bool {
-	switch err.(type) {
-	case ErrUnSupported:
-		return true
-	default:
-		return false
-	}
+	var unsupportedErr ErrUnSupported
+	return errors.As(err, &unsupportedErr)
 }

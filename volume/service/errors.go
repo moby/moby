@@ -87,15 +87,18 @@ func IsNameConflict(err error) bool {
 }
 
 func isErr(err error, expected error) bool {
-	switch pe := err.(type) {
-	case nil:
+	var ce interface{ Cause() error }
+	var ue interface{ Unwrap() error }
+	var ues interface{ Unwrap() []error }
+	switch {
+	case err == nil:
 		return false
-	case interface{ Cause() error }:
-		return isErr(pe.Cause(), expected)
-	case interface{ Unwrap() error }:
-		return isErr(pe.Unwrap(), expected)
-	case interface{ Unwrap() []error }:
-		for _, ue := range pe.Unwrap() {
+	case errors.As(err, &ce):
+		return isErr(ce.Cause(), expected)
+	case errors.As(err, &ue):
+		return isErr(ue.Unwrap(), expected)
+	case errors.As(err, &ues):
+		for _, ue := range ues.Unwrap() {
 			if isErr(ue, expected) {
 				return true
 			}

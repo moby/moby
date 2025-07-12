@@ -296,7 +296,9 @@ func TestRefDerefRemove(t *testing.T) {
 
 	err = s.Remove(ctx, v)
 	assert.ErrorContains(t, err, "")
-	assert.Equal(t, errVolumeInUse, err.(*OpErr).Err)
+	var opErr *OpErr
+	errors.As(err, &opErr)
+	assert.Equal(t, errVolumeInUse, opErr.Err)
 
 	s.Release(ctx, v.Name(), "test-ref")
 	err = s.Remove(ctx, v)
@@ -314,7 +316,9 @@ func TestGet(t *testing.T) {
 	ctx := context.Background()
 	_, err := s.Get(ctx, "not-exist")
 	assert.ErrorContains(t, err, "")
-	assert.Equal(t, errNoSuchVolume, err.(*OpErr).Err)
+	var opErr *OpErr
+	errors.As(err, &opErr)
+	assert.Equal(t, errNoSuchVolume, opErr.Err)
 
 	v1, err := s.Create(ctx, "test", driverName, opts.WithCreateLabels(map[string]string{"a": "1"}))
 	assert.NilError(t, err)
@@ -351,7 +355,9 @@ func TestGetWithReference(t *testing.T) {
 
 	err = s.Remove(ctx, v2)
 	assert.ErrorContains(t, err, "")
-	assert.Equal(t, errVolumeInUse, err.(*OpErr).Err)
+	var opErr *OpErr
+	errors.As(err, &opErr)
+	assert.Equal(t, errVolumeInUse, opErr.Err)
 
 	s.Release(ctx, v2.Name(), "test-ref")
 	err = s.Remove(ctx, v2)

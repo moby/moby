@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -213,7 +214,8 @@ func (s *DockerCLIBuildSuite) TestBuildCancellationKillsSleep(c *testing.T) {
 }
 
 func isKilled(err error) bool {
-	if exitErr, ok := err.(*exec.ExitError); ok {
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
 		status, ok := exitErr.Sys().(syscall.WaitStatus)
 		if !ok {
 			return false
