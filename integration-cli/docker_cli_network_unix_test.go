@@ -1140,7 +1140,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c 
 
 	// Kill daemon ungracefully and restart
 	assert.NilError(c, s.d.Kill())
-	s.d.Restart(c)
+	s.d.Start(c)
 
 	// make sure all the containers are up and running
 	for i := 0; i < 10; i++ {
