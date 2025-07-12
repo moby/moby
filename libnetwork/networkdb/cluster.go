@@ -1,13 +1,14 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.23
+
 package networkdb
 
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	golog "log"
-	"math/big"
 	rnd "math/rand"
 	"net"
 	"net/netip"
@@ -339,7 +340,10 @@ func (nDB *NetworkDB) reconnectNode() {
 	}
 	nDB.RUnlock()
 
-	node := nodes[randomOffset(len(nodes))]
+	nDB.rngMu.Lock()
+	offset := nDB.rng.IntN(len(nodes))
+	nDB.rngMu.Unlock()
+	node := nodes[offset]
 	addr := net.UDPAddr{IP: node.Addr, Port: int(node.Port)}
 
 	if _, err := nDB.memberlist.Join([]string{addr.String()}); err != nil {
@@ -699,49 +703,35 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 	return nil
 }
 
-// Returns a random offset between 0 and n
-func randomOffset(n int) int {
-	if n == 0 {
-		return 0
-	}
-
-	val, err := rand.Int(rand.Reader, big.NewInt(int64(n)))
-	if err != nil {
-		log.G(context.TODO()).Errorf("Failed to get a random offset: %v", err)
-		return 0
-	}
-
-	return int(val.Int64())
-}
-
 // mRandomNodes is used to select up to m random nodes. It is possible
 // that less than m nodes are returned.
 func (nDB *NetworkDB) mRandomNodes(m int, nodes []string) []string {
-	n := len(nodes)
-	mNodes := make([]string, 0, m)
-OUTER:
-	// Probe up to 3*n times, with large n this is not necessary
-	// since k << n, but with small n we want search to be
-	// exhaustive
-	for i := 0; i < 3*n && len(mNodes) < m; i++ {
-		// Get random node
-		idx := randomOffset(n)
-		node := nodes[idx]
-
+	mNodes := make([]string, 0, max(0, len(nodes)-1))
+	for _, node := range nodes {
 		if node == nDB.config.NodeID {
+			// Skip myself
 			continue
 		}
-
-		// Check if we have this node already
-		for j := 0; j < len(mNodes); j++ {
-			if node == mNodes[j] {
-				continue OUTER
-			}
-		}
-
-		// Append the node
 		mNodes = append(mNodes, node)
 	}
 
-	return mNodes
+	if len(mNodes) < m {
+		nDB.rngMu.Lock()
+		nDB.rng.Shuffle(len(mNodes), func(i, j int) {
+			mNodes[i], mNodes[j] = mNodes[j], mNodes[i]
+		})
+		nDB.rngMu.Unlock()
+		return mNodes
+	}
+
+	nDB.rngMu.Lock()
+	perm := nDB.rng.Perm(len(mNodes))
+	nDB.rngMu.Unlock()
+
+	sample := make([]string, 0, m)
+	for _, idx := range perm[:m] {
+		sample = append(sample, mNodes[idx])
+	}
+
+	return sample
 }
