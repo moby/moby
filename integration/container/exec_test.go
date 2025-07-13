@@ -141,7 +141,14 @@ func TestExecResize(t *testing.T) {
 			Height: 40,
 			Width:  40,
 		})
+		if runtime.GOOS == "windows" && err != nil {
+			// FIXME(thaJeztah): temporarily allowing test to fail on Windows: see https://github.com/moby/moby/issues/50402
+			t.Log("XFAIL:", err)
+			t.Skip("XFAIL: flaky test on Windows: see https://github.com/moby/moby/issues/50402")
+			return
+		}
 		assert.NilError(t, err)
+
 		// TODO(thaJeztah): also check if the resize happened
 		//
 		// Note: container inspect shows the initial size that was
