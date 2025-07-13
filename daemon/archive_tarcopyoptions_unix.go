@@ -14,9 +14,9 @@ import (
 	"github.com/moby/sys/user"
 )
 
-func (daemon *Daemon) tarCopyOptions(ctr *container.Container, noOverwriteDirNonDir bool) (*archive.TarOptions, error) {
+func (daemon *Daemon) tarCopyOptions(ctr *container.Container, allowOverwriteDirWithFile bool) (*archive.TarOptions, error) {
 	if ctr.Config.User == "" {
-		return daemon.defaultTarCopyOptions(noOverwriteDirNonDir), nil
+		return daemon.defaultTarCopyOptions(allowOverwriteDirWithFile), nil
 	}
 
 	uid, gid, err := getUIDGID(ctr.Config.User)
@@ -25,7 +25,7 @@ func (daemon *Daemon) tarCopyOptions(ctr *container.Container, noOverwriteDirNon
 	}
 
 	return &archive.TarOptions{
-		NoOverwriteDirNonDir: noOverwriteDirNonDir,
+		NoOverwriteDirNonDir: !allowOverwriteDirWithFile,
 		ChownOpts:            &archive.ChownOpts{UID: uid, GID: gid},
 	}, nil
 }
