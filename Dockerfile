@@ -34,8 +34,8 @@ ARG DOCKER_STATIC=1
 ARG REGISTRY_VERSION=3.0.0
 
 # delve is currently only supported on linux/amd64 and linux/arm64;
-# https://github.com/go-delve/delve/blob/v1.24.1/pkg/proc/native/support_sentinel.go#L1
-# https://github.com/go-delve/delve/blob/v1.24.1/pkg/proc/native/support_sentinel_linux.go#L1
+# https://github.com/go-delve/delve/blob/v1.25.0/pkg/proc/native/support_sentinel.go#L1
+# https://github.com/go-delve/delve/blob/v1.25.0/pkg/proc/native/support_sentinel_linux.go#L1
 #
 # ppc64le support was added in v1.21.1, but is still experimental, and requires
 # the "-tags exp.linuxppc64le" build-tag to be set:
@@ -135,7 +135,7 @@ RUN git init . && git remote add origin "https://github.com/go-delve/delve.git"
 # from the https://github.com/go-delve/delve repository.
 # It can be used to run Docker with a possibility of
 # attaching debugger to it.
-ARG DELVE_VERSION=v1.24.1
+ARG DELVE_VERSION=v1.25.0
 RUN git fetch -q --depth 1 origin "${DELVE_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
 FROM base AS delve-supported
