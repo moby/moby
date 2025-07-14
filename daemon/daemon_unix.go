@@ -41,6 +41,7 @@ import (
 	"github.com/docker/docker/libnetwork/options"
 	lntypes "github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/runconfig"
 	volumemounts "github.com/docker/docker/volume/mounts"
@@ -1404,6 +1405,12 @@ func setupDaemonRoot(config *config.Config, rootDir string, uid, gid int) error 
 		if err := os.MkdirAll(rootDir, 0o711); err != nil {
 			return err
 		}
+		// make sure the config.Root is a full path, not a symlink
+		realRoot, err := fileutils.ReadSymlinkedDirectory(config.Root)
+		if err != nil {
+			return fmt.Errorf("Unable to get the full path to root (%s): %s", config.Root, err)
+		}
+		config.Root = realRoot
 	}
 
 	curuid := os.Getuid()
