@@ -1,52 +1,141 @@
 package registry
 
 import (
+	"encoding/base64"
+	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
-
-const (
-	unencoded        = `{"username":"testuser","password":"testpassword","serveraddress":"example.com"}`
-	encoded          = `eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwicGFzc3dvcmQiOiJ0ZXN0cGFzc3dvcmQiLCJzZXJ2ZXJhZGRyZXNzIjoiZXhhbXBsZS5jb20ifQ==`
-	encodedNoPadding = `eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwicGFzc3dvcmQiOiJ0ZXN0cGFzc3dvcmQiLCJzZXJ2ZXJhZGRyZXNzIjoiZXhhbXBsZS5jb20ifQ`
-)
-
-var expected = AuthConfig{
-	Username:      "testuser",
-	Password:      "testpassword",
-	ServerAddress: "example.com",
-}
 
 func TestDecodeAuthConfig(t *testing.T) {
-	t.Run("valid", func(t *testing.T) {
-		token, err := DecodeAuthConfig(encoded)
-		assert.NilError(t, err)
-		assert.Equal(t, *token, expected)
-	})
+	tests := []struct {
+		doc         string
+		input       string
+		inputBase64 string
+		expected    AuthConfig
+		expectedErr string
+	}{
+		{
+			doc:         "empty",
+			input:       ``,
+			inputBase64: ``,
+			expected:    AuthConfig{},
+		},
+		{
+			doc:         "empty JSON",
+			input:       `{}`,
+			inputBase64: `e30=`,
+			expected:    AuthConfig{},
+		},
+		{
+			doc:         "malformed JSON",
+			input:       `{`,
+			inputBase64: `ew==`,
+			expected:    AuthConfig{},
+			expectedErr: `invalid X-Registry-Auth header: unexpected EOF`,
+		},
+		{
+			doc:         "test authConfig",
+			input:       `{"username":"testuser","password":"testpassword","serveraddress":"example.com"}`,
+			inputBase64: `eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwicGFzc3dvcmQiOiJ0ZXN0cGFzc3dvcmQiLCJzZXJ2ZXJhZGRyZXNzIjoiZXhhbXBsZS5jb20ifQ==`,
+			expected: AuthConfig{
+				Username:      "testuser",
+				Password:      "testpassword",
+				ServerAddress: "example.com",
+			},
+		},
+		{
+			// FIXME(thaJeztah): we should not accept multiple JSON documents.
+			doc:         "multiple authConfig",
+			input:       `{"username":"testuser","password":"testpassword","serveraddress":"example.com"}{"username":"testuser2","password":"testpassword2","serveraddress":"example.org"}`,
+			inputBase64: `eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwicGFzc3dvcmQiOiJ0ZXN0cGFzc3dvcmQiLCJzZXJ2ZXJhZGRyZXNzIjoiZXhhbXBsZS5jb20ifXsidXNlcm5hbWUiOiJ0ZXN0dXNlcjIiLCJwYXNzd29yZCI6InRlc3RwYXNzd29yZDIiLCJzZXJ2ZXJhZGRyZXNzIjoiZXhhbXBsZS5vcmcifQ==`,
+			expected: AuthConfig{
+				Username:      "testuser",
+				Password:      "testpassword",
+				ServerAddress: "example.com",
+			},
+		},
+		// We currently only support base64url encoding with padding, so
+		// un-padded should produce an error.
+		//
+		// RFC4648, section 5: https://tools.ietf.org/html/rfc4648#section-5
+		// RFC4648, section 3.2: https://tools.ietf.org/html/rfc4648#section-3.2
+		{
+			doc:         "empty JSON no padding",
+			input:       `{}`,
+			inputBase64: `e30`,
+			expected:    AuthConfig{},
+			expectedErr: `invalid X-Registry-Auth header: unexpected EOF`,
+		},
+		{
+			doc:         "test authConfig",
+			input:       `{"username":"testuser","password":"testpassword","serveraddress":"example.com"}`,
+			inputBase64: `eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwicGFzc3dvcmQiOiJ0ZXN0cGFzc3dvcmQiLCJzZXJ2ZXJhZGRyZXNzIjoiZXhhbXBsZS5jb20ifQ`,
+			expected:    AuthConfig{},
+			expectedErr: `invalid X-Registry-Auth header: unexpected EOF`,
+		},
+	}
 
-	t.Run("empty", func(t *testing.T) {
-		token, err := DecodeAuthConfig("")
-		assert.NilError(t, err)
-		assert.Equal(t, *token, AuthConfig{})
-	})
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			// Sanity check to make sure our fixtures are correct.
+			b64 := base64.URLEncoding.EncodeToString([]byte(tc.input))
+			if !strings.HasSuffix(tc.inputBase64, "=") {
+				b64 = strings.TrimRight(b64, "=")
+			}
+			assert.Check(t, is.Equal(b64, tc.inputBase64))
 
-	// We currently only support base64url encoding with padding, so
-	// un-padded should produce an error.
-	//
-	// RFC4648, section 5: https://tools.ietf.org/html/rfc4648#section-5
-	// RFC4648, section 3.2: https://tools.ietf.org/html/rfc4648#section-3.2
-	t.Run("invalid encoding", func(t *testing.T) {
-		token, err := DecodeAuthConfig(encodedNoPadding)
-
-		assert.ErrorType(t, err, errInvalidParameter{})
-		assert.ErrorContains(t, err, "invalid X-Registry-Auth header: unexpected EOF")
-		assert.Equal(t, *token, AuthConfig{})
-	})
+			out, err := DecodeAuthConfig(tc.inputBase64)
+			if tc.expectedErr != "" {
+				assert.Check(t, is.ErrorType(err, errInvalidParameter{}))
+				assert.Check(t, is.Error(err, tc.expectedErr))
+			} else {
+				assert.NilError(t, err)
+				assert.Equal(t, *out, tc.expected)
+			}
+		})
+	}
 }
 
 func TestEncodeAuthConfig(t *testing.T) {
-	token, err := EncodeAuthConfig(expected)
-	assert.NilError(t, err)
-	assert.Equal(t, token, encoded)
+	tests := []struct {
+		doc       string
+		input     AuthConfig
+		outBase64 string
+		outPlain  string
+	}{
+		{
+			doc:       "empty",
+			input:     AuthConfig{},
+			outBase64: `e30=`,
+			outPlain:  `{}`,
+		},
+		{
+			doc: "test authConfig",
+			input: AuthConfig{
+				Username:      "testuser",
+				Password:      "testpassword",
+				ServerAddress: "example.com",
+			},
+			outBase64: `eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwicGFzc3dvcmQiOiJ0ZXN0cGFzc3dvcmQiLCJzZXJ2ZXJhZGRyZXNzIjoiZXhhbXBsZS5jb20ifQ==`,
+			outPlain:  `{"username":"testuser","password":"testpassword","serveraddress":"example.com"}`,
+		},
+	}
+	for _, tc := range tests {
+		// Sanity check to make sure our fixtures are correct.
+		b64 := base64.URLEncoding.EncodeToString([]byte(tc.outPlain))
+		assert.Check(t, is.Equal(b64, tc.outBase64))
+
+		t.Run(tc.doc, func(t *testing.T) {
+			out, err := EncodeAuthConfig(tc.input)
+			assert.NilError(t, err)
+			assert.Equal(t, out, tc.outBase64)
+
+			authJSON, err := base64.URLEncoding.DecodeString(out)
+			assert.NilError(t, err)
+			assert.Equal(t, string(authJSON), tc.outPlain)
+		})
+	}
 }
