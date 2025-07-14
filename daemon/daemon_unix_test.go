@@ -321,13 +321,9 @@ func deviceTypeMock(t *testing.T, testAndCheck func(string)) {
 
 	t.Parallel()
 
-	tempDir, err := os.MkdirTemp("", "tempDevDir"+t.Name())
-	assert.NilError(t, err, "create temp file")
-	tempFile := filepath.Join(tempDir, "dev")
+	tempFile := filepath.Join(t.TempDir(), "dev")
 
-	defer os.RemoveAll(tempDir)
-
-	if err = unix.Mknod(tempFile, unix.S_IFCHR, DEVNO); err != nil {
+	if err := unix.Mknod(tempFile, unix.S_IFCHR, DEVNO); err != nil {
 		t.Fatalf("mknod error %s(%x): %v", tempFile, DEVNO, err)
 	}
 

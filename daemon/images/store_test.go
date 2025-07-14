@@ -2,7 +2,6 @@ package images
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -21,8 +20,8 @@ import (
 )
 
 func setupTestStores(t *testing.T) (context.Context, content.Store, *imageStoreWithLease, func(t *testing.T)) {
-	dir, err := os.MkdirTemp("", t.Name())
-	assert.NilError(t, err)
+	t.Helper()
+	dir := t.TempDir()
 
 	backend, err := image.NewFSStoreBackend(filepath.Join(dir, "images"))
 	assert.NilError(t, err)
@@ -38,7 +37,6 @@ func setupTestStores(t *testing.T) (context.Context, content.Store, *imageStoreW
 
 	cleanup := func(t *testing.T) {
 		assert.Check(t, db.Close())
-		assert.Check(t, os.RemoveAll(dir))
 	}
 	ctx := namespaces.WithNamespace(context.Background(), t.Name())
 	images := &imageStoreWithLease{Store: imgStore, ns: t.Name(), leases: metadata.NewLeaseManager(mdb)}

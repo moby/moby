@@ -274,11 +274,7 @@ func TestCopyFromContainer(t *testing.T) {
 
 	apiClient := testEnv.APIClient()
 
-	dir, err := os.MkdirTemp("", t.Name())
-	assert.NilError(t, err)
-	defer os.RemoveAll(dir)
-
-	buildCtx := fakecontext.New(t, dir, fakecontext.WithFile("foo", "hello"), fakecontext.WithFile("baz", "world"), fakecontext.WithDockerfile(`
+	buildCtx := fakecontext.New(t, t.TempDir(), fakecontext.WithFile("foo", "hello"), fakecontext.WithFile("baz", "world"), fakecontext.WithDockerfile(`
 		FROM busybox
 		COPY foo /foo
 		COPY baz /bar/quux/baz

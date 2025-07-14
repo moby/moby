@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"os"
 	"regexp"
 	"testing"
 
@@ -83,9 +82,7 @@ func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *testing.T) {
 
 	s.d.StartWithBusybox(ctx, c, "--insecure-registry", reg.URL())
 
-	tmp, err := os.MkdirTemp("", "integration-cli-")
-	assert.NilError(c, err)
-	defer os.RemoveAll(tmp)
+	tmp := c.TempDir()
 
 	dockerfile, err := makefile(tmp, "FROM "+imgRepo)
 	assert.NilError(c, err, "Unable to create test dockerfile")

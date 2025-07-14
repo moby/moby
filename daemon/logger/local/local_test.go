@@ -22,11 +22,7 @@ import (
 func TestWriteLog(t *testing.T) {
 	t.Parallel()
 
-	dir, err := os.MkdirTemp("", t.Name())
-	assert.NilError(t, err)
-	defer os.RemoveAll(dir)
-
-	logPath := filepath.Join(dir, "test.log")
+	logPath := filepath.Join(t.TempDir(), "test.log")
 
 	l, err := New(logger.Info{LogPath: logPath})
 	assert.NilError(t, err)

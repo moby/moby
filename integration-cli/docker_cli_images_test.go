@@ -365,11 +365,9 @@ func (s *DockerCLIImagesSuite) TestImagesFormatDefaultFormat(c *testing.T) {
 	const config = `{
 		"imagesFormat": "{{ .ID }} default"
 }`
-	d, err := os.MkdirTemp("", "integration-cli-")
-	assert.NilError(c, err)
-	defer os.RemoveAll(d)
+	d := c.TempDir()
 
-	err = os.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0o644)
+	err := os.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0o644)
 	assert.NilError(c, err)
 
 	out := cli.DockerCmd(c, "--config", d, "images", "-q", "myimage").Stdout()
