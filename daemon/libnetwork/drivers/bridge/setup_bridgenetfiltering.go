@@ -10,7 +10,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/internal/modprobe"
+	"github.com/docker/docker/daemon/libnetwork/internal/modprobe"
 )
 
 // setupIPv4BridgeNetFiltering checks whether IPv4 forwarding is enabled and, if
