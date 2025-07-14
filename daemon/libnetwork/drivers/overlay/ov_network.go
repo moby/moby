@@ -198,7 +198,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 	}
 
 	if nInfo != nil {
-		if err := nInfo.TableEventRegister(ovPeerTable, driverapi.EndpointObject); err != nil {
+		if err := nInfo.TableEventRegister(OverlayPeerTable, driverapi.EndpointObject); err != nil {
 			return err
 		}
 	}
