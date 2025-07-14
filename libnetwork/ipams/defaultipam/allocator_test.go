@@ -285,6 +285,73 @@ func TestPredefinedPool(t *testing.T) {
 	}
 }
 
+func TestPredefinedPoolWithPreferredSubnetSize(t *testing.T) {
+	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+	assert.NilError(t, err)
+
+	alloc1, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Options: map[string]string{SubnetSizeOption: "24"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	alloc2, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if alloc1.Pool == alloc2.Pool {
+		t.Fatalf("Unexpected default network returned: %s = %s", alloc2.Pool, alloc1.Pool)
+	}
+
+	if alloc1.Pool.Bits() != 24 {
+		t.Fatalf("Unexpected default network size: %s != 24", alloc1.Pool)
+	}
+
+	if alloc2.Pool.Bits() == 24 {
+		t.Fatalf("Unexpected default network size: %s == 24", alloc2.Pool)
+	}
+
+	// Release the second pool first
+	if err := a.ReleasePool(alloc2.PoolID); err != nil {
+		t.Fatal(err)
+	}
+
+	alloc3, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "/24"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if alloc3.Pool.Bits() != 24 {
+		t.Fatalf("Unexpected default network size: %s != 24", alloc3.Pool)
+	}
+
+	if err := a.ReleasePool(alloc3.PoolID); err != nil {
+		t.Fatal(err)
+	}
+
+	alloc4, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "0.0.0.0/25"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if alloc4.Pool.Bits() != 25 {
+		t.Fatalf("Unexpected default network size: %s != 25", alloc4.Pool)
+	}
+
+	if err := a.ReleasePool(alloc4.PoolID); err != nil {
+		t.Fatal(err)
+	}
+
+	// Check invalid subnet size requests
+	if _, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Options: map[string]string{SubnetSizeOption: "AB"}}); err == nil {
+		t.Fatalf("Expected failure requesting pool with invalid subnet size")
+	}
+
+	if _, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "/24", Options: map[string]string{SubnetSizeOption: "24"}}); err == nil {
+		t.Fatalf("Expected failure requesting pool with invalid subnet size")
+	}
+}
+
 func TestRemoveSubnet(t *testing.T) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
