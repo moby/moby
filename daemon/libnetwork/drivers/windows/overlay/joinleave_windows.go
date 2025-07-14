@@ -7,6 +7,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
+	"github.com/docker/docker/daemon/libnetwork/drivers/overlay"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/gogo/protobuf/proto"
 	"go.opentelemetry.io/otel"
@@ -36,7 +37,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 		return fmt.Errorf("could not find endpoint with id %s", eid)
 	}
 
-	buf, err := proto.Marshal(&PeerRecord{
+	buf, err := proto.Marshal(&overlay.PeerRecord{
 		EndpointIP:       ep.addr.String(),
 		EndpointMAC:      ep.mac.String(),
 		TunnelEndpointIP: n.providerAddress,
@@ -45,7 +46,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 		return err
 	}
 
-	if err := jinfo.AddTableEntry(ovPeerTable, eid, buf); err != nil {
+	if err := jinfo.AddTableEntry(overlay.OverlayPeerTable, eid, buf); err != nil {
 		log.G(ctx).Errorf("overlay: Failed adding table entry to joininfo: %v", err)
 	}
 
@@ -57,14 +58,14 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 }
 
 func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
-	if tableName != ovPeerTable {
+	if tableName != overlay.OverlayPeerTable {
 		log.G(context.TODO()).Errorf("Unexpected table notification for table %s received", tableName)
 		return
 	}
 
 	eid := key
 
-	var peer PeerRecord
+	var peer overlay.PeerRecord
 	if err := proto.Unmarshal(value, &peer); err != nil {
 		log.G(context.TODO()).Errorf("Failed to unmarshal peer record: %v", err)
 		return
