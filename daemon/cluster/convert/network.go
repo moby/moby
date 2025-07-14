@@ -5,7 +5,7 @@ import (
 
 	"github.com/docker/docker/api/types/network"
 	types "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/libnetwork/scope"
+	"github.com/docker/docker/daemon/libnetwork/scope"
 	gogotypes "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )

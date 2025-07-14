@@ -10,7 +10,7 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/libnetwork"
+	"github.com/docker/docker/daemon/libnetwork"
 	"github.com/docker/docker/pkg/idtools"
 	volumesservice "github.com/docker/docker/volume/service"
 	"github.com/docker/go-connections/nat"

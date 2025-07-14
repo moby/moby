@@ -3,7 +3,7 @@ package storeutils
 import (
 	"testing"
 
-	"github.com/docker/docker/libnetwork/datastore"
+	"github.com/docker/docker/daemon/libnetwork/datastore"
 	"gotest.tools/v3/assert"
 )
 

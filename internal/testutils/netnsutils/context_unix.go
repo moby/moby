@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/docker/docker/daemon/libnetwork/ns"
 	"github.com/docker/docker/internal/testutils"
-	"github.com/docker/docker/libnetwork/ns"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
