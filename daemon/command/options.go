@@ -7,7 +7,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/opts"
+	"github.com/docker/docker/daemon/pkg/opts"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/spf13/pflag"

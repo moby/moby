@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/opts"
+	"github.com/docker/docker/daemon/pkg/opts"
 )
 
 // SetOpts holds a map of values and a validation function.

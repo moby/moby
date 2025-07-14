@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/daemon/pkg/opts"
 	dopts "github.com/docker/docker/internal/opts"
-	"github.com/docker/docker/opts"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/spf13/pflag"
 	"gotest.tools/v3/assert"
