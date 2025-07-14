@@ -9,7 +9,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/daemon/internal/libcontainerd"
 	"golang.org/x/sys/windows"
 )
 
@@ -101,7 +101,11 @@ func newCgroupParent(*config.Config) string {
 }
 
 func (cli *daemonCLI) initContainerd(ctx context.Context) (func(time.Duration) error, error) {
-	defer func() { system.EnableContainerdRuntime(cli.Config.ContainerdAddr) }()
+	defer func() {
+		if cli.Config.ContainerdAddr != "" {
+			libcontainerd.ContainerdRuntimeEnabled = true
+		}
+	}()
 
 	if cli.Config.ContainerdAddr != "" {
 		return nil, nil
