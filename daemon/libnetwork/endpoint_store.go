@@ -6,7 +6,7 @@ package libnetwork
 import (
 	"context"
 
-	"github.com/docker/docker/internal/maputil"
+	"github.com/docker/docker/daemon/libnetwork/internal/maputil"
 )
 
 // storeEndpoint inserts or updates the endpoint in the store and the in-memory
