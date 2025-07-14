@@ -7,11 +7,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"net/netip"
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/libnetwork/internal/hashable"
 	"github.com/docker/docker/libnetwork/internal/setmatrix"
 	"github.com/docker/docker/libnetwork/osl"
 )
@@ -20,7 +20,7 @@ const ovPeerTable = "overlay_peer_table"
 
 type peerEntry struct {
 	eid  string
-	mac  macAddr
+	mac  hashable.MACAddr
 	vtep netip.Addr
 }
 
@@ -49,10 +49,10 @@ func (pm *peerMap) Get(peerIP netip.Prefix) (peerEntry, bool) {
 	return c[0], true
 }
 
-func (pm *peerMap) Add(eid string, peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr) (bool, int) {
+func (pm *peerMap) Add(eid string, peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr) (bool, int) {
 	pEntry := peerEntry{
 		eid:  eid,
-		mac:  macAddrOf(peerMac),
+		mac:  peerMac,
 		vtep: vtep,
 	}
 	b, i := pm.mp.Insert(peerIP, pEntry)
@@ -64,10 +64,10 @@ func (pm *peerMap) Add(eid string, peerIP netip.Prefix, peerMac net.HardwareAddr
 	return b, i
 }
 
-func (pm *peerMap) Delete(eid string, peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr) (bool, int) {
+func (pm *peerMap) Delete(eid string, peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr) (bool, int) {
 	pEntry := peerEntry{
 		eid:  eid,
-		mac:  macAddrOf(peerMac),
+		mac:  peerMac,
 		vtep: vtep,
 	}
 
@@ -94,7 +94,7 @@ func (n *network) initSandboxPeerDB() error {
 	var errs []error
 	n.peerdb.Walk(func(peerIP netip.Prefix, pEntry peerEntry) {
 		if !pEntry.isLocal() {
-			if err := n.addNeighbor(peerIP, pEntry.mac.HardwareAddr(), pEntry.vtep); err != nil {
+			if err := n.addNeighbor(peerIP, pEntry.mac, pEntry.vtep); err != nil {
 				errs = append(errs, fmt.Errorf("failed to add neighbor entries for %s: %w", peerIP, err))
 			}
 		}
@@ -105,7 +105,7 @@ func (n *network) initSandboxPeerDB() error {
 // peerAdd adds a new entry to the peer database.
 //
 // Local peers are signified by an invalid vtep (i.e. netip.Addr{}).
-func (n *network) peerAdd(eid string, peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr) error {
+func (n *network) peerAdd(eid string, peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr) error {
 	if eid == "" {
 		return errors.New("invalid endpoint id")
 	}
@@ -130,7 +130,7 @@ func (n *network) peerAdd(eid string, peerIP netip.Prefix, peerMac net.HardwareA
 }
 
 // addNeighbor programs the kernel so the given peer is reachable through the VXLAN tunnel.
-func (n *network) addNeighbor(peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr) error {
+func (n *network) addNeighbor(peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr) error {
 	if n.sbox == nil {
 		// We are hitting this case for all the events that are arriving before that the sandbox
 		// is being created. The peer got already added into the database and the sanbox init will
@@ -154,13 +154,13 @@ func (n *network) addNeighbor(peerIP netip.Prefix, peerMac net.HardwareAddr, vte
 	}
 
 	// Add neighbor entry for the peer IP
-	if err := n.sbox.AddNeighbor(peerIP.Addr().AsSlice(), peerMac, osl.WithLinkName(s.vxlanName)); err != nil {
+	if err := n.sbox.AddNeighbor(peerIP.Addr().AsSlice(), peerMac.AsSlice(), osl.WithLinkName(s.vxlanName)); err != nil {
 		return fmt.Errorf("could not add neighbor entry into the sandbox: %w", err)
 	}
 
 	// Add fdb entry to the bridge for the peer mac
-	if n.fdbCnt.Add(ipmacOf(vtep, peerMac), 1) == 1 {
-		if err := n.sbox.AddNeighbor(vtep.AsSlice(), peerMac, osl.WithLinkName(s.vxlanName), osl.WithFamily(syscall.AF_BRIDGE)); err != nil {
+	if n.fdbCnt.Add(hashable.IPMACFrom(vtep, peerMac), 1) == 1 {
+		if err := n.sbox.AddNeighbor(vtep.AsSlice(), peerMac.AsSlice(), osl.WithLinkName(s.vxlanName), osl.WithFamily(syscall.AF_BRIDGE)); err != nil {
 			return fmt.Errorf("could not add fdb entry into the sandbox: %w", err)
 		}
 	}
@@ -171,7 +171,7 @@ func (n *network) addNeighbor(peerIP netip.Prefix, peerMac net.HardwareAddr, vte
 // peerDelete removes an entry from the peer database.
 //
 // Local peers are signified by an invalid vtep (i.e. netip.Addr{}).
-func (n *network) peerDelete(eid string, peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr) error {
+func (n *network) peerDelete(eid string, peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr) error {
 	if eid == "" {
 		return errors.New("invalid endpoint id")
 	}
@@ -207,7 +207,7 @@ func (n *network) peerDelete(eid string, peerIP netip.Prefix, peerMac net.Hardwa
 		if !ok {
 			return fmt.Errorf("peerDelete: unable to restore a configuration: no entry for %v found in the database", peerIP)
 		}
-		err := n.addNeighbor(peerIP, peerEntry.mac.HardwareAddr(), peerEntry.vtep)
+		err := n.addNeighbor(peerIP, peerEntry.mac, peerEntry.vtep)
 		if err != nil {
 			return fmt.Errorf("peer delete operation failed: %w", err)
 		}
@@ -217,7 +217,7 @@ func (n *network) peerDelete(eid string, peerIP netip.Prefix, peerMac net.Hardwa
 
 // deleteNeighbor removes programming from the kernel for the given peer to be
 // reachable through the VXLAN tunnel. It is the inverse of [driver.addNeighbor].
-func (n *network) deleteNeighbor(peerIP netip.Prefix, peerMac net.HardwareAddr, vtep netip.Addr) error {
+func (n *network) deleteNeighbor(peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr) error {
 	if n.sbox == nil {
 		return nil
 	}
@@ -233,14 +233,14 @@ func (n *network) deleteNeighbor(peerIP netip.Prefix, peerMac net.HardwareAddr, 
 		return fmt.Errorf("could not find the subnet %q in network %q", peerIP.String(), n.id)
 	}
 	// Remove fdb entry to the bridge for the peer mac
-	if n.fdbCnt.Add(ipmacOf(vtep, peerMac), -1) == 0 {
-		if err := n.sbox.DeleteNeighbor(vtep.AsSlice(), peerMac, osl.WithLinkName(s.vxlanName), osl.WithFamily(syscall.AF_BRIDGE)); err != nil {
+	if n.fdbCnt.Add(hashable.IPMACFrom(vtep, peerMac), -1) == 0 {
+		if err := n.sbox.DeleteNeighbor(vtep.AsSlice(), peerMac.AsSlice(), osl.WithLinkName(s.vxlanName), osl.WithFamily(syscall.AF_BRIDGE)); err != nil {
 			return fmt.Errorf("could not delete fdb entry in the sandbox: %w", err)
 		}
 	}
 
 	// Delete neighbor entry for the peer IP
-	if err := n.sbox.DeleteNeighbor(peerIP.Addr().AsSlice(), peerMac, osl.WithLinkName(s.vxlanName)); err != nil {
+	if err := n.sbox.DeleteNeighbor(peerIP.Addr().AsSlice(), peerMac.AsSlice(), osl.WithLinkName(s.vxlanName)); err != nil {
 		return fmt.Errorf("could not delete neighbor entry in the sandbox:%v", err)
 	}
 

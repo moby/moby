@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
 	"github.com/docker/docker/libnetwork/internal/countmap"
+	"github.com/docker/docker/libnetwork/internal/hashable"
 	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/ns"
@@ -64,7 +65,7 @@ type network struct {
 	endpoints endpointTable
 	joinCnt   int
 	// Ref count of VXLAN Forwarding Database entries programmed into the kernel
-	fdbCnt    countmap.Map[ipmac]
+	fdbCnt    countmap.Map[hashable.IPMAC]
 	sboxInit  bool
 	initEpoch int
 	initErr   error
@@ -109,7 +110,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		driver:    d,
 		endpoints: endpointTable{},
 		subnets:   []*subnet{},
-		fdbCnt:    countmap.Map[ipmac]{},
+		fdbCnt:    countmap.Map[hashable.IPMAC]{},
 	}
 
 	vnis := make([]uint32, 0, len(ipV4Data))
@@ -614,7 +615,7 @@ func (n *network) initSandbox() error {
 
 	// this is needed to let the peerAdd configure the sandbox
 	n.sbox = sbox
-	n.fdbCnt = countmap.Map[ipmac]{}
+	n.fdbCnt = countmap.Map[hashable.IPMAC]{}
 
 	return nil
 }
