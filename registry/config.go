@@ -14,7 +14,6 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/internal/lazyregexp"
-	"github.com/docker/docker/pkg/homedir"
 )
 
 // ServiceOptions holds command line options.
@@ -66,7 +65,7 @@ var (
 //
 // [rootless.RunningWithRootlessKit]: https://github.com/moby/moby/blob/b4bdf12daec84caaf809a639f923f7370d4926ad/pkg/rootless/rootless.go#L5-L8
 func runningWithRootlessKit() bool {
-	return os.Getenv("ROOTLESSKIT_STATE_DIR") != ""
+	return runtime.GOOS == "linux" && os.Getenv("ROOTLESSKIT_STATE_DIR") != ""
 }
 
 // CertsDir is the directory where certificates are stored.
@@ -79,7 +78,7 @@ func runningWithRootlessKit() bool {
 func CertsDir() string {
 	certsDir := "/etc/docker/certs.d"
 	if runningWithRootlessKit() {
-		if configHome, _ := homedir.GetConfigHome(); configHome != "" {
+		if configHome, _ := os.UserConfigDir(); configHome != "" {
 			certsDir = filepath.Join(configHome, "docker", "certs.d")
 		}
 	} else if runtime.GOOS == "windows" {
