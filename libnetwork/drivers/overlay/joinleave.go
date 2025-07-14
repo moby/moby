@@ -6,12 +6,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"net/netip"
 	"syscall"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/internal/hashable"
 	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/osl"
@@ -94,7 +94,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return err
 	}
 
-	if err = nlh.LinkSetHardwareAddr(veth, ep.mac); err != nil {
+	if err = nlh.LinkSetHardwareAddr(veth, ep.mac.AsSlice()); err != nil {
 		return fmt.Errorf("could not set mac address (%v) to the container interface: %v", ep.mac, err)
 	}
 
@@ -177,7 +177,7 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 		return
 	}
 
-	mac, err := net.ParseMAC(peer.EndpointMAC)
+	mac, err := hashable.ParseMAC(peer.EndpointMAC)
 	if err != nil {
 		log.G(context.TODO()).WithError(err).Errorf("Invalid mac %s received in event notify", peer.EndpointMAC)
 		return
