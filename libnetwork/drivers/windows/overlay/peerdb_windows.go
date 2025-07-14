@@ -11,8 +11,6 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 )
 
-const ovPeerTable = "overlay_peer_table"
-
 func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask, peerMac net.HardwareAddr, vtep net.IP, updateDb bool) error {
 	log.G(context.TODO()).Debugf("WINOVERLAY: Enter peerAdd for ca ip %s with ca mac %s", peerIP.String(), peerMac.String())
 
