@@ -6,11 +6,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"net/netip"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
+	"github.com/docker/docker/daemon/libnetwork/internal/hashable"
 	"github.com/docker/docker/daemon/libnetwork/internal/netiputil"
 	"github.com/docker/docker/daemon/libnetwork/netutils"
 	"github.com/docker/docker/daemon/libnetwork/ns"
@@ -22,7 +22,7 @@ type endpoint struct {
 	id     string
 	nid    string
 	ifName string
-	mac    net.HardwareAddr
+	mac    hashable.MACAddr
 	addr   netip.Prefix
 }
 
@@ -48,7 +48,6 @@ func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo drive
 	ep := &endpoint{
 		id:  eid,
 		nid: n.id,
-		mac: ifInfo.MacAddress(),
 	}
 	var ok bool
 	ep.addr, ok = netiputil.ToPrefix(ifInfo.Address())
@@ -60,9 +59,19 @@ func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo drive
 		return fmt.Errorf("no matching subnet for IP %q in network %q", ep.addr, nid)
 	}
 
-	if ep.mac == nil {
-		ep.mac = netutils.GenerateMACFromIP(ep.addr.Addr().AsSlice())
-		if err := ifInfo.SetMacAddress(ep.mac); err != nil {
+	if ifmac := ifInfo.MacAddress(); ifmac != nil {
+		var ok bool
+		ep.mac, ok = hashable.MACAddrFromSlice(ifInfo.MacAddress())
+		if !ok {
+			return fmt.Errorf("invalid MAC address %q assigned to endpoint: unexpected length", ifmac)
+		}
+	} else {
+		var ok bool
+		ep.mac, ok = hashable.MACAddrFromSlice(netutils.GenerateMACFromIP(ep.addr.Addr().AsSlice()))
+		if !ok {
+			panic("GenerateMACFromIP returned a HardwareAddress that is not a MAC-48")
+		}
+		if err := ifInfo.SetMacAddress(ep.mac.AsSlice()); err != nil {
 			return err
 		}
 	}
