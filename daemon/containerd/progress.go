@@ -165,7 +165,7 @@ func (p *pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 				Action:     "Download complete",
 				HideCounts: true,
 			})
-			p.finished(ctx, out, j)
+			p.finished(j)
 			ongoing.Remove(j)
 		} else if p.showExists {
 			out.WriteProgress(progress.Progress{
@@ -173,7 +173,7 @@ func (p *pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 				Action:     "Already exists",
 				HideCounts: true,
 			})
-			p.finished(ctx, out, j)
+			p.finished(j)
 			ongoing.Remove(j)
 		}
 	}
@@ -263,7 +263,7 @@ func findMatchingSnapshot(ctx context.Context, sn snapshots.Snapshotter, layerDe
 	return *matchingSnapshot, nil
 }
 
-func (p *pullProgress) finished(ctx context.Context, out progress.Output, desc ocispec.Descriptor) {
+func (p *pullProgress) finished(desc ocispec.Descriptor) {
 	if c8dimages.IsLayerType(desc.MediaType) {
 		p.layers = append(p.layers, desc)
 	}
