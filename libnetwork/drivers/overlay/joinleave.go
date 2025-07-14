@@ -127,7 +127,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return err
 	}
 
-	if err := jinfo.AddTableEntry(ovPeerTable, eid, buf); err != nil {
+	if err := jinfo.AddTableEntry(OverlayPeerTable, eid, buf); err != nil {
 		log.G(context.TODO()).Errorf("overlay: Failed adding table entry to joininfo: %v", err)
 	}
 
@@ -135,7 +135,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 }
 
 func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
-	if tablename != ovPeerTable {
+	if tablename != OverlayPeerTable {
 		log.G(context.TODO()).Errorf("DecodeTableEntry: unexpected table name %s", tablename)
 		return "", nil
 	}
@@ -152,7 +152,7 @@ func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (s
 }
 
 func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
-	if tableName != ovPeerTable {
+	if tableName != OverlayPeerTable {
 		log.G(context.TODO()).Errorf("Unexpected table notification for table %s received", tableName)
 		return
 	}

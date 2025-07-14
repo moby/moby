@@ -16,8 +16,6 @@ import (
 	"github.com/docker/docker/libnetwork/osl"
 )
 
-const ovPeerTable = "overlay_peer_table"
-
 type peerEntry struct {
 	eid  string
 	mac  hashable.MACAddr
