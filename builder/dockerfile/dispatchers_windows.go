@@ -10,7 +10,6 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/internal/lazyregexp"
-	"github.com/docker/docker/pkg/system"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 )
 
@@ -83,7 +82,7 @@ func normalizeWorkdirWindows(current string, requested string) (string, error) {
 	//	WORKDIR C:/foo \ WORKDIR bar    --> C:\foo --> C:\foo\bar
 	//	WORKDIR C:/foo \ WORKDIR \\bar  --> C:\foo --> C:\bar
 	//	WORKDIR /foo \ WORKDIR c:/bar   --> C:\foo --> C:\bar
-	if len(current) == 0 || system.IsAbs(requested) {
+	if len(current) == 0 || isAbs(requested) {
 		if (requested[0] == os.PathSeparator) ||
 			(len(requested) > 1 && string(requested[1]) != ":") ||
 			(len(requested) == 1) {
