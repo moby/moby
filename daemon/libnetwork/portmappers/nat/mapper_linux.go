@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"os"
 	"strconv"
 	"syscall"
 
@@ -308,7 +307,7 @@ func (pm PortMapper) UnmapPorts(ctx context.Context, pbs []portmapperapi.PortBin
 			}
 		}
 		if pb.Proxy != nil {
-			if err := pb.Proxy.Stop(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+			if err := pb.Proxy.Stop(); err != nil {
 				errs = append(errs, fmt.Errorf("failed to stop userland proxy: %w", err))
 			}
 		}

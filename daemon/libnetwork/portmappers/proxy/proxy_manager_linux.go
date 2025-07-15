@@ -96,14 +96,15 @@ func (pm ProxyManager) StartProxy(
 			return
 		}
 		err = cmd.Wait()
-		if !stopped.Load() {
+		if !stopped.Load() && err != nil {
 			log.G(context.Background()).WithFields(log.Fields{
 				"proto":          pb.Proto,
 				"host-ip":        pb.HostIP,
 				"host-port":      pb.HostPort,
 				"container-ip":   pb.IP,
 				"container-port": pb.Port,
-			}).Info("Userland proxy exited early (this is expected during daemon shutdown)")
+				"error":          err,
+			}).Info("Userland proxy exited early (this is expected during daemon shutdown), or was killed")
 		}
 		wait <- err
 	}()
@@ -160,7 +161,7 @@ func (p *Proxy) Stop() error {
 	}
 
 	p.stopped.Store(true)
-	if err := p.p.Signal(os.Interrupt); err != nil {
+	if err := p.p.Signal(os.Interrupt); err != nil && !errors.Is(err, os.ErrProcessDone) {
 		return err
 	}
 
