@@ -279,3 +279,83 @@ func TestDeadlineExceededContext(t *testing.T) {
 	_, err := client.sendRequest(ctx, http.MethodGet, testEndpoint, nil, nil, nil)
 	assert.Check(t, is.ErrorIs(err, context.DeadlineExceeded))
 }
+
+func TestPrepareJSONRequest(t *testing.T) {
+	tests := []struct {
+		doc        string
+		body       any
+		headers    http.Header
+		expBody    string
+		expNilBody bool
+		expHeaders http.Header
+	}{
+		{
+			doc:        "nil body",
+			body:       nil,
+			headers:    http.Header{"Something": []string{"something"}},
+			expNilBody: true,
+			expHeaders: http.Header{
+				// currently, no content-type is set on empty requests.
+				"Something": []string{"something"},
+			},
+		},
+		{
+			doc:        "nil interface body",
+			body:       (*struct{})(nil),
+			headers:    http.Header{"Something": []string{"something"}},
+			expNilBody: true,
+			expHeaders: http.Header{
+				// currently, no content-type is set on empty requests.
+				"Something": []string{"something"},
+			},
+		},
+		{
+			doc:     "empty struct body",
+			body:    &struct{}{},
+			headers: http.Header{"Something": []string{"something"}},
+			expBody: `{}`,
+			expHeaders: http.Header{
+				"Content-Type": []string{"application/json"},
+				"Something":    []string{"something"},
+			},
+		},
+		{
+			doc:     "json raw message",
+			body:    json.RawMessage("{}"),
+			expBody: `{}`,
+			expHeaders: http.Header{
+				"Content-Type": []string{"application/json"},
+			},
+		},
+		{
+			doc:     "empty body",
+			body:    http.NoBody,
+			expBody: `{}`,
+			expHeaders: http.Header{
+				"Content-Type": []string{"application/json"},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			req, hdr, err := prepareJSONRequest(tc.body, tc.headers)
+			assert.NilError(t, err)
+
+			var body string
+			if tc.expNilBody {
+				assert.Check(t, is.Nil(req))
+			} else {
+				assert.Assert(t, req != nil)
+
+				resp, err := io.ReadAll(req)
+				assert.NilError(t, err)
+				body = strings.TrimSpace(string(resp))
+			}
+
+			assert.Check(t, is.Equal(body, tc.expBody))
+			assert.Check(t, is.DeepEqual(hdr, tc.expHeaders))
+			assert.Check(t, is.Equal(tc.headers.Get("Content-Type"), ""), "Should not have mutated original headers")
+		})
+	}
+}

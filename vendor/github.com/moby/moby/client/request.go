@@ -27,25 +27,25 @@ func (cli *Client) get(ctx context.Context, path string, query url.Values, heade
 	return cli.sendRequest(ctx, http.MethodGet, path, query, nil, headers)
 }
 
-// post sends an http request to the docker API using the method POST with a specific Go context.
-func (cli *Client) post(ctx context.Context, path string, query url.Values, obj interface{}, headers http.Header) (*http.Response, error) {
-	body, headers, err := encodeBody(obj, headers)
+// post sends an http POST request to the API.
+func (cli *Client) post(ctx context.Context, path string, query url.Values, body interface{}, headers http.Header) (*http.Response, error) {
+	jsonBody, headers, err := prepareJSONRequest(body, headers)
 	if err != nil {
 		return nil, err
 	}
-	return cli.sendRequest(ctx, http.MethodPost, path, query, body, headers)
+	return cli.sendRequest(ctx, http.MethodPost, path, query, jsonBody, headers)
 }
 
 func (cli *Client) postRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers http.Header) (*http.Response, error) {
 	return cli.sendRequest(ctx, http.MethodPost, path, query, body, headers)
 }
 
-func (cli *Client) put(ctx context.Context, path string, query url.Values, obj interface{}, headers http.Header) (*http.Response, error) {
-	body, headers, err := encodeBody(obj, headers)
+func (cli *Client) put(ctx context.Context, path string, query url.Values, body interface{}, headers http.Header) (*http.Response, error) {
+	jsonBody, headers, err := prepareJSONRequest(body, headers)
 	if err != nil {
 		return nil, err
 	}
-	return cli.putRaw(ctx, path, query, body, headers)
+	return cli.putRaw(ctx, path, query, jsonBody, headers)
 }
 
 // putRaw sends an http request to the docker API using the method PUT.
@@ -64,26 +64,36 @@ func (cli *Client) delete(ctx context.Context, path string, query url.Values, he
 	return cli.sendRequest(ctx, http.MethodDelete, path, query, nil, headers)
 }
 
-func encodeBody(obj interface{}, headers http.Header) (io.Reader, http.Header, error) {
-	if obj == nil {
+// prepareJSONRequest encodes the given body to JSON and returns it as an [io.Reader], and sets the Content-Type
+// header. If body is nil, or a nil-interface, a "nil" body is returned without
+// error.
+//
+// TODO(thaJeztah): should this return an error if a different Content-Type is already set?
+// TODO(thaJeztah): is "nil" the appropriate approach for an empty body, or should we use [http.NoBody] (or similar)?
+func prepareJSONRequest(body interface{}, headers http.Header) (io.Reader, http.Header, error) {
+	if body == nil {
 		return nil, headers, nil
 	}
 	// encoding/json encodes a nil pointer as the JSON document `null`,
 	// irrespective of whether the type implements json.Marshaler or encoding.TextMarshaler.
 	// That is almost certainly not what the caller intended as the request body.
-	if reflect.TypeOf(obj).Kind() == reflect.Ptr && reflect.ValueOf(obj).IsNil() {
+	//
+	// TODO(thaJeztah): consider moving this to jsonEncode, which would also allow returning an (empty) reader instead of nil.
+	if reflect.TypeOf(body).Kind() == reflect.Ptr && reflect.ValueOf(body).IsNil() {
 		return nil, headers, nil
 	}
 
-	body, err := encodeData(obj)
+	jsonBody, err := jsonEncode(body)
 	if err != nil {
 		return nil, headers, err
 	}
-	if headers == nil {
-		headers = make(map[string][]string)
+	hdr := http.Header{}
+	if headers != nil {
+		hdr = headers.Clone()
 	}
-	headers["Content-Type"] = []string{"application/json"}
-	return body, headers, nil
+
+	hdr.Set("Content-Type", "application/json")
+	return jsonBody, hdr, nil
 }
 
 func (cli *Client) buildRequest(ctx context.Context, method, path string, body io.Reader, headers http.Header) (*http.Request, error) {
@@ -293,14 +303,14 @@ func (cli *Client) addHeaders(req *http.Request, headers http.Header) *http.Requ
 	return req
 }
 
-func encodeData(data interface{}) (*bytes.Buffer, error) {
-	params := bytes.NewBuffer(nil)
+func jsonEncode(data interface{}) (io.Reader, error) {
+	var params bytes.Buffer
 	if data != nil {
-		if err := json.NewEncoder(params).Encode(data); err != nil {
+		if err := json.NewEncoder(&params).Encode(data); err != nil {
 			return nil, err
 		}
 	}
-	return params, nil
+	return &params, nil
 }
 
 func ensureReaderClosed(response *http.Response) {
