@@ -139,3 +139,46 @@ func TestEncodeAuthConfig(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkDecodeAuthConfig(b *testing.B) {
+	cases := []struct {
+		doc         string
+		inputBase64 string
+		invalid     bool
+	}{
+		{
+			doc:         "empty",
+			inputBase64: ``,
+		},
+		{
+			doc:         "empty JSON",
+			inputBase64: `e30=`,
+		},
+		{
+			doc:         "valid",
+			inputBase64: base64.URLEncoding.EncodeToString([]byte(`{"username":"testuser","password":"testpassword","serveraddress":"example.com"}`)),
+		},
+		{
+			doc:         "invalid base64",
+			inputBase64: "not-base64",
+			invalid:     true,
+		},
+		{
+			doc:         "malformed JSON",
+			inputBase64: `ew==`,
+			invalid:     true,
+		},
+	}
+
+	for _, tc := range cases {
+		b.Run(tc.doc, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				_, err := DecodeAuthConfig(tc.inputBase64)
+				if !tc.invalid && err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
