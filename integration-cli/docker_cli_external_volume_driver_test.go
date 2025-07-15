@@ -17,13 +17,13 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/daemon/volume"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/testutil"
 	testdaemon "github.com/docker/docker/testutil/daemon"
-	"github.com/docker/docker/volume"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

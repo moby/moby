@@ -11,9 +11,9 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/daemon/container"
+	volumemounts "github.com/docker/docker/daemon/volume/mounts"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
-	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/moby/go-archive"
 	"github.com/pkg/errors"
 )

@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/volume"
-	volumedrivers "github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/service/opts"
-	volumetestutils "github.com/docker/docker/volume/testutils"
+	"github.com/docker/docker/daemon/volume"
+	volumedrivers "github.com/docker/docker/daemon/volume/drivers"
+	"github.com/docker/docker/daemon/volume/service/opts"
+	volumetestutils "github.com/docker/docker/daemon/volume/testutils"
 	"gotest.tools/v3/assert"
 )
 

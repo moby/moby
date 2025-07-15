@@ -15,12 +15,12 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/daemon/volume"
+	volumemounts "github.com/docker/docker/daemon/volume/mounts"
+	"github.com/docker/docker/daemon/volume/service"
+	volumeopts "github.com/docker/docker/daemon/volume/service/opts"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/volume"
-	volumemounts "github.com/docker/docker/volume/mounts"
-	"github.com/docker/docker/volume/service"
-	volumeopts "github.com/docker/docker/volume/service/opts"
 	"github.com/pkg/errors"
 )
 

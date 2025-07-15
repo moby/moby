@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/volume"
+	"github.com/docker/docker/daemon/volume"
 )
 
 // NewLinuxParser creates a parser with Linux semantics.

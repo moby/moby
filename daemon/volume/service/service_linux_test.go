@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/docker/docker/daemon/volume"
+	volumedrivers "github.com/docker/docker/daemon/volume/drivers"
+	"github.com/docker/docker/daemon/volume/local"
+	"github.com/docker/docker/daemon/volume/service/opts"
+	"github.com/docker/docker/daemon/volume/testutils"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/volume"
-	volumedrivers "github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/local"
-	"github.com/docker/docker/volume/service/opts"
-	"github.com/docker/docker/volume/testutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

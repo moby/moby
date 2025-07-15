@@ -8,7 +8,7 @@ import (
 	"github.com/containerd/log"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/daemon/container"
-	volumesservice "github.com/docker/docker/volume/service"
+	volumesservice "github.com/docker/docker/daemon/volume/service"
 )
 
 func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
