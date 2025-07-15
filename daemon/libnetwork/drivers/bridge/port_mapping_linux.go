@@ -129,6 +129,7 @@ func (n *bridgeNetwork) sortAndNormPBs(
 
 	hairpin := n.hairpin()
 	disableNAT4, disableNAT6 := n.getNATDisabled()
+	defPM := n.defaultPortMapper()
 
 	add4 := !ep.portBindingState.ipv4 && pbmReq.ipv4
 	add6 := !ep.portBindingState.ipv6 && pbmReq.ipv6
@@ -140,7 +141,7 @@ func (n *bridgeNetwork) sortAndNormPBs(
 		}
 
 		if add4 {
-			if bindingIPv4, ok := configurePortBindingIPv4(ctx, disableNAT4, c, containerIPv4, defHostIP); ok {
+			if bindingIPv4, ok := configurePortBindingIPv4(ctx, disableNAT4, c, containerIPv4, defHostIP, defPM); ok {
 				reqs = append(reqs, bindingIPv4)
 			}
 		}
@@ -171,7 +172,7 @@ func (n *bridgeNetwork) sortAndNormPBs(
 			}
 		}
 		if add6 {
-			if bindingIPv6, ok := configurePortBindingIPv6(ctx, disableNAT6, c, containerIP, defHostIP); ok {
+			if bindingIPv6, ok := configurePortBindingIPv6(ctx, disableNAT6, c, containerIP, defHostIP, defPM); ok {
 				reqs = append(reqs, bindingIPv6)
 			}
 		}
@@ -260,6 +261,7 @@ func configurePortBindingIPv4(
 	bnd portmapperapi.PortBindingReq,
 	containerIPv4,
 	defHostIP net.IP,
+	defPM string,
 ) (portmapperapi.PortBindingReq, bool) {
 	if len(containerIPv4) == 0 {
 		return portmapperapi.PortBindingReq{}, false
@@ -298,7 +300,7 @@ func configurePortBindingIPv4(
 	// Unmap the addresses if they're IPv4-mapped IPv6.
 	bnd.HostIP = bnd.HostIP.To4()
 	bnd.IP = containerIPv4.To4()
-	bnd.Mapper = "nat"
+	bnd.Mapper = defPM
 	if disableNAT {
 		bnd.Mapper = "routed"
 	}
@@ -313,6 +315,7 @@ func configurePortBindingIPv6(
 	disableNAT bool,
 	bnd portmapperapi.PortBindingReq,
 	containerIP, defHostIP net.IP,
+	defPM string,
 ) (portmapperapi.PortBindingReq, bool) {
 	if containerIP == nil {
 		return portmapperapi.PortBindingReq{}, false
@@ -358,7 +361,7 @@ func configurePortBindingIPv6(
 	}
 
 	bnd.IP = containerIP
-	bnd.Mapper = "nat"
+	bnd.Mapper = defPM
 	if disableNAT {
 		bnd.Mapper = "routed"
 	}

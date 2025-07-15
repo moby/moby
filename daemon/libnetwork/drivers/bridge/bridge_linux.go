@@ -76,6 +76,7 @@ type configuration struct {
 	// hairpinned.
 	Hairpin            bool
 	AllowDirectRouting bool
+	DefaultPortMapper  string
 }
 
 // networkConfiguration for network specific configuration
@@ -477,6 +478,15 @@ func (n *bridgeNetwork) portMappers() *drvregistry.PortMappers {
 	return n.driver.portmappers
 }
 
+func (n *bridgeNetwork) defaultPortMapper() string {
+	n.Lock()
+	defer n.Unlock()
+	if n.driver == nil {
+		return ""
+	}
+	return n.driver.config.DefaultPortMapper
+}
+
 func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
 	if eid == "" {
 		return nil, invalidEndpointIDError(eid)
@@ -506,6 +516,10 @@ func (d *driver) configure(option map[string]interface{}) error {
 		// No GenericData option set. Use defaults.
 	default:
 		return errdefs.InvalidParameter(fmt.Errorf("invalid configuration type (%T) passed", opt))
+	}
+
+	if config.DefaultPortMapper == "" {
+		config.DefaultPortMapper = "nat"
 	}
 
 	var err error
