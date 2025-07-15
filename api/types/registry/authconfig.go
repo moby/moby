@@ -1,12 +1,13 @@
 package registry
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"strings"
 )
 
 // AuthHeader is the name of the header used to send encoded registry
@@ -71,8 +72,20 @@ func DecodeAuthConfig(authEncoded string) (*AuthConfig, error) {
 		return &AuthConfig{}, nil
 	}
 
-	authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
-	return decodeAuthConfigFromReader(authJSON)
+	decoded, err := base64.URLEncoding.DecodeString(authEncoded)
+	if err != nil {
+		var e base64.CorruptInputError
+		if errors.As(err, &e) {
+			return &AuthConfig{}, invalid(errors.New("must be a valid base64url-encoded string"))
+		}
+		return &AuthConfig{}, invalid(err)
+	}
+
+	if bytes.Equal(decoded, []byte("{}")) {
+		return &AuthConfig{}, nil
+	}
+
+	return decodeAuthConfigFromReader(bytes.NewReader(decoded))
 }
 
 // DecodeAuthConfigBody decodes authentication information as sent as JSON in the
@@ -94,7 +107,7 @@ func decodeAuthConfigFromReader(rdr io.Reader) (*AuthConfig, error) {
 	if err := json.NewDecoder(rdr).Decode(authConfig); err != nil {
 		// always return an (empty) AuthConfig to increase compatibility with
 		// the existing API.
-		return &AuthConfig{}, invalid(err)
+		return &AuthConfig{}, invalid(fmt.Errorf("invalid JSON: %w", err))
 	}
 	return authConfig, nil
 }

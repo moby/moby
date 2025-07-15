@@ -34,7 +34,7 @@ func TestDecodeAuthConfig(t *testing.T) {
 			input:       `{`,
 			inputBase64: `ew==`,
 			expected:    AuthConfig{},
-			expectedErr: `invalid X-Registry-Auth header: unexpected EOF`,
+			expectedErr: `invalid X-Registry-Auth header: invalid JSON: unexpected EOF`,
 		},
 		{
 			doc:         "test authConfig",
@@ -67,25 +67,27 @@ func TestDecodeAuthConfig(t *testing.T) {
 			input:       `{}`,
 			inputBase64: `e30`,
 			expected:    AuthConfig{},
-			expectedErr: `invalid X-Registry-Auth header: unexpected EOF`,
+			expectedErr: `invalid X-Registry-Auth header: must be a valid base64url-encoded string`,
 		},
 		{
 			doc:         "test authConfig",
 			input:       `{"username":"testuser","password":"testpassword","serveraddress":"example.com"}`,
 			inputBase64: `eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwicGFzc3dvcmQiOiJ0ZXN0cGFzc3dvcmQiLCJzZXJ2ZXJhZGRyZXNzIjoiZXhhbXBsZS5jb20ifQ`,
 			expected:    AuthConfig{},
-			expectedErr: `invalid X-Registry-Auth header: unexpected EOF`,
+			expectedErr: `invalid X-Registry-Auth header: must be a valid base64url-encoded string`,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			// Sanity check to make sure our fixtures are correct.
-			b64 := base64.URLEncoding.EncodeToString([]byte(tc.input))
-			if !strings.HasSuffix(tc.inputBase64, "=") {
-				b64 = strings.TrimRight(b64, "=")
+			if tc.inputBase64 != "" {
+				// Sanity check to make sure our fixtures are correct.
+				b64 := base64.URLEncoding.EncodeToString([]byte(tc.input))
+				if !strings.HasSuffix(tc.inputBase64, "=") {
+					b64 = strings.TrimRight(b64, "=")
+				}
+				assert.Check(t, is.Equal(b64, tc.inputBase64))
 			}
-			assert.Check(t, is.Equal(b64, tc.inputBase64))
 
 			out, err := DecodeAuthConfig(tc.inputBase64)
 			if tc.expectedErr != "" {
