@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/quota"
+	"github.com/docker/docker/daemon/internal/quota"
 )
 
 type driverQuota struct {
