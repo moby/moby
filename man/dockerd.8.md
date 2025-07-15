@@ -21,6 +21,7 @@ dockerd - Enable daemon mode
 [**--default-gateway-v6**[=*DEFAULT-GATEWAY-V6*]]
 [**--default-address-pool**[=*DEFAULT-ADDRESS-POOL*]]
 [**--default-network-opt**[=*DRIVER=OPT=VALUE*]]
+[**--default-port-mapper**=[=*port-mapper*]]
 [**--default-runtime**[=*runc*]]
 [**--default-ipc-mode**=*MODE*]
 [**--default-shm-size**[=*64MiB*]]
@@ -182,6 +183,11 @@ Bridge networks will accept packets with this firewall mark/mask.
 
 **--default-network-opt**=*DRIVER=OPT=VALUE*
   Default network driver options
+
+**--default-port-mapper**=*"port-mapper"*
+  Set the default port-mapper used to publish ports. This can be one of the
+  built-in port-mapper (nat or proxy). Note that the proxy port-mapper is
+  experimental.
 
 **--default-runtime**=*"runtime"*
   Set default runtime if there're more than one specified by **--add-runtime**.

@@ -51,6 +51,7 @@ type BridgeConfig struct {
 	UserlandProxyPath        string `json:"userland-proxy-path,omitempty"`
 	AllowDirectRouting       bool   `json:"allow-direct-routing,omitempty"`
 	BridgeAcceptFwMark       string `json:"bridge-accept-fwmark,omitempty"`
+	DefaultPortMapper        string `json:"default-port-mapper,omitempty"`
 }
 
 // DefaultBridgeConfig stores all the parameters for the default bridge network.
