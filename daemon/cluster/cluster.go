@@ -54,7 +54,7 @@ import (
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/controllers/plugin"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
-	lncluster "github.com/docker/docker/libnetwork/cluster"
+	lncluster "github.com/docker/docker/daemon/libnetwork/cluster"
 	"github.com/docker/docker/pkg/stack"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	swarmnode "github.com/moby/swarmkit/v2/node"

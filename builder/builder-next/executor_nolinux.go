@@ -7,7 +7,7 @@ import (
 	"errors"
 	"runtime"
 
-	"github.com/docker/docker/libnetwork"
+	"github.com/docker/docker/daemon/libnetwork"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
 	resourcetypes "github.com/moby/buildkit/executor/resources/types"

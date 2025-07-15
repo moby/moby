@@ -10,10 +10,10 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/daemon/libnetwork"
+	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/libnetwork"
-	"github.com/docker/docker/libnetwork/scope"
 	"github.com/pkg/errors"
 )
 

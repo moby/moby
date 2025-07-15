@@ -6,7 +6,7 @@ import (
 	"net"
 
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/opts"
+	"github.com/docker/docker/daemon/pkg/opts"
 	"github.com/spf13/pflag"
 )
 

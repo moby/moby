@@ -12,8 +12,8 @@ import (
 
 	"dario.cat/mergo"
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/libnetwork/ipamutils"
-	"github.com/docker/docker/opts"
+	"github.com/docker/docker/daemon/libnetwork/ipamutils"
+	"github.com/docker/docker/daemon/pkg/opts"
 	"github.com/docker/docker/registry"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
