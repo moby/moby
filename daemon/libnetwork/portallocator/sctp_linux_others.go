@@ -1,6 +1,6 @@
 //go:build linux && !386
 
-package bridge
+package portallocator
 
 import (
 	"syscall"
