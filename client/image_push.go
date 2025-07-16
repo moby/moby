@@ -72,5 +72,15 @@ func (cli *Client) tryImagePush(ctx context.Context, imageID string, query url.V
 			hdr.Set(registry.AuthHeader, registryAuth)
 		}
 	}
-	return cli.post(ctx, "/images/"+imageID+"/push", query, nil, hdr)
+
+	// Always send a body (which may be an empty JSON document ("{}")) to prevent
+	// EOF errors on older daemons which had faulty fallback code for handling
+	// authentication in the body when no auth-header was set, resulting in;
+	//
+	//	Error response from daemon: bad parameters and missing X-Registry-Auth: invalid X-Registry-Auth header: EOF
+	//
+	// We use [http.NoBody], which gets marshaled to an empty JSON document.
+	//
+	// see: https://github.com/moby/moby/commit/ea29dffaa541289591aa44fa85d2a596ce860e16
+	return cli.post(ctx, "/images/"+imageID+"/push", query, http.NoBody, hdr)
 }
