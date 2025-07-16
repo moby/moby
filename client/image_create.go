@@ -2,11 +2,13 @@ package client
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
@@ -35,14 +37,38 @@ func (cli *Client) ImageCreate(ctx context.Context, parentReference string, opti
 
 func (cli *Client) tryImageCreate(ctx context.Context, query url.Values, resolveAuth registry.RequestAuthConfig) (*http.Response, error) {
 	hdr := http.Header{}
-	if resolveAuth != nil {
-		registryAuth, err := resolveAuth(ctx)
+	var lastErr error
+	for {
+		registryAuth, tryNext, err := getAuth(ctx, resolveAuth)
 		if err != nil {
+			// TODO(thaJeztah): should we return an "unauthorised error" here to allow the caller to try other options?
+			if errors.Is(err, errNoMorePrivilegeFuncs) && lastErr != nil {
+				return nil, lastErr
+			}
 			return nil, err
 		}
 		if registryAuth != "" {
 			hdr.Set(registry.AuthHeader, registryAuth)
 		}
+		resp, err := cli.post(ctx, "/images/create", query, nil, hdr)
+		if err == nil {
+			// Discard previous errors
+			return resp, nil
+		} else {
+			if IsErrConnectionFailed(err) {
+				// Don't retry if we failed to connect to the API.
+				return nil, err
+			}
+
+			// TODO(thaJeztah); only retry with "IsUnauthorized" and/or "rate limit (StatusTooManyRequests)" errors?
+			if !cerrdefs.IsUnauthorized(err) {
+				return nil, err
+			}
+
+			lastErr = err
+		}
+		if !tryNext {
+			return nil, lastErr
+		}
 	}
-	return cli.post(ctx, "/images/create", query, nil, hdr)
 }
