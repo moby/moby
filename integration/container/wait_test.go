@@ -176,6 +176,53 @@ func TestWaitConditions(t *testing.T) {
 	}
 }
 
+// TestContainerExitCodes tests that containers exit with the expected exit codes.
+// This is a migrated test from integration-cli/docker_cli_run_test.go
+// (TestRunExitCodeZero and TestRunExitCodeOne).
+func TestContainerExitCodes(t *testing.T) {
+	ctx := setupTest(t)
+	cli := request.NewAPIClient(t)
+
+	tests := []struct {
+		doc          string
+		cmd          []string
+		expectedCode int64
+	}{
+		{
+			doc:          "exit-code-zero",
+			cmd:          []string{"true"},
+			expectedCode: 0,
+		},
+		{
+			doc:          "exit-code-one",
+			cmd:          []string{"false"},
+			expectedCode: 1,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			t.Parallel()
+			ctx := testutil.StartSpan(ctx, t)
+			
+			// Create and run container
+			containerID := container.Run(ctx, t, cli, container.WithCmd(tc.cmd...))
+			
+			// Wait for container to exit
+			poll.WaitOn(t, container.IsInState(ctx, cli, containerID, containertypes.StateExited), poll.WithTimeout(30*time.Second))
+			
+			// Get the exit code
+			waitResC, errC := cli.ContainerWait(ctx, containerID, "")
+			select {
+			case err := <-errC:
+				assert.NilError(t, err)
+			case waitRes := <-waitResC:
+				assert.Check(t, is.Equal(tc.expectedCode, waitRes.StatusCode))
+			}
+		})
+	}
+}
+
 func TestWaitRestartedContainer(t *testing.T) {
 	ctx := setupTest(t)
 	cli := request.NewAPIClient(t)

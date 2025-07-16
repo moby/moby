@@ -96,17 +96,6 @@ func (s *DockerCLIRunSuite) TestRunLookupGoogleDNS(c *testing.T) {
 	}
 }
 
-// the exit code should be 0
-func (s *DockerCLIRunSuite) TestRunExitCodeZero(c *testing.T) {
-	cli.DockerCmd(c, "run", "busybox", "true")
-}
-
-// the exit code should be 1
-func (s *DockerCLIRunSuite) TestRunExitCodeOne(c *testing.T) {
-	_, exitCode, err := dockerCmdWithError("run", "busybox", "false")
-	assert.ErrorContains(c, err, "")
-	assert.Equal(c, exitCode, 1)
-}
 
 // it should be possible to pipe in data via stdin to a process running in a container
 func (s *DockerCLIRunSuite) TestRunStdinPipe(c *testing.T) {
