@@ -26,6 +26,7 @@ import (
 	"io/fs"
 	"net/netip"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -141,7 +142,7 @@ func (rc *ResolvConf) SetHeader(c string) {
 
 // NameServers returns addresses used in nameserver directives.
 func (rc *ResolvConf) NameServers() []netip.Addr {
-	return append([]netip.Addr(nil), rc.nameServers...)
+	return slices.Clone(rc.nameServers)
 }
 
 // OverrideNameServers replaces the current set of nameservers.
@@ -152,7 +153,7 @@ func (rc *ResolvConf) OverrideNameServers(nameServers []netip.Addr) {
 
 // Search returns the current DNS search domains.
 func (rc *ResolvConf) Search() []string {
-	return append([]string(nil), rc.search...)
+	return slices.Clone(rc.search)
 }
 
 // OverrideSearch replaces the current DNS search domains.
@@ -169,7 +170,7 @@ func (rc *ResolvConf) OverrideSearch(search []string) {
 
 // Options returns the current options.
 func (rc *ResolvConf) Options() []string {
-	return append([]string(nil), rc.options...)
+	return slices.Clone(rc.options)
 }
 
 // Option finds the last option named search, and returns (value, true) if
@@ -192,7 +193,7 @@ func (rc *ResolvConf) Option(search string) (string, bool) {
 
 // OverrideOptions replaces the current DNS options.
 func (rc *ResolvConf) OverrideOptions(options []string) {
-	rc.options = append([]string(nil), options...)
+	rc.options = slices.Clone(options)
 	rc.md.NDotsFrom = ""
 	if _, exists := rc.Option("ndots"); exists {
 		rc.md.NDotsFrom = "override"
@@ -283,7 +284,7 @@ func (rc *ResolvConf) TransformForIntNS(
 	if len(rc.md.ExtNameServers) == 0 {
 		rc.md.Warnings = append(rc.md.Warnings, "NO EXTERNAL NAMESERVERS DEFINED")
 	}
-	return append([]ExtDNSEntry(nil), rc.md.ExtNameServers...), nil
+	return slices.Clone(rc.md.ExtNameServers), nil
 }
 
 // Generate returns content suitable for writing to a resolv.conf file. If comments
