@@ -119,6 +119,12 @@ func (c *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 		}
 	}
 
+	if versions.LessThan(version, "1.52") {
+		for _, c := range containers {
+			c.Health = nil
+		}
+	}
+
 	return httputils.WriteJSON(w, http.StatusOK, containers)
 }
 

@@ -296,9 +296,17 @@ func (v *View) GetAllNames() map[string][]string {
 // A lock on the Container is not held because these are immutable deep copies.
 func (v *View) transform(ctr *Container) *Snapshot {
 	health := container.NoHealthcheck
+	failingStreak := 0
 	if ctr.Health != nil {
 		health = ctr.Health.Status()
+		failingStreak = ctr.Health.FailingStreak
 	}
+
+	healthSummary := &container.HealthSummary{
+		Status:        health,
+		FailingStreak: failingStreak,
+	}
+
 	snapshot := &Snapshot{
 		Summary: container.Summary{
 			ID:      ctr.ID,
@@ -308,6 +316,7 @@ func (v *View) transform(ctr *Container) *Snapshot {
 			Mounts:  ctr.GetMountPoints(),
 			State:   ctr.State.StateString(),
 			Status:  ctr.State.String(),
+			Health:  healthSummary,
 			Created: ctr.Created.Unix(),
 		},
 		CreatedAt:    ctr.Created,

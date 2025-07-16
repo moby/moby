@@ -1,17 +1,21 @@
 package container
 
 import (
+	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -141,5 +145,59 @@ func TestContainerList_ImageManifestPlatform(t *testing.T) {
 		// depend on the platform on which we're running the test.
 		assert.Equal(t, ctr.ImageManifestDescriptor.Platform.OS, testEnv.DaemonInfo.OSType)
 		assert.Check(t, ctr.ImageManifestDescriptor.Platform.Architecture != "")
+	}
+}
+
+func pollForHealthStatusSummary(ctx context.Context, client client.APIClient, containerID string, healthStatus containertypes.HealthStatus) func(log poll.LogT) poll.Result {
+	return func(log poll.LogT) poll.Result {
+		containers, err := client.ContainerList(ctx, containertypes.ListOptions{
+			All:     true,
+			Filters: filters.NewArgs(filters.Arg("id", containerID)),
+		})
+		if err != nil {
+			return poll.Error(err)
+		}
+		total := 0
+		version := client.ClientVersion()
+		for _, ctr := range containers {
+			if ctr.Health == nil && versions.LessThan(version, "1.52") {
+				total++
+			} else if ctr.Health != nil && ctr.Health.Status == healthStatus && versions.GreaterThanOrEqualTo(version, "1.52") {
+				total++
+			}
+		}
+
+		if total == len(containers) {
+			return poll.Success()
+		}
+
+		return poll.Continue("waiting for container to become %s", healthStatus)
+	}
+}
+
+func TestContainerList_HealthSummary(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
+	ctx := setupTest(t)
+	testcases := []struct {
+		apiVersion string
+	}{
+		{apiVersion: "1.51"},
+		{apiVersion: "1.52"},
+	}
+
+	for _, tc := range testcases {
+		t.Run(fmt.Sprintf("run with version v%s", tc.apiVersion), func(t *testing.T) {
+			apiClient := request.NewAPIClient(t, client.WithVersion(tc.apiVersion))
+
+			cID := container.Run(ctx, t, apiClient, container.WithTty(true), container.WithWorkingDir("/foo"), func(c *container.TestContainerConfig) {
+				c.Config.Healthcheck = &containertypes.HealthConfig{
+					Test:     []string{"CMD-SHELL", "if [ \"$PWD\" = \"/foo\" ]; then exit 0; else exit 1; fi;"},
+					Interval: 50 * time.Millisecond,
+					Retries:  3,
+				}
+			})
+
+			poll.WaitOn(t, pollForHealthStatusSummary(ctx, apiClient, cID, containertypes.Healthy))
+		})
 	}
 }
