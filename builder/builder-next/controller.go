@@ -537,12 +537,16 @@ func parseGCPolicy(p config.BuilderGCRule, prefix string) (reservedSpace, maxUse
 
 func getEntitlements(conf config.BuilderConfig) []string {
 	var ents []string
-	// Incase of no config settings, NetworkHost should be enabled & SecurityInsecure must be disabled.
+	// In case of no config settings, NetworkHost and Device should be enabled
+	// but SecurityInsecure must be disabled.
 	if conf.Entitlements.NetworkHost == nil || *conf.Entitlements.NetworkHost {
 		ents = append(ents, string(entitlements.EntitlementNetworkHost))
 	}
 	if conf.Entitlements.SecurityInsecure != nil && *conf.Entitlements.SecurityInsecure {
 		ents = append(ents, string(entitlements.EntitlementSecurityInsecure))
+	}
+	if conf.Entitlements.Device == nil || *conf.Entitlements.Device {
+		ents = append(ents, string(entitlements.EntitlementDevice))
 	}
 	return ents
 }
