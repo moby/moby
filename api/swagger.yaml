@@ -5346,6 +5346,29 @@ definitions:
           List of mounts used by the container.
         items:
           $ref: "#/definitions/MountPoint"
+      Health:
+        type: "object"
+        description: |-
+          Summary of health status
+
+          Added in v1.52, before that version all container summary not include Health.
+          After this attribute introduced, it includes containers with no health checks configured,
+          or containers that are not running with none
+        properties:
+          Status:
+            type: "string"
+            description: |-
+              the health status of the container
+            enum:
+              - "none"
+              - "starting"
+              - "healthy"
+              - "unhealthy"
+            example: "healthy"
+          FailingStreak:
+            description: "FailingStreak is the number of consecutive failures"
+            type: "integer"
+            example: 0
 
   Driver:
     description: "Driver represents a driver (network, logging, secrets)."
