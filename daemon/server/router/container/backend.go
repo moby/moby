@@ -23,7 +23,7 @@ type execBackend interface {
 type copyBackend interface {
 	ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *container.PathStat, err error)
 	ContainerExport(ctx context.Context, name string, out io.Writer) error
-	ContainerExtractToDir(name, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) error
+	ContainerExtractToDir(name, path string, copyUIDGID, allowOverwriteDirWithFile bool, content io.Reader) error
 	ContainerStatPath(name string, path string) (stat *container.PathStat, err error)
 }
 

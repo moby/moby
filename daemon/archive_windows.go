@@ -148,7 +148,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 // directory and vice versa.
 //
 // FIXME(thaJeztah): copyUIDGID is not supported on Windows, but currently ignored silently
-func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) error {
+func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, copyUIDGID, allowOverwriteDirWithFile bool, content io.Reader) error {
 	container.Lock()
 	defer container.Unlock()
 
@@ -213,7 +213,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 	// 	return err
 	// }
 
-	options := daemon.defaultTarCopyOptions(noOverwriteDirNonDir)
+	options := daemon.defaultTarCopyOptions(allowOverwriteDirWithFile)
 	if err := chrootarchive.UntarWithRoot(content, resolvedPath, options, container.BaseFS); err != nil {
 		return err
 	}

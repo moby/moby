@@ -92,8 +92,10 @@ func (c *containerRouter) putContainersArchive(ctx context.Context, w http.Respo
 		return err
 	}
 
-	noOverwriteDirNonDir := httputils.BoolValue(r, "noOverwriteDirNonDir")
+	// TODO(thaJeztah): reverse the default: deprecate noOverwriteDirNonDir and add "allowOverwriteDirWithFile" (or similar) argument to opt-in.
+	allowOverwriteDirWithFile := !r.Form.Has("noOverwriteDirNonDir") || !httputils.BoolValue(r, "noOverwriteDirNonDir")
+
 	copyUIDGID := httputils.BoolValue(r, "copyUIDGID")
 
-	return c.backend.ContainerExtractToDir(v.Name, v.Path, copyUIDGID, noOverwriteDirNonDir, r.Body)
+	return c.backend.ContainerExtractToDir(v.Name, v.Path, copyUIDGID, allowOverwriteDirWithFile, r.Body)
 }
