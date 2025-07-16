@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	timetypes "github.com/docker/docker/api/types/time"
-	"github.com/docker/docker/builder"
+	"github.com/docker/docker/daemon/builder"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/daemon/internal/builder-next/exporter"

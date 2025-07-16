@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/daemon/builder/remotecontext"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/go-archive"
 	"github.com/moby/sys/reexec"

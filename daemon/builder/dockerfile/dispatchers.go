@@ -17,7 +17,7 @@ import (
 
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/builder"
+	"github.com/docker/docker/daemon/builder"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/jsonmessage"

@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	imagetype "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/builder"
+	"github.com/docker/docker/daemon/builder"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/image"

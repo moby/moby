@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/builder"
-	"github.com/docker/docker/builder/remotecontext/git"
+	"github.com/docker/docker/daemon/builder"
+	"github.com/docker/docker/daemon/builder/remotecontext/git"
 	"github.com/moby/go-archive"
 )
 

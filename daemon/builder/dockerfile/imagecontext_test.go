@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/builder"
+	"github.com/docker/docker/daemon/builder"
 	"github.com/docker/docker/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"

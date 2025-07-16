@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/builder"
+	"github.com/docker/docker/daemon/builder"
 	daemonevents "github.com/docker/docker/daemon/events"
 	buildkit "github.com/docker/docker/daemon/internal/builder-next"
 	"github.com/docker/docker/image"
