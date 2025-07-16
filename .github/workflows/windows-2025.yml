@@ -26,20 +26,15 @@ jobs:
   validate-dco:
     uses: ./.github/workflows/.dco.yml
 
-  test-prepare:
-    uses: ./.github/workflows/.test-prepare.yml
-    needs:
-      - validate-dco
-
   run:
-    needs:
-      - test-prepare
     uses: ./.github/workflows/.windows.yml
     secrets: inherit
     strategy:
       fail-fast: false
       matrix:
-        storage: ${{ fromJson(needs.test-prepare.outputs.matrix) }}
+        storage:
+          - graphdriver
+          - snapshotter
     with:
       os: windows-2025
       storage: ${{ matrix.storage }}
