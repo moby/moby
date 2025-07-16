@@ -355,6 +355,7 @@ func setupTestImage(t *testing.T, ctx context.Context, apiClient client.APIClien
 // Regression test for: https://github.com/moby/moby/issues/50122
 func TestRunMountImageMultipleTimes(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.48"), "skip test from new feature")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
