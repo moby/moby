@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
+	iimage "github.com/docker/docker/integration/internal/image"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
@@ -21,7 +22,7 @@ func TestImageInspectEmptyTagsAndDigests(t *testing.T) {
 
 	apiClient := testEnv.APIClient()
 
-	danglingID := specialimage.Load(ctx, t, apiClient, specialimage.Dangling)
+	danglingID := iimage.Load(ctx, t, apiClient, specialimage.Dangling)
 
 	var raw bytes.Buffer
 	inspect, err := apiClient.ImageInspect(ctx, danglingID, client.ImageInspectWithRawResponse(&raw))
@@ -103,7 +104,7 @@ func TestImageInspectWithPlatform(t *testing.T) {
 		Architecture: "amd64",
 	}
 
-	imageID := specialimage.Load(ctx, t, apiClient, func(dir string) (*ocispec.Index, error) {
+	imageID := iimage.Load(ctx, t, apiClient, func(dir string) (*ocispec.Index, error) {
 		i, descs, err := specialimage.MultiPlatform(dir, "multiplatform:latest", []ocispec.Platform{nativePlatform, differentPlatform})
 		assert.NilError(t, err)
 

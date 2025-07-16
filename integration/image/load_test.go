@@ -6,6 +6,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/image"
+	iimage "github.com/docker/docker/integration/internal/image"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
@@ -20,7 +21,7 @@ func TestLoadDanglingImages(t *testing.T) {
 
 	client := testEnv.APIClient()
 
-	specialimage.Load(ctx, t, client, func(dir string) (*ocispec.Index, error) {
+	iimage.Load(ctx, t, client, func(dir string) (*ocispec.Index, error) {
 		return specialimage.MultiLayerCustom(dir, "namedimage:latest", []specialimage.SingleFileLayer{
 			{Name: "bar", Content: []byte("1")},
 		})
@@ -44,7 +45,7 @@ func TestLoadDanglingImages(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Retain a copy of the old image and then replace it with a new one.
-	specialimage.Load(ctx, t, client, func(dir string) (*ocispec.Index, error) {
+	iimage.Load(ctx, t, client, func(dir string) (*ocispec.Index, error) {
 		return specialimage.MultiLayerCustom(dir, "namedimage:latest", []specialimage.SingleFileLayer{
 			{Name: "bar", Content: []byte("2")},
 		})

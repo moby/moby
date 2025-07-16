@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
+	iimage "github.com/docker/docker/integration/internal/image"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
@@ -31,7 +32,7 @@ func TestPruneDontDeleteUsedDangling(t *testing.T) {
 	apiClient := d.NewClientT(t)
 	defer apiClient.Close()
 
-	danglingID := specialimage.Load(ctx, t, apiClient, specialimage.Dangling)
+	danglingID := iimage.Load(ctx, t, apiClient, specialimage.Dangling)
 
 	_, err := apiClient.ImageInspect(ctx, danglingID)
 	assert.NilError(t, err, "Test dangling image doesn't exist")

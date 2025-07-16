@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
+	iimage "github.com/docker/docker/integration/internal/image"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
@@ -213,14 +214,14 @@ func TestAPIImagesListSizeShared(t *testing.T) {
 
 	client := daemon.NewClientT(t)
 
-	specialimage.Load(ctx, t, client, func(dir string) (*ocispec.Index, error) {
+	iimage.Load(ctx, t, client, func(dir string) (*ocispec.Index, error) {
 		return specialimage.MultiLayerCustom(dir, "multilayer:latest", []specialimage.SingleFileLayer{
 			{Name: "bar", Content: []byte("2")},
 			{Name: "foo", Content: []byte("1")},
 		})
 	})
 
-	specialimage.Load(ctx, t, client, func(dir string) (*ocispec.Index, error) {
+	iimage.Load(ctx, t, client, func(dir string) (*ocispec.Index, error) {
 		return specialimage.MultiLayerCustom(dir, "multilayer2:latest", []specialimage.SingleFileLayer{
 			{Name: "asdf", Content: []byte("3")},
 			{Name: "foo", Content: []byte("1")},
@@ -249,7 +250,7 @@ func TestAPIImagesListManifests(t *testing.T) {
 		{OS: "linux", Architecture: "arm", Variant: "v7"},
 		{OS: "darwin", Architecture: "arm64"},
 	}
-	specialimage.Load(ctx, t, apiClient, func(dir string) (*ocispec.Index, error) {
+	iimage.Load(ctx, t, apiClient, func(dir string) (*ocispec.Index, error) {
 		idx, _, err := specialimage.MultiPlatform(dir, "multiplatform:latest", testPlatforms)
 		return idx, err
 	})

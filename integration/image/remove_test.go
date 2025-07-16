@@ -10,6 +10,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/integration/internal/container"
+	iimage "github.com/docker/docker/integration/internal/image"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
@@ -115,7 +116,7 @@ func TestRemoveWithPlatform(t *testing.T) {
 
 	var imageIdx *ocispec.Index
 	var descs []ocispec.Descriptor
-	specialimage.Load(ctx, t, apiClient, func(dir string) (*ocispec.Index, error) {
+	iimage.Load(ctx, t, apiClient, func(dir string) (*ocispec.Index, error) {
 		idx, d, err := specialimage.MultiPlatform(dir, imgName, []ocispec.Platform{
 			platformHost,
 			{

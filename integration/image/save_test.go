@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
+	iimage "github.com/docker/docker/integration/internal/image"
 	"github.com/docker/docker/internal/testutils"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/testutil/fakecontext"
@@ -116,7 +117,7 @@ func TestSaveOCI(t *testing.T) {
 	}
 
 	if testEnv.DaemonInfo.OSType != "windows" {
-		multiLayerImage := specialimage.Load(ctx, t, client, specialimage.MultiLayer)
+		multiLayerImage := iimage.Load(ctx, t, client, specialimage.MultiLayer)
 		// Multi-layer image
 		testCases = append(testCases, testCase{image: multiLayerImage, expectedContainerdRef: "docker.io/library/multilayer:latest", expectedOCIRef: "latest"})
 
