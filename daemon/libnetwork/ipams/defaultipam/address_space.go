@@ -3,6 +3,7 @@ package defaultipam
 import (
 	"context"
 	"net/netip"
+	"runtime"
 	"slices"
 	"sync"
 
@@ -73,7 +74,11 @@ func (aSpace *addrSpace) allocateSubnet(nw, sub netip.Prefix) error {
 		if sub != (netip.Prefix{}) {
 			_, childExists = pool.children[sub]
 		}
-		if sub == (netip.Prefix{}) || childExists {
+		switch {
+		// "windowsipam" allowed usage of overlapping pools.
+		// Ensure backwards compatibility by skipping these checks.
+		case runtime.GOOS == "windows":
+		case sub == (netip.Prefix{}) || childExists:
 			// This means the same pool is already allocated. allocateSubnet is called when there
 			// is request for a pool/subpool. It should ensure there is no overlap with existing pools
 			return ipamapi.ErrPoolOverlap
@@ -93,7 +98,11 @@ func (aSpace *addrSpace) allocateSubnet(nw, sub netip.Prefix) error {
 func (aSpace *addrSpace) allocateSubnetL(nw, sub netip.Prefix) error {
 	// If master pool, check for overlap
 	if sub == (netip.Prefix{}) {
-		if aSpace.overlaps(nw) {
+		switch {
+		// "windowsipam" allowed usage of overlapping pools.
+		// Ensure backwards compatibility by skipping these checks.
+		case runtime.GOOS == "windows":
+		case aSpace.overlaps(nw):
 			return ipamapi.ErrPoolOverlap
 		}
 		return aSpace.allocatePool(nw)

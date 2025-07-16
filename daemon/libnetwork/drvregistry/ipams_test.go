@@ -1,7 +1,6 @@
 package drvregistry
 
 import (
-	"runtime"
 	"sort"
 	"testing"
 
@@ -39,9 +38,6 @@ func TestIPAMs(t *testing.T) {
 
 		sort.Strings(ipams)
 		expected := []string{"default", "null"}
-		if runtime.GOOS == "windows" {
-			expected = append(expected, "windows")
-		}
 		assert.Check(t, is.DeepEqual(ipams, expected))
 	})
 }

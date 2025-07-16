@@ -124,12 +124,6 @@ var builtinLocalDrivers = map[string]struct{}{
 	"ics":         {},
 }
 
-// IsBuiltinLocalDriver validates if network-type is a builtin local-scoped driver
-func IsBuiltinLocalDriver(networkType string) bool {
-	_, ok := builtinLocalDrivers[networkType]
-	return ok
-}
-
 var unadoptableNetworkTypes = map[string]struct{}{
 	// "internal" and "private" are included here to preserve the workarounds added
 	// in commits b91fd26 ("Ignore HNS networks with type Private") and 6a1a4f9 ("Fix
@@ -430,29 +424,6 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 				d.DeleteNetwork(n.id)
 			}
 		}()
-
-		hnsIPv4Data := make([]driverapi.IPAMData, len(hnsresponse.Subnets))
-
-		for i, subnet := range hnsresponse.Subnets {
-			var gwIP, subnetIP *net.IPNet
-
-			// The gateway returned from HNS is an IPAddress.
-			// We need to convert it to an IPNet to use as the Gateway of driverapi.IPAMData struct
-			gwCIDR := subnet.GatewayAddress + "/32"
-			_, gwIP, err = net.ParseCIDR(gwCIDR)
-			if err != nil {
-				return err
-			}
-
-			hnsIPv4Data[i].Gateway = gwIP
-			_, subnetIP, err = net.ParseCIDR(subnet.AddressPrefix)
-			if err != nil {
-				return err
-			}
-			hnsIPv4Data[i].Pool = subnetIP
-		}
-
-		nInfo.UpdateIpamConfig(hnsIPv4Data)
 
 	} else {
 		// Delete any stale HNS endpoints for this network.
