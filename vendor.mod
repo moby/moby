@@ -80,6 +80,7 @@ require (
 	github.com/moby/sys/user v0.4.0
 	github.com/moby/sys/userns v0.1.0
 	github.com/moby/term v0.5.2
+	github.com/montanaflynn/stats v0.7.1
 	github.com/morikuni/aec v1.0.0
 	github.com/opencontainers/cgroups v0.0.4
 	github.com/opencontainers/go-digest v1.0.0
@@ -115,6 +116,7 @@ require (
 	google.golang.org/grpc v1.72.2
 	google.golang.org/protobuf v1.36.6
 	gotest.tools/v3 v3.5.2
+	pgregory.net/rapid v1.2.0
 	resenje.org/singleflight v0.4.3
 	tags.cncf.io/container-device-interface v1.0.1
 )

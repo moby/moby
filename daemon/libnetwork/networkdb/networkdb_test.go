@@ -34,14 +34,20 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func launchNode(t *testing.T, conf Config) *NetworkDB {
+type TestingT interface {
+	assert.TestingT
+	poll.TestingT
+	Helper()
+}
+
+func launchNode(t TestingT, conf Config) *NetworkDB {
 	t.Helper()
 	db, err := New(&conf)
 	assert.NilError(t, err)
 	return db
 }
 
-func createNetworkDBInstances(t *testing.T, num int, namePrefix string, conf *Config) []*NetworkDB {
+func createNetworkDBInstances(t TestingT, num int, namePrefix string, conf *Config) []*NetworkDB {
 	t.Helper()
 	var dbs []*NetworkDB
 	for i := 0; i < num; i++ {
@@ -69,12 +75,12 @@ func createNetworkDBInstances(t *testing.T, num int, namePrefix string, conf *Co
 		}
 		return poll.Success()
 	}
-	poll.WaitOn(t, check, poll.WithDelay(2*time.Second), poll.WithTimeout(20*time.Second))
+	poll.WaitOn(t, check, poll.WithDelay(2*time.Second), poll.WithTimeout(20*time.Second+time.Duration(num-1)*10*time.Second))
 
 	return dbs
 }
 
-func closeNetworkDBInstances(t *testing.T, dbs []*NetworkDB) {
+func closeNetworkDBInstances(t TestingT, dbs []*NetworkDB) {
 	t.Helper()
 	log.G(context.TODO()).Print("Closing DB instances...")
 	for _, db := range dbs {
