@@ -350,15 +350,15 @@ func TestValidGitTransport(t *testing.T) {
 		"github.com/docker/docker",
 	}
 
-	for _, url := range gitUrls {
-		if !isGitTransport(url) {
-			t.Fatalf("%q should be detected as valid Git prefix", url)
+	for _, u := range gitUrls {
+		if !isGitTransport(u) {
+			t.Fatalf("%q should be detected as valid Git prefix", u)
 		}
 	}
 
-	for _, url := range incompleteGitUrls {
-		if isGitTransport(url) {
-			t.Fatalf("%q should not be detected as valid Git prefix", url)
+	for _, u := range incompleteGitUrls {
+		if isGitTransport(u) {
+			t.Fatalf("%q should not be detected as valid Git prefix", u)
 		}
 	}
 }
@@ -371,8 +371,8 @@ func TestGitInvalidRef(t *testing.T) {
 		"git@g.com:a/b.git#with space",
 	}
 
-	for _, url := range gitUrls {
-		_, err := Clone(url)
+	for _, u := range gitUrls {
+		_, err := Clone(u)
 		assert.Assert(t, err != nil)
 		// On Windows, git has different case for the "invalid refspec" error,
 		// so we can't use ErrorContains.
