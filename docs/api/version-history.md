@@ -13,6 +13,11 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.52 API changes
+
+[Docker Engine API v1.52](https://docs.docker.com/reference/api/engine/version/v1.52/) documentation
+
+
 ## v1.51 API changes
 
 [Docker Engine API v1.51](https://docs.docker.com/reference/api/engine/version/v1.51/) documentation
