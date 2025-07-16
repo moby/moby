@@ -148,6 +148,9 @@ func supportsShallowClone(remoteURL string) bool {
 
 		// Try a HEAD request and fallback to a Get request on error
 		res, err := http.Head(serviceURL) // #nosec G107
+		if res != nil && res.Body != nil {
+			defer res.Body.Close()
+		}
 		if err != nil || res.StatusCode != http.StatusOK {
 			res, err = http.Get(serviceURL) // #nosec G107
 			if err == nil {
