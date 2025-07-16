@@ -20,7 +20,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/daemon"
-	buildbackend "github.com/docker/docker/daemon/build"
+	buildbackend "github.com/docker/docker/daemon/builder/backend"
 	"github.com/docker/docker/daemon/builder/dockerfile"
 	"github.com/docker/docker/daemon/cluster"
 	"github.com/docker/docker/daemon/command/debug"
