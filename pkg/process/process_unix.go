@@ -14,17 +14,10 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// Alive returns true if process with a given pid is running. It only considers
-// positive PIDs; 0 (all processes in the current process group), -1 (all processes
-// with a PID larger than 1), and negative (-n, all processes in process group
-// "n") values for pid are never considered to be alive.
-func Alive(pid int) bool {
-	if pid < 1 {
-		return false
-	}
+func alive(pid int) bool {
 	switch runtime.GOOS {
 	case "darwin":
-		// OS X does not have a proc filesystem. Use kill -0 pid to judge if the
+		// macOS does not have a proc filesystem. Use kill -0 pid to judge if the
 		// process exists. From KILL(2): https://www.freebsd.org/cgi/man.cgi?query=kill&sektion=2&manpath=OpenDarwin+7.2.1
 		//
 		// Sig may be one of the signals specified in sigaction(2) or it may
@@ -41,16 +34,7 @@ func Alive(pid int) bool {
 	}
 }
 
-// Kill force-stops a process. It only considers positive PIDs; 0 (all processes
-// in the current process group), -1 (all processes with a PID larger than 1),
-// and negative (-n, all processes in process group "n") values for pid are
-// ignored. Refer to [KILL(2)] for details.
-//
-// [KILL(2)]: https://man7.org/linux/man-pages/man2/kill.2.html
-func Kill(pid int) error {
-	if pid < 1 {
-		return fmt.Errorf("invalid PID (%d): only positive PIDs are allowed", pid)
-	}
+func kill(pid int) error {
 	err := unix.Kill(pid, unix.SIGKILL)
 	if err != nil && !errors.Is(err, unix.ESRCH) {
 		return err
