@@ -453,10 +453,13 @@ func UserModified(rcPath, rcHashPath string) (bool, error) {
 }
 
 func (rc *ResolvConf) processLine(line string) {
-	fields := strings.Fields(line)
-
 	// Strip blank lines and comments.
-	if len(fields) == 0 || fields[0][0] == '#' || fields[0][0] == ';' {
+	if line == "" || line[0] == '#' || line[0] == ';' {
+		return
+	}
+
+	fields := strings.Fields(line)
+	if len(fields) == 0 {
 		return
 	}
 
@@ -505,8 +508,11 @@ func defaultNSAddrs(ipv6 bool) []netip.Addr {
 func removeInvalidNDots(options []string) []string {
 	n := 0
 	for _, opt := range options {
-		k, v, _ := strings.Cut(opt, ":")
+		k, v, hasSep := strings.Cut(opt, ":")
 		if k == "ndots" {
+			if !hasSep || v == "" {
+				continue
+			}
 			ndots, err := strconv.Atoi(v)
 			if err != nil || ndots < 0 {
 				continue
