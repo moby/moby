@@ -546,7 +546,12 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 
 			// Notify to the upper layer only entries not already marked for deletion
 			if !oldEntry.deleting {
-				nDB.broadcaster.Write(makeEvent(opDelete, tName, nwID, key, oldEntry.value))
+				nDB.broadcaster.Write(WatchEvent{
+					Table:     tName,
+					NetworkID: nwID,
+					Key:       key,
+					Prev:      oldEntry.value,
+				})
 			}
 			return false
 		})
@@ -566,7 +571,12 @@ func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
 		nDB.deleteEntry(nwID, tName, key)
 
 		if !oldEntry.deleting {
-			nDB.broadcaster.Write(makeEvent(opDelete, tName, nwID, key, oldEntry.value))
+			nDB.broadcaster.Write(WatchEvent{
+				Table:     tName,
+				NetworkID: nwID,
+				Key:       key,
+				Prev:      oldEntry.value,
+			})
 		}
 		return false
 	})
@@ -693,7 +703,12 @@ func (nDB *NetworkDB) LeaveNetwork(nid string) error {
 			nDB.deleteEntry(nwID, tName, key)
 		}
 		if !oldEntry.deleting {
-			nDB.broadcaster.Write(makeEvent(opDelete, tName, nwID, key, oldEntry.value))
+			nDB.broadcaster.Write(WatchEvent{
+				Table:     tName,
+				NetworkID: nwID,
+				Key:       key,
+				Prev:      oldEntry.value,
+			})
 		}
 		return false
 	})

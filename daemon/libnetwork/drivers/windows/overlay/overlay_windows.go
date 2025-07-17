@@ -1,7 +1,5 @@
 package overlay
 
-//go:generate protoc -I=. -I=../../../../../vendor/ --gogo_out=import_path=github.com/docker/docker/daemon/libnetwork/drivers/overlay:. overlay.proto
-
 import (
 	"context"
 	"encoding/json"
