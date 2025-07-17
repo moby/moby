@@ -374,7 +374,7 @@ func TestStaticAllocation(t *testing.T) {
 		netip.MustParsePrefix("10.0.0.0/8"),
 		netip.MustParsePrefix("192.168.3.0/24"),
 	} {
-		err := as.allocatePool(alloc)
+		err := as.allocatePool(alloc, netip.Prefix{})
 		assert.NilError(t, err)
 	}
 

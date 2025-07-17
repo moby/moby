@@ -209,25 +209,32 @@ func (a *Allocator) getAddrSpace(as string, v6 bool) (*addrSpace, error) {
 	return nil, types.InvalidParameterErrorf("cannot find address space %s", as)
 }
 
-func newPoolData(pool netip.Prefix) *PoolData {
-	h := addrset.New(pool)
+func newPoolData(pool, sub netip.Prefix) *PoolData {
+	pd := &PoolData{
+		addrs:    addrset.New(pool),
+		children: map[netip.Prefix]struct{}{},
+	}
 
+	if sub != (netip.Prefix{}) {
+		pd.children[sub] = struct{}{}
+
+	}
 	// Reserve the first address in the range for the:
 	// - IPv4 network address
 	//   - Except in a /31 point-to-point link, https://datatracker.ietf.org/doc/html/rfc3021
 	// - IPv6 Subnet-Router anycast address, https://datatracker.ietf.org/doc/html/rfc4291#section-2.6.1
 	bits := pool.Addr().BitLen() - pool.Bits()
 	if !pool.Addr().Is4() || bits > 1 {
-		h.Add(pool.Addr())
+		pd.RequestAddress(pool, netip.Prefix{}, netip.Addr{}, nil)
 	}
 
 	// For IPv4, reserve the broadcast address.
 	// - Except in a /31 point-to-point link, https://datatracker.ietf.org/doc/html/rfc3021
 	if pool.Addr().Is4() && bits > 1 {
-		h.Add(netiputil.LastAddr(pool))
+		pd.RequestAddress(pool, netip.Prefix{}, netiputil.LastAddr(pool), nil)
 	}
 
-	return &PoolData{addrs: h, children: map[netip.Prefix]struct{}{}}
+	return pd
 }
 
 // RequestAddress returns an address from the specified pool ID
