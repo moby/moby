@@ -12,7 +12,7 @@ import (
 	"github.com/containerd/containerd/v2/core/snapshots"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/layer"
+	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/util/leaseutil"
