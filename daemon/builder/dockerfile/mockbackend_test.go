@@ -6,11 +6,11 @@ import (
 	"io"
 	"runtime"
 
-	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/builder"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/moby/moby/api/types/backend"
+	"github.com/moby/moby/api/types/container"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )

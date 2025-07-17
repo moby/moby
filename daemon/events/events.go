@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	eventtypes "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/daemon/internal/metrics"
+	eventtypes "github.com/moby/moby/api/types/events"
 	"github.com/moby/pubsub"
 )
 

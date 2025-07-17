@@ -3,7 +3,7 @@ package convert
 import (
 	"testing"
 
-	types "github.com/docker/docker/api/types/swarm"
+	types "github.com/moby/moby/api/types/swarm"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"gotest.tools/v3/assert"
 )

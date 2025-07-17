@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/docker/docker/api/types/build"
 	"github.com/moby/go-archive"
+	"github.com/moby/moby/api/types/build"
 	"gotest.tools/v3/assert"
 )
 

@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/daemon/internal/metrics"
 	"github.com/docker/docker/layer"
+	"github.com/moby/moby/api/types/backend"
+	"github.com/moby/moby/api/types/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

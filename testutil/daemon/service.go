@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/swarm"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/swarm"
 	"gotest.tools/v3/assert"
 )
 

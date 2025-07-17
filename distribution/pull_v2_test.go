@@ -11,9 +11,9 @@ import (
 	"testing"
 
 	"github.com/distribution/reference"
-	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/registry"
+	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"

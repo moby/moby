@@ -11,12 +11,12 @@ import (
 	"testing"
 
 	"dario.cat/mergo"
-	"github.com/docker/docker/api"
 	"github.com/docker/docker/daemon/libnetwork/ipamutils"
 	"github.com/docker/docker/daemon/pkg/opts"
 	"github.com/docker/docker/registry"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/moby/moby/api"
 	"github.com/spf13/pflag"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/unicode"

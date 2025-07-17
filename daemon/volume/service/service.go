@@ -6,9 +6,6 @@ import (
 	"sync/atomic"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/filters"
-	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/daemon/internal/directory"
 	"github.com/docker/docker/daemon/volume"
 	"github.com/docker/docker/daemon/volume/drivers"
@@ -17,6 +14,9 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/api/types/filters"
+	volumetypes "github.com/moby/moby/api/types/volume"
 	"github.com/pkg/errors"
 )
 

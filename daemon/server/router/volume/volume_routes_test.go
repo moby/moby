@@ -13,11 +13,11 @@ import (
 	"gotest.tools/v3/assert"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/docker/docker/daemon/volume/service/opts"
 	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/volume"
 )
 
 func callGetVolume(v *volumeRouter, name string) (*httptest.ResponseRecorder, error) {

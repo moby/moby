@@ -14,8 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	remoteapi "github.com/docker/docker/daemon/libnetwork/drivers/remote/api"
 	"github.com/docker/docker/daemon/libnetwork/ipamapi"
@@ -29,6 +27,8 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/testutil"
 	testdaemon "github.com/docker/docker/testutil/daemon"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
