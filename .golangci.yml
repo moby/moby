@@ -103,7 +103,7 @@ linters:
           msg: Go 1.19 atomic types should be used instead.
         - pkg: ^regexp$
           pattern: ^regexp\.MustCompile
-          msg: Use internal/lazyregexp.New instead.
+          msg: Use daemon/internal/lazyregexp.New instead.
         - pkg: github.com/vishvananda/netlink$
           pattern: ^netlink\.(Handle\.)?(AddrList|BridgeVlanList|ChainList|ClassList|ConntrackTableList|ConntrackDeleteFilter$|ConntrackDeleteFilters|DevLinkGetDeviceList|DevLinkGetAllPortList|DevlinkGetDeviceParams|FilterList|FouList|GenlFamilyList|GTPPDPList|LinkByName|LinkByAlias|LinkList|LinkSubscribeWithOptions|NeighList$|NeighProxyList|NeighListExecute|NeighSubscribeWithOptions|LinkGetProtinfo|QdiscList|RdmaLinkList|RdmaLinkByName|RdmaLinkDel|RouteList|RouteListFilteredIter|RuleListFiltered$|RouteSubscribeWithOptions|RuleList$|RuleListFiltered|SocketGet|SocketDiagTCPInfo|SocketDiagTCP|SocketDiagUDPInfo|SocketDiagUDP|UnixSocketDiagInfo|UnixSocketDiag|VDPAGetDevConfigList|VDPAGetDevList|VDPAGetMGMTDevList|XfrmPolicyList|XfrmStateList)
           msg: Use internal nlwrap package for EINTR handling.
@@ -330,7 +330,7 @@ linters:
         linters:
           - forbidigo
       - text: 'use of `regexp.MustCompile` forbidden'
-        path: "internal/lazyregexp"
+        path: "daemon/internal/lazyregexp"
         linters:
           - forbidigo
       - text: 'use of `regexp.MustCompile` forbidden'
