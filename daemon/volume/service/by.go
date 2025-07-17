@@ -2,7 +2,7 @@ package service
 
 import (
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/volume"
+	"github.com/docker/docker/daemon/volume"
 )
 
 // By is an interface which is used to implement filtering on volumes.

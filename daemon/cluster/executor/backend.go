@@ -22,8 +22,8 @@ import (
 	networktypes "github.com/docker/docker/daemon/libnetwork/types"
 	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/daemon/pkg/plugin"
+	volumeopts "github.com/docker/docker/daemon/volume/service/opts"
 	"github.com/docker/docker/image"
-	volumeopts "github.com/docker/docker/volume/service/opts"
 	"github.com/moby/swarmkit/v2/agent/exec"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )

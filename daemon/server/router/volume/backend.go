@@ -5,7 +5,7 @@ import (
 
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
-	"github.com/docker/docker/volume/service/opts"
+	"github.com/docker/docker/daemon/volume/service/opts"
 )
 
 // Backend is the methods that need to be implemented to provide

@@ -2,7 +2,7 @@
 
 package vfs
 
-import "github.com/docker/docker/quota"
+import "github.com/docker/docker/daemon/internal/quota"
 
 type driverQuota struct{}
 

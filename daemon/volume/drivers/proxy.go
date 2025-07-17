@@ -6,8 +6,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/docker/docker/daemon/volume"
 	"github.com/docker/docker/pkg/plugins"
-	"github.com/docker/docker/volume"
 )
 
 const (

@@ -8,10 +8,10 @@ import (
 
 	"github.com/containerd/log"
 	mounttypes "github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/internal/safepath"
+	"github.com/docker/docker/daemon/volume"
+	"github.com/docker/docker/daemon/volume/safepath"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/volume"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
