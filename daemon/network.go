@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/networkdb"
 	"github.com/docker/docker/daemon/libnetwork/options"
+	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 	lntypes "github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/daemon/pkg/opts"
@@ -966,7 +967,7 @@ func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwor
 
 	var (
 		exposedPorts   []lntypes.TransportPort
-		publishedPorts []lntypes.PortBinding
+		publishedPorts []portmapperapi.PortBindingReq
 	)
 	for _, port := range ports {
 		portProto := lntypes.ParseProtocol(port.Proto())
@@ -985,19 +986,23 @@ func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwor
 			if err != nil {
 				return nil, fmt.Errorf("error parsing HostPort value (%s): %w", binding.HostPort, err)
 			}
-			publishedPorts = append(publishedPorts, lntypes.PortBinding{
-				Proto:       portProto,
-				Port:        portNum,
-				HostIP:      net.ParseIP(binding.HostIP),
-				HostPort:    uint16(portStart),
-				HostPortEnd: uint16(portEnd),
+			publishedPorts = append(publishedPorts, portmapperapi.PortBindingReq{
+				PortBinding: lntypes.PortBinding{
+					Proto:       portProto,
+					Port:        portNum,
+					HostIP:      net.ParseIP(binding.HostIP),
+					HostPort:    uint16(portStart),
+					HostPortEnd: uint16(portEnd),
+				},
 			})
 		}
 
 		if c.HostConfig.PublishAllPorts && len(bindings[port]) == 0 {
-			publishedPorts = append(publishedPorts, lntypes.PortBinding{
-				Proto: portProto,
-				Port:  portNum,
+			publishedPorts = append(publishedPorts, portmapperapi.PortBindingReq{
+				PortBinding: lntypes.PortBinding{
+					Proto: portProto,
+					Port:  portNum,
+				},
 			})
 		}
 	}

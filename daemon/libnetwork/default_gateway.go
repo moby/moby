@@ -8,6 +8,7 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
+	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
@@ -60,7 +61,7 @@ func (sb *Sandbox) setupDefaultGW() error {
 	sbLabels := sb.Labels()
 
 	if sbLabels[netlabel.PortMap] != nil {
-		createOptions = append(createOptions, CreateOptionPortMapping(sbLabels[netlabel.PortMap].([]types.PortBinding)))
+		createOptions = append(createOptions, CreateOptionPortMapping(sbLabels[netlabel.PortMap].([]portmapperapi.PortBindingReq)))
 	}
 
 	if sbLabels[netlabel.ExposedPorts] != nil {

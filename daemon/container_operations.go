@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/daemon/internal/metrics"
 	"github.com/docker/docker/daemon/libnetwork"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
+	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/daemon/network"
@@ -123,7 +124,7 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 	nat.SortPortMap(ports, bindings)
 
 	var (
-		publishedPorts []types.PortBinding
+		publishedPorts []portmapperapi.PortBindingReq
 		exposedPorts   []types.TransportPort
 	)
 	for _, port := range ports {
@@ -143,19 +144,23 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 			if err != nil {
 				return nil, fmt.Errorf("Error parsing HostPort value(%s):%v", binding.HostPort, err)
 			}
-			publishedPorts = append(publishedPorts, types.PortBinding{
-				Proto:       portProto,
-				Port:        portNum,
-				HostIP:      net.ParseIP(binding.HostIP),
-				HostPort:    uint16(portStart),
-				HostPortEnd: uint16(portEnd),
+			publishedPorts = append(publishedPorts, portmapperapi.PortBindingReq{
+				PortBinding: types.PortBinding{
+					Proto:       portProto,
+					Port:        portNum,
+					HostIP:      net.ParseIP(binding.HostIP),
+					HostPort:    uint16(portStart),
+					HostPortEnd: uint16(portEnd),
+				},
 			})
 		}
 
 		if ctr.HostConfig.PublishAllPorts && len(bindings[port]) == 0 {
-			publishedPorts = append(publishedPorts, types.PortBinding{
-				Proto: portProto,
-				Port:  portNum,
+			publishedPorts = append(publishedPorts, portmapperapi.PortBindingReq{
+				PortBinding: types.PortBinding{
+					Proto: portProto,
+					Port:  portNum,
+				},
 			})
 		}
 	}

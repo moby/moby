@@ -3,6 +3,7 @@ package libnetwork
 import (
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/osl"
+	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
@@ -120,13 +121,13 @@ func OptionExposedPorts(exposedPorts []types.TransportPort) SandboxOption {
 
 // OptionPortMapping function returns an option setter for the mapping
 // ports option to be passed to container Create method.
-func OptionPortMapping(portBindings []types.PortBinding) SandboxOption {
+func OptionPortMapping(portBindings []portmapperapi.PortBindingReq) SandboxOption {
 	return func(sb *Sandbox) {
 		if sb.config.generic == nil {
 			sb.config.generic = make(map[string]interface{})
 		}
 		// Store a copy of the bindings as generic data to pass to the driver
-		pbs := make([]types.PortBinding, len(portBindings))
+		pbs := make([]portmapperapi.PortBindingReq, len(portBindings))
 		copy(pbs, portBindings)
 		sb.config.generic[netlabel.PortMap] = pbs
 	}
