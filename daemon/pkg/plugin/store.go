@@ -9,8 +9,8 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/daemon/internal/errdefs"
 	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
-	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/docker/pkg/plugins"
+	"github.com/docker/docker/daemon/pkg/plugingetter"
+	"github.com/docker/docker/daemon/pkg/plugins"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )

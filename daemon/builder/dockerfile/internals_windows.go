@@ -9,7 +9,7 @@ import (
 
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/daemon/internal/errdefs"
-	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/daemon/pkg/jsonmessage"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/sys/user"

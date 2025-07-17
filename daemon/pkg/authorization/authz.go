@@ -13,7 +13,7 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/daemon/pkg/ioutils"
 )
 
 const maxBodySize = 1048576 // 1MB

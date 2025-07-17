@@ -22,7 +22,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
-	"github.com/docker/docker/pkg/pools"
+	"github.com/docker/docker/daemon/pkg/pools"
 	"github.com/google/uuid"
 )
 

@@ -21,7 +21,7 @@ import (
 	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/libnetwork"
 	"github.com/docker/docker/daemon/pkg/opts"
-	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/daemon/pkg/streamformatter"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/control"

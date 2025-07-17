@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/datastore"
 	"github.com/docker/docker/daemon/libnetwork/ipamutils"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
-	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/daemon/pkg/plugingetter"
 )
 
 const (

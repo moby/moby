@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/daemon/cluster/convert"
 	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/pkg/opts"
-	"github.com/docker/docker/pkg/stack"
+	"github.com/docker/docker/daemon/pkg/stack"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"

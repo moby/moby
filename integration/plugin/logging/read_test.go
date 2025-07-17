@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/daemon/pkg/stdcopy"
 	testContainer "github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/moby/moby/api/types"

@@ -11,7 +11,7 @@ import (
 
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
-	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/daemon/pkg/system"
 	"github.com/moby/sys/userns"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"

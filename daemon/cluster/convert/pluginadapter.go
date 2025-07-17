@@ -1,7 +1,7 @@
 package convert
 
 import (
-	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/daemon/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/node/plugin"
 )
 

@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/daemon/pkg/stdcopy"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"

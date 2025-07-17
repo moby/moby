@@ -6,7 +6,7 @@ import (
 	"hash"
 	"os"
 
-	"github.com/docker/docker/pkg/tarsum"
+	"github.com/docker/docker/daemon/pkg/tarsum"
 	"github.com/moby/go-archive"
 )
 

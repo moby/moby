@@ -17,8 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/daemon/pkg/authorization"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/testutil/environment"
 	"github.com/docker/go-connections/sockets"
 	"github.com/moby/go-archive"

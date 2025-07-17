@@ -5,7 +5,7 @@ import (
 	"io"
 	"runtime"
 
-	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/docker/docker/daemon/pkg/sysinfo"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 )

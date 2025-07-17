@@ -5,7 +5,7 @@ package daemon
 import (
 	"errors"
 
-	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/docker/docker/daemon/pkg/sysinfo"
 )
 
 func checkSystem() error {

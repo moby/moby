@@ -10,7 +10,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/daemon/pkg/progress"
 	"github.com/moby/moby/api/types/events"
 )
 

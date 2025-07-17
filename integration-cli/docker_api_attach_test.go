@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/daemon/pkg/stdcopy"
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"github.com/docker/go-connections/sockets"

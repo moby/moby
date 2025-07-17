@@ -8,8 +8,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/internal/errdefs"
+	"github.com/docker/docker/daemon/pkg/stdcopy"
 	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/container"

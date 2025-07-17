@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/docker/docker/daemon/pkg/sysinfo"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/system"
 )
