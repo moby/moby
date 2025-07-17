@@ -299,6 +299,22 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValid
 		if windowsDetectMountType(mnt.Target) != mount.TypeNamedPipe {
 			return &errMountConfig{mnt, fmt.Errorf("'%s' is not a valid pipe path", mnt.Target)}
 		}
+	case mount.TypeImage:
+		if mnt.BindOptions != nil {
+			return &errMountConfig{mnt, errExtraField("BindOptions")}
+		}
+		if mnt.VolumeOptions != nil {
+			return &errMountConfig{mnt, errExtraField("VolumeOptions")}
+		}
+		if mnt.Source == "" {
+			return &errMountConfig{mnt, errMissingField("Source")}
+		}
+		if mnt.ImageOptions != nil && mnt.ImageOptions.Subpath != "" {
+			// Check if path is relative but without any back traversals
+			if !filepath.IsLocal(mnt.ImageOptions.Subpath) {
+				return &errMountConfig{mnt, errInvalidSubpath}
+			}
+		}
 	default:
 		return &errMountConfig{mnt, errors.New("mount type unknown")}
 	}
@@ -410,8 +426,10 @@ func (p *windowsParser) parseMountSpec(cfg mount.Mount, convertTargetToBackslash
 		mp.Source = strings.ReplaceAll(cfg.Source, `/`, `\`)
 	case mount.TypeNamedPipe:
 		mp.Source = strings.ReplaceAll(cfg.Source, `/`, `\`)
+	case mount.TypeImage:
+		mp.Source = cfg.Source
 	default:
-		// TODO(thaJeztah): make switch exhaustive: anything to do for mount.TypeTmpfs, mount.TypeCluster, mount.TypeImage ?
+		// TODO(thaJeztah): make switch exhaustive: anything to do for mount.TypeTmpfs, mount.TypeCluster ?
 	}
 	// cleanup trailing `\` except for paths like `c:\`
 	if len(mp.Source) > 3 && mp.Source[len(mp.Source)-1] == '\\' {

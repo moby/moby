@@ -118,7 +118,6 @@ func TestRunMountVolumeSubdir(t *testing.T) {
 
 func TestRunMountImage(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.48"), "skip test from new feature")
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "image mounts not supported on Windows")
 
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
@@ -355,60 +354,69 @@ func setupTestImage(t *testing.T, ctx context.Context, apiClient client.APIClien
 // Regression test for: https://github.com/moby/moby/issues/50122
 func TestRunMountImageMultipleTimes(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.48"), "skip test from new feature")
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	basePath := "/etc"
+	var basePath string
+	var join func(string, string) string
 	if testEnv.DaemonInfo.OSType == "windows" {
-		basePath = `C:\`
+		basePath = `C:`
+		join = func(base, rel string) string {
+			return base + `\` + rel
+		}
+	} else {
+		basePath = "/etc"
+		join = func(base, rel string) string {
+			return base + `/` + rel
+		}
 	}
 
 	// hello-world image is a small image that only has /hello executable binary file
 	testImage := "hello-world:frozen"
 	id := container.Run(ctx, t, apiClient,
-		container.WithImage("busybox:latest"),
-		container.WithCmd("top"),
 		container.WithMount(mount.Mount{
 			Type:   mount.TypeImage,
 			Source: testImage,
-			Target: filepath.Join(basePath, "foo"),
+			Target: join(basePath, "foo"),
 		}),
 		container.WithMount(mount.Mount{
 			Type:   mount.TypeImage,
 			Source: testImage,
-			Target: filepath.Join(basePath, "bar"),
+			Target: join(basePath, "bar"),
 		}),
 	)
 
-	defer apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+	defer container.Remove(ctx, t, apiClient, id, containertypes.RemoveOptions{Force: true})
 
 	inspect, err := apiClient.ContainerInspect(ctx, id)
 	assert.NilError(t, err)
 
 	assert.Equal(t, len(inspect.Mounts), 2)
 	var hasFoo, hasBar bool
+	expectedFooPath := join(basePath, "foo")
+	expectedBarPath := join(basePath, "bar")
+
 	for _, mnt := range inspect.Mounts {
-		if mnt.Destination == "/etc/foo" {
+		if mnt.Destination == expectedFooPath {
 			hasFoo = true
 		}
-		if mnt.Destination == "/etc/bar" {
+		if mnt.Destination == expectedBarPath {
 			hasBar = true
 		}
 	}
 
-	assert.Check(t, hasFoo, "Expected mount at /etc/foo")
-	assert.Check(t, hasBar, "Expected mount at /etc/bar")
+	assert.Check(t, hasFoo, "Expected mount at %s", expectedFooPath)
+	assert.Check(t, hasBar, "Expected mount at %s", expectedBarPath)
 
 	t.Run("mounted foo", func(t *testing.T) {
-		res, err := container.Exec(ctx, apiClient, id, []string{"stat", "/etc/foo/hello"})
+		res, err := container.Exec(ctx, apiClient, id, []string{"stat", join(expectedFooPath, "hello")})
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal(res.ExitCode, 0))
 	})
 
 	t.Run("mounted bar", func(t *testing.T) {
-		res, err := container.Exec(ctx, apiClient, id, []string{"stat", "/etc/bar/hello"})
+		res, err := container.Exec(ctx, apiClient, id, []string{"stat", join(expectedBarPath, "hello")})
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal(res.ExitCode, 0))
 	})
