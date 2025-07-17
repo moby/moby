@@ -16,7 +16,6 @@ import (
 	"strings"
 
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/api"
 	"github.com/docker/docker/daemon/builder"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
@@ -29,6 +28,10 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
+
+// noBaseImageSpecifier is the symbol used by the FROM
+// command to specify that no base image is to be used.
+const noBaseImageSpecifier = "scratch"
 
 // ENV foo bar
 //
@@ -242,7 +245,7 @@ func (d *dispatchRequest) getImageOrStage(ctx context.Context, name string, plat
 	}
 
 	// Windows cannot support a container with no base image.
-	if name == api.NoBaseImageSpecifier {
+	if name == noBaseImageSpecifier {
 		// Windows supports scratch. What is not supported is running containers from it.
 		if runtime.GOOS == "windows" {
 			return nil, errors.New("Windows does not support FROM scratch")
@@ -257,11 +260,11 @@ func (d *dispatchRequest) getImageOrStage(ctx context.Context, name string, plat
 		}
 		return builder.Image(imageImage), nil
 	}
-	imageMount, err := d.builder.imageSources.Get(ctx, name, localOnly, platform)
+	imgMount, err := d.builder.imageSources.Get(ctx, name, localOnly, platform)
 	if err != nil {
 		return nil, err
 	}
-	return imageMount.Image(), nil
+	return imgMount.Image(), nil
 }
 
 func (d *dispatchRequest) getFromImage(ctx context.Context, shlex *shell.Lex, basename string, platform *ocispec.Platform) (builder.Image, error) {
