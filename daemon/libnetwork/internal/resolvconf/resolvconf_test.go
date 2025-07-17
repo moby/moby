@@ -234,12 +234,7 @@ func TestRCModify(t *testing.T) {
 				assert.Check(t, is.DeepEqual(rc.Options(), append(options, tc.addOption), cmpopts.EquateEmpty()))
 			}
 
-			d := t.TempDir()
-			path := filepath.Join(d, "resolv.conf")
-			err = rc.WriteFile(path, "", 0o644)
-			assert.NilError(t, err)
-
-			content, err := os.ReadFile(path)
+			content, err := rc.Generate(true)
 			assert.NilError(t, err)
 			assert.Check(t, golden.String(string(content), t.Name()+".golden"))
 		})
@@ -316,12 +311,7 @@ func TestRCTransformForLegacyNw(t *testing.T) {
 
 			rc.TransformForLegacyNw(tc.ipv6)
 
-			d := t.TempDir()
-			path := filepath.Join(d, "resolv.conf")
-			err = rc.WriteFile(path, "", 0o644)
-			assert.NilError(t, err)
-
-			content, err := os.ReadFile(path)
+			content, err := rc.Generate(true)
 			assert.NilError(t, err)
 			assert.Check(t, golden.String(string(content), t.Name()+".golden"))
 		})
@@ -439,12 +429,7 @@ func TestRCTransformForIntNS(t *testing.T) {
 			}
 			assert.NilError(t, err)
 
-			d := t.TempDir()
-			path := filepath.Join(d, "resolv.conf")
-			err = rc.WriteFile(path, "", 0o644)
-			assert.NilError(t, err)
-
-			content, err := os.ReadFile(path)
+			content, err := rc.Generate(true)
 			assert.NilError(t, err)
 			assert.Check(t, golden.String(string(content), t.Name()+".golden"))
 			assert.Check(t, is.DeepEqual(extNameServers, tc.expExtServers,
@@ -533,17 +518,11 @@ func TestRCRead(t *testing.T) {
 }
 
 func TestRCInvalidNS(t *testing.T) {
-	d := t.TempDir()
-
 	// A resolv.conf with an invalid nameserver address.
 	rc, err := Parse(bytes.NewBufferString("nameserver 1.2.3.4.5"), "")
 	assert.NilError(t, err)
 
-	path := filepath.Join(d, "resolv.conf")
-	err = rc.WriteFile(path, "", 0o644)
-	assert.NilError(t, err)
-
-	content, err := os.ReadFile(path)
+	content, err := rc.Generate(true)
 	assert.NilError(t, err)
 	assert.Check(t, golden.String(string(content), t.Name()+".golden"))
 }
@@ -553,12 +532,8 @@ func TestRCSetHeader(t *testing.T) {
 	assert.NilError(t, err)
 
 	rc.SetHeader("# This is a comment.")
-	d := t.TempDir()
-	path := filepath.Join(d, "resolv.conf")
-	err = rc.WriteFile(path, "", 0o644)
-	assert.NilError(t, err)
 
-	content, err := os.ReadFile(path)
+	content, err := rc.Generate(true)
 	assert.NilError(t, err)
 	assert.Check(t, golden.String(string(content), t.Name()+".golden"))
 }
@@ -573,12 +548,7 @@ unrecognised thing
 	rc, err := Parse(bytes.NewBufferString(input), "/etc/resolv.conf")
 	assert.NilError(t, err)
 
-	d := t.TempDir()
-	path := filepath.Join(d, "resolv.conf")
-	err = rc.WriteFile(path, "", 0o644)
-	assert.NilError(t, err)
-
-	content, err := os.ReadFile(path)
+	content, err := rc.Generate(true)
 	assert.NilError(t, err)
 	assert.Check(t, golden.String(string(content), t.Name()+".golden"))
 }
