@@ -8,8 +8,6 @@ import (
 	"testing"
 	"time"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/integration/internal/container"
@@ -17,6 +15,8 @@ import (
 	n "github.com/docker/docker/integration/network"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"

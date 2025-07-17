@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
 	"github.com/docker/docker/daemon/cluster/executor/container"
 	lncluster "github.com/docker/docker/daemon/libnetwork/cluster"
 	"github.com/docker/docker/daemon/libnetwork/cnmallocator"
+	types "github.com/moby/moby/api/types/swarm"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 	swarmnode "github.com/moby/swarmkit/v2/node"

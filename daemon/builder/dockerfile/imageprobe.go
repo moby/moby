@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/builder"
+	"github.com/moby/moby/api/types/container"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/daemon/container"
 	volumesservice "github.com/docker/docker/daemon/volume/service"
+	mounttypes "github.com/moby/moby/api/types/mount"
 )
 
 func (daemon *Daemon) prepareMountPoints(container *container.Container) error {

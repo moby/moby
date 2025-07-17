@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types/backend"
+	"github.com/moby/moby/api/types/backend"
 )
 
 // ErrReadLogsNotSupported is returned when the underlying log driver does not support reading

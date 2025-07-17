@@ -7,11 +7,11 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
-	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/daemon/volume"
 	"github.com/docker/docker/daemon/volume/safepath"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
+	mounttypes "github.com/moby/moby/api/types/mount"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"

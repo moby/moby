@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types/mount"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/moby/moby/api/types/mount"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

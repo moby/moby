@@ -25,7 +25,6 @@ import (
 
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/creack/pty"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/pkg/opts"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
@@ -33,6 +32,7 @@ import (
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/testutil"
 	testdaemon "github.com/docker/docker/testutil/daemon"
+	"github.com/moby/moby/api/types"
 	"github.com/moby/sys/mount"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
