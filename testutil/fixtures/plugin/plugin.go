@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/docker/docker/daemon/pkg/plugin"
-	registrypkg "github.com/docker/docker/daemon/pkg/registry"
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/daemon/pkg/plugin"
+	registrypkg "github.com/moby/moby/daemon/pkg/registry"
 	"github.com/pkg/errors"
 )
 

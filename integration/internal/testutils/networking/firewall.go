@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/pkg/lazyregexp"
 	"github.com/docker/docker/testutil/daemon"
+	"github.com/moby/moby/daemon/pkg/lazyregexp"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"

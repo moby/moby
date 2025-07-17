@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon"
+	"github.com/moby/moby/daemon"
 	"github.com/moby/swarmkit/v2/api"
 )
 

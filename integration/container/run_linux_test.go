@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/pkg/stdcopy"
 	"github.com/docker/docker/integration/internal/container"
 	net "github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/testutil"
@@ -17,6 +16,7 @@ import (
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/daemon/pkg/stdcopy"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

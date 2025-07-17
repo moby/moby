@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/pkg/testutils/netnsutils"
+	"github.com/moby/moby/daemon/pkg/testutils/netnsutils"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"

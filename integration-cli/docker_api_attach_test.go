@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/pkg/stdcopy"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
@@ -18,6 +17,7 @@ import (
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/daemon/pkg/stdcopy"
 	"github.com/pkg/errors"
 	"golang.org/x/net/websocket"
 	"gotest.tools/v3/assert"

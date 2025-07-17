@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/pkg/testutils/specialimage"
 	"github.com/docker/docker/integration/internal/container"
 	iimage "github.com/docker/docker/integration/internal/image"
 	"github.com/docker/docker/testutil"
@@ -19,6 +18,7 @@ import (
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/daemon/pkg/testutils/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

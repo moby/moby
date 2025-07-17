@@ -8,8 +8,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/daemon/pkg/parsers/kernel"
-	"github.com/docker/docker/daemon/volume"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
 	"github.com/moby/moby/api"
@@ -18,6 +16,8 @@ import (
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/daemon/pkg/parsers/kernel"
+	"github.com/moby/moby/daemon/volume"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"gotest.tools/v3/assert"

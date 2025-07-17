@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/pkg/jsonmessage"
-	"github.com/docker/docker/daemon/pkg/testutils/specialimage"
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/daemon/pkg/jsonmessage"
+	"github.com/moby/moby/daemon/pkg/testutils/specialimage"
 	"gotest.tools/v3/assert"
 )
 

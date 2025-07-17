@@ -3,8 +3,8 @@ package daemon
 import (
 	"testing"
 
-	"github.com/docker/docker/daemon/container"
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/daemon/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

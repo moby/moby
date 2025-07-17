@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/docker/docker/daemon/pkg/plugingetter"
+	"github.com/moby/moby/daemon/pkg/plugingetter"
 	"gotest.tools/v3/assert"
 )
 

@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/daemon/pkg/lazyregexp"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
@@ -14,6 +13,7 @@ import (
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/daemon/pkg/lazyregexp"
 	"go.opentelemetry.io/otel"
 	"gotest.tools/v3/assert"
 )

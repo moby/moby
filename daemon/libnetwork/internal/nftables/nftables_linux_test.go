@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/daemon/pkg/testutils/netnsutils"
+	"github.com/moby/moby/daemon/pkg/testutils/netnsutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"

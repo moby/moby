@@ -15,8 +15,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/pkg/stdcopy"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/process"
 	"github.com/docker/docker/testutil"
@@ -25,6 +23,8 @@ import (
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/daemon/config"
+	"github.com/moby/moby/daemon/pkg/stdcopy"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"

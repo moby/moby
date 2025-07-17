@@ -10,8 +10,8 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
-	"github.com/docker/docker/daemon/pkg/nlwrap"
+	"github.com/moby/moby/daemon/libnetwork/drivers/bridge"
+	"github.com/moby/moby/daemon/pkg/nlwrap"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 )

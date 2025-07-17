@@ -9,10 +9,10 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/daemon/pkg/stdcopy"
 	"github.com/docker/docker/integration/internal/container"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/daemon/pkg/stdcopy"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"

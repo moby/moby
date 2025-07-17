@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/pkg/stdcopy"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
@@ -14,6 +13,7 @@ import (
 	"github.com/moby/moby/api/types/build"
 	containertypes "github.com/moby/moby/api/types/container"
 	dclient "github.com/moby/moby/client"
+	"github.com/moby/moby/daemon/pkg/stdcopy"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"

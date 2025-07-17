@@ -3,9 +3,9 @@ package plugin
 import (
 	"testing"
 
-	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
-	"github.com/docker/docker/daemon/pkg/plugingetter"
 	"github.com/moby/moby/api/types"
+	v2 "github.com/moby/moby/daemon/pkg/plugin/v2"
+	"github.com/moby/moby/daemon/pkg/plugingetter"
 )
 
 func TestFilterByCapNeg(t *testing.T) {

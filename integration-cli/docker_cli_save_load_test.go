@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/pkg/testutils/specialimage"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/daemon/pkg/testutils/specialimage"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"

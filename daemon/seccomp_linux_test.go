@@ -4,12 +4,12 @@ import (
 	"testing"
 
 	coci "github.com/containerd/containerd/v2/pkg/oci"
-	dconfig "github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/daemon/pkg/oci"
-	"github.com/docker/docker/daemon/pkg/profiles/seccomp"
-	"github.com/docker/docker/daemon/pkg/sysinfo"
 	containertypes "github.com/moby/moby/api/types/container"
+	dconfig "github.com/moby/moby/daemon/config"
+	"github.com/moby/moby/daemon/container"
+	"github.com/moby/moby/daemon/pkg/oci"
+	"github.com/moby/moby/daemon/pkg/profiles/seccomp"
+	"github.com/moby/moby/daemon/pkg/sysinfo"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"gotest.tools/v3/assert"
 )

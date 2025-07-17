@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/docker/docker/daemon/internal/layer"
+	"github.com/moby/moby/daemon/internal/layer"
 	"github.com/opencontainers/go-digest"
 )
 

@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/docker/docker/daemon/internal/sliceutil"
-	"github.com/docker/docker/daemon/pkg/nlwrap"
+	"github.com/moby/moby/daemon/internal/sliceutil"
+	"github.com/moby/moby/daemon/pkg/nlwrap"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"gotest.tools/v3/assert"

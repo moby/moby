@@ -11,10 +11,10 @@ import (
 	"testing"
 
 	"github.com/containerd/continuity/driver"
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/daemon/graphdriver/vfs"
-	"github.com/docker/docker/daemon/pkg/stringid"
 	"github.com/moby/go-archive"
+	"github.com/moby/moby/daemon/graphdriver"
+	"github.com/moby/moby/daemon/graphdriver/vfs"
+	"github.com/moby/moby/daemon/pkg/stringid"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/go-digest"
 )
