@@ -396,6 +396,14 @@ func (iptable IPTable) ExistChain(chain string, table Table) bool {
 	return err == nil
 }
 
+// FlushChain flush chain if it exists
+func (iptable IPTable) FlushChain(table Table, chain string) error {
+	if !iptable.ExistChain(chain, table) {
+		return nil
+	}
+	return iptable.RawCombinedOutput("-t", string(table), "-F", chain)
+}
+
 // SetDefaultPolicy sets the passed default policy for the table/chain
 func (iptable IPTable) SetDefaultPolicy(table Table, chain string, policy Policy) error {
 	if err := iptable.RawCombinedOutput("-t", string(table), "-P", chain, string(policy)); err != nil {
@@ -405,23 +413,23 @@ func (iptable IPTable) SetDefaultPolicy(table Table, chain string, policy Policy
 }
 
 // AddReturnRule adds a return rule for the chain in the filter table
-func (iptable IPTable) AddReturnRule(chain string) error {
-	if iptable.Exists(Filter, chain, "-j", "RETURN") {
+func (iptable IPTable) AddReturnRule(table Table, chain string) error {
+	if iptable.Exists(table, chain, "-j", "RETURN") {
 		return nil
 	}
-	if err := iptable.RawCombinedOutput("-A", chain, "-j", "RETURN"); err != nil {
+	if err := iptable.RawCombinedOutput("-t", string(table), "-A", chain, "-j", "RETURN"); err != nil {
 		return fmt.Errorf("unable to add return rule in %s chain: %v", chain, err)
 	}
 	return nil
 }
 
 // EnsureJumpRule ensures the jump rule is on top
-func (iptable IPTable) EnsureJumpRule(fromChain, toChain string, rule ...string) error {
-	if err := iptable.DeleteJumpRule(fromChain, toChain, rule...); err != nil {
+func (iptable IPTable) EnsureJumpRule(table Table, fromChain, toChain string, rule ...string) error {
+	if err := iptable.DeleteJumpRule(table, fromChain, toChain, rule...); err != nil {
 		return err
 	}
 	rule = append(rule, "-j", toChain)
-	if err := iptable.RawCombinedOutput(append([]string{"-I", fromChain}, rule...)...); err != nil {
+	if err := iptable.RawCombinedOutput(append([]string{"-t", string(table), "-I", fromChain}, rule...)...); err != nil {
 		return fmt.Errorf("unable to insert jump to %s rule in %s chain: %v", toChain, fromChain, err)
 	}
 	return nil
@@ -429,10 +437,10 @@ func (iptable IPTable) EnsureJumpRule(fromChain, toChain string, rule ...string)
 
 // DeleteJumpRule deletes a rule added by EnsureJumpRule. It's a no-op if the rule
 // doesn't exist.
-func (iptable IPTable) DeleteJumpRule(fromChain, toChain string, rule ...string) error {
+func (iptable IPTable) DeleteJumpRule(table Table, fromChain, toChain string, rule ...string) error {
 	rule = append(rule, "-j", toChain)
-	if iptable.Exists(Filter, fromChain, rule...) {
-		if err := iptable.RawCombinedOutput(append([]string{"-D", fromChain}, rule...)...); err != nil {
+	if iptable.Exists(table, fromChain, rule...) {
+		if err := iptable.RawCombinedOutput(append([]string{"-t", string(table), "-D", fromChain}, rule...)...); err != nil {
 			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %v", toChain, fromChain, err)
 		}
 	}
@@ -467,22 +475,25 @@ func (r Rule) WithChain(chain string) Rule {
 	return wc
 }
 
-// Append appends the rule to the end of the chain. If the rule already exists anywhere in the
+// ensure appends/insert the rule to the end of the chain. If the rule already exists anywhere in the
 // chain, this is a no-op.
-func (r Rule) Append() error {
+func (r Rule) ensure(op Action) error {
 	if r.Exists() {
 		return nil
 	}
-	return r.exec(Append)
+	return r.exec(op)
+}
+
+// Append appends the rule to the end of the chain. If the rule already exists anywhere in the
+// chain, this is a no-op.
+func (r Rule) Append() error {
+	return r.ensure(Append)
 }
 
 // Insert inserts the rule at the head of the chain. If the rule already exists anywhere in the
 // chain, this is a no-op.
 func (r Rule) Insert() error {
-	if r.Exists() {
-		return nil
-	}
-	return r.exec(Insert)
+	return r.ensure(Insert)
 }
 
 // Delete deletes the rule from the kernel. If the rule does not exist, this is a no-op.

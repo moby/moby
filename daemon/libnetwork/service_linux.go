@@ -127,7 +127,7 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 			if gwEP, _ := sb.getGatewayEndpoint(); gwEP != nil {
 				gwIP = gwEP.Iface().Address().IP
 			}
-			if err := programIngress(gwIP, lb.service.ingressPorts, false); err != nil {
+			if err := addIngressPorts(gwIP, lb.service.ingressPorts); err != nil {
 				log.G(context.TODO()).Errorf("Failed to add ingress: %v", err)
 				return
 			}
@@ -230,7 +230,7 @@ func (n *Network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullR
 			if gwEP, _ := sb.getGatewayEndpoint(); gwEP != nil {
 				gwIP = gwEP.Iface().Address().IP
 			}
-			if err := programIngress(gwIP, lb.service.ingressPorts, true); err != nil {
+			if err := removeIngressPorts(gwIP, lb.service.ingressPorts); err != nil {
 				log.G(context.TODO()).Errorf("Failed to delete ingress: %v", err)
 			}
 		}
@@ -299,115 +299,163 @@ func filterPortConfigs(ingressPorts []*PortConfig, isDelete bool) []*PortConfig 
 	return iPorts
 }
 
-func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) error {
-	// TODO IPv6 support
-	iptable := iptables.GetIptable(iptables.IPv4)
+func initIngressConfiguration(gwIP net.IP, iptable *iptables.IPTable) error {
+	ingressOnce.Do(func() {
+		// Flush nat table and filter table ingress chain rules during init if it
+		// exists. It might contain stale rules from previous life.
+		if err := iptable.FlushChain(iptables.Nat, ingressChain); err != nil {
+			log.G(context.TODO()).Errorf("Could not flush nat table ingress chain rules during init: %v", err)
+		}
+		if err := iptable.FlushChain(iptables.Filter, ingressChain); err != nil {
+			log.G(context.TODO()).Errorf("Could not flush filter table ingress chain rules during init: %v", err)
+		}
+		// Remove the jump from FORWARD to DOCKER-INGRESS, if it was created there by a version of
+		// the daemon older than 28.0.1.
+		if err := iptable.DeleteJumpRule(iptables.Filter, "FORWARD", ingressChain); err != nil {
+			log.G(context.TODO()).WithError(err).Debug("Failed to delete jump from FORWARD to " + ingressChain)
+		}
+	})
 
-	addDelOpt := "-I"
-	rollbackAddDelOpt := "-D"
-	if isDelete {
-		addDelOpt = "-D"
-		rollbackAddDelOpt = "-I"
+	for _, table := range []iptables.Table{iptables.Nat, iptables.Filter} {
+		// Create the DOCKER-INGRESS chain in the NAT and FILTER tables if it does not exist.
+		if _, err := iptable.NewChain(ingressChain, table); err != nil {
+			return fmt.Errorf("failed to create ingress chain: %v in table %s: %v", ingressChain, table, err)
+		}
+		// Add a RETURN rule to the end of the DOCKER-INGRESS chain in the NAT and FILTER tables.
+		if err := iptable.AddReturnRule(table, ingressChain); err != nil {
+			return fmt.Errorf("failed to add return rule in %s table %s chain: %v", table, ingressChain, err)
+		}
 	}
+
+	// Add a jump rule in the OUTPUT and PREROUTING chains of the NAT table to the DOCKER-INGRESS chain.
+	for _, chain := range []string{"OUTPUT", "PREROUTING"} {
+		if err := iptable.EnsureJumpRule(iptables.Nat, chain, ingressChain, "-m", "addrtype", "--dst-type", "LOCAL"); err != nil {
+			return fmt.Errorf("failed to add jump rule in %s to %s chain: %v", chain, ingressChain, err)
+		}
+	}
+
+	// The DOCKER-FORWARD chain is created by the bridge driver on startup. It's a stable place to
+	// put the jump to DOCKER-INGRESS (nothing else will ever be inserted before it, and the jump
+	// will precede the bridge driver's other rules).
+	// Add a jump rule in the DOCKER-FORWARD chain of the FILTER table to the DOCKER-INGRESS chain.
+	if err := iptable.EnsureJumpRule(iptables.Filter, bridge.DockerForwardChain, ingressChain); err != nil {
+		return fmt.Errorf("failed to add jump rule in %s to %s chain: %v", bridge.DockerForwardChain, ingressChain, err)
+	}
+
+	// Find the bridge interface name for the gateway IP.
+	oifName, err := findOIFName(gwIP)
+	if err != nil {
+		return fmt.Errorf("failed to find gateway bridge interface name for %s: %v", gwIP, err)
+	}
+	// Enable local routing for the gateway bridge interface by writing to /proc/sys/net/ipv4/conf/<oifName>/route_localnet.
+	path := filepath.Join("/proc/sys/net/ipv4/conf", oifName, "route_localnet")
+	if err := os.WriteFile(path, []byte{'1', '\n'}, 0o644); err != nil { //nolint:gosec // gosec complains about perms here, which must be 0644 in this case
+		return fmt.Errorf("could not write to %s: %v", path, err)
+	}
+	// Add a POSTROUTING rule to the NAT table to masquerade traffic
+	rule := iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Nat, Chain: "POSTROUTING", Args: []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", oifName, "-j", "MASQUERADE"}}
+	if err := rule.Insert(); err != nil {
+		return fmt.Errorf("failed to insert ingress localhost POSTROUTING rule for %s: %v", oifName, err)
+	}
+	return nil
+}
+
+func removeIngressPorts(gwIP net.IP, ingressPorts []*PortConfig) error {
+	// TODO IPv6 support
 
 	ingressMu.Lock()
 	defer ingressMu.Unlock()
 
-	chainExists := iptable.ExistChain(ingressChain, iptables.Nat)
-	filterChainExists := iptable.ExistChain(ingressChain, iptables.Filter)
+	// Filter the ingress ports until port rules start to be added/deleted
+	filteredPorts := filterPortConfigs(ingressPorts, true)
 
-	ingressOnce.Do(func() {
-		// Flush nat table and filter table ingress chain rules during init if it
-		// exists. It might contain stale rules from previous life.
-		if chainExists {
-			if err := iptable.RawCombinedOutput("-t", "nat", "-F", ingressChain); err != nil {
-				log.G(context.TODO()).Errorf("Could not flush nat table ingress chain rules during init: %v", err)
-			}
-		}
-		if filterChainExists {
-			if err := iptable.RawCombinedOutput("-F", ingressChain); err != nil {
-				log.G(context.TODO()).Errorf("Could not flush filter table ingress chain rules during init: %v", err)
-			}
-		}
-	})
+	if err := deleteIngressPortsRules(gwIP, filteredPorts); err != nil {
+		filterPortConfigs(ingressPorts, false)
+		return fmt.Errorf("failed to program ingress ports: %v", err)
+	}
 
-	if !isDelete {
-		if !chainExists {
-			if err := iptable.RawCombinedOutput("-t", "nat", "-N", ingressChain); err != nil {
-				return fmt.Errorf("failed to create ingress chain: %v", err)
-			}
-		}
-		if !filterChainExists {
-			if err := iptable.RawCombinedOutput("-N", ingressChain); err != nil {
-				return fmt.Errorf("failed to create filter table ingress chain: %v", err)
-			}
-		}
+	closeIngressPortsProxy(filteredPorts)
 
-		if !iptable.Exists(iptables.Nat, ingressChain, "-j", "RETURN") {
-			if err := iptable.RawCombinedOutput("-t", "nat", "-A", ingressChain, "-j", "RETURN"); err != nil {
-				return fmt.Errorf("failed to add return rule in nat table ingress chain: %v", err)
-			}
-		}
+	return nil
+}
 
-		if !iptable.Exists(iptables.Filter, ingressChain, "-j", "RETURN") {
-			if err := iptable.RawCombinedOutput("-A", ingressChain, "-j", "RETURN"); err != nil {
-				return fmt.Errorf("failed to add return rule to filter table ingress chain: %v", err)
-			}
-		}
+func addIngressPorts(gwIP net.IP, ingressPorts []*PortConfig) error {
+	// TODO IPv6 support
+	iptable := iptables.GetIptable(iptables.IPv4)
 
-		for _, chain := range []string{"OUTPUT", "PREROUTING"} {
-			if !iptable.Exists(iptables.Nat, chain, "-m", "addrtype", "--dst-type", "LOCAL", "-j", ingressChain) {
-				if err := iptable.RawCombinedOutput("-t", "nat", "-I", chain, "-m", "addrtype", "--dst-type", "LOCAL", "-j", ingressChain); err != nil {
-					return fmt.Errorf("failed to add jump rule in %s to ingress chain: %v", chain, err)
-				}
-			}
-		}
+	ingressMu.Lock()
+	defer ingressMu.Unlock()
 
-		// The DOCKER-FORWARD chain is created by the bridge driver on startup. It's a stable place to
-		// put the jump to DOCKER-INGRESS (nothing else will ever be inserted before it, and the jump
-		// will precede the bridge driver's other rules).
-		if !iptable.Exists(iptables.Filter, bridge.DockerForwardChain, "-j", ingressChain) {
-			if err := iptable.RawCombinedOutput("-I", bridge.DockerForwardChain, "-j", ingressChain); err != nil {
-				return fmt.Errorf("failed to add jump rule to %s in filter table %s chain: %v",
-					ingressChain, bridge.DockerForwardChain, err)
-			}
-		}
-		// Remove the jump from FORWARD to DOCKER-INGRESS, if it was created there by a version of
-		// the daemon older than 28.0.1.
-		// FIXME(robmry) - should only do this once, on startup.
-		if iptable.Exists(iptables.Filter, "FORWARD", "-j", ingressChain) {
-			if err := iptable.RawCombinedOutput("-D", "FORWARD", "-j", ingressChain); err != nil {
-				log.G(context.TODO()).WithError(err).Debug("Failed to delete jump from FORWARD to " + ingressChain)
-			}
-		}
-
-		oifName, err := findOIFName(gwIP)
-		if err != nil {
-			return fmt.Errorf("failed to find gateway bridge interface name for %s: %v", gwIP, err)
-		}
-
-		path := filepath.Join("/proc/sys/net/ipv4/conf", oifName, "route_localnet")
-		if err := os.WriteFile(path, []byte{'1', '\n'}, 0o644); err != nil { //nolint:gosec // gosec complains about perms here, which must be 0644 in this case
-			return fmt.Errorf("could not write to %s: %v", path, err)
-		}
-
-		ruleArgs := []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", oifName, "-j", "MASQUERADE"}
-		if !iptable.Exists(iptables.Nat, "POSTROUTING", ruleArgs...) {
-			if err := iptable.RawCombinedOutput(append([]string{"-t", "nat", "-I", "POSTROUTING"}, ruleArgs...)...); err != nil {
-				return fmt.Errorf("failed to add ingress localhost POSTROUTING rule for %s: %v", oifName, err)
-			}
-		}
+	if err := initIngressConfiguration(gwIP, iptable); err != nil {
+		return err
 	}
 
 	// Filter the ingress ports until port rules start to be added/deleted
-	filteredPorts := filterPortConfigs(ingressPorts, isDelete)
-	rollbackRules := make([][]string, 0, len(filteredPorts)*3)
-	var portErr error
+	filteredPorts := filterPortConfigs(ingressPorts, false)
+
+	if err := programIngressPortsRules(gwIP, filteredPorts); err != nil {
+		filterPortConfigs(filteredPorts, true)
+		return fmt.Errorf("failed to program ingress ports: %v", err)
+	}
+
+	plumbIngressPortsProxy(filteredPorts)
+
+	return nil
+}
+
+func restoreIngressPorts(gwIP net.IP, ingressPorts []*PortConfig) error {
+	// TODO IPv6 support
+	iptable := iptables.GetIptable(iptables.IPv4)
+
+	ingressMu.Lock()
+	defer ingressMu.Unlock()
+
+	if err := initIngressConfiguration(gwIP, iptable); err != nil {
+		return err
+	}
+
+	if err := programIngressPortsRules(gwIP, ingressPorts); err != nil {
+		return fmt.Errorf("failed to program ingress ports: %v", err)
+	}
+
+	return nil
+}
+
+func generateIngressRules(port *PortConfig, destIP net.IP) []iptables.Rule {
+	var (
+		protocol      = strings.ToLower(port.Protocol.String())
+		publishedPort = strconv.FormatUint(uint64(port.PublishedPort), 10)
+		destination   = net.JoinHostPort(destIP.String(), publishedPort)
+	)
+	return []iptables.Rule{
+		{
+			IPVer: iptables.IPv4,
+			Table: iptables.Nat,
+			Chain: ingressChain,
+			Args:  []string{"-p", protocol, "--dport", publishedPort, "-j", "DNAT", "--to-destination", destination},
+		},
+		{
+			IPVer: iptables.IPv4,
+			Table: iptables.Filter,
+			Chain: ingressChain,
+			Args:  []string{"-p", protocol, "--sport", publishedPort, "-m", "conntrack", "--ctstate", "ESTABLISHED,RELATED", "-j", "ACCEPT"},
+		},
+		{
+			IPVer: iptables.IPv4,
+			Table: iptables.Filter,
+			Chain: ingressChain,
+			Args:  []string{"-p", protocol, "--dport", publishedPort, "-j", "ACCEPT"},
+		},
+	}
+}
+
+func programIngressPortsRules(gwIP net.IP, filteredPorts []*PortConfig) (portErr error) {
+
+	rollbackRules := make([]iptables.Rule, 0, len(filteredPorts)*3)
 	defer func() {
-		if portErr != nil && !isDelete {
-			filterPortConfigs(filteredPorts, !isDelete)
+		if portErr != nil {
 			for _, rule := range rollbackRules {
-				if err := iptable.RawCombinedOutput(rule...); err != nil {
+				if err := rule.Delete(); err != nil {
 					log.G(context.TODO()).Warnf("roll back rule failed, %v: %v", rule, err)
 				}
 			}
@@ -415,52 +463,29 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 	}()
 
 	for _, iPort := range filteredPorts {
-		var (
-			protocol      = strings.ToLower(PortConfig_Protocol_name[int32(iPort.Protocol)])
-			publishedPort = strconv.FormatUint(uint64(iPort.PublishedPort), 10)
-			destination   = net.JoinHostPort(gwIP.String(), publishedPort)
-		)
-		if iptable.ExistChain(ingressChain, iptables.Nat) {
-			rule := []string{"-t", "nat", addDelOpt, ingressChain, "-p", protocol, "--dport", publishedPort, "-j", "DNAT", "--to-destination", destination}
 
-			if portErr = iptable.RawCombinedOutput(rule...); portErr != nil {
+		for _, rule := range generateIngressRules(iPort, gwIP) {
+			if portErr = rule.Insert(); portErr != nil {
 				err := fmt.Errorf("set up rule failed, %v: %v", rule, portErr)
-				if !isDelete {
-					return err
-				}
-				log.G(context.TODO()).Info(err)
-			}
-			rollbackRule := []string{"-t", "nat", rollbackAddDelOpt, ingressChain, "-p", protocol, "--dport", publishedPort, "-j", "DNAT", "--to-destination", destination}
-			rollbackRules = append(rollbackRules, rollbackRule)
-		}
-
-		// Filter table rules to allow a published service to be accessible in the local node from..
-		// 1) service tasks attached to other networks
-		// 2) unmanaged containers on bridge networks
-		rule := []string{addDelOpt, ingressChain, "-p", protocol, "--sport", publishedPort, "-m", "conntrack", "--ctstate", "ESTABLISHED,RELATED", "-j", "ACCEPT"}
-		if portErr = iptable.RawCombinedOutput(rule...); portErr != nil {
-			err := fmt.Errorf("set up rule failed, %v: %v", rule, portErr)
-			if !isDelete {
 				return err
 			}
-			log.G(context.TODO()).Warn(err)
+			rollbackRules = append(rollbackRules, rule)
 		}
-		rollbackRule := []string{rollbackAddDelOpt, ingressChain, "-p", protocol, "--sport", publishedPort, "-m", "conntrack", "--ctstate", "ESTABLISHED,RELATED", "-j", "ACCEPT"}
-		rollbackRules = append(rollbackRules, rollbackRule)
+	}
 
-		rule = []string{addDelOpt, ingressChain, "-p", protocol, "--dport", publishedPort, "-j", "ACCEPT"}
-		if portErr = iptable.RawCombinedOutput(rule...); portErr != nil {
-			err := fmt.Errorf("set up rule failed, %v: %v", rule, portErr)
-			if !isDelete {
-				return err
+	return nil
+}
+
+func deleteIngressPortsRules(gwIP net.IP, filteredPorts []*PortConfig) error {
+
+	var portErr error
+
+	for _, iPort := range filteredPorts {
+		for _, rule := range generateIngressRules(iPort, gwIP) {
+			if portErr = rule.Delete(); portErr != nil {
+				err := fmt.Errorf("delete rule failed, %v: %v", rule, portErr)
+				log.G(context.TODO()).Warn(err)
 			}
-			log.G(context.TODO()).Warn(err)
-		}
-		rollbackRule = []string{rollbackAddDelOpt, ingressChain, "-p", protocol, "--dport", publishedPort, "-j", "ACCEPT"}
-		rollbackRules = append(rollbackRules, rollbackRule)
-
-		if err := plumbProxy(iPort, isDelete); err != nil {
-			log.G(context.TODO()).Warnf("failed to create proxy for port %s: %v", publishedPort, err)
 		}
 	}
 
@@ -489,41 +514,51 @@ func findOIFName(ip net.IP) (string, error) {
 	return link.Attrs().Name, nil
 }
 
-func plumbProxy(iPort *PortConfig, isDelete bool) error {
+func closeIngressPortsProxy(ingressPorts []*PortConfig) {
+	for _, iPort := range ingressPorts {
+		portSpec := fmt.Sprintf("%d/%s", iPort.PublishedPort, strings.ToLower(iPort.Protocol.String()))
+		listener, ok := ingressProxyTbl[portSpec]
+		if !ok {
+			continue
+		}
+
+		if listener != nil {
+			listener.Close()
+		}
+		delete(ingressProxyTbl, portSpec)
+	}
+}
+
+func plumbIngressPortsProxy(ingressPorts []*PortConfig) {
 	var (
 		err error
 		l   io.Closer
 	)
 
-	portSpec := fmt.Sprintf("%d/%s", iPort.PublishedPort, strings.ToLower(PortConfig_Protocol_name[int32(iPort.Protocol)]))
-	if isDelete {
-		if listener, ok := ingressProxyTbl[portSpec]; ok {
-			if listener != nil {
-				listener.Close()
-			}
+	for _, iPort := range ingressPorts {
+		portSpec := fmt.Sprintf("%d/%s", iPort.PublishedPort, strings.ToLower(iPort.Protocol.String()))
+		listener, ok := ingressProxyTbl[portSpec]
+		if ok && listener != nil {
+			continue // already listening on this port
 		}
 
-		return nil
+		switch iPort.Protocol {
+		case ProtocolTCP:
+			l, err = net.ListenTCP("tcp", &net.TCPAddr{Port: int(iPort.PublishedPort)})
+		case ProtocolUDP:
+			l, err = net.ListenUDP("udp", &net.UDPAddr{Port: int(iPort.PublishedPort)})
+		case ProtocolSCTP:
+			l, err = sctp.ListenSCTP("sctp", &sctp.SCTPAddr{Port: int(iPort.PublishedPort)})
+		default:
+			err = fmt.Errorf("unknown protocol %v", iPort.Protocol)
+		}
+
+		if err != nil {
+			log.G(context.TODO()).Warnf("failed to create proxy for port %s: %v", iPort, err)
+		}
+
+		ingressProxyTbl[portSpec] = l
 	}
-
-	switch iPort.Protocol {
-	case ProtocolTCP:
-		l, err = net.ListenTCP("tcp", &net.TCPAddr{Port: int(iPort.PublishedPort)})
-	case ProtocolUDP:
-		l, err = net.ListenUDP("udp", &net.UDPAddr{Port: int(iPort.PublishedPort)})
-	case ProtocolSCTP:
-		l, err = sctp.ListenSCTP("sctp", &sctp.SCTPAddr{Port: int(iPort.PublishedPort)})
-	default:
-		err = fmt.Errorf("unknown protocol %v", iPort.Protocol)
-	}
-
-	if err != nil {
-		return err
-	}
-
-	ingressProxyTbl[portSpec] = l
-
-	return nil
 }
 
 // configureFWMark configures the sandbox firewall to mark vip destined packets
