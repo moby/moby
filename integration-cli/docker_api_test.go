@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/daemon/pkg/runconfig"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"github.com/moby/moby/api/types/versions"
