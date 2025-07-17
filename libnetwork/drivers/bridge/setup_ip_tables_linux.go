@@ -90,11 +90,11 @@ func setupIPChains(config configuration, version iptables.IPVersion) (natChain *
 		}
 	}()
 
-	if err := iptable.AddReturnRule(IsolationChain1); err != nil {
+	if err := iptable.AddReturnRule(iptables.Filter, IsolationChain1); err != nil {
 		return nil, nil, nil, nil, err
 	}
 
-	if err := iptable.AddReturnRule(IsolationChain2); err != nil {
+	if err := iptable.AddReturnRule(iptables.Filter, IsolationChain2); err != nil {
 		return nil, nil, nil, nil, err
 	}
 
@@ -130,6 +130,9 @@ func (n *bridgeNetwork) setupIP6Tables(config *networkConfiguration, i *bridgeIn
 		return errors.New("Cannot program chains, EnableIP6Tables is disabled")
 	}
 
+	if i.bridgeIPv6 == nil {
+		return nil
+	}
 	maskedAddrv6 := &net.IPNet{
 		IP:   i.bridgeIPv6.IP.Mask(i.bridgeIPv6.Mask),
 		Mask: i.bridgeIPv6.Mask,
@@ -192,7 +195,7 @@ func (n *bridgeNetwork) setupIPTables(ipVersion iptables.IPVersion, maskedAddr *
 	}
 
 	d.Lock()
-	err = iptable.EnsureJumpRule("FORWARD", IsolationChain1)
+	err = iptable.EnsureJumpRule(iptables.Filter, "FORWARD", IsolationChain1)
 	d.Unlock()
 	return err
 }

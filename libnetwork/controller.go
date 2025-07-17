@@ -163,7 +163,7 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		return nil, err
 	}
 
-	setupArrangeUserFilterRule(c)
+	c.setupPlatformFirewall()
 	return c, nil
 }
 

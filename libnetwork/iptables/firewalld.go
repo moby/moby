@@ -132,6 +132,7 @@ func reloaded() {
 	for _, pf := range onReloaded {
 		(*pf)()
 	}
+	log.G(context.TODO()).Info("Firewalld reload completed")
 }
 
 // OnReloaded add callback
