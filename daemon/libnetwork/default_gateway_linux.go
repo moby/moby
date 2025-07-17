@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/docker/docker/daemon/internal/otelutil"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
-	"github.com/docker/docker/internal/otelutil"
 	"go.opentelemetry.io/otel/baggage"
 )
 
