@@ -194,6 +194,10 @@ func WithTLSClientConfigFromEnv() Opt {
 // WithVersion overrides the client version with the specified one. If an empty
 // version is provided, the value is ignored to allow version negotiation
 // (see [WithAPIVersionNegotiation]).
+//
+// WithVersion does not validate if the client supports the given version,
+// and callers should verify if the version is in the correct format and
+// lower than the maximum supported version as defined by [DefaultAPIVersion].
 func WithVersion(version string) Opt {
 	return func(c *Client) error {
 		if v := strings.TrimPrefix(version, "v"); v != "" {
@@ -208,6 +212,10 @@ func WithVersion(version string) Opt {
 // the DOCKER_API_VERSION ([EnvOverrideAPIVersion]) environment variable.
 // If DOCKER_API_VERSION is not set, or set to an empty value, the version
 // is not modified.
+//
+// WithVersion does not validate if the client supports the given version,
+// and callers should verify if the version is in the correct format and
+// lower than the maximum supported version as defined by [DefaultAPIVersion].
 func WithVersionFromEnv() Opt {
 	return func(c *Client) error {
 		return WithVersion(os.Getenv(EnvOverrideAPIVersion))(c)
