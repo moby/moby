@@ -6,7 +6,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/events"
 	refstore "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
@@ -45,10 +44,14 @@ func Tags(ctx context.Context, ref reference.Named, config *Config) ([]string, e
 	return tags, err
 }
 
+// noBaseImageSpecifier is the symbol used by the FROM
+// command to specify that no base image is to be used.
+const noBaseImageSpecifier = "scratch"
+
 // validateRepoName validates the name of a repository.
 func validateRepoName(name reference.Named) error {
-	if reference.FamiliarName(name) == api.NoBaseImageSpecifier {
-		return errors.WithStack(reservedNameError(api.NoBaseImageSpecifier))
+	if reference.FamiliarName(name) == noBaseImageSpecifier {
+		return errors.WithStack(reservedNameError(noBaseImageSpecifier))
 	}
 	return nil
 }

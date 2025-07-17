@@ -12,7 +12,6 @@ import (
 
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	imagetypes "github.com/docker/docker/api/types/image"
@@ -589,10 +588,14 @@ func (ir *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWrite
 	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
 }
 
+// noBaseImageSpecifier is the symbol used by the FROM
+// command to specify that no base image is to be used.
+const noBaseImageSpecifier = "scratch"
+
 // validateRepoName validates the name of a repository.
 func validateRepoName(name reference.Named) error {
 	familiarName := reference.FamiliarName(name)
-	if familiarName == api.NoBaseImageSpecifier {
+	if familiarName == noBaseImageSpecifier {
 		return fmt.Errorf("'%s' is a reserved name", familiarName)
 	}
 	return nil
