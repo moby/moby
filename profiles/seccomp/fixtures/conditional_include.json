@@ -1,0 +1,23 @@
+{
+  "defaultAction": "SCMP_ACT_ERRNO",
+  "syscalls": [
+    {
+      "names": ["chmod"],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "names": ["syslog"],
+      "action": "SCMP_ACT_ALLOW",
+      "includes": {
+        "caps": ["CAP_SYSLOG"]
+      }
+    },
+    {
+      "names": ["ptrace"],
+      "action": "SCMP_ACT_ALLOW",
+      "excludes": {
+        "caps": ["CAP_SYS_ADMIN"]
+      }
+    }
+  ]
+}
