@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/moby/daemon/pkg/idtools"
 	"github.com/moby/sys/mountinfo"
 	"gotest.tools/v3/skip"
 )

@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/daemon/libnetwork/netlabel"
-	"github.com/docker/docker/internal/nlwrap"
-	"github.com/docker/docker/internal/testutils/netnsutils"
-	"github.com/docker/docker/internal/testutils/storeutils"
+	"github.com/moby/moby/daemon/libnetwork/netlabel"
+	"github.com/moby/moby/daemon/pkg/nlwrap"
+	"github.com/moby/moby/daemon/pkg/testutils/netnsutils"
+	"github.com/moby/moby/daemon/pkg/testutils/storeutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

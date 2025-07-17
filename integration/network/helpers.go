@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/testutil"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 )

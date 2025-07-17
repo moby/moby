@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
+	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/daemon/pkg/runconfig"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

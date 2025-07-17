@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/runconfig"
+	"github.com/moby/moby/daemon/pkg/runconfig"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

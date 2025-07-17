@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/docker/docker/daemon/config"
+	"github.com/moby/moby/daemon/config"
 	"github.com/moby/sys/reexec"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"

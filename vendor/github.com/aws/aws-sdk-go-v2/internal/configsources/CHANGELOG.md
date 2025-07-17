@@ -1,3 +1,92 @@
+# v1.3.36 (2025-06-17)
+
+* **Dependency Update**: Update to smithy-go v1.22.4.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.35 (2025-06-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.34 (2025-02-27)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.33 (2025-02-18)
+
+* **Bug Fix**: Bump go version to 1.22
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.32 (2025-02-05)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.31 (2025-01-31)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.30 (2025-01-30)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.29 (2025-01-24)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+* **Dependency Update**: Upgrade to smithy-go v1.22.2.
+
+# v1.3.28 (2025-01-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.27 (2025-01-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.26 (2024-12-19)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.25 (2024-12-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.24 (2024-11-18)
+
+* **Dependency Update**: Update to smithy-go v1.22.1.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.23 (2024-11-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.22 (2024-10-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.21 (2024-10-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.20 (2024-10-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.19 (2024-10-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.18 (2024-09-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.17 (2024-09-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.16 (2024-08-15)
+
+* **Dependency Update**: Bump minimum Go version to 1.21.
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.3.15 (2024-07-10.2)
 
 * **Dependency Update**: Updated to the latest SDK module versions
