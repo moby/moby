@@ -511,8 +511,8 @@ func TestRCRead(t *testing.T) {
 	// Pass in an os.File, check the path is extracted.
 	file, err := os.Open(path)
 	assert.NilError(t, err)
-	defer file.Close()
 	rc, err = Parse(file, "")
+	_ = file.Close()
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(rc.md.SourcePath, path))
 }

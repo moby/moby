@@ -118,7 +118,7 @@ func Parse(reader io.Reader, path string) (ResolvConf, error) {
 		rc.processLine(scanner.Text())
 	}
 	if err := scanner.Err(); err != nil {
-		return ResolvConf{}, systemErr{err}
+		return ResolvConf{}, systemError{err}
 	}
 	if _, ok := rc.Option("ndots"); ok {
 		rc.md.NDotsFrom = "host"
@@ -403,14 +403,14 @@ func (rc *ResolvConf) WriteFile(path, hashPath string, perm os.FileMode) error {
 	// Write the resolv.conf file - it's bind-mounted into the container, so can't
 	// move a temp file into place, just have to truncate and write it.
 	if err := os.WriteFile(path, content, perm); err != nil {
-		return systemErr{err}
+		return systemError{err}
 	}
 
 	// Write the hash file.
 	if hashPath != "" {
 		hashFile, err := atomicwriter.New(hashPath, perm)
 		if err != nil {
-			return systemErr{err}
+			return systemError{err}
 		}
 		defer hashFile.Close()
 
@@ -525,11 +525,11 @@ func removeInvalidNDots(options []string) []string {
 	return options[:n]
 }
 
-// systemErr implements [github.com/docker/docker/errdefs.ErrSystem].
-type systemErr struct{ error }
+// systemError implements [github.com/docker/docker/errdefs.ErrSystem].
+type systemError struct{ error }
 
-func (systemErr) System() {}
+func (systemError) System() {}
 
-func (e systemErr) Unwrap() error {
+func (e systemError) Unwrap() error {
 	return e.error
 }
