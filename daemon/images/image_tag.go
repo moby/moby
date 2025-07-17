@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/image"
+	"github.com/docker/docker/daemon/internal/image"
 	"github.com/moby/moby/api/types/events"
 )
 
