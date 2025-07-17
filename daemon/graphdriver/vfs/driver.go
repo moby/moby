@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/internal/quota"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/containerfs"
 	"github.com/docker/go-units"
 	"github.com/moby/sys/user"

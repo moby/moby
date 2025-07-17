@@ -7,8 +7,8 @@ import (
 	"strconv"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/registry"

@@ -4,7 +4,7 @@ package daemon
 
 import (
 	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/daemon/internal/errdefs"
 )
 
 func (daemon *Daemon) saveAppArmorConfig(container *container.Container) error {

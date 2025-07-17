@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/pkg/errors"
 )
 

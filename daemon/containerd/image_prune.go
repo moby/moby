@@ -12,7 +12,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/hashicorp/go-multierror"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"

@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/volume"
 	"github.com/docker/docker/daemon/volume/drivers"
 	volumemounts "github.com/docker/docker/daemon/volume/mounts"
 	"github.com/docker/docker/daemon/volume/service/opts"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/locker"
 	"github.com/moby/moby/api/types/events"
 	"github.com/pkg/errors"
