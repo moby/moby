@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/daemon/libnetwork/internal/addrset"
+	"github.com/docker/docker/daemon/libnetwork/ipamapi"
 	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
@@ -71,6 +72,54 @@ func (s *PoolID) String() string {
 // String returns the string form of the PoolData object
 func (p *PoolData) String() string {
 	return fmt.Sprintf("PoolData[Children: %d]", len(p.children))
+}
+
+// RequestAddress requests an address from the pool.
+// Tries alloc a preferred address if it's provided.
+func (p *PoolData) RequestAddress(nw, sub netip.Prefix, prefAddress netip.Addr, opts map[string]string) (netip.Addr, error) {
+
+	if prefAddress != (netip.Addr{}) && !nw.Contains(prefAddress) {
+		return netip.Addr{}, ipamapi.ErrIPOutOfRange
+	}
+
+	if sub != (netip.Prefix{}) {
+		if _, ok := p.children[sub]; !ok {
+			return netip.Addr{}, types.NotFoundErrorf("cannot find address pool for poolID:%v/%v", nw, sub)
+		}
+	}
+
+	// In order to request for a serial ip address allocation, callers can pass in the option to request
+	// IP allocation serially or first available IP in the subnet
+	serial := opts[ipamapi.AllocSerialPrefix] == "true"
+	ip, err := getAddress(nw, p.addrs, prefAddress, sub, serial)
+	if err != nil {
+		return netip.Addr{}, err
+	}
+
+	return ip, nil
+}
+
+// ReleaseAddress releases an address back to the pool.
+func (p *PoolData) ReleaseAddress(nw, sub netip.Prefix, address netip.Addr) error {
+	if sub != (netip.Prefix{}) {
+		if _, ok := p.children[sub]; !ok {
+			return types.NotFoundErrorf("cannot find address pool for poolID:%v/%v", nw, sub)
+		}
+	}
+
+	if !address.IsValid() {
+		return types.InvalidParameterErrorf("invalid address")
+	}
+
+	if !nw.Contains(address) {
+		return ipamapi.ErrIPOutOfRange
+	}
+
+	if err := p.addrs.Remove(address); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // mergeIter is used to iterate on both 'a' and 'b' at the same time while
