@@ -118,7 +118,7 @@ func Parse(reader io.Reader, path string) (ResolvConf, error) {
 		rc.processLine(scanner.Text())
 	}
 	if err := scanner.Err(); err != nil {
-		return ResolvConf{}, errSystem{err}
+		return ResolvConf{}, systemErr{err}
 	}
 	if _, ok := rc.Option("ndots"); ok {
 		rc.md.NDotsFrom = "host"
@@ -403,14 +403,14 @@ func (rc *ResolvConf) WriteFile(path, hashPath string, perm os.FileMode) error {
 	// Write the resolv.conf file - it's bind-mounted into the container, so can't
 	// move a temp file into place, just have to truncate and write it.
 	if err := os.WriteFile(path, content, perm); err != nil {
-		return errSystem{err}
+		return systemErr{err}
 	}
 
 	// Write the hash file.
 	if hashPath != "" {
 		hashFile, err := atomicwriter.New(hashPath, perm)
 		if err != nil {
-			return errSystem{err}
+			return systemErr{err}
 		}
 		defer hashFile.Close()
 
@@ -525,15 +525,11 @@ func removeInvalidNDots(options []string) []string {
 	return options[:n]
 }
 
-// errSystem implements [github.com/docker/docker/errdefs.ErrSystem].
-//
-// We don't use the errdefs helpers here, because the resolvconf package
-// is imported in BuildKit, and this is the only location that used the
-// errdefs package outside of the client.
-type errSystem struct{ error }
+// systemErr implements [github.com/docker/docker/errdefs.ErrSystem].
+type systemErr struct{ error }
 
-func (errSystem) System() {}
+func (systemErr) System() {}
 
-func (e errSystem) Unwrap() error {
+func (e systemErr) Unwrap() error {
 	return e.error
 }
