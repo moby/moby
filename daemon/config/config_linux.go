@@ -243,6 +243,10 @@ func validatePlatformConfig(conf *Config) error {
 		return errors.Wrap(err, "invalid fixed-cidr-v6")
 	}
 
+	if err := validateFirewallBackend(conf.FirewallBackend); err != nil {
+		return errors.Wrap(err, "invalid firewall-backend")
+	}
+
 	return verifyDefaultCgroupNsMode(conf.CgroupNamespaceMode)
 }
 
@@ -292,6 +296,14 @@ func verifyDefaultIpcMode(mode string) error {
 		return fmt.Errorf(`IPC mode "%v" is not supported as default value; `+hint, dm)
 	}
 	return nil
+}
+
+func validateFirewallBackend(val string) error {
+	switch val {
+	case "", "iptables", "nftables":
+		return nil
+	}
+	return errors.New(`allowed values are "iptables" and "nftables"`)
 }
 
 func verifyDefaultCgroupNsMode(mode string) error {

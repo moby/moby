@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -87,6 +88,9 @@ func setPlatformDefaults(cfg *Config) error {
 func validatePlatformConfig(conf *Config) error {
 	if conf.MTU != 0 && conf.MTU != DefaultNetworkMtu {
 		log.G(context.TODO()).Warn(`WARNING: MTU for the default network is not configurable on Windows, and this option will be ignored.`)
+	}
+	if conf.FirewallBackend != "" {
+		return errors.New("firewall-backend can only be configured on Linux")
 	}
 	return nil
 }

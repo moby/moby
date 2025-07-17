@@ -2,6 +2,8 @@
 
 package libnetwork
 
-func (c *Controller) selectFirewallBackend() {}
+func (c *Controller) selectFirewallBackend() error {
+	return nil
+}
 
 func (c *Controller) setupUserChains() {}

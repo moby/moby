@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/internal/nftables"
@@ -13,16 +12,23 @@ import (
 
 const userChain = "DOCKER-USER"
 
-func (c *Controller) selectFirewallBackend() {
-	// Don't try to enable nftables if firewalld is running.
-	if iptables.UsingFirewalld() {
-		return
+func (c *Controller) selectFirewallBackend() error {
+	// If explicitly configured to use iptables, don't consider nftables.
+	if c.cfg.FirewallBackend == "iptables" {
+		return nil
 	}
-	// Only try to use nftables if explicitly enabled by env-var.
-	// TODO(robmry) - command line options?
-	if os.Getenv("DOCKER_FIREWALL_BACKEND") == "nftables" {
-		_ = nftables.Enable()
+	// If configured to use nftables, but it can't be initialised, return an error.
+	if c.cfg.FirewallBackend == "nftables" {
+		// Don't try to enable nftables if firewalld is running.
+		if iptables.UsingFirewalld() {
+			return errors.New("firewall-backend is set to nftables, but firewalld is running")
+		}
+		if err := nftables.Enable(); err != nil {
+			return fmt.Errorf("firewall-backend is set to nftables: %v", err)
+		}
+		return nil
 	}
+	return nil
 }
 
 // Sets up the DOCKER-USER chain for each iptables version (IPv4, IPv6) that's

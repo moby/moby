@@ -856,9 +856,8 @@ func TestFirewallBackendSwitch(t *testing.T) {
 
 	networkCreated := false
 	runDaemon := func(backend string) {
-		d.SetEnvVar("DOCKER_FIREWALL_BACKEND", backend)
 		host.Do(t, func() {
-			d.StartWithBusybox(ctx, t)
+			d.StartWithBusybox(ctx, t, "--firewall-backend="+backend)
 			defer d.Stop(t)
 
 			// Create a network (and its firewall rules) first time through.

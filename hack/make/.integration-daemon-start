@@ -118,6 +118,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 			--storage-driver "$DOCKER_GRAPHDRIVER" \
 			--pidfile "$DEST/docker.pid" \
 			--userland-proxy="$DOCKER_USERLANDPROXY" \
+			--firewall-backend="$DOCKER_FIREWALL_BACKEND" \
 			${storage_params} \
 			${extra_params} \
 			&> "$DEST/docker.log"
