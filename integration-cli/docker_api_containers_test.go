@@ -18,7 +18,6 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/client"
 	dconfig "github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/volume"
 	"github.com/docker/docker/integration-cli/cli"
@@ -30,6 +29,7 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"

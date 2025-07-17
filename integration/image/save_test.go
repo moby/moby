@@ -15,7 +15,6 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/cpuguy83/tar2go"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
 	iimage "github.com/docker/docker/integration/internal/image"
@@ -25,6 +24,7 @@ import (
 	"github.com/moby/go-archive/compression"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/client"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"

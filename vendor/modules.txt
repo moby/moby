@@ -962,6 +962,9 @@ github.com/moby/moby/api/types/system
 github.com/moby/moby/api/types/time
 github.com/moby/moby/api/types/versions
 github.com/moby/moby/api/types/volume
+# github.com/moby/moby/client v0.0.0 => ./client
+## explicit; go 1.23.0
+github.com/moby/moby/client
 # github.com/moby/patternmatcher v0.6.0
 ## explicit; go 1.19
 github.com/moby/patternmatcher
@@ -1749,3 +1752,4 @@ tags.cncf.io/container-device-interface/pkg/parser
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
 # github.com/moby/moby/api => ./api
+# github.com/moby/moby/client => ./client
