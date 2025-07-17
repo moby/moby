@@ -24,7 +24,7 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/options"
 	"github.com/docker/docker/daemon/libnetwork/portallocator"
 	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/docker/docker/internal/nlwrap"
+	"github.com/docker/docker/daemon/pkg/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/internal/testutils/storeutils"
 	"github.com/google/go-cmp/cmp/cmpopts"
