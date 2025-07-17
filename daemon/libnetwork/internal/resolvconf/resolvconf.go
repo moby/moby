@@ -21,7 +21,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"io/fs"
 	"net/netip"
@@ -29,7 +28,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"text/template"
 
 	"github.com/containerd/log"
 	"github.com/moby/sys/atomicwriter"
@@ -71,7 +69,7 @@ type ExtDNSEntry struct {
 
 func (ed ExtDNSEntry) String() string {
 	if ed.HostLoopback {
-		return fmt.Sprintf("host(%s)", ed.Addr)
+		return "host(" + ed.Addr.String() + ")"
 	}
 	return ed.Addr.String()
 }
@@ -120,7 +118,7 @@ func Parse(reader io.Reader, path string) (ResolvConf, error) {
 		rc.processLine(scanner.Text())
 	}
 	if err := scanner.Err(); err != nil {
-		return ResolvConf{}, errSystem{err}
+		return ResolvConf{}, systemErr{err}
 	}
 	if _, ok := rc.Option("ndots"); ok {
 		rc.md.NDotsFrom = "host"
@@ -291,70 +289,106 @@ func (rc *ResolvConf) TransformForIntNS(
 // is true, the file will include header information if supplied, and a trailing
 // comment that describes how the file was constructed and lists external resolvers.
 func (rc *ResolvConf) Generate(comments bool) ([]byte, error) {
-	s := struct {
-		Md          *metadata
-		NameServers []netip.Addr
-		Search      []string
-		Options     []string
-		Other       []string
-		Overrides   []string
-		Comments    bool
-	}{
-		Md:          &rc.md,
-		NameServers: rc.nameServers,
-		Search:      rc.search,
-		Options:     rc.options,
-		Other:       rc.other,
-		Comments:    comments,
+	var b bytes.Buffer
+	b.Grow(512) // estimated size for a regular resolv.conf we produce.
+
+	if comments && rc.md.Header != "" {
+		b.WriteString(rc.md.Header + "\n")
+		b.WriteByte('\n')
 	}
-	if rc.md.NSOverride {
-		s.Overrides = append(s.Overrides, "nameservers")
+	for _, ns := range rc.nameServers {
+		b.WriteString("nameserver ")
+		b.WriteString(ns.String())
+		b.WriteByte('\n')
 	}
-	if rc.md.SearchOverride {
-		s.Overrides = append(s.Overrides, "search")
+	if len(rc.search) > 0 {
+		b.WriteString("search ")
+		for i, s := range rc.search {
+			if i > 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteString(s)
+		}
+		b.WriteByte('\n')
 	}
-	if rc.md.OptionsOverride {
-		s.Overrides = append(s.Overrides, "options")
+	if len(rc.options) > 0 {
+		b.WriteString("options ")
+		for i, s := range rc.options {
+			if i > 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteString(s)
+		}
+		b.WriteByte('\n')
+	}
+	for _, o := range rc.other {
+		b.WriteString(o)
+		b.WriteByte('\n')
 	}
 
-	const templateText = `{{if .Comments}}{{with .Md.Header}}{{.}}
+	if comments {
+		b.WriteByte('\n')
+		b.WriteString("# Based on host file: '" + rc.md.SourcePath + "'")
+		if rc.md.Transform != "" {
+			b.WriteString(" (" + rc.md.Transform + ")")
+		}
+		b.WriteByte('\n')
+		for _, w := range rc.md.Warnings {
+			b.WriteString("# ")
+			b.WriteString(w)
+			b.WriteByte('\n')
+		}
+		if len(rc.md.ExtNameServers) > 0 {
+			b.WriteString("# ExtServers: [")
+			for i, ext := range rc.md.ExtNameServers {
+				if i > 0 {
+					b.WriteByte(' ')
+				}
+				b.WriteString(ext.String())
+			}
+			b.WriteByte(']')
+			b.WriteByte('\n')
+		}
+		if len(rc.md.InvalidNSs) > 0 {
+			b.WriteString("# Invalid nameservers: [")
+			for i, ext := range rc.md.InvalidNSs {
+				if i > 0 {
+					b.WriteByte(' ')
+				}
+				b.WriteString(ext)
+			}
+			b.WriteByte(']')
+			b.WriteByte('\n')
+		}
 
-{{end}}{{end}}{{range .NameServers -}}
-nameserver {{.}}
-{{end}}{{with .Search -}}
-search {{join . " "}}
-{{end}}{{with .Options -}}
-options {{join . " "}}
-{{end}}{{with .Other -}}
-{{join . "\n"}}
-{{end}}{{if .Comments}}
-# Based on host file: '{{.Md.SourcePath}}'{{with .Md.Transform}} ({{.}}){{end}}
-{{range .Md.Warnings -}}
-# {{.}}
-{{end -}}
-{{with .Md.ExtNameServers -}}
-# ExtServers: {{.}}
-{{end -}}
-{{with .Md.InvalidNSs -}}
-# Invalid nameservers: {{.}}
-{{end -}}
-# Overrides: {{.Overrides}}
-{{with .Md.NDotsFrom -}}
-# Option ndots from: {{.}}
-{{end -}}
-{{end -}}
-`
+		b.WriteString("# Overrides: [")
+		var overrides int
+		if rc.md.NSOverride {
+			b.WriteString("nameservers")
+			overrides++
+		}
+		if rc.md.SearchOverride {
+			if overrides > 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteString("search")
+			overrides++
+		}
+		if rc.md.OptionsOverride {
+			if overrides > 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteString("options")
+		}
+		b.WriteByte(']')
+		b.WriteByte('\n')
 
-	funcs := template.FuncMap{"join": strings.Join}
-	var buf bytes.Buffer
-	templ, err := template.New("summary").Funcs(funcs).Parse(templateText)
-	if err != nil {
-		return nil, errSystem{err}
+		if rc.md.NDotsFrom != "" {
+			b.WriteString("# Option ndots from: " + rc.md.NDotsFrom + "\n")
+		}
 	}
-	if err := templ.Execute(&buf, s); err != nil {
-		return nil, errSystem{err}
-	}
-	return buf.Bytes(), nil
+
+	return b.Bytes(), nil
 }
 
 // WriteFile generates content and writes it to path. If hashPath is non-zero, it
@@ -369,14 +403,14 @@ func (rc *ResolvConf) WriteFile(path, hashPath string, perm os.FileMode) error {
 	// Write the resolv.conf file - it's bind-mounted into the container, so can't
 	// move a temp file into place, just have to truncate and write it.
 	if err := os.WriteFile(path, content, perm); err != nil {
-		return errSystem{err}
+		return systemErr{err}
 	}
 
 	// Write the hash file.
 	if hashPath != "" {
 		hashFile, err := atomicwriter.New(hashPath, perm)
 		if err != nil {
-			return errSystem{err}
+			return systemErr{err}
 		}
 		defer hashFile.Close()
 
@@ -419,10 +453,13 @@ func UserModified(rcPath, rcHashPath string) (bool, error) {
 }
 
 func (rc *ResolvConf) processLine(line string) {
-	fields := strings.Fields(line)
-
 	// Strip blank lines and comments.
-	if len(fields) == 0 || fields[0][0] == '#' || fields[0][0] == ';' {
+	if line == "" || line[0] == '#' || line[0] == ';' {
+		return
+	}
+
+	fields := strings.Fields(line)
+	if len(fields) == 0 {
 		return
 	}
 
@@ -471,8 +508,11 @@ func defaultNSAddrs(ipv6 bool) []netip.Addr {
 func removeInvalidNDots(options []string) []string {
 	n := 0
 	for _, opt := range options {
-		k, v, _ := strings.Cut(opt, ":")
+		k, v, hasSep := strings.Cut(opt, ":")
 		if k == "ndots" {
+			if !hasSep || v == "" {
+				continue
+			}
 			ndots, err := strconv.Atoi(v)
 			if err != nil || ndots < 0 {
 				continue
@@ -485,15 +525,11 @@ func removeInvalidNDots(options []string) []string {
 	return options[:n]
 }
 
-// errSystem implements [github.com/docker/docker/errdefs.ErrSystem].
-//
-// We don't use the errdefs helpers here, because the resolvconf package
-// is imported in BuildKit, and this is the only location that used the
-// errdefs package outside of the client.
-type errSystem struct{ error }
+// systemErr implements [github.com/docker/docker/errdefs.ErrSystem].
+type systemErr struct{ error }
 
-func (errSystem) System() {}
+func (systemErr) System() {}
 
-func (e errSystem) Unwrap() error {
+func (e systemErr) Unwrap() error {
 	return e.error
 }
