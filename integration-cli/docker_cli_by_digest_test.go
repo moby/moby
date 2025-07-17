@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/daemon/pkg/lazyregexp"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/moby/moby/api/types/image"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

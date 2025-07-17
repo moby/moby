@@ -6,7 +6,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/docker/docker/internal/lazyregexp"
+	"github.com/docker/docker/daemon/pkg/lazyregexp"
 	"github.com/moby/moby/api/types/mount"
 )
 
