@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/docker/docker/daemon/server/middleware"
 )
@@ -15,7 +16,7 @@ import (
 func TestMiddlewares(t *testing.T) {
 	srv := &Server{}
 
-	m, err := middleware.NewVersionMiddleware("0.1omega2", api.DefaultVersion, api.MinSupportedAPIVersion)
+	m, err := middleware.NewVersionMiddleware("0.1omega2", config.DefaultAPIVersion, api.MinSupportedAPIVersion)
 	if err != nil {
 		t.Fatal(err)
 	}
