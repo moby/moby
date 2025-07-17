@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/daemon/pkg/testutils/specialimage"
 	"github.com/docker/docker/integration/internal/container"
 	iimage "github.com/docker/docker/integration/internal/image"
-	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	containertypes "github.com/moby/moby/api/types/container"

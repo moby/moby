@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/daemon/pkg/testutils/specialimage"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
-	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/testutil"
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/types"
