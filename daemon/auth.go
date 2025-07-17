@@ -3,7 +3,7 @@ package daemon
 import (
 	"context"
 
-	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/daemon/dockerversion"
 	"github.com/moby/moby/api/types/registry"
 )
 

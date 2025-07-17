@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/daemon/dockerversion"
 	"github.com/docker/docker/daemon/internal/layer"
-	"github.com/docker/docker/dockerversion"
 	"github.com/moby/moby/api/types/container"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

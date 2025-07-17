@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/daemon/dockerversion"
 	"github.com/ishidawataru/sctp"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
