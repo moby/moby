@@ -3,9 +3,7 @@
 package process
 
 import (
-	"bytes"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -47,20 +45,9 @@ func kill(pid int) error {
 // a PID larger than 1), and negative (-n, all processes in process group "n")
 // values for pid are ignored. Refer to [PROC(5)] for details.
 //
+// Zombie is only implemented on Linux, and returns false on all other platforms.
+//
 // [PROC(5)]: https://man7.org/linux/man-pages/man5/proc.5.html
 func Zombie(pid int) (bool, error) {
-	if pid < 1 {
-		return false, nil
-	}
-	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	if cols := bytes.SplitN(data, []byte(" "), 4); len(cols) >= 3 && string(cols[2]) == "Z" {
-		return true, nil
-	}
-	return false, nil
+	return zombie(pid)
 }
