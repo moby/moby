@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/internal/image/cache"
 	"github.com/docker/docker/daemon/internal/layer"
-	"github.com/docker/docker/internal/multierror"
+	"github.com/docker/docker/daemon/internal/multierror"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )

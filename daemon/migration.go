@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/internal/multierror"
+	"github.com/docker/docker/daemon/internal/multierror"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
