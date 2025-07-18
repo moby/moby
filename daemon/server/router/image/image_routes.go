@@ -235,6 +235,7 @@ func (ir *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, 
 
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
+
 	var names []string
 	if name, ok := vars["name"]; ok {
 		names = []string{name}
@@ -242,27 +243,28 @@ func (ir *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, 
 		names = r.Form["names"]
 	}
 
-	var platform *ocispec.Platform
+	var platformList []ocispec.Platform
+	// platform param was introduce in API version 1.48
 	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.48") {
-		if formPlatforms := r.Form["platform"]; len(formPlatforms) > 1 {
-			// TODO(thaJeztah): remove once we support multiple platforms: see https://github.com/moby/moby/issues/48759
-			return errdefs.InvalidParameter(errors.New("multiple platform parameters not supported"))
+		var err error
+		formPlatforms := r.Form["platform"]
+		// multi-platform params were introduced in API version 1.51
+		if versions.LessThan(httputils.VersionFromContext(ctx), "1.51") && len(formPlatforms) > 1 {
+			return errdefs.InvalidParameter(errors.New("multiple platform parameters are not supported in this API version; use API version 1.51 or later."))
 		}
-		if formPlatform := r.Form.Get("platform"); formPlatform != "" {
-			p, err := httputils.DecodePlatform(formPlatform)
-			if err != nil {
-				return err
-			}
-			platform = p
+		platformList, err = httputils.DecodePlatforms(formPlatforms)
+		if err != nil {
+			return err
 		}
 	}
 
-	if err := ir.backend.ExportImage(ctx, names, platform, output); err != nil {
+	if err := ir.backend.ExportImage(ctx, names, platformList, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
 		_, _ = output.Write(streamformatter.FormatError(err))
 	}
+
 	return nil
 }
 
@@ -271,18 +273,18 @@ func (ir *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
-	var platform *ocispec.Platform
+	var platformList []ocispec.Platform
+	// platform param was introduce in API version 1.48
 	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.48") {
-		if formPlatforms := r.Form["platform"]; len(formPlatforms) > 1 {
-			// TODO(thaJeztah): remove once we support multiple platforms: see https://github.com/moby/moby/issues/48759
-			return errdefs.InvalidParameter(errors.New("multiple platform parameters not supported"))
+		var err error
+		formPlatforms := r.Form["platform"]
+		// multi-platform params were introduced in API version 1.51
+		if versions.LessThan(httputils.VersionFromContext(ctx), "1.51") && len(formPlatforms) > 1 {
+			return errdefs.InvalidParameter(errors.New("multiple platform parameters are not supported in this API version; use API version 1.51 or later."))
 		}
-		if formPlatform := r.Form.Get("platform"); formPlatform != "" {
-			p, err := httputils.DecodePlatform(formPlatform)
-			if err != nil {
-				return err
-			}
-			platform = p
+		platformList, err = httputils.DecodePlatforms(formPlatforms)
+		if err != nil {
+			return err
 		}
 	}
 	quiet := httputils.BoolValueOrDefault(r, "quiet", true)
@@ -291,7 +293,8 @@ func (ir *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter
 
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
-	if err := ir.backend.LoadImage(ctx, r.Body, platform, output, quiet); err != nil {
+
+	if err := ir.backend.LoadImage(ctx, r.Body, platformList, output, quiet); err != nil {
 		_, _ = output.Write(streamformatter.FormatError(err))
 	}
 	return nil
