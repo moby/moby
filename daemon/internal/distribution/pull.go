@@ -8,7 +8,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	refstore "github.com/docker/docker/daemon/pkg/reference"
-	"github.com/docker/docker/registry"
+	"github.com/docker/docker/daemon/pkg/registry"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )

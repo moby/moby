@@ -10,7 +10,7 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
-	registrypkg "github.com/docker/docker/registry"
+	registrypkg "github.com/docker/docker/daemon/pkg/registry"
 	"gotest.tools/v3/assert"
 )
 

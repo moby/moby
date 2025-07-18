@@ -13,7 +13,7 @@ import (
 	"github.com/distribution/reference"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/registry"
+	"github.com/docker/docker/daemon/pkg/registry"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
