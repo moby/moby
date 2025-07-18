@@ -14,7 +14,7 @@ import (
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/ocischema"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/docker/internal/testutils/labelstore"
+	"github.com/docker/docker/daemon/pkg/testutils/labelstore"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

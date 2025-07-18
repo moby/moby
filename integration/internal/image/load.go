@@ -11,7 +11,7 @@ import (
 
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/daemon/pkg/jsonmessage"
-	"github.com/docker/docker/internal/testutils/specialimage"
+	"github.com/docker/docker/daemon/pkg/testutils/specialimage"
 	"github.com/moby/go-archive"
 	"gotest.tools/v3/assert"
 )

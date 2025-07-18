@@ -7,8 +7,8 @@ import (
 
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/daemon/pkg/testutils/specialimage"
 	iimage "github.com/docker/docker/integration/internal/image"
-	"github.com/docker/docker/internal/testutils/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
