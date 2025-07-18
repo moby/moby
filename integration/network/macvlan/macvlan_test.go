@@ -482,6 +482,18 @@ func TestMacvlanIPAM(t *testing.T) {
 		},
 	}
 
+	const (
+		netName            = "macvlannet"
+		cidrv4             = "192.168.0.0/24"
+		ipv4gw             = "192.168.0.1"
+		ipv4Range          = "192.168.0.64/31"
+		prefIpv4OutOfRange = "192.168.0.129"
+		auxIpv4FromRange   = "192.168.0.65"
+		auxIpv4OutOfRange  = "192.168.0.128"
+		cidrv6             = "2001:db8:abcd::/64"
+		ipv6Range          = "2001:db8:abcd::/120"
+	)
+
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
@@ -491,16 +503,47 @@ func TestMacvlanIPAM(t *testing.T) {
 				net.WithMacvlan(""),
 				net.WithOption("macvlan_mode", "bridge"),
 				net.WithIPv4(tc.enableIPv4),
+				net.WithIPAMAny(
+					cidrv4,
+					ipv4Range,
+					ipv4gw,
+					map[string]string{
+						"reserved":   auxIpv4FromRange,
+						"reserved_1": auxIpv4OutOfRange,
+					}),
 			}
 			if tc.enableIPv6 {
 				netOpts = append(netOpts, net.WithIPv6())
+				netOpts = append(netOpts, net.WithIPAMRange(cidrv6, ipv6Range, ""))
 			}
 
-			const netName = "macvlannet"
 			net.CreateNoError(ctx, t, c, netName, netOpts...)
 			defer c.NetworkRemove(ctx, netName)
 			assert.Check(t, n.IsNetworkAvailable(ctx, c, netName))
 
+			nw, err := c.NetworkInspect(ctx, netName, network.InspectOptions{})
+			assert.NilError(t, err)
+
+			validateIPUsageCount := func(
+				nw network.Inspect, addIpv4CntInSubnet, decAvailableIPsInIPRangePool uint64) {
+				var (
+					ok          bool
+					ipamStateV4 network.IPAMState
+				)
+				if nw.State != nil {
+					ipamStateV4, ok = nw.State.IPAM[cidrv4]
+				}
+				assert.Equal(t, ok, tc.enableIPv4, "IPAM state for v4 CIDR is not expected")
+				if tc.enableIPv4 {
+					assert.Check(t, is.Equal(ipamStateV4.AllocatedIPsInSubnet, uint64(5)+addIpv4CntInSubnet))
+					assert.Check(t, is.Equal(ipamStateV4.AvailableIPsInIPRangePool, uint64(1)-decAvailableIPsInIPRangePool))
+				} else {
+					assert.Check(t, is.Nil(nw.State))
+				}
+			}
+			validateIPUsageCount(nw, 0, 0)
+
+			// From IPRange pool: both counters should be changed by 1
 			id := container.Run(ctx, t, c, container.WithNetworkMode(netName))
 			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
 
@@ -530,8 +573,118 @@ func TestMacvlanIPAM(t *testing.T) {
 				expDisableIPv6 = "0"
 			}
 			assert.Check(t, is.Equal(strings.TrimSpace(sysctlRes.Combined()), expDisableIPv6))
+
+			nw, err = c.NetworkInspect(ctx, netName, network.InspectOptions{})
+			assert.NilError(t, err)
+			validateIPUsageCount(nw, 1, 1)
+
+			// Out of IPRange pool: subnet counter should be changed by 1
+			ctrOpts := []func(*container.TestContainerConfig){
+				container.WithNetworkMode(netName),
+			}
+			if tc.enableIPv4 || tc.expIPv4 {
+				ctrOpts = append(ctrOpts, container.WithIPv4(netName, prefIpv4OutOfRange))
+			}
+			id = container.Run(ctx, t, c, ctrOpts...)
+			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+			nw, err = c.NetworkInspect(ctx, netName, network.InspectOptions{})
+			assert.NilError(t, err)
+			validateIPUsageCount(nw, 2, 1)
 		})
 	}
+}
+
+// Create three networks with overlapping IPAM ranges
+// with the same CIDR with joined and overlapped ip-ranges
+// and verify that the IPAM state is correctly updated when containers are created
+func TestMacvlanWithOverlapIPAM(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
+
+	ctx := testutil.StartSpan(baseContext, t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	const (
+		netName1 = "macvlannet1"
+		netName2 = "macvlannet2"
+		netName3 = "macvlannet3"
+		cidrv4   = "192.168.0.0/24"
+		ipGw     = "192.168.0.1"
+		ipRange1 = "192.168.0.0/25"
+		ipRange2 = "192.168.0.0/26"
+		ipRange3 = "192.168.0.128/25"
+	)
+
+	validateIPUsageCount := func(
+		nw network.Inspect, useInSubnet, availableInIPRange uint64) {
+		ipamStateV4, ok := nw.State.IPAM[cidrv4]
+		assert.Check(t, ok)
+		assert.Check(t, is.Equal(ipamStateV4.AllocatedIPsInSubnet, useInSubnet))
+		assert.Check(t, is.Equal(ipamStateV4.AvailableIPsInIPRangePool, availableInIPRange))
+	}
+
+	c := d.NewClientT(t)
+
+	// Create three networks with joined and overlapped IPAM ranges
+	// and verify that the IPAM state is correct
+	netOpts1 := []func(*network.CreateOptions){
+		net.WithMacvlan(""),
+		net.WithIPAMRange(cidrv4, ipRange1, ipGw),
+	}
+
+	net.CreateNoError(ctx, t, c, netName1, netOpts1...)
+	defer c.NetworkRemove(ctx, netName1)
+	assert.Check(t, n.IsNetworkAvailable(ctx, c, netName1))
+
+	nw, err := c.NetworkInspect(ctx, netName1, network.InspectOptions{})
+	assert.NilError(t, err)
+	validateIPUsageCount(nw, 3, 126)
+
+	netOpts2 := []func(*network.CreateOptions){
+		net.WithMacvlan(""),
+		net.WithIPAMRange(cidrv4, ipRange2, ""),
+	}
+
+	net.CreateNoError(ctx, t, c, netName2, netOpts2...)
+	defer c.NetworkRemove(ctx, netName2)
+	assert.Check(t, n.IsNetworkAvailable(ctx, c, netName2))
+
+	nw, err = c.NetworkInspect(ctx, netName2, network.InspectOptions{})
+	assert.NilError(t, err)
+	validateIPUsageCount(nw, 3, 62)
+
+	netOpts3 := []func(*network.CreateOptions){
+		net.WithMacvlan(""),
+		net.WithIPAMRange(cidrv4, ipRange3, ""),
+	}
+
+	net.CreateNoError(ctx, t, c, netName3, netOpts3...)
+	defer c.NetworkRemove(ctx, netName3)
+	assert.Check(t, n.IsNetworkAvailable(ctx, c, netName3))
+
+	nw, err = c.NetworkInspect(ctx, netName3, network.InspectOptions{})
+	assert.NilError(t, err)
+	validateIPUsageCount(nw, 3, 127)
+
+	// Create a container on the first network
+	id := container.Run(ctx, t, c, container.WithNetworkMode(netName1))
+	defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+	// Verify that the IPAM state is updated correctly
+	nw, err = c.NetworkInspect(ctx, netName1, network.InspectOptions{})
+	assert.NilError(t, err)
+	validateIPUsageCount(nw, 4, 125)
+
+	nw, err = c.NetworkInspect(ctx, netName2, network.InspectOptions{})
+	assert.NilError(t, err)
+	validateIPUsageCount(nw, 4, 61)
+
+	nw, err = c.NetworkInspect(ctx, netName3, network.InspectOptions{})
+	assert.NilError(t, err)
+	validateIPUsageCount(nw, 4, 127)
 }
 
 // TestMACVlanDNS checks whether DNS is forwarded, with/without a parent
