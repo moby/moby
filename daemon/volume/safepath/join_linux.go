@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/internal/unix_noeintr"
+	"github.com/docker/docker/daemon/internal/unix_noeintr"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
