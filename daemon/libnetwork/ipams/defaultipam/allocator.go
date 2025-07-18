@@ -211,8 +211,9 @@ func (a *Allocator) getAddrSpace(as string, v6 bool) (*addrSpace, error) {
 
 func newPoolData(pool, sub netip.Prefix) *PoolData {
 	pd := &PoolData{
-		addrs:    addrset.New(pool),
-		children: map[netip.Prefix]struct{}{},
+		addrs:              addrset.New(pool),
+		children:           map[netip.Prefix]struct{}{},
+		allocatedIPsInPool: 0,
 	}
 
 	if sub != (netip.Prefix{}) {

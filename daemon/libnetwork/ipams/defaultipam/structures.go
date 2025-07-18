@@ -2,6 +2,7 @@ package defaultipam
 
 import (
 	"fmt"
+	"math"
 	"net/netip"
 	"strings"
 
@@ -20,6 +21,9 @@ type PoolID struct {
 type PoolData struct {
 	addrs    *addrset.AddrSet
 	children map[netip.Prefix]struct{}
+
+	// The number of addresses allocated in the pool.
+	allocatedIPsInPool uint64
 
 	// Whether to implicitly release the pool once it no longer has any children.
 	autoRelease bool
@@ -96,6 +100,15 @@ func (p *PoolData) RequestAddress(nw, sub netip.Prefix, prefAddress netip.Addr, 
 		return netip.Addr{}, err
 	}
 
+	if len(p.children) == 0 {
+		p.incAllocatedIPsInPool()
+	} else {
+		for ch := range p.children {
+			if ch.Contains(ip) {
+				p.incAllocatedIPsInPool()
+			}
+		}
+	}
 	return ip, nil
 }
 
@@ -119,7 +132,56 @@ func (p *PoolData) ReleaseAddress(nw, sub netip.Prefix, address netip.Addr) erro
 		return err
 	}
 
+	if len(p.children) == 0 {
+		p.decAllocatedIPsInPool()
+	} else {
+		for sub := range p.children {
+			if sub.Contains(address) {
+				p.decAllocatedIPsInPool()
+			}
+		}
+	}
 	return nil
+}
+
+const (
+	// maxAllocatedIPsCounter is the maximum value of the allocatedIPsInPool counter (uint64 limit).
+	// This value signifies a special "overflow" state where the counter is considered unreliable
+	// and no further modifications (increments or decrements) should be made.
+	// The overflow state occurs when the number of allocated IPs exceeds the capacity of a uint64,
+	// which is highly unlikely under normal operations but could happen in extremely large-scale deployments.
+	// In this state, the counter is effectively "frozen," and users of the API should not rely on it
+	// for accurate allocation counts. Instead, they should implement their own mechanisms to track allocations
+	// if precise counts are required in such scenarios.
+	maxAllocatedIPsCounter = math.MaxUint64
+)
+
+func (p *PoolData) incAllocatedIPsInPool() {
+	// Increment the counter only if:
+	// - It's less than maxAllocatedIPsCounter (to prevent overflow)
+	if p.allocatedIPsInPool < maxAllocatedIPsCounter {
+		p.allocatedIPsInPool++
+	}
+}
+
+func (p *PoolData) decAllocatedIPsInPool() {
+	// Decrement the counter only if:
+	// - It's greater than 0 (to prevent underflow), and
+	// - It's less than maxAllocatedIPsCounter (used as a sentinel value indicating a 'frozen' state).
+	if p.allocatedIPsInPool > 0 && p.allocatedIPsInPool < maxAllocatedIPsCounter {
+		p.allocatedIPsInPool--
+	}
+}
+
+// GetAllocatedIPs returns the number of addresses allocated in both the subnet and the range pool.
+//   - allocatedIPsInSubnet: The number of addresses allocated in the subnet.
+//     This value is limited by the uint64 capacity; if the actual count exceeds this limit,
+//     the maximum uint64 value is returned.
+//   - allocatedIPsInPool: The number of addresses allocated in the range pool.
+//     Also limited by uint64 capacity; if it reaches the maximum value, it is treated as frozen
+//     and should no longer be modified.
+func (p *PoolData) GetAllocatedIPs() (allocatedIPsInSubnet uint64, allocatedIPsInPool uint64) {
+	return p.addrs.Selected(), p.allocatedIPsInPool
 }
 
 // mergeIter is used to iterate on both 'a' and 'b' at the same time while
