@@ -14,7 +14,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
-	"github.com/docker/docker/daemon/libnetwork/portmapper"
+	"github.com/docker/docker/daemon/libnetwork/portallocator"
 	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
@@ -49,7 +49,7 @@ type network struct {
 	initErr         error
 	subnets         []*subnet
 	secure          bool
-	portMapper      *portmapper.PortMapper
+	portAllocator   *portallocator.OSAllocator
 	sync.Mutex
 }
 
@@ -93,11 +93,11 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 	}
 
 	n := &network{
-		id:         id,
-		driver:     d,
-		endpoints:  endpointTable{},
-		subnets:    []*subnet{},
-		portMapper: portmapper.New(),
+		id:            id,
+		driver:        d,
+		endpoints:     endpointTable{},
+		subnets:       []*subnet{},
+		portAllocator: portallocator.New(),
 	}
 
 	genData, ok := option[netlabel.GenericData].(map[string]string)
