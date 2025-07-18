@@ -22,13 +22,13 @@ import (
 	"github.com/docker/docker/daemon/dockerversion"
 	"github.com/docker/docker/daemon/internal/filedescriptors"
 	"github.com/docker/docker/daemon/internal/metrics"
+	"github.com/docker/docker/daemon/internal/platform"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/pkg/meminfo"
 	"github.com/docker/docker/daemon/pkg/parsers/kernel"
 	"github.com/docker/docker/daemon/pkg/parsers/operatingsystem"
 	"github.com/docker/docker/daemon/pkg/registry"
 	"github.com/docker/docker/daemon/pkg/sysinfo"
-	"github.com/docker/docker/internal/platform"
 	"github.com/opencontainers/selinux/go-selinux"
 )
 
