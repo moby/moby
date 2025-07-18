@@ -23,6 +23,16 @@ func (cli *Client) Events(ctx context.Context, options events.ListOptions) (<-ch
 	go func() {
 		defer close(errs)
 
+		// Make sure we negotiated (if the client is configured to do so),
+		// as code below contains API-version specific handling of options.
+		//
+		// Normally, version-negotiation (if enabled) would not happen until
+		// the API request is made.
+		if err := cli.checkVersion(ctx); err != nil {
+			close(started)
+			errs <- err
+			return
+		}
 		query, err := buildEventsQueryParams(cli.version, options)
 		if err != nil {
 			close(started)
