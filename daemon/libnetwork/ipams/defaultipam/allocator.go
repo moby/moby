@@ -211,8 +211,9 @@ func (a *Allocator) getAddrSpace(as string, v6 bool) (*addrSpace, error) {
 
 func newPoolData(pool, sub netip.Prefix) *PoolData {
 	pd := &PoolData{
-		addrs:    addrset.New(pool),
-		children: map[netip.Prefix]struct{}{},
+		addrs:              addrset.New(pool),
+		children:           map[netip.Prefix]struct{}{},
+		allocatedIPsInPool: 0,
 	}
 
 	if sub != (netip.Prefix{}) {
@@ -233,7 +234,9 @@ func newPoolData(pool, sub netip.Prefix) *PoolData {
 	// For IPv4, reserve the broadcast address.
 	// - Except in a /31 point-to-point link, https://datatracker.ietf.org/doc/html/rfc3021
 	if pool.Addr().Is4() && bits > 1 {
-		pd.RequestAddress(pool, netip.Prefix{}, netiputil.LastAddr(pool), nil)
+		if _, err := pd.RequestAddress(pool, netip.Prefix{}, netiputil.LastAddr(pool), nil); err != nil {
+			log.G(context.TODO()).Warnf("failed to reserve broadcast address %s in pool %s: %v", netiputil.LastAddr(pool), pool, err)
+		}
 	}
 
 	return pd
