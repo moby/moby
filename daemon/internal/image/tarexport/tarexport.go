@@ -8,7 +8,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/internal/layer"
-	refstore "github.com/docker/docker/reference"
+	refstore "github.com/docker/docker/daemon/pkg/reference"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
