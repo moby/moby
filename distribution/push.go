@@ -2,7 +2,6 @@ package distribution
 
 import (
 	"bufio"
-	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
@@ -12,6 +11,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/pkg/progress"
+	"github.com/klauspost/compress/zstd"
 )
 
 const compressionBufSize = 32768
@@ -109,7 +109,11 @@ func compress(in io.Reader) (io.ReadCloser, chan struct{}) {
 	pipeReader, pipeWriter := io.Pipe()
 	// Use a bufio.Writer to avoid excessive chunking in HTTP request.
 	bufWriter := bufio.NewWriterSize(pipeWriter, compressionBufSize)
-	compressor := gzip.NewWriter(bufWriter)
+	compressor, err := zstd.NewWriter(bufWriter, zstd.WithEncoderLevel(1))
+	if err != nil {
+		pipeWriter.CloseWithError(err)
+		close(compressionDone)
+	}
 
 	go func() {
 		_, err := io.Copy(compressor, in)
