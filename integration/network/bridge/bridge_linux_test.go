@@ -15,12 +15,14 @@ import (
 	ctr "github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/testutils/networking"
+	n "github.com/docker/docker/integration/network"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/go-connections/nat"
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/versions"
+	dclient "github.com/moby/moby/client"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -938,4 +940,114 @@ func TestFirewallBackendSwitch(t *testing.T) {
 	assert.Check(t, numRules > 0, "Expected iptables to have at least one rule")
 	assert.Check(t, len(dockerChains) > 0, "Expected iptables to have at least one docker chain")
 	assert.Check(t, !nftablesTablesExist(), "nftables tables exist after running with iptables")
+}
+
+func TestBridgeIPAM(t *testing.T) {
+	ctx := testutil.StartSpan(baseContext, t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	tests := []struct {
+		name       string
+		apiVersion string
+		enableIPv4 bool
+		enableIPv6 bool
+		expIPv4    bool
+	}{
+		{
+			name:       "dual stack",
+			enableIPv4: true,
+			enableIPv6: true,
+		},
+		{
+			name:       "v4 only",
+			enableIPv4: true,
+		},
+		{
+			name:       "v6 only",
+			enableIPv6: true,
+		},
+		{
+			name:       "enableIPv4 ignored",
+			apiVersion: "1.46",
+			enableIPv4: false,
+			expIPv4:    true,
+		},
+	}
+
+	const (
+		netName            = "testipambridge"
+		cidrv4             = "192.168.0.0/24"
+		ipv4gw             = "192.168.0.1"
+		ipv4Range          = "192.168.0.64/31"
+		prefIpv4OutOfRange = "192.168.0.129"
+		auxIpv4FromRange   = "192.168.0.65"
+		auxIpv4OutOfRange  = "192.168.0.128"
+		cidrv6             = "2001:db8:abcd::/64"
+		ipv6Range          = "2001:db8:abcd::/120"
+	)
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+			c := d.NewClientT(t, dclient.WithVersion(tc.apiVersion))
+
+			netOpts := []func(*networktypes.CreateOptions){
+				network.WithIPv4(tc.enableIPv4),
+				network.WithIPAMAny(
+					cidrv4,
+					ipv4Range,
+					ipv4gw,
+					map[string]string{
+						"reserved":   auxIpv4FromRange,
+						"reserved_1": auxIpv4OutOfRange,
+					}),
+			}
+			if tc.enableIPv6 {
+				netOpts = append(netOpts, network.WithIPv6())
+				netOpts = append(netOpts, network.WithIPAMRange(cidrv6, ipv6Range, ""))
+			}
+
+			network.CreateNoError(ctx, t, c, netName, netOpts...)
+			defer c.NetworkRemove(ctx, netName)
+			assert.Check(t, n.IsNetworkAvailable(ctx, c, netName))
+			nw, err := c.NetworkInspect(ctx, netName, networktypes.InspectOptions{})
+			assert.NilError(t, err)
+			validateIPUsageCount := func(
+				nw networktypes.Inspect, addIpv4CntInSubnet, decAvailableIPsInIPRangePool uint64) {
+				ipamStateV4, ok := nw.State.IPAM[cidrv4]
+				assert.Equal(t, ok, tc.enableIPv4 || tc.expIPv4, "IPAM state for v4 CIDR is not expected")
+				if tc.enableIPv4 || tc.expIPv4 {
+					// 1 subnet + 1 gateway + 1 broadcast + 1 aux_in_range + 1 aux_out_range = 5 IPs
+					assert.Check(t, is.Equal(ipamStateV4.AllocatedIPsInSubnet, uint64(5)+addIpv4CntInSubnet))
+					// ip-ranges has 4 IPs and 1 is reserved
+					assert.Check(t, is.Equal(ipamStateV4.AvailableIPsInIPRangePool, uint64(1)-decAvailableIPsInIPRangePool))
+				}
+			}
+			validateIPUsageCount(nw, 0, 0)
+
+			// From IPRange pool: both counters should be changed by 1
+			id := ctr.Run(ctx, t, c, ctr.WithNetworkMode(netName))
+			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+			nw, err = c.NetworkInspect(ctx, netName, networktypes.InspectOptions{})
+			assert.NilError(t, err)
+			validateIPUsageCount(nw, 1, 1)
+
+			// Out of IPRange pool: subnet counter should be changed by 1
+			ctrOpts := []func(*ctr.TestContainerConfig){
+				ctr.WithNetworkMode(netName),
+			}
+			if tc.enableIPv4 || tc.expIPv4 {
+				ctrOpts = append(ctrOpts, ctr.WithIPv4(netName, prefIpv4OutOfRange))
+			}
+			id = ctr.Run(ctx, t, c, ctrOpts...)
+			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+			nw, err = c.NetworkInspect(ctx, netName, networktypes.InspectOptions{})
+			assert.NilError(t, err)
+			validateIPUsageCount(nw, 2, 1)
+		})
+	}
 }
