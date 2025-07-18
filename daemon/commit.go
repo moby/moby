@@ -12,8 +12,8 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/daemon/builder/dockerfile"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/internal/metrics"
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 

@@ -12,9 +12,9 @@ import (
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/logger"
 	logcache "github.com/docker/docker/daemon/logger/loggerutils/cache"
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 

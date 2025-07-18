@@ -8,9 +8,9 @@ import (
 	"io"
 
 	"github.com/docker/docker/api/types/plugins/logdriver"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 
