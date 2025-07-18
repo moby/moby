@@ -369,3 +369,25 @@ func (aSpace *addrSpace) releaseAddress(nw, sub netip.Prefix, address netip.Addr
 
 	return p.addrs.Remove(address)
 }
+
+// getAllocatedIPs returns the number of addresses allocated in both the subnet and the ip-range pool.
+func (aSpace *addrSpace) getAllocatedIPs(nw, ipr netip.Prefix) (allocatedIPsInSubnet, allocatedIPsInPool uint64, err error) {
+	aSpace.mu.Lock()
+	defer aSpace.mu.Unlock()
+
+	if ipr == (netip.Prefix{}) {
+		ipr = nw
+	}
+	p, ok := aSpace.subnets[nw]
+	if !ok {
+		return 0, 0, types.NotFoundErrorf("cannot find address pool for %v", nw)
+	}
+
+	allocatedIPsInSubnet = p.addrs.Selected()
+	allocatedIPsInPool, err = p.addrs.CalculateSelectedInRange(ipr)
+	if err != nil {
+		return 0, 0, types.InvalidParameterErrorf("failed to calculate selected addresses in range '%s': %w", ipr, err)
+	}
+
+	return allocatedIPsInSubnet, allocatedIPsInPool, nil
+}
