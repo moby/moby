@@ -14,7 +14,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
-	progressutils "github.com/docker/docker/distribution/utils"
+	progressutils "github.com/docker/docker/daemon/internal/distribution/utils"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
