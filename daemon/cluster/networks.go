@@ -9,8 +9,8 @@ import (
 	"github.com/docker/docker/api/types/network"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	networkSettings "github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/errdefs"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
 )

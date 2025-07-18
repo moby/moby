@@ -12,9 +12,9 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	imagetypes "github.com/docker/docker/api/types/image"
 	timetypes "github.com/docker/docker/api/types/time"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
+	"github.com/docker/docker/daemon/internal/errdefs"
+	"github.com/docker/docker/daemon/internal/image"
+	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )

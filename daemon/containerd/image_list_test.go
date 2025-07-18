@@ -17,7 +17,7 @@ import (
 	"github.com/containerd/platforms"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/internal/testutils/specialimage"
+	"github.com/docker/docker/daemon/pkg/testutils/specialimage"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"

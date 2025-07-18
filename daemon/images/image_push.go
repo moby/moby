@@ -9,10 +9,10 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/daemon/internal/distribution"
+	progressutils "github.com/docker/docker/daemon/internal/distribution/utils"
 	"github.com/docker/docker/daemon/internal/metrics"
-	"github.com/docker/docker/distribution"
-	progressutils "github.com/docker/docker/distribution/utils"
-	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/daemon/pkg/progress"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

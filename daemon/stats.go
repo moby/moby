@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/daemon/internal/errdefs"
 )
 
 // ContainerStats writes information about the container to the stream

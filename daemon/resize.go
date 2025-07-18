@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/daemon/internal/errdefs"
 )
 
 // ContainerResize changes the size of the TTY of the process running

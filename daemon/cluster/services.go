@@ -19,7 +19,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/daemon/cluster/convert"
-	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	gogotypes "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/opencontainers/go-digest"

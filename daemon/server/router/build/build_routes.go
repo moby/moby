@@ -22,10 +22,10 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/daemon/pkg/ioutils"
+	"github.com/docker/docker/daemon/pkg/progress"
+	"github.com/docker/docker/daemon/pkg/streamformatter"
 	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/pkg/errors"
 )
 

@@ -9,7 +9,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/daemon/internal/errdefs"
 )
 
 const (

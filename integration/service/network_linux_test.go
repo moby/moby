@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	net "github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
-	"github.com/docker/docker/internal/testutils/networking"
+	"github.com/docker/docker/integration/internal/testutils/networking"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

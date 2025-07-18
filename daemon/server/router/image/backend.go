@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
-	dockerimage "github.com/docker/docker/image"
+	dockerimage "github.com/docker/docker/daemon/internal/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

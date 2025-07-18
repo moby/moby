@@ -7,8 +7,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/internal/nlwrap"
-	"github.com/docker/docker/internal/testutils/netnsutils"
+	"github.com/docker/docker/daemon/pkg/nlwrap"
+	"github.com/docker/docker/daemon/pkg/testutils/netnsutils"
 	"github.com/vishvananda/netlink"
 )
 

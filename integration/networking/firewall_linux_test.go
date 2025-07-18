@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/internal/testutils/networking"
+	"github.com/docker/docker/integration/internal/testutils/networking"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

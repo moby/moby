@@ -18,9 +18,9 @@ import (
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/daemon/container"
 	dimages "github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/internal/metrics"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/daemon/pkg/stringid"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

@@ -6,7 +6,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/daemon/internal/errdefs"
 )
 
 // ContainerStatPath stats the filesystem resource at the specified path in the

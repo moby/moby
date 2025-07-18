@@ -8,9 +8,9 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/libnetwork/internal/netiputil"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/internal/nlwrap"
+	"github.com/docker/docker/daemon/pkg/nlwrap"
 	"github.com/vishvananda/netlink"
 )
 

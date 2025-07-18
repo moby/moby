@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/datastore"
 	"github.com/docker/docker/daemon/libnetwork/osl"
 	"github.com/docker/docker/daemon/libnetwork/scope"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/daemon/pkg/stringid"
 )
 
 const (

@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/daemon/pkg/runconfig"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"

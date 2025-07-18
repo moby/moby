@@ -10,7 +10,7 @@ import (
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/log/logtest"
 	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/internal/testutils/specialimage"
+	"github.com/docker/docker/daemon/pkg/testutils/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

@@ -24,7 +24,7 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/ns"
 	"github.com/docker/docker/daemon/libnetwork/osl"
 	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/docker/docker/internal/nlwrap"
+	"github.com/docker/docker/daemon/pkg/nlwrap"
 	"github.com/hashicorp/go-multierror"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"

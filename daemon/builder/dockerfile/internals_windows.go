@@ -10,8 +10,8 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/daemon/internal/errdefs"
+	"github.com/docker/docker/daemon/pkg/jsonmessage"
 	"github.com/moby/sys/user"
 	"golang.org/x/sys/windows"
 )

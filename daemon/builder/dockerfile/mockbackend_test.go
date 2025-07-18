@@ -9,8 +9,8 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/builder"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
+	"github.com/docker/docker/daemon/internal/image"
+	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )

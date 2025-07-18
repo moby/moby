@@ -8,13 +8,13 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/ns"
 	"github.com/docker/docker/daemon/libnetwork/options"
 	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/docker/docker/daemon/pkg/parsers/kernel"
 )
 
 // CreateNetwork the network for the specified driver type

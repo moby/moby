@@ -11,7 +11,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/image"
+	"github.com/docker/docker/daemon/internal/image"
 	"github.com/google/uuid"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"

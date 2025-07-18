@@ -8,9 +8,9 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/daemon/builder"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/image/cache"
-	"github.com/docker/docker/layer"
+	"github.com/docker/docker/daemon/internal/image"
+	"github.com/docker/docker/daemon/internal/image/cache"
+	"github.com/docker/docker/daemon/internal/layer"
 )
 
 type cacheAdaptor struct {

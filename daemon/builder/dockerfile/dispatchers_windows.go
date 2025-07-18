@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/internal/lazyregexp"
+	"github.com/docker/docker/daemon/pkg/lazyregexp"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 )
 

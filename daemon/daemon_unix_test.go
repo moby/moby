@@ -12,7 +12,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/docker/docker/daemon/pkg/sysinfo"
 	"github.com/opencontainers/selinux/go-selinux"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"

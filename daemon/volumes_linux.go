@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/pkg/errors"
 )
 

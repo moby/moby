@@ -18,7 +18,7 @@ import (
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/system"
-	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/daemon/pkg/jsonmessage"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fixtures/plugin"

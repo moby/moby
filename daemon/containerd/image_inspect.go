@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/storage"
-	"github.com/docker/docker/internal/sliceutil"
+	"github.com/docker/docker/daemon/internal/sliceutil"
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/semaphore"

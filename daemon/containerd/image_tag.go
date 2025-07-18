@@ -9,8 +9,8 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/image"
+	"github.com/docker/docker/daemon/internal/errdefs"
+	"github.com/docker/docker/daemon/internal/image"
 	"github.com/pkg/errors"
 )
 

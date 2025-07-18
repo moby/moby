@@ -20,7 +20,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/daemon/pkg/jsonmessage"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/fakecontext"
 	"gotest.tools/v3/assert"
