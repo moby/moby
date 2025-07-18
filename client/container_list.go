@@ -35,6 +35,15 @@ func (cli *Client) ContainerList(ctx context.Context, options container.ListOpti
 	}
 
 	if options.Filters.Len() > 0 {
+		// Make sure we negotiated (if the client is configured to do so),
+		// as code below contains API-version specific handling of options.
+		//
+		// Normally, version-negotiation (if enabled) would not happen until
+		// the API request is made.
+		if err := cli.checkVersion(ctx); err != nil {
+			return nil, err
+		}
+
 		//nolint:staticcheck // ignore SA1019 for old code
 		filterJSON, err := filters.ToParamWithVersion(cli.version, options.Filters)
 		if err != nil {

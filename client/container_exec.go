@@ -46,6 +46,15 @@ func (cli *Client) ContainerExecCreate(ctx context.Context, containerID string, 
 
 // ContainerExecStart starts an exec process already created in the docker host.
 func (cli *Client) ContainerExecStart(ctx context.Context, execID string, config container.ExecStartOptions) error {
+	// Make sure we negotiated (if the client is configured to do so),
+	// as code below contains API-version specific handling of options.
+	//
+	// Normally, version-negotiation (if enabled) would not happen until
+	// the API request is made.
+	if err := cli.checkVersion(ctx); err != nil {
+		return err
+	}
+
 	if versions.LessThan(cli.ClientVersion(), "1.42") {
 		config.ConsoleSize = nil
 	}
