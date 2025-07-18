@@ -26,7 +26,7 @@ import (
 	"github.com/docker/docker/daemon/internal/metrics"
 	"github.com/docker/docker/daemon/internal/multierror"
 	"github.com/docker/docker/daemon/internal/otelutil"
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/daemon/pkg/runconfig"
 	"github.com/moby/sys/user"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux"
