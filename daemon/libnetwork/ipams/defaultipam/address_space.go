@@ -337,3 +337,24 @@ func (aSpace *addrSpace) releaseAddress(nw, sub netip.Prefix, address netip.Addr
 
 	return p.ReleaseAddress(nw, sub, address)
 }
+
+// GetAllocatedIPs returns the number of addresses allocated in both the subnet and the range pool.
+//   - allocatedIPsInSubnet: The number of addresses allocated in the subnet.
+//     This value is limited by the uint64 capacity; if the actual count exceeds this limit,
+//     the maximum uint64 value is returned.
+//   - allocatedIPsInPool: The number of addresses allocated in the range pool.
+//     Also limited by uint64 capacity; if it reaches the maximum value, it is treated as frozen
+//     and should no longer be modified.
+func (aSpace *addrSpace) GetAllocatedIPs(nw netip.Prefix) (allocatedIPsInSubnet, allocatedIPsInPool uint64, err error) {
+	aSpace.mu.Lock()
+	defer aSpace.mu.Unlock()
+
+	p, ok := aSpace.subnets[nw]
+	if !ok {
+		return 0, 0, types.NotFoundErrorf("cannot find address pool for %v", nw)
+	}
+
+	allocatedIPsInSubnet, allocatedIPsInPool = p.GetAllocatedIPs()
+
+	return allocatedIPsInSubnet, allocatedIPsInPool, nil
+}
