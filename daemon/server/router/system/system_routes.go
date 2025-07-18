@@ -11,6 +11,9 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/docker/docker/api/types"
 	buildtypes "github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/events"
@@ -23,8 +26,6 @@ import (
 	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/docker/docker/daemon/server/router/build"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/pkg/errors"
-	"golang.org/x/sync/errgroup"
 )
 
 func optionsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

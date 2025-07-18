@@ -5,10 +5,11 @@ import (
 	"strings"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/poll"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
 )
 
 // RunningStateFlagIs polls for the container's Running state flag to be equal to running.

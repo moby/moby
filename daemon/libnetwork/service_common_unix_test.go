@@ -7,10 +7,11 @@ import (
 	"net"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/daemon/libnetwork/config"
 	"github.com/docker/docker/daemon/libnetwork/ipamutils"
 	"github.com/docker/docker/internal/testutils/netnsutils"
-	"gotest.tools/v3/assert"
 )
 
 func TestCleanupServiceDiscovery(t *testing.T) {

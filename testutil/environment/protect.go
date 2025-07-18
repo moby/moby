@@ -5,14 +5,15 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"go.opentelemetry.io/otel"
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/testutil"
-	"go.opentelemetry.io/otel"
-	"gotest.tools/v3/assert"
 )
 
 var frozenImages = []string{

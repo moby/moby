@@ -9,6 +9,9 @@ import (
 	"github.com/containerd/containerd/v2/core/content"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/builder"
@@ -17,8 +20,6 @@ import (
 	"github.com/docker/docker/image/cache"
 	"github.com/docker/docker/internal/multierror"
 	"github.com/docker/docker/layer"
-	"github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // MakeImageCache creates a stateful image cache.

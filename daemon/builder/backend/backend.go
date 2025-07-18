@@ -6,6 +6,9 @@ import (
 	"strconv"
 
 	"github.com/distribution/reference"
+	"github.com/pkg/errors"
+	"google.golang.org/grpc"
+
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/events"
@@ -14,8 +17,6 @@ import (
 	buildkit "github.com/docker/docker/daemon/internal/builder-next"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/pkg/errors"
-	"google.golang.org/grpc"
 )
 
 // ImageComponent provides an interface for working with images

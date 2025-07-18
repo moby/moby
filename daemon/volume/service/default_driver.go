@@ -3,11 +3,12 @@
 package service
 
 import (
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/volume"
 	"github.com/docker/docker/daemon/volume/drivers"
 	"github.com/docker/docker/daemon/volume/local"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/pkg/errors"
 )
 
 func setupDefaultDriver(store *drivers.Store, root string, rootIDs idtools.Identity) error {

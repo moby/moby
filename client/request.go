@@ -13,8 +13,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/docker/docker/api/types"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/api/types"
 )
 
 // head sends an http request to the docker API using the method HEAD.

@@ -16,13 +16,6 @@ import (
 
 	"github.com/containerd/continuity/fs"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/daemon/graphdriver/overlayutils"
-	"github.com/docker/docker/daemon/internal/directory"
-	"github.com/docker/docker/daemon/internal/fstype"
-	"github.com/docker/docker/daemon/internal/mountref"
-	"github.com/docker/docker/daemon/internal/quota"
-	"github.com/docker/docker/internal/containerfs"
 	"github.com/docker/go-units"
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/chrootarchive"
@@ -33,6 +26,14 @@ import (
 	"github.com/moby/sys/userns"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"golang.org/x/sys/unix"
+
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/graphdriver/overlayutils"
+	"github.com/docker/docker/daemon/internal/directory"
+	"github.com/docker/docker/daemon/internal/fstype"
+	"github.com/docker/docker/daemon/internal/mountref"
+	"github.com/docker/docker/daemon/internal/quota"
+	"github.com/docker/docker/internal/containerfs"
 )
 
 // untar defines the untar method

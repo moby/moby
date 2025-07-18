@@ -3,8 +3,9 @@ package client
 import (
 	"fmt"
 
-	"github.com/docker/docker/api/types/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/docker/docker/api/types/image"
 )
 
 type ImageSaveOption interface {

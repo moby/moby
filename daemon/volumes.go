@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
@@ -21,7 +23,6 @@ import (
 	volumeopts "github.com/docker/docker/daemon/volume/service/opts"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/layer"
-	"github.com/pkg/errors"
 )
 
 var _ volume.LiveRestorer = (*volumeWrapper)(nil)

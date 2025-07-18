@@ -11,14 +11,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
-	"github.com/docker/docker/daemon/libnetwork/iptables"
-	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/docker/docker/internal/testutils/netnsutils"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/golden"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
+	"github.com/docker/docker/daemon/libnetwork/iptables"
+	"github.com/docker/docker/daemon/libnetwork/types"
+	"github.com/docker/docker/internal/testutils/netnsutils"
 )
 
 func TestCleanupIptableRules(t *testing.T) {

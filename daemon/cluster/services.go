@@ -13,6 +13,12 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	gogotypes "github.com/gogo/protobuf/types"
+	swarmapi "github.com/moby/swarmkit/v2/api"
+	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
+	"google.golang.org/grpc"
+
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/registry"
@@ -20,11 +26,6 @@ import (
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/daemon/cluster/convert"
 	"github.com/docker/docker/errdefs"
-	gogotypes "github.com/gogo/protobuf/types"
-	swarmapi "github.com/moby/swarmkit/v2/api"
-	"github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
-	"google.golang.org/grpc"
 )
 
 // GetServices returns all services of a managed swarm cluster.

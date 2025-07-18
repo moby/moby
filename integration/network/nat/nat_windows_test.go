@@ -3,9 +3,10 @@ package nat
 import (
 	"testing"
 
-	"github.com/docker/docker/integration/internal/network"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/integration/internal/network"
 )
 
 func TestWindowsNoDisableIPv4(t *testing.T) {

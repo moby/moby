@@ -7,6 +7,11 @@ import (
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/core/containers"
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/daemon/container"
@@ -15,10 +20,6 @@ import (
 	"github.com/docker/docker/daemon/internal/metrics"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/otelutil"
-	"github.com/pkg/errors"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // validateState verifies if the container is in a non-conflicting state.

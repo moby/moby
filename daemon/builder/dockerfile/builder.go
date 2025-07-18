@@ -10,13 +10,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/api/types/build"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/daemon/builder"
-	"github.com/docker/docker/daemon/builder/remotecontext"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
@@ -24,6 +17,14 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/syncmap"
+
+	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/build"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/daemon/builder"
+	"github.com/docker/docker/daemon/builder/remotecontext"
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/pkg/stringid"
 )
 
 var validCommitCommands = map[string]bool{

@@ -3,8 +3,9 @@ package opts
 import (
 	"fmt"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-units"
+
+	"github.com/docker/docker/api/types/container"
 )
 
 // UlimitOpt defines a map of Ulimits

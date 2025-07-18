@@ -12,6 +12,12 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
+	"github.com/docker/go-connections/nat"
+	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/chrootarchive"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
@@ -20,11 +26,6 @@ import (
 	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/go-connections/nat"
-	"github.com/moby/go-archive"
-	"github.com/moby/go-archive/chrootarchive"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 func (b *Builder) getArchiver() *archive.Archiver {

@@ -11,10 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/pkg/system"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/pkg/system"
 )
 
 func TestCopy(t *testing.T) {

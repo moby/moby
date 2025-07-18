@@ -25,16 +25,17 @@ import (
 	"github.com/Microsoft/hcsshim"
 	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/daemon/internal/mountref"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/longpath"
 	"github.com/docker/go-units"
 	"github.com/moby/go-archive"
 	"github.com/moby/sys/reexec"
 	"github.com/moby/sys/user"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
+
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/internal/mountref"
+	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/longpath"
 )
 
 const (

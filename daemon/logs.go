@@ -7,6 +7,8 @@ import (
 
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	timetypes "github.com/docker/docker/api/types/time"
@@ -15,7 +17,6 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	logcache "github.com/docker/docker/daemon/logger/loggerutils/cache"
 	"github.com/docker/docker/errdefs"
-	"github.com/pkg/errors"
 )
 
 // ContainerLogs copies the container's log channel to the channel provided in

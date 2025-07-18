@@ -3,11 +3,12 @@ package convert
 import (
 	"strings"
 
+	gogotypes "github.com/gogo/protobuf/types"
+	swarmapi "github.com/moby/swarmkit/v2/api"
+
 	"github.com/docker/docker/api/types/network"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/libnetwork/scope"
-	gogotypes "github.com/gogo/protobuf/types"
-	swarmapi "github.com/moby/swarmkit/v2/api"
 )
 
 func networkAttachmentFromGRPC(na *swarmapi.NetworkAttachment) types.NetworkAttachment {

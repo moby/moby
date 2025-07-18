@@ -10,12 +10,13 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
+
 	"github.com/docker/docker/daemon/libnetwork/drivers/overlay/overlayutils"
 	"github.com/docker/docker/daemon/libnetwork/netutils"
 	"github.com/docker/docker/daemon/libnetwork/ns"
 	"github.com/docker/docker/internal/nlwrap"
-	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netns"
 )
 
 var soTimeout = ns.NetlinkSocketsTimeout

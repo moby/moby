@@ -5,8 +5,9 @@ package bridge
 import (
 	"context"
 
-	"github.com/docker/docker/internal/otelutil"
 	"go.opentelemetry.io/otel"
+
+	"github.com/docker/docker/internal/otelutil"
 )
 
 type setupStep struct {

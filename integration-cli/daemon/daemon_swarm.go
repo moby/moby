@@ -8,9 +8,10 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
-	"gotest.tools/v3/assert"
 )
 
 // CheckServiceTasksInState returns the number of tasks with a matching state,

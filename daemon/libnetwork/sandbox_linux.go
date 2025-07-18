@@ -7,12 +7,13 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/netutils"
-	"github.com/docker/docker/daemon/libnetwork/osl"
-	"github.com/docker/docker/daemon/libnetwork/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/docker/docker/daemon/libnetwork/netutils"
+	"github.com/docker/docker/daemon/libnetwork/osl"
+	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
 // Linux-specific container configuration flags.

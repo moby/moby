@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -15,7 +17,6 @@ import (
 	"github.com/docker/docker/daemon/libnetwork"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/lazyregexp"
-	"github.com/pkg/errors"
 )
 
 var (

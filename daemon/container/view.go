@@ -13,11 +13,12 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/go-connections/nat"
+	memdb "github.com/hashicorp/go-memdb"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/go-connections/nat"
-	memdb "github.com/hashicorp/go-memdb"
 )
 
 const (

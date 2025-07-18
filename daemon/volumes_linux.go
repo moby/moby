@@ -3,9 +3,10 @@ package daemon
 import (
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/errdefs"
-	"github.com/pkg/errors"
 )
 
 // validateBindDaemonRoot ensures that if a given mountpoint's source is within

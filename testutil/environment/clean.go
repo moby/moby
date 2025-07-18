@@ -6,6 +6,9 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"go.opentelemetry.io/otel"
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -14,8 +17,6 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/internal/lazyregexp"
-	"go.opentelemetry.io/otel"
-	"gotest.tools/v3/assert"
 )
 
 // Clean the environment, preserving protected objects (images, containers, ...)

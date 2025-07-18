@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
+
 	"github.com/docker/docker/api/types/backend"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/storage"
