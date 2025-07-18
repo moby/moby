@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/docker/docker/daemon/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/osl"
 	"github.com/docker/docker/daemon/network"
@@ -33,10 +32,6 @@ func addEpToResolver(
 
 func deleteEpFromResolver(epName string, epIface *EndpointInterface, resolvers []*Resolver) error {
 	return nil
-}
-
-func defaultIpamForNetworkType(networkType string) string {
-	return defaultipam.DriverName
 }
 
 func (n *Network) validatedAdvertiseAddrNMsgs() (*int, error) {

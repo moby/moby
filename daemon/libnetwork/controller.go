@@ -64,6 +64,7 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/drvregistry"
 	"github.com/docker/docker/daemon/libnetwork/ipamapi"
 	"github.com/docker/docker/daemon/libnetwork/ipams"
+	"github.com/docker/docker/daemon/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/osl"
 	"github.com/docker/docker/daemon/libnetwork/scope"
@@ -538,13 +539,12 @@ func (c *Controller) NewNetwork(ctx context.Context, networkType, name string, i
 		id = stringid.GenerateRandomID()
 	}
 
-	defaultIpam := defaultIpamForNetworkType(networkType)
 	// Construct the network object
 	nw := &Network{
 		name:             name,
 		networkType:      networkType,
 		generic:          map[string]interface{}{netlabel.GenericData: make(map[string]string)},
-		ipamType:         defaultIpam,
+		ipamType:         defaultipam.DriverName,
 		enableIPv4:       true,
 		id:               id,
 		created:          time.Now(),
@@ -825,6 +825,11 @@ func (c *Controller) reservePools() {
 }
 
 func doReplayPoolReserve(n *Network) bool {
+	// Ensure backwards compatibility with old networks created before windowsipam removal.
+	if n.ipamType == "windows" {
+		n.ipamType = "default"
+	}
+
 	_, caps, err := n.getController().getIPAMDriver(n.ipamType)
 	if err != nil {
 		log.G(context.TODO()).Warnf("Failed to retrieve ipam driver for network %q (%s): %v", n.Name(), n.ID(), err)

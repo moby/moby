@@ -383,12 +383,6 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 		}
 
 		v4Conf := []*libnetwork.IpamConf{}
-		for _, subnet := range v.Subnets {
-			ipamV4Conf := libnetwork.IpamConf{}
-			ipamV4Conf.PreferredPool = subnet.AddressPrefix
-			ipamV4Conf.Gateway = subnet.GatewayAddress
-			v4Conf = append(v4Conf, &ipamV4Conf)
-		}
 
 		name := v.Name
 
@@ -399,7 +393,20 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 			defaultNetworkExists = true
 		}
 
+		// Restore only default network IP settings from HNS
+		if name == network.DefaultNetwork {
+			for _, subnet := range v.Subnets {
+				ipamV4Conf := libnetwork.IpamConf{}
+				ipamV4Conf.PreferredPool = subnet.AddressPrefix
+				ipamV4Conf.Gateway = subnet.GatewayAddress
+				v4Conf = append(v4Conf, &ipamV4Conf)
+			}
+		}
+
 		v6Conf := []*libnetwork.IpamConf{}
+		if n != nil && v4Conf == nil {
+			_, _, v4Conf, v6Conf = n.IpamConfig()
+		}
 		_, err := daemon.netController.NewNetwork(context.TODO(), strings.ToLower(v.Type), name, nid,
 			libnetwork.NetworkOptionGeneric(options.Generic{
 				netlabel.GenericData: netOption,
