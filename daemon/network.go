@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/errdefs"
+	"github.com/docker/docker/daemon/internal/otelutil"
 	"github.com/docker/docker/daemon/libnetwork"
 	lncluster "github.com/docker/docker/daemon/libnetwork/cluster"
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
@@ -31,7 +32,6 @@ import (
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/daemon/pkg/opts"
 	"github.com/docker/docker/daemon/pkg/plugingetter"
-	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/go-connections/nat"
 	"go.opentelemetry.io/otel/baggage"
 )

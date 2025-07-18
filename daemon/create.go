@@ -25,7 +25,7 @@ import (
 	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/internal/metrics"
 	"github.com/docker/docker/daemon/internal/multierror"
-	"github.com/docker/docker/internal/otelutil"
+	"github.com/docker/docker/daemon/internal/otelutil"
 	"github.com/docker/docker/runconfig"
 	"github.com/moby/sys/user"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

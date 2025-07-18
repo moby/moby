@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/internal/libcontainerd"
 	"github.com/docker/docker/daemon/internal/metrics"
-	"github.com/docker/docker/internal/otelutil"
+	"github.com/docker/docker/daemon/internal/otelutil"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
