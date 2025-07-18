@@ -16,11 +16,12 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/vishvananda/netlink"
+
 	"github.com/docker/docker/daemon/libnetwork/drivers/overlay/overlayutils"
 	"github.com/docker/docker/daemon/libnetwork/iptables"
 	"github.com/docker/docker/daemon/libnetwork/ns"
 	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/vishvananda/netlink"
 )
 
 /*

@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/daemon/internal/metrics"
 	"github.com/docker/docker/layer"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImageHistory returns a slice of ImageHistory structures for the specified image

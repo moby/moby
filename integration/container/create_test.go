@@ -11,6 +11,11 @@ import (
 
 	containerd "github.com/containerd/containerd/v2/client"
 	cerrdefs "github.com/containerd/errdefs"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
@@ -20,10 +25,6 @@ import (
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/testutil"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/skip"
 )
 
 func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {

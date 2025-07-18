@@ -9,11 +9,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/moby/go-archive"
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/moby/go-archive"
-	"gotest.tools/v3/assert"
 )
 
 func Load(ctx context.Context, t *testing.T, apiClient client.APIClient, imageFunc specialimage.SpecialImageFunc) string {

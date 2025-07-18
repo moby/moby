@@ -1,10 +1,11 @@
 package network
 
 import (
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
-	"github.com/pkg/errors"
 )
 
 // FilterNetworks filters network list according to user specified filter

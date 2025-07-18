@@ -9,6 +9,9 @@ import (
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/leases"
 	"github.com/containerd/log"
+	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/distribution"
@@ -17,8 +20,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	refstore "github.com/docker/docker/reference"
-	"github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
 )
 
 type containerStore interface {

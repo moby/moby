@@ -11,6 +11,9 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/docker/go-connections/nat"
+	"go.opentelemetry.io/otel/baggage"
+
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -32,8 +35,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/go-connections/nat"
-	"go.opentelemetry.io/otel/baggage"
 )
 
 // PredefinedNetworkError is returned when user tries to create predefined network that already exists.

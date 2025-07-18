@@ -17,6 +17,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/go-connections/sockets"
+	"github.com/moby/go-archive"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	eventtypes "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/image"
@@ -24,10 +29,6 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/testutil/environment"
-	"github.com/docker/go-connections/sockets"
-	"github.com/moby/go-archive"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 const (

@@ -7,8 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/testutil"
 )
 
 func (s *DockerSwarmSuite) TestServiceScale(c *testing.T) {

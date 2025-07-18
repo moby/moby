@@ -6,10 +6,11 @@ import (
 	"syscall"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
-	"gotest.tools/v3/assert"
 )
 
 func TestContainerStopSignal(t *testing.T) {

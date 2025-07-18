@@ -6,12 +6,13 @@ import (
 	"io"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/testutil/fakecontext"
-	"gotest.tools/v3/assert"
 )
 
 // Do builds an image from the given context and returns the image ID.

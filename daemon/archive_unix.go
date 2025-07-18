@@ -8,14 +8,15 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/moby/go-archive"
+	"github.com/pkg/errors"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/daemon/container"
 	volumemounts "github.com/docker/docker/daemon/volume/mounts"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/moby/go-archive"
-	"github.com/pkg/errors"
 )
 
 // containerStatPath stats the filesystem resource at the specified path in this

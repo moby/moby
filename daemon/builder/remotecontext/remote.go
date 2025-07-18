@@ -8,10 +8,11 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/pkg/errors"
 )
 
 // When downloading remote contexts, limit the amount (in bytes)

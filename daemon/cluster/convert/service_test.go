@@ -4,14 +4,15 @@ import (
 	"errors"
 	"testing"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
-	swarmtypes "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/swarm/runtime"
 	google_protobuf3 "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
+	swarmtypes "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/swarm/runtime"
 )
 
 func TestServiceConvertFromGRPCRuntimeContainer(t *testing.T) {

@@ -9,9 +9,10 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/moby/go-archive"
+
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/moby/go-archive"
 )
 
 func randomContent(size int, seed int64) []byte {

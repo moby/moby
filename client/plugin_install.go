@@ -9,9 +9,10 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/pkg/errors"
 )
 
 // PluginInstall installs a plugin

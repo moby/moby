@@ -7,6 +7,10 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/drivers/remote"
 	"github.com/docker/docker/daemon/libnetwork/drvregistry"
@@ -16,9 +20,6 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/moby/swarmkit/v2/api"
-	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
-	"github.com/pkg/errors"
 )
 
 const (

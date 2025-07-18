@@ -8,6 +8,9 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/docker/docker/daemon/libnetwork/config"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
 	"github.com/docker/docker/daemon/libnetwork/ipams/defaultipam"
@@ -15,8 +18,6 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/options"
 	"github.com/docker/docker/internal/testutils/netnsutils"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func getTestEnv(t *testing.T, opts ...[]NetworkOption) (*Controller, []*Network) {

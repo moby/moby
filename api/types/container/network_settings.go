@@ -1,8 +1,9 @@
 package container
 
 import (
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/go-connections/nat"
+
+	"github.com/docker/docker/api/types/network"
 )
 
 // NetworkSettings exposes the network settings in the api

@@ -27,6 +27,12 @@ import (
 	"testing"
 	"text/template"
 
+	"github.com/docker/go-connections/nat"
+	"github.com/vishvananda/netlink"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/golden"
+	"gotest.tools/v3/skip"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
@@ -36,11 +42,6 @@ import (
 	"github.com/docker/docker/internal/testutils/networking"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
-	"github.com/docker/go-connections/nat"
-	"github.com/vishvananda/netlink"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/golden"
-	"gotest.tools/v3/skip"
 )
 
 var (

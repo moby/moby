@@ -5,6 +5,10 @@ import (
 	"io"
 
 	"github.com/distribution/reference"
+	"github.com/moby/go-archive"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
@@ -15,9 +19,6 @@ import (
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/moby/go-archive"
-	"github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImageService is a temporary interface to assist in the migration to the

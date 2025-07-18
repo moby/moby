@@ -3,14 +3,15 @@ package container
 import (
 	"testing"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/pkg/stringid"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/pkg/stringid"
 )
 
 // This test simulates the scenario mentioned in #31392:

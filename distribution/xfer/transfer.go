@@ -5,8 +5,9 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/docker/docker/pkg/progress"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/pkg/progress"
 )
 
 // DoNotRetry is an error wrapper indicating that the error cannot be resolved

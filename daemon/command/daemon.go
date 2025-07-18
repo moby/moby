@@ -18,6 +18,16 @@ import (
 	containerddefaults "github.com/containerd/containerd/v2/defaults"
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
+	"github.com/docker/go-connections/tlsconfig"
+	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/util/tracing/detect"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"tags.cncf.io/container-device-interface/pkg/cdi"
+
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/daemon"
 	buildbackend "github.com/docker/docker/daemon/builder/backend"
@@ -57,15 +67,6 @@ import (
 	"github.com/docker/docker/pkg/rootless"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/go-connections/tlsconfig"
-	"github.com/moby/buildkit/session"
-	"github.com/moby/buildkit/util/tracing/detect"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/pflag"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
-	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
 // daemonCLI represents the daemon CLI.

@@ -8,9 +8,10 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"golang.org/x/sys/windows"
+
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/internal/libcontainerd"
-	"golang.org/x/sys/windows"
 )
 
 // getDefaultDaemonConfigFile returns the default location of the daemon's

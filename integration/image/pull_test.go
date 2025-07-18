@@ -17,15 +17,16 @@ import (
 	"github.com/containerd/containerd/v2/plugins/content/local"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/testutil/daemon"
-	"github.com/docker/docker/testutil/registry"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/testutil/daemon"
+	"github.com/docker/docker/testutil/registry"
 )
 
 func TestImagePullPlatformInvalid(t *testing.T) {

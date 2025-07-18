@@ -3,11 +3,12 @@ package service
 import (
 	"testing"
 
-	swarmtypes "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/integration/internal/swarm"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	swarmtypes "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/integration/internal/swarm"
 )
 
 // The file jobs_test.go contains tests that verify that services which are in

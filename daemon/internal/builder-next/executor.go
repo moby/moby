@@ -8,12 +8,13 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/libnetwork"
 	"github.com/moby/buildkit/executor/oci"
 	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/util/network"
+
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/libnetwork"
 )
 
 type bridgeProvider struct {

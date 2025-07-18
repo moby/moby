@@ -5,10 +5,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/runconfig"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/runconfig"
 )
 
 // GH14530. Validates combinations of --net= with other options

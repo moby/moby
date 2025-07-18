@@ -14,6 +14,13 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/moby/buildkit/frontend/dockerfile/instructions"
+	"github.com/moby/go-archive"
+	"github.com/moby/sys/symlink"
+	"github.com/moby/sys/user"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/builder"
 	"github.com/docker/docker/daemon/builder/remotecontext"
 	"github.com/docker/docker/daemon/builder/remotecontext/urlutil"
@@ -21,12 +28,6 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/system"
-	"github.com/moby/buildkit/frontend/dockerfile/instructions"
-	"github.com/moby/go-archive"
-	"github.com/moby/sys/symlink"
-	"github.com/moby/sys/user"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 const unnamedFilename = "__unnamed__"

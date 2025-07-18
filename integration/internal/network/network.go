@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	"gotest.tools/v3/assert"
 )
 
 func createNetwork(ctx context.Context, client client.APIClient, name string, ops ...func(*network.CreateOptions)) (string, error) {

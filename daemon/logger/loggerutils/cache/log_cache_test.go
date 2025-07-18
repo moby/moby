@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/logger"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/daemon/logger"
 )
 
 type fakeLogger struct {

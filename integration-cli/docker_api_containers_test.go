@@ -18,6 +18,11 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/docker/go-connections/nat"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
@@ -29,10 +34,6 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
-	"github.com/docker/go-connections/nat"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/poll"
 )
 
 func (s *DockerAPISuite) TestContainerAPIGetAll(c *testing.T) {

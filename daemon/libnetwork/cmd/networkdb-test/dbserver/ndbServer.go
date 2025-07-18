@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/daemon/libnetwork/cmd/networkdb-test/dummyclient"
 	"github.com/docker/docker/daemon/libnetwork/diagnostic"
 	"github.com/docker/docker/daemon/libnetwork/networkdb"

@@ -4,9 +4,10 @@ import (
 	"os"
 	"path/filepath"
 
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/moby/go-archive"
 	"github.com/pkg/errors"
+
+	containertypes "github.com/docker/docker/api/types/container"
 )
 
 // ResolvePath resolves the given path in the container to a resource on the

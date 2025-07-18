@@ -14,12 +14,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/daemon/internal/quota"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-units"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/internal/quota"
+	"github.com/docker/docker/errdefs"
 )
 
 var (

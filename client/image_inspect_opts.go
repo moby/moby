@@ -3,8 +3,9 @@ package client
 import (
 	"bytes"
 
-	"github.com/docker/docker/api/types/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/docker/docker/api/types/image"
 )
 
 // ImageInspectOption is a type representing functional options for the image inspect operation.

@@ -14,6 +14,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
@@ -29,11 +35,6 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/testutil"
 	testdaemon "github.com/docker/docker/testutil/daemon"
-	"github.com/vishvananda/netlink"
-	"golang.org/x/sys/unix"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/icmd"
 )
 
 const (

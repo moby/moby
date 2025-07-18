@@ -3,10 +3,11 @@ package cluster
 import (
 	"context"
 
-	types "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/daemon/cluster/convert"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"google.golang.org/grpc"
+
+	types "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/daemon/cluster/convert"
 )
 
 // GetSecret returns a secret from a managed swarm cluster

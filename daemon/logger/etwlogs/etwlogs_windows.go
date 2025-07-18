@@ -20,8 +20,9 @@ import (
 	"unsafe"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/logger"
 	"golang.org/x/sys/windows"
+
+	"github.com/docker/docker/daemon/logger"
 )
 
 type etwLogs struct {

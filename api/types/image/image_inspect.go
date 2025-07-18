@@ -1,10 +1,11 @@
 package image
 
 import (
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/storage"
 	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/storage"
 )
 
 // RootFS returns Image's RootFS description including the layer IDs.
