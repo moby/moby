@@ -42,7 +42,7 @@ RUN --mount=from=src,source=/out,target=.,rw \
     github.com/golang/protobuf/protoc-gen-go
   ./hack/with-go-mod.sh go build -v -mod=vendor -modfile=vendor.mod \
     -o /usr/bin/pluginrpc-gen \
-    ./pkg/plugins/pluginrpc-gen
+    ./daemon/pkg/plugins/pluginrpc-gen
 EOT
 
 FROM tools AS generated
@@ -51,7 +51,7 @@ RUN --mount=from=src,source=/out,target=.,rw <<EOT
   set -ex
   go generate -v ./...
   mkdir /out
-  git ls-files -m --others -- ':!vendor' 'profiles/seccomp/default.json' '**/*.pb.go' | tar -cf - --files-from - | tar -C /out -xf -
+  git ls-files -m --others -- ':!vendor' 'daemon/profiles/seccomp/default.json' '**/*.pb.go' | tar -cf - --files-from - | tar -C /out -xf -
 EOT
 
 FROM scratch AS update
