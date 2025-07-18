@@ -8,7 +8,7 @@ import (
 	"errors"
 
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/layer"
+	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/opencontainers/go-digest"
 )
 

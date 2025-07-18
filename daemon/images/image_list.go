@@ -12,8 +12,8 @@ import (
 	imagetypes "github.com/docker/docker/api/types/image"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 )
 
 var acceptedImageFilterTags = map[string]bool{

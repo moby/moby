@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/docker/distribution"
-	"github.com/docker/docker/layer"
+	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
