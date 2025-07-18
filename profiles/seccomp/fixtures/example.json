@@ -1,0 +1,34 @@
+{
+    "defaultAction": "SCMP_ACT_ERRNO",
+    "defaultErrnoRet": 1,
+    "syscalls": [
+        {
+            "name": "clone",
+            "action": "SCMP_ACT_ALLOW",
+            "args": [
+                {
+                    "index": 0,
+                    "value": 2114060288,
+                    "valueTwo": 0,
+                    "op": "SCMP_CMP_MASKED_EQ"
+                }
+            ]
+        },
+        {
+            "name": "open",
+            "action": "SCMP_ACT_ALLOW",
+            "args": []
+        },
+        {
+            "name": "close",
+            "action": "SCMP_ACT_ALLOW",
+            "args": []
+        },
+        {
+            "name": "syslog",
+            "action": "SCMP_ACT_ERRNO",
+            "errnoRet": 12345,
+            "args": []
+        }
+    ]
+}
