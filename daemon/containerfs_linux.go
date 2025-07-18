@@ -18,8 +18,8 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/mounttree"
+	"github.com/docker/docker/daemon/internal/unshare"
 	"github.com/docker/docker/daemon/pkg/fileutils"
-	"github.com/docker/docker/internal/unshare"
 )
 
 type future struct {
