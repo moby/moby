@@ -935,6 +935,7 @@ func driverOptions(config *config.Config) nwconfig.Option {
 			"UserlandProxyPath":        config.BridgeConfig.UserlandProxyPath,
 			"AllowDirectRouting":       config.BridgeConfig.AllowDirectRouting,
 			"Rootless":                 config.Rootless,
+			"NftablesPriorities":       config.NftablesPriorities,
 		},
 	})
 }

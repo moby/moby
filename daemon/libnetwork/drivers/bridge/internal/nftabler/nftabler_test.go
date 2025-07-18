@@ -125,7 +125,7 @@ func testNftabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 
 	// Initialise iptables, check the iptables config looks like it should look at the
 	// end of the test (after deleting per-network and per-port rules).
-	fw, err := NewNftabler(context.Background(), config)
+	fw, err := NewNftabler(context.Background(), config, nil)
 	assert.NilError(t, err)
 	checkResults("ip", rnWSL2Mirrored(fmt.Sprintf("%s_cleaned,hairpin=%v", tn, config.Hairpin)), config.IPv4)
 	checkResults("ip6", fmt.Sprintf("%s_cleaned,hairpin=%v", tn, config.Hairpin), config.IPv6)
