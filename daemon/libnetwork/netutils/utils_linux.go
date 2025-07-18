@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/ns"
 	"github.com/docker/docker/daemon/libnetwork/resolvconf"
 	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/docker/docker/internal/nlwrap"
+	"github.com/docker/docker/daemon/pkg/nlwrap"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 )

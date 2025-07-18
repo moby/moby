@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/internal/nlwrap"
+	"github.com/docker/docker/daemon/pkg/nlwrap"
 	"github.com/docker/docker/internal/testutils/networking"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
