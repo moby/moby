@@ -4,8 +4,7 @@ set -e
 source hack/make/.integration-test-helpers
 
 # The commit or tag to use for testing
-# TODO(thaJeztah): remove VERSION build-arg once https://github.com/docker/docker-py/pull/3267 is merged and released.
-: "${DOCKER_PY_COMMIT:=7.1.0}"
+: "${DOCKER_PY_COMMIT:=6e6a273573fe77f00776b30de0685162a102e43f}"
 
 # custom options to pass py.test
 #
@@ -28,15 +27,6 @@ PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_container_tes
 # TODO re-enable test_run_with_networking_config once this issue is fixed: https://github.com/moby/moby/pull/46853#issuecomment-1864679942.
 PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/models_containers_test.py::ContainerCollectionTest::test_run_with_networking_config"
 
-# TODO(thaJeztah) re-enable after https://github.com/docker/docker-py/pull/3336 is in the DOCKER_PY_COMMIT release.
-PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_build_test.py::BuildTest::test_build_container_with_target"
-
-# TODO(vvoland): re-enable after https://github.com/docker/docker-py/pull/3203 is included in the DOCKER_PY_COMMIT release.
-PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_image_test.py::CommitTest::test_commit"
-PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_image_test.py::CommitTest::test_commit_with_changes"
-
-# TODO(laurazard): re-enable after https://github.com/docker/docker-py/pull/3290 is included in the DOCKER_PY_COMMIT release.
-PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/models_containers_test.py::ContainerTest::test_exec_run_failed"
 (
 	bundle .integration-daemon-start
 
@@ -68,9 +58,8 @@ PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/models_containers
 			[ -n "${TESTDEBUG}" ] && set -x
 			[ -z "${TESTDEBUG}" ] && build_opts="--quiet"
 			[ -f /.dockerenv ] || build_opts="${build_opts} --network=host"
-			# TODO(thaJeztah): remove VERSION build-arg once https://github.com/docker/docker-py/pull/3267 is merged and released.
 			# shellcheck disable=SC2086
-			exec docker build ${build_opts} -t "${docker_py_image}" --build-arg VERSION="${DOCKER_PY_COMMIT}" -f tests/Dockerfile "https://github.com/docker/docker-py.git#${DOCKER_PY_COMMIT}"
+			exec docker build ${build_opts} -t "${docker_py_image}" -f tests/Dockerfile "https://github.com/docker/docker-py.git#${DOCKER_PY_COMMIT}"
 		)
 	fi
 

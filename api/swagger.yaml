@@ -2647,26 +2647,10 @@ definitions:
         type: "string"
       stream:
         type: "string"
-      error:
-        type: "string"
-        x-nullable: true
-        description: |-
-          errors encountered during the operation.
-
-
-          > **Deprecated**: This field is deprecated since API v1.4, and will be omitted in a future API version. Use the information in errorDetail instead.
       errorDetail:
         $ref: "#/definitions/ErrorDetail"
       status:
         type: "string"
-      progress:
-        type: "string"
-        x-nullable: true
-        description: |-
-          Progress is a pre-formatted presentation of progressDetail.
-
-
-          > **Deprecated**: This field is deprecated since API v1.8, and will be omitted in a future API version. Use the information in progressDetail instead.
       progressDetail:
         $ref: "#/definitions/ProgressDetail"
       aux:
@@ -2764,52 +2748,20 @@ definitions:
     properties:
       id:
         type: "string"
-      error:
-        type: "string"
-        x-nullable: true
-        description: |-
-          errors encountered during the operation.
-
-
-          > **Deprecated**: This field is deprecated since API v1.4, and will be omitted in a future API version. Use the information in errorDetail instead.
       errorDetail:
         $ref: "#/definitions/ErrorDetail"
       status:
         type: "string"
-      progress:
-        type: "string"
-        x-nullable: true
-        description: |-
-          Progress is a pre-formatted presentation of progressDetail.
-
-
-          > **Deprecated**: This field is deprecated since API v1.8, and will be omitted in a future API version. Use the information in progressDetail instead.
       progressDetail:
         $ref: "#/definitions/ProgressDetail"
 
   PushImageInfo:
     type: "object"
     properties:
-      error:
-        type: "string"
-        x-nullable: true
-        description: |-
-          errors encountered during the operation.
-
-
-          > **Deprecated**: This field is deprecated since API v1.4, and will be omitted in a future API version. Use the information in errorDetail instead.
       errorDetail:
         $ref: "#/definitions/ErrorDetail"
       status:
         type: "string"
-      progress:
-        type: "string"
-        x-nullable: true
-        description: |-
-          Progress is a pre-formatted presentation of progressDetail.
-
-
-          > **Deprecated**: This field is deprecated since API v1.8, and will be omitted in a future API version. Use the information in progressDetail instead.
       progressDetail:
         $ref: "#/definitions/ProgressDetail"
 
