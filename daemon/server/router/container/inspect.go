@@ -10,9 +10,9 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/daemon/internal/sliceutil"
 	"github.com/docker/docker/daemon/pkg/stringid"
 	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/docker/docker/internal/sliceutil"
 )
 
 // getContainersByName inspects container's configuration and serializes it as json.
