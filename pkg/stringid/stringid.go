@@ -2,14 +2,16 @@
 package stringid
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"strings"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 const (
 	shortLen = 12
 	fullLen  = 64
+	padding  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" // Padding added to the UUID to make it produce the same length as the old ID format.
 )
 
 // TruncateID returns a shorthand version of a string identifier for convenience.
@@ -31,33 +33,33 @@ func TruncateID(id string) string {
 // of numbers only, so that the truncated ID can be used as hostname for
 // containers.
 func GenerateRandomID() string {
-	b := make([]byte, 32)
-	for {
-		if _, err := rand.Read(b); err != nil {
-			panic(err) // This shouldn't happen
-		}
-		id := hex.EncodeToString(b)
-
-		// make sure that the truncated ID does not consist of only numeric
-		// characters, as it's used as default hostname for containers.
-		//
-		// See:
-		// - https://github.com/moby/moby/issues/3869
-		// - https://bugzilla.redhat.com/show_bug.cgi?id=1059122
-		if allNum(id[:shortLen]) {
-			// all numbers; try again
-			continue
-		}
-		return id
-	}
+	uuidv7 := uuid.Must(uuid.NewV7()).String()
+	return strings.ReplaceAll(uuidv7, "-", "") + padding
 }
 
-// allNum checks whether id consists of only numbers (0-9).
-func allNum(id string) bool {
-	for _, c := range []byte(id) {
-		if c > '9' || c < '0' {
-			return false
-		}
+// UUIDv7 format (with hyphens):
+//
+//	UUIDv7: 01956c20-e1a6-73bd-959f-f5d3bcd6bd77 36 chars
+//	UUIDv7: 01956c20e1a673bd959ff5d3bcd6bd77     32 chars (with hyphens removed)
+//	        │           ││
+//	        │           │└────────────────────── Random Data (Remaining Bits, 19 characters)
+//	        │           └─────────────────────── UUID Version (v7, 4-bit, 1 character)
+//	        └─────────────────────────────────── Timestamp (Milliseconds since Unix epoch, 48 bit, 12 characters)
+const shortIDUUIDSuffix = "7aaaaaaaaaaaaaaaaaaa"
+
+func toUUID(id string) (uuid.UUID, error) {
+	if len(id) == shortLen {
+		// short ID is only the timestamp: append the UUID version (v7),
+		// and a fixed "random" suffix" to allow parsing as UUIDv7
+		return uuid.Parse(id + shortIDUUIDSuffix)
 	}
-	return true
+	return uuid.Parse(id[:32])
+}
+
+func getTimestamp(id string) time.Time {
+	uuidV7, err := toUUID(id)
+	if err != nil {
+		panic(err)
+	}
+	return time.Unix(uuidV7.Time().UnixTime())
 }
