@@ -86,6 +86,7 @@ type Controller struct {
 	id               string
 	drvRegistry      drvregistry.Networks
 	ipamRegistry     drvregistry.IPAMs
+	pmRegistry       drvregistry.PortMappers
 	sandboxes        map[string]*Sandbox
 	cfg              *config.Config
 	store            *datastore.Store
@@ -173,13 +174,20 @@ func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retEr
 	}
 	c.drvRegistry.Notify = c
 
+	// Register portmappers before network drivers to make sure they can
+	// restore existing sandboxes (with port mappings) during their
+	// initialization, if the daemon is started in live restore mode.
+	if err := registerPortMappers(ctx, &c.pmRegistry, c.cfg); err != nil {
+		return nil, err
+	}
+
 	// External plugins don't need config passed through daemon. They can
 	// bootstrap themselves.
 	if err := remotedriver.Register(&c.drvRegistry, c.cfg.PluginGetter); err != nil {
 		return nil, err
 	}
 
-	if err := registerNetworkDrivers(&c.drvRegistry, c.store, c.makeDriverConfig); err != nil {
+	if err := registerNetworkDrivers(&c.drvRegistry, c.store, &c.pmRegistry, c.makeDriverConfig); err != nil {
 		return nil, err
 	}
 
