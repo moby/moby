@@ -11,7 +11,7 @@ import (
 // Backend is all the methods that need to be implemented
 // to provide network specific functionality.
 type Backend interface {
-	GetNetworks(filters.Args, backend.NetworkListConfig) ([]network.Inspect, error)
+	GetNetworks(context.Context, filters.Args, backend.NetworkListConfig) ([]network.Inspect, error)
 	CreateNetwork(ctx context.Context, nc network.CreateRequest) (*network.CreateResponse, error)
 	ConnectContainerToNetwork(ctx context.Context, containerName, networkName string, endpointConfig *network.EndpointSettings) error
 	DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error

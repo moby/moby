@@ -588,7 +588,7 @@ func (daemon *Daemon) deleteNetwork(nw *libnetwork.Network, dynamic bool) error 
 }
 
 // GetNetworks returns a list of all networks
-func (daemon *Daemon) GetNetworks(filter filters.Args, config backend.NetworkListConfig) ([]networktypes.Inspect, error) {
+func (daemon *Daemon) GetNetworks(ctx context.Context, filter filters.Args, config backend.NetworkListConfig) ([]networktypes.Inspect, error) {
 	var idx map[string]*libnetwork.Network
 	if config.Detailed {
 		idx = make(map[string]*libnetwork.Network)
@@ -597,7 +597,7 @@ func (daemon *Daemon) GetNetworks(filter filters.Args, config backend.NetworkLis
 	allNetworks := daemon.getAllNetworks()
 	networks := make([]networktypes.Inspect, 0, len(allNetworks))
 	for _, n := range allNetworks {
-		nr := buildNetworkResource(n)
+		nr := buildNetworkResource(ctx, n)
 		networks = append(networks, nr)
 		if config.Detailed {
 			idx[nr.ID] = n
@@ -624,7 +624,7 @@ func (daemon *Daemon) GetNetworks(filter filters.Args, config backend.NetworkLis
 
 // buildNetworkResource builds a [types.NetworkResource] from the given
 // [libnetwork.Network], to be returned by the API.
-func buildNetworkResource(nw *libnetwork.Network) networktypes.Inspect {
+func buildNetworkResource(ctx context.Context, nw *libnetwork.Network) networktypes.Inspect {
 	if nw == nil {
 		return networktypes.Inspect{}
 	}
@@ -637,6 +637,7 @@ func buildNetworkResource(nw *libnetwork.Network) networktypes.Inspect {
 		Driver:     nw.Type(),
 		EnableIPv4: nw.IPv4Enabled(),
 		EnableIPv6: nw.IPv6Enabled(),
+		State:      nw.State(ctx),
 		IPAM:       buildIPAMResources(nw),
 		Internal:   nw.Internal(),
 		Attachable: nw.Attachable(),
