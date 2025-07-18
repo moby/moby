@@ -8,15 +8,9 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
-	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
-
-func (ld *layerDescriptor) open(ctx context.Context) (distribution.ReadSeekCloser, error) {
-	blobs := ld.repo.Blobs(ctx)
-	return blobs.Open(ctx, ld.digest)
-}
 
 func filterManifests(manifests []manifestlist.ManifestDescriptor, p ocispec.Platform) []manifestlist.ManifestDescriptor {
 	p = platforms.Normalize(withDefault(p))

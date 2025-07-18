@@ -219,6 +219,7 @@ func (s *saveSession) save(ctx context.Context, outStream io.Writer) error {
 		default:
 		}
 
+		// TODO(thaJeztah): check if we still need foreignSrcs as it was related to foreign layers / non-distributable artifacts.
 		foreignSrcs, err := s.saveImage(ctx, id)
 		if err != nil {
 			return err
@@ -307,10 +308,9 @@ func (s *saveSession) save(ctx context.Context, outStream io.Writer) error {
 		}
 
 		manifest = append(manifest, manifestItem{
-			Config:       path.Join(ocispec.ImageBlobsDir, id.Digest().Algorithm().String(), id.Digest().Encoded()),
-			RepoTags:     repoTags,
-			Layers:       layers,
-			LayerSources: foreignSrcs,
+			Config:   path.Join(ocispec.ImageBlobsDir, id.Digest().Algorithm().String(), id.Digest().Encoded()),
+			RepoTags: repoTags,
+			Layers:   layers,
 		})
 
 		parentID, _ := s.is.GetParent(id)
