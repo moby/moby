@@ -485,6 +485,10 @@ func TestIpvlanIPAM(t *testing.T) {
 		},
 	}
 
+	const (
+		cidrv4 = "192.168.0.0/24"
+	)
+
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
@@ -493,6 +497,7 @@ func TestIpvlanIPAM(t *testing.T) {
 			netOpts := []func(*network.CreateOptions){
 				net.WithIPvlan("", "l3"),
 				net.WithIPv4(tc.enableIPv4),
+				net.WithIPAM(cidrv4, ""),
 			}
 			if tc.enableIPv6 {
 				netOpts = append(netOpts, net.WithIPv6())
@@ -502,6 +507,26 @@ func TestIpvlanIPAM(t *testing.T) {
 			net.CreateNoError(ctx, t, c, netName, netOpts...)
 			defer c.NetworkRemove(ctx, netName)
 			assert.Check(t, n.IsNetworkAvailable(ctx, c, netName))
+			nw, err := c.NetworkInspect(ctx, netName, network.InspectOptions{})
+			assert.NilError(t, err)
+			validateIPUsageCount := func(
+				nw network.Inspect, addIpv4CntInSubnet, decAvailableIPsInIPRangePool uint64) {
+				var (
+					ok          bool
+					ipamStateV4 network.IPAMState
+				)
+				if nw.State != nil {
+					ipamStateV4, ok = nw.State.IPAM[cidrv4]
+				}
+				assert.Equal(t, ok, tc.enableIPv4, "IPAM state for v4 CIDR is not expected")
+				if tc.enableIPv4 {
+					assert.Check(t, is.Equal(ipamStateV4.AllocatedIPsInSubnet, uint64(2)+addIpv4CntInSubnet))
+					assert.Check(t, is.Equal(ipamStateV4.AvailableIPsInIPRangePool, uint64(254)-decAvailableIPsInIPRangePool))
+				} else {
+					assert.Check(t, is.Nil(nw.State))
+				}
+			}
+			validateIPUsageCount(nw, 0, 0)
 
 			id := container.Run(ctx, t, c, container.WithNetworkMode(netName))
 			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
@@ -532,8 +557,112 @@ func TestIpvlanIPAM(t *testing.T) {
 				expDisableIPv6 = "0"
 			}
 			assert.Check(t, is.Equal(strings.TrimSpace(sysctlRes.Combined()), expDisableIPv6))
+
+			nw, err = c.NetworkInspect(ctx, netName, network.InspectOptions{})
+			assert.NilError(t, err)
+			validateIPUsageCount(nw, 1, 1)
+
 		})
 	}
+}
+
+// Create three networks with overlapping IPAM ranges
+// with the same CIDR with joined and overlapped ip-ranges
+// and verify that the IPAM state is correctly updated when containers are created
+func TestIpvlanWithOverlapIPAM(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
+
+	ctx := testutil.StartSpan(baseContext, t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	const (
+		netName1 = "ipvlannet1"
+		netName2 = "ipvlannet2"
+		netName3 = "ipvlannet3"
+		cidrv4   = "192.168.0.0/24"
+		ipGw     = "192.168.0.1"
+		ipAux    = "192.168.0.100"
+		ipRange1 = "192.168.0.0/25"
+		ipRange2 = "192.168.0.0/26"
+		ipRange3 = "192.168.0.128/25"
+	)
+
+	validateIPUsageCount := func(
+		nw network.Inspect, useInSubnet, availableInIPRange uint64) {
+		ipamStateV4, ok := nw.State.IPAM[cidrv4]
+		assert.Check(t, ok)
+		assert.Check(t, is.Equal(ipamStateV4.AllocatedIPsInSubnet, useInSubnet))
+		assert.Check(t, is.Equal(ipamStateV4.AvailableIPsInIPRangePool, availableInIPRange))
+	}
+
+	c := d.NewClientT(t)
+
+	// Create three networks with joined and overlapped IPAM ranges
+	// and verify that the IPAM state is correct
+	netOpts1 := []func(*network.CreateOptions){
+		net.WithIPvlan("", "l3"),
+		net.WithIPAMAny(
+			cidrv4,
+			ipRange1,
+			ipGw,
+			map[string]string{
+				"reserved": ipAux,
+			}),
+	}
+
+	net.CreateNoError(ctx, t, c, netName1, netOpts1...)
+	defer c.NetworkRemove(ctx, netName1)
+	assert.Check(t, n.IsNetworkAvailable(ctx, c, netName1))
+
+	nw, err := c.NetworkInspect(ctx, netName1, network.InspectOptions{})
+	assert.NilError(t, err)
+	validateIPUsageCount(nw, 4, 125)
+
+	netOpts2 := []func(*network.CreateOptions){
+		net.WithIPvlan("", "l3"),
+		net.WithIPAMRange(cidrv4, ipRange2, ""),
+	}
+
+	net.CreateNoError(ctx, t, c, netName2, netOpts2...)
+	defer c.NetworkRemove(ctx, netName2)
+	assert.Check(t, n.IsNetworkAvailable(ctx, c, netName2))
+
+	nw, err = c.NetworkInspect(ctx, netName2, network.InspectOptions{})
+	assert.NilError(t, err)
+	validateIPUsageCount(nw, 4, 62)
+
+	netOpts3 := []func(*network.CreateOptions){
+		net.WithIPvlan("", "l3"),
+		net.WithIPAMRange(cidrv4, ipRange3, ""),
+	}
+
+	net.CreateNoError(ctx, t, c, netName3, netOpts3...)
+	defer c.NetworkRemove(ctx, netName3)
+	assert.Check(t, n.IsNetworkAvailable(ctx, c, netName3))
+
+	nw, err = c.NetworkInspect(ctx, netName3, network.InspectOptions{})
+	assert.NilError(t, err)
+	validateIPUsageCount(nw, 4, 127)
+
+	// Create a container on the first network
+	id := container.Run(ctx, t, c, container.WithNetworkMode(netName1))
+	defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+	// Verify that the IPAM state is updated correctly
+	nw, err = c.NetworkInspect(ctx, netName1, network.InspectOptions{})
+	assert.NilError(t, err)
+	validateIPUsageCount(nw, 5, 124)
+
+	nw, err = c.NetworkInspect(ctx, netName2, network.InspectOptions{})
+	assert.NilError(t, err)
+	validateIPUsageCount(nw, 5, 61)
+
+	nw, err = c.NetworkInspect(ctx, netName3, network.InspectOptions{})
+	assert.NilError(t, err)
+	validateIPUsageCount(nw, 5, 127)
 }
 
 // TestIPVlanDNS checks whether DNS is forwarded, for combinations of l2/l3 mode,
