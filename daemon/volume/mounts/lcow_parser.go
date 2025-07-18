@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/internal/lazyregexp"
+	"github.com/docker/docker/daemon/pkg/lazyregexp"
 )
 
 // NewLCOWParser creates a parser with Linux Containers on Windows semantics.

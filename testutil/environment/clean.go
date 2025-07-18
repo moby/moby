@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/internal/lazyregexp"
+	"github.com/docker/docker/daemon/pkg/lazyregexp"
 	"go.opentelemetry.io/otel"
 	"gotest.tools/v3/assert"
 )

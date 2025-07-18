@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/daemon/internal/errdefs"
 	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
-	"github.com/docker/docker/internal/lazyregexp"
+	"github.com/docker/docker/daemon/pkg/lazyregexp"
 	"github.com/pkg/errors"
 )
 

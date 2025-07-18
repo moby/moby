@@ -7,7 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types/events"
 	timetypes "github.com/docker/docker/api/types/time"
-	"github.com/docker/docker/internal/lazyregexp"
+	"github.com/docker/docker/daemon/pkg/lazyregexp"
 )
 
 const (
