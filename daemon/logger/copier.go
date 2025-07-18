@@ -9,7 +9,7 @@ import (
 
 	"github.com/containerd/log"
 	types "github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/daemon/pkg/stringid"
 )
 
 const (

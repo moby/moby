@@ -5,7 +5,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
-	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/daemon/pkg/plugingetter"
 )
 
 func TestFilterByCapNeg(t *testing.T) {

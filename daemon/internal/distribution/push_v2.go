@@ -18,10 +18,10 @@ import (
 	"github.com/docker/docker/daemon/internal/distribution/metadata"
 	"github.com/docker/docker/daemon/internal/distribution/xfer"
 	"github.com/docker/docker/daemon/internal/layer"
+	"github.com/docker/docker/daemon/pkg/ioutils"
+	"github.com/docker/docker/daemon/pkg/progress"
 	"github.com/docker/docker/daemon/pkg/registry"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/daemon/pkg/stringid"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )

@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/internal/stream"
-	"github.com/docker/docker/pkg/pools"
+	"github.com/docker/docker/daemon/pkg/pools"
 	"github.com/moby/sys/signal"
 	"github.com/moby/term"
 	"github.com/opencontainers/runtime-spec/specs-go"

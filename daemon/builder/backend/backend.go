@@ -13,7 +13,7 @@ import (
 	daemonevents "github.com/docker/docker/daemon/events"
 	buildkit "github.com/docker/docker/daemon/internal/builder-next"
 	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/daemon/pkg/stringid"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 )

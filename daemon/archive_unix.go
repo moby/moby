@@ -12,8 +12,8 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/errdefs"
+	"github.com/docker/docker/daemon/pkg/ioutils"
 	volumemounts "github.com/docker/docker/daemon/volume/mounts"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/moby/go-archive"
 	"github.com/pkg/errors"
 )

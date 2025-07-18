@@ -9,7 +9,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/coreos/go-systemd/v22/activation"
-	"github.com/docker/docker/pkg/homedir"
+	"github.com/docker/docker/daemon/pkg/homedir"
 	"github.com/docker/go-connections/sockets"
 	"github.com/pkg/errors"
 )

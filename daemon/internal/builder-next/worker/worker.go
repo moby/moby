@@ -20,7 +20,7 @@ import (
 	distmetadata "github.com/docker/docker/daemon/internal/distribution/metadata"
 	"github.com/docker/docker/daemon/internal/distribution/xfer"
 	"github.com/docker/docker/daemon/internal/layer"
-	pkgprogress "github.com/docker/docker/pkg/progress"
+	pkgprogress "github.com/docker/docker/daemon/pkg/progress"
 	"github.com/moby/buildkit/cache"
 	cacheconfig "github.com/moby/buildkit/cache/config"
 	"github.com/moby/buildkit/client"

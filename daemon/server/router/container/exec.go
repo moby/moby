@@ -12,8 +12,8 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/daemon/internal/errdefs"
+	"github.com/docker/docker/daemon/pkg/stdcopy"
 	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/pkg/errors"
 )
 

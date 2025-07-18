@@ -13,7 +13,7 @@ import (
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/daemon/dockerversion"
 	"github.com/docker/docker/daemon/pkg/registry"
-	"github.com/docker/docker/pkg/useragent"
+	"github.com/docker/docker/daemon/pkg/useragent"
 )
 
 func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig *registrytypes.AuthConfig, ref reference.Named) (remotes.Resolver, docker.StatusTracker) {

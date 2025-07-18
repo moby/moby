@@ -21,9 +21,9 @@ import (
 	"github.com/docker/docker/daemon/internal/distribution"
 	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/internal/metrics"
-	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/daemon/pkg/progress"
+	"github.com/docker/docker/daemon/pkg/streamformatter"
+	"github.com/docker/docker/daemon/pkg/stringid"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )

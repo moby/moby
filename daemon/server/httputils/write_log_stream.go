@@ -10,9 +10,9 @@ import (
 
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/daemon/pkg/ioutils"
+	"github.com/docker/docker/daemon/pkg/jsonmessage"
+	"github.com/docker/docker/daemon/pkg/stdcopy"
 )
 
 // WriteLogStream writes an encoded byte stream of log messages from the

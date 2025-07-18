@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/daemon/builder"
-	"github.com/docker/docker/pkg/pools"
+	"github.com/docker/docker/daemon/pkg/pools"
 	"github.com/pkg/errors"
 )
 

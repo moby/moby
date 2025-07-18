@@ -11,12 +11,12 @@ import (
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/daemon/internal/directory"
 	"github.com/docker/docker/daemon/internal/errdefs"
+	"github.com/docker/docker/daemon/pkg/idtools"
+	"github.com/docker/docker/daemon/pkg/plugingetter"
+	"github.com/docker/docker/daemon/pkg/stringid"
 	"github.com/docker/docker/daemon/volume"
 	"github.com/docker/docker/daemon/volume/drivers"
 	"github.com/docker/docker/daemon/volume/service/opts"
-	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 )
 

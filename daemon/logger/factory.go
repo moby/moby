@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/daemon/pkg/plugingetter"
 	"github.com/docker/go-units"
 	"github.com/pkg/errors"
 )

@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/internal/stream"
 	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/daemon/pkg/stdcopy"
 	"github.com/moby/term"
 	"github.com/pkg/errors"
 )

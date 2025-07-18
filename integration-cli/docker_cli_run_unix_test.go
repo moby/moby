@@ -18,9 +18,9 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/daemon/pkg/sysinfo"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/testutil"
 	"github.com/moby/sys/mount"
 	"gotest.tools/v3/assert"
