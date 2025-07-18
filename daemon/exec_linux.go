@@ -8,7 +8,7 @@ import (
 	coci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/oci/caps"
+	"github.com/docker/docker/daemon/pkg/oci/caps"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 

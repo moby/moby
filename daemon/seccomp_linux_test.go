@@ -7,7 +7,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	dconfig "github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/oci"
+	"github.com/docker/docker/daemon/pkg/oci"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/profiles/seccomp"
 	"github.com/opencontainers/runtime-spec/specs-go"
