@@ -10,8 +10,8 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/internal/distribution"
+	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/internal/layer"
-	"github.com/docker/docker/image"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )

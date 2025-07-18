@@ -5,7 +5,7 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/image"
+	"github.com/docker/docker/daemon/internal/image"
 )
 
 // TagImage adds the given reference to the image ID provided.

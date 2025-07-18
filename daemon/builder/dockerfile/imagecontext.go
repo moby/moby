@@ -8,7 +8,7 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/daemon/builder"
-	dockerimage "github.com/docker/docker/image"
+	dockerimage "github.com/docker/docker/daemon/internal/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
