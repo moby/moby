@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/daemon/dockerversion"
 )
 
 // AuthenticateToRegistry checks the validity of credentials in authConfig

@@ -11,10 +11,10 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/daemon/builder/dockerfile"
+	"github.com/docker/docker/daemon/dockerversion"
 	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/internal/layer"
-	"github.com/docker/docker/dockerversion"
 	"github.com/moby/go-archive/compression"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )

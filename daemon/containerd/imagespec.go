@@ -7,8 +7,8 @@ import (
 	"slices"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/daemon/dockerversion"
 	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/dockerversion"
 	"github.com/docker/go-connections/nat"
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

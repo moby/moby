@@ -13,8 +13,8 @@ import (
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/daemon/dockerversion"
 	"github.com/docker/docker/daemon/pkg/registry"
-	"github.com/docker/docker/dockerversion"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
