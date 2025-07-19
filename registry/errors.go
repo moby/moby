@@ -8,12 +8,10 @@ import (
 )
 
 func translateV2AuthError(err error) error {
-	switch e := err.(type) {
-	case *url.Error:
-		switch e2 := e.Err.(type) {
-		case errcode.Error:
-			switch e2.Code {
-			case errcode.ErrorCodeUnauthorized:
+	if e, ok := err.(*url.Error); ok {
+		var e2 errcode.Error
+		if errors.As(e.Err, &e2) {
+			if e2.Code == errcode.ErrorCodeUnauthorized {
 				return unauthorizedErr{err}
 			}
 		}

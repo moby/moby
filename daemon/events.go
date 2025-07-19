@@ -156,7 +156,7 @@ func (daemon *Daemon) logConfigEvent(action swarmapi.WatchActionKind, config *sw
 	})
 }
 
-func (daemon *Daemon) logNodeEvent(action swarmapi.WatchActionKind, node *swarmapi.Node, oldNode *swarmapi.Node) {
+func (daemon *Daemon) logNodeEvent(action swarmapi.WatchActionKind, node, oldNode *swarmapi.Node) {
 	name := node.Spec.Annotations.Name
 	if name == "" && node.Description != nil {
 		name = node.Description.Hostname
@@ -201,7 +201,7 @@ func (daemon *Daemon) logNodeEvent(action swarmapi.WatchActionKind, node *swarma
 	daemon.logClusterEvent(action, node.ID, events.NodeEventType, eventTime, attributes)
 }
 
-func (daemon *Daemon) logServiceEvent(action swarmapi.WatchActionKind, service *swarmapi.Service, oldService *swarmapi.Service) {
+func (daemon *Daemon) logServiceEvent(action swarmapi.WatchActionKind, service, oldService *swarmapi.Service) {
 	attributes := map[string]string{
 		"name": service.Spec.Annotations.Name,
 	}

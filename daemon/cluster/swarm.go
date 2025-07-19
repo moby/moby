@@ -463,7 +463,7 @@ func (c *Cluster) Info(ctx context.Context) types.Info {
 			info.Nodes = len(r.Nodes)
 			for _, n := range r.Nodes {
 				if n.ManagerStatus != nil {
-					info.Managers = info.Managers + 1
+					info.Managers++
 				}
 			}
 		}

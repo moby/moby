@@ -327,7 +327,7 @@ func detectCompression(bufRd *bufio.Reader) (compression.Compression, error) {
 
 // fillUncompressedLabel sets the uncompressed digest label on the compressed blob metadata
 // and returns the compressed blob size.
-func fillUncompressedLabel(ctx context.Context, cs content.Store, compressedDigest digest.Digest, uncompressedDigest digest.Digest) (int64, error) {
+func fillUncompressedLabel(ctx context.Context, cs content.Store, compressedDigest, uncompressedDigest digest.Digest) (int64, error) {
 	info, err := cs.Info(ctx, compressedDigest)
 	if err != nil {
 		return 0, errdefs.Unknown(errors.Wrapf(err, "couldn't open previously written blob"))

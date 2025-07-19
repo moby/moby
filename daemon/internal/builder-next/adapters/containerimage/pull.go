@@ -223,10 +223,9 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt source
 			return "", dt, err
 		*/
 
-	case resolver.ResolveModeDefault:
+	case resolver.ResolveModeDefault,
 		// default == prefer local, but in the future could be smarter
-		fallthrough
-	case resolver.ResolveModePreferLocal:
+		resolver.ResolveModePreferLocal:
 		img, err := is.resolveLocal(ref)
 		if err == nil {
 			if opt.Platform != nil && !platformMatches(img, opt.Platform) {

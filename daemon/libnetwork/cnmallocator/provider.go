@@ -36,7 +36,7 @@ func (p *Provider) ValidateIPAMDriver(driver *api.Driver) error {
 	if driver.Name == "" {
 		return status.Errorf(codes.InvalidArgument, "driver name: if driver is specified name is required")
 	}
-	if strings.ToLower(driver.Name) == defaultipam.DriverName {
+	if strings.EqualFold(driver.Name, defaultipam.DriverName) {
 		return nil
 	}
 	return p.validatePluginDriver(driver, ipamapi.PluginEndpointType)

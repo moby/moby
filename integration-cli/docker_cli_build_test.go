@@ -1546,7 +1546,7 @@ func (s *DockerCLIBuildSuite) TestBuildContextCleanupFailedBuild(c *testing.T) {
 
 // compareDirectoryEntries compares two sets of DirEntry (usually taken from a directory)
 // and returns an error if different.
-func compareDirectoryEntries(e1 []os.DirEntry, e2 []os.DirEntry) error {
+func compareDirectoryEntries(e1, e2 []os.DirEntry) error {
 	var (
 		e1Entries = make(map[string]struct{})
 		e2Entries = make(map[string]struct{})
@@ -3521,7 +3521,7 @@ func (s *DockerCLIBuildSuite) TestBuildNotVerboseFailureRemote(c *testing.T) {
 	// when more than one nameserver is configured.
 	// While at it, also strip excessive newlines.
 	normalize := func(msg string) string {
-		return strings.TrimSpace(regexp.MustCompile("[1-9][0-9.]+:[0-9]+").ReplaceAllLiteralString(msg, "<ip:port>"))
+		return strings.TrimSpace(regexp.MustCompile(`[1-9][0-9.]+:\d+`).ReplaceAllLiteralString(msg, "<ip:port>"))
 	}
 
 	if normalize(quietResult.Stderr()) != normalize(result.Combined()) {

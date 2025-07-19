@@ -542,10 +542,8 @@ func (s *DockerCLIRunSuite) TestRunNoDupVolumes(c *testing.T) {
 
 	if out, _, err := dockerCmdWithError("run", "-v", mountstr1, "-v", mountstr2, "busybox", "true"); err == nil {
 		c.Fatal("Expected error about duplicate mount definitions")
-	} else {
-		if !strings.Contains(out, "Duplicate mount point") {
-			c.Fatalf("Expected 'duplicate mount point' error, got %v", out)
-		}
+	} else if !strings.Contains(out, "Duplicate mount point") {
+		c.Fatalf("Expected 'duplicate mount point' error, got %v", out)
 	}
 
 	// Test for https://github.com/docker/docker/issues/22093
@@ -555,10 +553,8 @@ func (s *DockerCLIRunSuite) TestRunNoDupVolumes(c *testing.T) {
 	volume2 := volumename2 + someplace
 	if out, _, err := dockerCmdWithError("run", "-v", volume1, "-v", volume2, "busybox", "true"); err == nil {
 		c.Fatal("Expected error about duplicate mount definitions")
-	} else {
-		if !strings.Contains(out, "Duplicate mount point") {
-			c.Fatalf("Expected 'duplicate mount point' error, got %v", out)
-		}
+	} else if !strings.Contains(out, "Duplicate mount point") {
+		c.Fatalf("Expected 'duplicate mount point' error, got %v", out)
 	}
 	// create failed should have create volume volumename1 or volumename2
 	// we should remove volumename2 or volumename2 successfully
@@ -1413,7 +1409,7 @@ func (s *DockerCLIRunSuite) TestRunNonRootUserResolvName(c *testing.T) {
 
 	cID := getIDByName(c, "testperm")
 
-	fmode := (os.FileMode)(0o644)
+	fmode := os.FileMode(0o644)
 	finfo, err := os.Stat(containerStorageFile(cID, "resolv.conf"))
 	if err != nil {
 		c.Fatal(err)
