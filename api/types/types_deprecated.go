@@ -5,7 +5,6 @@ import (
 
 	"github.com/docker/docker/api/types/common"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/storage"
 )
 
 // IDResponse Response to an API call that returns just an Id.
@@ -87,12 +86,6 @@ type MountPoint = container.MountPoint
 //
 // Deprecated: use [container.Port].
 type Port = container.Port
-
-// GraphDriverData Information about the storage driver used to store the container's and
-// image's filesystem.
-//
-// Deprecated: use [storage.DriverData].
-type GraphDriverData = storage.DriverData
 
 // RequestPrivilegeFunc is a function interface that clients can supply to
 // retry operations after getting an authorization error.
