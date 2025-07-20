@@ -3,7 +3,6 @@ package types
 import (
 	"context"
 
-	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/common"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
@@ -178,9 +177,3 @@ type ServiceListOptions = swarm.ServiceListOptions
 //
 // Deprecated: use [swarm.ServiceInspectOptions].
 type ServiceInspectOptions = swarm.ServiceInspectOptions
-
-// SwarmUnlockKeyResponse contains the response for Engine API:
-// GET /swarm/unlockkey
-//
-// Deprecated: use [swarm.UnlockKeyResponse].
-type SwarmUnlockKeyResponse = swarm.UnlockKeyResponse
