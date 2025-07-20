@@ -82,11 +82,6 @@ type HealthcheckResult = container.HealthcheckResult
 // Deprecated: use [container.MountPoint].
 type MountPoint = container.MountPoint
 
-// Port An open port on a container
-//
-// Deprecated: use [container.Port].
-type Port = container.Port
-
 // RequestPrivilegeFunc is a function interface that clients can supply to
 // retry operations after getting an authorization error.
 // This function returns the registry authentication header value in base64
