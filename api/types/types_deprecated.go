@@ -30,11 +30,6 @@ type ContainerJSON = container.InspectResponse
 // Deprecated: use [container.Summary].
 type Container = container.Summary
 
-// ContainerState stores container's running state
-//
-// Deprecated: use [container.State].
-type ContainerState = container.State
-
 // RequestPrivilegeFunc is a function interface that clients can supply to
 // retry operations after getting an authorization error.
 // This function returns the registry authentication header value in base64
