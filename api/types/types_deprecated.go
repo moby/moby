@@ -151,8 +151,3 @@ type NodeRemoveOptions = swarm.NodeRemoveOptions
 //
 // Deprecated: use [swarm.TaskListOptions].
 type TaskListOptions = swarm.TaskListOptions
-
-// ServiceCreateOptions contains the options to use when creating a service.
-//
-// Deprecated: use [swarm.ServiceCreateOptions].
-type ServiceCreateOptions = swarm.ServiceCreateOptions
