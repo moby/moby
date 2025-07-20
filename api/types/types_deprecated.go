@@ -146,8 +146,3 @@ type NodeListOptions = swarm.NodeListOptions
 //
 // Deprecated: use [swarm.NodeRemoveOptions].
 type NodeRemoveOptions = swarm.NodeRemoveOptions
-
-// TaskListOptions holds parameters to list tasks with.
-//
-// Deprecated: use [swarm.TaskListOptions].
-type TaskListOptions = swarm.TaskListOptions
