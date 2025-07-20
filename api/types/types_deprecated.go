@@ -200,8 +200,3 @@ type BuildCachePruneOptions = build.CachePruneOptions
 //
 // Deprecated: use [build.CachePruneReport].
 type BuildCachePruneReport = build.CachePruneReport
-
-// BuildResult contains the image id of a successful build/
-//
-// Deprecated: use [build.Result].
-type BuildResult = build.Result
