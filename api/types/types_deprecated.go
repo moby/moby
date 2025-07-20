@@ -76,12 +76,6 @@ type Health = container.Health
 // Deprecated: use [container.HealthcheckResult].
 type HealthcheckResult = container.HealthcheckResult
 
-// MountPoint represents a mount point configuration inside the container.
-// This is used for reporting the mountpoints in use by a container.
-//
-// Deprecated: use [container.MountPoint].
-type MountPoint = container.MountPoint
-
 // RequestPrivilegeFunc is a function interface that clients can supply to
 // retry operations after getting an authorization error.
 // This function returns the registry authentication header value in base64
