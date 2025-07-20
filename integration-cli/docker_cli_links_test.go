@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/runconfig"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -225,7 +224,7 @@ func (s *DockerCLILinksSuite) TestLinksNetworkHostContainer(c *testing.T) {
 	// Running container linking to a container with --net host should have failed
 	assert.Check(c, err != nil, "out: %s", out)
 	// Running container linking to a container with --net host should have failed
-	assert.Check(c, is.Contains(out, runconfig.ErrConflictHostNetworkAndLinks.Error()))
+	assert.Check(c, is.Contains(out, "conflicting options: host type networking can't be used with links. This would result in undefined behavior"))
 }
 
 func (s *DockerCLILinksSuite) TestLinksEtcHostsRegularFile(c *testing.T) {
