@@ -136,13 +136,3 @@ type ConfigCreateResponse = swarm.ConfigCreateResponse
 //
 // Deprecated: use [swarm.ConfigListOptions].
 type ConfigListOptions = swarm.ConfigListOptions
-
-// NodeListOptions holds parameters to list nodes with.
-//
-// Deprecated: use [swarm.NodeListOptions].
-type NodeListOptions = swarm.NodeListOptions
-
-// NodeRemoveOptions holds parameters to remove nodes with.
-//
-// Deprecated: use [swarm.NodeRemoveOptions].
-type NodeRemoveOptions = swarm.NodeRemoveOptions
