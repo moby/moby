@@ -35,29 +35,6 @@ type Container = container.Summary
 // Deprecated: use [container.State].
 type ContainerState = container.State
 
-// NetworkSettings exposes the network settings in the api.
-//
-// Deprecated: use [container.NetworkSettings].
-type NetworkSettings = container.NetworkSettings
-
-// NetworkSettingsBase holds networking state for a container when inspecting it.
-//
-// Deprecated: use [container.NetworkSettingsBase].
-type NetworkSettingsBase = container.NetworkSettingsBase
-
-// DefaultNetworkSettings holds network information
-// during the 2 release deprecation period.
-// It will be removed in Docker 1.11.
-//
-// Deprecated: use [container.DefaultNetworkSettings].
-type DefaultNetworkSettings = container.DefaultNetworkSettings
-
-// SummaryNetworkSettings provides a summary of container's networks
-// in /containers/json.
-//
-// Deprecated: use [container.NetworkSettingsSummary].
-type SummaryNetworkSettings = container.NetworkSettingsSummary
-
 // RequestPrivilegeFunc is a function interface that clients can supply to
 // retry operations after getting an authorization error.
 // This function returns the registry authentication header value in base64
