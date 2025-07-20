@@ -5,7 +5,6 @@ import (
 
 	"github.com/docker/docker/api/types/common"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/storage"
 )
 
@@ -94,17 +93,6 @@ type Port = container.Port
 //
 // Deprecated: use [storage.DriverData].
 type GraphDriverData = storage.DriverData
-
-// RootFS returns Image's RootFS description including the layer IDs.
-//
-// Deprecated: use [image.RootFS].
-type RootFS = image.RootFS
-
-// ImageInspect contains response of Engine API:
-// GET "/images/{name:.*}/json"
-//
-// Deprecated: use [image.InspectResponse].
-type ImageInspect = image.InspectResponse
 
 // RequestPrivilegeFunc is a function interface that clients can supply to
 // retry operations after getting an authorization error.
