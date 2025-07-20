@@ -37,19 +37,8 @@ func (c *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 
-	if err := httputils.CheckForJSON(r); err != nil {
-		return err
-	}
-
-	// FIXME(thaJeztah): change this to unmarshal just [container.Config]:
-	// The commit endpoint accepts a [container.Config], but the decoder uses a
-	// [container.CreateRequest], which is a superset, and also contains
-	// [container.HostConfig] and [network.NetworkConfig]. Those structs
-	// are discarded here, but decoder.DecodeConfig also performs validation,
-	// so a request containing those additional fields would result in a
-	// validation error.
-	config, _, _, err := c.decoder.DecodeConfig(r.Body)
-	if err != nil && !errors.Is(err, io.EOF) { // Do not fail if body is empty.
+	config := &container.Config{}
+	if err := httputils.ReadJSON(r, config); err != nil {
 		return err
 	}
 
