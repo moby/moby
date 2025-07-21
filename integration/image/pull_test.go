@@ -141,7 +141,7 @@ func TestImagePullStoredDigestForOtherRepo(t *testing.T) {
 	c8dClient, err := containerd.New("", containerd.WithServices(containerd.WithContentStore(store)))
 	assert.NilError(t, err)
 
-	c8dClient.Push(ctx, remote, desc)
+	err = c8dClient.Push(ctx, remote, desc)
 	assert.NilError(t, err)
 
 	client := testEnv.APIClient()

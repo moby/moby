@@ -45,21 +45,21 @@ func TestImageInspectEmptyTagsAndDigests(t *testing.T) {
 func TestImageInspectUniqueRepoDigests(t *testing.T) {
 	ctx := setupTest(t)
 
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
-	before, err := client.ImageInspect(ctx, "busybox")
+	before, err := apiClient.ImageInspect(ctx, "busybox")
 	assert.NilError(t, err)
 
 	for _, tag := range []string{"master", "newest"} {
 		imgName := "busybox:" + tag
-		err := client.ImageTag(ctx, "busybox", imgName)
+		err := apiClient.ImageTag(ctx, "busybox", imgName)
 		assert.NilError(t, err)
 		defer func() {
-			_, _ = client.ImageRemove(ctx, imgName, image.RemoveOptions{Force: true})
+			_, _ = apiClient.ImageRemove(ctx, imgName, image.RemoveOptions{Force: true})
 		}()
 	}
 
-	after, err := client.ImageInspect(ctx, "busybox")
+	after, err := apiClient.ImageInspect(ctx, "busybox")
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Len(after.RepoDigests, len(before.RepoDigests)))
@@ -68,9 +68,9 @@ func TestImageInspectUniqueRepoDigests(t *testing.T) {
 func TestImageInspectDescriptor(t *testing.T) {
 	ctx := setupTest(t)
 
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
-	inspect, err := client.ImageInspect(ctx, "busybox")
+	inspect, err := apiClient.ImageInspect(ctx, "busybox")
 	assert.NilError(t, err)
 
 	if !testEnv.UsingSnapshotter() {

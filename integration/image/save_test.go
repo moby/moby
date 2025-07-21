@@ -59,13 +59,13 @@ func TestSaveCheckTimes(t *testing.T) {
 	ctx := setupTest(t)
 
 	t.Parallel()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	const repoName = "busybox:latest"
-	img, err := client.ImageInspect(ctx, repoName)
+	img, err := apiClient.ImageInspect(ctx, repoName)
 	assert.NilError(t, err)
 
-	rdr, err := client.ImageSave(ctx, []string{repoName})
+	rdr, err := apiClient.ImageSave(ctx, []string{repoName})
 	assert.NilError(t, err)
 
 	tarfs := tarIndexFS(t, rdr)
@@ -96,10 +96,10 @@ func TestSaveOCI(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.44"), "OCI layout support was introduced in v25")
 
 	ctx := setupTest(t)
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	const busybox = "busybox:latest"
-	inspectBusybox, err := client.ImageInspect(ctx, busybox)
+	inspectBusybox, err := apiClient.ImageInspect(ctx, busybox)
 	assert.NilError(t, err)
 
 	type testCase struct {
@@ -117,7 +117,7 @@ func TestSaveOCI(t *testing.T) {
 	}
 
 	if testEnv.DaemonInfo.OSType != "windows" {
-		multiLayerImage := iimage.Load(ctx, t, client, specialimage.MultiLayer)
+		multiLayerImage := iimage.Load(ctx, t, apiClient, specialimage.MultiLayer)
 		// Multi-layer image
 		testCases = append(testCases, testCase{image: multiLayerImage, expectedContainerdRef: "docker.io/library/multilayer:latest", expectedOCIRef: "latest"})
 
@@ -136,10 +136,10 @@ func TestSaveOCI(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.image, func(t *testing.T) {
 			// Get information about the original image.
-			inspect, err := client.ImageInspect(ctx, tc.image)
+			inspect, err := apiClient.ImageInspect(ctx, tc.image)
 			assert.NilError(t, err)
 
-			rdr, err := client.ImageSave(ctx, []string{tc.image})
+			rdr, err := apiClient.ImageSave(ctx, []string{tc.image})
 			assert.NilError(t, err)
 			defer rdr.Close()
 
@@ -234,24 +234,24 @@ func TestSavePlatform(t *testing.T) {
 
 func TestSaveRepoWithMultipleImages(t *testing.T) {
 	ctx := setupTest(t)
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	makeImage := func(from string, tag string) string {
-		id := container.Create(ctx, t, client, func(cfg *container.TestContainerConfig) {
+		id := container.Create(ctx, t, apiClient, func(cfg *container.TestContainerConfig) {
 			cfg.Config.Image = from
 			cfg.Config.Cmd = []string{"true"}
 		})
 
-		res, err := client.ContainerCommit(ctx, id, containertypes.CommitOptions{Reference: tag})
+		res, err := apiClient.ContainerCommit(ctx, id, containertypes.CommitOptions{Reference: tag})
 		assert.NilError(t, err)
 
-		err = client.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+		err = apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
 		assert.NilError(t, err)
 
 		return res.ID
 	}
 
-	busyboxImg, err := client.ImageInspect(ctx, "busybox:latest")
+	busyboxImg, err := apiClient.ImageInspect(ctx, "busybox:latest")
 	assert.NilError(t, err)
 
 	const repoName = "foobar-save-multi-images-test"
@@ -262,7 +262,7 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 	idBar := makeImage("busybox:latest", tagBar)
 	idBusybox := busyboxImg.ID
 
-	rdr, err := client.ImageSave(ctx, []string{repoName, "busybox:latest"})
+	rdr, err := apiClient.ImageSave(ctx, []string{repoName, "busybox:latest"})
 	assert.NilError(t, err)
 	defer rdr.Close()
 
@@ -308,7 +308,7 @@ func TestSaveDirectoryPermissions(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Test is looking at linux specific details")
 
 	ctx := setupTest(t)
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	layerEntries := []string{"opt/", "opt/a/", "opt/a/b/", "opt/a/b/c"}
 	layerEntriesAUFS := []string{"./", ".wh..wh.aufs", ".wh..wh.orph/", ".wh..wh.plnk/", "opt/", "opt/a/", "opt/a/b/", "opt/a/b/c"}
@@ -317,9 +317,9 @@ func TestSaveDirectoryPermissions(t *testing.T) {
 RUN adduser -D user && mkdir -p /opt/a/b && chown -R user:user /opt/a
 RUN touch /opt/a/b/c && chown user:user /opt/a/b/c`
 
-	imgID := build.Do(ctx, t, client, fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile)))
+	imgID := build.Do(ctx, t, apiClient, fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile)))
 
-	rdr, err := client.ImageSave(ctx, []string{imgID})
+	rdr, err := apiClient.ImageSave(ctx, []string{imgID})
 	assert.NilError(t, err)
 	defer rdr.Close()
 
