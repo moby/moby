@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/daemon/libnetwork/resolvconf"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
@@ -34,6 +33,7 @@ import (
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/client"
 	"github.com/moby/sys/mountinfo"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

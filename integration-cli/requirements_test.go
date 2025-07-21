@@ -11,12 +11,12 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/v2/plugins"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/requirement"
 	"github.com/docker/docker/testutil/registry"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/client"
 )
 
 func DaemonIsWindows() bool {

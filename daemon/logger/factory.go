@@ -5,9 +5,9 @@ import (
 	"sort"
 	"sync"
 
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/go-units"
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/pkg/errors"
 )
 

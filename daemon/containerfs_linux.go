@@ -15,11 +15,11 @@ import (
 	"github.com/moby/sys/symlink"
 	"golang.org/x/sys/unix"
 
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/mounttree"
 	"github.com/docker/docker/internal/unshare"
 	"github.com/docker/docker/pkg/fileutils"
+	containertypes "github.com/moby/moby/api/types/container"
 )
 
 type future struct {

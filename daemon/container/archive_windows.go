@@ -4,8 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/moby/go-archive"
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/pkg/errors"
 )
 

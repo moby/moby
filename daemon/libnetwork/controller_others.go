@@ -2,7 +2,7 @@
 
 package libnetwork
 
-import "github.com/docker/docker/api/types/system"
+import "github.com/moby/moby/api/types/system"
 
 // FirewallBackend returns the name of the firewall backend for "docker info".
 func (c *Controller) FirewallBackend() *system.FirewallInfo {

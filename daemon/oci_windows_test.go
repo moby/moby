@@ -10,8 +10,8 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/fs"
 
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/container"
+	containertypes "github.com/moby/moby/api/types/container"
 	swarmagent "github.com/moby/swarmkit/v2/agent"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/opencontainers/runtime-spec/specs-go"

@@ -4,10 +4,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fixtures/plugin"
+	"github.com/moby/moby/api/types"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )

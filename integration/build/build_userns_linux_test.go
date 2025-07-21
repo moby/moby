@@ -9,8 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types/build"
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -18,6 +16,8 @@ import (
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/docker/testutil/fixtures/load"
+	"github.com/moby/moby/api/types/build"
+	containertypes "github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"

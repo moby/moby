@@ -8,13 +8,13 @@ import (
 	"os"
 	"path/filepath"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/daemon/container"
 	volumemounts "github.com/docker/docker/daemon/volume/mounts"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/moby/go-archive"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/events"
 	"github.com/pkg/errors"
 )
 

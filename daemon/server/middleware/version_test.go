@@ -8,9 +8,9 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/docker/docker/api"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/server/httputils"
+	"github.com/moby/moby/api"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
