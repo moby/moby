@@ -68,7 +68,7 @@ func (cli *Client) ContainerExecStart(ctx context.Context, execID string, config
 //   - If the container is *not* using a TTY, streams for stdout and stderr are
 //     multiplexed.
 //
-// You can use [github.com/docker/docker/pkg/stdcopy.StdCopy] to demultiplex this
+// You can use [github.com/moby/moby/api/stdcopy.StdCopy] to demultiplex this
 // stream. Refer to [Client.ContainerAttach] for details about the multiplexed
 // stream.
 func (cli *Client) ContainerExecAttach(ctx context.Context, execID string, config container.ExecAttachOptions) (types.HijackedResponse, error) {

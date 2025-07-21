@@ -11,9 +11,9 @@ import (
 
 	"github.com/docker/docker/integration/internal/container"
 	net "github.com/docker/docker/integration/internal/network"
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
+	"github.com/moby/moby/api/stdcopy"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"

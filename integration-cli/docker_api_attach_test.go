@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"github.com/docker/go-connections/sockets"
+	"github.com/moby/moby/api/stdcopy"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
