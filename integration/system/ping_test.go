@@ -60,7 +60,7 @@ func TestPingSwarmHeader(t *testing.T) {
 
 	ctx := setupTest(t)
 	d := daemon.New(t)
-	d.Start(t)
+	d.StartNode(t)
 	defer d.Stop(t)
 	apiClient := d.NewClientT(t)
 	defer apiClient.Close()

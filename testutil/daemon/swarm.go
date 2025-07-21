@@ -77,8 +77,8 @@ func (d *Daemon) NodeID() string {
 	return d.CachedInfo.Swarm.NodeID
 }
 
-// SwarmInit initializes a new swarm cluster.
-func (d *Daemon) SwarmInit(ctx context.Context, t testing.TB, req swarm.InitRequest) {
+// SwarmInitWithError initializes a new swarm cluster and returns an error.
+func (d *Daemon) SwarmInitWithError(ctx context.Context, t testing.TB, req swarm.InitRequest) error {
 	t.Helper()
 	if req.ListenAddr == "" {
 		req.ListenAddr = fmt.Sprintf("%s:%d", d.swarmListenAddr, d.SwarmPort)
@@ -93,8 +93,17 @@ func (d *Daemon) SwarmInit(ctx context.Context, t testing.TB, req swarm.InitRequ
 	cli := d.NewClientT(t)
 	defer cli.Close()
 	_, err := cli.SwarmInit(ctx, req)
+	if err == nil {
+		d.CachedInfo = d.Info(t)
+	}
+	return err
+}
+
+// SwarmInit initializes a new swarm cluster.
+func (d *Daemon) SwarmInit(ctx context.Context, t testing.TB, req swarm.InitRequest) {
+	t.Helper()
+	err := d.SwarmInitWithError(ctx, t, req)
 	assert.NilError(t, err, "initializing swarm")
-	d.CachedInfo = d.Info(t)
 }
 
 // SwarmJoin joins a daemon to an existing cluster.

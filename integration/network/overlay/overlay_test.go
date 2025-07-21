@@ -65,7 +65,7 @@ func TestHostPortMappings(t *testing.T) {
 	ctx := setupTest(t)
 
 	d := daemon.New(t)
-	d.StartWithBusybox(ctx, t)
+	d.StartNodeWithBusybox(ctx, t)
 	defer d.Stop(t)
 
 	d.SwarmInit(ctx, t, swarmtypes.InitRequest{AdvertiseAddr: "127.0.0.1:2377"})
