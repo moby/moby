@@ -466,7 +466,11 @@ func killProcessDirectly(ctr *container.Container) error {
 			return errdefs.System(err)
 		}
 		err = errNoSuchProcess{pid, syscall.SIGKILL}
-		log.G(context.TODO()).WithError(err).WithField("container", ctr.ID).Debug("no such process")
+		log.G(context.TODO()).WithFields(log.Fields{
+			"error":     err,
+			"container": ctr.ID,
+			"pid":       pid,
+		}).Debug("no such process")
 		return err
 	}
 
@@ -475,7 +479,11 @@ func killProcessDirectly(ctr *container.Container) error {
 		// Since we can not kill a zombie pid, add zombie check here
 		isZombie, err := process.Zombie(pid)
 		if err != nil {
-			log.G(context.TODO()).WithError(err).WithField("container", ctr.ID).Warn("Container state is invalid")
+			log.G(context.TODO()).WithFields(log.Fields{
+				"error":     err,
+				"container": ctr.ID,
+				"pid":       pid,
+			}).Warn("Container state is invalid")
 			return err
 		}
 		if isZombie {
