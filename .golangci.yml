@@ -334,7 +334,15 @@ linters:
         linters:
           - forbidigo
       - text: 'use of `regexp.MustCompile` forbidden'
+        path: "internal/testutils"
+        linters:
+          - forbidigo
+      - text: 'use of `regexp.MustCompile` forbidden'
         path: "libnetwork/cmd/networkdb-test/dbclient"
+        linters:
+          - forbidigo
+      - text: 'use of `regexp.MustCompile` forbidden'
+        path: "registry/"
         linters:
           - forbidigo
 
