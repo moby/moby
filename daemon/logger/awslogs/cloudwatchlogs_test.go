@@ -1600,6 +1600,31 @@ func TestValidateLogOptionsFormat(t *testing.T) {
 	}
 }
 
+func TestValidateLogOptionsCreateLogStream(t *testing.T) {
+	for _, tc := range []struct {
+		createLogStream string
+		shouldErr       bool
+	}{
+		{"true", false},
+		{"false", false},
+		{"", false},
+		{"invalid", true},
+	} {
+		t.Run(tc.createLogStream, func(t *testing.T) {
+			cfg := map[string]string{
+				logGroupKey:        groupName,
+				logCreateStreamKey: tc.createLogStream,
+			}
+
+			if err := ValidateLogOpt(cfg); tc.shouldErr {
+				assert.ErrorContains(t, err, "must specify valid value for log opt 'awslogs-create-stream'")
+			} else {
+				assert.NilError(t, err)
+			}
+		})
+	}
+}
+
 func TestCreateTagSuccess(t *testing.T) {
 	mockClient := &mockClient{}
 	info := logger.Info{
