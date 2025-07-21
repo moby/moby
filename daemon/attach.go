@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/daemon/internal/stream"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/moby/moby/api/stdcopy"
 	"github.com/moby/moby/api/types/backend"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"

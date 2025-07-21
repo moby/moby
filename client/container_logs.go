@@ -31,7 +31,7 @@ import (
 // SIZE1, SIZE2, SIZE3, and SIZE4 are four bytes of uint32 encoded as big endian.
 // This is the size of OUTPUT.
 //
-// You can use github.com/docker/docker/pkg/stdcopy.StdCopy to demultiplex this
+// You can use github.com/moby/moby/api/stdcopy.StdCopy to demultiplex this
 // stream.
 func (cli *Client) ContainerLogs(ctx context.Context, containerID string, options container.LogsOptions) (io.ReadCloser, error) {
 	containerID, err := trimID("container", containerID)

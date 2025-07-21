@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/daemon/logger/local"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/termtest"
-	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/moby/moby/api/stdcopy"
 	containertypes "github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
