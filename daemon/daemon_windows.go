@@ -285,6 +285,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 						netlabel.GenericData: netOption,
 					}),
 					libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
+					libnetwork.NetworkOptionLabels(v.Labels()),
 				)
 				if err != nil {
 					log.G(context.TODO()).Errorf("Error occurred when creating network %v", err)
