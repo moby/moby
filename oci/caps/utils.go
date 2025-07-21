@@ -79,7 +79,8 @@ func NormalizeLegacyCapabilities(caps []string) ([]string, error) {
 }
 
 // TweakCapabilities tweaks capabilities by adding, dropping, or overriding
-// capabilities in the basics capabilities list.
+// capabilities in the basics capabilities list. All capabilities are added
+// if privileged is true.
 func TweakCapabilities(basics, adds, drops []string, privileged bool) ([]string, error) {
 	switch {
 	case privileged:
