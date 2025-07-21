@@ -9,8 +9,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/versions"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )

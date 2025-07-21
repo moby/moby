@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/docker/docker/api/types/swarm"
+	"github.com/moby/moby/api/types/swarm"
 )
 
 // NodeRemove removes a Node.

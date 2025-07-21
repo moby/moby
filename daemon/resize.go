@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/api/types/events"
 )
 
 // ContainerResize changes the size of the TTY of the process running

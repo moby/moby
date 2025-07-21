@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	networktypes "github.com/docker/docker/api/types/network"
 	dclient "github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/network"
+	networktypes "github.com/moby/moby/api/types/network"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"

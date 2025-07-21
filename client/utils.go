@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/api/types/filters"
+	"github.com/moby/moby/api/types/filters"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

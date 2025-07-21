@@ -4,11 +4,11 @@ import (
 	"context"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/daemon/container"
 	volumemounts "github.com/docker/docker/daemon/volume/mounts"
 	"github.com/docker/docker/internal/cleanups"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/moby/api/types/mount"
 )
 
 // setupMounts configures the mount points for a container by appending each

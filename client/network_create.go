@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/versions"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/api/types/versions"
 )
 
 // NetworkCreate creates a new network in the docker host.

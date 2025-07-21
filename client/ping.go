@@ -6,9 +6,9 @@ import (
 	"path"
 	"strings"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/build"
-	"github.com/docker/docker/api/types/swarm"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/build"
+	"github.com/moby/moby/api/types/swarm"
 )
 
 // Ping pings the server and returns the value of the "Docker-Experimental",

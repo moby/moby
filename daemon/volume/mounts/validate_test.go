@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/docker/docker/api/types/mount"
+	"github.com/moby/moby/api/types/mount"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

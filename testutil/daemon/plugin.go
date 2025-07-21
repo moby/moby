@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"github.com/moby/moby/api/types"
 	"gotest.tools/v3/poll"
 )
 

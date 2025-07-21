@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/docker/docker/api/types"
+	"github.com/moby/moby/api/types"
 )
 
 // PluginInspectWithRaw inspects an existing plugin

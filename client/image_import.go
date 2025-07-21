@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types/image"
+	"github.com/moby/moby/api/types/image"
 )
 
 // ImageImport creates a new image based on the source options.

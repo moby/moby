@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/docker/docker/api/types/system"
+	"github.com/moby/moby/api/types/system"
 )
 
 // Info returns information about the docker server.

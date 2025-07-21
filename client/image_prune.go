@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/image"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/image"
 )
 
 // ImagesPrune requests the daemon to delete unused data

@@ -1,8 +1,8 @@
 package images
 
 import (
-	"github.com/docker/docker/api/types/container"
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
+	"github.com/moby/moby/api/types/container"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

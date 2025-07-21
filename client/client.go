@@ -19,7 +19,7 @@ For example, to list running containers (the equivalent of "docker ps"):
 		"context"
 		"fmt"
 
-		"github.com/docker/docker/api/types/container"
+		"github.com/moby/moby/api/types/container"
 		"github.com/docker/docker/client"
 	)
 
@@ -53,9 +53,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/go-connections/sockets"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/versions"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )

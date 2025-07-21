@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/docker/docker/api/types/build"
-	"github.com/docker/docker/api/types/filters"
+	"github.com/moby/moby/api/types/build"
+	"github.com/moby/moby/api/types/filters"
 	"github.com/pkg/errors"
 )
 

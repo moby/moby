@@ -3,10 +3,10 @@ package daemon
 import (
 	"context"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/internal/capabilities"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/system"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 

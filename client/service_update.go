@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/versions"
+	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/api/types/versions"
 )
 
 // ServiceUpdate updates a Service. The version number is required to avoid conflicting writes.

@@ -7,7 +7,7 @@ import (
 	"net/url"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/api/types/container"
 )
 
 // ContainerCommit applies changes to a container and creates a new tagged image.

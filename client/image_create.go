@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/registry"
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/registry"
 )
 
 // ImageCreate creates a new image based on the parent options.

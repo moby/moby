@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 
-	"github.com/docker/docker/api/types/network"
+	"github.com/moby/moby/api/types/network"
 )
 
 // NetworkDisconnect disconnects a container from an existent network in the docker host.

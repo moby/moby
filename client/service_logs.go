@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	timetypes "github.com/docker/docker/api/types/time"
+	"github.com/moby/moby/api/types/container"
+	timetypes "github.com/moby/moby/api/types/time"
 	"github.com/pkg/errors"
 )
 

@@ -1,7 +1,7 @@
 package client
 
 import (
-	"github.com/docker/docker/api/types/image"
+	"github.com/moby/moby/api/types/image"
 )
 
 // ImageHistoryOption is a type representing functional options for the image history operation.

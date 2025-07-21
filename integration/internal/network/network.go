@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/moby/moby/api/types/network"
 	"gotest.tools/v3/assert"
 )
 

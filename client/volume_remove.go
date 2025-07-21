@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/docker/docker/api/types/versions"
+	"github.com/moby/moby/api/types/versions"
 )
 
 // VolumeRemove removes a volume from the docker host.

@@ -8,7 +8,7 @@ import (
 	"io"
 	"net/url"
 
-	"github.com/docker/docker/api/types/image"
+	"github.com/moby/moby/api/types/image"
 )
 
 // ImageInspect returns the image information.

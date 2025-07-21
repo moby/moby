@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 
-	"github.com/docker/docker/api/types/swarm"
+	"github.com/moby/moby/api/types/swarm"
 )
 
 // SwarmJoin joins the swarm.

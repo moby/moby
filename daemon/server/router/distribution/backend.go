@@ -5,7 +5,7 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
-	"github.com/docker/docker/api/types/registry"
+	"github.com/moby/moby/api/types/registry"
 )
 
 // Backend is all the methods that need to be implemented

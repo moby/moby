@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/swarm"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/swarm"
 )
 
 // TaskList returns the list of tasks.

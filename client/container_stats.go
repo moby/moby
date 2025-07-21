@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/api/types/container"
 )
 
 // ContainerStats returns near realtime stats for a given container.

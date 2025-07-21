@@ -5,11 +5,11 @@ import (
 	"io"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/registry"
 	dockerimage "github.com/docker/docker/image"
+	"github.com/moby/moby/api/types/backend"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

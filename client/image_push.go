@@ -11,8 +11,8 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/registry"
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/registry"
 )
 
 // ImagePush requests the docker host to push an image to a remote registry.

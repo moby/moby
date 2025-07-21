@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/url"
 
-	"github.com/docker/docker/api/types/network"
+	"github.com/moby/moby/api/types/network"
 )
 
 // NetworkInspect returns the information for a specific network configured in the docker host.

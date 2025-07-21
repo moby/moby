@@ -8,7 +8,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/errdefs/pkg/errhttp"
-	"github.com/docker/docker/api/types/versions"
+	"github.com/moby/moby/api/types/versions"
 )
 
 // errConnectionFailed implements an error returned when connection failed.

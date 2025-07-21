@@ -8,7 +8,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types/image"
+	"github.com/moby/moby/api/types/image"
 )
 
 // ImagePull requests the docker host to pull an image from a remote registry.

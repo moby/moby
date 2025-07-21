@@ -8,14 +8,14 @@ import (
 
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/daemon/builder/dockerfile"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/moby/go-archive/compression"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/events"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

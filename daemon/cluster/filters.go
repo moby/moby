@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/api/types/filters"
+	"github.com/moby/moby/api/types/filters"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
 
