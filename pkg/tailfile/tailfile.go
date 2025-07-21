@@ -32,10 +32,10 @@ func TailFile(f *os.File, n int) ([][]byte, error) {
 	}
 
 	buf := make([][]byte, 0, nLines)
-	scanner := bufio.NewScanner(r)
+	s := bufio.NewScanner(r)
 
-	for scanner.Scan() {
-		buf = append(buf, scanner.Bytes())
+	for s.Scan() {
+		buf = append(buf, s.Bytes())
 	}
 	return buf, nil
 }
@@ -74,22 +74,22 @@ func NewTailReaderWithDelimiter(ctx context.Context, r SizeReaderAt, reqLines in
 		return io.NewSectionReader(bytes.NewReader(nil), 0, 0), 0, nil
 	}
 
-	scanner := newScanner(r, delimiter)
-	for scanner.Scan(ctx) {
-		if err := scanner.Err(); err != nil {
-			return nil, 0, scanner.Err()
+	s := newScanner(r, delimiter)
+	for s.Scan(ctx) {
+		if err := s.Err(); err != nil {
+			return nil, 0, s.Err()
 		}
 
 		found++
 		if found == 1 {
-			tailEnd = scanner.End()
+			tailEnd = s.End()
 		}
 		if found == reqLines {
 			break
 		}
 	}
 
-	tailStart = scanner.Start(ctx)
+	tailStart = s.Start(ctx)
 
 	if found == 0 {
 		return io.NewSectionReader(bytes.NewReader(nil), 0, 0), 0, nil
