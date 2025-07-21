@@ -14,7 +14,6 @@ import (
 
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
-	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/daemon/command/debug"
@@ -118,7 +117,7 @@ func (daemon *Daemon) SystemVersion(ctx context.Context) (types.Version, error) 
 				Version: dockerversion.Version,
 				Details: map[string]string{
 					"GitCommit":     dockerversion.GitCommit,
-					"ApiVersion":    api.DefaultVersion,
+					"ApiVersion":    config.DefaultAPIVersion,
 					"MinAPIVersion": cfg.MinAPIVersion,
 					"GoVersion":     runtime.Version(),
 					"Os":            runtime.GOOS,
@@ -133,7 +132,7 @@ func (daemon *Daemon) SystemVersion(ctx context.Context) (types.Version, error) 
 		// Populate deprecated fields for older clients
 		Version:       dockerversion.Version,
 		GitCommit:     dockerversion.GitCommit,
-		APIVersion:    api.DefaultVersion,
+		APIVersion:    config.DefaultAPIVersion,
 		MinAPIVersion: cfg.MinAPIVersion,
 		GoVersion:     runtime.Version(),
 		Os:            runtime.GOOS,
