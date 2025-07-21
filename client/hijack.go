@@ -17,11 +17,11 @@ import (
 
 // postHijacked sends a POST request and hijacks the connection.
 func (cli *Client) postHijacked(ctx context.Context, path string, query url.Values, body interface{}, headers map[string][]string) (types.HijackedResponse, error) {
-	bodyEncoded, err := encodeData(body)
+	jsonBody, err := jsonEncode(body)
 	if err != nil {
 		return types.HijackedResponse{}, err
 	}
-	req, err := cli.buildRequest(ctx, http.MethodPost, cli.getAPIPath(ctx, path, query), bodyEncoded, headers)
+	req, err := cli.buildRequest(ctx, http.MethodPost, cli.getAPIPath(ctx, path, query), jsonBody, headers)
 	if err != nil {
 		return types.HijackedResponse{}, err
 	}
