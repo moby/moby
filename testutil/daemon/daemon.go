@@ -21,7 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringid"
@@ -31,6 +30,7 @@ import (
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/system"
+	"github.com/moby/moby/client"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
