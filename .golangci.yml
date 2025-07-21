@@ -346,6 +346,10 @@ linters:
         path: "libnetwork/cmd/networkdb-test/dbclient"
         linters:
           - forbidigo
+      - text: 'use of `regexp.MustCompile` forbidden'
+        path: "registry/"
+        linters:
+          - forbidigo
 
     # Log a warning if an exclusion rule is unused.
     # Default: false
