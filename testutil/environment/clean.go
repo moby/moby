@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
@@ -64,9 +63,6 @@ func getPausedContainers(ctx context.Context, t testing.TB, client client.Contai
 	return containers
 }
 
-// FIXME(thaJeztah): can we rewrite this check to not do string-matching, and instead detect error-type?
-var alreadyExists = lazyregexp.New(`Error response from daemon: removal of container (\w+) is already in progress`)
-
 func deleteAllContainers(ctx context.Context, t testing.TB, apiclient client.ContainerAPIClient, protectedContainers map[string]struct{}) {
 	t.Helper()
 	containers := getAllContainers(ctx, t, apiclient)
@@ -82,7 +78,9 @@ func deleteAllContainers(ctx context.Context, t testing.TB, apiclient client.Con
 			Force:         true,
 			RemoveVolumes: true,
 		})
-		if err == nil || cerrdefs.IsNotFound(err) || alreadyExists.MatchString(err.Error()) {
+
+		// Ignore if container is already gone, or removal of container is already in progress.
+		if err == nil || cerrdefs.IsNotFound(err) || strings.Contains(err.Error(), "is already in progress") {
 			continue
 		}
 		assert.Check(t, err, "failed to remove %s", ctr.ID)
