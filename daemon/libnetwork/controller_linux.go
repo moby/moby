@@ -17,18 +17,18 @@ import (
 
 // FirewallBackend returns the name of the firewall backend for "docker info".
 func (c *Controller) FirewallBackend() *system.FirewallInfo {
+	var info system.FirewallInfo
+	info.Driver = "iptables"
 	if nftables.Enabled() {
-		return &system.FirewallInfo{Driver: "nftables"}
+		info.Driver = "nftables"
 	}
 	if iptables.UsingFirewalld() {
-		info := &system.FirewallInfo{Driver: "iptables+firewalld"}
-		reloadedAt := iptables.FirewalldReloadedAt()
-		if !reloadedAt.IsZero() {
-			info.Info = append(info.Info, [2]string{"ReloadedAt", reloadedAt.Format(time.RFC3339)})
+		info.Driver += "+firewalld"
+		if reloadedAt := iptables.FirewalldReloadedAt(); !reloadedAt.IsZero() {
+			info.Info = [][2]string{{"ReloadedAt", reloadedAt.Format(time.RFC3339)}}
 		}
-		return info
 	}
-	return &system.FirewallInfo{Driver: "iptables"}
+	return &info
 }
 
 // enabledIptablesVersions returns the iptables versions that are enabled
