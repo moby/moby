@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/daemon/pkg/testutils/specialimage"
 	"github.com/docker/docker/integration/internal/container"
 	iimage "github.com/docker/docker/integration/internal/image"
-	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/google/go-cmp/cmp/cmpopts"

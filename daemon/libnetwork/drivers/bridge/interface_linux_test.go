@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/libnetwork/nlwrap"
-	"github.com/docker/docker/internal/testutils/netnsutils"
+	"github.com/docker/docker/daemon/pkg/testutils/netnsutils"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"

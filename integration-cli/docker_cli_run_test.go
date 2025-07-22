@@ -25,10 +25,10 @@ import (
 
 	"github.com/docker/docker/daemon/libnetwork/resolvconf"
 	"github.com/docker/docker/daemon/pkg/stringid"
+	"github.com/docker/docker/daemon/pkg/testutils/specialimage"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/daemon"
-	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/testutil"
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"

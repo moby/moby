@@ -21,7 +21,7 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/netutils"
 	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/docker/docker/internal/testutils/netnsutils"
+	"github.com/docker/docker/daemon/pkg/testutils/netnsutils"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

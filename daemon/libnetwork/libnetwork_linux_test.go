@@ -30,7 +30,7 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/osl"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/daemon/pkg/plugins"
-	"github.com/docker/docker/internal/testutils/netnsutils"
+	"github.com/docker/docker/daemon/pkg/testutils/netnsutils"
 	"github.com/moby/sys/reexec"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netns"
