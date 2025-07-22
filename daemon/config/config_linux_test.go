@@ -396,3 +396,71 @@ func TestDaemonLegacyOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateAcceptFwMarkMark(t *testing.T) {
+	tests := []struct {
+		name   string
+		val    string
+		expErr string
+	}{
+		{
+			name: "empty",
+			val:  "",
+		},
+		{
+			name: "dec/no-mask",
+			val:  "1",
+		},
+		{
+			name: "hex/no-mask",
+			val:  "0x1",
+		},
+		{
+			name: "dec/mask",
+			val:  "1/2",
+		},
+		{
+			name: "hex/mask",
+			val:  "0x1/0x2",
+		},
+		{
+			name: "octal/mask",
+			val:  "010/0xff",
+		},
+		{
+			name:   "bad/mark",
+			val:    "hello/0x2",
+			expErr: `invalid firewall mark "hello/0x2": strconv.ParseUint: parsing "hello": invalid syntax`,
+		},
+		{
+			name:   "bad/mark",
+			val:    "1/hello",
+			expErr: `invalid firewall mask "1/hello": strconv.ParseUint: parsing "hello": invalid syntax`,
+		},
+		{
+			name:   "bad/sep",
+			val:    "1+hello",
+			expErr: `invalid firewall mark "1+hello": strconv.ParseUint: parsing "1+hello": invalid syntax`,
+		},
+		{
+			name:   "bad/no-mask",
+			val:    "1/",
+			expErr: `invalid firewall mask "1/": strconv.ParseUint: parsing "": invalid syntax`,
+		},
+		{
+			name:   "bad/negative",
+			val:    "-1",
+			expErr: `invalid firewall mark "-1": strconv.ParseUint: parsing "-1": invalid syntax`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateFwMarkMask(tc.val)
+			if tc.expErr == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.Check(t, is.ErrorContains(err, tc.expErr))
+			}
+		})
+	}
+}

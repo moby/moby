@@ -77,6 +77,7 @@ type configuration struct {
 	// hairpinned.
 	Hairpin            bool
 	AllowDirectRouting bool
+	AcceptFwMark       string
 }
 
 // networkConfiguration for network specific configuration
@@ -429,6 +430,7 @@ func (n *bridgeNetwork) newFirewallerNetwork(ctx context.Context) (_ firewaller.
 		ICC:                   n.config.EnableICC,
 		Masquerade:            n.config.EnableIPMasquerade,
 		TrustedHostInterfaces: n.config.TrustedHostInterfaces,
+		AcceptFwMark:          n.driver.config.AcceptFwMark,
 		Config4:               config4,
 		Config6:               config6,
 	})
