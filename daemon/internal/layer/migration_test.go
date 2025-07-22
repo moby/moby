@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/daemon/pkg/stringid"
+	"github.com/moby/moby/daemon/graphdriver"
+	"github.com/moby/moby/daemon/pkg/stringid"
 )
 
 func tarFromFilesInGraph(graph graphdriver.Driver, graphID, parentID string, files ...FileApplier) ([]byte, error) {

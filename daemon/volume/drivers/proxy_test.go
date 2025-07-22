@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/pkg/plugins"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/moby/moby/daemon/pkg/plugins"
 )
 
 func TestVolumeRequestError(t *testing.T) {

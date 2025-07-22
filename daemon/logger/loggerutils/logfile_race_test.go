@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/pkg/tailfile"
 	"github.com/moby/moby/api/types/backend"
+	"github.com/moby/moby/daemon/logger"
+	"github.com/moby/moby/daemon/pkg/tailfile"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 )

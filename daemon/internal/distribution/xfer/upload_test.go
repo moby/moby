@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/docker/distribution"
-	"github.com/docker/docker/daemon/internal/layer"
-	"github.com/docker/docker/daemon/pkg/progress"
+	"github.com/moby/moby/daemon/internal/layer"
+	"github.com/moby/moby/daemon/pkg/progress"
 )
 
 const maxUploadConcurrency = 3

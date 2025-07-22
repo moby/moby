@@ -4,8 +4,8 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/nlwrap"
-	"github.com/docker/docker/daemon/pkg/testutils/netnsutils"
+	"github.com/moby/moby/daemon/libnetwork/nlwrap"
+	"github.com/moby/moby/daemon/pkg/testutils/netnsutils"
 	"github.com/vishvananda/netlink"
 )
 

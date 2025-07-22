@@ -5,8 +5,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/ipamapi"
-	"github.com/docker/docker/daemon/libnetwork/ipams"
+	"github.com/moby/moby/daemon/libnetwork/ipamapi"
+	"github.com/moby/moby/daemon/libnetwork/ipams"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

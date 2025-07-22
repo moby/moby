@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/volume"
-	volumedrivers "github.com/docker/docker/daemon/volume/drivers"
-	"github.com/docker/docker/daemon/volume/service/opts"
-	volumetestutils "github.com/docker/docker/daemon/volume/testutils"
 	"github.com/google/go-cmp/cmp"
+	"github.com/moby/moby/daemon/volume"
+	volumedrivers "github.com/moby/moby/daemon/volume/drivers"
+	"github.com/moby/moby/daemon/volume/service/opts"
+	volumetestutils "github.com/moby/moby/daemon/volume/testutils"
 	"gotest.tools/v3/assert"
 )
 

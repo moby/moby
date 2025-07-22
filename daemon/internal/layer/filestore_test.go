@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/docker/docker/daemon/pkg/stringid"
+	"github.com/moby/moby/daemon/pkg/stringid"
 	"github.com/opencontainers/go-digest"
 )
 

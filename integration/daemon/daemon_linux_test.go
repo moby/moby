@@ -7,12 +7,12 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/nlwrap"
 	"github.com/docker/docker/integration/internal/testutils/networking"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/moby/moby/api/types/network"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/daemon/libnetwork/nlwrap"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

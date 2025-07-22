@@ -21,7 +21,7 @@ import(
 	"errors"
 	"time"
 
-	"github.com/docker/docker/daemon/pkg/plugins"
+	"github.com/moby/moby/daemon/pkg/plugins"
 `
 	for _, i := range specs {
 		imports += "\t" + i.String() + "\n"
