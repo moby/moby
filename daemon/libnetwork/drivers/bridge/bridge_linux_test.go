@@ -8,13 +8,13 @@ import (
 	"maps"
 	"net"
 	"net/netip"
-	"os/exec"
 	"slices"
 	"strconv"
 	"testing"
 
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
+	"github.com/docker/docker/daemon/libnetwork/drvregistry"
 	"github.com/docker/docker/daemon/libnetwork/internal/netiputil"
 	"github.com/docker/docker/daemon/libnetwork/ipamapi"
 	"github.com/docker/docker/daemon/libnetwork/ipams/defaultipam"
@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/netutils"
 	"github.com/docker/docker/daemon/libnetwork/options"
 	"github.com/docker/docker/daemon/libnetwork/portallocator"
+	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
@@ -57,17 +58,19 @@ func TestEndpointMarshalling(t *testing.T) {
 					Port:  18,
 				},
 			},
-			PortBindings: []types.PortBinding{
+			PortBindings: []portmapperapi.PortBindingReq{
 				{
-					Proto:       6,
-					IP:          net.ParseIP("17210.33.9.56"),
-					Port:        18,
-					HostPort:    3000,
-					HostPortEnd: 14000,
+					PortBinding: types.PortBinding{
+						Proto:       6,
+						IP:          net.ParseIP("17210.33.9.56"),
+						Port:        18,
+						HostPort:    3000,
+						HostPortEnd: 14000,
+					},
 				},
 			},
 		},
-		portMapping: []portBinding{
+		portMapping: []portmapperapi.PortBinding{
 			{
 				PortBinding: types.PortBinding{
 					Proto:       17,
@@ -113,7 +116,7 @@ func TestEndpointMarshalling(t *testing.T) {
 	// a different port cannot be selected on live-restore if the original is
 	// already in-use). So, fix up portMapping in the original before running
 	// the comparison.
-	epms := make([]portBinding, len(e.portMapping))
+	epms := make([]portmapperapi.PortBinding, len(e.portMapping))
 	for i, p := range e.portMapping {
 		epms[i] = p
 		epms[i].HostPortEnd = epms[i].HostPort
@@ -164,7 +167,7 @@ func compareConnConfig(a, b *connectivityConfiguration) bool {
 		}
 	}
 	for i := 0; i < len(a.PortBindings); i++ {
-		if !comparePortBinding(&a.PortBindings[i], &b.PortBindings[i]) {
+		if !comparePortBinding(&a.PortBindings[i].PortBinding, &b.PortBindings[i].PortBinding) {
 			return false
 		}
 	}
@@ -209,7 +212,7 @@ func comparePortBinding(p *types.PortBinding, o *types.PortBinding) bool {
 	return true
 }
 
-func compareBindings(a, b []portBinding) bool {
+func compareBindings(a, b []portmapperapi.PortBinding) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -277,7 +280,7 @@ func getIPv6Data(t *testing.T) []driverapi.IPAMData {
 
 func TestCreateFullOptions(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
 	config := &configuration{
 		EnableIPForwarding: true,
@@ -332,7 +335,7 @@ func TestCreateFullOptions(t *testing.T) {
 
 func TestCreateNoConfig(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 	err := d.configure(nil)
 	assert.NilError(t, err)
 
@@ -347,7 +350,7 @@ func TestCreateNoConfig(t *testing.T) {
 
 func TestCreateFullOptionsLabels(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
 	config := &configuration{
 		EnableIPForwarding: true,
@@ -534,7 +537,7 @@ func TestCreateVeth(t *testing.T) {
 func TestCreate(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
 	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
@@ -560,7 +563,7 @@ func TestCreate(t *testing.T) {
 func TestCreateFail(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
 	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
@@ -579,7 +582,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	useStubFirewaller(t)
 
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
 	checkFirewallerNetworks := func() {
 		t.Helper()
@@ -792,21 +795,16 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	defer netnsutils.SetupTestOSContext(t)()
 	useStubFirewaller(t)
 
-	d := newDriver(storeutils.NewTempStore(t))
+	pms := drvregistry.PortMappers{}
+	pm := &stubPortMapper{}
+	err := pms.Register("nat", pm)
+	assert.NilError(t, err)
+
+	d := newDriver(storeutils.NewTempStore(t), &pms)
 	portallocator.Get().ReleaseAll()
 
-	var proxyBinary string
-	var err error
-	if ulPxyEnabled {
-		proxyBinary, err = exec.LookPath("docker-proxy")
-		if err != nil {
-			t.Fatalf("failed to lookup userland-proxy binary: %v", err)
-		}
-	}
 	config := &configuration{
-		EnableIPTables:      true,
-		EnableUserlandProxy: ulPxyEnabled,
-		UserlandProxyPath:   proxyBinary,
+		EnableIPTables: true,
 	}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
@@ -861,15 +859,15 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	if !ok {
 		t.Fatal("Endpoint operational data does not contain port mapping data")
 	}
-	pm, ok := pmd.([]types.PortBinding)
+	pbs, ok := pmd.([]types.PortBinding)
 	if !ok {
 		t.Fatal("Unexpected format for port mapping in endpoint operational data")
 	}
-	if len(ep.portMapping) != len(pm) {
+	if len(ep.portMapping) != len(pbs) {
 		t.Fatal("Incomplete data for port mapping in endpoint operational data")
 	}
 	for i, pb := range ep.portMapping {
-		if !comparePortBinding(&pb.PortBinding, &pm[i]) {
+		if !comparePortBinding(&pb.PortBinding, &pbs[i]) {
 			t.Fatal("Unexpected data for port mapping in endpoint operational data")
 		}
 	}
@@ -906,7 +904,7 @@ func TestLinkContainers(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	useStubFirewaller(t)
 
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
 	config := &configuration{
 		EnableIPTables: true,
@@ -1175,7 +1173,7 @@ func TestValidateFixedCIDRV6(t *testing.T) {
 func TestSetDefaultGw(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
 	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
@@ -1225,7 +1223,7 @@ func TestSetDefaultGw(t *testing.T) {
 
 func TestCreateWithExistingBridge(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
 	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
@@ -1297,7 +1295,7 @@ func TestCreateParallel(t *testing.T) {
 	c := netnsutils.SetupTestOSContextEx(t)
 	defer c.Cleanup(t)
 
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 	portallocator.Get().ReleaseAll()
 
 	if err := d.configure(nil); err != nil {
@@ -1348,7 +1346,7 @@ func useStubFirewaller(t *testing.T) {
 // Regression test for https://github.com/moby/moby/issues/46445
 func TestSetupIP6TablesWithHostIPv4(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	d := newDriver(storeutils.NewTempStore(t))
+	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 	dc := &configuration{
 		EnableIPTables:  true,
 		EnableIP6Tables: true,

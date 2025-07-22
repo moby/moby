@@ -524,7 +524,7 @@ func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container
 	return daemon.Unmount(container)
 }
 
-func driverOptions(_ *config.Config) nwconfig.Option {
+func networkPlatformOptions(_ *config.Config) []nwconfig.Option {
 	return nil
 }
 

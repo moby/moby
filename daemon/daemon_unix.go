@@ -924,19 +924,23 @@ func setHostGatewayIP(controller *libnetwork.Controller, config *config.Config) 
 	}
 }
 
-func driverOptions(config *config.Config) nwconfig.Option {
-	return nwconfig.OptionDriverConfig("bridge", options.Generic{
-		netlabel.GenericData: options.Generic{
-			"EnableIPForwarding":       config.BridgeConfig.EnableIPForward,
-			"DisableFilterForwardDrop": config.BridgeConfig.DisableFilterForwardDrop,
-			"EnableIPTables":           config.BridgeConfig.EnableIPTables,
-			"EnableIP6Tables":          config.BridgeConfig.EnableIP6Tables,
-			"EnableUserlandProxy":      config.BridgeConfig.EnableUserlandProxy,
-			"UserlandProxyPath":        config.BridgeConfig.UserlandProxyPath,
-			"AllowDirectRouting":       config.BridgeConfig.AllowDirectRouting,
-			"Rootless":                 config.Rootless,
-		},
-	})
+// networkPlatformOptions returns a slice of platform-specific libnetwork
+// options.
+func networkPlatformOptions(conf *config.Config) []nwconfig.Option {
+	return []nwconfig.Option{
+		nwconfig.OptionRootless(conf.Rootless),
+		nwconfig.OptionUserlandProxy(conf.EnableUserlandProxy, conf.UserlandProxyPath),
+		nwconfig.OptionDriverConfig("bridge", options.Generic{
+			netlabel.GenericData: options.Generic{
+				"EnableIPForwarding":       conf.BridgeConfig.EnableIPForward,
+				"DisableFilterForwardDrop": conf.BridgeConfig.DisableFilterForwardDrop,
+				"EnableIPTables":           conf.BridgeConfig.EnableIPTables,
+				"EnableIP6Tables":          conf.BridgeConfig.EnableIP6Tables,
+				"Hairpin":                  !conf.EnableUserlandProxy || conf.UserlandProxyPath == "",
+				"AllowDirectRouting":       conf.BridgeConfig.AllowDirectRouting,
+			},
+		}),
+	}
 }
 
 type defBrOptsV4 struct {

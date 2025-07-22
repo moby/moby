@@ -21,7 +21,7 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/iptabler"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/nftabler"
-	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/rlkclient"
+	"github.com/docker/docker/daemon/libnetwork/drvregistry"
 	"github.com/docker/docker/daemon/libnetwork/internal/netiputil"
 	"github.com/docker/docker/daemon/libnetwork/internal/nftables"
 	"github.com/docker/docker/daemon/libnetwork/iptables"
@@ -29,11 +29,13 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/netutils"
 	"github.com/docker/docker/daemon/libnetwork/ns"
 	"github.com/docker/docker/daemon/libnetwork/options"
+	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/otelutil"
+	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
@@ -48,7 +50,6 @@ const (
 	vethPrefix                 = "veth"
 	vethLen                    = len(vethPrefix) + 7
 	defaultContainerVethPrefix = "eth"
-	maxAllocatePortAttempts    = 10
 )
 
 const (
@@ -71,10 +72,11 @@ type configuration struct {
 	DisableFilterForwardDrop bool
 	EnableIPTables           bool
 	EnableIP6Tables          bool
-	EnableUserlandProxy      bool
-	UserlandProxyPath        string
-	Rootless                 bool
-	AllowDirectRouting       bool
+	// Hairpin indicates whether packets sent from a container to a host port
+	// published by another container on the same bridge network should be
+	// hairpinned.
+	Hairpin            bool
+	AllowDirectRouting bool
 }
 
 // networkConfiguration for network specific configuration
@@ -124,7 +126,7 @@ type containerConfiguration struct {
 
 // connectivityConfiguration represents the user specified configuration regarding the external connectivity
 type connectivityConfiguration struct {
-	PortBindings []types.PortBinding
+	PortBindings []portmapperapi.PortBindingReq
 	ExposedPorts []types.TransportPort
 	NoProxy6To4  bool
 }
@@ -138,8 +140,8 @@ type bridgeEndpoint struct {
 	macAddress       net.HardwareAddr
 	containerConfig  *containerConfiguration
 	extConnConfig    *connectivityConfiguration
-	portMapping      []portBinding   // Operational port bindings
-	portBindingState portBindingMode // Not persisted, even on live-restore port mappings are re-created.
+	portMapping      []portmapperapi.PortBinding // Operational port bindings
+	portBindingState portBindingMode             // Not persisted, even on live-restore port mappings are re-created.
 	dbIndex          uint64
 	dbExists         bool
 }
@@ -154,24 +156,14 @@ type bridgeNetwork struct {
 	sync.Mutex
 }
 
-type portDriverClient interface {
-	ChildHostIP(hostIP netip.Addr) netip.Addr
-	AddPort(ctx context.Context, proto string, hostIP, childIP netip.Addr, hostPort int) (func() error, error)
-}
-
-// Allow unit tests to supply a dummy RootlessKit port driver client.
-var newPortDriverClient = func(ctx context.Context) (portDriverClient, error) {
-	return rlkclient.NewPortDriverClient(ctx)
-}
-
 type driver struct {
-	config           configuration
-	networks         map[string]*bridgeNetwork
-	store            *datastore.Store
-	nlh              nlwrap.Handle
-	portDriverClient portDriverClient
-	configNetwork    sync.Mutex
-	firewaller       firewaller.Firewaller
+	config        configuration
+	networks      map[string]*bridgeNetwork
+	store         *datastore.Store
+	nlh           nlwrap.Handle
+	configNetwork sync.Mutex
+	firewaller    firewaller.Firewaller
+	portmappers   *drvregistry.PortMappers
 	sync.Mutex
 }
 
@@ -186,17 +178,18 @@ const (
 )
 
 // New constructs a new bridge driver
-func newDriver(store *datastore.Store) *driver {
+func newDriver(store *datastore.Store, pms *drvregistry.PortMappers) *driver {
 	return &driver{
-		store:    store,
-		nlh:      ns.NlHandle(),
-		networks: map[string]*bridgeNetwork{},
+		store:       store,
+		nlh:         ns.NlHandle(),
+		networks:    map[string]*bridgeNetwork{},
+		portmappers: pms,
 	}
 }
 
 // Register registers a new instance of bridge driver.
-func Register(r driverapi.Registerer, store *datastore.Store, config map[string]interface{}) error {
-	d := newDriver(store)
+func Register(r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, config map[string]interface{}) error {
+	d := newDriver(store, pms)
 	if err := d.configure(config); err != nil {
 		return err
 	}
@@ -479,22 +472,22 @@ func (n *bridgeNetwork) gwMode(v firewaller.IPVersion) gwMode {
 	return n.config.GwModeIPv6
 }
 
-func (n *bridgeNetwork) userlandProxyPath() string {
+func (n *bridgeNetwork) hairpin() bool {
 	n.Lock()
 	defer n.Unlock()
 	if n.driver == nil {
-		return ""
+		return false
 	}
-	return n.driver.userlandProxyPath()
+	return n.driver.config.Hairpin
 }
 
-func (n *bridgeNetwork) getPortDriverClient() portDriverClient {
+func (n *bridgeNetwork) portMappers() *drvregistry.PortMappers {
 	n.Lock()
 	defer n.Unlock()
 	if n.driver == nil {
 		return nil
 	}
-	return n.driver.getPortDriverClient()
+	return n.driver.portmappers
 }
 
 func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
@@ -532,7 +525,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 	d.firewaller, err = newFirewaller(context.Background(), firewaller.Config{
 		IPv4:               config.EnableIPTables,
 		IPv6:               config.EnableIP6Tables,
-		Hairpin:            !config.EnableUserlandProxy || config.UserlandProxyPath == "",
+		Hairpin:            config.Hairpin,
 		AllowDirectRouting: config.AllowDirectRouting,
 		WSL2Mirrored:       isRunningUnderWSL2MirroredMode(context.Background()),
 	})
@@ -540,17 +533,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 		return err
 	}
 
-	var pdc portDriverClient
-	if config.Rootless {
-		var err error
-		pdc, err = newPortDriverClient(context.TODO())
-		if err != nil {
-			return err
-		}
-	}
-
 	d.Lock()
-	d.portDriverClient = pdc
 	d.config = config
 	d.Unlock()
 
@@ -596,22 +579,6 @@ func (d *driver) getNetwork(id string) (*bridgeNetwork, error) {
 	}
 
 	return nil, types.NotFoundErrorf("network not found: %s", id)
-}
-
-func (d *driver) userlandProxyPath() string {
-	d.Lock()
-	defer d.Unlock()
-
-	if d.config.EnableUserlandProxy {
-		return d.config.UserlandProxyPath
-	}
-	return ""
-}
-
-func (d *driver) getPortDriverClient() portDriverClient {
-	d.Lock()
-	defer d.Unlock()
-	return d.portDriverClient
 }
 
 func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error) {
@@ -893,8 +860,8 @@ func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration
 	}
 
 	// Module br_netfilter needs to be loaded with net.bridge.bridge-nf-call-ip[6]tables
-	// enabled to implement icc=false, or DNAT when the userland-proxy is disabled.
-	enableBrNfCallIptables := !config.EnableICC || !d.config.EnableUserlandProxy
+	// enabled to implement icc=false, or DNAT when hairpin mode is enabled.
+	enableBrNfCallIptables := !config.EnableICC || d.config.Hairpin
 
 	// Conditionally queue setup steps depending on configuration values.
 	for _, step := range []struct {
@@ -932,7 +899,7 @@ func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration
 		},
 
 		// Setup Loopback Addresses Routing
-		{!d.config.EnableUserlandProxy, "setupLoopbackAddressesRouting", setupLoopbackAddressesRouting},
+		{d.config.Hairpin, "setupLoopbackAddressesRouting", setupLoopbackAddressesRouting},
 
 		// Setup DefaultGatewayIPv4
 		{config.DefaultGatewayIPv4 != nil, "setupGatewayIPv4", setupGatewayIPv4},
@@ -1211,7 +1178,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		return fmt.Errorf("adding interface %s to bridge %s failed: %v", hostIfName, config.BridgeName, err)
 	}
 
-	if !dconfig.EnableUserlandProxy {
+	if dconfig.Hairpin {
 		err = setHairpinMode(d.nlh, host, true)
 		if err != nil {
 			return err
@@ -1617,14 +1584,14 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 // port bindings that are no longer required.
 //
 // ep.portMapping is updated when bindings are removed.
-func (ep *bridgeEndpoint) trimPortBindings(ctx context.Context, n *bridgeNetwork, pbmReq portBindingMode) (func() []portBinding, error) {
+func (ep *bridgeEndpoint) trimPortBindings(ctx context.Context, n *bridgeNetwork, pbmReq portBindingMode) (func() []portmapperapi.PortBinding, error) {
 	// If the endpoint is the gateway for IPv4 and IPv6, there's nothing to drop.
 	if pbmReq.ipv4 && pbmReq.ipv6 {
 		return nil, nil
 	}
 
-	toDrop := make([]portBinding, 0, len(ep.portMapping))
-	toKeep := slices.DeleteFunc(ep.portMapping, func(pb portBinding) bool {
+	toDrop := make([]portmapperapi.PortBinding, 0, len(ep.portMapping))
+	toKeep := slices.DeleteFunc(ep.portMapping, func(pb portmapperapi.PortBinding) bool {
 		is4 := pb.HostIP.To4() != nil
 		if (is4 && !pbmReq.ipv4) || (!is4 && !pbmReq.ipv6) {
 			toDrop = append(toDrop, pb)
@@ -1636,7 +1603,7 @@ func (ep *bridgeEndpoint) trimPortBindings(ctx context.Context, n *bridgeNetwork
 		return nil, nil
 	}
 
-	if err := releasePortBindings(toDrop, n.firewallerNetwork); err != nil {
+	if err := n.unmapPBs(ctx, toDrop); err != nil {
 		log.G(ctx).WithFields(log.Fields{
 			"error": err,
 			"gw4":   pbmReq.ipv4,
@@ -1648,10 +1615,10 @@ func (ep *bridgeEndpoint) trimPortBindings(ctx context.Context, n *bridgeNetwork
 	}
 	ep.portMapping = toKeep
 
-	undo := func() []portBinding {
-		pbReq := make([]types.PortBinding, 0, len(toDrop))
+	undo := func() []portmapperapi.PortBinding {
+		pbReq := make([]portmapperapi.PortBindingReq, 0, len(toDrop))
 		for _, pb := range toDrop {
-			pbReq = append(pbReq, pb.PortBinding)
+			pbReq = append(pbReq, portmapperapi.PortBindingReq{PortBinding: pb.GetCopy()})
 		}
 		pbs, err := n.addPortMappings(ctx, ep, pbReq, n.config.DefaultBindingIP, ep.portBindingState)
 		if err != nil {
@@ -1900,8 +1867,12 @@ func parseConnectivityOptions(cOptions map[string]interface{}) (*connectivityCon
 	cc := &connectivityConfiguration{}
 
 	if opt, ok := cOptions[netlabel.PortMap]; ok {
-		if pb, ok := opt.([]types.PortBinding); ok {
-			cc.PortBindings = pb
+		if pbs, ok := opt.([]types.PortBinding); ok {
+			cc.PortBindings = sliceutil.Map(pbs, func(pb types.PortBinding) portmapperapi.PortBindingReq {
+				return portmapperapi.PortBindingReq{
+					PortBinding: pb.GetCopy(),
+				}
+			})
 		} else {
 			return nil, types.InvalidParameterErrorf("invalid port mapping data in connectivity configuration: %v", opt)
 		}

@@ -43,6 +43,9 @@ type Config struct {
 	ActiveSandboxes        map[string]any
 	PluginGetter           plugingetter.PluginGetter
 	FirewallBackend        string
+	Rootless               bool
+	EnableUserlandProxy    bool
+	UserlandProxyPath      string
 }
 
 // New creates a new Config and initializes it with the given Options.
@@ -160,5 +163,22 @@ func OptionActiveSandboxes(sandboxes map[string]any) Option {
 func OptionFirewallBackend(val string) Option {
 	return func(c *Config) {
 		c.FirewallBackend = val
+	}
+}
+
+// OptionRootless returns an option setter that indicates whether the daemon is
+// running in rootless mode.
+func OptionRootless(rootless bool) Option {
+	return func(c *Config) {
+		c.Rootless = rootless
+	}
+}
+
+// OptionUserlandProxy returns an option setter that indicates whether the
+// userland proxy is enabled, and sets the path to the proxy binary.
+func OptionUserlandProxy(enabled bool, proxyPath string) Option {
+	return func(c *Config) {
+		c.EnableUserlandProxy = enabled
+		c.UserlandProxyPath = proxyPath
 	}
 }
