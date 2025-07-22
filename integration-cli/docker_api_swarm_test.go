@@ -1033,3 +1033,119 @@ func (s *DockerSwarmSuite) TestAPINetworkInspectWithScope(c *testing.T) {
 	_, err = apiclient.NetworkInspect(ctx, name, network.InspectOptions{Scope: "local"})
 	assert.Check(c, is.ErrorType(err, cerrdefs.IsNotFound))
 }
+
+func (s *DockerSwarmSuite) TestOverlayIPAM(c *testing.T) {
+	ctx := testutil.GetContext(c)
+	d1 := s.AddDaemon(ctx, c, false, false)
+	d1.SwarmInit(ctx, c, swarm.InitRequest{})
+	d2 := s.AddDaemon(ctx, c, true, false)
+
+	info := d2.SwarmInfo(ctx, c)
+	assert.Equal(c, info.ControlAvailable, false)
+	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateActive)
+
+	dc1 := d1.NewClientT(c)
+
+	const (
+		netName   = "test-ipam-network"
+		cidrv4    = "192.168.0.0/24"
+		ipv4Range = "192.168.0.0/25"
+	)
+	resp, err := dc1.NetworkCreate(ctx, netName, network.CreateOptions{
+		Driver: "overlay",
+		IPAM: &network.IPAM{
+			Config: []network.IPAMConfig{
+				{
+					Subnet:  cidrv4,
+					IPRange: ipv4Range,
+				},
+			},
+		}})
+	assert.NilError(c, err)
+
+	// Check that the network is created with the expected IPAM configuration
+	nw, err := dc1.NetworkInspect(ctx, netName, network.InspectOptions{})
+	ipamStateV4, ok := nw.State.IPAM[cidrv4]
+	assert.NilError(c, err)
+	assert.Equal(c, ok, true)
+	assert.Equal(c, resp.ID, nw.ID)
+	assert.Equal(c, ipamStateV4.AllocatedIPsInSubnet, uint64(3))
+	assert.Equal(c, ipamStateV4.AvailableIPsInIPRangePool, uint64(126))
+
+	instances := 2
+	sid := d1.CreateService(ctx, c, simpleTestService, setInstances(instances), func(s *swarm.Service) {
+		if s.Spec.TaskTemplate.ContainerSpec == nil {
+			s.Spec.TaskTemplate.ContainerSpec = &swarm.ContainerSpec{}
+		}
+		s.Spec.TaskTemplate.ContainerSpec.Healthcheck = &container.HealthConfig{}
+		s.Spec.TaskTemplate.Networks = []swarm.NetworkAttachmentConfig{
+			{Target: netName},
+		}
+	})
+
+	poll.WaitOn(c, pollCheck(c, d1.CheckActiveContainerCount(ctx), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
+
+	nw, err = dc1.NetworkInspect(ctx, netName, network.InspectOptions{})
+	ipamStateV4, ok = nw.State.IPAM[cidrv4]
+	assert.NilError(c, err)
+	assert.Equal(c, ok, true)
+	assert.Equal(c, resp.ID, nw.ID)
+	assert.Equal(c, ipamStateV4.AllocatedIPsInSubnet, uint64(7))
+	assert.Equal(c, ipamStateV4.AvailableIPsInIPRangePool, uint64(122))
+
+	// Promote d2 to manager and demote d1 to worker
+	d1.UpdateNode(ctx, c, d2.NodeID(), func(n *swarm.Node) {
+		n.Spec.Role = swarm.NodeRoleManager
+	})
+
+	poll.WaitOn(c, pollCheck(c, d2.CheckControlAvailable(ctx), checker.True()), poll.WithTimeout(defaultReconciliationTimeout))
+
+	d2.UpdateNode(ctx, c, d1.NodeID(), func(n *swarm.Node) {
+		n.Spec.Role = swarm.NodeRoleWorker
+	})
+
+	poll.WaitOn(c, pollCheck(c, d1.CheckControlAvailable(ctx), checker.False()), poll.WithTimeout(defaultReconciliationTimeout))
+
+	dc2 := d2.NewClientT(c)
+
+	// Check that the network state is consistent on d2
+	nw, err = dc2.NetworkInspect(ctx, netName, network.InspectOptions{})
+	assert.NilError(c, err)
+	assert.Equal(c, ok, true)
+	assert.Equal(c, resp.ID, nw.ID)
+	assert.Equal(c, ipamStateV4.AllocatedIPsInSubnet, uint64(7))
+	assert.Equal(c, ipamStateV4.AvailableIPsInIPRangePool, uint64(122))
+
+	d2.RemoveService(ctx, c, sid)
+
+	poll.WaitOn(c, pollCheck(c, d2.CheckActiveContainerCount(ctx), checker.Equals(0)), poll.WithTimeout(defaultReconciliationTimeout))
+	poll.WaitOn(c, pollCheck(c, d1.CheckActiveContainerCount(ctx), checker.Equals(0)), poll.WithTimeout(defaultReconciliationTimeout))
+	time.Sleep(2 * time.Second)
+
+	nw, err = dc2.NetworkInspect(ctx, netName, network.InspectOptions{})
+	ipamStateV4, ok = nw.State.IPAM[cidrv4]
+	assert.NilError(c, err)
+	assert.Equal(c, ok, true)
+	assert.Equal(c, resp.ID, nw.ID)
+	assert.Equal(c, ipamStateV4.AllocatedIPsInSubnet, uint64(3))
+	assert.Equal(c, ipamStateV4.AvailableIPsInIPRangePool, uint64(126))
+
+	d2.UpdateNode(ctx, c, d1.NodeID(), func(n *swarm.Node) {
+		n.Spec.Role = swarm.NodeRoleManager
+	})
+
+	poll.WaitOn(c, pollCheck(c, d1.CheckControlAvailable(ctx), checker.True()), poll.WithTimeout(defaultReconciliationTimeout))
+
+	d2.UpdateNode(ctx, c, d2.NodeID(), func(n *swarm.Node) {
+		n.Spec.Role = swarm.NodeRoleWorker
+	})
+
+	poll.WaitOn(c, pollCheck(c, d2.CheckControlAvailable(ctx), checker.False()), poll.WithTimeout(defaultReconciliationTimeout))
+
+	nw, err = dc1.NetworkInspect(ctx, netName, network.InspectOptions{})
+	assert.NilError(c, err)
+	assert.Equal(c, ok, true)
+	assert.Equal(c, resp.ID, nw.ID)
+	assert.Equal(c, ipamStateV4.AllocatedIPsInSubnet, uint64(3))
+	assert.Equal(c, ipamStateV4.AvailableIPsInIPRangePool, uint64(126))
+}
