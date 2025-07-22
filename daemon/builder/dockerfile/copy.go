@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/daemon/builder"
 	"github.com/docker/docker/daemon/builder/remotecontext"
 	"github.com/docker/docker/daemon/builder/remotecontext/urlutil"
-	"github.com/docker/docker/pkg/longpath"
+	"github.com/docker/docker/daemon/internal/longpath"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/system"
