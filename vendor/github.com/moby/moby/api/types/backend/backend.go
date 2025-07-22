@@ -109,29 +109,11 @@ type ExecStartConfig struct {
 
 // ExecInspect holds information about a running process started
 // with docker exec.
-type ExecInspect struct {
-	ID            string
-	Running       bool
-	ExitCode      *int
-	ProcessConfig *ExecProcessConfig
-	OpenStdin     bool
-	OpenStderr    bool
-	OpenStdout    bool
-	CanRemove     bool
-	ContainerID   string
-	DetachKeys    []byte
-	Pid           int
-}
+type ExecInspect = container.ExecInspectResponse
 
 // ExecProcessConfig holds information about the exec process
 // running on the host.
-type ExecProcessConfig struct {
-	Tty        bool     `json:"tty"`
-	Entrypoint string   `json:"entrypoint"`
-	Arguments  []string `json:"arguments"`
-	Privileged *bool    `json:"privileged,omitempty"`
-	User       string   `json:"user,omitempty"`
-}
+type ExecProcessConfig = container.ExecProcessConfig
 
 // CreateImageConfig is the configuration for creating an image from a
 // container.
