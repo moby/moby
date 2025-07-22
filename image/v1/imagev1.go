@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
 )
 
