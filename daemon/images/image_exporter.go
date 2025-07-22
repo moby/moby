@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 
-	"github.com/docker/docker/image/tarexport"
+	"github.com/docker/docker/daemon/internal/image/tarexport"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

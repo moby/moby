@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/image"
+	"github.com/docker/docker/daemon/internal/image"
 	"github.com/google/uuid"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
