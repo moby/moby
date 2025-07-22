@@ -9,7 +9,7 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/internal/multierror"
+	"github.com/docker/docker/daemon/internal/multierror"
 	"github.com/moby/moby/api/types/backend"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
