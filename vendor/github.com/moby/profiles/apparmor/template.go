@@ -6,7 +6,6 @@ package apparmor
 //       change to this profile, please make follow-up PRs to those projects so
 //       that these rules can be synchronised (because any issue with this
 //       profile will likely affect libpod and containerd).
-// TODO: Move this to a common project so we can maintain it in one spot.
 
 // baseTemplate defines the default apparmor profile for containers.
 const baseTemplate = `

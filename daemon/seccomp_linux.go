@@ -9,7 +9,7 @@ import (
 	"github.com/containerd/log"
 	dconfig "github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/profiles/seccomp"
+	"github.com/moby/profiles/seccomp"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 

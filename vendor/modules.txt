@@ -970,6 +970,12 @@ github.com/moby/moby/client
 ## explicit; go 1.19
 github.com/moby/patternmatcher
 github.com/moby/patternmatcher/ignorefile
+# github.com/moby/profiles/apparmor v0.1.0
+## explicit; go 1.23.0
+github.com/moby/profiles/apparmor
+# github.com/moby/profiles/seccomp v0.1.0
+## explicit; go 1.23.0
+github.com/moby/profiles/seccomp
 # github.com/moby/pubsub v1.0.0
 ## explicit; go 1.19
 github.com/moby/pubsub
