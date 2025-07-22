@@ -22,7 +22,7 @@ import (
 	"github.com/docker/docker/daemon/internal/metrics"
 	"github.com/docker/docker/daemon/internal/multierror"
 	"github.com/docker/docker/daemon/internal/otelutil"
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/daemon/internal/runconfig"
 	"github.com/moby/moby/api/types/backend"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
