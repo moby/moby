@@ -11,10 +11,10 @@ import (
 	"slices"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/internal/sliceutil"
 	"github.com/docker/docker/daemon/libnetwork/netutils"
 	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/docker/docker/internal/sliceutil"
 )
 
 // addPortMappings takes cfg, the configuration for port mappings, selects host
