@@ -50,8 +50,7 @@ type StatsResponseReader struct {
 // MountPoint represents a mount point configuration inside the container.
 // This is used for reporting the mountpoints in use by a container.
 type MountPoint struct {
-	// Type is the type of mount, see `Type<foo>` definitions in
-	// github.com/docker/docker/api/types/mount.Type
+	// Type is the type of mount, see [mount.Type] definitions for details.
 	Type mount.Type `json:",omitempty"`
 
 	// Name is the name reference to the underlying data defined by `Source`
