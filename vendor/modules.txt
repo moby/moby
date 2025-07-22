@@ -942,6 +942,32 @@ github.com/moby/ipvs
 # github.com/moby/locker v1.0.1
 ## explicit; go 1.13
 github.com/moby/locker
+# github.com/moby/moby/api v1.52.0-alpha.1 => github.com/moby/moby/api v1.52.0-alpha.1.0.20250826224528-62884141100c
+## explicit; go 1.23.0
+github.com/moby/moby/api/pkg/authconfig
+github.com/moby/moby/api/types
+github.com/moby/moby/api/types/auxprogress
+github.com/moby/moby/api/types/blkiodev
+github.com/moby/moby/api/types/build
+github.com/moby/moby/api/types/checkpoint
+github.com/moby/moby/api/types/common
+github.com/moby/moby/api/types/container
+github.com/moby/moby/api/types/events
+github.com/moby/moby/api/types/filters
+github.com/moby/moby/api/types/image
+github.com/moby/moby/api/types/mount
+github.com/moby/moby/api/types/network
+github.com/moby/moby/api/types/plugin
+github.com/moby/moby/api/types/registry
+github.com/moby/moby/api/types/storage
+github.com/moby/moby/api/types/swarm
+github.com/moby/moby/api/types/system
+github.com/moby/moby/api/types/versions
+github.com/moby/moby/api/types/volume
+# github.com/moby/moby/client v0.0.0-00010101000000-000000000000 => github.com/moby/moby/client v0.1.0-alpha.0.0.20250826224528-62884141100c
+## explicit; go 1.23.0
+github.com/moby/moby/client
+github.com/moby/moby/client/internal/timestamp
 # github.com/moby/patternmatcher v0.6.0
 ## explicit; go 1.19
 github.com/moby/patternmatcher
@@ -1730,3 +1756,5 @@ tags.cncf.io/container-device-interface/pkg/parser
 # tags.cncf.io/container-device-interface/specs-go v1.0.0
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
+# github.com/moby/moby/api => github.com/moby/moby/api v1.52.0-alpha.1.0.20250826224528-62884141100c
+# github.com/moby/moby/client => github.com/moby/moby/client v0.1.0-alpha.0.0.20250826224528-62884141100c
