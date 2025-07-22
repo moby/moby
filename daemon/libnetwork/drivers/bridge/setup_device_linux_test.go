@@ -8,7 +8,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/daemon/libnetwork/netutils"
-	"github.com/docker/docker/internal/nlwrap"
+	"github.com/docker/docker/daemon/libnetwork/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

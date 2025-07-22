@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/docker/docker/internal/nlwrap"
+	"github.com/docker/docker/daemon/libnetwork/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"

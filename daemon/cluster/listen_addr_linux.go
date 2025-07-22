@@ -3,7 +3,7 @@ package cluster
 import (
 	"net"
 
-	"github.com/docker/docker/internal/nlwrap"
+	"github.com/docker/docker/daemon/libnetwork/nlwrap"
 	"github.com/vishvananda/netlink"
 )
 
