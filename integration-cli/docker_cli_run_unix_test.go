@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/testutil"
 	"github.com/moby/moby/client"
+	"github.com/moby/profiles/seccomp"
 	"github.com/moby/sys/mount"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -1319,7 +1320,16 @@ func (s *DockerCLIRunSuite) TestRunApparmorProcDirectory(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunSeccompWithDefaultProfile(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 
-	out, _, err := dockerCmdWithError("run", "--security-opt", "seccomp=../profiles/seccomp/default.json", "debian:bookworm-slim", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami")
+	// write the default profile to a file
+	b, err := json.MarshalIndent(seccomp.DefaultProfile(), "", "\t")
+	assert.NilError(c, err)
+
+	tmpDir := c.TempDir()
+	fileName := filepath.Join(tmpDir, "default.json")
+	err = os.WriteFile(fileName, b, 0o644)
+	assert.NilError(c, err)
+
+	out, _, err := dockerCmdWithError("run", "--security-opt", "seccomp="+fileName, "debian:bookworm-slim", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami")
 	assert.ErrorContains(c, err, "", out)
 	assert.Equal(c, strings.TrimSpace(out), "unshare: unshare failed: Operation not permitted")
 }
