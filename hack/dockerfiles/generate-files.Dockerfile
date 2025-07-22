@@ -42,7 +42,7 @@ RUN --mount=from=src,source=/out,target=.,rw \
     github.com/golang/protobuf/protoc-gen-go
   ./hack/with-go-mod.sh go build -v -mod=vendor -modfile=vendor.mod \
     -o /usr/bin/pluginrpc-gen \
-    ./pkg/plugins/pluginrpc-gen
+    ./daemon/pkg/plugins/pluginrpc-gen
 EOT
 
 FROM tools AS generated
