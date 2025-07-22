@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/docker/docker/daemon/internal/idtools"
 	"github.com/docker/docker/daemon/internal/quota"
-	"github.com/docker/docker/pkg/idtools"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

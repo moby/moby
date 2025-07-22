@@ -3,10 +3,10 @@
 package service
 
 import (
+	"github.com/docker/docker/daemon/internal/idtools"
 	"github.com/docker/docker/daemon/volume"
 	"github.com/docker/docker/daemon/volume/drivers"
 	"github.com/docker/docker/daemon/volume/local"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/pkg/errors"
 )
 
