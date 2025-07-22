@@ -39,6 +39,8 @@ import (
 	"github.com/docker/docker/daemon/events"
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
 	"github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/daemon/internal/distribution"
+	dmetadata "github.com/docker/docker/daemon/internal/distribution/metadata"
 	"github.com/docker/docker/daemon/internal/layer"
 	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
 	"github.com/docker/docker/daemon/internal/metrics"
@@ -54,8 +56,6 @@ import (
 	"github.com/docker/docker/daemon/snapshotter"
 	"github.com/docker/docker/daemon/stats"
 	volumesservice "github.com/docker/docker/daemon/volume/service"
-	"github.com/docker/docker/distribution"
-	dmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/authorization"
