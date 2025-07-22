@@ -945,6 +945,7 @@ github.com/moby/locker
 # github.com/moby/moby/api v1.52.0-beta.1 => github.com/moby/moby/api v1.52.0-beta.1.0.20250924115138-dcf5db2464b2
 ## explicit; go 1.23.0
 github.com/moby/moby/api/pkg/authconfig
+github.com/moby/moby/api/pkg/stdcopy
 github.com/moby/moby/api/types
 github.com/moby/moby/api/types/auxprogress
 github.com/moby/moby/api/types/blkiodev
