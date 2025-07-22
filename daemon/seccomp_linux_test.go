@@ -6,7 +6,7 @@ import (
 	coci "github.com/containerd/containerd/v2/pkg/oci"
 	dconfig "github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/oci"
+	"github.com/docker/docker/daemon/pkg/oci"
 	"github.com/docker/docker/pkg/sysinfo"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/profiles/seccomp"
