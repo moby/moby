@@ -12,7 +12,7 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/registry"
+	"github.com/docker/docker/daemon/pkg/registry"
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
