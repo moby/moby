@@ -3,12 +3,12 @@ package types
 import (
 	"context"
 
-	"github.com/docker/docker/api/types/build"
-	"github.com/docker/docker/api/types/common"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/storage"
-	"github.com/docker/docker/api/types/swarm"
+	"github.com/moby/moby/api/types/build"
+	"github.com/moby/moby/api/types/common"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/storage"
+	"github.com/moby/moby/api/types/swarm"
 )
 
 // IDResponse Response to an API call that returns just an Id.
