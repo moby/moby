@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/libnetwork/netutils"
-	"github.com/docker/docker/errdefs"
 	"github.com/vishvananda/netlink"
 )
 

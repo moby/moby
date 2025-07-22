@@ -13,9 +13,9 @@ import (
 	"gotest.tools/v3/assert"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/docker/docker/daemon/volume/service/opts"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/volume"
 )

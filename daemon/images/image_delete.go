@@ -8,9 +8,9 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/internal/metrics"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/events"

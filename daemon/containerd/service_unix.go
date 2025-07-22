@@ -4,8 +4,8 @@ package containerd
 
 import (
 	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 

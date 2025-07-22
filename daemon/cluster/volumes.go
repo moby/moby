@@ -6,7 +6,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/daemon/cluster/convert"
-	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	volumetypes "github.com/moby/moby/api/types/volume"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"google.golang.org/grpc"
