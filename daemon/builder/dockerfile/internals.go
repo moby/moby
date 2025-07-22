@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/daemon/builder"
 	"github.com/docker/docker/daemon/internal/image"
 	networkSettings "github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/daemon/pkg/stringid"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/chrootarchive"

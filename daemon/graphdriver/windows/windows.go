@@ -28,7 +28,7 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/internal/longpath"
 	"github.com/docker/docker/daemon/internal/mountref"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/daemon/pkg/ioutils"
 	"github.com/docker/go-units"
 	"github.com/moby/go-archive"
 	"github.com/moby/sys/reexec"

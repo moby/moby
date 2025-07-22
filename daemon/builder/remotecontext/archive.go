@@ -8,7 +8,7 @@ import (
 	"github.com/docker/docker/daemon/builder"
 	"github.com/docker/docker/daemon/builder/remotecontext/internal/tarsum"
 	"github.com/docker/docker/daemon/internal/longpath"
-	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/daemon/pkg/system"
 	"github.com/moby/go-archive/chrootarchive"
 	"github.com/moby/go-archive/compression"
 	"github.com/moby/sys/symlink"

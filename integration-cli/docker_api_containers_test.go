@@ -19,10 +19,10 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	dconfig "github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/pkg/stringid"
 	"github.com/docker/docker/daemon/volume"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"github.com/docker/go-connections/nat"

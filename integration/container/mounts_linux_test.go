@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/docker/docker/daemon/pkg/parsers/kernel"
 	"github.com/docker/docker/daemon/volume"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/testutil"
 	"github.com/moby/moby/api"
 	containertypes "github.com/moby/moby/api/types/container"

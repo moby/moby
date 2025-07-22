@@ -22,9 +22,9 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/tailfile"
+	"github.com/docker/docker/daemon/pkg/ioutils"
+	"github.com/docker/docker/daemon/pkg/stringid"
+	"github.com/docker/docker/daemon/pkg/tailfile"
 	"github.com/docker/docker/testutil/request"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"

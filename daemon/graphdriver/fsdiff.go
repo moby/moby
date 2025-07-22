@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/daemon/pkg/ioutils"
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/chrootarchive"
 	"github.com/moby/sys/user"

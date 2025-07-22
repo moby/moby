@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
-	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/daemon/pkg/plugingetter"
 	"github.com/moby/moby/api/types"
 )
 
