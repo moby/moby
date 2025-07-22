@@ -9,7 +9,7 @@ import (
 	"net/url"
 
 	"github.com/docker/docker/daemon/internal/errdefs"
-	"github.com/docker/docker/internal/lazyregexp"
+	"github.com/docker/docker/daemon/internal/lazyregexp"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/pkg/errors"
 )
