@@ -530,10 +530,10 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		d.args = append(d.args, "--storage-driver", d.storageDriver)
 	}
 
-	hasFwBackendArg := !slices.ContainsFunc(providedArgs, func(s string) bool {
+	hasFwBackendArg := slices.ContainsFunc(providedArgs, func(s string) bool {
 		return strings.HasPrefix(s, "--firewall-backend")
 	})
-	if hasFwBackendArg {
+	if !hasFwBackendArg {
 		if fw := os.Getenv("DOCKER_FIREWALL_BACKEND"); fw != "" {
 			d.args = append(d.args, "--firewall-backend="+fw)
 		}
