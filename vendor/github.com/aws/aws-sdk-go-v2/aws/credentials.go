@@ -70,6 +70,56 @@ func (AnonymousCredentials) Retrieve(context.Context) (Credentials, error) {
 		fmt.Errorf("the AnonymousCredentials is not a valid credential provider, and cannot be used to sign AWS requests with")
 }
 
+// CredentialSource is the source of the credential provider.
+// A provider can have multiple credential sources: For example, a provider that reads a profile, calls ECS to
+// get credentials and then assumes a role using STS will have all these as part of its provider chain.
+type CredentialSource int
+
+const (
+	// CredentialSourceUndefined is the sentinel zero value
+	CredentialSourceUndefined CredentialSource = iota
+	// CredentialSourceCode credentials resolved from code, cli parameters, session object, or client instance
+	CredentialSourceCode
+	// CredentialSourceEnvVars credentials resolved from environment variables
+	CredentialSourceEnvVars
+	// CredentialSourceEnvVarsSTSWebIDToken credentials resolved from environment variables for assuming a role with STS using a web identity token
+	CredentialSourceEnvVarsSTSWebIDToken
+	// CredentialSourceSTSAssumeRole credentials resolved from STS using AssumeRole
+	CredentialSourceSTSAssumeRole
+	// CredentialSourceSTSAssumeRoleSaml credentials resolved from STS using assume role with SAML
+	CredentialSourceSTSAssumeRoleSaml
+	// CredentialSourceSTSAssumeRoleWebID credentials resolved from STS using assume role with web identity
+	CredentialSourceSTSAssumeRoleWebID
+	// CredentialSourceSTSFederationToken credentials resolved from STS using a federation token
+	CredentialSourceSTSFederationToken
+	// CredentialSourceSTSSessionToken credentials resolved from STS using a session token 	S
+	CredentialSourceSTSSessionToken
+	// CredentialSourceProfile  credentials resolved from a config file(s) profile with static credentials
+	CredentialSourceProfile
+	// CredentialSourceProfileSourceProfile credentials resolved from a source profile in a config file(s) profile
+	CredentialSourceProfileSourceProfile
+	// CredentialSourceProfileNamedProvider credentials resolved from a named provider in a config file(s) profile (like EcsContainer)
+	CredentialSourceProfileNamedProvider
+	// CredentialSourceProfileSTSWebIDToken  credentials resolved from configuration for assuming a role with STS using web identity token in a config file(s) profile
+	CredentialSourceProfileSTSWebIDToken
+	// CredentialSourceProfileSSO credentials resolved from an SSO session in a config file(s) profile
+	CredentialSourceProfileSSO
+	// CredentialSourceSSO credentials resolved from an SSO session
+	CredentialSourceSSO
+	// CredentialSourceProfileSSOLegacy credentials resolved from an SSO session in a config file(s) profile using legacy format
+	CredentialSourceProfileSSOLegacy
+	// CredentialSourceSSOLegacy credentials resolved from an SSO session using legacy format
+	CredentialSourceSSOLegacy
+	// CredentialSourceProfileProcess credentials resolved from a process in a config file(s) profile
+	CredentialSourceProfileProcess
+	// CredentialSourceProcess credentials resolved from a process
+	CredentialSourceProcess
+	// CredentialSourceHTTP credentials resolved from an HTTP endpoint
+	CredentialSourceHTTP
+	// CredentialSourceIMDS credentials resolved from the instance metadata service (IMDS)
+	CredentialSourceIMDS
+)
+
 // A Credentials is the AWS credentials value for individual credential fields.
 type Credentials struct {
 	// AWS Access key ID
@@ -123,6 +173,13 @@ type CredentialsProvider interface {
 	// Retrieve returns nil if it successfully retrieved the value.
 	// Error is returned if the value were not obtainable, or empty.
 	Retrieve(ctx context.Context) (Credentials, error)
+}
+
+// CredentialProviderSource allows any credential provider to track
+// all providers where a credential provider were sourced. For example, if the credentials came from a
+// call to a role specified in the profile, this method will give the whole breadcrumb trail
+type CredentialProviderSource interface {
+	ProviderSources() []CredentialSource
 }
 
 // CredentialsProviderFunc provides a helper wrapping a function value to

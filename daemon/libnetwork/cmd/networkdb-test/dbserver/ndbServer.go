@@ -10,9 +10,9 @@ import (
 	"strconv"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/cmd/networkdb-test/dummyclient"
-	"github.com/docker/docker/daemon/libnetwork/diagnostic"
-	"github.com/docker/docker/daemon/libnetwork/networkdb"
+	"github.com/moby/moby/daemon/libnetwork/cmd/networkdb-test/dummyclient"
+	"github.com/moby/moby/daemon/libnetwork/diagnostic"
+	"github.com/moby/moby/daemon/libnetwork/networkdb"
 )
 
 var (

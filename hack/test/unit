@@ -15,54 +15,59 @@ set -eux -o pipefail
 BUILDFLAGS=(-tags 'netgo journald')
 TESTFLAGS+=" -test.timeout=${TIMEOUT:-5m}"
 TESTDIRS="${TESTDIRS:-./...}"
-exclude_paths='/vendor/|/integration'
-pkg_list=$(go list $TESTDIRS | grep -vE "($exclude_paths)")
-
-base_pkg_list=$(echo "${pkg_list}" | grep --fixed-strings -v "/libnetwork" | grep --fixed-strings -v "/docker/docker/api" | grep --fixed-strings -v "/docker/docker/client" || :)
-api_pkg_list=$(echo "${pkg_list}" | grep --fixed-strings "docker/docker/api" | sed 's/docker\/docker/moby\/moby/' || :)
-client_pkg_list=$(echo "${pkg_list}" | grep --fixed-strings "docker/docker/client" | sed 's/docker\/docker/moby\/moby/' || :)
-libnetwork_pkg_list=$(echo "${pkg_list}" | grep --fixed-strings "/libnetwork" || :)
-
-echo "${libnetwork_pkg_list}" | grep --fixed-strings "libnetwork/drivers/bridge" \
-	&& if ! type docker-proxy; then
-		hack/make.sh binary-proxy install-proxy
-	fi
+GO111MODULE=on
 
 mkdir -p bundles
 
-if [ -n "${base_pkg_list}" ]; then
-	gotestsum --format=standard-quiet --jsonfile=bundles/go-test-report.json --junitfile=bundles/junit-report.xml -- \
-		"${BUILDFLAGS[@]}" \
-		-cover \
-		-coverprofile=bundles/coverage.out \
-		-covermode=atomic \
-		${TESTFLAGS} \
-		${base_pkg_list}
-fi
-
+cd api
+api_pkg_list=$(go list $TESTDIRS)
 if [ -n "${api_pkg_list}" ]; then
-	cd api
-	GO111MODULE=on gotestsum --format=standard-quiet --jsonfile=../bundles/go-test-report-api.json --junitfile=../bundles/junit-report-api.xml -- \
+	gotestsum --format=standard-quiet --jsonfile=../bundles/go-test-report-api.json --junitfile=../bundles/junit-report-api.xml -- \
 		"${BUILDFLAGS[@]}" \
 		-cover \
 		-coverprofile=../bundles/coverage-api.out \
 		-covermode=atomic \
 		${TESTFLAGS} \
 		${api_pkg_list}
-	cd ..
 fi
 
+cd ../client
+
+client_pkg_list=$(go list $TESTDIRS)
 if [ -n "${client_pkg_list}" ]; then
-	cd client
-	GO111MODULE=on gotestsum --format=standard-quiet --jsonfile=../bundles/go-test-report-client.json --junitfile=../bundles/junit-report-client.xml -- \
+	gotestsum --format=standard-quiet --jsonfile=../bundles/go-test-report-client.json --junitfile=../bundles/junit-report-client.xml -- \
 		"${BUILDFLAGS[@]}" \
 		-cover \
 		-coverprofile=../bundles/coverage-client.out \
 		-covermode=atomic \
 		${TESTFLAGS} \
 		${client_pkg_list}
-	cd ..
 fi
+
+cd ../daemon
+
+pkgs=$(go list $TESTDIRS)
+
+daemon_pkg_list=$(echo "${pkgs}" | grep --fixed-strings -v "/libnetwork" || :)
+libnetwork_pkg_list=$(echo "${pkgs}" | grep --fixed-strings "/libnetwork" || :)
+
+cd ..
+echo "${libnetwork_pkg_list}" | grep --fixed-strings "libnetwork/drivers/bridge" \
+	&& if ! type docker-proxy; then
+		hack/make.sh binary-proxy install-proxy
+	fi
+cd daemon
+
+if [ -n "${daemon_pkg_list}" ]; then
+	gotestsum --format=standard-quiet --jsonfile=../bundles/go-test-report.json --junitfile=../bundles/junit-report.xml -- \
+		"${BUILDFLAGS[@]}" \
+		-cover \
+		-coverprofile=../bundles/coverage.out \
+		-covermode=atomic \
+		${TESTFLAGS} \
+		${daemon_pkg_list}
+fi
+
 
 if [ -n "${libnetwork_pkg_list}" ]; then
 	rerun_flaky=1
@@ -77,10 +82,10 @@ if [ -n "${libnetwork_pkg_list}" ]; then
 	# libnetwork tests invoke iptables, and cannot be run in parallel. Execute
 	# tests within /libnetwork with '-p=1' to run them sequentially. See
 	# https://github.com/moby/moby/issues/42458#issuecomment-873216754 for details.
-	gotestsum --format=standard-quiet --jsonfile=bundles/go-test-report-libnetwork.json --junitfile=bundles/junit-report-libnetwork.xml \
+	gotestsum --format=standard-quiet --jsonfile=../bundles/go-test-report-libnetwork.json --junitfile=../bundles/junit-report-libnetwork.xml \
 		-- "${BUILDFLAGS[@]}" \
 		-cover \
-		-coverprofile=bundles/coverage-libnetwork.out \
+		-coverprofile=../bundles/coverage-libnetwork.out \
 		-covermode=atomic \
 		-p=1 \
 		${gotest_extra_flags} \
@@ -88,15 +93,17 @@ if [ -n "${libnetwork_pkg_list}" ]; then
 		${libnetwork_pkg_list}
 
 	if [ $rerun_flaky -eq 1 ]; then
-		gotestsum --format=standard-quiet --jsonfile=bundles/go-test-report-libnetwork-flaky.json --junitfile=bundles/junit-report-libnetwork-flaky.xml \
+		gotestsum --format=standard-quiet --jsonfile=../bundles/go-test-report-libnetwork-flaky.json --junitfile=../bundles/junit-report-libnetwork-flaky.xml \
 			--packages "${libnetwork_pkg_list}" \
 			--rerun-fails=4 \
 			-- "${BUILDFLAGS[@]}" \
 			-cover \
-			-coverprofile=bundles/coverage-libnetwork-flaky.out \
+			-coverprofile=../bundles/coverage-libnetwork-flaky.out \
 			-covermode=atomic \
 			-p=1 \
 			-test.run 'TestFlaky.*' \
 			${TESTFLAGS}
 	fi
 fi
+
+cd ..

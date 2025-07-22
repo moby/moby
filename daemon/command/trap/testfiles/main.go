@@ -5,7 +5,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/daemon/command/trap"
+	"github.com/moby/moby/daemon/command/trap"
 )
 
 func main() {

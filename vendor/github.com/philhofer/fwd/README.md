@@ -45,6 +45,15 @@ the write position by the length of the returned slice. This allows users
 to write directly to the end of the buffer.
 
 
+## Portability
+
+Because it uses the unsafe package, there are theoretically
+no promises about forward or backward portability.
+
+To stay compatible with tinygo 0.32, unsafestr() has been updated
+to use unsafe.Slice() as suggested by
+https://tinygo.org/docs/guides/compatibility, which also required
+bumping go.mod to require at least go 1.20.
 
 
 ## <a name="pkg-index">Index</a>

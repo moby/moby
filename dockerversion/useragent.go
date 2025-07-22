@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/docker/docker/pkg/useragent"
+	"github.com/moby/moby/daemon/pkg/parsers/kernel"
+	"github.com/moby/moby/daemon/pkg/useragent"
 )
 
 // UAStringKey is used as key type for user-agent string in net/context struct

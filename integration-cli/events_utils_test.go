@@ -12,8 +12,8 @@ import (
 	"testing"
 
 	"github.com/containerd/log"
-	eventstestutils "github.com/docker/docker/daemon/events/testutils"
 	"github.com/docker/docker/integration-cli/cli"
+	eventstestutils "github.com/moby/moby/daemon/events/testutils"
 	"gotest.tools/v3/assert"
 )
 
