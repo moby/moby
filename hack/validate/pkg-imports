@@ -10,16 +10,6 @@ unset IFS
 
 badFiles=()
 for f in "${files[@]}"; do
-	case "$f" in
-		pkg/stdcopy/*)
-			# Temporarily allow pkg/stdcopy to import "github.com/moby/moby/api/stdcopy",
-			# because it's an alias for backward-compatibility.
-			#
-			# TODO(thaJeztah): remove once "github.com/docker/docker/pkg/stdcopy" is removed.
-			continue
-			;;
-	esac
-
 	IFS=$'\n'
 	badImports=($(go list -e -f '{{ join .Deps "\n" }}' "$f" | sort -u \
 		| grep -vE '^github.com/docker/docker/pkg/' \

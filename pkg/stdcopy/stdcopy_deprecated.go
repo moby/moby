@@ -1,12 +1,10 @@
-package stdcopy // Deprecated: use [github.com/docker/docker/api/stdcopy] instead.
+package stdcopy // Deprecated: use [github.com/moby/moby/api/stdcopy] instead.
 
 import (
 	"io"
 
 	"github.com/moby/moby/api/stdcopy"
 )
-
-// TODO(thaJeztah): remove exception in hack/make.ps1 and hack/validate/pkg-imports when removing.
 
 // StdType is the type of standard stream
 // a writer can multiplex to.
