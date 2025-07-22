@@ -7,6 +7,12 @@ module github.com/docker/docker
 
 go 1.23.0
 
+replace (
+	// FIXME(thaJeztah): temporarily need to pin on commits, otherwise go modules won't resolve until these are tagged.
+	github.com/moby/moby/api => github.com/moby/moby/api v0.0.0-20250725140006-7dc46c6e0c72
+	github.com/moby/moby/client => github.com/moby/moby/client v0.0.0-20250725140006-7dc46c6e0c72
+)
+
 require (
 	cloud.google.com/go/compute/metadata v0.6.0
 	cloud.google.com/go/logging v1.9.0
@@ -67,6 +73,7 @@ require (
 	github.com/moby/go-archive v0.1.0
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
+	github.com/moby/moby/api v0.0.0
 	github.com/moby/patternmatcher v0.6.0
 	github.com/moby/profiles/apparmor v0.1.0
 	github.com/moby/profiles/seccomp v0.1.0
