@@ -9,8 +9,8 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/docker/docker/daemon/internal/rootless/mountopts"
 	"github.com/docker/docker/daemon/pkg/oci"
-	"github.com/docker/docker/internal/rootless/mountopts"
 	"github.com/docker/docker/internal/sliceutil"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/sys/userns"
