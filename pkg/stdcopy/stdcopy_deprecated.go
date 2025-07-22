@@ -13,9 +13,10 @@ import (
 type StdType = stdcopy.StdType
 
 const (
-	Stdin  = stdcopy.Stdin  // Deprecated: use [stdcopy.Stderr]. This alias will be removed in the next release.
-	Stdout = stdcopy.Stdout // Deprecated: use [stdcopy.Stdout]. This alias will be removed in the next release.
-	Stderr = stdcopy.Stderr // Deprecated: use [stdcopy.Stderr]. This alias will be removed in the next release.
+	Stdin     = stdcopy.Stdin     // Deprecated: use [stdcopy.Stderr]. This alias will be removed in the next release.
+	Stdout    = stdcopy.Stdout    // Deprecated: use [stdcopy.Stdout]. This alias will be removed in the next release.
+	Stderr    = stdcopy.Stderr    // Deprecated: use [stdcopy.Stderr]. This alias will be removed in the next release.
+	Systemerr = stdcopy.Systemerr // Deprecated: use [stdcopy.Systemerr]. This alias will be removed in the next release.
 )
 
 // NewStdWriter instantiates a new Writer.
