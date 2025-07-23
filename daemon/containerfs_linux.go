@@ -17,8 +17,8 @@ import (
 
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/mounttree"
+	"github.com/docker/docker/daemon/internal/unshare"
 	"github.com/docker/docker/daemon/pkg/fileutils"
-	"github.com/docker/docker/internal/unshare"
 	containertypes "github.com/moby/moby/api/types/container"
 )
 
