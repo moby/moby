@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/docker/docker/internal/testutils/netnsutils"
+	"github.com/docker/docker/daemon/pkg/testutils/netnsutils"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/sys/mount"

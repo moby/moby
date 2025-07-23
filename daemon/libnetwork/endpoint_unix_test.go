@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/libnetwork/ipams/defaultipam"
-	"github.com/docker/docker/internal/testutils/netnsutils"
+	"github.com/docker/docker/daemon/pkg/testutils/netnsutils"
 )
 
 func TestHostsEntries(t *testing.T) {

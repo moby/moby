@@ -8,8 +8,8 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/drvregistry"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/nlwrap"
-	"github.com/docker/docker/internal/testutils/netnsutils"
-	"github.com/docker/docker/internal/testutils/storeutils"
+	"github.com/docker/docker/daemon/pkg/testutils/netnsutils"
+	"github.com/docker/docker/daemon/pkg/testutils/storeutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

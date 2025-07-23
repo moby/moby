@@ -16,7 +16,7 @@ import (
 	"github.com/containerd/log/logtest"
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/internal/testutils/specialimage"
+	"github.com/docker/docker/daemon/pkg/testutils/specialimage"
 	imagetypes "github.com/moby/moby/api/types/image"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

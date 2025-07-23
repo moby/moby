@@ -14,11 +14,11 @@ import (
 	"time"
 
 	"github.com/cpuguy83/tar2go"
+	"github.com/docker/docker/daemon/pkg/testutils"
+	"github.com/docker/docker/daemon/pkg/testutils/specialimage"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
 	iimage "github.com/docker/docker/integration/internal/image"
-	"github.com/docker/docker/internal/testutils"
-	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/moby/go-archive/compression"
 	containertypes "github.com/moby/moby/api/types/container"
