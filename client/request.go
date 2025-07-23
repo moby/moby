@@ -135,66 +135,72 @@ func (cli *Client) sendRequest(ctx context.Context, method, path string, query u
 
 func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 	resp, err := cli.client.Do(req)
-	if err != nil {
-		if cli.scheme != "https" && strings.Contains(err.Error(), "malformed HTTP response") {
-			return nil, errConnectionFailed{fmt.Errorf("%v.\n* Are you trying to connect to a TLS-enabled daemon without TLS?", err)}
-		}
-
-		if cli.scheme == "https" && strings.Contains(err.Error(), "bad certificate") {
-			return nil, errConnectionFailed{errors.Wrap(err, "the server probably has client authentication (--tlsverify) enabled; check your TLS client certification settings")}
-		}
-
-		// Don't decorate context sentinel errors; users may be comparing to
-		// them directly.
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return nil, err
-		}
-
-		var uErr *url.Error
-		if errors.As(err, &uErr) {
-			var nErr *net.OpError
-			if errors.As(uErr.Err, &nErr) {
-				if os.IsPermission(nErr.Err) {
-					return nil, errConnectionFailed{errors.Wrapf(err, "permission denied while trying to connect to the Docker daemon socket at %v", cli.host)}
-				}
-			}
-		}
-
-		var nErr net.Error
-		if errors.As(err, &nErr) {
-			// FIXME(thaJeztah): any net.Error should be considered a connection error (but we should include the original error)?
-			if nErr.Timeout() {
-				return nil, connectionFailed(cli.host)
-			}
-			if strings.Contains(nErr.Error(), "connection refused") || strings.Contains(nErr.Error(), "dial unix") {
-				return nil, connectionFailed(cli.host)
-			}
-		}
-
-		// Although there's not a strongly typed error for this in go-winio,
-		// lots of people are using the default configuration for the docker
-		// daemon on Windows where the daemon is listening on a named pipe
-		// `//./pipe/docker_engine, and the client must be running elevated.
-		// Give users a clue rather than the not-overly useful message
-		// such as `error during connect: Get http://%2F%2F.%2Fpipe%2Fdocker_engine/v1.26/info:
-		// open //./pipe/docker_engine: The system cannot find the file specified.`.
-		// Note we can't string compare "The system cannot find the file specified" as
-		// this is localised - for example in French the error would be
-		// `open //./pipe/docker_engine: Le fichier spécifié est introuvable.`
-		if strings.Contains(err.Error(), `open //./pipe/docker_engine`) {
-			// Checks if client is running with elevated privileges
-			if f, elevatedErr := os.Open(`\\.\PHYSICALDRIVE0`); elevatedErr != nil {
-				err = errors.Wrap(err, "in the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect")
-			} else {
-				_ = f.Close()
-				err = errors.Wrap(err, "this error may indicate that the docker daemon is not running")
-			}
-		}
-
-		return nil, errConnectionFailed{errors.Wrap(err, "error during connect")}
+	if err == nil {
+		return resp, nil
 	}
 
-	return resp, nil
+	if cli.scheme != "https" && strings.Contains(err.Error(), "malformed HTTP response") {
+		return nil, errConnectionFailed{fmt.Errorf("%w.\n* Are you trying to connect to a TLS-enabled daemon without TLS?", err)}
+	}
+
+	if cli.scheme == "https" && strings.Contains(err.Error(), "bad certificate") {
+		return nil, errConnectionFailed{errors.Wrap(err, "the server probably has client authentication (--tlsverify) enabled; check your TLS client certification settings")}
+	}
+
+	// Don't decorate context sentinel errors; users may be comparing to
+	// them directly.
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return nil, err
+	}
+
+	if errors.Is(err, os.ErrPermission) {
+		// Don't include request errors ("Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.51/version"),
+		// which are irrelevant if we weren't able to connect.
+		return nil, errConnectionFailed{fmt.Errorf("permission denied while trying to connect to the docker API at %v", cli.host)}
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		// Unwrap the error to remove request errors ("Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.51/version"),
+		// which are irrelevant if we weren't able to connect.
+		err = errors.Unwrap(err)
+		return nil, errConnectionFailed{errors.Wrapf(err, "failed to connect to the docker API at %v; check if the path is correct and if the daemon is running", cli.host)}
+	}
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) {
+		return nil, errConnectionFailed{errors.Wrapf(dnsErr, "failed to connect to the docker API at %v", cli.host)}
+	}
+
+	var nErr net.Error
+	if errors.As(err, &nErr) {
+		// FIXME(thaJeztah): any net.Error should be considered a connection error (but we should include the original error)?
+		if nErr.Timeout() {
+			return nil, connectionFailed(cli.host)
+		}
+		if strings.Contains(nErr.Error(), "connection refused") || strings.Contains(nErr.Error(), "dial unix") {
+			return nil, connectionFailed(cli.host)
+		}
+	}
+
+	// Although there's not a strongly typed error for this in go-winio,
+	// lots of people are using the default configuration for the docker
+	// daemon on Windows where the daemon is listening on a named pipe
+	// `//./pipe/docker_engine, and the client must be running elevated.
+	// Give users a clue rather than the not-overly useful message
+	// such as `error during connect: Get http://%2F%2F.%2Fpipe%2Fdocker_engine/v1.26/info:
+	// open //./pipe/docker_engine: The system cannot find the file specified.`.
+	// Note we can't string compare "The system cannot find the file specified" as
+	// this is localised - for example in French the error would be
+	// `open //./pipe/docker_engine: Le fichier spécifié est introuvable.`
+	if strings.Contains(err.Error(), `open //./pipe/docker_engine`) {
+		// Checks if client is running with elevated privileges
+		if f, elevatedErr := os.Open(`\\.\PHYSICALDRIVE0`); elevatedErr != nil {
+			err = errors.Wrap(err, "in the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect")
+		} else {
+			_ = f.Close()
+			err = errors.Wrap(err, "this error may indicate that the docker daemon is not running")
+		}
+	}
+
+	return nil, errConnectionFailed{errors.Wrap(err, "error during connect")}
 }
 
 func (cli *Client) checkResponseErr(serverResp *http.Response) (retErr error) {
