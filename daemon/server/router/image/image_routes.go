@@ -244,13 +244,13 @@ func (ir *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, 
 	}
 
 	var platformList []ocispec.Platform
-	// platform param was introduce in API version 1.48
+	// platform param was introduced in API version 1.48
 	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.48") {
 		var err error
 		formPlatforms := r.Form["platform"]
-		// multi-platform params were introduced in API version 1.51
-		if versions.LessThan(httputils.VersionFromContext(ctx), "1.51") && len(formPlatforms) > 1 {
-			return errdefs.InvalidParameter(errors.New("multiple platform parameters are not supported in this API version; use API version 1.51 or later."))
+		// multi-platform params were introduced in API version 1.52
+		if versions.LessThan(httputils.VersionFromContext(ctx), "1.52") && len(formPlatforms) > 1 {
+			return errdefs.InvalidParameter(errors.New("multiple platform parameters are not supported in this API version; use API version 1.52 or later"))
 		}
 		platformList, err = httputils.DecodePlatforms(formPlatforms)
 		if err != nil {
@@ -274,13 +274,13 @@ func (ir *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter
 	}
 
 	var platformList []ocispec.Platform
-	// platform param was introduce in API version 1.48
+	// platform param was introduced in API version 1.48
 	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.48") {
 		var err error
 		formPlatforms := r.Form["platform"]
-		// multi-platform params were introduced in API version 1.51
-		if versions.LessThan(httputils.VersionFromContext(ctx), "1.51") && len(formPlatforms) > 1 {
-			return errdefs.InvalidParameter(errors.New("multiple platform parameters are not supported in this API version; use API version 1.51 or later."))
+		// multi-platform params were introduced in API version 1.52
+		if versions.LessThan(httputils.VersionFromContext(ctx), "1.52") && len(formPlatforms) > 1 {
+			return errdefs.InvalidParameter(errors.New("multiple platform parameters are not supported in this API version; use API version 1.52 or later"))
 		}
 		platformList, err = httputils.DecodePlatforms(formPlatforms)
 		if err != nil {
