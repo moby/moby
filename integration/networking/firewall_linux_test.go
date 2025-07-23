@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/internal/testutils/networking"
+	"github.com/docker/docker/integration/internal/testutils/networking"
 	"github.com/docker/docker/testutil/request"
 	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
