@@ -1,6 +1,7 @@
 package containerd
 
 import (
+	"reflect"
 	"runtime"
 	"testing"
 
@@ -166,4 +167,35 @@ func testOnlyAndOnlyStrict(t *testing.T, daemonPlatform platforms.MatchComparer,
 			}
 		}
 	})
+}
+func TestPlatformsWithPreferenceMatcher(t *testing.T) {
+	platformList := []ocispec.Platform{
+		pLinuxAmd64,
+		pLinuxArmv5,
+		pLinuxArmv6,
+		pLinuxArm64,
+		pWindowsAmd64,
+	}
+
+	// Use pLinuxArm64 as the preferred platform
+	preferred := platforms.Only(pLinuxArm64)
+	matcher := matchAnyWithPreference(preferred, platformList)
+
+	// Should match all platforms in the list
+	for _, p := range platformList {
+		assert.Assert(t, matcher.Match(p), "matcher should match platform: %v", platforms.Format(p))
+	}
+
+	// Should not match a platform not in the list
+	notInList := ocispec.Platform{OS: "linux", Architecture: "s390x"}
+	assert.Assert(t, !matcher.Match(notInList), "matcher should not match platform: %v", platforms.Format(notInList))
+
+	// Test Less: preferred should be less than others
+	for _, p := range platformList {
+		if reflect.DeepEqual(p, pLinuxArm64) {
+			continue
+		}
+		assert.Assert(t, matcher.Less(pLinuxArm64, p), "preferred platform should be less than %v", platforms.Format(p))
+		assert.Assert(t, !matcher.Less(p, pLinuxArm64), "%v should not be less than preferred platform", platforms.Format(p))
+	}
 }
