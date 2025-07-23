@@ -79,8 +79,10 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 	}
 
 	query := url.Values{}
-	if p := formatPlatform(platform); p != "" {
-		query.Set("platform", p)
+	if platform != nil {
+		if p := formatPlatform(*platform); p != "unknown" {
+			query.Set("platform", p)
+		}
 	}
 
 	if containerName != "" {
@@ -103,14 +105,16 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 	return response, err
 }
 
-// formatPlatform returns a formatted string representing platform (e.g. linux/arm/v7).
+// formatPlatform returns a formatted string representing platform (e.g., "linux/arm/v7").
 //
-// Similar to containerd's platforms.Format(), but does allow components to be
-// omitted (e.g. pass "architecture" only, without "os":
-// https://github.com/containerd/containerd/blob/v1.5.2/platforms/platforms.go#L243-L263
-func formatPlatform(platform *ocispec.Platform) string {
-	if platform == nil {
-		return ""
+// It is a fork of [platforms.Format], and does not yet support "os.version",
+// as [[platforms.FormatAll] does.
+//
+// [platforms.Format]: https://github.com/containerd/platforms/blob/v1.0.0-rc.1/platforms.go#L309-L316
+// [platforms.FormatAll]: https://github.com/containerd/platforms/blob/v1.0.0-rc.1/platforms.go#L318-L330
+func formatPlatform(platform ocispec.Platform) string {
+	if platform.OS == "" {
+		return "unknown"
 	}
 	return path.Join(platform.OS, platform.Architecture, platform.Variant)
 }
@@ -134,8 +138,10 @@ const allCapabilities = "ALL"
 // normalizeCapabilities normalizes capabilities to their canonical form,
 // removes duplicates, and sorts the results.
 //
-// It is similar to [github.com/docker/docker/oci/caps.NormalizeLegacyCapabilities],
+// It is similar to [caps.NormalizeLegacyCapabilities],
 // but performs no validation based on supported capabilities.
+//
+// [caps.NormalizeLegacyCapabilities]: https://github.com/moby/moby/blob/v28.3.2/oci/caps/utils.go#L56
 func normalizeCapabilities(caps []string) []string {
 	var normalized []string
 
