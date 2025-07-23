@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 
+	containerpkg "github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/server/backend"
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/types/container"
@@ -40,7 +41,7 @@ type stateBackend interface {
 	ContainerStop(ctx context.Context, name string, options container.StopOptions) error
 	ContainerUnpause(name string) error
 	ContainerUpdate(name string, hostConfig *container.HostConfig) (container.UpdateResponse, error)
-	ContainerWait(ctx context.Context, name string, condition container.WaitCondition) (<-chan container.StateStatus, error)
+	ContainerWait(ctx context.Context, name string, condition container.WaitCondition) (<-chan containerpkg.StateStatus, error)
 }
 
 // monitorBackend includes functions to implement to provide containers monitoring functionality.
