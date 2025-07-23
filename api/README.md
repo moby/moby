@@ -1,4 +1,4 @@
-# Working on the Engine API
+# Engine API
 
 The Engine API is an HTTP API used by the command-line client to communicate with the daemon. It can also be used by third-party software to control the daemon.
 
@@ -21,6 +21,7 @@ The API is defined by the [Swagger](http://swagger.io/specification/) definition
 ## Updating the API documentation
 
 The API documentation is generated entirely from `api/swagger.yaml`. If you make updates to the API, edit this file to represent the change in the documentation.
+Documentation for each API version can be found in the [docs directory](docs/README.md), which also provides a [CHANGELOG.md](docs/CHANGELOG.md). 
 
 The file is split into two main sections:
 
