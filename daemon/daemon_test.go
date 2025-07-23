@@ -9,9 +9,9 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/daemon/internal/idtools"
 	"github.com/docker/docker/daemon/libnetwork"
 	volumesservice "github.com/docker/docker/daemon/volume/service"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/go-connections/nat"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/pkg/errors"
