@@ -44,10 +44,42 @@ type ExecStartOptions struct {
 type ExecAttachOptions = ExecStartOptions
 
 // ExecInspect holds information returned by exec inspect.
+//
+// It is used by the client to unmarshal a [ExecInspectResponse],
+// but currently only provides a subset of the information included
+// in that type.
+//
+// TODO(thaJeztah): merge [ExecInspect] and [ExecInspectResponse],
 type ExecInspect struct {
 	ExecID      string `json:"ID"`
-	ContainerID string
-	Running     bool
-	ExitCode    int
-	Pid         int
+	ContainerID string `json:"ContainerID"`
+	Running     bool   `json:"Running"`
+	ExitCode    int    `json:"ExitCode"`
+	Pid         int    `json:"Pid"`
+}
+
+// ExecInspectResponse is the API response for the "GET /exec/{id}/json"
+// endpoint and holds information about and exec.
+type ExecInspectResponse struct {
+	ID            string `json:"ID"`
+	Running       bool   `json:"Running"`
+	ExitCode      *int   `json:"ExitCode"`
+	ProcessConfig *ExecProcessConfig
+	OpenStdin     bool   `json:"OpenStdin"`
+	OpenStderr    bool   `json:"OpenStderr"`
+	OpenStdout    bool   `json:"OpenStdout"`
+	CanRemove     bool   `json:"CanRemove"`
+	ContainerID   string `json:"ContainerID"`
+	DetachKeys    []byte `json:"DetachKeys"`
+	Pid           int    `json:"Pid"`
+}
+
+// ExecProcessConfig holds information about the exec process
+// running on the host.
+type ExecProcessConfig struct {
+	Tty        bool     `json:"tty"`
+	Entrypoint string   `json:"entrypoint"`
+	Arguments  []string `json:"arguments"`
+	Privileged *bool    `json:"privileged,omitempty"`
+	User       string   `json:"user,omitempty"`
 }
