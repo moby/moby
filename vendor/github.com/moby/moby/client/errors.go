@@ -42,14 +42,6 @@ func connectionFailed(host string) error {
 	return errConnectionFailed{error: err}
 }
 
-// IsErrNotFound returns true if the error is a NotFound error, which is returned
-// by the API when some object is not found. It is an alias for [cerrdefs.IsNotFound].
-//
-// Deprecated: use [cerrdefs.IsNotFound] instead.
-func IsErrNotFound(err error) bool {
-	return cerrdefs.IsNotFound(err)
-}
-
 type objectNotFoundError struct {
 	object string
 	id     string
