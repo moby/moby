@@ -39,23 +39,31 @@ func ValidateContainerState(s ContainerState) error {
 // Implements exec.ExitCode interface.
 // This type is needed as State include a sync.Mutex field which make
 // copying it unsafe.
+//
+// Deprecated: this type was only used internally, and will be removed in the next release.
 type StateStatus struct {
 	exitCode int
 	err      error
 }
 
 // ExitCode returns current exitcode for the state.
+//
+// Deprecated: this was only used internally, and will be removed in the next release.
 func (s StateStatus) ExitCode() int {
 	return s.exitCode
 }
 
 // Err returns current error for the state. Returns nil if the container had
 // exited on its own.
+//
+// Deprecated: this was only used internally, and will be removed in the next release.
 func (s StateStatus) Err() error {
 	return s.err
 }
 
 // NewStateStatus returns a new StateStatus with the given exit code and error.
+//
+// Deprecated: this was only used internally, and will be removed in the next release.
 func NewStateStatus(exitCode int, err error) StateStatus {
 	return StateStatus{
 		exitCode: exitCode,
