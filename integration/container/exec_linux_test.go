@@ -4,11 +4,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/integration/internal/container"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/versions"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/integration/internal/container"
 )
 
 func TestExecConsoleSize(t *testing.T) {

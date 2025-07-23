@@ -7,11 +7,12 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/daemon/container"
 	"github.com/moby/moby/api/types/backend"
 	containertypes "github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/daemon/container"
 )
 
 func newDaemonWithTmpRoot(t *testing.T) (*Daemon, func()) {

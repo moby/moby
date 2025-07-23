@@ -12,6 +12,13 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
+
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/daemon/libnetwork/drvregistry"
@@ -28,12 +35,6 @@ import (
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/internal/testutils/storeutils"
-	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netns"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/icmd"
 )
 
 func TestEndpointMarshalling(t *testing.T) {

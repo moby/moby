@@ -5,14 +5,15 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/daemon/volume"
-	volumedrivers "github.com/docker/docker/daemon/volume/drivers"
-	"github.com/docker/docker/daemon/volume/service/opts"
-	"github.com/docker/docker/daemon/volume/testutils"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/daemon/volume"
+	volumedrivers "github.com/docker/docker/daemon/volume/drivers"
+	"github.com/docker/docker/daemon/volume/service/opts"
+	"github.com/docker/docker/daemon/volume/testutils"
 )
 
 func TestServiceCreate(t *testing.T) {

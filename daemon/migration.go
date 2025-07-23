@@ -7,12 +7,13 @@ import (
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/internal/multierror"
 	"github.com/moby/moby/api/types/backend"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/multierror"
 )
 
 func migrateContainerOS(ctx context.Context,

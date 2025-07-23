@@ -9,12 +9,6 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/integration/internal/build"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/daemon"
-	"github.com/docker/docker/testutil/fakecontext"
-	"github.com/docker/docker/testutil/request"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
@@ -23,6 +17,13 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/integration/internal/build"
+	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/daemon"
+	"github.com/docker/docker/testutil/fakecontext"
+	"github.com/docker/docker/testutil/request"
 )
 
 func TestVolumesCreateAndList(t *testing.T) {

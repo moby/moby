@@ -9,9 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/logger"
 	"github.com/google/go-cmp/cmp"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/daemon/logger"
 )
 
 func TestValidateLogOptReconnectInterval(t *testing.T) {

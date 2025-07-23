@@ -6,10 +6,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/config"
-	"github.com/docker/docker/daemon/libnetwork/resolvconf"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/daemon/libnetwork/config"
+	"github.com/docker/docker/daemon/libnetwork/resolvconf"
 )
 
 func TestDNSOptions(t *testing.T) {

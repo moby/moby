@@ -3,11 +3,12 @@ package daemon
 import (
 	"context"
 
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/internal/capabilities"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/system"
 	"github.com/opencontainers/runtime-spec/specs-go"
+
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/internal/capabilities"
 )
 
 var deviceDrivers = map[string]*deviceDriver{}

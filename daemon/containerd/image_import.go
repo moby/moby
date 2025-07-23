@@ -15,10 +15,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/daemon/builder/dockerfile"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/pools"
 	"github.com/google/uuid"
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/go-archive/compression"
@@ -28,6 +24,11 @@ import (
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/builder/dockerfile"
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/pools"
 )
 
 // ImportImage imports an image, getting the archived layer data from layerReader.

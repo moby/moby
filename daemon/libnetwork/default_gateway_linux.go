@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"strconv"
 
+	"go.opentelemetry.io/otel/baggage"
+
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
 	"github.com/docker/docker/internal/otelutil"
-	"go.opentelemetry.io/otel/baggage"
 )
 
 const libnGWNetwork = "docker_gwbridge"

@@ -10,6 +10,12 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/api/types/backend"
+	containertypes "github.com/moby/moby/api/types/container"
+	mounttypes "github.com/moby/moby/api/types/mount"
+	volumetypes "github.com/moby/moby/api/types/volume"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/volume"
 	volumemounts "github.com/docker/docker/daemon/volume/mounts"
@@ -17,11 +23,6 @@ import (
 	volumeopts "github.com/docker/docker/daemon/volume/service/opts"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/layer"
-	"github.com/moby/moby/api/types/backend"
-	containertypes "github.com/moby/moby/api/types/container"
-	mounttypes "github.com/moby/moby/api/types/mount"
-	volumetypes "github.com/moby/moby/api/types/volume"
-	"github.com/pkg/errors"
 )
 
 var _ volume.LiveRestorer = (*volumeWrapper)(nil)

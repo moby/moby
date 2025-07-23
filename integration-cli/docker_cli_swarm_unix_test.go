@@ -8,11 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/testutil"
 	"github.com/moby/moby/api/types/swarm"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
+
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/testutil"
 )
 
 func (s *DockerSwarmSuite) TestSwarmVolumePlugin(c *testing.T) {

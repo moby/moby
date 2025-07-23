@@ -18,13 +18,6 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	dconfig "github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/volume"
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/request"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
@@ -33,6 +26,14 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
+
+	dconfig "github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/volume"
+	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/request"
 )
 
 func (s *DockerAPISuite) TestContainerAPIGetAll(c *testing.T) {

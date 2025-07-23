@@ -12,13 +12,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/daemon/libnetwork/netlabel"
-	networkSettings "github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/daemon/server/httpstatus"
-	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/runconfig"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/container"
@@ -30,6 +23,14 @@ import (
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 	"golang.org/x/net/websocket"
+
+	"github.com/docker/docker/daemon/libnetwork/netlabel"
+	networkSettings "github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/daemon/server/httpstatus"
+	"github.com/docker/docker/daemon/server/httputils"
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/runconfig"
 )
 
 func (c *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

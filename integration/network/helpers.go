@@ -7,11 +7,12 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/docker/docker/testutil"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
+
+	"github.com/docker/docker/testutil"
 )
 
 // CreateMasterDummy creates a dummy network interface

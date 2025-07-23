@@ -10,13 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
+
+	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/internal/testutils/specialimage"
 )
 
 type DockerCLIInspectSuite struct {

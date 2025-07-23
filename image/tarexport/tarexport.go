@@ -5,11 +5,12 @@ import (
 
 	"github.com/containerd/platforms"
 	"github.com/docker/distribution"
+	"github.com/moby/moby/api/types/events"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	refstore "github.com/docker/docker/reference"
-	"github.com/moby/moby/api/types/events"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 const (

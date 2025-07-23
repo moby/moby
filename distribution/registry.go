@@ -12,10 +12,11 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
-	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/registry"
 	registrytypes "github.com/moby/moby/api/types/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/registry"
 )
 
 var (

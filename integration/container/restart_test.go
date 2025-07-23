@@ -7,9 +7,6 @@ import (
 	"testing"
 	"time"
 
-	testContainer "github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/daemon"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
@@ -18,6 +15,10 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	testContainer "github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/daemon"
 )
 
 func TestDaemonRestartKillContainers(t *testing.T) {

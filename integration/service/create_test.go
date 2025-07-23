@@ -8,10 +8,6 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/integration/internal/network"
-	"github.com/docker/docker/integration/internal/swarm"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/daemon"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
@@ -20,6 +16,11 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/integration/internal/swarm"
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/daemon"
 )
 
 func TestServiceCreateInit(t *testing.T) {

@@ -5,12 +5,13 @@ import (
 	"io"
 
 	"github.com/distribution/reference"
-	dockerimage "github.com/docker/docker/image"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	dockerimage "github.com/docker/docker/image"
 )
 
 // Backend is all the methods that need to be implemented

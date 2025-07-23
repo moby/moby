@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
-	"github.com/docker/docker/daemon/libnetwork/types"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
+	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
 func TestBindHostPortsError(t *testing.T) {

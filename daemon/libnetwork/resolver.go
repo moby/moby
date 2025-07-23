@@ -14,8 +14,6 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/internal/netiputil"
-	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/miekg/dns"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -23,6 +21,9 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/semaphore"
 	"golang.org/x/time/rate"
+
+	"github.com/docker/docker/daemon/libnetwork/internal/netiputil"
+	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
 // DNSBackend represents a backend DNS resolver used for DNS name

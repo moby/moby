@@ -6,13 +6,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/chrootarchive"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
+
+	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/pkg/ioutils"
 )
 
 // containerStatPath stats the filesystem resource at the specified path in this

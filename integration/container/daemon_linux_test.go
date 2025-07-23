@@ -9,10 +9,6 @@ import (
 	"testing"
 	"time"
 
-	realcontainer "github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/daemon"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"golang.org/x/sys/unix"
@@ -20,6 +16,11 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/assert/opt"
 	"gotest.tools/v3/skip"
+
+	realcontainer "github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/daemon"
 )
 
 // This is a regression test for #36145

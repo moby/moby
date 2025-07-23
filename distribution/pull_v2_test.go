@@ -11,13 +11,14 @@ import (
 	"testing"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/registry"
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/registry"
 )
 
 func TestNoMatchesErr(t *testing.T) {

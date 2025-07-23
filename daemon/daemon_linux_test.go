@@ -9,8 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/sys/mount"
@@ -18,6 +16,9 @@ import (
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/daemon/libnetwork/types"
+	"github.com/docker/docker/internal/testutils/netnsutils"
 )
 
 //nolint:dupword

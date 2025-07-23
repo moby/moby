@@ -12,6 +12,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
+
 	"github.com/docker/docker/daemon/libnetwork/config"
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/internal/setmatrix"
@@ -22,10 +27,6 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/internal/testutils/netnsutils"
-	"github.com/google/go-cmp/cmp/cmpopts"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/skip"
 )
 
 func TestNetworkMarshalling(t *testing.T) {

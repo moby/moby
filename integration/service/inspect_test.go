@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/google/go-cmp/cmp"
 	"github.com/moby/moby/api/types/container"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
@@ -12,6 +11,8 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/integration/internal/swarm"
 )
 
 func TestInspect(t *testing.T) {

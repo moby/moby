@@ -3,15 +3,16 @@ package cnmallocator
 import (
 	"strings"
 
+	"github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/drivers/overlay/overlayutils"
 	"github.com/docker/docker/daemon/libnetwork/ipamapi"
 	"github.com/docker/docker/daemon/libnetwork/ipams/defaultipam"
 	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/moby/swarmkit/v2/api"
-	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type Provider struct {

@@ -11,9 +11,6 @@ import (
 	"testing"
 
 	"dario.cat/mergo"
-	"github.com/docker/docker/daemon/libnetwork/ipamutils"
-	"github.com/docker/docker/daemon/pkg/opts"
-	"github.com/docker/docker/registry"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/spf13/pflag"
@@ -22,6 +19,10 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/daemon/libnetwork/ipamutils"
+	"github.com/docker/docker/daemon/pkg/opts"
+	"github.com/docker/docker/registry"
 )
 
 func makeConfigFile(t *testing.T, content string) string {

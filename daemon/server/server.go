@@ -5,17 +5,18 @@ import (
 	"net/http"
 
 	"github.com/containerd/log"
+	"github.com/gorilla/mux"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/versions"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/baggage"
+
 	"github.com/docker/docker/daemon/server/httpstatus"
 	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/docker/docker/daemon/server/middleware"
 	"github.com/docker/docker/daemon/server/router"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/internal/otelutil"
-	"github.com/gorilla/mux"
-	"github.com/moby/moby/api/types"
-	"github.com/moby/moby/api/types/versions"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"go.opentelemetry.io/otel/baggage"
 )
 
 // versionMatcher defines a variable matcher to be parsed by the router

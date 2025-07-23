@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/containerd/cgroups/v3"
+
 	"github.com/docker/docker/pkg/sysinfo"
 )
 

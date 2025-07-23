@@ -5,10 +5,11 @@ package daemon
 import (
 	"testing"
 
-	"github.com/docker/docker/daemon/config"
 	"github.com/docker/go-connections/nat"
 	containertypes "github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/daemon/config"
 )
 
 // TestContainerWarningHostAndPublishPorts that a warning is returned when setting network mode to host and specifying published ports.

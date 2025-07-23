@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/opencontainers/runtime-spec/specs-go"
+
+	"github.com/docker/docker/internal/lazyregexp"
 )
 
 // TODO verify if this regex is correct for "a" (all);

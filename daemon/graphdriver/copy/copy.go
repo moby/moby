@@ -12,10 +12,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/pkg/pools"
-	"github.com/docker/docker/pkg/system"
 	"github.com/moby/sys/userns"
 	"golang.org/x/sys/unix"
+
+	"github.com/docker/docker/pkg/pools"
+	"github.com/docker/docker/pkg/system"
 )
 
 // Mode indicates whether to use hardlink or copy content

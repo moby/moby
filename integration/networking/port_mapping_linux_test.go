@@ -15,12 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/integration/internal/network"
-	"github.com/docker/docker/internal/testutils/networking"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/moby/api/stdcopy"
 	containertypes "github.com/moby/moby/api/types/container"
@@ -32,6 +26,13 @@ import (
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
+	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/internal/testutils/networking"
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/daemon"
 )
 
 func getIfaceAddrs(t *testing.T, name string, ipv6 bool) []net.IP {

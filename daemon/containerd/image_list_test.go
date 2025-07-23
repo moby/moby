@@ -15,13 +15,14 @@ import (
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/log/logtest"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/internal/testutils/specialimage"
 	imagetypes "github.com/moby/moby/api/types/image"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/internal/testutils/specialimage"
 )
 
 func imagesFromIndex(index ...*ocispec.Index) []c8dimages.Image {

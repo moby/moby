@@ -7,10 +7,6 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/docker/docker/daemon/builder"
-	"github.com/docker/docker/daemon/builder/remotecontext"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/types/backend"
@@ -20,6 +16,11 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/daemon/builder"
+	"github.com/docker/docker/daemon/builder/remotecontext"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/layer"
 )
 
 func TestEmptyDockerfile(t *testing.T) {

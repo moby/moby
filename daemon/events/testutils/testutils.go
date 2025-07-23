@@ -5,9 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/moby/moby/api/types/events"
 	timetypes "github.com/moby/moby/api/types/time"
+
+	"github.com/docker/docker/internal/lazyregexp"
 )
 
 const (

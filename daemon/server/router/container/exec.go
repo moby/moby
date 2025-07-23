@@ -7,14 +7,15 @@ import (
 	"net/http"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/moby/api/stdcopy"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/server/httputils"
+	"github.com/docker/docker/errdefs"
 )
 
 func (c *containerRouter) getExecByID(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

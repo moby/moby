@@ -12,14 +12,6 @@ import (
 
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/daemon/builder/remotecontext"
-	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/filters"
 	imagetypes "github.com/moby/moby/api/types/image"
@@ -28,6 +20,15 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/builder/remotecontext"
+	"github.com/docker/docker/daemon/server/httputils"
+	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/pkg/streamformatter"
 )
 
 // Creates an image from Pull or from Import

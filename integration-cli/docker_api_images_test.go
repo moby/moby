@@ -6,13 +6,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client"
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
-	"github.com/moby/moby/api/types/image"
-	"github.com/moby/moby/client"
-	"gotest.tools/v3/assert"
 )
 
 func (s *DockerAPISuite) TestAPIImagesSaveAndLoad(c *testing.T) {

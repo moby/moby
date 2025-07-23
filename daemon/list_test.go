@@ -8,14 +8,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/image"
 	"github.com/google/uuid"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/image"
 )
 
 var root string

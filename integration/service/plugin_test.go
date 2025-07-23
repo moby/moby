@@ -6,10 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/integration/internal/swarm"
-	"github.com/docker/docker/testutil/daemon"
-	"github.com/docker/docker/testutil/fixtures/plugin"
-	"github.com/docker/docker/testutil/registry"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/filters"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
@@ -17,6 +13,11 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/integration/internal/swarm"
+	"github.com/docker/docker/testutil/daemon"
+	"github.com/docker/docker/testutil/fixtures/plugin"
+	"github.com/docker/docker/testutil/registry"
 )
 
 func TestServicePlugin(t *testing.T) {

@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/pkg/errors"
 )
 
 // SquashImage creates a new image with the diff of the specified image and the specified parent.

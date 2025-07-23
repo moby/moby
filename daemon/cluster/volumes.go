@@ -5,11 +5,12 @@ import (
 	"fmt"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/daemon/cluster/convert"
-	"github.com/docker/docker/errdefs"
 	volumetypes "github.com/moby/moby/api/types/volume"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"google.golang.org/grpc"
+
+	"github.com/docker/docker/daemon/cluster/convert"
+	"github.com/docker/docker/errdefs"
 )
 
 // GetVolume returns a volume from the swarm cluster.

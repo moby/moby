@@ -14,10 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/daemon"
-	"github.com/docker/docker/internal/testutils/specialimage"
-	"github.com/docker/docker/testutil"
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
@@ -26,6 +22,11 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
+
+	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/internal/testutils/specialimage"
+	"github.com/docker/docker/testutil"
 )
 
 func deleteImages(images ...string) error {

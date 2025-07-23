@@ -9,9 +9,10 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/opencontainers/runtime-spec/specs-go"
+
 	"github.com/docker/docker/internal/platform"
 	"github.com/docker/docker/oci/caps"
-	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func iPtr(i int64) *int64 { return &i }

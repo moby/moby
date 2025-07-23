@@ -10,17 +10,18 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/netlabel"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/integration/internal/network"
-	"github.com/docker/docker/integration/internal/swarm"
-	"github.com/docker/docker/testutil/daemon"
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/daemon/libnetwork/netlabel"
+	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/integration/internal/swarm"
+	"github.com/docker/docker/testutil/daemon"
 )
 
 func TestEndpointWithCustomIfname(t *testing.T) {

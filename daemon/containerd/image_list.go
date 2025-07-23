@@ -16,7 +16,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/buildkit/util/attestation"
 	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/moby/api/types/backend"
@@ -28,6 +27,8 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/docker/docker/errdefs"
 )
 
 // Subset of ocispec.Image that only contains Labels

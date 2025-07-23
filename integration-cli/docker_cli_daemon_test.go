@@ -25,13 +25,6 @@ import (
 
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/creack/pty"
-	"github.com/docker/docker/daemon/pkg/opts"
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/integration-cli/daemon"
-	"github.com/docker/docker/testutil"
-	testdaemon "github.com/docker/docker/testutil/daemon"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/sys/mount"
 	"golang.org/x/sys/unix"
@@ -40,6 +33,14 @@ import (
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/daemon/pkg/opts"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/testutil"
+	testdaemon "github.com/docker/docker/testutil/daemon"
 )
 
 const containerdSocket = "/var/run/docker/containerd/containerd.sock"

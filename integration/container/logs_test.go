@@ -7,16 +7,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/logger/jsonfilelog"
-	"github.com/docker/docker/daemon/logger/local"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/integration/internal/termtest"
 	"github.com/moby/moby/api/stdcopy"
 	containertypes "github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/daemon/logger/jsonfilelog"
+	"github.com/docker/docker/daemon/logger/local"
+	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/integration/internal/termtest"
 )
 
 // Regression test for #35370

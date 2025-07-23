@@ -14,12 +14,13 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/etchosts"
-	"github.com/docker/docker/daemon/libnetwork/osl"
-	"github.com/docker/docker/daemon/libnetwork/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/docker/docker/daemon/libnetwork/etchosts"
+	"github.com/docker/docker/daemon/libnetwork/osl"
+	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
 // SandboxOption is an option setter function type used to pass various options to

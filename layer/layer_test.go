@@ -11,12 +11,13 @@ import (
 	"testing"
 
 	"github.com/containerd/continuity/driver"
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/daemon/graphdriver/vfs"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/go-archive"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/go-digest"
+
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/graphdriver/vfs"
+	"github.com/docker/docker/pkg/stringid"
 )
 
 func init() {

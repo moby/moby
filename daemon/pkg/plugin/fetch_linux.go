@@ -13,15 +13,16 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	progressutils "github.com/docker/docker/distribution/utils"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/go-archive/chrootarchive"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+
+	progressutils "github.com/docker/docker/distribution/utils"
+	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/pkg/stringid"
 )
 
 const mediaTypePluginConfig = "application/vnd.docker.plugin.v1+json"

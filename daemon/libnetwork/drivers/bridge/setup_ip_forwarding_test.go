@@ -8,10 +8,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
-	"github.com/docker/docker/internal/testutils/netnsutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
+	"github.com/docker/docker/internal/testutils/netnsutils"
 )
 
 type ffdTestFirewaller struct {

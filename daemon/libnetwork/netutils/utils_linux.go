@@ -8,13 +8,14 @@ import (
 	"os"
 	"slices"
 
+	"github.com/pkg/errors"
+	"github.com/vishvananda/netlink"
+
 	"github.com/docker/docker/daemon/libnetwork/internal/netiputil"
 	"github.com/docker/docker/daemon/libnetwork/ns"
 	"github.com/docker/docker/daemon/libnetwork/resolvconf"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/internal/nlwrap"
-	"github.com/pkg/errors"
-	"github.com/vishvananda/netlink"
 )
 
 // InferReservedNetworks returns a list of network prefixes that seem to be

@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/opencontainers/runtime-spec/specs-go"
+
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/libcontainerd/types"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/oci"
-	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // initializeCreatedTask performs any initialization that needs to be done to

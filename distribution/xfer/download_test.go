@@ -12,11 +12,12 @@ import (
 	"time"
 
 	"github.com/docker/distribution"
-	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/progress"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/layer"
+	"github.com/docker/docker/pkg/progress"
 )
 
 const maxDownloadConcurrency = 3
