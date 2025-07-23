@@ -7,7 +7,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/image"
+	"github.com/docker/docker/daemon/internal/image"
 )
 
 // GetLayerFolders returns the layer folders from an image RootFS

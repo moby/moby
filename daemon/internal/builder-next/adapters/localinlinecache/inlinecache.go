@@ -9,7 +9,7 @@ import (
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/distribution/reference"
-	imagestore "github.com/docker/docker/image"
+	imagestore "github.com/docker/docker/daemon/internal/image"
 	refstore "github.com/docker/docker/reference"
 	"github.com/moby/buildkit/cache/remotecache"
 	registryremotecache "github.com/moby/buildkit/cache/remotecache/registry"
