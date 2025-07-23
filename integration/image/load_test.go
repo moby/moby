@@ -1,13 +1,19 @@
 package image
 
 import (
+	"io"
+	"net/http"
 	"slices"
+	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/integration/internal/build"
 	iimage "github.com/docker/docker/integration/internal/image"
 	"github.com/docker/docker/internal/testutils/specialimage"
+	"github.com/docker/docker/testutil/fakecontext"
+	"github.com/docker/docker/testutil/request"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -74,4 +80,29 @@ func TestLoadDanglingImages(t *testing.T) {
 	danglingImage, err := findImageById(images, oldImage.ID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(danglingImage.RepoTags, 0))
+}
+
+func TestAPIImagesSaveAndLoad(t *testing.T) {
+	ctx := setupTest(t)
+	client := testEnv.APIClient()
+
+	dockerfile := "FROM busybox\nENV FOO bar"
+
+	imgID := build.Do(ctx, t, client, fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile)))
+
+	res, body, err := request.Get(ctx, "/images/"+imgID+"/get")
+	assert.NilError(t, err)
+	defer body.Close()
+	assert.Equal(t, res.StatusCode, http.StatusOK)
+
+	res, loadBody, err := request.Post(ctx, "/images/load", request.RawContent(body), request.ContentType("application/x-tar"))
+	assert.NilError(t, err)
+	defer loadBody.Close()
+	assert.Equal(t, res.StatusCode, http.StatusOK)
+
+	loadBodyBytes, err := io.ReadAll(loadBody)
+	assert.NilError(t, err)
+
+	loadBodyContent := string(loadBodyBytes)
+	assert.Assert(t, strings.Contains(loadBodyContent, imgID))
 }
