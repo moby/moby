@@ -40,7 +40,7 @@ type stateBackend interface {
 	ContainerStop(ctx context.Context, name string, options container.StopOptions) error
 	ContainerUnpause(name string) error
 	ContainerUpdate(name string, hostConfig *container.HostConfig) (container.UpdateResponse, error)
-	ContainerWait(ctx context.Context, name string, condition container.WaitCondition) (<-chan container.StateStatus, error)
+	ContainerWait(ctx context.Context, name string, condition container.WaitCondition) (<-chan container.WaitResponse, error)
 }
 
 // monitorBackend includes functions to implement to provide containers monitoring functionality.

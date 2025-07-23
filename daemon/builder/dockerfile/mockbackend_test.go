@@ -49,7 +49,7 @@ func (m *MockBackend) ContainerStart(ctx context.Context, containerID string, ch
 	return nil
 }
 
-func (m *MockBackend) ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.StateStatus, error) {
+func (m *MockBackend) ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.WaitResponse, error) {
 	return nil, nil
 }
 

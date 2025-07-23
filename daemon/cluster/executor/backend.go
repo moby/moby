@@ -44,7 +44,7 @@ type Backend interface {
 	DeactivateContainerServiceBinding(containerName string) error
 	UpdateContainerServiceConfig(containerName string, serviceConfig *clustertypes.ServiceConfig) error
 	ContainerInspect(ctx context.Context, name string, options backend.ContainerInspectOptions) (*container.InspectResponse, error)
-	ContainerWait(ctx context.Context, name string, condition container.WaitCondition) (<-chan container.StateStatus, error)
+	ContainerWait(ctx context.Context, name string, condition container.WaitCondition) (<-chan container.WaitResponse, error)
 	ContainerRm(name string, config *backend.ContainerRmConfig) error
 	ContainerKill(name string, sig string) error
 	SetContainerDependencyStore(name string, store exec.DependencyGetter) error
