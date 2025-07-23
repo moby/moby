@@ -30,13 +30,6 @@ func IsErrConnectionFailed(err error) bool {
 	return errors.As(err, &errConnectionFailed{})
 }
 
-// ErrorConnectionFailed returns an error with host in the error message when connection to docker daemon failed.
-//
-// Deprecated: this function was only used internally, and will be removed in the next release.
-func ErrorConnectionFailed(host string) error {
-	return connectionFailed(host)
-}
-
 // connectionFailed returns an error with host in the error message when connection
 // to docker daemon failed.
 func connectionFailed(host string) error {
