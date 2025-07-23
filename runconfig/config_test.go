@@ -14,6 +14,33 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
+/*
+TestDecodeContainerConfig validates unmarshaling a container config fixture.
+
+Fixture created using;
+
+	docker run -it \
+	    --cap-add=NET_ADMIN \
+	    --cap-drop=MKNOD \
+	    --cpu-shares=512 \
+	    --cpuset-cpus=0,1 \
+	    --dns=8.8.8.8 \
+	    --entrypoint bash \
+	    --label com.example.license=GPL \
+	    --label com.example.vendor=Acme \
+	    --label com.example.version=1.0 \
+	    --link=redis3:redis \
+	    --log-driver=json-file \
+	    --mac-address="12:34:56:78:9a:bc" \
+	    --memory=4M \
+	    --network=bridge \
+	    --volumes-from=other:ro \
+	    --volumes-from=parent \
+	    -p=11022:22/tcp \
+	    -v /tmp \
+	    -v /tmp:/tmp \
+	    ubuntu date
+*/
 func TestDecodeContainerConfig(t *testing.T) {
 	type testCase struct {
 		doc        string
@@ -22,18 +49,17 @@ func TestDecodeContainerConfig(t *testing.T) {
 		entrypoint []string
 	}
 
-	// FIXME (thaJeztah): update fixtures for more current versions.
 	tests := []testCase{
 		{
-			doc:        "API 1.19 windows",
+			doc:        "API 1.24 windows",
 			imgName:    "windows",
-			fixture:    "fixtures/windows/container_config_1_19.json",
+			fixture:    "fixtures/windows/container_config_1_24.json",
 			entrypoint: []string{"cmd"},
 		},
 		{
-			doc:        "API 1.19 unix",
+			doc:        "API 1.24 unix",
 			imgName:    "ubuntu",
-			fixture:    "fixtures/unix/container_config_1_19.json",
+			fixture:    "fixtures/unix/container_config_1_24.json",
 			entrypoint: []string{"bash"},
 		},
 	}
@@ -49,7 +75,7 @@ func TestDecodeContainerConfig(t *testing.T) {
 			assert.Check(t, is.Equal(c.Image, tc.imgName))
 			assert.Check(t, is.DeepEqual([]string(c.Entrypoint), tc.entrypoint))
 
-			var expected int64 = 1000
+			var expected int64 = 4194304
 			assert.Check(t, is.Equal(h.Memory, expected))
 		})
 	}
