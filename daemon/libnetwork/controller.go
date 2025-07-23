@@ -54,6 +54,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/internal/otelutil"
 	"github.com/docker/docker/daemon/libnetwork/cluster"
 	"github.com/docker/docker/daemon/libnetwork/config"
 	"github.com/docker/docker/daemon/libnetwork/datastore"
@@ -71,7 +72,6 @@ import (
 	"github.com/docker/docker/daemon/pkg/plugingetter"
 	"github.com/docker/docker/daemon/pkg/plugins"
 	"github.com/docker/docker/daemon/pkg/stringid"
-	"github.com/docker/docker/internal/otelutil"
 	"github.com/moby/locker"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"

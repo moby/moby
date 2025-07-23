@@ -17,6 +17,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/internal/errdefs"
+	"github.com/docker/docker/daemon/internal/otelutil"
 	"github.com/docker/docker/daemon/libnetwork/datastore"
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
@@ -35,7 +36,6 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/daemon/pkg/stringid"
-	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/internal/sliceutil"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
