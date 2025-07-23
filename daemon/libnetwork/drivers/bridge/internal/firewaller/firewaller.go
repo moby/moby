@@ -48,6 +48,10 @@ type NetworkConfig struct {
 	// bridge itself). In particular, these are not external interfaces for the purpose of
 	// blocking direct-routing to a container's IP address.
 	TrustedHostInterfaces []string
+	// AcceptFwMark is a firewall mark/mask. Packets with this mark will not be dropped by
+	// per-port blocking rules. So, packets with this mark have access to unpublished
+	// container ports.
+	AcceptFwMark string
 	// Config4 contains IPv4-specific configuration for the network.
 	Config4 NetworkConfigFam
 	// Config6 contains IPv6-specific configuration for the network.

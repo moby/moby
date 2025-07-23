@@ -39,6 +39,7 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.BoolVar(&conf.BridgeConfig.EnableUserlandProxy, "userland-proxy", true, "Use userland proxy for loopback traffic")
 	flags.StringVar(&conf.BridgeConfig.UserlandProxyPath, "userland-proxy-path", conf.BridgeConfig.UserlandProxyPath, "Path to the userland proxy binary")
 	flags.BoolVar(&conf.BridgeConfig.AllowDirectRouting, "allow-direct-routing", false, "Allow remote access to published ports on container IP addresses")
+	flags.StringVar(&conf.BridgeConfig.BridgeAcceptFwMark, "bridge-accept-fwmark", "", "In bridge networks, accept packets with this firewall mark/mask")
 	flags.StringVar(&conf.CgroupParent, "cgroup-parent", "", "Set parent cgroup for all containers")
 	flags.StringVar(&conf.RemappedRoot, "userns-remap", "", "User/Group setting for user namespaces")
 	flags.BoolVar(&conf.LiveRestoreEnabled, "live-restore", false, "Enable live restore of docker when containers are still running")

@@ -798,6 +798,124 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 	}
 }
 
+func TestAcceptFwMark(t *testing.T) {
+	skip.If(t, testEnv.IsRootless())
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t, "--bridge-accept-fwmark=2/3")
+	t.Cleanup(func() { d.Stop(t) })
+
+	c := d.NewClientT(t)
+	t.Cleanup(func() { c.Close() })
+
+	// Simulate the remote host.
+
+	l3 := networking.NewL3Segment(t, "test-routed-open-ports",
+		netip.MustParsePrefix("192.168.124.1/24"),
+		netip.MustParsePrefix("fdc0:36dc:a4dd::1/64"))
+	t.Cleanup(func() { l3.Destroy(t) })
+
+	// "docker" is the host where dockerd is running.
+	l3.AddHost(t, "docker", networking.CurrentNetns, "eth-test",
+		netip.MustParsePrefix("192.168.124.2/24"),
+		netip.MustParsePrefix("fdc0:36dc:a4dd::2/64"))
+	// "remote" simulates the remote host.
+	l3.AddHost(t, "remote", "test-remote-host", "eth0",
+		netip.MustParsePrefix("192.168.124.3/24"),
+		netip.MustParsePrefix("fdc0:36dc:a4dd::3/64"))
+	// Add default routes to the "docker" Host from the "remote" Host.
+	l3.Hosts["remote"].MustRun(t, "ip", "route", "add", "default", "via", "192.168.124.2")
+	l3.Hosts["remote"].MustRun(t, "ip", "-6", "route", "add", "default", "via", "fdc0:36dc:a4dd::2")
+
+	// Create a network and run a container on it.
+	// Don't publish any ports.
+	const netName = "test-acceptfwmark"
+	network.CreateNoError(ctx, t, c, netName,
+		network.WithOption(bridge.BridgeName, "br-acceptfwmark"),
+		network.WithOption(bridge.TrustedHostInterfaces, "eth-test"),
+		network.WithIPv6(),
+	)
+	t.Cleanup(func() {
+		network.RemoveNoError(ctx, t, c, netName)
+	})
+
+	ctrId := container.Run(ctx, t, c,
+		container.WithNetworkMode(netName),
+		container.WithCmd("httpd", "-f"),
+	)
+	t.Cleanup(func() {
+		c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+	})
+
+	insp := container.Inspect(ctx, t, c, ctrId)
+	ctrIPv4 := insp.NetworkSettings.Networks[netName].IPAddress
+	ctrIPv6 := insp.NetworkSettings.Networks[netName].GlobalIPv6Address
+
+	const (
+		httpSuccess = "404 Not Found"
+		httpFail    = "Connection timed out"
+		pingSuccess = 0
+		pingFail    = 1
+	)
+
+	testPing := func(t *testing.T, cmd, addr string, expExit int) {
+		t.Helper()
+		t.Parallel()
+		l3.Hosts["remote"].Do(t, func() {
+			t.Helper()
+			pingRes := icmd.RunCommand(cmd, "--numeric", "--count=1", "--timeout=3", addr)
+			assert.Check(t, pingRes.ExitCode == expExit, "%s %s -> out:%s err:%s",
+				cmd, addr, pingRes.Stdout(), pingRes.Stderr())
+		})
+	}
+	testHttp := func(t *testing.T, addr, port, expOut string) {
+		t.Helper()
+		t.Parallel()
+		l3.Hosts["remote"].Do(t, func() {
+			t.Helper()
+			u := "http://" + net.JoinHostPort(addr, port)
+			res := icmd.RunCommand("curl", "--max-time", "3", "--show-error", "--silent", u)
+			assert.Check(t, is.Contains(res.Combined(), expOut), "url:%s", u)
+		})
+	}
+
+	test := func(name string, expPing int, expHttp string) {
+		t.Run(name, func(t *testing.T) {
+			t.Run("v4/ping", func(t *testing.T) {
+				testPing(t, "ping", ctrIPv4, expPing)
+			})
+			t.Run("v6/ping", func(t *testing.T) {
+				testPing(t, "ping6", ctrIPv6, expPing)
+			})
+			t.Run("v4/http", func(t *testing.T) {
+				testHttp(t, ctrIPv4, "80", expHttp)
+			})
+			t.Run("v6/http", func(t *testing.T) {
+				testHttp(t, ctrIPv6, "80", expHttp)
+			})
+		})
+	}
+	test("nofwmark", pingFail, httpFail)
+
+	// This nftables will work if --firewall-backend=iptables, as long as it's iptables-nft.
+	cmd := icmd.Command("nft", "-f", "-")
+	res := icmd.RunCmd(cmd, icmd.WithStdin(strings.NewReader(`
+		table inet test-acceptfwmark {
+		  chain raw-PREROUTING {
+			type filter hook prerouting priority raw
+			iifname "eth-test" counter mark set 0xe
+		  }
+		}
+	`)))
+	res.Assert(t, icmd.Success)
+	defer func() {
+		icmd.RunCommand("nft", "delete table inet test-acceptfwmark").Assert(t, icmd.Success)
+	}()
+
+	test("fwmark", pingSuccess, httpSuccess)
+}
+
 // TestRoutedNonGateway checks whether a published container port on an endpoint in a
 // gateway mode "routed" network is accessible when the routed network is not providing
 // the container's default gateway.
