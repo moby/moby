@@ -1488,6 +1488,15 @@ func (d *driver) Leave(nid, eid string) error {
 		return endpointNotFoundError(eid)
 	}
 
+	if endpoint.portMapping != nil {
+		if err := network.releasePorts(endpoint); err != nil {
+			return err
+		}
+		if err = d.storeUpdate(context.TODO(), endpoint); err != nil {
+			return fmt.Errorf("during leave, failed to store bridge endpoint %.7s: %v", endpoint.id, err)
+		}
+	}
+
 	if !network.config.EnableICC {
 		if err = d.link(network, endpoint, false); err != nil {
 			return err
@@ -1498,8 +1507,9 @@ func (d *driver) Leave(nid, eid string) error {
 }
 
 type portBindingMode struct {
-	ipv4 bool
-	ipv6 bool
+	routed bool
+	ipv4   bool
+	ipv6   bool
 }
 
 func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid string, gw4Id, gw6Id string) (retErr error) {
@@ -1524,12 +1534,12 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 	if err != nil {
 		return err
 	}
-
 	if endpoint == nil {
 		return endpointNotFoundError(eid)
 	}
 
-	var pbmReq portBindingMode
+	// Always include rules for routed-mode port mappings - they'll be removed on Leave.
+	pbmReq := portBindingMode{routed: true}
 	// Act as the IPv4 gateway if explicitly selected.
 	if gw4Id == eid {
 		pbmReq.ipv4 = true
@@ -1558,7 +1568,7 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 	}()
 
 	// Set up new port bindings, and store them in the endpoint.
-	if (pbmReq.ipv4 || pbmReq.ipv6) && endpoint.extConnConfig != nil && endpoint.extConnConfig.PortBindings != nil {
+	if endpoint.extConnConfig != nil && endpoint.extConnConfig.PortBindings != nil {
 		newPMs, err := network.addPortMappings(ctx, endpoint, endpoint.extConnConfig.PortBindings, network.config.DefaultBindingIP, pbmReq)
 		if err != nil {
 			return err
@@ -1585,15 +1595,23 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 //
 // ep.portMapping is updated when bindings are removed.
 func (ep *bridgeEndpoint) trimPortBindings(ctx context.Context, n *bridgeNetwork, pbmReq portBindingMode) (func() []portmapperapi.PortBinding, error) {
-	// If the endpoint is the gateway for IPv4 and IPv6, there's nothing to drop.
-	if pbmReq.ipv4 && pbmReq.ipv6 {
+	// Drop IPv4 bindings if this endpoint is not the IPv4 gateway, unless the
+	// network is "routed" (routed bindings get dropped unconditionally by Leave).
+	drop4 := !pbmReq.ipv4 && !n.gwMode(firewaller.IPv4).routed()
+
+	// Drop IPv6 bindings if this endpoint is not the IPv6 gateway, and not proxying
+	// from host IPv6 to container IPv6 because there is no IPv6 gateway - unless the
+	// IPv6 network is "routed" (routed bindings get dropped unconditionally by Leave).
+	drop6 := !pbmReq.ipv6 && !n.gwMode(firewaller.IPv6).routed()
+
+	if !drop4 && !drop6 {
 		return nil, nil
 	}
 
 	toDrop := make([]portmapperapi.PortBinding, 0, len(ep.portMapping))
 	toKeep := slices.DeleteFunc(ep.portMapping, func(pb portmapperapi.PortBinding) bool {
 		is4 := pb.HostIP.To4() != nil
-		if (is4 && !pbmReq.ipv4) || (!is4 && !pbmReq.ipv6) {
+		if (is4 && drop4) || (!is4 && drop6) {
 			toDrop = append(toDrop, pb)
 			return true
 		}

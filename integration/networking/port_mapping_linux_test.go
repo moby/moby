@@ -912,13 +912,13 @@ func TestRoutedNonGateway(t *testing.T) {
 			name:    "routed/direct/v4",
 			addr:    insp.NetworkSettings.Networks[routedNetName].IPAddress,
 			port:    "80",
-			expHttp: httpFail,
+			expHttp: httpSuccess,
 		},
 		{
 			name:    "routed/direct/v6",
 			addr:    insp.NetworkSettings.Networks[routedNetName].GlobalIPv6Address,
 			port:    "80",
-			expHttp: httpFail,
+			expHttp: httpSuccess,
 		},
 	}
 
