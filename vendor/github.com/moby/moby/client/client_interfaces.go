@@ -20,11 +20,6 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// CommonAPIClient is the common methods between stable and experimental versions of APIClient.
-//
-// Deprecated: use [APIClient] instead. This type will be an alias for [APIClient] in the next release, and removed after.
-type CommonAPIClient = stableAPIClient
-
 // APIClient is an interface that clients that talk with a docker server must implement.
 type APIClient interface {
 	stableAPIClient
