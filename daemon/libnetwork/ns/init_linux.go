@@ -8,7 +8,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/internal/modprobe"
-	"github.com/docker/docker/internal/nlwrap"
+	"github.com/docker/docker/daemon/libnetwork/nlwrap"
 	"github.com/vishvananda/netns"
 )
 

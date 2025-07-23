@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/docker/docker/internal/nlwrap"
+	"github.com/docker/docker/daemon/libnetwork/nlwrap"
 	"github.com/docker/docker/internal/sliceutil"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
