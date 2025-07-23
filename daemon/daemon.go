@@ -858,14 +858,15 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	d.configStore.Store(cfgStore)
 
 	migrationThreshold := int64(-1)
-	tryGraphDriver := graphdriver.IsRegistered
-	if os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") != "" {
-		tryGraphDriver = func(driver string) bool {
+	isGraphDriver := func(driver string) (bool, error) {
+		return graphdriver.IsRegistered(driver), nil
+	}
+	if enabled, ok := config.Features["containerd-snapshotter"]; (ok && !enabled) || os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") != "" {
+		isGraphDriver = func(driver string) (bool, error) {
 			if driver == "" || graphdriver.IsRegistered(driver) {
-				return true
+				return true, nil
 			}
-			log.G(ctx).WithField("driver", driver).Warn("TEST_INTEGRATION_USE_GRAPHDRIVER is set but graphdriver is not registered")
-			return false
+			return false, fmt.Errorf("graphdriver is explicitly enabled but %q is not registered", driver)
 		}
 	}
 	if config.Features["containerd-migration"] {
@@ -1109,7 +1110,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	var migrationConfig migration.Config
-	if tryGraphDriver(driverName) {
+	tryGraphDriver, err := isGraphDriver(driverName)
+	if err != nil {
+		return nil, err
+	}
+	if tryGraphDriver {
 		layerStore, err := layer.NewStoreFromOptions(layer.StoreOptions{
 			Root:               cfgStore.Root,
 			GraphDriver:        driverName,
@@ -1186,7 +1191,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			}
 		}
 
-		// If no containers are running, check whether can migrate image service
+		// If no containers are present, check whether can migrate image service
 		if drv := layerStore.DriverName(); len(containers[drv]) == 0 && migrationThreshold >= 0 {
 			switch drv {
 			case "overlay2":
@@ -1231,6 +1236,8 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 				}
 			} else if migrationThreshold >= 0 {
 				log.G(ctx).Warnf("Not migrating to containerd snapshotter because still have %d images in graph driver", ic)
+				d.imageService = images.NewImageService(ctx, imgSvcConfig)
+			} else {
 				d.imageService = images.NewImageService(ctx, imgSvcConfig)
 			}
 		} else {
@@ -1292,15 +1299,19 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		})
 
 		if migrationConfig.ImageCount > 0 {
-			migrationConfig.Leases = d.containerdClient.LeasesService()
-			migrationConfig.Content = d.containerdClient.ContentStore()
-			migrationConfig.ImageStore = d.containerdClient.ImageService()
-			m := migration.NewLayerMigrator(migrationConfig)
-			err := m.MigrateTocontainerd(ctx, driverName, d.containerdClient.SnapshotService(driverName))
-			if err != nil {
-				log.G(ctx).WithError(err).Errorf("Failed to migrate images to containerd, images in graph driver %q are no longer visible", migrationConfig.LayerStore.DriverName())
+			if d.imageService.CountImages(ctx) > 0 {
+				log.G(ctx).WithField("image_count", migrationConfig.ImageCount).Warnf("Images not migrated because images already exist in containerd %q", migrationConfig.LayerStore.DriverName())
 			} else {
-				log.G(ctx).WithField("image_count", migrationConfig.ImageCount).Infof("Successfully migrated images from %q to containerd", migrationConfig.LayerStore.DriverName())
+				migrationConfig.Leases = d.containerdClient.LeasesService()
+				migrationConfig.Content = d.containerdClient.ContentStore()
+				migrationConfig.ImageStore = d.containerdClient.ImageService()
+				m := migration.NewLayerMigrator(migrationConfig)
+				err := m.MigrateTocontainerd(ctx, driverName, d.containerdClient.SnapshotService(driverName))
+				if err != nil {
+					log.G(ctx).WithError(err).Errorf("Failed to migrate images to containerd, images in graph driver %q are no longer visible", migrationConfig.LayerStore.DriverName())
+				} else {
+					log.G(ctx).WithField("image_count", migrationConfig.ImageCount).Infof("Successfully migrated images from %q to containerd", migrationConfig.LayerStore.DriverName())
+				}
 			}
 		}
 	}
