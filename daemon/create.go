@@ -20,7 +20,7 @@ import (
 	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/internal/metrics"
-	"github.com/docker/docker/internal/multierror"
+	"github.com/docker/docker/daemon/internal/multierror"
 	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/runconfig"
 	"github.com/moby/moby/api/types/backend"

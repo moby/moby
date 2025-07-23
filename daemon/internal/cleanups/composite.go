@@ -3,7 +3,7 @@ package cleanups
 import (
 	"context"
 
-	"github.com/docker/docker/internal/multierror"
+	"github.com/docker/docker/daemon/internal/multierror"
 )
 
 type Composite struct {
