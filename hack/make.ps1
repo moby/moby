@@ -256,15 +256,6 @@ Function Validate-PkgImports($headCommit, $upstreamCommit) {
     $files=@(); $files = Invoke-Expression "git diff $upstreamCommit...$headCommit --diff-filter=ACMR --name-only -- `'pkg\*.go`'"
     $badFiles=@(); $files | ForEach-Object{
         $file=$_
-
-        if ($file -like "pkg\stdcopy\*") {
-            # Temporarily allow pkg/stdcopy to import "github.com/moby/moby/api/stdcopy",
-            # because it's an alias for backward-compatibility.
-            #
-            # TODO(thaJeztah): remove once "github.com/docker/docker/pkg/stdcopy" is removed.
-            return
-        }
-
         # For the current changed file, get its list of dependencies, sorted and uniqued.
         $imports = Invoke-Expression "go list -e -f `'{{ .Deps }}`' $file"
         if ($LASTEXITCODE -ne 0) { Throw "Failed go list for dependencies on $file" }
