@@ -147,11 +147,6 @@ type PidsStats struct {
 	Limit uint64 `json:"limit,omitempty"`
 }
 
-// Stats is Ultimate struct aggregating all types of stats of one container
-//
-// Deprecated: use [StatsResponse] instead. This type will be removed in the next release.
-type Stats = StatsResponse
-
 // StatsResponse aggregates all types of stats of one container.
 type StatsResponse struct {
 	Name string `json:"name,omitempty"`
