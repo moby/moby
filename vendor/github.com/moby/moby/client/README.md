@@ -2,7 +2,7 @@
 
 The `docker` command uses this package to communicate with the daemon. It can
 also be used by your own Go applications to do anything the command-line
-interface does – running containers, pulling images, managing swarms, etc.
+interface does; running containers, pulling or pushing images, etc.
 
 For example, to list all containers (the equivalent of `docker ps --all`):
 
@@ -13,12 +13,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 )
 
 func main() {
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		panic(err)
 	}
@@ -35,4 +35,4 @@ func main() {
 }
 ```
 
-[Full documentation is available on pkg.go.dev.](https://pkg.go.dev/github.com/docker/docker/client)
+[Full documentation is available on pkg.go.dev.](https://pkg.go.dev/github.com/moby/moby/client)
