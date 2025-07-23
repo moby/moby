@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/drivers/overlay/overlayutils"
 	"github.com/docker/docker/daemon/libnetwork/internal/countmap"
+	"github.com/docker/docker/daemon/libnetwork/internal/hashable"
 	"github.com/docker/docker/daemon/libnetwork/internal/netiputil"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/ns"
@@ -65,7 +66,7 @@ type network struct {
 	endpoints endpointTable
 	joinCnt   int
 	// Ref count of VXLAN Forwarding Database entries programmed into the kernel
-	fdbCnt    countmap.Map[ipmac]
+	fdbCnt    countmap.Map[hashable.IPMAC]
 	sboxInit  bool
 	initEpoch int
 	initErr   error
@@ -110,7 +111,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 		driver:    d,
 		endpoints: endpointTable{},
 		subnets:   []*subnet{},
-		fdbCnt:    countmap.Map[ipmac]{},
+		fdbCnt:    countmap.Map[hashable.IPMAC]{},
 	}
 
 	vnis := make([]uint32, 0, len(ipV4Data))
@@ -197,7 +198,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 	}
 
 	if nInfo != nil {
-		if err := nInfo.TableEventRegister(ovPeerTable, driverapi.EndpointObject); err != nil {
+		if err := nInfo.TableEventRegister(OverlayPeerTable, driverapi.EndpointObject); err != nil {
 			return err
 		}
 	}
@@ -607,7 +608,7 @@ func (n *network) initSandbox() error {
 
 	// this is needed to let the peerAdd configure the sandbox
 	n.sbox = sbox
-	n.fdbCnt = countmap.Map[ipmac]{}
+	n.fdbCnt = countmap.Map[hashable.IPMAC]{}
 
 	return nil
 }

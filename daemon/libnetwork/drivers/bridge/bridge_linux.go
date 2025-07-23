@@ -707,13 +707,6 @@ func (d *driver) NetworkFree(id string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
-}
-
-func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
-	return "", nil
-}
-
 func (d *driver) GetSkipGwAlloc(opts options.Generic) (ipv4, ipv6 bool, _ error) {
 	// The network doesn't exist yet, so use a dummy id that's long enough to be
 	// truncated to a short-id (12 characters) and used in the bridge device name.
