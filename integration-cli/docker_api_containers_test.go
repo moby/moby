@@ -750,7 +750,7 @@ func (s *DockerAPISuite) TestContainerAPIRestartPolicyDefaultRetryCount(c *testi
 // Issue 7941 - test to make sure a "null" in JSON is just ignored.
 // W/o this fix a null in JSON would be parsed into a string var as "null"
 func (s *DockerAPISuite) TestContainerAPIPostCreateNull(c *testing.T) {
-	config := `{
+	const config = `{
 		"Hostname":"",
 		"Domainname":"",
 		"Memory":0,
@@ -765,7 +765,7 @@ func (s *DockerAPISuite) TestContainerAPIPostCreateNull(c *testing.T) {
 		"OpenStdin":true,
 		"StdinOnce":true,
 		"Env":[],
-		"Cmd":"ls",
+		"Cmd":["ls"],
 		"Image":"busybox",
 		"Volumes":{},
 		"WorkingDir":"",
@@ -798,8 +798,6 @@ func (s *DockerAPISuite) TestCreateWithTooLowMemoryLimit(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	config := `{
 		"Image":     "busybox",
-		"Cmd":       "ls",
-		"OpenStdin": true,
 		"HostConfig": {
 			"CpuShares": 100,
 			"Memory":    524287
@@ -1077,92 +1075,6 @@ func (s *DockerAPISuite) TestContainerAPIPostContainerStop(c *testing.T) {
 	err = apiClient.ContainerStop(testutil.GetContext(c), containerID, container.StopOptions{})
 	assert.NilError(c, err)
 	assert.NilError(c, waitInspect(containerID, "{{ .State.Running  }}", "false", 60*time.Second))
-}
-
-// #14170
-func (s *DockerAPISuite) TestPostContainerAPICreateWithStringOrSliceEntrypoint(c *testing.T) {
-	config := container.Config{
-		Image:      "busybox",
-		Entrypoint: []string{"echo"},
-		Cmd:        []string{"hello", "world"},
-	}
-
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "echotest")
-	assert.NilError(c, err)
-	out := cli.DockerCmd(c, "start", "-a", "echotest").Combined()
-	assert.Equal(c, strings.TrimSpace(out), "hello world")
-
-	config2 := struct {
-		Image      string
-		Entrypoint string
-		Cmd        []string
-	}{"busybox", "echo", []string{"hello", "world"}}
-	_, _, err = request.Post(testutil.GetContext(c), "/containers/create?name=echotest2", request.JSONBody(config2))
-	assert.NilError(c, err)
-	out = cli.DockerCmd(c, "start", "-a", "echotest2").Combined()
-	assert.Equal(c, strings.TrimSpace(out), "hello world")
-}
-
-// #14170
-func (s *DockerAPISuite) TestPostContainersCreateWithStringOrSliceCmd(c *testing.T) {
-	config := container.Config{
-		Image: "busybox",
-		Cmd:   []string{"echo", "hello", "world"},
-	}
-
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "echotest")
-	assert.NilError(c, err)
-	out := cli.DockerCmd(c, "start", "-a", "echotest").Combined()
-	assert.Equal(c, strings.TrimSpace(out), "hello world")
-
-	config2 := struct {
-		Image      string
-		Entrypoint string
-		Cmd        string
-	}{"busybox", "echo", "hello world"}
-	_, _, err = request.Post(testutil.GetContext(c), "/containers/create?name=echotest2", request.JSONBody(config2))
-	assert.NilError(c, err)
-	out = cli.DockerCmd(c, "start", "-a", "echotest2").Combined()
-	assert.Equal(c, strings.TrimSpace(out), "hello world")
-}
-
-// regression #14318
-// for backward compatibility testing with and without CAP_ prefix
-// and with upper and lowercase
-func (s *DockerAPISuite) TestPostContainersCreateWithStringOrSliceCapAddDrop(c *testing.T) {
-	// Windows doesn't support CapAdd/CapDrop
-	testRequires(c, DaemonIsLinux)
-	config := struct {
-		Image   string
-		CapAdd  string
-		CapDrop string
-	}{"busybox", "NET_ADMIN", "cap_sys_admin"}
-	res, _, err := request.Post(testutil.GetContext(c), "/containers/create?name=capaddtest0", request.JSONBody(config))
-	assert.NilError(c, err)
-	assert.Equal(c, res.StatusCode, http.StatusCreated)
-
-	config2 := container.Config{
-		Image: "busybox",
-	}
-	hostConfig := container.HostConfig{
-		CapAdd:  []string{"net_admin", "SYS_ADMIN"},
-		CapDrop: []string{"SETGID", "CAP_SETPCAP"},
-	}
-
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config2, &hostConfig, &network.NetworkingConfig{}, nil, "capaddtest1")
-	assert.NilError(c, err)
 }
 
 // Ensure an error occurs when you have a container read-only rootfs but you
