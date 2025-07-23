@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/docker/docker/daemon/server/router/system"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
@@ -12,6 +11,8 @@ import (
 	"github.com/moby/moby/api/types/volume"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/docker/docker/daemon/server/router/system"
 )
 
 // containerDiskUsage obtains information about container data disk usage

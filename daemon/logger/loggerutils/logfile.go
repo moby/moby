@@ -19,10 +19,11 @@ import (
 
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/pkg/pools"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/pkg/pools"
 )
 
 // rotateFileMetadata is a metadata of the gzip header of the compressed log file

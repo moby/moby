@@ -15,14 +15,6 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/daemon/pkg/opts"
-	volumemounts "github.com/docker/docker/daemon/volume/mounts"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/oci/caps"
 	"github.com/docker/go-connections/nat"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
@@ -31,6 +23,15 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/daemon/pkg/opts"
+	volumemounts "github.com/docker/docker/daemon/volume/mounts"
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/oci/caps"
 )
 
 // GetContainer looks for a container using the provided information, which could be

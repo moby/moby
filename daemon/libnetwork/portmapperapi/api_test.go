@@ -4,8 +4,9 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/types"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
 func TestPortBindingReqsCompare(t *testing.T) {

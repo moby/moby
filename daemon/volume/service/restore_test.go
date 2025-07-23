@@ -4,11 +4,12 @@ import (
 	"context"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/daemon/volume"
 	volumedrivers "github.com/docker/docker/daemon/volume/drivers"
 	"github.com/docker/docker/daemon/volume/service/opts"
 	volumetestutils "github.com/docker/docker/daemon/volume/testutils"
-	"gotest.tools/v3/assert"
 )
 
 func TestRestore(t *testing.T) {

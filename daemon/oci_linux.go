@@ -13,14 +13,6 @@ import (
 	"github.com/containerd/containerd/v2/pkg/apparmor"
 	coci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/log"
-	dconfig "github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/container"
-	volumemounts "github.com/docker/docker/daemon/volume/mounts"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/internal/rootless/mountopts"
-	"github.com/docker/docker/internal/rootless/specconv"
-	"github.com/docker/docker/oci"
-	"github.com/docker/docker/oci/caps"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
@@ -29,6 +21,15 @@ import (
 	"github.com/opencontainers/cgroups"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
+
+	dconfig "github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/container"
+	volumemounts "github.com/docker/docker/daemon/volume/mounts"
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/rootless/mountopts"
+	"github.com/docker/docker/internal/rootless/specconv"
+	"github.com/docker/docker/oci"
+	"github.com/docker/docker/oci/caps"
 )
 
 const inContainerInitPath = "/sbin/" + dconfig.DefaultInitBinary

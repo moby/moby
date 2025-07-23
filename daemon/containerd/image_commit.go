@@ -16,7 +16,6 @@ import (
 	"github.com/containerd/containerd/v2/core/snapshots"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/docker/image"
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/types/backend"
@@ -24,6 +23,8 @@ import (
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/image"
 )
 
 /*

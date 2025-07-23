@@ -12,6 +12,13 @@ import (
 	"github.com/Microsoft/hcsshim"
 	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/containerd/log"
+	containertypes "github.com/moby/moby/api/types/container"
+	networktypes "github.com/moby/moby/api/types/network"
+	"github.com/moby/sys/user"
+	"github.com/pkg/errors"
+	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/svc/mgr"
+
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/libcontainerd/local"
@@ -26,12 +33,6 @@ import (
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
-	containertypes "github.com/moby/moby/api/types/container"
-	networktypes "github.com/moby/moby/api/types/network"
-	"github.com/moby/sys/user"
-	"github.com/pkg/errors"
-	"golang.org/x/sys/windows"
-	"golang.org/x/sys/windows/svc/mgr"
 )
 
 const (

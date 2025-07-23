@@ -16,15 +16,6 @@ import (
 	"github.com/containerd/containerd/v2/plugins/content/local"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/daemon/internal/builder-next/adapters/containerimage"
-	"github.com/docker/docker/daemon/internal/builder-next/adapters/localinlinecache"
-	"github.com/docker/docker/daemon/internal/builder-next/adapters/snapshot"
-	"github.com/docker/docker/daemon/internal/builder-next/exporter/mobyexporter"
-	"github.com/docker/docker/daemon/internal/builder-next/imagerefchecker"
-	mobyworker "github.com/docker/docker/daemon/internal/builder-next/worker"
-	wlabel "github.com/docker/docker/daemon/internal/builder-next/worker/label"
 	"github.com/docker/go-units"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/metadata"
@@ -59,6 +50,16 @@ import (
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 	"go.opentelemetry.io/otel/sdk/trace"
+
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/internal/builder-next/adapters/containerimage"
+	"github.com/docker/docker/daemon/internal/builder-next/adapters/localinlinecache"
+	"github.com/docker/docker/daemon/internal/builder-next/adapters/snapshot"
+	"github.com/docker/docker/daemon/internal/builder-next/exporter/mobyexporter"
+	"github.com/docker/docker/daemon/internal/builder-next/imagerefchecker"
+	mobyworker "github.com/docker/docker/daemon/internal/builder-next/worker"
+	wlabel "github.com/docker/docker/daemon/internal/builder-next/worker/label"
 )
 
 func newController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control.Controller, error) {

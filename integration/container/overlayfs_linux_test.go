@@ -5,12 +5,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/integration/internal/container"
 	"github.com/moby/go-archive"
 	containertypes "github.com/moby/moby/api/types/container"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/integration/internal/container"
 )
 
 func TestNoOverlayfsWarningsAboutUndefinedBehaviors(t *testing.T) {

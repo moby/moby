@@ -11,15 +11,16 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/baggage"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/docker/docker/daemon/libnetwork/datastore"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/internal/otelutil"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/baggage"
-	"go.opentelemetry.io/otel/trace"
 )
 
 const (

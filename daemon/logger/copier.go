@@ -8,8 +8,9 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/stringid"
 	types "github.com/moby/moby/api/types/backend"
+
+	"github.com/docker/docker/pkg/stringid"
 )
 
 const (

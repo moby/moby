@@ -14,15 +14,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/daemon/images"
-	"github.com/docker/docker/daemon/internal/metrics"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/internal/multierror"
-	"github.com/docker/docker/internal/otelutil"
-	"github.com/docker/docker/runconfig"
 	"github.com/moby/moby/api/types/backend"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
@@ -34,6 +25,16 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/daemon/internal/metrics"
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/multierror"
+	"github.com/docker/docker/internal/otelutil"
+	"github.com/docker/docker/runconfig"
 )
 
 type createOpts struct {

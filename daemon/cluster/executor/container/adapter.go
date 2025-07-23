@@ -13,12 +13,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/daemon/cluster/convert"
-	executorpkg "github.com/docker/docker/daemon/cluster/executor"
-	"github.com/docker/docker/daemon/libnetwork"
-	networkSettings "github.com/docker/docker/daemon/network"
-	volumeopts "github.com/docker/docker/daemon/volume/service/opts"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/backend"
 	containertypes "github.com/moby/moby/api/types/container"
@@ -31,6 +25,13 @@ import (
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"golang.org/x/time/rate"
+
+	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/daemon/cluster/convert"
+	executorpkg "github.com/docker/docker/daemon/cluster/executor"
+	"github.com/docker/docker/daemon/libnetwork"
+	networkSettings "github.com/docker/docker/daemon/network"
+	volumeopts "github.com/docker/docker/daemon/volume/service/opts"
 )
 
 // nodeAttachmentReadyInterval is the interval to poll

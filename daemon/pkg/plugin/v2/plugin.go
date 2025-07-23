@@ -9,11 +9,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/docker/pkg/plugins"
 	"github.com/moby/moby/api/types"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/runtime-spec/specs-go"
+
+	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/pkg/plugins"
 )
 
 // Plugin represents an individual plugin.

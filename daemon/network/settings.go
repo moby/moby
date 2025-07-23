@@ -4,10 +4,11 @@ import (
 	"net"
 	"sync"
 
-	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/go-connections/nat"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/pkg/errors"
+
+	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 )
 
 // Settings stores configuration details about the daemon network config

@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/daemon/libnetwork/discoverapi"
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/scope"

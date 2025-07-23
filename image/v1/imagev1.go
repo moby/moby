@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 
 	"github.com/containerd/log"
+	"github.com/opencontainers/go-digest"
+
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/opencontainers/go-digest"
 )
 
 // CreateID creates an ID from v1 image, layerID and parent ID.

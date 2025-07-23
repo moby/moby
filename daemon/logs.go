@@ -7,15 +7,16 @@ import (
 
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
+	"github.com/moby/moby/api/types/backend"
+	containertypes "github.com/moby/moby/api/types/container"
+	timetypes "github.com/moby/moby/api/types/time"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/logger"
 	logcache "github.com/docker/docker/daemon/logger/loggerutils/cache"
 	"github.com/docker/docker/errdefs"
-	"github.com/moby/moby/api/types/backend"
-	containertypes "github.com/moby/moby/api/types/container"
-	timetypes "github.com/moby/moby/api/types/time"
-	"github.com/pkg/errors"
 )
 
 // ContainerLogs copies the container's log channel to the channel provided in

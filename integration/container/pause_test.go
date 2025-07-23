@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/testutil/request"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
@@ -15,6 +13,9 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil/request"
 )
 
 func TestPause(t *testing.T) {

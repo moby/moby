@@ -9,9 +9,10 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/moby/moby/api/types/plugins/logdriver"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/pkg/plugingetter"
 )
 
 // pluginAdapter takes a plugin and implements the Logger interface for logger

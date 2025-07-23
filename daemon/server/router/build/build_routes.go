@@ -16,10 +16,6 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
@@ -27,6 +23,11 @@ import (
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/server/httputils"
+	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/pkg/streamformatter"
 )
 
 type invalidParam struct {

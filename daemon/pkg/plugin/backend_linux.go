@@ -21,14 +21,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
-	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/internal/containerfs"
-	"github.com/docker/docker/pkg/authorization"
-	"github.com/docker/docker/pkg/pools"
-	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/go-archive/chrootarchive"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/backend"
@@ -39,6 +31,15 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+
+	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
+	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/internal/containerfs"
+	"github.com/docker/docker/pkg/authorization"
+	"github.com/docker/docker/pkg/pools"
+	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/pkg/stringid"
 )
 
 // MediaTypePluginConfig specifies the mediaType for plugin configuration.

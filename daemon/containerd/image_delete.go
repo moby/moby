@@ -14,14 +14,15 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
+	"github.com/moby/moby/api/types/events"
+	imagetypes "github.com/moby/moby/api/types/image"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/docker/docker/daemon/container"
 	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/daemon/internal/metrics"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/moby/moby/api/types/events"
-	imagetypes "github.com/moby/moby/api/types/image"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImageDelete deletes the image referenced by the given imageRef from this

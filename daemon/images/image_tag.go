@@ -4,8 +4,9 @@ import (
 	"context"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/image"
 	"github.com/moby/moby/api/types/events"
+
+	"github.com/docker/docker/image"
 )
 
 // TagImage adds the given reference to the image ID provided.

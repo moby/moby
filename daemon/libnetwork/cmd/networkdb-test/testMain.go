@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/daemon/libnetwork/cmd/networkdb-test/dbclient"
 	"github.com/docker/docker/daemon/libnetwork/cmd/networkdb-test/dbserver"
 )

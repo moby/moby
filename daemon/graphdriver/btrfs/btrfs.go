@@ -35,9 +35,6 @@ import (
 	"unsafe"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/daemon/internal/fstype"
-	"github.com/docker/docker/internal/containerfs"
 	"github.com/docker/go-units"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/user"
@@ -45,6 +42,10 @@ import (
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
+
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/internal/fstype"
+	"github.com/docker/docker/internal/containerfs"
 )
 
 func init() {

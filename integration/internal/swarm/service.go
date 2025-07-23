@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/testutil/daemon"
-	"github.com/docker/docker/testutil/environment"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
@@ -16,6 +14,9 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/testutil/daemon"
+	"github.com/docker/docker/testutil/environment"
 )
 
 // ServicePoll tweaks the pollSettings for `service`

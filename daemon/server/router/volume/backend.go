@@ -3,9 +3,10 @@ package volume
 import (
 	"context"
 
-	"github.com/docker/docker/daemon/volume/service/opts"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/volume"
+
+	"github.com/docker/docker/daemon/volume/service/opts"
 )
 
 // Backend is the methods that need to be implemented to provide

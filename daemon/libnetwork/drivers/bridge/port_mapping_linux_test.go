@@ -17,6 +17,11 @@ import (
 	"testing"
 
 	"github.com/containerd/log"
+	"github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/daemon/libnetwork/drvregistry"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
@@ -29,10 +34,6 @@ import (
 	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/internal/testutils/storeutils"
-	"github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestPortMappingConfig(t *testing.T) {

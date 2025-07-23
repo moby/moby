@@ -5,10 +5,11 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/go-units"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/pkg/plugingetter"
 )
 
 // Creator builds a logging driver instance with given context.

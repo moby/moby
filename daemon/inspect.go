@@ -9,14 +9,15 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/moby/api/types/backend"
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
+
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/errdefs"
 )
 
 // ContainerInspect returns low-level information about a

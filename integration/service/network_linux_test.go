@@ -7,12 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/libnetwork/scope"
-	"github.com/docker/docker/integration/internal/container"
-	net "github.com/docker/docker/integration/internal/network"
-	"github.com/docker/docker/integration/internal/swarm"
-	"github.com/docker/docker/internal/testutils/networking"
-	"github.com/docker/docker/testutil/daemon"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
@@ -23,6 +17,13 @@ import (
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/daemon/libnetwork/scope"
+	"github.com/docker/docker/integration/internal/container"
+	net "github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/integration/internal/swarm"
+	"github.com/docker/docker/internal/testutils/networking"
+	"github.com/docker/docker/testutil/daemon"
 )
 
 func TestDockerNetworkConnectAliasPreV144(t *testing.T) {

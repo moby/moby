@@ -15,11 +15,6 @@ import (
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/plugins/content/local"
 	"github.com/containerd/log"
-	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
-	"github.com/docker/docker/internal/containerfs"
-	"github.com/docker/docker/internal/lazyregexp"
-	"github.com/docker/docker/pkg/authorization"
-	"github.com/docker/docker/registry"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/pubsub"
@@ -28,6 +23,12 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+
+	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
+	"github.com/docker/docker/internal/containerfs"
+	"github.com/docker/docker/internal/lazyregexp"
+	"github.com/docker/docker/pkg/authorization"
+	"github.com/docker/docker/registry"
 )
 
 const (

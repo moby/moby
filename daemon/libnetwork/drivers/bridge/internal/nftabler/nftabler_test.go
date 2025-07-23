@@ -9,14 +9,15 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
-	"github.com/docker/docker/daemon/libnetwork/internal/nftables"
-	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/docker/docker/internal/testutils/netnsutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 	"gotest.tools/v3/icmd"
+
+	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
+	"github.com/docker/docker/daemon/libnetwork/internal/nftables"
+	"github.com/docker/docker/daemon/libnetwork/types"
+	"github.com/docker/docker/internal/testutils/netnsutils"
 )
 
 func TestNftabler(t *testing.T) {

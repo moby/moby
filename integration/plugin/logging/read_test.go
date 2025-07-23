@@ -7,14 +7,15 @@ import (
 	"testing"
 	"time"
 
-	testContainer "github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/daemon"
 	"github.com/moby/moby/api/stdcopy"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
+
+	testContainer "github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/daemon"
 )
 
 // TestReadPluginNoRead tests that reads are supported even if the plugin isn't capable.

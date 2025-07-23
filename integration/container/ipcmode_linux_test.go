@@ -7,10 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/daemon"
-	"github.com/docker/docker/testutil/request"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
@@ -18,6 +14,11 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/fs"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/daemon"
+	"github.com/docker/docker/testutil/request"
 )
 
 // testIpcCheckDevExists checks whether a given mount (identified by its

@@ -11,16 +11,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/environment"
-	"github.com/docker/docker/testutil/fakecontext"
-	"github.com/docker/docker/testutil/request"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/moby/api/types/build"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/environment"
+	"github.com/docker/docker/testutil/fakecontext"
+	"github.com/docker/docker/testutil/request"
 )
 
 var testEnv *environment.Execution

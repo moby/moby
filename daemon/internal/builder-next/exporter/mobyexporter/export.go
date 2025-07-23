@@ -14,8 +14,6 @@ import (
 	"github.com/containerd/containerd/v2/core/leases"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
@@ -23,6 +21,9 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/layer"
 )
 
 // Differ can make a moby layer from a snapshot

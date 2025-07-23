@@ -5,11 +5,12 @@ package main
 import (
 	"testing"
 
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/testutil"
 	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/testutil"
 )
 
 func (s *DockerCLIInfoSuite) TestInfoSecurityOptions(c *testing.T) {

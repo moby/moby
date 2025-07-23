@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/testutil/fixtures/load"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
@@ -16,6 +15,8 @@ import (
 	"github.com/moby/moby/client"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/testutil/fixtures/load"
 )
 
 // Execution contains information about the current test execution and daemon

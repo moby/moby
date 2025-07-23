@@ -9,6 +9,12 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema2"
+	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/api/types/registry"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
@@ -16,11 +22,6 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	refstore "github.com/docker/docker/reference"
 	registrypkg "github.com/docker/docker/registry"
-	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/registry"
-	"github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // Config stores configuration for communicating

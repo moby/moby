@@ -10,13 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/logger/loggertest"
 	protoio "github.com/gogo/protobuf/io"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/plugins/logdriver"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/loggertest"
 )
 
 func TestWriteLog(t *testing.T) {

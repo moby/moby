@@ -8,8 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/errdefs"
 	"github.com/ishidawataru/sctp"
+
+	"github.com/docker/docker/errdefs"
 )
 
 // constants for the IP address type

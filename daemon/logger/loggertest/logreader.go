@@ -15,8 +15,9 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/assert/opt"
 
-	"github.com/docker/docker/daemon/logger"
 	"github.com/moby/moby/api/types/backend"
+
+	"github.com/docker/docker/daemon/logger"
 )
 
 type syncer interface {

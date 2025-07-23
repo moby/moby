@@ -3,10 +3,11 @@ package images
 import (
 	"context"
 
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/pkg/errors"
 )
 
 // GetContainerLayerSize returns real size & virtual size

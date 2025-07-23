@@ -15,9 +15,6 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
@@ -26,6 +23,10 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/fakecontext"
 )
 
 func TestBuildWithRemoveAndForceRemove(t *testing.T) {

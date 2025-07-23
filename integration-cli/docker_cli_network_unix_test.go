@@ -14,6 +14,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
+	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
+
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	remoteapi "github.com/docker/docker/daemon/libnetwork/drivers/remote/api"
 	"github.com/docker/docker/daemon/libnetwork/ipamapi"
@@ -26,13 +34,6 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/testutil"
 	testdaemon "github.com/docker/docker/testutil/daemon"
-	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/network"
-	"github.com/vishvananda/netlink"
-	"golang.org/x/sys/unix"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/icmd"
 )
 
 const (

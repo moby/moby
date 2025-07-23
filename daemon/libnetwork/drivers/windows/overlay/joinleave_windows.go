@@ -6,12 +6,13 @@ import (
 	"net"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/driverapi"
-	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/gogo/protobuf/proto"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/docker/docker/daemon/libnetwork/driverapi"
+	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
 // Join method is invoked when a Sandbox is attached to an endpoint.

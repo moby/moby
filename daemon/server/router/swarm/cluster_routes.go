@@ -7,14 +7,15 @@ import (
 	"strconv"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/registry"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/server/httputils"
+	"github.com/docker/docker/errdefs"
 )
 
 func (sr *swarmRouter) initCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

@@ -15,12 +15,6 @@ import (
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
-	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/daemon"
-	"github.com/docker/docker/testutil/fixtures/plugin"
-	"github.com/docker/docker/testutil/registry"
-	"github.com/docker/docker/testutil/request"
 	"github.com/moby/moby/api/types"
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/system"
@@ -28,6 +22,13 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/daemon"
+	"github.com/docker/docker/testutil/fixtures/plugin"
+	"github.com/docker/docker/testutil/registry"
+	"github.com/docker/docker/testutil/request"
 )
 
 // TestPluginInvalidJSON tests that POST endpoints that expect a body return

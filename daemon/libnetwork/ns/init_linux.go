@@ -7,9 +7,10 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/vishvananda/netns"
+
 	"github.com/docker/docker/daemon/libnetwork/internal/modprobe"
 	"github.com/docker/docker/internal/nlwrap"
-	"github.com/vishvananda/netns"
 )
 
 var (

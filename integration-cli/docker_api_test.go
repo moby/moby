@@ -10,11 +10,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/request"
 	"github.com/moby/moby/api/types/versions"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/request"
 )
 
 type DockerAPISuite struct {

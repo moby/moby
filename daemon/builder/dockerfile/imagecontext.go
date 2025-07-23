@@ -6,11 +6,12 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/daemon/builder"
-	dockerimage "github.com/docker/docker/image"
 	"github.com/moby/moby/api/types/backend"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/builder"
+	dockerimage "github.com/docker/docker/image"
 )
 
 type getAndMountFunc func(context.Context, string, bool, *ocispec.Platform) (builder.Image, builder.ROLayer, error)

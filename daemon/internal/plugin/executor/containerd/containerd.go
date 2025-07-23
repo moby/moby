@@ -11,11 +11,12 @@ import (
 	"github.com/containerd/containerd/v2/pkg/cio"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/internal/libcontainerd"
 	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
 	"github.com/docker/docker/errdefs"
-	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 )
 
 // ExitHandler represents an object that is called when the exit event is received from containerd

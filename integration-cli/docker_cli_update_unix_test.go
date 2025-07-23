@@ -12,14 +12,15 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/request"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/request"
 )
 
 func (s *DockerCLIUpdateSuite) TearDownTest(ctx context.Context, t *testing.T) {

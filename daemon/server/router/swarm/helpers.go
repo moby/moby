@@ -5,12 +5,13 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/docker/docker/daemon/server/httputils"
 	basictypes "github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/versions"
+
+	"github.com/docker/docker/daemon/server/httputils"
 )
 
 // swarmLogs takes an http response, request, and selector, and writes the logs

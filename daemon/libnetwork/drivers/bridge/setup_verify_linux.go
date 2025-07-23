@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/daemon/libnetwork/ns"
 	"github.com/vishvananda/netlink"
+
+	"github.com/docker/docker/daemon/libnetwork/ns"
 )
 
 // setupVerifyAndReconcileIPv4 checks what IPv4 addresses the given i interface has

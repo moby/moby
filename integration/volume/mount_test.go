@@ -9,9 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/volume/safepath"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/moby/moby/api/types/build"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
@@ -23,6 +20,10 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/daemon/volume/safepath"
+	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil/fakecontext"
 )
 
 func TestRunMountVolumeSubdir(t *testing.T) {

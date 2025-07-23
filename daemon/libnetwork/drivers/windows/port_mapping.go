@@ -10,9 +10,10 @@ import (
 	"net"
 
 	"github.com/containerd/log"
+	"github.com/ishidawataru/sctp"
+
 	"github.com/docker/docker/daemon/libnetwork/portmapper"
 	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/ishidawataru/sctp"
 )
 
 const maxAllocatePortAttempts = 10

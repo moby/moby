@@ -11,15 +11,16 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/image"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/moby/api/types/backend"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/image"
 )
 
 var acceptedPsFilterTags = map[string]bool{

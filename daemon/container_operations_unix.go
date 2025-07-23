@@ -12,6 +12,13 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/moby/sys/mount"
+	"github.com/moby/sys/user"
+	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"golang.org/x/sys/unix"
+
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/libnetwork"
@@ -21,12 +28,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/process"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/moby/sys/mount"
-	"github.com/moby/sys/user"
-	"github.com/opencontainers/selinux/go-selinux/label"
-	"github.com/pkg/errors"
-	"go.opentelemetry.io/otel"
-	"golang.org/x/sys/unix"
 )
 
 func (daemon *Daemon) setupLinkedContainers(ctr *container.Container) ([]string, error) {

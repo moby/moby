@@ -30,12 +30,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/integration/internal/network"
-	"github.com/docker/docker/internal/testutils/networking"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/go-connections/nat"
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
@@ -46,6 +40,13 @@ import (
 	"gotest.tools/v3/golden"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
+	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/internal/testutils/networking"
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/daemon"
 )
 
 var (

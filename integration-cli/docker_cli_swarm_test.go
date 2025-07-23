@@ -19,6 +19,16 @@ import (
 	"time"
 
 	"github.com/cloudflare/cfssl/helpers"
+	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/swarmkit/v2/ca/keyutils"
+	"github.com/vishvananda/netlink"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/fs"
+	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
+
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/ipamapi"
 	remoteipam "github.com/docker/docker/daemon/libnetwork/ipams/remote/api"
@@ -29,15 +39,6 @@ import (
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/testutil"
 	testdaemon "github.com/docker/docker/testutil/daemon"
-	"github.com/moby/moby/api/types/swarm"
-	"github.com/moby/moby/api/types/versions"
-	"github.com/moby/swarmkit/v2/ca/keyutils"
-	"github.com/vishvananda/netlink"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/fs"
-	"gotest.tools/v3/icmd"
-	"gotest.tools/v3/poll"
 )
 
 func (s *DockerSwarmSuite) TestSwarmUpdate(c *testing.T) {

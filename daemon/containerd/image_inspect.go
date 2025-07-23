@@ -13,13 +13,14 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/internal/sliceutil"
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/moby/api/types/backend"
 	imagetypes "github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/storage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/semaphore"
+
+	"github.com/docker/docker/internal/sliceutil"
 )
 
 func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts backend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {
