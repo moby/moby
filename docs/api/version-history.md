@@ -17,6 +17,11 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.52](https://docs.docker.com/reference/api/engine/version/v1.52/) documentation
 
+* `GET /images/{name}/get` now accepts multiple `platform` query-arguments
+  to allow selecting which platform(s) of a multi-platform image must be
+  saved.
+* `POST /images/load` now accepts multiple `platform` query-arguments
+  to allow selecting which platform(s) of a multi-platform image to load.
 
 ## v1.51 API changes
 

@@ -286,7 +286,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 			for _, p := range platformList {
 				platformNames = append(platformNames, platforms.FormatAll(p))
 			}
-			log.G(ctx).WithFields(log.Fields{"error": err, "platform(s)": platformNames}).Debug("failed to import image to containerd")
+			log.G(ctx).WithFields(log.Fields{"error": err, "platforms": platformNames}).Debug("failed to import image to containerd")
 
 			// Note: ErrEmptyWalk will not be returned in most cases as
 			// index.json will contain a descriptor of the actual OCI index or
