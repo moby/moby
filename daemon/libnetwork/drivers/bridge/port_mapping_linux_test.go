@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/internal/sliceutil"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/daemon/libnetwork/drvregistry"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
@@ -26,7 +27,6 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/portmappers/nat"
 	"github.com/docker/docker/daemon/libnetwork/portmappers/routed"
 	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/internal/testutils/storeutils"
 	"github.com/sirupsen/logrus"
