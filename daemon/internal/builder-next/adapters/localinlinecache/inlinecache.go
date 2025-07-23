@@ -10,7 +10,7 @@ import (
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/distribution/reference"
 	imagestore "github.com/docker/docker/daemon/internal/image"
-	refstore "github.com/docker/docker/reference"
+	refstore "github.com/docker/docker/daemon/internal/refstore"
 	"github.com/moby/buildkit/cache/remotecache"
 	registryremotecache "github.com/moby/buildkit/cache/remotecache/registry"
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"

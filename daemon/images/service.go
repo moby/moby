@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/daemon/internal/distribution/xfer"
 	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/internal/layer"
-	refstore "github.com/docker/docker/reference"
+	refstore "github.com/docker/docker/daemon/internal/refstore"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
