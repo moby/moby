@@ -14,7 +14,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/daemon/pkg/ioutils"
 )
 
 const buffer32K = 32 * 1024

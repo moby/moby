@@ -17,7 +17,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/daemon/internal/errdefs"
-	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/daemon/pkg/streamformatter"
 	"github.com/moby/go-archive/compression"
 	"github.com/moby/moby/api/types/events"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

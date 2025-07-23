@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/libnetwork"
 	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/daemon/pkg/system"
 	"github.com/pkg/errors"
 )
 

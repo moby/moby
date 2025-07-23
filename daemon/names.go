@@ -9,8 +9,8 @@ import (
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/names"
-	"github.com/docker/docker/pkg/namesgenerator"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/daemon/pkg/namesgenerator"
+	"github.com/docker/docker/daemon/pkg/stringid"
 	"github.com/pkg/errors"
 )
 

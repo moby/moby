@@ -11,8 +11,8 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/daemon/pkg/registry"
+	"github.com/docker/docker/daemon/pkg/useragent"
 	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/pkg/useragent"
 	registrytypes "github.com/moby/moby/api/types/registry"
 )
 

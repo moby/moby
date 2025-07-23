@@ -3,8 +3,8 @@ package authorization
 import (
 	"sync"
 
-	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/docker/pkg/plugins"
+	"github.com/docker/docker/daemon/pkg/plugingetter"
+	"github.com/docker/docker/daemon/pkg/plugins"
 )
 
 // Plugin allows third party plugins to authorize requests and responses

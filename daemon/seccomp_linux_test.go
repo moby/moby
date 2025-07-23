@@ -7,7 +7,7 @@ import (
 	dconfig "github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/pkg/oci"
-	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/docker/docker/daemon/pkg/sysinfo"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/profiles/seccomp"
 	"github.com/opencontainers/runtime-spec/specs-go"

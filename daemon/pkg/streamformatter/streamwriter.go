@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/daemon/pkg/jsonmessage"
 )
 
 type streamWriter struct {

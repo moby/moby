@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/docker/docker/daemon/pkg/parsers/kernel"
 	"gotest.tools/v3/icmd"
 )
 

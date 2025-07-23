@@ -31,7 +31,7 @@ import (
 	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/internal/layer"
 	refstore "github.com/docker/docker/daemon/internal/refstore"
-	pkgprogress "github.com/docker/docker/pkg/progress"
+	pkgprogress "github.com/docker/docker/daemon/pkg/progress"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb/sourceresolver"

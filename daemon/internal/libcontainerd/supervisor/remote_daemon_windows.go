@@ -3,7 +3,7 @@ package supervisor
 import (
 	"os"
 
-	"github.com/docker/docker/pkg/process"
+	"github.com/docker/docker/daemon/pkg/process"
 )
 
 const (

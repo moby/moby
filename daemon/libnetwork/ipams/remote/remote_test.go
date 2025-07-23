@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/libnetwork/ipamapi"
-	"github.com/docker/docker/pkg/plugins"
+	"github.com/docker/docker/daemon/pkg/plugins"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

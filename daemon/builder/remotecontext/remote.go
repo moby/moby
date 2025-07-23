@@ -10,7 +10,7 @@ import (
 
 	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/internal/lazyregexp"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/daemon/pkg/ioutils"
 	"github.com/pkg/errors"
 )
 

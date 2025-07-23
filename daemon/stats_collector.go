@@ -4,8 +4,8 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/docker/docker/daemon/pkg/meminfo"
 	"github.com/docker/docker/daemon/stats"
-	"github.com/docker/docker/pkg/meminfo"
 )
 
 // newStatsCollector returns a new statsCollector that collections

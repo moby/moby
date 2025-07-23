@@ -53,7 +53,7 @@ import (
 	"github.com/docker/docker/daemon/cluster/controllers/plugin"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	lncluster "github.com/docker/docker/daemon/libnetwork/cluster"
-	"github.com/docker/docker/pkg/stack"
+	"github.com/docker/docker/daemon/pkg/stack"
 	"github.com/moby/moby/api/types/network"
 	types "github.com/moby/moby/api/types/swarm"
 	swarmapi "github.com/moby/swarmkit/v2/api"

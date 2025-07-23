@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/daemon/pkg/jsonmessage"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/testutil/request"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"

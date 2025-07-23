@@ -4,7 +4,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/docker/docker/pkg/plugins"
+	"github.com/docker/docker/daemon/pkg/plugins"
 )
 
 const (

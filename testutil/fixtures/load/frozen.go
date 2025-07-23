@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/daemon/pkg/jsonmessage"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
 	"github.com/moby/term"

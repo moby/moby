@@ -14,7 +14,7 @@ import (
 
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/daemon/pkg/stringid"
 )
 
 const name = "journald"

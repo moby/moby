@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/pools"
+	"github.com/docker/docker/daemon/pkg/pools"
 	"github.com/moby/term"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"

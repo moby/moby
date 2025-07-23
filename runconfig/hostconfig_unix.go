@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/docker/docker/daemon/pkg/sysinfo"
 	"github.com/moby/moby/api/types/container"
 )
 

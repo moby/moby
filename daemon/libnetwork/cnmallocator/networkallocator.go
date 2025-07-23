@@ -15,7 +15,7 @@ import (
 	remoteipam "github.com/docker/docker/daemon/libnetwork/ipams/remote"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/scope"
-	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/daemon/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 	"github.com/pkg/errors"

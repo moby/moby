@@ -15,7 +15,7 @@ import (
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
-	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/daemon/pkg/jsonmessage"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fixtures/plugin"

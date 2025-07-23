@@ -7,8 +7,8 @@ import (
 	"io"
 	"sync"
 
-	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/daemon/pkg/jsonmessage"
+	"github.com/docker/docker/daemon/pkg/progress"
 )
 
 const streamNewline = "\r\n"

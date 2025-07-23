@@ -13,8 +13,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/pkg/plugin"
-	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/docker/pkg/plugins"
+	"github.com/docker/docker/daemon/pkg/plugingetter"
+	"github.com/docker/docker/daemon/pkg/plugins"
 	gometrics "github.com/docker/go-metrics"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"

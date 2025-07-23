@@ -28,7 +28,7 @@ import (
 	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/internal/libcontainerd/queue"
 	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/daemon/pkg/ioutils"
 	"github.com/hashicorp/go-multierror"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

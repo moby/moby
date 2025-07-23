@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/daemon/builder"
 	"github.com/docker/docker/daemon/builder/remotecontext"
 	"github.com/docker/docker/daemon/internal/errdefs"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/daemon/pkg/stringid"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"

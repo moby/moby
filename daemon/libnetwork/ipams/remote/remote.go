@@ -10,8 +10,8 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/ipamapi"
 	"github.com/docker/docker/daemon/libnetwork/ipams/remote/api"
 	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/docker/pkg/plugins"
+	"github.com/docker/docker/daemon/pkg/plugingetter"
+	"github.com/docker/docker/daemon/pkg/plugins"
 	"github.com/pkg/errors"
 )
 

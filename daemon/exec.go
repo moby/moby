@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/internal/stream"
-	"github.com/docker/docker/pkg/pools"
+	"github.com/docker/docker/daemon/pkg/pools"
 	"github.com/moby/moby/api/types/backend"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"

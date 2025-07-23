@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/daemon/internal/distribution"
 	progressutils "github.com/docker/docker/daemon/internal/distribution/utils"
 	"github.com/docker/docker/daemon/internal/metrics"
-	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/daemon/pkg/progress"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

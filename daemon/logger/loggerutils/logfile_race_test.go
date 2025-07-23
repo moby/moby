@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/pkg/tailfile"
+	"github.com/docker/docker/daemon/pkg/tailfile"
 	"github.com/moby/moby/api/types/backend"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"

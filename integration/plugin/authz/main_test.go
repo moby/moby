@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/pkg/authorization"
-	"github.com/docker/docker/pkg/plugins"
+	"github.com/docker/docker/daemon/pkg/authorization"
+	"github.com/docker/docker/daemon/pkg/plugins"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/environment"

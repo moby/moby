@@ -3,7 +3,7 @@ package foo
 import (
 	aliasedio "io"
 
-	"github.com/docker/docker/pkg/plugins/pluginrpc-gen/fixtures/otherfixture"
+	"github.com/docker/docker/daemon/pkg/plugins/pluginrpc-gen/fixtures/otherfixture"
 )
 
 type wobble struct {
