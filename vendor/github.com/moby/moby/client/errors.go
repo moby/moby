@@ -30,13 +30,6 @@ func IsErrConnectionFailed(err error) bool {
 	return errors.As(err, &errConnectionFailed{})
 }
 
-// ErrorConnectionFailed returns an error with host in the error message when connection to docker daemon failed.
-//
-// Deprecated: this function was only used internally, and will be removed in the next release.
-func ErrorConnectionFailed(host string) error {
-	return connectionFailed(host)
-}
-
 // connectionFailed returns an error with host in the error message when connection
 // to docker daemon failed.
 func connectionFailed(host string) error {
@@ -47,14 +40,6 @@ func connectionFailed(host string) error {
 		err = fmt.Errorf("Cannot connect to the Docker daemon at %s. Is the docker daemon running?", host)
 	}
 	return errConnectionFailed{error: err}
-}
-
-// IsErrNotFound returns true if the error is a NotFound error, which is returned
-// by the API when some object is not found. It is an alias for [cerrdefs.IsNotFound].
-//
-// Deprecated: use [cerrdefs.IsNotFound] instead.
-func IsErrNotFound(err error) bool {
-	return cerrdefs.IsNotFound(err)
 }
 
 type objectNotFoundError struct {

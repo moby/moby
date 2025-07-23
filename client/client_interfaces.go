@@ -20,11 +20,6 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// CommonAPIClient is the common methods between stable and experimental versions of APIClient.
-//
-// Deprecated: use [APIClient] instead. This type will be an alias for [APIClient] in the next release, and removed after.
-type CommonAPIClient = stableAPIClient
-
 // APIClient is an interface that clients that talk with a docker server must implement.
 type APIClient interface {
 	stableAPIClient
@@ -128,16 +123,6 @@ type ImageAPIClient interface {
 	ImageHistory(ctx context.Context, image string, _ ...ImageHistoryOption) ([]image.HistoryResponseItem, error)
 	ImageLoad(ctx context.Context, input io.Reader, _ ...ImageLoadOption) (image.LoadResponse, error)
 	ImageSave(ctx context.Context, images []string, _ ...ImageSaveOption) (io.ReadCloser, error)
-
-	ImageAPIClientDeprecated
-}
-
-// ImageAPIClientDeprecated defines deprecated methods of the ImageAPIClient.
-type ImageAPIClientDeprecated interface {
-	// ImageInspectWithRaw returns the image information and its raw representation.
-	//
-	// Deprecated: Use [Client.ImageInspect] instead. Raw response can be obtained using the [ImageInspectWithRawResponse] option.
-	ImageInspectWithRaw(ctx context.Context, image string) (image.InspectResponse, []byte, error)
 }
 
 // NetworkAPIClient defines API client methods for the networks

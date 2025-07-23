@@ -62,15 +62,3 @@ func (cli *Client) ImageInspect(ctx context.Context, imageID string, inspectOpts
 	err = json.Unmarshal(buf.Bytes(), &response)
 	return response, err
 }
-
-// ImageInspectWithRaw returns the image information and its raw representation.
-//
-// Deprecated: Use [Client.ImageInspect] instead. Raw response can be obtained using the [ImageInspectWithRawResponse] option.
-func (cli *Client) ImageInspectWithRaw(ctx context.Context, imageID string) (image.InspectResponse, []byte, error) {
-	var buf bytes.Buffer
-	resp, err := cli.ImageInspect(ctx, imageID, ImageInspectWithRawResponse(&buf))
-	if err != nil {
-		return image.InspectResponse{}, nil, err
-	}
-	return resp, buf.Bytes(), err
-}
