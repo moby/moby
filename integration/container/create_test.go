@@ -523,11 +523,7 @@ func TestCreateTmpfsOverrideAnonymousVolume(t *testing.T) {
 	case <-timeout.C:
 		t.Fatal("timeout waiting for container to exit")
 	case status := <-chWait:
-		var errMsg string
-		if status.Error != nil {
-			errMsg = status.Error.Message
-		}
-		assert.Equal(t, int(status.StatusCode), 0, errMsg)
+		assert.Equal(t, int(status.StatusCode), 0, status.Err())
 	case err := <-chErr:
 		assert.NilError(t, err)
 	}

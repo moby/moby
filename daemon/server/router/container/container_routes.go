@@ -388,15 +388,7 @@ func (c *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 		return nil
 	}
 
-	var waitError *container.WaitExitError
-	if status.Err() != nil {
-		waitError = &container.WaitExitError{Message: status.Err().Error()}
-	}
-
-	return json.NewEncoder(w).Encode(&container.WaitResponse{
-		StatusCode: int64(status.ExitCode()),
-		Error:      waitError,
-	})
+	return json.NewEncoder(w).Encode(&status)
 }
 
 func (c *containerRouter) getContainersChanges(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

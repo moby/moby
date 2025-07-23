@@ -318,9 +318,9 @@ func (r *controller) Wait(pctx context.Context) error {
 		return err
 	}
 
-	if status := <-waitC; status.ExitCode() != 0 {
+	if status := <-waitC; status.StatusCode != 0 {
 		exitErr := &exitError{
-			code: status.ExitCode(),
+			code: int(status.StatusCode),
 		}
 
 		// Set the cause if it is knowable.
@@ -686,6 +686,8 @@ func parsePortMap(portMap nat.PortMap) ([]*api.PortConfig, error) {
 
 	return exposedPorts, nil
 }
+
+var _ exec.ExitCoder = (*exitError)(nil)
 
 type exitError struct {
 	code  int
