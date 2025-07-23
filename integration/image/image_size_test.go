@@ -3,9 +3,9 @@ package image
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/testutil"
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client"
 
 	"gotest.tools/v3/assert"
 )
