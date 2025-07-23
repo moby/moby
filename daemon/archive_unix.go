@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	volumemounts "github.com/docker/docker/daemon/volume/mounts"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/moby/go-archive"
 	containertypes "github.com/moby/moby/api/types/container"

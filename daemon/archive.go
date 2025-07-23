@@ -5,7 +5,7 @@ import (
 	"os"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/moby/moby/api/types/container"
 )
 

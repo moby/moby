@@ -14,10 +14,10 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/internal/quota"
 	"github.com/docker/docker/daemon/names"
 	"github.com/docker/docker/daemon/volume"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/sys/atomicwriter"
 	"github.com/moby/sys/user"

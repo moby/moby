@@ -14,7 +14,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/docker/daemon/cluster/convert"
-	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/container"

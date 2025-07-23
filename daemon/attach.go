@@ -7,9 +7,9 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/internal/stream"
 	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/moby/api/stdcopy"
 	"github.com/moby/moby/api/types/backend"
 	containertypes "github.com/moby/moby/api/types/container"

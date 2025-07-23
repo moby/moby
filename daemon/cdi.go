@@ -7,7 +7,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/hashicorp/go-multierror"
 	"github.com/moby/moby/api/types/system"
 	"github.com/opencontainers/runtime-spec/specs-go"

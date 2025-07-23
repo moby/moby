@@ -8,8 +8,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/internal/directory"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/volume"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/moby/api/types/filters"
 	volumetypes "github.com/moby/moby/api/types/volume"
 )

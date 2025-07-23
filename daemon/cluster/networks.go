@@ -6,8 +6,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/cluster/convert"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	networkSettings "github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
 	types "github.com/moby/moby/api/types/swarm"

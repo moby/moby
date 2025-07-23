@@ -3,7 +3,7 @@ package containerd
 import (
 	"errors"
 
-	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/daemon/internal/errdefs"
 )
 
 // SquashImage creates a new image with the diff of the specified image and

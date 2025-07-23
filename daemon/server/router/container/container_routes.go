@@ -12,11 +12,11 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
+	"github.com/docker/docker/daemon/internal/errdefs"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/daemon/server/httpstatus"
 	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/runconfig"
 	"github.com/moby/moby/api/types"
