@@ -25,8 +25,10 @@ const (
 	secureOption = "encrypted"
 )
 
-// overlay driver must implement the discover-API.
-var _ discoverapi.Discover = (*driver)(nil)
+var (
+	_ discoverapi.Discover   = (*driver)(nil)
+	_ driverapi.TableWatcher = (*driver)(nil)
+)
 
 type driver struct {
 	// Immutable; mu does not need to be held when accessing these fields.

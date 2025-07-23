@@ -13,6 +13,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/datastore"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
+	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/internal/otelutil"
 	"go.opentelemetry.io/otel"
@@ -460,9 +461,9 @@ func (n *bridgeNetwork) restorePortAllocations(ep *bridgeEndpoint) {
 	// ep.portMapping has HostPort=HostPortEnd, the host port allocated last
 	// time around ... use that in place of ep.extConnConfig.PortBindings, which
 	// may specify host port ranges.
-	cfg := make([]types.PortBinding, len(ep.portMapping))
+	cfg := make([]portmapperapi.PortBindingReq, len(ep.portMapping))
 	for i, b := range ep.portMapping {
-		cfg[i] = b.PortBinding
+		cfg[i] = portmapperapi.PortBindingReq{PortBinding: b.PortBinding}
 	}
 
 	// Calculate a portBindingMode - it need not be accurate but, if there were
@@ -470,7 +471,7 @@ func (n *bridgeNetwork) restorePortAllocations(ep *bridgeEndpoint) {
 	// there are no IPv6 bindings, it doesn't matter whether that was because this
 	// endpoint is not an IPv6 gateway and "pbmIPv6" was not set in the port
 	// binding state, or there were just no IPv6 port bindings configured.)
-	var pbm portBindingMode
+	pbm := portBindingMode{routed: true}
 	for _, b := range ep.portMapping {
 		if b.HostIP.To4() == nil {
 			pbm.ipv6 = true

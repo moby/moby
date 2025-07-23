@@ -9,10 +9,10 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/internal/rootless/mountopts"
 	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/oci"
+	"github.com/moby/moby/api/types"
 	"github.com/moby/sys/userns"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"

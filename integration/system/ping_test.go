@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types/build"
-	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/request"
+	"github.com/moby/moby/api/types/build"
+	"github.com/moby/moby/api/types/swarm"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )
@@ -60,7 +60,7 @@ func TestPingSwarmHeader(t *testing.T) {
 
 	ctx := setupTest(t)
 	d := daemon.New(t)
-	d.Start(t)
+	d.StartNode(t)
 	defer d.Stop(t)
 	apiClient := d.NewClientT(t)
 	defer apiClient.Close()

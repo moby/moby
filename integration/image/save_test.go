@@ -13,11 +13,7 @@ import (
 	"testing"
 	"time"
 
-	cerrdefs "github.com/containerd/errdefs"
 	"github.com/cpuguy83/tar2go"
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
 	iimage "github.com/docker/docker/integration/internal/image"
@@ -25,6 +21,10 @@ import (
 	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/moby/go-archive/compression"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/client"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
@@ -59,13 +59,13 @@ func TestSaveCheckTimes(t *testing.T) {
 	ctx := setupTest(t)
 
 	t.Parallel()
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	const repoName = "busybox:latest"
-	img, err := client.ImageInspect(ctx, repoName)
+	img, err := apiClient.ImageInspect(ctx, repoName)
 	assert.NilError(t, err)
 
-	rdr, err := client.ImageSave(ctx, []string{repoName})
+	rdr, err := apiClient.ImageSave(ctx, []string{repoName})
 	assert.NilError(t, err)
 
 	tarfs := tarIndexFS(t, rdr)
@@ -96,10 +96,10 @@ func TestSaveOCI(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.44"), "OCI layout support was introduced in v25")
 
 	ctx := setupTest(t)
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	const busybox = "busybox:latest"
-	inspectBusybox, err := client.ImageInspect(ctx, busybox)
+	inspectBusybox, err := apiClient.ImageInspect(ctx, busybox)
 	assert.NilError(t, err)
 
 	type testCase struct {
@@ -117,7 +117,7 @@ func TestSaveOCI(t *testing.T) {
 	}
 
 	if testEnv.DaemonInfo.OSType != "windows" {
-		multiLayerImage := iimage.Load(ctx, t, client, specialimage.MultiLayer)
+		multiLayerImage := iimage.Load(ctx, t, apiClient, specialimage.MultiLayer)
 		// Multi-layer image
 		testCases = append(testCases, testCase{image: multiLayerImage, expectedContainerdRef: "docker.io/library/multilayer:latest", expectedOCIRef: "latest"})
 
@@ -136,10 +136,10 @@ func TestSaveOCI(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.image, func(t *testing.T) {
 			// Get information about the original image.
-			inspect, err := client.ImageInspect(ctx, tc.image)
+			inspect, err := apiClient.ImageInspect(ctx, tc.image)
 			assert.NilError(t, err)
 
-			rdr, err := client.ImageSave(ctx, []string{tc.image})
+			rdr, err := apiClient.ImageSave(ctx, []string{tc.image})
 			assert.NilError(t, err)
 			defer rdr.Close()
 
@@ -213,45 +213,189 @@ func TestSaveOCI(t *testing.T) {
 	}
 }
 
-// TODO(thaJeztah): this test currently only checks invalid cases; update this test to use a table-test and test both valid and invalid platform options.
-func TestSavePlatform(t *testing.T) {
-	ctx := setupTest(t)
+func TestSaveAndLoadPlatform(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "The test image is a Linux image")
 
-	t.Parallel()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	const repoName = "busybox:latest"
-	_, err := apiClient.ImageInspect(ctx, repoName)
-	assert.NilError(t, err)
+	const repoName = "alpine:latest"
 
-	_, err = apiClient.ImageSave(ctx, []string{repoName}, client.ImageSaveWithPlatforms(
-		ocispec.Platform{Architecture: "amd64", OS: "linux"},
-		ocispec.Platform{Architecture: "arm64", OS: "linux", Variant: "v8"},
-	))
-	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
-	assert.Check(t, is.Error(err, "Error response from daemon: multiple platform parameters not supported"))
+	type testCase struct {
+		testName                string
+		containerdStoreOnly     bool
+		pullPlatforms           []string
+		savePlatforms           []ocispec.Platform
+		loadPlatforms           []ocispec.Platform
+		expectedSavedPlatforms  []ocispec.Platform
+		expectedLoadedPlatforms []ocispec.Platform // expected platforms to be saved, if empty, all pulled platforms are expected to be saved
+	}
+
+	testCases := []testCase{
+		{
+			testName:            "With no platforms specified",
+			containerdStoreOnly: true,
+			pullPlatforms:       []string{"linux/amd64", "linux/riscv64", "linux/arm64/v8"},
+			savePlatforms:       nil,
+			loadPlatforms:       nil,
+			expectedSavedPlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "amd64"},
+				{OS: "linux", Architecture: "riscv64"},
+				{OS: "linux", Architecture: "arm64", Variant: "v8"},
+			},
+			expectedLoadedPlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "amd64"},
+				{OS: "linux", Architecture: "riscv64"},
+				{OS: "linux", Architecture: "arm64", Variant: "v8"},
+			},
+		},
+		{
+			testName:                "With single pulled platform",
+			pullPlatforms:           []string{"linux/amd64"},
+			savePlatforms:           []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
+			loadPlatforms:           []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
+			expectedSavedPlatforms:  []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
+			expectedLoadedPlatforms: []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
+		},
+		{
+			testName:                "With single platform save and load",
+			containerdStoreOnly:     true,
+			pullPlatforms:           []string{"linux/amd64", "linux/riscv64", "linux/arm64/v8"},
+			savePlatforms:           []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
+			loadPlatforms:           []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
+			expectedSavedPlatforms:  []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
+			expectedLoadedPlatforms: []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
+		},
+		{
+			testName:            "With multiple platforms save and load",
+			containerdStoreOnly: true,
+			pullPlatforms:       []string{"linux/amd64", "linux/riscv64", "linux/arm64/v8"},
+			savePlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "arm64", Variant: "v8"},
+				{OS: "linux", Architecture: "riscv64"},
+			},
+			loadPlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "arm64", Variant: "v8"},
+				{OS: "linux", Architecture: "riscv64"},
+			},
+			expectedSavedPlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "arm64", Variant: "v8"},
+				{OS: "linux", Architecture: "riscv64"},
+			},
+			expectedLoadedPlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "arm64", Variant: "v8"},
+				{OS: "linux", Architecture: "riscv64"},
+			},
+		},
+		{
+			testName:            "With mixed platform save and load",
+			containerdStoreOnly: true,
+			pullPlatforms:       []string{"linux/amd64", "linux/riscv64", "linux/arm64/v8"},
+			savePlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "arm64", Variant: "v8"},
+				{OS: "linux", Architecture: "riscv64"},
+			},
+			loadPlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "riscv64"},
+			},
+			expectedSavedPlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "arm64", Variant: "v8"},
+				{OS: "linux", Architecture: "riscv64"},
+			},
+			expectedLoadedPlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "riscv64"},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		if tc.containerdStoreOnly && !testEnv.UsingSnapshotter() {
+			continue
+		}
+		t.Run(tc.testName, func(t *testing.T) {
+			// pull the image
+			for _, p := range tc.pullPlatforms {
+				resp, err := apiClient.ImagePull(ctx, repoName, image.PullOptions{Platform: p})
+				assert.NilError(t, err)
+				_, err = io.ReadAll(resp)
+				assert.NilError(t, err)
+				resp.Close()
+			}
+
+			// export the image
+			rdr, err := apiClient.ImageSave(ctx, []string{repoName}, client.ImageSaveWithPlatforms(tc.savePlatforms...))
+			assert.NilError(t, err)
+
+			// remove the pulled image
+			_, err = apiClient.ImageRemove(ctx, repoName, image.RemoveOptions{})
+			assert.NilError(t, err)
+
+			// load the full exported image (all platforms in it)
+			_, err = apiClient.ImageLoad(ctx, rdr)
+			assert.NilError(t, err)
+			rdr.Close()
+
+			// verify the loaded image has all the expected saved platforms
+			for _, p := range tc.expectedSavedPlatforms {
+				inspectResponse, err := apiClient.ImageInspect(ctx, repoName, client.ImageInspectWithPlatform(&p))
+				assert.NilError(t, err)
+				assert.Check(t, is.Equal(inspectResponse.Os, p.OS))
+				assert.Check(t, is.Equal(inspectResponse.Architecture, p.Architecture))
+			}
+
+			// pull the image again (start fresh)
+			for _, p := range tc.pullPlatforms {
+				resp, err := apiClient.ImagePull(ctx, repoName, image.PullOptions{Platform: p})
+				assert.NilError(t, err)
+				_, err = io.ReadAll(resp)
+				assert.NilError(t, err)
+				resp.Close()
+			}
+
+			// export the image
+			rdr, err = apiClient.ImageSave(ctx, []string{repoName}, client.ImageSaveWithPlatforms(tc.savePlatforms...))
+			assert.NilError(t, err)
+
+			// remove the pulled image
+			_, err = apiClient.ImageRemove(ctx, repoName, image.RemoveOptions{})
+			assert.NilError(t, err)
+
+			// load the exported image on the specified platforms only
+			_, err = apiClient.ImageLoad(ctx, rdr, client.ImageLoadWithPlatforms(tc.loadPlatforms...))
+			assert.NilError(t, err)
+			rdr.Close()
+
+			// verify the image was loaded for the specified platforms
+			for _, p := range tc.expectedLoadedPlatforms {
+				inspectResponse, err := apiClient.ImageInspect(ctx, repoName, client.ImageInspectWithPlatform(&p))
+				assert.NilError(t, err)
+				assert.Check(t, is.Equal(inspectResponse.Os, p.OS))
+				assert.Check(t, is.Equal(inspectResponse.Architecture, p.Architecture))
+			}
+		})
+	}
 }
 
 func TestSaveRepoWithMultipleImages(t *testing.T) {
 	ctx := setupTest(t)
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	makeImage := func(from string, tag string) string {
-		id := container.Create(ctx, t, client, func(cfg *container.TestContainerConfig) {
+		id := container.Create(ctx, t, apiClient, func(cfg *container.TestContainerConfig) {
 			cfg.Config.Image = from
 			cfg.Config.Cmd = []string{"true"}
 		})
 
-		res, err := client.ContainerCommit(ctx, id, containertypes.CommitOptions{Reference: tag})
+		res, err := apiClient.ContainerCommit(ctx, id, containertypes.CommitOptions{Reference: tag})
 		assert.NilError(t, err)
 
-		err = client.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+		err = apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
 		assert.NilError(t, err)
 
 		return res.ID
 	}
 
-	busyboxImg, err := client.ImageInspect(ctx, "busybox:latest")
+	busyboxImg, err := apiClient.ImageInspect(ctx, "busybox:latest")
 	assert.NilError(t, err)
 
 	const repoName = "foobar-save-multi-images-test"
@@ -262,7 +406,7 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 	idBar := makeImage("busybox:latest", tagBar)
 	idBusybox := busyboxImg.ID
 
-	rdr, err := client.ImageSave(ctx, []string{repoName, "busybox:latest"})
+	rdr, err := apiClient.ImageSave(ctx, []string{repoName, "busybox:latest"})
 	assert.NilError(t, err)
 	defer rdr.Close()
 
@@ -308,7 +452,7 @@ func TestSaveDirectoryPermissions(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Test is looking at linux specific details")
 
 	ctx := setupTest(t)
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	layerEntries := []string{"opt/", "opt/a/", "opt/a/b/", "opt/a/b/c"}
 	layerEntriesAUFS := []string{"./", ".wh..wh.aufs", ".wh..wh.orph/", ".wh..wh.plnk/", "opt/", "opt/a/", "opt/a/b/", "opt/a/b/c"}
@@ -317,9 +461,9 @@ func TestSaveDirectoryPermissions(t *testing.T) {
 RUN adduser -D user && mkdir -p /opt/a/b && chown -R user:user /opt/a
 RUN touch /opt/a/b/c && chown user:user /opt/a/b/c`
 
-	imgID := build.Do(ctx, t, client, fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile)))
+	imgID := build.Do(ctx, t, apiClient, fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile)))
 
-	rdr, err := client.ImageSave(ctx, []string{imgID})
+	rdr, err := apiClient.ImageSave(ctx, []string{imgID})
 	assert.NilError(t, err)
 	defer rdr.Close()
 

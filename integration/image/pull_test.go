@@ -17,9 +17,9 @@ import (
 	"github.com/containerd/containerd/v2/plugins/content/local"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/registry"
+	"github.com/moby/moby/api/types/image"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -141,7 +141,7 @@ func TestImagePullStoredDigestForOtherRepo(t *testing.T) {
 	c8dClient, err := containerd.New("", containerd.WithServices(containerd.WithContentStore(store)))
 	assert.NilError(t, err)
 
-	c8dClient.Push(ctx, remote, desc)
+	err = c8dClient.Push(ctx, remote, desc)
 	assert.NilError(t, err)
 
 	client := testEnv.APIClient()

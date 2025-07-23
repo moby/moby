@@ -3,8 +3,8 @@ package images
 import (
 	"context"
 
-	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/api/types/events"
+	"github.com/moby/moby/api/types/backend"
+	"github.com/moby/moby/api/types/events"
 )
 
 // LogImageEvent generates an event related to an image with only the default attributes.

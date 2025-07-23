@@ -5,6 +5,8 @@ package nftabler
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
@@ -157,6 +159,20 @@ func (n *network) configure(ctx context.Context, table nftables.TableRef, conf f
 		}
 		cleanup.Add(cf)
 	} else {
+		// AcceptFwMark
+		if n.config.AcceptFwMark != "" {
+			fwm, err := nftFwMark(n.config.AcceptFwMark)
+			if err != nil {
+				return nil, fmt.Errorf("adding fwmark %q for %q: %w", n.config.AcceptFwMark, n.config.IfName, err)
+			}
+			cf, err = fwdInChain.AppendRuleCf(ctx, fwdInAcceptFwMarkRuleGroup,
+				`meta mark %s counter accept comment "ALLOW FW MARK"`, fwm)
+			if err != nil {
+				return nil, fmt.Errorf("adding ALLOW FW MARK rule for %q: %w", n.config.IfName, err)
+			}
+			cleanup.Add(cf)
+		}
+
 		// Inter-Container Communication
 		cf, err = fwdInChain.AppendRuleCf(ctx, fwdInICCRuleGroup, "iifname == %s counter %s comment ICC",
 			n.config.IfName, iccVerdict)
@@ -269,4 +285,24 @@ func chainNatPostRtOut(ifName string) string {
 
 func chainNatPostRtIn(ifName string) string {
 	return "nat-postrouting-in__" + ifName
+}
+
+// nftFwMark takes a string representing a firewall mark with an optional
+// "/mask", parses the mark and mask, and returns an nftables expression
+// representing the same mask/mark. Numbers are converted to decimal, because
+// strings.ParseUint accepts more integer formats than nft.
+func nftFwMark(val string) (string, error) {
+	markStr, maskStr, haveMask := strings.Cut(val, "/")
+	mark, err := strconv.ParseUint(markStr, 0, 32)
+	if err != nil {
+		return "", fmt.Errorf("invalid firewall mark %q: %w", val, err)
+	}
+	if haveMask {
+		mask, err := strconv.ParseUint(maskStr, 0, 32)
+		if err != nil {
+			return "", fmt.Errorf("invalid firewall mask %q: %w", val, err)
+		}
+		return fmt.Sprintf("and %d == %d", mask, mark), nil
+	}
+	return strconv.FormatUint(mark, 10), nil
 }

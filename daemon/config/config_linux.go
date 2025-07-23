@@ -6,16 +6,17 @@ import (
 	"net"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/containerd/cgroups/v3"
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
 	"github.com/docker/docker/daemon/pkg/opts"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/docker/pkg/rootless"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/system"
 	"github.com/pkg/errors"
 )
 
@@ -49,6 +50,7 @@ type BridgeConfig struct {
 	EnableUserlandProxy      bool   `json:"userland-proxy,omitempty"`
 	UserlandProxyPath        string `json:"userland-proxy-path,omitempty"`
 	AllowDirectRouting       bool   `json:"allow-direct-routing,omitempty"`
+	BridgeAcceptFwMark       string `json:"bridge-accept-fwmark,omitempty"`
 }
 
 // DefaultBridgeConfig stores all the parameters for the default bridge network.
@@ -125,6 +127,11 @@ func (conf *Config) GetResolvConf() string {
 func (conf *Config) IsSwarmCompatible() error {
 	if conf.LiveRestoreEnabled {
 		return errors.New("--live-restore daemon configuration is incompatible with swarm mode")
+	}
+	// Swarm has not yet been updated to use nftables. But, if "iptables" is disabled, it
+	// doesn't add rules anyway.
+	if conf.FirewallBackend == "nftables" && conf.EnableIPTables {
+		return errors.New("--firewall-backend=nftables is incompatible with swarm mode")
 	}
 	return nil
 }
@@ -238,15 +245,15 @@ func validatePlatformConfig(conf *Config) error {
 	if err := verifyDefaultIpcMode(conf.IpcMode); err != nil {
 		return err
 	}
-
 	if err := bridge.ValidateFixedCIDRV6(conf.FixedCIDRv6); err != nil {
 		return errors.Wrap(err, "invalid fixed-cidr-v6")
 	}
-
 	if err := validateFirewallBackend(conf.FirewallBackend); err != nil {
 		return errors.Wrap(err, "invalid firewall-backend")
 	}
-
+	if err := validateFwMarkMask(conf.BridgeAcceptFwMark); err != nil {
+		return errors.Wrap(err, "invalid bridge-accept-fwmark")
+	}
 	return verifyDefaultCgroupNsMode(conf.CgroupNamespaceMode)
 }
 
@@ -304,6 +311,22 @@ func validateFirewallBackend(val string) error {
 		return nil
 	}
 	return errors.New(`allowed values are "iptables" and "nftables"`)
+}
+
+func validateFwMarkMask(val string) error {
+	if val == "" {
+		return nil
+	}
+	mark, mask, haveMask := strings.Cut(val, "/")
+	if _, err := strconv.ParseUint(mark, 0, 32); err != nil {
+		return fmt.Errorf("invalid firewall mark %q: %w", val, err)
+	}
+	if haveMask {
+		if _, err := strconv.ParseUint(mask, 0, 32); err != nil {
+			return fmt.Errorf("invalid firewall mask %q: %w", val, err)
+		}
+	}
+	return nil
 }
 
 func verifyDefaultCgroupNsMode(mode string) error {

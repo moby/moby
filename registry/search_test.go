@@ -10,8 +10,8 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/registry"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/registry"
 	"gotest.tools/v3/assert"
 )
 

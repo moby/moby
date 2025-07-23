@@ -3,10 +3,10 @@ package networking
 import (
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
@@ -21,7 +21,7 @@ const (
 )
 
 // Find the policy in, for example "Chain FORWARD (policy ACCEPT)".
-var rePolicy = lazyregexp.New("policy ([A-Za-z]+)")
+var rePolicy = regexp.MustCompile("policy ([A-Za-z]+)")
 
 // SetFilterForwardPolicies sets the default policy for the FORWARD chain in
 // the filter tables for both IPv4 and IPv6. The original policy is restored
@@ -32,11 +32,11 @@ var rePolicy = lazyregexp.New("policy ([A-Za-z]+)")
 // behaviour.
 func SetFilterForwardPolicies(t *testing.T, firewallBackend string, policy string) {
 	t.Helper()
-	if strings.Contains(firewallBackend, "iptables") {
+	if strings.HasPrefix(firewallBackend, "iptables") {
 		setIptablesFFP(t, policy)
 		return
 	}
-	if firewallBackend == "nftables" {
+	if strings.HasPrefix(firewallBackend, "nftables") {
 		setNftablesFFP(t, policy)
 		return
 	}

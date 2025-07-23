@@ -6,9 +6,10 @@ import (
 	"net/http"
 	"runtime"
 
-	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/server/httputils"
+	"github.com/moby/moby/api"
+	"github.com/moby/moby/api/types/versions"
 )
 
 // VersionMiddleware is a middleware that
@@ -18,7 +19,7 @@ type VersionMiddleware struct {
 
 	// defaultAPIVersion is the default API version provided by the API server,
 	// specified as "major.minor". It is usually configured to the latest API
-	// version [github.com/docker/docker/api.DefaultVersion].
+	// version [config.DefaultAPIVersion] supported by the daemon.
 	//
 	// API requests for API versions greater than this version are rejected by
 	// the server and produce a [versionUnsupportedError].
@@ -34,11 +35,11 @@ type VersionMiddleware struct {
 
 // NewVersionMiddleware creates a VersionMiddleware with the given versions.
 func NewVersionMiddleware(serverVersion, defaultAPIVersion, minAPIVersion string) (*VersionMiddleware, error) {
-	if versions.LessThan(defaultAPIVersion, api.MinSupportedAPIVersion) || versions.GreaterThan(defaultAPIVersion, api.DefaultVersion) {
-		return nil, fmt.Errorf("invalid default API version (%s): must be between %s and %s", defaultAPIVersion, api.MinSupportedAPIVersion, api.DefaultVersion)
+	if versions.LessThan(defaultAPIVersion, api.MinSupportedAPIVersion) || versions.GreaterThan(defaultAPIVersion, config.DefaultAPIVersion) {
+		return nil, fmt.Errorf("invalid default API version (%s): must be between %s and %s", defaultAPIVersion, api.MinSupportedAPIVersion, config.DefaultAPIVersion)
 	}
-	if versions.LessThan(minAPIVersion, api.MinSupportedAPIVersion) || versions.GreaterThan(minAPIVersion, api.DefaultVersion) {
-		return nil, fmt.Errorf("invalid minimum API version (%s): must be between %s and %s", minAPIVersion, api.MinSupportedAPIVersion, api.DefaultVersion)
+	if versions.LessThan(minAPIVersion, api.MinSupportedAPIVersion) || versions.GreaterThan(minAPIVersion, config.DefaultAPIVersion) {
+		return nil, fmt.Errorf("invalid minimum API version (%s): must be between %s and %s", minAPIVersion, api.MinSupportedAPIVersion, config.DefaultAPIVersion)
 	}
 	if versions.GreaterThan(minAPIVersion, defaultAPIVersion) {
 		return nil, fmt.Errorf("invalid API version: the minimum API version (%s) is higher than the default version (%s)", minAPIVersion, defaultAPIVersion)

@@ -23,9 +23,6 @@ import (
 	"github.com/containerd/cgroups/v3"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types/blkiodev"
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/initlayer"
@@ -44,6 +41,9 @@ import (
 	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/runconfig"
+	"github.com/moby/moby/api/types/blkiodev"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -924,19 +924,24 @@ func setHostGatewayIP(controller *libnetwork.Controller, config *config.Config) 
 	}
 }
 
-func driverOptions(config *config.Config) nwconfig.Option {
-	return nwconfig.OptionDriverConfig("bridge", options.Generic{
-		netlabel.GenericData: options.Generic{
-			"EnableIPForwarding":       config.BridgeConfig.EnableIPForward,
-			"DisableFilterForwardDrop": config.BridgeConfig.DisableFilterForwardDrop,
-			"EnableIPTables":           config.BridgeConfig.EnableIPTables,
-			"EnableIP6Tables":          config.BridgeConfig.EnableIP6Tables,
-			"EnableUserlandProxy":      config.BridgeConfig.EnableUserlandProxy,
-			"UserlandProxyPath":        config.BridgeConfig.UserlandProxyPath,
-			"AllowDirectRouting":       config.BridgeConfig.AllowDirectRouting,
-			"Rootless":                 config.Rootless,
-		},
-	})
+// networkPlatformOptions returns a slice of platform-specific libnetwork
+// options.
+func networkPlatformOptions(conf *config.Config) []nwconfig.Option {
+	return []nwconfig.Option{
+		nwconfig.OptionRootless(conf.Rootless),
+		nwconfig.OptionUserlandProxy(conf.EnableUserlandProxy, conf.UserlandProxyPath),
+		nwconfig.OptionDriverConfig("bridge", options.Generic{
+			netlabel.GenericData: options.Generic{
+				"EnableIPForwarding":       conf.BridgeConfig.EnableIPForward,
+				"DisableFilterForwardDrop": conf.BridgeConfig.DisableFilterForwardDrop,
+				"EnableIPTables":           conf.BridgeConfig.EnableIPTables,
+				"EnableIP6Tables":          conf.BridgeConfig.EnableIP6Tables,
+				"Hairpin":                  !conf.EnableUserlandProxy || conf.UserlandProxyPath == "",
+				"AllowDirectRouting":       conf.BridgeConfig.AllowDirectRouting,
+				"AcceptFwMark":             conf.BridgeConfig.BridgeAcceptFwMark,
+			},
+		}),
+	}
 }
 
 type defBrOptsV4 struct {

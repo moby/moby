@@ -7,18 +7,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api"
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	iimage "github.com/docker/docker/integration/internal/image"
 	"github.com/docker/docker/internal/testutils/specialimage"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/moby/moby/api"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/client"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -29,7 +29,7 @@ import (
 func TestImagesFilterMultiReference(t *testing.T) {
 	ctx := setupTest(t)
 
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	name := strings.ToLower(t.Name())
 	repoTags := []string{
@@ -40,7 +40,7 @@ func TestImagesFilterMultiReference(t *testing.T) {
 	}
 
 	for _, repoTag := range repoTags {
-		err := client.ImageTag(ctx, "busybox:latest", repoTag)
+		err := apiClient.ImageTag(ctx, "busybox:latest", repoTag)
 		assert.NilError(t, err)
 	}
 
@@ -51,7 +51,7 @@ func TestImagesFilterMultiReference(t *testing.T) {
 	options := image.ListOptions{
 		Filters: filter,
 	}
-	images, err := client.ImageList(ctx, options)
+	images, err := apiClient.ImageList(ctx, options)
 	assert.NilError(t, err)
 
 	assert.Assert(t, is.Len(images, 1))
@@ -66,10 +66,10 @@ func TestImagesFilterMultiReference(t *testing.T) {
 func TestImagesFilterUntil(t *testing.T) {
 	ctx := setupTest(t)
 
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	name := strings.ToLower(t.Name())
-	ctr := container.Create(ctx, t, client, container.WithName(name))
+	ctr := container.Create(ctx, t, apiClient, container.WithName(name))
 
 	imgs := make([]string, 5)
 	for i := range imgs {
@@ -77,16 +77,16 @@ func TestImagesFilterUntil(t *testing.T) {
 			// Make sure each image has a distinct timestamp.
 			time.Sleep(time.Millisecond)
 		}
-		id, err := client.ContainerCommit(ctx, ctr, containertypes.CommitOptions{Reference: fmt.Sprintf("%s:v%d", name, i)})
+		id, err := apiClient.ContainerCommit(ctx, ctr, containertypes.CommitOptions{Reference: fmt.Sprintf("%s:v%d", name, i)})
 		assert.NilError(t, err)
 		imgs[i] = id.ID
 	}
 
-	olderImage, err := client.ImageInspect(ctx, imgs[2])
+	olderImage, err := apiClient.ImageInspect(ctx, imgs[2])
 	assert.NilError(t, err)
 	olderUntil := olderImage.Created
 
-	laterImage, err := client.ImageInspect(ctx, imgs[3])
+	laterImage, err := apiClient.ImageInspect(ctx, imgs[3])
 	assert.NilError(t, err)
 	laterUntil := laterImage.Created
 
@@ -96,7 +96,7 @@ func TestImagesFilterUntil(t *testing.T) {
 		filters.Arg("until", laterUntil),
 		filters.Arg("before", imgs[len(imgs)-1]),
 	)
-	list, err := client.ImageList(ctx, image.ListOptions{Filters: filter})
+	list, err := apiClient.ImageList(ctx, image.ListOptions{Filters: filter})
 	assert.NilError(t, err)
 
 	var listedIDs []string
@@ -110,10 +110,10 @@ func TestImagesFilterUntil(t *testing.T) {
 func TestImagesFilterBeforeSince(t *testing.T) {
 	ctx := setupTest(t)
 
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	name := strings.ToLower(t.Name())
-	ctr := container.Create(ctx, t, client, container.WithName(name))
+	ctr := container.Create(ctx, t, apiClient, container.WithName(name))
 
 	imgs := make([]string, 5)
 	for i := range imgs {
@@ -121,7 +121,7 @@ func TestImagesFilterBeforeSince(t *testing.T) {
 			// Make sure each image has a distinct timestamp.
 			time.Sleep(time.Millisecond)
 		}
-		id, err := client.ContainerCommit(ctx, ctr, containertypes.CommitOptions{Reference: fmt.Sprintf("%s:v%d", name, i)})
+		id, err := apiClient.ContainerCommit(ctx, ctr, containertypes.CommitOptions{Reference: fmt.Sprintf("%s:v%d", name, i)})
 		assert.NilError(t, err)
 		imgs[i] = id.ID
 	}
@@ -130,7 +130,7 @@ func TestImagesFilterBeforeSince(t *testing.T) {
 		filters.Arg("since", imgs[0]),
 		filters.Arg("before", imgs[len(imgs)-1]),
 	)
-	list, err := client.ImageList(ctx, image.ListOptions{Filters: filter})
+	list, err := apiClient.ImageList(ctx, image.ListOptions{Filters: filter})
 	assert.NilError(t, err)
 
 	var listedIDs []string
@@ -147,10 +147,10 @@ func TestImagesFilterBeforeSince(t *testing.T) {
 
 func TestAPIImagesFilters(t *testing.T) {
 	ctx := setupTest(t)
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	for _, n := range []string{"utest:tag1", "utest/docker:tag2", "utest:5000/docker:tag3"} {
-		err := client.ImageTag(ctx, "busybox:latest", n)
+		err := apiClient.ImageTag(ctx, "busybox:latest", n)
 		assert.NilError(t, err)
 	}
 
@@ -191,7 +191,7 @@ func TestAPIImagesFilters(t *testing.T) {
 			t.Parallel()
 
 			ctx := testutil.StartSpan(ctx, t)
-			images, err := client.ImageList(ctx, image.ListOptions{
+			images, err := apiClient.ImageList(ctx, image.ListOptions{
 				Filters: filters.NewArgs(tc.filters...),
 			})
 			assert.Check(t, err)
@@ -208,27 +208,27 @@ func TestAPIImagesListSizeShared(t *testing.T) {
 
 	ctx := setupTest(t)
 
-	daemon := daemon.New(t)
-	daemon.Start(t)
-	defer daemon.Stop(t)
+	d := daemon.New(t)
+	d.Start(t)
+	defer d.Stop(t)
 
-	client := daemon.NewClientT(t)
+	apiClient := d.NewClientT(t)
 
-	iimage.Load(ctx, t, client, func(dir string) (*ocispec.Index, error) {
+	iimage.Load(ctx, t, apiClient, func(dir string) (*ocispec.Index, error) {
 		return specialimage.MultiLayerCustom(dir, "multilayer:latest", []specialimage.SingleFileLayer{
 			{Name: "bar", Content: []byte("2")},
 			{Name: "foo", Content: []byte("1")},
 		})
 	})
 
-	iimage.Load(ctx, t, client, func(dir string) (*ocispec.Index, error) {
+	iimage.Load(ctx, t, apiClient, func(dir string) (*ocispec.Index, error) {
 		return specialimage.MultiLayerCustom(dir, "multilayer2:latest", []specialimage.SingleFileLayer{
 			{Name: "asdf", Content: []byte("3")},
 			{Name: "foo", Content: []byte("1")},
 		})
 	})
 
-	_, err := client.ImageList(ctx, image.ListOptions{SharedSize: true})
+	_, err := apiClient.ImageList(ctx, image.ListOptions{SharedSize: true})
 	assert.NilError(t, err)
 }
 

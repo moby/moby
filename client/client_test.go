@@ -11,8 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types"
+	"github.com/moby/moby/api/types"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -30,7 +29,7 @@ func TestNewClientWithOpsFromEnv(t *testing.T) {
 		{
 			doc:             "default api version",
 			envs:            map[string]string{},
-			expectedVersion: api.DefaultVersion,
+			expectedVersion: DefaultAPIVersion,
 		},
 		{
 			doc: "invalid cert path",
@@ -44,7 +43,7 @@ func TestNewClientWithOpsFromEnv(t *testing.T) {
 			envs: map[string]string{
 				"DOCKER_CERT_PATH": "testdata/",
 			},
-			expectedVersion: api.DefaultVersion,
+			expectedVersion: DefaultAPIVersion,
 		},
 		{
 			doc: "default api version with cert path and tls verify",
@@ -52,7 +51,7 @@ func TestNewClientWithOpsFromEnv(t *testing.T) {
 				"DOCKER_CERT_PATH":  "testdata/",
 				"DOCKER_TLS_VERIFY": "1",
 			},
-			expectedVersion: api.DefaultVersion,
+			expectedVersion: DefaultAPIVersion,
 		},
 		{
 			doc: "default api version with cert path and host",
@@ -60,7 +59,7 @@ func TestNewClientWithOpsFromEnv(t *testing.T) {
 				"DOCKER_CERT_PATH": "testdata/",
 				"DOCKER_HOST":      "https://notaunixsocket",
 			},
-			expectedVersion: api.DefaultVersion,
+			expectedVersion: DefaultAPIVersion,
 		},
 		{
 			doc: "invalid docker host",
@@ -74,7 +73,7 @@ func TestNewClientWithOpsFromEnv(t *testing.T) {
 			envs: map[string]string{
 				"DOCKER_HOST": "invalid://url",
 			},
-			expectedVersion: api.DefaultVersion,
+			expectedVersion: DefaultAPIVersion,
 		},
 		{
 			doc: "override api version",
@@ -117,17 +116,17 @@ func TestGetAPIPath(t *testing.T) {
 	}{
 		{
 			path:     "/containers/json",
-			expected: "/v" + api.DefaultVersion + "/containers/json",
+			expected: "/v" + DefaultAPIVersion + "/containers/json",
 		},
 		{
 			path:     "/containers/json",
 			query:    url.Values{},
-			expected: "/v" + api.DefaultVersion + "/containers/json",
+			expected: "/v" + DefaultAPIVersion + "/containers/json",
 		},
 		{
 			path:     "/containers/json",
 			query:    url.Values{"s": []string{"c"}},
-			expected: "/v" + api.DefaultVersion + "/containers/json?s=c",
+			expected: "/v" + DefaultAPIVersion + "/containers/json?s=c",
 		},
 		{
 			version:  "1.22",
@@ -235,7 +234,7 @@ func TestNewClientWithOpsFromEnvSetsDefaultVersion(t *testing.T) {
 
 	client, err := NewClientWithOpts(FromEnv)
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(client.ClientVersion(), api.DefaultVersion))
+	assert.Check(t, is.Equal(client.ClientVersion(), DefaultAPIVersion))
 
 	const expected = "1.22"
 	t.Setenv("DOCKER_API_VERSION", expected)
@@ -375,8 +374,8 @@ func TestNegotiateAPIVersionAutomatic(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	// Client defaults to use api.DefaultVersion before version-negotiation.
-	expected := api.DefaultVersion
+	// Client defaults to use DefaultAPIVersion before version-negotiation.
+	expected := DefaultAPIVersion
 	assert.Check(t, is.Equal(client.ClientVersion(), expected))
 
 	// First request should trigger negotiation
@@ -423,7 +422,7 @@ func TestCustomAPIVersion(t *testing.T) {
 	}{
 		{
 			version:  "",
-			expected: api.DefaultVersion,
+			expected: DefaultAPIVersion,
 		},
 		{
 			version:  "1.0",
@@ -435,7 +434,7 @@ func TestCustomAPIVersion(t *testing.T) {
 		},
 		{
 			version:  "v",
-			expected: api.DefaultVersion,
+			expected: DefaultAPIVersion,
 		},
 		{
 			version:  "v1.0",

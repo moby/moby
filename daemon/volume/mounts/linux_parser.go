@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/daemon/volume"
+	"github.com/moby/moby/api/types/mount"
 )
 
 // NewLinuxParser creates a parser with Linux semantics.

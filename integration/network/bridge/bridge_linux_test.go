@@ -9,9 +9,6 @@ import (
 	"testing"
 	"time"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	networktypes "github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	ctr "github.com/docker/docker/integration/internal/container"
@@ -21,6 +18,9 @@ import (
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/go-connections/nat"
+	containertypes "github.com/moby/moby/api/types/container"
+	networktypes "github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/api/types/versions"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -607,8 +607,12 @@ func TestFirewalldReloadNoZombies(t *testing.T) {
 		}
 	}()
 
-	iptablesSave := icmd.Command("iptables-save")
-	resBeforeDel := icmd.RunCmd(iptablesSave)
+	saveCmd := []string{"iptables-save"}
+	if strings.HasPrefix(d.FirewallBackendDriver(t), "nftables") {
+		saveCmd = []string{"nft", "list ruleset"}
+	}
+	saveRules := icmd.Command(saveCmd[0], saveCmd[1:]...)
+	resBeforeDel := icmd.RunCmd(saveRules)
 	assert.NilError(t, resBeforeDel.Error)
 	assert.Check(t, strings.Contains(resBeforeDel.Combined(), bridgeName),
 		"With container: expected rules for %s in: %s", bridgeName, resBeforeDel.Combined())
@@ -619,7 +623,7 @@ func TestFirewalldReloadNoZombies(t *testing.T) {
 	removed = true
 
 	// Check the network does not appear in iptables rules.
-	resAfterDel := icmd.RunCmd(iptablesSave)
+	resAfterDel := icmd.RunCmd(saveRules)
 	assert.NilError(t, resAfterDel.Error)
 	assert.Check(t, !strings.Contains(resAfterDel.Combined(), bridgeName),
 		"After deletes: did not expect rules for %s in: %s", bridgeName, resAfterDel.Combined())
@@ -628,7 +632,7 @@ func TestFirewalldReloadNoZombies(t *testing.T) {
 	networking.FirewalldReload(t, d)
 
 	// Check that rules for the deleted container/network have not reappeared.
-	resAfterReload := icmd.RunCmd(iptablesSave)
+	resAfterReload := icmd.RunCmd(saveRules)
 	assert.NilError(t, resAfterReload.Error)
 	assert.Check(t, !strings.Contains(resAfterReload.Combined(), bridgeName),
 		"After deletes: did not expect rules for %s in: %s", bridgeName, resAfterReload.Combined())

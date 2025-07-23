@@ -144,8 +144,9 @@ jobs:
               // { os: 'ubuntu-24.04', mode: 'rootless-systemd' }, // FIXME: https://github.com/moby/moby/issues/44084
             ];
             if ("${{ inputs.storage }}" == "snapshotter") {
-              includes.push({ os: 'ubuntu-24.04', mode: 'firewalld' });
+              includes.push({ os: 'ubuntu-24.04', mode: 'iptables+firewalld' });
               includes.push({ os: 'ubuntu-24.04', mode: 'nftables' });
+              includes.push({ os: 'ubuntu-24.04', mode: 'nftables+firewalld' });
             }
             await core.group(`Set matrix`, async () => {
               core.info(`matrix: ${JSON.stringify(includes)}`);
@@ -336,15 +337,15 @@ jobs:
             // statically define the list of test suites that we want to run.
             if ("${{ inputs.storage }}" == "snapshotter") {
               matrix.include.push({
-                'mode': 'firewalld',
+                'mode': 'iptables+firewalld',
                 'test': 'DockerCLINetworkSuite|DockerCLIPortSuite|DockerDaemonSuite'
               });
               matrix.include.push({
-                'mode': 'firewalld',
+                'mode': 'iptables+firewalld',
                 'test': 'DockerSwarmSuite'
               });
               matrix.include.push({
-                'mode': 'firewalld',
+                'mode': 'iptables+firewalld',
                 'test': 'DockerNetworkSuite'
               });
               matrix.include.push({
@@ -357,6 +358,18 @@ jobs:
               });
               matrix.include.push({
                 'mode': 'nftables',
+                'test': 'DockerNetworkSuite'
+              });
+              matrix.include.push({
+                'mode': 'nftables+firewalld',
+                'test': 'DockerCLINetworkSuite|DockerCLIPortSuite|DockerDaemonSuite'
+              });
+              matrix.include.push({
+                'mode': 'nftables+firewalld',
+                'test': 'DockerSwarmSuite'
+              });
+              matrix.include.push({
+                'mode': 'nftables+firewalld',
                 'test': 'DockerNetworkSuite'
               });
             }

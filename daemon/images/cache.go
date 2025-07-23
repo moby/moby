@@ -6,11 +6,11 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/daemon/builder"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/image/cache"
 	"github.com/docker/docker/layer"
+	"github.com/moby/moby/api/types/backend"
 )
 
 type cacheAdaptor struct {

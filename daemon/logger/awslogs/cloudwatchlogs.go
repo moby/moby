@@ -734,7 +734,7 @@ func (l *logStream) putLogEvents(events []types.InputLogEvent, sequenceToken *st
 }
 
 // ValidateLogOpt looks for awslogs-specific log options awslogs-region, awslogs-endpoint
-// awslogs-group, awslogs-stream, awslogs-create-group, awslogs-datetime-format,
+// awslogs-group, awslogs-stream, awslogs-create-group, awslogs-create-stream, awslogs-datetime-format,
 // awslogs-multiline-pattern
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
@@ -742,6 +742,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case logGroupKey:
 		case logStreamKey:
 		case logCreateGroupKey:
+		case logCreateStreamKey:
 		case regionKey:
 		case endpointKey:
 		case tagKey:
@@ -761,6 +762,11 @@ func ValidateLogOpt(cfg map[string]string) error {
 	if cfg[logCreateGroupKey] != "" {
 		if _, err := strconv.ParseBool(cfg[logCreateGroupKey]); err != nil {
 			return fmt.Errorf("must specify valid value for log opt '%s': %v", logCreateGroupKey, err)
+		}
+	}
+	if cfg[logCreateStreamKey] != "" {
+		if _, err := strconv.ParseBool(cfg[logCreateStreamKey]); err != nil {
+			return fmt.Errorf("must specify valid value for log opt '%s': %v", logCreateStreamKey, err)
 		}
 	}
 	if cfg[forceFlushIntervalKey] != "" {

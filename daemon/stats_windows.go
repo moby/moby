@@ -4,9 +4,9 @@ import (
 	"context"
 
 	cerrdefs "github.com/containerd/errdefs"
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/internal/platform"
+	containertypes "github.com/moby/moby/api/types/container"
 )
 
 func (daemon *Daemon) stats(c *container.Container) (*containertypes.StatsResponse, error) {

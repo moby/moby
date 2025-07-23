@@ -15,16 +15,16 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/process"
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
+	"github.com/moby/moby/api/stdcopy"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/api/types/volume"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
@@ -734,7 +734,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 
 func testLiveRestoreUserChainsSetup(t *testing.T) {
 	skip.If(t, testEnv.IsRootless(), "rootless daemon uses it's own network namespace")
-	skip.If(t, testEnv.FirewallBackendDriver() == "nftables", "nftables enabled, skipping iptables test")
+	skip.If(t, strings.HasPrefix(testEnv.FirewallBackendDriver(), "nftables"), "nftables enabled, skipping iptables test")
 
 	t.Parallel()
 	ctx := testutil.StartSpan(baseContext, t)

@@ -1,7 +1,7 @@
 package runconfig
 
 import (
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/api/types/container"
 )
 
 // validateNetContainerMode ensures that the various combinations of requested

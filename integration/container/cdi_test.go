@@ -8,12 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
+	"github.com/moby/moby/api/stdcopy"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/system"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
@@ -179,7 +179,7 @@ func TestCDIInfoDiscoveredDevices(t *testing.T) {
 	cdiDir := testutil.TempDir(t)
 	specFilePath := filepath.Join(cdiDir, "test-device.json")
 
-	err := os.WriteFile(specFilePath, []byte(specContent), 0644)
+	err := os.WriteFile(specFilePath, []byte(specContent), 0o644)
 	assert.NilError(t, err, "Failed to write sample CDI spec file")
 
 	d := daemon.New(t)

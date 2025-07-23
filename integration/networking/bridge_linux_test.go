@@ -16,9 +16,6 @@ import (
 	"testing"
 	"time"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	networktypes "github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
 	"github.com/docker/docker/daemon/libnetwork/iptables"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
@@ -30,6 +27,9 @@ import (
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/go-connections/nat"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	containertypes "github.com/moby/moby/api/types/container"
+	networktypes "github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -1145,7 +1145,7 @@ func TestNoIP6Tables(t *testing.T) {
 			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
 
 			var cmd *exec.Cmd
-			if d.FirewallBackendDriver(t) == "nftables" {
+			if strings.HasPrefix(d.FirewallBackendDriver(t), "nftables") {
 				cmd = exec.Command("nft", "list", "table", "ip6", "docker-bridges")
 			} else {
 				cmd = exec.Command("/usr/sbin/ip6tables-save")
@@ -1302,6 +1302,7 @@ func TestContainerDisabledIPv6(t *testing.T) {
 	ctx := setupTest(t)
 	d := daemon.New(t)
 	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
 
 	c := d.NewClientT(t)
 	defer c.Close()

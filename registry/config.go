@@ -1,3 +1,6 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.23
+
 package registry
 
 import (
@@ -6,14 +9,15 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/internal/lazyregexp"
+	"github.com/moby/moby/api/types/registry"
 )
 
 // ServiceOptions holds command line options.
@@ -57,7 +61,9 @@ var (
 		Host:   DefaultRegistryHost,
 	}
 
-	validHostPortRegex = lazyregexp.New(`^` + reference.DomainRegexp.String() + `$`)
+	validHostPortRegex = sync.OnceValue(func() *regexp.Regexp {
+		return regexp.MustCompile(`^` + reference.DomainRegexp.String() + `$`)
+	})
 )
 
 // runningWithRootlessKit is a fork of [rootless.RunningWithRootlessKit],
@@ -334,7 +340,7 @@ func validateHostPort(s string) error {
 	}
 	// If match against the `host:port` pattern fails,
 	// it might be `IPv6:port`, which will be captured by net.ParseIP(host)
-	if !validHostPortRegex.MatchString(s) && net.ParseIP(host) == nil {
+	if !validHostPortRegex().MatchString(s) && net.ParseIP(host) == nil {
 		return invalidParamf("invalid host %q", host)
 	}
 	if port != "" {

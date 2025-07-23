@@ -21,9 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/system"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringid"
@@ -31,6 +28,9 @@ import (
 	"github.com/docker/docker/testutil/request"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/api/types/system"
+	"github.com/moby/moby/client"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
@@ -530,10 +530,10 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		d.args = append(d.args, "--storage-driver", d.storageDriver)
 	}
 
-	hasFwBackendArg := !slices.ContainsFunc(providedArgs, func(s string) bool {
+	hasFwBackendArg := slices.ContainsFunc(providedArgs, func(s string) bool {
 		return strings.HasPrefix(s, "--firewall-backend")
 	})
-	if hasFwBackendArg {
+	if !hasFwBackendArg {
 		if fw := os.Getenv("DOCKER_FIREWALL_BACKEND"); fw != "" {
 			d.args = append(d.args, "--firewall-backend="+fw)
 		}

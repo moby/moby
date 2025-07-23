@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
 	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
+	"github.com/moby/moby/api/types/container"
 )
 
 type mockTask struct {

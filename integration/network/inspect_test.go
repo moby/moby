@@ -3,10 +3,10 @@ package network
 import (
 	"testing"
 
-	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/testutil"
+	networktypes "github.com/moby/moby/api/types/network"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"

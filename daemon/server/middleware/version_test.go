@@ -8,8 +8,9 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/docker/docker/api"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/server/httputils"
+	"github.com/moby/moby/api"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -20,38 +21,38 @@ func TestNewVersionMiddlewareValidation(t *testing.T) {
 	}{
 		{
 			doc:            "defaults",
-			defaultVersion: api.DefaultVersion,
+			defaultVersion: config.DefaultAPIVersion,
 			minVersion:     api.MinSupportedAPIVersion,
 		},
 		{
 			doc:            "invalid default lower than min",
 			defaultVersion: api.MinSupportedAPIVersion,
-			minVersion:     api.DefaultVersion,
-			expectedErr:    fmt.Sprintf("invalid API version: the minimum API version (%s) is higher than the default version (%s)", api.DefaultVersion, api.MinSupportedAPIVersion),
+			minVersion:     config.DefaultAPIVersion,
+			expectedErr:    fmt.Sprintf("invalid API version: the minimum API version (%s) is higher than the default version (%s)", config.DefaultAPIVersion, api.MinSupportedAPIVersion),
 		},
 		{
 			doc:            "invalid default too low",
 			defaultVersion: "0.1",
 			minVersion:     api.MinSupportedAPIVersion,
-			expectedErr:    fmt.Sprintf("invalid default API version (0.1): must be between %s and %s", api.MinSupportedAPIVersion, api.DefaultVersion),
+			expectedErr:    fmt.Sprintf("invalid default API version (0.1): must be between %s and %s", api.MinSupportedAPIVersion, config.DefaultAPIVersion),
 		},
 		{
 			doc:            "invalid default too high",
 			defaultVersion: "9999.9999",
-			minVersion:     api.DefaultVersion,
-			expectedErr:    fmt.Sprintf("invalid default API version (9999.9999): must be between %s and %s", api.MinSupportedAPIVersion, api.DefaultVersion),
+			minVersion:     config.DefaultAPIVersion,
+			expectedErr:    fmt.Sprintf("invalid default API version (9999.9999): must be between %s and %s", api.MinSupportedAPIVersion, config.DefaultAPIVersion),
 		},
 		{
 			doc:            "invalid minimum too low",
 			defaultVersion: api.MinSupportedAPIVersion,
 			minVersion:     "0.1",
-			expectedErr:    fmt.Sprintf("invalid minimum API version (0.1): must be between %s and %s", api.MinSupportedAPIVersion, api.DefaultVersion),
+			expectedErr:    fmt.Sprintf("invalid minimum API version (0.1): must be between %s and %s", api.MinSupportedAPIVersion, config.DefaultAPIVersion),
 		},
 		{
 			doc:            "invalid minimum too high",
-			defaultVersion: api.DefaultVersion,
+			defaultVersion: config.DefaultAPIVersion,
 			minVersion:     "9999.9999",
-			expectedErr:    fmt.Sprintf("invalid minimum API version (9999.9999): must be between %s and %s", api.MinSupportedAPIVersion, api.DefaultVersion),
+			expectedErr:    fmt.Sprintf("invalid minimum API version (9999.9999): must be between %s and %s", api.MinSupportedAPIVersion, config.DefaultAPIVersion),
 		},
 	}
 
@@ -75,7 +76,7 @@ func TestVersionMiddlewareVersion(t *testing.T) {
 		return nil
 	}
 
-	m, err := NewVersionMiddleware("1.2.3", api.DefaultVersion, api.MinSupportedAPIVersion)
+	m, err := NewVersionMiddleware("1.2.3", config.DefaultAPIVersion, api.MinSupportedAPIVersion)
 	assert.NilError(t, err)
 	h := m.WrapHandler(handler)
 
@@ -89,7 +90,7 @@ func TestVersionMiddlewareVersion(t *testing.T) {
 		errString       string
 	}{
 		{
-			expectedVersion: api.DefaultVersion,
+			expectedVersion: config.DefaultAPIVersion,
 		},
 		{
 			reqVersion:      api.MinSupportedAPIVersion,
@@ -101,7 +102,7 @@ func TestVersionMiddlewareVersion(t *testing.T) {
 		},
 		{
 			reqVersion: "9999.9999",
-			errString:  fmt.Sprintf("client version 9999.9999 is too new. Maximum supported API version is %s", api.DefaultVersion),
+			errString:  fmt.Sprintf("client version 9999.9999 is too new. Maximum supported API version is %s", config.DefaultAPIVersion),
 		},
 	}
 
@@ -125,7 +126,7 @@ func TestVersionMiddlewareWithErrorsReturnsHeaders(t *testing.T) {
 		return nil
 	}
 
-	m, err := NewVersionMiddleware("1.2.3", api.DefaultVersion, api.MinSupportedAPIVersion)
+	m, err := NewVersionMiddleware("1.2.3", config.DefaultAPIVersion, api.MinSupportedAPIVersion)
 	assert.NilError(t, err)
 	h := m.WrapHandler(handler)
 
@@ -140,6 +141,6 @@ func TestVersionMiddlewareWithErrorsReturnsHeaders(t *testing.T) {
 	hdr := resp.Result().Header
 	assert.Check(t, is.Contains(hdr.Get("Server"), "Docker/1.2.3"))
 	assert.Check(t, is.Contains(hdr.Get("Server"), runtime.GOOS))
-	assert.Check(t, is.Equal(hdr.Get("Api-Version"), api.DefaultVersion))
+	assert.Check(t, is.Equal(hdr.Get("Api-Version"), config.DefaultAPIVersion))
 	assert.Check(t, is.Equal(hdr.Get("Ostype"), runtime.GOOS))
 }

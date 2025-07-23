@@ -6,14 +6,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types/build"
-	containertypes "github.com/docker/docker/api/types/container"
-	dclient "github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
+	"github.com/moby/moby/api/stdcopy"
+	"github.com/moby/moby/api/types/build"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
@@ -26,16 +26,16 @@ func TestBuildSquashParent(t *testing.T) {
 
 	ctx := testutil.StartSpan(baseContext, t)
 
-	var client dclient.APIClient
+	var apiClient client.APIClient
 	if !testEnv.DaemonInfo.ExperimentalBuild {
 		skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 
 		d := daemon.New(t, daemon.WithExperimental())
 		d.StartWithBusybox(ctx, t)
 		defer d.Stop(t)
-		client = d.NewClientT(t)
+		apiClient = d.NewClientT(t)
 	} else {
-		client = testEnv.APIClient()
+		apiClient = testEnv.APIClient()
 	}
 
 	dockerfile := `
@@ -52,7 +52,7 @@ func TestBuildSquashParent(t *testing.T) {
 	defer source.Close()
 
 	name := strings.ToLower(t.Name())
-	resp, err := client.ImageBuild(ctx,
+	resp, err := apiClient.ImageBuild(ctx,
 		source.AsTarReader(t),
 		build.ImageBuildOptions{
 			Remove:      true,
@@ -64,12 +64,12 @@ func TestBuildSquashParent(t *testing.T) {
 	resp.Body.Close()
 	assert.NilError(t, err)
 
-	inspect, err := client.ImageInspect(ctx, name)
+	inspect, err := apiClient.ImageInspect(ctx, name)
 	assert.NilError(t, err)
 	origID := inspect.ID
 
 	// build with squash
-	resp, err = client.ImageBuild(ctx,
+	resp, err = apiClient.ImageBuild(ctx,
 		source.AsTarReader(t),
 		build.ImageBuildOptions{
 			Remove:      true,
@@ -82,13 +82,13 @@ func TestBuildSquashParent(t *testing.T) {
 	resp.Body.Close()
 	assert.NilError(t, err)
 
-	cid := container.Run(ctx, t, client,
+	cid := container.Run(ctx, t, apiClient,
 		container.WithImage(name),
 		container.WithCmd("/bin/sh", "-c", "cat /hello"),
 	)
 
-	poll.WaitOn(t, container.IsStopped(ctx, client, cid))
-	reader, err := client.ContainerLogs(ctx, cid, containertypes.LogsOptions{
+	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cid))
+	reader, err := apiClient.ContainerLogs(ctx, cid, containertypes.LogsOptions{
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)
@@ -99,21 +99,21 @@ func TestBuildSquashParent(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(strings.TrimSpace(actualStdout.String()), "hello\nworld"))
 
-	container.Run(ctx, t, client,
+	container.Run(ctx, t, apiClient,
 		container.WithImage(name),
 		container.WithCmd("/bin/sh", "-c", "[ ! -f /remove_me ]"),
 	)
-	container.Run(ctx, t, client,
+	container.Run(ctx, t, apiClient,
 		container.WithImage(name),
 		container.WithCmd("/bin/sh", "-c", `[ "$(echo $HELLO)" = "world" ]`),
 	)
 
-	origHistory, err := client.ImageHistory(ctx, origID)
+	origHistory, err := apiClient.ImageHistory(ctx, origID)
 	assert.NilError(t, err)
-	testHistory, err := client.ImageHistory(ctx, name)
+	testHistory, err := apiClient.ImageHistory(ctx, name)
 	assert.NilError(t, err)
 
-	inspect, err = client.ImageInspect(ctx, name)
+	inspect, err = apiClient.ImageInspect(ctx, name)
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(testHistory, len(origHistory)+1))
 	assert.Check(t, is.Len(inspect.RootFS.Layers, 2))

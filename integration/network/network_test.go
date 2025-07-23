@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"testing"
 
-	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
+	networktypes "github.com/moby/moby/api/types/network"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

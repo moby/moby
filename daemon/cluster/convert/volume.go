@@ -1,8 +1,8 @@
 package convert
 
 import (
-	volumetypes "github.com/docker/docker/api/types/volume"
 	gogotypes "github.com/gogo/protobuf/types"
+	volumetypes "github.com/moby/moby/api/types/volume"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
 

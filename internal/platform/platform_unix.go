@@ -14,12 +14,3 @@ func runtimeArchitecture() (string, error) {
 	}
 	return unix.ByteSliceToString(utsname.Machine[:]), nil
 }
-
-// NumProcs returns the number of processors on the system
-//
-// Deprecated: temporary stub for non-Windows to provide an alias for the deprecated github.com/docker/docker/pkg/platform package.
-//
-// FIXME(thaJeztah): remove once we remove  github.com/docker/docker/pkg/platform
-func NumProcs() uint32 {
-	return 0
-}

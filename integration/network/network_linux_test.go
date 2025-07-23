@@ -11,16 +11,16 @@ import (
 	"testing"
 	"time"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	networktypes "github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/internal/testutils/networking"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
+	containertypes "github.com/moby/moby/api/types/container"
+	networktypes "github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
@@ -93,7 +93,7 @@ func TestHostIPv4BridgeLabel(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, len(out.IPAM.Config) > 0)
 	// Make sure the SNAT rule exists
-	if testEnv.FirewallBackendDriver() == "nftables" {
+	if strings.HasPrefix(testEnv.FirewallBackendDriver(), "nftables") {
 		chain := testutil.RunCommand(ctx, "nft", "--stateless", "list", "chain", "ip", "docker-bridges", "nat-postrouting-out__hostIPv4Bridge").Combined()
 		exp := fmt.Sprintf(`oifname != "hostIPv4Bridge" ip saddr %s counter snat to %s comment "SNAT"`,
 			out.IPAM.Config[0].Subnet, ipv4SNATAddr)

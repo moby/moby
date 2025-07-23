@@ -1,17 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	"net/http"
-	"runtime"
-	"strconv"
-	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
@@ -48,30 +41,6 @@ func (s *DockerAPISuite) TestAPIGetEnabledCORS(c *testing.T) {
 	// assert.Equal(c, res.Header.Get("Access-Control-Allow-Headers"), "Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth")
 }
 
-func (s *DockerAPISuite) TestAPIClientVersionOldNotSupported(c *testing.T) {
-	if testEnv.DaemonInfo.OSType != runtime.GOOS {
-		c.Skip("Daemon platform doesn't match test platform")
-	}
-
-	major, minor, _ := strings.Cut(testEnv.DaemonVersion.MinAPIVersion, ".")
-	vMinInt, err := strconv.Atoi(minor)
-	assert.NilError(c, err)
-	vMinInt--
-	version := fmt.Sprintf("%s.%d", major, vMinInt)
-
-	resp, body, err := request.Get(testutil.GetContext(c), "/v"+version+"/version")
-	assert.NilError(c, err)
-	assert.Equal(c, resp.StatusCode, http.StatusBadRequest)
-	expected := fmt.Sprintf("client version %s is too old. Minimum supported API version is %s, please upgrade your client to a newer version", version, testEnv.DaemonVersion.MinAPIVersion)
-	b, err := request.ReadBody(body)
-	assert.NilError(c, err)
-	errMessage := string(bytes.TrimSpace(b))
-	if versions.GreaterThanOrEqualTo(version, "1.24") {
-		errMessage = getErrorMessage(c, b)
-	}
-	assert.Equal(c, errMessage, expected)
-}
-
 func (s *DockerAPISuite) TestAPIErrorJSON(c *testing.T) {
 	httpResp, body, err := request.Post(testutil.GetContext(c), "/containers/create", request.JSONBody(struct{}{}))
 	assert.NilError(c, err)
@@ -79,7 +48,7 @@ func (s *DockerAPISuite) TestAPIErrorJSON(c *testing.T) {
 	assert.Assert(c, is.Contains(httpResp.Header.Get("Content-Type"), "application/json"))
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Equal(c, getErrorMessage(c, b), runconfig.ErrEmptyConfig.Error())
+	assert.Check(c, is.Contains(getErrorMessage(c, b), "config cannot be empty"))
 }
 
 func (s *DockerAPISuite) TestAPIErrorNotFoundJSON(c *testing.T) {

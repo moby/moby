@@ -17,8 +17,9 @@ import (
 // early for "a" (all); https://github.com/torvalds/linux/blob/v5.10/security/device_cgroup.c#L614-L642
 var deviceCgroupRuleRegex = lazyregexp.New("^([acb]) ([0-9]+|\\*):([0-9]+|\\*) ([rwm]{1,3})$")
 
-// SetCapabilities sets the provided capabilities on the spec
-// All capabilities are added if privileged is true.
+// SetCapabilities sets the provided capabilities on the spec.
+//
+// Deprecated: this function is no longer used and will be removed in the next release.
 func SetCapabilities(s *specs.Spec, caplist []string) error {
 	if s.Process == nil {
 		s.Process = &specs.Process{}

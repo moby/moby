@@ -9,10 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/internal/lazyregexp"
+	"github.com/moby/moby/api/types/image"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
@@ -26,8 +25,8 @@ const (
 )
 
 var (
-	pushDigestRegex = lazyregexp.New(`[\S]+: digest: ([\S]+) size: [0-9]+`)
-	digestRegex     = lazyregexp.New(`Digest: ([\S]+)`)
+	pushDigestRegex = regexp.MustCompile(`[\S]+: digest: ([\S]+) size: [0-9]+`)
+	digestRegex     = regexp.MustCompile(`Digest: ([\S]+)`)
 )
 
 func setupImage(t *testing.T) (digest.Digest, error) {

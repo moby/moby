@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
+	"github.com/moby/moby/api/types/container"
 )
 
 var pattern = lazyregexp.New(`^[a-zA-Z]:\.$`)

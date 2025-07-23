@@ -7,8 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"strconv"
+	"strings"
 
-	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/daemon/libnetwork/iptables"
@@ -94,16 +95,6 @@ func (n *network) setupIPTables(ctx context.Context, ipVersion iptables.IPVersio
 		}
 		n.registerCleanFunc(func() error {
 			return n.setupNonInternalNetworkRules(ctx, ipVersion, config, false)
-		})
-
-		if err := iptables.AddInterfaceFirewalld(n.config.IfName); err != nil {
-			return err
-		}
-		n.registerCleanFunc(func() error {
-			if err := iptables.DelInterfaceFirewalld(n.config.IfName); err != nil && !cerrdefs.IsNotFound(err) {
-				return err
-			}
-			return nil
 		})
 
 		if err := deleteLegacyFilterRules(ipVersion, n.config.IfName); err != nil {
@@ -274,6 +265,18 @@ func setDefaultForwardRule(ipVersion iptables.IPVersion, ifName string, unprotec
 }
 
 func (n *network) setupNonInternalNetworkRules(ctx context.Context, ipVer iptables.IPVersion, config firewaller.NetworkConfigFam, enable bool) error {
+	if n.config.AcceptFwMark != "" {
+		fwm, err := iptablesFwMark(n.config.AcceptFwMark)
+		if err != nil {
+			return err
+		}
+		if err := programChainRule(iptables.Rule{IPVer: ipVer, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{
+			"-m", "mark", "--mark", fwm, "-j", "ACCEPT",
+		}}, "ALLOW FW MARK", enable); err != nil {
+			return err
+		}
+	}
+
 	var natArgs, hpNatArgs []string
 	if config.HostIP.IsValid() {
 		// The user wants IPv4/IPv6 SNAT with the given address.
@@ -430,17 +433,6 @@ func setupInternalNetworkRules(ctx context.Context, bridgeIface string, prefix n
 	var version iptables.IPVersion
 	var inDropRule, outDropRule iptables.Rule
 
-	// Either add or remove the interface from the firewalld zone, if firewalld is running.
-	if insert {
-		if err := iptables.AddInterfaceFirewalld(bridgeIface); err != nil {
-			return err
-		}
-	} else {
-		if err := iptables.DelInterfaceFirewalld(bridgeIface); err != nil && !cerrdefs.IsNotFound(err) {
-			return err
-		}
-	}
-
 	if prefix.Addr().Is4() {
 		version = iptables.IPv4
 		inDropRule = iptables.Rule{
@@ -480,4 +472,24 @@ func setupInternalNetworkRules(ctx context.Context, bridgeIface string, prefix n
 
 	// Set Inter Container Communication.
 	return setIcc(ctx, version, bridgeIface, icc, true, insert)
+}
+
+// iptablesFwMark takes a string representing a firewall mark with an optional
+// "/mask" parses the mark and mask, and returns the same "mark/mask" with the
+// numbers converted to decimal, because strings.ParseUint accepts more integer
+// formats than iptables.
+func iptablesFwMark(val string) (string, error) {
+	markStr, maskStr, haveMask := strings.Cut(val, "/")
+	mark, err := strconv.ParseUint(markStr, 0, 32)
+	if err != nil {
+		return "", fmt.Errorf("invalid firewall mark %q: %w", val, err)
+	}
+	if haveMask {
+		mask, err := strconv.ParseUint(maskStr, 0, 32)
+		if err != nil {
+			return "", fmt.Errorf("invalid firewall mask %q: %w", val, err)
+		}
+		return fmt.Sprintf("%d/%d", mark, mask), nil
+	}
+	return strconv.FormatUint(mark, 10), nil
 }

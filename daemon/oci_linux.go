@@ -13,7 +13,6 @@ import (
 	"github.com/containerd/containerd/v2/pkg/apparmor"
 	coci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/log"
-	containertypes "github.com/docker/docker/api/types/container"
 	dconfig "github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
 	volumemounts "github.com/docker/docker/daemon/volume/mounts"
@@ -22,6 +21,7 @@ import (
 	"github.com/docker/docker/internal/rootless/specconv"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/oci/caps"
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"github.com/moby/sys/user"
@@ -153,19 +153,20 @@ func WithApparmor(c *container.Container) coci.SpecOpts {
 	}
 }
 
-// WithCapabilities sets the container's capabilities
-func WithCapabilities(c *container.Container) coci.SpecOpts {
-	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+// WithCapabilities adjusts the container's capabilities based on the
+// "CapAdd", "CapDrop", and "Privileged" fields in the container's HostConfig.
+func WithCapabilities(ctr *container.Container) coci.SpecOpts {
+	return func(ctx context.Context, client coci.Client, c *containers.Container, s *specs.Spec) (err error) {
 		capabilities, err := caps.TweakCapabilities(
 			caps.DefaultCapabilities(),
-			c.HostConfig.CapAdd,
-			c.HostConfig.CapDrop,
-			c.HostConfig.Privileged,
+			ctr.HostConfig.CapAdd,
+			ctr.HostConfig.CapDrop,
+			ctr.HostConfig.Privileged,
 		)
 		if err != nil {
 			return err
 		}
-		return oci.SetCapabilities(s, capabilities)
+		return coci.WithCapabilities(capabilities)(ctx, client, c, s)
 	}
 }
 

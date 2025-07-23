@@ -8,12 +8,12 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/docker/docker/daemon/volume/service/opts"
 	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/api/types/volume"
 	"github.com/pkg/errors"
 )
 
@@ -28,18 +28,18 @@ func (v *volumeRouter) getVolumesList(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
-	filters, err := filters.FromJSON(r.Form.Get("filters"))
+	f, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
 		return errors.Wrap(err, "error reading volume filters")
 	}
-	volumes, warnings, err := v.backend.List(ctx, filters)
+	volumes, warnings, err := v.backend.List(ctx, f)
 	if err != nil {
 		return err
 	}
 
 	version := httputils.VersionFromContext(ctx)
 	if versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) && v.cluster.IsManager() {
-		clusterVolumes, swarmErr := v.cluster.GetVolumes(volume.ListOptions{Filters: filters})
+		clusterVolumes, swarmErr := v.cluster.GetVolumes(volume.ListOptions{Filters: f})
 		if swarmErr != nil {
 			// if there is a swarm error, we may not want to error out right
 			// away. the local list probably worked. instead, let's do what we

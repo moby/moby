@@ -13,11 +13,11 @@ import (
 
 	"dario.cat/mergo"
 	"github.com/containerd/log"
-	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/daemon/pkg/opts"
 	dopts "github.com/docker/docker/internal/opts"
 	"github.com/docker/docker/registry"
+	"github.com/moby/moby/api"
+	"github.com/moby/moby/api/types/versions"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	"golang.org/x/text/encoding"
@@ -56,6 +56,11 @@ const (
 	DefaultContainersNamespace = "moby"
 	// DefaultPluginNamespace is the name of the default containerd namespace used for plugins.
 	DefaultPluginNamespace = "plugins.moby"
+	// DefaultAPIVersion is the highest REST API version supported by the daemon.
+	//
+	// This version may be lower than the [api.DefaultVersion], which is the default
+	// (and highest supported) version of the api library module used.
+	DefaultAPIVersion = "1.52"
 	// defaultMinAPIVersion is the minimum API version supported by the API.
 	// This version can be overridden through the "DOCKER_MIN_API_VERSION"
 	// environment variable. It currently defaults to the minimum API version
@@ -674,8 +679,8 @@ func ValidateMinAPIVersion(ver string) error {
 	if versions.LessThan(ver, defaultMinAPIVersion) {
 		return errors.Errorf(`minimum supported API version is %s: %s`, defaultMinAPIVersion, ver)
 	}
-	if versions.GreaterThan(ver, api.DefaultVersion) {
-		return errors.Errorf(`maximum supported API version is %s: %s`, api.DefaultVersion, ver)
+	if versions.GreaterThan(ver, DefaultAPIVersion) {
+		return errors.Errorf(`maximum supported API version is %s: %s`, DefaultAPIVersion, ver)
 	}
 	return nil
 }

@@ -12,8 +12,6 @@ import (
 	"github.com/Microsoft/hcsshim"
 	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/containerd/log"
-	containertypes "github.com/docker/docker/api/types/container"
-	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/libcontainerd/local"
@@ -28,6 +26,8 @@ import (
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
+	containertypes "github.com/moby/moby/api/types/container"
+	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/sys/user"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
@@ -285,6 +285,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 						netlabel.GenericData: netOption,
 					}),
 					libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
+					libnetwork.NetworkOptionLabels(v.Labels()),
 				)
 				if err != nil {
 					log.G(context.TODO()).Errorf("Error occurred when creating network %v", err)
@@ -523,7 +524,7 @@ func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container
 	return daemon.Unmount(container)
 }
 
-func driverOptions(_ *config.Config) nwconfig.Option {
+func networkPlatformOptions(_ *config.Config) []nwconfig.Option {
 	return nil
 }
 

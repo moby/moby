@@ -5,9 +5,9 @@ import (
 	"io"
 	"runtime"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 )
 
 // ContainerDecoder implements httputils.ContainerDecoder
@@ -28,8 +28,8 @@ func (r ContainerDecoder) DecodeConfig(src io.Reader) (*container.Config, *conta
 	return decodeContainerConfig(src, si)
 }
 
-// decodeContainerConfig decodes a json encoded config into a ContainerConfigWrapper
-// struct and returns both a Config and a HostConfig struct, and performs some
+// decodeContainerConfig decodes a json encoded [container.CreateRequest] struct
+// and returns the Config, HostConfig, and NetworkingConfig struct, and performs some
 // validation. Certain parameters need daemon-side validation that cannot be done
 // on the client, as only the daemon knows what is valid for the platform.
 // Be aware this function is not checking whether the resulted structs are nil,

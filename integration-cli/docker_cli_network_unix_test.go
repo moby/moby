@@ -14,8 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	remoteapi "github.com/docker/docker/daemon/libnetwork/drivers/remote/api"
 	"github.com/docker/docker/daemon/libnetwork/ipamapi"
@@ -26,9 +24,10 @@ import (
 	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/testutil"
 	testdaemon "github.com/docker/docker/testutil/daemon"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
@@ -1155,7 +1154,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectToHostFromOtherNetwork(c *t
 	cli.DockerCmd(c, "network", "disconnect", "bridge", "container1")
 	out, _, err := dockerCmdWithError("network", "connect", "host", "container1")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, is.Contains(out, runconfig.ErrConflictConnectToHostNetwork.Error()))
+	assert.Assert(c, is.Contains(out, "cannot connect container to host network"))
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkDisconnectFromHost(c *testing.T) {
@@ -1163,7 +1162,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDisconnectFromHost(c *testing.T) {
 	cli.WaitRun(c, "container1")
 	out, _, err := dockerCmdWithError("network", "disconnect", "host", "container1")
 	assert.Assert(c, err != nil, "Should err out disconnect from host")
-	assert.Assert(c, is.Contains(out, runconfig.ErrConflictDisconnectFromHostNetwork.Error()))
+	assert.Assert(c, is.Contains(out, "cannot disconnect container from host network"))
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkConnectWithPortMapping(c *testing.T) {
@@ -1324,7 +1323,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectPreferredIP(c *testing.T) {
 	// Still it should fail to connect to the default network with a specified IP (whatever ip)
 	out, _, err := dockerCmdWithError("network", "connect", "--ip", "172.21.55.44", "bridge", "c0")
 	assert.Assert(c, err != nil, "out: %s", out)
-	assert.Assert(c, is.Contains(out, runconfig.ErrUnsupportedNetworkAndIP.Error()))
+	assert.Assert(c, is.Contains(out, "user specified IP address is supported on user defined networks only"))
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkConnectPreferredIPStoppedContainer(c *testing.T) {
@@ -1362,10 +1361,10 @@ func (s *DockerNetworkSuite) TestDockerNetworkUnsupportedRequiredIP(c *testing.T
 
 	out, _, err := dockerCmdWithError("run", "-d", "--ip", "172.28.99.88", "--net", "n0", "busybox", "top")
 	assert.Assert(c, err != nil, "out: %s", out)
-	assert.Assert(c, is.Contains(out, runconfig.ErrUnsupportedNetworkNoSubnetAndIP.Error()))
+	assert.Assert(c, is.Contains(out, "user specified IP address is supported only when connecting to networks with user configured subnets"))
 	out, _, err = dockerCmdWithError("run", "-d", "--ip6", "2001:db8:1234::9988", "--net", "n0", "busybox", "top")
 	assert.Assert(c, err != nil, "out: %s", out)
-	assert.Assert(c, is.Contains(out, runconfig.ErrUnsupportedNetworkNoSubnetAndIP.Error()))
+	assert.Assert(c, is.Contains(out, "user specified IP address is supported only when connecting to networks with user configured subnets"))
 	cli.DockerCmd(c, "network", "rm", "n0")
 	assertNwNotAvailable(c, "n0")
 }
@@ -1373,7 +1372,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkUnsupportedRequiredIP(c *testing.T
 func checkUnsupportedNetworkAndIP(t *testing.T, nwMode string) {
 	out, _, err := dockerCmdWithError("run", "-d", "--net", nwMode, "--ip", "172.28.99.88", "--ip6", "2001:db8:1234::9988", "busybox", "top")
 	assert.Assert(t, err != nil, "out: %s", out)
-	assert.Assert(t, is.Contains(out, runconfig.ErrUnsupportedNetworkAndIP.Error()))
+	assert.Assert(t, is.Contains(out, "user specified IP address is supported on user defined networks only"))
 }
 
 func verifyIPAddressConfig(t *testing.T, cName, nwname, ipv4, ipv6 string) {
@@ -1512,7 +1511,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectWithAliasOnDefaultNetworks(
 	for _, nw := range defaults {
 		res, _, err := dockerCmdWithError("network", "connect", "--alias", "alias"+nw, nw, containerID)
 		assert.ErrorContains(c, err, "")
-		assert.Assert(c, is.Contains(res, runconfig.ErrUnsupportedNetworkAndAlias.Error()))
+		assert.Assert(c, is.Contains(res, "network-scoped alias is supported only for containers in user defined networks"))
 	}
 }
 
@@ -1563,11 +1562,11 @@ func (s *DockerCLINetworkSuite) TestUserDefinedNetworkConnectDisconnectAlias(c *
 	// verify the alias option is rejected when running on predefined network
 	out, _, err := dockerCmdWithError("run", "--rm", "--name=any", "--net-alias=any", "busybox:glibc", "true")
 	assert.Assert(c, err != nil, "out: %s", out)
-	assert.Assert(c, is.Contains(out, runconfig.ErrUnsupportedNetworkAndAlias.Error()))
+	assert.Assert(c, is.Contains(out, "network-scoped alias is supported only for containers in user defined networks"))
 	// verify the alias option is rejected when connecting to predefined network
 	out, _, err = dockerCmdWithError("network", "connect", "--alias=any", "bridge", "first")
 	assert.Assert(c, err != nil, "out: %s", out)
-	assert.Assert(c, is.Contains(out, runconfig.ErrUnsupportedNetworkAndAlias.Error()))
+	assert.Assert(c, is.Contains(out, "network-scoped alias is supported only for containers in user defined networks"))
 }
 
 func (s *DockerCLINetworkSuite) TestUserDefinedNetworkConnectivity(c *testing.T) {

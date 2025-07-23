@@ -18,7 +18,6 @@ import (
 	containerddefaults "github.com/containerd/containerd/v2/defaults"
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
-	"github.com/docker/docker/api"
 	"github.com/docker/docker/daemon"
 	buildbackend "github.com/docker/docker/daemon/builder/backend"
 	"github.com/docker/docker/daemon/builder/dockerfile"
@@ -751,7 +750,7 @@ func initMiddlewares(_ context.Context, s *apiserver.Server, cfg *config.Config,
 	exp := middleware.NewExperimentalMiddleware(cfg.Experimental)
 	s.UseMiddleware(exp)
 
-	vm, err := middleware.NewVersionMiddleware(dockerversion.Version, api.DefaultVersion, cfg.MinAPIVersion)
+	vm, err := middleware.NewVersionMiddleware(dockerversion.Version, config.DefaultAPIVersion, cfg.MinAPIVersion)
 	if err != nil {
 		return nil, err
 	}

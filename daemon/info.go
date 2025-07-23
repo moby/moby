@@ -14,9 +14,6 @@ import (
 
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
-	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/daemon/command/debug"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/internal/filedescriptors"
@@ -29,6 +26,8 @@ import (
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/registry"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/system"
 	"github.com/opencontainers/selinux/go-selinux"
 )
 
@@ -118,7 +117,7 @@ func (daemon *Daemon) SystemVersion(ctx context.Context) (types.Version, error) 
 				Version: dockerversion.Version,
 				Details: map[string]string{
 					"GitCommit":     dockerversion.GitCommit,
-					"ApiVersion":    api.DefaultVersion,
+					"ApiVersion":    config.DefaultAPIVersion,
 					"MinAPIVersion": cfg.MinAPIVersion,
 					"GoVersion":     runtime.Version(),
 					"Os":            runtime.GOOS,
@@ -133,7 +132,7 @@ func (daemon *Daemon) SystemVersion(ctx context.Context) (types.Version, error) 
 		// Populate deprecated fields for older clients
 		Version:       dockerversion.Version,
 		GitCommit:     dockerversion.GitCommit,
-		APIVersion:    api.DefaultVersion,
+		APIVersion:    config.DefaultAPIVersion,
 		MinAPIVersion: cfg.MinAPIVersion,
 		GoVersion:     runtime.Version(),
 		Os:            runtime.GOOS,

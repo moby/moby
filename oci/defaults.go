@@ -195,18 +195,18 @@ func DefaultLinuxSpec() specs.Spec {
 // compute them once.
 var defaultLinuxMaskedPaths = sync.OnceValue(func() []string {
 	maskedPaths := []string{
-		"/proc/asound",
 		"/proc/acpi",
+		"/proc/asound",
 		"/proc/interrupts", // https://github.com/moby/moby/security/advisories/GHSA-6fw5-f8r9-fgfm
 		"/proc/kcore",
 		"/proc/keys",
 		"/proc/latency_stats",
-		"/proc/timer_list",
-		"/proc/timer_stats",
 		"/proc/sched_debug",
 		"/proc/scsi",
-		"/sys/firmware",
+		"/proc/timer_list",
+		"/proc/timer_stats",
 		"/sys/devices/virtual/powercap", // https://github.com/moby/moby/security/advisories/GHSA-jq35-85cj-fj4p
+		"/sys/firmware",
 	}
 
 	// https://github.com/moby/moby/security/advisories/GHSA-6fw5-f8r9-fgfm

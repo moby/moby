@@ -13,6 +13,7 @@ import (
 	"github.com/Microsoft/hcsshim"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
+	"github.com/docker/docker/daemon/libnetwork/drivers/overlay"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/portmapper"
 	"github.com/docker/docker/daemon/libnetwork/types"
@@ -174,7 +175,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 	n.interfaceName = interfaceName
 
 	if nInfo != nil {
-		if err := nInfo.TableEventRegister(ovPeerTable, driverapi.EndpointObject); err != nil {
+		if err := nInfo.TableEventRegister(overlay.OverlayPeerTable, driverapi.EndpointObject); err != nil {
 			return err
 		}
 	}

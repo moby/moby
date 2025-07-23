@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/runconfig"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -55,7 +54,7 @@ func (s *DockerCLINetmodeSuite) TestNetHostname(c *testing.T) {
 	out = cli.DockerCmd(c, "run", "-h=name", "--net=none", "busybox", "ps").Stdout()
 	assert.Assert(c, is.Contains(out, stringCheckPS))
 	out = dockerCmdWithFail(c, "run", "-h=name", "--net=container:other", "busybox", "ps")
-	assert.Assert(c, is.Contains(out, runconfig.ErrConflictNetworkHostname.Error()))
+	assert.Assert(c, is.Contains(out, "conflicting options: hostname and the network mode"))
 	out = dockerCmdWithFail(c, "run", "--net=container", "busybox", "ps")
 	assert.Assert(c, is.Contains(out, "invalid container format container:<name|id>"))
 	out = dockerCmdWithFail(c, "run", "--net=weird", "busybox", "ps")
@@ -66,34 +65,34 @@ func (s *DockerCLINetmodeSuite) TestConflictContainerNetworkAndLinks(c *testing.
 	testRequires(c, DaemonIsLinux)
 
 	out := dockerCmdWithFail(c, "run", "--net=container:other", "--link=zip:zap", "busybox", "ps")
-	assert.Assert(c, is.Contains(out, runconfig.ErrConflictContainerNetworkAndLinks.Error()))
+	assert.Assert(c, is.Contains(out, "conflicting options: container type network can't be used with links"))
 }
 
 func (s *DockerCLINetmodeSuite) TestConflictContainerNetworkHostAndLinks(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	out := dockerCmdWithFail(c, "run", "--net=host", "--link=zip:zap", "busybox", "ps")
-	assert.Assert(c, is.Contains(out, runconfig.ErrConflictHostNetworkAndLinks.Error()))
+	assert.Assert(c, is.Contains(out, "conflicting options: host type networking can't be used with links"))
 }
 
 func (s *DockerCLINetmodeSuite) TestConflictNetworkModeNetHostAndOptions(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	out := dockerCmdWithFail(c, "run", "--net=host", "--mac-address=92:d0:c6:0a:29:33", "busybox", "ps")
-	assert.Assert(c, is.Contains(out, runconfig.ErrConflictContainerNetworkAndMac.Error()))
+	assert.Assert(c, is.Contains(out, "conflicting options: mac-address and the network mode"))
 }
 
 func (s *DockerCLINetmodeSuite) TestConflictNetworkModeAndOptions(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	out := dockerCmdWithFail(c, "run", "--net=container:other", "--dns=8.8.8.8", "busybox", "ps")
-	assert.Assert(c, is.Contains(out, runconfig.ErrConflictNetworkAndDNS.Error()))
+	assert.Assert(c, is.Contains(out, "conflicting options: dns and the network mode"))
 	out = dockerCmdWithFail(c, "run", "--net=container:other", "--add-host=name:8.8.8.8", "busybox", "ps")
-	assert.Assert(c, is.Contains(out, runconfig.ErrConflictNetworkHosts.Error()))
+	assert.Assert(c, is.Contains(out, "conflicting options: custom host-to-IP mapping and the network mode"))
 	out = dockerCmdWithFail(c, "run", "--net=container:other", "-P", "busybox", "ps")
-	assert.Assert(c, is.Contains(out, runconfig.ErrConflictNetworkPublishPorts.Error()))
+	assert.Assert(c, is.Contains(out, "conflicting options: port publishing and the container type network mode"))
 	out = dockerCmdWithFail(c, "run", "--net=container:other", "-p", "8080", "busybox", "ps")
-	assert.Assert(c, is.Contains(out, runconfig.ErrConflictNetworkPublishPorts.Error()))
+	assert.Assert(c, is.Contains(out, "conflicting options: port publishing and the container type network mode"))
 	out = dockerCmdWithFail(c, "run", "--net=container:other", "--expose", "8000-9000", "busybox", "ps")
-	assert.Assert(c, is.Contains(out, runconfig.ErrConflictNetworkExposePorts.Error()))
+	assert.Assert(c, is.Contains(out, "conflicting options: port exposing and the container type network mode"))
 }
