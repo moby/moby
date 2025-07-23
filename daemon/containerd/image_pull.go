@@ -194,11 +194,11 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 		}
 		return nil, nil
 	})
-	opts = append(opts, containerd.WithImageHandler(ah))
-
-	opts = append(opts, containerd.WithPullUnpack)
-	// TODO(thaJeztah): we may have to pass the snapshotter to use if the pull is part of a "docker run" (container create -> pull image if missing). See https://github.com/moby/moby/issues/45273
-	opts = append(opts, containerd.WithPullSnapshotter(i.snapshotter))
+	opts = append(opts,
+		containerd.WithImageHandler(ah),
+		containerd.WithPullUnpack,
+		// TODO(thaJeztah): we may have to pass the snapshotter to use if the pull is part of a "docker run" (container create -> pull image if missing). See https://github.com/moby/moby/issues/45273
+		containerd.WithPullSnapshotter(i.snapshotter))
 
 	// AppendInfoHandlerWrapper will annotate the image with basic information like manifest and layer digests as labels;
 	// this information is used to enable remote snapshotters like nydus and stargz to query a registry.

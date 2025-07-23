@@ -303,8 +303,7 @@ func TestVolMountOpts(t *testing.T) {
 
 	ip1234 := net.ParseIP("1.2.3.4")
 	resolveIP := func(network, addr string) (*net.IPAddr, error) {
-		switch addr {
-		case "example.com":
+		if addr == "example.com" {
 			return &net.IPAddr{IP: ip1234}, nil
 		}
 

@@ -24,7 +24,7 @@ import (
 )
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, epOpts, _ map[string]interface{}) error {
+func (d *driver) Join(ctx context.Context, nid, eid, sboxKey string, jinfo driverapi.JoinInfo, epOpts, _ map[string]interface{}) error {
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.drivers.overlay.Join", trace.WithAttributes(
 		attribute.String("nid", nid),
 		attribute.String("eid", eid),
@@ -144,7 +144,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	return nil
 }
 
-func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
+func (d *driver) DecodeTableEntry(tablename, key string, value []byte) (string, map[string]string) {
 	if tablename != ovPeerTable {
 		log.G(context.TODO()).Errorf("DecodeTableEntry: unexpected table name %s", tablename)
 		return "", nil

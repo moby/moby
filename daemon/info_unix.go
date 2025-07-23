@@ -338,7 +338,7 @@ func fillDriverWarnings(v *system.Info) {
 // Output example from `docker-init --version`:
 //
 //	tini version 0.18.0 - git.fec3683
-func parseInitVersion(v string) (version string, commit string, _ error) {
+func parseInitVersion(v string) (version, commit string, _ error) {
 	parts := strings.Split(v, " - ")
 
 	if len(parts) >= 2 {

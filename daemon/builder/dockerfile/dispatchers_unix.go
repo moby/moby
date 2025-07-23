@@ -13,7 +13,7 @@ import (
 
 // normalizeWorkdir normalizes a user requested working directory in a
 // platform semantically consistent way.
-func normalizeWorkdir(_ string, current string, requested string) (string, error) {
+func normalizeWorkdir(_, current, requested string) (string, error) {
 	if requested == "" {
 		return "", errors.New("cannot normalize nothing")
 	}

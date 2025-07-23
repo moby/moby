@@ -139,7 +139,7 @@ func NewSandbox(key string, osCreate, isRestore bool) (*Namespace, error) {
 	return n, nil
 }
 
-func mountNetworkNamespace(basePath string, lnPath string) error {
+func mountNetworkNamespace(basePath, lnPath string) error {
 	err := syscall.Mount(basePath, lnPath, "bind", syscall.MS_BIND, "")
 	if err != nil {
 		return fmt.Errorf("bind-mount %s -> %s: %w", basePath, lnPath, err)
@@ -148,7 +148,7 @@ func mountNetworkNamespace(basePath string, lnPath string) error {
 }
 
 // GetSandboxForExternalKey returns sandbox object for the supplied path
-func GetSandboxForExternalKey(basePath string, key string) (*Namespace, error) {
+func GetSandboxForExternalKey(basePath, key string) (*Namespace, error) {
 	if err := createNamespaceFile(key); err != nil {
 		return nil, err
 	}

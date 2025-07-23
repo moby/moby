@@ -391,7 +391,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 // parentDownload. This function does not log progress output because it would
 // interfere with the progress reporting for sourceDownload, which has the same
 // Key.
-func (ldm *LayerDownloadManager) makeDownloadFuncFromDownload(descriptor DownloadDescriptor, sourceDownload *downloadTransfer, parentDownload *downloadTransfer) doFunc {
+func (ldm *LayerDownloadManager) makeDownloadFuncFromDownload(descriptor DownloadDescriptor, sourceDownload, parentDownload *downloadTransfer) doFunc {
 	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) transfer {
 		d := &downloadTransfer{
 			transfer:   newTransfer(),

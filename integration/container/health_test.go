@@ -170,7 +170,7 @@ func TestHealthStartInterval(t *testing.T) {
 	}, poll.WithDelay(time.Second), poll.WithTimeout(time.Until(dl)))
 }
 
-func pollForHealthCheckLog(ctx context.Context, client client.APIClient, containerID string, expected string) func(log poll.LogT) poll.Result {
+func pollForHealthCheckLog(ctx context.Context, client client.APIClient, containerID, expected string) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
 		inspect, err := client.ContainerInspect(ctx, containerID)
 		if err != nil {

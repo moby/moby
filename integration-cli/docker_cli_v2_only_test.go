@@ -10,7 +10,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func makefile(path string, contents string) (string, error) {
+func makefile(path, contents string) (string, error) {
 	f, err := os.CreateTemp(path, "tmp")
 	if err != nil {
 		return "", err
