@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/pkg/plugin"
-	registrypkg "github.com/docker/docker/registry"
+	registrypkg "github.com/docker/docker/daemon/pkg/registry"
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/events"

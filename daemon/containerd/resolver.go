@@ -10,9 +10,9 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/docker/docker/daemon/pkg/registry"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/useragent"
-	"github.com/docker/docker/registry"
 	registrytypes "github.com/moby/moby/api/types/registry"
 )
 
