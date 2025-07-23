@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/docker/docker/daemon/internal/containerfs"
 	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
 	"github.com/docker/docker/daemon/pkg/stringid"
-	"github.com/docker/docker/internal/containerfs"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/events"
