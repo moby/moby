@@ -128,16 +128,6 @@ type ImageAPIClient interface {
 	ImageHistory(ctx context.Context, image string, _ ...ImageHistoryOption) ([]image.HistoryResponseItem, error)
 	ImageLoad(ctx context.Context, input io.Reader, _ ...ImageLoadOption) (image.LoadResponse, error)
 	ImageSave(ctx context.Context, images []string, _ ...ImageSaveOption) (io.ReadCloser, error)
-
-	ImageAPIClientDeprecated
-}
-
-// ImageAPIClientDeprecated defines deprecated methods of the ImageAPIClient.
-type ImageAPIClientDeprecated interface {
-	// ImageInspectWithRaw returns the image information and its raw representation.
-	//
-	// Deprecated: Use [Client.ImageInspect] instead. Raw response can be obtained using the [ImageInspectWithRawResponse] option.
-	ImageInspectWithRaw(ctx context.Context, image string) (image.InspectResponse, []byte, error)
 }
 
 // NetworkAPIClient defines API client methods for the networks
