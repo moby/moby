@@ -13,7 +13,7 @@ import (
 	"dario.cat/mergo"
 	"github.com/docker/docker/daemon/libnetwork/ipamutils"
 	"github.com/docker/docker/daemon/pkg/opts"
-	"github.com/docker/docker/registry"
+	"github.com/docker/docker/daemon/pkg/registry"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/spf13/pflag"
