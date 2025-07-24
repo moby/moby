@@ -13,7 +13,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/internal/sliceutil"
+	"github.com/docker/docker/daemon/internal/sliceutil"
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/moby/api/types/backend"
 	imagetypes "github.com/moby/moby/api/types/image"

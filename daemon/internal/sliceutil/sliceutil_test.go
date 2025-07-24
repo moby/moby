@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/docker/docker/internal/sliceutil"
+	"github.com/docker/docker/daemon/internal/sliceutil"
 )
 
 func TestMap(t *testing.T) {
