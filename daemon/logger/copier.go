@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/daemon/internal/stringid"
 	types "github.com/moby/moby/api/types/backend"
 )
 

@@ -10,7 +10,7 @@ import (
 	daemonevents "github.com/docker/docker/daemon/events"
 	buildkit "github.com/docker/docker/daemon/internal/builder-next"
 	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/daemon/internal/stringid"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/events"

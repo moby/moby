@@ -12,7 +12,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/distribution"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/daemon/internal/stringid"
 	"github.com/moby/locker"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/go-digest"

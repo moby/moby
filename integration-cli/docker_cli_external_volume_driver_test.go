@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/pkg/plugins"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/testutil"
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	"github.com/moby/moby/api/types/container"
@@ -560,7 +559,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverCapabilities(c *test
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverOutOfBandDelete(c *testing.T) {
 	ctx := testutil.GetContext(c)
-	driverName := stringid.GenerateRandomID()
+	driverName := strings.ReplaceAll(strings.ToLower(c.Name()), "/", "_")
 	p := newVolumePlugin(c, driverName)
 	defer p.Close()
 

@@ -9,7 +9,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/internal/libcontainerd/types"
 	"github.com/docker/docker/daemon/internal/stream"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/daemon/internal/stringid"
 )
 
 // ExecConfig holds the configurations for execs. The Daemon keeps
