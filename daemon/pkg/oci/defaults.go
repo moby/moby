@@ -9,8 +9,8 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/docker/docker/daemon/pkg/oci/caps"
 	"github.com/docker/docker/internal/platform"
-	"github.com/docker/docker/oci/caps"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
