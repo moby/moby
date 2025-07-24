@@ -11,7 +11,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"maps"
-	"math"
 	"net"
 	"net/netip"
 	"os"
@@ -30,6 +29,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	dist "github.com/docker/distribution"
+	"github.com/docker/go-units"
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/moby/locker"
@@ -39,6 +39,19 @@ import (
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	volumetypes "github.com/moby/moby/api/types/volume"
+	"github.com/moby/sys/user"
+	"github.com/moby/sys/userns"
+	"github.com/pkg/errors"
+	bolt "go.etcd.io/bbolt"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel"
+	"golang.org/x/sync/semaphore"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
+	"google.golang.org/grpc/credentials/insecure"
+	"resenje.org/singleflight"
+	"tags.cncf.io/container-device-interface/pkg/cdi"
+
 	"github.com/moby/moby/v2/daemon/builder"
 	executorpkg "github.com/moby/moby/v2/daemon/cluster/executor"
 	"github.com/moby/moby/v2/daemon/config"
@@ -75,18 +88,6 @@ import (
 	"github.com/moby/moby/v2/pkg/authorization"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 	"github.com/moby/moby/v2/pkg/sysinfo"
-	"github.com/moby/sys/user"
-	"github.com/moby/sys/userns"
-	"github.com/pkg/errors"
-	bolt "go.etcd.io/bbolt"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	"go.opentelemetry.io/otel"
-	"golang.org/x/sync/semaphore"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/backoff"
-	"google.golang.org/grpc/credentials/insecure"
-	"resenje.org/singleflight"
-	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
 type configStore struct {
@@ -866,13 +867,27 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			if driver == "" || graphdriver.IsRegistered(driver) {
 				return true, nil
 			}
-			return false, fmt.Errorf("graphdriver is explicitly enabled but %q is not registered", driver)
+			return false, fmt.Errorf("graphdriver is explicitly enabled but %q is not registered, %v %v", driver, config.Features, os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER"))
 		}
 	}
 	if config.Features["containerd-migration"] {
-		// TODO: Allow setting the threshold
-		migrationThreshold = math.MaxInt64
-		log.G(ctx).WithField("max_size", migrationThreshold).Info("(Experimental) Migration to containerd is enabled, driver will be switched to snapshotter after migration is complete")
+		if ts := os.Getenv("DOCKER_MIGRATE_SNAPSHOTTER_THRESHOLD"); ts != "" {
+			v, err := units.FromHumanSize(ts)
+			if err == nil {
+				migrationThreshold = v
+			} else {
+				log.G(ctx).WithError(err).WithField("size", ts).Warn("Invalid migration threshold value, defaulting to 0")
+				migrationThreshold = 0
+			}
+
+		} else {
+			migrationThreshold = 0
+		}
+		if migrationThreshold > 0 {
+			log.G(ctx).WithField("max_size", migrationThreshold).Info("(Experimental) Migration to containerd is enabled, driver will be switched to snapshotter after migration is complete")
+		} else {
+			log.G(ctx).WithField("env", os.Environ()).Info("Migration to containerd is enabled, driver will be switched to snapshotter if there are no images or containers")
+		}
 	}
 	if config.Features["containerd-snapshotter"] {
 		log.G(ctx).Warn(`"containerd-snapshotter" is now the default and no longer needed to be set`)
@@ -1082,7 +1097,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// Unix platforms however run a single graphdriver for all containers, and it can
 	// be set through an environment variable, a daemon start parameter, or chosen through
 	// initialization of the layerstore through driver priority order for example.
-	driverName := os.Getenv("DOCKER_DRIVER")
+	driverName := os.Getenv("DOCKER_GRAPHDRIVER")
 	if isWindows {
 		if driverName == "" {
 			driverName = cfgStore.GraphDriver
@@ -1104,7 +1119,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 		}
 	} else if driverName != "" {
-		log.G(ctx).Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", driverName)
+		log.G(ctx).Infof("Setting the storage driver from the $DOCKER_GRAPHDRIVER environment variable (%s)", driverName)
 	} else {
 		driverName = cfgStore.GraphDriver
 	}
@@ -1218,7 +1233,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 							return nil, err
 						}
 
-						// Just look at layer sizze for considering maximum size
+						// Just look at layer size for considering maximum size
 						totalSize += l.Size()
 						layer.ReleaseAndLog(imgSvcConfig.LayerStore, l)
 					}
@@ -1235,7 +1250,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 					ReferenceStore:   imgSvcConfig.ReferenceStore,
 				}
 			} else if migrationThreshold >= 0 {
-				log.G(ctx).Warnf("Not migrating to containerd snapshotter because still have %d images in graph driver", ic)
+				log.G(ctx).WithField("total", totalSize).Warnf("Not migrating to containerd snapshotter because still have %d images in graph driver", ic)
 				d.imageService = images.NewImageService(ctx, imgSvcConfig)
 			} else {
 				d.imageService = images.NewImageService(ctx, imgSvcConfig)
