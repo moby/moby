@@ -168,14 +168,15 @@ skip:
 		if _, err := ValidateIndexName(r); err != nil {
 			return err
 		}
-		if strings.HasPrefix(strings.ToLower(r), "http://") {
-			log.G(context.TODO()).Warnf("insecure registry %s should not contain 'http://' and 'http://' has been removed from the insecure registry config", r)
-			r = r[7:]
-		} else if strings.HasPrefix(strings.ToLower(r), "https://") {
-			log.G(context.TODO()).Warnf("insecure registry %s should not contain 'https://' and 'https://' has been removed from the insecure registry config", r)
-			r = r[8:]
-		} else if hasScheme(r) {
-			return invalidParamf("insecure registry %s should not contain '://'", r)
+		if scheme, host, ok := strings.Cut(r, "://"); ok {
+			switch strings.ToLower(scheme) {
+			case "http", "https":
+				log.G(context.TODO()).Warnf("insecure registry %[1]s should not contain '%[2]s' and '%[2]ss' has been removed from the insecure registry config", r, scheme)
+				r = host
+			default:
+				// unsupported scheme
+				return invalidParamf("insecure registry %s should not contain '://'", r)
+			}
 		}
 		// Check if CIDR was passed to --insecure-registry
 		_, ipnet, err := net.ParseCIDR(r)
