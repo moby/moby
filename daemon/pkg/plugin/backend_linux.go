@@ -626,7 +626,7 @@ func (pm *Manager) Set(name string, args []string) error {
 
 // CreateFromContext creates a plugin from the given pluginDir which contains
 // both the rootfs and the config.json and a repoName with optional tag.
-func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, options *types.PluginCreateOptions) (retErr error) {
+func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, options *backend.PluginCreateConfig) (retErr error) {
 	pm.muGC.RLock()
 	defer pm.muGC.RUnlock()
 

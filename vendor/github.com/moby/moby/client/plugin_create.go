@@ -5,12 +5,15 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-
-	"github.com/moby/moby/api/types"
 )
 
+// PluginCreateOptions hold all options to plugin create.
+type PluginCreateOptions struct {
+	RepoName string
+}
+
 // PluginCreate creates a plugin
-func (cli *Client) PluginCreate(ctx context.Context, createContext io.Reader, createOptions types.PluginCreateOptions) error {
+func (cli *Client) PluginCreate(ctx context.Context, createContext io.Reader, createOptions PluginCreateOptions) error {
 	headers := http.Header(make(map[string][]string))
 	headers.Set("Content-Type", "application/x-tar")
 

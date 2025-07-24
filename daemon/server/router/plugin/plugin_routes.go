@@ -186,7 +186,7 @@ func (pr *pluginRouter) createPlugin(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 
-	options := &types.PluginCreateOptions{
+	options := &backend.PluginCreateConfig{
 		RepoName: r.FormValue("name"),
 	}
 
