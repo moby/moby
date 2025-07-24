@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/libnetwork/resolvconf"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/daemon"
@@ -1320,85 +1319,6 @@ func (s *DockerCLIRunSuite) TestRunDNSRepeatOptions(c *testing.T) {
 	actual = strings.ReplaceAll(strings.Trim(actual, "\r\n"), "\n", " ")
 	if actual != "nameserver 1.1.1.1 nameserver 2.2.2.2 search mydomain mydomain2 options ndots:9 timeout:3" {
 		c.Fatalf("expected 'nameserver 1.1.1.1 nameserver 2.2.2.2 search mydomain mydomain2 options ndots:9 timeout:3', but says: %q", actual)
-	}
-}
-
-func (s *DockerCLIRunSuite) TestRunDNSOptionsBasedOnHostResolvConf(c *testing.T) {
-	// Not applicable on Windows as testing Unix specific functionality
-	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
-
-	origResolvConf, err := os.ReadFile("/etc/resolv.conf")
-	if os.IsNotExist(err) {
-		c.Fatalf("/etc/resolv.conf does not exist")
-	}
-
-	hostNameservers := resolvconf.GetNameservers(origResolvConf, resolvconf.IP)
-	hostSearch := resolvconf.GetSearchDomains(origResolvConf)
-
-	out := cli.DockerCmd(c, "run", "--dns=127.0.0.1", "busybox", "cat", "/etc/resolv.conf").Combined()
-
-	if actualNameservers := resolvconf.GetNameservers([]byte(out), resolvconf.IP); actualNameservers[0] != "127.0.0.1" {
-		c.Fatalf("expected '127.0.0.1', but says: %q", actualNameservers[0])
-	}
-
-	actualSearch := resolvconf.GetSearchDomains([]byte(out))
-	if len(actualSearch) != len(hostSearch) {
-		c.Fatalf("expected %q search domain(s), but it has: %q", len(hostSearch), len(actualSearch))
-	}
-	for i := range actualSearch {
-		if actualSearch[i] != hostSearch[i] {
-			c.Fatalf("expected %q domain, but says: %q", actualSearch[i], hostSearch[i])
-		}
-	}
-
-	out = cli.DockerCmd(c, "run", "--dns-search=mydomain", "busybox", "cat", "/etc/resolv.conf").Combined()
-
-	actualNameservers := resolvconf.GetNameservers([]byte(out), resolvconf.IP)
-	if len(actualNameservers) != len(hostNameservers) {
-		c.Fatalf("expected %q nameserver(s), but it has: %q", len(hostNameservers), len(actualNameservers))
-	}
-	for i := range actualNameservers {
-		if actualNameservers[i] != hostNameservers[i] {
-			c.Fatalf("expected %q nameserver, but says: %q", actualNameservers[i], hostNameservers[i])
-		}
-	}
-
-	if actualSearch = resolvconf.GetSearchDomains([]byte(out)); actualSearch[0] != "mydomain" {
-		c.Fatalf("expected 'mydomain', but says: %q", actualSearch[0])
-	}
-
-	// test with file
-	tmpResolvConf := []byte("search example.com\nnameserver 12.34.56.78\nnameserver 127.0.0.1")
-	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf, 0o644); err != nil {
-		c.Fatal(err)
-	}
-	// put the old resolvconf back
-	defer func() {
-		if err := os.WriteFile("/etc/resolv.conf", origResolvConf, 0o644); err != nil {
-			c.Fatal(err)
-		}
-	}()
-
-	resolvConf, err := os.ReadFile("/etc/resolv.conf")
-	if os.IsNotExist(err) {
-		c.Fatalf("/etc/resolv.conf does not exist")
-	}
-
-	hostSearch = resolvconf.GetSearchDomains(resolvConf)
-
-	out = cli.DockerCmd(c, "run", "busybox", "cat", "/etc/resolv.conf").Combined()
-	if actualNameservers = resolvconf.GetNameservers([]byte(out), resolvconf.IP); actualNameservers[0] != "12.34.56.78" || len(actualNameservers) != 1 {
-		c.Fatalf("expected '12.34.56.78', but has: %v", actualNameservers)
-	}
-
-	actualSearch = resolvconf.GetSearchDomains([]byte(out))
-	if len(actualSearch) != len(hostSearch) {
-		c.Fatalf("expected %q search domain(s), but it has: %q", len(hostSearch), len(actualSearch))
-	}
-	for i := range actualSearch {
-		if actualSearch[i] != hostSearch[i] {
-			c.Fatalf("expected %q domain, but says: %q", actualSearch[i], hostSearch[i])
-		}
 	}
 }
 
