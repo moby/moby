@@ -212,3 +212,16 @@ func TestRenameContainerTwice(t *testing.T) {
 	assert.NilError(t, err)
 	ctrName = "c2"
 }
+
+func TestContainerAPIRename(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+	const newName = "TestContainerAPIRenameNew"
+	oldName := "old_name" + t.Name()
+	cID := container.Run(ctx, t, apiClient, container.WithName(oldName))
+	err := apiClient.ContainerRename(ctx, oldName, newName)
+	assert.NilError(t, err)
+	inspect, err := apiClient.ContainerInspect(ctx, cID)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("/"+newName, inspect.Name))
+}
