@@ -133,10 +133,13 @@ func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifi
 // files).
 func ConvertToHostname(maybeURL string) string {
 	stripped := maybeURL
-	if strings.HasPrefix(stripped, "http://") {
-		stripped = strings.TrimPrefix(stripped, "http://")
-	} else if strings.HasPrefix(stripped, "https://") {
-		stripped = strings.TrimPrefix(stripped, "https://")
+	if scheme, remainder, ok := strings.Cut(stripped, "://"); ok {
+		switch scheme {
+		case "http", "https":
+			stripped = remainder
+		default:
+			// unknown, or no scheme; doing nothing for now, as we never did.
+		}
 	}
 	stripped, _, _ = strings.Cut(stripped, "/")
 	return stripped
