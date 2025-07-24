@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/internal/nlwrap"
+	"github.com/docker/docker/daemon/libnetwork/nlwrap"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 )

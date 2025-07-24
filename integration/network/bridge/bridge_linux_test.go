@@ -11,9 +11,9 @@ import (
 
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
+	"github.com/docker/docker/daemon/libnetwork/nlwrap"
 	ctr "github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
-	"github.com/docker/docker/internal/nlwrap"
 	"github.com/docker/docker/internal/testutils/networking"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"

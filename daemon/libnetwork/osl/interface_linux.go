@@ -20,9 +20,9 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/internal/l2disco"
+	"github.com/docker/docker/daemon/libnetwork/nlwrap"
 	"github.com/docker/docker/daemon/libnetwork/ns"
 	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/docker/docker/internal/nlwrap"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"go.opentelemetry.io/otel"
