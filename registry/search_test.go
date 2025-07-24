@@ -16,6 +16,7 @@ import (
 )
 
 func spawnTestRegistrySession(t *testing.T) *session {
+	t.Helper()
 	authConfig := &registry.AuthConfig{}
 	endpoint, err := newV1Endpoint(context.Background(), makeIndex("/v1/"), nil)
 	if err != nil {
@@ -89,7 +90,7 @@ func TestSearchErrors(t *testing.T) {
 		expectedError     string
 	}{
 		{
-			expectedError:     "Unexpected status code 500",
+			expectedError:     "unexpected status code 500",
 			shouldReturnError: true,
 		},
 		{
