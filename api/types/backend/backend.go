@@ -150,6 +150,11 @@ type CommitConfig struct {
 	ParentImageID       string
 }
 
+// PluginCreateConfig hold all options to plugin create.
+type PluginCreateConfig struct {
+	RepoName string
+}
+
 // PluginRmConfig holds arguments for plugin remove.
 type PluginRmConfig struct {
 	ForceRemove bool

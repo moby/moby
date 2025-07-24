@@ -13,8 +13,10 @@ import (
 	registrypkg "github.com/docker/docker/daemon/pkg/registry"
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/client"
 	"github.com/pkg/errors"
 )
 
@@ -49,7 +51,7 @@ func WithBinary(bin string) CreateOpt {
 // CreateClient is the interface used for `BuildPlugin` to interact with the
 // daemon.
 type CreateClient interface {
-	PluginCreate(context.Context, io.Reader, types.PluginCreateOptions) error
+	PluginCreate(context.Context, io.Reader, client.PluginCreateOptions) error
 }
 
 // Create creates a new plugin with the specified name
@@ -69,7 +71,7 @@ func Create(ctx context.Context, c CreateClient, name string, opts ...CreateOpt)
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	return c.PluginCreate(ctx, tar, types.PluginCreateOptions{RepoName: name})
+	return c.PluginCreate(ctx, tar, client.PluginCreateOptions{RepoName: name})
 }
 
 // CreateInRegistry makes a plugin (locally) and pushes it to a registry.
@@ -127,7 +129,7 @@ func CreateInRegistry(ctx context.Context, repo string, auth *registry.AuthConfi
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	if err := manager.CreateFromContext(ctx, tar, &types.PluginCreateOptions{RepoName: repo}); err != nil {
+	if err := manager.CreateFromContext(ctx, tar, &backend.PluginCreateConfig{RepoName: repo}); err != nil {
 		return err
 	}
 
