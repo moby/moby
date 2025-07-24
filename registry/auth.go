@@ -40,9 +40,9 @@ type staticCredentialStore struct {
 
 // NewStaticCredentialStore returns a credential store
 // which always returns the same credential values.
-func NewStaticCredentialStore(auth *registry.AuthConfig) auth.CredentialStore {
+func NewStaticCredentialStore(ac *registry.AuthConfig) auth.CredentialStore {
 	return staticCredentialStore{
-		auth: auth,
+		auth: ac,
 	}
 }
 
@@ -60,7 +60,7 @@ func (scs staticCredentialStore) RefreshToken(*url.URL, string) string {
 	return scs.auth.IdentityToken
 }
 
-func (scs staticCredentialStore) SetRefreshToken(*url.URL, string, string) {
+func (staticCredentialStore) SetRefreshToken(*url.URL, string, string) {
 }
 
 // loginV2 tries to login to the v2 registry server. The given registry
@@ -131,12 +131,15 @@ func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifi
 // to just its hostname. It is used to match credentials, which may be either
 // stored as hostname or as hostname including scheme (in legacy configuration
 // files).
-func ConvertToHostname(url string) string {
-	stripped := url
-	if strings.HasPrefix(stripped, "http://") {
-		stripped = strings.TrimPrefix(stripped, "http://")
-	} else if strings.HasPrefix(stripped, "https://") {
-		stripped = strings.TrimPrefix(stripped, "https://")
+func ConvertToHostname(maybeURL string) string {
+	stripped := maybeURL
+	if scheme, remainder, ok := strings.Cut(stripped, "://"); ok {
+		switch scheme {
+		case "http", "https":
+			stripped = remainder
+		default:
+			// unknown, or no scheme; doing nothing for now, as we never did.
+		}
 	}
 	stripped, _, _ = strings.Cut(stripped, "/")
 	return stripped
@@ -175,9 +178,9 @@ func (err PingResponseError) Error() string {
 // PingV2Registry attempts to ping a v2 registry and on success return a
 // challenge manager for the supported authentication types.
 // If a response is received but cannot be interpreted, a PingResponseError will be returned.
-func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (challenge.Manager, error) {
+func PingV2Registry(endpoint *url.URL, authTransport http.RoundTripper) (challenge.Manager, error) {
 	pingClient := &http.Client{
-		Transport: transport,
+		Transport: authTransport,
 		Timeout:   15 * time.Second,
 	}
 	endpointStr := strings.TrimRight(endpoint.String(), "/") + "/v2/"

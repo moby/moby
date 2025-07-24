@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -58,7 +59,12 @@ func newV1Endpoint(ctx context.Context, index *registry.IndexInfo, headers http.
 		if endpoint.IsSecure {
 			// If registry is secure and HTTPS failed, show user the error and tell them about `--insecure-registry`
 			// in case that's what they need. DO NOT accept unknown CA certificates, and DO NOT fall back to HTTP.
-			return nil, invalidParamf("invalid registry endpoint %s: %v. If this private registry supports only HTTP or HTTPS with an unknown CA certificate, please add `--insecure-registry %s` to the daemon's arguments. In the case of HTTPS, if you have access to the registry's CA certificate, no need for the flag; simply place the CA certificate at /etc/docker/certs.d/%s/ca.crt", endpoint, err, endpoint.URL.Host, endpoint.URL.Host)
+			hint := fmt.Sprintf(
+				". If this private registry supports only HTTP or HTTPS with an unknown CA certificate, add `--insecure-registry %[1]s` to the daemon's arguments. "+
+					"In the case of HTTPS, if you have access to the registry's CA certificate, no need for the flag; place the CA certificate at /etc/docker/certs.d/%[1]s/ca.crt",
+				endpoint.URL.Host,
+			)
+			return nil, invalidParamf("invalid registry endpoint %s: %v%s", endpoint, err, hint)
 		}
 
 		// registry is insecure and HTTPS failed, fallback to HTTP.
@@ -163,9 +169,9 @@ func (e *v1Endpoint) ping(ctx context.Context) (v1PingResult, error) {
 
 // httpClient returns an HTTP client structure which uses the given transport
 // and contains the necessary headers for redirected requests
-func httpClient(transport http.RoundTripper) *http.Client {
+func httpClient(tr http.RoundTripper) *http.Client {
 	return &http.Client{
-		Transport:     transport,
+		Transport:     tr,
 		CheckRedirect: addRequiredHeadersToRedirectedRequests,
 	}
 }

@@ -116,4 +116,5 @@ func TestPing(t *testing.T) {
 	}
 	assert.Equal(t, res.StatusCode, http.StatusOK, "")
 	assert.Equal(t, res.Header.Get("Server"), "docker-tests/mock")
+	_ = res.Body.Close()
 }
