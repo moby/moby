@@ -32,11 +32,10 @@ func doesSupportNativeDiff(d string) error {
 		if err != nil {
 			return err
 		}
-		if needed {
-			userxattr = true
-		} else {
+		if !needed {
 			return errors.New("native diff is not supported in user namespace, consider updating to kernel 5.11 or later to fix")
 		}
+		userxattr = true
 	}
 
 	td, err := os.MkdirTemp(d, "opaque-bug-check")

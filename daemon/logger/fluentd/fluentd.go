@@ -251,13 +251,14 @@ func parseConfig(cfg map[string]string) (fluent.Config, error) {
 
 	writeTimeout := time.Duration(0)
 	if cfg[writeTimeoutKey] != "" {
-		if d, err := time.ParseDuration(cfg[writeTimeoutKey]); err != nil {
+		d, err := time.ParseDuration(cfg[writeTimeoutKey])
+		if err != nil {
 			return config, errors.Wrapf(err, "invalid value for %s: value must be a duration", writeTimeoutKey)
-		} else if d < 0 {
-			return config, errors.Errorf("invalid value for %s: value must be a duration that is non-negative", writeTimeoutKey)
-		} else {
-			writeTimeout = d
 		}
+		if d < 0 {
+			return config, errors.Errorf("invalid value for %s: value must be a duration that is non-negative", writeTimeoutKey)
+		}
+		writeTimeout = d
 	}
 
 	config = fluent.Config{

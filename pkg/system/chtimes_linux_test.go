@@ -31,7 +31,7 @@ func TestChtimesATime(t *testing.T) {
 
 		stat := f.Sys().(*syscall.Stat_t)
 		aTime := time.Unix(stat.Atim.Unix())
-		if aTime != unixEpochTime {
+		if !aTime.Equal(unixEpochTime) {
 			t.Fatalf("Expected: %s, got: %s", unixEpochTime, aTime)
 		}
 	})
@@ -49,7 +49,7 @@ func TestChtimesATime(t *testing.T) {
 
 		stat := f.Sys().(*syscall.Stat_t)
 		aTime := time.Unix(stat.Atim.Unix())
-		if aTime != unixEpochTime {
+		if !aTime.Equal(unixEpochTime) {
 			t.Fatalf("Expected: %s, got: %s", unixEpochTime, aTime)
 		}
 	})
@@ -67,7 +67,7 @@ func TestChtimesATime(t *testing.T) {
 
 		stat := f.Sys().(*syscall.Stat_t)
 		aTime := time.Unix(stat.Atim.Unix())
-		if aTime != unixEpochTime {
+		if !aTime.Equal(unixEpochTime) {
 			t.Fatalf("Expected: %s, got: %s", unixEpochTime, aTime)
 		}
 	})
@@ -85,7 +85,7 @@ func TestChtimesATime(t *testing.T) {
 
 		stat := f.Sys().(*syscall.Stat_t)
 		aTime := time.Unix(stat.Atim.Unix())
-		if aTime != afterUnixEpochTime {
+		if !aTime.Equal(afterUnixEpochTime) {
 			t.Fatalf("Expected: %s, got: %s", afterUnixEpochTime, aTime)
 		}
 	})
@@ -103,7 +103,7 @@ func TestChtimesATime(t *testing.T) {
 
 		stat := f.Sys().(*syscall.Stat_t)
 		aTime := time.Unix(stat.Atim.Unix())
-		if aTime.Truncate(time.Second) != unixMaxTime.Truncate(time.Second) {
+		if !aTime.Truncate(time.Second).Equal(unixMaxTime.Truncate(time.Second)) {
 			t.Fatalf("Expected: %s, got: %s", unixMaxTime.Truncate(time.Second), aTime.Truncate(time.Second))
 		}
 	})
