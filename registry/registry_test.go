@@ -363,15 +363,6 @@ func TestNewIndexInfo(t *testing.T) {
 		},
 	}
 
-	testIndexInfo := func(t *testing.T, config *serviceConfig, expectedIndexInfos map[string]*registry.IndexInfo) {
-		for indexName, expected := range expectedIndexInfos {
-			t.Run(indexName, func(t *testing.T) {
-				actual := newIndexInfo(config, indexName)
-				assert.Check(t, is.DeepEqual(actual, expected))
-			})
-		}
-	}
-
 	expectedIndexInfos := map[string]*registry.IndexInfo{
 		IndexName: {
 			Name:     IndexName,
@@ -399,7 +390,12 @@ func TestNewIndexInfo(t *testing.T) {
 		},
 	}
 	t.Run("no mirrors", func(t *testing.T) {
-		testIndexInfo(t, emptyServiceConfig, expectedIndexInfos)
+		for indexName, expected := range expectedIndexInfos {
+			t.Run(indexName, func(t *testing.T) {
+				actual := newIndexInfo(emptyServiceConfig, indexName)
+				assert.Check(t, is.DeepEqual(actual, expected))
+			})
+		}
 	})
 
 	expectedIndexInfos = map[string]*registry.IndexInfo{
@@ -494,7 +490,12 @@ func TestNewIndexInfo(t *testing.T) {
 			InsecureRegistries: []string{"example.com"},
 		})
 		assert.NilError(t, err)
-		testIndexInfo(t, config, expectedIndexInfos)
+		for indexName, expected := range expectedIndexInfos {
+			t.Run(indexName, func(t *testing.T) {
+				actual := newIndexInfo(config, indexName)
+				assert.Check(t, is.DeepEqual(actual, expected))
+			})
+		}
 	})
 
 	expectedIndexInfos = map[string]*registry.IndexInfo{
@@ -546,7 +547,12 @@ func TestNewIndexInfo(t *testing.T) {
 			InsecureRegistries: []string{"42.42.0.0/16"},
 		})
 		assert.NilError(t, err)
-		testIndexInfo(t, config, expectedIndexInfos)
+		for indexName, expected := range expectedIndexInfos {
+			t.Run(indexName, func(t *testing.T) {
+				actual := newIndexInfo(config, indexName)
+				assert.Check(t, is.DeepEqual(actual, expected))
+			})
+		}
 	})
 }
 
