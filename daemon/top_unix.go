@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/docker/docker/daemon/internal/lazyregexp"
 	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/pkg/errors"

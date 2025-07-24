@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/internal/lazyregexp"
 	"github.com/docker/docker/daemon/libnetwork"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"

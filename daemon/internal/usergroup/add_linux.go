@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/internal/lazyregexp"
+	"github.com/docker/docker/daemon/internal/lazyregexp"
 	"github.com/moby/sys/user"
 )
 
