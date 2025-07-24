@@ -15,16 +15,12 @@ cloud.google.com/go/logging/internal
 cloud.google.com/go/longrunning
 cloud.google.com/go/longrunning/autogen
 cloud.google.com/go/longrunning/autogen/longrunningpb
-# code.cloudfoundry.org/clock v1.37.0
+# code.cloudfoundry.org/clock v1.42.0
 ## explicit; go 1.23.0
 code.cloudfoundry.org/clock
-code.cloudfoundry.org/clock/fakeclock
 # dario.cat/mergo v1.0.1
 ## explicit; go 1.13
 dario.cat/mergo
-# github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6
-## explicit; go 1.20
-github.com/AdaLogics/go-fuzz-headers
 # github.com/Azure/azure-sdk-for-go/sdk/azcore v1.16.0
 ## explicit; go 1.18
 github.com/Azure/azure-sdk-for-go/sdk/azcore
@@ -131,12 +127,11 @@ github.com/armon/circbuf
 # github.com/armon/go-metrics v0.4.1
 ## explicit; go 1.12
 github.com/armon/go-metrics
-# github.com/aws/aws-sdk-go-v2 v1.30.3
-## explicit; go 1.20
+# github.com/aws/aws-sdk-go-v2 v1.36.6
+## explicit; go 1.22
 github.com/aws/aws-sdk-go-v2/aws
 github.com/aws/aws-sdk-go-v2/aws/defaults
 github.com/aws/aws-sdk-go-v2/aws/middleware
-github.com/aws/aws-sdk-go-v2/aws/middleware/private/metrics
 github.com/aws/aws-sdk-go-v2/aws/protocol/query
 github.com/aws/aws-sdk-go-v2/aws/protocol/restjson
 github.com/aws/aws-sdk-go-v2/aws/protocol/xml
@@ -158,8 +153,8 @@ github.com/aws/aws-sdk-go-v2/internal/shareddefaults
 github.com/aws/aws-sdk-go-v2/internal/strings
 github.com/aws/aws-sdk-go-v2/internal/sync/singleflight
 github.com/aws/aws-sdk-go-v2/internal/timeconv
-# github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.3
-## explicit; go 1.20
+# github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.11
+## explicit; go 1.22
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream/eventstreamapi
 # github.com/aws/aws-sdk-go-v2/config v1.27.27
@@ -178,17 +173,17 @@ github.com/aws/aws-sdk-go-v2/credentials/stscreds
 ## explicit; go 1.20
 github.com/aws/aws-sdk-go-v2/feature/ec2/imds
 github.com/aws/aws-sdk-go-v2/feature/ec2/imds/internal/config
-# github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.15
-## explicit; go 1.20
+# github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.37
+## explicit; go 1.22
 github.com/aws/aws-sdk-go-v2/internal/configsources
-# github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.15
-## explicit; go 1.20
+# github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.37
+## explicit; go 1.22
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2
 # github.com/aws/aws-sdk-go-v2/internal/ini v1.8.0
 ## explicit; go 1.20
 github.com/aws/aws-sdk-go-v2/internal/ini
-# github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.32.0
-## explicit; go 1.19
+# github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.53.1
+## explicit; go 1.22
 github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs
 github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/internal/endpoints
 github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types
@@ -213,8 +208,8 @@ github.com/aws/aws-sdk-go-v2/service/ssooidc/types
 github.com/aws/aws-sdk-go-v2/service/sts
 github.com/aws/aws-sdk-go-v2/service/sts/internal/endpoints
 github.com/aws/aws-sdk-go-v2/service/sts/types
-# github.com/aws/smithy-go v1.20.3
-## explicit; go 1.20
+# github.com/aws/smithy-go v1.22.4
+## explicit; go 1.22
 github.com/aws/smithy-go
 github.com/aws/smithy-go/auth
 github.com/aws/smithy-go/auth/bearer
@@ -228,12 +223,14 @@ github.com/aws/smithy-go/endpoints
 github.com/aws/smithy-go/internal/sync/singleflight
 github.com/aws/smithy-go/io
 github.com/aws/smithy-go/logging
+github.com/aws/smithy-go/metrics
 github.com/aws/smithy-go/middleware
 github.com/aws/smithy-go/private/requestcompression
 github.com/aws/smithy-go/ptr
 github.com/aws/smithy-go/rand
 github.com/aws/smithy-go/sync
 github.com/aws/smithy-go/time
+github.com/aws/smithy-go/tracing
 github.com/aws/smithy-go/transport/http
 github.com/aws/smithy-go/transport/http/internal/io
 # github.com/beorn7/perks v1.0.1
@@ -242,8 +239,6 @@ github.com/beorn7/perks/quantile
 # github.com/bits-and-blooms/bitset v1.13.0
 ## explicit; go 1.16
 github.com/bits-and-blooms/bitset
-# github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869
-## explicit
 # github.com/cenkalti/backoff/v4 v4.3.0
 ## explicit; go 1.18
 github.com/cenkalti/backoff/v4
@@ -426,7 +421,6 @@ github.com/containerd/go-runc
 # github.com/containerd/log v0.1.0
 ## explicit; go 1.20
 github.com/containerd/log
-github.com/containerd/log/logtest
 # github.com/containerd/nydus-snapshotter v0.15.2
 ## explicit; go 1.22.0
 github.com/containerd/nydus-snapshotter/pkg/converter
@@ -481,7 +475,7 @@ github.com/cyphar/filepath-securejoin
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/deckarep/golang-set/v2 v2.3.0
+# github.com/deckarep/golang-set/v2 v2.8.0
 ## explicit; go 1.18
 github.com/deckarep/golang-set/v2
 # github.com/dimchansky/utfbom v1.1.1
@@ -520,8 +514,6 @@ github.com/docker/go-metrics
 # github.com/docker/go-units v0.5.0
 ## explicit
 github.com/docker/go-units
-# github.com/docker/libtrust v0.0.0-20150526203908-9cbd2a1374f4
-## explicit
 # github.com/dustin/go-humanize v1.0.0
 ## explicit
 github.com/dustin/go-humanize
@@ -538,7 +530,7 @@ github.com/fluent/fluent-logger-golang/fluent
 ## explicit; go 1.17
 github.com/fsnotify/fsnotify
 github.com/fsnotify/fsnotify/internal
-# github.com/go-logr/logr v1.4.2
+# github.com/go-logr/logr v1.4.3
 ## explicit; go 1.18
 github.com/go-logr/logr
 github.com/go-logr/logr/funcr
@@ -554,7 +546,6 @@ github.com/gofrs/flock
 # github.com/gogo/protobuf v1.3.2
 ## explicit; go 1.15
 github.com/gogo/protobuf/gogoproto
-github.com/gogo/protobuf/io
 github.com/gogo/protobuf/plugin/compare
 github.com/gogo/protobuf/plugin/defaultcheck
 github.com/gogo/protobuf/plugin/description
@@ -688,8 +679,8 @@ github.com/hashicorp/go-immutable-radix
 # github.com/hashicorp/go-immutable-radix/v2 v2.1.0
 ## explicit; go 1.18
 github.com/hashicorp/go-immutable-radix/v2
-# github.com/hashicorp/go-memdb v1.3.2
-## explicit; go 1.12
+# github.com/hashicorp/go-memdb v1.3.5
+## explicit; go 1.13
 github.com/hashicorp/go-memdb
 # github.com/hashicorp/go-msgpack v0.5.5
 ## explicit
@@ -966,6 +957,247 @@ github.com/moby/moby/api/types/volume
 # github.com/moby/moby/client v0.0.0 => ./client
 ## explicit; go 1.23.0
 github.com/moby/moby/client
+# github.com/moby/moby/daemon v0.0.0 => ./daemon
+## explicit; go 1.23.0
+github.com/moby/moby/daemon
+github.com/moby/moby/daemon/builder
+github.com/moby/moby/daemon/builder/backend
+github.com/moby/moby/daemon/builder/dockerfile
+github.com/moby/moby/daemon/builder/remotecontext
+github.com/moby/moby/daemon/builder/remotecontext/git
+github.com/moby/moby/daemon/builder/remotecontext/internal/tarsum
+github.com/moby/moby/daemon/builder/remotecontext/urlutil
+github.com/moby/moby/daemon/cluster
+github.com/moby/moby/daemon/cluster/controllers/plugin
+github.com/moby/moby/daemon/cluster/convert
+github.com/moby/moby/daemon/cluster/executor
+github.com/moby/moby/daemon/cluster/executor/container
+github.com/moby/moby/daemon/cluster/provider
+github.com/moby/moby/daemon/command
+github.com/moby/moby/daemon/command/debug
+github.com/moby/moby/daemon/command/trap
+github.com/moby/moby/daemon/config
+github.com/moby/moby/daemon/container
+github.com/moby/moby/daemon/containerd
+github.com/moby/moby/daemon/events
+github.com/moby/moby/daemon/events/testutils
+github.com/moby/moby/daemon/graphdriver
+github.com/moby/moby/daemon/graphdriver/btrfs
+github.com/moby/moby/daemon/graphdriver/copy
+github.com/moby/moby/daemon/graphdriver/fuse-overlayfs
+github.com/moby/moby/daemon/graphdriver/overlay2
+github.com/moby/moby/daemon/graphdriver/overlayutils
+github.com/moby/moby/daemon/graphdriver/register
+github.com/moby/moby/daemon/graphdriver/vfs
+github.com/moby/moby/daemon/graphdriver/windows
+github.com/moby/moby/daemon/graphdriver/zfs
+github.com/moby/moby/daemon/images
+github.com/moby/moby/daemon/initlayer
+github.com/moby/moby/daemon/internal/builder-next
+github.com/moby/moby/daemon/internal/builder-next/adapters/containerimage
+github.com/moby/moby/daemon/internal/builder-next/adapters/localinlinecache
+github.com/moby/moby/daemon/internal/builder-next/adapters/snapshot
+github.com/moby/moby/daemon/internal/builder-next/exporter
+github.com/moby/moby/daemon/internal/builder-next/exporter/mobyexporter
+github.com/moby/moby/daemon/internal/builder-next/exporter/overrides
+github.com/moby/moby/daemon/internal/builder-next/imagerefchecker
+github.com/moby/moby/daemon/internal/builder-next/worker
+github.com/moby/moby/daemon/internal/builder-next/worker/label
+github.com/moby/moby/daemon/internal/builder-next/worker/mod
+github.com/moby/moby/daemon/internal/capabilities
+github.com/moby/moby/daemon/internal/cleanups
+github.com/moby/moby/daemon/internal/containerfs
+github.com/moby/moby/daemon/internal/directory
+github.com/moby/moby/daemon/internal/distribution
+github.com/moby/moby/daemon/internal/distribution/metadata
+github.com/moby/moby/daemon/internal/distribution/utils
+github.com/moby/moby/daemon/internal/distribution/xfer
+github.com/moby/moby/daemon/internal/errdefs
+github.com/moby/moby/daemon/internal/filedescriptors
+github.com/moby/moby/daemon/internal/fstype
+github.com/moby/moby/daemon/internal/idtools
+github.com/moby/moby/daemon/internal/image
+github.com/moby/moby/daemon/internal/image/cache
+github.com/moby/moby/daemon/internal/image/tarexport
+github.com/moby/moby/daemon/internal/image/v1
+github.com/moby/moby/daemon/internal/ioutils
+github.com/moby/moby/daemon/internal/layer
+github.com/moby/moby/daemon/internal/lazyregexp
+github.com/moby/moby/daemon/internal/libcontainerd
+github.com/moby/moby/daemon/internal/libcontainerd/local
+github.com/moby/moby/daemon/internal/libcontainerd/queue
+github.com/moby/moby/daemon/internal/libcontainerd/remote
+github.com/moby/moby/daemon/internal/libcontainerd/shimopts
+github.com/moby/moby/daemon/internal/libcontainerd/supervisor
+github.com/moby/moby/daemon/internal/libcontainerd/types
+github.com/moby/moby/daemon/internal/longpath
+github.com/moby/moby/daemon/internal/metrics
+github.com/moby/moby/daemon/internal/mountref
+github.com/moby/moby/daemon/internal/mounttree
+github.com/moby/moby/daemon/internal/multierror
+github.com/moby/moby/daemon/internal/opts
+github.com/moby/moby/daemon/internal/otelutil
+github.com/moby/moby/daemon/internal/platform
+github.com/moby/moby/daemon/internal/plugin/executor/containerd
+github.com/moby/moby/daemon/internal/quota
+github.com/moby/moby/daemon/internal/refstore
+github.com/moby/moby/daemon/internal/restartmanager
+github.com/moby/moby/daemon/internal/rootless/mountopts
+github.com/moby/moby/daemon/internal/rootless/specconv
+github.com/moby/moby/daemon/internal/runconfig
+github.com/moby/moby/daemon/internal/sliceutil
+github.com/moby/moby/daemon/internal/stream
+github.com/moby/moby/daemon/internal/stream/bytespipe
+github.com/moby/moby/daemon/internal/unix_noeintr
+github.com/moby/moby/daemon/internal/unshare
+github.com/moby/moby/daemon/internal/usergroup
+github.com/moby/moby/daemon/libnetwork
+github.com/moby/moby/daemon/libnetwork/bitmap
+github.com/moby/moby/daemon/libnetwork/cluster
+github.com/moby/moby/daemon/libnetwork/cnmallocator
+github.com/moby/moby/daemon/libnetwork/config
+github.com/moby/moby/daemon/libnetwork/datastore
+github.com/moby/moby/daemon/libnetwork/diagnostic
+github.com/moby/moby/daemon/libnetwork/discoverapi
+github.com/moby/moby/daemon/libnetwork/driverapi
+github.com/moby/moby/daemon/libnetwork/drivers/bridge
+github.com/moby/moby/daemon/libnetwork/drivers/bridge/brmanager
+github.com/moby/moby/daemon/libnetwork/drivers/bridge/internal/firewaller
+github.com/moby/moby/daemon/libnetwork/drivers/bridge/internal/iptabler
+github.com/moby/moby/daemon/libnetwork/drivers/bridge/internal/nftabler
+github.com/moby/moby/daemon/libnetwork/drivers/host
+github.com/moby/moby/daemon/libnetwork/drivers/ipvlan
+github.com/moby/moby/daemon/libnetwork/drivers/ipvlan/ivmanager
+github.com/moby/moby/daemon/libnetwork/drivers/macvlan
+github.com/moby/moby/daemon/libnetwork/drivers/macvlan/mvmanager
+github.com/moby/moby/daemon/libnetwork/drivers/null
+github.com/moby/moby/daemon/libnetwork/drivers/overlay
+github.com/moby/moby/daemon/libnetwork/drivers/overlay/overlayutils
+github.com/moby/moby/daemon/libnetwork/drivers/overlay/ovmanager
+github.com/moby/moby/daemon/libnetwork/drivers/remote
+github.com/moby/moby/daemon/libnetwork/drivers/remote/api
+github.com/moby/moby/daemon/libnetwork/drivers/windows
+github.com/moby/moby/daemon/libnetwork/drivers/windows/overlay
+github.com/moby/moby/daemon/libnetwork/drvregistry
+github.com/moby/moby/daemon/libnetwork/etchosts
+github.com/moby/moby/daemon/libnetwork/internal/addrset
+github.com/moby/moby/daemon/libnetwork/internal/caller
+github.com/moby/moby/daemon/libnetwork/internal/countmap
+github.com/moby/moby/daemon/libnetwork/internal/kvstore
+github.com/moby/moby/daemon/libnetwork/internal/kvstore/boltdb
+github.com/moby/moby/daemon/libnetwork/internal/l2disco
+github.com/moby/moby/daemon/libnetwork/internal/maputil
+github.com/moby/moby/daemon/libnetwork/internal/modprobe
+github.com/moby/moby/daemon/libnetwork/internal/netiputil
+github.com/moby/moby/daemon/libnetwork/internal/nftables
+github.com/moby/moby/daemon/libnetwork/internal/resolvconf
+github.com/moby/moby/daemon/libnetwork/internal/rlkclient
+github.com/moby/moby/daemon/libnetwork/internal/setmatrix
+github.com/moby/moby/daemon/libnetwork/ipamapi
+github.com/moby/moby/daemon/libnetwork/ipams
+github.com/moby/moby/daemon/libnetwork/ipams/defaultipam
+github.com/moby/moby/daemon/libnetwork/ipams/null
+github.com/moby/moby/daemon/libnetwork/ipams/remote
+github.com/moby/moby/daemon/libnetwork/ipams/remote/api
+github.com/moby/moby/daemon/libnetwork/ipams/windowsipam
+github.com/moby/moby/daemon/libnetwork/ipamutils
+github.com/moby/moby/daemon/libnetwork/ipbits
+github.com/moby/moby/daemon/libnetwork/iptables
+github.com/moby/moby/daemon/libnetwork/netlabel
+github.com/moby/moby/daemon/libnetwork/netutils
+github.com/moby/moby/daemon/libnetwork/networkdb
+github.com/moby/moby/daemon/libnetwork/nlwrap
+github.com/moby/moby/daemon/libnetwork/ns
+github.com/moby/moby/daemon/libnetwork/options
+github.com/moby/moby/daemon/libnetwork/osl
+github.com/moby/moby/daemon/libnetwork/osl/kernel
+github.com/moby/moby/daemon/libnetwork/portallocator
+github.com/moby/moby/daemon/libnetwork/portmapper
+github.com/moby/moby/daemon/libnetwork/portmapperapi
+github.com/moby/moby/daemon/libnetwork/portmappers/nat
+github.com/moby/moby/daemon/libnetwork/portmappers/routed
+github.com/moby/moby/daemon/libnetwork/resolvconf
+github.com/moby/moby/daemon/libnetwork/scope
+github.com/moby/moby/daemon/libnetwork/types
+github.com/moby/moby/daemon/links
+github.com/moby/moby/daemon/listeners
+github.com/moby/moby/daemon/logger
+github.com/moby/moby/daemon/logger/awslogs
+github.com/moby/moby/daemon/logger/etwlogs
+github.com/moby/moby/daemon/logger/fluentd
+github.com/moby/moby/daemon/logger/gcplogs
+github.com/moby/moby/daemon/logger/gelf
+github.com/moby/moby/daemon/logger/journald
+github.com/moby/moby/daemon/logger/journald/internal/sdjournal
+github.com/moby/moby/daemon/logger/jsonfilelog
+github.com/moby/moby/daemon/logger/jsonfilelog/jsonlog
+github.com/moby/moby/daemon/logger/local
+github.com/moby/moby/daemon/logger/loggerutils
+github.com/moby/moby/daemon/logger/loggerutils/cache
+github.com/moby/moby/daemon/logger/splunk
+github.com/moby/moby/daemon/logger/syslog
+github.com/moby/moby/daemon/logger/templates
+github.com/moby/moby/daemon/names
+github.com/moby/moby/daemon/network
+github.com/moby/moby/daemon/pkg/authorization
+github.com/moby/moby/daemon/pkg/fileutils
+github.com/moby/moby/daemon/pkg/homedir
+github.com/moby/moby/daemon/pkg/ioutils
+github.com/moby/moby/daemon/pkg/jsonmessage
+github.com/moby/moby/daemon/pkg/meminfo
+github.com/moby/moby/daemon/pkg/namesgenerator
+github.com/moby/moby/daemon/pkg/oci
+github.com/moby/moby/daemon/pkg/oci/caps
+github.com/moby/moby/daemon/pkg/opts
+github.com/moby/moby/daemon/pkg/parsers/kernel
+github.com/moby/moby/daemon/pkg/parsers/operatingsystem
+github.com/moby/moby/daemon/pkg/pidfile
+github.com/moby/moby/daemon/pkg/plugin
+github.com/moby/moby/daemon/pkg/plugin/v2
+github.com/moby/moby/daemon/pkg/plugingetter
+github.com/moby/moby/daemon/pkg/plugins
+github.com/moby/moby/daemon/pkg/plugins/transport
+github.com/moby/moby/daemon/pkg/pools
+github.com/moby/moby/daemon/pkg/process
+github.com/moby/moby/daemon/pkg/progress
+github.com/moby/moby/daemon/pkg/registry
+github.com/moby/moby/daemon/pkg/rootless
+github.com/moby/moby/daemon/pkg/stack
+github.com/moby/moby/daemon/pkg/streamformatter
+github.com/moby/moby/daemon/pkg/stringid
+github.com/moby/moby/daemon/pkg/sysinfo
+github.com/moby/moby/daemon/pkg/system
+github.com/moby/moby/daemon/pkg/tailfile
+github.com/moby/moby/daemon/pkg/testutils
+github.com/moby/moby/daemon/pkg/testutils/specialimage
+github.com/moby/moby/daemon/pkg/useragent
+github.com/moby/moby/daemon/server
+github.com/moby/moby/daemon/server/httpstatus
+github.com/moby/moby/daemon/server/httputils
+github.com/moby/moby/daemon/server/middleware
+github.com/moby/moby/daemon/server/router
+github.com/moby/moby/daemon/server/router/build
+github.com/moby/moby/daemon/server/router/checkpoint
+github.com/moby/moby/daemon/server/router/container
+github.com/moby/moby/daemon/server/router/debug
+github.com/moby/moby/daemon/server/router/distribution
+github.com/moby/moby/daemon/server/router/grpc
+github.com/moby/moby/daemon/server/router/image
+github.com/moby/moby/daemon/server/router/network
+github.com/moby/moby/daemon/server/router/plugin
+github.com/moby/moby/daemon/server/router/session
+github.com/moby/moby/daemon/server/router/swarm
+github.com/moby/moby/daemon/server/router/system
+github.com/moby/moby/daemon/server/router/volume
+github.com/moby/moby/daemon/snapshotter
+github.com/moby/moby/daemon/stats
+github.com/moby/moby/daemon/volume
+github.com/moby/moby/daemon/volume/drivers
+github.com/moby/moby/daemon/volume/local
+github.com/moby/moby/daemon/volume/mounts
+github.com/moby/moby/daemon/volume/safepath
+github.com/moby/moby/daemon/volume/service
+github.com/moby/moby/daemon/volume/service/opts
 # github.com/moby/patternmatcher v0.6.0
 ## explicit; go 1.19
 github.com/moby/patternmatcher
@@ -1045,7 +1277,6 @@ github.com/moby/swarmkit/v2/protobuf/plugin
 github.com/moby/swarmkit/v2/protobuf/ptypes
 github.com/moby/swarmkit/v2/remotes
 github.com/moby/swarmkit/v2/template
-github.com/moby/swarmkit/v2/testutils
 github.com/moby/swarmkit/v2/volumequeue
 github.com/moby/swarmkit/v2/watch
 github.com/moby/swarmkit/v2/watch/queue
@@ -1081,9 +1312,6 @@ github.com/moby/sys/userns
 ## explicit; go 1.18
 github.com/moby/term
 github.com/moby/term/windows
-# github.com/montanaflynn/stats v0.7.1
-## explicit; go 1.13
-github.com/montanaflynn/stats
 # github.com/morikuni/aec v1.0.0
 ## explicit
 github.com/morikuni/aec
@@ -1133,8 +1361,8 @@ github.com/pelletier/go-toml/v2/unstable
 # github.com/petermattis/goid v0.0.0-20240813172612-4fcff4a6cae7
 ## explicit; go 1.17
 github.com/petermattis/goid
-# github.com/philhofer/fwd v1.1.2
-## explicit; go 1.15
+# github.com/philhofer/fwd v1.1.3-0.20240916144458-20a13a1f6b7c
+## explicit; go 1.20
 github.com/philhofer/fwd
 # github.com/pkg/errors v0.9.1
 ## explicit
@@ -1167,7 +1395,7 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/rootless-containers/rootlesskit/v2 v2.3.4
+# github.com/rootless-containers/rootlesskit/v2 v2.3.5
 ## explicit; go 1.23.0
 github.com/rootless-containers/rootlesskit/v2/pkg/api
 github.com/rootless-containers/rootlesskit/v2/pkg/api/client
@@ -1216,8 +1444,8 @@ github.com/stretchr/testify/suite
 # github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 ## explicit
 github.com/syndtr/gocapability/capability
-# github.com/tinylib/msgp v1.1.8
-## explicit; go 1.15
+# github.com/tinylib/msgp v1.3.0
+## explicit; go 1.20
 github.com/tinylib/msgp/msgp
 # github.com/tonistiigi/dchapes-mode v0.0.0-20250318174251-73d941a28323
 ## explicit; go 1.21
@@ -1446,7 +1674,7 @@ go.uber.org/zap/internal/bufferpool
 go.uber.org/zap/internal/color
 go.uber.org/zap/internal/exit
 go.uber.org/zap/zapcore
-# golang.org/x/crypto v0.37.0
+# golang.org/x/crypto v0.40.0
 ## explicit; go 1.23.0
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/chacha20
@@ -1467,12 +1695,12 @@ golang.org/x/crypto/pkcs12/internal/rc2
 golang.org/x/crypto/salsa20/salsa
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
-# golang.org/x/mod v0.24.0
+# golang.org/x/mod v0.26.0
 ## explicit; go 1.23.0
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/module
 golang.org/x/mod/semver
-# golang.org/x/net v0.39.0
+# golang.org/x/net v0.42.0
 ## explicit; go 1.23.0
 golang.org/x/net/bpf
 golang.org/x/net/context
@@ -1501,12 +1729,12 @@ golang.org/x/oauth2/google/internal/stsexchange
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
-# golang.org/x/sync v0.14.0
+# golang.org/x/sync v0.16.0
 ## explicit; go 1.23.0
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
 golang.org/x/sync/syncmap
-# golang.org/x/sys v0.33.0
+# golang.org/x/sys v0.34.0
 ## explicit; go 1.23.0
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
@@ -1516,7 +1744,7 @@ golang.org/x/sys/windows/svc
 golang.org/x/sys/windows/svc/debug
 golang.org/x/sys/windows/svc/eventlog
 golang.org/x/sys/windows/svc/mgr
-# golang.org/x/text v0.24.0
+# golang.org/x/text v0.27.0
 ## explicit; go 1.23.0
 golang.org/x/text/encoding
 golang.org/x/text/encoding/internal
@@ -1531,7 +1759,7 @@ golang.org/x/text/unicode/norm
 # golang.org/x/time v0.11.0
 ## explicit; go 1.23.0
 golang.org/x/time/rate
-# golang.org/x/tools v0.32.0
+# golang.org/x/tools v0.35.0
 ## explicit; go 1.23.0
 golang.org/x/tools/go/gcexportdata
 golang.org/x/tools/go/packages
@@ -1739,9 +1967,6 @@ k8s.io/klog/v2/internal/dbg
 k8s.io/klog/v2/internal/serialize
 k8s.io/klog/v2/internal/severity
 k8s.io/klog/v2/internal/sloghandler
-# pgregory.net/rapid v1.2.0
-## explicit; go 1.18
-pgregory.net/rapid
 # resenje.org/singleflight v0.4.3
 ## explicit; go 1.18
 resenje.org/singleflight
@@ -1760,3 +1985,4 @@ tags.cncf.io/container-device-interface/pkg/parser
 tags.cncf.io/container-device-interface/specs-go
 # github.com/moby/moby/api => ./api
 # github.com/moby/moby/client => ./client
+# github.com/moby/moby/daemon => ./daemon

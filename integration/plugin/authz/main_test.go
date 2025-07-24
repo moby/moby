@@ -13,11 +13,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/pkg/authorization"
-	"github.com/docker/docker/daemon/pkg/plugins"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/environment"
+	"github.com/moby/moby/daemon/pkg/authorization"
+	"github.com/moby/moby/daemon/pkg/plugins"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"

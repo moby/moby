@@ -14,8 +14,6 @@ import (
 	"time"
 
 	"github.com/cpuguy83/tar2go"
-	"github.com/docker/docker/daemon/pkg/testutils"
-	"github.com/docker/docker/daemon/pkg/testutils/specialimage"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
 	iimage "github.com/docker/docker/integration/internal/image"
@@ -25,6 +23,8 @@ import (
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/daemon/pkg/testutils"
+	"github.com/moby/moby/daemon/pkg/testutils/specialimage"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"

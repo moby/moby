@@ -8,9 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/builder"
-	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/daemon/pkg/oci"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
@@ -18,6 +15,9 @@ import (
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/daemon/builder"
+	"github.com/moby/moby/daemon/internal/image"
+	"github.com/moby/moby/daemon/pkg/oci"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

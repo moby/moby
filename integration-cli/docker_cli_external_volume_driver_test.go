@@ -15,15 +15,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/pkg/plugins"
-	"github.com/docker/docker/daemon/pkg/stringid"
-	"github.com/docker/docker/daemon/volume"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/testutil"
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	"github.com/moby/moby/api/types/container"
 	volumetypes "github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/daemon/pkg/plugins"
+	"github.com/moby/moby/daemon/pkg/stringid"
+	"github.com/moby/moby/daemon/volume"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

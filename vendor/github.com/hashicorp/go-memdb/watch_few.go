@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package memdb
 
 //go:generate sh -c "go run watch-gen/main.go >watch_few.go"

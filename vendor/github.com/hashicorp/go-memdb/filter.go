@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package memdb
 
 // FilterFunc is a function that takes the results of an iterator and returns

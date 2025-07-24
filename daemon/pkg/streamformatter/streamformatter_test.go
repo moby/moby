@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/pkg/jsonmessage"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/moby/moby/daemon/pkg/jsonmessage"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

@@ -1,7 +1,7 @@
 // Package resolvconf provides utility code to query and update DNS configuration in /etc/resolv.conf
 package resolvconf
 
-import "github.com/docker/docker/daemon/libnetwork/resolvconf"
+import "github.com/moby/moby/daemon/libnetwork/resolvconf"
 
 const (
 	// Deprecated: use [resolvconf.IP] instead.

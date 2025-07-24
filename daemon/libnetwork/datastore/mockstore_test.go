@@ -3,8 +3,8 @@ package datastore
 import (
 	"strings"
 
-	store "github.com/docker/docker/daemon/libnetwork/internal/kvstore"
-	"github.com/docker/docker/daemon/libnetwork/types"
+	store "github.com/moby/moby/daemon/libnetwork/internal/kvstore"
+	"github.com/moby/moby/daemon/libnetwork/types"
 )
 
 // MockData exported

@@ -165,6 +165,33 @@ type Config struct {
 
 	// Controls how a resolved AWS account ID is handled for endpoint routing.
 	AccountIDEndpointMode AccountIDEndpointMode
+
+	// RequestChecksumCalculation determines when request checksum calculation is performed.
+	//
+	// There are two possible values for this setting:
+	//
+	// 1. RequestChecksumCalculationWhenSupported (default): The checksum is always calculated
+	//    if the operation supports it, regardless of whether the user sets an algorithm in the request.
+	//
+	// 2. RequestChecksumCalculationWhenRequired: The checksum is only calculated if the user
+	//    explicitly sets a checksum algorithm in the request.
+	//
+	// This setting is sourced from the environment variable AWS_REQUEST_CHECKSUM_CALCULATION
+	// or the shared config profile attribute "request_checksum_calculation".
+	RequestChecksumCalculation RequestChecksumCalculation
+
+	// ResponseChecksumValidation determines when response checksum validation is performed
+	//
+	// There are two possible values for this setting:
+	//
+	// 1. ResponseChecksumValidationWhenSupported (default): The checksum is always validated
+	//    if the operation supports it, regardless of whether the user sets the validation mode to ENABLED in request.
+	//
+	// 2. ResponseChecksumValidationWhenRequired: The checksum is only validated if the user
+	//    explicitly sets the validation mode to ENABLED in the request
+	// This variable is sourced from environment variable AWS_RESPONSE_CHECKSUM_VALIDATION or
+	// the shared config profile attribute "response_checksum_validation".
+	ResponseChecksumValidation ResponseChecksumValidation
 }
 
 // NewConfig returns a new Config pointer that can be chained with builder

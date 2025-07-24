@@ -5,9 +5,9 @@ package daemon
 import (
 	"testing"
 
-	"github.com/docker/docker/daemon/config"
 	"github.com/docker/go-connections/nat"
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/daemon/config"
 	"gotest.tools/v3/assert"
 )
 

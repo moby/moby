@@ -394,11 +394,16 @@ func (s *httpSigner) buildCredentialScope() string {
 func buildQuery(r v4Internal.Rule, header http.Header) (url.Values, http.Header) {
 	query := url.Values{}
 	unsignedHeaders := http.Header{}
+
+	// A list of headers to be converted to lower case to mitigate a limitation from S3
+	lowerCaseHeaders := map[string]string{
+		"X-Amz-Expected-Bucket-Owner": "x-amz-expected-bucket-owner", // see #2508
+		"X-Amz-Request-Payer":         "x-amz-request-payer",         // see #2764
+	}
+
 	for k, h := range header {
-		// literally just this header has this constraint for some stupid reason,
-		// see #2508
-		if k == "X-Amz-Expected-Bucket-Owner" {
-			k = "x-amz-expected-bucket-owner"
+		if newKey, ok := lowerCaseHeaders[k]; ok {
+			k = newKey
 		}
 
 		if r.IsValid(k) {

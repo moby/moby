@@ -17,11 +17,11 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/docker/docker/daemon/pkg/sysinfo"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/testutil"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/daemon/pkg/sysinfo"
 	"github.com/moby/profiles/seccomp"
 	"github.com/moby/sys/mount"
 	"gotest.tools/v3/assert"

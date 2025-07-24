@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/pkg/jsonmessage"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/request"
 	containertypes "github.com/moby/moby/api/types/container"
@@ -19,6 +18,7 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/daemon/pkg/jsonmessage"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"

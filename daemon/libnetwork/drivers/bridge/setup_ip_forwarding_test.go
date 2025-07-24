@@ -8,8 +8,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
-	"github.com/docker/docker/daemon/pkg/testutils/netnsutils"
+	"github.com/moby/moby/daemon/libnetwork/drivers/bridge/internal/firewaller"
+	"github.com/moby/moby/daemon/pkg/testutils/netnsutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

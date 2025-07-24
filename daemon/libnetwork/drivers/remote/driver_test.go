@@ -15,12 +15,12 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/discoverapi"
-	"github.com/docker/docker/daemon/libnetwork/driverapi"
-	"github.com/docker/docker/daemon/libnetwork/options"
-	"github.com/docker/docker/daemon/libnetwork/scope"
-	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/docker/docker/daemon/pkg/plugins"
+	"github.com/moby/moby/daemon/libnetwork/discoverapi"
+	"github.com/moby/moby/daemon/libnetwork/driverapi"
+	"github.com/moby/moby/daemon/libnetwork/options"
+	"github.com/moby/moby/daemon/libnetwork/scope"
+	"github.com/moby/moby/daemon/libnetwork/types"
+	"github.com/moby/moby/daemon/pkg/plugins"
 	"gotest.tools/v3/assert"
 )
 

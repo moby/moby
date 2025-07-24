@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/daemon/pkg/useragent"
+	"github.com/moby/moby/daemon/pkg/useragent"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

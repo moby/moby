@@ -5,9 +5,9 @@ package main
 import (
 	"testing"
 
-	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/testutil"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/daemon/config"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

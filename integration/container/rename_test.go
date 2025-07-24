@@ -3,10 +3,10 @@ package container
 import (
 	"testing"
 
-	"github.com/docker/docker/daemon/pkg/stringid"
 	"github.com/docker/docker/integration/internal/container"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/daemon/pkg/stringid"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"

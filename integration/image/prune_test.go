@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/pkg/testutils/specialimage"
 	"github.com/docker/docker/integration/internal/container"
 	iimage "github.com/docker/docker/integration/internal/image"
 	"github.com/docker/docker/testutil"
@@ -13,6 +12,7 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/daemon/pkg/testutils/specialimage"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"

@@ -10,10 +10,10 @@ import (
 	"path"
 	"testing"
 
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/daemon/internal/quota"
-	"github.com/docker/docker/daemon/pkg/stringid"
 	"github.com/docker/go-units"
+	"github.com/moby/moby/daemon/graphdriver"
+	"github.com/moby/moby/daemon/internal/quota"
+	"github.com/moby/moby/daemon/pkg/stringid"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

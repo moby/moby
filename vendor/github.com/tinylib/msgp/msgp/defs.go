@@ -32,6 +32,10 @@ const (
 	last5  = 0x1f
 	first3 = 0xe0
 	last7  = 0x7f
+
+	// recursionLimit is the limit of recursive calls.
+	// This limits the call depth of dynamic code, like Skip and interface conversions.
+	recursionLimit = 100000
 )
 
 func isfixint(b byte) bool {

@@ -17,7 +17,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/pkg/authorization"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/environment"
 	"github.com/docker/go-connections/sockets"
@@ -26,6 +25,7 @@ import (
 	eventtypes "github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/daemon/pkg/authorization"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )

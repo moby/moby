@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	realcontainer "github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
+	realcontainer "github.com/moby/moby/daemon/container"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/containerd/cgroups/v3"
-	"github.com/docker/docker/daemon/pkg/sysinfo"
+	"github.com/moby/moby/daemon/pkg/sysinfo"
 )
 
 var sysInfo *sysinfo.SysInfo

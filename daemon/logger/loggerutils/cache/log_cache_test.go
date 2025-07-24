@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/logger"
+	"github.com/moby/moby/daemon/logger"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

@@ -5,8 +5,8 @@ package ipvlan
 import (
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/driverapi"
-	"github.com/docker/docker/daemon/pkg/testutils/storeutils"
+	"github.com/moby/moby/daemon/libnetwork/driverapi"
+	"github.com/moby/moby/daemon/pkg/testutils/storeutils"
 )
 
 const testNetworkType = "ipvlan"

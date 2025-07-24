@@ -7,8 +7,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/ipams/defaultipam"
-	"github.com/docker/docker/daemon/pkg/testutils/netnsutils"
+	"github.com/moby/moby/daemon/libnetwork/ipams/defaultipam"
+	"github.com/moby/moby/daemon/pkg/testutils/netnsutils"
 )
 
 func TestHostsEntries(t *testing.T) {

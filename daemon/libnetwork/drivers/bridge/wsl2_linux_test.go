@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/daemon/pkg/testutils/netnsutils"
+	"github.com/moby/moby/daemon/pkg/testutils/netnsutils"
 
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"

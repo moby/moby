@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/images"
-	"github.com/docker/docker/daemon/libnetwork"
-	"github.com/docker/docker/daemon/pkg/registry"
+	"github.com/moby/moby/daemon/config"
+	"github.com/moby/moby/daemon/images"
+	"github.com/moby/moby/daemon/libnetwork"
+	"github.com/moby/moby/daemon/pkg/registry"
 	"gotest.tools/v3/assert"
 )
 

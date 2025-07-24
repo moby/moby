@@ -1,8 +1,8 @@
 package query
 
 import (
-	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // Array represents the encoding of Query lists and sets. A Query array is a
@@ -21,19 +21,8 @@ type Array struct {
 	// keys for each element in the list. For example, an entry might have the
 	// key "ParentStructure.ListName.member.MemberName.1".
 	//
-	// While this is currently represented as a string that gets added to, it
-	// could also be represented as a stack that only gets condensed into a
-	// string when a finalized key is created. This could potentially reduce
-	// allocations.
+	// When the array is not flat the prefix will contain the memberName otherwise the memberName is ignored
 	prefix string
-	// Whether the list is flat or not. A list that is not flat will produce the
-	// following entry to the url.Values for a given entry:
-	//     ListName.MemberName.1=value
-	// A list that is flat will produce the following:
-	//     ListName.1=value
-	flat bool
-	// The location name of the member. In most cases this should be "member".
-	memberName string
 	// Elements are stored in values, so we keep track of the list size here.
 	size int32
 	// Empty lists are encoded as "<prefix>=", if we add a value later we will
@@ -45,11 +34,14 @@ func newArray(values url.Values, prefix string, flat bool, memberName string) *A
 	emptyValue := newValue(values, prefix, flat)
 	emptyValue.String("")
 
+	if !flat {
+		// This uses string concatenation in place of fmt.Sprintf as fmt.Sprintf has a much higher resource overhead
+		prefix = prefix + keySeparator + memberName
+	}
+
 	return &Array{
 		values:     values,
 		prefix:     prefix,
-		flat:       flat,
-		memberName: memberName,
 		emptyValue: emptyValue,
 	}
 }
@@ -63,10 +55,7 @@ func (a *Array) Value() Value {
 
 	// Query lists start a 1, so adjust the size first
 	a.size++
-	prefix := a.prefix
-	if !a.flat {
-		prefix = fmt.Sprintf("%s.%s", prefix, a.memberName)
-	}
 	// Lists can't have flat members
-	return newValue(a.values, fmt.Sprintf("%s.%d", prefix, a.size), false)
+	// This uses string concatenation in place of fmt.Sprintf as fmt.Sprintf has a much higher resource overhead
+	return newValue(a.values, a.prefix+keySeparator+strconv.FormatInt(int64(a.size), 10), false)
 }

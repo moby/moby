@@ -1,9 +1,6 @@
 package query
 
-import (
-	"fmt"
-	"net/url"
-)
+import "net/url"
 
 // Object represents the encoding of Query structures and unions. A Query
 // object is a representation of a mapping of string keys to arbitrary
@@ -56,14 +53,16 @@ func (o *Object) FlatKey(name string) Value {
 
 func (o *Object) key(name string, flatValue bool) Value {
 	if o.prefix != "" {
-		return newValue(o.values, fmt.Sprintf("%s.%s", o.prefix, name), flatValue)
+		// This uses string concatenation in place of fmt.Sprintf as fmt.Sprintf has a much higher resource overhead
+		return newValue(o.values, o.prefix+keySeparator+name, flatValue)
 	}
 	return newValue(o.values, name, flatValue)
 }
 
 func (o *Object) keyWithValues(name string, flatValue bool) Value {
 	if o.prefix != "" {
-		return newAppendValue(o.values, fmt.Sprintf("%s.%s", o.prefix, name), flatValue)
+		// This uses string concatenation in place of fmt.Sprintf as fmt.Sprintf has a much higher resource overhead
+		return newAppendValue(o.values, o.prefix+keySeparator+name, flatValue)
 	}
 	return newAppendValue(o.values, name, flatValue)
 }

@@ -34,6 +34,9 @@ const (
 	FeatureMetadata2
 )
 
+// Hardcoded value to specify which version of the user agent we're using
+const uaMetadata = "ua/2.1"
+
 func (k SDKAgentKeyType) string() string {
 	switch k {
 	case APIMetadata:
@@ -73,19 +76,89 @@ type UserAgentFeature string
 
 // Enumerates UserAgentFeature.
 const (
-	UserAgentFeatureResourceModel          UserAgentFeature = "A" // n/a (we don't generate separate resource types)
-	UserAgentFeatureWaiter                                  = "B"
-	UserAgentFeaturePaginator                               = "C"
-	UserAgentFeatureRetryModeLegacy                         = "D" // n/a (equivalent to standard)
-	UserAgentFeatureRetryModeStandard                       = "E"
-	UserAgentFeatureRetryModeAdaptive                       = "F"
-	UserAgentFeatureS3Transfer                              = "G"
-	UserAgentFeatureS3CryptoV1N                             = "H" // n/a (crypto client is external)
-	UserAgentFeatureS3CryptoV2                              = "I" // n/a
-	UserAgentFeatureS3ExpressBucket                         = "J"
-	UserAgentFeatureS3AccessGrants                          = "K" // not yet implemented
-	UserAgentFeatureGZIPRequestCompression                  = "L"
+	UserAgentFeatureResourceModel UserAgentFeature = "A" // n/a (we don't generate separate resource types)
+
+	UserAgentFeatureWaiter    = "B"
+	UserAgentFeaturePaginator = "C"
+
+	UserAgentFeatureRetryModeLegacy   = "D" // n/a (equivalent to standard)
+	UserAgentFeatureRetryModeStandard = "E"
+	UserAgentFeatureRetryModeAdaptive = "F"
+
+	UserAgentFeatureS3Transfer      = "G"
+	UserAgentFeatureS3CryptoV1N     = "H" // n/a (crypto client is external)
+	UserAgentFeatureS3CryptoV2      = "I" // n/a
+	UserAgentFeatureS3ExpressBucket = "J"
+	UserAgentFeatureS3AccessGrants  = "K" // not yet implemented
+
+	UserAgentFeatureGZIPRequestCompression = "L"
+
+	UserAgentFeatureProtocolRPCV2CBOR = "M"
+
+	UserAgentFeatureAccountIDEndpoint      = "O" // DO NOT IMPLEMENT: rules output is not currently defined. SDKs should not parse endpoints for feature information.
+	UserAgentFeatureAccountIDModePreferred = "P"
+	UserAgentFeatureAccountIDModeDisabled  = "Q"
+	UserAgentFeatureAccountIDModeRequired  = "R"
+
+	UserAgentFeatureRequestChecksumCRC32          = "U"
+	UserAgentFeatureRequestChecksumCRC32C         = "V"
+	UserAgentFeatureRequestChecksumCRC64          = "W"
+	UserAgentFeatureRequestChecksumSHA1           = "X"
+	UserAgentFeatureRequestChecksumSHA256         = "Y"
+	UserAgentFeatureRequestChecksumWhenSupported  = "Z"
+	UserAgentFeatureRequestChecksumWhenRequired   = "a"
+	UserAgentFeatureResponseChecksumWhenSupported = "b"
+	UserAgentFeatureResponseChecksumWhenRequired  = "c"
+
+	UserAgentFeatureDynamoDBUserAgent = "d" // not yet implemented
+
+	UserAgentFeatureCredentialsCode                 = "e"
+	UserAgentFeatureCredentialsJvmSystemProperties  = "f" // n/a (this is not a JVM sdk)
+	UserAgentFeatureCredentialsEnvVars              = "g"
+	UserAgentFeatureCredentialsEnvVarsStsWebIDToken = "h"
+	UserAgentFeatureCredentialsStsAssumeRole        = "i"
+	UserAgentFeatureCredentialsStsAssumeRoleSaml    = "j" // not yet implemented
+	UserAgentFeatureCredentialsStsAssumeRoleWebID   = "k"
+	UserAgentFeatureCredentialsStsFederationToken   = "l" // not yet implemented
+	UserAgentFeatureCredentialsStsSessionToken      = "m" // not yet implemented
+	UserAgentFeatureCredentialsProfile              = "n"
+	UserAgentFeatureCredentialsProfileSourceProfile = "o"
+	UserAgentFeatureCredentialsProfileNamedProvider = "p"
+	UserAgentFeatureCredentialsProfileStsWebIDToken = "q"
+	UserAgentFeatureCredentialsProfileSso           = "r"
+	UserAgentFeatureCredentialsSso                  = "s"
+	UserAgentFeatureCredentialsProfileSsoLegacy     = "t"
+	UserAgentFeatureCredentialsSsoLegacy            = "u"
+	UserAgentFeatureCredentialsProfileProcess       = "v"
+	UserAgentFeatureCredentialsProcess              = "w"
+	UserAgentFeatureCredentialsBoto2ConfigFile      = "x" // n/a (this is not boto/Python)
+	UserAgentFeatureCredentialsAwsSdkStore          = "y" // n/a (this is used by .NET based sdk)
+	UserAgentFeatureCredentialsHTTP                 = "z"
+	UserAgentFeatureCredentialsIMDS                 = "0"
 )
+
+var credentialSourceToFeature = map[aws.CredentialSource]UserAgentFeature{
+	aws.CredentialSourceCode:                 UserAgentFeatureCredentialsCode,
+	aws.CredentialSourceEnvVars:              UserAgentFeatureCredentialsEnvVars,
+	aws.CredentialSourceEnvVarsSTSWebIDToken: UserAgentFeatureCredentialsEnvVarsStsWebIDToken,
+	aws.CredentialSourceSTSAssumeRole:        UserAgentFeatureCredentialsStsAssumeRole,
+	aws.CredentialSourceSTSAssumeRoleSaml:    UserAgentFeatureCredentialsStsAssumeRoleSaml,
+	aws.CredentialSourceSTSAssumeRoleWebID:   UserAgentFeatureCredentialsStsAssumeRoleWebID,
+	aws.CredentialSourceSTSFederationToken:   UserAgentFeatureCredentialsStsFederationToken,
+	aws.CredentialSourceSTSSessionToken:      UserAgentFeatureCredentialsStsSessionToken,
+	aws.CredentialSourceProfile:              UserAgentFeatureCredentialsProfile,
+	aws.CredentialSourceProfileSourceProfile: UserAgentFeatureCredentialsProfileSourceProfile,
+	aws.CredentialSourceProfileNamedProvider: UserAgentFeatureCredentialsProfileNamedProvider,
+	aws.CredentialSourceProfileSTSWebIDToken: UserAgentFeatureCredentialsProfileStsWebIDToken,
+	aws.CredentialSourceProfileSSO:           UserAgentFeatureCredentialsProfileSso,
+	aws.CredentialSourceSSO:                  UserAgentFeatureCredentialsSso,
+	aws.CredentialSourceProfileSSOLegacy:     UserAgentFeatureCredentialsProfileSsoLegacy,
+	aws.CredentialSourceSSOLegacy:            UserAgentFeatureCredentialsSsoLegacy,
+	aws.CredentialSourceProfileProcess:       UserAgentFeatureCredentialsProfileProcess,
+	aws.CredentialSourceProcess:              UserAgentFeatureCredentialsProcess,
+	aws.CredentialSourceHTTP:                 UserAgentFeatureCredentialsHTTP,
+	aws.CredentialSourceIMDS:                 UserAgentFeatureCredentialsIMDS,
+}
 
 // RequestUserAgent is a build middleware that set the User-Agent for the request.
 type RequestUserAgent struct {
@@ -106,6 +179,7 @@ type RequestUserAgent struct {
 func NewRequestUserAgent() *RequestUserAgent {
 	userAgent, sdkAgent := smithyhttp.NewUserAgentBuilder(), smithyhttp.NewUserAgentBuilder()
 	addProductName(userAgent)
+	addUserAgentMetadata(userAgent)
 	addProductName(sdkAgent)
 
 	r := &RequestUserAgent{
@@ -131,6 +205,10 @@ func addSDKMetadata(r *RequestUserAgent) {
 
 func addProductName(builder *smithyhttp.UserAgentBuilder) {
 	builder.AddKeyValue(aws.SDKName, aws.SDKVersion)
+}
+
+func addUserAgentMetadata(builder *smithyhttp.UserAgentBuilder) {
+	builder.AddKey(uaMetadata)
 }
 
 // AddUserAgentKey retrieves a requestUserAgent from the provided stack, or initializes one.
@@ -234,6 +312,14 @@ func (u *RequestUserAgent) AddSDKAgentKeyValue(keyType SDKAgentKeyType, key, val
 	u.userAgent.AddKeyValue(keyType.string(), strings.Map(rules, key)+"#"+strings.Map(rules, value))
 }
 
+// AddCredentialsSource adds the credential source as a feature on the User-Agent string
+func (u *RequestUserAgent) AddCredentialsSource(source aws.CredentialSource) {
+	x, ok := credentialSourceToFeature[source]
+	if ok {
+		u.AddUserAgentFeature(x)
+	}
+}
+
 // ID the name of the middleware.
 func (u *RequestUserAgent) ID() string {
 	return "UserAgent"
@@ -257,10 +343,10 @@ func (u *RequestUserAgent) HandleBuild(ctx context.Context, in middleware.BuildI
 
 func (u *RequestUserAgent) addHTTPUserAgent(request *smithyhttp.Request) {
 	const userAgent = "User-Agent"
-	updateHTTPHeader(request, userAgent, u.userAgent.Build())
 	if len(u.features) > 0 {
 		updateHTTPHeader(request, userAgent, buildFeatureMetrics(u.features))
 	}
+	updateHTTPHeader(request, userAgent, u.userAgent.Build())
 }
 
 func (u *RequestUserAgent) addHTTPSDKAgent(request *smithyhttp.Request) {

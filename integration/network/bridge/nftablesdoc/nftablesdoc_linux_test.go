@@ -27,7 +27,6 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/testutils/networking"
@@ -37,6 +36,7 @@ import (
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/daemon/libnetwork/drivers/bridge"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/golden"

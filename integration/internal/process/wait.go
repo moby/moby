@@ -1,7 +1,7 @@
 package process
 
 import (
-	procpkg "github.com/docker/docker/daemon/pkg/process"
+	procpkg "github.com/moby/moby/daemon/pkg/process"
 	"gotest.tools/v3/poll"
 )
 

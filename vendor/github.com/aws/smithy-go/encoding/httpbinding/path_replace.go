@@ -22,32 +22,32 @@ func bufCap(b []byte, n int) []byte {
 // replacePathElement replaces a single element in the path []byte.
 // Escape is used to control whether the value will be escaped using Amazon path escape style.
 func replacePathElement(path, fieldBuf []byte, key, val string, escape bool) ([]byte, []byte, error) {
-	fieldBuf = bufCap(fieldBuf, len(key)+3) // { <key> [+] }
+	// search for "{<key>}". If not found, search for the greedy version "{<key>+}". If none are found, return error
+	fieldBuf = bufCap(fieldBuf, len(key)+2) // { <key> }
 	fieldBuf = append(fieldBuf, uriTokenStart)
 	fieldBuf = append(fieldBuf, key...)
+	fieldBuf = append(fieldBuf, uriTokenStop)
 
 	start := bytes.Index(path, fieldBuf)
-	end := start + len(fieldBuf)
-	if start < 0 || len(path[end:]) == 0 {
-		// TODO what to do about error?
-		return path, fieldBuf, fmt.Errorf("invalid path index, start=%d,end=%d. %s", start, end, path)
-	}
-
 	encodeSep := true
-	if path[end] == uriTokenSkip {
-		// '+' token means do not escape slashes
+	if start < 0 {
+		fieldBuf = bufCap(fieldBuf, len(key)+3) // { <key> [+] }
+		fieldBuf = append(fieldBuf, uriTokenStart)
+		fieldBuf = append(fieldBuf, key...)
+		fieldBuf = append(fieldBuf, uriTokenSkip)
+		fieldBuf = append(fieldBuf, uriTokenStop)
+
+		start = bytes.Index(path, fieldBuf)
+		if start < 0 {
+			return path, fieldBuf, fmt.Errorf("invalid path index, start=%d. %s", start, path)
+		}
 		encodeSep = false
-		end++
 	}
+	end := start + len(fieldBuf)
 
 	if escape {
 		val = EscapePath(val, encodeSep)
 	}
-
-	if path[end] != uriTokenStop {
-		return path, fieldBuf, fmt.Errorf("invalid path element, does not contain token stop, %s", path)
-	}
-	end++
 
 	fieldBuf = bufCap(fieldBuf, len(val))
 	fieldBuf = append(fieldBuf, val...)

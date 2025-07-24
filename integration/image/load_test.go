@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/daemon/pkg/testutils/specialimage"
 	iimage "github.com/docker/docker/integration/internal/image"
 	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/daemon/pkg/testutils/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

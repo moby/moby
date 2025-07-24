@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/volume/safepath"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/moby/moby/api/types/build"
@@ -20,6 +19,7 @@ import (
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/daemon/volume/safepath"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"

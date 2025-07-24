@@ -7,9 +7,9 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/config"
-	"github.com/docker/docker/daemon/libnetwork/ipamutils"
-	"github.com/docker/docker/daemon/pkg/testutils/netnsutils"
+	"github.com/moby/moby/daemon/libnetwork/config"
+	"github.com/moby/moby/daemon/libnetwork/ipamutils"
+	"github.com/moby/moby/daemon/pkg/testutils/netnsutils"
 	"gotest.tools/v3/assert"
 )
 

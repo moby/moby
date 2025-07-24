@@ -109,6 +109,13 @@ func rwMap(dst jsWriter, src *Reader) (n int, err error) {
 		return dst.WriteString("{}")
 	}
 
+	// This is potentially a recursive call.
+	if done, err := src.recursiveCall(); err != nil {
+		return 0, err
+	} else {
+		defer done()
+	}
+
 	err = dst.WriteByte('{')
 	if err != nil {
 		return
@@ -162,6 +169,13 @@ func rwArray(dst jsWriter, src *Reader) (n int, err error) {
 	if err != nil {
 		return
 	}
+	// This is potentially a recursive call.
+	if done, err := src.recursiveCall(); err != nil {
+		return 0, err
+	} else {
+		defer done()
+	}
+
 	var sz uint32
 	var nn int
 	sz, err = src.ReadArrayHeader()
@@ -296,7 +310,7 @@ func rwExtension(dst jsWriter, src *Reader) (n int, err error) {
 	}
 	n++
 
-	nn, err = dst.WriteString(`"type:"`)
+	nn, err = dst.WriteString(`"type":`)
 	n += nn
 	if err != nil {
 		return
@@ -332,14 +346,12 @@ func rwExtension(dst jsWriter, src *Reader) (n int, err error) {
 }
 
 func rwString(dst jsWriter, src *Reader) (n int, err error) {
-	var p []byte
-	p, err = src.R.Peek(1)
+	lead, err := src.R.PeekByte()
 	if err != nil {
 		return
 	}
-	lead := p[0]
 	var read int
-
+	var p []byte
 	if isfixstr(lead) {
 		read = int(rfixstr(lead))
 		src.R.Skip(1)

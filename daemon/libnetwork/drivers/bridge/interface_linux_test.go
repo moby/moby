@@ -5,8 +5,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/nlwrap"
-	"github.com/docker/docker/daemon/pkg/testutils/netnsutils"
+	"github.com/moby/moby/daemon/libnetwork/nlwrap"
+	"github.com/moby/moby/daemon/pkg/testutils/netnsutils"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
