@@ -66,6 +66,7 @@ func (nDB *NetworkDB) SetKey(key []byte) {
 	if nDB.keyring != nil {
 		nDB.keyring.AddKey(key)
 	}
+	logEncKeys(context.TODO(), key)
 }
 
 // SetPrimaryKey sets the given key as the primary key. This should have
@@ -128,6 +129,7 @@ func (nDB *NetworkDB) clusterInit() error {
 		for i, key := range nDB.config.Keys {
 			log.G(context.TODO()).Debugf("Encryption key %d: %.5s", i+1, hex.EncodeToString(key))
 		}
+		logEncKeys(context.TODO(), nDB.config.Keys...)
 		nDB.keyring, err = memberlist.NewKeyring(nDB.config.Keys, nDB.config.Keys[0])
 		if err != nil {
 			return err
