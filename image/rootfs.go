@@ -6,7 +6,7 @@ package image
 import (
 	"slices"
 
-	"github.com/docker/docker/layer"
+	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/opencontainers/image-spec/identity"
 )
 

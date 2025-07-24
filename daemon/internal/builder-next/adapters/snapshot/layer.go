@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/layer"
+	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/docker/docker/pkg/longpath"
 	"github.com/opencontainers/image-spec/identity"
 	"github.com/pkg/errors"
