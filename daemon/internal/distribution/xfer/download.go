@@ -9,8 +9,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/distribution"
+	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/internal/layer"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/moby/go-archive/compression"

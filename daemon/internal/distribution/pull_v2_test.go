@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/image"
+	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/registry"
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/opencontainers/go-digest"
