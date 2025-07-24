@@ -8,7 +8,6 @@ import (
 
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/environment"
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
@@ -212,7 +211,7 @@ func GetRunningTasks(ctx context.Context, t *testing.T, c client.ServiceAPIClien
 }
 
 // ExecTask runs the passed in exec config on the given task
-func ExecTask(ctx context.Context, t *testing.T, d *daemon.Daemon, task swarmtypes.Task, options container.ExecOptions) types.HijackedResponse {
+func ExecTask(ctx context.Context, t *testing.T, d *daemon.Daemon, task swarmtypes.Task, options container.ExecOptions) client.HijackedResponse {
 	t.Helper()
 	apiClient := d.NewClientT(t)
 	defer apiClient.Close()

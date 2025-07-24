@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/stdcopy"
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
@@ -129,7 +128,7 @@ type streams struct {
 // demultiplexStreams starts a goroutine to demultiplex stdout and stderr from the types.HijackedResponse resp and
 // waits until either multiplexed stream reaches EOF or the context expires. It unconditionally closes resp and waits
 // until the demultiplexing goroutine has finished its work before returning.
-func demultiplexStreams(ctx context.Context, resp types.HijackedResponse) (streams, error) {
+func demultiplexStreams(ctx context.Context, resp client.HijackedResponse) (streams, error) {
 	var s streams
 	outputDone := make(chan error, 1)
 
