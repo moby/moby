@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/api/types"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -94,7 +93,7 @@ func TestTLSCloseWriter(t *testing.T) {
 	assert.NilError(t, err)
 	defer resp.Close()
 
-	_, ok := resp.Conn.(types.CloseWriter)
+	_, ok := resp.Conn.(CloseWriter)
 	assert.Check(t, ok, "tls conn did not implement the CloseWrite interface")
 
 	_, err = resp.Conn.Write([]byte("hello"))

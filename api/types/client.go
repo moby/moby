@@ -1,50 +1,8 @@
 package types
 
 import (
-	"bufio"
 	"context"
-	"net"
 )
-
-// NewHijackedResponse initializes a [HijackedResponse] type.
-func NewHijackedResponse(conn net.Conn, mediaType string) HijackedResponse {
-	return HijackedResponse{Conn: conn, Reader: bufio.NewReader(conn), mediaType: mediaType}
-}
-
-// HijackedResponse holds connection information for a hijacked request.
-type HijackedResponse struct {
-	mediaType string
-	Conn      net.Conn
-	Reader    *bufio.Reader
-}
-
-// Close closes the hijacked connection and reader.
-func (h *HijackedResponse) Close() {
-	h.Conn.Close()
-}
-
-// MediaType let client know if HijackedResponse hold a raw or multiplexed stream.
-// returns false if HTTP Content-Type is not relevant, and container must be inspected
-func (h *HijackedResponse) MediaType() (string, bool) {
-	if h.mediaType == "" {
-		return "", false
-	}
-	return h.mediaType, true
-}
-
-// CloseWriter is an interface that implements structs
-// that close input streams to prevent from writing.
-type CloseWriter interface {
-	CloseWrite() error
-}
-
-// CloseWrite closes a readWriter for writing.
-func (h *HijackedResponse) CloseWrite() error {
-	if conn, ok := h.Conn.(CloseWriter); ok {
-		return conn.CloseWrite()
-	}
-	return nil
-}
 
 // PluginRemoveOptions holds parameters to remove plugins.
 type PluginRemoveOptions struct {

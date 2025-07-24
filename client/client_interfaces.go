@@ -64,11 +64,11 @@ type HijackDialer interface {
 
 // ContainerAPIClient defines API client methods for the containers
 type ContainerAPIClient interface {
-	ContainerAttach(ctx context.Context, container string, options container.AttachOptions) (types.HijackedResponse, error)
+	ContainerAttach(ctx context.Context, container string, options container.AttachOptions) (HijackedResponse, error)
 	ContainerCommit(ctx context.Context, container string, options container.CommitOptions) (container.CommitResponse, error)
 	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *ocispec.Platform, containerName string) (container.CreateResponse, error)
 	ContainerDiff(ctx context.Context, container string) ([]container.FilesystemChange, error)
-	ContainerExecAttach(ctx context.Context, execID string, options container.ExecAttachOptions) (types.HijackedResponse, error)
+	ContainerExecAttach(ctx context.Context, execID string, options container.ExecAttachOptions) (HijackedResponse, error)
 	ContainerExecCreate(ctx context.Context, container string, options container.ExecOptions) (container.ExecCreateResponse, error)
 	ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error)
 	ContainerExecResize(ctx context.Context, execID string, options container.ResizeOptions) error

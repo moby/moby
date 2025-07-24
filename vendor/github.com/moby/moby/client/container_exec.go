@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/versions"
 )
@@ -80,7 +79,7 @@ func (cli *Client) ContainerExecStart(ctx context.Context, execID string, config
 // You can use [github.com/moby/moby/api/stdcopy.StdCopy] to demultiplex this
 // stream. Refer to [Client.ContainerAttach] for details about the multiplexed
 // stream.
-func (cli *Client) ContainerExecAttach(ctx context.Context, execID string, config container.ExecAttachOptions) (types.HijackedResponse, error) {
+func (cli *Client) ContainerExecAttach(ctx context.Context, execID string, config container.ExecAttachOptions) (HijackedResponse, error) {
 	if versions.LessThan(cli.ClientVersion(), "1.42") {
 		config.ConsoleSize = nil
 	}
