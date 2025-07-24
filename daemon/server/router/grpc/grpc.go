@@ -11,8 +11,8 @@ import (
 
 	"github.com/containerd/containerd/v2/defaults"
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/internal/otelutil"
 	"github.com/docker/docker/daemon/server/router"
-	"github.com/docker/docker/internal/otelutil"
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/buildkit/util/stack"
 	"github.com/moby/buildkit/util/tracing"
