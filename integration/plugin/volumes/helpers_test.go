@@ -10,7 +10,7 @@ import (
 
 	"github.com/docker/docker/testutil/fixtures/plugin"
 	"github.com/moby/locker"
-	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/pkg/plugins/pluginmeta"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 )
@@ -64,7 +64,7 @@ func createPlugin(ctx context.Context, t *testing.T, client plugin.CreateClient,
 }
 
 func asVolumeDriver(cfg *plugin.Config) {
-	cfg.Interface.Types = []types.PluginInterfaceType{
+	cfg.Interface.Types = []pluginmeta.CapabilityID{
 		{Capability: "volumedriver", Prefix: "docker", Version: "1.0"},
 	}
 }

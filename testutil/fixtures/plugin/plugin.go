@@ -17,6 +17,7 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/pkg/plugins/pluginmeta"
 	"github.com/pkg/errors"
 )
 
@@ -144,7 +145,7 @@ func makePluginBundle(inPath string, opts ...CreateOpt) (io.ReadCloser, error) {
 	p := &types.PluginConfig{
 		Interface: types.PluginConfigInterface{
 			Socket: "basic.sock",
-			Types:  []types.PluginInterfaceType{{Capability: "docker.dummy/1.0"}},
+			Types:  []pluginmeta.CapabilityID{{Capability: "docker.dummy/1.0"}},
 		},
 		Entrypoint: []string{"/basic"},
 	}

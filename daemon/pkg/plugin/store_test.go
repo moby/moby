@@ -6,12 +6,13 @@ import (
 	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/pkg/plugins/pluginmeta"
 )
 
 func TestFilterByCapNeg(t *testing.T) {
 	p := v2.Plugin{PluginObj: types.Plugin{Name: "test:latest"}}
-	iType := types.PluginInterfaceType{Capability: "volumedriver", Prefix: "docker", Version: "1.0"}
-	i := types.PluginConfigInterface{Socket: "plugins.sock", Types: []types.PluginInterfaceType{iType}}
+	iType := pluginmeta.CapabilityID{Capability: "volumedriver", Prefix: "docker", Version: "1.0"}
+	i := types.PluginConfigInterface{Socket: "plugins.sock", Types: []pluginmeta.CapabilityID{iType}}
 	p.PluginObj.Config.Interface = i
 
 	_, err := p.FilterByCap("foobar")
@@ -23,8 +24,8 @@ func TestFilterByCapNeg(t *testing.T) {
 func TestFilterByCapPos(t *testing.T) {
 	p := v2.Plugin{PluginObj: types.Plugin{Name: "test:latest"}}
 
-	iType := types.PluginInterfaceType{Capability: "volumedriver", Prefix: "docker", Version: "1.0"}
-	i := types.PluginConfigInterface{Socket: "plugins.sock", Types: []types.PluginInterfaceType{iType}}
+	iType := pluginmeta.CapabilityID{Capability: "volumedriver", Prefix: "docker", Version: "1.0"}
+	i := types.PluginConfigInterface{Socket: "plugins.sock", Types: []pluginmeta.CapabilityID{iType}}
 	p.PluginObj.Config.Interface = i
 
 	_, err := p.FilterByCap("volumedriver")
@@ -37,8 +38,8 @@ func TestStoreGetPluginNotMatchCapRefs(t *testing.T) {
 	s := NewStore()
 	p := v2.Plugin{PluginObj: types.Plugin{Name: "test:latest"}}
 
-	iType := types.PluginInterfaceType{Capability: "whatever", Prefix: "docker", Version: "1.0"}
-	i := types.PluginConfigInterface{Socket: "plugins.sock", Types: []types.PluginInterfaceType{iType}}
+	iType := pluginmeta.CapabilityID{Capability: "whatever", Prefix: "docker", Version: "1.0"}
+	i := types.PluginConfigInterface{Socket: "plugins.sock", Types: []pluginmeta.CapabilityID{iType}}
 	p.PluginObj.Config.Interface = i
 
 	if err := s.Add(&p); err != nil {
