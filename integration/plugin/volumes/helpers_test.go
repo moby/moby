@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/moby/locker"
-	"github.com/moby/moby/api/types"
+	pluginapi "github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/v2/testutil/fixtures/plugin"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
@@ -64,7 +64,7 @@ func createPlugin(ctx context.Context, t *testing.T, client plugin.CreateClient,
 }
 
 func asVolumeDriver(cfg *plugin.Config) {
-	cfg.Interface.Types = []types.PluginInterfaceType{
+	cfg.Interface.Types = []pluginapi.CapabilityID{
 		{Capability: "volumedriver", Prefix: "docker", Version: "1.0"},
 	}
 }

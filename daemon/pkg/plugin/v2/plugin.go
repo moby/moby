@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 	"github.com/moby/moby/v2/pkg/plugins"
 	"github.com/opencontainers/go-digest"
@@ -233,7 +234,7 @@ func (p *Plugin) GetSocket() string {
 }
 
 // GetTypes returns the interface types of a plugin.
-func (p *Plugin) GetTypes() []types.PluginInterfaceType {
+func (p *Plugin) GetTypes() []plugin.CapabilityID {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 

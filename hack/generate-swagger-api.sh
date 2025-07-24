@@ -8,8 +8,7 @@ swagger generate model -f api/swagger.yaml \
 	-n Plugin \
 	-n PluginDevice \
 	-n PluginMount \
-	-n PluginEnv \
-	-n PluginInterfaceType
+	-n PluginEnv
 
 swagger generate model -f api/swagger.yaml \
 	-t api -m types/common -C api/swagger-gen.yaml \
