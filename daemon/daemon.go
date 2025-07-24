@@ -69,6 +69,7 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	refstore "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
+	"github.com/dustin/go-humanize"
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/moby/locker"
@@ -870,13 +871,27 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			if driver == "" || graphdriver.IsRegistered(driver) {
 				return true, nil
 			}
-			return false, fmt.Errorf("graphdriver is explicitly enabled but %q is not registered", driver)
+			return false, fmt.Errorf("graphdriver is explicitly enabled but %q is not registered, %v %v", driver, config.Features, os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER"))
 		}
 	}
 	if config.Features["containerd-migration"] {
-		// TODO: Allow setting the threshold
-		migrationThreshold = math.MaxInt64
-		log.G(ctx).WithField("max_size", migrationThreshold).Info("(Experimental) Migration to containerd is enabled, driver will be switched to snapshotter after migration is complete")
+		if ts := os.Getenv("DOCKER_MIGRATE_SNAPSHOTTER_THRESHOLD"); ts != "" {
+			v, err := humanize.ParseBytes(ts)
+			if err == nil && v <= uint64(math.MaxInt64) {
+				migrationThreshold = int64(v)
+			} else {
+				log.G(ctx).WithError(err).WithField("size", ts).Warn("Invalid migration theshold value, defaulting to 0")
+				migrationThreshold = 0
+			}
+
+		} else {
+			migrationThreshold = 0
+		}
+		if migrationThreshold > 0 {
+			log.G(ctx).WithField("max_size", migrationThreshold).Info("(Experimental) Migration to containerd is enabled, driver will be switched to snapshotter after migration is complete")
+		} else {
+			log.G(ctx).WithField("env", os.Environ()).Info("Migration to containerd is enabled, driver will be switched to snapshotter if there are no images or containers")
+		}
 	}
 	if config.Features["containerd-snapshotter"] {
 		log.G(ctx).Warn(`"containerd-snapshotter" is now the default and no longer needed to be set`)
@@ -1086,7 +1101,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// Unix platforms however run a single graphdriver for all containers, and it can
 	// be set through an environment variable, a daemon start parameter, or chosen through
 	// initialization of the layerstore through driver priority order for example.
-	driverName := os.Getenv("DOCKER_DRIVER")
+	driverName := os.Getenv("DOCKER_GRAPHDRIVER")
 	if isWindows {
 		if driverName == "" {
 			driverName = cfgStore.GraphDriver
@@ -1108,7 +1123,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 		}
 	} else if driverName != "" {
-		log.G(ctx).Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", driverName)
+		log.G(ctx).Infof("Setting the storage driver from the $DOCKER_GRAPHDRIVER environment variable (%s)", driverName)
 	} else {
 		driverName = cfgStore.GraphDriver
 	}
