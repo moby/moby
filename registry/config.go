@@ -241,18 +241,18 @@ func (config *serviceConfig) isSecureIndex(indexName string) bool {
 // for mocking in unit tests.
 var lookupIP = net.LookupIP
 
-// isCIDRMatch returns true if URLHost matches an element of cidrs. URLHost is a URL.Host (`host:port` or `host`)
+// isCIDRMatch returns true if urlHost matches an element of cidrs. urlHost is a URL.Host ("host:port" or "host")
 // where the `host` part can be either a domain name or an IP address. If it is a domain name, then it will be
 // resolved to IP addresses for matching. If resolution fails, false is returned.
-func isCIDRMatch(cidrs []*registry.NetIPNet, URLHost string) bool {
+func isCIDRMatch(cidrs []*registry.NetIPNet, urlHost string) bool {
 	if len(cidrs) == 0 {
 		return false
 	}
 
-	host, _, err := net.SplitHostPort(URLHost)
+	host, _, err := net.SplitHostPort(urlHost)
 	if err != nil {
-		// Assume URLHost is a host without port and go on.
-		host = URLHost
+		// Assume urlHost is a host without port and go on.
+		host = urlHost
 	}
 
 	var addresses []net.IP
