@@ -20,6 +20,7 @@ package nftablesdoc
 import (
 	"context"
 	"fmt"
+	"iter"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -414,8 +415,8 @@ func runNftables(t *testing.T, host networking.Host) map[string]string {
 	//     {{index . "map filter-forward-out-jumps"}}
 
 	var sb strings.Builder
-	for line := range strings.Lines(out) {
-		if line == "\n" || (line != "" && line[0] == '}') {
+	for line := range lines(out) {
+		if line == "" || (line != "" && line[0] == '}') { // if using strings.Lines
 			block := sb.String()
 			sb.Reset()
 			if keyEnd := strings.Index(block, " {"); keyEnd > 0 {
@@ -427,6 +428,24 @@ func runNftables(t *testing.T, host networking.Host) map[string]string {
 		sb.WriteString(line)
 	}
 	return res
+}
+
+// lines produces a line iterator
+// TODO: (When Go 1.24 is min version) Replace with `strings.Lines(out)`.
+func lines(s string) iter.Seq[string] {
+	return func(yield func(string) bool) {
+		for s != "" {
+			var line string
+			if i := strings.IndexByte(s, '\n'); i >= 0 {
+				line, s = s[:i+1], s[i+1:]
+			} else {
+				line, s = s, ""
+			}
+			if !yield(line) {
+				return
+			}
+		}
+	}
 }
 
 func generate(t *testing.T, name string, data map[string]string) string {
