@@ -385,6 +385,12 @@ func (c *client) extractResourcesFromSpec(spec *specs.Spec, configuration *hcssh
 	}
 }
 
+// CleanupUnusedLeases is a no-op on Windows because moby talks directly to HCS
+// and does not use containerd leases.
+func (c *client) CleanupUnusedLeases(ctx context.Context) error {
+	return nil
+}
+
 func (ctr *container) NewTask(_ context.Context, _ string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (_ libcontainerdtypes.Task, retErr error) {
 	ctr.mu.Lock()
 	defer ctr.mu.Unlock()
