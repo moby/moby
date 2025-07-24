@@ -14,8 +14,26 @@ import (
 	"github.com/pkg/errors"
 )
 
+// PluginInstallOptions holds parameters to install a plugin.
+type PluginInstallOptions struct {
+	Disabled             bool
+	AcceptAllPermissions bool
+	RegistryAuth         string // RegistryAuth is the base64 encoded credentials for the registry
+	RemoteRef            string // RemoteRef is the plugin name on the registry
+
+	// PrivilegeFunc is a function that clients can supply to retry operations
+	// after getting an authorization error. This function returns the registry
+	// authentication header value in base64 encoded format, or an error if the
+	// privilege request fails.
+	//
+	// For details, refer to [github.com/moby/moby/api/types/registry.RequestAuthConfig].
+	PrivilegeFunc         func(context.Context) (string, error)
+	AcceptPermissionsFunc func(context.Context, types.PluginPrivileges) (bool, error)
+	Args                  []string
+}
+
 // PluginInstall installs a plugin
-func (cli *Client) PluginInstall(ctx context.Context, name string, options types.PluginInstallOptions) (_ io.ReadCloser, retErr error) {
+func (cli *Client) PluginInstall(ctx context.Context, name string, options PluginInstallOptions) (_ io.ReadCloser, retErr error) {
 	query := url.Values{}
 	if _, err := reference.ParseNormalizedNamed(options.RemoteRef); err != nil {
 		return nil, errors.Wrap(err, "invalid remote reference")
@@ -62,7 +80,7 @@ func (cli *Client) PluginInstall(ctx context.Context, name string, options types
 			return
 		}
 
-		enableErr := cli.PluginEnable(ctx, name, types.PluginEnableOptions{Timeout: 0})
+		enableErr := cli.PluginEnable(ctx, name, PluginEnableOptions{Timeout: 0})
 		_ = pw.CloseWithError(enableErr)
 	}()
 	return pr, nil
@@ -80,7 +98,7 @@ func (cli *Client) tryPluginPull(ctx context.Context, query url.Values, privileg
 	})
 }
 
-func (cli *Client) checkPluginPermissions(ctx context.Context, query url.Values, options types.PluginInstallOptions) (types.PluginPrivileges, error) {
+func (cli *Client) checkPluginPermissions(ctx context.Context, query url.Values, options PluginInstallOptions) (types.PluginPrivileges, error) {
 	resp, err := cli.tryPluginPrivileges(ctx, query, options.RegistryAuth)
 	if cerrdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
 		// todo: do inspect before to check existing name before checking privileges

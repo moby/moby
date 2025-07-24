@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fixtures/plugin"
 	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )
@@ -46,10 +47,10 @@ func TestPluginWithDevMounts(t *testing.T) {
 		c.IpcHost = true
 	})
 
-	err = c.PluginEnable(ctx, "test", types.PluginEnableOptions{Timeout: 30})
+	err = c.PluginEnable(ctx, "test", client.PluginEnableOptions{Timeout: 30})
 	assert.NilError(t, err)
 	defer func() {
-		err := c.PluginRemove(ctx, "test", types.PluginRemoveOptions{Force: true})
+		err := c.PluginRemove(ctx, "test", client.PluginRemoveOptions{Force: true})
 		assert.Check(t, err)
 	}()
 

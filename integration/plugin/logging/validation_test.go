@@ -7,7 +7,7 @@ import (
 
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
-	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )
@@ -29,9 +29,9 @@ func TestDaemonStartWithLogOpt(t *testing.T) {
 	c := d.NewClientT(t)
 
 	createPlugin(ctx, t, c, "test", "dummy", asLogDriver)
-	err := c.PluginEnable(ctx, "test", types.PluginEnableOptions{Timeout: 30})
+	err := c.PluginEnable(ctx, "test", client.PluginEnableOptions{Timeout: 30})
 	assert.Check(t, err)
-	defer c.PluginRemove(ctx, "test", types.PluginRemoveOptions{Force: true})
+	defer c.PluginRemove(ctx, "test", client.PluginRemoveOptions{Force: true})
 
 	d.Stop(t)
 	d.Start(t, "--iptables=false", "--ip6tables=false", "--log-driver=test", "--log-opt=foo=bar")

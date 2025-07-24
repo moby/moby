@@ -10,7 +10,6 @@ import (
 
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/requirement"
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/client"
@@ -74,7 +73,7 @@ func TestAuthZPluginV2Disable(t *testing.T) {
 	assert.ErrorContains(t, err, fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag))
 
 	// disable the plugin
-	err = c.PluginDisable(ctx, authzPluginNameWithTag, types.PluginDisableOptions{})
+	err = c.PluginDisable(ctx, authzPluginNameWithTag, client.PluginDisableOptions{})
 	assert.NilError(t, err)
 
 	// now test to see if the docker api works.
@@ -146,12 +145,12 @@ func TestAuthZPluginV2NonexistentFailsDaemonStart(t *testing.T) {
 	d.Start(t)
 }
 
-func pluginInstallGrantAllPermissions(ctx context.Context, client client.APIClient, name string) error {
-	options := types.PluginInstallOptions{
+func pluginInstallGrantAllPermissions(ctx context.Context, c client.APIClient, name string) error {
+	options := client.PluginInstallOptions{
 		RemoteRef:            name,
 		AcceptAllPermissions: true,
 	}
-	responseReader, err := client.PluginInstall(ctx, "", options)
+	responseReader, err := c.PluginInstall(ctx, "", options)
 	if err != nil {
 		return err
 	}

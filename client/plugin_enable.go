@@ -4,12 +4,15 @@ import (
 	"context"
 	"net/url"
 	"strconv"
-
-	"github.com/moby/moby/api/types"
 )
 
+// PluginEnableOptions holds parameters to enable plugins.
+type PluginEnableOptions struct {
+	Timeout int
+}
+
 // PluginEnable enables a plugin
-func (cli *Client) PluginEnable(ctx context.Context, name string, options types.PluginEnableOptions) error {
+func (cli *Client) PluginEnable(ctx context.Context, name string, options PluginEnableOptions) error {
 	name, err := trimID("plugin", name)
 	if err != nil {
 		return err

@@ -3,12 +3,15 @@ package client
 import (
 	"context"
 	"net/url"
-
-	"github.com/moby/moby/api/types"
 )
 
+// PluginRemoveOptions holds parameters to remove plugins.
+type PluginRemoveOptions struct {
+	Force bool
+}
+
 // PluginRemove removes a plugin
-func (cli *Client) PluginRemove(ctx context.Context, name string, options types.PluginRemoveOptions) error {
+func (cli *Client) PluginRemove(ctx context.Context, name string, options PluginRemoveOptions) error {
 	name, err := trimID("plugin", name)
 	if err != nil {
 		return err
