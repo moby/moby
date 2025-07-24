@@ -9,7 +9,7 @@ set -e
 	export BUILDFLAGS=("${BUILDFLAGS[@]/osusergo /}")     # ditto for osusergo
 	export BUILDFLAGS=("${BUILDFLAGS[@]/static_build /}") # we're not building a "static" binary here
 
-	GO_PACKAGE='github.com/docker/docker/cmd/dockerd'
+	GO_PACKAGE='github.com/moby/moby/v2/cmd/dockerd'
 	BINARY_NAME='dockerd'
 	source "${MAKEDIR}/.binary"
 )
