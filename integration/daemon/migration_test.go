@@ -3,7 +3,6 @@ package daemon // import "github.com/docker/docker/integration/daemon"
 import (
 	"bytes"
 	"io"
-	"os"
 	"runtime"
 	"testing"
 
@@ -28,7 +27,9 @@ func TestMigrateNativeSnapshotter(t *testing.T) {
 
 func testMigrateSnapshotter(t *testing.T, graphdriver, snapshotter string) {
 	skip.If(t, runtime.GOOS != "linux")
-	skip.If(t, os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") == "")
+
+	t.Setenv("DOCKER_MIGRATE_SNAPSHOTTER_THRESHOLD", "200M")
+	t.Setenv("DOCKER_GRAPHDRIVER", "")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -90,7 +91,9 @@ func testMigrateSnapshotter(t *testing.T, graphdriver, snapshotter string) {
 
 func TestMigrateSaveLoad(t *testing.T) {
 	skip.If(t, runtime.GOOS != "linux")
-	skip.If(t, os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") == "")
+
+	t.Setenv("DOCKER_MIGRATE_SNAPSHOTTER_THRESHOLD", "200M")
+	t.Setenv("DOCKER_GRAPHDRIVER", "")
 
 	var (
 		ctx         = testutil.StartSpan(baseContext, t)
