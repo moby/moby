@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
@@ -177,7 +176,7 @@ func deleteAllPlugins(ctx context.Context, t testing.TB, c client.PluginAPIClien
 		if _, ok := protectedPlugins[p.Name]; ok {
 			continue
 		}
-		err := c.PluginRemove(ctx, p.Name, types.PluginRemoveOptions{Force: true})
+		err := c.PluginRemove(ctx, p.Name, client.PluginRemoveOptions{Force: true})
 		assert.Check(t, err, "failed to remove plugin %s", p.ID)
 	}
 }

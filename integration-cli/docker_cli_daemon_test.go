@@ -32,7 +32,7 @@ import (
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/testutil"
 	testdaemon "github.com/docker/docker/testutil/daemon"
-	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/client"
 	"github.com/moby/sys/mount"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
@@ -2198,7 +2198,7 @@ func (s *DockerDaemonSuite) TestFailedPluginRemove(c *testing.T) {
 	defer cancel()
 
 	name := "test-plugin-rm-fail"
-	out, err := apiClient.PluginInstall(ctx, name, types.PluginInstallOptions{
+	out, err := apiClient.PluginInstall(ctx, name, client.PluginInstallOptions{
 		Disabled:             true,
 		AcceptAllPermissions: true,
 		RemoteRef:            "cpuguy83/docker-logdriver-test",

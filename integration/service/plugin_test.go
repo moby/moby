@@ -10,10 +10,10 @@ import (
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fixtures/plugin"
 	"github.com/docker/docker/testutil/registry"
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/filters"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/swarm/runtime"
+	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
@@ -41,7 +41,7 @@ func TestServicePlugin(t *testing.T) {
 	assert.NilError(t, err)
 	_, err = io.Copy(io.Discard, r)
 	assert.NilError(t, err)
-	err = apiclient.PluginRemove(ctx, repo, types.PluginRemoveOptions{})
+	err = apiclient.PluginRemove(ctx, repo, client.PluginRemoveOptions{})
 	assert.NilError(t, err)
 	err = plugin.Create(ctx, apiclient, repo2)
 	assert.NilError(t, err)
@@ -49,7 +49,7 @@ func TestServicePlugin(t *testing.T) {
 	assert.NilError(t, err)
 	_, err = io.Copy(io.Discard, r)
 	assert.NilError(t, err)
-	err = apiclient.PluginRemove(ctx, repo2, types.PluginRemoveOptions{})
+	err = apiclient.PluginRemove(ctx, repo2, client.PluginRemoveOptions{})
 	assert.NilError(t, err)
 	d.Stop(t)
 
