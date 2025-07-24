@@ -42,7 +42,7 @@ fi
 
 if [ -n "${api_pkg_list}" ]; then
 	cd api
-	GO111MODULE=on gotestsum --format=standard-quiet --jsonfile=../bundles/go-test-report-api.json --junitfile=../bundles/junit-report-api.xml -- \
+	gotestsum --format=standard-quiet --jsonfile=../bundles/go-test-report-api.json --junitfile=../bundles/junit-report-api.xml -- \
 		"${BUILDFLAGS[@]}" \
 		-cover \
 		-coverprofile=../bundles/coverage-api.out \
@@ -54,7 +54,7 @@ fi
 
 if [ -n "${client_pkg_list}" ]; then
 	cd client
-	GO111MODULE=on gotestsum --format=standard-quiet --jsonfile=../bundles/go-test-report-client.json --junitfile=../bundles/junit-report-client.xml -- \
+	gotestsum --format=standard-quiet --jsonfile=../bundles/go-test-report-client.json --junitfile=../bundles/junit-report-client.xml -- \
 		"${BUILDFLAGS[@]}" \
 		-cover \
 		-coverprofile=../bundles/coverage-client.out \

@@ -95,7 +95,7 @@ source "${MAKEDIR}/.go-autogen"
 	if [ -n "$DOCKER_DEBUG" ]; then
 		set -x
 	fi
-	./hack/with-go-mod.sh go build -mod=vendor -modfile=vendor.mod -o "$DEST/$BINARY_FULLNAME" "${BUILDFLAGS[@]}" -ldflags "$LDFLAGS $LDFLAGS_STATIC $DOCKER_LDFLAGS" -gcflags="${GCFLAGS}" "$GO_PACKAGE"
+	go build -o "$DEST/$BINARY_FULLNAME" "${BUILDFLAGS[@]}" -ldflags "$LDFLAGS $LDFLAGS_STATIC $DOCKER_LDFLAGS" -gcflags="${GCFLAGS}" "$GO_PACKAGE"
 
 	# Verify that the built binary contains windows resources
 	if [ "$(go env GOOS)" = "windows" ]; then
