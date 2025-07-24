@@ -223,7 +223,7 @@ func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retEr
 		return nil, err
 	}
 
-	c.setupUserChains()
+	c.setupPlatformFirewall()
 	return c, nil
 }
 

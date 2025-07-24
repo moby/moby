@@ -185,6 +185,8 @@ func TestBridgeICC(t *testing.T) {
 				Force: true,
 			})
 
+			networking.FirewalldReload(t, d)
+
 			pingHost := tc.pingHost
 			if pingHost == "" {
 				if tc.isLinkLocal {
@@ -319,6 +321,7 @@ func TestBridgeINC(t *testing.T) {
 			defer c.ContainerRemove(ctx, id1, containertypes.RemoveOptions{
 				Force: true,
 			})
+			networking.FirewalldReload(t, d)
 
 			ctr1Info := container.Inspect(ctx, t, c, id1)
 			targetAddr := ctr1Info.NetworkSettings.Networks[bridge1].IPAddress
@@ -457,6 +460,7 @@ func TestBridgeINCRouted(t *testing.T) {
 
 	for _, fwdPolicy := range []string{"ACCEPT", "DROP"} {
 		networking.SetFilterForwardPolicies(t, firewallBackend, fwdPolicy)
+		networking.FirewalldReload(t, d)
 		t.Run(fwdPolicy, func(t *testing.T) {
 			for _, tc := range testcases {
 				t.Run(tc.name+"/v4/ping", func(t *testing.T) {
@@ -567,6 +571,8 @@ func TestAccessToPublishedPort(t *testing.T) {
 				network.WithOption(bridge.IPv6GatewayMode, tc.clientGwMode),
 			)
 			defer network.RemoveNoError(ctx, t, c, clientNetName)
+
+			networking.FirewalldReload(t, d)
 
 			// Use the default bridge addresses as host addresses (like "host-gateway", but
 			// there's no way to tell wget to prefer ipv4/ipv6 transport, so just use the
@@ -928,6 +934,7 @@ func TestInternalNwConnectivity(t *testing.T) {
 		container.WithNetworkMode(bridgeName),
 	)
 	defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+	networking.FirewalldReload(t, d)
 
 	execCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
@@ -1105,9 +1112,10 @@ func TestNoIP6Tables(t *testing.T) {
 	ctx := setupTest(t)
 
 	testcases := []struct {
-		name        string
-		option      string
-		expIPTables bool
+		name            string
+		option          string
+		reloadFirewalld bool
+		expIPTables     bool
 	}{
 		{
 			name:        "ip6tables on",
@@ -1118,10 +1126,18 @@ func TestNoIP6Tables(t *testing.T) {
 			name:   "ip6tables off",
 			option: "--ip6tables=false",
 		},
+		{
+			name:            "ip6tables off with firewalld reload",
+			option:          "--ip6tables=false",
+			reloadFirewalld: true,
+		},
 	}
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.reloadFirewalld {
+				skip.If(t, !networking.FirewalldRunning(), "firewalld is not running")
+			}
 			ctx := testutil.StartSpan(ctx, t)
 
 			d := daemon.New(t)
@@ -1144,6 +1160,9 @@ func TestNoIP6Tables(t *testing.T) {
 			id := container.Run(ctx, t, c, container.WithNetworkMode(netName))
 			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
 
+			if tc.reloadFirewalld {
+				networking.FirewalldReload(t, d)
+			}
 			var cmd *exec.Cmd
 			if strings.HasPrefix(d.FirewallBackendDriver(t), "nftables") {
 				cmd = exec.Command("nft", "list", "table", "ip6", "docker-bridges")

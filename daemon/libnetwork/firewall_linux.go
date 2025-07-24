@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/internal/nftables"
@@ -25,6 +26,12 @@ func (c *Controller) selectFirewallBackend() error {
 		return nil
 	}
 	return nil
+}
+
+func (c *Controller) setupPlatformFirewall() {
+	c.setupUserChains()
+	// Add handler for iptables rules restoration in case of a firewalld reload
+	c.handleFirewalldReload()
 }
 
 // Sets up the DOCKER-USER chain for each iptables version (IPv4, IPv6) that's
@@ -66,8 +73,61 @@ func setupUserChain(ipVersion iptables.IPVersion) error {
 	if _, err := ipt.NewChain(userChain, iptables.Filter); err != nil {
 		return fmt.Errorf("failed to create %s %v chain: %v", userChain, ipVersion, err)
 	}
-	if err := ipt.EnsureJumpRule("FORWARD", userChain); err != nil {
+	if err := ipt.EnsureJumpRule(iptables.Filter, "FORWARD", userChain); err != nil {
 		return fmt.Errorf("failed to ensure the jump rule for %s %v: %w", userChain, ipVersion, err)
 	}
 	return nil
+}
+
+func (c *Controller) handleFirewalldReload() {
+	handler := func() {
+		services := make(map[serviceKey]*service)
+
+		c.mu.Lock()
+		for k, s := range c.serviceBindings {
+			if k.ports != "" && len(s.ingressPorts) != 0 {
+				services[k] = s
+			}
+		}
+		c.mu.Unlock()
+
+		for _, s := range services {
+			c.handleFirewallReloadService(s)
+		}
+	}
+	// Add handler for iptables rules restoration in case of a firewalld reload
+	iptables.OnReloaded(handler)
+}
+
+func (c *Controller) handleFirewallReloadService(s *service) {
+	s.Lock()
+	defer s.Unlock()
+	if s.deleted {
+		log.G(context.TODO()).Debugf("handleFirewallReloadService called for deleted service %s/%s", s.id, s.name)
+		return
+	}
+	for nid := range s.loadBalancers {
+		n, err := c.NetworkByID(nid)
+		if err != nil {
+			continue
+		}
+		ep, sb, err := n.findLBEndpointSandbox()
+		if err != nil {
+			log.G(context.TODO()).Warnf("handleFirewallReloadService failed to find LB Endpoint Sandbox for %s/%s: %v -- ", n.ID(), n.Name(), err)
+			continue
+		}
+		if sb.osSbox == nil {
+			return
+		}
+		if ep != nil {
+			var gwIP net.IP
+			if gwEP, _ := sb.getGatewayEndpoint(); gwEP != nil {
+				gwIP = gwEP.Iface().Address().IP
+			}
+			if err := restoreIngressPorts(gwIP, s.ingressPorts); err != nil {
+				log.G(context.TODO()).Errorf("Failed to add ingress: %v", err)
+				return
+			}
+		}
+	}
 }

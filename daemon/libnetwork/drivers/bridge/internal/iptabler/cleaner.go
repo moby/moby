@@ -43,7 +43,7 @@ func NewCleaner(ctx context.Context, config firewaller.Config) firewaller.Firewa
 			return false
 		}
 		log.G(ctx).WithField("ipv", ipv).Info("Cleaning iptables")
-		_ = t.DeleteJumpRule("FORWARD", DockerForwardChain)
+		_ = t.DeleteJumpRule(iptables.Filter, "FORWARD", DockerForwardChain)
 		_ = deleteLegacyTopLevelRules(ctx, t, ipv)
 		removeIPChains(ctx, ipv)
 		return true
