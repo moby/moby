@@ -396,7 +396,6 @@ func ParseRepositoryInfo(reposName reference.Named) (*RepositoryInfo, error) {
 				Secure:   true,
 				Official: true,
 			},
-			Official: !strings.ContainsRune(reference.FamiliarName(reposName), '/'),
 		}, nil
 	}
 
