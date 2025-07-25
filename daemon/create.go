@@ -86,40 +86,36 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 		opts.params.HostConfig.RestartPolicy.Name = containertypes.RestartPolicyDisabled
 	}
 
-	warnings, err := daemon.verifyContainerSettings(daemonCfg, opts.params.HostConfig, opts.params.Config, false)
-	if err != nil {
+	warnings := make([]string, 0) // Create an empty slice to avoid https://github.com/moby/moby/issues/38222
+
+	if err := daemon.verifyContainerSettings(daemonCfg, opts.params.HostConfig, opts.params.Config, false, &warnings); err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
-	if opts.params.Platform == nil && opts.params.Config.Image != "" {
-		img, err := daemon.imageService.GetImage(ctx, opts.params.Config.Image, backend.GetImageOpts{})
-		if err != nil {
-			return containertypes.CreateResponse{}, err
-		}
-		if img != nil {
-			p := maximumSpec()
-			imgPlat := ocispec.Platform{
-				OS:           img.OS,
-				Architecture: img.Architecture,
-				Variant:      img.Variant,
-			}
+	if err := daemon.validateNetworkingConfig(opts.params.NetworkingConfig); err != nil {
+		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
+	}
 
-			if !images.OnlyPlatformWithFallback(p).Match(imgPlat) {
-				warnings = append(warnings, fmt.Sprintf("The requested image's platform (%s) does not match the detected host platform (%s) and no specific platform was requested", platforms.FormatAll(imgPlat), platforms.FormatAll(p)))
-			}
+	// Check if the image is present locally; if not return an error.
+	var img *image.Image
+	if opts.params.Config.Image != "" {
+		var err error
+		if img, err = daemon.imageService.GetImage(ctx, opts.params.Config.Image, backend.GetImageOpts{}); err != nil {
+			return containertypes.CreateResponse{Warnings: warnings}, err
 		}
 	}
 
-	err = daemon.validateNetworkingConfig(opts.params.NetworkingConfig)
-	if err != nil {
-		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
+	if img != nil && opts.params.Platform == nil {
+		if err := daemon.validateHostPlatform(img, &warnings); err != nil {
+			return containertypes.CreateResponse{Warnings: warnings}, err
+		}
 	}
 
 	if opts.params.HostConfig == nil {
 		opts.params.HostConfig = &containertypes.HostConfig{}
 	}
-	err = daemon.adaptContainerSettings(&daemonCfg.Config, opts.params.HostConfig)
-	if err != nil {
+
+	if err := daemon.adaptContainerSettings(&daemonCfg.Config, opts.params.HostConfig); err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
@@ -128,10 +124,6 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 		return containertypes.CreateResponse{Warnings: warnings}, err
 	}
 	metrics.ContainerActions.WithValues("create").UpdateSince(start)
-
-	if warnings == nil {
-		warnings = make([]string, 0) // Create an empty slice to avoid https://github.com/moby/moby/issues/38222
-	}
 
 	return containertypes.CreateResponse{ID: ctr.ID, Warnings: warnings}, nil
 }
@@ -373,6 +365,33 @@ func (daemon *Daemon) validateNetworkingConfig(nwConfig *networktypes.Networking
 
 	if len(errs) > 0 {
 		return errdefs.InvalidParameter(multierror.Join(errs...))
+	}
+
+	return nil
+}
+
+// Check if the image platform is compatible with the host platform
+func (daemon *Daemon) validateHostPlatform(img *image.Image, warnings *[]string) error {
+	p := maximumSpec()
+
+	imgPlat := ocispec.Platform{
+		OS:           img.OS,
+		Architecture: img.Architecture,
+		Variant:      img.Variant,
+	}
+
+	if !images.OnlyPlatformWithFallback(p).Match(imgPlat) {
+		msg := fmt.Sprintf("The requested image's platform (%s) does not match the detected host platform (%s) and no specific platform was requested", platforms.FormatAll(imgPlat), platforms.FormatAll(p))
+
+		// Issue error or just warning based on env var
+		envVar := os.Getenv("DOCKER_ALLOW_PLATFORM_MISMATCH")
+		if envVar == "1" || strings.ToLower(envVar) == "true" {
+			if warnings != nil {
+				*warnings = append(*warnings, msg)
+			}
+		} else {
+			return errdefs.NotFound(errors.New(msg))
+		}
 	}
 
 	return nil

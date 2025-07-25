@@ -62,7 +62,7 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, checkpoin
 
 	// check if hostConfig is in line with the current system settings.
 	// It may happen cgroups are unmounted or the like.
-	if _, err = daemon.verifyContainerSettings(daemonCfg, ctr.HostConfig, nil, false); err != nil {
+	if err := daemon.verifyContainerSettings(daemonCfg, ctr.HostConfig, nil, false, nil); err != nil {
 		return errdefs.InvalidParameter(err)
 	}
 

@@ -293,7 +293,7 @@ func TestMerge(t *testing.T) {
 func TestValidateContainerIsolation(t *testing.T) {
 	d := Daemon{}
 
-	_, err := d.verifyContainerSettings(&configStore{}, &containertypes.HostConfig{Isolation: containertypes.Isolation("invalid")}, nil, false)
+	err := d.verifyContainerSettings(&configStore{}, &containertypes.HostConfig{Isolation: containertypes.Isolation("invalid")}, nil, false, nil)
 	assert.Check(t, is.Error(err, "invalid isolation 'invalid' on "+runtime.GOOS))
 }
 

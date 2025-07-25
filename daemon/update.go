@@ -15,8 +15,7 @@ func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostCon
 	var warnings []string
 
 	daemonCfg := daemon.config()
-	warnings, err := daemon.verifyContainerSettings(daemonCfg, hostConfig, nil, true)
-	if err != nil {
+	if err := daemon.verifyContainerSettings(daemonCfg, hostConfig, nil, true, &warnings); err != nil {
 		return container.UpdateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
