@@ -91,25 +91,6 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
-	if opts.params.Platform == nil && opts.params.Config.Image != "" {
-		img, err := daemon.imageService.GetImage(ctx, opts.params.Config.Image, backend.GetImageOpts{})
-		if err != nil {
-			return containertypes.CreateResponse{}, err
-		}
-		if img != nil {
-			p := maximumSpec()
-			imgPlat := ocispec.Platform{
-				OS:           img.OS,
-				Architecture: img.Architecture,
-				Variant:      img.Variant,
-			}
-
-			if !images.OnlyPlatformWithFallback(p).Match(imgPlat) {
-				warnings = append(warnings, fmt.Sprintf("The requested image's platform (%s) does not match the detected host platform (%s) and no specific platform was requested", platforms.FormatAll(imgPlat), platforms.FormatAll(p)))
-			}
-		}
-	}
-
 	err = daemon.validateNetworkingConfig(opts.params.NetworkingConfig)
 	if err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
@@ -121,6 +102,10 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 	err = daemon.adaptContainerSettings(&daemonCfg.Config, opts.params.HostConfig)
 	if err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
+	}
+
+	if err := daemon.validatePlatform(ctx, opts.params.Config.Image, opts.params.Platform, &warnings); err != nil {
+		return containertypes.CreateResponse{Warnings: warnings}, err
 	}
 
 	ctr, err := daemon.create(ctx, &daemonCfg.Config, opts)
@@ -373,6 +358,48 @@ func (daemon *Daemon) validateNetworkingConfig(nwConfig *networktypes.Networking
 
 	if len(errs) > 0 {
 		return errdefs.InvalidParameter(multierror.Join(errs...))
+	}
+
+	return nil
+}
+
+// Check if the image is compatible with the runtime platform (opts.params.Platform or the host platform)
+func (daemon *Daemon) validatePlatform(ctx context.Context, image string, runtimePlatform *ocispec.Platform, warnings []string) error {
+	if image == "" {
+		return nil
+	}
+
+	img, err := daemon.imageService.GetImage(ctx, image, backend.GetImageOpts{})
+	if err != nil {
+		return err
+	}
+
+	if img != nil {
+		var imgPlatform = ocispec.Platform{
+			OS:           img.OS,
+			Architecture: img.Architecture,
+			Variant:      img.Variant,
+		}
+
+		var p ocispec.Platform
+		if runtimePlatform == nil {
+			p = maximumSpec()
+		} else {
+			p = *runtimePlatform
+		}
+
+		if !images.OnlyPlatformWithFallback(p).Match(imgPlatform) {
+			msg := fmt.Sprintf("the requested image's platform (%s) is not compatible with the runtime platform (%s); "+
+				"either pull the correct image variant (docker pull --platform ...) or set the correct runtime platform (docker run --platform ...)",
+				platforms.FormatAll(imgPlatform), platforms.FormatAll(p))
+
+			_, ok := os.LookupEnv("DOCKER_ALLOW_NON_NATIVE_PLATFORM")
+			if ok {
+				warnings = append(warnings, msg)
+			} else {
+				return errdefs.NotFound(errors.New(msg))
+			}
+		}
 	}
 
 	return nil
