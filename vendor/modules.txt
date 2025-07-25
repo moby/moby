@@ -963,6 +963,9 @@ github.com/moby/moby/api/types/system
 github.com/moby/moby/api/types/time
 github.com/moby/moby/api/types/versions
 github.com/moby/moby/api/types/volume
+# github.com/moby/moby/client v0.0.0-00010101000000-000000000000 => github.com/moby/moby/client v0.0.0-20250725140006-7dc46c6e0c72
+## explicit; go 1.23.0
+github.com/moby/moby/client/pkg/stringid
 # github.com/moby/patternmatcher v0.6.0
 ## explicit; go 1.19
 github.com/moby/patternmatcher

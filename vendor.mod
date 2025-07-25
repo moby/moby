@@ -254,6 +254,8 @@ require (
 	tags.cncf.io/container-device-interface/specs-go v1.0.0 // indirect
 )
 
+require github.com/moby/moby/client v0.0.0-00010101000000-000000000000
+
 exclude (
 	// These dependencies were updated to "master" in some modules we depend on,
 	// but have no code-changes since their last release. Unfortunately, this also
