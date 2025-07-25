@@ -36,7 +36,7 @@ func TestIPAMs(t *testing.T) {
 		reg := getNewIPAMs(t)
 
 		ipams := make([]string, 0, 2)
-		reg.WalkIPAMs(func(name string, driver ipamapi.Ipam, cap *ipamapi.Capability) bool {
+		reg.WalkIPAMs(func(name string, driver ipamapi.Ipam, capability *ipamapi.Capability) bool {
 			ipams = append(ipams, name)
 			return false
 		})

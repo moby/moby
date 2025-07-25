@@ -102,10 +102,10 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, fmt.Errorf("journald is not enabled on this host")
 	}
 
-	return new(info)
+	return newJournald(info)
 }
 
-func new(info logger.Info) (*journald, error) {
+func newJournald(info logger.Info) (*journald, error) {
 	// parse log tag
 	tag, err := loggerutils.ParseLogTag(info, loggerutils.DefaultTemplate)
 	if err != nil {

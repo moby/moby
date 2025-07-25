@@ -108,9 +108,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 			n.reapTime = nDB.config.reapNetworkInterval
 
 			// The remote node is leaving the network, but not the gossip cluster.
-			// Mark all its entries in deleted state, this will guarantee that
-			// if some node bulk sync with us, the deleted state of
-			// these entries will be propagated.
+			// Delete all the entries for this network owned by the node.
 			nDB.deleteNodeNetworkEntries(nEvent.NetworkID, nEvent.NodeName)
 		}
 
@@ -134,10 +132,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 	}
 
 	// This remote network join is being seen the first time.
-	nodeNetworks[nEvent.NetworkID] = &network{
-		id:    nEvent.NetworkID,
-		ltime: nEvent.LTime,
-	}
+	nodeNetworks[nEvent.NetworkID] = &network{ltime: nEvent.LTime}
 
 	nDB.addNetworkNode(nEvent.NetworkID, nEvent.NodeName)
 	return true
@@ -154,8 +149,7 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 	defer nDB.Unlock()
 
 	// Ignore the table events for networks that are in the process of going away
-	networks := nDB.networks[nDB.config.NodeID]
-	network, ok := networks[tEvent.NetworkID]
+	network, ok := nDB.thisNodeNetworks[tEvent.NetworkID]
 	// Check if the owner of the event is still part of the network
 	nodes := nDB.networkNodes[tEvent.NetworkID]
 	var nodePresent bool
@@ -284,20 +278,20 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 		}
 
 		nDB.RLock()
-		n, ok := nDB.networks[nDB.config.NodeID][tEvent.NetworkID]
+		n, ok := nDB.thisNodeNetworks[tEvent.NetworkID]
 		nDB.RUnlock()
 
-		// if the network is not there anymore, OR we are leaving the network OR the broadcast queue is not present
-		if !ok || n.leaving || n.tableBroadcasts == nil {
+		// if the network is not there anymore, OR we are leaving the network
+		if !ok || n.leaving {
 			return
 		}
 
 		// if the queue is over the threshold, avoid distributing information coming from TCP sync
-		if isBulkSync && n.tableBroadcasts.NumQueued() > maxQueueLenBroadcastOnSync {
+		if isBulkSync && n.tableRebroadcasts.NumQueued() > maxQueueLenBroadcastOnSync {
 			return
 		}
 
-		n.tableBroadcasts.QueueBroadcast(&tableEventMessage{
+		n.tableRebroadcasts.QueueBroadcast(&tableEventMessage{
 			msg:   buf,
 			id:    tEvent.NetworkID,
 			tname: tEvent.TableName,
@@ -420,14 +414,7 @@ func (d *delegate) NotifyMsg(buf []byte) {
 }
 
 func (d *delegate) GetBroadcasts(overhead, limit int) [][]byte {
-	msgs := d.nDB.networkBroadcasts.GetBroadcasts(overhead, limit)
-	for _, m := range msgs {
-		limit -= overhead + len(m)
-	}
-	if limit > 0 {
-		msgs = append(msgs, d.nDB.nodeBroadcasts.GetBroadcasts(overhead, limit)...)
-	}
-	return msgs
+	return getBroadcasts(overhead, limit, d.nDB.networkBroadcasts, d.nDB.nodeBroadcasts)
 }
 
 func (d *delegate) LocalState(join bool) []byte {
@@ -448,11 +435,19 @@ func (d *delegate) LocalState(join bool) []byte {
 		NodeName: d.nDB.config.NodeID,
 	}
 
+	for nid, n := range d.nDB.thisNodeNetworks {
+		pp.Networks = append(pp.Networks, &NetworkEntry{
+			LTime:     n.ltime,
+			NetworkID: nid,
+			NodeName:  d.nDB.config.NodeID,
+			Leaving:   n.leaving,
+		})
+	}
 	for name, nn := range d.nDB.networks {
-		for _, n := range nn {
+		for nid, n := range nn {
 			pp.Networks = append(pp.Networks, &NetworkEntry{
 				LTime:     n.ltime,
-				NetworkID: n.id,
+				NetworkID: nid,
 				NodeName:  name,
 				Leaving:   n.leaving,
 			})

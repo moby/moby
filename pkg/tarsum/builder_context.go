@@ -10,10 +10,10 @@ type BuilderContext interface {
 	Remove(string)
 }
 
-func (bc *tarSum) Remove(filename string) {
-	for i, fis := range bc.sums {
+func (ts *tarSum) Remove(filename string) {
+	for i, fis := range ts.sums {
 		if fis.Name() == filename {
-			bc.sums = append(bc.sums[:i], bc.sums[i+1:]...)
+			ts.sums = append(ts.sums[:i], ts.sums[i+1:]...)
 			// Note, we don't just return because there could be
 			// more than one with this name
 		}
