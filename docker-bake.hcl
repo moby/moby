@@ -172,11 +172,16 @@ variable "SYSTEMD" {
   default = "false"
 }
 
+variable "FIREWALLD" {
+  default = "false"
+}
+
 target "dev" {
   inherits = ["_common"]
   target = "dev"
   args = {
     SYSTEMD = SYSTEMD
+    FIREWALLD = FIREWALLD
   }
   tags = ["docker-dev"]
   output = ["type=docker"]
