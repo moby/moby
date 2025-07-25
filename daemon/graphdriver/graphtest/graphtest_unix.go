@@ -12,7 +12,7 @@ import (
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/internal/quota"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/daemon/internal/stringid"
 	"github.com/docker/go-units"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"

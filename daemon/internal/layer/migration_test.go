@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/daemon/internal/stringid"
 )
 
 func tarFromFilesInGraph(graph graphdriver.Driver, graphID, parentID string, files ...FileApplier) ([]byte, error) {

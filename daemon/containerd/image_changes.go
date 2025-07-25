@@ -7,7 +7,7 @@ import (
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/daemon/internal/stringid"
 	"github.com/moby/go-archive"
 )
 

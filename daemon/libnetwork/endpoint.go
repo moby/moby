@@ -15,6 +15,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/internal/sliceutil"
+	"github.com/docker/docker/daemon/internal/stringid"
 	"github.com/docker/docker/daemon/libnetwork/datastore"
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/ipamapi"
@@ -23,7 +24,6 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/stringid"
 	"go.opentelemetry.io/otel"
 )
 

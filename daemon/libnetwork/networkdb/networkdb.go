@@ -17,8 +17,8 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/internal/stringid"
 	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-events"
 	iradix "github.com/hashicorp/go-immutable-radix/v2"
 	"github.com/hashicorp/memberlist"

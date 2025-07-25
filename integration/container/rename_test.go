@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/pkg/stringid"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"gotest.tools/v3/assert"
@@ -53,7 +52,7 @@ func TestRenameStoppedContainer(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal("/"+oldName, inspect.Name))
 
-	newName := "new_name" + stringid.GenerateRandomID()
+	newName := "new_name" + cID // using cID as random suffix
 	err = apiClient.ContainerRename(ctx, oldName, newName)
 	assert.NilError(t, err)
 
@@ -69,7 +68,7 @@ func TestRenameRunningContainerAndReuse(t *testing.T) {
 	oldName := "first_name" + t.Name()
 	cID := container.Run(ctx, t, apiClient, container.WithName(oldName))
 
-	newName := "new_name" + stringid.GenerateRandomID()
+	newName := "new_name" + cID // using cID as random suffix
 	err := apiClient.ContainerRename(ctx, oldName, newName)
 	assert.NilError(t, err)
 

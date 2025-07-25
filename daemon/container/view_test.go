@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/daemon/internal/stringid"
 	"github.com/google/uuid"
 	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
