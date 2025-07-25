@@ -9,25 +9,24 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // postHijacked sends a POST request and hijacks the connection.
-func (cli *Client) postHijacked(ctx context.Context, path string, query url.Values, body interface{}, headers map[string][]string) (types.HijackedResponse, error) {
+func (cli *Client) postHijacked(ctx context.Context, path string, query url.Values, body interface{}, headers map[string][]string) (HijackedResponse, error) {
 	jsonBody, err := jsonEncode(body)
 	if err != nil {
-		return types.HijackedResponse{}, err
+		return HijackedResponse{}, err
 	}
 	req, err := cli.buildRequest(ctx, http.MethodPost, cli.getAPIPath(ctx, path, query), jsonBody, headers)
 	if err != nil {
-		return types.HijackedResponse{}, err
+		return HijackedResponse{}, err
 	}
 	conn, mediaType, err := setupHijackConn(cli.dialer(), req, "tcp")
 	if err != nil {
-		return types.HijackedResponse{}, err
+		return HijackedResponse{}, err
 	}
 
 	if versions.LessThan(cli.ClientVersion(), "1.42") {
@@ -35,7 +34,7 @@ func (cli *Client) postHijacked(ctx context.Context, path string, query url.Valu
 		mediaType = ""
 	}
 
-	return types.NewHijackedResponse(conn, mediaType), nil
+	return NewHijackedResponse(conn, mediaType), nil
 }
 
 // DialHijack returns a hijacked connection with negotiated protocol proto.
@@ -91,7 +90,7 @@ func setupHijackConn(dialer func(context.Context) (net.Conn, error), req *http.R
 		// If there is buffered content, wrap the connection.  We return an
 		// object that implements CloseWrite if the underlying connection
 		// implements it.
-		if _, ok := hc.Conn.(types.CloseWriter); ok {
+		if _, ok := hc.Conn.(CloseWriter); ok {
 			conn = &hijackedConnCloseWriter{hc}
 		} else {
 			conn = hc
@@ -131,9 +130,49 @@ type hijackedConnCloseWriter struct {
 	*hijackedConn
 }
 
-var _ types.CloseWriter = &hijackedConnCloseWriter{}
+var _ CloseWriter = &hijackedConnCloseWriter{}
 
 func (c *hijackedConnCloseWriter) CloseWrite() error {
-	conn := c.Conn.(types.CloseWriter)
+	conn := c.Conn.(CloseWriter)
 	return conn.CloseWrite()
+}
+
+// NewHijackedResponse initializes a [HijackedResponse] type.
+func NewHijackedResponse(conn net.Conn, mediaType string) HijackedResponse {
+	return HijackedResponse{Conn: conn, Reader: bufio.NewReader(conn), mediaType: mediaType}
+}
+
+// HijackedResponse holds connection information for a hijacked request.
+type HijackedResponse struct {
+	mediaType string
+	Conn      net.Conn
+	Reader    *bufio.Reader
+}
+
+// Close closes the hijacked connection and reader.
+func (h *HijackedResponse) Close() {
+	h.Conn.Close()
+}
+
+// MediaType let client know if HijackedResponse hold a raw or multiplexed stream.
+// returns false if HTTP Content-Type is not relevant, and container must be inspected
+func (h *HijackedResponse) MediaType() (string, bool) {
+	if h.mediaType == "" {
+		return "", false
+	}
+	return h.mediaType, true
+}
+
+// CloseWriter is an interface that implements structs
+// that close input streams to prevent from writing.
+type CloseWriter interface {
+	CloseWrite() error
+}
+
+// CloseWrite closes a readWriter for writing.
+func (h *HijackedResponse) CloseWrite() error {
+	if conn, ok := h.Conn.(CloseWriter); ok {
+		return conn.CloseWrite()
+	}
+	return nil
 }

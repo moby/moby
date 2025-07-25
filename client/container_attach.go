@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 )
 
@@ -33,10 +32,10 @@ import (
 //
 // You can use github.com/moby/moby/api/stdcopy.StdCopy to demultiplex this
 // stream.
-func (cli *Client) ContainerAttach(ctx context.Context, containerID string, options container.AttachOptions) (types.HijackedResponse, error) {
+func (cli *Client) ContainerAttach(ctx context.Context, containerID string, options container.AttachOptions) (HijackedResponse, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
-		return types.HijackedResponse{}, err
+		return HijackedResponse{}, err
 	}
 
 	query := url.Values{}

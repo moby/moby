@@ -3,12 +3,15 @@ package client
 import (
 	"context"
 	"net/url"
-
-	"github.com/moby/moby/api/types"
 )
 
+// PluginDisableOptions holds parameters to disable plugins.
+type PluginDisableOptions struct {
+	Force bool
+}
+
 // PluginDisable disables a plugin
-func (cli *Client) PluginDisable(ctx context.Context, name string, options types.PluginDisableOptions) error {
+func (cli *Client) PluginDisable(ctx context.Context, name string, options PluginDisableOptions) error {
 	name, err := trimID("plugin", name)
 	if err != nil {
 		return err

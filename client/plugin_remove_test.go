@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -20,14 +19,14 @@ func TestPluginRemoveError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	err := client.PluginRemove(context.Background(), "plugin_name", types.PluginRemoveOptions{})
+	err := client.PluginRemove(context.Background(), "plugin_name", PluginRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.PluginRemove(context.Background(), "", types.PluginRemoveOptions{})
+	err = client.PluginRemove(context.Background(), "", PluginRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.PluginRemove(context.Background(), "   ", types.PluginRemoveOptions{})
+	err = client.PluginRemove(context.Background(), "   ", PluginRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -50,6 +49,6 @@ func TestPluginRemove(t *testing.T) {
 		}),
 	}
 
-	err := client.PluginRemove(context.Background(), "plugin_name", types.PluginRemoveOptions{})
+	err := client.PluginRemove(context.Background(), "plugin_name", PluginRemoveOptions{})
 	assert.NilError(t, err)
 }

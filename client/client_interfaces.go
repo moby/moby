@@ -64,11 +64,11 @@ type HijackDialer interface {
 
 // ContainerAPIClient defines API client methods for the containers
 type ContainerAPIClient interface {
-	ContainerAttach(ctx context.Context, container string, options container.AttachOptions) (types.HijackedResponse, error)
+	ContainerAttach(ctx context.Context, container string, options container.AttachOptions) (HijackedResponse, error)
 	ContainerCommit(ctx context.Context, container string, options container.CommitOptions) (container.CommitResponse, error)
 	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *ocispec.Platform, containerName string) (container.CreateResponse, error)
 	ContainerDiff(ctx context.Context, container string) ([]container.FilesystemChange, error)
-	ContainerExecAttach(ctx context.Context, execID string, options container.ExecAttachOptions) (types.HijackedResponse, error)
+	ContainerExecAttach(ctx context.Context, execID string, options container.ExecAttachOptions) (HijackedResponse, error)
 	ContainerExecCreate(ctx context.Context, container string, options container.ExecOptions) (container.ExecCreateResponse, error)
 	ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error)
 	ContainerExecResize(ctx context.Context, execID string, options container.ResizeOptions) error
@@ -148,15 +148,15 @@ type NodeAPIClient interface {
 // PluginAPIClient defines API client methods for the plugins
 type PluginAPIClient interface {
 	PluginList(ctx context.Context, filter filters.Args) (types.PluginsListResponse, error)
-	PluginRemove(ctx context.Context, name string, options types.PluginRemoveOptions) error
-	PluginEnable(ctx context.Context, name string, options types.PluginEnableOptions) error
-	PluginDisable(ctx context.Context, name string, options types.PluginDisableOptions) error
-	PluginInstall(ctx context.Context, name string, options types.PluginInstallOptions) (io.ReadCloser, error)
-	PluginUpgrade(ctx context.Context, name string, options types.PluginInstallOptions) (io.ReadCloser, error)
+	PluginRemove(ctx context.Context, name string, options PluginRemoveOptions) error
+	PluginEnable(ctx context.Context, name string, options PluginEnableOptions) error
+	PluginDisable(ctx context.Context, name string, options PluginDisableOptions) error
+	PluginInstall(ctx context.Context, name string, options PluginInstallOptions) (io.ReadCloser, error)
+	PluginUpgrade(ctx context.Context, name string, options PluginInstallOptions) (io.ReadCloser, error)
 	PluginPush(ctx context.Context, name string, registryAuth string) (io.ReadCloser, error)
 	PluginSet(ctx context.Context, name string, args []string) error
 	PluginInspectWithRaw(ctx context.Context, name string) (*types.Plugin, []byte, error)
-	PluginCreate(ctx context.Context, createContext io.Reader, options types.PluginCreateOptions) error
+	PluginCreate(ctx context.Context, createContext io.Reader, options PluginCreateOptions) error
 }
 
 // ServiceAPIClient defines API client methods for the services
