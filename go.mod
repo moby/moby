@@ -7,6 +7,9 @@ module github.com/moby/moby/v2
 
 go 1.23.0
 
+// FIXME(thaJeztah): testing https://github.com/moby/buildkit/pull/6100
+replace github.com/moby/buildkit => github.com/thaJeztah/buildkit v0.0.0-20250725130259-4900a92b3d28
+
 require (
 	cloud.google.com/go/compute/metadata v0.6.0
 	cloud.google.com/go/logging v1.9.0
@@ -163,7 +166,6 @@ require (
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
-	github.com/docker/docker v28.3.3+incompatible // indirect
 	github.com/docker/libtrust v0.0.0-20150526203908-9cbd2a1374f4 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect

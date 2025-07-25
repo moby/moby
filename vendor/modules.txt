@@ -506,11 +506,6 @@ github.com/docker/distribution/registry/client/auth/challenge
 github.com/docker/distribution/registry/client/transport
 github.com/docker/distribution/registry/storage/cache
 github.com/docker/distribution/registry/storage/cache/memory
-# github.com/docker/docker v28.3.3+incompatible
-## explicit
-github.com/docker/docker/libnetwork/internal/resolvconf
-github.com/docker/docker/libnetwork/resolvconf
-github.com/docker/docker/profiles/seccomp
 # github.com/docker/go-connections v0.5.0
 ## explicit; go 1.18
 github.com/docker/go-connections/nat
@@ -760,7 +755,7 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.23.2
+# github.com/moby/buildkit v0.23.2 => github.com/thaJeztah/buildkit v0.0.0-20250725130259-4900a92b3d28
 ## explicit; go 1.23.0
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -789,6 +784,7 @@ github.com/moby/buildkit/errdefs
 github.com/moby/buildkit/executor
 github.com/moby/buildkit/executor/containerdexecutor
 github.com/moby/buildkit/executor/oci
+github.com/moby/buildkit/executor/oci/internal/resolvconf
 github.com/moby/buildkit/executor/resources
 github.com/moby/buildkit/executor/resources/types
 github.com/moby/buildkit/executor/runcexecutor
@@ -1766,4 +1762,5 @@ tags.cncf.io/container-device-interface/pkg/parser
 # tags.cncf.io/container-device-interface/specs-go v1.0.0
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
+# github.com/moby/buildkit => github.com/thaJeztah/buildkit v0.0.0-20250725130259-4900a92b3d28
 # github.com/moby/moby/client => ./client

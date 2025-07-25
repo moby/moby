@@ -20,7 +20,8 @@ if [[ "${buildkit_ref}" == *-*-* ]]; then
 fi
 
 # FIXME(thaJeztah) temporarily overriding version to use for tests; remove with the next release of buildkit; see https://github.com/moby/moby/issues/50389
-buildkit_ref=dd2b4e18663c58ac3762d7b60b2c3301f71d5fa9
+buildkit_ref=4900a92b3d2811192ca1fbec2ebc5bce5df72dd8
+buildkit_repo=thaJeztah/buildkit
 
 cat << EOF
 BUILDKIT_REPO=$buildkit_repo
