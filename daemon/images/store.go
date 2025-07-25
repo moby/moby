@@ -9,9 +9,9 @@ import (
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/docker/distribution"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
+	"github.com/docker/docker/daemon/internal/distribution"
+	"github.com/docker/docker/daemon/internal/image"
+	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )

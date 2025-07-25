@@ -7,8 +7,8 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/docker/docker/daemon/internal/sliceutil"
 	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/docker/docker/internal/sliceutil"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/container"

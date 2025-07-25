@@ -11,9 +11,9 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/daemon/internal/cleanups"
+	"github.com/docker/docker/daemon/internal/idtools"
 	volumemounts "github.com/docker/docker/daemon/volume/mounts"
-	"github.com/docker/docker/internal/cleanups"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/moby/api/types/events"
 	mounttypes "github.com/moby/moby/api/types/mount"
 	"github.com/pkg/errors"

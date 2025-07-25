@@ -5,7 +5,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/internal/platform"
+	"github.com/docker/docker/daemon/internal/platform"
 	containertypes "github.com/moby/moby/api/types/container"
 )
 

@@ -8,8 +8,8 @@ import (
 	"context"
 	"io"
 
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
+	"github.com/docker/docker/daemon/internal/image"
+	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/container"
 	"github.com/opencontainers/go-digest"

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/image"
+	"github.com/docker/docker/daemon/internal/image"
 	"github.com/pkg/errors"
 )
 

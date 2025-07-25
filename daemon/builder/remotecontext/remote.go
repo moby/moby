@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/docker/docker/daemon/internal/lazyregexp"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/internal/lazyregexp"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/pkg/errors"
 )

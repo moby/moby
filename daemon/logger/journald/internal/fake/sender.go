@@ -21,7 +21,7 @@ import (
 
 	"code.cloudfoundry.org/clock"
 	"github.com/coreos/go-systemd/v22/journal"
-	"github.com/docker/docker/internal/lazyregexp"
+	"github.com/docker/docker/daemon/internal/lazyregexp"
 	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
 

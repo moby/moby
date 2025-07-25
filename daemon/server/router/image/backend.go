@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"github.com/distribution/reference"
-	dockerimage "github.com/docker/docker/image"
+	dockerimage "github.com/docker/docker/daemon/internal/image"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"

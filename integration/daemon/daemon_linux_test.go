@@ -7,8 +7,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/docker/docker/internal/nlwrap"
-	"github.com/docker/docker/internal/testutils/networking"
+	"github.com/docker/docker/daemon/libnetwork/nlwrap"
+	"github.com/docker/docker/integration/internal/testutils/networking"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/moby/moby/api/types/network"

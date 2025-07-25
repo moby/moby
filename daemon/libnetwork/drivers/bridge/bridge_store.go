@@ -11,11 +11,11 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/internal/otelutil"
 	"github.com/docker/docker/daemon/libnetwork/datastore"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/docker/docker/internal/otelutil"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/baggage"

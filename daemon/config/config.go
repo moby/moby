@@ -13,9 +13,9 @@ import (
 
 	"dario.cat/mergo"
 	"github.com/containerd/log"
+	dopts "github.com/docker/docker/daemon/internal/opts"
 	"github.com/docker/docker/daemon/pkg/opts"
-	dopts "github.com/docker/docker/internal/opts"
-	"github.com/docker/docker/registry"
+	"github.com/docker/docker/daemon/pkg/registry"
 	"github.com/moby/moby/api"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/pkg/errors"

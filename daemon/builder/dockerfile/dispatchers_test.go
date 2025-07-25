@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/builder"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/oci"
+	"github.com/docker/docker/daemon/internal/image"
+	"github.com/docker/docker/daemon/pkg/oci"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"

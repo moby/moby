@@ -54,6 +54,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/internal/otelutil"
 	"github.com/docker/docker/daemon/libnetwork/cluster"
 	"github.com/docker/docker/daemon/libnetwork/config"
 	"github.com/docker/docker/daemon/libnetwork/datastore"
@@ -68,7 +69,6 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/osl"
 	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/docker/docker/internal/otelutil"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
