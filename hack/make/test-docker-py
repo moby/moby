@@ -15,7 +15,7 @@ source hack/make/.integration-test-helpers
 : "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml}"
 
 # build --squash is not supported with containerd integration.
-if [ -n "$TEST_INTEGRATION_USE_SNAPSHOTTER" ]; then
+if [ -z "$TEST_INTEGRATION_USE_GRAPHDRIVER" ]; then
 	PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_build_test.py::BuildTest::test_build_squash"
 fi
 
