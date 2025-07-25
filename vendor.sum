@@ -557,6 +557,10 @@ github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 h1:kdXcSzyDtse
 github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635/go.mod h1:hkRG7XYTFWNJGYcbNJQlaLq0fg1yr4J4t/NcTQtrfww=
 github.com/tedsuo/ifrit v0.0.0-20230330192023-5cba443a66c4 h1:MGZzzxBuPuK4J0XQo+0uy0NnXQGKzHXhYp5oG1Wy860=
 github.com/tedsuo/ifrit v0.0.0-20230330192023-5cba443a66c4/go.mod h1:eyZnKCc955uh98WQvzOm0dgAeLnf2O0Rz0LPoC5ze+0=
+github.com/thaJeztah/docker/api v0.0.0-20250725173835-0eb1cf29da85 h1:wv6Ly9P1NPqxZlQAc7QI2Elve7xa7BNodg48qL3z6kg=
+github.com/thaJeztah/docker/api v0.0.0-20250725173835-0eb1cf29da85/go.mod h1:VA4aMWurxqzKHCXKDSqoBx3hiJxnTStnqSG5zgc8XL0=
+github.com/thaJeztah/docker/client v0.0.0-20250725173835-0eb1cf29da85 h1:BtHkCuRRvpvVMf+9zUSqorKdlk3d4lD1q/2AKmXCxHc=
+github.com/thaJeztah/docker/client v0.0.0-20250725173835-0eb1cf29da85/go.mod h1:Ax3ccMnrUUuchkrGDgHpXDeoI0g3MCgZy0V0vDo0+qs=
 github.com/tinylib/msgp v1.1.8 h1:FCXC1xanKO4I8plpHGH2P7koL/RzZs12l/+r7vakfm0=
 github.com/tinylib/msgp v1.1.8/go.mod h1:qkpG+2ldGg4xRFmx+jfTvZPxfGFhi64BcnL9vkCm/Tw=
 github.com/tonistiigi/dchapes-mode v0.0.0-20250318174251-73d941a28323 h1:r0p7fK56l8WPequOaR3i9LBqfPtEdXIQbUTzT55iqT4=
