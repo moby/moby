@@ -8,6 +8,7 @@ package image
 
 // HistoryResponseItem individual image layer information in response to ImageHistory operation
 // swagger:model HistoryResponseItem
+
 type HistoryResponseItem struct {
 
 	// comment
