@@ -1,7 +1,6 @@
 package strslice
 
-import "github.com/moby/moby/api/types/strslice"
-
-// StrSlice represents a string or an array of strings.
-// We need to override the json decoder to accept both options.
-type StrSlice = strslice.StrSlice
+// StrSlice is an alias for []string. Older versions used this to
+// unmarshal either a string or array of strings for deprecated
+// API versions.
+type StrSlice = []string

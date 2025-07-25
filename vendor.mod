@@ -9,8 +9,9 @@ go 1.23.0
 
 replace (
 	// FIXME(thaJeztah): temporarily need to pin on commits, otherwise go modules won't resolve until these are tagged.
-	github.com/moby/moby/api => github.com/moby/moby/api v0.0.0-20250725140006-7dc46c6e0c72
-	github.com/moby/moby/client => github.com/moby/moby/client v0.0.0-20250725140006-7dc46c6e0c72
+	// FIXME(thaJeztah): testing https://github.com/moby/moby/pull/50292
+	github.com/moby/moby/api => github.com/thaJeztah/docker/api v0.0.0-20250725173835-0eb1cf29da85
+	github.com/moby/moby/client => github.com/thaJeztah/docker/client v0.0.0-20250725173835-0eb1cf29da85
 )
 
 require (
