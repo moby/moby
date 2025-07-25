@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/router/build"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	buildtypes "github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
@@ -183,11 +184,11 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 
 	eg, ctx := errgroup.WithContext(ctx)
 
-	var systemDiskUsage *system.DiskUsage
+	var systemDiskUsage *backend.DiskUsage
 	if getContainers || getImages || getVolumes {
 		eg.Go(func() error {
 			var err error
-			systemDiskUsage, err = s.backend.SystemDiskUsage(ctx, DiskUsageOptions{
+			systemDiskUsage, err = s.backend.SystemDiskUsage(ctx, backend.DiskUsageOptions{
 				Containers: getContainers,
 				Images:     getImages,
 				Volumes:    getVolumes,
@@ -238,7 +239,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		}
 	}
 
-	du := system.DiskUsage{}
+	du := backend.DiskUsage{}
 	if getBuildCache {
 		du.BuildCache = &buildtypes.CacheDiskUsage{
 			TotalSize: builderSize,
