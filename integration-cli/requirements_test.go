@@ -6,13 +6,15 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
+	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/containerd/containerd/v2/plugins"
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/requirement"
 	"github.com/docker/docker/testutil/registry"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/swarm"
@@ -165,7 +167,13 @@ func DockerCLIVersion(t testing.TB) string {
 
 // testRequires checks if the environment satisfies the requirements
 // for the test to run or skips the tests.
-func testRequires(t *testing.T, requirements ...requirement.Test) {
+func testRequires(t *testing.T, requirements ...func() bool) {
 	t.Helper()
-	requirement.Is(t, requirements...)
+	for _, check := range requirements {
+		if !check() {
+			requirementFunc := runtime.FuncForPC(reflect.ValueOf(check).Pointer()).Name()
+			_, req, _ := strings.Cut(path.Base(requirementFunc), ".")
+			t.Skipf("unmatched requirement %s", req)
+		}
+	}
 }
