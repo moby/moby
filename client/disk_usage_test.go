@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/system"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -20,7 +20,7 @@ func TestDiskUsageError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.DiskUsage(context.Background(), types.DiskUsageOptions{})
+	_, err := client.DiskUsage(context.Background(), system.DiskUsageOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -32,7 +32,7 @@ func TestDiskUsage(t *testing.T) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
 
-			du := types.DiskUsage{
+			du := system.DiskUsage{
 				LayersSize: int64(100),
 				Images:     nil,
 				Containers: nil,
@@ -50,6 +50,6 @@ func TestDiskUsage(t *testing.T) {
 			}, nil
 		}),
 	}
-	_, err := client.DiskUsage(context.Background(), types.DiskUsageOptions{})
+	_, err := client.DiskUsage(context.Background(), system.DiskUsageOptions{})
 	assert.NilError(t, err)
 }

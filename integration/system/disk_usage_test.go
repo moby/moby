@@ -6,10 +6,10 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/build"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/api/types/volume"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -27,15 +27,15 @@ func TestDiskUsage(t *testing.T) {
 	defer d.Stop(t)
 	apiClient := d.NewClientT(t)
 
-	var stepDU types.DiskUsage
+	var stepDU system.DiskUsage
 	for _, step := range []struct {
 		doc  string
-		next func(t *testing.T, prev types.DiskUsage) types.DiskUsage
+		next func(t *testing.T, prev system.DiskUsage) system.DiskUsage
 	}{
 		{
 			doc: "empty",
-			next: func(t *testing.T, _ types.DiskUsage) types.DiskUsage {
-				du, err := apiClient.DiskUsage(ctx, types.DiskUsageOptions{})
+			next: func(t *testing.T, _ system.DiskUsage) system.DiskUsage {
+				du, err := apiClient.DiskUsage(ctx, system.DiskUsageOptions{})
 				assert.NilError(t, err)
 
 				expectedLayersSize := int64(0)
@@ -47,7 +47,7 @@ func TestDiskUsage(t *testing.T) {
 					}
 				}
 
-				assert.DeepEqual(t, du, types.DiskUsage{
+				assert.DeepEqual(t, du, system.DiskUsage{
 					LayersSize: expectedLayersSize,
 					Images:     []*image.Summary{},
 					Containers: []*containertypes.Summary{},
@@ -59,10 +59,10 @@ func TestDiskUsage(t *testing.T) {
 		},
 		{
 			doc: "after LoadBusybox",
-			next: func(t *testing.T, _ types.DiskUsage) types.DiskUsage {
+			next: func(t *testing.T, _ system.DiskUsage) system.DiskUsage {
 				d.LoadBusybox(ctx, t)
 
-				du, err := apiClient.DiskUsage(ctx, types.DiskUsageOptions{})
+				du, err := apiClient.DiskUsage(ctx, system.DiskUsageOptions{})
 				assert.NilError(t, err)
 				assert.Assert(t, du.LayersSize > 0)
 				assert.Equal(t, len(du.Images), 1)
@@ -77,10 +77,10 @@ func TestDiskUsage(t *testing.T) {
 		},
 		{
 			doc: "after container.Run",
-			next: func(t *testing.T, prev types.DiskUsage) types.DiskUsage {
+			next: func(t *testing.T, prev system.DiskUsage) system.DiskUsage {
 				cID := container.Run(ctx, t, apiClient)
 
-				du, err := apiClient.DiskUsage(ctx, types.DiskUsageOptions{})
+				du, err := apiClient.DiskUsage(ctx, system.DiskUsageOptions{})
 				assert.NilError(t, err)
 				assert.Equal(t, len(du.Containers), 1)
 				assert.Equal(t, len(du.Containers[0].Names), 1)
@@ -110,76 +110,76 @@ func TestDiskUsage(t *testing.T) {
 
 			for _, tc := range []struct {
 				doc      string
-				options  types.DiskUsageOptions
-				expected types.DiskUsage
+				options  system.DiskUsageOptions
+				expected system.DiskUsage
 			}{
 				{
 					doc: "container types",
-					options: types.DiskUsageOptions{
-						Types: []types.DiskUsageObject{
-							types.ContainerObject,
+					options: system.DiskUsageOptions{
+						Types: []system.DiskUsageObject{
+							system.ContainerObject,
 						},
 					},
-					expected: types.DiskUsage{
+					expected: system.DiskUsage{
 						Containers: stepDU.Containers,
 					},
 				},
 				{
 					doc: "image types",
-					options: types.DiskUsageOptions{
-						Types: []types.DiskUsageObject{
-							types.ImageObject,
+					options: system.DiskUsageOptions{
+						Types: []system.DiskUsageObject{
+							system.ImageObject,
 						},
 					},
-					expected: types.DiskUsage{
+					expected: system.DiskUsage{
 						LayersSize: stepDU.LayersSize,
 						Images:     stepDU.Images,
 					},
 				},
 				{
 					doc: "volume types",
-					options: types.DiskUsageOptions{
-						Types: []types.DiskUsageObject{
-							types.VolumeObject,
+					options: system.DiskUsageOptions{
+						Types: []system.DiskUsageObject{
+							system.VolumeObject,
 						},
 					},
-					expected: types.DiskUsage{
+					expected: system.DiskUsage{
 						Volumes: stepDU.Volumes,
 					},
 				},
 				{
 					doc: "build-cache types",
-					options: types.DiskUsageOptions{
-						Types: []types.DiskUsageObject{
-							types.BuildCacheObject,
+					options: system.DiskUsageOptions{
+						Types: []system.DiskUsageObject{
+							system.BuildCacheObject,
 						},
 					},
-					expected: types.DiskUsage{
+					expected: system.DiskUsage{
 						BuildCache: stepDU.BuildCache,
 					},
 				},
 				{
 					doc: "container, volume types",
-					options: types.DiskUsageOptions{
-						Types: []types.DiskUsageObject{
-							types.ContainerObject,
-							types.VolumeObject,
+					options: system.DiskUsageOptions{
+						Types: []system.DiskUsageObject{
+							system.ContainerObject,
+							system.VolumeObject,
 						},
 					},
-					expected: types.DiskUsage{
+					expected: system.DiskUsage{
 						Containers: stepDU.Containers,
 						Volumes:    stepDU.Volumes,
 					},
 				},
 				{
 					doc: "image, build-cache types",
-					options: types.DiskUsageOptions{
-						Types: []types.DiskUsageObject{
-							types.ImageObject,
-							types.BuildCacheObject,
+					options: system.DiskUsageOptions{
+						Types: []system.DiskUsageObject{
+							system.ImageObject,
+							system.BuildCacheObject,
 						},
 					},
-					expected: types.DiskUsage{
+					expected: system.DiskUsage{
 						LayersSize: stepDU.LayersSize,
 						Images:     stepDU.Images,
 						BuildCache: stepDU.BuildCache,
@@ -187,14 +187,14 @@ func TestDiskUsage(t *testing.T) {
 				},
 				{
 					doc: "container, volume, build-cache types",
-					options: types.DiskUsageOptions{
-						Types: []types.DiskUsageObject{
-							types.ContainerObject,
-							types.VolumeObject,
-							types.BuildCacheObject,
+					options: system.DiskUsageOptions{
+						Types: []system.DiskUsageObject{
+							system.ContainerObject,
+							system.VolumeObject,
+							system.BuildCacheObject,
 						},
 					},
-					expected: types.DiskUsage{
+					expected: system.DiskUsage{
 						Containers: stepDU.Containers,
 						Volumes:    stepDU.Volumes,
 						BuildCache: stepDU.BuildCache,
@@ -202,14 +202,14 @@ func TestDiskUsage(t *testing.T) {
 				},
 				{
 					doc: "image, volume, build-cache types",
-					options: types.DiskUsageOptions{
-						Types: []types.DiskUsageObject{
-							types.ImageObject,
-							types.VolumeObject,
-							types.BuildCacheObject,
+					options: system.DiskUsageOptions{
+						Types: []system.DiskUsageObject{
+							system.ImageObject,
+							system.VolumeObject,
+							system.BuildCacheObject,
 						},
 					},
-					expected: types.DiskUsage{
+					expected: system.DiskUsage{
 						LayersSize: stepDU.LayersSize,
 						Images:     stepDU.Images,
 						Volumes:    stepDU.Volumes,
@@ -218,14 +218,14 @@ func TestDiskUsage(t *testing.T) {
 				},
 				{
 					doc: "container, image, volume types",
-					options: types.DiskUsageOptions{
-						Types: []types.DiskUsageObject{
-							types.ContainerObject,
-							types.ImageObject,
-							types.VolumeObject,
+					options: system.DiskUsageOptions{
+						Types: []system.DiskUsageObject{
+							system.ContainerObject,
+							system.ImageObject,
+							system.VolumeObject,
 						},
 					},
-					expected: types.DiskUsage{
+					expected: system.DiskUsage{
 						LayersSize: stepDU.LayersSize,
 						Containers: stepDU.Containers,
 						Images:     stepDU.Images,
@@ -234,15 +234,15 @@ func TestDiskUsage(t *testing.T) {
 				},
 				{
 					doc: "container, image, volume, build-cache types",
-					options: types.DiskUsageOptions{
-						Types: []types.DiskUsageObject{
-							types.ContainerObject,
-							types.ImageObject,
-							types.VolumeObject,
-							types.BuildCacheObject,
+					options: system.DiskUsageOptions{
+						Types: []system.DiskUsageObject{
+							system.ContainerObject,
+							system.ImageObject,
+							system.VolumeObject,
+							system.BuildCacheObject,
 						},
 					},
-					expected: types.DiskUsage{
+					expected: system.DiskUsage{
 						LayersSize: stepDU.LayersSize,
 						Containers: stepDU.Containers,
 						Images:     stepDU.Images,
