@@ -128,6 +128,7 @@ func (n *bridgeNetwork) sortAndNormPBs(
 
 	hairpin := n.hairpin()
 	disableNAT4, disableNAT6 := n.getNATDisabled()
+	defPM := n.defaultPortMapper()
 
 	add4 := !ep.portBindingState.ipv4 && pbmReq.ipv4 || (disableNAT4 && !ep.portBindingState.routed && pbmReq.routed)
 	add6 := !ep.portBindingState.ipv6 && pbmReq.ipv6 || (disableNAT6 && !ep.portBindingState.routed && pbmReq.routed)
@@ -139,7 +140,7 @@ func (n *bridgeNetwork) sortAndNormPBs(
 		}
 
 		if add4 {
-			if bindingIPv4, ok := configurePortBindingIPv4(ctx, disableNAT4, c, containerIPv4, defHostIP); ok {
+			if bindingIPv4, ok := configurePortBindingIPv4(ctx, disableNAT4, c, containerIPv4, defHostIP, defPM); ok {
 				reqs = append(reqs, bindingIPv4)
 			}
 		}
@@ -170,7 +171,7 @@ func (n *bridgeNetwork) sortAndNormPBs(
 			}
 		}
 		if add6 {
-			if bindingIPv6, ok := configurePortBindingIPv6(ctx, disableNAT6, c, containerIP, defHostIP); ok {
+			if bindingIPv6, ok := configurePortBindingIPv6(ctx, disableNAT6, c, containerIP, defHostIP, defPM); ok {
 				reqs = append(reqs, bindingIPv6)
 			}
 		}
@@ -216,6 +217,7 @@ func configurePortBindingIPv4(
 	bnd portmapperapi.PortBindingReq,
 	containerIPv4,
 	defHostIP net.IP,
+	defPM string,
 ) (portmapperapi.PortBindingReq, bool) {
 	if len(containerIPv4) == 0 {
 		return portmapperapi.PortBindingReq{}, false
@@ -258,6 +260,9 @@ func configurePortBindingIPv4(
 	if disableNAT {
 		bnd.Mapper = "routed"
 	}
+	if defPM != "" {
+		bnd.Mapper = defPM
+	}
 	return bnd, true
 }
 
@@ -269,6 +274,7 @@ func configurePortBindingIPv6(
 	disableNAT bool,
 	bnd portmapperapi.PortBindingReq,
 	containerIP, defHostIP net.IP,
+	defPM string,
 ) (portmapperapi.PortBindingReq, bool) {
 	if containerIP == nil {
 		return portmapperapi.PortBindingReq{}, false
@@ -317,6 +323,9 @@ func configurePortBindingIPv6(
 	bnd.Mapper = "nat"
 	if disableNAT {
 		bnd.Mapper = "routed"
+	}
+	if defPM != "" {
+		bnd.Mapper = defPM
 	}
 	return bnd, true
 }
