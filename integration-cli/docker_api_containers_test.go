@@ -484,14 +484,13 @@ func (s *DockerAPISuite) TestContainerAPICommitWithLabelInConfig(c *testing.T) {
 	img, err := apiClient.ContainerCommit(testutil.GetContext(c), cName, options)
 	assert.NilError(c, err)
 
-	label1 := inspectFieldMap(c, img.ID, "Config.Labels", "key1")
-	assert.Equal(c, label1, "value1")
+	imgInspect, err := apiClient.ImageInspect(testutil.GetContext(c), img.ID)
+	assert.NilError(c, err)
+	assert.Check(c, is.Equal(imgInspect.Config.Labels["key1"], "value1"))
+	assert.Check(c, is.Equal(imgInspect.Config.Labels["key2"], "value2"))
 
-	label2 := inspectFieldMap(c, img.ID, "Config.Labels", "key2")
-	assert.Equal(c, label2, "value2")
-
-	cmd := inspectField(c, img.ID, "Config.Cmd")
-	assert.Equal(c, cmd, "[/bin/sh -c touch /test]", fmt.Sprintf("got wrong Cmd from commit: %q", cmd))
+	expected := []string{"/bin/sh", "-c", "touch /test"}
+	assert.Check(c, is.DeepEqual(imgInspect.Config.Cmd, expected))
 
 	// sanity check, make sure the image is what we think it is
 	cli.DockerCmd(c, "run", img.ID, "ls", "/test")

@@ -108,14 +108,6 @@ func inspectFieldJSON(t *testing.T, name, field string) string {
 }
 
 // Deprecated: use cli.Docker
-func inspectFieldMap(t *testing.T, name, path, field string) string {
-	t.Helper()
-	out, err := inspectFilter(name, fmt.Sprintf("index .%s %q", path, field))
-	assert.NilError(t, err)
-	return out
-}
-
-// Deprecated: use cli.Docker
 func inspectMountSourceField(name, destination string) (string, error) {
 	m, err := inspectMountPoint(name, destination)
 	if err != nil {
