@@ -3,8 +3,8 @@ package loggerutils
 import (
 	"bytes"
 
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/logger/templates"
+	"github.com/moby/moby/v2/daemon/logger"
+	"github.com/moby/moby/v2/daemon/logger/templates"
 )
 
 // DefaultTemplate defines the defaults template logger should use.

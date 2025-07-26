@@ -19,8 +19,8 @@ import (
 
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/pkg/pools"
+	"github.com/moby/moby/v2/daemon/logger"
+	"github.com/moby/moby/v2/pkg/pools"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/attribute"
 )

@@ -4,5 +4,5 @@ package register
 
 import (
 	// register the btrfs graphdriver
-	_ "github.com/docker/docker/daemon/graphdriver/btrfs"
+	_ "github.com/moby/moby/v2/daemon/graphdriver/btrfs"
 )

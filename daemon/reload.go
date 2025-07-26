@@ -11,7 +11,7 @@ import (
 	"github.com/mitchellh/copystructure"
 	"github.com/moby/moby/api/types/events"
 
-	"github.com/docker/docker/daemon/config"
+	"github.com/moby/moby/v2/daemon/config"
 )
 
 // reloadTxn is used to defer side effects of a config reload.

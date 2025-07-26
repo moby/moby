@@ -10,9 +10,9 @@ import (
 	"github.com/coreos/go-systemd/v22/journal"
 	"gotest.tools/v3/assert"
 
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/logger/journald/internal/fake"
-	"github.com/docker/docker/daemon/logger/loggertest"
+	"github.com/moby/moby/v2/daemon/logger"
+	"github.com/moby/moby/v2/daemon/logger/journald/internal/fake"
+	"github.com/moby/moby/v2/daemon/logger/loggertest"
 )
 
 func TestLogRead(t *testing.T) {

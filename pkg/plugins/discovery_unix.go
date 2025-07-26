@@ -5,8 +5,8 @@ package plugins
 import (
 	"path/filepath"
 
-	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/docker/pkg/rootless"
+	"github.com/moby/moby/v2/pkg/homedir"
+	"github.com/moby/moby/v2/pkg/rootless"
 )
 
 func rootlessConfigPluginsPath() string {

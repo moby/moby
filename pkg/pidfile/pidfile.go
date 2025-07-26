@@ -9,7 +9,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/docker/docker/pkg/process"
+	"github.com/moby/moby/v2/pkg/process"
 )
 
 // Read reads the "PID file" at path, and returns the PID if it contains a

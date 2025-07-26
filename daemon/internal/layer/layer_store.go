@@ -11,9 +11,9 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/distribution"
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/daemon/internal/stringid"
 	"github.com/moby/locker"
+	"github.com/moby/moby/v2/daemon/graphdriver"
+	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"

@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/moby/moby/v2/pkg/plugingetter"
 )
 
 // Middleware uses a list of plugins to

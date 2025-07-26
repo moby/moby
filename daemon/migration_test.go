@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/internal/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 )

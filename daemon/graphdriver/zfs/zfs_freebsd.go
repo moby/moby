@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/moby/moby/v2/daemon/graphdriver"
 	"golang.org/x/sys/unix"
 )
 

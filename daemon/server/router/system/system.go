@@ -4,7 +4,7 @@
 package system
 
 import (
-	"github.com/docker/docker/daemon/server/router"
+	"github.com/moby/moby/v2/daemon/server/router"
 	"resenje.org/singleflight"
 )
 

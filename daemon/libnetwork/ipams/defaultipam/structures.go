@@ -5,8 +5,8 @@ import (
 	"net/netip"
 	"strings"
 
-	"github.com/docker/docker/daemon/libnetwork/internal/addrset"
-	"github.com/docker/docker/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/addrset"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 // PoolID is the pointer to the configured pools in each address space

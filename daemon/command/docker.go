@@ -6,10 +6,10 @@ import (
 	"io"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/pkg/rootless"
 	"github.com/moby/buildkit/util/apicaps"
+	"github.com/moby/moby/v2/daemon/config"
+	"github.com/moby/moby/v2/dockerversion"
+	"github.com/moby/moby/v2/pkg/rootless"
 	"github.com/spf13/cobra"
 )
 

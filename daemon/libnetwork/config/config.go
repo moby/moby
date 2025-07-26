@@ -8,11 +8,11 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/cluster"
-	"github.com/docker/docker/daemon/libnetwork/datastore"
-	"github.com/docker/docker/daemon/libnetwork/ipamutils"
-	"github.com/docker/docker/daemon/libnetwork/netlabel"
-	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/moby/moby/v2/daemon/libnetwork/cluster"
+	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
+	"github.com/moby/moby/v2/daemon/libnetwork/ipamutils"
+	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
+	"github.com/moby/moby/v2/pkg/plugingetter"
 )
 
 const (

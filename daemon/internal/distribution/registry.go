@@ -12,9 +12,9 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
-	"github.com/docker/docker/daemon/pkg/registry"
-	"github.com/docker/docker/dockerversion"
 	registrytypes "github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/v2/daemon/pkg/registry"
+	"github.com/moby/moby/v2/dockerversion"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

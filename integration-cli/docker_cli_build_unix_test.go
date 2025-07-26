@@ -15,10 +15,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/integration-cli/cli"
+	"github.com/moby/moby/v2/integration-cli/cli/build"
+	"github.com/moby/moby/v2/testutil/fakecontext"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
 )

@@ -11,10 +11,10 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/internal/rlkclient"
-	"github.com/docker/docker/daemon/libnetwork/portallocator"
-	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
-	"github.com/docker/docker/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/rlkclient"
+	"github.com/moby/moby/v2/daemon/libnetwork/portallocator"
+	"github.com/moby/moby/v2/daemon/libnetwork/portmapperapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 const (

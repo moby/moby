@@ -13,7 +13,7 @@ var (
 		"http://github.com/docker/docker.git#:dir",
 	}
 	incompleteGitUrls = []string{
-		"github.com/docker/docker",
+		"github.com/moby/moby/v2",
 	}
 	invalidGitUrls = []string{
 		"http://github.com/docker/docker.git:#branch",

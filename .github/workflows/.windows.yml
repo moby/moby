@@ -439,7 +439,6 @@ jobs:
           .\hack\make.ps1 -TestIntegration
         env:
           DOCKER_HOST: npipe:////./pipe/docker_engine
-          GO111MODULE: "off"
           TEST_CLIENT_BINARY: ${{ env.BIN_OUT }}\docker
       -
         name: Test integration-cli
@@ -448,7 +447,6 @@ jobs:
           .\hack\make.ps1 -TestIntegrationCli
         env:
           DOCKER_HOST: npipe:////./pipe/docker_engine
-          GO111MODULE: "off"
           TEST_CLIENT_BINARY: ${{ env.BIN_OUT }}\docker
           INTEGRATION_TESTRUN: ${{ matrix.test }}
       -

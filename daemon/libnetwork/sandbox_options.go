@@ -1,9 +1,9 @@
 package libnetwork
 
 import (
-	"github.com/docker/docker/daemon/libnetwork/netlabel"
-	"github.com/docker/docker/daemon/libnetwork/osl"
-	"github.com/docker/docker/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
+	"github.com/moby/moby/v2/daemon/libnetwork/osl"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 // OptionHostname function returns an option setter for hostname option to

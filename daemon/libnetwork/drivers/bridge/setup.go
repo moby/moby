@@ -5,7 +5,7 @@ package bridge
 import (
 	"context"
 
-	"github.com/docker/docker/daemon/internal/otelutil"
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"go.opentelemetry.io/otel"
 )
 

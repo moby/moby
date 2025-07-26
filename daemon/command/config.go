@@ -3,10 +3,10 @@ package command
 import (
 	"runtime"
 
-	"github.com/docker/docker/daemon/config"
-	dopts "github.com/docker/docker/daemon/internal/opts"
-	"github.com/docker/docker/daemon/pkg/opts"
-	"github.com/docker/docker/daemon/pkg/registry"
+	"github.com/moby/moby/v2/daemon/config"
+	dopts "github.com/moby/moby/v2/daemon/internal/opts"
+	"github.com/moby/moby/v2/daemon/pkg/opts"
+	"github.com/moby/moby/v2/daemon/pkg/registry"
 	"github.com/spf13/pflag"
 )
 

@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/docker/docker/daemon/libnetwork/ipams/defaultipam"
-	"github.com/docker/docker/daemon/libnetwork/netlabel"
-	"github.com/docker/docker/daemon/libnetwork/osl"
-	"github.com/docker/docker/daemon/network"
+	"github.com/moby/moby/v2/daemon/libnetwork/ipams/defaultipam"
+	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
+	"github.com/moby/moby/v2/daemon/libnetwork/osl"
+	"github.com/moby/moby/v2/daemon/network"
 )
 
 type platformNetwork struct{} //nolint:nolintlint,unused // only populated on windows

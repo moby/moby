@@ -7,10 +7,10 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/internal/stringid"
-	"github.com/docker/docker/daemon/libnetwork/datastore"
-	"github.com/docker/docker/daemon/libnetwork/osl"
-	"github.com/docker/docker/daemon/libnetwork/scope"
+	"github.com/moby/moby/v2/daemon/internal/stringid"
+	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
+	"github.com/moby/moby/v2/daemon/libnetwork/osl"
+	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 )
 
 const (

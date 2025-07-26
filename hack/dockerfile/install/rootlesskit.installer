@@ -27,5 +27,5 @@ install_rootlesskit_dynamic() {
 
 _install_rootlesskit() (
 	echo "Install rootlesskit version ${ROOTLESSKIT_VERSION}"
-	GOBIN="${PREFIX}" GO111MODULE=on go install ${BUILD_MODE} -ldflags="$ROOTLESSKIT_LDFLAGS" "github.com/rootless-containers/rootlesskit/v2/cmd/rootlesskit@${ROOTLESSKIT_VERSION}"
+	GOBIN="${PREFIX}" go install ${BUILD_MODE} -ldflags="$ROOTLESSKIT_LDFLAGS" "github.com/rootless-containers/rootlesskit/v2/cmd/rootlesskit@${ROOTLESSKIT_VERSION}"
 )

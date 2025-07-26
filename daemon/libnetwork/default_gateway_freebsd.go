@@ -1,6 +1,6 @@
 package libnetwork
 
-import "github.com/docker/docker/daemon/libnetwork/types"
+import "github.com/moby/moby/v2/daemon/libnetwork/types"
 
 const libnGWNetwork = "docker_gwbridge"
 

@@ -5,12 +5,12 @@ import (
 	nethttp "net/http"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/internal/builder-next/exporter"
 	"github.com/moby/buildkit/client"
 	bkexporter "github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/source/http"
 	"github.com/moby/buildkit/worker/base"
+	"github.com/moby/moby/v2/daemon/internal/builder-next/exporter"
 )
 
 // ContainerdWorker is a local worker instance with dedicated snapshotter, cache, and so on.

@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/nlwrap"
+	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 )

@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/volume"
+	"github.com/moby/moby/v2/daemon/volume"
 	bolt "go.etcd.io/bbolt"
 )
 

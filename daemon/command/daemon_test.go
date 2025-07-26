@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/config"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/moby/moby/v2/daemon/config"
 	"github.com/spf13/pflag"
 	"go.opentelemetry.io/otel"
 	"gotest.tools/v3/assert"

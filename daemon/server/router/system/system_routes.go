@@ -11,9 +11,6 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/docker/docker/daemon/server/router/build"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/moby/moby/api/types/backend"
 	buildtypes "github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/events"
@@ -23,6 +20,9 @@ import (
 	"github.com/moby/moby/api/types/system"
 	timetypes "github.com/moby/moby/api/types/time"
 	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/v2/daemon/server/httputils"
+	"github.com/moby/moby/v2/daemon/server/router/build"
+	"github.com/moby/moby/v2/pkg/ioutils"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )

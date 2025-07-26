@@ -2,7 +2,7 @@
 // messages between libnetwork and the remote ipam plugin
 package api
 
-import "github.com/docker/docker/daemon/libnetwork/ipamapi"
+import "github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
 
 // Response is the basic response structure used in all responses
 type Response struct {

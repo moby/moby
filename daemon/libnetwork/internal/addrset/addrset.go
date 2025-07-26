@@ -8,9 +8,9 @@ import (
 	"net/netip"
 	"strings"
 
-	"github.com/docker/docker/daemon/libnetwork/bitmap"
-	"github.com/docker/docker/daemon/libnetwork/internal/netiputil"
-	"github.com/docker/docker/daemon/libnetwork/ipbits"
+	"github.com/moby/moby/v2/daemon/libnetwork/bitmap"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
+	"github.com/moby/moby/v2/daemon/libnetwork/ipbits"
 )
 
 var (

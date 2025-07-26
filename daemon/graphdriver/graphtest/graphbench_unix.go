@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/daemon/internal/stringid"
+	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"gotest.tools/v3/assert"
 )
 

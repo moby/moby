@@ -7,12 +7,12 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/docker/daemon/internal/distribution"
-	progressutils "github.com/docker/docker/daemon/internal/distribution/utils"
-	"github.com/docker/docker/daemon/internal/metrics"
-	"github.com/docker/docker/pkg/progress"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/v2/daemon/internal/distribution"
+	progressutils "github.com/moby/moby/v2/daemon/internal/distribution/utils"
+	"github.com/moby/moby/v2/daemon/internal/metrics"
+	"github.com/moby/moby/v2/pkg/progress"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

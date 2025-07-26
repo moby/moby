@@ -3,7 +3,7 @@ package daemon
 import (
 	"errors"
 
-	"github.com/docker/docker/daemon/config"
+	"github.com/moby/moby/v2/daemon/config"
 )
 
 type runtimes struct{}

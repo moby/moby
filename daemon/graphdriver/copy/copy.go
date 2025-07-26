@@ -12,8 +12,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/pkg/pools"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/v2/pkg/pools"
+	"github.com/moby/moby/v2/pkg/system"
 	"github.com/moby/sys/userns"
 	"golang.org/x/sys/unix"
 )

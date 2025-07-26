@@ -27,7 +27,7 @@ import (
 
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/moby/moby/v2/pkg/parsers/kernel"
 	"github.com/moby/sys/userns"
 )
 

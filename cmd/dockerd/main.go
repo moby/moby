@@ -10,7 +10,7 @@ import (
 	"github.com/moby/sys/reexec"
 	"github.com/moby/term"
 
-	"github.com/docker/docker/daemon/command"
+	"github.com/moby/moby/v2/daemon/command"
 )
 
 func main() {

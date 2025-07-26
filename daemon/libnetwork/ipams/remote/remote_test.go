@@ -13,8 +13,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/ipamapi"
-	"github.com/docker/docker/pkg/plugins"
+	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
+	"github.com/moby/moby/v2/pkg/plugins"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

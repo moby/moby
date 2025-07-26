@@ -14,9 +14,9 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/internal/stringid"
 	"github.com/docker/go-events"
 	"github.com/hashicorp/memberlist"
+	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/google/go-cmp/cmp"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/daemon/internal/layer"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

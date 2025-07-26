@@ -35,10 +35,10 @@ import (
 	"unsafe"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/daemon/internal/containerfs"
-	"github.com/docker/docker/daemon/internal/fstype"
 	"github.com/docker/go-units"
+	"github.com/moby/moby/v2/daemon/graphdriver"
+	"github.com/moby/moby/v2/daemon/internal/containerfs"
+	"github.com/moby/moby/v2/daemon/internal/fstype"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"

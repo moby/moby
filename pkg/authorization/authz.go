@@ -13,7 +13,7 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/moby/moby/v2/pkg/ioutils"
 )
 
 const maxBodySize = 1048576 // 1MB

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/internal/cleanups"
+	"github.com/moby/moby/v2/daemon/internal/cleanups"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
 )

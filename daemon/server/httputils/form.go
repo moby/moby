@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

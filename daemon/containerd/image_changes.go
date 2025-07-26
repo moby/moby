@@ -6,9 +6,9 @@ import (
 
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/daemon/internal/stringid"
 	"github.com/moby/go-archive"
+	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/internal/stringid"
 )
 
 func (i *ImageService) Changes(ctx context.Context, ctr *container.Container) ([]archive.Change, error) {

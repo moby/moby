@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/container"
-	daemonevents "github.com/docker/docker/daemon/events"
-	"github.com/docker/docker/daemon/libnetwork"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/v2/daemon/container"
+	daemonevents "github.com/moby/moby/v2/daemon/events"
+	"github.com/moby/moby/v2/daemon/libnetwork"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
 

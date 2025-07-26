@@ -3,9 +3,9 @@ package cluster
 import (
 	"context"
 
-	"github.com/docker/docker/daemon/cluster/convert"
 	"github.com/moby/moby/api/types/filters"
 	types "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/v2/daemon/cluster/convert"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"google.golang.org/grpc"
 )

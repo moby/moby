@@ -10,24 +10,24 @@ SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 tidy() (
 		set -x
-		"${SCRIPTDIR}"/with-go-mod.sh go mod tidy -modfile vendor.mod
+		go mod tidy
 )
 
 vendor() (
 		set -x
-		"${SCRIPTDIR}"/with-go-mod.sh go mod vendor -modfile vendor.mod
+		go mod vendor
 )
 
 replace() (
 	set -x
-	"${SCRIPTDIR}"/with-go-mod.sh go mod edit -modfile vendor.mod -replace=github.com/moby/moby/api=./api -replace=github.com/moby/moby/client=./client
-	"${SCRIPTDIR}"/with-go-mod.sh go mod edit -modfile client/go.mod -replace=github.com/moby/moby/api=../api
+	go mod edit -replace=github.com/moby/moby/api=./api -replace=github.com/moby/moby/client=./client
+	go mod edit -modfile client/go.mod -replace=github.com/moby/moby/api=../api
 )
 
 dropreplace() (
 	set -x
-	"${SCRIPTDIR}"/with-go-mod.sh go mod edit -modfile vendor.mod -dropreplace=github.com/moby/moby/api -dropreplace=github.com/moby/moby/client
-	"${SCRIPTDIR}"/with-go-mod.sh go mod edit -modfile client/go.mod -dropreplace=github.com/moby/moby/api
+	go mod edit -dropreplace=github.com/moby/moby/api -dropreplace=github.com/moby/moby/client
+	go mod edit -modfile client/go.mod -dropreplace=github.com/moby/moby/api
 )
 
 help() {

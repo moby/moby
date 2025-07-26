@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/docker/docker/daemon/server/httputils"
+	"github.com/moby/moby/v2/daemon/server/httputils"
 )
 
 // ExperimentalRoute defines an experimental API route that can be enabled or disabled.

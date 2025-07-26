@@ -13,9 +13,9 @@ import (
 	"time"
 
 	syslog "github.com/RackSec/srslog"
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/moby/moby/v2/daemon/logger"
+	"github.com/moby/moby/v2/daemon/logger/loggerutils"
 )
 
 const (
