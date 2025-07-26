@@ -7,6 +7,9 @@ module github.com/docker/docker
 
 go 1.23.0
 
+// FIXME(thaJeztah): testing https://github.com/moby/buildkit/pull/6100
+replace github.com/moby/buildkit => github.com/thaJeztah/buildkit v0.0.0-20250725130259-4900a92b3d28
+
 require (
 	cloud.google.com/go/compute/metadata v0.6.0
 	cloud.google.com/go/logging v1.9.0
