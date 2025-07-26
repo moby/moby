@@ -12,9 +12,9 @@ import (
 
 	"github.com/coreos/go-systemd/v22/journal"
 
-	"github.com/docker/docker/daemon/internal/stringid"
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/logger/loggerutils"
+	"github.com/moby/moby/v2/daemon/internal/stringid"
+	"github.com/moby/moby/v2/daemon/logger"
+	"github.com/moby/moby/v2/daemon/logger/loggerutils"
 )
 
 const name = "journald"

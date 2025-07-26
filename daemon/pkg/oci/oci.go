@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/docker/docker/daemon/internal/lazyregexp"
+	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 

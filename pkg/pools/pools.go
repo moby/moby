@@ -14,7 +14,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/moby/moby/v2/pkg/ioutils"
 )
 
 const buffer32K = 32 * 1024

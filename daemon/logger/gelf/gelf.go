@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/Graylog2/go-gelf/gelf"
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/logger/loggerutils"
+	"github.com/moby/moby/v2/daemon/logger"
+	"github.com/moby/moby/v2/daemon/logger/loggerutils"
 )
 
 const name = "gelf"

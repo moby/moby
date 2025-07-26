@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/daemon/internal/layer"
+	"github.com/moby/moby/v2/daemon/internal/layer"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

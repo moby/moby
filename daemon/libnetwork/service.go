@@ -8,7 +8,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/docker/docker/daemon/libnetwork/internal/setmatrix"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/setmatrix"
 )
 
 var (

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"sync"
 
-	store "github.com/docker/docker/daemon/libnetwork/internal/kvstore"
-	"github.com/docker/docker/daemon/libnetwork/internal/kvstore/boltdb"
-	"github.com/docker/docker/daemon/libnetwork/types"
+	store "github.com/moby/moby/v2/daemon/libnetwork/internal/kvstore"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/kvstore/boltdb"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 // ErrKeyModified is raised for an atomic update when the update is working on a stale state

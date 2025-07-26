@@ -7,8 +7,8 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/moby/moby/v2/pkg/progress"
+	"github.com/moby/moby/v2/pkg/streamformatter"
 )
 
 // WriteDistributionProgress is a helper for writing progress from chan to JSON

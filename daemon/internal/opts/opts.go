@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/daemon/pkg/opts"
+	"github.com/moby/moby/v2/daemon/pkg/opts"
 )
 
 // SetOpts holds a map of values and a validation function.

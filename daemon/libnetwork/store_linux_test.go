@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/config"
-	store "github.com/docker/docker/daemon/libnetwork/internal/kvstore"
+	"github.com/moby/moby/v2/daemon/libnetwork/config"
+	store "github.com/moby/moby/v2/daemon/libnetwork/internal/kvstore"
 )
 
 func TestBoltdbBackend(t *testing.T) {

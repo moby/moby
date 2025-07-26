@@ -347,7 +347,7 @@ func TestValidGitTransport(t *testing.T) {
 		"http://github.com/docker/docker.git#:dir",
 	}
 	incompleteGitUrls := []string{
-		"github.com/docker/docker",
+		"github.com/moby/moby/v2",
 	}
 
 	for _, u := range gitUrls {

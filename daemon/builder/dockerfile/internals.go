@@ -12,10 +12,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/daemon/builder"
-	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/daemon/internal/stringid"
-	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/chrootarchive"
@@ -23,6 +19,10 @@ import (
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/v2/daemon/builder"
+	"github.com/moby/moby/v2/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/internal/stringid"
+	networkSettings "github.com/moby/moby/v2/daemon/network"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )

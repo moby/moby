@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"net/http/pprof"
 
-	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/docker/docker/daemon/server/router"
+	"github.com/moby/moby/v2/daemon/server/httputils"
+	"github.com/moby/moby/v2/daemon/server/router"
 )
 
 // NewRouter creates a new debug router

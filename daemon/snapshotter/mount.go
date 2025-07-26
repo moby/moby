@@ -7,8 +7,8 @@ import (
 
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/internal/mountref"
 	"github.com/moby/locker"
+	"github.com/moby/moby/v2/daemon/internal/mountref"
 	"github.com/moby/sys/mountinfo"
 	"github.com/moby/sys/user"
 )

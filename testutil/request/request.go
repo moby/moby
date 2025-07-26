@@ -13,11 +13,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/testutil/environment"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/v2/pkg/ioutils"
+	"github.com/moby/moby/v2/testutil/environment"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"gotest.tools/v3/assert"

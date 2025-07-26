@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/docker/docker/daemon/logger"
+	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/pkg/errors"
 )
 

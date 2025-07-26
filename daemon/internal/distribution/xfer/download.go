@@ -9,11 +9,11 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/distribution"
-	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/daemon/internal/layer"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/progress"
 	"github.com/moby/go-archive/compression"
+	"github.com/moby/moby/v2/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/internal/layer"
+	"github.com/moby/moby/v2/pkg/ioutils"
+	"github.com/moby/moby/v2/pkg/progress"
 )
 
 const maxDownloadAttempts = 5

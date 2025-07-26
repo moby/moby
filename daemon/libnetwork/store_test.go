@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/config"
-	"github.com/docker/docker/daemon/libnetwork/netlabel"
-	"github.com/docker/docker/daemon/libnetwork/options"
+	"github.com/moby/moby/v2/daemon/libnetwork/config"
+	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
+	"github.com/moby/moby/v2/daemon/libnetwork/options"
 )
 
 func testLocalBackend(t *testing.T, path, bucket string) {

@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/Microsoft/go-winio"
-	"github.com/docker/docker/testutil"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/v2/testutil"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

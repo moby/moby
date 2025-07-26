@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/volume"
+	"github.com/moby/moby/v2/daemon/volume"
 )
 
 var errNoSuchVolume = errors.New("no such volume")

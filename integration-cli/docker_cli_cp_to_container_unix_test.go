@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/docker/docker/integration-cli/cli"
+	"github.com/moby/moby/v2/integration-cli/cli"
 	"gotest.tools/v3/assert"
 )
 

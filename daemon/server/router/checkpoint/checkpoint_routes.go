@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/moby/moby/api/types/checkpoint"
+	"github.com/moby/moby/v2/daemon/server/httputils"
 )
 
 func (cr *checkpointRouter) postContainerCheckpoint(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

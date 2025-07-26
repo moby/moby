@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/internal/cleanups"
-	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
-	"github.com/docker/docker/daemon/libnetwork/internal/nftables"
+	"github.com/moby/moby/v2/daemon/internal/cleanups"
+	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
 	"go.opentelemetry.io/otel"
 )
 

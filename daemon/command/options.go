@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/pkg/opts"
-	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/moby/moby/v2/daemon/config"
+	"github.com/moby/moby/v2/daemon/pkg/opts"
+	"github.com/moby/moby/v2/pkg/homedir"
 	"github.com/spf13/pflag"
 )
 

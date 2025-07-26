@@ -4,7 +4,7 @@ import (
 	"context"
 	"net"
 
-	"github.com/docker/docker/daemon/libnetwork/options"
+	"github.com/moby/moby/v2/daemon/libnetwork/options"
 )
 
 // NetworkPluginEndpointType represents the Endpoint Type used by Plugin system

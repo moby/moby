@@ -8,7 +8,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/docker/docker/daemon/builder"
+	"github.com/moby/moby/v2/daemon/builder"
 )
 
 const (

@@ -15,8 +15,8 @@ import (
 	"github.com/moby/sys/mount"
 	"gotest.tools/v3/assert"
 
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/daemon/graphdriver/graphtest"
+	"github.com/moby/moby/v2/daemon/graphdriver"
+	"github.com/moby/moby/v2/daemon/graphdriver/graphtest"
 )
 
 // This avoids creating a new driver for each test if all tests are run

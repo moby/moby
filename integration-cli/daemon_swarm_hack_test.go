@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/moby/moby/v2/integration-cli/daemon"
 )
 
 func (s *DockerSwarmSuite) getDaemon(t *testing.T, nodeID string) *daemon.Daemon {

@@ -2,4 +2,4 @@
 
 package main
 
-import _ "github.com/docker/docker/cmd/dockerd/winresources"
+import _ "github.com/moby/moby/v2/cmd/dockerd/winresources"

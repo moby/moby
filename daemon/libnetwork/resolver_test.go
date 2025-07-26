@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/miekg/dns"
+	"github.com/moby/moby/v2/internal/testutils/netnsutils"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

@@ -3,7 +3,7 @@
 // to a Go module. This project should be built in GOPATH mode, and not module mode,
 // until the migration is complete and this file becomes 'go.mod.'
 
-module github.com/docker/docker
+module github.com/moby/moby/v2
 
 go 1.23.0
 
@@ -250,6 +250,8 @@ require (
 	sigs.k8s.io/yaml v1.4.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v1.0.0 // indirect
 )
+
+require github.com/docker/docker v28.2.2+incompatible // indirect
 
 exclude (
 	// These dependencies were updated to "master" in some modules we depend on,

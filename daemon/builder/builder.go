@@ -8,10 +8,10 @@ import (
 	"context"
 	"io"
 
-	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )

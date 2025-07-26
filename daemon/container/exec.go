@@ -7,9 +7,9 @@ import (
 
 	"github.com/containerd/containerd/v2/pkg/cio"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/internal/libcontainerd/types"
-	"github.com/docker/docker/daemon/internal/stream"
-	"github.com/docker/docker/daemon/internal/stringid"
+	"github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
+	"github.com/moby/moby/v2/daemon/internal/stream"
+	"github.com/moby/moby/v2/daemon/internal/stringid"
 )
 
 // ExecConfig holds the configurations for execs. The Daemon keeps

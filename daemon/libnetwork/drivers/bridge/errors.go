@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 // errInvalidGateway is returned when the user provided default gateway (v4/v6) is not valid.

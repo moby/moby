@@ -14,11 +14,11 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
-	"github.com/docker/docker/daemon/libnetwork/iptables"
-	"github.com/docker/docker/daemon/libnetwork/ns"
 	"github.com/ishidawataru/sctp"
 	"github.com/moby/ipvs"
+	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
+	"github.com/moby/moby/v2/daemon/libnetwork/iptables"
+	"github.com/moby/moby/v2/daemon/libnetwork/ns"
 	"github.com/vishvananda/netlink/nl"
 )
 

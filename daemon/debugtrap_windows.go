@@ -7,7 +7,7 @@ import (
 	"unsafe"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/pkg/stack"
+	"github.com/moby/moby/v2/pkg/stack"
 	"golang.org/x/sys/windows"
 )
 

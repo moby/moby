@@ -9,8 +9,8 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/nlwrap"
-	"github.com/docker/docker/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
 

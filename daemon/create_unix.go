@@ -10,13 +10,13 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/daemon/internal/idtools"
-	"github.com/docker/docker/daemon/pkg/oci"
-	volumemounts "github.com/docker/docker/daemon/volume/mounts"
-	volumeopts "github.com/docker/docker/daemon/volume/service/opts"
 	containertypes "github.com/moby/moby/api/types/container"
 	mounttypes "github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/internal/idtools"
+	"github.com/moby/moby/v2/daemon/pkg/oci"
+	volumemounts "github.com/moby/moby/v2/daemon/volume/mounts"
+	volumeopts "github.com/moby/moby/v2/daemon/volume/service/opts"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 )

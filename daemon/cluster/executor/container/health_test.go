@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/daemon/events"
 	containertypes "github.com/moby/moby/api/types/container"
 	eventtypes "github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/v2/daemon"
+	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/events"
 	"github.com/moby/swarmkit/v2/api"
 )
 

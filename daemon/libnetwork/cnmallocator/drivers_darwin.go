@@ -1,8 +1,8 @@
 package cnmallocator
 
 import (
-	"github.com/docker/docker/daemon/libnetwork/driverapi"
-	"github.com/docker/docker/daemon/libnetwork/drivers/overlay/ovmanager"
+	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/drivers/overlay/ovmanager"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 )
 

@@ -3,9 +3,9 @@ package images
 import (
 	"context"
 
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/daemon/internal/layer"
+	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/pkg/errors"
 )
 

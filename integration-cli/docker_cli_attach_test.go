@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/integration-cli/cli"
+	"github.com/moby/moby/v2/integration-cli/cli"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
 )

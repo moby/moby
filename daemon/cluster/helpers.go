@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/v2/errdefs"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
 )

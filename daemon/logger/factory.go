@@ -5,9 +5,9 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/go-units"
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/pkg/plugingetter"
 	"github.com/pkg/errors"
 )
 

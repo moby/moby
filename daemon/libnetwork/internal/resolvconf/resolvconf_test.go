@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/internal/sliceutil"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"

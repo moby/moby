@@ -1,8 +1,8 @@
 package container
 
 import (
-	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/docker/docker/daemon/server/router"
+	"github.com/moby/moby/v2/daemon/server/httputils"
+	"github.com/moby/moby/v2/daemon/server/router"
 )
 
 // containerRouter is a router to talk with the container controller

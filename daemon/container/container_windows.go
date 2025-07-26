@@ -6,10 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/errdefs"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 const (

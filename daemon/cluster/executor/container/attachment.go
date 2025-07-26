@@ -3,7 +3,7 @@ package container
 import (
 	"context"
 
-	executorpkg "github.com/docker/docker/daemon/cluster/executor"
+	executorpkg "github.com/moby/moby/v2/daemon/cluster/executor"
 	"github.com/moby/swarmkit/v2/agent/exec"
 	"github.com/moby/swarmkit/v2/api"
 )

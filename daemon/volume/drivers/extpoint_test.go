@@ -3,7 +3,7 @@ package drivers
 import (
 	"testing"
 
-	volumetestutils "github.com/docker/docker/daemon/volume/testutils"
+	volumetestutils "github.com/moby/moby/v2/daemon/volume/testutils"
 )
 
 func TestGetDriver(t *testing.T) {
