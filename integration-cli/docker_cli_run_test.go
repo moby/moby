@@ -639,7 +639,7 @@ func (s *DockerCLIRunSuite) TestRunCreateVolumeWithSymlink(c *testing.T) {
 		c.Fatalf("[run] err: %v, exitcode: %d", err, exitCode)
 	}
 
-	volPath, err := inspectMountSourceField("test-createvolumewithsymlink", "/bar/foo")
+	mnt, err := inspectMountPoint("test-createvolumewithsymlink", "/bar/foo")
 	assert.NilError(c, err)
 
 	_, exitCode, err = dockerCmdWithError("rm", "-v", "test-createvolumewithsymlink")
@@ -647,9 +647,9 @@ func (s *DockerCLIRunSuite) TestRunCreateVolumeWithSymlink(c *testing.T) {
 		c.Fatalf("[rm] err: %v, exitcode: %d", err, exitCode)
 	}
 
-	_, err = os.Stat(volPath)
+	_, err = os.Stat(mnt.Source)
 	if !os.IsNotExist(err) {
-		c.Fatalf("[open] (expecting 'file does not exist' error) err: %v, volPath: %s", err, volPath)
+		c.Fatalf("[open] (expecting 'file does not exist' error) err: %v, mnt.Source: %s", err, mnt.Source)
 	}
 }
 
@@ -2109,26 +2109,26 @@ func (s *DockerCLIRunSuite) TestRunVolumesCleanPaths(c *testing.T) {
 		VOLUME `+prefix+`/foo/`))
 	cli.DockerCmd(c, "run", "-v", prefix+"/foo", "-v", prefix+"/bar/", "--name", "dark_helmet", "run_volumes_clean_paths")
 
-	out, err := inspectMountSourceField("dark_helmet", prefix+slash+"foo"+slash)
+	mnt, err := inspectMountPoint("dark_helmet", prefix+slash+"foo"+slash)
 	if !errors.Is(err, errMountNotFound) {
-		c.Fatalf("Found unexpected volume entry for '%s/foo/' in volumes\n%q", prefix, out)
+		c.Fatalf("Found unexpected volume entry for '%s/foo/' in volumes\n%q", prefix, mnt.Source)
 	}
 
-	out, err = inspectMountSourceField("dark_helmet", prefix+slash+`foo`)
+	mnt, err = inspectMountPoint("dark_helmet", prefix+slash+`foo`)
 	assert.NilError(c, err)
-	if !strings.Contains(strings.ToLower(out), strings.ToLower(testEnv.PlatformDefaults.VolumesConfigPath)) {
-		c.Fatalf("Volume was not defined for %s/foo\n%q", prefix, out)
+	if !strings.Contains(strings.ToLower(mnt.Source), strings.ToLower(testEnv.PlatformDefaults.VolumesConfigPath)) {
+		c.Fatalf("Volume was not defined for %s/foo\n%q", prefix, mnt.Source)
 	}
 
-	out, err = inspectMountSourceField("dark_helmet", prefix+slash+"bar"+slash)
+	mnt, err = inspectMountPoint("dark_helmet", prefix+slash+"bar"+slash)
 	if !errors.Is(err, errMountNotFound) {
-		c.Fatalf("Found unexpected volume entry for '%s/bar/' in volumes\n%q", prefix, out)
+		c.Fatalf("Found unexpected volume entry for '%s/bar/' in volumes\n%q", prefix, mnt.Source)
 	}
 
-	out, err = inspectMountSourceField("dark_helmet", prefix+slash+"bar")
+	mnt, err = inspectMountPoint("dark_helmet", prefix+slash+"bar")
 	assert.NilError(c, err)
-	if !strings.Contains(strings.ToLower(out), strings.ToLower(testEnv.PlatformDefaults.VolumesConfigPath)) {
-		c.Fatalf("Volume was not defined for %s/bar\n%q", prefix, out)
+	if !strings.Contains(strings.ToLower(mnt.Source), strings.ToLower(testEnv.PlatformDefaults.VolumesConfigPath)) {
+		c.Fatalf("Volume was not defined for %s/bar\n%q", prefix, mnt.Source)
 	}
 }
 
@@ -2286,23 +2286,22 @@ func (s *DockerCLIRunSuite) TestRunMountShmMqueueFromHost(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux, NotUserNamespace)
 
 	cli.DockerCmd(c, "run", "-d", "--name", "shmfromhost", "-v", "/dev/shm:/dev/shm", "-v", "/dev/mqueue:/dev/mqueue", "busybox", "sh", "-c", "echo -n test > /dev/shm/test && touch /dev/mqueue/toto && top")
-	defer os.Remove("/dev/mqueue/toto")
-	defer os.Remove("/dev/shm/test")
-	volPath, err := inspectMountSourceField("shmfromhost", "/dev/shm")
+	c.Cleanup(func() {
+		err := os.Remove("/dev/shm/test")
+		assert.Check(c, err == nil || errors.Is(err, os.ErrNotExist))
+		err = os.Remove("/dev/mqueue/toto")
+		assert.Check(c, err == nil || errors.Is(err, os.ErrNotExist))
+	})
+	mnt, err := inspectMountPoint("shmfromhost", "/dev/shm")
 	assert.NilError(c, err)
-	if volPath != "/dev/shm" {
-		c.Fatalf("volumePath should have been /dev/shm, was %s", volPath)
-	}
+	assert.Equal(c, mnt.Source, "/dev/shm")
 
 	out := cli.DockerCmd(c, "run", "--name", "ipchost", "--ipc", "host", "busybox", "cat", "/dev/shm/test").Combined()
-	if out != "test" {
-		c.Fatalf("Output of /dev/shm/test expected test but found: %s", out)
-	}
+	assert.Equal(c, out, "test", "unexpected content for /dev/shm/test")
 
 	// Check that the mq was created
-	if _, err := os.Stat("/dev/mqueue/toto"); err != nil {
-		c.Fatalf("Failed to confirm '/dev/mqueue/toto' presence on host: %s", err.Error())
-	}
+	_, err = os.Stat("/dev/mqueue/toto")
+	assert.NilError(c, err, "failed to confirm '/dev/mqueue/toto' presence on host")
 }
 
 func (s *DockerCLIRunSuite) TestContainerNetworkMode(c *testing.T) {

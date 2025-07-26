@@ -102,15 +102,6 @@ func inspectFieldJSON(t *testing.T, name, field string) string {
 	return out
 }
 
-// Deprecated: use cli.Docker
-func inspectMountSourceField(name, destination string) (string, error) {
-	m, err := inspectMountPoint(name, destination)
-	if err != nil {
-		return "", err
-	}
-	return m.Source, nil
-}
-
 var errMountNotFound = errors.New("mount point not found")
 
 // Deprecated: use cli.Docker

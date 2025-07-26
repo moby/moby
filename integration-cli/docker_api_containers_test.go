@@ -1014,17 +1014,25 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveLinks(c *testing.T) {
 func (s *DockerAPISuite) TestContainerAPIDeleteRemoveVolume(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
 
-	vol := "/testvolume"
+	testVol := "/testvolume"
 	if testEnv.DaemonInfo.OSType == "windows" {
-		vol = `c:\testvolume`
+		testVol = `c:\testvolume`
 	}
 
-	id := runSleepingContainer(c, "-v", vol)
+	id := runSleepingContainer(c, "-v", testVol)
 	cli.WaitRun(c, id)
 
-	source, err := inspectMountSourceField(id, vol)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	_, err = os.Stat(source)
+	defer apiClient.Close()
+
+	ctrInspect, err := apiClient.ContainerInspect(testutil.GetContext(c), id)
+	assert.NilError(c, err)
+	assert.Assert(c, is.Len(ctrInspect.Mounts, 1), "expected to have 1 mount")
+	mnt := ctrInspect.Mounts[0]
+	assert.Equal(c, mnt.Destination, testVol)
+
+	_, err = os.Stat(mnt.Source)
 	assert.NilError(c, err)
 
 	removeOptions := container.RemoveOptions{
@@ -1032,14 +1040,10 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveVolume(c *testing.T) {
 		RemoveVolumes: true,
 	}
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
 	err = apiClient.ContainerRemove(testutil.GetContext(c), id, removeOptions)
 	assert.NilError(c, err)
 
-	_, err = os.Stat(source)
+	_, err = os.Stat(mnt.Source)
 	assert.Assert(c, os.IsNotExist(err), "expected to get ErrNotExist error, got %v", err)
 }
 
