@@ -2941,10 +2941,11 @@ func (s *DockerCLIRunSuite) TestRunNetworkFilesBindMount(c *testing.T) {
 	// Not applicable on Windows as uses Unix specific functionality
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
-	expected := "test123"
+	tmpDir := c.TempDir()
+	filename := filepath.Join(tmpDir, "testfile")
 
-	filename := createTmpFile(c, expected)
-	defer os.Remove(filename)
+	const expected = "test123"
+	assert.NilError(c, os.WriteFile(filename, []byte(expected), 0o644))
 
 	// #nosec G302 -- for user namespaced test runs, the temp file must be accessible to unprivileged root
 	if err := os.Chmod(filename, 0o646); err != nil {
@@ -2965,8 +2966,9 @@ func (s *DockerCLIRunSuite) TestRunNetworkFilesBindMountRO(c *testing.T) {
 	// Not applicable on Windows as uses Unix specific functionality
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
-	filename := createTmpFile(c, "test123")
-	defer os.Remove(filename)
+	tmpDir := c.TempDir()
+	filename := filepath.Join(tmpDir, "testfile")
+	assert.NilError(c, os.WriteFile(filename, []byte("test123"), 0o644))
 
 	// #nosec G302 -- for user namespaced test runs, the temp file must be accessible to unprivileged root
 	if err := os.Chmod(filename, 0o646); err != nil {
@@ -2987,8 +2989,9 @@ func (s *DockerCLIRunSuite) TestRunNetworkFilesBindMountROFilesystem(c *testing.
 	// Not applicable on Windows as uses Unix specific functionality
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux, UserNamespaceROMount)
 
-	filename := createTmpFile(c, "test123")
-	defer os.Remove(filename)
+	tmpDir := c.TempDir()
+	filename := filepath.Join(tmpDir, "testfile")
+	assert.NilError(c, os.WriteFile(filename, []byte("test123"), 0o644))
 
 	// #nosec G302 -- for user namespaced test runs, the temp file must be accessible to unprivileged root
 	if err := os.Chmod(filename, 0o646); err != nil {

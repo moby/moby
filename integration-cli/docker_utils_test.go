@@ -271,19 +271,6 @@ func appendBaseEnv(isTLS bool, env ...string) []string {
 	return env
 }
 
-func createTmpFile(t *testing.T, content string) string {
-	t.Helper()
-	f, err := os.CreateTemp("", "testfile")
-	assert.NilError(t, err)
-
-	filename := f.Name()
-
-	err = os.WriteFile(filename, []byte(content), 0o644)
-	assert.NilError(t, err)
-
-	return filename
-}
-
 // waitInspect will wait for the specified container to have the specified string
 // in the inspect output. It will wait until the specified timeout (in seconds)
 // is reached.
