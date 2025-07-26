@@ -87,11 +87,6 @@ func inspectFilter(name, filter string) (string, error) {
 }
 
 // Deprecated: use cli.Docker
-func inspectFieldWithError(name, field string) (string, error) {
-	return inspectFilter(name, "."+field)
-}
-
-// Deprecated: use cli.Docker
 func inspectField(t *testing.T, name, field string) string {
 	t.Helper()
 	out, err := inspectFilter(name, "."+field)
@@ -105,23 +100,6 @@ func inspectFieldJSON(t *testing.T, name, field string) string {
 	out, err := inspectFilter(name, "json ."+field)
 	assert.NilError(t, err)
 	return out
-}
-
-// Deprecated: use cli.Docker
-func inspectFieldMap(t *testing.T, name, path, field string) string {
-	t.Helper()
-	out, err := inspectFilter(name, fmt.Sprintf("index .%s %q", path, field))
-	assert.NilError(t, err)
-	return out
-}
-
-// Deprecated: use cli.Docker
-func inspectMountSourceField(name, destination string) (string, error) {
-	m, err := inspectMountPoint(name, destination)
-	if err != nil {
-		return "", err
-	}
-	return m.Source, nil
 }
 
 var errMountNotFound = errors.New("mount point not found")
@@ -149,7 +127,7 @@ func inspectMountPoint(name, destination string) (container.MountPoint, error) {
 
 func getIDByName(t *testing.T, name string) string {
 	t.Helper()
-	id, err := inspectFieldWithError(name, "Id")
+	id, err := inspectFilter(name, ".Id")
 	assert.NilError(t, err)
 	return id
 }
@@ -157,7 +135,7 @@ func getIDByName(t *testing.T, name string) string {
 // Deprecated: use cli.Docker
 func buildImageSuccessfully(t *testing.T, name string, cmdOperators ...cli.CmdOperator) {
 	t.Helper()
-	buildImage(name, cmdOperators...).Assert(t, icmd.Success)
+	cli.Docker(cli.Args("build", "-t", name), cmdOperators...).Assert(t, icmd.Success)
 }
 
 // Deprecated: use cli.Docker
@@ -245,11 +223,8 @@ func daemonTime(t *testing.T) time.Time {
 // It return the time formatted how the client sends timestamps to the server.
 func daemonUnixTime(t *testing.T) string {
 	t.Helper()
-	return parseEventTime(daemonTime(t))
-}
-
-func parseEventTime(t time.Time) string {
-	return fmt.Sprintf("%d.%09d", t.Unix(), int64(t.Nanosecond()))
+	dt := daemonTime(t)
+	return fmt.Sprintf("%d.%09d", dt.Unix(), int64(dt.Nanosecond()))
 }
 
 // appendBaseEnv appends the minimum set of environment variables to exec the
@@ -277,19 +252,6 @@ func appendBaseEnv(isTLS bool, env ...string) []string {
 		}
 	}
 	return env
-}
-
-func createTmpFile(t *testing.T, content string) string {
-	t.Helper()
-	f, err := os.CreateTemp("", "testfile")
-	assert.NilError(t, err)
-
-	filename := f.Name()
-
-	err = os.WriteFile(filename, []byte(content), 0o644)
-	assert.NilError(t, err)
-
-	return filename
 }
 
 // waitInspect will wait for the specified container to have the specified string

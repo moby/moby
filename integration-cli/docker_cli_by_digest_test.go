@@ -159,7 +159,7 @@ func (s *DockerRegistrySuite) TestRemoveImageByDigest(t *testing.T) {
 	assert.NilError(t, err, "unexpected error deleting image")
 
 	// try to inspect again - it should error this time
-	_, err = inspectFieldWithError(imageReference, "Id")
+	_, err = inspectFilter(imageReference, ".Id")
 	// unexpected nil err trying to inspect what should be a non-existent image
 	assert.ErrorContains(t, err, "No such object")
 }
@@ -441,7 +441,7 @@ func (s *DockerRegistrySuite) TestDeleteImageByIDOnlyPulledByDigest(t *testing.T
 
 	cli.DockerCmd(t, "rmi", imageID)
 
-	_, err = inspectFieldWithError(imageID, "Id")
+	_, err = inspectFilter(imageID, ".Id")
 	assert.ErrorContains(t, err, "", "image should have been deleted")
 }
 
@@ -468,7 +468,7 @@ func (s *DockerRegistrySuite) TestDeleteImageWithDigestAndTag(t *testing.T) {
 	cli.DockerCmd(t, "rmi", repoTag)
 
 	// rmi should have deleted the tag, the digest reference, and the image itself
-	_, err = inspectFieldWithError(imageID, "Id")
+	_, err = inspectFilter(imageID, ".Id")
 	assert.ErrorContains(t, err, "", "image should have been deleted")
 }
 
@@ -493,16 +493,16 @@ func (s *DockerRegistrySuite) TestDeleteImageWithDigestAndMultiRepoTag(t *testin
 
 	// rmi should have deleted repoTag and image reference, but left repoTag2
 	inspectField(t, repoTag2, "Id")
-	_, err = inspectFieldWithError(imageReference, "Id")
+	_, err = inspectFilter(imageReference, ".Id")
 	assert.ErrorContains(t, err, "", "image digest reference should have been removed")
 
-	_, err = inspectFieldWithError(repoTag, "Id")
+	_, err = inspectFilter(repoTag, ".Id")
 	assert.ErrorContains(t, err, "", "image tag reference should have been removed")
 
 	cli.DockerCmd(t, "rmi", repoTag2)
 
 	// rmi should have deleted the tag, the digest reference, and the image itself
-	_, err = inspectFieldWithError(imageID, "Id")
+	_, err = inspectFilter(imageID, ".Id")
 	assert.ErrorContains(t, err, "", "image should have been deleted")
 }
 

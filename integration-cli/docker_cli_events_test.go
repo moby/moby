@@ -690,7 +690,11 @@ func (s *DockerCLIEventSuite) TestEventsSinceInTheFuture(c *testing.T) {
 
 	since := daemonTime(c)
 	until := since.Add(time.Duration(-24) * time.Hour)
-	out, _, err := dockerCmdWithError("events", "--filter", "image=busybox", "--since", parseEventTime(since), "--until", parseEventTime(until))
+	out, _, err := dockerCmdWithError("events",
+		"--filter", "image=busybox",
+		"--since", fmt.Sprintf("%d.%09d", since.Unix(), int64(since.Nanosecond())),
+		"--until", fmt.Sprintf("%d.%09d", until.Unix(), int64(until.Nanosecond())),
+	)
 
 	assert.ErrorContains(c, err, "")
 	assert.Assert(c, is.Contains(out, "cannot be after `until`"))

@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/docker/docker/testutil"
@@ -14,6 +13,7 @@ import (
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/swarm"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
 
@@ -24,8 +24,8 @@ func TestPingCacheHeaders(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, res.StatusCode, http.StatusOK)
 
-	assert.Equal(t, hdr(res, "Cache-Control"), "no-cache, no-store, must-revalidate")
-	assert.Equal(t, hdr(res, "Pragma"), "no-cache")
+	assert.Assert(t, is.DeepEqual(res.Header.Values("Cache-Control"), []string{"no-cache, no-store, must-revalidate"}))
+	assert.Assert(t, is.DeepEqual(res.Header.Values("Pragma"), []string{"no-cache"}))
 }
 
 func TestPingGet(t *testing.T) {
@@ -38,7 +38,7 @@ func TestPingGet(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, string(b), "OK")
 	assert.Equal(t, res.StatusCode, http.StatusOK)
-	assert.Check(t, hdr(res, "Api-Version") != "")
+	assert.Check(t, res.Header.Get("Api-Version") != "")
 }
 
 func TestPingHead(t *testing.T) {
@@ -51,7 +51,7 @@ func TestPingHead(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, 0, len(b))
 	assert.Equal(t, res.StatusCode, http.StatusOK)
-	assert.Check(t, hdr(res, "Api-Version") != "")
+	assert.Check(t, res.Header.Get("Api-Version") != "")
 }
 
 func TestPingSwarmHeader(t *testing.T) {
@@ -133,12 +133,4 @@ func TestPingBuilderHeader(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Equal(t, p.BuilderVersion, expected)
 	})
-}
-
-func hdr(res *http.Response, name string) string {
-	val, ok := res.Header[http.CanonicalHeaderKey(name)]
-	if !ok || len(val) == 0 {
-		return ""
-	}
-	return strings.Join(val, ", ")
 }

@@ -22,7 +22,7 @@ func cleanupMount(t testing.TB, d *Daemon) {
 
 // SignalDaemonDump sends a signal to the daemon to write a dump file
 func SignalDaemonDump(pid int) {
-	unix.Kill(pid, unix.SIGQUIT)
+	_ = unix.Kill(pid, unix.SIGQUIT)
 }
 
 func signalDaemonReload(pid int) error {

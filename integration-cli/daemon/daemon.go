@@ -8,6 +8,9 @@ import (
 	"time"
 
 	"github.com/docker/docker/testutil/daemon"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/stringid"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
@@ -83,12 +86,17 @@ func (d *Daemon) inspectFieldWithError(name, field string) (string, error) {
 func (d *Daemon) CheckActiveContainerCount(ctx context.Context) func(t *testing.T) (interface{}, string) {
 	return func(t *testing.T) (interface{}, string) {
 		t.Helper()
-		out, err := d.Cmd("ps", "-q")
+		apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithHost(d.Sock()))
 		assert.NilError(t, err)
-		if strings.TrimSpace(out) == "" {
-			return 0, ""
+
+		ctrs, err := apiClient.ContainerList(ctx, container.ListOptions{})
+		_ = apiClient.Close()
+		assert.NilError(t, err)
+		var out strings.Builder
+		for _, ctr := range ctrs {
+			out.WriteString(stringid.TruncateID(ctr.ID) + "\n")
 		}
-		return len(strings.Split(strings.TrimSpace(out), "\n")), fmt.Sprintf("output: %q", out)
+		return len(ctrs), out.String()
 	}
 }
 

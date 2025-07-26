@@ -76,7 +76,7 @@ func (s *DockerCLIRestartSuite) TestRestartWithVolumes(c *testing.T) {
 	out = strings.Trim(out, " \n\r")
 	assert.Equal(c, out, "1")
 
-	source, err := inspectMountSourceField(cID, prefix+slash+"test")
+	mnt, err := inspectMountPoint(cID, prefix+slash+"test")
 	assert.NilError(c, err)
 
 	cli.DockerCmd(c, "restart", cID)
@@ -86,9 +86,9 @@ func (s *DockerCLIRestartSuite) TestRestartWithVolumes(c *testing.T) {
 	out = strings.Trim(out, " \n\r")
 	assert.Equal(c, out, "1")
 
-	sourceAfterRestart, err := inspectMountSourceField(cID, prefix+slash+"test")
+	mountAfterRestart, err := inspectMountPoint(cID, prefix+slash+"test")
 	assert.NilError(c, err)
-	assert.Equal(c, source, sourceAfterRestart)
+	assert.Equal(c, mnt.Source, mountAfterRestart.Source)
 }
 
 func (s *DockerCLIRestartSuite) TestRestartDisconnectedContainer(c *testing.T) {

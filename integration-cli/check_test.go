@@ -422,19 +422,18 @@ func (s *DockerSuite) OnTimeout(t *testing.T) {
 	if testEnv.IsRemoteDaemon() {
 		return
 	}
-	path := filepath.Join(os.Getenv("DEST"), "docker.pid")
-	b, err := os.ReadFile(path)
+	pidFile := filepath.Join(os.Getenv("DEST"), "docker.pid")
+	b, err := os.ReadFile(pidFile)
 	if err != nil {
-		t.Fatalf("Failed to get daemon PID from %s\n", path)
+		t.Fatalf("Failed to get daemon PID from %s\n", pidFile)
 	}
 
 	rawPid, err := strconv.ParseInt(string(b), 10, 32)
 	if err != nil {
-		t.Fatalf("Failed to parse pid from %s: %s\n", path, err)
+		t.Fatalf("Failed to parse pid from %s: %s\n", pidFile, err)
 	}
 
-	daemonPid := int(rawPid)
-	if daemonPid > 0 {
+	if daemonPid := int(rawPid); daemonPid > 0 {
 		testdaemon.SignalDaemonDump(daemonPid)
 	}
 }
