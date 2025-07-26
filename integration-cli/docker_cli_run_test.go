@@ -3080,7 +3080,7 @@ func (s *DockerCLIRunSuite) TestRunCreateContainerFailedCleanUp(c *testing.T) {
 	_, _, err := dockerCmdWithError("run", "--name", name, "--link", "nothing:nothing", "busybox")
 	assert.Assert(c, err != nil, "Expected docker run to fail!")
 
-	containerID, err := inspectFieldWithError(name, "Id")
+	containerID, err := inspectFilter(name, ".Id")
 	assert.Assert(c, err != nil, "Expected not to have this container: %s!", containerID)
 	assert.Equal(c, containerID, "", fmt.Sprintf("Expected not to have this container: %s!", containerID))
 }

@@ -87,11 +87,6 @@ func inspectFilter(name, filter string) (string, error) {
 }
 
 // Deprecated: use cli.Docker
-func inspectFieldWithError(name, field string) (string, error) {
-	return inspectFilter(name, "."+field)
-}
-
-// Deprecated: use cli.Docker
 func inspectField(t *testing.T, name, field string) string {
 	t.Helper()
 	out, err := inspectFilter(name, "."+field)
@@ -141,7 +136,7 @@ func inspectMountPoint(name, destination string) (container.MountPoint, error) {
 
 func getIDByName(t *testing.T, name string) string {
 	t.Helper()
-	id, err := inspectFieldWithError(name, "Id")
+	id, err := inspectFilter(name, ".Id")
 	assert.NilError(t, err)
 	return id
 }
