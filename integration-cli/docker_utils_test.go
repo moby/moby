@@ -223,11 +223,8 @@ func daemonTime(t *testing.T) time.Time {
 // It return the time formatted how the client sends timestamps to the server.
 func daemonUnixTime(t *testing.T) string {
 	t.Helper()
-	return parseEventTime(daemonTime(t))
-}
-
-func parseEventTime(t time.Time) string {
-	return fmt.Sprintf("%d.%09d", t.Unix(), int64(t.Nanosecond()))
+	dt := daemonTime(t)
+	return fmt.Sprintf("%d.%09d", dt.Unix(), int64(dt.Nanosecond()))
 }
 
 // appendBaseEnv appends the minimum set of environment variables to exec the
