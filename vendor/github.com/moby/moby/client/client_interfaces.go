@@ -85,8 +85,8 @@ type ContainerAPIClient interface {
 	ContainerResize(ctx context.Context, container string, options container.ResizeOptions) error
 	ContainerRestart(ctx context.Context, container string, options container.StopOptions) error
 	ContainerStatPath(ctx context.Context, container, path string) (container.PathStat, error)
-	ContainerStats(ctx context.Context, container string, stream bool) (container.StatsResponseReader, error)
-	ContainerStatsOneShot(ctx context.Context, container string) (container.StatsResponseReader, error)
+	ContainerStats(ctx context.Context, container string, stream bool) (StatsResponseReader, error)
+	ContainerStatsOneShot(ctx context.Context, container string) (StatsResponseReader, error)
 	ContainerStart(ctx context.Context, container string, options container.StartOptions) error
 	ContainerStop(ctx context.Context, container string, options container.StopOptions) error
 	ContainerTop(ctx context.Context, container string, arguments []string) (container.TopResponse, error)

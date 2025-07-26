@@ -112,10 +112,10 @@ func (s *DockerAPISuite) TestContainerAPIGetExport(c *testing.T) {
 	found := false
 	for tarReader := tar.NewReader(body); ; {
 		h, err := tarReader.Next()
-		if err != nil && err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
-		if h.Name == "test" {
+		if h != nil && h.Name == "test" {
 			found = true
 			break
 		}
@@ -151,7 +151,7 @@ func (s *DockerAPISuite) TestGetContainerStats(c *testing.T) {
 	runSleepingContainer(c, "--name", name)
 
 	type b struct {
-		stats container.StatsResponseReader
+		stats client.StatsResponseReader
 		err   error
 	}
 
@@ -177,10 +177,11 @@ func (s *DockerAPISuite) TestGetContainerStats(c *testing.T) {
 		c.Fatal("stream was not closed after container was removed")
 	case sr := <-bc:
 		dec := json.NewDecoder(sr.stats.Body)
-		defer sr.stats.Body.Close()
 		var s *container.StatsResponse
 		// decode only one object from the stream
-		assert.NilError(c, dec.Decode(&s))
+		err := dec.Decode(&s)
+		_ = sr.stats.Body.Close()
+		assert.NilError(c, err)
 	}
 }
 
@@ -255,7 +256,7 @@ func (s *DockerAPISuite) TestGetContainerStatsStream(c *testing.T) {
 	runSleepingContainer(c, "--name", name)
 
 	type b struct {
-		stats container.StatsResponseReader
+		stats client.StatsResponseReader
 		err   error
 	}
 
@@ -296,7 +297,7 @@ func (s *DockerAPISuite) TestGetContainerStatsNoStream(c *testing.T) {
 	runSleepingContainer(c, "--name", name)
 
 	type b struct {
-		stats container.StatsResponseReader
+		stats client.StatsResponseReader
 		err   error
 	}
 
@@ -1332,7 +1333,7 @@ func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) 
 	cli.WaitRun(c, name)
 
 	type b struct {
-		stats container.StatsResponseReader
+		stats client.StatsResponseReader
 		err   error
 	}
 	bc := make(chan b, 1)
