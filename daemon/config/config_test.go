@@ -33,14 +33,19 @@ func makeConfigFile(t *testing.T, content string) string {
 }
 
 func TestDaemonConfigurationNotFound(t *testing.T) {
-	_, err := MergeDaemonConfigurations(&Config{}, nil, "/tmp/foo-bar-baz-docker")
+	config, err := New()
+	assert.NilError(t, err)
+
+	_, err = MergeDaemonConfigurations(config, nil, "/tmp/foo-bar-baz-docker")
 	assert.Check(t, os.IsNotExist(err), "got: %[1]T: %[1]v", err)
 }
 
 func TestDaemonBrokenConfiguration(t *testing.T) {
 	configFile := makeConfigFile(t, `{"Debug": tru`)
+	config, err := New()
+	assert.NilError(t, err)
 
-	_, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
+	_, err = MergeDaemonConfigurations(config, nil, configFile)
 	assert.ErrorContains(t, err, `invalid character ' ' in literal true`)
 }
 
@@ -75,7 +80,9 @@ func TestDaemonConfigurationUnicodeVariations(t *testing.T) {
 			encodedJson, err := tc.encoding.NewEncoder().String(jsonData)
 			assert.NilError(t, err)
 			configFile := makeConfigFile(t, encodedJson)
-			_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
+			config, err := New()
+			assert.NilError(t, err)
+			_, err = MergeDaemonConfigurations(config, nil, configFile)
 			assert.NilError(t, err)
 		})
 	}
@@ -85,7 +92,9 @@ func TestDaemonConfigurationUnicodeVariations(t *testing.T) {
 // is provided.
 func TestDaemonConfigurationInvalidUnicode(t *testing.T) {
 	configFileBOM := makeConfigFile(t, "\xef\xbb\xbf{\"debug\": true}\xff")
-	_, err := MergeDaemonConfigurations(&Config{}, nil, configFileBOM)
+	config, err := New()
+	assert.NilError(t, err)
+	_, err = MergeDaemonConfigurations(config, nil, configFileBOM)
 	assert.ErrorIs(t, err, encoding.ErrInvalidUTF8)
 
 	configFileNoBOM := makeConfigFile(t, "{\"debug\": true}\xff")
@@ -120,7 +129,9 @@ func TestDaemonConfigurationMergeConflicts(t *testing.T) {
 	flags.Bool("debug", false, "")
 	assert.Check(t, flags.Set("debug", "false"))
 
-	_, err := MergeDaemonConfigurations(&Config{}, flags, configFile)
+	config, err := New()
+	assert.NilError(t, err)
+	_, err = MergeDaemonConfigurations(config, flags, configFile)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -132,14 +143,18 @@ func TestDaemonConfigurationMergeConflicts(t *testing.T) {
 func TestDaemonConfigurationMergeConcurrent(t *testing.T) {
 	configFile := makeConfigFile(t, `{"max-concurrent-downloads": 1}`)
 
-	_, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
+	config, err := New()
+	assert.NilError(t, err)
+	_, err = MergeDaemonConfigurations(config, nil, configFile)
 	assert.NilError(t, err)
 }
 
 func TestDaemonConfigurationMergeConcurrentError(t *testing.T) {
 	configFile := makeConfigFile(t, `{"max-concurrent-downloads": -1}`)
 
-	_, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
+	config, err := New()
+	assert.NilError(t, err)
+	_, err = MergeDaemonConfigurations(config, nil, configFile)
 	assert.ErrorContains(t, err, `invalid max concurrent downloads: -1`)
 }
 
@@ -150,7 +165,9 @@ func TestDaemonConfigurationMergeConflictsWithInnerStructs(t *testing.T) {
 	flags.String("tlscacert", "", "")
 	assert.Check(t, flags.Set("tlscacert", "~/.docker/ca.pem"))
 
-	_, err := MergeDaemonConfigurations(&Config{}, flags, configFile)
+	config, err := New()
+	assert.NilError(t, err)
+	_, err = MergeDaemonConfigurations(config, flags, configFile)
 	assert.ErrorContains(t, err, `the following directives are specified both as a flag and in the configuration file: tlscacert`)
 }
 
@@ -162,33 +179,36 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 	expected := []*ipamutils.NetworkToSplit{{Base: netip.MustParsePrefix("10.123.0.0/16"), Size: 24}}
 
 	t.Run("empty config file", func(t *testing.T) {
-		conf := Config{}
+		conf, err := New()
+		assert.NilError(t, err)
 		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
 		assert.Check(t, flags.Set("default-address-pool", "base=10.123.0.0/16,size=24"))
 
-		config, err := MergeDaemonConfigurations(&conf, flags, emptyConfigFile)
+		config, err := MergeDaemonConfigurations(conf, flags, emptyConfigFile)
 		assert.NilError(t, err)
 		assert.DeepEqual(t, config.DefaultAddressPools.Value(), expected, cmpopts.EquateComparable(netip.Prefix{}))
 	})
 
 	t.Run("config file", func(t *testing.T) {
-		conf := Config{}
+		conf, err := New()
+		assert.NilError(t, err)
 		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
 
-		config, err := MergeDaemonConfigurations(&conf, flags, configFile)
+		config, err := MergeDaemonConfigurations(conf, flags, configFile)
 		assert.NilError(t, err)
 		assert.DeepEqual(t, config.DefaultAddressPools.Value(), expected, cmpopts.EquateComparable(netip.Prefix{}))
 	})
 
 	t.Run("with conflicting options", func(t *testing.T) {
-		conf := Config{}
+		conf, err := New()
+		assert.NilError(t, err)
 		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
 		assert.Check(t, flags.Set("default-address-pool", "base=10.123.0.0/16,size=24"))
 
-		_, err := MergeDaemonConfigurations(&conf, flags, configFile)
+		_, err = MergeDaemonConfigurations(conf, flags, configFile)
 		assert.ErrorContains(t, err, "the following directives are specified both as a flag and in the configuration file")
 		assert.ErrorContains(t, err, "default-address-pools")
 	})
@@ -305,19 +325,18 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			},
 			expectedErr: "invalid max download attempts: -10",
 		},
-		// TODO(thaJeztah) temporarily excluding this test as it assumes defaults are set before validating and applying updated configs
-		/*
-			{
-				name:  "zero max-download-attempts",
-				field: "MaxDownloadAttempts",
-				config: &Config{
-					CommonConfig: CommonConfig{
-						MaxDownloadAttempts: 0,
-					},
+
+		{
+			name:  "zero max-download-attempts",
+			field: "MaxDownloadAttempts",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					MaxDownloadAttempts: 0,
 				},
-				expectedErr: "invalid max download attempts: 0",
 			},
-		*/
+			expectedErr: "invalid max download attempts: 0",
+		},
+
 		{
 			name: "negative network-diagnostic-port",
 			config: &Config{
@@ -669,8 +688,10 @@ func TestConfigInvalidDNS(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			var cfg Config
-			err := json.Unmarshal([]byte(tc.input), &cfg)
+			var cfg *Config
+			cfg, err := New()
+			assert.NilError(t, err)
+			err = json.Unmarshal([]byte(tc.input), &cfg)
 			assert.Check(t, is.Error(err, tc.expectedErr))
 		})
 	}
