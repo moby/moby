@@ -38,24 +38,15 @@ func registerDeviceDriver(name string, d *deviceDriver) {
 }
 
 func (daemon *Daemon) handleDevice(req container.DeviceRequest, spec *specs.Spec) error {
-	if req.Driver == "" {
-		for _, dd := range deviceDrivers {
-			if selected := dd.capset.Match(req.Capabilities); selected != nil {
-				return dd.updateSpec(spec, &deviceInstance{req: req, selectedCaps: selected})
-			}
-		}
-	} else if dd := deviceDrivers[req.Driver]; dd != nil {
-		// We add a special case for the CDI driver here as the cdi driver does
-		// not distinguish between capabilities.
-		// Furthermore, the "OR" and "AND" matching logic for the capability
-		// sets requires that a dummy capability be specified when constructing a
-		// DeviceRequest.
-		// This workaround can be removed once these device driver are
-		// refactored to be plugins, with each driver implementing its own
-		// matching logic, for example.
-		if req.Driver == "cdi" {
-			return dd.updateSpec(spec, &deviceInstance{req: req})
-		}
+	// If the requested driver is registered we update the spec using this
+	// driver.
+	if dd := deviceDrivers[req.Driver]; dd != nil {
+		return dd.updateSpec(spec, &deviceInstance{req: req})
+	}
+
+	// If no matching friver can be found, we fallback to requesting based on
+	// capabilities accross all drivers.
+	for _, dd := range deviceDrivers {
 		if selected := dd.capset.Match(req.Capabilities); selected != nil {
 			return dd.updateSpec(spec, &deviceInstance{req: req, selectedCaps: selected})
 		}
