@@ -1,7 +1,6 @@
 package container
 
 import (
-	"io"
 	"os"
 	"time"
 
@@ -33,18 +32,6 @@ type PathStat struct {
 type CopyToContainerOptions struct {
 	AllowOverwriteDirWithFile bool
 	CopyUIDGID                bool
-}
-
-// StatsResponseReader wraps an io.ReadCloser to read (a stream of) stats
-// for a container, as produced by the GET "/stats" endpoint.
-//
-// The OSType field is set to the server's platform to allow
-// platform-specific handling of the response.
-//
-// TODO(thaJeztah): remove this wrapper, and make OSType part of [StatsResponse].
-type StatsResponseReader struct {
-	Body   io.ReadCloser `json:"body"`
-	OSType string        `json:"ostype"`
 }
 
 // MountPoint represents a mount point configuration inside the container.

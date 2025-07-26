@@ -151,7 +151,7 @@ func (s *DockerAPISuite) TestGetContainerStats(c *testing.T) {
 	runSleepingContainer(c, "--name", name)
 
 	type b struct {
-		stats container.StatsResponseReader
+		stats client.StatsResponseReader
 		err   error
 	}
 
@@ -255,7 +255,7 @@ func (s *DockerAPISuite) TestGetContainerStatsStream(c *testing.T) {
 	runSleepingContainer(c, "--name", name)
 
 	type b struct {
-		stats container.StatsResponseReader
+		stats client.StatsResponseReader
 		err   error
 	}
 
@@ -296,7 +296,7 @@ func (s *DockerAPISuite) TestGetContainerStatsNoStream(c *testing.T) {
 	runSleepingContainer(c, "--name", name)
 
 	type b struct {
-		stats container.StatsResponseReader
+		stats client.StatsResponseReader
 		err   error
 	}
 
@@ -1332,7 +1332,7 @@ func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) 
 	cli.WaitRun(c, name)
 
 	type b struct {
-		stats container.StatsResponseReader
+		stats client.StatsResponseReader
 		err   error
 	}
 	bc := make(chan b, 1)
