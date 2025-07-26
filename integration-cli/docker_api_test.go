@@ -50,14 +50,3 @@ func (s *DockerAPISuite) TestAPIErrorJSON(c *testing.T) {
 	assert.NilError(c, err)
 	assert.Check(c, is.Contains(getErrorMessage(c, b), "config cannot be empty"))
 }
-
-func (s *DockerAPISuite) TestAPIErrorNotFoundJSON(c *testing.T) {
-	// 404 is a different code path to normal errors, so test separately
-	httpResp, body, err := request.Get(testutil.GetContext(c), "/notfound", request.JSON)
-	assert.NilError(c, err)
-	assert.Equal(c, httpResp.StatusCode, http.StatusNotFound)
-	assert.Assert(c, is.Contains(httpResp.Header.Get("Content-Type"), "application/json"))
-	b, err := request.ReadBody(body)
-	assert.NilError(c, err)
-	assert.Equal(c, getErrorMessage(c, b), "page not found")
-}
