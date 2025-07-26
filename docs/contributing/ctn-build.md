@@ -1,3 +1,5 @@
+# Containerized Build and Cross Compilation
+
 The `Dockerfile` supports building and cross compiling docker daemon and extra
 tools using [Docker Buildx](https://github.com/docker/buildx) and [BuildKit](https://github.com/moby/buildkit).
 A [bake definition](https://docs.docker.com/build/bake/file-definition/) named
@@ -43,3 +45,7 @@ docker buildx bake bin-image --set "*.tags=foo/moby-bin:latest"
 # multi-platform images must be directly pushed to a registry
 docker buildx bake bin-image-cross --set "*.tags=foo/moby-bin:latest" --push
 ```
+
+## Where to go next
+
+Next, check out [the test framework](test.md).

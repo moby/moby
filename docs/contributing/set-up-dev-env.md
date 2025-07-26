@@ -1,4 +1,4 @@
-### Work with a development container
+# Work with a development container
 
 In this section, you learn to develop like the Moby Engine core team.
 The `moby/moby` repository includes a `Dockerfile` at its root. This file defines
@@ -363,8 +363,9 @@ change, you might repeat or iterate through this flow several times.
 
 ## Where to go next
 
-Congratulations, you have successfully achieved Docker inception. You've had a
-small experience of the development process. You've set up your development
-environment and verified almost all the essential processes you need to
-contribute. Of course, before you start contributing, [you'll need to learn one
-more piece of the development process, the test framework](test.md).
+Congratulations, you have successfully achieved Docker inception. You've had a small experience of the development process. You've set up your development environment and verified almost all the essential processes you need to contribute.
+
+For information about the containerized build and cross compilation [check out this part of the guide](ctn-build.md).
+
+Else, before you start contributing, you'll need to learn one
+more piece of the development process, [the test framework](test.md).

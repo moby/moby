@@ -1,4 +1,4 @@
-### Configure project for IDE (optional)
+# Configure project for IDE (optional)
 
 In this section you will configure the project in order to make use of [GoLand](https://www.jetbrains.com/go)
 integrated development environment's (IDE) features like syntax highlighting and code completion.
@@ -15,13 +15,13 @@ Move the previously cloned repository or clone it again to the `<GOPATH>/src/git
 Open the `<GOPATH>/src/github.com/docker/docker` directory in GoLand.
 Then open the settings (Ctrl+Alt+S) and change two settings:
 
-1. Disable Go modules integration
+1. Disable Go modules integration:
 
-![Disabling Go modules integration](images/ide_go_modules_integration.png)
+    ![Disabling Go modules integration](images/ide_go_modules_integration.png)
 
-3. Disable using system environment's GOPATH
+2. Disable using system environment's GOPATH:
 
-![Disabling using system environment's GOPATH](images/ide_system_environment_gopath.png)
+    ![Disabling using system environment's GOPATH](images/ide_system_environment_gopath.png)
 
 ### Custom GOPATH
 
@@ -33,4 +33,5 @@ it has to be configured in the settings as well:
 ## Where to go next
 
 Congratulations, you have finished configuring project to work with the IDE. 
-In the next section you'll [learn how to set up and work in a Moby development container](set-up-dev-env.md).
+
+In the next section you'll [learn how to set up and configure Git for contributing to Moby](set-up-git.md).
