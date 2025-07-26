@@ -65,7 +65,7 @@ type ExecBackend interface {
 	// ContainerStart starts a new container
 	ContainerStart(ctx context.Context, containerID string, checkpoint string, checkpointDir string) error
 	// ContainerWait stops processing until the given container is stopped.
-	ContainerWait(ctx context.Context, name string, condition container.WaitCondition) (<-chan container.StateStatus, error)
+	ContainerWait(ctx context.Context, name string, condition container.WaitCondition) (<-chan container.WaitResponse, error)
 }
 
 // Result is the output produced by a Builder

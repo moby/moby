@@ -46,8 +46,8 @@ type State struct {
 	Health            *Health
 	Removed           bool `json:"-"`
 
-	stopWaiters       []chan<- container.StateStatus
-	removeOnlyWaiters []chan<- container.StateStatus
+	stopWaiters       []chan<- container.WaitResponse
+	removeOnlyWaiters []chan<- container.WaitResponse
 
 	// The libcontainerd reference fields are unexported to force consumers
 	// to access them through the getter methods with multi-valued returns
@@ -138,20 +138,20 @@ func (s *State) StateString() container.ContainerState {
 // be nil and its ExitCode() method will return the container's exit code,
 // otherwise, the results Err() method will return an error indicating why the
 // wait operation failed.
-func (s *State) Wait(ctx context.Context, condition container.WaitCondition) <-chan container.StateStatus {
+func (s *State) Wait(ctx context.Context, condition container.WaitCondition) <-chan container.WaitResponse {
 	s.Lock()
 	defer s.Unlock()
 
 	// Buffer so we can put status and finish even nobody receives it.
-	resultC := make(chan container.StateStatus, 1)
+	resultC := make(chan container.WaitResponse, 1)
 
 	if s.conditionAlreadyMet(condition) {
-		resultC <- container.NewStateStatus(s.ExitCode(), s.Err())
+		resultC <- newWaitResponse(s.ExitCodeValue, s.ErrorMsg)
 
 		return resultC
 	}
 
-	waitC := make(chan container.StateStatus, 1)
+	waitC := make(chan container.WaitResponse, 1)
 
 	// Removal wakes up both removeOnlyWaiters and stopWaiters
 	// Container could be removed while still in "created" state
@@ -166,7 +166,7 @@ func (s *State) Wait(ctx context.Context, condition container.WaitCondition) <-c
 		select {
 		case <-ctx.Done():
 			// Context timeout or cancellation.
-			resultC <- container.NewStateStatus(-1, ctx.Err())
+			resultC <- newWaitResponse(-1, ctx.Err().Error())
 
 			return
 		case status := <-waitC:
@@ -397,9 +397,9 @@ func (s *State) Err() error {
 	return nil
 }
 
-func (s *State) notifyAndClear(waiters *[]chan<- container.StateStatus) {
-	result := container.NewStateStatus(s.ExitCodeValue, s.Err())
-
+func (s *State) notifyAndClear(waiters *[]chan<- container.WaitResponse) {
+	// TODO(thaJeztah): should this hold a lock, or callers to hold a lock?
+	result := newWaitResponse(s.ExitCodeValue, s.ErrorMsg)
 	for _, c := range *waiters {
 		c <- result
 	}
@@ -422,4 +422,16 @@ func (s *State) C8dContainer() (_ libcontainerdtypes.Container, ok bool) {
 // See also: (*Container).GetRunningTask().
 func (s *State) Task() (_ libcontainerdtypes.Task, ok bool) {
 	return s.task, s.task != nil
+}
+
+// newWaitResponse creates a [container.WaitResponse] with the given
+// statusCode and errorMessage (if any).
+func newWaitResponse(statusCode int, errorMessage string) container.WaitResponse {
+	if errorMessage == "" {
+		return container.WaitResponse{StatusCode: int64(statusCode)}
+	}
+	return container.WaitResponse{
+		StatusCode: int64(statusCode),
+		Error:      &container.WaitExitError{Message: errorMessage},
+	}
 }
