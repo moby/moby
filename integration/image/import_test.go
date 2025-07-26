@@ -4,6 +4,8 @@ import (
 	"archive/tar"
 	"bytes"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"runtime"
 	"strconv"
 	"strings"
@@ -13,6 +15,7 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
+	"github.com/docker/docker/testutil/request"
 	imagetypes "github.com/moby/moby/api/types/image"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -180,5 +183,28 @@ func TestImportWithCustomPlatformReject(t *testing.T) {
 			assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 			assert.Check(t, is.ErrorContains(err, tc.expectedErr))
 		})
+	}
+}
+
+func TestAPIImagesImportBadSrc(t *testing.T) {
+	server := httptest.NewServer(http.NewServeMux())
+	defer server.Close()
+
+	tt := []struct {
+		statusExp int
+		fromSrc   string
+	}{
+		{http.StatusNotFound, server.URL + "/nofile.tar"},
+		{http.StatusNotFound, strings.TrimPrefix(server.URL, "http://") + "/nofile.tar"},
+		{http.StatusNotFound, strings.TrimPrefix(server.URL, "http://") + "%2Fdata%2Ffile.tar"},
+		{http.StatusInternalServerError, "%2Fdata%2Ffile.tar"},
+	}
+
+	ctx := testutil.GetContext(t)
+	for _, te := range tt {
+		res, _, err := request.Post(ctx, "/images/create?fromSrc="+te.fromSrc, request.JSON)
+		assert.NilError(t, err)
+		assert.Equal(t, res.StatusCode, te.statusExp)
+		assert.Equal(t, res.Header.Get("Content-Type"), "application/json")
 	}
 }

@@ -7,9 +7,11 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
 
+	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
 	iimage "github.com/docker/docker/integration/internal/image"
 	"github.com/docker/docker/internal/testutils/specialimage"
+	"github.com/docker/docker/testutil/fakecontext"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -162,6 +164,28 @@ func TestRemoveWithPlatform(t *testing.T) {
 	assert.Check(t, is.Equal(resp[0].Untagged, imgName))
 	assert.Check(t, is.Equal(resp[1].Deleted, imageIdx.Manifests[0].Digest.String()))
 	// TODO: Should it also include platform-specific manifests?
+}
+
+func TestAPIImagesDelete(t *testing.T) {
+	ctx := setupTest(t)
+	client := testEnv.APIClient()
+
+	dockerfile := "FROM busybox\nENV FOO bar"
+
+	imgID := build.Do(ctx, t, client, fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile)))
+
+	nonExistingImgID := "non-existent-id"
+
+	_, err := client.ImageRemove(ctx, nonExistingImgID, image.RemoveOptions{})
+	assert.ErrorContains(t, err, "No such image")
+	assert.ErrorContains(t, err, nonExistingImgID)
+
+	_, err = client.ImageRemove(ctx, imgID, image.RemoveOptions{})
+	assert.NilError(t, err)
+
+	_, err = client.ImageRemove(ctx, imgID, image.RemoveOptions{})
+	assert.ErrorContains(t, err, "No such image")
+	assert.ErrorContains(t, err, imgID)
 }
 
 func checkPlatformDeleted(t *testing.T, imageIdx *ocispec.Index, resp []image.DeleteResponse, mfstDesc ocispec.Descriptor) {
