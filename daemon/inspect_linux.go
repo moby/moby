@@ -2,7 +2,6 @@ package daemon
 
 import (
 	containerpkg "github.com/docker/docker/daemon/container"
-	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/container"
 )
 
@@ -14,14 +13,4 @@ func setPlatformSpecificContainerFields(container *containerpkg.Container, contJ
 	contJSONBase.HostsPath = container.HostsPath
 
 	return contJSONBase
-}
-
-func inspectExecProcessConfig(e *containerpkg.ExecConfig) *backend.ExecProcessConfig {
-	return &backend.ExecProcessConfig{
-		Tty:        e.Tty,
-		Entrypoint: e.Entrypoint,
-		Arguments:  e.Args,
-		Privileged: &e.Privileged,
-		User:       e.User,
-	}
 }
