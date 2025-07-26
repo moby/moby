@@ -144,7 +144,7 @@ func getIDByName(t *testing.T, name string) string {
 // Deprecated: use cli.Docker
 func buildImageSuccessfully(t *testing.T, name string, cmdOperators ...cli.CmdOperator) {
 	t.Helper()
-	buildImage(name, cmdOperators...).Assert(t, icmd.Success)
+	cli.Docker(cli.Args("build", "-t", name), cmdOperators...).Assert(t, icmd.Success)
 }
 
 // Deprecated: use cli.Docker
