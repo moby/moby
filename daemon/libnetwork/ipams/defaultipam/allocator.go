@@ -209,25 +209,37 @@ func (a *Allocator) getAddrSpace(as string, v6 bool) (*addrSpace, error) {
 	return nil, types.InvalidParameterErrorf("cannot find address space %s", as)
 }
 
-func newPoolData(pool netip.Prefix) *PoolData {
-	h := addrset.New(pool)
+func newPoolData(pool, sub netip.Prefix) *PoolData {
+	pd := &PoolData{
+		addrs:              addrset.New(pool),
+		children:           map[netip.Prefix]struct{}{},
+		allocatedIPsInPool: 0,
+	}
 
+	if sub != (netip.Prefix{}) {
+		pd.children[sub] = struct{}{}
+
+	}
 	// Reserve the first address in the range for the:
 	// - IPv4 network address
 	//   - Except in a /31 point-to-point link, https://datatracker.ietf.org/doc/html/rfc3021
 	// - IPv6 Subnet-Router anycast address, https://datatracker.ietf.org/doc/html/rfc4291#section-2.6.1
 	bits := pool.Addr().BitLen() - pool.Bits()
 	if !pool.Addr().Is4() || bits > 1 {
-		h.Add(pool.Addr())
+		if _, err := pd.RequestAddress(pool, netip.Prefix{}, netip.Addr{}, nil); err != nil {
+			log.G(context.TODO()).Warnf("failed to reserve first address in pool %s: %v", pool, err)
+		}
 	}
 
 	// For IPv4, reserve the broadcast address.
 	// - Except in a /31 point-to-point link, https://datatracker.ietf.org/doc/html/rfc3021
 	if pool.Addr().Is4() && bits > 1 {
-		h.Add(netiputil.LastAddr(pool))
+		if _, err := pd.RequestAddress(pool, netip.Prefix{}, netiputil.LastAddr(pool), nil); err != nil {
+			log.G(context.TODO()).Warnf("failed to reserve broadcast address %s in pool %s: %v", netiputil.LastAddr(pool), pool, err)
+		}
 	}
 
-	return &PoolData{addrs: h, children: map[netip.Prefix]struct{}{}}
+	return pd
 }
 
 // RequestAddress returns an address from the specified pool ID
@@ -315,4 +327,26 @@ func getAddress(base netip.Prefix, addrSet *addrset.AddrSet, prefAddress netip.A
 // IsBuiltIn returns true for builtin drivers
 func (a *Allocator) IsBuiltIn() bool {
 	return true
+}
+
+// GetAllocatedIPs returns the number of addresses allocated in both the subnet and the ip-range pool.
+//   - allocatedIPsInSubnet: The number of addresses allocated in the subnet.
+//     This value is limited by the uint64 capacity; if the actual count exceeds this limit,
+//     the maximum uint64 value is returned.
+//   - allocatedIPsInPool: The number of addresses allocated in the ip-range pool.
+//     Also limited by uint64 capacity; if it reaches the maximum value, it is treated as frozen
+//     and should no longer be modified.
+func (a *Allocator) GetAllocatedIPs(poolID string) (allocatedIPsInSubnet, allocatedIPsInPool uint64, err error) {
+	log.G(context.TODO()).Debugf("GetAllocatedIPs(%s)", poolID)
+	k, err := PoolIDFromString(poolID)
+	if err != nil {
+		return 0, 0, types.InvalidParameterErrorf("invalid pool id: %s", poolID)
+	}
+
+	aSpace, err := a.getAddrSpace(k.AddressSpace, k.Is6())
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return aSpace.GetAllocatedIPs(k.Subnet)
 }
