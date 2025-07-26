@@ -10,13 +10,17 @@
 #
 #   TESTDIRS='./pkg/term' hack/test/unit
 #
+# EXCLUDE_PATHS - run tests but excluding directories. Ex:
+#
+#   EXCLUDE_PATHS='|daemon/graphdriver/aufs' hack/test/unit
+
 set -eux -o pipefail
 
 BUILDFLAGS=(-tags 'netgo journald')
 TESTFLAGS+=" -test.timeout=${TIMEOUT:-5m}"
 TESTDIRS="${TESTDIRS:-./...}"
-exclude_paths='/vendor/|/integration'
-pkg_list=$(go list $TESTDIRS | grep -vE "($exclude_paths)")
+EXCLUDE_PATHS="/vendor/|/integration${EXCLUDE_PATHS:-}"
+pkg_list=$(go list $TESTDIRS | grep -vE "($EXCLUDE_PATHS)")
 
 base_pkg_list=$(echo "${pkg_list}" | grep --fixed-strings -v "/libnetwork" | grep --fixed-strings -v "/docker/docker/api" | grep --fixed-strings -v "/docker/docker/client" || :)
 api_pkg_list=$(echo "${pkg_list}" | grep --fixed-strings "docker/docker/api" | sed 's/docker\/docker/moby\/moby/' || :)
