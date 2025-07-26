@@ -60,6 +60,8 @@ type Client interface {
 	LoadContainer(ctx context.Context, containerID string) (Container, error)
 	// NewContainer creates a new containerd container.
 	NewContainer(ctx context.Context, containerID string, spec *specs.Spec, shim string, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) (Container, error)
+	// CleanupUnusedLeases removes leases that are not associated with any resources.
+	CleanupUnusedLeases(context.Context) error
 }
 
 // Container provides access to a containerd container.
