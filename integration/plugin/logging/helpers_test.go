@@ -9,7 +9,7 @@ import (
 
 	"github.com/docker/docker/testutil/fixtures/plugin"
 	"github.com/moby/locker"
-	"github.com/moby/moby/api/types"
+	plugintypes "github.com/moby/moby/api/types/plugin"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 )
@@ -58,7 +58,7 @@ func createPlugin(ctx context.Context, t *testing.T, client plugin.CreateClient,
 }
 
 func asLogDriver(cfg *plugin.Config) {
-	cfg.Interface.Types = []types.PluginInterfaceType{
+	cfg.Interface.Types = []plugintypes.InterfaceType{
 		{Capability: "logdriver", Prefix: "docker", Version: "1.0"},
 	}
 }

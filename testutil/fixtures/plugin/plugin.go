@@ -12,9 +12,9 @@ import (
 	"github.com/docker/docker/daemon/pkg/plugin"
 	registrypkg "github.com/docker/docker/daemon/pkg/registry"
 	"github.com/moby/go-archive"
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/events"
+	plugintypes "github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/client"
 	"github.com/pkg/errors"
@@ -24,11 +24,11 @@ import (
 // creating it
 type CreateOpt func(*Config)
 
-// Config wraps types.PluginConfig to provide some extra state for options
+// Config wraps [plugintypes.Config] to provide some extra state for options
 // extra customizations on the plugin details, such as using a custom binary to
 // create the plugin with.
 type Config struct {
-	*types.PluginConfig
+	*plugintypes.Config
 	binPath        string
 	RegistryConfig registrypkg.ServiceOptions
 }
@@ -93,8 +93,9 @@ func CreateInRegistry(ctx context.Context, repo string, auth *registry.AuthConfi
 		return errors.Wrap(err, "error creating plugin root")
 	}
 
-	var cfg Config
-	cfg.PluginConfig = &types.PluginConfig{}
+	cfg := Config{
+		Config: &plugintypes.Config{},
+	}
 	for _, o := range opts {
 		o(&cfg)
 	}
@@ -141,15 +142,15 @@ func CreateInRegistry(ctx context.Context, repo string, auth *registry.AuthConfi
 }
 
 func makePluginBundle(inPath string, opts ...CreateOpt) (io.ReadCloser, error) {
-	p := &types.PluginConfig{
-		Interface: types.PluginConfigInterface{
+	p := &plugintypes.Config{
+		Interface: plugintypes.Interface{
 			Socket: "basic.sock",
-			Types:  []types.PluginInterfaceType{{Capability: "docker.dummy/1.0"}},
+			Types:  []plugintypes.InterfaceType{{Capability: "docker.dummy/1.0"}},
 		},
 		Entrypoint: []string{"/basic"},
 	}
 	cfg := &Config{
-		PluginConfig: p,
+		Config: p,
 	}
 	for _, o := range opts {
 		o(cfg)
