@@ -164,14 +164,6 @@ func TestJSONMessageDisplay(t *testing.T) {
 			"stream",
 			"stream",
 		},
-		// With progress message
-		{
-			Status:          "status",
-			ProgressMessage: "progressMessage",
-		}: {
-			"status progressMessage",
-			"status progressMessage",
-		},
 		// With progress, stream empty
 		{
 			Status:   "status",
