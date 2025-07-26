@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/system"
 )
 
 // DiskUsage requests the current data usage from the daemon
-func (cli *Client) DiskUsage(ctx context.Context, options types.DiskUsageOptions) (types.DiskUsage, error) {
+func (cli *Client) DiskUsage(ctx context.Context, options system.DiskUsageOptions) (system.DiskUsage, error) {
 	var query url.Values
 	if len(options.Types) > 0 {
 		query = url.Values{}
@@ -22,12 +22,12 @@ func (cli *Client) DiskUsage(ctx context.Context, options types.DiskUsageOptions
 	resp, err := cli.get(ctx, "/system/df", query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return types.DiskUsage{}, err
+		return system.DiskUsage{}, err
 	}
 
-	var du types.DiskUsage
+	var du system.DiskUsage
 	if err := json.NewDecoder(resp.Body).Decode(&du); err != nil {
-		return types.DiskUsage{}, fmt.Errorf("Error retrieving disk usage: %v", err)
+		return system.DiskUsage{}, fmt.Errorf("Error retrieving disk usage: %v", err)
 	}
 	return du, nil
 }

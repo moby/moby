@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/docker/docker/daemon/server/router/build"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/backend"
 	buildtypes "github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
@@ -166,14 +166,14 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		getContainers, getImages, getVolumes, getBuildCache = true, true, true, s.builder != nil
 	} else {
 		for _, typ := range typeStrs {
-			switch types.DiskUsageObject(typ) {
-			case types.ContainerObject:
+			switch system.DiskUsageObject(typ) {
+			case system.ContainerObject:
 				getContainers = true
-			case types.ImageObject:
+			case system.ImageObject:
 				getImages = true
-			case types.VolumeObject:
+			case system.VolumeObject:
 				getVolumes = true
-			case types.BuildCacheObject:
+			case system.BuildCacheObject:
 				getBuildCache = true
 			default:
 				return invalidRequestError{Err: fmt.Errorf("unknown object type: %s", typ)}
@@ -183,11 +183,11 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 
 	eg, ctx := errgroup.WithContext(ctx)
 
-	var systemDiskUsage *system.DiskUsage
+	var systemDiskUsage *backend.DiskUsage
 	if getContainers || getImages || getVolumes {
 		eg.Go(func() error {
 			var err error
-			systemDiskUsage, err = s.backend.SystemDiskUsage(ctx, DiskUsageOptions{
+			systemDiskUsage, err = s.backend.SystemDiskUsage(ctx, backend.DiskUsageOptions{
 				Containers: getContainers,
 				Images:     getImages,
 				Volumes:    getVolumes,
@@ -238,7 +238,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		}
 	}
 
-	du := system.DiskUsage{}
+	du := backend.DiskUsage{}
 	if getBuildCache {
 		du.BuildCache = &buildtypes.CacheDiskUsage{
 			TotalSize: builderSize,
@@ -252,7 +252,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 	}
 
 	// Use the old struct for the API return value.
-	var v types.DiskUsage
+	var v system.DiskUsage
 	if du.Images != nil {
 		v.LayersSize = du.Images.TotalSize
 		v.Images = du.Images.Items

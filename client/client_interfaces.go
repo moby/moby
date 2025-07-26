@@ -188,7 +188,7 @@ type SystemAPIClient interface {
 	Events(ctx context.Context, options events.ListOptions) (<-chan events.Message, <-chan error)
 	Info(ctx context.Context) (system.Info, error)
 	RegistryLogin(ctx context.Context, auth registry.AuthConfig) (registry.AuthenticateOKBody, error)
-	DiskUsage(ctx context.Context, options types.DiskUsageOptions) (types.DiskUsage, error)
+	DiskUsage(ctx context.Context, options system.DiskUsageOptions) (system.DiskUsage, error)
 	Ping(ctx context.Context) (types.Ping, error)
 }
 

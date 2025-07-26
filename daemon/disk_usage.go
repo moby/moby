@@ -4,11 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/docker/docker/daemon/server/router/system"
+	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
-	systemtypes "github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/api/types/volume"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -103,10 +102,10 @@ func (daemon *Daemon) layerDiskUsage(ctx context.Context) (int64, error) {
 
 // SystemDiskUsage returns information about the daemon data disk usage.
 // Callers must not mutate contents of the returned fields.
-func (daemon *Daemon) SystemDiskUsage(ctx context.Context, opts system.DiskUsageOptions) (*systemtypes.DiskUsage, error) {
+func (daemon *Daemon) SystemDiskUsage(ctx context.Context, opts backend.DiskUsageOptions) (*backend.DiskUsage, error) {
 	eg, ctx := errgroup.WithContext(ctx)
 
-	du := &systemtypes.DiskUsage{}
+	du := &backend.DiskUsage{}
 	if opts.Containers {
 		eg.Go(func() (err error) {
 			du.Containers, err = daemon.containerDiskUsage(ctx)
