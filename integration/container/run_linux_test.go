@@ -9,10 +9,12 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	net "github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
+	"github.com/docker/go-units"
 	"github.com/moby/moby/api/stdcopy"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/versions"
@@ -457,8 +459,8 @@ func TestCgroupRW(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			config := container.NewTestConfig(tc.ops...)
-			resp, err := container.CreateFromConfig(ctx, apiClient, config)
+			cfg := container.NewTestConfig(tc.ops...)
+			resp, err := container.CreateFromConfig(ctx, apiClient, cfg)
 			if err != nil {
 				assert.Equal(t, tc.expectedErrMsg, err.Error())
 				return
@@ -485,6 +487,82 @@ func TestCgroupRW(t *testing.T) {
 			}
 			assert.Equal(t, res.Stdout(), "")
 			assert.Equal(t, tc.expectedExitCode, res.ExitCode)
+		})
+	}
+}
+
+func TestContainerShmSize(t *testing.T) {
+	ctx := setupTest(t)
+
+	const defaultSize = "1000k"
+	defaultSizeBytes, err := units.RAMInBytes(defaultSize)
+	assert.NilError(t, err)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t, "--default-shm-size="+defaultSize)
+	defer d.Stop(t)
+
+	apiClient := d.NewClientT(t)
+
+	tests := []struct {
+		doc     string
+		opt     container.ConfigOpt
+		expSize string
+		expErr  string
+	}{
+		{
+			doc:     "nil hostConfig",
+			opt:     container.WithHostConfig(nil),
+			expSize: defaultSize,
+		},
+		{
+			doc:     "empty hostConfig",
+			opt:     container.WithHostConfig(&containertypes.HostConfig{}),
+			expSize: defaultSize,
+		},
+		{
+			doc:     "custom shmSize",
+			opt:     container.WithHostConfig(&containertypes.HostConfig{ShmSize: defaultSizeBytes * 2}),
+			expSize: "2000k",
+		},
+		{
+			doc:    "negative shmSize",
+			opt:    container.WithHostConfig(&containertypes.HostConfig{ShmSize: -1}),
+			expErr: "Error response from daemon: SHM size can not be less than 0",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			if tc.expErr != "" {
+				cfg := container.NewTestConfig(container.WithCmd("sh", "-c", "grep /dev/shm /proc/self/mountinfo"), tc.opt)
+				_, err := container.CreateFromConfig(ctx, apiClient, cfg)
+				assert.Check(t, is.ErrorContains(err, tc.expErr))
+				assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+				return
+			}
+
+			cID := container.Run(ctx, t, apiClient,
+				container.WithCmd("sh", "-c", "grep /dev/shm /proc/self/mountinfo"),
+				tc.opt,
+			)
+
+			t.Cleanup(func() {
+				container.Remove(ctx, t, apiClient, cID, containertypes.RemoveOptions{})
+			})
+
+			expectedSize, err := units.RAMInBytes(tc.expSize)
+			assert.NilError(t, err)
+
+			ctr := container.Inspect(ctx, t, apiClient, cID)
+			assert.Check(t, is.Equal(ctr.HostConfig.ShmSize, expectedSize))
+
+			out, err := container.Output(ctx, apiClient, cID)
+			assert.NilError(t, err)
+
+			// e.g., "218 213 0:87 / /dev/shm rw,nosuid,nodev,noexec,relatime - tmpfs shm rw,size=1000k"
+			assert.Assert(t, is.Contains(out.Stdout, "/dev/shm "), "shm mount not found in output: \n%v", out.Stdout)
+			assert.Check(t, is.Contains(out.Stdout, "size="+tc.expSize))
 		})
 	}
 }
