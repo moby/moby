@@ -183,6 +183,9 @@ jobs:
           CACHE_DEV_SCOPE=dev
           if [[ "${{ matrix.mode }}" == *"rootless"* ]]; then
             echo "DOCKER_ROOTLESS=1" >> $GITHUB_ENV
+
+            # rootless requires a userland-proxy
+            echo "DOCKER_USERLANDPROXY=true" >> $GITHUB_ENV
           fi
           if [[ "${{ matrix.mode }}" == *"systemd"* ]]; then
             echo "SYSTEMD=true" >> $GITHUB_ENV
