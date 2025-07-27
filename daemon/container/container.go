@@ -143,7 +143,7 @@ type localLogCacheMeta struct {
 func NewBaseContainer(id, root string) *Container {
 	return &Container{
 		ID:            id,
-		State:         NewState(),
+		State:         &State{},
 		ExecCommands:  NewExecStore(),
 		Root:          root,
 		MountPoints:   make(map[string]*volumemounts.MountPoint),
