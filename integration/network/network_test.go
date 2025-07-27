@@ -2,14 +2,20 @@ package network
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"runtime"
 	"testing"
 
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/network"
 	networktypes "github.com/moby/moby/api/types/network"
 	"gotest.tools/v3/assert"
+
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 // TestNetworkInvalidJSON tests that POST endpoints that expect a body return
@@ -102,4 +108,38 @@ func TestNetworkList(t *testing.T) {
 			assert.Assert(t, len(nws) > 0)
 		})
 	}
+}
+
+func TestAPINetworkGetDefaults(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	defaults := []string{"bridge", "host", "none"}
+	for _, netName := range defaults {
+		assert.Assert(t, IsNetworkAvailable(ctx, apiClient, netName))
+	}
+}
+
+func TestAPINetworkFilter(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	networkName := "bridge"
+	networks, err := apiClient.NetworkList(ctx, network.ListOptions{
+		Filters: filters.NewArgs(filters.Arg("name", networkName)),
+	})
+
+	assert.NilError(t, err)
+
+	found := false
+	for _, network := range networks {
+		if network.Name == networkName {
+			found = true
+		}
+	}
+	assert.Assert(t, found, fmt.Sprintf("%s is not found", networkName))
 }
