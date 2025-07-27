@@ -29,9 +29,9 @@ func validateState(ctr *container.Container) error {
 	// Intentionally checking paused first, because a container can be
 	// BOTH running AND paused. To start a paused (but running) container,
 	// it must be thawed ("un-paused").
-	if ctr.Paused {
+	if ctr.State.Paused {
 		return errdefs.Conflict(errors.New("cannot start a paused container, try unpause instead"))
-	} else if ctr.Running {
+	} else if ctr.State.Running {
 		// This is not an actual error, but produces a 304 "not modified"
 		// when returned through the API to indicates the container is
 		// already in the desired state. It's implemented as an error
@@ -39,7 +39,7 @@ func validateState(ctr *container.Container) error {
 		// no further processing is needed).
 		return errdefs.NotModified(errors.New("container is already running"))
 	}
-	if ctr.RemovalInProgress || ctr.Dead {
+	if ctr.State.RemovalInProgress || ctr.State.Dead {
 		return errdefs.Conflict(errors.New("container is marked for removal and cannot be started"))
 	}
 	return nil
@@ -88,11 +88,11 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 	container.Lock()
 	defer container.Unlock()
 
-	if resetRestartManager && container.Running { // skip this check if already in restarting step and resetRestartManager==false
+	if resetRestartManager && container.State.Running { // skip this check if already in restarting step and resetRestartManager==false
 		return nil
 	}
 
-	if container.RemovalInProgress || container.Dead {
+	if container.State.RemovalInProgress || container.State.Dead {
 		return errdefs.Conflict(errors.New("container is marked for removal and cannot be started"))
 	}
 
@@ -105,10 +105,10 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 	// setup has been cleaned up properly
 	defer func() {
 		if retErr != nil {
-			container.SetError(retErr)
+			container.State.SetError(retErr)
 			// if no one else has set it, make sure we don't leave it at zero
-			if container.ExitCode() == 0 {
-				container.SetExitCode(exitUnknown)
+			if container.State.ExitCode() == 0 {
+				container.State.SetExitCode(exitUnknown)
 			}
 			if err := container.CheckpointTo(context.WithoutCancel(ctx), daemon.containersReplica); err != nil {
 				log.G(ctx).Errorf("%s: failed saving state on start failure: %v", container.ID, err)
@@ -211,7 +211,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		return nil
 	})
 	if err != nil {
-		return setExitCodeFromError(container.SetExitCode, err)
+		return setExitCodeFromError(container.State.SetExitCode, err)
 	}
 	defer func() {
 		if retErr != nil {
@@ -228,7 +228,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		checkpointDir, container.StreamConfig.Stdin() != nil || container.Config.Tty,
 		container.InitializeStdio)
 	if err != nil {
-		return setExitCodeFromError(container.SetExitCode, err)
+		return setExitCodeFromError(container.State.SetExitCode, err)
 	}
 	defer func() {
 		if retErr != nil {
@@ -244,11 +244,11 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 	}
 
 	if err := tsk.Start(context.WithoutCancel(ctx)); err != nil { // passing a cancelable ctx caused integration tests to be stuck in the cleanup phase
-		return setExitCodeFromError(container.SetExitCode, err)
+		return setExitCodeFromError(container.State.SetExitCode, err)
 	}
 
 	container.HasBeenManuallyRestarted = false
-	container.SetRunning(ctr, tsk, startupTime)
+	container.State.SetRunning(ctr, tsk, startupTime)
 	container.HasBeenStartedBefore = true
 	daemon.setStateCounter(container)
 
@@ -270,7 +270,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 func (daemon *Daemon) Cleanup(ctx context.Context, container *container.Container) {
 	// Microsoft HCS containers get in a bad state if host resources are
 	// released while the container still exists.
-	if ctr, ok := container.C8dContainer(); ok {
+	if ctr, ok := container.State.C8dContainer(); ok {
 		if err := ctr.Delete(context.Background()); err != nil {
 			log.G(ctx).Errorf("%s cleanup: failed to delete container from containerd: %v", container.ID, err)
 		}

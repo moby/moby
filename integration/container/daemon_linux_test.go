@@ -208,7 +208,7 @@ func TestRestartDaemonWithRestartingContainer(t *testing.T) {
 	d.Stop(t)
 
 	d.TamperWithContainerConfig(t, id, func(c *realcontainer.Container) {
-		c.SetRestarting(&realcontainer.ExitStatus{ExitCode: 1})
+		c.State.SetRestarting(&realcontainer.ExitStatus{ExitCode: 1})
 		c.HasBeenStartedBefore = true
 	})
 
@@ -256,7 +256,7 @@ func TestHardRestartWhenContainerIsRunning(t *testing.T) {
 
 	for _, id := range []string{noPolicy, onFailure} {
 		d.TamperWithContainerConfig(t, id, func(c *realcontainer.Container) {
-			c.SetRunning(nil, nil, time.Now())
+			c.State.SetRunning(nil, nil, time.Now())
 			c.HasBeenStartedBefore = true
 		})
 	}

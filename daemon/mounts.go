@@ -12,7 +12,7 @@ import (
 )
 
 func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
-	alive := container.IsRunning()
+	alive := container.State.IsRunning()
 	for _, config := range container.MountPoints {
 		if err := daemon.lazyInitializeVolume(container.ID, config); err != nil {
 			return err

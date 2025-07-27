@@ -254,8 +254,8 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 			}
 			c.RWLayer = rwlayer
 			logger.WithFields(log.Fields{
-				"running": c.IsRunning(),
-				"paused":  c.IsPaused(),
+				"running": c.State.IsRunning(),
+				"paused":  c.State.IsPaused(),
 			}).Debug("loaded container")
 
 			mapLock.Lock()
@@ -354,9 +354,9 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 
 			logger := func(c *container.Container) *log.Entry {
 				return baseLogger.WithFields(log.Fields{
-					"running":    c.IsRunning(),
-					"paused":     c.IsPaused(),
-					"restarting": c.IsRestarting(),
+					"running":    c.State.IsRunning(),
+					"paused":     c.State.IsPaused(),
+					"restarting": c.State.IsRestarting(),
 				})
 			}
 
@@ -371,7 +371,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 
 			alive := false
 			status := containerd.Unknown
-			if tsk, ok := c.Task(); ok {
+			if tsk, ok := c.State.Task(); ok {
 				s, err := tsk.Status(context.Background())
 				if err != nil {
 					logger(c).WithError(err).Error("failed to get task status")
@@ -400,13 +400,13 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 			// If the containerd task for the container was not found, docker's view of the
 			// container state will be updated accordingly via SetStopped further down.
 
-			if c.IsRunning() || c.IsPaused() {
+			if c.State.IsRunning() || c.State.IsPaused() {
 				logger(c).Debug("syncing container on disk state with real state")
 
 				c.RestartManager().Cancel() // manually start containers because some need to wait for swarm networking
 
 				switch {
-				case c.IsPaused() && alive:
+				case c.State.IsPaused() && alive:
 					logger(c).WithField("state", status).Info("restored container paused")
 					switch status {
 					case containerd.Paused, containerd.Pausing:
@@ -416,7 +416,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 					default:
 						// running
 						c.Lock()
-						c.Paused = false
+						c.State.Paused = false
 						daemon.setStateCounter(c)
 						daemon.initHealthMonitor(c)
 						if err := c.CheckpointTo(context.TODO(), daemon.containersReplica); err != nil {
@@ -424,7 +424,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 						}
 						c.Unlock()
 					}
-				case !c.IsPaused() && alive:
+				case !c.State.IsPaused() && alive:
 					logger(c).Debug("restoring healthcheck")
 					c.Lock()
 					daemon.initHealthMonitor(c)
@@ -441,7 +441,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 					} else {
 						ces.ExitCode = 255
 					}
-					c.SetStopped(&ces)
+					c.State.SetStopped(&ces)
 					daemon.Cleanup(context.TODO(), c)
 					if err := c.CheckpointTo(context.TODO(), daemon.containersReplica); err != nil {
 						baseLogger.WithError(err).Error("failed to update stopped container state")
@@ -466,7 +466,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 				}
 
 				c.ResetRestartManager(false)
-				if !c.HostConfig.NetworkMode.IsContainer() && c.IsRunning() {
+				if !c.HostConfig.NetworkMode.IsContainer() && c.State.IsRunning() {
 					options, err := buildSandboxOptions(&cfg.Config, c)
 					if err != nil {
 						logger(c).WithError(err).Warn("failed to build sandbox option to restore container")
@@ -500,7 +500,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 
 			c.Lock()
 			// TODO(thaJeztah): we no longer persist RemovalInProgress on disk, so this code is likely redundant; see https://github.com/moby/moby/pull/49968
-			if c.RemovalInProgress {
+			if c.State.RemovalInProgress {
 				// We probably crashed in the middle of a removal, reset
 				// the flag.
 				//
@@ -509,8 +509,8 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 				// associated volumes, network links or both to also
 				// be removed. So we put the container in the "dead"
 				// state and leave further processing up to them.
-				c.RemovalInProgress = false
-				c.Dead = true
+				c.State.RemovalInProgress = false
+				c.State.Dead = true
 				if err := c.CheckpointTo(context.TODO(), daemon.containersReplica); err != nil {
 					baseLogger.WithError(err).Error("failed to update RemovalInProgress container state")
 				} else {
@@ -673,7 +673,7 @@ func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configSto
 	sem := semaphore.NewWeighted(int64(parallelLimit))
 
 	for _, c := range daemon.List() {
-		if !c.IsRunning() && !c.IsPaused() {
+		if !c.State.IsRunning() && !c.State.IsPaused() {
 			// Autostart all the containers which has a
 			// swarm endpoint now that the cluster is
 			// initialized.
@@ -1229,7 +1229,7 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 
 	// Wait without timeout for the container to exit.
 	// Ignore the result.
-	<-c.Wait(ctx, containertypes.WaitConditionNotRunning)
+	<-c.State.Wait(ctx, containertypes.WaitConditionNotRunning)
 	return nil
 }
 
@@ -1286,7 +1286,7 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 		log.G(ctx).Debugf("daemon configured with a %d seconds minimum shutdown timeout", cfg.ShutdownTimeout)
 		log.G(ctx).Debugf("start clean shutdown of all containers with a %d seconds timeout...", daemon.shutdownTimeout(cfg))
 		daemon.containers.ApplyAll(func(c *container.Container) {
-			if !c.IsRunning() {
+			if !c.State.IsRunning() {
 				return
 			}
 			logger := log.G(ctx).WithField("container", c.ID)
