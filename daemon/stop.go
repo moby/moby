@@ -26,7 +26,7 @@ func (daemon *Daemon) ContainerStop(ctx context.Context, name string, options co
 	if err != nil {
 		return err
 	}
-	if !ctr.IsRunning() {
+	if !ctr.State.IsRunning() {
 		// This is not an actual error, but produces a 304 "not modified"
 		// when returned through the API to indicates the container is
 		// already in the desired state. It's implemented as an error
@@ -48,7 +48,7 @@ func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Containe
 	// Cancelling the request should not cancel the stop.
 	ctx = context.WithoutCancel(ctx)
 
-	if !ctr.IsRunning() {
+	if !ctr.State.IsRunning() {
 		return nil
 	}
 
@@ -95,7 +95,7 @@ func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Containe
 	}
 	defer cancel()
 
-	if status := <-ctr.Wait(subCtx, containertypes.WaitConditionNotRunning); status.Err() == nil {
+	if status := <-ctr.State.Wait(subCtx, containertypes.WaitConditionNotRunning); status.Err() == nil {
 		// container did exit, so ignore any previous errors and return
 		return nil
 	}
@@ -117,7 +117,7 @@ func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Containe
 		// got a kill error, but give container 2 more seconds to exit just in case
 		subCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
-		status := <-ctr.Wait(subCtx, containertypes.WaitConditionNotRunning)
+		status := <-ctr.State.Wait(subCtx, containertypes.WaitConditionNotRunning)
 		if status.Err() != nil {
 			log.G(ctx).WithError(err).WithField("container", ctr.ID).Errorf("error killing container: %v", status.Err())
 			return err
