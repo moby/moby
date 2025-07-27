@@ -41,10 +41,10 @@ func TestViewAll(t *testing.T) {
 	one := newContainer(t, tmpDir)
 	two := newContainer(t, tmpDir)
 
-	one.Pid = 10
+	one.State.Pid = 10
 	assert.NilError(t, one.CheckpointTo(context.Background(), db))
 
-	two.Pid = 20
+	two.State.Pid = 20
 	assert.NilError(t, two.CheckpointTo(context.Background(), db))
 
 	all, err := db.Snapshot().All()
@@ -56,8 +56,8 @@ func TestViewAll(t *testing.T) {
 		byID[c.ID] = c.Pid
 	}
 	expected := map[string]int{
-		one.ID: one.Pid,
-		two.ID: two.Pid,
+		one.ID: one.State.Pid,
+		two.ID: two.State.Pid,
 	}
 	assert.DeepEqual(t, expected, byID)
 }
@@ -146,7 +146,7 @@ func TestViewWithHealthCheck(t *testing.T) {
 	tmpDir := t.TempDir()
 	one := newContainer(t, tmpDir)
 
-	one.Health = &Health{
+	one.State.Health = &Health{
 		Health: container.Health{
 			Status: container.Starting,
 		},

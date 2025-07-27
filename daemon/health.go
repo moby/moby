@@ -264,7 +264,7 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 			return probeInterval
 		}
 		c.Lock()
-		status := c.Health.Health.Status
+		status := c.State.Health.Health.Status
 		c.Unlock()
 
 		if status == containertypes.Starting {
@@ -351,11 +351,11 @@ func (daemon *Daemon) updateHealthMonitor(c *container.Container) {
 		return // No healthcheck configured
 	}
 
-	probe := getProbe(c)
-	wantRunning := c.Running && !c.Paused && probe != nil
+	healthProbe := getProbe(c)
+	wantRunning := c.State.Running && !c.State.Paused && healthProbe != nil
 	if wantRunning {
 		if stop := h.OpenMonitorChannel(); stop != nil {
-			go monitor(daemon, c, stop, probe)
+			go monitor(daemon, c, stop, healthProbe)
 		}
 	} else {
 		h.CloseMonitorChannel()

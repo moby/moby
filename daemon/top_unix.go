@@ -159,7 +159,7 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.TopRe
 		if err != nil {
 			return nil, err
 		}
-		if ctr.Restarting {
+		if ctr.State.Restarting {
 			return nil, errContainerIsRestarting(ctr.ID)
 		}
 		return tsk, nil

@@ -26,12 +26,12 @@ func (daemon *Daemon) ContainerExport(ctx context.Context, name string, out io.W
 		return errors.New("the daemon on this operating system does not support exporting Windows containers")
 	}
 
-	if ctr.IsDead() {
+	if ctr.State.IsDead() {
 		err := fmt.Errorf("You cannot export container %s which is Dead", ctr.ID)
 		return errdefs.Conflict(err)
 	}
 
-	if ctr.IsRemovalInProgress() {
+	if ctr.State.IsRemovalInProgress() {
 		err := fmt.Errorf("You cannot export container %s which is being removed", ctr.ID)
 		return errdefs.Conflict(err)
 	}
