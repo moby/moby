@@ -173,7 +173,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 	}
 
 	if ctr.RWLayer == nil {
-		if ctr.Dead {
+		if ctr.State.Dead {
 			return inspectResponse, nil
 		}
 		return nil, errdefs.System(errors.New("RWLayer of container " + ctr.ID + " is unexpectedly nil"))
@@ -181,7 +181,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 
 	graphDriverData, err := ctr.RWLayer.Metadata()
 	if err != nil {
-		if ctr.Dead {
+		if ctr.State.Dead {
 			// container is marked as Dead, and its graphDriver metadata may
 			// have been removed; we can ignore errors.
 			return inspectResponse, nil
