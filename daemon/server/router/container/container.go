@@ -1,22 +1,17 @@
 package container
 
-import (
-	"github.com/docker/docker/daemon/server/router"
-	"github.com/docker/docker/pkg/sysinfo"
-)
+import "github.com/docker/docker/daemon/server/router"
 
 // containerRouter is a router to talk with the container controller
 type containerRouter struct {
 	backend Backend
-	sysInfo *sysinfo.SysInfo
 	routes  []router.Route
 }
 
 // NewRouter initializes a new container router
-func NewRouter(b Backend, sysInfo *sysinfo.SysInfo) router.Router {
+func NewRouter(b Backend) router.Router {
 	r := &containerRouter{
 		backend: b,
-		sysInfo: sysInfo,
 	}
 	r.initRoutes()
 	return r

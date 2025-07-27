@@ -498,7 +498,7 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	name := r.Form.Get("name")
 
 	// TODO(thaJeztah): do we prefer [backend.ContainerCreateConfig] here?
-	req, err := runconfig.DecodeCreateRequest(r.Body, c.sysInfo)
+	req, err := runconfig.DecodeCreateRequest(r.Body, c.backend.RawSysInfo())
 	if err != nil {
 		return err
 	}
@@ -547,7 +547,7 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 
 	if versions.LessThan(version, "1.41") {
 		// Older clients expect the default to be "host" on cgroup v1 hosts
-		if !c.sysInfo.CgroupUnified && hostConfig.CgroupnsMode.IsEmpty() {
+		if hostConfig.CgroupnsMode.IsEmpty() && !c.backend.RawSysInfo().CgroupUnified {
 			hostConfig.CgroupnsMode = container.CgroupnsModeHost
 		}
 	}

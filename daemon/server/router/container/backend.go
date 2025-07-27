@@ -6,6 +6,7 @@ import (
 
 	containerpkg "github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/server/backend"
+	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
@@ -68,6 +69,10 @@ type commitBackend interface {
 	CreateImageFromContainer(ctx context.Context, name string, config *backend.CreateImageConfig) (imageID string, err error)
 }
 
+type sysInfoProvider interface {
+	RawSysInfo() *sysinfo.SysInfo
+}
+
 // Backend is all the methods that need to be implemented to provide container specific functionality.
 type Backend interface {
 	commitBackend
@@ -77,4 +82,5 @@ type Backend interface {
 	monitorBackend
 	attachBackend
 	systemBackend
+	sysInfoProvider
 }
