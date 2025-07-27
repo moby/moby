@@ -9,3 +9,10 @@ func (w *WaitResponse) Err() error {
 	}
 	return errors.New(w.Error.Message)
 }
+
+// ExitCode returns current exitcode for the state.
+//
+// Implements [github.com/moby/swarmkit/v2/agent/exec.ExitCoder]
+func (w *WaitResponse) ExitCode() int {
+	return int(w.StatusCode)
+}
