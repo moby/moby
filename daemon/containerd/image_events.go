@@ -4,7 +4,7 @@ import (
 	"context"
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
-	"github.com/moby/moby/api/types/backend"
+	"github.com/docker/docker/daemon/server/backend"
 	"github.com/moby/moby/api/types/events"
 )
 

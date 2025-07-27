@@ -8,8 +8,8 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog/jsonlog"
 	"github.com/docker/docker/daemon/logger/loggerutils"
+	"github.com/docker/docker/daemon/server/backend"
 	"github.com/docker/docker/pkg/tailfile"
-	"github.com/moby/moby/api/types/backend"
 )
 
 var _ logger.LogReader = (*JSONFileLogger)(nil)
