@@ -54,8 +54,6 @@ import (
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/rootless"
-	"github.com/docker/docker/pkg/sysinfo"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/util/tracing/detect"
@@ -704,16 +702,10 @@ func normalizeHosts(cfg *config.Config) error {
 }
 
 func buildRouters(opts routerOptions) []router.Router {
-	decoder := runconfig.ContainerDecoder{
-		GetSysInfo: func() *sysinfo.SysInfo {
-			return opts.daemon.RawSysInfo()
-		},
-	}
-
 	routers := []router.Router{
 		// we need to add the checkpoint router before the container router or the DELETE gets masked
 		checkpointrouter.NewRouter(opts.daemon),
-		container.NewRouter(opts.daemon, decoder, opts.daemon.RawSysInfo().CgroupUnified),
+		container.NewRouter(opts.daemon, opts.daemon.RawSysInfo()),
 		image.NewRouter(
 			opts.daemon.ImageService(),
 			opts.daemon.RegistryService(),
