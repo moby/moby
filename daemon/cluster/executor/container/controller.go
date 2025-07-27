@@ -687,6 +687,8 @@ func parsePortMap(portMap nat.PortMap) ([]*api.PortConfig, error) {
 	return exposedPorts, nil
 }
 
+var _ exec.ExitCoder = (*exitError)(nil)
+
 type exitError struct {
 	code  int
 	cause error
