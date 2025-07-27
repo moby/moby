@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/runconfig"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
@@ -506,7 +505,7 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	}
 
 	if config == nil {
-		return errdefs.InvalidParameter(runconfig.ErrEmptyConfig)
+		return errdefs.InvalidParameter(errors.New("config cannot be empty in order to create a container"))
 	}
 	if hostConfig == nil {
 		hostConfig = &container.HostConfig{}
@@ -763,7 +762,7 @@ func handleMACAddressBC(config *container.Config, hostConfig *container.HostConf
 			return "", nil
 		}
 		if !hostConfig.NetworkMode.IsBridge() && !hostConfig.NetworkMode.IsUserDefined() {
-			return "", runconfig.ErrConflictContainerNetworkAndMac
+			return "", errdefs.InvalidParameter(errors.New("conflicting options: mac-address and the network mode"))
 		}
 
 		epConfig, err := epConfigForNetMode(version, hostConfig.NetworkMode, networkingConfig)

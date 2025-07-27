@@ -18,10 +18,10 @@ func validateNetMode(c *container.Config, hc *container.HostConfig) error {
 		return err
 	}
 	if hc.UTSMode.IsHost() && c.Hostname != "" {
-		return ErrConflictUTSHostname
+		return validationError("conflicting options: hostname and the UTS mode")
 	}
 	if hc.NetworkMode.IsHost() && len(hc.Links) > 0 {
-		return ErrConflictHostNetworkAndLinks
+		return validationError("conflicting options: host type networking can't be used with links. This would result in undefined behavior")
 	}
 	return nil
 }

@@ -1,8 +1,6 @@
 package runconfig
 
-import (
-	"github.com/moby/moby/api/types/container"
-)
+import "github.com/moby/moby/api/types/container"
 
 // validateNetContainerMode ensures that the various combinations of requested
 // network settings wrt container mode are valid.
@@ -17,27 +15,27 @@ func validateNetContainerMode(c *container.Config, hc *container.HostConfig) err
 	}
 
 	if c.Hostname != "" {
-		return ErrConflictNetworkHostname
+		return validationError("conflicting options: hostname and the network mode")
 	}
 
 	if len(hc.Links) > 0 {
-		return ErrConflictContainerNetworkAndLinks
+		return validationError("conflicting options: container type network can't be used with links. This would result in undefined behavior")
 	}
 
 	if len(hc.DNS) > 0 {
-		return ErrConflictNetworkAndDNS
+		return validationError("conflicting options: dns and the network mode")
 	}
 
 	if len(hc.ExtraHosts) > 0 {
-		return ErrConflictNetworkHosts
+		return validationError("conflicting options: custom host-to-IP mapping and the network mode")
 	}
 
 	if len(hc.PortBindings) > 0 || hc.PublishAllPorts {
-		return ErrConflictNetworkPublishPorts
+		return validationError("conflicting options: port publishing and the container type network mode")
 	}
 
 	if len(c.ExposedPorts) > 0 {
-		return ErrConflictNetworkExposePorts
+		return validationError("conflicting options: port exposing and the container type network mode")
 	}
 	return nil
 }

@@ -81,7 +81,8 @@ func decodeContainerConfig(src io.Reader, si *sysinfo.SysInfo) (*container.Confi
 func loadJSON(src io.Reader, out interface{}) error {
 	dec := json.NewDecoder(src)
 	if err := dec.Decode(&out); err != nil {
-		return invalidJSONError{Err: err}
+		// invalidJSONError allows unwrapping the error to detect io.EOF etc.
+		return invalidJSONError{error: err}
 	}
 	if dec.More() {
 		return validationError("unexpected content after JSON")

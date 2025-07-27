@@ -28,7 +28,6 @@ import (
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/daemon/pkg/opts"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
@@ -174,7 +173,7 @@ func (daemon *Daemon) updateNetworkSettings(ctr *container.Container, n *libnetw
 	}
 
 	if !ctr.HostConfig.NetworkMode.IsHost() && containertypes.NetworkMode(n.Type()).IsHost() {
-		return runconfig.ErrConflictConnectToHostNetwork
+		return cerrdefs.ErrInvalidArgument.WithMessage("cannot connect container to host network - container must be created in host network mode")
 	}
 
 	for s, v := range ctr.NetworkSettings.Networks {
@@ -194,13 +193,11 @@ func (daemon *Daemon) updateNetworkSettings(ctr *container.Container, n *libnetw
 			// Avoid duplicate config
 			return nil
 		}
-		if !containertypes.NetworkMode(sn.Type()).IsPrivate() ||
-			!containertypes.NetworkMode(n.Type()).IsPrivate() {
-			return runconfig.ErrConflictSharedNetwork
+		if !containertypes.NetworkMode(sn.Type()).IsPrivate() || !containertypes.NetworkMode(n.Type()).IsPrivate() {
+			return cerrdefs.ErrInvalidArgument.WithMessage("container sharing network namespace with another container or host cannot be connected to any other network")
 		}
-		if containertypes.NetworkMode(sn.Name()).IsNone() ||
-			containertypes.NetworkMode(n.Name()).IsNone() {
-			return runconfig.ErrConflictNoNetwork
+		if containertypes.NetworkMode(sn.Name()).IsNone() || containertypes.NetworkMode(n.Name()).IsNone() {
+			return cerrdefs.ErrInvalidArgument.WithMessage("container cannot be connected to multiple networks with one of the networks in private (none) mode")
 		}
 	}
 
@@ -549,10 +546,10 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 		hasStaticAddresses := ipamConfig.IPv4Address != "" || ipamConfig.IPv6Address != ""
 		// On Linux, user specified IP address is accepted only by networks with user specified subnets.
 		if hasStaticAddresses && !enableIPOnPredefinedNetwork() {
-			errs = append(errs, runconfig.ErrUnsupportedNetworkAndIP)
+			errs = append(errs, cerrdefs.ErrInvalidArgument.WithMessage("user specified IP address is supported on user defined networks only"))
 		}
 		if len(epConfig.Aliases) > 0 && !serviceDiscoveryOnDefaultNetwork() {
-			errs = append(errs, runconfig.ErrUnsupportedNetworkAndAlias)
+			errs = append(errs, cerrdefs.ErrInvalidArgument.WithMessage("network-scoped alias is supported only for containers in user defined networks"))
 		}
 	}
 
@@ -671,7 +668,7 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 	start := time.Now()
 
 	if ctr.HostConfig.NetworkMode.IsContainer() {
-		return runconfig.ErrConflictSharedNetwork
+		return cerrdefs.ErrInvalidArgument.WithMessage("container sharing network namespace with another container or host cannot be connected to any other network")
 	}
 	if cfg.DisableBridge && containertypes.NetworkMode(idOrName).IsBridge() {
 		ctr.Config.NetworkDisabled = true
@@ -1046,7 +1043,7 @@ func (daemon *Daemon) DisconnectFromNetwork(ctx context.Context, ctr *container.
 		delete(ctr.NetworkSettings.Networks, networkName)
 	} else if err == nil {
 		if ctr.HostConfig.NetworkMode.IsHost() && containertypes.NetworkMode(n.Type()).IsHost() {
-			return runconfig.ErrConflictDisconnectFromHostNetwork
+			return cerrdefs.ErrInvalidArgument.WithMessage("cannot disconnect container from host network - container was created in host network mode")
 		}
 
 		if err := daemon.disconnectFromNetwork(ctx, ctr, n, false); err != nil {

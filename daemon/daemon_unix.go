@@ -40,7 +40,6 @@ import (
 	volumemounts "github.com/docker/docker/daemon/volume/mounts"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/sysinfo"
-	"github.com/docker/docker/runconfig"
 	"github.com/moby/moby/api/types/blkiodev"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
@@ -1565,7 +1564,7 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 			}
 		}
 		if child.HostConfig.NetworkMode.IsHost() {
-			return runconfig.ErrConflictHostNetworkAndLinks
+			return cerrdefs.ErrInvalidArgument.WithMessage("conflicting options: host type networking can't be used with links. This would result in undefined behavior")
 		}
 		if err := daemon.registerLink(container, child, alias); err != nil {
 			return err
