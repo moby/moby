@@ -3,27 +3,20 @@ package container
 import (
 	"github.com/docker/docker/daemon/server/router"
 	"github.com/docker/docker/pkg/sysinfo"
-	"github.com/docker/docker/runconfig"
 )
 
 // containerRouter is a router to talk with the container controller
 type containerRouter struct {
 	backend Backend
-	decoder runconfig.ContainerDecoder
+	sysInfo *sysinfo.SysInfo
 	routes  []router.Route
-	cgroup2 bool
 }
 
 // NewRouter initializes a new container router
 func NewRouter(b Backend, sysInfo *sysinfo.SysInfo) router.Router {
 	r := &containerRouter{
 		backend: b,
-		decoder: runconfig.ContainerDecoder{
-			GetSysInfo: func() *sysinfo.SysInfo {
-				return sysInfo
-			},
-		},
-		cgroup2: sysInfo.CgroupUnified,
+		sysInfo: sysInfo,
 	}
 	r.initRoutes()
 	return r

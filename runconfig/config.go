@@ -10,71 +10,74 @@ import (
 	"github.com/moby/moby/api/types/network"
 )
 
-// ContainerDecoder implements httputils.ContainerDecoder
-// calling DecodeContainerConfig.
-type ContainerDecoder struct {
-	GetSysInfo func() *sysinfo.SysInfo
-}
-
-// DecodeConfig makes ContainerDecoder to implement httputils.ContainerDecoder
-func (r ContainerDecoder) DecodeConfig(src io.Reader) (*container.Config, *container.HostConfig, *network.NetworkingConfig, error) {
-	var si *sysinfo.SysInfo
-	if r.GetSysInfo != nil {
-		si = r.GetSysInfo()
-	} else {
-		si = sysinfo.New()
+// DecodeCreateRequest decodes a json encoded [container.CreateRequest] struct
+// and performs some validation. Certain parameters need daemon-side validation
+// that cannot be done on the client, as only the daemon knows what is valid
+// for the platform.
+func DecodeCreateRequest(src io.Reader, si *sysinfo.SysInfo) (container.CreateRequest, error) {
+	w, err := decodeCreateRequest(src)
+	if err != nil {
+		return container.CreateRequest{}, err
 	}
-
-	return decodeContainerConfig(src, si)
+	if err := validateCreateRequest(w, si); err != nil {
+		return container.CreateRequest{}, err
+	}
+	return w, nil
 }
 
-// decodeContainerConfig decodes a json encoded [container.CreateRequest] struct
-// and returns the Config, HostConfig, and NetworkingConfig struct, and performs some
-// validation. Certain parameters need daemon-side validation that cannot be done
-// on the client, as only the daemon knows what is valid for the platform.
-// Be aware this function is not checking whether the resulted structs are nil,
-// it's your business to do so
-func decodeContainerConfig(src io.Reader, si *sysinfo.SysInfo) (*container.Config, *container.HostConfig, *network.NetworkingConfig, error) {
+// decodeCreateRequest decodes a json encoded [container.CreateRequest] struct
+// and sets some defaults.
+func decodeCreateRequest(src io.Reader) (container.CreateRequest, error) {
+	// TODO(thaJeztah): replace with httputils.ReadJSON ?
 	var w container.CreateRequest
 	if err := loadJSON(src, &w); err != nil {
-		return nil, nil, nil, err
+		return container.CreateRequest{}, err
 	}
-
-	hc := w.HostConfig
-	if hc == nil {
-		// We may not be passed a host config, such as in the case of docker commit
-		return w.Config, hc, w.NetworkingConfig, nil
+	if w.Config == nil {
+		return container.CreateRequest{}, validationError("config cannot be empty in order to create a container")
 	}
-
+	if w.Config == nil {
+		w.Config.Volumes = make(map[string]struct{})
+	}
+	if w.HostConfig == nil {
+		w.HostConfig = &container.HostConfig{}
+	}
 	// Make sure NetworkMode has an acceptable value. We do this to ensure
 	// backwards compatible API behavior.
 	//
 	// TODO(thaJeztah): platform check may be redundant, as other code-paths execute this unconditionally. Also check if this code is still needed here, or already handled elsewhere.
-	if runtime.GOOS != "windows" && hc.NetworkMode == "" {
-		hc.NetworkMode = network.NetworkDefault
+	if runtime.GOOS != "windows" && w.HostConfig.NetworkMode == "" {
+		w.HostConfig.NetworkMode = network.NetworkDefault
 	}
-	if err := validateNetMode(w.Config, hc); err != nil {
-		return nil, nil, nil, err
+	if w.NetworkingConfig == nil {
+		w.NetworkingConfig = &network.NetworkingConfig{}
 	}
-	if err := validateIsolation(hc); err != nil {
-		return nil, nil, nil, err
+	if w.NetworkingConfig.EndpointsConfig == nil {
+		w.NetworkingConfig.EndpointsConfig = make(map[string]*network.EndpointSettings)
 	}
-	if err := validateQoS(hc); err != nil {
-		return nil, nil, nil, err
+	return w, nil
+}
+
+func validateCreateRequest(w container.CreateRequest, si *sysinfo.SysInfo) error {
+	if err := validateNetMode(w.Config, w.HostConfig); err != nil {
+		return err
 	}
-	if err := validateResources(hc, si); err != nil {
-		return nil, nil, nil, err
+	if err := validateIsolation(w.HostConfig); err != nil {
+		return err
 	}
-	if err := validatePrivileged(hc); err != nil {
-		return nil, nil, nil, err
+	if err := validateQoS(w.HostConfig); err != nil {
+		return err
 	}
-	if err := validateReadonlyRootfs(hc); err != nil {
-		return nil, nil, nil, err
+	if err := validateResources(w.HostConfig, si); err != nil {
+		return err
 	}
-	if w.Config != nil && w.Config.Volumes == nil {
-		w.Config.Volumes = make(map[string]struct{})
+	if err := validatePrivileged(w.HostConfig); err != nil {
+		return err
 	}
-	return w.Config, hc, w.NetworkingConfig, nil
+	if err := validateReadonlyRootfs(w.HostConfig); err != nil {
+		return err
+	}
+	return nil
 }
 
 // loadJSON is similar to api/server/httputils.ReadJSON()
