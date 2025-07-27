@@ -17,7 +17,7 @@ type mockTask struct {
 func (t *mockTask) Pid() uint32 { return t.pid }
 
 func TestStateRunStop(t *testing.T) {
-	s := NewState()
+	s := &State{}
 
 	// Begin another wait with WaitConditionRemoved. It should complete
 	// within 200 milliseconds.
@@ -110,7 +110,7 @@ func TestStateRunStop(t *testing.T) {
 }
 
 func TestStateTimeoutWait(t *testing.T) {
-	s := NewState()
+	s := &State{}
 
 	s.Lock()
 	s.SetRunning(nil, nil, time.Now())
@@ -159,7 +159,7 @@ func TestStateTimeoutWait(t *testing.T) {
 
 // Related issue: #39352
 func TestCorrectStateWaitResultAfterRestart(t *testing.T) {
-	s := NewState()
+	s := &State{}
 
 	s.Lock()
 	s.SetRunning(nil, nil, time.Now())

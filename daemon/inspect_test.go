@@ -13,7 +13,7 @@ func TestGetInspectData(t *testing.T) {
 	c := &container.Container{
 		ID:           "inspect-me",
 		HostConfig:   &containertypes.HostConfig{},
-		State:        container.NewState(),
+		State:        &container.State{},
 		ExecCommands: container.NewExecStore(),
 	}
 
