@@ -91,10 +91,10 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 		return err
 	}
 
-	if status := <-waitC; status.StatusCode != 0 {
+	if status := <-waitC; status.ExitCode() != 0 {
 		close(finished)
-		logCancellationError(cancelErrCh, fmt.Sprintf("a non-zero code from ContainerWait: %d", status.StatusCode))
-		return &statusCodeError{code: int(status.StatusCode), err: status.Err()}
+		logCancellationError(cancelErrCh, fmt.Sprintf("a non-zero code from ContainerWait: %d", status.ExitCode()))
+		return &statusCodeError{code: status.ExitCode(), err: status.Err()}
 	}
 
 	close(finished)

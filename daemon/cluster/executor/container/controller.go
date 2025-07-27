@@ -318,9 +318,9 @@ func (r *controller) Wait(pctx context.Context) error {
 		return err
 	}
 
-	if status := <-waitC; status.StatusCode != 0 {
+	if status := <-waitC; status.ExitCode() != 0 {
 		exitErr := &exitError{
-			code: int(status.StatusCode),
+			code: status.ExitCode(),
 		}
 
 		// Set the cause if it is knowable.

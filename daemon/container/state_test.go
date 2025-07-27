@@ -26,7 +26,7 @@ func TestStateRunStop(t *testing.T) {
 	removalWait := s.Wait(ctx, container.WaitConditionRemoved)
 
 	// Full lifecycle two times.
-	for i := int64(1); i <= 2; i++ {
+	for i := 1; i <= 2; i++ {
 		// A wait with WaitConditionNotRunning should return
 		// immediately since the state is now either "created" (on the
 		// first iteration) or "exited" (on the second iteration). It
@@ -35,8 +35,8 @@ func TestStateRunStop(t *testing.T) {
 		defer cancel()
 		// Expectx exit code to be i-1 since it should be the exit
 		// code from the previous loop or 0 for the created state.
-		if status := <-s.Wait(ctx, container.WaitConditionNotRunning); status.StatusCode != i-1 {
-			t.Fatalf("ExitCode %v, expected %v, err %q", status.StatusCode, i-1, status.Err())
+		if status := <-s.Wait(ctx, container.WaitConditionNotRunning); status.ExitCode() != i-1 {
+			t.Fatalf("ExitCode %v, expected %v, err %q", status.ExitCode(), i-1, status.Err())
 		}
 
 		// A wait with WaitConditionNextExit should block until the
@@ -55,7 +55,7 @@ func TestStateRunStop(t *testing.T) {
 		if !s.IsRunning() {
 			t.Fatal("State not running")
 		}
-		if s.Pid != int(i) {
+		if s.Pid != i {
 			t.Fatalf("Pid %v, expected %v", s.Pid, i)
 		}
 		if s.ExitCode() != 0 {
@@ -71,14 +71,14 @@ func TestStateRunStop(t *testing.T) {
 
 		// Set the state to "Exited".
 		s.Lock()
-		s.SetStopped(&ExitStatus{ExitCode: int(i)})
+		s.SetStopped(&ExitStatus{ExitCode: i})
 		s.Unlock()
 
 		// Assert desired state.
 		if s.IsRunning() {
 			t.Fatal("State is running")
 		}
-		if s.ExitCode() != int(i) {
+		if s.ExitCode() != i {
 			t.Fatalf("ExitCode %v, expected %v", s.ExitCode(), i)
 		}
 		if s.Pid != 0 {
@@ -86,13 +86,13 @@ func TestStateRunStop(t *testing.T) {
 		}
 
 		// Receive the initialWait result.
-		if status := <-initialWait; status.StatusCode != i {
-			t.Fatalf("ExitCode %v, expected %v, err %q", status.StatusCode, i, status.Err())
+		if status := <-initialWait; status.ExitCode() != i {
+			t.Fatalf("ExitCode %v, expected %v, err %q", status.ExitCode(), i, status.Err())
 		}
 
 		// Receive the exitWait result.
-		if status := <-exitWait; status.StatusCode != i {
-			t.Fatalf("ExitCode %v, expected %v, err %q", status.StatusCode, i, status.Err())
+		if status := <-exitWait; status.ExitCode() != i {
+			t.Fatalf("ExitCode %v, expected %v, err %q", status.ExitCode(), i, status.Err())
 		}
 	}
 
@@ -103,9 +103,9 @@ func TestStateRunStop(t *testing.T) {
 	s.SetRemoved()
 
 	// Wait for removed status or timeout.
-	if status := <-removalWait; status.StatusCode != 2 {
+	if status := <-removalWait; status.ExitCode() != 2 {
 		// Should have the final exit code from the loop.
-		t.Fatalf("Removal wait exitCode %v, expected %v, err %q", status.StatusCode, 2, status.Err())
+		t.Fatalf("Removal wait exitCode %v, expected %v, err %q", status.ExitCode(), 2, status.Err())
 	}
 }
 
@@ -131,8 +131,8 @@ func TestStateTimeoutWait(t *testing.T) {
 		if status.Err() == nil {
 			t.Fatal("expected timeout error, got nil")
 		}
-		if status.StatusCode != -1 {
-			t.Fatalf("expected exit code %v, got %v", -1, status.StatusCode)
+		if status.ExitCode() != -1 {
+			t.Fatalf("expected exit code %v, got %v", -1, status.ExitCode())
 		}
 	}
 
@@ -151,8 +151,8 @@ func TestStateTimeoutWait(t *testing.T) {
 		t.Fatal("Stop callback doesn't fire in 200 milliseconds")
 	case status := <-waitC:
 		t.Log("Stop callback fired")
-		if status.StatusCode != 0 {
-			t.Fatalf("expected exit code %v, got %v, err %q", 0, status.StatusCode, status.Err())
+		if status.ExitCode() != 0 {
+			t.Fatalf("expected exit code %v, got %v, err %q", 0, status.ExitCode(), status.Err())
 		}
 	}
 }
@@ -177,7 +177,7 @@ func TestCorrectStateWaitResultAfterRestart(t *testing.T) {
 	s.Unlock()
 
 	got := <-waitC
-	if int(got.StatusCode) != want.ExitCode {
-		t.Fatalf("expected exit code %v, got %v", want.ExitCode, int(got.StatusCode))
+	if got.ExitCode() != want.ExitCode {
+		t.Fatalf("expected exit code %v, got %v", want.ExitCode, got.ExitCode())
 	}
 }
