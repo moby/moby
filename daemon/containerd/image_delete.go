@@ -494,7 +494,7 @@ func (i *ImageService) untagReferences(ctx context.Context, refs []c8dimages.Ima
 func (i *ImageService) checkImageDeleteConflict(ctx context.Context, imgID image.ID, all []c8dimages.Image, mask conflictType) error {
 	if mask&conflictRunningContainer != 0 {
 		running := func(c *container.Container) bool {
-			return c.ImageID == imgID && c.IsRunning()
+			return c.ImageID == imgID && c.State.IsRunning()
 		}
 		if ctr := i.containers.First(running); ctr != nil {
 			return &imageDeleteConflict{
@@ -508,7 +508,7 @@ func (i *ImageService) checkImageDeleteConflict(ctx context.Context, imgID image
 
 	if mask&conflictStoppedContainer != 0 {
 		stopped := func(c *container.Container) bool {
-			return !c.IsRunning() && c.ImageID == imgID
+			return !c.State.IsRunning() && c.ImageID == imgID
 		}
 		if ctr := i.containers.First(stopped); ctr != nil {
 			return &imageDeleteConflict{

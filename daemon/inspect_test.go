@@ -29,7 +29,7 @@ func TestGetInspectData(t *testing.T) {
 	_, err := d.getInspectData(&cfg.Config, c)
 	assert.Check(t, is.ErrorContains(err, "RWLayer of container inspect-me is unexpectedly nil"))
 
-	c.Dead = true
+	c.State.Dead = true
 	_, err = d.getInspectData(&cfg.Config, c)
 	assert.Check(t, err)
 }

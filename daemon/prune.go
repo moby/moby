@@ -61,7 +61,7 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 		default:
 		}
 
-		if !c.IsRunning() {
+		if !c.State.IsRunning() {
 			if !until.IsZero() && c.Created.After(until) {
 				continue
 			}
