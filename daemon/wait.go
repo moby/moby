@@ -20,5 +20,5 @@ func (daemon *Daemon) ContainerWait(ctx context.Context, name string, condition 
 		return nil, err
 	}
 
-	return cntr.Wait(ctx, condition), nil
+	return cntr.State.Wait(ctx, condition), nil
 }
