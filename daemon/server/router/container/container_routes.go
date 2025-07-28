@@ -32,24 +32,36 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+// commitRequest may contain an optional [container.Config].
+type commitRequest struct {
+	*container.Config
+}
+
+// decodeCommitRequest decodes the request body and returns a [container.Config]
+// if present, or nil otherwise. It returns an error when failing to decode
+// due to invalid JSON, or if the request contains multiple JSON documents.
+//
+// The client posts a bare [*container.Config] (see [Client.ContainerCommit]
+// and [container.CommitOptions]), but it may be empty / nil, in which case
+// it must be ignored, and no overrides to be applied.
+//
+// [Client.ContainerCommit]: https://github.com/moby/moby/blob/c4afa7715715a1020e50b19ad60728c4479fb0a5/client/container_commit.go#L52
+// [container.CommitOptions]: https://github.com/moby/moby/blob/c4afa7715715a1020e50b19ad60728c4479fb0a5/api/types/container/options.go#L30
+func decodeCommitRequest(r *http.Request) (*container.Config, error) {
+	var w commitRequest
+	if err := httputils.ReadJSON(r, &w); err != nil {
+		return nil, err
+	}
+	return w.Config, nil
+}
+
 func (c *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
-	if err := httputils.CheckForJSON(r); err != nil {
-		return err
-	}
-
-	// FIXME(thaJeztah): change this to unmarshal just [container.Config]:
-	// The commit endpoint accepts a [container.Config], but the decoder uses a
-	// [container.CreateRequest], which is a superset, and also contains
-	// [container.HostConfig] and [network.NetworkConfig]. Those structs
-	// are discarded here, but decoder.DecodeConfig also performs validation,
-	// so a request containing those additional fields would result in a
-	// validation error.
-	config, _, _, err := c.decoder.DecodeConfig(r.Body)
-	if err != nil && !errors.Is(err, io.EOF) { // Do not fail if body is empty.
+	config, err := decodeCommitRequest(r)
+	if err != nil {
 		return err
 	}
 
