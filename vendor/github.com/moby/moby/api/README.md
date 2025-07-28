@@ -6,7 +6,6 @@ It consists of various components in this repository:
 
 - `api/swagger.yaml` A Swagger definition of the API.
 - `api/types/` Types shared by both the client and server, representing various objects, options, responses, etc. Most are written manually, but some are automatically generated from the Swagger definition. See [#27919](https://github.com/docker/docker/issues/27919) for progress on this.
-- `cli/` The command-line client.
 - `client/` The Go client used by the command-line client. It can also be used by third-party Go programs.
 - `daemon/` The daemon, which serves the API.
 
