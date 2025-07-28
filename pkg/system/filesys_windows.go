@@ -15,7 +15,7 @@ const SddlAdministratorsLocalSystem = "D:P(A;OICI;GA;;;BA)(A;OICI;GA;;;SY)"
 // MkdirAllWithACL is a custom version of os.MkdirAll modified for use on Windows
 // so that it is both volume path aware, and can create a directory with
 // an appropriate SDDL defined ACL.
-func MkdirAllWithACL(path string, _ os.FileMode, sddl string) error {
+func MkdirAllWithACL(path string, sddl string) error {
 	sa, err := makeSecurityAttributes(sddl)
 	if err != nil {
 		return &os.PathError{Op: "mkdirall", Path: path, Err: err}
