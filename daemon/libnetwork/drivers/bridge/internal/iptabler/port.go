@@ -140,26 +140,6 @@ func setPerPortForwarding(b types.PortBinding, ipv iptables.IPVersion, bridgeNam
 		return err
 	}
 
-	// TODO(robmry) - remove, see https://github.com/moby/moby/pull/48149
-	if b.Proto == types.SCTP && os.Getenv("DOCKER_IPTABLES_SCTP_CHECKSUM") == "1" {
-		// Linux kernel v4.9 and below enables NETIF_F_SCTP_CRC for veth by
-		// the following commit.
-		// This introduces a problem when combined with a physical NIC without
-		// NETIF_F_SCTP_CRC. As for a workaround, here we add an iptables entry
-		// to fill the checksum.
-		//
-		// https://github.com/torvalds/linux/commit/c80fafbbb59ef9924962f83aac85531039395b18
-		rule := iptables.Rule{IPVer: ipv, Table: iptables.Mangle, Chain: "POSTROUTING", Args: []string{
-			"-p", b.Proto.String(),
-			"--sport", strconv.Itoa(int(b.Port)),
-			"-j", "CHECKSUM",
-			"--checksum-fill",
-		}}
-		if err := appendOrDelChainRule(rule, "SCTP CHECKSUM", enable); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
