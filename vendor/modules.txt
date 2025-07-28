@@ -942,7 +942,6 @@ github.com/moby/moby/api
 github.com/moby/moby/api/stdcopy
 github.com/moby/moby/api/types
 github.com/moby/moby/api/types/auxprogress
-github.com/moby/moby/api/types/backend
 github.com/moby/moby/api/types/blkiodev
 github.com/moby/moby/api/types/build
 github.com/moby/moby/api/types/checkpoint

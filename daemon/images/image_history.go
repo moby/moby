@@ -8,7 +8,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/docker/docker/daemon/internal/metrics"
-	"github.com/moby/moby/api/types/backend"
+	"github.com/docker/docker/daemon/server/backend"
 	"github.com/moby/moby/api/types/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )

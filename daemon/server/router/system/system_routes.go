@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/server/backend"
 	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/docker/docker/daemon/server/router/build"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/moby/moby/api/types/backend"
 	buildtypes "github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"

@@ -10,9 +10,9 @@ import (
 
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
+	"github.com/docker/docker/daemon/server/backend"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-units"
-	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/plugins/logdriver"
 	"github.com/pkg/errors"
 )

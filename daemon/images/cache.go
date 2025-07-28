@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/internal/image/cache"
 	"github.com/docker/docker/daemon/internal/layer"
-	"github.com/moby/moby/api/types/backend"
+	"github.com/docker/docker/daemon/server/backend"
 )
 
 type cacheAdaptor struct {

@@ -3,7 +3,7 @@ package swarm
 import (
 	"context"
 
-	"github.com/moby/moby/api/types/backend"
+	"github.com/docker/docker/daemon/server/backend"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/swarm"
 )

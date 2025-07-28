@@ -9,8 +9,8 @@ import (
 
 	"github.com/docker/docker/daemon/internal/sliceutil"
 	"github.com/docker/docker/daemon/internal/stringid"
+	"github.com/docker/docker/daemon/server/backend"
 	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/moby/moby/api/types/backend"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/versions"
 )

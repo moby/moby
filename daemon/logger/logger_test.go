@@ -1,7 +1,7 @@
 package logger
 
 import (
-	"github.com/moby/moby/api/types/backend"
+	"github.com/docker/docker/daemon/server/backend"
 )
 
 func (m *Message) copy() *Message {

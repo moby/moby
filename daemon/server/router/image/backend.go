@@ -6,7 +6,7 @@ import (
 
 	"github.com/distribution/reference"
 	dockerimage "github.com/docker/docker/daemon/internal/image"
-	"github.com/moby/moby/api/types/backend"
+	"github.com/docker/docker/daemon/server/backend"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/registry"
