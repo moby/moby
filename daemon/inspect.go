@@ -138,7 +138,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 		OOMKilled:  container.State.OOMKilled,
 		Dead:       container.State.Dead,
 		Pid:        container.State.Pid,
-		ExitCode:   container.State.ExitCode(),
+		ExitCode:   container.State.ExitCodeValue,
 		Error:      container.State.ErrorMsg,
 		StartedAt:  container.State.StartedAt.Format(time.RFC3339Nano),
 		FinishedAt: container.State.FinishedAt.Format(time.RFC3339Nano),
@@ -174,7 +174,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 	}
 
 	if container.RWLayer == nil {
-		if container.Dead {
+		if container.State.Dead {
 			return contJSONBase, nil
 		}
 		return nil, errdefs.System(errors.New("RWLayer of container " + container.ID + " is unexpectedly nil"))
@@ -182,7 +182,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 
 	graphDriverData, err := container.RWLayer.Metadata()
 	if err != nil {
-		if container.Dead {
+		if container.State.Dead {
 			// container is marked as Dead, and its graphDriver metadata may
 			// have been removed; we can ignore errors.
 			return contJSONBase, nil

@@ -58,11 +58,6 @@ type State struct {
 	task libcontainerdtypes.Task
 }
 
-// NewState creates a default state object.
-func NewState() *State {
-	return &State{}
-}
-
 // String returns a human-readable description of the state
 func (s *State) String() string {
 	if s.Running {

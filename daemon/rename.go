@@ -82,7 +82,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 		return err
 	}
 
-	if !ctr.Running {
+	if !ctr.State.Running {
 		daemon.LogContainerEventWithAttributes(ctr, events.ActionRename, map[string]string{
 			"oldName": oldName,
 		})

@@ -18,7 +18,7 @@ func (daemon *Daemon) ContainerChanges(ctx context.Context, name string) ([]arch
 		return nil, err
 	}
 
-	if isWindows && container.IsRunning() {
+	if isWindows && container.State.IsRunning() {
 		return nil, errors.New("Windows does not support diff of a running container")
 	}
 

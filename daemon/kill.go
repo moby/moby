@@ -84,11 +84,11 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 		}
 		if containerStopSignal == stopSignal {
 			container.ExitOnNext()
-			unpause = container.Paused
+			unpause = container.State.Paused
 		}
 	} else {
 		container.ExitOnNext()
-		unpause = container.Paused
+		unpause = container.State.Paused
 	}
 
 	if !daemon.IsShuttingDown() {
@@ -104,7 +104,7 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 	// if the container is currently restarting we do not need to send the signal
 	// to the process. Telling the monitor that it should exit on its next event
 	// loop is enough
-	if container.Restarting {
+	if container.State.Restarting {
 		return nil
 	}
 
@@ -124,7 +124,7 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 				// But this prevents race conditions in processing the container.
 				ctx, cancel := context.WithTimeout(context.TODO(), time.Duration(container.StopTimeout())*time.Second)
 				defer cancel()
-				s := <-container.Wait(ctx, containertypes.WaitConditionNotRunning)
+				s := <-container.State.Wait(ctx, containertypes.WaitConditionNotRunning)
 				if s.Err() != nil {
 					if err := daemon.handleContainerExit(container, nil); err != nil {
 						log.G(context.TODO()).WithFields(log.Fields{
@@ -159,7 +159,7 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 
 // Kill forcefully terminates a container.
 func (daemon *Daemon) Kill(container *containerpkg.Container) error {
-	if !container.IsRunning() {
+	if !container.State.IsRunning() {
 		return errNotRunning(container.ID)
 	}
 
@@ -179,7 +179,7 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 	ctx, cancel := context.WithTimeout(context.Background(), waitTimeout)
 	defer cancel()
 
-	status := <-container.Wait(ctx, containertypes.WaitConditionNotRunning)
+	status := <-container.State.Wait(ctx, containertypes.WaitConditionNotRunning)
 	if status.Err() == nil {
 		return nil
 	}
@@ -197,7 +197,7 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel2()
 
-	if status := <-container.Wait(ctx2, containertypes.WaitConditionNotRunning); status.Err() != nil {
+	if status := <-container.State.Wait(ctx2, containertypes.WaitConditionNotRunning); status.Err() != nil {
 		return errors.New("tried to kill container, but did not receive an exit event")
 	}
 	return nil
@@ -207,7 +207,7 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 func (daemon *Daemon) killPossiblyDeadProcess(container *containerpkg.Container, sig syscall.Signal) error {
 	err := daemon.killWithSignal(container, sig)
 	if cerrdefs.IsNotFound(err) {
-		err = errNoSuchProcess{container.GetPID(), sig}
+		err = errNoSuchProcess{container.State.GetPID(), sig}
 		log.G(context.TODO()).Debug(err)
 		return err
 	}

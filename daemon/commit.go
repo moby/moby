@@ -132,19 +132,19 @@ func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string,
 	}
 
 	// It is not possible to commit a running container on Windows
-	if isWindows && container.IsRunning() {
+	if isWindows && container.State.IsRunning() {
 		return "", errors.Errorf("%+v does not support commit of a running container", runtime.GOOS)
 	}
 
-	if container.IsDead() {
+	if container.State.IsDead() {
 		return "", errdefs.Conflict(fmt.Errorf("You cannot commit container %s which is Dead", container.ID))
 	}
 
-	if container.IsRemovalInProgress() {
+	if container.State.IsRemovalInProgress() {
 		return "", errdefs.Conflict(fmt.Errorf("You cannot commit container %s which is being removed", container.ID))
 	}
 
-	if c.Pause && !container.IsPaused() {
+	if c.Pause && !container.State.IsPaused() {
 		daemon.containerPause(container)
 		defer daemon.containerUnpause(container)
 	}
