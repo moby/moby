@@ -484,14 +484,13 @@ func (s *DockerAPISuite) TestContainerAPICommitWithLabelInConfig(c *testing.T) {
 	img, err := apiClient.ContainerCommit(testutil.GetContext(c), cName, options)
 	assert.NilError(c, err)
 
-	label1 := inspectFieldMap(c, img.ID, "Config.Labels", "key1")
-	assert.Equal(c, label1, "value1")
+	imgInspect, err := apiClient.ImageInspect(testutil.GetContext(c), img.ID)
+	assert.NilError(c, err)
+	assert.Check(c, is.Equal(imgInspect.Config.Labels["key1"], "value1"))
+	assert.Check(c, is.Equal(imgInspect.Config.Labels["key2"], "value2"))
 
-	label2 := inspectFieldMap(c, img.ID, "Config.Labels", "key2")
-	assert.Equal(c, label2, "value2")
-
-	cmd := inspectField(c, img.ID, "Config.Cmd")
-	assert.Equal(c, cmd, "[/bin/sh -c touch /test]", fmt.Sprintf("got wrong Cmd from commit: %q", cmd))
+	expected := []string{"/bin/sh", "-c", "touch /test"}
+	assert.Check(c, is.DeepEqual(imgInspect.Config.Cmd, expected))
 
 	// sanity check, make sure the image is what we think it is
 	cli.DockerCmd(c, "run", img.ID, "ls", "/test")
@@ -1015,17 +1014,25 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveLinks(c *testing.T) {
 func (s *DockerAPISuite) TestContainerAPIDeleteRemoveVolume(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
 
-	vol := "/testvolume"
+	testVol := "/testvolume"
 	if testEnv.DaemonInfo.OSType == "windows" {
-		vol = `c:\testvolume`
+		testVol = `c:\testvolume`
 	}
 
-	id := runSleepingContainer(c, "-v", vol)
+	id := runSleepingContainer(c, "-v", testVol)
 	cli.WaitRun(c, id)
 
-	source, err := inspectMountSourceField(id, vol)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	_, err = os.Stat(source)
+	defer apiClient.Close()
+
+	ctrInspect, err := apiClient.ContainerInspect(testutil.GetContext(c), id)
+	assert.NilError(c, err)
+	assert.Assert(c, is.Len(ctrInspect.Mounts, 1), "expected to have 1 mount")
+	mnt := ctrInspect.Mounts[0]
+	assert.Equal(c, mnt.Destination, testVol)
+
+	_, err = os.Stat(mnt.Source)
 	assert.NilError(c, err)
 
 	removeOptions := container.RemoveOptions{
@@ -1033,14 +1040,10 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveVolume(c *testing.T) {
 		RemoveVolumes: true,
 	}
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
 	err = apiClient.ContainerRemove(testutil.GetContext(c), id, removeOptions)
 	assert.NilError(c, err)
 
-	_, err = os.Stat(source)
+	_, err = os.Stat(mnt.Source)
 	assert.Assert(c, os.IsNotExist(err), "expected to get ErrNotExist error, got %v", err)
 }
 

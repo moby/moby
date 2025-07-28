@@ -152,10 +152,10 @@ func (s *DockerCLICreateSuite) TestCreateVolumesCreated(c *testing.T) {
 	const name = "test_create_volume"
 	cli.DockerCmd(c, "create", "--name", name, "-v", prefix+slash+"foo", "busybox")
 
-	dir, err := inspectMountSourceField(name, prefix+slash+"foo")
+	mnt, err := inspectMountPoint(name, prefix+slash+"foo")
 	assert.Assert(c, err == nil, "Error getting volume host path: %q", err)
 
-	if _, err := os.Stat(dir); err != nil && os.IsNotExist(err) {
+	if _, err := os.Stat(mnt.Source); err != nil && os.IsNotExist(err) {
 		c.Fatalf("Volume was not created")
 	}
 	if err != nil {
