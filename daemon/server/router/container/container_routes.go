@@ -12,6 +12,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
+	"github.com/docker/docker/daemon/internal/runconfig"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/daemon/server/backend"
@@ -496,26 +497,14 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 
 	name := r.Form.Get("name")
 
-	config, hostConfig, networkingConfig, err := c.decoder.DecodeConfig(r.Body)
+	// TODO(thaJeztah): do we prefer [backend.ContainerCreateConfig] here?
+	req, err := runconfig.DecodeCreateRequest(r.Body, c.backend.RawSysInfo())
 	if err != nil {
-		if errors.Is(err, io.EOF) {
-			return errdefs.InvalidParameter(errors.New("invalid JSON: got EOF while reading request body"))
-		}
 		return err
 	}
+	// TODO(thaJeztah): update code below to take [container.CreateRequest] or [backend.ContainerCreateConfig] directly.
+	config, hostConfig, networkingConfig := req.Config, req.HostConfig, req.NetworkingConfig
 
-	if config == nil {
-		return errdefs.InvalidParameter(errors.New("config cannot be empty in order to create a container"))
-	}
-	if hostConfig == nil {
-		hostConfig = &container.HostConfig{}
-	}
-	if networkingConfig == nil {
-		networkingConfig = &network.NetworkingConfig{}
-	}
-	if networkingConfig.EndpointsConfig == nil {
-		networkingConfig.EndpointsConfig = make(map[string]*network.EndpointSettings)
-	}
 	// The NetworkMode "default" is used as a way to express a container should
 	// be attached to the OS-dependant default network, in an OS-independent
 	// way. Doing this conversion as soon as possible ensures we have less
@@ -558,7 +547,7 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 
 	if versions.LessThan(version, "1.41") {
 		// Older clients expect the default to be "host" on cgroup v1 hosts
-		if !c.cgroup2 && hostConfig.CgroupnsMode.IsEmpty() {
+		if hostConfig.CgroupnsMode.IsEmpty() && !c.backend.RawSysInfo().CgroupUnified {
 			hostConfig.CgroupnsMode = container.CgroupnsModeHost
 		}
 	}
