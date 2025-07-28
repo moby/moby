@@ -14,7 +14,7 @@ import (
 	runcoptions "github.com/containerd/containerd/api/types/runc/options"
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/pkg/rootless"
+	"github.com/docker/docker/daemon/internal/rootless"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/moby/moby/api/types"
 	containertypes "github.com/moby/moby/api/types/container"

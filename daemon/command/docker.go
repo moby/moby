@@ -7,8 +7,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/internal/rootless"
 	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/pkg/rootless"
 	"github.com/moby/buildkit/util/apicaps"
 	"github.com/spf13/cobra"
 )
