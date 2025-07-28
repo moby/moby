@@ -11,14 +11,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	dconfig "github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/volume"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
@@ -1140,110 +1138,6 @@ func (s *DockerAPISuite) TestPostContainersCreateWithWrongCpusetValues(c *testin
 	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig2, &network.NetworkingConfig{}, nil, name2)
 	expected = "Invalid value 42-3,1-- for cpuset mems"
 	assert.ErrorContains(c, err, expected)
-}
-
-func (s *DockerAPISuite) TestPostContainersCreateShmSizeNegative(c *testing.T) {
-	// ShmSize is not supported on Windows
-	testRequires(c, DaemonIsLinux)
-	config := container.Config{
-		Image: "busybox",
-	}
-	hostConfig := container.HostConfig{
-		ShmSize: -1,
-	}
-
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, &network.NetworkingConfig{}, nil, "")
-	assert.ErrorContains(c, err, "SHM size can not be less than 0")
-}
-
-func (s *DockerAPISuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *testing.T) {
-	// ShmSize is not supported on Windows
-	testRequires(c, DaemonIsLinux)
-
-	config := container.Config{
-		Image: "busybox",
-		Cmd:   []string{"mount"},
-	}
-
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
-	ctr, err := apiClient.ContainerCreate(testutil.GetContext(c), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "")
-	assert.NilError(c, err)
-
-	containerJSON, err := apiClient.ContainerInspect(testutil.GetContext(c), ctr.ID)
-	assert.NilError(c, err)
-
-	assert.Equal(c, containerJSON.HostConfig.ShmSize, dconfig.DefaultShmSize)
-
-	out := cli.DockerCmd(c, "start", "-i", containerJSON.ID).Combined()
-	shmRegexp := regexp.MustCompile(`shm on /dev/shm type tmpfs(.*)size=65536k`)
-	if !shmRegexp.MatchString(out) {
-		c.Fatalf("Expected shm of 64MB in mount command, got %v", out)
-	}
-}
-
-func (s *DockerAPISuite) TestPostContainersCreateShmSizeOmitted(c *testing.T) {
-	// ShmSize is not supported on Windows
-	testRequires(c, DaemonIsLinux)
-	config := container.Config{
-		Image: "busybox",
-		Cmd:   []string{"mount"},
-	}
-
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
-	ctr, err := apiClient.ContainerCreate(testutil.GetContext(c), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "")
-	assert.NilError(c, err)
-
-	containerJSON, err := apiClient.ContainerInspect(testutil.GetContext(c), ctr.ID)
-	assert.NilError(c, err)
-
-	assert.Equal(c, containerJSON.HostConfig.ShmSize, int64(67108864))
-
-	out := cli.DockerCmd(c, "start", "-i", containerJSON.ID).Combined()
-	shmRegexp := regexp.MustCompile(`shm on /dev/shm type tmpfs(.*)size=65536k`)
-	if !shmRegexp.MatchString(out) {
-		c.Fatalf("Expected shm of 64MB in mount command, got %v", out)
-	}
-}
-
-func (s *DockerAPISuite) TestPostContainersCreateWithShmSize(c *testing.T) {
-	// ShmSize is not supported on Windows
-	testRequires(c, DaemonIsLinux)
-	config := container.Config{
-		Image: "busybox",
-		Cmd:   []string{"mount"},
-	}
-
-	hostConfig := container.HostConfig{
-		ShmSize: 1073741824,
-	}
-
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
-	ctr, err := apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, &network.NetworkingConfig{}, nil, "")
-	assert.NilError(c, err)
-
-	containerJSON, err := apiClient.ContainerInspect(testutil.GetContext(c), ctr.ID)
-	assert.NilError(c, err)
-
-	assert.Equal(c, containerJSON.HostConfig.ShmSize, int64(1073741824))
-
-	out := cli.DockerCmd(c, "start", "-i", containerJSON.ID).Combined()
-	shmRegex := regexp.MustCompile(`shm on /dev/shm type tmpfs(.*)size=1048576k`)
-	if !shmRegex.MatchString(out) {
-		c.Fatalf("Expected shm of 1GB in mount command, got %v", out)
-	}
 }
 
 func (s *DockerAPISuite) TestPostContainersCreateMemorySwappinessHostConfigOmitted(c *testing.T) {

@@ -12,6 +12,9 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+// ConfigOpt is an option to apply to a container.
+type ConfigOpt func(*TestContainerConfig)
+
 // WithName sets the name of the container
 func WithName(name string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
@@ -359,5 +362,12 @@ func WithStopSignal(stopSignal string) func(c *TestContainerConfig) {
 func WithContainerWideMacAddress(address string) func(c *TestContainerConfig) {
 	return func(c *TestContainerConfig) {
 		c.Config.MacAddress = address //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
+	}
+}
+
+// WithHostConfig sets a custom [container.HostConfig] for the container.
+func WithHostConfig(hc *container.HostConfig) func(c *TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig = hc
 	}
 }
