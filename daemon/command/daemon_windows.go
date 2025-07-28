@@ -9,7 +9,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/config"
-	"github.com/moby/moby/v2/daemon/internal/libcontainerd"
 	"golang.org/x/sys/windows"
 )
 
@@ -101,17 +100,12 @@ func newCgroupParent(*config.Config) string {
 }
 
 func (cli *daemonCLI) initContainerd(ctx context.Context) (func(time.Duration) error, error) {
-	defer func() {
-		if cli.Config.ContainerdAddr != "" {
-			libcontainerd.ContainerdRuntimeEnabled = true
-		}
-	}()
-
 	if cli.Config.ContainerdAddr != "" {
 		return nil, nil
 	}
 
-	if cli.Config.DefaultRuntime != config.WindowsV2RuntimeName {
+	if cli.Config.DefaultRuntime == "" || cli.Config.DefaultRuntime == config.WindowsV1RuntimeName {
+		// Legacy non-containerd runtime is used
 		return nil, nil
 	}
 
