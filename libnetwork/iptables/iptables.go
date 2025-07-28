@@ -31,6 +31,17 @@ const (
 	Insert Action = "-I"
 )
 
+const (
+	// ForwardChain is the FORWARD name of the chain used for forwarding packets.
+	ForwardChain = "FORWARD"
+	// PreroutingChain is the PREROUTING name of the chain used for packets before routing.
+	PreroutingChain = "PREROUTING"
+	// PostroutingChain is the POSTROUTING name of the chain used for packets after routing.
+	PostroutingChain = "POSTROUTING"
+	// OutputChain is the OUTPUT name of the chain used for packets after routing.
+	OutputChain = "OUTPUT"
+)
+
 // Policy is the default iptable policies
 type Policy string
 
@@ -589,6 +600,14 @@ func (iptable IPTable) ExistChain(chain string, table Table) bool {
 	return err == nil
 }
 
+// FlushChain flush chain if it exists
+func (iptable IPTable) FlushChain(table Table, chain string) error {
+	if !iptable.ExistChain(chain, table) {
+		return nil
+	}
+	return iptable.RawCombinedOutput("-t", string(table), "-F", chain)
+}
+
 // SetDefaultPolicy sets the passed default policy for the table/chain
 func (iptable IPTable) SetDefaultPolicy(table Table, chain string, policy Policy) error {
 	if err := iptable.RawCombinedOutput("-t", string(table), "-P", chain, string(policy)); err != nil {
@@ -598,25 +617,93 @@ func (iptable IPTable) SetDefaultPolicy(table Table, chain string, policy Policy
 }
 
 // AddReturnRule adds a return rule for the chain in the filter table
-func (iptable IPTable) AddReturnRule(chain string) error {
-	if iptable.Exists(Filter, chain, "-j", "RETURN") {
+func (iptable IPTable) AddReturnRule(table Table, chain string) error {
+	if iptable.Exists(table, chain, "-j", "RETURN") {
 		return nil
 	}
-	if err := iptable.RawCombinedOutput("-A", chain, "-j", "RETURN"); err != nil {
+	if err := iptable.RawCombinedOutput("-t", string(table), "-A", chain, "-j", "RETURN"); err != nil {
 		return fmt.Errorf("unable to add return rule in %s chain: %v", chain, err)
 	}
 	return nil
 }
 
 // EnsureJumpRule ensures the jump rule is on top
-func (iptable IPTable) EnsureJumpRule(fromChain, toChain string) error {
-	if iptable.Exists(Filter, fromChain, "-j", toChain) {
-		if err := iptable.RawCombinedOutput("-D", fromChain, "-j", toChain); err != nil {
-			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %v", toChain, fromChain, err)
-		}
+func (iptable IPTable) EnsureJumpRule(table Table, fromChain, toChain string, rule ...string) error {
+	if err := iptable.DeleteJumpRule(table, fromChain, toChain, rule...); err != nil {
+		return err
 	}
-	if err := iptable.RawCombinedOutput("-I", fromChain, "-j", toChain); err != nil {
+	rule = append(rule, "-j", toChain)
+	if err := iptable.RawCombinedOutput(append([]string{"-t", string(table), "-I", fromChain}, rule...)...); err != nil {
 		return fmt.Errorf("unable to insert jump to %s rule in %s chain: %v", toChain, fromChain, err)
 	}
 	return nil
+}
+
+// DeleteJumpRule deletes a rule added by EnsureJumpRule. It's a no-op if the rule
+// doesn't exist.
+func (iptable IPTable) DeleteJumpRule(table Table, fromChain, toChain string, rule ...string) error {
+	rule = append(rule, "-j", toChain)
+	if iptable.Exists(table, fromChain, rule...) {
+		if err := iptable.RawCombinedOutput(append([]string{"-t", string(table), "-D", fromChain}, rule...)...); err != nil {
+			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %v", toChain, fromChain, err)
+		}
+	}
+	return nil
+}
+
+type Rule struct {
+	IPVer IPVersion
+	Table Table
+	Chain string
+	Args  []string
+}
+
+// Exists returns true if the rule exists in the kernel.
+func (r Rule) Exists() bool {
+	return GetIptable(r.IPVer).Exists(r.Table, r.Chain, r.Args...)
+}
+
+func (r Rule) cmdArgs(op Action) []string {
+	return append([]string{"-t", string(r.Table), string(op), r.Chain}, r.Args...)
+}
+
+func (r Rule) exec(op Action) error {
+	return GetIptable(r.IPVer).RawCombinedOutput(r.cmdArgs(op)...)
+}
+
+// ensure appends/insert the rule to the end of the chain. If the rule already exists anywhere in the
+// chain, this is a no-op.
+func (r Rule) ensure(op Action) error {
+	if r.Exists() {
+		return nil
+	}
+	return r.exec(op)
+}
+
+// Append appends the rule to the end of the chain. If the rule already exists anywhere in the
+// chain, this is a no-op.
+func (r Rule) Append() error {
+	return r.ensure(Append)
+}
+
+// Insert inserts the rule at the head of the chain. If the rule already exists anywhere in the
+// chain, this is a no-op.
+func (r Rule) Insert() error {
+	return r.ensure(Insert)
+}
+
+// Delete deletes the rule from the kernel. If the rule does not exist, this is a no-op.
+func (r Rule) Delete() error {
+	if !r.Exists() {
+		return nil
+	}
+	return r.exec(Delete)
+}
+
+func (r Rule) String() string {
+	cmd := append([]string{"iptables"}, r.cmdArgs("-A")...)
+	if r.IPVer == IPv6 {
+		cmd[0] = "ip6tables"
+	}
+	return strings.Join(cmd, " ")
 }

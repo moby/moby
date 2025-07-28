@@ -43,6 +43,13 @@ var (
 	onReloaded       []*func() // callbacks when Firewalld has been reloaded
 )
 
+// UsingFirewalld returns true if iptables rules will be applied via firewalld's
+// passthrough interface.
+func UsingFirewalld() bool {
+	_ = initCheck()
+	return firewalldRunning
+}
+
 // firewalldInit initializes firewalld management code.
 func firewalldInit() error {
 	var err error
@@ -132,6 +139,7 @@ func reloaded() {
 	for _, pf := range onReloaded {
 		(*pf)()
 	}
+	log.G(context.TODO()).Info("Firewalld reload completed")
 }
 
 // OnReloaded add callback

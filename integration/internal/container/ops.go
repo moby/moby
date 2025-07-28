@@ -1,6 +1,7 @@
 package container
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
@@ -52,6 +53,16 @@ func WithExposedPorts(ports ...string) func(*TestContainerConfig) {
 		c.Config.ExposedPorts = map[nat.Port]struct{}{}
 		for _, port := range ports {
 			c.Config.ExposedPorts[nat.Port(port)] = struct{}{}
+		}
+	}
+}
+
+// WithPortMap sets/replaces port mappings.
+func WithPortMap(pm nat.PortMap) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.PortBindings = nat.PortMap{}
+		for p, b := range pm {
+			c.HostConfig.PortBindings[p] = slices.Clone(b)
 		}
 	}
 }
