@@ -1,22 +1,19 @@
 package checkpoint
 
 import (
-	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/docker/docker/daemon/server/router"
 )
 
 // checkpointRouter is a router to talk with the checkpoint controller
 type checkpointRouter struct {
 	backend Backend
-	decoder httputils.ContainerDecoder
 	routes  []router.Route
 }
 
 // NewRouter initializes a new checkpoint router
-func NewRouter(b Backend, decoder httputils.ContainerDecoder) router.Router {
+func NewRouter(b Backend) router.Router {
 	r := &checkpointRouter{
 		backend: b,
-		decoder: decoder,
 	}
 	r.initRoutes()
 	return r
