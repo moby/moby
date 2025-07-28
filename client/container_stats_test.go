@@ -48,7 +48,7 @@ func TestContainerStats(t *testing.T) {
 		client := &Client{
 			client: newMockClient(func(r *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(r.URL.Path, expectedURL) {
-					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
+					return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, r.URL)
 				}
 
 				query := r.URL.Query()
@@ -65,7 +65,9 @@ func TestContainerStats(t *testing.T) {
 		}
 		resp, err := client.ContainerStats(context.Background(), "container_id", c.stream)
 		assert.NilError(t, err)
-		defer resp.Body.Close()
+		t.Cleanup(func() {
+			_ = resp.Body.Close()
+		})
 		content, err := io.ReadAll(resp.Body)
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal(string(content), "response"))
