@@ -12,6 +12,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/binary"
+	goerrors "errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -82,6 +83,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	"golang.org/x/sync/semaphore"
+	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials/insecure"
@@ -287,6 +289,9 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 			}
 			if err := daemon.register(context.TODO(), c); err != nil {
 				logger.WithError(err).Error("failed to register container")
+				if goerrors.Is(err, unix.ENOSPC) {
+					os.Exit(1)
+				}
 				mapLock.Lock()
 				delete(containers, c.ID)
 				mapLock.Unlock()
