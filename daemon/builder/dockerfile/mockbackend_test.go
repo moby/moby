@@ -7,6 +7,7 @@ import (
 	"runtime"
 
 	"github.com/docker/docker/daemon/builder"
+	containerpkg "github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/docker/docker/daemon/server/backend"
@@ -49,7 +50,7 @@ func (m *MockBackend) ContainerStart(ctx context.Context, containerID string, ch
 	return nil
 }
 
-func (m *MockBackend) ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.StateStatus, error) {
+func (m *MockBackend) ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan containerpkg.StateStatus, error) {
 	return nil, nil
 }
 
