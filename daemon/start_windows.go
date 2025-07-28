@@ -1,16 +1,23 @@
 package daemon
 
 import (
-	"github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options"
-	"github.com/docker/docker/daemon/config"
+	"github.com/containerd/containerd/v2/defaults"
 	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/daemon/internal/libcontainerd"
 )
 
-func (daemon *Daemon) getLibcontainerdCreateOptions(*configStore, *container.Container) (string, interface{}, error) {
-	if libcontainerd.ContainerdRuntimeEnabled {
-		opts := &options.Options{}
-		return config.WindowsV2RuntimeName, opts, nil
+func (daemon *Daemon) getLibcontainerdCreateOptions(daemonCfg *configStore, container *container.Container) (string, interface{}, error) {
+	if container.HostConfig.Runtime != "" {
+		return container.HostConfig.Runtime, nil, nil
 	}
-	return "", nil, nil
+
+	if daemonCfg.DefaultRuntime != "" {
+		return daemonCfg.DefaultRuntime, nil, nil
+	}
+
+	if daemon.containerdClient == nil {
+		// We're running in legacy non-containerd mode, runtime doesn't affect anything
+		return "", nil, nil
+	}
+
+	return defaults.DefaultRuntime, nil, nil
 }

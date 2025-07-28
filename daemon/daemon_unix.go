@@ -26,7 +26,6 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/initlayer"
-	"github.com/docker/docker/daemon/internal/libcontainerd/remote"
 	"github.com/docker/docker/daemon/internal/otelutil"
 	"github.com/docker/docker/daemon/internal/usergroup"
 	"github.com/docker/docker/daemon/libnetwork"
@@ -1645,18 +1644,6 @@ func getSysInfo(cfg *config.Config) *sysinfo.SysInfo {
 		}
 	}
 	return sysinfo.New(siOpts...)
-}
-
-func (daemon *Daemon) initLibcontainerd(ctx context.Context, cfg *config.Config) error {
-	var err error
-	daemon.containerd, err = remote.NewClient(
-		ctx,
-		daemon.containerdClient,
-		filepath.Join(cfg.ExecRoot, "containerd"),
-		cfg.ContainerdNamespace,
-		daemon,
-	)
-	return err
 }
 
 func recursiveUnmount(target string) error {
