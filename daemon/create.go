@@ -23,7 +23,6 @@ import (
 	"github.com/docker/docker/daemon/internal/otelutil"
 	"github.com/docker/docker/daemon/server/backend"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/runconfig"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	networktypes "github.com/moby/moby/api/types/network"
@@ -77,7 +76,7 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 
 	start := time.Now()
 	if opts.params.Config == nil {
-		return containertypes.CreateResponse{}, errdefs.InvalidParameter(runconfig.ErrEmptyConfig)
+		return containertypes.CreateResponse{}, errdefs.InvalidParameter(errors.New("config cannot be empty in order to create a container"))
 	}
 
 	// Normalize some defaults. Doing this "ad-hoc" here for now, as there's
