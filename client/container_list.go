@@ -8,6 +8,7 @@ import (
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/versions"
 )
 
 // ContainerList returns the list of containers in the docker host.
@@ -44,10 +45,16 @@ func (cli *Client) ContainerList(ctx context.Context, options container.ListOpti
 			return nil, err
 		}
 
-		//nolint:staticcheck // ignore SA1019 for old code
-		filterJSON, err := filters.ToParamWithVersion(cli.version, options.Filters)
+		filterJSON, err := filters.ToJSON(options.Filters)
 		if err != nil {
 			return nil, err
+		}
+		if cli.version != "" && versions.LessThan(cli.version, "1.22") {
+			legacyFormat, err := encodeLegacyFilters(filterJSON)
+			if err != nil {
+				return nil, err
+			}
+			filterJSON = legacyFormat
 		}
 
 		query.Set("filters", filterJSON)

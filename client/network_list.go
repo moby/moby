@@ -7,16 +7,23 @@ import (
 
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/api/types/versions"
 )
 
 // NetworkList returns the list of networks configured in the docker host.
 func (cli *Client) NetworkList(ctx context.Context, options network.ListOptions) ([]network.Summary, error) {
 	query := url.Values{}
 	if options.Filters.Len() > 0 {
-		//nolint:staticcheck // ignore SA1019 for old code
-		filterJSON, err := filters.ToParamWithVersion(cli.version, options.Filters)
+		filterJSON, err := filters.ToJSON(options.Filters)
 		if err != nil {
 			return nil, err
+		}
+		if cli.version != "" && versions.LessThan(cli.version, "1.22") {
+			legacyFormat, err := encodeLegacyFilters(filterJSON)
+			if err != nil {
+				return nil, err
+			}
+			filterJSON = legacyFormat
 		}
 
 		query.Set("filters", filterJSON)
