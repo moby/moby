@@ -83,7 +83,7 @@ func (s *Service) Search(ctx context.Context, searchFilters filters.Args, term s
 }
 
 func (s *Service) searchUnfiltered(ctx context.Context, term string, limit int, authConfig *registry.AuthConfig, headers http.Header) (*registry.SearchResults, error) {
-	if hasScheme(term) {
+	if strings.Contains(term, "://") {
 		return nil, invalidParamf("invalid repository name: repository name (%s) should not have a scheme", term)
 	}
 
@@ -142,29 +142,4 @@ func splitReposSearchTerm(reposName string) (string, string) {
 		return IndexName, reposName
 	}
 	return nameParts[0], nameParts[1]
-}
-
-// ParseSearchIndexInfo will use repository name to get back an indexInfo.
-//
-// TODO(thaJeztah) this function is only used by the CLI, and used to get
-// information of the registry (to provide credentials if needed). We should
-// move this function (or equivalent) to the CLI, as it's doing too much just
-// for that.
-func ParseSearchIndexInfo(reposName string) (*registry.IndexInfo, error) {
-	indexName, _ := splitReposSearchTerm(reposName)
-	indexName = normalizeIndexName(indexName)
-	if indexName == IndexName {
-		return &registry.IndexInfo{
-			Name:     IndexName,
-			Mirrors:  []string{},
-			Secure:   true,
-			Official: true,
-		}, nil
-	}
-
-	return &registry.IndexInfo{
-		Name:    indexName,
-		Mirrors: []string{},
-		Secure:  !isInsecure(indexName),
-	}, nil
 }

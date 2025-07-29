@@ -328,10 +328,6 @@ func normalizeIndexName(val string) string {
 	return val
 }
 
-func hasScheme(reposName string) bool {
-	return strings.Contains(reposName, "://")
-}
-
 func validateHostPort(s string) error {
 	// Split host and port, and in case s can not be split, assume host only
 	host, port, err := net.SplitHostPort(s)
