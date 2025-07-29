@@ -950,6 +950,7 @@ github.com/moby/moby/api/types/container
 github.com/moby/moby/api/types/events
 github.com/moby/moby/api/types/filters
 github.com/moby/moby/api/types/image
+github.com/moby/moby/api/types/jsonstream
 github.com/moby/moby/api/types/mount
 github.com/moby/moby/api/types/network
 github.com/moby/moby/api/types/registry

@@ -7,15 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/term"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
-
-func TestError(t *testing.T) {
-	je := JSONError{404, "Not found"}
-	assert.Assert(t, is.Error(&je, "Not found"))
-}
 
 func TestProgressString(t *testing.T) {
 	type expected struct {
@@ -207,14 +203,14 @@ func TestJSONMessageDisplay(t *testing.T) {
 // Test JSONMessage with an Error. It will return an error with the text as error, not the meaning of the HTTP code.
 func TestJSONMessageDisplayWithJSONError(t *testing.T) {
 	data := bytes.NewBuffer([]byte{})
-	jsonMessage := JSONMessage{Error: &JSONError{404, "Can't find it"}}
+	jsonMessage := JSONMessage{Error: &jsonstream.Error{Code: 404, Message: "Can't find it"}}
 
 	err := jsonMessage.Display(data, true)
 	if err == nil || err.Error() != "Can't find it" {
-		t.Fatalf("Expected a JSONError 404, got %q", err)
+		t.Fatalf("Expected a jsonstream.Error 404, got %q", err)
 	}
 
-	jsonMessage = JSONMessage{Error: &JSONError{401, "Anything"}}
+	jsonMessage = JSONMessage{Error: &jsonstream.Error{Code: 401, Message: "Anything"}}
 	err = jsonMessage.Display(data, true)
 	assert.Check(t, is.Error(err, "Anything"))
 }
