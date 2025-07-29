@@ -10,12 +10,13 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	containerpkg "github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/errdefs"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/sys/signal"
 	"github.com/pkg/errors"
+
+	containerpkg "github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/errdefs"
 )
 
 type errNoSuchProcess struct {

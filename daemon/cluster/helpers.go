@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/docker/docker/errdefs"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/errdefs"
 )
 
 func getSwarm(ctx context.Context, c swarmapi.ControlClient) (*swarmapi.Cluster, error) {

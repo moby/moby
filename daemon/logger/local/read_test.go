@@ -5,8 +5,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/daemon/logger"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/daemon/logger"
 )
 
 func TestDecode(t *testing.T) {

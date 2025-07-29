@@ -6,16 +6,17 @@ import (
 	"strconv"
 
 	"github.com/distribution/reference"
+	"github.com/moby/moby/api/types/build"
+	"github.com/moby/moby/api/types/events"
+	"github.com/pkg/errors"
+	"google.golang.org/grpc"
+
 	"github.com/docker/docker/daemon/builder"
 	daemonevents "github.com/docker/docker/daemon/events"
 	buildkit "github.com/docker/docker/daemon/internal/builder-next"
 	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/internal/stringid"
 	"github.com/docker/docker/daemon/server/backend"
-	"github.com/moby/moby/api/types/build"
-	"github.com/moby/moby/api/types/events"
-	"github.com/pkg/errors"
-	"google.golang.org/grpc"
 )
 
 // ImageComponent provides an interface for working with images

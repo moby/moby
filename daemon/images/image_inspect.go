@@ -5,11 +5,12 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
+	imagetypes "github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/storage"
+
 	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/docker/docker/daemon/server/backend"
-	imagetypes "github.com/moby/moby/api/types/image"
-	"github.com/moby/moby/api/types/storage"
 )
 
 func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts backend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {

@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 )
 
 type fakePortMapper struct{}

@@ -9,11 +9,12 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/docker/docker/daemon/internal/sliceutil"
-	"github.com/docker/docker/daemon/libnetwork/nlwrap"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/daemon/internal/sliceutil"
+	"github.com/docker/docker/daemon/libnetwork/nlwrap"
 )
 
 func TestGenerateIfaceName(t *testing.T) {

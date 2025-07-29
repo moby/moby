@@ -13,14 +13,15 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/internal/otelutil"
-	"github.com/docker/docker/daemon/internal/stringid"
-	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/moby/sys/reexec"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/docker/docker/daemon/internal/otelutil"
+	"github.com/docker/docker/daemon/internal/stringid"
+	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
 const (

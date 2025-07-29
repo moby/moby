@@ -15,16 +15,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/moby/moby/api/types/container"
+	volumetypes "github.com/moby/moby/api/types/volume"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/docker/docker/daemon/volume"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/testutil"
 	testdaemon "github.com/docker/docker/testutil/daemon"
-	"github.com/moby/moby/api/types/container"
-	volumetypes "github.com/moby/moby/api/types/volume"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 const volumePluginName = "test-external-volume-driver"

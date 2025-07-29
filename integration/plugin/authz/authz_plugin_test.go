@@ -17,9 +17,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/pkg/authorization"
-	"github.com/docker/docker/testutil/environment"
 	"github.com/docker/go-connections/sockets"
 	"github.com/moby/go-archive"
 	containertypes "github.com/moby/moby/api/types/container"
@@ -28,6 +25,10 @@ import (
 	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/pkg/authorization"
+	"github.com/docker/docker/testutil/environment"
 )
 
 const (

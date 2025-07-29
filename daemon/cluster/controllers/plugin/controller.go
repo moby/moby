@@ -8,16 +8,17 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/daemon/cluster/internal/runtime"
-	"github.com/docker/docker/daemon/pkg/plugin"
-	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
-	"github.com/docker/docker/daemon/server/backend"
 	"github.com/gogo/protobuf/proto"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/cluster/internal/runtime"
+	"github.com/docker/docker/daemon/pkg/plugin"
+	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
+	"github.com/docker/docker/daemon/server/backend"
 )
 
 // Controller is the controller for the plugin backend.

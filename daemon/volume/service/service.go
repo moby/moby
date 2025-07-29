@@ -6,6 +6,11 @@ import (
 	"sync/atomic"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/api/types/filters"
+	volumetypes "github.com/moby/moby/api/types/volume"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/internal/directory"
 	"github.com/docker/docker/daemon/internal/idtools"
 	"github.com/docker/docker/daemon/internal/stringid"
@@ -14,10 +19,6 @@ import (
 	"github.com/docker/docker/daemon/volume/service/opts"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/filters"
-	volumetypes "github.com/moby/moby/api/types/volume"
-	"github.com/pkg/errors"
 )
 
 type driverLister interface {

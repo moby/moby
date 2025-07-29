@@ -7,8 +7,6 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/testutil/request"
 	"github.com/moby/moby/api/types/checkpoint"
 	containertypes "github.com/moby/moby/api/types/container"
 	mounttypes "github.com/moby/moby/api/types/mount"
@@ -17,6 +15,9 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil/request"
 )
 
 //nolint:unused // false positive: linter detects this as "unused"

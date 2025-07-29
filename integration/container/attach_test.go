@@ -4,9 +4,6 @@ import (
 	"testing"
 	"time"
 
-	systemutil "github.com/docker/docker/integration/internal/system"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/daemon"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
@@ -14,6 +11,10 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	systemutil "github.com/docker/docker/integration/internal/system"
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/daemon"
 )
 
 func TestAttach(t *testing.T) {

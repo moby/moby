@@ -10,15 +10,16 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/daemon/internal/idtools"
-	"github.com/docker/docker/daemon/libnetwork"
-	volumesservice "github.com/docker/docker/daemon/volume/service"
 	"github.com/docker/go-connections/nat"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/daemon/internal/idtools"
+	"github.com/docker/docker/daemon/libnetwork"
+	volumesservice "github.com/docker/docker/daemon/volume/service"
 )
 
 //

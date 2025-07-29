@@ -10,10 +10,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/daemon/cluster/convert"
-	executorpkg "github.com/docker/docker/daemon/cluster/executor"
-	clustertypes "github.com/docker/docker/daemon/cluster/provider"
-	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/go-connections/nat"
 	gogotypes "github.com/gogo/protobuf/types"
 	containertypes "github.com/moby/moby/api/types/container"
@@ -26,6 +22,11 @@ import (
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/genericresource"
 	"github.com/moby/swarmkit/v2/template"
+
+	"github.com/docker/docker/daemon/cluster/convert"
+	executorpkg "github.com/docker/docker/daemon/cluster/executor"
+	clustertypes "github.com/docker/docker/daemon/cluster/provider"
+	"github.com/docker/docker/daemon/libnetwork/scope"
 )
 
 const (

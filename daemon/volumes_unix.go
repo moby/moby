@@ -10,13 +10,14 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/api/types/events"
+	mounttypes "github.com/moby/moby/api/types/mount"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/cleanups"
 	"github.com/docker/docker/daemon/internal/idtools"
 	volumemounts "github.com/docker/docker/daemon/volume/mounts"
-	"github.com/moby/moby/api/types/events"
-	mounttypes "github.com/moby/moby/api/types/mount"
-	"github.com/pkg/errors"
 )
 
 // setupMounts iterates through each of the mount points for a container and

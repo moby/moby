@@ -54,6 +54,10 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/moby/locker"
+	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+
 	"github.com/docker/docker/daemon/internal/otelutil"
 	"github.com/docker/docker/daemon/internal/stringid"
 	"github.com/docker/docker/daemon/libnetwork/cluster"
@@ -72,9 +76,6 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
-	"github.com/moby/locker"
-	"github.com/pkg/errors"
-	"go.opentelemetry.io/otel"
 )
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.

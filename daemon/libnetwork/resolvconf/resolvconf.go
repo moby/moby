@@ -7,8 +7,9 @@ import (
 	"net/netip"
 	"os"
 
-	"github.com/docker/docker/daemon/libnetwork/internal/resolvconf"
 	"github.com/opencontainers/go-digest"
+
+	"github.com/docker/docker/daemon/libnetwork/internal/resolvconf"
 )
 
 // constants for the IP address type

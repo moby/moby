@@ -4,9 +4,10 @@ import (
 	"net"
 	"testing"
 
+	"github.com/vishvananda/netlink"
+
 	"github.com/docker/docker/daemon/libnetwork/nlwrap"
 	"github.com/docker/docker/internal/testutils/netnsutils"
-	"github.com/vishvananda/netlink"
 )
 
 func setupTestInterface(t *testing.T, nh nlwrap.Handle) (*networkConfiguration, *bridgeInterface) {

@@ -4,10 +4,11 @@ import (
 	"context"
 	"io"
 
-	"github.com/docker/docker/daemon/internal/image/tarexport"
-	"github.com/docker/docker/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/internal/image/tarexport"
+	"github.com/docker/docker/errdefs"
 )
 
 // ExportImage exports a list of images to the given output stream. The

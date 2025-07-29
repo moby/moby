@@ -7,8 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/daemon/internal/lazyregexp"
 	"github.com/moby/moby/api/types/mount"
+
+	"github.com/docker/docker/daemon/internal/lazyregexp"
 )
 
 // NewWindowsParser creates a parser with Windows semantics.

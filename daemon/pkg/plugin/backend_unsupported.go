@@ -9,10 +9,11 @@ import (
 	"net/http"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/daemon/server/backend"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/registry"
+
+	"github.com/docker/docker/daemon/server/backend"
 )
 
 var errNotSupported = errors.New("plugins are not supported on this platform")

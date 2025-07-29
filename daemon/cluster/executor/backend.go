@@ -7,16 +7,6 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
-	clustertypes "github.com/docker/docker/daemon/cluster/provider"
-	containerpkg "github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/daemon/libnetwork"
-	"github.com/docker/docker/daemon/libnetwork/cluster"
-	networktypes "github.com/docker/docker/daemon/libnetwork/types"
-	networkSettings "github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/daemon/pkg/plugin"
-	"github.com/docker/docker/daemon/server/backend"
-	volumeopts "github.com/docker/docker/daemon/volume/service/opts"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
@@ -27,6 +17,17 @@ import (
 	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/swarmkit/v2/agent/exec"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	clustertypes "github.com/docker/docker/daemon/cluster/provider"
+	containerpkg "github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/daemon/internal/image"
+	"github.com/docker/docker/daemon/libnetwork"
+	"github.com/docker/docker/daemon/libnetwork/cluster"
+	networktypes "github.com/docker/docker/daemon/libnetwork/types"
+	networkSettings "github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/daemon/pkg/plugin"
+	"github.com/docker/docker/daemon/server/backend"
+	volumeopts "github.com/docker/docker/daemon/volume/service/opts"
 )
 
 // Backend defines the executor component for a swarm agent.

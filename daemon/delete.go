@@ -9,16 +9,17 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/events"
+	"github.com/opencontainers/selinux/go-selinux"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/containerfs"
 	"github.com/docker/docker/daemon/internal/metrics"
 	"github.com/docker/docker/daemon/server/backend"
 	"github.com/docker/docker/errdefs"
-	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/events"
-	"github.com/opencontainers/selinux/go-selinux"
-	"github.com/pkg/errors"
 )
 
 // ContainerRm removes the container id from the filesystem. An error

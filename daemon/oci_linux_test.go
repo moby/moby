@@ -6,11 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/daemon/libnetwork"
-	nwconfig "github.com/docker/docker/daemon/libnetwork/config"
-	"github.com/docker/docker/daemon/network"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -18,6 +13,12 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/daemon/libnetwork"
+	nwconfig "github.com/docker/docker/daemon/libnetwork/config"
+	"github.com/docker/docker/daemon/network"
 )
 
 func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {

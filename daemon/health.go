@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/events"
+
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/metrics"
 	"github.com/docker/docker/daemon/server/backend"
-	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/events"
 )
 
 const (

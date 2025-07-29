@@ -18,12 +18,13 @@ import (
 	runcoptions "github.com/containerd/containerd/api/types/runc/options"
 	"github.com/containerd/containerd/v2/plugins"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/internal/libcontainerd/shimopts"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/sys/atomicwriter"
 	"github.com/opencontainers/runtime-spec/specs-go/features"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/internal/libcontainerd/shimopts"
+	"github.com/docker/docker/errdefs"
 )
 
 const (

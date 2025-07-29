@@ -6,9 +6,10 @@ import (
 	"regexp"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/registry"
-	"gotest.tools/v3/assert"
 )
 
 // unescapeBackslashSemicolonParens unescapes \;()

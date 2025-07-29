@@ -13,9 +13,6 @@ import (
 
 	"dario.cat/mergo"
 	"github.com/containerd/log"
-	dopts "github.com/docker/docker/daemon/internal/opts"
-	"github.com/docker/docker/daemon/pkg/opts"
-	"github.com/docker/docker/daemon/pkg/registry"
 	"github.com/moby/moby/api"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/pkg/errors"
@@ -23,6 +20,10 @@ import (
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
+
+	dopts "github.com/docker/docker/daemon/internal/opts"
+	"github.com/docker/docker/daemon/pkg/opts"
+	"github.com/docker/docker/daemon/pkg/registry"
 )
 
 const (

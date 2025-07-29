@@ -9,10 +9,11 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/sirupsen/logrus"
+
 	"github.com/docker/docker/daemon/server/httpstatus"
 	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/sirupsen/logrus"
 )
 
 // DebugRequestMiddleware dumps the request to logger

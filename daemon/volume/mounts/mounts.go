@@ -7,14 +7,15 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/internal/idtools"
-	"github.com/docker/docker/daemon/internal/stringid"
-	"github.com/docker/docker/daemon/volume"
-	"github.com/docker/docker/daemon/volume/safepath"
 	mounttypes "github.com/moby/moby/api/types/mount"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/internal/idtools"
+	"github.com/docker/docker/daemon/internal/stringid"
+	"github.com/docker/docker/daemon/volume"
+	"github.com/docker/docker/daemon/volume/safepath"
 )
 
 // RWLayer represents a writable layer.

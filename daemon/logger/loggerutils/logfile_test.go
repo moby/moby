@@ -15,11 +15,12 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/pkg/tailfile"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
+
+	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/pkg/tailfile"
 )
 
 type testDecoder struct {

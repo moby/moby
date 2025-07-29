@@ -7,13 +7,14 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	containertypes "github.com/moby/moby/api/types/container"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/builder"
 	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/docker/docker/dockerversion"
-	containertypes "github.com/moby/moby/api/types/container"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 type ImageCacheStore interface {

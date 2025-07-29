@@ -14,6 +14,10 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/client"
+	apitypes "github.com/moby/moby/api/types"
+	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/internal/distribution/metadata"
 	"github.com/docker/docker/daemon/internal/distribution/xfer"
 	"github.com/docker/docker/daemon/internal/layer"
@@ -21,9 +25,6 @@ import (
 	"github.com/docker/docker/daemon/pkg/registry"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
-	apitypes "github.com/moby/moby/api/types"
-	"github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
 )
 
 const (

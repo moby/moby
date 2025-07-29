@@ -8,10 +8,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/go-archive"
 	"github.com/moby/sys/user"
+
+	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/errdefs"
 )
 
 func (daemon *Daemon) tarCopyOptions(ctr *container.Container, allowOverwriteDirWithFile bool) (*archive.TarOptions, error) {

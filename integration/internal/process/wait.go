@@ -1,8 +1,9 @@
 package process
 
 import (
-	procpkg "github.com/docker/docker/pkg/process"
 	"gotest.tools/v3/poll"
+
+	procpkg "github.com/docker/docker/pkg/process"
 )
 
 // NotAlive verifies the process doesn't exist (finished or never started).

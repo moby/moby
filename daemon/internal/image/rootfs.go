@@ -6,8 +6,9 @@ package image
 import (
 	"slices"
 
-	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/opencontainers/image-spec/identity"
+
+	"github.com/docker/docker/daemon/internal/layer"
 )
 
 // TypeLayers is used for RootFS.Type for filesystems organized into layers.

@@ -4,12 +4,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/integration/internal/container"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/integration/internal/container"
 )
 
 func TestLinksEtcHostsContentMatch(t *testing.T) {

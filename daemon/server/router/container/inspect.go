@@ -7,12 +7,13 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/versions"
+
 	"github.com/docker/docker/daemon/internal/sliceutil"
 	"github.com/docker/docker/daemon/internal/stringid"
 	"github.com/docker/docker/daemon/server/backend"
 	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/versions"
 )
 
 // getContainersByName inspects container's configuration and serializes it as json.

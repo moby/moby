@@ -3,8 +3,9 @@ package cluster
 import (
 	"net"
 
-	"github.com/docker/docker/daemon/libnetwork/nlwrap"
 	"github.com/vishvananda/netlink"
+
+	"github.com/docker/docker/daemon/libnetwork/nlwrap"
 )
 
 func (c *Cluster) resolveSystemAddr() (net.IP, error) {

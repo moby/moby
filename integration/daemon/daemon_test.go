@@ -15,11 +15,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/integration/internal/process"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/daemon"
 	"github.com/moby/moby/api/stdcopy"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
@@ -30,6 +25,12 @@ import (
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/integration/internal/process"
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/daemon"
 )
 
 func TestConfigDaemonID(t *testing.T) {

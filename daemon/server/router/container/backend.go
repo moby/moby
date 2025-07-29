@@ -4,12 +4,13 @@ import (
 	"context"
 	"io"
 
-	containerpkg "github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/daemon/server/backend"
-	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
+
+	containerpkg "github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/daemon/server/backend"
+	"github.com/docker/docker/pkg/sysinfo"
 )
 
 // execBackend includes functions to implement to provide exec functionality.

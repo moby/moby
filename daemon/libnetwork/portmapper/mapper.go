@@ -9,8 +9,9 @@ import (
 	"net"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/portallocator"
 	"github.com/ishidawataru/sctp"
+
+	"github.com/docker/docker/daemon/libnetwork/portallocator"
 )
 
 type mapping struct {

@@ -10,15 +10,16 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/moby/moby/api/types/registry"
+	"github.com/opencontainers/go-digest"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/docker/docker/daemon/internal/distribution/metadata"
 	"github.com/docker/docker/daemon/internal/layer"
 	refstore "github.com/docker/docker/daemon/internal/refstore"
 	registrypkg "github.com/docker/docker/daemon/pkg/registry"
 	"github.com/docker/docker/pkg/progress"
-	"github.com/moby/moby/api/types/registry"
-	"github.com/opencontainers/go-digest"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestGetRepositoryMountCandidates(t *testing.T) {

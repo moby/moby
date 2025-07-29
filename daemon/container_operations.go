@@ -15,6 +15,14 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/docker/go-connections/nat"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/events"
+	networktypes "github.com/moby/moby/api/types/network"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/metrics"
@@ -28,13 +36,6 @@ import (
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/daemon/pkg/opts"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/go-connections/nat"
-	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/events"
-	networktypes "github.com/moby/moby/api/types/network"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 const errSetupNetworking = "failed to set up container networking"

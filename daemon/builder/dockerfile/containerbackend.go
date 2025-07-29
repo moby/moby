@@ -7,11 +7,12 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/moby/moby/api/types/container"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/builder"
 	"github.com/docker/docker/daemon/internal/stringid"
 	"github.com/docker/docker/daemon/server/backend"
-	"github.com/moby/moby/api/types/container"
-	"github.com/pkg/errors"
 )
 
 type containerManager struct {

@@ -1,9 +1,10 @@
 package daemon
 
 import (
+	"github.com/moby/moby/api/types/container"
+
 	containerpkg "github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/server/backend"
-	"github.com/moby/moby/api/types/container"
 )
 
 // This sets platform-specific fields

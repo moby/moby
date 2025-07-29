@@ -7,10 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
+
+	"github.com/docker/docker/testutil/daemon"
 )
 
 const (

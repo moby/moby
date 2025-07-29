@@ -4,9 +4,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/daemon/container"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/pubsub"
+
+	"github.com/docker/docker/daemon/container"
 )
 
 // Collector manages and provides container resource stats

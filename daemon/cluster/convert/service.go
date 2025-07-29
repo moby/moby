@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/daemon/cluster/internal/runtime"
-	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/gogo/protobuf/proto"
 	gogotypes "github.com/gogo/protobuf/types"
 	types "github.com/moby/moby/api/types/swarm"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/genericresource"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/cluster/internal/runtime"
+	"github.com/docker/docker/pkg/namesgenerator"
 )
 
 var (

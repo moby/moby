@@ -16,8 +16,9 @@ import (
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	hostconfig "github.com/containerd/containerd/v2/core/remotes/docker/config"
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/daemon/pkg/registry"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/pkg/registry"
 )
 
 const (

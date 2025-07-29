@@ -8,13 +8,14 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/events"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/builder/dockerfile"
 	"github.com/docker/docker/daemon/internal/metrics"
 	"github.com/docker/docker/daemon/server/backend"
 	"github.com/docker/docker/errdefs"
-	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/events"
-	"github.com/pkg/errors"
 )
 
 // merge merges two Config, the image container configuration (defaults values),

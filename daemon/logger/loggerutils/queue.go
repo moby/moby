@@ -4,8 +4,9 @@ import (
 	"context"
 	"sync"
 
-	"github.com/docker/docker/daemon/logger"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/logger"
 )
 
 // MessageQueue is a queue for log messages.

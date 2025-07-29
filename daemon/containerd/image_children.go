@@ -4,10 +4,11 @@ import (
 	"context"
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
-	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/internal/image"
+	"github.com/docker/docker/errdefs"
 )
 
 // getImagesWithLabel returns all images that have the matching label key and value.

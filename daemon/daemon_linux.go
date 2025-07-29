@@ -11,14 +11,15 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/libnetwork/ns"
-	"github.com/docker/docker/daemon/libnetwork/resolvconf"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/libnetwork/ns"
+	"github.com/docker/docker/daemon/libnetwork/resolvconf"
 )
 
 // On Linux, plugins use a static path for storing execution state,

@@ -8,11 +8,12 @@ import (
 	"net/url"
 	"sort"
 
+	"github.com/moby/moby/api/stdcopy"
+	"github.com/moby/moby/api/types/container"
+
 	"github.com/docker/docker/daemon/server/backend"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/moby/moby/api/stdcopy"
-	"github.com/moby/moby/api/types/container"
 )
 
 // WriteLogStream writes an encoded byte stream of log messages from the

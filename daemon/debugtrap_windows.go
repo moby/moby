@@ -7,8 +7,9 @@ import (
 	"unsafe"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/internal/stack"
 	"golang.org/x/sys/windows"
+
+	"github.com/docker/docker/daemon/internal/stack"
 )
 
 func (daemon *Daemon) setupDumpStackTrap(root string) {

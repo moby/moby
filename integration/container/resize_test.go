@@ -7,12 +7,13 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/integration/internal/container"
-	req "github.com/docker/docker/testutil/request"
 	"github.com/moby/moby/api/types"
 	containertypes "github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/integration/internal/container"
+	req "github.com/docker/docker/testutil/request"
 )
 
 func TestResize(t *testing.T) {

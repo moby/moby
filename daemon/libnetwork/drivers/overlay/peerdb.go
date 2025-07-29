@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/daemon/libnetwork/internal/hashable"
 	"github.com/docker/docker/daemon/libnetwork/internal/setmatrix"
 	"github.com/docker/docker/daemon/libnetwork/osl"

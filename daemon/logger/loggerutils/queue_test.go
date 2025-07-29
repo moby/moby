@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/logger"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/daemon/logger"
 )
 
 func TestQueue(t *testing.T) {

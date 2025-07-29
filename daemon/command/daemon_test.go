@@ -5,13 +5,14 @@ import (
 	"testing"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/config"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/spf13/pflag"
 	"go.opentelemetry.io/otel"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/fs"
+
+	"github.com/docker/docker/daemon/config"
 )
 
 func defaultOptions(t *testing.T, configFile string) *daemonOptions {

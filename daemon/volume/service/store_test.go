@@ -8,12 +8,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/daemon/volume"
 	volumedrivers "github.com/docker/docker/daemon/volume/drivers"
 	"github.com/docker/docker/daemon/volume/service/opts"
 	volumetestutils "github.com/docker/docker/daemon/volume/testutils"
-	"github.com/google/go-cmp/cmp"
-	"gotest.tools/v3/assert"
 )
 
 func TestCreate(t *testing.T) {

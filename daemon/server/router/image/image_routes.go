@@ -12,6 +12,14 @@ import (
 
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
+	"github.com/moby/moby/api/types/filters"
+	imagetypes "github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/api/types/versions"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/builder/remotecontext"
 	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/server/backend"
@@ -21,13 +29,6 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/moby/moby/api/types/filters"
-	imagetypes "github.com/moby/moby/api/types/image"
-	"github.com/moby/moby/api/types/registry"
-	"github.com/moby/moby/api/types/versions"
-	"github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // Creates an image from Pull or from Import
