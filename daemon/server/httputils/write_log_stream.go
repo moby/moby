@@ -10,10 +10,13 @@ import (
 
 	"github.com/docker/docker/daemon/server/backend"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/moby/moby/api/stdcopy"
 	"github.com/moby/moby/api/types/container"
 )
+
+// rfc3339NanoFixed is time.RFC3339Nano with nanoseconds padded using zeros to
+// ensure the formatted time isalways the same number of characters.
+const rfc3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
 
 // WriteLogStream writes an encoded byte stream of log messages from the
 // messages channel, multiplexing them with a stdcopy.Writer if mux is true
@@ -53,7 +56,7 @@ func WriteLogStream(_ context.Context, w http.ResponseWriter, msgs <-chan *backe
 			logLine = append(logLine, msg.Line...)
 		}
 		if config.Timestamps {
-			logLine = append([]byte(msg.Timestamp.Format(jsonmessage.RFC3339NanoFixed)+" "), logLine...)
+			logLine = append([]byte(msg.Timestamp.Format(rfc3339NanoFixed)+" "), logLine...)
 		}
 		if msg.Source == "stdout" && config.ShowStdout {
 			_, _ = outStream.Write(logLine)
