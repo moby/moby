@@ -63,7 +63,6 @@ import (
 	volumesservice "github.com/docker/docker/daemon/volume/service"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/authorization"
-	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/moby/buildkit/util/grpcerrors"
@@ -804,7 +803,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get the TempDir under %s: %s", config.Root, err)
 	}
-	realTmp, err := fileutils.ReadSymlinkedDirectory(tmp)
+	realTmp, err := resolveSymlinkedDirectory(tmp)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
 	}
@@ -1540,9 +1539,9 @@ func CreateDaemonRoot(config *config.Config) error {
 	if _, err := os.Stat(config.Root); err != nil && os.IsNotExist(err) {
 		realRoot = config.Root
 	} else {
-		realRoot, err = fileutils.ReadSymlinkedDirectory(config.Root)
+		realRoot, err = resolveSymlinkedDirectory(config.Root)
 		if err != nil {
-			return fmt.Errorf("Unable to get the full path to root (%s): %s", config.Root, err)
+			return fmt.Errorf("unable to get the full path to root (%s): %s", config.Root, err)
 		}
 	}
 
@@ -1671,4 +1670,26 @@ func (i *imageBackend) GetRepositories(ctx context.Context, ref reference.Named,
 			RegistryService: i.registryService,
 		},
 	})
+}
+
+// resolveSymlinkedDirectory returns the target directory of a symlink and
+// checks if it resolves to a directory (not a file).
+func resolveSymlinkedDirectory(path string) (realPath string, _ error) {
+	var err error
+	realPath, err = filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("unable to get absolute path for %s: %w", path, err)
+	}
+	realPath, err = filepath.EvalSymlinks(realPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to canonicalise path for %s: %w", path, err)
+	}
+	realPathInfo, err := os.Stat(realPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to stat target '%s' of '%s': %w", realPath, path, err)
+	}
+	if !realPathInfo.Mode().IsDir() {
+		return "", fmt.Errorf("canonical path points to a file '%s'", realPath)
+	}
+	return realPath, nil
 }
