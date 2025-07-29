@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/libcontainerd/local"
 	"github.com/docker/docker/daemon/internal/libcontainerd/remote"
+	"github.com/docker/docker/daemon/internal/system"
 	"github.com/docker/docker/daemon/libnetwork"
 	nwconfig "github.com/docker/docker/daemon/libnetwork/config"
 	winlibnetwork "github.com/docker/docker/daemon/libnetwork/drivers/windows"
@@ -25,7 +26,6 @@ import (
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
 	"github.com/docker/docker/pkg/sysinfo"
-	"github.com/docker/docker/pkg/system"
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/sys/user"
@@ -486,7 +486,7 @@ func setupRemappedRoot(config *config.Config) (user.IdentityMapping, error) {
 func setupDaemonRoot(config *config.Config, rootDir string, uid, gid int) error {
 	config.Root = rootDir
 	// Create the root directory if it doesn't exists
-	if err := system.MkdirAllWithACL(config.Root, 0, system.SddlAdministratorsLocalSystem); err != nil {
+	if err := system.MkdirAllWithACL(config.Root, system.SddlAdministratorsLocalSystem); err != nil {
 		return err
 	}
 	return nil

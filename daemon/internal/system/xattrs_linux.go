@@ -6,6 +6,23 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+type XattrError struct {
+	Op   string
+	Attr string
+	Path string
+	Err  error
+}
+
+func (e *XattrError) Error() string { return e.Op + " " + e.Attr + " " + e.Path + ": " + e.Err.Error() }
+
+func (e *XattrError) Unwrap() error { return e.Err }
+
+// Timeout reports whether this error represents a timeout.
+func (e *XattrError) Timeout() bool {
+	t, ok := e.Err.(interface{ Timeout() bool })
+	return ok && t.Timeout()
+}
+
 // Lgetxattr retrieves the value of the extended attribute identified by attr
 // and associated with the given path in the file system.
 // It returns a nil slice and nil error if the xattr is not set.
