@@ -25,15 +25,15 @@ func NewRouter(b Backend, d experimentalProvider) router.Router {
 }
 
 // Routes returns the available routers to the build controller
-func (r *buildRouter) Routes() []router.Route {
-	return r.routes
+func (br *buildRouter) Routes() []router.Route {
+	return br.routes
 }
 
-func (r *buildRouter) initRoutes() {
-	r.routes = []router.Route{
-		router.NewPostRoute("/build", r.postBuild),
-		router.NewPostRoute("/build/prune", r.postPrune),
-		router.NewPostRoute("/build/cancel", r.postCancel),
+func (br *buildRouter) initRoutes() {
+	br.routes = []router.Route{
+		router.NewPostRoute("/build", br.postBuild),
+		router.NewPostRoute("/build/prune", br.postPrune),
+		router.NewPostRoute("/build/cancel", br.postCancel),
 	}
 }
 

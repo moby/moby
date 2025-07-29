@@ -236,7 +236,7 @@ func (d *driver) parseNetworkOptions(id string, genericOptions map[string]string
 	return config, nil
 }
 
-func (c *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data []driverapi.IPAMData) error {
+func (ncfg *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data []driverapi.IPAMData) error {
 	if len(ipamV6Data) > 0 {
 		return types.ForbiddenErrorf("windowsshim driver doesn't support v6 subnets")
 	}
@@ -246,13 +246,6 @@ func (c *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data []d
 	}
 
 	return nil
-}
-
-func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
-}
-
-func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
-	return "", nil
 }
 
 func (d *driver) createNetwork(config *networkConfiguration) *hnsNetwork {

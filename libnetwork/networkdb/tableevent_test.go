@@ -1,6 +1,7 @@
 package networkdb
 
 import (
+	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -13,7 +14,7 @@ import (
 )
 
 func TestWatch_out_of_order(t *testing.T) {
-	nDB := new(DefaultConfig())
+	nDB := newNetworkDB(DefaultConfig())
 	nDB.networkBroadcasts = &memberlist.TransmitLimitedQueue{}
 	nDB.nodeBroadcasts = &memberlist.TransmitLimitedQueue{}
 	assert.Assert(t, nDB.JoinNetwork("network1"))
@@ -45,7 +46,7 @@ func TestWatch_out_of_order(t *testing.T) {
 
 	got := drainChannel(watch.C)
 	assert.Check(t, is.DeepEqual(got, []events.Event{
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "key1", Value: []byte("value1")}),
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key1", Value: []byte("value1")},
 	}))
 
 	// Receive events from node1, with events not received or received out of order
@@ -76,24 +77,24 @@ func TestWatch_out_of_order(t *testing.T) {
 
 	got = drainChannel(watch.C)
 	assert.Check(t, is.DeepEqual(got, []events.Event{
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "key2", Value: []byte("a")}),
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key2", Value: []byte("a")},
 		// Delete value should match last observed value,
 		// irrespective of the content of the delete event over the wire.
-		DeleteEvent(event{Table: "table1", NetworkID: "network1", Key: "key2", Value: []byte("a")}),
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key2", Prev: []byte("a")},
 		// Updates to previously-deleted keys should be observed as creates.
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "key2", Value: []byte("d")}),
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key2", Value: []byte("d")},
 
 		// Out-of-order update events should be observed as creates.
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "key3", Value: []byte("b")}),
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "key4", Value: []byte("b")}),
-		UpdateEvent(event{Table: "table1", NetworkID: "network1", Key: "key4", Value: []byte("c")}),
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key3", Value: []byte("b")},
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key4", Value: []byte("b")},
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "key4", Prev: []byte("b"), Value: []byte("c")},
 
 		// key5 should not appear in the events.
 	}))
 }
 
 func TestWatch_filters(t *testing.T) {
-	nDB := new(DefaultConfig())
+	nDB := newNetworkDB(DefaultConfig())
 	nDB.networkBroadcasts = &memberlist.TransmitLimitedQueue{}
 	nDB.nodeBroadcasts = &memberlist.TransmitLimitedQueue{}
 	assert.Assert(t, nDB.JoinNetwork("network1"))
@@ -196,31 +197,87 @@ L:
 	}
 
 	assert.Check(t, is.DeepEqual(gotAll, []events.Event{
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "network1.table1", Value: []byte("a")}),
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "network1.table1.update", Value: []byte("updated")}),
-		CreateEvent(event{Table: "table2", NetworkID: "network1", Key: "network1.table2", Value: []byte("a")}),
-		CreateEvent(event{Table: "table2", NetworkID: "network1", Key: "network1.table2.update", Value: []byte("updated")}),
-		CreateEvent(event{Table: "table1", NetworkID: "network2", Key: "network2.table1", Value: []byte("a")}),
-		CreateEvent(event{Table: "table1", NetworkID: "network2", Key: "network2.table1.update", Value: []byte("updated")}),
-		CreateEvent(event{Table: "table2", NetworkID: "network2", Key: "network2.table2", Value: []byte("a")}),
-		CreateEvent(event{Table: "table2", NetworkID: "network2", Key: "network2.table2.update", Value: []byte("updated")}),
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "network1.table1", Value: []byte("a")},
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "network1.table1.update", Value: []byte("updated")},
+		WatchEvent{Table: "table2", NetworkID: "network1", Key: "network1.table2", Value: []byte("a")},
+		WatchEvent{Table: "table2", NetworkID: "network1", Key: "network1.table2.update", Value: []byte("updated")},
+		WatchEvent{Table: "table1", NetworkID: "network2", Key: "network2.table1", Value: []byte("a")},
+		WatchEvent{Table: "table1", NetworkID: "network2", Key: "network2.table1.update", Value: []byte("updated")},
+		WatchEvent{Table: "table2", NetworkID: "network2", Key: "network2.table2", Value: []byte("a")},
+		WatchEvent{Table: "table2", NetworkID: "network2", Key: "network2.table2.update", Value: []byte("updated")},
 	}))
 	assert.Check(t, is.DeepEqual(gotNetwork1Tables, []events.Event{
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "network1.table1", Value: []byte("a")}),
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "network1.table1.update", Value: []byte("updated")}),
-		CreateEvent(event{Table: "table2", NetworkID: "network1", Key: "network1.table2", Value: []byte("a")}),
-		CreateEvent(event{Table: "table2", NetworkID: "network1", Key: "network1.table2.update", Value: []byte("updated")}),
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "network1.table1", Value: []byte("a")},
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "network1.table1.update", Value: []byte("updated")},
+		WatchEvent{Table: "table2", NetworkID: "network1", Key: "network1.table2", Value: []byte("a")},
+		WatchEvent{Table: "table2", NetworkID: "network1", Key: "network1.table2.update", Value: []byte("updated")},
 	}))
 	assert.Check(t, is.DeepEqual(gotTable1AllNetworks, []events.Event{
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "network1.table1", Value: []byte("a")}),
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "network1.table1.update", Value: []byte("updated")}),
-		CreateEvent(event{Table: "table1", NetworkID: "network2", Key: "network2.table1", Value: []byte("a")}),
-		CreateEvent(event{Table: "table1", NetworkID: "network2", Key: "network2.table1.update", Value: []byte("updated")}),
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "network1.table1", Value: []byte("a")},
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "network1.table1.update", Value: []byte("updated")},
+		WatchEvent{Table: "table1", NetworkID: "network2", Key: "network2.table1", Value: []byte("a")},
+		WatchEvent{Table: "table1", NetworkID: "network2", Key: "network2.table1.update", Value: []byte("updated")},
 	}))
 	assert.Check(t, is.DeepEqual(gotTable1Network1, []events.Event{
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "network1.table1", Value: []byte("a")}),
-		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "network1.table1.update", Value: []byte("updated")}),
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "network1.table1", Value: []byte("a")},
+		WatchEvent{Table: "table1", NetworkID: "network1", Key: "network1.table1.update", Value: []byte("updated")},
 	}))
+}
+
+func TestLeaveRejoinOutOfOrder(t *testing.T) {
+	// Regression test for https://github.com/moby/moby/issues/47728
+
+	nDB := newNetworkDB(DefaultConfig())
+	nDB.networkBroadcasts = &memberlist.TransmitLimitedQueue{}
+	nDB.nodeBroadcasts = &memberlist.TransmitLimitedQueue{}
+	assert.Assert(t, nDB.JoinNetwork("network1"))
+
+	(&eventDelegate{nDB}).NotifyJoin(&memberlist.Node{
+		Name: "node1",
+		Addr: net.IPv4(1, 2, 3, 4),
+	})
+
+	d := &delegate{nDB}
+
+	msgs := messageBuffer{t: t}
+	appendTableEvent := tableEventHelper(&msgs, "node1", "network1", "table1")
+
+	msgs.Append(MessageTypeNetworkEvent, &NetworkEvent{
+		Type:      NetworkEventTypeJoin,
+		LTime:     1,
+		NodeName:  "node1",
+		NetworkID: "network1",
+	})
+	// Simulate node1 leaving, rejoining, and creating an entry,
+	// but the table events are broadcast before the network events.
+	appendTableEvent(1, TableEventTypeCreate, "key1", []byte("a"))
+	msgs.Append(MessageTypeNetworkEvent, &NetworkEvent{
+		Type:      NetworkEventTypeLeave,
+		LTime:     2,
+		NodeName:  "node1",
+		NetworkID: "network1",
+	})
+	msgs.Append(MessageTypeNetworkEvent, &NetworkEvent{
+		Type:      NetworkEventTypeJoin,
+		LTime:     3,
+		NodeName:  "node1",
+		NetworkID: "network1",
+	})
+	// Simulate a bulk sync or receiving a rebroadcasted copy of the table
+	// event from another node.
+	appendTableEvent(1, TableEventTypeCreate, "key1", []byte("a"))
+
+	d.NotifyMsg(msgs.Compound())
+
+	got := make(map[string]string)
+	nDB.WalkTable("table1", func(nw, key string, value []byte, deleted bool) bool {
+		got[nw+"/"+key] = fmt.Sprintf("%s (deleted=%t)", value, deleted)
+		return false
+	})
+	want := map[string]string{
+		"network1/key1": "a (deleted=false)",
+	}
+	assert.Check(t, is.DeepEqual(got, want))
 }
 
 func drainChannel(ch <-chan events.Event) []events.Event {

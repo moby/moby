@@ -5,10 +5,12 @@ package overlay
 import (
 	"context"
 	"fmt"
-	"net"
+	"net/netip"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/internal/hashable"
+	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/ns"
 )
@@ -19,27 +21,8 @@ type endpoint struct {
 	id     string
 	nid    string
 	ifName string
-	mac    net.HardwareAddr
-	addr   *net.IPNet
-}
-
-func (n *network) endpoint(eid string) *endpoint {
-	n.Lock()
-	defer n.Unlock()
-
-	return n.endpoints[eid]
-}
-
-func (n *network) addEndpoint(ep *endpoint) {
-	n.Lock()
-	n.endpoints[ep.id] = ep
-	n.Unlock()
-}
-
-func (n *network) deleteEndpoint(eid string) {
-	n.Lock()
-	delete(n.endpoints, eid)
-	n.Unlock()
+	mac    hashable.MACAddr
+	addr   netip.Prefix
 }
 
 func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
@@ -55,18 +38,19 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		return err
 	}
 
-	n := d.network(nid)
-	if n == nil {
-		return fmt.Errorf("network id %q not found", nid)
+	n, unlock, err := d.lockNetwork(nid)
+	if err != nil {
+		return err
 	}
+	defer unlock()
 
 	ep := &endpoint{
-		id:   eid,
-		nid:  n.id,
-		addr: ifInfo.Address(),
-		mac:  ifInfo.MacAddress(),
+		id:  eid,
+		nid: n.id,
 	}
-	if ep.addr == nil {
+	var ok bool
+	ep.addr, ok = netiputil.ToPrefix(ifInfo.Address())
+	if !ok {
 		return fmt.Errorf("create endpoint was not passed interface IP address")
 	}
 
@@ -74,14 +58,24 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		return fmt.Errorf("no matching subnet for IP %q in network %q", ep.addr, nid)
 	}
 
-	if ep.mac == nil {
-		ep.mac = netutils.GenerateMACFromIP(ep.addr.IP)
-		if err := ifInfo.SetMacAddress(ep.mac); err != nil {
+	if ifmac := ifInfo.MacAddress(); ifmac != nil {
+		var ok bool
+		ep.mac, ok = hashable.MACAddrFromSlice(ifInfo.MacAddress())
+		if !ok {
+			return fmt.Errorf("invalid MAC address %q assigned to endpoint: unexpected length", ifmac)
+		}
+	} else {
+		var ok bool
+		ep.mac, ok = hashable.MACAddrFromSlice(netutils.GenerateMACFromIP(ep.addr.Addr().AsSlice()))
+		if !ok {
+			panic("GenerateMACFromIP returned a HardwareAddress that is not a MAC-48")
+		}
+		if err := ifInfo.SetMacAddress(ep.mac.AsSlice()); err != nil {
 			return err
 		}
 	}
 
-	n.addEndpoint(ep)
+	n.endpoints[ep.id] = ep
 
 	return nil
 }
@@ -93,17 +87,18 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 		return err
 	}
 
-	n := d.network(nid)
-	if n == nil {
-		return fmt.Errorf("network id %q not found", nid)
+	n, unlock, err := d.lockNetwork(nid)
+	if err != nil {
+		return err
 	}
+	defer unlock()
 
-	ep := n.endpoint(eid)
+	ep := n.endpoints[eid]
 	if ep == nil {
 		return fmt.Errorf("endpoint id %q not found", eid)
 	}
 
-	n.deleteEndpoint(eid)
+	delete(n.endpoints, eid)
 
 	if ep.ifName == "" {
 		return nil
