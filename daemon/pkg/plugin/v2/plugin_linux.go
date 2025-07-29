@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/daemon/internal/rootless/mountopts"
 	"github.com/docker/docker/daemon/internal/sliceutil"
 	"github.com/docker/docker/daemon/pkg/oci"
-	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/sys/userns"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -48,7 +48,7 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 		s.Linux.RootfsPropagation = "rshared"
 	}
 
-	mounts := append(p.PluginObj.Config.Mounts, types.PluginMount{
+	mounts := append(p.PluginObj.Config.Mounts, plugin.Mount{
 		Source:      &execRoot,
 		Destination: defaultPluginRuntimeDestination,
 		Type:        "bind",
@@ -63,13 +63,13 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 		etcHosts := "/etc/hosts"
 		resolvConf := "/etc/resolv.conf"
 		mounts = append(mounts,
-			types.PluginMount{
+			plugin.Mount{
 				Source:      &etcHosts,
 				Destination: etcHosts,
 				Type:        "bind",
 				Options:     []string{"rbind", "ro"},
 			},
-			types.PluginMount{
+			plugin.Mount{
 				Source:      &resolvConf,
 				Destination: resolvConf,
 				Type:        "bind",

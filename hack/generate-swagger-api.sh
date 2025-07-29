@@ -3,7 +3,10 @@ set -eu
 
 swagger generate model -f api/swagger.yaml \
 	-t api -m types --skip-validator -C api/swagger-gen.yaml \
-	-n ErrorResponse \
+	-n ErrorResponse
+
+swagger generate model -f api/swagger.yaml \
+	-t api -m types/plugin --skip-validator -C api/swagger-gen.yaml \
 	-n Plugin \
 	-n PluginDevice \
 	-n PluginMount \

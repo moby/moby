@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/daemon/server/backend"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -77,10 +78,10 @@ func newTestPlugin(t *testing.T, name, capability, root string) *v2.Plugin {
 		t.Fatal(err)
 	}
 
-	p := v2.Plugin{PluginObj: types.Plugin{ID: id, Name: name}}
+	p := v2.Plugin{PluginObj: plugin.Plugin{ID: id, Name: name}}
 	p.Rootfs = rootfs
-	iType := types.PluginInterfaceType{Capability: capability, Prefix: "docker", Version: "1.0"}
-	i := types.PluginConfigInterface{Socket: "plugin.sock", Types: []types.PluginInterfaceType{iType}}
+	iType := plugin.InterfaceType{Capability: capability, Prefix: "docker", Version: "1.0"}
+	i := plugin.Interface{Socket: "plugin.sock", Types: []plugin.InterfaceType{iType}}
 	p.PluginObj.Config.Interface = i
 	p.PluginObj.ID = id
 
