@@ -692,20 +692,20 @@ func (sb *Sandbox) joinLeaveEnd() {
 }
 
 // <=> Returns true if a < b, false if a > b and advances to next level if a == b
-// epi.prio <=> epj.prio           # 2 < 1
-// epi.gw <=> epj.gw               # non-gw < gw
-// epi.internal <=> epj.internal   # non-internal < internal
-// epi.joininfo <=> epj.joininfo   # ipv6 < ipv4
-// epi.name <=> epj.name           # bar < foo
-func (epi *Endpoint) Less(epj *Endpoint) bool {
+// ep.prio <=> epj.prio           # 2 < 1
+// ep.gw <=> epj.gw               # non-gw < gw
+// ep.internal <=> epj.internal   # non-internal < internal
+// ep.joininfo <=> epj.joininfo   # ipv6 < ipv4
+// ep.name <=> epj.name           # bar < foo
+func (ep *Endpoint) Less(epj *Endpoint) bool {
 	var prioi, prioj int
 
-	sbi, _ := epi.getSandbox()
+	sbi, _ := ep.getSandbox()
 	sbj, _ := epj.getSandbox()
 
 	// Prio defaults to 0
 	if sbi != nil {
-		prioi = sbi.epPriority[epi.ID()]
+		prioi = sbi.epPriority[ep.ID()]
 	}
 	if sbj != nil {
 		prioj = sbj.epPriority[epj.ID()]
@@ -715,24 +715,24 @@ func (epi *Endpoint) Less(epj *Endpoint) bool {
 		return prioi > prioj
 	}
 
-	gwi := epi.endpointInGWNetwork()
+	gwi := ep.endpointInGWNetwork()
 	gwj := epj.endpointInGWNetwork()
 	if gwi != gwj {
 		return gwj
 	}
 
-	inti := epi.getNetwork().Internal()
+	inti := ep.getNetwork().Internal()
 	intj := epj.getNetwork().Internal()
 	if inti != intj {
 		return intj
 	}
 
 	jii := 0
-	if epi.joinInfo != nil {
-		if epi.joinInfo.gw != nil {
+	if ep.joinInfo != nil {
+		if ep.joinInfo.gw != nil {
 			jii = jii + 1
 		}
-		if epi.joinInfo.gw6 != nil {
+		if ep.joinInfo.gw6 != nil {
 			jii = jii + 2
 		}
 	}
@@ -751,7 +751,7 @@ func (epi *Endpoint) Less(epj *Endpoint) bool {
 		return jii > jij
 	}
 
-	return epi.network.Name() < epj.network.Name()
+	return ep.network.Name() < epj.network.Name()
 }
 
 func (sb *Sandbox) NdotsSet() bool {

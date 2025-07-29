@@ -1,0 +1,7 @@
+coverage.out
+coverage.txt
+release-notes.txt
+.directory
+.chglog
+.vscode
+.DS_Store

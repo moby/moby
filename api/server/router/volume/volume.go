@@ -20,21 +20,21 @@ func NewRouter(b Backend, cb ClusterBackend) router.Router {
 }
 
 // Routes returns the available routes to the volumes controller
-func (r *volumeRouter) Routes() []router.Route {
-	return r.routes
+func (v *volumeRouter) Routes() []router.Route {
+	return v.routes
 }
 
-func (r *volumeRouter) initRoutes() {
-	r.routes = []router.Route{
+func (v *volumeRouter) initRoutes() {
+	v.routes = []router.Route{
 		// GET
-		router.NewGetRoute("/volumes", r.getVolumesList),
-		router.NewGetRoute("/volumes/{name:.*}", r.getVolumeByName),
+		router.NewGetRoute("/volumes", v.getVolumesList),
+		router.NewGetRoute("/volumes/{name:.*}", v.getVolumeByName),
 		// POST
-		router.NewPostRoute("/volumes/create", r.postVolumesCreate),
-		router.NewPostRoute("/volumes/prune", r.postVolumesPrune),
+		router.NewPostRoute("/volumes/create", v.postVolumesCreate),
+		router.NewPostRoute("/volumes/prune", v.postVolumesPrune),
 		// PUT
-		router.NewPutRoute("/volumes/{name:.*}", r.putVolumesUpdate),
+		router.NewPutRoute("/volumes/{name:.*}", v.putVolumesUpdate),
 		// DELETE
-		router.NewDeleteRoute("/volumes/{name:.*}", r.deleteVolumes),
+		router.NewDeleteRoute("/volumes/{name:.*}", v.deleteVolumes),
 	}
 }
