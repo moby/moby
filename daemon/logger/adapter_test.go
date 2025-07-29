@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/plugins/logdriver"
+	"github.com/docker/docker/daemon/logger/internal/logdriver"
 	protoio "github.com/gogo/protobuf/io"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

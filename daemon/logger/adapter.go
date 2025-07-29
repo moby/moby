@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/api/types/plugins/logdriver"
+	"github.com/docker/docker/daemon/logger/internal/logdriver"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/pkg/errors"
 )
