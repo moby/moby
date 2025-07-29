@@ -9,6 +9,7 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
 	timetypes "github.com/moby/moby/api/types/time"
+	"github.com/moby/moby/api/types/versions"
 )
 
 // Events returns a stream of events in the daemon. It's up to the caller to close the stream
@@ -98,10 +99,16 @@ func buildEventsQueryParams(cliVersion string, options events.ListOptions) (url.
 	}
 
 	if options.Filters.Len() > 0 {
-		//nolint:staticcheck // ignore SA1019 for old code
-		filterJSON, err := filters.ToParamWithVersion(cliVersion, options.Filters)
+		filterJSON, err := filters.ToJSON(options.Filters)
 		if err != nil {
 			return nil, err
+		}
+		if cliVersion != "" && versions.LessThan(cliVersion, "1.22") {
+			legacyFormat, err := encodeLegacyFilters(filterJSON)
+			if err != nil {
+				return nil, err
+			}
+			filterJSON = legacyFormat
 		}
 		query.Set("filters", filterJSON)
 	}

@@ -3,6 +3,7 @@ package client
 import (
 	"testing"
 
+	"github.com/moby/moby/api/types/filters"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -53,5 +54,24 @@ func TestEncodePlatforms(t *testing.T) {
 			assert.NilError(t, err)
 			assert.Check(t, is.DeepEqual(out, tc.expected))
 		})
+	}
+}
+
+func TestEncodeLegacyFilters(t *testing.T) {
+	a := filters.NewArgs(
+		filters.Arg("created", "today"),
+		filters.Arg("image.name", "ubuntu*"),
+		filters.Arg("image.name", "*untu"),
+	)
+
+	currentFormat, err := filters.ToJSON(a)
+	assert.NilError(t, err)
+
+	// encode in the API v1.21 (and older) format
+	str1, err := encodeLegacyFilters(currentFormat)
+	assert.Check(t, err)
+	if str1 != `{"created":["today"],"image.name":["*untu","ubuntu*"]}` &&
+		str1 != `{"created":["today"],"image.name":["ubuntu*","*untu"]}` {
+		t.Errorf("incorrectly marshaled the filters: %s", str1)
 	}
 }

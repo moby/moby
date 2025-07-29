@@ -6,6 +6,7 @@ import (
 	"net/url"
 
 	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/api/types/volume"
 )
 
@@ -14,10 +15,16 @@ func (cli *Client) VolumeList(ctx context.Context, options volume.ListOptions) (
 	query := url.Values{}
 
 	if options.Filters.Len() > 0 {
-		//nolint:staticcheck // ignore SA1019 for old code
-		filterJSON, err := filters.ToParamWithVersion(cli.version, options.Filters)
+		filterJSON, err := filters.ToJSON(options.Filters)
 		if err != nil {
 			return volume.ListResponse{}, err
+		}
+		if cli.version != "" && versions.LessThan(cli.version, "1.22") {
+			legacyFormat, err := encodeLegacyFilters(filterJSON)
+			if err != nil {
+				return volume.ListResponse{}, err
+			}
+			filterJSON = legacyFormat
 		}
 		query.Set("filters", filterJSON)
 	}
