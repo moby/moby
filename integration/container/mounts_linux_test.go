@@ -8,10 +8,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/daemon/volume"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/docker/docker/testutil"
 	"github.com/moby/moby/api"
 	containertypes "github.com/moby/moby/api/types/container"
 	mounttypes "github.com/moby/moby/api/types/mount"
@@ -25,6 +21,11 @@ import (
 	"gotest.tools/v3/fs"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/daemon/volume"
+	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/docker/docker/testutil"
 )
 
 // testNonExistingPlugin is a special plugin-name, which overrides defaultTimeOut in tests.

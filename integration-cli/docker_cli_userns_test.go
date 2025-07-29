@@ -13,10 +13,11 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/docker/docker/testutil"
 	"github.com/moby/moby/client/pkg/stringid"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/testutil"
 )
 
 // user namespaces test: run daemon with remapped root setting

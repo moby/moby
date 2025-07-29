@@ -8,10 +8,11 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/vishvananda/netlink"
+
 	"github.com/docker/docker/daemon/libnetwork/internal/netiputil"
 	"github.com/docker/docker/daemon/libnetwork/nlwrap"
 	"github.com/docker/docker/errdefs"
-	"github.com/vishvananda/netlink"
 )
 
 const (

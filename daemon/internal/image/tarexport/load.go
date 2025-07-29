@@ -15,18 +15,19 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
-	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/daemon/internal/ioutils"
-	"github.com/docker/docker/daemon/internal/layer"
-	"github.com/docker/docker/daemon/internal/stringid"
-	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/moby/go-archive/chrootarchive"
 	"github.com/moby/go-archive/compression"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/sys/sequential"
 	"github.com/moby/sys/symlink"
 	"github.com/opencontainers/go-digest"
+
+	"github.com/docker/docker/daemon/internal/image"
+	"github.com/docker/docker/daemon/internal/ioutils"
+	"github.com/docker/docker/daemon/internal/layer"
+	"github.com/docker/docker/daemon/internal/stringid"
+	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/pkg/streamformatter"
 )
 
 func (l *tarexporter) Load(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) (outErr error) {

@@ -8,15 +8,16 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/moby/moby/api/types/blkiodev"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/opencontainers/selinux/go-selinux"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/pkg/sysinfo"
 )
 
 type fakeContainerGetter struct {

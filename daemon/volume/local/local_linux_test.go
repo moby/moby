@@ -10,10 +10,11 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/daemon/internal/idtools"
-	"github.com/docker/docker/daemon/internal/quota"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/daemon/internal/idtools"
+	"github.com/docker/docker/daemon/internal/quota"
 )
 
 const (

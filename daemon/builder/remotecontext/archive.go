@@ -5,13 +5,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/daemon/builder"
-	"github.com/docker/docker/daemon/builder/remotecontext/internal/tarsum"
-	"github.com/docker/docker/pkg/longpath"
 	"github.com/moby/go-archive/chrootarchive"
 	"github.com/moby/go-archive/compression"
 	"github.com/moby/sys/symlink"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/builder"
+	"github.com/docker/docker/daemon/builder/remotecontext/internal/tarsum"
+	"github.com/docker/docker/pkg/longpath"
 )
 
 type archiveContext struct {

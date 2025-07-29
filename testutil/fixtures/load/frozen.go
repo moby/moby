@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
 	"github.com/moby/term"
@@ -19,6 +18,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/docker/docker/pkg/jsonmessage"
 )
 
 const frozenImgDir = "/docker-frozen-images"

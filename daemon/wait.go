@@ -3,8 +3,9 @@ package daemon
 import (
 	"context"
 
-	"github.com/docker/docker/daemon/container"
 	containertypes "github.com/moby/moby/api/types/container"
+
+	"github.com/docker/docker/daemon/container"
 )
 
 // ContainerWait waits until the given container is in a certain state

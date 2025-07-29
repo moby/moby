@@ -5,9 +5,10 @@ import (
 	"io"
 	"runtime"
 
-	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
+
+	"github.com/docker/docker/pkg/sysinfo"
 )
 
 // DecodeCreateRequest decodes a json encoded [container.CreateRequest] struct

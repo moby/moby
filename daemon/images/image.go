@@ -13,12 +13,13 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/daemon/server/backend"
-	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/internal/image"
+	"github.com/docker/docker/daemon/server/backend"
+	"github.com/docker/docker/errdefs"
 )
 
 // ErrImageDoesNotExist is error returned when no image can be found for a reference.

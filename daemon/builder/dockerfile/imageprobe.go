@@ -4,9 +4,10 @@ import (
 	"context"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/builder"
 	"github.com/moby/moby/api/types/container"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/docker/docker/daemon/builder"
 )
 
 // ImageProber exposes an Image cache to the Builder. It supports resetting a

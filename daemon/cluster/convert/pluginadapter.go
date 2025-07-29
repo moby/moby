@@ -1,8 +1,9 @@
 package convert
 
 import (
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/node/plugin"
+
+	"github.com/docker/docker/pkg/plugingetter"
 )
 
 // SwarmPluginGetter adapts a plugingetter.PluginGetter to a Swarmkit plugin.Getter.

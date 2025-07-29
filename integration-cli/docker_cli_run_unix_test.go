@@ -17,10 +17,6 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/pkg/sysinfo"
-	"github.com/docker/docker/testutil"
 	"github.com/moby/moby/client"
 	"github.com/moby/profiles/seccomp"
 	"github.com/moby/sys/mount"
@@ -28,6 +24,11 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/docker/docker/testutil"
 )
 
 // #6509

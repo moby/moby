@@ -5,11 +5,12 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/integration/internal/container"
 	containertypes "github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
+
+	"github.com/docker/docker/integration/internal/container"
 )
 
 func TestUpdateRestartPolicy(t *testing.T) {

@@ -14,15 +14,16 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netlink/nl"
+	"github.com/vishvananda/netns"
+	"golang.org/x/sys/unix"
+
 	"github.com/docker/docker/daemon/internal/unshare"
 	"github.com/docker/docker/daemon/libnetwork/nlwrap"
 	"github.com/docker/docker/daemon/libnetwork/ns"
 	"github.com/docker/docker/daemon/libnetwork/osl/kernel"
 	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netlink/nl"
-	"github.com/vishvananda/netns"
-	"golang.org/x/sys/unix"
 )
 
 const defaultPrefix = "/var/run/docker"

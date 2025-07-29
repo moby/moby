@@ -5,8 +5,9 @@ import (
 
 	"github.com/containerd/containerd/v2/core/containers"
 	coci "github.com/containerd/containerd/v2/pkg/oci"
-	"github.com/docker/docker/daemon/container"
 	"github.com/opencontainers/runtime-spec/specs-go"
+
+	"github.com/docker/docker/daemon/container"
 )
 
 // WithConsoleSize sets the initial console size

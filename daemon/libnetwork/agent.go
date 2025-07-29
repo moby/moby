@@ -17,6 +17,9 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/docker/go-events"
+	"github.com/gogo/protobuf/proto"
+
 	"github.com/docker/docker/daemon/libnetwork/cluster"
 	"github.com/docker/docker/daemon/libnetwork/discoverapi"
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
@@ -24,8 +27,6 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/internal/iterutil"
-	"github.com/docker/go-events"
-	"github.com/gogo/protobuf/proto"
 )
 
 const (

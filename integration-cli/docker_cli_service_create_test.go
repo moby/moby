@@ -9,14 +9,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/testutil"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/swarm"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
+
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/testutil"
 )
 
 func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *testing.T) {

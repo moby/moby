@@ -6,12 +6,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/netutils"
-	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/ishidawataru/sctp"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/daemon/libnetwork/netutils"
+	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
 func listen(t *testing.T, proto types.Protocol, addr net.IP, port int) io.Closer {

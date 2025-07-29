@@ -5,11 +5,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/internal/testutils/netnsutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 	"gotest.tools/v3/icmd"
+
+	"github.com/docker/docker/internal/testutils/netnsutils"
 )
 
 func testSetup(t *testing.T) func() {

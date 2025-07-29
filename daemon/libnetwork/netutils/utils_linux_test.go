@@ -8,11 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/internal/netiputil"
-	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/daemon/libnetwork/internal/netiputil"
+	"github.com/docker/docker/internal/testutils/netnsutils"
 )
 
 // Test veth name generation "veth"+rand (e.g.veth0f60e2c)

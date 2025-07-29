@@ -13,9 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/libnetwork/nlwrap"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
+
+	"github.com/docker/docker/daemon/libnetwork/nlwrap"
 )
 
 // TimestampedPkt has a Data slice representing a packet, ReceivedAt is a timestamp

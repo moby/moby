@@ -3,16 +3,17 @@ package networking
 import (
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/integration/internal/network"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/daemon"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
+	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/daemon"
 )
 
 // TestMACAddrOnRestart is a regression test for https://github.com/moby/moby/issues/47146

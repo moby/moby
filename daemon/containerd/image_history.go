@@ -8,12 +8,13 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/daemon/internal/metrics"
 	imagetype "github.com/moby/moby/api/types/image"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/internal/metrics"
 )
 
 // ImageHistory returns a slice of HistoryResponseItem structures for the

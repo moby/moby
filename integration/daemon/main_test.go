@@ -5,9 +5,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/testutil/environment"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
+
+	"github.com/docker/docker/testutil/environment"
 )
 
 var (

@@ -1,8 +1,9 @@
 package command
 
 import (
-	"github.com/docker/docker/daemon/config"
 	"github.com/spf13/pflag"
+
+	"github.com/docker/docker/daemon/config"
 )
 
 // installConfigFlags adds flags to the pflag.FlagSet to configure the daemon

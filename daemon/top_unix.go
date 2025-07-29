@@ -10,12 +10,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/daemon/internal/lazyregexp"
-	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/internal/lazyregexp"
+	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
+	"github.com/docker/docker/errdefs"
 )
 
 // NOTE: \\s does not detect unicode whitespaces.

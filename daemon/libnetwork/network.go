@@ -16,6 +16,10 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/docker/docker/daemon/internal/sliceutil"
 	"github.com/docker/docker/daemon/internal/stringid"
 	"github.com/docker/docker/daemon/libnetwork/datastore"
@@ -31,9 +35,6 @@ import (
 	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/errdefs"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // EndpointWalker is a client provided function which will be used to walk the Endpoints.

@@ -6,8 +6,9 @@ import (
 	"hash"
 	"os"
 
-	"github.com/docker/docker/daemon/builder/remotecontext/internal/tarsum"
 	"github.com/moby/go-archive"
+
+	"github.com/docker/docker/daemon/builder/remotecontext/internal/tarsum"
 )
 
 // NewFileHash returns new hash that is used for the builder cache keys

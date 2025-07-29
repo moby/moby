@@ -3,13 +3,14 @@ package container
 import (
 	"testing"
 
-	"github.com/docker/docker/integration/internal/container"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/integration/internal/container"
 )
 
 // This test simulates the scenario mentioned in #31392:

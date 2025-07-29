@@ -11,15 +11,16 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/integration/internal/build"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/testutil/fakecontext"
-	req "github.com/docker/docker/testutil/request"
 	"github.com/moby/moby/api/types"
 	containertypes "github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/integration/internal/build"
+	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil/fakecontext"
+	req "github.com/docker/docker/testutil/request"
 )
 
 // TestExecWithCloseStdin adds case for moby#37870 issue.

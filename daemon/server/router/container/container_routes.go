@@ -12,14 +12,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/daemon/internal/runconfig"
-	"github.com/docker/docker/daemon/libnetwork/netlabel"
-	networkSettings "github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/daemon/server/backend"
-	"github.com/docker/docker/daemon/server/httpstatus"
-	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
@@ -30,6 +22,15 @@ import (
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 	"golang.org/x/net/websocket"
+
+	"github.com/docker/docker/daemon/internal/runconfig"
+	"github.com/docker/docker/daemon/libnetwork/netlabel"
+	networkSettings "github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/daemon/server/backend"
+	"github.com/docker/docker/daemon/server/httpstatus"
+	"github.com/docker/docker/daemon/server/httputils"
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/pkg/ioutils"
 )
 
 // commitRequest may contain an optional [container.Config].

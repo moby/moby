@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Graylog2/go-gelf/gelf"
+
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 )

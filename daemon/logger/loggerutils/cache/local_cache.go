@@ -5,11 +5,12 @@ import (
 	"strconv"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/logger/local"
 	"github.com/docker/go-units"
 	"github.com/moby/moby/api/types/container"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/local"
 )
 
 const (

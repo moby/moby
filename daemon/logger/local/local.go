@@ -8,13 +8,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/go-units"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/internal/logdriver"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/daemon/server/backend"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/go-units"
-	"github.com/pkg/errors"
 )
 
 const (

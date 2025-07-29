@@ -3,8 +3,9 @@ package daemon
 import (
 	"context"
 
-	"github.com/docker/docker/dockerversion"
 	"github.com/moby/moby/api/types/registry"
+
+	"github.com/docker/docker/dockerversion"
 )
 
 // AuthenticateToRegistry checks the validity of credentials in authConfig

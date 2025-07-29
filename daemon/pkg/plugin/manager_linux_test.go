@@ -8,10 +8,6 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/docker/docker/daemon/internal/containerfs"
-	"github.com/docker/docker/daemon/internal/stringid"
-	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
-	"github.com/docker/docker/daemon/server/backend"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/sys/mount"
@@ -19,6 +15,11 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/daemon/internal/containerfs"
+	"github.com/docker/docker/daemon/internal/stringid"
+	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
+	"github.com/docker/docker/daemon/server/backend"
 )
 
 func TestManagerWithPluginMounts(t *testing.T) {

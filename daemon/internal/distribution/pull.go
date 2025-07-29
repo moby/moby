@@ -6,11 +6,12 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	refstore "github.com/docker/docker/daemon/internal/refstore"
-	"github.com/docker/docker/daemon/pkg/registry"
 	"github.com/moby/moby/api/types/events"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
+
+	refstore "github.com/docker/docker/daemon/internal/refstore"
+	"github.com/docker/docker/daemon/pkg/registry"
 )
 
 // Pull initiates a pull operation. image is the repository name to pull, and

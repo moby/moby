@@ -15,13 +15,14 @@ import (
 	"runtime"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/daemon/libnetwork/discoverapi"
 	"github.com/docker/docker/daemon/libnetwork/driverapi"
 	"github.com/docker/docker/daemon/libnetwork/options"
 	"github.com/docker/docker/daemon/libnetwork/scope"
 	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/docker/docker/pkg/plugins"
-	"gotest.tools/v3/assert"
 )
 
 func handle(t *testing.T, mux *http.ServeMux, method string, h func(map[string]interface{}) interface{}) {

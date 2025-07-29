@@ -9,12 +9,13 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/moby/locker"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/volume"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
-	"github.com/moby/locker"
-	"github.com/pkg/errors"
 )
 
 const extName = "VolumeDriver"

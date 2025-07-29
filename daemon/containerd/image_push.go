@@ -17,10 +17,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/daemon/internal/metrics"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/moby/moby/api/types/auxprogress"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/registry"
@@ -28,6 +24,11 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/semaphore"
+
+	"github.com/docker/docker/daemon/internal/metrics"
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/pkg/streamformatter"
 )
 
 // PushImage initiates a push operation of the image pointed to by sourceRef.

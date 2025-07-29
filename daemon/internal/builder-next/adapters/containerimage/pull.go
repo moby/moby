@@ -25,13 +25,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	dimages "github.com/docker/docker/daemon/images"
-	"github.com/docker/docker/daemon/internal/distribution/metadata"
-	"github.com/docker/docker/daemon/internal/distribution/xfer"
-	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/daemon/internal/layer"
-	refstore "github.com/docker/docker/daemon/internal/refstore"
-	pkgprogress "github.com/docker/docker/pkg/progress"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb/sourceresolver"
@@ -53,6 +46,14 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/time/rate"
+
+	dimages "github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/daemon/internal/distribution/metadata"
+	"github.com/docker/docker/daemon/internal/distribution/xfer"
+	"github.com/docker/docker/daemon/internal/image"
+	"github.com/docker/docker/daemon/internal/layer"
+	refstore "github.com/docker/docker/daemon/internal/refstore"
+	pkgprogress "github.com/docker/docker/pkg/progress"
 )
 
 // SourceOpt is options for creating the image source

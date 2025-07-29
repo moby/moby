@@ -8,8 +8,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/errdefs"
 )
 
 type optsConfig struct{}

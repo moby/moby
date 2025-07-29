@@ -14,15 +14,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/daemon/images"
-	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/daemon/internal/metrics"
-	"github.com/docker/docker/daemon/internal/multierror"
-	"github.com/docker/docker/daemon/internal/otelutil"
-	"github.com/docker/docker/daemon/server/backend"
-	"github.com/docker/docker/errdefs"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	networktypes "github.com/moby/moby/api/types/network"
@@ -33,6 +24,16 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/daemon/internal/image"
+	"github.com/docker/docker/daemon/internal/metrics"
+	"github.com/docker/docker/daemon/internal/multierror"
+	"github.com/docker/docker/daemon/internal/otelutil"
+	"github.com/docker/docker/daemon/server/backend"
+	"github.com/docker/docker/errdefs"
 )
 
 type createOpts struct {

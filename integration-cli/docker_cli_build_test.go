@@ -18,12 +18,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/fakecontext"
-	"github.com/docker/docker/testutil/fakegit"
-	"github.com/docker/docker/testutil/fakestorage"
 	"github.com/moby/buildkit/frontend/dockerfile/command"
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/compression"
@@ -33,6 +27,13 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/fakecontext"
+	"github.com/docker/docker/testutil/fakegit"
+	"github.com/docker/docker/testutil/fakestorage"
 )
 
 type DockerCLIBuildSuite struct {

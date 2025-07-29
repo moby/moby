@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
+	imagetypes "github.com/moby/moby/api/types/image"
+	timetypes "github.com/moby/moby/api/types/time"
+
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/docker/docker/daemon/server/backend"
-	imagetypes "github.com/moby/moby/api/types/image"
-	timetypes "github.com/moby/moby/api/types/time"
 )
 
 var acceptedImageFilterTags = map[string]bool{

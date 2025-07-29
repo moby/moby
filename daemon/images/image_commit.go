@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"io"
 
+	"github.com/moby/moby/api/types/events"
+	"github.com/pkg/errors"
+
 	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/docker/docker/daemon/server/backend"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/moby/moby/api/types/events"
-	"github.com/pkg/errors"
 )
 
 // CommitImage creates a new image from a commit config

@@ -11,10 +11,6 @@ import (
 
 	containerd "github.com/containerd/containerd/v2/client"
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/daemon/pkg/oci"
-	testContainer "github.com/docker/docker/integration/internal/container"
-	net "github.com/docker/docker/integration/internal/network"
-	"github.com/docker/docker/testutil"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/versions"
@@ -24,6 +20,11 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/daemon/pkg/oci"
+	testContainer "github.com/docker/docker/integration/internal/container"
+	net "github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/testutil"
 )
 
 func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {

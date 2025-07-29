@@ -8,10 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/testutil"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/icmd"
+
+	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/testutil"
 )
 
 func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {

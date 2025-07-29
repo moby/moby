@@ -8,10 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/builder"
-	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/daemon/pkg/oci"
-	"github.com/docker/docker/daemon/server/backend"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
@@ -20,6 +16,11 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/docker/docker/daemon/builder"
+	"github.com/docker/docker/daemon/internal/image"
+	"github.com/docker/docker/daemon/pkg/oci"
+	"github.com/docker/docker/daemon/server/backend"
 )
 
 func newBuilderWithMockBackend(t *testing.T) *Builder {

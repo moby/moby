@@ -3,10 +3,11 @@ package daemon
 import (
 	"context"
 
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/system"
+
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/pkg/sysinfo"
 )
 
 // fillPlatformInfo fills the platform related info.

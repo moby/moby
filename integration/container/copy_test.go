@@ -13,15 +13,16 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/types/build"
 	containertypes "github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/testutil/fakecontext"
 )
 
 func TestCopyFromContainerPathDoesNotExist(t *testing.T) {

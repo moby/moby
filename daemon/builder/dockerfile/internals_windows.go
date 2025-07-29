@@ -8,12 +8,13 @@ import (
 	"strings"
 
 	"github.com/containerd/platforms"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/sys/user"
 	"golang.org/x/sys/windows"
+
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/pkg/jsonmessage"
 )
 
 // seTakeOwnershipPrivilege is "SE_TAKE_OWNERSHIP_NAME" in the win32 API.

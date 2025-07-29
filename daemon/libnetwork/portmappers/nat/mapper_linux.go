@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/daemon/libnetwork/internal/rlkclient"
 	"github.com/docker/docker/daemon/libnetwork/portallocator"
 	"github.com/docker/docker/daemon/libnetwork/portmapperapi"

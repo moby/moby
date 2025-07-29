@@ -7,8 +7,9 @@ import (
 	"os"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/logger"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/logger"
 )
 
 type follow struct {

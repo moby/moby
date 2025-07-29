@@ -7,11 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/integration/internal/container"
-	iimage "github.com/docker/docker/integration/internal/image"
-	"github.com/docker/docker/internal/testutils/specialimage"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/daemon"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/api"
 	containertypes "github.com/moby/moby/api/types/container"
@@ -23,6 +18,12 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/docker/docker/integration/internal/container"
+	iimage "github.com/docker/docker/integration/internal/image"
+	"github.com/docker/docker/internal/testutils/specialimage"
+	"github.com/docker/docker/testutil"
+	"github.com/docker/docker/testutil/daemon"
 )
 
 // Regression : #38171

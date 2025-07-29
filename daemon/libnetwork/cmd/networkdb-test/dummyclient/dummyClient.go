@@ -6,9 +6,10 @@ import (
 	"net/http"
 
 	"github.com/containerd/log"
+	events "github.com/docker/go-events"
+
 	"github.com/docker/docker/daemon/libnetwork/diagnostic"
 	"github.com/docker/docker/daemon/libnetwork/networkdb"
-	events "github.com/docker/go-events"
 )
 
 type Mux interface {

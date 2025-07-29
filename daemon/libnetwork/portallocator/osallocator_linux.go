@@ -9,8 +9,9 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/ishidawataru/sctp"
+
+	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
 type OSAllocator struct {

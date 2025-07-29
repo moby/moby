@@ -11,6 +11,13 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/docker/go-connections/nat"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/api/types/filters"
+	networktypes "github.com/moby/moby/api/types/network"
+	"go.opentelemetry.io/otel/baggage"
+
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
@@ -28,12 +35,6 @@ import (
 	"github.com/docker/docker/daemon/server/backend"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/go-connections/nat"
-	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/filters"
-	networktypes "github.com/moby/moby/api/types/network"
-	"go.opentelemetry.io/otel/baggage"
 )
 
 // PredefinedNetworkError is returned when user tries to create predefined network that already exists.

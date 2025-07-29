@@ -8,6 +8,7 @@ import (
 	"net/netip"
 
 	"github.com/containerd/log"
+
 	"github.com/docker/docker/daemon/libnetwork/iptables"
 	"github.com/docker/docker/daemon/libnetwork/types"
 )

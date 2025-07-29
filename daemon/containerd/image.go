@@ -12,14 +12,15 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/daemon/images"
-	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/daemon/server/backend"
-	"github.com/docker/docker/errdefs"
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+
+	"github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/daemon/internal/image"
+	"github.com/docker/docker/daemon/server/backend"
+	"github.com/docker/docker/errdefs"
 )
 
 var errInconsistentData error = errors.New("consistency error: data changed during operation, retry")

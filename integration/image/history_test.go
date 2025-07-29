@@ -3,9 +3,10 @@ package image
 import (
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/testutil/fakecontext"
-	"gotest.tools/v3/assert"
 )
 
 func TestAPIImagesHistory(t *testing.T) {

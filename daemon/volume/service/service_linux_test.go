@@ -6,14 +6,15 @@ import (
 	"path/filepath"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/docker/docker/daemon/internal/idtools"
 	"github.com/docker/docker/daemon/volume"
 	volumedrivers "github.com/docker/docker/daemon/volume/drivers"
 	"github.com/docker/docker/daemon/volume/local"
 	"github.com/docker/docker/daemon/volume/service/opts"
 	"github.com/docker/docker/daemon/volume/testutils"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestLocalVolumeSize(t *testing.T) {

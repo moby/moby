@@ -21,13 +21,14 @@ import (
 	"github.com/containerd/containerd/v2/pkg/cio"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/internal/libcontainerd/queue"
-	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
-	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/docker/docker/daemon/internal/libcontainerd/queue"
+	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
+	"github.com/docker/docker/errdefs"
 )
 
 type process struct {
