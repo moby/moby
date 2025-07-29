@@ -40,15 +40,17 @@ func TestProgressString(t *testing.T) {
 		},
 		{
 			name:     "progress 1",
-			progress: JSONProgress{Current: 1},
+			progress: JSONProgress{Progress: jsonstream.Progress{Current: 1}},
 			expected: shortAndLong("      1B", "      1B"),
 		},
 		{
 			name: "some progress with a start time",
 			progress: JSONProgress{
-				Current: 20,
-				Total:   100,
-				Start:   start.Unix(),
+				Progress: jsonstream.Progress{
+					Current: 20,
+					Total:   100,
+					Start:   start.Unix(),
+				},
 				nowFunc: timeAfter(time.Second),
 			},
 			expected: shortAndLong(
@@ -58,7 +60,7 @@ func TestProgressString(t *testing.T) {
 		},
 		{
 			name:     "some progress without a start time",
-			progress: JSONProgress{Current: 50, Total: 100},
+			progress: JSONProgress{Progress: jsonstream.Progress{Current: 50, Total: 100}},
 			expected: shortAndLong(
 				"     50B/100B",
 				"[=========================>                         ]      50B/100B",
@@ -66,7 +68,7 @@ func TestProgressString(t *testing.T) {
 		},
 		{
 			name:     "current more than total is not negative gh#7136",
-			progress: JSONProgress{Current: 50, Total: 40},
+			progress: JSONProgress{Progress: jsonstream.Progress{Current: 50, Total: 40}},
 			expected: shortAndLong(
 				"     50B",
 				"[==================================================>]      50B",
@@ -74,7 +76,7 @@ func TestProgressString(t *testing.T) {
 		},
 		{
 			name:     "with units",
-			progress: JSONProgress{Current: 50, Total: 100, Units: "units"},
+			progress: JSONProgress{Progress: jsonstream.Progress{Current: 50, Total: 100, Units: "units"}},
 			expected: shortAndLong(
 				"50/100 units",
 				"[=========================>                         ] 50/100 units",
@@ -82,7 +84,7 @@ func TestProgressString(t *testing.T) {
 		},
 		{
 			name:     "current more than total with units is not negative ",
-			progress: JSONProgress{Current: 50, Total: 40, Units: "units"},
+			progress: JSONProgress{Progress: jsonstream.Progress{Current: 50, Total: 40, Units: "units"}},
 			expected: shortAndLong(
 				"50 units",
 				"[==================================================>] 50 units",
@@ -90,7 +92,7 @@ func TestProgressString(t *testing.T) {
 		},
 		{
 			name:     "hide counts",
-			progress: JSONProgress{Current: 50, Total: 100, HideCounts: true},
+			progress: JSONProgress{Progress: jsonstream.Progress{Current: 50, Total: 100, HideCounts: true}},
 			expected: shortAndLong(
 				"",
 				"[=========================>                         ] ",
@@ -172,7 +174,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 		{
 			Status:   "status",
 			Stream:   "",
-			Progress: &JSONProgress{Current: 1},
+			Progress: &JSONProgress{Progress: jsonstream.Progress{Current: 1}},
 		}: {
 			"",
 			fmt.Sprintf("%c[2K\rstatus       1B\r", 27),

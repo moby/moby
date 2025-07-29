@@ -18,16 +18,7 @@ const RFC3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
 
 // JSONProgress describes a progress message in a JSON stream.
 type JSONProgress struct {
-	// Current is the current status and value of the progress made towards Total.
-	Current int64 `json:"current,omitempty"`
-	// Total is the end value describing when we made 100% progress for an operation.
-	Total int64 `json:"total,omitempty"`
-	// Start is the initial value for the operation.
-	Start int64 `json:"start,omitempty"`
-	// HideCounts. if true, hides the progress count indicator (xB/yB).
-	HideCounts bool `json:"hidecounts,omitempty"`
-	// Units is the unit to print for progress. It defaults to "bytes" if empty.
-	Units string `json:"units,omitempty"`
+	jsonstream.Progress
 
 	// terminalFd is the fd of the current terminal, if any. It is used
 	// to get the terminal width.
