@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/api/types/swarm/runtime"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/plugin"
 	v2 "github.com/docker/docker/plugin/v2"
 	"github.com/moby/pubsub"
@@ -325,7 +325,7 @@ func newTestController(b Backend, disabled bool) *Controller {
 	return &Controller{
 		logger:  &log.Entry{Logger: &logrus.Logger{Out: io.Discard}},
 		backend: b,
-		spec: runtime.PluginSpec{
+		spec: swarm.RuntimeSpec{
 			Name:     pluginTestName,
 			Remote:   pluginTestRemote,
 			Disabled: disabled,

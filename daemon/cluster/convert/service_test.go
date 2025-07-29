@@ -7,7 +7,6 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/swarm/runtime"
 	google_protobuf3 "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"gotest.tools/v3/assert"
@@ -89,7 +88,7 @@ func TestServiceConvertToGRPCGenericRuntimePlugin(t *testing.T) {
 	s := swarmtypes.ServiceSpec{
 		TaskTemplate: swarmtypes.TaskSpec{
 			Runtime:    swarmtypes.RuntimePlugin,
-			PluginSpec: &runtime.PluginSpec{},
+			PluginSpec: &swarmtypes.RuntimeSpec{},
 		},
 		Mode: swarmtypes.ServiceMode{
 			Global: &swarmtypes.GlobalService{},
@@ -425,7 +424,7 @@ func TestServiceConvertToGRPCMismatchedRuntime(t *testing.T) {
 	} {
 		for j, spec := range []swarmtypes.TaskSpec{
 			{ContainerSpec: &swarmtypes.ContainerSpec{}},
-			{PluginSpec: &runtime.PluginSpec{}},
+			{PluginSpec: &swarmtypes.RuntimeSpec{}},
 		} {
 			// skip the cases, where the indices match, which would not error
 			if i == j {
