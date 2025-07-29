@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/testutil/registry"
 	"github.com/moby/moby/api/types/filters"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
-	"github.com/moby/moby/api/types/swarm/runtime"
 	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
@@ -125,7 +124,7 @@ func TestServicePlugin(t *testing.T) {
 func makePlugin(repo, name string, constraints []string) func(*swarmtypes.Service) {
 	return func(s *swarmtypes.Service) {
 		s.Spec.TaskTemplate.Runtime = swarmtypes.RuntimePlugin
-		s.Spec.TaskTemplate.PluginSpec = &runtime.PluginSpec{
+		s.Spec.TaskTemplate.PluginSpec = &swarmtypes.RuntimeSpec{
 			Name:   name,
 			Remote: repo,
 			Env: []string{

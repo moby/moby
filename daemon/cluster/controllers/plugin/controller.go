@@ -8,13 +8,14 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/docker/docker/daemon/cluster/internal/runtime"
 	"github.com/docker/docker/daemon/pkg/plugin"
 	v2 "github.com/docker/docker/daemon/pkg/plugin/v2"
 	"github.com/docker/docker/daemon/server/backend"
 	"github.com/gogo/protobuf/proto"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/registry"
-	"github.com/moby/moby/api/types/swarm/runtime"
+	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
 )
@@ -30,7 +31,7 @@ import (
 // the right way to pass registry credentials via secrets.
 type Controller struct {
 	backend Backend
-	spec    runtime.PluginSpec
+	spec    swarm.RuntimeSpec
 	logger  *log.Entry
 
 	pluginID  string
@@ -70,14 +71,15 @@ func NewController(backend Backend, t *api.Task) (*Controller, error) {
 	}, nil
 }
 
-func readSpec(t *api.Task) (runtime.PluginSpec, error) {
+func readSpec(t *api.Task) (swarm.RuntimeSpec, error) {
 	var cfg runtime.PluginSpec
 
 	generic := t.Spec.GetGeneric()
 	if err := proto.Unmarshal(generic.Payload.Value, &cfg); err != nil {
-		return cfg, errors.Wrap(err, "error reading plugin spec")
+		return swarm.RuntimeSpec{}, errors.Wrap(err, "error reading plugin spec")
 	}
-	return cfg, nil
+
+	return runtime.ToAPI(cfg), nil
 }
 
 // Update is the update phase from swarmkit
@@ -248,7 +250,7 @@ func (p *Controller) Close() error {
 	return nil
 }
 
-func convertPrivileges(ls []*runtime.PluginPrivilege) types.PluginPrivileges {
+func convertPrivileges(ls []*swarm.RuntimePrivilege) types.PluginPrivileges {
 	var out types.PluginPrivileges
 	for _, p := range ls {
 		pp := types.PluginPrivilege{
