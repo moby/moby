@@ -17,6 +17,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/docker/docker/daemon/internal/rootless"
 	"github.com/moby/moby/api/types/registry"
 )
 
@@ -66,14 +67,6 @@ var (
 	})
 )
 
-// runningWithRootlessKit is a fork of [rootless.RunningWithRootlessKit],
-// but inlining it to prevent adding that as a dependency for docker/cli.
-//
-// [rootless.RunningWithRootlessKit]: https://github.com/moby/moby/blob/b4bdf12daec84caaf809a639f923f7370d4926ad/pkg/rootless/rootless.go#L5-L8
-func runningWithRootlessKit() bool {
-	return runtime.GOOS == "linux" && os.Getenv("ROOTLESSKIT_STATE_DIR") != ""
-}
-
 // CertsDir is the directory where certificates are stored.
 //
 // - Linux: "/etc/docker/certs.d/"
@@ -83,7 +76,7 @@ func runningWithRootlessKit() bool {
 // TODO(thaJeztah): certsDir but stored in our config, and passed when needed. For the CLI, we should also default to same path as rootless.
 func CertsDir() string {
 	certsDir := "/etc/docker/certs.d"
-	if runningWithRootlessKit() {
+	if runtime.GOOS == "linux" && rootless.RunningWithRootlessKit() {
 		if configHome, _ := os.UserConfigDir(); configHome != "" {
 			certsDir = filepath.Join(configHome, "docker", "certs.d")
 		}
