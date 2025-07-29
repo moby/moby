@@ -8,7 +8,6 @@ import (
 	"github.com/docker/docker/daemon/builder"
 	"github.com/docker/docker/daemon/builder/remotecontext/internal/tarsum"
 	"github.com/docker/docker/pkg/longpath"
-	"github.com/docker/docker/pkg/system"
 	"github.com/moby/go-archive/chrootarchive"
 	"github.com/moby/go-archive/compression"
 	"github.com/moby/sys/symlink"
@@ -25,11 +24,10 @@ func (c *archiveContext) Close() error {
 }
 
 func convertPathError(err error, cleanpath string) error {
-	switch err := err.(type) {
-	case *os.PathError:
-		err.Path = cleanpath
-	case *system.XattrError:
-		err.Path = cleanpath
+	var pErr *os.PathError
+	if errors.As(err, &pErr) {
+		pErr.Path = cleanpath
+		err = pErr
 	}
 	return err
 }
@@ -98,14 +96,14 @@ func (c *archiveContext) Remove(path string) error {
 }
 
 func (c *archiveContext) Hash(path string) (string, error) {
-	cleanpath, fullpath, err := normalize(path, c.root)
+	cleanPath, fullPath, err := normalize(path, c.root)
 	if err != nil {
 		return "", err
 	}
 
-	rel, err := filepath.Rel(c.root, fullpath)
+	rel, err := filepath.Rel(c.root, fullPath)
 	if err != nil {
-		return "", convertPathError(err, cleanpath)
+		return "", convertPathError(err, cleanPath)
 	}
 
 	// Use the checksum of the followed path(not the possible symlink) because
