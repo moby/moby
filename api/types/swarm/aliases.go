@@ -566,3 +566,11 @@ type VolumeAttachment = swarm.VolumeAttachment
 
 // TaskListOptions holds parameters to list tasks with.
 type TaskListOptions = swarm.TaskListOptions
+
+// ---------------------------------------------------
+// New types, introduced in moby/moby/api
+// ---------------------------------------------------
+
+type RuntimeSpec = swarm.RuntimeSpec
+
+type RuntimePrivilege = swarm.RuntimePrivilege

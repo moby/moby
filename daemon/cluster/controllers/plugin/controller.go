@@ -11,7 +11,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/api/types/swarm/runtime"
+	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/daemon/cluster/internal/runtime"
 	"github.com/docker/docker/plugin"
 	v2 "github.com/docker/docker/plugin/v2"
 	"github.com/gogo/protobuf/proto"
@@ -30,7 +31,7 @@ import (
 // the right way to pass registry credentials via secrets.
 type Controller struct {
 	backend Backend
-	spec    runtime.PluginSpec
+	spec    swarm.RuntimeSpec
 	logger  *log.Entry
 
 	pluginID  string
@@ -70,14 +71,15 @@ func NewController(backend Backend, t *api.Task) (*Controller, error) {
 	}, nil
 }
 
-func readSpec(t *api.Task) (runtime.PluginSpec, error) {
+func readSpec(t *api.Task) (swarm.RuntimeSpec, error) {
 	var cfg runtime.PluginSpec
 
 	generic := t.Spec.GetGeneric()
 	if err := proto.Unmarshal(generic.Payload.Value, &cfg); err != nil {
-		return cfg, errors.Wrap(err, "error reading plugin spec")
+		return swarm.RuntimeSpec{}, errors.Wrap(err, "error reading plugin spec")
 	}
-	return cfg, nil
+
+	return runtime.ToAPI(cfg), nil
 }
 
 // Update is the update phase from swarmkit
@@ -248,7 +250,7 @@ func (p *Controller) Close() error {
 	return nil
 }
 
-func convertPrivileges(ls []*runtime.PluginPrivilege) types.PluginPrivileges {
+func convertPrivileges(ls []*swarm.RuntimePrivilege) types.PluginPrivileges {
 	var out types.PluginPrivileges
 	for _, p := range ls {
 		pp := types.PluginPrivilege{

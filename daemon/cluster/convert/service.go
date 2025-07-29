@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	types "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/swarm/runtime"
+	"github.com/docker/docker/daemon/cluster/internal/runtime"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/gogo/protobuf/proto"
 	gogotypes "github.com/gogo/protobuf/types"
@@ -210,7 +210,8 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 
 			s.Mode.Global = &types.GlobalService{} // must always be global
 
-			pluginSpec, err := proto.Marshal(s.TaskTemplate.PluginSpec)
+			ps := runtime.FromAPI(*s.TaskTemplate.PluginSpec)
+			pluginSpec, err := proto.Marshal(&ps)
 			if err != nil {
 				return swarmapi.ServiceSpec{}, err
 			}
@@ -699,7 +700,8 @@ func taskSpecFromGRPC(taskSpec swarmapi.TaskSpec) (types.TaskSpec, error) {
 				if err := proto.Unmarshal(g.Payload.Value, &p); err != nil {
 					return t, errors.Wrap(err, "error unmarshalling plugin spec")
 				}
-				t.PluginSpec = &p
+				ap := runtime.ToAPI(p)
+				t.PluginSpec = &ap
 			}
 		}
 	case *swarmapi.TaskSpec_Attachment:
