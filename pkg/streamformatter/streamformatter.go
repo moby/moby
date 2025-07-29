@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
+	"time"
 
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/go-units"
 	"github.com/moby/moby/api/types/jsonstream"
 )
 
@@ -18,12 +20,12 @@ import (
 //
 // It is a reduced set of [jsonmessage.JSONMessage].
 type jsonMessage struct {
-	Stream   string                    `json:"stream,omitempty"`
-	Status   string                    `json:"status,omitempty"`
-	Progress *jsonmessage.JSONProgress `json:"progressDetail,omitempty"` // TODO(thaJeztah): can this be a [jsonstream.Progress]?
-	ID       string                    `json:"id,omitempty"`
-	Error    *jsonstream.Error         `json:"errorDetail,omitempty"`
-	Aux      *json.RawMessage          `json:"aux,omitempty"` // Aux contains out-of-band data, such as digests for push signing and image id after building.
+	Stream   string               `json:"stream,omitempty"`
+	Status   string               `json:"status,omitempty"`
+	Progress *jsonstream.Progress `json:"progressDetail,omitempty"`
+	ID       string               `json:"id,omitempty"`
+	Error    *jsonstream.Error    `json:"errorDetail,omitempty"`
+	Aux      *json.RawMessage     `json:"aux,omitempty"` // Aux contains out-of-band data, such as digests for push signing and image id after building.
 
 	// ErrorMessage contains errors encountered during the operation.
 	//
@@ -81,7 +83,7 @@ func (sf *jsonProgressFormatter) formatProgress(id, action string, progress *jso
 	}
 	b, err := json.Marshal(&jsonMessage{
 		Status:   action,
-		Progress: &jsonmessage.JSONProgress{Progress: *progress},
+		Progress: progress,
 		ID:       id,
 		Aux:      auxJSON,
 	})
@@ -97,12 +99,68 @@ func (sf *rawProgressFormatter) formatStatus(id, format string, a ...interface{}
 	return []byte(fmt.Sprintf(format, a...) + streamNewline)
 }
 
+func rawProgressString(p *jsonstream.Progress) string {
+	if p == nil || (p.Current <= 0 && p.Total <= 0) {
+		return ""
+	}
+	if p.Total <= 0 {
+		switch p.Units {
+		case "":
+			return fmt.Sprintf("%8v", units.HumanSize(float64(p.Current)))
+		default:
+			return fmt.Sprintf("%d %s", p.Current, p.Units)
+		}
+	}
+
+	percentage := int(float64(p.Current)/float64(p.Total)*100) / 2
+	if percentage > 50 {
+		percentage = 50
+	}
+
+	numSpaces := 0
+	if 50-percentage > 0 {
+		numSpaces = 50 - percentage
+	}
+	pbBox := fmt.Sprintf("[%s>%s] ", strings.Repeat("=", percentage), strings.Repeat(" ", numSpaces))
+
+	var numbersBox string
+	switch {
+	case p.HideCounts:
+	case p.Units == "": // no units, use bytes
+		current := units.HumanSize(float64(p.Current))
+		total := units.HumanSize(float64(p.Total))
+
+		numbersBox = fmt.Sprintf("%8v/%v", current, total)
+
+		if p.Current > p.Total {
+			// remove total display if the reported current is wonky.
+			numbersBox = fmt.Sprintf("%8v", current)
+		}
+	default:
+		numbersBox = fmt.Sprintf("%d/%d %s", p.Current, p.Total, p.Units)
+
+		if p.Current > p.Total {
+			// remove total display if the reported current is wonky.
+			numbersBox = fmt.Sprintf("%d %s", p.Current, p.Units)
+		}
+	}
+
+	var timeLeftBox string
+	if p.Current > 0 && p.Start > 0 && percentage < 50 {
+		fromStart := time.Since(time.Unix(p.Start, 0))
+		perEntry := fromStart / time.Duration(p.Current)
+		left := time.Duration(p.Total-p.Current) * perEntry
+		timeLeftBox = " " + left.Round(time.Second).String()
+	}
+	return pbBox + numbersBox + timeLeftBox
+}
+
 func (sf *rawProgressFormatter) formatProgress(id, action string, progress *jsonstream.Progress, aux interface{}) []byte {
 	if progress == nil {
 		progress = &jsonstream.Progress{}
 	}
 	endl := "\r"
-	out := (&jsonmessage.JSONProgress{Progress: *progress}).String()
+	out := rawProgressString(progress)
 	if out == "" {
 		endl += "\n"
 	}

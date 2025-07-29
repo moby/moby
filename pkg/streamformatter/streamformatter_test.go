@@ -7,9 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/api/types/jsonstream"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -72,7 +70,7 @@ func TestJsonProgressFormatterFormatProgress(t *testing.T) {
 		ID:       "id",
 		Status:   "action",
 		Aux:      &rawAux,
-		Progress: &jsonmessage.JSONProgress{Progress: *jsonProgress},
+		Progress: jsonProgress,
 	}
 	assert.DeepEqual(t, msg, expected, cmpJSONMessageOpt())
 }
@@ -82,7 +80,6 @@ func cmpJSONMessageOpt() cmp.Option {
 		return path.String() == "ProgressMessage"
 	}
 	return cmp.Options{
-		cmpopts.IgnoreUnexported(jsonmessage.JSONProgress{}),
 		// Ignore deprecated property that is a derivative of Progress
 		cmp.FilterPath(progressMessagePath, cmp.Ignore()),
 	}
