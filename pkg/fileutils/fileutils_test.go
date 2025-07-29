@@ -107,35 +107,3 @@ func TestReadSymlinkedDirectoryToFile(t *testing.T) {
 		t.Errorf("failed to remove symlink: %s", err)
 	}
 }
-
-func TestCreateIfNotExistsDir(t *testing.T) {
-	folderToCreate := filepath.Join(t.TempDir(), "tocreate")
-
-	if err := CreateIfNotExists(folderToCreate, true); err != nil {
-		t.Fatal(err)
-	}
-	fileinfo, err := os.Stat(folderToCreate)
-	if err != nil {
-		t.Fatalf("Should have create a folder, got %v", err)
-	}
-
-	if !fileinfo.IsDir() {
-		t.Errorf("Should have been a dir, seems it's not")
-	}
-}
-
-func TestCreateIfNotExistsFile(t *testing.T) {
-	fileToCreate := filepath.Join(t.TempDir(), "file/to/create")
-
-	if err := CreateIfNotExists(fileToCreate, false); err != nil {
-		t.Error(err)
-	}
-	fileinfo, err := os.Stat(fileToCreate)
-	if err != nil {
-		t.Fatalf("Should have create a file, got %v", err)
-	}
-
-	if fileinfo.IsDir() {
-		t.Errorf("Should have been a file, seems it's not")
-	}
-}

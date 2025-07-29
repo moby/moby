@@ -18,7 +18,6 @@ import (
 	"github.com/docker/docker/daemon/container"
 	"github.com/docker/docker/daemon/internal/mounttree"
 	"github.com/docker/docker/daemon/internal/unshare"
-	"github.com/docker/docker/pkg/fileutils"
 	containertypes "github.com/moby/moby/api/types/container"
 )
 
@@ -104,7 +103,7 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 				if err != nil {
 					return err
 				}
-				if err := fileutils.CreateIfNotExists(dest, stat.IsDir()); err != nil {
+				if err := createIfNotExists(dest, stat.IsDir()); err != nil {
 					return err
 				}
 
@@ -250,6 +249,27 @@ func (vw *containerFSView) Stat(ctx context.Context, path string) (*containertyp
 		return nil
 	})
 	return stat, err
+}
+
+// createIfNotExists creates a file or a directory only if it does not already exist.
+func createIfNotExists(dest string, isDir bool) error {
+	if _, err := os.Stat(dest); err != nil {
+		// FIXME(thaJeztah): this ignores any other error (which may include "dest" is of the wrong type, or permission errors).
+		if os.IsNotExist(err) {
+			if isDir {
+				return os.MkdirAll(dest, 0o755)
+			}
+			if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+				return err
+			}
+			f, err := os.OpenFile(dest, os.O_CREATE, 0o755)
+			if err != nil {
+				return err
+			}
+			_ = f.Close()
+		}
+	}
+	return nil
 }
 
 // makeMountRRO makes the mount recursively read-only.
