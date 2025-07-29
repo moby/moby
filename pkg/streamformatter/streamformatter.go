@@ -12,6 +12,25 @@ import (
 	"github.com/moby/moby/api/types/jsonstream"
 )
 
+// jsonMessage defines a message struct. It describes
+// the created time, where it from, status, ID of the
+// message. It's used for docker events.
+//
+// It is a reduced set of [jsonmessage.JSONMessage].
+type jsonMessage struct {
+	Stream   string                    `json:"stream,omitempty"`
+	Status   string                    `json:"status,omitempty"`
+	Progress *jsonmessage.JSONProgress `json:"progressDetail,omitempty"` // TODO(thaJeztah): can this be a [jsonstream.Progress]?
+	ID       string                    `json:"id,omitempty"`
+	Error    *jsonstream.Error         `json:"errorDetail,omitempty"`
+	Aux      *json.RawMessage          `json:"aux,omitempty"` // Aux contains out-of-band data, such as digests for push signing and image id after building.
+
+	// ErrorMessage contains errors encountered during the operation.
+	//
+	// Deprecated: this field is deprecated since docker v0.6.0 / API v1.4. Use [Error.Message] instead. This field will be omitted in a future release.
+	ErrorMessage string `json:"error,omitempty"` // deprecated
+}
+
 const streamNewline = "\r\n"
 
 type jsonProgressFormatter struct{}
@@ -23,7 +42,7 @@ func appendNewline(source []byte) []byte {
 // FormatStatus formats the specified objects according to the specified format (and id).
 func FormatStatus(id, format string, a ...interface{}) []byte {
 	str := fmt.Sprintf(format, a...)
-	b, err := json.Marshal(&jsonmessage.JSONMessage{ID: id, Status: str})
+	b, err := json.Marshal(&jsonMessage{ID: id, Status: str})
 	if err != nil {
 		return FormatError(err)
 	}
@@ -36,7 +55,7 @@ func FormatError(err error) []byte {
 	if !ok {
 		jsonError = &jsonstream.Error{Message: err.Error()}
 	}
-	if b, err := json.Marshal(&jsonmessage.JSONMessage{Error: jsonError, ErrorMessage: err.Error()}); err == nil {
+	if b, err := json.Marshal(&jsonMessage{Error: jsonError, ErrorMessage: err.Error()}); err == nil {
 		return appendNewline(b)
 	}
 	return []byte(`{"error":"format error"}` + streamNewline)
@@ -47,9 +66,9 @@ func (sf *jsonProgressFormatter) formatStatus(id, format string, a ...interface{
 }
 
 // formatProgress formats the progress information for a specified action.
-func (sf *jsonProgressFormatter) formatProgress(id, action string, progress *jsonmessage.JSONProgress, aux interface{}) []byte {
+func (sf *jsonProgressFormatter) formatProgress(id, action string, progress *jsonstream.Progress, aux interface{}) []byte {
 	if progress == nil {
-		progress = &jsonmessage.JSONProgress{}
+		progress = &jsonstream.Progress{}
 	}
 	var auxJSON *json.RawMessage
 	if aux != nil {
@@ -60,12 +79,11 @@ func (sf *jsonProgressFormatter) formatProgress(id, action string, progress *jso
 		auxJSON = new(json.RawMessage)
 		*auxJSON = auxJSONBytes
 	}
-	b, err := json.Marshal(&jsonmessage.JSONMessage{
-		Status:          action,
-		ProgressMessage: progress.String(),
-		Progress:        progress,
-		ID:              id,
-		Aux:             auxJSON,
+	b, err := json.Marshal(&jsonMessage{
+		Status:   action,
+		Progress: &jsonmessage.JSONProgress{Progress: *progress},
+		ID:       id,
+		Aux:      auxJSON,
 	})
 	if err != nil {
 		return nil
@@ -79,15 +97,16 @@ func (sf *rawProgressFormatter) formatStatus(id, format string, a ...interface{}
 	return []byte(fmt.Sprintf(format, a...) + streamNewline)
 }
 
-func (sf *rawProgressFormatter) formatProgress(id, action string, progress *jsonmessage.JSONProgress, aux interface{}) []byte {
+func (sf *rawProgressFormatter) formatProgress(id, action string, progress *jsonstream.Progress, aux interface{}) []byte {
 	if progress == nil {
-		progress = &jsonmessage.JSONProgress{}
+		progress = &jsonstream.Progress{}
 	}
 	endl := "\r"
-	if progress.String() == "" {
+	out := (&jsonmessage.JSONProgress{Progress: *progress}).String()
+	if out == "" {
 		endl += "\n"
 	}
-	return []byte(action + " " + progress.String() + endl)
+	return []byte(action + " " + out + endl)
 }
 
 // NewProgressOutput returns a progress.Output object that can be passed to
@@ -104,7 +123,7 @@ func NewJSONProgressOutput(out io.Writer, newLines bool) progress.Output {
 
 type formatProgress interface {
 	formatStatus(id, format string, a ...interface{}) []byte
-	formatProgress(id, action string, progress *jsonmessage.JSONProgress, aux interface{}) []byte
+	formatProgress(id, action string, progress *jsonstream.Progress, aux interface{}) []byte
 }
 
 type progressOutput struct {
@@ -120,13 +139,11 @@ func (out *progressOutput) WriteProgress(prog progress.Progress) error {
 	if prog.Message != "" {
 		formatted = out.sf.formatStatus(prog.ID, prog.Message)
 	} else {
-		jsonProgress := jsonmessage.JSONProgress{
-			Progress: jsonstream.Progress{
-				Current:    prog.Current,
-				Total:      prog.Total,
-				HideCounts: prog.HideCounts,
-				Units:      prog.Units,
-			},
+		jsonProgress := jsonstream.Progress{
+			Current:    prog.Current,
+			Total:      prog.Total,
+			HideCounts: prog.HideCounts,
+			Units:      prog.Units,
 		}
 		formatted = out.sf.formatProgress(prog.ID, prog.Action, &jsonProgress, prog.Aux)
 	}
@@ -159,7 +176,7 @@ func (sf *AuxFormatter) Emit(id string, aux interface{}) error {
 	}
 	auxJSON := new(json.RawMessage)
 	*auxJSON = auxJSONBytes
-	msgJSON, err := json.Marshal(&jsonmessage.JSONMessage{ID: id, Aux: auxJSON})
+	msgJSON, err := json.Marshal(&jsonMessage{ID: id, Aux: auxJSON})
 	if err != nil {
 		return err
 	}

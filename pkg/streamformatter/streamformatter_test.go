@@ -23,12 +23,10 @@ func TestRawProgressFormatterFormatStatus(t *testing.T) {
 
 func TestRawProgressFormatterFormatProgress(t *testing.T) {
 	sf := rawProgressFormatter{}
-	jsonProgress := &jsonmessage.JSONProgress{
-		Progress: jsonstream.Progress{
-			Current: 15,
-			Total:   30,
-			Start:   1,
-		},
+	jsonProgress := &jsonstream.Progress{
+		Current: 15,
+		Total:   30,
+		Start:   1,
 	}
 	res := sf.formatProgress("id", "action", jsonProgress, nil)
 	out := string(res)
@@ -58,25 +56,23 @@ func TestFormatJSONError(t *testing.T) {
 
 func TestJsonProgressFormatterFormatProgress(t *testing.T) {
 	sf := &jsonProgressFormatter{}
-	jsonProgress := &jsonmessage.JSONProgress{
-		Progress: jsonstream.Progress{
-			Current: 15,
-			Total:   30,
-			Start:   1,
-		},
+	jsonProgress := &jsonstream.Progress{
+		Current: 15,
+		Total:   30,
+		Start:   1,
 	}
 	aux := "aux message"
 	res := sf.formatProgress("id", "action", jsonProgress, aux)
-	msg := &jsonmessage.JSONMessage{}
+	msg := &jsonMessage{}
 
 	assert.NilError(t, json.Unmarshal(res, msg))
 
 	rawAux := json.RawMessage(`"` + aux + `"`)
-	expected := &jsonmessage.JSONMessage{
+	expected := &jsonMessage{
 		ID:       "id",
 		Status:   "action",
 		Aux:      &rawAux,
-		Progress: jsonProgress,
+		Progress: &jsonmessage.JSONProgress{Progress: *jsonProgress},
 	}
 	assert.DeepEqual(t, msg, expected, cmpJSONMessageOpt())
 }
