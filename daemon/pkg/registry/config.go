@@ -17,6 +17,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/docker/docker/daemon/internal/rootless"
 	"github.com/moby/moby/api/types/registry"
 )
 
@@ -66,14 +67,6 @@ var (
 	})
 )
 
-// runningWithRootlessKit is a fork of [rootless.RunningWithRootlessKit],
-// but inlining it to prevent adding that as a dependency for docker/cli.
-//
-// [rootless.RunningWithRootlessKit]: https://github.com/moby/moby/blob/b4bdf12daec84caaf809a639f923f7370d4926ad/pkg/rootless/rootless.go#L5-L8
-func runningWithRootlessKit() bool {
-	return runtime.GOOS == "linux" && os.Getenv("ROOTLESSKIT_STATE_DIR") != ""
-}
-
 // CertsDir is the directory where certificates are stored.
 //
 // - Linux: "/etc/docker/certs.d/"
@@ -83,7 +76,7 @@ func runningWithRootlessKit() bool {
 // TODO(thaJeztah): certsDir but stored in our config, and passed when needed. For the CLI, we should also default to same path as rootless.
 func CertsDir() string {
 	certsDir := "/etc/docker/certs.d"
-	if runningWithRootlessKit() {
+	if runtime.GOOS == "linux" && rootless.RunningWithRootlessKit() {
 		if configHome, _ := os.UserConfigDir(); configHome != "" {
 			certsDir = filepath.Join(configHome, "docker", "certs.d")
 		}
@@ -328,10 +321,6 @@ func normalizeIndexName(val string) string {
 	return val
 }
 
-func hasScheme(reposName string) bool {
-	return strings.Contains(reposName, "://")
-}
-
 func validateHostPort(s string) error {
 	// Split host and port, and in case s can not be split, assume host only
 	host, port, err := net.SplitHostPort(s)
@@ -380,70 +369,4 @@ func GetAuthConfigKey(index *registry.IndexInfo) string {
 		return IndexServer
 	}
 	return index.Name
-}
-
-// ParseRepositoryInfo performs the breakdown of a repository name into a
-// [RepositoryInfo], but lacks registry configuration.
-//
-// It is used by the Docker cli to interact with registry-related endpoints.
-func ParseRepositoryInfo(reposName reference.Named) (*RepositoryInfo, error) {
-	indexName := normalizeIndexName(reference.Domain(reposName))
-	if indexName == IndexName {
-		return &RepositoryInfo{
-			Name: reference.TrimNamed(reposName),
-			Index: &registry.IndexInfo{
-				Name:     IndexName,
-				Mirrors:  []string{},
-				Secure:   true,
-				Official: true,
-			},
-		}, nil
-	}
-
-	return &RepositoryInfo{
-		Name: reference.TrimNamed(reposName),
-		Index: &registry.IndexInfo{
-			Name:    indexName,
-			Mirrors: []string{},
-			Secure:  !isInsecure(indexName),
-		},
-	}, nil
-}
-
-// isInsecure is used to detect whether a registry domain or IP-address is allowed
-// to use an insecure (non-TLS, or self-signed cert) connection according to the
-// defaults, which allows for insecure connections with registries running on a
-// loopback address ("localhost", "::1/128", "127.0.0.0/8").
-//
-// It is used in situations where we don't have access to the daemon's configuration,
-// for example, when used from the client / CLI.
-func isInsecure(hostNameOrIP string) bool {
-	// Attempt to strip port if present; this also strips brackets for
-	// IPv6 addresses with a port (e.g. "[::1]:5000").
-	//
-	// This is best-effort; we'll continue using the address as-is if it fails.
-	if host, _, err := net.SplitHostPort(hostNameOrIP); err == nil {
-		hostNameOrIP = host
-	}
-	if hostNameOrIP == "127.0.0.1" || hostNameOrIP == "::1" || strings.EqualFold(hostNameOrIP, "localhost") {
-		// Fast path; no need to resolve these, assuming nobody overrides
-		// "localhost" for anything else than a loopback address (sorry, not sorry).
-		return true
-	}
-
-	var addresses []net.IP
-	if ip := net.ParseIP(hostNameOrIP); ip != nil {
-		addresses = append(addresses, ip)
-	} else {
-		// Try to resolve the host's IP-addresses.
-		addrs, _ := lookupIP(hostNameOrIP)
-		addresses = append(addresses, addrs...)
-	}
-
-	for _, addr := range addresses {
-		if addr.IsLoopback() {
-			return true
-		}
-	}
-	return false
 }
