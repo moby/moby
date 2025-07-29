@@ -952,12 +952,10 @@ github.com/moby/moby/api/types/filters
 github.com/moby/moby/api/types/image
 github.com/moby/moby/api/types/mount
 github.com/moby/moby/api/types/network
-github.com/moby/moby/api/types/plugins/logdriver
 github.com/moby/moby/api/types/registry
 github.com/moby/moby/api/types/storage
 github.com/moby/moby/api/types/strslice
 github.com/moby/moby/api/types/swarm
-github.com/moby/moby/api/types/swarm/runtime
 github.com/moby/moby/api/types/system
 github.com/moby/moby/api/types/time
 github.com/moby/moby/api/types/versions
