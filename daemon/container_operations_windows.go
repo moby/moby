@@ -8,9 +8,9 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/container"
+	"github.com/docker/docker/daemon/internal/system"
 	"github.com/docker/docker/daemon/libnetwork"
 	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 )
 

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/Microsoft/go-winio"
-	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/daemon/internal/system"
 	"github.com/moby/sys/reexec"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"

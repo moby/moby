@@ -20,7 +20,7 @@ import (
 	v1 "github.com/docker/docker/daemon/internal/image/v1"
 	"github.com/docker/docker/daemon/internal/ioutils"
 	"github.com/docker/docker/daemon/internal/layer"
-	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/daemon/internal/system"
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/sys/sequential"
