@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/moby/moby/api/pkg/progress"
+	"github.com/moby/moby/api/types/jsonstream"
 )
 
 const streamNewline = "\r\n"
@@ -31,9 +32,9 @@ func FormatStatus(id, format string, a ...interface{}) []byte {
 
 // FormatError formats the error as a JSON object
 func FormatError(err error) []byte {
-	jsonError, ok := err.(*jsonmessage.JSONError)
+	jsonError, ok := err.(*jsonstream.Error)
 	if !ok {
-		jsonError = &jsonmessage.JSONError{Message: err.Error()}
+		jsonError = &jsonstream.Error{Message: err.Error()}
 	}
 	if b, err := json.Marshal(&jsonmessage.JSONMessage{Error: jsonError, ErrorMessage: err.Error()}); err == nil {
 		return appendNewline(b)

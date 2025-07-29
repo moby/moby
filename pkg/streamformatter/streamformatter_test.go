@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/moby/moby/api/types/jsonstream"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -47,7 +48,7 @@ func TestFormatError(t *testing.T) {
 }
 
 func TestFormatJSONError(t *testing.T) {
-	err := &jsonmessage.JSONError{Code: 50, Message: "Json error"}
+	err := &jsonstream.Error{Code: 50, Message: "Json error"}
 	res := FormatError(err)
 	expected := `{"errorDetail":{"code":50,"message":"Json error"},"error":"Json error"}` + streamNewline
 	assert.Check(t, is.Equal(expected, string(res)))
