@@ -8,8 +8,6 @@ import (
 	"encoding/json"
 	"regexp"
 	"strings"
-
-	"github.com/docker/docker/api/types/versions"
 )
 
 // Args stores a mapping of keys to a set of multiple values.
@@ -61,24 +59,6 @@ func ToJSON(a Args) (string, error) {
 	}
 	buf, err := json.Marshal(a)
 	return string(buf), err
-}
-
-// ToParamWithVersion encodes Args as a JSON string. If version is less than 1.22
-// then the encoded format will use an older legacy format where the values are a
-// list of strings, instead of a set.
-//
-// Deprecated: do not use in any new code; use ToJSON instead
-func ToParamWithVersion(version string, a Args) (string, error) {
-	if a.Len() == 0 {
-		return "", nil
-	}
-
-	if version != "" && versions.LessThan(version, "1.22") {
-		buf, err := json.Marshal(convertArgsToSlice(a.fields))
-		return string(buf), err
-	}
-
-	return ToJSON(a)
 }
 
 // FromJSON decodes a JSON encoded string into Args
@@ -315,20 +295,6 @@ func deprecatedArgs(d map[string][]string) map[string]map[string]bool {
 		values := map[string]bool{}
 		for _, vv := range v {
 			values[vv] = true
-		}
-		m[k] = values
-	}
-	return m
-}
-
-func convertArgsToSlice(f map[string]map[string]bool) map[string][]string {
-	m := map[string][]string{}
-	for k, v := range f {
-		values := []string{}
-		for kk := range v {
-			if v[kk] {
-				values = append(values, kk)
-			}
 		}
 		m[k] = values
 	}
