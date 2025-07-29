@@ -19,7 +19,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/docker/daemon/internal/stringid"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/progress"
+	"github.com/moby/moby/api/pkg/progress"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )

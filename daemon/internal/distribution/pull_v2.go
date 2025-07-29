@@ -25,7 +25,7 @@ import (
 	"github.com/docker/docker/daemon/internal/stringid"
 	"github.com/docker/docker/daemon/pkg/registry"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/progress"
+	"github.com/moby/moby/api/pkg/progress"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
