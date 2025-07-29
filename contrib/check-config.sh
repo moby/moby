@@ -247,7 +247,7 @@ echo 'Optional Features:'
 }
 {
 	# Kernel v5.8+ removes MEMCG_SWAP_ENABLED and deprecates MEMCG_SWAP.
-	if [ "$kernelMajor" -lt 5 ] || [ "$kernelMajor" -eq 5 -a "$kernelMinor" -le 8 ]; then
+	if [ "$kernelMajor" -lt 5 ] || [ "$kernelMajor" -eq 5 -a "$kernelMinor" -lt 8 ]; then
 		CODE=${EXITCODE}
 		check_flags MEMCG_SWAP MEMCG_SWAP_ENABLED
 		# FIXME this check is cgroupv1-specific
