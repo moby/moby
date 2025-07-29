@@ -20,7 +20,7 @@ import (
 	"github.com/docker/docker/integration/internal/process"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
-	"github.com/moby/moby/api/stdcopy"
+	"github.com/moby/moby/api/pkg/stdcopy"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/mount"

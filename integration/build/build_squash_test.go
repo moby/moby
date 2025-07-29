@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
-	"github.com/moby/moby/api/stdcopy"
+	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/build"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
