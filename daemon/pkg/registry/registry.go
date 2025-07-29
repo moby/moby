@@ -55,13 +55,6 @@ func hasFile(files []os.DirEntry, name string) bool {
 	return false
 }
 
-// ReadCertsDirectory reads the directory for TLS certificates
-// including roots and certificate pairs and updates the
-// provided TLS configuration.
-func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
-	return loadTLSConfig(context.TODO(), directory, tlsConfig)
-}
-
 // loadTLSConfig reads the directory for TLS certificates including roots and
 // certificate pairs, and updates the provided TLS configuration.
 func loadTLSConfig(ctx context.Context, directory string, tlsConfig *tls.Config) error {
