@@ -16,7 +16,6 @@ import (
 	dopts "github.com/docker/docker/daemon/internal/opts"
 	"github.com/docker/docker/daemon/pkg/opts"
 	"github.com/docker/docker/daemon/pkg/registry"
-	"github.com/moby/moby/api"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
@@ -65,7 +64,7 @@ const (
 	// This version can be overridden through the "DOCKER_MIN_API_VERSION"
 	// environment variable. It currently defaults to the minimum API version
 	// supported by the API server.
-	defaultMinAPIVersion = api.MinSupportedAPIVersion
+	defaultMinAPIVersion = versions.Min
 	// SeccompProfileDefault is the built-in default seccomp profile.
 	SeccompProfileDefault = "builtin"
 	// SeccompProfileUnconfined is a special profile name for seccomp to use an
