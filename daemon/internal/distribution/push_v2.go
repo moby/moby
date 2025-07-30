@@ -20,7 +20,7 @@ import (
 	"github.com/docker/docker/daemon/internal/stringid"
 	"github.com/docker/docker/daemon/pkg/registry"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/progress"
+	"github.com/moby/moby/api/pkg/progress"
 	apitypes "github.com/moby/moby/api/types"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"

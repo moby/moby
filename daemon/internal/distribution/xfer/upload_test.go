@@ -9,7 +9,7 @@ import (
 
 	"github.com/docker/distribution"
 	"github.com/docker/docker/daemon/internal/layer"
-	"github.com/docker/docker/pkg/progress"
+	"github.com/moby/moby/api/pkg/progress"
 )
 
 const maxUploadConcurrency = 3

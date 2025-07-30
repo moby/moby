@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
+	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/term"
 )
 
@@ -15,29 +16,9 @@ import (
 // ensure the formatted time isalways the same number of characters.
 const RFC3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
 
-// JSONError wraps a concrete Code and Message, Code is
-// an integer error code, Message is the error message.
-type JSONError struct {
-	Code    int    `json:"code,omitempty"`
-	Message string `json:"message,omitempty"`
-}
-
-func (e *JSONError) Error() string {
-	return e.Message
-}
-
 // JSONProgress describes a progress message in a JSON stream.
 type JSONProgress struct {
-	// Current is the current status and value of the progress made towards Total.
-	Current int64 `json:"current,omitempty"`
-	// Total is the end value describing when we made 100% progress for an operation.
-	Total int64 `json:"total,omitempty"`
-	// Start is the initial value for the operation.
-	Start int64 `json:"start,omitempty"`
-	// HideCounts. if true, hides the progress count indicator (xB/yB).
-	HideCounts bool `json:"hidecounts,omitempty"`
-	// Units is the unit to print for progress. It defaults to "bytes" if empty.
-	Units string `json:"units,omitempty"`
+	jsonstream.Progress
 
 	// terminalFd is the fd of the current terminal, if any. It is used
 	// to get the terminal width.
@@ -148,12 +129,12 @@ type JSONMessage struct {
 	// ProgressMessage is a pre-formatted presentation of [Progress].
 	//
 	// Deprecated: this field is deprecated since docker v0.7.1 / API v1.8. Use the information in [Progress] instead. This field will be omitted in a future release.
-	ProgressMessage string     `json:"progress,omitempty"`
-	ID              string     `json:"id,omitempty"`
-	From            string     `json:"from,omitempty"`
-	Time            int64      `json:"time,omitempty"`
-	TimeNano        int64      `json:"timeNano,omitempty"`
-	Error           *JSONError `json:"errorDetail,omitempty"`
+	ProgressMessage string            `json:"progress,omitempty"`
+	ID              string            `json:"id,omitempty"`
+	From            string            `json:"from,omitempty"`
+	Time            int64             `json:"time,omitempty"`
+	TimeNano        int64             `json:"timeNano,omitempty"`
+	Error           *jsonstream.Error `json:"errorDetail,omitempty"`
 
 	// ErrorMessage contains errors encountered during the operation.
 	//

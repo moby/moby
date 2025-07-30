@@ -9,8 +9,8 @@ import (
 
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/sys/user"
 	"golang.org/x/sys/windows"
@@ -106,7 +106,7 @@ func lookupNTAccount(ctx context.Context, builder *Builder, accountName string, 
 
 	if err := builder.containerManager.Run(ctx, container.ID, stdout, stderr); err != nil {
 		if err, ok := err.(*statusCodeError); ok {
-			return identity{}, &jsonmessage.JSONError{
+			return identity{}, &jsonstream.Error{
 				Message: stderr.String(),
 				Code:    err.StatusCode(),
 			}

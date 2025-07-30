@@ -10,7 +10,7 @@ import (
 
 	"github.com/docker/docker/daemon/server/backend"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/moby/moby/api/stdcopy"
+	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/container"
 )
 

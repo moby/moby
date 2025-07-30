@@ -6,11 +6,11 @@ import (
 	"io"
 	"testing"
 
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/jsonmessage"
 	"gotest.tools/v3/assert"
 )
 

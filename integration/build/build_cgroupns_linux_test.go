@@ -8,11 +8,11 @@ import (
 	"testing"
 
 	"github.com/docker/docker/integration/internal/requirement"
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/moby/moby/api/types/build"
+	"github.com/moby/moby/client/pkg/jsonmessage"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )

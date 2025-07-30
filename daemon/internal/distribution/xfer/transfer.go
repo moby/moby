@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/docker/docker/pkg/progress"
+	"github.com/moby/moby/api/pkg/progress"
 	"github.com/pkg/errors"
 )
 
