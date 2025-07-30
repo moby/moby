@@ -9,7 +9,6 @@ import (
 
 	"github.com/docker/go-units"
 	"github.com/moby/term"
-	"github.com/morikuni/aec"
 )
 
 // RFC3339NanoFixed is time.RFC3339Nano with nanoseconds padded using zeros to
@@ -164,18 +163,27 @@ type JSONMessage struct {
 	Aux *json.RawMessage `json:"aux,omitempty"`
 }
 
+// We can probably use [aec.EmptyBuilder] for managing the output, but
+// currently we're doing it all manually, so defining some consts for
+// the basics we use.
+//
+// [aec.EmptyBuilder]: https://pkg.go.dev/github.com/morikuni/aec#EmptyBuilder
+const (
+	ansiEraseLine     = "\x1b[2K"  // Erase entire line
+	ansiCursorUpFmt   = "\x1b[%dA" // Move cursor up N lines
+	ansiCursorDownFmt = "\x1b[%dB" // Move cursor down N lines
+)
+
 func clearLine(out io.Writer) {
-	eraseMode := aec.EraseModes.All
-	cl := aec.EraseLine(eraseMode)
-	fmt.Fprint(out, cl)
+	_, _ = out.Write([]byte(ansiEraseLine))
 }
 
 func cursorUp(out io.Writer, l uint) {
-	fmt.Fprint(out, aec.Up(l))
+	_, _ = fmt.Fprintf(out, ansiCursorUpFmt, l)
 }
 
 func cursorDown(out io.Writer, l uint) {
-	fmt.Fprint(out, aec.Down(l))
+	_, _ = fmt.Fprintf(out, ansiCursorDownFmt, l)
 }
 
 // Display prints the JSONMessage to out. If isTerminal is true, it erases
