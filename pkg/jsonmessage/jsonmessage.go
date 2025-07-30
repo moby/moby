@@ -179,10 +179,16 @@ func clearLine(out io.Writer) {
 }
 
 func cursorUp(out io.Writer, l uint) {
+	if l == 0 {
+		return
+	}
 	_, _ = fmt.Fprintf(out, ansiCursorUpFmt, l)
 }
 
 func cursorDown(out io.Writer, l uint) {
+	if l == 0 {
+		return
+	}
 	_, _ = fmt.Fprintf(out, ansiCursorDownFmt, l)
 }
 
@@ -197,29 +203,29 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 	if isTerminal && jm.Stream == "" && jm.Progress != nil {
 		clearLine(out)
 		endl = "\r"
-		fmt.Fprint(out, endl)
+		_, _ = fmt.Fprint(out, endl)
 	} else if jm.Progress != nil && jm.Progress.String() != "" { // disable progressbar in non-terminal
 		return nil
 	}
 	if jm.TimeNano != 0 {
-		fmt.Fprintf(out, "%s ", time.Unix(0, jm.TimeNano).Format(RFC3339NanoFixed))
+		_, _ = fmt.Fprintf(out, "%s ", time.Unix(0, jm.TimeNano).Format(RFC3339NanoFixed))
 	} else if jm.Time != 0 {
-		fmt.Fprintf(out, "%s ", time.Unix(jm.Time, 0).Format(RFC3339NanoFixed))
+		_, _ = fmt.Fprintf(out, "%s ", time.Unix(jm.Time, 0).Format(RFC3339NanoFixed))
 	}
 	if jm.ID != "" {
-		fmt.Fprintf(out, "%s: ", jm.ID)
+		_, _ = fmt.Fprintf(out, "%s: ", jm.ID)
 	}
 	if jm.From != "" {
-		fmt.Fprintf(out, "(from %s) ", jm.From)
+		_, _ = fmt.Fprintf(out, "(from %s) ", jm.From)
 	}
 	if jm.Progress != nil && isTerminal {
-		fmt.Fprintf(out, "%s %s%s", jm.Status, jm.Progress.String(), endl)
+		_, _ = fmt.Fprintf(out, "%s %s%s", jm.Status, jm.Progress.String(), endl)
 	} else if jm.ProgressMessage != "" { // deprecated
-		fmt.Fprintf(out, "%s %s%s", jm.Status, jm.ProgressMessage, endl)
+		_, _ = fmt.Fprintf(out, "%s %s%s", jm.Status, jm.ProgressMessage, endl)
 	} else if jm.Stream != "" {
-		fmt.Fprintf(out, "%s%s", jm.Stream, endl)
+		_, _ = fmt.Fprintf(out, "%s%s", jm.Stream, endl)
 	} else {
-		fmt.Fprintf(out, "%s%s\n", jm.Status, endl)
+		_, _ = fmt.Fprintf(out, "%s%s\n", jm.Status, endl)
 	}
 	return nil
 }
@@ -278,7 +284,7 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 				line = uint(len(ids))
 				ids[jm.ID] = line
 				if isTerminal {
-					fmt.Fprintf(out, "\n")
+					_, _ = fmt.Fprintf(out, "\n")
 				}
 			}
 			diff = uint(len(ids)) - line
