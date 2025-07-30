@@ -31,6 +31,10 @@ const (
 )
 
 func (d *driver) initStore() error {
+	if err := d.initForwardingPolicy(context.TODO()); err != nil {
+		return err
+	}
+
 	err := d.populateNetworks()
 	if err != nil {
 		return err
