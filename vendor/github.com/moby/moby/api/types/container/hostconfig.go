@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/go-connections/nat"
 	"github.com/docker/go-units"
 	"github.com/moby/moby/api/types/blkiodev"
 	"github.com/moby/moby/api/types/mount"
@@ -427,7 +426,7 @@ type HostConfig struct {
 	ContainerIDFile string            // File (path) where the containerId is written
 	LogConfig       LogConfig         // Configuration of the logs for this container
 	NetworkMode     NetworkMode       // Network mode to use for the container
-	PortBindings    nat.PortMap       // Port mapping between the exposed port (container) and the host
+	PortBindings    PortMap           // Port mapping between the exposed port (container) and the host
 	RestartPolicy   RestartPolicy     // Restart policy to be used for the container
 	AutoRemove      bool              // Automatically remove container when it exits
 	VolumeDriver    string            // Name of the volume driver used to mount volumes

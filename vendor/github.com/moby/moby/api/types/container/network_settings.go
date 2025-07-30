@@ -1,7 +1,6 @@
 package container
 
 import (
-	"github.com/docker/go-connections/nat"
 	"github.com/moby/moby/api/types/network"
 )
 
@@ -14,10 +13,10 @@ type NetworkSettings struct {
 
 // NetworkSettingsBase holds networking state for a container when inspecting it.
 type NetworkSettingsBase struct {
-	Bridge     string      // Bridge contains the name of the default bridge interface iff it was set through the daemon --bridge flag.
-	SandboxID  string      // SandboxID uniquely represents a container's network stack
-	SandboxKey string      // SandboxKey identifies the sandbox
-	Ports      nat.PortMap // Ports is a collection of PortBinding indexed by Port
+	Bridge     string  // Bridge contains the name of the default bridge interface iff it was set through the daemon --bridge flag.
+	SandboxID  string  // SandboxID uniquely represents a container's network stack
+	SandboxKey string  // SandboxKey identifies the sandbox
+	Ports      PortMap // Ports is a collection of PortBinding indexed by Port
 
 	// HairpinMode specifies if hairpin NAT should be enabled on the virtual interface
 	//
