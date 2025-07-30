@@ -288,9 +288,3 @@ type Stream interface {
 	FD() uintptr
 	IsTerminal() bool
 }
-
-// DisplayJSONMessagesToStream prints json messages to the output Stream. It is
-// used by the Docker CLI to print JSONMessage streams.
-func DisplayJSONMessagesToStream(in io.Reader, stream Stream, auxCallback func(JSONMessage)) error {
-	return DisplayJSONMessagesStream(in, stream, stream.FD(), stream.IsTerminal(), auxCallback)
-}
