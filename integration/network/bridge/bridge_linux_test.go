@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
 	"github.com/docker/docker/daemon/libnetwork/iptables"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
@@ -959,7 +962,9 @@ func TestFirewallBackendSwitch(t *testing.T) {
 	assert.Check(t, numRules == 0, "Unexpected iptables rules after starting with nftables")
 	assert.Check(t, len(dockerChains) == 0, "Unexpected iptables chains after starting with nftables")
 	assert.Check(t, nftablesTablesExist(), "nftables tables do not exist after running with nftables")
-	// The filter-FORWARD policy should be carried forward from iptables to nftables.
+	// The filter-FORWARD policy should be migrated from iptables to nftables.
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, false, "ip"), "ACCEPT"))
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, false, "ip6"), "ACCEPT"))
 	assert.Check(t, is.Equal(getFwdPolicy(t, host, true, "ip"), "DROP"))
 	assert.Check(t, is.Equal(getFwdPolicy(t, host, true, "ip6"), "DROP"))
 
@@ -973,4 +978,66 @@ func TestFirewallBackendSwitch(t *testing.T) {
 	// The iptables filter-FORWARD policy should be restored to DROP.
 	assert.Check(t, is.Equal(getFwdPolicy(t, host, false, "ip"), "DROP"))
 	assert.Check(t, is.Equal(getFwdPolicy(t, host, false, "ip6"), "DROP"))
+}
+
+// TestFirewallBackendUpgrade checks that when migrating from iptables to
+// nftables, having upgraded from a pre-29.0 daemon that won't have persisted a
+// note that the filter-FORWARD policy needs to be DROP - the nftables policy is
+// still set to DROP, and the iptables policy is set to ACCEPT.
+func TestFirewallBackendUpgrade(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "rootless has its own netns")
+	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
+	ctx := setupTest(t)
+
+	// Run in a clean netns.
+	addr4 := netip.MustParseAddr("192.168.125.1")
+	addr6 := netip.MustParseAddr("fd76:c828:41f9::1")
+	l3 := networking.NewL3Segment(t, "test-fwbeupgrade",
+		netip.PrefixFrom(addr4, 24),
+		netip.PrefixFrom(addr6, 64),
+	)
+	defer l3.Destroy(t)
+
+	addr4, addr6 = addr4.Next(), addr6.Next()
+	const hostname = "fwbeupgrade"
+	l3.AddHost(t, hostname, hostname+"-netns", "eth0",
+		netip.PrefixFrom(addr4, 24),
+		netip.PrefixFrom(addr6, 64),
+	)
+	host := l3.Hosts[hostname]
+
+	// Run without OTel because there's no routing from this netns for it - which
+	// means the daemon doesn't shut down cleanly, causing the test to fail.
+	d := daemon.New(t, daemon.WithEnvVars("OTEL_EXPORTER_OTLP_ENDPOINT="))
+
+	runDaemon := func(backend string) {
+		host.Do(t, func() {
+			d.StartWithBusybox(ctx, t, "--firewall-backend="+backend, "--ipv6")
+			defer d.Stop(t)
+		})
+	}
+
+	// Disable IP forwarding in the daemon's netns, so it has to be enabled and the
+	// filter-FORWARD policy set to DROP.
+	host.MustRun(t, "sysctl", "-w", "net.ipv4.ip_forward=0")
+	host.MustRun(t, "sysctl", "-w", "net.ipv6.conf.all.forwarding=0")
+
+	// Create iptables rules.
+	runDaemon("iptables")
+	// Expect the filter-FORWARD policies to be DROP, because ip forwarding was not enabled
+	// the daemon's netns.
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, false, "ip"), "DROP"))
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, false, "ip6"), "DROP"))
+
+	// Simulate the old daemon not updating the store by deleting the store.
+	err := os.Remove(filepath.Join(d.Root, config.LibnetDataPath, "local-kv.db"))
+	assert.NilError(t, err)
+
+	// Run the daemon with nftables - it won't need to re-enable forwarding, but it
+	// should migrate the iptables filter-FORWARD drop policy.
+	runDaemon("nftables")
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, false, "ip"), "ACCEPT"))
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, false, "ip6"), "ACCEPT"))
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, true, "ip"), "DROP"))
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, true, "ip6"), "DROP"))
 }

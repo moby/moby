@@ -158,13 +158,14 @@ type bridgeNetwork struct {
 }
 
 type driver struct {
-	config        configuration
-	networks      map[string]*bridgeNetwork
-	store         *datastore.Store
-	nlh           nlwrap.Handle
-	configNetwork sync.Mutex
-	firewaller    firewaller.Firewaller
-	portmappers   *drvregistry.PortMappers
+	config          configuration
+	networks        map[string]*bridgeNetwork
+	store           *datastore.Store
+	nlh             nlwrap.Handle
+	configNetwork   sync.Mutex
+	firewaller      firewaller.Firewaller
+	firewallCleaner firewaller.FirewallCleaner
+	portmappers     *drvregistry.PortMappers
 	sync.Mutex
 }
 
@@ -524,7 +525,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 	}
 
 	var err error
-	d.firewaller, err = newFirewaller(context.Background(), firewaller.Config{
+	d.firewaller, d.firewallCleaner, err = newFirewaller(context.Background(), firewaller.Config{
 		IPv4:               config.EnableIPTables,
 		IPv6:               config.EnableIP6Tables,
 		Hairpin:            config.Hairpin,
@@ -545,27 +546,33 @@ func (d *driver) configure(option map[string]interface{}) error {
 	defer d.configNetwork.Unlock()
 	iptables.OnReloaded(d.handleFirewalldReload)
 
+	if err := d.migrateFilterForwardDrop(); err != nil {
+		return err
+	}
+
 	return d.initStore()
 }
 
-var newFirewaller = func(ctx context.Context, config firewaller.Config) (firewaller.Firewaller, error) {
+var newFirewaller = func(ctx context.Context, config firewaller.Config) (firewaller.Firewaller, firewaller.FirewallCleaner, error) {
 	if nftables.Enabled() {
 		fw, err := nftabler.NewNftabler(ctx, config)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		// Without seeing config (interface names, addresses, and so on), the iptabler's
 		// cleaner can't clean up network or port-specific rules that may have been added
 		// to iptables built-in chains. So, if cleanup is needed, give the cleaner to
 		// the nftabler. Then, it'll use it to delete old rules as networks are restored.
-		fw.(firewaller.FirewallCleanerSetter).SetFirewallCleaner(iptabler.NewCleaner(ctx, config))
-		return fw, nil
+		fwc := iptabler.NewCleaner(ctx, config)
+		fw.(firewaller.FirewallCleanerSetter).SetFirewallCleaner(fwc)
+		return fw, fwc, nil
 	}
 
 	// The nftabler can clean all of its rules in one go. So, even if there's cleanup
 	// to do, there's no need to pass a cleaner to the iptabler.
 	nftabler.Cleanup(ctx, config)
-	return iptabler.NewIptabler(ctx, config)
+	fw, err := iptabler.NewIptabler(ctx, config)
+	return fw, nil, err
 }
 
 func (d *driver) getNetwork(id string) (*bridgeNetwork, error) {

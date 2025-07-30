@@ -13,7 +13,9 @@ import (
 )
 
 type iptablesCleaner struct {
-	config firewaller.Config
+	config             firewaller.Config
+	filterForwardDrop4 bool
+	filterForwardDrop6 bool
 }
 
 // NewCleaner checks for iptables rules left behind by an old daemon that was using
@@ -31,29 +33,33 @@ type iptablesCleaner struct {
 //
 // If there are no old rules to clean up, return nil.
 func NewCleaner(ctx context.Context, config firewaller.Config) firewaller.FirewallCleaner {
-	clean := func(ipv iptables.IPVersion, enabled bool) bool {
+	clean := func(ipv iptables.IPVersion, enabled bool) (ffDrop bool, cleaned bool) {
 		if !enabled {
-			return false
+			return false, false
 		}
 		t := iptables.GetIptable(ipv)
 		// Since 28.0, the jump in the filter-FORWARD chain is DOCKER-FORWARD.
 		// In earlier releases, there was a jump to DOCKER-ISOLATION-STAGE-1.
 		if !t.Exists("filter", "FORWARD", "-j", DockerForwardChain) &&
 			!t.Exists("filter", "FORWARD", "-j", isolationChain1) {
-			return false
+			return false, false
 		}
 		log.G(ctx).WithField("ipv", ipv).Info("Cleaning iptables")
 		_ = t.DeleteJumpRule(iptables.Filter, "FORWARD", DockerForwardChain)
 		_ = deleteLegacyTopLevelRules(ctx, t, ipv)
 		removeIPChains(ctx, ipv)
-		return true
+		return t.HasPolicy("filter", "FORWARD", iptables.Drop), true
 	}
-	cleaned4 := clean(iptables.IPv4, config.IPv4)
-	cleaned6 := clean(iptables.IPv6, config.IPv6)
+	ffDrop4, cleaned4 := clean(iptables.IPv4, config.IPv4)
+	ffDrop6, cleaned6 := clean(iptables.IPv6, config.IPv6)
 	if !cleaned4 && !cleaned6 {
 		return nil
 	}
-	return &iptablesCleaner{config: config}
+	return &iptablesCleaner{
+		config:             config,
+		filterForwardDrop4: ffDrop4,
+		filterForwardDrop6: ffDrop6,
+	}
 }
 
 func (ic iptablesCleaner) DelNetwork(ctx context.Context, nc firewaller.NetworkConfig) {
@@ -93,4 +99,19 @@ func (ic iptablesCleaner) DelPorts(ctx context.Context, nc firewaller.NetworkCon
 		ipt:    &iptabler{config: ic.config},
 	}
 	_ = n.DelPorts(ctx, pbs)
+}
+
+func (ic iptablesCleaner) HadFilterForwardDrop(ipv firewaller.IPVersion) bool {
+	if ipv == firewaller.IPv4 {
+		return ic.filterForwardDrop4
+	}
+	return ic.filterForwardDrop4
+}
+
+func (ic iptablesCleaner) SetFilterForwardAccept(ipv firewaller.IPVersion) error {
+	iptv := iptables.IPv4
+	if ipv == firewaller.IPv6 {
+		iptv = iptables.IPv6
+	}
+	return iptables.GetIptable(iptv).SetDefaultPolicy("filter", "FORWARD", iptables.Accept)
 }

@@ -4,6 +4,7 @@
 package iptables
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -410,6 +411,16 @@ func (iptable IPTable) SetDefaultPolicy(table Table, chain string, policy Policy
 		return fmt.Errorf("setting default policy to %v in %v chain failed: %v", policy, chain, err)
 	}
 	return nil
+}
+
+// HasPolicy returns true if the chain exists and has the given policy.
+func (iptable IPTable) HasPolicy(table Table, chain string, policy Policy) bool {
+	out, err := iptable.Raw("-t", string(table), "-L", chain)
+	if err != nil {
+		return false
+	}
+	firstLine, _, _ := bytes.Cut(out, []byte("\n"))
+	return strings.Contains(string(firstLine), "policy "+string(policy))
 }
 
 // AddReturnRule adds a return rule for the chain in the filter table

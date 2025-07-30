@@ -170,6 +170,55 @@ func (d *driver) initForwardingPolicy(ctx context.Context) error {
 	return nil
 }
 
+// On upgrade from a pre-29.0 release, if the iptables policy was set to DROP by
+// the old build when it enabled IP forwarding, that won't have been noted in the
+// store (only >29.0 builds do that). But, the policy will still be set in the
+// iptables filter-FORWARD chain.
+//
+// When the new daemon starts, IP forwarding will already be enabled, so the
+// filter-FORWARD policy won't be set to drop - and the store still won't be
+// updated to note that it should be. That's still ok if the new build is using
+// iptables, because the iptables chain still has the DROP policy.
+//
+// If the new daemon is then restarted with nftables enabled, the nftables
+// filter-FORWARD policy will still not be set to drop because IP forwarding is
+// still enabled. And, the iptables filter-FORWARD chain will run as well as
+// Docker's nftables chains, without any ACCEPT rules for published ports. So,
+// it'll drop traffic that would otherwise be accepted by the nftables rules.
+//
+// To deal with that - if migrating from iptables to nftables and the iptables
+// filter-FORWARD chain has policy DROP ...
+//   - set the nftables policy to drop
+//   - set the iptables policy to ACCEPT, and
+//   - update the store to make sure the policy will be set to drop on the next
+//     restart (whether it's with iptables or nftables).
+func (d *driver) migrateFilterForwardDrop() error {
+	if d.firewallCleaner == nil {
+		return nil
+	}
+	migrateFFD := func(ipv firewaller.IPVersion) error {
+		if d.firewallCleaner.HadFilterForwardDrop(ipv) {
+			if d.config.DisableFilterForwardDrop {
+				log.G(context.TODO()).WithField("ipv", ipv).Warn("The iptables FORWARD chain has policy DROP, it will drop traffic to published container ports")
+				return nil
+			}
+			log.G(context.TODO()).WithField("ipv", ipv).Info("Migrating filter forward 'drop' policy from iptables to nftables")
+			if err := d.setFilterForwardDrop(context.TODO(), ipv); err != nil {
+				return err
+			}
+			return d.firewallCleaner.SetFilterForwardAccept(ipv)
+		}
+		return nil
+	}
+	if err := migrateFFD(firewaller.IPv4); err != nil {
+		return fmt.Errorf("migrating IPv4 filter forward drop policy: %w", err)
+	}
+	if err := migrateFFD(firewaller.IPv6); err != nil {
+		return fmt.Errorf("migrating IPv6 filter forward drop policy: %w", err)
+	}
+	return nil
+}
+
 func (ife *filterForwardDrop) Key() []string {
 	return []string{ipForwardingEnabledKeyPrefix, ife.ipv}
 }
