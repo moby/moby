@@ -13,10 +13,4 @@ const (
 	// API requests for API versions lower than the configured version produce
 	// an error.
 	MinSupportedAPIVersion = "1.24"
-
-	// NoBaseImageSpecifier is the symbol used by the FROM
-	// command to specify that no base image is to be used.
-	//
-	// Deprecated: this const is no longer used and will be removed in the next release.
-	NoBaseImageSpecifier = "scratch"
 )
