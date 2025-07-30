@@ -35,6 +35,27 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 	aufsTempdir := ""
 	aufsHardlinks := make(map[string]*tar.Header)
 
+	// Helper to check for Zip Slip (directory traversal)
+	isSubpath := func(base, target string) (bool, error) {
+		absBase, err := filepath.Abs(base)
+		if err != nil {
+			return false, err
+		}
+		absTarget, err := filepath.Abs(target)
+		if err != nil {
+			return false, err
+		}
+		rel, err := filepath.Rel(absBase, absTarget)
+		if err != nil {
+			return false, err
+		}
+		// rel will not start with ".." if absTarget is within absBase
+		if rel == "." || (len(rel) > 0 && rel[0] != '.' && !strings.HasPrefix(rel, ".."+string(os.PathSeparator))) {
+			return true, nil
+		}
+		return false, nil
+	}
+
 	// Iterate through the files in the archive.
 	for {
 		hdr, err := tr.Next()
@@ -50,6 +71,16 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 
 		// Normalize name, for safety and for a simple is-root check
 		hdr.Name = filepath.Clean(hdr.Name)
+
+		// Check for Zip Slip (directory traversal)
+		extractPath := filepath.Join(dest, hdr.Name)
+		ok, err := isSubpath(dest, extractPath)
+		if err != nil {
+			return 0, err
+		}
+		if !ok {
+			return 0, fmt.Errorf("archive entry %q would be extracted outside of destination directory", hdr.Name)
+		}
 
 		// Windows does not support filenames with colons in them. Ignore
 		// these files. This is not a problem though (although it might

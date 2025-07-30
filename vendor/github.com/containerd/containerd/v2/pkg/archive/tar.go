@@ -780,6 +780,16 @@ func copyBuffered(ctx context.Context, dst io.Writer, src io.Reader) (written in
 //
 // /tmp/yyy should be softlink which be same of /tmp/xxx, not /tmp/zzz.
 func hardlinkRootPath(root, linkname string) (string, error) {
+	// Reject absolute paths
+	if filepath.IsAbs(linkname) {
+		return "", fmt.Errorf("invalid linkname (absolute path): %q", linkname)
+	}
+	// Reject any path containing ".."
+	for _, elem := range strings.Split(linkname, string(filepath.Separator)) {
+		if elem == ".." {
+			return "", fmt.Errorf("invalid linkname (contains ..): %q", linkname)
+		}
+	}
 	ppath, base := filepath.Split(linkname)
 	ppath, err := fs.RootPath(root, ppath)
 	if err != nil {
@@ -788,7 +798,7 @@ func hardlinkRootPath(root, linkname string) (string, error) {
 
 	targetPath := filepath.Join(ppath, base)
 	if !strings.HasPrefix(targetPath, root) {
-		targetPath = root
+		return "", fmt.Errorf("invalid linkname (target escapes root): %q", linkname)
 	}
 	return targetPath, nil
 }

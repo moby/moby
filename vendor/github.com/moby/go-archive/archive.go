@@ -972,6 +972,10 @@ func createImpliedDirectories(dest string, hdr *tar.Header, options *TarOptions)
 	if !strings.HasSuffix(hdr.Name, string(os.PathSeparator)) {
 		parent := filepath.Dir(hdr.Name)
 		parentPath := filepath.Join(dest, parent)
+		rel, err := filepath.Rel(dest, parentPath)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			return fmt.Errorf("archive: illegal file path: %q", parentPath)
+		}
 		if _, err := os.Lstat(parentPath); err != nil && os.IsNotExist(err) {
 			// RootPair() is confined inside this loop as most cases will not require a call, so we can spend some
 			// unneeded function calls in the uncommon case to encapsulate logic -- implied directories are a niche
