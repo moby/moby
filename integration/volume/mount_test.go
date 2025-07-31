@@ -147,7 +147,7 @@ func TestRunMountImage(t *testing.T) {
 		{name: "image_remove_force", cmd: []string{"cat", "/image/foo"}, expected: "barbar"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			testImage := setupTestImage(t, ctx, apiClient, tc.name, testEnv.UsingSnapshotter())
+			testImage := setupTestImage(t, ctx, apiClient, tc.name)
 			if testImage != "" {
 				defer apiClient.ImageRemove(ctx, testImage, image.RemoveOptions{Force: true})
 			}
@@ -292,18 +292,11 @@ func setupTestVolume(t *testing.T, apiClient client.APIClient) string {
 	return volumeName
 }
 
-func setupTestImage(t *testing.T, ctx context.Context, apiClient client.APIClient, test string, snapshotter bool) string {
+func setupTestImage(t *testing.T, ctx context.Context, apiClient client.APIClient, test string) string {
 	imgName := "test-image"
 
 	if test == "image_tag" {
 		imgName += ":foo"
-	}
-
-	var symlink string
-	if snapshotter {
-		symlink = "../../../../rootfs"
-	} else {
-		symlink = "../../../../../docker"
 	}
 
 	//nolint:dupword // ignore "Duplicate words (subdir) found (dupword)"
@@ -311,7 +304,7 @@ func setupTestImage(t *testing.T, ctx context.Context, apiClient client.APIClien
 		FROM busybox as symlink
 		RUN mkdir /hack \
 			&& ln -s "../subdir" /hack/good \
-			&& ln -s "` + symlink + `" /hack/bad
+			&& ln -s "../../../../../docker" /hack/bad
 		#--
 		FROM scratch
 		COPY foo /
