@@ -318,13 +318,11 @@ Function Validate-GoFormat($headCommit, $upstreamCommit) {
 Function Run-UnitTests() {
     Write-Host "INFO: Running unit tests..."
     $testPath="./..."
-    $goListCommand = "go list -e -f '{{if ne .Name """ + '\"github.com/docker/docker\"' + """}}{{.ImportPath}}{{end}}' $testPath"
+    $goListCommand = "go list -e -f '{{if ne .Name """ + '\"github.com/moby/moby/v2\"' + """}}{{.ImportPath}}{{end}}' $testPath"
     $pkgList = $(Invoke-Expression $goListCommand)
     if ($LASTEXITCODE -ne 0) { Throw "go list for unit tests failed" }
-    $pkgList = $pkgList | Select-String -Pattern "github.com/docker/docker"
-    $pkgList = $pkgList | Select-String -NotMatch "github.com/docker/docker/vendor"
-    $pkgList = $pkgList | Select-String -NotMatch "github.com/docker/docker/man"
-    $pkgList = $pkgList | Select-String -NotMatch "github.com/docker/docker/integration"
+    $pkgList = $pkgList | Select-String -Pattern "github.com/moby/moby/v2"
+    $pkgList = $pkgList | Select-String -NotMatch "github.com/moby/moby/v2/integration"
     $pkgList = $pkgList -replace "`r`n", " "
 
     $jsonFilePath = $bundlesDir + "\go-test-report-unit-flaky-tests.json"

@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/testutil"
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/integration/internal/container"
+	"github.com/moby/moby/v2/testutil"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )

@@ -9,17 +9,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
-	"github.com/docker/docker/daemon/libnetwork/netlabel"
-	"github.com/docker/docker/daemon/libnetwork/nlwrap"
-	ctr "github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/integration/internal/network"
-	"github.com/docker/docker/integration/internal/testutils/networking"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/daemon"
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
+	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
+	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
+	ctr "github.com/moby/moby/v2/integration/internal/container"
+	"github.com/moby/moby/v2/integration/internal/network"
+	"github.com/moby/moby/v2/integration/internal/testutils/networking"
+	"github.com/moby/moby/v2/testutil"
+	"github.com/moby/moby/v2/testutil/daemon"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -889,7 +889,9 @@ func TestFirewallBackendSwitch(t *testing.T) {
 			dump = icmd.RunCommand("iptables-save").Combined()
 			dump += icmd.RunCommand("ip6tables-save").Combined()
 		})
-		for line := range strings.Lines(dump) {
+
+		// TODO: (When Go 1.24 is min version) Replace with `strings.Lines(dump)`.
+		for _, line := range strings.Split(dump, "\n") {
 			line = strings.TrimSpace(line)
 			if line == "" {
 				continue

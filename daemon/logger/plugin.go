@@ -6,11 +6,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/daemon/internal/stringid"
-	"github.com/docker/docker/daemon/logger/internal/logdriver"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/docker/pkg/plugins"
+	"github.com/moby/moby/v2/daemon/internal/stringid"
+	"github.com/moby/moby/v2/daemon/logger/internal/logdriver"
+	"github.com/moby/moby/v2/errdefs"
+	"github.com/moby/moby/v2/pkg/plugingetter"
+	"github.com/moby/moby/v2/pkg/plugins"
 	"github.com/pkg/errors"
 )
 

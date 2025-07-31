@@ -8,12 +8,12 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/driverapi"
-	"github.com/docker/docker/daemon/libnetwork/netlabel"
-	"github.com/docker/docker/daemon/libnetwork/ns"
-	"github.com/docker/docker/daemon/libnetwork/options"
-	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
+	"github.com/moby/moby/v2/daemon/libnetwork/ns"
+	"github.com/moby/moby/v2/daemon/libnetwork/options"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 // CreateNetwork the network for the specified driver type

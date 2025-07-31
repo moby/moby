@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/daemon"
-	"github.com/docker/docker/testutil"
+	"github.com/moby/moby/v2/integration-cli/checker"
+	"github.com/moby/moby/v2/integration-cli/daemon"
+	"github.com/moby/moby/v2/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"

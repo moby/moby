@@ -6,7 +6,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
-	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 // GetRepositories returns a list of repositories configured for the given

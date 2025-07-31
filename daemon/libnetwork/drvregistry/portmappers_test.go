@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/portmapperapi"
 	"gotest.tools/v3/assert"
 )
 

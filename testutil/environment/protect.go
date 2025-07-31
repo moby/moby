@@ -5,12 +5,12 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/testutil"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/v2/testutil"
 	"go.opentelemetry.io/otel"
 	"gotest.tools/v3/assert"
 )

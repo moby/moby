@@ -5,12 +5,12 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/cluster/convert"
-	networkSettings "github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
 	types "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/v2/daemon/cluster/convert"
+	networkSettings "github.com/moby/moby/v2/daemon/network"
+	"github.com/moby/moby/v2/errdefs"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
 )

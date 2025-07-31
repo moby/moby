@@ -7,10 +7,10 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/config"
-	"github.com/docker/docker/daemon/libnetwork/ipamutils"
-	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/miekg/dns"
+	"github.com/moby/moby/v2/daemon/libnetwork/config"
+	"github.com/moby/moby/v2/daemon/libnetwork/ipamutils"
+	"github.com/moby/moby/v2/internal/testutils/netnsutils"
 )
 
 // test only works on linux

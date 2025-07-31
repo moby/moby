@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/daemon/builder"
-	"github.com/docker/docker/pkg/pools"
+	"github.com/moby/moby/v2/daemon/builder"
+	"github.com/moby/moby/v2/pkg/pools"
 	"github.com/pkg/errors"
 )
 

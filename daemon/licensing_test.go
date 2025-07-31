@@ -3,8 +3,8 @@ package daemon
 import (
 	"testing"
 
-	"github.com/docker/docker/dockerversion"
 	"github.com/moby/moby/api/types/system"
+	"github.com/moby/moby/v2/dockerversion"
 	"gotest.tools/v3/assert"
 )
 

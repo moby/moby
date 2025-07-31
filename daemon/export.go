@@ -7,11 +7,11 @@ import (
 	"io"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/chrootarchive"
 	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 // ContainerExport writes the contents of the container to the given

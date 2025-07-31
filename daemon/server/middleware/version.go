@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"runtime"
 
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/server/httputils"
 	"github.com/moby/moby/api"
 	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/v2/daemon/config"
+	"github.com/moby/moby/v2/daemon/server/httputils"
 )
 
 // VersionMiddleware is a middleware that

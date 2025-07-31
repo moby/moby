@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/internal/directory"
-	"github.com/docker/docker/daemon/volume"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/moby/api/types/filters"
 	volumetypes "github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/v2/daemon/internal/directory"
+	"github.com/moby/moby/v2/daemon/volume"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 // convertOpts are used to pass options to `volumeToAPI`

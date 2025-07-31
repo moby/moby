@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/daemon/internal/system"
+	"github.com/moby/moby/v2/daemon/internal/system"
 )
 
 // mkdirAllWithChtimes is nearly an identical copy to the [os.MkdirAll] but

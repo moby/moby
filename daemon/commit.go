@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/daemon/builder/dockerfile"
-	"github.com/docker/docker/daemon/internal/metrics"
-	"github.com/docker/docker/daemon/server/backend"
-	"github.com/docker/docker/errdefs"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/v2/daemon/builder/dockerfile"
+	"github.com/moby/moby/v2/daemon/internal/metrics"
+	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 )
 

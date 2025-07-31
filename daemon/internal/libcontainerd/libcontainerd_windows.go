@@ -4,9 +4,9 @@ import (
 	"context"
 
 	containerd "github.com/containerd/containerd/v2/client"
-	"github.com/docker/docker/daemon/internal/libcontainerd/local"
-	"github.com/docker/docker/daemon/internal/libcontainerd/remote"
-	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
+	"github.com/moby/moby/v2/daemon/internal/libcontainerd/local"
+	"github.com/moby/moby/v2/daemon/internal/libcontainerd/remote"
+	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
 )
 
 // ContainerdRuntimeEnabled determines whether to use containerd for runtime on Windows.

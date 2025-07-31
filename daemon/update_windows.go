@@ -1,8 +1,8 @@
 package daemon
 
 import (
-	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
 	"github.com/moby/moby/api/types/container"
+	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
 )
 
 func toContainerdResources(resources container.Resources) *libcontainerdtypes.Resources {

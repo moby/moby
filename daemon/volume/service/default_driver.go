@@ -3,10 +3,10 @@
 package service
 
 import (
-	"github.com/docker/docker/daemon/internal/idtools"
-	"github.com/docker/docker/daemon/volume"
-	"github.com/docker/docker/daemon/volume/drivers"
-	"github.com/docker/docker/daemon/volume/local"
+	"github.com/moby/moby/v2/daemon/internal/idtools"
+	"github.com/moby/moby/v2/daemon/volume"
+	"github.com/moby/moby/v2/daemon/volume/drivers"
+	"github.com/moby/moby/v2/daemon/volume/local"
 	"github.com/pkg/errors"
 )
 

@@ -5,7 +5,7 @@ package nftabler
 import (
 	"context"
 
-	"github.com/docker/docker/daemon/libnetwork/internal/nftables"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
 )
 
 // mirroredWSL2Workaround adds IPv4 NAT rule if docker's host Linux appears to

@@ -10,9 +10,9 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/coreos/go-systemd/v22/journal"
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/logger/journald/internal/sdjournal"
-	"github.com/docker/docker/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/logger"
+	"github.com/moby/moby/v2/daemon/logger/journald/internal/sdjournal"
+	"github.com/moby/moby/v2/daemon/server/backend"
 )
 
 const (

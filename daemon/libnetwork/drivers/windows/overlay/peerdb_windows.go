@@ -9,7 +9,7 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerMac net.HardwareAddr, vtep net.IP, updateDb bool) error {

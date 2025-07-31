@@ -6,11 +6,11 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/daemon/libnetwork"
-	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/libnetwork"
+	"github.com/moby/moby/v2/daemon/network"
+	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 )
 

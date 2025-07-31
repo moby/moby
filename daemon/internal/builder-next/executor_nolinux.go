@@ -7,11 +7,11 @@ import (
 	"errors"
 	"runtime"
 
-	"github.com/docker/docker/daemon/libnetwork"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
 	resourcetypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
+	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/sys/user"
 )
 

@@ -11,10 +11,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/libnetwork/portallocator"
-	"github.com/docker/docker/pkg/homedir"
+	"github.com/moby/moby/v2/daemon"
+	"github.com/moby/moby/v2/daemon/config"
+	"github.com/moby/moby/v2/daemon/libnetwork/portallocator"
+	"github.com/moby/moby/v2/pkg/homedir"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )

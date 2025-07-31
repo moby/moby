@@ -13,9 +13,9 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork"
-	"github.com/docker/docker/daemon/libnetwork/diagnostic"
-	"github.com/docker/docker/daemon/libnetwork/drivers/overlay"
+	"github.com/moby/moby/v2/daemon/libnetwork"
+	"github.com/moby/moby/v2/daemon/libnetwork/diagnostic"
+	"github.com/moby/moby/v2/daemon/libnetwork/drivers/overlay"
 )
 
 const (

@@ -1,6 +1,6 @@
 package container
 
-import "github.com/docker/docker/daemon/server/router"
+import "github.com/moby/moby/v2/daemon/server/router"
 
 // containerRouter is a router to talk with the container controller
 type containerRouter struct {

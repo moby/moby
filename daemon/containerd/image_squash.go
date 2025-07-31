@@ -3,7 +3,7 @@ package containerd
 import (
 	"errors"
 
-	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 // SquashImage creates a new image with the diff of the specified image and

@@ -10,8 +10,8 @@ import (
 
 	"github.com/containerd/containerd/v2/pkg/cio"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/internal/stream/bytespipe"
-	"github.com/docker/docker/pkg/pools"
+	"github.com/moby/moby/v2/daemon/internal/stream/bytespipe"
+	"github.com/moby/moby/v2/pkg/pools"
 )
 
 // Config holds information about I/O streams managed together.

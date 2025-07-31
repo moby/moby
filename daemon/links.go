@@ -3,7 +3,7 @@ package daemon
 import (
 	"sync"
 
-	"github.com/docker/docker/daemon/container"
+	"github.com/moby/moby/v2/daemon/container"
 )
 
 // linkIndex stores link relationships between containers, including their specified alias

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/pkg/homedir"
+	"github.com/moby/moby/v2/pkg/homedir"
 	"github.com/pkg/errors"
 )
 

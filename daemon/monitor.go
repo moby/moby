@@ -8,13 +8,13 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/container"
-	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
-	"github.com/docker/docker/daemon/internal/metrics"
-	"github.com/docker/docker/daemon/internal/restartmanager"
-	"github.com/docker/docker/daemon/server/backend"
 	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/v2/daemon/config"
+	"github.com/moby/moby/v2/daemon/container"
+	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
+	"github.com/moby/moby/v2/daemon/internal/metrics"
+	"github.com/moby/moby/v2/daemon/internal/restartmanager"
+	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/pkg/errors"
 )
 

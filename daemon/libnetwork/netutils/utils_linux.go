@@ -8,11 +8,11 @@ import (
 	"os"
 	"slices"
 
-	"github.com/docker/docker/daemon/libnetwork/internal/netiputil"
-	"github.com/docker/docker/daemon/libnetwork/nlwrap"
-	"github.com/docker/docker/daemon/libnetwork/ns"
-	"github.com/docker/docker/daemon/libnetwork/resolvconf"
-	"github.com/docker/docker/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
+	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
+	"github.com/moby/moby/v2/daemon/libnetwork/ns"
+	"github.com/moby/moby/v2/daemon/libnetwork/resolvconf"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 )

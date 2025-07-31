@@ -23,10 +23,10 @@ import (
 	smithymiddleware "github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/internal/lazyregexp"
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/logger/loggerutils"
-	"github.com/docker/docker/dockerversion"
+	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
+	"github.com/moby/moby/v2/daemon/logger"
+	"github.com/moby/moby/v2/daemon/logger/loggerutils"
+	"github.com/moby/moby/v2/dockerversion"
 	"github.com/pkg/errors"
 )
 

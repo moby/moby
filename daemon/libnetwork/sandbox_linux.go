@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/netutils"
-	"github.com/docker/docker/daemon/libnetwork/osl"
-	"github.com/docker/docker/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/daemon/libnetwork/netutils"
+	"github.com/moby/moby/v2/daemon/libnetwork/osl"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"

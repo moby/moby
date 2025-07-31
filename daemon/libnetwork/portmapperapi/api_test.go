@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"gotest.tools/v3/assert"
 )
 

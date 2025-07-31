@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/docker/docker/testutil/environment"
+	"github.com/moby/moby/v2/testutil/environment"
 )
 
 // DefaultClientBinary is the name of the docker binary

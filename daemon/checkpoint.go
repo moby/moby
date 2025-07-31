@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/daemon/names"
 	"github.com/moby/moby/api/types/checkpoint"
 	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/v2/daemon/names"
 )
 
 var (

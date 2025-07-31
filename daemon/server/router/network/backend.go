@@ -3,9 +3,9 @@ package network
 import (
 	"context"
 
-	"github.com/docker/docker/daemon/server/backend"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/v2/daemon/server/backend"
 )
 
 // Backend is all the methods that need to be implemented

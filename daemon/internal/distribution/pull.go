@@ -6,9 +6,9 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	refstore "github.com/docker/docker/daemon/internal/refstore"
-	"github.com/docker/docker/daemon/pkg/registry"
 	"github.com/moby/moby/api/types/events"
+	refstore "github.com/moby/moby/v2/daemon/internal/refstore"
+	"github.com/moby/moby/v2/daemon/pkg/registry"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )

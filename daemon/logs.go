@@ -7,14 +7,14 @@ import (
 
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/daemon/logger"
-	logcache "github.com/docker/docker/daemon/logger/loggerutils/cache"
-	"github.com/docker/docker/daemon/server/backend"
-	"github.com/docker/docker/errdefs"
 	containertypes "github.com/moby/moby/api/types/container"
 	timetypes "github.com/moby/moby/api/types/time"
+	"github.com/moby/moby/v2/daemon/config"
+	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/logger"
+	logcache "github.com/moby/moby/v2/daemon/logger/loggerutils/cache"
+	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 )
 

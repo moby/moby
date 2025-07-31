@@ -17,8 +17,6 @@ ARG FORMAT
 RUN --mount=type=bind,target=.,rw <<EOT
   set -ex
   mkdir /out
-  ln -s vendor.mod go.mod
-  ln -s vendor.sum go.sum
   govulncheck -format ${FORMAT} ./... | tee /out/govulncheck.out
 EOT
 

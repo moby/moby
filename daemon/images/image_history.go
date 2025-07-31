@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/daemon/internal/layer"
-	"github.com/docker/docker/daemon/internal/metrics"
-	"github.com/docker/docker/daemon/server/backend"
 	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/v2/daemon/internal/layer"
+	"github.com/moby/moby/v2/daemon/internal/metrics"
+	"github.com/moby/moby/v2/daemon/server/backend"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

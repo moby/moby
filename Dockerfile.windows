@@ -178,7 +178,6 @@ ENV GO_VERSION=${GO_VERSION} `
     CONTAINERD_VERSION=${CONTAINERD_VERSION} `
     GIT_VERSION=2.11.1 `
     GOPATH=C:\gopath `
-    GO111MODULE=off `
     GOTOOLCHAIN=local `
     FROM_DOCKERFILE=1 `
     GOTESTSUM_VERSION=${GOTESTSUM_VERSION} `
@@ -278,13 +277,11 @@ RUN `
 
 RUN `
   Function Install-GoTestSum() { `
-    $Env:GO111MODULE = 'on'; `
     $tmpGobin = "${Env:GOBIN_TMP}"; `
     $Env:GOBIN = """${Env:GOPATH}`\bin"""; `
     Write-Host "INFO: Installing gotestsum version $Env:GOTESTSUM_VERSION in $Env:GOBIN"; `
     &go install "gotest.tools/gotestsum@${Env:GOTESTSUM_VERSION}"; `
     $Env:GOBIN = "${tmpGobin}"; `
-    $Env:GO111MODULE = 'off'; `
     if ($LASTEXITCODE -ne 0) {  `
       Throw '"gotestsum install failed..."'; `
     } `
@@ -294,13 +291,11 @@ RUN `
 
 RUN `
   Function Install-GoWinres() { `
-    $Env:GO111MODULE = 'on'; `
     $tmpGobin = "${Env:GOBIN_TMP}"; `
     $Env:GOBIN = """${Env:GOPATH}`\bin"""; `
     Write-Host "INFO: Installing go-winres version $Env:GOWINRES_VERSION in $Env:GOBIN"; `
     &go install "github.com/tc-hib/go-winres@${Env:GOWINRES_VERSION}"; `
     $Env:GOBIN = "${tmpGobin}"; `
-    $Env:GO111MODULE = 'off'; `
     if ($LASTEXITCODE -ne 0) {  `
       Throw '"go-winres install failed..."'; `
     } `

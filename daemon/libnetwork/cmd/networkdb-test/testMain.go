@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/cmd/networkdb-test/dbclient"
-	"github.com/docker/docker/daemon/libnetwork/cmd/networkdb-test/dbserver"
+	"github.com/moby/moby/v2/daemon/libnetwork/cmd/networkdb-test/dbclient"
+	"github.com/moby/moby/v2/daemon/libnetwork/cmd/networkdb-test/dbserver"
 )
 
 func main() {

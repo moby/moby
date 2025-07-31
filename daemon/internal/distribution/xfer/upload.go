@@ -7,8 +7,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/distribution"
-	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/moby/moby/api/pkg/progress"
+	"github.com/moby/moby/v2/daemon/internal/layer"
 )
 
 const maxUploadAttempts = 5

@@ -10,9 +10,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/request"
+	"github.com/moby/moby/v2/integration-cli/cli"
+	"github.com/moby/moby/v2/testutil"
+	"github.com/moby/moby/v2/testutil/request"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 )

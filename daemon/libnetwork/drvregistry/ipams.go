@@ -5,8 +5,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/daemon/libnetwork/ipamapi"
-	"github.com/docker/docker/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 type ipamDriver struct {

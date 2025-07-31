@@ -6,7 +6,7 @@ package libnetwork
 import (
 	"context"
 
-	"github.com/docker/docker/daemon/libnetwork/internal/maputil"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/maputil"
 )
 
 // storeNetwork inserts or updates the network in the store and the in-memory

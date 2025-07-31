@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/docker/docker/daemon/logger"
+	"github.com/moby/moby/v2/daemon/logger"
 
 	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/logging"

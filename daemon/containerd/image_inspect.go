@@ -13,11 +13,11 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/daemon/internal/sliceutil"
-	"github.com/docker/docker/daemon/server/backend"
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
 	imagetypes "github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/storage"
+	"github.com/moby/moby/v2/daemon/internal/sliceutil"
+	"github.com/moby/moby/v2/daemon/server/backend"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/semaphore"
 )

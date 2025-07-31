@@ -10,10 +10,10 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/drivers/overlay/overlayutils"
-	"github.com/docker/docker/daemon/libnetwork/netutils"
-	"github.com/docker/docker/daemon/libnetwork/nlwrap"
-	"github.com/docker/docker/daemon/libnetwork/ns"
+	"github.com/moby/moby/v2/daemon/libnetwork/drivers/overlay/overlayutils"
+	"github.com/moby/moby/v2/daemon/libnetwork/netutils"
+	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
+	"github.com/moby/moby/v2/daemon/libnetwork/ns"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )

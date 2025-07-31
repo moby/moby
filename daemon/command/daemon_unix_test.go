@@ -5,7 +5,7 @@ package command
 import (
 	"testing"
 
-	"github.com/docker/docker/daemon/config"
+	"github.com/moby/moby/v2/daemon/config"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/fs"

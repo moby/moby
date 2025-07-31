@@ -6,15 +6,15 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/internal/lazyregexp"
-	"github.com/docker/docker/daemon/libnetwork"
-	"github.com/docker/docker/daemon/server/backend"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
 	timetypes "github.com/moby/moby/api/types/time"
+	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
+	"github.com/moby/moby/v2/daemon/libnetwork"
+	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 )
 

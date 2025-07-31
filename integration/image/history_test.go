@@ -3,8 +3,8 @@ package image
 import (
 	"testing"
 
-	"github.com/docker/docker/integration/internal/build"
-	"github.com/docker/docker/testutil/fakecontext"
+	"github.com/moby/moby/v2/integration/internal/build"
+	"github.com/moby/moby/v2/testutil/fakecontext"
 	"gotest.tools/v3/assert"
 )
 

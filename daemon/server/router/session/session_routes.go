@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 func (sr *sessionRouter) startSession(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

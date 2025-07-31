@@ -3,8 +3,8 @@ package daemon
 import (
 	"time"
 
-	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
 	"github.com/moby/moby/api/types/container"
+	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 

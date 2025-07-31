@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/logger/internal/logdriver"
-	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/moby/moby/v2/daemon/logger/internal/logdriver"
+	"github.com/moby/moby/v2/pkg/plugingetter"
 	"github.com/pkg/errors"
 )
 

@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/moby/go-archive"
+	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/internal/layer"
 )
 
 func (i *ImageService) Changes(ctx context.Context, container *container.Container) ([]archive.Change, error) {

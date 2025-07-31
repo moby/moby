@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/portmapperapi"
 )
 
 type PortMappers struct {

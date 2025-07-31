@@ -8,7 +8,7 @@ import (
 	"os/signal"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/internal/stack"
+	"github.com/moby/moby/v2/daemon/internal/stack"
 	"golang.org/x/sys/unix"
 )
 

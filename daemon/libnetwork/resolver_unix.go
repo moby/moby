@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/docker/docker/daemon/libnetwork/internal/nftables"
-	"github.com/docker/docker/daemon/libnetwork/iptables"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
+	"github.com/moby/moby/v2/daemon/libnetwork/iptables"
 )
 
 const (

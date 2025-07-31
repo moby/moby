@@ -5,7 +5,7 @@ package daemon
 import (
 	"errors"
 
-	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/moby/moby/v2/pkg/sysinfo"
 )
 
 func checkSystem() error {

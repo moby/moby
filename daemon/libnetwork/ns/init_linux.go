@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/internal/modprobe"
-	"github.com/docker/docker/daemon/libnetwork/nlwrap"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/modprobe"
+	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/vishvananda/netns"
 )
 

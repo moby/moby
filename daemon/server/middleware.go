@@ -2,8 +2,8 @@ package server
 
 import (
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/docker/docker/daemon/server/middleware"
+	"github.com/moby/moby/v2/daemon/server/httputils"
+	"github.com/moby/moby/v2/daemon/server/middleware"
 )
 
 // handlerWithGlobalMiddlewares wraps the handler function for a request with

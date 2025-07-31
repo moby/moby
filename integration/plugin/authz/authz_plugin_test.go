@@ -17,15 +17,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/pkg/authorization"
-	"github.com/docker/docker/testutil/environment"
 	"github.com/docker/go-connections/sockets"
 	"github.com/moby/go-archive"
 	containertypes "github.com/moby/moby/api/types/container"
 	eventtypes "github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/v2/integration/internal/container"
+	"github.com/moby/moby/v2/pkg/authorization"
+	"github.com/moby/moby/v2/testutil/environment"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )

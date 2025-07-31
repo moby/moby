@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/docker/docker/daemon/internal/sliceutil"
+	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 )
 
 func TestMap(t *testing.T) {

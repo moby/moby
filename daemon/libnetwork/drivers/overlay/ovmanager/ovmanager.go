@@ -9,12 +9,12 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/bitmap"
-	"github.com/docker/docker/daemon/libnetwork/driverapi"
-	"github.com/docker/docker/daemon/libnetwork/drivers/overlay/overlayutils"
-	"github.com/docker/docker/daemon/libnetwork/netlabel"
-	"github.com/docker/docker/daemon/libnetwork/scope"
-	"github.com/docker/docker/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/daemon/libnetwork/bitmap"
+	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/drivers/overlay/overlayutils"
+	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
+	"github.com/moby/moby/v2/daemon/libnetwork/scope"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 const (

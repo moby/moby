@@ -3,8 +3,8 @@ package runconfig
 import (
 	"fmt"
 
-	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/pkg/sysinfo"
 )
 
 // validateNetMode ensures that the various combinations of requested

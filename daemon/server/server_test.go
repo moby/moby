@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/docker/docker/daemon/server/middleware"
 	"github.com/moby/moby/api"
+	"github.com/moby/moby/v2/daemon/config"
+	"github.com/moby/moby/v2/daemon/server/httputils"
+	"github.com/moby/moby/v2/daemon/server/middleware"
 )
 
 func TestMiddlewares(t *testing.T) {

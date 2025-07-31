@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 var (

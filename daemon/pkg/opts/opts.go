@@ -7,8 +7,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/docker/docker/daemon/internal/lazyregexp"
 	"github.com/docker/go-units"
+	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
 )
 
 var (

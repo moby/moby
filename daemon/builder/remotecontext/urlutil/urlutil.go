@@ -8,7 +8,7 @@ package urlutil
 import (
 	"strings"
 
-	"github.com/docker/docker/daemon/internal/lazyregexp"
+	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
 )
 
 // urlPathWithFragmentSuffix matches fragments to use as Git reference and build

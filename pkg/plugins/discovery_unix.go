@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/pkg/homedir"
+	"github.com/moby/moby/v2/pkg/homedir"
 )
 
 func rootlessConfigPluginsPath() string {

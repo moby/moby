@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/daemon/internal/layer"
-	"github.com/docker/docker/pkg/longpath"
+	"github.com/moby/moby/v2/daemon/internal/layer"
+	"github.com/moby/moby/v2/pkg/longpath"
 	"github.com/opencontainers/image-spec/identity"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"

@@ -7,10 +7,10 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/builder"
-	"github.com/docker/docker/daemon/internal/stringid"
-	"github.com/docker/docker/daemon/server/backend"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/daemon/builder"
+	"github.com/moby/moby/v2/daemon/internal/stringid"
+	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/pkg/errors"
 )
 

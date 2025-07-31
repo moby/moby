@@ -25,13 +25,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/daemon/builder"
-	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/daemon/pkg/oci"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/daemon/builder"
+	"github.com/moby/moby/v2/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/pkg/oci"
+	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 )
 

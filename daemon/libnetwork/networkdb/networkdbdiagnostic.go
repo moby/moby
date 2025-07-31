@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/diagnostic"
-	"github.com/docker/docker/daemon/libnetwork/internal/caller"
+	"github.com/moby/moby/v2/daemon/libnetwork/diagnostic"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/caller"
 )
 
 const (

@@ -6,14 +6,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/daemon/libnetwork"
-	"github.com/docker/docker/daemon/libnetwork/scope"
-	"github.com/docker/docker/daemon/server/backend"
-	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/v2/daemon/libnetwork"
+	"github.com/moby/moby/v2/daemon/libnetwork/scope"
+	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/httputils"
+	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 )
 

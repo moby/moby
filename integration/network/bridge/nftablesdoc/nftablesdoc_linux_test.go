@@ -20,6 +20,7 @@ package nftablesdoc
 import (
 	"context"
 	"fmt"
+	"iter"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -27,15 +28,15 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
-	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/integration/internal/network"
-	"github.com/docker/docker/integration/internal/testutils/networking"
-	"github.com/docker/docker/testutil"
-	"github.com/docker/docker/testutil/daemon"
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
+	"github.com/moby/moby/v2/integration/internal/container"
+	"github.com/moby/moby/v2/integration/internal/network"
+	"github.com/moby/moby/v2/integration/internal/testutils/networking"
+	"github.com/moby/moby/v2/testutil"
+	"github.com/moby/moby/v2/testutil/daemon"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/golden"
@@ -413,7 +414,7 @@ func runNftables(t *testing.T, host networking.Host) map[string]string {
 	//     {{index . "map filter-forward-out-jumps"}}
 
 	var sb strings.Builder
-	for line := range strings.Lines(out) {
+	for line := range lines(out) {
 		if line == "\n" || (line != "" && line[0] == '}') {
 			block := sb.String()
 			sb.Reset()
@@ -426,6 +427,24 @@ func runNftables(t *testing.T, host networking.Host) map[string]string {
 		sb.WriteString(line)
 	}
 	return res
+}
+
+// lines produces a line iterator
+// TODO: (When Go 1.24 is min version) Replace with `strings.Lines(out)`.
+func lines(s string) iter.Seq[string] {
+	return func(yield func(string) bool) {
+		for s != "" {
+			var line string
+			if i := strings.IndexByte(s, '\n'); i >= 0 {
+				line, s = s[:i+1], s[i+1:]
+			} else {
+				line, s = s, ""
+			}
+			if !yield(line) {
+				return
+			}
+		}
+	}
 }
 
 func generate(t *testing.T, name string, data map[string]string) string {

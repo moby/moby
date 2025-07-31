@@ -12,9 +12,9 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/discoverapi"
-	"github.com/docker/docker/daemon/libnetwork/driverapi"
-	"github.com/docker/docker/daemon/libnetwork/scope"
+	"github.com/moby/moby/v2/daemon/libnetwork/discoverapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 )
 
 const (

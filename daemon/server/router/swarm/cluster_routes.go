@@ -7,13 +7,13 @@ import (
 	"strconv"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/server/backend"
-	"github.com/docker/docker/daemon/server/httputils"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/registry"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/httputils"
+	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 )
 

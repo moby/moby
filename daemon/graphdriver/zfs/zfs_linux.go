@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/daemon/internal/fstype"
+	"github.com/moby/moby/v2/daemon/graphdriver"
+	"github.com/moby/moby/v2/daemon/internal/fstype"
 )
 
 func checkRootdirFs(rootDir string) error {

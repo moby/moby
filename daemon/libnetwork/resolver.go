@@ -14,9 +14,9 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/internal/netiputil"
-	"github.com/docker/docker/daemon/libnetwork/types"
 	"github.com/miekg/dns"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"

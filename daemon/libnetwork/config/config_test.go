@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/netlabel"
+	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 )
 
 func TestOptionsLabels(t *testing.T) {

@@ -9,11 +9,11 @@ import (
 	"net/netip"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/driverapi"
-	"github.com/docker/docker/daemon/libnetwork/internal/hashable"
-	"github.com/docker/docker/daemon/libnetwork/internal/netiputil"
-	"github.com/docker/docker/daemon/libnetwork/netutils"
-	"github.com/docker/docker/daemon/libnetwork/ns"
+	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/hashable"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
+	"github.com/moby/moby/v2/daemon/libnetwork/netutils"
+	"github.com/moby/moby/v2/daemon/libnetwork/ns"
 )
 
 type endpointTable map[string]*endpoint

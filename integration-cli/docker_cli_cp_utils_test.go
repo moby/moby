@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/integration-cli/cli"
 	"github.com/moby/go-archive"
+	"github.com/moby/moby/v2/integration-cli/cli"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
