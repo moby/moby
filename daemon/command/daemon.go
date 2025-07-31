@@ -742,7 +742,7 @@ func initMiddlewares(_ context.Context, s *apiserver.Server, cfg *config.Config,
 	exp := middleware.NewExperimentalMiddleware(cfg.Experimental)
 	s.UseMiddleware(exp)
 
-	vm, err := middleware.NewVersionMiddleware(dockerversion.Version, config.DefaultAPIVersion, cfg.MinAPIVersion)
+	vm, err := middleware.NewVersionMiddleware(dockerversion.Version, config.MaxAPIVersion, cfg.MinAPIVersion)
 	if err != nil {
 		return nil, err
 	}

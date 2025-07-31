@@ -63,7 +63,7 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc, operation string) ht
 			if statusCode >= http.StatusInternalServerError {
 				log.G(ctx).Errorf("Handler for %s %s returned error: %v", r.Method, r.URL.Path, err)
 			}
-			// While we no longer support API versions older 1.24 [api.MinSupportedAPIVersion],
+			// While we no longer support API versions older than 1.24 [config.DefaultMinAPIVersion],
 			// a client may try to connect using an older version and expect a plain-text error
 			// instead of a JSON error. This would result in an "API version too old" error
 			// formatted in JSON being printed as-is.

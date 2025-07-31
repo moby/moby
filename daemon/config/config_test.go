@@ -633,7 +633,7 @@ func TestValidateMinAPIVersion(t *testing.T) {
 		},
 		{
 			doc:   "current version",
-			input: DefaultAPIVersion,
+			input: MaxAPIVersion,
 		},
 	}
 

@@ -13,7 +13,6 @@ import (
 
 	"dario.cat/mergo"
 	"github.com/containerd/log"
-	"github.com/moby/moby/api"
 	"github.com/moby/moby/api/types/versions"
 	dopts "github.com/moby/moby/v2/daemon/internal/opts"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
@@ -56,16 +55,15 @@ const (
 	DefaultContainersNamespace = "moby"
 	// DefaultPluginNamespace is the name of the default containerd namespace used for plugins.
 	DefaultPluginNamespace = "plugins.moby"
-	// DefaultAPIVersion is the highest REST API version supported by the daemon.
+	// MaxAPIVersion is the highest REST API version supported by the daemon.
 	//
-	// This version may be lower than the [api.DefaultVersion], which is the default
-	// (and highest supported) version of the api library module used.
-	DefaultAPIVersion = "1.52"
-	// defaultMinAPIVersion is the minimum API version supported by the API.
+	// This version may be lower than the version of the api library module used.
+	MaxAPIVersion = "1.52"
+	// MinAPIVersion is the minimum API version supported by the API.
 	// This version can be overridden through the "DOCKER_MIN_API_VERSION"
 	// environment variable. It currently defaults to the minimum API version
-	// supported by the API server.
-	defaultMinAPIVersion = api.MinSupportedAPIVersion
+	// implemented in the API module.
+	MinAPIVersion = "1.24"
 	// SeccompProfileDefault is the built-in default seccomp profile.
 	SeccompProfileDefault = "builtin"
 	// SeccompProfileUnconfined is a special profile name for seccomp to use an
@@ -342,7 +340,7 @@ func New() (*Config, error) {
 			ContainerdPluginNamespace: DefaultPluginNamespace,
 			Features:                  make(map[string]bool),
 			DefaultRuntime:            StockRuntimeName,
-			MinAPIVersion:             defaultMinAPIVersion,
+			MinAPIVersion:             MinAPIVersion,
 		},
 	}
 
@@ -676,11 +674,11 @@ func ValidateMinAPIVersion(ver string) error {
 	if strings.EqualFold(ver[0:1], "v") {
 		return errors.New(`API version must be provided without "v" prefix`)
 	}
-	if versions.LessThan(ver, defaultMinAPIVersion) {
-		return errors.Errorf(`minimum supported API version is %s: %s`, defaultMinAPIVersion, ver)
+	if versions.LessThan(ver, MinAPIVersion) {
+		return errors.Errorf(`minimum supported API version is %s: %s`, MinAPIVersion, ver)
 	}
-	if versions.GreaterThan(ver, DefaultAPIVersion) {
-		return errors.Errorf(`maximum supported API version is %s: %s`, DefaultAPIVersion, ver)
+	if versions.GreaterThan(ver, MaxAPIVersion) {
+		return errors.Errorf(`maximum supported API version is %s: %s`, MaxAPIVersion, ver)
 	}
 	return nil
 }

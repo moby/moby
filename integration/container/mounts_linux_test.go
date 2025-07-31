@@ -8,12 +8,12 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api"
 	containertypes "github.com/moby/moby/api/types/container"
 	mounttypes "github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/volume"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/pkg/parsers/kernel"
@@ -497,8 +497,8 @@ func TestContainerBindMountReadOnlyDefault(t *testing.T) {
 
 		{clientVersion: "1.43", expectedOut: nonRecursive, name: "older than 1.44 should be non-recursive by default"},
 
-		// TODO: Remove when MinSupportedAPIVersion >= 1.44
-		{clientVersion: api.MinSupportedAPIVersion, expectedOut: nonRecursive, name: "minimum API should be non-recursive by default"},
+		// TODO: Remove when DefaultMinAPIVersion >= 1.44
+		{clientVersion: config.MinAPIVersion, expectedOut: nonRecursive, name: "minimum API should be non-recursive by default"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			apiClient := testEnv.APIClient()
