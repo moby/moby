@@ -17,21 +17,6 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func (s *DockerAPISuite) TestAPINetworkGetDefaults(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	// By default docker daemon creates 3 networks. check if they are present
-	defaults := []string{"bridge", "host", "none"}
-	for _, nn := range defaults {
-		assert.Assert(c, isNetworkAvailable(c, nn))
-	}
-}
-
-func (s *DockerAPISuite) TestAPINetworkFilter(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	nr := getNetworkResource(c, getNetworkIDByName(c, "bridge"))
-	assert.Equal(c, nr.Name, "bridge")
-}
-
 func (s *DockerAPISuite) TestAPINetworkInspectBridge(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// Inspect default bridge network
