@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/daemon/server/backend"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/go-connections/nat"
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 )
@@ -60,7 +59,7 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options
 		Networks:               apiNetworks,
 	}
 
-	ports := make(nat.PortMap, len(ctr.NetworkSettings.Ports))
+	ports := make(containertypes.PortMap, len(ctr.NetworkSettings.Ports))
 	for k, pm := range ctr.NetworkSettings.Ports {
 		ports[k] = pm
 	}

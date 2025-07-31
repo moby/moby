@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/testutil"
-	"github.com/docker/go-connections/nat"
 	containertypes "github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -97,7 +96,7 @@ func TestFlakyPortMappedHairpinWindows(t *testing.T) {
 	serverId := container.Run(ctx, t, c,
 		container.WithNetworkMode(serverNetName),
 		container.WithExposedPorts("80"),
-		container.WithPortMap(nat.PortMap{"80": {{HostIP: "0.0.0.0"}}}),
+		container.WithPortMap(containertypes.PortMap{"80": {{HostIP: "0.0.0.0"}}}),
 		container.WithCmd("httpd", "-f"),
 	)
 	defer c.ContainerRemove(ctx, serverId, containertypes.RemoveOptions{Force: true})

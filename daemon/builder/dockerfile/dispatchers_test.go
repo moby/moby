@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/pkg/oci"
 	"github.com/docker/docker/daemon/server/backend"
-	"github.com/docker/go-connections/nat"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
@@ -337,9 +336,7 @@ func TestExpose(t *testing.T) {
 	assert.Assert(t, sb.state.runConfig.ExposedPorts != nil)
 	assert.Assert(t, is.Len(sb.state.runConfig.ExposedPorts, 1))
 
-	portsMapping, err := nat.ParsePortSpec(exposedPort)
-	assert.NilError(t, err)
-	assert.Check(t, is.Contains(sb.state.runConfig.ExposedPorts, portsMapping[0].Port))
+	assert.Check(t, is.Contains(sb.state.runConfig.ExposedPorts, container.PortRangeProto("80/tcp")))
 }
 
 func TestUser(t *testing.T) {

@@ -23,6 +23,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
+	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/sys/signal"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -530,7 +531,7 @@ func dispatchExpose(ctx context.Context, d dispatchRequest, c *instructions.Expo
 	}
 
 	if d.state.runConfig.ExposedPorts == nil {
-		d.state.runConfig.ExposedPorts = make(nat.PortSet)
+		d.state.runConfig.ExposedPorts = make(container.PortSet)
 	}
 	for p := range ps {
 		d.state.runConfig.ExposedPorts[p] = struct{}{}

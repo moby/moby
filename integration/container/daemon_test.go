@@ -6,7 +6,6 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
-	"github.com/docker/go-connections/nat"
 	containertypes "github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -76,7 +75,7 @@ func TestNetworkStateCleanupOnDaemonStart(t *testing.T) {
 	// Sadly this means the test will take longer, but at least this test can be parallelized.
 	cid := container.Run(ctx, t, apiClient,
 		container.WithExposedPorts("80/tcp"),
-		container.WithPortMap(nat.PortMap{"80/tcp": {{}}}),
+		container.WithPortMap(containertypes.PortMap{"80/tcp": {{}}}),
 		container.WithCmd("/bin/sh", "-c", "while true; do echo hello; sleep 1; done"))
 	defer func() {
 		err := apiClient.ContainerRemove(ctx, cid, containertypes.RemoveOptions{Force: true})

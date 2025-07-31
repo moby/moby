@@ -14,9 +14,8 @@ import (
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/daemon/libnetwork/scope"
-	"github.com/docker/go-connections/nat"
 	gogotypes "github.com/gogo/protobuf/types"
-	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
 	enginemount "github.com/moby/moby/api/types/mount"
@@ -52,13 +51,13 @@ func (c *containerConfig) setTask(t *api.Task, node *api.NodeDescription) error 
 		return exec.ErrRuntimeUnsupported
 	}
 
-	container := t.Spec.GetContainer()
-	if container != nil {
-		if container.Image == "" {
+	ctr := t.Spec.GetContainer()
+	if ctr != nil {
+		if ctr.Image == "" {
 			return ErrImageRequired
 		}
 
-		if err := validateMounts(container.Mounts); err != nil {
+		if err := validateMounts(ctr.Mounts); err != nil {
 			return err
 		}
 	}
@@ -140,8 +139,8 @@ func (c *containerConfig) image() string {
 	return reference.FamiliarString(reference.TagNameOnly(ref))
 }
 
-func (c *containerConfig) portBindings() nat.PortMap {
-	portBindings := nat.PortMap{}
+func (c *containerConfig) portBindings() container.PortMap {
+	portBindings := container.PortMap{}
 	if c.task.Endpoint == nil {
 		return portBindings
 	}
@@ -151,8 +150,8 @@ func (c *containerConfig) portBindings() nat.PortMap {
 			continue
 		}
 
-		port := nat.Port(fmt.Sprintf("%d/%s", portConfig.TargetPort, strings.ToLower(portConfig.Protocol.String())))
-		binding := []nat.PortBinding{
+		port := container.PortRangeProto(fmt.Sprintf("%d/%s", portConfig.TargetPort, strings.ToLower(portConfig.Protocol.String())))
+		binding := []container.PortBinding{
 			{},
 		}
 
@@ -165,7 +164,7 @@ func (c *containerConfig) portBindings() nat.PortMap {
 	return portBindings
 }
 
-func (c *containerConfig) isolation() containertypes.Isolation {
+func (c *containerConfig) isolation() container.Isolation {
 	return convert.IsolationFromGRPC(c.spec().Isolation)
 }
 
@@ -177,8 +176,8 @@ func (c *containerConfig) init() *bool {
 	return &init
 }
 
-func (c *containerConfig) exposedPorts() map[nat.Port]struct{} {
-	exposedPorts := make(map[nat.Port]struct{})
+func (c *containerConfig) exposedPorts() map[container.PortRangeProto]struct{} {
+	exposedPorts := make(map[container.PortRangeProto]struct{})
 	if c.task.Endpoint == nil {
 		return exposedPorts
 	}
@@ -188,18 +187,18 @@ func (c *containerConfig) exposedPorts() map[nat.Port]struct{} {
 			continue
 		}
 
-		port := nat.Port(fmt.Sprintf("%d/%s", portConfig.TargetPort, strings.ToLower(portConfig.Protocol.String())))
+		port := container.PortRangeProto(fmt.Sprintf("%d/%s", portConfig.TargetPort, strings.ToLower(portConfig.Protocol.String())))
 		exposedPorts[port] = struct{}{}
 	}
 
 	return exposedPorts
 }
 
-func (c *containerConfig) config() *containertypes.Config {
+func (c *containerConfig) config() *container.Config {
 	genericEnvs := genericresource.EnvFormat(c.task.AssignedGenericResources, "DOCKER_RESOURCE")
 	env := append(c.spec().Env, genericEnvs...)
 
-	config := &containertypes.Config{
+	config := &container.Config{
 		Labels:       c.labels(),
 		StopSignal:   c.spec().StopSignal,
 		Tty:          c.spec().TTY,
@@ -380,7 +379,7 @@ func convertMount(m api.Mount) enginemount.Mount {
 	return mount
 }
 
-func (c *containerConfig) healthcheck() *containertypes.HealthConfig {
+func (c *containerConfig) healthcheck() *container.HealthConfig {
 	hcSpec := c.spec().Healthcheck
 	if hcSpec == nil {
 		return nil
@@ -389,7 +388,7 @@ func (c *containerConfig) healthcheck() *containertypes.HealthConfig {
 	timeout, _ := gogotypes.DurationFromProto(hcSpec.Timeout)
 	startPeriod, _ := gogotypes.DurationFromProto(hcSpec.StartPeriod)
 	startInterval, _ := gogotypes.DurationFromProto(hcSpec.StartInterval)
-	return &containertypes.HealthConfig{
+	return &container.HealthConfig{
 		Test:          hcSpec.Test,
 		Interval:      interval,
 		Timeout:       timeout,
@@ -399,8 +398,8 @@ func (c *containerConfig) healthcheck() *containertypes.HealthConfig {
 	}
 }
 
-func (c *containerConfig) hostConfig(deps exec.VolumeGetter) *containertypes.HostConfig {
-	hc := &containertypes.HostConfig{
+func (c *containerConfig) hostConfig(deps exec.VolumeGetter) *container.HostConfig {
+	hc := &container.HostConfig{
 		Resources:      c.resources(),
 		GroupAdd:       c.spec().Groups,
 		PortBindings:   c.portBindings(),
@@ -437,7 +436,7 @@ func (c *containerConfig) hostConfig(deps exec.VolumeGetter) *containertypes.Hos
 	}
 
 	if c.task.LogDriver != nil {
-		hc.LogConfig = containertypes.LogConfig{
+		hc.LogConfig = container.LogConfig{
 			Type:   c.task.LogDriver.Name,
 			Config: c.task.LogDriver.Options,
 		}
@@ -447,7 +446,7 @@ func (c *containerConfig) hostConfig(deps exec.VolumeGetter) *containertypes.Hos
 		labels := c.task.Networks[0].Network.Spec.Annotations.Labels
 		name := c.task.Networks[0].Network.Spec.Annotations.Name
 		if v, ok := labels["com.docker.swarm.predefined"]; ok && v == "true" {
-			hc.NetworkMode = containertypes.NetworkMode(name)
+			hc.NetworkMode = container.NetworkMode(name)
 		}
 	}
 
@@ -479,8 +478,8 @@ func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *volume.CreateOp
 	return nil
 }
 
-func (c *containerConfig) resources() containertypes.Resources {
-	resources := containertypes.Resources{}
+func (c *containerConfig) resources() container.Resources {
+	resources := container.Resources{}
 
 	// set pids limit
 	pidsLimit := c.spec().PidsLimit
@@ -488,9 +487,9 @@ func (c *containerConfig) resources() containertypes.Resources {
 		resources.PidsLimit = &pidsLimit
 	}
 
-	resources.Ulimits = make([]*containertypes.Ulimit, len(c.spec().Ulimits))
+	resources.Ulimits = make([]*container.Ulimit, len(c.spec().Ulimits))
 	for i, ulimit := range c.spec().Ulimits {
-		resources.Ulimits[i] = &containertypes.Ulimit{
+		resources.Ulimits[i] = &container.Ulimit{
 			Name: ulimit.Name,
 			Soft: ulimit.Soft,
 			Hard: ulimit.Hard,
@@ -673,7 +672,7 @@ func networkCreateRequest(name string, nw *api.Network) clustertypes.NetworkCrea
 	}
 }
 
-func (c *containerConfig) applyPrivileges(hc *containertypes.HostConfig) {
+func (c *containerConfig) applyPrivileges(hc *container.HostConfig) {
 	privileges := c.spec().Privileges
 	if privileges == nil {
 		return

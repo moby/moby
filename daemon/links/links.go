@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/types/container"
 )
 
 // Link struct holds information about parent/child linked container
@@ -19,18 +20,18 @@ type Link struct {
 	// Child environments variables
 	ChildEnvironment []string
 	// Child exposed ports
-	Ports []nat.Port
+	Ports []container.PortRangeProto // TODO(thaJeztah): can we use []string here, or do we need the features of nat.Port?
 }
 
 // EnvVars generates environment variables for the linked container
 // for the Link with the given options.
-func EnvVars(parentIP, childIP, name string, env []string, exposedPorts map[nat.Port]struct{}) []string {
+func EnvVars(parentIP, childIP, name string, env []string, exposedPorts map[container.PortRangeProto]struct{}) []string {
 	return NewLink(parentIP, childIP, name, env, exposedPorts).ToEnv()
 }
 
 // NewLink initializes a new Link struct with the provided options.
-func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[nat.Port]struct{}) *Link {
-	ports := make([]nat.Port, 0, len(exposedPorts))
+func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[container.PortRangeProto]struct{}) *Link {
+	ports := make([]container.PortRangeProto, 0, len(exposedPorts))
 	for p := range exposedPorts {
 		ports = append(ports, p)
 	}
@@ -54,7 +55,7 @@ func (l *Link) ToEnv() []string {
 	// sort the ports so that we can bulk the continuous ports together
 	nat.Sort(l.Ports, withTCPPriority)
 
-	var pStart, pEnd nat.Port
+	var pStart, pEnd container.PortRangeProto
 	env := make([]string, 0, 1+len(l.Ports)*4)
 	for i, p := range l.Ports {
 		if i == 0 {
@@ -112,7 +113,7 @@ func (l *Link) ToEnv() []string {
 
 // withTCPPriority prioritizes ports using TCP over other protocols before
 // comparing port-number and protocol.
-func withTCPPriority(ip, jp nat.Port) bool {
+func withTCPPriority(ip, jp container.PortRangeProto) bool {
 	if strings.EqualFold(ip.Proto(), jp.Proto()) {
 		return ip.Int() < jp.Int()
 	}

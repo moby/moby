@@ -84,9 +84,9 @@ type listContext struct {
 	isTask bool
 
 	// publish is a list of published ports to filter with
-	publish map[nat.Port]bool
+	publish map[containertypes.PortRangeProto]bool // TODO(thaJeztah): could this be a straight map[string]bool?
 	// expose is a list of exposed ports to filter with
-	expose map[nat.Port]bool
+	expose map[containertypes.PortRangeProto]bool // TODO(thaJeztah): could this be a straight map[string]bool?
 
 	// ListOptions is the filters set by the user
 	*containertypes.ListOptions
@@ -346,13 +346,13 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 		}
 	}
 
-	publishFilter := map[nat.Port]bool{}
+	publishFilter := map[containertypes.PortRangeProto]bool{}
 	err = psFilters.WalkValues("publish", portOp("publish", publishFilter))
 	if err != nil {
 		return nil, err
 	}
 
-	exposeFilter := map[nat.Port]bool{}
+	exposeFilter := map[containertypes.PortRangeProto]bool{}
 	err = psFilters.WalkValues("expose", portOp("expose", exposeFilter))
 	if err != nil {
 		return nil, err
@@ -397,7 +397,7 @@ func idOrNameFilter(view *container.View, value string) (*container.Snapshot, er
 	return filter, err
 }
 
-func portOp(key string, filter map[nat.Port]bool) func(value string) error {
+func portOp(key string, filter map[containertypes.PortRangeProto]bool) func(value string) error {
 	return func(value string) error {
 		if strings.Contains(value, ":") {
 			return fmt.Errorf("filter for '%s' should not contain ':': %s", key, value)
@@ -568,12 +568,12 @@ func includeContainerInList(container *container.Snapshot, filter *listContext) 
 	if len(filter.expose) > 0 || len(filter.publish) > 0 {
 		var (
 			shouldSkip    = true
-			publishedPort nat.Port
-			exposedPort   nat.Port
+			publishedPort containertypes.PortRangeProto
+			exposedPort   containertypes.PortRangeProto
 		)
 		for _, port := range container.Ports {
-			publishedPort = nat.Port(fmt.Sprintf("%d/%s", port.PublicPort, port.Type))
-			exposedPort = nat.Port(fmt.Sprintf("%d/%s", port.PrivatePort, port.Type))
+			publishedPort = containertypes.PortRangeProto(fmt.Sprintf("%d/%s", port.PublicPort, port.Type))
+			exposedPort = containertypes.PortRangeProto(fmt.Sprintf("%d/%s", port.PrivatePort, port.Type))
 			if ok := filter.publish[publishedPort]; ok {
 				shouldSkip = false
 				break

@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/docker/docker/daemon/server/backend"
-	"github.com/docker/go-connections/nat"
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
@@ -138,7 +137,7 @@ func fullMutableRunConfig() *container.Config {
 	return &container.Config{
 		Cmd: []string{"command", "arg1"},
 		Env: []string{"env1=foo", "env2=bar"},
-		ExposedPorts: nat.PortSet{
+		ExposedPorts: container.PortSet{
 			"1000/tcp": {},
 			"1001/tcp": {},
 		},

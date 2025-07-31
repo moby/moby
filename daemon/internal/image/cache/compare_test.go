@@ -4,37 +4,36 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/docker/go-connections/nat"
 	"github.com/moby/moby/api/types/container"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
-// Just to make life easier
-func newPortNoError(proto, port string) nat.Port {
-	p, _ := nat.NewPort(proto, port)
-	return p
-}
-
 func TestCompare(t *testing.T) {
-	ports1 := make(nat.PortSet)
-	ports1[newPortNoError("tcp", "1111")] = struct{}{}
-	ports1[newPortNoError("tcp", "2222")] = struct{}{}
-	ports2 := make(nat.PortSet)
-	ports2[newPortNoError("tcp", "3333")] = struct{}{}
-	ports2[newPortNoError("tcp", "4444")] = struct{}{}
-	ports3 := make(nat.PortSet)
-	ports3[newPortNoError("tcp", "1111")] = struct{}{}
-	ports3[newPortNoError("tcp", "2222")] = struct{}{}
-	ports3[newPortNoError("tcp", "5555")] = struct{}{}
-	volumes1 := make(map[string]struct{})
-	volumes1["/test1"] = struct{}{}
-	volumes2 := make(map[string]struct{})
-	volumes2["/test2"] = struct{}{}
-	volumes3 := make(map[string]struct{})
-	volumes3["/test1"] = struct{}{}
-	volumes3["/test3"] = struct{}{}
+	ports1 := container.PortSet{
+		"1111/tcp": struct{}{},
+		"2222/tcp": struct{}{},
+	}
+	ports2 := container.PortSet{
+		"3333/tcp": struct{}{},
+		"4444/tcp": struct{}{},
+	}
+	ports3 := container.PortSet{
+		"1111/tcp": struct{}{},
+		"2222/tcp": struct{}{},
+		"5555/tcp": struct{}{},
+	}
+	volumes1 := map[string]struct{}{
+		"/test1": {},
+	}
+	volumes2 := map[string]struct{}{
+		"/test2": {},
+	}
+	volumes3 := map[string]struct{}{
+		"/test1": {},
+		"/test3": {},
+	}
 	envs1 := []string{"ENV1=value1", "ENV2=value2"}
 	envs2 := []string{"ENV1=value1", "ENV3=value3"}
 	entrypoint1 := []string{"/bin/sh", "-c"}

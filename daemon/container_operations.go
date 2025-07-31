@@ -101,12 +101,12 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 		}
 	}
 
-	bindings := make(nat.PortMap)
+	bindings := make(containertypes.PortMap)
 	if ctr.HostConfig.PortBindings != nil {
 		for p, b := range ctr.HostConfig.PortBindings {
-			bindings[p] = []nat.PortBinding{}
+			bindings[p] = []containertypes.PortBinding{}
 			for _, bb := range b {
-				bindings[p] = append(bindings[p], nat.PortBinding{
+				bindings[p] = append(bindings[p], containertypes.PortBinding{
 					HostIP:   bb.HostIP,
 					HostPort: bb.HostPort,
 				})
@@ -115,7 +115,7 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 	}
 
 	// TODO(thaJeztah): Move this code to a method on nat.PortSet.
-	ports := make([]nat.Port, 0, len(ctr.Config.ExposedPorts))
+	ports := make([]containertypes.PortRangeProto, 0, len(ctr.Config.ExposedPorts))
 	for p := range ctr.Config.ExposedPorts {
 		ports = append(ports, p)
 	}

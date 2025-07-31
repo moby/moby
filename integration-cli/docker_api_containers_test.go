@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
-	"github.com/docker/go-connections/nat"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
@@ -505,8 +504,8 @@ func (s *DockerAPISuite) TestContainerAPIBadPort(c *testing.T) {
 	}
 
 	hostConfig := container.HostConfig{
-		PortBindings: nat.PortMap{
-			"8080/tcp": []nat.PortBinding{
+		PortBindings: container.PortMap{
+			"8080/tcp": []container.PortBinding{
 				{
 					HostIP:   "",
 					HostPort: "aa80",
