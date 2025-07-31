@@ -52,6 +52,11 @@ type AuthConfig struct {
 //
 // [RFC4648, section 5]: https://tools.ietf.org/html/rfc4648#section-5
 func EncodeAuthConfig(authConfig AuthConfig) (string, error) {
+	// Older daemons (or registries) may not handle an empty string,
+	// which resulted in an "io.EOF" when unmarshaling or decoding.
+	//
+	// FIXME(thaJeztah): find exactly what code-paths are impacted by this.
+	// if authConfig == (AuthConfig{}) { return "", nil }
 	buf, err := json.Marshal(authConfig)
 	if err != nil {
 		return "", errInvalidParameter{err}

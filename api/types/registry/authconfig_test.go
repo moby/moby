@@ -109,6 +109,10 @@ func TestEncodeAuthConfig(t *testing.T) {
 		outPlain  string
 	}{
 		{
+			// Older daemons (or registries) may not handle an empty string,
+			// which resulted in an "io.EOF" when unmarshaling or decoding.
+			//
+			// FIXME(thaJeztah): find exactly what code-paths are impacted by this.
 			doc:       "empty",
 			input:     AuthConfig{},
 			outBase64: `e30=`,
