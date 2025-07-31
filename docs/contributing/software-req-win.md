@@ -100,8 +100,8 @@ To build Moby, run:
 Copy out the resulting Windows Moby Engine binary to `dockerd.exe` in the
 current directory:
 
-    docker cp binaries:C:\gopath\src\github.com\docker\docker\bundles\docker.exe docker.exe
-    docker cp binaries:C:\gopath\src\github.com\docker\docker\bundles\dockerd.exe dockerd.exe
+    docker cp binaries:C:\gopath\src\github.com\moby\moby\v2\bundles\docker.exe docker.exe
+    docker cp binaries:C:\gopath\src\github.com\moby\moby\v2\bundles\dockerd.exe dockerd.exe
 
 To test it, stop the system Docker daemon and start the one you just built:
 
@@ -109,7 +109,8 @@ To test it, stop the system Docker daemon and start the one you just built:
     .\dockerd.exe -D
 
 The other make targets work too, to run unit tests try:
-`docker run --rm docker-builder sh -c 'cd /c/gopath/src/github.com/docker/docker; hack/make.sh test-unit'`.
+
+    docker run --rm docker-builder sh -c 'cd /c/gopath/src/github.com/moby/moby/v2; hack/make.sh test-unit'
 
 ### 6. Remove the interim binaries container
 
