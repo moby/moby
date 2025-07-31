@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/swarm/runtime"
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fixtures/plugin"
@@ -125,7 +124,7 @@ func TestServicePlugin(t *testing.T) {
 func makePlugin(repo, name string, constraints []string) func(*swarmtypes.Service) {
 	return func(s *swarmtypes.Service) {
 		s.Spec.TaskTemplate.Runtime = swarmtypes.RuntimePlugin
-		s.Spec.TaskTemplate.PluginSpec = &runtime.PluginSpec{
+		s.Spec.TaskTemplate.PluginSpec = &swarmtypes.RuntimeSpec{
 			Name:   name,
 			Remote: repo,
 			Env: []string{
