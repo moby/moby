@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/pkg/progress"
+	"github.com/moby/moby/api/pkg/progress"
 )
 
 const streamNewline = "\r\n"
