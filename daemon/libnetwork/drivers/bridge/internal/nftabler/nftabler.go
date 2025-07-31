@@ -9,7 +9,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/docker/docker/daemon/libnetwork/internal/nftables"
-	"go.opentelemetry.io/otel"
 )
 
 // Prefix for OTEL span names.
@@ -48,8 +47,8 @@ const (
 type nftabler struct {
 	config  firewaller.Config
 	cleaner firewaller.FirewallCleaner
-	table4  nftables.TableRef
-	table6  nftables.TableRef
+	table4  nftables.Table
+	table6  nftables.Table
 }
 
 func NewNftabler(ctx context.Context, config firewaller.Config) (firewaller.Firewaller, error) {
@@ -61,9 +60,6 @@ func NewNftabler(ctx context.Context, config firewaller.Config) (firewaller.Fire
 		if err != nil {
 			return nil, err
 		}
-		if err := nftApply(ctx, nft.table4); err != nil {
-			return nil, fmt.Errorf("IPv4 initialisation: %w", err)
-		}
 	}
 
 	if nft.config.IPv6 {
@@ -72,41 +68,29 @@ func NewNftabler(ctx context.Context, config firewaller.Config) (firewaller.Fire
 		if err != nil {
 			return nil, err
 		}
-
-		if err := nftApply(ctx, nft.table6); err != nil {
-			// Perhaps the kernel has no IPv6 support. It won't be possible to create IPv6
-			// networks without enabling ip6_tables in the kernel, or disabling ip6tables in
-			// the daemon config. But, allow the daemon to start because IPv4 will work. So,
-			// log the problem, and continue.
-			log.G(ctx).WithError(err).Warn("ip6tables is enabled, but cannot set up IPv6 nftables table")
-		}
 	}
 
 	return nft, nil
 }
 
-func (nft *nftabler) getTable(ipv firewaller.IPVersion) nftables.TableRef {
-	if ipv == firewaller.IPv4 {
-		return nft.table4
-	}
-	return nft.table6
-}
-
 func (nft *nftabler) FilterForwardDrop(ctx context.Context, ipv firewaller.IPVersion) error {
-	table := nft.getTable(ipv)
-	if err := table.Chain(ctx, forwardChain).SetPolicy("drop"); err != nil {
-		return err
+	table := nft.table4
+	if ipv == firewaller.IPv6 {
+		table = nft.table6
 	}
-	return nftApply(ctx, table)
+	if err := table.SetBaseChainPolicy(ctx, forwardChain, nftables.BaseChainPolicyDrop); err != nil {
+		return fmt.Errorf("setting IPv%d filter-forward drop: %w", ipv, err)
+	}
+	return nil
 }
 
-// init creates the bridge driver's nftables table for IPv4 or IPv6.
-func (nft *nftabler) init(ctx context.Context, family nftables.Family) (nftables.TableRef, error) {
+func (nft *nftabler) init(ctx context.Context, family nftables.Family) (nftables.Table, error) {
 	// Instantiate the table.
 	table, err := nftables.NewTable(family, dockerTable)
 	if err != nil {
 		return table, err
 	}
+	tm := table.Modifier()
 
 	// Set up the filter forward chain.
 	//
@@ -117,65 +101,89 @@ func (nft *nftabler) init(ctx context.Context, family nftables.Family) (nftables
 	// So, packets that aren't related to docker don't need to traverse any per-network filter forward
 	// rules - and packets that are entering or leaving docker networks only need to traverse rules
 	// related to those networks.
-	fwdChain, err := table.BaseChain(ctx, forwardChain,
-		nftables.BaseChainTypeFilter,
-		nftables.BaseChainHookForward,
-		nftables.BaseChainPriorityFilter)
-	if err != nil {
-		return nftables.TableRef{}, fmt.Errorf("initialising nftables: %w", err)
-	}
+	tm.Create(nftables.BaseChain{
+		Name:      forwardChain,
+		ChainType: nftables.BaseChainTypeFilter,
+		Hook:      nftables.BaseChainHookForward,
+		Priority:  nftables.BaseChainPriorityFilter,
+	})
 	// Instantiate the verdict maps and add the jumps.
-	_ = table.InterfaceVMap(ctx, filtFwdInVMap)
-	if err := fwdChain.AppendRule(ctx, initialRuleGroup, "oifname vmap @"+filtFwdInVMap); err != nil {
-		return nftables.TableRef{}, fmt.Errorf("initialising nftables: %w", err)
-	}
-	_ = table.InterfaceVMap(ctx, filtFwdOutVMap)
-	if err := fwdChain.AppendRule(ctx, initialRuleGroup, "iifname vmap @"+filtFwdOutVMap); err != nil {
-		return nftables.TableRef{}, fmt.Errorf("initialising nftables: %w", err)
-	}
+	tm.Create(nftables.VMap{
+		Name:        filtFwdInVMap,
+		ElementType: nftables.NftTypeIfname,
+	})
+	tm.Create(nftables.Rule{
+		Chain: forwardChain,
+		Group: initialRuleGroup,
+		Rule:  []string{"oifname vmap @", filtFwdInVMap},
+	})
+
+	tm.Create(nftables.VMap{
+		Name:        filtFwdOutVMap,
+		ElementType: nftables.NftTypeIfname,
+	})
+	tm.Create(nftables.Rule{
+		Chain: forwardChain,
+		Group: initialRuleGroup,
+		Rule:  []string{"iifname vmap @", filtFwdOutVMap},
+	})
 
 	// Set up the NAT postrouting base chain.
 	//
 	// Like the filter-forward chain, its only rules are jumps to network-specific ingress and egress chains.
-	natPostRtChain, err := table.BaseChain(ctx, postroutingChain,
-		nftables.BaseChainTypeNAT,
-		nftables.BaseChainHookPostrouting,
-		nftables.BaseChainPrioritySrcNAT)
-	if err != nil {
-		return nftables.TableRef{}, err
-	}
-	_ = table.InterfaceVMap(ctx, natPostroutingOutVMap)
-	if err := natPostRtChain.AppendRule(ctx, initialRuleGroup, "iifname vmap @"+natPostroutingOutVMap); err != nil {
-		return nftables.TableRef{}, fmt.Errorf("initialising nftables: %w", err)
-	}
-	_ = table.InterfaceVMap(ctx, natPostroutingInVMap)
-	if err := natPostRtChain.AppendRule(ctx, initialRuleGroup, "oifname vmap @"+natPostroutingInVMap); err != nil {
-		return nftables.TableRef{}, fmt.Errorf("initialising nftables: %w", err)
-	}
+	tm.Create(nftables.BaseChain{
+		Name:      postroutingChain,
+		ChainType: nftables.BaseChainTypeNAT,
+		Hook:      nftables.BaseChainHookPostrouting,
+		Priority:  nftables.BaseChainPrioritySrcNAT,
+	})
+
+	tm.Create(nftables.VMap{
+		Name:        natPostroutingOutVMap,
+		ElementType: nftables.NftTypeIfname,
+	})
+	tm.Create(nftables.Rule{
+		Chain: postroutingChain,
+		Group: initialRuleGroup,
+		Rule:  []string{"iifname vmap @", natPostroutingOutVMap},
+	})
+
+	tm.Create(nftables.VMap{
+		Name:        natPostroutingInVMap,
+		ElementType: nftables.NftTypeIfname,
+	})
+	tm.Create(nftables.Rule{
+		Chain: postroutingChain,
+		Group: initialRuleGroup,
+		Rule:  []string{"oifname vmap @", natPostroutingInVMap},
+	})
 
 	// Instantiate natChain, for the NAT prerouting and output base chains to jump to.
-	_ = table.Chain(ctx, natChain)
+	tm.Create(nftables.Chain{
+		Name: natChain,
+	})
 
 	// Set up the NAT prerouting base chain.
-	natPreRtChain, err := table.BaseChain(ctx, preroutingChain,
-		nftables.BaseChainTypeNAT,
-		nftables.BaseChainHookPrerouting,
-		nftables.BaseChainPriorityDstNAT)
-	if err != nil {
-		return nftables.TableRef{}, err
-	}
-	if err := natPreRtChain.AppendRule(ctx, initialRuleGroup, "fib daddr type local counter jump "+natChain); err != nil {
-		return nftables.TableRef{}, fmt.Errorf("initialising nftables: %w", err)
-	}
+	tm.Create(nftables.BaseChain{
+		Name:      preroutingChain,
+		ChainType: nftables.BaseChainTypeNAT,
+		Hook:      nftables.BaseChainHookPrerouting,
+		Priority:  nftables.BaseChainPriorityDstNAT,
+	})
+	tm.Create(nftables.Rule{
+		Chain: preroutingChain,
+		Group: initialRuleGroup,
+		Rule:  []string{"fib daddr type local counter jump", natChain},
+	})
 
 	// Set up the NAT output base chain
-	natOutputChain, err := table.BaseChain(ctx, outputChain,
-		nftables.BaseChainTypeNAT,
-		nftables.BaseChainHookOutput,
-		nftables.BaseChainPriorityDstNAT)
-	if err != nil {
-		return nftables.TableRef{}, err
-	}
+	tm.Create(nftables.BaseChain{
+		Name:      outputChain,
+		ChainType: nftables.BaseChainTypeNAT,
+		Hook:      nftables.BaseChainHookOutput,
+		Priority:  nftables.BaseChainPriorityDstNAT,
+	})
+
 	// For output, don't jump to the NAT chain if hairpin is enabled (no userland proxy).
 	var skipLoopback string
 	if !nft.config.Hairpin {
@@ -185,32 +193,34 @@ func (nft *nftabler) init(ctx context.Context, family nftables.Family) (nftables
 			skipLoopback = "ip6 daddr != ::1 "
 		}
 	}
-	if err := natOutputChain.AppendRule(ctx, initialRuleGroup, skipLoopback+"fib daddr type local counter jump "+natChain); err != nil {
-		return nftables.TableRef{}, fmt.Errorf("initialising nftables: %w", err)
-	}
+	tm.Create(nftables.Rule{
+		Chain: outputChain,
+		Group: initialRuleGroup,
+		Rule:  []string{skipLoopback, "fib daddr type local counter jump", natChain},
+	})
 
 	// Set up the raw prerouting base chain
-	if _, err := table.BaseChain(ctx, rawPreroutingChain,
-		nftables.BaseChainTypeFilter,
-		nftables.BaseChainHookPrerouting,
-		nftables.BaseChainPriorityRaw); err != nil {
-		return nftables.TableRef{}, err
-	}
+	tm.Create(nftables.BaseChain{
+		Name:      rawPreroutingChain,
+		ChainType: nftables.BaseChainTypeFilter,
+		Hook:      nftables.BaseChainHookPrerouting,
+		Priority:  nftables.BaseChainPriorityRaw,
+	})
 
 	if !nft.config.Hairpin && nft.config.WSL2Mirrored {
-		if err := mirroredWSL2Workaround(ctx, table); err != nil {
-			return nftables.TableRef{}, err
+		mirroredWSL2Workaround(tm)
+	}
+
+	if err := tm.Apply(ctx); err != nil {
+		if family == nftables.IPv4 {
+			return nftables.Table{}, err
 		}
+		// Perhaps the kernel has no IPv6 support. It won't be possible to create IPv6
+		// networks without enabling ip6_tables in the kernel, or disabling ip6tables in
+		// the daemon config. But, allow the daemon to start because IPv4 will work. So,
+		// log the problem, and continue.
+		log.G(ctx).WithError(err).Warn("ip6tables is enabled, but cannot set up IPv6 nftables table")
+		return nftables.Table{}, nil
 	}
-
 	return table, nil
-}
-
-func nftApply(ctx context.Context, table nftables.TableRef) error {
-	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".nftApply."+string(table.Family()))
-	defer span.End()
-	if err := table.Apply(ctx); err != nil {
-		return fmt.Errorf("applying nftables rules: %w", err)
-	}
-	return nil
 }
