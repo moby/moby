@@ -944,21 +944,18 @@ func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwor
 		return nil, nil
 	}
 
-	bindings := make(nat.PortMap)
-	if c.HostConfig.PortBindings != nil {
-		for p, b := range c.HostConfig.PortBindings {
-			bindings[p] = []nat.PortBinding{}
-			for _, bb := range b {
-				bindings[p] = append(bindings[p], nat.PortBinding{
-					HostIP:   bb.HostIP,
-					HostPort: bb.HostPort,
-				})
-			}
-		}
+	// Create a deep copy (as [nat.SortPortMap] mutates the map).
+	// Not using a maps.Clone here, as that won't dereference the
+	// slice (PortMap is a map[Port][]PortBinding).
+	bindings := make(containertypes.PortMap)
+	for p, b := range c.HostConfig.PortBindings {
+		copied := make([]containertypes.PortBinding, len(b))
+		copy(copied, b)
+		bindings[p] = copied
 	}
 
 	// TODO(thaJeztah): Move this code to a method on nat.PortSet.
-	ports := make([]nat.Port, 0, len(c.Config.ExposedPorts))
+	ports := make([]containertypes.PortRangeProto, 0, len(c.Config.ExposedPorts))
 	for p := range c.Config.ExposedPorts {
 		ports = append(ports, p)
 	}
@@ -1009,8 +1006,8 @@ func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwor
 }
 
 // getPortMapInfo retrieves the current port-mapping programmed for the given sandbox
-func getPortMapInfo(sb *libnetwork.Sandbox) nat.PortMap {
-	pm := nat.PortMap{}
+func getPortMapInfo(sb *libnetwork.Sandbox) containertypes.PortMap {
+	pm := containertypes.PortMap{}
 	if sb == nil {
 		return pm
 	}
@@ -1021,7 +1018,7 @@ func getPortMapInfo(sb *libnetwork.Sandbox) nat.PortMap {
 	return pm
 }
 
-func getEndpointPortMapInfo(pm nat.PortMap, ep *libnetwork.Endpoint) {
+func getEndpointPortMapInfo(pm containertypes.PortMap, ep *libnetwork.Endpoint) {
 	driverInfo, _ := ep.DriverInfo()
 	if driverInfo == nil {
 		// It is not an error for epInfo to be nil
@@ -1060,7 +1057,7 @@ func getEndpointPortMapInfo(pm nat.PortMap, ep *libnetwork.Endpoint) {
 			if pp.HostPort > 0 {
 				hp = strconv.Itoa(int(pp.HostPort))
 			}
-			natBndg := nat.PortBinding{HostIP: pp.HostIP.String(), HostPort: hp}
+			natBndg := containertypes.PortBinding{HostIP: pp.HostIP.String(), HostPort: hp}
 			pm[natPort] = append(pm[natPort], natBndg)
 		}
 	}

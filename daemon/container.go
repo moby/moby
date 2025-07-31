@@ -376,7 +376,7 @@ func validateHealthCheck(healthConfig *containertypes.HealthConfig) error {
 	return nil
 }
 
-func validatePortBindings(ports nat.PortMap) error {
+func validatePortBindings(ports containertypes.PortMap) error {
 	for port := range ports {
 		_, portStr := nat.SplitProtoPort(string(port))
 		if _, err := nat.ParsePort(portStr); err != nil {

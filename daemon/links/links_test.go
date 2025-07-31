@@ -5,11 +5,12 @@ import (
 	"testing"
 
 	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 )
 
 func TestLinkNaming(t *testing.T) {
-	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker-1", nil, nat.PortSet{
+	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker-1", nil, container.PortSet{
 		"6379/tcp": struct{}{},
 	})
 
@@ -27,7 +28,7 @@ func TestLinkNaming(t *testing.T) {
 }
 
 func TestLinkNew(t *testing.T) {
-	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", nil, nat.PortSet{
+	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", nil, container.PortSet{
 		"6379/tcp": struct{}{},
 	})
 
@@ -35,14 +36,14 @@ func TestLinkNew(t *testing.T) {
 		Name:     "/db/docker",
 		ParentIP: "172.0.17.3",
 		ChildIP:  "172.0.17.2",
-		Ports:    []nat.Port{"6379/tcp"},
+		Ports:    []container.PortRangeProto{"6379/tcp"},
 	}
 
 	assert.DeepEqual(t, expected, link)
 }
 
 func TestLinkEnv(t *testing.T) {
-	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, nat.PortSet{
+	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, container.PortSet{
 		"6379/tcp": struct{}{},
 	})
 
@@ -63,7 +64,7 @@ func TestLinkEnv(t *testing.T) {
 // TestSortPorts verifies that ports are sorted with TCP taking priority,
 // and ports with the same protocol to be sorted by port.
 func TestSortPorts(t *testing.T) {
-	ports := []nat.Port{
+	ports := []container.PortRangeProto{
 		"6379/tcp",
 		"6376/udp",
 		"6380/tcp",
@@ -74,7 +75,7 @@ func TestSortPorts(t *testing.T) {
 		"6375/sctp",
 	}
 
-	expected := []nat.Port{
+	expected := []container.PortRangeProto{
 		"6379/tcp",
 		"6380/tcp",
 		"6381/tcp",
@@ -90,7 +91,7 @@ func TestSortPorts(t *testing.T) {
 }
 
 func TestLinkMultipleEnv(t *testing.T) {
-	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, nat.PortSet{
+	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, container.PortSet{
 		"6300/udp": struct{}{},
 		"6379/tcp": struct{}{},
 		"6380/tcp": struct{}{},
@@ -141,7 +142,7 @@ func BenchmarkLinkMultipleEnv(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, nat.PortSet{
+		_ = EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, container.PortSet{
 			"6300/udp": struct{}{},
 			"6379/tcp": struct{}{},
 			"6380/tcp": struct{}{},

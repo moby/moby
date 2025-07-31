@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/daemon/internal/idtools"
 	"github.com/docker/docker/daemon/libnetwork"
 	volumesservice "github.com/docker/docker/daemon/volume/service"
-	"github.com/docker/go-connections/nat"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
@@ -219,33 +218,28 @@ func TestContainerInitDNS(t *testing.T) {
 	}
 }
 
-func newPortNoError(proto, port string) nat.Port {
-	p, _ := nat.NewPort(proto, port)
-	return p
-}
-
 func TestMerge(t *testing.T) {
-	volumesImage := make(map[string]struct{})
-	volumesImage["/test1"] = struct{}{}
-	volumesImage["/test2"] = struct{}{}
-	portsImage := make(nat.PortSet)
-	portsImage[newPortNoError("tcp", "1111")] = struct{}{}
-	portsImage[newPortNoError("tcp", "2222")] = struct{}{}
 	configImage := &containertypes.Config{
-		ExposedPorts: portsImage,
-		Env:          []string{"VAR1=1", "VAR2=2"},
-		Volumes:      volumesImage,
+		ExposedPorts: containertypes.PortSet{
+			"1111/tcp": struct{}{},
+			"2222/tcp": struct{}{},
+		},
+		Env: []string{"VAR1=1", "VAR2=2"},
+		Volumes: map[string]struct{}{
+			"/test1": {},
+			"/test2": {},
+		},
 	}
 
-	portsUser := make(nat.PortSet)
-	portsUser[newPortNoError("tcp", "2222")] = struct{}{}
-	portsUser[newPortNoError("tcp", "3333")] = struct{}{}
-	volumesUser := make(map[string]struct{})
-	volumesUser["/test3"] = struct{}{}
 	configUser := &containertypes.Config{
-		ExposedPorts: portsUser,
-		Env:          []string{"VAR2=3", "VAR3=3"},
-		Volumes:      volumesUser,
+		ExposedPorts: containertypes.PortSet{
+			"2222/tcp": struct{}{},
+			"3333/tcp": struct{}{},
+		},
+		Env: []string{"VAR2=3", "VAR3=3"},
+		Volumes: map[string]struct{}{
+			"/test3": {},
+		},
 	}
 
 	if err := merge(configUser, configImage); err != nil {
@@ -278,12 +272,8 @@ func TestMerge(t *testing.T) {
 		}
 	}
 
-	ports, _, err := nat.ParsePortSpecs([]string{"0000"})
-	if err != nil {
-		t.Error(err)
-	}
 	configImage2 := &containertypes.Config{
-		ExposedPorts: ports,
+		ExposedPorts: map[containertypes.PortRangeProto]struct{}{"0/tcp": {}},
 	}
 
 	if err := merge(configUser, configImage2); err != nil {

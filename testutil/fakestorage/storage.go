@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/testutil/environment"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/docker/testutil/request"
-	"github.com/docker/go-connections/nat"
 	"github.com/moby/moby/api/types/build"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
@@ -164,9 +163,7 @@ COPY . /static`); err != nil {
 	// Find out the system assigned port
 	i, err := c.ContainerInspect(context.Background(), b.ID)
 	assert.NilError(t, err)
-	newP, err := nat.NewPort("tcp", "80")
-	assert.NilError(t, err)
-	ports, exists := i.NetworkSettings.Ports[newP]
+	ports, exists := i.NetworkSettings.Ports["80/tcp"]
 	if !exists || len(ports) != 1 {
 		t.Fatalf("unable to find port 80/tcp for %s", container)
 	}

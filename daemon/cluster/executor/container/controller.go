@@ -11,7 +11,6 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/daemon/libnetwork"
-	"github.com/docker/go-connections/nat"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
@@ -641,7 +640,7 @@ func parsePortStatus(ctnr container.InspectResponse) (*api.PortStatus, error) {
 	return status, nil
 }
 
-func parsePortMap(portMap nat.PortMap) ([]*api.PortConfig, error) {
+func parsePortMap(portMap container.PortMap) ([]*api.PortConfig, error) {
 	exposedPorts := make([]*api.PortConfig, 0, len(portMap))
 
 	for portProtocol, mapping := range portMap {

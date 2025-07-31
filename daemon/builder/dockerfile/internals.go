@@ -17,7 +17,6 @@ import (
 	"github.com/docker/docker/daemon/internal/stringid"
 	networkSettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/daemon/server/backend"
-	"github.com/docker/go-connections/nat"
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/chrootarchive"
 	"github.com/moby/moby/api/types/build"
@@ -294,7 +293,7 @@ func copyRunConfig(runConfig *container.Config, modifiers ...runConfigModifier) 
 	}
 
 	if cfgCopy.ExposedPorts != nil {
-		cfgCopy.ExposedPorts = make(nat.PortSet, len(runConfig.ExposedPorts))
+		cfgCopy.ExposedPorts = make(container.PortSet, len(runConfig.ExposedPorts))
 		for k, v := range runConfig.ExposedPorts {
 			cfgCopy.ExposedPorts[k] = v
 		}

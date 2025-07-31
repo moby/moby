@@ -5,7 +5,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/docker/go-connections/nat"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
@@ -74,17 +73,17 @@ func WithSysctls(sysctls map[string]string) func(*TestContainerConfig) {
 // WithExposedPorts sets the exposed ports of the container
 func WithExposedPorts(ports ...string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
-		c.Config.ExposedPorts = map[nat.Port]struct{}{}
+		c.Config.ExposedPorts = map[container.PortRangeProto]struct{}{}
 		for _, port := range ports {
-			c.Config.ExposedPorts[nat.Port(port)] = struct{}{}
+			c.Config.ExposedPorts[container.PortRangeProto(port)] = struct{}{}
 		}
 	}
 }
 
 // WithPortMap sets/replaces port mappings.
-func WithPortMap(pm nat.PortMap) func(*TestContainerConfig) {
+func WithPortMap(pm container.PortMap) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
-		c.HostConfig.PortBindings = nat.PortMap{}
+		c.HostConfig.PortBindings = container.PortMap{}
 		for p, b := range pm {
 			c.HostConfig.PortBindings[p] = slices.Clone(b)
 		}
