@@ -944,17 +944,14 @@ func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwor
 		return nil, nil
 	}
 
+	// Create a deep copy (as [nat.SortPortMap] mutates the map).
+	// Not using a maps.Clone here, as that won't dereference the
+	// slice (PortMap is a map[Port][]PortBinding).
 	bindings := make(containertypes.PortMap)
-	if c.HostConfig.PortBindings != nil {
-		for p, b := range c.HostConfig.PortBindings {
-			bindings[p] = []containertypes.PortBinding{}
-			for _, bb := range b {
-				bindings[p] = append(bindings[p], containertypes.PortBinding{
-					HostIP:   bb.HostIP,
-					HostPort: bb.HostPort,
-				})
-			}
-		}
+	for p, b := range c.HostConfig.PortBindings {
+		copied := make([]containertypes.PortBinding, len(b))
+		copy(copied, b)
+		bindings[p] = copied
 	}
 
 	// TODO(thaJeztah): Move this code to a method on nat.PortSet.
