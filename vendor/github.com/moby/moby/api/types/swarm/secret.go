@@ -25,7 +25,7 @@ type SecretSpec struct {
 	// This field is only used to create the secret, and is not returned
 	// by other endpoints.
 	//
-	// [MaxSecretSize]: https://pkg.go.dev/github.com/moby/swarmkit/v2@v2.0.0-20250103191802-8c1959736554/api/validation#MaxSecretSize
+	// [MaxSecretSize]: https://pkg.go.dev/github.com/moby/swarmkit/v2@v2.0.0/api/validation#MaxSecretSize
 	Data []byte `json:",omitempty"`
 
 	// Driver is the name of the secrets driver used to fetch the secret's
