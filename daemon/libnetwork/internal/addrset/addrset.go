@@ -4,6 +4,7 @@ package addrset
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"net/netip"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/bitmap"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipbits"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 var (
@@ -172,6 +174,44 @@ func (as *AddrSet) getBitmap(addr netip.Addr) (*bitmap.Bitmap, netip.Prefix, err
 		as.bitmaps[bmKey] = bm
 	}
 	return bm, bmKey, nil
+}
+
+// Selected returns the number of selected addresses in the set.
+// If the amount of selected addresses is greater than the maximum uint64, it returns the maximum uint64.
+func (as *AddrSet) Selected() (selected uint64) {
+	for _, bm := range as.bitmaps {
+		s := bm.Bits() - bm.Unselected()
+		if s > math.MaxUint64-selected {
+			return math.MaxUint64
+		}
+		selected += s
+	}
+
+	return selected
+}
+
+// CalculateSelectedInRange calculates in the bitmap the number of selected addresses in the given ip-range.
+// Does not support IPv6 ranges.
+func (as *AddrSet) CalculateSelectedInRange(ipr netip.Prefix) (selected uint64, err error) {
+	if !as.pool.Contains(ipr.Addr()) || ipr.Bits() < as.pool.Bits() {
+		return 0, types.InvalidParameterErrorf("subnet '%s' doesn't contain '%s' ip-range", as.pool, ipr)
+	}
+	if as.pool.Addr().Is6() {
+		return 0, types.NotImplementedErrorf("calculation of selected IPs in range doesn't support IPv6 (subnet: '%s')", as.pool)
+	}
+	iprMasked := ipr.Masked()
+	bm, bmKey, err := as.getBitmap(iprMasked.Addr())
+	if err != nil {
+		return 0, err
+	}
+	start, end := netiputil.SubnetRange(bmKey, iprMasked)
+	return bm.OnesCount(start, end)
+}
+
+// CalculateSelected calculates in the bitmap the number of selected addresses in the set's pool
+// Does not support IPv6.
+func (as *AddrSet) CalculateSelected() (selected uint64, err error) {
+	return as.CalculateSelectedInRange(as.pool)
 }
 
 func (as *AddrSet) addrsPerBitmap() uint64 {
