@@ -93,6 +93,7 @@ func (daemon *Daemon) SystemInfo(ctx context.Context) (*system.Info, error) {
 	daemon.fillLicense(v)
 	daemon.fillDefaultAddressPools(ctx, v, &cfg.Config)
 	daemon.fillFirewallInfo(v)
+	daemon.fillDefaultPortMapper(v, &cfg.Config)
 	daemon.fillDiscoveredDevicesFromDrivers(ctx, v, &cfg.Config)
 
 	return v, nil
@@ -290,6 +291,13 @@ func (daemon *Daemon) fillFirewallInfo(v *system.Info) {
 		return
 	}
 	v.FirewallBackend = daemon.netController.FirewallBackend()
+}
+
+func (daemon *Daemon) fillDefaultPortMapper(v *system.Info, cfg *config.Config) {
+	if daemon.netController == nil {
+		return
+	}
+	v.DefaultPortMapper = cfg.DefaultPortMapper
 }
 
 func hostName(ctx context.Context) string {

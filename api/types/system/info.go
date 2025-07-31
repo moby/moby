@@ -72,6 +72,7 @@ type Info struct {
 	ProductLicense      string               `json:",omitempty"`
 	DefaultAddressPools []NetworkAddressPool `json:",omitempty"`
 	FirewallBackend     *FirewallInfo        `json:"FirewallBackend,omitempty"`
+	DefaultPortMapper   string               `json:",omitempty"`
 	CDISpecDirs         []string
 	DiscoveredDevices   []DeviceInfo `json:",omitempty"`
 

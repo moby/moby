@@ -1,4 +1,4 @@
-package portmapper
+package proxy
 
 import (
 	"context"
@@ -14,17 +14,29 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/daemon/libnetwork/portmapperapi"
 	"github.com/docker/docker/daemon/libnetwork/types"
 )
 
-// StartProxy starts the proxy process at proxyPath.
-// If listenSock is not nil, it must be a bound socket that can be passed to
-// the proxy process for it to listen on.
-func StartProxy(pb types.PortBinding,
-	proxyPath string,
+// ProxyManager is a struct that manages userland proxies.
+type ProxyManager struct {
+	ProxyPath string
+}
+
+type Proxy struct {
+	p       *os.Process
+	pidfd   int // pidfd might be -1 on systems that don't support it
+	wait    chan error
+	stopped *atomic.Bool
+}
+
+// StartProxy starts the proxy process. If listenSock is not nil, it must be a
+// bound socket that can be passed to the proxy process for it to listen on.
+func (pm ProxyManager) StartProxy(
+	pb types.PortBinding,
 	listenSock *os.File,
-) (stop func() error, retErr error) {
-	if proxyPath == "" {
+) (_ portmapperapi.Proxy, retErr error) {
+	if pm.ProxyPath == "" {
 		return nil, errors.New("no path provided for userland-proxy binary")
 	}
 	r, w, err := os.Pipe()
@@ -38,10 +50,11 @@ func StartProxy(pb types.PortBinding,
 		r.Close()
 	}()
 
+	var pidfd int
 	cmd := &exec.Cmd{
-		Path: proxyPath,
+		Path: pm.ProxyPath,
 		Args: []string{
-			proxyPath,
+			pm.ProxyPath,
 			"-proto", pb.Proto.String(),
 			"-host-ip", pb.HostIP.String(),
 			"-host-port", strconv.FormatUint(uint64(pb.HostPort), 10),
@@ -50,6 +63,7 @@ func StartProxy(pb types.PortBinding,
 		},
 		ExtraFiles: []*os.File{w},
 		SysProcAttr: &syscall.SysProcAttr{
+			PidFD:     &pidfd,
 			Pdeathsig: syscall.SIGTERM, // send a sigterm to the proxy if the creating thread in the daemon process dies (https://go.dev/issue/27505)
 		},
 	}
@@ -130,15 +144,37 @@ func StartProxy(pb types.PortBinding,
 		return nil, errors.New("timed out starting the userland proxy")
 	}
 
-	stopFn := func() error {
-		if cmd.Process == nil {
-			return nil
-		}
-		stopped.Store(true)
-		if err := cmd.Process.Signal(os.Interrupt); err != nil {
-			return err
-		}
-		return <-wait
+	return &Proxy{
+		p:       cmd.Process,
+		pidfd:   pidfd,
+		wait:    wait,
+		stopped: &stopped,
+	}, nil
+}
+
+// Stop stops the proxy process. It cannot be called multiple times — it'll
+// return a nil error on subsequent calls, irrespective of the original error.
+func (p *Proxy) Stop() error {
+	if p.p == nil || p.stopped.Load() {
+		return nil
 	}
-	return stopFn, nil
+
+	p.stopped.Store(true)
+	if err := p.p.Signal(os.Interrupt); err != nil && !errors.Is(err, os.ErrProcessDone) {
+		return err
+	}
+
+	err := <-p.wait
+
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		return err
+	}
+
+	wstatus := exitErr.Sys().(syscall.WaitStatus)
+	if wstatus.Signal() != os.Interrupt || wstatus.ExitStatus() > 0 {
+		return err
+	}
+
+	return nil
 }

@@ -1576,3 +1576,30 @@ func TestMixAnyWithSpecificHostAddrs(t *testing.T) {
 		})
 	}
 }
+
+func TestProxyPortMapping(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "the proxy portmapper isn't available in rootless mode")
+
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t, "--default-port-mapper=proxy")
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	ctrId := container.Run(ctx, t, c,
+		container.WithCmd("httpd", "-f"),
+		container.WithExposedPorts("80/tcp"),
+		container.WithPortMap(nat.PortMap{"80/tcp": {{}}}))
+	defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+
+	inspect := container.Inspect(ctx, t, c, ctrId)
+	assert.Assert(t, len(inspect.NetworkSettings.Ports["80/tcp"]) > 0)
+	assert.Check(t, inspect.NetworkSettings.Ports["80/tcp"][0].HostPort != "")
+
+	addr := "http://127.0.0.1:" + inspect.NetworkSettings.Ports["80/tcp"][0].HostPort
+	resp, err := http.Get(addr) // #nosec G107 -- Ignore "Potential HTTP request made with variable url"
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(resp.StatusCode, 404))
+}

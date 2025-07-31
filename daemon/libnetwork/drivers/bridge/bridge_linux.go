@@ -78,6 +78,7 @@ type configuration struct {
 	Hairpin            bool
 	AllowDirectRouting bool
 	AcceptFwMark       string
+	DefaultPortMapper  string
 }
 
 // networkConfiguration for network specific configuration
@@ -490,6 +491,15 @@ func (n *bridgeNetwork) portMappers() *drvregistry.PortMappers {
 		return nil
 	}
 	return n.driver.portmappers
+}
+
+func (n *bridgeNetwork) defaultPortMapper() string {
+	n.Lock()
+	defer n.Unlock()
+	if n.driver == nil {
+		return ""
+	}
+	return n.driver.config.DefaultPortMapper
 }
 
 func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {

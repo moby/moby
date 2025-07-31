@@ -719,29 +719,6 @@ func TestAddPortMappings(t *testing.T) {
 			defer netnsutils.SetupTestOSContext(t)()
 			useStubFirewaller(t)
 
-			// Mock the startProxy function used by the code under test.
-			proxies := map[proxyCall]bool{} // proxy -> is not stopped
-			startProxy := func(pb types.PortBinding, listenSock *os.File) (stop func() error, retErr error) {
-				if tc.busyPortIPv4 > 0 && tc.busyPortIPv4 == int(pb.HostPort) && pb.HostIP.To4() != nil {
-					return nil, errors.New("busy port")
-				}
-				c := newProxyCall(pb.Proto.String(), pb.HostIP, int(pb.HostPort), pb.IP, int(pb.Port))
-				if _, ok := proxies[c]; ok {
-					return nil, fmt.Errorf("duplicate proxy: %#v", c)
-				}
-				proxies[c] = true
-				return func() error {
-					if tc.expReleaseErr != "" {
-						return errors.New("can't stop now")
-					}
-					if !proxies[c] {
-						return errors.New("already stopped")
-					}
-					proxies[c] = false
-					return nil
-				}, nil
-			}
-
 			if len(tc.hostAddrs) > 0 {
 				dummyLink := &netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: "br-dummy"}}
 				err := netlink.LinkAdd(dummyLink)
@@ -769,11 +746,18 @@ func TestAddPortMappings(t *testing.T) {
 				pdc = newMockPortDriverClient()
 			}
 
+			proxyMgr := stubProxyManager{
+				proxies:        make(map[proxyCall]*stubProxy),
+				runningProxies: make(map[proxyCall]bool),
+				busyPortIPv4:   tc.busyPortIPv4,
+				expReleaseErr:  tc.expReleaseErr,
+			}
+
 			pms := &drvregistry.PortMappers{}
 			err := nat.Register(pms, nat.Config{
-				RlkClient:   pdc,
-				EnableProxy: tc.enableProxy,
-				StartProxy:  startProxy,
+				RlkClient:    pdc,
+				EnableProxy:  tc.enableProxy,
+				ProxyManager: proxyMgr,
 			})
 			assert.NilError(t, err)
 			err = routed.Register(pms)
@@ -908,7 +892,7 @@ func TestAddPortMappings(t *testing.T) {
 						expPB.IP, int(expPB.Port))
 					expProxies[p] = tc.expReleaseErr != ""
 				}
-				assert.Check(t, is.DeepEqual(expProxies, proxies))
+				assert.Check(t, is.DeepEqual(expProxies, proxyMgr.runningProxies))
 			}
 
 			// Check the port driver has seen the expected port mappings and no others,
@@ -1021,4 +1005,44 @@ func (pm *stubPortMapper) UnmapPorts(_ context.Context, reqs []portmapperapi.Por
 		pm.mapped = slices.Delete(pm.mapped, idx, idx)
 	}
 	return nil
+}
+
+type stubProxyManager struct {
+	busyPortIPv4   int
+	expReleaseErr  string
+	proxies        map[proxyCall]*stubProxy
+	runningProxies map[proxyCall]bool // proxy -> is not stopped
+}
+
+func (pm stubProxyManager) StartProxy(pb types.PortBinding, _ *os.File) (portmapperapi.Proxy, error) {
+	if pm.busyPortIPv4 > 0 && pm.busyPortIPv4 == int(pb.HostPort) && pb.HostIP.To4() != nil {
+		return nil, errors.New("busy port")
+	}
+	c := newProxyCall(pb.Proto.String(), pb.HostIP, int(pb.HostPort), pb.IP, int(pb.Port))
+	if _, ok := pm.proxies[c]; ok {
+		return nil, fmt.Errorf("duplicate proxy: %#v", c)
+	}
+	pm.proxies[c] = &stubProxy{
+		stop: func() error {
+			if pm.expReleaseErr != "" {
+				return errors.New("can't stop now")
+			}
+			if pm.proxies[c] == nil {
+				return errors.New("already stopped")
+			}
+			delete(pm.proxies, c)
+			pm.runningProxies[c] = false
+			return nil
+		},
+	}
+	pm.runningProxies[c] = true
+	return pm.proxies[c], nil
+}
+
+type stubProxy struct {
+	stop func() error
+}
+
+func (sp *stubProxy) Stop() error {
+	return sp.stop()
 }
