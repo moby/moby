@@ -44,6 +44,7 @@ import (
 	"github.com/docker/docker/daemon/internal/idtools"
 	"github.com/docker/docker/daemon/internal/image"
 	"github.com/docker/docker/daemon/internal/layer"
+	"github.com/docker/docker/daemon/internal/libcontainerd"
 	libcontainerdtypes "github.com/docker/docker/daemon/internal/libcontainerd/types"
 	"github.com/docker/docker/daemon/internal/metrics"
 	pluginexec "github.com/docker/docker/daemon/internal/plugin/executor/containerd"
@@ -1168,7 +1169,8 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	go d.execCommandGC()
 
-	if err := d.initLibcontainerd(ctx, &cfgStore.Config); err != nil {
+	d.containerd, err = libcontainerd.NewClient(ctx, d.containerdClient, filepath.Join(config.ExecRoot, "containerd"), config.ContainerdNamespace, d)
+	if err != nil {
 		return nil, err
 	}
 
