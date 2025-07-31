@@ -52,6 +52,11 @@ func (InertProvider) ValidateNetworkDriver(d *api.Driver) error {
 	return status.Errorf(codes.InvalidArgument, "ingress network drivers are unavailable")
 }
 
+// NetworkStateUpdater returns an instance of [Inert].
+func (InertProvider) UpdateNetworkState(*api.Network) error {
+	return nil
+}
+
 // Inert is a [NetworkAllocator] which does not allocate networks.
 type Inert struct{}
 
@@ -126,4 +131,8 @@ func (Inert) IsServiceAllocated(s *api.Service, flags ...func(*ServiceAllocation
 // IsTaskAllocated returns true iff [Inert.AllocateTask] would return nil.
 func (Inert) IsTaskAllocated(t *api.Task) bool {
 	return (Inert{}).AllocateTask(t) == nil
+}
+
+func (Inert) UpdateNetworkState(*api.Network) error {
+	return nil
 }

@@ -482,6 +482,18 @@ func TestMacvlanIPAM(t *testing.T) {
 		},
 	}
 
+	const (
+		netName            = "macvlannet"
+		cidrv4             = "192.168.0.0/24"
+		ipv4gw             = "192.168.0.1"
+		ipv4Range          = "192.168.0.64/31"
+		prefIpv4OutOfRange = "192.168.0.129"
+		auxIpv4FromRange   = "192.168.0.65"
+		auxIpv4OutOfRange  = "192.168.0.128"
+		cidrv6             = "2001:db8:abcd::/64"
+		ipv6Range          = "2001:db8:abcd::/120"
+	)
+
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
@@ -491,16 +503,40 @@ func TestMacvlanIPAM(t *testing.T) {
 				net.WithMacvlan(""),
 				net.WithOption("macvlan_mode", "bridge"),
 				net.WithIPv4(tc.enableIPv4),
+				net.WithIPAMAny(
+					cidrv4,
+					ipv4Range,
+					ipv4gw,
+					map[string]string{
+						"reserved":   auxIpv4FromRange,
+						"reserved_1": auxIpv4OutOfRange,
+					}),
 			}
 			if tc.enableIPv6 {
 				netOpts = append(netOpts, net.WithIPv6())
+				netOpts = append(netOpts, net.WithIPAMRange(cidrv6, ipv6Range, ""))
 			}
 
-			const netName = "macvlannet"
 			net.CreateNoError(ctx, t, c, netName, netOpts...)
 			defer c.NetworkRemove(ctx, netName)
 			assert.Check(t, n.IsNetworkAvailable(ctx, c, netName))
 
+			nw, err := c.NetworkInspect(ctx, netName, network.InspectOptions{})
+			assert.NilError(t, err)
+
+			validateIPUsageCount := func(
+				nw network.Inspect, addIpv4CntInSubnet, decAvailableIPsInIPRangePool uint64) {
+				ipamStateV4, ok := nw.State.IPAM[cidrv4]
+
+				assert.Equal(t, ok, tc.enableIPv4 || tc.expIPv4, "IPAM state for v4 CIDR is not expected")
+				if tc.enableIPv4 || tc.expIPv4 {
+					assert.Check(t, is.Equal(ipamStateV4.AllocatedIPsInSubnet, uint64(5)+addIpv4CntInSubnet))
+					assert.Check(t, is.Equal(ipamStateV4.AvailableIPsInIPRangePool, uint64(1)-decAvailableIPsInIPRangePool))
+				}
+			}
+			validateIPUsageCount(nw, 0, 0)
+
+			// From IPRange pool: both counters should be changed by 1
 			id := container.Run(ctx, t, c, container.WithNetworkMode(netName))
 			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
 
@@ -530,6 +566,24 @@ func TestMacvlanIPAM(t *testing.T) {
 				expDisableIPv6 = "0"
 			}
 			assert.Check(t, is.Equal(strings.TrimSpace(sysctlRes.Combined()), expDisableIPv6))
+
+			nw, err = c.NetworkInspect(ctx, netName, network.InspectOptions{})
+			assert.NilError(t, err)
+			validateIPUsageCount(nw, 1, 1)
+
+			// Out of IPRange pool: subnet counter should be changed by 1
+			ctrOpts := []func(*container.TestContainerConfig){
+				container.WithNetworkMode(netName),
+			}
+			if tc.enableIPv4 || tc.expIPv4 {
+				ctrOpts = append(ctrOpts, container.WithIPv4(netName, prefIpv4OutOfRange))
+			}
+			id = container.Run(ctx, t, c, ctrOpts...)
+			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+			nw, err = c.NetworkInspect(ctx, netName, network.InspectOptions{})
+			assert.NilError(t, err)
+			validateIPUsageCount(nw, 2, 1)
 		})
 	}
 }

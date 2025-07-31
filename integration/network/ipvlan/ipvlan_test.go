@@ -485,6 +485,10 @@ func TestIpvlanIPAM(t *testing.T) {
 		},
 	}
 
+	const (
+		cidrv4 = "192.168.0.0/24"
+	)
+
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
@@ -493,6 +497,7 @@ func TestIpvlanIPAM(t *testing.T) {
 			netOpts := []func(*network.CreateOptions){
 				net.WithIPvlan("", "l3"),
 				net.WithIPv4(tc.enableIPv4),
+				net.WithIPAM(cidrv4, ""),
 			}
 			if tc.enableIPv6 {
 				netOpts = append(netOpts, net.WithIPv6())
@@ -502,6 +507,18 @@ func TestIpvlanIPAM(t *testing.T) {
 			net.CreateNoError(ctx, t, c, netName, netOpts...)
 			defer c.NetworkRemove(ctx, netName)
 			assert.Check(t, n.IsNetworkAvailable(ctx, c, netName))
+			nw, err := c.NetworkInspect(ctx, netName, network.InspectOptions{})
+			assert.NilError(t, err)
+			validateIPUsageCount := func(
+				nw network.Inspect, addIpv4CntInSubnet, decAvailableIPsInIPRangePool uint64) {
+				ipamStateV4, ok := nw.State.IPAM[cidrv4]
+				assert.Equal(t, ok, tc.enableIPv4 || tc.expIPv4, "IPAM state for v4 CIDR is not expected")
+				if tc.enableIPv4 || tc.expIPv4 {
+					assert.Check(t, is.Equal(ipamStateV4.AllocatedIPsInSubnet, uint64(2)+addIpv4CntInSubnet))
+					assert.Check(t, is.Equal(ipamStateV4.AvailableIPsInIPRangePool, uint64(254)-decAvailableIPsInIPRangePool))
+				}
+			}
+			validateIPUsageCount(nw, 0, 0)
 
 			id := container.Run(ctx, t, c, container.WithNetworkMode(netName))
 			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
@@ -532,6 +549,11 @@ func TestIpvlanIPAM(t *testing.T) {
 				expDisableIPv6 = "0"
 			}
 			assert.Check(t, is.Equal(strings.TrimSpace(sysctlRes.Combined()), expDisableIPv6))
+
+			nw, err = c.NetworkInspect(ctx, netName, network.InspectOptions{})
+			assert.NilError(t, err)
+			validateIPUsageCount(nw, 1, 1)
+
 		})
 	}
 }

@@ -1,8 +1,10 @@
 package convert
 
 import (
+	"encoding/json"
 	"strings"
 
+	"github.com/cloudflare/cfssl/log"
 	"github.com/docker/docker/daemon/libnetwork/scope"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/network"
@@ -155,6 +157,12 @@ func BasicNetworkFromGRPC(n swarmapi.Network) network.Inspect {
 			})
 		}
 	}
+	netState := network.NetworkState{}
+	if n.State != nil {
+		if err := json.Unmarshal(n.State.Value, &netState); err != nil {
+			log.Error("Failed to unmarshal network state", "err", err)
+		}
+	}
 
 	nr := network.Inspect{
 		ID:         n.ID,
@@ -163,6 +171,7 @@ func BasicNetworkFromGRPC(n swarmapi.Network) network.Inspect {
 		EnableIPv4: true,
 		EnableIPv6: spec.Ipv6Enabled,
 		IPAM:       ipam,
+		State:      &netState,
 		Internal:   spec.Internal,
 		Attachable: spec.Attachable,
 		Ingress:    IsIngressNetwork(&n),

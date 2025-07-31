@@ -16,6 +16,7 @@ import (
 
 type Provider struct {
 	pg plugingetter.PluginGetter
+	na networkallocator.NetworkAllocator
 }
 
 var _ networkallocator.Provider = &Provider{}
@@ -89,4 +90,8 @@ func (p *Provider) validatePluginDriver(driver *api.Driver, pluginType string) e
 
 func (p *Provider) SetDefaultVXLANUDPPort(port uint32) error {
 	return overlayutils.ConfigVXLANUDPPort(port)
+}
+
+func (p *Provider) UpdateNetworkState(network *api.Network) error {
+	return p.na.UpdateNetworkState(network)
 }
