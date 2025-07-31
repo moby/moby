@@ -122,6 +122,11 @@ type FirewallCleanerSetter interface {
 // a FirewallCleaner from the old Firewaller and pass it to the new/current
 // Firewaller's SetFirewallCleaner.
 type FirewallCleaner interface {
+	// HadFilterForwardDrop returns true if the default policy for forwarded packets
+	// was set to 'drop' in the rules that are being cleaned.
+	HadFilterForwardDrop(ipv IPVersion) bool
+	// SetFilterForwardAccept sets the policy of filter chain FORWARD to "ACCEPT".
+	SetFilterForwardAccept(ipv IPVersion) error
 	// DelNetwork removes all firewall rules related to the specified network configuration.
 	// It should be called by the new Firewaller when adding a new network.
 	DelNetwork(ctx context.Context, nc NetworkConfig)

@@ -31,6 +31,10 @@ const (
 )
 
 func (d *driver) initStore() error {
+	if err := d.initForwardingPolicy(context.TODO()); err != nil {
+		return err
+	}
+
 	err := d.populateNetworks()
 	if err != nil {
 		return err
@@ -43,6 +47,7 @@ func (d *driver) initStore() error {
 
 	// If there's a firewall cleaner, it's done its job by cleaning up rules
 	// belonging to the restored networks. So, drop it.
+	d.firewallCleaner = nil
 	if fcs, ok := d.firewaller.(firewaller.FirewallCleanerSetter); ok {
 		fcs.SetFirewallCleaner(nil)
 	}
@@ -122,7 +127,7 @@ func (d *driver) storeUpdate(ctx context.Context, kvObject datastore.KVObject) e
 	}
 
 	if err := d.store.PutObjectAtomic(kvObject); err != nil {
-		return fmt.Errorf("failed to update bridge store for object type %T: %v", kvObject, err)
+		return fmt.Errorf("failed to update bridge store for object type %T: %w", kvObject, err)
 	}
 
 	return nil

@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/libnetwork/drivers/bridge"
+	"github.com/docker/docker/daemon/libnetwork/iptables"
 	"github.com/docker/docker/daemon/libnetwork/netlabel"
 	"github.com/docker/docker/daemon/libnetwork/nlwrap"
 	ctr "github.com/docker/docker/integration/internal/container"
@@ -305,32 +309,6 @@ func TestFilterForwardPolicy(t *testing.T) {
 			)
 			host := l3.Hosts[hostname]
 
-			getFwdPolicy := func(usingNftables bool, fam string) string {
-				t.Helper()
-				if usingNftables {
-					out := host.MustRun(t, "nft", "list chain "+fam+" docker-bridges filter-FORWARD")
-					if strings.Contains(out, "policy accept") {
-						return "ACCEPT"
-					}
-					if strings.Contains(out, "policy drop") {
-						return "DROP"
-					}
-					t.Fatalf("Failed to determine nftables filter-FORWARD policy: %s", out)
-					return ""
-				} else {
-					cmd := fam + "tables"
-					out := host.MustRun(t, cmd, "-S", "FORWARD")
-					if strings.HasPrefix(out, "-P FORWARD ACCEPT") {
-						return "ACCEPT"
-					}
-					if strings.HasPrefix(out, "-P FORWARD DROP") {
-						return "DROP"
-					}
-					t.Fatalf("Failed to determine %s FORWARD policy: %s", cmd, out)
-					return ""
-				}
-			}
-
 			type sysctls struct{ v4, v6def, v6all string }
 			getSysctls := func() sysctls {
 				t.Helper()
@@ -359,20 +337,65 @@ func TestFilterForwardPolicy(t *testing.T) {
 			t.Cleanup(func() { c.Close() })
 
 			// If necessary, the IPv4 policy should have been updated when the default bridge network was created.
-			assert.Check(t, is.Equal(getFwdPolicy(usingNftables, "ip"), tc.expPolicy))
+			assert.Check(t, is.Equal(getFwdPolicy(t, host, usingNftables, "ip"), tc.expPolicy))
 			// IPv6 policy should not have been updated yet.
-			assert.Check(t, is.Equal(getFwdPolicy(usingNftables, "ip6"), "ACCEPT"))
+			assert.Check(t, is.Equal(getFwdPolicy(t, host, usingNftables, "ip6"), "ACCEPT"))
 			assert.Check(t, is.Equal(getSysctls(), sysctls{tc.expForwarding, tc.initForwarding, tc.initForwarding}))
 
 			// If necessary, creating an IPv6 network should update the sysctls and policy.
 			const netName = "testnetffp"
 			network.CreateNoError(ctx, t, c, netName, network.WithIPv6())
 			t.Cleanup(func() { network.RemoveNoError(ctx, t, c, netName) })
-			assert.Check(t, is.Equal(getFwdPolicy(usingNftables, "ip"), tc.expPolicy))
-			assert.Check(t, is.Equal(getFwdPolicy(usingNftables, "ip6"), tc.expPolicy))
+			assert.Check(t, is.Equal(getFwdPolicy(t, host, usingNftables, "ip"), tc.expPolicy))
+			assert.Check(t, is.Equal(getFwdPolicy(t, host, usingNftables, "ip6"), tc.expPolicy))
 			assert.Check(t, is.Equal(getSysctls(), sysctls{tc.expForwarding, tc.expForwarding, tc.expForwarding}))
+
+			// Stop the daemon, reset the filter-FORWARD policy, start the daemon again.
+			host.Do(t, func() {
+				d.Stop(t)
+				if usingNftables {
+					host.MustRun(t, "nft", "delete table ip docker-bridges")
+					host.MustRun(t, "nft", "delete table ip6 docker-bridges")
+				} else {
+					iptables.GetIptable(iptables.IPv4).SetDefaultPolicy("filter", "FORWARD", iptables.Accept)
+					iptables.GetIptable(iptables.IPv6).SetDefaultPolicy("filter", "FORWARD", iptables.Accept)
+				}
+				d.StartWithBusybox(ctx, t, tc.daemonArgs...)
+			})
+
+			// Check that the filter-FORWARD policy has been restored, even though
+			// the daemon didn't need to enable IP forwarding this time.
+			assert.Check(t, is.Equal(getFwdPolicy(t, host, usingNftables, "ip"), tc.expPolicy))
+			assert.Check(t, is.Equal(getFwdPolicy(t, host, usingNftables, "ip6"), tc.expPolicy))
 		})
 	}
+}
+
+// getFwdPolicy returns the uppercase iptables/nftables filter-FORWARD policy, from netns host,
+// for the address family fam ("ip" or "ip6").
+func getFwdPolicy(t *testing.T, host networking.Host, usingNftables bool, fam string) string {
+	t.Helper()
+	if usingNftables {
+		out := host.MustRun(t, "nft", "list chain "+fam+" docker-bridges filter-FORWARD")
+		if strings.Contains(out, "policy accept") {
+			return "ACCEPT"
+		}
+		if strings.Contains(out, "policy drop") {
+			return "DROP"
+		}
+		t.Fatalf("Failed to determine nftables filter-FORWARD policy: %s", out)
+		return ""
+	}
+	cmd := fam + "tables"
+	out := host.MustRun(t, cmd, "-S", "FORWARD")
+	if strings.HasPrefix(out, "-P FORWARD ACCEPT") {
+		return "ACCEPT"
+	}
+	if strings.HasPrefix(out, "-P FORWARD DROP") {
+		return "DROP"
+	}
+	t.Fatalf("Failed to determine %s FORWARD policy: %s", cmd, out)
+	return ""
 }
 
 // TestPointToPoint checks that a "/31" --internal network with inhibit_ipv4,
@@ -914,6 +937,11 @@ func TestFirewallBackendSwitch(t *testing.T) {
 		return exist
 	}
 
+	// Disable IP forwarding in the daemon's netns, so it has to be enabled and the
+	// filter-FORWARD policy set to DROP.
+	host.MustRun(t, "sysctl", "-w", "net.ipv4.ip_forward=0")
+	host.MustRun(t, "sysctl", "-w", "net.ipv6.conf.all.forwarding=0")
+
 	// Create iptables rules.
 	runDaemon("iptables")
 	dockerChains, numRules, dump := summariseIptables()
@@ -921,6 +949,10 @@ func TestFirewallBackendSwitch(t *testing.T) {
 	assert.Check(t, numRules > 0, "Expected iptables to have at least one rule")
 	assert.Check(t, len(dockerChains) > 0, "Expected iptables to have at least one docker chain")
 	assert.Check(t, !nftablesTablesExist(), "nftables tables exist after running with iptables")
+	// Expect the filter-FORWARD policies to be DROP, because ip forwarding was not enabled
+	// the daemon's netns.
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, false, "ip"), "DROP"))
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, false, "ip6"), "DROP"))
 
 	// Use nftables, expect the iptables rules to be deleted.
 	runDaemon("nftables")
@@ -929,6 +961,11 @@ func TestFirewallBackendSwitch(t *testing.T) {
 	assert.Check(t, numRules == 0, "Unexpected iptables rules after starting with nftables")
 	assert.Check(t, len(dockerChains) == 0, "Unexpected iptables chains after starting with nftables")
 	assert.Check(t, nftablesTablesExist(), "nftables tables do not exist after running with nftables")
+	// The filter-FORWARD policy should be migrated from iptables to nftables.
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, false, "ip"), "ACCEPT"))
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, false, "ip6"), "ACCEPT"))
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, true, "ip"), "DROP"))
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, true, "ip6"), "DROP"))
 
 	// Use iptables, expect the nftables rules to be deleted.
 	runDaemon("iptables")
@@ -937,4 +974,69 @@ func TestFirewallBackendSwitch(t *testing.T) {
 	assert.Check(t, numRules > 0, "Expected iptables to have at least one rule")
 	assert.Check(t, len(dockerChains) > 0, "Expected iptables to have at least one docker chain")
 	assert.Check(t, !nftablesTablesExist(), "nftables tables exist after running with iptables")
+	// The iptables filter-FORWARD policy should be restored to DROP.
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, false, "ip"), "DROP"))
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, false, "ip6"), "DROP"))
+}
+
+// TestFirewallBackendUpgrade checks that when migrating from iptables to
+// nftables, having upgraded from a pre-29.0 daemon that won't have persisted a
+// note that the filter-FORWARD policy needs to be DROP - the nftables policy is
+// still set to DROP, and the iptables policy is set to ACCEPT.
+func TestFirewallBackendUpgrade(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "rootless has its own netns")
+	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
+	ctx := setupTest(t)
+
+	// Run in a clean netns.
+	addr4 := netip.MustParseAddr("192.168.125.1")
+	addr6 := netip.MustParseAddr("fd76:c828:41f9::1")
+	l3 := networking.NewL3Segment(t, "test-fwbeupgrade",
+		netip.PrefixFrom(addr4, 24),
+		netip.PrefixFrom(addr6, 64),
+	)
+	defer l3.Destroy(t)
+
+	addr4, addr6 = addr4.Next(), addr6.Next()
+	const hostname = "fwbeupgrade"
+	l3.AddHost(t, hostname, hostname+"-netns", "eth0",
+		netip.PrefixFrom(addr4, 24),
+		netip.PrefixFrom(addr6, 64),
+	)
+	host := l3.Hosts[hostname]
+
+	// Run without OTel because there's no routing from this netns for it - which
+	// means the daemon doesn't shut down cleanly, causing the test to fail.
+	d := daemon.New(t, daemon.WithEnvVars("OTEL_EXPORTER_OTLP_ENDPOINT="))
+
+	runDaemon := func(backend string) {
+		host.Do(t, func() {
+			d.StartWithBusybox(ctx, t, "--firewall-backend="+backend, "--ipv6")
+			defer d.Stop(t)
+		})
+	}
+
+	// Disable IP forwarding in the daemon's netns, so it has to be enabled and the
+	// filter-FORWARD policy set to DROP.
+	host.MustRun(t, "sysctl", "-w", "net.ipv4.ip_forward=0")
+	host.MustRun(t, "sysctl", "-w", "net.ipv6.conf.all.forwarding=0")
+
+	// Create iptables rules.
+	runDaemon("iptables")
+	// Expect the filter-FORWARD policies to be DROP, because ip forwarding was not enabled
+	// the daemon's netns.
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, false, "ip"), "DROP"))
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, false, "ip6"), "DROP"))
+
+	// Simulate the old daemon not updating the store by deleting the store.
+	err := os.Remove(filepath.Join(d.Root, config.LibnetDataPath, "local-kv.db"))
+	assert.NilError(t, err)
+
+	// Run the daemon with nftables - it won't need to re-enable forwarding, but it
+	// should migrate the iptables filter-FORWARD drop policy.
+	runDaemon("nftables")
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, false, "ip"), "ACCEPT"))
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, false, "ip6"), "ACCEPT"))
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, true, "ip"), "DROP"))
+	assert.Check(t, is.Equal(getFwdPolicy(t, host, true, "ip6"), "DROP"))
 }

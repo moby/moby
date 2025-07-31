@@ -97,7 +97,10 @@ func (nft *nftabler) FilterForwardDrop(ctx context.Context, ipv firewaller.IPVer
 	if err := table.Chain(ctx, forwardChain).SetPolicy("drop"); err != nil {
 		return err
 	}
-	return nftApply(ctx, table)
+	if err := nftApply(ctx, table); err != nil {
+		return err
+	}
+	return nil
 }
 
 // init creates the bridge driver's nftables table for IPv4 or IPv6.

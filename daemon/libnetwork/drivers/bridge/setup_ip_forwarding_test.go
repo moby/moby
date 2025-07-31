@@ -35,13 +35,23 @@ func TestSetupIPForwarding(t *testing.T) {
 
 	for _, wantFFD := range []bool{true, false} {
 		t.Run(fmt.Sprintf("wantFFD=%v", wantFFD), func(t *testing.T) {
+			fw := &ffdTestFirewaller{}
+			d := &driver{
+				config: configuration{
+					EnableIPForwarding:       true,
+					DisableFilterForwardDrop: !wantFFD,
+					EnableIPTables:           true,
+					EnableIP6Tables:          true,
+				},
+				firewaller: fw,
+			}
+
 			// Disable IP Forwarding if enabled
 			_, err := configureIPForwarding(ipv4ForwardConf, '0')
 			assert.NilError(t, err)
 
 			// Set IP Forwarding
-			fw := &ffdTestFirewaller{}
-			err = setupIPv4Forwarding(fw, wantFFD)
+			err = d.setupIPv4Forwarding(context.Background())
 			assert.NilError(t, err)
 
 			// Check what the firewaller was told.
@@ -65,14 +75,24 @@ func TestSetupIP6Forwarding(t *testing.T) {
 
 	for _, wantFFD := range []bool{true, false} {
 		t.Run(fmt.Sprintf("wantFFD=%v", wantFFD), func(t *testing.T) {
+			fw := &ffdTestFirewaller{}
+			d := &driver{
+				config: configuration{
+					EnableIPForwarding:       true,
+					DisableFilterForwardDrop: !wantFFD,
+					EnableIPTables:           true,
+					EnableIP6Tables:          true,
+				},
+				firewaller: fw,
+			}
+
 			_, err := configureIPForwarding(ipv6ForwardConfDefault, '0')
 			assert.NilError(t, err)
 			_, err = configureIPForwarding(ipv6ForwardConfAll, '0')
 			assert.NilError(t, err)
 
 			// Set IP Forwarding
-			fw := &ffdTestFirewaller{}
-			err = setupIPv6Forwarding(fw, wantFFD)
+			err = d.setupIPv6Forwarding(context.Background())
 			assert.NilError(t, err)
 
 			// Check what the firewaller was told.

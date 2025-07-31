@@ -1337,8 +1337,8 @@ func TestCreateParallel(t *testing.T) {
 
 func useStubFirewaller(t *testing.T) {
 	origNewFirewaller := newFirewaller
-	newFirewaller = func(_ context.Context, config firewaller.Config) (firewaller.Firewaller, error) {
-		return firewaller.NewStubFirewaller(config), nil
+	newFirewaller = func(_ context.Context, config firewaller.Config) (firewaller.Firewaller, firewaller.FirewallCleaner, error) {
+		return firewaller.NewStubFirewaller(config), nil, nil
 	}
 	t.Cleanup(func() { newFirewaller = origNewFirewaller })
 }
