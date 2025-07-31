@@ -318,6 +318,15 @@ check_flags \
 	SECURITY_SELINUX \
 	SECURITY_APPARMOR
 
+check_flags \
+	NFT_CT \
+	NFT_FIB_IPV4 \
+	NFT_FIB_IPV6 \
+	NFT_FIB \
+	NFT_MASQ \
+	NFT_NAT \
+	NF_TABLES
+
 if ! is_set EXT4_USE_FOR_EXT2; then
 	check_flags EXT3_FS EXT3_FS_XATTR EXT3_FS_POSIX_ACL EXT3_FS_SECURITY
 	if ! is_set EXT3_FS || ! is_set EXT3_FS_XATTR || ! is_set EXT3_FS_POSIX_ACL || ! is_set EXT3_FS_SECURITY; then
