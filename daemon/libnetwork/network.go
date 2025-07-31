@@ -1217,12 +1217,10 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 		return nil, err
 	}
 
+	ep.ipamOptions = map[string]string{netlabel.EndpointName: name}
 	if capability.RequiresMACAddress {
 		if ep.iface.mac == nil {
 			ep.iface.mac = netutils.GenerateRandomMAC()
-		}
-		if ep.ipamOptions == nil {
-			ep.ipamOptions = make(map[string]string)
 		}
 		ep.ipamOptions[netlabel.MacAddress] = ep.iface.mac.String()
 	}

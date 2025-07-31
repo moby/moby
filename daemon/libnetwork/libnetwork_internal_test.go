@@ -362,6 +362,34 @@ func TestAuxAddresses(t *testing.T) {
 	}
 }
 
+func TestEndpointNameLabel(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "test causes sync issue with Windows HNS")
+	defer netnsutils.SetupTestOSContext(t)()
+
+	c, err := New(context.Background(), config.OptionDataDir(t.TempDir()))
+	assert.NilError(t, err)
+	defer c.Stop()
+
+	ipamOpt := NetworkOptionIpam(defaultipam.DriverName, "", []*IpamConf{{PreferredPool: "10.35.0.0/16", Gateway: "10.35.255.253"}}, nil, nil)
+	gnw, err := c.NewNetwork(context.Background(), "bridge", "label-test", "",
+		NetworkOptionEnableIPv4(true),
+		ipamOpt,
+	)
+	assert.NilError(t, err)
+	defer func() {
+		err := gnw.Delete()
+		assert.NilError(t, err)
+	}()
+
+	createOptions := CreateOptionIPAM(net.ParseIP("10.35.0.10"), nil, nil)
+	ep, err := gnw.CreateEndpoint(context.Background(), "ep1", createOptions)
+	assert.NilError(t, err)
+
+	assert.Check(t, is.Equal(ep.ipamOptions[netlabel.EndpointName], "ep1"), "got: %s; expected: ep1", ep.ipamOptions[netlabel.EndpointName])
+
+	defer ep.Delete(context.Background(), false) //nolint:errcheck
+}
+
 func TestUpdateSvcRecord(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "bridge driver and IPv6, only works on linux")
 
