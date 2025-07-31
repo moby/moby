@@ -122,26 +122,15 @@ func (p *JSONProgress) width() int {
 // the created time, where it from, status, ID of the
 // message. It's used for docker events.
 type JSONMessage struct {
-	Stream   string        `json:"stream,omitempty"`
-	Status   string        `json:"status,omitempty"`
-	Progress *JSONProgress `json:"progressDetail,omitempty"`
-
-	// ProgressMessage is a pre-formatted presentation of [Progress].
-	//
-	// Deprecated: this field is deprecated since docker v0.7.1 / API v1.8. Use the information in [Progress] instead. This field will be omitted in a future release.
-	ProgressMessage string            `json:"progress,omitempty"`
-	ID              string            `json:"id,omitempty"`
-	From            string            `json:"from,omitempty"`
-	Time            int64             `json:"time,omitempty"`
-	TimeNano        int64             `json:"timeNano,omitempty"`
-	Error           *jsonstream.Error `json:"errorDetail,omitempty"`
-
-	// ErrorMessage contains errors encountered during the operation.
-	//
-	// Deprecated: this field is deprecated since docker v0.6.0 / API v1.4. Use [Error.Message] instead. This field will be omitted in a future release.
-	ErrorMessage string `json:"error,omitempty"` // deprecated
-	// Aux contains out-of-band data, such as digests for push signing and image id after building.
-	Aux *json.RawMessage `json:"aux,omitempty"`
+	Stream   string            `json:"stream,omitempty"`
+	Status   string            `json:"status,omitempty"`
+	Progress *JSONProgress     `json:"progressDetail,omitempty"`
+	ID       string            `json:"id,omitempty"`
+	From     string            `json:"from,omitempty"`
+	Time     int64             `json:"time,omitempty"`
+	TimeNano int64             `json:"timeNano,omitempty"`
+	Error    *jsonstream.Error `json:"errorDetail,omitempty"`
+	Aux      *json.RawMessage  `json:"aux,omitempty"` // Aux contains out-of-band data, such as digests for push signing and image id after building.
 }
 
 // We can probably use [aec.EmptyBuilder] for managing the output, but
@@ -201,8 +190,6 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 	}
 	if jm.Progress != nil && isTerminal {
 		_, _ = fmt.Fprintf(out, "%s %s%s", jm.Status, jm.Progress.String(), endl)
-	} else if jm.ProgressMessage != "" { // deprecated
-		_, _ = fmt.Fprintf(out, "%s %s%s", jm.Status, jm.ProgressMessage, endl)
 	} else if jm.Stream != "" {
 		_, _ = fmt.Fprintf(out, "%s%s", jm.Stream, endl)
 	} else {
@@ -253,7 +240,7 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 		if jm.Progress != nil {
 			jm.Progress.terminalFd = terminalFd
 		}
-		if jm.ID != "" && (jm.Progress != nil || jm.ProgressMessage != "") {
+		if jm.ID != "" && jm.Progress != nil {
 			line, ok := ids[jm.ID]
 			if !ok {
 				// NOTE: This approach of using len(id) to
@@ -289,21 +276,4 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 		}
 	}
 	return nil
-}
-
-// Stream is an io.Writer for output with utilities to get the output's file
-// descriptor and to detect whether it's a terminal.
-//
-// it is subset of the streams.Out type in
-// https://pkg.go.dev/github.com/docker/cli@v20.10.17+incompatible/cli/streams#Out
-type Stream interface {
-	io.Writer
-	FD() uintptr
-	IsTerminal() bool
-}
-
-// DisplayJSONMessagesToStream prints json messages to the output Stream. It is
-// used by the Docker CLI to print JSONMessage streams.
-func DisplayJSONMessagesToStream(in io.Reader, stream Stream, auxCallback func(JSONMessage)) error {
-	return DisplayJSONMessagesStream(in, stream, stream.FD(), stream.IsTerminal(), auxCallback)
 }

@@ -162,14 +162,6 @@ func TestJSONMessageDisplay(t *testing.T) {
 			"stream",
 			"stream",
 		},
-		// With progress message
-		{
-			Status:          "status",
-			ProgressMessage: "progressMessage",
-		}: {
-			"status progressMessage",
-			"status progressMessage",
-		},
 		// With progress, stream empty
 		{
 			Status:   "status",
@@ -247,11 +239,6 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 		`{ "id": "ID","status": "status" }`: {
 			"ID: status\n",
 			"ID: status\n",
-		},
-		// With progress
-		`{ "id": "ID", "status": "status", "progress": "ProgressMessage" }`: {
-			"ID: status ProgressMessage",
-			fmt.Sprintf("\n%c[%dAID: status ProgressMessage%c[%dB", 27, 1, 27, 1),
 		},
 		// With progressDetail
 		`{ "id": "ID", "status": "status", "progressDetail": { "Current": 1} }`: {
