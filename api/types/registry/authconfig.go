@@ -52,9 +52,6 @@ type AuthConfig struct {
 //
 // [RFC4648, section 5]: https://tools.ietf.org/html/rfc4648#section-5
 func EncodeAuthConfig(authConfig AuthConfig) (string, error) {
-	if authConfig == (AuthConfig{}) {
-		return "", nil
-	}
 	buf, err := json.Marshal(authConfig)
 	if err != nil {
 		return "", errInvalidParameter{err}

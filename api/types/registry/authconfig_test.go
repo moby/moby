@@ -111,8 +111,8 @@ func TestEncodeAuthConfig(t *testing.T) {
 		{
 			doc:       "empty",
 			input:     AuthConfig{},
-			outBase64: ``,
-			outPlain:  ``,
+			outBase64: `e30=`,
+			outPlain:  `{}`,
 		},
 		{
 			doc: "test authConfig",
