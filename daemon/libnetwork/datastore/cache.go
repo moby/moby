@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	store "github.com/docker/docker/daemon/libnetwork/internal/kvstore"
+	store "github.com/moby/moby/v2/daemon/libnetwork/internal/kvstore"
 )
 
 type kvMap map[string]KVObject

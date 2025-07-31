@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/docker/docker/daemon/builder"
+	"github.com/moby/moby/v2/daemon/builder"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

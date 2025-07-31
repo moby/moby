@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/moby/moby/v2/pkg/plugingetter"
 	"gotest.tools/v3/assert"
 )
 

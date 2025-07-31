@@ -3,8 +3,8 @@ package service
 import (
 	"testing"
 
-	"github.com/docker/docker/integration/internal/swarm"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/v2/integration/internal/swarm"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"

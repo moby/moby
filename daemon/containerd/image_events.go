@@ -4,8 +4,8 @@ import (
 	"context"
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
-	"github.com/docker/docker/daemon/server/backend"
 	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/v2/daemon/server/backend"
 )
 
 // LogImageEvent generates an event related to an image with only the default attributes.

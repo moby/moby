@@ -3,7 +3,7 @@ package libnetwork
 import (
 	"context"
 
-	"github.com/docker/docker/daemon/libnetwork/osl"
+	"github.com/moby/moby/v2/daemon/libnetwork/osl"
 )
 
 func releaseOSSboxResources(*osl.Namespace, *Endpoint) {}

@@ -8,12 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/testutil/fixtures/load"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/v2/testutil/fixtures/load"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 )

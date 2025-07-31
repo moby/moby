@@ -1,6 +1,6 @@
 package daemon
 
-import "github.com/docker/docker/daemon/config"
+import "github.com/moby/moby/v2/daemon/config"
 
 // reloadPlatform updates configuration with platform specific options
 // and updates the passed attributes

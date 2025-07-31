@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 // CheckOS checks if the given OS matches the host's platform, and

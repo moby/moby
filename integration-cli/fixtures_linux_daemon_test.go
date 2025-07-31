@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/testutil/fixtures/load"
+	"github.com/moby/moby/v2/integration-cli/cli"
+	"github.com/moby/moby/v2/testutil/fixtures/load"
 	"gotest.tools/v3/assert"
 )
 

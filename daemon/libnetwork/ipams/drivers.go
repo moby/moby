@@ -1,13 +1,13 @@
 package ipams
 
 import (
-	"github.com/docker/docker/daemon/libnetwork/ipamapi"
-	"github.com/docker/docker/daemon/libnetwork/ipams/defaultipam"
-	"github.com/docker/docker/daemon/libnetwork/ipams/null"
-	remoteIpam "github.com/docker/docker/daemon/libnetwork/ipams/remote"
-	"github.com/docker/docker/daemon/libnetwork/ipams/windowsipam"
-	"github.com/docker/docker/daemon/libnetwork/ipamutils"
-	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/ipams/defaultipam"
+	"github.com/moby/moby/v2/daemon/libnetwork/ipams/null"
+	remoteIpam "github.com/moby/moby/v2/daemon/libnetwork/ipams/remote"
+	"github.com/moby/moby/v2/daemon/libnetwork/ipams/windowsipam"
+	"github.com/moby/moby/v2/daemon/libnetwork/ipamutils"
+	"github.com/moby/moby/v2/pkg/plugingetter"
 )
 
 // Register registers all the builtin drivers (ie. default, windowsipam, null

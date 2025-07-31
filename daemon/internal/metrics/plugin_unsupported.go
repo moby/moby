@@ -3,8 +3,8 @@
 package metrics
 
 import (
-	"github.com/docker/docker/daemon/pkg/plugin"
-	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/moby/moby/v2/daemon/pkg/plugin"
+	"github.com/moby/moby/v2/pkg/plugingetter"
 )
 
 func RegisterPlugin(*plugin.Store, string) error { return nil }

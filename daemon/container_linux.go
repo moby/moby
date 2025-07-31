@@ -3,8 +3,8 @@
 package daemon
 
 import (
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 func (daemon *Daemon) saveAppArmorConfig(container *container.Container) error {

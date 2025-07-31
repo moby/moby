@@ -9,9 +9,9 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/docker/docker/daemon/server/httputils"
 	gddohttputil "github.com/golang/gddo/httputil"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/daemon/server/httputils"
 )
 
 // setContainerPathStatHeader encodes the stat to JSON, base64 encode, and place in a header.

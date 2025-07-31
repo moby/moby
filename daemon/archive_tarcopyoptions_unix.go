@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/daemon/container"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/go-archive"
+	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/sys/user"
 )
 

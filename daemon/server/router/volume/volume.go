@@ -1,6 +1,6 @@
 package volume
 
-import "github.com/docker/docker/daemon/server/router"
+import "github.com/moby/moby/v2/daemon/server/router"
 
 // volumeRouter is a router to talk with the volumes controller
 type volumeRouter struct {

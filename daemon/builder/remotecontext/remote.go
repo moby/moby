@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/docker/docker/daemon/internal/lazyregexp"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
+	"github.com/moby/moby/v2/errdefs"
+	"github.com/moby/moby/v2/pkg/ioutils"
 	"github.com/pkg/errors"
 )
 

@@ -9,8 +9,8 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/driverapi"
-	"github.com/docker/docker/daemon/libnetwork/scope"
+	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 )
 
 const (

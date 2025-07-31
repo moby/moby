@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/options"
+	"github.com/moby/moby/v2/daemon/libnetwork/options"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

@@ -13,8 +13,8 @@ import (
 
 	statsV1 "github.com/containerd/cgroups/v3/cgroup1/stats"
 	statsV2 "github.com/containerd/cgroups/v3/cgroup2/stats"
-	"github.com/docker/docker/daemon/container"
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/daemon/container"
 	"github.com/pkg/errors"
 )
 

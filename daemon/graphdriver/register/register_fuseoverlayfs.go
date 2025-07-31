@@ -4,5 +4,5 @@ package register
 
 import (
 	// register the fuse-overlayfs graphdriver
-	_ "github.com/docker/docker/daemon/graphdriver/fuse-overlayfs"
+	_ "github.com/moby/moby/v2/daemon/graphdriver/fuse-overlayfs"
 )

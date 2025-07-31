@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/internal/rootless"
+	"github.com/moby/moby/v2/daemon/internal/rootless"
 )
 
 // Action signifies the iptable action.

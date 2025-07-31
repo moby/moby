@@ -3,10 +3,10 @@ package convert
 import (
 	"strings"
 
-	"github.com/docker/docker/daemon/libnetwork/scope"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/network"
 	types "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
 

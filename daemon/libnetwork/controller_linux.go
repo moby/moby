@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/internal/nftables"
-	"github.com/docker/docker/daemon/libnetwork/iptables"
-	"github.com/docker/docker/daemon/libnetwork/netlabel"
-	"github.com/docker/docker/daemon/libnetwork/options"
-	"github.com/docker/docker/daemon/libnetwork/osl"
 	"github.com/moby/moby/api/types/system"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
+	"github.com/moby/moby/v2/daemon/libnetwork/iptables"
+	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
+	"github.com/moby/moby/v2/daemon/libnetwork/options"
+	"github.com/moby/moby/v2/daemon/libnetwork/osl"
 )
 
 // FirewallBackend returns the name of the firewall backend for "docker info".

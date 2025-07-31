@@ -6,7 +6,7 @@ import (
 	"io"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/pkg/errors"
 )
 

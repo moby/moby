@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/docker/docker/daemon/server/backend"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/events"
@@ -12,6 +11,7 @@ import (
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/system"
+	"github.com/moby/moby/v2/daemon/server/backend"
 )
 
 // Backend is the methods that need to be implemented to provide

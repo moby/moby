@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/container"
 	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/v2/daemon/container"
 )
 
 // ContainerUnpause unpauses a container

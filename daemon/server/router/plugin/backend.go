@@ -6,11 +6,11 @@ import (
 	"net/http"
 
 	"github.com/distribution/reference"
-	"github.com/docker/docker/daemon/pkg/plugin"
-	"github.com/docker/docker/daemon/server/backend"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/v2/daemon/pkg/plugin"
+	"github.com/moby/moby/v2/daemon/server/backend"
 )
 
 // Backend for Plugin

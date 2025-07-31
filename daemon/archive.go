@@ -5,8 +5,8 @@ import (
 	"os"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/errdefs"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 // ContainerStatPath stats the filesystem resource at the specified path in the

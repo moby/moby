@@ -12,10 +12,10 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/etchosts"
-	"github.com/docker/docker/daemon/libnetwork/internal/resolvconf"
-	"github.com/docker/docker/daemon/libnetwork/types"
-	"github.com/docker/docker/errdefs"
+	"github.com/moby/moby/v2/daemon/libnetwork/etchosts"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/resolvconf"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 )

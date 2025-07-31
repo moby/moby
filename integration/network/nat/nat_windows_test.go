@@ -3,7 +3,7 @@ package nat
 import (
 	"testing"
 
-	"github.com/docker/docker/integration/internal/network"
+	"github.com/moby/moby/v2/integration/internal/network"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

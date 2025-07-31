@@ -3,7 +3,7 @@ package null
 import (
 	"testing"
 
-	"github.com/docker/docker/daemon/libnetwork/ipamapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

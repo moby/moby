@@ -5,9 +5,9 @@ import (
 	"os"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/builder"
-	"github.com/docker/docker/daemon/builder/remotecontext/git"
 	"github.com/moby/go-archive"
+	"github.com/moby/moby/v2/daemon/builder"
+	"github.com/moby/moby/v2/daemon/builder/remotecontext/git"
 )
 
 // MakeGitContext returns a Context from gitURL that is cloned in a temporary directory.

@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/internal/libcontainerd"
+	"github.com/moby/moby/v2/daemon/config"
+	"github.com/moby/moby/v2/daemon/internal/libcontainerd"
 	"golang.org/x/sys/windows"
 )
 

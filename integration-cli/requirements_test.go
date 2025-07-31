@@ -14,11 +14,11 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/v2/plugins"
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/testutil/registry"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/v2/integration-cli/cli"
+	"github.com/moby/moby/v2/testutil/registry"
 )
 
 func DaemonIsWindows() bool {

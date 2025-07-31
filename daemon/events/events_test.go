@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	eventstestutils "github.com/docker/docker/daemon/events/testutils"
 	"github.com/moby/moby/api/types/events"
 	timetypes "github.com/moby/moby/api/types/time"
+	eventstestutils "github.com/moby/moby/v2/daemon/events/testutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

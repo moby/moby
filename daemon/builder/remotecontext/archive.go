@@ -5,11 +5,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/daemon/builder"
-	"github.com/docker/docker/daemon/builder/remotecontext/internal/tarsum"
-	"github.com/docker/docker/pkg/longpath"
 	"github.com/moby/go-archive/chrootarchive"
 	"github.com/moby/go-archive/compression"
+	"github.com/moby/moby/v2/daemon/builder"
+	"github.com/moby/moby/v2/daemon/builder/remotecontext/internal/tarsum"
+	"github.com/moby/moby/v2/pkg/longpath"
 	"github.com/moby/sys/symlink"
 	"github.com/pkg/errors"
 )

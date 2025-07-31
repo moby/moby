@@ -5,7 +5,7 @@ package daemon
 import (
 	"context"
 
-	"github.com/docker/docker/daemon/container"
+	"github.com/moby/moby/v2/daemon/container"
 )
 
 // getLibcontainerdCreateOptions callers must hold a lock on the container

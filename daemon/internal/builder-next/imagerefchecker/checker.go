@@ -3,9 +3,9 @@ package imagerefchecker
 import (
 	"sync"
 
-	"github.com/docker/docker/daemon/internal/image"
-	"github.com/docker/docker/daemon/internal/layer"
 	"github.com/moby/buildkit/cache"
+	"github.com/moby/moby/v2/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/opencontainers/go-digest"
 )
 

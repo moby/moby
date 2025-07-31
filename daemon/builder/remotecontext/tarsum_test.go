@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/daemon/builder"
 	"github.com/moby/go-archive"
+	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/sys/reexec"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/skip"

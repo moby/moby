@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/internal/unix_noeintr"
+	"github.com/moby/moby/v2/daemon/internal/unix_noeintr"
 	"golang.org/x/sys/unix"
 )
 

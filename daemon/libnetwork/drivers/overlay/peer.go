@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/netip"
 
-	"github.com/docker/docker/daemon/libnetwork/internal/hashable"
 	"github.com/gogo/protobuf/proto"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/hashable"
 )
 
 // OverlayPeerTable is the NetworkDB table for overlay network peer discovery.

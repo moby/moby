@@ -8,10 +8,10 @@ import (
 	"net/url"
 	"sort"
 
-	"github.com/docker/docker/daemon/server/backend"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/pkg/ioutils"
 )
 
 // rfc3339NanoFixed is time.RFC3339Nano with nanoseconds padded using zeros to

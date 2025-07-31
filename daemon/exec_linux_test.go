@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/containerd/containerd/v2/pkg/apparmor"
-	"github.com/docker/docker/daemon/container"
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/daemon/container"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"gotest.tools/v3/assert"
 )

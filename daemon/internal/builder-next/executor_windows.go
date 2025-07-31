@@ -7,13 +7,13 @@ import (
 
 	ctd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/containerdexecutor"
 	"github.com/moby/buildkit/executor/oci"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/network"
+	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )

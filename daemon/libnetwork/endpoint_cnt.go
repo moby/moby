@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/docker/docker/daemon/libnetwork/datastore"
+	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
 )
 
 // endpointCnt was used to refcount network-endpoint relationships. It's

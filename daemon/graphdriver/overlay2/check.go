@@ -10,8 +10,8 @@ import (
 	"syscall"
 
 	"github.com/containerd/containerd/v2/core/mount"
-	"github.com/docker/docker/daemon/graphdriver/overlayutils"
-	"github.com/docker/docker/daemon/internal/system"
+	"github.com/moby/moby/v2/daemon/graphdriver/overlayutils"
+	"github.com/moby/moby/v2/daemon/internal/system"
 	"github.com/moby/sys/userns"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"

@@ -1,6 +1,6 @@
 package session
 
-import "github.com/docker/docker/daemon/server/router"
+import "github.com/moby/moby/v2/daemon/server/router"
 
 // sessionRouter is a router to talk with the session controller
 type sessionRouter struct {

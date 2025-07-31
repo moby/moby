@@ -9,8 +9,8 @@ import (
 	"strconv"
 
 	"github.com/containerd/log"
-	"github.com/docker/docker/daemon/libnetwork/iptables"
-	"github.com/docker/docker/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/daemon/libnetwork/iptables"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 func (n *network) AddPorts(ctx context.Context, pbs []types.PortBinding) error {
