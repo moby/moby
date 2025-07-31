@@ -3,7 +3,6 @@ package container
 import (
 	"time"
 
-	"github.com/docker/go-connections/nat"
 	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/moby/api/types/strslice"
 )
@@ -48,7 +47,7 @@ type Config struct {
 	AttachStdin     bool                // Attach the standard input, makes possible user interaction
 	AttachStdout    bool                // Attach the standard output
 	AttachStderr    bool                // Attach the standard error
-	ExposedPorts    nat.PortSet         `json:",omitempty"` // List of exposed ports
+	ExposedPorts    PortSet             `json:",omitempty"` // List of exposed ports
 	Tty             bool                // Attach standard streams to a tty, including stdin if it is not closed.
 	OpenStdin       bool                // Open stdin
 	StdinOnce       bool                // If true, close stdin after the 1 attached client disconnects.
