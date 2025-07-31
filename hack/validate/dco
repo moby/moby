@@ -46,8 +46,8 @@ else
 			echo
 			echo 'Please amend each commit to include a properly formatted DCO marker.'
 			echo
-			echo 'Visit the following URL for information about the Docker DCO:'
-			echo ' https://github.com/docker/docker/blob/master/CONTRIBUTING.md#sign-your-work'
+			echo 'Visit the following URL for information about the DCO:'
+			echo ' https://github.com/moby/moby/blob/master/CONTRIBUTING.md#sign-your-work'
 			echo
 		} >&2
 		false

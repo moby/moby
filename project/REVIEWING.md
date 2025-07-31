@@ -128,9 +128,9 @@ completeness, validity, and breadth of coverage across all existing and new docu
 They should ask for any editorial change that makes the documentation more consistent and easier to
 understand.
 
-The docker/docker repository only contains _reference documentation_, all
+The moby/moby repository only contains _reference documentation_, all
 "narrative" documentation is kept in a [unified documentation
-repository](https://github.com/docker/docker.github.io). Reviewers must
+repository](https://github.com/docker/docs). Reviewers must
 therefore verify which parts of the documentation need to be updated. Any
 contribution that may require changing the narrative should get the
 `impact/documentation` label: this is the signal for documentation maintainers
