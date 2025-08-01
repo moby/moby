@@ -9,8 +9,8 @@ type Runtime struct {
 
 	// Shimv2 runtime configuration. Mutually exclusive with the legacy config above.
 
-	Type    string                 `json:"runtimeType,omitempty"`
-	Options map[string]interface{} `json:"options,omitempty"`
+	Type    string         `json:"runtimeType,omitempty"`
+	Options map[string]any `json:"options,omitempty"`
 }
 
 // RuntimeWithStatus extends [Runtime] to hold [RuntimeStatus].
