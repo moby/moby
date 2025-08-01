@@ -359,9 +359,9 @@ func newIndexInfo(config *serviceConfig, indexName string) *registry.IndexInfo {
 	}
 }
 
-// GetAuthConfigKey special-cases using the full index address of the official
+// getAuthConfigKey special-cases using the full index address of the official
 // index as the AuthConfig key, and uses the (host)name[:port] for private indexes.
-func GetAuthConfigKey(index *registry.IndexInfo) string {
+func getAuthConfigKey(index *registry.IndexInfo) string {
 	if index.Official {
 		return IndexServer
 	}
