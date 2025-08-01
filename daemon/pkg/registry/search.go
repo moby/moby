@@ -129,7 +129,7 @@ func (s *Service) searchUnfiltered(ctx context.Context, term string, limit int, 
 		}
 	}
 
-	return newSession(client, endpoint).searchRepositories(ctx, remoteName, limit)
+	return searchRepositories(ctx, client, endpoint, remoteName, limit)
 }
 
 // splitReposSearchTerm breaks a search term into an index name and remote name

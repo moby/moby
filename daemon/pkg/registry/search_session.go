@@ -19,12 +19,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// A session is used to communicate with a V1 registry
-type session struct {
-	indexEndpoint *v1Endpoint
-	client        *http.Client
-}
-
 type authTransport struct {
 	base       http.RoundTripper
 	authConfig *registry.AuthConfig
@@ -202,25 +196,18 @@ func authorizeClient(ctx context.Context, client *http.Client, authConfig *regis
 	return nil
 }
 
-func newSession(client *http.Client, endpoint *v1Endpoint) *session {
-	return &session{
-		client:        client,
-		indexEndpoint: endpoint,
-	}
-}
-
 // defaultSearchLimit is the default value for maximum number of returned search results.
 const defaultSearchLimit = 25
 
 // searchRepositories performs a search against the remote repository
-func (r *session) searchRepositories(ctx context.Context, term string, limit int) (*registry.SearchResults, error) {
+func searchRepositories(ctx context.Context, client *http.Client, ep *v1Endpoint, term string, limit int) (*registry.SearchResults, error) {
 	if limit == 0 {
 		limit = defaultSearchLimit
 	}
 	if limit < 1 || limit > 100 {
 		return nil, invalidParamf("limit %d is outside the range of [1, 100]", limit)
 	}
-	u := r.indexEndpoint.String() + "search?q=" + url.QueryEscape(term) + "&n=" + url.QueryEscape(strconv.Itoa(limit))
+	u := ep.String() + "search?q=" + url.QueryEscape(term) + "&n=" + url.QueryEscape(strconv.Itoa(limit))
 	log.G(ctx).WithField("url", u).Debug("searchRepositories")
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, http.NoBody)
@@ -229,7 +216,7 @@ func (r *session) searchRepositories(ctx context.Context, term string, limit int
 	}
 	// Have the AuthTransport send authentication, when logged in.
 	req.Header.Set("X-Docker-Token", "true")
-	res, err := r.client.Do(req)
+	res, err := client.Do(req)
 	if err != nil {
 		return nil, systemErr{err}
 	}

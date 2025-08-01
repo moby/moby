@@ -15,13 +15,13 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func spawnTestRegistrySession(t *testing.T) *session {
+func spawnTestRegistrySession(t *testing.T) (*http.Client, *v1Endpoint) {
 	t.Helper()
-	authConfig := &registry.AuthConfig{}
 	endpoint, err := newV1Endpoint(context.Background(), makeIndex("/v1/"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	authConfig := &registry.AuthConfig{}
 	userAgent := "docker test client"
 	var tr http.RoundTripper = debugTransport{newTransport(nil), t.Log}
 	tr = transport.NewTransport(newAuthTransport(tr, authConfig, false), Headers(userAgent, nil)...)
@@ -30,8 +30,6 @@ func spawnTestRegistrySession(t *testing.T) *session {
 	if err := authorizeClient(context.Background(), client, authConfig, endpoint); err != nil {
 		t.Fatal(err)
 	}
-	r := newSession(client, endpoint)
-
 	// In a normal scenario for the v1 registry, the client should send a `X-Docker-Token: true`
 	// header while authenticating, in order to retrieve a token that can be later used to
 	// perform authenticated actions.
@@ -42,8 +40,8 @@ func spawnTestRegistrySession(t *testing.T) *session {
 	// Because we know that the client's transport is an `*authTransport` we simply cast it,
 	// in order to set the internal cached token to the fake token, and thus send that fake token
 	// upon every subsequent requests.
-	r.client.Transport.(*authTransport).token = []string{"fake-token"}
-	return r
+	client.Transport.(*authTransport).token = []string{"fake-token"}
+	return client, endpoint
 }
 
 type debugTransport struct {
@@ -70,8 +68,8 @@ func (tr debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func TestSearchRepositories(t *testing.T) {
-	r := spawnTestRegistrySession(t)
-	results, err := r.searchRepositories(context.Background(), "fakequery", 25)
+	client, ep := spawnTestRegistrySession(t)
+	results, err := searchRepositories(context.Background(), client, ep, "fakequery", 25)
 	if err != nil {
 		t.Fatal(err)
 	}
