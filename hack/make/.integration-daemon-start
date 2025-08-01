@@ -40,7 +40,7 @@ fi
 # intentionally open a couple bogus file descriptors to help test that they get scrubbed in containers
 exec 41>&1 42>&2
 
-export DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
+export DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-native}
 export DOCKER_USERLANDPROXY=${DOCKER_USERLANDPROXY:-true}
 
 # example usage: DOCKER_STORAGE_OPTS="dm.basesize=20G,dm.loopdatasize=200G"
