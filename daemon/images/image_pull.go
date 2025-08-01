@@ -42,7 +42,7 @@ func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, platf
 		img, err := i.GetImage(ctx, ref.String(), backend.GetImageOpts{Platform: platform})
 
 		// Note that this is a special case where GetImage returns both an image
-		// and an error: https://github.com/docker/docker/blob/v20.10.7/daemon/images/image.go#L175-L183
+		// and an error: https://github.com/moby/moby/blob/v28.3.3/daemon/images/image.go#L186-L193
 		if cerrdefs.IsNotFound(err) && img != nil {
 			po := streamformatter.NewJSONProgressOutput(outStream, false)
 			progress.Messagef(po, "", `WARNING: %s`, err.Error())

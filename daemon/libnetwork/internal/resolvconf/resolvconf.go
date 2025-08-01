@@ -522,7 +522,7 @@ func removeInvalidNDots(options []string) []string {
 	return options[:n]
 }
 
-// systemError implements [github.com/docker/docker/errdefs.ErrSystem].
+// systemError implements [github.com/moby/moby/v2/errdefs.ErrSystem].
 type systemError struct{ error }
 
 func (systemError) System() {}
