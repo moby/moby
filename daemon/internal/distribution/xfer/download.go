@@ -200,7 +200,6 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, layers []Download
 		topDownload.transfer.release(xferWatcher)
 		return rootFS, func() {}, ctx.Err()
 	case <-topDownload.done():
-		break
 	}
 
 	l, err := topDownload.result()
