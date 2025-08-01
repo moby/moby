@@ -810,22 +810,6 @@ func (s *DockerAPISuite) TestCreateWithTooLowMemoryLimit(c *testing.T) {
 	assert.Assert(c, is.Contains(string(b), "Minimum memory limit allowed is 6MB"))
 }
 
-func (s *DockerAPISuite) TestContainerAPIRename(c *testing.T) {
-	out := cli.DockerCmd(c, "run", "--name", "TestContainerAPIRename", "-d", "busybox", "sh").Stdout()
-	containerID := strings.TrimSpace(out)
-	const newName = "TestContainerAPIRenameNew"
-
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
-	err = apiClient.ContainerRename(testutil.GetContext(c), containerID, newName)
-	assert.NilError(c, err)
-
-	name := inspectField(c, containerID, "Name")
-	assert.Equal(c, name, "/"+newName, "Failed to rename container")
-}
-
 func (s *DockerAPISuite) TestContainerAPIKill(c *testing.T) {
 	const name = "test-api-kill"
 	runSleepingContainer(c, "-i", "--name", name)
