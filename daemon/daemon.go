@@ -1172,6 +1172,15 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	if err := d.restore(cfgStore); err != nil {
 		return nil, err
 	}
+
+	// TODO(austinvazquez): Remove this workaround to cleanup leaked leases on startup
+	// once the container startup logic has been refactored to use container metadata
+	// for referencing snapshots.
+	// See https://github.com/moby/moby/issues/50508
+	if err := d.containerd.CleanupUnusedLeases(ctx); err != nil {
+		log.G(ctx).WithError(err).Debug("Failed to cleanup unused leases on startup")
+	}
+
 	close(d.startupDone)
 
 	info, err := d.SystemInfo(ctx)
