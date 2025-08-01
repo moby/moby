@@ -20,7 +20,7 @@ import (
 
 type staticRoute struct {
 	Destination *net.IPNet
-	RouteType   int
+	RouteType   types.RouteType
 	NextHop     net.IP
 }
 

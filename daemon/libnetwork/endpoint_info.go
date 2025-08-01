@@ -300,7 +300,7 @@ func (ep *Endpoint) InterfaceName() driverapi.InterfaceNameInfo {
 
 // AddStaticRoute adds a route to the sandbox.
 // It may be used in addition to or instead of a default gateway (as above).
-func (ep *Endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP) error {
+func (ep *Endpoint) AddStaticRoute(destination *net.IPNet, routeType types.RouteType, nextHop net.IP) error {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 	if routeType == types.NEXTHOP {

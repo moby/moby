@@ -772,7 +772,7 @@ func (te *testEndpoint) SetGatewayIPv6(gw6 net.IP) error {
 	return nil
 }
 
-func (te *testEndpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP) error {
+func (te *testEndpoint) AddStaticRoute(destination *net.IPNet, routeType types.RouteType, nextHop net.IP) error {
 	te.routes = append(te.routes, types.StaticRoute{Destination: destination, RouteType: routeType, NextHop: nextHop})
 	return nil
 }
