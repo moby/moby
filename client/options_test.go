@@ -49,7 +49,7 @@ func TestOptionWithVersionFromEnv(t *testing.T) {
 	c, err := NewClientWithOpts(WithVersionFromEnv())
 	assert.NilError(t, err)
 	assert.Check(t, c.client != nil)
-	assert.Check(t, is.Equal(c.version, DefaultAPIVersion))
+	assert.Check(t, is.Equal(c.version, MaxAPIVersion))
 	assert.Check(t, is.Equal(c.manualOverride, false))
 
 	t.Setenv("DOCKER_API_VERSION", "2.9999")

@@ -197,7 +197,7 @@ func WithTLSClientConfigFromEnv() Opt {
 //
 // WithVersion does not validate if the client supports the given version,
 // and callers should verify if the version is in the correct format and
-// lower than the maximum supported version as defined by [DefaultAPIVersion].
+// lower than the maximum supported version as defined by [MaxAPIVersion].
 func WithVersion(version string) Opt {
 	return func(c *Client) error {
 		if v := strings.TrimPrefix(version, "v"); v != "" {
@@ -215,7 +215,7 @@ func WithVersion(version string) Opt {
 //
 // WithVersion does not validate if the client supports the given version,
 // and callers should verify if the version is in the correct format and
-// lower than the maximum supported version as defined by [DefaultAPIVersion].
+// lower than the maximum supported version as defined by [MaxAPIVersion].
 func WithVersionFromEnv() Opt {
 	return func(c *Client) error {
 		return WithVersion(os.Getenv(EnvOverrideAPIVersion))(c)
