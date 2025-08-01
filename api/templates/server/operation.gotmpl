@@ -18,6 +18,7 @@ import (
 
 {{ range .ExtraSchemas }}
 // {{ .Name }} {{ comment .Description }}
+//
 // swagger:model {{ .Name }}
-{{ template "schema" . }}
-{{ end }}
+  {{- template "schema" . }}
+{{- end }}

@@ -12,6 +12,7 @@ import (
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/events"
+	pluginapi "github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/pkg/plugin"
@@ -144,7 +145,7 @@ func makePluginBundle(inPath string, opts ...CreateOpt) (io.ReadCloser, error) {
 	p := &types.PluginConfig{
 		Interface: types.PluginConfigInterface{
 			Socket: "basic.sock",
-			Types:  []types.PluginInterfaceType{{Capability: "docker.dummy/1.0"}},
+			Types:  []pluginapi.CapabilityID{{Prefix: "docker", Capability: "dummy", Version: "1.0"}},
 		},
 		Entrypoint: []string{"/basic"},
 	}

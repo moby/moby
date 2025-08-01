@@ -81,26 +81,14 @@ FROM distribution/distribution:$REGISTRY_VERSION AS registry
 RUN mkdir /build && mv /bin/registry /build/registry
 
 # go-swagger
-FROM base AS swagger-src
-WORKDIR /usr/src/swagger
-# Currently uses a fork from https://github.com/kolyshkin/go-swagger/tree/golang-1.13-fix
-# TODO: move to under moby/ or fix upstream go-swagger to work for us.
-RUN git init . && git remote add origin "https://github.com/kolyshkin/go-swagger.git"
-# GO_SWAGGER_COMMIT specifies the version of the go-swagger binary to build and
-# install. Go-swagger is used in CI for validating swagger.yaml in hack/validate/swagger-gen
-ARG GO_SWAGGER_COMMIT=c56166c036004ba7a3a321e5951ba472b9ae298c
-RUN git fetch -q --depth 1 origin "${GO_SWAGGER_COMMIT}" && git checkout -q FETCH_HEAD
-
 FROM base AS swagger
 WORKDIR /go/src/github.com/go-swagger/go-swagger
 ARG TARGETPLATFORM
-ENV GO111MODULE=off
-RUN --mount=from=swagger-src,src=/usr/src/swagger,rw \
-    --mount=type=cache,target=/root/.cache/go-build,id=swagger-build-$TARGETPLATFORM \
+RUN --mount=type=cache,target=/root/.cache/go-build,id=swagger-build-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=tmpfs,target=/go/src/ <<EOT
   set -e
-  xx-go build -o /build/swagger ./cmd/swagger
+  GOBIN=/build xx-go install github.com/go-swagger/go-swagger/cmd/swagger@v0.32.3
   xx-verify /build/swagger
 EOT
 

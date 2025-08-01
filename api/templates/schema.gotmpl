@@ -1,0 +1,133 @@
+{{- if and .IsBaseType .IsExported (not .IsSuperAlias) }}
+  {{- template "schemaPolymorphic" . }}
+{{- else if .IsSuperAlias }}
+  type {{ pascalize .Name }} {{ template "typeSchemaType" . }}{{/* For types declared as $ref on some other type, just declare the type as a golang _aliased_ type, e.g. type A = B. No method shall be redeclared.  */}}
+  {{- if .IsBaseType }}
+    {{ template "baseTypeSerializer" . }}{{/* When the alias redeclares a polymorphic type, define factory methods with this alias. */}}
+  {{- end }}
+{{- else if .IsEmbedded }}
+  {{- template "schemaEmbedded" . }}
+{{- else }}
+  {{- if or .IsComplexObject .IsTuple .IsAdditionalProperties }}{{/* TODO(fred): handle case of subtype inheriting from base type with AdditionalProperties, issue #2220 */}}
+      {{ if .Name }}type {{ if not .IsExported }}{{ .Name }}{{ else }}{{ pascalize .Name }}{{ end }}{{ end }} {{ template "schemaBody" . }}
+    {{- range .Properties }}
+      {{- if .IsBaseType }}
+        // {{ pascalize .Name}} gets the {{ humanize .Name }} of this base type{{/* all properties which are of a base type propagate its interface */}}
+        func ({{ $.ReceiverName}} *{{ pascalize $.Name}}) {{ pascalize .Name}}() {{ template "schemaType" . }}{
+          {{- if eq $.DiscriminatorField .Name }}
+            return {{ printf "%q" $.DiscriminatorValue }}
+          {{- else }}
+            return {{ $.ReceiverName }}.{{camelize .Name}}Field
+          {{- end }}
+        }
+
+        // Set{{ pascalize .Name}} sets the {{ humanize .Name }} of this base type
+        func ({{ $.ReceiverName}} *{{ pascalize $.Name}}) Set{{ pascalize .Name}}(val {{ template "schemaType" . }}) {
+          {{- if ne $.DiscriminatorField .Name }}
+            {{ $.ReceiverName }}.{{camelize .Name}}Field = val
+          {{- end }}
+        }
+      {{- end }}
+    {{- end }}
+    {{- if .Default }}{{/* TODO(fred) - issue #2189 */}}
+      func ({{.ReceiverName}} *{{ pascalize .Name }}) UnmarshalJSON(b []byte) error {
+        type {{ pascalize .Name }}Alias {{ pascalize .Name }}
+        var t {{ pascalize .Name }}Alias
+        if err := json.Unmarshal([]byte({{printf "%q" (json .Default)}}), &t); err != nil {
+          return err
+        }
+        if err := json.Unmarshal(b, &t); err != nil {
+          return err
+        }
+        *{{.ReceiverName}} = {{ pascalize .Name }}(t)
+        return nil
+      }
+    {{- end }}
+  {{- else }}
+    type {{ pascalize .Name }} {{ template "typeSchemaType" . }}
+  {{- end }}
+  {{- if (and .IsPrimitive .IsAliased .IsCustomFormatter (not (stringContains .Zero "(\""))) }}
+    {{ template "aliasedSerializer" . }}
+  {{- end }}
+  {{- if .IsSubType }}
+    {{ range .AllOf }}
+      {{ range .Properties }}
+        {{- if .IsBaseType }}
+
+        // {{ pascalize .Name}} gets the {{ humanize .Name }} of this subtype
+        func ({{$.ReceiverName}} *{{ pascalize $.Name}}) {{ pascalize .Name}}() {{ template "schemaType" . }}{
+          {{- if eq $.DiscriminatorField .Name }}
+            return {{ printf "%q" $.DiscriminatorValue }}
+          {{- else }}
+            return {{ $.ReceiverName }}.{{camelize .Name}}Field
+          {{- end }}
+        }
+
+        // Set{{ pascalize .Name}} sets the {{ humanize .Name }} of this subtype
+        func ({{$.ReceiverName}} *{{ pascalize $.Name}}) Set{{ pascalize .Name}}(val {{ template "schemaType" . }}) {
+          {{- if ne $.DiscriminatorField .Name }}
+            {{ $.ReceiverName }}.{{camelize .Name}}Field = val
+          {{- end }}
+        }
+        {{- end }}
+      {{- end }}{{/* TODO(fred): handle AdditionalProperties in base type */}}
+    {{- end }}
+    {{ template "mapOrSliceGetter" . }}
+  {{- end }}
+  {{ template "schemaSerializer" . }}
+{{- end }}
+{{- if and .IncludeValidator (not .IsSuperAlias) (not .IsEmbedded) }}{{/* aliased types type A = B do not redefine methods */}}
+  {{- if and (not (or .IsInterface .IsStream)) (or .Required .HasValidations .HasBaseType) }}
+    {{- if (eq .SwaggerType "string") }}{{/* Enum factory for enums for which we generate const (atm, only strings)*/}}
+      {{- if .Enum }}
+
+func New{{ pascalize .Name }}(value {{ .GoType }}) *{{ .GoType }} {
+  return &value
+}
+
+// Pointer returns a pointer to a freshly-allocated {{ .GoType }}.
+func ({{ .ReceiverName }} {{ .GoType }}) Pointer() *{{ .GoType }} {
+  return &{{ .ReceiverName }}
+}
+      {{- end }}
+    {{- end }}
+    {{ if false }}{{ template "schemavalidator" . }}{{ end }}
+  {{- else if and false not (or .IsInterface .IsStream) }}
+// Validate validates this {{ humanize .Name }}{{/* this schema implements the runtime.Validatable interface but has no validations to check */}}
+func ({{.ReceiverName}} {{ if or .IsTuple .IsComplexObject .IsAdditionalProperties }}*{{ end }}{{ if or (not .IsExported) .Discriminates }}{{ camelize .Name }}{{ else }}{{ pascalize .Name }}{{ end }}) Validate(formats strfmt.Registry) error {
+  return nil
+}
+  {{- else }}{{/* {{ .Name }} does not implement the runtime.Validatable interface: noop */}}
+  {{- end }}
+{{- if false }}
+  {{- if and (not (or .IsInterface .IsStream)) (or .HasContextValidations) }}
+    {{ template "schemacontextvalidator" . }}
+  {{- else if not (or .IsInterface .IsStream) }}
+// ContextValidate validates this {{ humanize .Name }} based on context it is used {{/* this schema implements the runtime.ContextValidatable interface but has no validations to check */}}
+func ({{.ReceiverName}} {{ if or .IsTuple .IsComplexObject .IsAdditionalProperties }}*{{ end }}{{ if or (not .IsExported) .Discriminates }}{{ camelize .Name }}{{ else }}{{ pascalize .Name }}{{ end }}) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+  return nil
+}
+  {{- else }}{{/* {{ .Name }} does not implement the runtime.Validatable interface: noop */}}
+  {{- end }}
+{{- end }}
+{{- if .WantsMarshalBinary }}
+  {{ template "marshalBinarySerializer" . }}
+{{- end }}
+{{- end }}
+{{- define "mapOrSliceGetter" }}{{/* signature for AdditionalProperties and AdditionalItems getter funcs */}}
+  {{- if not .IsBaseType }}
+    {{- if .HasAdditionalProperties }}
+      {{- with .AdditionalProperties }}
+        // {{- template "docstring" . }}{{- template "propertyValidationDocString" . }}
+        {{ pascalize .Name }}() map[string]{{ template "schemaType" . }}
+      {{- end }}
+    {{- end }}
+    {{- with .AdditionalItems }}
+      // {{- template "docstring" . }}{{- template "propertyValidationDocString" . }}
+      {{ pascalize .Name }}() []{{ template "schemaType" . }}
+    {{- end }}
+  {{- else }}
+  // AdditionalProperties in base type shoud be handled just like regular properties{{/* TODO(fred): add full support for AdditionalProperties in base type */}}
+  // At this moment, the base type property is pushed down to the subtype
+  {{- end }}
+{{- end }}

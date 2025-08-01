@@ -3021,21 +3021,6 @@ definitions:
       Value:
         type: "string"
 
-  PluginInterfaceType:
-    type: "object"
-    x-nullable: false
-    required: [Prefix, Capability, Version]
-    properties:
-      Prefix:
-        type: "string"
-        x-nullable: false
-      Capability:
-        type: "string"
-        x-nullable: false
-      Version:
-        type: "string"
-        x-nullable: false
-
   PluginPrivilege:
     description: |
       Describes a permission the user has to accept upon installing
@@ -3144,7 +3129,11 @@ definitions:
               Types:
                 type: "array"
                 items:
-                  $ref: "#/definitions/PluginInterfaceType"
+                  type: "string"
+                  x-go-type:
+                    type: "CapabilityID"
+                    import:
+                      package: "github.com/moby/moby/api/types/plugin"
                 example:
                   - "docker.volumedriver/1.0"
               Socket:
