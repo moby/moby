@@ -31,7 +31,7 @@ const (
 	startingBufLen = 32*1024 + stdWriterPrefixLen + 1
 )
 
-var bufPool = &sync.Pool{New: func() interface{} { return bytes.NewBuffer(nil) }}
+var bufPool = &sync.Pool{New: func() any { return bytes.NewBuffer(nil) }}
 
 // stdWriter is wrapper of io.Writer with extra customized info.
 type stdWriter struct {

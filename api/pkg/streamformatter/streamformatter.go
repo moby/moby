@@ -42,7 +42,7 @@ func appendNewline(source []byte) []byte {
 }
 
 // FormatStatus formats the specified objects according to the specified format (and id).
-func FormatStatus(id, format string, a ...interface{}) []byte {
+func FormatStatus(id, format string, a ...any) []byte {
 	str := fmt.Sprintf(format, a...)
 	b, err := json.Marshal(&jsonMessage{ID: id, Status: str})
 	if err != nil {
@@ -63,12 +63,12 @@ func FormatError(err error) []byte {
 	return []byte(`{"error":"format error"}` + streamNewline)
 }
 
-func (sf *jsonProgressFormatter) formatStatus(id, format string, a ...interface{}) []byte {
+func (sf *jsonProgressFormatter) formatStatus(id, format string, a ...any) []byte {
 	return FormatStatus(id, format, a...)
 }
 
 // formatProgress formats the progress information for a specified action.
-func (sf *jsonProgressFormatter) formatProgress(id, action string, progress *jsonstream.Progress, aux interface{}) []byte {
+func (sf *jsonProgressFormatter) formatProgress(id, action string, progress *jsonstream.Progress, aux any) []byte {
 	if progress == nil {
 		progress = &jsonstream.Progress{}
 	}
@@ -95,7 +95,7 @@ func (sf *jsonProgressFormatter) formatProgress(id, action string, progress *jso
 
 type rawProgressFormatter struct{}
 
-func (sf *rawProgressFormatter) formatStatus(id, format string, a ...interface{}) []byte {
+func (sf *rawProgressFormatter) formatStatus(id, format string, a ...any) []byte {
 	return []byte(fmt.Sprintf(format, a...) + streamNewline)
 }
 
@@ -155,7 +155,7 @@ func rawProgressString(p *jsonstream.Progress) string {
 	return pbBox + numbersBox + timeLeftBox
 }
 
-func (sf *rawProgressFormatter) formatProgress(id, action string, progress *jsonstream.Progress, aux interface{}) []byte {
+func (sf *rawProgressFormatter) formatProgress(id, action string, progress *jsonstream.Progress, aux any) []byte {
 	if progress == nil {
 		progress = &jsonstream.Progress{}
 	}
@@ -180,8 +180,8 @@ func NewJSONProgressOutput(out io.Writer, newLines bool) progress.Output {
 }
 
 type formatProgress interface {
-	formatStatus(id, format string, a ...interface{}) []byte
-	formatProgress(id, action string, progress *jsonstream.Progress, aux interface{}) []byte
+	formatStatus(id, format string, a ...any) []byte
+	formatProgress(id, action string, progress *jsonstream.Progress, aux any) []byte
 }
 
 type progressOutput struct {
@@ -227,7 +227,7 @@ type AuxFormatter struct {
 }
 
 // Emit emits the given interface as an aux progress message
-func (sf *AuxFormatter) Emit(id string, aux interface{}) error {
+func (sf *AuxFormatter) Emit(id string, aux any) error {
 	auxJSONBytes, err := json.Marshal(aux)
 	if err != nil {
 		return err
