@@ -84,11 +84,15 @@ RUN mkdir /build && mv /bin/registry /build/registry
 FROM base AS swagger
 WORKDIR /go/src/github.com/go-swagger/go-swagger
 ARG TARGETPLATFORM
+# GO_SWAGGER_VERSION specifies the version of the go-swagger binary to install.
+# Go-swagger is used in CI for generating types from swagger.yaml in
+# hack/validate/swagger-gen
+ARG GO_SWAGGER_VERSION=v0.32.3
 RUN --mount=type=cache,target=/root/.cache/go-build,id=swagger-build-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=tmpfs,target=/go/src/ <<EOT
   set -e
-  GOBIN=/build xx-go install github.com/go-swagger/go-swagger/cmd/swagger@v0.32.3
+  GOBIN=/build xx-go install "github.com/go-swagger/go-swagger/cmd/swagger@${GO_SWAGGER_VERSION}"
   xx-verify /build/swagger
 EOT
 
