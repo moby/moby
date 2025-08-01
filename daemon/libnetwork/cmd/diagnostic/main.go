@@ -56,7 +56,7 @@ func main() {
 
 	if _, ok := os.LookupEnv("DIND_CLIENT"); !ok && *joinPtr {
 		log.G(context.TODO()).Fatal("you are not using the client in docker in docker mode, the use of the -a flag can be disruptive, " +
-			"please remove it (doc:https://github.com/docker/docker/libnetwork/blob/master/cmd/diagnostic/README.md)")
+			"please remove it (doc:https://github.com/moby/moby/blob/master/daemon/libnetwork/cmd/diagnostic/README.md)")
 	}
 
 	log.G(context.TODO()).Infof("Connecting to %s:%d checking ready", *ipPtr, *portPtr)
