@@ -170,7 +170,7 @@ type TLSOptions struct {
 
 // DNSConfig defines the DNS configurations.
 type DNSConfig struct {
-	DNS            []net.IP     `json:"dns,omitempty"`
+	DNS            []netip.Addr `json:"dns,omitempty"`
 	DNSOptions     []string     `json:"dns-opts,omitempty"`
 	DNSSearch      []string     `json:"dns-search,omitempty"`
 	HostGatewayIP  net.IP       `json:"host-gateway-ip,omitempty"` // Deprecated: this single-IP is migrated to HostGatewayIPs

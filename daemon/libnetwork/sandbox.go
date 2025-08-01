@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/netip"
 	"slices"
 	"sort"
 	"strings"
@@ -80,7 +81,7 @@ type resolvConfPathConfig struct {
 	resolvConfPath       string
 	originResolvConfPath string
 	resolvConfHashFile   string
-	dnsList              []string
+	dnsList              []netip.Addr
 	dnsSearchList        []string
 	dnsOptionsList       []string
 }
