@@ -21,7 +21,7 @@ import (
 )
 
 //
-// https://github.com/docker/docker/issues/8069
+// https://github.com/moby/moby/issues/8069
 //
 
 func TestGetContainer(t *testing.T) {

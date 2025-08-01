@@ -808,7 +808,7 @@ func writeLayer(layerData io.Reader, home string, id string, parentLayerPaths ..
 		defer func() {
 			if err := winio.DisableProcessPrivileges([]string{winio.SeSecurityPrivilege, winio.SeBackupPrivilege, winio.SeRestorePrivilege}); err != nil {
 				// This should never happen, but just in case when in debugging mode.
-				// See https://github.com/docker/docker/pull/28002#discussion_r86259241 for rationale.
+				// See https://github.com/moby/moby/pull/28002#discussion_r86259241 for rationale.
 				panic("Failed to disabled process privileges while in non re-exec mode")
 			}
 		}()

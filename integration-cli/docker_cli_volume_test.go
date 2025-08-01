@@ -409,7 +409,7 @@ func (s *DockerCLIVolumeSuite) TestVolumeCLIRmForce(c *testing.T) {
 }
 
 // TestVolumeCLIRmForceInUse verifies that repeated `docker volume rm -f` calls does not remove a volume
-// if it is in use. Test case for https://github.com/docker/docker/issues/31446
+// if it is in use. Test case for https://github.com/moby/moby/issues/31446
 func (s *DockerCLIVolumeSuite) TestVolumeCLIRmForceInUse(c *testing.T) {
 	const name = "testvolume"
 	id := cli.DockerCmd(c, "volume", "create", name).Stdout()

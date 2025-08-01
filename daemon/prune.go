@@ -168,7 +168,7 @@ func (daemon *Daemon) clusterNetworksPrune(ctx context.Context, pruneFilters fil
 			if !matchLabels(pruneFilters, nw.Labels) {
 				continue
 			}
-			// https://github.com/docker/docker/issues/24186
+			// https://github.com/moby/moby/issues/24186
 			// `docker network inspect` unfortunately displays ONLY those containers that are local to that node.
 			// So we try to remove it anyway and check the error
 			err = cluster.RemoveNetwork(nw.ID)

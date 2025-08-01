@@ -546,7 +546,7 @@ func (s *DockerCLIRunSuite) TestRunNoDupVolumes(c *testing.T) {
 		}
 	}
 
-	// Test for https://github.com/docker/docker/issues/22093
+	// Test for https://github.com/moby/moby/issues/22093
 	volumename1 := "test1"
 	volumename2 := "test2"
 	volume1 := volumename1 + someplace
@@ -1956,7 +1956,7 @@ func (s *DockerCLIRunSuite) TestRunPortInUse(c *testing.T) {
 	}
 }
 
-// https://github.com/docker/docker/issues/12148
+// https://github.com/moby/moby/issues/12148
 func (s *DockerCLIRunSuite) TestRunAllocatePortInReservedRange(c *testing.T) {
 	// TODO Windows. -P is not yet supported
 	testRequires(c, DaemonIsLinux)
@@ -2021,7 +2021,7 @@ func (s *DockerCLIRunSuite) TestRunMountOrdering(c *testing.T) {
 		"ls "+prefix+"/tmp/touch-me && ls "+prefix+"/tmp/foo/touch-me && ls "+prefix+"/tmp/tmp2/touch-me && ls "+prefix+"/tmp/tmp2/foo/touch-me")
 }
 
-// Regression test for https://github.com/docker/docker/issues/8259
+// Regression test for https://github.com/moby/moby/issues/8259
 func (s *DockerCLIRunSuite) TestRunReuseBindVolumeThatIsSymlink(c *testing.T) {
 	// Not applicable on Windows as Windows does not support volumes
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux, NotUserNamespace)
@@ -2885,7 +2885,7 @@ func (s *DockerCLIRunSuite) TestRunCapAddCHOWN(c *testing.T) {
 	}
 }
 
-// https://github.com/docker/docker/pull/14498
+// https://github.com/moby/moby/pull/14498
 func (s *DockerCLIRunSuite) TestVolumeFromMixedRWOptions(c *testing.T) {
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 

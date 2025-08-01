@@ -151,7 +151,7 @@ func (s *DockerCLIRmiSuite) TestRmiImgIDForce(c *testing.T) {
 	}
 }
 
-// See https://github.com/docker/docker/issues/14116
+// See https://github.com/moby/moby/issues/14116
 func (s *DockerCLIRmiSuite) TestRmiImageIDForceWithRunningContainersAndMultipleTags(c *testing.T) {
 	dockerfile := "FROM busybox\nRUN echo test 14116\n"
 	buildImageSuccessfully(c, "test-14116", build.WithDockerfile(dockerfile))

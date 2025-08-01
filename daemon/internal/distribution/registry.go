@@ -40,8 +40,8 @@ var (
 		schema2.MediaTypeImageConfig,
 		ocispec.MediaTypeImageConfig,
 		// Handle unexpected values from https://github.com/docker/distribution/issues/1621
-		// (see also https://github.com/docker/docker/issues/22378,
-		// https://github.com/docker/docker/issues/30083)
+		// (see also https://github.com/moby/moby/issues/22378,
+		// https://github.com/moby/moby/issues/30083)
 		"application/octet-stream",
 		"application/json",
 		"text/html",

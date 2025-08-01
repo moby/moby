@@ -10,8 +10,8 @@ import (
 
 // EmptyFS builds an image with an empty rootfs.
 // Layout: Legacy Docker Archive
-// See https://github.com/docker/docker/pull/5262
-// and also https://github.com/docker/docker/issues/4242
+// See https://github.com/moby/moby/pull/5262
+// and also https://github.com/moby/moby/issues/4242
 func EmptyFS(dir string) (*ocispec.Index, error) {
 	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), []byte(`[{"Config":"11f64303f0f7ffdc71f001788132bca5346831939a956e3e975c93267d89a16d.json","RepoTags":["emptyfs:latest"],"Layers":["511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158/layer.tar"]}]`), 0o644); err != nil {
 		return nil, err

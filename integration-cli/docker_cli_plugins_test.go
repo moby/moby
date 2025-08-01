@@ -331,7 +331,7 @@ func (ps *DockerPluginSuite) TestPluginInspect(c *testing.T) {
 	assert.ErrorContains(c, err, "")
 }
 
-// Test case for https://github.com/docker/docker/pull/29186#discussion_r91277345
+// Test case for https://github.com/moby/moby/pull/29186#discussion_r91277345
 func (s *DockerCLIPluginsSuite) TestPluginInspectOnWindows(c *testing.T) {
 	// This test should work on Windows only
 	testRequires(c, DaemonIsWindows)
