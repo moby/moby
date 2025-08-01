@@ -1,6 +1,3 @@
-// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
-//go:build go1.23
-
 package libnetwork
 
 //go:generate protoc -I=. -I=../../vendor/ --gogofaster_out=import_path=github.com/docker/docker/daemon/libnetwork:. agent.proto

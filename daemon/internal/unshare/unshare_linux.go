@@ -1,5 +1,3 @@
-//go:build go1.10
-
 package unshare
 
 import (
