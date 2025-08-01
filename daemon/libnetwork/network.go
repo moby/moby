@@ -1930,7 +1930,7 @@ func (n *Network) hasLoadBalancerEndpoint() bool {
 // Returns (addresses, true) if req is found, but len(addresses) may be 0 if
 // there are no addresses of ipType. If the name is not found, the bool return
 // will be false.
-func (n *Network) ResolveName(ctx context.Context, req string, ipType int) ([]net.IP, bool) {
+func (n *Network) ResolveName(ctx context.Context, req string, ipType types.IPFamily) ([]net.IP, bool) {
 	c := n.getController()
 	networkID := n.ID()
 

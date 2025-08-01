@@ -12,11 +12,13 @@ import (
 	"github.com/moby/moby/v2/errdefs"
 )
 
-// constants for the IP address type.
+// IPFamily specify IP address type(s).
+type IPFamily int
+
 const (
-	IP = iota // IPv4 and IPv6
-	IPv4
-	IPv6
+	IP   IPFamily = iota // Either IPv4 or IPv6.
+	IPv4                 // Internet Protocol version 4 (IPv4).
+	IPv6                 // Internet Protocol version 6 (IPv6).
 )
 
 // EncryptionKey is the libnetwork representation of the key distributed by the lead
