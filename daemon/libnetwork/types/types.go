@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/ishidawataru/sctp"
 	"github.com/moby/moby/v2/errdefs"
@@ -16,9 +17,9 @@ import (
 type IPFamily int
 
 const (
-	IP   IPFamily = iota // Either IPv4 or IPv6.
-	IPv4                 // Internet Protocol version 4 (IPv4).
-	IPv6                 // Internet Protocol version 6 (IPv6).
+	IP   IPFamily = syscall.AF_UNSPEC // Either IPv4 or IPv6.
+	IPv4 IPFamily = syscall.AF_INET   // Internet Protocol version 4 (IPv4).
+	IPv6 IPFamily = syscall.AF_INET6  // Internet Protocol version 6 (IPv6).
 )
 
 // EncryptionKey is the libnetwork representation of the key distributed by the lead
