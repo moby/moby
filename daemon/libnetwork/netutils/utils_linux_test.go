@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
 	"github.com/moby/moby/v2/internal/testutils/netnsutils"
 	"github.com/vishvananda/netlink"
@@ -57,6 +58,61 @@ func TestGenerateRandomName(t *testing.T) {
 		}
 
 		randomNames[i] = randomName
+	}
+}
+
+func TestGetNameserversAsPrefix(t *testing.T) {
+	for _, tc := range []struct {
+		input  string
+		result []netip.Prefix
+	}{
+		{
+			input:  ``,
+			result: []netip.Prefix{},
+		},
+		{
+			input:  `search example.com`,
+			result: []netip.Prefix{},
+		},
+		{
+			input:  `  nameserver 1.2.3.4   `,
+			result: []netip.Prefix{netip.MustParsePrefix("1.2.3.4/32")},
+		},
+		{
+			input: `
+nameserver 1.2.3.4
+nameserver 40.3.200.10
+search example.com`,
+			result: []netip.Prefix{netip.MustParsePrefix("1.2.3.4/32"), netip.MustParsePrefix("40.3.200.10/32")},
+		},
+		{
+			input: `nameserver 1.2.3.4
+search example.com
+nameserver 4.30.20.100`,
+			result: []netip.Prefix{netip.MustParsePrefix("1.2.3.4/32"), netip.MustParsePrefix("4.30.20.100/32")},
+		},
+		{
+			input: `search example.com
+nameserver 1.2.3.4
+#nameserver 4.3.2.1`,
+			result: []netip.Prefix{netip.MustParsePrefix("1.2.3.4/32")},
+		},
+		{
+			input: `search example.com
+nameserver 1.2.3.4 # not 4.3.2.1`,
+			result: []netip.Prefix{netip.MustParsePrefix("1.2.3.4/32")},
+		},
+		{
+			input:  `nameserver fd6f:c490:ec68::1`,
+			result: []netip.Prefix{netip.MustParsePrefix("fd6f:c490:ec68::1/128")},
+		},
+		{
+			input:  `nameserver fe80::1234%eth0`,
+			result: []netip.Prefix{netip.MustParsePrefix("fe80::1234/128")},
+		},
+	} {
+		test := tryGetNameserversAsPrefix([]byte(tc.input))
+		assert.DeepEqual(t, test, tc.result, cmpopts.EquateComparable(netip.Prefix{}))
 	}
 }
 

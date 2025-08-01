@@ -3,14 +3,25 @@
 package libnetwork
 
 import (
+	"bytes"
 	"context"
+	"os"
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/config"
-	"github.com/moby/moby/v2/daemon/libnetwork/resolvconf"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/resolvconf"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
+
+func getResolvConfOptions(t *testing.T, rcPath string) []string {
+	t.Helper()
+	resolv, err := os.ReadFile(rcPath)
+	assert.NilError(t, err)
+	rc, err := resolvconf.Parse(bytes.NewBuffer(resolv), "")
+	assert.NilError(t, err)
+	return rc.Options()
+}
 
 func TestDNSOptions(t *testing.T) {
 	c, err := New(context.Background(), config.OptionDataDir(t.TempDir()))
@@ -32,26 +43,20 @@ func TestDNSOptions(t *testing.T) {
 	assert.NilError(t, err)
 	err = sb.rebuildDNS()
 	assert.NilError(t, err)
-	currRC, err := resolvconf.GetSpecific(sb.config.resolvConfPath)
-	assert.NilError(t, err)
-	dnsOptionsList := resolvconf.GetOptions(currRC.Content)
+	dnsOptionsList := getResolvConfOptions(t, sb.config.resolvConfPath)
 	assert.Check(t, is.Len(dnsOptionsList, 1))
 	assert.Check(t, is.Equal("ndots:0", dnsOptionsList[0]))
 
 	sb.config.dnsOptionsList = []string{"ndots:5"}
 	err = sb.setupDNS()
 	assert.NilError(t, err)
-	currRC, err = resolvconf.GetSpecific(sb.config.resolvConfPath)
-	assert.NilError(t, err)
-	dnsOptionsList = resolvconf.GetOptions(currRC.Content)
+	dnsOptionsList = getResolvConfOptions(t, sb.config.resolvConfPath)
 	assert.Check(t, is.Len(dnsOptionsList, 1))
 	assert.Check(t, is.Equal("ndots:5", dnsOptionsList[0]))
 
 	err = sb.rebuildDNS()
 	assert.NilError(t, err)
-	currRC, err = resolvconf.GetSpecific(sb.config.resolvConfPath)
-	assert.NilError(t, err)
-	dnsOptionsList = resolvconf.GetOptions(currRC.Content)
+	dnsOptionsList = getResolvConfOptions(t, sb.config.resolvConfPath)
 	assert.Check(t, is.Len(dnsOptionsList, 1))
 	assert.Check(t, is.Equal("ndots:5", dnsOptionsList[0]))
 
@@ -65,9 +70,7 @@ func TestDNSOptions(t *testing.T) {
 	assert.NilError(t, err)
 	err = sb2.rebuildDNS()
 	assert.NilError(t, err)
-	currRC, err = resolvconf.GetSpecific(sb2.config.resolvConfPath)
-	assert.NilError(t, err)
-	dnsOptionsList = resolvconf.GetOptions(currRC.Content)
+	dnsOptionsList = getResolvConfOptions(t, sb2.config.resolvConfPath)
 	assert.Check(t, is.Len(dnsOptionsList, 1))
 	assert.Check(t, is.Equal("ndots:0", dnsOptionsList[0]))
 
@@ -76,9 +79,7 @@ func TestDNSOptions(t *testing.T) {
 	assert.NilError(t, err)
 	err = sb2.rebuildDNS()
 	assert.NilError(t, err)
-	currRC, err = resolvconf.GetSpecific(sb2.config.resolvConfPath)
-	assert.NilError(t, err)
-	dnsOptionsList = resolvconf.GetOptions(currRC.Content)
+	dnsOptionsList = getResolvConfOptions(t, sb2.config.resolvConfPath)
 	assert.Check(t, is.DeepEqual([]string{"ndots:0"}, dnsOptionsList))
 
 	sb2.config.dnsOptionsList = []string{"ndots:-1"}
@@ -86,8 +87,6 @@ func TestDNSOptions(t *testing.T) {
 	assert.NilError(t, err)
 	err = sb2.rebuildDNS()
 	assert.NilError(t, err)
-	currRC, err = resolvconf.GetSpecific(sb2.config.resolvConfPath)
-	assert.NilError(t, err)
-	dnsOptionsList = resolvconf.GetOptions(currRC.Content)
+	dnsOptionsList = getResolvConfOptions(t, sb2.config.resolvConfPath)
 	assert.Check(t, is.DeepEqual([]string{"ndots:0"}, dnsOptionsList))
 }
