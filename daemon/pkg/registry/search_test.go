@@ -3,6 +3,7 @@ package registry
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
@@ -13,6 +14,7 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/registry"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func spawnTestRegistrySession(t *testing.T) (*http.Client, *v1Endpoint) {
@@ -413,4 +415,231 @@ func TestSearch(t *testing.T) {
 			assert.DeepEqual(t, results, tc.expectedResults)
 		})
 	}
+}
+
+func TestNewIndexInfo(t *testing.T) {
+	overrideLookupIP(t)
+
+	// ipv6Loopback is the CIDR for the IPv6 loopback address ("::1"); "::1/128"
+	ipv6Loopback := &net.IPNet{
+		IP:   net.IPv6loopback,
+		Mask: net.CIDRMask(128, 128),
+	}
+
+	// ipv4Loopback is the CIDR for IPv4 loopback addresses ("127.0.0.0/8")
+	ipv4Loopback := &net.IPNet{
+		IP:   net.IPv4(127, 0, 0, 0),
+		Mask: net.CIDRMask(8, 32),
+	}
+
+	// emptyServiceConfig is a default service-config for situations where
+	// no config-file is available (e.g. when used in the CLI). It won't
+	// have mirrors configured, but does have the default insecure registry
+	// CIDRs for loopback interfaces configured.
+	emptyServiceConfig := &serviceConfig{
+		IndexConfigs: map[string]*registry.IndexInfo{
+			IndexName: {
+				Name:     IndexName,
+				Mirrors:  []string{},
+				Secure:   true,
+				Official: true,
+			},
+		},
+		InsecureRegistryCIDRs: []*registry.NetIPNet{
+			(*registry.NetIPNet)(ipv6Loopback),
+			(*registry.NetIPNet)(ipv4Loopback),
+		},
+	}
+
+	expectedIndexInfos := map[string]*registry.IndexInfo{
+		IndexName: {
+			Name:     IndexName,
+			Official: true,
+			Secure:   true,
+			Mirrors:  []string{},
+		},
+		"index." + IndexName: {
+			Name:     IndexName,
+			Official: true,
+			Secure:   true,
+			Mirrors:  []string{},
+		},
+		"example.com": {
+			Name:     "example.com",
+			Official: false,
+			Secure:   true,
+			Mirrors:  []string{},
+		},
+		"127.0.0.1:5000": {
+			Name:     "127.0.0.1:5000",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+	}
+	t.Run("no mirrors", func(t *testing.T) {
+		for indexName, expected := range expectedIndexInfos {
+			t.Run(indexName, func(t *testing.T) {
+				actual := newIndexInfo(emptyServiceConfig, indexName)
+				assert.Check(t, is.DeepEqual(actual, expected))
+			})
+		}
+	})
+
+	expectedIndexInfos = map[string]*registry.IndexInfo{
+		IndexName: {
+			Name:     IndexName,
+			Official: true,
+			Secure:   true,
+			Mirrors:  []string{"http://mirror1.local/", "http://mirror2.local/"},
+		},
+		"index." + IndexName: {
+			Name:     IndexName,
+			Official: true,
+			Secure:   true,
+			Mirrors:  []string{"http://mirror1.local/", "http://mirror2.local/"},
+		},
+		"example.com": {
+			Name:     "example.com",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		"example.com:5000": {
+			Name:     "example.com:5000",
+			Official: false,
+			Secure:   true,
+			Mirrors:  []string{},
+		},
+		"127.0.0.1": {
+			Name:     "127.0.0.1",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		"127.0.0.1:5000": {
+			Name:     "127.0.0.1:5000",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		"127.255.255.255": {
+			Name:     "127.255.255.255",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		"127.255.255.255:5000": {
+			Name:     "127.255.255.255:5000",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		"::1": {
+			Name:     "::1",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		"[::1]:5000": {
+			Name:     "[::1]:5000",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		// IPv6 only has a single loopback address, so ::2 is not a loopback,
+		// hence not marked "insecure".
+		"::2": {
+			Name:     "::2",
+			Official: false,
+			Secure:   true,
+			Mirrors:  []string{},
+		},
+		// IPv6 only has a single loopback address, so ::2 is not a loopback,
+		// hence not marked "insecure".
+		"[::2]:5000": {
+			Name:     "[::2]:5000",
+			Official: false,
+			Secure:   true,
+			Mirrors:  []string{},
+		},
+		"other.com": {
+			Name:     "other.com",
+			Official: false,
+			Secure:   true,
+			Mirrors:  []string{},
+		},
+	}
+	t.Run("mirrors", func(t *testing.T) {
+		// Note that newServiceConfig calls ValidateMirror internally, which normalizes
+		// mirror-URLs to have a trailing slash.
+		config, err := newServiceConfig(ServiceOptions{
+			Mirrors:            []string{"http://mirror1.local", "http://mirror2.local"},
+			InsecureRegistries: []string{"example.com"},
+		})
+		assert.NilError(t, err)
+		for indexName, expected := range expectedIndexInfos {
+			t.Run(indexName, func(t *testing.T) {
+				actual := newIndexInfo(config, indexName)
+				assert.Check(t, is.DeepEqual(actual, expected))
+			})
+		}
+	})
+
+	expectedIndexInfos = map[string]*registry.IndexInfo{
+		"example.com": {
+			Name:     "example.com",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		"example.com:5000": {
+			Name:     "example.com:5000",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		"127.0.0.1": {
+			Name:     "127.0.0.1",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		"127.0.0.1:5000": {
+			Name:     "127.0.0.1:5000",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		"42.42.0.1:5000": {
+			Name:     "42.42.0.1:5000",
+			Official: false,
+			Secure:   false,
+			Mirrors:  []string{},
+		},
+		"42.43.0.1:5000": {
+			Name:     "42.43.0.1:5000",
+			Official: false,
+			Secure:   true,
+			Mirrors:  []string{},
+		},
+		"other.com": {
+			Name:     "other.com",
+			Official: false,
+			Secure:   true,
+			Mirrors:  []string{},
+		},
+	}
+	t.Run("custom insecure", func(t *testing.T) {
+		config, err := newServiceConfig(ServiceOptions{
+			InsecureRegistries: []string{"42.42.0.0/16"},
+		})
+		assert.NilError(t, err)
+		for indexName, expected := range expectedIndexInfos {
+			t.Run(indexName, func(t *testing.T) {
+				actual := newIndexInfo(config, indexName)
+				assert.Check(t, is.DeepEqual(actual, expected))
+			})
+		}
+	})
 }

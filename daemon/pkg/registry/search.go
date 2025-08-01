@@ -147,6 +147,23 @@ func splitReposSearchTerm(reposName string) (string, string) {
 	return nameParts[0], nameParts[1]
 }
 
+// newIndexInfo returns IndexInfo configuration from indexName
+func newIndexInfo(config *serviceConfig, indexName string) *registry.IndexInfo {
+	indexName = normalizeIndexName(indexName)
+
+	// Return any configured index info, first.
+	if index, ok := config.IndexConfigs[indexName]; ok {
+		return index
+	}
+
+	// Construct a non-configured index info.
+	return &registry.IndexInfo{
+		Name:    indexName,
+		Mirrors: []string{},
+		Secure:  config.isSecureIndex(indexName),
+	}
+}
+
 // defaultSearchLimit is the default value for maximum number of returned search results.
 const defaultSearchLimit = 25
 
