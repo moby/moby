@@ -3,14 +3,15 @@
 package netutils
 
 import (
+	"bytes"
 	"net/netip"
 	"os"
 	"slices"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/resolvconf"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
-	"github.com/moby/moby/v2/daemon/libnetwork/resolvconf"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
@@ -62,7 +63,7 @@ func InferReservedNetworks(v6 bool) []netip.Prefix {
 	// We don't really care if os.ReadFile fails here. It either doesn't exist,
 	// or we can't read it for some reason.
 	if rc, err := os.ReadFile(resolvconf.Path()); err == nil {
-		reserved = slices.DeleteFunc(resolvconf.GetNameserversAsPrefix(rc), func(p netip.Prefix) bool {
+		reserved = slices.DeleteFunc(tryGetNameserversAsPrefix(rc), func(p netip.Prefix) bool {
 			return p.Addr().Is6() != v6
 		})
 	}
@@ -73,6 +74,22 @@ func InferReservedNetworks(v6 bool) []netip.Prefix {
 
 	slices.SortFunc(reserved, netiputil.PrefixCompare)
 	return reserved
+}
+
+// tryGetNameserversAsPrefix returns nameservers (if any) listed in
+// /etc/resolv.conf as CIDR blocks (e.g., "1.2.3.4/32"). It ignores
+// failures to parse the file, as this utility is used as a "best-effort".
+func tryGetNameserversAsPrefix(resolvConf []byte) []netip.Prefix {
+	rc, err := resolvconf.Parse(bytes.NewBuffer(resolvConf), "")
+	if err != nil {
+		return nil
+	}
+	nsAddrs := rc.NameServers()
+	nameservers := make([]netip.Prefix, 0, len(nsAddrs))
+	for _, addr := range nsAddrs {
+		nameservers = append(nameservers, netip.PrefixFrom(addr, addr.BitLen()))
+	}
+	return nameservers
 }
 
 // queryOnLinkRoutes returns a list of on-link routes available on the host.

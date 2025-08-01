@@ -146,6 +146,7 @@ func setupResolvConf(config *config.Config) {
 	if config.ResolvConf != "" {
 		return
 	}
+	// FIXME(thaJeztah): we can't use [github.com/moby/moby/v2/daemon/libnetwork/internal/resolvconf.Path] here, because it's internal to libnetwork.
 	config.ResolvConf = resolvconf.Path()
 }
 
