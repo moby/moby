@@ -145,8 +145,8 @@ func ConvertToHostname(maybeURL string) string {
 	return stripped
 }
 
-// ResolveAuthConfig matches an auth configuration to a server address or a URL
-func ResolveAuthConfig(authConfigs map[string]registry.AuthConfig, index *registry.IndexInfo) registry.AuthConfig {
+// resolveAuthConfig matches an auth configuration to a server address or a URL
+func resolveAuthConfig(authConfigs map[string]registry.AuthConfig, index *registry.IndexInfo) registry.AuthConfig {
 	configKey := getAuthConfigKey(index)
 	// First try the happy case
 	if c, found := authConfigs[configKey]; found || index.Official {
