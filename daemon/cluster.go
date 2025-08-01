@@ -6,7 +6,7 @@ import (
 	lncluster "github.com/moby/moby/v2/daemon/libnetwork/cluster"
 )
 
-// Cluster is the interface for github.com/docker/docker/daemon/cluster.(*Cluster).
+// Cluster is the interface for [github.com/moby/moby/v2/daemon/cluster.Cluster].
 type Cluster interface {
 	ClusterStatus
 	NetworkManager
