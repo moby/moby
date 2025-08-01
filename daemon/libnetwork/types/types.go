@@ -7,16 +7,19 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/ishidawataru/sctp"
 	"github.com/moby/moby/v2/errdefs"
 )
 
-// constants for the IP address type.
+// IPFamily specify IP address type(s).
+type IPFamily int
+
 const (
-	IP = iota // IPv4 and IPv6
-	IPv4
-	IPv6
+	IP   IPFamily = syscall.AF_UNSPEC // Either IPv4 or IPv6.
+	IPv4 IPFamily = syscall.AF_INET   // Internet Protocol version 4 (IPv4).
+	IPv6 IPFamily = syscall.AF_INET6  // Internet Protocol version 6 (IPv6).
 )
 
 // EncryptionKey is the libnetwork representation of the key distributed by the lead
@@ -171,14 +174,10 @@ func (p PortBinding) String() string {
 }
 
 const (
-	// ICMP is for the ICMP ip protocol
-	ICMP = 1
-	// TCP is for the TCP ip protocol
-	TCP = 6
-	// UDP is for the UDP ip protocol
-	UDP = 17
-	// SCTP is for the SCTP ip protocol
-	SCTP = 132
+	ICMP Protocol = 1   // ICMP (Internet Control Message Protocol) — [syscall.IPPROTO_ICMP]
+	TCP  Protocol = 6   // TCP (Transmission Control Protocol) — [syscall.IPPROTO_TCP]
+	UDP  Protocol = 17  // UDP (User Datagram Protocol) — [syscall.IPPROTO_UDP]
+	SCTP Protocol = 132 // SCTP (Stream Control Transmission Protocol) — [syscall.IPPROTO_SCTP] (not supported on Windows).
 )
 
 // Protocol represents an IP protocol number
@@ -340,32 +339,26 @@ func ParseCIDR(cidr string) (*net.IPNet, error) {
 	return ipNet, nil
 }
 
-const (
-	// NEXTHOP indicates a StaticRoute with an IP next hop.
-	NEXTHOP = iota
+type RouteType int
 
-	// CONNECTED indicates a StaticRoute with an interface for directly connected peers.
-	CONNECTED
+const (
+	NEXTHOP   RouteType = iota // NEXTHOP indicates a StaticRoute with an IP next hop.
+	CONNECTED                  // CONNECTED indicates a StaticRoute with an interface for directly connected peers.
 )
 
-// StaticRoute is a statically-provisioned IP route.
+// StaticRoute is a statically provisioned IP route.
 type StaticRoute struct {
 	Destination *net.IPNet
-
-	RouteType int // NEXT_HOP or CONNECTED
-
-	// NextHop will be resolved by the kernel (i.e. as a loose hop).
-	NextHop net.IP
+	RouteType   RouteType // NEXTHOP or CONNECTED
+	NextHop     net.IP    // NextHop will be resolved by the kernel (i.e., as a loose hop).
 }
 
 // GetCopy returns a copy of this StaticRoute structure
 func (r *StaticRoute) GetCopy() *StaticRoute {
-	d := GetIPNetCopy(r.Destination)
-	nh := GetIPCopy(r.NextHop)
 	return &StaticRoute{
-		Destination: d,
+		Destination: GetIPNetCopy(r.Destination),
 		RouteType:   r.RouteType,
-		NextHop:     nh,
+		NextHop:     GetIPCopy(r.NextHop),
 	}
 }
 

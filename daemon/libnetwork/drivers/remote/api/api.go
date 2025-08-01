@@ -9,6 +9,7 @@ import (
 
 	"github.com/moby/moby/v2/daemon/libnetwork/discoverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 // Response is the basic response structure used in all responses.
@@ -186,7 +187,7 @@ type InterfaceName struct {
 // StaticRoute is the plain JSON representation of a static route.
 type StaticRoute struct {
 	Destination string
-	RouteType   int
+	RouteType   types.RouteType
 	NextHop     string
 }
 

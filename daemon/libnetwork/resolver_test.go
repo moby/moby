@@ -11,6 +11,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/miekg/dns"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/internal/testutils/netnsutils"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
@@ -246,7 +247,7 @@ func (w tlogWriter) Write(p []byte) (int, error) {
 
 type noopDNSBackend struct{ DNSBackend }
 
-func (noopDNSBackend) ResolveName(_ context.Context, name string, ipType int) ([]net.IP, bool) {
+func (noopDNSBackend) ResolveName(_ context.Context, name string, ipType types.IPFamily) ([]net.IP, bool) {
 	return nil, false
 }
 

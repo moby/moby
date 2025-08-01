@@ -91,7 +91,7 @@ type testEndpoint struct {
 	hostsPath             string
 	nextHop               string
 	destination           string
-	routeType             int
+	routeType             types.RouteType
 	disableGatewayService bool
 }
 
@@ -193,7 +193,7 @@ func (test *testEndpoint) SetNames(srcName, dstPrefix, dstName string) error {
 	return nil
 }
 
-func (test *testEndpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP) error {
+func (test *testEndpoint) AddStaticRoute(destination *net.IPNet, routeType types.RouteType, nextHop net.IP) error {
 	compareIPNets(test.t, "Destination", test.destination, *destination)
 	compareIPs(test.t, "NextHop", test.nextHop, nextHop)
 
@@ -328,7 +328,7 @@ func TestRemoteDriver(t *testing.T) {
 		resolvConfPath: "/there/goes/the/resolv/conf",
 		destination:    "10.0.0.0/8",
 		nextHop:        "10.0.0.1",
-		routeType:      1,
+		routeType:      types.CONNECTED,
 	}
 
 	mux := http.NewServeMux()
@@ -374,8 +374,8 @@ func TestRemoteDriver(t *testing.T) {
 		}
 	})
 	handle(t, mux, "Join", func(msg map[string]interface{}) interface{} {
-		options := msg["Options"].(map[string]interface{})
-		foo, ok := options["foo"].(string)
+		opts := msg["Options"].(map[string]interface{})
+		foo, ok := opts["foo"].(string)
 		if !ok || foo != "fooValue" {
 			t.Fatalf("Did not receive expected foo string in request options: %+v", msg)
 		}

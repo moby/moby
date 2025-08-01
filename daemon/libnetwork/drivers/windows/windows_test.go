@@ -138,7 +138,7 @@ func (test *testEndpoint) SetNames(_, _, _ string) error {
 	return nil
 }
 
-func (test *testEndpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP) error {
+func (test *testEndpoint) AddStaticRoute(destination *net.IPNet, routeType types.RouteType, nextHop net.IP) error {
 	return nil
 }
 
