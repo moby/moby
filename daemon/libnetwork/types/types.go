@@ -174,14 +174,10 @@ func (p PortBinding) String() string {
 }
 
 const (
-	// ICMP is for the ICMP ip protocol
-	ICMP = 1
-	// TCP is for the TCP ip protocol
-	TCP = 6
-	// UDP is for the UDP ip protocol
-	UDP = 17
-	// SCTP is for the SCTP ip protocol
-	SCTP = 132
+	ICMP Protocol = 1   // ICMP (Internet Control Message Protocol) — [syscall.IPPROTO_ICMP]
+	TCP  Protocol = 6   // TCP (Transmission Control Protocol) — [syscall.IPPROTO_TCP]
+	UDP  Protocol = 17  // UDP (User Datagram Protocol) — [syscall.IPPROTO_UDP]
+	SCTP Protocol = 132 // SCTP (Stream Control Transmission Protocol) — [syscall.IPPROTO_SCTP] (not supported on Windows).
 )
 
 // Protocol represents an IP protocol number
