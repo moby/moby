@@ -53,8 +53,9 @@ func withSockPath(name string) func(*plugin.Config) {
 func createPlugin(ctx context.Context, t *testing.T, client plugin.CreateClient, alias, bin string, opts ...plugin.CreateOpt) {
 	pluginBin := ensurePlugin(t, bin)
 
-	opts = append(opts, withSockPath("plugin.sock"))
-	opts = append(opts, plugin.WithBinary(pluginBin))
+	opts = append(opts,
+		withSockPath("plugin.sock"),
+		plugin.WithBinary(pluginBin))
 
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	err := plugin.Create(ctx, client, alias, opts...)

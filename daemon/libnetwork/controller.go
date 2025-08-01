@@ -517,7 +517,7 @@ const overlayDSROptionString = "dsr"
 
 // NewNetwork creates a new network of the specified network type. The options
 // are network specific and modeled in a generic way.
-func (c *Controller) NewNetwork(ctx context.Context, networkType, name string, id string, options ...NetworkOption) (_ *Network, retErr error) {
+func (c *Controller) NewNetwork(ctx context.Context, networkType, name, id string, options ...NetworkOption) (_ *Network, retErr error) {
 	if id != "" {
 		c.networkLocker.Lock(id)
 		defer c.networkLocker.Unlock(id) //nolint:errcheck

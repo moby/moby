@@ -230,7 +230,8 @@ func loadWithRetry(name string, retry bool) (*Plugin, error) {
 		storage.Lock()
 		if pl, exists := storage.plugins[name]; exists {
 			storage.Unlock()
-			return pl, pl.activate()
+			err := pl.activate()
+			return pl, err
 		}
 		storage.plugins[name] = plugin
 		storage.Unlock()
@@ -251,7 +252,8 @@ func get(name string) (*Plugin, error) {
 	pl, ok := storage.plugins[name]
 	storage.Unlock()
 	if ok {
-		return pl, pl.activate()
+		err := pl.activate()
+		return pl, err
 	}
 	return loadWithRetry(name, true)
 }

@@ -50,8 +50,9 @@ func createPlugin(ctx context.Context, t *testing.T, client plugin.CreateClient,
 
 	pluginBin := ensurePlugin(t, bin)
 
-	opts = append(opts, withSockPath("plugin.sock"))
-	opts = append(opts, plugin.WithBinary(pluginBin))
+	opts = append(opts,
+		withSockPath("plugin.sock"),
+		plugin.WithBinary(pluginBin))
 
 	err := plugin.Create(ctx, client, alias, opts...)
 	assert.NilError(t, err)

@@ -620,7 +620,7 @@ func (t TableRef) InterfaceVMap(ctx context.Context, name string) VMapRef {
 
 // AddElement adds an element to a verdict map. The caller must ensure the key has
 // the correct type. It is an error to add a key that already exists.
-func (v VMapRef) AddElement(ctx context.Context, key string, verdict string) error {
+func (v VMapRef) AddElement(ctx context.Context, key, verdict string) error {
 	if _, ok := v.v.Elements[key]; ok {
 		return fmt.Errorf("verdict map already contains element %q", key)
 	}
@@ -637,7 +637,7 @@ func (v VMapRef) AddElement(ctx context.Context, key string, verdict string) err
 }
 
 // AddElementCf calls AddElement and returns a cleanup function or an error.
-func (v VMapRef) AddElementCf(ctx context.Context, key string, verdict string) (func(context.Context) error, error) {
+func (v VMapRef) AddElementCf(ctx context.Context, key, verdict string) (func(context.Context) error, error) {
 	if err := v.AddElement(ctx, key, verdict); err != nil {
 		return nil, err
 	}

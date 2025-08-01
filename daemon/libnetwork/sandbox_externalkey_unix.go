@@ -82,7 +82,7 @@ func setKey(ctx context.Context) error {
 }
 
 // setExternalKey provides a convenient way to set an External key to a sandbox
-func setExternalKey(ctx context.Context, shortCtlrID string, containerID string, key string, execRoot string) error {
+func setExternalKey(ctx context.Context, shortCtlrID, containerID, key, execRoot string) error {
 	uds := filepath.Join(execRoot, execSubdir, shortCtlrID+".sock")
 	c, err := net.Dial("unix", uds)
 	if err != nil {
@@ -105,7 +105,7 @@ func setExternalKey(ctx context.Context, shortCtlrID string, containerID string,
 
 func processReturn(r io.Reader) error {
 	buf := make([]byte, 1024)
-	n, err := r.Read(buf[:])
+	n, err := r.Read(buf)
 	if err != nil {
 		return fmt.Errorf("failed to read buf in processReturn : %v", err)
 	}

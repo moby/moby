@@ -172,7 +172,7 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 // network. If 'rmService' is true, then remove the service entry as well.
 // If 'fullRemove' is true then completely remove the entry, otherwise
 // just deweight it for now.
-func (n *Network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullRemove bool) {
+func (n *Network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService, fullRemove bool) {
 	if len(lb.vip) == 0 {
 		return
 	}

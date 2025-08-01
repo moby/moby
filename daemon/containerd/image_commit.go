@@ -255,7 +255,7 @@ func (i *ImageService) createDiff(ctx context.Context, name string, sn snapshots
 }
 
 // applyDiffLayer will apply diff layer content created by createDiff into the snapshotter.
-func (i *ImageService) applyDiffLayer(ctx context.Context, name string, containerID string, sn snapshots.Snapshotter, differ diff.Applier, diffDesc ocispec.Descriptor) (retErr error) {
+func (i *ImageService) applyDiffLayer(ctx context.Context, name, containerID string, sn snapshots.Snapshotter, differ diff.Applier, diffDesc ocispec.Descriptor) (retErr error) {
 	// Let containerd know that this snapshot is only for diff-applying.
 	key := snapshots.UnpackKeyPrefix + "-" + uniquePart() + "-" + name
 

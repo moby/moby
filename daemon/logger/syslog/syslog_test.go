@@ -13,7 +13,7 @@ import (
 	syslog "github.com/RackSec/srslog"
 )
 
-func functionMatches(expectedFun interface{}, actualFun interface{}) bool {
+func functionMatches(expectedFun, actualFun interface{}) bool {
 	return reflect.ValueOf(expectedFun).Pointer() == reflect.ValueOf(actualFun).Pointer()
 }
 
