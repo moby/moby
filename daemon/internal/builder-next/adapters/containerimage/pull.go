@@ -510,48 +510,50 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 		return nil, err
 	}
 
-	platform := platforms.Only(p.platform)
-
-	var nonLayers []digest.Digest
-
-	var handlers []c8dimages.Handler
 	if p.desc.MediaType == c8dimages.MediaTypeDockerSchema1Manifest {
 		stopProgress()
-		// similar to [github.com/docker/docker/distribution/DeprecatedSchema1ImageError]
-		errMsg := "support for Docker Image Format v1 and Docker Image manifest version 2, schema 1 has been removed in Docker Engine v28.2. " +
-			"More information at https://docs.docker.com/go/deprecated-image-specs/"
+
+		// similar to [github.com/moby/moby/v2/daemon/internal/distribution.DeprecatedSchema1ImageError]
+		errMsg := "support for Docker Image Format v1 and Docker Image manifest version 2, schema 1 has been removed; " +
+			"more information at https://docs.docker.com/go/deprecated-image-specs/"
 		return nil, cerrdefs.ErrInvalidArgument.WithMessage(errMsg)
-		// TODO: Optimize to do dispatch and integrate pulling with download manager,
-		// leverage existing blob mapping and layer storage
-	} else {
-		// TODO: need a wrapper snapshot interface that combines content
-		// and snapshots as 1) buildkit shouldn't have a dependency on contentstore
-		// or 2) cachemanager should manage the contentstore
-		handlers = append(handlers, c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-			switch desc.MediaType {
-			case c8dimages.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest,
-				c8dimages.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex,
-				c8dimages.MediaTypeDockerSchema2Config, ocispec.MediaTypeImageConfig:
-				nonLayers = append(nonLayers, desc.Digest)
-			default:
-				return nil, c8dimages.ErrSkipDesc
-			}
-			ongoing.add(desc)
-			return nil, nil
-		}))
-
-		// Get all the children for a descriptor
-		childrenHandler := c8dimages.ChildrenHandler(p.is.ContentStore)
-		// Filter the children by the platform
-		childrenHandler = c8dimages.FilterPlatforms(childrenHandler, platform)
-		// Limit manifests pulled to the best match in an index
-		childrenHandler = c8dimages.LimitManifests(childrenHandler, platform, 1)
-
-		handlers = append(handlers,
-			remotes.FetchHandler(p.is.ContentStore, fetcher),
-			childrenHandler,
-		)
 	}
+
+	var (
+		handlers  []c8dimages.Handler
+		nonLayers []digest.Digest
+	)
+
+	// TODO(dmcgowan): need a wrapper snapshot interface that combines content and snapshots as
+	//  1) buildkit shouldn't have a dependency on contentstore, or
+	//  2) cachemanager should manage the contentstore
+	//  ref: https://github.com/moby/moby/commit/96c65a3adf95bc2d972123036d6b81ea3432af33
+	handlers = append(handlers, c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		switch desc.MediaType {
+		case c8dimages.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest,
+			c8dimages.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex,
+			c8dimages.MediaTypeDockerSchema2Config, ocispec.MediaTypeImageConfig:
+			nonLayers = append(nonLayers, desc.Digest)
+		default:
+			return nil, c8dimages.ErrSkipDesc
+		}
+		ongoing.add(desc)
+		return nil, nil
+	}))
+
+	platform := platforms.Only(p.platform)
+
+	// Get all the children for a descriptor
+	childrenHandler := c8dimages.ChildrenHandler(p.is.ContentStore)
+	// Filter the children by the platform
+	childrenHandler = c8dimages.FilterPlatforms(childrenHandler, platform)
+	// Limit manifests pulled to the best match in an index
+	childrenHandler = c8dimages.LimitManifests(childrenHandler, platform, 1)
+
+	handlers = append(handlers,
+		remotes.FetchHandler(p.is.ContentStore, fetcher),
+		childrenHandler,
+	)
 
 	if err := c8dimages.Dispatch(ctx, c8dimages.Handlers(handlers...), nil, p.desc); err != nil {
 		stopProgress()
@@ -661,7 +663,7 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 		}
 	}
 
-	// TODO: handle windows layers for cross platform builds
+	// TODO(tiborvass): handle windows layers for cross platform builds. ref: https://github.com/moby/moby/commit/d47435a004e36531a594cd2636dddaff61a5f4d0
 
 	if p.src.RecordType != "" && ref.GetRecordType() == "" {
 		if err := ref.SetRecordType(p.src.RecordType); err != nil {
