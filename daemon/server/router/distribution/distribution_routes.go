@@ -64,7 +64,7 @@ func (dr *distributionRouter) getDistributionInfo(ctx context.Context, w http.Re
 	// - https://github.com/moby/moby/blob/12c7411b6b7314bef130cd59f1c7384a7db06d0b/distribution/pull.go#L76-L152
 	var lastErr error
 	for _, repo := range repos {
-		distributionInspect, err := dr.fetchManifest(ctx, repo, namedRef)
+		distributionInspect, err := fetchManifest(ctx, repo, namedRef)
 		if err != nil {
 			lastErr = err
 			continue
@@ -74,7 +74,7 @@ func (dr *distributionRouter) getDistributionInfo(ctx context.Context, w http.Re
 	return lastErr
 }
 
-func (dr *distributionRouter) fetchManifest(ctx context.Context, distrepo distribution.Repository, namedRef reference.Named) (registry.DistributionInspect, error) {
+func fetchManifest(ctx context.Context, distrepo distribution.Repository, namedRef reference.Named) (registry.DistributionInspect, error) {
 	var distributionInspect registry.DistributionInspect
 	if canonicalRef, ok := namedRef.(reference.Canonical); !ok {
 		namedRef = reference.TagNameOnly(namedRef)
