@@ -15,12 +15,13 @@ import (
 const containerWaitErrorMsgLimit = 2 * 1024 /* Max: 2KiB */
 
 // ContainerWait waits until the specified container is in a certain state
-// indicated by the given condition, either "not-running" (default),
-// "next-exit", or "removed".
+// indicated by the given condition, either "not-running" ([container.WaitConditionNotRunning])
+// (default),  "next-exit" ([container.WaitConditionNextExit]), or "removed".
+// ([container.WaitConditionRemoved]).
 //
-// If this client's API version is before 1.30, condition is ignored and
-// ContainerWait will return immediately with the two channels, as the server
-// will wait as if the condition were "not-running".
+// If this client's API version is before 1.30, "condition" is ignored and
+// ContainerWait returns immediately with the two channels, as the server
+// waits as if the condition were "not-running".
 //
 // If this client's API version is at least 1.30, ContainerWait blocks until
 // the request has been acknowledged by the server (with a response header),
@@ -28,7 +29,8 @@ const containerWaitErrorMsgLimit = 2 * 1024 /* Max: 2KiB */
 // of the container or an error if there was a problem either beginning the
 // wait request or in getting the response. This allows the caller to
 // synchronize ContainerWait with other calls, such as specifying a
-// "next-exit" condition before issuing a ContainerStart request.
+// "next-exit" condition ([container.WaitConditionNextExit]) before
+// issuing a [Client.ContainerStart] request.
 func (cli *Client) ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error) {
 	resultC := make(chan container.WaitResponse)
 	errC := make(chan error, 1)

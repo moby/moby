@@ -79,7 +79,7 @@ func TestServiceLogs(t *testing.T) {
 		},
 		{
 			options: container.LogsOptions{
-				// timestamp will be passed as is
+				// timestamp is passed as-is
 				Since: "1136073600.000000001",
 			},
 			expectedQueryParams: map[string]string{
@@ -89,7 +89,7 @@ func TestServiceLogs(t *testing.T) {
 		},
 		{
 			options: container.LogsOptions{
-				// An complete invalid date will not be passed
+				// invalid dates are not passed.
 				Since: "invalid value",
 			},
 			expectedError: `invalid value for "since": failed to parse value as time or duration: "invalid value"`,

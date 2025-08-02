@@ -234,7 +234,7 @@ func WithAPIVersionNegotiation() Opt {
 }
 
 // WithTraceProvider sets the trace provider for the client.
-// If this is not set then the global trace provider will be used.
+// If this is not set then the global trace provider is used.
 func WithTraceProvider(provider trace.TracerProvider) Opt {
 	return WithTraceOptions(otelhttp.WithTracerProvider(provider))
 }

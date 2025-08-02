@@ -12,8 +12,8 @@ import (
 
 // ImageList returns a list of images in the docker host.
 //
-// Experimental: Setting the [options.Manifest] will populate
-// [image.Summary.Manifests] with information about image manifests.
+// Experimental: Set the [image.ListOptions.Manifest] option
+// to include [image.Summary.Manifests] with information about image manifests.
 // This is experimental and might change in the future without any backward
 // compatibility.
 func (cli *Client) ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
