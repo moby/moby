@@ -3,8 +3,5 @@
 		"crun": {
 			"path": "/usr/local/bin/crun"
 		}
-	},
-	"features": {
-		"containerd-snapshotter": false
 	}
 }

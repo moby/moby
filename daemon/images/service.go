@@ -49,7 +49,11 @@ type ImageServiceConfig struct {
 }
 
 // NewImageService returns a new ImageService from a configuration
-func NewImageService(config ImageServiceConfig) *ImageService {
+func NewImageService(ctx context.Context, config ImageServiceConfig) *ImageService {
+	log.G(ctx).Debugf("Max Concurrent Downloads: %d", config.MaxConcurrentDownloads)
+	log.G(ctx).Debugf("Max Concurrent Uploads: %d", config.MaxConcurrentUploads)
+	log.G(ctx).Debugf("Max Download Attempts: %d", config.MaxDownloadAttempts)
+
 	return &ImageService{
 		containers:                config.ContainerStore,
 		distributionMetadataStore: config.DistributionMetadataStore,
