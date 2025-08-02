@@ -26,6 +26,9 @@ const (
 	// DNSServers A list of DNS servers associated with the endpoint
 	DNSServers = Prefix + ".endpoint.dnsservers"
 
+	// EndpointName constant represents the container's Name
+	EndpointName = Prefix + ".endpoint.name"
+
 	// EndpointSysctls is a comma separated list interface-specific sysctls
 	// where the interface name is represented by the string "IFNAME".
 	EndpointSysctls = Prefix + ".endpoint.sysctls"
