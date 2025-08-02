@@ -14,16 +14,13 @@ import (
 type StdType byte
 
 const (
-	// Stdin represents standard input stream type.
-	Stdin StdType = iota
-	// Stdout represents standard output stream type.
-	Stdout
-	// Stderr represents standard error steam type.
-	Stderr
-	// Systemerr represents errors originating from the system that make it
-	// into the multiplexed stream.
-	Systemerr
+	Stdin     StdType = 0 // Stdin represents standard input stream.
+	Stdout    StdType = 1 // Stdout represents standard output stream.
+	Stderr    StdType = 2 // Stderr represents standard error steam.
+	Systemerr StdType = 3 // Systemerr represents errors originating from the system.
+)
 
+const (
 	stdWriterPrefixLen = 8
 	stdWriterFdIndex   = 0
 	stdWriterSizeIndex = 4
