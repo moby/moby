@@ -8,11 +8,11 @@ questions you may have as an aspiring Moby contributor.
 Moby has two test suites (and one legacy test suite):
 
 * Unit tests - use standard `go test` and
-  [gotest.tools/assert](https://godoc.org/gotest.tools/assert) assertions. They are located in
+  [gotest.tools/v3/assert](https://pkg.go.dev/gotest.tools/v3/assert) assertions. They are located in
   the package they test. Unit tests should be fast and test only their own 
   package.
 * API integration tests - use standard `go test` and
-  [gotest.tools/assert](https://godoc.org/gotest.tools/assert) assertions. They are located in
+  [gotest.tools/v3/assert](https://pkg.go.dev/gotest.tools/v3/assert) assertions. They are located in
   `./integration/<component>` directories, where `component` is: container,
   image, volume, etc. These tests perform HTTP requests to an API endpoint and
   check the HTTP response and daemon state after the call.
@@ -57,17 +57,28 @@ Instead, implement new tests under `integration/`.
 ### Integration tests environment considerations
 
 When adding new tests or modifying existing tests under `integration/`, testing
-environment should be properly considered. `skip.If` from 
-[gotest.tools/skip](https://godoc.org/gotest.tools/skip) can be used to make the 
+environment should be properly considered. [`skip.If`](https://pkg.go.dev/gotest.tools/v3/skip#If) from 
+[gotest.tools/v3/skip](https://pkg.go.dev/gotest.tools/v3/skip) can be used to make the 
 test run conditionally. Full testing environment conditions can be found at 
-[environment.go](https://github.com/moby/moby/blob/6b6eeed03b963a27085ea670f40cd5ff8a61f32e/testutil/environment/environment.go)
+[environment.go](https://github.com/moby/moby/blob/311b2c87e125c6d4198014369e313135cf928a8a/testutil/environment/environment.go)
 
 Here is a quick example. If the test needs to interact with a docker daemon on 
 the same host, the following condition should be checked within the test code
 
 ```go
-skip.If(t, testEnv.IsRemoteDaemon())
-// your integration test code
+package example
+
+import (
+	"testing"
+
+	"gotest.tools/v3/skip"
+)
+
+func TestSomething(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon(), "test requires a local daemon")
+
+	// your integration test code
+}
 ```
 
 If a remote daemon is detected, the test will be skipped.
@@ -78,11 +89,11 @@ If a remote daemon is detected, the test will be skipped.
 
 To run the unit test suite:
 
-```
+```bash
 make test-unit
 ```
 
-or `hack/test/unit` from inside a `BINDDIR=. make shell` container or properly
+or `hack/test/unit` from inside a `make shell` container or properly
 configured environment.
 
 The following environment variables may be used to run a subset of tests:
@@ -95,7 +106,7 @@ The following environment variables may be used to run a subset of tests:
 
 To run the integration test suite:
 
-```
+```bash
 make test-integration
 ```
 
@@ -121,6 +132,6 @@ automatically set the other above mentioned environment variables accordingly.
 You can change a version of golang used for building stuff that is being tested
 by setting `GO_VERSION` variable, for example:
 
-```
-make GO_VERSION=1.12.8 test
+```bash
+make GO_VERSION=1.24.5 test
 ```
