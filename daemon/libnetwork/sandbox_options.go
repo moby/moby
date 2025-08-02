@@ -1,6 +1,8 @@
 package libnetwork
 
 import (
+	"net/netip"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
@@ -64,7 +66,7 @@ func OptionOriginResolvConfPath(path string) SandboxOption {
 
 // OptionDNS function returns an option setter for dns entry option to
 // be passed to container Create method.
-func OptionDNS(dns []string) SandboxOption {
+func OptionDNS(dns []netip.Addr) SandboxOption {
 	return func(sb *Sandbox) {
 		sb.config.dnsList = dns
 	}

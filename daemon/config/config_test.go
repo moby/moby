@@ -658,12 +658,12 @@ func TestConfigInvalidDNS(t *testing.T) {
 		{
 			doc:         "single DNS, invalid IP-address",
 			input:       `{"dns": ["1.1.1.1o"]}`,
-			expectedErr: `invalid IP address: 1.1.1.1o`,
+			expectedErr: `ParseAddr("1.1.1.1o"): unexpected character (at "o")`,
 		},
 		{
 			doc:         "multiple DNS, invalid IP-address",
 			input:       `{"dns": ["2.2.2.2", "1.1.1.1o"]}`,
-			expectedErr: `invalid IP address: 1.1.1.1o`,
+			expectedErr: `ParseAddr("1.1.1.1o"): unexpected character (at "o")`,
 		},
 	}
 
@@ -671,7 +671,7 @@ func TestConfigInvalidDNS(t *testing.T) {
 		t.Run(tc.doc, func(t *testing.T) {
 			var cfg Config
 			err := json.Unmarshal([]byte(tc.input), &cfg)
-			assert.Check(t, is.Error(err, tc.expectedErr))
+			assert.Check(t, is.Error(err, tc.expectedErr), "type: %T", err)
 		})
 	}
 }

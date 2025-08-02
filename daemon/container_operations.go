@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"runtime"
 	"strings"
@@ -36,12 +37,16 @@ import (
 
 const errSetupNetworking = "failed to set up container networking"
 
-func ipAddresses(ips []net.IP) []string {
-	var addrs []string
-	for _, ip := range ips {
-		addrs = append(addrs, ip.String())
+func toNetIP(ips []string) ([]netip.Addr, error) {
+	var dnsAddrs []netip.Addr
+	for _, ns := range ips {
+		addr, err := netip.ParseAddr(ns)
+		if err != nil {
+			return nil, fmt.Errorf("bad nameserver address %s: %w", ns, err)
+		}
+		dnsAddrs = append(dnsAddrs, addr)
 	}
-	return addrs
+	return dnsAddrs, nil
 }
 
 func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnetwork.SandboxOption, error) {
@@ -62,9 +67,13 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 	}
 
 	if len(ctr.HostConfig.DNS) > 0 {
-		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(ctr.HostConfig.DNS))
+		dnsAddrs, err := toNetIP(ctr.HostConfig.DNS)
+		if err != nil {
+			return nil, err
+		}
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(dnsAddrs))
 	} else if len(cfg.DNS) > 0 {
-		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(ipAddresses(cfg.DNS)))
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(cfg.DNS))
 	}
 	if len(ctr.HostConfig.DNSSearch) > 0 {
 		sboxOptions = append(sboxOptions, libnetwork.OptionDNSSearch(ctr.HostConfig.DNSSearch))
@@ -711,7 +720,7 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 		return err
 	}
 
-	createOptions, err := buildCreateEndpointOptions(ctr, n, endpointConfig, sb, ipAddresses(cfg.DNS))
+	createOptions, err := buildCreateEndpointOptions(ctr, n, endpointConfig, sb, cfg.DNS)
 	if err != nil {
 		return err
 	}

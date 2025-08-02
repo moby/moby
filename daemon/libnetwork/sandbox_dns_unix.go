@@ -254,15 +254,7 @@ func (sb *Sandbox) loadResolvConf(path string) (*resolvconf.ResolvConf, error) {
 # This file can be edited; Docker Engine will not make further changes once it
 # has been modified.`)
 	if len(sb.config.dnsList) > 0 {
-		var dnsAddrs []netip.Addr
-		for _, ns := range sb.config.dnsList {
-			addr, err := netip.ParseAddr(ns)
-			if err != nil {
-				return nil, errors.Wrapf(err, "bad nameserver address %s", ns)
-			}
-			dnsAddrs = append(dnsAddrs, addr)
-		}
-		rc.OverrideNameServers(dnsAddrs)
+		rc.OverrideNameServers(sb.config.dnsList)
 	}
 	if len(sb.config.dnsSearchList) > 0 {
 		rc.OverrideSearch(sb.config.dnsSearchList)

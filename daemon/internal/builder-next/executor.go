@@ -2,7 +2,7 @@ package buildkit
 
 import (
 	"context"
-	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"sync"
@@ -110,7 +110,7 @@ func getDNSConfig(cfg config.DNSConfig) *oci.DNSConfig {
 	return nil
 }
 
-func ipAddresses(ips []net.IP) []string {
+func ipAddresses(ips []netip.Addr) []string {
 	var addrs []string
 	for _, ip := range ips {
 		addrs = append(addrs, ip.String())

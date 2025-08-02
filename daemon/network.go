@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"sort"
 	"strconv"
 	"strings"
@@ -831,7 +832,7 @@ func (daemon *Daemon) clearAttachableNetworks() {
 }
 
 // buildCreateEndpointOptions builds endpoint options from a given network.
-func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, epConfig *network.EndpointSettings, sb *libnetwork.Sandbox, daemonDNS []string) ([]libnetwork.EndpointOption, error) {
+func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, epConfig *network.EndpointSettings, sb *libnetwork.Sandbox, daemonDNS []netip.Addr) ([]libnetwork.EndpointOption, error) {
 	var createOptions []libnetwork.EndpointOption
 	genericOptions := make(options.Generic)
 
@@ -914,7 +915,11 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 		if len(c.HostConfig.DNS) > 0 {
 			createOptions = append(createOptions, libnetwork.CreateOptionDNS(c.HostConfig.DNS))
 		} else if len(daemonDNS) > 0 {
-			createOptions = append(createOptions, libnetwork.CreateOptionDNS(daemonDNS))
+			dns := make([]string, len(daemonDNS))
+			for i, a := range daemonDNS {
+				dns[i] = a.String()
+			}
+			createOptions = append(createOptions, libnetwork.CreateOptionDNS(dns))
 		}
 	}
 
