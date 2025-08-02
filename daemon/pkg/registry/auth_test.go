@@ -31,10 +31,10 @@ func TestResolveAuthConfigIndexServer(t *testing.T) {
 		Official: false,
 	}
 
-	resolved := ResolveAuthConfig(authConfigs, officialIndex)
+	resolved := resolveAuthConfig(authConfigs, officialIndex)
 	assert.Equal(t, resolved, indexConfig, "Expected ResolveAuthConfig to return IndexServer")
 
-	resolved = ResolveAuthConfig(authConfigs, privateIndex)
+	resolved = resolveAuthConfig(authConfigs, privateIndex)
 	assert.Check(t, resolved != indexConfig, "Expected ResolveAuthConfig to not return IndexServer")
 }
 
@@ -92,12 +92,12 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 		}
 		for _, reg := range registries {
 			authConfigs[reg] = configured
-			resolved := ResolveAuthConfig(authConfigs, index)
+			resolved := resolveAuthConfig(authConfigs, index)
 			if resolved.Username != configured.Username || resolved.Password != configured.Password {
 				t.Errorf("%s -> %v != %v\n", reg, resolved, configured)
 			}
 			delete(authConfigs, reg)
-			resolved = ResolveAuthConfig(authConfigs, index)
+			resolved = resolveAuthConfig(authConfigs, index)
 			if resolved.Username == configured.Username || resolved.Password == configured.Password {
 				t.Errorf("%s -> %v == %v\n", reg, resolved, configured)
 			}

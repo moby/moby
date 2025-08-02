@@ -39,7 +39,7 @@ func newV1Endpoint(ctx context.Context, index *registry.IndexInfo, headers http.
 		return nil, err
 	}
 
-	endpoint, err := newV1EndpointFromStr(GetAuthConfigKey(index), tlsConfig, headers)
+	endpoint, err := newV1EndpointFromStr(getAuthConfigKey(index), tlsConfig, headers)
 	if err != nil {
 		return nil, err
 	}

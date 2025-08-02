@@ -342,26 +342,9 @@ func validateHostPort(s string) error {
 	return nil
 }
 
-// newIndexInfo returns IndexInfo configuration from indexName
-func newIndexInfo(config *serviceConfig, indexName string) *registry.IndexInfo {
-	indexName = normalizeIndexName(indexName)
-
-	// Return any configured index info, first.
-	if index, ok := config.IndexConfigs[indexName]; ok {
-		return index
-	}
-
-	// Construct a non-configured index info.
-	return &registry.IndexInfo{
-		Name:    indexName,
-		Mirrors: []string{},
-		Secure:  config.isSecureIndex(indexName),
-	}
-}
-
-// GetAuthConfigKey special-cases using the full index address of the official
+// getAuthConfigKey special-cases using the full index address of the official
 // index as the AuthConfig key, and uses the (host)name[:port] for private indexes.
-func GetAuthConfigKey(index *registry.IndexInfo) string {
+func getAuthConfigKey(index *registry.IndexInfo) string {
 	if index.Official {
 		return IndexServer
 	}
