@@ -14,10 +14,10 @@ import (
 type StdType byte
 
 const (
-	Stdin     StdType = 0 // Stdin represents standard input stream.
+	Stdin     StdType = 0 // Stdin represents standard input stream. It is present for completeness and should NOT be used. When reading the stream with [StdCopy] it is output on [Stdout].
 	Stdout    StdType = 1 // Stdout represents standard output stream.
 	Stderr    StdType = 2 // Stderr represents standard error steam.
-	Systemerr StdType = 3 // Systemerr represents errors originating from the system.
+	Systemerr StdType = 3 // Systemerr represents errors originating from the system. When reading the stream with [StdCopy] it is returned as an error.
 )
 
 const (
@@ -72,9 +72,20 @@ func (w *stdWriter) Write(p []byte) (int, error) {
 // stream "w".
 //
 // Writers created through NewStdWriter allow for multiple write streams
-// (e.g. stdout ([Stdout]) and stderr ([Stderr]) to be multiplexed into a
+// (e.g., stdout ([Stdout]) and stderr ([Stderr]) to be multiplexed into a
 // single connection. "streamType" indicates the type of stream to encapsulate,
-// and can be [Stdin], [Stdout], pr [Stderr].
+// commonly, [Stdout] or [Stderr]. The [Systemerr] stream can be used to
+// include server-side errors in the stream. Information on this stream
+// is returned as an error by [StdCopy] and terminates processing the
+// stream.
+//
+// The [Stdin] stream is present for completeness and should generally
+// NOT be used. It is output on [Stdout] when reading the stream with
+// [StdCopy].
+//
+// All streams must share the same underlying [io.Writer] to ensure proper
+// multiplexing. Each call to NewStdWriter wraps that shared writer with
+// a header indicating the target stream.
 func NewStdWriter(w io.Writer, streamType StdType) io.Writer {
 	return &stdWriter{
 		Writer: w,
@@ -91,11 +102,15 @@ func NewStdWriter(w io.Writer, streamType StdType) io.Writer {
 // [NewStdWriter].
 //
 // As it reads from "multiplexedSource", StdCopy writes [Stdout] messages
-// to "destOut", and [Stderr] message to "destErr].
+// to "destOut", and [Stderr] message to "destErr]. For backward-compatibility,
+// [Stdin] messages are output to "destOut". The [Systemerr] stream provides
+// errors produced by the daemon. It is returned as an error, and terminates
+// processing the stream.
 //
 // StdCopy it reads until it hits [io.EOF] on "multiplexedSource", after
 // which it returns a nil error. In other words: any error returned indicates
-// a real underlying error.
+// a real underlying error, which may be when an unknown [StdType] stream
+// is received.
 //
 // The "written" return holds the total number of bytes written to "destOut"
 // and "destErr" combined.
@@ -126,8 +141,8 @@ func StdCopy(destOut, destErr io.Writer, multiplexedSource io.Reader) (written i
 			}
 		}
 
-		stream := StdType(buf[stdWriterFdIndex])
 		// Check the first byte to know where to write
+		stream := StdType(buf[stdWriterFdIndex])
 		switch stream {
 		case Stdin:
 			fallthrough
@@ -143,7 +158,7 @@ func StdCopy(destOut, destErr io.Writer, multiplexedSource io.Reader) (written i
 			// to outstream if Systemerr is the stream
 			out = nil
 		default:
-			return 0, fmt.Errorf("unrecognized input header: %d", buf[stdWriterFdIndex])
+			return 0, fmt.Errorf("unrecognized stream: %d", stream)
 		}
 
 		// Retrieve the size of the frame
