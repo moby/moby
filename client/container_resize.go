@@ -8,7 +8,7 @@ import (
 	"github.com/moby/moby/api/types/container"
 )
 
-// ContainerResize changes the size of the tty for a container.
+// ContainerResize changes the size of the pseudo-TTY for a container.
 func (cli *Client) ContainerResize(ctx context.Context, containerID string, options container.ResizeOptions) error {
 	containerID, err := trimID("container", containerID)
 	if err != nil {

@@ -14,12 +14,14 @@ import (
 // ImagePull requests the docker host to pull an image from a remote registry.
 // It executes the privileged function if the operation is unauthorized
 // and it tries one more time.
-// It's up to the caller to handle the io.ReadCloser and close it properly.
-//
-// FIXME(vdemeester): there is currently used in a few way in docker/docker
-// - if not in trusted content, ref is used to pass the whole reference, and tag is empty
-// - if in trusted content, ref is used to pass the reference name, and tag for the digest
+// It's up to the caller to handle the [io.ReadCloser] and close it.
 func (cli *Client) ImagePull(ctx context.Context, refStr string, options image.PullOptions) (io.ReadCloser, error) {
+	// FIXME(vdemeester): there is currently used in a few way in docker/docker
+	// - if not in trusted content, ref is used to pass the whole reference, and tag is empty
+	// - if in trusted content, ref is used to pass the reference name, and tag for the digest
+	//
+	// ref; https://github.com/docker-archive-public/docker.engine-api/pull/162
+
 	ref, err := reference.ParseNormalizedNamed(refStr)
 	if err != nil {
 		return nil, err

@@ -7,7 +7,7 @@ import (
 	"github.com/moby/moby/api/types/checkpoint"
 )
 
-// CheckpointDelete deletes the checkpoint with the given name from the given container
+// CheckpointDelete deletes the checkpoint with the given name from the given container.
 func (cli *Client) CheckpointDelete(ctx context.Context, containerID string, options checkpoint.DeleteOptions) error {
 	containerID, err := trimID("container", containerID)
 	if err != nil {

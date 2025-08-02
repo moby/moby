@@ -10,12 +10,12 @@ import (
 )
 
 // ImageLoad loads an image in the docker host from the client host.
-// It's up to the caller to close the io.ReadCloser in the
-// ImageLoadResponse returned by this function.
+// It's up to the caller to close the [io.ReadCloser] in the
+// [image.LoadResponse] returned by this function.
 //
 // Platform is an optional parameter that specifies the platform to load from
-// the provided multi-platform image. This is only has effect if the input image
-// is a multi-platform image.
+// the provided multi-platform image. Passing a platform only has an effect
+// if the input image is a multi-platform image.
 func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, loadOpts ...ImageLoadOption) (image.LoadResponse, error) {
 	var opts imageLoadOpts
 	for _, opt := range loadOpts {

@@ -73,7 +73,7 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 		hostConfig.CapDrop = normalizeCapabilities(hostConfig.CapDrop)
 	}
 
-	// Since API 1.44, the container-wide MacAddress is deprecated and will trigger a WARNING if it's specified.
+	// Since API 1.44, the container-wide MacAddress is deprecated and triggers a WARNING if it's specified.
 	if versions.GreaterThanOrEqualTo(cli.ClientVersion(), "1.44") {
 		config.MacAddress = "" //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
 	}

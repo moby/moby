@@ -2,7 +2,7 @@ package client
 
 import "context"
 
-// ContainerUnpause resumes the process execution within a container
+// ContainerUnpause resumes the process execution within a container.
 func (cli *Client) ContainerUnpause(ctx context.Context, containerID string) error {
 	containerID, err := trimID("container", containerID)
 	if err != nil {

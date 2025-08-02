@@ -6,7 +6,7 @@ import (
 	"net/url"
 )
 
-// StatsResponseReader wraps an io.ReadCloser to read (a stream of) stats
+// StatsResponseReader wraps an [io.ReadCloser] to read (a stream of) stats
 // for a container, as produced by the GET "/stats" endpoint.
 //
 // The OSType field is set to the server's platform to allow
@@ -19,7 +19,7 @@ type StatsResponseReader struct {
 }
 
 // ContainerStats returns near realtime stats for a given container.
-// It's up to the caller to close the io.ReadCloser returned.
+// It's up to the caller to close the [io.ReadCloser] returned.
 func (cli *Client) ContainerStats(ctx context.Context, containerID string, stream bool) (StatsResponseReader, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {

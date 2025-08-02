@@ -18,7 +18,7 @@ import (
 // ImagePush requests the docker host to push an image to a remote registry.
 // It executes the privileged function if the operation is unauthorized
 // and it tries one more time.
-// It's up to the caller to handle the io.ReadCloser and close it properly.
+// It's up to the caller to handle the [io.ReadCloser] and close it.
 func (cli *Client) ImagePush(ctx context.Context, image string, options image.PushOptions) (io.ReadCloser, error) {
 	ref, err := reference.ParseNormalizedNamed(image)
 	if err != nil {

@@ -7,7 +7,7 @@ import (
 )
 
 // ContainerExport retrieves the raw contents of a container
-// and returns them as an io.ReadCloser. It's up to the caller
+// and returns them as an [io.ReadCloser]. It's up to the caller
 // to close the stream.
 func (cli *Client) ContainerExport(ctx context.Context, containerID string) (io.ReadCloser, error) {
 	containerID, err := trimID("container", containerID)

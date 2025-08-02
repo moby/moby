@@ -194,7 +194,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 	}
 }
 
-// Test JSONMessage with an Error. It will return an error with the text as error, not the meaning of the HTTP code.
+// Test JSONMessage with an Error. It returns an error with the given text, not the meaning of the HTTP code.
 func TestJSONMessageDisplayWithJSONError(t *testing.T) {
 	data := bytes.NewBuffer([]byte{})
 	jsonMessage := JSONMessage{Error: &jsonstream.Error{Code: 404, Message: "Can't find it"}}

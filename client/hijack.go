@@ -67,7 +67,7 @@ func setupHijackConn(dialer func(context.Context) (net.Conn, error), req *http.R
 	// When we set up a TCP connection for hijack, there could be long periods
 	// of inactivity (a long running command with no output) that in certain
 	// network setups may cause ECONNTIMEOUT, leaving the client in an unknown
-	// state. Setting TCP KeepAlive on the socket connection will prohibit
+	// state. Setting TCP KeepAlive on the socket connection prohibits
 	// ECONNTIMEOUT unless the socket connection truly is broken
 	if tcpConn, ok := conn.(*net.TCPConn); ok {
 		_ = tcpConn.SetKeepAlive(true)
@@ -155,7 +155,8 @@ func (h *HijackedResponse) Close() {
 }
 
 // MediaType let client know if HijackedResponse hold a raw or multiplexed stream.
-// returns false if HTTP Content-Type is not relevant, and container must be inspected
+// returns false if HTTP Content-Type is not relevant, and the container must be
+// inspected.
 func (h *HijackedResponse) MediaType() (string, bool) {
 	if h.mediaType == "" {
 		return "", false

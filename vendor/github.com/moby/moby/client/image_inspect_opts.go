@@ -28,8 +28,9 @@ func ImageInspectWithRawResponse(raw *bytes.Buffer) ImageInspectOption {
 
 // ImageInspectWithManifests sets manifests API option for the image inspect operation.
 // This option is only available for API version 1.48 and up.
-// With this option set, the image inspect operation response will have the
-// [image.InspectResponse.Manifests] field populated if the server is multi-platform capable.
+// With this option set, the image inspect operation response includes
+// the [image.InspectResponse.Manifests] field if the server is multi-platform
+// capable.
 func ImageInspectWithManifests(manifests bool) ImageInspectOption {
 	return imageInspectOptionFunc(func(clientOpts *imageInspectOpts) error {
 		clientOpts.apiOptions.Manifests = manifests
@@ -39,7 +40,7 @@ func ImageInspectWithManifests(manifests bool) ImageInspectOption {
 
 // ImageInspectWithPlatform sets platform API option for the image inspect operation.
 // This option is only available for API version 1.49 and up.
-// With this option set, the image inspect operation will return information for the
+// With this option set, the image inspect operation returns information for the
 // specified platform variant of the multi-platform image.
 func ImageInspectWithPlatform(platform *ocispec.Platform) ImageInspectOption {
 	return imageInspectOptionFunc(func(clientOpts *imageInspectOpts) error {
