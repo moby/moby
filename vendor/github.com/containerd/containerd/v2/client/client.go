@@ -114,9 +114,7 @@ func New(address string, opts ...Opt) (*Client, error) {
 	}
 
 	if copts.defaultRuntime != "" {
-		c.runtime = copts.defaultRuntime
-	} else {
-		c.runtime = defaults.DefaultRuntime
+		c.runtime.value = copts.defaultRuntime
 	}
 
 	if copts.defaultPlatform != nil {
@@ -174,15 +172,6 @@ func New(address string, opts ...Opt) (*Client, error) {
 		return nil, fmt.Errorf("no grpc connection or services is available: %w", errdefs.ErrUnavailable)
 	}
 
-	// check namespace labels for default runtime
-	if copts.defaultRuntime == "" && c.defaultns != "" {
-		if label, err := c.GetLabel(context.Background(), defaults.DefaultRuntimeNSLabel); err != nil {
-			return nil, err
-		} else if label != "" {
-			c.runtime = label
-		}
-	}
-
 	return c, nil
 }
 
@@ -198,22 +187,16 @@ func NewWithConn(conn *grpc.ClientConn, opts ...Opt) (*Client, error) {
 	c := &Client{
 		defaultns: copts.defaultns,
 		conn:      conn,
-		runtime:   defaults.DefaultRuntime,
+	}
+
+	if copts.defaultRuntime != "" {
+		c.runtime.value = copts.defaultRuntime
 	}
 
 	if copts.defaultPlatform != nil {
 		c.platform = copts.defaultPlatform
 	} else {
 		c.platform = platforms.Default()
-	}
-
-	// check namespace labels for default runtime
-	if copts.defaultRuntime == "" && c.defaultns != "" {
-		if label, err := c.GetLabel(context.Background(), defaults.DefaultRuntimeNSLabel); err != nil {
-			return nil, err
-		} else if label != "" {
-			c.runtime = label
-		}
 	}
 
 	if copts.services != nil {
@@ -228,10 +211,15 @@ type Client struct {
 	services
 	connMu    sync.Mutex
 	conn      *grpc.ClientConn
-	runtime   string
 	defaultns string
 	platform  platforms.MatchComparer
 	connector func() (*grpc.ClientConn, error)
+
+	// this should only be accessed via defaultRuntime()
+	runtime struct {
+		value string
+		mut   sync.Mutex
+	}
 }
 
 // Reconnect re-establishes the GRPC connection to the containerd daemon
@@ -252,7 +240,31 @@ func (c *Client) Reconnect() error {
 
 // Runtime returns the name of the runtime being used
 func (c *Client) Runtime() string {
-	return c.runtime
+	runtime, _ := c.defaultRuntime(context.TODO())
+	return runtime
+}
+
+func (c *Client) defaultRuntime(ctx context.Context) (string, error) {
+	c.runtime.mut.Lock()
+	defer c.runtime.mut.Unlock()
+
+	if c.runtime.value != "" {
+		return c.runtime.value, nil
+	}
+
+	if c.defaultns != "" {
+		label, err := c.GetLabel(ctx, defaults.DefaultRuntimeNSLabel)
+		if err != nil {
+			// Don't set the runtime value if there's an error
+			return defaults.DefaultRuntime, fmt.Errorf("failed to get default runtime label: %w", err)
+		}
+		if label != "" {
+			c.runtime.value = label
+			return label, nil
+		}
+	}
+	c.runtime.value = defaults.DefaultRuntime
+	return c.runtime.value, nil
 }
 
 // IsServing returns true if the client can successfully connect to the
@@ -299,10 +311,15 @@ func (c *Client) NewContainer(ctx context.Context, id string, opts ...NewContain
 	}
 	defer done(ctx)
 
+	runtime, err := c.defaultRuntime(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	container := containers.Container{
 		ID: id,
 		Runtime: containers.RuntimeInfo{
-			Name: c.runtime,
+			Name: runtime,
 		},
 	}
 	for _, o := range opts {
@@ -935,14 +952,16 @@ type RuntimeInfo struct {
 }
 
 func (c *Client) RuntimeInfo(ctx context.Context, runtimePath string, runtimeOptions interface{}) (*RuntimeInfo, error) {
-	rt := c.runtime
+	runtime, err := c.defaultRuntime(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if runtimePath != "" {
-		rt = runtimePath
+		runtime = runtimePath
 	}
 	rr := &apitypes.RuntimeRequest{
-		RuntimePath: rt,
+		RuntimePath: runtime,
 	}
-	var err error
 	if runtimeOptions != nil {
 		rr.Options, err = typeurl.MarshalAnyToProto(runtimeOptions)
 		if err != nil {
