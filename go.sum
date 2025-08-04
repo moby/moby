@@ -202,8 +202,8 @@ github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
-github.com/fernet/fernet-go v0.0.0-20211208181803-9f70042a33ee h1:v6Eju/FhxsACGNipFEPBZZAzGr1F/jlRQr1qiBw2nEE=
-github.com/fernet/fernet-go v0.0.0-20211208181803-9f70042a33ee/go.mod h1:2H9hjfbpSMHwY503FclkV/lZTBh2YlOmLLSda12uL8c=
+github.com/fernet/fernet-go v0.0.0-20240119011108-303da6aec611 h1:JwYtKJ/DVEoIA5dH45OEU7uoryZY/gjd/BQiwwAOImM=
+github.com/fernet/fernet-go v0.0.0-20240119011108-303da6aec611/go.mod h1:zHMNeYgqrTpKyjawjitDg0Osd1P/FmeA0SZLYK3RfLQ=
 github.com/fluent/fluent-logger-golang v1.9.0 h1:zUdY44CHX2oIUc7VTNZc+4m+ORuO/mldQDA7czhWXEg=
 github.com/fluent/fluent-logger-golang v1.9.0/go.mod h1:2/HCT/jTy78yGyeNGQLGQsjF3zzzAuy6Xlk6FCMV5eU=
 github.com/fsnotify/fsnotify v1.9.0 h1:2Ml+OJNzbYCTzsxtv8vKSFD9PbJjmhYF14k/jKC7S9k=
