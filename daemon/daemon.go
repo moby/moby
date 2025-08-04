@@ -1051,6 +1051,9 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	if d.UsesSnapshotter() {
+		if d.containerdClient == nil {
+			return nil, errors.New("Unable to start with containerd snapshotter integration because containerd address/socket not specified (see --containerd).")
+		}
 		if os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != "" {
 			log.G(ctx).Warn("Enabling containerd snapshotter through the $TEST_INTEGRATION_USE_SNAPSHOTTER environment variable. This should only be used for testing.")
 		}
