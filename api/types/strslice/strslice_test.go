@@ -2,7 +2,7 @@ package strslice
 
 import (
 	"encoding/json"
-	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -14,8 +14,8 @@ func TestStrSliceMarshalJSON(t *testing.T) {
 		// MADNESS(stevvooe): No clue why nil would be "" but empty would be
 		// "null". Had to make a change here that may affect compatibility.
 		{input: nil, expected: "null"},
-		{StrSlice{}, "[]"},
-		{StrSlice{"/bin/sh", "-c", "echo"}, `["/bin/sh","-c","echo"]`},
+		{input: StrSlice{}, expected: "[]"},
+		{input: StrSlice{"/bin/sh", "-c", "echo"}, expected: `["/bin/sh","-c","echo"]`},
 	} {
 		data, err := json.Marshal(testcase.input)
 		if err != nil {
@@ -39,47 +39,41 @@ func TestStrSliceUnmarshalJSON(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		actualParts := []string(strs)
-		if !reflect.DeepEqual(actualParts, expected) {
-			t.Fatalf("%#v: expected %v, got %v", input, expected, actualParts)
+		actual := []string(strs)
+		if !slices.Equal(actual, expected) {
+			t.Fatalf("%#v: expected %#v, got %#v", input, expected, actual)
 		}
 	}
 }
 
 func TestStrSliceUnmarshalString(t *testing.T) {
-	var e StrSlice
+	var actual StrSlice
 	echo, err := json.Marshal("echo")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := json.Unmarshal(echo, &e); err != nil {
+	if err := json.Unmarshal(echo, &actual); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(e) != 1 {
-		t.Fatalf("expected 1 element after unmarshal: %q", e)
-	}
-
-	if e[0] != "echo" {
-		t.Fatalf("expected `echo`, got: %q", e[0])
+	expected := []string{"echo"}
+	if !slices.Equal(actual, expected) {
+		t.Fatalf("expected %#v, got %#v", expected, actual)
 	}
 }
 
 func TestStrSliceUnmarshalSlice(t *testing.T) {
-	var e StrSlice
+	var actual StrSlice
 	echo, err := json.Marshal([]string{"echo"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := json.Unmarshal(echo, &e); err != nil {
+	if err := json.Unmarshal(echo, &actual); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(e) != 1 {
-		t.Fatalf("expected 1 element after unmarshal: %q", e)
-	}
-
-	if e[0] != "echo" {
-		t.Fatalf("expected `echo`, got: %q", e[0])
+	expected := []string{"echo"}
+	if !slices.Equal(actual, expected) {
+		t.Fatalf("expected %#v, got %#v", expected, actual)
 	}
 }
