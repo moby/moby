@@ -3,6 +3,7 @@ package resolvconf
 
 import (
 	"bytes"
+	"fmt"
 	"net/netip"
 	"os"
 
@@ -130,7 +131,7 @@ func Build(path string, nameservers, dnsSearch, dnsOptions []string) (*File, err
 	for _, addr := range nameservers {
 		ipAddr, err := netip.ParseAddr(addr)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("bad nameserver address: %w", err)
 		}
 		ns = append(ns, ipAddr)
 	}
