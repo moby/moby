@@ -13,8 +13,8 @@ import (
 )
 
 // Events returns a stream of events in the daemon. It's up to the caller to close the stream
-// by cancelling the context. Once the stream has been completely read an io.EOF error will
-// be sent over the error channel. If an error is sent all processing will be stopped. It's up
+// by cancelling the context. Once the stream has been completely read an [io.EOF] error is
+// sent over the error channel. If an error is sent, all processing is stopped. It's up
 // to the caller to reopen the stream in the event of an error by reinvoking this method.
 func (cli *Client) Events(ctx context.Context, options events.ListOptions) (<-chan events.Message, <-chan error) {
 	messages := make(chan events.Message)

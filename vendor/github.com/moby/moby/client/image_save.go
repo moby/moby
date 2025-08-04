@@ -6,10 +6,12 @@ import (
 	"net/url"
 )
 
-// ImageSave retrieves one or more images from the docker host as an io.ReadCloser.
+// ImageSave retrieves one or more images from the docker host as an
+// [io.ReadCloser].
 //
-// Platforms is an optional parameter that specifies the platforms to save from the image.
-// This is only has effect if the input image is a multi-platform image.
+// Platforms is an optional parameter that specifies the platforms to save
+// from the image. Passing a platform only has an effect if the input image
+// is a multi-platform image.
 func (cli *Client) ImageSave(ctx context.Context, imageIDs []string, saveOpts ...ImageSaveOption) (io.ReadCloser, error) {
 	var opts imageSaveOpts
 	for _, opt := range saveOpts {

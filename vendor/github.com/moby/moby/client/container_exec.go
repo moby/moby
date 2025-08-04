@@ -64,21 +64,22 @@ func (cli *Client) ContainerExecStart(ctx context.Context, execID string, config
 
 // ContainerExecAttach attaches a connection to an exec process in the server.
 //
-// It returns a [types.HijackedResponse] with the hijacked connection
-// and the a reader to get output. It's up to the called to close
-// the hijacked connection by calling [types.HijackedResponse.Close].
+// It returns a [HijackedResponse] with the hijacked connection
+// and a reader to get output. It's up to the called to close
+// the hijacked connection by calling [HijackedResponse.Close].
 //
 // The stream format on the response uses one of two formats:
 //
-//   - If the container is using a TTY, there is only a single stream (stdout), and
-//     data is copied directly from the container output stream, no extra
+//   - If the container is using a TTY, there is only a single stream (stdout)
+//     and data is copied directly from the container output stream, no extra
 //     multiplexing or headers.
 //   - If the container is *not* using a TTY, streams for stdout and stderr are
 //     multiplexed.
 //
-// You can use [github.com/moby/moby/api/stdcopy.StdCopy] to demultiplex this
-// stream. Refer to [Client.ContainerAttach] for details about the multiplexed
-// stream.
+// You can use [stdcopy.StdCopy] to demultiplex this stream. Refer to
+// [Client.ContainerAttach] for details about the multiplexed stream.
+//
+// [stdcopy.StdCopy]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#StdCopy
 func (cli *Client) ContainerExecAttach(ctx context.Context, execID string, config container.ExecAttachOptions) (HijackedResponse, error) {
 	if versions.LessThan(cli.ClientVersion(), "1.42") {
 		config.ConsoleSize = nil

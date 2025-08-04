@@ -4,16 +4,16 @@ const (
 	// EnvOverrideHost is the name of the environment variable that can be used
 	// to override the default host to connect to (DefaultDockerHost).
 	//
-	// This env-var is read by FromEnv and WithHostFromEnv and when set to a
+	// This env-var is read by [FromEnv] and [WithHostFromEnv] and when set to a
 	// non-empty value, takes precedence over the default host (which is platform
 	// specific), or any host already set.
 	EnvOverrideHost = "DOCKER_HOST"
 
 	// EnvOverrideAPIVersion is the name of the environment variable that can
-	// be used to override the API version to use. Value should be
+	// be used to override the API version to use. Value must be
 	// formatted as MAJOR.MINOR, for example, "1.19".
 	//
-	// This env-var is read by FromEnv and WithVersionFromEnv and when set to a
+	// This env-var is read by [FromEnv] and [WithVersionFromEnv] and when set to a
 	// non-empty value, takes precedence over API version negotiation.
 	//
 	// This environment variable should be used for debugging purposes only, as
@@ -23,16 +23,15 @@ const (
 	// EnvOverrideCertPath is the name of the environment variable that can be
 	// used to specify the directory from which to load the TLS certificates
 	// (ca.pem, cert.pem, key.pem) from. These certificates are used to configure
-	// the Client for a TCP connection protected by TLS client authentication.
+	// the [Client] for a TCP connection protected by TLS client authentication.
 	//
 	// TLS certificate verification is enabled by default if the Client is configured
-	// to use a TLS connection. Refer to EnvTLSVerify below to learn how to
+	// to use a TLS connection. Refer to [EnvTLSVerify] below to learn how to
 	// disable verification for testing purposes.
 	//
 	// WARNING: Access to the remote API is equivalent to root access to the
 	// host where the daemon runs. Do not expose the API without protection,
-	// and only if needed. Make sure you are familiar with the "daemon attack
-	// surface" (https://docs.docker.com/go/attack-surface/).
+	// and only if needed. Make sure you are familiar with the ["daemon attack surface"].
 	//
 	// For local access to the API, it is recommended to connect with the daemon
 	// using the default local socket connection (on Linux), or the named pipe
@@ -43,11 +42,14 @@ const (
 	// configuration if the host is accessible using ssh.
 	//
 	// If you cannot use the alternatives above, and you must expose the API over
-	// a TCP connection, refer to https://docs.docker.com/engine/security/protect-access/
+	// a TCP connection. Refer to [Protect the Docker daemon socket]
 	// to learn how to configure the daemon and client to use a TCP connection
 	// with TLS client authentication. Make sure you know the differences between
 	// a regular TLS connection and a TLS connection protected by TLS client
 	// authentication, and verify that the API cannot be accessed by other clients.
+	//
+	// ["daemon attack surface"]: https://docs.docker.com/go/attack-surface/
+	// [Protect the Docker daemon socket]: https://docs.docker.com/engine/security/protect-access/
 	EnvOverrideCertPath = "DOCKER_CERT_PATH"
 
 	// EnvTLSVerify is the name of the environment variable that can be used to
@@ -59,26 +61,26 @@ const (
 	//
 	// WARNING: Access to the remote API is equivalent to root access to the
 	// host where the daemon runs. Do not expose the API without protection,
-	// and only if needed. Make sure you are familiar with the "daemon attack
-	// surface" (https://docs.docker.com/go/attack-surface/).
+	// and only if needed. Make sure you are familiar with the ["daemon attack surface"].
 	//
 	// Before setting up your client and daemon to use a TCP connection with TLS
 	// client authentication, consider using one of the alternatives mentioned
-	// in EnvOverrideCertPath above.
+	// in [EnvOverrideCertPath].
 	//
 	// Disabling TLS certificate verification (for testing purposes)
 	//
 	// TLS certificate verification is enabled by default if the Client is configured
 	// to use a TLS connection, and it is highly recommended to keep verification
-	// enabled to prevent machine-in-the-middle attacks. Refer to the documentation
-	// at https://docs.docker.com/engine/security/protect-access/ and pages linked
-	// from that page to learn how to configure the daemon and client to use a
-	// TCP connection with TLS client authentication enabled.
+	// enabled to prevent machine-in-the-middle attacks. Refer to [Protect the Docker daemon socket]
+	// in the documentation and pages linked from that page to learn how to
+	// configure the daemon and client to use a TCP connection with TLS client
+	// authentication enabled.
 	//
 	// Set the "DOCKER_TLS_VERIFY" environment to an empty string ("") to
 	// disable TLS certificate verification. Disabling verification is insecure,
-	// so should only be done for testing purposes. From the Go documentation
-	// (https://pkg.go.dev/crypto/tls#Config):
+	// so should only be done for testing purposes.
+	//
+	// From the[crypto/tls.Config] documentation:
 	//
 	// InsecureSkipVerify controls whether a client verifies the server's
 	// certificate chain and host name. If InsecureSkipVerify is true, crypto/tls
@@ -86,5 +88,8 @@ const (
 	// certificate. In this mode, TLS is susceptible to machine-in-the-middle
 	// attacks unless custom verification is used. This should be used only for
 	// testing or in combination with VerifyConnection or VerifyPeerCertificate.
+	//
+	// ["daemon attack surface"]: https://docs.docker.com/go/attack-surface/
+	// [Protect the Docker daemon socket]: https://docs.docker.com/engine/security/protect-access/
 	EnvTLSVerify = "DOCKER_TLS_VERIFY"
 )
