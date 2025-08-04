@@ -153,7 +153,7 @@ func TestResponseErrors(t *testing.T) {
 			doc:         "malformed JSON",
 			contentType: "application/json",
 			response:    `{"message":"Some error occurred`,
-			expected:    `Error reading JSON: unexpected end of JSON input`,
+			expected:    `error reading JSON: unexpected end of JSON input`,
 		},
 		{
 			// Server response that's valid JSON, but not the expected (types.ErrorResponse) scheme
@@ -204,7 +204,7 @@ func TestResponseErrors(t *testing.T) {
   <p>If this problem persists, please <a href="https://example.com/support">contact support</a>.</p>
 </body>
 </html>`,
-			expected: `Error reading JSON: invalid character '<' looking for beginning of value`,
+			expected: `error reading JSON: invalid character '<' looking for beginning of value`,
 		},
 	}
 	for _, tc := range tests {

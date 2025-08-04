@@ -3,12 +3,12 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"strconv"
 
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/filters"
-	"github.com/pkg/errors"
 )
 
 // BuildCachePrune requests the daemon to delete unused cache data.
@@ -36,7 +36,7 @@ func (cli *Client) BuildCachePrune(ctx context.Context, opts build.CachePruneOpt
 	}
 	f, err := filters.ToJSON(opts.Filters)
 	if err != nil {
-		return nil, errors.Wrap(err, "prune could not marshal filters option")
+		return nil, fmt.Errorf("prune could not marshal filters option: %w", err)
 	}
 	query.Set("filters", f)
 
@@ -49,7 +49,7 @@ func (cli *Client) BuildCachePrune(ctx context.Context, opts build.CachePruneOpt
 
 	report := build.CachePruneReport{}
 	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
-		return nil, errors.Wrap(err, "error retrieving disk usage")
+		return nil, fmt.Errorf("error retrieving disk usage: %w", err)
 	}
 
 	return &report, nil

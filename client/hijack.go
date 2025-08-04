@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/moby/moby/api/types/versions"
-	"github.com/pkg/errors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -56,11 +55,11 @@ func setupHijackConn(dialer func(context.Context) (net.Conn, error), req *http.R
 
 	conn, err := dialer(ctx)
 	if err != nil {
-		return nil, "", errors.Wrap(err, "cannot connect to the Docker daemon. Is 'docker daemon' running on this host?")
+		return nil, "", fmt.Errorf("cannot connect to the Docker daemon. Is 'docker daemon' running on this host?: %w", err)
 	}
 	defer func() {
 		if retErr != nil {
-			conn.Close()
+			_ = conn.Close()
 		}
 	}()
 

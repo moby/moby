@@ -13,7 +13,6 @@ require (
 	github.com/moby/term v0.5.2
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
-	github.com/pkg/errors v0.9.1
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.60.0
 	go.opentelemetry.io/otel/trace v1.35.0
 	gotest.tools/v3 v3.5.2

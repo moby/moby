@@ -2,21 +2,22 @@ package client
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/url"
 
 	"github.com/distribution/reference"
-	"github.com/pkg/errors"
 )
 
 // ImageTag tags an image in the docker host
 func (cli *Client) ImageTag(ctx context.Context, source, target string) error {
 	if _, err := reference.ParseAnyReference(source); err != nil {
-		return errors.Wrapf(err, "Error parsing reference: %q is not a valid repository/tag", source)
+		return fmt.Errorf("error parsing reference: %q is not a valid repository/tag: %w", source, err)
 	}
 
 	ref, err := reference.ParseNormalizedNamed(target)
 	if err != nil {
-		return errors.Wrapf(err, "Error parsing reference: %q is not a valid repository/tag", target)
+		return fmt.Errorf("error parsing reference: %q is not a valid repository/tag: %w", target, err)
 	}
 
 	if _, isCanonical := ref.(reference.Canonical); isCanonical {
