@@ -45,7 +45,7 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	_ = flags.MarkHidden("network-diagnostic-port")
 
 	flags.BoolVar(&conf.RawLogs, "raw-logs", false, "Full timestamps without ANSI coloring")
-	flags.IPSliceVar(&conf.DNS, "dns", conf.DNS, "DNS server to use")
+	flags.Var(dopts.NewNamedIPListOptsRef("dns", &conf.DNS), "dns", "DNS server to use")
 	flags.Var(opts.NewNamedListOptsRef("dns-opts", &conf.DNSOptions, nil), "dns-opt", "DNS options to use")
 	flags.Var(opts.NewListOptsRef(&conf.DNSSearch, opts.ValidateDNSSearch), "dns-search", "DNS search domains to use")
 	flags.Var(dopts.NewNamedIPListOptsRef("host-gateway-ips", &conf.HostGatewayIPs), "host-gateway-ip", "IP addresses that the special 'host-gateway' string in --add-host resolves to. Defaults to the IP addresses of the default bridge")
