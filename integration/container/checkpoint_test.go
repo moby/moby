@@ -1,7 +1,6 @@
 package container
 
 import (
-	"context"
 	"os/exec"
 	"regexp"
 	"sort"
@@ -10,7 +9,6 @@ import (
 	"github.com/moby/moby/api/types/checkpoint"
 	containertypes "github.com/moby/moby/api/types/container"
 	mounttypes "github.com/moby/moby/api/types/mount"
-	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil/request"
 	"gotest.tools/v3/assert"
@@ -18,15 +16,6 @@ import (
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
-
-//nolint:unused // false positive: linter detects this as "unused"
-func containerExec(ctx context.Context, t *testing.T, client client.APIClient, cID string, cmd []string) {
-	t.Logf("Exec: %s", cmd)
-	r, err := container.Exec(ctx, client, cID, cmd)
-	assert.NilError(t, err)
-	t.Log(r.Combined())
-	assert.Equal(t, r.ExitCode, 0)
-}
 
 func TestCheckpoint(t *testing.T) {
 	t.Skip("TestCheckpoint is broken; see https://github.com/moby/moby/issues/38963")
@@ -94,7 +83,10 @@ func TestCheckpoint(t *testing.T) {
 	assert.Equal(t, checkpoints[0].Name, "test")
 
 	// Create a test file on a tmpfs mount.
-	containerExec(ctx, t, apiClient, cID, []string{"touch", "/tmp/test-file"})
+	cmd := []string{"touch", "/tmp/test-file"}
+	r, err := container.Exec(ctx, apiClient, cID, cmd)
+	assert.NilError(t, err, "failed to exec command:", cmd)
+	r.AssertSuccess(t)
 
 	// Do a second checkpoint
 	t.Log("Do a checkpoint and stop the container")
@@ -134,7 +126,10 @@ func TestCheckpoint(t *testing.T) {
 	assert.Check(t, is.Equal(true, inspect.State.Running))
 
 	// Check that the test file has been restored.
-	containerExec(ctx, t, apiClient, cID, []string{"test", "-f", "/tmp/test-file"})
+	cmd = []string{"test", "-f", "/tmp/test-file"}
+	r, err = container.Exec(ctx, apiClient, cID, cmd)
+	assert.NilError(t, err, "failed to exec command:", cmd)
+	r.AssertSuccess(t)
 
 	for _, id := range []string{"test", "test2"} {
 		err = apiClient.CheckpointDelete(ctx, cID, checkpoint.DeleteOptions{
