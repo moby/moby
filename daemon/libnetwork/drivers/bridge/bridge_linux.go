@@ -162,7 +162,8 @@ type driver struct {
 	configNetwork sync.Mutex
 	firewaller    firewaller.Firewaller
 	portmappers   *drvregistry.PortMappers
-	sync.Mutex
+	// mu is used to protect accesses to config and networks. Do not hold this lock while locking configNetwork.
+	mu sync.Mutex
 }
 
 type gwMode string
@@ -532,9 +533,9 @@ func (d *driver) configure(option map[string]interface{}) error {
 		return err
 	}
 
-	d.Lock()
+	d.mu.Lock()
 	d.config = config
-	d.Unlock()
+	d.mu.Unlock()
 
 	// Register for an event when firewalld is reloaded, but take the config lock so
 	// that events won't be processed until the initial load from Store is complete.
@@ -566,8 +567,8 @@ var newFirewaller = func(ctx context.Context, config firewaller.Config) (firewal
 }
 
 func (d *driver) getNetwork(id string) (*bridgeNetwork, error) {
-	d.Lock()
-	defer d.Unlock()
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	if id == "" {
 		return nil, types.InvalidParameterErrorf("invalid network id: %s", id)
@@ -686,8 +687,8 @@ func parseNetworkOptions(id string, option options.Generic) (*networkConfigurati
 
 // Return a slice of networks over which caller can iterate safely
 func (d *driver) getNetworks() []*bridgeNetwork {
-	d.Lock()
-	defer d.Unlock()
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	ls := make([]*bridgeNetwork, 0, len(d.networks))
 	for _, nw := range d.networks {
@@ -722,12 +723,12 @@ func (d *driver) GetSkipGwAlloc(opts options.Generic) (ipv4, ipv6 bool, _ error)
 // CreateNetwork creates a new network using the bridge driver.
 func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	// Sanity checks
-	d.Lock()
+	d.mu.Lock()
 	if _, ok := d.networks[id]; ok {
-		d.Unlock()
+		d.mu.Unlock()
 		return types.ForbiddenErrorf("network %s exists", id)
 	}
-	d.Unlock()
+	d.mu.Unlock()
 
 	// Parse the config.
 	config, err := parseNetworkOptions(id, option)
@@ -814,16 +815,16 @@ func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration
 		driver:    d,
 	}
 
-	d.Lock()
+	d.mu.Lock()
 	d.networks[config.ID] = network
-	d.Unlock()
+	d.mu.Unlock()
 
 	// On failure make sure to reset driver network handler to nil
 	defer func() {
 		if err != nil {
-			d.Lock()
+			d.mu.Lock()
 			delete(d.networks, config.ID)
-			d.Unlock()
+			d.mu.Unlock()
 		}
 	}()
 
@@ -940,9 +941,9 @@ func (d *driver) deleteNetwork(nid string) error {
 	var err error
 
 	// Get network handler and remove it from driver
-	d.Lock()
+	d.mu.Lock()
 	n, ok := d.networks[nid]
-	d.Unlock()
+	d.mu.Unlock()
 
 	if !ok {
 		// If the network was successfully created by an earlier incarnation of the daemon,
@@ -980,19 +981,19 @@ func (d *driver) deleteNetwork(nid string) error {
 		}
 	}
 
-	d.Lock()
+	d.mu.Lock()
 	delete(d.networks, nid)
-	d.Unlock()
+	d.mu.Unlock()
 
 	// On failure set network handler back in driver, but
 	// only if is not already taken over by some other thread
 	defer func() {
 		if err != nil {
-			d.Lock()
+			d.mu.Lock()
 			if _, ok := d.networks[nid]; !ok {
 				d.networks[nid] = n
 			}
-			d.Unlock()
+			d.mu.Unlock()
 		}
 	}()
 
@@ -1056,10 +1057,10 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	defer span.End()
 
 	// Get the network handler and make sure it exists
-	d.Lock()
+	d.mu.Lock()
 	n, ok := d.networks[nid]
 	dconfig := d.config
-	d.Unlock()
+	d.mu.Unlock()
 
 	if !ok {
 		return types.NotFoundErrorf("network %s does not exist", nid)
@@ -1287,9 +1288,9 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	var err error
 
 	// Get the network handler and make sure it exists
-	d.Lock()
+	d.mu.Lock()
 	n, ok := d.networks[nid]
-	d.Unlock()
+	d.mu.Unlock()
 
 	if !ok {
 		return types.InternalMaskableErrorf("network %s does not exist", nid)
@@ -1354,9 +1355,9 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 
 func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
 	// Get the network handler and make sure it exists
-	d.Lock()
+	d.mu.Lock()
 	n, ok := d.networks[nid]
-	d.Unlock()
+	d.mu.Unlock()
 	if !ok {
 		return nil, types.NotFoundErrorf("network %s does not exist", nid)
 	}
@@ -1683,12 +1684,12 @@ func (d *driver) handleFirewalldReload() {
 		return
 	}
 
-	d.Lock()
+	d.mu.Lock()
 	nids := make([]string, 0, len(d.networks))
 	for _, nw := range d.networks {
 		nids = append(nids, nw.id)
 	}
-	d.Unlock()
+	d.mu.Unlock()
 
 	for _, nid := range nids {
 		d.handleFirewalldReloadNw(nid)
@@ -1696,8 +1697,8 @@ func (d *driver) handleFirewalldReload() {
 }
 
 func (d *driver) handleFirewalldReloadNw(nid string) {
-	d.Lock()
-	defer d.Unlock()
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	if !d.config.EnableIPTables && !d.config.EnableIP6Tables {
 		return
