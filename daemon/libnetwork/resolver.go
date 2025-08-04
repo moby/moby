@@ -33,7 +33,7 @@ type DNSBackend interface {
 	// the networks the sandbox is connected to. The second return value will be
 	// true if the name exists in docker domain, even if there are no addresses of
 	// the required type. Such queries shouldn't be forwarded to external nameservers.
-	ResolveName(ctx context.Context, name string, ipType int) ([]net.IP, bool)
+	ResolveName(ctx context.Context, name string, ipType types.IPFamily) ([]net.IP, bool)
 	// ResolveIP returns the service name for the passed in IP. IP is in reverse dotted
 	// notation; the format used for DNS PTR records
 	ResolveIP(ctx context.Context, name string) string
@@ -310,7 +310,7 @@ func (r *Resolver) handleMXQuery(ctx context.Context, query *dns.Msg) (*dns.Msg,
 	return resp, nil
 }
 
-func (r *Resolver) handleIPQuery(ctx context.Context, query *dns.Msg, ipType int) (*dns.Msg, error) {
+func (r *Resolver) handleIPQuery(ctx context.Context, query *dns.Msg, ipType types.IPFamily) (*dns.Msg, error) {
 	name := query.Question[0].Name
 	addr, ok := r.backend.ResolveName(ctx, name, ipType)
 	if !ok {
