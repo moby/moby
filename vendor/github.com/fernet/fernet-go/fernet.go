@@ -80,7 +80,7 @@ func verify(msg, tok []byte, ttl time.Duration, now time.Time, k *Key) []byte {
 	if subtle.ConstantTimeCompare(tok[n:], hmac[:]) != 1 {
 		return nil
 	}
-	pay := tok[payOffset : len(tok)-sha256.Size]
+	pay := tok[payOffset:n]
 	if len(pay)%aes.BlockSize != 0 {
 		return nil
 	}
@@ -89,7 +89,7 @@ func verify(msg, tok []byte, ttl time.Duration, now time.Time, k *Key) []byte {
 		pay = msg
 	}
 	bc, _ := aes.NewCipher(k.cryptBytes())
-	iv := tok[9:][:aes.BlockSize]
+	iv := tok[ivOffset:][:aes.BlockSize]
 	cipher.NewCBCDecrypter(bc, iv).CryptBlocks(pay, pay)
 	return unpad(pay)
 }
@@ -120,40 +120,32 @@ func unpad(p []byte) []byte {
 	return p[:len(p)-int(c)]
 }
 
-func b64enc(src []byte) []byte {
-	dst := make([]byte, encoding.EncodedLen(len(src)))
-	encoding.Encode(dst, src)
-	return dst
-}
-
-func b64dec(src []byte) []byte {
-	dst := make([]byte, encoding.DecodedLen(len(src)))
-	n, err := encoding.Decode(dst, src)
-	if err != nil {
-		return nil
-	}
-	return dst[:n]
-}
-
 func genhmac(q, p, k []byte) {
 	h := hmac.New(sha256.New, k)
 	h.Write(p)
 	h.Sum(q)
 }
 
-// EncryptAndSign encrypts and signs msg with key k and returns the resulting
-// fernet token. If msg contains text, the text should be encoded
-// with UTF-8 to follow fernet convention.
-func EncryptAndSign(msg []byte, k *Key) (tok []byte, err error) {
+// EncryptAndSignAtTime encrypts and signs msg with key k at timestamp signedAt
+// and returns the resulting fernet token. If msg contains text, the text
+// should be encoded with UTF-8 to follow fernet convention.
+func EncryptAndSignAtTime(msg []byte, k *Key, signedAt time.Time) (tok []byte, err error) {
 	iv := make([]byte, aes.BlockSize)
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
 		return nil, err
 	}
 	b := make([]byte, encodedLen(len(msg)))
-	n := gen(b, msg, iv, time.Now(), k)
+	n := gen(b, msg, iv, signedAt, k)
 	tok = make([]byte, encoding.EncodedLen(n))
 	encoding.Encode(tok, b[:n])
 	return tok, nil
+}
+
+// EncryptAndSign encrypts and signs msg with key k and returns the resulting
+// fernet token. If msg contains text, the text should be encoded
+// with UTF-8 to follow fernet convention.
+func EncryptAndSign(msg []byte, k *Key) (tok []byte, err error) {
+	return EncryptAndSignAtTime(msg, k, time.Now())
 }
 
 // VerifyAndDecrypt verifies that tok is a valid fernet token that was signed
