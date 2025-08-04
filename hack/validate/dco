@@ -13,7 +13,7 @@ dels=$(validate_diff --numstat | awk '{ s += $2 } END { print s }')
 # "Username may only contain alphanumeric characters or dashes and cannot begin with a dash"
 githubUsernameRegex='[a-zA-Z0-9][a-zA-Z0-9-]+'
 
-# https://github.com/docker/docker/blob/master/CONTRIBUTING.md#sign-your-work
+# https://github.com/moby/moby/blob/master/CONTRIBUTING.md#sign-your-work
 dcoPrefix='Signed-off-by:'
 dcoRegex="^(Docker-DCO-1.1-)?$dcoPrefix ([^<]+) <([^<>@]+@[^<>]+)>( \\(github: ($githubUsernameRegex)\\))?$"
 
