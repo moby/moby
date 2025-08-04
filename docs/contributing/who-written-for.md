@@ -3,7 +3,7 @@
 This section of the documentation contains a guide for Moby project users who want to
 contribute code or documentation to the Moby Engine project. As a community, we
 share rules of behavior and interaction. Make sure you are familiar with the <a
-href="https://github.com/moby/moby/blob/master/CONTRIBUTING.md#docker-community-guidelines"
+href="https://github.com/moby/moby/blob/master/CONTRIBUTING.md#moby-community-guidelines"
 target="_blank">community guidelines</a> before continuing.
 
 ## Where and what you can contribute
