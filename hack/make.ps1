@@ -162,7 +162,7 @@ Function Get-HeadCommit() {
 
 # Utility function to get the commit for upstream
 Function Get-UpstreamCommit() {
-    Invoke-Expression "git fetch -q https://github.com/docker/docker.git refs/heads/master"
+    Invoke-Expression "git fetch -q https://github.com/moby/moby.git refs/heads/master"
     if ($LASTEXITCODE -ne 0) { Throw "Failed fetching" }
 
     $upstream = Invoke-Expression "git rev-parse --verify FETCH_HEAD"
@@ -243,7 +243,7 @@ Function Validate-DCO($headCommit, $upstreamCommit) {
         $badCommits | %{ $e+=" - $_`n"}
         $e += "`nPlease amend each commit to include a properly formatted DCO marker.`n`n"
         $e += "Visit the following URL for information about the Docker DCO:`n"
-        $e += "https://github.com/docker/docker/blob/master/CONTRIBUTING.md#sign-your-work`n"
+        $e += "https://github.com/moby/moby/blob/master/CONTRIBUTING.md#sign-your-work`n"
         Throw $e
     }
 }
@@ -261,10 +261,10 @@ Function Validate-PkgImports($headCommit, $upstreamCommit) {
         if ($LASTEXITCODE -ne 0) { Throw "Failed go list for dependencies on $file" }
         $imports = $imports -Replace "\[" -Replace "\]", "" -Split(" ") | Sort-Object | Get-Unique
         # Filter out what we are looking for
-        $imports = @() + $imports -NotMatch "^github.com/docker/docker/pkg/" `
-                                  -NotMatch "^github.com/docker/docker/vendor" `
-                                  -NotMatch "^github.com/docker/docker/internal" `
-                                  -Match "^github.com/docker/docker" `
+        $imports = @() + $imports -NotMatch "^github.com/moby/moby/v2/pkg/" `
+                                  -NotMatch "^github.com/moby/moby/v2/vendor" `
+                                  -NotMatch "^github.com/moby/moby/v2/internal" `
+                                  -Match    "^github.com/moby/moby/v2" `
                                   -Replace "`n", ""
         $imports | ForEach-Object{ $badFiles+="$file imports $_`n" }
     }
@@ -482,12 +482,12 @@ Try {
         Catch [Exception] { Throw $_ }
     }
 
-    $ldflags = "-X 'github.com/docker/docker/dockerversion.Version="+$dockerVersion+"'"
-    $ldflags += " -X 'github.com/docker/docker/dockerversion.GitCommit="+$gitCommit+"'"
-    $ldflags += " -X 'github.com/docker/docker/dockerversion.BuildTime="+$env:BUILDTIME+"'"
-    $ldflags += " -X 'github.com/docker/docker/dockerversion.PlatformName="+$env:PLATFORM+"'"
-    $ldflags += " -X 'github.com/docker/docker/dockerversion.ProductName="+$env:PRODUCT+"'"
-    $ldflags += " -X 'github.com/docker/docker/dockerversion.DefaultProductLicense="+$env:DEFAULT_PRODUCT_LICENSE+"'"
+    $ldflags = "-X 'github.com/moby/moby/v2/dockerversion.Version="+$dockerVersion+"'"
+    $ldflags += " -X 'github.com/moby/moby/v2/dockerversion.GitCommit="+$gitCommit+"'"
+    $ldflags += " -X 'github.com/moby/moby/v2/dockerversion.BuildTime="+$env:BUILDTIME+"'"
+    $ldflags += " -X 'github.com/moby/moby/v2/dockerversion.PlatformName="+$env:PLATFORM+"'"
+    $ldflags += " -X 'github.com/moby/moby/v2/dockerversion.ProductName="+$env:PRODUCT+"'"
+    $ldflags += " -X 'github.com/moby/moby/v2/dockerversion.DefaultProductLicense="+$env:DEFAULT_PRODUCT_LICENSE+"'"
 
     # DCO, Package import and Go formatting tests.
     if ($DCO -or $PkgImports -or $GoFormat) {

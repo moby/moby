@@ -91,7 +91,7 @@ run_test_integration_suites() {
 		if ! (
 			cd "$dir"
 			# Create a useful package name based on the tests's $dir. We need to take
-			# into account that  "$dir" can be either an absolute (/go/src/github.com/docker/docker/integration/foo)
+			# into account that  "$dir" can be either an absolute (/go/src/github.com/moby/moby/integration/foo)
 			# or relative (./integration/foo) path. To account for both, first we strip
 			# the absolute path, then remove any leading periods and slashes.
 			pkgname="${dir}"
