@@ -1697,17 +1697,17 @@ func (d *driver) handleFirewalldReload() {
 }
 
 func (d *driver) handleFirewalldReloadNw(nid string) {
+	// Make sure the network isn't being deleted, and ProgramExternalConnectivity
+	// isn't modifying iptables rules, while restoring the rules.
+	d.configNetwork.Lock()
+	defer d.configNetwork.Unlock()
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	if !d.config.EnableIPTables && !d.config.EnableIP6Tables {
 		return
 	}
-
-	// Make sure the network isn't being deleted, and ProgramExternalConnectivity
-	// isn't modifying iptables rules, while restoring the rules.
-	d.configNetwork.Lock()
-	defer d.configNetwork.Unlock()
 
 	nw, ok := d.networks[nid]
 	if !ok {
