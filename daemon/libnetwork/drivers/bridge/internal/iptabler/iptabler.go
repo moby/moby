@@ -91,6 +91,7 @@ func NewIptabler(ctx context.Context, config firewaller.Config) (*Iptabler, erro
 	return ipt, nil
 }
 
+// FilterForwardDrop sets the default policy of the FORWARD chain in the filter table to DROP.
 func (ipt *Iptabler) FilterForwardDrop(ctx context.Context, ipv firewaller.IPVersion) error {
 	var iptv iptables.IPVersion
 	switch ipv {

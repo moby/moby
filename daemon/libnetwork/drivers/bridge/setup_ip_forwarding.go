@@ -17,7 +17,11 @@ const (
 	ipv6ForwardConfAll     = "/proc/sys/net/ipv6/conf/all/forwarding"
 )
 
-func setupIPv4Forwarding(fw firewaller.Firewaller, wantFilterForwardDrop bool) (retErr error) {
+type filterForwardDropper interface {
+	FilterForwardDrop(context.Context, firewaller.IPVersion) error
+}
+
+func setupIPv4Forwarding(ffd filterForwardDropper, wantFilterForwardDrop bool) (retErr error) {
 	changed, err := configureIPForwarding(ipv4ForwardConf, '1')
 	if err != nil {
 		return err
@@ -34,14 +38,14 @@ func setupIPv4Forwarding(fw firewaller.Firewaller, wantFilterForwardDrop bool) (
 
 	// When enabling ip_forward set the default policy on forward chain to drop.
 	if changed && wantFilterForwardDrop {
-		if err := fw.FilterForwardDrop(context.TODO(), firewaller.IPv4); err != nil {
+		if err := filterForwardDrop(context.TODO(), ffd, firewaller.IPv4); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func setupIPv6Forwarding(fw firewaller.Firewaller, wantFilterForwardDrop bool) (retErr error) {
+func setupIPv6Forwarding(ffd filterForwardDropper, wantFilterForwardDrop bool) (retErr error) {
 	// Set IPv6 default.forwarding, if needed.
 	// FIXME(robmry) - is it necessary to set this, setting "all" (below) does the job?
 	changedDef, err := configureIPForwarding(ipv6ForwardConfDefault, '1')
@@ -74,7 +78,7 @@ func setupIPv6Forwarding(fw firewaller.Firewaller, wantFilterForwardDrop bool) (
 	}
 
 	if (changedAll || changedDef) && wantFilterForwardDrop {
-		if err := fw.FilterForwardDrop(context.TODO(), firewaller.IPv6); err != nil {
+		if err := filterForwardDrop(context.TODO(), ffd, firewaller.IPv6); err != nil {
 			return err
 		}
 	}
@@ -97,4 +101,12 @@ func configureIPForwarding(file string, val byte) (changed bool, _ error) {
 		return false, fmt.Errorf("failed to set IP forwarding '%s' = '%c': %w", file, val, err)
 	}
 	return true, nil
+}
+
+func filterForwardDrop(ctx context.Context, ffd filterForwardDropper, ipv firewaller.IPVersion) error {
+	if ffd == nil {
+		log.G(ctx).WithField("ipv", ipv).Warn("Enabled IP forwarding in the kernel. If necessary, make sure the host has firewall rules to block forwarding between non-Docker network interfaces.")
+		return nil
+	}
+	return ffd.FilterForwardDrop(ctx, ipv)
 }

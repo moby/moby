@@ -358,7 +358,6 @@ func TestBridgeINCRouted(t *testing.T) {
 	d := daemon.New(t)
 	d.StartWithBusybox(ctx, t)
 	t.Cleanup(func() { d.Stop(t) })
-	firewallBackend := d.FirewallBackendDriver(t)
 
 	c := d.NewClientT(t)
 	t.Cleanup(func() { c.Close() })
@@ -457,10 +456,12 @@ func TestBridgeINCRouted(t *testing.T) {
 		},
 	}
 
-	for _, fwdPolicy := range []string{"ACCEPT", "DROP"} {
-		networking.SetFilterForwardPolicies(t, firewallBackend, fwdPolicy)
+	runTests := func(testName, policy string) {
 		networking.FirewalldReload(t, d)
-		t.Run(fwdPolicy, func(t *testing.T) {
+		t.Run(testName, func(t *testing.T) {
+			if policy != "" {
+				networking.SetFilterForwardPolicies(t, policy)
+			}
 			for _, tc := range testcases {
 				t.Run(tc.name+"/v4/ping", func(t *testing.T) {
 					t.Parallel()
@@ -496,6 +497,13 @@ func TestBridgeINCRouted(t *testing.T) {
 				})
 			}
 		})
+	}
+
+	if strings.HasPrefix(d.FirewallBackendDriver(t), "iptables") {
+		runTests("iptables-ACCEPT", "ACCEPT")
+		runTests("iptables-DROP", "DROP")
+	} else {
+		runTests("nftables", "")
 	}
 }
 

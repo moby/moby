@@ -15,7 +15,6 @@ import (
 type StubFirewaller struct {
 	Config
 	Networks map[string]*StubFirewallerNetwork
-	FFD      map[IPVersion]bool // filter forward drop
 }
 
 func NewStubFirewaller(config Config) *StubFirewaller {
@@ -24,7 +23,6 @@ func NewStubFirewaller(config Config) *StubFirewaller {
 		// A real Firewaller shouldn't hold on to its own networks, the bridge driver is doing that.
 		// But, for unit tests cross-checking the driver, this is useful.
 		Networks: make(map[string]*StubFirewallerNetwork),
-		FFD:      make(map[IPVersion]bool),
 	}
 }
 
@@ -39,11 +37,6 @@ func (fw *StubFirewaller) NewNetwork(_ context.Context, nc NetworkConfig) (Netwo
 	}
 	fw.Networks[nc.IfName] = nw
 	return nw, nil
-}
-
-func (fw *StubFirewaller) FilterForwardDrop(_ context.Context, ipv IPVersion) error {
-	fw.FFD[ipv] = true
-	return nil
 }
 
 type stubFirewallerLink struct {

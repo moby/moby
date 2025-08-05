@@ -14,82 +14,81 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-type ffdTestFirewaller struct {
-	ffd firewaller.IPVersion
+type ffDropper struct {
+	ffDropped4 bool
+	ffDropped6 bool
 }
 
-// NewNetwork is part of interface [firewaller.Firewaller].
-func (f *ffdTestFirewaller) NewNetwork(_ context.Context, _ firewaller.NetworkConfig) (firewaller.Network, error) {
-	return nil, nil
-}
-
-// FilterForwardDrop is part of interface [firewaller.Firewaller]. Just enough to check
-// it was called with the expected IPVersion.
-func (f *ffdTestFirewaller) FilterForwardDrop(_ context.Context, ipv firewaller.IPVersion) error {
-	f.ffd = ipv
+func (f *ffDropper) FilterForwardDrop(_ context.Context, ipv firewaller.IPVersion) error {
+	if ipv == firewaller.IPv4 {
+		f.ffDropped4 = true
+	}
+	if ipv == firewaller.IPv6 {
+		f.ffDropped6 = true
+	}
 	return nil
 }
 
 func TestSetupIPForwarding(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	for _, wantFFD := range []bool{true, false} {
-		t.Run(fmt.Sprintf("wantFFD=%v", wantFFD), func(t *testing.T) {
-			// Disable IP Forwarding if enabled
-			_, err := configureIPForwarding(ipv4ForwardConf, '0')
-			assert.NilError(t, err)
-
-			// Set IP Forwarding
-			fw := &ffdTestFirewaller{}
-			err = setupIPv4Forwarding(fw, wantFFD)
-			assert.NilError(t, err)
-
-			// Check what the firewaller was told.
-			if wantFFD {
-				assert.Check(t, is.Equal(fw.ffd, firewaller.IPv4))
-			} else {
-				var noVer firewaller.IPVersion
-				assert.Check(t, is.Equal(fw.ffd, noVer))
-			}
-
-			// Read new setting
-			procSetting, err := os.ReadFile(ipv4ForwardConf)
-			assert.NilError(t, err)
-			assert.Check(t, is.DeepEqual(procSetting, []byte{'1', '\n'}))
-		})
+	tests := []struct {
+		name    string
+		dropper bool
+		wantFFD bool
+	}{
+		{
+			// With a firewall modifier (dropper) and config that says filter-forward drop
+			// is wanted, expect forwarding to be enabled and a drop policy set.
+			dropper: true,
+			wantFFD: true,
+		},
+		{
+			// With a firewall modifier that could set the policy to drop, the policy should
+			// not be set if not enabled in config.
+			dropper: true,
+		},
+		{
+			// With no dropper, forwarding should be enabled. The filter-forward policy
+			// cannot be set.
+		},
 	}
-}
+	sysctls := []string{
+		ipv4ForwardConf,
+		ipv6ForwardConfDefault,
+		ipv6ForwardConfAll,
+	}
 
-func TestSetupIP6Forwarding(t *testing.T) {
-	defer netnsutils.SetupTestOSContext(t)()
-
-	for _, wantFFD := range []bool{true, false} {
-		t.Run(fmt.Sprintf("wantFFD=%v", wantFFD), func(t *testing.T) {
-			_, err := configureIPForwarding(ipv6ForwardConfDefault, '0')
-			assert.NilError(t, err)
-			_, err = configureIPForwarding(ipv6ForwardConfAll, '0')
-			assert.NilError(t, err)
+	for _, tc := range tests {
+		t.Run(fmt.Sprintf("dropper=%v/wantFFD=%v", tc.dropper, tc.wantFFD), func(t *testing.T) {
+			// Disable IP Forwarding if enabled
+			for _, sysctl := range sysctls {
+				_, err := configureIPForwarding(sysctl, '0')
+				assert.NilError(t, err, "writing %s", sysctl)
+			}
 
 			// Set IP Forwarding
-			fw := &ffdTestFirewaller{}
-			err = setupIPv6Forwarding(fw, wantFFD)
+			var ffd *ffDropper
+			if tc.dropper {
+				ffd = &ffDropper{}
+			}
+			err := setupIPv4Forwarding(ffd, tc.wantFFD)
+			assert.NilError(t, err)
+			err = setupIPv6Forwarding(ffd, tc.wantFFD)
 			assert.NilError(t, err)
 
 			// Check what the firewaller was told.
-			if wantFFD {
-				assert.Check(t, is.Equal(fw.ffd, firewaller.IPv6))
-			} else {
-				var noVer firewaller.IPVersion
-				assert.Check(t, is.Equal(fw.ffd, noVer))
+			if ffd != nil {
+				assert.Check(t, is.Equal(ffd.ffDropped4, tc.wantFFD))
+				assert.Check(t, is.Equal(ffd.ffDropped6, tc.wantFFD))
 			}
 
-			// Read new setting
-			procSetting, err := os.ReadFile(ipv6ForwardConfDefault)
-			assert.NilError(t, err)
-			assert.Check(t, is.DeepEqual(procSetting, []byte{'1', '\n'}))
-			procSetting, err = os.ReadFile(ipv6ForwardConfAll)
-			assert.NilError(t, err)
-			assert.Check(t, is.DeepEqual(procSetting, []byte{'1', '\n'}))
+			// Read new settings
+			for _, sysctl := range sysctls {
+				procSetting, err := os.ReadFile(sysctl)
+				assert.NilError(t, err, "reading %s", sysctl)
+				assert.Check(t, is.Equal(string(procSetting), "1\n"), "checking %s", sysctl)
+			}
 		})
 	}
 }

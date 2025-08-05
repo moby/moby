@@ -880,14 +880,16 @@ func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration
 			config.EnableIPv4 && d.config.EnableIPForwarding,
 			"setupIPv4Forwarding",
 			func(*networkConfiguration, *bridgeInterface) error {
-				return setupIPv4Forwarding(d.firewaller, d.config.EnableIPTables && !d.config.DisableFilterForwardDrop)
+				ffd, _ := d.firewaller.(filterForwardDropper)
+				return setupIPv4Forwarding(ffd, d.config.EnableIPTables && !d.config.DisableFilterForwardDrop)
 			},
 		},
 		{
 			config.EnableIPv6 && d.config.EnableIPForwarding,
 			"setupIPv6Forwarding",
 			func(*networkConfiguration, *bridgeInterface) error {
-				return setupIPv6Forwarding(d.firewaller, d.config.EnableIP6Tables && !d.config.DisableFilterForwardDrop)
+				ffd, _ := d.firewaller.(filterForwardDropper)
+				return setupIPv6Forwarding(ffd, d.config.EnableIP6Tables && !d.config.DisableFilterForwardDrop)
 			},
 		},
 
