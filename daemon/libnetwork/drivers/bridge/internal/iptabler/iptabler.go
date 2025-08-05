@@ -35,12 +35,12 @@ const (
 	isolationChain2 = "DOCKER-ISOLATION-STAGE-2"
 )
 
-type iptabler struct {
+type Iptabler struct {
 	config firewaller.Config
 }
 
-func NewIptabler(ctx context.Context, config firewaller.Config) (firewaller.Firewaller, error) {
-	ipt := &iptabler{config: config}
+func NewIptabler(ctx context.Context, config firewaller.Config) (*Iptabler, error) {
+	ipt := &Iptabler{config: config}
 
 	if ipt.config.IPv4 {
 		removeIPChains(ctx, iptables.IPv4)
@@ -91,7 +91,7 @@ func NewIptabler(ctx context.Context, config firewaller.Config) (firewaller.Fire
 	return ipt, nil
 }
 
-func (ipt *iptabler) FilterForwardDrop(ctx context.Context, ipv firewaller.IPVersion) error {
+func (ipt *Iptabler) FilterForwardDrop(ctx context.Context, ipv firewaller.IPVersion) error {
 	var iptv iptables.IPVersion
 	switch ipv {
 	case firewaller.IPv4:
