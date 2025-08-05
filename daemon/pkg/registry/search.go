@@ -2,7 +2,10 @@ package registry
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -129,7 +132,7 @@ func (s *Service) searchUnfiltered(ctx context.Context, term string, limit int, 
 		}
 	}
 
-	return newSession(client, endpoint).searchRepositories(ctx, remoteName, limit)
+	return searchRepositories(ctx, client, endpoint, remoteName, limit)
 }
 
 // splitReposSearchTerm breaks a search term into an index name and remote name
@@ -142,4 +145,59 @@ func splitReposSearchTerm(reposName string) (string, string) {
 		return IndexName, reposName
 	}
 	return nameParts[0], nameParts[1]
+}
+
+// newIndexInfo returns IndexInfo configuration from indexName
+func newIndexInfo(config *serviceConfig, indexName string) *registry.IndexInfo {
+	indexName = normalizeIndexName(indexName)
+
+	// Return any configured index info, first.
+	if index, ok := config.IndexConfigs[indexName]; ok {
+		return index
+	}
+
+	// Construct a non-configured index info.
+	return &registry.IndexInfo{
+		Name:    indexName,
+		Mirrors: []string{},
+		Secure:  config.isSecureIndex(indexName),
+	}
+}
+
+// defaultSearchLimit is the default value for maximum number of returned search results.
+const defaultSearchLimit = 25
+
+// searchRepositories performs a search against the remote repository
+func searchRepositories(ctx context.Context, client *http.Client, ep *v1Endpoint, term string, limit int) (*registry.SearchResults, error) {
+	if limit == 0 {
+		limit = defaultSearchLimit
+	}
+	if limit < 1 || limit > 100 {
+		return nil, invalidParamf("limit %d is outside the range of [1, 100]", limit)
+	}
+	u := ep.String() + "search?q=" + url.QueryEscape(term) + "&n=" + url.QueryEscape(strconv.Itoa(limit))
+	log.G(ctx).WithField("url", u).Debug("searchRepositories")
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, http.NoBody)
+	if err != nil {
+		return nil, invalidParamWrapf(err, "error building request")
+	}
+	// Have the AuthTransport send authentication, when logged in.
+	req.Header.Set("X-Docker-Token", "true")
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, systemErr{err}
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		// TODO(thaJeztah): return upstream response body for errors (see https://github.com/moby/moby/issues/27286).
+		// TODO(thaJeztah): handle other status-codes to return correct error-type
+		return nil, errUnknown{fmt.Errorf("unexpected status code %d", res.StatusCode)}
+	}
+	result := &registry.SearchResults{}
+	err = json.NewDecoder(res.Body).Decode(result)
+	if err != nil {
+		return nil, systemErr{errors.Wrap(err, "error decoding registry search results")}
+	}
+	return result, nil
 }

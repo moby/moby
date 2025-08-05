@@ -122,7 +122,7 @@ func (s *Service) ResolveAuthConfig(authConfigs map[string]registry.AuthConfig, 
 	if !ok {
 		registryInfo = &registry.IndexInfo{Name: indexName}
 	}
-	return ResolveAuthConfig(authConfigs, registryInfo)
+	return resolveAuthConfig(authConfigs, registryInfo)
 }
 
 // APIEndpoint represents a remote API endpoint
