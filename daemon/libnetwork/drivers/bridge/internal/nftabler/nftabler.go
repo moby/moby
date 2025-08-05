@@ -45,15 +45,15 @@ const (
 	rawPreroutingPortsRuleGroup = iota + initialRuleGroup + 1
 )
 
-type nftabler struct {
+type Nftabler struct {
 	config  firewaller.Config
 	cleaner firewaller.FirewallCleaner
 	table4  nftables.TableRef
 	table6  nftables.TableRef
 }
 
-func NewNftabler(ctx context.Context, config firewaller.Config) (firewaller.Firewaller, error) {
-	nft := &nftabler{config: config}
+func NewNftabler(ctx context.Context, config firewaller.Config) (*Nftabler, error) {
+	nft := &Nftabler{config: config}
 
 	if nft.config.IPv4 {
 		var err error
@@ -85,14 +85,14 @@ func NewNftabler(ctx context.Context, config firewaller.Config) (firewaller.Fire
 	return nft, nil
 }
 
-func (nft *nftabler) getTable(ipv firewaller.IPVersion) nftables.TableRef {
+func (nft *Nftabler) getTable(ipv firewaller.IPVersion) nftables.TableRef {
 	if ipv == firewaller.IPv4 {
 		return nft.table4
 	}
 	return nft.table6
 }
 
-func (nft *nftabler) FilterForwardDrop(ctx context.Context, ipv firewaller.IPVersion) error {
+func (nft *Nftabler) FilterForwardDrop(ctx context.Context, ipv firewaller.IPVersion) error {
 	table := nft.getTable(ipv)
 	if err := table.Chain(ctx, forwardChain).SetPolicy("drop"); err != nil {
 		return err
@@ -101,7 +101,7 @@ func (nft *nftabler) FilterForwardDrop(ctx context.Context, ipv firewaller.IPVer
 }
 
 // init creates the bridge driver's nftables table for IPv4 or IPv6.
-func (nft *nftabler) init(ctx context.Context, family nftables.Family) (nftables.TableRef, error) {
+func (nft *Nftabler) init(ctx context.Context, family nftables.Family) (nftables.TableRef, error) {
 	// Instantiate the table.
 	table, err := nftables.NewTable(family, dockerTable)
 	if err != nil {

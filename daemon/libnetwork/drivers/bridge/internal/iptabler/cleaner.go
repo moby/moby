@@ -17,7 +17,7 @@ type iptablesCleaner struct {
 }
 
 // NewCleaner checks for iptables rules left behind by an old daemon that was using
-// the iptabler.
+// the Iptabler.
 //
 // If there are old rules present, it deletes as much as possible straight away
 // (user-defined chains and jumps from the built-in chains).
@@ -62,7 +62,7 @@ func (ic iptablesCleaner) DelNetwork(ctx context.Context, nc firewaller.NetworkC
 	}
 	n := network{
 		config: nc,
-		ipt:    &iptabler{config: ic.config},
+		ipt:    &Iptabler{config: ic.config},
 	}
 	if ic.config.IPv4 && nc.Config4.Prefix.IsValid() {
 		_ = deleteLegacyFilterRules(iptables.IPv4, nc.IfName)
@@ -77,7 +77,7 @@ func (ic iptablesCleaner) DelNetwork(ctx context.Context, nc firewaller.NetworkC
 func (ic iptablesCleaner) DelEndpoint(ctx context.Context, nc firewaller.NetworkConfig, epIPv4, epIPv6 netip.Addr) {
 	n := network{
 		config: nc,
-		ipt:    &iptabler{config: ic.config},
+		ipt:    &Iptabler{config: ic.config},
 	}
 	if n.ipt.config.IPv4 && epIPv4.IsValid() {
 		_ = n.filterDirectAccess(ctx, iptables.IPv4, n.config.Config4, epIPv4, false)
@@ -90,7 +90,7 @@ func (ic iptablesCleaner) DelEndpoint(ctx context.Context, nc firewaller.Network
 func (ic iptablesCleaner) DelPorts(ctx context.Context, nc firewaller.NetworkConfig, pbs []types.PortBinding) {
 	n := network{
 		config: nc,
-		ipt:    &iptabler{config: ic.config},
+		ipt:    &Iptabler{config: ic.config},
 	}
 	_ = n.DelPorts(ctx, pbs)
 }
