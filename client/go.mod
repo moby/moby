@@ -9,7 +9,7 @@ require (
 	github.com/distribution/reference v0.6.0
 	github.com/docker/go-connections v0.5.0
 	github.com/docker/go-units v0.5.0
-	github.com/moby/moby/api v0.0.0
+	github.com/moby/moby/api v1.52.0-alpha.0
 	github.com/moby/term v0.5.2
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
@@ -30,5 +30,3 @@ require (
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 )
-
-replace github.com/moby/moby/api => ../api

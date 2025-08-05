@@ -192,7 +192,7 @@ require (
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
-	github.com/moby/moby/api v0.0.0
+	github.com/moby/moby/api v1.52.0-alpha.0
 	github.com/moby/moby/client v0.0.0
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
@@ -266,7 +266,5 @@ exclude (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 )
-
-replace github.com/moby/moby/api => ./api
 
 replace github.com/moby/moby/client => ./client
