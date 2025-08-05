@@ -76,9 +76,6 @@ type Firewaller interface {
 	// NewNetwork returns an object that can be used to add published ports and legacy
 	// links for a bridge network.
 	NewNetwork(ctx context.Context, nc NetworkConfig) (Network, error)
-	// FilterForwardDrop sets the default policy of the FORWARD chain in the filter
-	// table to DROP.
-	FilterForwardDrop(ctx context.Context, ipv IPVersion) error
 }
 
 // Network can be used to manipulate firewall rules for a bridge network.

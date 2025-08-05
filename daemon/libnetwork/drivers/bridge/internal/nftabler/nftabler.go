@@ -85,21 +85,6 @@ func NewNftabler(ctx context.Context, config firewaller.Config) (*Nftabler, erro
 	return nft, nil
 }
 
-func (nft *Nftabler) getTable(ipv firewaller.IPVersion) nftables.TableRef {
-	if ipv == firewaller.IPv4 {
-		return nft.table4
-	}
-	return nft.table6
-}
-
-func (nft *Nftabler) FilterForwardDrop(ctx context.Context, ipv firewaller.IPVersion) error {
-	table := nft.getTable(ipv)
-	if err := table.Chain(ctx, forwardChain).SetPolicy("drop"); err != nil {
-		return err
-	}
-	return nftApply(ctx, table)
-}
-
 // init creates the bridge driver's nftables table for IPv4 or IPv6.
 func (nft *Nftabler) init(ctx context.Context, family nftables.Family) (nftables.TableRef, error) {
 	// Instantiate the table.
