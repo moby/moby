@@ -110,3 +110,11 @@ func TestStopContainerWithTimeout(t *testing.T) {
 		})
 	}
 }
+
+func TestContainerAPIStop(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+	cID := container.Run(ctx, t, apiClient)
+	err := apiClient.ContainerStop(ctx, cID, containertypes.StopOptions{})
+	assert.NilError(t, err)
+}
