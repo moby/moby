@@ -110,12 +110,6 @@ type Network interface {
 	DelLink(ctx context.Context, parentIP, childIP netip.Addr, ports []types.TransportPort)
 }
 
-// FirewallCleanerSetter is an optional interface for a Firewaller.
-type FirewallCleanerSetter interface {
-	// SetFirewallCleaner replaces the FirewallCleaner (possibly with 'nil').
-	SetFirewallCleaner(FirewallCleaner)
-}
-
 // FirewallCleaner is used to delete rules created by previous incarnations of
 // the daemon. On startup, once a Firewaller implementation has been selected, if
 // rules may have been left behind by a different Firewaller implementation, get

@@ -556,7 +556,7 @@ var newFirewaller = func(ctx context.Context, config firewaller.Config) (firewal
 		// cleaner can't clean up network or port-specific rules that may have been added
 		// to iptables built-in chains. So, if cleanup is needed, give the cleaner to
 		// the nftabler. Then, it'll use it to delete old rules as networks are restored.
-		fw.(firewaller.FirewallCleanerSetter).SetFirewallCleaner(iptabler.NewCleaner(ctx, config))
+		fw.SetFirewallCleaner(iptabler.NewCleaner(ctx, config))
 		return fw, nil
 	}
 

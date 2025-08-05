@@ -13,7 +13,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
-	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
+	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/nftabler"
 	"github.com/moby/moby/v2/daemon/libnetwork/portmapperapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"go.opentelemetry.io/otel"
@@ -43,8 +43,8 @@ func (d *driver) initStore() error {
 
 	// If there's a firewall cleaner, it's done its job by cleaning up rules
 	// belonging to the restored networks. So, drop it.
-	if fcs, ok := d.firewaller.(firewaller.FirewallCleanerSetter); ok {
-		fcs.SetFirewallCleaner(nil)
+	if nft, ok := d.firewaller.(*nftabler.Nftabler); ok {
+		nft.SetFirewallCleaner(nil)
 	}
 
 	return nil
