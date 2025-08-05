@@ -516,12 +516,16 @@ func (sb *Sandbox) hasExternalAccess() bool {
 
 // EnableService makes a managed container's service available by adding the
 // endpoint to the service load balancer and service discovery.
-func (sb *Sandbox) EnableService() (err error) {
-	log.G(context.TODO()).Debugf("EnableService %s START", sb.containerID)
+func (sb *Sandbox) EnableService() (retErr error) {
+	log.G(context.TODO()).WithField("container", sb.containerID).Debug("EnableService START")
 	defer func() {
-		if err != nil {
-			if err2 := sb.DisableService(); err2 != nil {
-				log.G(context.TODO()).WithError(err2).WithField("origError", err).Error("Error while disabling service after original error")
+		if retErr != nil {
+			if err := sb.DisableService(); err != nil {
+				log.G(context.TODO()).WithFields(log.Fields{
+					"error":     err,
+					"origError": retErr,
+					"container": sb.containerID,
+				}).Error("Error while disabling service after original error")
 			}
 		}
 	}()
@@ -533,30 +537,33 @@ func (sb *Sandbox) EnableService() (err error) {
 			ep.enableService()
 		}
 	}
-	log.G(context.TODO()).Debugf("EnableService %s DONE", sb.containerID)
+	log.G(context.TODO()).WithField("container", sb.containerID).Debug("EnableService DONE")
 	return nil
 }
 
 // DisableService removes a managed container's endpoints from the load balancer
 // and service discovery.
-func (sb *Sandbox) DisableService() (err error) {
-	log.G(context.TODO()).Debugf("DisableService %s START", sb.containerID)
-	failedEps := []string{}
-	defer func() {
-		if len(failedEps) > 0 {
-			err = fmt.Errorf("failed to disable service on sandbox:%s, for endpoints %s", sb.ID(), strings.Join(failedEps, ","))
-		}
-	}()
+func (sb *Sandbox) DisableService() error {
+	log.G(context.TODO()).WithField("container", sb.containerID).Debug("DisableService START")
+	var failedEps []string
 	for _, ep := range sb.Endpoints() {
-		if ep.isServiceEnabled() {
-			if err := ep.deleteServiceInfoFromCluster(sb, false, "DisableService"); err != nil {
-				failedEps = append(failedEps, ep.Name())
-				log.G(context.TODO()).Warnf("failed update state for endpoint %s into cluster: %v", ep.Name(), err)
-			}
-			ep.disableService()
+		if !ep.isServiceEnabled() {
+			continue
 		}
+		if err := ep.deleteServiceInfoFromCluster(sb, false, "DisableService"); err != nil {
+			failedEps = append(failedEps, ep.Name())
+			log.G(context.TODO()).WithFields(log.Fields{
+				"container": sb.containerID,
+				"error":     err,
+				"ep":        ep.Name(),
+			}).Warn("failed to update state for endpoint into cluster")
+		}
+		ep.disableService()
 	}
-	log.G(context.TODO()).Debugf("DisableService %s DONE", sb.containerID)
+	log.G(context.TODO()).WithField("container", sb.containerID).Debug("DisableService DONE")
+	if len(failedEps) > 0 {
+		return fmt.Errorf("failed to disable service on sandbox:%s, for endpoints %s", sb.ID(), strings.Join(failedEps, ","))
+	}
 	return nil
 }
 
