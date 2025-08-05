@@ -51,7 +51,7 @@ func ensureHTTPServerImage(t testing.TB) {
 			t.Fatalf("could not build http server: %v", lookErr)
 		}
 
-		cmd := exec.Command(goCmd, "build", "-o", filepath.Join(tmp, "httpserver"), "github.com/docker/docker/contrib/httpserver")
+		cmd := exec.Command(goCmd, "build", "-o", filepath.Join(tmp, "httpserver"), "github.com/moby/moby/v2/contrib/httpserver")
 		cmd.Env = append(os.Environ(), []string{
 			"CGO_ENABLED=0",
 			"GOOS=" + goos,

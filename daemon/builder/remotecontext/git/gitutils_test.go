@@ -155,7 +155,7 @@ func TestCloneArgsDumbHttp(t *testing.T) {
 }
 
 func TestCloneArgsGit(t *testing.T) {
-	args := fetchArgs("git://github.com/docker/docker", "master")
+	args := fetchArgs("git://github.com/moby/moby", "master")
 	exp := []string{"fetch", "--depth", "1", "origin", "--", "master"}
 	assert.Check(t, is.DeepEqual(exp, args))
 }
