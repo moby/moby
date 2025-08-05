@@ -941,7 +941,7 @@ github.com/moby/ipvs
 # github.com/moby/locker v1.0.1
 ## explicit; go 1.13
 github.com/moby/locker
-# github.com/moby/moby/api v0.0.0 => ./api
+# github.com/moby/moby/api v1.52.0-alpha.0
 ## explicit; go 1.23.0
 github.com/moby/moby/api
 github.com/moby/moby/api/pkg/progress
@@ -1766,5 +1766,4 @@ tags.cncf.io/container-device-interface/pkg/parser
 # tags.cncf.io/container-device-interface/specs-go v1.0.0
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
-# github.com/moby/moby/api => ./api
 # github.com/moby/moby/client => ./client
