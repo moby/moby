@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/moby/go-archive"
-	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/common"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/cli"
@@ -364,7 +364,7 @@ func waitForGoroutines(ctx context.Context, t poll.TestingT, apiClient client.AP
 // getErrorMessage returns the error message from an error API response
 func getErrorMessage(t *testing.T, body []byte) string {
 	t.Helper()
-	var resp types.ErrorResponse
+	var resp common.ErrorResponse
 	assert.NilError(t, json.Unmarshal(body, &resp))
 	return strings.TrimSpace(resp.Message)
 }

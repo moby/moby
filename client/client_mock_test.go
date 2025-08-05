@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/common"
 )
 
 // transportFunc allows us to inject a mock transport for testing. We define it
@@ -40,7 +40,7 @@ func errorMock(statusCode int, message string) func(req *http.Request) (*http.Re
 		header := http.Header{}
 		header.Set("Content-Type", "application/json")
 
-		body, err := json.Marshal(&types.ErrorResponse{
+		body, err := json.Marshal(&common.ErrorResponse{
 			Message: message,
 		})
 		if err != nil {

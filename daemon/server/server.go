@@ -6,7 +6,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/gorilla/mux"
-	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/common"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/server/httpstatus"
@@ -73,7 +73,7 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc, operation string) ht
 			if v := vars["version"]; v != "" && versions.LessThan(v, "1.24") {
 				http.Error(w, err.Error(), statusCode)
 			} else {
-				_ = httputils.WriteJSON(w, statusCode, &types.ErrorResponse{
+				_ = httputils.WriteJSON(w, statusCode, &common.ErrorResponse{
 					Message: err.Error(),
 				})
 			}
@@ -99,7 +99,7 @@ func (s *Server) CreateMux(ctx context.Context, routers ...router.Router) *mux.R
 
 	// Setup handlers for undefined paths and methods
 	notFoundHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = httputils.WriteJSON(w, http.StatusNotFound, &types.ErrorResponse{
+		_ = httputils.WriteJSON(w, http.StatusNotFound, &common.ErrorResponse{
 			Message: "page not found",
 		})
 	})

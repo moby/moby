@@ -14,7 +14,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/common"
 )
 
 // head sends an http request to the docker API using the method HEAD.
@@ -250,7 +250,7 @@ func (cli *Client) checkResponseErr(serverResp *http.Response) (retErr error) {
 
 	var daemonErr error
 	if serverResp.Header.Get("Content-Type") == "application/json" {
-		var errorResponse types.ErrorResponse
+		var errorResponse common.ErrorResponse
 		if err := json.Unmarshal(body, &errorResponse); err != nil {
 			return fmt.Errorf("error reading JSON: %w", err)
 		}
@@ -259,11 +259,11 @@ func (cli *Client) checkResponseErr(serverResp *http.Response) (retErr error) {
 			// JSON-response (no error produced), but it didn't contain an error
 			// message. This could either be because the response was empty, or
 			// the response was valid JSON, but not with the expected schema
-			// ([types.ErrorResponse]).
+			// ([common.ErrorResponse]).
 			//
 			// We cannot use "strict" JSON handling (json.NewDecoder with DisallowUnknownFields)
 			// due to the API using an open schema (we must anticipate fields
-			// being added to [types.ErrorResponse] in the future, and not
+			// being added to [common.ErrorResponse] in the future, and not
 			// reject those responses.
 			//
 			// For these cases, we construct an error with the status-code

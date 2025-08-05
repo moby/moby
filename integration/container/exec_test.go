@@ -11,7 +11,7 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/common"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/integration/internal/container"
@@ -237,7 +237,7 @@ func TestExecResize(t *testing.T) {
 				assert.NilError(t, err)
 				assert.Check(t, is.Equal(http.StatusBadRequest, res.StatusCode))
 
-				var errorResponse types.ErrorResponse
+				var errorResponse common.ErrorResponse
 				err = json.NewDecoder(res.Body).Decode(&errorResponse)
 				assert.NilError(t, err)
 				assert.Check(t, is.ErrorContains(errorResponse, tc.expErr))
