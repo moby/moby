@@ -246,11 +246,10 @@ echo 'Optional Features:'
 	check_flags CGROUP_PIDS
 }
 {
-	check_flags MEMCG_SWAP
-	# Kernel v5.8+ removes MEMCG_SWAP_ENABLED.
-	if [ "$kernelMajor" -lt 5 ] || [ "$kernelMajor" -eq 5 -a "$kernelMinor" -le 8 ]; then
+	# Kernel v5.8+ removes MEMCG_SWAP_ENABLED and deprecates MEMCG_SWAP.
+	if [ "$kernelMajor" -lt 5 ] || [ "$kernelMajor" -eq 5 -a "$kernelMinor" -lt 8 ]; then
 		CODE=${EXITCODE}
-		check_flags MEMCG_SWAP_ENABLED
+		check_flags MEMCG_SWAP MEMCG_SWAP_ENABLED
 		# FIXME this check is cgroupv1-specific
 		if [ -e /sys/fs/cgroup/memory/memory.memsw.limit_in_bytes ]; then
 			echo "    $(wrap_color '(cgroup swap accounting is currently enabled)' bold black)"
