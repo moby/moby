@@ -504,9 +504,11 @@ func serviceDiscoveryOnDefaultNetwork() bool {
 	return false
 }
 
-func buildSandboxPlatformOptions(ctr *container.Container, cfg *config.Config, sboxOptions *[]libnetwork.SandboxOption) error {
-	var err error
-	var originResolvConfPath string
+func buildSandboxPlatformOptions(ctr *container.Container, cfg *config.Config) ([]libnetwork.SandboxOption, error) {
+	var (
+		sboxOptions          []libnetwork.SandboxOption
+		originResolvConfPath string
+	)
 
 	// Set the correct paths for /etc/hosts and /etc/resolv.conf, based on the
 	// networking-mode of the container. Note that containers with "container"
@@ -517,10 +519,7 @@ func buildSandboxPlatformOptions(ctr *container.Container, cfg *config.Config, s
 		// In host-mode networking, the container does not have its own networking
 		// namespace, so both `/etc/hosts` and `/etc/resolv.conf` should be the same
 		// as on the host itself. The container gets a copy of these files.
-		*sboxOptions = append(
-			*sboxOptions,
-			libnetwork.OptionOriginHostsPath("/etc/hosts"),
-		)
+		sboxOptions = append(sboxOptions, libnetwork.OptionOriginHostsPath("/etc/hosts"))
 		originResolvConfPath = "/etc/resolv.conf"
 	case ctr.HostConfig.NetworkMode.IsUserDefined():
 		// The container uses a user-defined network. We use the embedded DNS
@@ -550,26 +549,31 @@ func buildSandboxPlatformOptions(ctr *container.Container, cfg *config.Config, s
 		originResolvConfPath = cfg.GetResolvConf()
 	}
 
-	// Allow tests to point at their own resolv.conf file.
+	// Allow tests to point at their own resolv.conf file. Note that
+	// this only overrides the resolvConf path, not "/etc/hosts", which
+	// for containers using the "host" network namespace is set above.
 	if envPath := os.Getenv("DOCKER_TEST_RESOLV_CONF_PATH"); envPath != "" {
 		log.G(context.TODO()).Infof("Using OriginResolvConfPath from env: %s", envPath)
 		originResolvConfPath = envPath
 	}
-	*sboxOptions = append(*sboxOptions, libnetwork.OptionOriginResolvConfPath(originResolvConfPath))
+	sboxOptions = append(sboxOptions, libnetwork.OptionOriginResolvConfPath(originResolvConfPath))
 
-	ctr.HostsPath, err = ctr.GetRootResourcePath("hosts")
+	hostsPath, err := ctr.GetRootResourcePath("hosts")
 	if err != nil {
-		return err
+		return nil, err
 	}
-	*sboxOptions = append(*sboxOptions, libnetwork.OptionHostsPath(ctr.HostsPath))
-
-	ctr.ResolvConfPath, err = ctr.GetRootResourcePath("resolv.conf")
+	resolvConfPath, err := ctr.GetRootResourcePath("resolv.conf")
 	if err != nil {
-		return err
+		return nil, err
 	}
-	*sboxOptions = append(*sboxOptions, libnetwork.OptionResolvConfPath(ctr.ResolvConfPath))
 
-	return nil
+	ctr.HostsPath, ctr.ResolvConfPath = hostsPath, resolvConfPath
+	sboxOptions = append(sboxOptions,
+		libnetwork.OptionHostsPath(hostsPath),
+		libnetwork.OptionResolvConfPath(resolvConfPath),
+	)
+
+	return sboxOptions, nil
 }
 
 func (daemon *Daemon) initializeNetworkingPaths(ctr *container.Container, nc *container.Container) error {

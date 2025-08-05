@@ -61,10 +61,13 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 		sboxOptions = append(sboxOptions, libnetwork.OptionUseExternalKey())
 	}
 
-	// Add platform-specific Sandbox options.
-	if err := buildSandboxPlatformOptions(ctr, cfg, &sboxOptions); err != nil {
+	// Update the container with platform-specific options, and
+	// add platform-specific Sandbox options.
+	platformOpts, err := buildSandboxPlatformOptions(ctr, cfg)
+	if err != nil {
 		return nil, err
 	}
+	sboxOptions = append(sboxOptions, platformOpts...)
 
 	if len(ctr.HostConfig.DNS) > 0 {
 		dnsAddrs, err := toNetIP(ctr.HostConfig.DNS)
