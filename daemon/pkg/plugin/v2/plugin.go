@@ -161,7 +161,7 @@ next:
 
 				// it is, so lets update the settings in memory
 				if mount.Source == nil {
-					return errors.New("Plugin config has no mount source")
+					return errors.New("plugin config has no mount source")
 				}
 				*mount.Source = s.value
 				continue next
@@ -181,7 +181,7 @@ next:
 
 				// it is, so lets update the settings in memory
 				if device.Path == nil {
-					return errors.New("Plugin config has no device path")
+					return errors.New("plugin config has no device path")
 				}
 				*device.Path = s.value
 				continue next

@@ -200,10 +200,10 @@ func (ps *DockerPluginSuite) TestPluginSet(c *testing.T) {
 	assert.Check(c, is.Contains(mounts, "bar"))
 	out, _, err := dockerCmdWithError("plugin", "set", name, "pmount2.source=bar2")
 	assert.ErrorContains(c, err, "")
-	assert.Check(c, is.Contains(out, "Plugin config has no mount source"))
+	assert.Check(c, is.Contains(out, "plugin config has no mount source"))
 	out, _, err = dockerCmdWithError("plugin", "set", name, "pdev2.path=/dev/bar2")
 	assert.ErrorContains(c, err, "")
-	assert.Check(c, is.Contains(out, "Plugin config has no device path"))
+	assert.Check(c, is.Contains(out, "plugin config has no device path"))
 }
 
 func (ps *DockerPluginSuite) TestPluginInstallArgs(c *testing.T) {
