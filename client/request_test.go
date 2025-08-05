@@ -13,7 +13,7 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/common"
 	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -98,7 +98,7 @@ func TestPlainTextError(t *testing.T) {
 // It includes test-cases for malformed and invalid error-responses, as well
 // as plain text errors for backwards compatibility with API versions <1.24.
 func TestResponseErrors(t *testing.T) {
-	errorResponse, err := json.Marshal(&types.ErrorResponse{
+	errorResponse, err := json.Marshal(&common.ErrorResponse{
 		Message: "Some error occurred",
 	})
 	assert.NilError(t, err)
@@ -111,24 +111,24 @@ func TestResponseErrors(t *testing.T) {
 		expected    string
 	}{
 		{
-			// Valid (types.ErrorResponse) error, but not using a fixture, to validate current implementation..
+			// Valid [common.ErrorResponse] error, but not using a fixture, to validate current implementation..
 			doc:         "JSON error (non-fixture)",
 			contentType: "application/json",
 			response:    string(errorResponse),
 			expected:    `Error response from daemon: Some error occurred`,
 		},
 		{
-			// Valid (types.ErrorResponse) error.
+			// Valid [common.ErrorResponse] error.
 			doc:         "JSON error",
 			contentType: "application/json",
 			response:    `{"message":"Some error occurred"}`,
 			expected:    `Error response from daemon: Some error occurred`,
 		},
 		{
-			// Valid (types.ErrorResponse) error with additional fields.
+			// Valid [common.ErrorResponse] error with additional fields.
 			doc:         "JSON error with extra fields",
 			contentType: "application/json",
-			response:    `{"message":"Some error occurred", "other_field": "some other field that's not part of types.ErrorResponse"}`,
+			response:    `{"message":"Some error occurred", "other_field": "some other field that's not part of common.ErrorResponse"}`,
 			expected:    `Error response from daemon: Some error occurred`,
 		},
 		{
@@ -156,7 +156,7 @@ func TestResponseErrors(t *testing.T) {
 			expected:    `error reading JSON: unexpected end of JSON input`,
 		},
 		{
-			// Server response that's valid JSON, but not the expected (types.ErrorResponse) scheme
+			// Server response that's valid JSON, but not the expected [common.ErrorResponse] scheme
 			doc:         "incorrect JSON scheme",
 			contentType: "application/json",
 			response:    `{"error":"Some error occurred"}`,

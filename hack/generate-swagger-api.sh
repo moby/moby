@@ -4,7 +4,6 @@ set -eu
 swagger generate model -f api/swagger.yaml \
 	-t api -m types -C api/swagger-gen.yaml \
 	-T api/templates --allow-template-override \
-	-n ErrorResponse \
 	-n Plugin \
 	-n PluginDevice \
 	-n PluginMount \
@@ -13,7 +12,8 @@ swagger generate model -f api/swagger.yaml \
 swagger generate model -f api/swagger.yaml \
 	-t api -m types/common -C api/swagger-gen.yaml \
 	-T api/templates --allow-template-override \
-	-n IDResponse
+	-n IDResponse \
+	-n ErrorResponse
 
 swagger generate model -f api/swagger.yaml \
 	-t api -m types/storage -C api/swagger-gen.yaml \
