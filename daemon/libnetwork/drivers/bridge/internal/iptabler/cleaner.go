@@ -46,6 +46,13 @@ func NewCleaner(ctx context.Context, config firewaller.Config) firewaller.Firewa
 		_ = t.DeleteJumpRule(iptables.Filter, "FORWARD", DockerForwardChain)
 		_ = deleteLegacyTopLevelRules(ctx, t, ipv)
 		removeIPChains(ctx, ipv)
+		// The iptables chains will no longer have Docker's ACCEPT rules. So, if the
+		// filter-FORWARD chain has policy DROP (possibly set by Docker when it enabled
+		// IP forwarding), packets accepted by nftables chains will still be processed by
+		// iptables and dropped. It's the user's responsibility to sort that out.
+		if t.HasPolicy("filter", "FORWARD", iptables.Drop) {
+			log.G(ctx).WithField("ipv", ipv).Warn("Network traffic for published ports may be dropped, iptables chain FORWARD has policy DROP.")
+		}
 		return true
 	}
 	cleaned4 := clean(iptables.IPv4, config.IPv4)
