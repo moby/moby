@@ -8,8 +8,8 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/moby/moby/api/pkg/streamformatter"
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
@@ -84,7 +84,7 @@ func (pr *pluginRouter) upgradePlugin(ctx context.Context, w http.ResponseWriter
 		return errors.Wrap(err, "failed to parse form")
 	}
 
-	var privileges types.PluginPrivileges
+	var privileges plugin.Privileges
 	if err := httputils.ReadJSON(r, &privileges); err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func (pr *pluginRouter) pullPlugin(ctx context.Context, w http.ResponseWriter, r
 		return errors.Wrap(err, "failed to parse form")
 	}
 
-	var privileges types.PluginPrivileges
+	var privileges plugin.Privileges
 	if err := httputils.ReadJSON(r, &privileges); err != nil {
 		return err
 	}
@@ -186,11 +186,10 @@ func (pr *pluginRouter) createPlugin(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 
-	options := &backend.PluginCreateConfig{
+	err := pr.backend.CreateFromContext(ctx, r.Body, &backend.PluginCreateConfig{
 		RepoName: r.FormValue("name"),
-	}
-
-	if err := pr.backend.CreateFromContext(ctx, r.Body, options); err != nil {
+	})
+	if err != nil {
 		return err
 	}
 	// TODO: send progress bar
@@ -203,14 +202,13 @@ func (pr *pluginRouter) enablePlugin(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 
-	name := vars["name"]
 	timeout, err := strconv.Atoi(r.Form.Get("timeout"))
 	if err != nil {
 		return err
 	}
-	config := &backend.PluginEnableConfig{Timeout: timeout}
 
-	return pr.backend.Enable(name, config)
+	name := vars["name"]
+	return pr.backend.Enable(name, &backend.PluginEnableConfig{Timeout: timeout})
 }
 
 func (pr *pluginRouter) disablePlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -218,12 +216,9 @@ func (pr *pluginRouter) disablePlugin(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
-	name := vars["name"]
-	config := &backend.PluginDisableConfig{
+	return pr.backend.Disable(vars["name"], &backend.PluginDisableConfig{
 		ForceDisable: httputils.BoolValue(r, "force"),
-	}
-
-	return pr.backend.Disable(name, config)
+	})
 }
 
 func (pr *pluginRouter) removePlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -232,10 +227,9 @@ func (pr *pluginRouter) removePlugin(ctx context.Context, w http.ResponseWriter,
 	}
 
 	name := vars["name"]
-	config := &backend.PluginRmConfig{
+	return pr.backend.Remove(name, &backend.PluginRmConfig{
 		ForceRemove: httputils.BoolValue(r, "force"),
-	}
-	return pr.backend.Remove(name, config)
+	})
 }
 
 func (pr *pluginRouter) pushPlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

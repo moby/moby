@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/plugin"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -75,7 +75,7 @@ func TestPluginList(t *testing.T) {
 						return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
 					}
 				}
-				content, err := json.Marshal([]*types.Plugin{
+				content, err := json.Marshal([]*plugin.Plugin{
 					{
 						ID: "plugin_id1",
 					},

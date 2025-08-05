@@ -73,10 +73,10 @@ func TestServicePlugin(t *testing.T) {
 		t.Log("No tasks found for plugin service")
 		t.Fail()
 	}
-	plugin, _, err := d1.NewClientT(t).PluginInspectWithRaw(ctx, name)
+	p, _, err := d1.NewClientT(t).PluginInspectWithRaw(ctx, name)
 	assert.NilError(t, err, "Error inspecting service plugin")
 	found := false
-	for _, env := range plugin.Settings.Env {
+	for _, env := range p.Settings.Env {
 		assert.Equal(t, strings.HasPrefix(env, "baz"), false, "Environment variable entry %q is invalid and should not be present", "baz")
 		if strings.HasPrefix(env, "foo=") {
 			found = true

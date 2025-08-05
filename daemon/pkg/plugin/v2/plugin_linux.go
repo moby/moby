@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/v2/daemon/internal/rootless/mountopts"
 	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/pkg/oci"
@@ -45,7 +45,7 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 		s.Linux.RootfsPropagation = "rshared"
 	}
 
-	mounts := append(p.PluginObj.Config.Mounts, types.PluginMount{
+	mounts := append(p.PluginObj.Config.Mounts, plugin.Mount{
 		Source:      &execRoot,
 		Destination: defaultPluginRuntimeDestination,
 		Type:        "bind",
@@ -60,13 +60,13 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 		etcHosts := "/etc/hosts"
 		resolvConf := "/etc/resolv.conf"
 		mounts = append(mounts,
-			types.PluginMount{
+			plugin.Mount{
 				Source:      &etcHosts,
 				Destination: etcHosts,
 				Type:        "bind",
 				Options:     []string{"rbind", "ro"},
 			},
-			types.PluginMount{
+			plugin.Mount{
 				Source:      &resolvConf,
 				Destination: resolvConf,
 				Type:        "bind",
