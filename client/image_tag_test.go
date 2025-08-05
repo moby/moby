@@ -32,7 +32,7 @@ func TestImageTagInvalidReference(t *testing.T) {
 	}
 
 	err := client.ImageTag(context.Background(), "image_id", "aa/asdf$$^/aa")
-	assert.Check(t, is.Error(err, `Error parsing reference: "aa/asdf$$^/aa" is not a valid repository/tag: invalid reference format`))
+	assert.Check(t, is.Error(err, `error parsing reference: "aa/asdf$$^/aa" is not a valid repository/tag: invalid reference format`))
 }
 
 // Ensure we don't allow the use of invalid repository names or tags; these tag operations should fail.
@@ -65,19 +65,19 @@ func TestImageTagInvalidSourceImageName(t *testing.T) {
 	t.Run("test repository name begin with '-'", func(t *testing.T) {
 		t.Parallel()
 		err := client.ImageTag(ctx, "busybox:latest", "-busybox:test")
-		assert.Check(t, is.ErrorContains(err, "Error parsing reference"))
+		assert.Check(t, is.ErrorContains(err, "error parsing reference"))
 	})
 
 	t.Run("test namespace name begin with '-'", func(t *testing.T) {
 		t.Parallel()
 		err := client.ImageTag(ctx, "busybox:latest", "-test/busybox:test")
-		assert.Check(t, is.ErrorContains(err, "Error parsing reference"))
+		assert.Check(t, is.ErrorContains(err, "error parsing reference"))
 	})
 
 	t.Run("test index name begin with '-'", func(t *testing.T) {
 		t.Parallel()
 		err := client.ImageTag(ctx, "busybox:latest", "-index:5000/busybox:test")
-		assert.Check(t, is.ErrorContains(err, "Error parsing reference"))
+		assert.Check(t, is.ErrorContains(err, "error parsing reference"))
 	})
 }
 

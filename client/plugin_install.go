@@ -3,6 +3,8 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -11,7 +13,6 @@ import (
 	"github.com/distribution/reference"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/registry"
-	"github.com/pkg/errors"
 )
 
 // PluginInstallOptions holds parameters to install a plugin.
@@ -36,7 +37,7 @@ type PluginInstallOptions struct {
 func (cli *Client) PluginInstall(ctx context.Context, name string, options PluginInstallOptions) (_ io.ReadCloser, retErr error) {
 	query := url.Values{}
 	if _, err := reference.ParseNormalizedNamed(options.RemoteRef); err != nil {
-		return nil, errors.Wrap(err, "invalid remote reference")
+		return nil, fmt.Errorf("invalid remote reference: %w", err)
 	}
 	query.Set("remote", options.RemoteRef)
 
@@ -128,7 +129,7 @@ func (cli *Client) checkPluginPermissions(ctx context.Context, query url.Values,
 			return nil, err
 		}
 		if !accept {
-			return nil, errors.Errorf("permission denied while installing plugin %s", options.RemoteRef)
+			return nil, errors.New("permission denied while installing plugin " + options.RemoteRef)
 		}
 	}
 	return privileges, nil

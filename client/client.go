@@ -44,6 +44,8 @@ package client
 import (
 	"context"
 	"crypto/tls"
+	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -56,7 +58,6 @@ import (
 	"github.com/docker/go-connections/sockets"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/versions"
-	"github.com/pkg/errors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -421,7 +422,7 @@ func (cli *Client) HTTPClient() *http.Client {
 func ParseHostURL(host string) (*url.URL, error) {
 	proto, addr, ok := strings.Cut(host, "://")
 	if !ok || addr == "" {
-		return nil, errors.Errorf("unable to parse docker host `%s`", host)
+		return nil, fmt.Errorf("unable to parse docker host `%s`", host)
 	}
 
 	var basePath string

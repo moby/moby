@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/pkg/errors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -55,7 +55,7 @@ func WithDialContext(dialContext func(ctx context.Context, network, addr string)
 			transport.DialContext = dialContext
 			return nil
 		}
-		return errors.Errorf("cannot apply dialer to transport: %T", c.client.Transport)
+		return fmt.Errorf("cannot apply dialer to transport: %T", c.client.Transport)
 	}
 }
 
@@ -73,7 +73,7 @@ func WithHost(host string) Opt {
 		if transport, ok := c.client.Transport.(*http.Transport); ok {
 			return sockets.ConfigureTransport(transport, c.proto, c.addr)
 		}
-		return errors.Errorf("cannot apply host to transport: %T", c.client.Transport)
+		return fmt.Errorf("cannot apply host to transport: %T", c.client.Transport)
 	}
 }
 
@@ -140,7 +140,7 @@ func WithTLSClientConfig(cacertPath, certPath, keyPath string) Opt {
 	return func(c *Client) error {
 		transport, ok := c.client.Transport.(*http.Transport)
 		if !ok {
-			return errors.Errorf("cannot apply tls config to transport: %T", c.client.Transport)
+			return fmt.Errorf("cannot apply tls config to transport: %T", c.client.Transport)
 		}
 		config, err := tlsconfig.Client(tlsconfig.Options{
 			CAFile:             cacertPath,
@@ -149,7 +149,7 @@ func WithTLSClientConfig(cacertPath, certPath, keyPath string) Opt {
 			ExclusiveRootPools: true,
 		})
 		if err != nil {
-			return errors.Wrap(err, "failed to create tls config")
+			return fmt.Errorf("failed to create tls config: %w", err)
 		}
 		transport.TLSClientConfig = config
 		return nil

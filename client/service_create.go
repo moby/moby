@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -12,7 +13,6 @@ import (
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
 )
 
 // ServiceCreate creates a new service.
@@ -200,11 +200,11 @@ func validateAPIVersion(c swarm.ServiceSpec, apiVersion string) error {
 	for _, m := range c.TaskTemplate.ContainerSpec.Mounts {
 		if m.BindOptions != nil {
 			if m.BindOptions.NonRecursive && versions.LessThan(apiVersion, "1.40") {
-				return errors.Errorf("bind-recursive=disabled requires API v1.40 or later")
+				return errors.New("bind-recursive=disabled requires API v1.40 or later")
 			}
 			// ReadOnlyNonRecursive can be safely ignored when API < 1.44
 			if m.BindOptions.ReadOnlyForceRecursive && versions.LessThan(apiVersion, "1.44") {
-				return errors.Errorf("bind-recursive=readonly requires API v1.44 or later")
+				return errors.New("bind-recursive=readonly requires API v1.44 or later")
 			}
 		}
 	}
