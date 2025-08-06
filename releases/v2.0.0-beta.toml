@@ -1,0 +1,21 @@
+# commit to be tagged for new release
+commit = "HEAD"
+
+project_name = "moby"
+github_repo = "moby/moby"
+ignore_deps = [ "github.com/moby/moby" ]
+
+# previous release
+previous = "v28.2.2"
+
+pre_release = true
+
+preface = """\
+The first release of the Moby Go module and v2 release. This represents a major
+change to the code organization, completing the rename to `github.com/moby/moby`.
+
+While this completes the transition to Go modules for Moby, importers
+who are using `github.com/docker/docker` should update to use the
+`github.com/moby/moby/api` and `github.com/moby/moby/client` modules rather than
+continuing to use the `github.com/docker/docker` import paths.
+"""
