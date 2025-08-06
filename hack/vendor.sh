@@ -34,13 +34,9 @@ tidy() (
 vendor() (
 	set -ex
 
-	cd "$ROOTDIR"
-
-	if [ "$in_workspace" -eq 1 ]; then
-		go work vendor
-	else
-		go mod vendor
-	fi
+	cd "${ROOTDIR}"
+	GOWORK=off go mod tidy
+	GOWORK=off go mod vendor
 )
 
 help() {
