@@ -51,4 +51,5 @@ refer to
 
 ## Vendor (vendor.sh)
 
-A shell script that is a wrapper around `go mod vendor`.
+A shell script that is a wrapper around `go mod vendor` (or `go work vendor`
+on the master branch).

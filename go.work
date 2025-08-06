@@ -1,0 +1,19 @@
+go 1.24.0
+
+// This go.work file allows both the "client" and "v2" modules to use and
+// vendor the (unreleased) versions of other modules in this repository,
+// without the need to maintain "replace" rules.
+//
+// This go.work file uses local copies of all modules:
+//
+// - github.com/moby/moby/v2
+// - github.com/moby/moby/api
+// - github.com/moby/moby/client
+//
+// Use "GOWORK=off" to disable this file, and to use the actual versions
+// specified in the respective "go.mod" files.
+use (
+	.
+	./api
+	./client
+)
