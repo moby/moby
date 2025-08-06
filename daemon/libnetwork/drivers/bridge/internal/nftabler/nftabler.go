@@ -4,7 +4,9 @@ package nftabler
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
@@ -45,6 +47,14 @@ const (
 	rawPreroutingPortsRuleGroup = iota + initialRuleGroup + 1
 )
 
+var baseChainNames = map[string]struct{}{
+	forwardChain:       {},
+	postroutingChain:   {},
+	preroutingChain:    {},
+	outputChain:        {},
+	rawPreroutingChain: {},
+}
+
 type nftabler struct {
 	config  firewaller.Config
 	cleaner firewaller.FirewallCleaner
@@ -52,12 +62,25 @@ type nftabler struct {
 	table6  nftables.TableRef
 }
 
-func NewNftabler(ctx context.Context, config firewaller.Config) (firewaller.Firewaller, error) {
+func NewNftabler(ctx context.Context, config firewaller.Config, baseChainPriorities map[string]string) (firewaller.Firewaller, error) {
 	nft := &nftabler{config: config}
+
+	// Convert base chain priorities to integers. (We may want to allow expressions
+	// nftables will understand here, like "mangle - 5" instead of "-155". But
+	// that'll require different validation, so it's limited to the integer
+	// equivalent at the moment.)
+	bcps := map[string]int{}
+	for chain, prio := range baseChainPriorities {
+		p, err := strconv.Atoi(prio)
+		if err != nil {
+			return nil, fmt.Errorf("nftables priority %q for base chain %q must be an integer: %w", prio, chain, err)
+		}
+		bcps[chain] = p
+	}
 
 	if nft.config.IPv4 {
 		var err error
-		nft.table4, err = nft.init(ctx, nftables.IPv4)
+		nft.table4, err = nft.init(ctx, nftables.IPv4, bcps)
 		if err != nil {
 			return nil, err
 		}
@@ -68,7 +91,7 @@ func NewNftabler(ctx context.Context, config firewaller.Config) (firewaller.Fire
 
 	if nft.config.IPv6 {
 		var err error
-		nft.table6, err = nft.init(ctx, nftables.IPv6)
+		nft.table6, err = nft.init(ctx, nftables.IPv6, bcps)
 		if err != nil {
 			return nil, err
 		}
@@ -83,6 +106,20 @@ func NewNftabler(ctx context.Context, config firewaller.Config) (firewaller.Fire
 	}
 
 	return nft, nil
+}
+
+// ValidateBaseChainPriorities checks nftables base chain priority configuration.
+func ValidateBaseChainPriorities(prios map[string]string) error {
+	var errs []error
+	for c, p := range prios {
+		if _, ok := baseChainNames[c]; !ok {
+			errs = append(errs, fmt.Errorf("%q is not a valid base chain name", c))
+		}
+		if _, ok := strconv.Atoi(p); ok != nil {
+			errs = append(errs, fmt.Errorf("priority %q for base chain %q is not an integer", p, c))
+		}
+	}
+	return errors.Join(errs...)
 }
 
 func (nft *nftabler) getTable(ipv firewaller.IPVersion) nftables.TableRef {
@@ -101,11 +138,19 @@ func (nft *nftabler) FilterForwardDrop(ctx context.Context, ipv firewaller.IPVer
 }
 
 // init creates the bridge driver's nftables table for IPv4 or IPv6.
-func (nft *nftabler) init(ctx context.Context, family nftables.Family) (nftables.TableRef, error) {
+func (nft *nftabler) init(ctx context.Context, family nftables.Family, baseChainPriorities map[string]int) (nftables.TableRef, error) {
 	// Instantiate the table.
 	table, err := nftables.NewTable(family, dockerTable)
 	if err != nil {
 		return table, err
+	}
+
+	// Reload the table while it's got no elements to clear an old table if one
+	// exists. This is necessary because, if base chain priorities have changed and
+	// the old table isn't removed, nft produces an error message for the base chain
+	// (but seems to apply the change anyway).
+	if err := table.Reload(ctx); err != nil {
+		return nftables.TableRef{}, err
 	}
 
 	// Set up the filter forward chain.
@@ -120,7 +165,7 @@ func (nft *nftabler) init(ctx context.Context, family nftables.Family) (nftables
 	fwdChain, err := table.BaseChain(ctx, forwardChain,
 		nftables.BaseChainTypeFilter,
 		nftables.BaseChainHookForward,
-		nftables.BaseChainPriorityFilter)
+		baseChainPriority(forwardChain, nftables.BaseChainPriorityFilter, baseChainPriorities))
 	if err != nil {
 		return nftables.TableRef{}, fmt.Errorf("initialising nftables: %w", err)
 	}
@@ -140,7 +185,7 @@ func (nft *nftabler) init(ctx context.Context, family nftables.Family) (nftables
 	natPostRtChain, err := table.BaseChain(ctx, postroutingChain,
 		nftables.BaseChainTypeNAT,
 		nftables.BaseChainHookPostrouting,
-		nftables.BaseChainPrioritySrcNAT)
+		baseChainPriority(postroutingChain, nftables.BaseChainPrioritySrcNAT, baseChainPriorities))
 	if err != nil {
 		return nftables.TableRef{}, err
 	}
@@ -160,7 +205,7 @@ func (nft *nftabler) init(ctx context.Context, family nftables.Family) (nftables
 	natPreRtChain, err := table.BaseChain(ctx, preroutingChain,
 		nftables.BaseChainTypeNAT,
 		nftables.BaseChainHookPrerouting,
-		nftables.BaseChainPriorityDstNAT)
+		baseChainPriority(preroutingChain, nftables.BaseChainPriorityDstNAT, baseChainPriorities))
 	if err != nil {
 		return nftables.TableRef{}, err
 	}
@@ -172,7 +217,7 @@ func (nft *nftabler) init(ctx context.Context, family nftables.Family) (nftables
 	natOutputChain, err := table.BaseChain(ctx, outputChain,
 		nftables.BaseChainTypeNAT,
 		nftables.BaseChainHookOutput,
-		nftables.BaseChainPriorityDstNAT)
+		baseChainPriority(outputChain, nftables.BaseChainPriorityDstNAT, baseChainPriorities))
 	if err != nil {
 		return nftables.TableRef{}, err
 	}
@@ -193,7 +238,7 @@ func (nft *nftabler) init(ctx context.Context, family nftables.Family) (nftables
 	if _, err := table.BaseChain(ctx, rawPreroutingChain,
 		nftables.BaseChainTypeFilter,
 		nftables.BaseChainHookPrerouting,
-		nftables.BaseChainPriorityRaw); err != nil {
+		baseChainPriority(rawPreroutingChain, nftables.BaseChainPriorityRaw, baseChainPriorities)); err != nil {
 		return nftables.TableRef{}, err
 	}
 
@@ -213,4 +258,11 @@ func nftApply(ctx context.Context, table nftables.TableRef) error {
 		return fmt.Errorf("applying nftables rules: %w", err)
 	}
 	return nil
+}
+
+func baseChainPriority(chainName string, def int, overrides map[string]int) int {
+	if p, ok := overrides[chainName]; ok {
+		return p
+	}
+	return def
 }

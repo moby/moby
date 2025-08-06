@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -939,4 +941,98 @@ func TestFirewallBackendSwitch(t *testing.T) {
 	assert.Check(t, numRules > 0, "Expected iptables to have at least one rule")
 	assert.Check(t, len(dockerChains) > 0, "Expected iptables to have at least one docker chain")
 	assert.Check(t, !nftablesTablesExist(), "nftables tables exist after running with iptables")
+}
+
+// TestBaseChainPriorityOverride checks that priorities of nftables base chains can be configured.
+func TestBaseChainPriorityOverride(t *testing.T) {
+	skip.If(t, !strings.Contains(testEnv.FirewallBackendDriver(), "nftables"),
+		"test is nftables specific, and nftables isn't in use")
+	_ = setupTest(t)
+	d := daemon.New(t)
+	defer d.Stop(t)
+
+	baseChains := []string{"filter-FORWARD", "nat-POSTROUTING", "nat-PREROUTING", "nat-OUTPUT", "raw-PREROUTING"}
+
+	re := regexp.MustCompile("priority ([-]?[0-9]+)")
+	chainPriority := func(name string) int {
+		t.Helper()
+		res := icmd.RunCommand("nft", "-n", "list chain "+name)
+		assert.Assert(t, res.ExitCode == 0, "failed to list chain %s", name)
+		m := re.FindStringSubmatch(res.Stdout())
+		assert.Assert(t, is.Len(m, 2), "failed to find chain priority in %s", res.Stdout())
+		i, err := strconv.Atoi(m[1])
+		assert.NilError(t, err)
+		return i
+	}
+	chainPriorities := func(fam string) map[string]int {
+		t.Helper()
+		res := map[string]int{}
+		for _, chain := range baseChains {
+			res[chain] = chainPriority(fam + " docker-bridges " + chain)
+		}
+		return res
+	}
+
+	d.Start(t)
+	defaults4 := chainPriorities("ip")
+	defaults6 := chainPriorities("ip6")
+	assert.Check(t, is.DeepEqual(defaults4, defaults6), "Expected ip/ip6 base chain priorities to be the same")
+
+	args := make([]string, 0, len(baseChains))
+	for _, chain := range baseChains {
+		args = append(args, fmt.Sprintf("--bridge-nftables-priority=%s=%d", chain, defaults4[chain]+1))
+	}
+
+	d.Stop(t)
+	d.Start(t, args...)
+
+	modified4 := chainPriorities("ip")
+	modified6 := chainPriorities("ip6")
+	assert.Check(t, is.DeepEqual(modified4, modified6), "Expected ip/ip6 base chain priorities to be the same")
+	for _, chain := range baseChains {
+		assert.Check(t, is.Equal(modified4[chain], defaults4[chain]+1))
+	}
+}
+
+// TestBaseChainPriorityValidation checks that nftables priority overrides are validated on startup.
+func TestBaseChainPriorityValidation(t *testing.T) {
+	skip.If(t, !strings.Contains(testEnv.FirewallBackendDriver(), "nftables"),
+		"test is nftables specific, and nftables isn't in use")
+	_ = setupTest(t)
+
+	testcases := []struct {
+		name   string
+		opt    string
+		expErr string
+	}{
+		{
+			name:   "bad base chain name",
+			opt:    "nosuchchain=0",
+			expErr: `"nosuchchain" is not a valid base chain name`,
+		},
+		{
+			name:   "non-integer priority",
+			opt:    "filter-FORWARD=filter+1",
+			expErr: `priority "filter+1" for base chain "filter-FORWARD" is not an integer`,
+		},
+		{
+			name:   "missing priority",
+			opt:    "filter-FORWARD",
+			expErr: `priority "" for base chain "filter-FORWARD" is not an integer`,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			d := daemon.New(t)
+			defer d.Stop(t)
+
+			err := d.StartWithError("--bridge-nftables-priority=" + tc.opt)
+			assert.Check(t, err != nil, "expected startup error")
+			logLine, err := d.TailLogs(1)
+			assert.Check(t, err)
+			assert.Check(t, len(logLine) == 1)
+			assert.Check(t, is.Contains(string(logLine[0]), tc.expErr))
+		})
+	}
 }

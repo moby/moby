@@ -75,6 +75,7 @@ type configuration struct {
 	Hairpin            bool
 	AllowDirectRouting bool
 	AcceptFwMark       string
+	NftablesPriorities map[string]string
 }
 
 // networkConfiguration for network specific configuration
@@ -528,7 +529,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 		Hairpin:            config.Hairpin,
 		AllowDirectRouting: config.AllowDirectRouting,
 		WSL2Mirrored:       isRunningUnderWSL2MirroredMode(context.Background()),
-	})
+	}, config.NftablesPriorities)
 	if err != nil {
 		return err
 	}
@@ -546,9 +547,14 @@ func (d *driver) configure(option map[string]interface{}) error {
 	return d.initStore()
 }
 
-var newFirewaller = func(ctx context.Context, config firewaller.Config) (firewaller.Firewaller, error) {
+// ValidateBaseChainPriorities checks nftables base chain priority configuration.
+func ValidateBaseChainPriorities(prios map[string]string) error {
+	return nftabler.ValidateBaseChainPriorities(prios)
+}
+
+var newFirewaller = func(ctx context.Context, config firewaller.Config, nftablesPriorities map[string]string) (firewaller.Firewaller, error) {
 	if nftables.Enabled() {
-		fw, err := nftabler.NewNftabler(ctx, config)
+		fw, err := nftabler.NewNftabler(ctx, config, nftablesPriorities)
 		if err != nil {
 			return nil, err
 		}

@@ -937,6 +937,7 @@ func networkPlatformOptions(conf *config.Config) []nwconfig.Option {
 				"Hairpin":                  !conf.EnableUserlandProxy || conf.UserlandProxyPath == "",
 				"AllowDirectRouting":       conf.BridgeConfig.AllowDirectRouting,
 				"AcceptFwMark":             conf.BridgeConfig.BridgeAcceptFwMark,
+				"NftablesPriorities":       conf.NftablesPriorities,
 			},
 		}),
 	}
