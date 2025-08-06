@@ -86,21 +86,21 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 		opts.params.HostConfig.RestartPolicy.Name = containertypes.RestartPolicyDisabled
 	}
 
-	warnings, err := daemon.verifyContainerSettings(daemonCfg, opts.params.HostConfig, opts.params.Config, false)
-	if err != nil {
+	warnings := make([]string, 0) // Create an empty slice to avoid https://github.com/moby/moby/issues/38222
+
+	if err := daemon.verifyContainerSettings(daemonCfg, opts.params.HostConfig, opts.params.Config, false, &warnings); err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
-	err = daemon.validateNetworkingConfig(opts.params.NetworkingConfig)
-	if err != nil {
+	if err := daemon.validateNetworkingConfig(opts.params.NetworkingConfig); err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
 	if opts.params.HostConfig == nil {
 		opts.params.HostConfig = &containertypes.HostConfig{}
 	}
-	err = daemon.adaptContainerSettings(&daemonCfg.Config, opts.params.HostConfig)
-	if err != nil {
+
+	if err := daemon.adaptContainerSettings(&daemonCfg.Config, opts.params.HostConfig); err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
@@ -113,10 +113,6 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 		return containertypes.CreateResponse{Warnings: warnings}, err
 	}
 	metrics.ContainerActions.WithValues("create").UpdateSince(start)
-
-	if warnings == nil {
-		warnings = make([]string, 0) // Create an empty slice to avoid https://github.com/moby/moby/issues/38222
-	}
 
 	return containertypes.CreateResponse{ID: ctr.ID, Warnings: warnings}, nil
 }
@@ -364,7 +360,7 @@ func (daemon *Daemon) validateNetworkingConfig(nwConfig *networktypes.Networking
 }
 
 // Check if the image is compatible with the runtime platform (opts.params.Platform or the host platform)
-func (daemon *Daemon) validatePlatform(ctx context.Context, image string, runtimePlatform *ocispec.Platform, warnings []string) error {
+func (daemon *Daemon) validatePlatform(ctx context.Context, image string, runtimePlatform *ocispec.Platform, warnings *[]string) error {
 	if image == "" {
 		return nil
 	}
@@ -395,7 +391,9 @@ func (daemon *Daemon) validatePlatform(ctx context.Context, image string, runtim
 
 			_, ok := os.LookupEnv("DOCKER_ALLOW_NON_NATIVE_PLATFORM")
 			if ok {
-				warnings = append(warnings, msg)
+				if warnings != nil {
+					*warnings = append(*warnings, msg)
+				}
 			} else {
 				return errdefs.NotFound(errors.New(msg))
 			}
