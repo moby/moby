@@ -318,8 +318,8 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 				resp, err := apiClient.ImagePull(ctx, repoName, image.PullOptions{Platform: p})
 				assert.NilError(t, err)
 				_, err = io.ReadAll(resp)
-				assert.NilError(t, err)
 				resp.Close()
+				assert.NilError(t, err)
 			}
 
 			// export the image
@@ -331,11 +331,15 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 			assert.NilError(t, err)
 
 			// load the full exported image (all platforms in it)
-			_, err = apiClient.ImageLoad(ctx, rdr)
+			resp, err := apiClient.ImageLoad(ctx, rdr)
 			assert.NilError(t, err)
+			_, err = io.ReadAll(resp.Body)
+			resp.Body.Close()
+			assert.NilError(t, err)
+
 			rdr.Close()
 
-			// verify the loaded image has all the expected saved platforms
+			// verify the loaded image has all the expected platforms
 			for _, p := range tc.expectedSavedPlatforms {
 				inspectResponse, err := apiClient.ImageInspect(ctx, repoName, client.ImageInspectWithPlatform(&p))
 				assert.NilError(t, err)
@@ -343,13 +347,17 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 				assert.Check(t, is.Equal(inspectResponse.Architecture, p.Architecture))
 			}
 
+			// remove the loaded image
+			_, err = apiClient.ImageRemove(ctx, repoName, image.RemoveOptions{})
+			assert.NilError(t, err)
+
 			// pull the image again (start fresh)
 			for _, p := range tc.pullPlatforms {
 				resp, err := apiClient.ImagePull(ctx, repoName, image.PullOptions{Platform: p})
 				assert.NilError(t, err)
 				_, err = io.ReadAll(resp)
-				assert.NilError(t, err)
 				resp.Close()
+				assert.NilError(t, err)
 			}
 
 			// export the image
@@ -361,8 +369,12 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 			assert.NilError(t, err)
 
 			// load the exported image on the specified platforms only
-			_, err = apiClient.ImageLoad(ctx, rdr, client.ImageLoadWithPlatforms(tc.loadPlatforms...))
+			resp, err = apiClient.ImageLoad(ctx, rdr, client.ImageLoadWithPlatforms(tc.loadPlatforms...))
 			assert.NilError(t, err)
+			_, err = io.ReadAll(resp.Body)
+			resp.Body.Close()
+			assert.NilError(t, err)
+
 			rdr.Close()
 
 			// verify the image was loaded for the specified platforms
