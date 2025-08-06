@@ -1646,7 +1646,7 @@ func (daemon *Daemon) RawSysInfo() *sysinfo.SysInfo {
 }
 
 // imageBackend is used to satisfy the [executorpkg.ImageBackend] and
-// [github.com/docker/docker/api/server/router/distribution.Backend]
+// [github.com/moby/moby/v2/daemon/server/router/distribution.Backend]
 // interfaces.
 type imageBackend struct {
 	ImageService

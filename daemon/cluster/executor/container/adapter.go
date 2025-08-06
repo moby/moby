@@ -523,7 +523,7 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 		}
 		// print since as this formatted string because the docker container
 		// logs interface expects it like this.
-		// see github.com/docker/docker/api/types/time.ParseTimestamps
+		// see [github.com/moby/moby/api/types/time.ParseTimestamps]
 		apiOptions.Since = fmt.Sprintf("%d.%09d", since.Unix(), int64(since.Nanosecond()))
 	}
 
