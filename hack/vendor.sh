@@ -9,7 +9,8 @@ SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 ROOTDIR="${SCRIPTDIR}/.."
 
-# Detect workspace mode
+# Detect workspace mode. Release branches may not have a go.work, and
+# use the api and client modules released from master / main.
 in_workspace=0
 if [ "$(go env GOWORK)" != "off" ]; then
 	in_workspace=1
@@ -20,8 +21,12 @@ tidy() (
 
 	cd "$ROOTDIR"
 
-	( cd api    && go mod tidy )
-	( cd client && go mod tidy )
+	# Disable workspace when tidying the api and client modules to prevent
+	# common dependencies between other modules in the workspace from affecting
+	# the other modules. This allows us to stick to MVS for the api and client
+	# modules, while still updating the main ("v2") module's dependencies.
+	( cd api    && GOWORK=off go mod tidy )
+	( cd client && GOWORK=off go mod tidy )
 
 	go mod tidy
 )
