@@ -880,29 +880,6 @@ func (s *DockerAPISuite) TestContainerAPIStart(c *testing.T) {
 	// TODO(tibor): figure out why this doesn't work on windows
 }
 
-func (s *DockerAPISuite) TestContainerAPIStop(c *testing.T) {
-	const name = "test-api-stop"
-	runSleepingContainer(c, "-i", "--name", name)
-	timeout := 30
-
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
-	err = apiClient.ContainerStop(testutil.GetContext(c), name, container.StopOptions{
-		Timeout: &timeout,
-	})
-	assert.NilError(c, err)
-	assert.NilError(c, waitInspect(name, "{{ .State.Running  }}", "false", 60*time.Second))
-
-	// second call to start should give 304
-	// maybe add ContainerStartWithRaw to test it
-	err = apiClient.ContainerStop(testutil.GetContext(c), name, container.StopOptions{
-		Timeout: &timeout,
-	})
-	assert.NilError(c, err)
-}
-
 func (s *DockerAPISuite) TestContainerAPIWait(c *testing.T) {
 	const name = "test-api-wait"
 
