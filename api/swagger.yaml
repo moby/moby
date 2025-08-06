@@ -9313,7 +9313,18 @@ paths:
           default: ""
         - name: "outputs"
           in: "query"
-          description: "BuildKit output configuration"
+          description: |
+            BuildKit output configuration in the format of a stringified JSON array of objects.
+            Each object must have two top-level properties: `Type` and `Attrs`.
+            The `Type` property must be set to 'moby'.
+            The `Attrs` property is a map of attributes for the BuildKit output configuration.
+            See https://docs.docker.com/build/exporters/oci-docker/ for more information.
+
+            Example:
+
+            ```
+            [{"Type":"moby","Attrs":{"type":"image","force-compression":"true","compression":"zstd"}}]
+            ```
           type: "string"
           default: ""
         - name: "version"
