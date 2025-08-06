@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # This file is just a wrapper around the 'go mod vendor' tool.
-# For updating dependencies you should change `vendor.mod` file in root of the
+# For updating dependencies you should change `go.mod` file in root of the
 # project.
 
 set -e

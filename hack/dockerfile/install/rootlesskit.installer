@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# When updating, also update vendor.mod and Dockerfile accordingly.
+# When updating, also update go.mod and Dockerfile accordingly.
 : "${ROOTLESSKIT_VERSION:=v2.3.4}"
 
 install_rootlesskit() {
