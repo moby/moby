@@ -1,5 +1,11 @@
 # Go client for the Docker Engine API
 
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/moby/moby/client)](https://pkg.go.dev/github.com/moby/moby/client)
+![GitHub License](https://img.shields.io/github/license/moby/moby)
+[![Go Report Card](https://goreportcard.com/badge/github.com/moby/moby/client)](https://goreportcard.com/report/github.com/moby/moby/client)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/moby/moby/badge)](https://scorecard.dev/viewer/?uri=github.com/moby/moby)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10989/badge)](https://www.bestpractices.dev/projects/10989)
+
 The `docker` command uses this package to communicate with the daemon. It can
 also be used by your own Go applications to do anything the command-line
 interface does; running containers, pulling or pushing images, etc.
