@@ -2,8 +2,10 @@ The Moby Project
 ================
 
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/moby/moby/v2)](https://pkg.go.dev/github.com/moby/moby/v2)
+![GitHub License](https://img.shields.io/github/license/moby/moby)
 [![Go Report Card](https://goreportcard.com/badge/github.com/moby/moby/v2)](https://goreportcard.com/report/github.com/moby/moby/v2)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/moby/moby/badge)](https://scorecard.dev/viewer/?uri=github.com/moby/moby)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10989/badge)](https://www.bestpractices.dev/projects/10989)
 
 
 ![Moby Project logo](docs/static_files/moby-project-logo.png "The Moby Project")
