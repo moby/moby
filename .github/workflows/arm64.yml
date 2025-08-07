@@ -114,8 +114,6 @@ jobs:
         uses: docker/bake-action@v6
         with:
           targets: dev
-          set: |
-            dev.cache-from=type=gha,scope=dev-arm64
       -
         name: Test
         run: |
@@ -203,8 +201,6 @@ jobs:
         uses: docker/bake-action@v6
         with:
           targets: dev
-          set: |
-            dev.cache-from=type=gha,scope=dev-arm64
       -
         name: Test
         run: |
