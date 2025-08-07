@@ -68,7 +68,7 @@ fetch_blob() {
 			-D-
 	)"
 	curlHeaders="$(echo "$curlHeaders" | tr -d '\r')"
-	if grep -qE "^HTTP/[0-9].[0-9] 3" <<< "$curlHeaders"; then
+	if grep -qE "^HTTP/[0-9](.[0-9])* 3" <<< "$curlHeaders"; then
 		rm -f "$targetFile"
 
 		local blobRedirect
