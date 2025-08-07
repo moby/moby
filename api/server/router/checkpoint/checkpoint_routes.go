@@ -8,7 +8,7 @@ import (
 	"github.com/docker/docker/api/types/checkpoint"
 )
 
-func (s *checkpointRouter) postContainerCheckpoint(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (cr *checkpointRouter) postContainerCheckpoint(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -18,7 +18,7 @@ func (s *checkpointRouter) postContainerCheckpoint(ctx context.Context, w http.R
 		return err
 	}
 
-	err := s.backend.CheckpointCreate(vars["name"], options)
+	err := cr.backend.CheckpointCreate(vars["name"], options)
 	if err != nil {
 		return err
 	}
@@ -27,12 +27,12 @@ func (s *checkpointRouter) postContainerCheckpoint(ctx context.Context, w http.R
 	return nil
 }
 
-func (s *checkpointRouter) getContainerCheckpoints(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (cr *checkpointRouter) getContainerCheckpoints(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
-	checkpoints, err := s.backend.CheckpointList(vars["name"], checkpoint.ListOptions{
+	checkpoints, err := cr.backend.CheckpointList(vars["name"], checkpoint.ListOptions{
 		CheckpointDir: r.Form.Get("dir"),
 	})
 	if err != nil {
@@ -42,12 +42,12 @@ func (s *checkpointRouter) getContainerCheckpoints(ctx context.Context, w http.R
 	return httputils.WriteJSON(w, http.StatusOK, checkpoints)
 }
 
-func (s *checkpointRouter) deleteContainerCheckpoint(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (cr *checkpointRouter) deleteContainerCheckpoint(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
-	err := s.backend.CheckpointDelete(vars["name"], checkpoint.DeleteOptions{
+	err := cr.backend.CheckpointDelete(vars["name"], checkpoint.DeleteOptions{
 		CheckpointDir: r.Form.Get("dir"),
 		CheckpointID:  vars["checkpoint"],
 	})

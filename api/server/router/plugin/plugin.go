@@ -18,22 +18,22 @@ func NewRouter(b Backend) router.Router {
 }
 
 // Routes returns the available routers to the plugin controller
-func (r *pluginRouter) Routes() []router.Route {
-	return r.routes
+func (pr *pluginRouter) Routes() []router.Route {
+	return pr.routes
 }
 
-func (r *pluginRouter) initRoutes() {
-	r.routes = []router.Route{
-		router.NewGetRoute("/plugins", r.listPlugins),
-		router.NewGetRoute("/plugins/{name:.*}/json", r.inspectPlugin),
-		router.NewGetRoute("/plugins/privileges", r.getPrivileges),
-		router.NewDeleteRoute("/plugins/{name:.*}", r.removePlugin),
-		router.NewPostRoute("/plugins/{name:.*}/enable", r.enablePlugin),
-		router.NewPostRoute("/plugins/{name:.*}/disable", r.disablePlugin),
-		router.NewPostRoute("/plugins/pull", r.pullPlugin),
-		router.NewPostRoute("/plugins/{name:.*}/push", r.pushPlugin),
-		router.NewPostRoute("/plugins/{name:.*}/upgrade", r.upgradePlugin),
-		router.NewPostRoute("/plugins/{name:.*}/set", r.setPlugin),
-		router.NewPostRoute("/plugins/create", r.createPlugin),
+func (pr *pluginRouter) initRoutes() {
+	pr.routes = []router.Route{
+		router.NewGetRoute("/plugins", pr.listPlugins),
+		router.NewGetRoute("/plugins/{name:.*}/json", pr.inspectPlugin),
+		router.NewGetRoute("/plugins/privileges", pr.getPrivileges),
+		router.NewDeleteRoute("/plugins/{name:.*}", pr.removePlugin),
+		router.NewPostRoute("/plugins/{name:.*}/enable", pr.enablePlugin),
+		router.NewPostRoute("/plugins/{name:.*}/disable", pr.disablePlugin),
+		router.NewPostRoute("/plugins/pull", pr.pullPlugin),
+		router.NewPostRoute("/plugins/{name:.*}/push", pr.pushPlugin),
+		router.NewPostRoute("/plugins/{name:.*}/upgrade", pr.upgradePlugin),
+		router.NewPostRoute("/plugins/{name:.*}/set", pr.setPlugin),
+		router.NewPostRoute("/plugins/create", pr.createPlugin),
 	}
 }

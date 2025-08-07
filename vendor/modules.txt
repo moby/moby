@@ -962,6 +962,9 @@ github.com/moby/sys/user
 ## explicit; go 1.18
 github.com/moby/term
 github.com/moby/term/windows
+# github.com/montanaflynn/stats v0.7.1
+## explicit; go 1.13
+github.com/montanaflynn/stats
 # github.com/morikuni/aec v1.0.0
 ## explicit
 github.com/morikuni/aec
@@ -1535,6 +1538,9 @@ k8s.io/klog/v2/internal/clock
 k8s.io/klog/v2/internal/dbg
 k8s.io/klog/v2/internal/serialize
 k8s.io/klog/v2/internal/severity
+# pgregory.net/rapid v1.2.0
+## explicit; go 1.18
+pgregory.net/rapid
 # resenje.org/singleflight v0.4.1
 ## explicit; go 1.18
 resenje.org/singleflight

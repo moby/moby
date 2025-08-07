@@ -641,7 +641,7 @@ func getMaxMountAndExistenceCheckAttempts(layer PushLayer) (maxMountAttempts, ma
 func getRepositoryMountCandidates(
 	repoInfo reference.Named,
 	hmacKey []byte,
-	max int,
+	maxCandidates int,
 	v2Metadata []metadata.V2Metadata,
 ) []metadata.V2Metadata {
 	candidates := []metadata.V2Metadata{}
@@ -658,9 +658,9 @@ func getRepositoryMountCandidates(
 	}
 
 	sortV2MetadataByLikenessAndAge(repoInfo, hmacKey, candidates)
-	if max >= 0 && len(candidates) > max {
+	if maxCandidates >= 0 && len(candidates) > maxCandidates {
 		// select the youngest metadata
-		candidates = candidates[:max]
+		candidates = candidates[:maxCandidates]
 	}
 
 	return candidates

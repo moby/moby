@@ -73,6 +73,7 @@ require (
 	github.com/moby/sys/symlink v0.2.0
 	github.com/moby/sys/user v0.1.0
 	github.com/moby/term v0.5.0
+	github.com/montanaflynn/stats v0.7.1
 	github.com/morikuni/aec v1.0.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc5
@@ -108,6 +109,7 @@ require (
 	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.33.0
 	gotest.tools/v3 v3.5.1
+	pgregory.net/rapid v1.2.0
 	resenje.org/singleflight v0.4.1
 	tags.cncf.io/container-device-interface v0.6.2
 )

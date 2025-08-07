@@ -23,14 +23,14 @@ func NewRouter(b Backend, decoder httputils.ContainerDecoder) router.Router {
 }
 
 // Routes returns the available routers to the checkpoint controller
-func (r *checkpointRouter) Routes() []router.Route {
-	return r.routes
+func (cr *checkpointRouter) Routes() []router.Route {
+	return cr.routes
 }
 
-func (r *checkpointRouter) initRoutes() {
-	r.routes = []router.Route{
-		router.NewGetRoute("/containers/{name:.*}/checkpoints", r.getContainerCheckpoints, router.Experimental),
-		router.NewPostRoute("/containers/{name:.*}/checkpoints", r.postContainerCheckpoint, router.Experimental),
-		router.NewDeleteRoute("/containers/{name}/checkpoints/{checkpoint}", r.deleteContainerCheckpoint, router.Experimental),
+func (cr *checkpointRouter) initRoutes() {
+	cr.routes = []router.Route{
+		router.NewGetRoute("/containers/{name:.*}/checkpoints", cr.getContainerCheckpoints, router.Experimental),
+		router.NewPostRoute("/containers/{name:.*}/checkpoints", cr.postContainerCheckpoint, router.Experimental),
+		router.NewDeleteRoute("/containers/{name}/checkpoints/{checkpoint}", cr.deleteContainerCheckpoint, router.Experimental),
 	}
 }

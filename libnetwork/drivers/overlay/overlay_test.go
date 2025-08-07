@@ -20,7 +20,7 @@ func (dt *driverTester) GetPluginGetter() plugingetter.PluginGetter {
 	return nil
 }
 
-func (dt *driverTester) RegisterDriver(name string, drv driverapi.Driver, cap driverapi.Capability) error {
+func (dt *driverTester) RegisterDriver(name string, drv driverapi.Driver, capability driverapi.Capability) error {
 	if name != testNetworkType {
 		dt.t.Fatalf("Expected driver register name to be %q. Instead got %q",
 			testNetworkType, name)

@@ -24,7 +24,7 @@ func TestLogRead(t *testing.T) {
 			// LogReader needs to filter out.
 			rotatedJournal := fake.NewT(t, journalDir+"/rotated.journal")
 			rotatedJournal.AssignEventTimestampFromSyslogTimestamp = true
-			l, err := new(logger.Info{
+			l, err := newJournald(logger.Info{
 				ContainerID:   "wrongone0001",
 				ContainerName: "fake",
 			})
@@ -36,7 +36,7 @@ func TestLogRead(t *testing.T) {
 
 			activeJournal := fake.NewT(t, journalDir+"/fake.journal")
 			activeJournal.AssignEventTimestampFromSyslogTimestamp = true
-			l, err = new(logger.Info{
+			l, err = newJournald(logger.Info{
 				ContainerID:   "wrongone0002",
 				ContainerName: "fake",
 			})
@@ -47,7 +47,7 @@ func TestLogRead(t *testing.T) {
 			assert.NilError(t, rotatedJournal.Send("a log message from a totally different process in the active journal", journal.PriInfo, nil))
 
 			return func(t *testing.T) logger.Logger {
-				l, err := new(info)
+				l, err := newJournald(info)
 				assert.NilError(t, err)
 				l.journalReadDir = journalDir
 				sl := &syncLogger{journald: l, waiters: map[uint64]chan<- struct{}{}}

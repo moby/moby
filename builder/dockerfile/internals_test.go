@@ -166,17 +166,17 @@ func fullMutableRunConfig() *container.Config {
 
 func TestDeepCopyRunConfig(t *testing.T) {
 	runConfig := fullMutableRunConfig()
-	copy := copyRunConfig(runConfig)
-	assert.Check(t, is.DeepEqual(fullMutableRunConfig(), copy))
+	deepCopy := copyRunConfig(runConfig)
+	assert.Check(t, is.DeepEqual(fullMutableRunConfig(), deepCopy))
 
-	copy.Cmd[1] = "arg2"
-	copy.Env[1] = "env2=new"
-	copy.ExposedPorts["10002"] = struct{}{}
-	copy.Volumes["three"] = struct{}{}
-	copy.Entrypoint[1] = "arg2"
-	copy.OnBuild[0] = "start"
-	copy.Labels["label3"] = "value3"
-	copy.Shell[0] = "sh"
+	deepCopy.Cmd[1] = "arg2"
+	deepCopy.Env[1] = "env2=new"
+	deepCopy.ExposedPorts["10002"] = struct{}{}
+	deepCopy.Volumes["three"] = struct{}{}
+	deepCopy.Entrypoint[1] = "arg2"
+	deepCopy.OnBuild[0] = "start"
+	deepCopy.Labels["label3"] = "value3"
+	deepCopy.Shell[0] = "sh"
 	assert.Check(t, is.DeepEqual(fullMutableRunConfig(), runConfig))
 }
 

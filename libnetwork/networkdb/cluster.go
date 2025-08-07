@@ -1,15 +1,17 @@
+// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
+//go:build go1.23
+
 package networkdb
 
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	golog "log"
-	"math/big"
 	rnd "math/rand"
 	"net"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -65,6 +67,7 @@ func (nDB *NetworkDB) SetKey(key []byte) {
 	if nDB.keyring != nil {
 		nDB.keyring.AddKey(key)
 	}
+	logEncKeys(context.TODO(), key)
 }
 
 // SetPrimaryKey sets the given key as the primary key. This should have
@@ -127,6 +130,7 @@ func (nDB *NetworkDB) clusterInit() error {
 		for i, key := range nDB.config.Keys {
 			log.G(context.TODO()).Debugf("Encryption key %d: %.5s", i+1, hex.EncodeToString(key))
 		}
+		logEncKeys(context.TODO(), nDB.config.Keys...)
 		nDB.keyring, err = memberlist.NewKeyring(nDB.config.Keys, nDB.config.Keys[0])
 		if err != nil {
 			return err
@@ -135,22 +139,12 @@ func (nDB *NetworkDB) clusterInit() error {
 	}
 
 	nDB.networkBroadcasts = &memberlist.TransmitLimitedQueue{
-		NumNodes: func() int {
-			nDB.RLock()
-			num := len(nDB.nodes)
-			nDB.RUnlock()
-			return num
-		},
+		NumNodes:       nDB.estNumNodes,
 		RetransmitMult: config.RetransmitMult,
 	}
 
 	nDB.nodeBroadcasts = &memberlist.TransmitLimitedQueue{
-		NumNodes: func() int {
-			nDB.RLock()
-			num := len(nDB.nodes)
-			nDB.RUnlock()
-			return num
-		},
+		NumNodes:       nDB.estNumNodes,
 		RetransmitMult: config.RetransmitMult,
 	}
 
@@ -224,11 +218,11 @@ func (nDB *NetworkDB) clusterLeave() error {
 	mlist := nDB.memberlist
 
 	if err := nDB.sendNodeEvent(NodeEventTypeLeave); err != nil {
-		log.G(context.TODO()).Errorf("failed to send node leave: %v", err)
+		log.G(context.TODO()).WithError(err).Error("failed to send node leave event")
 	}
 
 	if err := mlist.Leave(time.Second); err != nil {
-		return err
+		log.G(context.TODO()).WithError(err).Error("failed to broadcast memberlist leave message")
 	}
 
 	// cancel the context
@@ -295,18 +289,23 @@ func (nDB *NetworkDB) rejoinClusterBootStrap() {
 	}
 	bootStrapIPs := make([]string, 0, len(nDB.bootStrapIP))
 	for _, bootIP := range nDB.bootStrapIP {
-		// botostrap IPs are usually IP:port from the Join
-		var bootstrapIP net.IP
-		ipStr, _, err := net.SplitHostPort(bootIP)
+		// bootstrap IPs are usually IP:port from the Join
+		bootstrapIP, err := netip.ParseAddrPort(bootIP)
 		if err != nil {
-			// try to parse it as an IP with port
+			// try to parse it as an IP without port
 			// Note this seems to be the case for swarm that do not specify any port
-			ipStr = bootIP
+			addr, err := netip.ParseAddr(bootIP)
+			if err == nil {
+				bootstrapIP = netip.AddrPortFrom(addr, uint16(nDB.config.BindPort))
+			}
 		}
-		bootstrapIP = net.ParseIP(ipStr)
-		if bootstrapIP != nil {
+		if bootstrapIP.IsValid() {
 			for _, node := range nDB.nodes {
-				if node.Addr.Equal(bootstrapIP) && !node.Addr.Equal(myself.Addr) {
+				if node == myself {
+					continue
+				}
+				nodeIP, _ := netip.AddrFromSlice(node.Addr)
+				if bootstrapIP == netip.AddrPortFrom(nodeIP, node.Port) {
 					// One of the bootstrap nodes (and not myself) is part of the cluster, return
 					nDB.RUnlock()
 					return
@@ -341,7 +340,10 @@ func (nDB *NetworkDB) reconnectNode() {
 	}
 	nDB.RUnlock()
 
-	node := nodes[randomOffset(len(nodes))]
+	nDB.rngMu.Lock()
+	offset := nDB.rng.IntN(len(nodes))
+	nDB.rngMu.Unlock()
+	node := nodes[offset]
 	addr := net.UDPAddr{IP: node.Addr, Port: int(node.Port)}
 
 	if _, err := nDB.memberlist.Join([]string{addr.String()}); err != nil {
@@ -369,6 +371,15 @@ func (nDB *NetworkDB) reapState() {
 
 func (nDB *NetworkDB) reapNetworks() {
 	nDB.Lock()
+	for id, n := range nDB.thisNodeNetworks {
+		if n.leaving {
+			if n.reapTime <= 0 {
+				delete(nDB.thisNodeNetworks, id)
+				continue
+			}
+			n.reapTime -= reapPeriod
+		}
+	}
 	for _, nn := range nDB.networks {
 		for id, n := range nn {
 			if n.leaving {
@@ -387,7 +398,7 @@ func (nDB *NetworkDB) reapTableEntries() {
 	var nodeNetworks []string
 	// This is best effort, if the list of network changes will be picked up in the next cycle
 	nDB.RLock()
-	for nid := range nDB.networks[nDB.config.NodeID] {
+	for nid := range nDB.thisNodeNetworks {
 		nodeNetworks = append(nodeNetworks, nid)
 	}
 	nDB.RUnlock()
@@ -434,8 +445,7 @@ func (nDB *NetworkDB) reapTableEntries() {
 func (nDB *NetworkDB) gossip() {
 	networkNodes := make(map[string][]string)
 	nDB.RLock()
-	thisNodeNetworks := nDB.networks[nDB.config.NodeID]
-	for nid := range thisNodeNetworks {
+	for nid := range nDB.thisNodeNetworks {
 		networkNodes[nid] = nDB.networkNodes[nid]
 	}
 	printStats := time.Since(nDB.lastStatsTimestamp) >= nDB.config.StatsPrintPeriod
@@ -455,7 +465,7 @@ func (nDB *NetworkDB) gossip() {
 		bytesAvail := nDB.config.PacketBufferSize - compoundHeaderOverhead
 
 		nDB.RLock()
-		network, ok := thisNodeNetworks[nid]
+		network, ok := nDB.thisNodeNetworks[nid]
 		nDB.RUnlock()
 		if !ok || network == nil {
 			// It is normal for the network to be removed
@@ -465,21 +475,15 @@ func (nDB *NetworkDB) gossip() {
 			continue
 		}
 
-		broadcastQ := network.tableBroadcasts
-
-		if broadcastQ == nil {
-			log.G(context.TODO()).Errorf("Invalid broadcastQ encountered while gossiping for network %s", nid)
-			continue
-		}
-
-		msgs := broadcastQ.GetBroadcasts(compoundOverhead, bytesAvail)
+		msgs := getBroadcasts(compoundOverhead, bytesAvail, network.tableBroadcasts, network.tableRebroadcasts)
 		// Collect stats and print the queue info, note this code is here also to have a view of the queues empty
 		network.qMessagesSent.Add(int64(len(msgs)))
 		if printStats {
 			msent := network.qMessagesSent.Swap(0)
-			log.G(context.TODO()).Infof("NetworkDB stats %v(%v) - netID:%s leaving:%t netPeers:%d entries:%d Queue qLen:%d netMsg/s:%d",
+			log.G(context.TODO()).Infof("NetworkDB stats %v(%v) - netID:%s leaving:%t netPeers:%d entries:%d Queue qLen:%d+%d netMsg/s:%d",
 				nDB.config.Hostname, nDB.config.NodeID,
-				nid, network.leaving, broadcastQ.NumNodes(), network.entriesNumber.Load(), broadcastQ.NumQueued(),
+				nid, network.leaving, network.tableBroadcasts.NumNodes(), network.entriesNumber.Load(),
+				network.tableBroadcasts.NumQueued(), network.tableRebroadcasts.NumQueued(),
 				msent/int64((nDB.config.StatsPrintPeriod/time.Second)))
 		}
 
@@ -514,7 +518,7 @@ func (nDB *NetworkDB) gossip() {
 func (nDB *NetworkDB) bulkSyncTables() {
 	var networks []string
 	nDB.RLock()
-	for nid, network := range nDB.networks[nDB.config.NodeID] {
+	for nid, network := range nDB.thisNodeNetworks {
 		if network.leaving {
 			continue
 		}
@@ -712,49 +716,35 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 	return nil
 }
 
-// Returns a random offset between 0 and n
-func randomOffset(n int) int {
-	if n == 0 {
-		return 0
-	}
-
-	val, err := rand.Int(rand.Reader, big.NewInt(int64(n)))
-	if err != nil {
-		log.G(context.TODO()).Errorf("Failed to get a random offset: %v", err)
-		return 0
-	}
-
-	return int(val.Int64())
-}
-
 // mRandomNodes is used to select up to m random nodes. It is possible
 // that less than m nodes are returned.
 func (nDB *NetworkDB) mRandomNodes(m int, nodes []string) []string {
-	n := len(nodes)
-	mNodes := make([]string, 0, m)
-OUTER:
-	// Probe up to 3*n times, with large n this is not necessary
-	// since k << n, but with small n we want search to be
-	// exhaustive
-	for i := 0; i < 3*n && len(mNodes) < m; i++ {
-		// Get random node
-		idx := randomOffset(n)
-		node := nodes[idx]
-
+	mNodes := make([]string, 0, max(0, len(nodes)-1))
+	for _, node := range nodes {
 		if node == nDB.config.NodeID {
+			// Skip myself
 			continue
 		}
-
-		// Check if we have this node already
-		for j := 0; j < len(mNodes); j++ {
-			if node == mNodes[j] {
-				continue OUTER
-			}
-		}
-
-		// Append the node
 		mNodes = append(mNodes, node)
 	}
 
-	return mNodes
+	if len(mNodes) < m {
+		nDB.rngMu.Lock()
+		nDB.rng.Shuffle(len(mNodes), func(i, j int) {
+			mNodes[i], mNodes[j] = mNodes[j], mNodes[i]
+		})
+		nDB.rngMu.Unlock()
+		return mNodes
+	}
+
+	nDB.rngMu.Lock()
+	perm := nDB.rng.Perm(len(mNodes))
+	nDB.rngMu.Unlock()
+
+	sample := make([]string, 0, m)
+	for _, idx := range perm[:m] {
+		sample = append(sample, mNodes[idx])
+	}
+
+	return sample
 }

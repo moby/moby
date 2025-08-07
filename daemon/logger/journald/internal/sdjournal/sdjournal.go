@@ -224,17 +224,17 @@ func (j *Journal) Data() (map[string]string, error) {
 	j.restartData()
 	for {
 		var (
-			data unsafe.Pointer
-			len  C.size_t
+			data   unsafe.Pointer
+			length C.size_t
 		)
-		rc := C.sd_journal_enumerate_data(j.j, &data, &len)
+		rc := C.sd_journal_enumerate_data(j.j, &data, &length)
 		if rc == 0 {
 			return m, nil
 		} else if rc < 0 {
 			return m, fmt.Errorf("journald: error enumerating entry data: %w", syscall.Errno(-rc))
 		}
 
-		k, v, _ := strings.Cut(C.GoStringN((*C.char)(data), C.int(len)), "=")
+		k, v, _ := strings.Cut(C.GoStringN((*C.char)(data), C.int(length)), "=")
 		m[k] = v
 	}
 }

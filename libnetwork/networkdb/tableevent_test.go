@@ -1,6 +1,7 @@
 package networkdb
 
 import (
+	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -13,7 +14,7 @@ import (
 )
 
 func TestWatch_out_of_order(t *testing.T) {
-	nDB := new(DefaultConfig())
+	nDB := newNetworkDB(DefaultConfig())
 	nDB.networkBroadcasts = &memberlist.TransmitLimitedQueue{}
 	nDB.nodeBroadcasts = &memberlist.TransmitLimitedQueue{}
 	assert.Assert(t, nDB.JoinNetwork("network1"))
@@ -93,7 +94,7 @@ func TestWatch_out_of_order(t *testing.T) {
 }
 
 func TestWatch_filters(t *testing.T) {
-	nDB := new(DefaultConfig())
+	nDB := newNetworkDB(DefaultConfig())
 	nDB.networkBroadcasts = &memberlist.TransmitLimitedQueue{}
 	nDB.nodeBroadcasts = &memberlist.TransmitLimitedQueue{}
 	assert.Assert(t, nDB.JoinNetwork("network1"))
@@ -221,6 +222,62 @@ L:
 		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "network1.table1", Value: []byte("a")}),
 		CreateEvent(event{Table: "table1", NetworkID: "network1", Key: "network1.table1.update", Value: []byte("updated")}),
 	}))
+}
+
+func TestLeaveRejoinOutOfOrder(t *testing.T) {
+	// Regression test for https://github.com/moby/moby/issues/47728
+
+	nDB := newNetworkDB(DefaultConfig())
+	nDB.networkBroadcasts = &memberlist.TransmitLimitedQueue{}
+	nDB.nodeBroadcasts = &memberlist.TransmitLimitedQueue{}
+	assert.Assert(t, nDB.JoinNetwork("network1"))
+
+	(&eventDelegate{nDB}).NotifyJoin(&memberlist.Node{
+		Name: "node1",
+		Addr: net.IPv4(1, 2, 3, 4),
+	})
+
+	d := &delegate{nDB}
+
+	msgs := messageBuffer{t: t}
+	appendTableEvent := tableEventHelper(&msgs, "node1", "network1", "table1")
+
+	msgs.Append(MessageTypeNetworkEvent, &NetworkEvent{
+		Type:      NetworkEventTypeJoin,
+		LTime:     1,
+		NodeName:  "node1",
+		NetworkID: "network1",
+	})
+	// Simulate node1 leaving, rejoining, and creating an entry,
+	// but the table events are broadcast before the network events.
+	appendTableEvent(1, TableEventTypeCreate, "key1", []byte("a"))
+	msgs.Append(MessageTypeNetworkEvent, &NetworkEvent{
+		Type:      NetworkEventTypeLeave,
+		LTime:     2,
+		NodeName:  "node1",
+		NetworkID: "network1",
+	})
+	msgs.Append(MessageTypeNetworkEvent, &NetworkEvent{
+		Type:      NetworkEventTypeJoin,
+		LTime:     3,
+		NodeName:  "node1",
+		NetworkID: "network1",
+	})
+	// Simulate a bulk sync or receiving a rebroadcasted copy of the table
+	// event from another node.
+	appendTableEvent(1, TableEventTypeCreate, "key1", []byte("a"))
+
+	d.NotifyMsg(msgs.Compound())
+
+	got := make(map[string]string)
+	nDB.WalkTable("table1", func(nw, key string, value []byte, deleted bool) bool {
+		got[nw+"/"+key] = fmt.Sprintf("%s (deleted=%t)", value, deleted)
+		return false
+	})
+	want := map[string]string{
+		"network1/key1": "a (deleted=false)",
+	}
+	assert.Check(t, is.DeepEqual(got, want))
 }
 
 func drainChannel(ch <-chan events.Event) []events.Event {

@@ -22,22 +22,22 @@ func NewRouter(b Backend, c ClusterBackend) router.Router {
 }
 
 // Routes returns the available routes to the network controller
-func (r *networkRouter) Routes() []router.Route {
-	return r.routes
+func (n *networkRouter) Routes() []router.Route {
+	return n.routes
 }
 
-func (r *networkRouter) initRoutes() {
-	r.routes = []router.Route{
+func (n *networkRouter) initRoutes() {
+	n.routes = []router.Route{
 		// GET
-		router.NewGetRoute("/networks", r.getNetworksList),
-		router.NewGetRoute("/networks/", r.getNetworksList),
-		router.NewGetRoute("/networks/{id:.+}", r.getNetwork),
+		router.NewGetRoute("/networks", n.getNetworksList),
+		router.NewGetRoute("/networks/", n.getNetworksList),
+		router.NewGetRoute("/networks/{id:.+}", n.getNetwork),
 		// POST
-		router.NewPostRoute("/networks/create", r.postNetworkCreate),
-		router.NewPostRoute("/networks/{id:.*}/connect", r.postNetworkConnect),
-		router.NewPostRoute("/networks/{id:.*}/disconnect", r.postNetworkDisconnect),
-		router.NewPostRoute("/networks/prune", r.postNetworksPrune),
+		router.NewPostRoute("/networks/create", n.postNetworkCreate),
+		router.NewPostRoute("/networks/{id:.*}/connect", n.postNetworkConnect),
+		router.NewPostRoute("/networks/{id:.*}/disconnect", n.postNetworkDisconnect),
+		router.NewPostRoute("/networks/prune", n.postNetworksPrune),
 		// DELETE
-		router.NewDeleteRoute("/networks/{id:.*}", r.deleteNetwork),
+		router.NewDeleteRoute("/networks/{id:.*}", n.deleteNetwork),
 	}
 }

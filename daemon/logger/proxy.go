@@ -80,13 +80,11 @@ func (pp *logPluginProxy) Capabilities() (cap Capability, err error) {
 		return
 	}
 
-	cap = ret.Cap
-
 	if ret.Err != "" {
 		err = errors.New(ret.Err)
 	}
 
-	return
+	return ret.Cap, err
 }
 
 type logPluginProxyReadLogsRequest struct {

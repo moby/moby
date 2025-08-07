@@ -6,11 +6,14 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
+	"text/tabwriter"
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-events"
 	"github.com/hashicorp/memberlist"
@@ -23,18 +26,24 @@ var dbPort int32 = 10000
 
 func TestMain(m *testing.M) {
 	os.WriteFile("/proc/sys/net/ipv6/conf/lo/disable_ipv6", []byte{'0', '\n'}, 0o644)
-	log.SetLevel("error")
+	log.SetLevel("debug")
 	os.Exit(m.Run())
 }
 
-func launchNode(t *testing.T, conf Config) *NetworkDB {
+type TestingT interface {
+	assert.TestingT
+	poll.TestingT
+	Helper()
+}
+
+func launchNode(t TestingT, conf Config) *NetworkDB {
 	t.Helper()
 	db, err := New(&conf)
 	assert.NilError(t, err)
 	return db
 }
 
-func createNetworkDBInstances(t *testing.T, num int, namePrefix string, conf *Config) []*NetworkDB {
+func createNetworkDBInstances(t TestingT, num int, namePrefix string, conf *Config) []*NetworkDB {
 	t.Helper()
 	var dbs []*NetworkDB
 	for i := 0; i < num; i++ {
@@ -62,12 +71,12 @@ func createNetworkDBInstances(t *testing.T, num int, namePrefix string, conf *Co
 		}
 		return poll.Success()
 	}
-	poll.WaitOn(t, check, poll.WithDelay(2*time.Second), poll.WithTimeout(20*time.Second))
+	poll.WaitOn(t, check, poll.WithDelay(2*time.Second), poll.WithTimeout(20*time.Second+time.Duration(num-1)*10*time.Second))
 
 	return dbs
 }
 
-func closeNetworkDBInstances(t *testing.T, dbs []*NetworkDB) {
+func closeNetworkDBInstances(t TestingT, dbs []*NetworkDB) {
 	t.Helper()
 	log.G(context.TODO()).Print("Closing DB instances...")
 	for _, db := range dbs {
@@ -75,27 +84,23 @@ func closeNetworkDBInstances(t *testing.T, dbs []*NetworkDB) {
 	}
 }
 
-func (db *NetworkDB) verifyNodeExistence(t *testing.T, node string, present bool) {
+func (nDB *NetworkDB) verifyNodeExistence(t *testing.T, node string, present bool) {
 	t.Helper()
 	for i := 0; i < 80; i++ {
-		db.RLock()
-		_, ok := db.nodes[node]
-		db.RUnlock()
-		if present && ok {
-			return
-		}
-
-		if !present && !ok {
+		nDB.RLock()
+		_, ok := nDB.nodes[node]
+		nDB.RUnlock()
+		if present == ok {
 			return
 		}
 
 		time.Sleep(50 * time.Millisecond)
 	}
 
-	t.Errorf("%v(%v): Node existence verification for node %s failed", db.config.Hostname, db.config.NodeID, node)
+	t.Errorf("%v(%v): expected node %s existence in the cluster = %v, got %v", nDB.config.Hostname, nDB.config.NodeID, node, present, !present)
 }
 
-func (db *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string, present bool) {
+func (nDB *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string, present bool) {
 	t.Helper()
 
 	const sleepInterval = 50 * time.Millisecond
@@ -105,51 +110,64 @@ func (db *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string
 	} else {
 		maxRetries = 80
 	}
+	var ok, leaving bool
 	for i := int64(0); i < maxRetries; i++ {
-		db.RLock()
-		nn, nnok := db.networks[node]
-		if nnok {
-			n, ok := nn[id]
-			var leaving bool
-			if ok {
-				leaving = n.leaving
-			}
-			db.RUnlock()
-			if present && ok {
-				return
-			}
-
-			if !present &&
-				((ok && leaving) ||
-					!ok) {
-				return
+		nDB.RLock()
+		var vn *network
+		if node == nDB.config.NodeID {
+			if n, ok := nDB.thisNodeNetworks[id]; ok {
+				vn = &n.network
 			}
 		} else {
-			db.RUnlock()
+			if nn, nnok := nDB.networks[node]; nnok {
+				if n, ok := nn[id]; ok {
+					vn = n
+				}
+			}
+		}
+		ok = vn != nil
+		leaving = ok && vn.leaving
+		nDB.RUnlock()
+
+		if present == (ok && !leaving) {
+			return
 		}
 
 		time.Sleep(sleepInterval)
 	}
 
-	t.Error("Network existence verification failed")
+	if present {
+		t.Errorf("%v(%v): want node %v to be a member of network %q, got that it is not a member (ok=%v, leaving=%v)",
+			nDB.config.Hostname, nDB.config.NodeID, node, id, ok, leaving)
+	} else {
+		t.Errorf("%v(%v): want node %v to not be a member of network %q, got that it is a member (ok=%v, leaving=%v)",
+			nDB.config.Hostname, nDB.config.NodeID, node, id, ok, leaving)
+	}
 }
 
-func (db *NetworkDB) verifyEntryExistence(t *testing.T, tname, nid, key, value string, present bool) {
+func (nDB *NetworkDB) verifyEntryExistence(t *testing.T, tname, nid, key, value string, present bool) {
 	t.Helper()
 	n := 80
+	var v []byte
 	for i := 0; i < n; i++ {
-		v, err := db.GetEntry(tname, nid, key)
+		var err error
+		v, err = nDB.GetEntry(tname, nid, key)
 		if present && err == nil && string(v) == value {
 			return
 		}
-		if err != nil && !present {
+		if errdefs.IsNotFound(err) && !present {
 			return
+		}
+		if err != nil && !errdefs.IsNotFound(err) {
+			t.Errorf("%v(%v): unexpected error while getting entry %v/%v in network %q: %v",
+				nDB.config.Hostname, nDB.config.NodeID, tname, key, nid, err)
 		}
 
 		time.Sleep(50 * time.Millisecond)
 	}
 
-	t.Errorf("Entry existence verification test failed for %v(%v)", db.config.Hostname, db.config.NodeID)
+	t.Errorf("%v(%v): want entry %v/%v in network %q to be (present=%v, value=%q), got (present=%v, value=%q)",
+		nDB.config.Hostname, nDB.config.NodeID, tname, key, nid, present, value, !present, string(v))
 }
 
 func testWatch(t *testing.T, ch chan events.Event, ev interface{}, tname, nid, key, value string) {
@@ -242,7 +260,7 @@ func TestNetworkDBJoinLeaveNetworks(t *testing.T) {
 	closeNetworkDBInstances(t, dbs)
 }
 
-func TestFlakyNetworkDBCRUDTableEntry(t *testing.T) {
+func TestNetworkDBCRUDTableEntry(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 3, "node", DefaultConfig())
 
 	err := dbs[0].JoinNetwork("network1")
@@ -272,7 +290,20 @@ func TestFlakyNetworkDBCRUDTableEntry(t *testing.T) {
 	closeNetworkDBInstances(t, dbs)
 }
 
-func TestFlakyNetworkDBCRUDTableEntries(t *testing.T) {
+func (nDB *NetworkDB) dumpTable(t *testing.T, tname string) {
+	t.Helper()
+	var b strings.Builder
+	tw := tabwriter.NewWriter(&b, 10, 1, 1, ' ', 0)
+	tw.Write([]byte("NetworkID\tKey\tValue\tFlags\n"))
+	nDB.WalkTable(tname, func(nid, key string, value []byte, deleting bool) bool {
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%v\n", nid, key, string(value), map[bool]string{true: "D"}[deleting])
+		return false
+	})
+	tw.Flush()
+	t.Logf("%s(%s): Table %s:\n%s", nDB.config.Hostname, nDB.config.NodeID, tname, b.String())
+}
+
+func TestNetworkDBCRUDTableEntries(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
 
 	err := dbs[0].JoinNetwork("network1")
@@ -300,18 +331,24 @@ func TestFlakyNetworkDBCRUDTableEntries(t *testing.T) {
 		assert.NilError(t, err)
 	}
 
+	for n := range dbs {
+		dbs[n].dumpTable(t, "test_table")
+	}
+
 	for i := 1; i <= n; i++ {
 		dbs[0].verifyEntryExistence(t, "test_table", "network1",
 			fmt.Sprintf("test_key1%d", i),
 			fmt.Sprintf("test_value1%d", i), true)
-		assert.NilError(t, err)
 	}
 
 	for i := 1; i <= n; i++ {
 		dbs[1].verifyEntryExistence(t, "test_table", "network1",
 			fmt.Sprintf("test_key0%d", i),
 			fmt.Sprintf("test_value0%d", i), true)
-		assert.NilError(t, err)
+	}
+
+	for n := range dbs {
+		dbs[n].dumpTable(t, "test_table")
 	}
 
 	// Verify deletes
@@ -330,19 +367,21 @@ func TestFlakyNetworkDBCRUDTableEntries(t *testing.T) {
 	for i := 1; i <= n; i++ {
 		dbs[0].verifyEntryExistence(t, "test_table", "network1",
 			fmt.Sprintf("test_key1%d", i), "", false)
-		assert.NilError(t, err)
 	}
 
 	for i := 1; i <= n; i++ {
 		dbs[1].verifyEntryExistence(t, "test_table", "network1",
 			fmt.Sprintf("test_key0%d", i), "", false)
-		assert.NilError(t, err)
+	}
+
+	for n := range dbs {
+		dbs[n].dumpTable(t, "test_table")
 	}
 
 	closeNetworkDBInstances(t, dbs)
 }
 
-func TestFlakyNetworkDBNodeLeave(t *testing.T) {
+func TestNetworkDBNodeLeave(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
 
 	err := dbs[0].JoinNetwork("network1")
@@ -496,20 +535,20 @@ func TestNetworkDBCRUDMediumCluster(t *testing.T) {
 func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
 
-	dbChangeWitness := func(db *NetworkDB) func(network string, expectNodeCount int) {
-		staleNetworkTime := db.networkClock.Time()
+	dbChangeWitness := func(nDB *NetworkDB) func(network string, expectNodeCount int) {
+		staleNetworkTime := nDB.networkClock.Time()
 		return func(network string, expectNodeCount int) {
 			check := func(t poll.LogT) poll.Result {
-				networkTime := db.networkClock.Time()
+				networkTime := nDB.networkClock.Time()
 				if networkTime <= staleNetworkTime {
 					return poll.Continue("network time is stale, no change registered yet.")
 				}
 				count := -1
-				db.Lock()
-				if nodes, ok := db.networkNodes[network]; ok {
+				nDB.Lock()
+				if nodes, ok := nDB.networkNodes[network]; ok {
 					count = len(nodes)
 				}
-				db.Unlock()
+				nDB.Unlock()
 				if count != expectNodeCount {
 					return poll.Continue("current number of nodes is %d, expect %d.", count, expectNodeCount)
 				}
@@ -542,15 +581,15 @@ func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 	// Wait for the propagation on db[0]
 	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
 	witness0("network1", 2)
-	if n, ok := dbs[0].networks[dbs[0].config.NodeID]["network1"]; !ok || n.leaving {
-		t.Fatalf("The network should not be marked as leaving:%t", n.leaving)
+	if n, ok := dbs[0].thisNodeNetworks["network1"]; !ok || n.leaving {
+		t.Fatal("The network should not be marked as leaving")
 	}
 
 	// Wait for the propagation on db[1]
 	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
 	witness1("network1", 2)
-	if n, ok := dbs[1].networks[dbs[1].config.NodeID]["network1"]; !ok || n.leaving {
-		t.Fatalf("The network should not be marked as leaving:%t", n.leaving)
+	if n, ok := dbs[1].thisNodeNetworks["network1"]; !ok || n.leaving {
+		t.Fatal("The network should not be marked as leaving")
 	}
 
 	// Try a quick leave/join
@@ -595,7 +634,7 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 	}
 	for i := 0; i < 2; i++ {
 		dbs[i].Lock()
-		assert.Check(t, is.Equal(int64(keysWriteDelete), dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber.Load()), "entries number should match")
+		assert.Check(t, is.Equal(int64(keysWriteDelete), dbs[i].thisNodeNetworks["network1"].entriesNumber.Load()), "entries number should match")
 		dbs[i].Unlock()
 	}
 
@@ -606,14 +645,14 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 	assert.NilError(t, err)
 	for i := 0; i < 3; i++ {
 		dbs[i].Lock()
-		assert.Check(t, is.Equal(int64(keysWriteDelete), dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber.Load()), "entries number should match")
+		assert.Check(t, is.Equal(int64(keysWriteDelete), dbs[i].thisNodeNetworks["network1"].entriesNumber.Load()), "entries number should match")
 		dbs[i].Unlock()
 	}
 	// at this point the entries should had been all deleted
 	time.Sleep(30 * time.Second)
 	for i := 0; i < 3; i++ {
 		dbs[i].Lock()
-		assert.Check(t, is.Equal(int64(0), dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber.Load()), "entries should had been garbage collected")
+		assert.Check(t, is.Equal(int64(0), dbs[i].thisNodeNetworks["network1"].entriesNumber.Load()), "entries should had been garbage collected")
 		dbs[i].Unlock()
 	}
 
@@ -621,7 +660,7 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 	time.Sleep(15 * time.Second)
 	for i := 0; i < 3; i++ {
 		dbs[i].Lock()
-		assert.Check(t, is.Equal(int64(0), dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber.Load()), "entries should had been garbage collected")
+		assert.Check(t, is.Equal(int64(0), dbs[i].thisNodeNetworks["network1"].entriesNumber.Load()), "entries should had been garbage collected")
 		dbs[i].Unlock()
 	}
 
@@ -844,7 +883,7 @@ func TestParallelDelete(t *testing.T) {
 	closeNetworkDBInstances(t, dbs)
 }
 
-func TestFlakyNetworkDBIslands(t *testing.T) {
+func TestNetworkDBIslands(t *testing.T) {
 	pollTimeout := func() time.Duration {
 		const defaultTimeout = 120 * time.Second
 		dl, ok := t.Deadline()
@@ -896,7 +935,7 @@ func TestFlakyNetworkDBIslands(t *testing.T) {
 		// Verify that the nodes are actually all gone and marked appropiately
 		for name, db := range checkDBs {
 			db.RLock()
-			if (len(db.leftNodes) != 3) || (len(db.failedNodes) != 0) {
+			if (len(db.leftNodes) + len(db.failedNodes)) != 3 {
 				for name := range db.leftNodes {
 					t.Logf("%s: Node %s left", db.config.Hostname, name)
 				}
@@ -904,7 +943,7 @@ func TestFlakyNetworkDBIslands(t *testing.T) {
 					t.Logf("%s: Node %s failed", db.config.Hostname, name)
 				}
 				db.RUnlock()
-				return poll.Continue("%s:Waiting for all nodes to cleanly leave, left: %d, failed nodes: %d", name, len(db.leftNodes), len(db.failedNodes))
+				return poll.Continue("%s:Waiting for all nodes to leave, left: %d, failed nodes: %d", name, len(db.leftNodes), len(db.failedNodes))
 			}
 			db.RUnlock()
 			t.Logf("%s: OK", name)
@@ -944,9 +983,9 @@ func TestFlakyNetworkDBIslands(t *testing.T) {
 				}
 			} else {
 				// nodes from 4 to 5 has the 3 previous left nodes
-				if len(db.leftNodes) != 3 {
+				if (len(db.leftNodes) + len(db.failedNodes)) != 3 {
 					db.RUnlock()
-					return poll.Continue("%s:Waiting to have 3 leftNodes", dbs[i].config.Hostname)
+					return poll.Continue("%s:Waiting to have 3 leftNodes+failedNodes", dbs[i].config.Hostname)
 				}
 			}
 			db.RUnlock()
