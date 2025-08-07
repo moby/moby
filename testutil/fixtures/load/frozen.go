@@ -2,10 +2,9 @@ package load
 
 import (
 	"bufio"
-	"bytes"
 	"context"
+	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -93,31 +92,36 @@ func imageExists(ctx context.Context, client client.APIClient, name string) bool
 }
 
 func loadFrozenImages(ctx context.Context, apiClient client.APIClient) error {
-	ctx, span := otel.Tracer("").Start(ctx, "load frozen images")
-	defer span.End()
+	frozenImages, _ := os.ReadDir(frozenImgDir)
+	for _, frozenImage := range frozenImages {
+		if frozenImage.IsDir() {
+			continue
+		}
+		fi, err := frozenImage.Info()
+		if err != nil {
+			return err
+		}
+		err = func(tarfile fs.FileInfo) error {
+			reader, err := os.OpenFile(filepath.Join(frozenImgDir, tarfile.Name()), os.O_RDONLY, 0644)
+			if err != nil {
+				return err
+			}
+			defer reader.Close()
 
-	tar, err := exec.LookPath("tar")
-	if err != nil {
-		return errors.Wrap(err, "could not find tar binary")
-	}
-	tarCmd := exec.Command(tar, "-cC", frozenImgDir, ".")
-	out, err := tarCmd.StdoutPipe()
-	if err != nil {
-		return errors.Wrap(err, "error getting stdout pipe for tar command")
-	}
+			resp, err := apiClient.ImageLoad(ctx, reader, client.ImageLoadWithQuiet(true))
+			if err != nil {
+				return errors.Wrap(err, "failed to load frozen images")
+			}
+			defer resp.Body.Close()
 
-	errBuf := bytes.NewBuffer(nil)
-	tarCmd.Stderr = errBuf
-	tarCmd.Start()
-	defer tarCmd.Wait()
-
-	resp, err := apiClient.ImageLoad(ctx, out, client.ImageLoadWithQuiet(true))
-	if err != nil {
-		return errors.Wrap(err, "failed to load frozen images")
+			fd, isTerminal := term.GetFdInfo(os.Stdout)
+			return jsonmessage.DisplayJSONMessagesStream(resp.Body, os.Stdout, fd, isTerminal, nil)
+		}(fi)
+		if err != nil {
+			return err
+		}
 	}
-	defer resp.Body.Close()
-	fd, isTerminal := term.GetFdInfo(os.Stdout)
-	return jsonmessage.DisplayJSONMessagesStream(resp.Body, os.Stdout, fd, isTerminal, nil)
+	return nil
 }
 
 func pullImages(ctx context.Context, client client.APIClient, images []string) error {

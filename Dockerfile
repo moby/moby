@@ -23,6 +23,9 @@ ARG BUILDX_VERSION=0.25.0
 # COMPOSE_VERSION is the version of compose to install in the dev container.
 ARG COMPOSE_VERSION=v2.38.2
 
+# SKOPEO_VERSION is the version of skopeo to install in the dev container.
+ARG SKOPEO_VERSION=v1.20.0
+
 ARG SYSTEMD="false"
 ARG FIREWALLD="false"
 ARG DOCKER_STATIC=1
@@ -96,28 +99,36 @@ RUN --mount=type=cache,target=/root/.cache/go-build,id=swagger-build-$TARGETPLAT
   xx-verify /build/swagger
 EOT
 
-# frozen-images
-# See also frozenImages in "testutil/environment/protect.go" (which needs to
-# be updated when adding images to this list)
-FROM debian:${BASE_DEBIAN_DISTRO} AS frozen-images
-RUN --mount=type=cache,sharing=locked,id=moby-frozen-images-aptlib,target=/var/lib/apt \
-    --mount=type=cache,sharing=locked,id=moby-frozen-images-aptcache,target=/var/cache/apt \
-       apt-get update && apt-get install -y --no-install-recommends \
-           ca-certificates \
-           curl \
-           jq
-# Get useful and necessary Hub images so we can "docker load" locally instead of pulling
-COPY contrib/download-frozen-image-v2.sh /
+# skopeo is used by frozen-images stage
+FROM base AS skopeo
+ARG SKOPEO_VERSION
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+      GO111MODULE=on CGO_ENABLED=0 GOBIN=/out go install -tags "exclude_graphdriver_devicemapper exclude_graphdriver_btrfs containers_image_openpgp" "github.com/containers/skopeo/cmd/skopeo@${SKOPEO_VERSION}" \
+      && /out/skopeo --version
+
+# frozen-images gets useful and necessary Hub images so we can "docker load"
+# locally instead of pulling. See also frozenImages in
+# "testutil/environment/protect.go" (which needs to be updated when adding images to this list)
+FROM base AS frozen-images
+ARG TARGETOS
 ARG TARGETARCH
 ARG TARGETVARIANT
-RUN /download-frozen-image-v2.sh /build \
-        busybox:latest@sha256:95cf004f559831017cdf4628aaf1bb30133677be8702a8c5f2994629f637a209 \
-        busybox:glibc@sha256:1f81263701cddf6402afe9f33fca0266d9fff379e59b1748f33d3072da71ee85 \
-        debian:bookworm-slim@sha256:2bc5c236e9b262645a323e9088dfa3bb1ecb16cc75811daf40a23a824d665be9 \
-        hello-world:latest@sha256:d58e752213a51785838f9eed2b7a498ffa1cb3aa7f946dda11af39286c3db9a9 \
-        arm32v7/hello-world:latest@sha256:50b8560ad574c779908da71f7ce370c0a2471c098d44d1c8f6b513c5a55eeeb1 \
-        hello-world:amd64@sha256:90659bf80b44ce6be8234e6ff90a1ac34acbeb826903b02cfa0da11c82cbc042 \
-        hello-world:arm64@sha256:963612c5503f3f1674f315c67089dee577d8cc6afc18565e0b4183ae355fb343
+# OS, ARCH, VARIANT are used by skopeo cli
+ENV OS=$TARGETOS
+ENV ARCH=$TARGETARCH
+ENV VARIANT=$TARGETVARIANT
+RUN --mount=from=skopeo,source=/out/skopeo,target=/usr/bin/skopeo <<EOT
+  set -ex
+  mkdir /build
+  skopeo --insecure-policy copy docker://busybox@sha256:95cf004f559831017cdf4628aaf1bb30133677be8702a8c5f2994629f637a209 --additional-tag busybox:latest docker-archive:///build/busybox-latest.tar
+  skopeo --insecure-policy copy docker://busybox@sha256:1f81263701cddf6402afe9f33fca0266d9fff379e59b1748f33d3072da71ee85 --additional-tag busybox:glibc docker-archive:///build/busybox-glibc.tar
+  skopeo --insecure-policy copy docker://debian@sha256:2bc5c236e9b262645a323e9088dfa3bb1ecb16cc75811daf40a23a824d665be9 --additional-tag debian:bookworm-slim docker-archive:///build/debian-bookworm-slim.tar
+  skopeo --insecure-policy copy docker://hello-world@sha256:d58e752213a51785838f9eed2b7a498ffa1cb3aa7f946dda11af39286c3db9a9 --additional-tag hello-world:latest docker-archive:///build/hello-world-latest.tar
+  skopeo --insecure-policy --override-os linux --override-arch arm --override-variant v7 copy docker://arm32v7/hello-world@sha256:50b8560ad574c779908da71f7ce370c0a2471c098d44d1c8f6b513c5a55eeeb1 --additional-tag arm32v7/hello-world:latest docker-archive:///build/arm32v7-hello-world-latest.tar
+  skopeo --insecure-policy --override-os linux --override-arch amd64 copy docker://hello-world@sha256:90659bf80b44ce6be8234e6ff90a1ac34acbeb826903b02cfa0da11c82cbc042 --additional-tag hello-world:amd64 docker-archive:///build/hello-world-amd64.tar
+  skopeo --insecure-policy --override-os linux --override-arch arm64 copy docker://hello-world@sha256:963612c5503f3f1674f315c67089dee577d8cc6afc18565e0b4183ae355fb343 --additional-tag hello-world:arm64 docker-archive:///build/hello-world-arm64.tar
+EOT
 
 # delve
 FROM base AS delve-src
