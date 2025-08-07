@@ -98,6 +98,7 @@ fetch_blob() {
 			"$blobRedirect" \
 			-o "$targetFile"
 	fi
+	sync "$targetFile"
 }
 
 # handle 'application/vnd.docker.distribution.manifest.v2+json' manifest
