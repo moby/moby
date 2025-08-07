@@ -74,8 +74,7 @@ func (d *driver) EventNotify(nid, tableName, key string, prev, value []byte) {
 		prevPeer, err = overlay.UnmarshalPeerRecord(prev)
 		if err != nil {
 			log.G(context.TODO()).WithError(err).Error("Failed to unmarshal previous peer record")
-		}
-		if prevPeer.TunnelEndpointIP.String() == n.providerAddress {
+		} else if prevPeer.TunnelEndpointIP.String() == n.providerAddress {
 			// Ignore local peers. We don't add them to the VXLAN
 			// FDB so don't need to remove them.
 			prevPeer = nil
@@ -86,8 +85,7 @@ func (d *driver) EventNotify(nid, tableName, key string, prev, value []byte) {
 		newPeer, err = overlay.UnmarshalPeerRecord(value)
 		if err != nil {
 			log.G(context.TODO()).WithError(err).Error("Failed to unmarshal peer record")
-		}
-		if prevPeer.TunnelEndpointIP.String() == n.providerAddress {
+		} else if newPeer.TunnelEndpointIP.String() == n.providerAddress {
 			newPeer = nil
 		}
 	}
