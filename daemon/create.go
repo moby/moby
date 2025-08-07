@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	containertypes "github.com/moby/moby/api/types/container"
@@ -16,7 +17,6 @@ import (
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
-	"github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
 	"github.com/moby/moby/v2/daemon/internal/multierror"
@@ -26,7 +26,6 @@ import (
 	"github.com/moby/sys/user"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux"
-	"github.com/tonistiigi/go-archvariant"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -96,16 +95,24 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
+	// Check if the image is present locally and if not return an error.
+	if opts.params.Config.Image != "" {
+		_, err := daemon.imageService.GetImage(ctx, opts.params.Config.Image, backend.GetImageOpts{})
+		if err != nil {
+			return containertypes.CreateResponse{Warnings: warnings}, err
+		}
+	}
+
+	if err := daemon.validatePlatform(ctx, opts.params.Config.Image, opts.params.Platform, &warnings); err != nil {
+		return containertypes.CreateResponse{Warnings: warnings}, err
+	}
+
 	if opts.params.HostConfig == nil {
 		opts.params.HostConfig = &containertypes.HostConfig{}
 	}
 
 	if err := daemon.adaptContainerSettings(&daemonCfg.Config, opts.params.HostConfig); err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
-	}
-
-	if err := daemon.validatePlatform(ctx, opts.params.Config.Image, opts.params.Platform, &warnings); err != nil {
-		return containertypes.CreateResponse{Warnings: warnings}, err
 	}
 
 	ctr, err := daemon.create(ctx, &daemonCfg.Config, opts)
@@ -359,55 +366,38 @@ func (daemon *Daemon) validateNetworkingConfig(nwConfig *networktypes.Networking
 	return nil
 }
 
-// Check if the image is compatible with the runtime platform (opts.params.Platform or the host platform)
+// Check if the image platform is compatible with the runtime platform
 func (daemon *Daemon) validatePlatform(ctx context.Context, image string, runtimePlatform *ocispec.Platform, warnings *[]string) error {
 	if image == "" {
 		return nil
 	}
 
-	img, err := daemon.imageService.GetImage(ctx, image, backend.GetImageOpts{})
-	if err != nil {
-		return err
+	hostPlatform := platforms.DefaultSpec()
+	if runtimePlatform == nil {
+		runtimePlatform = &hostPlatform
 	}
 
-	if img != nil {
-		var imgPlatform = ocispec.Platform{
-			OS:           img.OS,
-			Architecture: img.Architecture,
-			Variant:      img.Variant,
+	// Check if an image variant matching the runtime platform is present locally
+	_, err := daemon.imageService.GetImage(ctx, image, backend.GetImageOpts{Platform: runtimePlatform})
+	if cerrdefs.IsNotFound(err) {
+		msg := fmt.Sprintf("the requested image does not match the runtime platform (%s)", platforms.FormatAll(*runtimePlatform))
+
+		// When using multi-arch images, provide more info to help users
+		if daemon.usesSnapshotter {
+			msg = msg + fmt.Sprintf("; pull the correct image variant (docker pull --platform %s %s) or change the runtime platform (docker run --platform ...) to match one of the available image platforms.",
+				platforms.FormatAll(*runtimePlatform), image)
 		}
 
-		var p ocispec.Platform
-		if runtimePlatform == nil {
-			p = maximumSpec()
-		} else {
-			p = *runtimePlatform
-		}
-
-		if !images.OnlyPlatformWithFallback(p).Match(imgPlatform) {
-			msg := fmt.Sprintf("the requested image's platform (%s) is not compatible with the runtime platform (%s); "+
-				"either pull the correct image variant (docker pull --platform ...) or set the correct runtime platform (docker run --platform ...)",
-				platforms.FormatAll(imgPlatform), platforms.FormatAll(p))
-
-			_, ok := os.LookupEnv("DOCKER_ALLOW_NON_NATIVE_PLATFORM")
-			if ok {
-				if warnings != nil {
-					*warnings = append(*warnings, msg)
-				}
-			} else {
-				return errdefs.NotFound(errors.New(msg))
+		// Issue error or just warning based on env var
+		_, ok := os.LookupEnv("DOCKER_ALLOW_NON_NATIVE_PLATFORM")
+		if ok {
+			if warnings != nil {
+				*warnings = append(*warnings, msg)
 			}
+		} else {
+			return errdefs.NotFound(errors.New(msg))
 		}
 	}
 
-	return nil
-}
-
-// maximumSpec returns the distribution platform with maximum compatibility for the current node.
-func maximumSpec() ocispec.Platform {
-	p := platforms.DefaultSpec()
-	if p.Architecture == "amd64" {
-		p.Variant = archvariant.AMD64Variant()
-	}
-	return p
+	return err
 }
