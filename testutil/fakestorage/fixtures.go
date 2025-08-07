@@ -40,7 +40,24 @@ func ensureHTTPServerImage(t testing.TB) {
 	assert.NilError(t, err, "could not find go executable to build http server")
 
 	tmp := t.TempDir()
-	cmd := exec.Command(goCmd, "build", "-o", filepath.Join(tmp, "httpserver"), "../contrib/httpserver")
+	const httpServer = `package main
+
+import (
+	"log"
+	"net/http"
+)
+
+func main() {
+	fs := http.FileServer(http.Dir("/static"))
+	http.Handle("/", fs)
+	log.Panic(http.ListenAndServe(":80", nil)) // #nosec G114 -- Ignoring for test-code: G114: Use of net/http serve function that has no support for setting timeouts (gosec)
+}
+`
+	src := filepath.Join(tmp, "main.go")
+	err = os.WriteFile(filepath.Join(tmp, "main.go"), []byte(httpServer), 0o0644)
+	assert.NilError(t, err)
+
+	cmd := exec.Command(goCmd, "build", "-o", filepath.Join(tmp, "httpserver"), src)
 	cmd.Env = append(os.Environ(), []string{
 		"CGO_ENABLED=0",
 		"GOOS=" + goos,
