@@ -259,9 +259,9 @@ win: bundles ## cross build the binary for windows
 
 .PHONY: swagger-gen
 swagger-gen:
-	docker run --rm -v $(PWD):/go/src/github.com/docker/docker \
-		-w /go/src/github.com/docker/docker \
-		--entrypoint hack/generate-swagger-api.sh \
+	docker run --rm -v $(PWD)/api:/go/src/github.com/docker/docker/api \
+		-w /go/src/github.com/docker/docker/api \
+		--entrypoint scripts/generate-swagger-api.sh \
 		-e GOPATH=/go \
 		quay.io/goswagger/swagger:0.7.4
 
