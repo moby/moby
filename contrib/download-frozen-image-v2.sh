@@ -72,30 +72,11 @@ fetch_blob() {
 	shift
 	local curlArgs=("$@")
 
-	local curlHeaders
-	curlHeaders="$(
-		curl -S "${curlArgs[@]}" \
-			-H "Authorization: Bearer $token" \
-			"$registryBase/v2/$image/blobs/$digest" \
-			-o "$targetFile" \
-			-D-
-	)"
-	curlHeaders="$(echo "$curlHeaders" | tr -d '\r')"
-	if grep -qE "^HTTP/[0-9](.[0-9])* 3" <<< "$curlHeaders"; then
-		rm -f "$targetFile"
-
-		local blobRedirect
-		blobRedirect="$(echo "$curlHeaders" | awk -F ': ' 'tolower($1) == "location" { print $2; exit }')"
-		if [ -z "$blobRedirect" ]; then
-			echo >&2 "error: failed fetching '$image' blob '$digest'"
-			echo "$curlHeaders" | head -1 >&2
-			return 1
-		fi
-
-		curl -fSL "${curlArgs[@]}" \
-			"$blobRedirect" \
-			-o "$targetFile"
-	fi
+	curl -L -S "${curlArgs[@]}" \
+		-H "Authorization: Bearer $token" \
+		"$registryBase/v2/$image/blobs/$digest" \
+		-o "$targetFile" \
+		-D-
 }
 
 # handle 'application/vnd.docker.distribution.manifest.v2+json' manifest
