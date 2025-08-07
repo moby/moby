@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1.15.1
 
 ARG DEBIAN_VERSION=bookworm
 ARG XX_VERSION=1.6.1

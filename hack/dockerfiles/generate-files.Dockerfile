@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1.15.1
 
 ARG GO_VERSION=1.24.5
 ARG BASE_DEBIAN_DISTRO="bookworm"
