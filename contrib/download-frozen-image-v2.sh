@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -eo pipefail
+set -exo pipefail
 
 # This script was developed for use in Moby's CI, and as such the use cases and
 # usability are (intentionally) limited. You may find this script useful for
@@ -398,10 +398,16 @@ while [ $# -gt 0 ]; do
 				# TODO figure out why "-C -" doesn't work here
 				# "curl: (33) HTTP server doesn't seem to support byte ranges. Cannot resume."
 				# "HTTP/1.1 416 Requested Range Not Satisfiable"
-				if [ -f "$dir/$layerId/layer.tar" ]; then
-					# TODO hackpatch for no -C support :'(
-					echo "skipping existing ${layerId:0:12}"
-					continue
+				if [ -f "$dir/$layerTar" ]; then
+					# if the file is empty or fails tar validation, delete and re-fetch
+					if [ ! -s "$dir/$layerTar" ] || ! tar -tf "$dir/$layerTar" > /dev/null 2>&1; then
+						echo "warning: existing ${layerId:0:12}/layer.tar is empty or invalid, re-downloading"
+						rm -f "$dir/$layerTar"
+					else
+						# TODO hackpatch for no -C support :'(
+						echo "skipping existing ${layerId:0:12}"
+						continue
+					fi
 				fi
 				token="$(curl -fsSL "$authBase/token?service=$authService&scope=repository:$image:pull" | jq --raw-output '.token')"
 				fetch_blob "$token" "$image" "$imageLayer" "$dir/$layerId/layer.tar" --progress-bar
