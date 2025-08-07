@@ -72,9 +72,11 @@ fetch_blob() {
 	shift
 	local curlArgs=("$@")
 
+	# Use `-f` to fail on HTTP 4xx/5xx (so we catch rate‐limit 429s, 404s, etc.),
+	# but do NOT include `-L` here because we need to inspect 3xx responses ourselves.
 	local curlHeaders
 	curlHeaders="$(
-		curl -S "${curlArgs[@]}" \
+		curl -fsS "${curlArgs[@]}" \
 			-H "Authorization: Bearer $token" \
 			"$registryBase/v2/$image/blobs/$digest" \
 			-o "$targetFile" \
