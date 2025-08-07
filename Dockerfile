@@ -110,6 +110,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-frozen-images-aptlib,target=/var/l
 COPY contrib/download-frozen-image-v2.sh /
 ARG TARGETARCH
 ARG TARGETVARIANT
+RUN echo "DEBUGGING: TARGETARCH: ${TARGETARCH}"; echo "TARGETVARIANT: ${TARGETVARIANT}"
 RUN /download-frozen-image-v2.sh /build \
         busybox:latest@sha256:95cf004f559831017cdf4628aaf1bb30133677be8702a8c5f2994629f637a209 \
         busybox:glibc@sha256:1f81263701cddf6402afe9f33fca0266d9fff379e59b1748f33d3072da71ee85 \
