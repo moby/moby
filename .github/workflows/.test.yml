@@ -58,8 +58,6 @@ jobs:
         uses: docker/bake-action@v6
         with:
           targets: dev
-          set: |
-            dev.cache-from=type=gha,scope=dev
       -
         name: Test
         run: |
@@ -112,8 +110,6 @@ jobs:
         uses: docker/bake-action@v6
         with:
           targets: dev
-          set: |
-            dev.cache-from=type=gha,scope=dev
       -
         name: Test
         run: |
@@ -203,8 +199,6 @@ jobs:
         uses: docker/bake-action@v6
         with:
           targets: dev
-          set: |
-            dev.cache-from=type=gha,scope=${{ env.CACHE_DEV_SCOPE }}
       -
         name: Test
         run: |
@@ -393,8 +387,6 @@ jobs:
         uses: docker/bake-action@v6
         with:
           targets: dev
-          set: |
-            dev.cache-from=type=gha,scope=dev
       -
         name: Test
         run: |
