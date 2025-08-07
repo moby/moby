@@ -248,13 +248,6 @@ func (ncfg *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data 
 	return nil
 }
 
-func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
-}
-
-func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
-	return "", nil
-}
-
 func (d *driver) createNetwork(config *networkConfiguration) *hnsNetwork {
 	network := &hnsNetwork{
 		id:         config.ID,

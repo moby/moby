@@ -170,26 +170,25 @@ func (nDB *NetworkDB) verifyEntryExistence(t *testing.T, tname, nid, key, value 
 		nDB.config.Hostname, nDB.config.NodeID, tname, key, nid, present, value, !present, string(v))
 }
 
-func testWatch(t *testing.T, ch chan events.Event, ev interface{}, tname, nid, key, value string) {
+func testWatch(t *testing.T, ch chan events.Event, tname, nid, key, prev, value string) {
 	t.Helper()
 	select {
 	case rcvdEv := <-ch:
-		assert.Check(t, is.Equal(fmt.Sprintf("%T", rcvdEv), fmt.Sprintf("%T", ev)))
-		switch typ := rcvdEv.(type) {
-		case CreateEvent:
+		typ, ok := rcvdEv.(WatchEvent)
+		if assert.Check(t, ok, "expected WatchEvent, got %T", rcvdEv) {
 			assert.Check(t, is.Equal(tname, typ.Table))
 			assert.Check(t, is.Equal(nid, typ.NetworkID))
 			assert.Check(t, is.Equal(key, typ.Key))
-			assert.Check(t, is.Equal(value, string(typ.Value)))
-		case UpdateEvent:
-			assert.Check(t, is.Equal(tname, typ.Table))
-			assert.Check(t, is.Equal(nid, typ.NetworkID))
-			assert.Check(t, is.Equal(key, typ.Key))
-			assert.Check(t, is.Equal(value, string(typ.Value)))
-		case DeleteEvent:
-			assert.Check(t, is.Equal(tname, typ.Table))
-			assert.Check(t, is.Equal(nid, typ.NetworkID))
-			assert.Check(t, is.Equal(key, typ.Key))
+			if prev == "" {
+				assert.Check(t, is.Nil(typ.Prev))
+			} else {
+				assert.Check(t, is.Equal(prev, string(typ.Prev)))
+			}
+			if value == "" {
+				assert.Check(t, is.Nil(typ.Value))
+			} else {
+				assert.Check(t, is.Equal(value, string(typ.Value)))
+			}
 		}
 	case <-time.After(time.Second):
 		t.Fail()
@@ -413,17 +412,17 @@ func TestNetworkDBWatch(t *testing.T) {
 	err = dbs[0].CreateEntry("test_table", "network1", "test_key", []byte("test_value"))
 	assert.NilError(t, err)
 
-	testWatch(t, ch.C, CreateEvent{}, "test_table", "network1", "test_key", "test_value")
+	testWatch(t, ch.C, "test_table", "network1", "test_key", "", "test_value")
 
 	err = dbs[0].UpdateEntry("test_table", "network1", "test_key", []byte("test_updated_value"))
 	assert.NilError(t, err)
 
-	testWatch(t, ch.C, UpdateEvent{}, "test_table", "network1", "test_key", "test_updated_value")
+	testWatch(t, ch.C, "test_table", "network1", "test_key", "test_value", "test_updated_value")
 
 	err = dbs[0].DeleteEntry("test_table", "network1", "test_key")
 	assert.NilError(t, err)
 
-	testWatch(t, ch.C, DeleteEvent{}, "test_table", "network1", "test_key", "")
+	testWatch(t, ch.C, "test_table", "network1", "test_key", "test_updated_value", "")
 
 	cancel()
 	closeNetworkDBInstances(t, dbs)

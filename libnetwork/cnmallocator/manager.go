@@ -30,13 +30,6 @@ func (d *manager) CreateNetwork(id string, option map[string]interface{}, nInfo 
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *manager) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
-}
-
-func (d *manager) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
-	return "", nil
-}
-
 func (d *manager) DeleteNetwork(nid string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
