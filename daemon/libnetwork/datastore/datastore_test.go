@@ -123,7 +123,7 @@ func (n *dummyObject) Skip() bool {
 }
 
 func (n *dummyObject) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
+	return json.Marshal(map[string]any{
 		"name":        n.Name,
 		"networkType": n.NetworkType,
 		"enableIPv6":  n.EnableIPv6,
@@ -132,14 +132,14 @@ func (n *dummyObject) MarshalJSON() ([]byte, error) {
 }
 
 func (n *dummyObject) UnmarshalJSON(b []byte) error {
-	var netMap map[string]interface{}
+	var netMap map[string]any
 	if err := json.Unmarshal(b, &netMap); err != nil {
 		return err
 	}
 	n.Name = netMap["name"].(string)
 	n.NetworkType = netMap["networkType"].(string)
 	n.EnableIPv6 = netMap["enableIPv6"].(bool)
-	n.Generic = netMap["generic"].(map[string]interface{})
+	n.Generic = netMap["generic"].(map[string]any)
 	return nil
 }
 
@@ -213,7 +213,7 @@ func dummyKVObject(id string, retValue bool) *dummyObject {
 		ReturnValue: retValue,
 		DBExists:    false,
 		SkipSave:    false,
-		Generic: map[string]interface{}{
+		Generic: map[string]any{
 			"label1": &recStruct{Name: "value1", Field1: 1, Dict: cDict},
 			"label2": "subnet=10.1.1.0/16",
 		},

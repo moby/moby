@@ -20,8 +20,8 @@ func (message *splunkMessage) EventAsString() (string, error) {
 	return "", fmt.Errorf("Cannot cast Event %v to string", message.Event)
 }
 
-func (message *splunkMessage) EventAsMap() (map[string]interface{}, error) {
-	if val, ok := message.Event.(map[string]interface{}); ok {
+func (message *splunkMessage) EventAsMap() (map[string]any, error) {
+	if val, ok := message.Event.(map[string]any); ok {
 		return val, nil
 	}
 	return nil, fmt.Errorf("Cannot cast Event %v to map", message.Event)

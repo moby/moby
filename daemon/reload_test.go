@@ -42,7 +42,7 @@ func TestDaemonReloadLabels(t *testing.T) {
 	})
 	muteLogs(t)
 
-	valuesSets := make(map[string]interface{})
+	valuesSets := make(map[string]any)
 	valuesSets["labels"] = "foo:baz"
 	newConfig := &config.Config{
 		CommonConfig: config.CommonConfig{
@@ -110,7 +110,7 @@ func TestDaemonReloadMirrors(t *testing.T) {
 	}
 
 	for _, value := range loadMirrors {
-		valuesSets := make(map[string]interface{})
+		valuesSets := make(map[string]any)
 		valuesSets["registry-mirrors"] = value.mirrors
 
 		newConfig := &config.Config{
@@ -195,7 +195,7 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 		"https://mirror.test.example.com",
 	}
 
-	valuesSets := make(map[string]interface{})
+	valuesSets := make(map[string]any)
 	valuesSets["insecure-registries"] = insecureRegistries
 	valuesSets["registry-mirrors"] = mirrors
 
@@ -269,7 +269,7 @@ func TestDaemonReloadNotAffectOthers(t *testing.T) {
 	})
 	muteLogs(t)
 
-	valuesSets := make(map[string]interface{})
+	valuesSets := make(map[string]any)
 	valuesSets["labels"] = "foo:baz"
 	newConfig := &config.Config{
 		CommonConfig: config.CommonConfig{
@@ -301,7 +301,7 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 	enableConfig := &config.Config{
 		CommonConfig: config.CommonConfig{
 			NetworkDiagnosticPort: 2000,
-			ValuesSet: map[string]interface{}{
+			ValuesSet: map[string]any{
 				"network-diagnostic-port": 2000,
 			},
 		},

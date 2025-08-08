@@ -61,7 +61,7 @@ func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWri
 			return handleWithLogs(ctx, w, r, vars)
 		}
 
-		var postForm map[string]interface{}
+		var postForm map[string]any
 		if err := json.Unmarshal(b, &postForm); err == nil {
 			maskSecretKeys(postForm)
 			// TODO(thaJeztah): is there a better way to detect if we're using JSON-formatted logs?
@@ -80,15 +80,15 @@ func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWri
 	}
 }
 
-func maskSecretKeys(inp interface{}) {
-	if arr, ok := inp.([]interface{}); ok {
+func maskSecretKeys(inp any) {
+	if arr, ok := inp.([]any); ok {
 		for _, f := range arr {
 			maskSecretKeys(f)
 		}
 		return
 	}
 
-	if form, ok := inp.(map[string]interface{}); ok {
+	if form, ok := inp.(map[string]any); ok {
 		scrub := []string{
 			// Note: The Data field contains the base64-encoded secret in 'secret'
 			// and 'config' create and update requests. Currently, no other POST

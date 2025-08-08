@@ -415,37 +415,37 @@ type InternalError interface {
  ******************************/
 
 // InvalidParameterErrorf creates an instance of InvalidParameterError
-func InvalidParameterErrorf(format string, params ...interface{}) error {
+func InvalidParameterErrorf(format string, params ...any) error {
 	return errdefs.InvalidParameter(fmt.Errorf(format, params...))
 }
 
 // NotFoundErrorf creates an instance of NotFoundError
-func NotFoundErrorf(format string, params ...interface{}) error {
+func NotFoundErrorf(format string, params ...any) error {
 	return errdefs.NotFound(fmt.Errorf(format, params...))
 }
 
 // ForbiddenErrorf creates an instance of ForbiddenError
-func ForbiddenErrorf(format string, params ...interface{}) error {
+func ForbiddenErrorf(format string, params ...any) error {
 	return errdefs.Forbidden(fmt.Errorf(format, params...))
 }
 
 // UnavailableErrorf creates an instance of UnavailableError
-func UnavailableErrorf(format string, params ...interface{}) error {
+func UnavailableErrorf(format string, params ...any) error {
 	return errdefs.Unavailable(fmt.Errorf(format, params...))
 }
 
 // NotImplementedErrorf creates an instance of NotImplementedError
-func NotImplementedErrorf(format string, params ...interface{}) error {
+func NotImplementedErrorf(format string, params ...any) error {
 	return errdefs.NotImplemented(fmt.Errorf(format, params...))
 }
 
 // InternalErrorf creates an instance of InternalError
-func InternalErrorf(format string, params ...interface{}) error {
+func InternalErrorf(format string, params ...any) error {
 	return internal(fmt.Sprintf(format, params...))
 }
 
 // InternalMaskableErrorf creates an instance of InternalError and MaskableError
-func InternalMaskableErrorf(format string, params ...interface{}) error {
+func InternalMaskableErrorf(format string, params ...any) error {
 	return maskInternal(fmt.Sprintf(format, params...))
 }
 

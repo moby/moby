@@ -47,7 +47,7 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 
 	var preCPUStats containertypes.CPUStats
 	var preRead time.Time
-	getStatJSON := func(v interface{}) *containertypes.StatsResponse {
+	getStatJSON := func(v any) *containertypes.StatsResponse {
 		ss := v.(containertypes.StatsResponse)
 		ss.Name = ctr.Name
 		ss.ID = ctr.ID
@@ -90,11 +90,11 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 	}
 }
 
-func (daemon *Daemon) subscribeToContainerStats(c *container.Container) chan interface{} {
+func (daemon *Daemon) subscribeToContainerStats(c *container.Container) chan any {
 	return daemon.statsCollector.Collect(c)
 }
 
-func (daemon *Daemon) unsubscribeToContainerStats(c *container.Container, ch chan interface{}) {
+func (daemon *Daemon) unsubscribeToContainerStats(c *container.Container, ch chan any) {
 	daemon.statsCollector.Unsubscribe(c, ch)
 }
 

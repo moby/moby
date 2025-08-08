@@ -32,7 +32,7 @@ func (s *DockerAPISuite) TestInspectAPIContainerResponse(c *testing.T) {
 	for _, cs := range cases {
 		body := getInspectBody(c, cs.version, cleanedContainerID)
 
-		var inspectJSON map[string]interface{}
+		var inspectJSON map[string]any
 		err := json.Unmarshal(body, &inspectJSON)
 		assert.NilError(c, err, "Unable to unmarshal body for version %s", cs.version)
 
@@ -53,19 +53,19 @@ func (s *DockerAPISuite) TestInspectAPIContainerVolumeDriver(c *testing.T) {
 
 	body := getInspectBody(c, "v1.25", cleanedContainerID)
 
-	var inspectJSON map[string]interface{}
+	var inspectJSON map[string]any
 	err := json.Unmarshal(body, &inspectJSON)
 	assert.NilError(c, err, "Unable to unmarshal body for version 1.25")
 
 	config, ok := inspectJSON["Config"]
 	assert.Assert(c, ok, "Unable to find 'Config'")
-	cfg := config.(map[string]interface{})
+	cfg := config.(map[string]any)
 	_, ok = cfg["VolumeDriver"]
 	assert.Assert(c, !ok, "API version 1.25 expected to not include VolumeDriver in 'Config'")
 
 	config, ok = inspectJSON["HostConfig"]
 	assert.Assert(c, ok, "Unable to find 'HostConfig'")
-	cfg = config.(map[string]interface{})
+	cfg = config.(map[string]any)
 	_, ok = cfg["VolumeDriver"]
 	assert.Assert(c, ok, "API version 1.25 expected to include VolumeDriver in 'HostConfig'")
 }

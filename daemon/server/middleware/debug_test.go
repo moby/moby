@@ -10,23 +10,23 @@ import (
 func TestMaskSecretKeys(t *testing.T) {
 	tests := []struct {
 		doc      string
-		input    map[string]interface{}
-		expected map[string]interface{}
+		input    map[string]any
+		expected map[string]any
 	}{
 		{
 			doc:      "secret/config create and update requests",
-			input:    map[string]interface{}{"Data": "foo", "Name": "name", "Labels": map[string]interface{}{}},
-			expected: map[string]interface{}{"Data": "*****", "Name": "name", "Labels": map[string]interface{}{}},
+			input:    map[string]any{"Data": "foo", "Name": "name", "Labels": map[string]any{}},
+			expected: map[string]any{"Data": "*****", "Name": "name", "Labels": map[string]any{}},
 		},
 		{
 			doc: "masking other fields (recursively)",
-			input: map[string]interface{}{
+			input: map[string]any{
 				"password":     "pass",
 				"secret":       "secret",
 				"jointoken":    "jointoken",
 				"unlockkey":    "unlockkey",
 				"signingcakey": "signingcakey",
-				"other": map[string]interface{}{
+				"other": map[string]any{
 					"password":     "pass",
 					"secret":       "secret",
 					"jointoken":    "jointoken",
@@ -34,13 +34,13 @@ func TestMaskSecretKeys(t *testing.T) {
 					"signingcakey": "signingcakey",
 				},
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"password":     "*****",
 				"secret":       "*****",
 				"jointoken":    "*****",
 				"unlockkey":    "*****",
 				"signingcakey": "*****",
-				"other": map[string]interface{}{
+				"other": map[string]any{
 					"password":     "*****",
 					"secret":       "*****",
 					"jointoken":    "*****",
@@ -51,15 +51,15 @@ func TestMaskSecretKeys(t *testing.T) {
 		},
 		{
 			doc: "case insensitive field matching",
-			input: map[string]interface{}{
+			input: map[string]any{
 				"PASSWORD": "pass",
-				"other": map[string]interface{}{
+				"other": map[string]any{
 					"PASSWORD": "pass",
 				},
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"PASSWORD": "*****",
-				"other": map[string]interface{}{
+				"other": map[string]any{
 					"PASSWORD": "*****",
 				},
 			},

@@ -26,7 +26,7 @@ type endpoint struct {
 	addr   netip.Prefix
 }
 
-func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
+func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]any) error {
 	var err error
 	if err = validateID(nid, eid); err != nil {
 		return err
@@ -117,6 +117,6 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	return nil
 }
 
-func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
-	return make(map[string]interface{}), nil
+func (d *driver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
+	return make(map[string]any), nil
 }

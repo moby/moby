@@ -74,7 +74,7 @@ type vol struct {
 	Name       string
 	Mountpoint string
 	Ninja      bool // hack used to trigger a null volume return on `Get`
-	Status     map[string]interface{}
+	Status     map[string]any
 	Options    map[string]string
 }
 
@@ -104,7 +104,7 @@ func newVolumePlugin(t *testing.T, name string) *volumePlugin {
 		return pr, err
 	}
 
-	send := func(w http.ResponseWriter, data interface{}) {
+	send := func(w http.ResponseWriter, data any) {
 		switch d := data.(type) {
 		case error:
 			http.Error(w, d.Error(), http.StatusInternalServerError)
@@ -133,7 +133,7 @@ func newVolumePlugin(t *testing.T, name string) *volumePlugin {
 			return
 		}
 		_, isNinja := pr.Opts["ninja"]
-		status := map[string]interface{}{"Hello": "world"}
+		status := map[string]any{"Hello": "world"}
 		s.vols[pr.Name] = vol{Name: pr.Name, Ninja: isNinja, Status: status, Options: pr.Opts}
 		send(w, nil)
 	})

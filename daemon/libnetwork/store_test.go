@@ -13,7 +13,7 @@ func testLocalBackend(t *testing.T, path, bucket string) {
 	cfgOptions := []config.Option{
 		config.OptionDataDir(path),
 		func(c *config.Config) { c.DatastoreBucket = bucket },
-		config.OptionDriverConfig("host", map[string]interface{}{
+		config.OptionDriverConfig("host", map[string]any{
 			netlabel.GenericData: options.Generic{},
 		}),
 	}

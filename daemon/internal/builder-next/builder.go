@@ -490,7 +490,7 @@ func (sp *streamProxy) Context() context.Context {
 	return sp.ctx
 }
 
-func (sp *streamProxy) RecvMsg(m interface{}) error {
+func (sp *streamProxy) RecvMsg(m any) error {
 	return io.EOF
 }
 
@@ -503,7 +503,7 @@ func (sp *statusProxy) Send(resp *controlapi.StatusResponse) error {
 	return sp.SendMsg(resp)
 }
 
-func (sp *statusProxy) SendMsg(m interface{}) error {
+func (sp *statusProxy) SendMsg(m any) error {
 	if sr, ok := m.(*controlapi.StatusResponse); ok {
 		sp.ch <- sr
 	}
@@ -519,7 +519,7 @@ func (sp *pruneProxy) Send(resp *controlapi.UsageRecord) error {
 	return sp.SendMsg(resp)
 }
 
-func (sp *pruneProxy) SendMsg(m interface{}) error {
+func (sp *pruneProxy) SendMsg(m any) error {
 	if sr, ok := m.(*controlapi.UsageRecord); ok {
 		sp.ch <- sr
 	}

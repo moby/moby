@@ -383,12 +383,12 @@ func (c *Controller) agentStopComplete() {
 	c.mu.Unlock()
 }
 
-func (c *Controller) makeDriverConfig(ntype string) map[string]interface{} {
+func (c *Controller) makeDriverConfig(ntype string) map[string]any {
 	if c.cfg == nil {
 		return nil
 	}
 
-	cfg := map[string]interface{}{}
+	cfg := map[string]any{}
 	for _, label := range c.cfg.Labels {
 		key, val, _ := strings.Cut(label, "=")
 		if !strings.HasPrefix(key, netlabel.DriverPrefix+"."+ntype) {
@@ -551,7 +551,7 @@ func (c *Controller) NewNetwork(ctx context.Context, networkType, name string, i
 	nw := &Network{
 		name:             name,
 		networkType:      networkType,
-		generic:          map[string]interface{}{netlabel.GenericData: make(map[string]string)},
+		generic:          map[string]any{netlabel.GenericData: make(map[string]string)},
 		ipamType:         defaultIpam,
 		enableIPv4:       true,
 		id:               id,

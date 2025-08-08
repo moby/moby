@@ -9,7 +9,7 @@ import (
 func TestGetIfname(t *testing.T) {
 	testcases := []struct {
 		name      string
-		opts      map[string]interface{}
+		opts      map[string]any
 		expIfname string
 	}{
 		{
@@ -19,33 +19,33 @@ func TestGetIfname(t *testing.T) {
 		},
 		{
 			name:      "no ifname",
-			opts:      map[string]interface{}{},
+			opts:      map[string]any{},
 			expIfname: "",
 		},
 		{
 			name: "ifname set",
-			opts: map[string]interface{}{
+			opts: map[string]any{
 				Ifname: "foobar",
 			},
 			expIfname: "foobar",
 		},
 		{
 			name: "ifname set to empty string",
-			opts: map[string]interface{}{
+			opts: map[string]any{
 				Ifname: "",
 			},
 			expIfname: "",
 		},
 		{
 			name: "ifname set to nil",
-			opts: map[string]interface{}{
+			opts: map[string]any{
 				Ifname: nil,
 			},
 			expIfname: "",
 		},
 		{
 			name: "ifname set to int",
-			opts: map[string]interface{}{
+			opts: map[string]any{
 				Ifname: 42,
 			},
 			expIfname: "",

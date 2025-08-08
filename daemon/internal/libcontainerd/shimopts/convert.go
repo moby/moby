@@ -10,12 +10,12 @@ import (
 
 // Generate converts opts into a runtime options value for the runtimeType which
 // can be passed into containerd.
-func Generate(runtimeType string, opts map[string]interface{}) (interface{}, error) {
+func Generate(runtimeType string, opts map[string]any) (any, error) {
 	// This is horrible, but we have no other choice. The containerd client
 	// can only handle options values which can be marshaled into a
 	// typeurl.Any. And we're in good company: cri-containerd handles shim
 	// options in the same way.
-	var out interface{}
+	var out any
 	switch runtimeType {
 	case plugins.RuntimeRuncV2:
 		out = &runcoptions.Options{}

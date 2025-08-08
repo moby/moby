@@ -31,7 +31,7 @@ type ProgressWriter struct {
 
 // AuxEmitter is an interface for emitting aux messages during build progress
 type AuxEmitter interface {
-	Emit(string, interface{}) error
+	Emit(string, any) error
 }
 
 // BuildConfig is the configuration used by a BuildManager to start a build

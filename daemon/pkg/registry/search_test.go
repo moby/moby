@@ -48,7 +48,7 @@ func spawnTestRegistrySession(t *testing.T) (*http.Client, *v1Endpoint) {
 
 type debugTransport struct {
 	http.RoundTripper
-	log func(...interface{})
+	log func(...any)
 }
 
 func (tr debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {

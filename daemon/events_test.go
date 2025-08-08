@@ -70,7 +70,7 @@ func TestLogContainerEventWithAttributes(t *testing.T) {
 	})
 }
 
-func validateTestAttributes(t *testing.T, l chan interface{}, expectedAttributesToTest map[string]string) {
+func validateTestAttributes(t *testing.T, l chan any, expectedAttributesToTest map[string]string) {
 	select {
 	case ev := <-l:
 		event, ok := ev.(eventtypes.Message)

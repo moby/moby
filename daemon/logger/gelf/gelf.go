@@ -56,7 +56,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, err
 	}
 
-	extra := map[string]interface{}{
+	extra := map[string]any{
 		"_container_id":   info.ContainerID,
 		"_container_name": info.Name(),
 		"_image_id":       info.ContainerImageID,

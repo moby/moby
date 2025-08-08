@@ -58,7 +58,7 @@ type Volume interface {
 	// CreatedAt returns Volume Creation time
 	CreatedAt() (time.Time, error)
 	// Status returns low-level status information about a volume
-	Status() map[string]interface{}
+	Status() map[string]any
 }
 
 // LiveRestorer is an optional interface that can be implemented by a volume driver

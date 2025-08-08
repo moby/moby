@@ -39,7 +39,7 @@ func CreateID(v1Image image.V1Image, layerID layer.ChainID, parent digest.Digest
 	return digest.FromBytes(configJSON), nil
 }
 
-func rawJSON(value interface{}) *json.RawMessage {
+func rawJSON(value any) *json.RawMessage {
 	jsonval, err := json.Marshal(value)
 	if err != nil {
 		return nil

@@ -132,7 +132,7 @@ func signalHandler() {
 	}
 }
 
-func dbusConnectionChanged(args []interface{}) {
+func dbusConnectionChanged(args []any) {
 	name := args[0].(string)
 	oldOwner := args[1].(string)
 	newOwner := args[2].(string)
@@ -206,15 +206,15 @@ type firewalldZone struct {
 	unused             bool
 	target             string
 	services           []string
-	ports              [][]interface{}
+	ports              [][]any
 	icmpBlocks         []string
 	masquerade         bool
-	forwardPorts       [][]interface{}
+	forwardPorts       [][]any
 	interfaces         []string
 	sourceAddresses    []string
 	richRules          []string
 	protocols          []string
-	sourcePorts        [][]interface{}
+	sourcePorts        [][]any
 	icmpBlockInversion bool
 }
 
@@ -223,8 +223,8 @@ type firewalldZone struct {
 // which is deprecated, requires this whole struct. Its replacement, 'addZone2'
 // (introduced in firewalld 0.9.0) accepts a dictionary where only non-default
 // values need to be specified.
-func (z firewalldZone) settings() []interface{} {
-	return []interface{}{
+func (z firewalldZone) settings() []any {
+	return []any{
 		z.version,
 		z.name,
 		z.description,
@@ -276,7 +276,7 @@ func setupDockerZone() (bool, error) {
 // The bool return value is true if a firewalld reload is required.
 func setupDockerForwardingPolicy() (bool, error) {
 	// https://firewalld.org/documentation/man-pages/firewalld.dbus.html#FirewallD1.config
-	policy := map[string]interface{}{
+	policy := map[string]any{
 		"version":       "1.0",
 		"description":   "allow forwarding to the docker zone",
 		"ingress_zones": []string{"ANY"},

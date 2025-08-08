@@ -138,7 +138,7 @@ func (d *driver) storeDelete(kvObject datastore.KVObject) error {
 }
 
 func (ncfg *networkConfiguration) MarshalJSON() ([]byte, error) {
-	nMap := make(map[string]interface{})
+	nMap := make(map[string]any)
 	nMap["ID"] = ncfg.ID
 	nMap["BridgeName"] = ncfg.BridgeName
 	nMap["EnableIPv4"] = ncfg.EnableIPv4
@@ -175,7 +175,7 @@ func (ncfg *networkConfiguration) MarshalJSON() ([]byte, error) {
 func (ncfg *networkConfiguration) UnmarshalJSON(b []byte) error {
 	var (
 		err  error
-		nMap map[string]interface{}
+		nMap map[string]any
 	)
 
 	if err = json.Unmarshal(b, &nMap); err != nil {
@@ -294,7 +294,7 @@ func (ncfg *networkConfiguration) CopyTo(o datastore.KVObject) error {
 }
 
 func (ep *bridgeEndpoint) MarshalJSON() ([]byte, error) {
-	epMap := make(map[string]interface{})
+	epMap := make(map[string]any)
 	epMap["id"] = ep.id
 	epMap["nid"] = ep.nid
 	epMap["SrcName"] = ep.srcName
@@ -315,7 +315,7 @@ func (ep *bridgeEndpoint) MarshalJSON() ([]byte, error) {
 func (ep *bridgeEndpoint) UnmarshalJSON(b []byte) error {
 	var (
 		err   error
-		epMap map[string]interface{}
+		epMap map[string]any
 	)
 
 	if err = json.Unmarshal(b, &epMap); err != nil {

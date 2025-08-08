@@ -22,11 +22,11 @@ func invalidParam(err error) error {
 	return invalidParameterErr{err}
 }
 
-func invalidParamf(format string, args ...interface{}) error {
+func invalidParamf(format string, args ...any) error {
 	return invalidParameterErr{errors.Errorf(format, args...)}
 }
 
-func invalidParamWrapf(err error, format string, args ...interface{}) error {
+func invalidParamWrapf(err error, format string, args ...any) error {
 	return invalidParameterErr{errors.Wrapf(err, format, args...)}
 }
 

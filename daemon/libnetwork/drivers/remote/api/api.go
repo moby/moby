@@ -70,7 +70,7 @@ type FreeNetworkResponse struct {
 // [CreateNetworkRequest].
 type GwAllocCheckerRequest struct {
 	// Options has the same form as Options in [CreateNetworkRequest].
-	Options map[string]interface{}
+	Options map[string]any
 }
 
 // GwAllocCheckerResponse is the response to a [GwAllocCheckerRequest].
@@ -93,7 +93,7 @@ type CreateNetworkRequest struct {
 	NetworkID string
 
 	// A free form map->object interface for communication of options.
-	Options map[string]interface{}
+	Options map[string]any
 
 	// IPAMData contains the address pool information for this network
 	IPv4Data, IPv6Data []driverapi.IPAMData
@@ -122,7 +122,7 @@ type CreateEndpointRequest struct {
 	// The ID of the endpoint for later reference.
 	EndpointID string
 	Interface  *EndpointInterface
-	Options    map[string]interface{}
+	Options    map[string]any
 }
 
 // EndpointInterface represents an interface endpoint.
@@ -165,7 +165,7 @@ type EndpointInfoRequest struct {
 // EndpointInfoResponse is the response to an EndpointInfoRequest.
 type EndpointInfoResponse struct {
 	Response
-	Value map[string]interface{}
+	Value map[string]any
 }
 
 // JoinRequest describes the API for joining an endpoint to a sandbox.
@@ -173,7 +173,7 @@ type JoinRequest struct {
 	NetworkID  string
 	EndpointID string
 	SandboxKey string
-	Options    map[string]interface{}
+	Options    map[string]any
 }
 
 // InterfaceName is the struct representation of a pair of devices with source
@@ -216,7 +216,7 @@ type LeaveResponse struct {
 type ProgramExternalConnectivityRequest struct {
 	NetworkID  string
 	EndpointID string
-	Options    map[string]interface{}
+	Options    map[string]any
 }
 
 // ProgramExternalConnectivityResponse is the answer to ProgramExternalConnectivityRequest.
@@ -238,7 +238,7 @@ type RevokeExternalConnectivityResponse struct {
 // DiscoveryNotification represents a discovery notification
 type DiscoveryNotification struct {
 	DiscoveryType discoverapi.DiscoveryType
-	DiscoveryData interface{}
+	DiscoveryData any
 }
 
 // DiscoveryResponse is used by libnetwork to log any plugin error processing the discovery notifications

@@ -191,9 +191,9 @@ func getNetworkStats(t *testing.T, id string) map[string]container.NetworkStats 
 // container with id using an API call with version apiVersion. Since the
 // stats result type differs between API versions, we simply return
 // map[string]interface{}.
-func getStats(t *testing.T, id string) map[string]interface{} {
+func getStats(t *testing.T, id string) map[string]any {
 	t.Helper()
-	stats := make(map[string]interface{})
+	stats := make(map[string]any)
 
 	_, body, err := request.Get(testutil.GetContext(t), "/containers/"+id+"/stats?stream=false")
 	assert.NilError(t, err)
@@ -205,17 +205,17 @@ func getStats(t *testing.T, id string) map[string]interface{} {
 	return stats
 }
 
-func jsonBlobHasGTE121NetworkStats(blob map[string]interface{}) bool {
+func jsonBlobHasGTE121NetworkStats(blob map[string]any) bool {
 	networksStatsIntfc, ok := blob["networks"]
 	if !ok {
 		return false
 	}
-	networksStats, ok := networksStatsIntfc.(map[string]interface{})
+	networksStats, ok := networksStatsIntfc.(map[string]any)
 	if !ok {
 		return false
 	}
 	for _, networkInterfaceStatsIntfc := range networksStats {
-		networkInterfaceStats, ok := networkInterfaceStatsIntfc.(map[string]interface{})
+		networkInterfaceStats, ok := networkInterfaceStatsIntfc.(map[string]any)
 		if !ok {
 			return false
 		}

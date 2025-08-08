@@ -64,7 +64,7 @@ func JSON(o *Options) {
 
 // JSONBody creates a modifier that encodes the specified data to a JSON string and set it as request body. It also sets
 // the Content-Type header of the request.
-func JSONBody(data interface{}) func(*Options) {
+func JSONBody(data any) func(*Options) {
 	return With(func(req *http.Request) error {
 		jsonData := bytes.NewBuffer(nil)
 		if err := json.NewEncoder(jsonData).Encode(data); err != nil {

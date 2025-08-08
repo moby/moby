@@ -616,7 +616,7 @@ func (s *DockerAPISuite) TestContainerAPICreateWithCpuSharesCpuset(c *testing.T)
 }
 
 func (s *DockerAPISuite) TestContainerAPIVerifyHeader(c *testing.T) {
-	config := map[string]interface{}{
+	config := map[string]any{
 		"Image": "busybox",
 	}
 
@@ -1031,7 +1031,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveVolume(c *testing.T) {
 
 // Regression test for https://github.com/moby/moby/issues/6231
 func (s *DockerAPISuite) TestContainerAPIChunkedEncoding(c *testing.T) {
-	config := map[string]interface{}{
+	config := map[string]any{
 		"Image":     "busybox",
 		"Cmd":       append([]string{"/bin/sh", "-c"}, sleepCommandForDaemonPlatform()...),
 		"OpenStdin": true,

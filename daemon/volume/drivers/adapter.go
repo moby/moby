@@ -119,14 +119,14 @@ type volumeAdapter struct {
 	driverName string
 	eMount     string    // ephemeral host volume path
 	createdAt  time.Time // time the directory was created
-	status     map[string]interface{}
+	status     map[string]any
 }
 
 type proxyVolume struct {
 	Name       string
 	Mountpoint string
 	CreatedAt  time.Time
-	Status     map[string]interface{}
+	Status     map[string]any
 }
 
 func (a *volumeAdapter) Name() string {
@@ -167,8 +167,8 @@ func (a *volumeAdapter) CreatedAt() (time.Time, error) {
 	return a.createdAt, nil
 }
 
-func (a *volumeAdapter) Status() map[string]interface{} {
-	out := make(map[string]interface{}, len(a.status))
+func (a *volumeAdapter) Status() map[string]any {
+	out := make(map[string]any, len(a.status))
 	for k, v := range a.status {
 		out[k] = v
 	}

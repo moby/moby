@@ -7,7 +7,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/libcontainerd"
 )
 
-func (daemon *Daemon) getLibcontainerdCreateOptions(*configStore, *container.Container) (string, interface{}, error) {
+func (daemon *Daemon) getLibcontainerdCreateOptions(*configStore, *container.Container) (string, any, error) {
 	if libcontainerd.ContainerdRuntimeEnabled {
 		opts := &options.Options{}
 		return config.WindowsV2RuntimeName, opts, nil

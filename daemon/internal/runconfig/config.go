@@ -81,7 +81,7 @@ func validateCreateRequest(w container.CreateRequest, si *sysinfo.SysInfo) error
 }
 
 // loadJSON is similar to api/server/httputils.ReadJSON()
-func loadJSON(src io.Reader, out interface{}) error {
+func loadJSON(src io.Reader, out any) error {
 	dec := json.NewDecoder(src)
 	if err := dec.Decode(&out); err != nil {
 		// invalidJSONError allows unwrapping the error to detect io.EOF etc.

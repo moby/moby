@@ -94,7 +94,7 @@ func TestDaemonConfigurationInvalidUnicode(t *testing.T) {
 }
 
 func TestFindConfigurationConflicts(t *testing.T) {
-	config := map[string]interface{}{"authorization-plugins": "foobar"}
+	config := map[string]any{"authorization-plugins": "foobar"}
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 
 	flags.String("authorization-plugins", "", "")
@@ -103,7 +103,7 @@ func TestFindConfigurationConflicts(t *testing.T) {
 }
 
 func TestFindConfigurationConflictsWithNamedOptions(t *testing.T) {
-	config := map[string]interface{}{"hosts": []string{"qwer"}}
+	config := map[string]any{"hosts": []string{"qwer"}}
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 
 	var hosts []string
@@ -195,7 +195,7 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 }
 
 func TestFindConfigurationConflictsWithUnknownKeys(t *testing.T) {
-	config := map[string]interface{}{"tls-verify": "true"}
+	config := map[string]any{"tls-verify": "true"}
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 
 	flags.Bool("tlsverify", false, "")
@@ -205,7 +205,7 @@ func TestFindConfigurationConflictsWithUnknownKeys(t *testing.T) {
 
 func TestFindConfigurationConflictsWithMergedValues(t *testing.T) {
 	var hosts []string
-	config := map[string]interface{}{"hosts": "tcp://127.0.0.1:2345"}
+	config := map[string]any{"hosts": "tcp://127.0.0.1:2345"}
 	flags := pflag.NewFlagSet("base", pflag.ContinueOnError)
 	flags.VarP(opts.NewNamedListOptsRef("hosts", &hosts, nil), "host", "H", "")
 

@@ -31,7 +31,7 @@ type Driver interface {
 	// notification when a CRUD operation is performed on any
 	// entry in that table. This will be ignored for local scope
 	// drivers.
-	CreateNetwork(ctx context.Context, nid string, options map[string]interface{}, nInfo NetworkInfo, ipV4Data, ipV6Data []IPAMData) error
+	CreateNetwork(ctx context.Context, nid string, options map[string]any, nInfo NetworkInfo, ipV4Data, ipV6Data []IPAMData) error
 
 	// DeleteNetwork invokes the driver method to delete network passing
 	// the network id.
@@ -42,17 +42,17 @@ type Driver interface {
 	// specific config. The endpoint information can be either consumed by
 	// the driver or populated by the driver. The config mechanism will
 	// eventually be replaced with labels which are yet to be introduced.
-	CreateEndpoint(ctx context.Context, nid, eid string, ifInfo InterfaceInfo, options map[string]interface{}) error
+	CreateEndpoint(ctx context.Context, nid, eid string, ifInfo InterfaceInfo, options map[string]any) error
 
 	// DeleteEndpoint invokes the driver method to delete an endpoint
 	// passing the network id and endpoint id.
 	DeleteEndpoint(nid, eid string) error
 
 	// EndpointOperInfo retrieves from the driver the operational data related to the specified endpoint
-	EndpointOperInfo(nid, eid string) (map[string]interface{}, error)
+	EndpointOperInfo(nid, eid string) (map[string]any, error)
 
 	// Join method is invoked when a Sandbox is attached to an endpoint.
-	Join(ctx context.Context, nid, eid string, sboxKey string, jinfo JoinInfo, epOpts, sbOpts map[string]interface{}) error
+	Join(ctx context.Context, nid, eid string, sboxKey string, jinfo JoinInfo, epOpts, sbOpts map[string]any) error
 
 	// Leave method is invoked when a Sandbox detaches from an endpoint.
 	Leave(nid, eid string) error

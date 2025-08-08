@@ -69,7 +69,7 @@ func getContainerCount(t *testing.T) int {
 	return 0
 }
 
-func inspectFieldAndUnmarshall(t *testing.T, name, field string, output interface{}) {
+func inspectFieldAndUnmarshall(t *testing.T, name, field string, output any) {
 	t.Helper()
 	str := inspectFieldJSON(t, name, field)
 	err := json.Unmarshal([]byte(str), output)
@@ -370,11 +370,11 @@ func getErrorMessage(t *testing.T, body []byte) string {
 }
 
 type (
-	checkF  func(*testing.T) (interface{}, string)
-	reducer func(...interface{}) interface{}
+	checkF  func(*testing.T) (any, string)
+	reducer func(...any) any
 )
 
-func pollCheck(t *testing.T, f checkF, compare func(x interface{}) assert.BoolOrComparison) poll.Check {
+func pollCheck(t *testing.T, f checkF, compare func(x any) assert.BoolOrComparison) poll.Check {
 	return func(poll.LogT) poll.Result {
 		t.Helper()
 		v, comment := f(t)
@@ -396,9 +396,9 @@ func pollCheck(t *testing.T, f checkF, compare func(x interface{}) assert.BoolOr
 }
 
 func reducedCheck(r reducer, funcs ...checkF) checkF {
-	return func(t *testing.T) (interface{}, string) {
+	return func(t *testing.T) (any, string) {
 		t.Helper()
-		var values []interface{}
+		var values []any
 		var comments []string
 		for _, f := range funcs {
 			v, comment := f(t)
@@ -411,7 +411,7 @@ func reducedCheck(r reducer, funcs ...checkF) checkF {
 	}
 }
 
-func sumAsIntegers(vals ...interface{}) interface{} {
+func sumAsIntegers(vals ...any) any {
 	var s int
 	for _, v := range vals {
 		s += v.(int)

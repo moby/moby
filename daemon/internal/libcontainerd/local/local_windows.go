@@ -145,7 +145,7 @@ func (c *client) Version(ctx context.Context) (containerd.Version, error) {
 //			"ImagePath": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c\\\\UtilityVM"
 //		},
 //	}
-func (c *client) NewContainer(_ context.Context, id string, spec *specs.Spec, _ string, _ interface{}, _ ...containerd.NewContainerOpts) (libcontainerdtypes.Container, error) {
+func (c *client) NewContainer(_ context.Context, id string, spec *specs.Spec, _ string, _ any, _ ...containerd.NewContainerOpts) (libcontainerdtypes.Container, error) {
 	if spec.Linux != nil {
 		return nil, errors.New("linux containers are not supported on this platform")
 	}

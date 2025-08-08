@@ -233,7 +233,7 @@ func configureMaxThreads(_ context.Context) error {
 	return nil
 }
 
-func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSandboxes map[string]interface{}) error {
+func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSandboxes map[string]any) error {
 	netOptions, err := daemon.networkOptions(daemonCfg, nil, daemon.id, nil)
 	if err != nil {
 		return err

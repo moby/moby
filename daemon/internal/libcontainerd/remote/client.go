@@ -118,7 +118,7 @@ func (c *container) AttachTask(ctx context.Context, attachStdio libcontainerdtyp
 	return c.newTask(t), nil
 }
 
-func (c *client) NewContainer(ctx context.Context, id string, ociSpec *specs.Spec, shim string, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) (libcontainerdtypes.Container, error) {
+func (c *client) NewContainer(ctx context.Context, id string, ociSpec *specs.Spec, shim string, runtimeOptions any, opts ...containerd.NewContainerOpts) (libcontainerdtypes.Container, error) {
 	bdir := c.bundleDir(id)
 	c.logger.WithField("bundle", bdir).WithField("root", ociSpec.Root.Path).Debug("bundle dir created")
 
