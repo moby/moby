@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"strings"
 
@@ -11,14 +12,12 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/hashicorp/go-multierror"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 var imagesAcceptedFilters = map[string]bool{
@@ -218,7 +217,7 @@ func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]c8
 	span.SetAttributes(tracing.Attribute("count", len(imagesToPrune)))
 	defer span.End()
 
-	var errs error
+	var errs []error
 	for _, img := range imagesToPrune {
 		log.G(ctx).WithField("image", img).Debug("pruning image")
 
@@ -229,17 +228,17 @@ func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]c8
 			return nil
 		})
 		if err != nil {
-			errs = multierror.Append(errs, err)
+			errs = append(errs, err)
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				return &report, errs
+				return &report, errors.Join(errs...)
 			}
 			continue
 		}
 		err = i.images.Delete(ctx, img.Name, c8dimages.SynchronousDelete())
 		if err != nil && !cerrdefs.IsNotFound(err) {
-			errs = multierror.Append(errs, err)
+			errs = append(errs, err)
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				return &report, errs
+				return &report, errors.Join(errs...)
 			}
 			continue
 		}
@@ -265,5 +264,5 @@ func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]c8
 		}
 	}
 
-	return &report, errs
+	return &report, errors.Join(errs...)
 }

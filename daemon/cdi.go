@@ -2,16 +2,15 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/containerd/log"
-	"github.com/hashicorp/go-multierror"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
@@ -118,11 +117,11 @@ func (c *cdiHandler) injectCDIDevices(s *specs.Spec, dev *deviceInstance) error 
 
 // getErrors returns a single error representation of errors that may have occurred while refreshing the CDI registry.
 func (c *cdiHandler) getErrors() error {
-	var err *multierror.Error
-	for _, errs := range c.registry.GetErrors() {
-		err = multierror.Append(err, errs...)
+	var errs []error
+	for _, es := range c.registry.GetErrors() {
+		errs = append(errs, es...)
 	}
-	return err.ErrorOrNil()
+	return errors.Join(errs...)
 }
 
 // listDevices uses the CDI cache to list all discovered CDI devices.

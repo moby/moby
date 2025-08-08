@@ -3,6 +3,7 @@ package remote
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -25,7 +26,6 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/typeurl/v2"
-	"github.com/hashicorp/go-multierror"
 	"github.com/moby/moby/v2/daemon/internal/libcontainerd/queue"
 	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
 	"github.com/moby/moby/v2/errdefs"
@@ -33,7 +33,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
+	pkgerrors "github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -113,7 +113,7 @@ func (c *container) AttachTask(ctx context.Context, attachStdio libcontainerdtyp
 	}
 	t, err := c.c8dCtr.Task(ctx, attachIO)
 	if err != nil {
-		return nil, errors.Wrap(wrapError(err), "error getting containerd task for container")
+		return nil, pkgerrors.Wrap(wrapError(err), "error getting containerd task for container")
 	}
 	return c.newTask(t), nil
 }
@@ -132,7 +132,7 @@ func (c *client) NewContainer(ctx context.Context, id string, ociSpec *specs.Spe
 	ctr, err := c.client.NewContainer(ctx, id, opts...)
 	if err != nil {
 		if cerrdefs.IsAlreadyExists(err) {
-			return nil, errors.WithStack(errdefs.Conflict(errors.New("id already in use")))
+			return nil, pkgerrors.WithStack(errdefs.Conflict(errors.New("id already in use")))
 		}
 		return nil, wrapError(err)
 	}
@@ -177,10 +177,10 @@ func (c *container) NewTask(ctx context.Context, checkpointDir string, withStdin
 			}
 		}()
 		if err := tar.Close(); err != nil {
-			return nil, errors.Wrap(err, "failed to close checkpoint tar stream")
+			return nil, pkgerrors.Wrap(err, "failed to close checkpoint tar stream")
 		}
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to upload checkpoint to containerd")
+			return nil, pkgerrors.Wrapf(err, "failed to upload checkpoint to containerd")
 		}
 	}
 
@@ -189,13 +189,13 @@ func (c *container) NewTask(ctx context.Context, checkpointDir string, withStdin
 	// to refresh the metadata separately for spec and labels.
 	md, err := c.c8dCtr.Info(ctx, containerd.WithoutRefreshedMetadata)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to retrieve metadata")
+		return nil, pkgerrors.Wrap(err, "failed to retrieve metadata")
 	}
 	bundle := md.Labels[DockerContainerBundlePath]
 
 	var spec specs.Spec
 	if err := json.Unmarshal(md.Spec.GetValue(), &spec); err != nil {
-		return nil, errors.Wrap(err, "failed to retrieve spec")
+		return nil, pkgerrors.Wrap(err, "failed to retrieve spec")
 	}
 	uid, gid := getSpecUser(&spec)
 
@@ -235,7 +235,7 @@ func (c *container) NewTask(ctx context.Context, checkpointDir string, withStdin
 			rio.Cancel()
 			rio.Close()
 		}
-		return nil, errors.Wrap(wrapError(err), "failed to create task for container")
+		return nil, pkgerrors.Wrap(wrapError(err), "failed to create task for container")
 	}
 
 	// Signal c.createIO that it can call CloseIO
@@ -289,7 +289,7 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 	if err != nil {
 		close(stdinCloseSync)
 		if cerrdefs.IsAlreadyExists(err) {
-			return nil, errors.WithStack(errdefs.Conflict(errors.New("id already in use")))
+			return nil, pkgerrors.WithStack(errdefs.Conflict(errors.New("id already in use")))
 		}
 		return nil, wrapError(err)
 	}
@@ -350,7 +350,7 @@ func (t *task) Summary(ctx context.Context) ([]libcontainerdtypes.Summary, error
 	for _, pi := range pis {
 		i, err := typeurl.UnmarshalAny(pi.Info)
 		if err != nil {
-			return nil, errors.Wrap(err, "unable to decode process details")
+			return nil, pkgerrors.Wrap(err, "unable to decode process details")
 		}
 		s, err := summaryFromInterface(i)
 		if err != nil {
@@ -440,11 +440,11 @@ func (t *task) CreateCheckpoint(ctx context.Context, checkpointDir string, exit 
 
 	b, err := content.ReadBlob(ctx, t.ctr.client.client.ContentStore(), img.Target())
 	if err != nil {
-		return errdefs.System(errors.Wrapf(err, "failed to retrieve checkpoint data"))
+		return errdefs.System(pkgerrors.Wrapf(err, "failed to retrieve checkpoint data"))
 	}
 	var index ocispec.Index
 	if err := json.Unmarshal(b, &index); err != nil {
-		return errdefs.System(errors.Wrapf(err, "failed to decode checkpoint data"))
+		return errdefs.System(pkgerrors.Wrapf(err, "failed to decode checkpoint data"))
 	}
 
 	var cpDesc *ocispec.Descriptor
@@ -455,17 +455,17 @@ func (t *task) CreateCheckpoint(ctx context.Context, checkpointDir string, exit 
 		}
 	}
 	if cpDesc == nil {
-		return errdefs.System(errors.Wrapf(err, "invalid checkpoint"))
+		return errdefs.System(pkgerrors.Wrapf(err, "invalid checkpoint"))
 	}
 
 	rat, err := t.ctr.client.client.ContentStore().ReaderAt(ctx, *cpDesc)
 	if err != nil {
-		return errdefs.System(errors.Wrapf(err, "failed to get checkpoint reader"))
+		return errdefs.System(pkgerrors.Wrapf(err, "failed to get checkpoint reader"))
 	}
 	defer rat.Close()
 	_, err = archive.Apply(ctx, checkpointDir, content.NewReader(rat))
 	if err != nil {
-		return errdefs.System(errors.Wrapf(err, "failed to read checkpoint reader"))
+		return errdefs.System(pkgerrors.Wrapf(err, "failed to read checkpoint reader"))
 	}
 
 	return err
@@ -476,7 +476,7 @@ func (c *client) LoadContainer(ctx context.Context, id string) (libcontainerdtyp
 	ctr, err := c.client.LoadContainer(ctx, id)
 	if err != nil {
 		if cerrdefs.IsNotFound(err) {
-			return nil, errors.WithStack(errdefs.NotFound(errors.New("no such container")))
+			return nil, pkgerrors.WithStack(errdefs.NotFound(errors.New("no such container")))
 		}
 		return nil, wrapError(err)
 	}
@@ -505,27 +505,20 @@ func (c *container) createIO(fifos *cio.FIFOSet, stdinCloseSync chan containerd.
 
 	if io.Stdin != nil {
 		var (
-			closeErr  error
+			errs      []error
 			stdinOnce sync.Once
 		)
 		pipe := io.Stdin
 		io.Stdin = ioutils.NewWriteCloserWrapper(pipe, func() error {
 			stdinOnce.Do(func() {
-				closeErr = pipe.Close()
+				errs = append(errs, pipe.Close())
 
 				select {
 				case p, ok := <-stdinCloseSync:
 					if !ok {
 						return
 					}
-					if err := closeStdin(context.Background(), p); err != nil {
-						if closeErr != nil {
-							closeErr = multierror.Append(closeErr, err)
-						} else {
-							// Avoid wrapping a single error in a multierror.
-							closeErr = err
-						}
-					}
+					errs = append(errs, closeStdin(context.Background(), p))
 				default:
 					// The process wasn't ready. Close its stdin asynchronously.
 					go func() {
@@ -541,7 +534,7 @@ func (c *container) createIO(fifos *cio.FIFOSet, stdinCloseSync chan containerd.
 					}()
 				}
 			})
-			return closeErr
+			return errors.Join(errs...)
 		})
 	}
 
