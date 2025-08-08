@@ -207,11 +207,11 @@ func (daemon *Daemon) UsesSnapshotter() bool {
 	return daemon.usesSnapshotter
 }
 
-func (daemon *Daemon) loadContainers() (map[string]map[string]*container.Container, error) {
+func (daemon *Daemon) loadContainers(ctx context.Context) (map[string]map[string]*container.Container, error) {
 	var mapLock sync.Mutex
 	driverContainers := make(map[string]map[string]*container.Container)
 
-	log.G(context.TODO()).Info("Loading containers: start.")
+	log.G(ctx).Info("Loading containers: start.")
 
 	dir, err := os.ReadDir(daemon.repository)
 	if err != nil {
@@ -236,7 +236,7 @@ func (daemon *Daemon) loadContainers() (map[string]map[string]*container.Contain
 			_ = sem.Acquire(context.Background(), 1)
 			defer sem.Release(1)
 
-			logger := log.G(context.TODO()).WithField("container", id)
+			logger := log.G(ctx).WithField("container", id)
 
 			c, err := daemon.load(id)
 			if err != nil {
@@ -260,10 +260,10 @@ func (daemon *Daemon) loadContainers() (map[string]map[string]*container.Contain
 	return driverContainers, nil
 }
 
-func (daemon *Daemon) restore(cfg *configStore, containers map[string]*container.Container) error {
+func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers map[string]*container.Container) error {
 	var mapLock sync.Mutex
 
-	log.G(context.TODO()).Info("Restoring containers: start.")
+	log.G(ctx).Info("Restoring containers: start.")
 
 	// parallelLimit is the maximum number of parallel startup jobs that we
 	// allow (this is the limited used for all startup semaphores). The multipler
@@ -287,7 +287,7 @@ func (daemon *Daemon) restore(cfg *configStore, containers map[string]*container
 			_ = sem.Acquire(context.Background(), 1)
 			defer sem.Release(1)
 
-			logger := log.G(context.TODO()).WithField("container", c.ID)
+			logger := log.G(ctx).WithField("container", c.ID)
 
 			rwlayer, err := daemon.imageService.GetLayerByID(c.ID)
 			if err != nil {
@@ -301,14 +301,14 @@ func (daemon *Daemon) restore(cfg *configStore, containers map[string]*container
 			}).Debug("loaded container")
 
 			if err := daemon.registerName(c); err != nil {
-				logger.WithError(err).Errorf("failed to register container name: %s", c.Name)
+				log.G(ctx).WithError(err).Errorf("failed to register container name: %s", c.Name)
 				mapLock.Lock()
 				delete(containers, c.ID)
 				mapLock.Unlock()
 				return
 			}
 			if err := daemon.register(context.TODO(), c); err != nil {
-				logger.WithError(err).Error("failed to register container")
+				log.G(ctx).WithError(err).Error("failed to register container")
 				mapLock.Lock()
 				delete(containers, c.ID)
 				mapLock.Unlock()
@@ -325,7 +325,7 @@ func (daemon *Daemon) restore(cfg *configStore, containers map[string]*container
 			_ = sem.Acquire(context.Background(), 1)
 			defer sem.Release(1)
 
-			baseLogger := log.G(context.TODO()).WithField("container", c.ID)
+			baseLogger := log.G(ctx).WithField("container", c.ID)
 
 			if c.HostConfig != nil {
 				// Migrate containers that don't have the default ("no") restart-policy set.
@@ -578,7 +578,7 @@ func (daemon *Daemon) restore(cfg *configStore, containers map[string]*container
 			_ = sem.Acquire(context.Background(), 1)
 
 			if err := daemon.registerLinks(c, c.HostConfig); err != nil {
-				log.G(context.TODO()).WithField("container", c.ID).WithError(err).Error("failed to register link for container")
+				log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to register link for container")
 			}
 
 			sem.Release(1)
@@ -592,7 +592,7 @@ func (daemon *Daemon) restore(cfg *configStore, containers map[string]*container
 		go func(c *container.Container, chNotify chan struct{}) {
 			_ = sem.Acquire(context.Background(), 1)
 
-			logger := log.G(context.TODO()).WithField("container", c.ID)
+			logger := log.G(ctx).WithField("container", c.ID)
 
 			logger.Debug("starting container")
 
@@ -632,7 +632,7 @@ func (daemon *Daemon) restore(cfg *configStore, containers map[string]*container
 			_ = sem.Acquire(context.Background(), 1)
 
 			if err := daemon.containerRm(&cfg.Config, cid, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
-				log.G(context.TODO()).WithField("container", cid).WithError(err).Error("failed to remove container")
+				log.G(ctx).WithField("container", cid).WithError(err).Error("failed to remove container")
 			}
 
 			sem.Release(1)
@@ -663,7 +663,7 @@ func (daemon *Daemon) restore(cfg *configStore, containers map[string]*container
 			_ = sem.Acquire(context.Background(), 1)
 
 			if err := daemon.prepareMountPoints(c); err != nil {
-				log.G(context.TODO()).WithField("container", c.ID).WithError(err).Error("failed to prepare mountpoints for container")
+				log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to prepare mountpoints for container")
 			}
 
 			sem.Release(1)
@@ -672,7 +672,7 @@ func (daemon *Daemon) restore(cfg *configStore, containers map[string]*container
 	}
 	group.Wait()
 
-	log.G(context.TODO()).Info("Loading containers: done.")
+	log.G(ctx).Info("Loading containers: done.")
 
 	return nil
 }
@@ -1087,7 +1087,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	d.linkIndex = newLinkIndex()
 
-	containers, err := d.loadContainers()
+	containers, err := d.loadContainers(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1349,7 +1349,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			}
 		}
 	}
-	if err := d.restore(cfgStore, driverContainers); err != nil {
+	if err := d.restore(ctx, cfgStore, driverContainers); err != nil {
 		return nil, err
 	}
 	// Wait for migration to complete
