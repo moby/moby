@@ -446,8 +446,8 @@ func TestCreateServiceCapabilities(t *testing.T) {
 	// verify that the container has the capabilities option set
 	ctnr, err := apiClient.ContainerInspect(ctx, tasks[0].Status.ContainerStatus.ContainerID)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, []string(ctnr.HostConfig.CapAdd), capAdd)
-	assert.DeepEqual(t, []string(ctnr.HostConfig.CapDrop), capDrop)
+	assert.DeepEqual(t, ctnr.HostConfig.CapAdd, capAdd)
+	assert.DeepEqual(t, ctnr.HostConfig.CapDrop, capDrop)
 
 	// verify that the task has the capabilities option set in the task object
 	assert.DeepEqual(t, tasks[0].Spec.ContainerSpec.CapabilityAdd, capAdd)
