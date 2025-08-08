@@ -3,6 +3,7 @@ package distribution
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/distribution/reference"
@@ -35,9 +36,9 @@ func (dr *distributionRouter) getDistributionInfo(ctx context.Context, w http.Re
 	if !ok {
 		if _, ok := ref.(reference.Digested); ok {
 			// full image ID
-			return errors.Errorf("no manifest found for full image ID")
+			return errors.New("no manifest found for full image ID")
 		}
-		return errdefs.InvalidParameter(errors.Errorf("unknown image reference format: %s", imgName))
+		return errdefs.InvalidParameter(fmt.Errorf("unknown image reference format: %s", imgName))
 	}
 
 	// For a search it is not an error if no auth was given. Ignore invalid
@@ -81,7 +82,7 @@ func fetchManifest(ctx context.Context, distrepo distribution.Repository, namedR
 
 		taggedRef, ok := namedRef.(reference.NamedTagged)
 		if !ok {
-			return registry.DistributionInspect{}, errdefs.InvalidParameter(errors.Errorf("image reference not tagged: %s", namedRef))
+			return registry.DistributionInspect{}, errdefs.InvalidParameter(fmt.Errorf("image reference not tagged: %s", namedRef))
 		}
 
 		descriptor, err := distrepo.Tags(ctx).Get(ctx, taggedRef.Tag())

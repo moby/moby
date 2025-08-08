@@ -335,7 +335,7 @@ func (container *Container) SetupWorkingDirectory(uid int, gid int) error {
 	if err := user.MkdirAllAndChown(pth, 0o755, uid, gid, user.WithOnlyNew); err != nil {
 		pthInfo, err2 := os.Stat(pth)
 		if err2 == nil && pthInfo != nil && !pthInfo.IsDir() {
-			return errors.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)
+			return fmt.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)
 		}
 
 		return err
