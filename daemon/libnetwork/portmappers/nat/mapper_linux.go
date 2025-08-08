@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"os"
 	"strconv"
 
 	"github.com/containerd/log"
@@ -23,8 +22,6 @@ type PortDriverClient interface {
 	AddPort(ctx context.Context, proto string, hostIP, childIP netip.Addr, hostPort int) (func() error, error)
 }
 
-type proxyStarter func(types.PortBinding, *os.File) (func() error, error)
-
 // Register the "nat" port-mapper with libnetwork.
 func Register(r portmapperapi.Registerer, cfg Config) error {
 	return r.Register(driverName, NewPortMapper(cfg))
@@ -32,24 +29,18 @@ func Register(r portmapperapi.Registerer, cfg Config) error {
 
 type PortMapper struct {
 	// pdc is used to interact with rootlesskit port driver.
-	pdc         PortDriverClient
-	startProxy  proxyStarter
-	enableProxy bool
+	pdc PortDriverClient
 }
 
 type Config struct {
 	// RlkClient is called by MapPorts to determine the ChildHostIP and ask
 	// rootlesskit to map ports in its netns.
-	RlkClient   PortDriverClient
-	StartProxy  proxyStarter
-	EnableProxy bool
+	RlkClient PortDriverClient
 }
 
 func NewPortMapper(cfg Config) PortMapper {
 	return PortMapper{
-		pdc:         cfg.RlkClient,
-		startProxy:  cfg.StartProxy,
-		enableProxy: cfg.EnableProxy,
+		pdc: cfg.RlkClient,
 	}
 }
 
@@ -102,41 +93,15 @@ func (pm PortMapper) MapPorts(ctx context.Context, cfg []portmapperapi.PortBindi
 		}
 		pb.PortBinding.HostPort = uint16(allocatedPort)
 		pb.PortBinding.HostPortEnd = pb.HostPort
+
+		childHIP, _ := netip.AddrFromSlice(cfg[i].ChildHostIP)
+		pb.NAT = netip.AddrPortFrom(childHIP, pb.PortBinding.HostPort)
+
 		bindings = append(bindings, pb)
 	}
 
 	if err := configPortDriver(ctx, bindings, pm.pdc); err != nil {
 		return nil, err
-	}
-	if err := fwn.AddPorts(ctx, mergeChildHostIPs(bindings)); err != nil {
-		return nil, err
-	}
-
-	// Start userland proxy processes.
-	if pm.enableProxy {
-		for i := range bindings {
-			if bindings[i].BoundSocket == nil || bindings[i].RootlesskitUnsupported || bindings[i].StopProxy != nil {
-				continue
-			}
-			if err := portallocator.DetachSocketFilter(bindings[i].BoundSocket); err != nil {
-				return nil, fmt.Errorf("failed to detach socket filter for port mapping %s: %w", bindings[i].PortBinding, err)
-			}
-			var err error
-			bindings[i].StopProxy, err = pm.startProxy(
-				bindings[i].ChildPortBinding(), bindings[i].BoundSocket,
-			)
-			if err != nil {
-				return nil, fmt.Errorf("failed to start userland proxy for port mapping %s: %w",
-					bindings[i].PortBinding, err)
-			}
-			if err := bindings[i].BoundSocket.Close(); err != nil {
-				log.G(ctx).WithFields(log.Fields{
-					"error":   err,
-					"mapping": bindings[i].PortBinding,
-				}).Warnf("failed to close proxy socket")
-			}
-			bindings[i].BoundSocket = nil
-		}
 	}
 
 	return bindings, nil
@@ -155,14 +120,6 @@ func (pm PortMapper) UnmapPorts(ctx context.Context, pbs []portmapperapi.PortBin
 				errs = append(errs, err)
 			}
 		}
-		if pb.StopProxy != nil {
-			if err := pb.StopProxy(); err != nil && !errors.Is(err, os.ErrProcessDone) {
-				errs = append(errs, fmt.Errorf("failed to stop userland proxy: %w", err))
-			}
-		}
-	}
-	if err := fwn.DelPorts(ctx, mergeChildHostIPs(pbs)); err != nil {
-		errs = append(errs, err)
 	}
 	for _, pb := range pbs {
 		portallocator.Get().ReleasePort(pb.ChildHostIP, pb.Proto.String(), int(pb.HostPort))
@@ -178,21 +135,6 @@ func setChildHostIP(pdc PortDriverClient, req portmapperapi.PortBindingReq) port
 	hip, _ := netip.AddrFromSlice(req.HostIP)
 	req.ChildHostIP = pdc.ChildHostIP(hip).AsSlice()
 	return req
-}
-
-// mergeChildHostIPs take a slice of PortBinding and returns a slice of
-// types.PortBinding, where the HostIP in each of the results has the
-// value of ChildHostIP from the input (if present).
-func mergeChildHostIPs(pbs []portmapperapi.PortBinding) []types.PortBinding {
-	res := make([]types.PortBinding, 0, len(pbs))
-	for _, b := range pbs {
-		pb := b.PortBinding
-		if b.ChildHostIP != nil {
-			pb.HostIP = b.ChildHostIP
-		}
-		res = append(res, pb)
-	}
-	return res
 }
 
 // configPortDriver passes the port binding's details to rootlesskit, and updates the
