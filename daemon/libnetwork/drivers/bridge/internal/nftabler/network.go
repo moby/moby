@@ -18,10 +18,10 @@ import (
 type network struct {
 	config  firewaller.NetworkConfig
 	cleaner func(ctx context.Context) error
-	fw      *nftabler
+	fw      *Nftabler
 }
 
-func (nft *nftabler) NewNetwork(ctx context.Context, nc firewaller.NetworkConfig) (_ firewaller.Network, retErr error) {
+func (nft *Nftabler) NewNetwork(ctx context.Context, nc firewaller.NetworkConfig) (_ firewaller.Network, retErr error) {
 	n := &network{
 		fw:     nft,
 		config: nc,

@@ -11,7 +11,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
 )
 
-// Cleanup deletes all rules created by nftabler; it's intended to be used
+// Cleanup deletes all rules created by Nftabler; it's intended to be used
 // during startup, to clean up rules created by an old incarnation of the daemon
 // after switching to a different Firewaller implementation.
 func Cleanup(ctx context.Context, config firewaller.Config) {
@@ -31,6 +31,6 @@ func Cleanup(ctx context.Context, config firewaller.Config) {
 	}
 }
 
-func (nft *nftabler) SetFirewallCleaner(fc firewaller.FirewallCleaner) {
+func (nft *Nftabler) SetFirewallCleaner(fc firewaller.FirewallCleaner) {
 	nft.cleaner = fc
 }

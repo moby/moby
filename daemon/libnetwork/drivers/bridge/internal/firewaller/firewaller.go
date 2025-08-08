@@ -76,9 +76,6 @@ type Firewaller interface {
 	// NewNetwork returns an object that can be used to add published ports and legacy
 	// links for a bridge network.
 	NewNetwork(ctx context.Context, nc NetworkConfig) (Network, error)
-	// FilterForwardDrop sets the default policy of the FORWARD chain in the filter
-	// table to DROP.
-	FilterForwardDrop(ctx context.Context, ipv IPVersion) error
 }
 
 // Network can be used to manipulate firewall rules for a bridge network.
@@ -108,12 +105,6 @@ type Network interface {
 	AddLink(ctx context.Context, parentIP, childIP netip.Addr, ports []types.TransportPort) error
 	// DelLink deletes the configuration needed for a legacy link.
 	DelLink(ctx context.Context, parentIP, childIP netip.Addr, ports []types.TransportPort)
-}
-
-// FirewallCleanerSetter is an optional interface for a Firewaller.
-type FirewallCleanerSetter interface {
-	// SetFirewallCleaner replaces the FirewallCleaner (possibly with 'nil').
-	SetFirewallCleaner(FirewallCleaner)
 }
 
 // FirewallCleaner is used to delete rules created by previous incarnations of

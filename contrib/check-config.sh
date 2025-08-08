@@ -128,6 +128,16 @@ check_device() {
 	fi
 }
 
+check_sysctl() {
+	val=$(sysctl -n $1)
+	want=$2
+	if [ "$val" = "$want" ]; then
+		wrap_good "sysctl $1" "enabled"
+	else
+		wrap_bad "sysctl $1" "disabled"
+	fi
+}
+
 if [ ! -e "$CONFIG" ]; then
 	wrap_warning "warning: $CONFIG does not exist, searching other paths for kernel config ..."
 	for tryConfig in $possibleConfigs; do
@@ -343,6 +353,10 @@ if ! is_set EXT4_FS || ! is_set EXT4_FS_POSIX_ACL || ! is_set EXT4_FS_SECURITY; 
 fi
 
 echo '- Network Drivers:'
+echo "  - \"$(wrap_color 'bridge' blue)\":"
+check_sysctl net.ipv4.ip_forward 1 | sed 's/^/    - /'
+check_sysctl net.ipv6.conf.all.forwarding 1 | sed 's/^/    - /'
+check_sysctl net.ipv6.conf.default.forwarding 1 | sed 's/^/    - /'
 echo "  - \"$(wrap_color 'overlay' blue)\":"
 check_flags VXLAN BRIDGE_VLAN_FILTERING | sed 's/^/    /'
 echo '      Optional (for encrypted networks):'

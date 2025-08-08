@@ -246,6 +246,8 @@ func TestIPRangeAt64BitLimit(t *testing.T) {
 func TestFilterForwardPolicy(t *testing.T) {
 	skip.If(t, testEnv.IsRootless, "rootless has its own netns")
 	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
+	skip.If(t, strings.HasPrefix(testEnv.FirewallBackendDriver(), "nftables"), "no policy is set for nftables")
+
 	ctx := setupTest(t)
 
 	// Set up a netns for each test to avoid sysctl and iptables pollution.
@@ -305,30 +307,17 @@ func TestFilterForwardPolicy(t *testing.T) {
 			)
 			host := l3.Hosts[hostname]
 
-			getFwdPolicy := func(usingNftables bool, fam string) string {
+			getFwdPolicy := func(cmd string) string {
 				t.Helper()
-				if usingNftables {
-					out := host.MustRun(t, "nft", "list chain "+fam+" docker-bridges filter-FORWARD")
-					if strings.Contains(out, "policy accept") {
-						return "ACCEPT"
-					}
-					if strings.Contains(out, "policy drop") {
-						return "DROP"
-					}
-					t.Fatalf("Failed to determine nftables filter-FORWARD policy: %s", out)
-					return ""
-				} else {
-					cmd := fam + "tables"
-					out := host.MustRun(t, cmd, "-S", "FORWARD")
-					if strings.HasPrefix(out, "-P FORWARD ACCEPT") {
-						return "ACCEPT"
-					}
-					if strings.HasPrefix(out, "-P FORWARD DROP") {
-						return "DROP"
-					}
-					t.Fatalf("Failed to determine %s FORWARD policy: %s", cmd, out)
-					return ""
+				out := host.MustRun(t, cmd, "-S", "FORWARD")
+				if strings.HasPrefix(out, "-P FORWARD ACCEPT") {
+					return "ACCEPT"
 				}
+				if strings.HasPrefix(out, "-P FORWARD DROP") {
+					return "DROP"
+				}
+				t.Fatalf("Failed to determine %s FORWARD policy: %s", cmd, out)
+				return ""
 			}
 
 			type sysctls struct{ v4, v6def, v6all string }
@@ -354,22 +343,21 @@ func TestFilterForwardPolicy(t *testing.T) {
 				d.StartWithBusybox(ctx, t, tc.daemonArgs...)
 				t.Cleanup(func() { d.Stop(t) })
 			})
-			usingNftables := d.FirewallBackendDriver(t) == "nftables"
 			c := d.NewClientT(t)
 			t.Cleanup(func() { c.Close() })
 
 			// If necessary, the IPv4 policy should have been updated when the default bridge network was created.
-			assert.Check(t, is.Equal(getFwdPolicy(usingNftables, "ip"), tc.expPolicy))
+			assert.Check(t, is.Equal(getFwdPolicy("iptables"), tc.expPolicy))
 			// IPv6 policy should not have been updated yet.
-			assert.Check(t, is.Equal(getFwdPolicy(usingNftables, "ip6"), "ACCEPT"))
+			assert.Check(t, is.Equal(getFwdPolicy("ip6tables"), "ACCEPT"))
 			assert.Check(t, is.Equal(getSysctls(), sysctls{tc.expForwarding, tc.initForwarding, tc.initForwarding}))
 
 			// If necessary, creating an IPv6 network should update the sysctls and policy.
 			const netName = "testnetffp"
 			network.CreateNoError(ctx, t, c, netName, network.WithIPv6())
 			t.Cleanup(func() { network.RemoveNoError(ctx, t, c, netName) })
-			assert.Check(t, is.Equal(getFwdPolicy(usingNftables, "ip"), tc.expPolicy))
-			assert.Check(t, is.Equal(getFwdPolicy(usingNftables, "ip6"), tc.expPolicy))
+			assert.Check(t, is.Equal(getFwdPolicy("iptables"), tc.expPolicy))
+			assert.Check(t, is.Equal(getFwdPolicy("ip6tables"), tc.expPolicy))
 			assert.Check(t, is.Equal(getSysctls(), sysctls{tc.expForwarding, tc.expForwarding, tc.expForwarding}))
 		})
 	}

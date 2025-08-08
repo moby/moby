@@ -22,11 +22,11 @@ type (
 
 type network struct {
 	config     firewaller.NetworkConfig
-	ipt        *iptabler
+	ipt        *Iptabler
 	cleanFuncs iptablesCleanFuncs
 }
 
-func (ipt *iptabler) NewNetwork(ctx context.Context, nc firewaller.NetworkConfig) (_ firewaller.Network, retErr error) {
+func (ipt *Iptabler) NewNetwork(ctx context.Context, nc firewaller.NetworkConfig) (_ firewaller.Network, retErr error) {
 	n := &network{
 		ipt:    ipt,
 		config: nc,

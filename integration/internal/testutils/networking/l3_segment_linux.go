@@ -77,6 +77,8 @@ func (l3 *L3Segment) AddHost(t *testing.T, hostname, nsName, ifname string, addr
 	l3.bridge.MustRun(t, "ip", "link", "set", hostname, "up", "master", l3.bridge.Iface)
 	host.MustRun(t, "ip", "link", "set", host.Iface, "up")
 	host.MustRun(t, "ip", "link", "set", "lo", "up")
+	host.MustRun(t, "sysctl", "-w", "net.ipv4.ip_forward=1")
+	host.MustRun(t, "sysctl", "-w", "net.ipv6.conf.all.forwarding=1")
 
 	for _, addr := range addrs {
 		host.MustRun(t, "ip", "addr", "add", addr.String(), "dev", host.Iface, "nodad")
