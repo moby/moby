@@ -8,7 +8,6 @@ import (
 	"net/netip"
 	"os"
 	"strconv"
-	"syscall"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/rlkclient"
@@ -104,6 +103,9 @@ func (pm PortMapper) MapPorts(ctx context.Context, cfg []portmapperapi.PortBindi
 		for i := range bindings {
 			if bindings[i].BoundSocket == nil || bindings[i].RootlesskitUnsupported || bindings[i].StopProxy != nil {
 				continue
+			}
+			if err := portallocator.DetachSocketFilter(bindings[i].BoundSocket); err != nil {
+				return nil, fmt.Errorf("failed to detach socket filter for port mapping %s: %w", bindings[i].PortBinding, err)
 			}
 			var err error
 			bindings[i].StopProxy, err = pm.startProxy(
@@ -226,17 +228,6 @@ func (pm PortMapper) attemptBindHostPorts(
 	if err := fwn.AddPorts(ctx, mergeChildHostIPs(res)); err != nil {
 		return nil, err
 	}
-	// Now the firewall rules are set up, it's safe to listen on the socket. (Listening
-	// earlier could result in dropped connections if the proxy becomes unreachable due
-	// to NAT rules sending packets directly to the container.)
-	//
-	// If not starting the proxy, nothing will ever accept a connection on the
-	// socket. Listen here anyway because SO_REUSEADDR is set, so bind() won't notice
-	// the problem if a port's bound to both INADDR_ANY and a specific address. (Also
-	// so the binding shows up in "netstat -at".)
-	if err := listenBoundPorts(res, pm.enableProxy); err != nil {
-		return nil, err
-	}
 	return res, nil
 }
 
@@ -293,32 +284,6 @@ func configPortDriver(ctx context.Context, pbs []portmapperapi.PortBinding, pdc 
 				}
 				return err
 			}
-		}
-	}
-	return nil
-}
-
-func listenBoundPorts(pbs []portmapperapi.PortBinding, proxyEnabled bool) error {
-	for i := range pbs {
-		if pbs[i].BoundSocket == nil || pbs[i].RootlesskitUnsupported || pbs[i].Proto == types.UDP {
-			continue
-		}
-		rc, err := pbs[i].BoundSocket.SyscallConn()
-		if err != nil {
-			return fmt.Errorf("raw conn not available on %d socket: %w", pbs[i].Proto, err)
-		}
-		if errC := rc.Control(func(fd uintptr) {
-			somaxconn := 0
-			// SCTP sockets do not support somaxconn=0
-			if proxyEnabled || pbs[i].Proto == types.SCTP {
-				somaxconn = -1 // silently capped to "/proc/sys/net/core/somaxconn"
-			}
-			err = syscall.Listen(int(fd), somaxconn)
-		}); errC != nil {
-			return fmt.Errorf("failed to Control %s socket: %w", pbs[i].Proto, err)
-		}
-		if err != nil {
-			return fmt.Errorf("failed to listen on %s socket: %w", pbs[i].Proto, err)
 		}
 	}
 	return nil
