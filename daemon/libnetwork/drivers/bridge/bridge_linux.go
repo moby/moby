@@ -69,6 +69,8 @@ type configuration struct {
 	DisableFilterForwardDrop bool
 	EnableIPTables           bool
 	EnableIP6Tables          bool
+	EnableProxy              bool
+	ProxyPath                string
 	// Hairpin indicates whether packets sent from a container to a host port
 	// published by another container on the same bridge network should be
 	// hairpinned.
