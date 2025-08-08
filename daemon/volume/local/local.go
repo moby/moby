@@ -362,7 +362,7 @@ func (v *localVolume) Unmount(id string) error {
 	return v.unmount()
 }
 
-func (v *localVolume) Status() map[string]any {
+func (v *localVolume) Status() map[string]interface{} {
 	return nil
 }
 

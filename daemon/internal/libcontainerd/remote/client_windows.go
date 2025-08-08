@@ -13,7 +13,6 @@ import (
 	"github.com/containerd/log"
 	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 )
 
 func summaryFromInterface(i any) (*libcontainerdtypes.Summary, error) {
@@ -31,7 +30,7 @@ func summaryFromInterface(i any) (*libcontainerdtypes.Summary, error) {
 			ExecID:                       pd.ExecID,
 		}, nil
 	default:
-		return nil, errors.Errorf("Unknown process details type %T", pd)
+		return nil, fmt.Errorf("Unknown process details type %T", pd)
 	}
 }
 

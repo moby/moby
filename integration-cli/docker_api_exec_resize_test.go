@@ -34,7 +34,7 @@ func (s *DockerAPISuite) TestExecResizeImmediatelyAfterExecStart(c *testing.T) {
 	cli.DockerCmd(c, "run", "-d", "-i", "-t", "--name", name, "--restart", "always", "busybox", "/bin/sh")
 
 	testExecResize := func() error {
-		data := map[string]any{
+		data := map[string]interface{}{
 			"AttachStdin": true,
 			"Cmd":         []string{"/bin/sh"},
 		}

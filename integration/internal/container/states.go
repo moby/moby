@@ -2,12 +2,12 @@ package container
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
-	"github.com/pkg/errors"
 	"gotest.tools/v3/poll"
 )
 
@@ -63,7 +63,7 @@ func IsSuccessful(ctx context.Context, apiClient client.APIClient, containerID s
 			if inspect.State.ExitCode == 0 {
 				return poll.Success()
 			}
-			return poll.Error(errors.Errorf("expected exit code 0, got %d", inspect.State.ExitCode))
+			return poll.Error(fmt.Errorf("expected exit code 0, got %d", inspect.State.ExitCode))
 		}
 		return poll.Continue("waiting for container to be %q, currently %s", container.StateExited, inspect.State.Status)
 	}

@@ -30,7 +30,7 @@ const (
 	defaultCompressLogs       = true
 )
 
-var buffersPool = sync.Pool{New: func() any {
+var buffersPool = sync.Pool{New: func() interface{} {
 	b := make([]byte, initialBufSize)
 	return &b
 }}

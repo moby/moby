@@ -69,7 +69,7 @@ func NewSnapshotter(opt Opt, prevLM leases.Manager, ns string) (snapshot.Snapsho
 
 	reg, ok := opt.LayerStore.(graphIDRegistrar)
 	if !ok {
-		return nil, nil, errors.Errorf("layerstore doesn't support graphID registration")
+		return nil, nil, errors.New("layerstore doesn't support graphID registration")
 	}
 
 	s := &snapshotter{
@@ -330,7 +330,7 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 }
 
 func (s *snapshotter) Remove(ctx context.Context, key string) error {
-	return errors.Errorf("calling snapshot.remove is forbidden")
+	return errors.New("calling snapshot.remove is forbidden")
 }
 
 func (s *snapshotter) remove(ctx context.Context, key string) error {
