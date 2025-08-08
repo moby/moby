@@ -259,7 +259,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 	}); ok {
 		driver = ls.Driver()
 	} else {
-		return nil, errors.Errorf("could not access graphdriver")
+		return nil, errors.New("could not access graphdriver")
 	}
 
 	innerStore, err := local.NewStore(filepath.Join(root, "content"))
@@ -297,7 +297,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 
 	layerGetter, ok := snapshotter.(imagerefchecker.LayerGetter)
 	if !ok {
-		return nil, errors.Errorf("snapshotter does not implement layergetter")
+		return nil, errors.New("snapshotter does not implement layergetter")
 	}
 
 	refChecker := imagerefchecker.New(imagerefchecker.Opt{
@@ -359,7 +359,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 
 	differ, ok := snapshotter.(mobyexporter.Differ)
 	if !ok {
-		return nil, errors.Errorf("snapshotter doesn't support differ")
+		return nil, errors.New("snapshotter doesn't support differ")
 	}
 
 	exp, err := mobyexporter.New(mobyexporter.Opt{
@@ -392,7 +392,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 
 	layers, ok := snapshotter.(mobyworker.LayerAccess)
 	if !ok {
-		return nil, errors.Errorf("snapshotter doesn't support differ")
+		return nil, errors.New("snapshotter doesn't support differ")
 	}
 
 	leases, err := lm.List(ctx, `labels."buildkit/lease.temporary"`)

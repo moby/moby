@@ -375,7 +375,7 @@ func GetConflictFreeLabels(labels []string) ([]string, error) {
 		if ok {
 			// If there is a conflict we will return an error
 			if v, ok := labelMap[key]; ok && v != val {
-				return nil, errors.Errorf("conflict labels for %s=%s and %s=%s", key, val, key, v)
+				return nil, fmt.Errorf("conflict labels for %s=%s and %s=%s", key, val, key, v)
 			}
 			labelMap[key] = val
 		}
@@ -611,7 +611,7 @@ func findConfigurationConflicts(config map[string]any, flags *pflag.FlagSet) err
 		for key := range unknownKeys {
 			unknown = append(unknown, key)
 		}
-		return errors.Errorf("the following directives don't match any configuration option: %s", strings.Join(unknown, ", "))
+		return fmt.Errorf("the following directives don't match any configuration option: %s", strings.Join(unknown, ", "))
 	}
 
 	// 3. Search keys that are present as a flag and as a file option.
@@ -661,7 +661,7 @@ func findConfigurationConflicts(config map[string]any, flags *pflag.FlagSet) err
 	}
 
 	if len(conflicts) > 0 {
-		errs = append(errs, errors.Errorf("the following directives are specified both as a flag and in the configuration file: %s", strings.Join(conflicts, ", ")))
+		errs = append(errs, fmt.Errorf("the following directives are specified both as a flag and in the configuration file: %s", strings.Join(conflicts, ", ")))
 	}
 	return stderrors.Join(errs...)
 }
@@ -677,10 +677,10 @@ func ValidateMinAPIVersion(ver string) error {
 		return errors.New(`API version must be provided without "v" prefix`)
 	}
 	if versions.LessThan(ver, defaultMinAPIVersion) {
-		return errors.Errorf(`minimum supported API version is %s: %s`, defaultMinAPIVersion, ver)
+		return fmt.Errorf(`minimum supported API version is %s: %s`, defaultMinAPIVersion, ver)
 	}
 	if versions.GreaterThan(ver, DefaultAPIVersion) {
-		return errors.Errorf(`maximum supported API version is %s: %s`, DefaultAPIVersion, ver)
+		return fmt.Errorf(`maximum supported API version is %s: %s`, DefaultAPIVersion, ver)
 	}
 	return nil
 }
@@ -697,7 +697,7 @@ func Validate(config *Config) error {
 		case "panic", "fatal", "error", "warn", "info", "debug", "trace":
 			// These are valid. See [log.SetLevel] for a list of accepted levels.
 		default:
-			return errors.Errorf("invalid logging level: %s", config.LogLevel)
+			return fmt.Errorf("invalid logging level: %s", config.LogLevel)
 		}
 	}
 
@@ -707,7 +707,7 @@ func Validate(config *Config) error {
 		case log.TextFormat, log.JSONFormat:
 			// These are valid
 		default:
-			return errors.Errorf("invalid log format: %s", logFormat)
+			return fmt.Errorf("invalid log format: %s", logFormat)
 		}
 	}
 
@@ -732,19 +732,19 @@ func Validate(config *Config) error {
 
 	// TODO(thaJeztah) Validations below should not accept "0" to be valid; see Validate() for a more in-depth description of this problem
 	if config.MTU < 0 {
-		return errors.Errorf("invalid default MTU: %d", config.MTU)
+		return fmt.Errorf("invalid default MTU: %d", config.MTU)
 	}
 	if config.MaxConcurrentDownloads < 0 {
-		return errors.Errorf("invalid max concurrent downloads: %d", config.MaxConcurrentDownloads)
+		return fmt.Errorf("invalid max concurrent downloads: %d", config.MaxConcurrentDownloads)
 	}
 	if config.MaxConcurrentUploads < 0 {
-		return errors.Errorf("invalid max concurrent uploads: %d", config.MaxConcurrentUploads)
+		return fmt.Errorf("invalid max concurrent uploads: %d", config.MaxConcurrentUploads)
 	}
 	if config.MaxDownloadAttempts < 0 {
-		return errors.Errorf("invalid max download attempts: %d", config.MaxDownloadAttempts)
+		return fmt.Errorf("invalid max download attempts: %d", config.MaxDownloadAttempts)
 	}
 	if config.NetworkDiagnosticPort < 0 || config.NetworkDiagnosticPort > 65535 {
-		return errors.Errorf("invalid network-diagnostic-port (%d): value must be between 0 and 65535", config.NetworkDiagnosticPort)
+		return fmt.Errorf("invalid network-diagnostic-port (%d): value must be between 0 and 65535", config.NetworkDiagnosticPort)
 	}
 
 	if _, err := ParseGenericResources(config.NodeGenericResources); err != nil {

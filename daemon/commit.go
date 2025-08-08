@@ -14,7 +14,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/metrics"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/pkg/errors"
 )
 
 // merge merges two Config, the image container configuration (defaults values),
@@ -133,7 +132,7 @@ func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string,
 
 	// It is not possible to commit a running container on Windows
 	if isWindows && container.IsRunning() {
-		return "", errors.Errorf("%+v does not support commit of a running container", runtime.GOOS)
+		return "", fmt.Errorf("%+v does not support commit of a running container", runtime.GOOS)
 	}
 
 	if container.IsDead() {

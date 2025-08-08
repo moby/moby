@@ -189,7 +189,7 @@ func (fms *fileMetadataStore) GetCacheID(layer ChainID) (string, error) {
 	content := strings.TrimSpace(string(contentBytes))
 
 	if content == "" {
-		return "", errors.Errorf("invalid cache id value")
+		return "", errors.New("invalid cache id value")
 	}
 
 	return content, nil

@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -369,7 +370,7 @@ func (n *networkRouter) findUniqueNetwork(term string) (network.Inspect, error) 
 		}
 	}
 	if len(listByFullName) > 1 {
-		return network.Inspect{}, errdefs.InvalidParameter(errors.Errorf("network %s is ambiguous (%d matches found based on name)", term, len(listByFullName)))
+		return network.Inspect{}, errdefs.InvalidParameter(fmt.Errorf("network %s is ambiguous (%d matches found based on name)", term, len(listByFullName)))
 	}
 
 	// Find based on partial ID, returns true only if no duplicates
@@ -379,7 +380,7 @@ func (n *networkRouter) findUniqueNetwork(term string) (network.Inspect, error) 
 		}
 	}
 	if len(listByPartialID) > 1 {
-		return network.Inspect{}, errdefs.InvalidParameter(errors.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID)))
+		return network.Inspect{}, errdefs.InvalidParameter(fmt.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID)))
 	}
 
 	return network.Inspect{}, errdefs.NotFound(libnetwork.ErrNoSuchNetwork(term))

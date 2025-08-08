@@ -299,7 +299,7 @@ func validateHostConfig(hostConfig *containertypes.HostConfig) (warnings []strin
 	}
 
 	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
-		return warnings, errors.Errorf("can't create 'AutoRemove' container with restart policy")
+		return warnings, errors.New("can't create 'AutoRemove' container with restart policy")
 	}
 	// Validate mounts; check if host directories still exist
 	parser := volumemounts.NewParser()
@@ -329,11 +329,11 @@ func validateHostConfig(hostConfig *containertypes.HostConfig) (warnings []strin
 		return warnings, err
 	}
 	if !hostConfig.Isolation.IsValid() {
-		return warnings, errors.Errorf("invalid isolation '%s' on %s", hostConfig.Isolation, runtime.GOOS)
+		return warnings, fmt.Errorf("invalid isolation '%s' on %s", hostConfig.Isolation, runtime.GOOS)
 	}
 	for k := range hostConfig.Annotations {
 		if k == "" {
-			return warnings, errors.Errorf("invalid Annotations: the empty string is not permitted as an annotation key")
+			return warnings, errors.New("invalid Annotations: the empty string is not permitted as an annotation key")
 		}
 	}
 	return warnings, nil
@@ -356,19 +356,19 @@ func validateHealthCheck(healthConfig *containertypes.HealthConfig) error {
 		return nil
 	}
 	if healthConfig.Interval != 0 && healthConfig.Interval < containertypes.MinimumDuration {
-		return errors.Errorf("Interval in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
+		return fmt.Errorf("Interval in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
 	}
 	if healthConfig.Timeout != 0 && healthConfig.Timeout < containertypes.MinimumDuration {
-		return errors.Errorf("Timeout in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
+		return fmt.Errorf("Timeout in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
 	}
 	if healthConfig.Retries < 0 {
-		return errors.Errorf("Retries in Healthcheck cannot be negative")
+		return errors.New("Retries in Healthcheck cannot be negative")
 	}
 	if healthConfig.StartPeriod != 0 && healthConfig.StartPeriod < containertypes.MinimumDuration {
-		return errors.Errorf("StartPeriod in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
+		return fmt.Errorf("StartPeriod in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
 	}
 	if healthConfig.StartInterval != 0 && healthConfig.StartInterval < containertypes.MinimumDuration {
-		return errors.Errorf("StartInterval in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
+		return fmt.Errorf("StartInterval in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
 	}
 	return nil
 }
@@ -377,12 +377,12 @@ func validatePortBindings(ports containertypes.PortMap) error {
 	for port := range ports {
 		_, portStr := nat.SplitProtoPort(string(port))
 		if _, err := nat.ParsePort(portStr); err != nil {
-			return errors.Errorf("invalid port specification: %q", portStr)
+			return fmt.Errorf("invalid port specification: %q", portStr)
 		}
 		for _, pb := range ports[port] {
 			_, err := nat.NewPort(nat.SplitProtoPort(pb.HostPort))
 			if err != nil {
-				return errors.Errorf("invalid port specification: %q", pb.HostPort)
+				return fmt.Errorf("invalid port specification: %q", pb.HostPort)
 			}
 		}
 	}

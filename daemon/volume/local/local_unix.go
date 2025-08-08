@@ -53,7 +53,7 @@ func (r *Root) validateOpts(opts map[string]string) error {
 	}
 	for opt := range opts {
 		if _, ok := validOpts[opt]; !ok {
-			return errdefs.InvalidParameter(errors.Errorf("invalid option: %q", opt))
+			return errdefs.InvalidParameter(fmt.Errorf("invalid option: %q", opt))
 		}
 	}
 	if typeOpt, deviceOpt := opts["type"], opts["device"]; typeOpt == "cifs" && deviceOpt != "" {
@@ -78,7 +78,7 @@ func (r *Root) validateOpts(opts map[string]string) error {
 		if _, ok := opts[opt]; ok {
 			for _, reqopt := range reqopts {
 				if _, ok := opts[reqopt]; !ok {
-					return errdefs.InvalidParameter(errors.Errorf("missing required option: %q", reqopt))
+					return errdefs.InvalidParameter(fmt.Errorf("missing required option: %q", reqopt))
 				}
 			}
 		}

@@ -4,6 +4,7 @@ package fluentd
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"net/url"
 	"strconv"
@@ -164,7 +165,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case writeTimeoutKey:
 			// Accepted
 		default:
-			return errors.Errorf("unknown log opt '%s' for fluentd log driver", key)
+			return fmt.Errorf("unknown log opt '%s' for fluentd log driver", key)
 		}
 	}
 
@@ -228,7 +229,7 @@ func parseConfig(cfg map[string]string) (fluent.Config, error) {
 		}
 		if interval != 0 {
 			if interval < minReconnectInterval || interval > maxReconnectInterval {
-				return config, errors.Errorf("invalid value for %s: value (%q) must be between %s and %s",
+				return config, fmt.Errorf("invalid value for %s: value (%q) must be between %s and %s",
 					asyncReconnectIntervalKey, interval, minReconnectInterval, maxReconnectInterval)
 			}
 			asyncReconnectInterval = int(interval.Milliseconds())
@@ -254,7 +255,7 @@ func parseConfig(cfg map[string]string) (fluent.Config, error) {
 		if d, err := time.ParseDuration(cfg[writeTimeoutKey]); err != nil {
 			return config, errors.Wrapf(err, "invalid value for %s: value must be a duration", writeTimeoutKey)
 		} else if d < 0 {
-			return config, errors.Errorf("invalid value for %s: value must be a duration that is non-negative", writeTimeoutKey)
+			return config, fmt.Errorf("invalid value for %s: value must be a duration that is non-negative", writeTimeoutKey)
 		} else {
 			writeTimeout = d
 		}
@@ -307,7 +308,7 @@ func parseAddress(address string) (*location, error) {
 	case "tcp", "tls":
 		// continue processing below
 	default:
-		return nil, errors.Errorf("unsupported scheme: '%s'", addr.Scheme)
+		return nil, fmt.Errorf("unsupported scheme: '%s'", addr.Scheme)
 	}
 
 	if addr.Path != "" {

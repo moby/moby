@@ -128,7 +128,7 @@ func (is *Source) registryIdentifier(ref string, attrs map[string]string, platfo
 				return nil, errors.Wrapf(err, "invalid layer limit %s", v)
 			}
 			if l <= 0 {
-				return nil, errors.Errorf("invalid layer limit %s", v)
+				return nil, fmt.Errorf("invalid layer limit %s", v)
 			}
 			id.LayerLimit = &l
 		}
@@ -146,7 +146,7 @@ func parseImageRecordType(v string) (client.UsageRecordType, error) {
 	case client.UsageRecordTypeFrontend:
 		return client.UsageRecordTypeFrontend, nil
 	default:
-		return "", errors.Errorf("invalid record type %s", v)
+		return "", fmt.Errorf("invalid record type %s", v)
 	}
 }
 
@@ -246,7 +246,7 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt source
 func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager, vtx solver.Vertex) (source.SourceInstance, error) {
 	imageIdentifier, ok := id.(*containerimage.ImageIdentifier)
 	if !ok {
-		return nil, errors.Errorf("invalid image identifier %v", id)
+		return nil, fmt.Errorf("invalid image identifier %v", id)
 	}
 
 	platform := platforms.DefaultSpec()
@@ -419,7 +419,7 @@ func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (stri
 	}
 
 	if len(p.config) == 0 && p.desc.MediaType != c8dimages.MediaTypeDockerSchema1Manifest {
-		return "", "", nil, false, errors.Errorf("invalid empty config file resolved for %s", p.src.Reference.String())
+		return "", "", nil, false, fmt.Errorf("invalid empty config file resolved for %s", p.src.Reference.String())
 	}
 
 	k := cacheKeyFromConfig(p.config).String()
@@ -582,7 +582,7 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 	}
 
 	if len(mfst.Layers) != len(img.RootFS.DiffIDs) {
-		return nil, errors.Errorf("invalid config for manifest")
+		return nil, errors.New("invalid config for manifest")
 	}
 
 	pchan := make(chan pkgprogress.Progress, 10)
@@ -943,7 +943,7 @@ func applySourcePolicies(ctx context.Context, str string, spls []*spb.Policy) (s
 	if mut {
 		t, newRef, ok := strings.Cut(op.GetIdentifier(), "://")
 		if !ok {
-			return "", errors.Errorf("could not parse ref: %s", op.GetIdentifier())
+			return "", fmt.Errorf("could not parse ref: %s", op.GetIdentifier())
 		}
 		if t != srctypes.DockerImageScheme {
 			return "", &imageutil.ResolveToNonImageError{Ref: str, Updated: newRef}

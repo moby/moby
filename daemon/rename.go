@@ -40,7 +40,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 	links := map[string]*container.Container{}
 	for k, v := range daemon.linkIndex.children(ctr) {
 		if !strings.HasPrefix(k, ctr.Name) {
-			return errdefs.InvalidParameter(errors.Errorf("Linked container %s does not match parent %s", k, ctr.Name))
+			return errdefs.InvalidParameter(fmt.Errorf("Linked container %s does not match parent %s", k, ctr.Name))
 		}
 		links[strings.TrimPrefix(k, ctr.Name)] = v
 	}
