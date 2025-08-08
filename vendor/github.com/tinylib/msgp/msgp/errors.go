@@ -13,6 +13,10 @@ var (
 	// contain the contents of the message
 	ErrShortBytes error = errShort{}
 
+	// ErrRecursion is returned when the maximum recursion limit is reached for an operation.
+	// This should only realistically be seen on adversarial data trying to exhaust the stack.
+	ErrRecursion error = errRecursion{}
+
 	// this error is only returned
 	// if we reach code that should
 	// be unreachable
@@ -134,6 +138,11 @@ func (f errFatal) Resumable() bool { return false }
 
 func (f errFatal) withContext(ctx string) error { f.ctx = addCtx(f.ctx, ctx); return f }
 
+type errRecursion struct{}
+
+func (e errRecursion) Error() string   { return "msgp: recursion limit reached" }
+func (e errRecursion) Resumable() bool { return false }
+
 // ArrayError is an error returned
 // when decoding a fix-sized array
 // of the wrong size
@@ -202,6 +211,31 @@ func (u UintOverflow) Error() string {
 func (u UintOverflow) Resumable() bool { return true }
 
 func (u UintOverflow) withContext(ctx string) error { u.ctx = addCtx(u.ctx, ctx); return u }
+
+// InvalidTimestamp is returned when an invalid timestamp is encountered
+type InvalidTimestamp struct {
+	Nanos       int64 // value of the nano, if invalid
+	FieldLength int   // Unexpected field length.
+	ctx         string
+}
+
+// Error implements the error interface
+func (u InvalidTimestamp) Error() (str string) {
+	if u.Nanos > 0 {
+		str = "msgp: timestamp nanosecond field value " + strconv.FormatInt(u.Nanos, 10) + " exceeds maximum allows of 999999999"
+	} else if u.FieldLength >= 0 {
+		str = "msgp: invalid timestamp field length " + strconv.FormatInt(int64(u.FieldLength), 10) + " - must be 4, 8 or 12"
+	}
+	if u.ctx != "" {
+		str += " at " + u.ctx
+	}
+	return str
+}
+
+// Resumable is always 'true' for overflows
+func (u InvalidTimestamp) Resumable() bool { return true }
+
+func (u InvalidTimestamp) withContext(ctx string) error { u.ctx = addCtx(u.ctx, ctx); return u }
 
 // UintBelowZero is returned when a call
 // would cast a signed integer below zero
