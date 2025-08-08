@@ -2,15 +2,19 @@ package portallocator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
 	"os"
+	"runtime"
 	"syscall"
 
 	"github.com/containerd/log"
 	"github.com/ishidawataru/sctp"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
+	"golang.org/x/net/bpf"
+	"golang.org/x/sys/unix"
 )
 
 type OSAllocator struct {
@@ -27,16 +31,15 @@ func NewOSAllocator() OSAllocator {
 }
 
 // RequestPortsInRange reserves a port available in the range [portStart, portEnd]
-// for all the specified addrs, and then try to bind those addresses to allocate
-// the port from the OS. It returns the allocated port, and all the sockets
-// bound, or an error if the reserved port isn't available. Callers must take
-// care of closing the returned sockets.
+// for all the specified addrs, and then try to bind/listen those addresses to
+// allocate the port from the OS.
 //
-// Due to the semantic of SO_REUSEADDR, the OSAllocator can't fully determine
-// if a port is free when binding 0.0.0.0 or ::. If another socket is binding
-// the same port, but it's not listening to it yet, the bind will succeed but a
-// subsequent listen might fail. For this reason, RequestPortsInRange doesn't
-// retry on failure — it's caller's responsibility.
+// It returns the allocated port, and all the sockets bound, or an error if the
+// reserved port isn't available. These sockets have a filter set to ensure that
+// the kernel doesn't accept connections on these. Callers must take care of
+// calling DetachSocketFilter once they're ready to accept connections (e.g. after
+// setting up DNAT rules, and before starting the userland proxy), and they must
+// take care of closing the returned sockets.
 //
 // It's safe for concurrent use.
 func (pa OSAllocator) RequestPortsInRange(addrs []net.IP, proto types.Protocol, portStart, portEnd int) (_ int, _ []*os.File, retErr error) {
@@ -73,11 +76,11 @@ func (pa OSAllocator) RequestPortsInRange(addrs []net.IP, proto types.Protocol, 
 		var sock *os.File
 		switch proto {
 		case types.TCP:
-			sock, err = bindTCPOrUDP(addrPort, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+			sock, err = listenTCP(addrPort)
 		case types.UDP:
 			sock, err = bindTCPOrUDP(addrPort, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
 		case types.SCTP:
-			sock, err = bindSCTP(addrPort)
+			sock, err = listenSCTP(addrPort)
 		default:
 			return 0, nil, fmt.Errorf("protocol %s not supported", proto)
 		}
@@ -99,6 +102,20 @@ func (pa OSAllocator) ReleasePorts(addrs []net.IP, proto types.Protocol, port in
 	for _, addr := range addrs {
 		pa.allocator.ReleasePort(addr, proto.String(), port)
 	}
+}
+
+func listenTCP(addr netip.AddrPort) (_ *os.File, retErr error) {
+	boundSocket, err := bindTCPOrUDP(addr, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+	if err != nil {
+		return nil, err
+	}
+
+	somaxconn := -1 // silently capped to "/proc/sys/net/core/somaxconn"
+	if err := syscall.Listen(int(boundSocket.Fd()), somaxconn); err != nil {
+		return nil, fmt.Errorf("failed to listen on tcp socket: %w", err)
+	}
+
+	return boundSocket, nil
 }
 
 func bindTCPOrUDP(addr netip.AddrPort, typ int, proto types.Protocol) (_ *os.File, retErr error) {
@@ -126,6 +143,16 @@ func bindTCPOrUDP(addr netip.AddrPort, typ int, proto types.Protocol) (_ *os.Fil
 		if err := syscall.SetsockoptInt(sd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1); err != nil {
 			return nil, fmt.Errorf("failed to setsockopt(SO_REUSEADDR) for %s/%s: %w", addr, proto, err)
 		}
+	}
+
+	// We need to listen to make sure that the port is free, and no other process is racing against us to acquire this
+	// port. But listening means that connections could be accepted before DNAT rules are inserted, and they'd never
+	// reach the container. To avoid this, set a socket filter to drop all connections — TCP SYNs will be
+	// re-transmitted anyway. Callers must call DetachSocketFilter.
+	//
+	// Set the socket filter _before_ binding the socket to make sure that no UDP datagrams will fill the queue.
+	if err := setSocketFilter(sd); err != nil {
+		return nil, fmt.Errorf("failed to set drop packets filter for %s/%s: %w", addr, proto, err)
 	}
 
 	if domain == syscall.AF_INET6 {
@@ -158,8 +185,21 @@ func bindTCPOrUDP(addr netip.AddrPort, typ int, proto types.Protocol) (_ *os.Fil
 	return boundSocket, nil
 }
 
-// bindSCTP is based on sctp.ListenSCTP. The socket is created and bound, but
-// does not start listening.
+// listenSCTP is based on sctp.ListenSCTP.
+func listenSCTP(addr netip.AddrPort) (_ *os.File, retErr error) {
+	boundSocket, err := bindSCTP(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	somaxconn := -1 // silently capped to "/proc/sys/net/core/somaxconn"
+	if err := syscall.Listen(int(boundSocket.Fd()), somaxconn); err != nil {
+		return nil, fmt.Errorf("failed to listen on sctp socket: %w", err)
+	}
+
+	return boundSocket, nil
+}
+
 func bindSCTP(addr netip.AddrPort) (_ *os.File, retErr error) {
 	domain := syscall.AF_INET
 	if addr.Addr().Unmap().Is6() {
@@ -190,9 +230,58 @@ func bindSCTP(addr netip.AddrPort) (_ *os.File, retErr error) {
 		return nil, fmt.Errorf("failed to bind host port %s/sctp: %w", addr, err)
 	}
 
+	// We need to listen to make sure that the port is free, and no other process is racing against us to acquire this
+	// port. But listening means that connections could be accepted before DNAT rules are inserted, and they'd never
+	// reach the container. To avoid this, set a socket filter to drop all connections — SCTP handshake will be
+	// re-transmitted anyway. Callers must call DetachSocketFilter.
+	if err := setSocketFilter(sd); err != nil {
+		return nil, fmt.Errorf("failed to set drop packets filter for %s/sctp: %w", addr, err)
+	}
+
 	boundSocket := os.NewFile(uintptr(sd), "listener")
 	if boundSocket == nil {
 		return nil, fmt.Errorf("failed to convert socket %s/sctp", addr)
 	}
 	return boundSocket, nil
+}
+
+// DetachSocketFilter removes the BPF filter set during port allocation to prevent the kernel from accepting connections
+// before DNAT rules are inserted.
+func DetachSocketFilter(f *os.File) error {
+	return unix.SetsockoptInt(int(f.Fd()), syscall.SOL_SOCKET, syscall.SO_DETACH_FILTER, 0 /* ignored */)
+}
+
+// setSocketFilter sets a cBPF program on socket sd to drop all packets. To start receiving packets on this socket,
+// callers must call DetachSocketFilter.
+func setSocketFilter(sd int) error {
+	asm, err := bpf.Assemble([]bpf.Instruction{
+		// A cBPF program attached to a socket with SO_ATTACH_FILTER and
+		// returning 0 tells the kernel to drop all packets.
+		bpf.RetConstant{Val: 0x0},
+	})
+	if err != nil {
+		// (bpf.RetConstant).Assemble() doesn't return an error, so this should
+		// be unreachable code.
+		return fmt.Errorf("attaching socket filter: %w", err)
+	}
+	// Make sure the asm slice is not GC'd before setsockopt is called
+	defer runtime.KeepAlive(asm)
+
+	if len(asm) == 0 {
+		return errors.New("attaching socket filter: empty BPF program")
+	}
+
+	f := make([]unix.SockFilter, len(asm))
+	for i := range asm {
+		f[i] = unix.SockFilter{
+			Code: asm[i].Op,
+			Jt:   asm[i].Jt,
+			Jf:   asm[i].Jf,
+			K:    asm[i].K,
+		}
+	}
+	return unix.SetsockoptSockFprog(sd, syscall.SOL_SOCKET, syscall.SO_ATTACH_FILTER, &unix.SockFprog{
+		Len:    uint16(len(f)),
+		Filter: &f[0],
+	})
 }
