@@ -3,7 +3,9 @@ package msgp
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"math"
+	"strconv"
 	"time"
 )
 
@@ -27,7 +29,7 @@ func NextType(b []byte) Type {
 			tp = int8(b[spec.size-1])
 		}
 		switch tp {
-		case TimeExtension:
+		case TimeExtension, MsgTimeExtension:
 			return TimeType
 		case Complex128Extension:
 			return Complex128Type
@@ -166,29 +168,30 @@ func ReadMapHeaderBytes(b []byte) (sz uint32, o []byte, err error) {
 	}
 
 	lead := b[0]
+	b = b[1:]
 	if isfixmap(lead) {
 		sz = uint32(rfixmap(lead))
-		o = b[1:]
+		o = b
 		return
 	}
 
 	switch lead {
 	case mmap16:
-		if l < 3 {
+		if len(b) < 2 {
 			err = ErrShortBytes
 			return
 		}
-		sz = uint32(big.Uint16(b[1:]))
-		o = b[3:]
+		sz = uint32(big.Uint16(b))
+		o = b[2:]
 		return
 
 	case mmap32:
-		if l < 5 {
+		if len(b) < 4 {
 			err = ErrShortBytes
 			return
 		}
-		sz = big.Uint32(b[1:])
-		o = b[5:]
+		sz = big.Uint32(b)
+		o = b[4:]
 		return
 
 	default:
@@ -228,29 +231,30 @@ func ReadArrayHeaderBytes(b []byte) (sz uint32, o []byte, err error) {
 		return 0, nil, ErrShortBytes
 	}
 	lead := b[0]
+	b = b[1:]
 	if isfixarray(lead) {
 		sz = uint32(rfixarray(lead))
-		o = b[1:]
+		o = b
 		return
 	}
 
 	switch lead {
 	case marray16:
-		if len(b) < 3 {
+		if len(b) < 2 {
 			err = ErrShortBytes
 			return
 		}
-		sz = uint32(big.Uint16(b[1:]))
-		o = b[3:]
+		sz = uint32(big.Uint16(b))
+		o = b[2:]
 		return
 
 	case marray32:
-		if len(b) < 5 {
+		if len(b) < 4 {
 			err = ErrShortBytes
 			return
 		}
-		sz = big.Uint32(b[1:])
-		o = b[5:]
+		sz = big.Uint32(b)
+		o = b[4:]
 		return
 
 	default:
@@ -354,7 +358,7 @@ func ReadFloat64Bytes(b []byte) (f float64, o []byte, err error) {
 	return
 }
 
-// ReadFloat32Bytes tries to read a float64
+// ReadFloat32Bytes tries to read a float32
 // from 'b' and return the value and the remaining bytes.
 //
 // Possible errors:
@@ -377,7 +381,7 @@ func ReadFloat32Bytes(b []byte) (f float32, o []byte, err error) {
 	return
 }
 
-// ReadBoolBytes tries to read a float64
+// ReadBoolBytes tries to read a bool
 // from 'b' and return the value and the remaining bytes.
 //
 // Possible errors:
@@ -418,99 +422,99 @@ func ReadDurationBytes(b []byte) (d time.Duration, o []byte, err error) {
 //   - [ErrShortBytes] (too few bytes)
 //   - [TypeError] (not a int)
 func ReadInt64Bytes(b []byte) (i int64, o []byte, err error) {
-	l := len(b)
-	if l < 1 {
+	if len(b) < 1 {
 		return 0, nil, ErrShortBytes
 	}
 
 	lead := b[0]
+	b = b[1:]
 	if isfixint(lead) {
 		i = int64(rfixint(lead))
-		o = b[1:]
+		o = b
 		return
 	}
 	if isnfixint(lead) {
 		i = int64(rnfixint(lead))
-		o = b[1:]
+		o = b
 		return
 	}
 
 	switch lead {
 	case mint8:
-		if l < 2 {
+		if len(b) < 1 {
 			err = ErrShortBytes
 			return
 		}
-		i = int64(getMint8(b))
-		o = b[2:]
+		i = int64(int8(b[0]))
+		o = b[1:]
 		return
 
 	case muint8:
-		if l < 2 {
+		if len(b) < 1 {
 			err = ErrShortBytes
 			return
 		}
-		i = int64(getMuint8(b))
-		o = b[2:]
+		i = int64(b[0])
+		o = b[1:]
 		return
 
 	case mint16:
-		if l < 3 {
+		if len(b) < 2 {
 			err = ErrShortBytes
 			return
 		}
-		i = int64(getMint16(b))
-		o = b[3:]
+		i = int64(int16(big.Uint16(b)))
+		o = b[2:]
 		return
 
 	case muint16:
-		if l < 3 {
+		if len(b) < 2 {
 			err = ErrShortBytes
 			return
 		}
-		i = int64(getMuint16(b))
-		o = b[3:]
+		i = int64(big.Uint16(b))
+		o = b[2:]
 		return
 
 	case mint32:
-		if l < 5 {
+		if len(b) < 4 {
 			err = ErrShortBytes
 			return
 		}
-		i = int64(getMint32(b))
-		o = b[5:]
+		i = int64(int32(big.Uint32(b)))
+		o = b[4:]
 		return
 
 	case muint32:
-		if l < 5 {
+		if len(b) < 4 {
 			err = ErrShortBytes
 			return
 		}
-		i = int64(getMuint32(b))
-		o = b[5:]
+		i = int64(big.Uint32(b))
+		o = b[4:]
 		return
 
 	case mint64:
-		if l < 9 {
+		if len(b) < 8 {
 			err = ErrShortBytes
 			return
 		}
-		i = int64(getMint64(b))
-		o = b[9:]
+		i = int64(big.Uint64(b))
+		o = b[8:]
 		return
 
 	case muint64:
-		if l < 9 {
+		if len(b) < 8 {
 			err = ErrShortBytes
 			return
 		}
-		u := getMuint64(b)
+		u := big.Uint64(b)
 		if u > math.MaxInt64 {
 			err = UintOverflow{Value: u, FailedBitsize: 64}
 			return
 		}
 		i = int64(u)
-		o = b[9:]
+		o = b[8:]
 		return
 
 	default:
@@ -592,109 +596,109 @@ func ReadIntBytes(b []byte) (int, []byte, error) {
 //   - [ErrShortBytes] (too few bytes)
 //   - [TypeError] (not a uint)
 func ReadUint64Bytes(b []byte) (u uint64, o []byte, err error) {
-	l := len(b)
-	if l < 1 {
+	if len(b) < 1 {
 		return 0, nil, ErrShortBytes
 	}
 
 	lead := b[0]
+	b = b[1:]
 	if isfixint(lead) {
 		u = uint64(rfixint(lead))
-		o = b[1:]
+		o = b
 		return
 	}
 
 	switch lead {
 	case mint8:
-		if l < 2 {
+		if len(b) < 1 {
 			err = ErrShortBytes
 			return
 		}
-		v := int64(getMint8(b))
+		v := int64(int8(b[0]))
 		if v < 0 {
 			err = UintBelowZero{Value: v}
 			return
 		}
 		u = uint64(v)
-		o = b[2:]
+		o = b[1:]
 		return
 
 	case muint8:
-		if l < 2 {
+		if len(b) < 1 {
 			err = ErrShortBytes
 			return
 		}
-		u = uint64(getMuint8(b))
-		o = b[2:]
+		u = uint64(b[0])
+		o = b[1:]
 		return
 
 	case mint16:
-		if l < 3 {
+		if len(b) < 2 {
 			err = ErrShortBytes
 			return
 		}
-		v := int64(getMint16(b))
+		v := int64((int16(b[0]) << 8) | int16(b[1]))
 		if v < 0 {
 			err = UintBelowZero{Value: v}
 			return
 		}
 		u = uint64(v)
-		o = b[3:]
+		o = b[2:]
 		return
 
 	case muint16:
-		if l < 3 {
+		if len(b) < 2 {
 			err = ErrShortBytes
 			return
 		}
-		u = uint64(getMuint16(b))
-		o = b[3:]
+		u = uint64(big.Uint16(b))
+		o = b[2:]
 		return
 
 	case mint32:
-		if l < 5 {
+		if len(b) < 4 {
 			err = ErrShortBytes
 			return
 		}
-		v := int64(getMint32(b))
+		v := int64(int32(big.Uint32(b)))
 		if v < 0 {
 			err = UintBelowZero{Value: v}
 			return
 		}
 		u = uint64(v)
-		o = b[5:]
+		o = b[4:]
 		return
 
 	case muint32:
-		if l < 5 {
+		if len(b) < 4 {
 			err = ErrShortBytes
 			return
 		}
-		u = uint64(getMuint32(b))
-		o = b[5:]
+		u = uint64(big.Uint32(b))
+		o = b[4:]
 		return
 
 	case mint64:
-		if l < 9 {
+		if len(b) < 8 {
 			err = ErrShortBytes
 			return
 		}
-		v := int64(getMint64(b))
+		v := int64(big.Uint64(b))
 		if v < 0 {
 			err = UintBelowZero{Value: v}
 			return
 		}
 		u = uint64(v)
-		o = b[9:]
+		o = b[8:]
 		return
 
 	case muint64:
-		if l < 9 {
+		if len(b) < 8 {
 			err = ErrShortBytes
 			return
 		}
-		u = getMuint64(b)
-		o = b[9:]
+		u = big.Uint64(b)
+		o = b[8:]
 		return
 
 	default:
@@ -796,32 +800,33 @@ func readBytesBytes(b []byte, scratch []byte, zc bool) (v []byte, o []byte, err 
 	}
 
 	lead := b[0]
+	b = b[1:]
 	var read int
 	switch lead {
 	case mbin8:
-		if l < 2 {
+		if len(b) < 1 {
 			err = ErrShortBytes
 			return
 		}
 
-		read = int(b[1])
-		b = b[2:]
+		read = int(b[0])
+		b = b[1:]
 
 	case mbin16:
-		if l < 3 {
+		if len(b) < 2 {
 			err = ErrShortBytes
 			return
 		}
-		read = int(big.Uint16(b[1:]))
-		b = b[3:]
+		read = int(big.Uint16(b))
+		b = b[2:]
 
 	case mbin32:
-		if l < 5 {
+		if len(b) < 4 {
 			err = ErrShortBytes
 			return
 		}
-		read = int(big.Uint32(b[1:]))
-		b = b[5:]
+		read = int(big.Uint32(b))
+		b = b[4:]
 
 	default:
 		err = badPrefix(BinType, lead)
@@ -863,40 +868,39 @@ func ReadBytesZC(b []byte) (v []byte, o []byte, err error) {
 }
 
 func ReadExactBytes(b []byte, into []byte) (o []byte, err error) {
-	l := len(b)
-	if l < 1 {
+	if len(b) < 1 {
 		err = ErrShortBytes
 		return
 	}
 
 	lead := b[0]
 	var read uint32
-	var skip int
+	b = b[1:]
 	switch lead {
 	case mbin8:
-		if l < 2 {
+		if len(b) < 1 {
 			err = ErrShortBytes
 			return
 		}
 
-		read = uint32(b[1])
-		skip = 2
+		read = uint32(b[0])
+		b = b[1:]
 
 	case mbin16:
-		if l < 3 {
+		if len(b) < 2 {
 			err = ErrShortBytes
 			return
 		}
-		read = uint32(big.Uint16(b[1:]))
-		skip = 3
+		read = uint32(big.Uint16(b))
+		b = b[2:]
 
 	case mbin32:
-		if l < 5 {
+		if len(b) < 4 {
 			err = ErrShortBytes
 			return
 		}
-		read = uint32(big.Uint32(b[1:]))
-		skip = 5
+		read = big.Uint32(b)
+		b = b[4:]
 
 	default:
 		err = badPrefix(BinType, lead)
@@ -908,7 +912,7 @@ func ReadExactBytes(b []byte, into []byte) (o []byte, err error) {
 		return
 	}
 
-	o = b[skip+copy(into, b[skip:]):]
+	o = b[copy(into, b):]
 	return
 }
 
@@ -921,42 +925,41 @@ func ReadExactBytes(b []byte, into []byte) (o []byte, err error) {
 //   - [ErrShortBytes] (b not long enough)
 //   - [TypeError] (object not 'str')
 func ReadStringZC(b []byte) (v []byte, o []byte, err error) {
-	l := len(b)
-	if l < 1 {
+	if len(b) < 1 {
 		return nil, nil, ErrShortBytes
 	}
 
 	lead := b[0]
 	var read int
 
+	b = b[1:]
 	if isfixstr(lead) {
 		read = int(rfixstr(lead))
-		b = b[1:]
 	} else {
 		switch lead {
 		case mstr8:
-			if l < 2 {
+			if len(b) < 1 {
 				err = ErrShortBytes
 				return
 			}
-			read = int(b[1])
-			b = b[2:]
+			read = int(b[0])
+			b = b[1:]
 
 		case mstr16:
-			if l < 3 {
+			if len(b) < 2 {
 				err = ErrShortBytes
 				return
 			}
-			read = int(big.Uint16(b[1:]))
-			b = b[3:]
+			read = int(big.Uint16(b))
+			b = b[2:]
 
 		case mstr32:
-			if l < 5 {
+			if len(b) < 4 {
 				err = ErrShortBytes
 				return
 			}
-			read = int(big.Uint32(b[1:]))
-			b = b[5:]
+			read = int(big.Uint32(b))
+			b = b[4:]
 
 		default:
 			err = TypeError{Method: StrType, Encoded: getType(lead)}
@@ -1063,38 +1066,88 @@ func ReadComplex64Bytes(b []byte) (c complex64, o []byte, err error) {
 	return
 }
 
+// ReadTimeUTCBytes does the same as ReadTimeBytes, but returns the value as UTC.
+func ReadTimeUTCBytes(b []byte) (t time.Time, o []byte, err error) {
+	t, o, err = ReadTimeBytes(b)
+	return t.UTC(), o, err
+}
+
 // ReadTimeBytes reads a time.Time
 // extension object from 'b' and returns the
 // remaining bytes.
+// Both the official and the format in this package will be read.
 //
 // Possible errors:
 //
 //   - [ErrShortBytes] (not enough bytes in 'b')
-//   - [TypeError] (object not a complex64)
+//   - [TypeError] (object not a time extension 5 or -1)
 //   - [ExtensionTypeError] (object an extension of the correct size, but not a time.Time)
 func ReadTimeBytes(b []byte) (t time.Time, o []byte, err error) {
-	if len(b) < 15 {
+	if len(b) < 6 {
 		err = ErrShortBytes
 		return
 	}
-	if b[0] != mext8 || b[1] != 12 {
-		err = badPrefix(TimeType, b[0])
+	typ, o, b, err := readExt(b)
+	if err != nil {
 		return
 	}
-	if int8(b[2]) != TimeExtension {
+	switch typ {
+	case TimeExtension:
+		if len(b) != 12 {
+			err = ErrShortBytes
+			return
+		}
+		sec, nsec := getUnix(b)
+		t = time.Unix(sec, int64(nsec)).Local()
+		return
+	case MsgTimeExtension:
+		switch len(b) {
+		case 4:
+			t = time.Unix(int64(binary.BigEndian.Uint32(b)), 0).Local()
+			return
+		case 8:
+			v := binary.BigEndian.Uint64(b)
+			nanos := int64(v >> 34)
+			if nanos > 999999999 {
+				// In timestamp 64 and timestamp 96 formats, nanoseconds must not be larger than 999999999.
+				err = InvalidTimestamp{Nanos: nanos}
+				return
+			}
+			t = time.Unix(int64(v&(1<<34-1)), nanos).Local()
+			return
+		case 12:
+			nanos := int64(binary.BigEndian.Uint32(b))
+			if nanos > 999999999 {
+				// In timestamp 64 and timestamp 96 formats, nanoseconds must not be larger than 999999999.
+				err = InvalidTimestamp{Nanos: nanos}
+				return
+			}
+			ux := int64(binary.BigEndian.Uint64(b[4:]))
+			t = time.Unix(ux, nanos).Local()
+			return
+		default:
+			err = InvalidTimestamp{FieldLength: len(b)}
+			return
+		}
+	default:
 		err = errExt(int8(b[2]), TimeExtension)
 		return
 	}
-	sec, nsec := getUnix(b[3:])
-	t = time.Unix(sec, int64(nsec)).Local()
-	o = b[15:]
-	return
 }
 
 // ReadMapStrIntfBytes reads a map[string]interface{}
 // out of 'b' and returns the map and remaining bytes.
 // If 'old' is non-nil, the values will be read into that map.
 func ReadMapStrIntfBytes(b []byte, old map[string]interface{}) (v map[string]interface{}, o []byte, err error) {
+	return readMapStrIntfBytesDepth(b, old, 0)
+}
+
+func readMapStrIntfBytesDepth(b []byte, old map[string]interface{}, depth int) (v map[string]interface{}, o []byte, err error) {
+	if depth >= recursionLimit {
+		err = ErrRecursion
+		return
+	}
+
 	var sz uint32
 	o = b
 	sz, o, err = ReadMapHeaderBytes(o)
@@ -1123,7 +1176,7 @@ func ReadMapStrIntfBytes(b []byte, old map[string]interface{}) (v map[string]int
 			return
 		}
 		var val interface{}
-		val, o, err = ReadIntfBytes(o)
+		val, o, err = readIntfBytesDepth(o, depth)
 		if err != nil {
 			return
 		}
@@ -1136,6 +1189,14 @@ func ReadMapStrIntfBytes(b []byte, old map[string]interface{}) (v map[string]int
 // the next object out of 'b' as a raw interface{} and
 // return the remaining bytes.
 func ReadIntfBytes(b []byte) (i interface{}, o []byte, err error) {
+	return readIntfBytesDepth(b, 0)
+}
+
+func readIntfBytesDepth(b []byte, depth int) (i interface{}, o []byte, err error) {
+	if depth >= recursionLimit {
+		err = ErrRecursion
+		return
+	}
 	if len(b) < 1 {
 		err = ErrShortBytes
 		return
@@ -1145,7 +1206,7 @@ func ReadIntfBytes(b []byte) (i interface{}, o []byte, err error) {
 
 	switch k {
 	case MapType:
-		i, o, err = ReadMapStrIntfBytes(b, nil)
+		i, o, err = readMapStrIntfBytesDepth(b, nil, depth+1)
 		return
 
 	case ArrayType:
@@ -1157,7 +1218,7 @@ func ReadIntfBytes(b []byte) (i interface{}, o []byte, err error) {
 		j := make([]interface{}, int(sz))
 		i = j
 		for d := range j {
-			j[d], o, err = ReadIntfBytes(o)
+			j[d], o, err = readIntfBytesDepth(o, depth+1)
 			if err != nil {
 				return
 			}
@@ -1245,7 +1306,15 @@ func ReadIntfBytes(b []byte) (i interface{}, o []byte, err error) {
 //
 //   - [ErrShortBytes] (not enough bytes in b)
 //   - [InvalidPrefixError] (bad encoding)
+//   - [ErrRecursion] (too deeply nested data)
 func Skip(b []byte) ([]byte, error) {
+	return skipDepth(b, 0)
+}
+
+func skipDepth(b []byte, depth int) ([]byte, error) {
+	if depth >= recursionLimit {
+		return b, ErrRecursion
+	}
 	sz, asz, err := getSize(b)
 	if err != nil {
 		return b, err
@@ -1255,7 +1324,7 @@ func Skip(b []byte) ([]byte, error) {
 	}
 	b = b[sz:]
 	for asz > 0 {
-		b, err = Skip(b)
+		b, err = skipDepth(b, depth+1)
 		if err != nil {
 			return b, err
 		}
@@ -1300,4 +1369,25 @@ func getSize(b []byte) (uintptr, uintptr, error) {
 	default:
 		return 0, 0, fatal
 	}
+}
+
+// ReadJSONNumberBytes tries to read a number
+// from 'b' and return the value and the remaining bytes.
+//
+// Possible errors:
+//
+//   - [ErrShortBytes] (too few bytes)
+//   - TypeError (not a number (int/float))
+func ReadJSONNumberBytes(b []byte) (number json.Number, o []byte, err error) {
+	if len(b) < 1 {
+		return "", nil, ErrShortBytes
+	}
+	if i, o, err := ReadInt64Bytes(b); err == nil {
+		return json.Number(strconv.FormatInt(i, 10)), o, nil
+	}
+	f, o, err := ReadFloat64Bytes(b)
+	if err == nil {
+		return json.Number(strconv.FormatFloat(f, 'f', -1, 64)), o, nil
+	}
+	return "", nil, TypeError{Method: NumberType, Encoded: getType(b[0])}
 }
