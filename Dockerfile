@@ -159,10 +159,7 @@ RUN git init . && git remote add origin "https://github.com/containerd/container
 # CONTAINERD_VERSION is used to build containerd binaries, and used for the
 # integration tests. The distributed docker .deb and .rpm packages depend on a
 # separate (containerd.io) package, which may be a different version as is
-# specified here. The containerd golang package is also pinned in vendor.mod.
-# When updating the binary version you may also need to update the vendor
-# version to pick up bug fixes or new APIs, however, usually the Go packages
-# are built from a commit from the master branch.
+# specified here.
 ARG CONTAINERD_VERSION=v1.7.28
 RUN git fetch -q --depth 1 origin "${CONTAINERD_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
@@ -252,8 +249,7 @@ WORKDIR /usr/src/runc
 RUN git init . && git remote add origin "https://github.com/opencontainers/runc.git"
 # RUNC_VERSION should match the version that is used by the containerd version
 # that is used. If you need to update runc, open a pull request in the containerd
-# project first, and update both after that is merged. When updating RUNC_VERSION,
-# consider updating runc in vendor.mod accordingly.
+# project first, and update both after that is merged.
 ARG RUNC_VERSION=v1.3.0
 RUN git fetch -q --depth 1 origin "${RUNC_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
@@ -321,7 +317,7 @@ FROM tini-${TARGETOS} AS tini
 FROM base AS rootlesskit-src
 WORKDIR /usr/src/rootlesskit
 RUN git init . && git remote add origin "https://github.com/rootless-containers/rootlesskit.git"
-# When updating, also update vendor.mod and hack/dockerfile/install/rootlesskit.installer accordingly.
+# When updating, also update go.mod and hack/dockerfile/install/rootlesskit.installer accordingly.
 ARG ROOTLESSKIT_VERSION=v2.3.4
 RUN git fetch -q --depth 1 origin "${ROOTLESSKIT_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 

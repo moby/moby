@@ -39,17 +39,13 @@ The Dockerfile contains the most up-to-date list of build-time dependencies.
 
 ### Go Dependencies
 
-All Go dependencies are vendored under "./vendor". They are used by the official
-build, so the source of truth for the current version of each dependency is
-whatever is in "./vendor".
+All Go dependencies to build the daemon and related binaries are vendored
+under "./vendor". They are used by the official build, so the source of
+truth for the current version of each dependency is whatever is in "./vendor".
 
 If you would rather (or must, due to distro policy) package these dependencies
-yourself, take a look at "vendor.mod" for an easy-to-parse list of the
+yourself, take a look at "go.mod" for an easy-to-parse list of the
 exact version for each.
-
-Note that this project is **not** a Go module. To properly build the project,
-`GOPATH` mode must be used. The project is migrating to Go modules, but `vendor.mod`
-should not be interchanged with `go.mod` until this transition is complete.
 
 ## Stripping Binaries
 

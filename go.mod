@@ -1,8 +1,3 @@
-// 'vendor.mod' enables use of 'go mod vendor' to managed 'vendor/' directory.
-// There is no 'go.mod' file, as the project has not yet completed the migration
-// to a Go module. This project should be built in GOPATH mode, and not module mode,
-// until the migration is complete and this file becomes 'go.mod.'
-
 module github.com/moby/moby/v2
 
 go 1.23.0

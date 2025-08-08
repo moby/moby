@@ -7,7 +7,7 @@
 
 buildkit_pkg=github.com/moby/buildkit
 
-# get buildkit version from vendor.mod
+# get buildkit version from go.mod
 buildkit_ref=$(go list -mod=mod -u -m -f '{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' "$buildkit_pkg")
 buildkit_repo=$(go list -mod=mod -u -m -f '{{if .Replace}}{{.Replace.Path}}{{else}}{{.Path}}{{end}}' "$buildkit_pkg")
 buildkit_repo=${buildkit_repo#github.com/}
