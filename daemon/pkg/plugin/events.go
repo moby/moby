@@ -89,8 +89,8 @@ func (e EventEnable) matches(observed Event) bool {
 // the plugin manager actions, CRUD operations.
 // The caller must call the returned `cancel()` function once done with the channel
 // or this will leak resources.
-func (pm *Manager) SubscribeEvents(buffer int, watchEvents ...Event) (eventCh <-chan interface{}, cancel func()) {
-	topic := func(i interface{}) bool {
+func (pm *Manager) SubscribeEvents(buffer int, watchEvents ...Event) (eventCh <-chan any, cancel func()) {
+	topic := func(i any) bool {
 		observed, ok := i.(Event)
 		if !ok {
 			panic(fmt.Sprintf("unexpected type passed to event channel: %v", reflect.TypeOf(i)))

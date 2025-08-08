@@ -257,7 +257,7 @@ type CommonConfig struct {
 
 	// FIXME(vdemeester) This part is not that clear and is mainly dependent on cli flags
 	// It should probably be handled outside this package.
-	ValuesSet map[string]interface{} `json:"-"`
+	ValuesSet map[string]any `json:"-"`
 
 	Experimental bool `json:"experimental"` // Experimental indicates whether experimental features should be exposed or not
 
@@ -512,7 +512,7 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 	}
 
 	if flags != nil {
-		var jsonConfig map[string]interface{}
+		var jsonConfig map[string]any
 		if err := json.Unmarshal(b, &jsonConfig); err != nil {
 			return nil, err
 		}
@@ -528,7 +528,7 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		// See https://github.com/moby/moby/issues/20289 for an example.
 		//
 		// TODO: Rewrite configuration logic to avoid same issue with other nullable values, like numbers.
-		namedOptions := make(map[string]interface{})
+		namedOptions := make(map[string]any)
 		for key, value := range configSet {
 			f := flags.Lookup(key)
 			if f == nil { // ignore named flags that don't match
@@ -568,10 +568,10 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 }
 
 // configValuesSet returns the configuration values explicitly set in the file.
-func configValuesSet(config map[string]interface{}) map[string]interface{} {
-	flatten := make(map[string]interface{})
+func configValuesSet(config map[string]any) map[string]any {
+	flatten := make(map[string]any)
 	for k, v := range config {
-		if m, isMap := v.(map[string]interface{}); isMap && !flatOptions[k] {
+		if m, isMap := v.(map[string]any); isMap && !flatOptions[k] {
 			for km, vm := range m {
 				flatten[km] = vm
 			}
@@ -586,9 +586,9 @@ func configValuesSet(config map[string]interface{}) map[string]interface{} {
 // findConfigurationConflicts iterates over the provided flags searching for
 // duplicated configurations and unknown keys. It returns an error with all the conflicts if
 // it finds any.
-func findConfigurationConflicts(config map[string]interface{}, flags *pflag.FlagSet) error {
+func findConfigurationConflicts(config map[string]any, flags *pflag.FlagSet) error {
 	// 1. Search keys from the file that we don't recognize as flags.
-	unknownKeys := make(map[string]interface{})
+	unknownKeys := make(map[string]any)
 	for key, value := range config {
 		if flag := flags.Lookup(key); flag == nil && !skipValidateOptions[key] {
 			unknownKeys[key] = value
@@ -615,7 +615,7 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 	}
 
 	// 3. Search keys that are present as a flag and as a file option.
-	printConflict := func(name string, flagValue, fileValue interface{}) string {
+	printConflict := func(name string, flagValue, fileValue any) string {
 		switch name {
 		case "http-proxy", "https-proxy":
 			flagValue = MaskCredentials(flagValue.(string))

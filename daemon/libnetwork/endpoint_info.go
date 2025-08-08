@@ -52,7 +52,7 @@ type EndpointInterface struct {
 }
 
 func (epi *EndpointInterface) MarshalJSON() ([]byte, error) {
-	epMap := make(map[string]interface{})
+	epMap := make(map[string]any)
 	if epi.mac != nil {
 		epMap["mac"] = epi.mac.String()
 	}
@@ -86,7 +86,7 @@ func (epi *EndpointInterface) MarshalJSON() ([]byte, error) {
 func (epi *EndpointInterface) UnmarshalJSON(b []byte) error {
 	var (
 		err   error
-		epMap map[string]interface{}
+		epMap map[string]any
 	)
 	if err = json.Unmarshal(b, &epMap); err != nil {
 		return err
@@ -107,7 +107,7 @@ func (epi *EndpointInterface) UnmarshalJSON(b []byte) error {
 		}
 	}
 	if v, ok := epMap["llAddrs"]; ok {
-		list := v.([]interface{})
+		list := v.([]any)
 		epi.llAddrs = make([]*net.IPNet, 0, len(list))
 		for _, llS := range list {
 			ll, err := types.ParseCIDR(llS.(string))
@@ -456,7 +456,7 @@ func (ep *Endpoint) DisableGatewayService() {
 }
 
 func (epj *endpointJoinInfo) MarshalJSON() ([]byte, error) {
-	epMap := make(map[string]interface{})
+	epMap := make(map[string]any)
 	if epj.gw != nil {
 		epMap["gw"] = epj.gw.String()
 	}
@@ -471,7 +471,7 @@ func (epj *endpointJoinInfo) MarshalJSON() ([]byte, error) {
 func (epj *endpointJoinInfo) UnmarshalJSON(b []byte) error {
 	var (
 		err   error
-		epMap map[string]interface{}
+		epMap map[string]any
 	)
 	if err = json.Unmarshal(b, &epMap); err != nil {
 		return err

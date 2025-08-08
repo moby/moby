@@ -187,7 +187,7 @@ func newDriver(store *datastore.Store, pms *drvregistry.PortMappers) *driver {
 }
 
 // Register registers a new instance of bridge driver.
-func Register(r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, config map[string]interface{}) error {
+func Register(r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, config map[string]any) error {
 	d := newDriver(store, pms)
 	if err := d.configure(config); err != nil {
 		return err
@@ -504,7 +504,7 @@ func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
 	return nil, nil
 }
 
-func (d *driver) configure(option map[string]interface{}) error {
+func (d *driver) configure(option map[string]any) error {
 	var config configuration
 	switch opt := option[netlabel.GenericData].(type) {
 	case options.Generic:
@@ -581,7 +581,7 @@ func (d *driver) getNetwork(id string) (*bridgeNetwork, error) {
 	return nil, types.NotFoundErrorf("network not found: %s", id)
 }
 
-func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error) {
+func parseNetworkGenericOptions(data any) (*networkConfiguration, error) {
 	var (
 		err    error
 		config *networkConfiguration
@@ -721,7 +721,7 @@ func (d *driver) GetSkipGwAlloc(opts options.Generic) (ipv4, ipv6 bool, _ error)
 }
 
 // CreateNetwork creates a new network using the bridge driver.
-func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]any, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	// Sanity checks
 	d.mu.Lock()
 	if _, ok := d.networks[id]; ok {
@@ -1046,7 +1046,7 @@ func setHairpinMode(nlh nlwrap.Handle, link netlink.Link, enable bool) error {
 	return nil
 }
 
-func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, _ map[string]interface{}) error {
+func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, _ map[string]any) error {
 	if ifInfo == nil {
 		return errors.New("invalid interface info passed")
 	}
@@ -1353,7 +1353,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	return nil
 }
 
-func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
+func (d *driver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
 	// Get the network handler and make sure it exists
 	d.mu.Lock()
 	n, ok := d.networks[nid]
@@ -1382,7 +1382,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 		return nil, driverapi.ErrNoEndpoint(eid)
 	}
 
-	m := make(map[string]interface{})
+	m := make(map[string]any)
 
 	if ep.extConnConfig != nil && ep.extConnConfig.ExposedPorts != nil {
 		// Return a copy of the config data
@@ -1410,7 +1410,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, epOpts, sbOpts map[string]interface{}) error {
+func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, epOpts, sbOpts map[string]any) error {
 	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".Join", trace.WithAttributes(
 		attribute.String("nid", nid),
 		attribute.String("eid", eid),
@@ -1753,7 +1753,7 @@ func (d *driver) handleFirewalldReloadNw(nid string) {
 	}
 }
 
-func LegacyContainerLinkOptions(parentEndpoints, childEndpoints []string) map[string]interface{} {
+func LegacyContainerLinkOptions(parentEndpoints, childEndpoints []string) map[string]any {
 	return options.Generic{
 		netlabel.GenericData: options.Generic{
 			"ParentEndpoints": parentEndpoints,
@@ -1848,7 +1848,7 @@ func (d *driver) IsBuiltIn() bool {
 	return true
 }
 
-func parseContainerOptions(cOptions map[string]interface{}) (*containerConfiguration, error) {
+func parseContainerOptions(cOptions map[string]any) (*containerConfiguration, error) {
 	if cOptions == nil {
 		return nil, nil
 	}
@@ -1870,7 +1870,7 @@ func parseContainerOptions(cOptions map[string]interface{}) (*containerConfigura
 	}
 }
 
-func parseConnectivityOptions(cOptions map[string]interface{}) (*connectivityConfiguration, error) {
+func parseConnectivityOptions(cOptions map[string]any) (*connectivityConfiguration, error) {
 	if cOptions == nil {
 		return nil, nil
 	}

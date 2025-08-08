@@ -26,7 +26,7 @@ func encodeRawMessage(t MessageType, raw []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func encodeMessage(t MessageType, msg interface{}) ([]byte, error) {
+func encodeMessage(t MessageType, msg any) ([]byte, error) {
 	buf, err := proto.Marshal(msg.(proto.Message))
 	if err != nil {
 		return nil, err

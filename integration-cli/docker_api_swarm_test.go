@@ -228,7 +228,7 @@ func (s *DockerSwarmSuite) TestAPISwarmPromoteDemote(c *testing.T) {
 	// back to manager quickly might cause the node to pause for awhile
 	// while waiting for the role to change to worker, and the test can
 	// time out during this interval.
-	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (any, string) {
 		certBytes, err := os.ReadFile(filepath.Join(d2.Folder, "root", "swarm", "certificates", "swarm-node.crt"))
 		if err != nil {
 			return "", fmt.Sprintf("error: %v", err)
@@ -324,7 +324,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *testing.T) {
 	)
 	var lastErr error
 	checkLeader := func(nodes ...*daemon.Daemon) checkF {
-		return func(t *testing.T) (interface{}, string) {
+		return func(t *testing.T) (any, string) {
 			// clear these out before each run
 			leader = nil
 			followers = nil
@@ -412,7 +412,7 @@ func (s *DockerSwarmSuite) TestAPISwarmRaftQuorum(c *testing.T) {
 	defer cli.Close()
 
 	// d1 will eventually step down from leader because there is no longer an active quorum, wait for that to happen
-	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (any, string) {
 		_, err := cli.ServiceCreate(testutil.GetContext(t), service.Spec, swarm.ServiceCreateOptions{})
 		return err.Error(), ""
 	}, checker.Contains("Make sure more than half of the managers are online.")), poll.WithTimeout(defaultReconciliationTimeout*2))
@@ -753,7 +753,7 @@ func checkClusterHealth(t *testing.T, cl []*daemon.Daemon, managerCount, workerC
 		var info swarm.Info
 
 		// check info in a poll.WaitOn(), because if the cluster doesn't have a leader, `info` will return an error
-		checkInfo := func(t *testing.T) (interface{}, string) {
+		checkInfo := func(t *testing.T) (any, string) {
 			client := d.NewClientT(t)
 			daemonInfo, err := client.Info(ctx)
 			info = daemonInfo.Swarm
@@ -770,7 +770,7 @@ func checkClusterHealth(t *testing.T, cl []*daemon.Daemon, managerCount, workerC
 		var mCount, wCount int
 
 		for _, n := range d.ListNodes(ctx, t) {
-			waitReady := func(t *testing.T) (interface{}, string) {
+			waitReady := func(t *testing.T) (any, string) {
 				if n.Status.State == swarm.NodeStateReady {
 					return true, ""
 				}
@@ -780,7 +780,7 @@ func checkClusterHealth(t *testing.T, cl []*daemon.Daemon, managerCount, workerC
 			}
 			poll.WaitOn(t, pollCheck(t, waitReady, checker.True()), poll.WithTimeout(defaultReconciliationTimeout))
 
-			waitActive := func(t *testing.T) (interface{}, string) {
+			waitActive := func(t *testing.T) (any, string) {
 				if n.Spec.Availability == swarm.NodeAvailabilityActive {
 					return true, ""
 				}

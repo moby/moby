@@ -28,7 +28,7 @@ func (cli *Client) get(ctx context.Context, path string, query url.Values, heade
 }
 
 // post sends an http POST request to the API.
-func (cli *Client) post(ctx context.Context, path string, query url.Values, body interface{}, headers http.Header) (*http.Response, error) {
+func (cli *Client) post(ctx context.Context, path string, query url.Values, body any, headers http.Header) (*http.Response, error) {
 	jsonBody, headers, err := prepareJSONRequest(body, headers)
 	if err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func (cli *Client) postRaw(ctx context.Context, path string, query url.Values, b
 	return cli.sendRequest(ctx, http.MethodPost, path, query, body, headers)
 }
 
-func (cli *Client) put(ctx context.Context, path string, query url.Values, body interface{}, headers http.Header) (*http.Response, error) {
+func (cli *Client) put(ctx context.Context, path string, query url.Values, body any, headers http.Header) (*http.Response, error) {
 	jsonBody, headers, err := prepareJSONRequest(body, headers)
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func (cli *Client) delete(ctx context.Context, path string, query url.Values, he
 //
 // TODO(thaJeztah): should this return an error if a different Content-Type is already set?
 // TODO(thaJeztah): is "nil" the appropriate approach for an empty body, or should we use [http.NoBody] (or similar)?
-func prepareJSONRequest(body interface{}, headers http.Header) (io.Reader, http.Header, error) {
+func prepareJSONRequest(body any, headers http.Header) (io.Reader, http.Header, error) {
 	if body == nil {
 		return nil, headers, nil
 	}
@@ -309,7 +309,7 @@ func (cli *Client) addHeaders(req *http.Request, headers http.Header) *http.Requ
 	return req
 }
 
-func jsonEncode(data interface{}) (io.Reader, error) {
+func jsonEncode(data any) (io.Reader, error) {
 	var params bytes.Buffer
 	if data != nil {
 		if err := json.NewEncoder(&params).Encode(data); err != nil {

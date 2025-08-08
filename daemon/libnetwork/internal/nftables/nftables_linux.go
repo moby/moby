@@ -472,7 +472,7 @@ func (t TableRef) Chain(ctx context.Context, name string) ChainRef {
 }
 
 // ChainUpdateFunc is a function that can add rules to a chain, or remove rules from it.
-type ChainUpdateFunc func(context.Context, RuleGroup, string, ...interface{}) error
+type ChainUpdateFunc func(context.Context, RuleGroup, string, ...any) error
 
 // ChainUpdateFunc returns a [ChainUpdateFunc] to add rules to the named chain if
 // enable is true, or to remove rules from the chain if enable is false.
@@ -514,7 +514,7 @@ func (c ChainRef) SetPolicy(policy string) error {
 }
 
 // AppendRule appends a rule to a [RuleGroup] in a [ChainRef].
-func (c ChainRef) AppendRule(ctx context.Context, group RuleGroup, rule string, args ...interface{}) error {
+func (c ChainRef) AppendRule(ctx context.Context, group RuleGroup, rule string, args ...any) error {
 	if len(args) > 0 {
 		rule = fmt.Sprintf(rule, args...)
 	}
@@ -534,7 +534,7 @@ func (c ChainRef) AppendRule(ctx context.Context, group RuleGroup, rule string, 
 }
 
 // AppendRuleCf calls AppendRule and returns a cleanup function or an error.
-func (c ChainRef) AppendRuleCf(ctx context.Context, group RuleGroup, rule string, args ...interface{}) (func(context.Context) error, error) {
+func (c ChainRef) AppendRuleCf(ctx context.Context, group RuleGroup, rule string, args ...any) (func(context.Context) error, error) {
 	if err := c.AppendRule(ctx, group, rule, args...); err != nil {
 		return nil, err
 	}
@@ -544,7 +544,7 @@ func (c ChainRef) AppendRuleCf(ctx context.Context, group RuleGroup, rule string
 // DeleteRule deletes a rule from a [RuleGroup] in a [ChainRef]. It is an error
 // to delete from a group that does not exist, or to delete a rule that does not
 // exist.
-func (c ChainRef) DeleteRule(ctx context.Context, group RuleGroup, rule string, args ...interface{}) error {
+func (c ChainRef) DeleteRule(ctx context.Context, group RuleGroup, rule string, args ...any) error {
 	if len(args) > 0 {
 		rule = fmt.Sprintf(rule, args...)
 	}

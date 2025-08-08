@@ -32,8 +32,8 @@ import (
 const unnamedFilename = "__unnamed__"
 
 type pathCache interface {
-	Load(key interface{}) (value interface{}, ok bool)
-	Store(key, value interface{})
+	Load(key any) (value any, ok bool)
+	Store(key, value any)
 }
 
 // copyInfo is a data object which stores the metadata about each source file in

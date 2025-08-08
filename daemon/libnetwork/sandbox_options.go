@@ -109,7 +109,7 @@ func OptionUseExternalKey() SandboxOption {
 func OptionExposedPorts(exposedPorts []types.TransportPort) SandboxOption {
 	return func(sb *Sandbox) {
 		if sb.config.generic == nil {
-			sb.config.generic = make(map[string]interface{})
+			sb.config.generic = make(map[string]any)
 		}
 		// Defensive copy
 		eps := make([]types.TransportPort, len(exposedPorts))
@@ -125,7 +125,7 @@ func OptionExposedPorts(exposedPorts []types.TransportPort) SandboxOption {
 func OptionPortMapping(portBindings []types.PortBinding) SandboxOption {
 	return func(sb *Sandbox) {
 		if sb.config.generic == nil {
-			sb.config.generic = make(map[string]interface{})
+			sb.config.generic = make(map[string]any)
 		}
 		// Store a copy of the bindings as generic data to pass to the driver
 		pbs := make([]types.PortBinding, len(portBindings))

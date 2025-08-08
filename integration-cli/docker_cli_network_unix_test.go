@@ -782,7 +782,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDriverOptions(c *testing.T) {
 	assertNwIsAvailable(c, "testopt")
 	gopts := remoteDriverNetworkRequest.Options[netlabel.GenericData]
 	assert.Assert(c, gopts != nil)
-	opts, ok := gopts.(map[string]interface{})
+	opts, ok := gopts.(map[string]any)
 	assert.Equal(c, ok, true)
 	assert.Equal(c, opts["opt1"], "drv1")
 	assert.Equal(c, opts["opt2"], "drv2")

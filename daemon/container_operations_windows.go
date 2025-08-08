@@ -199,7 +199,7 @@ func (daemon *Daemon) initializeNetworkingPaths(ctr *container.Container, nc *co
 			}
 
 			if data["GW_INFO"] != nil {
-				gwInfo := data["GW_INFO"].(map[string]interface{})
+				gwInfo := data["GW_INFO"].(map[string]any)
 				if gwInfo["hnsid"] != nil {
 					ctr.SharedEndpointList = append(ctr.SharedEndpointList, gwInfo["hnsid"].(string))
 				}

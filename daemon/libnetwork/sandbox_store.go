@@ -169,7 +169,7 @@ func (sb *Sandbox) storeDelete() error {
 }
 
 // sandboxRestore restores Sandbox objects from the store, deleting them if they're not active.
-func (c *Controller) sandboxRestore(activeSandboxes map[string]interface{}) error {
+func (c *Controller) sandboxRestore(activeSandboxes map[string]any) error {
 	sandboxStates, err := c.store.List(&sbState{c: c})
 	if err != nil {
 		if errors.Is(err, datastore.ErrKeyNotFound) {

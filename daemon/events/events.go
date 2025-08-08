@@ -33,7 +33,7 @@ func New() *Events {
 // last events, a channel in which you can expect new events (in form
 // of interface{}, so you need type assertion), and a function to call
 // to stop the stream of events.
-func (e *Events) Subscribe() ([]eventtypes.Message, chan interface{}, func()) {
+func (e *Events) Subscribe() ([]eventtypes.Message, chan any, func()) {
 	metrics.EventSubscribers.Inc()
 	e.mu.Lock()
 	current := make([]eventtypes.Message, len(e.events))
@@ -50,18 +50,18 @@ func (e *Events) Subscribe() ([]eventtypes.Message, chan interface{}, func()) {
 // SubscribeTopic adds new listener to events, returns slice of 256 stored
 // last events, a channel in which you can expect new events (in form
 // of interface{}, so you need type assertion).
-func (e *Events) SubscribeTopic(since, until time.Time, ef *Filter) ([]eventtypes.Message, chan interface{}) {
+func (e *Events) SubscribeTopic(since, until time.Time, ef *Filter) ([]eventtypes.Message, chan any) {
 	metrics.EventSubscribers.Inc()
 	e.mu.Lock()
 
-	var topic func(m interface{}) bool
+	var topic func(m any) bool
 	if ef != nil && ef.filter.Len() > 0 {
-		topic = func(m interface{}) bool { return ef.Include(m.(eventtypes.Message)) }
+		topic = func(m any) bool { return ef.Include(m.(eventtypes.Message)) }
 	}
 
 	buffered := e.loadBufferedEvents(since, until, topic)
 
-	var ch chan interface{}
+	var ch chan any
 	if topic != nil {
 		ch = e.pub.SubscribeTopic(topic)
 	} else {
@@ -74,7 +74,7 @@ func (e *Events) SubscribeTopic(since, until time.Time, ef *Filter) ([]eventtype
 }
 
 // Evict evicts listener from pubsub
-func (e *Events) Evict(l chan interface{}) {
+func (e *Events) Evict(l chan any) {
 	metrics.EventSubscribers.Dec()
 	e.pub.Evict(l)
 }
@@ -133,7 +133,7 @@ func (e *Events) SubscribersCount() int {
 // and returns those that were emitted between two specific dates.
 // It uses `time.Unix(seconds, nanoseconds)` to generate valid dates with those arguments.
 // It filters those buffered messages with a topic function if it's not nil, otherwise it adds all messages.
-func (e *Events) loadBufferedEvents(since, until time.Time, topic func(interface{}) bool) []eventtypes.Message {
+func (e *Events) loadBufferedEvents(since, until time.Time, topic func(any) bool) []eventtypes.Message {
 	var buffered []eventtypes.Message
 	if since.IsZero() && until.IsZero() {
 		return buffered

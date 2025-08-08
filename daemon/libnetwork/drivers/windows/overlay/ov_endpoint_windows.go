@@ -85,7 +85,7 @@ func (n *network) removeEndpointWithAddress(addr *net.IPNet) {
 	}
 }
 
-func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
+func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]any) error {
 	var err error
 	if err = validateID(nid, eid); err != nil {
 		return err
@@ -239,7 +239,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	return nil
 }
 
-func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
+func (d *driver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
 	if err := validateID(nid, eid); err != nil {
 		return nil, err
 	}
@@ -254,7 +254,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 		return nil, fmt.Errorf("endpoint id %q not found", eid)
 	}
 
-	data := make(map[string]interface{}, 1)
+	data := make(map[string]any, 1)
 	data["hnsid"] = ep.profileID
 	data["AllowUnqualifiedDNSQuery"] = true
 

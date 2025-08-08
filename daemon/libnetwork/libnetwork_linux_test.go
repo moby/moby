@@ -48,7 +48,7 @@ func newController(t *testing.T) *libnetwork.Controller {
 	c, err := libnetwork.New(
 		context.Background(),
 		config.OptionDataDir(t.TempDir()),
-		config.OptionDriverConfig(bridgeNetType, map[string]interface{}{
+		config.OptionDriverConfig(bridgeNetType, map[string]any{
 			netlabel.GenericData: options.Generic{
 				"EnableIPForwarding": true,
 			},
@@ -66,8 +66,8 @@ func createTestNetwork(c *libnetwork.Controller, networkType, networkName string
 		libnetwork.NetworkOptionIpam(defaultipam.DriverName, "", ipamV4Configs, ipamV6Configs, nil))
 }
 
-func getEmptyGenericOption() map[string]interface{} {
-	return map[string]interface{}{netlabel.GenericData: map[string]string{}}
+func getEmptyGenericOption() map[string]any {
+	return map[string]any{netlabel.GenericData: map[string]string{}}
 }
 
 func getPortMapping() []types.PortBinding {

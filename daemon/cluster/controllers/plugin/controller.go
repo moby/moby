@@ -50,7 +50,7 @@ type Backend interface {
 	Pull(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *registry.AuthConfig, privileges plugintypes.Privileges, outStream io.Writer, opts ...plugin.CreateOpt) error
 	Upgrade(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *registry.AuthConfig, privileges plugintypes.Privileges, outStream io.Writer) error
 	Get(name string) (*v2.Plugin, error)
-	SubscribeEvents(buffer int, events ...plugin.Event) (eventCh <-chan interface{}, cancel func())
+	SubscribeEvents(buffer int, events ...plugin.Event) (eventCh <-chan any, cancel func())
 }
 
 // NewController returns a new cluster plugin controller

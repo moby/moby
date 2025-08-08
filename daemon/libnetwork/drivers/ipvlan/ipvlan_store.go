@@ -126,7 +126,7 @@ func (d *driver) storeDelete(kvObject datastore.KVObject) error {
 }
 
 func (config *configuration) MarshalJSON() ([]byte, error) {
-	nMap := make(map[string]interface{})
+	nMap := make(map[string]any)
 	nMap["ID"] = config.ID
 	nMap["Mtu"] = config.Mtu
 	nMap["Parent"] = config.Parent
@@ -155,7 +155,7 @@ func (config *configuration) MarshalJSON() ([]byte, error) {
 func (config *configuration) UnmarshalJSON(b []byte) error {
 	var (
 		err  error
-		nMap map[string]interface{}
+		nMap map[string]any
 	)
 
 	if err = json.Unmarshal(b, &nMap); err != nil {
@@ -235,7 +235,7 @@ func (config *configuration) CopyTo(o datastore.KVObject) error {
 }
 
 func (ep *endpoint) MarshalJSON() ([]byte, error) {
-	epMap := make(map[string]interface{})
+	epMap := make(map[string]any)
 	epMap["id"] = ep.id
 	epMap["nid"] = ep.nid
 	epMap["SrcName"] = ep.srcName
@@ -254,7 +254,7 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 func (ep *endpoint) UnmarshalJSON(b []byte) error {
 	var (
 		err   error
-		epMap map[string]interface{}
+		epMap map[string]any
 	)
 
 	if err = json.Unmarshal(b, &epMap); err != nil {

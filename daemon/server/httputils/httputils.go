@@ -32,7 +32,7 @@ func HijackConnection(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 }
 
 // CloseStreams ensures that a list for http streams are properly closed.
-func CloseStreams(streams ...interface{}) {
+func CloseStreams(streams ...any) {
 	for _, stream := range streams {
 		if tcpc, ok := stream.(interface {
 			CloseWrite() error
@@ -59,7 +59,7 @@ func CheckForJSON(r *http.Request) error {
 
 // ReadJSON validates the request to have the correct content-type, and decodes
 // the request's Body into out.
-func ReadJSON(r *http.Request, out interface{}) error {
+func ReadJSON(r *http.Request, out any) error {
 	err := CheckForJSON(r)
 	if err != nil {
 		return err
@@ -87,7 +87,7 @@ func ReadJSON(r *http.Request, out interface{}) error {
 }
 
 // WriteJSON writes the value v to the http response stream as json with standard json encoding.
-func WriteJSON(w http.ResponseWriter, code int, v interface{}) error {
+func WriteJSON(w http.ResponseWriter, code int, v any) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	enc := json.NewEncoder(w)

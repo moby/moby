@@ -294,14 +294,14 @@ func TestCreateFullOptions(t *testing.T) {
 	br, _ := types.ParseCIDR("172.16.0.1/16")
 	defgw, _ := types.ParseCIDR("172.16.0.100/16")
 
-	genericOption := make(map[string]interface{})
+	genericOption := make(map[string]any)
 	genericOption[netlabel.GenericData] = config
 
 	if err := d.configure(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
-	netOption := make(map[string]interface{})
+	netOption := make(map[string]any)
 	netOption[netlabel.EnableIPv4] = true
 	netOption[netlabel.EnableIPv6] = true
 	netOption[netlabel.GenericData] = &networkConfiguration{
@@ -321,7 +321,7 @@ func TestCreateFullOptions(t *testing.T) {
 	}
 
 	// Verify the IP address allocated for the endpoint belongs to the container network
-	epOptions := make(map[string]interface{})
+	epOptions := make(map[string]any)
 	te := newTestEndpoint(cnw, 10)
 	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te.Interface(), epOptions)
 	if err != nil {
@@ -340,7 +340,7 @@ func TestCreateNoConfig(t *testing.T) {
 	assert.NilError(t, err)
 
 	netconfig := &networkConfiguration{BridgeName: DefaultBridgeName, EnableIPv4: true}
-	genericOption := make(map[string]interface{})
+	genericOption := make(map[string]any)
 	genericOption[netlabel.GenericData] = netconfig
 
 	if err := d.CreateNetwork(context.Background(), "dummy", genericOption, nil, getIPv4Data(t), nil); err != nil {
@@ -355,7 +355,7 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 	config := &configuration{
 		EnableIPForwarding: true,
 	}
-	genericOption := make(map[string]interface{})
+	genericOption := make(map[string]any)
 	genericOption[netlabel.GenericData] = config
 
 	if err := d.configure(genericOption); err != nil {
@@ -378,7 +378,7 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 		netlabel.HostIPv4:  testHostIPv4,
 	}
 
-	netOption := make(map[string]interface{})
+	netOption := make(map[string]any)
 	netOption[netlabel.EnableIPv4] = true
 	netOption[netlabel.EnableIPv6] = true
 	netOption[netlabel.GenericData] = labels
@@ -443,7 +443,7 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 
 	// Check that a MAC address is generated if not already configured.
 	te1 := newTestEndpoint(ipdList[0].Pool, 20)
-	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te1.Interface(), map[string]interface{}{})
+	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te1.Interface(), map[string]any{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(te1.iface.mac, 6))
 
@@ -451,7 +451,7 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 	te2 := newTestEndpoint(ipdList[0].Pool, 20)
 	const macAddr = "aa:bb:cc:dd:ee:ff"
 	te2.iface.mac = netutils.MustParseMAC(macAddr)
-	err = d.CreateEndpoint(context.Background(), "dummy", "ep2", te2.Interface(), map[string]interface{}{})
+	err = d.CreateEndpoint(context.Background(), "dummy", "ep2", te2.Interface(), map[string]any{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(te2.iface.mac.String(), macAddr))
 }
@@ -544,7 +544,7 @@ func TestCreate(t *testing.T) {
 	}
 
 	netconfig := &networkConfiguration{BridgeName: DefaultBridgeName, EnableIPv4: true}
-	genericOption := make(map[string]interface{})
+	genericOption := make(map[string]any)
 	genericOption[netlabel.GenericData] = netconfig
 
 	if err := d.CreateNetwork(context.Background(), "dummy", genericOption, nil, getIPv4Data(t), nil); err != nil {
@@ -570,7 +570,7 @@ func TestCreateFail(t *testing.T) {
 	}
 
 	netconfig := &networkConfiguration{BridgeName: "dummy0", DefaultBridge: true}
-	genericOption := make(map[string]interface{})
+	genericOption := make(map[string]any)
 	genericOption[netlabel.GenericData] = netconfig
 
 	if err := d.CreateNetwork(context.Background(), "dummy", genericOption, nil, getIPv4Data(t), nil); err == nil {
@@ -599,7 +599,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 	config := &configuration{
 		EnableIPTables: true,
 	}
-	genericOption := make(map[string]interface{})
+	genericOption := make(map[string]any)
 	genericOption[netlabel.GenericData] = config
 
 	if err := d.configure(genericOption); err != nil {
@@ -607,7 +607,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 	}
 
 	config1 := &networkConfiguration{BridgeName: "net_test_1", EnableIPv4: true}
-	genericOption = make(map[string]interface{})
+	genericOption = make(map[string]any)
 	genericOption[netlabel.GenericData] = config1
 	if err := d.CreateNetwork(context.Background(), "1", genericOption, nil, getIPv4Data(t), nil); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
@@ -806,7 +806,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	config := &configuration{
 		EnableIPTables: true,
 	}
-	genericOption := make(map[string]interface{})
+	genericOption := make(map[string]any)
 	genericOption[netlabel.GenericData] = config
 
 	if err := d.configure(genericOption); err != nil {
@@ -818,7 +818,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 		EnableIPv4: true,
 		EnableICC:  false,
 	}
-	genericOption = make(map[string]interface{})
+	genericOption = make(map[string]any)
 	genericOption[netlabel.GenericData] = netconfig
 
 	ipdList := getIPv4Data(t)
@@ -827,7 +827,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	sbOptions := make(map[string]interface{})
+	sbOptions := make(map[string]any)
 	sbOptions[netlabel.PortMap] = getPortMapping()
 
 	te := newTestEndpoint(ipdList[0].Pool, 11)
@@ -909,7 +909,7 @@ func TestLinkContainers(t *testing.T) {
 	config := &configuration{
 		EnableIPTables: true,
 	}
-	genericOption := make(map[string]interface{})
+	genericOption := make(map[string]any)
 	genericOption[netlabel.GenericData] = config
 
 	if err := d.configure(genericOption); err != nil {
@@ -921,7 +921,7 @@ func TestLinkContainers(t *testing.T) {
 		EnableIPv4: true,
 		EnableICC:  false,
 	}
-	genericOption = make(map[string]interface{})
+	genericOption = make(map[string]any)
 	genericOption[netlabel.GenericData] = netconfig
 
 	ipdList := getIPv4Data(t)
@@ -937,7 +937,7 @@ func TestLinkContainers(t *testing.T) {
 	}
 
 	exposedPorts := getExposedPorts()
-	sbOptions := make(map[string]interface{})
+	sbOptions := make(map[string]any)
 	sbOptions[netlabel.ExposedPorts] = exposedPorts
 
 	err = d.Join(context.Background(), "net1", "ep1", "sbox", te1, nil, sbOptions)
@@ -966,7 +966,7 @@ func TestLinkContainers(t *testing.T) {
 		t.Fatal("No Ipv4 address assigned to the endpoint:  ep2")
 	}
 
-	sbOptions = make(map[string]interface{})
+	sbOptions = make(map[string]any)
 	sbOptions[netlabel.GenericData] = options.Generic{
 		"ChildEndpoints": []string{"ep1"},
 	}
@@ -1006,7 +1006,7 @@ func TestLinkContainers(t *testing.T) {
 	checkLink(false)
 
 	// Error condition test with an invalid endpoint-id "ep4"
-	sbOptions = make(map[string]interface{})
+	sbOptions = make(map[string]any)
 	sbOptions[netlabel.GenericData] = options.Generic{
 		"ChildEndpoints": []string{"ep1", "ep4"},
 	}
@@ -1186,7 +1186,7 @@ func TestSetDefaultGw(t *testing.T) {
 	gw6 := types.GetIPCopy(ipam6[0].Pool.IP)
 	gw6[15] = 0x42
 
-	option := map[string]interface{}{
+	option := map[string]any{
 		netlabel.EnableIPv4: true,
 		netlabel.EnableIPv6: true,
 		netlabel.GenericData: &networkConfiguration{
@@ -1253,7 +1253,7 @@ func TestCreateWithExistingBridge(t *testing.T) {
 	}
 
 	netconfig := &networkConfiguration{BridgeName: brName, EnableIPv4: true}
-	genericOption := make(map[string]interface{})
+	genericOption := make(map[string]any)
 	genericOption[netlabel.GenericData] = netconfig
 
 	ipv4Data := []driverapi.IPAMData{{
@@ -1309,7 +1309,7 @@ func TestCreateParallel(t *testing.T) {
 		name := "net" + strconv.Itoa(i)
 		c.Go(t, func() {
 			config := &networkConfiguration{BridgeName: name, EnableIPv4: true}
-			genericOption := make(map[string]interface{})
+			genericOption := make(map[string]any)
 			genericOption[netlabel.GenericData] = config
 			if err := d.CreateNetwork(context.Background(), name, genericOption, nil, ipV4Data, nil); err != nil {
 				ch <- fmt.Errorf("failed to create %s", name)
@@ -1351,7 +1351,7 @@ func TestSetupIP6TablesWithHostIPv4(t *testing.T) {
 		EnableIPTables:  true,
 		EnableIP6Tables: true,
 	}
-	if err := d.configure(map[string]interface{}{netlabel.GenericData: dc}); err != nil {
+	if err := d.configure(map[string]any{netlabel.GenericData: dc}); err != nil {
 		t.Fatal(err)
 	}
 	nc := &networkConfiguration{

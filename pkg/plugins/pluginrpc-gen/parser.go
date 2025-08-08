@@ -16,7 +16,7 @@ var errBadReturn = errors.New("found return arg with no name: all args must be n
 
 type errUnexpectedType struct {
 	expected string
-	actual   interface{}
+	actual   any
 }
 
 func (e errUnexpectedType) Error() string {

@@ -57,8 +57,8 @@ type Backend interface {
 	DaemonJoinsCluster(provider cluster.Provider)
 	DaemonLeavesCluster()
 	IsSwarmCompatible() error
-	SubscribeToEvents(since, until time.Time, filter filters.Args) ([]events.Message, chan interface{})
-	UnsubscribeFromEvents(listener chan interface{})
+	SubscribeToEvents(since, until time.Time, filter filters.Args) ([]events.Message, chan any)
+	UnsubscribeFromEvents(listener chan any)
 	UpdateAttachment(string, string, string, *network.NetworkingConfig) error
 	WaitForDetachment(context.Context, string, string, string, string) error
 	PluginManager() *plugin.Manager

@@ -119,16 +119,16 @@ type splunkLoggerRaw struct {
 }
 
 type splunkMessage struct {
-	Event      interface{} `json:"event"`
-	Time       string      `json:"time"`
-	Host       string      `json:"host"`
-	Source     string      `json:"source,omitempty"`
-	SourceType string      `json:"sourcetype,omitempty"`
-	Index      string      `json:"index,omitempty"`
+	Event      any    `json:"event"`
+	Time       string `json:"time"`
+	Host       string `json:"host"`
+	Source     string `json:"source,omitempty"`
+	SourceType string `json:"sourcetype,omitempty"`
+	Index      string `json:"index,omitempty"`
 }
 
 type splunkMessageEvent struct {
-	Line   interface{}       `json:"line"`
+	Line   any               `json:"line"`
 	Source string            `json:"source"`
 	Tag    string            `json:"tag,omitempty"`
 	Attrs  map[string]string `json:"attrs,omitempty"`

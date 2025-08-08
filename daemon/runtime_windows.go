@@ -8,7 +8,7 @@ import (
 
 type runtimes struct{}
 
-func (r *runtimes) Get(name string) (string, interface{}, error) {
+func (r *runtimes) Get(name string) (string, any, error) {
 	return "", nil, errors.New("not implemented")
 }
 

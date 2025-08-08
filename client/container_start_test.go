@@ -41,7 +41,7 @@ func TestContainerStart(t *testing.T) {
 			}
 			// we're not expecting any payload, but if one is supplied, check it is valid.
 			if req.Header.Get("Content-Type") == "application/json" {
-				var startConfig interface{}
+				var startConfig any
 				if err := json.NewDecoder(req.Body).Decode(&startConfig); err != nil {
 					return nil, fmt.Errorf("Unable to parse json: %s", err)
 				}

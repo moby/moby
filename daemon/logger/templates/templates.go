@@ -10,7 +10,7 @@ import (
 // basicFunctions are the set of initial
 // functions provided to every template.
 var basicFunctions = template.FuncMap{
-	"json": func(v interface{}) string {
+	"json": func(v any) string {
 		buf := &bytes.Buffer{}
 		enc := json.NewEncoder(buf)
 		enc.SetEscapeHTML(false)

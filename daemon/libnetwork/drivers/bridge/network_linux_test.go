@@ -21,7 +21,7 @@ func TestLinkCreate(t *testing.T) {
 	assert.NilError(t, err)
 
 	mtu := 1490
-	option := map[string]interface{}{
+	option := map[string]any{
 		netlabel.GenericData: &networkConfiguration{
 			BridgeName: DefaultBridgeName,
 			EnableIPv4: true,
@@ -83,7 +83,7 @@ func TestLinkCreateTwo(t *testing.T) {
 	err := d.configure(nil)
 	assert.NilError(t, err)
 
-	option := map[string]interface{}{
+	option := map[string]any{
 		netlabel.GenericData: &networkConfiguration{
 			BridgeName: DefaultBridgeName,
 			EnableIPv4: true,
@@ -111,7 +111,7 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 	err := d.configure(nil)
 	assert.NilError(t, err)
 
-	option := map[string]interface{}{
+	option := map[string]any{
 		netlabel.GenericData: &networkConfiguration{
 			BridgeName: DefaultBridgeName,
 			EnableIPv4: true,
@@ -136,7 +136,7 @@ func TestLinkDelete(t *testing.T) {
 	err := d.configure(nil)
 	assert.NilError(t, err)
 
-	option := map[string]interface{}{
+	option := map[string]any{
 		netlabel.GenericData: &networkConfiguration{
 			BridgeName: DefaultBridgeName,
 			EnableIPv4: true,

@@ -25,7 +25,7 @@ const Name = "json-file"
 // So let's start with a buffer bigger than this.
 const initialBufSize = 256
 
-var buffersPool = sync.Pool{New: func() interface{} { return bytes.NewBuffer(make([]byte, 0, initialBufSize)) }}
+var buffersPool = sync.Pool{New: func() any { return bytes.NewBuffer(make([]byte, 0, initialBufSize)) }}
 
 // JSONFileLogger is Logger implementation for default Docker logging.
 type JSONFileLogger struct {

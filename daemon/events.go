@@ -79,13 +79,13 @@ func (daemon *Daemon) LogDaemonEventWithAttributes(action events.Action, attribu
 }
 
 // SubscribeToEvents returns the currently record of events, a channel to stream new events from, and a function to cancel the stream of events.
-func (daemon *Daemon) SubscribeToEvents(since, until time.Time, filter filters.Args) ([]events.Message, chan interface{}) {
+func (daemon *Daemon) SubscribeToEvents(since, until time.Time, filter filters.Args) ([]events.Message, chan any) {
 	return daemon.EventsService.SubscribeTopic(since, until, daemonevents.NewFilter(filter))
 }
 
 // UnsubscribeFromEvents stops the event subscription for a client by closing the
 // channel where the daemon sends events to.
-func (daemon *Daemon) UnsubscribeFromEvents(listener chan interface{}) {
+func (daemon *Daemon) UnsubscribeFromEvents(listener chan any) {
 	daemon.EventsService.Evict(listener)
 }
 

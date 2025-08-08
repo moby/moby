@@ -4,10 +4,10 @@ package discoverapi
 // like new node joining the cluster or datastore updates
 type Discover interface {
 	// DiscoverNew is a notification for a new discovery event, Example:a new node joining a cluster
-	DiscoverNew(dType DiscoveryType, data interface{}) error
+	DiscoverNew(dType DiscoveryType, data any) error
 
 	// DiscoverDelete is a notification for a discovery delete event, Example:a node leaving a cluster
-	DiscoverDelete(dType DiscoveryType, data interface{}) error
+	DiscoverDelete(dType DiscoveryType, data any) error
 }
 
 // DiscoveryType represents the type of discovery element the DiscoverNew function is invoked on
@@ -36,7 +36,7 @@ type DatastoreConfigData struct {
 	Scope    string
 	Provider string
 	Address  string
-	Config   interface{}
+	Config   any
 }
 
 // DriverEncryptionConfig contains the initial datapath encryption key(s)

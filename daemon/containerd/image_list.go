@@ -732,7 +732,7 @@ func computeSharedSize(chainIDs []digest.Digest, layers map[digest.Digest]int, s
 }
 
 // readJSON reads content pointed by the descriptor and unmarshals it into a specified output.
-func readJSON(ctx context.Context, store content.Provider, desc ocispec.Descriptor, out interface{}) error {
+func readJSON(ctx context.Context, store content.Provider, desc ocispec.Descriptor, out any) error {
 	data, err := content.ReadBlob(ctx, store, desc)
 	if err != nil {
 		err = errors.Wrapf(err, "failed to read config content")

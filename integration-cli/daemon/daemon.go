@@ -83,8 +83,8 @@ func (d *Daemon) inspectFieldWithError(name, field string) (string, error) {
 
 // CheckActiveContainerCount returns the number of active containers
 // FIXME(vdemeester) should re-use ActivateContainers in some way
-func (d *Daemon) CheckActiveContainerCount(ctx context.Context) func(t *testing.T) (interface{}, string) {
-	return func(t *testing.T) (interface{}, string) {
+func (d *Daemon) CheckActiveContainerCount(ctx context.Context) func(t *testing.T) (any, string) {
+	return func(t *testing.T) (any, string) {
 		t.Helper()
 		apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithHost(d.Sock()))
 		assert.NilError(t, err)

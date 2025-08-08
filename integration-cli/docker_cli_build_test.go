@@ -107,7 +107,7 @@ func (s *DockerCLIBuildSuite) TestBuildEnvironmentReplacementVolume(c *testing.T
   VOLUME ${volume}
   `))
 
-	var volumes map[string]interface{}
+	var volumes map[string]any
 	inspectFieldAndUnmarshall(c, name, "Config.Volumes", &volumes)
 	if _, ok := volumes[volumePath]; !ok {
 		c.Fatal("Volume " + volumePath + " from environment not in Config.Volumes on image")
@@ -127,7 +127,7 @@ func (s *DockerCLIBuildSuite) TestBuildEnvironmentReplacementExpose(c *testing.T
   EXPOSE ${ports}
   `))
 
-	var exposedPorts map[string]interface{}
+	var exposedPorts map[string]any
 	inspectFieldAndUnmarshall(c, name, "Config.ExposedPorts", &exposedPorts)
 	exp := []int{80, 99, 100}
 	for _, p := range exp {
@@ -1621,7 +1621,7 @@ func (s *DockerCLIBuildSuite) TestBuildExposeMorePorts(c *testing.T) {
 
 	// check if all the ports are saved inside Config.ExposedPorts
 	res := inspectFieldJSON(c, name, "Config.ExposedPorts")
-	var exposedPorts map[string]interface{}
+	var exposedPorts map[string]any
 	if err := json.Unmarshal([]byte(res), &exposedPorts); err != nil {
 		c.Fatal(err)
 	}
@@ -4362,7 +4362,7 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgExpansion(c *testing.T) {
 			envVar, envVal, resArr)
 	}
 
-	var resMap map[string]interface{}
+	var resMap map[string]any
 	inspectFieldAndUnmarshall(c, imgName, "Config.ExposedPorts", &resMap)
 	if _, ok := resMap[fmt.Sprintf("%s/tcp", exposeVal)]; !ok {
 		c.Fatalf("Config.ExposedPorts value mismatch. Expected exposed port: %s/tcp, got: %v", exposeVal, resMap)

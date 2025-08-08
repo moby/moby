@@ -24,9 +24,9 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func handle(t *testing.T, mux *http.ServeMux, method string, h func(map[string]interface{}) interface{}) {
+func handle(t *testing.T, mux *http.ServeMux, method string, h func(map[string]any) any) {
 	mux.HandleFunc(fmt.Sprintf("/%s.%s", driverapi.NetworkPluginEndpointType, method), func(w http.ResponseWriter, r *http.Request) {
-		var ask map[string]interface{}
+		var ask map[string]any
 		err := json.NewDecoder(r.Body).Decode(&ask)
 		if err != nil && !errors.Is(err, io.EOF) {
 			t.Fatal(err)
@@ -218,8 +218,8 @@ func TestGetEmptyCapabilities(t *testing.T) {
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
 
-	handle(t, mux, "GetCapabilities", func(msg map[string]interface{}) interface{} {
-		return map[string]interface{}{}
+	handle(t, mux, "GetCapabilities", func(msg map[string]any) any {
+		return map[string]any{}
 	})
 
 	p, err := plugins.Get(plugin, driverapi.NetworkPluginEndpointType)
@@ -248,8 +248,8 @@ func TestGetExtraCapabilities(t *testing.T) {
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
 
-	handle(t, mux, "GetCapabilities", func(msg map[string]interface{}) interface{} {
-		return map[string]interface{}{
+	handle(t, mux, "GetCapabilities", func(msg map[string]any) any {
+		return map[string]any{
 			"Scope":             "local",
 			"foo":               "bar",
 			"ConnectivityScope": "global",
@@ -286,8 +286,8 @@ func TestGetInvalidCapabilities(t *testing.T) {
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
 
-	handle(t, mux, "GetCapabilities", func(msg map[string]interface{}) interface{} {
-		return map[string]interface{}{
+	handle(t, mux, "GetCapabilities", func(msg map[string]any) any {
+		return map[string]any{
 			"Scope": "fake",
 		}
 	})
@@ -336,60 +336,60 @@ func TestRemoteDriver(t *testing.T) {
 
 	var networkID string
 
-	handle(t, mux, "GetCapabilities", func(msg map[string]interface{}) interface{} {
-		return map[string]interface{}{
+	handle(t, mux, "GetCapabilities", func(msg map[string]any) any {
+		return map[string]any{
 			"Scope":          "global",
 			"GwAllocChecker": true,
 		}
 	})
-	handle(t, mux, "GwAllocCheck", func(msg map[string]interface{}) interface{} {
-		options := msg["Options"].(map[string]interface{})
-		return map[string]interface{}{
+	handle(t, mux, "GwAllocCheck", func(msg map[string]any) any {
+		options := msg["Options"].(map[string]any)
+		return map[string]any{
 			"SkipIPv4": options["skip4"].(bool),
 			"SkipIPv6": options["skip6"].(bool),
 		}
 	})
-	handle(t, mux, "CreateNetwork", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "CreateNetwork", func(msg map[string]any) any {
 		nid := msg["NetworkID"]
 		var ok bool
 		if networkID, ok = nid.(string); !ok {
 			t.Fatal("RPC did not include network ID string")
 		}
-		return map[string]interface{}{}
+		return map[string]any{}
 	})
-	handle(t, mux, "DeleteNetwork", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "DeleteNetwork", func(msg map[string]any) any {
 		if nid, ok := msg["NetworkID"]; !ok || nid != networkID {
 			t.Fatal("Network ID missing or does not match that created")
 		}
-		return map[string]interface{}{}
+		return map[string]any{}
 	})
-	handle(t, mux, "CreateEndpoint", func(msg map[string]interface{}) interface{} {
-		iface := map[string]interface{}{
+	handle(t, mux, "CreateEndpoint", func(msg map[string]any) any {
+		iface := map[string]any{
 			"MacAddress":  ep.macAddress,
 			"Address":     ep.address,
 			"AddressIPv6": ep.addressIPv6,
 		}
-		return map[string]interface{}{
+		return map[string]any{
 			"Interface": iface,
 		}
 	})
-	handle(t, mux, "Join", func(msg map[string]interface{}) interface{} {
-		opts := msg["Options"].(map[string]interface{})
+	handle(t, mux, "Join", func(msg map[string]any) any {
+		opts := msg["Options"].(map[string]any)
 		foo, ok := opts["foo"].(string)
 		if !ok || foo != "fooValue" {
 			t.Fatalf("Did not receive expected foo string in request options: %+v", msg)
 		}
-		return map[string]interface{}{
+		return map[string]any{
 			"Gateway":        ep.gateway,
 			"GatewayIPv6":    ep.gatewayIPv6,
 			"HostsPath":      ep.hostsPath,
 			"ResolvConfPath": ep.resolvConfPath,
-			"InterfaceName": map[string]interface{}{
+			"InterfaceName": map[string]any{
 				"SrcName":   ep.srcName,
 				"DstPrefix": ep.dstPrefix,
 				"DstName":   ep.dstName,
 			},
-			"StaticRoutes": []map[string]interface{}{
+			"StaticRoutes": []map[string]any{
 				{
 					"Destination": ep.destination,
 					"RouteType":   ep.routeType,
@@ -398,25 +398,25 @@ func TestRemoteDriver(t *testing.T) {
 			},
 		}
 	})
-	handle(t, mux, "Leave", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "Leave", func(msg map[string]any) any {
 		return map[string]string{}
 	})
-	handle(t, mux, "DeleteEndpoint", func(msg map[string]interface{}) interface{} {
-		return map[string]interface{}{}
+	handle(t, mux, "DeleteEndpoint", func(msg map[string]any) any {
+		return map[string]any{}
 	})
-	handle(t, mux, "EndpointOperInfo", func(msg map[string]interface{}) interface{} {
-		return map[string]interface{}{
+	handle(t, mux, "EndpointOperInfo", func(msg map[string]any) any {
+		return map[string]any{
 			"Value": map[string]string{
 				"Arbitrary": "key",
 				"Value":     "pairs?",
 			},
 		}
 	})
-	handle(t, mux, "DiscoverNew", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "DiscoverNew", func(msg map[string]any) any {
 		return map[string]string{}
 	})
-	handle(t, mux, "DiscoverDelete", func(msg map[string]interface{}) interface{} {
-		return map[string]interface{}{}
+	handle(t, mux, "DiscoverDelete", func(msg map[string]any) any {
+		return map[string]any{}
 	})
 
 	p, err := plugins.Get(plugin, driverapi.NetworkPluginEndpointType)
@@ -454,14 +454,14 @@ func TestRemoteDriver(t *testing.T) {
 	}
 
 	netID := "dummy-network"
-	err = d.CreateNetwork(context.Background(), netID, map[string]interface{}{}, nil, nil, nil)
+	err = d.CreateNetwork(context.Background(), netID, map[string]any{}, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	endID := "dummy-endpoint"
 	ifInfo := &testEndpoint{}
-	err = d.CreateEndpoint(context.Background(), netID, endID, ifInfo, map[string]interface{}{})
+	err = d.CreateEndpoint(context.Background(), netID, endID, ifInfo, map[string]any{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -473,7 +473,7 @@ func TestRemoteDriver(t *testing.T) {
 			ifInfo.MacAddress(), ifInfo.Address(), ifInfo.AddressIPv6())
 	}
 
-	joinOpts := map[string]interface{}{"foo": "fooValue"}
+	joinOpts := map[string]any{"foo": "fooValue"}
 	err = d.Join(context.Background(), netID, endID, "sandbox-key", ep, nil, joinOpts)
 	if err != nil {
 		t.Fatal(err)
@@ -508,8 +508,8 @@ func TestDriverError(t *testing.T) {
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
 
-	handle(t, mux, "CreateEndpoint", func(msg map[string]interface{}) interface{} {
-		return map[string]interface{}{
+	handle(t, mux, "CreateEndpoint", func(msg map[string]any) any {
+		return map[string]any{
 			"Err": "this should get raised as an error",
 		}
 	})
@@ -525,7 +525,7 @@ func TestDriverError(t *testing.T) {
 	}
 
 	d := newDriver(plugin, client)
-	if err := d.CreateEndpoint(context.Background(), "dummy", "dummy", &testEndpoint{t: t}, map[string]interface{}{}); err == nil {
+	if err := d.CreateEndpoint(context.Background(), "dummy", "dummy", &testEndpoint{t: t}, map[string]any{}); err == nil {
 		t.Fatal("Expected error from driver")
 	}
 }
@@ -540,13 +540,13 @@ func TestMissingValues(t *testing.T) {
 		t: t,
 	}
 
-	handle(t, mux, "CreateEndpoint", func(msg map[string]interface{}) interface{} {
-		iface := map[string]interface{}{
+	handle(t, mux, "CreateEndpoint", func(msg map[string]any) any {
+		iface := map[string]any{
 			"Address":     ep.address,
 			"AddressIPv6": ep.addressIPv6,
 			"MacAddress":  ep.macAddress,
 		}
-		return map[string]interface{}{
+		return map[string]any{
 			"Interface": iface,
 		}
 	})
@@ -562,7 +562,7 @@ func TestMissingValues(t *testing.T) {
 	}
 
 	d := newDriver(plugin, client)
-	if err := d.CreateEndpoint(context.Background(), "dummy", "dummy", ep, map[string]interface{}{}); err != nil {
+	if err := d.CreateEndpoint(context.Background(), "dummy", "dummy", ep, map[string]any{}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -605,19 +605,19 @@ func TestRollback(t *testing.T) {
 
 	rolledback := false
 
-	handle(t, mux, "CreateEndpoint", func(msg map[string]interface{}) interface{} {
-		iface := map[string]interface{}{
+	handle(t, mux, "CreateEndpoint", func(msg map[string]any) any {
+		iface := map[string]any{
 			"Address":     "192.168.4.5/16",
 			"AddressIPv6": "",
 			"MacAddress":  "7a:12:34:56:78:90",
 		}
-		return map[string]interface{}{
-			"Interface": interface{}(iface),
+		return map[string]any{
+			"Interface": any(iface),
 		}
 	})
-	handle(t, mux, "DeleteEndpoint", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "DeleteEndpoint", func(msg map[string]any) any {
 		rolledback = true
-		return map[string]interface{}{}
+		return map[string]any{}
 	})
 
 	p, err := plugins.Get(plugin, driverapi.NetworkPluginEndpointType)
@@ -632,7 +632,7 @@ func TestRollback(t *testing.T) {
 
 	d := newDriver(plugin, client)
 	ep := &rollbackEndpoint{}
-	if err := d.CreateEndpoint(context.Background(), "dummy", "dummy", ep.Interface(), map[string]interface{}{}); err == nil {
+	if err := d.CreateEndpoint(context.Background(), "dummy", "dummy", ep.Interface(), map[string]any{}); err == nil {
 		t.Fatal("Expected error from driver")
 	}
 	if !rolledback {

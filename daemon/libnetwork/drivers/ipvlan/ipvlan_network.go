@@ -18,7 +18,7 @@ import (
 )
 
 // CreateNetwork the network for the specified driver type
-func (d *driver) CreateNetwork(ctx context.Context, nid string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(ctx context.Context, nid string, option map[string]any, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	kv, err := kernel.GetKernelVersion()
 	if err != nil {
 		return fmt.Errorf("failed to check kernel version for ipvlan driver support: %v", err)
@@ -240,7 +240,7 @@ func parseNetworkOptions(id string, option options.Generic) (*configuration, err
 }
 
 // parseNetworkGenericOptions parse generic driver docker network options
-func parseNetworkGenericOptions(data interface{}) (*configuration, error) {
+func parseNetworkGenericOptions(data any) (*configuration, error) {
 	switch opt := data.(type) {
 	case *configuration:
 		return opt, nil

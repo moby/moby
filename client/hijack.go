@@ -14,7 +14,7 @@ import (
 )
 
 // postHijacked sends a POST request and hijacks the connection.
-func (cli *Client) postHijacked(ctx context.Context, path string, query url.Values, body interface{}, headers map[string][]string) (HijackedResponse, error) {
+func (cli *Client) postHijacked(ctx context.Context, path string, query url.Values, body any, headers map[string][]string) (HijackedResponse, error) {
 	jsonBody, err := jsonEncode(body)
 	if err != nil {
 		return HijackedResponse{}, err

@@ -5,7 +5,7 @@ package libnetwork
 import "fmt"
 
 // DriverInfo returns a collection of driver operational data related to this endpoint retrieved from the driver.
-func (ep *Endpoint) DriverInfo() (map[string]interface{}, error) {
+func (ep *Endpoint) DriverInfo() (map[string]any, error) {
 	ep, err := ep.retrieveFromStore()
 	if err != nil {
 		return nil, err

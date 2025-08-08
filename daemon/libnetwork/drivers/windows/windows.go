@@ -322,7 +322,7 @@ func (d *driver) createNetwork(config *networkConfiguration) *hnsNetwork {
 }
 
 // Create a new network
-func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]any, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	if _, err := d.getNetwork(id); err == nil {
 		return types.ForbiddenErrorf("network %s exists", id)
 	}
@@ -585,7 +585,7 @@ func ParsePortBindingPolicies(policies []json.RawMessage) ([]types.PortBinding, 
 	return bindings, nil
 }
 
-func parseEndpointOptions(epOptions map[string]interface{}) (*endpointOption, error) {
+func parseEndpointOptions(epOptions map[string]any) (*endpointOption, error) {
 	if epOptions == nil {
 		return nil, nil
 	}
@@ -636,7 +636,7 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*endpointOption, er
 }
 
 // ParseEndpointConnectivity parses options passed to CreateEndpoint, specifically port bindings, and store in a endpointConnectivity object.
-func ParseEndpointConnectivity(epOptions map[string]interface{}) (*EndpointConnectivity, error) {
+func ParseEndpointConnectivity(epOptions map[string]any) (*EndpointConnectivity, error) {
 	if epOptions == nil {
 		return nil, nil
 	}
@@ -661,7 +661,7 @@ func ParseEndpointConnectivity(epOptions map[string]interface{}) (*EndpointConne
 	return ec, nil
 }
 
-func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
+func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]any) error {
 	ctx, span := otel.Tracer("").Start(ctx, fmt.Sprintf("libnetwork.drivers.windows_%s.CreateEndpoint", d.name), trace.WithAttributes(
 		attribute.String("nid", nid),
 		attribute.String("eid", eid)))
@@ -845,7 +845,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	return nil
 }
 
-func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
+func (d *driver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return nil, err
@@ -856,7 +856,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 		return nil, err
 	}
 
-	data := make(map[string]interface{}, 1)
+	data := make(map[string]any, 1)
 	if network.driver.name == "nat" {
 		data["AllowUnqualifiedDNSQuery"] = true
 	}
@@ -887,7 +887,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, options map[string]interface{}) error {
+func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, options map[string]any) error {
 	ctx, span := otel.Tracer("").Start(ctx, fmt.Sprintf("libnetwork.drivers.windows_%s.Join", d.name), trace.WithAttributes(
 		attribute.String("nid", nid),
 		attribute.String("eid", eid),
