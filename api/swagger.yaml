@@ -3150,8 +3150,6 @@ definitions:
                 type: "array"
                 items:
                   type: "string"
-                  x-go-type:
-                    type: "CapabilityID"
                 example:
                   - "docker.volumedriver/1.0"
               Socket:
