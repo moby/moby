@@ -1,13 +1,13 @@
 table ip this_is_a_table {
 	map this_is_a_vmap {
 		type ifname : verdict
-		elements = { "eth0" : return }
+		elements = { "eth0" : return,
+			     "eth1" : return }
 	}
 
-	set set4 {
+	set this_is_a_set {
 		type ipv4_addr
 		flags interval
-		elements = { 192.0.2.0/24 }
 	}
 
 	chain a_base_chain {
