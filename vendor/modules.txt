@@ -596,8 +596,8 @@ github.com/golang-jwt/jwt/v5
 ## explicit; go 1.13
 github.com/golang/gddo/httputil
 github.com/golang/gddo/httputil/header
-# github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
-## explicit
+# github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8
+## explicit; go 1.20
 github.com/golang/groupcache/lru
 # github.com/golang/protobuf v1.5.4
 ## explicit; go 1.17
