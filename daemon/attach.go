@@ -33,10 +33,10 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, req *backend.Containe
 	if err != nil {
 		return err
 	}
-	if ctr.IsPaused() {
+	if ctr.State.IsPaused() {
 		return errdefs.Conflict(fmt.Errorf("container %s is paused, unpause the container before attach", prefixOrName))
 	}
-	if ctr.IsRestarting() {
+	if ctr.State.IsRestarting() {
 		return errdefs.Conflict(fmt.Errorf("container %s is restarting, wait until the container is running", prefixOrName))
 	}
 
@@ -192,7 +192,7 @@ func (daemon *Daemon) containerAttach(ctr *container.Container, cfg *stream.Atta
 
 	if ctr.Config.StdinOnce && !ctr.Config.Tty {
 		// Wait for the container to stop before returning.
-		waitChan := ctr.Wait(context.Background(), containertypes.WaitConditionNotRunning)
+		waitChan := ctr.State.Wait(context.Background(), containertypes.WaitConditionNotRunning)
 		defer func() {
 			<-waitChan // Ignore returned exit code.
 		}()
