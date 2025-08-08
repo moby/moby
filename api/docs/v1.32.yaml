@@ -2783,6 +2783,7 @@ definitions:
       ForceUpdate:
         description: "A counter that triggers an update even if no relevant parameters have been changed."
         type: "integer"
+        format: "uint64"
       Runtime:
         description: "Runtime is the type of runtime specified for the task executor."
         type: "string"

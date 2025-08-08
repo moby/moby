@@ -2051,6 +2051,7 @@ definitions:
       ForceUpdate:
         description: "A counter that triggers an update even if no relevant parameters have been changed."
         type: "integer"
+        format: "uint64"
       Networks:
         type: "array"
         items:
