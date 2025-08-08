@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/hashicorp/go-multierror"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/symlink"
 	"golang.org/x/sys/unix"
@@ -215,10 +214,13 @@ func (vw *containerFSView) GoInFS(ctx context.Context, fn func()) error {
 func (vw *containerFSView) Close() error {
 	runtime.SetFinalizer(vw, nil)
 	close(vw.todo)
-	err := multierror.Append(nil, <-vw.done)
-	err = multierror.Append(err, vw.ctr.UnmountVolumes(context.TODO(), vw.d.LogVolumeEvent))
-	err = multierror.Append(err, vw.d.Unmount(vw.ctr))
-	return err.ErrorOrNil()
+	var errs []error
+	errs = append(errs,
+		<-vw.done,
+		vw.ctr.UnmountVolumes(context.TODO(), vw.d.LogVolumeEvent),
+		vw.d.Unmount(vw.ctr),
+	)
+	return errors.Join(errs...)
 }
 
 // Stat returns the metadata for path, relative to the current working directory

@@ -3,11 +3,11 @@ package daemon
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 
 	"github.com/containerd/log"
-	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/copystructure"
 	"github.com/moby/moby/api/types/events"
 
@@ -35,11 +35,11 @@ func (tx *reloadTxn) run(cbs []func() error) error {
 	tx.onCommit = nil
 	tx.onRollback = nil
 
-	var res *multierror.Error
+	var errs []error
 	for _, cb := range cbs {
-		res = multierror.Append(res, cb())
+		errs = append(errs, cb())
 	}
-	return res.ErrorOrNil()
+	return errors.Join(errs...)
 }
 
 // Commit calls all functions registered with OnCommit.
@@ -109,10 +109,7 @@ func (daemon *Daemon) Reload(conf *config.Config) error {
 		daemon.reloadNetworkDiagnosticPort,
 	} {
 		if err := reload(&txn, newCfg, conf, attributes); err != nil {
-			if rollbackErr := txn.Rollback(); rollbackErr != nil {
-				return multierror.Append(nil, err, rollbackErr)
-			}
-			return err
+			return errors.Join(err, txn.Rollback())
 		}
 	}
 
