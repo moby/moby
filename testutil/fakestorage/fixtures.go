@@ -27,10 +27,6 @@ func ensureHTTPServerImage(t testing.TB) {
 		return
 	}
 
-	defer testEnv.ProtectImage(t, "httpserver:latest")
-
-	tmp := t.TempDir()
-
 	goos := testEnv.DaemonInfo.OSType
 	if goos == "" {
 		goos = "linux"
@@ -40,41 +36,47 @@ func ensureHTTPServerImage(t testing.TB) {
 		goarch = "amd64"
 	}
 
-	cpCmd, lookErr := exec.LookPath("cp")
-	if lookErr != nil {
-		t.Fatalf("could not build http server: %v", lookErr)
-	}
+	goCmd, err := exec.LookPath("go")
+	assert.NilError(t, err, "could not find go executable to build http server")
 
-	if _, err := os.Stat("../contrib/httpserver/httpserver"); os.IsNotExist(err) {
-		goCmd, lookErr := exec.LookPath("go")
-		if lookErr != nil {
-			t.Fatalf("could not build http server: %v", lookErr)
-		}
+	tmp := t.TempDir()
+	const httpServer = `package main
 
-		cmd := exec.Command(goCmd, "build", "-o", filepath.Join(tmp, "httpserver"), "github.com/moby/moby/v2/contrib/httpserver")
-		cmd.Env = append(os.Environ(), []string{
-			"CGO_ENABLED=0",
-			"GOOS=" + goos,
-			"GOARCH=" + goarch,
-		}...)
-		var out []byte
-		if out, err = cmd.CombinedOutput(); err != nil {
-			t.Fatalf("could not build http server: %s", string(out))
-		}
-	} else {
-		if out, err := exec.Command(cpCmd, "../contrib/httpserver/httpserver", filepath.Join(tmp, "httpserver")).CombinedOutput(); err != nil {
-			t.Fatalf("could not copy http server: %v", string(out))
-		}
-	}
+import (
+	"log"
+	"net/http"
+)
 
-	if out, err := exec.Command(cpCmd, "../contrib/httpserver/Dockerfile", filepath.Join(tmp, "Dockerfile")).CombinedOutput(); err != nil {
-		t.Fatalf("could not build http server: %v", string(out))
-	}
+func main() {
+	fs := http.FileServer(http.Dir("/static"))
+	http.Handle("/", fs)
+	log.Panic(http.ListenAndServe(":80", nil)) // #nosec G114 -- Ignoring for test-code: G114: Use of net/http serve function that has no support for setting timeouts (gosec)
+}
+`
+	src := filepath.Join(tmp, "main.go")
+	err = os.WriteFile(filepath.Join(tmp, "main.go"), []byte(httpServer), 0o0644)
+	assert.NilError(t, err)
 
-	c := testEnv.APIClient()
+	cmd := exec.Command(goCmd, "build", "-o", filepath.Join(tmp, "httpserver"), src)
+	cmd.Env = append(os.Environ(), []string{
+		"CGO_ENABLED=0",
+		"GOOS=" + goos,
+		"GOARCH=" + goarch,
+	}...)
+	out, err := cmd.CombinedOutput()
+	assert.NilError(t, err, "could not build http server: %s", string(out))
+	const dockerfile = `FROM scratch
+EXPOSE 80/tcp
+COPY httpserver .
+CMD ["./httpserver"]
+`
+	err = os.WriteFile(filepath.Join(tmp, "Dockerfile"), []byte(dockerfile), 0o644)
+	assert.NilError(t, err, "could not write Dockerfile")
 	reader, err := archive.TarWithOptions(tmp, &archive.TarOptions{})
 	assert.NilError(t, err)
-	resp, err := c.ImageBuild(context.Background(), reader, build.ImageBuildOptions{
+
+	apiClient := testEnv.APIClient()
+	resp, err := apiClient.ImageBuild(context.Background(), reader, build.ImageBuildOptions{
 		Remove:      true,
 		ForceRemove: true,
 		Tags:        []string{"httpserver"},
@@ -82,4 +84,5 @@ func ensureHTTPServerImage(t testing.TB) {
 	assert.NilError(t, err)
 	_, err = io.Copy(io.Discard, resp.Body)
 	assert.NilError(t, err)
+	testEnv.ProtectImage(t, "httpserver:latest")
 }

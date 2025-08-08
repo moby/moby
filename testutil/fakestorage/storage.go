@@ -133,13 +133,15 @@ func (f *remoteFileServer) Close() error {
 
 func newRemoteFileServer(t testing.TB, ctx *fakecontext.Fake, c client.APIClient) *remoteFileServer {
 	var (
-		imgName   = fmt.Sprintf("fileserver-img-%s", strings.ToLower(testutil.GenerateRandomAlphaOnlyString(10)))
-		container = fmt.Sprintf("fileserver-cnt-%s", strings.ToLower(testutil.GenerateRandomAlphaOnlyString(10)))
+		imgName = fmt.Sprintf("fileserver-img-%s", strings.ToLower(testutil.GenerateRandomAlphaOnlyString(10)))
+		ctrName = fmt.Sprintf("fileserver-cnt-%s", strings.ToLower(testutil.GenerateRandomAlphaOnlyString(10)))
 	)
 
 	ensureHTTPServerImage(t)
 
 	// Build the image
+	//
+	// TODO(thaJeztah): ensureHTTPServerImage also builds an image; can we just do both at once?
 	if err := ctx.Add("Dockerfile", `FROM httpserver
 COPY . /static`); err != nil {
 		t.Fatal(err)
@@ -153,9 +155,10 @@ COPY . /static`); err != nil {
 	assert.NilError(t, err)
 
 	// Start the container
-	b, err := c.ContainerCreate(context.Background(), &containertypes.Config{
-		Image: imgName,
-	}, &containertypes.HostConfig{}, nil, nil, container)
+	b, err := c.ContainerCreate(context.Background(),
+		&containertypes.Config{Image: imgName},
+		&containertypes.HostConfig{PublishAllPorts: true},
+		nil, nil, ctrName)
 	assert.NilError(t, err)
 	err = c.ContainerStart(context.Background(), b.ID, containertypes.StartOptions{})
 	assert.NilError(t, err)
@@ -164,14 +167,16 @@ COPY . /static`); err != nil {
 	i, err := c.ContainerInspect(context.Background(), b.ID)
 	assert.NilError(t, err)
 	ports, exists := i.NetworkSettings.Ports["80/tcp"]
-	if !exists || len(ports) != 1 {
-		t.Fatalf("unable to find port 80/tcp for %s", container)
+	assert.Assert(t, exists, "unable to find port 80/tcp for %s", ctrName)
+	if len(ports) == 0 {
+		t.Fatalf("no ports mapped for 80/tcp for %s: %#v", ctrName, i.NetworkSettings.Ports)
 	}
+	// TODO(thaJeztah): this will be "0.0.0.0" or "::", is that expected, should this use the IP of the testEnv.Server?
 	host := ports[0].HostIP
 	port := ports[0].HostPort
 
 	return &remoteFileServer{
-		container: container,
+		container: ctrName,
 		image:     imgName,
 		host:      fmt.Sprintf("%s:%s", host, port),
 		ctx:       ctx,
