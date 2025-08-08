@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	containerd "github.com/containerd/containerd/v2/client"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
@@ -535,33 +537,71 @@ func TestCreateTmpfsOverrideAnonymousVolume(t *testing.T) {
 
 // Test that if the referenced image platform does not match the requested platform on container create that we get an
 // error.
-func TestCreateDifferentPlatform(t *testing.T) {
+func TestCreatePlatform(t *testing.T) {
 	ctx := setupTest(t)
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "test image is only available on linux")
+
 	apiClient := testEnv.APIClient()
 
-	img, err := apiClient.ImageInspect(ctx, "busybox:latest")
-	assert.NilError(t, err)
-	assert.Assert(t, img.Architecture != "")
+	// Test OK when image platform matches runtime platform
+	// docker pull --platform linux/arm64/v8 alpine:latest
+	// docker run --rm -it --pull=never --platform linux/arm64/v8 alpine:latest
+	// expected output:
+	//   success, no error
+	t.Run("matching image and runtime platform", func(t *testing.T) {
+		resp, err := apiClient.ImagePull(ctx, "alpine:latest", image.PullOptions{Platform: "linux/arm64/v8"})
+		assert.NilError(t, err)
+		_, err = io.ReadAll(resp)
+		assert.NilError(t, err)
+		resp.Close()
 
-	t.Run("different os", func(t *testing.T) {
-		ctx := testutil.StartSpan(ctx, t)
 		p := ocispec.Platform{
-			OS:           img.Os + "DifferentOS",
-			Architecture: img.Architecture,
-			Variant:      img.Variant,
+			OS:           "linux",
+			Architecture: "arm64",
+			Variant:      "v8",
 		}
-		_, err := apiClient.ContainerCreate(ctx, &container.Config{Image: "busybox:latest"}, &container.HostConfig{}, nil, &p, "")
-		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
+		_, err = apiClient.ContainerCreate(ctx, &container.Config{Image: "alpine:latest"}, &container.HostConfig{}, nil, &p, "")
+		assert.NilError(t, err)
 	})
-	t.Run("different cpu arch", func(t *testing.T) {
-		ctx := testutil.StartSpan(ctx, t)
+
+	// Test failure when image platform does not match runtime platform
+	// docker pull --platform linux/arm64/v8 alpine:latest
+	// docker run --rm -it --pull=never --platform linux/amd64 alpine:latest
+	// expected output:
+	//   docker: Error response from daemon: the requested image's platform (linux/arm64/v8) does not match the runtime platform (linux/amd64)
+	t.Run("non-matching image and runtime platform", func(t *testing.T) {
+		resp, err := apiClient.ImagePull(ctx, "alpine:latest", image.PullOptions{Platform: "linux/arm64/v8"})
+		assert.NilError(t, err)
+		_, err = io.ReadAll(resp)
+		assert.NilError(t, err)
+		resp.Close()
+
 		p := ocispec.Platform{
-			OS:           img.Os,
-			Architecture: img.Architecture + "DifferentArch",
-			Variant:      img.Variant,
+			OS:           "linux",
+			Architecture: "amd64",
 		}
-		_, err := apiClient.ContainerCreate(ctx, &container.Config{Image: "busybox:latest"}, &container.HostConfig{}, nil, &p, "")
+		_, err = apiClient.ContainerCreate(ctx, &container.Config{Image: "alpine:latest"}, &container.HostConfig{}, nil, &p, "")
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
+		assert.ErrorContains(t, err, "Error response from daemon: the requested image does not match the runtime platform (linux/amd64)")
+	})
+
+	// Test failure when image platform does not match default runtime platform
+	// docker pull --platform linux/arm64/v8 alpine:latest
+	// docker run --rm -it --pull=never alpine:latest
+	// expected output:
+	//   docker: Error response from daemon: the requested image's platform (linux/arm64/v8) does not match the runtime platform
+	t.Run("non-matching image and default runtime platform", func(t *testing.T) {
+		skip.If(t, testEnv.DaemonInfo.Architecture == "arm", "test only makes sense to run on non-arm systems")
+
+		resp, err := apiClient.ImagePull(ctx, "alpine:latest", image.PullOptions{Platform: "linux/arm64/v8"})
+		assert.NilError(t, err)
+		_, err = io.ReadAll(resp)
+		assert.NilError(t, err)
+		resp.Close()
+
+		_, err = apiClient.ContainerCreate(ctx, &container.Config{Image: "alpine:latest"}, &container.HostConfig{}, nil, nil, "")
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
+		assert.ErrorContains(t, err, "Error response from daemon: the requested image does not match the runtime platform")
 	})
 }
 
@@ -578,26 +618,6 @@ func TestCreateVolumesFromNonExistingContainer(t *testing.T) {
 		"",
 	)
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
-}
-
-// Test that we can create a container from an image that is for a different platform even if a platform was not specified
-// This is for the regression detailed here: https://github.com/moby/moby/issues/41552
-func TestCreatePlatformSpecificImageNoPlatform(t *testing.T) {
-	ctx := setupTest(t)
-
-	skip.If(t, testEnv.DaemonInfo.Architecture == "arm", "test only makes sense to run on non-arm systems")
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "test image is only available on linux")
-	apiClient := testEnv.APIClient()
-
-	_, err := apiClient.ContainerCreate(
-		ctx,
-		&container.Config{Image: "arm32v7/hello-world"},
-		&container.HostConfig{},
-		nil,
-		nil,
-		"",
-	)
-	assert.NilError(t, err)
 }
 
 func TestCreateInvalidHostConfig(t *testing.T) {

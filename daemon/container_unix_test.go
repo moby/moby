@@ -17,7 +17,7 @@ func TestContainerWarningHostAndPublishPorts(t *testing.T) {
 		ports    containertypes.PortMap
 		warnings []string
 	}{
-		{ports: containertypes.PortMap{}},
+		{ports: containertypes.PortMap{}, warnings: []string{}},
 		{ports: containertypes.PortMap{
 			"8080": []containertypes.PortBinding{{HostPort: "8989"}},
 		}, warnings: []string{"Published ports are discarded when using host network mode"}},
@@ -36,7 +36,8 @@ func TestContainerWarningHostAndPublishPorts(t *testing.T) {
 		rts, err := setupRuntimes(cfg)
 		assert.NilError(t, err)
 		daemonCfg := &configStore{Config: *cfg, Runtimes: rts}
-		wrns, err := d.verifyContainerSettings(daemonCfg, hostConfig, &containertypes.Config{}, false)
+		wrns := []string{}
+		err = d.verifyContainerSettings(daemonCfg, hostConfig, &containertypes.Config{}, false, &wrns)
 		assert.NilError(t, err)
 		assert.DeepEqual(t, tc.warnings, wrns)
 	}

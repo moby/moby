@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	containertypes "github.com/moby/moby/api/types/container"
@@ -16,7 +17,6 @@ import (
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
-	"github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
 	"github.com/moby/moby/v2/daemon/internal/multierror"
@@ -26,7 +26,6 @@ import (
 	"github.com/moby/sys/user"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux"
-	"github.com/tonistiigi/go-archvariant"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -86,40 +85,33 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 		opts.params.HostConfig.RestartPolicy.Name = containertypes.RestartPolicyDisabled
 	}
 
-	warnings, err := daemon.verifyContainerSettings(daemonCfg, opts.params.HostConfig, opts.params.Config, false)
-	if err != nil {
+	warnings := make([]string, 0) // Create an empty slice to avoid https://github.com/moby/moby/issues/38222
+
+	if err := daemon.verifyContainerSettings(daemonCfg, opts.params.HostConfig, opts.params.Config, false, &warnings); err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
-	if opts.params.Platform == nil && opts.params.Config.Image != "" {
-		img, err := daemon.imageService.GetImage(ctx, opts.params.Config.Image, backend.GetImageOpts{})
+	if err := daemon.validateNetworkingConfig(opts.params.NetworkingConfig); err != nil {
+		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
+	}
+
+	// Check if the image is present locally and if not return an error.
+	if opts.params.Config.Image != "" {
+		_, err := daemon.imageService.GetImage(ctx, opts.params.Config.Image, backend.GetImageOpts{})
 		if err != nil {
-			return containertypes.CreateResponse{}, err
-		}
-		if img != nil {
-			p := maximumSpec()
-			imgPlat := ocispec.Platform{
-				OS:           img.OS,
-				Architecture: img.Architecture,
-				Variant:      img.Variant,
-			}
-
-			if !images.OnlyPlatformWithFallback(p).Match(imgPlat) {
-				warnings = append(warnings, fmt.Sprintf("The requested image's platform (%s) does not match the detected host platform (%s) and no specific platform was requested", platforms.FormatAll(imgPlat), platforms.FormatAll(p)))
-			}
+			return containertypes.CreateResponse{Warnings: warnings}, err
 		}
 	}
 
-	err = daemon.validateNetworkingConfig(opts.params.NetworkingConfig)
-	if err != nil {
-		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
+	if err := daemon.validatePlatform(ctx, opts.params.Config.Image, opts.params.Platform, &warnings); err != nil {
+		return containertypes.CreateResponse{Warnings: warnings}, err
 	}
 
 	if opts.params.HostConfig == nil {
 		opts.params.HostConfig = &containertypes.HostConfig{}
 	}
-	err = daemon.adaptContainerSettings(&daemonCfg.Config, opts.params.HostConfig)
-	if err != nil {
+
+	if err := daemon.adaptContainerSettings(&daemonCfg.Config, opts.params.HostConfig); err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
@@ -128,10 +120,6 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 		return containertypes.CreateResponse{Warnings: warnings}, err
 	}
 	metrics.ContainerActions.WithValues("create").UpdateSince(start)
-
-	if warnings == nil {
-		warnings = make([]string, 0) // Create an empty slice to avoid https://github.com/moby/moby/issues/38222
-	}
 
 	return containertypes.CreateResponse{ID: ctr.ID, Warnings: warnings}, nil
 }
@@ -378,11 +366,38 @@ func (daemon *Daemon) validateNetworkingConfig(nwConfig *networktypes.Networking
 	return nil
 }
 
-// maximumSpec returns the distribution platform with maximum compatibility for the current node.
-func maximumSpec() ocispec.Platform {
-	p := platforms.DefaultSpec()
-	if p.Architecture == "amd64" {
-		p.Variant = archvariant.AMD64Variant()
+// Check if the image platform is compatible with the runtime platform
+func (daemon *Daemon) validatePlatform(ctx context.Context, image string, runtimePlatform *ocispec.Platform, warnings *[]string) error {
+	if image == "" {
+		return nil
 	}
-	return p
+
+	hostPlatform := platforms.DefaultSpec()
+	if runtimePlatform == nil {
+		runtimePlatform = &hostPlatform
+	}
+
+	// Check if an image variant matching the runtime platform is present locally
+	_, err := daemon.imageService.GetImage(ctx, image, backend.GetImageOpts{Platform: runtimePlatform})
+	if cerrdefs.IsNotFound(err) {
+		msg := fmt.Sprintf("the requested image does not match the runtime platform (%s)", platforms.FormatAll(*runtimePlatform))
+
+		// When using multi-arch images, provide more info to help users
+		if daemon.usesSnapshotter {
+			msg = msg + fmt.Sprintf("; pull the correct image variant (docker pull --platform %s %s) or change the runtime platform (docker run --platform ...) to match one of the available image platforms.",
+				platforms.FormatAll(*runtimePlatform), image)
+		}
+
+		// Issue error or just warning based on env var
+		_, ok := os.LookupEnv("DOCKER_ALLOW_NON_NATIVE_PLATFORM")
+		if ok {
+			if warnings != nil {
+				*warnings = append(*warnings, msg)
+			}
+		} else {
+			return errdefs.NotFound(errors.New(msg))
+		}
+	}
+
+	return err
 }
