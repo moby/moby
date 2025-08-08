@@ -17,6 +17,11 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// maxAllocateAttempts is the maximum number of times OSAllocator.RequestPortsInRange
+// will try to allocate a port before returning an error. This is an arbitrary
+// limit.
+const maxAllocateAttempts = 10
+
 type OSAllocator struct {
 	// allocator is used to logically reserve ports, to avoid those we know
 	// are already in use. This is useful to ensure callers don't burn their
@@ -43,6 +48,44 @@ func NewOSAllocator() OSAllocator {
 //
 // It's safe for concurrent use.
 func (pa OSAllocator) RequestPortsInRange(addrs []net.IP, proto types.Protocol, portStart, portEnd int) (_ int, _ []*os.File, retErr error) {
+	var port int
+	var socks []*os.File
+	var err error
+
+	// Try up to maxAllocatePortAttempts times to get a port that's not already allocated.
+	for i := range maxAllocateAttempts {
+		port, socks, err = pa.attemptAllocation(addrs, proto, portStart, portEnd)
+		if err == nil {
+			break
+		}
+		// There is no point in immediately retrying to map an explicitly chosen port.
+		if portStart != 0 && portStart == portEnd {
+			log.G(context.TODO()).WithError(err).Warnf("Failed to allocate port")
+			return 0, nil, err
+		}
+		// Do not retry if a port range is specified and all ports in that range are already allocated.
+		if errors.Is(err, errAllPortsAllocated) {
+			return 0, nil, err
+		}
+		log.G(context.TODO()).WithFields(log.Fields{
+			"error":   err,
+			"attempt": i + 1,
+		}).Warn("Failed to allocate port")
+	}
+
+	if err != nil {
+		// If the retry budget is exhausted and no free port could be found, return
+		// the latest error.
+		return 0, nil, err
+	}
+
+	return port, socks, nil
+}
+
+// attemptAllocation requests a port from the allocator and tries to bind/listen on that port
+// on each of addrs. If the bind/listen fails, it means the allocator thought the port was free,
+// but it was in use by some other process.
+func (pa OSAllocator) attemptAllocation(addrs []net.IP, proto types.Protocol, portStart, portEnd int) (_ int, _ []*os.File, retErr error) {
 	port, err := pa.allocator.RequestPortsInRange(addrs, proto.String(), portStart, portEnd)
 	if err != nil {
 		return 0, nil, err
@@ -74,6 +117,7 @@ func (pa OSAllocator) RequestPortsInRange(addrs []net.IP, proto types.Protocol, 
 		addrPort := netip.AddrPortFrom(addr.Unmap(), uint16(port))
 
 		var sock *os.File
+		var err error
 		switch proto {
 		case types.TCP:
 			sock, err = listenTCP(addrPort)
