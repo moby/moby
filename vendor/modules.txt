@@ -592,8 +592,8 @@ github.com/gogo/protobuf/vanity/command
 # github.com/golang-jwt/jwt/v5 v5.2.2
 ## explicit; go 1.18
 github.com/golang-jwt/jwt/v5
-# github.com/golang/gddo v0.0.0-20190904175337-72a348e765d2
-## explicit
+# github.com/golang/gddo v0.0.0-20210115222349-20d68f94ee1f
+## explicit; go 1.13
 github.com/golang/gddo/httputil
 github.com/golang/gddo/httputil/header
 # github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
