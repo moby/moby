@@ -1196,7 +1196,7 @@ func (n *Network) CreateEndpoint(ctx context.Context, name string, options ...En
 func (n *Network) createEndpoint(ctx context.Context, name string, options ...EndpointOption) (*Endpoint, error) {
 	var err error
 
-	ep := &Endpoint{name: name, generic: make(map[string]any), iface: &EndpointInterface{}}
+	ep := &Endpoint{name: name, generic: make(map[string]any), iface: &EndpointInterface{}, ipamOptions: map[string]string{netlabel.EndpointName: name}}
 	ep.id = stringid.GenerateRandomID()
 
 	// Initialize ep.network with a possibly stale copy of n. We need this to get network from
@@ -1231,9 +1231,6 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 	if capability.RequiresMACAddress {
 		if ep.iface.mac == nil {
 			ep.iface.mac = netutils.GenerateRandomMAC()
-		}
-		if ep.ipamOptions == nil {
-			ep.ipamOptions = make(map[string]string)
 		}
 		ep.ipamOptions[netlabel.MacAddress] = ep.iface.mac.String()
 	}
