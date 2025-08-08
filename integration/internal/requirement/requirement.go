@@ -1,8 +1,9 @@
 package requirement
 
 import (
+	"errors"
+	"net"
 	"net/http"
-	"strings"
 	"testing"
 	"time"
 )
@@ -17,7 +18,7 @@ func HasHubConnectivity(t *testing.T) bool {
 
 	client := http.Client{Timeout: timeout}
 	resp, err := client.Get(url)
-	if err != nil && strings.Contains(err.Error(), "use of closed network connection") {
+	if errors.Is(err, net.ErrClosed) {
 		t.Fatalf("Timeout for GET request on %s", url)
 	}
 	if resp != nil {
