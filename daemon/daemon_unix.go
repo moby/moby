@@ -28,7 +28,6 @@ import (
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/initlayer"
-	"github.com/moby/moby/v2/daemon/internal/libcontainerd/remote"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/internal/usergroup"
 	"github.com/moby/moby/v2/daemon/libnetwork"
@@ -1644,18 +1643,6 @@ func getSysInfo(cfg *config.Config) *sysinfo.SysInfo {
 		}
 	}
 	return sysinfo.New(siOpts...)
-}
-
-func (daemon *Daemon) initLibcontainerd(ctx context.Context, cfg *config.Config) error {
-	var err error
-	daemon.containerd, err = remote.NewClient(
-		ctx,
-		daemon.containerdClient,
-		filepath.Join(cfg.ExecRoot, "containerd"),
-		cfg.ContainerdNamespace,
-		daemon,
-	)
-	return err
 }
 
 func recursiveUnmount(target string) error {
