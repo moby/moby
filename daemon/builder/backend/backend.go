@@ -14,8 +14,8 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/server/backend"
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"github.com/pkg/errors"
 )
 
 // ImageComponent provides an interface for working with images
@@ -122,7 +122,7 @@ func squashBuild(build *builder.Result, imageComponent ImageComponent) (string, 
 	}
 	imageID, err := imageComponent.SquashImage(build.ImageID, fromID)
 	if err != nil {
-		return "", errors.Wrap(err, "error squashing image")
+		return "", fmt.Errorf("error squashing image: %w", err)
 	}
 	return imageID, nil
 }

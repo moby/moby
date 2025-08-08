@@ -24,7 +24,7 @@ type ExitHandler interface {
 }
 
 // New creates a new containerd plugin executor
-func New(ctx context.Context, rootDir string, cli *containerd.Client, ns string, exitHandler ExitHandler, shim string, shimOpts any) (*Executor, error) {
+func New(ctx context.Context, rootDir string, cli *containerd.Client, ns string, exitHandler ExitHandler, shim string, shimOpts interface{}) (*Executor, error) {
 	e := &Executor{
 		rootDir:     rootDir,
 		exitHandler: exitHandler,
@@ -47,7 +47,7 @@ type Executor struct {
 	client      libcontainerdtypes.Client
 	exitHandler ExitHandler
 	shim        string
-	shimOpts    any
+	shimOpts    interface{}
 
 	mu      sync.Mutex // Guards plugins map
 	plugins map[string]*c8dPlugin
