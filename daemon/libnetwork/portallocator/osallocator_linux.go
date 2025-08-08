@@ -122,8 +122,10 @@ func bindTCPOrUDP(addr netip.AddrPort, typ int, proto types.Protocol) (_ *os.Fil
 		}
 	}()
 
-	if err := syscall.SetsockoptInt(sd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1); err != nil {
-		return nil, fmt.Errorf("failed to setsockopt(SO_REUSEADDR) for %s/%s: %w", addr, proto, err)
+	if proto == syscall.IPPROTO_TCP {
+		if err := syscall.SetsockoptInt(sd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1); err != nil {
+			return nil, fmt.Errorf("failed to setsockopt(SO_REUSEADDR) for %s/%s: %w", addr, proto, err)
+		}
 	}
 
 	if domain == syscall.AF_INET6 {
