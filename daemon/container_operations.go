@@ -13,7 +13,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/pkg/nat"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	networktypes "github.com/moby/moby/api/types/network"

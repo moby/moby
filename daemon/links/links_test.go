@@ -4,7 +4,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/pkg/nat"
 	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 )

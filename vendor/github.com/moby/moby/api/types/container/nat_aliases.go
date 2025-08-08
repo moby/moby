@@ -1,6 +1,6 @@
 package container
 
-import "github.com/docker/go-connections/nat"
+import "github.com/moby/moby/api/pkg/nat"
 
 // PortRangeProto is a string containing port number and protocol in the format "80/tcp",
 // or a port range and protocol in the format "80-83/tcp".
