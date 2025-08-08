@@ -16,10 +16,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
-const (
-	driverName              = "nat"
-	maxAllocatePortAttempts = 10
-)
+const driverName = "nat"
 
 type PortDriverClient interface {
 	ChildHostIP(hostIP netip.Addr) netip.Addr
@@ -57,9 +54,9 @@ func NewPortMapper(cfg Config) PortMapper {
 }
 
 // MapPorts allocates and binds host ports for the given cfg. The caller is
-// responsible for ensuring that all entries in cfg map the same proto,
+// responsible for ensuring that all entries in cfg have the same proto,
 // container port, and host port range (their host addresses must differ).
-func (pm PortMapper) MapPorts(ctx context.Context, cfg []portmapperapi.PortBindingReq, fwn portmapperapi.Firewaller) ([]portmapperapi.PortBinding, error) {
+func (pm PortMapper) MapPorts(ctx context.Context, cfg []portmapperapi.PortBindingReq, fwn portmapperapi.Firewaller) (_ []portmapperapi.PortBinding, retErr error) {
 	if len(cfg) == 0 {
 		return nil, nil
 	}
@@ -73,28 +70,45 @@ func (pm PortMapper) MapPorts(ctx context.Context, cfg []portmapperapi.PortBindi
 		}
 	}
 
-	// Try up to maxAllocatePortAttempts times to get a port that's not already allocated.
-	var bindings []portmapperapi.PortBinding
-	var err error
-	for i := 0; i < maxAllocatePortAttempts; i++ {
-		bindings, err = pm.attemptBindHostPorts(ctx, cfg, proto, hostPort, hostPortEnd, fwn)
-		if err == nil {
-			break
+	bindings := make([]portmapperapi.PortBinding, 0, len(cfg))
+	defer func() {
+		if retErr != nil {
+			if err := pm.UnmapPorts(ctx, bindings, fwn); err != nil {
+				log.G(ctx).WithFields(log.Fields{
+					"pbs":   bindings,
+					"error": err,
+				}).Warn("Failed to release port bindings")
+			}
 		}
-		// There is no point in immediately retrying to map an explicitly chosen port.
-		if hostPort != 0 && hostPort == hostPortEnd {
-			log.G(ctx).WithError(err).Warnf("Failed to allocate and map port")
-			return nil, err
-		}
-		log.G(ctx).WithFields(log.Fields{
-			"error":   err,
-			"attempt": i + 1,
-		}).Warn("Failed to allocate and map port")
+	}()
+
+	addrs := make([]net.IP, 0, len(cfg))
+	for i := range cfg {
+		cfg[i] = setChildHostIP(pm.pdc, cfg[i])
+		addrs = append(addrs, cfg[i].ChildHostIP)
 	}
 
+	pa := portallocator.NewOSAllocator()
+	allocatedPort, socks, err := pa.RequestPortsInRange(addrs, proto, int(hostPort), int(hostPortEnd))
 	if err != nil {
-		// If the retry budget is exhausted and no free port could be found, return
-		// the latest error.
+		return nil, err
+	}
+
+	for i := range cfg {
+		pb := portmapperapi.PortBinding{
+			PortBinding: cfg[i].PortBinding.Copy(),
+			BoundSocket: socks[i],
+			ChildHostIP: cfg[i].ChildHostIP,
+		}
+		pb.PortBinding.HostPort = uint16(allocatedPort)
+		pb.PortBinding.HostPortEnd = pb.HostPort
+		bindings = append(bindings, pb)
+	}
+
+	if err := configPortDriver(ctx, bindings, pm.pdc); err != nil {
+		return nil, err
+	}
+	if err := fwn.AddPorts(ctx, mergeChildHostIPs(bindings)); err != nil {
 		return nil, err
 	}
 
@@ -154,81 +168,6 @@ func (pm PortMapper) UnmapPorts(ctx context.Context, pbs []portmapperapi.PortBin
 		portallocator.Get().ReleasePort(pb.ChildHostIP, pb.Proto.String(), int(pb.HostPort))
 	}
 	return errors.Join(errs...)
-}
-
-// attemptBindHostPorts allocates host ports for each NAT port mapping, and
-// reserves those ports by binding them.
-//
-// If the allocator doesn't have an available port in the required range, or the
-// port can't be bound (perhaps because another process has already bound it),
-// all resources are released and an error is returned. When ports are
-// successfully reserved, a PortBinding is returned for each mapping.
-func (pm PortMapper) attemptBindHostPorts(
-	ctx context.Context,
-	cfg []portmapperapi.PortBindingReq,
-	proto types.Protocol,
-	hostPortStart, hostPortEnd uint16,
-	fwn portmapperapi.Firewaller,
-) (_ []portmapperapi.PortBinding, retErr error) {
-	var err error
-	var port int
-
-	addrs := make([]net.IP, 0, len(cfg))
-	for i := range cfg {
-		cfg[i] = setChildHostIP(pm.pdc, cfg[i])
-		addrs = append(addrs, cfg[i].ChildHostIP)
-	}
-
-	pa := portallocator.NewOSAllocator()
-	port, socks, err := pa.RequestPortsInRange(addrs, proto, int(hostPortStart), int(hostPortEnd))
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if retErr != nil {
-			pa.ReleasePorts(addrs, proto, port)
-		}
-	}()
-
-	if len(socks) != len(cfg) {
-		for _, sock := range socks {
-			if err := sock.Close(); err != nil {
-				log.G(ctx).WithError(err).Warn("Failed to close socket")
-			}
-		}
-		return nil, types.InternalErrorf("port allocator returned %d sockets for %d port bindings", len(socks), len(cfg))
-	}
-
-	res := make([]portmapperapi.PortBinding, 0, len(cfg))
-	defer func() {
-		if retErr != nil {
-			if err := pm.UnmapPorts(ctx, res, fwn); err != nil {
-				log.G(ctx).WithFields(log.Fields{
-					"pbs":   res,
-					"error": err,
-				}).Warn("Failed to release port bindings")
-			}
-		}
-	}()
-
-	for i := range cfg {
-		pb := portmapperapi.PortBinding{
-			PortBinding: cfg[i].PortBinding.Copy(),
-			BoundSocket: socks[i],
-			ChildHostIP: cfg[i].ChildHostIP,
-		}
-		pb.PortBinding.HostPort = uint16(port)
-		pb.PortBinding.HostPortEnd = pb.HostPort
-		res = append(res, pb)
-	}
-
-	if err := configPortDriver(ctx, res, pm.pdc); err != nil {
-		return nil, err
-	}
-	if err := fwn.AddPorts(ctx, mergeChildHostIPs(res)); err != nil {
-		return nil, err
-	}
-	return res, nil
 }
 
 func setChildHostIP(pdc PortDriverClient, req portmapperapi.PortBindingReq) portmapperapi.PortBindingReq {

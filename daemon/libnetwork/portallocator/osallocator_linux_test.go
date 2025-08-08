@@ -150,36 +150,29 @@ func TestAllocateRangePortInUse(t *testing.T) {
 	alloc := NewOSAllocator()
 	addrs := []net.IP{net.ParseIP("127.0.0.1")}
 
-	for _, tc := range []struct {
-		proto  types.Protocol
-		expErr string
-	}{
-		{proto: types.TCP, expErr: "failed to bind host port 127.0.0.1:8080/tcp: address already in use"},
-		{proto: types.UDP, expErr: "failed to bind host port 127.0.0.1:8080/udp: address already in use"},
-		{proto: types.SCTP, expErr: "failed to bind host port 127.0.0.1:8080/sctp: address already in use"},
-	} {
-		t.Run(tc.proto.String(), func(t *testing.T) {
-			l := listen(t, tc.proto, net.IPv4zero, 8080)
+	for _, proto := range []types.Protocol{types.TCP, types.UDP, types.SCTP} {
+		t.Run(proto.String(), func(t *testing.T) {
+			l := listen(t, proto, net.IPv4zero, 8080)
 			defer l.Close()
 
-			// Port 8080 is in use, so the first allocation attempt should fail
-			_, _, err := alloc.RequestPortsInRange(addrs, tc.proto, 8080, 8081)
-			assert.ErrorContains(t, err, tc.expErr)
-
-			// Retry allocation with same range — this time, it should pick 8081 successfully
-			port, socks81, err := alloc.RequestPortsInRange(addrs, tc.proto, 8080, 8081)
-			defer alloc.ReleasePorts(addrs, tc.proto, port)
+			// Port 8080 is in use, so it should pick 8081.
+			port, socks81, err := alloc.RequestPortsInRange(addrs, proto, 8080, 8081)
+			defer alloc.ReleasePorts(addrs, proto, port)
 			defer closeSocks(t, socks81)
 
 			assert.NilError(t, err)
 			assert.Equal(t, port, 8081)
 
-			// Close port 8080, and try to allocate the same port again — it should succeed this time
+			// Try to allocate from that same range again — it should fail because 8080 is still in use.
+			_, _, err = alloc.RequestPortsInRange(addrs, proto, 8080, 8081)
+			assert.ErrorContains(t, err, fmt.Sprintf("failed to bind host port 127.0.0.1:8080/%s: address already in use", proto))
+
+			// Close port 8080, and try to allocate from that range again — it should succeed this time.
 			err = l.Close()
 			assert.NilError(t, err)
 
-			port, socks80, err := alloc.RequestPortsInRange(addrs, tc.proto, 8080, 8081)
-			defer alloc.ReleasePorts(addrs, tc.proto, port)
+			port, socks80, err := alloc.RequestPortsInRange(addrs, proto, 8080, 8081)
+			defer alloc.ReleasePorts(addrs, proto, port)
 			defer closeSocks(t, socks80)
 
 			assert.NilError(t, err)
