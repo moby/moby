@@ -121,6 +121,12 @@ func Register(name string, initFunc InitFunc) error {
 	return nil
 }
 
+// IsRegistered checks to see if the drive with the given name is registered
+func IsRegistered(name string) bool {
+	_, exists := drivers[name]
+	return exists
+}
+
 // getDriver initializes and returns the registered driver.
 func getDriver(name string, config Options) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
