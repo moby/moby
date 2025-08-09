@@ -139,8 +139,8 @@ func (c *containerConfig) image() string {
 	return reference.FamiliarString(reference.TagNameOnly(ref))
 }
 
-func (c *containerConfig) portBindings() container.PortMap {
-	portBindings := container.PortMap{}
+func (c *containerConfig) portBindings() map[container.PortRangeProto][]container.PortBinding {
+	portBindings := map[container.PortRangeProto][]container.PortBinding{}
 	if c.task.Endpoint == nil {
 		return portBindings
 	}

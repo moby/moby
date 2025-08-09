@@ -57,7 +57,9 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options
 		Networks:               apiNetworks,
 	}
 
-	ports := make(containertypes.PortMap, len(ctr.NetworkSettings.Ports))
+	// TODO(thaJeztah): do we need a deep copy here? Otherwise we could use maps.Clone;
+	// networkSettings.NetworkSettingsBase.Ports = maps.Clone(ctr.NetworkSettings.Ports)
+	ports := make(map[containertypes.PortRangeProto][]containertypes.PortBinding, len(ctr.NetworkSettings.Ports))
 	for k, pm := range ctr.NetworkSettings.Ports {
 		ports[k] = pm
 	}
