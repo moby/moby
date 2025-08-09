@@ -8,6 +8,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/containerd/log"
@@ -279,44 +281,19 @@ func withoutHealthcheck() runConfigModifier {
 
 func copyRunConfig(runConfig *container.Config, modifiers ...runConfigModifier) *container.Config {
 	cfgCopy := *runConfig
-	cfgCopy.Cmd = copyStringSlice(runConfig.Cmd)
-	cfgCopy.Env = copyStringSlice(runConfig.Env)
-	cfgCopy.Entrypoint = copyStringSlice(runConfig.Entrypoint)
-	cfgCopy.OnBuild = copyStringSlice(runConfig.OnBuild)
-	cfgCopy.Shell = copyStringSlice(runConfig.Shell)
-
-	if cfgCopy.Volumes != nil {
-		cfgCopy.Volumes = make(map[string]struct{}, len(runConfig.Volumes))
-		for k, v := range runConfig.Volumes {
-			cfgCopy.Volumes[k] = v
-		}
-	}
-
-	if cfgCopy.ExposedPorts != nil {
-		cfgCopy.ExposedPorts = make(container.PortSet, len(runConfig.ExposedPorts))
-		for k, v := range runConfig.ExposedPorts {
-			cfgCopy.ExposedPorts[k] = v
-		}
-	}
-
-	if cfgCopy.Labels != nil {
-		cfgCopy.Labels = make(map[string]string, len(runConfig.Labels))
-		for k, v := range runConfig.Labels {
-			cfgCopy.Labels[k] = v
-		}
-	}
+	cfgCopy.Cmd = slices.Clone(runConfig.Cmd)
+	cfgCopy.Env = slices.Clone(runConfig.Env)
+	cfgCopy.Entrypoint = slices.Clone(runConfig.Entrypoint)
+	cfgCopy.OnBuild = slices.Clone(runConfig.OnBuild)
+	cfgCopy.Shell = slices.Clone(runConfig.Shell)
+	cfgCopy.Volumes = maps.Clone(runConfig.Volumes)
+	cfgCopy.ExposedPorts = maps.Clone(runConfig.ExposedPorts)
+	cfgCopy.Labels = maps.Clone(runConfig.Labels)
 
 	for _, modifier := range modifiers {
 		modifier(&cfgCopy)
 	}
 	return &cfgCopy
-}
-
-func copyStringSlice(orig []string) []string {
-	if orig == nil {
-		return nil
-	}
-	return append([]string{}, orig...)
 }
 
 // getShell is a helper function which gets the right shell for prefixing the
