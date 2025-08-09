@@ -220,9 +220,9 @@ func TestContainerInitDNS(t *testing.T) {
 
 func TestMerge(t *testing.T) {
 	configImage := &containertypes.Config{
-		ExposedPorts: containertypes.PortSet{
-			"1111/tcp": struct{}{},
-			"2222/tcp": struct{}{},
+		ExposedPorts: map[containertypes.PortRangeProto]struct{}{
+			"1111/tcp": {},
+			"2222/tcp": {},
 		},
 		Env: []string{"VAR1=1", "VAR2=2"},
 		Volumes: map[string]struct{}{
@@ -232,9 +232,9 @@ func TestMerge(t *testing.T) {
 	}
 
 	configUser := &containertypes.Config{
-		ExposedPorts: containertypes.PortSet{
-			"2222/tcp": struct{}{},
-			"3333/tcp": struct{}{},
+		ExposedPorts: map[containertypes.PortRangeProto]struct{}{
+			"2222/tcp": {},
+			"3333/tcp": {},
 		},
 		Env: []string{"VAR2=3", "VAR3=3"},
 		Volumes: map[string]struct{}{
