@@ -101,9 +101,5 @@ func LegacyManifest(dir string, imageRef string, mfstDesc ocispec.Descriptor) er
 		Layers:   blobPaths(mfst.Layers),
 	})
 
-	if err := writeJson(legacyManifests, filepath.Join(dir, "manifest.json")); err != nil {
-		return err
-	}
-
-	return nil
+	return writeJson(legacyManifests, filepath.Join(dir, "manifest.json"))
 }

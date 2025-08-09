@@ -870,11 +870,7 @@ func (n *Namespace) configureInterface(ctx context.Context, nlh nlwrap.Handle, i
 		}
 	}
 
-	if err := n.setSysctls(ctx, i.dstName, i.sysctls); err != nil {
-		return err
-	}
-
-	return nil
+	return n.setSysctls(ctx, i.dstName, i.sysctls)
 }
 
 func setInterfaceMaster(ctx context.Context, nlh nlwrap.Handle, iface netlink.Link, i *Interface) error {
