@@ -11,18 +11,18 @@ import (
 )
 
 func TestCompare(t *testing.T) {
-	ports1 := container.PortSet{
-		"1111/tcp": struct{}{},
-		"2222/tcp": struct{}{},
+	ports1 := map[container.PortRangeProto]struct{}{
+		"1111/tcp": {},
+		"2222/tcp": {},
 	}
-	ports2 := container.PortSet{
-		"3333/tcp": struct{}{},
-		"4444/tcp": struct{}{},
+	ports2 := map[container.PortRangeProto]struct{}{
+		"3333/tcp": {},
+		"4444/tcp": {},
 	}
-	ports3 := container.PortSet{
-		"1111/tcp": struct{}{},
-		"2222/tcp": struct{}{},
-		"5555/tcp": struct{}{},
+	ports3 := map[container.PortRangeProto]struct{}{
+		"1111/tcp": {},
+		"2222/tcp": {},
+		"5555/tcp": {},
 	}
 	volumes1 := map[string]struct{}{
 		"/test1": {},
