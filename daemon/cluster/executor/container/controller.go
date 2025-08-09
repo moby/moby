@@ -640,7 +640,7 @@ func parsePortStatus(ctnr container.InspectResponse) (*api.PortStatus, error) {
 	return status, nil
 }
 
-func parsePortMap(portMap container.PortMap) ([]*api.PortConfig, error) {
+func parsePortMap(portMap map[container.PortProto][]container.PortBinding) ([]*api.PortConfig, error) {
 	exposedPorts := make([]*api.PortConfig, 0, len(portMap))
 
 	for portProtocol, mapping := range portMap {

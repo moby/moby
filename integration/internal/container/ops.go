@@ -81,9 +81,9 @@ func WithExposedPorts(ports ...string) func(*TestContainerConfig) {
 }
 
 // WithPortMap sets/replaces port mappings.
-func WithPortMap(pm container.PortMap) func(*TestContainerConfig) {
+func WithPortMap(pm map[container.PortProto][]container.PortBinding) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
-		c.HostConfig.PortBindings = container.PortMap{}
+		c.HostConfig.PortBindings = map[container.PortProto][]container.PortBinding{}
 		for p, b := range pm {
 			c.HostConfig.PortBindings[p] = slices.Clone(b)
 		}

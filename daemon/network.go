@@ -954,7 +954,7 @@ func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwor
 	// Create a deep copy (as [nat.SortPortMap] mutates the map).
 	// Not using a maps.Clone here, as that won't dereference the
 	// slice (PortMap is a map[Port][]PortBinding).
-	bindings := make(containertypes.PortMap)
+	bindings := make(map[containertypes.PortProto][]containertypes.PortBinding, len(c.HostConfig.PortBindings))
 	for p, b := range c.HostConfig.PortBindings {
 		bindings[p] = slices.Clone(b)
 	}
@@ -1007,8 +1007,8 @@ func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwor
 }
 
 // getPortMapInfo retrieves the current port-mapping programmed for the given sandbox
-func getPortMapInfo(sb *libnetwork.Sandbox) containertypes.PortMap {
-	pm := containertypes.PortMap{}
+func getPortMapInfo(sb *libnetwork.Sandbox) map[containertypes.PortProto][]containertypes.PortBinding {
+	pm := map[containertypes.PortProto][]containertypes.PortBinding{}
 	if sb == nil {
 		return pm
 	}
@@ -1019,7 +1019,7 @@ func getPortMapInfo(sb *libnetwork.Sandbox) containertypes.PortMap {
 	return pm
 }
 
-func getEndpointPortMapInfo(pm containertypes.PortMap, ep *libnetwork.Endpoint) {
+func getEndpointPortMapInfo(pm map[containertypes.PortProto][]containertypes.PortBinding, ep *libnetwork.Endpoint) {
 	driverInfo, _ := ep.DriverInfo()
 	if driverInfo == nil {
 		// It is not an error for epInfo to be nil
@@ -1058,8 +1058,10 @@ func getEndpointPortMapInfo(pm containertypes.PortMap, ep *libnetwork.Endpoint) 
 			if pp.HostPort > 0 {
 				hp = strconv.Itoa(int(pp.HostPort))
 			}
-			natBndg := containertypes.PortBinding{HostIP: pp.HostIP.String(), HostPort: hp}
-			pm[natPort] = append(pm[natPort], natBndg)
+			pm[natPort] = append(pm[natPort], containertypes.PortBinding{
+				HostIP:   pp.HostIP.String(),
+				HostPort: hp,
+			})
 		}
 	}
 }

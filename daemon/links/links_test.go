@@ -10,7 +10,7 @@ import (
 )
 
 func TestLinkNaming(t *testing.T) {
-	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker-1", nil, map[container.PortRangeProto]struct{}{
+	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker-1", nil, map[container.PortProto]struct{}{
 		"6379/tcp": {},
 	})
 
@@ -28,7 +28,7 @@ func TestLinkNaming(t *testing.T) {
 }
 
 func TestLinkNew(t *testing.T) {
-	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", nil, map[container.PortRangeProto]struct{}{
+	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", nil, map[container.PortProto]struct{}{
 		"6379/tcp": {},
 	})
 
@@ -43,7 +43,7 @@ func TestLinkNew(t *testing.T) {
 }
 
 func TestLinkEnv(t *testing.T) {
-	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, map[container.PortRangeProto]struct{}{
+	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, map[container.PortProto]struct{}{
 		"6379/tcp": {},
 	})
 
@@ -91,7 +91,7 @@ func TestSortPorts(t *testing.T) {
 }
 
 func TestLinkMultipleEnv(t *testing.T) {
-	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, map[container.PortRangeProto]struct{}{
+	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, map[container.PortProto]struct{}{
 		"6300/udp": {},
 		"6379/tcp": {},
 		"6380/tcp": {},
@@ -142,7 +142,7 @@ func BenchmarkLinkMultipleEnv(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, map[container.PortRangeProto]struct{}{
+		_ = EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, map[container.PortProto]struct{}{
 			"6300/udp": {},
 			"6379/tcp": {},
 			"6380/tcp": {},

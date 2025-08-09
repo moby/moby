@@ -137,7 +137,7 @@ func fullMutableRunConfig() *container.Config {
 	return &container.Config{
 		Cmd: []string{"command", "arg1"},
 		Env: []string{"env1=foo", "env2=bar"},
-		ExposedPorts: map[container.PortRangeProto]struct{}{
+		ExposedPorts: map[container.PortProto]struct{}{
 			"1000/tcp": {},
 			"1001/tcp": {},
 		},

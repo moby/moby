@@ -75,7 +75,7 @@ func TestNetworkStateCleanupOnDaemonStart(t *testing.T) {
 	// Sadly this means the test will take longer, but at least this test can be parallelized.
 	cid := container.Run(ctx, t, apiClient,
 		container.WithExposedPorts("80/tcp"),
-		container.WithPortMap(containertypes.PortMap{"80/tcp": {{}}}),
+		container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {{}}}),
 		container.WithCmd("/bin/sh", "-c", "while true; do echo hello; sleep 1; done"))
 	defer func() {
 		err := apiClient.ContainerRemove(ctx, cid, containertypes.RemoveOptions{Force: true})
