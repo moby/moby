@@ -4,12 +4,13 @@ import (
 	"context"
 	"testing"
 
-	networktypes "github.com/moby/moby/api/types/network"
-	"github.com/moby/moby/client"
-	"github.com/moby/moby/v2/integration/internal/network"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	networktypes "github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
+	"github.com/moby/moby/v2/integration/internal/network"
 )
 
 func containsNetwork(nws []networktypes.Inspect, networkID string) bool {

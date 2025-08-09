@@ -12,6 +12,11 @@ import (
 	"github.com/Microsoft/hcsshim"
 	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/containerd/log"
+	"github.com/moby/sys/user"
+	"github.com/pkg/errors"
+	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/svc/mgr"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/config"
@@ -26,10 +31,6 @@ import (
 	"github.com/moby/moby/v2/daemon/network"
 	"github.com/moby/moby/v2/pkg/parsers/operatingsystem"
 	"github.com/moby/moby/v2/pkg/sysinfo"
-	"github.com/moby/sys/user"
-	"github.com/pkg/errors"
-	"golang.org/x/sys/windows"
-	"golang.org/x/sys/windows/svc/mgr"
 )
 
 const (

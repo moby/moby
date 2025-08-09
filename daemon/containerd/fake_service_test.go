@@ -16,11 +16,12 @@ import (
 	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/containerd/v2/defaults"
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/v2/daemon/container"
-	daemonevents "github.com/moby/moby/v2/daemon/events"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
+
+	"github.com/moby/moby/v2/daemon/container"
+	daemonevents "github.com/moby/moby/v2/daemon/events"
 )
 
 func fakeImageService(t testing.TB, ctx context.Context, cs content.Store) *ImageService {

@@ -13,6 +13,14 @@ import (
 	"github.com/containerd/containerd/v2/pkg/apparmor"
 	coci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/log"
+	"github.com/moby/sys/mount"
+	"github.com/moby/sys/mountinfo"
+	"github.com/moby/sys/user"
+	"github.com/moby/sys/userns"
+	"github.com/opencontainers/cgroups"
+	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	dconfig "github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
@@ -22,13 +30,6 @@ import (
 	"github.com/moby/moby/v2/daemon/pkg/oci/caps"
 	volumemounts "github.com/moby/moby/v2/daemon/volume/mounts"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/moby/sys/mount"
-	"github.com/moby/sys/mountinfo"
-	"github.com/moby/sys/user"
-	"github.com/moby/sys/userns"
-	"github.com/opencontainers/cgroups"
-	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 )
 
 const inContainerInitPath = "/sbin/" + dconfig.DefaultInitBinary

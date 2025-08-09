@@ -15,6 +15,11 @@ import (
 	"time"
 
 	"github.com/moby/go-archive"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
+
 	"github.com/moby/moby/api/types/common"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
@@ -22,10 +27,6 @@ import (
 	"github.com/moby/moby/v2/integration-cli/daemon"
 	"github.com/moby/moby/v2/internal/testutils/specialimage"
 	"github.com/moby/moby/v2/testutil"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/icmd"
-	"gotest.tools/v3/poll"
 )
 
 func deleteImages(images ...string) error {

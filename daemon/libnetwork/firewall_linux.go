@@ -7,6 +7,7 @@ import (
 	"net"
 
 	"github.com/containerd/log"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
 	"github.com/moby/moby/v2/daemon/libnetwork/iptables"
 )

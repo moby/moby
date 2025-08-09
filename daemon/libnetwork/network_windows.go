@@ -15,13 +15,14 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/windows"
 	winlibnetwork "github.com/moby/moby/v2/daemon/libnetwork/drivers/windows"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipams/defaultipam"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipams/windowsipam"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	networkSettings "github.com/moby/moby/v2/daemon/network"
-	"github.com/pkg/errors"
 )
 
 type platformNetwork struct {

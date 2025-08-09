@@ -4,10 +4,11 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/moby/moby/v2/testutil"
-	"github.com/moby/moby/v2/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/testutil"
+	"github.com/moby/moby/v2/testutil/request"
 )
 
 // TestContainerInvalidJSON tests that POST endpoints that expect a body return

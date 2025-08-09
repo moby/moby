@@ -7,9 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/opencontainers/go-digest"
+
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/daemon/internal/layer"
-	"github.com/opencontainers/go-digest"
 )
 
 // V2MetadataService maps layer IDs to a set of known metadata for

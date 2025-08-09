@@ -56,9 +56,10 @@ import (
 	"time"
 
 	"github.com/docker/go-connections/sockets"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/versions"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // DummyHost is a hostname used for local communication.

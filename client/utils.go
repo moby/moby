@@ -7,8 +7,9 @@ import (
 	"strings"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/filters"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/moby/moby/api/types/filters"
 )
 
 type emptyIDError string

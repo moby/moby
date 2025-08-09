@@ -4,9 +4,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/moby/pubsub"
+
 	eventtypes "github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
-	"github.com/moby/pubsub"
 )
 
 const (

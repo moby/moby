@@ -11,10 +11,11 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/moby/moby/api/types/filters"
-	"github.com/moby/moby/api/types/registry"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/registry"
 )
 
 func spawnTestRegistrySession(t *testing.T) (*http.Client, *v1Endpoint) {

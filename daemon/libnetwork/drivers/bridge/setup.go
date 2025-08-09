@@ -5,8 +5,9 @@ package bridge
 import (
 	"context"
 
-	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"go.opentelemetry.io/otel"
+
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
 )
 
 type setupStep struct {

@@ -12,10 +12,11 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/distribution"
-	"github.com/moby/moby/v2/pkg/ioutils"
 	"github.com/moby/sys/atomicwriter"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
+
+	"github.com/moby/moby/v2/pkg/ioutils"
 )
 
 var supportedAlgorithms = []digest.Algorithm{

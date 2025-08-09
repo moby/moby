@@ -6,9 +6,10 @@ import (
 	"regexp"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/registry"
-	"gotest.tools/v3/assert"
 )
 
 // unescapeBackslashSemicolonParens unescapes \;()

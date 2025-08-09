@@ -17,8 +17,9 @@ import (
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/moby/moby/v2/daemon/internal/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/moby/moby/v2/daemon/internal/image"
 )
 
 var _ distribution.Describable = &layerDescriptor{}

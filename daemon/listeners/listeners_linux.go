@@ -10,8 +10,9 @@ import (
 	"github.com/containerd/log"
 	"github.com/coreos/go-systemd/v22/activation"
 	"github.com/docker/go-connections/sockets"
-	"github.com/moby/moby/v2/pkg/homedir"
 	"github.com/pkg/errors"
+
+	"github.com/moby/moby/v2/pkg/homedir"
 )
 
 // Init creates new listeners for the server.

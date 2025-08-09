@@ -9,9 +9,10 @@ import (
 	"strings"
 
 	"github.com/moby/go-archive"
+	"github.com/moby/sys/user"
+
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/moby/sys/user"
 )
 
 func (daemon *Daemon) tarCopyOptions(ctr *container.Container, allowOverwriteDirWithFile bool) (*archive.TarOptions, error) {

@@ -15,12 +15,13 @@ import (
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/locker"
-	"github.com/moby/moby/v2/daemon/graphdriver"
-	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
+
+	"github.com/moby/moby/v2/daemon/graphdriver"
+	"github.com/moby/moby/v2/daemon/internal/layer"
 )
 
 var (

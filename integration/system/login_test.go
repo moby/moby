@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/moby/moby/api/types/registry"
-	registrypkg "github.com/moby/moby/v2/daemon/pkg/registry"
-	"github.com/moby/moby/v2/integration/internal/requirement"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/moby/moby/api/types/registry"
+	registrypkg "github.com/moby/moby/v2/daemon/pkg/registry"
+	"github.com/moby/moby/v2/integration/internal/requirement"
 )
 
 // Test case for GitHub 22244

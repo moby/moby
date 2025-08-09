@@ -8,6 +8,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
+
 	"github.com/moby/moby/v2/daemon/internal/builder-next/exporter/overrides"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

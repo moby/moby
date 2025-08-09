@@ -17,6 +17,10 @@ import (
 	"github.com/docker/distribution"
 	"github.com/moby/go-archive/chrootarchive"
 	"github.com/moby/go-archive/compression"
+	"github.com/moby/sys/sequential"
+	"github.com/moby/sys/symlink"
+	"github.com/opencontainers/go-digest"
+
 	"github.com/moby/moby/api/pkg/progress"
 	"github.com/moby/moby/api/pkg/streamformatter"
 	"github.com/moby/moby/api/types/events"
@@ -24,9 +28,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/ioutils"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
-	"github.com/moby/sys/sequential"
-	"github.com/moby/sys/symlink"
-	"github.com/opencontainers/go-digest"
 )
 
 func (l *tarexporter) Load(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) (outErr error) {

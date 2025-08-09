@@ -1,10 +1,11 @@
 package network
 
 import (
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/pkg/errors"
 )
 
 // FilterNetworks filters network list according to user specified filter

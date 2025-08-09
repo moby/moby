@@ -3,9 +3,10 @@ package backend
 import (
 	"io"
 
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/registry"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // PullOption defines different modes for accessing images

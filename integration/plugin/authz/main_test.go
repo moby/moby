@@ -13,16 +13,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/v2/pkg/authorization"
-	"github.com/moby/moby/v2/pkg/plugins"
-	"github.com/moby/moby/v2/testutil"
-	"github.com/moby/moby/v2/testutil/daemon"
-	"github.com/moby/moby/v2/testutil/environment"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"gotest.tools/v3/skip"
+
+	"github.com/moby/moby/v2/pkg/authorization"
+	"github.com/moby/moby/v2/pkg/plugins"
+	"github.com/moby/moby/v2/testutil"
+	"github.com/moby/moby/v2/testutil/daemon"
+	"github.com/moby/moby/v2/testutil/environment"
 )
 
 var (

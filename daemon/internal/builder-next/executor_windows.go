@@ -13,9 +13,10 @@ import (
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/network"
-	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
+
+	"github.com/moby/moby/v2/daemon/libnetwork"
 )
 
 const networkName = "nat"

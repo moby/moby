@@ -11,11 +11,12 @@ import (
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/buildkit/util/stack"
 	"github.com/moby/buildkit/util/tracing"
-	"github.com/moby/moby/v2/daemon/internal/otelutil"
-	"github.com/moby/moby/v2/daemon/server/router"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/net/http2"
 	"google.golang.org/grpc"
+
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
+	"github.com/moby/moby/v2/daemon/server/router"
 )
 
 type grpcRouter struct {

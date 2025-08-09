@@ -6,9 +6,10 @@ import (
 	"sync"
 
 	"github.com/docker/go-units"
+	"github.com/pkg/errors"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/pkg/plugingetter"
-	"github.com/pkg/errors"
 )
 
 // Creator builds a logging driver instance with given context.

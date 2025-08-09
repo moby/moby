@@ -7,10 +7,11 @@ import (
 	"net"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
-	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
+	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 )
 
 type defaultBridgeInfo struct {

@@ -21,6 +21,12 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/command"
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/compression"
+	"github.com/opencontainers/go-digest"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/skip"
+
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/integration-cli/cli/build"
@@ -28,11 +34,6 @@ import (
 	"github.com/moby/moby/v2/testutil/fakecontext"
 	"github.com/moby/moby/v2/testutil/fakegit"
 	"github.com/moby/moby/v2/testutil/fakestorage"
-	"github.com/opencontainers/go-digest"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/icmd"
-	"gotest.tools/v3/skip"
 )
 
 type DockerCLIBuildSuite struct {

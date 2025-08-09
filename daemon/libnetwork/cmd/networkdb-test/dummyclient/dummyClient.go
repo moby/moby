@@ -7,6 +7,7 @@ import (
 
 	"github.com/containerd/log"
 	events "github.com/docker/go-events"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/diagnostic"
 	"github.com/moby/moby/v2/daemon/libnetwork/networkdb"
 )

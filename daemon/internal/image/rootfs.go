@@ -3,8 +3,9 @@ package image
 import (
 	"slices"
 
-	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/opencontainers/image-spec/identity"
+
+	"github.com/moby/moby/v2/daemon/internal/layer"
 )
 
 // TypeLayers is used for RootFS.Type for filesystems organized into layers.

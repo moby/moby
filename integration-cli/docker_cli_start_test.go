@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/v2/integration-cli/cli"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
+
+	"github.com/moby/moby/v2/integration-cli/cli"
 )
 
 type DockerCLIStartSuite struct {

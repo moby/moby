@@ -7,10 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/v2/testutil/daemon"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
+
+	"github.com/moby/moby/v2/testutil/daemon"
 )
 
 const (

@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/term"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/api/types/jsonstream"
 )
 
 func TestProgressString(t *testing.T) {

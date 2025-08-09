@@ -15,6 +15,12 @@ import (
 
 	"github.com/cpuguy83/tar2go"
 	"github.com/moby/go-archive/compression"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/versions"
@@ -25,11 +31,6 @@ import (
 	"github.com/moby/moby/v2/internal/testutils"
 	"github.com/moby/moby/v2/internal/testutils/specialimage"
 	"github.com/moby/moby/v2/testutil/fakecontext"
-	"github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/skip"
 )
 
 type imageSaveManifestEntry struct {

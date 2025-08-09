@@ -16,16 +16,17 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/libnetwork/internal/l2disco"
-	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
-	"github.com/moby/moby/v2/daemon/libnetwork/ns"
-	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sys/unix"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/l2disco"
+	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
+	"github.com/moby/moby/v2/daemon/libnetwork/ns"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 const (

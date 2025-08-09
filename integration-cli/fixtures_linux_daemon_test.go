@@ -10,9 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/testutil/fixtures/load"
-	"gotest.tools/v3/assert"
 )
 
 func ensureSyscallTest(ctx context.Context, t *testing.T) {

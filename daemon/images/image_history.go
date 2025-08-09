@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
 	"github.com/moby/moby/v2/daemon/server/backend"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImageHistory returns a slice of ImageHistory structures for the specified image

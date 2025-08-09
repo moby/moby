@@ -4,11 +4,12 @@ import (
 	"context"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/moby/moby/v2/daemon/volume"
 	volumedrivers "github.com/moby/moby/v2/daemon/volume/drivers"
 	"github.com/moby/moby/v2/daemon/volume/service/opts"
 	volumetestutils "github.com/moby/moby/v2/daemon/volume/testutils"
-	"gotest.tools/v3/assert"
 )
 
 func TestRestore(t *testing.T) {

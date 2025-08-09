@@ -12,10 +12,11 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/moby/buildkit/util/attestation"
-	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+
+	"github.com/moby/moby/v2/errdefs"
 )
 
 var (

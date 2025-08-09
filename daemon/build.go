@@ -4,8 +4,9 @@ import (
 	"context"
 
 	"github.com/distribution/reference"
-	"github.com/moby/moby/api/types/events"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/moby/moby/api/types/events"
 )
 
 // ImageExportedByBuildkit is a callback that is called when an image is exported by buildkit.
