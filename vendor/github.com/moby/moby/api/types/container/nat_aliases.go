@@ -12,6 +12,3 @@ type PortRangeProto = nat.Port
 //
 // It is currently an alias for [nat.PortBinding] but may become a concrete type in a future release.
 type PortBinding = nat.PortBinding
-
-// PortMap is a collection of [PortBinding] indexed by [PortRangeProto].
-type PortMap = map[PortRangeProto][]PortBinding
