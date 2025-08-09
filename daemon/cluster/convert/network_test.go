@@ -1,6 +1,7 @@
 package convert
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -27,7 +28,7 @@ func TestNetworkConvertBasicNetworkFromGRPCCreatedAt(t *testing.T) {
 		},
 	}
 
-	n := BasicNetworkFromGRPC(nw)
+	n := BasicNetworkFromGRPC(context.TODO(), nw)
 	if !n.Created.Equal(expected) {
 		t.Fatalf("expected time %s; received %s", expected, n.Created)
 	}

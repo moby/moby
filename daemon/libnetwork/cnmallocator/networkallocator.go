@@ -2,11 +2,14 @@ package cnmallocator
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"strings"
 
 	"github.com/containerd/log"
+	gogotypes "github.com/gogo/protobuf/types"
+	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/remote"
 	"github.com/moby/moby/v2/daemon/libnetwork/drvregistry"
@@ -15,6 +18,7 @@ import (
 	remoteipam "github.com/moby/moby/v2/daemon/libnetwork/ipams/remote"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
@@ -979,4 +983,52 @@ func setIPAMSerialAlloc(opts map[string]string) map[string]string {
 		opts[ipamapi.AllocSerialPrefix] = "true"
 	}
 	return opts
+}
+
+// UpdateNetworkState updates the network state with the current IPAM state for the given network.
+func (na *cnmNetworkAllocator) UpdateNetworkState(ctx context.Context, net *api.Network) error {
+	n := na.getNetwork(net.ID)
+	if n == nil {
+		return types.NotFoundErrorf("network with %s is not found.", net.ID)
+	}
+
+	ipam, _, _, err := na.resolveIPAM(n.nw)
+	if err != nil {
+		return errors.Wrapf(err, "failed to resolve IPAM for updating network state for network %s", net.ID)
+	}
+
+	state := networktypes.NetworkState{
+		IPAM: make(map[string]networktypes.IPAMState),
+	}
+	for _, poolID := range n.pools {
+		cidr, is, err := ipam.GetIPAMState(poolID)
+		if err != nil {
+			log.G(ctx).WithError(err).Warnf("failed to get IPAM state for pool %s", poolID)
+			continue
+		}
+		state.IPAM[cidr] = is
+	}
+
+	if len(state.IPAM) != 0 {
+		stringifyState, err := json.Marshal(&state)
+		if err != nil {
+			return errors.Wrapf(err, "failed to marshal network state for network %s", net.ID)
+		}
+		// Marshal the network state to a JSON string and store it in the network's State field.
+		// This allows avoiding further changes to the Swarm API and preserves backward compatibility in future releases.
+		envelopedState := networktypes.StringifyEnvelope{
+			Type:    networktypes.NetworkStateType,
+			Version: 1,
+			Data:    stringifyState,
+		}
+		stringifyEnvelopeState, err := json.Marshal(&envelopedState)
+		if err != nil {
+			return errors.Wrapf(err, "failed to marshal network state for network %s", net.ID)
+		}
+		net.State = &gogotypes.Any{
+			TypeUrl: "types.docker.com/NetworkState",
+			Value:   stringifyEnvelopeState,
+		}
+	}
+	return nil
 }

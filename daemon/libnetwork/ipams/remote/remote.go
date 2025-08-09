@@ -7,6 +7,7 @@ import (
 	"net/netip"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipams/remote/api"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
@@ -252,4 +253,8 @@ func (a *allocator) ReleaseAddress(poolID string, address net.IP) error {
 
 func (a *allocator) IsBuiltIn() bool {
 	return false
+}
+
+func (a *allocator) GetIPAMState(poolID string) (cidr string, ipamState network.IPAMState, err error) {
+	return "", network.IPAMState{}, nil
 }

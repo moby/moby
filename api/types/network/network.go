@@ -1,6 +1,7 @@
 package network
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/moby/moby/api/types/filters"
@@ -70,6 +71,24 @@ type DisconnectOptions struct {
 	Force     bool
 }
 
+// NetworkState represents network state.
+type NetworkState struct {
+	IPAM map[string]IPAMState `json:",omitempty"` // IPAM state of the network
+}
+
+// StringifyEnvelope is used to marshal and unmarshal the Network state into JSON.
+// This allows the state to be passed between Moby components via SwarmKit
+// without introducing Moby-specific details into SwarmKit.
+type StringifyEnvelope struct {
+	Type    string          `json:"type"`
+	Version int             `json:"version"`
+	Data    json.RawMessage `json:"data"`
+}
+
+const (
+	NetworkStateType = "moby.network.state"
+)
+
 // Inspect is the body of the "get network" http response message.
 type Inspect struct {
 	Name       string                      // Name is the name of the network
@@ -80,6 +99,7 @@ type Inspect struct {
 	EnableIPv4 bool                        // EnableIPv4 represents whether IPv4 is enabled
 	EnableIPv6 bool                        // EnableIPv6 represents whether IPv6 is enabled
 	IPAM       IPAM                        // IPAM is the network's IP Address Management
+	State      *NetworkState               `json:",omitempty"` // State represents the state of the network
 	Internal   bool                        // Internal represents if the network is used internal only
 	Attachable bool                        // Attachable represents if the global scope is manually attachable by regular containers from workers in swarm mode.
 	Ingress    bool                        // Ingress indicates the network is providing the routing-mesh for the swarm cluster.
