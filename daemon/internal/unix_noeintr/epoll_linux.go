@@ -16,7 +16,7 @@ func EpollCreate() (int, error) {
 	}
 }
 
-func EpollCtl(epFd int, op int, fd int, event *unix.EpollEvent) error {
+func EpollCtl(epFd, op, fd int, event *unix.EpollEvent) error {
 	for {
 		err := unix.EpollCtl(epFd, op, fd, event)
 		if errors.Is(err, unix.EINTR) {

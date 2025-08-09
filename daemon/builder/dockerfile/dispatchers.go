@@ -415,7 +415,7 @@ func dispatchRun(ctx context.Context, d dispatchRequest, c *instructions.RunComm
 // remove any unreferenced built-in args from the environment variables.
 // These args are transparent so resulting image should be the same regardless
 // of the value.
-func prependEnvOnCmd(buildArgs *BuildArgs, buildArgVars []string, cmd []string) []string {
+func prependEnvOnCmd(buildArgs *BuildArgs, buildArgVars, cmd []string) []string {
 	tmpBuildEnv := make([]string, 0, len(buildArgVars))
 	for _, env := range buildArgVars {
 		key, _, _ := strings.Cut(env, "=")
@@ -494,7 +494,7 @@ func dispatchEntrypoint(ctx context.Context, d dispatchRequest, c *instructions.
 	// is only trying to give a helpful warning of possibly unexpected results.
 	if d.state.operatingSystem == "windows" &&
 		d.state.runConfig.ArgsEscaped != argsEscaped &&
-		((len(runConfig.Cmd) == 1 && strings.ToLower(runConfig.Cmd[0]) != `c:\windows\system32\cmd.exe` && len(runConfig.Shell) == 0) || (len(runConfig.Cmd) > 1)) {
+		((len(runConfig.Cmd) == 1 && !strings.EqualFold(runConfig.Cmd[0], `c:\windows\system32\cmd.exe`) && len(runConfig.Shell) == 0) || (len(runConfig.Cmd) > 1)) {
 		fmt.Fprintf(d.builder.Stderr, " ---> [Warning] Shell-form CMD and exec-form ENTRYPOINT may have unexpected results\n")
 	}
 

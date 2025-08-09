@@ -321,7 +321,7 @@ func (container *Container) CommitInMemory(store *ViewDB) error {
 }
 
 // SetupWorkingDirectory sets up the container's working directory as set in container.Config.WorkingDir
-func (container *Container) SetupWorkingDirectory(uid int, gid int) error {
+func (container *Container) SetupWorkingDirectory(uid, gid int) error {
 	if container.Config.WorkingDir == "" {
 		return nil
 	}
@@ -784,8 +784,9 @@ func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string
 
 	env := make([]string, 0, envSize)
 	if runtime.GOOS != "windows" {
-		env = append(env, "PATH="+oci.DefaultPathEnv(ctrOS))
-		env = append(env, "HOSTNAME="+container.Config.Hostname)
+		env = append(env,
+			"PATH="+oci.DefaultPathEnv(ctrOS),
+			"HOSTNAME="+container.Config.Hostname)
 		if tty {
 			env = append(env, "TERM=xterm")
 		}

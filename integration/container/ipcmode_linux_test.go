@@ -53,7 +53,7 @@ func testIpcCheckDevExists(mm string) (bool, error) {
 
 // testIpcNonePrivateShareable is a helper function to test "none",
 // "private" and "shareable" modes.
-func testIpcNonePrivateShareable(t *testing.T, mode string, mustBeMounted bool, mustBeShared bool) {
+func testIpcNonePrivateShareable(t *testing.T, mode string, mustBeMounted, mustBeShared bool) {
 	ctx := setupTest(t)
 
 	cfg := containertypes.Config{
@@ -82,7 +82,7 @@ func testIpcNonePrivateShareable(t *testing.T, mode string, mustBeMounted bool, 
 		// no more checks to perform
 		return
 	}
-	assert.Check(t, is.Equal(true, regexp.MustCompile("^[0-9]+:[0-9]+$").MatchString(mm)))
+	assert.Check(t, is.Equal(true, regexp.MustCompile(`^\d+:\d+$`).MatchString(mm)))
 
 	shared, err := testIpcCheckDevExists(mm)
 	assert.NilError(t, err)
@@ -250,7 +250,7 @@ func testDaemonIpcPrivateShareable(t *testing.T, mustBeShared bool, arg ...strin
 	result, err := container.Exec(ctx, c, resp.ID, []string{"sh", "-c", cmd})
 	assert.NilError(t, err)
 	mm := result.Combined()
-	assert.Check(t, is.Equal(true, regexp.MustCompile("^[0-9]+:[0-9]+$").MatchString(mm)))
+	assert.Check(t, is.Equal(true, regexp.MustCompile(`^\d+:\d+$`).MatchString(mm)))
 
 	shared, err := testIpcCheckDevExists(mm)
 	assert.NilError(t, err)

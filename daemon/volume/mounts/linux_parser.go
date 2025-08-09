@@ -455,7 +455,7 @@ func (p *linuxParser) ConvertTmpfsOptions(opt *mount.TmpfsOptions, readOnly bool
 			{"k", 1 << 10},
 		} {
 			if size%r.divisor == 0 {
-				size = size / r.divisor
+				size /= r.divisor
 				suffix = r.suffix
 				break
 			}

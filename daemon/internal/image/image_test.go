@@ -1,10 +1,10 @@
 package image
 
 import (
+	"bytes"
 	"encoding/json"
 	"runtime"
 	"sort"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -48,7 +48,7 @@ func TestMarshalKeyOrder(t *testing.T) {
 	expectedOrder := []string{"architecture", "author", "comment"}
 	var indexes []int
 	for _, k := range expectedOrder {
-		indexes = append(indexes, strings.Index(string(b), k))
+		indexes = append(indexes, bytes.Index(b, []byte(k)))
 	}
 
 	if !sort.IntsAreSorted(indexes) {
