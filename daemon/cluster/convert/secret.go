@@ -2,8 +2,9 @@ package convert
 
 import (
 	gogotypes "github.com/gogo/protobuf/types"
-	swarmtypes "github.com/moby/moby/api/types/swarm"
 	swarmapi "github.com/moby/swarmkit/v2/api"
+
+	swarmtypes "github.com/moby/moby/api/types/swarm"
 )
 
 // SecretFromGRPC converts a grpc Secret to a Secret.

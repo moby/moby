@@ -12,6 +12,10 @@ formatters:
   enable:
     - gofmt
     - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/moby/moby
 
 linters:
   enable:

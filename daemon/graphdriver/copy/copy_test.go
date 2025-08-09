@@ -11,10 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/v2/daemon/internal/system"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/daemon/internal/system"
 )
 
 func TestCopy(t *testing.T) {

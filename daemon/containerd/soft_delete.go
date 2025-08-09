@@ -5,10 +5,11 @@ import (
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+
+	"github.com/moby/moby/v2/errdefs"
 )
 
 const imageNameDanglingPrefix = "moby-dangling@"

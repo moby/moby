@@ -8,6 +8,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
+
 	"github.com/moby/moby/api/types/image"
 )
 

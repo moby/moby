@@ -13,10 +13,11 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
-	"github.com/moby/moby/v2/pkg/plugins"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
+	"github.com/moby/moby/v2/pkg/plugins"
 )
 
 func handle(t *testing.T, mux *http.ServeMux, method string, h func(map[string]any) any) {

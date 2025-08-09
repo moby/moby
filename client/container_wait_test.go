@@ -16,9 +16,10 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/api/types/container"
 )
 
 func TestContainerWaitError(t *testing.T) {

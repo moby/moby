@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/libnetwork"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestDNSNamesOrder(t *testing.T) {

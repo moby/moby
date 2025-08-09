@@ -3,9 +3,10 @@ package nat
 import (
 	"testing"
 
-	"github.com/moby/moby/v2/integration/internal/network"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/integration/internal/network"
 )
 
 func TestWindowsNoDisableIPv4(t *testing.T) {

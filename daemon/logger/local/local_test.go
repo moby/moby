@@ -11,12 +11,13 @@ import (
 	"time"
 
 	protoio "github.com/gogo/protobuf/io"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/internal/logdriver"
 	"github.com/moby/moby/v2/daemon/logger/loggertest"
 	"github.com/moby/moby/v2/daemon/server/backend"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestWriteLog(t *testing.T) {

@@ -3,10 +3,11 @@ package command
 import (
 	cdcgroups "github.com/containerd/cgroups/v3"
 	systemdDaemon "github.com/coreos/go-systemd/v22/daemon"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/v2/daemon"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/pkg/sysinfo"
-	"github.com/pkg/errors"
 )
 
 // setPlatformOptions applies platform-specific CLI configuration options.

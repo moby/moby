@@ -13,14 +13,15 @@ import (
 
 	runcoptions "github.com/containerd/containerd/api/types/runc/options"
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+	rkclient "github.com/rootless-containers/rootlesskit/v2/pkg/api/client"
+
 	"github.com/moby/moby/api/types"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/pkg/sysinfo"
-	"github.com/pkg/errors"
-	rkclient "github.com/rootless-containers/rootlesskit/v2/pkg/api/client"
 )
 
 // fillPlatformInfo fills the platform related info.

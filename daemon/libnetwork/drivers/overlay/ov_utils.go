@@ -10,12 +10,13 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/overlay/overlayutils"
 	"github.com/moby/moby/v2/daemon/libnetwork/netutils"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
-	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netns"
 )
 
 var soTimeout = ns.NetlinkSocketsTimeout

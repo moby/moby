@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/ishidawataru/sctp"
+
 	"github.com/moby/moby/v2/errdefs"
 )
 

@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/moby/moby/api/types/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/moby/moby/api/types/image"
 )
 
 // ImageHistoryWithPlatform sets the platform for the image history operation.

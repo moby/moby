@@ -11,6 +11,14 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
+	"github.com/moby/sys/user"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/opencontainers/selinux/go-selinux"
+	"github.com/tonistiigi/go-archvariant"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	networktypes "github.com/moby/moby/api/types/network"
@@ -23,13 +31,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/moby/sys/user"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/opencontainers/selinux/go-selinux"
-	"github.com/tonistiigi/go-archvariant"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 type createOpts struct {

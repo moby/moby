@@ -13,9 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 )
 
 // TimestampedPkt has a Data slice representing a packet, ReceivedAt is a timestamp

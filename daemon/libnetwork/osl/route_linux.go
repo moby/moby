@@ -8,8 +8,9 @@ import (
 	"net"
 	"slices"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/vishvananda/netlink"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 // Gateway returns the IPv4 gateway for the sandbox.

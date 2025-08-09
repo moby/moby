@@ -6,6 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
+
 	"github.com/moby/moby/api/types/filters"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
@@ -13,9 +17,6 @@ import (
 	"github.com/moby/moby/v2/testutil/daemon"
 	"github.com/moby/moby/v2/testutil/fixtures/plugin"
 	"github.com/moby/moby/v2/testutil/registry"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/poll"
-	"gotest.tools/v3/skip"
 )
 
 func TestServicePlugin(t *testing.T) {

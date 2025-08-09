@@ -14,9 +14,10 @@ import (
 	v2 "github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/v2/daemon/internal/distribution/xfer"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/pkg/errors"
 )
 
 // fallbackError wraps an error that can possibly allow fallback to a different

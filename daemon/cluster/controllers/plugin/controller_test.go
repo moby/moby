@@ -11,14 +11,15 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/moby/pubsub"
+	"github.com/sirupsen/logrus"
+
 	plugintypes "github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/pkg/plugin"
 	v2 "github.com/moby/moby/v2/daemon/pkg/plugin/v2"
 	"github.com/moby/moby/v2/daemon/server/backend"
-	"github.com/moby/pubsub"
-	"github.com/sirupsen/logrus"
 )
 
 const (

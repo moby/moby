@@ -5,8 +5,9 @@ import (
 	"path/filepath"
 
 	"github.com/moby/go-archive"
-	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/pkg/errors"
+
+	containertypes "github.com/moby/moby/api/types/container"
 )
 
 // ResolvePath resolves the given path in the container to a resource on the

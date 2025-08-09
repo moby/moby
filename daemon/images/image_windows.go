@@ -3,10 +3,11 @@ package images
 import (
 	"context"
 
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
-	"github.com/pkg/errors"
 )
 
 // GetContainerLayerSize returns real size & virtual size

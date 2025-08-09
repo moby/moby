@@ -7,6 +7,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )

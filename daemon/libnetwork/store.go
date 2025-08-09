@@ -6,9 +6,10 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
+	"go.opentelemetry.io/otel"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
-	"go.opentelemetry.io/otel"
 )
 
 func (c *Controller) getNetworkFromStore(nid string) (*Network, error) {

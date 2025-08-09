@@ -9,9 +9,10 @@ import (
 	"syscall"
 
 	"github.com/ishidawataru/sctp"
-	"github.com/moby/moby/v2/dockerversion"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
+
+	"github.com/moby/moby/v2/dockerversion"
 )
 
 // The caller is expected to pass-in open file descriptors ...

@@ -3,9 +3,10 @@ package service
 import (
 	"testing"
 
-	"github.com/moby/moby/api/types/filters"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/api/types/filters"
 )
 
 func TestFilterWithPrune(t *testing.T) {

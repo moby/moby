@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"gotest.tools/v3/assert/cmp"
+
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
-	"gotest.tools/v3/assert/cmp"
 )
 
 // IsNetworkAvailable provides a comparison to check if a docker network is available

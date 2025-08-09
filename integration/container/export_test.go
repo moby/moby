@@ -5,16 +5,17 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
+
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/daemon"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/poll"
-	"gotest.tools/v3/skip"
 )
 
 // export an image and try to import it into a new one

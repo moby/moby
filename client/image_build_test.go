@@ -11,11 +11,12 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/registry"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestImageBuildError(t *testing.T) {

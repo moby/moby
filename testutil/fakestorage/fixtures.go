@@ -10,8 +10,9 @@ import (
 	"testing"
 
 	"github.com/moby/go-archive"
-	"github.com/moby/moby/api/types/build"
 	"gotest.tools/v3/assert"
+
+	"github.com/moby/moby/api/types/build"
 )
 
 var ensureHTTPServerOnce sync.Once

@@ -11,13 +11,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/v2/integration-cli/checker"
-	"github.com/moby/moby/v2/integration-cli/daemon"
-	"github.com/moby/moby/v2/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
+
+	"github.com/moby/moby/v2/integration-cli/checker"
+	"github.com/moby/moby/v2/integration-cli/daemon"
+	"github.com/moby/moby/v2/testutil"
 )
 
 type logMessage struct {

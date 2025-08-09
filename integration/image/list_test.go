@@ -8,6 +8,11 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
+
 	"github.com/moby/moby/api"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
@@ -19,10 +24,6 @@ import (
 	"github.com/moby/moby/v2/internal/testutils/specialimage"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/daemon"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/skip"
 )
 
 // Regression : #38171

@@ -22,6 +22,16 @@ import (
 	"github.com/containerd/cgroups/v3"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/moby/sys/mount"
+	"github.com/moby/sys/user"
+	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/selinux/go-selinux"
+	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
+	"github.com/vishvananda/netlink"
+	"go.opentelemetry.io/otel/baggage"
+	"golang.org/x/sys/unix"
+
 	"github.com/moby/moby/api/types/blkiodev"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
@@ -41,15 +51,6 @@ import (
 	volumemounts "github.com/moby/moby/v2/daemon/volume/mounts"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/sysinfo"
-	"github.com/moby/sys/mount"
-	"github.com/moby/sys/user"
-	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/opencontainers/selinux/go-selinux"
-	"github.com/opencontainers/selinux/go-selinux/label"
-	"github.com/pkg/errors"
-	"github.com/vishvananda/netlink"
-	"go.opentelemetry.io/otel/baggage"
-	"golang.org/x/sys/unix"
 )
 
 const (

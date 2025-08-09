@@ -13,12 +13,13 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	"github.com/moby/moby/v2/daemon/internal/image"
-	"github.com/moby/moby/v2/daemon/server/backend"
-	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+
+	"github.com/moby/moby/v2/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 // ErrImageDoesNotExist is error returned when no image can be found for a reference.

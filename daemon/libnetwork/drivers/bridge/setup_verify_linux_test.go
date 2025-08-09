@@ -4,9 +4,10 @@ import (
 	"net"
 	"testing"
 
+	"github.com/vishvananda/netlink"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/internal/testutils/netnsutils"
-	"github.com/vishvananda/netlink"
 )
 
 func setupVerifyTest(t *testing.T) *bridgeInterface {

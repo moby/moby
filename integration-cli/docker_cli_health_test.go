@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/integration-cli/cli/build"
-	"gotest.tools/v3/assert"
 )
 
 type DockerCLIHealthSuite struct {

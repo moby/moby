@@ -7,6 +7,11 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/fs"
+	"gotest.tools/v3/skip"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
@@ -14,10 +19,6 @@ import (
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/daemon"
 	"github.com/moby/moby/v2/testutil/request"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/fs"
-	"gotest.tools/v3/skip"
 )
 
 // testIpcCheckDevExists checks whether a given mount (identified by its

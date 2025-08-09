@@ -8,10 +8,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/config"
-	"github.com/moby/moby/v2/daemon/libnetwork/internal/resolvconf"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/config"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/resolvconf"
 )
 
 func getResolvConfOptions(t *testing.T, rcPath string) []string {

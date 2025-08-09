@@ -3,9 +3,10 @@ package countmap_test
 import (
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/internal/countmap"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/countmap"
 )
 
 func TestMap(t *testing.T) {

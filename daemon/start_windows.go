@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/containerd/containerd/v2/defaults"
+
 	"github.com/moby/moby/v2/daemon/container"
 )
 

@@ -9,6 +9,10 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema2"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/pkg/progress"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/registry"
@@ -18,9 +22,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	refstore "github.com/moby/moby/v2/daemon/internal/refstore"
 	registrypkg "github.com/moby/moby/v2/daemon/pkg/registry"
-	"github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // Config stores configuration for communicating

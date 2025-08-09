@@ -21,6 +21,13 @@ import (
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/util/tracing/detect"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"tags.cncf.io/container-device-interface/pkg/cdi"
+
 	"github.com/moby/moby/v2/daemon"
 	buildbackend "github.com/moby/moby/v2/daemon/builder/backend"
 	"github.com/moby/moby/v2/daemon/builder/dockerfile"
@@ -57,12 +64,6 @@ import (
 	"github.com/moby/moby/v2/pkg/homedir"
 	"github.com/moby/moby/v2/pkg/pidfile"
 	"github.com/moby/moby/v2/pkg/plugingetter"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/pflag"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
-	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
 // daemonCLI represents the daemon CLI.

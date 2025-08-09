@@ -7,11 +7,12 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/internal/logdriver"
 	"github.com/moby/moby/v2/daemon/logger/loggerutils"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/pkg/errors"
 )
 
 // maxMsgLen is the maximum size of the logger.Message after serialization.

@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+
 	"github.com/moby/moby/v2/pkg/plugingetter"
 )
 

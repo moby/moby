@@ -5,6 +5,7 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
+
 	"github.com/moby/moby/api/types/registry"
 )
 

@@ -2,8 +2,9 @@ package convert
 
 import (
 	gogotypes "github.com/gogo/protobuf/types"
-	volumetypes "github.com/moby/moby/api/types/volume"
 	swarmapi "github.com/moby/swarmkit/v2/api"
+
+	volumetypes "github.com/moby/moby/api/types/volume"
 )
 
 // VolumeFromGRPC converts a swarmkit api Volume object to a docker api Volume

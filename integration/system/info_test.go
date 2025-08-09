@@ -5,12 +5,13 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/moby/moby/api/types/registry"
-	"github.com/moby/moby/v2/testutil"
-	"github.com/moby/moby/v2/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/v2/testutil"
+	"github.com/moby/moby/v2/testutil/daemon"
 )
 
 func TestInfoAPI(t *testing.T) {

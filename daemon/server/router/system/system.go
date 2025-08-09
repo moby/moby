@@ -1,8 +1,9 @@
 package system
 
 import (
-	"github.com/moby/moby/v2/daemon/server/router"
 	"resenje.org/singleflight"
+
+	"github.com/moby/moby/v2/daemon/server/router"
 )
 
 // systemRouter provides information about the Docker system overall.

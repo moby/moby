@@ -7,10 +7,11 @@ import (
 	"testing"
 
 	"github.com/containerd/platforms"
-	"github.com/moby/moby/v2/daemon/builder"
-	"github.com/moby/moby/v2/daemon/internal/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
+
+	"github.com/moby/moby/v2/daemon/builder"
+	"github.com/moby/moby/v2/daemon/internal/image"
 )
 
 func getMockImageSource(getImageImage builder.Image, getImageLayer builder.ROLayer, getImageError error) *imageSources {

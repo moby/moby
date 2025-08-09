@@ -8,8 +8,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
+
+	"github.com/moby/moby/v2/errdefs"
 )
 
 type optsConfig struct{}
