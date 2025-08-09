@@ -2,13 +2,17 @@ package network
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"runtime"
 	"testing"
 
+	"github.com/moby/moby/api/types/filters"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/request"
 	"gotest.tools/v3/assert"
+
 	is "gotest.tools/v3/assert/cmp"
 )
 
@@ -102,4 +106,42 @@ func TestNetworkList(t *testing.T) {
 			assert.Assert(t, len(nws) > 0)
 		})
 	}
+}
+
+func TestAPINetworkGetDefaults(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	defaults := []string{"bridge", "host", "none"}
+	if runtime.GOOS == "windows" {
+		defaults = []string{"nat", "none"}
+	}
+
+	for _, netName := range defaults {
+		assert.Assert(t, IsNetworkAvailable(ctx, apiClient, netName))
+	}
+}
+
+func TestAPINetworkFilter(t *testing.T) {
+	networkName := "bridge"
+	if runtime.GOOS == "windows" {
+		networkName = "nat"
+	}
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	networks, err := apiClient.NetworkList(ctx, networktypes.ListOptions{
+		Filters: filters.NewArgs(filters.Arg("name", networkName)),
+	})
+
+	assert.NilError(t, err)
+
+	found := false
+	for _, network := range networks {
+		if network.Name == networkName {
+			found = true
+		}
+	}
+	assert.Assert(t, found, fmt.Sprintf("%s is not found", networkName))
 }
