@@ -101,18 +101,18 @@ func validateEndpointIPAddress(epAddr string, ipamSubnets []NetworkSubnet) error
 		return nil
 	}
 
-	var staticSubnet bool
-	parsedAddr := net.ParseIP(epAddr)
-	for _, subnet := range ipamSubnets {
-		if subnet.IsStatic() {
-			staticSubnet = true
-			if subnet.Contains(parsedAddr) {
-				return nil
-			}
-		}
+	addr, err := netip.ParseAddr(epAddr)
+	if err != nil {
+		return fmt.Errorf("invalid IP address: %s", epAddr)
 	}
 
-	if staticSubnet {
+	for _, subnet := range ipamSubnets {
+		if !subnet.IsStatic() {
+			continue
+		}
+		if subnet.Contains(addr.AsSlice()) {
+			return nil
+		}
 		return fmt.Errorf("no configured subnet or ip-range contain the IP address %s", epAddr)
 	}
 
