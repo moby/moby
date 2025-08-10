@@ -5,6 +5,7 @@ package windows
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 
@@ -34,22 +35,20 @@ func (d *driver) initStore() error {
 
 func (d *driver) populateNetworks() error {
 	kvol, err := d.store.List(&networkConfiguration{Type: d.name})
-	if err != nil && err != datastore.ErrKeyNotFound {
+	if err != nil {
+		if errors.Is(err, datastore.ErrKeyNotFound) {
+			// It's normal for network configuration state to be empty. Just return.
+			return nil
+		}
 		return fmt.Errorf("failed to get windows network configurations from store: %v", err)
 	}
-
-	// It's normal for network configuration state to be empty. Just return.
-	if err == datastore.ErrKeyNotFound {
-		return nil
-	}
-
 	for _, kvo := range kvol {
-		ncfg := kvo.(*networkConfiguration)
-		if ncfg.Type != d.name {
+		nwCfg := kvo.(*networkConfiguration)
+		if nwCfg.Type != d.name {
 			continue
 		}
-		d.createNetwork(ncfg)
-		log.G(context.TODO()).Debugf("Network  %v (%.7s) restored", d.name, ncfg.ID)
+		d.createNetwork(nwCfg)
+		log.G(context.TODO()).Debugf("Network  %v (%.7s) restored", d.name, nwCfg.ID)
 	}
 
 	return nil
@@ -57,12 +56,11 @@ func (d *driver) populateNetworks() error {
 
 func (d *driver) populateEndpoints() error {
 	kvol, err := d.store.List(&hnsEndpoint{Type: d.name})
-	if err != nil && err != datastore.ErrKeyNotFound {
+	if err != nil {
+		if errors.Is(err, datastore.ErrKeyNotFound) {
+			return nil
+		}
 		return fmt.Errorf("failed to get endpoints from store: %v", err)
-	}
-
-	if err == datastore.ErrKeyNotFound {
-		return nil
 	}
 
 	for _, kvo := range kvol {
