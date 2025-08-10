@@ -20,7 +20,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/internal/libcontainerd/shimopts"
-	"github.com/moby/moby/v2/errdefs"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/sys/atomicwriter"
 	"github.com/opencontainers/runtime-spec/specs-go/features"
 	"github.com/pkg/errors"
@@ -216,7 +216,7 @@ func (r *runtimes) Get(name string) (string, any, error) {
 	}
 
 	if !isPermissibleC8dRuntimeName(name) {
-		return "", nil, errdefs.InvalidParameter(errors.Errorf("unknown or invalid runtime name: %s", name))
+		return "", nil, types.InvalidParameterErrorf("unknown or invalid runtime name: %s", name)
 	}
 	return name, nil, nil
 }

@@ -4,8 +4,7 @@ import (
 	"strings"
 
 	"github.com/moby/moby/api/types/mount"
-	"github.com/moby/moby/v2/errdefs"
-	"github.com/pkg/errors"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 // validateBindDaemonRoot ensures that if a given mountpoint's source is within
@@ -32,5 +31,5 @@ func (daemon *Daemon) validateBindDaemonRoot(m mount.Mount) (bool, error) {
 	default:
 	}
 
-	return false, errdefs.InvalidParameter(errors.Errorf(`invalid mount config: must use either propagation mode "rslave" or "rshared" when mount source is within the daemon root, daemon root: %q, bind mount source: %q, propagation: %q`, daemon.root, m.Source, m.BindOptions.Propagation))
+	return false, types.InvalidParameterErrorf(`invalid mount config: must use either propagation mode "rslave" or "rshared" when mount source is within the daemon root, daemon root: %q, bind mount source: %q, propagation: %q`, daemon.root, m.Source, m.BindOptions.Propagation)
 }

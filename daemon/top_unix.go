@@ -14,7 +14,7 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
 	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
-	"github.com/moby/moby/v2/errdefs"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/pkg/errors"
 )
 
@@ -192,7 +192,7 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.TopRe
 					err = errors.New(string(line[0]))
 				}
 			}
-			return nil, errdefs.System(errors.Wrap(err, "ps"))
+			return nil, types.SystemErrorf("ps: %w", err)
 		}
 	}
 	procList, err := parsePSOutput(output, procs)

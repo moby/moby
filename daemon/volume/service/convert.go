@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -10,8 +9,8 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	volumetypes "github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/v2/daemon/internal/directory"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/volume"
-	"github.com/moby/moby/v2/errdefs"
 )
 
 // convertOpts are used to pass options to `volumeToAPI`
@@ -136,11 +135,11 @@ func withPrune(filter filters.Args) error {
 	all := filter.Get("all")
 	switch {
 	case len(all) > 1:
-		return errdefs.InvalidParameter(fmt.Errorf("invalid filter 'all=%s': only one value is expected", all))
+		return types.InvalidParameterErrorf("invalid filter 'all=%s': only one value is expected", all)
 	case len(all) == 1:
 		ok, err := strconv.ParseBool(all[0])
 		if err != nil {
-			return errdefs.InvalidParameter(fmt.Errorf("invalid filter 'all': %w", err))
+			return types.InvalidParameterErrorf("invalid filter 'all': %w", err)
 		}
 		if ok {
 			return nil

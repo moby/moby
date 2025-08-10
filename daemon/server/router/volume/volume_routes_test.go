@@ -15,6 +15,7 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/daemon/volume/service/opts"
 	"github.com/moby/moby/v2/errdefs"
@@ -600,7 +601,7 @@ func (b *fakeVolumeBackend) Get(_ context.Context, name string, _ ...opts.GetOpt
 	if v, ok := b.volumes[name]; ok {
 		return v, nil
 	}
-	return nil, errdefs.NotFound(fmt.Errorf("volume %s not found", name))
+	return nil, types.NotFoundErrorf("volume %s not found", name)
 }
 
 func (b *fakeVolumeBackend) Create(_ context.Context, name, driverName string, _ ...opts.CreateOption) (*volume.Volume, error) {
@@ -632,7 +633,7 @@ func (b *fakeVolumeBackend) Remove(_ context.Context, name string, o ...opts.Rem
 
 	if v, ok := b.volumes[name]; !ok {
 		if !removeOpts.PurgeOnError {
-			return errdefs.NotFound(fmt.Errorf("volume %s not found", name))
+			return types.NotFoundErrorf("volume %s not found", name)
 		}
 	} else if v.Name == "inuse" {
 		return errdefs.Conflict(errors.New("volume in use"))
@@ -676,7 +677,7 @@ func (c *fakeClusterBackend) GetVolume(nameOrID string) (volume.Volume, error) {
 	if v, ok := c.volumes[nameOrID]; ok {
 		return *v, nil
 	}
-	return volume.Volume{}, errdefs.NotFound(fmt.Errorf("volume %s not found", nameOrID))
+	return volume.Volume{}, types.NotFoundErrorf("volume %s not found", nameOrID)
 }
 
 func (c *fakeClusterBackend) GetVolumes(_ volume.ListOptions) ([]*volume.Volume, error) {
@@ -733,11 +734,11 @@ func (c *fakeClusterBackend) RemoveVolume(nameOrID string, force bool) error {
 
 	v, ok := c.volumes[nameOrID]
 	if !ok {
-		return errdefs.NotFound(fmt.Errorf("volume %s not found", nameOrID))
+		return types.NotFoundErrorf("volume %s not found", nameOrID)
 	}
 
 	if _, mustforce := v.Options["mustforce"]; mustforce && !force {
-		return errdefs.Conflict(fmt.Errorf("volume %s must be force removed", nameOrID))
+		return types.ConflictErrorf("volume %s must be force removed", nameOrID)
 	}
 
 	delete(c.volumes, nameOrID)
@@ -759,7 +760,7 @@ func (c *fakeClusterBackend) UpdateVolume(nameOrID string, version uint64, _ vol
 		// volume object. let's just increment the version so we can see the
 		// call happened.
 	} else {
-		return errdefs.NotFound(fmt.Errorf("volume %q not found", nameOrID))
+		return types.NotFoundErrorf("volume %q not found", nameOrID)
 	}
 
 	return nil

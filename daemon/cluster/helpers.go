@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/errdefs"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
@@ -53,7 +54,7 @@ func getNode(ctx context.Context, c swarmapi.ControlClient, input string) (*swar
 	}
 
 	if l := len(rl.Nodes); l > 1 {
-		return nil, errdefs.InvalidParameter(fmt.Errorf("node %s is ambiguous (%d matches found)", input, l))
+		return nil, types.InvalidParameterErrorf("node %s is ambiguous (%d matches found)", input, l)
 	}
 
 	return rl.Nodes[0], nil
@@ -89,7 +90,7 @@ func getService(ctx context.Context, c swarmapi.ControlClient, input string, ins
 	}
 
 	if l := len(rl.Services); l > 1 {
-		return nil, errdefs.InvalidParameter(fmt.Errorf("service %s is ambiguous (%d matches found)", input, l))
+		return nil, types.InvalidParameterErrorf("service %s is ambiguous (%d matches found)", input, l)
 	}
 
 	if !insertDefaults {
@@ -133,7 +134,7 @@ func getTask(ctx context.Context, c swarmapi.ControlClient, input string) (*swar
 	}
 
 	if l := len(rl.Tasks); l > 1 {
-		return nil, errdefs.InvalidParameter(fmt.Errorf("task %s is ambiguous (%d matches found)", input, l))
+		return nil, types.InvalidParameterErrorf("task %s is ambiguous (%d matches found)", input, l)
 	}
 
 	return rl.Tasks[0], nil
@@ -169,7 +170,7 @@ func getSecret(ctx context.Context, c swarmapi.ControlClient, input string) (*sw
 	}
 
 	if l := len(rl.Secrets); l > 1 {
-		return nil, errdefs.InvalidParameter(fmt.Errorf("secret %s is ambiguous (%d matches found)", input, l))
+		return nil, types.InvalidParameterErrorf("secret %s is ambiguous (%d matches found)", input, l)
 	}
 
 	return rl.Secrets[0], nil
@@ -205,7 +206,7 @@ func getConfig(ctx context.Context, c swarmapi.ControlClient, input string) (*sw
 	}
 
 	if l := len(rl.Configs); l > 1 {
-		return nil, errdefs.InvalidParameter(fmt.Errorf("config %s is ambiguous (%d matches found)", input, l))
+		return nil, types.InvalidParameterErrorf("config %s is ambiguous (%d matches found)", input, l)
 	}
 
 	return rl.Configs[0], nil
@@ -239,7 +240,7 @@ func getNetwork(ctx context.Context, c swarmapi.ControlClient, input string) (*s
 	}
 
 	if l := len(rl.Networks); l > 1 {
-		return nil, errdefs.InvalidParameter(fmt.Errorf("network %s is ambiguous (%d matches found)", input, l))
+		return nil, types.InvalidParameterErrorf("network %s is ambiguous (%d matches found)", input, l)
 	}
 
 	return rl.Networks[0], nil
@@ -271,11 +272,11 @@ func getVolume(ctx context.Context, c swarmapi.ControlClient, input string) (*sw
 	}
 
 	if len(resp.Volumes) == 0 {
-		return nil, errdefs.NotFound(fmt.Errorf("volume %s not found", input))
+		return nil, types.NotFoundErrorf("volume %s not found", input)
 	}
 
 	if l := len(resp.Volumes); l > 1 {
-		return nil, errdefs.InvalidParameter(fmt.Errorf("volume %s is ambiguous (%d matches found)", input, l))
+		return nil, types.InvalidParameterErrorf("volume %s is ambiguous (%d matches found)", input, l)
 	}
 
 	return resp.Volumes[0], nil

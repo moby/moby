@@ -32,8 +32,8 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/server/backend"
-	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	"github.com/opencontainers/image-spec/specs-go"
@@ -213,7 +213,7 @@ func newROLayerForImage(ctx context.Context, imgDesc *ocispec.Descriptor, i *Ima
 	snapshotter := i.StorageDriver()
 	_, lease, err := createLease(ctx, i.client.LeasesService())
 	if err != nil {
-		return nil, errdefs.System(fmt.Errorf("failed to lease image snapshot %s: %w", imageSnapshotID, err))
+		return nil, types.SystemErrorf("failed to lease image snapshot %s: %w", imageSnapshotID, err)
 	}
 
 	return &rolayer{

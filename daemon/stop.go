@@ -8,6 +8,7 @@ import (
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/sys/signal"
 	"github.com/pkg/errors"
@@ -36,7 +37,7 @@ func (daemon *Daemon) ContainerStop(ctx context.Context, name string, options co
 	}
 	err = daemon.containerStop(ctx, ctr, options)
 	if err != nil {
-		return errdefs.System(errors.Wrapf(err, "cannot stop container: %s", name))
+		return types.SystemErrorf("cannot stop container: %s: %w", name, err)
 	}
 	return nil
 }

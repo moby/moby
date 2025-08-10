@@ -15,6 +15,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/moby/v2/daemon/builder/remotecontext/urlutil"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/patternmatcher"
@@ -143,14 +144,14 @@ func readAndParseDockerfile(name string, rc io.Reader) (*parser.Result, error) {
 	br := bufio.NewReader(rc)
 	if _, err := br.Peek(1); err != nil {
 		if err == io.EOF {
-			return nil, errdefs.InvalidParameter(errors.Errorf("the Dockerfile (%s) cannot be empty", name))
+			return nil, types.InvalidParameterErrorf("the Dockerfile (%s) cannot be empty", name)
 		}
 		return nil, errors.Wrap(err, "unexpected error reading Dockerfile")
 	}
 
 	dockerfile, err := parser.Parse(br)
 	if err != nil {
-		return nil, errdefs.InvalidParameter(errors.Wrapf(err, "failed to parse %s", name))
+		return nil, types.InvalidParameterErrorf("failed to parse %s: %w", name, err)
 	}
 
 	return dockerfile, nil

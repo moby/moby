@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"time"
 
@@ -22,6 +21,7 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/builder/dockerfile"
 	"github.com/moby/moby/v2/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/pools"
 	"github.com/opencontainers/go-digest"
@@ -302,7 +302,7 @@ func (i *ImageService) unpackImage(ctx context.Context, snapshotter string, img 
 
 	if err := c8dImg.Unpack(ctx, snapshotter); err != nil {
 		if !cerrdefs.IsAlreadyExists(err) {
-			return errdefs.System(fmt.Errorf("failed to unpack image: %w", err))
+			return types.SystemErrorf("failed to unpack image: %w", err)
 		}
 	}
 
@@ -330,14 +330,14 @@ func detectCompression(bufRd *bufio.Reader) (compression.Compression, error) {
 func fillUncompressedLabel(ctx context.Context, cs content.Store, compressedDigest digest.Digest, uncompressedDigest digest.Digest) (int64, error) {
 	info, err := cs.Info(ctx, compressedDigest)
 	if err != nil {
-		return 0, errdefs.Unknown(errors.Wrapf(err, "couldn't open previously written blob"))
+		return 0, types.UnknownErrorf("couldn't open previously written blob: %w", err)
 	}
 	size := info.Size
 	info.Labels = map[string]string{"containerd.io/uncompressed": uncompressedDigest.String()}
 
 	_, err = cs.Update(ctx, info, "labels.*")
 	if err != nil {
-		return 0, errdefs.System(errors.Wrapf(err, "couldn't set uncompressed label"))
+		return 0, types.SystemErrorf("couldn't set uncompressed label: %w", err)
 	}
 	return size, nil
 }

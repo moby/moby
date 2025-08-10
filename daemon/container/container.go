@@ -26,6 +26,7 @@ import (
 	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
 	"github.com/moby/moby/v2/daemon/internal/restartmanager"
 	"github.com/moby/moby/v2/daemon/internal/stream"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/jsonfilelog"
 	"github.com/moby/moby/v2/daemon/logger/local"
@@ -468,7 +469,7 @@ func (container *Container) StartLogger() (logger.Logger, error) {
 			return nil, err
 		}
 		if err := os.MkdirAll(logDir, 0o700); err != nil {
-			return nil, errdefs.System(errors.Wrap(err, "error creating local logs dir"))
+			return nil, types.SystemErrorf("error creating local logs dir: %w", err)
 		}
 		info.LogPath = filepath.Join(logDir, "container.log")
 	}
@@ -831,7 +832,7 @@ func (container *Container) RestoreTask(ctx context.Context, client libcontainer
 // The container lock must be held when calling this method.
 func (container *Container) GetRunningTask() (libcontainerdtypes.Task, error) {
 	if !container.Running {
-		return nil, errdefs.Conflict(fmt.Errorf("container %s is not running", container.ID))
+		return nil, types.ConflictErrorf("container %s is not running", container.ID)
 	}
 	tsk, ok := container.Task()
 	if !ok {

@@ -28,7 +28,6 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/options"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
-	"github.com/moby/moby/v2/errdefs"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -1023,7 +1022,7 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 
 	n, err := c.getNetworkFromStore(id)
 	if err != nil {
-		return errdefs.NotFound(fmt.Errorf("unknown network %s id %s", name, id))
+		return types.NotFoundErrorf("unknown network %s id %s", name, id)
 	}
 
 	// Only remove ingress on force removal or explicit LB endpoint removal
@@ -1323,7 +1322,7 @@ func (n *Network) EndpointByName(name string) (*Endpoint, error) {
 	n.WalkEndpoints(s)
 
 	if e == nil {
-		return nil, errdefs.NotFound(fmt.Errorf("endpoint %s not found", name))
+		return nil, types.NotFoundErrorf("endpoint %s not found", name)
 	}
 
 	return e, nil

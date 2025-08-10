@@ -15,6 +15,7 @@ import (
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/go-digest"
@@ -239,7 +240,7 @@ func (i *ImageService) getImageLabelByDigest(ctx context.Context, target digest.
 	for _, img := range imgs {
 		if v, ok := img.Labels[labelKey]; ok {
 			if value != "" && value != v {
-				return value, errdefs.Conflict(fmt.Errorf("conflicting label value %q and %q", value, v))
+				return value, types.ConflictErrorf("conflicting label value %q and %q", value, v)
 			}
 			value = v
 		}

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/distribution/reference"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 
@@ -147,7 +148,7 @@ func DecodePlatform(platformJSON string) (*ocispec.Platform, error) {
 	var p ocispec.Platform
 
 	if err := json.Unmarshal([]byte(platformJSON), &p); err != nil {
-		return nil, errdefs.InvalidParameter(errors.Wrap(err, "failed to parse platform"))
+		return nil, types.InvalidParameterErrorf("failed to parse platform: %w", err)
 	}
 
 	hasAnyOptional := (p.Variant != "" || p.OSVersion != "" || len(p.OSFeatures) > 0)

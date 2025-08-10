@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/vishvananda/netlink"
 )
@@ -139,7 +140,7 @@ func (i *bridgeInterface) programIPv6Addresses(config *networkConfiguration) err
 		IPNet: netiputil.ToIPNet(addrPrefix),
 		Flags: syscall.IFA_F_NODAD,
 	}); err != nil {
-		return errdefs.System(fmt.Errorf("failed to add IPv6 address %s to bridge: %v", i.bridgeIPv6, err))
+		return types.SystemErrorf("failed to add IPv6 address %s to bridge: %v", i.bridgeIPv6, err)
 	}
 	return nil
 }

@@ -4,7 +4,6 @@ package libnetwork
 
 import (
 	"context"
-	"fmt"
 	"io/fs"
 	"net/netip"
 	"os"
@@ -144,7 +143,7 @@ func (sb *Sandbox) buildHostsFile(ctx context.Context, ifaceIPs []netip.Addr) er
 	for _, host := range sb.config.extraHosts {
 		addr, err := netip.ParseAddr(host.IP)
 		if err != nil {
-			return errdefs.InvalidParameter(fmt.Errorf("could not parse extra host IP %s: %v", host.IP, err))
+			return types.InvalidParameterErrorf("could not parse extra host IP %s: %v", host.IP, err)
 		}
 		extraContent = append(extraContent, etchosts.Record{Hosts: host.name, IP: addr})
 	}

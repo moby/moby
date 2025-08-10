@@ -11,9 +11,9 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/stream"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/server/backend"
-	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/term"
 	"github.com/pkg/errors"
 )
@@ -25,7 +25,7 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, req *backend.Containe
 	if req.DetachKeys != "" {
 		keys, err = term.ToBytes(req.DetachKeys)
 		if err != nil {
-			return errdefs.InvalidParameter(errors.Errorf("Invalid detach keys (%s) provided", req.DetachKeys))
+			return types.InvalidParameterErrorf("Invalid detach keys (%s) provided", req.DetachKeys)
 		}
 	}
 
@@ -34,10 +34,10 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, req *backend.Containe
 		return err
 	}
 	if ctr.IsPaused() {
-		return errdefs.Conflict(fmt.Errorf("container %s is paused, unpause the container before attach", prefixOrName))
+		return types.ConflictErrorf("container %s is paused, unpause the container before attach", prefixOrName)
 	}
 	if ctr.IsRestarting() {
-		return errdefs.Conflict(fmt.Errorf("container %s is restarting, wait until the container is running", prefixOrName))
+		return types.ConflictErrorf("container %s is restarting, wait until the container is running", prefixOrName)
 	}
 
 	cfg := stream.AttachConfig{
