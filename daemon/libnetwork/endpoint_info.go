@@ -372,7 +372,7 @@ func (ep *Endpoint) Gateway() net.IP {
 		return net.IP{}
 	}
 
-	return types.GetIPCopy(ep.joinInfo.gw)
+	return slices.Clone(ep.joinInfo.gw)
 }
 
 // GatewayIPv6 returns the IPv6 gateway assigned by the driver.
@@ -385,7 +385,7 @@ func (ep *Endpoint) GatewayIPv6() net.IP {
 		return net.IP{}
 	}
 
-	return types.GetIPCopy(ep.joinInfo.gw6)
+	return slices.Clone(ep.joinInfo.gw6)
 }
 
 // SetGateway sets the default IPv4 gateway when a container joins the endpoint.
@@ -393,7 +393,7 @@ func (ep *Endpoint) SetGateway(gw net.IP) error {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
-	ep.joinInfo.gw = types.GetIPCopy(gw)
+	ep.joinInfo.gw = slices.Clone(gw)
 	return nil
 }
 
@@ -402,7 +402,7 @@ func (ep *Endpoint) SetGatewayIPv6(gw6 net.IP) error {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
-	ep.joinInfo.gw6 = types.GetIPCopy(gw6)
+	ep.joinInfo.gw6 = slices.Clone(gw6)
 	return nil
 }
 
@@ -510,7 +510,7 @@ func (epj *endpointJoinInfo) CopyTo(dstEpj *endpointJoinInfo) error {
 	copy(dstEpj.StaticRoutes, epj.StaticRoutes)
 	dstEpj.driverTableEntries = make([]*tableEntry, len(epj.driverTableEntries))
 	copy(dstEpj.driverTableEntries, epj.driverTableEntries)
-	dstEpj.gw = types.GetIPCopy(epj.gw)
-	dstEpj.gw6 = types.GetIPCopy(epj.gw6)
+	dstEpj.gw = slices.Clone(epj.gw)
+	dstEpj.gw6 = slices.Clone(epj.gw6)
 	return nil
 }

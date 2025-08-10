@@ -1181,10 +1181,10 @@ func TestSetDefaultGw(t *testing.T) {
 	}
 
 	ipam4 := getIPv4Data(t)
-	gw4 := types.GetIPCopy(ipam4[0].Pool.IP).To4()
+	gw4 := slices.Clone(ipam4[0].Pool.IP).To4()
 	gw4[3] = 254
 	ipam6 := getIPv6Data(t)
-	gw6 := types.GetIPCopy(ipam6[0].Pool.IP)
+	gw6 := slices.Clone(ipam6[0].Pool.IP)
 	gw6[15] = 0x42
 
 	option := map[string]any{

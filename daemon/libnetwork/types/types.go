@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -111,9 +112,9 @@ func (p PortBinding) ContainerAddr() (net.Addr, error) {
 func (p *PortBinding) GetCopy() PortBinding {
 	return PortBinding{
 		Proto:       p.Proto,
-		IP:          GetIPCopy(p.IP),
+		IP:          slices.Clone(p.IP),
 		Port:        p.Port,
-		HostIP:      GetIPCopy(p.HostIP),
+		HostIP:      slices.Clone(p.HostIP),
 		HostPort:    p.HostPort,
 		HostPortEnd: p.HostPortEnd,
 	}
@@ -214,16 +215,6 @@ func ParseProtocol(s string) Protocol {
 	}
 }
 
-// GetIPCopy returns a copy of the passed IP address
-func GetIPCopy(from net.IP) net.IP {
-	if from == nil {
-		return nil
-	}
-	to := make(net.IP, len(from))
-	copy(to, from)
-	return to
-}
-
 // GetIPNetCopy returns a copy of the passed IP Network
 func GetIPNetCopy(from *net.IPNet) *net.IPNet {
 	if from == nil {
@@ -231,7 +222,7 @@ func GetIPNetCopy(from *net.IPNet) *net.IPNet {
 	}
 	bm := make(net.IPMask, len(from.Mask))
 	copy(bm, from.Mask)
-	return &net.IPNet{IP: GetIPCopy(from.IP), Mask: bm}
+	return &net.IPNet{IP: slices.Clone(from.IP), Mask: bm}
 }
 
 // GetIPNetCanonical returns the canonical form for the passed network
@@ -292,7 +283,7 @@ func GetHostPartIP(ip net.IP, mask net.IPMask) (net.IP, error) {
 	}
 
 	// Compute host portion
-	out := GetIPCopy(ip)
+	out := slices.Clone(ip)
 	for i := 0; i < len(mask[ms:]); i++ {
 		out[is+i] &= ^mask[ms+i]
 	}
@@ -311,7 +302,7 @@ func GetBroadcastIP(ip net.IP, mask net.IPMask) (net.IP, error) {
 	}
 
 	// Compute broadcast address
-	out := GetIPCopy(ip)
+	out := slices.Clone(ip)
 	for i := 0; i < len(mask[ms:]); i++ {
 		out[is+i] |= ^mask[ms+i]
 	}
@@ -348,7 +339,7 @@ func (r *StaticRoute) GetCopy() *StaticRoute {
 	return &StaticRoute{
 		Destination: GetIPNetCopy(r.Destination),
 		RouteType:   r.RouteType,
-		NextHop:     GetIPCopy(r.NextHop),
+		NextHop:     slices.Clone(r.NextHop),
 	}
 }
 
