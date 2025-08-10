@@ -215,24 +215,29 @@ func ParseProtocol(s string) Protocol {
 	}
 }
 
-// GetIPNetCopy returns a copy of the passed IP Network
+// GetIPNetCopy returns a copy of the passed IP Network. If the input is nil,
+// it returns nil.
 func GetIPNetCopy(from *net.IPNet) *net.IPNet {
 	if from == nil {
 		return nil
 	}
-	bm := make(net.IPMask, len(from.Mask))
-	copy(bm, from.Mask)
-	return &net.IPNet{IP: slices.Clone(from.IP), Mask: bm}
+	return &net.IPNet{
+		IP:   slices.Clone(from.IP),
+		Mask: slices.Clone(from.Mask),
+	}
 }
 
-// GetIPNetCanonical returns the canonical form for the passed network
+// GetIPNetCanonical returns the canonical form of the given IP network,
+// where the IP is masked with the subnet mask. If the input is nil,
+// it returns nil.
 func GetIPNetCanonical(nw *net.IPNet) *net.IPNet {
 	if nw == nil {
 		return nil
 	}
-	c := GetIPNetCopy(nw)
-	c.IP = c.IP.Mask(nw.Mask)
-	return c
+	return &net.IPNet{
+		IP:   slices.Clone(nw.IP.Mask(nw.Mask)),
+		Mask: slices.Clone(nw.Mask),
+	}
 }
 
 // CompareIPNet returns equal if the two IP Networks are equal
