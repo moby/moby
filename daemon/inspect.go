@@ -33,6 +33,12 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options
 		return nil, err
 	}
 
+	// TODO(thaJeztah): do we need a deep copy here? Otherwise we could use maps.Clone (see https://github.com/moby/moby/commit/7917a36cc787ada58987320e67cc6d96858f3b55)
+	ports := make(containertypes.PortMap, len(ctr.NetworkSettings.Ports))
+	for k, pm := range ctr.NetworkSettings.Ports {
+		ports[k] = pm
+	}
+
 	apiNetworks := make(map[string]*networktypes.EndpointSettings)
 	for nwName, epConf := range ctr.NetworkSettings.Networks {
 		if epConf.EndpointSettings != nil {
@@ -41,12 +47,12 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options
 		}
 	}
 
-	mountPoints := ctr.GetMountPoints()
 	networkSettings := &containertypes.NetworkSettings{
 		NetworkSettingsBase: containertypes.NetworkSettingsBase{
 			Bridge:                 ctr.NetworkSettings.Bridge,
 			SandboxID:              ctr.NetworkSettings.SandboxID,
 			SandboxKey:             ctr.NetworkSettings.SandboxKey,
+			Ports:                  ports,
 			HairpinMode:            ctr.NetworkSettings.HairpinMode,
 			LinkLocalIPv6Address:   ctr.NetworkSettings.LinkLocalIPv6Address,
 			LinkLocalIPv6PrefixLen: ctr.NetworkSettings.LinkLocalIPv6PrefixLen,
@@ -57,14 +63,10 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options
 		Networks:               apiNetworks,
 	}
 
-	ports := make(containertypes.PortMap, len(ctr.NetworkSettings.Ports))
-	for k, pm := range ctr.NetworkSettings.Ports {
-		ports[k] = pm
-	}
-	networkSettings.NetworkSettingsBase.Ports = ports
+	mountPoints := ctr.GetMountPoints()
 
+	// Don’t hold container lock for size calculation (see https://github.com/moby/moby/issues/31158)
 	ctr.Unlock()
-
 	if options.Size {
 		sizeRw, sizeRootFs, err := daemon.imageService.GetContainerLayerSize(ctx, base.ID)
 		if err != nil {
