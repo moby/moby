@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/netip"
 	"runtime"
@@ -315,18 +316,18 @@ func (n *Network) New() datastore.KVObject {
 	}
 }
 
-// CopyTo deep copies to the destination IpamConfig
-func (c *IpamConf) CopyTo(dstC *IpamConf) error {
-	dstC.PreferredPool = c.PreferredPool
-	dstC.SubPool = c.SubPool
-	dstC.Gateway = c.Gateway
-	if c.AuxAddresses != nil {
-		dstC.AuxAddresses = make(map[string]string, len(c.AuxAddresses))
-		for k, v := range c.AuxAddresses {
-			dstC.AuxAddresses[k] = v
-		}
+// Copy returns a deep copy of the [IpamConf]. If the receiver is nil,
+// Copy returns nil.
+func (c *IpamConf) Copy() *IpamConf {
+	if c == nil {
+		return nil
 	}
-	return nil
+	return &IpamConf{
+		PreferredPool: c.PreferredPool,
+		SubPool:       c.SubPool,
+		Gateway:       c.Gateway,
+		AuxAddresses:  maps.Clone(c.AuxAddresses),
+	}
 }
 
 // CopyTo deep copies to the destination IpamInfo
@@ -500,12 +501,8 @@ func (n *Network) CopyTo(o datastore.KVObject) error {
 		}
 	}
 
-	for _, v4conf := range n.ipamV4Config {
-		dstV4Conf := &IpamConf{}
-		if err := v4conf.CopyTo(dstV4Conf); err != nil {
-			return err
-		}
-		dstN.ipamV4Config = append(dstN.ipamV4Config, dstV4Conf)
+	for _, c := range n.ipamV4Config {
+		dstN.ipamV4Config = append(dstN.ipamV4Config, c.Copy())
 	}
 
 	for _, v4info := range n.ipamV4Info {
@@ -516,12 +513,8 @@ func (n *Network) CopyTo(o datastore.KVObject) error {
 		dstN.ipamV4Info = append(dstN.ipamV4Info, dstV4Info)
 	}
 
-	for _, v6conf := range n.ipamV6Config {
-		dstV6Conf := &IpamConf{}
-		if err := v6conf.CopyTo(dstV6Conf); err != nil {
-			return err
-		}
-		dstN.ipamV6Config = append(dstN.ipamV6Config, dstV6Conf)
+	for _, c := range n.ipamV6Config {
+		dstN.ipamV6Config = append(dstN.ipamV6Config, c.Copy())
 	}
 
 	for _, v6info := range n.ipamV6Info {
@@ -1776,20 +1769,12 @@ func (n *Network) IpamConfig() (ipamType string, ipamOptions map[string]string, 
 
 	ipamV4Config = make([]*IpamConf, len(n.ipamV4Config))
 	for i, c := range n.ipamV4Config {
-		cc := &IpamConf{}
-		if err := c.CopyTo(cc); err != nil {
-			log.G(context.TODO()).WithError(err).Error("Error copying ipam ipv4 config")
-		}
-		ipamV4Config[i] = cc
+		ipamV4Config[i] = c.Copy()
 	}
 
 	ipamV6Config = make([]*IpamConf, len(n.ipamV6Config))
 	for i, c := range n.ipamV6Config {
-		cc := &IpamConf{}
-		if err := c.CopyTo(cc); err != nil {
-			log.G(context.TODO()).WithError(err).Debug("Error copying ipam ipv6 config")
-		}
-		ipamV6Config[i] = cc
+		ipamV6Config[i] = c.Copy()
 	}
 
 	return n.ipamType, n.ipamOptions, ipamV4Config, ipamV6Config
