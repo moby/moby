@@ -43,23 +43,6 @@ type TransportPort struct {
 	Port  uint16
 }
 
-// Equal checks if this instance of TransportPort is equal to the passed one
-func (t *TransportPort) Equal(o *TransportPort) bool {
-	if t == o {
-		return true
-	}
-
-	if o == nil {
-		return false
-	}
-
-	if t.Proto != o.Proto || t.Port != o.Port {
-		return false
-	}
-
-	return true
-}
-
 // String returns the TransportPort structure in string form
 func (t *TransportPort) String() string {
 	return fmt.Sprintf("%s/%d", t.Proto.String(), t.Port)

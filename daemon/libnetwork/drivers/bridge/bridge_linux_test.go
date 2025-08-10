@@ -158,14 +158,8 @@ func compareConnConfig(a, b *connectivityConfiguration) bool {
 	if a == nil || b == nil {
 		return false
 	}
-	if len(a.ExposedPorts) != len(b.ExposedPorts) ||
-		len(a.PortBindings) != len(b.PortBindings) {
+	if !slices.Equal(a.ExposedPorts, b.ExposedPorts) {
 		return false
-	}
-	for i := 0; i < len(a.ExposedPorts); i++ {
-		if !a.ExposedPorts[i].Equal(&b.ExposedPorts[i]) {
-			return false
-		}
 	}
 	for i := 0; i < len(a.PortBindings); i++ {
 		if !comparePortBinding(&a.PortBindings[i].PortBinding, &b.PortBindings[i].PortBinding) {

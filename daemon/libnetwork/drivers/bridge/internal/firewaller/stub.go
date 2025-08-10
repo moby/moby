@@ -154,7 +154,7 @@ func matchLink(l stubFirewallerLink, parentIP, childIP netip.Addr, ports []types
 		return false
 	}
 	for i, p := range l.ports {
-		if !p.Equal(&ports[i]) {
+		if p != ports[i] {
 			return false
 		}
 	}
