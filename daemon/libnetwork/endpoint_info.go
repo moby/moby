@@ -510,13 +510,16 @@ func (epj *endpointJoinInfo) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (epj *endpointJoinInfo) CopyTo(dstEpj *endpointJoinInfo) error {
-	dstEpj.disableGatewayService = epj.disableGatewayService
-	dstEpj.StaticRoutes = make([]*types.StaticRoute, len(epj.StaticRoutes))
-	copy(dstEpj.StaticRoutes, epj.StaticRoutes)
-	dstEpj.driverTableEntries = make([]*tableEntry, len(epj.driverTableEntries))
-	copy(dstEpj.driverTableEntries, epj.driverTableEntries)
-	dstEpj.gw = slices.Clone(epj.gw)
-	dstEpj.gw6 = slices.Clone(epj.gw6)
-	return nil
+func (epj *endpointJoinInfo) Copy() *endpointJoinInfo {
+	if epj == nil {
+		return nil
+	}
+
+	return &endpointJoinInfo{
+		gw:                    slices.Clone(epj.gw),
+		gw6:                   slices.Clone(epj.gw6),
+		StaticRoutes:          slices.Clone(epj.StaticRoutes),
+		driverTableEntries:    slices.Clone(epj.driverTableEntries),
+		disableGatewayService: epj.disableGatewayService,
+	}
 }

@@ -296,13 +296,7 @@ func (ep *Endpoint) CopyTo(o datastore.KVObject) error {
 	copy(dstEp.ingressPorts, ep.ingressPorts)
 
 	dstEp.iface = ep.iface.Copy()
-
-	if ep.joinInfo != nil {
-		dstEp.joinInfo = &endpointJoinInfo{}
-		if err := ep.joinInfo.CopyTo(dstEp.joinInfo); err != nil {
-			return err
-		}
-	}
+	dstEp.joinInfo = ep.joinInfo.Copy()
 
 	dstEp.exposedPorts = make([]types.TransportPort, len(ep.exposedPorts))
 	copy(dstEp.exposedPorts, ep.exposedPorts)
