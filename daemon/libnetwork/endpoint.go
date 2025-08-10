@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync"
 
@@ -18,7 +20,6 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
-	"github.com/moby/moby/v2/daemon/libnetwork/options"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/errdefs"
@@ -272,10 +273,13 @@ func (ep *Endpoint) New() datastore.KVObject {
 	return &Endpoint{network: ep.getNetwork()}
 }
 
+var _ datastore.KVObject = (*Endpoint)(nil)
+
 func (ep *Endpoint) CopyTo(o datastore.KVObject) error {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
+	// TODO(thaJeztah): should dstEp be locked during this copy? (ideally we'd not have a mutex at all in this struct).
 	dstEp := o.(*Endpoint)
 	dstEp.name = ep.name
 	dstEp.id = ep.id
@@ -286,29 +290,15 @@ func (ep *Endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp.disableIPv6 = ep.disableIPv6
 	dstEp.svcName = ep.svcName
 	dstEp.svcID = ep.svcID
-	dstEp.virtualIP = ep.virtualIP
+	dstEp.virtualIP = ep.virtualIP // TODO(thaJeztah): should this be cloned? (net.IP)?
 	dstEp.loadBalancer = ep.loadBalancer
-
-	dstEp.svcAliases = make([]string, len(ep.svcAliases))
-	copy(dstEp.svcAliases, ep.svcAliases)
-
-	dstEp.ingressPorts = make([]*PortConfig, len(ep.ingressPorts))
-	copy(dstEp.ingressPorts, ep.ingressPorts)
-
+	dstEp.svcAliases = slices.Clone(ep.svcAliases)
+	dstEp.ingressPorts = slices.Clone(ep.ingressPorts) // TODO(thaJeztah): should this be copied in depth? ([]*PortConfig)
 	dstEp.iface = ep.iface.Copy()
 	dstEp.joinInfo = ep.joinInfo.Copy()
-
-	dstEp.exposedPorts = make([]types.TransportPort, len(ep.exposedPorts))
-	copy(dstEp.exposedPorts, ep.exposedPorts)
-
-	dstEp.dnsNames = make([]string, len(ep.dnsNames))
-	copy(dstEp.dnsNames, ep.dnsNames)
-
-	dstEp.generic = options.Generic{}
-	for k, v := range ep.generic {
-		dstEp.generic[k] = v
-	}
-
+	dstEp.exposedPorts = slices.Clone(ep.exposedPorts)
+	dstEp.dnsNames = slices.Clone(ep.dnsNames)
+	dstEp.generic = maps.Clone(ep.generic)
 	return nil
 }
 
