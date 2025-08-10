@@ -1399,12 +1399,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
 	m := make(map[string]any)
 
 	if ep.extConnConfig != nil && ep.extConnConfig.ExposedPorts != nil {
-		// Return a copy of the config data
-		epc := make([]types.TransportPort, 0, len(ep.extConnConfig.ExposedPorts))
-		for _, tp := range ep.extConnConfig.ExposedPorts {
-			epc = append(epc, tp.GetCopy())
-		}
-		m[netlabel.ExposedPorts] = epc
+		m[netlabel.ExposedPorts] = slices.Clone(ep.extConnConfig.ExposedPorts)
 	}
 
 	if ep.portMapping != nil {

@@ -128,13 +128,7 @@ func (nw *StubFirewallerNetwork) AddLink(_ context.Context, parentIP, childIP ne
 	nw.Links = append(nw.Links, stubFirewallerLink{
 		parentIP: parentIP,
 		childIP:  childIP,
-		ports: func() []types.TransportPort {
-			res := make([]types.TransportPort, 0, len(ports))
-			for _, p := range ports {
-				res = append(res, p.GetCopy())
-			}
-			return res
-		}(),
+		ports:    slices.Clone(ports),
 	})
 	return nil
 }

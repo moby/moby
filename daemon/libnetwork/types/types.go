@@ -60,11 +60,6 @@ func (t *TransportPort) Equal(o *TransportPort) bool {
 	return true
 }
 
-// GetCopy returns a copy of this TransportPort structure instance
-func (t *TransportPort) GetCopy() TransportPort {
-	return TransportPort{Proto: t.Proto, Port: t.Port}
-}
-
 // String returns the TransportPort structure in string form
 func (t *TransportPort) String() string {
 	return fmt.Sprintf("%s/%d", t.Proto.String(), t.Port)
