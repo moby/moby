@@ -8,8 +8,8 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/names"
-	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/namesgenerator"
 	"github.com/pkg/errors"
 )
@@ -61,7 +61,7 @@ func (daemon *Daemon) generateIDAndName(name string) (string, string, error) {
 
 func (daemon *Daemon) reserveName(id, name string) (string, error) {
 	if !validContainerNamePattern.MatchString(strings.TrimPrefix(name, "/")) {
-		return "", errdefs.InvalidParameter(errors.Errorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars))
+		return "", types.InvalidParameterErrorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars)
 	}
 	if name[0] != '/' {
 		name = "/" + name

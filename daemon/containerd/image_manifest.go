@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/moby/buildkit/util/attestation"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -158,7 +159,7 @@ func (im *ImageManifest) IsPseudoImage(ctx context.Context) (bool, error) {
 	mfst, err := im.Manifest(ctx)
 	if err != nil {
 		if cerrdefs.IsNotFound(err) {
-			return false, errdefs.NotFound(errors.Wrapf(err, "failed to read manifest %v", im.Target().Digest))
+			return false, types.NotFoundErrorf("failed to read manifest %v: %w", im.Target().Digest, err)
 		}
 		return true, err
 	}

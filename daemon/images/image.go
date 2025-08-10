@@ -14,11 +14,11 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/moby/moby/v2/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // ErrImageDoesNotExist is error returned when no image can be found for a reference.
@@ -195,7 +195,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options bac
 		if ref, err := reference.ParseNamed(refOrID); err == nil {
 			imgName = reference.FamiliarString(ref)
 		}
-		retErr = errdefs.NotFound(errors.Errorf("image with reference %s was found but its platform (%s) does not match the specified platform (%s)", imgName, platforms.FormatAll(imgPlat), platforms.FormatAll(p)))
+		retErr = types.NotFoundErrorf("image with reference %s was found but its platform (%s) does not match the specified platform (%s)", imgName, platforms.FormatAll(imgPlat), platforms.FormatAll(p))
 	}()
 	ref, err := reference.ParseAnyReference(refOrID)
 	if err != nil {

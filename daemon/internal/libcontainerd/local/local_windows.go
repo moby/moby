@@ -22,6 +22,7 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/internal/libcontainerd/queue"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -1044,7 +1045,7 @@ func (*task) CreateCheckpoint(context.Context, string, bool) error {
 // assertIsCurrentTask returns a non-nil error if the task has been deleted.
 func (t *task) assertIsCurrentTask() error {
 	if t.ctr.task != t {
-		return errors.WithStack(errdefs.NotFound(fmt.Errorf("task %q not found", t.id)))
+		return errors.WithStack(types.NotFoundErrorf("task %q not found", t.id))
 	}
 	return nil
 }
@@ -1062,7 +1063,7 @@ func (t *task) getHCSContainer() (hcsshim.Container, error) {
 	}
 	hc := t.ctr.hcsContainer
 	if hc == nil {
-		return nil, errors.WithStack(errdefs.NotFound(fmt.Errorf("container %q not found", t.ctr.id)))
+		return nil, errors.WithStack(types.NotFoundErrorf("container %q not found", t.ctr.id))
 	}
 	return hc, nil
 }
@@ -1197,7 +1198,7 @@ func (ctr *container) Delete(context.Context) error {
 	defer ctr.mu.Unlock()
 
 	if ctr.hcsContainer == nil {
-		return errors.WithStack(errdefs.NotFound(fmt.Errorf("container %q not found", ctr.id)))
+		return errors.WithStack(types.NotFoundErrorf("container %q not found", ctr.id))
 	}
 
 	// Check that there is no task currently running.

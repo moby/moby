@@ -1,10 +1,9 @@
 package caps
 
 import (
-	"fmt"
 	"strings"
 
-	"github.com/moby/moby/v2/errdefs"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 var (
@@ -69,9 +68,9 @@ func NormalizeLegacyCapabilities(caps []string) ([]string, error) {
 			c = "CAP_" + c
 		}
 		if v, ok := capabilityList[c]; !ok {
-			return nil, errdefs.InvalidParameter(fmt.Errorf("unknown capability: %q", c))
+			return nil, types.InvalidParameterErrorf("unknown capability: %q", c)
 		} else if v == nil {
-			return nil, errdefs.InvalidParameter(fmt.Errorf("capability not supported by your kernel or not available in the current environment: %q", c))
+			return nil, types.InvalidParameterErrorf("capability not supported by your kernel or not available in the current environment: %q", c)
 		}
 		normalized = append(normalized, c)
 	}

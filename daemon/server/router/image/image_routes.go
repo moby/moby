@@ -20,6 +20,7 @@ import (
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/v2/daemon/builder/remotecontext"
 	"github.com/moby/moby/v2/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/dockerversion"
@@ -544,7 +545,7 @@ func (ir *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWrite
 		var err error
 		limit, err = strconv.Atoi(r.Form.Get("limit"))
 		if err != nil || limit < 0 {
-			return errdefs.InvalidParameter(errors.Wrap(err, "invalid limit specified"))
+			return types.InvalidParameterErrorf("invalid limit specified: %w", err)
 		}
 	}
 	searchFilters, err := filters.FromJSON(r.Form.Get("filters"))

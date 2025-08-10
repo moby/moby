@@ -367,14 +367,29 @@ func NotFoundErrorf(format string, params ...any) error {
 	return errdefs.NotFound(fmt.Errorf(format, params...))
 }
 
+// ConflictErrorf creates an instance of [errdefs.ErrConflict].
+func ConflictErrorf(format string, params ...any) error {
+	return errdefs.Conflict(fmt.Errorf(format, params...))
+}
+
 // ForbiddenErrorf creates an instance of [errdefs.ErrForbidden].
 func ForbiddenErrorf(format string, params ...any) error {
 	return errdefs.Forbidden(fmt.Errorf(format, params...))
 }
 
-// UnavailableErrorf creates an instance of [errdefs.ErrUnavailable]
+// SystemErrorf creates an instance of [errdefs.ErrSystem].
+func SystemErrorf(format string, params ...any) error {
+	return errdefs.System(fmt.Errorf(format, params...))
+}
+
+// UnavailableErrorf creates an instance of [errdefs.ErrUnavailable].
 func UnavailableErrorf(format string, params ...any) error {
 	return errdefs.Unavailable(fmt.Errorf(format, params...))
+}
+
+// UnknownErrorf creates an instance of [errdefs.ErrUnknown].
+func UnknownErrorf(format string, params ...any) error {
+	return errdefs.Unknown(fmt.Errorf(format, params...))
 }
 
 // NotImplementedErrorf creates an instance of [errdefs.ErrNotImplemented].

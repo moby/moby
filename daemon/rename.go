@@ -9,6 +9,7 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/libnetwork"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/network"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
@@ -40,7 +41,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 	links := map[string]*container.Container{}
 	for k, v := range daemon.linkIndex.children(ctr) {
 		if !strings.HasPrefix(k, ctr.Name) {
-			return errdefs.InvalidParameter(errors.Errorf("Linked container %s does not match parent %s", k, ctr.Name))
+			return types.InvalidParameterErrorf("Linked container %s does not match parent %s", k, ctr.Name)
 		}
 		links[strings.TrimPrefix(k, ctr.Name)] = v
 	}

@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"context"
-	"fmt"
 	"runtime"
 	"strings"
 	"time"
@@ -12,8 +11,8 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/builder/dockerfile"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/server/backend"
-	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 )
 
@@ -137,11 +136,11 @@ func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string,
 	}
 
 	if container.IsDead() {
-		return "", errdefs.Conflict(fmt.Errorf("You cannot commit container %s which is Dead", container.ID))
+		return "", types.ConflictErrorf("You cannot commit container %s which is Dead", container.ID)
 	}
 
 	if container.IsRemovalInProgress() {
-		return "", errdefs.Conflict(fmt.Errorf("You cannot commit container %s which is being removed", container.ID))
+		return "", types.ConflictErrorf("You cannot commit container %s which is being removed", container.ID)
 	}
 
 	if c.Pause && !container.IsPaused() {

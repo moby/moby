@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/locker"
 	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/volume"
 	"github.com/moby/moby/v2/daemon/volume/drivers"
 	volumemounts "github.com/moby/moby/v2/daemon/volume/mounts"
@@ -327,7 +328,7 @@ func (s *VolumeStore) filter(ctx context.Context, vols *[]volume.Volume, by By) 
 		}
 		filter(vols, filterFunc(f))
 	default:
-		return nil, errdefs.InvalidParameter(errors.Errorf("unsupported filter: %T", f))
+		return nil, types.InvalidParameterErrorf("unsupported filter: %T", f)
 	}
 	return warnings, nil
 }
@@ -355,7 +356,7 @@ func (s *VolumeStore) Find(ctx context.Context, by By) (vols []volume.Volume, wa
 		warnings, err = s.filter(ctx, f.ls, f.by)
 	default:
 		// Really shouldn't be possible, but makes sure that any new By's are added to this check.
-		err = errdefs.InvalidParameter(errors.Errorf("unsupported filter type: %T", f))
+		err = types.InvalidParameterErrorf("unsupported filter type: %T", f)
 	}
 	if err != nil {
 		return nil, nil, &OpErr{Err: err, Op: "list"}

@@ -2,7 +2,6 @@ package containerd
 
 import (
 	"context"
-	"fmt"
 	"sync/atomic"
 
 	containerd "github.com/containerd/containerd/v2/client"
@@ -18,6 +17,7 @@ import (
 	daemonevents "github.com/moby/moby/v2/daemon/events"
 	dimages "github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/daemon/internal/distribution"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/snapshotter"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/sys/user"
@@ -202,9 +202,9 @@ func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID st
 	rwLayerUsage, err := snapshotter.Usage(ctx, containerID)
 	if err != nil {
 		if cerrdefs.IsNotFound(err) {
-			return 0, 0, errdefs.NotFound(fmt.Errorf("rw layer snapshot not found for container %s", containerID))
+			return 0, 0, types.NotFoundErrorf("rw layer snapshot not found for container %s", containerID)
 		}
-		return 0, 0, errdefs.System(errors.Wrapf(err, "snapshotter.Usage failed for %s", containerID))
+		return 0, 0, types.SystemErrorf("snapshotter.Usage failed for %s: %w", containerID, err)
 	}
 
 	unpackedUsage, err := calculateSnapshotParentUsage(ctx, snapshotter, containerID)

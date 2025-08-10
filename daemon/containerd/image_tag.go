@@ -2,7 +2,6 @@ package containerd
 
 import (
 	"context"
-	"fmt"
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	cerrdefs "github.com/containerd/errdefs"
@@ -10,7 +9,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/internal/image"
-	"github.com/moby/moby/v2/errdefs"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/pkg/errors"
 )
 
@@ -44,14 +43,14 @@ func (i *ImageService) createOrReplaceImage(ctx context.Context, newImg c8dimage
 
 	if _, err := i.images.Create(ctx, newImg); err != nil {
 		if !cerrdefs.IsAlreadyExists(err) {
-			return errdefs.System(errors.Wrapf(err, "failed to create image with name %s and target %s", newImg.Name, newImg.Target.Digest.String()))
+			return types.SystemErrorf("failed to create image with name %s and target %s: %w", newImg.Name, newImg.Target.Digest.String(), err)
 		}
 
 		replacedImg, all, err := i.resolveAllReferences(ctx, newImg.Name)
 		if err != nil {
-			return errdefs.Unknown(errors.Wrapf(err, "creating image %s failed because it already exists, but accessing it also failed", newImg.Name))
+			return types.UnknownErrorf("creating image %s failed because it already exists, but accessing it also failed: %w", newImg.Name, err)
 		} else if replacedImg == nil {
-			return errdefs.Unknown(fmt.Errorf("creating image %s failed because it already exists, but failed to resolve", newImg.Name))
+			return types.UnknownErrorf("creating image %s failed because it already exists, but failed to resolve", newImg.Name)
 		}
 
 		// Check if image we would replace already resolves to the same target.
@@ -69,8 +68,8 @@ func (i *ImageService) createOrReplaceImage(ctx context.Context, newImg c8dimage
 		}
 
 		if _, err := i.images.Create(context.WithoutCancel(ctx), newImg); err != nil {
-			return errdefs.System(errors.Wrapf(err, "failed to create an image %s with target %s after deleting the existing one",
-				newImg.Name, newImg.Target.Digest))
+			return types.SystemErrorf("failed to create an image %s with target %s after deleting the existing one: %w",
+				newImg.Name, newImg.Target.Digest, err)
 		}
 	}
 

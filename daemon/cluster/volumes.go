@@ -2,12 +2,11 @@ package cluster
 
 import (
 	"context"
-	"fmt"
 
 	cerrdefs "github.com/containerd/errdefs"
 	volumetypes "github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/v2/daemon/cluster/convert"
-	"github.com/moby/moby/v2/errdefs"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"google.golang.org/grpc"
 )
@@ -81,7 +80,7 @@ func (c *Cluster) CreateVolume(v volumetypes.CreateOptions) (*volumetypes.Volume
 		// very helpful at all. Instead, before returning the error, add some
 		// context, and change this to a system-type error, because it's
 		// nothing the user did wrong.
-		return nil, errdefs.System(fmt.Errorf("unable to retrieve created volume: %w", err))
+		return nil, types.SystemErrorf("unable to retrieve created volume: %w", err)
 	}
 	return &createdVol, nil
 }

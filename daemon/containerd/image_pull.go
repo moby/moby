@@ -23,7 +23,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/distribution"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
-	"github.com/moby/moby/v2/errdefs"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -96,7 +96,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	if oldImage.Target.Digest != "" {
 		err = i.leaseContent(ctx, i.content, oldImage.Target)
 		if err != nil {
-			return errdefs.System(fmt.Errorf("failed to lease content: %w", err))
+			return types.SystemErrorf("failed to lease content: %w", err)
 		}
 
 		// If the pulled image is different than the old image, we will keep the old image as a dangling image.
@@ -214,7 +214,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 			if strings.Contains(err.Error(), "no basic auth credentials") {
 				return err
 			}
-			return errdefs.NotFound(fmt.Errorf("pull access denied for %s, repository does not exist or may require 'docker login'", reference.FamiliarName(ref)))
+			return types.NotFoundErrorf("pull access denied for %s, repository does not exist or may require 'docker login'", reference.FamiliarName(ref))
 		}
 		if cerrdefs.IsNotFound(err) {
 			// Transform "no match for platform in manifest" error returned by containerd into
@@ -225,7 +225,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 				if platform != nil {
 					platformStr = platforms.FormatAll(*platform)
 				}
-				return errdefs.NotFound(fmt.Errorf("no matching manifest for %s in the manifest list entries: %w", platformStr, err))
+				return types.NotFoundErrorf("no matching manifest for %s in the manifest list entries: %w", platformStr, err)
 			}
 		}
 		return translateRegistryError(ctx, err)

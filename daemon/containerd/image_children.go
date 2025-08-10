@@ -5,7 +5,7 @@ import (
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/moby/moby/v2/daemon/internal/image"
-	"github.com/moby/moby/v2/errdefs"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
@@ -14,7 +14,7 @@ import (
 func (i *ImageService) getImagesWithLabel(ctx context.Context, labelKey string, labelValue string) ([]image.ID, error) {
 	imgs, err := i.images.List(ctx, "labels."+labelKey+"=="+labelValue)
 	if err != nil {
-		return []image.ID{}, errdefs.System(errors.Wrap(err, "failed to list all images"))
+		return []image.ID{}, types.SystemErrorf("failed to list all images: %w", err)
 	}
 
 	var children []image.ID

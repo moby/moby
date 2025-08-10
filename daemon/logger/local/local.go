@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/internal/logdriver"
 	"github.com/moby/moby/v2/daemon/logger/loggerutils"
@@ -77,7 +78,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		var err error
 		cfg.MaxFileSize, err = units.FromHumanSize(capacity)
 		if err != nil {
-			return nil, errdefs.InvalidParameter(errors.Wrapf(err, "invalid value for max-size: %s", capacity))
+			return nil, types.InvalidParameterErrorf("invalid value for max-size: %s: %w", capacity, err)
 		}
 	}
 
@@ -85,14 +86,14 @@ func New(info logger.Info) (logger.Logger, error) {
 		var err error
 		cfg.MaxFileCount, err = strconv.Atoi(userMaxFileCount)
 		if err != nil {
-			return nil, errdefs.InvalidParameter(errors.Wrapf(err, "invalid value for max-file: %s", userMaxFileCount))
+			return nil, types.InvalidParameterErrorf("invalid value for max-file: %s: %w", userMaxFileCount, err)
 		}
 	}
 
 	if userCompress, ok := info.Config["compress"]; ok {
 		compressLogs, err := strconv.ParseBool(userCompress)
 		if err != nil {
-			return nil, errdefs.InvalidParameter(errors.Wrap(err, "error reading compress log option"))
+			return nil, types.InvalidParameterErrorf("error reading compress log option: %w", err)
 		}
 		cfg.DisableCompression = !compressLogs
 	}

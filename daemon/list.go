@@ -16,8 +16,8 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/server/backend"
-	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -270,7 +270,7 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 	err := psFilters.WalkValues("exited", func(value string) error {
 		code, err := strconv.Atoi(value)
 		if err != nil {
-			return errdefs.InvalidParameter(errors.Wrapf(err, "invalid filter 'exited=%s'", value))
+			return types.InvalidParameterErrorf("invalid filter 'exited=%s': %w", value, err)
 		}
 		filtExited = append(filtExited, code)
 		return nil
@@ -281,7 +281,7 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 
 	err = psFilters.WalkValues("status", func(value string) error {
 		if err := containertypes.ValidateContainerState(value); err != nil {
-			return errdefs.InvalidParameter(fmt.Errorf("invalid filter 'status=%s': %w", value, err))
+			return types.InvalidParameterErrorf("invalid filter 'status=%s': %w", value, err)
 		}
 		config.All = true
 		return nil
@@ -298,7 +298,7 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 
 	err = psFilters.WalkValues("health", func(value string) error {
 		if err := containertypes.ValidateHealthStatus(value); err != nil {
-			return errdefs.InvalidParameter(fmt.Errorf("invalid filter 'health=%s': %w", value, err))
+			return types.InvalidParameterErrorf("invalid filter 'health=%s': %w", value, err)
 		}
 		return nil
 	})

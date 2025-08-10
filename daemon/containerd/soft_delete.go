@@ -5,10 +5,9 @@ import (
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/v2/errdefs"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 const imageNameDanglingPrefix = "moby-dangling@"
@@ -25,8 +24,8 @@ func (i *ImageService) softImageDelete(ctx context.Context, img c8dimages.Image,
 		err := i.ensureDanglingImage(context.WithoutCancel(ctx), img)
 		// Error out in case we couldn't persist the old image.
 		if err != nil {
-			return errdefs.System(errors.Wrapf(err, "failed to create a dangling image for the replaced image %s with digest %s",
-				img.Name, img.Target.Digest.String()))
+			return types.SystemErrorf("failed to create a dangling image for the replaced image %s with digest %s: %w",
+				img.Name, img.Target.Digest.String(), err)
 		}
 	}
 
@@ -35,7 +34,7 @@ func (i *ImageService) softImageDelete(ctx context.Context, img c8dimages.Image,
 	err := i.images.Delete(context.WithoutCancel(ctx), img.Name)
 	if err != nil {
 		if !cerrdefs.IsNotFound(err) {
-			return errdefs.System(errors.Wrapf(err, "failed to delete image %s which existed a moment before", img.Name))
+			return types.SystemErrorf("failed to delete image %s which existed a moment before: %w", img.Name, err)
 		}
 	}
 

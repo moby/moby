@@ -8,7 +8,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/libnetwork/netutils"
-	"github.com/moby/moby/v2/errdefs"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
 
@@ -16,7 +16,7 @@ import (
 func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
 	if config.BridgeName != DefaultBridgeName && config.DefaultBridge {
 		// TODO(thaJeztah): should this be an [errdefs.ErrInvalidParameter], not an [errdefs.ErrForbidden]?
-		return errdefs.Forbidden(fmt.Errorf("bridge device with non default name %s must be created manually", config.BridgeName))
+		return types.ForbiddenErrorf("bridge device with non default name %s must be created manually", config.BridgeName)
 	}
 
 	// Set the bridgeInterface netlink.Bridge.

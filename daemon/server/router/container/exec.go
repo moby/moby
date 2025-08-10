@@ -11,10 +11,9 @@ import (
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/versions"
+	lntypes "github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
-	"github.com/moby/moby/v2/errdefs"
-	"github.com/pkg/errors"
 )
 
 func (c *containerRouter) getExecByID(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -160,11 +159,11 @@ func (c *containerRouter) postContainerExecResize(ctx context.Context, w http.Re
 	}
 	height, err := httputils.Uint32Value(r, "h")
 	if err != nil {
-		return errdefs.InvalidParameter(errors.Wrapf(err, "invalid resize height %q", r.Form.Get("h")))
+		return lntypes.InvalidParameterErrorf("invalid resize height %q: %w", r.Form.Get("h"), err)
 	}
 	width, err := httputils.Uint32Value(r, "w")
 	if err != nil {
-		return errdefs.InvalidParameter(errors.Wrapf(err, "invalid resize width %q", r.Form.Get("w")))
+		return lntypes.InvalidParameterErrorf("invalid resize width %q: %w", r.Form.Get("w"), err)
 	}
 
 	return c.backend.ContainerExecResize(ctx, vars["name"], height, width)

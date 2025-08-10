@@ -16,6 +16,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/internal/idtools"
 	"github.com/moby/moby/v2/daemon/internal/quota"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/names"
 	"github.com/moby/moby/v2/daemon/volume"
 	"github.com/moby/moby/v2/errdefs"
@@ -194,7 +195,7 @@ func (r *Root) Remove(v volume.Volume) error {
 
 	lv, ok := v.(*localVolume)
 	if !ok {
-		return errdefs.System(errors.Errorf("unknown volume type %T", v))
+		return types.SystemErrorf("unknown volume type %T", v)
 	}
 
 	if lv.active.count > 0 {
@@ -217,7 +218,7 @@ func (r *Root) Remove(v volume.Volume) error {
 	}
 
 	if realPath == r.path || !strings.HasPrefix(realPath, r.path) {
-		return errdefs.System(errors.Errorf("unable to remove a directory outside of the local volume root %s: %s", r.path, realPath))
+		return types.SystemErrorf("unable to remove a directory outside of the local volume root %s: %s", r.path, realPath)
 	}
 
 	if err := removePath(realPath); err != nil {
@@ -233,7 +234,7 @@ func removePath(path string) error {
 		if os.IsNotExist(err) {
 			return nil
 		}
-		return errdefs.System(errors.Wrapf(err, "error removing volume path '%s'", path))
+		return types.SystemErrorf("error removing volume path '%s': %w", path, err)
 	}
 	return nil
 }
@@ -259,7 +260,7 @@ func (r *Root) validateName(name string) error {
 		return errdefs.InvalidParameter(errors.New("volume name is too short, names should be at least two alphanumeric characters"))
 	}
 	if !volumeNameRegex.MatchString(name) {
-		return errdefs.InvalidParameter(errors.Errorf("%q includes invalid characters for a local volume name, only %q are allowed. If you intended to pass a host directory, use absolute path", name, names.RestrictedNameChars))
+		return types.InvalidParameterErrorf("%q includes invalid characters for a local volume name, only %q are allowed. If you intended to pass a host directory, use absolute path", name, names.RestrictedNameChars)
 	}
 	return nil
 }
@@ -394,7 +395,7 @@ func (v *localVolume) saveOpts() error {
 	}
 	err = atomicwriter.WriteFile(filepath.Join(v.rootPath, "opts.json"), b, 0o600)
 	if err != nil {
-		return errdefs.System(errors.Wrap(err, "error while persisting volume options"))
+		return types.SystemErrorf("error while persisting volume options: %w", err)
 	}
 	return nil
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/moby/locker"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/volume"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/plugingetter"
@@ -228,7 +229,7 @@ func makePluginAdapter(p plugingetter.CompatPlugin) (*volumeDriverAdapter, error
 
 	pa, ok := p.(plugingetter.PluginAddr)
 	if !ok {
-		return nil, errdefs.System(errors.Errorf("got unknown plugin instance %T", p))
+		return nil, types.SystemErrorf("got unknown plugin instance %T", p)
 	}
 
 	if pa.Protocol() != plugins.ProtocolSchemeHTTPV1 {

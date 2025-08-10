@@ -18,6 +18,7 @@ import (
 	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/moby/v2/daemon/builder/remotecontext"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/sys/user"
@@ -197,7 +198,7 @@ func (b *Builder) build(ctx context.Context, source builder.Source, dockerfile *
 		targetIx, found := instructions.HasStage(stages, b.options.Target)
 		if !found {
 			buildsFailed.WithValues(metricsBuildTargetNotReachableError).Inc()
-			return nil, errdefs.InvalidParameter(errors.Errorf("target stage %q could not be found", b.options.Target))
+			return nil, types.InvalidParameterErrorf("target stage %q could not be found", b.options.Target)
 		}
 		stages = stages[:targetIx+1]
 	}
@@ -333,7 +334,7 @@ func BuildFromConfig(ctx context.Context, config *container.Config, changes []st
 	var commands []instructions.Command
 	for _, n := range dockerfile.AST.Children {
 		if !validCommitCommands[strings.ToLower(n.Value)] {
-			return nil, errdefs.InvalidParameter(errors.Errorf("%s is not a valid change command", n.Value))
+			return nil, types.InvalidParameterErrorf("%s is not a valid change command", n.Value)
 		}
 		cmd, err := instructions.ParseCommand(n)
 		if err != nil {

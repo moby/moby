@@ -12,7 +12,6 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/netutils"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
-	"github.com/moby/moby/v2/errdefs"
 )
 
 // CreateEndpoint assigns the mac, ip and endpoint id for the new container
@@ -22,7 +21,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	}
 	n, err := d.getNetwork(nid)
 	if err != nil {
-		return errdefs.System(fmt.Errorf("network id %q not found", nid))
+		return types.SystemErrorf("network id %q not found", nid)
 	}
 	ep := &endpoint{
 		id:     eid,

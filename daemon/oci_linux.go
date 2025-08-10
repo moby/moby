@@ -18,10 +18,10 @@ import (
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/rootless/mountopts"
 	"github.com/moby/moby/v2/daemon/internal/rootless/specconv"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/pkg/oci"
 	"github.com/moby/moby/v2/daemon/pkg/oci/caps"
 	volumemounts "github.com/moby/moby/v2/daemon/volume/mounts"
-	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"github.com/moby/sys/user"
@@ -272,7 +272,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		// ipc
 		ipcMode := c.HostConfig.IpcMode
 		if !ipcMode.Valid() {
-			return errdefs.InvalidParameter(errors.Errorf("invalid IPC mode: %v", ipcMode))
+			return types.InvalidParameterErrorf("invalid IPC mode: %v", ipcMode)
 		}
 		switch {
 		case ipcMode.IsContainer():
@@ -308,7 +308,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		// pid
 		pidMode := c.HostConfig.PidMode
 		if !pidMode.Valid() {
-			return errdefs.InvalidParameter(errors.Errorf("invalid PID mode: %v", pidMode))
+			return types.InvalidParameterErrorf("invalid PID mode: %v", pidMode)
 		}
 		switch {
 		case pidMode.IsContainer():
@@ -339,7 +339,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 
 		// uts
 		if !c.HostConfig.UTSMode.Valid() {
-			return errdefs.InvalidParameter(errors.Errorf("invalid UTS mode: %v", c.HostConfig.UTSMode))
+			return types.InvalidParameterErrorf("invalid UTS mode: %v", c.HostConfig.UTSMode)
 		}
 		if c.HostConfig.UTSMode.IsHost() {
 			oci.RemoveNamespace(s, specs.UTSNamespace)
@@ -348,7 +348,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 
 		// cgroup
 		if !c.HostConfig.CgroupnsMode.Valid() {
-			return errdefs.InvalidParameter(errors.Errorf("invalid cgroup namespace mode: %v", c.HostConfig.CgroupnsMode))
+			return types.InvalidParameterErrorf("invalid cgroup namespace mode: %v", c.HostConfig.CgroupnsMode)
 		}
 		if c.HostConfig.CgroupnsMode.IsPrivate() {
 			setNamespace(s, specs.LinuxNamespace{

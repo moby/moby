@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 )
@@ -77,7 +78,7 @@ func ReadJSON(r *http.Request, out any) error {
 		if errors.Is(err, io.EOF) {
 			return errdefs.InvalidParameter(errors.New("invalid JSON: got EOF while reading request body"))
 		}
-		return errdefs.InvalidParameter(errors.Wrap(err, "invalid JSON"))
+		return types.InvalidParameterErrorf("invalid JSON: %w", err)
 	}
 
 	if dec.More() {
@@ -125,10 +126,10 @@ func VersionFromContext(ctx context.Context) string {
 func matchesContentType(contentType, expectedType string) error {
 	mimetype, _, err := mime.ParseMediaType(contentType)
 	if err != nil {
-		return errdefs.InvalidParameter(errors.Wrapf(err, "malformed Content-Type header (%s)", contentType))
+		return types.InvalidParameterErrorf("malformed Content-Type header (%s): %w", contentType, err)
 	}
 	if mimetype != expectedType {
-		return errdefs.InvalidParameter(errors.Errorf("unsupported Content-Type header (%s): must be '%s'", contentType, expectedType))
+		return types.InvalidParameterErrorf("unsupported Content-Type header (%s): must be '%s'", contentType, expectedType)
 	}
 	return nil
 }

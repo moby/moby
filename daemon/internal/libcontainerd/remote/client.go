@@ -28,6 +28,7 @@ import (
 	"github.com/containerd/typeurl/v2"
 	"github.com/moby/moby/v2/daemon/internal/libcontainerd/queue"
 	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
+	lntypes "github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/ioutils"
 	"github.com/opencontainers/go-digest"
@@ -440,11 +441,11 @@ func (t *task) CreateCheckpoint(ctx context.Context, checkpointDir string, exit 
 
 	b, err := content.ReadBlob(ctx, t.ctr.client.client.ContentStore(), img.Target())
 	if err != nil {
-		return errdefs.System(pkgerrors.Wrapf(err, "failed to retrieve checkpoint data"))
+		return lntypes.SystemErrorf("failed to retrieve checkpoint data: %w", err)
 	}
 	var index ocispec.Index
 	if err := json.Unmarshal(b, &index); err != nil {
-		return errdefs.System(pkgerrors.Wrapf(err, "failed to decode checkpoint data"))
+		return lntypes.SystemErrorf("failed to decode checkpoint data: %w", err)
 	}
 
 	var cpDesc *ocispec.Descriptor
@@ -455,17 +456,17 @@ func (t *task) CreateCheckpoint(ctx context.Context, checkpointDir string, exit 
 		}
 	}
 	if cpDesc == nil {
-		return errdefs.System(pkgerrors.Wrapf(err, "invalid checkpoint"))
+		return lntypes.SystemErrorf("invalid checkpoint: %w", err)
 	}
 
 	rat, err := t.ctr.client.client.ContentStore().ReaderAt(ctx, *cpDesc)
 	if err != nil {
-		return errdefs.System(pkgerrors.Wrapf(err, "failed to get checkpoint reader"))
+		return lntypes.SystemErrorf("failed to get checkpoint reader: %w", err)
 	}
 	defer rat.Close()
 	_, err = archive.Apply(ctx, checkpointDir, content.NewReader(rat))
 	if err != nil {
-		return errdefs.System(pkgerrors.Wrapf(err, "failed to read checkpoint reader"))
+		return lntypes.SystemErrorf("failed to read checkpoint reader: %w", err)
 	}
 
 	return err

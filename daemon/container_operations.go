@@ -922,7 +922,7 @@ func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerPrefi
 		return nil, errdefs.System(errdefs.InvalidParameter(errors.New("cannot join own network namespace")))
 	}
 	if !nc.IsRunning() {
-		return nil, errdefs.Conflict(fmt.Errorf("cannot join network namespace of a non running container: container %s is %s", strings.TrimPrefix(nc.Name, "/"), nc.StateString()))
+		return nil, types.ConflictErrorf("cannot join network namespace of a non running container: container %s is %s", strings.TrimPrefix(nc.Name, "/"), nc.StateString())
 	}
 	if nc.IsRestarting() {
 		return nil, fmt.Errorf("cannot join network namespace of container: %w", errContainerIsRestarting(connectedContainerPrefixOrName))

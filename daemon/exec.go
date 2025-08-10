@@ -15,13 +15,13 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/stream"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/pools"
 	"github.com/moby/sys/signal"
 	"github.com/moby/term"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 )
 
 func (daemon *Daemon) registerExecCommand(container *container.Container, config *container.ExecConfig) {
@@ -173,12 +173,12 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	ec.Lock()
 	if ec.ExitCode != nil {
 		ec.Unlock()
-		return errdefs.Conflict(fmt.Errorf("exec command %s has already run", ec.ID))
+		return types.ConflictErrorf("exec command %s has already run", ec.ID)
 	}
 
 	if ec.Running {
 		ec.Unlock()
-		return errdefs.Conflict(fmt.Errorf("exec command %s is already running", ec.ID))
+		return types.ConflictErrorf("exec command %s is already running", ec.ID)
 	}
 	ec.Running = true
 	ec.Unlock()
@@ -331,7 +331,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	case err := <-attachErr:
 		if err != nil {
 			if _, ok := err.(term.EscapeError); !ok {
-				return errdefs.System(errors.Wrap(err, "exec attach failed"))
+				return types.SystemErrorf("exec attach failed: %w", err)
 			}
 			daemon.LogContainerEventWithAttributes(ec.Container, events.ActionExecDetach, map[string]string{
 				"execID": ec.ID,

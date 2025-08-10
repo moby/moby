@@ -19,6 +19,7 @@ import (
 	"github.com/moby/moby/api/pkg/streamformatter"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/images"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -117,7 +118,7 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, platform
 	exportRepository := func(ctx context.Context, ref reference.Named) error {
 		imgs, err := i.getAllImagesWithRepository(ctx, ref)
 		if err != nil {
-			return errdefs.System(fmt.Errorf("failed to list all images from repository %s: %w", ref.Name(), err))
+			return types.SystemErrorf("failed to list all images from repository %s: %w", ref.Name(), err)
 		}
 
 		if len(imgs) == 0 {
@@ -295,10 +296,10 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 			// doesn't have a platform set, so it won't be filtered out by the
 			// FilterPlatform containerd handler.
 			if errors.Is(err, c8dimages.ErrEmptyWalk) {
-				return errdefs.NotFound(errors.Wrapf(err, "requested platform(s) (%v) not found", platformNames))
+				return types.NotFoundErrorf("requested platform(s) (%v) not found: %w", platformNames, err)
 			}
 			if cerrdefs.IsNotFound(err) {
-				return errdefs.NotFound(errors.Wrapf(err, "requested platform(s) (%v) found, but some content is missing", platformNames))
+				return types.NotFoundErrorf("requested platform(s) (%v) found, but some content is missing: %w", platformNames, err)
 			}
 		}
 		log.G(ctx).WithError(err).Debug("failed to import image to containerd")
@@ -395,7 +396,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 // If the requested platform is not loaded, it returns an error.
 func (i *ImageService) verifyImagesProvidePlatform(ctx context.Context, imgs []c8dimages.Image, platformNames []string, pm platforms.Matcher) error {
 	if len(imgs) == 0 {
-		return errdefs.NotFound(fmt.Errorf("no images providing the requested platform(s) found: %v", platformNames))
+		return types.NotFoundErrorf("no images providing the requested platform(s) found: %v", platformNames)
 	}
 	var incompleteImgs []string
 	for _, img := range imgs {
@@ -442,5 +443,5 @@ func (i *ImageService) verifyImagesProvidePlatform(ctx context.Context, imgs []c
 		msg = "images [%s] were loaded, but don't provide the requested platform (%s)"
 	}
 
-	return errdefs.NotFound(fmt.Errorf(msg, strings.Join(incompleteImgs, ", "), platformNames))
+	return types.NotFoundErrorf(msg, strings.Join(incompleteImgs, ", "), platformNames)
 }

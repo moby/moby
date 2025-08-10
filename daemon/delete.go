@@ -15,6 +15,7 @@ import (
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/containerfs"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/selinux/go-selinux"
@@ -93,7 +94,7 @@ func (daemon *Daemon) cleanupContainer(ctr *container.Container, config backend.
 			if ctr.Paused {
 				return errdefs.Conflict(errors.New("container is paused and must be unpaused first"))
 			} else {
-				return errdefs.Conflict(fmt.Errorf("container is %s: stop the container before removing or force remove", ctr.StateString()))
+				return types.ConflictErrorf("container is %s: stop the container before removing or force remove", ctr.StateString())
 			}
 		}
 		if err := daemon.Kill(ctr); err != nil && !isNotRunning(err) {

@@ -16,6 +16,7 @@ import (
 
 	"github.com/docker/go-units"
 	"github.com/moby/moby/v2/daemon/internal/quota"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
@@ -53,13 +54,13 @@ func (r *Root) validateOpts(opts map[string]string) error {
 	}
 	for opt := range opts {
 		if _, ok := validOpts[opt]; !ok {
-			return errdefs.InvalidParameter(errors.Errorf("invalid option: %q", opt))
+			return types.InvalidParameterErrorf("invalid option: %q", opt)
 		}
 	}
 	if typeOpt, deviceOpt := opts["type"], opts["device"]; typeOpt == "cifs" && deviceOpt != "" {
 		deviceURL, err := url.Parse(deviceOpt)
 		if err != nil {
-			return errdefs.InvalidParameter(errors.Wrapf(err, "error parsing mount device url"))
+			return types.InvalidParameterErrorf("error parsing mount device url: %w", err)
 		}
 		if deviceURL.Port() != "" {
 			return errdefs.InvalidParameter(errors.New("port not allowed in CIFS device URL, include 'port' in 'o='"))
@@ -78,7 +79,7 @@ func (r *Root) validateOpts(opts map[string]string) error {
 		if _, ok := opts[opt]; ok {
 			for _, reqopt := range reqopts {
 				if _, ok := opts[reqopt]; !ok {
-					return errdefs.InvalidParameter(errors.Errorf("missing required option: %q", reqopt))
+					return types.InvalidParameterErrorf("missing required option: %q", reqopt)
 				}
 			}
 		}

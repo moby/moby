@@ -23,10 +23,10 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -101,7 +101,7 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 	img, err := i.images.Get(ctx, targetRef.String())
 	if err != nil {
 		if cerrdefs.IsNotFound(err) {
-			return errdefs.NotFound(fmt.Errorf("tag does not exist: %s", reference.FamiliarString(targetRef)))
+			return types.NotFoundErrorf("tag does not exist: %s", reference.FamiliarString(targetRef))
 		}
 		return errdefs.System(err)
 	}
@@ -299,10 +299,10 @@ func (i *ImageService) getPushDescriptor(ctx context.Context, img c8dimages.Imag
 				return bestMatch.Target(), nil
 			}
 
-			return ocispec.Descriptor{}, errdefs.Conflict(errors.Errorf("multiple matching manifests found but no specific platform requested"))
+			return ocispec.Descriptor{}, types.ConflictErrorf("multiple matching manifests found but no specific platform requested")
 		}
 
-		return ocispec.Descriptor{}, errdefs.Conflict(errors.Errorf("multiple manifests found for platform %s", platforms.FormatAll(*platform)))
+		return ocispec.Descriptor{}, types.ConflictErrorf("multiple manifests found for platform %s", platforms.FormatAll(*platform))
 	}
 }
 
@@ -345,7 +345,7 @@ func findMissingMountable(ctx context.Context, store content.Store, queue *jobs,
 		_, err := store.Info(ctx, desc.Digest)
 		if err != nil {
 			if !cerrdefs.IsNotFound(err) {
-				return nil, errdefs.System(errors.Wrapf(err, "failed to get metadata of content %s", desc.Digest.String()))
+				return nil, types.SystemErrorf("failed to get metadata of content %s: %w", desc.Digest.String(), err)
 			}
 
 			for _, source := range sources {
@@ -382,7 +382,7 @@ func getDigestSources(ctx context.Context, store content.Manager, digest digest.
 
 	sources := extractDistributionSources(info.Labels)
 	if sources == nil {
-		return nil, errdefs.NotFound(fmt.Errorf("label %q is not attached to %s", containerdlabels.LabelDistributionSource, digest.String()))
+		return nil, types.NotFoundErrorf("label %q is not attached to %s", containerdlabels.LabelDistributionSource, digest.String())
 	}
 
 	return sources, nil

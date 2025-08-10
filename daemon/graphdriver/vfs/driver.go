@@ -9,6 +9,7 @@ import (
 	"github.com/moby/moby/v2/daemon/graphdriver"
 	"github.com/moby/moby/v2/daemon/internal/containerfs"
 	"github.com/moby/moby/v2/daemon/internal/quota"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -116,15 +117,15 @@ func (d *Driver) parseOptions(options []string) error {
 				return errdefs.InvalidParameter(err)
 			}
 			if err = d.setQuotaOpt(uint64(size)); err != nil {
-				return errdefs.InvalidParameter(errors.Wrap(err, "failed to set option size for vfs"))
+				return types.InvalidParameterErrorf("failed to set option size for vfs: %w", err)
 			}
 		case xattrsStorageOpt:
 			if val != bestEffortXattrsOptValue {
-				return errdefs.InvalidParameter(errors.Errorf("do not set the " + xattrsStorageOpt + " option unless you are willing to accept the consequences"))
+				return types.InvalidParameterErrorf("do not set the " + xattrsStorageOpt + " option unless you are willing to accept the consequences")
 			}
 			d.bestEffortXattrs = true
 		default:
-			return errdefs.InvalidParameter(errors.Errorf("unknown option %s for vfs", key))
+			return types.InvalidParameterErrorf("unknown option %s for vfs", key)
 		}
 	}
 	return nil
@@ -148,7 +149,7 @@ func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 				}
 				quotaSize = uint64(size)
 			default:
-				return errdefs.InvalidParameter(errors.Errorf("Storage opt %s not supported", key))
+				return types.InvalidParameterErrorf("Storage opt %s not supported", key)
 			}
 		}
 	}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/internal/logdriver"
 	"github.com/moby/moby/v2/daemon/logger/loggerutils"
@@ -25,7 +26,7 @@ func (d *driver) ReadLogs(ctx context.Context, config logger.ReadConfig) *logger
 func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (loggerutils.SizeReaderAt, int, error) {
 	size := r.Size()
 	if req < 0 {
-		return nil, 0, errdefs.InvalidParameter(errors.Errorf("invalid number of lines to tail: %d", req))
+		return nil, 0, types.InvalidParameterErrorf("invalid number of lines to tail: %d", req)
 	}
 
 	if size < (encodeBinaryLen*2)+1 {

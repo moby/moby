@@ -2,7 +2,6 @@ package containerd
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"sync"
 	"syscall"
@@ -13,7 +12,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/internal/libcontainerd"
 	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
-	"github.com/moby/moby/v2/errdefs"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
@@ -142,7 +141,7 @@ func (e *Executor) IsRunning(id string) (bool, error) {
 	p := e.plugins[id]
 	e.mu.Unlock()
 	if p == nil {
-		return false, errdefs.NotFound(fmt.Errorf("unknown plugin %q", id))
+		return false, types.NotFoundErrorf("unknown plugin %q", id)
 	}
 	status, err := p.tsk.Status(context.Background())
 	return status.Status == containerd.Running, err
@@ -154,7 +153,7 @@ func (e *Executor) Signal(id string, signal syscall.Signal) error {
 	p := e.plugins[id]
 	e.mu.Unlock()
 	if p == nil {
-		return errdefs.NotFound(fmt.Errorf("unknown plugin %q", id))
+		return types.NotFoundErrorf("unknown plugin %q", id)
 	}
 	return p.tsk.Kill(context.Background(), signal)
 }

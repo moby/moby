@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 
 	"github.com/moby/moby/v2/daemon/internal/stringid"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/logger/internal/logdriver"
-	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 	"github.com/moby/moby/v2/pkg/plugins"
 	"github.com/pkg/errors"
@@ -52,7 +52,7 @@ func makePluginClient(p plugingetter.CompatPlugin) (logPlugin, error) {
 	}
 	pa, ok := p.(plugingetter.PluginAddr)
 	if !ok {
-		return nil, errdefs.System(errors.Errorf("got unknown plugin type %T", p))
+		return nil, types.SystemErrorf("got unknown plugin type %T", p)
 	}
 
 	if pa.Protocol() != plugins.ProtocolSchemeHTTPV1 {
