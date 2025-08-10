@@ -108,8 +108,8 @@ func (p PortBinding) ContainerAddr() (net.Addr, error) {
 	}
 }
 
-// GetCopy returns a copy of this PortBinding structure instance
-func (p *PortBinding) GetCopy() PortBinding {
+// Copy returns a deep copy of the PortBinding.
+func (p PortBinding) Copy() PortBinding {
 	return PortBinding{
 		Proto:       p.Proto,
 		IP:          slices.Clone(p.IP),

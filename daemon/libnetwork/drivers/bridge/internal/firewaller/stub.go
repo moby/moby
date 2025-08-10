@@ -109,7 +109,7 @@ func (nw *StubFirewallerNetwork) AddPorts(_ context.Context, pbs []types.PortBin
 		if nw.PortExists(pb) {
 			return nil
 		}
-		nw.Ports = append(nw.Ports, pb.GetCopy())
+		nw.Ports = append(nw.Ports, pb.Copy())
 	}
 	return nil
 }

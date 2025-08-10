@@ -211,7 +211,7 @@ func (pm PortMapper) attemptBindHostPorts(
 
 	for i := range cfg {
 		pb := portmapperapi.PortBinding{
-			PortBinding: cfg[i].PortBinding.GetCopy(),
+			PortBinding: cfg[i].PortBinding.Copy(),
 			BoundSocket: socks[i],
 			ChildHostIP: cfg[i].ChildHostIP,
 		}
