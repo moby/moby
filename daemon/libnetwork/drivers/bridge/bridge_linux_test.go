@@ -718,7 +718,7 @@ func (i *testInterface) SetMacAddress(mac net.HardwareAddr) error {
 	if mac == nil {
 		return types.InvalidParameterErrorf("tried to set nil MAC address to endpoint interface")
 	}
-	i.mac = types.GetMacCopy(mac)
+	i.mac = slices.Clone(mac)
 	return nil
 }
 

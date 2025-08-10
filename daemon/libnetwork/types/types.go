@@ -214,16 +214,6 @@ func ParseProtocol(s string) Protocol {
 	}
 }
 
-// GetMacCopy returns a copy of the passed MAC address
-func GetMacCopy(from net.HardwareAddr) net.HardwareAddr {
-	if from == nil {
-		return nil
-	}
-	to := make(net.HardwareAddr, len(from))
-	copy(to, from)
-	return to
-}
-
 // GetIPCopy returns a copy of the passed IP address
 func GetIPCopy(from net.IP) net.IP {
 	if from == nil {

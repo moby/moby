@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"slices"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
@@ -143,7 +144,7 @@ func (epi *EndpointInterface) UnmarshalJSON(b []byte) error {
 }
 
 func (epi *EndpointInterface) CopyTo(dstEpi *EndpointInterface) error {
-	dstEpi.mac = types.GetMacCopy(epi.mac)
+	dstEpi.mac = slices.Clone(epi.mac)
 	dstEpi.addr = types.GetIPNetCopy(epi.addr)
 	dstEpi.addrv6 = types.GetIPNetCopy(epi.addrv6)
 	dstEpi.srcName = epi.srcName
@@ -224,7 +225,7 @@ func (epi *EndpointInterface) SetMacAddress(mac net.HardwareAddr) error {
 	if mac == nil {
 		return types.InvalidParameterErrorf("tried to set nil MAC address to endpoint interface")
 	}
-	epi.mac = types.GetMacCopy(mac)
+	epi.mac = slices.Clone(mac)
 	return nil
 }
 
@@ -248,7 +249,7 @@ func setAddress(ifaceAddr **net.IPNet, address *net.IPNet) error {
 
 // MacAddress returns the MAC address assigned to the endpoint.
 func (epi *EndpointInterface) MacAddress() net.HardwareAddr {
-	return types.GetMacCopy(epi.mac)
+	return slices.Clone(epi.mac)
 }
 
 // Address returns the IPv4 address assigned to the endpoint.
