@@ -116,9 +116,7 @@ func (nw *StubFirewallerNetwork) AddPorts(_ context.Context, pbs []types.PortBin
 
 func (nw *StubFirewallerNetwork) DelPorts(_ context.Context, pbs []types.PortBinding) error {
 	for _, pb := range pbs {
-		nw.Ports = slices.DeleteFunc(nw.Ports, func(p types.PortBinding) bool {
-			return p.Equal(&pb)
-		})
+		nw.Ports = slices.DeleteFunc(nw.Ports, pb.Equal)
 	}
 	return nil
 }
@@ -148,9 +146,7 @@ func (nw *StubFirewallerNetwork) DelLink(_ context.Context, parentIP, childIP ne
 }
 
 func (nw *StubFirewallerNetwork) PortExists(pb types.PortBinding) bool {
-	return slices.ContainsFunc(nw.Ports, func(p types.PortBinding) bool {
-		return p.Equal(&pb)
-	})
+	return slices.ContainsFunc(nw.Ports, pb.Equal)
 }
 
 func (nw *StubFirewallerNetwork) LinkExists(parentIP, childIP netip.Addr, ports []types.TransportPort) bool {

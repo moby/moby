@@ -121,7 +121,7 @@ func (p PortBinding) Copy() PortBinding {
 }
 
 // Equal returns true if o has the same values as p, else false.
-func (p *PortBinding) Equal(o *PortBinding) bool {
+func (p PortBinding) Equal(o PortBinding) bool {
 	return p.Proto == o.Proto &&
 		p.IP.Equal(o.IP) &&
 		p.Port == o.Port &&

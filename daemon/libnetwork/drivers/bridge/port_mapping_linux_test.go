@@ -1009,8 +1009,10 @@ func (pm *stubPortMapper) MapPorts(_ context.Context, reqs []portmapperapi.PortB
 
 func (pm *stubPortMapper) UnmapPorts(_ context.Context, reqs []portmapperapi.PortBinding, _ portmapperapi.Firewaller) error {
 	for _, req := range reqs {
+		// We're only checking for the PortBinding here, not any other
+		// property of [portmapperapi.PortBinding].
 		idx := slices.IndexFunc(pm.mapped, func(pb portmapperapi.PortBinding) bool {
-			return pb.Equal(&req.PortBinding)
+			return pb.Equal(req.PortBinding)
 		})
 		if idx == -1 {
 			return fmt.Errorf("stubPortMapper.UnmapPorts: pb doesn't exist %v", req)
