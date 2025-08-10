@@ -143,26 +143,32 @@ func (epi *EndpointInterface) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (epi *EndpointInterface) CopyTo(dstEpi *EndpointInterface) error {
-	dstEpi.mac = slices.Clone(epi.mac)
-	dstEpi.addr = types.GetIPNetCopy(epi.addr)
-	dstEpi.addrv6 = types.GetIPNetCopy(epi.addrv6)
-	dstEpi.srcName = epi.srcName
-	dstEpi.dstPrefix = epi.dstPrefix
-	dstEpi.dstName = epi.dstName
-	dstEpi.v4PoolID = epi.v4PoolID
-	dstEpi.v6PoolID = epi.v6PoolID
-	dstEpi.createdInContainer = epi.createdInContainer
-	if len(epi.llAddrs) != 0 {
-		dstEpi.llAddrs = make([]*net.IPNet, 0, len(epi.llAddrs))
-		dstEpi.llAddrs = append(dstEpi.llAddrs, epi.llAddrs...)
+// Copy returns a deep copy of [EndpointInterface]. If the receiver is nil,
+// Copy returns nil.
+func (epi *EndpointInterface) Copy() *EndpointInterface {
+	if epi == nil {
+		return nil
 	}
 
+	var routes []*net.IPNet
 	for _, route := range epi.routes {
-		dstEpi.routes = append(dstEpi.routes, types.GetIPNetCopy(route))
+		routes = append(routes, types.GetIPNetCopy(route))
 	}
 
-	return nil
+	return &EndpointInterface{
+		mac:                slices.Clone(epi.mac),
+		addr:               types.GetIPNetCopy(epi.addr),
+		addrv6:             types.GetIPNetCopy(epi.addrv6),
+		llAddrs:            slices.Clone(epi.llAddrs),
+		srcName:            epi.srcName,
+		dstPrefix:          epi.dstPrefix,
+		dstName:            epi.dstName,
+		routes:             routes,
+		v4PoolID:           epi.v4PoolID,
+		v6PoolID:           epi.v6PoolID,
+		netnsPath:          epi.netnsPath,
+		createdInContainer: epi.createdInContainer,
+	}
 }
 
 type endpointJoinInfo struct {
