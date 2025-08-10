@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
@@ -988,7 +989,7 @@ func (ep *Endpoint) deleteEndpoint(force bool) error {
 	}
 
 	if err := driver.DeleteEndpoint(n.id, epid); err != nil {
-		if _, ok := err.(types.ForbiddenError); ok {
+		if cerrdefs.IsPermissionDenied(err) {
 			return err
 		}
 

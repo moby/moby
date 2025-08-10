@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/types"
+	cerrdefs "github.com/containerd/errdefs"
 )
 
 func TestDriver(t *testing.T) {
@@ -27,7 +27,7 @@ func TestDriver(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Second network creation should fail on this driver")
 	}
-	if _, ok := err.(types.ForbiddenError); !ok {
+	if !cerrdefs.IsPermissionDenied(err) {
 		t.Fatalf("Second network creation failed with unexpected error type")
 	}
 
@@ -35,7 +35,7 @@ func TestDriver(t *testing.T) {
 	if err == nil {
 		t.Fatalf("network deletion should fail on this driver")
 	}
-	if _, ok := err.(types.ForbiddenError); !ok {
+	if !cerrdefs.IsPermissionDenied(err) {
 		t.Fatalf("network deletion failed with unexpected error type")
 	}
 
@@ -44,7 +44,7 @@ func TestDriver(t *testing.T) {
 	if err == nil {
 		t.Fatalf("any network deletion should fail on this driver")
 	}
-	if _, ok := err.(types.ForbiddenError); !ok {
+	if !cerrdefs.IsPermissionDenied(err) {
 		t.Fatalf("any network deletion failed with unexpected error type")
 	}
 }

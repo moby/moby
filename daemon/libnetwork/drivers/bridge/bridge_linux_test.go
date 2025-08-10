@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
@@ -555,7 +556,7 @@ func TestCreate(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected bridge driver to refuse creation of second network with default name")
 	}
-	if _, ok := err.(types.ForbiddenError); !ok {
+	if !cerrdefs.IsPermissionDenied(err) {
 		t.Fatal("Creation of second network with default name failed with unexpected error type")
 	}
 }

@@ -1018,7 +1018,7 @@ func (c *Controller) NewSandbox(ctx context.Context, containerID string, options
 // GetSandbox returns the Sandbox which has the passed id.
 //
 // It returns an [ErrInvalidID] when passing an invalid ID, or an
-// [types.NotFoundError] if no Sandbox was found for the container.
+// [errdefs.ErrNotFound] if no Sandbox was found for the container.
 func (c *Controller) GetSandbox(containerID string) (*Sandbox, error) {
 	if containerID == "" {
 		return nil, types.InvalidParameterErrorf("invalid id: id is empty")
@@ -1042,7 +1042,7 @@ func (c *Controller) GetSandbox(containerID string) (*Sandbox, error) {
 }
 
 // SandboxByID returns the Sandbox which has the passed id.
-// If not found, a [types.NotFoundError] is returned.
+// If not found, a [errdefs.NotFoundError] is returned.
 func (c *Controller) SandboxByID(id string) (*Sandbox, error) {
 	if id == "" {
 		return nil, types.InvalidParameterErrorf("invalid id: id is empty")
