@@ -155,7 +155,7 @@ func TestInspectOomKilledTrue(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	cID := container.Run(ctx, t, apiClient, container.WithCmd("sh", "-c", "x=a; while true; do x=$x$x$x$x; done"), func(c *container.TestContainerConfig) {
-		c.HostConfig.Resources.Memory = 32 * 1024 * 1024
+		c.HostConfig.Memory = 32 * 1024 * 1024
 	})
 
 	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, containertypes.StateExited))

@@ -168,7 +168,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 func (daemon *Daemon) getLogger(container *container.Container) (_ logger.Logger, created bool, _ error) {
 	var logDriver logger.Logger
 	container.Lock()
-	if container.State.Running {
+	if container.Running {
 		logDriver = container.LogDriver
 	}
 	container.Unlock()
@@ -210,13 +210,13 @@ func (daemon *Daemon) mergeAndVerifyLogConfig(cfg *containertypes.LogConfig) err
 }
 
 func defaultLogConfig(cfg *config.Config) (containertypes.LogConfig, error) {
-	if len(cfg.LogConfig.Config) > 0 {
-		if err := logger.ValidateLogOpts(cfg.LogConfig.Type, cfg.LogConfig.Config); err != nil {
+	if len(cfg.Config) > 0 {
+		if err := logger.ValidateLogOpts(cfg.Type, cfg.Config); err != nil {
 			return containertypes.LogConfig{}, errors.Wrap(err, "failed to set log opts")
 		}
 	}
 	return containertypes.LogConfig{
-		Type:   cfg.LogConfig.Type,
-		Config: cfg.LogConfig.Config,
+		Type:   cfg.Type,
+		Config: cfg.Config,
 	}, nil
 }

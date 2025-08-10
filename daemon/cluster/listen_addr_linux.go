@@ -35,7 +35,7 @@ func (c *Cluster) resolveSystemAddr() (net.IP, error) {
 		var interfaceAddr4, interfaceAddr6 net.IP
 
 		for _, addr := range addrs {
-			ipAddr := addr.IPNet.IP
+			ipAddr := addr.IP
 
 			// Skip loopback and link-local addresses
 			if !ipAddr.IsGlobalUnicast() {

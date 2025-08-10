@@ -309,12 +309,12 @@ func TestServiceUpdatePidsLimit(t *testing.T) {
 			container := getServiceTaskContainer(ctx, t, cli, serviceID)
 			assert.Equal(t, service.Spec.TaskTemplate.Resources.Limits.Pids, tc.expected)
 			if tc.expected == 0 {
-				if container.HostConfig.Resources.PidsLimit != nil {
+				if container.HostConfig.PidsLimit != nil {
 					t.Fatalf("Expected container.HostConfig.Resources.PidsLimit to be nil")
 				}
 			} else {
-				assert.Assert(t, container.HostConfig.Resources.PidsLimit != nil)
-				assert.Equal(t, *container.HostConfig.Resources.PidsLimit, tc.expected)
+				assert.Assert(t, container.HostConfig.PidsLimit != nil)
+				assert.Equal(t, *container.HostConfig.PidsLimit, tc.expected)
 			}
 		})
 	}

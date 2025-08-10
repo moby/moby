@@ -164,7 +164,7 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 	t.Run("empty config file", func(t *testing.T) {
 		conf := Config{}
 		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
-		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
+		flags.Var(&conf.DefaultAddressPools, "default-address-pool", "")
 		assert.Check(t, flags.Set("default-address-pool", "base=10.123.0.0/16,size=24"))
 
 		config, err := MergeDaemonConfigurations(&conf, flags, emptyConfigFile)
@@ -175,7 +175,7 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 	t.Run("config file", func(t *testing.T) {
 		conf := Config{}
 		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
-		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
+		flags.Var(&conf.DefaultAddressPools, "default-address-pool", "")
 
 		config, err := MergeDaemonConfigurations(&conf, flags, configFile)
 		assert.NilError(t, err)
@@ -185,7 +185,7 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 	t.Run("with conflicting options", func(t *testing.T) {
 		conf := Config{}
 		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
-		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
+		flags.Var(&conf.DefaultAddressPools, "default-address-pool", "")
 		assert.Check(t, flags.Set("default-address-pool", "base=10.123.0.0/16,size=24"))
 
 		_, err := MergeDaemonConfigurations(&conf, flags, configFile)

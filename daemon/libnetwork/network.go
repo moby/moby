@@ -1607,7 +1607,7 @@ func (n *Network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 		// If they fall into the container addressable pool, libnetwork will reserve them
 		if cfg.AuxAddresses != nil {
 			var ip net.IP
-			d.IPAMData.AuxAddresses = make(map[string]*net.IPNet, len(cfg.AuxAddresses))
+			d.AuxAddresses = make(map[string]*net.IPNet, len(cfg.AuxAddresses))
 			for k, v := range cfg.AuxAddresses {
 				if ip = net.ParseIP(v); ip == nil {
 					return types.InvalidParameterErrorf("non parsable secondary ip address (%s:%s) passed for network %s", k, v, n.Name())
@@ -1616,7 +1616,7 @@ func (n *Network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 					return types.ForbiddenErrorf("auxiliary address: (%s:%s) must belong to the master pool: %s", k, v, d.Pool)
 				}
 				// Attempt reservation in the container addressable pool, silent the error if address does not belong to that pool
-				if d.IPAMData.AuxAddresses[k], _, err = ipam.RequestAddress(d.PoolID, ip, nil); err != nil && !errors.Is(err, ipamapi.ErrIPOutOfRange) {
+				if d.AuxAddresses[k], _, err = ipam.RequestAddress(d.PoolID, ip, nil); err != nil && !errors.Is(err, ipamapi.ErrIPOutOfRange) {
 					return types.InternalErrorf("failed to allocate secondary ip address (%s:%s): %v", k, v, err)
 				}
 			}
@@ -1667,8 +1667,8 @@ func (n *Network) ipamReleaseVersion(ipVer int, ipam ipamapi.Ipam) {
 				log.G(context.TODO()).Warnf("Failed to release gateway ip address %s on delete of network %s (%s): %v", d.Gateway.IP, n.Name(), n.ID(), err)
 			}
 		}
-		if d.IPAMData.AuxAddresses != nil {
-			for k, nw := range d.IPAMData.AuxAddresses {
+		if d.AuxAddresses != nil {
+			for k, nw := range d.AuxAddresses {
 				if d.Pool.Contains(nw.IP) {
 					if err := ipam.ReleaseAddress(d.PoolID, nw.IP); err != nil && !errors.Is(err, ipamapi.ErrIPOutOfRange) {
 						log.G(context.TODO()).Warnf("Failed to release secondary ip address %s (%v) on delete of network %s (%s): %v", k, nw.IP, n.Name(), n.ID(), err)

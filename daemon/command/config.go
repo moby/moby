@@ -50,8 +50,8 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.Var(opts.NewListOptsRef(&conf.DNSSearch, opts.ValidateDNSSearch), "dns-search", "DNS search domains to use")
 	flags.Var(dopts.NewNamedIPListOptsRef("host-gateway-ips", &conf.HostGatewayIPs), "host-gateway-ip", "IP addresses that the special 'host-gateway' string in --add-host resolves to. Defaults to the IP addresses of the default bridge")
 	flags.Var(opts.NewNamedListOptsRef("labels", &conf.Labels, opts.ValidateLabel), "label", "Set key=value labels to the daemon")
-	flags.StringVar(&conf.LogConfig.Type, "log-driver", "json-file", "Default driver for container logs")
-	flags.Var(opts.NewNamedMapOpts("log-opts", conf.LogConfig.Config, nil), "log-opt", "Default log driver options for containers")
+	flags.StringVar(&conf.Type, "log-driver", "json-file", "Default driver for container logs")
+	flags.Var(opts.NewNamedMapOpts("log-opts", conf.Config, nil), "log-opt", "Default log driver options for containers")
 
 	flags.IntVar(&conf.MaxConcurrentDownloads, "max-concurrent-downloads", conf.MaxConcurrentDownloads, "Set the max concurrent downloads")
 	flags.IntVar(&conf.MaxConcurrentUploads, "max-concurrent-uploads", conf.MaxConcurrentUploads, "Set the max concurrent uploads")

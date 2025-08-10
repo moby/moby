@@ -194,7 +194,7 @@ func handleProbeResult(d *Daemon, c *container.Container, result *containertypes
 		retries = defaultProbeRetries
 	}
 
-	h := c.State.Health
+	h := c.Health
 	oldStatus := h.Status()
 
 	if len(h.Log) >= maxLogEntries {
@@ -214,7 +214,7 @@ func handleProbeResult(d *Daemon, c *container.Container, result *containertypes
 		// case we do not increment the failure streak.
 		if h.Status() == containertypes.Starting {
 			startPeriod := timeoutWithDefault(c.Config.Healthcheck.StartPeriod, defaultStartPeriod)
-			timeSinceStart := result.Start.Sub(c.State.StartedAt)
+			timeSinceStart := result.Start.Sub(c.StartedAt)
 
 			// If still within the start period, then don't increment failing streak.
 			if timeSinceStart < startPeriod {
@@ -256,7 +256,7 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 	startPeriod := timeoutWithDefault(c.Config.Healthcheck.StartPeriod, defaultStartPeriod)
 
 	c.Lock()
-	started := c.State.StartedAt
+	started := c.StartedAt
 	c.Unlock()
 
 	getInterval := func() time.Duration {
@@ -346,7 +346,7 @@ func getProbe(c *container.Container) probe {
 // state of the container.
 // Called from monitor.go, with c locked.
 func (daemon *Daemon) updateHealthMonitor(c *container.Container) {
-	h := c.State.Health
+	h := c.Health
 	if h == nil {
 		return // No healthcheck configured
 	}
@@ -375,13 +375,13 @@ func (daemon *Daemon) initHealthMonitor(c *container.Container) {
 	// This is needed in case we're auto-restarting
 	daemon.stopHealthchecks(c)
 
-	if h := c.State.Health; h != nil {
+	if h := c.Health; h != nil {
 		h.SetStatus(containertypes.Starting)
 		h.FailingStreak = 0
 	} else {
 		h := &container.Health{}
 		h.SetStatus(containertypes.Starting)
-		c.State.Health = h
+		c.Health = h
 	}
 
 	daemon.updateHealthMonitor(c)
@@ -390,7 +390,7 @@ func (daemon *Daemon) initHealthMonitor(c *container.Container) {
 // Called when the container is being stopped (whether because the health check is
 // failing or for any other reason).
 func (daemon *Daemon) stopHealthchecks(c *container.Container) {
-	h := c.State.Health
+	h := c.Health
 	if h != nil {
 		h.CloseMonitorChannel()
 	}

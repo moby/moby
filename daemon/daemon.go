@@ -1389,13 +1389,13 @@ func (daemon *Daemon) Subnets() ([]net.IPNet, []net.IPNet) {
 	for _, managedNetwork := range daemon.netController.Networks(context.TODO()) {
 		v4infos, v6infos := managedNetwork.IpamInfo()
 		for _, info := range v4infos {
-			if info.IPAMData.Pool != nil {
-				v4Subnets = append(v4Subnets, *info.IPAMData.Pool)
+			if info.Pool != nil {
+				v4Subnets = append(v4Subnets, *info.Pool)
 			}
 		}
 		for _, info := range v6infos {
-			if info.IPAMData.Pool != nil {
-				v6Subnets = append(v6Subnets, *info.IPAMData.Pool)
+			if info.Pool != nil {
+				v6Subnets = append(v6Subnets, *info.Pool)
 			}
 		}
 	}
@@ -1444,7 +1444,7 @@ func (daemon *Daemon) IsShuttingDown() bool {
 }
 
 func isBridgeNetworkDisabled(conf *config.Config) bool {
-	return conf.BridgeConfig.Iface == config.DisableNetworkBridge
+	return conf.Iface == config.DisableNetworkBridge
 }
 
 func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.PluginGetter, hostID string, activeSandboxes map[string]any) ([]nwconfig.Option, error) {
@@ -1461,8 +1461,8 @@ func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.Plugin
 	options = append(options, networkPlatformOptions(conf)...)
 
 	defaultAddressPools := ipamutils.GetLocalScopeDefaultNetworks()
-	if len(conf.NetworkConfig.DefaultAddressPools.Value()) > 0 {
-		defaultAddressPools = conf.NetworkConfig.DefaultAddressPools.Value()
+	if len(conf.DefaultAddressPools.Value()) > 0 {
+		defaultAddressPools = conf.DefaultAddressPools.Value()
 	}
 	// If the Engine admin don't configure default-address-pools or if they
 	// don't provide any IPv6 prefix, we derive a ULA prefix from the daemon's

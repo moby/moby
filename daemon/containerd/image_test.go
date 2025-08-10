@@ -241,7 +241,7 @@ type mutateOnGetImageStore struct {
 func (m *mutateOnGetImageStore) Get(ctx context.Context, name string) (c8dimages.Image, error) {
 	img, err := m.Store.Get(ctx, name)
 	if len(m.getMutations) > 0 {
-		m.Store.Update(ctx, m.getMutations[0])
+		m.Update(ctx, m.getMutations[0])
 		m.getMutations = m.getMutations[1:]
 		m.t.Logf("Get %s", name)
 	}

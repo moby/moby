@@ -121,7 +121,7 @@ func NewImageConfigStoreFromStore(is image.Store) ImageConfigStore {
 }
 
 func (s *imageConfigStore) Put(_ context.Context, c []byte) (digest.Digest, error) {
-	id, err := s.Store.Create(c)
+	id, err := s.Create(c)
 	return digest.Digest(id), err
 }
 
@@ -223,11 +223,11 @@ func (l *storeLayer) Parent() PushLayer {
 }
 
 func (l *storeLayer) Open() (io.ReadCloser, error) {
-	return l.Layer.TarStream()
+	return l.TarStream()
 }
 
 func (l *storeLayer) Size() int64 {
-	return l.Layer.DiffSize()
+	return l.DiffSize()
 }
 
 func (l *storeLayer) MediaType() string {

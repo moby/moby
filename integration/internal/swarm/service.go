@@ -151,7 +151,7 @@ func ServiceWithMaxReplicas(n uint64) ServiceSpecOpt {
 // ServiceWithName sets the name of the service
 func ServiceWithName(name string) ServiceSpecOpt {
 	return func(spec *swarmtypes.ServiceSpec) {
-		spec.Annotations.Name = name
+		spec.Name = name
 	}
 }
 

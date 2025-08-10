@@ -37,7 +37,7 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options
 	for nwName, epConf := range ctr.NetworkSettings.Networks {
 		if epConf.EndpointSettings != nil {
 			// We must make a copy of this pointer object otherwise it can race with other operations
-			apiNetworks[nwName] = epConf.EndpointSettings.Copy()
+			apiNetworks[nwName] = epConf.Copy()
 		}
 	}
 
@@ -61,7 +61,7 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options
 	for k, pm := range ctr.NetworkSettings.Ports {
 		ports[k] = pm
 	}
-	networkSettings.NetworkSettingsBase.Ports = ports
+	networkSettings.Ports = ports
 
 	ctr.Unlock()
 
@@ -119,26 +119,26 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 	}
 
 	var containerHealth *containertypes.Health
-	if container.State.Health != nil {
+	if container.Health != nil {
 		containerHealth = &containertypes.Health{
-			Status:        container.State.Health.Status(),
-			FailingStreak: container.State.Health.FailingStreak,
-			Log:           append([]*containertypes.HealthcheckResult{}, container.State.Health.Log...),
+			Status:        container.Health.Status(),
+			FailingStreak: container.Health.FailingStreak,
+			Log:           append([]*containertypes.HealthcheckResult{}, container.Health.Log...),
 		}
 	}
 
 	containerState := &containertypes.State{
-		Status:     container.State.StateString(),
-		Running:    container.State.Running,
-		Paused:     container.State.Paused,
-		Restarting: container.State.Restarting,
-		OOMKilled:  container.State.OOMKilled,
-		Dead:       container.State.Dead,
-		Pid:        container.State.Pid,
-		ExitCode:   container.State.ExitCode(),
-		Error:      container.State.ErrorMsg,
-		StartedAt:  container.State.StartedAt.Format(time.RFC3339Nano),
-		FinishedAt: container.State.FinishedAt.Format(time.RFC3339Nano),
+		Status:     container.StateString(),
+		Running:    container.Running,
+		Paused:     container.Paused,
+		Restarting: container.Restarting,
+		OOMKilled:  container.OOMKilled,
+		Dead:       container.Dead,
+		Pid:        container.Pid,
+		ExitCode:   container.ExitCode(),
+		Error:      container.ErrorMsg,
+		StartedAt:  container.StartedAt.Format(time.RFC3339Nano),
+		FinishedAt: container.FinishedAt.Format(time.RFC3339Nano),
 		Health:     containerHealth,
 	}
 
@@ -248,13 +248,13 @@ func getDefaultNetworkSettings(networks map[string]*network.EndpointSettings) co
 	}
 
 	return containertypes.DefaultNetworkSettings{
-		EndpointID:          nw.EndpointSettings.EndpointID,
-		Gateway:             nw.EndpointSettings.Gateway,
-		GlobalIPv6Address:   nw.EndpointSettings.GlobalIPv6Address,
-		GlobalIPv6PrefixLen: nw.EndpointSettings.GlobalIPv6PrefixLen,
-		IPAddress:           nw.EndpointSettings.IPAddress,
-		IPPrefixLen:         nw.EndpointSettings.IPPrefixLen,
-		IPv6Gateway:         nw.EndpointSettings.IPv6Gateway,
-		MacAddress:          nw.EndpointSettings.MacAddress,
+		EndpointID:          nw.EndpointID,
+		Gateway:             nw.Gateway,
+		GlobalIPv6Address:   nw.GlobalIPv6Address,
+		GlobalIPv6PrefixLen: nw.GlobalIPv6PrefixLen,
+		IPAddress:           nw.IPAddress,
+		IPPrefixLen:         nw.IPPrefixLen,
+		IPv6Gateway:         nw.IPv6Gateway,
+		MacAddress:          nw.MacAddress,
 	}
 }

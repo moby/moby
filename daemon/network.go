@@ -748,11 +748,11 @@ func buildIPAMResources(nw *libnetwork.Network) networktypes.IPAM {
 		if !hasIPv4Config {
 			for _, info := range ipv4Info {
 				var gw string
-				if info.IPAMData.Gateway != nil {
-					gw = info.IPAMData.Gateway.IP.String()
+				if info.Gateway != nil {
+					gw = info.Gateway.IP.String()
 				}
 				ipamConfig = append(ipamConfig, networktypes.IPAMConfig{
-					Subnet:  info.IPAMData.Pool.String(),
+					Subnet:  info.Pool.String(),
 					Gateway: gw,
 				})
 			}
@@ -760,15 +760,15 @@ func buildIPAMResources(nw *libnetwork.Network) networktypes.IPAM {
 
 		if !hasIPv6Config {
 			for _, info := range ipv6Info {
-				if info.IPAMData.Pool == nil {
+				if info.Pool == nil {
 					continue
 				}
 				var gw string
-				if info.IPAMData.Gateway != nil {
-					gw = info.IPAMData.Gateway.IP.String()
+				if info.Gateway != nil {
+					gw = info.Gateway.IP.String()
 				}
 				ipamConfig = append(ipamConfig, networktypes.IPAMConfig{
-					Subnet:  info.IPAMData.Pool.String(),
+					Subnet:  info.Pool.String(),
 					Gateway: gw,
 				})
 			}

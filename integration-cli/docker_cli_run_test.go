@@ -3713,7 +3713,7 @@ func (s *DockerCLIRunSuite) TestRunAttachFailedNoLeak(c *testing.T) {
 	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvVars("OTEL_SDK_DISABLED=1"))
 	defer func() {
 		if c.Failed() {
-			d.Daemon.DumpStackAndQuit()
+			d.DumpStackAndQuit()
 		} else {
 			d.Stop(c)
 		}

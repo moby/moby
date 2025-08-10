@@ -86,8 +86,8 @@ func checkDNSAnswersCount(t *testing.T, m *dns.Msg, expected int) {
 
 func checkDNSResponseCode(t *testing.T, m *dns.Msg, expected int) {
 	t.Helper()
-	if m.MsgHdr.Rcode != expected {
-		t.Fatalf("Expected DNS response code: %d (%s). Found: %d (%s)", expected, dns.RcodeToString[expected], m.MsgHdr.Rcode, dns.RcodeToString[m.MsgHdr.Rcode])
+	if m.Rcode != expected {
+		t.Fatalf("Expected DNS response code: %d (%s). Found: %d (%s)", expected, dns.RcodeToString[expected], m.Rcode, dns.RcodeToString[m.Rcode])
 	}
 }
 

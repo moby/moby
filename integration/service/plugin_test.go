@@ -68,7 +68,7 @@ func TestServicePlugin(t *testing.T) {
 
 	// test that environment variables are passed from plugin service to plugin instance
 	service := d1.GetService(ctx, t, id)
-	tasks := d1.GetServiceTasks(ctx, t, service.Spec.Annotations.Name, filters.Arg("runtime", "plugin"))
+	tasks := d1.GetServiceTasks(ctx, t, service.Spec.Name, filters.Arg("runtime", "plugin"))
 	if len(tasks) == 0 {
 		t.Log("No tasks found for plugin service")
 		t.Fail()

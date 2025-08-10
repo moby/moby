@@ -194,8 +194,8 @@ func TestUpdatePidsLimit(t *testing.T) {
 
 			inspect, err := c.ContainerInspect(ctx, cID)
 			assert.NilError(t, err)
-			assert.Assert(t, inspect.HostConfig.Resources.PidsLimit != nil)
-			assert.Equal(t, *inspect.HostConfig.Resources.PidsLimit, test.expect)
+			assert.Assert(t, inspect.HostConfig.PidsLimit != nil)
+			assert.Equal(t, *inspect.HostConfig.PidsLimit, test.expect)
 
 			ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 			defer cancel()

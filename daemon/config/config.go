@@ -757,7 +757,7 @@ func Validate(config *Config) error {
 		}
 	}
 
-	for _, mirror := range config.ServiceOptions.Mirrors {
+	for _, mirror := range config.Mirrors {
 		if _, err := registry.ValidateMirror(mirror); err != nil {
 			return err
 		}
@@ -820,7 +820,7 @@ func migrateHostGatewayIP(config *Config) {
 // Sanitize sanitizes the config for printing. It is currently limited to
 // masking usernames and passwords from Proxy URLs.
 func Sanitize(cfg Config) Config {
-	cfg.CommonConfig.Proxies = Proxies{
+	cfg.Proxies = Proxies{
 		HTTPProxy:  MaskCredentials(cfg.HTTPProxy),
 		HTTPSProxy: MaskCredentials(cfg.HTTPSProxy),
 		NoProxy:    MaskCredentials(cfg.NoProxy),

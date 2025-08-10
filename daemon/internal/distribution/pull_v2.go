@@ -377,7 +377,7 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 	}
 
 	if m, ok := manifest.(*schema2.DeserializedManifest); ok {
-		if err := p.validateMediaType(m.Manifest.Config.MediaType); err != nil {
+		if err := p.validateMediaType(m.Config.MediaType); err != nil {
 			return false, err
 		}
 	}

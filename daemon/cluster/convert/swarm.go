@@ -91,11 +91,11 @@ func MergeSwarmSpecToGRPC(s types.Spec, spec swarmapi.ClusterSpec) (swarmapi.Clu
 	// We take the initSpec (either created from scratch, or returned by swarmkit),
 	// and will only change the value if the one taken from types.Spec is not nil or 0.
 	// In other words, if the value taken from types.Spec is nil or 0, we will maintain the status quo.
-	if s.Annotations.Name != "" {
-		spec.Annotations.Name = s.Annotations.Name
+	if s.Name != "" {
+		spec.Annotations.Name = s.Name
 	}
-	if len(s.Annotations.Labels) != 0 {
-		spec.Annotations.Labels = s.Annotations.Labels
+	if len(s.Labels) != 0 {
+		spec.Annotations.Labels = s.Labels
 	}
 
 	if s.Orchestration.TaskHistoryRetentionLimit != nil {

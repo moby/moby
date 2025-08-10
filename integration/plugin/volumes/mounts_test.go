@@ -41,7 +41,7 @@ func TestPluginWithDevMounts(t *testing.T) {
 			{Type: "bind", Source: &dev, Destination: "/dev", Options: []string{"rbind"}},
 			{Type: "bind", Source: &testDir, Destination: "/etc/foo", Options: []string{"rbind"}},
 		}
-		c.Config.Mounts = append(c.Config.Mounts, mounts...)
+		c.Mounts = append(c.Mounts, mounts...)
 		c.PropagatedMount = "/propagated"
 		c.Network = plugintypes.NetworkConfig{Type: "host"}
 		c.IpcHost = true

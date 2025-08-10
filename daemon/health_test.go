@@ -12,8 +12,8 @@ import (
 
 func reset(c *container.Container) {
 	c.State = &container.State{}
-	c.State.Health = &container.Health{}
-	c.State.Health.SetStatus(containertypes.Starting)
+	c.Health = &container.Health{}
+	c.Health.SetStatus(containertypes.Starting)
 }
 
 func TestNoneHealthcheck(t *testing.T) {
@@ -37,7 +37,7 @@ func TestNoneHealthcheck(t *testing.T) {
 	}
 
 	daemon.initHealthMonitor(c)
-	if c.State.Health != nil {
+	if c.Health != nil {
 		t.Error("Expecting Health to be nil, but was not")
 	}
 }
@@ -95,13 +95,13 @@ func TestHealthStates(t *testing.T) {
 
 	// starting -> failed -> success -> failed
 
-	handleResult(c.State.StartedAt.Add(1*time.Second), 1)
+	handleResult(c.StartedAt.Add(1*time.Second), 1)
 	expect(eventtypes.ActionHealthStatusUnhealthy)
 
-	handleResult(c.State.StartedAt.Add(2*time.Second), 0)
+	handleResult(c.StartedAt.Add(2*time.Second), 0)
 	expect(eventtypes.ActionHealthStatusHealthy)
 
-	handleResult(c.State.StartedAt.Add(3*time.Second), 1)
+	handleResult(c.StartedAt.Add(3*time.Second), 1)
 	expect(eventtypes.ActionHealthStatusUnhealthy)
 
 	// Test retries
@@ -109,21 +109,21 @@ func TestHealthStates(t *testing.T) {
 	reset(c)
 	c.Config.Healthcheck.Retries = 3
 
-	handleResult(c.State.StartedAt.Add(20*time.Second), 1)
-	handleResult(c.State.StartedAt.Add(40*time.Second), 1)
-	if status := c.State.Health.Status(); status != containertypes.Starting {
+	handleResult(c.StartedAt.Add(20*time.Second), 1)
+	handleResult(c.StartedAt.Add(40*time.Second), 1)
+	if status := c.Health.Status(); status != containertypes.Starting {
 		t.Errorf("Expecting starting, but got %#v\n", status)
 	}
-	if c.State.Health.FailingStreak != 2 {
-		t.Errorf("Expecting FailingStreak=2, but got %d\n", c.State.Health.FailingStreak)
+	if c.Health.FailingStreak != 2 {
+		t.Errorf("Expecting FailingStreak=2, but got %d\n", c.Health.FailingStreak)
 	}
-	handleResult(c.State.StartedAt.Add(60*time.Second), 1)
+	handleResult(c.StartedAt.Add(60*time.Second), 1)
 	expect(eventtypes.ActionHealthStatusUnhealthy)
 
-	handleResult(c.State.StartedAt.Add(80*time.Second), 0)
+	handleResult(c.StartedAt.Add(80*time.Second), 0)
 	expect(eventtypes.ActionHealthStatusHealthy)
-	if c.State.Health.FailingStreak != 0 {
-		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.FailingStreak)
+	if c.Health.FailingStreak != 0 {
+		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.Health.FailingStreak)
 	}
 
 	// Test start period
@@ -132,23 +132,23 @@ func TestHealthStates(t *testing.T) {
 	c.Config.Healthcheck.Retries = 2
 	c.Config.Healthcheck.StartPeriod = 30 * time.Second
 
-	handleResult(c.State.StartedAt.Add(20*time.Second), 1)
-	if status := c.State.Health.Status(); status != containertypes.Starting {
+	handleResult(c.StartedAt.Add(20*time.Second), 1)
+	if status := c.Health.Status(); status != containertypes.Starting {
 		t.Errorf("Expecting starting, but got %#v\n", status)
 	}
-	if c.State.Health.FailingStreak != 0 {
-		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.FailingStreak)
+	if c.Health.FailingStreak != 0 {
+		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.Health.FailingStreak)
 	}
-	handleResult(c.State.StartedAt.Add(50*time.Second), 1)
-	if status := c.State.Health.Status(); status != containertypes.Starting {
+	handleResult(c.StartedAt.Add(50*time.Second), 1)
+	if status := c.Health.Status(); status != containertypes.Starting {
 		t.Errorf("Expecting starting, but got %#v\n", status)
 	}
-	if c.State.Health.FailingStreak != 1 {
-		t.Errorf("Expecting FailingStreak=1, but got %d\n", c.State.Health.FailingStreak)
+	if c.Health.FailingStreak != 1 {
+		t.Errorf("Expecting FailingStreak=1, but got %d\n", c.Health.FailingStreak)
 	}
-	handleResult(c.State.StartedAt.Add(80*time.Second), 0)
+	handleResult(c.StartedAt.Add(80*time.Second), 0)
 	expect(eventtypes.ActionHealthStatusHealthy)
-	if c.State.Health.FailingStreak != 0 {
-		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.FailingStreak)
+	if c.Health.FailingStreak != 0 {
+		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.Health.FailingStreak)
 	}
 }

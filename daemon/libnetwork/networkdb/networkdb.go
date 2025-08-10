@@ -343,7 +343,7 @@ func (nDB *NetworkDB) ClusterPeers() []PeerInfo {
 	for _, node := range nDB.nodes {
 		peers = append(peers, PeerInfo{
 			Name: node.Name,
-			IP:   node.Node.Addr.String(),
+			IP:   node.Addr.String(),
 		})
 	}
 	return peers

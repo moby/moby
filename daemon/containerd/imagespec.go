@@ -19,9 +19,9 @@ func dockerOciImageToDockerImagePartial(id image.ID, img imagespec.DockerOCIImag
 	v1Image := image.V1Image{
 		DockerVersion: dockerversion.Version,
 		Config:        dockerOCIImageConfigToContainerConfig(img.Config),
-		Architecture:  img.Platform.Architecture,
-		Variant:       img.Platform.Variant,
-		OS:            img.Platform.OS,
+		Architecture:  img.Architecture,
+		Variant:       img.Variant,
+		OS:            img.OS,
 		Author:        img.Author,
 		Created:       img.Created,
 	}

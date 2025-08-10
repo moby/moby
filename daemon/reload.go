@@ -218,10 +218,10 @@ func (daemon *Daemon) reloadLabels(txn *reloadTxn, newCfg *configStore, conf *co
 // and updates the passed attributes.
 func (daemon *Daemon) reloadRegistryConfig(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	if conf.IsValueSet("insecure-registries") {
-		newCfg.ServiceOptions.InsecureRegistries = conf.InsecureRegistries
+		newCfg.InsecureRegistries = conf.InsecureRegistries
 	}
 	if conf.IsValueSet("registry-mirrors") {
-		newCfg.ServiceOptions.Mirrors = conf.Mirrors
+		newCfg.Mirrors = conf.Mirrors
 	}
 
 	commit, err := daemon.registryService.ReplaceConfig(newCfg.ServiceOptions)
@@ -230,8 +230,8 @@ func (daemon *Daemon) reloadRegistryConfig(txn *reloadTxn, newCfg *configStore, 
 	}
 	txn.OnCommit(func() error { commit(); return nil })
 
-	attributes["insecure-registries"] = marshalAttributeSlice(newCfg.ServiceOptions.InsecureRegistries)
-	attributes["registry-mirrors"] = marshalAttributeSlice(newCfg.ServiceOptions.Mirrors)
+	attributes["insecure-registries"] = marshalAttributeSlice(newCfg.InsecureRegistries)
+	attributes["registry-mirrors"] = marshalAttributeSlice(newCfg.Mirrors)
 
 	return nil
 }

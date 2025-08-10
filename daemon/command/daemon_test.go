@@ -48,7 +48,7 @@ func TestLoadDaemonCliConfigWithTLS(t *testing.T) {
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
 	assert.Assert(t, loadedConfig != nil)
-	assert.Check(t, is.Equal("/tmp/ca.pem", loadedConfig.TLSOptions.CAFile))
+	assert.Check(t, is.Equal("/tmp/ca.pem", loadedConfig.CAFile))
 }
 
 func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
@@ -177,8 +177,8 @@ func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
 	assert.Assert(t, loadedConfig != nil)
-	assert.Check(t, is.Equal("/etc/certs/ca.pem", loadedConfig.TLSOptions.CAFile))
-	assert.Check(t, is.Equal("syslog", loadedConfig.LogConfig.Type))
+	assert.Check(t, is.Equal("/etc/certs/ca.pem", loadedConfig.CAFile))
+	assert.Check(t, is.Equal("syslog", loadedConfig.Type))
 }
 
 func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {

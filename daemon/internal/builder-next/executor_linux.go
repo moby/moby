@@ -97,7 +97,7 @@ func (iface *lnInterface) Set(s *specs.Spec) error {
 		log.G(context.TODO()).WithError(iface.err).Error("failed to set networking spec")
 		return iface.err
 	}
-	shortNetCtlrID := stringid.TruncateID(iface.provider.Controller.ID())
+	shortNetCtlrID := stringid.TruncateID(iface.provider.ID())
 	// attach netns to bridge within the container namespace, using reexec in a prestart hook
 	s.Hooks = &specs.Hooks{
 		Prestart: []specs.Hook{{

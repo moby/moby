@@ -17,7 +17,7 @@ func setupVerifyTest(t *testing.T) *bridgeInterface {
 	inf := &bridgeInterface{nlh: nh}
 
 	br := netlink.Bridge{}
-	br.LinkAttrs.Name = "default0"
+	br.Name = "default0"
 	if err := nh.LinkAdd(&br); err == nil {
 		inf.Link = &br
 	} else {

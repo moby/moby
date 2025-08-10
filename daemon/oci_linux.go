@@ -249,7 +249,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 				}
 				setNamespace(s, specs.LinuxNamespace{
 					Type: specs.NetworkNamespace,
-					Path: fmt.Sprintf("/proc/%d/ns/net", nc.State.GetPID()),
+					Path: fmt.Sprintf("/proc/%d/ns/net", nc.GetPID()),
 				})
 				if userNS {
 					// to share a net namespace, the containers must also share a user namespace.
@@ -257,7 +257,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 					// FIXME(thaJeztah): this will silently overwrite an earlier user namespace when joining multiple containers: https://github.com/moby/moby/issues/46210
 					setNamespace(s, specs.LinuxNamespace{
 						Type: specs.UserNamespace,
-						Path: fmt.Sprintf("/proc/%d/ns/user", nc.State.GetPID()),
+						Path: fmt.Sprintf("/proc/%d/ns/user", nc.GetPID()),
 					})
 				}
 			case networkMode.IsHost():
@@ -282,7 +282,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			}
 			setNamespace(s, specs.LinuxNamespace{
 				Type: specs.IPCNamespace,
-				Path: fmt.Sprintf("/proc/%d/ns/ipc", ic.State.GetPID()),
+				Path: fmt.Sprintf("/proc/%d/ns/ipc", ic.GetPID()),
 			})
 			if userNS {
 				// to share a IPC namespace, the containers must also share a user namespace.
@@ -290,7 +290,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 				// FIXME(thaJeztah): this will silently overwrite an earlier user namespace when joining multiple containers: https://github.com/moby/moby/issues/46210
 				setNamespace(s, specs.LinuxNamespace{
 					Type: specs.UserNamespace,
-					Path: fmt.Sprintf("/proc/%d/ns/user", ic.State.GetPID()),
+					Path: fmt.Sprintf("/proc/%d/ns/user", ic.GetPID()),
 				})
 			}
 		case ipcMode.IsHost():
@@ -318,7 +318,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			}
 			setNamespace(s, specs.LinuxNamespace{
 				Type: specs.PIDNamespace,
-				Path: fmt.Sprintf("/proc/%d/ns/pid", pc.State.GetPID()),
+				Path: fmt.Sprintf("/proc/%d/ns/pid", pc.GetPID()),
 			})
 			if userNS {
 				// to share a PID namespace, the containers must also share a user namespace.
@@ -326,7 +326,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 				// FIXME(thaJeztah): this will silently overwrite an earlier user namespace when joining multiple containers: https://github.com/moby/moby/issues/46210
 				setNamespace(s, specs.LinuxNamespace{
 					Type: specs.UserNamespace,
-					Path: fmt.Sprintf("/proc/%d/ns/user", pc.State.GetPID()),
+					Path: fmt.Sprintf("/proc/%d/ns/user", pc.GetPID()),
 				})
 			}
 		case pidMode.IsHost():

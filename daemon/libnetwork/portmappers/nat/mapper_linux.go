@@ -211,12 +211,12 @@ func (pm PortMapper) attemptBindHostPorts(
 
 	for i := range cfg {
 		pb := portmapperapi.PortBinding{
-			PortBinding: cfg[i].PortBinding.GetCopy(),
+			PortBinding: cfg[i].GetCopy(),
 			BoundSocket: socks[i],
 			ChildHostIP: cfg[i].ChildHostIP,
 		}
-		pb.PortBinding.HostPort = uint16(port)
-		pb.PortBinding.HostPortEnd = pb.HostPort
+		pb.HostPort = uint16(port)
+		pb.HostPortEnd = pb.HostPort
 		res = append(res, pb)
 	}
 

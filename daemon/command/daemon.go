@@ -106,11 +106,11 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 
 	log.G(ctx).Info("Starting up")
 
-	if cli.Config.Debug {
+	if cli.Debug {
 		debug.Enable()
 	}
 
-	if rootless.RunningWithRootlessKit() && !cli.Config.IsRootless() {
+	if rootless.RunningWithRootlessKit() && !cli.IsRootless() {
 		return errors.New("rootless mode needs to be enabled for running with RootlessKit")
 	}
 
@@ -129,11 +129,11 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 		return err
 	}
 
-	if err := os.MkdirAll(cli.Config.ExecRoot, 0o700); err != nil {
+	if err := os.MkdirAll(cli.ExecRoot, 0o700); err != nil {
 		return err
 	}
 
-	potentiallyUnderRuntimeDir := []string{cli.Config.ExecRoot}
+	potentiallyUnderRuntimeDir := []string{cli.ExecRoot}
 
 	if cli.Pidfile != "" {
 		if err = os.MkdirAll(filepath.Dir(cli.Pidfile), 0o755); err != nil {
@@ -150,7 +150,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 		}()
 	}
 
-	if cli.Config.IsRootless() {
+	if cli.IsRootless() {
 		log.G(ctx).Warn("Running in rootless mode. This mode has feature limitations.")
 		if rootless.RunningWithRootlessKit() {
 			log.G(ctx).Info("Running with RootlessKit integration")
@@ -162,7 +162,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 			log.G(ctx).WithError(err).Warn("cannot set sticky bit on files under XDG_RUNTIME_DIR")
 		}
 	}
-	if cli.Config.Experimental {
+	if cli.Experimental {
 		log.G(ctx).Warn("Running with experimental features enabled")
 	}
 
@@ -250,7 +250,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	// - The DeviceRequests API must be extended to non-linux platforms.
 	var cdiCache *cdi.Cache
 	if cdiEnabled(cli.Config) {
-		cdiCache = daemon.RegisterCDIDriver(cli.Config.CDISpecDirs...)
+		cdiCache = daemon.RegisterCDIDriver(cli.CDISpecDirs...)
 	}
 
 	var apiServer apiserver.Server
@@ -267,13 +267,13 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	d.StoreHosts(hosts)
 
 	// validate after NewDaemon has restored enabled plugins. Don't change order.
-	if err := validateAuthzPlugins(cli.Config.AuthorizationPlugins, pluginStore); err != nil {
+	if err := validateAuthzPlugins(cli.AuthorizationPlugins, pluginStore); err != nil {
 		return errors.Wrap(err, "failed to validate authorization plugin")
 	}
 
 	cli.d = d
 
-	if err := startMetricsServer(cli.Config.MetricsAddress); err != nil {
+	if err := startMetricsServer(cli.MetricsAddress); err != nil {
 		return errors.Wrap(err, "failed to start metrics server")
 	}
 
@@ -800,9 +800,9 @@ func newAPIServerTLSConfig(cfg *config.Config) (*tls.Config, error) {
 			clientAuth = tls.RequireAndVerifyClientCert
 		}
 		tlsConfig, err = tlsconfig.Server(tlsconfig.Options{
-			CAFile:             cfg.TLSOptions.CAFile,
-			CertFile:           cfg.TLSOptions.CertFile,
-			KeyFile:            cfg.TLSOptions.KeyFile,
+			CAFile:             cfg.CAFile,
+			CertFile:           cfg.CertFile,
+			KeyFile:            cfg.KeyFile,
 			ExclusiveRootPools: true,
 			ClientAuth:         clientAuth,
 		})
@@ -1027,7 +1027,7 @@ func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Durat
 	}
 	if ok {
 		// detected a system containerd at the given address.
-		cli.Config.ContainerdAddr = systemContainerdAddr
+		cli.ContainerdAddr = systemContainerdAddr
 		return nil, nil
 	}
 
@@ -1037,11 +1037,11 @@ func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Durat
 		return nil, errors.Wrap(err, "failed to generate containerd options")
 	}
 
-	r, err := supervisor.Start(ctx, filepath.Join(cli.Config.Root, "containerd"), filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
+	r, err := supervisor.Start(ctx, filepath.Join(cli.Root, "containerd"), filepath.Join(cli.ExecRoot, "containerd"), opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start containerd")
 	}
-	cli.Config.ContainerdAddr = r.Address()
+	cli.ContainerdAddr = r.Address()
 
 	// Try to wait for containerd to shutdown
 	return r.WaitTimeout, nil

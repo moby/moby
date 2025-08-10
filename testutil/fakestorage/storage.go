@@ -67,7 +67,7 @@ func (s *localFileStorage) URL() string {
 }
 
 func (s *localFileStorage) CtxDir() string {
-	return s.Fake.Dir
+	return s.Dir
 }
 
 func (s *localFileStorage) Close() error {

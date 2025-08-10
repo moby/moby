@@ -50,10 +50,10 @@ func validateQoS(hc *container.HostConfig) error {
 // validateResources performs platform specific validation of the resource settings
 // cpu-rt-runtime and cpu-rt-period can not be greater than their parent, cpu-rt-runtime requires sys_nice
 func validateResources(hc *container.HostConfig, si *sysinfo.SysInfo) error {
-	if (hc.Resources.CPURealtimePeriod != 0 || hc.Resources.CPURealtimeRuntime != 0) && !si.CPURealtime {
+	if (hc.CPURealtimePeriod != 0 || hc.CPURealtimeRuntime != 0) && !si.CPURealtime {
 		return validationError("kernel does not support CPU real-time scheduler")
 	}
-	if hc.Resources.CPURealtimePeriod != 0 && hc.Resources.CPURealtimeRuntime != 0 && hc.Resources.CPURealtimeRuntime > hc.Resources.CPURealtimePeriod {
+	if hc.CPURealtimePeriod != 0 && hc.CPURealtimeRuntime != 0 && hc.CPURealtimeRuntime > hc.CPURealtimePeriod {
 		return validationError("cpu real-time runtime cannot be higher than cpu real-time period")
 	}
 	if si.CPUShares {
@@ -62,8 +62,8 @@ func validateResources(hc *container.HostConfig, si *sysinfo.SysInfo) error {
 		// We should consider making this an error-condition when trying to set
 		// CPU-shares on a system that doesn't support it instead of silently
 		// ignoring.
-		if hc.Resources.CPUShares < 0 {
-			return validationError(fmt.Sprintf("invalid CPU shares (%d): value must be a positive integer", hc.Resources.CPUShares))
+		if hc.CPUShares < 0 {
+			return validationError(fmt.Sprintf("invalid CPU shares (%d): value must be a positive integer", hc.CPUShares))
 		}
 	}
 	return nil

@@ -156,7 +156,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, layers []Download
 		var topDownloadUncasted transfer
 		if existingDownload, ok := downloadsByKey[key]; ok {
 			xferFunc := ldm.makeDownloadFuncFromDownload(descriptor, existingDownload, topDownload)
-			defer topDownload.transfer.release(xferWatcher)
+			defer topDownload.release(xferWatcher)
 			topDownloadUncasted, xferWatcher = ldm.tm.transfer(transferKey, xferFunc, progressOutput)
 			topDownload = topDownloadUncasted.(*downloadTransfer)
 			continue
@@ -168,7 +168,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, layers []Download
 		var xferFunc doFunc
 		if topDownload != nil {
 			xferFunc = ldm.makeDownloadFunc(descriptor, "", topDownload)
-			defer topDownload.transfer.release(xferWatcher)
+			defer topDownload.release(xferWatcher)
 		} else {
 			xferFunc = ldm.makeDownloadFunc(descriptor, rootFS.ChainID(), nil)
 		}
@@ -197,7 +197,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, layers []Download
 
 	select {
 	case <-ctx.Done():
-		topDownload.transfer.release(xferWatcher)
+		topDownload.release(xferWatcher)
 		return rootFS, func() {}, ctx.Err()
 	case <-topDownload.done():
 		break
@@ -205,7 +205,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, layers []Download
 
 	l, err := topDownload.result()
 	if err != nil {
-		topDownload.transfer.release(xferWatcher)
+		topDownload.release(xferWatcher)
 		return rootFS, func() {}, err
 	}
 
@@ -213,13 +213,13 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, layers []Download
 	// base layer on Windows.
 	for range layers {
 		if l == nil {
-			topDownload.transfer.release(xferWatcher)
+			topDownload.release(xferWatcher)
 			return rootFS, func() {}, errors.New("internal error: too few parent layers")
 		}
 		rootFS.DiffIDs = append([]layer.DiffID{l.DiffID()}, rootFS.DiffIDs...)
 		l = l.Parent()
 	}
-	return rootFS, func() { topDownload.transfer.release(xferWatcher) }, err
+	return rootFS, func() { topDownload.release(xferWatcher) }, err
 }
 
 // makeDownloadFunc returns a function that performs the layer download and
@@ -272,7 +272,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 			defer descriptor.Close()
 
 			for {
-				downloadReader, size, err = descriptor.Download(d.transfer.context(), progressOutput)
+				downloadReader, size, err = descriptor.Download(d.context(), progressOutput)
 				if err == nil {
 					break
 				}
@@ -335,7 +335,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				parentLayer = l.ChainID()
 			}
 
-			reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(d.transfer.context(), downloadReader), progressOutput, size, descriptor.ID(), "Extracting")
+			reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(d.context(), downloadReader), progressOutput, size, descriptor.ID(), "Extracting")
 			defer reader.Close()
 
 			inflatedLayerData, err := compression.DecompressStream(reader)
@@ -373,7 +373,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 			// Doesn't actually need to be its own goroutine, but
 			// done like this so we can defer close(c).
 			go func() {
-				<-d.transfer.released()
+				<-d.released()
 				if d.layer != nil {
 					layer.ReleaseAndLog(d.layerStore, d.layer)
 				}
@@ -465,7 +465,7 @@ func (ldm *LayerDownloadManager) makeDownloadFuncFromDownload(descriptor Downloa
 			// Doesn't actually need to be its own goroutine, but
 			// done like this so we can defer close(c).
 			go func() {
-				<-d.transfer.released()
+				<-d.released()
 				if d.layer != nil {
 					layer.ReleaseAndLog(d.layerStore, d.layer)
 				}

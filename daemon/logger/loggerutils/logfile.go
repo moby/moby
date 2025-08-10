@@ -334,7 +334,7 @@ func compressFile(fileName string, lastTimestamp time.Time) (retErr error) {
 	// Add the last log entry timestamp to the gzip header
 	extra := rotateFileMetadata{}
 	extra.LastTime = lastTimestamp
-	compressWriter.Header.Extra, err = json.Marshal(&extra)
+	compressWriter.Extra, err = json.Marshal(&extra)
 	if err != nil {
 		// Here log the error only and don't return since this is just an optimization.
 		log.G(context.TODO()).Warningf("Failed to marshal gzip header as JSON: %v", err)
@@ -607,7 +607,7 @@ func (cfo *compressedFileOpener) ReaderAt(ctx context.Context) (_ sizeReaderAtCl
 	// Extract the last log entry timestamp from the gzip header
 	// Use this to determine if we even need to read this file based on inputs
 	extra := &rotateFileMetadata{}
-	err = json.Unmarshal(gzr.Header.Extra, extra)
+	err = json.Unmarshal(gzr.Extra, extra)
 	if err == nil && !extra.LastTime.IsZero() && extra.LastTime.Before(cfo.ifBefore) {
 		span.SetAttributes(attribute.Bool("skip", true))
 		return &sizeReaderAtWithCloser{}, nil

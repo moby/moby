@@ -37,7 +37,7 @@ func (p *bridgeProvider) New(_ context.Context, _ string) (network.Namespace, er
 	}
 
 	iface := &lnInterface{ready: make(chan struct{}), provider: p}
-	iface.Once.Do(func() {
+	iface.Do(func() {
 		go iface.init(p.Controller, n)
 	})
 

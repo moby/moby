@@ -67,7 +67,7 @@ func (v volumeWrapper) CachedPath() string {
 	}); ok {
 		return vv.CachedPath()
 	}
-	return v.Volume.Path()
+	return v.Path()
 }
 
 func (v volumeWrapper) LiveRestoreVolume(ctx context.Context, ref string) error {

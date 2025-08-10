@@ -229,7 +229,7 @@ func newVolumePlugin(t *testing.T, name string) *volumePlugin {
 			return
 		}
 
-		if err := os.WriteFile(filepath.Join(p, "test"), []byte(s.Server.URL), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(p, "test"), []byte(s.URL), 0o644); err != nil {
 			send(w, err)
 			return
 		}
@@ -269,13 +269,13 @@ func newVolumePlugin(t *testing.T, name string) *volumePlugin {
 	err := os.MkdirAll("/etc/docker/plugins", 0o755)
 	assert.NilError(t, err)
 
-	err = os.WriteFile("/etc/docker/plugins/"+name+".spec", []byte(s.Server.URL), 0o644)
+	err = os.WriteFile("/etc/docker/plugins/"+name+".spec", []byte(s.URL), 0o644)
 	assert.NilError(t, err)
 	return s
 }
 
 func (s *DockerExternalVolumeSuite) TearDownSuite(ctx context.Context, t *testing.T) {
-	s.volumePlugin.Close()
+	s.Close()
 
 	err := os.RemoveAll("/etc/docker/plugins")
 	assert.NilError(t, err)
@@ -298,7 +298,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverNamed(c *testing.T) 
 
 	out, err := s.d.Cmd("run", "--rm", "--name", "test-data", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", volumePluginName, "busybox:latest", "cat", "/tmp/external-volume-test/test")
 	assert.NilError(c, err, out)
-	assert.Assert(c, is.Contains(out, s.Server.URL))
+	assert.Assert(c, is.Contains(out, s.URL))
 	_, err = s.d.Cmd("volume", "rm", "external-volume-test")
 	assert.NilError(c, err)
 
@@ -320,7 +320,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnnamed(c *testing.T
 
 	out, err := s.d.Cmd("run", "--rm", "--name", "test-data", "-v", "/tmp/external-volume-test", "--volume-driver", volumePluginName, "busybox:latest", "cat", "/tmp/external-volume-test/test")
 	assert.NilError(c, err, out)
-	assert.Assert(c, is.Contains(out, s.Server.URL))
+	assert.Assert(c, is.Contains(out, s.URL))
 	assert.Equal(c, s.ec.activations, 1)
 	assert.Equal(c, s.ec.creations, 1)
 	assert.Equal(c, s.ec.removals, 1)

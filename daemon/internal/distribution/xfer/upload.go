@@ -89,7 +89,7 @@ func (lum *LayerUploadManager) Upload(ctx context.Context, layers []UploadDescri
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-upload.transfer.done():
+		case <-upload.done():
 			if upload.err != nil {
 				return upload.err
 			}
@@ -124,7 +124,7 @@ func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) doFun
 
 			retries := 0
 			for {
-				remoteDescriptor, err := descriptor.Upload(u.transfer.context(), progressOutput)
+				remoteDescriptor, err := descriptor.Upload(u.context(), progressOutput)
 				if err == nil {
 					u.remoteDescriptor = remoteDescriptor
 					break

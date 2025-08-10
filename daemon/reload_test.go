@@ -319,7 +319,7 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 
 	// Enable/Disable the server for some iterations
 	for i := 0; i < 10; i++ {
-		enableConfig.CommonConfig.NetworkDiagnosticPort++
+		enableConfig.NetworkDiagnosticPort++
 		if err := daemon.Reload(enableConfig); err != nil {
 			t.Fatal(err)
 		}
@@ -338,7 +338,7 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 		}
 	}
 
-	enableConfig.CommonConfig.NetworkDiagnosticPort++
+	enableConfig.NetworkDiagnosticPort++
 	// 2 times the enable should not create problems
 	if err := daemon.Reload(enableConfig); err != nil {
 		t.Fatal(err)

@@ -224,7 +224,6 @@ linters:
     staticcheck:
       checks:
         - all
-        - -QF1008 # Omit embedded fields from selector expression; https://staticcheck.dev/docs/checks/#QF1008
         - -ST1000 # Incorrect or missing package comment; https://staticcheck.dev/docs/checks/#ST1000
         - -ST1003 # Poorly chosen identifier; https://staticcheck.dev/docs/checks/#ST1003
         - -ST1005 # Incorrectly formatted error string; https://staticcheck.dev/docs/checks/#ST1005

@@ -33,7 +33,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 			// Take c.mu temporarily to wait for presently running
 			// API handlers to finish before shutting down the node.
 			c.mu.Lock()
-			if !c.nr.nodeState.IsManager() {
+			if !c.nr.IsManager() {
 				c.mu.Unlock()
 				return "", errSwarmNotManager
 			}
@@ -248,9 +248,9 @@ func (c *Cluster) Update(version uint64, spec types.Spec, flags types.UpdateFlag
 		}
 
 		// Validate spec name.
-		if spec.Annotations.Name == "" {
-			spec.Annotations.Name = "default"
-		} else if spec.Annotations.Name != "default" {
+		if spec.Name == "" {
+			spec.Name = "default"
+		} else if spec.Name != "default" {
 			return errdefs.InvalidParameter(errors.New(`swarm spec must be named "default"`))
 		}
 
@@ -517,9 +517,9 @@ func validateAndSanitizeInitRequest(req *types.InitRequest) error {
 		return fmt.Errorf("invalid ListenAddr %q: %v", req.ListenAddr, err)
 	}
 
-	if req.Spec.Annotations.Name == "" {
-		req.Spec.Annotations.Name = "default"
-	} else if req.Spec.Annotations.Name != "default" {
+	if req.Spec.Name == "" {
+		req.Spec.Name = "default"
+	} else if req.Spec.Name != "default" {
 		return errors.New(`swarm spec must be named "default"`)
 	}
 

@@ -452,7 +452,7 @@ func dispatchCmd(ctx context.Context, d dispatchRequest, c *instructions.CmdComm
 	if err := d.builder.commit(ctx, d.state, fmt.Sprintf("CMD %q", cmd)); err != nil {
 		return err
 	}
-	if len(c.ShellDependantCmdLine.CmdLine) != 0 {
+	if len(c.CmdLine) != 0 {
 		d.state.cmdSet = true
 	}
 

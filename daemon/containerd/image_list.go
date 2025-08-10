@@ -443,7 +443,7 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		}
 	}
 
-	cfgDesc, err := imageManifest.Image.Config(ctx)
+	cfgDesc, err := imageManifest.Config(ctx)
 	if err != nil {
 		return nil, err
 	}

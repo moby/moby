@@ -288,7 +288,7 @@ func (w *testRequestWrapper) NewRequest(path string, data io.Reader) (*http.Requ
 	if err != nil {
 		return nil, err
 	}
-	u, err := url.Parse(w.Server.URL)
+	u, err := url.Parse(w.URL)
 	if err != nil {
 		return nil, err
 	}

@@ -220,7 +220,7 @@ func (daemon *Daemon) updateEndpointNetworkSettings(cfg *config.Config, ctr *con
 	}
 
 	if ctr.HostConfig.NetworkMode == network.DefaultNetwork {
-		ctr.NetworkSettings.Bridge = cfg.BridgeConfig.Iface
+		ctr.NetworkSettings.Bridge = cfg.Iface
 	}
 
 	return nil

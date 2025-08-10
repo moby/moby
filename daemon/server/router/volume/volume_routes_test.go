@@ -350,7 +350,7 @@ func TestUpdateVolume(t *testing.T) {
 	err = v.putVolumesUpdate(ctx, resp, req, map[string]string{"name": "vol1"})
 	assert.NilError(t, err)
 
-	assert.Equal(t, c.volumes["vol1"].ClusterVolume.Meta.Version.Index, uint64(1))
+	assert.Equal(t, c.volumes["vol1"].ClusterVolume.Version.Index, uint64(1))
 }
 
 func TestUpdateVolumeNoSwarm(t *testing.T) {
@@ -751,10 +751,10 @@ func (c *fakeClusterBackend) UpdateVolume(nameOrID string, version uint64, _ vol
 	}
 
 	if v, ok := c.volumes[nameOrID]; ok {
-		if v.ClusterVolume.Meta.Version.Index != version {
+		if v.ClusterVolume.Version.Index != version {
 			return errors.New("wrong version")
 		}
-		v.ClusterVolume.Meta.Version.Index = v.ClusterVolume.Meta.Version.Index + 1
+		v.ClusterVolume.Version.Index = v.ClusterVolume.Version.Index + 1
 		// for testing, we don't actually need to change anything about the
 		// volume object. let's just increment the version so we can see the
 		// call happened.

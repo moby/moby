@@ -311,8 +311,8 @@ func (v *View) transform(ctr *Container) *Snapshot {
 			ImageID: ctr.ImageID.String(),
 			Ports:   []container.Port{},
 			Mounts:  ctr.GetMountPoints(),
-			State:   ctr.State.StateString(),
-			Status:  ctr.State.String(),
+			State:   ctr.StateString(),
+			Status:  ctr.String(),
 			Health:  healthSummary,
 			Created: ctr.Created.Unix(),
 		},
@@ -428,7 +428,7 @@ func (v *View) transform(ctr *Container) *Snapshot {
 		if imageManifest.Platform == nil {
 			imageManifest.Platform = &ctr.ImagePlatform
 		}
-		snapshot.Summary.ImageManifestDescriptor = &imageManifest
+		snapshot.ImageManifestDescriptor = &imageManifest
 	}
 
 	return snapshot

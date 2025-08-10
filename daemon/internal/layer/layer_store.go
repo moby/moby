@@ -760,7 +760,7 @@ func (w *fileGetPutter) Close() error {
 }
 
 func (n *naiveDiffPathDriver) DiffGetter(id string) (graphdriver.FileGetCloser, error) {
-	p, err := n.Driver.Get(id, "")
+	p, err := n.Get(id, "")
 	if err != nil {
 		return nil, err
 	}

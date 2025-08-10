@@ -113,13 +113,13 @@ type referencedRWLayer struct {
 }
 
 func (rl *referencedRWLayer) Mount(mountLabel string) (string, error) {
-	return rl.layerStore.driver.Get(rl.mountedLayer.mountID, mountLabel)
+	return rl.layerStore.driver.Get(rl.mountID, mountLabel)
 }
 
 // Unmount decrements the activity count and unmounts the underlying layer
 // Callers should only call `Unmount` once per call to `Mount`, even on error.
 func (rl *referencedRWLayer) Unmount() error {
-	return rl.layerStore.driver.Put(rl.mountedLayer.mountID)
+	return rl.layerStore.driver.Put(rl.mountID)
 }
 
 // ApplyDiff applies specified diff to the layer

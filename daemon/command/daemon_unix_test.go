@@ -27,8 +27,8 @@ func TestLoadDaemonCliConfigWithDaemonFlags(t *testing.T) {
 	assert.Check(t, loadedConfig.Debug)
 	assert.Check(t, is.Equal("info", loadedConfig.LogLevel))
 	assert.Check(t, loadedConfig.EnableSelinuxSupport)
-	assert.Check(t, is.Equal("json-file", loadedConfig.LogConfig.Type))
-	assert.Check(t, is.Equal("1k", loadedConfig.LogConfig.Config["max-size"]))
+	assert.Check(t, is.Equal("json-file", loadedConfig.Type))
+	assert.Check(t, is.Equal("1k", loadedConfig.Config["max-size"]))
 }
 
 func TestLoadDaemonConfigWithNetwork(t *testing.T) {
@@ -53,8 +53,8 @@ func TestLoadDaemonConfigWithMapOptions(t *testing.T) {
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
 	assert.Assert(t, loadedConfig != nil)
-	assert.Check(t, loadedConfig.LogConfig.Config != nil)
-	assert.Check(t, is.Equal("test", loadedConfig.LogConfig.Config["tag"]))
+	assert.Check(t, loadedConfig.Config != nil)
+	assert.Check(t, is.Equal("test", loadedConfig.Config["tag"]))
 }
 
 func TestLoadDaemonConfigWithTrueDefaultValues(t *testing.T) {

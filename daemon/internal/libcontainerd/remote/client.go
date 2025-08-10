@@ -425,7 +425,7 @@ func (c *container) getCheckpointOptions(exit bool) containerd.CheckpointTaskOpt
 }
 
 func (t *task) CreateCheckpoint(ctx context.Context, checkpointDir string, exit bool) error {
-	img, err := t.Task.Checkpoint(ctx, t.ctr.getCheckpointOptions(exit))
+	img, err := t.Checkpoint(ctx, t.ctr.getCheckpointOptions(exit))
 	if err != nil {
 		return wrapError(err)
 	}

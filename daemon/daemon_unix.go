@@ -738,22 +738,22 @@ func verifyDaemonSettings(conf *config.Config) error {
 		return errors.New("containers namespace and plugins namespace cannot be the same")
 	}
 	// Check for mutually incompatible config options
-	if conf.BridgeConfig.Iface != "" && conf.BridgeConfig.IP != "" {
+	if conf.Iface != "" && conf.IP != "" {
 		return errors.New("You specified -b & --bip, mutually exclusive options. Please specify only one")
 	}
-	if conf.BridgeConfig.Iface != "" && conf.BridgeConfig.IP6 != "" {
+	if conf.Iface != "" && conf.IP6 != "" {
 		return errors.New("You specified -b & --bip6, mutually exclusive options. Please specify only one")
 	}
-	if !conf.BridgeConfig.InterContainerCommunication {
-		if !conf.BridgeConfig.EnableIPTables {
+	if !conf.InterContainerCommunication {
+		if !conf.EnableIPTables {
 			return errors.New("You specified --iptables=false with --icc=false. ICC=false uses iptables to function. Please set --icc or --iptables to true")
 		}
-		if conf.BridgeConfig.EnableIPv6 && !conf.BridgeConfig.EnableIP6Tables {
+		if conf.EnableIPv6 && !conf.EnableIP6Tables {
 			return errors.New("You specified --ip6tables=false with --icc=false. ICC=false uses ip6tables to function. Please set --icc or --ip6tables to true")
 		}
 	}
-	if !conf.BridgeConfig.EnableIPTables && conf.BridgeConfig.EnableIPMasq {
-		conf.BridgeConfig.EnableIPMasq = false
+	if !conf.EnableIPTables && conf.EnableIPMasq {
+		conf.EnableIPMasq = false
 	}
 	if err := verifyCgroupDriver(conf); err != nil {
 		return err
@@ -886,7 +886,7 @@ func configureNetworking(ctx context.Context, controller *libnetwork.Controller,
 		if err = n.Delete(); err != nil {
 			return errors.Wrapf(err, `could not delete the default %q network`, network.NetworkBridge)
 		}
-		if len(conf.NetworkConfig.DefaultAddressPools.Value()) > 0 && !conf.LiveRestoreEnabled {
+		if len(conf.DefaultAddressPools.Value()) > 0 && !conf.LiveRestoreEnabled {
 			removeDefaultBridgeInterface()
 		}
 	}
@@ -929,13 +929,13 @@ func networkPlatformOptions(conf *config.Config) []nwconfig.Option {
 		nwconfig.OptionUserlandProxy(conf.EnableUserlandProxy, conf.UserlandProxyPath),
 		nwconfig.OptionDriverConfig("bridge", options.Generic{
 			netlabel.GenericData: options.Generic{
-				"EnableIPForwarding":       conf.BridgeConfig.EnableIPForward,
-				"DisableFilterForwardDrop": conf.BridgeConfig.DisableFilterForwardDrop,
-				"EnableIPTables":           conf.BridgeConfig.EnableIPTables,
-				"EnableIP6Tables":          conf.BridgeConfig.EnableIP6Tables,
+				"EnableIPForwarding":       conf.EnableIPForward,
+				"DisableFilterForwardDrop": conf.DisableFilterForwardDrop,
+				"EnableIPTables":           conf.EnableIPTables,
+				"EnableIP6Tables":          conf.EnableIP6Tables,
 				"Hairpin":                  !conf.EnableUserlandProxy || conf.UserlandProxyPath == "",
-				"AllowDirectRouting":       conf.BridgeConfig.AllowDirectRouting,
-				"AcceptFwMark":             conf.BridgeConfig.BridgeAcceptFwMark,
+				"AllowDirectRouting":       conf.AllowDirectRouting,
+				"AcceptFwMark":             conf.BridgeAcceptFwMark,
 			},
 		}),
 	}
