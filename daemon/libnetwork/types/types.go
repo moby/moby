@@ -251,12 +251,6 @@ func CompareIPNet(a, b *net.IPNet) bool {
 	return a.IP.Equal(b.IP) && bytes.Equal(a.Mask, b.Mask)
 }
 
-// IsIPNetValid returns true if the ipnet is a valid network/mask
-// combination. Otherwise returns false.
-func IsIPNetValid(nw *net.IPNet) bool {
-	return nw.String() != "0.0.0.0/0"
-}
-
 var v4inV6MaskPrefix = []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 
 // compareIPMask checks if the passed ip and mask are semantically compatible.
