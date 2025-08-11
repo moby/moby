@@ -22,7 +22,7 @@ func NewPortMapper() PortMapper {
 
 // MapPorts returns a PortBinding for every PortBindingReq received, with Forwarding enabled for each. If a HostPort is
 // specified, it's logged and ignored.
-func (pm PortMapper) MapPorts(ctx context.Context, reqs []portmapperapi.PortBindingReq, fwn portmapperapi.Firewaller) ([]portmapperapi.PortBinding, error) {
+func (pm PortMapper) MapPorts(ctx context.Context, reqs []portmapperapi.PortBindingReq) ([]portmapperapi.PortBinding, error) {
 	if len(reqs) == 0 {
 		return nil, nil
 	}
@@ -45,6 +45,6 @@ func (pm PortMapper) MapPorts(ctx context.Context, reqs []portmapperapi.PortBind
 	return res, nil
 }
 
-func (pm PortMapper) UnmapPorts(_ context.Context, _ []portmapperapi.PortBinding, _ portmapperapi.Firewaller) error {
+func (pm PortMapper) UnmapPorts(_ context.Context, _ []portmapperapi.PortBinding) error {
 	return nil
 }

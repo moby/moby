@@ -990,7 +990,7 @@ type stubPortMapper struct {
 	mapped []portmapperapi.PortBinding
 }
 
-func (pm *stubPortMapper) MapPorts(_ context.Context, reqs []portmapperapi.PortBindingReq, _ portmapperapi.Firewaller) ([]portmapperapi.PortBinding, error) {
+func (pm *stubPortMapper) MapPorts(_ context.Context, reqs []portmapperapi.PortBindingReq) ([]portmapperapi.PortBinding, error) {
 	if len(reqs) == 0 {
 		return []portmapperapi.PortBinding{}, nil
 	}
@@ -1002,7 +1002,7 @@ func (pm *stubPortMapper) MapPorts(_ context.Context, reqs []portmapperapi.PortB
 	return pbs, nil
 }
 
-func (pm *stubPortMapper) UnmapPorts(_ context.Context, reqs []portmapperapi.PortBinding, _ portmapperapi.Firewaller) error {
+func (pm *stubPortMapper) UnmapPorts(_ context.Context, reqs []portmapperapi.PortBinding) error {
 	for _, req := range reqs {
 		// We're only checking for the PortBinding here, not any other
 		// property of [portmapperapi.PortBinding].

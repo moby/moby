@@ -102,13 +102,13 @@ func (n *bridgeNetwork) mapPorts(ctx context.Context, pms *drvregistry.PortMappe
 		return nil, err
 	}
 
-	bindings, err := pm.MapPorts(ctx, reqs, n.firewallerNetwork)
+	bindings, err := pm.MapPorts(ctx, reqs)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		if retErr != nil {
-			if err := pm.UnmapPorts(ctx, bindings, n.firewallerNetwork); err != nil {
+			if err := pm.UnmapPorts(ctx, bindings); err != nil {
 				log.G(ctx).WithFields(log.Fields{
 					"bindings": bindings,
 					"error":    err,
@@ -413,7 +413,7 @@ func (n *bridgeNetwork) unmapPBs(ctx context.Context, bindings []portmapperapi.P
 			continue
 		}
 
-		if err := pm.UnmapPorts(ctx, []portmapperapi.PortBinding{b}, n.firewallerNetwork); err != nil {
+		if err := pm.UnmapPorts(ctx, []portmapperapi.PortBinding{b}); err != nil {
 			errs = append(errs, fmt.Errorf("unmapping port binding %s: %w", b.PortBinding, err))
 		}
 		if b.StopProxy != nil {
