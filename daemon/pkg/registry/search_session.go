@@ -11,8 +11,9 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/api/types/registry"
 	"github.com/pkg/errors"
+
+	"github.com/moby/moby/api/types/registry"
 )
 
 type authTransport struct {

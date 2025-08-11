@@ -5,9 +5,10 @@ package command
 import (
 	"net"
 
+	"github.com/spf13/pflag"
+
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
-	"github.com/spf13/pflag"
 )
 
 // installConfigFlags adds flags to the pflag.FlagSet to configure the daemon

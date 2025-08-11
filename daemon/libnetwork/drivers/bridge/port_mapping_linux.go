@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/containerd/log"
+
 	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/libnetwork/netutils"
 	"github.com/moby/moby/v2/daemon/libnetwork/portmapperapi"

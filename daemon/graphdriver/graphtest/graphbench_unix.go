@@ -8,8 +8,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"gotest.tools/v3/assert"
+
+	"github.com/moby/moby/v2/daemon/internal/stringid"
 )
 
 // DriverBenchExists benchmarks calls to exist

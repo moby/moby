@@ -8,8 +8,9 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/chrootarchive"
-	"github.com/moby/moby/v2/pkg/ioutils"
 	"github.com/moby/sys/user"
+
+	"github.com/moby/moby/v2/pkg/ioutils"
 )
 
 // ApplyUncompressedLayer defines the unpack method used by the graph

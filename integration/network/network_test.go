@@ -5,11 +5,12 @@ import (
 	"net/http"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/request"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 // TestNetworkInvalidJSON tests that POST endpoints that expect a body return

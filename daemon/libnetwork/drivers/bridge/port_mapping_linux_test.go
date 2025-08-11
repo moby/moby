@@ -14,6 +14,11 @@ import (
 	"testing"
 
 	"github.com/containerd/log"
+	"github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/moby/moby/v2/daemon/libnetwork/drvregistry"
@@ -26,10 +31,6 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/internal/testutils/netnsutils"
 	"github.com/moby/moby/v2/internal/testutils/storeutils"
-	"github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestPortMappingConfig(t *testing.T) {

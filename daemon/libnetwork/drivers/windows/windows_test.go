@@ -7,11 +7,12 @@ import (
 	"net"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/internal/testutils/storeutils"
-	"gotest.tools/v3/assert"
 )
 
 func testNetwork(networkType string, t *testing.T) {

@@ -9,10 +9,11 @@ import (
 	"sort"
 	"strings"
 
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/versions"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ContainerCreate creates a new container based on the given configuration.

@@ -8,10 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/v2/integration-cli/cli"
-	"github.com/moby/moby/v2/testutil"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/icmd"
+
+	"github.com/moby/moby/v2/integration-cli/cli"
+	"github.com/moby/moby/v2/testutil"
 )
 
 func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {

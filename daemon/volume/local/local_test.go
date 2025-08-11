@@ -8,9 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/internal/idtools"
 	"github.com/moby/sys/mountinfo"
 	"gotest.tools/v3/skip"
+
+	"github.com/moby/moby/v2/daemon/internal/idtools"
 )
 
 func TestGetAddress(t *testing.T) {

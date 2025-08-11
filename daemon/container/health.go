@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+
 	"github.com/moby/moby/api/types/container"
 )
 

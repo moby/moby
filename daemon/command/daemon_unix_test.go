@@ -5,10 +5,11 @@ package command
 import (
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/config"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/fs"
+
+	"github.com/moby/moby/v2/daemon/config"
 )
 
 func TestLoadDaemonCliConfigWithDaemonFlags(t *testing.T) {

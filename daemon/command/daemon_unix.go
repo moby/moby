@@ -11,12 +11,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
+
 	"github.com/moby/moby/v2/daemon"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/libnetwork/portallocator"
 	"github.com/moby/moby/v2/pkg/homedir"
-	"github.com/pkg/errors"
-	"golang.org/x/sys/unix"
 )
 
 func getDefaultDaemonConfigDir() string {

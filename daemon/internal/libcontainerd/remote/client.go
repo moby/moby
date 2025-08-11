@@ -26,10 +26,6 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/typeurl/v2"
-	"github.com/moby/moby/v2/daemon/internal/libcontainerd/queue"
-	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
-	"github.com/moby/moby/v2/errdefs"
-	"github.com/moby/moby/v2/pkg/ioutils"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -38,6 +34,11 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/moby/moby/v2/daemon/internal/libcontainerd/queue"
+	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
+	"github.com/moby/moby/v2/errdefs"
+	"github.com/moby/moby/v2/pkg/ioutils"
 )
 
 // DockerContainerBundlePath is the label key pointing to the container's bundle path

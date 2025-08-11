@@ -16,6 +16,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/go-events"
 	"github.com/gogo/protobuf/proto"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/cluster"
 	"github.com/moby/moby/v2/daemon/libnetwork/discoverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"

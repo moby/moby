@@ -3,11 +3,12 @@ package cluster
 import (
 	"context"
 
+	swarmapi "github.com/moby/swarmkit/v2/api"
+	"google.golang.org/grpc"
+
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/cluster/convert"
 	"github.com/moby/moby/v2/errdefs"
-	swarmapi "github.com/moby/swarmkit/v2/api"
-	"google.golang.org/grpc"
 )
 
 // GetNodes returns a list of all nodes known to a cluster.

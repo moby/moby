@@ -11,10 +11,11 @@ import (
 	"sync"
 
 	"github.com/docker/go-units"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/jsonfilelog/jsonlog"
 	"github.com/moby/moby/v2/daemon/logger/loggerutils"
-	"github.com/pkg/errors"
 )
 
 // Name is the name of the file that the jsonlogger logs to.

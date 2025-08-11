@@ -12,6 +12,8 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"go.opentelemetry.io/otel"
+
 	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
@@ -22,7 +24,6 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/errdefs"
-	"go.opentelemetry.io/otel"
 )
 
 // ByNetworkType sorts a [Endpoint] slice based on the network-type

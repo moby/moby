@@ -27,12 +27,13 @@ import (
 
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/pkg/oci"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/pkg/errors"
 )
 
 func dispatch(ctx context.Context, d dispatchRequest, cmd instructions.Command) (retErr error) {

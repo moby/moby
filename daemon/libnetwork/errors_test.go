@@ -4,9 +4,10 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 func TestErrorInterfaces(t *testing.T) {

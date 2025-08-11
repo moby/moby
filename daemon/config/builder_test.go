@@ -5,9 +5,10 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/moby/moby/api/types/filters"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/fs"
+
+	"github.com/moby/moby/api/types/filters"
 )
 
 func TestBuilderGC(t *testing.T) {

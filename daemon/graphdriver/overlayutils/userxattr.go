@@ -27,8 +27,9 @@ import (
 
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/pkg/parsers/kernel"
 	"github.com/moby/sys/userns"
+
+	"github.com/moby/moby/v2/pkg/parsers/kernel"
 )
 
 // NeedsUserXAttr returns whether overlayfs should be mounted with the "userxattr" mount option.

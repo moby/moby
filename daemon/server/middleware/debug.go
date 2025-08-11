@@ -9,10 +9,11 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"github.com/sirupsen/logrus"
+
 	"github.com/moby/moby/v2/daemon/server/httpstatus"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/pkg/ioutils"
-	"github.com/sirupsen/logrus"
 )
 
 // DebugRequestMiddleware dumps the request to logger

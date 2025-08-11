@@ -4,10 +4,11 @@ import (
 	"net"
 	"sync"
 
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	clustertypes "github.com/moby/moby/v2/daemon/cluster/provider"
-	"github.com/pkg/errors"
 )
 
 // Settings stores configuration details about the daemon network config

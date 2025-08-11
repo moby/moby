@@ -7,9 +7,10 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd/v2/contrib/nvidia"
-	"github.com/moby/moby/v2/daemon/internal/capabilities"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
+
+	"github.com/moby/moby/v2/daemon/internal/capabilities"
 )
 
 // TODO: nvidia should not be hard-coded, and should be a device plugin instead on the daemon object.

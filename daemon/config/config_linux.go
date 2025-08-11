@@ -11,13 +11,14 @@ import (
 
 	"github.com/containerd/cgroups/v3"
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
 	"github.com/moby/moby/v2/pkg/homedir"
-	"github.com/pkg/errors"
 )
 
 const (

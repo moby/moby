@@ -6,12 +6,13 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/moby/moby/v2/daemon/config"
 	"github.com/spf13/pflag"
 	"go.opentelemetry.io/otel"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/fs"
+
+	"github.com/moby/moby/v2/daemon/config"
 )
 
 func defaultOptions(t *testing.T, configFile string) *daemonOptions {

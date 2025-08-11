@@ -6,11 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/v2/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
+
+	"github.com/moby/moby/v2/testutil/daemon"
 )
 
 // Find the policy in, for example "Chain FORWARD (policy ACCEPT)".

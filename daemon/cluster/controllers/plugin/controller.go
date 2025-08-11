@@ -9,6 +9,9 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/gogo/protobuf/proto"
+	"github.com/moby/swarmkit/v2/api"
+	"github.com/pkg/errors"
+
 	plugintypes "github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
@@ -16,8 +19,6 @@ import (
 	"github.com/moby/moby/v2/daemon/pkg/plugin"
 	v2 "github.com/moby/moby/v2/daemon/pkg/plugin/v2"
 	"github.com/moby/moby/v2/daemon/server/backend"
-	"github.com/moby/swarmkit/v2/api"
-	"github.com/pkg/errors"
 )
 
 // Controller is the controller for the plugin backend.

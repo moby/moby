@@ -8,6 +8,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/errdefs/pkg/errhttp"
+
 	"github.com/moby/moby/api/types/versions"
 )
 

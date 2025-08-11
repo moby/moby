@@ -6,12 +6,13 @@ import (
 	"os"
 
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/system"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/moby/v2/daemon/network"
-	"github.com/pkg/errors"
 )
 
 func (daemon *Daemon) setupLinkedContainers(ctr *container.Container) ([]string, error) {

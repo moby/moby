@@ -10,15 +10,16 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	gogotypes "github.com/gogo/protobuf/types"
-	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/events"
-	executorpkg "github.com/moby/moby/v2/daemon/cluster/executor"
-	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/swarmkit/v2/agent/exec"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/pkg/errors"
 	"golang.org/x/time/rate"
+
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/events"
+	executorpkg "github.com/moby/moby/v2/daemon/cluster/executor"
+	"github.com/moby/moby/v2/daemon/libnetwork"
 )
 
 const defaultGossipConvergeDelay = 2 * time.Second

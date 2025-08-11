@@ -5,12 +5,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/moby/moby/v2/daemon/internal/layer"
-	"github.com/moby/moby/v2/pkg/longpath"
 	"github.com/opencontainers/image-spec/identity"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/moby/moby/v2/daemon/internal/layer"
+	"github.com/moby/moby/v2/pkg/longpath"
 )
 
 func (s *snapshotter) GetDiffIDs(ctx context.Context, key string) ([]layer.DiffID, error) {

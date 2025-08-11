@@ -23,6 +23,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/moby/sys/mountinfo"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
+
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/stringid"
@@ -33,12 +40,6 @@ import (
 	"github.com/moby/moby/v2/testutil"
 	testdaemon "github.com/moby/moby/v2/testutil/daemon"
 	"github.com/moby/moby/v2/testutil/fakecontext"
-	"github.com/moby/sys/mountinfo"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/icmd"
-	"gotest.tools/v3/poll"
-	"gotest.tools/v3/skip"
 )
 
 type DockerCLIRunSuite struct {

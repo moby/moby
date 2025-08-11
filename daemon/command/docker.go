@@ -7,10 +7,11 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/moby/buildkit/util/apicaps"
+	"github.com/spf13/cobra"
+
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/dockerversion"
-	"github.com/spf13/cobra"
 )
 
 var honorXDG bool

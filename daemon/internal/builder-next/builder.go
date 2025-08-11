@@ -19,6 +19,14 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/util/entitlements"
 	"github.com/moby/buildkit/util/tracing"
+	"github.com/moby/sys/user"
+	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+	grpcmetadata "google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
+	"tags.cncf.io/container-device-interface/pkg/cdi"
+
 	"github.com/moby/moby/api/pkg/streamformatter"
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
@@ -34,13 +42,6 @@ import (
 	"github.com/moby/moby/v2/daemon/pkg/opts"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/moby/sys/user"
-	"github.com/pkg/errors"
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
-	grpcmetadata "google.golang.org/grpc/metadata"
-	"google.golang.org/protobuf/proto"
-	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
 type errMultipleFilterValues struct{}

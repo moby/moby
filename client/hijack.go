@@ -9,8 +9,9 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/moby/moby/api/types/versions"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
+	"github.com/moby/moby/api/types/versions"
 )
 
 // postHijacked sends a POST request and hijacks the connection.

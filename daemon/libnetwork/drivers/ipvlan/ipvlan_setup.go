@@ -9,8 +9,9 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/libnetwork/ns"
 	"github.com/vishvananda/netlink"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/ns"
 )
 
 const (

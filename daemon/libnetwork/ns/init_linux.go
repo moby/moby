@@ -7,9 +7,10 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/vishvananda/netns"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/modprobe"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
-	"github.com/vishvananda/netns"
 )
 
 var (

@@ -3,9 +3,10 @@ package container
 import (
 	"context"
 
-	executorpkg "github.com/moby/moby/v2/daemon/cluster/executor"
 	"github.com/moby/swarmkit/v2/agent/exec"
 	"github.com/moby/swarmkit/v2/api"
+
+	executorpkg "github.com/moby/moby/v2/daemon/cluster/executor"
 )
 
 // networkAttacherController implements agent.Controller against docker's API.

@@ -6,8 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/v2/pkg/plugingetter"
 	"gotest.tools/v3/assert"
+
+	"github.com/moby/moby/v2/pkg/plugingetter"
 )
 
 func TestMiddleware(t *testing.T) {

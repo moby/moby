@@ -45,6 +45,10 @@ import (
 	"github.com/moby/buildkit/worker"
 	"github.com/moby/buildkit/worker/containerd"
 	"github.com/moby/buildkit/worker/label"
+	"github.com/pkg/errors"
+	bolt "go.etcd.io/bbolt"
+	"go.opentelemetry.io/otel/sdk/trace"
+
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/v2/daemon/config"
@@ -56,9 +60,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/builder-next/imagerefchecker"
 	mobyworker "github.com/moby/moby/v2/daemon/internal/builder-next/worker"
 	wlabel "github.com/moby/moby/v2/daemon/internal/builder-next/worker/label"
-	"github.com/pkg/errors"
-	bolt "go.etcd.io/bbolt"
-	"go.opentelemetry.io/otel/sdk/trace"
 )
 
 func newController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control.Controller, error) {

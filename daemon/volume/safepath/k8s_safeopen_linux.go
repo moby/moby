@@ -23,8 +23,9 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/internal/unix_noeintr"
 	"golang.org/x/sys/unix"
+
+	"github.com/moby/moby/v2/daemon/internal/unix_noeintr"
 )
 
 // kubernetesSafeOpen open path formed by concatenation of the base directory

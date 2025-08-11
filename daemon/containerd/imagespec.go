@@ -4,10 +4,11 @@ import (
 	"slices"
 
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/dockerversion"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // dockerOciImageToDockerImagePartial creates an image.Image from the imagespec.DockerOCIImage

@@ -3,8 +3,9 @@ package mounts
 import (
 	"fmt"
 
-	"github.com/moby/moby/api/types/mount"
 	"github.com/pkg/errors"
+
+	"github.com/moby/moby/api/types/mount"
 )
 
 type errMountConfig struct {

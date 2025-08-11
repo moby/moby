@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
+
+	"github.com/moby/moby/v2/errdefs"
 )
 
 var volumeBucketName = []byte("volumes")

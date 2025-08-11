@@ -5,9 +5,10 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/status"
+
+	"github.com/moby/moby/v2/errdefs"
 )
 
 func isNotRunning(err error) bool {

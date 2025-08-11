@@ -16,10 +16,11 @@ import (
 
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/logger"
-	"github.com/moby/moby/v2/pkg/pools"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/moby/moby/v2/daemon/logger"
+	"github.com/moby/moby/v2/pkg/pools"
 )
 
 // rotateFileMetadata is a metadata of the gzip header of the compressed log file

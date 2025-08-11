@@ -17,17 +17,18 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/moby/moby/client"
-	"github.com/moby/moby/v2/integration-cli/cli"
-	"github.com/moby/moby/v2/integration-cli/cli/build"
-	"github.com/moby/moby/v2/pkg/sysinfo"
-	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/profiles/seccomp"
 	"github.com/moby/sys/mount"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/skip"
+
+	"github.com/moby/moby/client"
+	"github.com/moby/moby/v2/integration-cli/cli"
+	"github.com/moby/moby/v2/integration-cli/cli/build"
+	"github.com/moby/moby/v2/pkg/sysinfo"
+	"github.com/moby/moby/v2/testutil"
 )
 
 // #6509

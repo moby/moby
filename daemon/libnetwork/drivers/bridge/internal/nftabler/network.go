@@ -9,10 +9,11 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
+	"go.opentelemetry.io/otel"
+
 	"github.com/moby/moby/v2/daemon/internal/cleanups"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
-	"go.opentelemetry.io/otel"
 )
 
 type network struct {

@@ -5,8 +5,9 @@ import (
 	"testing"
 
 	"github.com/docker/go-connections/nat"
-	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
+
+	"github.com/moby/moby/api/types/container"
 )
 
 func TestLinkNaming(t *testing.T) {
