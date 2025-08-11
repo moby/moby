@@ -4,12 +4,14 @@ package overlay
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"net"
+	"net/netip"
 	"syscall"
 
 	"github.com/containerd/log"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/internal/netiputil"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
@@ -22,18 +24,24 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return err
 	}
 
-	n := d.network(nid)
-	if n == nil {
-		return fmt.Errorf("could not find network with id %s", nid)
+	n, unlock, err := d.lockNetwork(nid)
+	if err != nil {
+		return err
 	}
+	defer unlock()
 
-	ep := n.endpoint(eid)
+	ep := n.endpoints[eid]
 	if ep == nil {
 		return fmt.Errorf("could not find endpoint with id %s", eid)
 	}
 
-	if n.secure && len(d.keys) == 0 {
-		return fmt.Errorf("cannot join secure network: encryption keys not present")
+	if n.secure {
+		d.encrMu.Lock()
+		nkeys := len(d.keys)
+		d.encrMu.Unlock()
+		if nkeys == 0 {
+			return errors.New("cannot join secure network: encryption keys not present")
+		}
 	}
 
 	nlh := ns.NlHandle()
@@ -50,8 +58,6 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	if err := n.joinSandbox(s, true); err != nil {
 		return fmt.Errorf("network sandbox join failed: %v", err)
 	}
-
-	sbox := n.sandbox()
 
 	overlayIfName, containerIfName, err := createVethPair()
 	if err != nil {
@@ -74,7 +80,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return err
 	}
 
-	if err = sbox.AddInterface(overlayIfName, "veth", osl.WithMaster(s.brName)); err != nil {
+	if err = n.sbox.AddInterface(overlayIfName, "veth", osl.WithMaster(s.brName)); err != nil {
 		return fmt.Errorf("could not add veth pair inside the network sandbox: %v", err)
 	}
 
@@ -87,7 +93,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return err
 	}
 
-	if err = nlh.LinkSetHardwareAddr(veth, ep.mac); err != nil {
+	if err = nlh.LinkSetHardwareAddr(veth, ep.mac.AsSlice()); err != nil {
 		return fmt.Errorf("could not set mac address (%v) to the container interface: %v", ep.mac, err)
 	}
 
@@ -95,7 +101,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		if sub == s {
 			continue
 		}
-		if err = jinfo.AddStaticRoute(sub.subnetIP, types.NEXTHOP, s.gwIP.IP); err != nil {
+		if err = jinfo.AddStaticRoute(netiputil.ToIPNet(sub.subnetIP), types.NEXTHOP, s.gwIP.Addr().AsSlice()); err != nil {
 			log.G(context.TODO()).Errorf("Adding subnet %s static route in network %q failed\n", s.subnetIP, n.id)
 		}
 	}
@@ -107,10 +113,8 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		}
 	}
 
-	d.peerAdd(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac, d.advertiseAddress, false, false, true)
-
-	if err = d.checkEncryption(nid, nil, true, true); err != nil {
-		log.G(context.TODO()).Warn(err)
+	if err := n.peerAdd(eid, ep.addr, ep.mac, netip.Addr{}); err != nil {
+		return fmt.Errorf("overlay: failed to add local endpoint to network peer db: %w", err)
 	}
 
 	buf, err := proto.Marshal(&PeerRecord{
@@ -122,7 +126,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return err
 	}
 
-	if err := jinfo.AddTableEntry(ovPeerTable, eid, buf); err != nil {
+	if err := jinfo.AddTableEntry(OverlayPeerTable, eid, buf); err != nil {
 		log.G(context.TODO()).Errorf("overlay: Failed adding table entry to joininfo: %v", err)
 	}
 
@@ -130,7 +134,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 }
 
 func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
-	if tablename != ovPeerTable {
+	if tablename != OverlayPeerTable {
 		log.G(context.TODO()).Errorf("DecodeTableEntry: unexpected table name %s", tablename)
 		return "", nil
 	}
@@ -146,50 +150,74 @@ func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (s
 	}
 }
 
-func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
-	if tableName != ovPeerTable {
+func (d *driver) EventNotify(nid, tableName, key string, prev, value []byte) {
+	if tableName != OverlayPeerTable {
 		log.G(context.TODO()).Errorf("Unexpected table notification for table %s received", tableName)
 		return
 	}
 
 	eid := key
 
-	var peer PeerRecord
-	if err := proto.Unmarshal(value, &peer); err != nil {
-		log.G(context.TODO()).Errorf("Failed to unmarshal peer record: %v", err)
+	var prevPeer, newPeer *Peer
+	if prev != nil {
+		var err error
+		prevPeer, err = UnmarshalPeerRecord(prev)
+		if err != nil {
+			log.G(context.TODO()).WithError(err).Error("Failed to unmarshal previous peer record")
+		} else if prevPeer.TunnelEndpointIP == d.advertiseAddress {
+			// Ignore local peers. We don't add them to the VXLAN
+			// FDB so don't need to remove them.
+			prevPeer = nil
+		}
+	}
+	if value != nil {
+		var err error
+		newPeer, err = UnmarshalPeerRecord(value)
+		if err != nil {
+			log.G(context.TODO()).WithError(err).Error("Failed to unmarshal peer record")
+		} else if newPeer.TunnelEndpointIP == d.advertiseAddress {
+			newPeer = nil
+		}
+	}
+
+	if prevPeer == nil && newPeer == nil {
+		// Nothing to do! Either the event was for a local peer,
+		// or unmarshaling failed.
+		return
+	}
+	if prevPeer != nil && newPeer != nil && *prevPeer == *newPeer {
+		// The update did not materially change the FDB entry.
 		return
 	}
 
-	// Ignore local peers. We already know about them and they
-	// should not be added to vxlan fdb.
-	if net.ParseIP(peer.TunnelEndpointIP).Equal(d.advertiseAddress) {
-		return
-	}
-
-	addr, err := types.ParseCIDR(peer.EndpointIP)
+	n, unlock, err := d.lockNetwork(nid)
 	if err != nil {
-		log.G(context.TODO()).Errorf("Invalid peer IP %s received in event notify", peer.EndpointIP)
+		log.G(context.TODO()).WithFields(log.Fields{
+			"error": err,
+			"nid":   nid,
+		}).Error("overlay: handling peer event")
 		return
 	}
+	defer unlock()
 
-	mac, err := net.ParseMAC(peer.EndpointMAC)
-	if err != nil {
-		log.G(context.TODO()).Errorf("Invalid mac %s received in event notify", peer.EndpointMAC)
-		return
+	if prevPeer != nil {
+		if err := n.peerDelete(eid, prevPeer.EndpointIP, prevPeer.EndpointMAC, prevPeer.TunnelEndpointIP); err != nil {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"error": err,
+				"nid":   n.id,
+				"peer":  prevPeer,
+			}).Warn("overlay: failed to delete peer entry")
+		}
 	}
-
-	vtep := net.ParseIP(peer.TunnelEndpointIP)
-	if vtep == nil {
-		log.G(context.TODO()).Errorf("Invalid VTEP %s received in event notify", peer.TunnelEndpointIP)
-		return
+	if newPeer != nil {
+		if err := n.peerAdd(eid, newPeer.EndpointIP, newPeer.EndpointMAC, newPeer.TunnelEndpointIP); err != nil {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"error": err,
+				"nid":   n.id,
+				"peer":  newPeer,
+			}).Warn("overlay: failed to add peer entry")
+		}
 	}
-
-	if etype == driverapi.Delete {
-		d.peerDelete(nid, eid, addr.IP, addr.Mask, mac, vtep, false)
-		return
-	}
-
-	d.peerAdd(nid, eid, addr.IP, addr.Mask, mac, vtep, false, false, false)
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
@@ -198,18 +226,21 @@ func (d *driver) Leave(nid, eid string) error {
 		return err
 	}
 
-	n := d.network(nid)
-	if n == nil {
-		return fmt.Errorf("could not find network with id %s", nid)
+	n, unlock, err := d.lockNetwork(nid)
+	if err != nil {
+		return err
 	}
+	defer unlock()
 
-	ep := n.endpoint(eid)
+	ep := n.endpoints[eid]
 
 	if ep == nil {
 		return types.InternalMaskableErrorf("could not find endpoint with id %s", eid)
 	}
 
-	d.peerDelete(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac, d.advertiseAddress, true)
+	if err := n.peerDelete(eid, ep.addr, ep.mac, netip.Addr{}); err != nil {
+		return fmt.Errorf("overlay: failed to delete local endpoint eid:%s from network peer db: %w", eid, err)
+	}
 
 	n.leaveSandbox()
 

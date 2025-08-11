@@ -214,8 +214,11 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 		return isBulkSync && network.inSync && e.reapTime > nDB.config.reapEntryInterval/6
 	}
 
-	var op opType
-	value := tEvent.Value
+	event := WatchEvent{
+		Table:     tEvent.TableName,
+		NetworkID: tEvent.NetworkID,
+		Key:       tEvent.Key,
+	}
 	switch tEvent.Type {
 	case TableEventTypeCreate, TableEventTypeUpdate:
 		// Gossip messages could arrive out-of-order so it is possible
@@ -223,22 +226,21 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 		// event. The local watchers should not need to care about such
 		// nuances. Broadcast events to watchers based only on what
 		// changed in the local NetworkDB state.
-		op = opCreate
+		event.Value = tEvent.Value
 		if entryPresent && !prev.deleting {
-			op = opUpdate
+			event.Prev = prev.value
 		}
 	case TableEventTypeDelete:
 		if !entryPresent || prev.deleting {
 			goto SkipBroadcast
 		}
-		op = opDelete
 		// Broadcast the value most recently observed by watchers,
 		// which may be different from the value in the DELETE event
 		// (e.g. if the DELETE event was received out-of-order).
-		value = prev.value
+		event.Prev = prev.value
 	}
 
-	nDB.broadcaster.Write(makeEvent(op, tEvent.TableName, tEvent.NetworkID, tEvent.Key, value))
+	nDB.broadcaster.Write(event)
 SkipBroadcast:
 	return network.inSync
 }
