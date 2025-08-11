@@ -354,19 +354,19 @@ func (i *ImageService) getSameReferences(ctx context.Context, named reference.Na
 				} else if named.Name() != repoRef.Name() {
 					continue
 				} else if !allTags {
-					if tagged, ok := repoRef.(reference.Tagged); ok {
-						if tag == "" {
-							tag = tagged.Tag()
-						} else if tag != tagged.Tag() {
-							// Same repo, different tag, do not include digest refs
-							digestRefs = nil
-							continue
-						}
-					} else {
+					tagged, ok := repoRef.(reference.Tagged)
+					if !ok {
 						if digestRefs != nil {
 							digestRefs = append(digestRefs, ref)
 						}
 						// Add digest refs at end if no other tags in the same name
+						continue
+					}
+					if tag == "" {
+						tag = tagged.Tag()
+					} else if tag != tagged.Tag() {
+						// Same repo, different tag, do not include digest refs
+						digestRefs = nil
 						continue
 					}
 				}
