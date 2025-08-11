@@ -58,8 +58,8 @@ func TestStateRunStop(t *testing.T) {
 		if s.Pid != i {
 			t.Fatalf("Pid %v, expected %v", s.Pid, i)
 		}
-		if s.ExitCode() != 0 {
-			t.Fatalf("ExitCode %v, expected 0", s.ExitCode())
+		if s.ExitCode != 0 {
+			t.Fatalf("ExitCode %v, expected 0", s.ExitCode)
 		}
 
 		// Now that it's running, a wait with WaitConditionNotRunning
@@ -78,8 +78,8 @@ func TestStateRunStop(t *testing.T) {
 		if s.IsRunning() {
 			t.Fatal("State is running")
 		}
-		if s.ExitCode() != i {
-			t.Fatalf("ExitCode %v, expected %v", s.ExitCode(), i)
+		if s.ExitCode != i {
+			t.Fatalf("ExitCode %v, expected %v", s.ExitCode, i)
 		}
 		if s.Pid != 0 {
 			t.Fatalf("Pid %v, expected 0", s.Pid)

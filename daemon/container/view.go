@@ -324,7 +324,7 @@ func (v *View) transform(ctr *Container) *Snapshot {
 		Health:       health,
 		Running:      ctr.State.Running,
 		Paused:       ctr.State.Paused,
-		ExitCode:     ctr.State.ExitCode(),
+		ExitCode:     ctr.State.ExitCode,
 	}
 
 	if snapshot.Names == nil {
