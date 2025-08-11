@@ -4,9 +4,7 @@ import (
 	"context"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/libnetwork/portmapperapi"
-	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 const driverName = "routed"
@@ -29,9 +27,11 @@ func (pm PortMapper) MapPorts(ctx context.Context, reqs []portmapperapi.PortBind
 	}
 
 	res := make([]portmapperapi.PortBinding, 0, len(reqs))
-	bindings := make([]types.PortBinding, 0, len(reqs))
 	for _, c := range reqs {
-		pb := portmapperapi.PortBinding{PortBinding: c.Copy()}
+		pb := portmapperapi.PortBinding{
+			PortBinding: c.Copy(),
+			Forwarding:  true,
+		}
 		if pb.HostPort != 0 || pb.HostPortEnd != 0 {
 			log.G(ctx).WithFields(log.Fields{"mapping": pb}).Infof(
 				"Host port ignored, because NAT is disabled")
@@ -39,11 +39,6 @@ func (pm PortMapper) MapPorts(ctx context.Context, reqs []portmapperapi.PortBind
 			pb.HostPortEnd = 0
 		}
 		res = append(res, pb)
-		bindings = append(bindings, pb.PortBinding)
-	}
-
-	if err := fwn.AddPorts(ctx, bindings); err != nil {
-		return nil, err
 	}
 
 	return res, nil
@@ -51,7 +46,5 @@ func (pm PortMapper) MapPorts(ctx context.Context, reqs []portmapperapi.PortBind
 
 // UnmapPorts removes firewall rules allowing direct remote access to the pbs.
 func (pm PortMapper) UnmapPorts(ctx context.Context, pbs []portmapperapi.PortBinding, fwn portmapperapi.Firewaller) error {
-	return fwn.DelPorts(ctx, sliceutil.Map(pbs, func(pb portmapperapi.PortBinding) types.PortBinding {
-		return pb.PortBinding
-	}))
+	return nil
 }
