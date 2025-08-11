@@ -556,7 +556,7 @@ var newFirewaller = func(ctx context.Context, config firewaller.Config) (firewal
 		// cleaner can't clean up network or port-specific rules that may have been added
 		// to iptables built-in chains. So, if cleanup is needed, give the cleaner to
 		// the nftabler. Then, it'll use it to delete old rules as networks are restored.
-		fw.(firewaller.FirewallCleanerSetter).SetFirewallCleaner(iptabler.NewCleaner(ctx, config))
+		fw.SetFirewallCleaner(iptabler.NewCleaner(ctx, config))
 		return fw, nil
 	}
 
@@ -880,14 +880,28 @@ func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration
 			config.EnableIPv4 && d.config.EnableIPForwarding,
 			"setupIPv4Forwarding",
 			func(*networkConfiguration, *bridgeInterface) error {
-				return setupIPv4Forwarding(d.firewaller, d.config.EnableIPTables && !d.config.DisableFilterForwardDrop)
+				ffd, ok := d.firewaller.(filterForwardDropper)
+				if !ok {
+					// The firewaller can't drop non-Docker forwarding. It's up to the user to enable
+					// forwarding on their host, and configure their firewall appropriately.
+					return checkIPv4Forwarding()
+				}
+				// Enable forwarding and set a default-drop forwarding policy if necessary.
+				return setupIPv4Forwarding(ffd, d.config.EnableIPTables && !d.config.DisableFilterForwardDrop)
 			},
 		},
 		{
 			config.EnableIPv6 && d.config.EnableIPForwarding,
 			"setupIPv6Forwarding",
 			func(*networkConfiguration, *bridgeInterface) error {
-				return setupIPv6Forwarding(d.firewaller, d.config.EnableIP6Tables && !d.config.DisableFilterForwardDrop)
+				ffd, ok := d.firewaller.(filterForwardDropper)
+				if !ok {
+					// The firewaller can't drop non-Docker forwarding. It's up to the user to enable
+					// forwarding on their host, and configure their firewall appropriately.
+					return checkIPv6Forwarding()
+				}
+				// Enable forwarding and set a default-drop forwarding policy if necessary.
+				return setupIPv6Forwarding(ffd, d.config.EnableIP6Tables && !d.config.DisableFilterForwardDrop)
 			},
 		},
 
