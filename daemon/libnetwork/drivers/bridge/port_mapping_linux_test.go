@@ -45,7 +45,6 @@ func TestPortMappingConfig(t *testing.T) {
 
 	config := &configuration{
 		EnableIPTables: true,
-		Hairpin:        true,
 	}
 	genericOption := make(map[string]any)
 	genericOption[netlabel.GenericData] = config
