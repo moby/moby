@@ -137,7 +137,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 		OOMKilled:  container.State.OOMKilled,
 		Dead:       container.State.Dead,
 		Pid:        container.State.Pid,
-		ExitCode:   container.State.ExitCode(),
+		ExitCode:   container.State.ExitCode,
 		Error:      container.State.ErrorMsg,
 		StartedAt:  container.State.StartedAt.Format(time.RFC3339Nano),
 		FinishedAt: container.State.FinishedAt.Format(time.RFC3339Nano),
