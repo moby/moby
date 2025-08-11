@@ -21,7 +21,7 @@ func NewPortMapper() PortMapper {
 }
 
 // MapPorts sets up firewall rules to allow direct remote access to pbs.
-func (pm PortMapper) MapPorts(ctx context.Context, reqs []portmapperapi.PortBindingReq, fwn portmapperapi.Firewaller) ([]portmapperapi.PortBinding, error) {
+func (pm PortMapper) MapPorts(ctx context.Context, reqs []portmapperapi.PortBindingReq) ([]portmapperapi.PortBinding, error) {
 	if len(reqs) == 0 {
 		return nil, nil
 	}
@@ -45,6 +45,6 @@ func (pm PortMapper) MapPorts(ctx context.Context, reqs []portmapperapi.PortBind
 }
 
 // UnmapPorts removes firewall rules allowing direct remote access to the pbs.
-func (pm PortMapper) UnmapPorts(ctx context.Context, pbs []portmapperapi.PortBinding, fwn portmapperapi.Firewaller) error {
+func (pm PortMapper) UnmapPorts(ctx context.Context, pbs []portmapperapi.PortBinding) error {
 	return nil
 }
