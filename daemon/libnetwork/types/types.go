@@ -389,21 +389,6 @@ type MaskableError interface {
 	Maskable()
 }
 
-// InvalidParameterError is an interface for errors originated by a bad request
-type InvalidParameterError = errdefs.ErrInvalidParameter
-
-// NotFoundError is an interface for errors raised because a needed resource is not available
-type NotFoundError = errdefs.ErrNotFound
-
-// ForbiddenError is an interface for errors which denote a valid request that cannot be honored
-type ForbiddenError = errdefs.ErrForbidden
-
-// UnavailableError is an interface for errors returned when the required service is not available
-type UnavailableError = errdefs.ErrUnavailable
-
-// NotImplementedError is an interface for errors raised because of requested functionality is not yet implemented
-type NotImplementedError = errdefs.ErrNotImplemented
-
 // InternalError is an interface for errors raised because of an internal error
 type InternalError interface {
 	// Internal makes implementer into InternalError type
@@ -414,27 +399,27 @@ type InternalError interface {
  * Well-known Error Formatters
  ******************************/
 
-// InvalidParameterErrorf creates an instance of InvalidParameterError
+// InvalidParameterErrorf creates an instance of [errdefs.ErrInvalidParameter].
 func InvalidParameterErrorf(format string, params ...any) error {
 	return errdefs.InvalidParameter(fmt.Errorf(format, params...))
 }
 
-// NotFoundErrorf creates an instance of NotFoundError
+// NotFoundErrorf creates an instance of [errdefs.ErrNotFound].
 func NotFoundErrorf(format string, params ...any) error {
 	return errdefs.NotFound(fmt.Errorf(format, params...))
 }
 
-// ForbiddenErrorf creates an instance of ForbiddenError
+// ForbiddenErrorf creates an instance of [errdefs.ErrForbidden].
 func ForbiddenErrorf(format string, params ...any) error {
 	return errdefs.Forbidden(fmt.Errorf(format, params...))
 }
 
-// UnavailableErrorf creates an instance of UnavailableError
+// UnavailableErrorf creates an instance of [errdefs.ErrUnavailable]
 func UnavailableErrorf(format string, params ...any) error {
 	return errdefs.Unavailable(fmt.Errorf(format, params...))
 }
 
-// NotImplementedErrorf creates an instance of NotImplementedError
+// NotImplementedErrorf creates an instance of [errdefs.ErrNotImplemented].
 func NotImplementedErrorf(format string, params ...any) error {
 	return errdefs.NotImplemented(fmt.Errorf(format, params...))
 }

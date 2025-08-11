@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
@@ -1141,7 +1142,7 @@ func (n *Network) deleteNetwork() error {
 
 	if err := d.DeleteNetwork(n.ID()); err != nil {
 		// Forbidden Errors should be honored
-		if _, ok := err.(types.ForbiddenError); ok {
+		if cerrdefs.IsPermissionDenied(err) {
 			return err
 		}
 
