@@ -98,7 +98,15 @@ func (i *ImageService) CountImages(ctx context.Context) int {
 		return 0
 	}
 
-	return len(imgs)
+	uniqueImages := map[digest.Digest]struct{}{}
+	for _, i := range imgs {
+		dgst := i.Target().Digest
+		if _, ok := uniqueImages[dgst]; !ok {
+			uniqueImages[dgst] = struct{}{}
+		}
+	}
+
+	return len(uniqueImages)
 }
 
 // LayerStoreStatus returns the status for each layer store
