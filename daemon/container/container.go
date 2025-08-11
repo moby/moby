@@ -536,7 +536,7 @@ func (container *Container) GetExecIDs() []string {
 // This is based on the container's restart policy.
 func (container *Container) ShouldRestart() bool {
 	shouldRestart, _, _ := container.RestartManager().ShouldRestart(
-		uint32(container.State.ExitCode()),
+		uint32(container.State.ExitCode),
 		container.HasBeenManuallyStopped,
 		container.State.FinishedAt.Sub(container.State.StartedAt),
 	)
