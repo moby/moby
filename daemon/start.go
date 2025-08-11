@@ -107,7 +107,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		if retErr != nil {
 			container.State.SetError(retErr)
 			// if no one else has set it, make sure we don't leave it at zero
-			if container.State.ExitCode() == 0 {
+			if container.State.ExitCode == 0 {
 				container.State.SetExitCode(exitUnknown)
 			}
 			if err := container.CheckpointTo(context.WithoutCancel(ctx), daemon.containersReplica); err != nil {
