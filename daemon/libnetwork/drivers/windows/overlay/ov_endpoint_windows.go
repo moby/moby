@@ -262,7 +262,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
 		// Return a copy of the operational data
 		pmc := make([]types.PortBinding, 0, len(ep.portMapping))
 		for _, pm := range ep.portMapping {
-			pmc = append(pmc, pm.GetCopy())
+			pmc = append(pmc, pm.Copy())
 		}
 		data[netlabel.PortMap] = pmc
 	}

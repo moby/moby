@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"slices"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
@@ -142,26 +143,32 @@ func (epi *EndpointInterface) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (epi *EndpointInterface) CopyTo(dstEpi *EndpointInterface) error {
-	dstEpi.mac = types.GetMacCopy(epi.mac)
-	dstEpi.addr = types.GetIPNetCopy(epi.addr)
-	dstEpi.addrv6 = types.GetIPNetCopy(epi.addrv6)
-	dstEpi.srcName = epi.srcName
-	dstEpi.dstPrefix = epi.dstPrefix
-	dstEpi.dstName = epi.dstName
-	dstEpi.v4PoolID = epi.v4PoolID
-	dstEpi.v6PoolID = epi.v6PoolID
-	dstEpi.createdInContainer = epi.createdInContainer
-	if len(epi.llAddrs) != 0 {
-		dstEpi.llAddrs = make([]*net.IPNet, 0, len(epi.llAddrs))
-		dstEpi.llAddrs = append(dstEpi.llAddrs, epi.llAddrs...)
+// Copy returns a deep copy of [EndpointInterface]. If the receiver is nil,
+// Copy returns nil.
+func (epi *EndpointInterface) Copy() *EndpointInterface {
+	if epi == nil {
+		return nil
 	}
 
+	var routes []*net.IPNet
 	for _, route := range epi.routes {
-		dstEpi.routes = append(dstEpi.routes, types.GetIPNetCopy(route))
+		routes = append(routes, types.GetIPNetCopy(route))
 	}
 
-	return nil
+	return &EndpointInterface{
+		mac:                slices.Clone(epi.mac),
+		addr:               types.GetIPNetCopy(epi.addr),
+		addrv6:             types.GetIPNetCopy(epi.addrv6),
+		llAddrs:            slices.Clone(epi.llAddrs),
+		srcName:            epi.srcName,
+		dstPrefix:          epi.dstPrefix,
+		dstName:            epi.dstName,
+		routes:             routes,
+		v4PoolID:           epi.v4PoolID,
+		v6PoolID:           epi.v6PoolID,
+		netnsPath:          epi.netnsPath,
+		createdInContainer: epi.createdInContainer,
+	}
 }
 
 type endpointJoinInfo struct {
@@ -224,7 +231,7 @@ func (epi *EndpointInterface) SetMacAddress(mac net.HardwareAddr) error {
 	if mac == nil {
 		return types.InvalidParameterErrorf("tried to set nil MAC address to endpoint interface")
 	}
-	epi.mac = types.GetMacCopy(mac)
+	epi.mac = slices.Clone(mac)
 	return nil
 }
 
@@ -248,7 +255,7 @@ func setAddress(ifaceAddr **net.IPNet, address *net.IPNet) error {
 
 // MacAddress returns the MAC address assigned to the endpoint.
 func (epi *EndpointInterface) MacAddress() net.HardwareAddr {
-	return types.GetMacCopy(epi.mac)
+	return slices.Clone(epi.mac)
 }
 
 // Address returns the IPv4 address assigned to the endpoint.
@@ -371,7 +378,7 @@ func (ep *Endpoint) Gateway() net.IP {
 		return net.IP{}
 	}
 
-	return types.GetIPCopy(ep.joinInfo.gw)
+	return slices.Clone(ep.joinInfo.gw)
 }
 
 // GatewayIPv6 returns the IPv6 gateway assigned by the driver.
@@ -384,7 +391,7 @@ func (ep *Endpoint) GatewayIPv6() net.IP {
 		return net.IP{}
 	}
 
-	return types.GetIPCopy(ep.joinInfo.gw6)
+	return slices.Clone(ep.joinInfo.gw6)
 }
 
 // SetGateway sets the default IPv4 gateway when a container joins the endpoint.
@@ -392,7 +399,7 @@ func (ep *Endpoint) SetGateway(gw net.IP) error {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
-	ep.joinInfo.gw = types.GetIPCopy(gw)
+	ep.joinInfo.gw = slices.Clone(gw)
 	return nil
 }
 
@@ -401,7 +408,7 @@ func (ep *Endpoint) SetGatewayIPv6(gw6 net.IP) error {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
-	ep.joinInfo.gw6 = types.GetIPCopy(gw6)
+	ep.joinInfo.gw6 = slices.Clone(gw6)
 	return nil
 }
 
@@ -503,13 +510,16 @@ func (epj *endpointJoinInfo) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (epj *endpointJoinInfo) CopyTo(dstEpj *endpointJoinInfo) error {
-	dstEpj.disableGatewayService = epj.disableGatewayService
-	dstEpj.StaticRoutes = make([]*types.StaticRoute, len(epj.StaticRoutes))
-	copy(dstEpj.StaticRoutes, epj.StaticRoutes)
-	dstEpj.driverTableEntries = make([]*tableEntry, len(epj.driverTableEntries))
-	copy(dstEpj.driverTableEntries, epj.driverTableEntries)
-	dstEpj.gw = types.GetIPCopy(epj.gw)
-	dstEpj.gw6 = types.GetIPCopy(epj.gw6)
-	return nil
+func (epj *endpointJoinInfo) Copy() *endpointJoinInfo {
+	if epj == nil {
+		return nil
+	}
+
+	return &endpointJoinInfo{
+		gw:                    slices.Clone(epj.gw),
+		gw6:                   slices.Clone(epj.gw6),
+		StaticRoutes:          slices.Clone(epj.StaticRoutes),
+		driverTableEntries:    slices.Clone(epj.driverTableEntries),
+		disableGatewayService: epj.disableGatewayService,
+	}
 }

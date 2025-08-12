@@ -1399,19 +1399,14 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
 	m := make(map[string]any)
 
 	if ep.extConnConfig != nil && ep.extConnConfig.ExposedPorts != nil {
-		// Return a copy of the config data
-		epc := make([]types.TransportPort, 0, len(ep.extConnConfig.ExposedPorts))
-		for _, tp := range ep.extConnConfig.ExposedPorts {
-			epc = append(epc, tp.GetCopy())
-		}
-		m[netlabel.ExposedPorts] = epc
+		m[netlabel.ExposedPorts] = slices.Clone(ep.extConnConfig.ExposedPorts)
 	}
 
 	if ep.portMapping != nil {
 		// Return a copy of the operational data
 		pmc := make([]types.PortBinding, 0, len(ep.portMapping))
 		for _, pm := range ep.portMapping {
-			pmc = append(pmc, pm.PortBinding.GetCopy())
+			pmc = append(pmc, pm.PortBinding.Copy())
 		}
 		m[netlabel.PortMap] = pmc
 	}
@@ -1643,7 +1638,7 @@ func (ep *bridgeEndpoint) trimPortBindings(ctx context.Context, n *bridgeNetwork
 	undo := func() []portmapperapi.PortBinding {
 		pbReq := make([]portmapperapi.PortBindingReq, 0, len(toDrop))
 		for _, pb := range toDrop {
-			pbReq = append(pbReq, portmapperapi.PortBindingReq{PortBinding: pb.GetCopy()})
+			pbReq = append(pbReq, portmapperapi.PortBindingReq{PortBinding: pb.Copy()})
 		}
 		pbs, err := n.addPortMappings(ctx, ep, pbReq, n.config.DefaultBindingIP, ep.portBindingState)
 		if err != nil {
@@ -1895,7 +1890,7 @@ func parseConnectivityOptions(cOptions map[string]any) (*connectivityConfigurati
 		if pbs, ok := opt.([]types.PortBinding); ok {
 			cc.PortBindings = sliceutil.Map(pbs, func(pb types.PortBinding) portmapperapi.PortBindingReq {
 				return portmapperapi.PortBindingReq{
-					PortBinding: pb.GetCopy(),
+					PortBinding: pb.Copy(),
 				}
 			})
 		} else {

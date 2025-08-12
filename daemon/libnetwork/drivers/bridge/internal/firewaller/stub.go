@@ -109,16 +109,14 @@ func (nw *StubFirewallerNetwork) AddPorts(_ context.Context, pbs []types.PortBin
 		if nw.PortExists(pb) {
 			return nil
 		}
-		nw.Ports = append(nw.Ports, pb.GetCopy())
+		nw.Ports = append(nw.Ports, pb.Copy())
 	}
 	return nil
 }
 
 func (nw *StubFirewallerNetwork) DelPorts(_ context.Context, pbs []types.PortBinding) error {
 	for _, pb := range pbs {
-		nw.Ports = slices.DeleteFunc(nw.Ports, func(p types.PortBinding) bool {
-			return p.Equal(&pb)
-		})
+		nw.Ports = slices.DeleteFunc(nw.Ports, pb.Equal)
 	}
 	return nil
 }
@@ -130,13 +128,7 @@ func (nw *StubFirewallerNetwork) AddLink(_ context.Context, parentIP, childIP ne
 	nw.Links = append(nw.Links, stubFirewallerLink{
 		parentIP: parentIP,
 		childIP:  childIP,
-		ports: func() []types.TransportPort {
-			res := make([]types.TransportPort, 0, len(ports))
-			for _, p := range ports {
-				res = append(res, p.GetCopy())
-			}
-			return res
-		}(),
+		ports:    slices.Clone(ports),
 	})
 	return nil
 }
@@ -148,9 +140,7 @@ func (nw *StubFirewallerNetwork) DelLink(_ context.Context, parentIP, childIP ne
 }
 
 func (nw *StubFirewallerNetwork) PortExists(pb types.PortBinding) bool {
-	return slices.ContainsFunc(nw.Ports, func(p types.PortBinding) bool {
-		return p.Equal(&pb)
-	})
+	return slices.ContainsFunc(nw.Ports, pb.Equal)
 }
 
 func (nw *StubFirewallerNetwork) LinkExists(parentIP, childIP netip.Addr, ports []types.TransportPort) bool {
@@ -164,7 +154,7 @@ func matchLink(l stubFirewallerLink, parentIP, childIP netip.Addr, ports []types
 		return false
 	}
 	for i, p := range l.ports {
-		if !p.Equal(&ports[i]) {
+		if p != ports[i] {
 			return false
 		}
 	}

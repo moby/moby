@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -863,19 +864,14 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
 
 	data["hnsid"] = ep.profileID
 	if ep.epConnectivity.ExposedPorts != nil {
-		// Return a copy of the config data
-		epc := make([]types.TransportPort, 0, len(ep.epConnectivity.ExposedPorts))
-		for _, tp := range ep.epConnectivity.ExposedPorts {
-			epc = append(epc, tp.GetCopy())
-		}
-		data[netlabel.ExposedPorts] = epc
+		data[netlabel.ExposedPorts] = slices.Clone(ep.epConnectivity.ExposedPorts)
 	}
 
 	if ep.portMapping != nil {
 		// Return a copy of the operational data
 		pmc := make([]types.PortBinding, 0, len(ep.portMapping))
 		for _, pm := range ep.portMapping {
-			pmc = append(pmc, pm.GetCopy())
+			pmc = append(pmc, pm.Copy())
 		}
 		data[netlabel.PortMap] = pmc
 	}

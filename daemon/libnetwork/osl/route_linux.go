@@ -37,8 +37,7 @@ func (n *Namespace) StaticRoutes() []*types.StaticRoute {
 
 	routes := make([]*types.StaticRoute, len(n.staticRoutes))
 	for i, route := range n.staticRoutes {
-		r := route.GetCopy()
-		routes[i] = r
+		routes[i] = route.Copy()
 	}
 
 	return routes
