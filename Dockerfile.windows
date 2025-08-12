@@ -162,7 +162,9 @@ FROM ${WINDOWS_BASE_IMAGE}:${WINDOWS_BASE_IMAGE_TAG}
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 ARG GO_VERSION=1.24.5
-ARG GOTESTSUM_VERSION=v1.12.0
+
+# GOTESTSUM_VERSION is the version of gotest.tools/gotestsum to install.
+ARG GOTESTSUM_VERSION=v1.12.3
 
 # GOWINRES_VERSION is the version of go-winres to install.
 ARG GOWINRES_VERSION=v0.3.3
