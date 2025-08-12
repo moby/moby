@@ -1015,7 +1015,7 @@ func (pm *stubPortMapper) UnmapPorts(_ context.Context, reqs []portmapperapi.Por
 		if idx == -1 {
 			return fmt.Errorf("stubPortMapper.UnmapPorts: pb doesn't exist %v", req)
 		}
-		pm.mapped = slices.Delete(pm.mapped, idx, idx)
+		pm.mapped = slices.Delete(pm.mapped, idx, idx+1)
 	}
 	return nil
 }
