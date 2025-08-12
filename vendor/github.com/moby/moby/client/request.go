@@ -133,6 +133,12 @@ func (cli *Client) sendRequest(ctx context.Context, method, path string, query u
 	}
 }
 
+// doRequest sends an HTTP request and returns an HTTP response. It is a
+// wrapper around [http.Client.Do] with extra handling to decorate errors.
+//
+// Otherwise, it behaves identical to [http.Client.Do]; an error is returned
+// when failing to make a connection, On error, any Response can be ignored.
+// A non-2xx status code doesn't cause an error.
 func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 	resp, err := cli.client.Do(req)
 	if err == nil {
