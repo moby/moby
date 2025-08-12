@@ -1559,9 +1559,9 @@ func TestMixAnyWithSpecificHostAddrs(t *testing.T) {
 			ctrId := container.Run(ctx, t, c,
 				container.WithExposedPorts("80/"+proto, "81/"+proto, "82/"+proto),
 				container.WithPortMap(containertypes.PortMap{
-					containertypes.PortRangeProto("81/" + proto): {{}},
-					containertypes.PortRangeProto("82/" + proto): {{}},
-					containertypes.PortRangeProto("80/" + proto): {{HostIP: "127.0.0.1"}},
+					containertypes.PortProto("81/" + proto): {{}},
+					containertypes.PortProto("82/" + proto): {{}},
+					containertypes.PortProto("80/" + proto): {{HostIP: "127.0.0.1"}},
 				}),
 			)
 			defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})

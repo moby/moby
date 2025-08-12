@@ -122,7 +122,7 @@ func startServerContainer(ctx context.Context, t *testing.T, msg string, port in
 		container.WithExposedPorts(fmt.Sprintf("%d/tcp", port)),
 		func(c *container.TestContainerConfig) {
 			c.HostConfig.PortBindings = containertypes.PortMap{
-				containertypes.PortRangeProto(fmt.Sprintf("%d/tcp", port)): []containertypes.PortBinding{
+				containertypes.PortProto(fmt.Sprintf("%d/tcp", port)): []containertypes.PortBinding{
 					{
 						HostPort: fmt.Sprintf("%d", port),
 					},

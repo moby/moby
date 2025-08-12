@@ -36,7 +36,7 @@ func TestLinkNew(t *testing.T) {
 		Name:     "/db/docker",
 		ParentIP: "172.0.17.3",
 		ChildIP:  "172.0.17.2",
-		Ports:    []container.PortRangeProto{"6379/tcp"},
+		Ports:    []container.PortProto{"6379/tcp"},
 	}
 
 	assert.DeepEqual(t, expected, link)
@@ -64,7 +64,7 @@ func TestLinkEnv(t *testing.T) {
 // TestSortPorts verifies that ports are sorted with TCP taking priority,
 // and ports with the same protocol to be sorted by port.
 func TestSortPorts(t *testing.T) {
-	ports := []container.PortRangeProto{
+	ports := []container.PortProto{
 		"6379/tcp",
 		"6376/udp",
 		"6380/tcp",
@@ -75,7 +75,7 @@ func TestSortPorts(t *testing.T) {
 		"6375/sctp",
 	}
 
-	expected := []container.PortRangeProto{
+	expected := []container.PortProto{
 		"6379/tcp",
 		"6380/tcp",
 		"6381/tcp",

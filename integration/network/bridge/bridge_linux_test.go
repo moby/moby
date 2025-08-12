@@ -788,7 +788,7 @@ func TestPortMappingRestore(t *testing.T) {
 		t.Helper()
 		insp := ctr.Inspect(ctx, t, c, cid)
 		assert.Check(t, is.Equal(insp.State.Running, true))
-		if assert.Check(t, is.Contains(insp.NetworkSettings.Ports, containertypes.PortRangeProto("80/tcp"))) &&
+		if assert.Check(t, is.Contains(insp.NetworkSettings.Ports, containertypes.PortProto("80/tcp"))) &&
 			assert.Check(t, is.Len(insp.NetworkSettings.Ports["80/tcp"], 2)) {
 			hostPort := insp.NetworkSettings.Ports["80/tcp"][0].HostPort
 			res := ctr.RunAttach(ctx, t, c,
