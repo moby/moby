@@ -1098,7 +1098,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// Unix platforms however run a single graphdriver for all containers, and it can
 	// be set through an environment variable, a daemon start parameter, or chosen through
 	// initialization of the layerstore through driver priority order for example.
-	driverName := os.Getenv("DOCKER_GRAPHDRIVER")
+	driverName := os.Getenv("DOCKER_DRIVER")
 	if isWindows {
 		if driverName == "" {
 			driverName = cfgStore.GraphDriver
@@ -1120,7 +1120,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 		}
 	} else if driverName != "" {
-		log.G(ctx).Infof("Setting the storage driver from the $DOCKER_GRAPHDRIVER environment variable (%s)", driverName)
+		log.G(ctx).Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", driverName)
 	} else {
 		driverName = cfgStore.GraphDriver
 	}
