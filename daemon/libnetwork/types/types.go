@@ -311,8 +311,8 @@ type StaticRoute struct {
 	NextHop     net.IP    // NextHop will be resolved by the kernel (i.e., as a loose hop).
 }
 
-// GetCopy returns a copy of this StaticRoute structure
-func (r *StaticRoute) GetCopy() *StaticRoute {
+// Copy returns a copy of this StaticRoute structure
+func (r *StaticRoute) Copy() *StaticRoute {
 	return &StaticRoute{
 		Destination: GetIPNetCopy(r.Destination),
 		RouteType:   r.RouteType,
