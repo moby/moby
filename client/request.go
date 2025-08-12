@@ -123,14 +123,14 @@ func (cli *Client) sendRequest(ctx context.Context, method, path string, query u
 	}
 
 	resp, err := cli.doRequest(req)
-	switch {
-	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
-		return nil, err
-	case err == nil:
-		return resp, checkResponseErr(resp)
-	default:
+	if err != nil {
+		// Failed to connect or context error.
 		return resp, err
 	}
+
+	// Successfully made a request; return the response and handle any
+	// API HTTP response errors.
+	return resp, checkResponseErr(resp)
 }
 
 // doRequest sends an HTTP request and returns an HTTP response. It is a
