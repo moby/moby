@@ -18,6 +18,6 @@ func (cli *Client) ContainerKill(ctx context.Context, containerID, signal string
 	}
 
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/kill", query, nil, nil)
-	ensureReaderClosed(resp)
+	defer ensureReaderClosed(resp)
 	return err
 }

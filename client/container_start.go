@@ -23,6 +23,6 @@ func (cli *Client) ContainerStart(ctx context.Context, containerID string, optio
 	}
 
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/start", query, nil, nil)
-	ensureReaderClosed(resp)
+	defer ensureReaderClosed(resp)
 	return err
 }

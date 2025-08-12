@@ -12,6 +12,6 @@ func (cli *Client) SwarmLeave(ctx context.Context, force bool) error {
 		query.Set("force", "1")
 	}
 	resp, err := cli.post(ctx, "/swarm/leave", query, nil, nil)
-	ensureReaderClosed(resp)
+	defer ensureReaderClosed(resp)
 	return err
 }

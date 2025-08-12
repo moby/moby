@@ -21,6 +21,6 @@ func (cli *Client) PluginEnable(ctx context.Context, name string, options Plugin
 	query.Set("timeout", strconv.Itoa(options.Timeout))
 
 	resp, err := cli.post(ctx, "/plugins/"+name+"/enable", query, nil, nil)
-	ensureReaderClosed(resp)
+	defer ensureReaderClosed(resp)
 	return err
 }

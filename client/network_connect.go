@@ -23,6 +23,6 @@ func (cli *Client) NetworkConnect(ctx context.Context, networkID, containerID st
 		EndpointConfig: config,
 	}
 	resp, err := cli.post(ctx, "/networks/"+networkID+"/connect", nil, nc, nil)
-	ensureReaderClosed(resp)
+	defer ensureReaderClosed(resp)
 	return err
 }

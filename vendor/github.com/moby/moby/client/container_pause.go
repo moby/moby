@@ -10,6 +10,6 @@ func (cli *Client) ContainerPause(ctx context.Context, containerID string) error
 	}
 
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/pause", nil, nil, nil)
-	ensureReaderClosed(resp)
+	defer ensureReaderClosed(resp)
 	return err
 }

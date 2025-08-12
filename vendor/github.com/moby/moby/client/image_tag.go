@@ -33,6 +33,6 @@ func (cli *Client) ImageTag(ctx context.Context, source, target string) error {
 	}
 
 	resp, err := cli.post(ctx, "/images/"+source+"/tag", query, nil, nil)
-	ensureReaderClosed(resp)
+	defer ensureReaderClosed(resp)
 	return err
 }

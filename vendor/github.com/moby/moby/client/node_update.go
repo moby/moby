@@ -17,6 +17,6 @@ func (cli *Client) NodeUpdate(ctx context.Context, nodeID string, version swarm.
 	query := url.Values{}
 	query.Set("version", version.String())
 	resp, err := cli.post(ctx, "/nodes/"+nodeID+"/update", query, node, nil)
-	ensureReaderClosed(resp)
+	defer ensureReaderClosed(resp)
 	return err
 }

@@ -19,6 +19,6 @@ func (cli *Client) SecretUpdate(ctx context.Context, id string, version swarm.Ve
 	query := url.Values{}
 	query.Set("version", version.String())
 	resp, err := cli.post(ctx, "/secrets/"+id+"/update", query, secret, nil)
-	ensureReaderClosed(resp)
+	defer ensureReaderClosed(resp)
 	return err
 }

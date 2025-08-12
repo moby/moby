@@ -16,6 +16,6 @@ func (cli *Client) SwarmUpdate(ctx context.Context, version swarm.Version, swarm
 	query.Set("rotateManagerToken", strconv.FormatBool(flags.RotateManagerToken))
 	query.Set("rotateManagerUnlockKey", strconv.FormatBool(flags.RotateManagerUnlockKey))
 	resp, err := cli.post(ctx, "/swarm/update", query, swarm, nil)
-	ensureReaderClosed(resp)
+	defer ensureReaderClosed(resp)
 	return err
 }

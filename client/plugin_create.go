@@ -21,6 +21,6 @@ func (cli *Client) PluginCreate(ctx context.Context, createContext io.Reader, cr
 	query.Set("name", createOptions.RepoName)
 
 	resp, err := cli.postRaw(ctx, "/plugins/create", query, createContext, headers)
-	ensureReaderClosed(resp)
+	defer ensureReaderClosed(resp)
 	return err
 }
