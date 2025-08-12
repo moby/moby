@@ -6,8 +6,6 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -57,24 +55,24 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
-	cID := container.Run(ctx, t, apiClient, container.WithCmd("true"), container.WithVolume(prefix+slash+"srv"))
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, containertypes.StateExited))
+	cID := container.Run(ctx, t, apiClient, container.WithVolume(prefix+slash+"srv"))
 
 	insp, _, err := apiClient.ContainerInspectWithRaw(ctx, cID, true)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(1, len(insp.Mounts)))
 	volName := insp.Mounts[0].Name
 
+	_, err = apiClient.VolumeInspect(ctx, volName)
+	assert.NilError(t, err)
+
 	err = apiClient.ContainerRemove(ctx, cID, containertypes.RemoveOptions{
+		Force:         true,
 		RemoveVolumes: true,
 	})
 	assert.NilError(t, err)
 
-	volumes, err := apiClient.VolumeList(ctx, volume.ListOptions{
-		Filters: filters.NewArgs(filters.Arg("name", volName)),
-	})
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(0, len(volumes.Volumes)))
+	_, err = apiClient.VolumeInspect(ctx, volName)
+	assert.ErrorType(t, err, cerrdefs.IsNotFound, "Expected anonymous volume to be removed")
 }
 
 func TestRemoveContainerRunning(t *testing.T) {
