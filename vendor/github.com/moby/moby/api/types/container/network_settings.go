@@ -18,7 +18,7 @@ type NetworkSettingsBase struct {
 	SandboxKey string // SandboxKey identifies the sandbox
 
 	// Ports is a collection of PortBinding indexed by "port/proto".
-	Ports map[PortRangeProto][]PortBinding
+	Ports map[PortProto][]PortBinding
 
 	// HairpinMode specifies if hairpin NAT should be enabled on the virtual interface
 	//
