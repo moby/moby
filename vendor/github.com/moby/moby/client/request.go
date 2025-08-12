@@ -127,7 +127,7 @@ func (cli *Client) sendRequest(ctx context.Context, method, path string, query u
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		return nil, err
 	case err == nil:
-		return resp, cli.checkResponseErr(resp)
+		return resp, checkResponseErr(resp)
 	default:
 		return resp, err
 	}
@@ -203,7 +203,7 @@ func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 	return nil, errConnectionFailed{fmt.Errorf("error during connect: %w", err)}
 }
 
-func (cli *Client) checkResponseErr(serverResp *http.Response) (retErr error) {
+func checkResponseErr(serverResp *http.Response) (retErr error) {
 	if serverResp == nil {
 		return nil
 	}

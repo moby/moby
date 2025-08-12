@@ -39,7 +39,7 @@ func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
 		switch resp.StatusCode {
 		case http.StatusOK, http.StatusInternalServerError:
 			// Server handled the request, so parse the response
-			return parsePingResponse(cli, resp)
+			return parsePingResponse(resp)
 		}
 	}
 
@@ -50,17 +50,17 @@ func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
 	if err != nil {
 		return ping, err
 	}
-	return parsePingResponse(cli, resp)
+	return parsePingResponse(resp)
 }
 
-func parsePingResponse(cli *Client, resp *http.Response) (types.Ping, error) {
+func parsePingResponse(resp *http.Response) (types.Ping, error) {
 	if resp == nil {
 		return types.Ping{}, nil
 	}
 
 	var ping types.Ping
 	if resp.Header == nil {
-		return ping, cli.checkResponseErr(resp)
+		return ping, checkResponseErr(resp)
 	}
 	ping.APIVersion = resp.Header.Get("Api-Version")
 	ping.OSType = resp.Header.Get("Ostype")
@@ -77,5 +77,5 @@ func parsePingResponse(cli *Client, resp *http.Response) (types.Ping, error) {
 			ControlAvailable: role == "manager",
 		}
 	}
-	return ping, cli.checkResponseErr(resp)
+	return ping, checkResponseErr(resp)
 }
