@@ -56,6 +56,8 @@ type PortBinding struct {
 	HostIP      net.IP
 	HostPort    uint16
 	HostPortEnd uint16
+	Mapper      string
+	ExtraParams map[string]string
 }
 
 // HostAddr returns the host side transport address
