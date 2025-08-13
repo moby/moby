@@ -84,9 +84,9 @@ type listContext struct {
 	isTask bool
 
 	// publish is a list of published ports to filter with
-	publish map[containertypes.PortRangeProto]bool // TODO(thaJeztah): could this be a straight map[string]bool?
+	publish map[string]bool
 	// expose is a list of exposed ports to filter with
-	expose map[containertypes.PortRangeProto]bool // TODO(thaJeztah): could this be a straight map[string]bool?
+	expose map[string]bool
 
 	// ListOptions is the filters set by the user
 	*containertypes.ListOptions
@@ -346,13 +346,13 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 		}
 	}
 
-	publishFilter := map[containertypes.PortRangeProto]bool{}
+	publishFilter := map[string]bool{}
 	err = psFilters.WalkValues("publish", portOp("publish", publishFilter))
 	if err != nil {
 		return nil, err
 	}
 
-	exposeFilter := map[containertypes.PortRangeProto]bool{}
+	exposeFilter := map[string]bool{}
 	err = psFilters.WalkValues("expose", portOp("expose", exposeFilter))
 	if err != nil {
 		return nil, err
@@ -397,23 +397,19 @@ func idOrNameFilter(view *container.View, value string) (*container.Snapshot, er
 	return filter, err
 }
 
-func portOp(key string, filter map[containertypes.PortRangeProto]bool) func(value string) error {
+func portOp(key string, filter map[string]bool) func(value string) error {
 	return func(value string) error {
 		if strings.Contains(value, ":") {
 			return fmt.Errorf("filter for '%s' should not contain ':': %s", key, value)
 		}
 		// support two formats, original format <portnum>/[<proto>] or <startport-endport>/[<proto>]
-		proto, port := nat.SplitProtoPort(value)
-		start, end, err := nat.ParsePortRange(port)
+		proto, portRange := nat.SplitProtoPort(value)
+		start, end, err := nat.ParsePortRange(portRange)
 		if err != nil {
 			return fmt.Errorf("error while looking up for %s %s: %s", key, value, err)
 		}
-		for i := start; i <= end; i++ {
-			p, err := nat.NewPort(proto, strconv.FormatUint(i, 10))
-			if err != nil {
-				return fmt.Errorf("error while looking up for %s %s: %s", key, value, err)
-			}
-			filter[p] = true
+		for portNum := start; portNum <= end; portNum++ {
+			filter[fmt.Sprintf("%d/%s", portNum, proto)] = true
 		}
 		return nil
 	}
@@ -566,18 +562,11 @@ func includeContainerInList(container *container.Snapshot, filter *listContext) 
 	}
 
 	if len(filter.expose) > 0 || len(filter.publish) > 0 {
-		var (
-			shouldSkip    = true
-			publishedPort containertypes.PortRangeProto
-			exposedPort   containertypes.PortRangeProto
-		)
+		shouldSkip := true
 		for _, port := range container.Ports {
-			publishedPort = containertypes.PortRangeProto(fmt.Sprintf("%d/%s", port.PublicPort, port.Type))
-			exposedPort = containertypes.PortRangeProto(fmt.Sprintf("%d/%s", port.PrivatePort, port.Type))
-			if ok := filter.publish[publishedPort]; ok {
-				shouldSkip = false
-				break
-			} else if ok := filter.expose[exposedPort]; ok {
+			publishedPort := fmt.Sprintf("%d/%s", port.PublicPort, port.Type)
+			exposedPort := fmt.Sprintf("%d/%s", port.PrivatePort, port.Type)
+			if filter.publish[publishedPort] || filter.expose[exposedPort] {
 				shouldSkip = false
 				break
 			}
