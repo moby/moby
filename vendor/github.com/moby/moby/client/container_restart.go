@@ -36,6 +36,6 @@ func (cli *Client) ContainerRestart(ctx context.Context, containerID string, opt
 		}
 	}
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/restart", query, nil, nil)
-	ensureReaderClosed(resp)
+	defer ensureReaderClosed(resp)
 	return err
 }

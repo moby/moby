@@ -21,6 +21,6 @@ func (cli *Client) PluginDisable(ctx context.Context, name string, options Plugi
 		query.Set("force", "1")
 	}
 	resp, err := cli.post(ctx, "/plugins/"+name+"/disable", query, nil, nil)
-	ensureReaderClosed(resp)
+	defer ensureReaderClosed(resp)
 	return err
 }

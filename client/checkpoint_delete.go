@@ -20,6 +20,6 @@ func (cli *Client) CheckpointDelete(ctx context.Context, containerID string, opt
 	}
 
 	resp, err := cli.delete(ctx, "/containers/"+containerID+"/checkpoints/"+options.CheckpointID, query, nil)
-	ensureReaderClosed(resp)
+	defer ensureReaderClosed(resp)
 	return err
 }

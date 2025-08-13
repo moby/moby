@@ -123,16 +123,22 @@ func (cli *Client) sendRequest(ctx context.Context, method, path string, query u
 	}
 
 	resp, err := cli.doRequest(req)
-	switch {
-	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
-		return nil, err
-	case err == nil:
-		return resp, cli.checkResponseErr(resp)
-	default:
+	if err != nil {
+		// Failed to connect or context error.
 		return resp, err
 	}
+
+	// Successfully made a request; return the response and handle any
+	// API HTTP response errors.
+	return resp, checkResponseErr(resp)
 }
 
+// doRequest sends an HTTP request and returns an HTTP response. It is a
+// wrapper around [http.Client.Do] with extra handling to decorate errors.
+//
+// Otherwise, it behaves identical to [http.Client.Do]; an error is returned
+// when failing to make a connection, On error, any Response can be ignored.
+// A non-2xx status code doesn't cause an error.
 func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 	resp, err := cli.client.Do(req)
 	if err == nil {
@@ -203,7 +209,7 @@ func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 	return nil, errConnectionFailed{fmt.Errorf("error during connect: %w", err)}
 }
 
-func (cli *Client) checkResponseErr(serverResp *http.Response) (retErr error) {
+func checkResponseErr(serverResp *http.Response) (retErr error) {
 	if serverResp == nil {
 		return nil
 	}
