@@ -21,12 +21,13 @@ tidy() (
 
 	cd "$ROOTDIR"
 
-	# Disable workspace when tidying the api and client modules to prevent
-	# common dependencies between other modules in the workspace from affecting
-	# the other modules. This allows us to stick to MVS for the api and client
-	# modules, while still updating the main ("v2") module's dependencies.
-	( cd api    && GOWORK=off go mod tidy )
-	( cd client && GOWORK=off go mod tidy )
+	if [ "$in_workspace" -eq 1 ]; then
+		( cd api    && go work sync )
+		( cd client && go work sync )
+	else
+		( cd api    && go mod tidy )
+		( cd client && go mod tidy )
+	fi
 
 	go mod tidy
 )
