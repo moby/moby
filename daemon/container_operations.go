@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"net"
 	"net/netip"
 	"os"
@@ -15,7 +14,6 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/go-connections/nat"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	networktypes "github.com/moby/moby/api/types/network"
@@ -112,51 +110,56 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 		}
 	}
 
-	// Create a deep copy (as [nat.SortPortMap] mutates the map).
-	// Not using a maps.Clone here, as that won't dereference the
-	// slice (PortMap is a map[Port][]PortBinding).
-	bindings := make(containertypes.PortMap)
+	portBindings := make(containertypes.PortMap, len(ctr.HostConfig.PortBindings))
 	for p, b := range ctr.HostConfig.PortBindings {
-		bindings[p] = slices.Clone(b)
+		portBindings[p] = slices.Clone(b)
 	}
 
-	ports := slices.Collect(maps.Keys(ctr.Config.ExposedPorts))
-	nat.SortPortMap(ports, bindings)
+	for p := range ctr.Config.ExposedPorts {
+		if _, ok := portBindings[p]; !ok {
+			// Create nil entries for exposed but un-mapped ports.
+			portBindings[p] = nil
+		}
+	}
 
 	var (
 		publishedPorts []types.PortBinding
 		exposedPorts   []types.TransportPort
 	)
-	for _, port := range ports {
-		portProto := types.ParseProtocol(port.Proto())
-		portNum := uint16(port.Int())
+	for port, bindings := range portBindings {
+		protocol := types.ParseProtocol(string(port.Proto()))
 		exposedPorts = append(exposedPorts, types.TransportPort{
-			Proto: portProto,
-			Port:  portNum,
+			Proto: protocol,
+			Port:  port.Num(),
 		})
 
-		for _, binding := range bindings[port] {
-			newP, err := nat.NewPort(nat.SplitProtoPort(binding.HostPort))
-			var portStart, portEnd int
-			if err == nil {
-				portStart, portEnd, err = newP.Range()
+		for _, binding := range bindings {
+			var (
+				portRange containertypes.PortRange
+				err       error
+			)
+
+			// Empty HostPort means to map to an ephemeral port.
+			if binding.HostPort != "" {
+				portRange, err = containertypes.ParsePortRange(binding.HostPort)
+				if err != nil {
+					return nil, fmt.Errorf("error parsing HostPort value(%s):%v", binding.HostPort, err)
+				}
 			}
-			if err != nil {
-				return nil, fmt.Errorf("Error parsing HostPort value(%s):%v", binding.HostPort, err)
-			}
+
 			publishedPorts = append(publishedPorts, types.PortBinding{
-				Proto:       portProto,
-				Port:        portNum,
+				Proto:       protocol,
+				Port:        port.Num(),
 				HostIP:      net.ParseIP(binding.HostIP),
-				HostPort:    uint16(portStart),
-				HostPortEnd: uint16(portEnd),
+				HostPort:    portRange.Start(),
+				HostPortEnd: portRange.End(),
 			})
 		}
 
-		if ctr.HostConfig.PublishAllPorts && len(bindings[port]) == 0 {
+		if ctr.HostConfig.PublishAllPorts && len(bindings) == 0 {
 			publishedPorts = append(publishedPorts, types.PortBinding{
-				Proto: portProto,
-				Port:  portNum,
+				Proto: protocol,
+				Port:  port.Num(),
 			})
 		}
 	}

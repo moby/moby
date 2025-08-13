@@ -11,7 +11,6 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/docker/go-connections/nat"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/v2/daemon/container"
@@ -404,13 +403,12 @@ func portOp(key string, filter map[string]bool) func(value string) error {
 			return fmt.Errorf("filter for '%s' should not contain ':': %s", key, value)
 		}
 		// support two formats, original format <portnum>/[<proto>] or <startport-endport>/[<proto>]
-		proto, portRange := nat.SplitProtoPort(value)
-		start, end, err := nat.ParsePortRange(portRange)
+		portRange, err := containertypes.ParsePortRange(value)
 		if err != nil {
 			return fmt.Errorf("error while looking up for %s %s: %s", key, value, err)
 		}
-		for portNum := start; portNum <= end; portNum++ {
-			filter[fmt.Sprintf("%d/%s", portNum, proto)] = true
+		for p := range portRange.All() {
+			filter[p.String()] = true
 		}
 		return nil
 	}

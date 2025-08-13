@@ -19,7 +19,7 @@ func TestContainerWarningHostAndPublishPorts(t *testing.T) {
 	}{
 		{ports: containertypes.PortMap{}},
 		{ports: containertypes.PortMap{
-			"8080": []containertypes.PortBinding{{HostPort: "8989"}},
+			containertypes.MustParsePort("8080"): []containertypes.PortBinding{{HostPort: "8989"}},
 		}, warnings: []string{"Published ports are discarded when using host network mode"}},
 	}
 	muteLogs(t)

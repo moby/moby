@@ -197,11 +197,11 @@ func assertPortRange(ctx context.Context, id string, expectedTCP, expectedUDP []
 	}
 
 	var validTCP, validUDP bool
-	for portAndProto, binding := range inspect.NetworkSettings.Ports {
-		if portAndProto.Proto() == "tcp" && len(expectedTCP) == 0 {
+	for port, binding := range inspect.NetworkSettings.Ports {
+		if port.Proto() == "tcp" && len(expectedTCP) == 0 {
 			continue
 		}
-		if portAndProto.Proto() == "udp" && len(expectedTCP) == 0 {
+		if port.Proto() == "udp" && len(expectedTCP) == 0 {
 			continue
 		}
 

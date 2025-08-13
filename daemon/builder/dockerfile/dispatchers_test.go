@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -335,7 +336,7 @@ func TestExpose(t *testing.T) {
 	assert.Assert(t, sb.state.runConfig.ExposedPorts != nil)
 	assert.Assert(t, is.Len(sb.state.runConfig.ExposedPorts, 1))
 
-	assert.Check(t, is.Contains(sb.state.runConfig.ExposedPorts, container.PortRangeProto("80/tcp")))
+	assert.Check(t, is.Contains(sb.state.runConfig.ExposedPorts, container.MustParsePort("80/tcp")))
 }
 
 func TestUser(t *testing.T) {
@@ -625,4 +626,649 @@ func TestDispatchUnsupportedOptions(t *testing.T) {
 			assert.Error(t, err, fmt.Sprintf("the --%s option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled", f))
 		}
 	})
+}
+
+// Copied and modified from https://github.com/docker/go-connections/blob/c296721c0d56d3acad2973376ded214103a4fd2e/nat/nat_test.go#L390-L499
+func TestParsePortSpecs(t *testing.T) {
+	var (
+		portMap    map[container.Port]struct{}
+		bindingMap map[container.Port][]container.PortBinding
+		err        error
+	)
+
+	tcp1234 := container.MustParsePort("1234/tcp")
+	udp2345 := container.MustParsePort("2345/udp")
+	sctp3456 := container.MustParsePort("3456/sctp")
+
+	portMap, bindingMap, err = parsePortSpecs([]string{tcp1234.String(), udp2345.String(), sctp3456.String()})
+	if err != nil {
+		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
+	}
+
+	if _, ok := portMap[tcp1234]; !ok {
+		t.Fatal("1234/tcp was not parsed properly")
+	}
+
+	if _, ok := portMap[udp2345]; !ok {
+		t.Fatal("2345/udp was not parsed properly")
+	}
+
+	if _, ok := portMap[sctp3456]; !ok {
+		t.Fatal("3456/sctp was not parsed properly")
+	}
+
+	for portSpec, bindings := range bindingMap {
+		if len(bindings) != 1 {
+			t.Fatalf("%s should have exactly one binding", portSpec)
+		}
+
+		if bindings[0].HostIP != "" {
+			t.Fatalf("HostIP should not be set for %s", portSpec)
+		}
+
+		if bindings[0].HostPort != "" {
+			t.Fatalf("HostPort should not be set for %s", portSpec)
+		}
+	}
+
+	portMap, bindingMap, err = parsePortSpecs([]string{"1234:1234/tcp", "2345:2345/udp", "3456:3456/sctp"})
+	if err != nil {
+		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
+	}
+
+	if _, ok := portMap[tcp1234]; !ok {
+		t.Fatal("1234/tcp was not parsed properly")
+	}
+
+	if _, ok := portMap[udp2345]; !ok {
+		t.Fatal("2345/udp was not parsed properly")
+	}
+
+	if _, ok := portMap[sctp3456]; !ok {
+		t.Fatal("3456/sctp was not parsed properly")
+	}
+
+	for portSpec, bindings := range bindingMap {
+		_, port := splitProtoPort(portSpec.String())
+
+		if len(bindings) != 1 {
+			t.Fatalf("%s should have exactly one binding", portSpec)
+		}
+
+		if bindings[0].HostIP != "" {
+			t.Fatalf("HostIP should not be set for %s", portSpec)
+		}
+
+		if bindings[0].HostPort != port {
+			t.Fatalf("HostPort(%s) should be %s for %s", bindings[0].HostPort, port, portSpec)
+		}
+	}
+
+	portMap, bindingMap, err = parsePortSpecs([]string{"0.0.0.0:1234:1234/tcp", "0.0.0.0:2345:2345/udp", "0.0.0.0:3456:3456/sctp"})
+	if err != nil {
+		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
+	}
+
+	if _, ok := portMap[tcp1234]; !ok {
+		t.Fatal("1234/tcp was not parsed properly")
+	}
+
+	if _, ok := portMap[udp2345]; !ok {
+		t.Fatal("2345/udp was not parsed properly")
+	}
+
+	if _, ok := portMap[sctp3456]; !ok {
+		t.Fatal("3456/sctp was not parsed properly")
+	}
+
+	for portSpec, bindings := range bindingMap {
+		_, port := splitProtoPort(portSpec.String())
+
+		if len(bindings) != 1 {
+			t.Fatalf("%s should have exactly one binding", portSpec)
+		}
+
+		if bindings[0].HostIP != "0.0.0.0" {
+			t.Fatalf("HostIP is not 0.0.0.0 for %s", portSpec)
+		}
+
+		if bindings[0].HostPort != port {
+			t.Fatalf("HostPort should be %s for %s", port, portSpec)
+		}
+	}
+
+	_, _, err = parsePortSpecs([]string{"localhost:1234:1234/tcp"})
+	if err == nil {
+		t.Fatal("Received no error while trying to parse a hostname instead of ip")
+	}
+}
+
+// Copied from https://github.com/docker/go-connections/blob/c296721c0d56d3acad2973376ded214103a4fd2e/nat/nat_test.go#L244-L274
+func TestParsePortSpecEmptyContainerPort(t *testing.T) {
+	tests := []struct {
+		name     string
+		spec     string
+		expError string
+	}{
+		{
+			name:     "empty spec",
+			spec:     "",
+			expError: `no port specified: <empty>`,
+		},
+		{
+			name:     "empty container port",
+			spec:     `0.0.0.0:1234-1235:/tcp`,
+			expError: `no port specified: 0.0.0.0:1234-1235:/tcp<empty>`,
+		},
+		{
+			name:     "empty container port and proto",
+			spec:     `0.0.0.0:1234-1235:`,
+			expError: `no port specified: 0.0.0.0:1234-1235:<empty>`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := parsePortSpec(tc.spec)
+			if err == nil || err.Error() != tc.expError {
+				t.Fatalf("expected %v, got: %v", tc.expError, err)
+			}
+		})
+	}
+}
+
+// Copied and modified from https://github.com/docker/go-connections/blob/c296721c0d56d3acad2973376ded214103a4fd2e/nat/nat_test.go#L276-L302
+func TestParsePortSpecFull(t *testing.T) {
+	portMappings, err := parsePortSpec("0.0.0.0:1234-1235:3333-3334/tcp")
+	if err != nil {
+		t.Fatalf("expected nil error, got: %v", err)
+	}
+
+	expected := []container.PortMap{
+		{
+			container.MustParsePort("3333/tcp"): []container.PortBinding{
+				{
+					HostIP:   "0.0.0.0",
+					HostPort: "1234",
+				},
+			},
+		},
+		{
+			container.MustParsePort("3334/tcp"): []container.PortBinding{
+				{
+					HostIP:   "0.0.0.0",
+					HostPort: "1235",
+				},
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(expected, portMappings) {
+		t.Fatalf("wrong port mappings: got=%v, want=%v", portMappings, expected)
+	}
+}
+
+// Copied and modified from https://github.com/docker/go-connections/blob/c296721c0d56d3acad2973376ded214103a4fd2e/nat/nat_test.go#L304-L388
+func TestPartPortSpecIPV6(t *testing.T) {
+	type test struct {
+		name     string
+		spec     string
+		expected []container.PortMap
+	}
+	cases := []test{
+		{
+			name: "square angled IPV6 without host port",
+			spec: "[2001:4860:0:2001::68]::333",
+			expected: []container.PortMap{
+				{
+					container.MustParsePort("333/tcp"): []container.PortBinding{
+						{
+							HostIP:   "2001:4860:0:2001::68",
+							HostPort: "",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "square angled IPV6 with host port",
+			spec: "[::1]:80:80",
+			expected: []container.PortMap{
+				{
+					container.MustParsePort("80/tcp"): []container.PortBinding{
+						{
+							HostIP:   "::1",
+							HostPort: "80",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "IPV6 without host port",
+			spec: "2001:4860:0:2001::68::333",
+			expected: []container.PortMap{
+				{
+					container.MustParsePort("333/tcp"): []container.PortBinding{
+						{
+							HostIP:   "2001:4860:0:2001::68",
+							HostPort: "",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "IPV6 with host port",
+			spec: "::1:80:80",
+			expected: []container.PortMap{
+				{
+					container.MustParsePort("80/tcp"): []container.PortBinding{
+						{
+							HostIP:   "::1",
+							HostPort: "80",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: ":: IPV6, without host port",
+			spec: "::::80",
+			expected: []container.PortMap{
+				{
+					container.MustParsePort("80/tcp"): []container.PortBinding{
+						{
+							HostIP:   "::",
+							HostPort: "",
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			portMappings, err := parsePortSpec(c.spec)
+			if err != nil {
+				t.Fatalf("expected nil error, got: %v", err)
+			}
+			if !reflect.DeepEqual(c.expected, portMappings) {
+				t.Fatalf("wrong port mappings: got=%v, want=%v", portMappings, c.expected)
+			}
+		})
+	}
+}
+
+// Copied and modified from https://github.com/docker/go-connections/blob/c296721c0d56d3acad2973376ded214103a4fd2e/nat/nat_test.go#L501-L600
+func TestParsePortSpecsWithRange(t *testing.T) {
+	var (
+		portMap    map[container.Port]struct{}
+		bindingMap map[container.Port][]container.PortBinding
+		err        error
+	)
+
+	portMap, bindingMap, err = parsePortSpecs([]string{"1234-1236/tcp", "2345-2347/udp", "3456-3458/sctp"})
+	if err != nil {
+		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
+	}
+
+	if _, ok := portMap[container.MustParsePort("1235/tcp")]; !ok {
+		t.Fatal("1234-1236/tcp was not parsed properly")
+	}
+
+	if _, ok := portMap[container.MustParsePort("2346/udp")]; !ok {
+		t.Fatal("2345-2347/udp was not parsed properly")
+	}
+
+	if _, ok := portMap[container.MustParsePort("3456/sctp")]; !ok {
+		t.Fatal("3456-3458/sctp was not parsed properly")
+	}
+
+	for portSpec, bindings := range bindingMap {
+		if len(bindings) != 1 {
+			t.Fatalf("%s should have exactly one binding", portSpec)
+		}
+
+		if bindings[0].HostIP != "" {
+			t.Fatalf("HostIP should not be set for %s", portSpec)
+		}
+
+		if bindings[0].HostPort != "" {
+			t.Fatalf("HostPort should not be set for %s", portSpec)
+		}
+	}
+
+	portMap, bindingMap, err = parsePortSpecs([]string{"1234-1236:1234-1236/tcp", "2345-2347:2345-2347/udp", "3456-3458:3456-3458/sctp"})
+	if err != nil {
+		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
+	}
+
+	if _, ok := portMap[container.MustParsePort("1235/tcp")]; !ok {
+		t.Fatal("1234-1236 was not parsed properly")
+	}
+
+	if _, ok := portMap[container.MustParsePort("2346/udp")]; !ok {
+		t.Fatal("2345-2347 was not parsed properly")
+	}
+
+	if _, ok := portMap[container.MustParsePort("3456/sctp")]; !ok {
+		t.Fatal("3456-3458 was not parsed properly")
+	}
+
+	for portSpec, bindings := range bindingMap {
+		_, port := splitProtoPort(portSpec.String())
+		if len(bindings) != 1 {
+			t.Fatalf("%s should have exactly one binding", portSpec)
+		}
+
+		if bindings[0].HostIP != "" {
+			t.Fatalf("HostIP should not be set for %s", portSpec)
+		}
+
+		if bindings[0].HostPort != port {
+			t.Fatalf("HostPort should be %s for %s", port, portSpec)
+		}
+	}
+
+	portMap, bindingMap, err = parsePortSpecs([]string{"0.0.0.0:1234-1236:1234-1236/tcp", "0.0.0.0:2345-2347:2345-2347/udp", "0.0.0.0:3456-3458:3456-3458/sctp"})
+	if err != nil {
+		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
+	}
+
+	if _, ok := portMap[container.MustParsePort("1235/tcp")]; !ok {
+		t.Fatal("1234-1236 was not parsed properly")
+	}
+
+	if _, ok := portMap[container.MustParsePort("2346/udp")]; !ok {
+		t.Fatal("2345-2347 was not parsed properly")
+	}
+
+	if _, ok := portMap[container.MustParsePort("3456/sctp")]; !ok {
+		t.Fatal("3456-3458 was not parsed properly")
+	}
+
+	for portSpec, bindings := range bindingMap {
+		_, port := splitProtoPort(portSpec.String())
+		if len(bindings) != 1 || bindings[0].HostIP != "0.0.0.0" || bindings[0].HostPort != port {
+			t.Fatalf("Expect single binding to port %s but found %s", port, bindings)
+		}
+	}
+
+	_, _, err = parsePortSpecs([]string{"localhost:1234-1236:1234-1236/tcp"})
+
+	if err == nil {
+		t.Fatal("Received no error while trying to parse a hostname instead of ip")
+	}
+}
+
+// Copied and modified from https://github.com/docker/go-connections/blob/c296721c0d56d3acad2973376ded214103a4fd2e/nat/nat_test.go#L602-L642
+func TestParseNetworkOptsPrivateOnly(t *testing.T) {
+	ports, bindings, err := parsePortSpecs([]string{"192.168.1.100::80"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ports) != 1 {
+		t.Errorf("Expected 1 got %d", len(ports))
+	}
+	if len(bindings) != 1 {
+		t.Errorf("Expected 1 got %d", len(bindings))
+	}
+	for k := range ports {
+		if k.Proto() != "tcp" {
+			t.Errorf("Expected tcp got %s", k.Proto())
+		}
+		if k.Num() != 80 {
+			t.Errorf("Expected 80 got %d", k.Num())
+		}
+		b, exists := bindings[k]
+		if !exists {
+			t.Error("Binding does not exist")
+		}
+		if len(b) != 1 {
+			t.Errorf("Expected 1 got %d", len(b))
+		}
+		s := b[0]
+		if s.HostPort != "" {
+			t.Errorf("Expected \"\" got %s", s.HostPort)
+		}
+		if s.HostIP != "192.168.1.100" {
+			t.Errorf("Expected 192.168.1.100 got %s", s.HostIP)
+		}
+	}
+}
+
+// Copied and modified from https://github.com/docker/go-connections/blob/c296721c0d56d3acad2973376ded214103a4fd2e/nat/nat_test.go#L644-L684
+func TestParseNetworkOptsPublic(t *testing.T) {
+	ports, bindings, err := parsePortSpecs([]string{"192.168.1.100:8080:80"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ports) != 1 {
+		t.Errorf("Expected 1 got %d", len(ports))
+	}
+	if len(bindings) != 1 {
+		t.Errorf("Expected 1 got %d", len(bindings))
+	}
+	for k := range ports {
+		if k.Proto() != "tcp" {
+			t.Errorf("Expected tcp got %s", k.Proto())
+		}
+		if k.Num() != 80 {
+			t.Errorf("Expected 80 got %d", k.Num())
+		}
+		b, exists := bindings[k]
+		if !exists {
+			t.Error("Binding does not exist")
+		}
+		if len(b) != 1 {
+			t.Errorf("Expected 1 got %d", len(b))
+		}
+		s := b[0]
+		if s.HostPort != "8080" {
+			t.Errorf("Expected 8080 got %s", s.HostPort)
+		}
+		if s.HostIP != "192.168.1.100" {
+			t.Errorf("Expected 192.168.1.100 got %s", s.HostIP)
+		}
+	}
+}
+
+// Copied and modified from https://github.com/docker/go-connections/blob/c296721c0d56d3acad2973376ded214103a4fd2e/nat/nat_test.go#L686-L701
+func TestParseNetworkOptsPublicNoPort(t *testing.T) {
+	ports, bindings, err := parsePortSpecs([]string{"192.168.1.100"})
+
+	if err == nil {
+		t.Error("Expected error Invalid containerPort")
+	}
+	if ports != nil {
+		t.Errorf("Expected nil got %s", ports)
+	}
+	if bindings != nil {
+		t.Errorf("Expected nil got %s", bindings)
+	}
+}
+
+// Copied and modified from https://github.com/docker/go-connections/blob/c296721c0d56d3acad2973376ded214103a4fd2e/nat/nat_test.go#L703-L717
+func TestParseNetworkOptsNegativePorts(t *testing.T) {
+	ports, bindings, err := parsePortSpecs([]string{"192.168.1.100:-1:-1"})
+
+	if err == nil {
+		t.Error("Expected error Invalid containerPort")
+	}
+	if len(ports) != 0 {
+		t.Errorf("Expected 0 got %d: %#v", len(ports), ports)
+	}
+	if len(bindings) != 0 {
+		t.Errorf("Expected 0 got %d: %#v", len(bindings), bindings)
+	}
+}
+
+// Copied and modified from https://github.com/docker/go-connections/blob/c296721c0d56d3acad2973376ded214103a4fd2e/nat/nat_test.go#L719-L759
+func TestParseNetworkOptsUdp(t *testing.T) {
+	ports, bindings, err := parsePortSpecs([]string{"192.168.1.100::6000/udp"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ports) != 1 {
+		t.Errorf("Expected 1 got %d: %#v", len(ports), ports)
+	}
+	if len(bindings) != 1 {
+		t.Errorf("Expected 1 got %d", len(bindings))
+	}
+	for k := range ports {
+		if k.Proto() != "udp" {
+			t.Errorf("Expected udp got %s", k.Proto())
+		}
+		if k.Num() != 6000 {
+			t.Errorf("Expected 6000 got %d", k.Num())
+		}
+		b, exists := bindings[k]
+		if !exists {
+			t.Error("Binding does not exist")
+		}
+		if len(b) != 1 {
+			t.Errorf("Expected 1 got %d", len(b))
+		}
+		s := b[0]
+		if s.HostPort != "" {
+			t.Errorf("Expected \"\" got %s", s.HostPort)
+		}
+		if s.HostIP != "192.168.1.100" {
+			t.Errorf("Expected 192.168.1.100 got %s", s.HostIP)
+		}
+	}
+}
+
+// Copied and modified from https://github.com/docker/go-connections/blob/c296721c0d56d3acad2973376ded214103a4fd2e/nat/nat_test.go#L761-L801
+func TestParseNetworkOptsSctp(t *testing.T) {
+	ports, bindings, err := parsePortSpecs([]string{"192.168.1.100::6000/sctp"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ports) != 1 {
+		t.Errorf("Expected 1 got %d: %#v", len(ports), ports)
+	}
+	if len(bindings) != 1 {
+		t.Errorf("Expected 1 got %d: %#v", len(bindings), bindings)
+	}
+	for k := range ports {
+		if k.Proto() != "sctp" {
+			t.Errorf("Expected sctp got %s", k.Proto())
+		}
+		if k.Num() != 6000 {
+			t.Errorf("Expected 6000 got %d", k.Num())
+		}
+		b, exists := bindings[k]
+		if !exists {
+			t.Error("Binding does not exist")
+		}
+		if len(b) != 1 {
+			t.Errorf("Expected 1 got %d", len(b))
+		}
+		s := b[0]
+		if s.HostPort != "" {
+			t.Errorf("Expected \"\" got %s", s.HostPort)
+		}
+		if s.HostIP != "192.168.1.100" {
+			t.Errorf("Expected 192.168.1.100 got %s", s.HostIP)
+		}
+	}
+}
+
+// Copied from https://github.com/docker/go-connections/blob/c296721c0d56d3acad2973376ded214103a4fd2e/nat/nat_test.go#L146-L242
+func TestSplitProtoPort(t *testing.T) {
+	tests := []struct {
+		doc      string
+		input    string
+		expPort  string
+		expProto string
+	}{
+		{
+			doc: "empty value",
+		},
+		{
+			doc:      "zero value",
+			input:    "0",
+			expPort:  "0",
+			expProto: "tcp",
+		},
+		{
+			doc:      "empty port",
+			input:    "/udp",
+			expPort:  "",
+			expProto: "",
+		},
+		{
+			doc:      "single port",
+			input:    "1234",
+			expPort:  "1234",
+			expProto: "tcp",
+		},
+		{
+			doc:      "single port with empty protocol",
+			input:    "1234/",
+			expPort:  "1234",
+			expProto: "tcp",
+		},
+		{
+			doc:      "single port with protocol",
+			input:    "1234/udp",
+			expPort:  "1234",
+			expProto: "udp",
+		},
+		{
+			doc:      "port range",
+			input:    "80-8080",
+			expPort:  "80-8080",
+			expProto: "tcp",
+		},
+		{
+			doc:      "port range with empty protocol",
+			input:    "80-8080/",
+			expPort:  "80-8080",
+			expProto: "tcp",
+		},
+		{
+			doc:      "port range with protocol",
+			input:    "80-8080/udp",
+			expPort:  "80-8080",
+			expProto: "udp",
+		},
+		// SplitProtoPort currently does not validate or normalize, so these are expected returns
+		{
+			doc:      "negative value",
+			input:    "-1",
+			expPort:  "-1",
+			expProto: "tcp",
+		},
+		{
+			doc:      "uppercase protocol",
+			input:    "1234/UDP",
+			expPort:  "1234",
+			expProto: "UDP",
+		},
+		{
+			doc:      "any value",
+			input:    "any port value",
+			expPort:  "any port value",
+			expProto: "tcp",
+		},
+		{
+			doc:      "any value with protocol",
+			input:    "any port value/any proto value",
+			expPort:  "any port value",
+			expProto: "any proto value",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			proto, port := splitProtoPort(tc.input)
+			if proto != tc.expProto {
+				t.Errorf("expected proto %s, got %s", tc.expProto, proto)
+			}
+			if port != tc.expPort {
+				t.Errorf("expected port %s, got %s", tc.expPort, port)
+			}
+		})
+	}
 }

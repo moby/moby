@@ -2173,9 +2173,8 @@ func (s *DockerCLIRunSuite) TestRunAllowPortRangeThroughExpose(c *testing.T) {
 		c.Fatal(err)
 	}
 	for port, binding := range ports {
-		portnum, _ := strconv.Atoi(strings.Split(string(port), "/")[0])
-		if portnum < 3000 || portnum > 3003 {
-			c.Fatalf("Port %d is out of range ", portnum)
+		if port.Num() < 3000 || port.Num() > 3003 {
+			c.Fatalf("Port %d is out of range", port.Num())
 		}
 		if len(binding) == 0 || binding[0].HostPort == "" {
 			c.Fatalf("Port is not mapped for the port %s", port)
@@ -2510,12 +2509,11 @@ func (s *DockerCLIRunSuite) TestRunAllowPortRangeThroughPublish(c *testing.T) {
 	err := json.Unmarshal([]byte(portStr), &ports)
 	assert.NilError(c, err, "failed to unmarshal: %v", portStr)
 	for port, binding := range ports {
-		portnum, _ := strconv.Atoi(strings.Split(string(port), "/")[0])
-		if portnum < 3000 || portnum > 3003 {
-			c.Fatalf("Port %d is out of range ", portnum)
+		if port.Num() < 3000 || port.Num() > 3003 {
+			c.Fatalf("Port %d is out of range", port.Num())
 		}
 		if len(binding) == 0 || binding[0].HostPort == "" {
-			c.Fatal("Port is not mapped for the port "+port, id)
+			c.Fatalf("Port is not mapped for the port %s", port)
 		}
 	}
 }

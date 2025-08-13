@@ -113,7 +113,7 @@ func TestNetworkLoopbackNat(t *testing.T) {
 	assert.Check(t, is.Equal(msg, strings.TrimSpace(b.String())))
 }
 
-func startServerContainer(ctx context.Context, t *testing.T, msg string, port int) string {
+func startServerContainer(ctx context.Context, t *testing.T, msg string, port uint16) string {
 	t.Helper()
 	apiClient := testEnv.APIClient()
 
@@ -123,7 +123,7 @@ func startServerContainer(ctx context.Context, t *testing.T, msg string, port in
 		container.WithExposedPorts(fmt.Sprintf("%d/tcp", port)),
 		func(c *container.TestContainerConfig) {
 			c.HostConfig.PortBindings = containertypes.PortMap{
-				containertypes.PortRangeProto(fmt.Sprintf("%d/tcp", port)): []containertypes.PortBinding{
+				containertypes.MustParsePort(fmt.Sprintf("%d/tcp", port)): []containertypes.PortBinding{
 					{
 						HostPort: fmt.Sprintf("%d", port),
 					},

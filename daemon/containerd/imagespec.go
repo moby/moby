@@ -80,7 +80,7 @@ func containerConfigToDockerOCIImageConfig(cfg *container.Config) imagespec.Dock
 		if len(cfg.ExposedPorts) > 0 {
 			ociCfg.ExposedPorts = map[string]struct{}{}
 			for k := range cfg.ExposedPorts {
-				ociCfg.ExposedPorts[string(k)] = struct{}{}
+				ociCfg.ExposedPorts[k.String()] = struct{}{}
 			}
 		}
 		ext.Healthcheck = cfg.Healthcheck
@@ -97,7 +97,9 @@ func containerConfigToDockerOCIImageConfig(cfg *container.Config) imagespec.Dock
 func dockerOCIImageConfigToContainerConfig(cfg imagespec.DockerOCIImageConfig) *container.Config {
 	exposedPorts := make(container.PortSet, len(cfg.ExposedPorts))
 	for k := range cfg.ExposedPorts {
-		exposedPorts[container.PortRangeProto(k)] = struct{}{}
+		if p, err := container.ParsePort(k); err == nil {
+			exposedPorts[p] = struct{}{}
+		}
 	}
 
 	return &container.Config{

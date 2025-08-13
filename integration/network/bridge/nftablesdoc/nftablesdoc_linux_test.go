@@ -79,7 +79,7 @@ var index = []section{
 			containers: []ctrDesc{
 				{
 					name:         "c1",
-					portMappings: containertypes.PortMap{"80/tcp": {{HostPort: "8080"}}},
+					portMappings: containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{HostPort: "8080"}}},
 				},
 			},
 		}},
@@ -92,7 +92,7 @@ var index = []section{
 			containers: []ctrDesc{
 				{
 					name:         "c1",
-					portMappings: containertypes.PortMap{"80/tcp": {{HostPort: "8080"}}},
+					portMappings: containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{HostPort: "8080"}}},
 				},
 			},
 		}},
@@ -105,7 +105,7 @@ var index = []section{
 			containers: []ctrDesc{
 				{
 					name:         "c1",
-					portMappings: containertypes.PortMap{"80/tcp": {{HostPort: "8080"}}},
+					portMappings: containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{HostPort: "8080"}}},
 				},
 			},
 		}},
@@ -139,7 +139,7 @@ var index = []section{
 			containers: []ctrDesc{
 				{
 					name:         "c1",
-					portMappings: containertypes.PortMap{"80/tcp": {{HostPort: "8080"}}},
+					portMappings: containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{HostPort: "8080"}}},
 				},
 			},
 		}},
@@ -152,7 +152,7 @@ var index = []section{
 			containers: []ctrDesc{
 				{
 					name:         "c1",
-					portMappings: containertypes.PortMap{"80/tcp": {{HostPort: "8080"}}},
+					portMappings: containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{HostPort: "8080"}}},
 				},
 			},
 		}},
@@ -178,7 +178,7 @@ var index = []section{
 			containers: []ctrDesc{
 				{
 					name:         "c1",
-					portMappings: containertypes.PortMap{"80/tcp": {{HostIP: "127.0.0.1", HostPort: "8080"}}},
+					portMappings: containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{HostIP: "127.0.0.1", HostPort: "8080"}}},
 				},
 			},
 		}},
@@ -300,7 +300,7 @@ func createBridgeNetworks(ctx context.Context, t *testing.T, d *daemon.Daemon, s
 		for _, ctr := range nw.containers {
 			var exposedPorts []string
 			for ep := range ctr.portMappings {
-				exposedPorts = append(exposedPorts, ep.Port()+"/"+ep.Proto())
+				exposedPorts = append(exposedPorts, ep.String())
 			}
 			id := container.Run(ctx, t, c,
 				container.WithNetworkMode(nw.name),

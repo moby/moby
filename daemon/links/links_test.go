@@ -1,17 +1,18 @@
 package links
 
 import (
+	"slices"
 	"sort"
 	"testing"
 
-	"github.com/docker/go-connections/nat"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 )
 
 func TestLinkNaming(t *testing.T) {
 	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker-1", nil, container.PortSet{
-		"6379/tcp": struct{}{},
+		container.MustParsePort("6379/tcp"): struct{}{},
 	})
 
 	expectedEnv := []string{
@@ -28,23 +29,25 @@ func TestLinkNaming(t *testing.T) {
 }
 
 func TestLinkNew(t *testing.T) {
+	tcp6379 := container.MustParsePort("6379/tcp")
 	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", nil, container.PortSet{
-		"6379/tcp": struct{}{},
+		tcp6379: struct{}{},
 	})
 
 	expected := &Link{
 		Name:     "/db/docker",
 		ParentIP: "172.0.17.3",
 		ChildIP:  "172.0.17.2",
-		Ports:    []container.PortRangeProto{"6379/tcp"},
+		Ports:    []container.Port{tcp6379},
 	}
 
-	assert.DeepEqual(t, expected, link)
+	assert.DeepEqual(t, expected, link, cmpopts.EquateComparable(container.Port{}))
 }
 
 func TestLinkEnv(t *testing.T) {
+	tcp6379 := container.MustParsePort("6379/tcp")
 	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, container.PortSet{
-		"6379/tcp": struct{}{},
+		tcp6379: struct{}{},
 	})
 
 	expectedEnv := []string{
@@ -64,39 +67,39 @@ func TestLinkEnv(t *testing.T) {
 // TestSortPorts verifies that ports are sorted with TCP taking priority,
 // and ports with the same protocol to be sorted by port.
 func TestSortPorts(t *testing.T) {
-	ports := []container.PortRangeProto{
-		"6379/tcp",
-		"6376/udp",
-		"6380/tcp",
-		"6376/sctp",
-		"6381/tcp",
-		"6381/udp",
-		"6375/udp",
-		"6375/sctp",
+	ports := []container.Port{
+		container.MustParsePort("6379/tcp"),
+		container.MustParsePort("6376/udp"),
+		container.MustParsePort("6380/tcp"),
+		container.MustParsePort("6376/sctp"),
+		container.MustParsePort("6381/tcp"),
+		container.MustParsePort("6381/udp"),
+		container.MustParsePort("6375/udp"),
+		container.MustParsePort("6375/sctp"),
 	}
 
-	expected := []container.PortRangeProto{
-		"6379/tcp",
-		"6380/tcp",
-		"6381/tcp",
-		"6375/sctp",
-		"6376/sctp",
-		"6375/udp",
-		"6376/udp",
-		"6381/udp",
+	expected := []container.Port{
+		container.MustParsePort("6379/tcp"),
+		container.MustParsePort("6380/tcp"),
+		container.MustParsePort("6381/tcp"),
+		container.MustParsePort("6375/sctp"),
+		container.MustParsePort("6376/sctp"),
+		container.MustParsePort("6375/udp"),
+		container.MustParsePort("6376/udp"),
+		container.MustParsePort("6381/udp"),
 	}
 
-	nat.Sort(ports, withTCPPriority)
-	assert.DeepEqual(t, expected, ports)
+	slices.SortFunc(ports, withTCPPriority)
+	assert.DeepEqual(t, expected, ports, cmpopts.EquateComparable(container.Port{}))
 }
 
 func TestLinkMultipleEnv(t *testing.T) {
 	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, container.PortSet{
-		"6300/udp": struct{}{},
-		"6379/tcp": struct{}{},
-		"6380/tcp": struct{}{},
-		"6381/tcp": struct{}{},
-		"6382/udp": struct{}{},
+		container.MustParsePort("6300/udp"): struct{}{},
+		container.MustParsePort("6379/tcp"): struct{}{},
+		container.MustParsePort("6380/tcp"): struct{}{},
+		container.MustParsePort("6381/tcp"): struct{}{},
+		container.MustParsePort("6382/udp"): struct{}{},
 	})
 
 	expectedEnv := []string{
@@ -143,11 +146,11 @@ func BenchmarkLinkMultipleEnv(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, container.PortSet{
-			"6300/udp": struct{}{},
-			"6379/tcp": struct{}{},
-			"6380/tcp": struct{}{},
-			"6381/tcp": struct{}{},
-			"6382/udp": struct{}{},
+			container.MustParsePort("6300/udp"): struct{}{},
+			container.MustParsePort("6379/tcp"): struct{}{},
+			container.MustParsePort("6380/tcp"): struct{}{},
+			container.MustParsePort("6381/tcp"): struct{}{},
+			container.MustParsePort("6382/udp"): struct{}{},
 		})
 	}
 }

@@ -164,7 +164,7 @@ COPY . /static`); err != nil {
 	// Find out the system assigned port
 	i, err := c.ContainerInspect(context.Background(), b.ID)
 	assert.NilError(t, err)
-	ports, exists := i.NetworkSettings.Ports["80/tcp"]
+	ports, exists := i.NetworkSettings.Ports[containertypes.MustParsePort("80/tcp")]
 	assert.Assert(t, exists, "unable to find port 80/tcp for %s", ctrName)
 	if len(ports) == 0 {
 		t.Fatalf("no ports mapped for 80/tcp for %s: %#v", ctrName, i.NetworkSettings.Ports)
