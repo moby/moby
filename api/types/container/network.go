@@ -21,7 +21,14 @@ type PortBinding struct {
 // PortMap is a collection of [PortBinding] indexed by [PortProto].
 type PortMap = map[PortProto][]PortBinding
 
+// PortRangeProto is a string containing a range of port numbers and protocol in
+// the format "80-90/tcp". It the same as [PortProto], but used in places where
+// we expect a port-range to be used.
+type PortRangeProto = PortProto
+
 // PortProto is a string containing port number and protocol in the format "80/tcp".
+// It is the same as [PortRangeProto], but used in places where we only expect
+// a single port to be used (not a range).
 type PortProto string
 
 // Proto returns the protocol of a Port
