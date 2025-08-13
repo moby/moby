@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/go-connections/nat"
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/versions"
@@ -950,7 +949,7 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
-	createInspect := func(t *testing.T, version string, pbs []nat.PortBinding) (containertypes.PortMap, []string) {
+	createInspect := func(t *testing.T, version string, pbs []containertypes.PortBinding) (containertypes.PortMap, []string) {
 		apiClient := d.NewClientT(t, client.WithVersion(version))
 		defer apiClient.Close()
 
@@ -983,7 +982,7 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 		}}
 		expWarnings := make([]string, 0)
 
-		mappings, warnings := createInspect(t, "1.51", []nat.PortBinding{})
+		mappings, warnings := createInspect(t, "1.51", []containertypes.PortBinding{})
 		assert.DeepEqual(t, expMappings, mappings)
 		assert.DeepEqual(t, expWarnings, warnings)
 	})
@@ -996,7 +995,7 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 			"Following container port(s) have an empty list of port-bindings: 80/tcp. Starting with API 1.53, such bindings will be discarded.",
 		}
 
-		mappings, warnings := createInspect(t, "1.52", []nat.PortBinding{})
+		mappings, warnings := createInspect(t, "1.52", []containertypes.PortBinding{})
 		assert.DeepEqual(t, expMappings, mappings)
 		assert.DeepEqual(t, expWarnings, warnings)
 	})
@@ -1005,7 +1004,7 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 		expMappings := containertypes.PortMap{}
 		expWarnings := make([]string, 0)
 
-		mappings, warnings := createInspect(t, "1.53", []nat.PortBinding{})
+		mappings, warnings := createInspect(t, "1.53", []containertypes.PortBinding{})
 		assert.DeepEqual(t, expMappings, mappings)
 		assert.DeepEqual(t, expWarnings, warnings)
 	})
@@ -1017,7 +1016,7 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 			}}
 			expWarnings := make([]string, 0)
 
-			mappings, warnings := createInspect(t, apiVersion, []nat.PortBinding{{HostPort: "8080"}})
+			mappings, warnings := createInspect(t, apiVersion, []containertypes.PortBinding{{HostPort: "8080"}})
 			assert.DeepEqual(t, expMappings, mappings)
 			assert.DeepEqual(t, expWarnings, warnings)
 		})
