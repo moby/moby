@@ -1894,3 +1894,60 @@ func TestDropInForwardChain(t *testing.T) {
 		}
 	})
 }
+
+// TestLegacyLinksEnvVars verify that legacy links environment variables are set in containers when the daemon is
+// started with DOCKER_KEEP_DEPRECATED_LEGACY_LINKS_ENV_VARS=1, and are skipped when the daemon is started without that
+// environment variable.
+func TestLegacyLinksEnvVars(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		expectEnvVars bool
+	}{
+		{"with legacy links env vars", true},
+		{"without legacy links env vars", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var dEnv []string
+			if tc.expectEnvVars {
+				dEnv = []string{"DOCKER_KEEP_DEPRECATED_LEGACY_LINKS_ENV_VARS=1"}
+			}
+
+			ctx := setupTest(t)
+			d := daemon.New(t, daemon.WithEnvVars(dEnv...))
+			d.StartWithBusybox(ctx, t)
+			defer d.Stop(t)
+			c := d.NewClientT(t)
+			defer c.Close()
+
+			ctr1 := container.Run(ctx, t, c,
+				container.WithName("ctr1"),
+				container.WithCmd("httpd", "-f"))
+			defer c.ContainerRemove(ctx, ctr1, containertypes.RemoveOptions{Force: true})
+
+			exportRes := container.RunAttach(ctx, t, c,
+				container.WithName("ctr2"),
+				container.WithLinks("ctr1"),
+				container.WithCmd("/bin/sh", "-c", "export"),
+				container.WithAutoRemove)
+
+			// Check the list of environment variables set in the linking container.
+			var found bool
+			for _, l := range strings.Split(exportRes.Stdout.String(), "\n") {
+				if strings.HasPrefix(l, "export CTR1_") {
+					// Legacy links env var found, but not expected.
+					if !tc.expectEnvVars {
+						t.Fatalf("unexpected env var %q", l)
+					}
+
+					// Legacy links env var found, and expected. No need to check further.
+					found = true
+					break
+				}
+			}
+
+			if !found && tc.expectEnvVars {
+				t.Fatal("no legacy links env vars found")
+			}
+		})
+	}
+}

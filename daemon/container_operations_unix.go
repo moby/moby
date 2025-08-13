@@ -46,15 +46,18 @@ func (daemon *Daemon) setupLinkedContainers(ctr *container.Container) ([]string,
 			return nil, fmt.Errorf("container %s not attached to default bridge network", child.ID)
 		}
 
-		linkEnvVars := links.EnvVars(
-			bridgeSettings.IPAddress,
-			childBridgeSettings.IPAddress,
-			linkAlias,
-			child.Config.Env,
-			child.Config.ExposedPorts,
-		)
-
-		env = append(env, linkEnvVars...)
+		// Environment variables defined when using legacy links are deprecated and will be removed in a future release.
+		// Allow users to restore the old behavior through this escape hatch.
+		if os.Getenv("DOCKER_KEEP_DEPRECATED_LEGACY_LINKS_ENV_VARS") == "1" {
+			linkEnvVars := links.EnvVars(
+				bridgeSettings.IPAddress,
+				childBridgeSettings.IPAddress,
+				linkAlias,
+				child.Config.Env,
+				child.Config.ExposedPorts,
+			)
+			env = append(env, linkEnvVars...)
+		}
 	}
 
 	return env, nil

@@ -193,15 +193,6 @@ func (s *DockerCLILinksSuite) TestLinksUpdateOnRestart(c *testing.T) {
 	assert.Check(c, is.Equal(ip, realIP))
 }
 
-func (s *DockerCLILinksSuite) TestLinksEnvs(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	cli.DockerCmd(c, "run", "-d", "-e", "e1=", "-e", "e2=v2", "-e", "e3=v3=v3", "--name=first", "busybox", "top")
-	out := cli.DockerCmd(c, "run", "--name=second", "--link=first:first", "busybox", "env").Stdout()
-	assert.Assert(c, is.Contains(out, "FIRST_ENV_e1=\n"))
-	assert.Assert(c, is.Contains(out, "FIRST_ENV_e2=v2"))
-	assert.Assert(c, is.Contains(out, "FIRST_ENV_e3=v3=v3"))
-}
-
 func (s *DockerCLILinksSuite) TestLinkShortDefinition(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	cid := cli.DockerCmd(c, "run", "-d", "--name", "shortlinkdef", "busybox", "top").Stdout()
