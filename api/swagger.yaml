@@ -1629,6 +1629,11 @@ definitions:
           HostPort: "80"
         - HostIp: "0.0.0.0"
           HostPort: "8080"
+        - HostIp: "0.0.0.0"
+          HostPort: ""
+          Mapper: "cloudflare"
+          ExtraParams:
+            hostname: "example.com"
       "80/udp":
         - HostIp: "0.0.0.0"
           HostPort: "80"
@@ -1655,6 +1660,25 @@ definitions:
         description: "Host port number that the container's port is mapped to."
         type: "string"
         example: "4443"
+      Mapper:
+        description: |
+          Mapper is an optional field that defines which portmapper should be
+          used to create this PortBinding. When not specified, an appropriate
+          builtin portmapper will be selected.
+
+          WARNING: This is experimental and may change at any time without any
+          backward compatibility.
+        type: "string"
+      ExtraParams:
+        description: |
+          ExtraParams defines additional parameters passed to the Mapper when
+          it creates or removes this PortBinding.
+
+          WARNING: This is experimental and may change at any time without any
+          backward compatibility.
+        type: object
+        additionalProperties:
+          type: string
 
   DriverData:
     description: |

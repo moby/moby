@@ -69,6 +69,13 @@ keywords: "API, Docker, rcli, REST, documentation"
   of the `Resource` requirements.
 * `GET /tasks/{id}` now  returns `SwapBytes` and `MemorySwappiness` fields as
   part of the `Resource` requirements.
+* Port bindings specified in `POST /containers/create` and returned in
+  `GET /containers/{id}/json` now take two new fields: `Mapper` and `ExtraParams`.
+  The `Mapper` field is a string indicating the port mapper used to create the
+  port binding, and the `ExtraParams` field is a map of additional parameters
+  passed to the mapper.
+  WARNING: These fields are experimental and may change at any time without any
+  backward compatibility.
 
 ## v1.51 API changes
 
