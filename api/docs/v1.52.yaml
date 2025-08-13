@@ -173,9 +173,10 @@ tags:
     x-displayName: "System"
 
 definitions:
-  Port:
+  PortSummary:
     type: "object"
-    description: "An open port on a container"
+    description: |
+      Describes a port-mapping between the container and the host.
     required: [PrivatePort, Type]
     properties:
       IP:
@@ -5204,7 +5205,7 @@ definitions:
           Port-mappings for the container.
         type: "array"
         items:
-          $ref: "#/definitions/Port"
+          $ref: "#/definitions/PortSummary"
       SizeRw:
         description: |-
           The size of files that have been created or changed by this container.

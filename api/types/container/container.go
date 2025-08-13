@@ -104,7 +104,7 @@ type Summary struct {
 	ImageManifestDescriptor *ocispec.Descriptor `json:"ImageManifestDescriptor,omitempty"`
 	Command                 string
 	Created                 int64
-	Ports                   []Port
+	Ports                   []PortSummary
 	SizeRw                  int64 `json:",omitempty"`
 	SizeRootFs              int64 `json:",omitempty"`
 	Labels                  map[string]string
