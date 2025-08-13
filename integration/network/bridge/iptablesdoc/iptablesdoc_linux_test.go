@@ -353,10 +353,12 @@ func createServices(ctx context.Context, t *testing.T, d *daemon.Daemon, section
 				for _, hostPort := range hostPorts {
 					hp, err := strconv.Atoi(hostPort.HostPort)
 					assert.NilError(t, err)
+					ctrPPInt, err := ctrPP.Int()
+					assert.NilError(t, err)
 					portConfig = append(portConfig, swarmtypes.PortConfig{
 						Protocol:      swarmtypes.PortConfigProtocol(ctrPP.Proto()),
 						PublishedPort: uint32(hp),
-						TargetPort:    uint32(ctrPP.Int()),
+						TargetPort:    uint32(ctrPPInt),
 					})
 				}
 			}

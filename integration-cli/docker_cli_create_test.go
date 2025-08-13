@@ -106,7 +106,7 @@ func (s *DockerCLICreateSuite) TestCreateWithPortRange(c *testing.T) {
 
 	for k, v := range cont.HostConfig.PortBindings {
 		assert.Equal(c, len(v), 1, fmt.Sprintf("Expected 1 ports binding, for the port  %s but found %s", k, v))
-		assert.Equal(c, k.Port(), v[0].HostPort, fmt.Sprintf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort))
+		assert.Equal(c, k.PortRange(), v[0].HostPort, fmt.Sprintf("Expected host port %s to match published port %s", k.PortRange(), v[0].HostPort))
 	}
 }
 
@@ -132,7 +132,7 @@ func (s *DockerCLICreateSuite) TestCreateWithLargePortRange(c *testing.T) {
 
 	for k, v := range cont.HostConfig.PortBindings {
 		assert.Equal(c, len(v), 1)
-		assert.Equal(c, k.Port(), v[0].HostPort, fmt.Sprintf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort))
+		assert.Equal(c, k.PortRange(), v[0].HostPort, fmt.Sprintf("Expected host port %s to match published port %s", k.PortRange(), v[0].HostPort))
 	}
 }
 

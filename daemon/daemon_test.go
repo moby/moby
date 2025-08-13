@@ -273,7 +273,7 @@ func TestMerge(t *testing.T) {
 	}
 
 	configImage2 := &containertypes.Config{
-		ExposedPorts: map[containertypes.PortRangeProto]struct{}{"0/tcp": {}},
+		ExposedPorts: map[containertypes.PortProto]struct{}{"0/tcp": {}},
 	}
 
 	if err := merge(configUser, configImage2); err != nil {
