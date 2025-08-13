@@ -264,3 +264,5 @@ exclude (
 replace github.com/moby/moby/client => ./client
 
 replace github.com/moby/moby/api => ./api
+
+replace github.com/docker/go-connections => github.com/akerouanton/go-connections v0.0.0-20250813122150-82fe2d5001fe
