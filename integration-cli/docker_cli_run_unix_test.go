@@ -831,12 +831,12 @@ func (s *DockerCLIRunSuite) TestRunTmpfsMountsWithOptions(c *testing.T) {
 		assert.Assert(c, is.Contains(out, option))
 	}
 
-	// We use debian:bookworm-slim as there is no findmnt in busybox. Also the output will be in the format of
+	// We use debian:trixie-slim as there is no findmnt in busybox. Also the output will be in the format of
 	// TARGET PROPAGATION
 	// /tmp   shared
 	// so we only capture `shared` here.
 	expectedOptions = []string{"shared"}
-	out = cli.DockerCmd(c, "run", "--tmpfs", "/tmp:shared", "debian:bookworm-slim", "findmnt", "-o", "TARGET,PROPAGATION", "/tmp").Combined()
+	out = cli.DockerCmd(c, "run", "--tmpfs", "/tmp:shared", "debian:trixie-slim", "findmnt", "-o", "TARGET,PROPAGATION", "/tmp").Combined()
 	for _, option := range expectedOptions {
 		assert.Assert(c, is.Contains(out, option))
 	}
@@ -872,7 +872,7 @@ func (s *DockerCLIRunSuite) TestRunSysctls(c *testing.T) {
 	})
 }
 
-// TestRunSeccompProfileDenyUnshare checks that 'docker run --security-opt seccomp=/tmp/profile.json debian:bookworm-slim unshare' exits with operation not permitted.
+// TestRunSeccompProfileDenyUnshare checks that 'docker run --security-opt seccomp=/tmp/profile.json debian:trixie-slim unshare' exits with operation not permitted.
 func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyUnshare(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, Apparmor)
 	const jsonData = `{
@@ -895,7 +895,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyUnshare(c *testing.T) {
 	}
 	icmd.RunCommand(dockerBinary, "run", "--security-opt", "apparmor=unconfined",
 		"--security-opt", "seccomp="+tmpFile.Name(),
-		"debian:bookworm-slim", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc").Assert(c, icmd.Expected{
+		"debian:trixie-slim", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc").Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Operation not permitted",
 	})
@@ -935,7 +935,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyChmod(c *testing.T) {
 	})
 }
 
-// TestRunSeccompProfileDenyUnshareUserns checks that 'docker run debian:bookworm-slim unshare --map-root-user --user sh -c whoami' with a specific profile to
+// TestRunSeccompProfileDenyUnshareUserns checks that 'docker run debian:trixie-slim unshare --map-root-user --user sh -c whoami' with a specific profile to
 // deny unshare of a userns exits with operation not permitted.
 func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyUnshareUserns(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, Apparmor)
@@ -967,7 +967,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyUnshareUserns(c *testing.T)
 	}
 	icmd.RunCommand(dockerBinary, "run",
 		"--security-opt", "apparmor=unconfined", "--security-opt", "seccomp="+tmpFile.Name(),
-		"debian:bookworm-slim", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami").Assert(c, icmd.Expected{
+		"debian:trixie-slim", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami").Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Operation not permitted",
 	})
@@ -1019,12 +1019,12 @@ func (s *DockerCLIRunSuite) TestRunSeccompProfileAllow32Bit(c *testing.T) {
 	icmd.RunCommand(dockerBinary, "run", "syscall-test", "exit32-test").Assert(c, icmd.Success)
 }
 
-// TestRunSeccompAllowSetrlimit checks that 'docker run debian:bookworm-slim ulimit -v 1048510' succeeds.
+// TestRunSeccompAllowSetrlimit checks that 'docker run debian:trixie-slim ulimit -v 1048510' succeeds.
 func (s *DockerCLIRunSuite) TestRunSeccompAllowSetrlimit(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 
 	// ulimit uses setrlimit, so we want to make sure we don't break it
-	icmd.RunCommand(dockerBinary, "run", "debian:bookworm-slim", "bash", "-c", "ulimit -v 1048510").Assert(c, icmd.Success)
+	icmd.RunCommand(dockerBinary, "run", "debian:trixie-slim", "bash", "-c", "ulimit -v 1048510").Assert(c, icmd.Success)
 }
 
 func (s *DockerCLIRunSuite) TestRunSeccompDefaultProfileAcct(c *testing.T) {
@@ -1329,7 +1329,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompWithDefaultProfile(c *testing.T) {
 	err = os.WriteFile(fileName, b, 0o644)
 	assert.NilError(c, err)
 
-	out, _, err := dockerCmdWithError("run", "--security-opt", "seccomp="+fileName, "debian:bookworm-slim", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami")
+	out, _, err := dockerCmdWithError("run", "--security-opt", "seccomp="+fileName, "debian:trixie-slim", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami")
 	assert.ErrorContains(c, err, "", out)
 	assert.Equal(c, strings.TrimSpace(out), "unshare: unshare failed: Operation not permitted")
 }

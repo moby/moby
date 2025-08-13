@@ -44,7 +44,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	clientUserRemap := dUserRemap.NewClientT(t)
 	defer clientUserRemap.Close()
 
-	err := load.FrozenImagesLinux(ctx, clientUserRemap, "debian:bookworm-slim")
+	err := load.FrozenImagesLinux(ctx, clientUserRemap, "debian:trixie-slim")
 	assert.NilError(t, err)
 
 	dUserRemapRunning := true
@@ -56,7 +56,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	}()
 
 	dockerfile := `
-		FROM debian:bookworm-slim
+		FROM debian:trixie-slim
 		RUN apt-get update && apt-get install -y libcap2-bin --no-install-recommends
 		RUN setcap CAP_NET_BIND_SERVICE=+eip /bin/sleep
 	`

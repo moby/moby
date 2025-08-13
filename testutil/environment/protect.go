@@ -19,7 +19,7 @@ var frozenImages = []string{
 	"busybox:latest",
 	"busybox:glibc",
 	"hello-world:frozen",
-	"debian:bookworm-slim",
+	"debian:trixie-slim",
 	"hello-world:amd64",
 	"hello-world:arm64",
 }

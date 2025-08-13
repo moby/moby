@@ -50,7 +50,7 @@ func ensureSyscallTest(ctx context.Context, t *testing.T) {
 
 	dockerFile := filepath.Join(tmp, "Dockerfile")
 	content := []byte(`
-	FROM debian:bookworm-slim
+	FROM debian:trixie-slim
 	COPY . /usr/bin/
 	`)
 	err = os.WriteFile(dockerFile, content, 0o600)
@@ -66,7 +66,7 @@ func ensureSyscallTest(ctx context.Context, t *testing.T) {
 }
 
 func ensureSyscallTestBuild(ctx context.Context, t *testing.T) {
-	err := load.FrozenImagesLinux(ctx, testEnv.APIClient(), "debian:bookworm-slim")
+	err := load.FrozenImagesLinux(ctx, testEnv.APIClient(), "debian:trixie-slim")
 	assert.NilError(t, err)
 
 	var buildArgs []string
@@ -104,7 +104,7 @@ func ensureNNPTest(ctx context.Context, t *testing.T) {
 
 	dockerfile := filepath.Join(tmp, "Dockerfile")
 	content := `
-	FROM debian:bookworm-slim
+	FROM debian:trixie-slim
 	COPY . /usr/bin
 	RUN chmod +s /usr/bin/nnp-test
 	`
@@ -121,7 +121,7 @@ func ensureNNPTest(ctx context.Context, t *testing.T) {
 }
 
 func ensureNNPTestBuild(ctx context.Context, t *testing.T) {
-	err := load.FrozenImagesLinux(ctx, testEnv.APIClient(), "debian:bookworm-slim")
+	err := load.FrozenImagesLinux(ctx, testEnv.APIClient(), "debian:trixie-slim")
 	assert.NilError(t, err)
 
 	var buildArgs []string
