@@ -149,7 +149,7 @@ FROM base AS gowinres
 ARG GOWINRES_VERSION=v0.3.1
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build/ go install "github.com/tc-hib/go-winres@${GOWINRES_VERSION}" \
+        GOBIN=/build go install "github.com/tc-hib/go-winres@${GOWINRES_VERSION}" \
      && /build/go-winres --help
 
 # containerd
@@ -194,7 +194,7 @@ FROM base AS golangci_lint
 ARG GOLANGCI_LINT_VERSION=v2.1.5
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build/ go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}" \
+        GOBIN=/build go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}" \
      && /build/golangci-lint --version
 
 FROM base AS gotestsum
@@ -202,20 +202,20 @@ FROM base AS gotestsum
 ARG GOTESTSUM_VERSION=v1.12.3
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build/ go install "gotest.tools/gotestsum@${GOTESTSUM_VERSION}" \
+        GOBIN=/build go install "gotest.tools/gotestsum@${GOTESTSUM_VERSION}" \
      && /build/gotestsum --version
 
 FROM base AS shfmt
 ARG SHFMT_VERSION=v3.8.0
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build/ go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}" \
+        GOBIN=/build go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}" \
      && /build/shfmt --version
 
 FROM base AS gopls
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build/ go install "golang.org/x/tools/gopls@latest" \
+        GOBIN=/build go install "golang.org/x/tools/gopls@latest" \
      && /build/gopls version
 
 FROM base AS dockercli
