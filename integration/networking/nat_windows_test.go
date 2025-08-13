@@ -97,13 +97,13 @@ func TestFlakyPortMappedHairpinWindows(t *testing.T) {
 	serverId := container.Run(ctx, t, c,
 		container.WithNetworkMode(serverNetName),
 		container.WithExposedPorts("80"),
-		container.WithPortMap(containertypes.PortMap{"80": {{HostIP: "0.0.0.0"}}}),
+		container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80"): {{HostIP: "0.0.0.0"}}}),
 		container.WithCmd("httpd", "-f"),
 	)
 	defer c.ContainerRemove(ctx, serverId, client.ContainerRemoveOptions{Force: true})
 
 	inspect := container.Inspect(ctx, t, c, serverId)
-	hostPort := inspect.NetworkSettings.Ports["80/tcp"][0].HostPort
+	hostPort := inspect.NetworkSettings.Ports[containertypes.MustParsePort("80/tcp")][0].HostPort
 
 	attachCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()

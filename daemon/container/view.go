@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/docker/go-connections/nat"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
@@ -391,29 +390,24 @@ func (v *View) transform(ctr *Container) *Snapshot {
 			}
 		}
 		for p, bindings := range ctr.NetworkSettings.Ports {
-			proto, port := nat.SplitProtoPort(string(p))
-			p, err := nat.ParsePort(port)
-			if err != nil {
-				log.G(context.TODO()).WithError(err).Warn("invalid port map")
-				continue
-			}
 			if len(bindings) == 0 {
 				snapshot.Ports = append(snapshot.Ports, container.PortSummary{
-					PrivatePort: uint16(p),
-					Type:        proto,
+					PrivatePort: p.Num(),
+					Type:        string(p.Proto()),
 				})
 				continue
 			}
 			for _, binding := range bindings {
-				h, err := nat.ParsePort(binding.HostPort)
+				// TODO(thaJeztah): if this is always a port/proto (no range), we can simplify this to [container.ParsePort].
+				h, err := container.ParsePortRange(binding.HostPort)
 				if err != nil {
 					log.G(context.TODO()).WithError(err).Warn("invalid host port map")
 					continue
 				}
 				snapshot.Ports = append(snapshot.Ports, container.PortSummary{
-					PrivatePort: uint16(p),
-					PublicPort:  uint16(h),
-					Type:        proto,
+					PrivatePort: p.Num(),
+					PublicPort:  h.Start(),
+					Type:        string(p.Proto()),
 					IP:          binding.HostIP,
 				})
 			}

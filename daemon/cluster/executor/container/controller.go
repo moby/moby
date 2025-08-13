@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -643,27 +642,17 @@ func parsePortStatus(ctnr container.InspectResponse) (*api.PortStatus, error) {
 func parsePortMap(portMap container.PortMap) ([]*api.PortConfig, error) {
 	exposedPorts := make([]*api.PortConfig, 0, len(portMap))
 
-	for portProtocol, mapping := range portMap {
-		p, proto, ok := strings.Cut(string(portProtocol), "/")
-		if !ok {
-			return nil, fmt.Errorf("invalid port mapping: %s", portProtocol)
-		}
-
-		port, err := strconv.ParseUint(p, 10, 16)
-		if err != nil {
-			return nil, err
-		}
-
+	for port, mapping := range portMap {
 		var protocol api.PortConfig_Protocol
-		switch strings.ToLower(proto) {
-		case "tcp":
+		switch port.Proto() {
+		case container.TCP:
 			protocol = api.ProtocolTCP
-		case "udp":
+		case container.UDP:
 			protocol = api.ProtocolUDP
-		case "sctp":
+		case container.SCTP:
 			protocol = api.ProtocolSCTP
 		default:
-			return nil, fmt.Errorf("invalid protocol: %s", proto)
+			return nil, fmt.Errorf("invalid protocol: %s", port.Proto())
 		}
 
 		for _, binding := range mapping {
@@ -677,7 +666,7 @@ func parsePortMap(portMap container.PortMap) ([]*api.PortConfig, error) {
 			exposedPorts = append(exposedPorts, &api.PortConfig{
 				PublishMode:   api.PublishModeHost,
 				Protocol:      protocol,
-				TargetPort:    uint32(port),
+				TargetPort:    uint32(port.Num()),
 				PublishedPort: uint32(hostPort),
 			})
 		}
