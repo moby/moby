@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"net"
 	"net/netip"
 	"os"
@@ -112,22 +111,23 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 		}
 	}
 
-	// Create a deep copy (as [nat.SortPortMap] mutates the map).
-	// Not using a maps.Clone here, as that won't dereference the
-	// slice (PortMap is a map[Port][]PortBinding).
-	bindings := make(containertypes.PortMap)
+	portBindings := make(containertypes.PortMap, len(ctr.HostConfig.PortBindings))
 	for p, b := range ctr.HostConfig.PortBindings {
-		bindings[p] = slices.Clone(b)
+		portBindings[p] = slices.Clone(b)
 	}
 
-	ports := slices.Collect(maps.Keys(ctr.Config.ExposedPorts))
-	nat.SortPortMap(ports, bindings)
+	for p := range ctr.Config.ExposedPorts {
+		if _, ok := portBindings[p]; !ok {
+			// Create nil entries for exposed but un-mapped ports.
+			portBindings[p] = nil
+		}
+	}
 
 	var (
 		publishedPorts []types.PortBinding
 		exposedPorts   []types.TransportPort
 	)
-	for _, port := range ports {
+	for port, bindings := range portBindings {
 		portProto := types.ParseProtocol(port.Proto())
 		portNum := uint16(port.Int())
 		exposedPorts = append(exposedPorts, types.TransportPort{
@@ -135,7 +135,7 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 			Port:  portNum,
 		})
 
-		for _, binding := range bindings[port] {
+		for _, binding := range bindings {
 			newP, err := nat.NewPort(nat.SplitProtoPort(binding.HostPort))
 			var portStart, portEnd int
 			if err == nil {
@@ -153,7 +153,7 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 			})
 		}
 
-		if ctr.HostConfig.PublishAllPorts && len(bindings[port]) == 0 {
+		if ctr.HostConfig.PublishAllPorts && len(bindings) == 0 {
 			publishedPorts = append(publishedPorts, types.PortBinding{
 				Proto: portProto,
 				Port:  portNum,
