@@ -1835,7 +1835,7 @@ definitions:
           Mapper is an optional field that defines which portmapper should be
           used to map this PortBinding. When not specified, an appropriate
           builtin portmapper will be selected.
-          
+
           WARNING: This is experimental and may change at any time without any
           backward compatibility.
         type: "string"
@@ -1843,7 +1843,7 @@ definitions:
         description: |
           ExtraParams defines additional parameters passed to the Mapper when
           it maps / unmaps this PortBinding.
-          
+
           WARNING: This is experimental and may change at any time without any
           backward compatibility.
         type: object

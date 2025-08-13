@@ -22,6 +22,13 @@ keywords: "API, Docker, rcli, REST, documentation"
   saved.
 * `POST /images/load` now accepts multiple `platform` query-arguments
   to allow selecting which platform(s) of a multi-platform image to load.
+* Port bindings specified in `POST /containers/create` and returned in
+  `GET /containers/{id}/json` have two new fields: `Mapper` and `ExtraParams`.
+  The `Mapper` field is a string that indicates the port mapper used for the
+  port binding, and the `ExtraParams` field is a map of additional string key /
+  values passed to the mapper.
+  WARNING: These fields are experimental and may change at any time without any
+  backward compatibility.
 
 ## v1.51 API changes
 
