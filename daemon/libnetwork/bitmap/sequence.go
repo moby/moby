@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/bits"
 )
 
 // block sequence constants
@@ -174,6 +175,52 @@ func (s *sequence) fromByteArray(data []byte) error {
 	}
 
 	return nil
+}
+
+// OnesCount calculates the number of selected bits in the range [start, end].
+func (h *Bitmap) OnesCount(start, end uint64) (uint64, error) {
+	if end < start || end >= h.bits {
+		return 0, fmt.Errorf("invalid bit range [%d, %d]", start, end)
+	}
+
+	// Account for the starting ordinal being partway into a block: count
+	// the sequence element's block once with a bitmask applied, then count
+	// the remaining repeats of the sequence element without the mask.
+	current, _, precBlocks, _ := findSequence(h.head, start/8)
+	var (
+		blocksToCount = end/blockLen - start/blockLen + 1
+		curblocks     = min(current.count-precBlocks, blocksToCount)
+		mask          = blockMAX >> (start % blockLen)
+		runlen        = uint64(1)
+		count         = uint64(0)
+	)
+	for blocksToCount > 0 {
+		if blocksToCount == 1 {
+			// We're counting the last block.
+			// (Which could be the same as the first block.)
+			// Mask off the bits beyond the end ordinal.
+			mask &= blockMAX << (blockLen - end%blockLen - 1)
+		}
+		count += uint64(bits.OnesCount32(current.block&mask)) * runlen
+		mask = blockMAX
+		blocksToCount -= runlen
+		curblocks -= runlen
+		if curblocks == 0 {
+			current = current.next
+			if current == nil {
+				break
+			}
+			curblocks = min(current.count, blocksToCount)
+		}
+		// If the block containing the end ordinal is a repeat of the
+		// current block, split the counting across two loop iterations.
+		// The final repeat of the block needs to be counted with a
+		// bitmask applied so we do not count bits beyond the end
+		// ordinal.
+		runlen = max(1, min(curblocks, blocksToCount-1))
+	}
+
+	return count, nil
 }
 
 // SetAnyInRange sets the first unset bit in the range [start, end] and returns
