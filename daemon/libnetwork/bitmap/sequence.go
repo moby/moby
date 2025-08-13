@@ -11,11 +11,11 @@ import (
 // block sequence constants
 // If needed we can think of making these configurable
 const (
-	blockLen      = uint32(32)
-	blockBytes    = uint64(blockLen / 8)
-	blockMAX      = uint32(1<<blockLen - 1)
-	blockFirstBit = uint32(1) << (blockLen - 1)
-	invalidPos    = uint64(0xFFFFFFFFFFFFFFFF)
+	blockLen             = 32
+	blockBytes    uint64 = blockLen / 8
+	blockMAX      uint32 = 1<<blockLen - 1
+	blockFirstBit uint32 = 1 << (blockLen - 1)
+	invalidPos    uint64 = ^uint64(0)
 )
 
 var (
@@ -54,7 +54,7 @@ func New(n uint64) *Bitmap {
 		unselected: n,
 		head: &sequence{
 			block: 0x0,
-			count: getNumBlocks(n),
+			count: (n + blockLen - 1) / blockLen,
 		},
 	}
 }
@@ -573,14 +573,6 @@ func mergeSequences(seq *sequence) {
 		// Move to next
 		mergeSequences(seq.next)
 	}
-}
-
-func getNumBlocks(numBits uint64) uint64 {
-	numBlocks := numBits / uint64(blockLen)
-	if numBits%uint64(blockLen) != 0 {
-		numBlocks++
-	}
-	return numBlocks
 }
 
 func ordinalToPos(ordinal uint64) (uint64, uint64) {
