@@ -14,12 +14,12 @@ import (
 // This should not be tested on Windows because Windows doesn't support "host" network mode.
 func TestContainerWarningHostAndPublishPorts(t *testing.T) {
 	testCases := []struct {
-		ports    containertypes.PortMap
+		ports    map[containertypes.PortProto][]containertypes.PortBinding
 		warnings []string
 	}{
-		{ports: containertypes.PortMap{}},
-		{ports: containertypes.PortMap{
-			"8080": []containertypes.PortBinding{{HostPort: "8989"}},
+		{ports: map[containertypes.PortProto][]containertypes.PortBinding{}},
+		{ports: map[containertypes.PortProto][]containertypes.PortBinding{
+			"8080": {{HostPort: "8989"}},
 		}, warnings: []string{"Published ports are discarded when using host network mode"}},
 	}
 	muteLogs(t)

@@ -68,12 +68,12 @@ func TestDisableNAT(t *testing.T) {
 		name       string
 		gwMode4    string
 		gwMode6    string
-		expPortMap containertypes.PortMap
+		expPortMap map[containertypes.PortProto][]containertypes.PortBinding
 	}{
 		{
 			name: "defaults",
-			expPortMap: containertypes.PortMap{
-				"80/tcp": []containertypes.PortBinding{
+			expPortMap: map[containertypes.PortProto][]containertypes.PortBinding{
+				"80/tcp": {
 					{HostIP: "0.0.0.0", HostPort: "8080"},
 					{HostIP: "::", HostPort: "8080"},
 				},
@@ -83,8 +83,8 @@ func TestDisableNAT(t *testing.T) {
 			name:    "nat4 routed6",
 			gwMode4: "nat",
 			gwMode6: "routed",
-			expPortMap: containertypes.PortMap{
-				"80/tcp": []containertypes.PortBinding{
+			expPortMap: map[containertypes.PortProto][]containertypes.PortBinding{
+				"80/tcp": {
 					{HostIP: "0.0.0.0", HostPort: "8080"},
 					{HostIP: "::", HostPort: ""},
 				},
@@ -94,8 +94,8 @@ func TestDisableNAT(t *testing.T) {
 			name:    "nat6 routed4",
 			gwMode4: "routed",
 			gwMode6: "nat",
-			expPortMap: containertypes.PortMap{
-				"80/tcp": []containertypes.PortBinding{
+			expPortMap: map[containertypes.PortProto][]containertypes.PortBinding{
+				"80/tcp": {
 					{HostIP: "::", HostPort: "8080"},
 					{HostIP: "0.0.0.0", HostPort: ""},
 				},
@@ -124,7 +124,7 @@ func TestDisableNAT(t *testing.T) {
 			id := container.Run(ctx, t, c,
 				container.WithNetworkMode(netName),
 				container.WithExposedPorts("80/tcp"),
-				container.WithPortMap(containertypes.PortMap{"80/tcp": {{HostPort: "8080"}}}),
+				container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {{HostPort: "8080"}}}),
 			)
 			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
 
@@ -162,7 +162,7 @@ func TestPortMappedHairpinTCP(t *testing.T) {
 	serverId := container.Run(ctx, t, c,
 		container.WithNetworkMode(serverNetName),
 		container.WithExposedPorts("80"),
-		container.WithPortMap(containertypes.PortMap{"80": {{HostIP: "0.0.0.0"}}}),
+		container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80": {{HostIP: "0.0.0.0"}}}),
 		container.WithCmd("httpd", "-f"),
 	)
 	defer c.ContainerRemove(ctx, serverId, containertypes.RemoveOptions{Force: true})
@@ -209,7 +209,7 @@ func TestPortMappedHairpinUDP(t *testing.T) {
 	serverId := container.Run(ctx, t, c,
 		container.WithNetworkMode(serverNetName),
 		container.WithExposedPorts("54/udp"),
-		container.WithPortMap(containertypes.PortMap{"54/udp": {{HostIP: "0.0.0.0"}}}),
+		container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"54/udp": {{HostIP: "0.0.0.0"}}}),
 		container.WithCmd("/bin/sh", "-c", "echo 'foobar.internal 192.168.155.23' | dnsd -c - -p 54"),
 	)
 	defer c.ContainerRemove(ctx, serverId, containertypes.RemoveOptions{Force: true})
@@ -251,7 +251,7 @@ func TestProxy4To6(t *testing.T) {
 	serverId := container.Run(ctx, t, c,
 		container.WithNetworkMode(netName),
 		container.WithExposedPorts("80"),
-		container.WithPortMap(containertypes.PortMap{"80": {{HostIP: "::1"}}}),
+		container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80": {{HostIP: "::1"}}}),
 		container.WithCmd("httpd", "-f"),
 	)
 	defer c.ContainerRemove(ctx, serverId, containertypes.RemoveOptions{Force: true})
@@ -375,7 +375,7 @@ func TestAccessPublishedPortFromHost(t *testing.T) {
 			serverID := container.Run(ctx, t, c,
 				container.WithName(sanitizeCtrName(t.Name()+"-server")),
 				container.WithExposedPorts("80/tcp"),
-				container.WithPortMap(containertypes.PortMap{"80/tcp": {{HostPort: hostPort}}}),
+				container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {{HostPort: hostPort}}}),
 				container.WithCmd("httpd", "-f"),
 				container.WithNetworkMode(bridgeName))
 			defer c.ContainerRemove(ctx, serverID, containertypes.RemoveOptions{Force: true})
@@ -455,7 +455,7 @@ func TestAccessPublishedPortFromRemoteHost(t *testing.T) {
 	serverID := container.Run(ctx, t, c,
 		container.WithName(sanitizeCtrName(t.Name()+"-server")),
 		container.WithExposedPorts("80/tcp"),
-		container.WithPortMap(containertypes.PortMap{"80/tcp": {{HostPort: hostPort}}}),
+		container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {{HostPort: hostPort}}}),
 		container.WithCmd("httpd", "-f"),
 		container.WithNetworkMode(bridgeName))
 	defer c.ContainerRemove(ctx, serverID, containertypes.RemoveOptions{Force: true})
@@ -553,7 +553,7 @@ func TestAccessPublishedPortFromCtr(t *testing.T) {
 			serverId := container.Run(ctx, t, c,
 				container.WithNetworkMode(netName),
 				container.WithExposedPorts("80"),
-				container.WithPortMap(containertypes.PortMap{"80": {{HostIP: "0.0.0.0"}}}),
+				container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80": {{HostIP: "0.0.0.0"}}}),
 				container.WithCmd("httpd", "-f"),
 			)
 			defer c.ContainerRemove(ctx, serverId, containertypes.RemoveOptions{Force: true})
@@ -603,7 +603,7 @@ func TestRestartUserlandProxyUnder2MSL(t *testing.T) {
 	ctrOpts := []func(*container.TestContainerConfig){
 		container.WithName(ctrName),
 		container.WithExposedPorts("80/tcp"),
-		container.WithPortMap(containertypes.PortMap{"80/tcp": {{HostPort: "1780"}}}),
+		container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {{HostPort: "1780"}}}),
 		container.WithCmd("httpd", "-f"),
 		container.WithNetworkMode(netName),
 	}
@@ -700,7 +700,7 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 			container.WithNetworkMode(netName),
 			container.WithName("ctr-"+gwMode),
 			container.WithExposedPorts("80/tcp"),
-			container.WithPortMap(containertypes.PortMap{"80/tcp": {}}),
+			container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {}}),
 		)
 		t.Cleanup(func() {
 			c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
@@ -979,7 +979,7 @@ func TestRoutedNonGateway(t *testing.T) {
 	ctrId := container.Run(ctx, t, c,
 		container.WithCmd("httpd", "-f"),
 		container.WithExposedPorts("80/tcp"),
-		container.WithPortMap(containertypes.PortMap{"80/tcp": {{HostPort: "8080"}}}),
+		container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {{HostPort: "8080"}}}),
 		container.WithNetworkMode(natNetName),
 		container.WithNetworkMode(routedNetName),
 		container.WithEndpointSettings(natNetName, &networktypes.EndpointSettings{GwPriority: 1}),
@@ -1133,7 +1133,7 @@ func TestAccessPublishedPortFromAnotherNetwork(t *testing.T) {
 					container.WithName("server"),
 					container.WithCmd("nc", "-lp", "5000"),
 					container.WithExposedPorts("5000/tcp"),
-					container.WithPortMap(containertypes.PortMap{"5000/tcp": {{HostPort: "5000"}}}),
+					container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"5000/tcp": {{HostPort: "5000"}}}),
 					container.WithNetworkMode(servnet))
 				defer c.ContainerRemove(ctx, serverID, containertypes.RemoveOptions{Force: true})
 
@@ -1329,7 +1329,7 @@ func testDirectRemoteAccessOnExposedPort(t *testing.T, ctx context.Context, d *d
 					container.WithName(sanitizeCtrName(t.Name()+"-server")),
 					container.WithCmd("nc", "-lup", "5000"),
 					container.WithExposedPorts("5000/udp"),
-					container.WithPortMap(containertypes.PortMap{"5000/udp": {{HostPort: hostPort}}}),
+					container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"5000/udp": {{HostPort: hostPort}}}),
 					container.WithNetworkMode(bridgeName),
 					container.WithEndpointSettings(bridgeName, &networktypes.EndpointSettings{
 						IPAddress:   ctrIP.String(),
@@ -1415,7 +1415,7 @@ func TestAccessPortPublishedOnLoopbackAddress(t *testing.T) {
 			container.WithCmd("nc", "-lup", "5000"),
 			container.WithExposedPorts("5000/udp"),
 			// This port is mapped on 127.0.0.2, so it should not be remotely accessible.
-			container.WithPortMap(containertypes.PortMap{"5000/udp": {{HostIP: loIP, HostPort: hostPort}}}),
+			container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"5000/udp": {{HostIP: loIP, HostPort: hostPort}}}),
 			container.WithNetworkMode(bridgeName))
 		defer c.ContainerRemove(ctx, serverID, containertypes.RemoveOptions{Force: true})
 
@@ -1526,7 +1526,7 @@ func TestSkipRawRules(t *testing.T) {
 
 				ctrId := container.Run(ctx, t, c,
 					container.WithExposedPorts("80/tcp"),
-					container.WithPortMap(containertypes.PortMap{"80/tcp": {
+					container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {
 						{HostIP: "127.0.0.1", HostPort: "8080"},
 						{HostPort: "8081"},
 					}}),
@@ -1558,10 +1558,10 @@ func TestMixAnyWithSpecificHostAddrs(t *testing.T) {
 
 			ctrId := container.Run(ctx, t, c,
 				container.WithExposedPorts("80/"+proto, "81/"+proto, "82/"+proto),
-				container.WithPortMap(containertypes.PortMap{
-					containertypes.PortRangeProto("81/" + proto): {{}},
-					containertypes.PortRangeProto("82/" + proto): {{}},
-					containertypes.PortRangeProto("80/" + proto): {{HostIP: "127.0.0.1"}},
+				container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{
+					containertypes.PortProto("81/" + proto): {{}},
+					containertypes.PortProto("82/" + proto): {{}},
+					containertypes.PortProto("80/" + proto): {{HostIP: "127.0.0.1"}},
 				}),
 			)
 			defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})

@@ -92,7 +92,7 @@ func (s *DockerCLICreateSuite) TestCreateWithPortRange(c *testing.T) {
 
 	var containers []struct {
 		HostConfig *struct {
-			PortBindings map[containertypes.PortRangeProto][]containertypes.PortBinding
+			PortBindings map[containertypes.PortProto][]containertypes.PortBinding
 		}
 	}
 	err := json.Unmarshal([]byte(out), &containers)
@@ -118,7 +118,7 @@ func (s *DockerCLICreateSuite) TestCreateWithLargePortRange(c *testing.T) {
 
 	var containers []struct {
 		HostConfig *struct {
-			PortBindings map[containertypes.PortRangeProto][]containertypes.PortBinding
+			PortBindings map[containertypes.PortProto][]containertypes.PortBinding
 		}
 	}
 

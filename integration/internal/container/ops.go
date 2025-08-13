@@ -73,17 +73,17 @@ func WithSysctls(sysctls map[string]string) func(*TestContainerConfig) {
 // WithExposedPorts sets the exposed ports of the container
 func WithExposedPorts(ports ...string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
-		c.Config.ExposedPorts = map[container.PortRangeProto]struct{}{}
+		c.Config.ExposedPorts = map[container.PortProto]struct{}{}
 		for _, port := range ports {
-			c.Config.ExposedPorts[container.PortRangeProto(port)] = struct{}{}
+			c.Config.ExposedPorts[container.PortProto(port)] = struct{}{}
 		}
 	}
 }
 
 // WithPortMap sets/replaces port mappings.
-func WithPortMap(pm container.PortMap) func(*TestContainerConfig) {
+func WithPortMap(pm map[container.PortProto][]container.PortBinding) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
-		c.HostConfig.PortBindings = container.PortMap{}
+		c.HostConfig.PortBindings = map[container.PortProto][]container.PortBinding{}
 		for p, b := range pm {
 			c.HostConfig.PortBindings[p] = slices.Clone(b)
 		}

@@ -387,7 +387,7 @@ func TestBridgeINCRouted(t *testing.T) {
 			container.WithNetworkMode(netName),
 			container.WithName("ctr-"+gwMode),
 			container.WithExposedPorts("80/tcp"),
-			container.WithPortMap(containertypes.PortMap{"80/tcp": {}}),
+			container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {}}),
 		)
 		t.Cleanup(func() {
 			c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
@@ -564,7 +564,7 @@ func TestAccessToPublishedPort(t *testing.T) {
 				container.WithNetworkMode(serverNetName),
 				container.WithName("ctr-server"),
 				container.WithExposedPorts("80/tcp"),
-				container.WithPortMap(containertypes.PortMap{"80/tcp": {containertypes.PortBinding{HostPort: "8080"}}}),
+				container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {{HostPort: "8080"}}}),
 				container.WithCmd("httpd", "-f"),
 			)
 			defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
@@ -687,7 +687,7 @@ func TestInterNetworkDirectRouting(t *testing.T) {
 				container.WithNetworkMode(serverNetName),
 				container.WithName("ctr-pub"),
 				container.WithExposedPorts("80/tcp"),
-				container.WithPortMap(containertypes.PortMap{"80/tcp": {containertypes.PortBinding{HostPort: "8080"}}}),
+				container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {containertypes.PortBinding{HostPort: "8080"}}}),
 				container.WithCmd("httpd", "-f"),
 			)
 			defer c.ContainerRemove(ctx, ctrPubId, containertypes.RemoveOptions{Force: true})
@@ -1428,7 +1428,7 @@ func TestGatewaySelection(t *testing.T) {
 		container.WithName(ctrName),
 		container.WithNetworkMode(netName4),
 		container.WithExposedPorts("80"),
-		container.WithPortMap(containertypes.PortMap{"80": {{HostPort: "8080"}}}),
+		container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80": {{HostPort: "8080"}}}),
 		container.WithCmd("httpd", "-f"),
 	)
 	defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
@@ -1877,7 +1877,7 @@ func TestDropInForwardChain(t *testing.T) {
 		ctrId := container.Run(ctx, t, c,
 			container.WithNetworkMode(netName46),
 			container.WithExposedPorts("80"),
-			container.WithPortMap(containertypes.PortMap{"80": {{HostPort: hostPort}}}),
+			container.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80": {{HostPort: hostPort}}}),
 			container.WithCmd("httpd", "-f"),
 		)
 		defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})

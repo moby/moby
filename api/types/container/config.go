@@ -40,25 +40,25 @@ type HealthConfig = dockerspec.HealthcheckConfig
 // All fields added to this struct must be marked `omitempty` to keep getting
 // predictable hashes from the old `v1Compatibility` configuration.
 type Config struct {
-	Hostname        string              // Hostname
-	Domainname      string              // Domainname
-	User            string              // User that will run the command(s) inside the container, also support user:group
-	AttachStdin     bool                // Attach the standard input, makes possible user interaction
-	AttachStdout    bool                // Attach the standard output
-	AttachStderr    bool                // Attach the standard error
-	ExposedPorts    PortSet             `json:",omitempty"` // List of exposed ports
-	Tty             bool                // Attach standard streams to a tty, including stdin if it is not closed.
-	OpenStdin       bool                // Open stdin
-	StdinOnce       bool                // If true, close stdin after the 1 attached client disconnects.
-	Env             []string            // List of environment variable to set in the container
-	Cmd             []string            // Command to run when starting the container
-	Healthcheck     *HealthConfig       `json:",omitempty"` // Healthcheck describes how to check the container is healthy
-	ArgsEscaped     bool                `json:",omitempty"` // True if command is already escaped (meaning treat as a command line) (Windows specific).
-	Image           string              // Name of the image as it was passed by the operator (e.g. could be symbolic)
-	Volumes         map[string]struct{} // List of volumes (mounts) used for the container
-	WorkingDir      string              // Current directory (PWD) in the command will be launched
-	Entrypoint      []string            // Entrypoint to run when starting the container
-	NetworkDisabled bool                `json:",omitempty"` // Is network disabled
+	Hostname        string                 // Hostname
+	Domainname      string                 // Domainname
+	User            string                 // User that will run the command(s) inside the container, also support user:group
+	AttachStdin     bool                   // Attach the standard input, makes possible user interaction
+	AttachStdout    bool                   // Attach the standard output
+	AttachStderr    bool                   // Attach the standard error
+	ExposedPorts    map[PortProto]struct{} `json:",omitempty"` // List of exposed ports
+	Tty             bool                   // Attach standard streams to a tty, including stdin if it is not closed.
+	OpenStdin       bool                   // Open stdin
+	StdinOnce       bool                   // If true, close stdin after the 1 attached client disconnects.
+	Env             []string               // List of environment variable to set in the container
+	Cmd             []string               // Command to run when starting the container
+	Healthcheck     *HealthConfig          `json:",omitempty"` // Healthcheck describes how to check the container is healthy
+	ArgsEscaped     bool                   `json:",omitempty"` // True if command is already escaped (meaning treat as a command line) (Windows specific).
+	Image           string                 // Name of the image as it was passed by the operator (e.g. could be symbolic)
+	Volumes         map[string]struct{}    // List of volumes (mounts) used for the container
+	WorkingDir      string                 // Current directory (PWD) in the command will be launched
+	Entrypoint      []string               // Entrypoint to run when starting the container
+	NetworkDisabled bool                   `json:",omitempty"` // Is network disabled
 	// Mac Address of the container.
 	//
 	// Deprecated: this field is deprecated since API v1.44. Use EndpointSettings.MacAddress instead.

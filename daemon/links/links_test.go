@@ -10,8 +10,8 @@ import (
 )
 
 func TestLinkNaming(t *testing.T) {
-	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker-1", nil, container.PortSet{
-		"6379/tcp": struct{}{},
+	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker-1", nil, map[container.PortProto]struct{}{
+		"6379/tcp": {},
 	})
 
 	expectedEnv := []string{
@@ -28,23 +28,23 @@ func TestLinkNaming(t *testing.T) {
 }
 
 func TestLinkNew(t *testing.T) {
-	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", nil, container.PortSet{
-		"6379/tcp": struct{}{},
+	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", nil, map[container.PortProto]struct{}{
+		"6379/tcp": {},
 	})
 
 	expected := &Link{
 		Name:     "/db/docker",
 		ParentIP: "172.0.17.3",
 		ChildIP:  "172.0.17.2",
-		Ports:    []container.PortRangeProto{"6379/tcp"},
+		Ports:    []container.PortProto{"6379/tcp"},
 	}
 
 	assert.DeepEqual(t, expected, link)
 }
 
 func TestLinkEnv(t *testing.T) {
-	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, container.PortSet{
-		"6379/tcp": struct{}{},
+	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, map[container.PortProto]struct{}{
+		"6379/tcp": {},
 	})
 
 	expectedEnv := []string{
@@ -64,7 +64,7 @@ func TestLinkEnv(t *testing.T) {
 // TestSortPorts verifies that ports are sorted with TCP taking priority,
 // and ports with the same protocol to be sorted by port.
 func TestSortPorts(t *testing.T) {
-	ports := []container.PortRangeProto{
+	ports := []container.PortProto{
 		"6379/tcp",
 		"6376/udp",
 		"6380/tcp",
@@ -75,7 +75,7 @@ func TestSortPorts(t *testing.T) {
 		"6375/sctp",
 	}
 
-	expected := []container.PortRangeProto{
+	expected := []container.PortProto{
 		"6379/tcp",
 		"6380/tcp",
 		"6381/tcp",
@@ -91,12 +91,12 @@ func TestSortPorts(t *testing.T) {
 }
 
 func TestLinkMultipleEnv(t *testing.T) {
-	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, container.PortSet{
-		"6300/udp": struct{}{},
-		"6379/tcp": struct{}{},
-		"6380/tcp": struct{}{},
-		"6381/tcp": struct{}{},
-		"6382/udp": struct{}{},
+	actual := EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, map[container.PortProto]struct{}{
+		"6300/udp": {},
+		"6379/tcp": {},
+		"6380/tcp": {},
+		"6381/tcp": {},
+		"6382/udp": {},
 	})
 
 	expectedEnv := []string{
@@ -142,12 +142,12 @@ func BenchmarkLinkMultipleEnv(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, container.PortSet{
-			"6300/udp": struct{}{},
-			"6379/tcp": struct{}{},
-			"6380/tcp": struct{}{},
-			"6381/tcp": struct{}{},
-			"6382/udp": struct{}{},
+		_ = EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, map[container.PortProto]struct{}{
+			"6300/udp": {},
+			"6379/tcp": {},
+			"6380/tcp": {},
+			"6381/tcp": {},
+			"6382/udp": {},
 		})
 	}
 }

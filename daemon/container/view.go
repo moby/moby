@@ -40,8 +40,8 @@ type Snapshot struct {
 	Running      bool
 	Paused       bool
 	Managed      bool
-	ExposedPorts container.PortSet
-	PortBindings container.PortSet
+	ExposedPorts map[container.PortProto]struct{}
+	PortBindings map[container.PortProto]struct{} // FIXME(thaJeztah): should this have been a PortMap? https://github.com/moby/moby/commit/edad52707c536116363031002e6633e3fec16af5
 	Health       container.HealthStatus
 	HostConfig   struct {
 		Isolation string
@@ -321,8 +321,8 @@ func (v *View) transform(ctr *Container) *Snapshot {
 		Name:         ctr.Name,
 		Pid:          ctr.Pid,
 		Managed:      ctr.Managed,
-		ExposedPorts: make(container.PortSet),
-		PortBindings: make(container.PortSet),
+		ExposedPorts: make(map[container.PortProto]struct{}),
+		PortBindings: make(map[container.PortProto]struct{}),
 		Health:       health,
 		Running:      ctr.Running,
 		Paused:       ctr.Paused,

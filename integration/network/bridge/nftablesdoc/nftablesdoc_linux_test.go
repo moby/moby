@@ -50,7 +50,7 @@ var (
 
 type ctrDesc struct {
 	name         string
-	portMappings containertypes.PortMap
+	portMappings map[containertypes.PortProto][]containertypes.PortBinding
 }
 
 type networkDesc struct {
@@ -79,7 +79,7 @@ var index = []section{
 			containers: []ctrDesc{
 				{
 					name:         "c1",
-					portMappings: containertypes.PortMap{"80/tcp": {{HostPort: "8080"}}},
+					portMappings: map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {{HostPort: "8080"}}},
 				},
 			},
 		}},
@@ -92,7 +92,7 @@ var index = []section{
 			containers: []ctrDesc{
 				{
 					name:         "c1",
-					portMappings: containertypes.PortMap{"80/tcp": {{HostPort: "8080"}}},
+					portMappings: map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {{HostPort: "8080"}}},
 				},
 			},
 		}},
@@ -105,7 +105,7 @@ var index = []section{
 			containers: []ctrDesc{
 				{
 					name:         "c1",
-					portMappings: containertypes.PortMap{"80/tcp": {{HostPort: "8080"}}},
+					portMappings: map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {{HostPort: "8080"}}},
 				},
 			},
 		}},
@@ -139,7 +139,7 @@ var index = []section{
 			containers: []ctrDesc{
 				{
 					name:         "c1",
-					portMappings: containertypes.PortMap{"80/tcp": {{HostPort: "8080"}}},
+					portMappings: map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {{HostPort: "8080"}}},
 				},
 			},
 		}},
@@ -152,7 +152,7 @@ var index = []section{
 			containers: []ctrDesc{
 				{
 					name:         "c1",
-					portMappings: containertypes.PortMap{"80/tcp": {{HostPort: "8080"}}},
+					portMappings: map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {{HostPort: "8080"}}},
 				},
 			},
 		}},
@@ -165,7 +165,7 @@ var index = []section{
 				containers: []ctrDesc{
 					{
 						name:         "c1",
-						portMappings: containertypes.PortMap{"80/tcp": {{HostPort: "8080"}}},
+						portMappings: map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {{HostPort: "8080"}}},
 					},
 				},
 			}},
@@ -178,7 +178,7 @@ var index = []section{
 			containers: []ctrDesc{
 				{
 					name:         "c1",
-					portMappings: containertypes.PortMap{"80/tcp": {{HostIP: "127.0.0.1", HostPort: "8080"}}},
+					portMappings: map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {{HostIP: "127.0.0.1", HostPort: "8080"}}},
 				},
 			},
 		}},

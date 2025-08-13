@@ -506,14 +506,14 @@ func TestPublishedPortAlreadyInUse(t *testing.T) {
 	ctr1 := ctr.Run(ctx, t, apiClient,
 		ctr.WithCmd("top"),
 		ctr.WithExposedPorts("80/tcp"),
-		ctr.WithPortMap(containertypes.PortMap{"80/tcp": {{HostPort: "8000"}}}))
+		ctr.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {{HostPort: "8000"}}}))
 	defer ctr.Remove(ctx, t, apiClient, ctr1, containertypes.RemoveOptions{Force: true})
 
 	ctr2 := ctr.Create(ctx, t, apiClient,
 		ctr.WithCmd("top"),
 		ctr.WithRestartPolicy(containertypes.RestartPolicyAlways),
 		ctr.WithExposedPorts("80/tcp"),
-		ctr.WithPortMap(containertypes.PortMap{"80/tcp": {{HostPort: "8000"}}}))
+		ctr.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {{HostPort: "8000"}}}))
 	defer ctr.Remove(ctx, t, apiClient, ctr2, containertypes.RemoveOptions{Force: true})
 
 	err := apiClient.ContainerStart(ctx, ctr2, containertypes.StartOptions{})
@@ -548,14 +548,14 @@ func TestAllPortMappingsAreReturned(t *testing.T) {
 
 	ctrID := ctr.Run(ctx, t, apiClient,
 		ctr.WithExposedPorts("80/tcp", "81/tcp"),
-		ctr.WithPortMap(containertypes.PortMap{"80/tcp": {{HostPort: "8000"}}}),
+		ctr.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {{HostPort: "8000"}}}),
 		ctr.WithEndpointSettings("testnetv4", &networktypes.EndpointSettings{}),
 		ctr.WithEndpointSettings("testnetv6", &networktypes.EndpointSettings{}))
 	defer ctr.Remove(ctx, t, apiClient, ctrID, containertypes.RemoveOptions{Force: true})
 
 	inspect := ctr.Inspect(ctx, t, apiClient, ctrID)
-	assert.DeepEqual(t, inspect.NetworkSettings.Ports, containertypes.PortMap{
-		"80/tcp": []containertypes.PortBinding{
+	assert.DeepEqual(t, inspect.NetworkSettings.Ports, map[containertypes.PortProto][]containertypes.PortBinding{
+		"80/tcp": {
 			{HostIP: "0.0.0.0", HostPort: "8000"},
 			{HostIP: "::", HostPort: "8000"},
 		},
@@ -587,7 +587,7 @@ func TestFirewalldReloadNoZombies(t *testing.T) {
 
 	cid := ctr.Run(ctx, t, c,
 		ctr.WithExposedPorts("80/tcp", "81/tcp"),
-		ctr.WithPortMap(containertypes.PortMap{"80/tcp": {{HostPort: "8000"}}}))
+		ctr.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {{HostPort: "8000"}}}))
 	defer func() {
 		if !removed {
 			ctr.Remove(ctx, t, c, cid, containertypes.RemoveOptions{Force: true})
@@ -777,7 +777,7 @@ func TestPortMappingRestore(t *testing.T) {
 	const svrName = "svr"
 	cid := ctr.Run(ctx, t, c,
 		ctr.WithExposedPorts("80/tcp"),
-		ctr.WithPortMap(containertypes.PortMap{"80/tcp": {}}),
+		ctr.WithPortMap(map[containertypes.PortProto][]containertypes.PortBinding{"80/tcp": {}}),
 		ctr.WithName(svrName),
 		ctr.WithRestartPolicy(containertypes.RestartPolicyUnlessStopped),
 		ctr.WithCmd("httpd", "-f"),
@@ -788,7 +788,7 @@ func TestPortMappingRestore(t *testing.T) {
 		t.Helper()
 		insp := ctr.Inspect(ctx, t, c, cid)
 		assert.Check(t, is.Equal(insp.State.Running, true))
-		if assert.Check(t, is.Contains(insp.NetworkSettings.Ports, containertypes.PortRangeProto("80/tcp"))) &&
+		if assert.Check(t, is.Contains(insp.NetworkSettings.Ports, containertypes.PortProto("80/tcp"))) &&
 			assert.Check(t, is.Len(insp.NetworkSettings.Ports["80/tcp"], 2)) {
 			hostPort := insp.NetworkSettings.Ports["80/tcp"][0].HostPort
 			res := ctr.RunAttach(ctx, t, c,

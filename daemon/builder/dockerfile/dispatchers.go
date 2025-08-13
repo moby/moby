@@ -531,7 +531,7 @@ func dispatchExpose(ctx context.Context, d dispatchRequest, c *instructions.Expo
 	}
 
 	if d.state.runConfig.ExposedPorts == nil {
-		d.state.runConfig.ExposedPorts = make(container.PortSet)
+		d.state.runConfig.ExposedPorts = make(map[container.PortProto]struct{})
 	}
 	for p := range ps {
 		d.state.runConfig.ExposedPorts[p] = struct{}{}

@@ -21,7 +21,7 @@ type Settings struct {
 	LinkLocalIPv6PrefixLen int
 	Networks               map[string]*EndpointSettings
 	Service                *clustertypes.ServiceConfig
-	Ports                  container.PortMap
+	Ports                  map[container.PortProto][]container.PortBinding
 	SecondaryIPAddresses   []networktypes.Address
 	SecondaryIPv6Addresses []networktypes.Address
 	HasSwarmEndpoint       bool

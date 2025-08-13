@@ -336,7 +336,7 @@ func TestExpose(t *testing.T) {
 	assert.Assert(t, sb.state.runConfig.ExposedPorts != nil)
 	assert.Assert(t, is.Len(sb.state.runConfig.ExposedPorts, 1))
 
-	assert.Check(t, is.Contains(sb.state.runConfig.ExposedPorts, container.PortRangeProto("80/tcp")))
+	assert.Check(t, is.Contains(sb.state.runConfig.ExposedPorts, container.PortProto("80/tcp")))
 }
 
 func TestUser(t *testing.T) {

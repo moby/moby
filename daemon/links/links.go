@@ -20,18 +20,18 @@ type Link struct {
 	// Child environments variables
 	ChildEnvironment []string
 	// Child exposed ports
-	Ports []container.PortRangeProto // TODO(thaJeztah): can we use []string here, or do we need the features of nat.Port?
+	Ports []container.PortProto // TODO(thaJeztah): can we use []string here, or do we need the features of nat.Port?
 }
 
 // EnvVars generates environment variables for the linked container
 // for the Link with the given options.
-func EnvVars(parentIP, childIP, name string, env []string, exposedPorts map[container.PortRangeProto]struct{}) []string {
+func EnvVars(parentIP, childIP, name string, env []string, exposedPorts map[container.PortProto]struct{}) []string {
 	return NewLink(parentIP, childIP, name, env, exposedPorts).ToEnv()
 }
 
 // NewLink initializes a new Link struct with the provided options.
-func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[container.PortRangeProto]struct{}) *Link {
-	ports := make([]container.PortRangeProto, 0, len(exposedPorts))
+func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[container.PortProto]struct{}) *Link {
+	ports := make([]container.PortProto, 0, len(exposedPorts))
 	for p := range exposedPorts {
 		ports = append(ports, p)
 	}
@@ -55,7 +55,7 @@ func (l *Link) ToEnv() []string {
 	// sort the ports so that we can bulk the continuous ports together
 	nat.Sort(l.Ports, withTCPPriority)
 
-	var pStart, pEnd container.PortRangeProto
+	var pStart, pEnd container.PortProto
 	env := make([]string, 0, 1+len(l.Ports)*4)
 	for i, p := range l.Ports {
 		if i == 0 {
@@ -113,7 +113,7 @@ func (l *Link) ToEnv() []string {
 
 // withTCPPriority prioritizes ports using TCP over other protocols before
 // comparing port-number and protocol.
-func withTCPPriority(ip, jp container.PortRangeProto) bool {
+func withTCPPriority(ip, jp container.PortProto) bool {
 	if strings.EqualFold(ip.Proto(), jp.Proto()) {
 		return ip.Int() < jp.Int()
 	}
