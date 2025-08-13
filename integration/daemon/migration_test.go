@@ -29,7 +29,7 @@ func testMigrateSnapshotter(t *testing.T, graphdriver, snapshotter string) {
 	skip.If(t, runtime.GOOS != "linux")
 
 	t.Setenv("DOCKER_MIGRATE_SNAPSHOTTER_THRESHOLD", "200M")
-	t.Setenv("DOCKER_GRAPHDRIVER", "")
+	t.Setenv("DOCKER_DRIVER", "")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -93,7 +93,7 @@ func TestMigrateSaveLoad(t *testing.T) {
 	skip.If(t, runtime.GOOS != "linux")
 
 	t.Setenv("DOCKER_MIGRATE_SNAPSHOTTER_THRESHOLD", "200M")
-	t.Setenv("DOCKER_GRAPHDRIVER", "")
+	t.Setenv("DOCKER_DRIVER", "")
 
 	var (
 		ctx         = testutil.StartSpan(baseContext, t)
