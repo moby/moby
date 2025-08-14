@@ -1217,12 +1217,13 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 		return nil, err
 	}
 
+	// Add extra labels for IPAM drivers
+	// This must be done after line "ep.processOptions(options...)" because it would remove these labels.
+	ep.ipamOptions = make(map[string]string)
+	ep.ipamOptions[netlabel.EndpointName] = name
 	if capability.RequiresMACAddress {
 		if ep.iface.mac == nil {
 			ep.iface.mac = netutils.GenerateRandomMAC()
-		}
-		if ep.ipamOptions == nil {
-			ep.ipamOptions = make(map[string]string)
 		}
 		ep.ipamOptions[netlabel.MacAddress] = ep.iface.mac.String()
 	}
