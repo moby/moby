@@ -6,9 +6,10 @@ import (
 	"context"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
-	"gotest.tools/v3/assert"
 )
 
 // This test simply verify that when a wrong ID used, a specific error should be returned for exec resize.

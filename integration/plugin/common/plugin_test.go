@@ -15,6 +15,11 @@ import (
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
+
 	"github.com/moby/moby/api/types"
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/system"
@@ -25,10 +30,6 @@ import (
 	"github.com/moby/moby/v2/testutil/fixtures/plugin"
 	"github.com/moby/moby/v2/testutil/registry"
 	"github.com/moby/moby/v2/testutil/request"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/skip"
 )
 
 // TestPluginInvalidJSON tests that POST endpoints that expect a body return

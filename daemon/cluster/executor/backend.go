@@ -7,6 +7,9 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
+	"github.com/moby/swarmkit/v2/agent/exec"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
@@ -25,8 +28,6 @@ import (
 	"github.com/moby/moby/v2/daemon/pkg/plugin"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	volumeopts "github.com/moby/moby/v2/daemon/volume/service/opts"
-	"github.com/moby/swarmkit/v2/agent/exec"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // Backend defines the executor component for a swarm agent.

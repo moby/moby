@@ -6,8 +6,9 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/internal/unix_noeintr"
 	"golang.org/x/sys/unix"
+
+	"github.com/moby/moby/v2/daemon/internal/unix_noeintr"
 )
 
 func notifyClosed(ctx context.Context, conn net.Conn, notify func()) {

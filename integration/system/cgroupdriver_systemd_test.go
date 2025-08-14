@@ -4,13 +4,13 @@ import (
 	"os"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/daemon"
-
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 // hasSystemd checks whether the host was booted with systemd as its init

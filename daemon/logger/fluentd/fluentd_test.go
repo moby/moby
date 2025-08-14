@@ -10,8 +10,9 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/moby/moby/v2/daemon/logger"
 	"gotest.tools/v3/assert"
+
+	"github.com/moby/moby/v2/daemon/logger"
 )
 
 func TestValidateLogOptReconnectInterval(t *testing.T) {

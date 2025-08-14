@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/swarm"
-	"gotest.tools/v3/assert"
 )
 
 // ServiceConstructor defines a swarm service constructor function

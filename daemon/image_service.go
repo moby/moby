@@ -6,6 +6,9 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/moby/go-archive"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
 	imagetype "github.com/moby/moby/api/types/image"
@@ -16,8 +19,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/server/backend"
-	"github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImageService is a temporary interface to assist in the migration to the

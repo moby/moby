@@ -17,6 +17,13 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/moby/sys/reexec"
+	"github.com/pkg/errors"
+	"github.com/vishvananda/netns"
+	"golang.org/x/sync/errgroup"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/moby/v2/daemon/libnetwork/config"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
@@ -31,12 +38,6 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/internal/testutils/netnsutils"
 	"github.com/moby/moby/v2/pkg/plugins"
-	"github.com/moby/sys/reexec"
-	"github.com/pkg/errors"
-	"github.com/vishvananda/netns"
-	"golang.org/x/sync/errgroup"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 const (

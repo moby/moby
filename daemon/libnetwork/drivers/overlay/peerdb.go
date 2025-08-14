@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/hashable"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/setmatrix"
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"

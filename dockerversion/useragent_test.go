@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/moby/moby/v2/pkg/useragent"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/pkg/useragent"
 )
 
 func TestDockerUserAgent(t *testing.T) {

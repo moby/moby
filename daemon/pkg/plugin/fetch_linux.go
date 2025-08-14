@@ -14,14 +14,15 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/moby/go-archive/chrootarchive"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/pkg/progress"
 	"github.com/moby/moby/api/types/registry"
 	progressutils "github.com/moby/moby/v2/daemon/internal/distribution/utils"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/pkg/ioutils"
-	"github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 const mediaTypePluginConfig = "application/vnd.docker.plugin.v1+json"

@@ -10,9 +10,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 
-	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/v2/daemon/server/httputils"

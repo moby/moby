@@ -8,9 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/api/types/swarm"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/api/types/swarm"
 )
 
 // TestPingFail tests that when a server sends a non-successful response that we

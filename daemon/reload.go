@@ -9,8 +9,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/mitchellh/copystructure"
-	"github.com/moby/moby/api/types/events"
 
+	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/config"
 )
 

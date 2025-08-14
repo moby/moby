@@ -11,12 +11,13 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
-	imagetypes "github.com/moby/moby/api/types/image"
-	"github.com/moby/moby/v2/testutil"
-	"github.com/moby/moby/v2/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	imagetypes "github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/v2/testutil"
+	"github.com/moby/moby/v2/testutil/daemon"
 )
 
 // Ensure we don't regress on CVE-2017-14992.

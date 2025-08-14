@@ -10,10 +10,11 @@ import (
 	"testing"
 
 	"github.com/moby/go-archive"
+	"gotest.tools/v3/assert"
+
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/internal/testutils/specialimage"
-	"gotest.tools/v3/assert"
 )
 
 func Load(ctx context.Context, t *testing.T, apiClient client.APIClient, imageFunc specialimage.SpecialImageFunc) string {

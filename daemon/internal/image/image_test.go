@@ -8,10 +8,11 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/v2/daemon/internal/layer"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/daemon/internal/layer"
 )
 
 const sampleImageJSON = `{

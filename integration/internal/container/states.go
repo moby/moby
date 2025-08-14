@@ -5,10 +5,11 @@ import (
 	"strings"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/client"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/poll"
+
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 )
 
 // RunningStateFlagIs polls for the container's Running state flag to be equal to running.

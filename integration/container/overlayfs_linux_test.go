@@ -6,11 +6,12 @@ import (
 	"testing"
 
 	"github.com/moby/go-archive"
-	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/v2/integration/internal/container"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
+
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/integration/internal/container"
 )
 
 func TestNoOverlayfsWarningsAboutUndefinedBehaviors(t *testing.T) {

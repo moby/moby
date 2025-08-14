@@ -12,13 +12,14 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/moby/moby/v2/integration-cli/cli"
-	"github.com/moby/moby/v2/integration-cli/cli/build"
-	"github.com/moby/moby/v2/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/skip"
+
+	"github.com/moby/moby/v2/integration-cli/cli"
+	"github.com/moby/moby/v2/integration-cli/cli/build"
+	"github.com/moby/moby/v2/testutil"
 )
 
 // save a repo and try to load it using stdout

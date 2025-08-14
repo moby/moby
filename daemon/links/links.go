@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/docker/go-connections/nat"
+
 	"github.com/moby/moby/api/types/container"
 )
 

@@ -8,12 +8,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/v2/integration-cli/checker"
-	"github.com/moby/moby/v2/integration-cli/cli"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	"github.com/moby/moby/v2/integration-cli/checker"
+	"github.com/moby/moby/v2/integration-cli/cli"
 )
 
 type DockerCLIRestartSuite struct {

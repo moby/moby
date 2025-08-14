@@ -8,10 +8,11 @@ import (
 	"testing"
 
 	"github.com/moby/locker"
-	plugintypes "github.com/moby/moby/api/types/plugin"
-	"github.com/moby/moby/v2/testutil/fixtures/plugin"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
+
+	plugintypes "github.com/moby/moby/api/types/plugin"
+	"github.com/moby/moby/v2/testutil/fixtures/plugin"
 )
 
 var pluginBuildLock = locker.New()

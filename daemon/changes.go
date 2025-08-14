@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/moby/go-archive"
+
 	"github.com/moby/moby/v2/daemon/internal/metrics"
 )
 

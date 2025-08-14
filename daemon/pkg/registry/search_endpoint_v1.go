@@ -12,6 +12,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/distribution/registry/client/transport"
+
 	"github.com/moby/moby/api/types/registry"
 )
 

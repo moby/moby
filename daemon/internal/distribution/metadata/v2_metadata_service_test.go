@@ -6,8 +6,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/opencontainers/go-digest"
+
+	"github.com/moby/moby/v2/daemon/internal/layer"
 )
 
 func TestV2MetadataService(t *testing.T) {

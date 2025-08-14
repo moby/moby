@@ -9,6 +9,8 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/moby/go-archive/compression"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/builder/dockerfile"
@@ -16,7 +18,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/dockerversion"
 	"github.com/moby/moby/v2/errdefs"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImportImage imports an image, getting the archived layer data from layerReader.

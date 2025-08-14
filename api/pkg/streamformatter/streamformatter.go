@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
+
 	"github.com/moby/moby/api/pkg/progress"
 	"github.com/moby/moby/api/types/jsonstream"
 )

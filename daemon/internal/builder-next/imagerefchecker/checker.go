@@ -4,9 +4,10 @@ import (
 	"sync"
 
 	"github.com/moby/buildkit/cache"
+	"github.com/opencontainers/go-digest"
+
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
-	"github.com/opencontainers/go-digest"
 )
 
 // LayerGetter abstracts away the snapshotter

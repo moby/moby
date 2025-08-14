@@ -25,6 +25,14 @@ import (
 
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/creack/pty"
+	"github.com/moby/sys/mount"
+	"golang.org/x/sys/unix"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
+
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
 	"github.com/moby/moby/v2/integration-cli/checker"
@@ -33,13 +41,6 @@ import (
 	"github.com/moby/moby/v2/integration-cli/daemon"
 	"github.com/moby/moby/v2/testutil"
 	testdaemon "github.com/moby/moby/v2/testutil/daemon"
-	"github.com/moby/sys/mount"
-	"golang.org/x/sys/unix"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/icmd"
-	"gotest.tools/v3/poll"
-	"gotest.tools/v3/skip"
 )
 
 const containerdSocket = "/var/run/docker/containerd/containerd.sock"

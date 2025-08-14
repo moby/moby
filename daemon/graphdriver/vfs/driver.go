@@ -6,13 +6,14 @@ import (
 	"path/filepath"
 
 	"github.com/docker/go-units"
+	"github.com/moby/sys/user"
+	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/v2/daemon/graphdriver"
 	"github.com/moby/moby/v2/daemon/internal/containerfs"
 	"github.com/moby/moby/v2/daemon/internal/quota"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/moby/sys/user"
-	"github.com/opencontainers/selinux/go-selinux/label"
-	"github.com/pkg/errors"
 )
 
 const (

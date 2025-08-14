@@ -3,9 +3,10 @@ package daemon
 import (
 	"time"
 
+	"github.com/opencontainers/runtime-spec/specs-go"
+
 	"github.com/moby/moby/api/types/container"
 	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
-	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func toContainerdResources(resources container.Resources) *libcontainerdtypes.Resources {

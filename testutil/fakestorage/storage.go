@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/moby/moby/api/types/build"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
@@ -19,7 +21,6 @@ import (
 	"github.com/moby/moby/v2/testutil/environment"
 	"github.com/moby/moby/v2/testutil/fakecontext"
 	"github.com/moby/moby/v2/testutil/request"
-	"gotest.tools/v3/assert"
 )
 
 var testEnv *environment.Execution

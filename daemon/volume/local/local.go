@@ -14,14 +14,15 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/moby/sys/atomicwriter"
+	"github.com/moby/sys/user"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/v2/daemon/internal/idtools"
 	"github.com/moby/moby/v2/daemon/internal/quota"
 	"github.com/moby/moby/v2/daemon/names"
 	"github.com/moby/moby/v2/daemon/volume"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/moby/sys/atomicwriter"
-	"github.com/moby/sys/user"
-	"github.com/pkg/errors"
 )
 
 const (

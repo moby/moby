@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"gotest.tools/v3/poll"
+
 	"github.com/moby/moby/api/types/filters"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
-	"gotest.tools/v3/poll"
 )
 
 // NoTasksForService verifies that there are no more tasks for the given service

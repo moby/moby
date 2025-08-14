@@ -4,10 +4,11 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/moby/moby/api/types/container"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/api/types/container"
 )
 
 func TestCompare(t *testing.T) {

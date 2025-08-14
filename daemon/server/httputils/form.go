@@ -8,10 +8,10 @@ import (
 	"strings"
 
 	"github.com/distribution/reference"
-	"github.com/moby/moby/v2/errdefs"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 // BoolValue transforms a form value in different formats into a boolean type.

@@ -10,11 +10,12 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+	"gotest.tools/v3/assert"
+
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/pkg/tailfile"
-	"golang.org/x/sync/errgroup"
-	"gotest.tools/v3/assert"
 )
 
 func TestConcurrentLogging(t *testing.T) {

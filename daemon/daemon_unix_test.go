@@ -8,15 +8,16 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/opencontainers/selinux/go-selinux"
+	"golang.org/x/sys/unix"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/moby/moby/api/types/blkiodev"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/pkg/sysinfo"
-	"github.com/opencontainers/selinux/go-selinux"
-	"golang.org/x/sys/unix"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 type fakeContainerGetter struct {

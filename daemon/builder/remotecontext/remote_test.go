@@ -8,9 +8,10 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/builder"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/daemon/builder"
 )
 
 var binaryContext = []byte{0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00} // xz magic

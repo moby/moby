@@ -11,10 +11,11 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
+
+	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 )
 
 func TestRCOption(t *testing.T) {

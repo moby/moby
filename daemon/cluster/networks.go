@@ -5,14 +5,15 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
+	swarmapi "github.com/moby/swarmkit/v2/api"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/cluster/convert"
 	networkSettings "github.com/moby/moby/v2/daemon/network"
 	"github.com/moby/moby/v2/errdefs"
-	swarmapi "github.com/moby/swarmkit/v2/api"
-	"github.com/pkg/errors"
 )
 
 // GetNetworks returns all current cluster managed networks.

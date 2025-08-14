@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/v2/integration-cli/daemon"
-	"github.com/moby/moby/v2/integration-cli/environment"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/icmd"
+
+	"github.com/moby/moby/v2/integration-cli/daemon"
+	"github.com/moby/moby/v2/integration-cli/environment"
 )
 
 var testEnv *environment.Execution

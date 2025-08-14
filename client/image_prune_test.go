@@ -11,11 +11,11 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/image"
-
-	"github.com/moby/moby/api/types/filters"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/image"
 )
 
 func TestImagesPruneError(t *testing.T) {

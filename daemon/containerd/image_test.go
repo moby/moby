@@ -13,14 +13,13 @@ import (
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/log/logtest"
 	"github.com/distribution/reference"
-	dockerimages "github.com/moby/moby/v2/daemon/images"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-
 	bolt "go.etcd.io/bbolt"
-
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	dockerimages "github.com/moby/moby/v2/daemon/images"
 )
 
 func TestLookup(t *testing.T) {

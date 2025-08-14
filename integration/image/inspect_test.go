@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/moby/moby/api/types/image"
-	"github.com/moby/moby/client"
-	iimage "github.com/moby/moby/v2/integration/internal/image"
-	"github.com/moby/moby/v2/internal/testutils/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client"
+	iimage "github.com/moby/moby/v2/integration/internal/image"
+	"github.com/moby/moby/v2/internal/testutils/specialimage"
 )
 
 // Regression test for: https://github.com/moby/moby/issues/45556

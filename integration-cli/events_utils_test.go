@@ -12,9 +12,10 @@ import (
 	"testing"
 
 	"github.com/containerd/log"
+	"gotest.tools/v3/assert"
+
 	eventstestutils "github.com/moby/moby/v2/daemon/events/testutils"
 	"github.com/moby/moby/v2/integration-cli/cli"
-	"gotest.tools/v3/assert"
 )
 
 // eventMatcher is a function that tries to match an event input.

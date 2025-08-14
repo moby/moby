@@ -8,10 +8,11 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/pkg/errors"
 )
 
 // TagImage creates an image named as newTag and targeting the given descriptor id.

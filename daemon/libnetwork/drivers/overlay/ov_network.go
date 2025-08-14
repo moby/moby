@@ -15,6 +15,10 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
+	"golang.org/x/sys/unix"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/overlay/overlayutils"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/countmap"
@@ -25,9 +29,6 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
-	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netns"
-	"golang.org/x/sys/unix"
 )
 
 var (

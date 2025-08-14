@@ -3,9 +3,10 @@ package containerd
 import (
 	"testing"
 
-	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/api/types/container"
 )
 
 // regression test for https://github.com/moby/moby/issues/45904

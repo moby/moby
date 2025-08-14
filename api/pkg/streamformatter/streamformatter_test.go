@@ -8,9 +8,10 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/moby/moby/api/types/jsonstream"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/api/types/jsonstream"
 )
 
 func TestRawProgressFormatterFormatStatus(t *testing.T) {

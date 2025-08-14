@@ -9,8 +9,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
 	"github.com/moby/sys/user"
+
+	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
 )
 
 // add a user and/or group to Linux /etc/passwd, /etc/group using standard

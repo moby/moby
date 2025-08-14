@@ -7,9 +7,10 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/log"
+	"github.com/vishvananda/netlink"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/netutils"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/vishvananda/netlink"
 )
 
 // SetupDevice create a new bridge interface/

@@ -4,8 +4,9 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
 	"gotest.tools/v3/assert"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
 )
 
 func TestMergeIter(t *testing.T) {

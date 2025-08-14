@@ -11,8 +11,9 @@ import (
 	"github.com/moby/buildkit/executor/oci"
 	resourcetypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
-	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/sys/user"
+
+	"github.com/moby/moby/v2/daemon/libnetwork"
 )
 
 type stubExecutor struct{}

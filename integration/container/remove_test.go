@@ -5,13 +5,14 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/v2/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/fs"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/integration/internal/container"
 )
 
 func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {

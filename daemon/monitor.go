@@ -8,6 +8,8 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
@@ -15,7 +17,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/metrics"
 	"github.com/moby/moby/v2/daemon/internal/restartmanager"
 	"github.com/moby/moby/v2/daemon/server/backend"
-	"github.com/pkg/errors"
 )
 
 func (daemon *Daemon) setStateCounter(c *container.Container) {

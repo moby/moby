@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/options"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/options"
 )
 
 const dummyKey = "dummy"

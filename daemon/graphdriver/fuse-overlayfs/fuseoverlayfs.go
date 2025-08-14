@@ -16,6 +16,13 @@ import (
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/chrootarchive"
 	"github.com/moby/locker"
+	"github.com/moby/sys/mount"
+	"github.com/moby/sys/user"
+	"github.com/moby/sys/userns"
+	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
+
 	"github.com/moby/moby/v2/daemon/graphdriver"
 	"github.com/moby/moby/v2/daemon/graphdriver/overlayutils"
 	"github.com/moby/moby/v2/daemon/internal/containerfs"
@@ -23,12 +30,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/fstype"
 	"github.com/moby/moby/v2/daemon/internal/mountref"
 	"github.com/moby/moby/v2/pkg/parsers/kernel"
-	"github.com/moby/sys/mount"
-	"github.com/moby/sys/user"
-	"github.com/moby/sys/userns"
-	"github.com/opencontainers/selinux/go-selinux/label"
-	"github.com/pkg/errors"
-	"golang.org/x/sys/unix"
 )
 
 // untar defines the untar method

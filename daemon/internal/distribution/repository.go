@@ -6,6 +6,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
+
 	"github.com/moby/moby/v2/errdefs"
 )
 

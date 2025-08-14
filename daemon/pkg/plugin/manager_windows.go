@@ -3,8 +3,9 @@ package plugin
 import (
 	"fmt"
 
-	v2 "github.com/moby/moby/v2/daemon/pkg/plugin/v2"
 	"github.com/opencontainers/runtime-spec/specs-go"
+
+	v2 "github.com/moby/moby/v2/daemon/pkg/plugin/v2"
 )
 
 func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {

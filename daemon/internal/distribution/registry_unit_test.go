@@ -9,9 +9,10 @@ import (
 	"testing"
 
 	"github.com/distribution/reference"
+	"gotest.tools/v3/assert"
+
 	"github.com/moby/moby/api/types/registry"
 	registrypkg "github.com/moby/moby/v2/daemon/pkg/registry"
-	"gotest.tools/v3/assert"
 )
 
 const secretRegistryToken = "mysecrettoken"

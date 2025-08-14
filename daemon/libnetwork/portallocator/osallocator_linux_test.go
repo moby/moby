@@ -9,11 +9,12 @@ import (
 	"testing"
 
 	"github.com/ishidawataru/sctp"
-	"github.com/moby/moby/v2/daemon/libnetwork/netutils"
-	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/netutils"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 func listen(t *testing.T, proto types.Protocol, addr net.IP, port int) io.Closer {
