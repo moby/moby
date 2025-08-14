@@ -1,6 +1,7 @@
 package command
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -17,7 +18,7 @@ func NoArgs(cmd *cobra.Command, args []string) error {
 		return errors.New("\n" + strings.TrimRight(cmd.UsageString(), "\n"))
 	}
 
-	return errors.Errorf(
+	return fmt.Errorf(
 		"\"%s\" accepts no argument(s).\nSee '%s --help'.\n\nUsage:  %s\n\n%s",
 		cmd.CommandPath(),
 		cmd.CommandPath(),
