@@ -3,8 +3,6 @@ package streamformatter
 import (
 	"encoding/json"
 	"io"
-
-	"github.com/docker/docker/pkg/jsonmessage"
 )
 
 type streamWriter struct {
@@ -22,7 +20,7 @@ func (sw *streamWriter) Write(buf []byte) (int, error) {
 }
 
 func (sw *streamWriter) format(buf []byte) []byte {
-	msg := &jsonmessage.JSONMessage{Stream: sw.lineFormat(buf)}
+	msg := &jsonMessage{Stream: sw.lineFormat(buf)}
 	b, err := json.Marshal(msg)
 	if err != nil {
 		return FormatError(err)

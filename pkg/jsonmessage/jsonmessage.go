@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
+	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/term"
 	"github.com/morikuni/aec"
 )
@@ -18,14 +19,7 @@ const RFC3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
 
 // JSONError wraps a concrete Code and Message, Code is
 // an integer error code, Message is the error message.
-type JSONError struct {
-	Code    int    `json:"code,omitempty"`
-	Message string `json:"message,omitempty"`
-}
-
-func (e *JSONError) Error() string {
-	return e.Message
-}
+type JSONError = jsonstream.Error
 
 // JSONProgress describes a progress message in a JSON stream.
 type JSONProgress struct {
@@ -149,12 +143,12 @@ type JSONMessage struct {
 	// ProgressMessage is a pre-formatted presentation of [Progress].
 	//
 	// Deprecated: this field is deprecated since docker v0.7.1 / API v1.8. Use the information in [Progress] instead. This field will be omitted in a future release.
-	ProgressMessage string     `json:"progress,omitempty"`
-	ID              string     `json:"id,omitempty"`
-	From            string     `json:"from,omitempty"`
-	Time            int64      `json:"time,omitempty"`
-	TimeNano        int64      `json:"timeNano,omitempty"`
-	Error           *JSONError `json:"errorDetail,omitempty"`
+	ProgressMessage string            `json:"progress,omitempty"`
+	ID              string            `json:"id,omitempty"`
+	From            string            `json:"from,omitempty"`
+	Time            int64             `json:"time,omitempty"`
+	TimeNano        int64             `json:"timeNano,omitempty"`
+	Error           *jsonstream.Error `json:"errorDetail,omitempty"`
 
 	// ErrorMessage contains errors encountered during the operation.
 	//
