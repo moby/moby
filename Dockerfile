@@ -490,6 +490,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             apparmor \
             bash-completion \
             bzip2 \
+            e2fsprogs \
             inetutils-ping \
             iproute2 \
             iptables \
