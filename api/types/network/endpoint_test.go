@@ -172,7 +172,7 @@ func TestEndpointIPAMConfigWithInvalidConfig(t *testing.T) {
 			}
 
 			if _, ok := err.(interface{ Unwrap() []error }); !ok {
-				t.Fatal("returned error isn't a multierror")
+				t.Fatalf("returned error isn't a multierror: %[1]v (%[1]T)", err)
 			}
 			errs := err.(interface{ Unwrap() []error }).Unwrap()
 			assert.Check(t, len(errs) == len(tc.expectedErrors), "errs: %+v", errs)
