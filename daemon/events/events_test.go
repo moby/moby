@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/moby/moby/api/types/events"
-	timetypes "github.com/moby/moby/api/types/time"
 	eventstestutils "github.com/moby/moby/v2/daemon/events/testutils"
+	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -142,10 +142,10 @@ func TestLogEvents(t *testing.T) {
 //	2016-03-07T17:28:03.129014751+02:00 container destroy 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)
 func TestLoadBufferedEvents(t *testing.T) {
 	now := time.Now()
-	f, err := timetypes.GetTimestamp("2016-03-07T17:28:03.100000000+02:00", now)
+	f, err := timestamp.GetTimestamp("2016-03-07T17:28:03.100000000+02:00", now)
 	assert.NilError(t, err)
 
-	s, sNano, err := timetypes.ParseTimestamps(f, -1)
+	s, sNano, err := timestamp.ParseTimestamps(f, -1)
 	assert.NilError(t, err)
 
 	m1, err := eventstestutils.Scan("2016-03-07T17:28:03.022433271+02:00 container die 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
@@ -170,16 +170,16 @@ func TestLoadBufferedEvents(t *testing.T) {
 
 func TestLoadBufferedEventsOnlyFromPast(t *testing.T) {
 	now := time.Now()
-	f, err := timetypes.GetTimestamp("2016-03-07T17:28:03.090000000+02:00", now)
+	f, err := timestamp.GetTimestamp("2016-03-07T17:28:03.090000000+02:00", now)
 	assert.NilError(t, err)
 
-	s, sNano, err := timetypes.ParseTimestamps(f, 0)
+	s, sNano, err := timestamp.ParseTimestamps(f, 0)
 	assert.NilError(t, err)
 
-	f, err = timetypes.GetTimestamp("2016-03-07T17:28:03.100000000+02:00", now)
+	f, err = timestamp.GetTimestamp("2016-03-07T17:28:03.100000000+02:00", now)
 	assert.NilError(t, err)
 
-	u, uNano, err := timetypes.ParseTimestamps(f, 0)
+	u, uNano, err := timestamp.ParseTimestamps(f, 0)
 	assert.NilError(t, err)
 
 	m1, err := eventstestutils.Scan("2016-03-07T17:28:03.022433271+02:00 container die 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")

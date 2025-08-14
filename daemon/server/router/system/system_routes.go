@@ -14,8 +14,8 @@ import (
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/system"
-	timetypes "github.com/moby/moby/api/types/time"
 	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/daemon/server/router/build"
@@ -390,7 +390,7 @@ func (s *systemRouter) postAuth(ctx context.Context, w http.ResponseWriter, r *h
 }
 
 func eventTime(formTime string) (time.Time, error) {
-	t, tNano, err := timetypes.ParseTimestamps(formTime, -1)
+	t, tNano, err := timestamp.ParseTimestamps(formTime, -1)
 	if err != nil {
 		return time.Time{}, err
 	}

@@ -9,10 +9,10 @@ import (
 
 	"github.com/distribution/reference"
 	imagetypes "github.com/moby/moby/api/types/image"
-	timetypes "github.com/moby/moby/api/types/time"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
+	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/server/backend"
 )
 
@@ -62,11 +62,11 @@ func (i *ImageService) Images(ctx context.Context, opts imagetypes.ListOptions) 
 	}
 
 	err = opts.Filters.WalkValues("until", func(value string) error {
-		ts, err := timetypes.GetTimestamp(value, time.Now())
+		ts, err := timestamp.GetTimestamp(value, time.Now())
 		if err != nil {
 			return err
 		}
-		seconds, nanoseconds, err := timetypes.ParseTimestamps(ts, 0)
+		seconds, nanoseconds, err := timestamp.ParseTimestamps(ts, 0)
 		if err != nil {
 			return err
 		}

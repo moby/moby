@@ -8,9 +8,9 @@ import (
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
 	containertypes "github.com/moby/moby/api/types/container"
-	timetypes "github.com/moby/moby/api/types/time"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/logger"
 	logcache "github.com/moby/moby/v2/daemon/logger/loggerutils/cache"
 	"github.com/moby/moby/v2/daemon/server/backend"
@@ -79,7 +79,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 
 	var since time.Time
 	if config.Since != "" {
-		s, n, err := timetypes.ParseTimestamps(config.Since, 0)
+		s, n, err := timestamp.ParseTimestamps(config.Since, 0)
 		if err != nil {
 			return nil, false, err
 		}
@@ -88,7 +88,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 
 	var until time.Time
 	if config.Until != "" && config.Until != "0" {
-		s, n, err := timetypes.ParseTimestamps(config.Until, 0)
+		s, n, err := timestamp.ParseTimestamps(config.Until, 0)
 		if err != nil {
 			return nil, false, err
 		}
