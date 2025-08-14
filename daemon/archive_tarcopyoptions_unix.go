@@ -46,7 +46,7 @@ func (daemon *Daemon) tarCopyOptions(ctr *container.Container, allowOverwriteDir
 //
 // If only a username (or uid) is provided, an attempt is made to look up the gid
 // for that username using /etc/passwd
-func getUIDGID(ctrUser string) (uid int, gid int, _ error) {
+func getUIDGID(ctrUser string) (uid, gid int, _ error) {
 	userNameOrID, groupNameOrID, _ := strings.Cut(ctrUser, ":")
 
 	// Align with behavior of docker run, which treats an empty username

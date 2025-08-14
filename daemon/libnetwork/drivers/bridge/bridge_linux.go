@@ -1419,7 +1419,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, epOpts, sbOpts map[string]any) error {
+func (d *driver) Join(ctx context.Context, nid, eid, sboxKey string, jinfo driverapi.JoinInfo, epOpts, sbOpts map[string]any) error {
 	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".Join", trace.WithAttributes(
 		attribute.String("nid", nid),
 		attribute.String("eid", eid),
@@ -1514,7 +1514,7 @@ type portBindingMode struct {
 	ipv6   bool
 }
 
-func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid string, gw4Id, gw6Id string) (retErr error) {
+func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid, gw4Id, gw6Id string) (retErr error) {
 	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".ProgramExternalConnectivity", trace.WithAttributes(
 		attribute.String("nid", nid),
 		attribute.String("eid", eid),

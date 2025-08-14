@@ -216,7 +216,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	})
 }
 
-func openHistoryDB(root string, fn string, cfg *config.BuilderHistoryConfig) (*bolt.DB, *bkconfig.HistoryConfig, error) {
+func openHistoryDB(root, fn string, cfg *config.BuilderHistoryConfig) (*bolt.DB, *bkconfig.HistoryConfig, error) {
 	db, err := bolt.Open(filepath.Join(root, fn), 0o600, nil)
 	if err != nil {
 		return nil, nil, err

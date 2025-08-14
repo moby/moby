@@ -11,7 +11,7 @@ import (
 
 // ContainerStatPath stats the filesystem resource at the specified path in the
 // container identified by the given name.
-func (daemon *Daemon) ContainerStatPath(name string, path string) (*container.PathStat, error) {
+func (daemon *Daemon) ContainerStatPath(name, path string) (*container.PathStat, error) {
 	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func (daemon *Daemon) ContainerStatPath(name string, path string) (*container.Pa
 // ContainerArchivePath creates an archive of the filesystem resource at the
 // specified path in the container identified by the given name. Returns a
 // tar archive of the resource and whether it was a directory or a single file.
-func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *container.PathStat, _ error) {
+func (daemon *Daemon) ContainerArchivePath(name, path string) (content io.ReadCloser, stat *container.PathStat, _ error) {
 	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, nil, err

@@ -24,7 +24,7 @@ const (
 	remapSuffix     = "-remap"
 )
 
-func (i *ImageService) remapSnapshot(ctx context.Context, snapshotter snapshots.Snapshotter, id string, parentSnapshot string) error {
+func (i *ImageService) remapSnapshot(ctx context.Context, snapshotter snapshots.Snapshotter, id, parentSnapshot string) error {
 	_, err := snapshotter.Prepare(ctx, id, parentSnapshot)
 	if err != nil {
 		return err
@@ -123,7 +123,7 @@ func (i *ImageService) unremapRootFS(ctx context.Context, mounts []mount.Mount) 
 // chownWithCaps will chown path and preserve the extended attributes.
 // chowning a file will remove the capabilities, so we need to first get all of
 // them, chown the file, and then set the extended attributes
-func chownWithCaps(path string, uid int, gid int) error {
+func chownWithCaps(path string, uid, gid int) error {
 	xattrKeys, err := sysx.LListxattr(path)
 	if err != nil {
 		return err

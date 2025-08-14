@@ -48,7 +48,7 @@ func (d *manager) EndpointOperInfo(nid, eid string) (map[string]any, error) {
 	return nil, types.NotImplementedErrorf("not implemented")
 }
 
-func (d *manager) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, _ map[string]any) error {
+func (d *manager) Join(_ context.Context, nid, eid, sboxKey string, jinfo driverapi.JoinInfo, _, _ map[string]any) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 

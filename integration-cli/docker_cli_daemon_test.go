@@ -379,7 +379,7 @@ func (s *DockerDaemonSuite) TestDaemonBridgeNone(c *testing.T) {
 	assert.Assert(c, is.Contains(out, "No such network"))
 }
 
-func createInterface(t *testing.T, ifType string, ifName string, ipNet string) {
+func createInterface(t *testing.T, ifType, ifName, ipNet string) {
 	icmd.RunCommand("ip", "link", "add", "name", ifName, "type", ifType).Assert(t, icmd.Success)
 	icmd.RunCommand("ifconfig", ifName, ipNet, "up").Assert(t, icmd.Success)
 }

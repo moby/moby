@@ -43,7 +43,7 @@ func (store *FSMetadataStore) path(namespace, key string) string {
 
 // Get retrieves data by namespace and key. The data is read from a file named
 // after the key, stored in the namespace's directory.
-func (store *FSMetadataStore) Get(namespace string, key string) ([]byte, error) {
+func (store *FSMetadataStore) Get(namespace, key string) ([]byte, error) {
 	store.RLock()
 	defer store.RUnlock()
 

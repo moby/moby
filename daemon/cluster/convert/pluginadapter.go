@@ -42,7 +42,7 @@ func adaptPluginForSwarm(p plugingetter.CompatPlugin) plugin.Plugin {
 	return swarmPlugin{p}
 }
 
-func (g pluginGetter) Get(name string, capability string) (plugin.Plugin, error) {
+func (g pluginGetter) Get(name, capability string) (plugin.Plugin, error) {
 	p, err := g.pg.Get(name, capability, plugingetter.Lookup)
 	if err != nil {
 		return nil, err

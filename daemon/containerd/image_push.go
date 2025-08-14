@@ -349,13 +349,14 @@ func findMissingMountable(ctx context.Context, store content.Store, queue *jobs,
 			}
 
 			for _, source := range sources {
-				if canBeMounted(desc.MediaType, targetRef, source) {
-					mutex.Lock()
-					mountableBlobs[desc.Digest] = source
-					mutex.Unlock()
-					queue.Add(desc)
-					break
+				if !canBeMounted(desc.MediaType, targetRef, source) {
+					continue
 				}
+				mutex.Lock()
+				mountableBlobs[desc.Digest] = source
+				mutex.Unlock()
+				queue.Add(desc)
+				break
 			}
 			return nil, nil
 		}

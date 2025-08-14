@@ -31,7 +31,7 @@ const (
 
 // TrySetNetworkMount attempts to set the network mounts given a provided destination and
 // the path to use for it; return true if the given destination was a network mount file
-func (container *Container) TrySetNetworkMount(destination string, path string) bool {
+func (container *Container) TrySetNetworkMount(destination, path string) bool {
 	if destination == "/etc/resolv.conf" {
 		container.ResolvConfPath = path
 		return true

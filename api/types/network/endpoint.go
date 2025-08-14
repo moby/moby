@@ -82,7 +82,7 @@ type NetworkSubnet interface {
 }
 
 // IsInRange checks whether static IP addresses are valid in a specific network.
-func (cfg *EndpointIPAMConfig) IsInRange(v4Subnets []NetworkSubnet, v6Subnets []NetworkSubnet) error {
+func (cfg *EndpointIPAMConfig) IsInRange(v4Subnets, v6Subnets []NetworkSubnet) error {
 	var errs []error
 
 	if err := validateEndpointIPAddress(cfg.IPv4Address, v4Subnets); err != nil {
