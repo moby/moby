@@ -27,6 +27,7 @@ jobs:
     uses: ./.github/workflows/.dco.yml
 
   run:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     uses: ./.github/workflows/.windows.yml
     secrets: inherit
     strategy:
