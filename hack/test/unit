@@ -18,43 +18,77 @@ TESTDIRS="${TESTDIRS:-./...}"
 
 mkdir -p bundles
 
-cd api
-api_pkg_list=$(go list $TESTDIRS)
+case "$TESTDIRS" in
+	"./api"* | "./...")
+		api_pkg_list=$(go -C ./api list -mod=readonly "${TESTDIRS/#\.\/api/\.}")
+		;;
+esac
 if [ -n "${api_pkg_list}" ]; then
-	gotestsum --format=standard-quiet --jsonfile=../bundles/api-go-test-report.json --junitfile=../bundles/api-junit-report.xml -- \
+	# These are tests for a separate module. Run tests for this module with
+	# '-mod=readonly' to prevent the "vendor/" directory being used, which
+	# does have a copy of these files, but does not contain test files.
+	#
+	# From the Go documentation https://golang.org/ref/mod:
+	#
+	# - `-mod=mod` tells the go command to ignore the vendor directory and to
+	#   automatically update `go.mod`, for example, when an imported package
+	#   is not provided by any known module.
+	# - `-mod=readonly` tells the go command to ignore the vendor directory
+	#   and to report an error if `go.mod` needs to be updated.
+	gotestsum --format=standard-quiet --jsonfile=bundles/api-go-test-report.json --junitfile=bundles/api-junit-report.xml -- \
 		"${BUILDFLAGS[@]}" \
 		-cover \
-		-coverprofile=../bundles/api-coverage.out \
+		-coverprofile=bundles/api-coverage.out \
 		-covermode=atomic \
+		-mod=readonly \
 		${TESTFLAGS} \
 		${api_pkg_list}
 fi
 
-cd ../client
-
-client_pkg_list=$(go list $TESTDIRS)
+case "$TESTDIRS" in
+	"./client"* | "./...")
+		client_pkg_list=$(go -C ./client list -mod=readonly "${TESTDIRS/#\.\/client/\.}")
+		;;
+esac
 if [ -n "${client_pkg_list}" ]; then
-	gotestsum --format=standard-quiet --jsonfile=../bundles/client-go-test-report.json --junitfile=../bundles/client-junit-report.xml -- \
+	# These are tests for a separate module. Run tests for this module with
+	# '-mod=readonly' to prevent the "vendor/" directory being used, which
+	# does have a copy of these files, but does not contain test files.
+	#
+	# From the Go documentation https://golang.org/ref/mod:
+	#
+	# - `-mod=mod` tells the go command to ignore the vendor directory and to
+	#   automatically update `go.mod`, for example, when an imported package
+	#   is not provided by any known module.
+	# - `-mod=readonly` tells the go command to ignore the vendor directory
+	#   and to report an error if `go.mod` needs to be updated.
+	gotestsum --format=standard-quiet --jsonfile=bundles/client-go-test-report.json --junitfile=bundles/client-junit-report.xml -- \
 		"${BUILDFLAGS[@]}" \
 		-cover \
-		-coverprofile=../bundles/client-coverage.out \
+		-coverprofile=bundles/client-coverage.out \
 		-covermode=atomic \
+		-mod=readonly \
 		${TESTFLAGS} \
 		${client_pkg_list}
 fi
 
-cd ..
+case "$TESTDIRS" in
+	"./api"* | "./client"*)
+		# modules are handled above
+		;;
+	*)
+		exclude_paths='/vendor/|/integration'
+		pkgs=$(go list "$TESTDIRS" | grep -vE "($exclude_paths)")
 
-exclude_paths='/vendor/|/integration'
-pkgs=$(go list $TESTDIRS | grep -vE "($exclude_paths)")
+		pkg_list=$(echo "${pkgs}" | grep --fixed-strings -v "/libnetwork" || :)
+		libnetwork_pkg_list=$(echo "${pkgs}" | grep --fixed-strings "/libnetwork" || :)
 
-pkg_list=$(echo "${pkgs}" | grep --fixed-strings -v "/libnetwork" || :)
-libnetwork_pkg_list=$(echo "${pkgs}" | grep --fixed-strings "/libnetwork" || :)
-
-echo "${libnetwork_pkg_list}" | grep --fixed-strings "libnetwork/drivers/bridge" \
-	&& if ! type docker-proxy; then
-		hack/make.sh binary-proxy install-proxy
-	fi
+		echo "${libnetwork_pkg_list}" | grep --fixed-strings "libnetwork/drivers/bridge" \
+			&& if ! type docker-proxy; then
+				hack/make.sh binary-proxy install-proxy
+			fi
+		;;
+esac
 
 if [ -n "${pkg_list}" ]; then
 	gotestsum --format=standard-quiet --jsonfile=bundles/go-test-report.json --junitfile=bundles/junit-report.xml -- \
