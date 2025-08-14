@@ -17,8 +17,8 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
-	timetypes "github.com/moby/moby/api/types/time"
 	"github.com/moby/moby/v2/daemon/cluster/convert"
+	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
 	swarmapi "github.com/moby/swarmkit/v2/api"
@@ -478,7 +478,7 @@ func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector
 	// get the since value - the time in the past we're looking at logs starting from
 	var sinceProto *gogotypes.Timestamp
 	if config.Since != "" {
-		s, n, err := timetypes.ParseTimestamps(config.Since, 0)
+		s, n, err := timestamp.ParseTimestamps(config.Since, 0)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not parse since timestamp")
 		}

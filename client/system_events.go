@@ -8,8 +8,8 @@ import (
 
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
-	timetypes "github.com/moby/moby/api/types/time"
 	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/client/internal/timestamp"
 )
 
 // Events returns a stream of events in the daemon. It's up to the caller to close the stream
@@ -83,7 +83,7 @@ func buildEventsQueryParams(cliVersion string, options events.ListOptions) (url.
 	ref := time.Now()
 
 	if options.Since != "" {
-		ts, err := timetypes.GetTimestamp(options.Since, ref)
+		ts, err := timestamp.GetTimestamp(options.Since, ref)
 		if err != nil {
 			return nil, err
 		}
@@ -91,7 +91,7 @@ func buildEventsQueryParams(cliVersion string, options events.ListOptions) (url.
 	}
 
 	if options.Until != "" {
-		ts, err := timetypes.GetTimestamp(options.Until, ref)
+		ts, err := timestamp.GetTimestamp(options.Until, ref)
 		if err != nil {
 			return nil, err
 		}
