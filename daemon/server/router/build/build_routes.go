@@ -196,7 +196,27 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 	}
 
 	version := httputils.VersionFromContext(ctx)
-	if versions.GreaterThanOrEqualTo(version, "1.48") {
+	if versions.GreaterThanOrEqualTo(version, "1.49") {
+		// API v1.49+ only supports the new parameters, keep-storage was removed
+		if bs, err := parseBytesFromFormValue("reserved-space"); err != nil {
+			return err
+		} else {
+			opts.ReservedSpace = bs
+		}
+
+		if bs, err := parseBytesFromFormValue("max-used-space"); err != nil {
+			return err
+		} else {
+			opts.MaxUsedSpace = bs
+		}
+
+		if bs, err := parseBytesFromFormValue("min-free-space"); err != nil {
+			return err
+		} else {
+			opts.MinFreeSpace = bs
+		}
+	} else if versions.GreaterThanOrEqualTo(version, "1.48") {
+		// API v1.48 supports both new and deprecated parameters for backward compatibility
 		if bs, err := parseBytesFromFormValue("reserved-space"); err != nil {
 			return err
 		} else {
