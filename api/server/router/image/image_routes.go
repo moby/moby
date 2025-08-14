@@ -167,14 +167,11 @@ func (ir *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
-	var authConfig *registry.AuthConfig
-	if authEncoded := r.Header.Get(registry.AuthHeader); authEncoded != "" {
-		// Handle the authConfig as a header, but ignore invalid AuthConfig
-		// to increase compatibility with the existing API.
-		//
-		// TODO(thaJeztah): accept empty values but return an error when failing to decode.
-		authConfig, _ = registry.DecodeAuthConfig(authEncoded)
-	}
+	// Handle the authConfig as a header, but ignore invalid AuthConfig
+	// to increase compatibility with the existing API.
+	//
+	// TODO(thaJeztah): accept empty values but return an error when failing to decode.
+	authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
 
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
