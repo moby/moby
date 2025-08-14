@@ -32,6 +32,7 @@ jobs:
       - validate-dco
 
   run:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
       - test-prepare
     uses: ./.github/workflows/.windows.yml
