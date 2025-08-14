@@ -14,14 +14,19 @@ on:
     types: [opened, edited, labeled, unlabeled, synchronize]
 
 jobs:
-  check-area-label:
+  check-labels:
     runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     steps:
       - name: Missing `area/` label
-        if: contains(join(github.event.pull_request.labels.*.name, ','), 'impact/') && !contains(join(github.event.pull_request.labels.*.name, ','), 'area/')
+        if: always() && contains(join(github.event.pull_request.labels.*.name, ','), 'impact/') && !contains(join(github.event.pull_request.labels.*.name, ','), 'area/')
         run: |
           echo "::error::Every PR with an 'impact/*' label should also have an 'area/*' label"
+          exit 1
+      - name: Missing `kind/` label
+        if: always() && contains(join(github.event.pull_request.labels.*.name, ','), 'impact/') && !contains(join(github.event.pull_request.labels.*.name, ','), 'kind/')
+        run: |
+          echo "::error::Every PR with an 'impact/*' label should also have a 'kind/*' label"
           exit 1
       - name: OK
         run: exit 0
