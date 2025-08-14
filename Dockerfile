@@ -23,6 +23,9 @@ ARG BUILDX_VERSION=0.25.0
 # COMPOSE_VERSION is the version of compose to install in the dev container.
 ARG COMPOSE_VERSION=v2.38.2
 
+# REGCTL_VERSION is the version of regctl to install in the dev container.
+ARG REGCTL_VERSION=v0.9.0
+
 ARG SYSTEMD="false"
 ARG FIREWALLD="false"
 ARG DOCKER_STATIC=1
@@ -46,6 +49,9 @@ ARG DELVE_SUPPORTED=${DELVE_SUPPORTED:-"supported"}
 
 # cross compilation helper
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
+
+# regctl is a tool to interact with OCI registries, and is used to export
+FROM --platform=$BUILDPLATFORM regclient/regctl:${REGCTL_VERSION} AS regctl
 
 # dummy stage to make sure the image is built for deps that don't support some
 # architectures
@@ -96,28 +102,28 @@ RUN --mount=type=cache,target=/root/.cache/go-build,id=swagger-build-$TARGETPLAT
   xx-verify /build/swagger
 EOT
 
-# frozen-images
-# See also frozenImages in "testutil/environment/protect.go" (which needs to
-# be updated when adding images to this list)
-FROM debian:${BASE_DEBIAN_DISTRO} AS frozen-images
-RUN --mount=type=cache,sharing=locked,id=moby-frozen-images-aptlib,target=/var/lib/apt \
-    --mount=type=cache,sharing=locked,id=moby-frozen-images-aptcache,target=/var/cache/apt \
-       apt-get update && apt-get install -y --no-install-recommends \
-           ca-certificates \
-           curl \
-           jq
-# Get useful and necessary Hub images so we can "docker load" locally instead of pulling
-COPY contrib/download-frozen-image-v2.sh /
+# frozen-images gets useful and necessary Hub images so we can "docker load"
+# locally instead of pulling. See also frozenImages in
+# "testutil/environment/protect.go" (which needs to be updated when adding images to this list)
+FROM base AS frozen-images
+ARG TARGETOS
 ARG TARGETARCH
 ARG TARGETVARIANT
-RUN /download-frozen-image-v2.sh /build \
-        busybox:latest@sha256:95cf004f559831017cdf4628aaf1bb30133677be8702a8c5f2994629f637a209 \
-        busybox:glibc@sha256:1f81263701cddf6402afe9f33fca0266d9fff379e59b1748f33d3072da71ee85 \
-        debian:bookworm-slim@sha256:2bc5c236e9b262645a323e9088dfa3bb1ecb16cc75811daf40a23a824d665be9 \
-        hello-world:latest@sha256:d58e752213a51785838f9eed2b7a498ffa1cb3aa7f946dda11af39286c3db9a9 \
-        arm32v7/hello-world:latest@sha256:50b8560ad574c779908da71f7ce370c0a2471c098d44d1c8f6b513c5a55eeeb1 \
-        hello-world:amd64@sha256:90659bf80b44ce6be8234e6ff90a1ac34acbeb826903b02cfa0da11c82cbc042 \
-        hello-world:arm64@sha256:963612c5503f3f1674f315c67089dee577d8cc6afc18565e0b4183ae355fb343
+# OS, ARCH, VARIANT are used by skopeo cli
+ENV OS=$TARGETOS
+ENV ARCH=$TARGETARCH
+ENV VARIANT=$TARGETVARIANT
+RUN --mount=from=regctl,source=/regctl,target=/usr/bin/regctl <<EOT
+  set -ex
+  mkdir /build
+  regctl image export busybox@sha256:95cf004f559831017cdf4628aaf1bb30133677be8702a8c5f2994629f637a209 /build/busybox-latest.tar --name "busybox:latest"
+  regctl image export busybox@sha256:1f81263701cddf6402afe9f33fca0266d9fff379e59b1748f33d3072da71ee85 /build/busybox-glibc.tar --name "busybox:glibc"
+  regctl image export debian@sha256:2bc5c236e9b262645a323e9088dfa3bb1ecb16cc75811daf40a23a824d665be9 /build/debian-bookworm-slim.tar --name "debian:bookworm-slim"
+  regctl image export hello-world@sha256:d58e752213a51785838f9eed2b7a498ffa1cb3aa7f946dda11af39286c3db9a9 /build/hello-world-latest.tar --name "hello-world:latest"
+  regctl image export arm32v7/hello-world@sha256:50b8560ad574c779908da71f7ce370c0a2471c098d44d1c8f6b513c5a55eeeb1 /build/arm32v7-hello-world-latest.tar --name "arm32v7/hello-world:latest" --platform linux/arm/v7
+  regctl image export hello-world@sha256:90659bf80b44ce6be8234e6ff90a1ac34acbeb826903b02cfa0da11c82cbc042 /build/hello-world-amd64.tar --name "hello-world:amd64" --platform linux/amd64
+  regctl image export hello-world@sha256:963612c5503f3f1674f315c67089dee577d8cc6afc18565e0b4183ae355fb343 /build/hello-world-arm64.tar --name "hello-world:arm64" --platform linux/arm64
+EOT
 
 # delve
 FROM base AS delve-src
