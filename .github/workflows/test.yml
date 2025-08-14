@@ -69,6 +69,7 @@ jobs:
             *.output=type=cacheonly
 
   test:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
       - build-dev
       - validate-dco
@@ -84,6 +85,7 @@ jobs:
       storage: ${{ matrix.storage }}
 
   test-unit:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
       - build-dev
       - validate-dco
@@ -153,6 +155,7 @@ jobs:
   smoke-prepare:
     runs-on: ubuntu-24.04
     timeout-minutes: 10 # guardrails timeout for the whole job
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
       - validate-dco
     outputs:
@@ -175,6 +178,7 @@ jobs:
   smoke:
     runs-on: ubuntu-24.04
     timeout-minutes: 20 # guardrails timeout for the whole job
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
       - smoke-prepare
     strategy:
