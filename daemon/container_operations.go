@@ -150,6 +150,8 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 				HostIP:      net.ParseIP(binding.HostIP),
 				HostPort:    uint16(portStart),
 				HostPortEnd: uint16(portEnd),
+				Mapper:      binding.Mapper,
+				ExtraParams: binding.ExtraParams,
 			})
 		}
 
