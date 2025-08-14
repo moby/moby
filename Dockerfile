@@ -476,6 +476,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             apparmor \
             bash-completion \
             bzip2 \
+            e2fsprogs \
             fuse-overlayfs \
             inetutils-ping \
             iproute2 \
