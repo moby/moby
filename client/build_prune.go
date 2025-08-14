@@ -22,9 +22,6 @@ func (cli *Client) BuildCachePrune(ctx context.Context, opts build.CachePruneOpt
 		query.Set("all", "1")
 	}
 
-	if opts.KeepStorage != 0 {
-		query.Set("keep-storage", strconv.Itoa(int(opts.KeepStorage)))
-	}
 	if opts.ReservedSpace != 0 {
 		query.Set("reserved-space", strconv.Itoa(int(opts.ReservedSpace)))
 	}

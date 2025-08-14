@@ -40,8 +40,6 @@ type CachePruneOptions struct {
 	MaxUsedSpace  int64
 	MinFreeSpace  int64
 	Filters       filters.Args
-
-	KeepStorage int64 // Deprecated: deprecated in API 1.48.
 }
 
 // CachePruneReport contains the response for Engine API:
