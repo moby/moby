@@ -15,36 +15,36 @@ The filter table is:
     
     Chain FORWARD (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 DOCKER-USER  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    2        0     0 DOCKER-FORWARD  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
+    1        0     0 DOCKER-USER  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    2        0     0 DOCKER-FORWARD  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
     
     Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
     
     Chain DOCKER (2 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 ACCEPT     6    --  !bridge1 bridge1  0.0.0.0/0            192.0.2.2            tcp dpt:80
-    2        0     0 DROP       0    --  !docker0 docker0  0.0.0.0/0            0.0.0.0/0           
-    3        0     0 ACCEPT     1    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
-    4        0     0 DROP       0    --  !bridge1 bridge1  0.0.0.0/0            0.0.0.0/0           
+    1        0     0 ACCEPT     tcp  --  !bridge1 bridge1  0.0.0.0/0            192.0.2.2            tcp dpt:80
+    2        0     0 DROP       all  --  !docker0 docker0  0.0.0.0/0            0.0.0.0/0           
+    3        0     0 ACCEPT     icmp --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
+    4        0     0 DROP       all  --  !bridge1 bridge1  0.0.0.0/0            0.0.0.0/0           
     
     Chain DOCKER-BRIDGE (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 DOCKER     0    --  *      docker0  0.0.0.0/0            0.0.0.0/0           
-    2        0     0 DOCKER     0    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
+    1        0     0 DOCKER     all  --  *      docker0  0.0.0.0/0            0.0.0.0/0           
+    2        0     0 DOCKER     all  --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
     
     Chain DOCKER-CT (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 ACCEPT     0    --  *      docker0  0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
-    2        0     0 ACCEPT     0    --  *      bridge1  0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+    1        0     0 ACCEPT     all  --  *      docker0  0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+    2        0     0 ACCEPT     all  --  *      bridge1  0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
     
     Chain DOCKER-FORWARD (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 DOCKER-CT  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    2        0     0 DOCKER-INTERNAL  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    3        0     0 DOCKER-BRIDGE  0    --  *      *       0.0.0.0/0            0.0.0.0/0           
-    4        0     0 ACCEPT     0    --  docker0 *       0.0.0.0/0            0.0.0.0/0           
-    5        0     0 ACCEPT     0    --  bridge1 *       0.0.0.0/0            0.0.0.0/0           
+    1        0     0 DOCKER-CT  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    2        0     0 DOCKER-INTERNAL  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    3        0     0 DOCKER-BRIDGE  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    4        0     0 ACCEPT     all  --  docker0 *       0.0.0.0/0            0.0.0.0/0           
+    5        0     0 ACCEPT     all  --  bridge1 *       0.0.0.0/0            0.0.0.0/0           
     
     Chain DOCKER-INTERNAL (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -106,10 +106,10 @@ for `prot 1`:
 
     Chain DOCKER (2 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 ACCEPT     6    --  !bridge1 bridge1  0.0.0.0/0            192.0.2.2            tcp dpt:80
-    2        0     0 DROP       0    --  !docker0 docker0  0.0.0.0/0            0.0.0.0/0           
-    3        0     0 ACCEPT     1    --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
-    4        0     0 DROP       0    --  !bridge1 bridge1  0.0.0.0/0            0.0.0.0/0           
+    1        0     0 ACCEPT     tcp  --  !bridge1 bridge1  0.0.0.0/0            192.0.2.2            tcp dpt:80
+    2        0     0 DROP       all  --  !docker0 docker0  0.0.0.0/0            0.0.0.0/0           
+    3        0     0 ACCEPT     icmp --  *      bridge1  0.0.0.0/0            0.0.0.0/0           
+    4        0     0 DROP       all  --  !bridge1 bridge1  0.0.0.0/0            0.0.0.0/0           
     
 
     -N DOCKER
@@ -123,18 +123,18 @@ The nat table is:
 
     Chain PREROUTING (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 DOCKER     0    --  *      *       0.0.0.0/0            0.0.0.0/0            ADDRTYPE match dst-type LOCAL
+    1        0     0 DOCKER     all  --  *      *       0.0.0.0/0            0.0.0.0/0            ADDRTYPE match dst-type LOCAL
     
     Chain INPUT (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
     
     Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 DOCKER     0    --  *      *       0.0.0.0/0           !127.0.0.0/8          ADDRTYPE match dst-type LOCAL
+    1        0     0 DOCKER     all  --  *      *       0.0.0.0/0           !127.0.0.0/8          ADDRTYPE match dst-type LOCAL
     
     Chain POSTROUTING (policy ACCEPT 0 packets, 0 bytes)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 MASQUERADE  0    --  *      !docker0  172.17.0.0/16        0.0.0.0/0           
+    1        0     0 MASQUERADE  all  --  *      !docker0  172.17.0.0/16        0.0.0.0/0           
     
     Chain DOCKER (2 references)
     num   pkts bytes target     prot opt in     out     source               destination         
