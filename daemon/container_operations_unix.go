@@ -17,6 +17,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/links"
 	"github.com/moby/moby/v2/daemon/network"
 	"github.com/moby/moby/v2/errdefs"
@@ -166,7 +167,7 @@ func (daemon *Daemon) getIPCContainer(id string) (*container.Container, error) {
 			return nil, errdefs.InvalidParameter(errors.New("container " + id + ": non-shareable IPC (hint: use IpcMode:shareable for the donor container)"))
 		}
 		// stat() failed?
-		return nil, errdefs.System(errors.Wrap(err, "container "+id))
+		return nil, types.SystemErrorf("container %s: %w", id, err)
 	}
 
 	return ctr, nil
@@ -490,7 +491,7 @@ func killProcessDirectly(ctr *container.Container) error {
 			return err
 		}
 		if isZombie {
-			return errdefs.System(errors.Errorf("container %s PID %d is zombie and can not be killed. Use the --init option when creating containers to run an init inside the container that forwards signals and reaps processes", stringid.TruncateID(ctr.ID), pid))
+			return types.SystemErrorf("container %s PID %d is zombie and can not be killed. Use the --init option when creating containers to run an init inside the container that forwards signals and reaps processes", stringid.TruncateID(ctr.ID), pid)
 		}
 	}
 	return nil

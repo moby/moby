@@ -13,6 +13,7 @@ import (
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	containerpkg "github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/sys/signal"
 	"github.com/pkg/errors"
@@ -44,7 +45,7 @@ func (daemon *Daemon) ContainerKill(name, stopSignal string) error {
 			return errdefs.InvalidParameter(err)
 		}
 		if !signal.ValidSignalForPlatform(sig) {
-			return errdefs.InvalidParameter(errors.Errorf("the %s daemon does not support signal %d", runtime.GOOS, sig))
+			return types.InvalidParameterErrorf("the %s daemon does not support signal %d", runtime.GOOS, sig)
 		}
 	}
 	container, err := daemon.GetContainer(name)

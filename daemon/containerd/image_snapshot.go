@@ -14,6 +14,7 @@ import (
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/snapshotter"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/image-spec/identity"
@@ -178,7 +179,7 @@ func (i *ImageService) GetLayerByID(cid string) (container.RWLayer, error) {
 		if !cerrdefs.IsNotFound(err) {
 			return nil, fmt.Errorf("failed to stat snapshot %s: %w", cid, err)
 		}
-		return nil, errdefs.NotFound(fmt.Errorf("RW layer for container %s not found", cid))
+		return nil, types.NotFoundErrorf("RW layer for container %s not found", cid)
 	}
 
 	ls := i.client.LeasesService()
@@ -283,10 +284,10 @@ func calculateSnapshotParentUsage(ctx context.Context, snapshotter snapshots.Sna
 		if cerrdefs.IsNotFound(err) {
 			return snapshots.Usage{}, errdefs.NotFound(err)
 		}
-		return snapshots.Usage{}, errdefs.System(errors.Wrapf(err, "snapshotter.Stat failed for %s", snapshotID))
+		return snapshots.Usage{}, types.SystemErrorf("snapshotter.Stat failed for %s: %w", snapshotID, err)
 	}
 	if info.Parent == "" {
-		return snapshots.Usage{}, errdefs.NotFound(fmt.Errorf("snapshot %s has no parent", snapshotID))
+		return snapshots.Usage{}, types.NotFoundErrorf("snapshot %s has no parent", snapshotID)
 	}
 
 	return calculateSnapshotTotalUsage(ctx, snapshotter, info.Parent)
@@ -302,16 +303,16 @@ func calculateSnapshotTotalUsage(ctx context.Context, snapshotter snapshots.Snap
 		usage, err := snapshotter.Usage(ctx, next)
 		if err != nil {
 			if cerrdefs.IsNotFound(err) {
-				return total, errdefs.NotFound(errors.Wrapf(err, "non-existing ancestor of %s", snapshotID))
+				return total, types.NotFoundErrorf("non-existing ancestor of %s: %w", snapshotID, err)
 			}
-			return total, errdefs.System(errors.Wrapf(err, "snapshotter.Usage failed for %s", next))
+			return total, types.SystemErrorf("snapshotter.Usage failed for %s: %w", next, err)
 		}
 		total.Size += usage.Size
 		total.Inodes += usage.Inodes
 
 		info, err := snapshotter.Stat(ctx, next)
 		if err != nil {
-			return total, errdefs.System(errors.Wrapf(err, "snapshotter.Stat failed for %s", next))
+			return total, types.SystemErrorf("snapshotter.Stat failed for %s: %w", next, err)
 		}
 		next = info.Parent
 	}

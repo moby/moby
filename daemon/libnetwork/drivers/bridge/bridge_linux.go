@@ -236,14 +236,17 @@ func ValidateFixedCIDRV6(val string) error {
 	if err == nil {
 		err = validateIPv6Subnet(prefix)
 	}
-	return errdefs.InvalidParameter(errors.Wrap(err, "invalid fixed-cidr-v6"))
+	if err != nil {
+		return types.InvalidParameterErrorf("invalid fixed-cidr-v6: %w", err)
+	}
+	return nil
 }
 
 // Validate performs a static validation on the network configuration parameters.
 // Whatever can be assessed a priori before attempting any programming.
 func (ncfg *networkConfiguration) Validate() error {
 	if ncfg.Mtu < 0 {
-		return errdefs.InvalidParameter(fmt.Errorf("invalid MTU number: %d", ncfg.Mtu))
+		return types.InvalidParameterErrorf("invalid MTU number: %d", ncfg.Mtu)
 	}
 
 	if ncfg.EnableIPv4 {
@@ -267,7 +270,7 @@ func (ncfg *networkConfiguration) Validate() error {
 		// AddressIPv6 must be IPv6, and not overlap with the LL subnet prefix.
 		addr, ok := netiputil.ToPrefix(ncfg.AddressIPv6)
 		if !ok {
-			return errdefs.InvalidParameter(fmt.Errorf("invalid IPv6 address '%s'", ncfg.AddressIPv6))
+			return types.InvalidParameterErrorf("invalid IPv6 address '%s'", ncfg.AddressIPv6)
 		}
 		if err := validateIPv6Subnet(addr); err != nil {
 			return errdefs.InvalidParameter(err)
@@ -518,7 +521,7 @@ func (d *driver) configure(option map[string]any) error {
 	case nil:
 		// No GenericData option set. Use defaults.
 	default:
-		return errdefs.InvalidParameter(fmt.Errorf("invalid configuration type (%T) passed", opt))
+		return types.InvalidParameterErrorf("invalid configuration type (%T) passed", opt)
 	}
 
 	var err error

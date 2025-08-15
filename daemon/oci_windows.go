@@ -16,6 +16,7 @@ import (
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/pkg/oci"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
@@ -345,7 +346,7 @@ func getBackingDeviceForContainerdMount(mountPoint string) (string, error) {
 	return backingDevice, nil
 }
 
-var errInvalidCredentialSpecSecOpt = errdefs.InvalidParameter(fmt.Errorf("invalid credential spec security option - value must be prefixed by 'file://', 'registry://', or 'raw://' followed by a non-empty value"))
+var errInvalidCredentialSpecSecOpt = types.InvalidParameterErrorf("invalid credential spec security option - value must be prefixed by 'file://', 'registry://', or 'raw://' followed by a non-empty value")
 
 // setWindowsCredentialSpec sets the spec's `Windows.CredentialSpec`
 // field if relevant
@@ -363,11 +364,11 @@ func (daemon *Daemon) setWindowsCredentialSpec(c *container.Container, s *specs.
 	for _, secOpt := range c.HostConfig.SecurityOpt {
 		k, v, ok := strings.Cut(secOpt, "=")
 		if !ok {
-			return errdefs.InvalidParameter(fmt.Errorf("invalid security option: no equals sign in supplied value %s", secOpt))
+			return types.InvalidParameterErrorf("invalid security option: no equals sign in supplied value %s", secOpt)
 		}
 		// FIXME(thaJeztah): options should not be case-insensitive
 		if !strings.EqualFold(k, "credentialspec") {
-			return errdefs.InvalidParameter(fmt.Errorf("security option not supported: %s", k))
+			return types.InvalidParameterErrorf("security option not supported: %s", k)
 		}
 
 		scheme, value, ok := strings.Cut(v, "://")
@@ -397,7 +398,7 @@ func (daemon *Daemon) setWindowsCredentialSpec(c *container.Container, s *specs.
 
 			csConfig, err := c.DependencyStore.Configs().Get(value)
 			if err != nil {
-				return errdefs.System(errors.Wrap(err, "error getting value from config store"))
+				return types.SystemErrorf("error getting value from config store: %w", err)
 			}
 			// stuff the resulting secret data into a string to use as the
 			// CredentialSpec

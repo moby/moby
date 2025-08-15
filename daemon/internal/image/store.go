@@ -2,13 +2,13 @@ package image
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/internal/layer"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/go-digest/digestset"
@@ -171,7 +171,7 @@ func (is *store) Create(config []byte) (ID, error) {
 		}
 		l, err = is.lss.Get(layerID)
 		if err != nil {
-			return "", errdefs.InvalidParameter(errors.Wrapf(err, "failed to get layer %s", layerID))
+			return "", types.InvalidParameterErrorf("failed to get layer %s: %w", layerID, err)
 		}
 	}
 
@@ -235,11 +235,11 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 
 	imgMeta := is.images[id]
 	if imgMeta == nil {
-		return nil, errdefs.NotFound(fmt.Errorf("unrecognized image ID %s", id.String()))
+		return nil, types.NotFoundErrorf("unrecognized image ID %s", id.String())
 	}
 	_, err := is.Get(id)
 	if err != nil {
-		return nil, errdefs.NotFound(fmt.Errorf("unrecognized image %s, %v", id.String(), err))
+		return nil, types.NotFoundErrorf("unrecognized image %s, %v", id.String(), err)
 	}
 	for cID := range imgMeta.children {
 		is.fs.DeleteMetadata(cID.Digest(), "parent")
@@ -265,7 +265,7 @@ func (is *store) SetParent(id, parentID ID) error {
 	defer is.Unlock()
 	parentMeta := is.images[parentID]
 	if parentMeta == nil {
-		return errdefs.NotFound(fmt.Errorf("unknown parent image ID %s", parentID.String()))
+		return types.NotFoundErrorf("unknown parent image ID %s", parentID.String())
 	}
 	if parent, err := is.GetParent(id); err == nil && is.images[parent] != nil {
 		delete(is.images[parent].children, id)

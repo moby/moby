@@ -77,11 +77,11 @@ func (daemon *Daemon) FindNetwork(term string) (*libnetwork.Network, error) {
 	case len(listByFullName) == 1:
 		return listByFullName[0], nil
 	case len(listByFullName) > 1:
-		return nil, errdefs.InvalidParameter(fmt.Errorf("network %s is ambiguous (%d matches found on name)", term, len(listByFullName)))
+		return nil, lntypes.InvalidParameterErrorf("network %s is ambiguous (%d matches found on name)", term, len(listByFullName))
 	case len(listByPartialID) == 1:
 		return listByPartialID[0], nil
 	case len(listByPartialID) > 1:
-		return nil, errdefs.InvalidParameter(fmt.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID)))
+		return nil, lntypes.InvalidParameterErrorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID))
 	}
 
 	// Be very careful to change the error type here, the
@@ -323,7 +323,7 @@ func (daemon *Daemon) createNetwork(ctx context.Context, cfg *config.Config, cre
 	} else if v, ok := networkOptions[netlabel.EnableIPv4]; ok {
 		var err error
 		if enableIPv4, err = strconv.ParseBool(v); err != nil {
-			return nil, errdefs.InvalidParameter(fmt.Errorf("driver-opt %q is not a valid bool", netlabel.EnableIPv4))
+			return nil, lntypes.InvalidParameterErrorf("driver-opt %q is not a valid bool", netlabel.EnableIPv4)
 		}
 	}
 
@@ -336,7 +336,7 @@ func (daemon *Daemon) createNetwork(ctx context.Context, cfg *config.Config, cre
 	} else if v, ok := networkOptions[netlabel.EnableIPv6]; ok {
 		var err error
 		if enableIPv6, err = strconv.ParseBool(v); err != nil {
-			return nil, errdefs.InvalidParameter(fmt.Errorf("driver-opt %q is not a valid bool", netlabel.EnableIPv6))
+			return nil, lntypes.InvalidParameterErrorf("driver-opt %q is not a valid bool", netlabel.EnableIPv6)
 		}
 	}
 

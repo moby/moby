@@ -11,6 +11,7 @@ import (
 	"github.com/moby/moby/api/types/registry"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/versions"
+	lntypes "github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/errdefs"
@@ -106,7 +107,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 	if value := r.URL.Query().Get("rotateManagerUnlockKey"); value != "" {
 		rot, err := strconv.ParseBool(value)
 		if err != nil {
-			return errdefs.InvalidParameter(fmt.Errorf("invalid value for rotateManagerUnlockKey: %s", value))
+			return lntypes.InvalidParameterErrorf("invalid value for rotateManagerUnlockKey: %s", value)
 		}
 
 		flags.RotateManagerUnlockKey = rot
@@ -430,7 +431,7 @@ func (sr *swarmRouter) createSecret(ctx context.Context, w http.ResponseWriter, 
 	}
 	version := httputils.VersionFromContext(ctx)
 	if secret.Templating != nil && versions.LessThan(version, "1.37") {
-		return errdefs.InvalidParameter(errors.Errorf("secret templating is not supported on the specified API version: %s", version))
+		return lntypes.InvalidParameterErrorf("secret templating is not supported on the specified API version: %s", version)
 	}
 
 	id, err := sr.backend.CreateSecret(secret)
@@ -502,7 +503,7 @@ func (sr *swarmRouter) createConfig(ctx context.Context, w http.ResponseWriter, 
 
 	version := httputils.VersionFromContext(ctx)
 	if config.Templating != nil && versions.LessThan(version, "1.37") {
-		return errdefs.InvalidParameter(errors.Errorf("config templating is not supported on the specified API version: %s", version))
+		return lntypes.InvalidParameterErrorf("config templating is not supported on the specified API version: %s", version)
 	}
 
 	id, err := sr.backend.CreateConfig(config)

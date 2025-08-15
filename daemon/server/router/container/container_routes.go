@@ -20,6 +20,7 @@ import (
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/v2/daemon/internal/runconfig"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
+	lntypes "github.com/moby/moby/v2/daemon/libnetwork/types"
 	networkSettings "github.com/moby/moby/v2/daemon/network"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httpstatus"
@@ -369,7 +370,7 @@ func (c *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 				waitCondition = container.WaitConditionRemoved
 				legacyRemovalWaitPre134 = versions.LessThan(version, "1.34")
 			default:
-				return errdefs.InvalidParameter(errors.Errorf("invalid condition: %q", v))
+				return lntypes.InvalidParameterErrorf("invalid condition: %q", v)
 			}
 		}
 	}
@@ -595,13 +596,13 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		hostConfig.KernelMemory = 0
 		for _, m := range hostConfig.Mounts {
 			if o := m.VolumeOptions; o != nil && m.Type != mount.TypeVolume {
-				return errdefs.InvalidParameter(fmt.Errorf("VolumeOptions must not be specified on mount type %q", m.Type))
+				return lntypes.InvalidParameterErrorf("VolumeOptions must not be specified on mount type %q", m.Type)
 			}
 			if o := m.BindOptions; o != nil && m.Type != mount.TypeBind {
-				return errdefs.InvalidParameter(fmt.Errorf("BindOptions must not be specified on mount type %q", m.Type))
+				return lntypes.InvalidParameterErrorf("BindOptions must not be specified on mount type %q", m.Type)
 			}
 			if o := m.TmpfsOptions; o != nil && m.Type != mount.TypeTmpfs {
-				return errdefs.InvalidParameter(fmt.Errorf("TmpfsOptions must not be specified on mount type %q", m.Type))
+				return lntypes.InvalidParameterErrorf("TmpfsOptions must not be specified on mount type %q", m.Type)
 			}
 		}
 	}
@@ -643,7 +644,7 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 			for k := range networkingConfig.EndpointsConfig {
 				l = append(l, k)
 			}
-			return errdefs.InvalidParameter(errors.Errorf("Container cannot be created with multiple network endpoints: %s", strings.Join(l, ", ")))
+			return lntypes.InvalidParameterErrorf("Container cannot be created with multiple network endpoints: %s", strings.Join(l, ", "))
 		}
 	}
 
@@ -954,11 +955,11 @@ func (c *containerRouter) postContainersResize(ctx context.Context, w http.Respo
 
 	height, err := httputils.Uint32Value(r, "h")
 	if err != nil {
-		return errdefs.InvalidParameter(errors.Wrapf(err, "invalid resize height %q", r.Form.Get("h")))
+		return lntypes.InvalidParameterErrorf("invalid resize height %q: %w", r.Form.Get("h"), err)
 	}
 	width, err := httputils.Uint32Value(r, "w")
 	if err != nil {
-		return errdefs.InvalidParameter(errors.Wrapf(err, "invalid resize width %q", r.Form.Get("w")))
+		return lntypes.InvalidParameterErrorf("invalid resize width %q: %w", r.Form.Get("w"), err)
 	}
 
 	return c.backend.ContainerResize(ctx, vars["name"], height, width)
@@ -971,7 +972,7 @@ func (c *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 	containerName := vars["name"]
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
-		return errdefs.InvalidParameter(errors.Errorf("error attaching to container %s, hijack connection missing", containerName))
+		return lntypes.InvalidParameterErrorf("error attaching to container %s, hijack connection missing", containerName)
 	}
 
 	contentType := types.MediaTypeRawStream
