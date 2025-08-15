@@ -36,9 +36,6 @@ sense used by the RFC. So, Node Information and Router Renumbering messages are
 not discarded, and experimental/unused types are allowed because they may be
 needed._
 
-The ICMP rule, as shown by `iptables -L`, looks alarming until you spot that it's
-for `prot 1`:
-
     {{index . "LFilterDocker4"}}
 
     {{index . "SFilterDocker4"}}
