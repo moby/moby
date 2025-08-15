@@ -50,7 +50,7 @@ func (daemon *Daemon) handleDevice(req container.DeviceRequest, spec *specs.Spec
 						"requested": req.Capabilities,
 						"selected":  selected,
 					},
-				}).Debugf("Selecting device driver by capabilities")
+				}).Debug("Selecting device driver by capabilities")
 				return dd.updateSpec(spec, &deviceInstance{req: req, selectedCaps: selected})
 			}
 		}
@@ -64,7 +64,7 @@ func (daemon *Daemon) handleDevice(req container.DeviceRequest, spec *specs.Spec
 				"requested": req.Capabilities,
 				"selected":  selected,
 			},
-		}).Debugf("Selecting device driver by driver name; possibly ignoring capabilities")
+		}).Debug("Selecting device driver by driver name; possibly ignoring capabilities")
 		return dd.updateSpec(spec, &deviceInstance{req: req, selectedCaps: selected})
 	}
 
