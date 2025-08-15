@@ -203,13 +203,13 @@ const (
 )
 
 var iptCmds = map[iptCmdType][]string{
-	iptCmdLFilter4:       {"iptables", "-nvL", "--line-numbers", "-t", "filter"},
+	iptCmdLFilter4:       {"iptables", "-vL", "--line-numbers", "-t", "filter"},
 	iptCmdSFilter4:       {"iptables", "-S", "-t", "filter"},
-	iptCmdLFilterDocker4: {"iptables", "-nvL", "DOCKER", "--line-numbers", "-t", "filter"},
+	iptCmdLFilterDocker4: {"iptables", "-vL", "DOCKER", "--line-numbers", "-t", "filter"},
 	iptCmdSFilterDocker4: {"iptables", "-S", "DOCKER"},
-	iptCmdLNat4:          {"iptables", "-nvL", "--line-numbers", "-t", "nat"},
+	iptCmdLNat4:          {"iptables", "-vL", "--line-numbers", "-t", "nat"},
 	iptCmdSNat4:          {"iptables", "-S", "-t", "nat"},
-	iptCmdLRaw4:          {"iptables", "-nvL", "--line-numbers", "-t", "raw"},
+	iptCmdLRaw4:          {"iptables", "-vL", "--line-numbers", "-t", "raw"},
 	iptCmdSRaw4:          {"iptables", "-S", "-t", "raw"},
 }
 
