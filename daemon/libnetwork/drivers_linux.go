@@ -3,7 +3,6 @@ package libnetwork
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/config"
 	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
@@ -16,10 +15,8 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/overlay"
 	"github.com/moby/moby/v2/daemon/libnetwork/drvregistry"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/rlkclient"
-	"github.com/moby/moby/v2/daemon/libnetwork/portmapper"
 	"github.com/moby/moby/v2/daemon/libnetwork/portmappers/nat"
 	"github.com/moby/moby/v2/daemon/libnetwork/portmappers/routed"
-	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 func registerNetworkDrivers(r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, driverConfig func(string) map[string]any) error {
@@ -60,13 +57,7 @@ func registerPortMappers(ctx context.Context, r *drvregistry.PortMappers, cfg *c
 		}
 	}
 
-	if err := nat.Register(r, nat.Config{
-		RlkClient: pdc,
-		StartProxy: func(pb types.PortBinding, file *os.File) (func() error, error) {
-			return portmapper.StartProxy(pb, cfg.UserlandProxyPath, file)
-		},
-		EnableProxy: cfg.EnableUserlandProxy && cfg.UserlandProxyPath != "",
-	}); err != nil {
+	if err := nat.Register(r, nat.Config{RlkClient: pdc}); err != nil {
 		return fmt.Errorf("registering nat portmapper: %w", err)
 	}
 
