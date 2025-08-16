@@ -26,6 +26,7 @@ const (
 )
 
 func TestUserChain(t *testing.T) {
+	const testName = "TestUserChain"
 	iptable4 := iptables.GetIptable(iptables.IPv4)
 	iptable6 := iptables.GetIptable(iptables.IPv6)
 
@@ -76,14 +77,14 @@ func TestUserChain(t *testing.T) {
 
 			// init. condition
 			golden.Assert(t, getRules(t, iptable4, fwdChainName),
-				fmt.Sprintf("TestUserChain_iptables-%v_append-%v_fwdinit4", tc.iptables, tc.append))
+				fmt.Sprintf("%s/iptables-%v_append-%v_fwdinit4.golden", testName, tc.iptables, tc.append))
 			golden.Assert(t, getRules(t, iptable6, fwdChainName),
-				fmt.Sprintf("TestUserChain_iptables-%v_append-%v_fwdinit6", tc.iptables, tc.append))
+				fmt.Sprintf("%s/iptables-%v_append-%v_fwdinit6.golden", testName, tc.iptables, tc.append))
 			if tc.iptables {
 				golden.Assert(t, getRules(t, iptable4, bridge.DockerForwardChain),
-					fmt.Sprintf("TestUserChain_iptables-%v_append-%v_dockerfwdinit4", tc.iptables, tc.append))
+					fmt.Sprintf("%s/iptables-%v_append-%v_dockerfwdinit4.golden", testName, tc.iptables, tc.append))
 				golden.Assert(t, getRules(t, iptable6, bridge.DockerForwardChain),
-					fmt.Sprintf("TestUserChain_iptables-%v_append-%v_dockerfwdinit6", tc.iptables, tc.append))
+					fmt.Sprintf("%s/iptables-%v_append-%v_dockerfwdinit6.golden", testName, tc.iptables, tc.append))
 			} else {
 				assert.Check(t, !iptables.GetIptable(iptables.IPv4).ExistChain(bridge.DockerForwardChain, fwdChainName),
 					"Chain %s should not exist", bridge.DockerForwardChain)
@@ -98,14 +99,14 @@ func TestUserChain(t *testing.T) {
 			c.setupUserChains()
 
 			golden.Assert(t, getRules(t, iptable4, fwdChainName),
-				fmt.Sprintf("TestUserChain_iptables-%v_append-%v_fwdafter4", tc.iptables, tc.append))
+				fmt.Sprintf("%s/iptables-%v_append-%v_fwdafter4.golden", testName, tc.iptables, tc.append))
 			golden.Assert(t, getRules(t, iptable6, fwdChainName),
-				fmt.Sprintf("TestUserChain_iptables-%v_append-%v_fwdafter6", tc.iptables, tc.append))
+				fmt.Sprintf("%s/iptables-%v_append-%v_fwdafter6.golden", testName, tc.iptables, tc.append))
 			if tc.iptables {
 				golden.Assert(t, getRules(t, iptable4, bridge.DockerForwardChain),
-					fmt.Sprintf("TestUserChain_iptables-%v_append-%v_dockerfwdafter4", tc.iptables, tc.append))
+					fmt.Sprintf("%s/iptables-%v_append-%v_dockerfwdafter4.golden", testName, tc.iptables, tc.append))
 				golden.Assert(t, getRules(t, iptable6, bridge.DockerForwardChain),
-					fmt.Sprintf("TestUserChain_iptables-%v_append-%v_dockerfwdafter6", tc.iptables, tc.append))
+					fmt.Sprintf("%s/iptables-%v_append-%v_dockerfwdafter6.golden", testName, tc.iptables, tc.append))
 			} else {
 				assert.Check(t, !iptables.GetIptable(iptables.IPv4).ExistChain(bridge.DockerForwardChain, fwdChainName),
 					"Chain %s should not exist", bridge.DockerForwardChain)
@@ -113,9 +114,9 @@ func TestUserChain(t *testing.T) {
 
 			if tc.iptables {
 				golden.Assert(t, getRules(t, iptable4, usrChainName),
-					fmt.Sprintf("TestUserChain_iptables-%v_append-%v_usrafter4", tc.iptables, tc.append))
+					fmt.Sprintf("%s/iptables-%v_append-%v_usrafter4.golden", testName, tc.iptables, tc.append))
 				golden.Assert(t, getRules(t, iptable6, usrChainName),
-					fmt.Sprintf("TestUserChain_iptables-%v_append-%v_usrafter6", tc.iptables, tc.append))
+					fmt.Sprintf("%s/iptables-%v_append-%v_usrafter6.golden", testName, tc.iptables, tc.append))
 			} else {
 				_, err := iptable4.Raw("-S", usrChainName)
 				assert.Check(t, is.ErrorContains(err, noChainErr), "ipv4 chain %v: created unexpectedly", usrChainName)
