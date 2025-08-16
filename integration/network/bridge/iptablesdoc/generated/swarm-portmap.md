@@ -1,3 +1,5 @@
+<!-- This is a generated file; DO NOT EDIT. -->
+
 ## Swarm service, with a published port
 
 Equivalent to:

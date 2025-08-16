@@ -1,3 +1,5 @@
+<!-- This is a generated file; DO NOT EDIT. -->
+
 ## Containers on user-defined --internal networks
 
 These are the rules for two containers on different `--internal` networks, with and

@@ -1,3 +1,5 @@
+<!-- This is a generated file; DO NOT EDIT. -->
+
 ## Container on a user-defined network, with a port published on a loopback address
 
 Adding a network running a container with a port mapped on a loopback address, equivalent to:

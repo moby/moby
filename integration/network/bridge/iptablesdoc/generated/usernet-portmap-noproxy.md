@@ -1,3 +1,5 @@
+<!-- This is a generated file; DO NOT EDIT. -->
+
 ## Container on a user-defined network, with a published port, no userland proxy
 
 Running the daemon with the userland proxy disabled then, as before, adding a network running a container with a mapped port, equivalent to:

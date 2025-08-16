@@ -447,11 +447,15 @@ func lines(s string) iter.Seq[string] {
 	}
 }
 
+const genHeader = "<!-- This is a generated file; DO NOT EDIT. -->\n\n"
+
 func generate(t *testing.T, name string, data map[string]string) string {
 	t.Helper()
 	templ, err := template.New(name).ParseFiles(filepath.Join("templates", name))
 	assert.NilError(t, err)
-	wr := strings.Builder{}
+
+	var wr strings.Builder
+	wr.WriteString(genHeader)
 	err = templ.ExecuteTemplate(&wr, name, data)
 	assert.NilError(t, err)
 	return wr.String()

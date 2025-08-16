@@ -1,3 +1,5 @@
+<!-- This is a generated file; DO NOT EDIT. -->
+
 ## Container on a user-defined network with inter-container communication disabled, with a published port
 
 Equivalent to:

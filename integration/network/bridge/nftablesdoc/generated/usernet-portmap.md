@@ -1,3 +1,5 @@
+<!-- This is a generated file; DO NOT EDIT. -->
+
 ## Container on a user-defined network, with a published port
 
 Adding a network running a container with a mapped port, equivalent to:
