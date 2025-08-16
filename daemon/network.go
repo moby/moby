@@ -4,10 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"net"
 	"net/netip"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -951,22 +949,11 @@ func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwor
 		return nil, nil
 	}
 
-	// Create a deep copy (as [nat.SortPortMap] mutates the map).
-	// Not using a maps.Clone here, as that won't dereference the
-	// slice (PortMap is a map[Port][]PortBinding).
-	bindings := make(containertypes.PortMap)
-	for p, b := range c.HostConfig.PortBindings {
-		bindings[p] = slices.Clone(b)
-	}
-
-	ports := slices.Collect(maps.Keys(bindings))
-	nat.SortPortMap(ports, bindings)
-
 	var (
 		exposedPorts   []lntypes.TransportPort
 		publishedPorts []lntypes.PortBinding
 	)
-	for _, port := range ports {
+	for port, bindings := range c.HostConfig.PortBindings {
 		portProto := lntypes.ParseProtocol(port.Proto())
 		portNum := uint16(port.Int())
 		exposedPorts = append(exposedPorts, lntypes.TransportPort{
@@ -974,7 +961,7 @@ func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwor
 			Port:  portNum,
 		})
 
-		for _, binding := range bindings[port] {
+		for _, binding := range bindings {
 			newP, err := nat.NewPort(nat.SplitProtoPort(binding.HostPort))
 			var portStart, portEnd int
 			if err == nil {
@@ -992,7 +979,7 @@ func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwor
 			})
 		}
 
-		if c.HostConfig.PublishAllPorts && len(bindings[port]) == 0 {
+		if c.HostConfig.PublishAllPorts && len(bindings) == 0 {
 			publishedPorts = append(publishedPorts, lntypes.PortBinding{
 				Proto: portProto,
 				Port:  portNum,
@@ -1029,11 +1016,7 @@ func getEndpointPortMapInfo(pm containertypes.PortMap, ep *libnetwork.Endpoint) 
 	if expData, ok := driverInfo[netlabel.ExposedPorts]; ok {
 		if exposedPorts, ok := expData.([]lntypes.TransportPort); ok {
 			for _, tp := range exposedPorts {
-				natPort, err := nat.NewPort(tp.Proto.String(), strconv.Itoa(int(tp.Port)))
-				if err != nil {
-					log.G(context.TODO()).Errorf("invalid exposed port %s: %v", tp.String(), err)
-					continue
-				}
+				natPort := containertypes.PortProto(fmt.Sprintf("%d/%s", tp.Port, tp.Proto.String()))
 				if _, ok := pm[natPort]; !ok {
 					pm[natPort] = nil
 				}
@@ -1058,8 +1041,10 @@ func getEndpointPortMapInfo(pm containertypes.PortMap, ep *libnetwork.Endpoint) 
 			if pp.HostPort > 0 {
 				hp = strconv.Itoa(int(pp.HostPort))
 			}
-			natBndg := containertypes.PortBinding{HostIP: pp.HostIP.String(), HostPort: hp}
-			pm[natPort] = append(pm[natPort], natBndg)
+			pm[containertypes.PortProto(natPort)] = append(pm[containertypes.PortProto(natPort)], containertypes.PortBinding{
+				HostIP:   pp.HostIP.String(),
+				HostPort: hp,
+			})
 		}
 	}
 }

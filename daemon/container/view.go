@@ -407,6 +407,7 @@ func (v *View) transform(ctr *Container) *Snapshot {
 				continue
 			}
 			for _, binding := range bindings {
+				// TODO(thaJeztah): if this is always a port/proto (no range), we can simplify this.
 				h, err := nat.ParsePort(binding.HostPort)
 				if err != nil {
 					log.G(context.TODO()).WithError(err).Warn("invalid host port map")
