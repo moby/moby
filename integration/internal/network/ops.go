@@ -149,3 +149,18 @@ func WithIPAMRange(subnet, iprange, gateway string) func(*network.CreateOptions)
 		})
 	}
 }
+
+func WithIPAMAny(subnet, iprange, gateway string, aux map[string]string) func(*network.CreateOptions) {
+	return func(n *network.CreateOptions) {
+		if n.IPAM == nil {
+			n.IPAM = &network.IPAM{}
+		}
+
+		n.IPAM.Config = append(n.IPAM.Config, network.IPAMConfig{
+			Subnet:     subnet,
+			IPRange:    iprange,
+			Gateway:    gateway,
+			AuxAddress: aux,
+		})
+	}
+}

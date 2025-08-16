@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/bits"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 // block sequence constants
@@ -15,6 +18,7 @@ const (
 	blockBytes    = uint64(blockLen / 8)
 	blockMAX      = uint32(1<<blockLen - 1)
 	blockFirstBit = uint32(1) << (blockLen - 1)
+	blockFull     = ^uint32(0) // 0xFFFFFFFF
 	invalidPos    = uint64(0xFFFFFFFFFFFFFFFF)
 )
 
@@ -174,6 +178,71 @@ func (s *sequence) fromByteArray(data []byte) error {
 	}
 
 	return nil
+}
+
+// onesCount calculates the number of selected bits in the range [start, end].
+func (s *sequence) onesCount(start, end uint64) (selected uint64, err error) {
+	if start > end {
+		return 0, types.InvalidParameterErrorf("invalid range: start(%d) is greater than end(%d)", start, end)
+	}
+
+	sBytePos, sBitPos := ordinalToPos(start)
+	eBytePos, eBitPos := ordinalToPos(end)
+
+	// Get blocks positions for start and end
+	sCurrent, _, _, sInBlockBytePos := findSequence(s, sBytePos)
+	eCurrent, _, _, eInBlockBytePos := findSequence(s, eBytePos)
+	if sInBlockBytePos == invalidPos || eInBlockBytePos == invalidPos || sCurrent == nil || eCurrent == nil {
+		return 0, types.InvalidParameterErrorf("invalid range: start(%d) or end(%d) is outside of the bitmap size", start, end)
+	}
+
+	startBit := sInBlockBytePos*8 + sBitPos
+	endBit := eInBlockBytePos*8 + eBitPos
+	totalBlocks := end/uint64(blockLen) - start/uint64(blockLen)
+
+	// Single-block case processing
+	if totalBlocks == 0 {
+		mask := hiBlockMask(startBit) & loBlockMask(endBit)
+		return uint64(bits.OnesCount32(sCurrent.block & mask)), nil
+	}
+
+	// First block processing
+	selected = uint64(bits.OnesCount32(sCurrent.block & hiBlockMask(startBit)))
+
+	// Middle blocks processing
+	remaining := totalBlocks - 1 // Remaining blocks to process, excluding the first and last
+	cur := sCurrent
+
+	if cur.count == 1 {
+		cur = cur.next
+	} else {
+		seq := *cur
+		cur = &seq  // Make a copy of the current sequence to avoid modifying the original
+		cur.count-- // Decrease the count of blocks in the current sequence
+	}
+
+	for remaining > 0 {
+		if cur == nil {
+			return 0, types.InternalErrorf("bitmap sequence is incomplete or corrupted during onesCount iteration")
+		}
+		n := min(cur.count, remaining)
+		selected += uint64(bits.OnesCount32(cur.block)) * n
+		remaining -= n
+		cur = cur.next
+	}
+
+	// Last block processing
+	selected += uint64(bits.OnesCount32(eCurrent.block & loBlockMask(endBit)))
+
+	return selected, nil
+}
+
+// OnesCount calculates the number of selected bits in the range [start, end].
+func (h *Bitmap) OnesCount(start, end uint64) (uint64, error) {
+	if start > h.bits || end >= h.bits {
+		return 0, types.InvalidParameterErrorf("invalid range: start(%d) and/or end(%d) are out of the bitmap size(%d)", start, end, h.bits)
+	}
+	return h.head.onesCount(start, end)
 }
 
 // SetAnyInRange sets the first unset bit in the range [start, end] and returns
@@ -589,4 +658,14 @@ func ordinalToPos(ordinal uint64) (uint64, uint64) {
 
 func posToOrdinal(bytePos, bitPos uint64) uint64 {
 	return bytePos*8 + bitPos
+}
+
+// hiBlockMask generates a mask for the high bits of a block based on the bit position including this bit position.
+func hiBlockMask(bitPos uint64) uint32 {
+	return blockFull >> bitPos
+}
+
+// loBlockMask generates a mask for the low bits of a block based on the bit position including this bit position.
+func loBlockMask(bitPos uint64) uint32 {
+	return blockFull << (uint64(blockLen) - bitPos - 1)
 }

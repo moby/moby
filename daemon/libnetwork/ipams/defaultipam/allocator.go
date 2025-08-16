@@ -8,6 +8,7 @@ import (
 	"net/netip"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/addrset"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
@@ -315,4 +316,45 @@ func getAddress(base netip.Prefix, addrSet *addrset.AddrSet, prefAddress netip.A
 // IsBuiltIn returns true for builtin drivers
 func (a *Allocator) IsBuiltIn() bool {
 	return true
+}
+
+// GetIPAMState retrieves the IPAM state for a given pool ID.
+func (a *Allocator) GetIPAMState(poolID string) (string, network.IPAMState, error) {
+	pi, err := PoolIDFromString(poolID)
+	if err != nil {
+		return "", network.IPAMState{}, fmt.Errorf("failed to parse pool ID %s: %w", poolID, err)
+	}
+
+	aSpace, err := a.getAddrSpace(pi.AddressSpace, pi.Is6())
+	if err != nil {
+		return "", network.IPAMState{}, fmt.Errorf("failed to get address space for pool %s: %w", poolID, err)
+	}
+
+	allocatedIPsInSubnet, allocatedIPsInPool, err := aSpace.getAllocatedIPs(pi.Subnet, pi.ChildSubnet)
+	if err != nil {
+		return "", network.IPAMState{}, fmt.Errorf("failed to get allocated IPs for pool %s: %w", poolID, err)
+	}
+
+	capacity := func(cidr netip.Prefix) (uint64, error) {
+		if !cidr.Addr().Is4() {
+			return 0, fmt.Errorf("IPAM state calculation supports only IPv4 CIDRs, but an IPv6 CIDR was provided %s", cidr)
+		}
+		return uint64(1) << (cidr.Addr().BitLen() - cidr.Bits()), nil
+	}
+
+	poolCidr := pi.Subnet
+	if pi.ChildSubnet != (netip.Prefix{}) {
+		poolCidr = pi.ChildSubnet
+	}
+
+	poolCapacity, err := capacity(poolCidr)
+	if err != nil {
+		return "", network.IPAMState{}, fmt.Errorf("failed to get capacity for pool %s: %w", poolID, err)
+	}
+
+	ipamState := network.IPAMState{
+		AllocatedIPsInSubnet:      allocatedIPsInSubnet,
+		AvailableIPsInIPRangePool: poolCapacity - allocatedIPsInPool,
+	}
+	return pi.Subnet.String(), ipamState, nil
 }
