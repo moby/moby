@@ -19,7 +19,7 @@ command -v parallel > /dev/null 2>&1 || {
 git ls-files -- ':(exclude)vendor/**' ':(exclude)**/vendor/**' ':(exclude)bundles/**' > files.txt
 
 out="file-history.tsv"
-[ -s "$out" ] || printf "filename\tfirst_path\tfirst_date\tfirst_commit\tgenerated\n" > "$out"
+[ -s "$out" ] || printf "filename\tgenerated\tfirst_path\tfirst_date\tfirst_commit\tauthor\n" > "$out"
 
 # create todo-list, removing already processed paths (first column)
 tmpdone="$(mktemp)"
@@ -55,18 +55,19 @@ cat > "$worker" <<- 'WORKER'
 	esac
 
 	# get the first commit and date introducing this file (follow renames) as well
-	# as the original filename.
+	# as the original filename and author.
 	first_commit=$(git -c diff.renameLimit=100000 log --follow --find-renames=40% --diff-filter=A --format=%H -- "$f" | tail -n1)
 	[ -z "$first_commit" ] && exit 0
 
 	first_date=$(git show -s --date=short --format=%ad "$first_commit")
 	first_path=$(git -c diff.renameLimit=100000 log -1 --follow --find-renames=40% --diff-filter=A --name-only --pretty=format: -- "$f")
 	# first_path=$(git show --pretty=format: --name-only "$first_commit" -- "$f" | head -n1)
+	first_author=$(git show -s --format="%aN <%aE>" --use-mailmap "$first_commit")
 
 	# skip (nested) vendor files in history
 	case "$first_path" in vendor/*|*/vendor/*|*/Godeps/_workspace/*) exit 0;; esac
 
-	printf "%s\t%s\t%s\t%s\t%s\n" "$f" "$generated" "$first_path" "$first_date" "$first_commit"
+	printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$f" "$generated" "$first_path" "$first_date" "$first_commit" "$first_author"
 WORKER
 
 chmod +x "$worker"
