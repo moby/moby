@@ -16,6 +16,9 @@ BUILDFLAGS=(-tags 'netgo journald')
 TESTFLAGS+=" -test.timeout=${TIMEOUT:-5m}"
 TESTDIRS="${TESTDIRS:-./...}"
 
+: "${api_pkg_list:=}"
+: "${client_pkg_list:=}"
+
 mkdir -p bundles
 
 case "$TESTDIRS" in
