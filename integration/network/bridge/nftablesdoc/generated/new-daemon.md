@@ -1,3 +1,5 @@
+<!-- This is a generated file; DO NOT EDIT. -->
+
 ## nftables for a new Daemon
 
 When the daemon starts, it creates two tables, `ip docker-bridges` and
