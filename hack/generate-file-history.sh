@@ -19,7 +19,7 @@ command -v parallel > /dev/null 2>&1 || {
 git ls-files -- ':(exclude)vendor/**' ':(exclude)**/vendor/**' ':(exclude)bundles/**' > files.txt
 
 out="file-history.tsv"
-[ -s "$out" ] || printf "filename\tgenerated\tfirst_path\tfirst_date\tfirst_commit\tauthor\n" > "$out"
+[ -s "$out" ] || printf "filename\tgenerated\tvendored_history\tfirst_path\tfirst_date\tfirst_commit\tauthor\n" > "$out"
 
 # create todo-list, removing already processed paths (first column)
 tmpdone="$(mktemp)"
@@ -64,10 +64,18 @@ cat > "$worker" <<- 'WORKER'
 	# first_path=$(git show --pretty=format: --name-only "$first_commit" -- "$f" | head -n1)
 	first_author=$(git show -s --format="%aN <%aE>" --use-mailmap "$first_commit")
 
-	# skip (nested) vendor files in history
-	case "$first_path" in vendor/*|*/vendor/*|*/Godeps/_workspace/*) exit 0;; esac
+	# Mark files for which the original path was "vendor/" or "Godeps".
+	# These files may have their original history elsewhere or further down
+	# git history. Some files were moved to a separate repository, but later
+	# moved back.
+	vendored_history=no
+	case "$first_path" in
+		vendor/*|*/vendor/*|Godeps/_workspace/*|*/Godeps/_workspace/*)
+			vendored_history=yes
+			;;
+	esac
 
-	printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$f" "$generated" "$first_path" "$first_date" "$first_commit" "$first_author"
+	printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "$f" "$generated" "$vendored_history" "$first_path" "$first_date" "$first_commit" "$first_author"
 WORKER
 
 chmod +x "$worker"
