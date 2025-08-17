@@ -16,6 +16,10 @@ BUILDFLAGS=(-tags 'netgo journald')
 TESTFLAGS+=" -test.timeout=${TIMEOUT:-5m}"
 TESTDIRS="${TESTDIRS:-./...}"
 
+GOTESTSUM_MAX_FAILS="${GOTESTSUM_MAX_FAILS:-0}"
+GOTESTSUM_RERUN_FAILS="${GOTESTSUM_RERUN_FAILS:-0}"
+GOTESTSUM_RERUN_FAILS_MAX_FAILURES="${GOTESTSUM_RERUN_FAILS_MAX_FAILURES:-0}"
+
 mkdir -p bundles
 
 case "$TESTDIRS" in
@@ -91,13 +95,16 @@ case "$TESTDIRS" in
 esac
 
 if [ -n "${pkg_list}" ]; then
-	gotestsum --format=standard-quiet --jsonfile=bundles/go-test-report.json --junitfile=bundles/junit-report.xml -- \
-		"${BUILDFLAGS[@]}" \
-		-cover \
-		-coverprofile=bundles/coverage.out \
-		-covermode=atomic \
-		${TESTFLAGS} \
-		${pkg_list}
+        gotestsum --format=standard-quiet --jsonfile=bundles/go-test-report.json --junitfile=bundles/junit-report.xml \
+                --packages "${pkg_list}" \
+                --max-fails="${GOTESTSUM_MAX_FAILS}" \
+                --rerun-fails="${GOTESTSUM_RERUN_FAILS}" \
+                --rerun-fails-max-failures="${GOTESTSUM_RERUN_FAILS_MAX_FAILURES}" -- \
+                "${BUILDFLAGS[@]}" \
+                -cover \
+                -coverprofile=bundles/coverage.out \
+                -covermode=atomic \
+                ${TESTFLAGS}
 fi
 
 if [ -n "${libnetwork_pkg_list}" ]; then
@@ -123,16 +130,18 @@ if [ -n "${libnetwork_pkg_list}" ]; then
 		${TESTFLAGS} \
 		${libnetwork_pkg_list}
 
-	if [ $rerun_flaky -eq 1 ]; then
-		gotestsum --format=standard-quiet --jsonfile=bundles/libnetwork-flaky-go-test-report.json --junitfile=bundles/libnetwork-flaky-junit-report.xml \
-			--packages "${libnetwork_pkg_list}" \
-			--rerun-fails=4 \
-			-- "${BUILDFLAGS[@]}" \
-			-cover \
-			-coverprofile=bundles/libnetwork-flaky-coverage.out \
-			-covermode=atomic \
-			-p=1 \
-			-test.run 'TestFlaky.*' \
-			${TESTFLAGS}
-	fi
+        if [ $rerun_flaky -eq 1 ]; then
+                gotestsum --format=standard-quiet --jsonfile=bundles/libnetwork-flaky-go-test-report.json --junitfile=bundles/libnetwork-flaky-junit-report.xml \
+                        --packages "${libnetwork_pkg_list}" \
+                        --max-fails="${GOTESTSUM_MAX_FAILS}" \
+                        --rerun-fails="${GOTESTSUM_RERUN_FAILS}" \
+                        --rerun-fails-max-failures="${GOTESTSUM_RERUN_FAILS_MAX_FAILURES}" \
+                        -- "${BUILDFLAGS[@]}" \
+                        -cover \
+                        -coverprofile=bundles/libnetwork-flaky-coverage.out \
+                        -covermode=atomic \
+                        -p=1 \
+                        -test.run 'TestFlaky.*' \
+                        ${TESTFLAGS}
+        fi
 fi
