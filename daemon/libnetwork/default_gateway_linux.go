@@ -21,12 +21,19 @@ func (c *Controller) createGWNetwork() (*Network, error) {
 		otelutil.MustNewMemberRaw(otelutil.TriggerKey, "libnetwork.Controller.createGWNetwork"),
 	))
 
+	drvOpts := map[string]string{
+		bridge.BridgeName:         libnGWNetwork,
+		bridge.EnableICC:          strconv.FormatBool(false),
+		bridge.EnableIPMasquerade: strconv.FormatBool(true),
+	}
+	for k, v := range c.cfg.DefaultNetworkOpts["bridge"] {
+		if _, ok := drvOpts[k]; !ok {
+			drvOpts[k] = v
+		}
+	}
+
 	n, err := c.NewNetwork(ctx, "bridge", libnGWNetwork, "",
-		NetworkOptionDriverOpts(map[string]string{
-			bridge.BridgeName:         libnGWNetwork,
-			bridge.EnableICC:          strconv.FormatBool(false),
-			bridge.EnableIPMasquerade: strconv.FormatBool(true),
-		}),
+		NetworkOptionDriverOpts(drvOpts),
 		NetworkOptionEnableIPv4(true),
 		NetworkOptionEnableIPv6(false),
 	)

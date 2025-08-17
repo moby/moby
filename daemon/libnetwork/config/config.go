@@ -35,6 +35,7 @@ type Config struct {
 	driverCfg              map[string]map[string]any
 	ClusterProvider        cluster.Provider
 	NetworkControlPlaneMTU int
+	DefaultNetworkOpts     map[string]map[string]string
 	DefaultAddressPool     []*ipamutils.NetworkToSplit
 	DatastoreBucket        string
 	ActiveSandboxes        map[string]any
@@ -89,6 +90,13 @@ func OptionDefaultDriver(dd string) Option {
 func OptionDefaultAddressPoolConfig(addressPool []*ipamutils.NetworkToSplit) Option {
 	return func(c *Config) {
 		c.DefaultAddressPool = addressPool
+	}
+}
+
+// OptionDefaultNetworkOpts returns an option setter for default network options.
+func OptionDefaultNetworkOpts(opts map[string]map[string]string) Option {
+	return func(c *Config) {
+		c.DefaultNetworkOpts = opts
 	}
 }
 
