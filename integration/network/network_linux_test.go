@@ -263,6 +263,32 @@ func TestDockerGWBridgeDefaultMTU(t *testing.T) {
 	assert.Check(t, is.Contains(res.Combined(), " mtu 1234 "))
 }
 
+func TestBridgeNetworkDefaultMTU(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
+
+	ctx := testutil.StartSpan(baseContext, t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t,
+		"--iptables=false",
+		"--default-network-opt", "bridge=com.docker.network.driver.mtu=1234",
+	)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	out, err := c.NetworkInspect(ctx, "bridge", networktypes.InspectOptions{})
+	assert.NilError(t, err)
+	assert.Equal(t, out.Options["com.docker.network.driver.mtu"], "1234")
+
+	res := testutil.RunCommand(ctx, "ip", "link", "show", "docker0")
+	res.Assert(t, icmd.Success)
+	assert.Check(t, is.Contains(res.Combined(), " mtu 1234 "))
+}
+
 func TestCreateWithPriority(t *testing.T) {
 	// This feature should work on Windows, but the test is skipped because:
 	// 1. Linux-specific tools are used here; 2. 'windows' IPAM driver doesn't
