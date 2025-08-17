@@ -44,6 +44,7 @@ type Config struct {
 	Rootless               bool
 	EnableUserlandProxy    bool
 	UserlandProxyPath      string
+	DefaultNetworkOpts     map[string]map[string]string
 }
 
 // New creates a new Config and initializes it with the given Options.
@@ -83,6 +84,13 @@ func OptionDefaultDriver(dd string) Option {
 	return func(c *Config) {
 		log.G(context.TODO()).Debugf("Option DefaultDriver: %s", dd)
 		c.DefaultDriver = strings.TrimSpace(dd)
+	}
+}
+
+// OptionDefaultNetworkOpts returns an option setter for default network driver options.
+func OptionDefaultNetworkOpts(opts map[string]map[string]string) Option {
+	return func(c *Config) {
+		c.DefaultNetworkOpts = opts
 	}
 }
 

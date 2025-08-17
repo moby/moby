@@ -1001,6 +1001,7 @@ func initBridgeDriver(ctx context.Context, controller *libnetwork.Controller, cf
 	if cfg.DefaultIP != nil {
 		netOption[bridge.DefaultBindingIP] = cfg.DefaultIP.String()
 	}
+	libnetwork.ApplyDefaultDriverOpts(ctx, netOption, "bridge", network.NetworkBridge, controller.Config().DefaultNetworkOpts)
 
 	ipamV4Conf, err := getDefaultBridgeIPAMConf(bridgeName, userManagedBridge, defBrOptsV4{cfg})
 	if err != nil {
