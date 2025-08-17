@@ -6,12 +6,13 @@ import (
 	"io"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/testutil/fakecontext"
-	"gotest.tools/v3/assert"
 )
 
 // Do builds an image from the given context and returns the image ID.

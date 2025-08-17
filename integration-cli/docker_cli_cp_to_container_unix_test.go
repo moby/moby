@@ -12,8 +12,9 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/moby/moby/v2/integration-cli/cli"
 	"gotest.tools/v3/assert"
+
+	"github.com/moby/moby/v2/integration-cli/cli"
 )
 
 func (s *DockerCLICpSuite) TestCpToContainerWithPermissions(c *testing.T) {

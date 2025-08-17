@@ -9,6 +9,7 @@ import (
 	"net/netip"
 
 	"github.com/containerd/log"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 

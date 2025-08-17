@@ -55,6 +55,9 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/moby/locker"
+	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/libnetwork/cluster"
@@ -73,8 +76,6 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 	"github.com/moby/moby/v2/pkg/plugins"
-	"github.com/pkg/errors"
-	"go.opentelemetry.io/otel"
 )
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.

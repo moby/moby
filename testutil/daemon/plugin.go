@@ -5,9 +5,10 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"gotest.tools/v3/poll"
+
 	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/client"
-	"gotest.tools/v3/poll"
 )
 
 // PluginIsRunning provides a poller to check if the specified plugin is running

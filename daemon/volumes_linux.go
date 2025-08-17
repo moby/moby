@@ -3,9 +3,10 @@ package daemon
 import (
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/pkg/errors"
 )
 
 // validateBindDaemonRoot ensures that if a given mountpoint's source is within

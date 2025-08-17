@@ -6,10 +6,11 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/go-units"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/local"
-	"github.com/pkg/errors"
 )
 
 const (

@@ -14,6 +14,9 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/client"
+	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/pkg/progress"
 	apitypes "github.com/moby/moby/api/types"
 	"github.com/moby/moby/v2/daemon/internal/distribution/metadata"
@@ -22,8 +25,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/pkg/registry"
 	"github.com/moby/moby/v2/pkg/ioutils"
-	"github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
 )
 
 const (

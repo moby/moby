@@ -13,6 +13,11 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/go-connections/nat"
+	"github.com/moby/sys/signal"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/opencontainers/selinux/go-selinux"
+	"github.com/pkg/errors"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	networktypes "github.com/moby/moby/api/types/network"
@@ -24,10 +29,6 @@ import (
 	"github.com/moby/moby/v2/daemon/pkg/opts"
 	volumemounts "github.com/moby/moby/v2/daemon/volume/mounts"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/moby/sys/signal"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/opencontainers/selinux/go-selinux"
-	"github.com/pkg/errors"
 )
 
 // GetContainer looks for a container using the provided information, which could be

@@ -5,12 +5,13 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
-	"github.com/moby/moby/v2/internal/testutils/netnsutils"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
+	"github.com/moby/moby/v2/internal/testutils/netnsutils"
 )
 
 func cidrToIPNet(t *testing.T, cidr string) *net.IPNet {

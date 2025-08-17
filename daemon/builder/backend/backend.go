@@ -6,6 +6,9 @@ import (
 	"strconv"
 
 	"github.com/distribution/reference"
+	"github.com/pkg/errors"
+	"google.golang.org/grpc"
+
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/builder"
@@ -14,8 +17,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/server/backend"
-	"github.com/pkg/errors"
-	"google.golang.org/grpc"
 )
 
 // ImageComponent provides an interface for working with images

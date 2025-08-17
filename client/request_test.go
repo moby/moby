@@ -13,10 +13,11 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/common"
-	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/api/types/common"
+	"github.com/moby/moby/api/types/container"
 )
 
 // TestSetHostHeader should set fake host for local communications, set real host

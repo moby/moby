@@ -16,14 +16,15 @@ import (
 	"github.com/containerd/log"
 	zfs "github.com/mistifyio/go-zfs/v3"
 	"github.com/moby/locker"
-	"github.com/moby/moby/v2/daemon/graphdriver"
-	"github.com/moby/moby/v2/daemon/internal/mountref"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
+
+	"github.com/moby/moby/v2/daemon/graphdriver"
+	"github.com/moby/moby/v2/daemon/internal/mountref"
 )
 
 type zfsOptions struct {

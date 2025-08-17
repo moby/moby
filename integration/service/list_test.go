@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/moby/moby/api/types/filters"
-	swarmtypes "github.com/moby/moby/api/types/swarm"
-	"github.com/moby/moby/v2/integration/internal/swarm"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	"github.com/moby/moby/api/types/filters"
+	swarmtypes "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/v2/integration/internal/swarm"
 )
 
 // TestServiceListWithStatuses tests that performing a ServiceList operation

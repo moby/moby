@@ -12,11 +12,12 @@ import (
 
 	"github.com/containerd/continuity/driver"
 	"github.com/moby/go-archive"
+	"github.com/moby/sys/user"
+	"github.com/opencontainers/go-digest"
+
 	"github.com/moby/moby/v2/daemon/graphdriver"
 	"github.com/moby/moby/v2/daemon/graphdriver/vfs"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
-	"github.com/moby/sys/user"
-	"github.com/opencontainers/go-digest"
 )
 
 func init() {

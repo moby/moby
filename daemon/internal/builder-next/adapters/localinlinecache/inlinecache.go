@@ -15,11 +15,12 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/worker"
-	imagestore "github.com/moby/moby/v2/daemon/internal/image"
-	refstore "github.com/moby/moby/v2/daemon/internal/refstore"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+
+	imagestore "github.com/moby/moby/v2/daemon/internal/image"
+	refstore "github.com/moby/moby/v2/daemon/internal/refstore"
 )
 
 // ResolveCacheImporterFunc returns a resolver function for local inline cache

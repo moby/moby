@@ -10,10 +10,11 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/graphdriver"
 	"github.com/moby/sys/userns"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
+
+	"github.com/moby/moby/v2/daemon/graphdriver"
 )
 
 // ErrDTypeNotSupported denotes that the backing filesystem doesn't support d_type.

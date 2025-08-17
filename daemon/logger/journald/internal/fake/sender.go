@@ -22,8 +22,9 @@ import (
 	"code.cloudfoundry.org/clock"
 	"github.com/coreos/go-systemd/v22/journal"
 	"github.com/google/uuid"
-	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
 	"gotest.tools/v3/assert"
+
+	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
 
 	"github.com/moby/moby/v2/daemon/logger/journald/internal/export"
 )

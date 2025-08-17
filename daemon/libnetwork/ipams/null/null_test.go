@@ -3,9 +3,10 @@ package null
 import (
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
 )
 
 func TestPoolRequest(t *testing.T) {

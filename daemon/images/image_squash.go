@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
-	"github.com/pkg/errors"
 )
 
 // SquashImage creates a new image with the diff of the specified image and the specified parent.

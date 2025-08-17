@@ -3,10 +3,11 @@ package daemon
 import (
 	"testing"
 
-	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/v2/daemon/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/daemon/container"
 )
 
 func TestGetInspectData(t *testing.T) {

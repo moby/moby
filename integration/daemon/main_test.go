@@ -5,9 +5,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/moby/moby/v2/testutil/environment"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
+
+	"github.com/moby/moby/v2/testutil/environment"
 )
 
 var (

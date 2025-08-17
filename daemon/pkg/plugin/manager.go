@@ -15,6 +15,13 @@ import (
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/plugins/content/local"
 	"github.com/containerd/log"
+	"github.com/moby/pubsub"
+	"github.com/moby/sys/atomicwriter"
+	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/v2/daemon/internal/containerfs"
@@ -22,12 +29,6 @@ import (
 	v2 "github.com/moby/moby/v2/daemon/pkg/plugin/v2"
 	"github.com/moby/moby/v2/daemon/pkg/registry"
 	"github.com/moby/moby/v2/pkg/authorization"
-	"github.com/moby/pubsub"
-	"github.com/moby/sys/atomicwriter"
-	"github.com/opencontainers/go-digest"
-	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (

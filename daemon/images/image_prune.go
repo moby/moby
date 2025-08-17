@@ -8,6 +8,9 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
 	imagetypes "github.com/moby/moby/api/types/image"
@@ -15,8 +18,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
 )
 
 var imagesAcceptedFilters = map[string]bool{

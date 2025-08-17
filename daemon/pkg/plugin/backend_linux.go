@@ -22,6 +22,11 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/moby/go-archive/chrootarchive"
+	"github.com/moby/sys/mount"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/pkg/progress"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/events"
@@ -36,10 +41,6 @@ import (
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/authorization"
 	"github.com/moby/moby/v2/pkg/pools"
-	"github.com/moby/sys/mount"
-	"github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // MediaTypePluginConfig specifies the mediaType for plugin configuration.

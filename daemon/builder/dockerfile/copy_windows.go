@@ -7,10 +7,11 @@ import (
 	"strings"
 
 	"github.com/Microsoft/go-winio"
-	"github.com/moby/moby/v2/daemon/internal/system"
 	"github.com/moby/sys/reexec"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
+
+	"github.com/moby/moby/v2/daemon/internal/system"
 )
 
 var pathDenyList = map[string]bool{

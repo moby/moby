@@ -9,12 +9,13 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
-	"github.com/moby/moby/v2/daemon/libnetwork/ipamutils"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/ipamutils"
 )
 
 const (

@@ -14,6 +14,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 )

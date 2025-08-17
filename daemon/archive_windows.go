@@ -8,6 +8,7 @@ import (
 
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/chrootarchive"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"

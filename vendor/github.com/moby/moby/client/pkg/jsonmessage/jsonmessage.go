@@ -8,8 +8,9 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
-	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/term"
+
+	"github.com/moby/moby/api/types/jsonstream"
 )
 
 // RFC3339NanoFixed is time.RFC3339Nano with nanoseconds padded using zeros to

@@ -5,12 +5,13 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/moby/moby/api/types/container"
-	dopts "github.com/moby/moby/v2/daemon/internal/opts"
-	"github.com/moby/moby/v2/daemon/pkg/opts"
 	"github.com/spf13/pflag"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/api/types/container"
+	dopts "github.com/moby/moby/v2/daemon/internal/opts"
+	"github.com/moby/moby/v2/daemon/pkg/opts"
 )
 
 func TestGetConflictFreeConfiguration(t *testing.T) {

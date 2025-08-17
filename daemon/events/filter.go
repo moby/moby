@@ -2,6 +2,7 @@ package events
 
 import (
 	"github.com/distribution/reference"
+
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
 )

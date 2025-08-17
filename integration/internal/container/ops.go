@@ -5,10 +5,11 @@ import (
 	"slices"
 	"strings"
 
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ConfigOpt is an option to apply to a container.

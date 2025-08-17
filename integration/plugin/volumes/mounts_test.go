@@ -4,13 +4,14 @@ import (
 	"os"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
+
 	plugintypes "github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/daemon"
 	"github.com/moby/moby/v2/testutil/fixtures/plugin"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 // TestPluginWithDevMounts tests very specific regression caused by mounts ordering

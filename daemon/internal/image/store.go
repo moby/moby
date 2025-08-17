@@ -8,11 +8,12 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/internal/layer"
-	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/go-digest/digestset"
 	"github.com/pkg/errors"
+
+	"github.com/moby/moby/v2/daemon/internal/layer"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 // Store is an interface for creating and accessing images

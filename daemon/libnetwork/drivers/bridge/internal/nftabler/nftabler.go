@@ -7,9 +7,10 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
+	"go.opentelemetry.io/otel"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
-	"go.opentelemetry.io/otel"
 )
 
 // Prefix for OTEL span names.

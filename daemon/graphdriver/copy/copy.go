@@ -12,10 +12,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/moby/moby/v2/daemon/internal/system"
-	"github.com/moby/moby/v2/pkg/pools"
 	"github.com/moby/sys/userns"
 	"golang.org/x/sys/unix"
+
+	"github.com/moby/moby/v2/daemon/internal/system"
+	"github.com/moby/moby/v2/pkg/pools"
 )
 
 // Mode indicates whether to use hardlink or copy content

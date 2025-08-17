@@ -6,9 +6,10 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/opencontainers/runtime-spec/specs-go"
+
 	"github.com/moby/moby/v2/daemon/internal/platform"
 	"github.com/moby/moby/v2/daemon/pkg/oci/caps"
-	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func iPtr(i int64) *int64 { return &i }

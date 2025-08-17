@@ -7,12 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/poll"
+
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/integration-cli/checker"
 	"github.com/moby/moby/v2/integration-cli/daemon"
 	"github.com/moby/moby/v2/testutil"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/poll"
 )
 
 func (s *DockerSwarmSuite) TestAPISwarmListNodes(c *testing.T) {

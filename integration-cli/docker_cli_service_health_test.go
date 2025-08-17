@@ -7,15 +7,16 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
+
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/cluster/executor/container"
 	"github.com/moby/moby/v2/integration-cli/checker"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/integration-cli/cli/build"
 	"github.com/moby/moby/v2/testutil"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/icmd"
-	"gotest.tools/v3/poll"
 )
 
 // start a service, and then make its task unhealthy during running

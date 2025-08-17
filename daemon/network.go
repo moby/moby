@@ -15,6 +15,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/docker/go-connections/nat"
+	"go.opentelemetry.io/otel/baggage"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
@@ -36,7 +38,6 @@ import (
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/plugingetter"
-	"go.opentelemetry.io/otel/baggage"
 )
 
 // PredefinedNetworkError is returned when user tries to create predefined network that already exists.

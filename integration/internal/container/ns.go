@@ -5,9 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/client"
 )
 
 // GetContainerNS gets the value of the specified namespace of a container

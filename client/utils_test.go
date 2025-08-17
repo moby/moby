@@ -3,10 +3,11 @@ package client
 import (
 	"testing"
 
-	"github.com/moby/moby/api/types/filters"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/api/types/filters"
 )
 
 func TestEncodePlatforms(t *testing.T) {

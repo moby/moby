@@ -10,14 +10,15 @@ import (
 
 	"github.com/containerd/continuity/fs"
 	"github.com/containerd/log"
+	"github.com/moby/sys/mount"
+	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	mounttypes "github.com/moby/moby/api/types/mount"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	volumemounts "github.com/moby/moby/v2/daemon/volume/mounts"
-	"github.com/moby/sys/mount"
-	"github.com/opencontainers/selinux/go-selinux/label"
-	"github.com/pkg/errors"
 )
 
 const (

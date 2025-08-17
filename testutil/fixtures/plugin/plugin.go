@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/moby/go-archive"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/types/events"
 	plugintypes "github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/api/types/registry"
@@ -17,7 +19,6 @@ import (
 	"github.com/moby/moby/v2/daemon/pkg/plugin"
 	registrypkg "github.com/moby/moby/v2/daemon/pkg/registry"
 	"github.com/moby/moby/v2/daemon/server/backend"
-	"github.com/pkg/errors"
 )
 
 // CreateOpt is passed used to change the default plugin config before

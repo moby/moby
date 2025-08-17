@@ -11,8 +11,9 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/opencontainers/go-digest"
+
+	"github.com/moby/moby/v2/daemon/internal/stringid"
 )
 
 func randomLayerID(seed int64) ChainID {

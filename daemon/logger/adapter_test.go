@@ -10,9 +10,10 @@ import (
 	"time"
 
 	protoio "github.com/gogo/protobuf/io"
-	"github.com/moby/moby/v2/daemon/logger/internal/logdriver"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/daemon/logger/internal/logdriver"
 )
 
 // mockLoggingPlugin implements the loggingPlugin interface for testing purposes

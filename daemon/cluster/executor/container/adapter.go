@@ -14,6 +14,13 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	gogotypes "github.com/gogo/protobuf/types"
+	"github.com/moby/swarmkit/v2/agent/exec"
+	"github.com/moby/swarmkit/v2/api"
+	swarmlog "github.com/moby/swarmkit/v2/log"
+	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
+	"golang.org/x/time/rate"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/network"
@@ -26,12 +33,6 @@ import (
 	networkSettings "github.com/moby/moby/v2/daemon/network"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	volumeopts "github.com/moby/moby/v2/daemon/volume/service/opts"
-	"github.com/moby/swarmkit/v2/agent/exec"
-	"github.com/moby/swarmkit/v2/api"
-	swarmlog "github.com/moby/swarmkit/v2/log"
-	"github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
-	"golang.org/x/time/rate"
 )
 
 // nodeAttachmentReadyInterval is the interval to poll

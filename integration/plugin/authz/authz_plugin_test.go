@@ -19,6 +19,9 @@ import (
 
 	"github.com/docker/go-connections/sockets"
 	"github.com/moby/go-archive"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	eventtypes "github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/image"
@@ -26,8 +29,6 @@ import (
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/pkg/authorization"
 	"github.com/moby/moby/v2/testutil/environment"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 const (

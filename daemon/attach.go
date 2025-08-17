@@ -6,6 +6,9 @@ import (
 	"io"
 
 	"github.com/containerd/log"
+	"github.com/moby/term"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/pkg/stdcopy"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
@@ -14,8 +17,6 @@ import (
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/moby/term"
-	"github.com/pkg/errors"
 )
 
 // ContainerAttach attaches to logs according to the config passed in. See ContainerAttachConfig.

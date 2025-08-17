@@ -3,8 +3,9 @@ package convert
 import (
 	"testing"
 
-	volumetypes "github.com/moby/moby/api/types/volume"
 	swarmapi "github.com/moby/swarmkit/v2/api"
+
+	volumetypes "github.com/moby/moby/api/types/volume"
 
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

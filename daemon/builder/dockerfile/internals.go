@@ -16,6 +16,9 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/chrootarchive"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
@@ -24,8 +27,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	networkSettings "github.com/moby/moby/v2/daemon/network"
 	"github.com/moby/moby/v2/daemon/server/backend"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 func (b *Builder) getArchiver() *archive.Archiver {

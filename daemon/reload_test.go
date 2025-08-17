@@ -6,11 +6,12 @@ import (
 	"testing"
 
 	"github.com/containerd/log"
+	"gotest.tools/v3/assert"
+
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/moby/v2/daemon/pkg/registry"
-	"gotest.tools/v3/assert"
 )
 
 // muteLogs suppresses logs that are generated during the test

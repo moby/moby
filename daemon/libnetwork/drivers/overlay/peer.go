@@ -5,6 +5,7 @@ import (
 	"net/netip"
 
 	"github.com/gogo/protobuf/proto"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/hashable"
 )
 

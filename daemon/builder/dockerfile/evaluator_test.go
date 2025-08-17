@@ -8,11 +8,12 @@ import (
 
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/go-archive"
-	"github.com/moby/moby/v2/daemon/builder/remotecontext"
 	"github.com/moby/sys/reexec"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/moby/moby/v2/daemon/builder/remotecontext"
 )
 
 type dispatchTestCase struct {

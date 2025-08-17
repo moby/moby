@@ -5,9 +5,10 @@ import (
 	"os"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 )
 
 // Path to the executable installed in Linux under WSL2 that reports on

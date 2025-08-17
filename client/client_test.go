@@ -11,10 +11,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/api/types"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/moby/moby/api/types"
 )
 
 func TestNewClientWithOpsFromEnv(t *testing.T) {

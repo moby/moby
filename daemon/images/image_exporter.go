@@ -4,10 +4,11 @@ import (
 	"context"
 	"io"
 
-	"github.com/moby/moby/v2/daemon/internal/image/tarexport"
-	"github.com/moby/moby/v2/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+
+	"github.com/moby/moby/v2/daemon/internal/image/tarexport"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 // ExportImage exports a list of images to the given output stream. The

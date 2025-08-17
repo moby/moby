@@ -4,8 +4,9 @@ import (
 	"context"
 	"io"
 
-	"github.com/moby/moby/api/types/filters"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/moby/moby/api/types/filters"
 )
 
 // ImportSource holds source information for ImageImport

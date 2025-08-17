@@ -9,14 +9,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/api/types/image"
-	"github.com/moby/moby/v2/integration-cli/cli"
-	"github.com/moby/moby/v2/integration-cli/cli/build"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/v2/integration-cli/cli"
+	"github.com/moby/moby/v2/integration-cli/cli/build"
 )
 
 const (

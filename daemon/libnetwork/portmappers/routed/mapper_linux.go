@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/containerd/log"
+
 	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/libnetwork/portmapperapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"

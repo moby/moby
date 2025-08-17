@@ -9,6 +9,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/chrootarchive"
+
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/errdefs"

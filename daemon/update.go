@@ -4,10 +4,11 @@ import (
 	"context"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/pkg/errors"
 )
 
 // ContainerUpdate updates configuration of the container

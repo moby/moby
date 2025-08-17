@@ -1,8 +1,9 @@
 package process
 
 import (
-	procpkg "github.com/moby/moby/v2/pkg/process"
 	"gotest.tools/v3/poll"
+
+	procpkg "github.com/moby/moby/v2/pkg/process"
 )
 
 // NotAlive verifies the process doesn't exist (finished or never started).

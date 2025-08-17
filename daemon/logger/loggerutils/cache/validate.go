@@ -3,9 +3,10 @@ package cache
 import (
 	"strconv"
 
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/local"
-	"github.com/pkg/errors"
 )
 
 func init() {

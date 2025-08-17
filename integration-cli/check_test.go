@@ -14,6 +14,11 @@ import (
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"gotest.tools/v3/assert"
+
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/integration-cli/daemon"
 	"github.com/moby/moby/v2/integration-cli/environment"
@@ -24,10 +29,6 @@ import (
 	"github.com/moby/moby/v2/testutil/fakestorage"
 	"github.com/moby/moby/v2/testutil/fixtures/plugin"
 	"github.com/moby/moby/v2/testutil/registry"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"gotest.tools/v3/assert"
 )
 
 const (

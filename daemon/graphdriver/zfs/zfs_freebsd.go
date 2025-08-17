@@ -4,8 +4,9 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/graphdriver"
 	"golang.org/x/sys/unix"
+
+	"github.com/moby/moby/v2/daemon/graphdriver"
 )
 
 func checkRootdirFs(rootdir string) error {

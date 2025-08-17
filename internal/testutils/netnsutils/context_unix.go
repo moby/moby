@@ -8,11 +8,12 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/ns"
-	"github.com/moby/moby/v2/internal/testutils"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/ns"
+	"github.com/moby/moby/v2/internal/testutils"
 )
 
 // OSContext is a handle to a test OS context.

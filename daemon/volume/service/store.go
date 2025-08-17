@@ -11,14 +11,15 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/moby/locker"
+	"github.com/pkg/errors"
+	bolt "go.etcd.io/bbolt"
+
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/volume"
 	"github.com/moby/moby/v2/daemon/volume/drivers"
 	volumemounts "github.com/moby/moby/v2/daemon/volume/mounts"
 	"github.com/moby/moby/v2/daemon/volume/service/opts"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/pkg/errors"
-	bolt "go.etcd.io/bbolt"
 )
 
 const (

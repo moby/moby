@@ -8,8 +8,9 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/config"
 	"golang.org/x/sys/windows"
+
+	"github.com/moby/moby/v2/daemon/config"
 )
 
 // getDefaultDaemonConfigFile returns the default location of the daemon's

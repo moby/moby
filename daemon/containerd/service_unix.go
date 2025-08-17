@@ -3,10 +3,11 @@
 package containerd
 
 import (
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/pkg/errors"
 )
 
 // GetLayerFolders returns the layer folders from an image RootFS.
