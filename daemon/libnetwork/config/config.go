@@ -44,7 +44,6 @@ type Config struct {
 	Rootless               bool
 	EnableUserlandProxy    bool
 	UserlandProxyPath      string
-	DefaultNetworkOpts     map[string]map[string]string
 }
 
 // New creates a new Config and initializes it with the given Options.
@@ -98,13 +97,6 @@ func OptionDefaultNetworkOpts(opts map[string]map[string]string) Option {
 func OptionDefaultAddressPoolConfig(addressPool []*ipamutils.NetworkToSplit) Option {
 	return func(c *Config) {
 		c.DefaultAddressPool = addressPool
-	}
-}
-
-// OptionDefaultNetworkOpts returns an option setter for default network options.
-func OptionDefaultNetworkOpts(opts map[string]map[string]string) Option {
-	return func(c *Config) {
-		c.DefaultNetworkOpts = opts
 	}
 }
 
