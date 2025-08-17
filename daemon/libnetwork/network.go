@@ -520,10 +520,7 @@ func (n *Network) CopyTo(o datastore.KVObject) error {
 		dstN.ipamV6Info = append(dstN.ipamV6Info, inf.Copy())
 	}
 
-	dstN.generic = options.Generic{}
-	for k, v := range n.generic {
-		dstN.generic[k] = v
-	}
+	dstN.generic = maps.Clone(n.generic)
 
 	return nil
 }
@@ -1852,12 +1849,7 @@ func (n *Network) Labels() map[string]string {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
-	lbls := make(map[string]string, len(n.labels))
-	for k, v := range n.labels {
-		lbls[k] = v
-	}
-
-	return lbls
+	return maps.Clone(n.labels)
 }
 
 func (n *Network) TableEventRegister(tableName string, objType driverapi.ObjectType) error {

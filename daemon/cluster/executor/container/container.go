@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net"
 	"strconv"
 	"strings"
@@ -237,13 +238,11 @@ func (c *containerConfig) labels() map[string]string {
 			"service.id":   c.task.ServiceID,
 			"service.name": c.task.ServiceAnnotations.Name,
 		}
-		labels = make(map[string]string)
+		labels map[string]string
 	)
 
 	// base labels are those defined in the spec.
-	for k, v := range c.spec().Labels {
-		labels[k] = v
-	}
+	labels = maps.Clone(c.spec().Labels)
 
 	// we then apply the overrides from the task, which may be set via the
 	// orchestrator.
