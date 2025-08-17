@@ -115,7 +115,7 @@ func TestExec(t *testing.T) {
 	assert.Check(t, is.Contains(out, "FOO=BAR"), "exec command not running with expected environment variable FOO")
 }
 
-func TestExecResize(t *testing.T) {
+func TestFlakyExecResize(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
@@ -141,12 +141,6 @@ func TestExecResize(t *testing.T) {
 			Height: 40,
 			Width:  40,
 		})
-		if runtime.GOOS == "windows" && err != nil {
-			// FIXME(thaJeztah): temporarily allowing test to fail on Windows: see https://github.com/moby/moby/issues/50402
-			t.Log("XFAIL:", err)
-			t.Skip("XFAIL: flaky test on Windows: see https://github.com/moby/moby/issues/50402")
-			return
-		}
 		assert.NilError(t, err)
 
 		// TODO(thaJeztah): also check if the resize happened

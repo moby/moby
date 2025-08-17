@@ -254,8 +254,7 @@ func TestServiceWithPredefinedNetwork(t *testing.T) {
 
 const ingressNet = "ingress"
 
-func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
-	t.Skip("FLAKY_TEST")
+func TestFlakyServiceRemoveKeepsIngressNetwork(t *testing.T) {
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
 
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")

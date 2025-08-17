@@ -533,8 +533,7 @@ RUN for g in $(seq 0 8); do dd if=/dev/urandom of=rnd bs=1K count=1 seek=$((1024
 	assert.Check(t, is.Contains(out.String(), "Successfully built"))
 }
 
-func TestBuildWCOWSandboxSize(t *testing.T) {
-	t.Skip("FLAKY_TEST that needs to be fixed; see https://github.com/moby/moby/issues/42743")
+func TestFlakyBuildWCOWSandboxSize(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "windows", "only Windows has sandbox size control")
 	ctx := setupTest(t)
 

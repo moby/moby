@@ -83,6 +83,18 @@ func TestSomething(t *testing.T) {
 
 If a remote daemon is detected, the test will be skipped.
 
+### Flaky tests
+
+Tests that are known to be flaky should not be skipped or retried with custom
+logic. Instead, rename the test to start with `TestFlaky` to indicate its
+instability. CI runs use `gotestsum --rerun-fails` to automatically retry
+failing tests, so no additional retry helpers are needed. When running tests
+locally, you can use the same command, for example:
+
+```bash
+gotestsum --rerun-fails=2 -- -run TestFlaky
+```
+
 ## Running tests
 
 ### Unit Tests
