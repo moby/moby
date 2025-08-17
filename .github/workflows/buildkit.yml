@@ -15,6 +15,19 @@ concurrency:
 
 on:
   workflow_dispatch:
+    inputs:
+      max-fails:
+        description: "Maximum number of test failures before stopping"
+        required: false
+        default: "0"
+      rerun-fails:
+        description: "Number of times to rerun failing tests"
+        required: false
+        default: "0"
+      rerun-fails-max-failures:
+        description: "Maximum number of test failures to rerun"
+        required: false
+        default: "0"
   push:
     branches:
       - 'master'
@@ -27,6 +40,9 @@ env:
   DESTDIR: ./build
   SETUP_BUILDX_VERSION: edge
   SETUP_BUILDKIT_IMAGE: moby/buildkit:latest
+  GOTESTSUM_MAX_FAILS: ${{ inputs.max-fails || '0' }}
+  GOTESTSUM_RERUN_FAILS: ${{ inputs.rerun-fails || '0' }}
+  GOTESTSUM_RERUN_FAILS_MAX_FAILURES: ${{ inputs.rerun-fails-max-failures || '0' }}
 
 jobs:
   validate-dco:
@@ -370,6 +386,9 @@ jobs:
             --jsonfile="./bin/testreports/go-test-report-${{ env.TEST_REPORT_NAME }}.json" \
             --junitfile="./bin/testreports/junit-report-${{ env.TEST_REPORT_NAME }}.xml" \
             --packages="${{ env.TESTPKG }}" \
+            --max-fails=${{ env.GOTESTSUM_MAX_FAILS }} \
+            --rerun-fails=${{ env.GOTESTSUM_RERUN_FAILS }} \
+            --rerun-fails-max-failures=${{ env.GOTESTSUM_RERUN_FAILS_MAX_FAILURES }} \
             -- \
               "-mod=vendor" \
               "-coverprofile" "./bin/testreports/coverage-${{ env.TEST_REPORT_NAME }}.txt" \
