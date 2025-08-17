@@ -325,10 +325,16 @@ Function Run-UnitTests() {
     $pkgList = $pkgList | Select-String -NotMatch "github.com/moby/moby/v2/integration"
     $pkgList = $pkgList -replace "`r`n", " "
 
+    $maxFails = if ($env:GOTESTSUM_MAX_FAILS) { $env:GOTESTSUM_MAX_FAILS } else { "1" }
+    $rerunFailsEnv = $env:GOTESTSUM_RERUN_FAILS
+    $rerunFailsFlaky = if ($rerunFailsEnv) { $rerunFailsEnv } else { "4" }
+    $rerunFailsRegular = if ($rerunFailsEnv) { $rerunFailsEnv } else { "0" }
+    $rerunFailsMaxFailures = if ($env:GOTESTSUM_RERUN_FAILS_MAX_FAILURES) { $env:GOTESTSUM_RERUN_FAILS_MAX_FAILURES } else { "0" }
+
     $jsonFilePath = $bundlesDir + "\go-test-report-unit-flaky-tests.json"
     $xmlFilePath = $bundlesDir + "\junit-report-unit-flaky-tests.xml"
     $coverageFilePath = $bundlesDir + "\coverage-report-unit-flaky-tests.txt"
-    $goTestArg = "--rerun-fails=4  --format=standard-verbose --jsonfile=$jsonFilePath --junitfile=$xmlFilePath """ + "--packages=$pkgList" + """ -- " + $raceParm + " -coverprofile=$coverageFilePath -covermode=atomic -ldflags -w -a -test.timeout=10m -test.run=TestFlaky.*"
+    $goTestArg = "--max-fails=$maxFails --rerun-fails=$rerunFailsFlaky --rerun-fails-max-failures=$rerunFailsMaxFailures --format=standard-verbose --jsonfile=$jsonFilePath --junitfile=$xmlFilePath """ + "--packages=$pkgList" + """ -- " + $raceParm + " -coverprofile=$coverageFilePath -covermode=atomic -ldflags -w -a -test.timeout=10m -test.run=TestFlaky.*"
     Write-Host "INFO: Invoking unit tests run with $GOTESTSUM_LOCATION\gotestsum.exe $goTestArg"
     $pinfo = New-Object System.Diagnostics.ProcessStartInfo
     $pinfo.FileName = "$GOTESTSUM_LOCATION\gotestsum.exe"
@@ -344,7 +350,7 @@ Function Run-UnitTests() {
     $jsonFilePath = $bundlesDir + "\go-test-report-unit-tests.json"
     $xmlFilePath = $bundlesDir + "\junit-report-unit-tests.xml"
     $coverageFilePath = $bundlesDir + "\coverage-report-unit-tests.txt"
-    $goTestArg = "--format=standard-verbose --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- " + $raceParm + " -coverprofile=$coverageFilePath -covermode=atomic -ldflags -w -a -test.timeout=10m -test.skip=TestFlaky.*" + " $pkgList"
+    $goTestArg = "--max-fails=$maxFails --rerun-fails=$rerunFailsRegular --rerun-fails-max-failures=$rerunFailsMaxFailures --format=standard-verbose --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- " + $raceParm + " -coverprofile=$coverageFilePath -covermode=atomic -ldflags -w -a -test.timeout=10m -test.skip=TestFlaky.*" + " $pkgList"
     Write-Host "INFO: Invoking unit tests run with $GOTESTSUM_LOCATION\gotestsum.exe $goTestArg"
     $pinfo = New-Object System.Diagnostics.ProcessStartInfo
     $pinfo.FileName = "$GOTESTSUM_LOCATION\gotestsum.exe"
