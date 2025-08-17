@@ -308,7 +308,7 @@ example, you'll edit the help for the `attach` subcommand.
    Your location should be different because, at least, your username is
    different.
 
-3. Open the `cmd/dockerd/docker.go` file.
+3. Open the `daemon/command/docker.go` file.
 
 4. Edit the command's help message.
 
