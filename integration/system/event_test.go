@@ -63,6 +63,21 @@ func TestEventsExecDie(t *testing.T) {
 	}
 }
 
+// TestEventsNonBlocking verifies that the API responds immediately (not blocking),
+// if there are no events.
+func TestEventsNonBlocking(t *testing.T) {
+	ctx := setupTest(t)
+
+	// makes sure the API responds immediately (we use "less than 3 sec" to
+	// have some grace-period).
+	expectedTime := time.Now().Add(3 * time.Second)
+	emptyResp, emptyBody, err := request.Get(ctx, "/events")
+	assert.NilError(t, err)
+	defer emptyBody.Close()
+	assert.Check(t, is.DeepEqual(http.StatusOK, emptyResp.StatusCode))
+	assert.Check(t, time.Now().Before(expectedTime), "timeout waiting for events api to respond, should have responded immediately")
+}
+
 // Test case for #18888: Events messages have been switched from generic
 // `JSONMessage` to `events.Message` types. The switch does not break the
 // backward compatibility so old `JSONMessage` could still be used.
