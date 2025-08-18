@@ -861,6 +861,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	migrationThreshold := int64(-1)
 	isGraphDriver := func(driver string) (bool, error) {
+		if driver == "" {
+			if graphdriver.HasPriorDriver(config.Root) {
+				return true, nil
+			}
+		}
 		return graphdriver.IsRegistered(driver), nil
 	}
 	if enabled, ok := config.Features["containerd-snapshotter"]; (ok && !enabled) || os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") != "" {
