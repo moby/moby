@@ -3,6 +3,7 @@ package daemon
 import (
 	"testing"
 
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/daemon"
 	"gotest.tools/v3/assert"
@@ -27,8 +28,9 @@ func TestDefaultStorageDriver(t *testing.T) {
 }
 
 // TestGraphDriverPersistence tests that when a daemon starts with graphdrivers,
-// then is restarted without explicit storage configuration, it continues to use
-// graphdrivers instead of migrating to containerd snapshotters automatically.
+// pulls images and creates containers, then is restarted without explicit
+// graphdriver configuration, it continues to use graphdrivers instead of
+// migrating to containerd snapshotters automatically.
 func TestGraphDriverPersistence(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Windows does not support running sub-daemons")
 	t.Setenv("DOCKER_DRIVER", "")
@@ -51,6 +53,14 @@ func TestGraphDriverPersistence(t *testing.T) {
 	assert.Check(t, info.DriverStatus[0][1] != "io.containerd.snapshotter.v1")
 	prevDriver := info.Driver
 
+	containerResp, err := c.ContainerCreate(ctx, &containertypes.Config{
+		Image: testImage,
+		Cmd:   []string{"echo", "test"},
+	}, nil, nil, nil, "test-container")
+	assert.NilError(t, err, "Failed to create container")
+
+	containerID := containerResp.ID
+
 	d.Stop(t)
 
 	// Phase 2: Start daemon again WITHOUT explicit graphdriver configuration
@@ -63,6 +73,10 @@ func TestGraphDriverPersistence(t *testing.T) {
 	assert.Check(t, is.Equal(info.Driver, prevDriver))
 
 	// Verify our image is still there
-	_, err := c.ImageInspect(ctx, testImage)
+	_, err = c.ImageInspect(ctx, testImage)
 	assert.NilError(t, err, "Test image should still be available after daemon restart")
+
+	// Verify our container is still there
+	_, err = c.ContainerInspect(ctx, containerID)
+	assert.NilError(t, err, "Test container should still exist after daemon restart")
 }

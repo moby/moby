@@ -1146,6 +1146,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			return nil, err
 		}
 
+		// NewStoreFromOptions will determine the driver if driverName is empty
+		// so we need to update the driverName to match the driver used.
+		driverName = layerStore.DriverName()
+
 		// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
 		// operation only, so it is safe to pass *just* the runtime OS graphdriver.
 		if err := configureKernelSecuritySupport(&cfgStore.Config, layerStore.DriverName()); err != nil {
@@ -1344,6 +1348,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
+	if driverName == "" {
+		return nil, errors.New("driverName is empty. Please report it as a bug! As a workaround, please set the storage driver explicitly")
+	}
+
 	driverContainers, ok := containers[driverName]
 	// Log containers which are not loaded with current driver
 	if (!ok && len(containers) > 0) || len(containers) > 1 {
@@ -1352,7 +1360,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 				continue
 			}
 			for id := range all {
-				log.G(ctx).WithField("container", id).Debugf("not restoring container because it was created with another storage driver (%s)", driver)
+				log.G(ctx).WithField("container", id).
+					WithField("driver", driver).
+					WithField("current_driver", driverName).
+					Debugf("not restoring container because it was created with another storage driver (%s)", driver)
 			}
 		}
 	}
