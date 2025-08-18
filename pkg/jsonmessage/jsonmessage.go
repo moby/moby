@@ -151,9 +151,9 @@ type JSONMessage struct {
 	// Deprecated: this field is deprecated since docker v0.7.1 / API v1.8. Use the information in [Progress] instead. This field will be omitted in a future release.
 	ProgressMessage string     `json:"progress,omitempty"`
 	ID              string     `json:"id,omitempty"`
-	From            string     `json:"from,omitempty"`
-	Time            int64      `json:"time,omitempty"`
-	TimeNano        int64      `json:"timeNano,omitempty"`
+	From            string     `json:"from,omitempty"`     // Deprecated: this field is no longer set in stream responses and should not be used.
+	Time            int64      `json:"time,omitempty"`     // Deprecated: this field is no longer set in stream responses and should not be used.
+	TimeNano        int64      `json:"timeNano,omitempty"` // Deprecated: this field is no longer set in stream responses and should not be used.
 	Error           *JSONError `json:"errorDetail,omitempty"`
 
 	// ErrorMessage contains errors encountered during the operation.
