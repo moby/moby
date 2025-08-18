@@ -41,6 +41,11 @@ import (
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/version"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+	"golang.org/x/sync/semaphore"
+
 	pkgprogress "github.com/moby/moby/api/pkg/progress"
 	imageadapter "github.com/moby/moby/v2/daemon/internal/builder-next/adapters/containerimage"
 	mobyexporter "github.com/moby/moby/v2/daemon/internal/builder-next/exporter"
@@ -48,10 +53,6 @@ import (
 	distmetadata "github.com/moby/moby/v2/daemon/internal/distribution/metadata"
 	"github.com/moby/moby/v2/daemon/internal/distribution/xfer"
 	"github.com/moby/moby/v2/daemon/internal/layer"
-	"github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
-	"golang.org/x/sync/semaphore"
 )
 
 func init() {

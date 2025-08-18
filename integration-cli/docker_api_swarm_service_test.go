@@ -9,6 +9,12 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/sys/unix"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
+
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/integration-cli/checker"
 	"github.com/moby/moby/v2/integration-cli/cli"
@@ -16,11 +22,6 @@ import (
 	"github.com/moby/moby/v2/integration-cli/daemon"
 	"github.com/moby/moby/v2/testutil"
 	testdaemon "github.com/moby/moby/v2/testutil/daemon"
-	"golang.org/x/sys/unix"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/icmd"
-	"gotest.tools/v3/poll"
 )
 
 func setPortConfig(portConfig []swarm.PortConfig) testdaemon.ServiceConstructor {

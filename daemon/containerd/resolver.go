@@ -10,6 +10,7 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/daemon/pkg/registry"
 	"github.com/moby/moby/v2/dockerversion"

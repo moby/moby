@@ -3,8 +3,9 @@ package registry
 import (
 	"testing"
 
-	"github.com/moby/moby/api/types/registry"
 	"gotest.tools/v3/assert"
+
+	"github.com/moby/moby/api/types/registry"
 )
 
 func buildAuthConfigs() map[string]registry.AuthConfig {

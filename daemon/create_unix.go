@@ -10,6 +10,9 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	mounttypes "github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/v2/daemon/container"
@@ -17,8 +20,6 @@ import (
 	"github.com/moby/moby/v2/daemon/pkg/oci"
 	volumemounts "github.com/moby/moby/v2/daemon/volume/mounts"
 	volumeopts "github.com/moby/moby/v2/daemon/volume/service/opts"
-	"github.com/opencontainers/selinux/go-selinux/label"
-	"github.com/pkg/errors"
 )
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality

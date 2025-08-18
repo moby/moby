@@ -6,11 +6,12 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
 )
 
 func newNetworkAllocator(t *testing.T) networkallocator.NetworkAllocator {

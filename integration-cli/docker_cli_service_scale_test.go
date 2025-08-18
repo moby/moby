@@ -7,8 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/v2/testutil"
 	"gotest.tools/v3/assert"
+
+	"github.com/moby/moby/v2/testutil"
 )
 
 func (s *DockerSwarmSuite) TestServiceScale(c *testing.T) {

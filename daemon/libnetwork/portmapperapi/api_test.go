@@ -4,8 +4,9 @@ import (
 	"net"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"gotest.tools/v3/assert"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 func TestPortBindingReqsCompare(t *testing.T) {

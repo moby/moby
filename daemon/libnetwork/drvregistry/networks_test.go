@@ -3,10 +3,11 @@ package drvregistry
 import (
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
-	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 )
 
 const mockDriverName = "mock-driver"

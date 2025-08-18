@@ -1,8 +1,9 @@
 package daemon
 
 import (
-	"github.com/moby/moby/v2/daemon/container"
 	"github.com/opencontainers/runtime-spec/specs-go"
+
+	"github.com/moby/moby/v2/daemon/container"
 )
 
 func setLinuxDomainname(c *container.Container, s *specs.Spec) {

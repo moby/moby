@@ -7,10 +7,11 @@ import (
 	"testing"
 
 	"github.com/containerd/containerd/v2/pkg/apparmor"
-	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/v2/daemon/container"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"gotest.tools/v3/assert"
+
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/daemon/container"
 )
 
 func TestExecSetPlatformOptAppArmor(t *testing.T) {

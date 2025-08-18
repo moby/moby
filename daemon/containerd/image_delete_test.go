@@ -8,12 +8,13 @@ import (
 	"github.com/containerd/containerd/v2/core/metadata"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/log/logtest"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/v2/daemon/container"
 	daemonevents "github.com/moby/moby/v2/daemon/events"
 	dimages "github.com/moby/moby/v2/daemon/images"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestImageDelete(t *testing.T) {

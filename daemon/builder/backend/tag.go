@@ -6,8 +6,9 @@ import (
 	"io"
 
 	"github.com/distribution/reference"
-	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/pkg/errors"
+
+	"github.com/moby/moby/v2/daemon/internal/image"
 )
 
 // tagImages creates image tags for the imageID.

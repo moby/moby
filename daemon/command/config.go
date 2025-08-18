@@ -3,11 +3,12 @@ package command
 import (
 	"runtime"
 
+	"github.com/spf13/pflag"
+
 	"github.com/moby/moby/v2/daemon/config"
 	dopts "github.com/moby/moby/v2/daemon/internal/opts"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
 	"github.com/moby/moby/v2/daemon/pkg/registry"
-	"github.com/spf13/pflag"
 )
 
 // installCommonConfigFlags adds flags to the pflag.FlagSet to configure the daemon

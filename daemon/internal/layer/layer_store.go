@@ -12,13 +12,14 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/distribution"
 	"github.com/moby/locker"
-	"github.com/moby/moby/v2/daemon/graphdriver"
-	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
+
+	"github.com/moby/moby/v2/daemon/graphdriver"
+	"github.com/moby/moby/v2/daemon/internal/stringid"
 )
 
 // maxLayerDepth represents the maximum number of

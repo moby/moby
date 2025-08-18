@@ -10,10 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/v2/integration-cli/cli"
-	"github.com/moby/moby/v2/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/integration-cli/cli"
+	"github.com/moby/moby/v2/testutil"
 )
 
 type DockerCLIPortSuite struct {

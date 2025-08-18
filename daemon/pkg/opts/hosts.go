@@ -7,8 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/moby/moby/v2/pkg/homedir"
 	"github.com/pkg/errors"
+
+	"github.com/moby/moby/v2/pkg/homedir"
 )
 
 const (

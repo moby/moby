@@ -4,11 +4,12 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 // TestWindowsDevices that Windows Devices are correctly propagated

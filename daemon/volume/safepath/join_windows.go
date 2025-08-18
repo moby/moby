@@ -7,9 +7,10 @@ import (
 	"strings"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/internal/cleanups"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
+
+	"github.com/moby/moby/v2/daemon/internal/cleanups"
 )
 
 // Join locks all individual components of the path which is the concatenation

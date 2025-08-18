@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/moby/go-archive"
-	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/sys/reexec"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/skip"
+
+	"github.com/moby/moby/v2/daemon/builder"
 )
 
 const (

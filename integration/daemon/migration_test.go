@@ -6,6 +6,9 @@ import (
 	"runtime"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
@@ -13,8 +16,6 @@ import (
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/daemon"
 	"github.com/moby/moby/v2/testutil/fixtures/load"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 func TestMigrateOverlaySnapshotter(t *testing.T) {

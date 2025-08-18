@@ -5,10 +5,11 @@ package daemon
 import (
 	"context"
 
+	"github.com/opencontainers/runtime-spec/specs-go"
+
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
-	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // initializeCreatedTask performs any initialization that needs to be done to

@@ -12,11 +12,12 @@ import (
 
 	"github.com/containerd/log"
 	gometrics "github.com/docker/go-metrics"
+	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/v2/daemon/pkg/plugin"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 	"github.com/moby/moby/v2/pkg/plugins"
-	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 )
 
 const pluginType = "MetricsCollector"

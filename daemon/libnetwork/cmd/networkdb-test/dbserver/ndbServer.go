@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/containerd/log"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/cmd/networkdb-test/dummyclient"
 	"github.com/moby/moby/v2/daemon/libnetwork/diagnostic"
 	"github.com/moby/moby/v2/daemon/libnetwork/networkdb"

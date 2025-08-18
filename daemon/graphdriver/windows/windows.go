@@ -27,14 +27,15 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/go-units"
 	"github.com/moby/go-archive"
-	"github.com/moby/moby/v2/daemon/graphdriver"
-	"github.com/moby/moby/v2/daemon/internal/mountref"
-	"github.com/moby/moby/v2/pkg/ioutils"
-	"github.com/moby/moby/v2/pkg/longpath"
 	"github.com/moby/sys/reexec"
 	"github.com/moby/sys/user"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
+
+	"github.com/moby/moby/v2/daemon/graphdriver"
+	"github.com/moby/moby/v2/daemon/internal/mountref"
+	"github.com/moby/moby/v2/pkg/ioutils"
+	"github.com/moby/moby/v2/pkg/longpath"
 )
 
 const (

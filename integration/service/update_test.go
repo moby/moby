@@ -4,6 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
+
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	networktypes "github.com/moby/moby/api/types/network"
@@ -12,10 +17,6 @@ import (
 	"github.com/moby/moby/v2/integration/internal/network"
 	"github.com/moby/moby/v2/integration/internal/swarm"
 	"github.com/moby/moby/v2/testutil"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/poll"
-	"gotest.tools/v3/skip"
 )
 
 func TestServiceUpdateLabel(t *testing.T) {

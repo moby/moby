@@ -8,10 +8,11 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/ioutils"
-	"github.com/pkg/errors"
 )
 
 // When downloading remote contexts, limit the amount (in bytes)

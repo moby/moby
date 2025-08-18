@@ -8,11 +8,12 @@ import (
 
 	"github.com/containerd/log"
 	gogotypes "github.com/gogo/protobuf/types"
+	swarmapi "github.com/moby/swarmkit/v2/api"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/types/container"
 	mounttypes "github.com/moby/moby/api/types/mount"
 	types "github.com/moby/moby/api/types/swarm"
-	swarmapi "github.com/moby/swarmkit/v2/api"
-	"github.com/pkg/errors"
 )
 
 func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {

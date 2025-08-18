@@ -6,9 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/config"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/config"
 )
 
 func TestEndpointStore(t *testing.T) {

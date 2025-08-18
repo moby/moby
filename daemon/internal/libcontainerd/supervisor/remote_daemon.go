@@ -15,12 +15,13 @@ import (
 	"github.com/containerd/containerd/v2/pkg/dialer"
 	"github.com/containerd/log"
 	"github.com/moby/buildkit/util/grpcerrors"
-	"github.com/moby/moby/v2/pkg/pidfile"
-	"github.com/moby/moby/v2/pkg/process"
 	"github.com/pelletier/go-toml"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/moby/moby/v2/pkg/pidfile"
+	"github.com/moby/moby/v2/pkg/process"
 )
 
 const (

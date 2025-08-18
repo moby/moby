@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/moby/go-archive"
+
 	"github.com/moby/moby/v2/daemon/builder/remotecontext/internal/tarsum"
 )
 

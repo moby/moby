@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/go-connections/tlsconfig"
+
 	"github.com/moby/moby/v2/pkg/plugins"
 )
 

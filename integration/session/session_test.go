@@ -4,10 +4,11 @@ import (
 	"net/http"
 	"testing"
 
-	req "github.com/moby/moby/v2/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+
+	req "github.com/moby/moby/v2/testutil/request"
 )
 
 func TestSessionCreate(t *testing.T) {

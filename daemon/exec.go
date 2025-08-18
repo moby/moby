@@ -11,6 +11,11 @@ import (
 
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/log"
+	"github.com/moby/sys/signal"
+	"github.com/moby/term"
+	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"
@@ -18,10 +23,6 @@ import (
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/pools"
-	"github.com/moby/sys/signal"
-	"github.com/moby/term"
-	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 )
 
 func (daemon *Daemon) registerExecCommand(container *container.Container, config *container.ExecConfig) {

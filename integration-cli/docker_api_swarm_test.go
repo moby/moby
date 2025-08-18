@@ -19,6 +19,11 @@ import (
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/cloudflare/cfssl/initca"
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/moby/swarmkit/v2/ca"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
+
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/swarm"
@@ -27,10 +32,6 @@ import (
 	"github.com/moby/moby/v2/testutil"
 	testdaemon "github.com/moby/moby/v2/testutil/daemon"
 	"github.com/moby/moby/v2/testutil/request"
-	"github.com/moby/swarmkit/v2/ca"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/poll"
 )
 
 var defaultReconciliationTimeout = 30 * time.Second

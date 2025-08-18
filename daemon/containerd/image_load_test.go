@@ -15,13 +15,14 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
 	"github.com/moby/go-archive"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/internal/testutils/labelstore"
 	"github.com/moby/moby/v2/internal/testutils/specialimage"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestImageLoad(t *testing.T) {

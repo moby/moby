@@ -6,8 +6,9 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/volume"
 	bolt "go.etcd.io/bbolt"
+
+	"github.com/moby/moby/v2/daemon/volume"
 )
 
 // restore is called when a new volume store is created.

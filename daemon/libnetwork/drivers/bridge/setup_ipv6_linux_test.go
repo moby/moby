@@ -7,9 +7,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/vishvananda/netlink"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/internal/testutils/netnsutils"
-	"github.com/vishvananda/netlink"
 )
 
 func TestSetupIPv6(t *testing.T) {

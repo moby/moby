@@ -9,6 +9,10 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
+
 	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/build"
 	containertypes "github.com/moby/moby/api/types/container"
@@ -18,9 +22,6 @@ import (
 	"github.com/moby/moby/v2/testutil/daemon"
 	"github.com/moby/moby/v2/testutil/fakecontext"
 	"github.com/moby/moby/v2/testutil/fixtures/load"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/poll"
-	"gotest.tools/v3/skip"
 )
 
 // Implements a test for https://github.com/moby/moby/issues/41723

@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 
 	"github.com/containerd/log"
+	"github.com/opencontainers/go-digest"
+
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
-	"github.com/opencontainers/go-digest"
 )
 
 // CreateID creates an ID from v1 image, layerID and parent ID.

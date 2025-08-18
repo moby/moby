@@ -19,14 +19,15 @@ import (
 	"github.com/containerd/continuity/fs"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/internal/image"
-	"github.com/moby/moby/v2/daemon/internal/layer"
-	refstore "github.com/moby/moby/v2/daemon/internal/refstore"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/moby/moby/v2/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/internal/layer"
+	refstore "github.com/moby/moby/v2/daemon/internal/refstore"
 )
 
 type LayerMigrator struct {

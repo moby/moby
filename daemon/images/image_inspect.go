@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
+
 	imagetypes "github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/storage"
 	"github.com/moby/moby/v2/daemon/internal/image"

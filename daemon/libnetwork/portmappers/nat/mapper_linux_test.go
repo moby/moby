@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/portmapperapi"
-	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/portmapperapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 func TestBindHostPortsError(t *testing.T) {

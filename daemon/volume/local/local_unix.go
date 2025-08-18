@@ -15,11 +15,12 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
-	"github.com/moby/moby/v2/daemon/internal/quota"
-	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"github.com/pkg/errors"
+
+	"github.com/moby/moby/v2/daemon/internal/quota"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 var (

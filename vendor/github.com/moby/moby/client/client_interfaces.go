@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
@@ -18,7 +20,6 @@ import (
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/api/types/volume"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // APIClient is an interface that clients that talk with a docker server must implement.

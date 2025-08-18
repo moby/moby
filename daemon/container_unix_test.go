@@ -5,9 +5,10 @@ package daemon
 import (
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/config"
-	"gotest.tools/v3/assert"
 )
 
 // TestContainerWarningHostAndPublishPorts that a warning is returned when setting network mode to host and specifying published ports.

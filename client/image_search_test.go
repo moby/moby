@@ -12,10 +12,11 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/filters"
-	"github.com/moby/moby/api/types/registry"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/registry"
 )
 
 func TestImageSearchAnyError(t *testing.T) {

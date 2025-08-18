@@ -15,11 +15,12 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/moby/moby/v2/daemon/logger"
-	"github.com/moby/moby/v2/pkg/tailfile"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
+
+	"github.com/moby/moby/v2/daemon/logger"
+	"github.com/moby/moby/v2/pkg/tailfile"
 )
 
 type testDecoder struct {

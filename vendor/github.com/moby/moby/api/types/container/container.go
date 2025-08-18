@@ -4,9 +4,10 @@ import (
 	"os"
 	"time"
 
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/storage"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // PruneReport contains the response for Engine API:

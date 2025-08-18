@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
 	volumetypes "github.com/moby/moby/api/types/volume"
@@ -17,7 +19,6 @@ import (
 	"github.com/moby/moby/v2/daemon/volume/service/opts"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/plugingetter"
-	"github.com/pkg/errors"
 )
 
 type driverLister interface {

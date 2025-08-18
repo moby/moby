@@ -3,8 +3,9 @@ package cluster
 import (
 	"net"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/vishvananda/netlink"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 )
 
 func (c *Cluster) resolveSystemAddr() (net.IP, error) {

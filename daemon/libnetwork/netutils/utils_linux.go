@@ -8,13 +8,14 @@ import (
 	"os"
 	"slices"
 
+	"github.com/pkg/errors"
+	"github.com/vishvananda/netlink"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/resolvconf"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
-	"github.com/pkg/errors"
-	"github.com/vishvananda/netlink"
 )
 
 // InferReservedNetworks returns a list of network prefixes that seem to be

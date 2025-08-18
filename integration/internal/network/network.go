@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
-	"gotest.tools/v3/assert"
 )
 
 func createNetwork(ctx context.Context, client client.APIClient, name string, ops ...func(*network.CreateOptions)) (string, error) {

@@ -13,9 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/v2/integration-cli/cli"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
+
+	"github.com/moby/moby/v2/integration-cli/cli"
 )
 
 const attachWait = 5 * time.Second

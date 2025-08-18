@@ -11,6 +11,8 @@ import (
 
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
+	"github.com/opencontainers/selinux/go-selinux"
+
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/v2/daemon/command/debug"
@@ -25,7 +27,6 @@ import (
 	"github.com/moby/moby/v2/pkg/parsers/kernel"
 	"github.com/moby/moby/v2/pkg/parsers/operatingsystem"
 	"github.com/moby/moby/v2/pkg/sysinfo"
-	"github.com/opencontainers/selinux/go-selinux"
 )
 
 func doWithTrace[T any](ctx context.Context, name string, f func() T) T {

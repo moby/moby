@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
 	"github.com/opencontainers/runtime-spec/specs-go"
+
+	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
 )
 
 // TODO verify if this regex is correct for "a" (all);

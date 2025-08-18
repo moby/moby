@@ -11,11 +11,12 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/miekg/dns"
-	"github.com/moby/moby/v2/daemon/libnetwork/types"
-	"github.com/moby/moby/v2/internal/testutils/netnsutils"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/internal/testutils/netnsutils"
 )
 
 // a simple/null address type that will be used to fake a local address for unit testing

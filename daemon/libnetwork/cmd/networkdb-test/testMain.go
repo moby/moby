@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/containerd/log"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/cmd/networkdb-test/dbclient"
 	"github.com/moby/moby/v2/daemon/libnetwork/cmd/networkdb-test/dbserver"
 )

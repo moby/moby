@@ -30,6 +30,12 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/vishvananda/netlink"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/golden"
+	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
@@ -40,11 +46,6 @@ import (
 	"github.com/moby/moby/v2/integration/internal/testutils/networking"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/daemon"
-	"github.com/vishvananda/netlink"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/golden"
-	"gotest.tools/v3/poll"
-	"gotest.tools/v3/skip"
 )
 
 var (

@@ -11,6 +11,11 @@ import (
 	"time"
 
 	"github.com/docker/go-connections/sockets"
+	"github.com/pkg/errors"
+	"golang.org/x/net/websocket"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
@@ -18,10 +23,6 @@ import (
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/request"
-	"github.com/pkg/errors"
-	"golang.org/x/net/websocket"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func (s *DockerAPISuite) TestGetContainersAttachWebsocket(c *testing.T) {

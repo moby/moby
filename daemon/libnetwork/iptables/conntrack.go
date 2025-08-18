@@ -9,9 +9,10 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/vishvananda/netlink"
+
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
-	"github.com/vishvananda/netlink"
 )
 
 // checkConntrackProgrammable checks if the handle supports the

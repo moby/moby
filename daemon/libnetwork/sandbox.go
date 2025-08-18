@@ -12,12 +12,13 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/libnetwork/etchosts"
-	"github.com/moby/moby/v2/daemon/libnetwork/osl"
-	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/etchosts"
+	"github.com/moby/moby/v2/daemon/libnetwork/osl"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 // SandboxOption is an option setter function type used to pass various options to

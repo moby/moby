@@ -10,13 +10,14 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/fs"
 
-	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/v2/daemon/container"
 	swarmagent "github.com/moby/swarmkit/v2/agent"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/windows/registry"
 	"gotest.tools/v3/assert"
+
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/daemon/container"
 )
 
 func TestSetWindowsCredentialSpecInSpec(t *testing.T) {

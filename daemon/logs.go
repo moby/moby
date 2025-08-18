@@ -7,6 +7,8 @@ import (
 
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
+	"github.com/pkg/errors"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
@@ -15,7 +17,6 @@ import (
 	logcache "github.com/moby/moby/v2/daemon/logger/loggerutils/cache"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/pkg/errors"
 )
 
 // ContainerLogs copies the container's log channel to the channel provided in

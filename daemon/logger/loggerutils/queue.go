@@ -4,8 +4,9 @@ import (
 	"context"
 	"sync"
 
-	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/pkg/errors"
+
+	"github.com/moby/moby/v2/daemon/logger"
 )
 
 // MessageQueue is a queue for log messages.

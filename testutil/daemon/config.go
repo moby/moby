@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/moby/moby/api/types/swarm"
 	"gotest.tools/v3/assert"
+
+	"github.com/moby/moby/api/types/swarm"
 )
 
 // ConfigConstructor defines a swarm config constructor

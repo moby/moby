@@ -16,10 +16,11 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/go-events"
 	"github.com/hashicorp/memberlist"
-	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
+
+	"github.com/moby/moby/v2/daemon/internal/stringid"
 )
 
 var dbPort atomic.Int32

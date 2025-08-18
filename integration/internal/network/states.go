@@ -3,9 +3,10 @@ package network
 import (
 	"context"
 
+	"gotest.tools/v3/poll"
+
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
-	"gotest.tools/v3/poll"
 )
 
 // IsRemoved verifies the network is removed.

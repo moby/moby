@@ -14,11 +14,12 @@ import (
 	"github.com/containerd/containerd/v2/plugins"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/moby/moby/api/types/system"
-	"github.com/moby/moby/v2/daemon/config"
 	"google.golang.org/protobuf/proto"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/moby/moby/api/types/system"
+	"github.com/moby/moby/v2/daemon/config"
 )
 
 func TestSetupRuntimes(t *testing.T) {

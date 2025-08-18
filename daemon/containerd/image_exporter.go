@@ -16,12 +16,13 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/moby/go-archive/compression"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+
 	"github.com/moby/moby/api/pkg/streamformatter"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/errdefs"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // ExportImage exports a list of images to the given output stream. The

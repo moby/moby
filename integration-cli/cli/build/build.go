@@ -6,8 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/v2/testutil/fakecontext"
 	"gotest.tools/v3/icmd"
+
+	"github.com/moby/moby/v2/testutil/fakecontext"
 )
 
 // WithStdinContext sets the build context from the standard input with the specified reader

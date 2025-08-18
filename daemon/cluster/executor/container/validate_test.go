@@ -5,9 +5,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/moby/swarmkit/v2/api"
+
 	"github.com/moby/moby/v2/daemon"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
-	"github.com/moby/swarmkit/v2/api"
 )
 
 func newTestControllerWithMount(m api.Mount) (*controller, error) {

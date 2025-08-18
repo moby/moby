@@ -10,17 +10,18 @@ import (
 
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/log"
+	"github.com/moby/sys/mount"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
+
 	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/v2/daemon/initlayer"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	v2 "github.com/moby/moby/v2/daemon/pkg/plugin/v2"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/plugins"
-	"github.com/moby/sys/mount"
-	"github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
-	"golang.org/x/sys/unix"
 )
 
 func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {

@@ -14,6 +14,11 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	gogotypes "github.com/gogo/protobuf/types"
+	swarmapi "github.com/moby/swarmkit/v2/api"
+	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
+	"google.golang.org/grpc"
+
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
@@ -21,10 +26,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
-	swarmapi "github.com/moby/swarmkit/v2/api"
-	"github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
-	"google.golang.org/grpc"
 )
 
 // GetServices returns all services of a managed swarm cluster.

@@ -9,10 +9,11 @@ import (
 	"strings"
 
 	"github.com/distribution/reference"
+	"github.com/opencontainers/go-digest"
+
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/versions"
-	"github.com/opencontainers/go-digest"
 )
 
 // ServiceCreate creates a new service.

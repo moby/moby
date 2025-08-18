@@ -11,9 +11,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	store "github.com/moby/moby/v2/daemon/libnetwork/internal/kvstore"
 	bolt "go.etcd.io/bbolt"
 	berrors "go.etcd.io/bbolt/errors"
+
+	store "github.com/moby/moby/v2/daemon/libnetwork/internal/kvstore"
 )
 
 const filePerm = 0o644

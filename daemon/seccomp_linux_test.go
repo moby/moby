@@ -4,14 +4,15 @@ import (
 	"testing"
 
 	coci "github.com/containerd/containerd/v2/pkg/oci"
+	"github.com/moby/profiles/seccomp"
+	"github.com/opencontainers/runtime-spec/specs-go"
+	"gotest.tools/v3/assert"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	dconfig "github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/pkg/oci"
 	"github.com/moby/moby/v2/pkg/sysinfo"
-	"github.com/moby/profiles/seccomp"
-	"github.com/opencontainers/runtime-spec/specs-go"
-	"gotest.tools/v3/assert"
 )
 
 func TestWithSeccomp(t *testing.T) {

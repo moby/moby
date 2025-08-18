@@ -12,6 +12,11 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"golang.org/x/net/websocket"
+
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
@@ -26,10 +31,6 @@ import (
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/ioutils"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
-	"go.opentelemetry.io/otel"
-	"golang.org/x/net/websocket"
 )
 
 // commitRequest may contain an optional [container.Config].

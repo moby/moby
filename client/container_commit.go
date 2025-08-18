@@ -7,6 +7,7 @@ import (
 	"net/url"
 
 	"github.com/distribution/reference"
+
 	"github.com/moby/moby/api/types/container"
 )
 

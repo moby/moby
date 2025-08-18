@@ -9,13 +9,14 @@ import (
 	"path/filepath"
 
 	"github.com/moby/go-archive"
+	"github.com/pkg/errors"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"
 	volumemounts "github.com/moby/moby/v2/daemon/volume/mounts"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/ioutils"
-	"github.com/pkg/errors"
 )
 
 // containerStatPath stats the filesystem resource at the specified path in this

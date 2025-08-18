@@ -15,14 +15,15 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/miekg/dns"
-	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
-	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/semaphore"
 	"golang.org/x/time/rate"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 // DNSBackend represents a backend DNS resolver used for DNS name

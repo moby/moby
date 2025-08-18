@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/moby/moby/api/types/events"
 	eventstestutils "github.com/moby/moby/v2/daemon/events/testutils"
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 // validateLegacyFields validates that the legacy "Status", "ID", and "From"

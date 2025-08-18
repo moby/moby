@@ -4,11 +4,12 @@ import (
 	"context"
 
 	"github.com/containerd/log"
+	"github.com/opencontainers/runtime-spec/specs-go"
+
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/internal/capabilities"
-	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 var deviceDrivers = map[string]*deviceDriver{}

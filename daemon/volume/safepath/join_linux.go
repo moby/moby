@@ -8,9 +8,10 @@ import (
 	"strconv"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/internal/unix_noeintr"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
+
+	"github.com/moby/moby/v2/daemon/internal/unix_noeintr"
 )
 
 // Join makes sure that the concatenation of path and subpath doesn't

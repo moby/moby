@@ -11,8 +11,9 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/moby/moby/v2/integration-cli/cli"
 	"gotest.tools/v3/assert"
+
+	"github.com/moby/moby/v2/integration-cli/cli"
 )
 
 // regression test for #12546

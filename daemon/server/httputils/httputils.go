@@ -8,8 +8,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
+
+	"github.com/moby/moby/v2/errdefs"
 )
 
 // APIVersionKey is the client's requested API version.

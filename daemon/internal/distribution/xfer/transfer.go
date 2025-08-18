@@ -5,8 +5,9 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/moby/moby/api/pkg/progress"
 	"github.com/pkg/errors"
+
+	"github.com/moby/moby/api/pkg/progress"
 )
 
 // DoNotRetry is an error wrapper indicating that the error cannot be resolved

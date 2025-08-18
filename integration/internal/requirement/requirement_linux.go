@@ -4,8 +4,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/moby/moby/v2/pkg/parsers/kernel"
 	"gotest.tools/v3/icmd"
+
+	"github.com/moby/moby/v2/pkg/parsers/kernel"
 )
 
 // CgroupNamespacesEnabled checks if cgroup namespaces are enabled on this host

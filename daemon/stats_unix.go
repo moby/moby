@@ -13,9 +13,10 @@ import (
 
 	statsV1 "github.com/containerd/cgroups/v3/cgroup1/stats"
 	statsV2 "github.com/containerd/cgroups/v3/cgroup2/stats"
+	"github.com/pkg/errors"
+
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/container"
-	"github.com/pkg/errors"
 )
 
 func copyBlkioEntry(entries []*statsV1.BlkIOEntry) []containertypes.BlkioStatEntry {

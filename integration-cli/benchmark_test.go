@@ -10,8 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/v2/integration-cli/cli"
 	"gotest.tools/v3/assert"
+
+	"github.com/moby/moby/v2/integration-cli/cli"
 )
 
 type DockerBenchmarkSuite struct {

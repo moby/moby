@@ -20,6 +20,10 @@ import (
 
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/pkg/errors"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/poll"
+
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/client"
@@ -28,9 +32,6 @@ import (
 	"github.com/moby/moby/v2/pkg/ioutils"
 	"github.com/moby/moby/v2/pkg/tailfile"
 	"github.com/moby/moby/v2/testutil/request"
-	"github.com/pkg/errors"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/poll"
 )
 
 // LogT is the subset of the testing.TB interface used by the daemon.

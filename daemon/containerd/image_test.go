@@ -13,9 +13,10 @@ import (
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/log/logtest"
 	"github.com/distribution/reference"
-	dockerimages "github.com/moby/moby/v2/daemon/images"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	dockerimages "github.com/moby/moby/v2/daemon/images"
 
 	bolt "go.etcd.io/bbolt"
 
