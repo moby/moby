@@ -511,7 +511,7 @@ github.com/docker/distribution/registry/storage/cache/memory
 github.com/docker/docker/libnetwork/internal/resolvconf
 github.com/docker/docker/libnetwork/resolvconf
 github.com/docker/docker/profiles/seccomp
-# github.com/docker/go-connections v0.6.0
+# github.com/docker/go-connections v0.6.0 => github.com/akerouanton/go-connections v0.0.0-20250813122150-82fe2d5001fe
 ## explicit; go 1.18
 github.com/docker/go-connections/nat
 github.com/docker/go-connections/sockets
@@ -1767,3 +1767,4 @@ tags.cncf.io/container-device-interface/pkg/parser
 tags.cncf.io/container-device-interface/specs-go
 # github.com/moby/moby/client => ./client
 # github.com/moby/moby/api => ./api
+# github.com/docker/go-connections => github.com/akerouanton/go-connections v0.0.0-20250813122150-82fe2d5001fe
