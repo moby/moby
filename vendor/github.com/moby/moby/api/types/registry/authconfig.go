@@ -71,6 +71,8 @@ func EncodeAuthConfig(authConfig AuthConfig) (string, error) {
 // to the caller to decide if authentication is required, and if the error can
 // be ignored.
 //
+// Deprecated: this function is deprecated and will be removed in the next release.
+//
 // [RFC4648, section 5]: https://tools.ietf.org/html/rfc4648#section-5
 func DecodeAuthConfig(authEncoded string) (*AuthConfig, error) {
 	if authEncoded == "" {
