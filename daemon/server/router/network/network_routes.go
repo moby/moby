@@ -39,7 +39,7 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 
 	// Combine the network list returned by Docker daemon if it is not already
 	// returned by the cluster manager
-	localNetworks, err := n.backend.GetNetworks(filter, backend.NetworkListConfig{Detailed: versions.LessThan(httputils.VersionFromContext(ctx), "1.28")})
+	localNetworks, err := n.backend.GetNetworks(ctx, filter, backend.NetworkListConfig{Detailed: versions.LessThan(httputils.VersionFromContext(ctx), "1.28")})
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 	if networkScope != "" {
 		filter.Add("scope", networkScope)
 	}
-	networks, _ := n.backend.GetNetworks(filter, backend.NetworkListConfig{Detailed: true, Verbose: verbose})
+	networks, _ := n.backend.GetNetworks(ctx, filter, backend.NetworkListConfig{Detailed: true, Verbose: verbose})
 	for _, nw := range networks {
 		if nw.ID == term {
 			return httputils.WriteJSON(w, http.StatusOK, nw)
@@ -141,11 +141,13 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		// return the network. Skipped using isMatchingScope because it is true if the scope
 		// is not set which would be case if the client API v1.30
 		if strings.HasPrefix(nwk.ID, term) || networkScope == scope.Swarm {
-			// If we have a previous match "backend", return it, we need verbose when enabled
+			// If we have a previous match "backend", return it with updated State, we need verbose when enabled
 			// ex: overlay/partial_ID or name/swarm_scope
 			if nwv, ok := listByPartialID[nwk.ID]; ok {
+				nwv.State = nwk.State
 				nwk = nwv
 			} else if nwv, ok = listByFullName[nwk.ID]; ok {
+				nwv.State = nwk.State
 				nwk = nwv
 			}
 			return httputils.WriteJSON(w, http.StatusOK, nwk)
@@ -161,16 +163,24 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 			// Check the ID collision as we are in swarm scope here, and
 			// the map (of the listByFullName) may have already had a
 			// network with the same ID (from local scope previously)
-			if _, ok := listByFullName[nw.ID]; !ok {
+			// If we have a previous match "backend", return it with updated State, we need verbose when enabled
+			if nwk, ok := listByFullName[nw.ID]; !ok {
 				listByFullName[nw.ID] = nw
+			} else {
+				nwk.State = nw.State
+				listByFullName[nw.ID] = nwk
 			}
 		}
 		if strings.HasPrefix(nw.ID, term) {
 			// Check the ID collision as we are in swarm scope here, and
 			// the map (of the listByPartialID) may have already had a
 			// network with the same ID (from local scope previously)
-			if _, ok := listByPartialID[nw.ID]; !ok {
+			// If we have a previous match "backend", return it with updated State, we need verbose when enabled
+			if nwk, ok := listByPartialID[nw.ID]; !ok {
 				listByPartialID[nw.ID] = nw
+			} else {
+				nwk.State = nw.State
+				listByFullName[nw.ID] = nwk
 			}
 		}
 	}
@@ -275,7 +285,7 @@ func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
-	nw, err := n.findUniqueNetwork(vars["id"])
+	nw, err := n.findUniqueNetwork(ctx, vars["id"])
 	if err != nil {
 		return err
 	}
@@ -317,12 +327,12 @@ func (n *networkRouter) postNetworksPrune(ctx context.Context, w http.ResponseWr
 // For full name and partial ID, save the result first, and process later
 // in case multiple records was found based on the same term
 // TODO (yongtang): should we wrap with version here for backward compatibility?
-func (n *networkRouter) findUniqueNetwork(term string) (network.Inspect, error) {
+func (n *networkRouter) findUniqueNetwork(ctx context.Context, term string) (network.Inspect, error) {
 	listByFullName := map[string]network.Inspect{}
 	listByPartialID := map[string]network.Inspect{}
 
 	filter := filters.NewArgs(filters.Arg("idOrName", term))
-	networks, _ := n.backend.GetNetworks(filter, backend.NetworkListConfig{Detailed: true})
+	networks, _ := n.backend.GetNetworks(ctx, filter, backend.NetworkListConfig{Detailed: true})
 	for _, nw := range networks {
 		if nw.ID == term {
 			return nw, nil

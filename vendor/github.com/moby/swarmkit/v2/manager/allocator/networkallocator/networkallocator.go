@@ -1,6 +1,8 @@
 package networkallocator
 
 import (
+	"context"
+
 	"github.com/moby/swarmkit/v2/api"
 )
 
@@ -85,6 +87,11 @@ type NetworkAllocator interface {
 
 	// IsAttachmentAllocated If lb endpoint is allocated on the node
 	IsAttachmentAllocated(node *api.Node, networkAttachment *api.NetworkAttachment) bool
+}
+
+// NetworkStateUpdater is an interface for updating the network state in the store.
+type NetworkStateUpdater interface {
+	UpdateNetworkState(context.Context, *api.Network) error
 }
 
 // Config is used to store network related cluster config in the Manager.

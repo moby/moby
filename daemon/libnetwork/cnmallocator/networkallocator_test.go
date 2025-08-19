@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"testing"
 
+	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
@@ -752,6 +753,10 @@ func (a *mockIpam) ReleaseAddress(poolID string, ip net.IP) error {
 
 func (a *mockIpam) IsBuiltIn() bool {
 	return true
+}
+
+func (a *mockIpam) GetIPAMState(poolID string) (cidr string, ipamState networktypes.IPAMState, err error) {
+	return "", networktypes.IPAMState{}, nil
 }
 
 func TestCorrectlyPassIPAMOptions(t *testing.T) {

@@ -435,6 +435,10 @@ func (m *Manager) Addr() string {
 	return m.config.RemoteAPI.ListenAddr
 }
 
+func (m *Manager) UpdateNetworkState(ctx context.Context, net *api.Network) error {
+	return m.allocator.UpdateNetworkState(ctx, net)
+}
+
 // Run starts all manager sub-systems and the gRPC server at the configured
 // address.
 // The call never returns unless an error occurs or `Stop()` is called.
@@ -472,7 +476,13 @@ func (m *Manager) Run(parent context.Context) error {
 		return err
 	}
 
-	baseControlAPI := controlapi.NewServer(m.raftNode.MemoryStore(), m.raftNode, m.config.SecurityConfig, m.config.networkProvider(), drivers.New(m.config.PluginGetter))
+	baseControlAPI := controlapi.NewServer(
+		m.raftNode.MemoryStore(),
+		m.raftNode,
+		m.config.SecurityConfig,
+		m.config.networkProvider(),
+		drivers.New(m.config.PluginGetter),
+		m)
 	baseResourceAPI := resourceapi.New(m.raftNode.MemoryStore())
 	healthServer := health.NewHealthServer()
 	localHealthServer := health.NewHealthServer()
