@@ -484,7 +484,7 @@ func getGCPolicy(conf config.BuilderConfig, root string) ([]client.PruneInfo, er
 					return nil, err
 				}
 
-				gcPolicy[i], err = toBuildkitPruneInfo(mobyclient.CachePruneOptions{
+				gcPolicy[i], err = toBuildkitPruneInfo(mobyclient.BuildCachePruneOptions{
 					All:           p.All,
 					ReservedSpace: reservedSpace,
 					MaxUsedSpace:  maxUsedSpace,

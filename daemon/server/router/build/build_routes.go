@@ -180,7 +180,7 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 
-	opts := client.CachePruneOptions{
+	opts := client.BuildCachePruneOptions{
 		All:     httputils.BoolValue(r, "all"),
 		Filters: fltrs,
 	}

@@ -11,8 +11,8 @@ import (
 	"github.com/moby/moby/api/types/filters"
 )
 
-// CachePruneOptions hold parameters to prune the build cache.
-type CachePruneOptions struct {
+// BuildCachePruneOptions hold parameters to prune the build cache.
+type BuildCachePruneOptions struct {
 	All           bool
 	ReservedSpace int64
 	MaxUsedSpace  int64
@@ -23,7 +23,7 @@ type CachePruneOptions struct {
 }
 
 // BuildCachePrune requests the daemon to delete unused cache data.
-func (cli *Client) BuildCachePrune(ctx context.Context, opts CachePruneOptions) (*build.CachePruneReport, error) {
+func (cli *Client) BuildCachePrune(ctx context.Context, opts BuildCachePruneOptions) (*build.CachePruneReport, error) {
 	if err := cli.NewVersionError(ctx, "1.31", "build prune"); err != nil {
 		return nil, err
 	}

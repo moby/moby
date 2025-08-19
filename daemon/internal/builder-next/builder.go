@@ -188,7 +188,7 @@ func (b *Builder) DiskUsage(ctx context.Context) ([]*build.CacheRecord, error) {
 }
 
 // Prune clears all reclaimable build cache.
-func (b *Builder) Prune(ctx context.Context, opts mobyclient.CachePruneOptions) (int64, []string, error) {
+func (b *Builder) Prune(ctx context.Context, opts mobyclient.BuildCachePruneOptions) (int64, []string, error) {
 	ch := make(chan *controlapi.UsageRecord)
 
 	eg, ctx := errgroup.WithContext(ctx)
@@ -642,7 +642,7 @@ func toBuildkitUlimits(inp []*container.Ulimit) (string, error) {
 	return strings.Join(ulimits, ","), nil
 }
 
-func toBuildkitPruneInfo(opts mobyclient.CachePruneOptions) (client.PruneInfo, error) {
+func toBuildkitPruneInfo(opts mobyclient.BuildCachePruneOptions) (client.PruneInfo, error) {
 	var until time.Duration
 	untilValues := opts.Filters.Get("until")          // canonical
 	unusedForValues := opts.Filters.Get("unused-for") // deprecated synonym for "until" filter

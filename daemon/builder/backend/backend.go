@@ -98,7 +98,7 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 }
 
 // PruneCache removes all cached build sources
-func (b *Backend) PruneCache(ctx context.Context, opts client.CachePruneOptions) (*build.CachePruneReport, error) {
+func (b *Backend) PruneCache(ctx context.Context, opts client.BuildCachePruneOptions) (*build.CachePruneReport, error) {
 	buildCacheSize, cacheIDs, err := b.buildkit.Prune(ctx, opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prune build cache")

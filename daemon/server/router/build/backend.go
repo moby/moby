@@ -15,7 +15,7 @@ type Backend interface {
 	Build(context.Context, backend.BuildConfig) (string, error)
 
 	// PruneCache prunes the build cache.
-	PruneCache(context.Context, client.CachePruneOptions) (*build.CachePruneReport, error)
+	PruneCache(context.Context, client.BuildCachePruneOptions) (*build.CachePruneReport, error)
 	Cancel(context.Context, string) error
 }
 
