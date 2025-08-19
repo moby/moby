@@ -24,7 +24,7 @@ type DiskUsageOptions struct {
 type DiskUsage struct {
 	Images     *ImageDiskUsage
 	Containers *ContainerDiskUsage
-	Volumes    *volume.DiskUsage
+	Volumes    *VolumeDiskUsage
 	BuildCache *BuildCacheDiskUsage
 }
 
@@ -47,4 +47,11 @@ type ImageDiskUsage struct {
 	TotalSize   int64
 	Reclaimable int64
 	Items       []*image.Summary
+}
+
+// VolumeDiskUsage contains disk usage for volumes.
+type VolumeDiskUsage struct {
+	TotalSize   int64
+	Reclaimable int64
+	Items       []*volume.Volume
 }
