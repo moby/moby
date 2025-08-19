@@ -150,7 +150,7 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context, opts backend.DiskUsag
 			}
 		}
 
-		du.Images = &image.DiskUsage{
+		du.Images = &backend.ImageDiskUsage{
 			TotalSize:   layersSize,
 			Reclaimable: reclaimable,
 			Items:       images,

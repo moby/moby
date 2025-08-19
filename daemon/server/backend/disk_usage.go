@@ -22,7 +22,7 @@ type DiskUsageOptions struct {
 // DiskUsage contains the information returned by the backend for the
 // GET "/system/df" endpoint.
 type DiskUsage struct {
-	Images     *image.DiskUsage
+	Images     *ImageDiskUsage
 	Containers *ContainerDiskUsage
 	Volumes    *volume.DiskUsage
 	BuildCache *BuildCacheDiskUsage
@@ -40,4 +40,11 @@ type ContainerDiskUsage struct {
 	TotalSize   int64
 	Reclaimable int64
 	Items       []*container.Summary
+}
+
+// ImageDiskUsage contains disk usage for images.
+type ImageDiskUsage struct {
+	TotalSize   int64
+	Reclaimable int64
+	Items       []*image.Summary
 }
