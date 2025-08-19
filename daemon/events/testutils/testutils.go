@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/moby/moby/api/types/events"
-	timetypes "github.com/moby/moby/api/types/time"
 	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
+	"github.com/moby/moby/v2/daemon/internal/timestamp"
 )
 
 const (
@@ -45,12 +45,12 @@ func Scan(text string) (*events.Message, error) {
 		return nil, fmt.Errorf("text is not an event: %s", text)
 	}
 
-	f, err := timetypes.GetTimestamp(md["timestamp"], time.Now())
+	f, err := timestamp.GetTimestamp(md["timestamp"], time.Now())
 	if err != nil {
 		return nil, err
 	}
 
-	t, tn, err := timetypes.ParseTimestamps(f, -1)
+	t, tn, err := timestamp.ParseTimestamps(f, -1)
 	if err != nil {
 		return nil, err
 	}

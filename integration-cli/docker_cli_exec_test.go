@@ -532,12 +532,3 @@ func (s *DockerCLIExecSuite) TestExecWindowsPathNotWiped(c *testing.T) {
 	out = strings.ToLower(strings.Trim(out, "\r\n"))
 	assert.Assert(c, is.Contains(out, `windowspowershell\v1.0`))
 }
-
-func (s *DockerCLIExecSuite) TestExecEnvLinksHost(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	runSleepingContainer(c, "-d", "--name", "foo")
-	runSleepingContainer(c, "-d", "--link", "foo:db", "--hostname", "myhost", "--name", "bar")
-	out := cli.DockerCmd(c, "exec", "bar", "env").Stdout()
-	assert.Check(c, is.Contains(out, "HOSTNAME=myhost"))
-	assert.Check(c, is.Contains(out, "DB_NAME=/bar/db"))
-}

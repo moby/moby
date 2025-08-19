@@ -14,7 +14,7 @@ import (
 
 // ReplaceContainer creates a new container, replacing any existing container
 // with the same id if necessary.
-func ReplaceContainer(ctx context.Context, client types.Client, id string, spec *specs.Spec, shim string, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) (types.Container, error) {
+func ReplaceContainer(ctx context.Context, client types.Client, id string, spec *specs.Spec, shim string, runtimeOptions any, opts ...containerd.NewContainerOpts) (types.Container, error) {
 	newContainer := func() (types.Container, error) {
 		return client.NewContainer(ctx, id, spec, shim, runtimeOptions, opts...)
 	}

@@ -28,7 +28,7 @@ func (s *DockerAPISuite) TestExecAPICreateNoCmd(c *testing.T) {
 	name := "exec_test"
 	cli.DockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
-	res, body, err := request.Post(testutil.GetContext(c), fmt.Sprintf("/containers/%s/exec", name), request.JSONBody(map[string]interface{}{"Cmd": nil}))
+	res, body, err := request.Post(testutil.GetContext(c), fmt.Sprintf("/containers/%s/exec", name), request.JSONBody(map[string]any{"Cmd": nil}))
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	b, err := request.ReadBody(body)
@@ -41,7 +41,7 @@ func (s *DockerAPISuite) TestExecAPICreateNoValidContentType(c *testing.T) {
 	cli.DockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
 	jsonData := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(jsonData).Encode(map[string]interface{}{"Cmd": nil}); err != nil {
+	if err := json.NewEncoder(jsonData).Encode(map[string]any{"Cmd": nil}); err != nil {
 		c.Fatalf("Can not encode data to json %s", err)
 	}
 
@@ -193,7 +193,7 @@ func (s *DockerAPISuite) TestExecStateCleanup(c *testing.T) {
 
 	stateDir := "/var/run/docker/containerd/" + cid
 
-	checkReadDir := func(t *testing.T) (interface{}, string) {
+	checkReadDir := func(t *testing.T) (any, string) {
 		fi, err := os.ReadDir(stateDir)
 		assert.NilError(t, err)
 		return len(fi), ""
@@ -228,7 +228,7 @@ func createExec(t *testing.T, name string) string {
 }
 
 func createExecCmd(t *testing.T, name string, cmd string) string {
-	_, reader, err := request.Post(testutil.GetContext(t), fmt.Sprintf("/containers/%s/exec", name), request.JSONBody(map[string]interface{}{"Cmd": []string{cmd}}))
+	_, reader, err := request.Post(testutil.GetContext(t), fmt.Sprintf("/containers/%s/exec", name), request.JSONBody(map[string]any{"Cmd": []string{cmd}}))
 	assert.NilError(t, err)
 	b, err := io.ReadAll(reader)
 	assert.NilError(t, err)
@@ -249,7 +249,7 @@ func startExec(t *testing.T, id string, code int) {
 	assert.Equal(t, resp.StatusCode, code, "response body: %s", b)
 }
 
-func inspectExec(ctx context.Context, t *testing.T, id string, out interface{}) {
+func inspectExec(ctx context.Context, t *testing.T, id string, out any) {
 	resp, body, err := request.Get(ctx, fmt.Sprintf("/exec/%s/json", id))
 	assert.NilError(t, err)
 	defer body.Close()
@@ -275,7 +275,7 @@ func waitForExec(ctx context.Context, t *testing.T, id string) {
 	}
 }
 
-func inspectContainer(ctx context.Context, t *testing.T, id string, out interface{}) {
+func inspectContainer(ctx context.Context, t *testing.T, id string, out any) {
 	resp, body, err := request.Get(ctx, "/containers/"+id+"/json")
 	assert.NilError(t, err)
 	defer body.Close()

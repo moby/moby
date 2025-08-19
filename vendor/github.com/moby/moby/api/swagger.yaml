@@ -173,9 +173,10 @@ tags:
     x-displayName: "System"
 
 definitions:
-  Port:
+  PortSummary:
     type: "object"
-    description: "An open port on a container"
+    description: |
+      Describes a port-mapping between the container and the host.
     required: [PrivatePort, Type]
     properties:
       IP:
@@ -293,6 +294,11 @@ definitions:
     description: "A request for devices to be sent to device drivers"
     properties:
       Driver:
+        description: |
+          The name of the device driver to use for this request.
+
+          Note that if this is specified the capabilities are ignored when
+          selecting a device driver.
         type: "string"
         example: "nvidia"
       Count:
@@ -309,6 +315,12 @@ definitions:
       Capabilities:
         description: |
           A list of capabilities; an OR list of AND lists of capabilities.
+
+          Note that if a driver is specified the capabilities have no effect on
+          selecting a driver as the driver name is used directly.
+
+          Note that if no driver is specified the capabilities are used to
+          select a driver with the required capabilities.
         type: "array"
         items:
           type: "array"
@@ -4344,6 +4356,7 @@ definitions:
           A counter that triggers an update even if no relevant parameters have
           been changed.
         type: "integer"
+        format: "uint64"
       Runtime:
         description: |
           Runtime is the type of runtime specified for the task executor.
@@ -5203,7 +5216,7 @@ definitions:
           Port-mappings for the container.
         type: "array"
         items:
-          $ref: "#/definitions/Port"
+          $ref: "#/definitions/PortSummary"
       SizeRw:
         description: |-
           The size of files that have been created or changed by this container.

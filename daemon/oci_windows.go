@@ -167,7 +167,7 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c 
 			}
 
 			if data["GW_INFO"] != nil {
-				gwInfo := data["GW_INFO"].(map[string]interface{})
+				gwInfo := data["GW_INFO"].(map[string]any)
 				if gwInfo["hnsid"] != nil {
 					gwHNSID = gwInfo["hnsid"].(string)
 				}

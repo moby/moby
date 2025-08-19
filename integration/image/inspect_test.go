@@ -32,7 +32,7 @@ func TestImageInspectEmptyTagsAndDigests(t *testing.T) {
 	assert.Check(t, is.Len(inspect.RepoTags, 0))
 	assert.Check(t, is.Len(inspect.RepoDigests, 0))
 
-	var rawJson map[string]interface{}
+	var rawJson map[string]any
 	err = json.Unmarshal(raw.Bytes(), &rawJson)
 	assert.NilError(t, err)
 

@@ -361,7 +361,7 @@ func (v *volumeWrapper) CreatedAt() (time.Time, error) {
 	return time.Time{}, errors.New("not implemented")
 }
 
-func (v *volumeWrapper) Status() map[string]interface{} {
+func (v *volumeWrapper) Status() map[string]any {
 	return v.v.Status
 }
 

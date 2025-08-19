@@ -15,11 +15,11 @@ type Stats struct {
 	// Metrics is expected to be either one of:
 	// * github.com/containerd/cgroups/v3/cgroup1/stats.Metrics
 	// * github.com/containerd/cgroups/v3/cgroup2/stats.Metrics
-	Metrics interface{}
+	Metrics any
 }
 
 // InterfaceToStats returns a stats object from the platform-specific interface.
-func InterfaceToStats(read time.Time, v interface{}) *Stats {
+func InterfaceToStats(read time.Time, v any) *Stats {
 	return &Stats{
 		Metrics: v,
 		Read:    read,

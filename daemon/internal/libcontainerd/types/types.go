@@ -59,7 +59,7 @@ type Client interface {
 	// LoadContainer loads the metadata for a container from containerd.
 	LoadContainer(ctx context.Context, containerID string) (Container, error)
 	// NewContainer creates a new containerd container.
-	NewContainer(ctx context.Context, containerID string, spec *specs.Spec, shim string, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) (Container, error)
+	NewContainer(ctx context.Context, containerID string, spec *specs.Spec, shim string, runtimeOptions any, opts ...containerd.NewContainerOpts) (Container, error)
 }
 
 // Container provides access to a containerd container.

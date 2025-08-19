@@ -189,10 +189,9 @@ func (e *Execution) IsUserNamespaceInKernel() bool {
 }
 
 // UsingSnapshotter returns whether containerd snapshotters are used for the
-// tests by checking if the "TEST_INTEGRATION_USE_SNAPSHOTTER" is set to a
-// non-empty value.
+// tests by checking if the "TEST_INTEGRATION_USE_GRAPHDRIVER" is empty
 func (e *Execution) UsingSnapshotter() bool {
-	return os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != ""
+	return os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") == ""
 }
 
 // HasExistingImage checks whether there is an image with the given reference.

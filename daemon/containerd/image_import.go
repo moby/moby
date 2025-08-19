@@ -343,7 +343,7 @@ func fillUncompressedLabel(ctx context.Context, cs content.Store, compressedDige
 }
 
 // storeJson marshals the provided object as json and stores it.
-func storeJson(ctx context.Context, cs content.Ingester, mt string, obj interface{}, labels map[string]string) (ocispec.Descriptor, error) {
+func storeJson(ctx context.Context, cs content.Ingester, mt string, obj any, labels map[string]string) (ocispec.Descriptor, error) {
 	configData, err := json.Marshal(obj)
 	if err != nil {
 		return ocispec.Descriptor{}, errdefs.InvalidParameter(err)

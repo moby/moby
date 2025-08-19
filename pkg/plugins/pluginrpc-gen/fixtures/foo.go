@@ -13,7 +13,7 @@ type wobble struct {
 }
 
 // Fooer is an empty interface used for tests.
-type Fooer interface{}
+type Fooer interface{} //nolint:revive // any Alias is not supported yet
 
 // Fooer2 is an interface used for tests.
 type Fooer2 interface {

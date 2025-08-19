@@ -58,7 +58,7 @@ func (cli *Client) ContainerExecStart(ctx context.Context, execID string, config
 		config.ConsoleSize = nil
 	}
 	resp, err := cli.post(ctx, "/exec/"+execID+"/start", nil, config, nil)
-	ensureReaderClosed(resp)
+	defer ensureReaderClosed(resp)
 	return err
 }
 
@@ -91,13 +91,13 @@ func (cli *Client) ContainerExecAttach(ctx context.Context, execID string, confi
 
 // ContainerExecInspect returns information about a specific exec process on the docker host.
 func (cli *Client) ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error) {
-	var response container.ExecInspect
 	resp, err := cli.get(ctx, "/exec/"+execID+"/json", nil, nil)
+	defer ensureReaderClosed(resp)
 	if err != nil {
-		return response, err
+		return container.ExecInspect{}, err
 	}
 
+	var response container.ExecInspect
 	err = json.NewDecoder(resp.Body).Decode(&response)
-	ensureReaderClosed(resp)
 	return response, err
 }

@@ -14,8 +14,8 @@ import (
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/system"
-	timetypes "github.com/moby/moby/api/types/time"
 	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/daemon/server/router/build"
@@ -332,7 +332,7 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 	if versions.LessThan(httputils.VersionFromContext(ctx), "1.46") {
 		// Image create events were added in API 1.46
 		shouldSkip = func(ev events.Message) bool {
-			return ev.Type == "image" && ev.Action == "create"
+			return ev.Type == events.ImageEventType && ev.Action == events.ActionCreate
 		}
 	}
 
@@ -390,7 +390,7 @@ func (s *systemRouter) postAuth(ctx context.Context, w http.ResponseWriter, r *h
 }
 
 func eventTime(formTime string) (time.Time, error) {
-	t, tNano, err := timetypes.ParseTimestamps(formTime, -1)
+	t, tNano, err := timestamp.ParseTimestamps(formTime, -1)
 	if err != nil {
 		return time.Time{}, err
 	}

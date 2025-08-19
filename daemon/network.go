@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/netip"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -954,16 +956,10 @@ func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwor
 	// slice (PortMap is a map[Port][]PortBinding).
 	bindings := make(containertypes.PortMap)
 	for p, b := range c.HostConfig.PortBindings {
-		copied := make([]containertypes.PortBinding, len(b))
-		copy(copied, b)
-		bindings[p] = copied
+		bindings[p] = slices.Clone(b)
 	}
 
-	// TODO(thaJeztah): Move this code to a method on nat.PortSet.
-	ports := make([]containertypes.PortRangeProto, 0, len(c.Config.ExposedPorts))
-	for p := range c.Config.ExposedPorts {
-		ports = append(ports, p)
-	}
+	ports := slices.Collect(maps.Keys(bindings))
 	nat.SortPortMap(ports, bindings)
 
 	var (

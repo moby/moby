@@ -47,7 +47,7 @@ func TestPortMappingConfig(t *testing.T) {
 		EnableIPTables: true,
 		Hairpin:        true,
 	}
-	genericOption := make(map[string]interface{})
+	genericOption := make(map[string]any)
 	genericOption[netlabel.GenericData] = config
 
 	if err := d.configure(genericOption); err != nil {
@@ -59,10 +59,10 @@ func TestPortMappingConfig(t *testing.T) {
 	binding3 := types.PortBinding{Proto: types.TCP, Port: 500, HostPort: 65000}
 	portBindings := []types.PortBinding{binding1, binding2, binding3}
 
-	sbOptions := make(map[string]interface{})
+	sbOptions := make(map[string]any)
 	sbOptions[netlabel.PortMap] = portBindings
 
-	netOptions := map[string]interface{}{
+	netOptions := map[string]any{
 		netlabel.GenericData: &networkConfiguration{
 			BridgeName: DefaultBridgeName,
 			EnableIPv4: true,
@@ -137,7 +137,7 @@ func TestPortMappingV6Config(t *testing.T) {
 		EnableIPTables:  true,
 		EnableIP6Tables: true,
 	}
-	genericOption := make(map[string]interface{})
+	genericOption := make(map[string]any)
 	genericOption[netlabel.GenericData] = config
 
 	if err := d.configure(genericOption); err != nil {
@@ -150,13 +150,13 @@ func TestPortMappingV6Config(t *testing.T) {
 		{Proto: types.SCTP, Port: 500, HostPort: 65000},
 	}
 
-	sbOptions := make(map[string]interface{})
+	sbOptions := make(map[string]any)
 	sbOptions[netlabel.PortMap] = portBindings
 	netConfig := &networkConfiguration{
 		BridgeName: DefaultBridgeName,
 		EnableIPv6: true,
 	}
-	netOptions := make(map[string]interface{})
+	netOptions := make(map[string]any)
 	netOptions[netlabel.GenericData] = netConfig
 
 	ipdList4 := getIPv4Data(t)
@@ -787,7 +787,7 @@ func TestAddPortMappings(t *testing.T) {
 				bridge: &bridgeInterface{},
 				driver: newDriver(storeutils.NewTempStore(t), pms),
 			}
-			genericOption := map[string]interface{}{
+			genericOption := map[string]any{
 				netlabel.GenericData: &configuration{
 					EnableIPTables:  true,
 					EnableIP6Tables: true,
@@ -1009,13 +1009,15 @@ func (pm *stubPortMapper) MapPorts(_ context.Context, reqs []portmapperapi.PortB
 
 func (pm *stubPortMapper) UnmapPorts(_ context.Context, reqs []portmapperapi.PortBinding, _ portmapperapi.Firewaller) error {
 	for _, req := range reqs {
+		// We're only checking for the PortBinding here, not any other
+		// property of [portmapperapi.PortBinding].
 		idx := slices.IndexFunc(pm.mapped, func(pb portmapperapi.PortBinding) bool {
-			return pb.Equal(&req.PortBinding)
+			return pb.Equal(req.PortBinding)
 		})
 		if idx == -1 {
 			return fmt.Errorf("stubPortMapper.UnmapPorts: pb doesn't exist %v", req)
 		}
-		pm.mapped = slices.Delete(pm.mapped, idx, idx)
+		pm.mapped = slices.Delete(pm.mapped, idx, idx+1)
 	}
 	return nil
 }

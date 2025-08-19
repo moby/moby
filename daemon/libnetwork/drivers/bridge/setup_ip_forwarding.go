@@ -4,6 +4,7 @@ package bridge
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -17,7 +18,24 @@ const (
 	ipv6ForwardConfAll     = "/proc/sys/net/ipv6/conf/all/forwarding"
 )
 
-func setupIPv4Forwarding(fw firewaller.Firewaller, wantFilterForwardDrop bool) (retErr error) {
+type filterForwardDropper interface {
+	FilterForwardDrop(context.Context, firewaller.IPVersion) error
+}
+
+func checkIPv4Forwarding() error {
+	enabled, err := getKernelBoolParam(ipv4ForwardConf)
+	if err != nil {
+		return fmt.Errorf("checking IPv4 forwarding: %w", err)
+	}
+	if enabled {
+		return nil
+	}
+	// It's the user's responsibility to enable forwarding and secure their host. Or,
+	// start docker with --ip-forward=false to disable this check.
+	return errors.New("IPv4 forwarding is disabled: check your host's firewalling and set sysctl net.ipv4.ip_forward=1, or disable this check using daemon option --ip-forward=false")
+}
+
+func setupIPv4Forwarding(ffd filterForwardDropper, wantFilterForwardDrop bool) (retErr error) {
 	changed, err := configureIPForwarding(ipv4ForwardConf, '1')
 	if err != nil {
 		return err
@@ -34,16 +52,35 @@ func setupIPv4Forwarding(fw firewaller.Firewaller, wantFilterForwardDrop bool) (
 
 	// When enabling ip_forward set the default policy on forward chain to drop.
 	if changed && wantFilterForwardDrop {
-		if err := fw.FilterForwardDrop(context.TODO(), firewaller.IPv4); err != nil {
+		if err := ffd.FilterForwardDrop(context.TODO(), firewaller.IPv4); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func setupIPv6Forwarding(fw firewaller.Firewaller, wantFilterForwardDrop bool) (retErr error) {
+func checkIPv6Forwarding() error {
+	enabledDef, err := getKernelBoolParam(ipv6ForwardConfDefault)
+	if err != nil {
+		return fmt.Errorf("checking IPv6 default forwarding: %w", err)
+	}
+	enabledAll, err := getKernelBoolParam(ipv6ForwardConfAll)
+	if err != nil {
+		return fmt.Errorf("checking IPv6 global forwarding: %w", err)
+	}
+	if enabledDef && enabledAll {
+		return nil
+	}
+
+	// It's the user's responsibility to enable forwarding and secure their host. Or,
+	// start docker with --ip-forward=false to disable this check.
+	return errors.New("IPv6 global forwarding is disabled: check your host's firewalling and set sysctls net.ipv6.conf.all.forwarding=1 and net.ipv6.conf.default.forwarding=1, or disable this check using daemon option --ip-forward=false")
+}
+
+func setupIPv6Forwarding(ffd filterForwardDropper, wantFilterForwardDrop bool) (retErr error) {
 	// Set IPv6 default.forwarding, if needed.
-	// FIXME(robmry) - is it necessary to set this, setting "all" (below) does the job?
+	// Setting "all" (below) sets "default" as well, but need to check that "default" is
+	// set even if "all" is already set.
 	changedDef, err := configureIPForwarding(ipv6ForwardConfDefault, '1')
 	if err != nil {
 		return err
@@ -74,7 +111,7 @@ func setupIPv6Forwarding(fw firewaller.Firewaller, wantFilterForwardDrop bool) (
 	}
 
 	if (changedAll || changedDef) && wantFilterForwardDrop {
-		if err := fw.FilterForwardDrop(context.TODO(), firewaller.IPv6); err != nil {
+		if err := ffd.FilterForwardDrop(context.TODO(), firewaller.IPv6); err != nil {
 			return err
 		}
 	}

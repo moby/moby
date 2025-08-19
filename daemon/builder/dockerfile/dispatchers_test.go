@@ -265,7 +265,7 @@ func TestCmd(t *testing.T) {
 		expectedCommand = []string{"/bin/sh", "-c", "./executable"}
 	}
 
-	assert.Check(t, is.DeepEqual([]string(sb.state.runConfig.Cmd), expectedCommand))
+	assert.Check(t, is.DeepEqual(sb.state.runConfig.Cmd, expectedCommand))
 	assert.Check(t, sb.state.cmdSet)
 }
 
@@ -319,7 +319,7 @@ func TestEntrypoint(t *testing.T) {
 	} else {
 		expectedEntrypoint = []string{"/bin/sh", "-c", "/usr/sbin/nginx"}
 	}
-	assert.Check(t, is.DeepEqual([]string(sb.state.runConfig.Entrypoint), expectedEntrypoint))
+	assert.Check(t, is.DeepEqual(sb.state.runConfig.Entrypoint, expectedEntrypoint))
 }
 
 func TestExpose(t *testing.T) {
@@ -410,7 +410,7 @@ func TestShell(t *testing.T) {
 	assert.NilError(t, err)
 
 	expected := shellCmd
-	assert.Check(t, is.DeepEqual([]string(sb.state.runConfig.Shell), expected))
+	assert.Check(t, is.DeepEqual(sb.state.runConfig.Shell, expected))
 }
 
 func TestPrependEnvOnCmd(t *testing.T) {
@@ -449,7 +449,7 @@ func TestRunWithBuildArgs(t *testing.T) {
 	imageCache := &mockImageCache{
 		getCacheFunc: func(parentID string, cfg *container.Config) (string, error) {
 			// Check the runConfig.Cmd sent to probeCache()
-			assert.Check(t, is.DeepEqual([]string(cfg.Cmd), cachedCmd))
+			assert.Check(t, is.DeepEqual(cfg.Cmd, cachedCmd))
 			assert.Check(t, is.Nil(cfg.Entrypoint))
 			return "", nil
 		},
@@ -472,15 +472,15 @@ func TestRunWithBuildArgs(t *testing.T) {
 	}
 	mockBackend.containerCreateFunc = func(config backend.ContainerCreateConfig) (container.CreateResponse, error) {
 		// Check the runConfig.Cmd sent to create()
-		assert.Check(t, is.DeepEqual([]string(config.Config.Cmd), cmdWithShell))
+		assert.Check(t, is.DeepEqual(config.Config.Cmd, cmdWithShell))
 		assert.Check(t, is.Contains(config.Config.Env, "one=two"))
-		assert.Check(t, is.DeepEqual([]string(config.Config.Entrypoint), []string{""}))
+		assert.Check(t, is.DeepEqual(config.Config.Entrypoint, []string{""}))
 		return container.CreateResponse{ID: "12345"}, nil
 	}
 	mockBackend.commitFunc = func(cfg backend.CommitConfig) (image.ID, error) {
 		// Check the runConfig.Cmd sent to commit()
-		assert.Check(t, is.DeepEqual([]string(cfg.Config.Cmd), origCmd))
-		assert.Check(t, is.DeepEqual([]string(cfg.ContainerConfig.Cmd), cachedCmd))
+		assert.Check(t, is.DeepEqual(cfg.Config.Cmd, origCmd))
+		assert.Check(t, is.DeepEqual(cfg.ContainerConfig.Cmd, cachedCmd))
 		assert.Check(t, is.Nil(cfg.Config.Entrypoint))
 		return "", nil
 	}
@@ -508,7 +508,7 @@ func TestRunWithBuildArgs(t *testing.T) {
 	assert.NilError(t, dispatch(context.TODO(), sb, runinst))
 
 	// Check that runConfig.Cmd has not been modified by run
-	assert.Check(t, is.DeepEqual([]string(sb.state.runConfig.Cmd), origCmd))
+	assert.Check(t, is.DeepEqual(sb.state.runConfig.Cmd, origCmd))
 }
 
 func TestRunIgnoresHealthcheck(t *testing.T) {

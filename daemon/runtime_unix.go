@@ -35,7 +35,7 @@ const (
 
 type shimConfig struct {
 	Shim     string
-	Opts     interface{}
+	Opts     any
 	Features *features.Features
 
 	// Check if the ShimConfig is valid given the current state of the system.
@@ -200,7 +200,7 @@ func wrapRuntime(dir, name, binary string, args []string) (string, error) {
 // Get returns the containerd runtime and options for name, suitable to pass
 // into containerd.WithRuntime(). The runtime and options for the default
 // runtime are returned when name is the empty string.
-func (r *runtimes) Get(name string) (string, interface{}, error) {
+func (r *runtimes) Get(name string) (string, any, error) {
 	if name == "" {
 		name = r.Default
 	}

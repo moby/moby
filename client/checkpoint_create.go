@@ -14,6 +14,6 @@ func (cli *Client) CheckpointCreate(ctx context.Context, containerID string, opt
 	}
 
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/checkpoints", nil, options, nil)
-	ensureReaderClosed(resp)
+	defer ensureReaderClosed(resp)
 	return err
 }

@@ -29,7 +29,7 @@ const (
 	logWatcherBufferSize = 4096
 )
 
-var messagePool = &sync.Pool{New: func() interface{} { return &Message{Line: make([]byte, 0, 256)} }}
+var messagePool = &sync.Pool{New: func() any { return &Message{Line: make([]byte, 0, 256)} }}
 
 // NewMessage returns a new message from the message sync.Pool
 func NewMessage() *Message {

@@ -20,7 +20,7 @@ import (
 	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/moby/api/types/filters"
 	imagetypes "github.com/moby/moby/api/types/image"
-	timetypes "github.com/moby/moby/api/types/time"
+	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/go-digest"
@@ -537,11 +537,11 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 	}
 
 	err = imageFilters.WalkValues("until", func(value string) error {
-		ts, err := timetypes.GetTimestamp(value, time.Now())
+		ts, err := timestamp.GetTimestamp(value, time.Now())
 		if err != nil {
 			return err
 		}
-		seconds, nanoseconds, err := timetypes.ParseTimestamps(ts, 0)
+		seconds, nanoseconds, err := timestamp.ParseTimestamps(ts, 0)
 		if err != nil {
 			return err
 		}
@@ -732,7 +732,7 @@ func computeSharedSize(chainIDs []digest.Digest, layers map[digest.Digest]int, s
 }
 
 // readJSON reads content pointed by the descriptor and unmarshals it into a specified output.
-func readJSON(ctx context.Context, store content.Provider, desc ocispec.Descriptor, out interface{}) error {
+func readJSON(ctx context.Context, store content.Provider, desc ocispec.Descriptor, out any) error {
 	data, err := content.ReadBlob(ctx, store, desc)
 	if err != nil {
 		err = errors.Wrapf(err, "failed to read config content")

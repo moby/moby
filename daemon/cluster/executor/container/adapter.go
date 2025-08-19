@@ -113,7 +113,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 
 	dec := json.NewDecoder(pr)
 	dec.UseNumber()
-	m := map[string]interface{}{}
+	m := map[string]any{}
 	spamLimiter := rate.NewLimiter(rate.Every(time.Second), 1)
 
 	lastStatus := ""
@@ -128,7 +128,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 		// limit pull progress logs unless the status changes
 		if spamLimiter.Allow() || lastStatus != m["status"] {
 			// if we have progress details, we have everything we need
-			if progress, ok := m["progressDetail"].(map[string]interface{}); ok {
+			if progress, ok := m["progressDetail"].(map[string]any); ok {
 				// first, log the image and status
 				l = l.WithFields(log.Fields{
 					"image":  c.container.image(),
@@ -523,7 +523,7 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 		}
 		// print since as this formatted string because the docker container
 		// logs interface expects it like this.
-		// see [github.com/moby/moby/api/types/time.ParseTimestamps]
+		// see [github.com/moby/moby/v2/daemon/internal/timestamp.ParseTimestamps]
 		apiOptions.Since = fmt.Sprintf("%d.%09d", since.Unix(), int64(since.Nanosecond()))
 	}
 

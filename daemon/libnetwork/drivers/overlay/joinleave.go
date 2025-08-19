@@ -23,7 +23,7 @@ import (
 )
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, epOpts, _ map[string]interface{}) error {
+func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, epOpts, _ map[string]any) error {
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.drivers.overlay.Join", trace.WithAttributes(
 		attribute.String("nid", nid),
 		attribute.String("eid", eid),
@@ -174,8 +174,7 @@ func (d *driver) EventNotify(nid, tableName, key string, prev, value []byte) {
 		prevPeer, err = UnmarshalPeerRecord(prev)
 		if err != nil {
 			log.G(context.TODO()).WithError(err).Error("Failed to unmarshal previous peer record")
-		}
-		if prevPeer.TunnelEndpointIP == d.advertiseAddress {
+		} else if prevPeer.TunnelEndpointIP == d.advertiseAddress {
 			// Ignore local peers. We don't add them to the VXLAN
 			// FDB so don't need to remove them.
 			prevPeer = nil
@@ -186,8 +185,7 @@ func (d *driver) EventNotify(nid, tableName, key string, prev, value []byte) {
 		newPeer, err = UnmarshalPeerRecord(value)
 		if err != nil {
 			log.G(context.TODO()).WithError(err).Error("Failed to unmarshal peer record")
-		}
-		if newPeer.TunnelEndpointIP == d.advertiseAddress {
+		} else if newPeer.TunnelEndpointIP == d.advertiseAddress {
 			newPeer = nil
 		}
 	}

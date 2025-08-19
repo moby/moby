@@ -19,9 +19,9 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func handle(t *testing.T, mux *http.ServeMux, method string, h func(map[string]interface{}) interface{}) {
+func handle(t *testing.T, mux *http.ServeMux, method string, h func(map[string]any) any) {
 	mux.HandleFunc(fmt.Sprintf("/%s.%s", ipamapi.PluginEndpointType, method), func(w http.ResponseWriter, r *http.Request) {
-		var ask map[string]interface{}
+		var ask map[string]any
 		err := json.NewDecoder(r.Body).Decode(&ask)
 		if err != nil && !errors.Is(err, io.EOF) {
 			t.Fatal(err)
@@ -78,8 +78,8 @@ func TestGetCapabilities(t *testing.T) {
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
 
-	handle(t, mux, "GetCapabilities", func(msg map[string]interface{}) interface{} {
-		return map[string]interface{}{
+	handle(t, mux, "GetCapabilities", func(msg map[string]any) any {
+		return map[string]any{
 			"RequiresMACAddress": true,
 		}
 	})
@@ -134,8 +134,8 @@ func TestGetDefaultAddressSpaces(t *testing.T) {
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
 
-	handle(t, mux, "GetDefaultAddressSpaces", func(msg map[string]interface{}) interface{} {
-		return map[string]interface{}{
+	handle(t, mux, "GetDefaultAddressSpaces", func(msg map[string]any) any {
+		return map[string]any{
 			"LocalDefaultAddressSpace":  "white",
 			"GlobalDefaultAddressSpace": "blue",
 		}
@@ -168,14 +168,14 @@ func TestRemoteDriver(t *testing.T) {
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
 
-	handle(t, mux, "GetDefaultAddressSpaces", func(msg map[string]interface{}) interface{} {
-		return map[string]interface{}{
+	handle(t, mux, "GetDefaultAddressSpaces", func(msg map[string]any) any {
+		return map[string]any{
 			"LocalDefaultAddressSpace":  "white",
 			"GlobalDefaultAddressSpace": "blue",
 		}
 	})
 
-	handle(t, mux, "RequestPool", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "RequestPool", func(msg map[string]any) any {
 		as := "white"
 		if v, ok := msg["AddressSpace"]; ok && v.(string) != "" {
 			as = v.(string)
@@ -193,21 +193,21 @@ func TestRemoteDriver(t *testing.T) {
 		if sp != "" {
 			pid = fmt.Sprintf("%s/%s", pid, sp)
 		}
-		return map[string]interface{}{
+		return map[string]any{
 			"PoolID": pid,
 			"Pool":   pl,
 			"Data":   map[string]string{"DNS": "8.8.8.8"},
 		}
 	})
 
-	handle(t, mux, "ReleasePool", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "ReleasePool", func(msg map[string]any) any {
 		if _, ok := msg["PoolID"]; !ok {
 			t.Fatal("Missing PoolID in Release request")
 		}
-		return map[string]interface{}{}
+		return map[string]any{}
 	})
 
-	handle(t, mux, "RequestAddress", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "RequestAddress", func(msg map[string]any) any {
 		if _, ok := msg["PoolID"]; !ok {
 			t.Fatal("Missing PoolID in address request")
 		}
@@ -220,19 +220,19 @@ func TestRemoteDriver(t *testing.T) {
 			ip = "172.20.0.34"
 		}
 		ip = fmt.Sprintf("%s/16", ip)
-		return map[string]interface{}{
+		return map[string]any{
 			"Address": ip,
 		}
 	})
 
-	handle(t, mux, "ReleaseAddress", func(msg map[string]interface{}) interface{} {
+	handle(t, mux, "ReleaseAddress", func(msg map[string]any) any {
 		if _, ok := msg["PoolID"]; !ok {
 			t.Fatal("Missing PoolID in address request")
 		}
 		if _, ok := msg["Address"]; !ok {
 			t.Fatal("Missing Address in release address request")
 		}
-		return map[string]interface{}{}
+		return map[string]any{}
 	})
 
 	p, err := plugins.Get(plugin, ipamapi.PluginEndpointType)

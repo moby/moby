@@ -40,7 +40,7 @@ fi
 # intentionally open a couple bogus file descriptors to help test that they get scrubbed in containers
 exec 41>&1 42>&2
 
-export DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
+export DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-native}
 export DOCKER_USERLANDPROXY=${DOCKER_USERLANDPROXY:-true}
 
 # example usage: DOCKER_STORAGE_OPTS="dm.basesize=20G,dm.loopdatasize=200G"
@@ -66,6 +66,13 @@ if [ "$DOCKER_EXPERIMENTAL" ]; then
 fi
 
 dockerd="dockerd"
+
+# When running with the nftables backend, dockerd will not enable IP forwarding (by default, it
+# will error on network creation if forwarding is not enabled).
+if [ "$DOCKER_FIREWALL_BACKEND" = "nftables" ]; then
+	sysctl -w net.ipv4.ip_forward=1 > /dev/null
+	sysctl -w net.ipv6.conf.all.forwarding=1 > /dev/null
+fi
 
 if [ -n "$DOCKER_ROOTLESS" ]; then
 	if [ -z "$TEST_SKIP_INTEGRATION_CLI" ]; then

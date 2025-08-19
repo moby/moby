@@ -16,7 +16,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func summaryFromInterface(i interface{}) (*libcontainerdtypes.Summary, error) {
+func summaryFromInterface(i any) (*libcontainerdtypes.Summary, error) {
 	switch pd := i.(type) {
 	case *options.ProcessDetails:
 		return &libcontainerdtypes.Summary{

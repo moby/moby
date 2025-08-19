@@ -330,8 +330,8 @@ func TestInlineFormatWithNonDefaultOptions(t *testing.T) {
 		if event["line"] != "1" ||
 			event["source"] != "stdout" ||
 			event["tag"] != "container_image_name/container_name" ||
-			event["attrs"].(map[string]interface{})["a"] != "b" ||
-			event["attrs"].(map[string]interface{})["foo_finder"] != "bar" ||
+			event["attrs"].(map[string]any)["a"] != "b" ||
+			event["attrs"].(map[string]any)["foo_finder"] != "bar" ||
 			len(event) != 4 {
 			t.Fatalf("Unexpected event in message %v", event)
 		}
@@ -427,7 +427,7 @@ func TestJsonFormat(t *testing.T) {
 	if event, err := message1.EventAsMap(); err != nil {
 		t.Fatal(err)
 	} else {
-		if event["line"].(map[string]interface{})["a"] != "b" ||
+		if event["line"].(map[string]any)["a"] != "b" ||
 			event["source"] != "stdout" ||
 			event["tag"] != "containeriid" ||
 			len(event) != 3 {

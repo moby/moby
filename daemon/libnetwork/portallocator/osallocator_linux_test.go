@@ -3,7 +3,9 @@ package portallocator
 import (
 	"io"
 	"net"
+	"net/netip"
 	"os"
+	"syscall"
 	"testing"
 
 	"github.com/ishidawataru/sctp"
@@ -206,4 +208,23 @@ func TestRepeatAllocation(t *testing.T) {
 			assert.Equal(t, port, 8080)
 		})
 	}
+}
+
+func TestOnlyOneSocketBindsUDPPort(t *testing.T) {
+	const port = 5000
+	addr := netip.MustParseAddr("127.0.0.1")
+
+	// Simulate another process binding to the same UDP port.
+	f, err := bindTCPOrUDP(netip.AddrPortFrom(addr, port), syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
+	assert.NilError(t, err)
+	defer f.Close()
+
+	// Then try to allocate that port using the OSAllocator.
+	alloc := OSAllocator{allocator: newInstance()}
+	_, socks, err := alloc.RequestPortsInRange([]net.IP{addr.AsSlice()}, syscall.IPPROTO_UDP, port, port)
+	// In case RequestPortsInRange succeeded, close the sockets to not affect subsequent tests
+	defer closeSocks(t, socks)
+
+	assert.ErrorContains(t, err, "failed to bind host port")
+	assert.Equal(t, len(socks), 0)
 }

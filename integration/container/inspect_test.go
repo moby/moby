@@ -170,7 +170,7 @@ func TestContainerInspectWithRaw(t *testing.T) {
 			assert.NilError(t, err)
 			assert.Check(t, is.Equal(ctrInspect.ID, ctrID))
 
-			var rawInspect map[string]interface{}
+			var rawInspect map[string]any
 			err = json.Unmarshal(raw, &rawInspect)
 			assert.NilError(t, err, "Should produce valid JSON")
 

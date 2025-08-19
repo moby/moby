@@ -20,8 +20,8 @@ type Backend interface {
 	SystemInfo(context.Context) (*system.Info, error)
 	SystemVersion(context.Context) (types.Version, error)
 	SystemDiskUsage(ctx context.Context, opts backend.DiskUsageOptions) (*backend.DiskUsage, error)
-	SubscribeToEvents(since, until time.Time, ef filters.Args) ([]events.Message, chan interface{})
-	UnsubscribeFromEvents(chan interface{})
+	SubscribeToEvents(since, until time.Time, ef filters.Args) ([]events.Message, chan any)
+	UnsubscribeFromEvents(chan any)
 	AuthenticateToRegistry(ctx context.Context, authConfig *registry.AuthConfig) (string, error)
 }
 

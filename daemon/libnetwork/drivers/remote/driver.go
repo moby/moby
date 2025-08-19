@@ -138,11 +138,11 @@ func (d *driver) getCapabilities() (*driverapi.Capability, error) {
 // Config is not implemented for remote drivers, since it is assumed
 // to be supplied to the remote process out-of-band (e.g., as command
 // line arguments).
-func (d *driver) Config(option map[string]interface{}) error {
+func (d *driver) Config(option map[string]any) error {
 	return &driverapi.ErrNotImplemented{}
 }
 
-func (d *driver) call(methodName string, arg interface{}, retVal maybeError) error {
+func (d *driver) call(methodName string, arg any, retVal maybeError) error {
 	method := driverapi.NetworkPluginEndpointType + "." + methodName
 	err := d.endpoint.Call(method, arg, retVal)
 	if err != nil {
@@ -171,7 +171,7 @@ func (d *driver) NetworkFree(id string) error {
 	return d.call("FreeNetwork", fr, &api.FreeNetworkResponse{})
 }
 
-func (d *driver) CreateNetwork(ctx context.Context, id string, options map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(ctx context.Context, id string, options map[string]any, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	create := &api.CreateNetworkRequest{
 		NetworkID: id,
 		Options:   options,
@@ -196,7 +196,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 	return d.call("DeleteNetwork", &api.DeleteNetworkRequest{NetworkID: nid}, &api.DeleteNetworkResponse{})
 }
 
-func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) (retErr error) {
+func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]any) (retErr error) {
 	if ifInfo == nil {
 		return errors.New("must not be called with nil InterfaceInfo")
 	}
@@ -269,7 +269,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	return d.call("DeleteEndpoint", deleteRequest, &api.DeleteEndpointResponse{})
 }
 
-func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
+func (d *driver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
 	info := &api.EndpointInfoRequest{
 		NetworkID:  nid,
 		EndpointID: eid,
@@ -282,7 +282,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, options map[string]interface{}) (retErr error) {
+func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, options map[string]any) (retErr error) {
 	join := &api.JoinRequest{
 		NetworkID:  nid,
 		EndpointID: eid,
@@ -437,7 +437,7 @@ func (d *driver) IsBuiltIn() bool {
 }
 
 // DiscoverNew is a notification for a new discovery event, such as a new node joining a cluster
-func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
+func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data any) error {
 	if dType != discoverapi.NodeDiscovery {
 		return nil
 	}
@@ -449,7 +449,7 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 }
 
 // DiscoverDelete is a notification for a discovery delete event, such as a node leaving a cluster
-func (d *driver) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
+func (d *driver) DiscoverDelete(dType discoverapi.DiscoveryType, data any) error {
 	if dType != discoverapi.NodeDiscovery {
 		return nil
 	}

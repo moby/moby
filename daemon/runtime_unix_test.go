@@ -49,7 +49,7 @@ func TestSetupRuntimes(t *testing.T) {
 			name: "OptionsOnly",
 			config: &config.Config{
 				Runtimes: map[string]system.Runtime{
-					"myruntime": {Options: map[string]interface{}{"hello": "world"}},
+					"myruntime": {Options: map[string]any{"hello": "world"}},
 				},
 			},
 			expectErr: "either a runtimeType or a path must be configured",
@@ -67,7 +67,7 @@ func TestSetupRuntimes(t *testing.T) {
 			name: "PathAndOptions",
 			config: &config.Config{
 				Runtimes: map[string]system.Runtime{
-					"myruntime": {Path: "/bin/true", Options: map[string]interface{}{"a": "b"}},
+					"myruntime": {Path: "/bin/true", Options: map[string]any{"a": "b"}},
 				},
 			},
 			expectErr: "options cannot be used with a path runtime",
@@ -88,7 +88,7 @@ func TestSetupRuntimes(t *testing.T) {
 					"myruntime": {
 						Path:    "/bin/true",
 						Args:    []string{"--version"},
-						Options: map[string]interface{}{"hmm": 3},
+						Options: map[string]any{"hmm": 3},
 					},
 				},
 			},
@@ -100,7 +100,7 @@ func TestSetupRuntimes(t *testing.T) {
 				Runtimes: map[string]system.Runtime{
 					"myruntime": {
 						Type:    "io.containerd.kata.v2",
-						Options: map[string]interface{}{"a": "b"},
+						Options: map[string]any{"a": "b"},
 						Args:    []string{"--help"},
 					},
 				},
@@ -115,7 +115,7 @@ func TestSetupRuntimes(t *testing.T) {
 						Path:    "/bin/true",
 						Args:    []string{"foo"},
 						Type:    "io.containerd.runsc.v1",
-						Options: map[string]interface{}{"a": "b"},
+						Options: map[string]any{"a": "b"},
 					},
 				},
 			},
@@ -203,7 +203,7 @@ func TestGetRuntime(t *testing.T) {
 	const shimWithOptsName = "shimwithopts"
 	shimWithOpts := system.Runtime{
 		Type:    plugins.RuntimeRuncV2,
-		Options: map[string]interface{}{"IoUid": 42},
+		Options: map[string]any{"IoUid": 42},
 	}
 
 	const shimAliasName = "wasmedge"
@@ -217,7 +217,7 @@ func TestGetRuntime(t *testing.T) {
 	const gvisorName = "gvisor"
 	gvisorRuntime := system.Runtime{
 		Type: "io.containerd.runsc.v1",
-		Options: map[string]interface{}{
+		Options: map[string]any{
 			"TypeUrl":    "io.containerd.runsc.v1.options",
 			"ConfigPath": "/path/to/runsc.toml",
 		},

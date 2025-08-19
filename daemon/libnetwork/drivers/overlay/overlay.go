@@ -33,7 +33,7 @@ var (
 type driver struct {
 	// Immutable; mu does not need to be held when accessing these fields.
 
-	config map[string]interface{}
+	config map[string]any
 	initOS sync.Once
 
 	// encrMu guards secMap and keys,
@@ -58,7 +58,7 @@ type driver struct {
 }
 
 // Register registers a new instance of the overlay driver.
-func Register(r driverapi.Registerer, config map[string]interface{}) error {
+func Register(r driverapi.Registerer, config map[string]any) error {
 	d := &driver{
 		networks: networkTable{},
 		secMap:   encrMap{},
@@ -113,7 +113,7 @@ func (d *driver) nodeJoin(data discoverapi.NodeDiscoveryData) error {
 }
 
 // DiscoverNew is a notification for a new discovery event, such as a new node joining a cluster
-func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
+func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data any) error {
 	switch dType {
 	case discoverapi.NodeDiscovery:
 		nodeData, ok := data.(discoverapi.NodeDiscoveryData)
@@ -170,6 +170,6 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 }
 
 // DiscoverDelete is a notification for a discovery delete event, such as a node leaving a cluster
-func (d *driver) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
+func (d *driver) DiscoverDelete(dType discoverapi.DiscoveryType, data any) error {
 	return nil
 }

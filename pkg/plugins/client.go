@@ -119,12 +119,12 @@ func WithRequestTimeout(t time.Duration) func(*RequestOpts) {
 
 // Call calls the specified method with the specified arguments for the plugin.
 // It will retry for 30 seconds if a failure occurs when calling.
-func (c *Client) Call(serviceMethod string, args, ret interface{}) error {
+func (c *Client) Call(serviceMethod string, args, ret any) error {
 	return c.CallWithOptions(serviceMethod, args, ret)
 }
 
 // CallWithOptions is just like call except it takes options
-func (c *Client) CallWithOptions(serviceMethod string, args interface{}, ret interface{}, opts ...func(*RequestOpts)) error {
+func (c *Client) CallWithOptions(serviceMethod string, args any, ret any, opts ...func(*RequestOpts)) error {
 	var buf bytes.Buffer
 	if args != nil {
 		if err := json.NewEncoder(&buf).Encode(args); err != nil {
@@ -146,7 +146,7 @@ func (c *Client) CallWithOptions(serviceMethod string, args interface{}, ret int
 }
 
 // Stream calls the specified method with the specified arguments for the plugin and returns the response body
-func (c *Client) Stream(serviceMethod string, args interface{}) (io.ReadCloser, error) {
+func (c *Client) Stream(serviceMethod string, args any) (io.ReadCloser, error) {
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(args); err != nil {
 		return nil, err
@@ -155,7 +155,7 @@ func (c *Client) Stream(serviceMethod string, args interface{}) (io.ReadCloser, 
 }
 
 // SendFile calls the specified method, and passes through the IO stream
-func (c *Client) SendFile(serviceMethod string, data io.Reader, ret interface{}) error {
+func (c *Client) SendFile(serviceMethod string, data io.Reader, ret any) error {
 	body, err := c.callWithRetry(serviceMethod, data, true)
 	if err != nil {
 		return err

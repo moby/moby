@@ -16,7 +16,7 @@ type Stats struct {
 }
 
 // InterfaceToStats returns a stats object from the platform-specific interface.
-func InterfaceToStats(read time.Time, v interface{}) *Stats {
+func InterfaceToStats(read time.Time, v any) *Stats {
 	return &Stats{
 		HCSStats: v.(*hcsshim.Statistics),
 		Read:     read,

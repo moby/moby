@@ -90,23 +90,23 @@ func TestPingSuccess(t *testing.T) {
 func TestPingHeadFallback(t *testing.T) {
 	tests := []struct {
 		status   int
-		expected string
+		expected []string
 	}{
 		{
 			status:   http.StatusOK,
-			expected: http.MethodHead,
+			expected: []string{http.MethodHead},
 		},
 		{
 			status:   http.StatusInternalServerError,
-			expected: http.MethodHead,
+			expected: []string{http.MethodHead, http.MethodGet},
 		},
 		{
 			status:   http.StatusNotFound,
-			expected: "HEAD, GET",
+			expected: []string{http.MethodHead, http.MethodGet},
 		},
 		{
 			status:   http.StatusMethodNotAllowed,
-			expected: "HEAD, GET",
+			expected: []string{http.MethodHead, http.MethodGet},
 		},
 	}
 
@@ -116,17 +116,17 @@ func TestPingHeadFallback(t *testing.T) {
 			client := &Client{
 				client: newMockClient(func(req *http.Request) (*http.Response, error) {
 					reqs = append(reqs, req.Method)
-					resp := &http.Response{StatusCode: http.StatusOK}
+					resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{}}
 					if req.Method == http.MethodHead {
 						resp.StatusCode = tc.status
 					}
-					resp.Header = http.Header{}
-					resp.Header.Add("Api-Version", strings.Join(reqs, ", "))
+					resp.Header.Add("Api-Version", "v1.2.3")
 					return resp, nil
 				}),
 			}
 			ping, _ := client.Ping(context.Background())
-			assert.Check(t, is.Equal(ping.APIVersion, tc.expected))
+			assert.Check(t, is.Equal(ping.APIVersion, "v1.2.3"))
+			assert.Check(t, is.DeepEqual(reqs, tc.expected))
 		})
 	}
 }

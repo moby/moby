@@ -1,3 +1,5 @@
+<!-- This is a generated file; DO NOT EDIT. -->
+
 ## iptables for a new Daemon
 
 When the daemon starts, it creates custom chains, and rules for the

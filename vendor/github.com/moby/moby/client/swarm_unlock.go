@@ -9,6 +9,6 @@ import (
 // SwarmUnlock unlocks locked swarm.
 func (cli *Client) SwarmUnlock(ctx context.Context, req swarm.UnlockRequest) error {
 	resp, err := cli.post(ctx, "/swarm/unlock", nil, req, nil)
-	ensureReaderClosed(resp)
+	defer ensureReaderClosed(resp)
 	return err
 }

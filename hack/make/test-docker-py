@@ -15,7 +15,7 @@ source hack/make/.integration-test-helpers
 : "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml}"
 
 # build --squash is not supported with containerd integration.
-if [ -n "$TEST_INTEGRATION_USE_SNAPSHOTTER" ]; then
+if [ -z "$TEST_INTEGRATION_USE_GRAPHDRIVER" ]; then
 	PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_build_test.py::BuildTest::test_build_squash"
 fi
 
@@ -37,6 +37,11 @@ PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_image_test.py
 
 # TODO(laurazard): re-enable after https://github.com/docker/docker-py/pull/3290 is included in the DOCKER_PY_COMMIT release.
 PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/models_containers_test.py::ContainerTest::test_exec_run_failed"
+
+# Legacy links are deprecated since a long time, and starting with v29.0, the Engine won't set legacy links env vars
+# automatically in linking containers. Thus, this test is expected to fail — skip it. See https://github.com/moby/moby/pull/50719
+PY_TEST_OPTIONS="${PY_TEST_OPTIONS} --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_create_with_links"
+
 (
 	bundle .integration-daemon-start
 

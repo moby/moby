@@ -11,9 +11,9 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
 	imagetypes "github.com/moby/moby/api/types/image"
-	timetypes "github.com/moby/moby/api/types/time"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
+	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -192,11 +192,11 @@ func getUntilFromPruneFilters(pruneFilters filters.Args) (time.Time, error) {
 	if len(untilFilters) > 1 {
 		return until, errors.New("more than one until filter specified")
 	}
-	ts, err := timetypes.GetTimestamp(untilFilters[0], time.Now())
+	ts, err := timestamp.GetTimestamp(untilFilters[0], time.Now())
 	if err != nil {
 		return until, err
 	}
-	seconds, nanoseconds, err := timetypes.ParseTimestamps(ts, 0)
+	seconds, nanoseconds, err := timestamp.ParseTimestamps(ts, 0)
 	if err != nil {
 		return until, err
 	}

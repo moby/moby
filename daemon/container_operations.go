@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/netip"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 
@@ -115,16 +117,10 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 	// slice (PortMap is a map[Port][]PortBinding).
 	bindings := make(containertypes.PortMap)
 	for p, b := range ctr.HostConfig.PortBindings {
-		copied := make([]containertypes.PortBinding, len(b))
-		copy(copied, b)
-		bindings[p] = copied
+		bindings[p] = slices.Clone(b)
 	}
 
-	// TODO(thaJeztah): Move this code to a method on nat.PortSet.
-	ports := make([]containertypes.PortRangeProto, 0, len(ctr.Config.ExposedPorts))
-	for p := range ctr.Config.ExposedPorts {
-		ports = append(ports, p)
-	}
+	ports := slices.Collect(maps.Keys(ctr.Config.ExposedPorts))
 	nat.SortPortMap(ports, bindings)
 
 	var (

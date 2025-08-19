@@ -23,7 +23,7 @@ func (dc *delayedConnection) Write(p []byte) (int, error) {
 	if dc.con != nil {
 		return dc.con.Write(p)
 	}
-	return 0, errors.New("use of closed network connection")
+	return 0, net.ErrClosed
 }
 
 func (dc *delayedConnection) Read(p []byte) (int, error) {
@@ -31,7 +31,7 @@ func (dc *delayedConnection) Read(p []byte) (int, error) {
 	if dc.con != nil {
 		return dc.con.Read(p)
 	}
-	return 0, errors.New("use of closed network connection")
+	return 0, net.ErrClosed
 }
 
 func (dc *delayedConnection) unblockConnectionWaiters() {

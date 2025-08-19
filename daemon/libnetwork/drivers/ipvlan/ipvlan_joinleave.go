@@ -30,7 +30,7 @@ const (
 )
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, epOpts, _ map[string]interface{}) error {
+func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, epOpts, _ map[string]any) error {
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.drivers.ipvlan.Join", trace.WithAttributes(
 		attribute.String("nid", nid),
 		attribute.String("eid", eid),

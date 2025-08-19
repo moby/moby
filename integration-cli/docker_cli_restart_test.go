@@ -32,7 +32,7 @@ func (s *DockerCLIRestartSuite) TestRestartStoppedContainer(c *testing.T) {
 	cID := cli.DockerCmd(c, "run", "-d", "busybox", "sh", "-c", "echo foobar && exit 0").Stdout()
 	cID = strings.TrimSpace(cID)
 
-	getLogs := func(t *testing.T) (interface{}, string) {
+	getLogs := func(t *testing.T) (any, string) {
 		out := cli.DockerCmd(t, "logs", cID).Combined()
 		return out, ""
 	}
@@ -52,7 +52,7 @@ func (s *DockerCLIRestartSuite) TestRestartRunningContainer(c *testing.T) {
 	cID = strings.TrimSpace(cID)
 	cli.WaitRun(c, cID)
 
-	getLogs := func(t *testing.T) (interface{}, string) {
+	getLogs := func(t *testing.T) (any, string) {
 		out := cli.DockerCmd(t, "logs", cID).Combined()
 		return out, ""
 	}

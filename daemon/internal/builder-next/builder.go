@@ -23,13 +23,13 @@ import (
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
-	timetypes "github.com/moby/moby/api/types/time"
 	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/daemon/internal/builder-next/exporter"
 	"github.com/moby/moby/v2/daemon/internal/builder-next/exporter/mobyexporter"
 	"github.com/moby/moby/v2/daemon/internal/builder-next/exporter/overrides"
+	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
 	"github.com/moby/moby/v2/daemon/server/backend"
@@ -490,7 +490,7 @@ func (sp *streamProxy) Context() context.Context {
 	return sp.ctx
 }
 
-func (sp *streamProxy) RecvMsg(m interface{}) error {
+func (sp *streamProxy) RecvMsg(m any) error {
 	return io.EOF
 }
 
@@ -503,7 +503,7 @@ func (sp *statusProxy) Send(resp *controlapi.StatusResponse) error {
 	return sp.SendMsg(resp)
 }
 
-func (sp *statusProxy) SendMsg(m interface{}) error {
+func (sp *statusProxy) SendMsg(m any) error {
 	if sr, ok := m.(*controlapi.StatusResponse); ok {
 		sp.ch <- sr
 	}
@@ -519,7 +519,7 @@ func (sp *pruneProxy) Send(resp *controlapi.UsageRecord) error {
 	return sp.SendMsg(resp)
 }
 
-func (sp *pruneProxy) SendMsg(m interface{}) error {
+func (sp *pruneProxy) SendMsg(m any) error {
 	if sr, ok := m.(*controlapi.UsageRecord); ok {
 		sp.ch <- sr
 	}
@@ -659,13 +659,13 @@ func toBuildkitPruneInfo(opts build.CachePruneOptions) (client.PruneInfo, error)
 	case 0:
 		// nothing to do
 	case 1:
-		ts, err := timetypes.GetTimestamp(untilValues[0], time.Now())
+		ts, err := timestamp.GetTimestamp(untilValues[0], time.Now())
 		if err != nil {
 			return client.PruneInfo{}, errInvalidFilterValue{
 				errors.Wrapf(err, "%q filter expects a duration (e.g., '24h') or a timestamp", filterKey),
 			}
 		}
-		seconds, nanoseconds, err := timetypes.ParseTimestamps(ts, 0)
+		seconds, nanoseconds, err := timestamp.ParseTimestamps(ts, 0)
 		if err != nil {
 			return client.PruneInfo{}, errInvalidFilterValue{
 				errors.Wrapf(err, "failed to parse timestamp %q", ts),

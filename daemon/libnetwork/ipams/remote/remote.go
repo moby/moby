@@ -87,7 +87,7 @@ func getPluginClient(p plugingetter.CompatPlugin) (*plugins.Client, error) {
 	return client, nil
 }
 
-func (a *allocator) call(methodName string, arg interface{}, retVal PluginResponse) error {
+func (a *allocator) call(methodName string, arg any, retVal PluginResponse) error {
 	method := ipamapi.PluginEndpointType + "." + methodName
 	err := a.endpoint.Call(method, arg, retVal)
 	if err != nil {

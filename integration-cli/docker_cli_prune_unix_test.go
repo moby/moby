@@ -35,7 +35,7 @@ func pruneNetworkAndVerify(t *testing.T, d *daemon.Daemon, kept, pruned []string
 	assert.NilError(t, err)
 
 	for _, s := range kept {
-		poll.WaitOn(t, pollCheck(t, func(*testing.T) (interface{}, string) {
+		poll.WaitOn(t, pollCheck(t, func(*testing.T) (any, string) {
 			out, err := d.Cmd("network", "ls", "--format", "{{.Name}}")
 			assert.NilError(t, err)
 			return out, ""
@@ -43,7 +43,7 @@ func pruneNetworkAndVerify(t *testing.T, d *daemon.Daemon, kept, pruned []string
 	}
 
 	for _, s := range pruned {
-		poll.WaitOn(t, pollCheck(t, func(*testing.T) (interface{}, string) {
+		poll.WaitOn(t, pollCheck(t, func(*testing.T) (any, string) {
 			out, err := d.Cmd("network", "ls", "--format", "{{.Name}}")
 			assert.NilError(t, err)
 			return out, ""

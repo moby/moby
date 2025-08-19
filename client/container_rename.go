@@ -15,6 +15,6 @@ func (cli *Client) ContainerRename(ctx context.Context, containerID, newContaine
 	query := url.Values{}
 	query.Set("name", newContainerName)
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/rename", query, nil, nil)
-	ensureReaderClosed(resp)
+	defer ensureReaderClosed(resp)
 	return err
 }

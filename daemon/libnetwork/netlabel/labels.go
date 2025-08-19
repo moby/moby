@@ -77,7 +77,7 @@ const (
 // GetIfname returns the value associated to the Ifname netlabel from the
 // provided options. If there's no Ifname netlabel, or if the value isn't a
 // string, it returns an empty string.
-func GetIfname(opts map[string]interface{}) string {
+func GetIfname(opts map[string]any) string {
 	ifname, _ := opts[Ifname].(string)
 	return ifname
 }

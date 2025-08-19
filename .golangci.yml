@@ -69,6 +69,8 @@ linters:
               desc: Use github.com/moby/sys/userns instead.
             - pkg: "github.com/tonistiigi/fsutil"
               desc: The fsutil module does not have a stable API, so we should not have a direct dependency unless necessary.
+            - pkg: "github.com/hashicorp/go-multierror"
+              desc: "Use errors.Join instead"
 
     dupword:
       ignore:
@@ -215,6 +217,7 @@ linters:
         - name: superfluous-else
           arguments:
             - preserve-scope
+        - name: use-any
         - name: use-errors-new
         - name: var-declaration
 

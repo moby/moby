@@ -23,6 +23,6 @@ func (cli *Client) NetworkDisconnect(ctx context.Context, networkID, containerID
 		Force:     force,
 	}
 	resp, err := cli.post(ctx, "/networks/"+networkID+"/disconnect", nil, nd, nil)
-	ensureReaderClosed(resp)
+	defer ensureReaderClosed(resp)
 	return err
 }

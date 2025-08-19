@@ -33,6 +33,6 @@ func (cli *Client) resize(ctx context.Context, basePath string, height, width ui
 	query.Set("w", strconv.FormatUint(uint64(width), 10))
 
 	resp, err := cli.post(ctx, basePath+"/resize", query, nil, nil)
-	ensureReaderClosed(resp)
+	defer ensureReaderClosed(resp)
 	return err
 }

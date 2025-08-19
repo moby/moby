@@ -73,7 +73,7 @@ func TestDecodeCreateRequest(t *testing.T) {
 			assert.NilError(t, err)
 
 			assert.Check(t, is.Equal(req.Image, tc.imgName))
-			assert.Check(t, is.DeepEqual([]string(req.Entrypoint), tc.entrypoint))
+			assert.Check(t, is.DeepEqual(req.Entrypoint, tc.entrypoint))
 
 			var expected int64 = 4194304
 			assert.Check(t, is.Equal(req.HostConfig.Memory, expected))

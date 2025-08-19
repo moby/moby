@@ -31,7 +31,7 @@ func (d *driver) NetworkFree(id string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]any, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	d.Lock()
 	defer d.Unlock()
 
@@ -48,7 +48,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 	return types.ForbiddenErrorf("network of type %q cannot be deleted", NetworkType)
 }
 
-func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
+func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]any) error {
 	return nil
 }
 
@@ -56,12 +56,12 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	return nil
 }
 
-func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
-	return make(map[string]interface{}), nil
+func (d *driver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
+	return make(map[string]any), nil
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, _ map[string]interface{}) error {
+func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, _ map[string]any) error {
 	return nil
 }
 

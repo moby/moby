@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -67,7 +69,7 @@ func Network() bool {
 	}
 
 	resp, err := c.Get(url)
-	if err != nil && strings.Contains(err.Error(), "use of closed network connection") {
+	if err != nil && !errors.Is(err, net.ErrClosed) {
 		panic(fmt.Sprintf("Timeout for GET request on %s", url))
 	}
 	if resp != nil {

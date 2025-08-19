@@ -23,24 +23,20 @@ package zapcore
 import (
 	"encoding/base64"
 	"math"
-	"sync"
 	"time"
 	"unicode/utf8"
 
 	"go.uber.org/zap/buffer"
 	"go.uber.org/zap/internal/bufferpool"
+	"go.uber.org/zap/internal/pool"
 )
 
 // For JSON-escaping; see jsonEncoder.safeAddString below.
 const _hex = "0123456789abcdef"
 
-var _jsonPool = sync.Pool{New: func() interface{} {
+var _jsonPool = pool.New(func() *jsonEncoder {
 	return &jsonEncoder{}
-}}
-
-func getJSONEncoder() *jsonEncoder {
-	return _jsonPool.Get().(*jsonEncoder)
-}
+})
 
 func putJSONEncoder(enc *jsonEncoder) {
 	if enc.reflectBuf != nil {
@@ -71,7 +67,9 @@ type jsonEncoder struct {
 //
 // Note that the encoder doesn't deduplicate keys, so it's possible to produce
 // a message like
-//   {"foo":"bar","foo":"baz"}
+//
+//	{"foo":"bar","foo":"baz"}
+//
 // This is permitted by the JSON specification, but not encouraged. Many
 // libraries will ignore duplicate key-value pairs (typically keeping the last
 // pair) when unmarshaling, but users should attempt to avoid adding duplicate
@@ -352,7 +350,7 @@ func (enc *jsonEncoder) Clone() Encoder {
 }
 
 func (enc *jsonEncoder) clone() *jsonEncoder {
-	clone := getJSONEncoder()
+	clone := _jsonPool.Get()
 	clone.EncoderConfig = enc.EncoderConfig
 	clone.spaced = enc.spaced
 	clone.openNamespaces = enc.openNamespaces
@@ -374,7 +372,7 @@ func (enc *jsonEncoder) EncodeEntry(ent Entry, fields []Field) (*buffer.Buffer, 
 			final.AppendString(ent.Level.String())
 		}
 	}
-	if final.TimeKey != "" {
+	if final.TimeKey != "" && !ent.Time.IsZero() {
 		final.AddTime(final.TimeKey, ent.Time)
 	}
 	if ent.LoggerName != "" && final.NameKey != "" {
@@ -488,73 +486,98 @@ func (enc *jsonEncoder) appendFloat(val float64, bitSize int) {
 // Unlike the standard library's encoder, it doesn't attempt to protect the
 // user from browser vulnerabilities or JSONP-related problems.
 func (enc *jsonEncoder) safeAddString(s string) {
-	for i := 0; i < len(s); {
-		if enc.tryAddRuneSelf(s[i]) {
-			i++
-			continue
-		}
-		r, size := utf8.DecodeRuneInString(s[i:])
-		if enc.tryAddRuneError(r, size) {
-			i++
-			continue
-		}
-		enc.buf.AppendString(s[i : i+size])
-		i += size
-	}
+	safeAppendStringLike(
+		(*buffer.Buffer).AppendString,
+		utf8.DecodeRuneInString,
+		enc.buf,
+		s,
+	)
 }
 
 // safeAddByteString is no-alloc equivalent of safeAddString(string(s)) for s []byte.
 func (enc *jsonEncoder) safeAddByteString(s []byte) {
+	safeAppendStringLike(
+		(*buffer.Buffer).AppendBytes,
+		utf8.DecodeRune,
+		enc.buf,
+		s,
+	)
+}
+
+// safeAppendStringLike is a generic implementation of safeAddString and safeAddByteString.
+// It appends a string or byte slice to the buffer, escaping all special characters.
+func safeAppendStringLike[S []byte | string](
+	// appendTo appends this string-like object to the buffer.
+	appendTo func(*buffer.Buffer, S),
+	// decodeRune decodes the next rune from the string-like object
+	// and returns its value and width in bytes.
+	decodeRune func(S) (rune, int),
+	buf *buffer.Buffer,
+	s S,
+) {
+	// The encoding logic below works by skipping over characters
+	// that can be safely copied as-is,
+	// until a character is found that needs special handling.
+	// At that point, we copy everything we've seen so far,
+	// and then handle that special character.
+	//
+	// last is the index of the last byte that was copied to the buffer.
+	last := 0
 	for i := 0; i < len(s); {
-		if enc.tryAddRuneSelf(s[i]) {
-			i++
-			continue
-		}
-		r, size := utf8.DecodeRune(s[i:])
-		if enc.tryAddRuneError(r, size) {
-			i++
-			continue
-		}
-		enc.buf.Write(s[i : i+size])
-		i += size
-	}
-}
+		if s[i] >= utf8.RuneSelf {
+			// Character >= RuneSelf may be part of a multi-byte rune.
+			// They need to be decoded before we can decide how to handle them.
+			r, size := decodeRune(s[i:])
+			if r != utf8.RuneError || size != 1 {
+				// No special handling required.
+				// Skip over this rune and continue.
+				i += size
+				continue
+			}
 
-// tryAddRuneSelf appends b if it is valid UTF-8 character represented in a single byte.
-func (enc *jsonEncoder) tryAddRuneSelf(b byte) bool {
-	if b >= utf8.RuneSelf {
-		return false
-	}
-	if 0x20 <= b && b != '\\' && b != '"' {
-		enc.buf.AppendByte(b)
-		return true
-	}
-	switch b {
-	case '\\', '"':
-		enc.buf.AppendByte('\\')
-		enc.buf.AppendByte(b)
-	case '\n':
-		enc.buf.AppendByte('\\')
-		enc.buf.AppendByte('n')
-	case '\r':
-		enc.buf.AppendByte('\\')
-		enc.buf.AppendByte('r')
-	case '\t':
-		enc.buf.AppendByte('\\')
-		enc.buf.AppendByte('t')
-	default:
-		// Encode bytes < 0x20, except for the escape sequences above.
-		enc.buf.AppendString(`\u00`)
-		enc.buf.AppendByte(_hex[b>>4])
-		enc.buf.AppendByte(_hex[b&0xF])
-	}
-	return true
-}
+			// Invalid UTF-8 sequence.
+			// Replace it with the Unicode replacement character.
+			appendTo(buf, s[last:i])
+			buf.AppendString(`\ufffd`)
 
-func (enc *jsonEncoder) tryAddRuneError(r rune, size int) bool {
-	if r == utf8.RuneError && size == 1 {
-		enc.buf.AppendString(`\ufffd`)
-		return true
+			i++
+			last = i
+		} else {
+			// Character < RuneSelf is a single-byte UTF-8 rune.
+			if s[i] >= 0x20 && s[i] != '\\' && s[i] != '"' {
+				// No escaping necessary.
+				// Skip over this character and continue.
+				i++
+				continue
+			}
+
+			// This character needs to be escaped.
+			appendTo(buf, s[last:i])
+			switch s[i] {
+			case '\\', '"':
+				buf.AppendByte('\\')
+				buf.AppendByte(s[i])
+			case '\n':
+				buf.AppendByte('\\')
+				buf.AppendByte('n')
+			case '\r':
+				buf.AppendByte('\\')
+				buf.AppendByte('r')
+			case '\t':
+				buf.AppendByte('\\')
+				buf.AppendByte('t')
+			default:
+				// Encode bytes < 0x20, except for the escape sequences above.
+				buf.AppendString(`\u00`)
+				buf.AppendByte(_hex[s[i]>>4])
+				buf.AppendByte(_hex[s[i]&0xF])
+			}
+
+			i++
+			last = i
+		}
 	}
-	return false
+
+	// add remaining
+	appendTo(buf, s[last:])
 }

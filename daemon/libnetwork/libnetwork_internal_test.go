@@ -785,7 +785,7 @@ func badDriverRegister(reg driverapi.Registerer) error {
 	return reg.RegisterDriver(badDriverName, &bd, driverapi.Capability{DataScope: scope.Local})
 }
 
-func (b *badDriver) CreateNetwork(ctx context.Context, nid string, options map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (b *badDriver) CreateNetwork(ctx context.Context, nid string, options map[string]any, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	if b.failNetworkCreation {
 		return errors.New("I will not create any network")
 	}
@@ -796,7 +796,7 @@ func (b *badDriver) DeleteNetwork(nid string) error {
 	return nil
 }
 
-func (b *badDriver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, options map[string]interface{}) error {
+func (b *badDriver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, options map[string]any) error {
 	return errors.New("I will not create any endpoint")
 }
 
@@ -804,11 +804,11 @@ func (b *badDriver) DeleteEndpoint(nid, eid string) error {
 	return nil
 }
 
-func (b *badDriver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
+func (b *badDriver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
 	return nil, nil
 }
 
-func (b *badDriver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, _ map[string]interface{}) error {
+func (b *badDriver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, _ map[string]any) error {
 	return errors.New("I will not allow any join")
 }
 

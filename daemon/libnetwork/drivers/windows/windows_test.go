@@ -20,7 +20,7 @@ func testNetwork(networkType string, t *testing.T) {
 	bnw, _ := types.ParseCIDR("172.16.0.0/24")
 	br, _ := types.ParseCIDR("172.16.0.1/16")
 
-	netOption := make(map[string]interface{})
+	netOption := make(map[string]any)
 	networkOptions := map[string]string{
 		NetworkName: "TestNetwork",
 	}
@@ -44,7 +44,7 @@ func testNetwork(networkType string, t *testing.T) {
 		}
 	}()
 
-	epOptions := make(map[string]interface{})
+	epOptions := make(map[string]any)
 	te := &testEndpoint{}
 	err = d.CreateEndpoint(context.TODO(), "dummy", "ep1", te.Interface(), epOptions)
 	if err != nil {

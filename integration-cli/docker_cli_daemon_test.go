@@ -1379,7 +1379,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *tes
 
 	// Give time to containerd to process the command if we don't
 	// the resume event might be received after we do the inspect
-	poll.WaitOn(t, pollCheck(t, func(*testing.T) (interface{}, string) {
+	poll.WaitOn(t, pollCheck(t, func(*testing.T) (any, string) {
 		result := icmd.RunCommand("kill", "-0", strings.TrimSpace(pid))
 		return result.ExitCode, ""
 	}, checker.Equals(0)), poll.WithTimeout(defaultReconciliationTimeout))

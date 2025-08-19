@@ -383,12 +383,12 @@ func (c *Controller) agentStopComplete() {
 	c.mu.Unlock()
 }
 
-func (c *Controller) makeDriverConfig(ntype string) map[string]interface{} {
+func (c *Controller) makeDriverConfig(ntype string) map[string]any {
 	if c.cfg == nil {
 		return nil
 	}
 
-	cfg := map[string]interface{}{}
+	cfg := map[string]any{}
 	for _, label := range c.cfg.Labels {
 		key, val, _ := strings.Cut(label, "=")
 		if !strings.HasPrefix(key, netlabel.DriverPrefix+"."+ntype) {
@@ -551,7 +551,7 @@ func (c *Controller) NewNetwork(ctx context.Context, networkType, name string, i
 	nw := &Network{
 		name:             name,
 		networkType:      networkType,
-		generic:          map[string]interface{}{netlabel.GenericData: make(map[string]string)},
+		generic:          map[string]any{netlabel.GenericData: make(map[string]string)},
 		ipamType:         defaultIpam,
 		enableIPv4:       true,
 		id:               id,
@@ -1018,7 +1018,7 @@ func (c *Controller) NewSandbox(ctx context.Context, containerID string, options
 // GetSandbox returns the Sandbox which has the passed id.
 //
 // It returns an [ErrInvalidID] when passing an invalid ID, or an
-// [types.NotFoundError] if no Sandbox was found for the container.
+// [errdefs.ErrNotFound] if no Sandbox was found for the container.
 func (c *Controller) GetSandbox(containerID string) (*Sandbox, error) {
 	if containerID == "" {
 		return nil, types.InvalidParameterErrorf("invalid id: id is empty")
@@ -1042,7 +1042,7 @@ func (c *Controller) GetSandbox(containerID string) (*Sandbox, error) {
 }
 
 // SandboxByID returns the Sandbox which has the passed id.
-// If not found, a [types.NotFoundError] is returned.
+// If not found, a [errdefs.NotFoundError] is returned.
 func (c *Controller) SandboxByID(id string) (*Sandbox, error) {
 	if id == "" {
 		return nil, types.InvalidParameterErrorf("invalid id: id is empty")

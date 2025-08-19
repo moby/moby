@@ -9,7 +9,6 @@ import (
 	"github.com/moby/moby/api/types/blkiodev"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
-	"github.com/moby/moby/api/types/strslice"
 )
 
 // CgroupnsMode represents the cgroup namespace mode of the container
@@ -435,8 +434,8 @@ type HostConfig struct {
 	Annotations     map[string]string `json:",omitempty"` // Arbitrary non-identifying metadata attached to container and provided to the runtime
 
 	// Applicable to UNIX platforms
-	CapAdd          strslice.StrSlice // List of kernel capabilities to add to the container
-	CapDrop         strslice.StrSlice // List of kernel capabilities to remove from the container
+	CapAdd          []string          // List of kernel capabilities to add to the container
+	CapDrop         []string          // List of kernel capabilities to remove from the container
 	CgroupnsMode    CgroupnsMode      // Cgroup namespace mode to use for the container
 	DNS             []string          `json:"Dns"`        // List of DNS server to lookup
 	DNSOptions      []string          `json:"DnsOptions"` // List of DNSOption to look for

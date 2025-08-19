@@ -31,7 +31,7 @@ func (pm PortMapper) MapPorts(ctx context.Context, reqs []portmapperapi.PortBind
 	res := make([]portmapperapi.PortBinding, 0, len(reqs))
 	bindings := make([]types.PortBinding, 0, len(reqs))
 	for _, c := range reqs {
-		pb := portmapperapi.PortBinding{PortBinding: c.GetCopy()}
+		pb := portmapperapi.PortBinding{PortBinding: c.Copy()}
 		if pb.HostPort != 0 || pb.HostPortEnd != 0 {
 			log.G(ctx).WithFields(log.Fields{"mapping": pb}).Infof(
 				"Host port ignored, because NAT is disabled")

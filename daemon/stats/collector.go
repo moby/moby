@@ -37,7 +37,7 @@ type supervisor interface {
 // Collect registers the container with the collector and adds it to
 // the event loop for collection on the specified interval returning
 // a channel for the subscriber to receive on.
-func (s *Collector) Collect(c *container.Container) chan interface{} {
+func (s *Collector) Collect(c *container.Container) chan any {
 	s.cond.L.Lock()
 	defer s.cond.L.Unlock()
 
@@ -63,7 +63,7 @@ func (s *Collector) StopCollection(c *container.Container) {
 }
 
 // Unsubscribe removes a specific subscriber from receiving updates for a container's stats.
-func (s *Collector) Unsubscribe(c *container.Container, ch chan interface{}) {
+func (s *Collector) Unsubscribe(c *container.Container, ch chan any) {
 	s.m.Lock()
 	publisher := s.publishers[c]
 	if publisher != nil {

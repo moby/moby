@@ -22,23 +22,23 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
-func registerNetworkDrivers(r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, driverConfig func(string) map[string]interface{}) error {
+func registerNetworkDrivers(r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, driverConfig func(string) map[string]any) error {
 	for _, nr := range []struct {
 		ntype    string
-		register func(driverapi.Registerer, *datastore.Store, map[string]interface{}) error
+		register func(driverapi.Registerer, *datastore.Store, map[string]any) error
 	}{
-		{ntype: bridge.NetworkType, register: func(r driverapi.Registerer, store *datastore.Store, cfg map[string]interface{}) error {
+		{ntype: bridge.NetworkType, register: func(r driverapi.Registerer, store *datastore.Store, cfg map[string]any) error {
 			return bridge.Register(r, store, pms, cfg)
 		}},
-		{ntype: host.NetworkType, register: func(r driverapi.Registerer, _ *datastore.Store, _ map[string]interface{}) error {
+		{ntype: host.NetworkType, register: func(r driverapi.Registerer, _ *datastore.Store, _ map[string]any) error {
 			return host.Register(r)
 		}},
 		{ntype: ipvlan.NetworkType, register: ipvlan.Register},
 		{ntype: macvlan.NetworkType, register: macvlan.Register},
-		{ntype: null.NetworkType, register: func(r driverapi.Registerer, _ *datastore.Store, _ map[string]interface{}) error {
+		{ntype: null.NetworkType, register: func(r driverapi.Registerer, _ *datastore.Store, _ map[string]any) error {
 			return null.Register(r)
 		}},
-		{ntype: overlay.NetworkType, register: func(r driverapi.Registerer, _ *datastore.Store, config map[string]interface{}) error {
+		{ntype: overlay.NetworkType, register: func(r driverapi.Registerer, _ *datastore.Store, config map[string]any) error {
 			return overlay.Register(r, config)
 		}},
 	} {

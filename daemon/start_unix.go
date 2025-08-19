@@ -9,7 +9,7 @@ import (
 )
 
 // getLibcontainerdCreateOptions callers must hold a lock on the container
-func (daemon *Daemon) getLibcontainerdCreateOptions(daemonCfg *configStore, container *container.Container) (string, interface{}, error) {
+func (daemon *Daemon) getLibcontainerdCreateOptions(daemonCfg *configStore, container *container.Container) (string, any, error) {
 	// Ensure a runtime has been assigned to this container
 	if container.HostConfig.Runtime == "" {
 		container.HostConfig.Runtime = daemonCfg.Runtimes.Default

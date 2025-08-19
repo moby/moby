@@ -116,7 +116,7 @@ func (s *DockerCLIInfoSuite) TestInfoDisplaysStoppedContainers(c *testing.T) {
 
 func existingContainerStates(t *testing.T) map[string]int {
 	out := cli.DockerCmd(t, "info", "--format", "{{json .}}").Stdout()
-	var m map[string]interface{}
+	var m map[string]any
 	err := json.Unmarshal([]byte(out), &m)
 	assert.NilError(t, err)
 	res := map[string]int{}

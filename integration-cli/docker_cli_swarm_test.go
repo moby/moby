@@ -416,7 +416,7 @@ func (s *DockerSwarmSuite) TestSwarmContainerAttachByNetworkId(c *testing.T) {
 	out, err = d.Cmd("network", "rm", "testnet")
 	assert.NilError(c, err, out)
 
-	checkNetwork := func(*testing.T) (interface{}, string) {
+	checkNetwork := func(*testing.T) (any, string) {
 		out, err := d.Cmd("network", "ls")
 		assert.NilError(c, err)
 		return out, ""
@@ -583,7 +583,7 @@ func (s *DockerSwarmSuite) TestSwarmTaskListFilter(c *testing.T) {
 
 	filter := "name=redis-cluster"
 
-	checkNumTasks := func(*testing.T) (interface{}, string) {
+	checkNumTasks := func(*testing.T) (any, string) {
 		out, err := d.Cmd("service", "ps", "--filter", filter, name)
 		assert.NilError(c, err, out)
 		return len(strings.Split(out, "\n")) - 2, "" // includes header and nl in last line
@@ -1058,8 +1058,8 @@ func getNodeStatus(t *testing.T, d *daemon.Daemon) swarm.LocalNodeState {
 	return info.LocalNodeState
 }
 
-func checkKeyIsEncrypted(d *daemon.Daemon) func(*testing.T) (interface{}, string) {
-	return func(t *testing.T) (interface{}, string) {
+func checkKeyIsEncrypted(d *daemon.Daemon) func(*testing.T) (any, string) {
+	return func(t *testing.T) (any, string) {
 		keyBytes, err := os.ReadFile(filepath.Join(d.Folder, "root", "swarm", "certificates", "swarm-node.key"))
 		if err != nil {
 			return fmt.Errorf("error reading key: %v", err), ""
@@ -1294,7 +1294,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *testing.T) {
 	// (because we never want a manager TLS key to be on disk unencrypted if the cluster
 	// is set to autolock)
 	poll.WaitOn(c, pollCheck(c, d3.CheckControlAvailable(ctx), checker.False()), poll.WithTimeout(defaultReconciliationTimeout))
-	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (interface{}, string) {
+	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (any, string) {
 		certBytes, err := os.ReadFile(filepath.Join(d3.Folder, "root", "swarm", "certificates", "swarm-node.crt"))
 		if err != nil {
 			return "", fmt.Sprintf("error: %v", err)

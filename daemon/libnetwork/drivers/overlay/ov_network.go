@@ -15,7 +15,6 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
-	"github.com/hashicorp/go-multierror"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/overlay/overlayutils"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/countmap"
@@ -91,7 +90,7 @@ func (d *driver) NetworkFree(id string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]any, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	if id == "" {
 		return errors.New("invalid network id")
 	}
@@ -543,7 +542,7 @@ func (n *network) initSubnetSandbox(s *subnet) error {
 	}
 	if err := n.driver.programInput(s.vni, n.secure); err != nil {
 		if n.secure {
-			return multierror.Append(err, n.driver.programMangle(s.vni, false))
+			return errors.Join(err, n.driver.programMangle(s.vni, false))
 		}
 	}
 

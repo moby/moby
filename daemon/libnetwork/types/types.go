@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -40,28 +41,6 @@ type QosPolicy struct {
 type TransportPort struct {
 	Proto Protocol
 	Port  uint16
-}
-
-// Equal checks if this instance of TransportPort is equal to the passed one
-func (t *TransportPort) Equal(o *TransportPort) bool {
-	if t == o {
-		return true
-	}
-
-	if o == nil {
-		return false
-	}
-
-	if t.Proto != o.Proto || t.Port != o.Port {
-		return false
-	}
-
-	return true
-}
-
-// GetCopy returns a copy of this TransportPort structure instance
-func (t *TransportPort) GetCopy() TransportPort {
-	return TransportPort{Proto: t.Proto, Port: t.Port}
 }
 
 // String returns the TransportPort structure in string form
@@ -107,20 +86,20 @@ func (p PortBinding) ContainerAddr() (net.Addr, error) {
 	}
 }
 
-// GetCopy returns a copy of this PortBinding structure instance
-func (p *PortBinding) GetCopy() PortBinding {
+// Copy returns a deep copy of the PortBinding.
+func (p PortBinding) Copy() PortBinding {
 	return PortBinding{
 		Proto:       p.Proto,
-		IP:          GetIPCopy(p.IP),
+		IP:          slices.Clone(p.IP),
 		Port:        p.Port,
-		HostIP:      GetIPCopy(p.HostIP),
+		HostIP:      slices.Clone(p.HostIP),
 		HostPort:    p.HostPort,
 		HostPortEnd: p.HostPortEnd,
 	}
 }
 
 // Equal returns true if o has the same values as p, else false.
-func (p *PortBinding) Equal(o *PortBinding) bool {
+func (p PortBinding) Equal(o PortBinding) bool {
 	return p.Proto == o.Proto &&
 		p.IP.Equal(o.IP) &&
 		p.Port == o.Port &&
@@ -214,44 +193,29 @@ func ParseProtocol(s string) Protocol {
 	}
 }
 
-// GetMacCopy returns a copy of the passed MAC address
-func GetMacCopy(from net.HardwareAddr) net.HardwareAddr {
-	if from == nil {
-		return nil
-	}
-	to := make(net.HardwareAddr, len(from))
-	copy(to, from)
-	return to
-}
-
-// GetIPCopy returns a copy of the passed IP address
-func GetIPCopy(from net.IP) net.IP {
-	if from == nil {
-		return nil
-	}
-	to := make(net.IP, len(from))
-	copy(to, from)
-	return to
-}
-
-// GetIPNetCopy returns a copy of the passed IP Network
+// GetIPNetCopy returns a copy of the passed IP Network. If the input is nil,
+// it returns nil.
 func GetIPNetCopy(from *net.IPNet) *net.IPNet {
 	if from == nil {
 		return nil
 	}
-	bm := make(net.IPMask, len(from.Mask))
-	copy(bm, from.Mask)
-	return &net.IPNet{IP: GetIPCopy(from.IP), Mask: bm}
+	return &net.IPNet{
+		IP:   slices.Clone(from.IP),
+		Mask: slices.Clone(from.Mask),
+	}
 }
 
-// GetIPNetCanonical returns the canonical form for the passed network
+// GetIPNetCanonical returns the canonical form of the given IP network,
+// where the IP is masked with the subnet mask. If the input is nil,
+// it returns nil.
 func GetIPNetCanonical(nw *net.IPNet) *net.IPNet {
 	if nw == nil {
 		return nil
 	}
-	c := GetIPNetCopy(nw)
-	c.IP = c.IP.Mask(nw.Mask)
-	return c
+	return &net.IPNet{
+		IP:   slices.Clone(nw.IP.Mask(nw.Mask)),
+		Mask: slices.Clone(nw.Mask),
+	}
 }
 
 // CompareIPNet returns equal if the two IP Networks are equal
@@ -263,12 +227,6 @@ func CompareIPNet(a, b *net.IPNet) bool {
 		return false
 	}
 	return a.IP.Equal(b.IP) && bytes.Equal(a.Mask, b.Mask)
-}
-
-// IsIPNetValid returns true if the ipnet is a valid network/mask
-// combination. Otherwise returns false.
-func IsIPNetValid(nw *net.IPNet) bool {
-	return nw.String() != "0.0.0.0/0"
 }
 
 var v4inV6MaskPrefix = []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
@@ -302,7 +260,7 @@ func GetHostPartIP(ip net.IP, mask net.IPMask) (net.IP, error) {
 	}
 
 	// Compute host portion
-	out := GetIPCopy(ip)
+	out := slices.Clone(ip)
 	for i := 0; i < len(mask[ms:]); i++ {
 		out[is+i] &= ^mask[ms+i]
 	}
@@ -321,7 +279,7 @@ func GetBroadcastIP(ip net.IP, mask net.IPMask) (net.IP, error) {
 	}
 
 	// Compute broadcast address
-	out := GetIPCopy(ip)
+	out := slices.Clone(ip)
 	for i := 0; i < len(mask[ms:]); i++ {
 		out[is+i] |= ^mask[ms+i]
 	}
@@ -353,12 +311,12 @@ type StaticRoute struct {
 	NextHop     net.IP    // NextHop will be resolved by the kernel (i.e., as a loose hop).
 }
 
-// GetCopy returns a copy of this StaticRoute structure
-func (r *StaticRoute) GetCopy() *StaticRoute {
+// Copy returns a copy of this StaticRoute structure
+func (r *StaticRoute) Copy() *StaticRoute {
 	return &StaticRoute{
 		Destination: GetIPNetCopy(r.Destination),
 		RouteType:   r.RouteType,
-		NextHop:     GetIPCopy(r.NextHop),
+		NextHop:     slices.Clone(r.NextHop),
 	}
 }
 
@@ -389,21 +347,6 @@ type MaskableError interface {
 	Maskable()
 }
 
-// InvalidParameterError is an interface for errors originated by a bad request
-type InvalidParameterError = errdefs.ErrInvalidParameter
-
-// NotFoundError is an interface for errors raised because a needed resource is not available
-type NotFoundError = errdefs.ErrNotFound
-
-// ForbiddenError is an interface for errors which denote a valid request that cannot be honored
-type ForbiddenError = errdefs.ErrForbidden
-
-// UnavailableError is an interface for errors returned when the required service is not available
-type UnavailableError = errdefs.ErrUnavailable
-
-// NotImplementedError is an interface for errors raised because of requested functionality is not yet implemented
-type NotImplementedError = errdefs.ErrNotImplemented
-
 // InternalError is an interface for errors raised because of an internal error
 type InternalError interface {
 	// Internal makes implementer into InternalError type
@@ -414,38 +357,38 @@ type InternalError interface {
  * Well-known Error Formatters
  ******************************/
 
-// InvalidParameterErrorf creates an instance of InvalidParameterError
-func InvalidParameterErrorf(format string, params ...interface{}) error {
+// InvalidParameterErrorf creates an instance of [errdefs.ErrInvalidParameter].
+func InvalidParameterErrorf(format string, params ...any) error {
 	return errdefs.InvalidParameter(fmt.Errorf(format, params...))
 }
 
-// NotFoundErrorf creates an instance of NotFoundError
-func NotFoundErrorf(format string, params ...interface{}) error {
+// NotFoundErrorf creates an instance of [errdefs.ErrNotFound].
+func NotFoundErrorf(format string, params ...any) error {
 	return errdefs.NotFound(fmt.Errorf(format, params...))
 }
 
-// ForbiddenErrorf creates an instance of ForbiddenError
-func ForbiddenErrorf(format string, params ...interface{}) error {
+// ForbiddenErrorf creates an instance of [errdefs.ErrForbidden].
+func ForbiddenErrorf(format string, params ...any) error {
 	return errdefs.Forbidden(fmt.Errorf(format, params...))
 }
 
-// UnavailableErrorf creates an instance of UnavailableError
-func UnavailableErrorf(format string, params ...interface{}) error {
+// UnavailableErrorf creates an instance of [errdefs.ErrUnavailable]
+func UnavailableErrorf(format string, params ...any) error {
 	return errdefs.Unavailable(fmt.Errorf(format, params...))
 }
 
-// NotImplementedErrorf creates an instance of NotImplementedError
-func NotImplementedErrorf(format string, params ...interface{}) error {
+// NotImplementedErrorf creates an instance of [errdefs.ErrNotImplemented].
+func NotImplementedErrorf(format string, params ...any) error {
 	return errdefs.NotImplemented(fmt.Errorf(format, params...))
 }
 
 // InternalErrorf creates an instance of InternalError
-func InternalErrorf(format string, params ...interface{}) error {
+func InternalErrorf(format string, params ...any) error {
 	return internal(fmt.Sprintf(format, params...))
 }
 
 // InternalMaskableErrorf creates an instance of InternalError and MaskableError
-func InternalMaskableErrorf(format string, params ...interface{}) error {
+func InternalMaskableErrorf(format string, params ...any) error {
 	return maskInternal(fmt.Sprintf(format, params...))
 }
 

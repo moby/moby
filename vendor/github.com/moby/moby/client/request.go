@@ -28,7 +28,7 @@ func (cli *Client) get(ctx context.Context, path string, query url.Values, heade
 }
 
 // post sends an http POST request to the API.
-func (cli *Client) post(ctx context.Context, path string, query url.Values, body interface{}, headers http.Header) (*http.Response, error) {
+func (cli *Client) post(ctx context.Context, path string, query url.Values, body any, headers http.Header) (*http.Response, error) {
 	jsonBody, headers, err := prepareJSONRequest(body, headers)
 	if err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func (cli *Client) postRaw(ctx context.Context, path string, query url.Values, b
 	return cli.sendRequest(ctx, http.MethodPost, path, query, body, headers)
 }
 
-func (cli *Client) put(ctx context.Context, path string, query url.Values, body interface{}, headers http.Header) (*http.Response, error) {
+func (cli *Client) put(ctx context.Context, path string, query url.Values, body any, headers http.Header) (*http.Response, error) {
 	jsonBody, headers, err := prepareJSONRequest(body, headers)
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func (cli *Client) delete(ctx context.Context, path string, query url.Values, he
 //
 // TODO(thaJeztah): should this return an error if a different Content-Type is already set?
 // TODO(thaJeztah): is "nil" the appropriate approach for an empty body, or should we use [http.NoBody] (or similar)?
-func prepareJSONRequest(body interface{}, headers http.Header) (io.Reader, http.Header, error) {
+func prepareJSONRequest(body any, headers http.Header) (io.Reader, http.Header, error) {
 	if body == nil {
 		return nil, headers, nil
 	}
@@ -123,16 +123,22 @@ func (cli *Client) sendRequest(ctx context.Context, method, path string, query u
 	}
 
 	resp, err := cli.doRequest(req)
-	switch {
-	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
-		return nil, err
-	case err == nil:
-		return resp, cli.checkResponseErr(resp)
-	default:
+	if err != nil {
+		// Failed to connect or context error.
 		return resp, err
 	}
+
+	// Successfully made a request; return the response and handle any
+	// API HTTP response errors.
+	return resp, checkResponseErr(resp)
 }
 
+// doRequest sends an HTTP request and returns an HTTP response. It is a
+// wrapper around [http.Client.Do] with extra handling to decorate errors.
+//
+// Otherwise, it behaves identical to [http.Client.Do]; an error is returned
+// when failing to make a connection, On error, any Response can be ignored.
+// A non-2xx status code doesn't cause an error.
 func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 	resp, err := cli.client.Do(req)
 	if err == nil {
@@ -203,7 +209,7 @@ func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 	return nil, errConnectionFailed{fmt.Errorf("error during connect: %w", err)}
 }
 
-func (cli *Client) checkResponseErr(serverResp *http.Response) (retErr error) {
+func checkResponseErr(serverResp *http.Response) (retErr error) {
 	if serverResp == nil {
 		return nil
 	}
@@ -309,7 +315,7 @@ func (cli *Client) addHeaders(req *http.Request, headers http.Header) *http.Requ
 	return req
 }
 
-func jsonEncode(data interface{}) (io.Reader, error) {
+func jsonEncode(data any) (io.Reader, error) {
 	var params bytes.Buffer
 	if data != nil {
 		if err := json.NewEncoder(&params).Encode(data); err != nil {

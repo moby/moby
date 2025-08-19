@@ -17,7 +17,7 @@ type iptablesCleaner struct {
 }
 
 // NewCleaner checks for iptables rules left behind by an old daemon that was using
-// the iptabler.
+// the Iptabler.
 //
 // If there are old rules present, it deletes as much as possible straight away
 // (user-defined chains and jumps from the built-in chains).
@@ -46,6 +46,13 @@ func NewCleaner(ctx context.Context, config firewaller.Config) firewaller.Firewa
 		_ = t.DeleteJumpRule(iptables.Filter, "FORWARD", DockerForwardChain)
 		_ = deleteLegacyTopLevelRules(ctx, t, ipv)
 		removeIPChains(ctx, ipv)
+		// The iptables chains will no longer have Docker's ACCEPT rules. So, if the
+		// filter-FORWARD chain has policy DROP (possibly set by Docker when it enabled
+		// IP forwarding), packets accepted by nftables chains will still be processed by
+		// iptables and dropped. It's the user's responsibility to sort that out.
+		if t.HasPolicy("filter", "FORWARD", iptables.Drop) {
+			log.G(ctx).WithField("ipv", ipv).Warn("Network traffic for published ports may be dropped, iptables chain FORWARD has policy DROP.")
+		}
 		return true
 	}
 	cleaned4 := clean(iptables.IPv4, config.IPv4)
@@ -62,7 +69,7 @@ func (ic iptablesCleaner) DelNetwork(ctx context.Context, nc firewaller.NetworkC
 	}
 	n := network{
 		config: nc,
-		ipt:    &iptabler{config: ic.config},
+		ipt:    &Iptabler{config: ic.config},
 	}
 	if ic.config.IPv4 && nc.Config4.Prefix.IsValid() {
 		_ = deleteLegacyFilterRules(iptables.IPv4, nc.IfName)
@@ -77,7 +84,7 @@ func (ic iptablesCleaner) DelNetwork(ctx context.Context, nc firewaller.NetworkC
 func (ic iptablesCleaner) DelEndpoint(ctx context.Context, nc firewaller.NetworkConfig, epIPv4, epIPv6 netip.Addr) {
 	n := network{
 		config: nc,
-		ipt:    &iptabler{config: ic.config},
+		ipt:    &Iptabler{config: ic.config},
 	}
 	if n.ipt.config.IPv4 && epIPv4.IsValid() {
 		_ = n.filterDirectAccess(ctx, iptables.IPv4, n.config.Config4, epIPv4, false)
@@ -90,7 +97,7 @@ func (ic iptablesCleaner) DelEndpoint(ctx context.Context, nc firewaller.Network
 func (ic iptablesCleaner) DelPorts(ctx context.Context, nc firewaller.NetworkConfig, pbs []types.PortBinding) {
 	n := network{
 		config: nc,
-		ipt:    &iptabler{config: ic.config},
+		ipt:    &Iptabler{config: ic.config},
 	}
 	_ = n.DelPorts(ctx, pbs)
 }

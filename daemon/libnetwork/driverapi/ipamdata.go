@@ -10,7 +10,7 @@ import (
 
 // MarshalJSON encodes IPAMData into json message
 func (i *IPAMData) MarshalJSON() ([]byte, error) {
-	m := map[string]interface{}{}
+	m := map[string]any{}
 	m["AddressSpace"] = i.AddressSpace
 	if i.Pool != nil {
 		m["Pool"] = i.Pool.String()
@@ -31,7 +31,7 @@ func (i *IPAMData) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON decodes a json message into IPAMData
 func (i *IPAMData) UnmarshalJSON(data []byte) error {
 	var (
-		m   map[string]interface{}
+		m   map[string]any
 		err error
 	)
 	if err := json.Unmarshal(data, &m); err != nil {

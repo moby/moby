@@ -13,7 +13,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
-	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
+	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/nftabler"
 	"github.com/moby/moby/v2/daemon/libnetwork/portmapperapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"go.opentelemetry.io/otel"
@@ -43,8 +43,8 @@ func (d *driver) initStore() error {
 
 	// If there's a firewall cleaner, it's done its job by cleaning up rules
 	// belonging to the restored networks. So, drop it.
-	if fcs, ok := d.firewaller.(firewaller.FirewallCleanerSetter); ok {
-		fcs.SetFirewallCleaner(nil)
+	if nft, ok := d.firewaller.(*nftabler.Nftabler); ok {
+		nft.SetFirewallCleaner(nil)
 	}
 
 	return nil
@@ -138,7 +138,7 @@ func (d *driver) storeDelete(kvObject datastore.KVObject) error {
 }
 
 func (ncfg *networkConfiguration) MarshalJSON() ([]byte, error) {
-	nMap := make(map[string]interface{})
+	nMap := make(map[string]any)
 	nMap["ID"] = ncfg.ID
 	nMap["BridgeName"] = ncfg.BridgeName
 	nMap["EnableIPv4"] = ncfg.EnableIPv4
@@ -175,7 +175,7 @@ func (ncfg *networkConfiguration) MarshalJSON() ([]byte, error) {
 func (ncfg *networkConfiguration) UnmarshalJSON(b []byte) error {
 	var (
 		err  error
-		nMap map[string]interface{}
+		nMap map[string]any
 	)
 
 	if err = json.Unmarshal(b, &nMap); err != nil {
@@ -294,7 +294,7 @@ func (ncfg *networkConfiguration) CopyTo(o datastore.KVObject) error {
 }
 
 func (ep *bridgeEndpoint) MarshalJSON() ([]byte, error) {
-	epMap := make(map[string]interface{})
+	epMap := make(map[string]any)
 	epMap["id"] = ep.id
 	epMap["nid"] = ep.nid
 	epMap["SrcName"] = ep.srcName
@@ -315,7 +315,7 @@ func (ep *bridgeEndpoint) MarshalJSON() ([]byte, error) {
 func (ep *bridgeEndpoint) UnmarshalJSON(b []byte) error {
 	var (
 		err   error
-		epMap map[string]interface{}
+		epMap map[string]any
 	)
 
 	if err = json.Unmarshal(b, &epMap); err != nil {

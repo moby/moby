@@ -187,7 +187,7 @@ func newDriver(store *datastore.Store, pms *drvregistry.PortMappers) *driver {
 }
 
 // Register registers a new instance of bridge driver.
-func Register(r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, config map[string]interface{}) error {
+func Register(r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, config map[string]any) error {
 	d := newDriver(store, pms)
 	if err := d.configure(config); err != nil {
 		return err
@@ -504,7 +504,7 @@ func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
 	return nil, nil
 }
 
-func (d *driver) configure(option map[string]interface{}) error {
+func (d *driver) configure(option map[string]any) error {
 	var config configuration
 	switch opt := option[netlabel.GenericData].(type) {
 	case options.Generic:
@@ -556,7 +556,7 @@ var newFirewaller = func(ctx context.Context, config firewaller.Config) (firewal
 		// cleaner can't clean up network or port-specific rules that may have been added
 		// to iptables built-in chains. So, if cleanup is needed, give the cleaner to
 		// the nftabler. Then, it'll use it to delete old rules as networks are restored.
-		fw.(firewaller.FirewallCleanerSetter).SetFirewallCleaner(iptabler.NewCleaner(ctx, config))
+		fw.SetFirewallCleaner(iptabler.NewCleaner(ctx, config))
 		return fw, nil
 	}
 
@@ -581,7 +581,7 @@ func (d *driver) getNetwork(id string) (*bridgeNetwork, error) {
 	return nil, types.NotFoundErrorf("network not found: %s", id)
 }
 
-func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error) {
+func parseNetworkGenericOptions(data any) (*networkConfiguration, error) {
 	var (
 		err    error
 		config *networkConfiguration
@@ -721,7 +721,7 @@ func (d *driver) GetSkipGwAlloc(opts options.Generic) (ipv4, ipv6 bool, _ error)
 }
 
 // CreateNetwork creates a new network using the bridge driver.
-func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]any, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	// Sanity checks
 	d.mu.Lock()
 	if _, ok := d.networks[id]; ok {
@@ -880,14 +880,28 @@ func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration
 			config.EnableIPv4 && d.config.EnableIPForwarding,
 			"setupIPv4Forwarding",
 			func(*networkConfiguration, *bridgeInterface) error {
-				return setupIPv4Forwarding(d.firewaller, d.config.EnableIPTables && !d.config.DisableFilterForwardDrop)
+				ffd, ok := d.firewaller.(filterForwardDropper)
+				if !ok {
+					// The firewaller can't drop non-Docker forwarding. It's up to the user to enable
+					// forwarding on their host, and configure their firewall appropriately.
+					return checkIPv4Forwarding()
+				}
+				// Enable forwarding and set a default-drop forwarding policy if necessary.
+				return setupIPv4Forwarding(ffd, d.config.EnableIPTables && !d.config.DisableFilterForwardDrop)
 			},
 		},
 		{
 			config.EnableIPv6 && d.config.EnableIPForwarding,
 			"setupIPv6Forwarding",
 			func(*networkConfiguration, *bridgeInterface) error {
-				return setupIPv6Forwarding(d.firewaller, d.config.EnableIP6Tables && !d.config.DisableFilterForwardDrop)
+				ffd, ok := d.firewaller.(filterForwardDropper)
+				if !ok {
+					// The firewaller can't drop non-Docker forwarding. It's up to the user to enable
+					// forwarding on their host, and configure their firewall appropriately.
+					return checkIPv6Forwarding()
+				}
+				// Enable forwarding and set a default-drop forwarding policy if necessary.
+				return setupIPv6Forwarding(ffd, d.config.EnableIP6Tables && !d.config.DisableFilterForwardDrop)
 			},
 		},
 
@@ -1046,7 +1060,7 @@ func setHairpinMode(nlh nlwrap.Handle, link netlink.Link, enable bool) error {
 	return nil
 }
 
-func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, _ map[string]interface{}) error {
+func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, _ map[string]any) error {
 	if ifInfo == nil {
 		return errors.New("invalid interface info passed")
 	}
@@ -1353,7 +1367,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	return nil
 }
 
-func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
+func (d *driver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
 	// Get the network handler and make sure it exists
 	d.mu.Lock()
 	n, ok := d.networks[nid]
@@ -1382,22 +1396,17 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 		return nil, driverapi.ErrNoEndpoint(eid)
 	}
 
-	m := make(map[string]interface{})
+	m := make(map[string]any)
 
 	if ep.extConnConfig != nil && ep.extConnConfig.ExposedPorts != nil {
-		// Return a copy of the config data
-		epc := make([]types.TransportPort, 0, len(ep.extConnConfig.ExposedPorts))
-		for _, tp := range ep.extConnConfig.ExposedPorts {
-			epc = append(epc, tp.GetCopy())
-		}
-		m[netlabel.ExposedPorts] = epc
+		m[netlabel.ExposedPorts] = slices.Clone(ep.extConnConfig.ExposedPorts)
 	}
 
 	if ep.portMapping != nil {
 		// Return a copy of the operational data
 		pmc := make([]types.PortBinding, 0, len(ep.portMapping))
 		for _, pm := range ep.portMapping {
-			pmc = append(pmc, pm.PortBinding.GetCopy())
+			pmc = append(pmc, pm.PortBinding.Copy())
 		}
 		m[netlabel.PortMap] = pmc
 	}
@@ -1410,7 +1419,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, epOpts, sbOpts map[string]interface{}) error {
+func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, epOpts, sbOpts map[string]any) error {
 	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".Join", trace.WithAttributes(
 		attribute.String("nid", nid),
 		attribute.String("eid", eid),
@@ -1629,7 +1638,7 @@ func (ep *bridgeEndpoint) trimPortBindings(ctx context.Context, n *bridgeNetwork
 	undo := func() []portmapperapi.PortBinding {
 		pbReq := make([]portmapperapi.PortBindingReq, 0, len(toDrop))
 		for _, pb := range toDrop {
-			pbReq = append(pbReq, portmapperapi.PortBindingReq{PortBinding: pb.GetCopy()})
+			pbReq = append(pbReq, portmapperapi.PortBindingReq{PortBinding: pb.Copy()})
 		}
 		pbs, err := n.addPortMappings(ctx, ep, pbReq, n.config.DefaultBindingIP, ep.portBindingState)
 		if err != nil {
@@ -1753,7 +1762,7 @@ func (d *driver) handleFirewalldReloadNw(nid string) {
 	}
 }
 
-func LegacyContainerLinkOptions(parentEndpoints, childEndpoints []string) map[string]interface{} {
+func LegacyContainerLinkOptions(parentEndpoints, childEndpoints []string) map[string]any {
 	return options.Generic{
 		netlabel.GenericData: options.Generic{
 			"ParentEndpoints": parentEndpoints,
@@ -1848,7 +1857,7 @@ func (d *driver) IsBuiltIn() bool {
 	return true
 }
 
-func parseContainerOptions(cOptions map[string]interface{}) (*containerConfiguration, error) {
+func parseContainerOptions(cOptions map[string]any) (*containerConfiguration, error) {
 	if cOptions == nil {
 		return nil, nil
 	}
@@ -1870,7 +1879,7 @@ func parseContainerOptions(cOptions map[string]interface{}) (*containerConfigura
 	}
 }
 
-func parseConnectivityOptions(cOptions map[string]interface{}) (*connectivityConfiguration, error) {
+func parseConnectivityOptions(cOptions map[string]any) (*connectivityConfiguration, error) {
 	if cOptions == nil {
 		return nil, nil
 	}
@@ -1881,7 +1890,7 @@ func parseConnectivityOptions(cOptions map[string]interface{}) (*connectivityCon
 		if pbs, ok := opt.([]types.PortBinding); ok {
 			cc.PortBindings = sliceutil.Map(pbs, func(pb types.PortBinding) portmapperapi.PortBindingReq {
 				return portmapperapi.PortBindingReq{
-					PortBinding: pb.GetCopy(),
+					PortBinding: pb.Copy(),
 				}
 			})
 		} else {

@@ -16,8 +16,6 @@ import (
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
-	"github.com/moby/moby/v2/daemon/internal/libcontainerd/local"
-	"github.com/moby/moby/v2/daemon/internal/libcontainerd/remote"
 	"github.com/moby/moby/v2/daemon/internal/system"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	nwconfig "github.com/moby/moby/v2/daemon/libnetwork/config"
@@ -233,7 +231,7 @@ func configureMaxThreads(_ context.Context) error {
 	return nil
 }
 
-func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSandboxes map[string]interface{}) error {
+func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSandboxes map[string]any) error {
 	netOptions, err := daemon.networkOptions(daemonCfg, nil, daemon.id, nil)
 	if err != nil {
 		return err
@@ -572,37 +570,4 @@ func setupResolvConf(config *config.Config) {}
 
 func getSysInfo(*config.Config) *sysinfo.SysInfo {
 	return sysinfo.New()
-}
-
-func (daemon *Daemon) initLibcontainerd(ctx context.Context, cfg *config.Config) error {
-	var err error
-
-	rt := cfg.DefaultRuntime
-	if rt == "" {
-		if cfg.ContainerdAddr == "" {
-			rt = config.WindowsV1RuntimeName
-		} else {
-			rt = config.WindowsV2RuntimeName
-		}
-	}
-
-	switch rt {
-	case config.WindowsV1RuntimeName:
-		daemon.containerd, err = local.NewClient(ctx, daemon)
-	case config.WindowsV2RuntimeName:
-		if cfg.ContainerdAddr == "" {
-			return fmt.Errorf("cannot use the specified runtime %q without containerd", rt)
-		}
-		daemon.containerd, err = remote.NewClient(
-			ctx,
-			daemon.containerdClient,
-			filepath.Join(cfg.ExecRoot, "containerd"),
-			cfg.ContainerdNamespace,
-			daemon,
-		)
-	default:
-		return fmt.Errorf("unknown windows runtime %s", rt)
-	}
-
-	return err
 }

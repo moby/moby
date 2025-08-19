@@ -21,7 +21,7 @@ const maxAllocatePortAttempts = 10
 func AllocatePorts(portMapper *portmapper.PortMapper, bindings []types.PortBinding, containerIP net.IP) ([]types.PortBinding, error) {
 	bs := make([]types.PortBinding, 0, len(bindings))
 	for _, c := range bindings {
-		b := c.GetCopy()
+		b := c.Copy()
 		if err := allocatePort(portMapper, &b, containerIP); err != nil {
 			// On allocation failure, release previously allocated ports. On cleanup error, just log a warning message
 			if cuErr := ReleasePorts(portMapper, bs); cuErr != nil {

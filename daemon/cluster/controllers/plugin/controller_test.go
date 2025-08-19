@@ -385,7 +385,7 @@ func (m *mockBackend) Get(name string) (*v2.Plugin, error) {
 	return m.p, nil
 }
 
-func (m *mockBackend) SubscribeEvents(buffer int, events ...plugin.Event) (eventCh <-chan interface{}, cancel func()) {
+func (m *mockBackend) SubscribeEvents(buffer int, events ...plugin.Event) (eventCh <-chan any, cancel func()) {
 	ch := m.pub.SubscribeTopicWithBuffer(nil, buffer)
 	cancel = func() { m.pub.Evict(ch) }
 	return ch, cancel

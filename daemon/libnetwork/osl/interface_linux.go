@@ -136,7 +136,7 @@ func (i *Interface) Bridge() bool {
 }
 
 func (i *Interface) MacAddress() net.HardwareAddr {
-	return types.GetMacCopy(i.mac)
+	return slices.Clone(i.mac)
 }
 
 // Address returns the IPv4 address for the interface.

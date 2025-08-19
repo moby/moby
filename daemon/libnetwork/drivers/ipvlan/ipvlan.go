@@ -62,7 +62,7 @@ type network struct {
 }
 
 // Register initializes and registers the libnetwork ipvlan driver.
-func Register(r driverapi.Registerer, store *datastore.Store, config map[string]interface{}) error {
+func Register(r driverapi.Registerer, store *datastore.Store, config map[string]any) error {
 	d := &driver{
 		store:    store,
 		networks: networkTable{},
@@ -84,8 +84,8 @@ func (d *driver) NetworkFree(id string) error {
 	return types.NotImplementedErrorf("not implemented")
 }
 
-func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
-	return make(map[string]interface{}), nil
+func (d *driver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
+	return make(map[string]any), nil
 }
 
 func (d *driver) Type() string {

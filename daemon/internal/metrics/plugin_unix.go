@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -123,7 +122,7 @@ func listen(path string) error {
 			Handler:           mux,
 			ReadHeaderTimeout: 5 * time.Minute, // "G112: Potential Slowloris Attack (gosec)"; not a real concern for our use, so setting a long timeout.
 		}
-		if err := srv.Serve(l); err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
+		if err := srv.Serve(l); err != nil && !errors.Is(err, net.ErrClosed) {
 			log.G(context.TODO()).WithError(err).Error("error serving metrics API")
 		}
 	}()

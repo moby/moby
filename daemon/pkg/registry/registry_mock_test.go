@@ -77,7 +77,7 @@ func writeHeaders(w http.ResponseWriter) {
 	h.Add("Cache-Control", "no-cache")
 }
 
-func writeResponse(w http.ResponseWriter, message interface{}, code int) {
+func writeResponse(w http.ResponseWriter, message any, code int) {
 	writeHeaders(w)
 	w.WriteHeader(code)
 	body, err := json.Marshal(message)

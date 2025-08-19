@@ -10,8 +10,8 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
-	timetypes "github.com/moby/moby/api/types/time"
 	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
+	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
@@ -232,11 +232,11 @@ func getUntilFromPruneFilters(pruneFilters filters.Args) (time.Time, error) {
 	if len(untilFilters) > 1 {
 		return until, errdefs.InvalidParameter(errors.New("more than one until filter specified"))
 	}
-	ts, err := timetypes.GetTimestamp(untilFilters[0], time.Now())
+	ts, err := timestamp.GetTimestamp(untilFilters[0], time.Now())
 	if err != nil {
 		return until, errdefs.InvalidParameter(err)
 	}
-	seconds, nanoseconds, err := timetypes.ParseTimestamps(ts, 0)
+	seconds, nanoseconds, err := timestamp.ParseTimestamps(ts, 0)
 	if err != nil {
 		return until, errdefs.InvalidParameter(err)
 	}
