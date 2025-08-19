@@ -25,5 +25,12 @@ type DiskUsage struct {
 	Images     *image.DiskUsage
 	Containers *container.DiskUsage
 	Volumes    *volume.DiskUsage
-	BuildCache *build.CacheDiskUsage
+	BuildCache *BuildCacheDiskUsage
+}
+
+// BuildCacheDiskUsage contains disk usage for the build cache.
+type BuildCacheDiskUsage struct {
+	TotalSize   int64
+	Reclaimable int64
+	Items       []*build.CacheRecord
 }
