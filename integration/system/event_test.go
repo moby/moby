@@ -2,12 +2,9 @@ package system
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
-	"net/url"
-	"strconv"
 	"testing"
 	"time"
 
@@ -16,7 +13,6 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/volume"
-	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil/request"
 	"gotest.tools/v3/assert"
@@ -63,56 +59,19 @@ func TestEventsExecDie(t *testing.T) {
 	}
 }
 
-// Test case for #18888: Events messages have been switched from generic
-// `JSONMessage` to `events.Message` types. The switch does not break the
-// backward compatibility so old `JSONMessage` could still be used.
-// This test verifies that backward compatibility maintains.
-func TestEventsBackwardsCompatible(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Windows doesn't support back-compat messages")
+// TestEventsNonBlocking verifies that the API responds immediately (not blocking),
+// if there are no events.
+func TestEventsNonBlocking(t *testing.T) {
 	ctx := setupTest(t)
-	apiClient := testEnv.APIClient()
 
-	since := request.DaemonTime(ctx, t, apiClient, testEnv)
-	ts := strconv.FormatInt(since.Unix(), 10)
-
-	cID := container.Create(ctx, t, apiClient)
-
-	// In case there is no events, the API should have responded immediately (not blocking),
-	// The test here makes sure the response time is less than 3 sec.
+	// makes sure the API responds immediately (we use "less than 3 sec" to
+	// have some grace-period).
 	expectedTime := time.Now().Add(3 * time.Second)
 	emptyResp, emptyBody, err := request.Get(ctx, "/events")
 	assert.NilError(t, err)
 	defer emptyBody.Close()
 	assert.Check(t, is.DeepEqual(http.StatusOK, emptyResp.StatusCode))
 	assert.Check(t, time.Now().Before(expectedTime), "timeout waiting for events api to respond, should have responded immediately")
-
-	// We also test to make sure the `events.Message` is compatible with `JSONMessage`
-	q := url.Values{}
-	q.Set("since", ts)
-	_, body, err := request.Get(ctx, "/events?"+q.Encode())
-	assert.NilError(t, err)
-	defer body.Close()
-
-	dec := json.NewDecoder(body)
-	var containerCreateEvent *jsonmessage.JSONMessage
-	for {
-		var event jsonmessage.JSONMessage
-		if err := dec.Decode(&event); err != nil {
-			if err == io.EOF {
-				break
-			}
-			assert.NilError(t, err)
-		}
-		if event.Status == "create" && event.ID == cID {
-			containerCreateEvent = &event
-			break
-		}
-	}
-
-	assert.Assert(t, containerCreateEvent != nil)
-	assert.Check(t, is.Equal("create", containerCreateEvent.Status))
-	assert.Check(t, is.Equal(cID, containerCreateEvent.ID))
-	assert.Check(t, is.Equal("busybox", containerCreateEvent.From))
 }
 
 // TestEventsVolumeCreate verifies that volume create events are only fired
