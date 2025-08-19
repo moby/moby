@@ -15,6 +15,7 @@ import (
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/api/types/volume"
+	copts "github.com/moby/moby/client/opts/container"
 	clustertypes "github.com/moby/moby/v2/daemon/cluster/provider"
 	containerpkg "github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/image"
@@ -52,7 +53,7 @@ type Backend interface {
 	SetContainerSecretReferences(name string, refs []*swarm.SecretReference) error
 	SetContainerConfigReferences(name string, refs []*swarm.ConfigReference) error
 	SystemInfo(context.Context) (*system.Info, error)
-	Containers(ctx context.Context, config *container.ListOptions) ([]*container.Summary, error)
+	Containers(ctx context.Context, config *copts.ListOptions) ([]*container.Summary, error)
 	SetNetworkBootstrapKeys([]*networktypes.EncryptionKey) error
 	DaemonJoinsCluster(provider cluster.Provider)
 	DaemonLeavesCluster()

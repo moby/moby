@@ -39,6 +39,7 @@ import (
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	volumetypes "github.com/moby/moby/api/types/volume"
+	copts "github.com/moby/moby/client/opts/container"
 	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
 	"github.com/pkg/errors"
@@ -1454,7 +1455,7 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 	cfg := &daemon.config().Config
 	if cfg.LiveRestoreEnabled && daemon.containers != nil {
 		// check if there are any running containers, if none we should do some cleanup
-		if ls, err := daemon.Containers(ctx, &containertypes.ListOptions{}); len(ls) != 0 || err != nil {
+		if ls, err := daemon.Containers(ctx, &copts.ListOptions{}); len(ls) != 0 || err != nil {
 			// metrics plugins still need some cleanup
 			metrics.CleanupPlugin(daemon.PluginStore)
 			return err

@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/volume"
+	copts "github.com/moby/moby/client/opts/container"
 	"github.com/moby/moby/v2/testutil"
 	"go.opentelemetry.io/otel"
 	"gotest.tools/v3/assert"
@@ -83,7 +83,7 @@ func ProtectContainers(ctx context.Context, t testing.TB, testEnv *Execution) {
 func getExistingContainers(ctx context.Context, t testing.TB, testEnv *Execution) []string {
 	t.Helper()
 	client := testEnv.APIClient()
-	containerList, err := client.ContainerList(ctx, container.ListOptions{
+	containerList, err := client.ContainerList(ctx, copts.ListOptions{
 		All: true,
 	})
 	assert.NilError(t, err, "failed to list containers")

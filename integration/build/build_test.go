@@ -16,10 +16,10 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/build"
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
+	copts "github.com/moby/moby/client/opts/container"
 	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/fakecontext"
@@ -115,7 +115,7 @@ func TestBuildWithRemoveAndForceRemove(t *testing.T) {
 			defer resp.Body.Close()
 			filter, err := buildContainerIdsFilter(resp.Body)
 			assert.NilError(t, err)
-			remainingContainers, err := client.ContainerList(ctx, container.ListOptions{Filters: filter, All: true})
+			remainingContainers, err := client.ContainerList(ctx, copts.ListOptions{Filters: filter, All: true})
 			assert.NilError(t, err)
 			assert.Equal(t, tc.numberOfIntermediateContainers, len(remainingContainers), "Expected %v remaining intermediate containers, got %v", tc.numberOfIntermediateContainers, len(remainingContainers))
 		})

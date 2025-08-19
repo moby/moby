@@ -8,6 +8,7 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/volume"
+	copts "github.com/moby/moby/client/opts/container"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -18,7 +19,7 @@ import (
 func (daemon *Daemon) containerDiskUsage(ctx context.Context) (*container.DiskUsage, error) {
 	res, _, err := daemon.usageContainers.Do(ctx, struct{}{}, func(ctx context.Context) (*container.DiskUsage, error) {
 		// Retrieve container list
-		containers, err := daemon.Containers(ctx, &container.ListOptions{
+		containers, err := daemon.Containers(ctx, &copts.ListOptions{
 			Size: true,
 			All:  true,
 		})

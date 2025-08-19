@@ -14,7 +14,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/common"
-	"github.com/moby/moby/api/types/container"
+	copts "github.com/moby/moby/client/opts/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -90,7 +90,7 @@ func TestPlainTextError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(plainTextErrorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ContainerList(context.Background(), container.ListOptions{})
+	_, err := client.ContainerList(context.Background(), copts.ListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 

@@ -10,6 +10,7 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
+	copts "github.com/moby/moby/client/opts/container"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/request"
@@ -36,7 +37,7 @@ func TestContainerList(t *testing.T) {
 	}
 
 	// list them and verify correctness
-	containerList, err := apiClient.ContainerList(ctx, containertypes.ListOptions{All: true})
+	containerList, err := apiClient.ContainerList(ctx, copts.ListOptions{})
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(containerList, num))
 	for i := range num {
@@ -66,7 +67,7 @@ func TestContainerList_Annotations(t *testing.T) {
 			id := container.Create(ctx, t, apiClient, container.WithAnnotations(annotations))
 			defer container.Remove(ctx, t, apiClient, id, containertypes.RemoveOptions{Force: true})
 
-			containers, err := apiClient.ContainerList(ctx, containertypes.ListOptions{
+			containers, err := apiClient.ContainerList(ctx, copts.ListOptions{
 				All:     true,
 				Filters: filters.NewArgs(filters.Arg("id", id)),
 			})
@@ -102,7 +103,7 @@ func TestContainerList_Filter(t *testing.T) {
 
 	t.Run("since", func(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
-		results, err := apiClient.ContainerList(ctx, containertypes.ListOptions{
+		results, err := apiClient.ContainerList(ctx, copts.ListOptions{
 			All:     true,
 			Filters: filters.NewArgs(filters.Arg("since", top)),
 		})
@@ -112,7 +113,7 @@ func TestContainerList_Filter(t *testing.T) {
 
 	t.Run("before", func(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
-		results, err := apiClient.ContainerList(ctx, containertypes.ListOptions{
+		results, err := apiClient.ContainerList(ctx, copts.ListOptions{
 			All:     true,
 			Filters: filters.NewArgs(filters.Arg("before", top)),
 		})
@@ -133,7 +134,7 @@ func TestContainerList_ImageManifestPlatform(t *testing.T) {
 	id := container.Create(ctx, t, apiClient)
 	defer container.Remove(ctx, t, apiClient, id, containertypes.RemoveOptions{Force: true})
 
-	containers, err := apiClient.ContainerList(ctx, containertypes.ListOptions{
+	containers, err := apiClient.ContainerList(ctx, copts.ListOptions{
 		All: true,
 	})
 	assert.NilError(t, err)
@@ -150,7 +151,7 @@ func TestContainerList_ImageManifestPlatform(t *testing.T) {
 
 func pollForHealthStatusSummary(ctx context.Context, client client.APIClient, containerID string, healthStatus containertypes.HealthStatus) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		containers, err := client.ContainerList(ctx, containertypes.ListOptions{
+		containers, err := client.ContainerList(ctx, copts.ListOptions{
 			All:     true,
 			Filters: filters.NewArgs(filters.Arg("id", containerID)),
 		})

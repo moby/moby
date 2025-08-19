@@ -12,6 +12,7 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
+	copts "github.com/moby/moby/client/opts/container"
 	"github.com/moby/moby/v2/integration/internal/network"
 	"github.com/moby/moby/v2/integration/internal/swarm"
 	"github.com/moby/moby/v2/testutil"
@@ -64,7 +65,7 @@ func testServiceCreateInit(ctx context.Context, daemonEnabled bool) func(t *test
 
 func inspectServiceContainer(ctx context.Context, t *testing.T, client client.APIClient, serviceID string) container.InspectResponse {
 	t.Helper()
-	containers, err := client.ContainerList(ctx, container.ListOptions{
+	containers, err := client.ContainerList(ctx, copts.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("label", "com.docker.swarm.service.id="+serviceID)),
 	})
 	assert.NilError(t, err)

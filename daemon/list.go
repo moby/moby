@@ -14,6 +14,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
+	copts "github.com/moby/moby/client/opts/container"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/server/backend"
@@ -58,7 +59,7 @@ func (daemon *Daemon) List() []*container.Container {
 }
 
 // listContext is the daemon generated filtering to iterate over containers.
-// This is created based on the user specification from [containertypes.ListOptions].
+// This is created based on the user specification from [copts.ListOptions].
 type listContext struct {
 	// idx is the container iteration index for this context
 	idx int
@@ -89,7 +90,7 @@ type listContext struct {
 	expose map[string]bool
 
 	// ListOptions is the filters set by the user
-	*containertypes.ListOptions
+	*copts.ListOptions
 }
 
 // byCreatedDescending is a temporary type used to sort a list of containers by creation time.
@@ -102,7 +103,7 @@ func (r byCreatedDescending) Less(i, j int) bool {
 }
 
 // Containers returns the list of containers to show given the user's filtering.
-func (daemon *Daemon) Containers(ctx context.Context, config *containertypes.ListOptions) ([]*containertypes.Summary, error) {
+func (daemon *Daemon) Containers(ctx context.Context, config *copts.ListOptions) ([]*containertypes.Summary, error) {
 	if err := config.Filters.Validate(acceptedPsFilterTags); err != nil {
 		return nil, err
 	}
@@ -262,7 +263,7 @@ func (daemon *Daemon) filterByNameIDMatches(view *container.View, filter *listCo
 }
 
 // foldFilter generates the container filter based on the user's filtering options.
-func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, config *containertypes.ListOptions) (*listContext, error) {
+func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, config *copts.ListOptions) (*listContext, error) {
 	psFilters := config.Filters
 
 	var filtExited []int

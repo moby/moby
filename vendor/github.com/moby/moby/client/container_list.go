@@ -9,10 +9,11 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/versions"
+	copts "github.com/moby/moby/client/opts/container"
 )
 
 // ContainerList returns the list of containers in the docker host.
-func (cli *Client) ContainerList(ctx context.Context, options container.ListOptions) ([]container.Summary, error) {
+func (cli *Client) ContainerList(ctx context.Context, options copts.ListOptions) ([]container.Summary, error) {
 	query := url.Values{}
 
 	if options.All {

@@ -18,6 +18,7 @@ import (
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/versions"
+	copts "github.com/moby/moby/client/opts/container"
 	"github.com/moby/moby/v2/daemon/internal/runconfig"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	networkSettings "github.com/moby/moby/v2/daemon/network"
@@ -94,7 +95,7 @@ func (c *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 		return err
 	}
 
-	config := &container.ListOptions{
+	config := &copts.ListOptions{
 		All:     httputils.BoolValue(r, "all"),
 		Size:    httputils.BoolValue(r, "size"),
 		Since:   r.Form.Get("since"),

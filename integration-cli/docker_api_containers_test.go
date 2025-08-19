@@ -21,6 +21,7 @@ import (
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
+	copts "github.com/moby/moby/client/opts/container"
 	"github.com/moby/moby/client/pkg/stringid"
 	"github.com/moby/moby/v2/daemon/volume"
 	"github.com/moby/moby/v2/integration-cli/cli"
@@ -42,7 +43,7 @@ func (s *DockerAPISuite) TestContainerAPIGetAll(c *testing.T) {
 	defer apiClient.Close()
 
 	ctx := testutil.GetContext(c)
-	containers, err := apiClient.ContainerList(ctx, container.ListOptions{
+	containers, err := apiClient.ContainerList(ctx, copts.ListOptions{
 		All: true,
 	})
 	assert.NilError(c, err)
@@ -60,7 +61,7 @@ func (s *DockerAPISuite) TestContainerAPIGetJSONNoFieldsOmitted(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	options := container.ListOptions{
+	options := copts.ListOptions{
 		All: true,
 	}
 	ctx := testutil.GetContext(c)

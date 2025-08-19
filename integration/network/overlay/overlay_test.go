@@ -13,6 +13,7 @@ import (
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
+	copts "github.com/moby/moby/client/opts/container"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/integration/internal/network"
@@ -89,7 +90,7 @@ func TestHostPortMappings(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, svcID, 1), swarm.ServicePoll)
 
-	ctrs, err := apiClient.ContainerList(ctx, containertypes.ListOptions{})
+	ctrs, err := apiClient.ContainerList(ctx, copts.ListOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, 1, len(ctrs))
 

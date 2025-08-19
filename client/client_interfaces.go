@@ -18,6 +18,7 @@ import (
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/api/types/volume"
+	copts "github.com/moby/moby/client/opts/container"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -78,7 +79,7 @@ type ContainerAPIClient interface {
 	ContainerInspect(ctx context.Context, container string) (container.InspectResponse, error)
 	ContainerInspectWithRaw(ctx context.Context, container string, getSize bool) (container.InspectResponse, []byte, error)
 	ContainerKill(ctx context.Context, container, signal string) error
-	ContainerList(ctx context.Context, options container.ListOptions) ([]container.Summary, error)
+	ContainerList(ctx context.Context, options copts.ListOptions) ([]container.Summary, error)
 	ContainerLogs(ctx context.Context, container string, options container.LogsOptions) (io.ReadCloser, error)
 	ContainerPause(ctx context.Context, container string) error
 	ContainerRemove(ctx context.Context, container string, options container.RemoveOptions) error

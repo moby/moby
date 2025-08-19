@@ -12,6 +12,7 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
+	copts "github.com/moby/moby/client/opts/container"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 )
@@ -164,7 +165,7 @@ func Remove(ctx context.Context, t *testing.T, apiClient client.APIClient, conta
 func RemoveAll(ctx context.Context, t *testing.T, apiClient client.APIClient) {
 	t.Helper()
 
-	containers, err := apiClient.ContainerList(ctx, container.ListOptions{All: true})
+	containers, err := apiClient.ContainerList(ctx, copts.ListOptions{All: true})
 	assert.NilError(t, err)
 
 	for _, c := range containers {

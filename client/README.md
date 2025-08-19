@@ -21,6 +21,7 @@ import (
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
+	copts "github.com/moby/moby/client/opts/container"
 )
 
 func main() {
@@ -30,7 +31,7 @@ func main() {
 	}
 	defer apiClient.Close()
 
-	containers, err := apiClient.ContainerList(context.Background(), container.ListOptions{All: true})
+	containers, err := apiClient.ContainerList(context.Background(), copts.ListOptions{All: true})
 	if err != nil {
 		panic(err)
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/client"
+	copts "github.com/moby/moby/client/opts/container"
 	"go.opentelemetry.io/otel"
 	"gotest.tools/v3/assert"
 )
@@ -54,7 +55,7 @@ func unpauseAllContainers(ctx context.Context, t testing.TB, client client.Conta
 
 func getPausedContainers(ctx context.Context, t testing.TB, client client.ContainerAPIClient) []container.Summary {
 	t.Helper()
-	containers, err := client.ContainerList(ctx, container.ListOptions{
+	containers, err := client.ContainerList(ctx, copts.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("status", "paused")),
 		All:     true,
 	})
@@ -88,7 +89,7 @@ func deleteAllContainers(ctx context.Context, t testing.TB, apiclient client.Con
 
 func getAllContainers(ctx context.Context, t testing.TB, client client.ContainerAPIClient) []container.Summary {
 	t.Helper()
-	containers, err := client.ContainerList(ctx, container.ListOptions{
+	containers, err := client.ContainerList(ctx, copts.ListOptions{
 		All: true,
 	})
 	assert.Check(t, err, "failed to list containers")

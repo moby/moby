@@ -971,6 +971,7 @@ github.com/moby/moby/api/types/volume
 ## explicit; go 1.23.0
 github.com/moby/moby/client
 github.com/moby/moby/client/internal/timestamp
+github.com/moby/moby/client/opts/container
 github.com/moby/moby/client/pkg/jsonmessage
 github.com/moby/moby/client/pkg/stringid
 # github.com/moby/patternmatcher v0.6.0

@@ -7,6 +7,7 @@ import (
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
+	copts "github.com/moby/moby/client/opts/container"
 	containerpkg "github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/pkg/sysinfo"
@@ -52,7 +53,7 @@ type monitorBackend interface {
 	ContainerLogs(ctx context.Context, name string, config *container.LogsOptions) (msgs <-chan *backend.LogMessage, tty bool, err error)
 	ContainerStats(ctx context.Context, name string, config *backend.ContainerStatsConfig) error
 	ContainerTop(name string, psArgs string) (*container.TopResponse, error)
-	Containers(ctx context.Context, config *container.ListOptions) ([]*container.Summary, error)
+	Containers(ctx context.Context, config *copts.ListOptions) ([]*container.Summary, error)
 }
 
 // attachBackend includes function to implement to provide container attaching functionality.
