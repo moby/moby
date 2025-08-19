@@ -334,6 +334,11 @@ linters:
         path: "libnetwork/cmd/networkdb-test/dbclient"
         linters:
           - forbidigo
+      
+      # Ignore deprecated disk usage type warnings which will be moved internal to the daemon backend in the next major release.
+      - text: "SA1019: ((buildtypes|build).CacheDiskUsage|(container|containertypes|image|volume|volumetypes).DiskUsage) is deprecated"
+        linters:
+          - staticcheck
 
     # Log a warning if an exclusion rule is unused.
     # Default: false
