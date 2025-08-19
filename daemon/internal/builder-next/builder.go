@@ -23,6 +23,7 @@ import (
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
+	mobyclient "github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/images"
@@ -187,7 +188,7 @@ func (b *Builder) DiskUsage(ctx context.Context) ([]*build.CacheRecord, error) {
 }
 
 // Prune clears all reclaimable build cache.
-func (b *Builder) Prune(ctx context.Context, opts build.CachePruneOptions) (int64, []string, error) {
+func (b *Builder) Prune(ctx context.Context, opts mobyclient.CachePruneOptions) (int64, []string, error) {
 	ch := make(chan *controlapi.UsageRecord)
 
 	eg, ctx := errgroup.WithContext(ctx)
@@ -641,7 +642,7 @@ func toBuildkitUlimits(inp []*container.Ulimit) (string, error) {
 	return strings.Join(ulimits, ","), nil
 }
 
-func toBuildkitPruneInfo(opts build.CachePruneOptions) (client.PruneInfo, error) {
+func toBuildkitPruneInfo(opts mobyclient.CachePruneOptions) (client.PruneInfo, error) {
 	var until time.Duration
 	untilValues := opts.Filters.Get("until")          // canonical
 	unusedForValues := opts.Filters.Get("unused-for") // deprecated synonym for "until" filter

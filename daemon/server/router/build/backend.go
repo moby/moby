@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/moby/moby/api/types/build"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/server/backend"
 )
 
@@ -14,7 +15,7 @@ type Backend interface {
 	Build(context.Context, backend.BuildConfig) (string, error)
 
 	// PruneCache prunes the build cache.
-	PruneCache(context.Context, build.CachePruneOptions) (*build.CachePruneReport, error)
+	PruneCache(context.Context, client.CachePruneOptions) (*build.CachePruneReport, error)
 	Cancel(context.Context, string) error
 }
 
