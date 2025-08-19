@@ -2,13 +2,10 @@ package cluster
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/containerd/log"
@@ -232,9 +229,9 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 			// retrieve auth config from encoded auth
 			authConfig := &registry.AuthConfig{}
 			if encodedAuth != "" {
-				authReader := strings.NewReader(encodedAuth)
-				dec := json.NewDecoder(base64.NewDecoder(base64.URLEncoding, authReader))
-				if err := dec.Decode(authConfig); err != nil {
+				var err error
+				authConfig, err = registry.DecodeAuthConfig(encodedAuth)
+				if err != nil {
 					log.G(ctx).Warnf("invalid authconfig: %v", err)
 				}
 			}
@@ -350,7 +347,9 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swa
 			// retrieve auth config from encoded auth
 			authConfig := &registry.AuthConfig{}
 			if encodedAuth != "" {
-				if err := json.NewDecoder(base64.NewDecoder(base64.URLEncoding, strings.NewReader(encodedAuth))).Decode(authConfig); err != nil {
+				var err error
+				authConfig, err = registry.DecodeAuthConfig(encodedAuth)
+				if err != nil {
 					log.G(ctx).Warnf("invalid authconfig: %v", err)
 				}
 			}
