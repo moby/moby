@@ -16,11 +16,11 @@ import (
 	"github.com/moby/moby/api/pkg/streamformatter"
 	"github.com/moby/moby/api/types/filters"
 	imagetypes "github.com/moby/moby/api/types/image"
-	registrytypes "github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/v2/daemon/builder/remotecontext"
+	"github.com/moby/moby/v2/daemon/internal/authconfig"
 	"github.com/moby/moby/v2/daemon/internal/image"
-	"github.com/moby/moby/v2/daemon/internal/registry"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/dockerversion"
@@ -102,7 +102,7 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 		// AuthConfig to increase compatibility with the existing API.
 		//
 		// TODO(thaJeztah): accept empty values but return an error when failing to decode.
-		authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registrytypes.AuthHeader))
+		authConfig, _ := authconfig.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
 		progressErr = ir.backend.PullImage(ctx, ref, platform, metaHeaders, authConfig, output)
 	} else { // import
 		src := r.Form.Get("fromSrc")
@@ -171,7 +171,7 @@ func (ir *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter
 	// to increase compatibility with the existing API.
 	//
 	// TODO(thaJeztah): accept empty values but return an error when failing to decode.
-	authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registrytypes.AuthHeader))
+	authConfig, _ := authconfig.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
 
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
@@ -555,7 +555,7 @@ func (ir *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWrite
 
 	// For a search it is not an error if no auth was given. Ignore invalid
 	// AuthConfig to increase compatibility with the existing API.
-	authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registrytypes.AuthHeader))
+	authConfig, _ := authconfig.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
 
 	headers := http.Header{}
 	for k, v := range r.Header {

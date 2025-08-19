@@ -9,9 +9,9 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema2"
-	registrytypes "github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/v2/daemon/internal/authconfig"
 	distributionpkg "github.com/moby/moby/v2/daemon/internal/distribution"
-	"github.com/moby/moby/v2/daemon/internal/registry"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -43,7 +43,7 @@ func (dr *distributionRouter) getDistributionInfo(ctx context.Context, w http.Re
 
 	// For a search it is not an error if no auth was given. Ignore invalid
 	// AuthConfig to increase compatibility with the existing API.
-	authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registrytypes.AuthHeader))
+	authConfig, _ := authconfig.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
 	repos, err := dr.backend.GetRepositories(ctx, namedRef, authConfig)
 	if err != nil {
 		return err
@@ -75,19 +75,19 @@ func (dr *distributionRouter) getDistributionInfo(ctx context.Context, w http.Re
 	return lastErr
 }
 
-func fetchManifest(ctx context.Context, distrepo distribution.Repository, namedRef reference.Named) (registrytypes.DistributionInspect, error) {
-	var distributionInspect registrytypes.DistributionInspect
+func fetchManifest(ctx context.Context, distrepo distribution.Repository, namedRef reference.Named) (registry.DistributionInspect, error) {
+	var distributionInspect registry.DistributionInspect
 	if canonicalRef, ok := namedRef.(reference.Canonical); !ok {
 		namedRef = reference.TagNameOnly(namedRef)
 
 		taggedRef, ok := namedRef.(reference.NamedTagged)
 		if !ok {
-			return registrytypes.DistributionInspect{}, errdefs.InvalidParameter(errors.Errorf("image reference not tagged: %s", namedRef))
+			return registry.DistributionInspect{}, errdefs.InvalidParameter(errors.Errorf("image reference not tagged: %s", namedRef))
 		}
 
 		descriptor, err := distrepo.Tags(ctx).Get(ctx, taggedRef.Tag())
 		if err != nil {
-			return registrytypes.DistributionInspect{}, err
+			return registry.DistributionInspect{}, err
 		}
 		distributionInspect.Descriptor = ocispec.Descriptor{
 			MediaType: descriptor.MediaType,
@@ -104,7 +104,7 @@ func fetchManifest(ctx context.Context, distrepo distribution.Repository, namedR
 	// we have a digest, so we can retrieve the manifest
 	mnfstsrvc, err := distrepo.Manifests(ctx)
 	if err != nil {
-		return registrytypes.DistributionInspect{}, err
+		return registry.DistributionInspect{}, err
 	}
 	mnfst, err := mnfstsrvc.Get(ctx, distributionInspect.Descriptor.Digest)
 	if err != nil {
@@ -116,18 +116,18 @@ func fetchManifest(ctx context.Context, distrepo distribution.Repository, namedR
 			errors.Is(err, reference.ErrNameEmpty),
 			errors.Is(err, reference.ErrNameTooLong),
 			errors.Is(err, reference.ErrNameNotCanonical):
-			return registrytypes.DistributionInspect{}, errdefs.InvalidParameter(err)
+			return registry.DistributionInspect{}, errdefs.InvalidParameter(err)
 		}
-		return registrytypes.DistributionInspect{}, err
+		return registry.DistributionInspect{}, err
 	}
 
 	mediaType, payload, err := mnfst.Payload()
 	if err != nil {
-		return registrytypes.DistributionInspect{}, err
+		return registry.DistributionInspect{}, err
 	}
 	switch mediaType {
 	case distributionpkg.MediaTypeDockerSchema1Manifest, distributionpkg.MediaTypeDockerSchema1SignedManifest:
-		return registrytypes.DistributionInspect{}, distributionpkg.DeprecatedSchema1ImageError(namedRef)
+		return registry.DistributionInspect{}, distributionpkg.DeprecatedSchema1ImageError(namedRef)
 	}
 
 	// update MediaType because registry might return something incorrect

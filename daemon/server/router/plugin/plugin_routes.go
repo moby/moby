@@ -10,15 +10,15 @@ import (
 	"github.com/moby/moby/api/pkg/streamformatter"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/plugin"
-	registrytypes "github.com/moby/moby/api/types/registry"
-	"github.com/moby/moby/v2/daemon/internal/registry"
+	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/v2/daemon/internal/authconfig"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/pkg/ioutils"
 	"github.com/pkg/errors"
 )
 
-func parseHeaders(headers http.Header) (map[string][]string, *registrytypes.AuthConfig) {
+func parseHeaders(headers http.Header) (map[string][]string, *registry.AuthConfig) {
 	metaHeaders := map[string][]string{}
 	for k, v := range headers {
 		if strings.HasPrefix(k, "X-Meta-") {
@@ -27,7 +27,7 @@ func parseHeaders(headers http.Header) (map[string][]string, *registrytypes.Auth
 	}
 
 	// Ignore invalid AuthConfig to increase compatibility with the existing API.
-	authConfig, _ := registry.DecodeAuthConfig(headers.Get(registrytypes.AuthHeader))
+	authConfig, _ := authconfig.DecodeAuthConfig(headers.Get(registry.AuthHeader))
 	return metaHeaders, authConfig
 }
 

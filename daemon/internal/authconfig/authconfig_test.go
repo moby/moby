@@ -1,4 +1,4 @@
-package registry
+package authconfig
 
 import (
 	"encoding/base64"
@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	registrytypes "github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/api/types/registry"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -16,33 +16,33 @@ func TestDecodeAuthConfig(t *testing.T) {
 		doc         string
 		input       string
 		inputBase64 string
-		expected    registrytypes.AuthConfig
+		expected    registry.AuthConfig
 		expectedErr string
 	}{
 		{
 			doc:         "empty",
 			input:       ``,
 			inputBase64: ``,
-			expected:    registrytypes.AuthConfig{},
+			expected:    registry.AuthConfig{},
 		},
 		{
 			doc:         "empty JSON",
 			input:       `{}`,
 			inputBase64: `e30=`,
-			expected:    registrytypes.AuthConfig{},
+			expected:    registry.AuthConfig{},
 		},
 		{
 			doc:         "malformed JSON",
 			input:       `{`,
 			inputBase64: `ew==`,
-			expected:    registrytypes.AuthConfig{},
+			expected:    registry.AuthConfig{},
 			expectedErr: `invalid X-Registry-Auth header: invalid JSON: unexpected EOF`,
 		},
 		{
 			doc:         "test authConfig",
 			input:       `{"username":"testuser","password":"testpassword","serveraddress":"example.com"}`,
 			inputBase64: `eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwicGFzc3dvcmQiOiJ0ZXN0cGFzc3dvcmQiLCJzZXJ2ZXJhZGRyZXNzIjoiZXhhbXBsZS5jb20ifQ==`,
-			expected: registrytypes.AuthConfig{
+			expected: registry.AuthConfig{
 				Username:      "testuser",
 				Password:      "testpassword",
 				ServerAddress: "example.com",
@@ -53,7 +53,7 @@ func TestDecodeAuthConfig(t *testing.T) {
 			doc:         "multiple authConfig",
 			input:       `{"username":"testuser","password":"testpassword","serveraddress":"example.com"}{"username":"testuser2","password":"testpassword2","serveraddress":"example.org"}`,
 			inputBase64: `eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwicGFzc3dvcmQiOiJ0ZXN0cGFzc3dvcmQiLCJzZXJ2ZXJhZGRyZXNzIjoiZXhhbXBsZS5jb20ifXsidXNlcm5hbWUiOiJ0ZXN0dXNlcjIiLCJwYXNzd29yZCI6InRlc3RwYXNzd29yZDIiLCJzZXJ2ZXJhZGRyZXNzIjoiZXhhbXBsZS5vcmcifQ==`,
-			expected: registrytypes.AuthConfig{
+			expected: registry.AuthConfig{
 				Username:      "testuser",
 				Password:      "testpassword",
 				ServerAddress: "example.com",
@@ -68,14 +68,14 @@ func TestDecodeAuthConfig(t *testing.T) {
 			doc:         "empty JSON no padding",
 			input:       `{}`,
 			inputBase64: `e30`,
-			expected:    registrytypes.AuthConfig{},
+			expected:    registry.AuthConfig{},
 			expectedErr: `invalid X-Registry-Auth header: must be a valid base64url-encoded string`,
 		},
 		{
 			doc:         "test authConfig",
 			input:       `{"username":"testuser","password":"testpassword","serveraddress":"example.com"}`,
 			inputBase64: `eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwicGFzc3dvcmQiOiJ0ZXN0cGFzc3dvcmQiLCJzZXJ2ZXJhZGRyZXNzIjoiZXhhbXBsZS5jb20ifQ`,
-			expected:    registrytypes.AuthConfig{},
+			expected:    registry.AuthConfig{},
 			expectedErr: `invalid X-Registry-Auth header: must be a valid base64url-encoded string`,
 		},
 	}

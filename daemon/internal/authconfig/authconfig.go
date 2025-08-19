@@ -1,4 +1,4 @@
-package registry
+package authconfig
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 
-	registrytypes "github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/errdefs"
 )
 
@@ -20,33 +20,33 @@ import (
 // be ignored.
 //
 // [RFC4648, section 5]: https://tools.ietf.org/html/rfc4648#section-5
-func DecodeAuthConfig(authEncoded string) (*registrytypes.AuthConfig, error) {
+func DecodeAuthConfig(authEncoded string) (*registry.AuthConfig, error) {
 	if authEncoded == "" {
-		return &registrytypes.AuthConfig{}, nil
+		return &registry.AuthConfig{}, nil
 	}
 
 	decoded, err := base64.URLEncoding.DecodeString(authEncoded)
 	if err != nil {
 		var e base64.CorruptInputError
 		if errors.As(err, &e) {
-			return &registrytypes.AuthConfig{}, invalid(errors.New("must be a valid base64url-encoded string"))
+			return &registry.AuthConfig{}, invalid(errors.New("must be a valid base64url-encoded string"))
 		}
-		return &registrytypes.AuthConfig{}, invalid(err)
+		return &registry.AuthConfig{}, invalid(err)
 	}
 
 	if bytes.Equal(decoded, []byte("{}")) {
-		return &registrytypes.AuthConfig{}, nil
+		return &registry.AuthConfig{}, nil
 	}
 
 	return decodeAuthConfigFromReader(bytes.NewReader(decoded))
 }
 
-func decodeAuthConfigFromReader(rdr io.Reader) (*registrytypes.AuthConfig, error) {
-	authConfig := &registrytypes.AuthConfig{}
+func decodeAuthConfigFromReader(rdr io.Reader) (*registry.AuthConfig, error) {
+	authConfig := &registry.AuthConfig{}
 	if err := json.NewDecoder(rdr).Decode(authConfig); err != nil {
 		// always return an (empty) AuthConfig to increase compatibility with
 		// the existing API.
-		return &registrytypes.AuthConfig{}, invalid(fmt.Errorf("invalid JSON: %w", err))
+		return &registry.AuthConfig{}, invalid(fmt.Errorf("invalid JSON: %w", err))
 	}
 	return authConfig, nil
 }
