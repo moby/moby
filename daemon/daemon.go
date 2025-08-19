@@ -134,7 +134,7 @@ type Daemon struct {
 	seccompProfile     []byte
 	seccompProfilePath string
 
-	usageContainers singleflight.Group[struct{}, *containertypes.DiskUsage]
+	usageContainers singleflight.Group[struct{}, *backend.ContainerDiskUsage]
 	usageImages     singleflight.Group[struct{}, []*imagetypes.Summary]
 	usageVolumes    singleflight.Group[struct{}, *volumetypes.DiskUsage]
 	usageLayer      singleflight.Group[struct{}, int64]

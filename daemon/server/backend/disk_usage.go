@@ -23,7 +23,7 @@ type DiskUsageOptions struct {
 // GET "/system/df" endpoint.
 type DiskUsage struct {
 	Images     *image.DiskUsage
-	Containers *container.DiskUsage
+	Containers *ContainerDiskUsage
 	Volumes    *volume.DiskUsage
 	BuildCache *BuildCacheDiskUsage
 }
@@ -33,4 +33,11 @@ type BuildCacheDiskUsage struct {
 	TotalSize   int64
 	Reclaimable int64
 	Items       []*build.CacheRecord
+}
+
+// ContainerDiskUsage contains disk usage for containers.
+type ContainerDiskUsage struct {
+	TotalSize   int64
+	Reclaimable int64
+	Items       []*container.Summary
 }
