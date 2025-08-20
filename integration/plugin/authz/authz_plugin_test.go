@@ -21,7 +21,6 @@ import (
 	"github.com/moby/go-archive"
 	containertypes "github.com/moby/moby/api/types/container"
 	eventtypes "github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/pkg/authorization"
@@ -460,9 +459,9 @@ func imageImport(ctx context.Context, apiClient client.APIClient, path string) e
 		return err
 	}
 	defer file.Close()
-	options := image.ImportOptions{}
+	options := client.ImageImportOptions{}
 	ref := ""
-	source := image.ImportSource{
+	source := client.ImageImportSource{
 		Source:     file,
 		SourceName: "-",
 	}

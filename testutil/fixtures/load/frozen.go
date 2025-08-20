@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/term"
@@ -28,13 +27,13 @@ const frozenImgDir = "/docker-frozen-images"
 // TODO: This loads whatever is in the frozen image dir, regardless of what
 // images were passed in. If the images need to be downloaded, then it will respect
 // the passed in images
-func FrozenImagesLinux(ctx context.Context, client client.APIClient, images ...string) error {
+func FrozenImagesLinux(ctx context.Context, apiClient client.APIClient, images ...string) error {
 	ctx, span := otel.Tracer("").Start(ctx, "LoadFrozenImages")
 	defer span.End()
 
 	var loadImages []struct{ srcName, destName string }
 	for _, img := range images {
-		if !imageExists(ctx, client, img) {
+		if !imageExists(ctx, apiClient, img) {
 			srcName := img
 			// hello-world:latest gets re-tagged as hello-world:frozen
 			// there are some tests that use hello-world:latest specifically so it pulls
@@ -60,21 +59,21 @@ func FrozenImagesLinux(ctx context.Context, client client.APIClient, images ...s
 		for _, img := range loadImages {
 			srcImages = append(srcImages, img.srcName)
 		}
-		if err := pullImages(ctx, client, srcImages); err != nil {
+		if err := pullImages(ctx, apiClient, srcImages); err != nil {
 			return errors.Wrap(err, "error pulling image list")
 		}
 	} else {
-		if err := loadFrozenImages(ctx, client); err != nil {
+		if err := loadFrozenImages(ctx, apiClient); err != nil {
 			return err
 		}
 	}
 
 	for _, img := range loadImages {
 		if img.srcName != img.destName {
-			if err := client.ImageTag(ctx, img.srcName, img.destName); err != nil {
+			if err := apiClient.ImageTag(ctx, img.srcName, img.destName); err != nil {
 				return errors.Wrapf(err, "failed to tag %s as %s", img.srcName, img.destName)
 			}
-			if _, err := client.ImageRemove(ctx, img.srcName, image.RemoveOptions{}); err != nil {
+			if _, err := apiClient.ImageRemove(ctx, img.srcName, client.ImageRemoveOptions{}); err != nil {
 				return errors.Wrapf(err, "failed to remove %s", img.srcName)
 			}
 		}
@@ -152,7 +151,7 @@ func pullImages(ctx context.Context, client client.APIClient, images []string) e
 	return <-chErr
 }
 
-func pullTagAndRemove(ctx context.Context, client client.APIClient, ref string, tag string) (retErr error) {
+func pullTagAndRemove(ctx context.Context, apiClient client.APIClient, ref string, tag string) (retErr error) {
 	ctx, span := otel.Tracer("").Start(ctx, "pull image: "+ref+" with tag: "+tag)
 	defer func() {
 		if retErr != nil {
@@ -162,7 +161,7 @@ func pullTagAndRemove(ctx context.Context, client client.APIClient, ref string, 
 		span.End()
 	}()
 
-	resp, err := client.ImagePull(ctx, ref, image.PullOptions{})
+	resp, err := apiClient.ImagePull(ctx, ref, client.ImagePullOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to pull %s", ref)
 	}
@@ -172,10 +171,10 @@ func pullTagAndRemove(ctx context.Context, client client.APIClient, ref string, 
 		return err
 	}
 
-	if err := client.ImageTag(ctx, ref, tag); err != nil {
+	if err := apiClient.ImageTag(ctx, ref, tag); err != nil {
 		return errors.Wrapf(err, "failed to tag %s as %s", ref, tag)
 	}
-	_, err = client.ImageRemove(ctx, ref, image.RemoveOptions{})
+	_, err = apiClient.ImageRemove(ctx, ref, client.ImageRemoveOptions{})
 	return errors.Wrapf(err, "failed to remove %s", ref)
 }
 

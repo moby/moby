@@ -11,7 +11,6 @@ import (
 
 	"github.com/moby/moby/api/types/build"
 	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/versions"
@@ -149,7 +148,7 @@ func TestRunMountImage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			testImage := setupTestImage(t, ctx, apiClient, tc.name)
 			if testImage != "" {
-				defer apiClient.ImageRemove(ctx, testImage, image.RemoveOptions{Force: true})
+				defer apiClient.ImageRemove(ctx, testImage, client.ImageRemoveOptions{Force: true})
 			}
 
 			cfg := containertypes.Config{
@@ -195,7 +194,7 @@ func TestRunMountImage(t *testing.T) {
 			if tc.name == "image_remove" {
 				img, _ := apiClient.ImageInspect(ctx, testImage)
 				imgId := strings.Split(img.ID, ":")[1]
-				_, removeErr := apiClient.ImageRemove(ctx, testImage, image.RemoveOptions{})
+				_, removeErr := apiClient.ImageRemove(ctx, testImage, client.ImageRemoveOptions{})
 				assert.ErrorContains(t, removeErr, fmt.Sprintf(`container %s is using its referenced image %s`, id[:12], imgId[:12]))
 			}
 
@@ -204,7 +203,7 @@ func TestRunMountImage(t *testing.T) {
 				stopErr := apiClient.ContainerStop(ctx, id, containertypes.StopOptions{})
 				assert.NilError(t, stopErr)
 
-				_, removeErr := apiClient.ImageRemove(ctx, testImage, image.RemoveOptions{Force: true})
+				_, removeErr := apiClient.ImageRemove(ctx, testImage, client.ImageRemoveOptions{Force: true})
 				assert.NilError(t, removeErr)
 
 				startContainer(id)
