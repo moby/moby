@@ -453,7 +453,7 @@ func (s *DockerCLIEventSuite) TestEventsResize(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	options := client.ResizeOptions{
+	options := client.ContainerResizeOptions{
 		Height: 80,
 		Width:  24,
 	}

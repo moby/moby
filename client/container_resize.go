@@ -6,16 +6,16 @@ import (
 	"strconv"
 )
 
-// ResizeOptions holds parameters to resize a TTY.
+// ContainerResizeOptions holds parameters to resize a TTY.
 // It can be used to resize container TTYs and
 // exec process TTYs too.
-type ResizeOptions struct {
+type ContainerResizeOptions struct {
 	Height uint
 	Width  uint
 }
 
 // ContainerResize changes the size of the pseudo-TTY for a container.
-func (cli *Client) ContainerResize(ctx context.Context, containerID string, options ResizeOptions) error {
+func (cli *Client) ContainerResize(ctx context.Context, containerID string, options ContainerResizeOptions) error {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
 		return err
@@ -24,7 +24,7 @@ func (cli *Client) ContainerResize(ctx context.Context, containerID string, opti
 }
 
 // ContainerExecResize changes the size of the tty for an exec process running inside a container.
-func (cli *Client) ContainerExecResize(ctx context.Context, execID string, options ResizeOptions) error {
+func (cli *Client) ContainerExecResize(ctx context.Context, execID string, options ContainerResizeOptions) error {
 	execID, err := trimID("exec", execID)
 	if err != nil {
 		return err

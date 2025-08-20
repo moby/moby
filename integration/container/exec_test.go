@@ -138,7 +138,7 @@ func TestExecResize(t *testing.T) {
 	assert.NilError(t, err)
 
 	t.Run("success", func(t *testing.T) {
-		err := apiClient.ContainerExecResize(ctx, execID, client.ResizeOptions{
+		err := apiClient.ContainerExecResize(ctx, execID, client.ContainerResizeOptions{
 			Height: 40,
 			Width:  40,
 		})
@@ -247,7 +247,7 @@ func TestExecResize(t *testing.T) {
 	})
 
 	t.Run("unknown execID", func(t *testing.T) {
-		err = apiClient.ContainerExecResize(ctx, "no-such-exec-id", client.ResizeOptions{
+		err = apiClient.ContainerExecResize(ctx, "no-such-exec-id", client.ContainerResizeOptions{
 			Height: 40,
 			Width:  40,
 		})
@@ -275,7 +275,7 @@ func TestExecResize(t *testing.T) {
 		err := apiClient.ContainerKill(ctx, cID, "SIGKILL")
 		assert.NilError(t, err)
 
-		err = apiClient.ContainerExecResize(ctx, execID, client.ResizeOptions{
+		err = apiClient.ContainerExecResize(ctx, execID, client.ContainerResizeOptions{
 			Height: 40,
 			Width:  40,
 		})
