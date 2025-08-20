@@ -13,6 +13,7 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil/request"
 	"gotest.tools/v3/assert"
@@ -32,7 +33,7 @@ func TestEventsExecDie(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	msg, errs := apiClient.Events(ctx, events.ListOptions{
+	msg, errs := apiClient.Events(ctx, client.ListOptions{
 		Filters: filters.NewArgs(
 			filters.Arg("container", cID),
 			filters.Arg("event", string(events.ActionExecDie)),
@@ -113,7 +114,7 @@ func TestEventsVolumeCreate(t *testing.T) {
 		filters.Arg("event", "create"),
 		filters.Arg("volume", volName),
 	)
-	messages, errs := apiClient.Events(ctx, events.ListOptions{
+	messages, errs := apiClient.Events(ctx, client.ListOptions{
 		Since:   since,
 		Until:   request.DaemonUnixTime(ctx, t, apiClient, testEnv),
 		Filters: filter,
@@ -129,7 +130,7 @@ func TestEventsVolumeCreate(t *testing.T) {
 		Target: "/tmp/foo",
 	}))
 
-	messages, errs = apiClient.Events(ctx, events.ListOptions{
+	messages, errs = apiClient.Events(ctx, client.ListOptions{
 		Since:   since,
 		Until:   request.DaemonUnixTime(ctx, t, apiClient, testEnv),
 		Filters: filter,

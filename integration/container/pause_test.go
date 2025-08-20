@@ -9,6 +9,7 @@ import (
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil/request"
 	"gotest.tools/v3/assert"
@@ -40,7 +41,7 @@ func TestPause(t *testing.T) {
 
 	until := request.DaemonUnixTime(ctx, t, apiClient, testEnv)
 
-	messages, errs := apiClient.Events(ctx, events.ListOptions{
+	messages, errs := apiClient.Events(ctx, client.ListOptions{
 		Since:   since,
 		Until:   until,
 		Filters: filters.NewArgs(filters.Arg(string(events.ContainerEventType), cID)),

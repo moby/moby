@@ -186,7 +186,7 @@ type SwarmAPIClient interface {
 
 // SystemAPIClient defines API client methods for the system
 type SystemAPIClient interface {
-	Events(ctx context.Context, options events.ListOptions) (<-chan events.Message, <-chan error)
+	Events(ctx context.Context, options ListOptions) (<-chan events.Message, <-chan error)
 	Info(ctx context.Context) (system.Info, error)
 	RegistryLogin(ctx context.Context, auth registry.AuthConfig) (registry.AuthenticateOKBody, error)
 	DiskUsage(ctx context.Context, options system.DiskUsageOptions) (system.DiskUsage, error)

@@ -287,7 +287,7 @@ func systemTime(ctx context.Context, t *testing.T, apiClient client.APIClient, t
 }
 
 func systemEventsSince(ctx context.Context, apiClient client.APIClient, since string) (<-chan eventtypes.Message, <-chan error, func()) {
-	eventOptions := eventtypes.ListOptions{
+	eventOptions := client.ListOptions{
 		Since: since,
 	}
 	ctx, cancel := context.WithCancel(ctx)
