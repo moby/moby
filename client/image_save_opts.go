@@ -3,7 +3,6 @@ package client
 import (
 	"fmt"
 
-	"github.com/moby/moby/api/types/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -29,5 +28,5 @@ func ImageSaveWithPlatforms(platforms ...ocispec.Platform) ImageSaveOption {
 }
 
 type imageSaveOpts struct {
-	apiOptions image.SaveOptions
+	apiOptions SaveOptions
 }

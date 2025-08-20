@@ -9,6 +9,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/moby/moby/api/types/events"
 	imagetypes "github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
@@ -63,7 +64,7 @@ const (
 // If options.PruneChildren is true, ancestor images are attempted to be deleted quietly,
 // meaning any delete conflicts will cause the image to not be deleted and the
 // conflict will not be reported.
-func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options imagetypes.RemoveOptions) ([]imagetypes.DeleteResponse, error) {
+func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options client.RemoveOptions) ([]imagetypes.DeleteResponse, error) {
 	start := time.Now()
 	records := []imagetypes.DeleteResponse{}
 

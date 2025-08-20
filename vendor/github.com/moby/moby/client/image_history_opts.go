@@ -1,9 +1,5 @@
 package client
 
-import (
-	"github.com/moby/moby/api/types/image"
-)
-
 // ImageHistoryOption is a type representing functional options for the image history operation.
 type ImageHistoryOption interface {
 	Apply(*imageHistoryOpts) error
@@ -15,5 +11,5 @@ func (f imageHistoryOptionFunc) Apply(o *imageHistoryOpts) error {
 }
 
 type imageHistoryOpts struct {
-	apiOptions image.HistoryOptions
+	apiOptions HistoryOptions
 }

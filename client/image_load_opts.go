@@ -3,7 +3,6 @@ package client
 import (
 	"fmt"
 
-	"github.com/moby/moby/api/types/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -18,7 +17,7 @@ func (f imageLoadOptionFunc) Apply(o *imageLoadOpts) error {
 }
 
 type imageLoadOpts struct {
-	apiOptions image.LoadOptions
+	apiOptions LoadOptions
 }
 
 // ImageLoadWithQuiet sets the quiet option for the image load operation.

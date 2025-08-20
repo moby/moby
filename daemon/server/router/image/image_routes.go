@@ -15,9 +15,9 @@ import (
 	"github.com/moby/moby/api/pkg/progress"
 	"github.com/moby/moby/api/pkg/streamformatter"
 	"github.com/moby/moby/api/types/filters"
-	imagetypes "github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/builder/remotecontext"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/server/backend"
@@ -328,7 +328,7 @@ func (ir *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, 
 		p = val
 	}
 
-	list, err := ir.backend.ImageDelete(ctx, name, imagetypes.RemoveOptions{
+	list, err := ir.backend.ImageDelete(ctx, name, client.RemoveOptions{
 		Force:         force,
 		PruneChildren: prune,
 		Platforms:     p,
@@ -442,7 +442,7 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 		manifests = httputils.BoolValue(r, "manifests")
 	}
 
-	images, err := ir.backend.Images(ctx, imagetypes.ListOptions{
+	images, err := ir.backend.Images(ctx, client.ListOptions{
 		All:        httputils.BoolValue(r, "all"),
 		Filters:    imageFilters,
 		SharedSize: sharedSize,

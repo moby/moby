@@ -3,7 +3,6 @@ package client
 import (
 	"bytes"
 
-	"github.com/moby/moby/api/types/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -50,7 +49,7 @@ func ImageInspectWithPlatform(platform *ocispec.Platform) ImageInspectOption {
 }
 
 // ImageInspectWithAPIOpts sets the API options for the image inspect operation.
-func ImageInspectWithAPIOpts(opts image.InspectOptions) ImageInspectOption {
+func ImageInspectWithAPIOpts(opts InspectOptions) ImageInspectOption {
 	return imageInspectOptionFunc(func(clientOpts *imageInspectOpts) error {
 		clientOpts.apiOptions = opts
 		return nil
@@ -59,5 +58,5 @@ func ImageInspectWithAPIOpts(opts image.InspectOptions) ImageInspectOption {
 
 type imageInspectOpts struct {
 	raw        *bytes.Buffer
-	apiOptions image.InspectOptions
+	apiOptions InspectOptions
 }

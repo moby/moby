@@ -8,6 +8,7 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/client"
 	dockerimage "github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -22,9 +23,9 @@ type Backend interface {
 }
 
 type imageBackend interface {
-	ImageDelete(ctx context.Context, imageRef string, options image.RemoveOptions) ([]image.DeleteResponse, error)
+	ImageDelete(ctx context.Context, imageRef string, options client.RemoveOptions) ([]image.DeleteResponse, error)
 	ImageHistory(ctx context.Context, imageName string, platform *ocispec.Platform) ([]*image.HistoryResponseItem, error)
-	Images(ctx context.Context, opts image.ListOptions) ([]*image.Summary, error)
+	Images(ctx context.Context, opts client.ListOptions) ([]*image.Summary, error)
 	GetImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (*dockerimage.Image, error)
 	ImageInspect(ctx context.Context, refOrID string, options backend.ImageInspectOpts) (*image.InspectResponse, error)
 	TagImage(ctx context.Context, id dockerimage.ID, newRef reference.Named) error

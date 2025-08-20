@@ -22,7 +22,7 @@ func TestImageRemoveError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.ImageRemove(context.Background(), "image_id", image.RemoveOptions{})
+	_, err := client.ImageRemove(context.Background(), "image_id", RemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -31,7 +31,7 @@ func TestImageRemoveImageNotFound(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "no such image: unknown")),
 	}
 
-	_, err := client.ImageRemove(context.Background(), "unknown", image.RemoveOptions{})
+	_, err := client.ImageRemove(context.Background(), "unknown", RemoveOptions{})
 	assert.Check(t, is.ErrorContains(err, "no such image: unknown"))
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
@@ -105,7 +105,7 @@ func TestImageRemove(t *testing.T) {
 			}),
 		}
 
-		opts := image.RemoveOptions{
+		opts := RemoveOptions{
 			Force:         removeCase.force,
 			PruneChildren: removeCase.pruneChildren,
 		}
