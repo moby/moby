@@ -90,16 +90,6 @@ type HistoryOptions struct {
 	Platform *ocispec.Platform
 }
 
-// LoadOptions holds parameters to load images.
-type LoadOptions struct {
-	// Quiet suppresses progress output
-	Quiet bool
-
-	// Platforms selects the platforms to load if the image is a
-	// multi-platform image and has multiple variants.
-	Platforms []ocispec.Platform
-}
-
 type InspectOptions struct {
 	// Manifests returns the image manifests.
 	Manifests bool
