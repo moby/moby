@@ -24,7 +24,7 @@ var (
 	Package = "github.com/containerd/containerd/v2"
 
 	// Version holds the complete version number. Filled in at linking time.
-	Version = "2.1.3+unknown"
+	Version = "2.1.4+unknown"
 
 	// Revision is filled with the VCS (e.g. git) revision being used to build
 	// the program at linking time.

@@ -101,7 +101,7 @@ func (clock *FakeClock) increment(duration time.Duration, waitForWatchers bool, 
 
 	watchers := make([]timeWatcher, 0)
 	newWatchers := map[timeWatcher]struct{}{}
-	for w, _ := range clock.watchers {
+	for w := range clock.watchers {
 		fire := w.shouldFire(now)
 		if fire {
 			watchers = append(watchers, w)

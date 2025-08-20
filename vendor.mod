@@ -10,8 +10,8 @@ go 1.23.0
 require (
 	cloud.google.com/go/compute/metadata v0.6.0
 	cloud.google.com/go/logging v1.9.0
-	code.cloudfoundry.org/clock v1.1.0
-	dario.cat/mergo v1.0.1
+	code.cloudfoundry.org/clock v1.37.0
+	dario.cat/mergo v1.0.2
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c
 	github.com/Graylog2/go-gelf v0.0.0-20191017102106-1550ee647df0
@@ -27,7 +27,7 @@ require (
 	github.com/cloudflare/cfssl v1.6.4
 	github.com/containerd/cgroups/v3 v3.0.5
 	github.com/containerd/containerd/api v1.9.0
-	github.com/containerd/containerd/v2 v2.1.3
+	github.com/containerd/containerd/v2 v2.1.4
 	github.com/containerd/continuity v0.4.5
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/errdefs/pkg v0.3.0
@@ -42,7 +42,7 @@ require (
 	github.com/distribution/reference v0.6.0
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/go-connections v0.5.0
-	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c
+	github.com/docker/go-events v0.0.0-20250114142523-c867878c5e32
 	github.com/docker/go-metrics v0.0.1
 	github.com/docker/go-units v0.5.0
 	github.com/fluent/fluent-logger-golang v1.9.0
@@ -99,7 +99,7 @@ require (
 	github.com/vbatts/tar-split v0.12.1
 	github.com/vishvananda/netlink v1.3.1
 	github.com/vishvananda/netns v0.0.5
-	go.etcd.io/bbolt v1.4.0
+	go.etcd.io/bbolt v1.4.2
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.60.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.60.0
 	go.opentelemetry.io/contrib/processors/baggagecopy v0.4.0
@@ -163,7 +163,7 @@ require (
 	github.com/docker/libtrust v0.0.0-20150526203908-9cbd2a1374f4 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/fernet/fernet-go v0.0.0-20211208181803-9f70042a33ee // indirect
+	github.com/fernet/fernet-go v0.0.0-20240119011108-303da6aec611 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
