@@ -14,7 +14,7 @@ import (
 // It executes the privileged function if the operation is unauthorized
 // and it tries one more time.
 // It's up to the caller to handle the [io.ReadCloser] and close it.
-func (cli *Client) ImagePull(ctx context.Context, refStr string, options PullOptions) (io.ReadCloser, error) {
+func (cli *Client) ImagePull(ctx context.Context, refStr string, options ImagePullOptions) (io.ReadCloser, error) {
 	// FIXME(vdemeester): there is currently used in a few way in docker/docker
 	// - if not in trusted content, ref is used to pass the whole reference, and tag is empty
 	// - if in trusted content, ref is used to pass the reference name, and tag for the digest

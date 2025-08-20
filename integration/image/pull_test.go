@@ -33,7 +33,7 @@ func TestImagePullPlatformInvalid(t *testing.T) {
 
 	apiClient := testEnv.APIClient()
 
-	_, err := apiClient.ImagePull(ctx, "docker.io/library/hello-world:latest", client.PullOptions{Platform: "foobar"})
+	_, err := apiClient.ImagePull(ctx, "docker.io/library/hello-world:latest", client.ImagePullOptions{Platform: "foobar"})
 	assert.Assert(t, err != nil)
 	assert.Check(t, is.ErrorContains(err, "unknown operating system or architecture"))
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
@@ -145,14 +145,14 @@ func TestImagePullStoredDigestForOtherRepo(t *testing.T) {
 	assert.NilError(t, err)
 
 	apiClient := testEnv.APIClient()
-	rdr, err := apiClient.ImagePull(ctx, remote, client.PullOptions{})
+	rdr, err := apiClient.ImagePull(ctx, remote, client.ImagePullOptions{})
 	assert.NilError(t, err)
 	defer rdr.Close()
 	_, err = io.Copy(io.Discard, rdr)
 	assert.Check(t, err)
 
 	// Now, pull a totally different repo with a the same digest
-	rdr, err = apiClient.ImagePull(ctx, path.Join(registry.DefaultURL, "other:image@"+desc.Digest.String()), client.PullOptions{})
+	rdr, err = apiClient.ImagePull(ctx, path.Join(registry.DefaultURL, "other:image@"+desc.Digest.String()), client.ImagePullOptions{})
 	if rdr != nil {
 		assert.Check(t, rdr.Close())
 	}
@@ -179,7 +179,7 @@ func TestImagePullNonExisting(t *testing.T) {
 			t.Parallel()
 
 			apiClient := testEnv.APIClient()
-			rdr, err := apiClient.ImagePull(ctx, ref, client.PullOptions{
+			rdr, err := apiClient.ImagePull(ctx, ref, client.ImagePullOptions{
 				All: all,
 			})
 			if err == nil {
@@ -221,7 +221,7 @@ func TestImagePullKeepOldAsDangling(t *testing.T) {
 	_, err = apiClient.ImageRemove(ctx, "busybox:latest", client.ImageRemoveOptions{})
 	assert.NilError(t, err)
 
-	rc, err := apiClient.ImagePull(ctx, "alpine:latest", client.PullOptions{})
+	rc, err := apiClient.ImagePull(ctx, "alpine:latest", client.ImagePullOptions{})
 	assert.NilError(t, err)
 
 	defer rc.Close()

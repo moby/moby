@@ -314,7 +314,7 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 		t.Run(tc.testName, func(t *testing.T) {
 			// pull the image
 			for _, p := range tc.pullPlatforms {
-				resp, err := apiClient.ImagePull(ctx, repoName, client.PullOptions{Platform: p})
+				resp, err := apiClient.ImagePull(ctx, repoName, client.ImagePullOptions{Platform: p})
 				assert.NilError(t, err)
 				_, err = io.ReadAll(resp)
 				resp.Close()
@@ -352,7 +352,7 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 
 			// pull the image again (start fresh)
 			for _, p := range tc.pullPlatforms {
-				resp, err := apiClient.ImagePull(ctx, repoName, client.PullOptions{Platform: p})
+				resp, err := apiClient.ImagePull(ctx, repoName, client.ImagePullOptions{Platform: p})
 				assert.NilError(t, err)
 				_, err = io.ReadAll(resp)
 				resp.Close()

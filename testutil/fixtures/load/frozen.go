@@ -161,7 +161,7 @@ func pullTagAndRemove(ctx context.Context, apiClient client.APIClient, ref strin
 		span.End()
 	}()
 
-	resp, err := apiClient.ImagePull(ctx, ref, client.PullOptions{})
+	resp, err := apiClient.ImagePull(ctx, ref, client.ImagePullOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to pull %s", ref)
 	}
