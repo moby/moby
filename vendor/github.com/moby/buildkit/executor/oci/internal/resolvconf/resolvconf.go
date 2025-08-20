@@ -1,6 +1,3 @@
-// FIXME(thaJeztah): remove once we are a module; the go:build directive prevents go from downgrading language version to go1.16:
-//go:build go1.23
-
 // Package resolvconf is used to generate a container's /etc/resolv.conf file.
 //
 // Constructor Load and Parse read a resolv.conf file from the filesystem or
@@ -21,19 +18,15 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"fmt"
 	"io"
-	"io/fs"
 	"net/netip"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
-	"text/template"
 
-	"github.com/containerd/log"
-	"github.com/moby/sys/atomicwriter"
-	"github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
+	"github.com/moby/buildkit/errdefs"
+	"github.com/moby/buildkit/util/bklog"
 )
 
 // Fallback nameservers, to use if none can be obtained from the host or command
@@ -70,7 +63,7 @@ type ExtDNSEntry struct {
 
 func (ed ExtDNSEntry) String() string {
 	if ed.HostLoopback {
-		return fmt.Sprintf("host(%s)", ed.Addr)
+		return "host(" + ed.Addr.String() + ")"
 	}
 	return ed.Addr.String()
 }
@@ -119,7 +112,7 @@ func Parse(reader io.Reader, path string) (ResolvConf, error) {
 		rc.processLine(scanner.Text())
 	}
 	if err := scanner.Err(); err != nil {
-		return ResolvConf{}, errSystem{err}
+		return ResolvConf{}, errdefs.Internal(err)
 	}
 	if _, ok := rc.Option("ndots"); ok {
 		rc.md.NDotsFrom = "host"
@@ -141,7 +134,7 @@ func (rc *ResolvConf) SetHeader(c string) {
 
 // NameServers returns addresses used in nameserver directives.
 func (rc *ResolvConf) NameServers() []netip.Addr {
-	return append([]netip.Addr(nil), rc.nameServers...)
+	return slices.Clone(rc.nameServers)
 }
 
 // OverrideNameServers replaces the current set of nameservers.
@@ -152,7 +145,7 @@ func (rc *ResolvConf) OverrideNameServers(nameServers []netip.Addr) {
 
 // Search returns the current DNS search domains.
 func (rc *ResolvConf) Search() []string {
-	return append([]string(nil), rc.search...)
+	return slices.Clone(rc.search)
 }
 
 // OverrideSearch replaces the current DNS search domains.
@@ -169,7 +162,7 @@ func (rc *ResolvConf) OverrideSearch(search []string) {
 
 // Options returns the current options.
 func (rc *ResolvConf) Options() []string {
-	return append([]string(nil), rc.options...)
+	return slices.Clone(rc.options)
 }
 
 // Option finds the last option named search, and returns (value, true) if
@@ -181,7 +174,7 @@ func (rc *ResolvConf) Options() []string {
 //	Option("ndots") -> ("1", true)
 //	Option("edns0") -> ("", true)
 func (rc *ResolvConf) Option(search string) (string, bool) {
-	for i := len(rc.options) - 1; i >= 0; i -= 1 {
+	for i := len(rc.options) - 1; i >= 0; i-- {
 		k, v, _ := strings.Cut(rc.options[i], ":")
 		if k == search {
 			return v, true
@@ -192,7 +185,7 @@ func (rc *ResolvConf) Option(search string) (string, bool) {
 
 // OverrideOptions replaces the current DNS options.
 func (rc *ResolvConf) OverrideOptions(options []string) {
-	rc.options = append([]string(nil), options...)
+	rc.options = slices.Clone(options)
 	rc.md.NDotsFrom = ""
 	if _, exists := rc.Option("ndots"); exists {
 		rc.md.NDotsFrom = "override"
@@ -227,7 +220,7 @@ func (rc *ResolvConf) TransformForLegacyNw(ipv6 bool) {
 	}
 	rc.nameServers = filtered
 	if len(rc.nameServers) == 0 {
-		log.G(context.TODO()).Info("No non-localhost DNS nameservers are left in resolv.conf. Using default external servers")
+		bklog.G(context.TODO()).Info("No non-localhost DNS nameservers are left in resolv.conf. Using default external servers")
 		rc.nameServers = defaultNSAddrs(ipv6)
 		rc.md.Warnings = append(rc.md.Warnings, "Used default nameservers.")
 	}
@@ -283,145 +276,123 @@ func (rc *ResolvConf) TransformForIntNS(
 	if len(rc.md.ExtNameServers) == 0 {
 		rc.md.Warnings = append(rc.md.Warnings, "NO EXTERNAL NAMESERVERS DEFINED")
 	}
-	return append([]ExtDNSEntry(nil), rc.md.ExtNameServers...), nil
+	return slices.Clone(rc.md.ExtNameServers), nil
 }
 
 // Generate returns content suitable for writing to a resolv.conf file. If comments
 // is true, the file will include header information if supplied, and a trailing
 // comment that describes how the file was constructed and lists external resolvers.
 func (rc *ResolvConf) Generate(comments bool) ([]byte, error) {
-	s := struct {
-		Md          *metadata
-		NameServers []netip.Addr
-		Search      []string
-		Options     []string
-		Other       []string
-		Overrides   []string
-		Comments    bool
-	}{
-		Md:          &rc.md,
-		NameServers: rc.nameServers,
-		Search:      rc.search,
-		Options:     rc.options,
-		Other:       rc.other,
-		Comments:    comments,
-	}
-	if rc.md.NSOverride {
-		s.Overrides = append(s.Overrides, "nameservers")
-	}
-	if rc.md.SearchOverride {
-		s.Overrides = append(s.Overrides, "search")
-	}
-	if rc.md.OptionsOverride {
-		s.Overrides = append(s.Overrides, "options")
-	}
+	var b bytes.Buffer
+	b.Grow(512) // estimated size for a regular resolv.conf we produce.
 
-	const templateText = `{{if .Comments}}{{with .Md.Header}}{{.}}
-
-{{end}}{{end}}{{range .NameServers -}}
-nameserver {{.}}
-{{end}}{{with .Search -}}
-search {{join . " "}}
-{{end}}{{with .Options -}}
-options {{join . " "}}
-{{end}}{{with .Other -}}
-{{join . "\n"}}
-{{end}}{{if .Comments}}
-# Based on host file: '{{.Md.SourcePath}}'{{with .Md.Transform}} ({{.}}){{end}}
-{{range .Md.Warnings -}}
-# {{.}}
-{{end -}}
-{{with .Md.ExtNameServers -}}
-# ExtServers: {{.}}
-{{end -}}
-{{with .Md.InvalidNSs -}}
-# Invalid nameservers: {{.}}
-{{end -}}
-# Overrides: {{.Overrides}}
-{{with .Md.NDotsFrom -}}
-# Option ndots from: {{.}}
-{{end -}}
-{{end -}}
-`
-
-	funcs := template.FuncMap{"join": strings.Join}
-	var buf bytes.Buffer
-	templ, err := template.New("summary").Funcs(funcs).Parse(templateText)
-	if err != nil {
-		return nil, errSystem{err}
+	if comments && rc.md.Header != "" {
+		b.WriteString(rc.md.Header + "\n")
+		b.WriteByte('\n')
 	}
-	if err := templ.Execute(&buf, s); err != nil {
-		return nil, errSystem{err}
+	for _, ns := range rc.nameServers {
+		b.WriteString("nameserver ")
+		b.WriteString(ns.String())
+		b.WriteByte('\n')
 	}
-	return buf.Bytes(), nil
-}
-
-// WriteFile generates content and writes it to path. If hashPath is non-zero, it
-// also writes a file containing a hash of the content, to enable UserModified()
-// to determine whether the file has been modified.
-func (rc *ResolvConf) WriteFile(path, hashPath string, perm os.FileMode) error {
-	content, err := rc.Generate(true)
-	if err != nil {
-		return err
-	}
-
-	// Write the resolv.conf file - it's bind-mounted into the container, so can't
-	// move a temp file into place, just have to truncate and write it.
-	if err := os.WriteFile(path, content, perm); err != nil {
-		return errSystem{err}
-	}
-
-	// Write the hash file.
-	if hashPath != "" {
-		hashFile, err := atomicwriter.New(hashPath, perm)
-		if err != nil {
-			return errSystem{err}
+	if len(rc.search) > 0 {
+		b.WriteString("search ")
+		for i, s := range rc.search {
+			if i > 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteString(s)
 		}
-		defer hashFile.Close()
+		b.WriteByte('\n')
+	}
+	if len(rc.options) > 0 {
+		b.WriteString("options ")
+		for i, s := range rc.options {
+			if i > 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteString(s)
+		}
+		b.WriteByte('\n')
+	}
+	for _, o := range rc.other {
+		b.WriteString(o)
+		b.WriteByte('\n')
+	}
 
-		if _, err = hashFile.Write([]byte(digest.FromBytes(content))); err != nil {
-			return err
+	if comments {
+		b.WriteByte('\n')
+		b.WriteString("# Based on host file: '" + rc.md.SourcePath + "'")
+		if rc.md.Transform != "" {
+			b.WriteString(" (" + rc.md.Transform + ")")
+		}
+		b.WriteByte('\n')
+		for _, w := range rc.md.Warnings {
+			b.WriteString("# ")
+			b.WriteString(w)
+			b.WriteByte('\n')
+		}
+		if len(rc.md.ExtNameServers) > 0 {
+			b.WriteString("# ExtServers: [")
+			for i, ext := range rc.md.ExtNameServers {
+				if i > 0 {
+					b.WriteByte(' ')
+				}
+				b.WriteString(ext.String())
+			}
+			b.WriteByte(']')
+			b.WriteByte('\n')
+		}
+		if len(rc.md.InvalidNSs) > 0 {
+			b.WriteString("# Invalid nameservers: [")
+			for i, ext := range rc.md.InvalidNSs {
+				if i > 0 {
+					b.WriteByte(' ')
+				}
+				b.WriteString(ext)
+			}
+			b.WriteByte(']')
+			b.WriteByte('\n')
+		}
+
+		b.WriteString("# Overrides: [")
+		var overrides int
+		if rc.md.NSOverride {
+			b.WriteString("nameservers")
+			overrides++
+		}
+		if rc.md.SearchOverride {
+			if overrides > 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteString("search")
+			overrides++
+		}
+		if rc.md.OptionsOverride {
+			if overrides > 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteString("options")
+		}
+		b.WriteByte(']')
+		b.WriteByte('\n')
+
+		if rc.md.NDotsFrom != "" {
+			b.WriteString("# Option ndots from: " + rc.md.NDotsFrom + "\n")
 		}
 	}
 
-	return nil
-}
-
-// UserModified can be used to determine whether the resolv.conf file has been
-// modified since it was generated. It returns false with no error if the file
-// matches the hash, true with no error if the file no longer matches the hash,
-// and false with an error if the result cannot be determined.
-func UserModified(rcPath, rcHashPath string) (bool, error) {
-	currRCHash, err := os.ReadFile(rcHashPath)
-	if err != nil {
-		// If the hash file doesn't exist, can only assume it hasn't been written
-		// yet (so, the user hasn't modified the file it hashes).
-		if errors.Is(err, fs.ErrNotExist) {
-			return false, nil
-		}
-		return false, errors.Wrapf(err, "failed to read hash file %s", rcHashPath)
-	}
-	expected, err := digest.Parse(string(currRCHash))
-	if err != nil {
-		return false, errors.Wrapf(err, "failed to parse hash file %s", rcHashPath)
-	}
-	v := expected.Verifier()
-	currRC, err := os.Open(rcPath)
-	if err != nil {
-		return false, errors.Wrapf(err, "failed to open %s to check for modifications", rcPath)
-	}
-	defer currRC.Close()
-	if _, err := io.Copy(v, currRC); err != nil {
-		return false, errors.Wrapf(err, "failed to hash %s to check for modifications", rcPath)
-	}
-	return !v.Verified(), nil
+	return b.Bytes(), nil
 }
 
 func (rc *ResolvConf) processLine(line string) {
-	fields := strings.Fields(line)
-
 	// Strip blank lines and comments.
-	if len(fields) == 0 || fields[0][0] == '#' || fields[0][0] == ';' {
+	if line == "" || line[0] == '#' || line[0] == ';' {
+		return
+	}
+
+	fields := strings.Fields(line)
+	if len(fields) == 0 {
 		return
 	}
 
@@ -470,8 +441,11 @@ func defaultNSAddrs(ipv6 bool) []netip.Addr {
 func removeInvalidNDots(options []string) []string {
 	n := 0
 	for _, opt := range options {
-		k, v, _ := strings.Cut(opt, ":")
+		k, v, hasSep := strings.Cut(opt, ":")
 		if k == "ndots" {
+			if !hasSep || v == "" {
+				continue
+			}
 			ndots, err := strconv.Atoi(v)
 			if err != nil || ndots < 0 {
 				continue
@@ -482,17 +456,4 @@ func removeInvalidNDots(options []string) []string {
 	}
 	clear(options[n:]) // Zero out the obsolete elements, for GC.
 	return options[:n]
-}
-
-// errSystem implements [github.com/docker/docker/errdefs.ErrSystem].
-//
-// We don't use the errdefs helpers here, because the resolvconf package
-// is imported in BuildKit, and this is the only location that used the
-// errdefs package outside of the client.
-type errSystem struct{ error }
-
-func (errSystem) System() {}
-
-func (e errSystem) Unwrap() error {
-	return e.error
 }

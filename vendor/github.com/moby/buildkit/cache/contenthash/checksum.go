@@ -3,7 +3,6 @@ package contenthash
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"io"
 	"os"
 	"path"
@@ -18,6 +17,7 @@ import (
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
+	"github.com/moby/buildkit/util/cachedigest"
 	"github.com/moby/locker"
 	"github.com/moby/patternmatcher"
 	digest "github.com/opencontainers/go-digest"
@@ -450,15 +450,15 @@ func (cc *cacheContext) Checksum(ctx context.Context, mountable cache.Mountable,
 		return digest.Digest(includedPaths[0].record.Digest), nil
 	}
 
-	digester := digest.Canonical.Digester()
+	h := cachedigest.NewHash(cachedigest.TypeFileList)
 	for i, w := range includedPaths {
 		if i != 0 {
-			digester.Hash().Write([]byte{0})
+			h.Write([]byte{0})
 		}
-		digester.Hash().Write([]byte(path.Base(w.path)))
-		digester.Hash().Write([]byte(w.record.Digest))
+		h.Write([]byte(path.Base(w.path)))
+		h.Write([]byte(w.record.Digest))
 	}
-	return digester.Digest(), nil
+	return h.Sum(), nil
 }
 
 func (cc *cacheContext) includedPaths(ctx context.Context, m *mount, p string, opts ChecksumOpts) ([]*includedPath, error) {
@@ -881,7 +881,7 @@ func (cc *cacheContext) checksum(ctx context.Context, root *iradix.Node[*CacheRe
 
 	switch cr.Type {
 	case CacheRecordTypeDir:
-		h := sha256.New()
+		h := cachedigest.NewHash(cachedigest.TypeFileList)
 		next := append(k, 0)
 		iter := root.Iterator()
 		iter.SeekLowerBound(append(slices.Clone(next), 0))
@@ -906,7 +906,7 @@ func (cc *cacheContext) checksum(ctx context.Context, root *iradix.Node[*CacheRe
 			}
 			subk, _, ok = iter.Next()
 		}
-		dgst = digest.NewDigest(digest.SHA256, h)
+		dgst = h.Sum()
 
 	default:
 		p := convertKeyToPath(bytes.TrimSuffix(k, []byte{0}))

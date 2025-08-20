@@ -106,7 +106,12 @@ func (cs *cacheKeyStorage) Exists(id string) bool {
 	return ok
 }
 
-func (cs *cacheKeyStorage) Walk(func(id string) error) error {
+func (cs *cacheKeyStorage) Walk(cb func(id string) error) error {
+	for id := range cs.byID {
+		if err := cb(id); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -142,6 +147,26 @@ func (cs *cacheKeyStorage) Release(resultID string) error {
 func (cs *cacheKeyStorage) AddLink(id string, link solver.CacheInfoLink, target string) error {
 	return nil
 }
+
+func (cs *cacheKeyStorage) WalkLinksAll(id string, fn func(id string, link solver.CacheInfoLink) error) error {
+	it, ok := cs.byID[id]
+	if !ok {
+		return nil
+	}
+	for nl, ids := range it.links {
+		for _, id2 := range ids {
+			if err := fn(id2, solver.CacheInfoLink{
+				Input:    solver.Index(nl.input),
+				Selector: digest.Digest(nl.selector),
+				Digest:   nl.dgst,
+			}); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (cs *cacheKeyStorage) WalkLinks(id string, link solver.CacheInfoLink, fn func(id string) error) error {
 	it, ok := cs.byID[id]
 	if !ok {
