@@ -302,6 +302,9 @@ func (daemon *Daemon) createNetwork(ctx context.Context, cfg *config.Config, cre
 	}
 
 	networkOptions := maps.Clone(create.Options)
+	if networkOptions == nil {
+		networkOptions = make(map[string]string)
+	}
 	if defaultOpts, ok := cfg.DefaultNetworkOpts[driver]; create.ConfigFrom == nil && ok {
 		for k, v := range defaultOpts {
 			if _, ok := networkOptions[k]; !ok {

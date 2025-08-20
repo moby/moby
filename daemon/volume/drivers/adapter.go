@@ -169,5 +169,9 @@ func (a *volumeAdapter) CreatedAt() (time.Time, error) {
 }
 
 func (a *volumeAdapter) Status() map[string]any {
-	return maps.Clone(a.status)
+	status := maps.Clone(a.status)
+	if status == nil {
+		status = make(map[string]any)
+	}
+	return status
 }

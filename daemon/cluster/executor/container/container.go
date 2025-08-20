@@ -243,6 +243,9 @@ func (c *containerConfig) labels() map[string]string {
 
 	// base labels are those defined in the spec.
 	labels = maps.Clone(c.spec().Labels)
+	if labels == nil {
+		labels = make(map[string]string)
+	}
 
 	// we then apply the overrides from the task, which may be set via the
 	// orchestrator.

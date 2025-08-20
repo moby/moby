@@ -521,6 +521,9 @@ func (n *Network) CopyTo(o datastore.KVObject) error {
 	}
 
 	dstN.generic = maps.Clone(n.generic)
+	if dstN.generic == nil {
+		dstN.generic = options.Generic{}
+	}
 
 	return nil
 }
@@ -1849,7 +1852,11 @@ func (n *Network) Labels() map[string]string {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
-	return maps.Clone(n.labels)
+	labels := maps.Clone(n.labels)
+	if labels == nil {
+		return map[string]string{}
+	}
+	return labels
 }
 
 func (n *Network) TableEventRegister(tableName string, objType driverapi.ObjectType) error {
