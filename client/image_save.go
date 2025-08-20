@@ -24,11 +24,11 @@ func (cli *Client) ImageSave(ctx context.Context, imageIDs []string, saveOpts ..
 		"names": imageIDs,
 	}
 
-	if len(opts.apiOptions.Platforms) > 0 {
+	if len(opts.Platforms) > 0 {
 		if err := cli.NewVersionError(ctx, "1.48", "platform"); err != nil {
 			return nil, err
 		}
-		p, err := encodePlatforms(opts.apiOptions.Platforms...)
+		p, err := encodePlatforms(opts.Platforms...)
 		if err != nil {
 			return nil, err
 		}

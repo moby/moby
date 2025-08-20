@@ -99,10 +99,3 @@ type InspectOptions struct {
 	// This option is only available for API version 1.49 and up.
 	Platform *ocispec.Platform
 }
-
-// SaveOptions holds parameters to save images.
-type SaveOptions struct {
-	// Platforms selects the platforms to save if the image is a
-	// multi-platform image and has multiple variants.
-	Platforms []ocispec.Platform
-}
