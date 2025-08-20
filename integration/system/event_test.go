@@ -33,7 +33,7 @@ func TestEventsExecDie(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	msg, errs := apiClient.Events(ctx, client.ListOptions{
+	msg, errs := apiClient.Events(ctx, client.EventsListOptions{
 		Filters: filters.NewArgs(
 			filters.Arg("container", cID),
 			filters.Arg("event", string(events.ActionExecDie)),
@@ -114,7 +114,7 @@ func TestEventsVolumeCreate(t *testing.T) {
 		filters.Arg("event", "create"),
 		filters.Arg("volume", volName),
 	)
-	messages, errs := apiClient.Events(ctx, client.ListOptions{
+	messages, errs := apiClient.Events(ctx, client.EventsListOptions{
 		Since:   since,
 		Until:   request.DaemonUnixTime(ctx, t, apiClient, testEnv),
 		Filters: filter,
@@ -130,7 +130,7 @@ func TestEventsVolumeCreate(t *testing.T) {
 		Target: "/tmp/foo",
 	}))
 
-	messages, errs = apiClient.Events(ctx, client.ListOptions{
+	messages, errs = apiClient.Events(ctx, client.EventsListOptions{
 		Since:   since,
 		Until:   request.DaemonUnixTime(ctx, t, apiClient, testEnv),
 		Filters: filter,

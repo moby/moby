@@ -20,17 +20,17 @@ import (
 
 func TestEventsErrorInOptions(t *testing.T) {
 	errorCases := []struct {
-		options       ListOptions
+		options       EventsListOptions
 		expectedError string
 	}{
 		{
-			options: ListOptions{
+			options: EventsListOptions{
 				Since: "2006-01-02TZ",
 			},
 			expectedError: `parsing time "2006-01-02TZ"`,
 		},
 		{
-			options: ListOptions{
+			options: EventsListOptions{
 				Until: "2006-01-02TZ",
 			},
 			expectedError: `parsing time "2006-01-02TZ"`,
@@ -50,7 +50,7 @@ func TestEventsErrorFromServer(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, errs := client.Events(context.Background(), ListOptions{})
+	_, errs := client.Events(context.Background(), EventsListOptions{})
 	err := <-errs
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
@@ -62,13 +62,13 @@ func TestEvents(t *testing.T) {
 	expectedFiltersJSON := fmt.Sprintf(`{"type":{%q:true}}`, events.ContainerEventType)
 
 	eventsCases := []struct {
-		options             ListOptions
+		options             EventsListOptions
 		events              []events.Message
 		expectedEvents      map[string]bool
 		expectedQueryParams map[string]string
 	}{
 		{
-			options: ListOptions{
+			options: EventsListOptions{
 				Filters: fltrs,
 			},
 			expectedQueryParams: map[string]string{
@@ -78,7 +78,7 @@ func TestEvents(t *testing.T) {
 			expectedEvents: make(map[string]bool),
 		},
 		{
-			options: ListOptions{
+			options: EventsListOptions{
 				Filters: fltrs,
 			},
 			expectedQueryParams: map[string]string{

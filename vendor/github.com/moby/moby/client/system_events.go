@@ -12,8 +12,8 @@ import (
 	"github.com/moby/moby/client/internal/timestamp"
 )
 
-// ListOptions holds parameters to filter events with.
-type ListOptions struct {
+// EventsListOptions holds parameters to filter events with.
+type EventsListOptions struct {
 	Since   string
 	Until   string
 	Filters filters.Args
@@ -23,7 +23,7 @@ type ListOptions struct {
 // by cancelling the context. Once the stream has been completely read an [io.EOF] error is
 // sent over the error channel. If an error is sent, all processing is stopped. It's up
 // to the caller to reopen the stream in the event of an error by reinvoking this method.
-func (cli *Client) Events(ctx context.Context, options ListOptions) (<-chan events.Message, <-chan error) {
+func (cli *Client) Events(ctx context.Context, options EventsListOptions) (<-chan events.Message, <-chan error) {
 	messages := make(chan events.Message)
 	errs := make(chan error, 1)
 
@@ -85,7 +85,7 @@ func (cli *Client) Events(ctx context.Context, options ListOptions) (<-chan even
 	return messages, errs
 }
 
-func buildEventsQueryParams(cliVersion string, options ListOptions) (url.Values, error) {
+func buildEventsQueryParams(cliVersion string, options EventsListOptions) (url.Values, error) {
 	query := url.Values{}
 	ref := time.Now()
 

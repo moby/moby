@@ -41,7 +41,7 @@ func TestPause(t *testing.T) {
 
 	until := request.DaemonUnixTime(ctx, t, apiClient, testEnv)
 
-	messages, errs := apiClient.Events(ctx, client.ListOptions{
+	messages, errs := apiClient.Events(ctx, client.EventsListOptions{
 		Since:   since,
 		Until:   until,
 		Filters: filters.NewArgs(filters.Arg(string(events.ContainerEventType), cID)),
