@@ -13,7 +13,7 @@ import (
 
 // ImageCreate creates a new image based on the parent options.
 // It returns the JSON content in the response body.
-func (cli *Client) ImageCreate(ctx context.Context, parentReference string, options CreateOptions) (io.ReadCloser, error) {
+func (cli *Client) ImageCreate(ctx context.Context, parentReference string, options ImageCreateOptions) (io.ReadCloser, error) {
 	ref, err := reference.ParseNormalizedNamed(parentReference)
 	if err != nil {
 		return nil, err

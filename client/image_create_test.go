@@ -19,7 +19,7 @@ func TestImageCreateError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ImageCreate(context.Background(), "reference", CreateOptions{})
+	_, err := client.ImageCreate(context.Background(), "reference", ImageCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -60,7 +60,7 @@ func TestImageCreate(t *testing.T) {
 		}),
 	}
 
-	createResponse, err := client.ImageCreate(context.Background(), specifiedReference, CreateOptions{
+	createResponse, err := client.ImageCreate(context.Background(), specifiedReference, ImageCreateOptions{
 		RegistryAuth: expectedRegistryAuth,
 	})
 	assert.NilError(t, err)
