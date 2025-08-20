@@ -380,6 +380,7 @@ func pollService(ctx context.Context, t *testing.T, c *client.Client, host netwo
 func runNftables(t *testing.T, host networking.Host) map[string]string {
 	res := map[string]string{}
 	out := host.MustRun(t, "nft", "-s", "list", "table", "ip", "docker-bridges")
+	out = strings.ReplaceAll(out, "type nat hook output priority -100", "type nat hook output priority dstnat")
 	// Indent the result, so that it's treated as preformatted markdown.
 	res["Ruleset4"] = "    " + strings.ReplaceAll(out, "\n", "\n    ")
 
