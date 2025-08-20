@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"strings"
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
@@ -99,8 +100,9 @@ func testNftabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 			assert.Assert(t, is.Contains(res.Combined(), "No such file or directory"))
 			return
 		}
+		out := strings.ReplaceAll(res.Combined(), "type nat hook output priority -100", "type nat hook output priority dstnat")
 		assert.Assert(t, res.Error)
-		golden.Assert(t, res.Combined(), name+"__"+family+".golden")
+		golden.Assert(t, out, name+"__"+family+".golden")
 	}
 
 	makePB := func(hip string, cip netip.Addr) types.PortBinding {
