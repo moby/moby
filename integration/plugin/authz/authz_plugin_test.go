@@ -273,12 +273,12 @@ func TestAuthZPluginAllowEventStream(t *testing.T) {
 	assertURIRecorded(t, ctrl.requestsURIs, fmt.Sprintf("/containers/%s/start", cID))
 }
 
-func systemTime(ctx context.Context, t *testing.T, client client.APIClient, testEnv *environment.Execution) time.Time {
+func systemTime(ctx context.Context, t *testing.T, apiClient client.APIClient, testEnv *environment.Execution) time.Time {
 	if testEnv.IsLocalDaemon() {
 		return time.Now()
 	}
 
-	info, err := client.Info(ctx)
+	info, err := apiClient.Info(ctx)
 	assert.NilError(t, err)
 
 	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
@@ -286,12 +286,12 @@ func systemTime(ctx context.Context, t *testing.T, client client.APIClient, test
 	return dt
 }
 
-func systemEventsSince(ctx context.Context, client client.APIClient, since string) (<-chan eventtypes.Message, <-chan error, func()) {
+func systemEventsSince(ctx context.Context, apiClient client.APIClient, since string) (<-chan eventtypes.Message, <-chan error, func()) {
 	eventOptions := eventtypes.ListOptions{
 		Since: since,
 	}
 	ctx, cancel := context.WithCancel(ctx)
-	events, errs := client.Events(ctx, eventOptions)
+	events, errs := apiClient.Events(ctx, eventOptions)
 
 	return events, errs, cancel
 }
@@ -454,7 +454,7 @@ func imageLoad(ctx context.Context, apiClient client.APIClient, path string) err
 	return nil
 }
 
-func imageImport(ctx context.Context, client client.APIClient, path string) error {
+func imageImport(ctx context.Context, apiClient client.APIClient, path string) error {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
@@ -466,7 +466,7 @@ func imageImport(ctx context.Context, client client.APIClient, path string) erro
 		Source:     file,
 		SourceName: "-",
 	}
-	responseReader, err := client.ImageImport(ctx, source, ref, options)
+	responseReader, err := apiClient.ImageImport(ctx, source, ref, options)
 	if err != nil {
 		return err
 	}
