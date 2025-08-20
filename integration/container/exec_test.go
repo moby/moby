@@ -13,6 +13,7 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/common"
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil/fakecontext"
@@ -137,7 +138,7 @@ func TestExecResize(t *testing.T) {
 	assert.NilError(t, err)
 
 	t.Run("success", func(t *testing.T) {
-		err := apiClient.ContainerExecResize(ctx, execID, containertypes.ResizeOptions{
+		err := apiClient.ContainerExecResize(ctx, execID, client.ResizeOptions{
 			Height: 40,
 			Width:  40,
 		})
@@ -246,7 +247,7 @@ func TestExecResize(t *testing.T) {
 	})
 
 	t.Run("unknown execID", func(t *testing.T) {
-		err = apiClient.ContainerExecResize(ctx, "no-such-exec-id", containertypes.ResizeOptions{
+		err = apiClient.ContainerExecResize(ctx, "no-such-exec-id", client.ResizeOptions{
 			Height: 40,
 			Width:  40,
 		})
@@ -274,7 +275,7 @@ func TestExecResize(t *testing.T) {
 		err := apiClient.ContainerKill(ctx, cID, "SIGKILL")
 		assert.NilError(t, err)
 
-		err = apiClient.ContainerExecResize(ctx, execID, containertypes.ResizeOptions{
+		err = apiClient.ContainerExecResize(ctx, execID, client.ResizeOptions{
 			Height: 40,
 			Width:  40,
 		})
