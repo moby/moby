@@ -89,13 +89,3 @@ type HistoryOptions struct {
 	// Platform from the manifest list to use for history.
 	Platform *ocispec.Platform
 }
-
-type InspectOptions struct {
-	// Manifests returns the image manifests.
-	Manifests bool
-
-	// Platform selects the specific platform of a multi-platform image to inspect.
-	//
-	// This option is only available for API version 1.49 and up.
-	Platform *ocispec.Platform
-}

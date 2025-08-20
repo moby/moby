@@ -25,18 +25,18 @@ func (cli *Client) ImageInspect(ctx context.Context, imageID string, inspectOpts
 	}
 
 	query := url.Values{}
-	if opts.apiOptions.Manifests {
+	if opts.Manifests {
 		if err := cli.NewVersionError(ctx, "1.48", "manifests"); err != nil {
 			return image.InspectResponse{}, err
 		}
 		query.Set("manifests", "1")
 	}
 
-	if opts.apiOptions.Platform != nil {
+	if opts.Platform != nil {
 		if err := cli.NewVersionError(ctx, "1.49", "platform"); err != nil {
 			return image.InspectResponse{}, err
 		}
-		platform, err := encodePlatform(opts.apiOptions.Platform)
+		platform, err := encodePlatform(opts.Platform)
 		if err != nil {
 			return image.InspectResponse{}, err
 		}
