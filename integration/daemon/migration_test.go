@@ -135,7 +135,7 @@ func TestMigrateSaveLoad(t *testing.T) {
 	rdr.Close()
 
 	// Delete all images
-	list, err := apiClient.ImageList(ctx, client.ListOptions{})
+	list, err := apiClient.ImageList(ctx, client.ImageListOptions{})
 	assert.NilError(t, err)
 	for _, i := range list {
 		_, err = apiClient.ImageRemove(ctx, i.ID, client.ImageRemoveOptions{Force: true})

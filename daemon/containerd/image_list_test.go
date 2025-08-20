@@ -105,7 +105,7 @@ func BenchmarkImageList(b *testing.B) {
 
 		b.Run(strconv.Itoa(count)+"-images", func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, err := imgSvc.Images(ctx, client.ListOptions{All: true, SharedSize: true})
+				_, err := imgSvc.Images(ctx, client.ImageListOptions{All: true, SharedSize: true})
 				assert.NilError(b, err)
 			}
 		})
@@ -130,7 +130,7 @@ func TestImageListCheckTotalSize(t *testing.T) {
 	img, err := service.images.Create(ctx, imagesFromIndex(twoplatform)[0])
 	assert.NilError(t, err)
 
-	all, err := service.Images(ctx, client.ListOptions{Manifests: true, SharedSize: true})
+	all, err := service.Images(ctx, client.ImageListOptions{Manifests: true, SharedSize: true})
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Len(all, 1))
@@ -190,7 +190,7 @@ func TestImageListCheckTotalSize(t *testing.T) {
 			assert.NilError(t, err, "failed to delete layer %s", layer.Digest)
 		}
 
-		all, err := service.Images(ctx, client.ListOptions{Manifests: true, SharedSize: true})
+		all, err := service.Images(ctx, client.ImageListOptions{Manifests: true, SharedSize: true})
 		assert.NilError(t, err)
 
 		assert.Assert(t, is.Len(all, 1))
@@ -378,7 +378,7 @@ func TestImageList(t *testing.T) {
 				assert.NilError(t, err)
 			}
 
-			opts := client.ListOptions{
+			opts := client.ImageListOptions{
 				Manifests:  true,
 				SharedSize: true,
 			}

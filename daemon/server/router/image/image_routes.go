@@ -442,7 +442,7 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 		manifests = httputils.BoolValue(r, "manifests")
 	}
 
-	images, err := ir.backend.Images(ctx, client.ListOptions{
+	images, err := ir.backend.Images(ctx, client.ImageListOptions{
 		All:        httputils.BoolValue(r, "all"),
 		Filters:    imageFilters,
 		SharedSize: sharedSize,

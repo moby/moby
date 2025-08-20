@@ -197,7 +197,7 @@ func (e *Execution) UsingSnapshotter() bool {
 // Note that this is done by filtering and then checking whether there were any
 // results -- so ambiguous references might result in false-positives.
 func (e *Execution) HasExistingImage(t testing.TB, reference string) bool {
-	imageList, err := e.APIClient().ImageList(context.Background(), client.ListOptions{
+	imageList, err := e.APIClient().ImageList(context.Background(), client.ImageListOptions{
 		All: true,
 		Filters: filters.NewArgs(
 			filters.Arg("dangling", "false"),

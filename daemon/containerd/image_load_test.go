@@ -55,7 +55,7 @@ func TestImageLoad(t *testing.T) {
 
 	cleanup := func(ctx context.Context, t *testing.T) {
 		// Remove all existing images to start fresh
-		images, err := imgSvc.Images(ctx, client.ListOptions{})
+		images, err := imgSvc.Images(ctx, client.ImageListOptions{})
 		assert.NilError(t, err)
 		for _, img := range images {
 			_, err := imgSvc.ImageDelete(ctx, img.ID, client.ImageRemoveOptions{PruneChildren: true})

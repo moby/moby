@@ -29,7 +29,7 @@ func TestLoadDanglingImages(t *testing.T) {
 	})
 
 	// Should be one image.
-	images, err := apiClient.ImageList(ctx, client.ListOptions{})
+	images, err := apiClient.ImageList(ctx, client.ImageListOptions{})
 	assert.NilError(t, err)
 
 	findImageByName := func(images []image.Summary, imageName string) (image.Summary, error) {
@@ -52,7 +52,7 @@ func TestLoadDanglingImages(t *testing.T) {
 		})
 	})
 
-	images, err = apiClient.ImageList(ctx, client.ListOptions{})
+	images, err = apiClient.ImageList(ctx, client.ImageListOptions{})
 	assert.NilError(t, err)
 
 	newImage, err := findImageByName(images, "namedimage:latest")

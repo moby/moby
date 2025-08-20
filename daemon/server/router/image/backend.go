@@ -25,7 +25,7 @@ type Backend interface {
 type imageBackend interface {
 	ImageDelete(ctx context.Context, imageRef string, options client.ImageRemoveOptions) ([]image.DeleteResponse, error)
 	ImageHistory(ctx context.Context, imageName string, platform *ocispec.Platform) ([]*image.HistoryResponseItem, error)
-	Images(ctx context.Context, opts client.ListOptions) ([]*image.Summary, error)
+	Images(ctx context.Context, opts client.ImageListOptions) ([]*image.Summary, error)
 	GetImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (*dockerimage.Image, error)
 	ImageInspect(ctx context.Context, refOrID string, options backend.ImageInspectOpts) (*image.InspectResponse, error)
 	TagImage(ctx context.Context, id dockerimage.ID, newRef reference.Named) error

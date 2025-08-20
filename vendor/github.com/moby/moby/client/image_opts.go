@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 
-	"github.com/moby/moby/api/types/filters"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -54,25 +53,4 @@ type PushOptions struct {
 	// when the image is a multi-platform image.
 	// Using this will only push a single platform-specific manifest.
 	Platform *ocispec.Platform `json:",omitempty"`
-}
-
-// ListOptions holds parameters to list images with.
-type ListOptions struct {
-	// All controls whether all images in the graph are filtered, or just
-	// the heads.
-	All bool
-
-	// Filters is a JSON-encoded set of filter arguments.
-	Filters filters.Args
-
-	// SharedSize indicates whether the shared size of images should be computed.
-	SharedSize bool
-
-	// ContainerCount indicates whether container count should be computed.
-	//
-	// Deprecated: This field has been unused and is no longer required and will be removed in a future version.
-	ContainerCount bool
-
-	// Manifests indicates whether the image manifests should be returned.
-	Manifests bool
 }
