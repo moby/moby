@@ -5,6 +5,10 @@ import (
 	"math/rand"
 	"testing"
 	"time"
+
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"pgregory.net/rapid"
 )
 
 func TestSequenceGetAvailableBit(t *testing.T) {
@@ -1230,4 +1234,81 @@ func TestMarshalJSON(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestOnesCount(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		bm := New(rapid.Uint64Range(10, 1000).Draw(t, "capacity"))
+		ordinals := make([]uint64, bm.Bits())
+		for i := range ordinals {
+			ordinals[i] = uint64(i)
+		}
+		nBitsToSet := rapid.IntRange(0, int(bm.Bits()-1)).Draw(t, "nBitsToSet")
+		selectedOrdinals := rapid.Permutation(ordinals).Draw(t, "selectedOrdinals")[:nBitsToSet]
+		for _, i := range selectedOrdinals {
+			assert.NilError(t, bm.Set(i))
+		}
+		t.Logf("%v", bm)
+
+		got, err := bm.OnesCount(0, bm.Bits()-1)
+		assert.Check(t, err, "OnesCount of all ordinals should succeed")
+		assert.Check(t, is.Equal(got, bm.Bits()-bm.Unselected()), "OnesCount of all ordinals should equal Bits-Unselected")
+
+		idxgen := rapid.Uint64Range(0, bm.Bits()-1)
+		for range 1000 {
+			start, end := idxgen.Draw(t, "start"), idxgen.Draw(t, "end")
+			if start > end {
+				start, end = end, start
+			}
+			var expected uint64
+			for _, i := range selectedOrdinals {
+				if i >= start && i <= end {
+					expected++
+				}
+			}
+			got, err := bm.OnesCount(start, end)
+			assert.NilError(t, err)
+			assert.Check(t, is.Equal(got, expected))
+		}
+	})
+
+	bm := New(8*blockLen + 1)
+	for _, r := range []struct{ from, to uint64 }{
+		// 0b0111111... repeated 3x
+		{1, blockLen - 1},
+		{blockLen + 1, 2*blockLen - 1},
+		{2*blockLen + 1, 3*blockLen - 1},
+
+		// 0b0001111...
+		{3*blockLen + 3, 3*blockLen + 6},
+
+		// 0b111111....., 0b1000000....
+		{5 * blockLen, 6 * blockLen},
+
+		{8 * blockLen, 8 * blockLen},
+	} {
+		for i := r.from; i <= r.to; i++ {
+			assert.NilError(t, bm.Set(i))
+		}
+	}
+	t.Logf("%v", bm)
+
+	expectOnesCount := func(from, to uint64, expected uint64) {
+		t.Helper()
+		got, err := bm.OnesCount(from, to)
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(got, expected))
+	}
+
+	expectOnesCount(0, bm.Bits()-1, bm.Bits()-bm.Unselected())
+	expectOnesCount(0, 0, 0)
+	expectOnesCount(0, 1, 1)
+	expectOnesCount(1, 1, 1)
+	expectOnesCount(3, 12, 12-3+1)
+	expectOnesCount(blockLen-1, 2*blockLen+1, blockLen+1)
+	expectOnesCount(5, 3*blockLen-3, blockLen-1-4+blockLen-1+blockLen-1-2)
+	expectOnesCount(3*blockLen, 3*blockLen+4, 2)
+	expectOnesCount(3*blockLen, 5*blockLen-1, 4)
+	expectOnesCount(6*blockLen, 8*blockLen-1, 1)
+	expectOnesCount(8*blockLen, 8*blockLen, 1)
 }
