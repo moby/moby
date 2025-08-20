@@ -17,7 +17,8 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/session"
 	sessionauth "github.com/moby/buildkit/session/auth"
-	log "github.com/moby/buildkit/util/bklog"
+	"github.com/moby/buildkit/util/bklog"
+	"github.com/moby/buildkit/util/errutil"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/version"
 	"github.com/pkg/errors"
@@ -367,7 +368,7 @@ func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g se
 	// fetch token for the resource scope
 	if to.Secret != "" {
 		defer func() {
-			err = errors.Wrap(err, "failed to fetch oauth token")
+			err = errors.Wrap(errutil.WithDetails(err), "failed to fetch oauth token")
 		}()
 		// try GET first because Docker Hub does not support POST
 		// switch once support has landed
@@ -390,7 +391,7 @@ func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g se
 					token = resp.AccessToken
 					return nil, nil
 				}
-				log.G(ctx).WithFields(logrus.Fields{
+				bklog.G(ctx).WithFields(logrus.Fields{
 					"status": errStatus.Status,
 					"body":   string(errStatus.Body),
 				}).Debugf("token request failed")

@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"maps"
 	"os"
@@ -19,7 +20,6 @@ import (
 	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/containerd/v2/pkg/labels"
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/hashicorp/go-multierror"
 	"github.com/moby/buildkit/cache/config"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
@@ -146,12 +146,15 @@ type diffParents struct {
 }
 
 // caller must hold cacheManager.mu
-func (p parentRefs) release(ctx context.Context) (rerr error) {
+func (p parentRefs) release(ctx context.Context) error {
+	var errs []error
 	switch {
 	case p.layerParent != nil:
 		p.layerParent.mu.Lock()
 		defer p.layerParent.mu.Unlock()
-		rerr = p.layerParent.release(ctx)
+		if err := p.layerParent.release(ctx); err != nil {
+			errs = append(errs, err)
+		}
 	case len(p.mergeParents) > 0:
 		for i, parent := range p.mergeParents {
 			if parent == nil {
@@ -159,7 +162,7 @@ func (p parentRefs) release(ctx context.Context) (rerr error) {
 			}
 			parent.mu.Lock()
 			if err := parent.release(ctx); err != nil {
-				rerr = multierror.Append(rerr, err).ErrorOrNil()
+				errs = append(errs, err)
 			} else {
 				p.mergeParents[i] = nil
 			}
@@ -170,7 +173,7 @@ func (p parentRefs) release(ctx context.Context) (rerr error) {
 			p.diffParents.lower.mu.Lock()
 			defer p.diffParents.lower.mu.Unlock()
 			if err := p.diffParents.lower.release(ctx); err != nil {
-				rerr = multierror.Append(rerr, err).ErrorOrNil()
+				errs = append(errs, err)
 			} else {
 				p.diffParents.lower = nil
 			}
@@ -179,14 +182,14 @@ func (p parentRefs) release(ctx context.Context) (rerr error) {
 			p.diffParents.upper.mu.Lock()
 			defer p.diffParents.upper.mu.Unlock()
 			if err := p.diffParents.upper.release(ctx); err != nil {
-				rerr = multierror.Append(rerr, err).ErrorOrNil()
+				errs = append(errs, err)
 			} else {
 				p.diffParents.upper = nil
 			}
 		}
 	}
 
-	return rerr
+	return stderrors.Join(errs...)
 }
 
 func (p parentRefs) cloneParentRefs() parentRefs {
@@ -598,18 +601,19 @@ func (cr *cacheRecord) layerDigestChain() []digest.Digest {
 
 type RefList []ImmutableRef
 
-func (l RefList) Release(ctx context.Context) (rerr error) {
+func (l RefList) Release(ctx context.Context) error {
+	var errs []error
 	for i, r := range l {
 		if r == nil {
 			continue
 		}
 		if err := r.Release(ctx); err != nil {
-			rerr = multierror.Append(rerr, err).ErrorOrNil()
+			errs = append(errs, err)
 		} else {
 			l[i] = nil
 		}
 	}
-	return rerr
+	return stderrors.Join(errs...)
 }
 
 func (sr *immutableRef) LayerChain() RefList {

@@ -2,6 +2,7 @@ package snapshot
 
 import (
 	"context"
+	stderrors "errors"
 	gofs "io/fs"
 	"os"
 	"path/filepath"
@@ -14,7 +15,6 @@ import (
 	"github.com/containerd/containerd/v2/plugins/snapshots/overlay/overlayutils"
 	"github.com/containerd/continuity/fs"
 	"github.com/containerd/continuity/sysx"
-	"github.com/hashicorp/go-multierror"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/leaseutil"
@@ -34,7 +34,7 @@ func (sn *mergeSnapshotter) diffApply(ctx context.Context, dest Mountable, diffs
 	defer func() {
 		releaseErr := a.Release()
 		if releaseErr != nil {
-			rerr = multierror.Append(rerr, errors.Wrapf(releaseErr, "failed to release applier")).ErrorOrNil()
+			rerr = stderrors.Join(rerr, errors.Wrapf(releaseErr, "failed to release applier"))
 		}
 	}()
 
@@ -84,7 +84,7 @@ func (sn *mergeSnapshotter) diffApply(ctx context.Context, dest Mountable, diffs
 			return snapshots.Usage{}, errors.Wrapf(err, "failed to create differ")
 		}
 		defer func() {
-			rerr = multierror.Append(rerr, d.Release()).ErrorOrNil()
+			rerr = stderrors.Join(rerr, d.Release())
 		}()
 		if err := d.HandleChanges(ctx, a.Apply); err != nil {
 			return snapshots.Usage{}, errors.Wrapf(err, "failed to handle changes")
@@ -146,7 +146,7 @@ func applierFor(dest Mountable, tryCrossSnapshotLink, userxattr bool) (_ *applie
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = multierror.Append(rerr, a.Release()).ErrorOrNil()
+			rerr = stderrors.Join(rerr, a.Release())
 		}
 	}()
 	if tryCrossSnapshotLink {
@@ -191,7 +191,7 @@ func applierFor(dest Mountable, tryCrossSnapshotLink, userxattr bool) (_ *applie
 		prevRelease := a.release
 		a.release = func() error {
 			err := mnter.Unmount()
-			return multierror.Append(err, prevRelease()).ErrorOrNil()
+			return stderrors.Join(err, prevRelease())
 		}
 	}
 
@@ -523,7 +523,7 @@ func differFor(lowerMntable, upperMntable Mountable) (_ *differ, rerr error) {
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = multierror.Append(rerr, d.Release()).ErrorOrNil()
+			rerr = stderrors.Join(rerr, d.Release())
 		}
 	}()
 
@@ -541,8 +541,7 @@ func differFor(lowerMntable, upperMntable Mountable) (_ *differ, rerr error) {
 		d.lowerRoot = root
 		lowerMnts = mnts
 		d.releaseLower = func() error {
-			err := mounter.Unmount()
-			return multierror.Append(err, release()).ErrorOrNil()
+			return stderrors.Join(mounter.Unmount(), release())
 		}
 	}
 
@@ -560,8 +559,7 @@ func differFor(lowerMntable, upperMntable Mountable) (_ *differ, rerr error) {
 		d.upperRoot = root
 		upperMnts = mnts
 		d.releaseUpper = func() error {
-			err := mounter.Unmount()
-			return multierror.Append(err, release()).ErrorOrNil()
+			return stderrors.Join(mounter.Unmount(), release())
 		}
 	}
 
@@ -779,7 +777,7 @@ func (d *differ) Release() error {
 		}
 	}
 	if d.releaseUpper != nil {
-		err = multierror.Append(err, d.releaseUpper()).ErrorOrNil()
+		err = stderrors.Join(err, d.releaseUpper())
 		if err == nil {
 			d.releaseUpper = nil
 		}

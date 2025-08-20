@@ -351,8 +351,7 @@ func (s State) GetEnv(ctx context.Context, key string, co ...ConstraintsOpt) (st
 	return v, ok, nil
 }
 
-// Env returns a new [State] with the provided environment variable set.
-// See [Env]
+// Env returns the current environment variables for the state.
 func (s State) Env(ctx context.Context, co ...ConstraintsOpt) (*EnvList, error) {
 	c := &Constraints{}
 	for _, f := range co {

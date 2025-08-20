@@ -12,7 +12,6 @@ import (
 	"github.com/containerd/containerd/v2/core/remotes"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/moby/buildkit/session"
@@ -152,7 +151,7 @@ func Push(ctx context.Context, sm *session.Manager, sid string, provider content
 func skipNonDistributableBlobs(f images.HandlerFunc) images.HandlerFunc {
 	return func(ctx context.Context, desc ocispecs.Descriptor) ([]ocispecs.Descriptor, error) {
 		if images.IsNonDistributable(desc.MediaType) {
-			log.G(ctx).WithField("digest", desc.Digest).WithField("mediatype", desc.MediaType).Debug("Skipping non-distributable blob")
+			bklog.G(ctx).WithField("digest", desc.Digest).WithField("mediatype", desc.MediaType).Debug("Skipping non-distributable blob")
 			return nil, images.ErrSkipDesc
 		}
 		return f(ctx, desc)
