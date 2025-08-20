@@ -53,7 +53,7 @@ func TestRemoveImageOrphaning(t *testing.T) {
 	assert.Check(t, is.Equal(resp.ID, commitResp2.ID))
 
 	// try to remove the image, should not error out.
-	_, err = apiClient.ImageRemove(ctx, imgName, client.RemoveOptions{})
+	_, err = apiClient.ImageRemove(ctx, imgName, client.ImageRemoveOptions{})
 	assert.NilError(t, err)
 
 	// check if the first image is still there
@@ -87,7 +87,7 @@ func TestRemoveByDigest(t *testing.T) {
 	}
 	assert.Assert(t, id != "")
 
-	_, err = apiClient.ImageRemove(ctx, id, client.RemoveOptions{})
+	_, err = apiClient.ImageRemove(ctx, id, client.ImageRemoveOptions{})
 	assert.NilError(t, err, "error removing %s", id)
 
 	_, err = apiClient.ImageInspect(ctx, "busybox")
@@ -143,7 +143,7 @@ func TestRemoveWithPlatform(t *testing.T) {
 		{&platformHost, descs[0]},
 		{&someOtherPlatform, descs[3]},
 	} {
-		resp, err := apiClient.ImageRemove(ctx, imgName, client.RemoveOptions{
+		resp, err := apiClient.ImageRemove(ctx, imgName, client.ImageRemoveOptions{
 			Platforms: []ocispec.Platform{*tc.platform},
 			Force:     true,
 		})
@@ -156,7 +156,7 @@ func TestRemoveWithPlatform(t *testing.T) {
 	}
 
 	// Delete the rest
-	resp, err := apiClient.ImageRemove(ctx, imgName, client.RemoveOptions{})
+	resp, err := apiClient.ImageRemove(ctx, imgName, client.ImageRemoveOptions{})
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Len(resp, 2))

@@ -235,7 +235,7 @@ func TestImageDelete(t *testing.T) {
 				}
 			}
 
-			_, err := service.ImageDelete(ctx, tc.ref, client.RemoveOptions{})
+			_, err := service.ImageDelete(ctx, tc.ref, client.ImageRemoveOptions{})
 			if tc.err == nil {
 				assert.NilError(t, err)
 			} else {

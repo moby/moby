@@ -54,7 +54,7 @@ func TestImageInspectUniqueRepoDigests(t *testing.T) {
 		err := apiClient.ImageTag(ctx, "busybox", imgName)
 		assert.NilError(t, err)
 		defer func() {
-			_, _ = apiClient.ImageRemove(ctx, imgName, client.RemoveOptions{Force: true})
+			_, _ = apiClient.ImageRemove(ctx, imgName, client.ImageRemoveOptions{Force: true})
 		}()
 	}
 

@@ -58,7 +58,7 @@ func TestImageLoad(t *testing.T) {
 		images, err := imgSvc.Images(ctx, client.ListOptions{})
 		assert.NilError(t, err)
 		for _, img := range images {
-			_, err := imgSvc.ImageDelete(ctx, img.ID, client.RemoveOptions{PruneChildren: true})
+			_, err := imgSvc.ImageDelete(ctx, img.ID, client.ImageRemoveOptions{PruneChildren: true})
 			assert.NilError(t, err)
 		}
 

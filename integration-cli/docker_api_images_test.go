@@ -50,13 +50,13 @@ func (s *DockerAPISuite) TestAPIImagesDelete(c *testing.T) {
 
 	cli.DockerCmd(c, "tag", name, "test:tag1")
 
-	_, err = apiClient.ImageRemove(testutil.GetContext(c), id, client.RemoveOptions{})
+	_, err = apiClient.ImageRemove(testutil.GetContext(c), id, client.ImageRemoveOptions{})
 	assert.ErrorContains(c, err, "unable to delete")
 
-	_, err = apiClient.ImageRemove(testutil.GetContext(c), "test:noexist", client.RemoveOptions{})
+	_, err = apiClient.ImageRemove(testutil.GetContext(c), "test:noexist", client.ImageRemoveOptions{})
 	assert.ErrorContains(c, err, "No such image")
 
-	_, err = apiClient.ImageRemove(testutil.GetContext(c), "test:tag1", client.RemoveOptions{})
+	_, err = apiClient.ImageRemove(testutil.GetContext(c), "test:tag1", client.ImageRemoveOptions{})
 	assert.NilError(c, err)
 }
 

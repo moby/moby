@@ -76,10 +76,3 @@ type ListOptions struct {
 	// Manifests indicates whether the image manifests should be returned.
 	Manifests bool
 }
-
-// RemoveOptions holds parameters to remove images.
-type RemoveOptions struct {
-	Platforms     []ocispec.Platform
-	Force         bool
-	PruneChildren bool
-}

@@ -22,7 +22,7 @@ func Do(ctx context.Context, t *testing.T, apiClient client.APIClient, buildCtx 
 	assert.NilError(t, err)
 	img := GetImageIDFromBody(t, resp.Body)
 	t.Cleanup(func() {
-		apiClient.ImageRemove(ctx, img, client.RemoveOptions{Force: true})
+		apiClient.ImageRemove(ctx, img, client.ImageRemoveOptions{Force: true})
 	})
 	return img
 }

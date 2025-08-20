@@ -328,7 +328,7 @@ func (ir *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, 
 		p = val
 	}
 
-	list, err := ir.backend.ImageDelete(ctx, name, client.RemoveOptions{
+	list, err := ir.backend.ImageDelete(ctx, name, client.ImageRemoveOptions{
 		Force:         force,
 		PruneChildren: prune,
 		Platforms:     p,

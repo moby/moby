@@ -138,7 +138,7 @@ func TestMigrateSaveLoad(t *testing.T) {
 	list, err := apiClient.ImageList(ctx, client.ListOptions{})
 	assert.NilError(t, err)
 	for _, i := range list {
-		_, err = apiClient.ImageRemove(ctx, i.ID, client.RemoveOptions{Force: true})
+		_, err = apiClient.ImageRemove(ctx, i.ID, client.ImageRemoveOptions{Force: true})
 		assert.NilError(t, err)
 	}
 

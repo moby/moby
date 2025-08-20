@@ -700,7 +700,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 			poll.WaitOn(t, waitFn)
 		})
 
-		_, err := c.ImageRemove(ctx, mountedImage, client.RemoveOptions{})
+		_, err := c.ImageRemove(ctx, mountedImage, client.ImageRemoveOptions{})
 		assert.ErrorContains(t, err, fmt.Sprintf("container %s is using its referenced image", cID[:12]))
 
 		// Remove that container which should free the references in the volume
@@ -708,7 +708,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 		assert.NilError(t, err)
 
 		// Now we should be able to remove the volume
-		_, err = c.ImageRemove(ctx, mountedImage, client.RemoveOptions{})
+		_, err = c.ImageRemove(ctx, mountedImage, client.ImageRemoveOptions{})
 		assert.NilError(t, err)
 	})
 

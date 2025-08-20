@@ -218,7 +218,7 @@ func TestImagePullKeepOldAsDangling(t *testing.T) {
 
 	assert.NilError(t, apiClient.ImageTag(ctx, "busybox:latest", "alpine:latest"))
 
-	_, err = apiClient.ImageRemove(ctx, "busybox:latest", client.RemoveOptions{})
+	_, err = apiClient.ImageRemove(ctx, "busybox:latest", client.ImageRemoveOptions{})
 	assert.NilError(t, err)
 
 	rc, err := apiClient.ImagePull(ctx, "alpine:latest", client.PullOptions{})
