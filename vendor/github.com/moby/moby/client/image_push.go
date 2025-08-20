@@ -18,7 +18,7 @@ import (
 // It executes the privileged function if the operation is unauthorized
 // and it tries one more time.
 // It's up to the caller to handle the [io.ReadCloser] and close it.
-func (cli *Client) ImagePush(ctx context.Context, image string, options PushOptions) (io.ReadCloser, error) {
+func (cli *Client) ImagePush(ctx context.Context, image string, options ImagePushOptions) (io.ReadCloser, error) {
 	ref, err := reference.ParseNormalizedNamed(image)
 	if err != nil {
 		return nil, err
