@@ -459,9 +459,9 @@ func imageImport(ctx context.Context, apiClient client.APIClient, path string) e
 		return err
 	}
 	defer file.Close()
-	options := client.ImportOptions{}
+	options := client.ImageImportOptions{}
 	ref := ""
-	source := client.ImportSource{
+	source := client.ImageImportSource{
 		Source:     file,
 		SourceName: "-",
 	}

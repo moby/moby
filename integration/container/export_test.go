@@ -30,10 +30,10 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	reference := "repo/" + strings.ToLower(t.Name()) + ":v1"
 	exportResp, err := apiClient.ContainerExport(ctx, cID)
 	assert.NilError(t, err)
-	importResp, err := apiClient.ImageImport(ctx, client.ImportSource{
+	importResp, err := apiClient.ImageImport(ctx, client.ImageImportSource{
 		Source:     exportResp,
 		SourceName: "-",
-	}, reference, client.ImportOptions{})
+	}, reference, client.ImageImportOptions{})
 	assert.NilError(t, err)
 
 	// If the import is successfully, then the message output should contain

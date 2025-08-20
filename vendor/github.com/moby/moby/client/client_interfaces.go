@@ -110,7 +110,7 @@ type ImageAPIClient interface {
 	BuildCachePrune(ctx context.Context, opts build.CachePruneOptions) (*build.CachePruneReport, error)
 	BuildCancel(ctx context.Context, id string) error
 	ImageCreate(ctx context.Context, parentReference string, options ImageCreateOptions) (io.ReadCloser, error)
-	ImageImport(ctx context.Context, source ImportSource, ref string, options ImportOptions) (io.ReadCloser, error)
+	ImageImport(ctx context.Context, source ImageImportSource, ref string, options ImageImportOptions) (io.ReadCloser, error)
 
 	ImageList(ctx context.Context, options ImageListOptions) ([]image.Summary, error)
 	ImagePull(ctx context.Context, ref string, options ImagePullOptions) (io.ReadCloser, error)

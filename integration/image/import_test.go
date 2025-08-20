@@ -47,9 +47,9 @@ func TestImportExtremelyLargeImageWorks(t *testing.T) {
 	reference := strings.ToLower(t.Name()) + ":v42"
 
 	_, err = apiClient.ImageImport(ctx,
-		client.ImportSource{Source: imageRdr, SourceName: "-"},
+		client.ImageImportSource{Source: imageRdr, SourceName: "-"},
 		reference,
-		client.ImportOptions{})
+		client.ImageImportOptions{})
 	assert.NilError(t, err)
 }
 
@@ -109,9 +109,9 @@ func TestImportWithCustomPlatform(t *testing.T) {
 			reference := "import-with-platform:tc-" + strconv.Itoa(i)
 
 			_, err = apiClient.ImageImport(ctx,
-				client.ImportSource{Source: imageRdr, SourceName: "-"},
+				client.ImageImportSource{Source: imageRdr, SourceName: "-"},
 				reference,
-				client.ImportOptions{Platform: tc.platform})
+				client.ImageImportOptions{Platform: tc.platform})
 			assert.NilError(t, err)
 
 			inspect, err := apiClient.ImageInspect(ctx, reference)
@@ -173,9 +173,9 @@ func TestImportWithCustomPlatformReject(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			reference := "import-with-platform:tc-" + strconv.Itoa(i)
 			_, err = apiClient.ImageImport(ctx,
-				client.ImportSource{Source: imageRdr, SourceName: "-"},
+				client.ImageImportSource{Source: imageRdr, SourceName: "-"},
 				reference,
-				client.ImportOptions{Platform: tc.platform})
+				client.ImageImportOptions{Platform: tc.platform})
 
 			assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 			assert.Check(t, is.ErrorContains(err, tc.expectedErr))
