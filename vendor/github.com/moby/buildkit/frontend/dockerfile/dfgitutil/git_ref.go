@@ -1,10 +1,12 @@
-package gitutil
+// Package dfgitutil provides Dockerfile-specific utilities for git refs.
+package dfgitutil
 
 import (
 	"net/url"
 	"strings"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/moby/buildkit/util/gitutil"
 	"github.com/pkg/errors"
 )
 
@@ -53,7 +55,7 @@ func ParseGitRef(ref string) (*GitRef, error) {
 	res := &GitRef{}
 
 	var (
-		remote *GitURL
+		remote *gitutil.GitURL
 		err    error
 	)
 
@@ -61,14 +63,14 @@ func ParseGitRef(ref string) (*GitRef, error) {
 		return nil, cerrdefs.ErrInvalidArgument
 	} else if strings.HasPrefix(ref, "github.com/") {
 		res.IndistinguishableFromLocal = true // Deprecated
-		remote = fromURL(&url.URL{
+		remote = gitutil.FromURL(&url.URL{
 			Scheme: "https",
 			Host:   "github.com",
 			Path:   strings.TrimPrefix(ref, "github.com/"),
 		})
 	} else {
-		remote, err = ParseURL(ref)
-		if errors.Is(err, ErrUnknownProtocol) {
+		remote, err = gitutil.ParseURL(ref)
+		if errors.Is(err, gitutil.ErrUnknownProtocol) {
 			return nil, err
 		}
 		if err != nil {
@@ -76,13 +78,13 @@ func ParseGitRef(ref string) (*GitRef, error) {
 		}
 
 		switch remote.Scheme {
-		case HTTPProtocol, GitProtocol:
+		case gitutil.HTTPProtocol, gitutil.GitProtocol:
 			res.UnencryptedTCP = true // Discouraged, but not deprecated
 		}
 
 		switch remote.Scheme {
 		// An HTTP(S) URL is considered to be a valid git ref only when it has the ".git[...]" suffix.
-		case HTTPProtocol, HTTPSProtocol:
+		case gitutil.HTTPProtocol, gitutil.HTTPSProtocol:
 			if !strings.HasSuffix(remote.Path, ".git") {
 				return nil, cerrdefs.ErrInvalidArgument
 			}
