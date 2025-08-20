@@ -26,11 +26,9 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 		return errdefs.InvalidParameter(errors.New("cannot have stream=true and one-shot=true"))
 	}
 
-	enc := json.NewEncoder(config.OutStream())
-
 	// If the container is either not running or restarting and requires no stream, return an empty stats.
-	if (!ctr.IsRunning() || ctr.IsRestarting()) && !config.Stream {
-		return enc.Encode(&containertypes.StatsResponse{
+	if !config.Stream && (!ctr.IsRunning() || ctr.IsRestarting()) {
+		return json.NewEncoder(config.OutStream()).Encode(&containertypes.StatsResponse{
 			Name: ctr.Name,
 			ID:   ctr.ID,
 		})
@@ -42,7 +40,7 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 		if err != nil {
 			return err
 		}
-		return enc.Encode(stats)
+		return json.NewEncoder(config.OutStream()).Encode(stats)
 	}
 
 	var preCPUStats containertypes.CPUStats
@@ -63,6 +61,7 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 
 	noStreamFirstFrame := !config.OneShot
 
+	enc := json.NewEncoder(config.OutStream())
 	for {
 		select {
 		case v, ok := <-updates:
