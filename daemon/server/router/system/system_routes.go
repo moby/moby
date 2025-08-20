@@ -237,7 +237,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 
 	du := backend.DiskUsage{}
 	if getBuildCache {
-		du.BuildCache = &buildtypes.CacheDiskUsage{
+		du.BuildCache = &backend.BuildCacheDiskUsage{
 			TotalSize: builderSize,
 			Items:     buildCache,
 		}
