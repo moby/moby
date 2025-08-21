@@ -11,6 +11,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	gogotypes "github.com/gogo/protobuf/types"
+	"github.com/moby/moby/api/pkg/authconfig"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
@@ -230,7 +231,7 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 			authConfig := &registry.AuthConfig{}
 			if encodedAuth != "" {
 				var err error
-				authConfig, err = registry.DecodeAuthConfig(encodedAuth)
+				authConfig, err = authconfig.Decode(encodedAuth)
 				if err != nil {
 					log.G(ctx).Warnf("invalid authconfig: %v", err)
 				}
@@ -348,7 +349,7 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swa
 			authConfig := &registry.AuthConfig{}
 			if encodedAuth != "" {
 				var err error
-				authConfig, err = registry.DecodeAuthConfig(encodedAuth)
+				authConfig, err = authconfig.Decode(encodedAuth)
 				if err != nil {
 					log.G(ctx).Warnf("invalid authconfig: %v", err)
 				}

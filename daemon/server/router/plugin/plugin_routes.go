@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/distribution/reference"
+	"github.com/moby/moby/api/pkg/authconfig"
 	"github.com/moby/moby/api/pkg/streamformatter"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/plugin"
@@ -26,7 +27,7 @@ func parseHeaders(headers http.Header) (map[string][]string, *registry.AuthConfi
 	}
 
 	// Ignore invalid AuthConfig to increase compatibility with the existing API.
-	authConfig, _ := registry.DecodeAuthConfig(headers.Get(registry.AuthHeader))
+	authConfig, _ := authconfig.Decode(headers.Get(registry.AuthHeader))
 	return metaHeaders, authConfig
 }
 
