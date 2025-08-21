@@ -9,9 +9,9 @@ import (
 	"strconv"
 
 	"github.com/moby/buildkit/client/llb"
+	"github.com/moby/buildkit/frontend/dockerfile/dfgitutil"
 	"github.com/moby/buildkit/frontend/gateway/client"
 	gwpb "github.com/moby/buildkit/frontend/gateway/pb"
-	"github.com/moby/buildkit/util/gitutil"
 	"github.com/pkg/errors"
 )
 
@@ -141,7 +141,7 @@ func (bc *Client) initContext(ctx context.Context) (*buildContext, error) {
 }
 
 func DetectGitContext(ref string, keepGit bool) (*llb.State, bool) {
-	g, err := gitutil.ParseGitRef(ref)
+	g, err := dfgitutil.ParseGitRef(ref)
 	if err != nil {
 		return nil, false
 	}
