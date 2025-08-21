@@ -11,10 +11,10 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
 	imagetypes "github.com/moby/moby/api/types/image"
-	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -115,7 +115,7 @@ deleteImagesLoop:
 
 			if shouldDelete {
 				for _, ref := range refs {
-					imgDel, err := i.ImageDelete(ctx, ref.String(), client.ImageRemoveOptions{
+					imgDel, err := i.ImageDelete(ctx, ref.String(), imagebackend.RemoveOptions{
 						PruneChildren: true,
 					})
 					if imageDeleteFailed(ref.String(), err) {
@@ -126,7 +126,7 @@ deleteImagesLoop:
 			}
 		} else {
 			hex := id.Digest().Encoded()
-			imgDel, err := i.ImageDelete(ctx, hex, client.ImageRemoveOptions{
+			imgDel, err := i.ImageDelete(ctx, hex, imagebackend.RemoveOptions{
 				PruneChildren: true,
 			})
 			if imageDeleteFailed(hex, err) {

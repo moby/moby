@@ -8,10 +8,10 @@ import (
 	"github.com/containerd/containerd/v2/core/metadata"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/log/logtest"
-	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/container"
 	daemonevents "github.com/moby/moby/v2/daemon/events"
 	dimages "github.com/moby/moby/v2/daemon/images"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -235,7 +235,7 @@ func TestImageDelete(t *testing.T) {
 				}
 			}
 
-			_, err := service.ImageDelete(ctx, tc.ref, client.ImageRemoveOptions{})
+			_, err := service.ImageDelete(ctx, tc.ref, imagebackend.RemoveOptions{})
 			if tc.err == nil {
 				assert.NilError(t, err)
 			} else {

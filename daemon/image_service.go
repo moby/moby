@@ -10,13 +10,13 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	imagetype "github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/registry"
-	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -30,10 +30,10 @@ type ImageService interface {
 	PullImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error
 	PushImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error
 	CreateImage(ctx context.Context, config []byte, parent string, contentStoreDigest digest.Digest) (builder.Image, error)
-	ImageDelete(ctx context.Context, imageRef string, options client.ImageRemoveOptions) ([]imagetype.DeleteResponse, error)
+	ImageDelete(ctx context.Context, imageRef string, options imagebackend.RemoveOptions) ([]imagetype.DeleteResponse, error)
 	ExportImage(ctx context.Context, names []string, platformList []ocispec.Platform, outStream io.Writer) error
 	LoadImage(ctx context.Context, inTar io.ReadCloser, platformList []ocispec.Platform, outStream io.Writer, quiet bool) error
-	Images(ctx context.Context, opts client.ImageListOptions) ([]*imagetype.Summary, error)
+	Images(ctx context.Context, opts imagebackend.ListOptions) ([]*imagetype.Summary, error)
 	LogImageEvent(ctx context.Context, imageID, refName string, action events.Action)
 	CountImages(ctx context.Context) int
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*imagetype.PruneReport, error)
