@@ -697,10 +697,6 @@ func toBuildkitPruneInfo(opts buildbackend.CachePruneOptions) (client.PruneInfo,
 		}
 	}
 
-	if opts.ReservedSpace == 0 && opts.KeepStorage != 0 {
-		opts.ReservedSpace = opts.KeepStorage
-	}
-
 	return client.PruneInfo{
 		All:           opts.All,
 		KeepDuration:  until,
