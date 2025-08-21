@@ -23,8 +23,8 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/versions"
-	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/pkg/ioutils"
 	"github.com/pkg/errors"
@@ -180,7 +180,7 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 
-	opts := client.BuildCachePruneOptions{
+	opts := buildbackend.CachePruneOptions{
 		All:     httputils.BoolValue(r, "all"),
 		Filters: fltrs,
 	}

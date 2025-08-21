@@ -8,13 +8,13 @@ import (
 	"github.com/distribution/reference"
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/builder"
 	daemonevents "github.com/moby/moby/v2/daemon/events"
 	buildkit "github.com/moby/moby/v2/daemon/internal/builder-next"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 )
@@ -98,7 +98,7 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 }
 
 // PruneCache removes all cached build sources
-func (b *Backend) PruneCache(ctx context.Context, opts client.BuildCachePruneOptions) (*build.CachePruneReport, error) {
+func (b *Backend) PruneCache(ctx context.Context, opts buildbackend.CachePruneOptions) (*build.CachePruneReport, error) {
 	buildCacheSize, cacheIDs, err := b.buildkit.Prune(ctx, opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prune build cache")

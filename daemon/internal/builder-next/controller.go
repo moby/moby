@@ -46,7 +46,6 @@ import (
 	"github.com/moby/buildkit/worker/containerd"
 	"github.com/moby/buildkit/worker/label"
 	"github.com/moby/moby/api/types/filters"
-	mobyclient "github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/graphdriver"
 	"github.com/moby/moby/v2/daemon/internal/builder-next/adapters/containerimage"
@@ -56,6 +55,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/builder-next/imagerefchecker"
 	mobyworker "github.com/moby/moby/v2/daemon/internal/builder-next/worker"
 	wlabel "github.com/moby/moby/v2/daemon/internal/builder-next/worker/label"
+	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 	"go.opentelemetry.io/otel/sdk/trace"
@@ -484,7 +484,7 @@ func getGCPolicy(conf config.BuilderConfig, root string) ([]client.PruneInfo, er
 					return nil, err
 				}
 
-				gcPolicy[i], err = toBuildkitPruneInfo(mobyclient.BuildCachePruneOptions{
+				gcPolicy[i], err = toBuildkitPruneInfo(buildbackend.CachePruneOptions{
 					All:           p.All,
 					ReservedSpace: reservedSpace,
 					MaxUsedSpace:  maxUsedSpace,
