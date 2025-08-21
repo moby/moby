@@ -9,6 +9,7 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/common"
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	req "github.com/moby/moby/v2/testutil/request"
 	"gotest.tools/v3/assert"
@@ -22,7 +23,7 @@ func TestResize(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		cID := container.Run(ctx, t, apiClient, container.WithTty(true))
 		defer container.Remove(ctx, t, apiClient, cID, containertypes.RemoveOptions{Force: true})
-		err := apiClient.ContainerResize(ctx, cID, containertypes.ResizeOptions{
+		err := apiClient.ContainerResize(ctx, cID, client.ContainerResizeOptions{
 			Height: 40,
 			Width:  40,
 		})
@@ -129,7 +130,7 @@ func TestResize(t *testing.T) {
 	t.Run("invalid state", func(t *testing.T) {
 		cID := container.Create(ctx, t, apiClient, container.WithCmd("echo"))
 		defer container.Remove(ctx, t, apiClient, cID, containertypes.RemoveOptions{Force: true})
-		err := apiClient.ContainerResize(ctx, cID, containertypes.ResizeOptions{
+		err := apiClient.ContainerResize(ctx, cID, client.ContainerResizeOptions{
 			Height: 40,
 			Width:  40,
 		})
