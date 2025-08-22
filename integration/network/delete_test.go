@@ -31,7 +31,7 @@ func createAmbiguousNetworks(ctx context.Context, t *testing.T, apiClient client
 	idPrefixNet := network.CreateNoError(ctx, t, apiClient, testNet[:12])
 	fullIDNet := network.CreateNoError(ctx, t, apiClient, testNet)
 
-	nws, err := apiClient.NetworkList(ctx, client.ListOptions{})
+	nws, err := apiClient.NetworkList(ctx, client.NetworkListOptions{})
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Equal(true, containsNetwork(nws, testNet)), "failed to create network testNet")
@@ -79,7 +79,7 @@ func TestDockerNetworkDeletePreferID(t *testing.T) {
 	assert.NilError(t, err)
 
 	// networks "testNet" and "idPrefixNet" should be removed, but "fullIDNet" should still exist
-	nws, err := apiClient.NetworkList(ctx, client.ListOptions{})
+	nws, err := apiClient.NetworkList(ctx, client.NetworkListOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(false, containsNetwork(nws, testNet)), "Network testNet not removed")
 	assert.Check(t, is.Equal(false, containsNetwork(nws, idPrefixNet)), "Network idPrefixNet not removed")

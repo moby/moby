@@ -168,7 +168,7 @@ func ProtectNetworks(ctx context.Context, t testing.TB, testEnv *Execution) {
 func getExistingNetworks(ctx context.Context, t testing.TB, testEnv *Execution) []string {
 	t.Helper()
 	apiClient := testEnv.APIClient()
-	networkList, err := apiClient.NetworkList(ctx, client.ListOptions{})
+	networkList, err := apiClient.NetworkList(ctx, client.NetworkListOptions{})
 	assert.NilError(t, err, "failed to list networks")
 
 	var networks []string
