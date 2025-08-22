@@ -65,7 +65,7 @@ func TestCreateWithIPv6DefaultsToULAPrefix(t *testing.T) {
 	network.CreateNoError(ctx, t, apiClient, nwName, network.WithIPv6())
 	defer network.RemoveNoError(ctx, t, apiClient, nwName)
 
-	nw, err := apiClient.NetworkInspect(ctx, "testnetula", client.InspectOptions{})
+	nw, err := apiClient.NetworkInspect(ctx, "testnetula", client.NetworkInspectOptions{})
 	assert.NilError(t, err)
 
 	for _, ipam := range nw.IPAM.Config {
@@ -92,7 +92,7 @@ func TestCreateWithIPv6WithoutEnableIPv6Flag(t *testing.T) {
 	network.CreateNoError(ctx, t, apiClient, nwName)
 	defer network.RemoveNoError(ctx, t, apiClient, nwName)
 
-	nw, err := apiClient.NetworkInspect(ctx, "testnetula", client.InspectOptions{})
+	nw, err := apiClient.NetworkInspect(ctx, "testnetula", client.NetworkInspectOptions{})
 	assert.NilError(t, err)
 
 	for _, ipam := range nw.IPAM.Config {
@@ -137,7 +137,7 @@ func TestDefaultIPvOptOverride(t *testing.T) {
 					network.CreateNoError(ctx, t, c, netName, nopts...)
 					defer network.RemoveNoError(ctx, t, c, netName)
 
-					insp, err := c.NetworkInspect(ctx, netName, client.InspectOptions{})
+					insp, err := c.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
 					assert.NilError(t, err)
 					t.Log("override4", override4, "override6", override6, "->", insp.Options)
 

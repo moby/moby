@@ -221,7 +221,7 @@ func TestServiceUpdateNetwork(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, cli, serviceID, instances), swarm.ServicePoll)
 	service := getService(ctx, t, cli, serviceID)
-	netInfo, err := cli.NetworkInspect(ctx, testNet, client.InspectOptions{
+	netInfo, err := cli.NetworkInspect(ctx, testNet, client.NetworkInspectOptions{
 		Verbose: true,
 		Scope:   "swarm",
 	})
@@ -234,7 +234,7 @@ func TestServiceUpdateNetwork(t *testing.T) {
 	assert.NilError(t, err)
 	poll.WaitOn(t, serviceIsUpdated(ctx, cli, serviceID), swarm.ServicePoll)
 
-	netInfo, err = cli.NetworkInspect(ctx, testNet, client.InspectOptions{
+	netInfo, err = cli.NetworkInspect(ctx, testNet, client.NetworkInspectOptions{
 		Verbose: true,
 		Scope:   "swarm",
 	})

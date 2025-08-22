@@ -1026,11 +1026,11 @@ func (s *DockerSwarmSuite) TestAPINetworkInspectWithScope(c *testing.T) {
 	resp, err := apiclient.NetworkCreate(ctx, name, network.CreateOptions{Driver: "overlay"})
 	assert.NilError(c, err)
 
-	nw, err := apiclient.NetworkInspect(ctx, name, client.InspectOptions{})
+	nw, err := apiclient.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
 	assert.NilError(c, err)
 	assert.Check(c, is.Equal("swarm", nw.Scope))
 	assert.Check(c, is.Equal(resp.ID, nw.ID))
 
-	_, err = apiclient.NetworkInspect(ctx, name, client.InspectOptions{Scope: "local"})
+	_, err = apiclient.NetworkInspect(ctx, name, client.NetworkInspectOptions{Scope: "local"})
 	assert.Check(c, is.ErrorType(err, cerrdefs.IsNotFound))
 }

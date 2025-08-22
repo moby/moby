@@ -41,33 +41,33 @@ func TestInspectNetwork(t *testing.T) {
 	tests := []struct {
 		name    string
 		network string
-		opts    client.InspectOptions
+		opts    client.NetworkInspectOptions
 	}{
 		{
 			name:    "full network id",
 			network: overlayID,
-			opts: client.InspectOptions{
+			opts: client.NetworkInspectOptions{
 				Verbose: true,
 			},
 		},
 		{
 			name:    "partial network id",
 			network: overlayID[0:11],
-			opts: client.InspectOptions{
+			opts: client.NetworkInspectOptions{
 				Verbose: true,
 			},
 		},
 		{
 			name:    "network name",
 			network: networkName,
-			opts: client.InspectOptions{
+			opts: client.NetworkInspectOptions{
 				Verbose: true,
 			},
 		},
 		{
 			name:    "network name and swarm scope",
 			network: networkName,
-			opts: client.InspectOptions{
+			opts: client.NetworkInspectOptions{
 				Verbose: true,
 				Scope:   "swarm",
 			},

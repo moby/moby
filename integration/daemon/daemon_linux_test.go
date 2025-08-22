@@ -419,7 +419,7 @@ func testDefaultBridgeIPAM(ctx context.Context, t *testing.T, tc defaultBridgeIP
 			c := d.NewClientT(t)
 			defer c.Close()
 
-			insp, err := c.NetworkInspect(ctx, network.NetworkBridge, client.InspectOptions{})
+			insp, err := c.NetworkInspect(ctx, network.NetworkBridge, client.NetworkInspectOptions{})
 			assert.NilError(t, err)
 			expIPAMConfig := slices.Clone(tc.expIPAMConfig)
 			for i := range expIPAMConfig {

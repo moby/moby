@@ -1,7 +1,7 @@
 package client
 
-// InspectOptions holds parameters to inspect network.
-type InspectOptions struct {
+// NetworkInspectOptions holds parameters to inspect network.
+type NetworkInspectOptions struct {
 	Scope   string
 	Verbose bool
 }

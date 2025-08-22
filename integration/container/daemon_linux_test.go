@@ -153,7 +153,7 @@ func TestDaemonHostGatewayIP(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(res.Stderr(), 0))
 	assert.Equal(t, 0, res.ExitCode)
-	inspect, err := c.NetworkInspect(ctx, "bridge", client.InspectOptions{})
+	inspect, err := c.NetworkInspect(ctx, "bridge", client.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(res.Stdout(), inspect.IPAM.Config[0].Gateway))
 	c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
