@@ -20,7 +20,7 @@ func TestDiskUsageError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.DiskUsage(context.Background(), system.DiskUsageOptions{})
+	_, err := client.DiskUsage(context.Background(), DiskUsageOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -50,6 +50,6 @@ func TestDiskUsage(t *testing.T) {
 			}, nil
 		}),
 	}
-	_, err := client.DiskUsage(context.Background(), system.DiskUsageOptions{})
+	_, err := client.DiskUsage(context.Background(), DiskUsageOptions{})
 	assert.NilError(t, err)
 }
