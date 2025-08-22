@@ -386,7 +386,7 @@ func TestAddPortMappings(t *testing.T) {
 			},
 			enableProxy:  true,
 			busyPortIPv4: 8081,
-			expErr:       "failed to bind host port 0.0.0.0:8081",
+			expErr:       "failed to bind host port 0.0.0.0:8081/tcp: address already in use",
 		},
 		{
 			name:     "map host ipv6 to ipv4 container with proxy",
