@@ -234,23 +234,32 @@ func TestHostGatewayFromDocker0(t *testing.T) {
 	assert.Check(t, is.Contains(res.Stdout.String(), "fddd:6ff4:6e08::1\thg"))
 }
 
-func TestDockerGWBridgeDefaultMTU(t *testing.T) {
+func setupDefaultMTUDaemon(t *testing.T, extraArgs ...string) (context.Context, *daemon.Daemon, client.APIClient) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
-	d := daemon.New(t)
-	d.StartWithBusybox(ctx, t,
+	args := append([]string{
 		"--iptables=false",
-		"--swarm-default-advertise-addr=lo",
 		"--default-network-opt", "bridge=com.docker.network.driver.mtu=1234",
-	)
-	defer d.Stop(t)
+	}, extraArgs...)
 
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t, args...)
 	c := d.NewClientT(t)
-	defer c.Close()
+
+	t.Cleanup(func() {
+		c.Close()
+		d.Stop(t)
+	})
+
+	return ctx, d, c
+}
+
+func TestDockerGWBridgeDefaultMTU(t *testing.T) {
+	ctx, d, c := setupDefaultMTUDaemon(t, "--swarm-default-advertise-addr=lo")
 
 	d.SwarmInit(ctx, t, swarmtypes.InitRequest{})
 
@@ -264,21 +273,7 @@ func TestDockerGWBridgeDefaultMTU(t *testing.T) {
 }
 
 func TestBridgeNetworkDefaultMTU(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	skip.If(t, testEnv.IsRemoteDaemon)
-	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
-
-	ctx := testutil.StartSpan(baseContext, t)
-
-	d := daemon.New(t)
-	d.StartWithBusybox(ctx, t,
-		"--iptables=false",
-		"--default-network-opt", "bridge=com.docker.network.driver.mtu=1234",
-	)
-	defer d.Stop(t)
-
-	c := d.NewClientT(t)
-	defer c.Close()
+	ctx, _, c := setupDefaultMTUDaemon(t)
 
 	out, err := c.NetworkInspect(ctx, "bridge", networktypes.InspectOptions{})
 	assert.NilError(t, err)
