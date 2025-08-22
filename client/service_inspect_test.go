@@ -22,7 +22,7 @@ func TestServiceInspectError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, _, err := client.ServiceInspectWithRaw(context.Background(), "nothing", swarm.ServiceInspectOptions{})
+	_, _, err := client.ServiceInspectWithRaw(context.Background(), "nothing", ServiceInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -31,7 +31,7 @@ func TestServiceInspectServiceNotFound(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
 	}
 
-	_, _, err := client.ServiceInspectWithRaw(context.Background(), "unknown", swarm.ServiceInspectOptions{})
+	_, _, err := client.ServiceInspectWithRaw(context.Background(), "unknown", ServiceInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
@@ -41,11 +41,11 @@ func TestServiceInspectWithEmptyID(t *testing.T) {
 			return nil, errors.New("should not make request")
 		}),
 	}
-	_, _, err := client.ServiceInspectWithRaw(context.Background(), "", swarm.ServiceInspectOptions{})
+	_, _, err := client.ServiceInspectWithRaw(context.Background(), "", ServiceInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, _, err = client.ServiceInspectWithRaw(context.Background(), "    ", swarm.ServiceInspectOptions{})
+	_, _, err = client.ServiceInspectWithRaw(context.Background(), "    ", ServiceInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -70,7 +70,7 @@ func TestServiceInspect(t *testing.T) {
 		}),
 	}
 
-	serviceInspect, _, err := client.ServiceInspectWithRaw(context.Background(), "service_id", swarm.ServiceInspectOptions{})
+	serviceInspect, _, err := client.ServiceInspectWithRaw(context.Background(), "service_id", ServiceInspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(serviceInspect.ID, "service_id"))
 }

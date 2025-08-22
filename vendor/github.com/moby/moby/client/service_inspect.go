@@ -12,7 +12,7 @@ import (
 )
 
 // ServiceInspectWithRaw returns the service information and the raw data.
-func (cli *Client) ServiceInspectWithRaw(ctx context.Context, serviceID string, opts swarm.ServiceInspectOptions) (swarm.Service, []byte, error) {
+func (cli *Client) ServiceInspectWithRaw(ctx context.Context, serviceID string, opts ServiceInspectOptions) (swarm.Service, []byte, error) {
 	serviceID, err := trimID("service", serviceID)
 	if err != nil {
 		return swarm.Service{}, nil, err

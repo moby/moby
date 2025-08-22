@@ -208,9 +208,3 @@ const (
 	RegistryAuthFromSpec         = "spec"
 	RegistryAuthFromPreviousSpec = "previous-spec"
 )
-
-// ServiceInspectOptions holds parameters related to the "service inspect"
-// operation.
-type ServiceInspectOptions struct {
-	InsertDefaults bool
-}
