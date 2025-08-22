@@ -22,6 +22,7 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/checker"
 	"github.com/moby/moby/v2/integration-cli/daemon"
 	"github.com/moby/moby/v2/testutil"
@@ -413,7 +414,7 @@ func (s *DockerSwarmSuite) TestAPISwarmRaftQuorum(c *testing.T) {
 
 	// d1 will eventually step down from leader because there is no longer an active quorum, wait for that to happen
 	poll.WaitOn(c, pollCheck(c, func(t *testing.T) (any, string) {
-		_, err := cli.ServiceCreate(testutil.GetContext(t), service.Spec, swarm.ServiceCreateOptions{})
+		_, err := cli.ServiceCreate(testutil.GetContext(t), service.Spec, client.ServiceCreateOptions{})
 		return err.Error(), ""
 	}, checker.Contains("Make sure more than half of the managers are online.")), poll.WithTimeout(defaultReconciliationTimeout*2))
 
