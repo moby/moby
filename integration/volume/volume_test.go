@@ -49,7 +49,7 @@ func TestVolumesCreateAndList(t *testing.T) {
 	}
 	assert.Check(t, is.DeepEqual(vol, expected, cmpopts.EquateEmpty()))
 
-	volList, err := apiClient.VolumeList(ctx, volume.ListOptions{})
+	volList, err := apiClient.VolumeList(ctx, client.ListOptions{})
 	assert.NilError(t, err)
 	assert.Assert(t, len(volList.Volumes) > 0)
 

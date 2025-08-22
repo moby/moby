@@ -11,6 +11,7 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/daemon/volume/service/opts"
 	"github.com/moby/moby/v2/errdefs"
@@ -39,7 +40,7 @@ func (v *volumeRouter) getVolumesList(ctx context.Context, w http.ResponseWriter
 
 	version := httputils.VersionFromContext(ctx)
 	if versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) && v.cluster.IsManager() {
-		clusterVolumes, swarmErr := v.cluster.GetVolumes(volume.ListOptions{Filters: f})
+		clusterVolumes, swarmErr := v.cluster.GetVolumes(client.ListOptions{Filters: f})
 		if swarmErr != nil {
 			// if there is a swarm error, we may not want to error out right
 			// away. the local list probably worked. instead, let's do what we

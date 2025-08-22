@@ -6,6 +6,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	volumetypes "github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/cluster/convert"
 	"github.com/moby/moby/v2/errdefs"
 	swarmapi "github.com/moby/swarmkit/v2/api"
@@ -30,7 +31,7 @@ func (c *Cluster) GetVolume(nameOrID string) (volumetypes.Volume, error) {
 }
 
 // GetVolumes returns all of the volumes matching the given options from a swarm cluster.
-func (c *Cluster) GetVolumes(options volumetypes.ListOptions) ([]*volumetypes.Volume, error) {
+func (c *Cluster) GetVolumes(options client.ListOptions) ([]*volumetypes.Volume, error) {
 	var volumes []*volumetypes.Volume
 	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		r, err := state.controlClient.ListVolumes(

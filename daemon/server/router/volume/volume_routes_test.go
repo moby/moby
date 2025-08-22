@@ -15,6 +15,7 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/daemon/volume/service/opts"
 	"github.com/moby/moby/v2/errdefs"
@@ -679,7 +680,7 @@ func (c *fakeClusterBackend) GetVolume(nameOrID string) (volume.Volume, error) {
 	return volume.Volume{}, errdefs.NotFound(fmt.Errorf("volume %s not found", nameOrID))
 }
 
-func (c *fakeClusterBackend) GetVolumes(_ volume.ListOptions) ([]*volume.Volume, error) {
+func (c *fakeClusterBackend) GetVolumes(_ client.ListOptions) ([]*volume.Volume, error) {
 	if err := c.checkSwarm(); err != nil {
 		return nil, err
 	}
