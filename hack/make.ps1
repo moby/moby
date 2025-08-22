@@ -325,7 +325,7 @@ Function Run-UnitTests() {
     $pkgList = $pkgList | Select-String -NotMatch "github.com/moby/moby/v2/integration"
     $pkgList = $pkgList -replace "`r`n", " "
 
-    $maxFails = if ($env:GOTESTSUM_MAX_FAILS) { $env:GOTESTSUM_MAX_FAILS } else { "1" }
+    $maxFails = if ($env:GOTESTSUM_MAX_FAILS) { $env:GOTESTSUM_MAX_FAILS } else { "0" }
     $rerunFailsEnv = $env:GOTESTSUM_RERUN_FAILS
     $rerunFailsFlaky = if ($rerunFailsEnv) { $rerunFailsEnv } else { "4" }
     $rerunFailsRegular = if ($rerunFailsEnv) { $rerunFailsEnv } else { "0" }
