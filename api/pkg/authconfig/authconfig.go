@@ -54,10 +54,10 @@ func Decode(authEncoded string) (*registry.AuthConfig, error) {
 		return &registry.AuthConfig{}, nil
 	}
 
-	return decodeAuthConfigFromReader(bytes.NewReader(decoded))
+	return decode(bytes.NewReader(decoded))
 }
 
-// DecodeAuthConfigBody decodes authentication information as sent as JSON in the
+// DecodeRequestBody decodes authentication information as sent as JSON in the
 // body of a request. This function is to provide backward compatibility with old
 // clients and API versions. Current clients and API versions expect authentication
 // to be provided through the X-Registry-Auth header.
@@ -65,15 +65,13 @@ func Decode(authEncoded string) (*registry.AuthConfig, error) {
 // Like [Decode], this function always returns an [AuthConfig], even if an
 // error occurs. It is up to the caller to decide if authentication is required,
 // and if the error can be ignored.
-//
-// Deprecated: this function is no longer used and will be removed in the next release.
-func DecodeAuthConfigBody(rdr io.ReadCloser) (*registry.AuthConfig, error) {
-	return decodeAuthConfigFromReader(rdr)
+func DecodeRequestBody(r io.ReadCloser) (*registry.AuthConfig, error) {
+	return decode(r)
 }
 
-func decodeAuthConfigFromReader(rdr io.Reader) (*registry.AuthConfig, error) {
+func decode(r io.Reader) (*registry.AuthConfig, error) {
 	authConfig := &registry.AuthConfig{}
-	if err := json.NewDecoder(rdr).Decode(authConfig); err != nil {
+	if err := json.NewDecoder(r).Decode(authConfig); err != nil {
 		// always return an (empty) AuthConfig to increase compatibility with
 		// the existing API.
 		return &registry.AuthConfig{}, invalid(fmt.Errorf("invalid JSON: %w", err))
