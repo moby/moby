@@ -129,7 +129,7 @@ func removeImage(ctx context.Context, t testing.TB, apiclient client.ImageAPICli
 
 func deleteAllVolumes(ctx context.Context, t testing.TB, c client.VolumeAPIClient, protectedVolumes map[string]struct{}) {
 	t.Helper()
-	volumes, err := c.VolumeList(ctx, client.ListOptions{})
+	volumes, err := c.VolumeList(ctx, client.VolumeListOptions{})
 	assert.Check(t, err, "failed to list volumes")
 
 	for _, v := range volumes.Volumes {

@@ -2,7 +2,7 @@ package client
 
 import "github.com/moby/moby/api/types/filters"
 
-// ListOptions holds parameters to list volumes.
-type ListOptions struct {
+// VolumeListOptions holds parameters to list volumes.
+type VolumeListOptions struct {
 	Filters filters.Args
 }

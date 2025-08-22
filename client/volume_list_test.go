@@ -22,7 +22,7 @@ func TestVolumeListError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.VolumeList(context.Background(), ListOptions{})
+	_, err := client.VolumeList(context.Background(), VolumeListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -80,7 +80,7 @@ func TestVolumeList(t *testing.T) {
 			}),
 		}
 
-		volumeResponse, err := client.VolumeList(context.Background(), ListOptions{Filters: listCase.filters})
+		volumeResponse, err := client.VolumeList(context.Background(), VolumeListOptions{Filters: listCase.filters})
 		assert.NilError(t, err)
 		assert.Check(t, is.Len(volumeResponse.Volumes, 1))
 	}

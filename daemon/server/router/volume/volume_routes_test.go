@@ -680,7 +680,7 @@ func (c *fakeClusterBackend) GetVolume(nameOrID string) (volume.Volume, error) {
 	return volume.Volume{}, errdefs.NotFound(fmt.Errorf("volume %s not found", nameOrID))
 }
 
-func (c *fakeClusterBackend) GetVolumes(_ client.ListOptions) ([]*volume.Volume, error) {
+func (c *fakeClusterBackend) GetVolumes(_ client.VolumeListOptions) ([]*volume.Volume, error) {
 	if err := c.checkSwarm(); err != nil {
 		return nil, err
 	}

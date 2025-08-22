@@ -31,7 +31,7 @@ func (c *Cluster) GetVolume(nameOrID string) (volumetypes.Volume, error) {
 }
 
 // GetVolumes returns all of the volumes matching the given options from a swarm cluster.
-func (c *Cluster) GetVolumes(options client.ListOptions) ([]*volumetypes.Volume, error) {
+func (c *Cluster) GetVolumes(options client.VolumeListOptions) ([]*volumetypes.Volume, error) {
 	var volumes []*volumetypes.Volume
 	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		r, err := state.controlClient.ListVolumes(

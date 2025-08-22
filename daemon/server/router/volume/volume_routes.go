@@ -40,7 +40,7 @@ func (v *volumeRouter) getVolumesList(ctx context.Context, w http.ResponseWriter
 
 	version := httputils.VersionFromContext(ctx)
 	if versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) && v.cluster.IsManager() {
-		clusterVolumes, swarmErr := v.cluster.GetVolumes(client.ListOptions{Filters: f})
+		clusterVolumes, swarmErr := v.cluster.GetVolumes(client.VolumeListOptions{Filters: f})
 		if swarmErr != nil {
 			// if there is a swarm error, we may not want to error out right
 			// away. the local list probably worked. instead, let's do what we
