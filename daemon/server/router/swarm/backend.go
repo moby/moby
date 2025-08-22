@@ -5,8 +5,8 @@ import (
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/swarm"
-	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/swarmbackend"
 )
 
 // Backend abstracts a swarm manager.
@@ -35,8 +35,7 @@ type Backend interface {
 	RemoveSecret(idOrName string) error
 	GetSecret(id string) (swarm.Secret, error)
 	UpdateSecret(idOrName string, version uint64, spec swarm.SecretSpec) error
-	// TODO(austinvazquez): decouple the daemon from client usage.
-	GetConfigs(opts client.ConfigListOptions) ([]swarm.Config, error)
+	GetConfigs(opts swarmbackend.ConfigListOptions) ([]swarm.Config, error)
 	CreateConfig(s swarm.ConfigSpec) (string, error)
 	RemoveConfig(id string) error
 	GetConfig(id string) (swarm.Config, error)
