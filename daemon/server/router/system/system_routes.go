@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/api/pkg/authconfig"
 	buildtypes "github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
@@ -373,9 +374,7 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 }
 
 func (s *systemRouter) postAuth(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var config *registry.AuthConfig
-	err := json.NewDecoder(r.Body).Decode(&config)
-	r.Body.Close()
+	config, err := authconfig.DecodeRequestBody(r.Body)
 	if err != nil {
 		return err
 	}
