@@ -181,7 +181,7 @@ type SwarmAPIClient interface {
 	SwarmUnlock(ctx context.Context, req swarm.UnlockRequest) error
 	SwarmLeave(ctx context.Context, force bool) error
 	SwarmInspect(ctx context.Context) (swarm.Swarm, error)
-	SwarmUpdate(ctx context.Context, version swarm.Version, swarm swarm.Spec, flags swarm.UpdateFlags) error
+	SwarmUpdate(ctx context.Context, version swarm.Version, swarm swarm.Spec, flags SwarmUpdateFlags) error
 }
 
 // SystemAPIClient defines API client methods for the system

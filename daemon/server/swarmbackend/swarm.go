@@ -13,3 +13,9 @@ type NodeListOptions struct {
 type TaskListOptions struct {
 	Filters filters.Args
 }
+
+type UpdateFlags struct {
+	RotateWorkerToken      bool
+	RotateManagerToken     bool
+	RotateManagerUnlockKey bool
+}

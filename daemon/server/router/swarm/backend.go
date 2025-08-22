@@ -15,7 +15,7 @@ type Backend interface {
 	Join(req swarm.JoinRequest) error
 	Leave(ctx context.Context, force bool) error
 	Inspect() (swarm.Swarm, error)
-	Update(uint64, swarm.Spec, swarm.UpdateFlags) error
+	Update(uint64, swarm.Spec, swarmbackend.UpdateFlags) error
 	GetUnlockKey() (string, error)
 	UnlockSwarm(req swarm.UnlockRequest) error
 	GetServices(swarm.ServiceListOptions) ([]swarm.Service, error)

@@ -20,7 +20,7 @@ func TestSwarmUpdateError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	err := client.SwarmUpdate(context.Background(), swarm.Version{}, swarm.Spec{}, swarm.UpdateFlags{})
+	err := client.SwarmUpdate(context.Background(), swarm.Version{}, swarm.Spec{}, SwarmUpdateFlags{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -42,6 +42,6 @@ func TestSwarmUpdate(t *testing.T) {
 		}),
 	}
 
-	err := client.SwarmUpdate(context.Background(), swarm.Version{}, swarm.Spec{}, swarm.UpdateFlags{})
+	err := client.SwarmUpdate(context.Background(), swarm.Version{}, swarm.Spec{}, SwarmUpdateFlags{})
 	assert.NilError(t, err)
 }
