@@ -11,7 +11,6 @@ import (
 	"github.com/moby/moby/api/types/registry"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/versions"
-	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/daemon/server/swarmbackend"
@@ -83,8 +82,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 		return errdefs.InvalidParameter(err)
 	}
 
-	// TODO(austinvazquez): decouple daemon from client usage
-	var flags client.SwarmUpdateFlags
+	var flags swarmbackend.UpdateFlags
 
 	if value := r.URL.Query().Get("rotateWorkerToken"); value != "" {
 		rot, err := strconv.ParseBool(value)
