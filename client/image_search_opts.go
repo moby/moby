@@ -6,8 +6,8 @@ import (
 	"github.com/moby/moby/api/types/filters"
 )
 
-// SearchOptions holds parameters to search images with.
-type SearchOptions struct {
+// ImageSearchOptions holds parameters to search images with.
+type ImageSearchOptions struct {
 	RegistryAuth string
 
 	// PrivilegeFunc is a function that clients can supply to retry operations

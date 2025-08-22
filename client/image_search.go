@@ -14,7 +14,7 @@ import (
 
 // ImageSearch makes the docker host search by a term in a remote registry.
 // The list of results is not sorted in any fashion.
-func (cli *Client) ImageSearch(ctx context.Context, term string, options SearchOptions) ([]registry.SearchResult, error) {
+func (cli *Client) ImageSearch(ctx context.Context, term string, options ImageSearchOptions) ([]registry.SearchResult, error) {
 	var results []registry.SearchResult
 	query := url.Values{}
 	query.Set("term", term)
