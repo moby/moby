@@ -99,7 +99,7 @@ require (
 	github.com/vbatts/tar-split v0.12.1
 	github.com/vishvananda/netlink v1.3.1
 	github.com/vishvananda/netns v0.0.5
-	go.etcd.io/bbolt v1.4.2
+	go.etcd.io/bbolt v1.4.3
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.60.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.60.0
 	go.opentelemetry.io/contrib/processors/baggagecopy v0.4.0
@@ -109,7 +109,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.35.0
 	golang.org/x/mod v0.24.0
 	golang.org/x/net v0.39.0
-	golang.org/x/sync v0.14.0
+	golang.org/x/sync v0.16.0
 	golang.org/x/sys v0.33.0
 	golang.org/x/text v0.24.0
 	golang.org/x/time v0.11.0
