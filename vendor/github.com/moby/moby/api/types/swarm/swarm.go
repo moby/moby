@@ -229,13 +229,6 @@ type Peer struct {
 	Addr   string
 }
 
-// UpdateFlags contains flags for SwarmUpdate.
-type UpdateFlags struct {
-	RotateWorkerToken      bool
-	RotateManagerToken     bool
-	RotateManagerUnlockKey bool
-}
-
 // UnlockKeyResponse contains the response for Engine API:
 // GET /swarm/unlockkey
 type UnlockKeyResponse struct {

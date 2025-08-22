@@ -11,6 +11,7 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	types "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/cluster/convert"
 	"github.com/moby/moby/v2/daemon/internal/stack"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
@@ -240,7 +241,8 @@ func (c *Cluster) inspect(ctx context.Context, state nodeState) (types.Swarm, er
 }
 
 // Update updates configuration of a managed swarm cluster.
-func (c *Cluster) Update(version uint64, spec types.Spec, flags types.UpdateFlags) error {
+// TODO(austinvazquez): decouple daemon from client usage
+func (c *Cluster) Update(version uint64, spec types.Spec, flags client.UpdateFlags) error {
 	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		swarm, err := getSwarm(ctx, state.controlClient)
 		if err != nil {
