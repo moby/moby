@@ -22,6 +22,7 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/checker"
 	"github.com/moby/moby/v2/integration-cli/daemon"
 	"github.com/moby/moby/v2/testutil"
@@ -1025,11 +1026,11 @@ func (s *DockerSwarmSuite) TestAPINetworkInspectWithScope(c *testing.T) {
 	resp, err := apiclient.NetworkCreate(ctx, name, network.CreateOptions{Driver: "overlay"})
 	assert.NilError(c, err)
 
-	nw, err := apiclient.NetworkInspect(ctx, name, network.InspectOptions{})
+	nw, err := apiclient.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
 	assert.NilError(c, err)
 	assert.Check(c, is.Equal("swarm", nw.Scope))
 	assert.Check(c, is.Equal(resp.ID, nw.ID))
 
-	_, err = apiclient.NetworkInspect(ctx, name, network.InspectOptions{Scope: "local"})
+	_, err = apiclient.NetworkInspect(ctx, name, client.NetworkInspectOptions{Scope: "local"})
 	assert.Check(c, is.ErrorType(err, cerrdefs.IsNotFound))
 }

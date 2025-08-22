@@ -22,7 +22,7 @@ func TestNetworkListError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.NetworkList(context.Background(), network.ListOptions{})
+	_, err := client.NetworkList(context.Background(), NetworkListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -30,27 +30,27 @@ func TestNetworkList(t *testing.T) {
 	const expectedURL = "/networks"
 
 	listCases := []struct {
-		options         network.ListOptions
+		options         NetworkListOptions
 		expectedFilters string
 	}{
 		{
-			options:         network.ListOptions{},
+			options:         NetworkListOptions{},
 			expectedFilters: "",
 		},
 		{
-			options: network.ListOptions{
+			options: NetworkListOptions{
 				Filters: filters.NewArgs(filters.Arg("dangling", "false")),
 			},
 			expectedFilters: `{"dangling":{"false":true}}`,
 		},
 		{
-			options: network.ListOptions{
+			options: NetworkListOptions{
 				Filters: filters.NewArgs(filters.Arg("dangling", "true")),
 			},
 			expectedFilters: `{"dangling":{"true":true}}`,
 		},
 		{
-			options: network.ListOptions{
+			options: NetworkListOptions{
 				Filters: filters.NewArgs(
 					filters.Arg("label", "label1"),
 					filters.Arg("label", "label2"),

@@ -9,6 +9,7 @@ import (
 
 	"github.com/moby/moby/api/types/network"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/integration/internal/testutils/networking"
 	"github.com/moby/moby/v2/testutil"
@@ -418,7 +419,7 @@ func testDefaultBridgeIPAM(ctx context.Context, t *testing.T, tc defaultBridgeIP
 			c := d.NewClientT(t)
 			defer c.Close()
 
-			insp, err := c.NetworkInspect(ctx, network.NetworkBridge, network.InspectOptions{})
+			insp, err := c.NetworkInspect(ctx, network.NetworkBridge, client.NetworkInspectOptions{})
 			assert.NilError(t, err)
 			expIPAMConfig := slices.Clone(tc.expIPAMConfig)
 			for i := range expIPAMConfig {

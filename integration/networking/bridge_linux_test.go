@@ -584,7 +584,7 @@ func TestAccessToPublishedPort(t *testing.T) {
 			// Use the default bridge addresses as host addresses (like "host-gateway", but
 			// there's no way to tell wget to prefer ipv4/ipv6 transport, so just use the
 			// addresses directly).
-			insp, err := c.NetworkInspect(ctx, "bridge", networktypes.InspectOptions{})
+			insp, err := c.NetworkInspect(ctx, "bridge", client.NetworkInspectOptions{})
 			assert.NilError(t, err)
 			for _, ipamCfg := range insp.IPAM.Config {
 				ipv := "ipv4"
@@ -1821,7 +1821,7 @@ func TestNetworkInspectGateway(t *testing.T) {
 	assert.NilError(t, err)
 	defer network.RemoveNoError(ctx, t, c, netName)
 
-	insp, err := c.NetworkInspect(ctx, nid, networktypes.InspectOptions{})
+	insp, err := c.NetworkInspect(ctx, nid, client.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	for _, ipamCfg := range insp.IPAM.Config {
 		_, err := netip.ParseAddr(ipamCfg.Gateway)

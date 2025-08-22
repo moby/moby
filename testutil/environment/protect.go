@@ -8,7 +8,6 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
-	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/testutil"
 	"go.opentelemetry.io/otel"
@@ -168,8 +167,8 @@ func ProtectNetworks(ctx context.Context, t testing.TB, testEnv *Execution) {
 
 func getExistingNetworks(ctx context.Context, t testing.TB, testEnv *Execution) []string {
 	t.Helper()
-	client := testEnv.APIClient()
-	networkList, err := client.NetworkList(ctx, network.ListOptions{})
+	apiClient := testEnv.APIClient()
+	networkList, err := apiClient.NetworkList(ctx, client.NetworkListOptions{})
 	assert.NilError(t, err, "failed to list networks")
 
 	var networks []string

@@ -89,7 +89,7 @@ func TestHostIPv4BridgeLabel(t *testing.T) {
 		network.WithOption("com.docker.network.bridge.name", bridgeName),
 	)
 	defer network.RemoveNoError(ctx, t, c, bridgeName)
-	out, err := c.NetworkInspect(ctx, bridgeName, networktypes.InspectOptions{Verbose: true})
+	out, err := c.NetworkInspect(ctx, bridgeName, client.NetworkInspectOptions{Verbose: true})
 	assert.NilError(t, err)
 	assert.Assert(t, len(out.IPAM.Config) > 0)
 	// Make sure the SNAT rule exists

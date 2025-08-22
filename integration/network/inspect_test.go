@@ -3,7 +3,7 @@ package network
 import (
 	"testing"
 
-	networktypes "github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/network"
 	"github.com/moby/moby/v2/integration/internal/swarm"
 	"github.com/moby/moby/v2/testutil"
@@ -41,33 +41,33 @@ func TestInspectNetwork(t *testing.T) {
 	tests := []struct {
 		name    string
 		network string
-		opts    networktypes.InspectOptions
+		opts    client.NetworkInspectOptions
 	}{
 		{
 			name:    "full network id",
 			network: overlayID,
-			opts: networktypes.InspectOptions{
+			opts: client.NetworkInspectOptions{
 				Verbose: true,
 			},
 		},
 		{
 			name:    "partial network id",
 			network: overlayID[0:11],
-			opts: networktypes.InspectOptions{
+			opts: client.NetworkInspectOptions{
 				Verbose: true,
 			},
 		},
 		{
 			name:    "network name",
 			network: networkName,
-			opts: networktypes.InspectOptions{
+			opts: client.NetworkInspectOptions{
 				Verbose: true,
 			},
 		},
 		{
 			name:    "network name and swarm scope",
 			network: networkName,
-			opts: networktypes.InspectOptions{
+			opts: client.NetworkInspectOptions{
 				Verbose: true,
 				Scope:   "swarm",
 			},
