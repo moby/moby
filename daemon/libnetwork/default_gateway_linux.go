@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
@@ -35,7 +36,7 @@ func (c *Controller) createGWNetwork() (*Network, error) {
 		NetworkOptionEnableIPv6(false),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating external connectivity network: %v", err)
 	}
-	return n, nil
+	return n, err
 }
