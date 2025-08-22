@@ -163,7 +163,7 @@ type PluginAPIClient interface {
 // ServiceAPIClient defines API client methods for the services
 type ServiceAPIClient interface {
 	ServiceCreate(ctx context.Context, service swarm.ServiceSpec, options ServiceCreateOptions) (swarm.ServiceCreateResponse, error)
-	ServiceInspectWithRaw(ctx context.Context, serviceID string, options swarm.ServiceInspectOptions) (swarm.Service, []byte, error)
+	ServiceInspectWithRaw(ctx context.Context, serviceID string, options ServiceInspectOptions) (swarm.Service, []byte, error)
 	ServiceList(ctx context.Context, options ServiceListOptions) ([]swarm.Service, error)
 	ServiceRemove(ctx context.Context, serviceID string) error
 	ServiceUpdate(ctx context.Context, serviceID string, version swarm.Version, service swarm.ServiceSpec, options ServiceUpdateOptions) (swarm.ServiceUpdateResponse, error)

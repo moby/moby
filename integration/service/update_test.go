@@ -341,14 +341,14 @@ func getServiceTaskContainer(ctx context.Context, t *testing.T, cli client.APICl
 
 func getService(ctx context.Context, t *testing.T, cli client.ServiceAPIClient, serviceID string) swarmtypes.Service {
 	t.Helper()
-	service, _, err := cli.ServiceInspectWithRaw(ctx, serviceID, swarmtypes.ServiceInspectOptions{})
+	service, _, err := cli.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
 	return service
 }
 
-func serviceIsUpdated(ctx context.Context, client client.ServiceAPIClient, serviceID string) func(log poll.LogT) poll.Result {
+func serviceIsUpdated(ctx context.Context, apiClient client.ServiceAPIClient, serviceID string) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		service, _, err := client.ServiceInspectWithRaw(ctx, serviceID, swarmtypes.ServiceInspectOptions{})
+		service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
 		switch {
 		case err != nil:
 			return poll.Error(err)
@@ -363,9 +363,9 @@ func serviceIsUpdated(ctx context.Context, client client.ServiceAPIClient, servi
 	}
 }
 
-func serviceSpecIsUpdated(ctx context.Context, client client.ServiceAPIClient, serviceID string, serviceOldVersion uint64) func(log poll.LogT) poll.Result {
+func serviceSpecIsUpdated(ctx context.Context, apiClient client.ServiceAPIClient, serviceID string, serviceOldVersion uint64) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		service, _, err := client.ServiceInspectWithRaw(ctx, serviceID, swarmtypes.ServiceInspectOptions{})
+		service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
 		switch {
 		case err != nil:
 			return poll.Error(err)

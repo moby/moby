@@ -245,7 +245,7 @@ func TestServiceWithPredefinedNetwork(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, c, serviceID, instances), swarm.ServicePoll)
 
-	_, _, err := c.ServiceInspectWithRaw(ctx, serviceID, swarmtypes.ServiceInspectOptions{})
+	_, _, err := c.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
 	err = c.ServiceRemove(ctx, serviceID)
@@ -286,7 +286,7 @@ func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, c, serviceID, instances), swarm.ServicePoll)
 
-	_, _, err := c.ServiceInspectWithRaw(ctx, serviceID, swarmtypes.ServiceInspectOptions{})
+	_, _, err := c.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
 	err = c.ServiceRemove(ctx, serviceID)
@@ -440,7 +440,7 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, cli, serviceID, instances), swarm.ServicePoll)
 
-	_, _, err := cli.ServiceInspectWithRaw(ctx, serviceID, swarmtypes.ServiceInspectOptions{})
+	_, _, err := cli.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
 	out, err := cli.NetworkInspect(ctx, overlayID, client.NetworkInspectOptions{Verbose: true})

@@ -60,8 +60,8 @@ func TestReplicatedJob(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 
-	client := d.NewClientT(t)
-	defer client.Close()
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
 
 	id := swarm.CreateService(ctx, t, d,
 		swarm.ServiceWithMode(swarmtypes.ServiceMode{
@@ -74,12 +74,12 @@ func TestReplicatedJob(t *testing.T) {
 		swarm.ServiceWithCommand([]string{"true"}),
 	)
 
-	service, _, err := client.ServiceInspectWithRaw(
-		ctx, id, swarmtypes.ServiceInspectOptions{},
+	service, _, err := apiClient.ServiceInspectWithRaw(
+		ctx, id, client.ServiceInspectOptions{},
 	)
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, swarm.JobComplete(ctx, client, service), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.JobComplete(ctx, apiClient, service), swarm.ServicePoll)
 }
 
 // TestUpdateReplicatedJob tests that a job can be updated, and that it runs with the
@@ -108,7 +108,7 @@ func TestUpdateReplicatedJob(t *testing.T) {
 	)
 
 	service, _, err := apiClient.ServiceInspectWithRaw(
-		ctx, id, swarmtypes.ServiceInspectOptions{},
+		ctx, id, client.ServiceInspectOptions{},
 	)
 	assert.NilError(t, err)
 
@@ -125,7 +125,7 @@ func TestUpdateReplicatedJob(t *testing.T) {
 	assert.NilError(t, err)
 
 	service2, _, err := apiClient.ServiceInspectWithRaw(
-		ctx, id, swarmtypes.ServiceInspectOptions{},
+		ctx, id, client.ServiceInspectOptions{},
 	)
 	assert.NilError(t, err)
 

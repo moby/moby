@@ -44,7 +44,7 @@ func (d *Daemon) GetService(ctx context.Context, t testing.TB, id string) *swarm
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	service, _, err := cli.ServiceInspectWithRaw(ctx, id, swarm.ServiceInspectOptions{})
+	service, _, err := cli.ServiceInspectWithRaw(ctx, id, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
 	return &service
 }
