@@ -10,7 +10,6 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/network"
-	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/client"
 	"go.opentelemetry.io/otel"
 	"gotest.tools/v3/assert"
@@ -130,7 +129,7 @@ func removeImage(ctx context.Context, t testing.TB, apiclient client.ImageAPICli
 
 func deleteAllVolumes(ctx context.Context, t testing.TB, c client.VolumeAPIClient, protectedVolumes map[string]struct{}) {
 	t.Helper()
-	volumes, err := c.VolumeList(ctx, volume.ListOptions{})
+	volumes, err := c.VolumeList(ctx, client.VolumeListOptions{})
 	assert.Check(t, err, "failed to list volumes")
 
 	for _, v := range volumes.Volumes {
