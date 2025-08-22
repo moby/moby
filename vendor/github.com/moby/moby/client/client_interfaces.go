@@ -133,7 +133,7 @@ type NetworkAPIClient interface {
 	NetworkDisconnect(ctx context.Context, network, container string, force bool) error
 	NetworkInspect(ctx context.Context, network string, options network.InspectOptions) (network.Inspect, error)
 	NetworkInspectWithRaw(ctx context.Context, network string, options network.InspectOptions) (network.Inspect, []byte, error)
-	NetworkList(ctx context.Context, options network.ListOptions) ([]network.Summary, error)
+	NetworkList(ctx context.Context, options ListOptions) ([]network.Summary, error)
 	NetworkRemove(ctx context.Context, network string) error
 	NetworksPrune(ctx context.Context, pruneFilter filters.Args) (network.PruneReport, error)
 }

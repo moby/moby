@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/v2/plugins"
-	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/cli"
@@ -36,7 +35,7 @@ func OnlyDefaultNetworks(ctx context.Context) bool {
 	if err != nil {
 		return false
 	}
-	networks, err := apiClient.NetworkList(ctx, network.ListOptions{})
+	networks, err := apiClient.NetworkList(ctx, client.ListOptions{})
 	if err != nil || len(networks) > 0 {
 		return false
 	}

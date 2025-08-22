@@ -45,11 +45,6 @@ type CreateOptions struct {
 	Labels     map[string]string // Labels holds metadata specific to the network being created.
 }
 
-// ListOptions holds parameters to filter the list of networks with.
-type ListOptions struct {
-	Filters filters.Args
-}
-
 // InspectOptions holds parameters to inspect network.
 type InspectOptions struct {
 	Scope   string
