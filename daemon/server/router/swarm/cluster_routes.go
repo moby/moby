@@ -166,7 +166,7 @@ func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r
 		}
 	}
 
-	services, err := sr.backend.GetServices(types.ServiceListOptions{Filters: filter, Status: status})
+	services, err := sr.backend.GetServices(swarmbackend.ServiceListOptions{Filters: filter, Status: status})
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error getting services")
 		return err

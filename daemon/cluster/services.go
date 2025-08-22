@@ -29,7 +29,7 @@ import (
 )
 
 // GetServices returns all services of a managed swarm cluster.
-func (c *Cluster) GetServices(options swarm.ServiceListOptions) ([]swarm.Service, error) {
+func (c *Cluster) GetServices(options swarmbackend.ServiceListOptions) ([]swarm.Service, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 

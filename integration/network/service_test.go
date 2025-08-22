@@ -331,9 +331,9 @@ func swarmIngressReady(ctx context.Context, apiClient client.NetworkAPIClient) f
 	}
 }
 
-func noServices(ctx context.Context, client client.ServiceAPIClient) func(log poll.LogT) poll.Result {
+func noServices(ctx context.Context, apiClient client.ServiceAPIClient) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		services, err := client.ServiceList(ctx, swarmtypes.ServiceListOptions{})
+		services, err := apiClient.ServiceList(ctx, client.ServiceListOptions{})
 		switch {
 		case err != nil:
 			return poll.Error(err)
