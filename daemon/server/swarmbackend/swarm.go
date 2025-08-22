@@ -9,3 +9,7 @@ type ConfigListOptions struct {
 type NodeListOptions struct {
 	Filters filters.Args
 }
+
+type TaskListOptions struct {
+	Filters filters.Args
+}
