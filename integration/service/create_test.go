@@ -367,7 +367,7 @@ func TestCreateServiceSysctls(t *testing.T) {
 		// more complex)
 
 		// get all tasks of the service, so we can get the container
-		tasks, err := apiClient.TaskList(ctx, swarmtypes.TaskListOptions{
+		tasks, err := apiClient.TaskList(ctx, client.TaskListOptions{
 			Filters: filters.NewArgs(filters.Arg("service", serviceID)),
 		})
 		assert.NilError(t, err)
@@ -437,7 +437,7 @@ func TestCreateServiceCapabilities(t *testing.T) {
 	// level has been tested elsewhere.
 
 	// get all tasks of the service, so we can get the container
-	tasks, err := apiClient.TaskList(ctx, swarmtypes.TaskListOptions{
+	tasks, err := apiClient.TaskList(ctx, client.TaskListOptions{
 		Filters: filters.NewArgs(filters.Arg("service", serviceID)),
 	})
 	assert.NilError(t, err)

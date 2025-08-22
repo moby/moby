@@ -199,7 +199,7 @@ func ServiceWithPidsLimit(limit int64) ServiceSpecOpt {
 func GetRunningTasks(ctx context.Context, t *testing.T, c client.ServiceAPIClient, serviceID string) []swarmtypes.Task {
 	t.Helper()
 
-	tasks, err := c.TaskList(ctx, swarmtypes.TaskListOptions{
+	tasks, err := c.TaskList(ctx, client.TaskListOptions{
 		Filters: filters.NewArgs(
 			filters.Arg("service", serviceID),
 			filters.Arg("desired-state", "running"),
