@@ -385,7 +385,7 @@ func (sr *swarmRouter) getTasks(ctx context.Context, w http.ResponseWriter, r *h
 		return err
 	}
 
-	tasks, err := sr.backend.GetTasks(types.TaskListOptions{Filters: filter})
+	tasks, err := sr.backend.GetTasks(swarmbackend.TaskListOptions{Filters: filter})
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error getting tasks")
 		return err

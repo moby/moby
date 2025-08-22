@@ -28,7 +28,7 @@ type Backend interface {
 	GetNode(string) (swarm.Node, error)
 	UpdateNode(string, uint64, swarm.NodeSpec) error
 	RemoveNode(string, bool) error
-	GetTasks(swarm.TaskListOptions) ([]swarm.Task, error)
+	GetTasks(swarmbackend.TaskListOptions) ([]swarm.Task, error)
 	GetTask(string) (swarm.Task, error)
 	GetSecrets(opts swarm.SecretListOptions) ([]swarm.Secret, error)
 	CreateSecret(s swarm.SecretSpec) (string, error)

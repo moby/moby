@@ -22,7 +22,7 @@ func TestTaskListError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.TaskList(context.Background(), swarm.TaskListOptions{})
+	_, err := client.TaskList(context.Background(), TaskListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -30,17 +30,17 @@ func TestTaskList(t *testing.T) {
 	const expectedURL = "/tasks"
 
 	listCases := []struct {
-		options             swarm.TaskListOptions
+		options             TaskListOptions
 		expectedQueryParams map[string]string
 	}{
 		{
-			options: swarm.TaskListOptions{},
+			options: TaskListOptions{},
 			expectedQueryParams: map[string]string{
 				"filters": "",
 			},
 		},
 		{
-			options: swarm.TaskListOptions{
+			options: TaskListOptions{
 				Filters: filters.NewArgs(
 					filters.Arg("label", "label1"),
 					filters.Arg("label", "label2"),

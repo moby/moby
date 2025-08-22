@@ -170,7 +170,7 @@ type ServiceAPIClient interface {
 	ServiceLogs(ctx context.Context, serviceID string, options container.LogsOptions) (io.ReadCloser, error)
 	TaskLogs(ctx context.Context, taskID string, options container.LogsOptions) (io.ReadCloser, error)
 	TaskInspectWithRaw(ctx context.Context, taskID string) (swarm.Task, []byte, error)
-	TaskList(ctx context.Context, options swarm.TaskListOptions) ([]swarm.Task, error)
+	TaskList(ctx context.Context, options TaskListOptions) ([]swarm.Task, error)
 }
 
 // SwarmAPIClient defines API client methods for the swarm

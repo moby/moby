@@ -7,6 +7,7 @@ import (
 
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 )
 
@@ -62,7 +63,7 @@ func (d *Daemon) GetServiceTasks(ctx context.Context, t testing.TB, service stri
 		filterArgs.Add(filter.Key, filter.Value)
 	}
 
-	options := swarm.TaskListOptions{
+	options := client.TaskListOptions{
 		Filters: filterArgs,
 	}
 
