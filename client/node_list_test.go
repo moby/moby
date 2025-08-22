@@ -22,7 +22,7 @@ func TestNodeListError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.NodeList(context.Background(), swarm.NodeListOptions{})
+	_, err := client.NodeList(context.Background(), NodeListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -30,17 +30,17 @@ func TestNodeList(t *testing.T) {
 	const expectedURL = "/nodes"
 
 	listCases := []struct {
-		options             swarm.NodeListOptions
+		options             NodeListOptions
 		expectedQueryParams map[string]string
 	}{
 		{
-			options: swarm.NodeListOptions{},
+			options: NodeListOptions{},
 			expectedQueryParams: map[string]string{
 				"filters": "",
 			},
 		},
 		{
-			options: swarm.NodeListOptions{
+			options: NodeListOptions{
 				Filters: filters.NewArgs(
 					filters.Arg("label", "label1"),
 					filters.Arg("label", "label2"),
