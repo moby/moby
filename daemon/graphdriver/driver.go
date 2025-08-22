@@ -232,6 +232,12 @@ func New(driverName string, config Options) (Driver, error) {
 	return nil, errors.Errorf("no supported storage driver found")
 }
 
+// HasPriorDriver returns true if any prior driver is found
+func HasPriorDriver(root string) bool {
+	driversMap := scanPriorDrivers(root)
+	return len(driversMap) > 0
+}
+
 // scanPriorDrivers returns an un-ordered scan of directories of prior storage
 // drivers. The 'vfs' storage driver is not taken into account, and ignored.
 func scanPriorDrivers(root string) map[string]bool {

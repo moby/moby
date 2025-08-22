@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/api/types/container"
 	eventtypes "github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/client"
 	eventstestutils "github.com/moby/moby/v2/daemon/events/testutils"
@@ -454,7 +453,7 @@ func (s *DockerCLIEventSuite) TestEventsResize(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	options := container.ResizeOptions{
+	options := client.ContainerResizeOptions{
 		Height: 80,
 		Width:  24,
 	}

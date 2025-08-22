@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -18,14 +17,14 @@ func TestContainerResizeError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	err := client.ContainerResize(context.Background(), "container_id", container.ResizeOptions{})
+	err := client.ContainerResize(context.Background(), "container_id", ContainerResizeOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.ContainerResize(context.Background(), "", container.ResizeOptions{})
+	err = client.ContainerResize(context.Background(), "", ContainerResizeOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.ContainerResize(context.Background(), "    ", container.ResizeOptions{})
+	err = client.ContainerResize(context.Background(), "    ", ContainerResizeOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -34,7 +33,7 @@ func TestContainerExecResizeError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	err := client.ContainerExecResize(context.Background(), "exec_id", container.ResizeOptions{})
+	err := client.ContainerExecResize(context.Background(), "exec_id", ContainerResizeOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -43,18 +42,18 @@ func TestContainerResize(t *testing.T) {
 
 	tests := []struct {
 		doc                           string
-		opts                          container.ResizeOptions
+		opts                          ContainerResizeOptions
 		expectedHeight, expectedWidth string
 	}{
 		{
 			doc:            "zero width height", // valid, but not very useful
-			opts:           container.ResizeOptions{},
+			opts:           ContainerResizeOptions{},
 			expectedWidth:  "0",
 			expectedHeight: "0",
 		},
 		{
 			doc: "valid resize",
-			opts: container.ResizeOptions{
+			opts: ContainerResizeOptions{
 				Height: 500,
 				Width:  600,
 			},
@@ -63,7 +62,7 @@ func TestContainerResize(t *testing.T) {
 		},
 		{
 			doc: "larger than maxint64",
-			opts: container.ResizeOptions{
+			opts: ContainerResizeOptions{
 				Height: math.MaxInt64 + 1,
 				Width:  math.MaxInt64 + 2,
 			},
@@ -86,18 +85,18 @@ func TestContainerExecResize(t *testing.T) {
 	const expectedURL = "/exec/exec_id/resize"
 	tests := []struct {
 		doc                           string
-		opts                          container.ResizeOptions
+		opts                          ContainerResizeOptions
 		expectedHeight, expectedWidth string
 	}{
 		{
 			doc:            "zero width height", // valid, but not very useful
-			opts:           container.ResizeOptions{},
+			opts:           ContainerResizeOptions{},
 			expectedWidth:  "0",
 			expectedHeight: "0",
 		},
 		{
 			doc: "valid resize",
-			opts: container.ResizeOptions{
+			opts: ContainerResizeOptions{
 				Height: 500,
 				Width:  600,
 			},
@@ -106,7 +105,7 @@ func TestContainerExecResize(t *testing.T) {
 		},
 		{
 			doc: "larger than maxint64",
-			opts: container.ResizeOptions{
+			opts: ContainerResizeOptions{
 				Height: math.MaxInt64 + 1,
 				Width:  math.MaxInt64 + 2,
 			},

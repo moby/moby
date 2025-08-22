@@ -241,7 +241,7 @@ func TestContainerRestartWithCancelledRequest(t *testing.T) {
 	}()
 
 	// Start listening for events.
-	messages, errs := apiClient.Events(ctx, events.ListOptions{
+	messages, errs := apiClient.Events(ctx, client.EventsListOptions{
 		Filters: filters.NewArgs(
 			filters.Arg("container", cID),
 			filters.Arg("event", string(events.ActionRestart)),

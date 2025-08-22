@@ -20,6 +20,7 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/fakecontext"
@@ -765,7 +766,7 @@ func TestBuildEmitsImageCreateEvent(t *testing.T) {
 			assert.NilError(t, err)
 			buildLogs := out.String()
 
-			eventsChan, errs := apiClient.Events(ctx, events.ListOptions{
+			eventsChan, errs := apiClient.Events(ctx, client.EventsListOptions{
 				Since: since.Format(time.RFC3339Nano),
 				Until: time.Now().Format(time.RFC3339Nano),
 			})

@@ -7,7 +7,6 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
-	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -15,8 +14,8 @@ import (
 
 // containerDiskUsage obtains information about container data disk usage
 // and makes sure that only one calculation is performed at the same time.
-func (daemon *Daemon) containerDiskUsage(ctx context.Context) (*container.DiskUsage, error) {
-	res, _, err := daemon.usageContainers.Do(ctx, struct{}{}, func(ctx context.Context) (*container.DiskUsage, error) {
+func (daemon *Daemon) containerDiskUsage(ctx context.Context) (*backend.ContainerDiskUsage, error) {
+	res, _, err := daemon.usageContainers.Do(ctx, struct{}{}, func(ctx context.Context) (*backend.ContainerDiskUsage, error) {
 		// Retrieve container list
 		containers, err := daemon.Containers(ctx, &container.ListOptions{
 			Size: true,
@@ -38,7 +37,7 @@ func (daemon *Daemon) containerDiskUsage(ctx context.Context) (*container.DiskUs
 				ctr.State == container.StateRestarting
 		}
 
-		du := &container.DiskUsage{Items: containers}
+		du := &backend.ContainerDiskUsage{Items: containers}
 		for _, ctr := range du.Items {
 			du.TotalSize += ctr.SizeRw
 			if !isActive(ctr) {
@@ -70,14 +69,14 @@ func (daemon *Daemon) imageDiskUsage(ctx context.Context) ([]*image.Summary, err
 
 // localVolumesSize obtains information about volume disk usage from volumes service
 // and makes sure that only one size calculation is performed at the same time.
-func (daemon *Daemon) localVolumesSize(ctx context.Context) (*volume.DiskUsage, error) {
-	volumes, _, err := daemon.usageVolumes.Do(ctx, struct{}{}, func(ctx context.Context) (*volume.DiskUsage, error) {
+func (daemon *Daemon) localVolumesSize(ctx context.Context) (*backend.VolumeDiskUsage, error) {
+	volumes, _, err := daemon.usageVolumes.Do(ctx, struct{}{}, func(ctx context.Context) (*backend.VolumeDiskUsage, error) {
 		volumes, err := daemon.volumes.LocalVolumesSize(ctx)
 		if err != nil {
 			return nil, err
 		}
 
-		du := &volume.DiskUsage{Items: volumes}
+		du := &backend.VolumeDiskUsage{Items: volumes}
 		for _, v := range du.Items {
 			if v.UsageData.Size != -1 {
 				if v.UsageData.RefCount == 0 {
@@ -150,7 +149,7 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context, opts backend.DiskUsag
 			}
 		}
 
-		du.Images = &image.DiskUsage{
+		du.Images = &backend.ImageDiskUsage{
 			TotalSize:   layersSize,
 			Reclaimable: reclaimable,
 			Items:       images,

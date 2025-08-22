@@ -38,7 +38,6 @@ import (
 	networktypes "github.com/moby/moby/api/types/network"
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
-	volumetypes "github.com/moby/moby/api/types/volume"
 	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
 	"github.com/pkg/errors"
@@ -134,9 +133,9 @@ type Daemon struct {
 	seccompProfile     []byte
 	seccompProfilePath string
 
-	usageContainers singleflight.Group[struct{}, *containertypes.DiskUsage]
+	usageContainers singleflight.Group[struct{}, *backend.ContainerDiskUsage]
 	usageImages     singleflight.Group[struct{}, []*imagetypes.Summary]
-	usageVolumes    singleflight.Group[struct{}, *volumetypes.DiskUsage]
+	usageVolumes    singleflight.Group[struct{}, *backend.VolumeDiskUsage]
 	usageLayer      singleflight.Group[struct{}, int64]
 
 	pruneRunning atomic.Bool
@@ -861,6 +860,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	migrationThreshold := int64(-1)
 	isGraphDriver := func(driver string) (bool, error) {
+		if driver == "" {
+			if graphdriver.HasPriorDriver(config.Root) {
+				return true, nil
+			}
+		}
 		return graphdriver.IsRegistered(driver), nil
 	}
 	if enabled, ok := config.Features["containerd-snapshotter"]; (ok && !enabled) || os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") != "" {
@@ -1141,6 +1145,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			return nil, err
 		}
 
+		// NewStoreFromOptions will determine the driver if driverName is empty
+		// so we need to update the driverName to match the driver used.
+		driverName = layerStore.DriverName()
+
 		// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
 		// operation only, so it is safe to pass *just* the runtime OS graphdriver.
 		if err := configureKernelSecuritySupport(&cfgStore.Config, layerStore.DriverName()); err != nil {
@@ -1339,6 +1347,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
+	if driverName == "" {
+		return nil, errors.New("driverName is empty. Please report it as a bug! As a workaround, please set the storage driver explicitly")
+	}
+
 	driverContainers, ok := containers[driverName]
 	// Log containers which are not loaded with current driver
 	if (!ok && len(containers) > 0) || len(containers) > 1 {
@@ -1347,7 +1359,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 				continue
 			}
 			for id := range all {
-				log.G(ctx).WithField("container", id).Debugf("not restoring container because it was created with another storage driver (%s)", driver)
+				log.G(ctx).WithField("container", id).
+					WithField("driver", driver).
+					WithField("current_driver", driverName).
+					Debugf("not restoring container because it was created with another storage driver (%s)", driver)
 			}
 		}
 	}

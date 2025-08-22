@@ -237,7 +237,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 
 	du := backend.DiskUsage{}
 	if getBuildCache {
-		du.BuildCache = &buildtypes.CacheDiskUsage{
+		du.BuildCache = &backend.BuildCacheDiskUsage{
 			TotalSize: builderSize,
 			Items:     buildCache,
 		}
@@ -332,7 +332,7 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 	if versions.LessThan(httputils.VersionFromContext(ctx), "1.46") {
 		// Image create events were added in API 1.46
 		shouldSkip = func(ev events.Message) bool {
-			return ev.Type == "image" && ev.Action == "create"
+			return ev.Type == events.ImageEventType && ev.Action == events.ActionCreate
 		}
 	}
 
