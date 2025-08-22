@@ -5,6 +5,7 @@ import (
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/swarmbackend"
 )
@@ -21,7 +22,8 @@ type Backend interface {
 	GetServices(swarm.ServiceListOptions) ([]swarm.Service, error)
 	GetService(idOrName string, insertDefaults bool) (swarm.Service, error)
 	CreateService(swarm.ServiceSpec, string, bool) (*swarm.ServiceCreateResponse, error)
-	UpdateService(string, uint64, swarm.ServiceSpec, swarm.ServiceUpdateOptions, bool) (*swarm.ServiceUpdateResponse, error)
+	// TODO(austinvazquez): decouple daemon from client usage.
+	UpdateService(string, uint64, swarm.ServiceSpec, client.ServiceUpdateOptions, bool) (*swarm.ServiceUpdateResponse, error)
 	RemoveService(string) error
 	ServiceLogs(context.Context, *backend.LogSelector, *container.LogsOptions) (<-chan *backend.LogMessage, error)
 	GetNodes(swarmbackend.NodeListOptions) ([]swarm.Node, error)

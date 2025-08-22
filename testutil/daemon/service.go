@@ -82,7 +82,7 @@ func (d *Daemon) UpdateService(ctx context.Context, t testing.TB, service *swarm
 		fn(service)
 	}
 
-	_, err := cli.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, swarm.ServiceUpdateOptions{})
+	_, err := cli.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, client.ServiceUpdateOptions{})
 	assert.NilError(t, err)
 }
 
