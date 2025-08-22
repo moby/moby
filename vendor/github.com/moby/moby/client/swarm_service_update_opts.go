@@ -1,25 +1,6 @@
-package swarmbackend
+package client
 
-import "github.com/moby/moby/api/types/filters"
-
-type ConfigListOptions struct {
-	Filters filters.Args
-}
-
-type NodeListOptions struct {
-	Filters filters.Args
-}
-
-type TaskListOptions struct {
-	Filters filters.Args
-}
-
-type UpdateFlags struct {
-	RotateWorkerToken      bool
-	RotateManagerToken     bool
-	RotateManagerUnlockKey bool
-}
-
+// ServiceUpdateOptions contains the options to be used for updating services.
 type ServiceUpdateOptions struct {
 	// EncodedRegistryAuth is the encoded registry authorization credentials to
 	// use when updating the service.
@@ -41,4 +22,10 @@ type ServiceUpdateOptions struct {
 	// The valid values are "previous" and "none". An empty value is the
 	// same as "none".
 	Rollback string
+
+	// QueryRegistry indicates whether the service update requires
+	// contacting a registry. A registry may be contacted to retrieve
+	// the image digest and manifest, which in turn can be used to update
+	// platform or other information about the service.
+	QueryRegistry bool
 }

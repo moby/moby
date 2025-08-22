@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	swarmtypes "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/swarm"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
@@ -92,8 +93,8 @@ func TestUpdateReplicatedJob(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 
-	client := d.NewClientT(t)
-	defer client.Close()
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
 
 	// Create the job service
 	id := swarm.CreateService(ctx, t, d,
@@ -106,24 +107,24 @@ func TestUpdateReplicatedJob(t *testing.T) {
 		swarm.ServiceWithCommand([]string{"true"}),
 	)
 
-	service, _, err := client.ServiceInspectWithRaw(
+	service, _, err := apiClient.ServiceInspectWithRaw(
 		ctx, id, swarmtypes.ServiceInspectOptions{},
 	)
 	assert.NilError(t, err)
 
 	// wait for the job to completed
-	poll.WaitOn(t, swarm.JobComplete(ctx, client, service), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.JobComplete(ctx, apiClient, service), swarm.ServicePoll)
 
 	// update the job.
 	spec := service.Spec
 	spec.TaskTemplate.ForceUpdate++
 
-	_, err = client.ServiceUpdate(
-		ctx, id, service.Version, spec, swarmtypes.ServiceUpdateOptions{},
+	_, err = apiClient.ServiceUpdate(
+		ctx, id, service.Version, spec, client.ServiceUpdateOptions{},
 	)
 	assert.NilError(t, err)
 
-	service2, _, err := client.ServiceInspectWithRaw(
+	service2, _, err := apiClient.ServiceInspectWithRaw(
 		ctx, id, swarmtypes.ServiceInspectOptions{},
 	)
 	assert.NilError(t, err)
@@ -134,5 +135,5 @@ func TestUpdateReplicatedJob(t *testing.T) {
 	)
 
 	// now wait for the service to complete a second time.
-	poll.WaitOn(t, swarm.JobComplete(ctx, client, service2), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.JobComplete(ctx, apiClient, service2), swarm.ServicePoll)
 }

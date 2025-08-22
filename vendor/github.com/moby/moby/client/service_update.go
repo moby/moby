@@ -15,7 +15,7 @@ import (
 // conflicting writes. It must be the value as set *before* the update.
 // You can find this value in the [swarm.Service.Meta] field, which can
 // be found using [Client.ServiceInspectWithRaw].
-func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version swarm.Version, service swarm.ServiceSpec, options swarm.ServiceUpdateOptions) (swarm.ServiceUpdateResponse, error) {
+func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version swarm.Version, service swarm.ServiceSpec, options ServiceUpdateOptions) (swarm.ServiceUpdateResponse, error) {
 	serviceID, err := trimID("service", serviceID)
 	if err != nil {
 		return swarm.ServiceUpdateResponse{}, err

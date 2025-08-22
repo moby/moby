@@ -245,7 +245,7 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 		return errdefs.InvalidParameter(err)
 	}
 
-	var flags types.ServiceUpdateOptions
+	var flags swarmbackend.ServiceUpdateOptions
 
 	// Get returns "" if the header does not exist
 	flags.EncodedRegistryAuth = r.Header.Get(registry.AuthHeader)
