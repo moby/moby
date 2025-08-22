@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 )
 
@@ -28,7 +29,7 @@ func (d *Daemon) ListConfigs(t testing.TB) []swarm.Config {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	configs, err := cli.ConfigList(context.Background(), swarm.ConfigListOptions{})
+	configs, err := cli.ConfigList(context.Background(), client.ConfigListOptions{})
 	assert.NilError(t, err)
 	return configs
 }
