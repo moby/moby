@@ -30,9 +30,9 @@ on:
         default: "0"
   push:
     branches:
-      - 'master'
-      - '[0-9]+.[0-9]+'
-      - '[0-9]+.x'
+      - "master"
+      - "[0-9]+.[0-9]+"
+      - "[0-9]+.x"
   pull_request:
 
 env:
@@ -59,20 +59,17 @@ jobs:
     needs:
       - validate-dco
     steps:
-      -
-        name: Set up Docker Buildx
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
           buildkitd-flags: --debug
-      -
-        name: Build
+      - name: Build
         uses: docker/bake-action@v6
         with:
           targets: binary
-      -
-        name: Upload artifacts
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: binary
@@ -104,8 +101,7 @@ jobs:
         typ:
           - integration
     steps:
-      -
-        name: Prepare
+      - name: Prepare
         run: |
           disabledFeatures="cache_backend_azblob,cache_backend_s3"
           if [ "${{ matrix.worker }}" = "dockerd" ]; then
@@ -115,57 +111,47 @@ jobs:
       # Expose `ACTIONS_RUNTIME_TOKEN` and `ACTIONS_CACHE_URL`, which is used
       # in BuildKit's test suite to skip/unskip cache exporters:
       # https://github.com/moby/buildkit/blob/567a99433ca23402d5e9b9f9124005d2e59b8861/client/client_test.go#L5407-L5411
-      -
-        name: Expose GitHub Runtime
+      - name: Expose GitHub Runtime
         uses: crazy-max/ghaction-github-runtime@v3
-      -
-        name: Checkout
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           path: moby
-      -
-        name: Set up Go
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: vendor.sum
-      -
-        name: BuildKit ref
+      - name: BuildKit ref
         run: |
           echo "$(./hack/buildkit-ref)" >> $GITHUB_ENV
         working-directory: moby
-      -
-        name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
+      - name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
         uses: actions/checkout@v4
         with:
           repository: ${{ env.BUILDKIT_REPO }}
           ref: ${{ env.BUILDKIT_REF }}
           path: buildkit
-      -
-        name: Set up QEMU
+      - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
-      -
-        name: Set up Docker Buildx
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
           buildkitd-flags: --debug
-      -
-        name: Download binary artifacts
+      - name: Download binary artifacts
         uses: actions/download-artifact@v4
         with:
           name: binary
           path: ./buildkit/build/moby/
-      -
-        name: Update daemon.json
+      - name: Update daemon.json
         run: |
           sudo rm -f /etc/docker/daemon.json
           sudo service docker restart
           docker version
           docker info
-      -
-        name: Build test image
+      - name: Build test image
         uses: docker/bake-action@v6
         with:
           source: .
@@ -173,8 +159,7 @@ jobs:
           targets: integration-tests
           set: |
             *.output=type=docker,name=${{ env.TEST_IMAGE_ID }}
-      -
-        name: Test
+      - name: Test
         run: |
           ./hack/test ${{ matrix.typ }}
         env:
@@ -230,9 +215,9 @@ jobs:
             ~\go\pkg\mod
             ${{ github.workspace }}\go-build
             ${{ env.GOPATH }}\pkg\mod
-          key: ${{ inputs.os }}-${{ github.job }}-${{ hashFiles('**/vendor.sum') }}
+          key: ${{ github.event.inputs.os || 'windows-2022' }}-${{ github.job }}-${{ hashFiles('**/vendor.sum') }}
           restore-keys: |
-            ${{ inputs.os }}-${{ github.job }}-
+            ${{ github.event.inputs.os || 'windows-2022' }}-${{ github.job }}-
 
       - name: Docker info
         run: |
