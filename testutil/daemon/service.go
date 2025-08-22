@@ -102,7 +102,7 @@ func (d *Daemon) ListServices(ctx context.Context, t testing.TB) []swarm.Service
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	services, err := cli.ServiceList(ctx, swarm.ServiceListOptions{})
+	services, err := cli.ServiceList(ctx, client.ServiceListOptions{})
 	assert.NilError(t, err)
 	return services
 }

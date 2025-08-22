@@ -2,8 +2,6 @@ package swarm
 
 import (
 	"time"
-
-	"github.com/moby/moby/api/types/filters"
 )
 
 // Service represents a service.
@@ -210,15 +208,6 @@ const (
 	RegistryAuthFromSpec         = "spec"
 	RegistryAuthFromPreviousSpec = "previous-spec"
 )
-
-// ServiceListOptions holds parameters to list services with.
-type ServiceListOptions struct {
-	Filters filters.Args
-
-	// Status indicates whether the server should include the service task
-	// count of running and desired tasks.
-	Status bool
-}
 
 // ServiceInspectOptions holds parameters related to the "service inspect"
 // operation.

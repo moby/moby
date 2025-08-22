@@ -79,7 +79,7 @@ func TestServiceListWithStatuses(t *testing.T) {
 	}
 
 	// now, let's do the list operation with no status arg set.
-	resp, err := apiClient.ServiceList(ctx, swarmtypes.ServiceListOptions{})
+	resp, err := apiClient.ServiceList(ctx, client.ServiceListOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(resp, serviceCount))
 	for _, service := range resp {
@@ -87,7 +87,7 @@ func TestServiceListWithStatuses(t *testing.T) {
 	}
 
 	// now try again, but with Status: true. This time, we should have statuses
-	resp, err = apiClient.ServiceList(ctx, swarmtypes.ServiceListOptions{Status: true})
+	resp, err = apiClient.ServiceList(ctx, client.ServiceListOptions{Status: true})
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(resp, serviceCount))
 	for _, service := range resp {

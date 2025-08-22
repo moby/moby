@@ -22,7 +22,7 @@ func TestServiceListError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.ServiceList(context.Background(), swarm.ServiceListOptions{})
+	_, err := client.ServiceList(context.Background(), ServiceListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -30,17 +30,17 @@ func TestServiceList(t *testing.T) {
 	const expectedURL = "/services"
 
 	listCases := []struct {
-		options             swarm.ServiceListOptions
+		options             ServiceListOptions
 		expectedQueryParams map[string]string
 	}{
 		{
-			options: swarm.ServiceListOptions{},
+			options: ServiceListOptions{},
 			expectedQueryParams: map[string]string{
 				"filters": "",
 			},
 		},
 		{
-			options: swarm.ServiceListOptions{
+			options: ServiceListOptions{
 				Filters: filters.NewArgs(
 					filters.Arg("label", "label1"),
 					filters.Arg("label", "label2"),
