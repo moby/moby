@@ -43,7 +43,7 @@ func (dr *distributionRouter) getDistributionInfo(ctx context.Context, w http.Re
 
 	// For a search it is not an error if no auth was given. Ignore invalid
 	// AuthConfig to increase compatibility with the existing API.
-	authConfig, _ := authconfig.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
+	authConfig, _ := authconfig.Decode(r.Header.Get(registry.AuthHeader))
 	repos, err := dr.backend.GetRepositories(ctx, namedRef, authConfig)
 	if err != nil {
 		return err

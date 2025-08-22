@@ -231,7 +231,7 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 			authConfig := &registry.AuthConfig{}
 			if encodedAuth != "" {
 				var err error
-				authConfig, err = authconfig.DecodeAuthConfig(encodedAuth)
+				authConfig, err = authconfig.Decode(encodedAuth)
 				if err != nil {
 					log.G(ctx).Warnf("invalid authconfig: %v", err)
 				}
@@ -349,7 +349,7 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swa
 			authConfig := &registry.AuthConfig{}
 			if encodedAuth != "" {
 				var err error
-				authConfig, err = authconfig.DecodeAuthConfig(encodedAuth)
+				authConfig, err = authconfig.Decode(encodedAuth)
 				if err != nil {
 					log.G(ctx).Warnf("invalid authconfig: %v", err)
 				}

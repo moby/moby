@@ -90,7 +90,7 @@ func TestDecodeAuthConfig(t *testing.T) {
 				assert.Check(t, is.Equal(b64, tc.inputBase64))
 			}
 
-			out, err := DecodeAuthConfig(tc.inputBase64)
+			out, err := Decode(tc.inputBase64)
 			if tc.expectedErr != "" {
 				assert.Check(t, is.ErrorType(err, errInvalidParameter{}))
 				assert.Check(t, is.Error(err, tc.expectedErr))
@@ -136,7 +136,7 @@ func TestEncodeAuthConfig(t *testing.T) {
 		assert.Check(t, is.Equal(b64, tc.outBase64))
 
 		t.Run(tc.doc, func(t *testing.T) {
-			out, err := EncodeAuthConfig(tc.input)
+			out, err := Encode(tc.input)
 			assert.NilError(t, err)
 			assert.Equal(t, out, tc.outBase64)
 
@@ -181,7 +181,7 @@ func BenchmarkDecodeAuthConfig(b *testing.B) {
 		b.Run(tc.doc, func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				_, err := DecodeAuthConfig(tc.inputBase64)
+				_, err := Decode(tc.inputBase64)
 				if !tc.invalid && err != nil {
 					b.Fatal(err)
 				}

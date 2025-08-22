@@ -27,7 +27,7 @@ func parseHeaders(headers http.Header) (map[string][]string, *registry.AuthConfi
 	}
 
 	// Ignore invalid AuthConfig to increase compatibility with the existing API.
-	authConfig, _ := authconfig.DecodeAuthConfig(headers.Get(registry.AuthHeader))
+	authConfig, _ := authconfig.Decode(headers.Get(registry.AuthHeader))
 	return metaHeaders, authConfig
 }
 

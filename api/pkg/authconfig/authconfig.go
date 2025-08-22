@@ -11,11 +11,11 @@ import (
 	"github.com/moby/moby/api/types/registry"
 )
 
-// EncodeAuthConfig serializes the auth configuration as a base64url encoded
+// Encode serializes the auth configuration as a base64url encoded
 // ([RFC4648, section 5]) JSON string for sending through the X-Registry-Auth header.
 //
 // [RFC4648, section 5]: https://tools.ietf.org/html/rfc4648#section-5
-func EncodeAuthConfig(authConfig registry.AuthConfig) (string, error) {
+func Encode(authConfig registry.AuthConfig) (string, error) {
 	// Older daemons (or registries) may not handle an empty string,
 	// which resulted in an "io.EOF" when unmarshaling or decoding.
 	//
@@ -28,7 +28,7 @@ func EncodeAuthConfig(authConfig registry.AuthConfig) (string, error) {
 	return base64.URLEncoding.EncodeToString(buf), nil
 }
 
-// DecodeAuthConfig decodes base64url encoded ([RFC4648, section 5]) JSON
+// Decode decodes base64url encoded ([RFC4648, section 5]) JSON
 // authentication information as sent through the X-Registry-Auth header.
 //
 // This function always returns an [AuthConfig], even if an error occurs. It is up
@@ -36,7 +36,7 @@ func EncodeAuthConfig(authConfig registry.AuthConfig) (string, error) {
 // be ignored.
 //
 // [RFC4648, section 5]: https://tools.ietf.org/html/rfc4648#section-5
-func DecodeAuthConfig(authEncoded string) (*registry.AuthConfig, error) {
+func Decode(authEncoded string) (*registry.AuthConfig, error) {
 	if authEncoded == "" {
 		return &registry.AuthConfig{}, nil
 	}
@@ -62,7 +62,7 @@ func DecodeAuthConfig(authEncoded string) (*registry.AuthConfig, error) {
 // clients and API versions. Current clients and API versions expect authentication
 // to be provided through the X-Registry-Auth header.
 //
-// Like [DecodeAuthConfig], this function always returns an [AuthConfig], even if an
+// Like [Decode], this function always returns an [AuthConfig], even if an
 // error occurs. It is up to the caller to decide if authentication is required,
 // and if the error can be ignored.
 //
