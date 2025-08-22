@@ -137,8 +137,3 @@ const (
 type Topology struct {
 	Segments map[string]string `json:",omitempty"`
 }
-
-// NodeRemoveOptions holds parameters to remove nodes with.
-type NodeRemoveOptions struct {
-	Force bool
-}

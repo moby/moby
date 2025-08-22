@@ -39,7 +39,7 @@ func (d *Daemon) RemoveNode(ctx context.Context, t testing.TB, id string, force 
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	options := swarm.NodeRemoveOptions{
+	options := client.NodeRemoveOptions{
 		Force: force,
 	}
 	err := cli.NodeRemove(ctx, id, options)
