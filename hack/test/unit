@@ -19,6 +19,7 @@ TESTDIRS="${TESTDIRS:-./...}"
 GOTESTSUM_MAX_FAILS="${GOTESTSUM_MAX_FAILS:-0}"
 GOTESTSUM_RERUN_FAILS="${GOTESTSUM_RERUN_FAILS:-0}"
 GOTESTSUM_RERUN_FAILS_MAX_FAILURES="${GOTESTSUM_RERUN_FAILS_MAX_FAILURES:-0}"
+GOTESTSUM_FLAGS="--max-fails=${GOTESTSUM_MAX_FAILS} --rerun-fails=${GOTESTSUM_RERUN_FAILS} --rerun-fails-max-failures=${GOTESTSUM_RERUN_FAILS_MAX_FAILURES}"
 
 : "${api_pkg_list:=}"
 : "${client_pkg_list:=}"
@@ -100,9 +101,7 @@ esac
 if [ -n "${pkg_list}" ]; then
         gotestsum --format=standard-quiet --jsonfile=bundles/go-test-report.json --junitfile=bundles/junit-report.xml \
                 --packages "${pkg_list}" \
-                --max-fails="${GOTESTSUM_MAX_FAILS}" \
-                --rerun-fails="${GOTESTSUM_RERUN_FAILS}" \
-                --rerun-fails-max-failures="${GOTESTSUM_RERUN_FAILS_MAX_FAILURES}" -- \
+                ${GOTESTSUM_FLAGS} -- \
                 "${BUILDFLAGS[@]}" \
                 -cover \
                 -coverprofile=bundles/coverage.out \
@@ -136,9 +135,7 @@ if [ -n "${libnetwork_pkg_list}" ]; then
         if [ $rerun_flaky -eq 1 ]; then
                 gotestsum --format=standard-quiet --jsonfile=bundles/libnetwork-flaky-go-test-report.json --junitfile=bundles/libnetwork-flaky-junit-report.xml \
                         --packages "${libnetwork_pkg_list}" \
-                        --max-fails="${GOTESTSUM_MAX_FAILS}" \
-                        --rerun-fails="${GOTESTSUM_RERUN_FAILS}" \
-                        --rerun-fails-max-failures="${GOTESTSUM_RERUN_FAILS_MAX_FAILURES}" \
+                        ${GOTESTSUM_FLAGS} \
                         -- "${BUILDFLAGS[@]}" \
                         -cover \
                         -coverprofile=bundles/libnetwork-flaky-coverage.out \
