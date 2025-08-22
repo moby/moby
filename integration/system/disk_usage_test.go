@@ -8,6 +8,7 @@ import (
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/daemon"
@@ -35,7 +36,7 @@ func TestDiskUsage(t *testing.T) {
 		{
 			doc: "empty",
 			next: func(t *testing.T, _ system.DiskUsage) system.DiskUsage {
-				du, err := apiClient.DiskUsage(ctx, system.DiskUsageOptions{})
+				du, err := apiClient.DiskUsage(ctx, client.DiskUsageOptions{})
 				assert.NilError(t, err)
 
 				expectedLayersSize := int64(0)
@@ -62,7 +63,7 @@ func TestDiskUsage(t *testing.T) {
 			next: func(t *testing.T, _ system.DiskUsage) system.DiskUsage {
 				d.LoadBusybox(ctx, t)
 
-				du, err := apiClient.DiskUsage(ctx, system.DiskUsageOptions{})
+				du, err := apiClient.DiskUsage(ctx, client.DiskUsageOptions{})
 				assert.NilError(t, err)
 				assert.Assert(t, du.LayersSize > 0)
 				assert.Equal(t, len(du.Images), 1)
@@ -80,7 +81,7 @@ func TestDiskUsage(t *testing.T) {
 			next: func(t *testing.T, prev system.DiskUsage) system.DiskUsage {
 				cID := container.Run(ctx, t, apiClient)
 
-				du, err := apiClient.DiskUsage(ctx, system.DiskUsageOptions{})
+				du, err := apiClient.DiskUsage(ctx, client.DiskUsageOptions{})
 				assert.NilError(t, err)
 				assert.Equal(t, len(du.Containers), 1)
 				assert.Equal(t, len(du.Containers[0].Names), 1)
@@ -110,12 +111,12 @@ func TestDiskUsage(t *testing.T) {
 
 			for _, tc := range []struct {
 				doc      string
-				options  system.DiskUsageOptions
+				options  client.DiskUsageOptions
 				expected system.DiskUsage
 			}{
 				{
 					doc: "container types",
-					options: system.DiskUsageOptions{
+					options: client.DiskUsageOptions{
 						Types: []system.DiskUsageObject{
 							system.ContainerObject,
 						},
@@ -126,7 +127,7 @@ func TestDiskUsage(t *testing.T) {
 				},
 				{
 					doc: "image types",
-					options: system.DiskUsageOptions{
+					options: client.DiskUsageOptions{
 						Types: []system.DiskUsageObject{
 							system.ImageObject,
 						},
@@ -138,7 +139,7 @@ func TestDiskUsage(t *testing.T) {
 				},
 				{
 					doc: "volume types",
-					options: system.DiskUsageOptions{
+					options: client.DiskUsageOptions{
 						Types: []system.DiskUsageObject{
 							system.VolumeObject,
 						},
@@ -149,7 +150,7 @@ func TestDiskUsage(t *testing.T) {
 				},
 				{
 					doc: "build-cache types",
-					options: system.DiskUsageOptions{
+					options: client.DiskUsageOptions{
 						Types: []system.DiskUsageObject{
 							system.BuildCacheObject,
 						},
@@ -160,7 +161,7 @@ func TestDiskUsage(t *testing.T) {
 				},
 				{
 					doc: "container, volume types",
-					options: system.DiskUsageOptions{
+					options: client.DiskUsageOptions{
 						Types: []system.DiskUsageObject{
 							system.ContainerObject,
 							system.VolumeObject,
@@ -173,7 +174,7 @@ func TestDiskUsage(t *testing.T) {
 				},
 				{
 					doc: "image, build-cache types",
-					options: system.DiskUsageOptions{
+					options: client.DiskUsageOptions{
 						Types: []system.DiskUsageObject{
 							system.ImageObject,
 							system.BuildCacheObject,
@@ -187,7 +188,7 @@ func TestDiskUsage(t *testing.T) {
 				},
 				{
 					doc: "container, volume, build-cache types",
-					options: system.DiskUsageOptions{
+					options: client.DiskUsageOptions{
 						Types: []system.DiskUsageObject{
 							system.ContainerObject,
 							system.VolumeObject,
@@ -202,7 +203,7 @@ func TestDiskUsage(t *testing.T) {
 				},
 				{
 					doc: "image, volume, build-cache types",
-					options: system.DiskUsageOptions{
+					options: client.DiskUsageOptions{
 						Types: []system.DiskUsageObject{
 							system.ImageObject,
 							system.VolumeObject,
@@ -218,7 +219,7 @@ func TestDiskUsage(t *testing.T) {
 				},
 				{
 					doc: "container, image, volume types",
-					options: system.DiskUsageOptions{
+					options: client.DiskUsageOptions{
 						Types: []system.DiskUsageObject{
 							system.ContainerObject,
 							system.ImageObject,
@@ -234,7 +235,7 @@ func TestDiskUsage(t *testing.T) {
 				},
 				{
 					doc: "container, image, volume, build-cache types",
-					options: system.DiskUsageOptions{
+					options: client.DiskUsageOptions{
 						Types: []system.DiskUsageObject{
 							system.ContainerObject,
 							system.ImageObject,

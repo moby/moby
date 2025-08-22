@@ -10,7 +10,7 @@ import (
 )
 
 // DiskUsage requests the current data usage from the daemon
-func (cli *Client) DiskUsage(ctx context.Context, options system.DiskUsageOptions) (system.DiskUsage, error) {
+func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (system.DiskUsage, error) {
 	var query url.Values
 	if len(options.Types) > 0 {
 		query = url.Values{}

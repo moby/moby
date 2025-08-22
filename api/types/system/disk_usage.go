@@ -21,13 +21,6 @@ const (
 	BuildCacheObject DiskUsageObject = "build-cache"
 )
 
-// DiskUsageOptions holds parameters for system disk usage query.
-type DiskUsageOptions struct {
-	// Types specifies what object types to include in the response. If empty,
-	// all object types are returned.
-	Types []DiskUsageObject
-}
-
 // DiskUsage contains response of Engine API:
 // GET "/system/df"
 type DiskUsage struct {
