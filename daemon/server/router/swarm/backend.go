@@ -5,7 +5,6 @@ import (
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/swarm"
-	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/swarmbackend"
 )
@@ -19,8 +18,7 @@ type Backend interface {
 	Update(uint64, swarm.Spec, swarmbackend.UpdateFlags) error
 	GetUnlockKey() (string, error)
 	UnlockSwarm(req swarm.UnlockRequest) error
-	// TODO(austinvazquez): decouple daemon from client usage.
-	GetServices(client.ServiceListOptions) ([]swarm.Service, error)
+	GetServices(swarmbackend.ServiceListOptions) ([]swarm.Service, error)
 	GetService(idOrName string, insertDefaults bool) (swarm.Service, error)
 	CreateService(swarm.ServiceSpec, string, bool) (*swarm.ServiceCreateResponse, error)
 	UpdateService(string, uint64, swarm.ServiceSpec, swarmbackend.ServiceUpdateOptions, bool) (*swarm.ServiceUpdateResponse, error)

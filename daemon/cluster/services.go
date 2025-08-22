@@ -17,7 +17,6 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
-	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/cluster/convert"
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/server/backend"
@@ -30,8 +29,7 @@ import (
 )
 
 // GetServices returns all services of a managed swarm cluster.
-// TODO(austinvazquez): decouple daemon from client usage.
-func (c *Cluster) GetServices(options client.ServiceListOptions) ([]swarm.Service, error) {
+func (c *Cluster) GetServices(options swarmbackend.ServiceListOptions) ([]swarm.Service, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 

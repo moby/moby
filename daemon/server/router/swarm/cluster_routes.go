@@ -11,7 +11,6 @@ import (
 	"github.com/moby/moby/api/types/registry"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/versions"
-	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/daemon/server/swarmbackend"
@@ -167,8 +166,7 @@ func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r
 		}
 	}
 
-	// TODO(austinvazquez): decouple daemon from client usage.
-	services, err := sr.backend.GetServices(client.ServiceListOptions{Filters: filter, Status: status})
+	services, err := sr.backend.GetServices(swarmbackend.ServiceListOptions{Filters: filter, Status: status})
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error getting services")
 		return err
