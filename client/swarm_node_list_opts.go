@@ -1,11 +1,8 @@
-package swarmbackend
+package client
 
 import "github.com/moby/moby/api/types/filters"
 
-type ConfigListOptions struct {
-	Filters filters.Args
-}
-
+// NodeListOptions holds parameters to list nodes with.
 type NodeListOptions struct {
 	Filters filters.Args
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 )
 
@@ -73,7 +74,7 @@ func (d *Daemon) ListNodes(ctx context.Context, t testing.TB) []swarm.Node {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	nodes, err := cli.NodeList(ctx, swarm.NodeListOptions{})
+	nodes, err := cli.NodeList(ctx, client.NodeListOptions{})
 	assert.NilError(t, err)
 
 	return nodes

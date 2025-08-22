@@ -314,7 +314,7 @@ func (sr *swarmRouter) getNodes(ctx context.Context, w http.ResponseWriter, r *h
 		return err
 	}
 
-	nodes, err := sr.backend.GetNodes(types.NodeListOptions{Filters: filter})
+	nodes, err := sr.backend.GetNodes(swarmbackend.NodeListOptions{Filters: filter})
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error getting nodes")
 		return err

@@ -10,6 +10,7 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 )
 
@@ -178,7 +179,7 @@ func (d *Daemon) CheckLeader(ctx context.Context) func(t *testing.T) (any, strin
 
 		errList := "could not get node list"
 
-		ls, err := cli.NodeList(ctx, swarm.NodeListOptions{})
+		ls, err := cli.NodeList(ctx, client.NodeListOptions{})
 		if err != nil {
 			return err, errList
 		}
