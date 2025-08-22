@@ -84,7 +84,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 	}
 
 	// TODO(austinvazquez): decouple daemon from client usage
-	var flags client.UpdateFlags
+	var flags client.SwarmUpdateFlags
 
 	if value := r.URL.Query().Get("rotateWorkerToken"); value != "" {
 		rot, err := strconv.ParseBool(value)

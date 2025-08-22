@@ -17,7 +17,7 @@ type Backend interface {
 	Leave(ctx context.Context, force bool) error
 	Inspect() (swarm.Swarm, error)
 	// TODO(austinvazquez): decouple daemon from client usage.
-	Update(uint64, swarm.Spec, client.UpdateFlags) error
+	Update(uint64, swarm.Spec, client.SwarmUpdateFlags) error
 	GetUnlockKey() (string, error)
 	UnlockSwarm(req swarm.UnlockRequest) error
 	GetServices(swarm.ServiceListOptions) ([]swarm.Service, error)

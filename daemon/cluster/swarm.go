@@ -242,7 +242,7 @@ func (c *Cluster) inspect(ctx context.Context, state nodeState) (types.Swarm, er
 
 // Update updates configuration of a managed swarm cluster.
 // TODO(austinvazquez): decouple daemon from client usage
-func (c *Cluster) Update(version uint64, spec types.Spec, flags client.UpdateFlags) error {
+func (c *Cluster) Update(version uint64, spec types.Spec, flags client.SwarmUpdateFlags) error {
 	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		swarm, err := getSwarm(ctx, state.controlClient)
 		if err != nil {
