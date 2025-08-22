@@ -63,7 +63,7 @@ func CreateService(ctx context.Context, t *testing.T, d *daemon.Daemon, opts ...
 	defer apiClient.Close()
 
 	spec := CreateServiceSpec(t, opts...)
-	resp, err := apiClient.ServiceCreate(ctx, spec, swarmtypes.ServiceCreateOptions{})
+	resp, err := apiClient.ServiceCreate(ctx, spec, client.ServiceCreateOptions{})
 	assert.NilError(t, err, "error creating service")
 	return resp.ID
 }

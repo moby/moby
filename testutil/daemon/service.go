@@ -14,7 +14,7 @@ import (
 // ServiceConstructor defines a swarm service constructor function
 type ServiceConstructor func(*swarm.Service)
 
-func (d *Daemon) createServiceWithOptions(ctx context.Context, t testing.TB, opts swarm.ServiceCreateOptions, f ...ServiceConstructor) string {
+func (d *Daemon) createServiceWithOptions(ctx context.Context, t testing.TB, opts client.ServiceCreateOptions, f ...ServiceConstructor) string {
 	t.Helper()
 	var service swarm.Service
 	for _, fn := range f {
@@ -35,7 +35,7 @@ func (d *Daemon) createServiceWithOptions(ctx context.Context, t testing.TB, opt
 // CreateService creates a swarm service given the specified service constructor
 func (d *Daemon) CreateService(ctx context.Context, t testing.TB, f ...ServiceConstructor) string {
 	t.Helper()
-	return d.createServiceWithOptions(ctx, t, swarm.ServiceCreateOptions{}, f...)
+	return d.createServiceWithOptions(ctx, t, client.ServiceCreateOptions{}, f...)
 }
 
 // GetService returns the swarm service corresponding to the specified id

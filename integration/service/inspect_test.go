@@ -7,6 +7,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/moby/moby/api/types/container"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/swarm"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -20,22 +21,22 @@ func TestInspect(t *testing.T) {
 	ctx := setupTest(t)
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
-	client := d.NewClientT(t)
-	defer client.Close()
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
 
 	now := time.Now()
 	var instances uint64 = 2
 	serviceSpec := fullSwarmServiceSpec("test-service-inspect"+t.Name(), instances)
 
-	resp, err := client.ServiceCreate(ctx, serviceSpec, swarmtypes.ServiceCreateOptions{
+	resp, err := apiClient.ServiceCreate(ctx, serviceSpec, client.ServiceCreateOptions{
 		QueryRegistry: false,
 	})
 	assert.NilError(t, err)
 
 	id := resp.ID
-	poll.WaitOn(t, swarm.RunningTasksCount(ctx, client, id, instances))
+	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, id, instances))
 
-	service, _, err := client.ServiceInspectWithRaw(ctx, id, swarmtypes.ServiceInspectOptions{})
+	service, _, err := apiClient.ServiceInspectWithRaw(ctx, id, swarmtypes.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
 	expected := swarmtypes.Service{
