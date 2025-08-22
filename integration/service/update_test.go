@@ -6,7 +6,6 @@ import (
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
-	networktypes "github.com/moby/moby/api/types/network"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/network"
@@ -222,7 +221,7 @@ func TestServiceUpdateNetwork(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, cli, serviceID, instances), swarm.ServicePoll)
 	service := getService(ctx, t, cli, serviceID)
-	netInfo, err := cli.NetworkInspect(ctx, testNet, networktypes.InspectOptions{
+	netInfo, err := cli.NetworkInspect(ctx, testNet, client.InspectOptions{
 		Verbose: true,
 		Scope:   "swarm",
 	})
@@ -235,7 +234,7 @@ func TestServiceUpdateNetwork(t *testing.T) {
 	assert.NilError(t, err)
 	poll.WaitOn(t, serviceIsUpdated(ctx, cli, serviceID), swarm.ServicePoll)
 
-	netInfo, err = cli.NetworkInspect(ctx, testNet, networktypes.InspectOptions{
+	netInfo, err = cli.NetworkInspect(ctx, testNet, client.InspectOptions{
 		Verbose: true,
 		Scope:   "swarm",
 	})

@@ -12,6 +12,7 @@ import (
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
@@ -64,7 +65,7 @@ func TestCreateWithIPv6DefaultsToULAPrefix(t *testing.T) {
 	network.CreateNoError(ctx, t, apiClient, nwName, network.WithIPv6())
 	defer network.RemoveNoError(ctx, t, apiClient, nwName)
 
-	nw, err := apiClient.NetworkInspect(ctx, "testnetula", networktypes.InspectOptions{})
+	nw, err := apiClient.NetworkInspect(ctx, "testnetula", client.InspectOptions{})
 	assert.NilError(t, err)
 
 	for _, ipam := range nw.IPAM.Config {
@@ -91,7 +92,7 @@ func TestCreateWithIPv6WithoutEnableIPv6Flag(t *testing.T) {
 	network.CreateNoError(ctx, t, apiClient, nwName)
 	defer network.RemoveNoError(ctx, t, apiClient, nwName)
 
-	nw, err := apiClient.NetworkInspect(ctx, "testnetula", networktypes.InspectOptions{})
+	nw, err := apiClient.NetworkInspect(ctx, "testnetula", client.InspectOptions{})
 	assert.NilError(t, err)
 
 	for _, ipam := range nw.IPAM.Config {
@@ -136,7 +137,7 @@ func TestDefaultIPvOptOverride(t *testing.T) {
 					network.CreateNoError(ctx, t, c, netName, nopts...)
 					defer network.RemoveNoError(ctx, t, c, netName)
 
-					insp, err := c.NetworkInspect(ctx, netName, networktypes.InspectOptions{})
+					insp, err := c.NetworkInspect(ctx, netName, client.InspectOptions{})
 					assert.NilError(t, err)
 					t.Log("override4", override4, "override6", override6, "->", insp.Options)
 

@@ -45,12 +45,6 @@ type CreateOptions struct {
 	Labels     map[string]string // Labels holds metadata specific to the network being created.
 }
 
-// InspectOptions holds parameters to inspect network.
-type InspectOptions struct {
-	Scope   string
-	Verbose bool
-}
-
 // ConnectOptions represents the data to be used to connect a container to the
 // network.
 type ConnectOptions struct {
