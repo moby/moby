@@ -143,9 +143,8 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 					if err := makeMountRRO(dest); err != nil {
 						if m.ReadOnlyForceRecursive {
 							return err
-						} else {
-							log.G(context.TODO()).WithError(err).Debugf("Failed to make %q recursively read-only", dest)
 						}
+						log.G(context.TODO()).WithError(err).Debugf("Failed to make %q recursively read-only", dest)
 					}
 				}
 			}

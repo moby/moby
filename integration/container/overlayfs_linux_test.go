@@ -103,10 +103,9 @@ func diffDmesg(prev, next []string) []string {
 			nextIdx := idx + 1
 			if nextIdx < len(next) {
 				return next[nextIdx:]
-			} else {
-				// Found at the last position, log is the same.
-				return nil
 			}
+			// Found at the last position, log is the same.
+			return nil
 		}
 	}
 

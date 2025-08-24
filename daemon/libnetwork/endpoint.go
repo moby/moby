@@ -694,11 +694,7 @@ func (ep *Endpoint) rename(name string) error {
 	ep.mu.Unlock()
 
 	// Update the store with the updated name
-	if err := ep.getNetwork().getController().storeEndpoint(context.TODO(), ep); err != nil {
-		return err
-	}
-
-	return nil
+	return ep.getNetwork().getController().storeEndpoint(context.TODO(), ep)
 }
 
 func (ep *Endpoint) UpdateDNSNames(dnsNames []string) error {
@@ -730,11 +726,7 @@ func (ep *Endpoint) UpdateDNSNames(dnsNames []string) error {
 	}
 
 	// Update the store with the updated name
-	if err := c.storeEndpoint(context.TODO(), ep); err != nil {
-		return err
-	}
-
-	return nil
+	return c.storeEndpoint(context.TODO(), ep)
 }
 
 func (ep *Endpoint) hasInterface(iName string) bool {

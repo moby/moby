@@ -255,14 +255,11 @@ func (n *Namespace) setDefaultRoute(srcName string, routeMatcher func(*net.IPNet
 		return fmt.Errorf("no link src:%s dst:%s", srcName, iface.dstName)
 	}
 
-	if err := n.nlHandle.RouteAdd(&netlink.Route{
+	return n.nlHandle.RouteAdd(&netlink.Route{
 		Scope:     netlink.SCOPE_LINK,
 		LinkIndex: link.Attrs().Index,
 		Dst:       iface.routes[ridx],
-	}); err != nil {
-		return err
-	}
-	return nil
+	})
 }
 
 // UnsetDefaultRouteIPv4 unsets the previously set default IPv4 default route
