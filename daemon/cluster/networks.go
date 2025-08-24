@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/filters"
@@ -23,8 +24,16 @@ func (c *Cluster) GetNetworks(filter filters.Args) ([]network.Inspect, error) {
 		f = &swarmapi.ListNetworksRequest_Filters{}
 
 		if filter.Contains("name") {
-			f.Names = filter.Get("name")
-			f.NamePrefixes = filter.Get("name")
+			fullName := filter.Get("name")
+
+			for _, v := range fullName {
+				if strings.Contains(v, "*") {
+					f.NamePrefixes = append(f.NamePrefixes, strings.Split(v, "*")[0])
+				} else {
+					f.Names = append(f.Names, v)
+				}
+			}
+
 		}
 
 		if filter.Contains("id") {
