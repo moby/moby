@@ -37,7 +37,7 @@ func (daemon *Daemon) setupLinkedContainers(ctr *container.Container) ([]string,
 
 	var env []string
 	for linkAlias, child := range daemon.linkIndex.children(ctr) {
-		if !child.IsRunning() {
+		if !child.State.IsRunning() {
 			return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, linkAlias)
 		}
 
@@ -153,10 +153,10 @@ func (daemon *Daemon) getIPCContainer(id string) (*container.Container, error) {
 	if err != nil {
 		return nil, errdefs.InvalidParameter(err)
 	}
-	if !ctr.IsRunning() {
+	if !ctr.State.IsRunning() {
 		return nil, errNotRunning(id)
 	}
-	if ctr.IsRestarting() {
+	if ctr.State.IsRestarting() {
 		return nil, errContainerIsRestarting(id)
 	}
 
@@ -177,10 +177,10 @@ func (daemon *Daemon) getPIDContainer(id string) (*container.Container, error) {
 	if err != nil {
 		return nil, errdefs.InvalidParameter(err)
 	}
-	if !ctr.IsRunning() {
+	if !ctr.State.IsRunning() {
 		return nil, errNotRunning(id)
 	}
-	if ctr.IsRestarting() {
+	if ctr.State.IsRestarting() {
 		return nil, errContainerIsRestarting(id)
 	}
 
@@ -458,7 +458,7 @@ func (daemon *Daemon) cleanupSecretDir(ctr *container.Container) {
 }
 
 func killProcessDirectly(ctr *container.Container) error {
-	pid := ctr.GetPID()
+	pid := ctr.State.GetPID()
 	if pid == 0 {
 		// Ensure that we don't kill ourselves
 		return nil
