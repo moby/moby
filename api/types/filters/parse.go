@@ -103,12 +103,23 @@ func (args Args) Get(key string) []string {
 	return slice
 }
 
+// Get returns the list of children key/value pairs associated with the key
+func (args Args) GetPair(key string) map[string]bool {
+	values := args.fields[key]
+	return values
+}
+
 // Add a new value to the set of values
-func (args Args) Add(key, value string) {
+func (args Args) Add(key, value string, isEqualOps ...bool) {
+	isEqualOp := true
+	if len(isEqualOps) > 0 {
+		isEqualOp = isEqualOps[0]
+	}
+
 	if _, ok := args.fields[key]; ok {
-		args.fields[key][value] = true
+		args.fields[key][value] = isEqualOp
 	} else {
-		args.fields[key] = map[string]bool{value: true}
+		args.fields[key] = map[string]bool{value: isEqualOp}
 	}
 }
 
@@ -161,18 +172,7 @@ func (args Args) Match(field, source string) bool {
 	if args.ExactMatch(field, source) {
 		return true
 	}
-
-	fieldValues := args.fields[field]
-	for name2match := range fieldValues {
-		match, err := regexp.MatchString(name2match, source)
-		if err != nil {
-			continue
-		}
-		if match {
-			return true
-		}
-	}
-	return false
+	return matchWithOperator(args.fields[field], source, regexp.MatchString)
 }
 
 // GetBoolOrDefault returns a boolean value of the key if the key is present
@@ -206,7 +206,27 @@ func (args Args) ExactMatch(key, source string) bool {
 	}
 
 	// try to match full name value to avoid O(N) regular expression matching
-	return fieldValues[source]
+	return matchWithOperator(fieldValues, source, func(a, b string) (bool, error) {
+		return a == b, nil
+	})
+}
+
+func matchWithOperator(fieldValues map[string]bool, source string, matcher func(string, string) (bool, error)) bool {
+	hasInclude := false
+	for pattern, isEqual := range fieldValues {
+		if match, err := matcher(pattern, source); err == nil {
+			if !isEqual && match {
+				return false
+			}
+			if isEqual {
+				hasInclude = true
+				if match {
+					return true
+				}
+			}
+		}
+	}
+	return !hasInclude
 }
 
 // UniqueExactMatch returns true if there is only one value and the source
@@ -222,7 +242,9 @@ func (args Args) UniqueExactMatch(key, source string) bool {
 	}
 
 	// try to match full name value to avoid O(N) regular expression matching
-	return fieldValues[source]
+	return matchWithOperator(fieldValues, source, func(a, b string) (bool, error) {
+		return a == b, nil
+	})
 }
 
 // FuzzyMatch returns true if the source matches exactly one value,  or the
@@ -233,12 +255,9 @@ func (args Args) FuzzyMatch(key, source string) bool {
 	}
 
 	fieldValues := args.fields[key]
-	for prefix := range fieldValues {
-		if strings.HasPrefix(source, prefix) {
-			return true
-		}
-	}
-	return false
+	return matchWithOperator(fieldValues, source, func(a, b string) (bool, error) {
+		return strings.HasPrefix(b, a), nil
+	})
 }
 
 // Contains returns true if the key exists in the mapping
