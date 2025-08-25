@@ -248,11 +248,6 @@ func (i *ImageService) getImageLabelByDigest(ctx context.Context, target digest.
 	return value, nil
 }
 
-func convertError(err error) error {
-	// TODO: Convert containerd error to Docker error
-	return err
-}
-
 // resolveAllReferences resolves the reference name or ID to an image and returns all the images with
 // the same target.
 //
@@ -293,7 +288,7 @@ func (i *ImageService) resolveAllReferences(ctx context.Context, refOrID string)
 					dgst = cimg.Target.Digest
 				}
 			} else if !cerrdefs.IsNotFound(err) {
-				return nil, nil, convertError(err)
+				return nil, nil, err
 			} else {
 				dgst = d.Digest()
 			}
@@ -305,7 +300,7 @@ func (i *ImageService) resolveAllReferences(ctx context.Context, refOrID string)
 			}
 			imgs, err := i.images.List(ctx, filters...)
 			if err != nil {
-				return nil, nil, convertError(err)
+				return nil, nil, err
 			}
 
 			if len(imgs) == 0 {
@@ -347,7 +342,7 @@ func (i *ImageService) resolveAllReferences(ctx context.Context, refOrID string)
 		cimg, err := i.images.Get(ctx, name)
 		if err != nil {
 			if !cerrdefs.IsNotFound(err) {
-				return nil, nil, convertError(err)
+				return nil, nil, err
 			}
 			// If digest is given, continue looking up for matching targets.
 			// There will be no exact match found but the caller may attempt
