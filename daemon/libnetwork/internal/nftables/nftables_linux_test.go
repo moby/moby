@@ -52,8 +52,8 @@ func TestTable(t *testing.T) {
 	assert.Check(t, is.Equal(tbl6.Family(), IPv6))
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl4, t.Name()+"_created4.golden")
-	applyAndCheck(t, tbl6, t.Name()+"_created46.golden")
+	applyAndCheck(t, tbl4, t.Name()+"/created4.golden")
+	applyAndCheck(t, tbl6, t.Name()+"/created46.golden")
 }
 
 func TestChain(t *testing.T) {
@@ -95,7 +95,7 @@ func TestChain(t *testing.T) {
 	assert.Check(t, err)
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl, t.Name()+"_created.golden")
+	applyAndCheck(t, tbl, t.Name()+"/created.golden")
 
 	// Delete a rule from the base chain.
 	f = tbl.ChainUpdateFunc(ctx, bcName, false)
@@ -116,7 +116,7 @@ func TestChain(t *testing.T) {
 	assert.Check(t, is.ErrorContains(err, "not a base chain"))
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl, t.Name()+"_modified.golden")
+	applyAndCheck(t, tbl, t.Name()+"/modified.golden")
 
 	// Delete the base chain.
 	err = tbl.DeleteChain(ctx, bcName)
@@ -131,7 +131,7 @@ func TestChain(t *testing.T) {
 	assert.Check(t, is.ErrorContains(err, "does not exist"))
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl, t.Name()+"_deleted.golden")
+	applyAndCheck(t, tbl, t.Name()+"/deleted.golden")
 }
 
 func TestChainRuleGroups(t *testing.T) {
@@ -186,7 +186,7 @@ func TestVMap(t *testing.T) {
 	assert.Check(t, err)
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl, t.Name()+"_created.golden")
+	applyAndCheck(t, tbl, t.Name()+"/created.golden")
 
 	// Delete an element.
 	err = m.DeleteElement(ctx, "eth1")
@@ -197,7 +197,7 @@ func TestVMap(t *testing.T) {
 	assert.Check(t, is.ErrorContains(err, "does not contain element"))
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl, t.Name()+"_deleted.golden")
+	applyAndCheck(t, tbl, t.Name()+"/deleted.golden")
 }
 
 func TestSet(t *testing.T) {
@@ -227,8 +227,8 @@ func TestSet(t *testing.T) {
 	assert.Check(t, is.ErrorContains(err, "already contains element"))
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl4, t.Name()+"_created4.golden")
-	applyAndCheck(t, tbl6, t.Name()+"_created46.golden")
+	applyAndCheck(t, tbl4, t.Name()+"/created4.golden")
+	applyAndCheck(t, tbl6, t.Name()+"/created46.golden")
 
 	// Delete elements.
 	err = s4.DeleteElement(ctx, "192.0.2.1/24")
@@ -243,8 +243,8 @@ func TestSet(t *testing.T) {
 	assert.Check(t, is.ErrorContains(err, "does not contain element"))
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl4, t.Name()+"_deleted4.golden")
-	applyAndCheck(t, tbl6, t.Name()+"_deleted46.golden")
+	applyAndCheck(t, tbl4, t.Name()+"/deleted4.golden")
+	applyAndCheck(t, tbl6, t.Name()+"/deleted46.golden")
 }
 
 func TestReload(t *testing.T) {
@@ -266,7 +266,7 @@ func TestReload(t *testing.T) {
 	assert.Check(t, err)
 	err = tbl.PrefixSet(ctx, "set4").AddElement(ctx, "192.0.2.0/24")
 	assert.Check(t, err)
-	applyAndCheck(t, tbl, t.Name()+"_created.golden")
+	applyAndCheck(t, tbl, t.Name()+"/created.golden")
 
 	// Delete the underlying nftables table.
 	deleteTable := func() {
@@ -282,7 +282,7 @@ func TestReload(t *testing.T) {
 	// Reconstruct the nftables table.
 	err = tbl.Reload(context.Background())
 	assert.Check(t, err)
-	applyAndCheck(t, tbl, t.Name()+"_reloaded.golden")
+	applyAndCheck(t, tbl, t.Name()+"/reloaded.golden")
 
 	// Delete again.
 	deleteTable()
@@ -291,5 +291,5 @@ func TestReload(t *testing.T) {
 	// from a vmap/set will trigger this.
 	err = m.DeleteElement(ctx, "eth1")
 	assert.Check(t, err)
-	applyAndCheck(t, tbl, t.Name()+"_recovered.golden")
+	applyAndCheck(t, tbl, t.Name()+"/recovered.golden")
 }
