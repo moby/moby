@@ -25,7 +25,7 @@ func (cli *Client) ImagePush(ctx context.Context, image string, options image.Pu
 		return nil, err
 	}
 
-	if _, isCanonical := ref.(reference.Canonical); isCanonical {
+	if _, ok := ref.(reference.Digested); ok {
 		return nil, errors.New("cannot push a digest reference")
 	}
 
