@@ -240,7 +240,7 @@ func processMetaArg(meta instructions.ArgCommand, shlex *shell.Lex, args *BuildA
 	return nil
 }
 
-func printCommand(out io.Writer, currentCommandIndex int, totalCommands int, cmd any) int {
+func printCommand(out io.Writer, currentCommandIndex, totalCommands int, cmd any) int {
 	_, _ = fmt.Fprintf(out, stepFormat, currentCommandIndex, totalCommands, cmd)
 	_, _ = fmt.Fprintln(out)
 	return currentCommandIndex + 1

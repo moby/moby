@@ -1107,7 +1107,7 @@ func CreateOptionDisableIPv6() EndpointOption {
 }
 
 // CreateOptionAlias function returns an option setter for setting endpoint alias
-func CreateOptionAlias(name string, alias string) EndpointOption {
+func CreateOptionAlias(name, alias string) EndpointOption {
 	return func(ep *Endpoint) {
 		if ep.aliases == nil {
 			ep.aliases = make(map[string]string)

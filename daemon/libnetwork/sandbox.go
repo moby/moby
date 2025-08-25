@@ -20,19 +20,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// SandboxOption is an option setter function type used to pass various options to
-// NewNetContainer method. The various setter functions of type SandboxOption are
-// provided by libnetwork, they look like ContainerOptionXXXX(...)
-type SandboxOption func(sb *Sandbox)
-
-func (sb *Sandbox) processOptions(options ...SandboxOption) {
-	for _, opt := range options {
-		if opt != nil {
-			opt(sb)
-		}
-	}
-}
-
 // Sandbox provides the control over the network container entity.
 // It is a one to one mapping with the container.
 type Sandbox struct {
@@ -60,6 +47,19 @@ type Sandbox struct {
 	// This mutex is used to serialize service related operation for an endpoint
 	// The lock is here because the endpoint is saved into the store so is not unique
 	service sync.Mutex
+}
+
+// SandboxOption is an option setter function type used to pass various options to
+// NewNetContainer method. The various setter functions of type SandboxOption are
+// provided by libnetwork, they look like ContainerOptionXXXX(...)
+type SandboxOption func(sb *Sandbox)
+
+func (sb *Sandbox) processOptions(options ...SandboxOption) {
+	for _, opt := range options {
+		if opt != nil {
+			opt(sb)
+		}
+	}
 }
 
 // These are the container configs used to customize container /etc/hosts file.
@@ -453,7 +453,7 @@ func (sb *Sandbox) ResolveName(ctx context.Context, name string, ipType types.IP
 	return nil, false
 }
 
-func (sb *Sandbox) resolveName(ctx context.Context, nameOrAlias string, networkName string, epList []*Endpoint, lookupAlias bool, ipType types.IPFamily) ([]net.IP, bool) {
+func (sb *Sandbox) resolveName(ctx context.Context, nameOrAlias, networkName string, epList []*Endpoint, lookupAlias bool, ipType types.IPFamily) ([]net.IP, bool) {
 	ctx, span := otel.Tracer("").Start(ctx, "Sandbox.resolveName", trace.WithAttributes(
 		attribute.String("libnet.resolver.name-or-alias", nameOrAlias),
 		attribute.String("libnet.network.name", networkName),

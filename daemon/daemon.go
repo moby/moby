@@ -1753,7 +1753,7 @@ func CreateDaemonRoot(config *config.Config) error {
 // -  and the daemon is running with user namespace remapping enabled
 // Then it will return new namespace names, otherwise it will return the existing
 // namespaces
-func RemapContainerdNamespaces(config *config.Config) (ns string, pluginNs string, err error) {
+func RemapContainerdNamespaces(config *config.Config) (ns, pluginNs string, err error) {
 	idMapping, err := setupRemappedRoot(config)
 	if err != nil {
 		return "", "", err

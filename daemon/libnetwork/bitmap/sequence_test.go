@@ -231,16 +231,16 @@ func TestCheckIfAvailable(t *testing.T) {
 		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x800000ff, count: 1}}, 31, invalidPos, invalidPos},
 		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x800000ff, count: 1}}, 32, invalidPos, invalidPos},
 		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x800000ff, count: 1}}, 33, 4, 1},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1}}, 33, invalidPos, invalidPos},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1}}, 34, 4, 2},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xc00000ff, count: 1}}, 33, invalidPos, invalidPos},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xc00000ff, count: 1}}, 34, 4, 2},
 
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 55, 6, 7},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 56, invalidPos, invalidPos},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 63, invalidPos, invalidPos},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xc00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 55, 6, 7},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xc00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 56, invalidPos, invalidPos},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xc00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 63, invalidPos, invalidPos},
 
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 64, 8, 0},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 95, 11, 7},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 96, invalidPos, invalidPos},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xc00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 64, 8, 0},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xc00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 95, 11, 7},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xc00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 96, invalidPos, invalidPos},
 	}
 
 	for n, i := range input {

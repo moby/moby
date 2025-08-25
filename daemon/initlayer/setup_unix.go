@@ -16,7 +16,7 @@ import (
 //
 // This extra layer is used by all containers as the top-most ro layer. It protects
 // the container from unwanted side-effects on the rw layer.
-func Setup(initLayerFs string, uid int, gid int) error {
+func Setup(initLayerFs string, uid, gid int) error {
 	// Since all paths are local to the container, we can just extract initLayerFs.Path()
 	initLayer := initLayerFs
 

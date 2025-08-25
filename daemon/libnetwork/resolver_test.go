@@ -106,7 +106,7 @@ func newDNSHandlerServFailOnce(requests *int) func(w dns.ResponseWriter, r *dns.
 		if *requests == 0 {
 			m.SetRcode(r, dns.RcodeServerFailure)
 		}
-		*requests = *requests + 1
+		*requests++
 		if err := w.WriteMsg(m); err != nil {
 			log.G(context.TODO()).WithError(err).Error("Error writing dns response")
 		}
@@ -122,7 +122,7 @@ func waitForLocalDNSServer(t *testing.T) {
 		// this test and retry mechanism only works for TCP. With UDP there is no
 		// connection and the test becomes inaccurate leading to unpredictable results
 		tconn, err := net.DialTimeout("tcp", "127.0.0.1:53", 10*time.Second)
-		retries = retries + 1
+		retries++
 		if err != nil {
 			if oerr, ok := err.(*net.OpError); ok {
 				// server is probably initializing

@@ -49,7 +49,7 @@ func (c copyInfo) fullPath() (string, error) {
 	return symlink.FollowSymlinkInScope(filepath.Join(c.root, c.path), c.root)
 }
 
-func newCopyInfoFromSource(source builder.Source, path string, hash string) copyInfo {
+func newCopyInfoFromSource(source builder.Source, path, hash string) copyInfo {
 	return copyInfo{root: source.Root(), path: path, hash: hash}
 }
 
@@ -238,7 +238,7 @@ func (o *copier) calcCopyInfo(origPath string, allowWildcards bool) ([]copyInfo,
 	return newCopyInfos(newCopyInfoFromSource(o.source, origPath, hash)), nil
 }
 
-func (o *copier) storeInPathCache(im *imageMount, path string, hash string) {
+func (o *copier) storeInPathCache(im *imageMount, path, hash string) {
 	if im != nil {
 		o.pathCache.Store(im.ImageID()+path, hash)
 	}
@@ -365,7 +365,7 @@ func getFilenameForDownload(path string, resp *http.Response) string {
 	return ""
 }
 
-func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote builder.Source, p string, retErr error) {
+func downloadSource(output, stdout io.Writer, srcURL string) (remote builder.Source, p string, retErr error) {
 	u, err := url.Parse(srcURL)
 	if err != nil {
 		return nil, "", err
@@ -458,7 +458,7 @@ type copyFileOptions struct {
 	archiver   *archive.Archiver
 }
 
-func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions) error {
+func performCopyForInfo(dest, source copyInfo, options copyFileOptions) error {
 	srcPath, err := source.fullPath()
 	if err != nil {
 		return err

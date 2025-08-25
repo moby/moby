@@ -9,7 +9,7 @@ import (
 )
 
 // PluginPush pushes a plugin to a registry
-func (cli *Client) PluginPush(ctx context.Context, name string, registryAuth string) (io.ReadCloser, error) {
+func (cli *Client) PluginPush(ctx context.Context, name, registryAuth string) (io.ReadCloser, error) {
 	name, err := trimID("plugin", name)
 	if err != nil {
 		return nil, err

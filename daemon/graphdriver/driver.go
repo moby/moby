@@ -173,35 +173,37 @@ func New(driverName string, config Options) (Driver, error) {
 	priorityList := strings.Split(priority, ",")
 	log.G(ctx).Debugf("[graphdriver] priority list: %v", priorityList)
 	for _, name := range priorityList {
-		if _, prior := driversMap[name]; prior {
-			// of the state found from prior drivers, check in order of our priority
-			// which we would prefer
-			driver, err := getDriver(name, config)
-			if err != nil {
-				// unlike below, we will return error here, because there is prior
-				// state, and now it is no longer supported/prereq/compatible, so
-				// something changed and needs attention. Otherwise the daemon's
-				// images would just "disappear".
-				log.G(ctx).Errorf("[graphdriver] prior storage driver %s failed: %s", name, err)
-				return nil, err
-			}
-
-			// abort starting when there are other prior configured drivers
-			// to ensure the user explicitly selects the driver to load
-			if len(driversMap) > 1 {
-				var driversSlice []string
-				for d := range driversMap {
-					driversSlice = append(driversSlice, d)
-				}
-
-				err = errors.Errorf("%s contains several valid graphdrivers: %s; cleanup or explicitly choose storage driver (-s <DRIVER>)", config.Root, strings.Join(driversSlice, ", "))
-				log.G(ctx).Errorf("[graphdriver] %v", err)
-				return nil, err
-			}
-
-			log.G(ctx).Infof("[graphdriver] using prior storage driver: %s", name)
-			return driver, nil
+		_, prior := driversMap[name]
+		if !prior {
+			continue
 		}
+		// of the state found from prior drivers, check in order of our priority
+		// which we would prefer
+		driver, err := getDriver(name, config)
+		if err != nil {
+			// unlike below, we will return error here, because there is prior
+			// state, and now it is no longer supported/prereq/compatible, so
+			// something changed and needs attention. Otherwise the daemon's
+			// images would just "disappear".
+			log.G(ctx).Errorf("[graphdriver] prior storage driver %s failed: %s", name, err)
+			return nil, err
+		}
+
+		// abort starting when there are other prior configured drivers
+		// to ensure the user explicitly selects the driver to load
+		if len(driversMap) > 1 {
+			var driversSlice []string
+			for d := range driversMap {
+				driversSlice = append(driversSlice, d)
+			}
+
+			err = errors.Errorf("%s contains several valid graphdrivers: %s; cleanup or explicitly choose storage driver (-s <DRIVER>)", config.Root, strings.Join(driversSlice, ", "))
+			log.G(ctx).Errorf("[graphdriver] %v", err)
+			return nil, err
+		}
+
+		log.G(ctx).Infof("[graphdriver] using prior storage driver: %s", name)
+		return driver, nil
 	}
 
 	// If no prior state was found, continue with automatic selection, and pick
