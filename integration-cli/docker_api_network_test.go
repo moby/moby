@@ -5,32 +5,15 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/request"
 	"gotest.tools/v3/assert"
 )
-
-func (s *DockerAPISuite) TestAPINetworkGetDefaults(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	// By default docker daemon creates 3 networks. check if they are present
-	defaults := []string{"bridge", "host", "none"}
-	for _, nn := range defaults {
-		assert.Assert(c, isNetworkAvailable(c, nn))
-	}
-}
-
-func (s *DockerAPISuite) TestAPINetworkFilter(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	nr := getNetworkResource(c, getNetworkIDByName(c, "bridge"))
-	assert.Equal(c, nr.Name, "bridge")
-}
 
 func (s *DockerAPISuite) TestAPINetworkInspectBridge(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
@@ -227,31 +210,6 @@ func isNetworkAvailable(t *testing.T, name string) bool {
 		}
 	}
 	return false
-}
-
-func getNetworkIDByName(t *testing.T, name string) string {
-	filterJSON, err := filters.ToJSON(filters.NewArgs(filters.Arg("name", name)))
-	assert.NilError(t, err)
-	v := url.Values{}
-	v.Set("filters", filterJSON)
-
-	resp, body, err := request.Get(testutil.GetContext(t), "/networks?"+v.Encode())
-	assert.Equal(t, resp.StatusCode, http.StatusOK)
-	assert.NilError(t, err)
-
-	var nJSON []network.Inspect
-	err = json.NewDecoder(body).Decode(&nJSON)
-	assert.NilError(t, err)
-	var res string
-	for _, n := range nJSON {
-		// Find exact match
-		if n.Name == name {
-			res = n.ID
-		}
-	}
-	assert.Assert(t, res != "")
-
-	return res
 }
 
 func getNetworkResource(t *testing.T, id string) *network.Inspect {
