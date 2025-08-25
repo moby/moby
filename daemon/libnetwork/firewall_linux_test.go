@@ -3,8 +3,6 @@ package libnetwork
 import (
 	"context"
 	"fmt"
-	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -16,7 +14,6 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
-	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/skip"
 )
 
@@ -32,18 +29,6 @@ func TestUserChain(t *testing.T) {
 	const testName = "TestUserChain"
 	iptable4 := iptables.GetIptable(iptables.IPv4)
 	iptable6 := iptables.GetIptable(iptables.IPv6)
-
-	res := icmd.RunCommand("iptables", "--version")
-	assert.NilError(t, res.Error)
-	noChainErr := "No chain/target/match by that name"
-	if strings.Contains(res.Combined(), "nf_tables") && versionLt(t, res.Combined(), 1, 8, 10) {
-		// Prior to v1.8.10, iptables-nft "-S <chain>" reports the following for a non-existent chain:
-		//
-		//   ip6tables v1.8.9 (nf_tables): chain `<chain>' in table `filter' is incompatible, use 'nft' tool.
-		//
-		// This was fixed in this commit: https://git.netfilter.org/iptables/commit/?id=82ccfb488eeac5507471099b9b4e6d136cc06e3b
-		noChainErr = "incompatible, use 'nft' tool"
-	}
 
 	tests := []struct {
 		iptables bool
@@ -123,9 +108,9 @@ func TestUserChain(t *testing.T) {
 					fmt.Sprintf("%s/iptables-%v_append-%v_usrafter6.golden", testName, tc.iptables, tc.append))
 			} else {
 				_, err := iptable4.Raw("-S", usrChainName)
-				assert.Check(t, is.ErrorContains(err, noChainErr), "ipv4 chain %v: created unexpectedly", usrChainName)
+				assert.Check(t, isMissingChainError(err), "ipv4 chain %v: created unexpectedly", usrChainName)
 				_, err = iptable6.Raw("-S", usrChainName)
-				assert.Check(t, is.ErrorContains(err, noChainErr), "ipv6 chain %v: created unexpectedly", usrChainName)
+				assert.Check(t, isMissingChainError(err), "ipv6 chain %v: created unexpectedly", usrChainName)
 			}
 		})
 	}
@@ -150,20 +135,27 @@ func resetIptables(t *testing.T) {
 	}
 }
 
-// versionLt returns true if the iptables version returned by `iptables --version`
-// is less than the `<major>.<minor>.<patch>` version passed in as argument.
-func versionLt(t *testing.T, ver string, major, minor, patch int) bool {
-	t.Helper()
-
-	matches := regexp.MustCompile(`iptables v([0-9]+)\.([0-9]+)\.([0-9]+)`).FindStringSubmatch(ver)
-	assert.Assert(t, len(matches) == 4, "could not determine iptables version from %q", ver)
-
-	parsedMajor, err := strconv.Atoi(matches[1])
-	assert.NilError(t, err)
-	parsedMinor, err := strconv.Atoi(matches[2])
-	assert.NilError(t, err)
-	parsedPatch, err := strconv.Atoi(matches[3])
-	assert.NilError(t, err)
-
-	return parsedMajor < major || (parsedMajor == major && parsedMinor < minor) || (parsedMajor == major && parsedMinor == minor && parsedPatch < patch)
+// isMissingChainError succeeds if err indicates that "iptables -S <chain>"
+// could not find the requested chain.
+//
+// Before iptables v1.8.10, iptables-nft "-S <chain>" could report a
+// non-existent chain as incompatible:
+//
+//	ip6tables v1.8.9 (nf_tables): chain `<chain>' in table `filter' is incompatible, use 'nft' tool.
+//
+// This was fixed in iptables v1.8.10. Debian 13 ships v1.8.11 and therefore
+// returns the usual "No chain/target/match by that name" diagnostic.
+//
+// Fixed by: https://git.netfilter.org/iptables/commit/?id=82ccfb488eeac5507471099b9b4e6d136cc06e3b
+func isMissingChainError(err error) is.Comparison {
+	return func() is.Result {
+		if err == nil {
+			return is.ResultFailure("expected a missing-chain error, got nil")
+		}
+		if strings.Contains(err.Error(), "No chain/target/match by that name") ||
+			strings.Contains(err.Error(), "incompatible, use 'nft' tool") {
+			return is.ResultSuccess
+		}
+		return is.ResultFailure(fmt.Sprintf("expected a missing-chain error, got %v", err))
+	}
 }
