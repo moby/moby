@@ -53,11 +53,15 @@ func (l *Link) ToEnv() []string {
 	alias := strings.ReplaceAll(strings.ToUpper(n), "-", "_")
 
 	// sort the ports so that we can bulk the continuous ports together
-	nat.Sort(l.Ports, withTCPPriority)
+	tmpPorts := make([]nat.Port, len(l.Ports))
+	for i, port := range l.Ports {
+		tmpPorts[i] = nat.Port(port)
+	}
+	nat.Sort(tmpPorts, withTCPPriority)
 
-	var pStart, pEnd container.PortRangeProto
-	env := make([]string, 0, 1+len(l.Ports)*4)
-	for i, p := range l.Ports {
+	var pStart, pEnd portIsh
+	env := make([]string, 0, 1+len(tmpPorts)*4)
+	for i, p := range tmpPorts {
 		if i == 0 {
 			pStart, pEnd = p, p
 			env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%s", alias, p.Proto(), l.ChildIP, p.Port()))
@@ -65,10 +69,10 @@ func (l *Link) ToEnv() []string {
 
 		// These env-vars are produced for every port, regardless if they're
 		// part of a port-range.
-		prefix := fmt.Sprintf("%s_PORT_%s_%s", alias, p.Port(), strings.ToUpper(p.Proto()))
-		env = append(env, fmt.Sprintf("%s=%s://%s:%s", prefix, p.Proto(), l.ChildIP, p.Port()))
+		prefix := fmt.Sprintf("%s_PORT_%d_%s", alias, p.Int(), strings.ToUpper(p.Proto()))
+		env = append(env, fmt.Sprintf("%s=%s://%s:%d", prefix, p.Proto(), l.ChildIP, p.Int()))
 		env = append(env, fmt.Sprintf("%s_ADDR=%s", prefix, l.ChildIP))
-		env = append(env, fmt.Sprintf("%s_PORT=%s", prefix, p.Port()))
+		env = append(env, fmt.Sprintf("%s_PORT=%d", prefix, p.Int()))
 		env = append(env, fmt.Sprintf("%s_PROTO=%s", prefix, p.Proto()))
 
 		// Detect whether this port is part of a range (consecutive port number
@@ -81,11 +85,11 @@ func (l *Link) ToEnv() []string {
 		}
 
 		if pEnd != pStart {
-			prefix = fmt.Sprintf("%s_PORT_%s_%s", alias, pStart.Port(), strings.ToUpper(pStart.Proto()))
-			env = append(env, fmt.Sprintf("%s_START=%s://%s:%s", prefix, pStart.Proto(), l.ChildIP, pStart.Port()))
-			env = append(env, fmt.Sprintf("%s_PORT_START=%s", prefix, pStart.Port()))
-			env = append(env, fmt.Sprintf("%s_END=%s://%s:%s", prefix, pEnd.Proto(), l.ChildIP, pEnd.Port()))
-			env = append(env, fmt.Sprintf("%s_PORT_END=%s", prefix, pEnd.Port()))
+			prefix = fmt.Sprintf("%s_PORT_%d_%s", alias, pStart.Int(), strings.ToUpper(pStart.Proto()))
+			env = append(env, fmt.Sprintf("%s_START=%s://%s:%d", prefix, pStart.Proto(), l.ChildIP, pStart.Int()))
+			env = append(env, fmt.Sprintf("%s_PORT_START=%d", prefix, pStart.Int()))
+			env = append(env, fmt.Sprintf("%s_END=%s://%s:%d", prefix, pEnd.Proto(), l.ChildIP, pEnd.Int()))
+			env = append(env, fmt.Sprintf("%s_PORT_END=%d", prefix, pEnd.Int()))
 		}
 
 		// Reset for next range (if any)
@@ -111,9 +115,17 @@ func (l *Link) ToEnv() []string {
 	return env
 }
 
+// FIXME(thaJeztah): update [nat.Sort] signature to accept an interface instead of only nat.Port as concrete type.
+type portIsh interface {
+	Proto() string
+	Int() int
+}
+
 // withTCPPriority prioritizes ports using TCP over other protocols before
 // comparing port-number and protocol.
-func withTCPPriority(ip, jp container.PortRangeProto) bool {
+//
+// FIXME(thaJeztah): why is this function needed? Isn't this what [nat.Sort] was meant to do? Was it created to work around a bug in sorting there?
+func withTCPPriority(ip, jp nat.Port) bool {
 	if strings.EqualFold(ip.Proto(), jp.Proto()) {
 		return ip.Int() < jp.Int()
 	}
