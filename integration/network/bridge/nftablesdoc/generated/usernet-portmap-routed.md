@@ -47,7 +47,7 @@ Most rules are the same as the [nat mode network][1]:
     	}
     
     	chain nat-OUTPUT {
-    		type nat hook output priority -100; policy accept;
+    		type nat hook output priority dstnat; policy accept;
     		ip daddr != 127.0.0.0/8 fib daddr type local counter jump nat-prerouting-and-output
     	}
     
