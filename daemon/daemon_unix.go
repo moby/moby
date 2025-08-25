@@ -933,6 +933,8 @@ func networkPlatformOptions(conf *config.Config) []nwconfig.Option {
 				"DisableFilterForwardDrop": conf.BridgeConfig.DisableFilterForwardDrop,
 				"EnableIPTables":           conf.BridgeConfig.EnableIPTables,
 				"EnableIP6Tables":          conf.BridgeConfig.EnableIP6Tables,
+				"EnableProxy":              conf.EnableUserlandProxy && conf.UserlandProxyPath != "",
+				"ProxyPath":                conf.UserlandProxyPath,
 				"Hairpin":                  !conf.EnableUserlandProxy || conf.UserlandProxyPath == "",
 				"AllowDirectRouting":       conf.BridgeConfig.AllowDirectRouting,
 				"AcceptFwMark":             conf.BridgeConfig.BridgeAcceptFwMark,

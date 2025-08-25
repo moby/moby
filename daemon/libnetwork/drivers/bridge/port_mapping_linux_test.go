@@ -718,7 +718,7 @@ func TestAddPortMappings(t *testing.T) {
 
 			// Mock the startProxy function used by the code under test.
 			proxies := map[proxyCall]bool{} // proxy -> is not stopped
-			startProxy := func(pb types.PortBinding, listenSock *os.File) (stop func() error, retErr error) {
+			startProxy = func(pb types.PortBinding, _ string, listenSock *os.File) (stop func() error, retErr error) {
 				if tc.busyPortIPv4 > 0 && tc.busyPortIPv4 == int(pb.HostPort) && pb.HostIP.To4() != nil {
 					return nil, errors.New("busy port")
 				}
@@ -768,9 +768,7 @@ func TestAddPortMappings(t *testing.T) {
 
 			pms := &drvregistry.PortMappers{}
 			err := nat.Register(pms, nat.Config{
-				RlkClient:   pdc,
-				EnableProxy: tc.enableProxy,
-				StartProxy:  startProxy,
+				RlkClient: pdc,
 			})
 			assert.NilError(t, err)
 			err = routed.Register(pms)
@@ -792,6 +790,7 @@ func TestAddPortMappings(t *testing.T) {
 					EnableIPTables:  true,
 					EnableIP6Tables: true,
 					Hairpin:         tc.hairpin,
+					EnableProxy:     true,
 				},
 			}
 			err = n.driver.configure(genericOption)
@@ -995,7 +994,7 @@ type stubPortMapper struct {
 	mapped []portmapperapi.PortBinding
 }
 
-func (pm *stubPortMapper) MapPorts(_ context.Context, reqs []portmapperapi.PortBindingReq, _ portmapperapi.Firewaller) ([]portmapperapi.PortBinding, error) {
+func (pm *stubPortMapper) MapPorts(_ context.Context, reqs []portmapperapi.PortBindingReq) ([]portmapperapi.PortBinding, error) {
 	if len(reqs) == 0 {
 		return []portmapperapi.PortBinding{}, nil
 	}
@@ -1007,7 +1006,7 @@ func (pm *stubPortMapper) MapPorts(_ context.Context, reqs []portmapperapi.PortB
 	return pbs, nil
 }
 
-func (pm *stubPortMapper) UnmapPorts(_ context.Context, reqs []portmapperapi.PortBinding, _ portmapperapi.Firewaller) error {
+func (pm *stubPortMapper) UnmapPorts(_ context.Context, reqs []portmapperapi.PortBinding) error {
 	for _, req := range reqs {
 		// We're only checking for the PortBinding here, not any other
 		// property of [portmapperapi.PortBinding].
