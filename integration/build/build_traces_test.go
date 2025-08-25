@@ -3,7 +3,6 @@ package build
 import (
 	"context"
 	"errors"
-	"net"
 	"testing"
 	"time"
 
@@ -11,12 +10,13 @@ import (
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/util/progress/progressui"
-	"github.com/moby/moby/v2/testutil"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
+
+	"github.com/moby/moby/v2/testutil"
 )
 
 type testWriter struct {
@@ -34,15 +34,8 @@ func TestBuildkitHistoryTracePropagation(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)
 
 	c := testEnv.APIClient()
-	opts := []client.ClientOpt{
-		client.WithSessionDialer(func(ctx context.Context, proto string, meta map[string][]string) (net.Conn, error) {
-			return c.DialHijack(ctx, "/session", proto, meta)
-		}),
-		client.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
-			return c.DialHijack(ctx, "/grpc", "h2c", nil)
-		}),
-	}
-	bc, err := client.New(ctx, "", opts...)
+	bc, err := client.New(ctx, c.DaemonHost())
+
 	assert.NilError(t, err)
 	defer bc.Close()
 
