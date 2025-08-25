@@ -49,13 +49,13 @@ jobs:
       BIN_OUT: ${{ github.workspace }}\out
     defaults:
       run:
-        working-directory: ${{ env.GOPATH }}/src/github.com/docker/docker
+        working-directory: ${{ env.GOPATH }}/src/github.com/moby/moby/v2
     steps:
       -
         name: Checkout
         uses: actions/checkout@v4
         with:
-          path: ${{ env.GOPATH }}/src/github.com/docker/docker
+          path: ${{ env.GOPATH }}/src/github.com/moby/moby/v2
       -
         name: Env
         run: |
@@ -105,8 +105,8 @@ jobs:
         name: Copy artifacts
         run: |
           New-Item -ItemType "directory" -Path "${{ env.BIN_OUT }}"
-          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\gopath\src\github.com\docker\docker\bundles\docker.exe" ${{ env.BIN_OUT }}\
-          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\gopath\src\github.com\docker\docker\bundles\dockerd.exe" ${{ env.BIN_OUT }}\
+          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\gopath\src\github.com\moby\moby\v2\bundles\docker.exe" ${{ env.BIN_OUT }}\
+          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\gopath\src\github.com\moby\moby\v2\bundles\dockerd.exe" ${{ env.BIN_OUT }}\
           docker cp "${{ env.TEST_CTN_NAME }}`:c`:\gopath\bin\gotestsum.exe" ${{ env.BIN_OUT }}\
           docker cp "${{ env.TEST_CTN_NAME }}`:c`:\containerd\bin\containerd.exe" ${{ env.BIN_OUT }}\
           docker cp "${{ env.TEST_CTN_NAME }}`:c`:\containerd\bin\containerd-shim-runhcs-v1.exe" ${{ env.BIN_OUT }}\
@@ -127,13 +127,13 @@ jobs:
       GOBIN: ${{ github.workspace }}\go\bin
     defaults:
       run:
-        working-directory: ${{ env.GOPATH }}/src/github.com/docker/docker
+        working-directory: ${{ env.GOPATH }}/src/github.com/moby/moby/v2
     steps:
       -
         name: Checkout
         uses: actions/checkout@v4
         with:
-          path: ${{ env.GOPATH }}/src/github.com/docker/docker
+          path: ${{ env.GOPATH }}/src/github.com/moby/moby/v2
       -
         name: Env
         run: |
@@ -179,14 +179,14 @@ jobs:
           & docker run --name ${{ env.TEST_CTN_NAME }} -e "DOCKER_GITCOMMIT=${{ github.sha }}" `
             -v "${{ github.workspace }}\go-build:C:\Users\ContainerAdministrator\AppData\Local\go-build" `
             -v "${{ github.workspace }}\go\pkg\mod:C:\gopath\pkg\mod" `
-            -v "${{ env.GOPATH }}\src\github.com\docker\docker\bundles:C:\gopath\src\github.com\docker\docker\bundles" `
+            -v "${{ env.GOPATH }}\src\github.com\moby\moby\v2\bundles:C:\gopath\src\github.com\moby\moby\v2\bundles" `
             ${{ env.TEST_IMAGE_NAME }} hack\make.ps1 -TestUnit
       -
         name: Send to Codecov
         if: inputs.send_coverage
         uses: codecov/codecov-action@v4
         with:
-          working-directory: ${{ env.GOPATH }}\src\github.com\docker\docker
+          working-directory: ${{ env.GOPATH }}\src\github.com\moby\moby\v2
           directory: bundles
           env_vars: RUNNER_OS
           flags: unit
@@ -197,7 +197,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-unit-reports
-          path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
+          path: ${{ env.GOPATH }}\src\github.com\moby\moby\v2\bundles\*
           retention-days: 1
 
   unit-test-report:
@@ -288,13 +288,13 @@ jobs:
       BIN_OUT: ${{ github.workspace }}\out
     defaults:
       run:
-        working-directory: ${{ env.GOPATH }}/src/github.com/docker/docker
+        working-directory: ${{ env.GOPATH }}/src/github.com/moby/moby/v2
     steps:
       -
         name: Checkout
         uses: actions/checkout@v4
         with:
-          path: ${{ env.GOPATH }}/src/github.com/docker/docker
+          path: ${{ env.GOPATH }}/src/github.com/moby/moby/v2
       -
         name: Set up Jaeger
         run: |
@@ -454,7 +454,7 @@ jobs:
         if: inputs.send_coverage
         uses: codecov/codecov-action@v4
         with:
-          working-directory: ${{ env.GOPATH }}\src\github.com\docker\docker
+          working-directory: ${{ env.GOPATH }}\src\github.com\moby\moby\v2
           directory: bundles
           env_vars: RUNNER_OS
           flags: integration,${{ matrix.runtime }}
@@ -496,7 +496,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-integration-reports-${{ matrix.runtime }}-${{ env.TESTREPORTS_NAME }}
-          path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
+          path: ${{ env.GOPATH }}\src\github.com\moby\moby\v2\bundles\*
           retention-days: 1
 
   integration-test-report:
