@@ -1,10 +1,11 @@
-package registry
+package authconfig
 
 import (
 	"encoding/base64"
 	"strings"
 	"testing"
 
+	"github.com/moby/moby/api/types/registry"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -14,33 +15,33 @@ func TestDecodeAuthConfig(t *testing.T) {
 		doc         string
 		input       string
 		inputBase64 string
-		expected    AuthConfig
+		expected    registry.AuthConfig
 		expectedErr string
 	}{
 		{
 			doc:         "empty",
 			input:       ``,
 			inputBase64: ``,
-			expected:    AuthConfig{},
+			expected:    registry.AuthConfig{},
 		},
 		{
 			doc:         "empty JSON",
 			input:       `{}`,
 			inputBase64: `e30=`,
-			expected:    AuthConfig{},
+			expected:    registry.AuthConfig{},
 		},
 		{
 			doc:         "malformed JSON",
 			input:       `{`,
 			inputBase64: `ew==`,
-			expected:    AuthConfig{},
+			expected:    registry.AuthConfig{},
 			expectedErr: `invalid X-Registry-Auth header: invalid JSON: unexpected EOF`,
 		},
 		{
 			doc:         "test authConfig",
 			input:       `{"username":"testuser","password":"testpassword","serveraddress":"example.com"}`,
 			inputBase64: `eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwicGFzc3dvcmQiOiJ0ZXN0cGFzc3dvcmQiLCJzZXJ2ZXJhZGRyZXNzIjoiZXhhbXBsZS5jb20ifQ==`,
-			expected: AuthConfig{
+			expected: registry.AuthConfig{
 				Username:      "testuser",
 				Password:      "testpassword",
 				ServerAddress: "example.com",
@@ -51,7 +52,7 @@ func TestDecodeAuthConfig(t *testing.T) {
 			doc:         "multiple authConfig",
 			input:       `{"username":"testuser","password":"testpassword","serveraddress":"example.com"}{"username":"testuser2","password":"testpassword2","serveraddress":"example.org"}`,
 			inputBase64: `eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwicGFzc3dvcmQiOiJ0ZXN0cGFzc3dvcmQiLCJzZXJ2ZXJhZGRyZXNzIjoiZXhhbXBsZS5jb20ifXsidXNlcm5hbWUiOiJ0ZXN0dXNlcjIiLCJwYXNzd29yZCI6InRlc3RwYXNzd29yZDIiLCJzZXJ2ZXJhZGRyZXNzIjoiZXhhbXBsZS5vcmcifQ==`,
-			expected: AuthConfig{
+			expected: registry.AuthConfig{
 				Username:      "testuser",
 				Password:      "testpassword",
 				ServerAddress: "example.com",
@@ -66,14 +67,14 @@ func TestDecodeAuthConfig(t *testing.T) {
 			doc:         "empty JSON no padding",
 			input:       `{}`,
 			inputBase64: `e30`,
-			expected:    AuthConfig{},
+			expected:    registry.AuthConfig{},
 			expectedErr: `invalid X-Registry-Auth header: must be a valid base64url-encoded string`,
 		},
 		{
 			doc:         "test authConfig",
 			input:       `{"username":"testuser","password":"testpassword","serveraddress":"example.com"}`,
 			inputBase64: `eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwicGFzc3dvcmQiOiJ0ZXN0cGFzc3dvcmQiLCJzZXJ2ZXJhZGRyZXNzIjoiZXhhbXBsZS5jb20ifQ`,
-			expected:    AuthConfig{},
+			expected:    registry.AuthConfig{},
 			expectedErr: `invalid X-Registry-Auth header: must be a valid base64url-encoded string`,
 		},
 	}
@@ -89,7 +90,7 @@ func TestDecodeAuthConfig(t *testing.T) {
 				assert.Check(t, is.Equal(b64, tc.inputBase64))
 			}
 
-			out, err := DecodeAuthConfig(tc.inputBase64)
+			out, err := Decode(tc.inputBase64)
 			if tc.expectedErr != "" {
 				assert.Check(t, is.ErrorType(err, errInvalidParameter{}))
 				assert.Check(t, is.Error(err, tc.expectedErr))
@@ -104,7 +105,7 @@ func TestDecodeAuthConfig(t *testing.T) {
 func TestEncodeAuthConfig(t *testing.T) {
 	tests := []struct {
 		doc       string
-		input     AuthConfig
+		input     registry.AuthConfig
 		outBase64 string
 		outPlain  string
 	}{
@@ -114,13 +115,13 @@ func TestEncodeAuthConfig(t *testing.T) {
 			//
 			// FIXME(thaJeztah): find exactly what code-paths are impacted by this.
 			doc:       "empty",
-			input:     AuthConfig{},
+			input:     registry.AuthConfig{},
 			outBase64: `e30=`,
 			outPlain:  `{}`,
 		},
 		{
 			doc: "test authConfig",
-			input: AuthConfig{
+			input: registry.AuthConfig{
 				Username:      "testuser",
 				Password:      "testpassword",
 				ServerAddress: "example.com",
@@ -135,7 +136,7 @@ func TestEncodeAuthConfig(t *testing.T) {
 		assert.Check(t, is.Equal(b64, tc.outBase64))
 
 		t.Run(tc.doc, func(t *testing.T) {
-			out, err := EncodeAuthConfig(tc.input)
+			out, err := Encode(tc.input)
 			assert.NilError(t, err)
 			assert.Equal(t, out, tc.outBase64)
 
@@ -180,7 +181,7 @@ func BenchmarkDecodeAuthConfig(b *testing.B) {
 		b.Run(tc.doc, func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				_, err := DecodeAuthConfig(tc.inputBase64)
+				_, err := Decode(tc.inputBase64)
 				if !tc.invalid && err != nil {
 					b.Fatal(err)
 				}
