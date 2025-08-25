@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/swarm/runtime"
 )
 
 // TaskState represents the state of a task.
@@ -77,7 +76,7 @@ type TaskSpec struct {
 	// NetworkAttachmentSpec is used if the `Runtime` field is set to
 	// `attachment`.
 	ContainerSpec         *ContainerSpec         `json:",omitempty"`
-	PluginSpec            *runtime.PluginSpec    `json:",omitempty"`
+	PluginSpec            *RuntimeSpec           `json:",omitempty"`
 	NetworkAttachmentSpec *NetworkAttachmentSpec `json:",omitempty"`
 
 	Resources     *ResourceRequirements     `json:",omitempty"`
