@@ -253,23 +253,26 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 
 // verifyContainerSettings performs validation of the hostconfig and config
 // structures.
-func (daemon *Daemon) verifyContainerSettings(daemonCfg *configStore, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) (warnings []string, _ error) {
+func (daemon *Daemon) verifyContainerSettings(daemonCfg *configStore, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool, warnings *[]string) error {
 	// First perform verification of settings common across all platforms.
 	if err := validateContainerConfig(config); err != nil {
-		return nil, err
+		return err
 	}
 
 	warns, err := validateHostConfig(hostConfig)
-	warnings = append(warnings, warns...)
+	if warnings != nil {
+		*warnings = append(*warnings, warns...)
+	}
 	if err != nil {
-		return warnings, err
+		return err
 	}
 
 	// Now do platform-specific verification
 	warns, err = verifyPlatformContainerSettings(daemon, daemonCfg, hostConfig, update)
-	warnings = append(warnings, warns...)
-
-	return warnings, err
+	if warnings != nil {
+		*warnings = append(*warnings, warns...)
+	}
+	return err
 }
 
 func validateContainerConfig(config *containertypes.Config) error {
