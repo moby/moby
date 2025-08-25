@@ -2,10 +2,11 @@ package oci
 
 import (
 	"context"
+	"net/netip"
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/libnetwork/resolvconf"
+	"github.com/moby/buildkit/executor/oci/internal/resolvconf"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/sys/user"
@@ -76,41 +77,40 @@ func GetResolvConf(ctx context.Context, stateDir string, idmap *user.IdentityMap
 			return struct{}{}, nil
 		}
 
-		dt, err := os.ReadFile(resolvconfPath(netMode))
+		rc, err := resolvconf.Load(resolvconfPath(netMode))
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return struct{}{}, errors.WithStack(err)
 		}
 
-		tmpPath := p + ".tmp"
 		if dns != nil {
-			var (
-				dnsNameservers   = dns.Nameservers
-				dnsSearchDomains = dns.SearchDomains
-				dnsOptions       = dns.Options
-			)
-			if len(dns.Nameservers) == 0 {
-				dnsNameservers = resolvconf.GetNameservers(dt, resolvconf.IP)
+			if len(dns.Nameservers) > 0 {
+				var ns []netip.Addr
+				for _, addr := range dns.Nameservers {
+					ipAddr, err := netip.ParseAddr(addr)
+					if err != nil {
+						return struct{}{}, errors.WithStack(errors.Wrap(err, "bad nameserver address"))
+					}
+					ns = append(ns, ipAddr)
+				}
+				rc.OverrideNameServers(ns)
 			}
-			if len(dns.SearchDomains) == 0 {
-				dnsSearchDomains = resolvconf.GetSearchDomains(dt)
+			if len(dns.SearchDomains) > 0 {
+				rc.OverrideSearch(dns.SearchDomains)
 			}
-			if len(dns.Options) == 0 {
-				dnsOptions = resolvconf.GetOptions(dt)
+			if len(dns.Options) > 0 {
+				rc.OverrideOptions(dns.Options)
 			}
-
-			f, err := resolvconf.Build(tmpPath, dnsNameservers, dnsSearchDomains, dnsOptions)
-			if err != nil {
-				return struct{}{}, errors.WithStack(err)
-			}
-			dt = f.Content
 		}
 
-		if netMode != pb.NetMode_HOST || len(resolvconf.GetNameservers(dt, resolvconf.IP)) == 0 {
-			f, err := resolvconf.FilterResolvDNS(dt, true)
-			if err != nil {
-				return struct{}{}, errors.WithStack(err)
-			}
-			dt = f.Content
+		if netMode != pb.NetMode_HOST || len(rc.NameServers()) == 0 {
+			rc.TransformForLegacyNw(true)
+		}
+
+		tmpPath := p + ".tmp"
+
+		dt, err := rc.Generate(false)
+		if err != nil {
+			return struct{}{}, errors.WithStack(err)
 		}
 
 		if err := os.WriteFile(tmpPath, dt, 0644); err != nil {
@@ -124,6 +124,7 @@ func GetResolvConf(ctx context.Context, stateDir string, idmap *user.IdentityMap
 			}
 		}
 
+		// TODO(thaJeztah): can we avoid the write -> chown -> rename?
 		if err := os.Rename(tmpPath, p); err != nil {
 			return struct{}{}, errors.WithStack(err)
 		}

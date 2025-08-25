@@ -19,6 +19,7 @@ import (
 	"github.com/moby/buildkit/solver/llbsolver/ops/fileoptypes"
 	"github.com/moby/buildkit/solver/llbsolver/ops/opsutils"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/cachedigest"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
@@ -134,8 +135,12 @@ func (f *fileOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 		return nil, false, err
 	}
 
+	dgst, err := cachedigest.FromBytes(dt, cachedigest.TypeJSON)
+	if err != nil {
+		return nil, false, err
+	}
 	cm := &solver.CacheMap{
-		Digest: digest.FromBytes(dt),
+		Digest: dgst,
 		Deps: make([]struct {
 			Selector          digest.Digest
 			ComputeDigestFunc solver.ResultBasedCacheFunc
@@ -147,13 +152,17 @@ func (f *fileOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 		if _, ok := invalidSelectors[idx]; ok {
 			continue
 		}
-		dgsts := make([][]byte, 0, len(m))
+		paths := make([][]byte, 0, len(m))
 		for _, k := range m {
-			dgsts = append(dgsts, []byte(k.Path))
+			paths = append(paths, []byte(k.Path))
 		}
-		slices.SortFunc(dgsts, bytes.Compare)
-		slices.Reverse(dgsts) // historical reasons
-		cm.Deps[idx].Selector = digest.FromBytes(bytes.Join(dgsts, []byte{0}))
+		slices.SortFunc(paths, bytes.Compare)
+		slices.Reverse(paths) // historical reasons
+		dgst, err := cachedigest.FromBytes(bytes.Join(paths, []byte{0}), cachedigest.TypeStringList)
+		if err != nil {
+			return nil, false, err
+		}
+		cm.Deps[idx].Selector = dgst
 
 		cm.Deps[idx].ComputeDigestFunc = opsutils.NewContentHashFunc(dedupeSelectors(m))
 	}

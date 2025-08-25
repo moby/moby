@@ -12,7 +12,7 @@ type Config struct {
 	// Root is the path to a directory where buildkit will store persistent data
 	Root string `toml:"root"`
 
-	// Entitlements e.g. security.insecure, network.host
+	// Entitlements e.g. security.insecure, network.host, device
 	Entitlements []string `toml:"insecure-entitlements"`
 
 	// LogFormat is the format of the logs. It can be "json" or "text".

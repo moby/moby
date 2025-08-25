@@ -489,7 +489,7 @@ func (p *ProvenanceCreator) Predicate(ctx context.Context) (any, error) {
 	}
 
 	if p.slsaVersion == provenancetypes.ProvenanceSLSA1 {
-		return provenancetypes.ConvertSLSA02ToSLSA1(p.pr), nil
+		return p.pr.ConvertToSLSA1(), nil
 	}
 
 	return p.pr, nil
