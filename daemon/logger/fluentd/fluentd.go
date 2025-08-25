@@ -63,6 +63,8 @@ const (
 	// This allows fluentd to give up unhealthy connections and not be blocked forever
 	// when downstream connections get unhealthy.
 	writeTimeoutKey = "fluentd-write-timeout"
+	// readTimeoutKey can be used to specify the ReadTimeout config for fluentd connections.
+	readTimeoutKey = "fluentd-read-timeout"
 )
 
 func init() {
@@ -163,6 +165,8 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case subSecondPrecisionKey:
 		case writeTimeoutKey:
 			// Accepted
+		case readTimeoutKey:
+			// Accepted
 		default:
 			return errors.Errorf("unknown log opt '%s' for fluentd log driver", key)
 		}
@@ -260,6 +264,17 @@ func parseConfig(cfg map[string]string) (fluent.Config, error) {
 		}
 	}
 
+	readTimeout := time.Duration(0)
+	if cfg[readTimeoutKey] != "" {
+		if d, err := time.ParseDuration(cfg[readTimeoutKey]); err != nil {
+			return config, errors.Wrapf(err, "invalid value for %s: value must be a duration", readTimeoutKey)
+		} else if d < 0 {
+			return config, errors.Errorf("invalid value for %s: value must be a duration that is non-negative", readTimeoutKey)
+		} else {
+			readTimeout = d
+		}
+	}
+
 	config = fluent.Config{
 		FluentPort:             loc.port,
 		FluentHost:             loc.host,
@@ -274,6 +289,7 @@ func parseConfig(cfg map[string]string) (fluent.Config, error) {
 		RequestAck:             requestAck,
 		ForceStopAsyncSend:     async,
 		WriteTimeout:           writeTimeout,
+		ReadTimeout:            readTimeout,
 	}
 
 	return config, nil
