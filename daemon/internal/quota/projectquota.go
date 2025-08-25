@@ -54,6 +54,7 @@ import "C"
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -253,7 +254,7 @@ func (q *Control) GetQuota(targetPath string, quota *Quota) error {
 	projectID, ok := q.quotas[targetPath]
 	q.RUnlock()
 	if !ok {
-		return errors.Errorf("quota not found for path: %s", targetPath)
+		return fmt.Errorf("quota not found for path: %s", targetPath)
 	}
 
 	//
@@ -342,7 +343,7 @@ func (q *Control) findNextProjectID(home string, baseID uint32) error {
 
 	files, err := os.ReadDir(home)
 	if err != nil {
-		return errors.Errorf("read directory failed: %s", home)
+		return fmt.Errorf("read directory failed: %s", home)
 	}
 	for _, file := range files {
 		if !file.IsDir() {
@@ -358,7 +359,7 @@ func (q *Control) findNextProjectID(home string, baseID uint32) error {
 		}
 		subfiles, err := os.ReadDir(path)
 		if err != nil {
-			return errors.Errorf("read directory failed: %s", path)
+			return fmt.Errorf("read directory failed: %s", path)
 		}
 		for _, subfile := range subfiles {
 			if !subfile.IsDir() {
@@ -385,7 +386,7 @@ func openDir(path string) (*C.DIR, error) {
 
 	dir := C.opendir(Cpath)
 	if dir == nil {
-		return nil, errors.Errorf("failed to open dir: %s", path)
+		return nil, fmt.Errorf("failed to open dir: %s", path)
 	}
 	return dir, nil
 }

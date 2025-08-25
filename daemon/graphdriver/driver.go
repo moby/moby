@@ -114,7 +114,7 @@ type FileGetCloser interface {
 // Register registers an InitFunc for the driver.
 func Register(name string, initFunc InitFunc) error {
 	if _, exists := drivers[name]; exists {
-		return errors.Errorf("name already registered %s", name)
+		return fmt.Errorf("name already registered %s", name)
 	}
 	drivers[name] = initFunc
 
@@ -194,7 +194,7 @@ func New(driverName string, config Options) (Driver, error) {
 					driversSlice = append(driversSlice, d)
 				}
 
-				err = errors.Errorf("%s contains several valid graphdrivers: %s; cleanup or explicitly choose storage driver (-s <DRIVER>)", config.Root, strings.Join(driversSlice, ", "))
+				err = fmt.Errorf("%s contains several valid graphdrivers: %s; cleanup or explicitly choose storage driver (-s <DRIVER>)", config.Root, strings.Join(driversSlice, ", "))
 				log.G(ctx).Errorf("[graphdriver] %v", err)
 				return nil, err
 			}
@@ -229,7 +229,7 @@ func New(driverName string, config Options) (Driver, error) {
 		return driver, nil
 	}
 
-	return nil, errors.Errorf("no supported storage driver found")
+	return nil, errors.New("no supported storage driver found")
 }
 
 // HasPriorDriver returns true if any prior driver is found

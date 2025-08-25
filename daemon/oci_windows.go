@@ -546,10 +546,10 @@ func setupWindowsDevices(devices []containertypes.DeviceMapping) ([]specs.Window
 		} else {
 			idType, id, ok := strings.Cut(deviceMapping.PathOnHost, "://")
 			if !ok {
-				return nil, errors.Errorf("invalid device assignment path: '%s', must be 'class/ID' or 'IDType://ID'", deviceMapping.PathOnHost)
+				return nil, fmt.Errorf("invalid device assignment path: '%s', must be 'class/ID' or 'IDType://ID'", deviceMapping.PathOnHost)
 			}
 			if idType == "" {
-				return nil, errors.Errorf("invalid device assignment path: '%s', IDType cannot be empty", deviceMapping.PathOnHost)
+				return nil, fmt.Errorf("invalid device assignment path: '%s', IDType cannot be empty", deviceMapping.PathOnHost)
 			}
 			specDevices = append(specDevices, specs.WindowsDevice{
 				ID:     id,

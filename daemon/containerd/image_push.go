@@ -299,10 +299,10 @@ func (i *ImageService) getPushDescriptor(ctx context.Context, img c8dimages.Imag
 				return bestMatch.Target(), nil
 			}
 
-			return ocispec.Descriptor{}, errdefs.Conflict(errors.Errorf("multiple matching manifests found but no specific platform requested"))
+			return ocispec.Descriptor{}, errdefs.Conflict(errors.New("multiple matching manifests found but no specific platform requested"))
 		}
 
-		return ocispec.Descriptor{}, errdefs.Conflict(errors.Errorf("multiple manifests found for platform %s", platforms.FormatAll(*platform)))
+		return ocispec.Descriptor{}, errdefs.Conflict(fmt.Errorf("multiple manifests found for platform %s", platforms.FormatAll(*platform)))
 	}
 }
 
