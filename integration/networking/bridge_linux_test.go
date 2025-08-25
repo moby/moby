@@ -184,7 +184,17 @@ func TestBridgeICC(t *testing.T) {
 				Force: true,
 			})
 
+			out, err := exec.Command("iptables-save").CombinedOutput()
+			assert.NilError(t, err)
+			t.Logf("iptables-save:\n%s", out)
+
 			networking.FirewalldReload(t, d)
+
+			time.Sleep(2 * time.Second)
+
+			out, err = exec.Command("iptables-save").CombinedOutput()
+			assert.NilError(t, err)
+			t.Logf("iptables-save:\n%s", out)
 
 			pingHost := tc.pingHost
 			if pingHost == "" {
