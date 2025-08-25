@@ -11,9 +11,9 @@ import (
 )
 
 // NoTasksForService verifies that there are no more tasks for the given service
-func NoTasksForService(ctx context.Context, client client.ServiceAPIClient, serviceID string) func(log poll.LogT) poll.Result {
+func NoTasksForService(ctx context.Context, apiClient client.ServiceAPIClient, serviceID string) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		tasks, err := client.TaskList(ctx, swarmtypes.TaskListOptions{
+		tasks, err := apiClient.TaskList(ctx, client.TaskListOptions{
 			Filters: filters.NewArgs(
 				filters.Arg("service", serviceID),
 			),
@@ -33,9 +33,9 @@ func NoTasksForService(ctx context.Context, client client.ServiceAPIClient, serv
 }
 
 // NoTasks verifies that all tasks are gone
-func NoTasks(ctx context.Context, client client.ServiceAPIClient) func(log poll.LogT) poll.Result {
+func NoTasks(ctx context.Context, apiClient client.ServiceAPIClient) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		tasks, err := client.TaskList(ctx, swarmtypes.TaskListOptions{})
+		tasks, err := apiClient.TaskList(ctx, client.TaskListOptions{})
 		switch {
 		case err != nil:
 			return poll.Error(err)
@@ -48,11 +48,11 @@ func NoTasks(ctx context.Context, client client.ServiceAPIClient) func(log poll.
 }
 
 // RunningTasksCount verifies there are `instances` tasks running for `serviceID`
-func RunningTasksCount(ctx context.Context, client client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
+func RunningTasksCount(ctx context.Context, apiClient client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
 		filter := filters.NewArgs()
 		filter.Add("service", serviceID)
-		tasks, err := client.TaskList(ctx, swarmtypes.TaskListOptions{
+		tasks, err := apiClient.TaskList(ctx, client.TaskListOptions{
 			Filters: filter,
 		})
 		var running int
@@ -88,7 +88,7 @@ func RunningTasksCount(ctx context.Context, client client.ServiceAPIClient, serv
 // JobComplete is a poll function for determining that a ReplicatedJob is
 // completed additionally, while polling, it verifies that the job never
 // exceeds MaxConcurrent running tasks
-func JobComplete(ctx context.Context, client client.ServiceAPIClient, service swarmtypes.Service) func(log poll.LogT) poll.Result {
+func JobComplete(ctx context.Context, apiClient client.ServiceAPIClient, service swarmtypes.Service) func(log poll.LogT) poll.Result {
 	filter := filters.NewArgs(filters.Arg("service", service.ID))
 
 	var jobIteration swarmtypes.Version
@@ -101,7 +101,7 @@ func JobComplete(ctx context.Context, client client.ServiceAPIClient, service sw
 	previousResult := ""
 
 	return func(log poll.LogT) poll.Result {
-		tasks, err := client.TaskList(ctx, swarmtypes.TaskListOptions{
+		tasks, err := apiClient.TaskList(ctx, client.TaskListOptions{
 			Filters: filter,
 		})
 		if err != nil {

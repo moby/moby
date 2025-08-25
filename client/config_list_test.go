@@ -22,7 +22,7 @@ func TestConfigListUnsupported(t *testing.T) {
 		version: "1.29",
 		client:  &http.Client{},
 	}
-	_, err := client.ConfigList(context.Background(), swarm.ConfigListOptions{})
+	_, err := client.ConfigList(context.Background(), ConfigListOptions{})
 	assert.Check(t, is.Error(err, `"config list" requires API version 1.30, but the Docker daemon API version is 1.29`))
 }
 
@@ -32,7 +32,7 @@ func TestConfigListError(t *testing.T) {
 		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.ConfigList(context.Background(), swarm.ConfigListOptions{})
+	_, err := client.ConfigList(context.Background(), ConfigListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -40,17 +40,17 @@ func TestConfigList(t *testing.T) {
 	expectedURL := "/v1.30/configs"
 
 	listCases := []struct {
-		options             swarm.ConfigListOptions
+		options             ConfigListOptions
 		expectedQueryParams map[string]string
 	}{
 		{
-			options: swarm.ConfigListOptions{},
+			options: ConfigListOptions{},
 			expectedQueryParams: map[string]string{
 				"filters": "",
 			},
 		},
 		{
-			options: swarm.ConfigListOptions{
+			options: ConfigListOptions{
 				Filters: filters.NewArgs(
 					filters.Arg("label", "label1"),
 					filters.Arg("label", "label2"),

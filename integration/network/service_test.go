@@ -245,7 +245,7 @@ func TestServiceWithPredefinedNetwork(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, c, serviceID, instances), swarm.ServicePoll)
 
-	_, _, err := c.ServiceInspectWithRaw(ctx, serviceID, swarmtypes.ServiceInspectOptions{})
+	_, _, err := c.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
 	err = c.ServiceRemove(ctx, serviceID)
@@ -286,7 +286,7 @@ func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, c, serviceID, instances), swarm.ServicePoll)
 
-	_, _, err := c.ServiceInspectWithRaw(ctx, serviceID, swarmtypes.ServiceInspectOptions{})
+	_, _, err := c.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
 	err = c.ServiceRemove(ctx, serviceID)
@@ -331,9 +331,9 @@ func swarmIngressReady(ctx context.Context, apiClient client.NetworkAPIClient) f
 	}
 }
 
-func noServices(ctx context.Context, client client.ServiceAPIClient) func(log poll.LogT) poll.Result {
+func noServices(ctx context.Context, apiClient client.ServiceAPIClient) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		services, err := client.ServiceList(ctx, swarmtypes.ServiceListOptions{})
+		services, err := apiClient.ServiceList(ctx, client.ServiceListOptions{})
 		switch {
 		case err != nil:
 			return poll.Error(err)
@@ -440,7 +440,7 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, cli, serviceID, instances), swarm.ServicePoll)
 
-	_, _, err := cli.ServiceInspectWithRaw(ctx, serviceID, swarmtypes.ServiceInspectOptions{})
+	_, _, err := cli.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
 	out, err := cli.NetworkInspect(ctx, overlayID, client.NetworkInspectOptions{Verbose: true})

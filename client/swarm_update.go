@@ -9,7 +9,7 @@ import (
 )
 
 // SwarmUpdate updates the swarm.
-func (cli *Client) SwarmUpdate(ctx context.Context, version swarm.Version, swarm swarm.Spec, flags swarm.UpdateFlags) error {
+func (cli *Client) SwarmUpdate(ctx context.Context, version swarm.Version, swarm swarm.Spec, flags SwarmUpdateFlags) error {
 	query := url.Values{}
 	query.Set("version", version.String())
 	query.Set("rotateWorkerToken", strconv.FormatBool(flags.RotateWorkerToken))

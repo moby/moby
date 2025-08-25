@@ -13,6 +13,7 @@ import (
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
+	"github.com/moby/moby/v2/daemon/server/swarmbackend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 )
@@ -81,7 +82,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 		return errdefs.InvalidParameter(err)
 	}
 
-	var flags types.UpdateFlags
+	var flags swarmbackend.UpdateFlags
 
 	if value := r.URL.Query().Get("rotateWorkerToken"); value != "" {
 		rot, err := strconv.ParseBool(value)
@@ -165,7 +166,7 @@ func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r
 		}
 	}
 
-	services, err := sr.backend.GetServices(types.ServiceListOptions{Filters: filter, Status: status})
+	services, err := sr.backend.GetServices(swarmbackend.ServiceListOptions{Filters: filter, Status: status})
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error getting services")
 		return err
@@ -244,7 +245,7 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 		return errdefs.InvalidParameter(err)
 	}
 
-	var flags types.ServiceUpdateOptions
+	var flags swarmbackend.ServiceUpdateOptions
 
 	// Get returns "" if the header does not exist
 	flags.EncodedRegistryAuth = r.Header.Get(registry.AuthHeader)
@@ -313,7 +314,7 @@ func (sr *swarmRouter) getNodes(ctx context.Context, w http.ResponseWriter, r *h
 		return err
 	}
 
-	nodes, err := sr.backend.GetNodes(types.NodeListOptions{Filters: filter})
+	nodes, err := sr.backend.GetNodes(swarmbackend.NodeListOptions{Filters: filter})
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error getting nodes")
 		return err
@@ -384,7 +385,7 @@ func (sr *swarmRouter) getTasks(ctx context.Context, w http.ResponseWriter, r *h
 		return err
 	}
 
-	tasks, err := sr.backend.GetTasks(types.TaskListOptions{Filters: filter})
+	tasks, err := sr.backend.GetTasks(swarmbackend.TaskListOptions{Filters: filter})
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error getting tasks")
 		return err
@@ -486,7 +487,7 @@ func (sr *swarmRouter) getConfigs(ctx context.Context, w http.ResponseWriter, r 
 		return err
 	}
 
-	configs, err := sr.backend.GetConfigs(types.ConfigListOptions{Filters: filters})
+	configs, err := sr.backend.GetConfigs(swarmbackend.ConfigListOptions{Filters: filters})
 	if err != nil {
 		return err
 	}

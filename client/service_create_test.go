@@ -24,7 +24,7 @@ func TestServiceCreateError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ServiceCreate(context.Background(), swarm.ServiceSpec{}, swarm.ServiceCreateOptions{})
+	_, err := client.ServiceCreate(context.Background(), swarm.ServiceSpec{}, ServiceCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -36,7 +36,7 @@ func TestServiceCreateConnectionError(t *testing.T) {
 	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
-	_, err = client.ServiceCreate(context.Background(), swarm.ServiceSpec{}, swarm.ServiceCreateOptions{})
+	_, err = client.ServiceCreate(context.Background(), swarm.ServiceSpec{}, ServiceCreateOptions{})
 	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
 
@@ -63,7 +63,7 @@ func TestServiceCreate(t *testing.T) {
 		}),
 	}
 
-	r, err := client.ServiceCreate(context.Background(), swarm.ServiceSpec{}, swarm.ServiceCreateOptions{})
+	r, err := client.ServiceCreate(context.Background(), swarm.ServiceSpec{}, ServiceCreateOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(r.ID, "service_id"))
 }
@@ -122,7 +122,7 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 
 	spec := swarm.ServiceSpec{TaskTemplate: swarm.TaskSpec{ContainerSpec: &swarm.ContainerSpec{Image: "foobar:1.0"}}}
 
-	r, err := client.ServiceCreate(context.Background(), spec, swarm.ServiceCreateOptions{QueryRegistry: true})
+	r, err := client.ServiceCreate(context.Background(), spec, ServiceCreateOptions{QueryRegistry: true})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal("service_linux_amd64", r.ID))
 }
@@ -201,7 +201,7 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 					Image: p.img,
 				},
 			},
-		}, swarm.ServiceCreateOptions{QueryRegistry: true})
+		}, ServiceCreateOptions{QueryRegistry: true})
 		assert.NilError(t, err)
 
 		assert.Check(t, is.Equal(r.ID, "service_id"))

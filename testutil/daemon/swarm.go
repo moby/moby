@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/client"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 )
@@ -177,7 +178,7 @@ func (d *Daemon) UpdateSwarm(t testing.TB, f ...SpecConstructor) {
 		fn(&sw.Spec)
 	}
 
-	err := cli.SwarmUpdate(context.Background(), sw.Version, sw.Spec, swarm.UpdateFlags{})
+	err := cli.SwarmUpdate(context.Background(), sw.Version, sw.Spec, client.SwarmUpdateFlags{})
 	assert.NilError(t, err)
 }
 
@@ -190,7 +191,7 @@ func (d *Daemon) RotateTokens(t testing.TB) {
 	sw, err := cli.SwarmInspect(context.Background())
 	assert.NilError(t, err)
 
-	flags := swarm.UpdateFlags{
+	flags := client.SwarmUpdateFlags{
 		RotateManagerToken: true,
 		RotateWorkerToken:  true,
 	}

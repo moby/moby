@@ -5,13 +5,14 @@ import (
 
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/cluster/convert"
+	"github.com/moby/moby/v2/daemon/server/swarmbackend"
 	"github.com/moby/moby/v2/errdefs"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"google.golang.org/grpc"
 )
 
 // GetNodes returns a list of all nodes known to a cluster.
-func (c *Cluster) GetNodes(options types.NodeListOptions) ([]types.Node, error) {
+func (c *Cluster) GetNodes(options swarmbackend.NodeListOptions) ([]types.Node, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 

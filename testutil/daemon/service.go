@@ -7,13 +7,14 @@ import (
 
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 )
 
 // ServiceConstructor defines a swarm service constructor function
 type ServiceConstructor func(*swarm.Service)
 
-func (d *Daemon) createServiceWithOptions(ctx context.Context, t testing.TB, opts swarm.ServiceCreateOptions, f ...ServiceConstructor) string {
+func (d *Daemon) createServiceWithOptions(ctx context.Context, t testing.TB, opts client.ServiceCreateOptions, f ...ServiceConstructor) string {
 	t.Helper()
 	var service swarm.Service
 	for _, fn := range f {
@@ -34,7 +35,7 @@ func (d *Daemon) createServiceWithOptions(ctx context.Context, t testing.TB, opt
 // CreateService creates a swarm service given the specified service constructor
 func (d *Daemon) CreateService(ctx context.Context, t testing.TB, f ...ServiceConstructor) string {
 	t.Helper()
-	return d.createServiceWithOptions(ctx, t, swarm.ServiceCreateOptions{}, f...)
+	return d.createServiceWithOptions(ctx, t, client.ServiceCreateOptions{}, f...)
 }
 
 // GetService returns the swarm service corresponding to the specified id
@@ -43,7 +44,7 @@ func (d *Daemon) GetService(ctx context.Context, t testing.TB, id string) *swarm
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	service, _, err := cli.ServiceInspectWithRaw(ctx, id, swarm.ServiceInspectOptions{})
+	service, _, err := cli.ServiceInspectWithRaw(ctx, id, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
 	return &service
 }
@@ -62,7 +63,7 @@ func (d *Daemon) GetServiceTasks(ctx context.Context, t testing.TB, service stri
 		filterArgs.Add(filter.Key, filter.Value)
 	}
 
-	options := swarm.TaskListOptions{
+	options := client.TaskListOptions{
 		Filters: filterArgs,
 	}
 
@@ -81,7 +82,7 @@ func (d *Daemon) UpdateService(ctx context.Context, t testing.TB, service *swarm
 		fn(service)
 	}
 
-	_, err := cli.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, swarm.ServiceUpdateOptions{})
+	_, err := cli.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, client.ServiceUpdateOptions{})
 	assert.NilError(t, err)
 }
 
@@ -101,7 +102,7 @@ func (d *Daemon) ListServices(ctx context.Context, t testing.TB) []swarm.Service
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	services, err := cli.ServiceList(ctx, swarm.ServiceListOptions{})
+	services, err := cli.ServiceList(ctx, client.ServiceListOptions{})
 	assert.NilError(t, err)
 	return services
 }

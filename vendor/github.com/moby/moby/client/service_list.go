@@ -10,7 +10,7 @@ import (
 )
 
 // ServiceList returns the list of services.
-func (cli *Client) ServiceList(ctx context.Context, options swarm.ServiceListOptions) ([]swarm.Service, error) {
+func (cli *Client) ServiceList(ctx context.Context, options ServiceListOptions) ([]swarm.Service, error) {
 	query := url.Values{}
 
 	if options.Filters.Len() > 0 {
