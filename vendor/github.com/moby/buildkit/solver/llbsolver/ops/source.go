@@ -10,6 +10,7 @@ import (
 	"github.com/moby/buildkit/solver/llbsolver/ops/opsutils"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/source"
+	"github.com/moby/buildkit/util/cachedigest"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	"golang.org/x/sync/semaphore"
@@ -88,7 +89,10 @@ func (s *SourceOp) CacheMap(ctx context.Context, g session.Group, index int) (*s
 		s.pin = pin
 	}
 
-	dgst := digest.FromBytes([]byte(sourceCacheType + ":" + k))
+	dgst, err := cachedigest.FromBytes([]byte(sourceCacheType+":"+k), cachedigest.TypeString)
+	if err != nil {
+		return nil, false, err
+	}
 	if strings.HasPrefix(k, "session:") {
 		dgst = digest.Digest("random:" + dgst.Encoded())
 	}

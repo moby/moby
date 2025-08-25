@@ -5,7 +5,7 @@ import (
 	"net/netip"
 	"sync"
 
-	"github.com/containerd/log"
+	"github.com/moby/buildkit/util/bklog"
 )
 
 const (
@@ -49,7 +49,7 @@ func Path() string {
 		ns := rc.nameServers
 		if len(ns) == 1 && ns[0] == netip.MustParseAddr("127.0.0.53") {
 			pathAfterSystemdDetection = alternatePath
-			log.G(context.TODO()).Infof("detected 127.0.0.53 nameserver, assuming systemd-resolved, so using resolv.conf: %s", alternatePath)
+			bklog.G(context.TODO()).Infof("detected 127.0.0.53 nameserver, assuming systemd-resolved, so using resolv.conf: %s", alternatePath)
 		}
 	})
 	return pathAfterSystemdDetection

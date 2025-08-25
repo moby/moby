@@ -29,6 +29,7 @@ import (
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/contentutil"
+	"github.com/moby/buildkit/util/errutil"
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/push"
@@ -358,10 +359,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 				if err != nil {
 					var statusErr remoteserrors.ErrUnexpectedStatus
 					if errors.As(err, &statusErr) {
-						var dErr docker.Errors
-						if err1 := json.Unmarshal(statusErr.Body, &dErr); err1 == nil && len(dErr) > 0 {
-							err = &formattedDockerError{dErr: dErr}
-						}
+						err = errutil.WithDetails(err)
 					}
 					return nil, nil, errors.Wrapf(err, "failed to push %v", targetName)
 				}
@@ -549,37 +547,4 @@ func (d *descriptorReference) Descriptor() ocispecs.Descriptor {
 
 func (d *descriptorReference) Release() error {
 	return d.release(context.TODO())
-}
-
-type formattedDockerError struct {
-	dErr docker.Errors
-}
-
-func (e *formattedDockerError) Error() string {
-	format := func(err error) string {
-		out := err.Error()
-		var dErr docker.Error
-		if errors.As(err, &dErr) {
-			if v, ok := dErr.Detail.(string); ok && v != "" {
-				out += " - " + v
-			}
-		}
-		return out
-	}
-	switch len(e.dErr) {
-	case 0:
-		return "<nil>"
-	case 1:
-		return format(e.dErr[0])
-	default:
-		msg := "errors:\n"
-		for _, err := range e.dErr {
-			msg += format(err) + "\n"
-		}
-		return msg
-	}
-}
-
-func (e *formattedDockerError) Unwrap() error {
-	return e.dErr
 }

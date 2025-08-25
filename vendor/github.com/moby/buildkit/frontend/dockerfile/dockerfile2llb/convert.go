@@ -21,10 +21,10 @@ import (
 
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	"github.com/docker/go-connections/nat"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/client/llb/imagemetaresolver"
 	"github.com/moby/buildkit/client/llb/sourceresolver"
+	"github.com/moby/buildkit/frontend/dockerfile/dfgitutil"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/linter"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
@@ -36,7 +36,6 @@ import (
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
-	"github.com/moby/buildkit/util/gitutil"
 	"github.com/moby/buildkit/util/suggest"
 	"github.com/moby/buildkit/util/system"
 	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
@@ -407,7 +406,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 	for _, d := range allDispatchStates.states {
 		d.commands = make([]command, len(d.stage.Commands))
 		for i, cmd := range d.stage.Commands {
-			newCmd, err := toCommand(cmd, allDispatchStates)
+			newCmd, err := toCommand(cmd, allDispatchStates, shlex)
 			if err != nil {
 				return nil, err
 			}
@@ -484,8 +483,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 								d.dispatched = true
 								d.state = *st
 								if img != nil {
-									// timestamps are inherited as-is, regardless to SOURCE_DATE_EPOCH
-									// https://github.com/moby/buildkit/issues/4614
+									img.Created = nil
 									d.image = *img
 									if img.Architecture != "" && img.OS != "" {
 										d.platform = &ocispecs.Platform{
@@ -516,11 +514,13 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 								if err != nil {
 									return err
 								}
-								if img != nil {
-									d.image = *img
-								} else {
-									d.image = emptyImage(platformOpt.targetPlatform)
+								if img == nil {
+									imgp := emptyImage(*platform)
+									img = &imgp
 								}
+								d.baseImg = cloneX(img) // immutable
+								img.Created = nil
+								d.image = *img
 								d.state = st.Platform(*platform)
 								d.platform = platform
 								return nil
@@ -628,7 +628,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 			}
 
 			if len(onbuilds) > 0 {
-				if b, err := initOnBuildTriggers(d, onbuilds, allDispatchStates); err != nil {
+				if b, err := initOnBuildTriggers(d, onbuilds, allDispatchStates, shlex); err != nil {
 					return nil, parser.SetLocation(err, d.stage.Location)
 				} else if b {
 					newDeps = true
@@ -815,10 +815,17 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 	return target, nil
 }
 
-func toCommand(ic instructions.Command, allDispatchStates *dispatchStates) (command, error) {
+func toCommand(ic instructions.Command, allDispatchStates *dispatchStates, shlex *shell.Lex) (command, error) {
 	cmd := command{Command: ic}
 	if c, ok := ic.(*instructions.CopyCommand); ok {
 		if c.From != "" {
+			res, err := shlex.ProcessWordWithMatches(c.From, shell.EnvsFromSlice(nil))
+			if err != nil {
+				return command{}, err
+			}
+			if res.Result != c.From {
+				return command{}, errors.Errorf("variable expansion is not supported for --from, define a new stage with FROM using ARG from global scope as a workaround")
+			}
 			var stn *dispatchState
 			index, err := strconv.Atoi(c.From)
 			if err != nil {
@@ -971,7 +978,7 @@ func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 	case *instructions.HealthCheckCommand:
 		err = dispatchHealthcheck(d, c, opt.lint)
 	case *instructions.ExposeCommand:
-		err = dispatchExpose(d, c, opt.shlex)
+		err = dispatchExpose(d, c, &opt)
 	case *instructions.UserCommand:
 		err = dispatchUser(d, c, true)
 	case *instructions.VolumeCommand:
@@ -1148,7 +1155,7 @@ type command struct {
 
 // initOnBuildTriggers initializes the onbuild triggers and creates the commands and dependecies for them.
 // It returns true if there were any new dependencies added that need to be resolved.
-func initOnBuildTriggers(d *dispatchState, triggers []string, allDispatchStates *dispatchStates) (bool, error) {
+func initOnBuildTriggers(d *dispatchState, triggers []string, allDispatchStates *dispatchStates, shlex *shell.Lex) (bool, error) {
 	hasNewDeps := false
 	commands := make([]command, 0, len(triggers))
 
@@ -1167,7 +1174,7 @@ func initOnBuildTriggers(d *dispatchState, triggers []string, allDispatchStates 
 		if err != nil {
 			return false, err
 		}
-		cmd, err := toCommand(ic, allDispatchStates)
+		cmd, err := toCommand(ic, allDispatchStates, shlex)
 		if err != nil {
 			return false, err
 		}
@@ -1500,7 +1507,7 @@ func dispatchCopy(d *dispatchState, cfg copyConfig) error {
 
 	for _, src := range cfg.params.SourcePaths {
 		commitMessage.WriteString(" " + src)
-		gitRef, gitRefErr := gitutil.ParseGitRef(src)
+		gitRef, gitRefErr := dfgitutil.ParseGitRef(src)
 		if gitRefErr == nil && !gitRef.IndistinguishableFromLocal {
 			if !cfg.isAddCommand {
 				return errors.New("source can't be a git ref for COPY")
@@ -1770,33 +1777,6 @@ func dispatchHealthcheck(d *dispatchState, c *instructions.HealthCheckCommand, l
 		Retries:       c.Health.Retries,
 	}
 	return commitToHistory(&d.image, fmt.Sprintf("HEALTHCHECK %q", d.image.Config.Healthcheck), false, nil, d.epoch)
-}
-
-func dispatchExpose(d *dispatchState, c *instructions.ExposeCommand, shlex *shell.Lex) error {
-	ports := []string{}
-	env := getEnv(d.state)
-	for _, p := range c.Ports {
-		ps, err := shlex.ProcessWords(p, env)
-		if err != nil {
-			return err
-		}
-		ports = append(ports, ps...)
-	}
-	c.Ports = ports
-
-	ps, _, err := nat.ParsePortSpecs(c.Ports)
-	if err != nil {
-		return err
-	}
-
-	if d.image.Config.ExposedPorts == nil {
-		d.image.Config.ExposedPorts = make(map[string]struct{})
-	}
-	for p := range ps {
-		d.image.Config.ExposedPorts[string(p)] = struct{}{}
-	}
-
-	return commitToHistory(&d.image, fmt.Sprintf("EXPOSE %v", ps), false, nil, d.epoch)
 }
 
 func dispatchUser(d *dispatchState, c *instructions.UserCommand, commit bool) error {
@@ -2288,7 +2268,7 @@ func isHTTPSource(src string) bool {
 
 func isGitSource(src string) bool {
 	// https://github.com/ORG/REPO.git is a git source, not an http source
-	if gitRef, gitErr := gitutil.ParseGitRef(src); gitRef != nil && gitErr == nil {
+	if gitRef, gitErr := dfgitutil.ParseGitRef(src); gitRef != nil && gitErr == nil {
 		return true
 	}
 	return false
