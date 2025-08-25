@@ -5,6 +5,7 @@ package iptables
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -186,10 +187,26 @@ func checkRunning() bool {
 	return err == nil
 }
 
+func dumpCallers() string {
+	pc := make([]uintptr, 10)
+	runtime.Callers(0, pc)
+	frames := runtime.CallersFrames(pc)
+
+	var sb strings.Builder
+	for {
+		frame, more := frames.Next()
+		sb.WriteString(fmt.Sprintf("%s\n\t%s:%d\n", frame.Function, frame.File, frame.Line))
+		if !more {
+			break
+		}
+	}
+	return sb.String()
+}
+
 // passthrough method simply passes args through to iptables/ip6tables
 func passthrough(ipv IPVersion, args ...string) ([]byte, error) {
 	var output string
-	log.G(context.TODO()).Debugf("Firewalld passthrough: %s, %s", ipv, args)
+	log.G(context.TODO()).Debugf("Firewalld passthrough: %s, %s\nCallers:\n%s", ipv, args, dumpCallers())
 	if err := connection.sysObj.Call(dbusInterface+".direct.passthrough", 0, ipv, args).Store(&output); err != nil {
 		return nil, err
 	}

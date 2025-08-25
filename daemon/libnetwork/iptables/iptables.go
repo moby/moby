@@ -173,11 +173,14 @@ func (iptable IPTable) NewChain(name string, table Table) (*ChainInfo, error) {
 	}
 	// Add chain if it doesn't exist
 	if _, err := iptable.Raw("-t", string(table), "-n", "-L", name); err != nil {
+		log.G(context.Background()).Debugf("chain %s doesn't exist, trying to create", name)
 		if output, err := iptable.Raw("-t", string(table), "-N", name); err != nil {
 			return nil, err
 		} else if len(output) != 0 {
 			return nil, fmt.Errorf("could not create %s/%s chain: %s", table, name, output)
 		}
+	} else {
+		log.G(context.Background()).Debugf("chain %s already exists", name)
 	}
 	return &ChainInfo{
 		Name:      name,
@@ -266,6 +269,7 @@ func (c *ChainInfo) Output(action Action, args ...string) error {
 
 // Remove removes the chain.
 func (c *ChainInfo) Remove() error {
+	log.G(context.Background()).Infof("removing chain %s-%s", c.Table, c.Name)
 	// Ignore errors - This could mean the chains were never set up
 	if c.Table == Nat {
 		_ = c.Prerouting(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "-j", c.Name)
@@ -434,12 +438,33 @@ func (iptable IPTable) AddReturnRule(table Table, chain string) error {
 }
 
 // EnsureJumpRule ensures the jump rule is on top
-func (iptable IPTable) EnsureJumpRule(table Table, fromChain, toChain string, rule ...string) error {
+func (iptable IPTable) EnsureJumpRule(table Table, fromChain, toChain string, rule ...string) (retErr error) {
+	log.G(context.Background()).Debugf("EnsureJumpRule %s %s -> %s %v", table, fromChain, toChain, rule)
+
 	if err := iptable.DeleteJumpRule(table, fromChain, toChain, rule...); err != nil {
 		return err
 	}
+
+	var before, after []byte
+	defer func() {
+		if retErr != nil {
+			log.G(context.Background()).Debugf("EnsureJumpRule %s %s -> %s %v FAILED: %v\nbefore:\n%s\nafter:\n%s", table, fromChain, toChain, rule, retErr, before, after)
+		}
+	}()
+
+	var err error
+	before, err = exec.Command("iptables-save").CombinedOutput()
+	if err != nil {
+		return err
+	}
+
 	rule = append(rule, "-j", toChain)
 	if err := iptable.RawCombinedOutput(append([]string{"-t", string(table), "-I", fromChain}, rule...)...); err != nil {
+		after, err = exec.Command("iptables-save").CombinedOutput()
+		if err != nil {
+			return err
+		}
+
 		return fmt.Errorf("unable to insert jump to %s rule in %s chain: %v", toChain, fromChain, err)
 	}
 	return nil

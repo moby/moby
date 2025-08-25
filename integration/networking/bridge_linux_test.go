@@ -164,6 +164,10 @@ func TestBridgeICC(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 
+			out, err := exec.Command("iptables-save").CombinedOutput()
+			assert.NilError(t, err)
+			t.Logf("[%s] iptables-save:\n%s", t.Name(), out)
+
 			bridgeName := fmt.Sprintf("testnet-icc-%d", tcID)
 			network.CreateNoError(ctx, t, c, bridgeName, append(tc.bridgeOpts,
 				network.WithDriver("bridge"),
@@ -184,7 +188,17 @@ func TestBridgeICC(t *testing.T) {
 				Force: true,
 			})
 
+			out, err = exec.Command("iptables-save").CombinedOutput()
+			assert.NilError(t, err)
+			t.Logf("[%s] iptables-save:\n%s", t.Name(), out)
+
 			networking.FirewalldReload(t, d)
+
+			time.Sleep(2 * time.Second)
+
+			out, err = exec.Command("iptables-save").CombinedOutput()
+			assert.NilError(t, err)
+			t.Logf("[%s] iptables-save:\n%s", t.Name(), out)
 
 			pingHost := tc.pingHost
 			if pingHost == "" {

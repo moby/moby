@@ -5,6 +5,7 @@ package iptabler
 import (
 	"context"
 	"fmt"
+	"os/exec"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
@@ -52,8 +53,21 @@ func NewIptabler(ctx context.Context, config firewaller.Config) (*Iptabler, erro
 		// Make sure on firewall reload, first thing being re-played is chains creation
 		iptables.OnReloaded(func() {
 			log.G(ctx).Debugf("Recreating iptables chains on firewall reload")
+
+			out, err := exec.Command("iptables-save").CombinedOutput()
+			if err != nil {
+				log.G(ctx).WithError(err).Errorf("Error running iptables-save")
+			}
+			log.G(ctx).Debugf("iptables-save:\n%s", out)
+
 			if err := setupIPChains(ctx, iptables.IPv4, ipt.config); err != nil {
 				log.G(ctx).WithError(err).Error("Error reloading iptables chains")
+
+				out, err = exec.Command("iptables-save").CombinedOutput()
+				if err != nil {
+					log.G(ctx).WithError(err).Errorf("Error running iptables-save")
+				}
+				log.G(ctx).Debugf("iptables-save (post err):\n%s", out)
 			}
 		})
 	}
@@ -151,6 +165,7 @@ func setupIPChains(ctx context.Context, version iptables.IPVersion, iptCfg firew
 	}
 	defer func() {
 		if retErr != nil {
+			log.G(ctx).Debugf("cleaning up iptables chain %s after err: %v", DockerForwardChain, retErr)
 			if err := iptable.RemoveExistingChain(DockerForwardChain, iptables.Filter); err != nil {
 				log.G(ctx).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", DockerForwardChain, err)
 			}
