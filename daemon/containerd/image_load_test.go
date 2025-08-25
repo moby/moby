@@ -15,8 +15,8 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
 	"github.com/moby/go-archive"
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/internal/testutils/labelstore"
 	"github.com/moby/moby/v2/internal/testutils/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -55,10 +55,10 @@ func TestImageLoad(t *testing.T) {
 
 	cleanup := func(ctx context.Context, t *testing.T) {
 		// Remove all existing images to start fresh
-		images, err := imgSvc.Images(ctx, image.ListOptions{})
+		images, err := imgSvc.Images(ctx, imagebackend.ListOptions{})
 		assert.NilError(t, err)
 		for _, img := range images {
-			_, err := imgSvc.ImageDelete(ctx, img.ID, image.RemoveOptions{PruneChildren: true})
+			_, err := imgSvc.ImageDelete(ctx, img.ID, imagebackend.RemoveOptions{PruneChildren: true})
 			assert.NilError(t, err)
 		}
 

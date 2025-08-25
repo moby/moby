@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/registry"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -20,7 +19,7 @@ func TestImageCreateError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ImageCreate(context.Background(), "reference", image.CreateOptions{})
+	_, err := client.ImageCreate(context.Background(), "reference", ImageCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -61,7 +60,7 @@ func TestImageCreate(t *testing.T) {
 		}),
 	}
 
-	createResponse, err := client.ImageCreate(context.Background(), specifiedReference, image.CreateOptions{
+	createResponse, err := client.ImageCreate(context.Background(), specifiedReference, ImageCreateOptions{
 		RegistryAuth: expectedRegistryAuth,
 	})
 	assert.NilError(t, err)

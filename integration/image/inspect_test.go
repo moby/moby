@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
 	iimage "github.com/moby/moby/v2/integration/internal/image"
 	"github.com/moby/moby/v2/internal/testutils/specialimage"
@@ -55,7 +54,7 @@ func TestImageInspectUniqueRepoDigests(t *testing.T) {
 		err := apiClient.ImageTag(ctx, "busybox", imgName)
 		assert.NilError(t, err)
 		defer func() {
-			_, _ = apiClient.ImageRemove(ctx, imgName, image.RemoveOptions{Force: true})
+			_, _ = apiClient.ImageRemove(ctx, imgName, client.ImageRemoveOptions{Force: true})
 		}()
 	}
 

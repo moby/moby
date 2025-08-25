@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/image"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -19,7 +18,7 @@ func TestImageImportError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ImageImport(context.Background(), image.ImportSource{}, "image:tag", image.ImportOptions{})
+	_, err := client.ImageImport(context.Background(), ImageImportSource{}, "image:tag", ImageImportOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -30,7 +29,7 @@ func TestImageImport(t *testing.T) {
 	)
 	tests := []struct {
 		doc                 string
-		options             image.ImportOptions
+		options             ImageImportOptions
 		expectedQueryParams url.Values
 	}{
 		{
@@ -42,7 +41,7 @@ func TestImageImport(t *testing.T) {
 		},
 		{
 			doc: "change options",
-			options: image.ImportOptions{
+			options: ImageImportOptions{
 				Tag:     "imported",
 				Message: "A message",
 				Changes: []string{"change1", "change2"},
@@ -57,7 +56,7 @@ func TestImageImport(t *testing.T) {
 		},
 		{
 			doc: "with platform",
-			options: image.ImportOptions{
+			options: ImageImportOptions{
 				Platform: "linux/amd64",
 			},
 			expectedQueryParams: url.Values{
@@ -80,7 +79,7 @@ func TestImageImport(t *testing.T) {
 					}, nil
 				}),
 			}
-			resp, err := client.ImageImport(context.Background(), image.ImportSource{
+			resp, err := client.ImageImport(context.Background(), ImageImportSource{
 				Source:     strings.NewReader("source"),
 				SourceName: "image_source",
 			}, "repository_name:imported", tc.options)

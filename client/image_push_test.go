@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/registry"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -24,10 +23,10 @@ func TestImagePushReferenceError(t *testing.T) {
 		}),
 	}
 	// An empty reference is an invalid reference
-	_, err := client.ImagePush(context.Background(), "", image.PushOptions{})
+	_, err := client.ImagePush(context.Background(), "", ImagePushOptions{})
 	assert.Check(t, is.ErrorContains(err, "invalid reference format"))
 	// An canonical reference cannot be pushed
-	_, err = client.ImagePush(context.Background(), "repo@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", image.PushOptions{})
+	_, err = client.ImagePush(context.Background(), "repo@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", ImagePushOptions{})
 	assert.Check(t, is.Error(err, "cannot push a digest reference"))
 }
 
@@ -35,7 +34,7 @@ func TestImagePushAnyError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ImagePush(context.Background(), "myimage", image.PushOptions{})
+	_, err := client.ImagePush(context.Background(), "myimage", ImagePushOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -43,7 +42,7 @@ func TestImagePushStatusUnauthorizedError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
-	_, err := client.ImagePush(context.Background(), "myimage", image.PushOptions{})
+	_, err := client.ImagePush(context.Background(), "myimage", ImagePushOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsUnauthorized))
 }
 
@@ -54,7 +53,7 @@ func TestImagePushWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 	privilegeFunc := func(_ context.Context) (string, error) {
 		return "", errors.New("Error requesting privilege")
 	}
-	_, err := client.ImagePush(context.Background(), "myimage", image.PushOptions{
+	_, err := client.ImagePush(context.Background(), "myimage", ImagePushOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
 	assert.Check(t, is.Error(err, "Error requesting privilege"))
@@ -67,7 +66,7 @@ func TestImagePushWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T)
 	privilegeFunc := func(_ context.Context) (string, error) {
 		return "a-auth-header", nil
 	}
-	_, err := client.ImagePush(context.Background(), "myimage", image.PushOptions{
+	_, err := client.ImagePush(context.Background(), "myimage", ImagePushOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsUnauthorized))
@@ -103,7 +102,7 @@ func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
 			}, nil
 		}),
 	}
-	resp, err := client.ImagePush(context.Background(), "myname/myimage:tag", image.PushOptions{
+	resp, err := client.ImagePush(context.Background(), "myname/myimage:tag", ImagePushOptions{
 		RegistryAuth:  invalidAuth,
 		PrivilegeFunc: staticAuth(validAuth),
 	})
@@ -193,7 +192,7 @@ func TestImagePushWithoutErrors(t *testing.T) {
 					}, nil
 				}),
 			}
-			resp, err := client.ImagePush(context.Background(), tc.reference, image.PushOptions{
+			resp, err := client.ImagePush(context.Background(), tc.reference, ImagePushOptions{
 				All: tc.all,
 			})
 			assert.NilError(t, err)

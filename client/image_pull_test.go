@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/registry"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -24,7 +23,7 @@ func TestImagePullReferenceParseError(t *testing.T) {
 		}),
 	}
 	// An empty reference is an invalid reference
-	_, err := client.ImagePull(context.Background(), "", image.PullOptions{})
+	_, err := client.ImagePull(context.Background(), "", ImagePullOptions{})
 	assert.Check(t, is.ErrorContains(err, "invalid reference format"))
 }
 
@@ -32,7 +31,7 @@ func TestImagePullAnyError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ImagePull(context.Background(), "myimage", image.PullOptions{})
+	_, err := client.ImagePull(context.Background(), "myimage", ImagePullOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -40,7 +39,7 @@ func TestImagePullStatusUnauthorizedError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
-	_, err := client.ImagePull(context.Background(), "myimage", image.PullOptions{})
+	_, err := client.ImagePull(context.Background(), "myimage", ImagePullOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsUnauthorized))
 }
 
@@ -48,7 +47,7 @@ func TestImagePullWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
-	_, err := client.ImagePull(context.Background(), "myimage", image.PullOptions{
+	_, err := client.ImagePull(context.Background(), "myimage", ImagePullOptions{
 		PrivilegeFunc: func(_ context.Context) (string, error) {
 			return "", errors.New("error requesting privilege")
 		},
@@ -60,7 +59,7 @@ func TestImagePullWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T)
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
-	_, err := client.ImagePull(context.Background(), "myimage", image.PullOptions{
+	_, err := client.ImagePull(context.Background(), "myimage", ImagePullOptions{
 		PrivilegeFunc: staticAuth("a-auth-header"),
 	})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsUnauthorized))
@@ -100,7 +99,7 @@ func TestImagePullWithPrivilegedFuncNoError(t *testing.T) {
 			}, nil
 		}),
 	}
-	resp, err := client.ImagePull(context.Background(), "myimage", image.PullOptions{
+	resp, err := client.ImagePull(context.Background(), "myimage", ImagePullOptions{
 		RegistryAuth:  invalidAuth,
 		PrivilegeFunc: staticAuth(validAuth),
 	})
@@ -193,7 +192,7 @@ func TestImagePullWithoutErrors(t *testing.T) {
 					}, nil
 				}),
 			}
-			resp, err := client.ImagePull(context.Background(), pullCase.reference, image.PullOptions{
+			resp, err := client.ImagePull(context.Background(), pullCase.reference, ImagePullOptions{
 				All: pullCase.all,
 			})
 			assert.NilError(t, err)

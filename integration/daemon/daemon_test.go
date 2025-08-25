@@ -17,9 +17,9 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/pkg/stdcopy"
 	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/integration/internal/process"
@@ -297,12 +297,12 @@ func TestDaemonProxy(t *testing.T) {
 		assert.Check(t, is.Equal(info.HTTPSProxy, proxyServer.URL))
 		assert.Check(t, is.Equal(info.NoProxy, "example.com"))
 
-		_, err := c.ImagePull(ctx, "example.org:5000/some/image:latest", image.PullOptions{})
+		_, err := c.ImagePull(ctx, "example.org:5000/some/image:latest", client.ImagePullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5000")
 
 		// Test NoProxy: example.com should not hit the proxy, and "received" variable should not be changed.
-		_, err = c.ImagePull(ctx, "example.com/some/image:latest", image.PullOptions{})
+		_, err = c.ImagePull(ctx, "example.com/some/image:latest", client.ImagePullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5000", "should not have used proxy")
 	})
@@ -349,12 +349,12 @@ func TestDaemonProxy(t *testing.T) {
 		ok, logs := d.ScanLogsT(ctx, t, daemon.ScanLogsMatchString(userPass))
 		assert.Assert(t, !ok, "logs should not contain the non-sanitized proxy URL: %s", logs)
 
-		_, err := c.ImagePull(ctx, "example.org:5001/some/image:latest", image.PullOptions{})
+		_, err := c.ImagePull(ctx, "example.org:5001/some/image:latest", client.ImagePullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5001")
 
 		// Test NoProxy: example.com should not hit the proxy, and "received" variable should not be changed.
-		_, err = c.ImagePull(ctx, "example.com/some/image:latest", image.PullOptions{})
+		_, err = c.ImagePull(ctx, "example.com/some/image:latest", client.ImagePullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5001", "should not have used proxy")
 	})
@@ -400,12 +400,12 @@ func TestDaemonProxy(t *testing.T) {
 			"NO_PROXY",
 		))
 
-		_, err := c.ImagePull(ctx, "example.org:5002/some/image:latest", image.PullOptions{})
+		_, err := c.ImagePull(ctx, "example.org:5002/some/image:latest", client.ImagePullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5002")
 
 		// Test NoProxy: example.com should not hit the proxy, and "received" variable should not be changed.
-		_, err = c.ImagePull(ctx, "example.com/some/image:latest", image.PullOptions{})
+		_, err = c.ImagePull(ctx, "example.com/some/image:latest", client.ImagePullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5002", "should not have used proxy")
 	})
@@ -700,7 +700,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 			poll.WaitOn(t, waitFn)
 		})
 
-		_, err := c.ImageRemove(ctx, mountedImage, image.RemoveOptions{})
+		_, err := c.ImageRemove(ctx, mountedImage, client.ImageRemoveOptions{})
 		assert.ErrorContains(t, err, fmt.Sprintf("container %s is using its referenced image", cID[:12]))
 
 		// Remove that container which should free the references in the volume
@@ -708,7 +708,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 		assert.NilError(t, err)
 
 		// Now we should be able to remove the volume
-		_, err = c.ImageRemove(ctx, mountedImage, image.RemoveOptions{})
+		_, err = c.ImageRemove(ctx, mountedImage, client.ImageRemoveOptions{})
 		assert.NilError(t, err)
 	})
 

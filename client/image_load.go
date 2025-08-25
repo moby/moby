@@ -26,15 +26,15 @@ func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, loadOpts ...I
 
 	query := url.Values{}
 	query.Set("quiet", "0")
-	if opts.apiOptions.Quiet {
+	if opts.Quiet {
 		query.Set("quiet", "1")
 	}
-	if len(opts.apiOptions.Platforms) > 0 {
+	if len(opts.Platforms) > 0 {
 		if err := cli.NewVersionError(ctx, "1.48", "platform"); err != nil {
 			return image.LoadResponse{}, err
 		}
 
-		p, err := encodePlatforms(opts.apiOptions.Platforms...)
+		p, err := encodePlatforms(opts.Platforms...)
 		if err != nil {
 			return image.LoadResponse{}, err
 		}

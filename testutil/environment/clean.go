@@ -8,7 +8,6 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"go.opentelemetry.io/otel"
@@ -96,7 +95,7 @@ func getAllContainers(ctx context.Context, t testing.TB, client client.Container
 
 func deleteAllImages(ctx context.Context, t testing.TB, apiclient client.ImageAPIClient, protectedImages map[string]struct{}) {
 	t.Helper()
-	images, err := apiclient.ImageList(ctx, image.ListOptions{})
+	images, err := apiclient.ImageList(ctx, client.ImageListOptions{})
 	assert.Check(t, err, "failed to list images")
 
 	for _, img := range images {
@@ -118,7 +117,7 @@ func deleteAllImages(ctx context.Context, t testing.TB, apiclient client.ImageAP
 
 func removeImage(ctx context.Context, t testing.TB, apiclient client.ImageAPIClient, ref string) {
 	t.Helper()
-	_, err := apiclient.ImageRemove(ctx, ref, image.RemoveOptions{
+	_, err := apiclient.ImageRemove(ctx, ref, client.ImageRemoveOptions{
 		Force: true,
 	})
 	if cerrdefs.IsNotFound(err) {

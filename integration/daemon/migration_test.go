@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil"
@@ -136,10 +135,10 @@ func TestMigrateSaveLoad(t *testing.T) {
 	rdr.Close()
 
 	// Delete all images
-	list, err := apiClient.ImageList(ctx, image.ListOptions{})
+	list, err := apiClient.ImageList(ctx, client.ImageListOptions{})
 	assert.NilError(t, err)
 	for _, i := range list {
-		_, err = apiClient.ImageRemove(ctx, i.ID, image.RemoveOptions{Force: true})
+		_, err = apiClient.ImageRemove(ctx, i.ID, client.ImageRemoveOptions{Force: true})
 		assert.NilError(t, err)
 	}
 

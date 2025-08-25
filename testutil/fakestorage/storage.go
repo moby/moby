@@ -13,7 +13,6 @@ import (
 
 	"github.com/moby/moby/api/types/build"
 	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/environment"
@@ -114,7 +113,7 @@ func (f *remoteFileServer) Close() error {
 			}
 		}
 		if f.image != "" {
-			if _, err := f.client.ImageRemove(context.Background(), f.image, image.RemoveOptions{Force: true}); err != nil {
+			if _, err := f.client.ImageRemove(context.Background(), f.image, client.ImageRemoveOptions{Force: true}); err != nil {
 				_, _ = fmt.Fprintf(os.Stderr, "Error closing remote file server: removing image: %v\n", err)
 			}
 		}

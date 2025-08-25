@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/types/build"
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/testutil/fakecontext"
@@ -15,15 +14,15 @@ import (
 )
 
 // Do builds an image from the given context and returns the image ID.
-func Do(ctx context.Context, t *testing.T, client client.APIClient, buildCtx *fakecontext.Fake) string {
-	resp, err := client.ImageBuild(ctx, buildCtx.AsTarReader(t), build.ImageBuildOptions{})
+func Do(ctx context.Context, t *testing.T, apiClient client.APIClient, buildCtx *fakecontext.Fake) string {
+	resp, err := apiClient.ImageBuild(ctx, buildCtx.AsTarReader(t), build.ImageBuildOptions{})
 	if resp.Body != nil {
 		defer resp.Body.Close()
 	}
 	assert.NilError(t, err)
 	img := GetImageIDFromBody(t, resp.Body)
 	t.Cleanup(func() {
-		client.ImageRemove(ctx, img, image.RemoveOptions{Force: true})
+		apiClient.ImageRemove(ctx, img, client.ImageRemoveOptions{Force: true})
 	})
 	return img
 }

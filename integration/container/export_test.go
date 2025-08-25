@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/types/filters"
-	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil"
@@ -30,10 +30,10 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	reference := "repo/" + strings.ToLower(t.Name()) + ":v1"
 	exportResp, err := apiClient.ContainerExport(ctx, cID)
 	assert.NilError(t, err)
-	importResp, err := apiClient.ImageImport(ctx, image.ImportSource{
+	importResp, err := apiClient.ImageImport(ctx, client.ImageImportSource{
 		Source:     exportResp,
 		SourceName: "-",
-	}, reference, image.ImportOptions{})
+	}, reference, client.ImageImportOptions{})
 	assert.NilError(t, err)
 
 	// If the import is successfully, then the message output should contain
@@ -44,7 +44,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	err = dec.Decode(&jm)
 	assert.NilError(t, err)
 
-	images, err := apiClient.ImageList(ctx, image.ListOptions{
+	images, err := apiClient.ImageList(ctx, client.ImageListOptions{
 		Filters: filters.NewArgs(filters.Arg("reference", reference)),
 	})
 	assert.NilError(t, err)

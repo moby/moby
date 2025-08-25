@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/fakecontext"
 	"github.com/moby/moby/v2/testutil/fakegit"
@@ -327,15 +327,15 @@ func (s *DockerAPISuite) TestBuildOnBuildCache(c *testing.T) {
 }
 
 func (s *DockerRegistrySuite) TestBuildCopyFromForcePull(c *testing.T) {
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 	// tag the image to upload it to the private registry
 	ctx := testutil.GetContext(c)
-	err := client.ImageTag(ctx, "busybox", repoName)
+	err := apiClient.ImageTag(ctx, "busybox", repoName)
 	assert.Check(c, err)
 	// push the image to the registry
-	rc, err := client.ImagePush(ctx, repoName, image.PushOptions{RegistryAuth: "{}"})
+	rc, err := apiClient.ImagePush(ctx, repoName, client.ImagePushOptions{RegistryAuth: "{}"})
 	assert.Check(c, err)
 	_, err = io.Copy(io.Discard, rc)
 	assert.Check(c, err)

@@ -10,7 +10,6 @@ import (
 
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/filters"
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/testutil/fixtures/load"
@@ -198,7 +197,7 @@ func (e *Execution) UsingSnapshotter() bool {
 // Note that this is done by filtering and then checking whether there were any
 // results -- so ambiguous references might result in false-positives.
 func (e *Execution) HasExistingImage(t testing.TB, reference string) bool {
-	imageList, err := e.APIClient().ImageList(context.Background(), image.ListOptions{
+	imageList, err := e.APIClient().ImageList(context.Background(), client.ImageListOptions{
 		All: true,
 		Filters: filters.NewArgs(
 			filters.Arg("dangling", "false"),

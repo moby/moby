@@ -8,13 +8,12 @@ import (
 	"strings"
 
 	"github.com/distribution/reference"
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/registry"
 )
 
 // ImageCreate creates a new image based on the parent options.
 // It returns the JSON content in the response body.
-func (cli *Client) ImageCreate(ctx context.Context, parentReference string, options image.CreateOptions) (io.ReadCloser, error) {
+func (cli *Client) ImageCreate(ctx context.Context, parentReference string, options ImageCreateOptions) (io.ReadCloser, error) {
 	ref, err := reference.ParseNormalizedNamed(parentReference)
 	if err != nil {
 		return nil, err

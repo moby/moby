@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/integration-cli/cli/build"
@@ -51,13 +50,13 @@ func (s *DockerAPISuite) TestAPIImagesDelete(c *testing.T) {
 
 	cli.DockerCmd(c, "tag", name, "test:tag1")
 
-	_, err = apiClient.ImageRemove(testutil.GetContext(c), id, image.RemoveOptions{})
+	_, err = apiClient.ImageRemove(testutil.GetContext(c), id, client.ImageRemoveOptions{})
 	assert.ErrorContains(c, err, "unable to delete")
 
-	_, err = apiClient.ImageRemove(testutil.GetContext(c), "test:noexist", image.RemoveOptions{})
+	_, err = apiClient.ImageRemove(testutil.GetContext(c), "test:noexist", client.ImageRemoveOptions{})
 	assert.ErrorContains(c, err, "No such image")
 
-	_, err = apiClient.ImageRemove(testutil.GetContext(c), "test:tag1", image.RemoveOptions{})
+	_, err = apiClient.ImageRemove(testutil.GetContext(c), "test:tag1", client.ImageRemoveOptions{})
 	assert.NilError(c, err)
 }
 
@@ -103,7 +102,7 @@ func (s *DockerAPISuite) TestAPIImagesSizeCompatibility(c *testing.T) {
 	apiclient := testEnv.APIClient()
 	defer apiclient.Close()
 
-	images, err := apiclient.ImageList(testutil.GetContext(c), image.ListOptions{})
+	images, err := apiclient.ImageList(testutil.GetContext(c), client.ImageListOptions{})
 	assert.NilError(c, err)
 	assert.Assert(c, len(images) != 0)
 	for _, img := range images {
@@ -114,7 +113,7 @@ func (s *DockerAPISuite) TestAPIImagesSizeCompatibility(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiclient.Close()
 
-	v124Images, err := apiclient.ImageList(testutil.GetContext(c), image.ListOptions{})
+	v124Images, err := apiclient.ImageList(testutil.GetContext(c), client.ImageListOptions{})
 	assert.NilError(c, err)
 	assert.Assert(c, len(v124Images) != 0)
 	for _, img := range v124Images {

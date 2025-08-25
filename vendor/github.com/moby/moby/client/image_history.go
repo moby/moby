@@ -13,10 +13,10 @@ import (
 // ImageHistoryWithPlatform sets the platform for the image history operation.
 func ImageHistoryWithPlatform(platform ocispec.Platform) ImageHistoryOption {
 	return imageHistoryOptionFunc(func(opt *imageHistoryOpts) error {
-		if opt.apiOptions.Platform != nil {
-			return fmt.Errorf("platform already set to %s", *opt.apiOptions.Platform)
+		if opt.Platform != nil {
+			return fmt.Errorf("platform already set to %s", *opt.Platform)
 		}
-		opt.apiOptions.Platform = &platform
+		opt.Platform = &platform
 		return nil
 	})
 }
@@ -32,12 +32,12 @@ func (cli *Client) ImageHistory(ctx context.Context, imageID string, historyOpts
 		}
 	}
 
-	if opts.apiOptions.Platform != nil {
+	if opts.Platform != nil {
 		if err := cli.NewVersionError(ctx, "1.48", "platform"); err != nil {
 			return nil, err
 		}
 
-		p, err := encodePlatform(opts.apiOptions.Platform)
+		p, err := encodePlatform(opts.Platform)
 		if err != nil {
 			return nil, err
 		}

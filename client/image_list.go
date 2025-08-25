@@ -16,7 +16,7 @@ import (
 // to include [image.Summary.Manifests] with information about image manifests.
 // This is experimental and might change in the future without any backward
 // compatibility.
-func (cli *Client) ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
+func (cli *Client) ImageList(ctx context.Context, options ImageListOptions) ([]image.Summary, error) {
 	var images []image.Summary
 
 	// Make sure we negotiated (if the client is configured to do so),
