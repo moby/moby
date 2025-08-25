@@ -38,7 +38,9 @@ To make an edit, first look for the endpoint you want to edit under `paths`, the
 
 There is hopefully enough example material in the file for you to copy a similar pattern from elsewhere in the file (e.g. adding new fields or endpoints), but for the full reference, see the [Swagger specification](https://github.com/moby/moby/issues/27919).
 
-`swagger.yaml` is validated by `hack/validate/swagger` to ensure it is a valid Swagger definition. This is useful when making edits to ensure you are doing the right thing.
+`swagger.yaml` is validated by `scripts/validate-swagger` to ensure it is a valid Swagger definition. This is useful when making edits to ensure you are doing the right thing.
+
+To generate Go types from the swagger definition, use `scripts/generate-swagger-api.sh`. To validate that the generated types are up-to-date, use `scripts/validate-swagger-gen`.
 
 ## Viewing the API documentation
 
