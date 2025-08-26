@@ -83,6 +83,25 @@ EOF
 ExecStart=
 ExecStart=/usr/sbin/firewalld --nofork --nopid --debug=4
 EOF
+
+	# Copy firewalld logs into the bundles/ folder on shutdown to let the CI
+	# include it in jobs reports.
+	cat > /etc/systemd/system/collect-firewalld-logs.service << EOF
+[Unit]
+Description=Collect firewalld logs on shutdown
+After=firewalld.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/true
+RemainAfterExit=true
+ExecStop=cp /var/log/firewalld /go/src/github.com/docker/docker/bundles/firewalld.log
+
+[Install]
+WantedBy=firewalld.service
+EOF
+
+	systemctl enable collect-firewalld-logs.service
 fi
 
 env > /etc/docker-entrypoint-env
