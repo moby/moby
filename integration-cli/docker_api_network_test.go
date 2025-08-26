@@ -11,6 +11,7 @@ import (
 
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/request"
@@ -289,7 +290,7 @@ func createNetwork(t *testing.T, config network.CreateRequest, expectedStatusCod
 }
 
 func connectNetwork(t *testing.T, nid, cid string) {
-	resp, _, err := request.Post(testutil.GetContext(t), "/networks/"+nid+"/connect", request.JSONBody(network.ConnectOptions{
+	resp, _, err := request.Post(testutil.GetContext(t), "/networks/"+nid+"/connect", request.JSONBody(client.NetworkConnectOptions{
 		Container: cid,
 	}))
 	assert.NilError(t, err)
@@ -297,7 +298,7 @@ func connectNetwork(t *testing.T, nid, cid string) {
 }
 
 func disconnectNetwork(t *testing.T, nid, cid string) {
-	config := network.ConnectOptions{
+	config := client.NetworkDisconnectOptions{
 		Container: cid,
 	}
 

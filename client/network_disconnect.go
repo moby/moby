@@ -2,8 +2,6 @@ package client
 
 import (
 	"context"
-
-	"github.com/moby/moby/api/types/network"
 )
 
 // NetworkDisconnect disconnects a container from an existent network in the docker host.
@@ -18,7 +16,7 @@ func (cli *Client) NetworkDisconnect(ctx context.Context, networkID, containerID
 		return err
 	}
 
-	nd := network.DisconnectOptions{
+	nd := NetworkDisconnectOptions{
 		Container: containerID,
 		Force:     force,
 	}
