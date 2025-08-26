@@ -119,6 +119,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 	(
 		echo "Starting dockerd"
 		[ -n "$TESTDEBUG" ] && set -x
+		export SKIP_FIREWALLD="${FIREWALLD:-}"
 		exec \
 			${dockerd} --debug \
 			--host "$DOCKER_HOST" \

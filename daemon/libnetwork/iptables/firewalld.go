@@ -5,6 +5,7 @@ package iptables
 import (
 	"context"
 	"fmt"
+	"os"
 	"runtime"
 	"strings"
 	"sync"
@@ -64,6 +65,10 @@ func FirewalldReloadedAt() time.Time {
 // firewalldInit initializes firewalld management code.
 func firewalldInit() error {
 	var err error
+
+	if skipFirewalld := os.Getenv("SKIP_FIREWALLD"); skipFirewalld != "" {
+		return nil
+	}
 
 	if connection, err = newConnection(); err != nil {
 		return fmt.Errorf("Failed to connect to D-Bus system bus: %v", err)
