@@ -341,20 +341,21 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 		mt          string
 		size        int64
 	)
-	if digested, isDigested := ref.(reference.Canonical); isDigested {
-		dgst = digested.Digest()
-		tagOrDigest = digested.String()
-	} else if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
+	switch r := ref.(type) {
+	case reference.Canonical:
+		dgst = r.Digest()
+		tagOrDigest = r.String()
+	case reference.NamedTagged:
 		tagService := p.repo.Tags(ctx)
-		desc, err := tagService.Get(ctx, tagged.Tag())
+		desc, err := tagService.Get(ctx, r.Tag())
 		if err != nil {
 			return false, err
 		}
 		dgst = desc.Digest
-		tagOrDigest = tagged.Tag()
+		tagOrDigest = r.Tag()
 		mt = desc.MediaType
 		size = desc.Size
-	} else {
+	default:
 		return false, fmt.Errorf("internal error: reference has neither a tag nor a digest: %s", reference.FamiliarString(ref))
 	}
 
@@ -664,7 +665,7 @@ func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Desc
 	return imageID, nil
 }
 
-func (p *puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *schema2.DeserializedManifest, platform *ocispec.Platform) (id digest.Digest, manifestDigest digest.Digest, _ error) {
+func (p *puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *schema2.DeserializedManifest, platform *ocispec.Platform) (id, manifestDigest digest.Digest, _ error) {
 	manifestDigest, err := schema2ManifestDigest(ref, mfst)
 	if err != nil {
 		return "", "", err
@@ -673,7 +674,7 @@ func (p *puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *sch
 	return id, manifestDigest, err
 }
 
-func (p *puller) pullOCI(ctx context.Context, ref reference.Named, mfst *ocischema.DeserializedManifest, platform *ocispec.Platform) (id digest.Digest, manifestDigest digest.Digest, _ error) {
+func (p *puller) pullOCI(ctx context.Context, ref reference.Named, mfst *ocischema.DeserializedManifest, platform *ocispec.Platform) (id, manifestDigest digest.Digest, _ error) {
 	manifestDigest, err := schema2ManifestDigest(ref, mfst)
 	if err != nil {
 		return "", "", err
@@ -703,7 +704,7 @@ func receiveConfig(configChan <-chan []byte, errChan <-chan error) ([]byte, *ima
 
 // pullManifestList handles "manifest lists" which point to various
 // platform-specific manifests.
-func (p *puller) pullManifestList(ctx context.Context, ref reference.Named, mfstList *manifestlist.DeserializedManifestList, pp *ocispec.Platform) (id digest.Digest, manifestListDigest digest.Digest, _ error) {
+func (p *puller) pullManifestList(ctx context.Context, ref reference.Named, mfstList *manifestlist.DeserializedManifestList, pp *ocispec.Platform) (id, manifestListDigest digest.Digest, _ error) {
 	manifestListDigest, err := schema2ManifestDigest(ref, mfstList)
 	if err != nil {
 		return "", "", err

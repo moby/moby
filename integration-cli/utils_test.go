@@ -50,7 +50,7 @@ func ParseCgroupPaths(procCgroupData string) map[string]string {
 
 // RandomTmpDirPath provides a temporary path with rand string appended.
 // does not create or checks if it exists.
-func RandomTmpDirPath(s string, platform string) string {
+func RandomTmpDirPath(s, platform string) string {
 	// TODO: why doesn't this use os.TempDir() ?
 	tmp := "/tmp"
 	if platform == "windows" {

@@ -306,8 +306,7 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swa
 		case *swarmapi.TaskSpec_Attachment:
 			return fmt.Errorf("invalid task spec: spec type %q not supported", swarm.RuntimeNetworkAttachment)
 		case *swarmapi.TaskSpec_Generic:
-			switch serviceSpec.Task.GetGeneric().Kind {
-			case string(swarm.RuntimePlugin):
+			if serviceSpec.Task.GetGeneric().Kind == string(swarm.RuntimePlugin) {
 				if spec.TaskTemplate.PluginSpec == nil {
 					return errors.New("plugin spec must be set")
 				}

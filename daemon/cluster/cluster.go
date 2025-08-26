@@ -399,7 +399,7 @@ func (c *Cluster) Cleanup() {
 	c.mu.Unlock()
 }
 
-func managerStats(client swarmapi.ControlClient, currentNodeID string) (current bool, reachable int, unreachable int, _ error) {
+func managerStats(client swarmapi.ControlClient, currentNodeID string) (current bool, reachable, unreachable int, _ error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	nodes, err := client.ListNodes(

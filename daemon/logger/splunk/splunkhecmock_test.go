@@ -164,16 +164,17 @@ func (hec *HTTPEventCollectorMock) ServeHTTP(writer http.ResponseWriter, request
 		// Parse message
 		messageStart := 0
 		for i := 0; i < len(body); i++ {
-			if i == len(body)-1 || (body[i] == '}' && body[i+1] == '{') {
-				var message splunkMessage
-				err = json.Unmarshal(body[messageStart:i+1], &message)
-				if err != nil {
-					hec.test.Log(string(body[messageStart : i+1]))
-					hec.test.Fatal(err)
-				}
-				hec.messages = append(hec.messages, &message)
-				messageStart = i + 1
+			if i != len(body)-1 && (body[i] != '}' || body[i+1] != '{') {
+				continue
 			}
+			var message splunkMessage
+			err = json.Unmarshal(body[messageStart:i+1], &message)
+			if err != nil {
+				hec.test.Log(string(body[messageStart : i+1]))
+				hec.test.Fatal(err)
+			}
+			hec.messages = append(hec.messages, &message)
+			messageStart = i + 1
 		}
 
 		if gzipEnabled {

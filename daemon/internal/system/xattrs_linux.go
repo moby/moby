@@ -26,7 +26,7 @@ func (e *XattrError) Timeout() bool {
 // Lgetxattr retrieves the value of the extended attribute identified by attr
 // and associated with the given path in the file system.
 // It returns a nil slice and nil error if the xattr is not set.
-func Lgetxattr(path string, attr string) ([]byte, error) {
+func Lgetxattr(path, attr string) ([]byte, error) {
 	sysErr := func(err error) ([]byte, error) {
 		return nil, &XattrError{Op: "lgetxattr", Attr: attr, Path: path, Err: err}
 	}
@@ -57,7 +57,7 @@ func Lgetxattr(path string, attr string) ([]byte, error) {
 
 // Lsetxattr sets the value of the extended attribute identified by attr
 // and associated with the given path in the file system.
-func Lsetxattr(path string, attr string, data []byte, flags int) error {
+func Lsetxattr(path, attr string, data []byte, flags int) error {
 	err := unix.Lsetxattr(path, attr, data, flags)
 	if err != nil {
 		return &XattrError{Op: "lsetxattr", Attr: attr, Path: path, Err: err}

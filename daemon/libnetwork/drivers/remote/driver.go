@@ -282,7 +282,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, options map[string]any) (retErr error) {
+func (d *driver) Join(_ context.Context, nid, eid, sboxKey string, jinfo driverapi.JoinInfo, _, options map[string]any) (retErr error) {
 	join := &api.JoinRequest{
 		NetworkID:  nid,
 		EndpointID: eid,
@@ -368,7 +368,7 @@ func (d *driver) Leave(nid, eid string) error {
 }
 
 // ProgramExternalConnectivity is invoked to program the rules to allow external connectivity for the endpoint.
-func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string, gw4Id, gw6Id string) error {
+func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid, gw4Id, gw6Id string) error {
 	d.nwEndpointsMu.Lock()
 	ep, ok := d.nwEndpoints[eid]
 	d.nwEndpointsMu.Unlock()

@@ -87,7 +87,7 @@ func readJson(path string, v any) error {
 	return json.Unmarshal(content, v)
 }
 
-func LegacyManifest(dir string, imageRef string, mfstDesc ocispec.Descriptor) error {
+func LegacyManifest(dir, imageRef string, mfstDesc ocispec.Descriptor) error {
 	legacyManifests := []manifestItem{}
 
 	var mfst ocispec.Manifest

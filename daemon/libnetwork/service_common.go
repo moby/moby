@@ -136,7 +136,7 @@ func (c *Controller) delContainerNameResolution(nID, eID, containerName string, 
 	return nil
 }
 
-func newService(name string, id string, ingressPorts []*PortConfig, serviceAliases []string) *service {
+func newService(name, id string, ingressPorts []*PortConfig, serviceAliases []string) *service {
 	return &service{
 		name:          name,
 		id:            id,
@@ -213,7 +213,7 @@ func (c *Controller) cleanupServiceBindings(cleanupNID string) {
 	}
 }
 
-func makeServiceCleanupFunc(c *Controller, s *service, nID, eID string, vip net.IP, ip net.IP) func() {
+func makeServiceCleanupFunc(c *Controller, s *service, nID, eID string, vip, ip net.IP) func() {
 	// ContainerName and taskAliases are not available here, this is still fine because the Service discovery
 	// cleanup already happened before. The only thing that rmServiceBinding is still doing here a part from the Load
 	// Balancer bookkeeping, is to keep consistent the mapping of endpoint to IP.
@@ -311,7 +311,7 @@ func (c *Controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 	return nil
 }
 
-func (c *Controller) rmServiceBinding(svcName, svcID, nID, eID, containerName string, vip net.IP, ingressPorts []*PortConfig, serviceAliases []string, taskAliases []string, ip net.IP, method string, deleteSvcRecords bool, fullRemove bool) error {
+func (c *Controller) rmServiceBinding(svcName, svcID, nID, eID, containerName string, vip net.IP, ingressPorts []*PortConfig, serviceAliases, taskAliases []string, ip net.IP, method string, deleteSvcRecords, fullRemove bool) error {
 	var rmService bool
 
 	skey := serviceKey{

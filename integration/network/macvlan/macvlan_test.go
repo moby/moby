@@ -694,5 +694,5 @@ func TestParentDown(t *testing.T) {
 	)
 
 	ctrID := container.Run(ctx, t, apiClient, container.WithNetworkMode(netName))
-	defer container.Remove(ctx, t, apiClient, ctrID, containertypes.RemoveOptions{Force: true})
+	container.Remove(ctx, t, apiClient, ctrID, containertypes.RemoveOptions{Force: true})
 }

@@ -104,7 +104,7 @@ func (nDB *NetworkDB) verifyNodeExistence(t *testing.T, node string, present boo
 	t.Errorf("%v(%v): expected node %s existence in the cluster = %v, got %v", nDB.config.Hostname, nDB.config.NodeID, node, present, !present)
 }
 
-func (nDB *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string, present bool) {
+func (nDB *NetworkDB) verifyNetworkExistence(t *testing.T, node, id string, present bool) {
 	t.Helper()
 
 	const sleepInterval = 50 * time.Millisecond
@@ -902,8 +902,8 @@ func TestNetworkDBIslands(t *testing.T) {
 	_ = log.SetLevel("debug")
 	conf := DefaultConfig()
 	// Shorten durations to speed up test execution.
-	conf.rejoinClusterDuration = conf.rejoinClusterDuration / 10
-	conf.rejoinClusterInterval = conf.rejoinClusterInterval / 10
+	conf.rejoinClusterDuration /= 10
+	conf.rejoinClusterInterval /= 10
 	dbs := createNetworkDBInstances(t, 5, "node", conf)
 
 	// Get the node IP used currently

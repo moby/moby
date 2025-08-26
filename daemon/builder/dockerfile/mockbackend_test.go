@@ -46,7 +46,7 @@ func (m *MockBackend) CommitBuildStep(ctx context.Context, c backend.CommitConfi
 	return "", nil
 }
 
-func (m *MockBackend) ContainerStart(ctx context.Context, containerID string, checkpoint string, checkpointDir string) error {
+func (m *MockBackend) ContainerStart(ctx context.Context, containerID, checkpoint, checkpointDir string) error {
 	return nil
 }
 
@@ -58,7 +58,7 @@ func (m *MockBackend) ContainerCreateWorkdir(containerID string) error {
 	return nil
 }
 
-func (m *MockBackend) CopyOnBuild(containerID string, destPath string, srcRoot string, srcPath string, decompress bool) error {
+func (m *MockBackend) CopyOnBuild(containerID, destPath, srcRoot, srcPath string, decompress bool) error {
 	return nil
 }
 

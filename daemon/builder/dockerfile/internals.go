@@ -230,7 +230,7 @@ func withArgsEscaped(argsEscaped bool) runConfigModifier {
 
 // withCmdComment sets Cmd to a nop comment string. See withCmdCommentString for
 // why there are two almost identical versions of this.
-func withCmdComment(comment string, platform string) runConfigModifier {
+func withCmdComment(comment, platform string) runConfigModifier {
 	return func(runConfig *container.Config) {
 		runConfig.Cmd = append(getShell(runConfig, platform), "#(nop) ", comment)
 	}
@@ -240,7 +240,7 @@ func withCmdComment(comment string, platform string) runConfigModifier {
 // A few instructions (workdir, copy, add) used a nop comment that is a single arg
 // where as all the other instructions used a two arg comment string. This
 // function implements the single arg version.
-func withCmdCommentString(comment string, platform string) runConfigModifier {
+func withCmdCommentString(comment, platform string) runConfigModifier {
 	return func(runConfig *container.Config) {
 		runConfig.Cmd = append(getShell(runConfig, platform), "#(nop) "+comment)
 	}
@@ -259,7 +259,7 @@ func withEnv(env []string) runConfigModifier {
 // so the runConfig entrypoint needs to be modified accordingly. ContainerCreate
 // will change a []string{""} entrypoint to nil, so we probe the cache with the
 // nil entrypoint.
-func withEntrypointOverride(cmd []string, entrypoint []string) runConfigModifier {
+func withEntrypointOverride(cmd, entrypoint []string) runConfigModifier {
 	return func(runConfig *container.Config) {
 		if len(cmd) > 0 {
 			runConfig.Entrypoint = entrypoint
@@ -300,9 +300,9 @@ func copyRunConfig(runConfig *container.Config, modifiers ...runConfigModifier) 
 // shell-form of RUN, ENTRYPOINT and CMD instructions
 func getShell(c *container.Config, os string) []string {
 	if len(c.Shell) == 0 {
-		return append([]string{}, defaultShellForOS(os)[:]...)
+		return defaultShellForOS(os)
 	}
-	return append([]string{}, c.Shell[:]...)
+	return c.Shell
 }
 
 func (b *Builder) probeCache(dispatchState *dispatchState, runConfig *container.Config) (bool, error) {

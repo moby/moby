@@ -37,7 +37,7 @@ func (s *DockerCLIExecSuite) TestExecInteractiveStdinClose(c *testing.T) {
 		p.Close()
 		bs := b.Bytes()
 		bs = bytes.Trim(bs, "\x00")
-		output := string(bs[:])
+		output := string(bs)
 		assert.Equal(c, strings.TrimSpace(output), "hello")
 	case <-time.After(5 * time.Second):
 		p.Close()

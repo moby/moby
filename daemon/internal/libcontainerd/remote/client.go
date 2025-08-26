@@ -415,8 +415,7 @@ func (c *container) getCheckpointOptions(exit bool) containerd.CheckpointTaskOpt
 			r.Options = &runcoptions.CheckpointOptions{}
 		}
 
-		switch opts := r.Options.(type) {
-		case *runcoptions.CheckpointOptions:
+		if opts, ok := r.Options.(*runcoptions.CheckpointOptions); ok {
 			opts.Exit = exit
 		}
 

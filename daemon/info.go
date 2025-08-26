@@ -155,8 +155,7 @@ func (daemon *Daemon) fillDriverInfo(v *system.Info) {
 WARNING: The %s storage-driver is deprecated, and will be removed in a future release.
          Refer to the documentation for more information: https://docs.docker.com/go/storage-driver/`
 
-	switch v.Driver {
-	case "overlay":
+	if v.Driver == "overlay" {
 		v.Warnings = append(v.Warnings, fmt.Sprintf(warnMsg, v.Driver))
 	}
 

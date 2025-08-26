@@ -832,7 +832,7 @@ func NetworkOptionScope(scope string) NetworkOption {
 }
 
 // NetworkOptionIpam function returns an option setter for the ipam configuration for this network
-func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ipV6 []*IpamConf, opts map[string]string) NetworkOption {
+func NetworkOptionIpam(ipamDriver, addrSpace string, ipV4, ipV6 []*IpamConf, opts map[string]string) NetworkOption {
 	return func(n *Network) {
 		if ipamDriver != "" {
 			n.ipamType = ipamDriver
@@ -999,7 +999,7 @@ func (n *Network) Delete(options ...NetworkDeleteOption) error {
 //     remove load balancer and network if endpoint count == 1
 //   - controller.networkCleanup() -- (true, true)
 //     remove the network no matter what
-func (n *Network) delete(force bool, rmLBEndpoint bool) error {
+func (n *Network) delete(force, rmLBEndpoint bool) error {
 	n.mu.Lock()
 	c := n.ctrlr
 	name := n.name
@@ -1758,7 +1758,7 @@ func (n *Network) Scope() string {
 	return n.scope
 }
 
-func (n *Network) IpamConfig() (ipamType string, ipamOptions map[string]string, ipamV4Config []*IpamConf, ipamV6Config []*IpamConf) {
+func (n *Network) IpamConfig() (ipamType string, ipamOptions map[string]string, ipamV4Config, ipamV6Config []*IpamConf) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
@@ -1775,7 +1775,7 @@ func (n *Network) IpamConfig() (ipamType string, ipamOptions map[string]string, 
 	return n.ipamType, n.ipamOptions, ipamV4Config, ipamV6Config
 }
 
-func (n *Network) IpamInfo() (ipamV4Info []*IpamInfo, ipamV6Info []*IpamInfo) {
+func (n *Network) IpamInfo() (ipamV4Info, ipamV6Info []*IpamInfo) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 

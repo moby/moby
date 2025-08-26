@@ -391,8 +391,9 @@ func (daemon *Daemon) createNetwork(ctx context.Context, cfg *config.Config, cre
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionInternalNetwork())
 	}
 	if agent {
-		nwOptions = append(nwOptions, libnetwork.NetworkOptionDynamic())
-		nwOptions = append(nwOptions, libnetwork.NetworkOptionPersist(false))
+		nwOptions = append(nwOptions,
+			libnetwork.NetworkOptionDynamic(),
+			libnetwork.NetworkOptionPersist(false))
 	}
 
 	if create.ConfigFrom != nil {
@@ -494,7 +495,7 @@ func (daemon *Daemon) ConnectContainerToNetwork(ctx context.Context, containerNa
 
 // DisconnectContainerFromNetwork disconnects the given container from
 // the given network. If either cannot be found, an err is returned.
-func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error {
+func (daemon *Daemon) DisconnectContainerFromNetwork(containerName, networkName string, force bool) error {
 	ctr, err := daemon.GetContainer(containerName)
 	if err != nil {
 		if force {

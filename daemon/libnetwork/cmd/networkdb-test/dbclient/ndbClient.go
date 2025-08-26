@@ -83,7 +83,7 @@ func clusterPeersNumber(ip, port string, doneCh chan resultTuple) {
 		doneCh <- resultTuple{id: ip, result: -1}
 		return
 	}
-	peersRegexp := regexp.MustCompile(`total entries: ([0-9]+)`)
+	peersRegexp := regexp.MustCompile(`total entries: (\d+)`)
 	peersNum, _ := strconv.Atoi(peersRegexp.FindStringSubmatch(string(body))[1])
 
 	doneCh <- resultTuple{id: ip, result: peersNum}
@@ -96,7 +96,7 @@ func networkPeersNumber(ip, port, networkName string, doneCh chan resultTuple) {
 		doneCh <- resultTuple{id: ip, result: -1}
 		return
 	}
-	peersRegexp := regexp.MustCompile(`total entries: ([0-9]+)`)
+	peersRegexp := regexp.MustCompile(`total entries: (\d+)`)
 	peersNum, _ := strconv.Atoi(peersRegexp.FindStringSubmatch(string(body))[1])
 
 	doneCh <- resultTuple{id: ip, result: peersNum}
@@ -109,7 +109,7 @@ func dbTableEntriesNumber(ip, port, networkName, tableName string, doneCh chan r
 		doneCh <- resultTuple{id: ip, result: -1}
 		return
 	}
-	elementsRegexp := regexp.MustCompile(`total entries: ([0-9]+)`)
+	elementsRegexp := regexp.MustCompile(`total entries: (\d+)`)
 	entriesNum, _ := strconv.Atoi(elementsRegexp.FindStringSubmatch(string(body))[1])
 	doneCh <- resultTuple{id: ip, result: entriesNum}
 }
@@ -121,7 +121,7 @@ func dbQueueLength(ip, port, networkName string, doneCh chan resultTuple) {
 		doneCh <- resultTuple{id: ip, result: -1}
 		return
 	}
-	elementsRegexp := regexp.MustCompile(`qlen: ([0-9]+)`)
+	elementsRegexp := regexp.MustCompile(`qlen: (\d+)`)
 	entriesNum, _ := strconv.Atoi(elementsRegexp.FindStringSubmatch(string(body))[1])
 	doneCh <- resultTuple{id: ip, result: entriesNum}
 }
@@ -140,7 +140,7 @@ func clientTableEntriesNumber(ip, port, networkName, tableName string, doneCh ch
 		doneCh <- resultTuple{id: ip, result: -1}
 		return
 	}
-	elementsRegexp := regexp.MustCompile(`total elements: ([0-9]+)`)
+	elementsRegexp := regexp.MustCompile(`total elements: (\d+)`)
 	entriesNum, _ := strconv.Atoi(elementsRegexp.FindStringSubmatch(string(body))[1])
 	doneCh <- resultTuple{id: ip, result: entriesNum}
 }
@@ -333,7 +333,7 @@ func doJoin(ips []string) {
 }
 
 // cluster-peers expectedNumberPeers maxRetry
-func doClusterPeers(ips []string, args []string) {
+func doClusterPeers(ips, args []string) {
 	doneCh := make(chan resultTuple, len(ips))
 	expectedPeers, _ := strconv.Atoi(args[0])
 	maxRetry, _ := strconv.Atoi(args[1])
@@ -365,7 +365,7 @@ func doClusterPeers(ips []string, args []string) {
 }
 
 // join-network networkName
-func doJoinNetwork(ips []string, args []string) {
+func doJoinNetwork(ips, args []string) {
 	doneCh := make(chan resultTuple, len(ips))
 	// check all the nodes
 	for _, ip := range ips {
@@ -379,7 +379,7 @@ func doJoinNetwork(ips []string, args []string) {
 }
 
 // leave-network networkName
-func doLeaveNetwork(ips []string, args []string) {
+func doLeaveNetwork(ips, args []string) {
 	doneCh := make(chan resultTuple, len(ips))
 	// check all the nodes
 	for _, ip := range ips {
@@ -393,7 +393,7 @@ func doLeaveNetwork(ips []string, args []string) {
 }
 
 // network-peers networkName expectedNumberPeers maxRetry
-func doNetworkPeers(ips []string, args []string) {
+func doNetworkPeers(ips, args []string) {
 	doneCh := make(chan resultTuple, len(ips))
 	networkName := args[0]
 	expectedPeers, _ := strconv.Atoi(args[1])
@@ -426,7 +426,7 @@ func doNetworkPeers(ips []string, args []string) {
 }
 
 // network-stats-queue networkName <gt/lt> queueSize
-func doNetworkStatsQueue(ips []string, args []string) {
+func doNetworkStatsQueue(ips, args []string) {
 	doneCh := make(chan resultTuple, len(ips))
 	networkName := args[0]
 	comparison := args[1]
@@ -461,7 +461,7 @@ func doNetworkStatsQueue(ips []string, args []string) {
 }
 
 // write-keys networkName tableName parallelWriters numberOfKeysEach
-func doWriteKeys(ips []string, args []string) {
+func doWriteKeys(ips, args []string) {
 	networkName := args[0]
 	tableName := args[1]
 	parallelWriters, _ := strconv.Atoi(args[2])
@@ -494,7 +494,7 @@ func doWriteKeys(ips []string, args []string) {
 }
 
 // delete-keys networkName tableName parallelWriters numberOfKeysEach
-func doDeleteKeys(ips []string, args []string) {
+func doDeleteKeys(ips, args []string) {
 	networkName := args[0]
 	tableName := args[1]
 	parallelWriters, _ := strconv.Atoi(args[2])
@@ -527,7 +527,7 @@ func doDeleteKeys(ips []string, args []string) {
 }
 
 // write-delete-unique-keys networkName tableName numParallelWriters writeTimeSec
-func doWriteDeleteUniqueKeys(ips []string, args []string) {
+func doWriteDeleteUniqueKeys(ips, args []string) {
 	networkName := args[0]
 	tableName := args[1]
 	parallelWriters, _ := strconv.Atoi(args[2])
@@ -564,7 +564,7 @@ func doWriteDeleteUniqueKeys(ips []string, args []string) {
 }
 
 // write-unique-keys networkName tableName numParallelWriters writeTimeSec
-func doWriteUniqueKeys(ips []string, args []string) {
+func doWriteUniqueKeys(ips, args []string) {
 	networkName := args[0]
 	tableName := args[1]
 	parallelWriters, _ := strconv.Atoi(args[2])
@@ -599,7 +599,7 @@ func doWriteUniqueKeys(ips []string, args []string) {
 }
 
 // write-delete-leave-join networkName tableName numParallelWriters writeTimeSec
-func doWriteDeleteLeaveJoin(ips []string, args []string) {
+func doWriteDeleteLeaveJoin(ips, args []string) {
 	networkName := args[0]
 	tableName := args[1]
 	parallelWriters, _ := strconv.Atoi(args[2])
@@ -628,7 +628,7 @@ func doWriteDeleteLeaveJoin(ips []string, args []string) {
 }
 
 // write-delete-wait-leave-join networkName tableName numParallelWriters writeTimeSec
-func doWriteDeleteWaitLeaveJoin(ips []string, args []string) {
+func doWriteDeleteWaitLeaveJoin(ips, args []string) {
 	networkName := args[0]
 	tableName := args[1]
 	parallelWriters, _ := strconv.Atoi(args[2])
@@ -674,7 +674,7 @@ func doWriteDeleteWaitLeaveJoin(ips []string, args []string) {
 }
 
 // write-wait-leave networkName tableName numParallelWriters writeTimeSec
-func doWriteWaitLeave(ips []string, args []string) {
+func doWriteWaitLeave(ips, args []string) {
 	networkName := args[0]
 	tableName := args[1]
 	parallelWriters, _ := strconv.Atoi(args[2])
@@ -710,7 +710,7 @@ func doWriteWaitLeave(ips []string, args []string) {
 }
 
 // write-wait-leave-join networkName tableName numParallelWriters writeTimeSec numParallelLeaver
-func doWriteWaitLeaveJoin(ips []string, args []string) {
+func doWriteWaitLeaveJoin(ips, args []string) {
 	networkName := args[0]
 	tableName := args[1]
 	parallelWriters, _ := strconv.Atoi(args[2])

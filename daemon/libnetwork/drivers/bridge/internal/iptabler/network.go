@@ -237,7 +237,7 @@ func loopbackAddress(version iptables.IPVersion) string {
 	}
 }
 
-func setDefaultForwardRule(ipVersion iptables.IPVersion, ifName string, unprotected bool, enable bool) error {
+func setDefaultForwardRule(ipVersion iptables.IPVersion, ifName string, unprotected, enable bool) error {
 	// Normally, DROP anything that hasn't been ACCEPTed by a per-port/protocol
 	// rule. This prevents direct access to un-mapped ports from remote hosts
 	// that can route directly to the container's address (by setting up a

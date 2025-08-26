@@ -86,7 +86,7 @@ func IsNameConflict(err error) bool {
 	return isErr(err, errNameConflict)
 }
 
-func isErr(err error, expected error) bool {
+func isErr(err, expected error) bool {
 	switch pe := err.(type) {
 	case nil:
 		return false

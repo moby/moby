@@ -152,7 +152,7 @@ func pullImages(ctx context.Context, client client.APIClient, images []string) e
 	return <-chErr
 }
 
-func pullTagAndRemove(ctx context.Context, client client.APIClient, ref string, tag string) (retErr error) {
+func pullTagAndRemove(ctx context.Context, client client.APIClient, ref, tag string) (retErr error) {
 	ctx, span := otel.Tracer("").Start(ctx, "pull image: "+ref+" with tag: "+tag)
 	defer func() {
 		if retErr != nil {

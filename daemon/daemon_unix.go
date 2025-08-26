@@ -292,7 +292,7 @@ func getBlkioThrottleDevices(devs []*blkiodev.ThrottleDevice) ([]specs.LinuxThro
 // figures out if it's reasonable (and adjusts it accordingly). This is only
 // used for daemon startup, which does a lot of parallel loading of containers
 // (and if we exceed RLIMIT_NOFILE then we're in trouble).
-func adjustParallelLimit(n int, limit int) int {
+func adjustParallelLimit(n, limit int) int {
 	// Rule-of-thumb overhead factor (how many files will each goroutine open
 	// simultaneously). Yes, this is ugly but to be frank this whole thing is
 	// ugly.
@@ -1258,7 +1258,7 @@ func removeDefaultBridgeInterface() {
 	}
 }
 
-func setupInitLayer(uid int, gid int) func(string) error {
+func setupInitLayer(uid, gid int) func(string) error {
 	return func(initPath string) error {
 		return initlayer.Setup(initPath, uid, gid)
 	}
@@ -1611,7 +1611,7 @@ func (daemon *Daemon) initCPURtController(cfg *config.Config, mnt, path string) 
 	return maybeCreateCPURealTimeFile(cfg.CPURealtimeRuntime, "cpu.rt_runtime_us", path)
 }
 
-func maybeCreateCPURealTimeFile(configValue int64, file string, path string) error {
+func maybeCreateCPURealTimeFile(configValue int64, file, path string) error {
 	if configValue == 0 {
 		return nil
 	}

@@ -199,13 +199,11 @@ func TestDefault(t *testing.T) {
 
 	if event, err := message1.EventAsMap(); err != nil {
 		t.Fatal(err)
-	} else {
-		if event["line"] != "{\"a\":\"b\"}" ||
-			event["source"] != "stdout" ||
-			event["tag"] != "containeriid" ||
-			len(event) != 3 {
-			t.Fatalf("Unexpected event in message %v", event)
-		}
+	} else if event["line"] != "{\"a\":\"b\"}" ||
+		event["source"] != "stdout" ||
+		event["tag"] != "containeriid" ||
+		len(event) != 3 {
+		t.Fatalf("Unexpected event in message %v", event)
 	}
 
 	message2 := hec.messages[1]
@@ -219,13 +217,11 @@ func TestDefault(t *testing.T) {
 
 	if event, err := message2.EventAsMap(); err != nil {
 		t.Fatal(err)
-	} else {
-		if event["line"] != "notajson" ||
-			event["source"] != "stdout" ||
-			event["tag"] != "containeriid" ||
-			len(event) != 3 {
-			t.Fatalf("Unexpected event in message %v", event)
-		}
+	} else if event["line"] != "notajson" ||
+		event["source"] != "stdout" ||
+		event["tag"] != "containeriid" ||
+		len(event) != 3 {
+		t.Fatalf("Unexpected event in message %v", event)
 	}
 
 	err = hec.Close()
@@ -326,15 +322,13 @@ func TestInlineFormatWithNonDefaultOptions(t *testing.T) {
 
 	if event, err := message.EventAsMap(); err != nil {
 		t.Fatal(err)
-	} else {
-		if event["line"] != "1" ||
-			event["source"] != "stdout" ||
-			event["tag"] != "container_image_name/container_name" ||
-			event["attrs"].(map[string]any)["a"] != "b" ||
-			event["attrs"].(map[string]any)["foo_finder"] != "bar" ||
-			len(event) != 4 {
-			t.Fatalf("Unexpected event in message %v", event)
-		}
+	} else if event["line"] != "1" ||
+		event["source"] != "stdout" ||
+		event["tag"] != "container_image_name/container_name" ||
+		event["attrs"].(map[string]any)["a"] != "b" ||
+		event["attrs"].(map[string]any)["foo_finder"] != "bar" ||
+		len(event) != 4 {
+		t.Fatalf("Unexpected event in message %v", event)
 	}
 
 	err = hec.Close()
@@ -426,13 +420,11 @@ func TestJsonFormat(t *testing.T) {
 
 	if event, err := message1.EventAsMap(); err != nil {
 		t.Fatal(err)
-	} else {
-		if event["line"].(map[string]any)["a"] != "b" ||
-			event["source"] != "stdout" ||
-			event["tag"] != "containeriid" ||
-			len(event) != 3 {
-			t.Fatalf("Unexpected event in message 1 %v", event)
-		}
+	} else if event["line"].(map[string]any)["a"] != "b" ||
+		event["source"] != "stdout" ||
+		event["tag"] != "containeriid" ||
+		len(event) != 3 {
+		t.Fatalf("Unexpected event in message 1 %v", event)
 	}
 
 	message2 := hec.messages[1]
@@ -447,13 +439,11 @@ func TestJsonFormat(t *testing.T) {
 	// If message cannot be parsed as JSON - it should be sent as a line
 	if event, err := message2.EventAsMap(); err != nil {
 		t.Fatal(err)
-	} else {
-		if event["line"] != "notjson" ||
-			event["source"] != "stdout" ||
-			event["tag"] != "containeriid" ||
-			len(event) != 3 {
-			t.Fatalf("Unexpected event in message 2 %v", event)
-		}
+	} else if event["line"] != "notjson" ||
+		event["source"] != "stdout" ||
+		event["tag"] != "containeriid" ||
+		len(event) != 3 {
+		t.Fatalf("Unexpected event in message 2 %v", event)
 	}
 
 	err = hec.Close()
@@ -539,10 +529,8 @@ func TestRawFormat(t *testing.T) {
 
 	if event, err := message1.EventAsString(); err != nil {
 		t.Fatal(err)
-	} else {
-		if event != "containeriid {\"a\":\"b\"}" {
-			t.Fatalf("Unexpected event in message 1 %v", event)
-		}
+	} else if event != "containeriid {\"a\":\"b\"}" {
+		t.Fatalf("Unexpected event in message 1 %v", event)
 	}
 
 	message2 := hec.messages[1]
@@ -556,10 +544,8 @@ func TestRawFormat(t *testing.T) {
 
 	if event, err := message2.EventAsString(); err != nil {
 		t.Fatal(err)
-	} else {
-		if event != "containeriid notjson" {
-			t.Fatalf("Unexpected event in message 1 %v", event)
-		}
+	} else if event != "containeriid notjson" {
+		t.Fatalf("Unexpected event in message 1 %v", event)
 	}
 
 	err = hec.Close()
@@ -653,10 +639,8 @@ func TestRawFormatWithLabels(t *testing.T) {
 
 	if event, err := message1.EventAsString(); err != nil {
 		t.Fatal(err)
-	} else {
-		if event != "containeriid a=b {\"a\":\"b\"}" {
-			t.Fatalf("Unexpected event in message 1 %v", event)
-		}
+	} else if event != "containeriid a=b {\"a\":\"b\"}" {
+		t.Fatalf("Unexpected event in message 1 %v", event)
 	}
 
 	message2 := hec.messages[1]
@@ -670,10 +654,8 @@ func TestRawFormatWithLabels(t *testing.T) {
 
 	if event, err := message2.EventAsString(); err != nil {
 		t.Fatal(err)
-	} else {
-		if event != "containeriid a=b notjson" {
-			t.Fatalf("Unexpected event in message 2 %v", event)
-		}
+	} else if event != "containeriid a=b notjson" {
+		t.Fatalf("Unexpected event in message 2 %v", event)
 	}
 
 	err = hec.Close()
@@ -732,7 +714,7 @@ func TestRawFormatWithoutTag(t *testing.T) {
 		splunkLoggerDriver.postMessagesBatchSize != defaultPostMessagesBatchSize ||
 		splunkLoggerDriver.bufferMaximum != defaultBufferMaximum ||
 		cap(splunkLoggerDriver.stream) != defaultStreamChannelSize ||
-		string(splunkLoggerDriver.prefix) != "" {
+		len(splunkLoggerDriver.prefix) != 0 {
 		t.Log(string(splunkLoggerDriver.prefix) + "a")
 		t.Fatal("Values do not match configuration.")
 	}
@@ -773,10 +755,8 @@ func TestRawFormatWithoutTag(t *testing.T) {
 
 	if event, err := message1.EventAsString(); err != nil {
 		t.Fatal(err)
-	} else {
-		if event != "{\"a\":\"b\"}" {
-			t.Fatalf("Unexpected event in message 1 %v", event)
-		}
+	} else if event != "{\"a\":\"b\"}" {
+		t.Fatalf("Unexpected event in message 1 %v", event)
 	}
 
 	message2 := hec.messages[1]
@@ -790,10 +770,8 @@ func TestRawFormatWithoutTag(t *testing.T) {
 
 	if event, err := message2.EventAsString(); err != nil {
 		t.Fatal(err)
-	} else {
-		if event != "notjson" {
-			t.Fatalf("Unexpected event in message 2 %v", event)
-		}
+	} else if event != "notjson" {
+		t.Fatalf("Unexpected event in message 2 %v", event)
 	}
 
 	err = hec.Close()
@@ -845,10 +823,8 @@ func TestBatching(t *testing.T) {
 	for i, message := range hec.messages {
 		if event, err := message.EventAsMap(); err != nil {
 			t.Fatal(err)
-		} else {
-			if event["line"] != strconv.Itoa(i) {
-				t.Fatalf("Unexpected event in message %v", event)
-			}
+		} else if event["line"] != strconv.Itoa(i) {
+			t.Fatalf("Unexpected event in message %v", event)
 		}
 	}
 
@@ -906,10 +882,8 @@ func TestFrequency(t *testing.T) {
 	for i, message := range hec.messages {
 		if event, err := message.EventAsMap(); err != nil {
 			t.Fatal(err)
-		} else {
-			if event["line"] != strconv.Itoa(i) {
-				t.Fatalf("Unexpected event in message %v", event)
-			}
+		} else if event["line"] != strconv.Itoa(i) {
+			t.Fatalf("Unexpected event in message %v", event)
 		}
 	}
 
@@ -976,10 +950,8 @@ func TestOneMessagePerRequest(t *testing.T) {
 	for i, message := range hec.messages {
 		if event, err := message.EventAsMap(); err != nil {
 			t.Fatal(err)
-		} else {
-			if event["line"] != strconv.Itoa(i) {
-				t.Fatalf("Unexpected event in message %v", event)
-			}
+		} else if event["line"] != strconv.Itoa(i) {
+			t.Fatalf("Unexpected event in message %v", event)
 		}
 	}
 
@@ -1080,10 +1052,8 @@ func TestSkipVerify(t *testing.T) {
 	for i, message := range hec.messages {
 		if event, err := message.EventAsMap(); err != nil {
 			t.Fatal(err)
-		} else {
-			if event["line"] != strconv.Itoa(i) {
-				t.Fatalf("Unexpected event in message %v", event)
-			}
+		} else if event["line"] != strconv.Itoa(i) {
+			t.Fatalf("Unexpected event in message %v", event)
 		}
 	}
 
@@ -1149,10 +1119,8 @@ func TestBufferMaximum(t *testing.T) {
 	for i, message := range hec.messages {
 		if event, err := message.EventAsMap(); err != nil {
 			t.Fatal(err)
-		} else {
-			if event["line"] != fmt.Sprintf("%d", i+2) {
-				t.Fatalf("Unexpected event in message %v", event)
-			}
+		} else if event["line"] != fmt.Sprintf("%d", i+2) {
+			t.Fatalf("Unexpected event in message %v", event)
 		}
 	}
 
@@ -1255,10 +1223,8 @@ func TestCannotSendAfterClose(t *testing.T) {
 	message := hec.messages[0]
 	if event, err := message.EventAsMap(); err != nil {
 		t.Fatal(err)
-	} else {
-		if event["line"] != "message1" {
-			t.Fatalf("Unexpected event in message %v", event)
-		}
+	} else if event["line"] != "message1" {
+		t.Fatalf("Unexpected event in message %v", event)
 	}
 
 	err = hec.Close()

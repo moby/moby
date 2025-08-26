@@ -87,7 +87,7 @@ func newStateCounter(ns *gometrics.Namespace, desc *prometheus.Desc) *StateCount
 }
 
 // Get returns the count of containers in running, paused, and stopped states
-func (ctr *StateCounter) Get() (running int, paused int, stopped int) {
+func (ctr *StateCounter) Get() (running, paused, stopped int) {
 	ctr.mu.RLock()
 	defer ctr.mu.RUnlock()
 

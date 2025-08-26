@@ -579,7 +579,7 @@ func buildSandboxPlatformOptions(ctr *container.Container, cfg *config.Config) (
 	return sboxOptions, nil
 }
 
-func (daemon *Daemon) initializeNetworkingPaths(ctr *container.Container, nc *container.Container) error {
+func (daemon *Daemon) initializeNetworkingPaths(ctr, nc *container.Container) error {
 	ctr.HostnamePath = nc.HostnamePath
 	ctr.HostsPath = nc.HostsPath
 	ctr.ResolvConfPath = nc.ResolvConfPath

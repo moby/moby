@@ -386,8 +386,7 @@ func newAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) 
 		) (
 			out smithymiddleware.BuildOutput, metadata smithymiddleware.Metadata, err error,
 		) {
-			switch v := in.Request.(type) {
-			case *smithyhttp.Request:
+			if v, ok := in.Request.(*smithyhttp.Request); ok {
 				v.Header.Add(logsFormatHeader, jsonEmfLogFormat)
 			}
 			return next.HandleBuild(ctx, in)
@@ -531,9 +530,7 @@ func (l *logStream) createLogStream() error {
 
 // newTicker is used for time-based batching.  newTicker is a variable such
 // that the implementation can be swapped out for unit tests.
-var newTicker = func(freq time.Duration) *time.Ticker {
-	return time.NewTicker(freq)
-}
+var newTicker = time.NewTicker
 
 // collectBatch executes as a goroutine to perform batching of log events for
 // submission to the log stream.  If the awslogs-multiline-pattern or

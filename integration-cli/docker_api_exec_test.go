@@ -227,7 +227,7 @@ func createExec(t *testing.T, name string) string {
 	return createExecCmd(t, name, "true")
 }
 
-func createExecCmd(t *testing.T, name string, cmd string) string {
+func createExecCmd(t *testing.T, name, cmd string) string {
 	_, reader, err := request.Post(testutil.GetContext(t), fmt.Sprintf("/containers/%s/exec", name), request.JSONBody(map[string]any{"Cmd": []string{cmd}}))
 	assert.NilError(t, err)
 	b, err := io.ReadAll(reader)

@@ -58,7 +58,7 @@ type inspectCompatResponse struct {
 // in API responses.
 func (ir *inspectCompatResponse) MarshalJSON() ([]byte, error) {
 	type tmp *image.InspectResponse
-	base, err := json.Marshal((tmp)(ir.InspectResponse))
+	base, err := json.Marshal(tmp(ir.InspectResponse))
 	if err != nil {
 		return nil, err
 	}

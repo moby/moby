@@ -66,10 +66,10 @@ func (l *Link) ToEnv() []string {
 		// These env-vars are produced for every port, regardless if they're
 		// part of a port-range.
 		prefix := fmt.Sprintf("%s_PORT_%s_%s", alias, p.Port(), strings.ToUpper(p.Proto()))
-		env = append(env, fmt.Sprintf("%s=%s://%s:%s", prefix, p.Proto(), l.ChildIP, p.Port()))
-		env = append(env, fmt.Sprintf("%s_ADDR=%s", prefix, l.ChildIP))
-		env = append(env, fmt.Sprintf("%s_PORT=%s", prefix, p.Port()))
-		env = append(env, fmt.Sprintf("%s_PROTO=%s", prefix, p.Proto()))
+		env = append(env, fmt.Sprintf("%s=%s://%s:%s", prefix, p.Proto(), l.ChildIP, p.Port()),
+			fmt.Sprintf("%s_ADDR=%s", prefix, l.ChildIP),
+			fmt.Sprintf("%s_PORT=%s", prefix, p.Port()),
+			fmt.Sprintf("%s_PROTO=%s", prefix, p.Proto()))
 
 		// Detect whether this port is part of a range (consecutive port number
 		// and same protocol).
@@ -82,10 +82,11 @@ func (l *Link) ToEnv() []string {
 
 		if pEnd != pStart {
 			prefix = fmt.Sprintf("%s_PORT_%s_%s", alias, pStart.Port(), strings.ToUpper(pStart.Proto()))
-			env = append(env, fmt.Sprintf("%s_START=%s://%s:%s", prefix, pStart.Proto(), l.ChildIP, pStart.Port()))
-			env = append(env, fmt.Sprintf("%s_PORT_START=%s", prefix, pStart.Port()))
-			env = append(env, fmt.Sprintf("%s_END=%s://%s:%s", prefix, pEnd.Proto(), l.ChildIP, pEnd.Port()))
-			env = append(env, fmt.Sprintf("%s_PORT_END=%s", prefix, pEnd.Port()))
+			env = append(env,
+				fmt.Sprintf("%s_START=%s://%s:%s", prefix, pStart.Proto(), l.ChildIP, pStart.Port()),
+				fmt.Sprintf("%s_PORT_START=%s", prefix, pStart.Port()),
+				fmt.Sprintf("%s_END=%s://%s:%s", prefix, pEnd.Proto(), l.ChildIP, pEnd.Port()),
+				fmt.Sprintf("%s_PORT_END=%s", prefix, pEnd.Port()))
 		}
 
 		// Reset for next range (if any)

@@ -106,7 +106,7 @@ func TestCopyEmptyFile(t *testing.T) {
 	// copy from empty file
 	rdr, _, err := apiClient.CopyFromContainer(ctx, cid, dstDir)
 	assert.NilError(t, err)
-	defer rdr.Close()
+	rdr.Close()
 }
 
 func TestCopyToContainerCopyUIDGID(t *testing.T) {

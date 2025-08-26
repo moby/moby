@@ -261,8 +261,7 @@ func (w *Worker) ResolveSourceMetadata(ctx context.Context, op *pb.SourceOp, opt
 		return nil, err
 	}
 
-	switch idt := id.(type) {
-	case *containerimage.ImageIdentifier:
+	if idt, ok := id.(*containerimage.ImageIdentifier); ok {
 		if opt.ImageOpt == nil {
 			opt.ImageOpt = &sourceresolver.ResolveImageOpt{}
 		}

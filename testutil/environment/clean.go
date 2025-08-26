@@ -153,7 +153,7 @@ func deleteAllNetworks(ctx context.Context, t testing.TB, c client.NetworkAPICli
 		if _, ok := protectedNetworks[n.ID]; ok {
 			continue
 		}
-		if daemonPlatform == "windows" && strings.ToLower(n.Name) == network.NetworkNat {
+		if daemonPlatform == "windows" && strings.EqualFold(n.Name, network.NetworkNat) {
 			// nat is a pre-defined network on Windows and cannot be removed
 			continue
 		}

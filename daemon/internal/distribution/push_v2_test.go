@@ -599,7 +599,7 @@ func TestPushRegistryWhenAuthInfoEmpty(t *testing.T) {
 	}
 }
 
-func taggedMetadata(key string, dgst string, sourceRepo string) metadata.V2Metadata {
+func taggedMetadata(key, dgst, sourceRepo string) metadata.V2Metadata {
 	meta := metadata.V2Metadata{
 		Digest:           digest.Digest(dgst),
 		SourceRepository: sourceRepo,
