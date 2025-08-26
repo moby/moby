@@ -89,6 +89,12 @@ EOF
 quoted_args="$(printf " %q" "${@}")"
 echo "${quoted_args}" > /etc/docker-entrypoint-cmd
 
+cat > /etc/systemd/system/firewalld.service << EOF
+[Service]
+ExecStart=
+ExecStart=/usr/sbin/firewalld --nofork --nopid --debug=4
+EOF
+
 cat > /etc/systemd/system/docker-entrypoint.service << EOF
 [Unit]
 Description=docker-entrypoint.service
