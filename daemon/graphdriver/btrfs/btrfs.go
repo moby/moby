@@ -164,11 +164,7 @@ func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 
 // Cleanup unmounts the home directory.
 func (d *Driver) Cleanup() error {
-	if err := mount.Unmount(d.home); err != nil {
-		return err
-	}
-
-	return nil
+	return mount.Unmount(d.home)
 }
 
 func free(p *C.char) {

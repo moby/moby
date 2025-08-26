@@ -182,11 +182,10 @@ func (v *localVolume) postMount() error {
 		return nil
 	}
 	if v.opts.Quota.Size > 0 {
-		if v.quotaCtl != nil {
-			return v.quotaCtl.SetQuota(v.path, v.opts.Quota)
-		} else {
+		if v.quotaCtl == nil {
 			return errors.New("size quota requested for volume but no quota support")
 		}
+		return v.quotaCtl.SetQuota(v.path, v.opts.Quota)
 	}
 	return nil
 }

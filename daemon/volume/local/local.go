@@ -340,14 +340,13 @@ func (v *localVolume) Unmount(id string) error {
 	// this volume can never be removed until a daemon restart occurs.
 	if v.needsMount() {
 		// TODO: Remove once the real bug is fixed: https://github.com/moby/moby/issues/46508
-		if v.active.count > 0 {
-			v.active.count--
-			logger.WithField("active mounts", v.active).Debug("Decremented active mount count")
-		} else {
+		if v.active.count <= 0 {
 			logger.Error("An attempt to decrement a zero mount count")
 			logger.Error(string(debug.Stack()))
 			return nil
 		}
+		v.active.count--
+		logger.WithField("active mounts", v.active).Debug("Decremented active mount count")
 	}
 
 	if v.active.count > 0 {

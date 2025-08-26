@@ -109,35 +109,34 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 	}
 
 	if err := task.Kill(context.Background(), stopSignal); err != nil {
-		if cerrdefs.IsNotFound(err) {
-			unpause = false
-			log.G(context.TODO()).WithFields(log.Fields{
-				"error":     err,
-				"container": container.ID,
-				"action":    "kill",
-			}).Debug("container kill failed because of 'container not found' or 'no such process'")
-			go func() {
-				// We need to clean up this container but it is possible there is a case where we hit here before the exit event is processed
-				// but after it was fired off.
-				// So let's wait the container's stop timeout amount of time to see if the event is eventually processed.
-				// Doing this has the side effect that if no event was ever going to come we are waiting a longer period of time unnecessarily.
-				// But this prevents race conditions in processing the container.
-				ctx, cancel := context.WithTimeout(context.TODO(), time.Duration(container.StopTimeout())*time.Second)
-				defer cancel()
-				s := <-container.Wait(ctx, containertypes.WaitConditionNotRunning)
-				if s.Err() != nil {
-					if err := daemon.handleContainerExit(container, nil); err != nil {
-						log.G(context.TODO()).WithFields(log.Fields{
-							"error":     err,
-							"container": container.ID,
-							"action":    "kill",
-						}).Warn("error while handling container exit")
-					}
-				}
-			}()
-		} else {
+		if !cerrdefs.IsNotFound(err) {
 			return errors.Wrapf(err, "Cannot kill container %s", container.ID)
 		}
+		unpause = false
+		log.G(context.TODO()).WithFields(log.Fields{
+			"error":     err,
+			"container": container.ID,
+			"action":    "kill",
+		}).Debug("container kill failed because of 'container not found' or 'no such process'")
+		go func() {
+			// We need to clean up this container but it is possible there is a case where we hit here before the exit event is processed
+			// but after it was fired off.
+			// So let's wait the container's stop timeout amount of time to see if the event is eventually processed.
+			// Doing this has the side effect that if no event was ever going to come we are waiting a longer period of time unnecessarily.
+			// But this prevents race conditions in processing the container.
+			ctx, cancel := context.WithTimeout(context.TODO(), time.Duration(container.StopTimeout())*time.Second)
+			defer cancel()
+			s := <-container.Wait(ctx, containertypes.WaitConditionNotRunning)
+			if s.Err() != nil {
+				if err := daemon.handleContainerExit(container, nil); err != nil {
+					log.G(context.TODO()).WithFields(log.Fields{
+						"error":     err,
+						"container": container.ID,
+						"action":    "kill",
+					}).Warn("error while handling container exit")
+				}
+			}
+		}()
 	}
 
 	if unpause {

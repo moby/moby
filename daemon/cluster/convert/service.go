@@ -188,44 +188,42 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 
 	switch s.TaskTemplate.Runtime {
 	case types.RuntimeContainer, "": // if empty runtime default to container
-		if s.TaskTemplate.ContainerSpec != nil {
-			containerSpec, err := containerToGRPC(s.TaskTemplate.ContainerSpec)
-			if err != nil {
-				return swarmapi.ServiceSpec{}, err
-			}
-			if s.TaskTemplate.Resources != nil && s.TaskTemplate.Resources.Limits != nil {
-				// TODO remove this (or keep for backward compat) once SwarmKit API moved PidsLimit into Resources
-				containerSpec.PidsLimit = s.TaskTemplate.Resources.Limits.Pids
-			}
-			spec.Task.Runtime = &swarmapi.TaskSpec_Container{Container: containerSpec}
-		} else {
+		if s.TaskTemplate.ContainerSpec == nil {
 			// If the ContainerSpec is nil, we can't set the task runtime
 			return swarmapi.ServiceSpec{}, ErrMismatchedRuntime
 		}
+		containerSpec, err := containerToGRPC(s.TaskTemplate.ContainerSpec)
+		if err != nil {
+			return swarmapi.ServiceSpec{}, err
+		}
+		if s.TaskTemplate.Resources != nil && s.TaskTemplate.Resources.Limits != nil {
+			// TODO remove this (or keep for backward compat) once SwarmKit API moved PidsLimit into Resources
+			containerSpec.PidsLimit = s.TaskTemplate.Resources.Limits.Pids
+		}
+		spec.Task.Runtime = &swarmapi.TaskSpec_Container{Container: containerSpec}
 	case types.RuntimePlugin:
-		if s.TaskTemplate.PluginSpec != nil {
-			if s.Mode.Replicated != nil {
-				return swarmapi.ServiceSpec{}, errors.New("plugins must not use replicated mode")
-			}
-
-			s.Mode.Global = &types.GlobalService{} // must always be global
-
-			ps := runtime.FromAPI(*s.TaskTemplate.PluginSpec)
-			pluginSpec, err := proto.Marshal(&ps)
-			if err != nil {
-				return swarmapi.ServiceSpec{}, err
-			}
-			spec.Task.Runtime = &swarmapi.TaskSpec_Generic{
-				Generic: &swarmapi.GenericRuntimeSpec{
-					Kind: string(types.RuntimePlugin),
-					Payload: &gogotypes.Any{
-						TypeUrl: string(types.RuntimeURLPlugin),
-						Value:   pluginSpec,
-					},
-				},
-			}
-		} else {
+		if s.TaskTemplate.PluginSpec == nil {
 			return swarmapi.ServiceSpec{}, ErrMismatchedRuntime
+		}
+		if s.Mode.Replicated != nil {
+			return swarmapi.ServiceSpec{}, errors.New("plugins must not use replicated mode")
+		}
+
+		s.Mode.Global = &types.GlobalService{} // must always be global
+
+		ps := runtime.FromAPI(*s.TaskTemplate.PluginSpec)
+		pluginSpec, err := proto.Marshal(&ps)
+		if err != nil {
+			return swarmapi.ServiceSpec{}, err
+		}
+		spec.Task.Runtime = &swarmapi.TaskSpec_Generic{
+			Generic: &swarmapi.GenericRuntimeSpec{
+				Kind: string(types.RuntimePlugin),
+				Payload: &gogotypes.Any{
+					TypeUrl: string(types.RuntimeURLPlugin),
+					Value:   pluginSpec,
+				},
+			},
 		}
 	case types.RuntimeNetworkAttachment:
 		// NOTE(dperny) I'm leaving this case here for completeness. The actual

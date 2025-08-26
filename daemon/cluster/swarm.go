@@ -29,22 +29,21 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 	c.controlMutex.Lock()
 	defer c.controlMutex.Unlock()
 	if c.nr != nil {
-		if req.ForceNewCluster {
-
-			// Take c.mu temporarily to wait for presently running
-			// API handlers to finish before shutting down the node.
-			c.mu.Lock()
-			if !c.nr.nodeState.IsManager() {
-				c.mu.Unlock()
-				return "", errSwarmNotManager
-			}
-			c.mu.Unlock()
-
-			if err := c.nr.Stop(); err != nil {
-				return "", err
-			}
-		} else {
+		if !req.ForceNewCluster {
 			return "", errSwarmExists
+		}
+
+		// Take c.mu temporarily to wait for presently running
+		// API handlers to finish before shutting down the node.
+		c.mu.Lock()
+		if !c.nr.nodeState.IsManager() {
+			c.mu.Unlock()
+			return "", errSwarmNotManager
+		}
+		c.mu.Unlock()
+
+		if err := c.nr.Stop(); err != nil {
+			return "", err
 		}
 	}
 
@@ -312,17 +311,16 @@ func (c *Cluster) UnlockSwarm(req types.UnlockRequest) error {
 	c.mu.RLock()
 	state := c.currentNodeState()
 
-	if !state.IsActiveManager() {
-		// when manager is not active,
-		// unless it is locked, otherwise return error.
-		if err := c.errNoManager(state); !errors.Is(err, errSwarmLocked) {
-			c.mu.RUnlock()
-			return err
-		}
-	} else {
+	if state.IsActiveManager() {
 		// when manager is active, return an error of "not locked"
 		c.mu.RUnlock()
 		return notLockedError{}
+	}
+	// when manager is not active,
+	// unless it is locked, otherwise return error.
+	if err := c.errNoManager(state); !errors.Is(err, errSwarmLocked) {
+		c.mu.RUnlock()
+		return err
 	}
 
 	// only when swarm is locked, code running reaches here

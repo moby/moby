@@ -40,11 +40,10 @@ func translateRegistryError(ctx context.Context, err error) error {
 			}
 		} else {
 			var derr docker.Error
-			if errors.As(err, &derr) {
-				derrs = append(derrs, derr)
-			} else {
+			if !errors.As(err, &derr) {
 				return err
 			}
+			derrs = append(derrs, derr)
 		}
 	}
 	var errs []error

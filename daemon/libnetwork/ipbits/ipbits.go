@@ -15,13 +15,12 @@ func Add(ip netip.Addr, x uint64, shift uint) netip.Addr {
 		addr += uint32(x) << shift
 		binary.BigEndian.PutUint32(a[:], addr)
 		return netip.AddrFrom4(a)
-	} else {
-		a := ip.As16()
-		addr := uint128From16(a)
-		addr = addr.add(uint128From(x).lsh(shift))
-		addr.fill16(&a)
-		return netip.AddrFrom16(a)
 	}
+	a := ip.As16()
+	addr := uint128From16(a)
+	addr = addr.add(uint128From(x).lsh(shift))
+	addr.fill16(&a)
+	return netip.AddrFrom16(a)
 }
 
 // SubnetsBetween computes the number of subnets of size 'sz' available between 'a1'
@@ -55,8 +54,7 @@ func Field(ip netip.Addr, u, v uint) uint64 {
 		mask := ^uint32(0) >> u
 		a := ip.As4()
 		return uint64((binary.BigEndian.Uint32(a[:]) & mask) >> (32 - v))
-	} else {
-		mask := uint128From(0).not().rsh(u)
-		return uint128From16(ip.As16()).and(mask).rsh(128 - v).uint64()
 	}
+	mask := uint128From(0).not().rsh(u)
+	return uint128From16(ip.As16()).and(mask).rsh(128 - v).uint64()
 }

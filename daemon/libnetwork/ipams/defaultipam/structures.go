@@ -63,9 +63,8 @@ func PoolIDFromString(str string) (pID PoolID, err error) {
 func (s *PoolID) String() string {
 	if s.ChildSubnet == (netip.Prefix{}) {
 		return s.AddressSpace + "/" + s.Subnet.String()
-	} else {
-		return s.AddressSpace + "/" + s.Subnet.String() + "/" + s.ChildSubnet.String()
 	}
+	return s.AddressSpace + "/" + s.Subnet.String() + "/" + s.ChildSubnet.String()
 }
 
 // String returns the string form of the PoolData object
