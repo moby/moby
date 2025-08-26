@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/storage"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
@@ -95,12 +96,12 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options
 	}, nil
 }
 
-func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *container.Container) (*containertypes.ContainerJSONBase, error) {
+func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Container) (*containertypes.ContainerJSONBase, error) {
 	// make a copy to play with
-	hostConfig := *container.HostConfig
+	hostConfig := *ctr.HostConfig
 
 	// Add information for legacy links
-	children := daemon.linkIndex.children(container)
+	children := daemon.linkIndex.children(ctr)
 	hostConfig.Links = nil // do not expose the internal structure
 	for linkAlias, child := range children {
 		hostConfig.Links = append(hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
@@ -113,85 +114,84 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *contai
 	// Config.MacAddress field for older API versions (< 1.44). We set it here
 	// unconditionally, to keep backward compatibility with clients that use
 	// unversioned API endpoints.
-	if container.Config != nil && container.Config.MacAddress == "" { //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
+	if ctr.Config != nil && ctr.Config.MacAddress == "" { //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
 		if nwm := hostConfig.NetworkMode; nwm.IsBridge() || nwm.IsUserDefined() {
-			if epConf, ok := container.NetworkSettings.Networks[nwm.NetworkName()]; ok {
-				container.Config.MacAddress = epConf.DesiredMacAddress //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
+			if epConf, ok := ctr.NetworkSettings.Networks[nwm.NetworkName()]; ok {
+				ctr.Config.MacAddress = epConf.DesiredMacAddress //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
 			}
 		}
 	}
 
 	var containerHealth *containertypes.Health
-	if container.State.Health != nil {
+	if ctr.State.Health != nil {
 		containerHealth = &containertypes.Health{
-			Status:        container.State.Health.Status(),
-			FailingStreak: container.State.Health.FailingStreak,
-			Log:           append([]*containertypes.HealthcheckResult{}, container.State.Health.Log...),
+			Status:        ctr.State.Health.Status(),
+			FailingStreak: ctr.State.Health.FailingStreak,
+			Log:           append([]*containertypes.HealthcheckResult{}, ctr.State.Health.Log...),
 		}
 	}
 
-	containerState := &containertypes.State{
-		Status:     container.State.StateString(),
-		Running:    container.State.Running,
-		Paused:     container.State.Paused,
-		Restarting: container.State.Restarting,
-		OOMKilled:  container.State.OOMKilled,
-		Dead:       container.State.Dead,
-		Pid:        container.State.Pid,
-		ExitCode:   container.State.ExitCode(),
-		Error:      container.State.ErrorMsg,
-		StartedAt:  container.State.StartedAt.Format(time.RFC3339Nano),
-		FinishedAt: container.State.FinishedAt.Format(time.RFC3339Nano),
-		Health:     containerHealth,
-	}
-
-	contJSONBase := &containertypes.ContainerJSONBase{
-		ID:           container.ID,
-		Created:      container.Created.Format(time.RFC3339Nano),
-		Path:         container.Path,
-		Args:         container.Args,
-		State:        containerState,
-		Image:        container.ImageID.String(),
-		LogPath:      container.LogPath,
-		Name:         container.Name,
-		RestartCount: container.RestartCount,
-		Driver:       container.Driver,
-		Platform:     container.ImagePlatform.OS,
-		MountLabel:   container.MountLabel,
-		ProcessLabel: container.ProcessLabel,
-		ExecIDs:      container.GetExecIDs(),
+	inspectResponse := &containertypes.ContainerJSONBase{
+		ID:      ctr.ID,
+		Created: ctr.Created.Format(time.RFC3339Nano),
+		Path:    ctr.Path,
+		Args:    ctr.Args,
+		State: &containertypes.State{
+			Status:     ctr.State.StateString(),
+			Running:    ctr.State.Running,
+			Paused:     ctr.State.Paused,
+			Restarting: ctr.State.Restarting,
+			OOMKilled:  ctr.State.OOMKilled,
+			Dead:       ctr.State.Dead,
+			Pid:        ctr.State.Pid,
+			ExitCode:   ctr.State.ExitCode(),
+			Error:      ctr.State.ErrorMsg,
+			StartedAt:  ctr.State.StartedAt.Format(time.RFC3339Nano),
+			FinishedAt: ctr.State.FinishedAt.Format(time.RFC3339Nano),
+			Health:     containerHealth,
+		},
+		Image:        ctr.ImageID.String(),
+		LogPath:      ctr.LogPath,
+		Name:         ctr.Name,
+		RestartCount: ctr.RestartCount,
+		Driver:       ctr.Driver,
+		Platform:     ctr.ImagePlatform.OS,
+		MountLabel:   ctr.MountLabel,
+		ProcessLabel: ctr.ProcessLabel,
+		ExecIDs:      ctr.GetExecIDs(),
 		HostConfig:   &hostConfig,
+		GraphDriver: storage.DriverData{
+			Name: ctr.Driver,
+		},
 	}
 
 	// Now set any platform-specific fields
-	contJSONBase = setPlatformSpecificContainerFields(container, contJSONBase)
-
-	contJSONBase.GraphDriver.Name = container.Driver
+	inspectResponse = setPlatformSpecificContainerFields(ctr, inspectResponse)
 
 	if daemon.UsesSnapshotter() {
 		// Additional information only applies to graphDrivers, so we're done.
-		return contJSONBase, nil
+		return inspectResponse, nil
 	}
 
-	if container.RWLayer == nil {
-		if container.Dead {
-			return contJSONBase, nil
+	if ctr.RWLayer == nil {
+		if ctr.Dead {
+			return inspectResponse, nil
 		}
-		return nil, errdefs.System(errors.New("RWLayer of container " + container.ID + " is unexpectedly nil"))
+		return nil, errdefs.System(errors.New("RWLayer of container " + ctr.ID + " is unexpectedly nil"))
 	}
 
-	graphDriverData, err := container.RWLayer.Metadata()
+	graphDriverData, err := ctr.RWLayer.Metadata()
 	if err != nil {
-		if container.Dead {
+		if ctr.Dead {
 			// container is marked as Dead, and its graphDriver metadata may
 			// have been removed; we can ignore errors.
-			return contJSONBase, nil
+			return inspectResponse, nil
 		}
 		return nil, errdefs.System(err)
 	}
 
-	contJSONBase.GraphDriver.Data = graphDriverData
-	return contJSONBase, nil
+	inspectResponse.GraphDriver.Data = graphDriverData
+	return inspectResponse, nil
 }
 
 // ContainerExecInspect returns low-level information about the exec

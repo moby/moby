@@ -7,8 +7,8 @@ import (
 )
 
 // This sets platform-specific fields
-func setPlatformSpecificContainerFields(container *containerpkg.Container, contJSONBase *container.ContainerJSONBase) *container.ContainerJSONBase {
-	return contJSONBase
+func setPlatformSpecificContainerFields(ctr *containerpkg.Container, resp *container.ContainerJSONBase) *container.ContainerJSONBase {
+	return resp
 }
 
 func inspectExecProcessConfig(e *containerpkg.ExecConfig) *backend.ExecProcessConfig {

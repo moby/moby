@@ -7,13 +7,13 @@ import (
 )
 
 // This sets platform-specific fields
-func setPlatformSpecificContainerFields(container *containerpkg.Container, contJSONBase *container.ContainerJSONBase) *container.ContainerJSONBase {
-	contJSONBase.AppArmorProfile = container.AppArmorProfile
-	contJSONBase.ResolvConfPath = container.ResolvConfPath
-	contJSONBase.HostnamePath = container.HostnamePath
-	contJSONBase.HostsPath = container.HostsPath
+func setPlatformSpecificContainerFields(ctr *containerpkg.Container, resp *container.ContainerJSONBase) *container.ContainerJSONBase {
+	resp.AppArmorProfile = ctr.AppArmorProfile
+	resp.ResolvConfPath = ctr.ResolvConfPath
+	resp.HostnamePath = ctr.HostnamePath
+	resp.HostsPath = ctr.HostsPath
 
-	return contJSONBase
+	return resp
 }
 
 func inspectExecProcessConfig(e *containerpkg.ExecConfig) *backend.ExecProcessConfig {
