@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 )
 
@@ -29,7 +30,7 @@ func (d *Daemon) ListSecrets(t testing.TB) []swarm.Secret {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	secrets, err := cli.SecretList(context.Background(), swarm.SecretListOptions{})
+	secrets, err := cli.SecretList(context.Background(), client.SecretListOptions{})
 	assert.NilError(t, err)
 	return secrets
 }

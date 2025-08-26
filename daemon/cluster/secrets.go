@@ -5,6 +5,7 @@ import (
 
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/cluster/convert"
+	"github.com/moby/moby/v2/daemon/server/swarmbackend"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"google.golang.org/grpc"
 )
@@ -27,7 +28,7 @@ func (c *Cluster) GetSecret(input string) (types.Secret, error) {
 }
 
 // GetSecrets returns all secrets of a managed swarm cluster.
-func (c *Cluster) GetSecrets(options types.SecretListOptions) ([]types.Secret, error) {
+func (c *Cluster) GetSecrets(options swarmbackend.SecretListOptions) ([]types.Secret, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 

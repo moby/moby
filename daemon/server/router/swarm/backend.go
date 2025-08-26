@@ -30,7 +30,7 @@ type Backend interface {
 	RemoveNode(string, bool) error
 	GetTasks(swarmbackend.TaskListOptions) ([]swarm.Task, error)
 	GetTask(string) (swarm.Task, error)
-	GetSecrets(opts swarm.SecretListOptions) ([]swarm.Secret, error)
+	GetSecrets(opts swarmbackend.SecretListOptions) ([]swarm.Secret, error)
 	CreateSecret(s swarm.SecretSpec) (string, error)
 	RemoveSecret(idOrName string) error
 	GetSecret(id string) (swarm.Secret, error)
