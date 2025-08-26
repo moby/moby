@@ -1,7 +1,5 @@
 package swarm
 
-import "github.com/moby/moby/api/types/filters"
-
 // Node represents a node.
 type Node struct {
 	ID string
@@ -138,14 +136,4 @@ const (
 // duplicate it here. See that type for full documentation
 type Topology struct {
 	Segments map[string]string `json:",omitempty"`
-}
-
-// NodeListOptions holds parameters to list nodes with.
-type NodeListOptions struct {
-	Filters filters.Args
-}
-
-// NodeRemoveOptions holds parameters to remove nodes with.
-type NodeRemoveOptions struct {
-	Force bool
 }

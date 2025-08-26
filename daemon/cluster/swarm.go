@@ -15,6 +15,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/stack"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/swarmbackend"
 	"github.com/moby/moby/v2/errdefs"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/encryption"
@@ -240,7 +241,7 @@ func (c *Cluster) inspect(ctx context.Context, state nodeState) (types.Swarm, er
 }
 
 // Update updates configuration of a managed swarm cluster.
-func (c *Cluster) Update(version uint64, spec types.Spec, flags types.UpdateFlags) error {
+func (c *Cluster) Update(version uint64, spec types.Spec, flags swarmbackend.UpdateFlags) error {
 	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		swarm, err := getSwarm(ctx, state.controlClient)
 		if err != nil {

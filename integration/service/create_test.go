@@ -101,7 +101,7 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	serviceID := swarm.CreateService(ctx, t, d, serviceSpec...)
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, instances), swarm.ServicePoll)
 
-	_, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, swarmtypes.ServiceInspectOptions{})
+	_, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
 	err = apiClient.ServiceRemove(ctx, serviceID)
@@ -164,7 +164,7 @@ func TestCreateServiceConflict(t *testing.T) {
 	swarm.CreateService(ctx, t, d, serviceSpec...)
 
 	spec := swarm.CreateServiceSpec(t, serviceSpec...)
-	_, err := c.ServiceCreate(ctx, spec, swarmtypes.ServiceCreateOptions{})
+	_, err := c.ServiceCreate(ctx, spec, client.ServiceCreateOptions{})
 	assert.Check(t, cerrdefs.IsConflict(err))
 	assert.ErrorContains(t, err, "service "+serviceName+" already exists")
 }
@@ -186,7 +186,7 @@ func TestCreateServiceMaxReplicas(t *testing.T) {
 	serviceID := swarm.CreateService(ctx, t, d, serviceSpec...)
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, maxReplicas), swarm.ServicePoll)
 
-	_, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, swarmtypes.ServiceInspectOptions{})
+	_, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
 }
 
@@ -367,7 +367,7 @@ func TestCreateServiceSysctls(t *testing.T) {
 		// more complex)
 
 		// get all tasks of the service, so we can get the container
-		tasks, err := apiClient.TaskList(ctx, swarmtypes.TaskListOptions{
+		tasks, err := apiClient.TaskList(ctx, client.TaskListOptions{
 			Filters: filters.NewArgs(filters.Arg("service", serviceID)),
 		})
 		assert.NilError(t, err)
@@ -382,7 +382,7 @@ func TestCreateServiceSysctls(t *testing.T) {
 		assert.DeepEqual(t, tasks[0].Spec.ContainerSpec.Sysctls, expectedSysctls)
 
 		// verify that the service also has the sysctl set in the spec.
-		service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, swarmtypes.ServiceInspectOptions{})
+		service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
 		assert.NilError(t, err)
 		assert.DeepEqual(t,
 			service.Spec.TaskTemplate.ContainerSpec.Sysctls, expectedSysctls,
@@ -437,7 +437,7 @@ func TestCreateServiceCapabilities(t *testing.T) {
 	// level has been tested elsewhere.
 
 	// get all tasks of the service, so we can get the container
-	tasks, err := apiClient.TaskList(ctx, swarmtypes.TaskListOptions{
+	tasks, err := apiClient.TaskList(ctx, client.TaskListOptions{
 		Filters: filters.NewArgs(filters.Arg("service", serviceID)),
 	})
 	assert.NilError(t, err)
@@ -454,7 +454,7 @@ func TestCreateServiceCapabilities(t *testing.T) {
 	assert.DeepEqual(t, tasks[0].Spec.ContainerSpec.CapabilityDrop, capDrop)
 
 	// verify that the service also has the capabilities set in the spec.
-	service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, swarmtypes.ServiceInspectOptions{})
+	service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
 	assert.DeepEqual(t, service.Spec.TaskTemplate.ContainerSpec.CapabilityAdd, capAdd)
 	assert.DeepEqual(t, service.Spec.TaskTemplate.ContainerSpec.CapabilityDrop, capDrop)

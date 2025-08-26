@@ -2,8 +2,6 @@ package swarm
 
 import (
 	"time"
-
-	"github.com/moby/moby/api/types/filters"
 )
 
 // TaskState represents the state of a task.
@@ -222,9 +220,4 @@ type VolumeAttachment struct {
 	// Target, together with Source, indicates the Mount, as specified
 	// in the ContainerSpec, that this volume fulfills.
 	Target string `json:",omitempty"`
-}
-
-// TaskListOptions holds parameters to list tasks with.
-type TaskListOptions struct {
-	Filters filters.Args
 }

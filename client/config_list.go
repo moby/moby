@@ -10,7 +10,7 @@ import (
 )
 
 // ConfigList returns the list of configs.
-func (cli *Client) ConfigList(ctx context.Context, options swarm.ConfigListOptions) ([]swarm.Config, error) {
+func (cli *Client) ConfigList(ctx context.Context, options ConfigListOptions) ([]swarm.Config, error) {
 	if err := cli.NewVersionError(ctx, "1.30", "config list"); err != nil {
 		return nil, err
 	}

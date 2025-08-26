@@ -16,7 +16,7 @@ import (
 )
 
 // ServiceCreate creates a new service.
-func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec, options swarm.ServiceCreateOptions) (swarm.ServiceCreateResponse, error) {
+func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec, options ServiceCreateOptions) (swarm.ServiceCreateResponse, error) {
 	var response swarm.ServiceCreateResponse
 
 	// Make sure we negotiated (if the client is configured to do so),

@@ -5,6 +5,7 @@ import (
 
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/cluster/convert"
+	"github.com/moby/moby/v2/daemon/server/swarmbackend"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"google.golang.org/grpc"
 )
@@ -27,7 +28,7 @@ func (c *Cluster) GetConfig(input string) (types.Config, error) {
 }
 
 // GetConfigs returns all configs of a managed swarm cluster.
-func (c *Cluster) GetConfigs(options types.ConfigListOptions) ([]types.Config, error) {
+func (c *Cluster) GetConfigs(options swarmbackend.ConfigListOptions) ([]types.Config, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 

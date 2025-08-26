@@ -63,7 +63,7 @@ func CreateService(ctx context.Context, t *testing.T, d *daemon.Daemon, opts ...
 	defer apiClient.Close()
 
 	spec := CreateServiceSpec(t, opts...)
-	resp, err := apiClient.ServiceCreate(ctx, spec, swarmtypes.ServiceCreateOptions{})
+	resp, err := apiClient.ServiceCreate(ctx, spec, client.ServiceCreateOptions{})
 	assert.NilError(t, err, "error creating service")
 	return resp.ID
 }
@@ -199,7 +199,7 @@ func ServiceWithPidsLimit(limit int64) ServiceSpecOpt {
 func GetRunningTasks(ctx context.Context, t *testing.T, c client.ServiceAPIClient, serviceID string) []swarmtypes.Task {
 	t.Helper()
 
-	tasks, err := c.TaskList(ctx, swarmtypes.TaskListOptions{
+	tasks, err := c.TaskList(ctx, client.TaskListOptions{
 		Filters: filters.NewArgs(
 			filters.Arg("service", serviceID),
 			filters.Arg("desired-state", "running"),

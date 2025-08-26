@@ -2,8 +2,6 @@ package swarm
 
 import (
 	"os"
-
-	"github.com/moby/moby/api/types/filters"
 )
 
 // Config represents a config.
@@ -54,9 +52,4 @@ type ConfigReference struct {
 type ConfigCreateResponse struct {
 	// ID is the id of the created config.
 	ID string
-}
-
-// ConfigListOptions holds parameters to list configs
-type ConfigListOptions struct {
-	Filters filters.Args
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/checker"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/integration-cli/cli/build"
@@ -71,19 +72,19 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesCreate(c *testing.T) {
 	id := d.CreateService(ctx, c, simpleTestService, setInstances(instances))
 	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount(ctx), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 
-	client := d.NewClientT(c)
-	defer client.Close()
+	apiClient := d.NewClientT(c)
+	defer apiClient.Close()
 
-	options := swarm.ServiceInspectOptions{InsertDefaults: true}
+	options := client.ServiceInspectOptions{InsertDefaults: true}
 
 	// insertDefaults inserts UpdateConfig when service is fetched by ID
-	resp, _, err := client.ServiceInspectWithRaw(ctx, id, options)
+	resp, _, err := apiClient.ServiceInspectWithRaw(ctx, id, options)
 	out := fmt.Sprintf("%+v", resp)
 	assert.NilError(c, err)
 	assert.Assert(c, is.Contains(out, "UpdateConfig"))
 
 	// insertDefaults inserts UpdateConfig when service is fetched by ID
-	resp, _, err = client.ServiceInspectWithRaw(ctx, "top", options)
+	resp, _, err = apiClient.ServiceInspectWithRaw(ctx, "top", options)
 	out = fmt.Sprintf("%+v", resp)
 	assert.NilError(c, err)
 	assert.Assert(c, is.Contains(out, "UpdateConfig"))

@@ -6,12 +6,13 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/cluster/convert"
+	"github.com/moby/moby/v2/daemon/server/swarmbackend"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"google.golang.org/grpc"
 )
 
 // GetTasks returns a list of tasks matching the filter options.
-func (c *Cluster) GetTasks(options types.TaskListOptions) ([]types.Task, error) {
+func (c *Cluster) GetTasks(options swarmbackend.TaskListOptions) ([]types.Task, error) {
 	var r *swarmapi.ListTasksResponse
 
 	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {

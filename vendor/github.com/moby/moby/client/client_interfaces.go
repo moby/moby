@@ -141,8 +141,8 @@ type NetworkAPIClient interface {
 // NodeAPIClient defines API client methods for the nodes
 type NodeAPIClient interface {
 	NodeInspectWithRaw(ctx context.Context, nodeID string) (swarm.Node, []byte, error)
-	NodeList(ctx context.Context, options swarm.NodeListOptions) ([]swarm.Node, error)
-	NodeRemove(ctx context.Context, nodeID string, options swarm.NodeRemoveOptions) error
+	NodeList(ctx context.Context, options NodeListOptions) ([]swarm.Node, error)
+	NodeRemove(ctx context.Context, nodeID string, options NodeRemoveOptions) error
 	NodeUpdate(ctx context.Context, nodeID string, version swarm.Version, node swarm.NodeSpec) error
 }
 
@@ -162,15 +162,15 @@ type PluginAPIClient interface {
 
 // ServiceAPIClient defines API client methods for the services
 type ServiceAPIClient interface {
-	ServiceCreate(ctx context.Context, service swarm.ServiceSpec, options swarm.ServiceCreateOptions) (swarm.ServiceCreateResponse, error)
-	ServiceInspectWithRaw(ctx context.Context, serviceID string, options swarm.ServiceInspectOptions) (swarm.Service, []byte, error)
-	ServiceList(ctx context.Context, options swarm.ServiceListOptions) ([]swarm.Service, error)
+	ServiceCreate(ctx context.Context, service swarm.ServiceSpec, options ServiceCreateOptions) (swarm.ServiceCreateResponse, error)
+	ServiceInspectWithRaw(ctx context.Context, serviceID string, options ServiceInspectOptions) (swarm.Service, []byte, error)
+	ServiceList(ctx context.Context, options ServiceListOptions) ([]swarm.Service, error)
 	ServiceRemove(ctx context.Context, serviceID string) error
-	ServiceUpdate(ctx context.Context, serviceID string, version swarm.Version, service swarm.ServiceSpec, options swarm.ServiceUpdateOptions) (swarm.ServiceUpdateResponse, error)
+	ServiceUpdate(ctx context.Context, serviceID string, version swarm.Version, service swarm.ServiceSpec, options ServiceUpdateOptions) (swarm.ServiceUpdateResponse, error)
 	ServiceLogs(ctx context.Context, serviceID string, options container.LogsOptions) (io.ReadCloser, error)
 	TaskLogs(ctx context.Context, taskID string, options container.LogsOptions) (io.ReadCloser, error)
 	TaskInspectWithRaw(ctx context.Context, taskID string) (swarm.Task, []byte, error)
-	TaskList(ctx context.Context, options swarm.TaskListOptions) ([]swarm.Task, error)
+	TaskList(ctx context.Context, options TaskListOptions) ([]swarm.Task, error)
 }
 
 // SwarmAPIClient defines API client methods for the swarm
@@ -181,7 +181,7 @@ type SwarmAPIClient interface {
 	SwarmUnlock(ctx context.Context, req swarm.UnlockRequest) error
 	SwarmLeave(ctx context.Context, force bool) error
 	SwarmInspect(ctx context.Context) (swarm.Swarm, error)
-	SwarmUpdate(ctx context.Context, version swarm.Version, swarm swarm.Spec, flags swarm.UpdateFlags) error
+	SwarmUpdate(ctx context.Context, version swarm.Version, swarm swarm.Spec, flags SwarmUpdateFlags) error
 }
 
 // SystemAPIClient defines API client methods for the system
@@ -215,7 +215,7 @@ type SecretAPIClient interface {
 
 // ConfigAPIClient defines API client methods for configs
 type ConfigAPIClient interface {
-	ConfigList(ctx context.Context, options swarm.ConfigListOptions) ([]swarm.Config, error)
+	ConfigList(ctx context.Context, options ConfigListOptions) ([]swarm.Config, error)
 	ConfigCreate(ctx context.Context, config swarm.ConfigSpec) (swarm.ConfigCreateResponse, error)
 	ConfigRemove(ctx context.Context, id string) error
 	ConfigInspectWithRaw(ctx context.Context, name string) (swarm.Config, []byte, error)
