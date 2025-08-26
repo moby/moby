@@ -119,7 +119,7 @@ can take over 15 minutes to complete.
 4. Use `make` to build a development environment image and run it in a container.
 
    ```none
-   $ make BIND_DIR=. shell
+   $ make shell
    ```
 
    Using the instructions in the
@@ -230,12 +230,12 @@ can take over 15 minutes to complete.
    test-execution:
 
    ```none
-   make DOCKER_CLI_PATH=/home/ubuntu/git/docker-ce/components/packaging/static/build/linux/docker/docker BIND_DIR=. shell
+   make DOCKER_CLI_PATH=~/go/src/github.com/docker/cli/build/docker shell
    ...
    # which docker
    /usr/local/cli/docker
    # docker --version
-   Docker version 17.09.0-dev, build 
+   Docker version 29.0.0-dev, build 09cd4ea26c
    ```
 
     This Docker CLI should be built from the [docker-cli
@@ -278,15 +278,13 @@ you have:
 * forked and cloned the Moby Engine code repository
 * created a feature branch for development
 * created and started an Engine development container from your branch
-* built a binary inside of your development container
+* built a binary inside your development container
 * launched a `docker` daemon using your newly compiled binary
 * called the `docker` client to run a `hello-world` container inside
   your development container
 
-Running the `make BIND_DIR=. shell` command mounted your local Docker repository source into
+Running the `make shell` command mounted your local Docker repository source into
 your Docker container.
-
-   > **Note**: Inspecting the `Dockerfile` shows a `COPY . /go/src/github.com/docker/docker` instruction, suggesting that dynamic code changes will _not_ be reflected in the container. However inspecting the `Makefile` shows that the current working directory _will_ be mounted via a `-v` volume mount.
 
 When you start to develop code though, you'll
 want to iterate code changes and builds inside the container. If you have
@@ -308,7 +306,7 @@ example, you'll edit the help for the `attach` subcommand.
    Your location should be different because, at least, your username is
    different.
 
-3. Open the `cmd/dockerd/docker.go` file.
+3. Open the `daemon/command/docker.go` file.
 
 4. Edit the command's help message.
 
@@ -324,7 +322,7 @@ example, you'll edit the help for the `attach` subcommand.
    Short:         "A self-sufficient and really fun runtime for containers.",
    ```
 
-5. Save and close the `cmd/dockerd/docker.go` file.
+5. Save and close the `daemon/command/docker.go` file.
 
 6. Go to your running docker development container shell.
 
