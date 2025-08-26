@@ -42,7 +42,8 @@ swagger generate model -f api/swagger.yaml \
 swagger generate model -f api/swagger.yaml \
 	-t api -m types/network -C api/swagger-gen.yaml \
 	-T api/templates --allow-template-override \
-	-n NetworkCreateResponse
+	-n NetworkCreateResponse \
+	-n NetworkSummary
 
 swagger generate model -f api/swagger.yaml \
 	-t api -m types/volume -C api/swagger-gen.yaml \
