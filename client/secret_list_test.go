@@ -22,7 +22,7 @@ func TestSecretListUnsupported(t *testing.T) {
 		version: "1.24",
 		client:  &http.Client{},
 	}
-	_, err := client.SecretList(context.Background(), swarm.SecretListOptions{})
+	_, err := client.SecretList(context.Background(), SecretListOptions{})
 	assert.Check(t, is.Error(err, `"secret list" requires API version 1.25, but the Docker daemon API version is 1.24`))
 }
 
@@ -32,7 +32,7 @@ func TestSecretListError(t *testing.T) {
 		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.SecretList(context.Background(), swarm.SecretListOptions{})
+	_, err := client.SecretList(context.Background(), SecretListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -40,17 +40,17 @@ func TestSecretList(t *testing.T) {
 	const expectedURL = "/v1.25/secrets"
 
 	listCases := []struct {
-		options             swarm.SecretListOptions
+		options             SecretListOptions
 		expectedQueryParams map[string]string
 	}{
 		{
-			options: swarm.SecretListOptions{},
+			options: SecretListOptions{},
 			expectedQueryParams: map[string]string{
 				"filters": "",
 			},
 		},
 		{
-			options: swarm.SecretListOptions{
+			options: SecretListOptions{
 				Filters: filters.NewArgs(
 					filters.Arg("label", "label1"),
 					filters.Arg("label", "label2"),

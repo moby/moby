@@ -50,3 +50,8 @@ type ServiceListOptions struct {
 	// count of running and desired tasks.
 	Status bool
 }
+
+// SecretListOptions holds parameters to list secrets
+type SecretListOptions struct {
+	Filters filters.Args
+}

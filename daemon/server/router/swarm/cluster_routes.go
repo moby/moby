@@ -416,7 +416,7 @@ func (sr *swarmRouter) getSecrets(ctx context.Context, w http.ResponseWriter, r 
 		return err
 	}
 
-	secrets, err := sr.backend.GetSecrets(types.SecretListOptions{Filters: filters})
+	secrets, err := sr.backend.GetSecrets(swarmbackend.SecretListOptions{Filters: filters})
 	if err != nil {
 		return err
 	}

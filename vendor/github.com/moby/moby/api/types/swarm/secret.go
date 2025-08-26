@@ -2,8 +2,6 @@ package swarm
 
 import (
 	"os"
-
-	"github.com/moby/moby/api/types/filters"
 )
 
 // Secret represents a secret.
@@ -58,9 +56,4 @@ type SecretReference struct {
 type SecretCreateResponse struct {
 	// ID is the id of the created secret.
 	ID string
-}
-
-// SecretListOptions holds parameters to list secrets
-type SecretListOptions struct {
-	Filters filters.Args
 }
