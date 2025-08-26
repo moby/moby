@@ -119,16 +119,9 @@ type Summary struct {
 	Mounts          []MountPoint
 }
 
-// ContainerJSONBase contains response of Engine API GET "/containers/{name:.*}/json"
-// for API version 1.18 and older.
-//
-// TODO(thaJeztah): combine ContainerJSONBase and InspectResponse into a single struct.
-// The split between ContainerJSONBase (ContainerJSONBase) and InspectResponse (InspectResponse)
-// was done in commit 6deaa58ba5f051039643cedceee97c8695e2af74 (https://github.com/moby/moby/pull/13675).
-// ContainerJSONBase contained all fields for API < 1.19, and InspectResponse
-// held fields that were added in API 1.19 and up. Given that the minimum
-// supported API version is now 1.24, we no longer use the separate type.
-type ContainerJSONBase struct {
+// InspectResponse is the response for the GET "/containers/{name:.*}/json"
+// endpoint.
+type InspectResponse struct {
 	ID              string `json:"Id"`
 	Created         string
 	Path            string
@@ -151,12 +144,6 @@ type ContainerJSONBase struct {
 	GraphDriver     storage.DriverData
 	SizeRw          *int64 `json:",omitempty"`
 	SizeRootFs      *int64 `json:",omitempty"`
-}
-
-// InspectResponse is the response for the GET "/containers/{name:.*}/json"
-// endpoint.
-type InspectResponse struct {
-	*ContainerJSONBase
 	Mounts          []MountPoint
 	Config          *Config
 	NetworkSettings *NetworkSettings

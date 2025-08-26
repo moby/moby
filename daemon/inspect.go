@@ -86,16 +86,15 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options
 		imageManifest.Platform = &ctr.ImagePlatform
 	}
 
-	return &containertypes.InspectResponse{
-		ContainerJSONBase:       base,
-		Mounts:                  mountPoints,
-		Config:                  ctr.Config,
-		NetworkSettings:         networkSettings,
-		ImageManifestDescriptor: imageManifest,
-	}, nil
+	base.Mounts = mountPoints
+	base.Config = ctr.Config
+	base.NetworkSettings = networkSettings
+	base.ImageManifestDescriptor = imageManifest
+
+	return base, nil
 }
 
-func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Container) (*containertypes.ContainerJSONBase, error) {
+func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Container) (*containertypes.InspectResponse, error) {
 	// make a copy to play with
 	hostConfig := *ctr.HostConfig
 
@@ -130,7 +129,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 		}
 	}
 
-	inspectResponse := &containertypes.ContainerJSONBase{
+	inspectResponse := &containertypes.InspectResponse{
 		ID:      ctr.ID,
 		Created: ctr.Created.Format(time.RFC3339Nano),
 		Path:    ctr.Path,
