@@ -1,6 +1,8 @@
 package network
 
 import (
+	"fmt"
+
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/errdefs"
@@ -123,7 +125,7 @@ func filterNetworkByType(nws []network.Inspect, netType string) ([]network.Inspe
 			}
 		}
 	default:
-		return nil, errors.Errorf("invalid filter: 'type'='%s'", netType)
+		return nil, fmt.Errorf("invalid filter: 'type'='%s'", netType)
 	}
 	return retNws, nil
 }
