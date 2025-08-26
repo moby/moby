@@ -74,7 +74,7 @@
     {{- end }}
     {{ template "mapOrSliceGetter" . }}
   {{- end }}
-  {{ template "schemaSerializer" . }}
+  {{/* {{ template "schemaSerializer" . }} */}}
 {{- end }}
 {{- if and .IncludeValidator (not .IsSuperAlias) (not .IsEmbedded) }}{{/* aliased types type A = B do not redefine methods */}}
   {{- if and (not (or .IsInterface .IsStream)) (or .Required .HasValidations .HasBaseType) }}
@@ -111,7 +111,7 @@ func ({{.ReceiverName}} {{ if or .IsTuple .IsComplexObject .IsAdditionalProperti
   {{- end }}
 {{- end }}
 {{- if .WantsMarshalBinary }}
-  {{ template "marshalBinarySerializer" . }}
+  {{/* {{ template "marshalBinarySerializer" . }} */}}
 {{- end }}
 {{- end }}
 {{- define "mapOrSliceGetter" }}{{/* signature for AdditionalProperties and AdditionalItems getter funcs */}}
