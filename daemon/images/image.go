@@ -234,10 +234,6 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options bac
 
 // OnlyPlatformWithFallback uses `platforms.Only` with a fallback to handle the case where the platform
 // being matched does not have a CPU variant.
-//
-// The reason for this is that CPU variant is not even if the official image config spec as of this writing.
-// See: https://github.com/opencontainers/image-spec/pull/809
-// Since Docker tends to compare platforms from the image config, we need to handle this case.
 func OnlyPlatformWithFallback(p ocispec.Platform) platforms.Matcher {
 	return &onlyFallbackMatcher{only: platforms.Only(p), p: platforms.Normalize(p)}
 }
