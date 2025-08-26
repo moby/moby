@@ -1032,8 +1032,8 @@ var (
 	linkLocalMaskIPv6 = net.CIDRMask(64, 128)
 )
 
-// CreateOptionIpam function returns an option setter for the ipam configuration for this endpoint
-func CreateOptionIpam(ipV4, ipV6 net.IP, llIPs []net.IP) EndpointOption {
+// CreateOptionIPAM function returns an option setter for the ipam configuration for this endpoint
+func CreateOptionIPAM(ipV4, ipV6 net.IP, llIPs []net.IP) EndpointOption {
 	return func(ep *Endpoint) {
 		ep.prefAddress = ipV4
 		ep.prefAddressV6 = ipV6
