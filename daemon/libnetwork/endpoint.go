@@ -1033,7 +1033,7 @@ var (
 )
 
 // CreateOptionIpam function returns an option setter for the ipam configuration for this endpoint
-func CreateOptionIpam(ipV4, ipV6 net.IP, llIPs []net.IP, ipamOptions map[string]string) EndpointOption {
+func CreateOptionIpam(ipV4, ipV6 net.IP, llIPs []net.IP) EndpointOption {
 	return func(ep *Endpoint) {
 		ep.prefAddress = ipV4
 		ep.prefAddressV6 = ipV6
@@ -1046,7 +1046,6 @@ func CreateOptionIpam(ipV4, ipV6 net.IP, llIPs []net.IP, ipamOptions map[string]
 				ep.iface.llAddrs = append(ep.iface.llAddrs, nw)
 			}
 		}
-		ep.ipamOptions = ipamOptions
 	}
 }
 
