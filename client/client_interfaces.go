@@ -109,13 +109,13 @@ type ImageAPIClient interface {
 	ImageBuild(ctx context.Context, context io.Reader, options build.ImageBuildOptions) (build.ImageBuildResponse, error)
 	BuildCachePrune(ctx context.Context, opts build.CachePruneOptions) (*build.CachePruneReport, error)
 	BuildCancel(ctx context.Context, id string) error
-	ImageCreate(ctx context.Context, parentReference string, options image.CreateOptions) (io.ReadCloser, error)
-	ImageImport(ctx context.Context, source image.ImportSource, ref string, options image.ImportOptions) (io.ReadCloser, error)
+	ImageCreate(ctx context.Context, parentReference string, options ImageCreateOptions) (io.ReadCloser, error)
+	ImageImport(ctx context.Context, source ImageImportSource, ref string, options ImageImportOptions) (io.ReadCloser, error)
 
-	ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
-	ImagePull(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
-	ImagePush(ctx context.Context, ref string, options image.PushOptions) (io.ReadCloser, error)
-	ImageRemove(ctx context.Context, image string, options image.RemoveOptions) ([]image.DeleteResponse, error)
+	ImageList(ctx context.Context, options ImageListOptions) ([]image.Summary, error)
+	ImagePull(ctx context.Context, ref string, options ImagePullOptions) (io.ReadCloser, error)
+	ImagePush(ctx context.Context, ref string, options ImagePushOptions) (io.ReadCloser, error)
+	ImageRemove(ctx context.Context, image string, options ImageRemoveOptions) ([]image.DeleteResponse, error)
 	ImageSearch(ctx context.Context, term string, options ImageSearchOptions) ([]registry.SearchResult, error)
 	ImageTag(ctx context.Context, image, ref string) error
 	ImagesPrune(ctx context.Context, pruneFilter filters.Args) (image.PruneReport, error)

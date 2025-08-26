@@ -48,7 +48,7 @@ func TestImagesFilterMultiReference(t *testing.T) {
 	filter.Add("reference", repoTags[0])
 	filter.Add("reference", repoTags[1])
 	filter.Add("reference", repoTags[2])
-	options := image.ListOptions{
+	options := client.ImageListOptions{
 		Filters: filter,
 	}
 	images, err := apiClient.ImageList(ctx, options)
@@ -96,7 +96,7 @@ func TestImagesFilterUntil(t *testing.T) {
 		filters.Arg("until", laterUntil),
 		filters.Arg("before", imgs[len(imgs)-1]),
 	)
-	list, err := apiClient.ImageList(ctx, image.ListOptions{Filters: filter})
+	list, err := apiClient.ImageList(ctx, client.ImageListOptions{Filters: filter})
 	assert.NilError(t, err)
 
 	var listedIDs []string
@@ -130,7 +130,7 @@ func TestImagesFilterBeforeSince(t *testing.T) {
 		filters.Arg("since", imgs[0]),
 		filters.Arg("before", imgs[len(imgs)-1]),
 	)
-	list, err := apiClient.ImageList(ctx, image.ListOptions{Filters: filter})
+	list, err := apiClient.ImageList(ctx, client.ImageListOptions{Filters: filter})
 	assert.NilError(t, err)
 
 	var listedIDs []string
@@ -191,7 +191,7 @@ func TestAPIImagesFilters(t *testing.T) {
 			t.Parallel()
 
 			ctx := testutil.StartSpan(ctx, t)
-			images, err := apiClient.ImageList(ctx, image.ListOptions{
+			images, err := apiClient.ImageList(ctx, client.ImageListOptions{
 				Filters: filters.NewArgs(tc.filters...),
 			})
 			assert.Check(t, err)
@@ -228,7 +228,7 @@ func TestAPIImagesListSizeShared(t *testing.T) {
 		})
 	})
 
-	_, err := apiClient.ImageList(ctx, image.ListOptions{SharedSize: true})
+	_, err := apiClient.ImageList(ctx, client.ImageListOptions{SharedSize: true})
 	assert.NilError(t, err)
 }
 
@@ -265,7 +265,7 @@ func TestAPIImagesListManifests(t *testing.T) {
 		// TODO: Remove when MinSupportedAPIVersion >= 1.47
 		c := d.NewClientT(t, client.WithVersion(api.MinSupportedAPIVersion))
 
-		images, err := c.ImageList(ctx, image.ListOptions{Manifests: true})
+		images, err := c.ImageList(ctx, client.ImageListOptions{Manifests: true})
 		assert.NilError(t, err)
 
 		assert.Assert(t, is.Len(images, 1))
@@ -277,14 +277,14 @@ func TestAPIImagesListManifests(t *testing.T) {
 	api147 := d.NewClientT(t, client.WithVersion("1.47"))
 
 	t.Run("no manifests if not requested", func(t *testing.T) {
-		images, err := api147.ImageList(ctx, image.ListOptions{})
+		images, err := api147.ImageList(ctx, client.ImageListOptions{})
 		assert.NilError(t, err)
 
 		assert.Assert(t, is.Len(images, 1))
 		assert.Check(t, is.Nil(images[0].Manifests))
 	})
 
-	images, err := api147.ImageList(ctx, image.ListOptions{Manifests: true})
+	images, err := api147.ImageList(ctx, client.ImageListOptions{Manifests: true})
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Len(images, 1))

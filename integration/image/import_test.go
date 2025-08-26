@@ -11,7 +11,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
-	imagetypes "github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/daemon"
 	"gotest.tools/v3/assert"
@@ -33,7 +33,7 @@ func TestImportExtremelyLargeImageWorks(t *testing.T) {
 	d.Start(t, "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
-	client := d.NewClientT(t)
+	apiClient := d.NewClientT(t)
 
 	// Construct an empty tar archive with about 8GB of junk padding at the
 	// end. This should not cause any crashes (the padding should be mostly
@@ -46,10 +46,10 @@ func TestImportExtremelyLargeImageWorks(t *testing.T) {
 	imageRdr := io.MultiReader(&tarBuffer, io.LimitReader(testutil.DevZero, 8*1024*1024*1024))
 	reference := strings.ToLower(t.Name()) + ":v42"
 
-	_, err = client.ImageImport(ctx,
-		imagetypes.ImportSource{Source: imageRdr, SourceName: "-"},
+	_, err = apiClient.ImageImport(ctx,
+		client.ImageImportSource{Source: imageRdr, SourceName: "-"},
 		reference,
-		imagetypes.ImportOptions{})
+		client.ImageImportOptions{})
 	assert.NilError(t, err)
 }
 
@@ -58,7 +58,7 @@ func TestImportWithCustomPlatform(t *testing.T) {
 
 	ctx := setupTest(t)
 
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	// Construct an empty tar archive.
 	var tarBuffer bytes.Buffer
@@ -108,13 +108,13 @@ func TestImportWithCustomPlatform(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			reference := "import-with-platform:tc-" + strconv.Itoa(i)
 
-			_, err = client.ImageImport(ctx,
-				imagetypes.ImportSource{Source: imageRdr, SourceName: "-"},
+			_, err = apiClient.ImageImport(ctx,
+				client.ImageImportSource{Source: imageRdr, SourceName: "-"},
 				reference,
-				imagetypes.ImportOptions{Platform: tc.platform})
+				client.ImageImportOptions{Platform: tc.platform})
 			assert.NilError(t, err)
 
-			inspect, err := client.ImageInspect(ctx, reference)
+			inspect, err := apiClient.ImageInspect(ctx, reference)
 			assert.NilError(t, err)
 			assert.Equal(t, inspect.Os, tc.expected.OS)
 			assert.Equal(t, inspect.Architecture, tc.expected.Architecture)
@@ -128,7 +128,7 @@ func TestImportWithCustomPlatformReject(t *testing.T) {
 
 	ctx := setupTest(t)
 
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	// Construct an empty tar archive.
 	var tarBuffer bytes.Buffer
@@ -172,10 +172,10 @@ func TestImportWithCustomPlatformReject(t *testing.T) {
 		t.Run(tc.platform, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			reference := "import-with-platform:tc-" + strconv.Itoa(i)
-			_, err = client.ImageImport(ctx,
-				imagetypes.ImportSource{Source: imageRdr, SourceName: "-"},
+			_, err = apiClient.ImageImport(ctx,
+				client.ImageImportSource{Source: imageRdr, SourceName: "-"},
 				reference,
-				imagetypes.ImportOptions{Platform: tc.platform})
+				client.ImageImportOptions{Platform: tc.platform})
 
 			assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 			assert.Check(t, is.ErrorContains(err, tc.expectedErr))

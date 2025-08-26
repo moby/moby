@@ -16,7 +16,6 @@ import (
 	"github.com/cpuguy83/tar2go"
 	"github.com/moby/go-archive/compression"
 	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/build"
@@ -315,7 +314,7 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 		t.Run(tc.testName, func(t *testing.T) {
 			// pull the image
 			for _, p := range tc.pullPlatforms {
-				resp, err := apiClient.ImagePull(ctx, repoName, image.PullOptions{Platform: p})
+				resp, err := apiClient.ImagePull(ctx, repoName, client.ImagePullOptions{Platform: p})
 				assert.NilError(t, err)
 				_, err = io.ReadAll(resp)
 				resp.Close()
@@ -327,7 +326,7 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 			assert.NilError(t, err)
 
 			// remove the pulled image
-			_, err = apiClient.ImageRemove(ctx, repoName, image.RemoveOptions{})
+			_, err = apiClient.ImageRemove(ctx, repoName, client.ImageRemoveOptions{})
 			assert.NilError(t, err)
 
 			// load the full exported image (all platforms in it)
@@ -348,12 +347,12 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 			}
 
 			// remove the loaded image
-			_, err = apiClient.ImageRemove(ctx, repoName, image.RemoveOptions{})
+			_, err = apiClient.ImageRemove(ctx, repoName, client.ImageRemoveOptions{})
 			assert.NilError(t, err)
 
 			// pull the image again (start fresh)
 			for _, p := range tc.pullPlatforms {
-				resp, err := apiClient.ImagePull(ctx, repoName, image.PullOptions{Platform: p})
+				resp, err := apiClient.ImagePull(ctx, repoName, client.ImagePullOptions{Platform: p})
 				assert.NilError(t, err)
 				_, err = io.ReadAll(resp)
 				resp.Close()
@@ -365,7 +364,7 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 			assert.NilError(t, err)
 
 			// remove the pulled image
-			_, err = apiClient.ImageRemove(ctx, repoName, image.RemoveOptions{})
+			_, err = apiClient.ImageRemove(ctx, repoName, client.ImageRemoveOptions{})
 			assert.NilError(t, err)
 
 			// load the exported image on the specified platforms only

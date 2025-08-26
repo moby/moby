@@ -1,8 +1,6 @@
 package client
 
-import (
-	"github.com/moby/moby/api/types/image"
-)
+import ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
 // ImageHistoryOption is a type representing functional options for the image history operation.
 type ImageHistoryOption interface {
@@ -15,5 +13,10 @@ func (f imageHistoryOptionFunc) Apply(o *imageHistoryOpts) error {
 }
 
 type imageHistoryOpts struct {
-	apiOptions image.HistoryOptions
+	apiOptions imageHistoryOptions
+}
+
+type imageHistoryOptions struct {
+	// Platform from the manifest list to use for history.
+	Platform *ocispec.Platform
 }

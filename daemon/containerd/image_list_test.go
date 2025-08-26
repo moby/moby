@@ -17,6 +17,7 @@ import (
 	"github.com/containerd/platforms"
 	imagetypes "github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/internal/testutils/specialimage"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -104,7 +105,7 @@ func BenchmarkImageList(b *testing.B) {
 
 		b.Run(strconv.Itoa(count)+"-images", func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, err := imgSvc.Images(ctx, imagetypes.ListOptions{All: true, SharedSize: true})
+				_, err := imgSvc.Images(ctx, imagebackend.ListOptions{All: true, SharedSize: true})
 				assert.NilError(b, err)
 			}
 		})
@@ -129,7 +130,7 @@ func TestImageListCheckTotalSize(t *testing.T) {
 	img, err := service.images.Create(ctx, imagesFromIndex(twoplatform)[0])
 	assert.NilError(t, err)
 
-	all, err := service.Images(ctx, imagetypes.ListOptions{Manifests: true, SharedSize: true})
+	all, err := service.Images(ctx, imagebackend.ListOptions{Manifests: true, SharedSize: true})
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Len(all, 1))
@@ -189,7 +190,7 @@ func TestImageListCheckTotalSize(t *testing.T) {
 			assert.NilError(t, err, "failed to delete layer %s", layer.Digest)
 		}
 
-		all, err := service.Images(ctx, imagetypes.ListOptions{Manifests: true, SharedSize: true})
+		all, err := service.Images(ctx, imagebackend.ListOptions{Manifests: true, SharedSize: true})
 		assert.NilError(t, err)
 
 		assert.Assert(t, is.Len(all, 1))
@@ -377,7 +378,7 @@ func TestImageList(t *testing.T) {
 				assert.NilError(t, err)
 			}
 
-			opts := imagetypes.ListOptions{
+			opts := imagebackend.ListOptions{
 				Manifests:  true,
 				SharedSize: true,
 			}

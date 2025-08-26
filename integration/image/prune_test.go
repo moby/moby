@@ -82,7 +82,7 @@ func TestPruneLexographicalOrder(t *testing.T) {
 	err = apiClient.ImageTag(ctx, id, "busybox:z")
 	assert.NilError(t, err)
 
-	_, err = apiClient.ImageRemove(ctx, "busybox:latest", image.RemoveOptions{Force: true})
+	_, err = apiClient.ImageRemove(ctx, "busybox:latest", client.ImageRemoveOptions{Force: true})
 	assert.NilError(t, err)
 
 	// run container
