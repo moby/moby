@@ -87,7 +87,6 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options
 	}
 
 	base.Mounts = mountPoints
-	base.Config = ctr.Config
 	base.NetworkSettings = networkSettings
 	base.ImageManifestDescriptor = imageManifest
 
@@ -161,6 +160,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 		GraphDriver: storage.DriverData{
 			Name: ctr.Driver,
 		},
+		Config: ctr.Config,
 	}
 
 	// Now set any platform-specific fields
