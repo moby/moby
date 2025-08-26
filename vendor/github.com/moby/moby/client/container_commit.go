@@ -24,7 +24,7 @@ func (cli *Client) ContainerCommit(ctx context.Context, containerID string, opti
 			return container.CommitResponse{}, err
 		}
 
-		if _, isCanonical := ref.(reference.Canonical); isCanonical {
+		if _, ok := ref.(reference.Digested); ok {
 			return container.CommitResponse{}, errors.New("refusing to create a tag with a digest reference")
 		}
 		ref = reference.TagNameOnly(ref)

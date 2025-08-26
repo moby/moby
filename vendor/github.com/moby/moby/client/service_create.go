@@ -154,7 +154,7 @@ func imageDigestAndPlatforms(ctx context.Context, cli DistributionAPIClient, ima
 func imageWithDigestString(image string, dgst digest.Digest) string {
 	namedRef, err := reference.ParseNormalizedNamed(image)
 	if err == nil {
-		if _, isCanonical := namedRef.(reference.Canonical); !isCanonical {
+		if _, hasDigest := namedRef.(reference.Digested); !hasDigest {
 			// ensure that image gets a default tag if none is provided
 			img, err := reference.WithDigest(namedRef, dgst)
 			if err == nil {
