@@ -119,6 +119,14 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 	(
 		echo "Starting dockerd"
 		[ -n "$TESTDEBUG" ] && set -x
+		if [ -n "${FIREWALLD:-}" ] && [ "${DOCKER_FIREWALL_BACKEND:-}" == "iptables" ]; then
+			# Networking integration tests start their own daemon to have fine control over the configuration of the
+			# daemon-under-test. Two daemons running with firewalld integration enabled would race against each other
+			# when the firewalld reload signal is dispatched, and would result in iptables disappearing unexpectedly
+			# from the point of view of the daemon-under-test. So, disable firewalld integration on this daemon, as it's
+			# only used to load frozen images.
+			export DOCKER_TEST_NO_FIREWALLD="true"
+		fi
 		exec \
 			${dockerd} --debug \
 			--host "$DOCKER_HOST" \

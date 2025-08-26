@@ -6,6 +6,7 @@ import (
 
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/testutils/networking"
+	"github.com/moby/moby/v2/testutil/daemon"
 	"github.com/moby/moby/v2/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -15,7 +16,13 @@ const defaultFirewallBackend = "iptables"
 
 func TestInfoFirewallBackend(t *testing.T) {
 	ctx := setupTest(t)
-	c := testEnv.APIClient()
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	t.Cleanup(func() { d.Stop(t) })
+
+	c := d.NewClientT(t)
+	t.Cleanup(func() { c.Close() })
 
 	expDriver := defaultFirewallBackend
 	if val := os.Getenv("DOCKER_FIREWALL_BACKEND"); val != "" {
