@@ -9,6 +9,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema2"
+	"github.com/moby/moby/api/pkg/authconfig"
 	"github.com/moby/moby/api/types/registry"
 	distributionpkg "github.com/moby/moby/v2/daemon/internal/distribution"
 	"github.com/moby/moby/v2/daemon/server/httputils"
@@ -42,7 +43,7 @@ func (dr *distributionRouter) getDistributionInfo(ctx context.Context, w http.Re
 
 	// For a search it is not an error if no auth was given. Ignore invalid
 	// AuthConfig to increase compatibility with the existing API.
-	authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
+	authConfig, _ := authconfig.Decode(r.Header.Get(registry.AuthHeader))
 	repos, err := dr.backend.GetRepositories(ctx, namedRef, authConfig)
 	if err != nil {
 		return err
