@@ -49,7 +49,7 @@ func TestBridgeICC(t *testing.T) {
 
 	testcases := []struct {
 		name           string
-		bridgeOpts     []func(*networktypes.CreateOptions)
+		bridgeOpts     []func(*client.NetworkCreateOptions)
 		ctr1MacAddress string
 		isIPv6         bool
 		isLinkLocal    bool
@@ -57,17 +57,17 @@ func TestBridgeICC(t *testing.T) {
 	}{
 		{
 			name:       "IPv4 non-internal network",
-			bridgeOpts: []func(*networktypes.CreateOptions){},
+			bridgeOpts: []func(*client.NetworkCreateOptions){},
 		},
 		{
 			name: "IPv4 internal network",
-			bridgeOpts: []func(*networktypes.CreateOptions){
+			bridgeOpts: []func(*client.NetworkCreateOptions){
 				network.WithInternal(),
 			},
 		},
 		{
 			name: "IPv6 ULA on non-internal network",
-			bridgeOpts: []func(*networktypes.CreateOptions){
+			bridgeOpts: []func(*client.NetworkCreateOptions){
 				network.WithIPv6(),
 				network.WithIPAM("fdf1:a844:380c:b200::/64", "fdf1:a844:380c:b200::1"),
 			},
@@ -75,7 +75,7 @@ func TestBridgeICC(t *testing.T) {
 		},
 		{
 			name: "IPv6 ULA on internal network",
-			bridgeOpts: []func(*networktypes.CreateOptions){
+			bridgeOpts: []func(*client.NetworkCreateOptions){
 				network.WithIPv6(),
 				network.WithInternal(),
 				network.WithIPAM("fdf1:a844:380c:b247::/64", "fdf1:a844:380c:b247::1"),
@@ -84,7 +84,7 @@ func TestBridgeICC(t *testing.T) {
 		},
 		{
 			name: "IPv6 link-local address on non-internal network",
-			bridgeOpts: []func(*networktypes.CreateOptions){
+			bridgeOpts: []func(*client.NetworkCreateOptions){
 				network.WithIPv6(),
 				// There's no real way to specify an IPv6 network is only used with SLAAC link-local IPv6 addresses.
 				// What we can do instead, is to tell the IPAM driver to assign addresses from the link-local prefix.
@@ -97,7 +97,7 @@ func TestBridgeICC(t *testing.T) {
 		},
 		{
 			name: "IPv6 link-local address on internal network",
-			bridgeOpts: []func(*networktypes.CreateOptions){
+			bridgeOpts: []func(*client.NetworkCreateOptions){
 				network.WithIPv6(),
 				network.WithInternal(),
 				// See the note above about link-local addresses.
@@ -115,7 +115,7 @@ func TestBridgeICC(t *testing.T) {
 			//   addresses need not be qualified with a zone index."
 			// So, for this common case, LL addresses should be included in DNS config.
 			name: "IPv6 link-local address on non-internal network ping by name",
-			bridgeOpts: []func(*networktypes.CreateOptions){
+			bridgeOpts: []func(*client.NetworkCreateOptions){
 				network.WithIPv6(),
 				network.WithIPAM("fe80::/64", "fe80::1"),
 			},
@@ -128,7 +128,7 @@ func TestBridgeICC(t *testing.T) {
 			// configure two networks with the same LL subnet, although perhaps it should
 			// be). So, again, no zone index is required and the LL address should be
 			// included in DNS config.
-			bridgeOpts: []func(*networktypes.CreateOptions){
+			bridgeOpts: []func(*client.NetworkCreateOptions){
 				network.WithIPv6(),
 				network.WithIPAM("fe80:1234::/64", "fe80:1234::1"),
 			},
@@ -136,7 +136,7 @@ func TestBridgeICC(t *testing.T) {
 		},
 		{
 			name: "IPv6 non-internal network with SLAAC LL address",
-			bridgeOpts: []func(*networktypes.CreateOptions){
+			bridgeOpts: []func(*client.NetworkCreateOptions){
 				network.WithIPv6(),
 				network.WithIPAM("fdf1:a844:380c:b247::/64", "fdf1:a844:380c:b247::1"),
 			},
@@ -148,7 +148,7 @@ func TestBridgeICC(t *testing.T) {
 		},
 		{
 			name: "IPv6 internal network with SLAAC LL address",
-			bridgeOpts: []func(*networktypes.CreateOptions){
+			bridgeOpts: []func(*client.NetworkCreateOptions){
 				network.WithIPv6(),
 				network.WithIPAM("fdf1:a844:380c:b247::/64", "fdf1:a844:380c:b247::1"),
 			},
@@ -234,8 +234,8 @@ func TestBridgeINC(t *testing.T) {
 	defer c.Close()
 
 	type bridgesOpts struct {
-		bridge1Opts []func(*networktypes.CreateOptions)
-		bridge2Opts []func(*networktypes.CreateOptions)
+		bridge1Opts []func(*client.NetworkCreateOptions)
+		bridge2Opts []func(*client.NetworkCreateOptions)
 	}
 
 	testcases := []struct {
@@ -248,27 +248,27 @@ func TestBridgeINC(t *testing.T) {
 		{
 			name: "IPv4 non-internal network",
 			bridges: bridgesOpts{
-				bridge1Opts: []func(*networktypes.CreateOptions){},
-				bridge2Opts: []func(*networktypes.CreateOptions){},
+				bridge1Opts: []func(*client.NetworkCreateOptions){},
+				bridge2Opts: []func(*client.NetworkCreateOptions){},
 			},
 			stdout: "1 packets transmitted, 0 packets received",
 		},
 		{
 			name: "IPv4 internal network",
 			bridges: bridgesOpts{
-				bridge1Opts: []func(*networktypes.CreateOptions){network.WithInternal()},
-				bridge2Opts: []func(*networktypes.CreateOptions){network.WithInternal()},
+				bridge1Opts: []func(*client.NetworkCreateOptions){network.WithInternal()},
+				bridge2Opts: []func(*client.NetworkCreateOptions){network.WithInternal()},
 			},
 			stderr: "sendto: Network is unreachable",
 		},
 		{
 			name: "IPv6 ULA on non-internal network",
 			bridges: bridgesOpts{
-				bridge1Opts: []func(*networktypes.CreateOptions){
+				bridge1Opts: []func(*client.NetworkCreateOptions){
 					network.WithIPv6(),
 					network.WithIPAM("fdf1:a844:380c:b200::/64", "fdf1:a844:380c:b200::1"),
 				},
-				bridge2Opts: []func(*networktypes.CreateOptions){
+				bridge2Opts: []func(*client.NetworkCreateOptions){
 					network.WithIPv6(),
 					network.WithIPAM("fdf1:a844:380c:b247::/64", "fdf1:a844:380c:b247::1"),
 				},
@@ -279,12 +279,12 @@ func TestBridgeINC(t *testing.T) {
 		{
 			name: "IPv6 ULA on internal network",
 			bridges: bridgesOpts{
-				bridge1Opts: []func(*networktypes.CreateOptions){
+				bridge1Opts: []func(*client.NetworkCreateOptions){
 					network.WithIPv6(),
 					network.WithInternal(),
 					network.WithIPAM("fdf1:a844:390c:b200::/64", "fdf1:a844:390c:b200::1"),
 				},
-				bridge2Opts: []func(*networktypes.CreateOptions){
+				bridge2Opts: []func(*client.NetworkCreateOptions){
 					network.WithIPv6(),
 					network.WithInternal(),
 					network.WithIPAM("fdf1:a844:390c:b247::/64", "fdf1:a844:390c:b247::1"),
@@ -1543,7 +1543,7 @@ func TestAdvertiseAddresses(t *testing.T) {
 
 	testcases := []struct {
 		name            string
-		netOpts         []func(*networktypes.CreateOptions)
+		netOpts         []func(*client.NetworkCreateOptions)
 		ipv6LinkLocal   bool
 		stopCtr2After   time.Duration
 		expNetCreateErr string
@@ -1558,21 +1558,21 @@ func TestAdvertiseAddresses(t *testing.T) {
 		},
 		{
 			name: "disable advertise addrs",
-			netOpts: []func(*networktypes.CreateOptions){
+			netOpts: []func(*client.NetworkCreateOptions){
 				network.WithOption(netlabel.AdvertiseAddrNMsgs, "0"),
 			},
 			expNoMACUpdate: true,
 		},
 		{
 			name: "single message",
-			netOpts: []func(*networktypes.CreateOptions){
+			netOpts: []func(*client.NetworkCreateOptions){
 				network.WithOption(netlabel.AdvertiseAddrNMsgs, "1"),
 			},
 			expNMsgs: 1,
 		},
 		{
 			name: "min interval",
-			netOpts: []func(*networktypes.CreateOptions){
+			netOpts: []func(*client.NetworkCreateOptions){
 				network.WithOption(netlabel.AdvertiseAddrIntervalMs, "100"),
 			},
 			expNMsgs:    3,
@@ -1580,7 +1580,7 @@ func TestAdvertiseAddresses(t *testing.T) {
 		},
 		{
 			name: "cancel",
-			netOpts: []func(*networktypes.CreateOptions){
+			netOpts: []func(*client.NetworkCreateOptions){
 				network.WithOption(netlabel.AdvertiseAddrIntervalMs, "2000"),
 			},
 			stopCtr2After: 200 * time.Millisecond,
@@ -1594,42 +1594,42 @@ func TestAdvertiseAddresses(t *testing.T) {
 		},
 		{
 			name: "interval too short",
-			netOpts: []func(*networktypes.CreateOptions){
+			netOpts: []func(*client.NetworkCreateOptions){
 				network.WithOption(netlabel.AdvertiseAddrIntervalMs, "99"),
 			},
 			expNetCreateErr: "Error response from daemon: com.docker.network.advertise_addr_ms must be in the range 100 to 2000",
 		},
 		{
 			name: "interval too long",
-			netOpts: []func(*networktypes.CreateOptions){
+			netOpts: []func(*client.NetworkCreateOptions){
 				network.WithOption(netlabel.AdvertiseAddrIntervalMs, "2001"),
 			},
 			expNetCreateErr: "Error response from daemon: com.docker.network.advertise_addr_ms must be in the range 100 to 2000",
 		},
 		{
 			name: "nonsense interval",
-			netOpts: []func(*networktypes.CreateOptions){
+			netOpts: []func(*client.NetworkCreateOptions){
 				network.WithOption(netlabel.AdvertiseAddrIntervalMs, "nonsense"),
 			},
 			expNetCreateErr: `Error response from daemon: value for option com.docker.network.advertise_addr_ms "nonsense" must be integer milliseconds`,
 		},
 		{
 			name: "negative msg count",
-			netOpts: []func(*networktypes.CreateOptions){
+			netOpts: []func(*client.NetworkCreateOptions){
 				network.WithOption(netlabel.AdvertiseAddrNMsgs, "-1"),
 			},
 			expNetCreateErr: "Error response from daemon: com.docker.network.advertise_addr_nmsgs must be in the range 0 to 3",
 		},
 		{
 			name: "too many msgs",
-			netOpts: []func(*networktypes.CreateOptions){
+			netOpts: []func(*client.NetworkCreateOptions){
 				network.WithOption(netlabel.AdvertiseAddrNMsgs, "4"),
 			},
 			expNetCreateErr: "Error response from daemon: com.docker.network.advertise_addr_nmsgs must be in the range 0 to 3",
 		},
 		{
 			name: "nonsense msg count",
-			netOpts: []func(*networktypes.CreateOptions){
+			netOpts: []func(*client.NetworkCreateOptions){
 				network.WithOption(netlabel.AdvertiseAddrNMsgs, "nonsense"),
 			},
 			expNetCreateErr: `Error response from daemon: value for option com.docker.network.advertise_addr_nmsgs "nonsense" must be an integer`,
@@ -1642,7 +1642,7 @@ func TestAdvertiseAddresses(t *testing.T) {
 
 			const netName = "dsnet"
 			const brName = "br-advaddr"
-			netOpts := append([]func(*networktypes.CreateOptions){
+			netOpts := append([]func(*client.NetworkCreateOptions){
 				network.WithOption(bridge.BridgeName, brName),
 				network.WithIPv6(),
 				network.WithIPAM("172.22.22.0/24", "172.22.22.1"),

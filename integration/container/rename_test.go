@@ -5,6 +5,7 @@ import (
 
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -113,7 +114,7 @@ func TestRenameAnonymousContainer(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	networkName := "network1" + t.Name()
-	_, err := apiClient.NetworkCreate(ctx, networkName, network.CreateOptions{})
+	_, err := apiClient.NetworkCreate(ctx, networkName, client.NetworkCreateOptions{})
 
 	assert.NilError(t, err)
 	cID := container.Run(ctx, t, apiClient, func(c *container.TestContainerConfig) {

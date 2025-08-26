@@ -2,85 +2,86 @@ package network
 
 import (
 	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 )
 
 // WithDriver sets the driver of the network
-func WithDriver(driver string) func(*network.CreateOptions) {
-	return func(n *network.CreateOptions) {
+func WithDriver(driver string) func(*client.NetworkCreateOptions) {
+	return func(n *client.NetworkCreateOptions) {
 		n.Driver = driver
 	}
 }
 
 // WithIPv4 enables/disables IPv4 on the network
-func WithIPv4(enable bool) func(*network.CreateOptions) {
-	return func(n *network.CreateOptions) {
+func WithIPv4(enable bool) func(*client.NetworkCreateOptions) {
+	return func(n *client.NetworkCreateOptions) {
 		enableIPv4 := enable
 		n.EnableIPv4 = &enableIPv4
 	}
 }
 
 // WithIPv6 Enables IPv6 on the network
-func WithIPv6() func(*network.CreateOptions) {
-	return func(n *network.CreateOptions) {
+func WithIPv6() func(*client.NetworkCreateOptions) {
+	return func(n *client.NetworkCreateOptions) {
 		enableIPv6 := true
 		n.EnableIPv6 = &enableIPv6
 	}
 }
 
 // WithIPv4Disabled makes sure IPv4 is disabled on the network.
-func WithIPv4Disabled() func(*network.CreateOptions) {
-	return func(n *network.CreateOptions) {
+func WithIPv4Disabled() func(*client.NetworkCreateOptions) {
+	return func(n *client.NetworkCreateOptions) {
 		enable := false
 		n.EnableIPv4 = &enable
 	}
 }
 
 // WithIPv6Disabled makes sure IPv6 is disabled on the network.
-func WithIPv6Disabled() func(*network.CreateOptions) {
-	return func(n *network.CreateOptions) {
+func WithIPv6Disabled() func(*client.NetworkCreateOptions) {
+	return func(n *client.NetworkCreateOptions) {
 		enable := false
 		n.EnableIPv6 = &enable
 	}
 }
 
 // WithInternal enables Internal flag on the create network request
-func WithInternal() func(*network.CreateOptions) {
-	return func(n *network.CreateOptions) {
+func WithInternal() func(*client.NetworkCreateOptions) {
+	return func(n *client.NetworkCreateOptions) {
 		n.Internal = true
 	}
 }
 
 // WithConfigOnly sets the ConfigOnly flag in the create network request
-func WithConfigOnly(co bool) func(*network.CreateOptions) {
-	return func(n *network.CreateOptions) {
+func WithConfigOnly(co bool) func(*client.NetworkCreateOptions) {
+	return func(n *client.NetworkCreateOptions) {
 		n.ConfigOnly = co
 	}
 }
 
 // WithConfigFrom sets the ConfigOnly flag in the create network request
-func WithConfigFrom(name string) func(*network.CreateOptions) {
-	return func(n *network.CreateOptions) {
+func WithConfigFrom(name string) func(*client.NetworkCreateOptions) {
+	return func(n *client.NetworkCreateOptions) {
 		n.ConfigFrom = &network.ConfigReference{Network: name}
 	}
 }
 
 // WithAttachable sets Attachable flag on the create network request
-func WithAttachable() func(*network.CreateOptions) {
-	return func(n *network.CreateOptions) {
+func WithAttachable() func(*client.NetworkCreateOptions) {
+	return func(n *client.NetworkCreateOptions) {
 		n.Attachable = true
 	}
 }
 
 // WithScope sets the network scope.
-func WithScope(s string) func(*network.CreateOptions) {
-	return func(n *network.CreateOptions) {
+func WithScope(s string) func(*client.NetworkCreateOptions) {
+	return func(n *client.NetworkCreateOptions) {
 		n.Scope = s
 	}
 }
 
 // WithMacvlan sets the network as macvlan with the specified parent
-func WithMacvlan(parent string) func(*network.CreateOptions) {
-	return func(n *network.CreateOptions) {
+func WithMacvlan(parent string) func(*client.NetworkCreateOptions) {
+	return func(n *client.NetworkCreateOptions) {
 		n.Driver = "macvlan"
 		if parent != "" {
 			n.Options = map[string]string{
@@ -91,8 +92,8 @@ func WithMacvlan(parent string) func(*network.CreateOptions) {
 }
 
 // WithMacvlanPassthru sets the network as macvlan with the specified parent in passthru mode
-func WithMacvlanPassthru(parent string) func(options *network.CreateOptions) {
-	return func(n *network.CreateOptions) {
+func WithMacvlanPassthru(parent string) func(options *client.NetworkCreateOptions) {
+	return func(n *client.NetworkCreateOptions) {
 		n.Driver = "macvlan"
 		n.Options = map[string]string{
 			"macvlan_mode": "passthru",
@@ -104,8 +105,8 @@ func WithMacvlanPassthru(parent string) func(options *network.CreateOptions) {
 }
 
 // WithIPvlan sets the network as ipvlan with the specified parent and mode
-func WithIPvlan(parent, mode string) func(*network.CreateOptions) {
-	return func(n *network.CreateOptions) {
+func WithIPvlan(parent, mode string) func(*client.NetworkCreateOptions) {
+	return func(n *client.NetworkCreateOptions) {
 		n.Driver = "ipvlan"
 		if n.Options == nil {
 			n.Options = map[string]string{}
@@ -120,8 +121,8 @@ func WithIPvlan(parent, mode string) func(*network.CreateOptions) {
 }
 
 // WithOption adds the specified key/value pair to network's options
-func WithOption(key, value string) func(*network.CreateOptions) {
-	return func(n *network.CreateOptions) {
+func WithOption(key, value string) func(*client.NetworkCreateOptions) {
+	return func(n *client.NetworkCreateOptions) {
 		if n.Options == nil {
 			n.Options = map[string]string{}
 		}
@@ -130,13 +131,13 @@ func WithOption(key, value string) func(*network.CreateOptions) {
 }
 
 // WithIPAM adds an IPAM with the specified Subnet and Gateway to the network
-func WithIPAM(subnet, gateway string) func(*network.CreateOptions) {
+func WithIPAM(subnet, gateway string) func(*client.NetworkCreateOptions) {
 	return WithIPAMRange(subnet, "", gateway)
 }
 
 // WithIPAMRange adds an IPAM with the specified Subnet, IPRange and Gateway to the network
-func WithIPAMRange(subnet, iprange, gateway string) func(*network.CreateOptions) {
-	return func(n *network.CreateOptions) {
+func WithIPAMRange(subnet, iprange, gateway string) func(*client.NetworkCreateOptions) {
+	return func(n *client.NetworkCreateOptions) {
 		if n.IPAM == nil {
 			n.IPAM = &network.IPAM{}
 		}

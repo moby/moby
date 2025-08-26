@@ -628,34 +628,35 @@ func (c *containerConfig) serviceConfig() *clustertypes.ServiceConfig {
 func networkCreateRequest(name string, nw *api.Network) clustertypes.NetworkCreateRequest {
 	ipv4Enabled := true
 	ipv6Enabled := nw.Spec.Ipv6Enabled
-	options := network.CreateOptions{
-		// ID:     nw.ID,
-		Labels:     nw.Spec.Annotations.Labels,
+	req := network.CreateRequest{
+		Name:       name, // TODO(thaJeztah): this is the same as [nw.Spec.Annotations.Name]; consider using that instead
+		Scope:      scope.Swarm,
+		EnableIPv4: &ipv4Enabled,
+		EnableIPv6: &ipv6Enabled,
 		Internal:   nw.Spec.Internal,
 		Attachable: nw.Spec.Attachable,
 		Ingress:    convert.IsIngressNetwork(nw),
-		EnableIPv4: &ipv4Enabled,
-		EnableIPv6: &ipv6Enabled,
-		Scope:      scope.Swarm,
+		Labels:     nw.Spec.Annotations.Labels,
 	}
 
 	if nw.Spec.GetNetwork() != "" {
-		options.ConfigFrom = &network.ConfigReference{
+		req.ConfigFrom = &network.ConfigReference{
 			Network: nw.Spec.GetNetwork(),
 		}
 	}
 
 	if nw.DriverState != nil {
-		options.Driver = nw.DriverState.Name
-		options.Options = nw.DriverState.Options
+		req.Driver = nw.DriverState.Name
+		req.Options = nw.DriverState.Options
 	}
+
 	if nw.IPAM != nil {
-		options.IPAM = &network.IPAM{
+		req.IPAM = &network.IPAM{
 			Driver:  nw.IPAM.Driver.Name,
 			Options: nw.IPAM.Driver.Options,
 		}
 		for _, ic := range nw.IPAM.Configs {
-			options.IPAM.Config = append(options.IPAM.Config, network.IPAMConfig{
+			req.IPAM.Config = append(req.IPAM.Config, network.IPAMConfig{
 				Subnet:  ic.Subnet,
 				IPRange: ic.Range,
 				Gateway: ic.Gateway,
@@ -664,11 +665,8 @@ func networkCreateRequest(name string, nw *api.Network) clustertypes.NetworkCrea
 	}
 
 	return clustertypes.NetworkCreateRequest{
-		ID: nw.ID,
-		CreateRequest: network.CreateRequest{
-			Name:          name, // TODO(thaJeztah): this is the same as [nw.Spec.Annotations.Name]; consider using that instead
-			CreateOptions: options,
-		},
+		ID:            nw.ID,
+		CreateRequest: req,
 	}
 }
 

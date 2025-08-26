@@ -31,7 +31,6 @@ import (
 	"time"
 
 	containertypes "github.com/moby/moby/api/types/container"
-	networktypes "github.com/moby/moby/api/types/network"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
@@ -311,7 +310,7 @@ func createBridgeNetworks(ctx context.Context, t *testing.T, d *daemon.Daemon, s
 		if gwMode == "" {
 			gwMode = "nat"
 		}
-		netOpts := []func(*networktypes.CreateOptions){
+		netOpts := []func(*client.NetworkCreateOptions){
 			network.WithIPAM(docNetworks[i], docGateways[i]),
 			network.WithOption(bridge.BridgeName, nw.name),
 			network.WithOption(bridge.IPv4GatewayMode, gwMode),

@@ -108,7 +108,7 @@ func TestDisableNAT(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 
 			const netName = "testnet"
-			nwOpts := []func(options *networktypes.CreateOptions){
+			nwOpts := []func(options *client.NetworkCreateOptions){
 				network.WithIPv6(),
 				network.WithIPAM("fd2a:a2c3:4448::/64", "fd2a:a2c3:4448::1"),
 			}
@@ -358,7 +358,7 @@ func TestAccessPublishedPortFromHost(t *testing.T) {
 			defer c.Close()
 
 			bridgeName := fmt.Sprintf("nat-from-host-%d", tcID)
-			bridgeOpts := []func(options *networktypes.CreateOptions){
+			bridgeOpts := []func(options *client.NetworkCreateOptions){
 				network.WithDriver("bridge"),
 				network.WithOption(bridge.BridgeName, bridgeName),
 			}
@@ -1290,7 +1290,7 @@ func testDirectRemoteAccessOnExposedPort(t *testing.T, ctx context.Context, d *d
 
 			testutil.StartSpan(ctx, t)
 
-			nwOpts := []func(*networktypes.CreateOptions){
+			nwOpts := []func(*client.NetworkCreateOptions){
 				network.WithIPAM(tc.gwAddr.Masked().String(), tc.gwAddr.Addr().String()),
 				network.WithOption(bridge.IPv4GatewayMode, tc.gwMode),
 				network.WithOption(bridge.IPv6GatewayMode, tc.gwMode),

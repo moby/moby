@@ -21,7 +21,7 @@ func TestNetworkCreateError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.NetworkCreate(context.Background(), "mynetwork", network.CreateOptions{})
+	_, err := client.NetworkCreate(context.Background(), "mynetwork", NetworkCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -33,7 +33,7 @@ func TestNetworkCreateConnectionError(t *testing.T) {
 	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
-	_, err = client.NetworkCreate(context.Background(), "mynetwork", network.CreateOptions{})
+	_, err = client.NetworkCreate(context.Background(), "mynetwork", NetworkCreateOptions{})
 	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
 
@@ -65,7 +65,7 @@ func TestNetworkCreate(t *testing.T) {
 	}
 
 	enableIPv6 := true
-	networkResponse, err := client.NetworkCreate(context.Background(), "mynetwork", network.CreateOptions{
+	networkResponse, err := client.NetworkCreate(context.Background(), "mynetwork", NetworkCreateOptions{
 		Driver:     "mydriver",
 		EnableIPv6: &enableIPv6,
 		Internal:   true,

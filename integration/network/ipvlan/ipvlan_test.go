@@ -490,7 +490,7 @@ func TestIpvlanIPAM(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			c := d.NewClientT(t, dclient.WithVersion(tc.apiVersion))
 
-			netOpts := []func(*network.CreateOptions){
+			netOpts := []func(*dclient.NetworkCreateOptions){
 				net.WithIPvlan("", "l3"),
 				net.WithIPv4(tc.enableIPv4),
 			}
@@ -591,7 +591,7 @@ func TestIPVlanDNS(t *testing.T) {
 			name := fmt.Sprintf("Mode=%v/HasParent=%v/Internal=%v", mode, tc.parent != "", tc.internal)
 			t.Run(name, func(t *testing.T) {
 				ctx := testutil.StartSpan(ctx, t)
-				createOpts := []func(*network.CreateOptions){
+				createOpts := []func(*dclient.NetworkCreateOptions){
 					net.WithIPvlan(tc.parent, mode),
 				}
 				if tc.internal {
