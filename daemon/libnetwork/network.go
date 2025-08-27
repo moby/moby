@@ -2106,7 +2106,7 @@ func (n *Network) createLoadBalancerSandbox() (retErr error) {
 
 	endpointName := n.lbEndpointName()
 	epOptions := []EndpointOption{
-		CreateOptionIpam(n.loadBalancerIP, nil, nil, nil),
+		CreateOptionIPAM(n.loadBalancerIP, nil, nil),
 		CreateOptionLoadBalancer(),
 	}
 	ep, err := n.createEndpoint(context.TODO(), endpointName, epOptions...)

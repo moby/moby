@@ -426,7 +426,7 @@ func TestUpdateSvcRecord(t *testing.T) {
 			dnsName := "id-" + tc.epName
 			ep, err := n.CreateEndpoint(context.Background(), tc.epName,
 				CreateOptionDNSNames([]string{tc.epName, dnsName}),
-				CreateOptionIpam(ip4, ip6, nil, nil),
+				CreateOptionIPAM(ip4, ip6, nil),
 			)
 			assert.NilError(t, err)
 

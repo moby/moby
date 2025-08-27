@@ -861,7 +861,7 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 				return nil, fmt.Errorf("invalid IPv6 address: %s", ipam.IPv6Address)
 			}
 
-			createOptions = append(createOptions, libnetwork.CreateOptionIpam(ip, ip6, ipList, nil))
+			createOptions = append(createOptions, libnetwork.CreateOptionIPAM(ip, ip6, ipList))
 		}
 
 		createOptions = append(createOptions, libnetwork.CreateOptionDNSNames(epConfig.DNSNames))
