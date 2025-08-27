@@ -17,6 +17,7 @@ import (
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/v2/daemon/internal/compat"
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
@@ -369,8 +370,19 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 		}
 	}
 
+	var includeLegacyFields bool
+	if versions.LessThan(httputils.VersionFromContext(ctx), "1.52") {
+		includeLegacyFields = true
+	}
+
 	for _, ev := range buffered {
 		if shouldSkip(ev) {
+			continue
+		}
+		if includeLegacyFields {
+			if err := enc.Encode(backFillLegacy(&ev)); err != nil {
+				return err
+			}
 			continue
 		}
 		if err := enc.Encode(ev); err != nil {
@@ -391,6 +403,12 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 				continue
 			}
 			if shouldSkip(jev) {
+				continue
+			}
+			if includeLegacyFields {
+				if err := enc.Encode(backFillLegacy(&jev)); err != nil {
+					return err
+				}
 				continue
 			}
 			if err := enc.Encode(jev); err != nil {
@@ -429,4 +447,26 @@ func eventTime(formTime string) (time.Time, error) {
 		return time.Time{}, nil
 	}
 	return time.Unix(t, tNano), nil
+}
+
+// These fields were deprecated in docker v1.10, API v1.22, but not removed
+// from the API responses. Unfortunately, the Docker CLI (and compose indirectly),
+// continued using these fields up until v25.0.0, and panic if the fields are
+// omitted, or left empty (due to a bug), see: https://github.com/moby/moby/pull/50832#issuecomment-3276600925
+func backFillLegacy(ev *events.Message) any {
+	switch ev.Type {
+	case events.ContainerEventType:
+		return compat.Wrap(ev, compat.WithExtraFields(map[string]any{
+			"id":     ev.Actor.ID,
+			"status": ev.Action,
+			"from":   ev.Actor.Attributes["image"],
+		}))
+	case events.ImageEventType:
+		return compat.Wrap(ev, compat.WithExtraFields(map[string]any{
+			"id":     ev.Actor.ID,
+			"status": ev.Action,
+		}))
+	default:
+		return &ev
+	}
 }
