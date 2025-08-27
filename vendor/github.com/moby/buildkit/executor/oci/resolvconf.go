@@ -2,14 +2,25 @@ package oci
 
 import (
 	"context"
+	"net/netip"
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/flightcontrol"
+	"github.com/moby/buildkit/util/resolvconf"
 	"github.com/moby/sys/user"
 	"github.com/pkg/errors"
+)
+
+const (
+	// defaultPath is the default path to the resolv.conf that contains
+	// information to resolve DNS.
+	defaultPath = "/etc/resolv.conf"
+	// alternatePath is a path different from defaultPath, that may be used to
+	// resolve DNS.
+	alternatePath = "/run/systemd/resolve/resolv.conf"
 )
 
 var (
@@ -20,16 +31,28 @@ var (
 
 // overridden by tests
 var resolvconfPath = func(netMode pb.NetMode) string {
-	// The implementation of resolvconf.Path checks if systemd resolved is activated and chooses the internal
-	// resolv.conf (/run/systemd/resolve/resolv.conf) in such a case - see resolvconf_path.go of libnetwork.
-	// This, however, can be problematic, see https://github.com/moby/buildkit/issues/2404 and is not necessary
-	// in case the networking mode is set to host since the locally (127.0.0.53) running resolved daemon is
-	// accessible from inside a host networked container.
-	// For details of the implementation see https://github.com/moby/buildkit/pull/5207#discussion_r1705362230.
+	// Directly return /etc/resolv.conf if the networking mode is set to host
+	// since the locally (127.0.0.53) running resolved daemon is accessible
+	// from inside a host networked container. For details of the
+	// implementation see https://github.com/moby/buildkit/pull/5207#discussion_r1705362230.
 	if netMode == pb.NetMode_HOST {
-		return "/etc/resolv.conf"
+		return defaultPath
 	}
-	return resolvconf.Path()
+	// When /etc/resolv.conf contains 127.0.0.53 as the only nameserver, then
+	// it is assumed systemd-resolved manages DNS. Because inside the container
+	// 127.0.0.53 is not a valid DNS server, then return /run/systemd/resolve/resolv.conf
+	// which is the resolv.conf that systemd-resolved generates and manages.
+	// Otherwise, return /etc/resolv.conf.
+	rc, err := resolvconf.Load(defaultPath)
+	if err != nil {
+		return defaultPath
+	}
+	ns := rc.NameServers()
+	if len(ns) == 1 && ns[0] == netip.MustParseAddr("127.0.0.53") {
+		bklog.G(context.TODO()).Infof("detected 127.0.0.53 nameserver, assuming systemd-resolved, so using resolv.conf: %s", alternatePath)
+		return alternatePath
+	}
+	return defaultPath
 }
 
 type DNSConfig struct {
@@ -76,41 +99,40 @@ func GetResolvConf(ctx context.Context, stateDir string, idmap *user.IdentityMap
 			return struct{}{}, nil
 		}
 
-		dt, err := os.ReadFile(resolvconfPath(netMode))
+		rc, err := resolvconf.Load(resolvconfPath(netMode))
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return struct{}{}, errors.WithStack(err)
 		}
 
-		tmpPath := p + ".tmp"
 		if dns != nil {
-			var (
-				dnsNameservers   = dns.Nameservers
-				dnsSearchDomains = dns.SearchDomains
-				dnsOptions       = dns.Options
-			)
-			if len(dns.Nameservers) == 0 {
-				dnsNameservers = resolvconf.GetNameservers(dt, resolvconf.IP)
+			if len(dns.Nameservers) > 0 {
+				var ns []netip.Addr
+				for _, addr := range dns.Nameservers {
+					ipAddr, err := netip.ParseAddr(addr)
+					if err != nil {
+						return struct{}{}, errors.WithStack(errors.Wrap(err, "bad nameserver address"))
+					}
+					ns = append(ns, ipAddr)
+				}
+				rc.OverrideNameServers(ns)
 			}
-			if len(dns.SearchDomains) == 0 {
-				dnsSearchDomains = resolvconf.GetSearchDomains(dt)
+			if len(dns.SearchDomains) > 0 {
+				rc.OverrideSearch(dns.SearchDomains)
 			}
-			if len(dns.Options) == 0 {
-				dnsOptions = resolvconf.GetOptions(dt)
+			if len(dns.Options) > 0 {
+				rc.OverrideOptions(dns.Options)
 			}
-
-			f, err := resolvconf.Build(tmpPath, dnsNameservers, dnsSearchDomains, dnsOptions)
-			if err != nil {
-				return struct{}{}, errors.WithStack(err)
-			}
-			dt = f.Content
 		}
 
-		if netMode != pb.NetMode_HOST || len(resolvconf.GetNameservers(dt, resolvconf.IP)) == 0 {
-			f, err := resolvconf.FilterResolvDNS(dt, true)
-			if err != nil {
-				return struct{}{}, errors.WithStack(err)
-			}
-			dt = f.Content
+		if netMode != pb.NetMode_HOST || len(rc.NameServers()) == 0 {
+			rc.TransformForLegacyNw(true)
+		}
+
+		tmpPath := p + ".tmp"
+
+		dt, err := rc.Generate(false)
+		if err != nil {
+			return struct{}{}, errors.WithStack(err)
 		}
 
 		if err := os.WriteFile(tmpPath, dt, 0644); err != nil {
@@ -124,6 +146,7 @@ func GetResolvConf(ctx context.Context, stateDir string, idmap *user.IdentityMap
 			}
 		}
 
+		// TODO(thaJeztah): can we avoid the write -> chown -> rename?
 		if err := os.Rename(tmpPath, p); err != nil {
 			return struct{}{}, errors.WithStack(err)
 		}

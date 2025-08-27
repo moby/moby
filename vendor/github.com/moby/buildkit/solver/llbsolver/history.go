@@ -1226,8 +1226,8 @@ func adaptHistoryRecord(rec *controlapi.BuildHistoryRecord) filters.Adaptor {
 				return v, true
 			}
 			if context, ok := rec.FrontendAttrs["context"]; ok {
-				if ref, err := gitutil.ParseGitRef(context); err == nil {
-					return ref.Remote, true
+				if parsed, err := gitutil.ParseURL(context); err == nil {
+					return parsed.Remote, true
 				}
 			}
 			return "", false

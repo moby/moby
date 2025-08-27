@@ -16,7 +16,7 @@ import (
 	"github.com/containerd/containerd/v2/pkg/archive/compression"
 	"github.com/containerd/containerd/v2/pkg/labels"
 	cerrdefs "github.com/containerd/errdefs"
-	log "github.com/moby/buildkit/util/bklog"
+	"github.com/moby/buildkit/util/bklog"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -91,7 +91,7 @@ func (s *winDiffer) Compare(ctx context.Context, lower, upper []mount.Mount, opt
 					cw.Close()
 					if newReference {
 						if err := s.store.Abort(ctx, config.Reference); err != nil {
-							log.G(ctx).WithField("ref", config.Reference).Warnf("failed to delete diff upload")
+							bklog.G(ctx).WithField("ref", config.Reference).Warnf("failed to delete diff upload")
 						}
 					}
 				}
@@ -258,7 +258,7 @@ func makeWindowsLayer(ctx context.Context, w io.Writer) (io.Writer, func(error),
 			return tarWriter.Close()
 		}()
 		if err != nil {
-			log.G(ctx).Errorf("makeWindowsLayer %+v", err)
+			bklog.G(ctx).Errorf("makeWindowsLayer %+v", err)
 		}
 		pw.CloseWithError(err)
 		done <- err
