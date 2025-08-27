@@ -142,7 +142,7 @@ func makePluginBundle(inPath string, opts ...CreateOpt) (io.ReadCloser, error) {
 	p := &types.PluginConfig{
 		Interface: types.PluginConfigInterface{
 			Socket: "basic.sock",
-			Types:  []types.PluginInterfaceType{{Capability: "docker.dummy/1.0"}},
+			Types:  []types.PluginInterfaceType{{Prefix: "docker", Capability: "dummy", Version: "1.0"}},
 		},
 		Entrypoint: []string{"/basic"},
 	}
