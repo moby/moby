@@ -33,7 +33,7 @@ func TestUserChain(t *testing.T) {
 	res := icmd.RunCommand("iptables", "--version")
 	assert.NilError(t, res.Error)
 	noChainErr := "No chain/target/match by that name"
-	iptVerLt := versionLt(t, res.Combined(), 1, 8, 11)
+	iptVerLt := versionLt(t, res.Combined(), 1, 8, 10)
 	t.Logf("iptables version < v1.8.11: %t", iptVerLt)
 	if strings.Contains(res.Combined(), "nf_tables") && iptVerLt {
 		// Prior to v1.8.11, iptables-nft "-S <chain>" reports the following for a non-existent chain:
