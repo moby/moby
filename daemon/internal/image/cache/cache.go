@@ -134,9 +134,9 @@ func (ic *ImageCache) restoreCachedImage(parent, target *image.Image, cfg *conta
 		lenHistory = len(parent.History)
 	}
 	history = append(history, target.History[lenHistory])
-	layer := getLayerForHistoryIndex(target, lenHistory)
-	if layer != "" {
-		rootFS.Append(layer)
+	layerDiffID := getLayerForHistoryIndex(target, lenHistory)
+	if layerDiffID != "" {
+		rootFS.Append(layerDiffID)
 	}
 
 	restoredImg := image.Image{
@@ -154,7 +154,7 @@ func (ic *ImageCache) restoreCachedImage(parent, target *image.Image, cfg *conta
 		OSVersion:  target.OSVersion,
 	}
 
-	imgID, err := ic.store.Create(parent, restoredImg, layer)
+	imgID, err := ic.store.Create(parent, restoredImg, layerDiffID)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create cache image")
 	}
