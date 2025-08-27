@@ -6,7 +6,7 @@ import (
 )
 
 // This sets platform-specific fields
-func setPlatformSpecificContainerFields(ctr *containerpkg.Container, resp *container.ContainerJSONBase) *container.ContainerJSONBase {
+func setPlatformSpecificContainerFields(ctr *containerpkg.Container, resp *container.InspectResponse) *container.InspectResponse {
 	resp.AppArmorProfile = ctr.AppArmorProfile
 	resp.ResolvConfPath = ctr.ResolvConfPath
 	resp.HostnamePath = ctr.HostnamePath

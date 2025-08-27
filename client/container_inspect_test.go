@@ -75,11 +75,9 @@ func TestContainerInspect(t *testing.T) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
 			content, err := json.Marshal(container.InspectResponse{
-				ContainerJSONBase: &container.ContainerJSONBase{
-					ID:    "container_id",
-					Image: "image",
-					Name:  "name",
-				},
+				ID:    "container_id",
+				Image: "image",
+				Name:  "name",
 			})
 			if err != nil {
 				return nil, err
