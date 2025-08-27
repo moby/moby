@@ -7,7 +7,7 @@ Also, in order to be able to debug the daemon, it has to be compiled with the de
 This can be done by launching the development container with the following command:
 
 ```bash
-$ make BIND_DIR=. DOCKER_DEBUG=1 DELVE_PORT=127.0.0.1:2345:2345 shell
+$ make DOCKER_DEBUG=1 DELVE_PORT=127.0.0.1:2345:2345 shell
 ```
 
 The `DOCKER_DEBUG` variable disables build optimizations, allowing to debug the binary,
@@ -27,7 +27,7 @@ outside the developer's machine and is not recommended.
 
 1. Run development container with build optimizations disabled (ie. `DOCKER_DEBUG=1`) and Delve enabled:
    ```bash
-   $ make BIND_DIR=. DOCKER_DEBUG=1 DELVE_PORT=127.0.0.1:2345:2345 shell
+   $ make DOCKER_DEBUG=1 DELVE_PORT=127.0.0.1:2345:2345 shell
    ```
 2. Inside the development container:
    1. Build the Docker daemon:
@@ -51,7 +51,7 @@ outside the developer's machine and is not recommended.
 1. Run development container with build optimizations disabled (ie. `DOCKER_DEBUG=1`) and Delve enabled:
 
    ```bash
-   $ make BIND_DIR=. DOCKER_DEBUG=1 DELVE_PORT=127.0.0.1:2345:2345 shell
+   $ make DOCKER_DEBUG=1 DELVE_PORT=127.0.0.1:2345:2345 shell
    ```
 
 2. Inside the development container, run the integration test you want through the `make.sh` script:
