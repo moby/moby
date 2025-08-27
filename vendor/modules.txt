@@ -757,7 +757,7 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.23.2
+# github.com/moby/buildkit v0.24.0-rc1
 ## explicit; go 1.23.0
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -804,6 +804,7 @@ github.com/moby/buildkit/frontend/attestations
 github.com/moby/buildkit/frontend/attestations/sbom
 github.com/moby/buildkit/frontend/dockerfile/builder
 github.com/moby/buildkit/frontend/dockerfile/command
+github.com/moby/buildkit/frontend/dockerfile/dfgitutil
 github.com/moby/buildkit/frontend/dockerfile/dockerfile2llb
 github.com/moby/buildkit/frontend/dockerfile/instructions
 github.com/moby/buildkit/frontend/dockerfile/linter
@@ -864,6 +865,7 @@ github.com/moby/buildkit/util/appdefaults
 github.com/moby/buildkit/util/archutil
 github.com/moby/buildkit/util/attestation
 github.com/moby/buildkit/util/bklog
+github.com/moby/buildkit/util/cachedigest
 github.com/moby/buildkit/util/compression
 github.com/moby/buildkit/util/cond
 github.com/moby/buildkit/util/contentutil
@@ -874,6 +876,7 @@ github.com/moby/buildkit/util/db/boltutil
 github.com/moby/buildkit/util/disk
 github.com/moby/buildkit/util/entitlements
 github.com/moby/buildkit/util/entitlements/security
+github.com/moby/buildkit/util/errutil
 github.com/moby/buildkit/util/estargz
 github.com/moby/buildkit/util/flightcontrol
 github.com/moby/buildkit/util/gitutil
@@ -894,6 +897,7 @@ github.com/moby/buildkit/util/pull
 github.com/moby/buildkit/util/pull/pullprogress
 github.com/moby/buildkit/util/purl
 github.com/moby/buildkit/util/push
+github.com/moby/buildkit/util/resolvconf
 github.com/moby/buildkit/util/resolver
 github.com/moby/buildkit/util/resolver/config
 github.com/moby/buildkit/util/resolver/limited

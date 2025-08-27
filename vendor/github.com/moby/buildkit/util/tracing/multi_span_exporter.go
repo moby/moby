@@ -2,35 +2,29 @@ package tracing
 
 import (
 	"context"
+	stderrors "errors"
 
-	"github.com/hashicorp/go-multierror"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 type MultiSpanExporter []sdktrace.SpanExporter
 
-func (m MultiSpanExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) (err error) {
+func (m MultiSpanExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
+	var errs []error
 	for _, exp := range m {
 		if e := exp.ExportSpans(ctx, spans); e != nil {
-			if err != nil {
-				err = multierror.Append(err, e)
-				continue
-			}
-			err = e
+			errs = append(errs, e)
 		}
 	}
-	return err
+	return stderrors.Join(errs...)
 }
 
-func (m MultiSpanExporter) Shutdown(ctx context.Context) (err error) {
+func (m MultiSpanExporter) Shutdown(ctx context.Context) error {
+	var errs []error
 	for _, exp := range m {
 		if e := exp.Shutdown(ctx); e != nil {
-			if err != nil {
-				err = multierror.Append(err, e)
-				continue
-			}
-			err = e
+			errs = append(errs, e)
 		}
 	}
-	return err
+	return stderrors.Join(errs...)
 }

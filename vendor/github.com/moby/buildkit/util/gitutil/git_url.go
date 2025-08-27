@@ -86,7 +86,7 @@ func ParseURL(remote string) (*GitURL, error) {
 		if err != nil {
 			return nil, err
 		}
-		return fromURL(url), nil
+		return FromURL(url), nil
 	}
 
 	if url, err := sshutil.ParseSCPStyleURL(remote); err == nil {
@@ -105,7 +105,7 @@ func IsGitTransport(remote string) bool {
 	return sshutil.IsImplicitSSHTransport(remote)
 }
 
-func fromURL(url *url.URL) *GitURL {
+func FromURL(url *url.URL) *GitURL {
 	withoutOpts := *url
 	withoutOpts.Fragment = ""
 	return &GitURL{

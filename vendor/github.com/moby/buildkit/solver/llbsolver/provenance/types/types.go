@@ -14,8 +14,19 @@ import (
 )
 
 const (
-	BuildKitBuildType = "https://mobyproject.org/buildkit@v1"
+	BuildKitBuildType1  = "https://github.com/moby/buildkit/blob/master/docs/attestations/slsa-definitions.md"
+	BuildKitBuildType02 = "https://mobyproject.org/buildkit@v1"
+
+	ProvenanceSLSA1  = ProvenanceSLSA("v1")
+	ProvenanceSLSA02 = ProvenanceSLSA("v0.2")
 )
+
+type ProvenanceSLSA string
+
+var provenanceSLSAs = []ProvenanceSLSA{
+	ProvenanceSLSA1,
+	ProvenanceSLSA02,
+}
 
 type BuildConfig struct {
 	Definition    []BuildStep              `json:"llbDefinition,omitempty"`
@@ -78,18 +89,6 @@ type Sources struct {
 	Git    []GitSource
 	HTTP   []HTTPSource
 	Local  []LocalSource
-}
-
-const (
-	ProvenanceSLSA1  = ProvenanceSLSA("v1")
-	ProvenanceSLSA02 = ProvenanceSLSA("v0.2")
-)
-
-type ProvenanceSLSA string
-
-var provenanceSLSAs = []ProvenanceSLSA{
-	ProvenanceSLSA1,
-	ProvenanceSLSA02,
 }
 
 func (ps *ProvenanceSLSA) Validate() error {
@@ -188,16 +187,63 @@ type BuildKitComplete struct {
 	ResolvedDependencies bool `json:"resolvedDependencies"`
 }
 
-// ConvertSLSA02ToSLSA1 converts a SLSA 0.2 provenance predicate to a SLSA 1.0
-// provenance predicate.
-// FIXME: It should be the other way around when v1 is the default.
-func ConvertSLSA02ToSLSA1(p02 *ProvenancePredicateSLSA02) *ProvenancePredicateSLSA1 {
-	if p02 == nil {
-		return nil
+// ConvertToSLSA02 converts to a SLSA v0.2 provenance predicate.
+func (p *ProvenancePredicateSLSA1) ConvertToSLSA02() *ProvenancePredicateSLSA02 {
+	var materials []slsa02.ProvenanceMaterial
+	for _, m := range p.BuildDefinition.ResolvedDependencies {
+		materials = append(materials, slsa02.ProvenanceMaterial{
+			URI:    m.URI,
+			Digest: m.Digest,
+		})
 	}
 
+	var meta *ProvenanceMetadataSLSA02
+	if p.RunDetails.Metadata != nil {
+		meta = &ProvenanceMetadataSLSA02{
+			ProvenanceMetadata: slsa02.ProvenanceMetadata{
+				BuildInvocationID: p.RunDetails.Metadata.InvocationID,
+				BuildStartedOn:    p.RunDetails.Metadata.StartedOn,
+				BuildFinishedOn:   p.RunDetails.Metadata.FinishedOn,
+				Completeness: slsa02.ProvenanceComplete{
+					Parameters:  p.RunDetails.Metadata.Completeness.Request,
+					Environment: true,
+					Materials:   p.RunDetails.Metadata.Completeness.ResolvedDependencies,
+				},
+				Reproducible: p.RunDetails.Metadata.Reproducible,
+			},
+			BuildKitMetadata: p.RunDetails.Metadata.BuildKitMetadata,
+			Hermetic:         p.RunDetails.Metadata.Hermetic,
+		}
+	}
+
+	return &ProvenancePredicateSLSA02{
+		ProvenancePredicate: slsa02.ProvenancePredicate{
+			Builder: slsa02.ProvenanceBuilder{
+				ID: p.RunDetails.Builder.ID,
+			},
+			BuildType: BuildKitBuildType02,
+			Materials: materials,
+		},
+		Invocation: ProvenanceInvocationSLSA02{
+			ConfigSource: slsa02.ConfigSource{
+				URI:        p.BuildDefinition.ExternalParameters.ConfigSource.URI,
+				Digest:     p.BuildDefinition.ExternalParameters.ConfigSource.Digest,
+				EntryPoint: p.BuildDefinition.ExternalParameters.ConfigSource.Path,
+			},
+			Parameters: p.BuildDefinition.ExternalParameters.Request,
+			Environment: Environment{
+				Platform: p.BuildDefinition.InternalParameters.BuilderPlatform,
+			},
+		},
+		BuildConfig: p.BuildDefinition.InternalParameters.BuildConfig,
+		Metadata:    meta,
+	}
+}
+
+// ConvertToSLSA1 converts to a SLSA v1 provenance predicate.
+func (p *ProvenancePredicateSLSA02) ConvertToSLSA1() *ProvenancePredicateSLSA1 {
 	var resolvedDeps []slsa1.ResourceDescriptor
-	for _, m := range p02.Materials {
+	for _, m := range p.Materials {
 		resolvedDeps = append(resolvedDeps, slsa1.ResourceDescriptor{
 			URI:    m.URI,
 			Digest: m.Digest,
@@ -206,45 +252,45 @@ func ConvertSLSA02ToSLSA1(p02 *ProvenancePredicateSLSA02) *ProvenancePredicateSL
 
 	buildDef := ProvenanceBuildDefinitionSLSA1{
 		ProvenanceBuildDefinition: slsa1.ProvenanceBuildDefinition{
-			BuildType:            "https://github.com/moby/buildkit/blob/master/docs/attestations/slsa-definitions.md",
+			BuildType:            BuildKitBuildType1,
 			ResolvedDependencies: resolvedDeps,
 		},
 		ExternalParameters: ProvenanceExternalParametersSLSA1{
 			ConfigSource: ProvenanceConfigSourceSLSA1{
-				URI:    p02.Invocation.ConfigSource.URI,
-				Digest: p02.Invocation.ConfigSource.Digest,
-				Path:   p02.Invocation.ConfigSource.EntryPoint,
+				URI:    p.Invocation.ConfigSource.URI,
+				Digest: p.Invocation.ConfigSource.Digest,
+				Path:   p.Invocation.ConfigSource.EntryPoint,
 			},
-			Request: p02.Invocation.Parameters,
+			Request: p.Invocation.Parameters,
 		},
 		InternalParameters: ProvenanceInternalParametersSLSA1{
-			BuildConfig:     p02.BuildConfig,
-			BuilderPlatform: p02.Invocation.Environment.Platform,
+			BuildConfig:     p.BuildConfig,
+			BuilderPlatform: p.Invocation.Environment.Platform,
 		},
 	}
 
 	var meta *ProvenanceMetadataSLSA1
-	if p02.Metadata != nil {
+	if p.Metadata != nil {
 		meta = &ProvenanceMetadataSLSA1{
 			BuildMetadata: slsa1.BuildMetadata{
-				InvocationID: p02.Metadata.BuildInvocationID,
-				StartedOn:    p02.Metadata.BuildStartedOn,
-				FinishedOn:   p02.Metadata.BuildFinishedOn,
+				InvocationID: p.Metadata.BuildInvocationID,
+				StartedOn:    p.Metadata.BuildStartedOn,
+				FinishedOn:   p.Metadata.BuildFinishedOn,
 			},
-			BuildKitMetadata: p02.Metadata.BuildKitMetadata,
-			Hermetic:         p02.Metadata.Hermetic,
+			BuildKitMetadata: p.Metadata.BuildKitMetadata,
+			Hermetic:         p.Metadata.Hermetic,
 			Completeness: BuildKitComplete{
-				Request:              p02.Metadata.Completeness.Parameters,
-				ResolvedDependencies: p02.Metadata.Completeness.Materials,
+				Request:              p.Metadata.Completeness.Parameters,
+				ResolvedDependencies: p.Metadata.Completeness.Materials,
 			},
-			Reproducible: p02.Metadata.Reproducible,
+			Reproducible: p.Metadata.Reproducible,
 		}
 	}
 
 	runDetails := ProvenanceRunDetailsSLSA1{
 		ProvenanceRunDetails: slsa1.ProvenanceRunDetails{
 			Builder: slsa1.Builder{
-				ID: p02.Builder.ID,
+				ID: p.Builder.ID,
 				// TODO: handle builder components versions
 				// Version: map[string]string{
 				// 	"buildkit": version.Version,
