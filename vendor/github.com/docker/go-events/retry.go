@@ -151,7 +151,7 @@ func (b *Breaker) Proceed(event Event) time.Duration {
 		return 0
 	}
 
-	return b.last.Add(b.backoff).Sub(time.Now())
+	return time.Until(b.last.Add(b.backoff))
 }
 
 // Success resets the breaker.

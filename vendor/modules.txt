@@ -516,7 +516,7 @@ github.com/docker/docker/profiles/seccomp
 github.com/docker/go-connections/nat
 github.com/docker/go-connections/sockets
 github.com/docker/go-connections/tlsconfig
-# github.com/docker/go-events v0.0.0-20250114142523-c867878c5e32
+# github.com/docker/go-events v0.0.0-20250808211157-605354379745
 ## explicit
 github.com/docker/go-events
 # github.com/docker/go-metrics v0.0.1

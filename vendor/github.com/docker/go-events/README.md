@@ -1,6 +1,8 @@
 # Docker Events Package
 
 [![GoDoc](https://godoc.org/github.com/docker/go-events?status.svg)](https://godoc.org/github.com/docker/go-events)
+[![ci](https://github.com/docker/go-events/actions/workflows/ci.yml/badge.svg)](https://github.com/docker/go-events/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/docker/go-events)](https://goreportcard.com/report/github.com/docker/go-events)
 
 The Docker `events` package implements a composable event distribution package
 for Go.
