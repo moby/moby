@@ -3,9 +3,9 @@ package types
 import (
 	"context"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/common"
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/storage"
 	"github.com/moby/moby/api/types/swarm"
@@ -90,8 +90,8 @@ type MountPoint = container.MountPoint
 
 // Port An open port on a container
 //
-// Deprecated: use [container.PortSummary].
-type Port = container.PortSummary
+// Deprecated: use [container.Port].
+type Port = container.Port
 
 // GraphDriverData Information about the storage driver used to store the container's and
 // image's filesystem.
