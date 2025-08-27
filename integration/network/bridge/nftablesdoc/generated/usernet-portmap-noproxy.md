@@ -48,7 +48,7 @@ Most rules are the same as the network with the [proxy enabled][0]:
     	}
     
     	chain nat-OUTPUT {
-    		type nat hook output priority -100; policy accept;
+    		type nat hook output priority dstnat; policy accept;
     		fib daddr type local counter jump nat-prerouting-and-output
     	}
     
@@ -124,7 +124,7 @@ loopback address by a container in another network - there's no proxy to catch
 them ...
 
     	chain nat-OUTPUT {
-    		type nat hook output priority -100; policy accept;
+    		type nat hook output priority dstnat; policy accept;
     		fib daddr type local counter jump nat-prerouting-and-output
     	}
 
