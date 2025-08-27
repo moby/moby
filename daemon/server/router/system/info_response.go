@@ -2,6 +2,7 @@ package system
 
 import (
 	"encoding/json"
+	"maps"
 
 	"github.com/moby/moby/api/types/system"
 )
@@ -17,20 +18,18 @@ type infoResponse struct {
 
 // MarshalJSON implements a custom marshaler to include legacy fields
 // in API responses.
-func (sc *infoResponse) MarshalJSON() ([]byte, error) {
+func (ir *infoResponse) MarshalJSON() ([]byte, error) {
 	type tmp *system.Info
-	base, err := json.Marshal((tmp)(sc.Info))
+	base, err := json.Marshal((tmp)(ir.Info))
 	if err != nil {
 		return nil, err
 	}
-	if len(sc.extraFields) == 0 {
+	if len(ir.extraFields) == 0 {
 		return base, nil
 	}
 	var merged map[string]any
 	_ = json.Unmarshal(base, &merged)
 
-	for k, v := range sc.extraFields {
-		merged[k] = v
-	}
+	maps.Copy(merged, ir.extraFields)
 	return json.Marshal(merged)
 }
