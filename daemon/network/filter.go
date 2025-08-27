@@ -2,128 +2,115 @@ package network
 
 import (
 	"github.com/moby/moby/api/types/filters"
-	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 )
 
-// FilterNetworks filters network list according to user specified filter
-// and returns user chosen networks
-func FilterNetworks(nws []network.Inspect, filter filters.Args) ([]network.Inspect, error) {
-	// if filter is empty, return original network list
-	if filter.Len() == 0 {
-		return nws, nil
-	}
+type Filter struct {
+	args filters.Args
 
-	displayNet := nws[:0]
-	for _, nw := range nws {
-		if filter.Contains("driver") {
-			if !filter.ExactMatch("driver", nw.Driver) {
-				continue
-			}
-		}
-		if filter.Contains("name") {
-			if !filter.Match("name", nw.Name) {
-				continue
-			}
-		}
-		if filter.Contains("id") {
-			if !filter.Match("id", nw.ID) {
-				continue
-			}
-		}
-		if filter.Contains("label") {
-			if !filter.MatchKVList("label", nw.Labels) {
-				continue
-			}
-		}
-		if filter.Contains("scope") {
-			if !filter.ExactMatch("scope", nw.Scope) {
-				continue
-			}
-		}
+	filterByUse, danglingOnly bool
+}
 
-		if filter.Contains("idOrName") {
-			if !filter.Match("name", nw.Name) && !filter.Match("id", nw.Name) {
-				continue
-			}
-		}
-		displayNet = append(displayNet, nw)
-	}
+type FilterNetwork interface {
+	Driver() string
+	Name() string
+	ID() string
+	Labels() map[string]string
+	Scope() string
+	HasContainerAttachments() bool
+	HasServiceAttachments() bool
+}
 
-	if values := filter.Get("dangling"); len(values) > 0 {
+// NewFilter returns a network filter that filters by the provided args.
+//
+// An [errdefs.InvalidParameter] error is returned if the filter args are not
+// well-formed.
+func NewFilter(args filters.Args) (Filter, error) {
+	var filterByUse, danglingOnly bool
+	if values := args.Get("dangling"); len(values) > 0 {
 		if len(values) > 1 {
-			return nil, errdefs.InvalidParameter(errors.New(`got more than one value for filter key "dangling"`))
+			return Filter{}, errdefs.InvalidParameter(errors.New(`got more than one value for filter key "dangling"`))
 		}
 
-		var danglingOnly bool
+		filterByUse = true
 		switch values[0] {
 		case "0", "false":
 			// dangling is false already
 		case "1", "true":
 			danglingOnly = true
 		default:
-			return nil, errdefs.InvalidParameter(errors.New(`invalid value for filter 'dangling', must be "true" (or "1"), or "false" (or "0")`))
+			return Filter{}, errdefs.InvalidParameter(errors.New(`invalid value for filter 'dangling', must be "true" (or "1"), or "false" (or "0")`))
 		}
-
-		displayNet = filterNetworkByUse(displayNet, danglingOnly)
 	}
-
-	if filter.Contains("type") {
-		typeNet := []network.Inspect{}
-		errFilter := filter.WalkValues("type", func(fval string) error {
-			passList, err := filterNetworkByType(displayNet, fval)
-			if err != nil {
-				return err
-			}
-			typeNet = append(typeNet, passList...)
-			return nil
-		})
-		if errFilter != nil {
-			return nil, errFilter
-		}
-		displayNet = typeNet
+	if err := args.WalkValues("type", validateNetworkTypeFilter); err != nil {
+		return Filter{}, err
 	}
-
-	return displayNet, nil
+	return Filter{args: args, filterByUse: filterByUse, danglingOnly: danglingOnly}, nil
 }
 
-func filterNetworkByUse(nws []network.Inspect, danglingOnly bool) []network.Inspect {
-	retNws := []network.Inspect{}
-
-	filterFunc := func(nw network.Inspect) bool {
-		if danglingOnly {
-			return !IsPredefined(nw.Name) && len(nw.Containers) == 0 && len(nw.Services) == 0
-		}
-		return IsPredefined(nw.Name) || len(nw.Containers) > 0 || len(nw.Services) > 0
+// Matches returns true if nw satisfies the filter criteria.
+func (f Filter) Matches(nw FilterNetwork) bool {
+	if f.args.Contains("driver") &&
+		!f.args.ExactMatch("driver", nw.Driver()) {
+		return false
 	}
-
-	for _, nw := range nws {
-		if filterFunc(nw) {
-			retNws = append(retNws, nw)
-		}
+	if f.args.Contains("name") &&
+		!f.args.Match("name", nw.Name()) {
+		return false
 	}
-
-	return retNws
+	if f.args.Contains("id") &&
+		!f.args.Match("id", nw.ID()) {
+		return false
+	}
+	if f.args.Contains("label") &&
+		!f.args.MatchKVList("label", nw.Labels()) {
+		return false
+	}
+	if f.args.Contains("scope") &&
+		!f.args.ExactMatch("scope", nw.Scope()) {
+		return false
+	}
+	if f.args.Contains("idOrName") &&
+		!f.args.Match("name", nw.Name()) &&
+		!f.args.Match("id", nw.Name()) {
+		return false
+	}
+	if f.filterByUse &&
+		!matchesUse(f.danglingOnly, nw) {
+		return false
+	}
+	if netTypes := f.args.Get("type"); len(netTypes) > 0 &&
+		!matchesType(netTypes, nw) {
+		return false
+	}
+	return true
 }
 
-func filterNetworkByType(nws []network.Inspect, netType string) ([]network.Inspect, error) {
-	retNws := []network.Inspect{}
+func matchesUse(danglingOnly bool, nw FilterNetwork) bool {
+	if danglingOnly {
+		return !IsPredefined(nw.Name()) && !nw.HasContainerAttachments() && !nw.HasServiceAttachments()
+	}
+	return IsPredefined(nw.Name()) || nw.HasContainerAttachments() || nw.HasServiceAttachments()
+}
+
+func validateNetworkTypeFilter(netType string) error {
 	switch netType {
-	case "builtin":
-		for _, nw := range nws {
-			if IsPredefined(nw.Name) {
-				retNws = append(retNws, nw)
-			}
-		}
-	case "custom":
-		for _, nw := range nws {
-			if !IsPredefined(nw.Name) {
-				retNws = append(retNws, nw)
-			}
-		}
+	case "builtin", "custom":
+		return nil
 	default:
-		return nil, errors.Errorf("invalid filter: 'type'='%s'", netType)
+		return errors.Errorf("invalid filter: 'type'='%s'", netType)
 	}
-	return retNws, nil
+}
+
+func matchesType(netTypes []string, nw FilterNetwork) bool {
+	for _, netType := range netTypes {
+		switch netType {
+		case "builtin":
+			return IsPredefined(nw.Name())
+		case "custom":
+			return !IsPredefined(nw.Name())
+		}
+	}
+	return false
 }

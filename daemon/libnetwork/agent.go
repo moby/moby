@@ -539,6 +539,11 @@ func (n *Network) Services() map[string]ServiceInfo {
 	return sinfo
 }
 
+// HasServiceAttachments returns true when len(n.Services()) > 0.
+func (n *Network) HasServiceAttachments() bool {
+	return len(n.Services()) > 0
+}
+
 // clusterAgent returns the cluster agent if the network is a swarm-scoped,
 // multi-host network.
 func (n *Network) clusterAgent() (agent *nwAgent, ok bool) {
