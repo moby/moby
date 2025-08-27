@@ -55,7 +55,7 @@ require (
 	github.com/miekg/dns v1.1.66
 	github.com/mistifyio/go-zfs/v3 v3.0.1
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/moby/buildkit v0.23.2 // FIXME(thaJeztah): remove override from hack/buildkit-ref when updating.
+	github.com/moby/buildkit v0.24.0-rc1
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/go-archive v0.1.0
 	github.com/moby/ipvs v1.1.0
@@ -157,7 +157,6 @@ require (
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
-	github.com/docker/docker v28.3.3+incompatible // indirect
 	github.com/docker/libtrust v0.0.0-20150526203908-9cbd2a1374f4 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect

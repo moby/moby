@@ -114,7 +114,16 @@ func getAvailableBlobs(ctx context.Context, cs content.Store, chain *solver.Remo
 	}
 	var descs []ocispecs.Descriptor
 	if err := walkBlob(ctx, cs, target, func(desc ocispecs.Descriptor) bool {
-		descs = append(descs, desc)
+		// Nothing prevents this function from being called multiple times for the same descriptor.
+		// So we need to make sure we don't add the same descriptor again.
+		// Looping over the list is preferable:
+		// 1. to avoid using a map, which don't preserve the order of descriptors,
+		// 2. descs will have a length the number of compression variants for a blob, which is usually very small
+		if !slices.ContainsFunc(descs, func(d ocispecs.Descriptor) bool {
+			return d.Digest == desc.Digest
+		}) {
+			descs = append(descs, desc)
+		}
 		return true
 	}); err != nil {
 		bklog.G(ctx).WithError(err).Warn("failed to walk variant blob") // is not a critical error at this moment.

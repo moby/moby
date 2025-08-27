@@ -342,6 +342,49 @@ func (s *Store) AddLink(id string, link solver.CacheInfoLink, target string) err
 	})
 }
 
+func (s *Store) WalkLinksAll(id string, fn func(id string, link solver.CacheInfoLink) error) error {
+	type linkEntry struct {
+		id   string
+		link solver.CacheInfoLink
+	}
+	var links []linkEntry
+	if err := s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(linksBucket))
+		if b == nil {
+			return nil
+		}
+		b = b.Bucket([]byte(id))
+		if b == nil {
+			return nil
+		}
+		return b.ForEach(func(k, v []byte) error {
+			parts := bytes.Split(k, []byte("@"))
+			if len(parts) != 2 {
+				return errors.Errorf("invalid key %s", k)
+			}
+			var link solver.CacheInfoLink
+			if err := json.Unmarshal(parts[0], &link); err != nil {
+				return err
+			}
+			// make digest relative to output as not all backends store output separately
+			link.Digest = digest.FromBytes(fmt.Appendf(nil, "%s@%d", link.Digest, link.Output))
+			links = append(links, linkEntry{
+				id:   string(parts[1]),
+				link: link,
+			})
+			return nil
+		})
+	}); err != nil {
+		return err
+	}
+	for _, l := range links {
+		if err := fn(l.id, l.link); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *Store) WalkLinks(id string, link solver.CacheInfoLink, fn func(id string) error) error {
 	var links []string
 	if err := s.db.View(func(tx *bolt.Tx) error {
