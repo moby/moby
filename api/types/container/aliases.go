@@ -93,21 +93,6 @@ type State = container.State
 // GET "/containers/json"
 type Summary = container.Summary
 
-// ContainerJSONBase contains response of Engine API GET "/containers/{name:.*}/json"
-// for API version 1.18 and older.
-//
-// TODO(thaJeztah): combine ContainerJSONBase and InspectResponse into a single struct.
-// The split between ContainerJSONBase (ContainerJSONBase) and InspectResponse (InspectResponse)
-// was done in commit 6deaa58ba5f051039643cedceee97c8695e2af74 (https://github.com/moby/moby/pull/13675).
-// ContainerJSONBase contained all fields for API < 1.19, and InspectResponse
-// held fields that were added in API 1.19 and up. Given that the minimum
-// supported API version is now 1.24, we no longer use the separate type.
-type ContainerJSONBase = container.ContainerJSONBase
-
-// InspectResponse is the response for the GET "/containers/{name:.*}/json"
-// endpoint.
-type InspectResponse = container.InspectResponse
-
 // CreateRequest is the request message sent to the server for container
 // create calls. It is a config wrapper that holds the container [Config]
 // (portable) and the corresponding [HostConfig] (non-portable) and
