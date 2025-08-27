@@ -20,7 +20,6 @@ import (
 	"github.com/cloudflare/cfssl/initca"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/checker"
@@ -1023,7 +1022,7 @@ func (s *DockerSwarmSuite) TestAPINetworkInspectWithScope(c *testing.T) {
 	name := "test-scoped-network"
 	apiclient := d.NewClientT(c)
 
-	resp, err := apiclient.NetworkCreate(ctx, name, network.CreateOptions{Driver: "overlay"})
+	resp, err := apiclient.NetworkCreate(ctx, name, client.NetworkCreateOptions{Driver: "overlay"})
 	assert.NilError(c, err)
 
 	nw, err := apiclient.NetworkInspect(ctx, name, client.NetworkInspectOptions{})

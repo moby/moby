@@ -487,7 +487,7 @@ func TestMacvlanIPAM(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			c := d.NewClientT(t, client.WithVersion(tc.apiVersion))
 
-			netOpts := []func(*network.CreateOptions){
+			netOpts := []func(*client.NetworkCreateOptions){
 				net.WithMacvlan(""),
 				net.WithOption("macvlan_mode", "bridge"),
 				net.WithIPv4(tc.enableIPv4),
@@ -587,7 +587,7 @@ func TestMACVlanDNS(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
-			createOpts := []func(*network.CreateOptions){
+			createOpts := []func(*client.NetworkCreateOptions){
 				net.WithMacvlan(tc.parent),
 			}
 			if tc.internal {

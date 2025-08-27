@@ -214,13 +214,14 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 	if ingressNA == nil {
 		e.backend.ReleaseIngress()
 	} else {
-		options := network.CreateOptions{
+		networkCreateRequest := network.CreateRequest{
+			Name:   ingressNA.Network.Spec.Annotations.Name,
 			Driver: ingressNA.Network.DriverState.Name,
 			IPAM: &network.IPAM{
 				Driver: ingressNA.Network.IPAM.Driver.Name,
 			},
-			Options: ingressNA.Network.DriverState.Options,
 			Ingress: true,
+			Options: ingressNA.Network.DriverState.Options,
 		}
 
 		for _, ic := range ingressNA.Network.IPAM.Configs {
@@ -229,15 +230,12 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 				IPRange: ic.Range,
 				Gateway: ic.Gateway,
 			}
-			options.IPAM.Config = append(options.IPAM.Config, c)
+			networkCreateRequest.IPAM.Config = append(networkCreateRequest.IPAM.Config, c)
 		}
 
 		_, err := e.backend.SetupIngress(clustertypes.NetworkCreateRequest{
-			ID: ingressNA.Network.ID,
-			CreateRequest: network.CreateRequest{
-				Name:          ingressNA.Network.Spec.Annotations.Name,
-				CreateOptions: options,
-			},
+			ID:            ingressNA.Network.ID,
+			CreateRequest: networkCreateRequest,
 		}, ingressNA.Addresses[0])
 		if err != nil {
 			return err

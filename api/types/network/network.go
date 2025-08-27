@@ -21,16 +21,7 @@ const (
 
 // CreateRequest is the request message sent to the server for network create call.
 type CreateRequest struct {
-	CreateOptions
-	Name string // Name is the requested name of the network.
-
-	// Deprecated: CheckDuplicate is deprecated since API v1.44, but it defaults to true when sent by the client
-	// package to older daemons.
-	CheckDuplicate *bool `json:",omitempty"`
-}
-
-// CreateOptions holds options to create a network.
-type CreateOptions struct {
+	Name       string            // Name is the requested name of the network.
 	Driver     string            // Driver is the driver-name used to create the network (e.g. `bridge`, `overlay`)
 	Scope      string            // Scope describes the level at which the network exists (e.g. `swarm` for cluster-wide or `local` for machine level).
 	EnableIPv4 *bool             `json:",omitempty"` // EnableIPv4 represents whether to enable IPv4.
@@ -43,20 +34,10 @@ type CreateOptions struct {
 	ConfigFrom *ConfigReference  // ConfigFrom specifies the source which will provide the configuration for this network. The specified network must be a config-only network; see [CreateOptions.ConfigOnly].
 	Options    map[string]string // Options specifies the network-specific options to use for when creating the network.
 	Labels     map[string]string // Labels holds metadata specific to the network being created.
-}
 
-// ConnectOptions represents the data to be used to connect a container to the
-// network.
-type ConnectOptions struct {
-	Container      string
-	EndpointConfig *EndpointSettings `json:",omitempty"`
-}
-
-// DisconnectOptions represents the data to be used to disconnect a container
-// from the network.
-type DisconnectOptions struct {
-	Container string
-	Force     bool
+	// Deprecated: CheckDuplicate is deprecated since API v1.44, but it defaults to true when sent by the client
+	// package to older daemons.
+	CheckDuplicate *bool `json:",omitempty"`
 }
 
 // Inspect is the body of the "get network" http response message.

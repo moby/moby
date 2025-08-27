@@ -47,7 +47,7 @@ func TestNetworkConnectEmptyNilEndpointSettings(t *testing.T) {
 				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
 			}
 
-			var connect network.ConnectOptions
+			var connect NetworkConnectOptions
 			if err := json.NewDecoder(req.Body).Decode(&connect); err != nil {
 				return nil, err
 			}
@@ -84,7 +84,7 @@ func TestNetworkConnect(t *testing.T) {
 				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
 			}
 
-			var connect network.ConnectOptions
+			var connect NetworkConnectOptions
 			if err := json.NewDecoder(req.Body).Decode(&connect); err != nil {
 				return nil, err
 			}

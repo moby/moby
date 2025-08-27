@@ -13,6 +13,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
+	"github.com/moby/moby/v2/daemon/server/networkbackend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 )
@@ -245,7 +246,7 @@ func (n *networkRouter) postNetworkConnect(ctx context.Context, w http.ResponseW
 		return err
 	}
 
-	var connect network.ConnectOptions
+	var connect networkbackend.ConnectOptions
 	if err := httputils.ReadJSON(r, &connect); err != nil {
 		return err
 	}
@@ -262,7 +263,7 @@ func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.Respon
 		return err
 	}
 
-	var disconnect network.DisconnectOptions
+	var disconnect networkbackend.DisconnectOptions
 	if err := httputils.ReadJSON(r, &disconnect); err != nil {
 		return err
 	}

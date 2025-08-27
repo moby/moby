@@ -127,7 +127,7 @@ func TestDefaultIPvOptOverride(t *testing.T) {
 				t.Run(fmt.Sprintf("override4=%v,override6=%v", override4, override6), func(t *testing.T) {
 					t.Parallel()
 					netName := fmt.Sprintf("tdioo-%v-%v", override4, override6)
-					var nopts []func(*networktypes.CreateOptions)
+					var nopts []func(*client.NetworkCreateOptions)
 					if override4 {
 						nopts = append(nopts, network.WithIPv4(true))
 					}
@@ -373,7 +373,7 @@ func TestPointToPoint(t *testing.T) {
 
 	testcases := []struct {
 		name   string
-		netOpt func(*networktypes.CreateOptions)
+		netOpt func(*client.NetworkCreateOptions)
 	}{
 		{
 			name:   "inhibit_ipv4",

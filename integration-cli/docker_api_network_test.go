@@ -11,6 +11,7 @@ import (
 
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/request"
@@ -66,12 +67,10 @@ func (s *DockerAPISuite) TestAPINetworkInspectUserDefinedNetwork(c *testing.T) {
 		Config: []network.IPAMConfig{{Subnet: "172.28.0.0/16", IPRange: "172.28.5.0/24", Gateway: "172.28.5.254"}},
 	}
 	config := network.CreateRequest{
-		Name: "br0",
-		CreateOptions: network.CreateOptions{
-			Driver:  "bridge",
-			IPAM:    ipam,
-			Options: map[string]string{"foo": "bar", "opts": "dopts"},
-		},
+		Name:    "br0",
+		Driver:  "bridge",
+		IPAM:    ipam,
+		Options: map[string]string{"foo": "bar", "opts": "dopts"},
 	}
 	id0 := createNetwork(c, config, http.StatusCreated)
 	assert.Assert(c, isNetworkAvailable(c, "br0"))
@@ -139,11 +138,9 @@ func (s *DockerAPISuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) 
 		Config: []network.IPAMConfig{{Subnet: "192.178.0.0/16", IPRange: "192.178.128.0/17", Gateway: "192.178.138.100"}},
 	}
 	config0 := network.CreateRequest{
-		Name: "test0",
-		CreateOptions: network.CreateOptions{
-			Driver: "bridge",
-			IPAM:   ipam0,
-		},
+		Name:   "test0",
+		Driver: "bridge",
+		IPAM:   ipam0,
 	}
 	id0 := createNetwork(c, config0, http.StatusCreated)
 	assert.Assert(c, isNetworkAvailable(c, "test0"))
@@ -154,11 +151,9 @@ func (s *DockerAPISuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) 
 	}
 	// test1 bridge network overlaps with test0
 	config1 := network.CreateRequest{
-		Name: "test1",
-		CreateOptions: network.CreateOptions{
-			Driver: "bridge",
-			IPAM:   ipam1,
-		},
+		Name:   "test1",
+		Driver: "bridge",
+		IPAM:   ipam1,
 	}
 	createNetwork(c, config1, http.StatusForbidden)
 	assert.Assert(c, !isNetworkAvailable(c, "test1"))
@@ -169,11 +164,9 @@ func (s *DockerAPISuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) 
 	}
 	// test2 bridge network does not overlap
 	config2 := network.CreateRequest{
-		Name: "test2",
-		CreateOptions: network.CreateOptions{
-			Driver: "bridge",
-			IPAM:   ipam2,
-		},
+		Name:   "test2",
+		Driver: "bridge",
+		IPAM:   ipam2,
 	}
 	createNetwork(c, config2, http.StatusCreated)
 	assert.Assert(c, isNetworkAvailable(c, "test2"))
@@ -289,7 +282,7 @@ func createNetwork(t *testing.T, config network.CreateRequest, expectedStatusCod
 }
 
 func connectNetwork(t *testing.T, nid, cid string) {
-	resp, _, err := request.Post(testutil.GetContext(t), "/networks/"+nid+"/connect", request.JSONBody(network.ConnectOptions{
+	resp, _, err := request.Post(testutil.GetContext(t), "/networks/"+nid+"/connect", request.JSONBody(client.NetworkConnectOptions{
 		Container: cid,
 	}))
 	assert.NilError(t, err)
@@ -297,7 +290,7 @@ func connectNetwork(t *testing.T, nid, cid string) {
 }
 
 func disconnectNetwork(t *testing.T, nid, cid string) {
-	config := network.ConnectOptions{
+	config := client.NetworkDisconnectOptions{
 		Container: cid,
 	}
 

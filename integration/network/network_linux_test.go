@@ -143,7 +143,7 @@ func TestDefaultNetworkOpts(t *testing.T) {
 
 			if tc.configFrom {
 				// Create a new network config
-				network.CreateNoError(ctx, t, c, "from-net", func(create *networktypes.CreateOptions) {
+				network.CreateNoError(ctx, t, c, "from-net", func(create *client.NetworkCreateOptions) {
 					create.ConfigOnly = true
 					create.Options = map[string]string{
 						"com.docker.network.driver.mtu": fmt.Sprint(tc.mtu),
@@ -154,7 +154,7 @@ func TestDefaultNetworkOpts(t *testing.T) {
 
 			// Create a new network
 			networkName := "testnet"
-			networkId := network.CreateNoError(ctx, t, c, networkName, func(create *networktypes.CreateOptions) {
+			networkId := network.CreateNoError(ctx, t, c, networkName, func(create *client.NetworkCreateOptions) {
 				if tc.configFrom {
 					create.ConfigFrom = &networktypes.ConfigReference{
 						Network: "from-net",
@@ -196,7 +196,7 @@ func TestForbidDuplicateNetworkNames(t *testing.T) {
 	network.CreateNoError(ctx, t, c, "testnet")
 	defer network.RemoveNoError(ctx, t, c, "testnet")
 
-	_, err := c.NetworkCreate(ctx, "testnet", networktypes.CreateOptions{})
+	_, err := c.NetworkCreate(ctx, "testnet", client.NetworkCreateOptions{})
 	assert.Error(t, err, "Error response from daemon: network with name testnet already exists", "2nd NetworkCreate call should have failed")
 }
 

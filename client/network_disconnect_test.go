@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/network"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -47,7 +46,7 @@ func TestNetworkDisconnect(t *testing.T) {
 				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
 			}
 
-			var disconnect network.DisconnectOptions
+			var disconnect NetworkDisconnectOptions
 			if err := json.NewDecoder(req.Body).Decode(&disconnect); err != nil {
 				return nil, err
 			}
