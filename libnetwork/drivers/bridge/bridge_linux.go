@@ -1218,6 +1218,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 func (ep *bridgeEndpoint) netipAddrs() (v4, v6 netip.Addr) {
 	if ep.addr != nil {
 		v4, _ = netip.AddrFromSlice(ep.addr.IP)
+		v4 = v4.Unmap()
 	}
 	if ep.addrv6 != nil {
 		v6, _ = netip.AddrFromSlice(ep.addrv6.IP)
