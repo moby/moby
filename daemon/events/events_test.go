@@ -12,19 +12,6 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-// validateLegacyFields validates that the legacy "Status", "ID", and "From"
-// fields are set to the same value as their "current" (non-legacy) fields.
-//
-// These fields were deprecated since v1.10 (https://github.com/moby/moby/pull/18888).
-//
-// TODO remove this once we removed the deprecated `ID`, `Status`, and `From` fields.
-func validateLegacyFields(t *testing.T, msg events.Message) {
-	t.Helper()
-	assert.Check(t, is.Equal(msg.Status, string(msg.Action)), "Legacy Status field does not match Action")                        //nolint:staticcheck // ignore SA1019: field is deprecated but set for backward compatibility.
-	assert.Check(t, is.Equal(msg.ID, msg.Actor.ID), "Legacy ID field does not match Actor.ID")                                    //nolint:staticcheck // ignore SA1019: field is deprecated but set for backward compatibility.
-	assert.Check(t, is.Equal(msg.From, msg.Actor.Attributes["image"]), "Legacy From field does not match Actor.Attributes.image") //nolint:staticcheck // ignore SA1019: field is deprecated but set for backward compatibility.
-}
-
 func TestEventsLog(t *testing.T) {
 	e := New()
 	_, l1, _ := e.Subscribe()
@@ -44,7 +31,6 @@ func TestEventsLog(t *testing.T) {
 
 		jmsg, ok := msg.(events.Message)
 		assert.Assert(t, ok, "unexpected type: %T", msg)
-		validateLegacyFields(t, jmsg)
 		assert.Check(t, is.Equal(jmsg.Action, events.Action("test")))
 		assert.Check(t, is.Equal(jmsg.Actor.ID, "cont"))
 		assert.Check(t, is.Equal(jmsg.Actor.Attributes["image"], "image"))
@@ -57,7 +43,6 @@ func TestEventsLog(t *testing.T) {
 
 		jmsg, ok := msg.(events.Message)
 		assert.Assert(t, ok, "unexpected type: %T", msg)
-		validateLegacyFields(t, jmsg)
 		assert.Check(t, is.Equal(jmsg.Action, events.Action("test")))
 		assert.Check(t, is.Equal(jmsg.Actor.ID, "cont"))
 		assert.Check(t, is.Equal(jmsg.Actor.Attributes["image"], "image"))
@@ -120,7 +105,6 @@ func TestLogEvents(t *testing.T) {
 	assert.Assert(t, is.Len(current, eventsLimit))
 
 	first := current[0]
-	validateLegacyFields(t, first)
 	assert.Check(t, is.Equal(first.Action, events.Action("action_16")))
 
 	last := current[len(current)-1]
