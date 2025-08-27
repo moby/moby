@@ -38,8 +38,11 @@ func TestUserChain(t *testing.T) {
 	iptVerLt := versionLt(t, res.Combined(), 1, 8, 11)
 	t.Logf("iptables version < v1.8.11: %t", iptVerLt)
 	if strings.Contains(res.Combined(), "nf_tables") && iptVerLt {
-		// Prior to v1.8.11, iptables-nft "-S <chain>" reports the following for a non-existent chain:
-		//  ip6tables v1.8.9 (nf_tables): chain `<chain>' in table `filter' is incompatible, use 'nft' tool.
+		// Prior to v1.8.10, iptables-nft "-S <chain>" reports the following for a non-existent chain:
+		//
+		//   ip6tables v1.8.9 (nf_tables): chain `<chain>' in table `filter' is incompatible, use 'nft' tool.
+		//
+		// This was fixed in this commit: https://git.netfilter.org/iptables/commit/?id=82ccfb488eeac5507471099b9b4e6d136cc06e3b
 		noChainErr = "incompatible, use 'nft' tool"
 	}
 
