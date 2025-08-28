@@ -1,7 +1,8 @@
 package command
 
 import (
-	"os/exec"
+	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 
@@ -19,14 +20,16 @@ func defaultOptions(t *testing.T, configFile string) *daemonOptions {
 	cfg, err := config.New()
 	assert.NilError(t, err)
 	// Provide a dummy userland-proxy binary path to satisfy validation.
-	bin := "true"
+	dir := t.TempDir()
+	proxyPath := filepath.Join(dir, "proxy")
+	var content []byte
 	if runtime.GOOS == "windows" {
-		bin = "cmd"
+		proxyPath += ".cmd"
+		content = []byte("@echo off\r\n")
+	} else {
+		content = []byte("#!/bin/sh\nexit 0\n")
 	}
-	proxyPath, err := exec.LookPath(bin)
-	if err != nil {
-		t.Skipf("could not find %q binary: %v", bin, err)
-	}
+	assert.NilError(t, os.WriteFile(proxyPath, content, 0o755))
 	cfg.BridgeConfig.UserlandProxyPath = proxyPath
 	opts := newDaemonOptions(cfg)
 	opts.flags = &pflag.FlagSet{}
