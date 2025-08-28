@@ -16,17 +16,10 @@ import (
 
 // GetNetworks returns all current cluster managed networks.
 func (c *Cluster) GetNetworks(filter networkSettings.Filter) ([]network.Inspect, error) {
-	var f *swarmapi.ListNetworksRequest_Filters
-
-	if !filter.IsZero() {
-		f = &swarmapi.ListNetworksRequest_Filters{
-			Names:        filter.Get("name"),
-			NamePrefixes: filter.Get("name"),
-			IDPrefixes:   filter.Get("id"),
-		}
-	}
-
-	list, err := c.listNetworks(context.TODO(), f)
+	// Filtering on the Swarmkit side seems rather broken. It picks the
+	// first of Names, NamePrefixes, IDPrefixes to filter on and ignores the
+	// rest.
+	list, err := c.listNetworks(context.TODO(), nil)
 	if err != nil {
 		return nil, err
 	}
