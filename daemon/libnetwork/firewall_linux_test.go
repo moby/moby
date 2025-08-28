@@ -3,6 +3,8 @@ package libnetwork
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -33,9 +35,12 @@ func TestUserChain(t *testing.T) {
 	res := icmd.RunCommand("iptables", "--version")
 	assert.NilError(t, res.Error)
 	noChainErr := "No chain/target/match by that name"
-	if strings.Contains(res.Combined(), "nf_tables") {
-		// For a non-existent chain, iptables-nft "-S <chain>" reports:
-		//  ip6tables v1.8.9 (nf_tables): chain `<chain>' in table `filter' is incompatible, use 'nft' tool.
+	if strings.Contains(res.Combined(), "nf_tables") && versionLt(t, res.Combined(), 1, 8, 10) {
+		// Prior to v1.8.10, iptables-nft "-S <chain>" reports the following for a non-existent chain:
+		//
+		//   ip6tables v1.8.9 (nf_tables): chain `<chain>' in table `filter' is incompatible, use 'nft' tool.
+		//
+		// This was fixed in this commit: https://git.netfilter.org/iptables/commit/?id=82ccfb488eeac5507471099b9b4e6d136cc06e3b
 		noChainErr = "incompatible, use 'nft' tool"
 	}
 
@@ -144,4 +149,22 @@ func resetIptables(t *testing.T) {
 		assert.Check(t, err)
 		_ = iptable.RemoveExistingChain(usrChainName, iptables.Filter)
 	}
+}
+
+// versionLt returns true if the iptables version returned by `iptables --version`
+// is less than the `<major>.<minor>.<patch>` version passed in as argument.
+func versionLt(t *testing.T, ver string, major, minor, patch int) bool {
+	t.Helper()
+
+	matches := regexp.MustCompile(`iptables v([0-9]+)\.([0-9]+)\.([0-9]+)`).FindStringSubmatch(ver)
+	assert.Assert(t, len(matches) == 4, "could not determine iptables version from %q", ver)
+
+	parsedMajor, err := strconv.Atoi(matches[1])
+	assert.NilError(t, err)
+	parsedMinor, err := strconv.Atoi(matches[2])
+	assert.NilError(t, err)
+	parsedPatch, err := strconv.Atoi(matches[3])
+	assert.NilError(t, err)
+
+	return parsedMajor < major || (parsedMajor == major && parsedMinor < minor) || (parsedMajor == major && parsedMinor == minor && parsedPatch < patch)
 }
