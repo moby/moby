@@ -15,7 +15,7 @@ import (
 func (c *Cluster) GetTasks(options swarmbackend.TaskListOptions) ([]types.Task, error) {
 	var r *swarmapi.ListTasksResponse
 
-	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		filterTransform := func(filter filters.Args) error {
 			if filter.Contains("service") {
 				serviceFilters := filter.Get("service")
@@ -77,7 +77,7 @@ func (c *Cluster) GetTasks(options swarmbackend.TaskListOptions) ([]types.Task, 
 // GetTask returns a task by an ID.
 func (c *Cluster) GetTask(input string) (types.Task, error) {
 	var task *swarmapi.Task
-	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		t, err := getTask(ctx, state.controlClient, input)
 		if err != nil {
 			return err

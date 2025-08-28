@@ -14,7 +14,7 @@ import (
 func (c *Cluster) GetSecret(input string) (types.Secret, error) {
 	var secret *swarmapi.Secret
 
-	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		s, err := getSecret(ctx, state.controlClient, input)
 		if err != nil {
 			return err
@@ -66,7 +66,7 @@ func (c *Cluster) GetSecrets(options swarmbackend.SecretListOptions) ([]types.Se
 // CreateSecret creates a new secret in a managed swarm cluster.
 func (c *Cluster) CreateSecret(s types.SecretSpec) (string, error) {
 	var resp *swarmapi.CreateSecretResponse
-	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		secretSpec := convert.SecretSpecToGRPC(s)
 
 		r, err := state.controlClient.CreateSecret(ctx,
@@ -84,7 +84,7 @@ func (c *Cluster) CreateSecret(s types.SecretSpec) (string, error) {
 
 // RemoveSecret removes a secret from a managed swarm cluster.
 func (c *Cluster) RemoveSecret(input string) error {
-	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	return c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		secret, err := getSecret(ctx, state.controlClient, input)
 		if err != nil {
 			return err
@@ -102,7 +102,7 @@ func (c *Cluster) RemoveSecret(input string) error {
 // UpdateSecret updates a secret in a managed swarm cluster.
 // Note: this is not exposed to the CLI but is available from the API only
 func (c *Cluster) UpdateSecret(input string, version uint64, spec types.SecretSpec) error {
-	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	return c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		secret, err := getSecret(ctx, state.controlClient, input)
 		if err != nil {
 			return err

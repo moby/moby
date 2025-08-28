@@ -88,7 +88,7 @@ func (c *Cluster) getNetworks(filters *swarmapi.ListNetworksRequest_Filters) ([]
 func (c *Cluster) GetNetwork(input string) (network.Inspect, error) {
 	var nw *swarmapi.Network
 
-	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		n, err := getNetwork(ctx, state.controlClient, input)
 		if err != nil {
 			return err
@@ -274,7 +274,7 @@ func (c *Cluster) CreateNetwork(s network.CreateRequest) (string, error) {
 	}
 
 	var resp *swarmapi.CreateNetworkResponse
-	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		networkSpec := convert.BasicNetworkCreateToGRPC(s)
 		r, err := state.controlClient.CreateNetwork(ctx, &swarmapi.CreateNetworkRequest{Spec: &networkSpec})
 		if err != nil {
@@ -291,7 +291,7 @@ func (c *Cluster) CreateNetwork(s network.CreateRequest) (string, error) {
 
 // RemoveNetwork removes a cluster network.
 func (c *Cluster) RemoveNetwork(input string) error {
-	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	return c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		nw, err := getNetwork(ctx, state.controlClient, input)
 		if err != nil {
 			return err

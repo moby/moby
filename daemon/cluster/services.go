@@ -162,7 +162,7 @@ func (c *Cluster) GetServices(options swarmbackend.ServiceListOptions) ([]swarm.
 // GetService returns a service based on an ID or name.
 func (c *Cluster) GetService(input string, insertDefaults bool) (swarm.Service, error) {
 	var service *swarmapi.Service
-	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		s, err := getService(ctx, state.controlClient, input, insertDefaults)
 		if err != nil {
 			return err
@@ -182,7 +182,7 @@ func (c *Cluster) GetService(input string, insertDefaults bool) (swarm.Service, 
 // CreateService creates a new service in a managed swarm cluster.
 func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRegistry bool) (*swarm.ServiceCreateResponse, error) {
 	var resp *swarm.ServiceCreateResponse
-	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		err := c.populateNetworkID(ctx, state.controlClient, &s)
 		if err != nil {
 			return err
@@ -284,7 +284,7 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swarm.ServiceSpec, flags swarmbackend.ServiceUpdateOptions, queryRegistry bool) (*swarm.ServiceUpdateResponse, error) {
 	var resp *swarm.ServiceUpdateResponse
 
-	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		err := c.populateNetworkID(ctx, state.controlClient, &spec)
 		if err != nil {
 			return err
@@ -414,7 +414,7 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swa
 
 // RemoveService removes a service from a managed swarm cluster.
 func (c *Cluster) RemoveService(input string) error {
-	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	return c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		service, err := getService(ctx, state.controlClient, input, false)
 		if err != nil {
 			return err

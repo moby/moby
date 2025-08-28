@@ -51,7 +51,7 @@ func (c *Cluster) GetNodes(options swarmbackend.NodeListOptions) ([]types.Node, 
 func (c *Cluster) GetNode(input string) (types.Node, error) {
 	var node *swarmapi.Node
 
-	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		n, err := getNode(ctx, state.controlClient, input)
 		if err != nil {
 			return err
@@ -67,7 +67,7 @@ func (c *Cluster) GetNode(input string) (types.Node, error) {
 
 // UpdateNode updates existing nodes properties.
 func (c *Cluster) UpdateNode(input string, version uint64, spec types.NodeSpec) error {
-	return c.lockedManagerAction(func(_ context.Context, state nodeState) error {
+	return c.lockedManagerAction(context.TODO(), func(_ context.Context, state nodeState) error {
 		nodeSpec, err := convert.NodeSpecToGRPC(spec)
 		if err != nil {
 			return errdefs.InvalidParameter(err)
@@ -98,7 +98,7 @@ func (c *Cluster) UpdateNode(input string, version uint64, spec types.NodeSpec) 
 
 // RemoveNode removes a node from a cluster
 func (c *Cluster) RemoveNode(input string, force bool) error {
-	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	return c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		node, err := getNode(ctx, state.controlClient, input)
 		if err != nil {
 			return err
