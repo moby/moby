@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 
 	"dario.cat/mergo"
@@ -531,6 +532,7 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 			}
 		}
 		if len(conflicts) > 0 {
+			sort.Strings(conflicts)
 			return nil, fmt.Errorf("the following directives are specified both at the top level and under \"networking\": %s", strings.Join(conflicts, ", "))
 		}
 	}
