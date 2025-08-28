@@ -203,8 +203,8 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 }
 
 func TestDaemonConfigurationMergeNetworking(t *testing.T) {
-	const configJSON = `{"networking":{"bridge":"dummy0","default-address-pools":[{"base":"10.1.0.0/16","size":24}]}}`
-	const legacyJSON = `{"bridge":"dummy0","default-address-pools":[{"base":"10.1.0.0/16","size":24}]}`
+	const configJSON = `{"networking":{"bridge":"dummy0","default-address-pools":[{"base":"10.1.0.0/16","size":24}],"firewall-backend":"nftables","default-network-opts":{"bridge":{"com.docker.network.bridge.name":"dummy0"}},"network-control-plane-mtu":1400}}`
+	const legacyJSON = `{"bridge":"dummy0","default-address-pools":[{"base":"10.1.0.0/16","size":24}],"firewall-backend":"nftables","default-network-opts":{"bridge":{"com.docker.network.bridge.name":"dummy0"}},"network-control-plane-mtu":1400}`
 
 	t.Run("networking object", func(t *testing.T) {
 		configFile, expectedPools := makeDefaultAddressPoolConfig(t, configJSON, "10.1.0.0/16", 24)
@@ -212,6 +212,10 @@ func TestDaemonConfigurationMergeNetworking(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Equal(t, "dummy0", cfg.NetworkingConfig.BridgeConfig.Iface)
 		assert.DeepEqual(t, cfg.NetworkingConfig.DefaultAddressPools.Value(), expectedPools, cmpopts.EquateComparable(netip.Prefix{}))
+		assert.Equal(t, "nftables", cfg.NetworkingConfig.FirewallBackend)
+		expectedOpts := map[string]map[string]string{"bridge": {"com.docker.network.bridge.name": "dummy0"}}
+		assert.DeepEqual(t, cfg.NetworkingConfig.DefaultNetworkOpts, expectedOpts)
+		assert.Equal(t, 1400, cfg.NetworkingConfig.NetworkControlPlaneMTU)
 	})
 
 	t.Run("legacy top-level", func(t *testing.T) {
@@ -220,16 +224,40 @@ func TestDaemonConfigurationMergeNetworking(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Equal(t, "dummy0", cfg.NetworkingConfig.BridgeConfig.Iface)
 		assert.DeepEqual(t, cfg.NetworkingConfig.DefaultAddressPools.Value(), expectedPools, cmpopts.EquateComparable(netip.Prefix{}))
+		assert.Equal(t, "nftables", cfg.NetworkingConfig.FirewallBackend)
+		expectedOpts := map[string]map[string]string{"bridge": {"com.docker.network.bridge.name": "dummy0"}}
+		assert.DeepEqual(t, cfg.NetworkingConfig.DefaultNetworkOpts, expectedOpts)
+		assert.Equal(t, 1400, cfg.NetworkingConfig.NetworkControlPlaneMTU)
 	})
 }
 
 func TestDaemonConfigurationMergeNetworkingConflicts(t *testing.T) {
-	const configJSON = `{"bridge":"dummy0","default-address-pools":[{"base":"10.1.0.0/16","size":24}],"networking":{"bridge":"dummy1","default-address-pools":[{"base":"10.2.0.0/16","size":24}]}}`
+	const configJSON = `{"bridge":"dummy0","default-address-pools":[{"base":"10.1.0.0/16","size":24}],"firewall-backend":"iptables","default-network-opts":{"bridge":{"com.docker.network.bridge.name":"dummy0"}},"network-control-plane-mtu":1400,"networking":{"bridge":"dummy1","default-address-pools":[{"base":"10.2.0.0/16","size":24}],"firewall-backend":"nftables","default-network-opts":{"bridge":{"com.docker.network.bridge.name":"dummy1"}},"network-control-plane-mtu":1500}}`
 	configFile := makeConfigFile(t, configJSON)
 	_, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
 	assert.ErrorContains(t, err, `the following directives are specified both at the top level and under "networking"`)
 	assert.ErrorContains(t, err, "bridge")
 	assert.ErrorContains(t, err, "default-address-pools")
+	assert.ErrorContains(t, err, "firewall-backend")
+	assert.ErrorContains(t, err, "default-network-opts")
+	assert.ErrorContains(t, err, "network-control-plane-mtu")
+}
+
+func TestDaemonConfigurationMergeNetworkingFlagConflicts(t *testing.T) {
+	const configJSON = `{"networking":{"firewall-backend":"nftables","default-network-opts":{"overlay":{"com.docker.network.driver.mtu":"1500"}},"network-control-plane-mtu":1500}}`
+	configFile := makeConfigFile(t, configJSON)
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flags.String("firewall-backend", "", "")
+	flags.Var(opts.NewNamedMapMapOpts("default-network-opts", nil, nil), "default-network-opt", "")
+	flags.Int("network-control-plane-mtu", 0, "")
+	assert.Check(t, flags.Set("firewall-backend", "iptables"))
+	assert.Check(t, flags.Set("default-network-opt", "overlay=com.docker.network.driver.mtu=1400"))
+	assert.Check(t, flags.Set("network-control-plane-mtu", "1400"))
+	_, err := MergeDaemonConfigurations(&Config{}, flags, configFile)
+	assert.ErrorContains(t, err, `the following directives are specified both as a flag and in the configuration file`)
+	assert.ErrorContains(t, err, "firewall-backend")
+	assert.ErrorContains(t, err, "default-network-opts")
+	assert.ErrorContains(t, err, "network-control-plane-mtu")
 }
 
 func TestFindConfigurationConflictsWithUnknownKeys(t *testing.T) {
