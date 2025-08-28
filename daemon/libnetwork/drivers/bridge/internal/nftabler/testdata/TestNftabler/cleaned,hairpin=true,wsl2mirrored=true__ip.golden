@@ -22,7 +22,7 @@ table ip docker-bridges {
 	}
 
 	chain nat-OUTPUT {
-		type nat hook output priority -100; policy accept;
+		type nat hook output priority dstnat; policy accept;
 		fib daddr type local counter packets 0 bytes 0 jump nat-prerouting-and-output
 	}
 
