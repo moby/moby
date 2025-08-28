@@ -10,50 +10,71 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 
 	"github.com/moby/moby/api/types/filters"
-	"github.com/moby/moby/api/types/network"
 )
 
+type mockFilterNetwork struct {
+	FilterNetwork
+	name, driver, scope string
+	containers          int
+}
+
+func (n mockFilterNetwork) Name() string {
+	return n.name
+}
+
+func (n mockFilterNetwork) Driver() string {
+	return n.driver
+}
+
+func (n mockFilterNetwork) Scope() string {
+	return n.scope
+}
+
+func (n mockFilterNetwork) ContainerAttachments() int {
+	return n.containers
+}
+
+func (n mockFilterNetwork) ServiceAttachments() int {
+	return 0
+}
+
 func TestFilter(t *testing.T) {
-	networks := []network.Summary{
+	networks := []mockFilterNetwork{
 		{
-			Name:   "host",
-			Driver: "host",
-			Scope:  "local",
+			name:   "host",
+			driver: "host",
+			scope:  "local",
 		},
 		{
-			Name:   "bridge",
-			Driver: "bridge",
-			Scope:  "local",
+			name:   "bridge",
+			driver: "bridge",
+			scope:  "local",
 		},
 		{
-			Name:   "none",
-			Driver: "null",
-			Scope:  "local",
+			name:   "none",
+			driver: "null",
+			scope:  "local",
 		},
 		{
-			Name:   "myoverlay",
-			Driver: "overlay",
-			Scope:  "swarm",
+			name:   "myoverlay",
+			driver: "overlay",
+			scope:  "swarm",
 		},
 		{
-			Name:   "mydrivernet",
-			Driver: "mydriver",
-			Scope:  "local",
+			name:   "mydrivernet",
+			driver: "mydriver",
+			scope:  "local",
 		},
 		{
-			Name:   "mykvnet",
-			Driver: "mykvdriver",
-			Scope:  "global",
+			name:   "mykvnet",
+			driver: "mykvdriver",
+			scope:  "global",
 		},
 		{
-			Name:   "networkwithcontainer",
-			Driver: "nwc",
-			Scope:  "local",
-			Containers: map[string]network.EndpointResource{
-				"customcontainer": {
-					Name: "customendpoint",
-				},
-			},
+			name:       "networkwithcontainer",
+			driver:     "nwc",
+			scope:      "local",
+			containers: 1,
 		},
 	}
 
@@ -151,7 +172,7 @@ func TestFilter(t *testing.T) {
 			got := map[string]bool{}
 			for _, nw := range networks {
 				if flt.Matches(nw) {
-					got[nw.Name] = true
+					got[nw.Name()] = true
 				}
 			}
 

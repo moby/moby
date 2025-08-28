@@ -2,7 +2,6 @@ package network
 
 import (
 	"github.com/moby/moby/api/types/filters"
-	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 )
@@ -15,6 +14,16 @@ type Filter struct {
 	// IDAlsoMatchesName makes the "id" filter term also match against
 	// network names.
 	IDAlsoMatchesName bool
+}
+
+type FilterNetwork interface {
+	Driver() string
+	Name() string
+	ID() string
+	Labels() map[string]string
+	Scope() string
+	ContainerAttachments() int
+	ServiceAttachments() int
 }
 
 // NewFilter returns a network filter that filters by the provided args.
@@ -44,31 +53,39 @@ func NewFilter(args filters.Args) (Filter, error) {
 	return Filter{args: args, filterByUse: filterByUse, danglingOnly: danglingOnly}, nil
 }
 
+func (f Filter) IsZero() bool {
+	return f.args.Len() == 0
+}
+
+func (f Filter) Get(key string) []string {
+	return f.args.Get(key)
+}
+
 // Matches returns true if nw satisfies the filter criteria.
-func (f Filter) Matches(nw network.Summary) bool {
+func (f Filter) Matches(nw FilterNetwork) bool {
 	if f.args.Len() == 0 {
 		return true
 	}
 
 	if f.args.Contains("driver") &&
-		!f.args.ExactMatch("driver", nw.Driver) {
+		!f.args.ExactMatch("driver", nw.Driver()) {
 		return false
 	}
 	if f.args.Contains("name") &&
-		!f.args.Match("name", nw.Name) {
+		!f.args.Match("name", nw.Name()) {
 		return false
 	}
 	if f.args.Contains("id") &&
-		!f.args.Match("id", nw.ID) &&
-		(!f.IDAlsoMatchesName || !f.args.Match("id", nw.Name)) {
+		!f.args.Match("id", nw.ID()) &&
+		(!f.IDAlsoMatchesName || !f.args.Match("id", nw.Name())) {
 		return false
 	}
 	if f.args.Contains("label") &&
-		!f.args.MatchKVList("label", nw.Labels) {
+		!f.args.MatchKVList("label", nw.Labels()) {
 		return false
 	}
 	if f.args.Contains("scope") &&
-		!f.args.ExactMatch("scope", nw.Scope) {
+		!f.args.ExactMatch("scope", nw.Scope()) {
 		return false
 	}
 	if f.filterByUse &&
@@ -82,11 +99,11 @@ func (f Filter) Matches(nw network.Summary) bool {
 	return true
 }
 
-func matchesUse(danglingOnly bool, nw network.Summary) bool {
+func matchesUse(danglingOnly bool, nw FilterNetwork) bool {
 	if danglingOnly {
-		return !IsPredefined(nw.Name) && len(nw.Containers) == 0 && len(nw.Services) == 0
+		return !IsPredefined(nw.Name()) && nw.ContainerAttachments() == 0 && nw.ServiceAttachments() == 0
 	}
-	return IsPredefined(nw.Name) || len(nw.Containers) > 0 || len(nw.Services) > 0
+	return IsPredefined(nw.Name()) || nw.ContainerAttachments() > 0 || nw.ServiceAttachments() > 0
 }
 
 func validateNetworkTypeFilter(netType string) error {
@@ -98,18 +115,18 @@ func validateNetworkTypeFilter(netType string) error {
 	}
 }
 
-func matchesType(netTypes []string, nw network.Summary) bool {
-	var matched bool
+func matchesType(netTypes []string, nw FilterNetwork) bool {
 	for _, netType := range netTypes {
 		switch netType {
 		case "builtin":
-			matched = IsPredefined(nw.Name)
+			if IsPredefined(nw.Name()) {
+				return true
+			}
 		case "custom":
-			matched = !IsPredefined(nw.Name)
-		}
-		if matched {
-			break
+			if !IsPredefined(nw.Name()) {
+				return true
+			}
 		}
 	}
-	return matched
+	return false
 }

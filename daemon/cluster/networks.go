@@ -46,9 +46,8 @@ func (c *Cluster) GetNetworks(filter filters.Args) ([]network.Inspect, error) {
 		if n.Spec.Annotations.Labels["com.docker.swarm.predefined"] == "true" {
 			continue
 		}
-		nw := convert.BasicNetworkFromGRPC(*n)
-		if flt.Matches(nw) {
-			filtered = append(filtered, nw)
+		if flt.Matches(convert.FilterNetwork{N: n}) {
+			filtered = append(filtered, convert.BasicNetworkFromGRPC(*n))
 		}
 	}
 

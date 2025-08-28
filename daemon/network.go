@@ -601,8 +601,8 @@ func (daemon *Daemon) GetNetworks(filter filters.Args, config backend.NetworkLis
 	allNetworks := daemon.getAllNetworks()
 	networks := make([]networktypes.Inspect, 0, len(allNetworks))
 	for _, n := range allNetworks {
-		nr := buildNetworkResource(n)
-		if flt.Matches(nr) {
+		if flt.Matches(n) {
+			nr := buildNetworkResource(n)
 			if config.Detailed {
 				nr.Containers = buildContainerAttachments(n)
 				if config.Verbose {

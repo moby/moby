@@ -249,6 +249,11 @@ func (n *Network) Type() string {
 	return n.networkType
 }
 
+// Driver is an alias for [Network.Type].
+func (n *Network) Driver() string {
+	return n.Type()
+}
+
 func (n *Network) Resolvers() []*Resolver {
 	n.mu.Lock()
 	defer n.mu.Unlock()
@@ -1281,6 +1286,11 @@ func (n *Network) Endpoints() []*Endpoint {
 		log.G(context.TODO()).Error(err)
 	}
 	return endpoints
+}
+
+// ContainerAttachments returns len(n.Endpoints()).
+func (n *Network) ContainerAttachments() int {
+	return len(n.Endpoints())
 }
 
 // WalkEndpoints uses the provided function to walk the Endpoints.
