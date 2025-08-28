@@ -9,11 +9,33 @@ import (
 	"github.com/pkg/errors"
 )
 
+var (
+	acceptedFilters = map[string]bool{
+		"dangling": true,
+		"driver":   true,
+		"id":       true,
+		"label":    true,
+		"name":     true,
+		"scope":    true,
+		"type":     true,
+	}
+
+	pruneFilters = map[string]bool{
+		"label":  true,
+		"label!": true,
+		"until":  true,
+	}
+)
+
 type Filter struct {
 	args filters.Args
 
 	filterByUse, danglingOnly bool
 	until                     time.Time
+
+	// IDAlsoMatchesName makes the "id" filter term also match against
+	// network names.
+	IDAlsoMatchesName bool
 }
 
 type FilterNetwork interface {
@@ -27,11 +49,34 @@ type FilterNetwork interface {
 	HasServiceAttachments() bool
 }
 
-// NewFilter returns a network filter that filters by the provided args.
+// NewFilter returns a network list filter that filters by the provided args.
 //
 // An [errdefs.InvalidParameter] error is returned if the filter args are not
 // well-formed.
 func NewFilter(args filters.Args) (Filter, error) {
+	if err := args.Validate(acceptedFilters); err != nil {
+		return Filter{}, err
+	}
+	return newFilter(args)
+}
+
+// NewPruneFilter returns a network prune filter that filters by the provided args.
+//
+// The filter matches dangling networks which also match args.
+func NewPruneFilter(args filters.Args) (Filter, error) {
+	if err := args.Validate(pruneFilters); err != nil {
+		return Filter{}, err
+	}
+	f, err := newFilter(args)
+	if err != nil {
+		return Filter{}, err
+	}
+	f.filterByUse = true
+	f.danglingOnly = true
+	return f, nil
+}
+
+func newFilter(args filters.Args) (Filter, error) {
 	var filterByUse, danglingOnly bool
 	if values := args.Get("dangling"); len(values) > 0 {
 		if len(values) > 1 {
@@ -89,7 +134,8 @@ func (f Filter) Matches(nw FilterNetwork) bool {
 		return false
 	}
 	if f.args.Contains("id") &&
-		!f.args.Match("id", nw.ID()) {
+		!f.args.Match("id", nw.ID()) &&
+		(!f.IDAlsoMatchesName || !f.args.Match("id", nw.Name())) {
 		return false
 	}
 	if f.args.Contains("label") &&
@@ -102,11 +148,6 @@ func (f Filter) Matches(nw FilterNetwork) bool {
 	}
 	if f.args.Contains("scope") &&
 		!f.args.ExactMatch("scope", nw.Scope()) {
-		return false
-	}
-	if f.args.Contains("idOrName") &&
-		!f.args.Match("name", nw.Name()) &&
-		!f.args.Match("id", nw.Name()) {
 		return false
 	}
 	if f.filterByUse &&

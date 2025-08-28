@@ -129,8 +129,10 @@ func TestFilter(t *testing.T) {
 	}
 
 	testCases := []struct {
-		subtest string
-		filter  filters.Args
+		subtest           string
+		filter            filters.Args
+		pruneFilter       bool
+		idAlsoMatchesName bool
 
 		err     string
 		results []string
@@ -235,55 +237,126 @@ func TestFilter(t *testing.T) {
 			filter:  filters.NewArgs(filters.Arg("label", "foo=baz")),
 		},
 		{
+			subtest: "label!=foo",
+			filter:  filters.NewArgs(filters.Arg("label!", "foo")),
+			err:     "invalid filter 'label!'",
+		},
+		{
+			subtest: "until=1h",
+			filter:  filters.NewArgs(filters.Arg("until", "1h")),
+			err:     "invalid filter 'until'",
+		},
+		{
 			subtest: "name=with",
 			filter:  filters.NewArgs(filters.Arg("name", "with")),
 			results: []string{"networkwithcontainer", "networkwithservice"},
 		},
 		{
-			subtest: "id=with",
+			subtest: "id=with/IDAlsoMatchesName=False",
 			filter:  filters.NewArgs(filters.Arg("id", "with")),
 		},
 		{
-			subtest: "id=jbexjvgu",
+			subtest:           "id=with/IDAlsoMatchesName=True",
+			filter:            filters.NewArgs(filters.Arg("id", "with")),
+			idAlsoMatchesName: true,
+			results:           []string{"networkwithcontainer", "networkwithservice"},
+		},
+		{
+			subtest: "id=jbexjvgu/IDAlsoMatchesName=False",
 			filter:  filters.NewArgs(filters.Arg("id", "argjbex")),
 			results: []string{"networkwithcontainer", "networkwithservice"},
 		},
 		{
-			subtest: "id=my",
+			subtest:           "id=jbexjvgu/IDAlsoMatchesName=True",
+			filter:            filters.NewArgs(filters.Arg("id", "argjbex")),
+			idAlsoMatchesName: true,
+			results:           []string{"networkwithcontainer", "networkwithservice"},
+		},
+		{
+			subtest: "id=my/IDAlsoMatchesName=False",
 			filter:  filters.NewArgs(filters.Arg("id", "my")),
 			results: []string{"idoverlap"},
 		},
 		{
-			subtest: "label!=foo",
-			filter:  filters.NewArgs(filters.Arg("label!", "foo")),
-			results: []string{network.NetworkHost, network.NetworkBridge, network.NetworkNone, "myoverlay", "mykvnet", "networkwithcontainer", "networkwithservice", "idoverlap"},
+			subtest:           "id=my/IDAlsoMatchesName=True",
+			filter:            filters.NewArgs(filters.Arg("id", "my")),
+			idAlsoMatchesName: true,
+			results:           []string{"myoverlay", "mydrivernet", "mykvnet", "idoverlap"},
 		},
 		{
-			subtest: "until=2025-01-01",
-			filter:  filters.NewArgs(filters.Arg("until", "2025-01-01")),
-			results: []string{"myoverlay", "mydrivernet", "mykvnet"},
+			subtest:     "Prune/empty",
+			filter:      filters.NewArgs(),
+			pruneFilter: true,
+			// Prune filters have an implicit dangling=true
+			results: []string{"myoverlay", "mydrivernet", "mykvnet", "idoverlap"},
 		},
 		{
-			subtest: "until=2024-12-01T01:00:00",
-			filter:  filters.NewArgs(filters.Arg("until", "2024-12-01T01:00:00")),
-			results: []string{"myoverlay"},
+			subtest:     "Prune/label=foo",
+			filter:      filters.NewArgs(filters.Arg("label", "foo")),
+			pruneFilter: true,
+			results:     []string{"mydrivernet"},
 		},
 		{
-			subtest: "MultipleTerms=until",
-			filter:  filters.NewArgs(filters.Arg("until", "2024-12-01T01:00:00"), filters.Arg("until", "2h")),
-			err:     "more than one until filter specified",
+			subtest:     "Prune/label=foo=bar",
+			filter:      filters.NewArgs(filters.Arg("label", "foo=bar")),
+			pruneFilter: true,
+			results:     []string{"mydrivernet"},
+		},
+		{
+			subtest:     "Prune/label=foo=baz",
+			filter:      filters.NewArgs(filters.Arg("label", "foo=baz")),
+			pruneFilter: true,
+		},
+		{
+			subtest:     "Prune/label!=foo",
+			filter:      filters.NewArgs(filters.Arg("label!", "foo")),
+			pruneFilter: true,
+			results:     []string{"myoverlay", "mykvnet", "idoverlap"},
+		},
+		{
+			subtest:     "Prune/until=2025-01-01",
+			filter:      filters.NewArgs(filters.Arg("until", "2025-01-01")),
+			pruneFilter: true,
+			results:     []string{"myoverlay", "mydrivernet", "mykvnet"},
+		},
+		{
+			subtest:     "Prune/until=2024-12-01T01:00:00",
+			filter:      filters.NewArgs(filters.Arg("until", "2024-12-01T01:00:00")),
+			pruneFilter: true,
+			results:     []string{"myoverlay"},
+		},
+		{
+			subtest:     "Prune/MultipleTerms=until",
+			filter:      filters.NewArgs(filters.Arg("until", "2024-12-01T01:00:00"), filters.Arg("until", "2h")),
+			pruneFilter: true,
+			err:         "more than one until filter specified",
+		},
+		{
+			subtest:     "Prune/id=invalid",
+			filter:      filters.NewArgs(filters.Arg("id", "invalid")),
+			pruneFilter: true,
+			err:         "invalid filter 'id'",
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.subtest, func(t *testing.T) {
-			flt, err := NewFilter(testCase.filter)
+			var (
+				flt Filter
+				err error
+			)
+			if testCase.pruneFilter {
+				flt, err = NewPruneFilter(testCase.filter)
+			} else {
+				flt, err = NewFilter(testCase.filter)
+			}
 			if testCase.err != "" {
 				assert.ErrorContains(t, err, testCase.err)
 				return
 			}
 			assert.NilError(t, err)
 
+			flt.IDAlsoMatchesName = testCase.idAlsoMatchesName
 			got := map[string]bool{}
 			for _, nw := range networks {
 				if flt.Matches(nw) {

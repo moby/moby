@@ -29,12 +29,6 @@ var (
 		"label!": true,
 		"until":  true,
 	}
-
-	networksAcceptedFilters = map[string]bool{
-		"label":  true,
-		"label!": true,
-		"until":  true,
-	}
 )
 
 // ContainersPrune removes unused containers
@@ -181,13 +175,7 @@ func (daemon *Daemon) NetworksPrune(ctx context.Context, filterArgs filters.Args
 	}
 	defer daemon.pruneRunning.Store(false)
 
-	// make sure that only accepted filters have been received
-	err := filterArgs.Validate(networksAcceptedFilters)
-	if err != nil {
-		return nil, err
-	}
-
-	pruneFilters, err := dnetwork.NewFilter(filterArgs)
+	pruneFilters, err := dnetwork.NewPruneFilter(filterArgs)
 	if err != nil {
 		return nil, err
 	}

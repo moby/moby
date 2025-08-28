@@ -16,13 +16,17 @@ import (
 
 // GetNetworks returns all current cluster managed networks.
 func (c *Cluster) GetNetworks(filter networkSettings.Filter) ([]network.Inspect, error) {
-	f := &swarmapi.ListNetworksRequest_Filters{
-		Names:        filter.Get("name"),
-		NamePrefixes: filter.Get("name"),
-		IDPrefixes:   filter.Get("id"),
-	}
-
-	list, err := c.listNetworks(context.TODO(), f)
+	// Swarmkit API's filters are too limited to express the Moby filter
+	// semantics with much fidelity. It only supports filtering on one of:
+	//  - Names (exact match)
+	//  - NamePrefixes (prefix match)
+	//  - IDPrefixes (prefix match)
+	// The first of the list that is set is used as the filter predicate.
+	// The other fields are ignored. However, the Engine API filter
+	// semantics are to match on any substring of the network name or ID. We
+	// therefore need to request all networks from Swarmkit and filter them
+	// ourselves.
+	list, err := c.listNetworks(context.TODO(), nil)
 	if err != nil {
 		return nil, err
 	}
