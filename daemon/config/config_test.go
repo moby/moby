@@ -223,6 +223,15 @@ func TestDaemonConfigurationMergeNetworking(t *testing.T) {
 	})
 }
 
+func TestDaemonConfigurationMergeNetworkingConflicts(t *testing.T) {
+	const configJSON = `{"bridge":"dummy0","default-address-pools":[{"base":"10.1.0.0/16","size":24}],"networking":{"bridge":"dummy1","default-address-pools":[{"base":"10.2.0.0/16","size":24}]}}`
+	configFile := makeConfigFile(t, configJSON)
+	_, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
+	assert.ErrorContains(t, err, `the following directives are specified both at the top level and under "networking"`)
+	assert.ErrorContains(t, err, "bridge")
+	assert.ErrorContains(t, err, "default-address-pools")
+}
+
 func TestFindConfigurationConflictsWithUnknownKeys(t *testing.T) {
 	config := map[string]any{"tls-verify": "true"}
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)

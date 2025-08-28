@@ -518,12 +518,24 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		return &config, nil // early return on empty config
 	}
 
-	if flags != nil {
-		var jsonConfig map[string]any
-		if err := json.Unmarshal(b, &jsonConfig); err != nil {
-			return nil, err
-		}
+	var jsonConfig map[string]any
+	if err := json.Unmarshal(b, &jsonConfig); err != nil {
+		return nil, err
+	}
 
+	if networking, ok := jsonConfig["networking"].(map[string]any); ok {
+		var conflicts []string
+		for k := range networking {
+			if _, exists := jsonConfig[k]; exists {
+				conflicts = append(conflicts, k)
+			}
+		}
+		if len(conflicts) > 0 {
+			return nil, fmt.Errorf("the following directives are specified both at the top level and under \"networking\": %s", strings.Join(conflicts, ", "))
+		}
+	}
+
+	if flags != nil {
 		configSet := configValuesSet(jsonConfig)
 
 		if err := findConfigurationConflicts(configSet, flags); err != nil {
@@ -575,7 +587,6 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		// accessing stale values and use the embedded NetworkingConfig instead.
 		config.Networking = nil
 	}
-
 
 	for _, mc := range migratedNamedConfig {
 		mc.migrate(&config)
