@@ -32,6 +32,16 @@ func makeConfigFile(t *testing.T, content string) string {
 	return name
 }
 
+// makeDefaultAddressPoolConfig writes the given content to a temporary
+// configuration file and returns the file path along with the expected default
+// address pools.
+func makeDefaultAddressPoolConfig(t *testing.T, content, base string, size int) (string, []*ipamutils.NetworkToSplit) {
+	t.Helper()
+	configFile := makeConfigFile(t, content)
+	pools := []*ipamutils.NetworkToSplit{{Base: netip.MustParsePrefix(base), Size: size}}
+	return configFile, pools
+}
+
 func TestDaemonConfigurationNotFound(t *testing.T) {
 	_, err := MergeDaemonConfigurations(&Config{}, nil, "/tmp/foo-bar-baz-docker")
 	assert.Check(t, os.IsNotExist(err), "got: %[1]T: %[1]v", err)
@@ -157,9 +167,7 @@ func TestDaemonConfigurationMergeConflictsWithInnerStructs(t *testing.T) {
 // TestDaemonConfigurationMergeDefaultAddressPools is a regression test for #40711.
 func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 	emptyConfigFile := makeConfigFile(t, `{}`)
-	configFile := makeConfigFile(t, `{"default-address-pools":[{"base": "10.123.0.0/16", "size": 24 }]}`)
-
-	expected := []*ipamutils.NetworkToSplit{{Base: netip.MustParsePrefix("10.123.0.0/16"), Size: 24}}
+	configFile, expected := makeDefaultAddressPoolConfig(t, `{"default-address-pools":[{"base": "10.123.0.0/16", "size": 24 }]}`, "10.123.0.0/16", 24)
 
 	t.Run("empty config file", func(t *testing.T) {
 		conf := Config{}
@@ -198,10 +206,8 @@ func TestDaemonConfigurationMergeNetworking(t *testing.T) {
 	const configJSON = `{"networking":{"bridge":"dummy0","default-address-pools":[{"base":"10.1.0.0/16","size":24}]}}`
 	const legacyJSON = `{"bridge":"dummy0","default-address-pools":[{"base":"10.1.0.0/16","size":24}]}`
 
-	expectedPools := []*ipamutils.NetworkToSplit{{Base: netip.MustParsePrefix("10.1.0.0/16"), Size: 24}}
-
 	t.Run("networking object", func(t *testing.T) {
-		configFile := makeConfigFile(t, configJSON)
+		configFile, expectedPools := makeDefaultAddressPoolConfig(t, configJSON, "10.1.0.0/16", 24)
 		cfg, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
 		assert.NilError(t, err)
 		assert.Equal(t, "dummy0", cfg.NetworkingConfig.BridgeConfig.Iface)
@@ -209,7 +215,7 @@ func TestDaemonConfigurationMergeNetworking(t *testing.T) {
 	})
 
 	t.Run("legacy top-level", func(t *testing.T) {
-		configFile := makeConfigFile(t, legacyJSON)
+		configFile, expectedPools := makeDefaultAddressPoolConfig(t, legacyJSON, "10.1.0.0/16", 24)
 		cfg, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
 		assert.NilError(t, err)
 		assert.Equal(t, "dummy0", cfg.NetworkingConfig.BridgeConfig.Iface)
