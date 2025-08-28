@@ -17,6 +17,8 @@ import (
 func defaultOptions(t *testing.T, configFile string) *daemonOptions {
 	cfg, err := config.New()
 	assert.NilError(t, err)
+	// Provide a dummy userland-proxy binary path to satisfy validation.
+	cfg.NetworkingConfig.BridgeConfig.UserlandProxyPath = "/bin/true"
 	opts := newDaemonOptions(cfg)
 	opts.flags = &pflag.FlagSet{}
 	opts.installFlags(opts.flags)

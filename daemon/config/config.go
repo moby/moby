@@ -159,6 +159,13 @@ type NetworkConfig struct {
 	FirewallBackend string `json:"firewall-backend,omitempty"`
 }
 
+// NetworkingConfig groups together network-related configuration options,
+// including bridge network settings and other network-wide defaults.
+type NetworkingConfig struct {
+	BridgeConfig
+	NetworkConfig
+}
+
 // TLSOptions defines TLS configuration for the daemon server.
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line use.
@@ -251,8 +258,6 @@ type CommonConfig struct {
 
 	DNSConfig
 	LogConfig
-	BridgeConfig // BridgeConfig holds bridge network specific configuration.
-	NetworkConfig
 	registry.ServiceOptions
 
 	// FIXME(vdemeester) This part is not that clear and is mainly dependent on cli flags
@@ -326,9 +331,16 @@ func New() (*Config, error) {
 			LogConfig: LogConfig{
 				Config: make(map[string]string),
 			},
-			MaxConcurrentDownloads: DefaultMaxConcurrentDownloads,
-			MaxConcurrentUploads:   DefaultMaxConcurrentUploads,
-			MaxDownloadAttempts:    DefaultDownloadAttempts,
+			MaxConcurrentDownloads:    DefaultMaxConcurrentDownloads,
+			MaxConcurrentUploads:      DefaultMaxConcurrentUploads,
+			MaxDownloadAttempts:       DefaultDownloadAttempts,
+			ContainerdNamespace:       DefaultContainersNamespace,
+			ContainerdPluginNamespace: DefaultPluginNamespace,
+			Features:                  make(map[string]bool),
+			DefaultRuntime:            StockRuntimeName,
+			MinAPIVersion:             defaultMinAPIVersion,
+		},
+		NetworkingConfig: NetworkingConfig{
 			BridgeConfig: BridgeConfig{
 				DefaultBridgeConfig: DefaultBridgeConfig{
 					MTU: DefaultNetworkMtu,
@@ -338,11 +350,6 @@ func New() (*Config, error) {
 				NetworkControlPlaneMTU: DefaultNetworkMtu,
 				DefaultNetworkOpts:     make(map[string]map[string]string),
 			},
-			ContainerdNamespace:       DefaultContainersNamespace,
-			ContainerdPluginNamespace: DefaultPluginNamespace,
-			Features:                  make(map[string]bool),
-			DefaultRuntime:            StockRuntimeName,
-			MinAPIVersion:             defaultMinAPIVersion,
 		},
 	}
 

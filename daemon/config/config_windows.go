@@ -39,6 +39,7 @@ type DefaultBridgeConfig struct {
 // using the same names that the flags in the command line uses.
 type Config struct {
 	CommonConfig
+	NetworkingConfig
 
 	// Fields below here are platform specific. (There are none presently
 	// for the Windows daemon.)
@@ -80,10 +81,10 @@ func setPlatformDefaults(cfg *Config) error {
 
 // validatePlatformConfig checks if any platform-specific configuration settings are invalid.
 func validatePlatformConfig(conf *Config) error {
-	if conf.MTU != 0 && conf.MTU != DefaultNetworkMtu {
+	if conf.NetworkingConfig.MTU != 0 && conf.NetworkingConfig.MTU != DefaultNetworkMtu {
 		log.G(context.TODO()).Warn(`WARNING: MTU for the default network is not configurable on Windows, and this option will be ignored.`)
 	}
-	if conf.FirewallBackend != "" {
+	if conf.NetworkingConfig.FirewallBackend != "" {
 		return errors.New("firewall-backend can only be configured on Linux")
 	}
 	return nil
