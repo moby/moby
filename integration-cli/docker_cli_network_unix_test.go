@@ -1045,9 +1045,6 @@ func (s *DockerCLINetworkSuite) TestInspectAPIMultipleNetworks(c *testing.T) {
 	err := json.Unmarshal(body, &inspectCurrent)
 	assert.NilError(c, err)
 	assert.Equal(c, len(inspectCurrent.NetworkSettings.Networks), 3)
-
-	bridge := inspectCurrent.NetworkSettings.Networks["bridge"]
-	assert.Equal(c, bridge.IPAddress, inspectCurrent.NetworkSettings.IPAddress)
 }
 
 func connectContainerToNetworks(t *testing.T, d *daemon.Daemon, cName string, nws []string) {

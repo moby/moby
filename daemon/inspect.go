@@ -242,13 +242,13 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, err
 
 // getDefaultNetworkSettings creates the deprecated structure that holds the information
 // about the bridge network for a container.
-func getDefaultNetworkSettings(networks map[string]*network.EndpointSettings) containertypes.DefaultNetworkSettings {
+func getDefaultNetworkSettings(networks map[string]*network.EndpointSettings) containertypes.DefaultNetworkSettings { //nolint:staticcheck // ignore SA1019: DefaultNetworkSettings is deprecated in v28.4.
 	nw, ok := networks[networktypes.NetworkBridge]
 	if !ok || nw.EndpointSettings == nil {
-		return containertypes.DefaultNetworkSettings{}
+		return containertypes.DefaultNetworkSettings{} //nolint:staticcheck // ignore SA1019: DefaultNetworkSettings is deprecated in v28.4.
 	}
 
-	return containertypes.DefaultNetworkSettings{
+	return containertypes.DefaultNetworkSettings{ //nolint:staticcheck // ignore SA1019: DefaultNetworkSettings is deprecated in v28.4.
 		EndpointID:          nw.EndpointSettings.EndpointID,
 		Gateway:             nw.EndpointSettings.Gateway,
 		GlobalIPv6Address:   nw.EndpointSettings.GlobalIPv6Address,
