@@ -74,6 +74,9 @@ type DefaultBridgeConfig struct {
 // using the same names that the flags in the command line uses.
 type Config struct {
 	CommonConfig
+	NetworkingConfig
+	// Networking allows configuration under the "networking" JSON key and is merged into the embedded NetworkingConfig.
+	Networking *NetworkingConfig `json:"networking,omitempty"`
 
 	// Fields below here are platform specific.
 	Runtimes             map[string]system.Runtime    `json:"runtimes,omitempty"`
@@ -130,7 +133,7 @@ func (conf *Config) IsSwarmCompatible() error {
 	}
 	// Swarm has not yet been updated to use nftables. But, if "iptables" is disabled, it
 	// doesn't add rules anyway.
-	if conf.FirewallBackend == "nftables" && conf.EnableIPTables {
+	if conf.FirewallBackend == "nftables" && conf.BridgeConfig.EnableIPTables {
 		return errors.New("--firewall-backend=nftables is incompatible with swarm mode")
 	}
 	return nil
@@ -245,13 +248,13 @@ func validatePlatformConfig(conf *Config) error {
 	if err := verifyDefaultIpcMode(conf.IpcMode); err != nil {
 		return err
 	}
-	if err := bridge.ValidateFixedCIDRV6(conf.FixedCIDRv6); err != nil {
+	if err := bridge.ValidateFixedCIDRV6(conf.BridgeConfig.FixedCIDRv6); err != nil {
 		return errors.Wrap(err, "invalid fixed-cidr-v6")
 	}
 	if err := validateFirewallBackend(conf.FirewallBackend); err != nil {
 		return errors.Wrap(err, "invalid firewall-backend")
 	}
-	if err := validateFwMarkMask(conf.BridgeAcceptFwMark); err != nil {
+	if err := validateFwMarkMask(conf.BridgeConfig.BridgeAcceptFwMark); err != nil {
 		return errors.Wrap(err, "invalid bridge-accept-fwmark")
 	}
 	return verifyDefaultCgroupNsMode(conf.CgroupNamespaceMode)
@@ -274,18 +277,18 @@ func validatePlatformExecOpt(opt, value string) error {
 // verifyUserlandProxyConfig verifies if a valid userland-proxy path
 // is configured if userland-proxy is enabled.
 func verifyUserlandProxyConfig(conf *Config) error {
-	if !conf.EnableUserlandProxy {
+	if !conf.BridgeConfig.EnableUserlandProxy {
 		return nil
 	}
-	if conf.UserlandProxyPath == "" {
+	if conf.BridgeConfig.UserlandProxyPath == "" {
 		return errors.New("invalid userland-proxy-path: userland-proxy is enabled, but userland-proxy-path is not set")
 	}
-	if !filepath.IsAbs(conf.UserlandProxyPath) {
-		return errors.New("invalid userland-proxy-path: must be an absolute path: " + conf.UserlandProxyPath)
+	if !filepath.IsAbs(conf.BridgeConfig.UserlandProxyPath) {
+		return errors.New("invalid userland-proxy-path: must be an absolute path: " + conf.BridgeConfig.UserlandProxyPath)
 	}
 	// Using exec.LookPath here, because it also produces an error if the
 	// given path is not a valid executable or a directory.
-	if _, err := exec.LookPath(conf.UserlandProxyPath); err != nil {
+	if _, err := exec.LookPath(conf.BridgeConfig.UserlandProxyPath); err != nil {
 		return errors.Wrap(err, "invalid userland-proxy-path")
 	}
 

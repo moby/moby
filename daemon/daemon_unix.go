@@ -886,7 +886,7 @@ func configureNetworking(ctx context.Context, controller *libnetwork.Controller,
 		if err = n.Delete(); err != nil {
 			return errors.Wrapf(err, `could not delete the default %q network`, network.NetworkBridge)
 		}
-		if len(conf.NetworkConfig.DefaultAddressPools.Value()) > 0 && !conf.LiveRestoreEnabled {
+		if len(conf.DefaultAddressPools.Value()) > 0 && !conf.LiveRestoreEnabled {
 			removeDefaultBridgeInterface()
 		}
 	}
@@ -926,14 +926,14 @@ func setHostGatewayIP(controller *libnetwork.Controller, config *config.Config) 
 func networkPlatformOptions(conf *config.Config) []nwconfig.Option {
 	return []nwconfig.Option{
 		nwconfig.OptionRootless(conf.Rootless),
-		nwconfig.OptionUserlandProxy(conf.EnableUserlandProxy, conf.UserlandProxyPath),
+		nwconfig.OptionUserlandProxy(conf.BridgeConfig.EnableUserlandProxy, conf.BridgeConfig.UserlandProxyPath),
 		nwconfig.OptionDriverConfig("bridge", options.Generic{
 			netlabel.GenericData: options.Generic{
 				"EnableIPForwarding":       conf.BridgeConfig.EnableIPForward,
 				"DisableFilterForwardDrop": conf.BridgeConfig.DisableFilterForwardDrop,
 				"EnableIPTables":           conf.BridgeConfig.EnableIPTables,
 				"EnableIP6Tables":          conf.BridgeConfig.EnableIP6Tables,
-				"Hairpin":                  !conf.EnableUserlandProxy || conf.UserlandProxyPath == "",
+				"Hairpin":                  !conf.BridgeConfig.EnableUserlandProxy || conf.BridgeConfig.UserlandProxyPath == "",
 				"AllowDirectRouting":       conf.BridgeConfig.AllowDirectRouting,
 				"AcceptFwMark":             conf.BridgeConfig.BridgeAcceptFwMark,
 			},

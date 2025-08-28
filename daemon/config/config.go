@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 
 	"dario.cat/mergo"
@@ -159,6 +160,13 @@ type NetworkConfig struct {
 	FirewallBackend string `json:"firewall-backend,omitempty"`
 }
 
+// NetworkingConfig groups together network-related configuration options,
+// including bridge network settings and other network-wide defaults.
+type NetworkingConfig struct {
+	BridgeConfig
+	NetworkConfig
+}
+
 // TLSOptions defines TLS configuration for the daemon server.
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line use.
@@ -251,8 +259,6 @@ type CommonConfig struct {
 
 	DNSConfig
 	LogConfig
-	BridgeConfig // BridgeConfig holds bridge network specific configuration.
-	NetworkConfig
 	registry.ServiceOptions
 
 	// FIXME(vdemeester) This part is not that clear and is mainly dependent on cli flags
@@ -326,9 +332,16 @@ func New() (*Config, error) {
 			LogConfig: LogConfig{
 				Config: make(map[string]string),
 			},
-			MaxConcurrentDownloads: DefaultMaxConcurrentDownloads,
-			MaxConcurrentUploads:   DefaultMaxConcurrentUploads,
-			MaxDownloadAttempts:    DefaultDownloadAttempts,
+			MaxConcurrentDownloads:    DefaultMaxConcurrentDownloads,
+			MaxConcurrentUploads:      DefaultMaxConcurrentUploads,
+			MaxDownloadAttempts:       DefaultDownloadAttempts,
+			ContainerdNamespace:       DefaultContainersNamespace,
+			ContainerdPluginNamespace: DefaultPluginNamespace,
+			Features:                  make(map[string]bool),
+			DefaultRuntime:            StockRuntimeName,
+			MinAPIVersion:             defaultMinAPIVersion,
+		},
+		NetworkingConfig: NetworkingConfig{
 			BridgeConfig: BridgeConfig{
 				DefaultBridgeConfig: DefaultBridgeConfig{
 					MTU: DefaultNetworkMtu,
@@ -338,11 +351,6 @@ func New() (*Config, error) {
 				NetworkControlPlaneMTU: DefaultNetworkMtu,
 				DefaultNetworkOpts:     make(map[string]map[string]string),
 			},
-			ContainerdNamespace:       DefaultContainersNamespace,
-			ContainerdPluginNamespace: DefaultPluginNamespace,
-			Features:                  make(map[string]bool),
-			DefaultRuntime:            StockRuntimeName,
-			MinAPIVersion:             defaultMinAPIVersion,
 		},
 	}
 
@@ -511,12 +519,25 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		return &config, nil // early return on empty config
 	}
 
-	if flags != nil {
-		var jsonConfig map[string]any
-		if err := json.Unmarshal(b, &jsonConfig); err != nil {
-			return nil, err
-		}
+	var jsonConfig map[string]any
+	if err := json.Unmarshal(b, &jsonConfig); err != nil {
+		return nil, err
+	}
 
+	if networking, ok := jsonConfig["networking"].(map[string]any); ok {
+		var conflicts []string
+		for k := range networking {
+			if _, exists := jsonConfig[k]; exists {
+				conflicts = append(conflicts, k)
+			}
+		}
+		if len(conflicts) > 0 {
+			sort.Strings(conflicts)
+			return nil, fmt.Errorf("the following directives are specified both at the top level and under \"networking\": %s", strings.Join(conflicts, ", "))
+		}
+	}
+
+	if flags != nil {
 		configSet := configValuesSet(jsonConfig)
 
 		if err := findConfigurationConflicts(configSet, flags); err != nil {
@@ -558,6 +579,15 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 
 	if err := json.Unmarshal(b, &config); err != nil {
 		return nil, err
+	}
+
+	if config.Networking != nil {
+		if err := mergo.Merge(&config.NetworkingConfig, config.Networking, mergo.WithOverride); err != nil {
+			return nil, err
+		}
+		// After merging, discard the temporary Networking pointer to avoid
+		// accessing stale values and use the embedded NetworkingConfig instead.
+		config.Networking = nil
 	}
 
 	for _, mc := range migratedNamedConfig {

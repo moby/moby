@@ -152,6 +152,29 @@ Bridge networks will accept packets with this firewall mark/mask.
   Specifies the JSON file path to load the configuration from. Default is
   */etc/docker/daemon.json*.
 
+  The configuration file accepts a `networking` object that groups network
+  options such as `bridge`, `bip`, and `default-address-pools`. These keys may
+  also be defined at the top level for backward compatibility, but values set
+  in `networking` take precedence.
+
+  Example:
+
+  ```json
+  {
+    "networking": {
+      "bip": "172.17.0.1/16"
+    }
+  }
+  ```
+
+  Legacy top-level:
+
+  ```json
+  {
+    "bip": "172.17.0.1/16"
+  }
+  ```
+
 **--containerd**=""
   Path to containerd socket.
 

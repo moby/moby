@@ -1657,8 +1657,8 @@ func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.Plugin
 	options = append(options, networkPlatformOptions(conf)...)
 
 	defaultAddressPools := ipamutils.GetLocalScopeDefaultNetworks()
-	if len(conf.NetworkConfig.DefaultAddressPools.Value()) > 0 {
-		defaultAddressPools = conf.NetworkConfig.DefaultAddressPools.Value()
+	if len(conf.DefaultAddressPools.Value()) > 0 {
+		defaultAddressPools = conf.DefaultAddressPools.Value()
 	}
 	// If the Engine admin don't configure default-address-pools or if they
 	// don't provide any IPv6 prefix, we derive a ULA prefix from the daemon's

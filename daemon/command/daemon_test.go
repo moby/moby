@@ -1,6 +1,8 @@
 package command
 
 import (
+	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 
@@ -17,6 +19,18 @@ import (
 func defaultOptions(t *testing.T, configFile string) *daemonOptions {
 	cfg, err := config.New()
 	assert.NilError(t, err)
+	// Provide a dummy userland-proxy binary path to satisfy validation.
+	dir := t.TempDir()
+	proxyPath := filepath.Join(dir, "proxy")
+	var content []byte
+	if runtime.GOOS == "windows" {
+		proxyPath += ".cmd"
+		content = []byte("@echo off\r\n")
+	} else {
+		content = []byte("#!/bin/sh\nexit 0\n")
+	}
+	assert.NilError(t, os.WriteFile(proxyPath, content, 0o755))
+	cfg.BridgeConfig.UserlandProxyPath = proxyPath
 	opts := newDaemonOptions(cfg)
 	opts.flags = &pflag.FlagSet{}
 	opts.installFlags(opts.flags)
