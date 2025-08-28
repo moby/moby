@@ -29,26 +29,19 @@ func (c *Cluster) GetConfig(input string) (types.Config, error) {
 
 // GetConfigs returns all configs of a managed swarm cluster.
 func (c *Cluster) GetConfigs(options swarmbackend.ConfigListOptions) ([]types.Config, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return nil, c.errNoManager(state)
-	}
-
 	filters, err := newListConfigsFilters(options.Filters)
 	if err != nil {
 		return nil, err
 	}
 
-	ctx := context.TODO()
-	ctx, cancel := context.WithTimeout(ctx, swarmRequestTimeout)
-	defer cancel()
-
-	r, err := state.controlClient.ListConfigs(ctx,
-		&swarmapi.ListConfigsRequest{Filters: filters},
-		grpc.MaxCallRecvMsgSize(defaultRecvSizeForListResponse))
+	var r *swarmapi.ListConfigsResponse
+	err = c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+		var err error
+		r, err = state.controlClient.ListConfigs(ctx,
+			&swarmapi.ListConfigsRequest{Filters: filters},
+			grpc.MaxCallRecvMsgSize(defaultRecvSizeForListResponse))
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}

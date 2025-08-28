@@ -29,27 +29,20 @@ func (c *Cluster) GetSecret(input string) (types.Secret, error) {
 
 // GetSecrets returns all secrets of a managed swarm cluster.
 func (c *Cluster) GetSecrets(options swarmbackend.SecretListOptions) ([]types.Secret, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return nil, c.errNoManager(state)
-	}
-
 	filters, err := newListSecretsFilters(options.Filters)
 	if err != nil {
 		return nil, err
 	}
 
-	ctx := context.TODO()
-	ctx, cancel := context.WithTimeout(ctx, swarmRequestTimeout)
-	defer cancel()
-
-	r, err := state.controlClient.ListSecrets(ctx,
-		&swarmapi.ListSecretsRequest{Filters: filters},
-		grpc.MaxCallRecvMsgSize(defaultRecvSizeForListResponse),
-	)
+	var r *swarmapi.ListSecretsResponse
+	err = c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+		var err error
+		r, err = state.controlClient.ListSecrets(ctx,
+			&swarmapi.ListSecretsRequest{Filters: filters},
+			grpc.MaxCallRecvMsgSize(defaultRecvSizeForListResponse),
+		)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}

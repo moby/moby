@@ -13,28 +13,21 @@ import (
 
 // GetNodes returns a list of all nodes known to a cluster.
 func (c *Cluster) GetNodes(options swarmbackend.NodeListOptions) ([]types.Node, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return nil, c.errNoManager(state)
-	}
-
 	filters, err := newListNodesFilters(options.Filters)
 	if err != nil {
 		return nil, err
 	}
 
-	ctx := context.TODO()
-	ctx, cancel := context.WithTimeout(ctx, swarmRequestTimeout)
-	defer cancel()
-
-	r, err := state.controlClient.ListNodes(
-		ctx,
-		&swarmapi.ListNodesRequest{Filters: filters},
-		grpc.MaxCallRecvMsgSize(defaultRecvSizeForListResponse),
-	)
+	var r *swarmapi.ListNodesResponse
+	err = c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+		var err error
+		r, err = state.controlClient.ListNodes(
+			ctx,
+			&swarmapi.ListNodesRequest{Filters: filters},
+			grpc.MaxCallRecvMsgSize(defaultRecvSizeForListResponse),
+		)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}

@@ -58,19 +58,12 @@ func filterPredefinedNetworks(networks *[]network.Inspect) {
 }
 
 func (c *Cluster) getNetworks(filters *swarmapi.ListNetworksRequest_Filters) ([]network.Inspect, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return nil, c.errNoManager(state)
-	}
-
-	ctx := context.TODO()
-	ctx, cancel := context.WithTimeout(ctx, swarmRequestTimeout)
-	defer cancel()
-
-	r, err := state.controlClient.ListNetworks(ctx, &swarmapi.ListNetworksRequest{Filters: filters})
+	var r *swarmapi.ListNetworksResponse
+	err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+		var err error
+		r, err = state.controlClient.ListNetworks(ctx, &swarmapi.ListNetworksRequest{Filters: filters})
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}

@@ -28,14 +28,6 @@ import (
 
 // GetServices returns all services of a managed swarm cluster.
 func (c *Cluster) GetServices(options swarmbackend.ServiceListOptions) ([]swarm.Service, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return nil, c.errNoManager(state)
-	}
-
 	// We move the accepted filter check here as "mode" filter
 	// is processed in the daemon, not in SwarmKit. So it might
 	// be good to have accepted file check in the same file as
@@ -63,97 +55,101 @@ func (c *Cluster) GetServices(options swarmbackend.ServiceListOptions) ([]swarm.
 		Runtimes:     options.Filters.Get("runtime"),
 	}
 
-	ctx := context.TODO()
-	ctx, cancel := context.WithTimeout(ctx, swarmRequestTimeout)
-	defer cancel()
-
-	r, err := state.controlClient.ListServices(
-		ctx,
-		&swarmapi.ListServicesRequest{Filters: filters},
-		grpc.MaxCallRecvMsgSize(defaultRecvSizeForListResponse),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	services := make([]swarm.Service, 0, len(r.Services))
-
-	// if the  user requests the service statuses, we'll store the IDs needed
-	// in this slice
-	var serviceIDs []string
-	if options.Status {
-		serviceIDs = make([]string, 0, len(r.Services))
-	}
-	for _, service := range r.Services {
-		if options.Filters.Contains("mode") {
-			var mode string
-			switch service.Spec.GetMode().(type) {
-			case *swarmapi.ServiceSpec_Global:
-				mode = "global"
-			case *swarmapi.ServiceSpec_Replicated:
-				mode = "replicated"
-			case *swarmapi.ServiceSpec_ReplicatedJob:
-				mode = "replicated-job"
-			case *swarmapi.ServiceSpec_GlobalJob:
-				mode = "global-job"
-			}
-
-			if !options.Filters.ExactMatch("mode", mode) {
-				continue
-			}
-		}
-		if options.Status {
-			serviceIDs = append(serviceIDs, service.ID)
-		}
-		svcs, err := convert.ServiceFromGRPC(*service)
-		if err != nil {
-			return nil, err
-		}
-		services = append(services, svcs)
-	}
-
-	if options.Status {
-		// Listing service statuses is a separate call because, while it is the
-		// most common UI operation, it is still just a UI operation, and it
-		// would be improper to include this data in swarm's Service object.
-		// We pay the cost with some complexity here, but this is still way
-		// more efficient than marshalling and unmarshalling all the JSON
-		// needed to list tasks and get this data otherwise client-side
-		resp, err := state.controlClient.ListServiceStatuses(
+	var services []swarm.Service
+	err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+		var err error
+		r, err := state.controlClient.ListServices(
 			ctx,
-			&swarmapi.ListServiceStatusesRequest{Services: serviceIDs},
+			&swarmapi.ListServicesRequest{Filters: filters},
 			grpc.MaxCallRecvMsgSize(defaultRecvSizeForListResponse),
 		)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		// we'll need to match up statuses in the response with the services in
-		// the list operation. if we did this by operating on two lists, the
-		// result would be quadratic. instead, make a mapping of service IDs to
-		// service statuses so that this is roughly linear. additionally,
-		// convert the status response to an engine api service status here.
-		serviceMap := map[string]*swarm.ServiceStatus{}
-		for _, status := range resp.Statuses {
-			serviceMap[status.ServiceID] = &swarm.ServiceStatus{
-				RunningTasks:   status.RunningTasks,
-				DesiredTasks:   status.DesiredTasks,
-				CompletedTasks: status.CompletedTasks,
+		services = make([]swarm.Service, 0, len(r.Services))
+
+		// if the  user requests the service statuses, we'll store the IDs needed
+		// in this slice
+		var serviceIDs []string
+		if options.Status {
+			serviceIDs = make([]string, 0, len(r.Services))
+		}
+		for _, service := range r.Services {
+			if options.Filters.Contains("mode") {
+				var mode string
+				switch service.Spec.GetMode().(type) {
+				case *swarmapi.ServiceSpec_Global:
+					mode = "global"
+				case *swarmapi.ServiceSpec_Replicated:
+					mode = "replicated"
+				case *swarmapi.ServiceSpec_ReplicatedJob:
+					mode = "replicated-job"
+				case *swarmapi.ServiceSpec_GlobalJob:
+					mode = "global-job"
+				}
+
+				if !options.Filters.ExactMatch("mode", mode) {
+					continue
+				}
+			}
+			if options.Status {
+				serviceIDs = append(serviceIDs, service.ID)
+			}
+			svcs, err := convert.ServiceFromGRPC(*service)
+			if err != nil {
+				return err
+			}
+			services = append(services, svcs)
+		}
+
+		if options.Status {
+			// Listing service statuses is a separate call because, while it is the
+			// most common UI operation, it is still just a UI operation, and it
+			// would be improper to include this data in swarm's Service object.
+			// We pay the cost with some complexity here, but this is still way
+			// more efficient than marshalling and unmarshalling all the JSON
+			// needed to list tasks and get this data otherwise client-side
+			resp, err := state.controlClient.ListServiceStatuses(
+				ctx,
+				&swarmapi.ListServiceStatusesRequest{Services: serviceIDs},
+				grpc.MaxCallRecvMsgSize(defaultRecvSizeForListResponse),
+			)
+			if err != nil {
+				return err
+			}
+
+			// we'll need to match up statuses in the response with the services in
+			// the list operation. if we did this by operating on two lists, the
+			// result would be quadratic. instead, make a mapping of service IDs to
+			// service statuses so that this is roughly linear. additionally,
+			// convert the status response to an engine api service status here.
+			serviceMap := map[string]*swarm.ServiceStatus{}
+			for _, status := range resp.Statuses {
+				serviceMap[status.ServiceID] = &swarm.ServiceStatus{
+					RunningTasks:   status.RunningTasks,
+					DesiredTasks:   status.DesiredTasks,
+					CompletedTasks: status.CompletedTasks,
+				}
+			}
+
+			// because this is a list of values and not pointers, make sure we
+			// actually alter the value when iterating.
+			for i, service := range services {
+				// the return value of the ListServiceStatuses operation is
+				// guaranteed to contain a value in the response for every argument
+				// in the request, so we can safely do this assignment. and even if
+				// it wasn't, and the service ID was for some reason absent from
+				// this map, the resulting value of service.Status would just be
+				// nil -- the same thing it was before
+				service.ServiceStatus = serviceMap[service.ID]
+				services[i] = service
 			}
 		}
-
-		// because this is a list of values and not pointers, make sure we
-		// actually alter the value when iterating.
-		for i, service := range services {
-			// the return value of the ListServiceStatuses operation is
-			// guaranteed to contain a value in the response for every argument
-			// in the request, so we can safely do this assignment. and even if
-			// it wasn't, and the service ID was for some reason absent from
-			// this map, the resulting value of service.Status would just be
-			// nil -- the same thing it was before
-			service.ServiceStatus = serviceMap[service.ID]
-			services[i] = service
-		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return services, nil
@@ -427,28 +423,6 @@ func (c *Cluster) RemoveService(input string) error {
 
 // ServiceLogs collects service logs and writes them back to `config.OutStream`
 func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector, config *container.LogsOptions) (<-chan *backend.LogMessage, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return nil, c.errNoManager(state)
-	}
-
-	swarmSelector, err := convertSelector(ctx, state.controlClient, selector)
-	if err != nil {
-		return nil, errors.Wrap(err, "error making log selector")
-	}
-
-	// set the streams we'll use
-	stdStreams := []swarmapi.LogStream{}
-	if config.ShowStdout {
-		stdStreams = append(stdStreams, swarmapi.LogStreamStdout)
-	}
-	if config.ShowStderr {
-		stdStreams = append(stdStreams, swarmapi.LogStreamStderr)
-	}
-
 	// Get tail value squared away - the number of previous log lines we look at
 	var tail int64
 	// in ContainerLogs, if the tail value is ANYTHING non-integer, we just set
@@ -476,6 +450,15 @@ func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector
 		tail = int64(-(t + 1))
 	}
 
+	// set the streams we'll use
+	stdStreams := []swarmapi.LogStream{}
+	if config.ShowStdout {
+		stdStreams = append(stdStreams, swarmapi.LogStreamStdout)
+	}
+	if config.ShowStderr {
+		stdStreams = append(stdStreams, swarmapi.LogStreamStderr)
+	}
+
 	// get the since value - the time in the past we're looking at logs starting from
 	var sinceProto *gogotypes.Timestamp
 	if config.Since != "" {
@@ -490,14 +473,24 @@ func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector
 		}
 	}
 
-	stream, err := state.logsClient.SubscribeLogs(ctx, &swarmapi.SubscribeLogsRequest{
-		Selector: swarmSelector,
-		Options: &swarmapi.LogSubscriptionOptions{
-			Follow:  config.Follow,
-			Streams: stdStreams,
-			Tail:    tail,
-			Since:   sinceProto,
-		},
+	var stream swarmapi.Logs_SubscribeLogsClient
+	// Ignore the context passed to the closure as it has a deadline.
+	err := c.lockedManagerAction(ctx, func(_ context.Context, state nodeState) error {
+		swarmSelector, err := convertSelector(ctx, state.controlClient, selector)
+		if err != nil {
+			return errors.Wrap(err, "error making log selector")
+		}
+
+		stream, err = state.logsClient.SubscribeLogs(ctx, &swarmapi.SubscribeLogsRequest{
+			Selector: swarmSelector,
+			Options: &swarmapi.LogSubscriptionOptions{
+				Follow:  config.Follow,
+				Streams: stdStreams,
+				Tail:    tail,
+				Since:   sinceProto,
+			},
+		})
+		return err
 	})
 	if err != nil {
 		return nil, err
