@@ -11,6 +11,7 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
@@ -244,24 +245,33 @@ func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]c8
 			continue
 		}
 
+		familiarName := imageFamiliarName(img)
+		i.logImageEvent(img, familiarName, events.ActionUnTag)
 		report.ImagesDeleted = append(report.ImagesDeleted,
 			image.DeleteResponse{
-				Untagged: imageFamiliarName(img),
+				Untagged: familiarName,
 			},
 		)
 
+		var deleted bool
 		// Check which blobs have been deleted and sum their sizes
 		for _, blob := range blobs {
 			_, err := i.content.ReaderAt(ctx, blob)
 
 			if cerrdefs.IsNotFound(err) {
-				report.ImagesDeleted = append(report.ImagesDeleted,
-					image.DeleteResponse{
-						Deleted: blob.Digest.String(),
-					},
-				)
+				if c8dimages.IsManifestType(blob.MediaType) || c8dimages.IsIndexType(blob.MediaType) {
+					deleted = true
+					report.ImagesDeleted = append(report.ImagesDeleted,
+						image.DeleteResponse{
+							Deleted: blob.Digest.String(),
+						},
+					)
+				}
 				report.SpaceReclaimed += uint64(blob.Size)
 			}
+		}
+		if deleted {
+			i.logImageEvent(img, familiarName, events.ActionDelete)
 		}
 	}
 
