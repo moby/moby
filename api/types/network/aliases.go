@@ -50,7 +50,7 @@ const (
 type CreateRequest = network.CreateRequest
 
 // CreateOptions holds options to create a network.
-type CreateOptions = network.CreateOptions
+type CreateOptions = client.NetworkCreateOptions
 
 // ListOptions holds parameters to filter the list of networks with.
 type ListOptions = client.NetworkListOptions
@@ -60,11 +60,11 @@ type InspectOptions = client.NetworkInspectOptions
 
 // ConnectOptions represents the data to be used to connect a container to the
 // network.
-type ConnectOptions = network.ConnectOptions
+type ConnectOptions = client.NetworkConnectOptions
 
 // DisconnectOptions represents the data to be used to disconnect a container
 // from the network.
-type DisconnectOptions = network.DisconnectOptions
+type DisconnectOptions = client.NetworkDisconnectOptions
 
 // Inspect is the body of the "get network" http response message.
 type Inspect = network.Inspect
