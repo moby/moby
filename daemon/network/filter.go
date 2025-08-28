@@ -1,15 +1,31 @@
 package network
 
 import (
+	"time"
+
 	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 )
+
+var acceptedFilters = map[string]bool{
+	"dangling": true,
+	"driver":   true,
+	"id":       true,
+	"label":    true,
+	"label!":   true,
+	"name":     true,
+	"scope":    true,
+	"type":     true,
+	"until":    true,
+}
 
 type Filter struct {
 	args filters.Args
 
 	filterByUse, danglingOnly bool
+	until                     time.Time
 
 	// IDAlsoMatchesName makes the "id" filter term also match against
 	// network names.
@@ -22,6 +38,7 @@ type FilterNetwork interface {
 	ID() string
 	Labels() map[string]string
 	Scope() string
+	Created() time.Time
 	ContainerAttachments() int
 	ServiceAttachments() int
 }
@@ -31,6 +48,9 @@ type FilterNetwork interface {
 // An [errdefs.InvalidParameter] error is returned if the filter args are not
 // well-formed.
 func NewFilter(args filters.Args) (Filter, error) {
+	if err := args.Validate(acceptedFilters); err != nil {
+		return Filter{}, err
+	}
 	var filterByUse, danglingOnly bool
 	if values := args.Get("dangling"); len(values) > 0 {
 		if len(values) > 1 {
@@ -50,7 +70,27 @@ func NewFilter(args filters.Args) (Filter, error) {
 	if err := args.WalkValues("type", validateNetworkTypeFilter); err != nil {
 		return Filter{}, err
 	}
-	return Filter{args: args, filterByUse: filterByUse, danglingOnly: danglingOnly}, nil
+	until := time.Time{}
+	if untilFilters := args.Get("until"); len(untilFilters) > 0 {
+		if len(untilFilters) > 1 {
+			return Filter{}, errdefs.InvalidParameter(errors.New("more than one until filter specified"))
+		}
+		ts, err := timestamp.GetTimestamp(untilFilters[0], time.Now())
+		if err != nil {
+			return Filter{}, errdefs.InvalidParameter(err)
+		}
+		seconds, nanoseconds, err := timestamp.ParseTimestamps(ts, 0)
+		if err != nil {
+			return Filter{}, errdefs.InvalidParameter(err)
+		}
+		until = time.Unix(seconds, nanoseconds)
+	}
+	return Filter{
+		args:         args,
+		filterByUse:  filterByUse,
+		danglingOnly: danglingOnly,
+		until:        until,
+	}, nil
 }
 
 func (f Filter) IsZero() bool {
@@ -84,6 +124,10 @@ func (f Filter) Matches(nw FilterNetwork) bool {
 		!f.args.MatchKVList("label", nw.Labels()) {
 		return false
 	}
+	if f.args.Contains("label!") &&
+		f.args.MatchKVList("label!", nw.Labels()) {
+		return false
+	}
 	if f.args.Contains("scope") &&
 		!f.args.ExactMatch("scope", nw.Scope()) {
 		return false
@@ -94,6 +138,10 @@ func (f Filter) Matches(nw FilterNetwork) bool {
 	}
 	if netTypes := f.args.Get("type"); len(netTypes) > 0 &&
 		!matchesType(netTypes, nw) {
+		return false
+	}
+	if !f.until.IsZero() &&
+		nw.Created().After(f.until) {
 		return false
 	}
 	return true

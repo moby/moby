@@ -11,6 +11,7 @@ import (
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
+	dnetwork "github.com/moby/moby/v2/daemon/network"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/daemon/server/networkbackend"
@@ -23,12 +24,13 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 		return err
 	}
 
-	filter, err := filters.FromJSON(r.Form.Get("filters"))
+	filterArgs, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
 		return err
 	}
 
-	if err := network.ValidateFilters(filter); err != nil {
+	filter, err := dnetwork.NewFilter(filterArgs)
+	if err != nil {
 		return err
 	}
 
@@ -114,11 +116,17 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 
 	// TODO(@cpuguy83): All this logic for figuring out which network to return does not belong here
 	// Instead there should be a backend function to just get one network.
-	filter := filters.NewArgs(filters.Arg("id", term))
+	filterArgs := filters.NewArgs(filters.Arg("id", term))
 	if networkScope != "" {
-		filter.Add("scope", networkScope)
+		filterArgs.Add("scope", networkScope)
 	}
-	networks, _ := n.backend.GetNetworks(filter, backend.NetworkListConfig{Detailed: true, Verbose: verbose, IDAlsoMatchesName: true})
+	filter, err := dnetwork.NewFilter(filterArgs)
+	if err != nil {
+		return err
+	}
+	filter.IDAlsoMatchesName = true
+
+	networks, _ := n.backend.GetNetworks(filter, backend.NetworkListConfig{Detailed: true, Verbose: verbose})
 	for _, nw := range networks {
 		if nw.ID == term {
 			return httputils.WriteJSON(w, http.StatusOK, nw)
@@ -298,7 +306,11 @@ func (n *networkRouter) postNetworksPrune(ctx context.Context, w http.ResponseWr
 		return err
 	}
 
-	pruneFilters, err := filters.FromJSON(r.Form.Get("filters"))
+	args, err := filters.FromJSON(r.Form.Get("filters"))
+	if err != nil {
+		return err
+	}
+	pruneFilters, err := dnetwork.NewFilter(args)
 	if err != nil {
 		return err
 	}
@@ -322,8 +334,12 @@ func (n *networkRouter) findUniqueNetwork(term string) (network.Inspect, error) 
 	listByFullName := map[string]network.Inspect{}
 	listByPartialID := map[string]network.Inspect{}
 
-	filter := filters.NewArgs(filters.Arg("id", term))
-	networks, _ := n.backend.GetNetworks(filter, backend.NetworkListConfig{Detailed: true, IDAlsoMatchesName: true})
+	filter, err := dnetwork.NewFilter(filters.NewArgs(filters.Arg("id", term)))
+	if err != nil {
+		return network.Inspect{}, err
+	}
+	filter.IDAlsoMatchesName = true
+	networks, _ := n.backend.GetNetworks(filter, backend.NetworkListConfig{Detailed: true})
 	for _, nw := range networks {
 		if nw.ID == term {
 			return nw, nil

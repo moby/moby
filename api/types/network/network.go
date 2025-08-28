@@ -2,8 +2,6 @@ package network
 
 import (
 	"time"
-
-	"github.com/moby/moby/api/types/filters"
 )
 
 const (
@@ -114,21 +112,6 @@ type NetworkingConfig struct {
 // ConfigReference specifies the source which provides a network's configuration
 type ConfigReference struct {
 	Network string
-}
-
-var acceptedFilters = map[string]bool{
-	"dangling": true,
-	"driver":   true,
-	"id":       true,
-	"label":    true,
-	"name":     true,
-	"scope":    true,
-	"type":     true,
-}
-
-// ValidateFilters validates the list of filter args with the available filters.
-func ValidateFilters(filter filters.Args) error {
-	return filter.Validate(acceptedFilters)
 }
 
 // PruneReport contains the response for Engine API:

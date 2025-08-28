@@ -17,7 +17,6 @@ import (
 	"github.com/docker/go-connections/nat"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/filters"
 	networktypes "github.com/moby/moby/api/types/network"
 	clustertypes "github.com/moby/moby/v2/daemon/cluster/provider"
 	"github.com/moby/moby/v2/daemon/config"
@@ -591,17 +590,11 @@ func (daemon *Daemon) deleteNetwork(nw *libnetwork.Network, dynamic bool) error 
 }
 
 // GetNetworks returns a list of all networks
-func (daemon *Daemon) GetNetworks(filter filters.Args, config backend.NetworkListConfig) ([]networktypes.Inspect, error) {
-	flt, err := network.NewFilter(filter)
-	if err != nil {
-		return nil, err
-	}
-	flt.IDAlsoMatchesName = config.IDAlsoMatchesName
-
+func (daemon *Daemon) GetNetworks(filter network.Filter, config backend.NetworkListConfig) ([]networktypes.Inspect, error) {
 	allNetworks := daemon.getAllNetworks()
 	networks := make([]networktypes.Inspect, 0, len(allNetworks))
 	for _, n := range allNetworks {
-		if flt.Matches(n) {
+		if filter.Matches(n) {
 			nr := buildNetworkResource(n)
 			if config.Detailed {
 				nr.Containers = buildContainerAttachments(n)
