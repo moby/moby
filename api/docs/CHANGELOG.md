@@ -30,6 +30,8 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /images/json` now sets the value of `Containers` field for all images
   to the count of containers using the image.
   This field was previously always -1.
+* Deprecated: The field `NetworkSettings.Bridge` returned by `GET /containers/{id}/json`
+  is deprecated and will be removed in the next API version.
 
 ## v1.50 API changes
 
