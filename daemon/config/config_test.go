@@ -194,6 +194,29 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 	})
 }
 
+func TestDaemonConfigurationMergeNetworking(t *testing.T) {
+	const configJSON = `{"networking":{"bridge":"dummy0","default-address-pools":[{"base":"10.1.0.0/16","size":24}]}}`
+	const legacyJSON = `{"bridge":"dummy0","default-address-pools":[{"base":"10.1.0.0/16","size":24}]}`
+
+	expectedPools := []*ipamutils.NetworkToSplit{{Base: netip.MustParsePrefix("10.1.0.0/16"), Size: 24}}
+
+	t.Run("networking object", func(t *testing.T) {
+		configFile := makeConfigFile(t, configJSON)
+		cfg, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
+		assert.NilError(t, err)
+		assert.Equal(t, "dummy0", cfg.NetworkingConfig.BridgeConfig.Iface)
+		assert.DeepEqual(t, cfg.NetworkingConfig.DefaultAddressPools.Value(), expectedPools, cmpopts.EquateComparable(netip.Prefix{}))
+	})
+
+	t.Run("legacy top-level", func(t *testing.T) {
+		configFile := makeConfigFile(t, legacyJSON)
+		cfg, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
+		assert.NilError(t, err)
+		assert.Equal(t, "dummy0", cfg.NetworkingConfig.BridgeConfig.Iface)
+		assert.DeepEqual(t, cfg.NetworkingConfig.DefaultAddressPools.Value(), expectedPools, cmpopts.EquateComparable(netip.Prefix{}))
+	})
+}
+
 func TestFindConfigurationConflictsWithUnknownKeys(t *testing.T) {
 	config := map[string]any{"tls-verify": "true"}
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
@@ -268,7 +291,7 @@ func TestValidateConfigurationErrors(t *testing.T) {
 		{
 			name: "negative MTU",
 			config: &Config{
-				Networking: NetworkingConfig{
+				NetworkingConfig: NetworkingConfig{
 					BridgeConfig: BridgeConfig{
 						DefaultBridgeConfig: DefaultBridgeConfig{
 							MTU: -10,
@@ -507,7 +530,7 @@ func TestValidateConfiguration(t *testing.T) {
 			name:  "with mtu",
 			field: "MTU",
 			config: &Config{
-				Networking: NetworkingConfig{
+				NetworkingConfig: NetworkingConfig{
 					BridgeConfig: BridgeConfig{
 						DefaultBridgeConfig: DefaultBridgeConfig{
 							MTU: 1234,

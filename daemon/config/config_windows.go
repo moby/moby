@@ -39,7 +39,8 @@ type DefaultBridgeConfig struct {
 // using the same names that the flags in the command line uses.
 type Config struct {
 	CommonConfig
-	Networking NetworkingConfig `json:"networking,omitempty"`
+	NetworkingConfig
+	Networking *NetworkingConfig `json:"networking,omitempty"`
 
 	// Fields below here are platform specific. (There are none presently
 	// for the Windows daemon.)

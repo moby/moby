@@ -340,7 +340,7 @@ func New() (*Config, error) {
 			DefaultRuntime:            StockRuntimeName,
 			MinAPIVersion:             defaultMinAPIVersion,
 		},
-		Networking: NetworkingConfig{
+		NetworkingConfig: NetworkingConfig{
 			BridgeConfig: BridgeConfig{
 				DefaultBridgeConfig: DefaultBridgeConfig{
 					MTU: DefaultNetworkMtu,
@@ -565,6 +565,12 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 
 	if err := json.Unmarshal(b, &config); err != nil {
 		return nil, err
+	}
+
+	if config.Networking != nil {
+		if err := mergo.Merge(&config.NetworkingConfig, config.Networking, mergo.WithOverride); err != nil {
+			return nil, err
+		}
 	}
 
 	for _, mc := range migratedNamedConfig {

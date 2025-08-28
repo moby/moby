@@ -74,7 +74,8 @@ type DefaultBridgeConfig struct {
 // using the same names that the flags in the command line uses.
 type Config struct {
 	CommonConfig
-	Networking NetworkingConfig `json:"networking,omitempty"`
+	NetworkingConfig
+	Networking *NetworkingConfig `json:"networking,omitempty"`
 
 	// Fields below here are platform specific.
 	Runtimes             map[string]system.Runtime    `json:"runtimes,omitempty"`
