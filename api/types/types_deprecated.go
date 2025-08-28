@@ -3,12 +3,13 @@ package types
 import (
 	"context"
 
-	"github.com/docker/docker/api/types/build"
-	"github.com/docker/docker/api/types/common"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/storage"
-	"github.com/docker/docker/api/types/swarm"
+	"github.com/moby/moby/api/types/build"
+	"github.com/moby/moby/api/types/common"
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/storage"
+	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/client"
 )
 
 // IDResponse Response to an API call that returns just an Id.
@@ -125,7 +126,7 @@ type SecretCreateResponse = swarm.SecretCreateResponse
 // SecretListOptions holds parameters to list secrets
 //
 // Deprecated: use [swarm.SecretListOptions].
-type SecretListOptions = swarm.SecretListOptions
+type SecretListOptions = client.SecretListOptions
 
 // ConfigCreateResponse contains the information returned to a client
 // on the creation of a new config.
@@ -136,32 +137,32 @@ type ConfigCreateResponse = swarm.ConfigCreateResponse
 // ConfigListOptions holds parameters to list configs
 //
 // Deprecated: use [swarm.ConfigListOptions].
-type ConfigListOptions = swarm.ConfigListOptions
+type ConfigListOptions = client.ConfigListOptions
 
 // NodeListOptions holds parameters to list nodes with.
 //
 // Deprecated: use [swarm.NodeListOptions].
-type NodeListOptions = swarm.NodeListOptions
+type NodeListOptions = client.NodeListOptions
 
 // NodeRemoveOptions holds parameters to remove nodes with.
 //
 // Deprecated: use [swarm.NodeRemoveOptions].
-type NodeRemoveOptions = swarm.NodeRemoveOptions
+type NodeRemoveOptions = client.NodeRemoveOptions
 
 // TaskListOptions holds parameters to list tasks with.
 //
 // Deprecated: use [swarm.TaskListOptions].
-type TaskListOptions = swarm.TaskListOptions
+type TaskListOptions = client.TaskListOptions
 
 // ServiceCreateOptions contains the options to use when creating a service.
 //
 // Deprecated: use [swarm.ServiceCreateOptions].
-type ServiceCreateOptions = swarm.ServiceCreateOptions
+type ServiceCreateOptions = client.ServiceCreateOptions
 
 // ServiceUpdateOptions contains the options to be used for updating services.
 //
 // Deprecated: use [swarm.ServiceCreateOptions].
-type ServiceUpdateOptions = swarm.ServiceUpdateOptions
+type ServiceUpdateOptions = client.ServiceUpdateOptions
 
 const (
 	RegistryAuthFromSpec         = swarm.RegistryAuthFromSpec         // Deprecated: use [swarm.RegistryAuthFromSpec].
@@ -171,13 +172,13 @@ const (
 // ServiceListOptions holds parameters to list services with.
 //
 // Deprecated: use [swarm.ServiceListOptions].
-type ServiceListOptions = swarm.ServiceListOptions
+type ServiceListOptions = client.ServiceListOptions
 
 // ServiceInspectOptions holds parameters related to the "service inspect"
 // operation.
 //
 // Deprecated: use [swarm.ServiceInspectOptions].
-type ServiceInspectOptions = swarm.ServiceInspectOptions
+type ServiceInspectOptions = client.ServiceInspectOptions
 
 // SwarmUnlockKeyResponse contains the response for Engine API:
 // GET /swarm/unlockkey
