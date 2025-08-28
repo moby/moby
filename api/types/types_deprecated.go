@@ -54,7 +54,7 @@ type NetworkSettingsBase = container.NetworkSettingsBase //nolint:staticcheck //
 // It will be removed in Docker 1.11.
 //
 // Deprecated: use [container.DefaultNetworkSettings].
-type DefaultNetworkSettings = container.DefaultNetworkSettings
+type DefaultNetworkSettings = container.DefaultNetworkSettings //nolint:staticcheck // ignore SA1019: DefaultNetworkSettings is deprecated in v28.4.
 
 // SummaryNetworkSettings provides a summary of container's networks
 // in /containers/json.
