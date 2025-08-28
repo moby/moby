@@ -12,6 +12,9 @@ type NetworkSettings struct {
 }
 
 // NetworkSettingsBase holds networking state for a container when inspecting it.
+//
+// Deprecated: Most fields in NetworkSettingsBase are deprecated. Fields which aren't deprecated will move to
+// NetworkSettings in v29.0, and this struct will be removed.
 type NetworkSettingsBase struct {
 	Bridge     string  // Deprecated: This field is only set when the daemon is started with the --bridge flag specified.
 	SandboxID  string  // SandboxID uniquely represents a container's network stack

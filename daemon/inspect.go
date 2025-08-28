@@ -49,7 +49,7 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options
 	}
 
 	networkSettings := &containertypes.NetworkSettings{
-		NetworkSettingsBase: containertypes.NetworkSettingsBase{
+		NetworkSettingsBase: containertypes.NetworkSettingsBase{ //nolint:staticcheck // ignore SA1019: NetworkSettingsBase is deprecated in v28.4.
 			Bridge:                 ctr.NetworkSettings.Bridge,
 			SandboxID:              ctr.NetworkSettings.SandboxID,
 			SandboxKey:             ctr.NetworkSettings.SandboxKey,
