@@ -74,7 +74,7 @@ type DefaultBridgeConfig struct {
 // using the same names that the flags in the command line uses.
 type Config struct {
 	CommonConfig
-	NetworkingConfig
+	Networking NetworkingConfig `json:"networking,omitempty"`
 
 	// Fields below here are platform specific.
 	Runtimes             map[string]system.Runtime    `json:"runtimes,omitempty"`
@@ -131,7 +131,7 @@ func (conf *Config) IsSwarmCompatible() error {
 	}
 	// Swarm has not yet been updated to use nftables. But, if "iptables" is disabled, it
 	// doesn't add rules anyway.
-	if conf.NetworkingConfig.FirewallBackend == "nftables" && conf.NetworkingConfig.EnableIPTables {
+	if conf.Networking.FirewallBackend == "nftables" && conf.Networking.BridgeConfig.EnableIPTables {
 		return errors.New("--firewall-backend=nftables is incompatible with swarm mode")
 	}
 	return nil
@@ -163,7 +163,7 @@ func setPlatformDefaults(cfg *Config) error {
 	}
 
 	var err error
-	cfg.NetworkingConfig.BridgeConfig.UserlandProxyPath, err = lookupBinPath(userlandProxyBinary)
+	cfg.Networking.BridgeConfig.UserlandProxyPath, err = lookupBinPath(userlandProxyBinary)
 	if err != nil {
 		// Log, but don't error here. This allows running a daemon with
 		// userland-proxy disabled (which does not require the binary
@@ -246,13 +246,13 @@ func validatePlatformConfig(conf *Config) error {
 	if err := verifyDefaultIpcMode(conf.IpcMode); err != nil {
 		return err
 	}
-	if err := bridge.ValidateFixedCIDRV6(conf.NetworkingConfig.BridgeConfig.FixedCIDRv6); err != nil {
+	if err := bridge.ValidateFixedCIDRV6(conf.Networking.BridgeConfig.FixedCIDRv6); err != nil {
 		return errors.Wrap(err, "invalid fixed-cidr-v6")
 	}
-	if err := validateFirewallBackend(conf.NetworkingConfig.FirewallBackend); err != nil {
+	if err := validateFirewallBackend(conf.Networking.FirewallBackend); err != nil {
 		return errors.Wrap(err, "invalid firewall-backend")
 	}
-	if err := validateFwMarkMask(conf.NetworkingConfig.BridgeConfig.BridgeAcceptFwMark); err != nil {
+	if err := validateFwMarkMask(conf.Networking.BridgeConfig.BridgeAcceptFwMark); err != nil {
 		return errors.Wrap(err, "invalid bridge-accept-fwmark")
 	}
 	return verifyDefaultCgroupNsMode(conf.CgroupNamespaceMode)
@@ -275,18 +275,18 @@ func validatePlatformExecOpt(opt, value string) error {
 // verifyUserlandProxyConfig verifies if a valid userland-proxy path
 // is configured if userland-proxy is enabled.
 func verifyUserlandProxyConfig(conf *Config) error {
-	if !conf.NetworkingConfig.EnableUserlandProxy {
+	if !conf.Networking.BridgeConfig.EnableUserlandProxy {
 		return nil
 	}
-	if conf.NetworkingConfig.UserlandProxyPath == "" {
+	if conf.Networking.BridgeConfig.UserlandProxyPath == "" {
 		return errors.New("invalid userland-proxy-path: userland-proxy is enabled, but userland-proxy-path is not set")
 	}
-	if !filepath.IsAbs(conf.NetworkingConfig.UserlandProxyPath) {
-		return errors.New("invalid userland-proxy-path: must be an absolute path: " + conf.NetworkingConfig.UserlandProxyPath)
+	if !filepath.IsAbs(conf.Networking.BridgeConfig.UserlandProxyPath) {
+		return errors.New("invalid userland-proxy-path: must be an absolute path: " + conf.Networking.BridgeConfig.UserlandProxyPath)
 	}
 	// Using exec.LookPath here, because it also produces an error if the
 	// given path is not a valid executable or a directory.
-	if _, err := exec.LookPath(conf.NetworkingConfig.UserlandProxyPath); err != nil {
+	if _, err := exec.LookPath(conf.Networking.BridgeConfig.UserlandProxyPath); err != nil {
 		return errors.Wrap(err, "invalid userland-proxy-path")
 	}
 

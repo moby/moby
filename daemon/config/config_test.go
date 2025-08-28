@@ -268,7 +268,7 @@ func TestValidateConfigurationErrors(t *testing.T) {
 		{
 			name: "negative MTU",
 			config: &Config{
-				NetworkingConfig: NetworkingConfig{
+				Networking: NetworkingConfig{
 					BridgeConfig: BridgeConfig{
 						DefaultBridgeConfig: DefaultBridgeConfig{
 							MTU: -10,
@@ -507,7 +507,7 @@ func TestValidateConfiguration(t *testing.T) {
 			name:  "with mtu",
 			field: "MTU",
 			config: &Config{
-				NetworkingConfig: NetworkingConfig{
+				Networking: NetworkingConfig{
 					BridgeConfig: BridgeConfig{
 						DefaultBridgeConfig: DefaultBridgeConfig{
 							MTU: 1234,

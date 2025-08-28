@@ -340,7 +340,7 @@ func New() (*Config, error) {
 			DefaultRuntime:            StockRuntimeName,
 			MinAPIVersion:             defaultMinAPIVersion,
 		},
-		NetworkingConfig: NetworkingConfig{
+		Networking: NetworkingConfig{
 			BridgeConfig: BridgeConfig{
 				DefaultBridgeConfig: DefaultBridgeConfig{
 					MTU: DefaultNetworkMtu,
@@ -738,8 +738,8 @@ func Validate(config *Config) error {
 	}
 
 	// TODO(thaJeztah) Validations below should not accept "0" to be valid; see Validate() for a more in-depth description of this problem
-	if config.MTU < 0 {
-		return errors.Errorf("invalid default MTU: %d", config.MTU)
+	if config.Networking.MTU < 0 {
+		return errors.Errorf("invalid default MTU: %d", config.Networking.MTU)
 	}
 	if config.MaxConcurrentDownloads < 0 {
 		return errors.Errorf("invalid max concurrent downloads: %d", config.MaxConcurrentDownloads)
