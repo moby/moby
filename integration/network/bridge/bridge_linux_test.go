@@ -369,7 +369,13 @@ func TestFilterForwardPolicy(t *testing.T) {
 // address is reserved for a gateway, because it won't be used).
 func TestPointToPoint(t *testing.T) {
 	ctx := setupTest(t)
-	apiClient := testEnv.APIClient()
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	t.Cleanup(func() { d.Stop(t) })
+
+	apiClient := d.NewClientT(t)
+	t.Cleanup(func() { apiClient.Close() })
 
 	testcases := []struct {
 		name   string
@@ -423,7 +429,13 @@ func TestIsolated(t *testing.T) {
 	skip.If(t, testEnv.IsRootless, "can't inspect bridge addrs in rootless netns")
 
 	ctx := setupTest(t)
-	apiClient := testEnv.APIClient()
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	t.Cleanup(func() { d.Stop(t) })
+
+	apiClient := d.NewClientT(t)
+	t.Cleanup(func() { apiClient.Close() })
 
 	const netName = "testisol"
 	const bridgeName = "br-" + netName

@@ -5,6 +5,7 @@ package iptables
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -63,6 +64,14 @@ func FirewalldReloadedAt() time.Time {
 // firewalldInit initializes firewalld management code.
 func firewalldInit() error {
 	var err error
+
+	// DOCKER_TEST_NO_FIREWALLD is used by integration tests to disable firewalld integration to make sure that the
+	// daemon started by the 'test-integration' script won't recreate iptables / nftables rules upon receiving the
+	// firewalld reload signal, otherwise it'll race against the daemon-under-test started by networking integration
+	// tests. This is an internal implementation detail and users shall never rely on this.
+	if disable := os.Getenv("DOCKER_TEST_NO_FIREWALLD"); disable != "" {
+		return nil
+	}
 
 	if connection, err = newConnection(); err != nil {
 		return fmt.Errorf("Failed to connect to D-Bus system bus: %v", err)
