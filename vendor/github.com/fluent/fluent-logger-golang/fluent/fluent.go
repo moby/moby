@@ -1,8 +1,11 @@
 package fluent
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,11 +16,8 @@ import (
 	"reflect"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
-
-	"bytes"
-	"encoding/base64"
-	"encoding/binary"
 
 	"github.com/tinylib/msgp/msgp"
 )
@@ -34,12 +34,10 @@ const (
 	defaultMaxRetryWait           = 60000
 	defaultMaxRetry               = 13
 	defaultReconnectWaitIncreRate = 1.5
-	// Default sub-second precision value to false since it is only compatible
-	// with fluentd versions v0.14 and above.
-	defaultSubSecondPrecision = false
 
 	// Default value whether to skip checking insecure certs on TLS connections.
 	defaultTlsInsecureSkipVerify = false
+	defaultReadTimeout           = time.Duration(0) // Read() will not time out
 )
 
 // randomGenerator is used by getUniqueId to generate ack hashes. Its value is replaced
@@ -80,7 +78,10 @@ type Config struct {
 	RequestAck bool `json:"request_ack"`
 
 	// Flag to skip verifying insecure certs on TLS connections
-	TlsInsecureSkipVerify bool `json: "tls_insecure_skip_verify"`
+	TlsInsecureSkipVerify bool `json:"tls_insecure_skip_verify"`
+
+	// ReadTimeout specifies the timeout on reads. Currently only acks are read.
+	ReadTimeout time.Duration `json:"read_timeout"`
 }
 
 type ErrUnknownNetwork struct {
@@ -104,20 +105,22 @@ type Fluent struct {
 	Config
 
 	dialer dialer
-	// stopRunning is used in async mode to signal to run() it should abort.
-	stopRunning chan struct{}
 	// cancelDialings is used by Close() to stop any in-progress dialing.
 	cancelDialings context.CancelFunc
 	pending        chan *msgToSend
-	pendingMutex   sync.RWMutex
-	closed         bool
-	wg             sync.WaitGroup
+	// closed indicates if the connection is open or closed.
+	// 0 = open (false), 1 = closed (true). Since the code is built in CI with
+	// golang < 1.19, we're using atomic int32 here. Otherwise, atomic.Bool
+	// could have been used.
+	closed int32
+	wg     sync.WaitGroup
 
 	// time at which the most recent connection to fluentd-address was established.
 	latestReconnectTime time.Time
 
-	muconn sync.RWMutex
-	conn   net.Conn
+	muconn       sync.RWMutex
+	pendingMutex sync.RWMutex
+	conn         net.Conn
 }
 
 type dialer interface {
@@ -150,6 +153,9 @@ func newWithDialer(config Config, d dialer) (f *Fluent, err error) {
 	if config.WriteTimeout == 0 {
 		config.WriteTimeout = defaultWriteTimeout
 	}
+	if config.ReadTimeout == 0 {
+		config.ReadTimeout = defaultReadTimeout
+	}
 	if config.BufferLimit == 0 {
 		config.BufferLimit = defaultBufferLimit
 	}
@@ -176,20 +182,20 @@ func newWithDialer(config Config, d dialer) (f *Fluent, err error) {
 		f = &Fluent{
 			Config:         config,
 			dialer:         d,
-			stopRunning:    make(chan struct{}),
 			cancelDialings: cancel,
 			pending:        make(chan *msgToSend, config.BufferLimit),
-			pendingMutex:   sync.RWMutex{},
 			muconn:         sync.RWMutex{},
+			pendingMutex:   sync.RWMutex{},
 		}
 
 		f.wg.Add(1)
 		go f.run(ctx)
 	} else {
 		f = &Fluent{
-			Config: config,
-			dialer: d,
-			muconn: sync.RWMutex{},
+			Config:       config,
+			dialer:       d,
+			muconn:       sync.RWMutex{},
+			pendingMutex: sync.RWMutex{},
 		}
 		err = f.connect(context.Background())
 	}
@@ -200,27 +206,26 @@ func newWithDialer(config Config, d dialer) (f *Fluent, err error) {
 //
 // Examples:
 //
-//  // send map[string]
-//  mapStringData := map[string]string{
-//  	"foo":  "bar",
-//  }
-//  f.Post("tag_name", mapStringData)
+//	// send map[string]
+//	mapStringData := map[string]string{
+//		"foo":  "bar",
+//	}
+//	f.Post("tag_name", mapStringData)
 //
-//  // send message with specified time
-//  mapStringData := map[string]string{
-//  	"foo":  "bar",
-//  }
-//  tm := time.Now()
-//  f.PostWithTime("tag_name", tm, mapStringData)
+//	// send message with specified time
+//	mapStringData := map[string]string{
+//		"foo":  "bar",
+//	}
+//	tm := time.Now()
+//	f.PostWithTime("tag_name", tm, mapStringData)
 //
-//  // send struct
-//  structData := struct {
-//  		Name string `msg:"name"`
-//  } {
-//  		"john smith",
-//  }
-//  f.Post("tag_name", structData)
-//
+//	// send struct
+//	structData := struct {
+//			Name string `msg:"name"`
+//	} {
+//			"john smith",
+//	}
+//	f.Post("tag_name", structData)
 func (f *Fluent) Post(tag string, message interface{}) error {
 	timeNow := time.Now()
 	return f.PostWithTime(tag, timeNow, message)
@@ -278,7 +283,7 @@ func (f *Fluent) EncodeAndPostData(tag string, tm time.Time, message interface{}
 	var msg *msgToSend
 	var err error
 	if msg, err = f.EncodeData(tag, tm, message); err != nil {
-		return fmt.Errorf("fluent#EncodeAndPostData: can't convert '%#v' to msgpack:%v", message, err)
+		return fmt.Errorf("fluent#EncodeAndPostData: can't convert '%#v' to msgpack:%w", message, err)
 	}
 	return f.postRawData(msg)
 }
@@ -294,7 +299,7 @@ func (f *Fluent) postRawData(msg *msgToSend) error {
 	}
 
 	// Synchronous write
-	if f.closed {
+	if atomic.LoadInt32(&f.closed) == 1 {
 		return fmt.Errorf("fluent#postRawData: Logger already closed")
 	}
 	return f.writeWithRetry(context.Background(), msg)
@@ -317,7 +322,7 @@ func (chunk *MessageChunk) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []byte(fmt.Sprintf("[\"%s\",%d,%s,%s]", chunk.message.Tag,
+	return []byte(fmt.Sprintf(`["%s",%d,%s,%s]`, chunk.message.Tag,
 		chunk.message.Time, data, option)), err
 }
 
@@ -371,20 +376,22 @@ func (f *Fluent) EncodeData(tag string, tm time.Time, message interface{}) (msg 
 // running in async mode, the run() goroutine exits before Close() returns.
 func (f *Fluent) Close() (err error) {
 	if f.Config.Async {
+		// Use a mutex to ensure thread safety when closing the channel
 		f.pendingMutex.Lock()
-		if f.closed {
+
+		if atomic.LoadInt32(&f.closed) == 1 {
 			f.pendingMutex.Unlock()
 			return nil
 		}
-		f.closed = true
-		f.pendingMutex.Unlock()
+		atomic.StoreInt32(&f.closed, 1)
 
 		if f.Config.ForceStopAsyncSend {
-			close(f.stopRunning)
 			f.cancelDialings()
 		}
 
 		close(f.pending)
+		f.pendingMutex.Unlock()
+
 		// If ForceStopAsyncSend is false, all logs in the channel have to be sent
 		// before closing the connection. At this point closed is true so no more
 		// logs are written to the channel and f.pending has been closed, so run()
@@ -394,10 +401,7 @@ func (f *Fluent) Close() (err error) {
 		}
 	}
 
-	f.muconn.Lock()
-	f.close()
-	f.closed = true
-	f.muconn.Unlock()
+	f.syncClose(true)
 
 	// If ForceStopAsyncSend is true, we shall close the connection before waiting for
 	// run() goroutine to exit to be sure we aren't waiting on ack message that might
@@ -411,17 +415,36 @@ func (f *Fluent) Close() (err error) {
 
 // appendBuffer appends data to buffer with lock.
 func (f *Fluent) appendBuffer(msg *msgToSend) error {
-	f.pendingMutex.RLock()
-	defer f.pendingMutex.RUnlock()
-	if f.closed {
+	if atomic.LoadInt32(&f.closed) == 1 {
 		return fmt.Errorf("fluent#appendBuffer: Logger already closed")
 	}
+
+	// Use a mutex to ensure thread safety when writing to the channel
+	f.pendingMutex.Lock()
+	defer f.pendingMutex.Unlock()
+
+	// Check again after acquiring the lock
+	if atomic.LoadInt32(&f.closed) == 1 {
+		return fmt.Errorf("fluent#appendBuffer: Logger already closed")
+	}
+
 	select {
 	case f.pending <- msg:
 	default:
 		return fmt.Errorf("fluent#appendBuffer: Buffer full, limit %v", f.Config.BufferLimit)
 	}
 	return nil
+}
+
+func (f *Fluent) syncClose(setClosed bool) {
+	f.muconn.Lock()
+	defer f.muconn.Unlock()
+
+	if setClosed {
+		atomic.StoreInt32(&f.closed, 1)
+	}
+
+	f.close()
 }
 
 // close closes the connection. Callers should take care of locking muconn first.
@@ -463,6 +486,17 @@ func (f *Fluent) connect(ctx context.Context) (err error) {
 }
 
 var errIsClosing = errors.New("fluent logger is closing")
+
+func (f *Fluent) syncConnectWithRetry(ctx context.Context) error {
+	f.muconn.Lock()
+	defer f.muconn.Unlock()
+
+	if f.conn == nil {
+		return f.connectWithRetry(ctx)
+	}
+
+	return nil
+}
 
 // Caller should take care of locking muconn first.
 func (f *Fluent) connectWithRetry(ctx context.Context) error {
@@ -513,7 +547,7 @@ func (f *Fluent) run(ctx context.Context) {
 	for {
 		select {
 		case entry, ok := <-f.pending:
-			// f.stopRunning is closed before f.pending only when ForceStopAsyncSend
+			// The context is cancelled before f.pending only when ForceStopAsyncSend
 			// is enabled. Otherwise, f.pending is closed when Close() is called.
 			if !ok {
 				f.wg.Done()
@@ -540,9 +574,9 @@ func (f *Fluent) run(ctx context.Context) {
 				}
 				f.AsyncResultCallback(data, err)
 			}
-		case <-f.stopRunning:
+		case <-ctx.Done():
+			// Context was canceled, which means ForceStopAsyncSend was enabled
 			fmt.Fprintf(os.Stderr, "[%s] Discarding queued events...\n", time.Now().Format(time.RFC3339))
-
 			f.wg.Done()
 			return
 		}
@@ -563,72 +597,99 @@ func (f *Fluent) writeWithRetry(ctx context.Context, msg *msgToSend) error {
 	return fmt.Errorf("fluent#write: failed to write after %d attempts", f.Config.MaxRetry)
 }
 
+func (f *Fluent) syncWriteMessage(ctx context.Context, msg *msgToSend) error {
+	f.muconn.Lock()
+	defer f.muconn.Unlock()
+
+	// Check if context is cancelled. If it is, we can return early here.
+	if err := ctx.Err(); err != nil {
+		return errIsClosing
+	}
+
+	if f.conn == nil {
+		return fmt.Errorf("fluent#write: connection has been closed before writing to it")
+	}
+
+	t := f.Config.WriteTimeout
+	var err error
+	if time.Duration(0) < t {
+		err = f.conn.SetWriteDeadline(time.Now().Add(t))
+	} else {
+		err = f.conn.SetWriteDeadline(time.Time{})
+	}
+
+	if err != nil {
+		return fmt.Errorf("fluent#write: failed to set write deadline: %w", err)
+	}
+	_, err = f.conn.Write(msg.data)
+	return err
+}
+
+func (f *Fluent) syncReadAck(ctx context.Context) (*AckResp, error) {
+	f.muconn.Lock()
+	defer f.muconn.Unlock()
+
+	resp := &AckResp{}
+	var err error
+
+	if f.conn == nil {
+		return resp, fmt.Errorf("fluent#read: connection has been closed before reading from it")
+	}
+
+	// Check if context is cancelled. If it is, we can return early here.
+	if err := ctx.Err(); err != nil {
+		return resp, errIsClosing
+	}
+
+	t := f.Config.ReadTimeout
+	if time.Duration(0) < t {
+		err = f.conn.SetReadDeadline(time.Now().Add(t))
+	} else {
+		err = f.conn.SetReadDeadline(time.Time{})
+	}
+	if err != nil {
+		return resp, fmt.Errorf("fluent#read: failed to set read deadline: %w", err)
+	}
+
+	if f.Config.MarshalAsJSON {
+		dec := json.NewDecoder(f.conn)
+		err = dec.Decode(resp)
+	} else {
+		r := msgp.NewReader(f.conn)
+		err = resp.DecodeMsg(r)
+	}
+
+	return resp, err
+}
+
 // write writes the provided msg to fluentd server. Its first return values is
 // a bool indicating whether the write should be retried.
 // This method relies on function literals to execute muconn.Unlock or
 // muconn.RUnlock in deferred calls to ensure the mutex is unlocked even in
 // the case of panic recovering.
 func (f *Fluent) write(ctx context.Context, msg *msgToSend) (bool, error) {
-	closer := func() {
-		f.muconn.Lock()
-		defer f.muconn.Unlock()
-
-		f.close()
-	}
-
-	if err := func() (err error) {
-		f.muconn.Lock()
-		defer f.muconn.Unlock()
-
-		if f.conn == nil {
-			err = f.connectWithRetry(ctx)
-		}
-
-		return err
-	}(); err != nil {
+	if err := f.syncConnectWithRetry(ctx); err != nil {
 		// Here, we don't want to retry the write since connectWithRetry already
 		// retries Config.MaxRetry times to connect.
-		return false, fmt.Errorf("fluent#write: %v", err)
+		return false, fmt.Errorf("fluent#write: %w", err)
 	}
 
-	if err := func() (err error) {
-		f.muconn.RLock()
-		defer f.muconn.RUnlock()
-
-		if f.conn == nil {
-			return fmt.Errorf("connection has been closed before writing to it")
-		}
-
-		t := f.Config.WriteTimeout
-		if time.Duration(0) < t {
-			f.conn.SetWriteDeadline(time.Now().Add(t))
-		} else {
-			f.conn.SetWriteDeadline(time.Time{})
-		}
-
-		_, err = f.conn.Write(msg.data)
-		return err
-	}(); err != nil {
-		closer()
-		return true, fmt.Errorf("fluent#write: %v", err)
+	if err := f.syncWriteMessage(ctx, msg); err != nil {
+		f.syncClose(false)
+		return true, fmt.Errorf("fluent#write: %w", err)
 	}
 
 	// Acknowledgment check
 	if msg.ack != "" {
-		resp := &AckResp{}
-		var err error
-		if f.Config.MarshalAsJSON {
-			dec := json.NewDecoder(f.conn)
-			err = dec.Decode(resp)
-		} else {
-			r := msgp.NewReader(f.conn)
-			err = resp.DecodeMsg(r)
+		resp, err := f.syncReadAck(ctx)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "fluent#write: error reading message response ack %v. Closing connection...", err)
+			f.syncClose(false)
+			return true, err
 		}
-
-		if err != nil || resp.Ack != msg.ack {
+		if resp.Ack != msg.ack {
 			fmt.Fprintf(os.Stderr, "fluent#write: message ack (%s) doesn't match expected one (%s). Closing connection...", resp.Ack, msg.ack)
-
-			closer()
+			f.syncClose(false)
 			return true, err
 		}
 	}

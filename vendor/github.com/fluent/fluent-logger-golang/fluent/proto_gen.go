@@ -263,6 +263,8 @@ func (z *Forward) DecodeMsg(dc *msgp.Reader) (err error) {
 			delete(z.Option, key)
 		}
 	}
+	var field []byte
+	_ = field
 	for zb0004 > 0 {
 		zb0004--
 		var za0002 string
@@ -424,6 +426,8 @@ func (z *Forward) UnmarshalMsg(bts []byte) (o []byte, err error) {
 			delete(z.Option, key)
 		}
 	}
+	var field []byte
+	_ = field
 	for zb0004 > 0 {
 		var za0002 string
 		var za0003 string
@@ -500,6 +504,8 @@ func (z *Message) DecodeMsg(dc *msgp.Reader) (err error) {
 			delete(z.Option, key)
 		}
 	}
+	var field []byte
+	_ = field
 	for zb0002 > 0 {
 		zb0002--
 		var za0001 string
@@ -621,6 +627,8 @@ func (z *Message) UnmarshalMsg(bts []byte) (o []byte, err error) {
 			delete(z.Option, key)
 		}
 	}
+	var field []byte
+	_ = field
 	for zb0002 > 0 {
 		var za0001 string
 		var za0002 string
@@ -693,6 +701,8 @@ func (z *MessageExt) DecodeMsg(dc *msgp.Reader) (err error) {
 			delete(z.Option, key)
 		}
 	}
+	var field []byte
+	_ = field
 	for zb0002 > 0 {
 		zb0002--
 		var za0001 string
@@ -818,6 +828,8 @@ func (z *MessageExt) UnmarshalMsg(bts []byte) (o []byte, err error) {
 			delete(z.Option, key)
 		}
 	}
+	var field []byte
+	_ = field
 	for zb0002 > 0 {
 		var za0001 string
 		var za0002 string
