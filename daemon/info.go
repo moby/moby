@@ -274,7 +274,7 @@ func (daemon *Daemon) fillAPIInfo(v *system.Info, cfg *config.Config) {
 func (daemon *Daemon) fillDefaultAddressPools(ctx context.Context, v *system.Info, cfg *config.Config) {
 	_, span := tracing.StartSpan(ctx, "fillDefaultAddressPools")
 	defer span.End()
-	for _, pool := range cfg.Networking.DefaultAddressPools.Value() {
+	for _, pool := range cfg.DefaultAddressPools.Value() {
 		v.DefaultAddressPools = append(v.DefaultAddressPools, system.NetworkAddressPool{
 			Base: pool.Base.String(),
 			Size: pool.Size,

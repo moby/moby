@@ -571,7 +571,11 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		if err := mergo.Merge(&config.NetworkingConfig, config.Networking, mergo.WithOverride); err != nil {
 			return nil, err
 		}
+		// After merging, discard the temporary Networking pointer to avoid
+		// accessing stale values and use the embedded NetworkingConfig instead.
+		config.Networking = nil
 	}
+
 
 	for _, mc := range migratedNamedConfig {
 		mc.migrate(&config)
@@ -744,8 +748,8 @@ func Validate(config *Config) error {
 	}
 
 	// TODO(thaJeztah) Validations below should not accept "0" to be valid; see Validate() for a more in-depth description of this problem
-	if config.Networking.MTU < 0 {
-		return errors.Errorf("invalid default MTU: %d", config.Networking.MTU)
+	if config.MTU < 0 {
+		return errors.Errorf("invalid default MTU: %d", config.MTU)
 	}
 	if config.MaxConcurrentDownloads < 0 {
 		return errors.Errorf("invalid max concurrent downloads: %d", config.MaxConcurrentDownloads)

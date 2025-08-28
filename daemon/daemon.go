@@ -1640,7 +1640,7 @@ func (daemon *Daemon) IsShuttingDown() bool {
 }
 
 func isBridgeNetworkDisabled(conf *config.Config) bool {
-	return conf.Networking.BridgeConfig.Iface == config.DisableNetworkBridge
+	return conf.BridgeConfig.Iface == config.DisableNetworkBridge
 }
 
 func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.PluginGetter, hostID string, activeSandboxes map[string]any) ([]nwconfig.Option, error) {
@@ -1650,15 +1650,15 @@ func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.Plugin
 		nwconfig.OptionDefaultDriver(network.DefaultNetwork),
 		nwconfig.OptionDefaultNetwork(network.DefaultNetwork),
 		nwconfig.OptionLabels(conf.Labels),
-		nwconfig.OptionNetworkControlPlaneMTU(conf.Networking.NetworkControlPlaneMTU),
-		nwconfig.OptionFirewallBackend(conf.Networking.FirewallBackend),
+		nwconfig.OptionNetworkControlPlaneMTU(conf.NetworkControlPlaneMTU),
+		nwconfig.OptionFirewallBackend(conf.FirewallBackend),
 	}
 
 	options = append(options, networkPlatformOptions(conf)...)
 
 	defaultAddressPools := ipamutils.GetLocalScopeDefaultNetworks()
-	if len(conf.Networking.DefaultAddressPools.Value()) > 0 {
-		defaultAddressPools = conf.Networking.DefaultAddressPools.Value()
+	if len(conf.DefaultAddressPools.Value()) > 0 {
+		defaultAddressPools = conf.DefaultAddressPools.Value()
 	}
 	// If the Engine admin don't configure default-address-pools or if they
 	// don't provide any IPv6 prefix, we derive a ULA prefix from the daemon's

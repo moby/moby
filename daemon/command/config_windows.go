@@ -11,8 +11,8 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	installCommonConfigFlags(conf, flags)
 
 	// Then platform-specific install flags.
-	flags.StringVar(&conf.Networking.BridgeConfig.FixedCIDR, "fixed-cidr", "", "IPv4 subnet for fixed IPs")
-	flags.StringVarP(&conf.Networking.BridgeConfig.Iface, "bridge", "b", "", "Attach containers to a virtual switch")
+	flags.StringVar(&conf.BridgeConfig.FixedCIDR, "fixed-cidr", "", "IPv4 subnet for fixed IPs")
+	flags.StringVarP(&conf.BridgeConfig.Iface, "bridge", "b", "", "Attach containers to a virtual switch")
 	flags.StringVarP(&conf.SocketGroup, "group", "G", "", "Users or groups that can access the named pipe")
 }
 

@@ -418,7 +418,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 
 	if !daemonCfg.DisableBridge {
 		// Initialize default driver "bridge"
-		if err := initBridgeDriver(daemon.netController, daemonCfg.Networking.BridgeConfig); err != nil {
+		if err := initBridgeDriver(daemon.netController, daemonCfg.BridgeConfig); err != nil {
 			return err
 		}
 	}

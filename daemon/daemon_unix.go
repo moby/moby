@@ -738,22 +738,22 @@ func verifyDaemonSettings(conf *config.Config) error {
 		return errors.New("containers namespace and plugins namespace cannot be the same")
 	}
 	// Check for mutually incompatible config options
-	if conf.Networking.BridgeConfig.Iface != "" && conf.Networking.BridgeConfig.IP != "" {
+	if conf.BridgeConfig.Iface != "" && conf.BridgeConfig.IP != "" {
 		return errors.New("You specified -b & --bip, mutually exclusive options. Please specify only one")
 	}
-	if conf.Networking.BridgeConfig.Iface != "" && conf.Networking.BridgeConfig.IP6 != "" {
+	if conf.BridgeConfig.Iface != "" && conf.BridgeConfig.IP6 != "" {
 		return errors.New("You specified -b & --bip6, mutually exclusive options. Please specify only one")
 	}
-	if !conf.Networking.BridgeConfig.InterContainerCommunication {
-		if !conf.Networking.BridgeConfig.EnableIPTables {
+	if !conf.BridgeConfig.InterContainerCommunication {
+		if !conf.BridgeConfig.EnableIPTables {
 			return errors.New("You specified --iptables=false with --icc=false. ICC=false uses iptables to function. Please set --icc or --iptables to true")
 		}
-		if conf.Networking.BridgeConfig.EnableIPv6 && !conf.Networking.BridgeConfig.EnableIP6Tables {
+		if conf.BridgeConfig.EnableIPv6 && !conf.BridgeConfig.EnableIP6Tables {
 			return errors.New("You specified --ip6tables=false with --icc=false. ICC=false uses ip6tables to function. Please set --icc or --ip6tables to true")
 		}
 	}
-	if !conf.Networking.BridgeConfig.EnableIPTables && conf.Networking.BridgeConfig.EnableIPMasq {
-		conf.Networking.BridgeConfig.EnableIPMasq = false
+	if !conf.BridgeConfig.EnableIPTables && conf.BridgeConfig.EnableIPMasq {
+		conf.BridgeConfig.EnableIPMasq = false
 	}
 	if err := verifyCgroupDriver(conf); err != nil {
 		return err
@@ -886,14 +886,14 @@ func configureNetworking(ctx context.Context, controller *libnetwork.Controller,
 		if err = n.Delete(); err != nil {
 			return errors.Wrapf(err, `could not delete the default %q network`, network.NetworkBridge)
 		}
-		if len(conf.Networking.DefaultAddressPools.Value()) > 0 && !conf.LiveRestoreEnabled {
+		if len(conf.DefaultAddressPools.Value()) > 0 && !conf.LiveRestoreEnabled {
 			removeDefaultBridgeInterface()
 		}
 	}
 
 	if !conf.DisableBridge {
 		// Initialize default driver "bridge"
-		if err := initBridgeDriver(ctx, controller, conf.Networking.BridgeConfig); err != nil {
+		if err := initBridgeDriver(ctx, controller, conf.BridgeConfig); err != nil {
 			return err
 		}
 	} else {
@@ -926,16 +926,16 @@ func setHostGatewayIP(controller *libnetwork.Controller, config *config.Config) 
 func networkPlatformOptions(conf *config.Config) []nwconfig.Option {
 	return []nwconfig.Option{
 		nwconfig.OptionRootless(conf.Rootless),
-		nwconfig.OptionUserlandProxy(conf.Networking.BridgeConfig.EnableUserlandProxy, conf.Networking.BridgeConfig.UserlandProxyPath),
+		nwconfig.OptionUserlandProxy(conf.BridgeConfig.EnableUserlandProxy, conf.BridgeConfig.UserlandProxyPath),
 		nwconfig.OptionDriverConfig("bridge", options.Generic{
 			netlabel.GenericData: options.Generic{
-				"EnableIPForwarding":       conf.Networking.BridgeConfig.EnableIPForward,
-				"DisableFilterForwardDrop": conf.Networking.BridgeConfig.DisableFilterForwardDrop,
-				"EnableIPTables":           conf.Networking.BridgeConfig.EnableIPTables,
-				"EnableIP6Tables":          conf.Networking.BridgeConfig.EnableIP6Tables,
-				"Hairpin":                  !conf.Networking.BridgeConfig.EnableUserlandProxy || conf.Networking.BridgeConfig.UserlandProxyPath == "",
-				"AllowDirectRouting":       conf.Networking.BridgeConfig.AllowDirectRouting,
-				"AcceptFwMark":             conf.Networking.BridgeConfig.BridgeAcceptFwMark,
+				"EnableIPForwarding":       conf.BridgeConfig.EnableIPForward,
+				"DisableFilterForwardDrop": conf.BridgeConfig.DisableFilterForwardDrop,
+				"EnableIPTables":           conf.BridgeConfig.EnableIPTables,
+				"EnableIP6Tables":          conf.BridgeConfig.EnableIP6Tables,
+				"Hairpin":                  !conf.BridgeConfig.EnableUserlandProxy || conf.BridgeConfig.UserlandProxyPath == "",
+				"AllowDirectRouting":       conf.BridgeConfig.AllowDirectRouting,
+				"AcceptFwMark":             conf.BridgeConfig.BridgeAcceptFwMark,
 			},
 		}),
 	}
