@@ -11,6 +11,10 @@ type Filter struct {
 	args filters.Args
 
 	filterByUse, danglingOnly bool
+
+	// IDAlsoMatchesName makes the "id" filter term also match against
+	// network names.
+	IDAlsoMatchesName bool
 }
 
 // NewFilter returns a network filter that filters by the provided args.
@@ -55,7 +59,8 @@ func (f Filter) Matches(nw network.Summary) bool {
 		return false
 	}
 	if f.args.Contains("id") &&
-		!f.args.Match("id", nw.ID) {
+		!f.args.Match("id", nw.ID) &&
+		(!f.IDAlsoMatchesName || !f.args.Match("id", nw.Name)) {
 		return false
 	}
 	if f.args.Contains("label") &&
@@ -64,11 +69,6 @@ func (f Filter) Matches(nw network.Summary) bool {
 	}
 	if f.args.Contains("scope") &&
 		!f.args.ExactMatch("scope", nw.Scope) {
-		return false
-	}
-	if f.args.Contains("idOrName") &&
-		!f.args.Match("name", nw.Name) &&
-		!f.args.Match("id", nw.Name) {
 		return false
 	}
 	if f.filterByUse &&

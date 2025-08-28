@@ -596,6 +596,7 @@ func (daemon *Daemon) GetNetworks(filter filters.Args, config backend.NetworkLis
 	if err != nil {
 		return nil, err
 	}
+	flt.IDAlsoMatchesName = config.IDAlsoMatchesName
 
 	allNetworks := daemon.getAllNetworks()
 	networks := make([]networktypes.Inspect, 0, len(allNetworks))
