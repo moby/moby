@@ -18,7 +18,7 @@ func (cli *Client) NetworkConnect(ctx context.Context, networkID, containerID st
 		return err
 	}
 
-	nc := network.ConnectOptions{
+	nc := NetworkConnectOptions{
 		Container:      containerID,
 		EndpointConfig: config,
 	}
