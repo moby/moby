@@ -29,10 +29,6 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 		return err
 	}
 
-	if err := network.ValidateFilters(filterArgs); err != nil {
-		return err
-	}
-
 	filter, err := dnetwork.NewFilter(filterArgs)
 	if err != nil {
 		return err
@@ -120,7 +116,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 
 	// TODO(@cpuguy83): All this logic for figuring out which network to return does not belong here
 	// Instead there should be a backend function to just get one network.
-	filterArgs := filters.NewArgs(filters.Arg("idOrName", term))
+	filterArgs := filters.NewArgs(filters.Arg("id", term))
 	if networkScope != "" {
 		filterArgs.Add("scope", networkScope)
 	}
@@ -128,6 +124,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 	if err != nil {
 		return err
 	}
+	filter.IDAlsoMatchesName = true
 
 	networks, _ := n.backend.GetNetworks(filter, backend.NetworkListConfig{Detailed: true, Verbose: verbose})
 	for _, nw := range networks {
@@ -333,10 +330,12 @@ func (n *networkRouter) findUniqueNetwork(term string) (network.Inspect, error) 
 	listByFullName := map[string]network.Inspect{}
 	listByPartialID := map[string]network.Inspect{}
 
-	filter, err := dnetwork.NewFilter(filters.NewArgs(filters.Arg("idOrName", term)))
+	filter, err := dnetwork.NewFilter(filters.NewArgs(filters.Arg("id", term)))
 	if err != nil {
 		return network.Inspect{}, err
 	}
+	filter.IDAlsoMatchesName = true
+
 	networks, _ := n.backend.GetNetworks(filter, backend.NetworkListConfig{Detailed: true})
 	for _, nw := range networks {
 		if nw.ID == term {
