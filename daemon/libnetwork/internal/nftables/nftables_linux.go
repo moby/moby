@@ -49,6 +49,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"os/exec"
 	"runtime"
 	"slices"
@@ -1036,9 +1037,9 @@ func (t *table) updatesApplied() {
 	t.MustFlush = false
 }
 
-/* Can't make text/template range over this, not sure why ...
+// Rules returns an iterator that yields the chain's rules in order.
 func (c *chain) Rules() iter.Seq[string] {
-	groups := make([]int, 0, len(c.ruleGroups))
+	groups := make([]RuleGroup, 0, len(c.ruleGroups))
 	for group := range c.ruleGroups {
 		groups = append(groups, group)
 	}
@@ -1052,23 +1053,6 @@ func (c *chain) Rules() iter.Seq[string] {
 			}
 		}
 	}
-}
-*/
-
-// Rules returns the chain's rules, in order.
-func (c *chain) Rules() []string {
-	groups := make([]RuleGroup, 0, len(c.ruleGroups))
-	nRules := 0
-	for group := range c.ruleGroups {
-		groups = append(groups, group)
-		nRules += len(c.ruleGroups[group])
-	}
-	slices.Sort(groups)
-	rules := make([]string, 0, nRules)
-	for _, group := range groups {
-		rules = append(rules, c.ruleGroups[group]...)
-	}
-	return rules
 }
 
 func parseTemplate() error {
