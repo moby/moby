@@ -13,6 +13,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/libnetwork"
+	dnetwork "github.com/moby/moby/v2/daemon/network"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
@@ -96,10 +97,8 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 }
 
 // localNetworksPrune removes unused local networks
-func (daemon *Daemon) localNetworksPrune(ctx context.Context, pruneFilters filters.Args) *network.PruneReport {
+func (daemon *Daemon) localNetworksPrune(ctx context.Context, pruneFilters dnetwork.Filter) *network.PruneReport {
 	rep := &network.PruneReport{}
-
-	until, _ := getUntilFromPruneFilters(pruneFilters)
 
 	// When the function returns true, the walk will stop.
 	daemon.netController.WalkNetworks(func(nw *libnetwork.Network) bool {
@@ -112,10 +111,7 @@ func (daemon *Daemon) localNetworksPrune(ctx context.Context, pruneFilters filte
 		if nw.ConfigOnly() {
 			return false
 		}
-		if !until.IsZero() && nw.Created().After(until) {
-			return false
-		}
-		if !matchLabels(pruneFilters, nw.Labels()) {
+		if !pruneFilters.Matches(nw) {
 			return false
 		}
 		if !nw.IsPruneable() {
@@ -137,10 +133,8 @@ func (daemon *Daemon) localNetworksPrune(ctx context.Context, pruneFilters filte
 var networkIsInUse = lazyregexp.New(`network ([[:alnum:]]+) is in use`)
 
 // clusterNetworksPrune removes unused cluster networks
-func (daemon *Daemon) clusterNetworksPrune(ctx context.Context, pruneFilters filters.Args) (*network.PruneReport, error) {
+func (daemon *Daemon) clusterNetworksPrune(ctx context.Context, pruneFilters dnetwork.Filter) (*network.PruneReport, error) {
 	rep := &network.PruneReport{}
-
-	until, _ := getUntilFromPruneFilters(pruneFilters)
 
 	cluster := daemon.GetCluster()
 
@@ -162,12 +156,6 @@ func (daemon *Daemon) clusterNetworksPrune(ctx context.Context, pruneFilters fil
 				// Routing-mesh network removal has to be explicitly invoked by user
 				continue
 			}
-			if !until.IsZero() && nw.Created.After(until) {
-				continue
-			}
-			if !matchLabels(pruneFilters, nw.Labels) {
-				continue
-			}
 			// https://github.com/moby/moby/issues/24186
 			// `docker network inspect` unfortunately displays ONLY those containers that are local to that node.
 			// So we try to remove it anyway and check the error
@@ -187,19 +175,20 @@ func (daemon *Daemon) clusterNetworksPrune(ctx context.Context, pruneFilters fil
 }
 
 // NetworksPrune removes unused networks
-func (daemon *Daemon) NetworksPrune(ctx context.Context, pruneFilters filters.Args) (*network.PruneReport, error) {
+func (daemon *Daemon) NetworksPrune(ctx context.Context, filterArgs filters.Args) (*network.PruneReport, error) {
 	if !daemon.pruneRunning.CompareAndSwap(false, true) {
 		return nil, errPruneRunning
 	}
 	defer daemon.pruneRunning.Store(false)
 
 	// make sure that only accepted filters have been received
-	err := pruneFilters.Validate(networksAcceptedFilters)
+	err := filterArgs.Validate(networksAcceptedFilters)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err := getUntilFromPruneFilters(pruneFilters); err != nil {
+	pruneFilters, err := dnetwork.NewFilter(filterArgs)
+	if err != nil {
 		return nil, err
 	}
 
