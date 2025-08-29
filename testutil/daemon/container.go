@@ -23,14 +23,3 @@ func (d *Daemon) ActiveContainers(ctx context.Context, t testing.TB) []string {
 	}
 	return ids
 }
-
-// FindContainerIP returns the ip of the specified container
-func (d *Daemon) FindContainerIP(t testing.TB, id string) string {
-	t.Helper()
-	cli := d.NewClientT(t)
-	defer cli.Close()
-
-	i, err := cli.ContainerInspect(context.Background(), id)
-	assert.NilError(t, err)
-	return i.NetworkSettings.IPAddress
-}
