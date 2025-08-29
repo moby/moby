@@ -43,7 +43,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 	defer func() {
 		if restoreConfig {
 			ctr.Lock()
-			if !ctr.RemovalInProgress && !ctr.Dead {
+			if !ctr.State.RemovalInProgress && !ctr.State.Dead {
 				ctr.HostConfig = &backupHostConfig
 				ctr.CheckpointTo(context.WithoutCancel(context.TODO()), daemon.containersReplica)
 			}
@@ -53,7 +53,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 
 	ctr.Lock()
 
-	if ctr.RemovalInProgress || ctr.Dead {
+	if ctr.State.RemovalInProgress || ctr.State.Dead {
 		ctr.Unlock()
 		return errCannotUpdate(ctr.ID, errors.New(`container is marked for removal and cannot be "update"`))
 	}
@@ -83,7 +83,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 	// If container is running (including paused), we need to update configs
 	// to the real world.
 	ctr.Lock()
-	isRestarting := ctr.Restarting
+	isRestarting := ctr.State.Restarting
 	tsk, err := ctr.GetRunningTask()
 	ctr.Unlock()
 	if cerrdefs.IsConflict(err) || isRestarting {

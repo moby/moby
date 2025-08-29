@@ -1019,7 +1019,7 @@ func (d *Daemon) TamperWithContainerConfig(t testing.TB, containerID string, tam
 
 	var c container.Container
 	assert.NilError(t, json.Unmarshal(configBytes, &c))
-	c.State = container.NewState()
+	c.State = &container.State{}
 	tamper(&c)
 	configBytes, err = json.Marshal(&c)
 	assert.NilError(t, err)
