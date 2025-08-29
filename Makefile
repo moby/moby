@@ -263,7 +263,7 @@ swagger-gen:
 		-w /go/src/github.com/docker/docker \
 		--entrypoint hack/generate-swagger-api.sh \
 		-e GOPATH=/go \
-		quay.io/goswagger/swagger:0.7.4
+		quay.io/goswagger/swagger:0.32.3
 
 .PHONY: swagger-docs
 swagger-docs: ## preview the API documentation
