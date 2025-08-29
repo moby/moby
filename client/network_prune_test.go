@@ -18,12 +18,13 @@ import (
 )
 
 func TestNetworksPruneError(t *testing.T) {
-	client := &Client{
-		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-		version: "1.25",
-	}
+	client, err := NewClientWithOpts(
+		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+		WithVersion("1.25"),
+	)
+	assert.NilError(t, err)
 
-	_, err := client.NetworksPrune(context.Background(), filters.NewArgs())
+	_, err = client.NetworksPrune(context.Background(), filters.NewArgs())
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -72,8 +73,8 @@ func TestNetworksPrune(t *testing.T) {
 		},
 	}
 	for _, listCase := range listCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := NewClientWithOpts(
+			WithMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 				}
@@ -93,8 +94,9 @@ func TestNetworksPrune(t *testing.T) {
 					Body:       io.NopCloser(bytes.NewReader(content)),
 				}, nil
 			}),
-			version: "1.25",
-		}
+			WithVersion("1.25"),
+		)
+		assert.NilError(t, err)
 
 		report, err := client.NetworksPrune(context.Background(), listCase.filters)
 		assert.NilError(t, err)
