@@ -18,41 +18,34 @@ import (
 )
 
 func TestSecretInspectUnsupported(t *testing.T) {
-	client := &Client{
-		version: "1.24",
-		client:  &http.Client{},
-	}
-	_, _, err := client.SecretInspectWithRaw(context.Background(), "nothing")
+	client, err := NewClientWithOpts(WithVersion("1.24"), WithHTTPClient(&http.Client{}))
+	assert.NilError(t, err)
+	_, _, err = client.SecretInspectWithRaw(context.Background(), "nothing")
 	assert.Check(t, is.Error(err, `"secret inspect" requires API version 1.25, but the Docker daemon API version is 1.24`))
 }
 
 func TestSecretInspectError(t *testing.T) {
-	client := &Client{
-		version: "1.25",
-		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithVersion("1.25"), WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
 
-	_, _, err := client.SecretInspectWithRaw(context.Background(), "nothing")
+	_, _, err = client.SecretInspectWithRaw(context.Background(), "nothing")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestSecretInspectSecretNotFound(t *testing.T) {
-	client := &Client{
-		version: "1.25",
-		client:  newMockClient(errorMock(http.StatusNotFound, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithVersion("1.25"), WithMockClient(errorMock(http.StatusNotFound, "Server error")))
+	assert.NilError(t, err)
 
-	_, _, err := client.SecretInspectWithRaw(context.Background(), "unknown")
+	_, _, err = client.SecretInspectWithRaw(context.Background(), "unknown")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestSecretInspectWithEmptyID(t *testing.T) {
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			return nil, errors.New("should not make request")
-		}),
-	}
-	_, _, err := client.SecretInspectWithRaw(context.Background(), "")
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		return nil, errors.New("should not make request")
+	}))
+	assert.NilError(t, err)
+	_, _, err = client.SecretInspectWithRaw(context.Background(), "")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
@@ -63,24 +56,22 @@ func TestSecretInspectWithEmptyID(t *testing.T) {
 
 func TestSecretInspect(t *testing.T) {
 	expectedURL := "/v1.25/secrets/secret_id"
-	client := &Client{
-		version: "1.25",
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			content, err := json.Marshal(swarm.Secret{
-				ID: "secret_id",
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(content)),
-			}, nil
-		}),
-	}
+	client, err := NewClientWithOpts(WithVersion("1.25"), WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if !strings.HasPrefix(req.URL.Path, expectedURL) {
+			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		}
+		content, err := json.Marshal(swarm.Secret{
+			ID: "secret_id",
+		})
+		if err != nil {
+			return nil, err
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(content)),
+		}, nil
+	}))
+	assert.NilError(t, err)
 
 	secretInspect, _, err := client.SecretInspectWithRaw(context.Background(), "secret_id")
 	assert.NilError(t, err)
