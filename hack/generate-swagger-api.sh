@@ -1,65 +1,96 @@
-#!/bin/sh
+#!/bin/bash
+# vim: set noexpandtab:
+# -*- indent-tabs-mode: t -*-
 set -eu
 
-swagger generate model -f api/swagger.yaml \
-	-t api -m types/plugin -C api/swagger-gen.yaml \
-	-T api/templates --allow-template-override \
-	-n Plugin \
-	-n PluginDevice \
-	-n PluginMount \
-	-n PluginEnv
+generate_model() {
+	local package="$1"
+	mapfile
+	swagger generate model --spec=api/swagger.yaml \
+		--target=api --model-package="$package" \
+		--config-file=api/swagger-gen.yaml \
+		--template-dir=api/templates --allow-template-override \
+		$(printf -- '--name=%s ' "${MAPFILE[@]}")
+}
 
-swagger generate model -f api/swagger.yaml \
-	-t api -m types/common -C api/swagger-gen.yaml \
-	-T api/templates --allow-template-override \
-	-n IDResponse \
-	-n ErrorResponse
+generate_operation() {
+	mapfile
+	swagger generate operation --spec=api/swagger.yaml \
+		--target=api --api-package=types --model-package=types \
+		--config-file=api/swagger-gen.yaml \
+		--template-dir=api/templates --allow-template-override \
+		"$@" \
+		$(printf -- '--name=%s ' "${MAPFILE[@]}")
+}
 
-swagger generate model -f api/swagger.yaml \
-	-t api -m types/storage -C api/swagger-gen.yaml \
-	-T api/templates --allow-template-override \
-	-n DriverData
+# /==================================================================\
+# |                                                                  |
+# |  ATTENTION:                                                      |
+# |                                                                  |
+# |       Sort model package stanzas and model/operation names       |
+# |                    *** ALPHABETICALLY ***                        |
+# |          to reduce the likelihood of merge conflicts.            |
+# |                                                                  |
+# \==================================================================/
 
-swagger generate model -f api/swagger.yaml \
-	-t api -m types/container -C api/swagger-gen.yaml \
-	-T api/templates --allow-template-override \
-	-n ContainerCreateResponse \
-	-n ContainerUpdateResponse \
-	-n ContainerTopResponse \
-	-n ContainerWaitResponse \
-	-n ContainerWaitExitError \
-	-n ChangeType \
-	-n FilesystemChange \
-	-n PortSummary
+#region -------- Models --------
 
-swagger generate model -f api/swagger.yaml \
-	-t api -m types/image -C api/swagger-gen.yaml \
-	-T api/templates --allow-template-override \
-	-n ImageDeleteResponseItem
-#-n ImageSummary TODO: Restore when go-swagger is updated
+generate_model types/common <<- 'EOT'
+	ErrorResponse
+	IDResponse
+EOT
+
+generate_model types/container <<- 'EOT'
+	ChangeType
+	ContainerCreateResponse
+	ContainerTopResponse
+	ContainerUpdateResponse
+	ContainerWaitExitError
+	ContainerWaitResponse
+	FilesystemChange
+	PortSummary
+EOT
+
+generate_model types/image <<- 'EOT'
+	ImageDeleteResponseItem
+EOT
+#	ImageSummary
+# TODO: Restore when go-swagger is updated
 # See https://github.com/moby/moby/pull/47526#discussion_r1551800022
 
-swagger generate model -f api/swagger.yaml \
-	-t api -m types/network -C api/swagger-gen.yaml \
-	-T api/templates --allow-template-override \
-	-n NetworkCreateResponse
+generate_model types/network <<- 'EOT'
+	NetworkCreateResponse
+EOT
 
-swagger generate model -f api/swagger.yaml \
-	-t api -m types/volume -C api/swagger-gen.yaml \
-	-T api/templates --allow-template-override \
-	-n Volume \
-	-n VolumeCreateOptions \
-	-n VolumeListResponse
+generate_model types/plugin <<- 'EOT'
+	Plugin
+	PluginDevice
+	PluginEnv
+	PluginMount
+EOT
 
-swagger generate operation -f api/swagger.yaml \
-	-t api -a types -m types -C api/swagger-gen.yaml \
-	-T api/templates --allow-template-override \
-	--skip-responses --skip-parameters \
-	-n Authenticate \
-	-n ImageHistory
+generate_model types/storage <<- 'EOT'
+	DriverData
+EOT
 
-swagger generate model -f api/swagger.yaml \
-	-t api -m types/swarm -C api/swagger-gen.yaml \
-	-T api/templates --allow-template-override \
-	-n ServiceCreateResponse \
-	-n ServiceUpdateResponse
+generate_model types/swarm <<- 'EOT'
+	ServiceCreateResponse
+	ServiceUpdateResponse
+EOT
+
+generate_model types/volume <<- 'EOT'
+	Volume
+	VolumeCreateOptions
+	VolumeListResponse
+EOT
+
+#endregion
+
+#region -------- Operations --------
+
+generate_operation --skip-responses --skip-parameters <<- 'EOT'
+	Authenticate
+	ImageHistory
+EOT
+
+#endregion
