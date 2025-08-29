@@ -82,29 +82,14 @@ func (e *Events) Evict(l chan any) {
 // Log creates a local scope message and publishes it
 func (e *Events) Log(action eventtypes.Action, eventType eventtypes.Type, actor eventtypes.Actor) {
 	now := time.Now().UTC()
-	jm := eventtypes.Message{
+	e.PublishMessage(eventtypes.Message{
 		Action:   action,
 		Type:     eventType,
 		Actor:    actor,
 		Scope:    "local",
 		Time:     now.Unix(),
 		TimeNano: now.UnixNano(),
-	}
-
-	// fill deprecated fields for container and images
-	switch eventType {
-	case eventtypes.ContainerEventType:
-		jm.ID = actor.ID                    //nolint:staticcheck // ignore SA1019: field is deprecated but set for backward compatibility.
-		jm.Status = string(action)          //nolint:staticcheck // ignore SA1019: field is deprecated but set for backward compatibility.
-		jm.From = actor.Attributes["image"] //nolint:staticcheck // ignore SA1019: field is deprecated but set for backward compatibility.
-	case eventtypes.ImageEventType:
-		jm.ID = actor.ID           //nolint:staticcheck // ignore SA1019: field is deprecated but set for backward compatibility.
-		jm.Status = string(action) //nolint:staticcheck // ignore SA1019: field is deprecated but set for backward compatibility.
-	default:
-		// TODO(thaJeztah): make switch exhaustive
-	}
-
-	e.PublishMessage(jm)
+	})
 }
 
 // PublishMessage broadcasts event to listeners. Each listener has 100 milliseconds to

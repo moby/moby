@@ -22,6 +22,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   saved.
 * `POST /images/load` now accepts multiple `platform` query-arguments
   to allow selecting which platform(s) of a multi-platform image to load.
+* `GET /events` no longer includes the deprecated `status`, `id`, and `from`
+  fields. These fields were removed in API v1.22, but still included
+  in the response.
 
 ## v1.51 API changes
 
