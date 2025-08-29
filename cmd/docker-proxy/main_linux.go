@@ -178,11 +178,7 @@ func parseFlags() ProxyConfig {
 	}
 
 	if useListenFd {
-		// Unlike the stdlib, passing a non-blocking socket to `sctp.FileListener`
-		// will result in a non-blocking Accept(). So, do not set this flag for SCTP.
-		if config.Proto != "sctp" {
-			_ = syscall.SetNonblock(int(listenSockFd), true)
-		}
+		_ = syscall.SetNonblock(int(listenSockFd), true)
 		config.ListenSock = os.NewFile(listenSockFd, "listen-sock")
 	}
 
