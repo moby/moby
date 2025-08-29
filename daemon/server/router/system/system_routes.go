@@ -9,6 +9,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/api/pkg/authconfig"
+	"github.com/moby/moby/api/pkg/secopts"
 	buildtypes "github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
@@ -74,7 +75,7 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 
 		if versions.LessThan(version, "1.25") {
 			// TODO: handle this conversion in engine-api
-			kvSecOpts, err := system.DecodeSecurityOptions(info.SecurityOptions)
+			kvSecOpts, err := secopts.Decode(info.SecurityOptions)
 			if err != nil {
 				info.Warnings = append(info.Warnings, err.Error())
 			}
