@@ -69,11 +69,14 @@ func (bc *Client) initContext(ctx context.Context) (*buildContext, error) {
 		bctx.dockerfileLocalName = v
 	}
 
-	keepGit := false
+	var keepGit *bool
 	if v, err := strconv.ParseBool(opts[keyContextKeepGitDirArg]); err == nil {
-		keepGit = v
+		keepGit = &v
 	}
-	if st, ok := DetectGitContext(opts[localNameContext], keepGit); ok {
+	if st, ok, err := DetectGitContext(opts[localNameContext], keepGit); ok {
+		if err != nil {
+			return nil, err
+		}
 		bctx.context = st
 		bctx.dockerfile = st
 	} else if st, filename, ok := DetectHTTPContext(opts[localNameContext]); ok {
@@ -140,22 +143,33 @@ func (bc *Client) initContext(ctx context.Context) (*buildContext, error) {
 	return bctx, nil
 }
 
-func DetectGitContext(ref string, keepGit bool) (*llb.State, bool) {
-	g, err := dfgitutil.ParseGitRef(ref)
+func DetectGitContext(ref string, keepGit *bool) (*llb.State, bool, error) {
+	g, isGit, err := dfgitutil.ParseGitRef(ref)
 	if err != nil {
-		return nil, false
+		return nil, isGit, err
 	}
-	commit := g.Commit
-	if g.SubDir != "" {
-		commit += ":" + g.SubDir
+	gitOpts := []llb.GitOption{
+		llb.GitRef(g.Ref),
+		WithInternalName("load git source " + ref),
 	}
-	gitOpts := []llb.GitOption{WithInternalName("load git source " + ref)}
-	if keepGit {
+	if g.KeepGitDir != nil && *g.KeepGitDir {
 		gitOpts = append(gitOpts, llb.KeepGitDir())
 	}
+	if keepGit != nil && *keepGit {
+		gitOpts = append(gitOpts, llb.KeepGitDir())
+	}
+	if g.SubDir != "" {
+		gitOpts = append(gitOpts, llb.GitSubDir(g.SubDir))
+	}
+	if g.Checksum != "" {
+		gitOpts = append(gitOpts, llb.GitChecksum(g.Checksum))
+	}
+	if g.Submodules != nil && !*g.Submodules {
+		gitOpts = append(gitOpts, llb.GitSkipSubmodules())
+	}
 
-	st := llb.Git(g.Remote, commit, gitOpts...)
-	return &st, true
+	st := llb.Git(g.Remote, "", gitOpts...)
+	return &st, true, nil
 }
 
 func DetectHTTPContext(ref string) (*llb.State, string, bool) {

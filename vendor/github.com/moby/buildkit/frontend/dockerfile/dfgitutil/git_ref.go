@@ -3,6 +3,7 @@ package dfgitutil
 
 import (
 	"net/url"
+	"strconv"
 	"strings"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -23,9 +24,12 @@ type GitRef struct {
 	// e.g., "bar" for "https://github.com/foo/bar.git"
 	ShortName string
 
-	// Commit is a commit hash, a tag, or branch name.
-	// Commit is optional.
-	Commit string
+	// Ref is a commit hash, a tag, or branch name.
+	// Ref is optional.
+	Ref string
+
+	// Checksum is a commit hash.
+	Checksum string
 
 	// SubDir is a directory path inside the repo.
 	// SubDir is optional.
@@ -46,12 +50,16 @@ type GitRef struct {
 	// Discouraged, although not deprecated.
 	// Instead, consider using an encrypted TCP connection such as "git@github.com/foo/bar.git" or "https://github.com/foo/bar.git".
 	UnencryptedTCP bool
+
+	// KeepGitDir is true for URL that controls whether to keep the .git directory.
+	KeepGitDir *bool
+
+	// Submodules is true for URL that controls whether to fetch git submodules.
+	Submodules *bool
 }
 
-// var gitURLPathWithFragmentSuffix = regexp.MustCompile(`\.git(?:#.+)?$`)
-
 // ParseGitRef parses a git ref.
-func ParseGitRef(ref string) (*GitRef, error) {
+func ParseGitRef(ref string) (*GitRef, bool, error) {
 	res := &GitRef{}
 
 	var (
@@ -60,21 +68,25 @@ func ParseGitRef(ref string) (*GitRef, error) {
 	)
 
 	if strings.HasPrefix(ref, "./") || strings.HasPrefix(ref, "../") {
-		return nil, cerrdefs.ErrInvalidArgument
+		return nil, false, errors.WithStack(cerrdefs.ErrInvalidArgument)
 	} else if strings.HasPrefix(ref, "github.com/") {
 		res.IndistinguishableFromLocal = true // Deprecated
-		remote = gitutil.FromURL(&url.URL{
-			Scheme: "https",
-			Host:   "github.com",
-			Path:   strings.TrimPrefix(ref, "github.com/"),
-		})
+		u, err := url.Parse(ref)
+		if err != nil {
+			return nil, false, err
+		}
+		u.Scheme = "https"
+		remote, err = gitutil.FromURL(u)
+		if err != nil {
+			return nil, false, err
+		}
 	} else {
 		remote, err = gitutil.ParseURL(ref)
 		if errors.Is(err, gitutil.ErrUnknownProtocol) {
-			return nil, err
+			return nil, false, err
 		}
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 
 		switch remote.Scheme {
@@ -86,7 +98,7 @@ func ParseGitRef(ref string) (*GitRef, error) {
 		// An HTTP(S) URL is considered to be a valid git ref only when it has the ".git[...]" suffix.
 		case gitutil.HTTPProtocol, gitutil.HTTPSProtocol:
 			if !strings.HasSuffix(remote.Path, ".git") {
-				return nil, cerrdefs.ErrInvalidArgument
+				return nil, false, errors.WithStack(cerrdefs.ErrInvalidArgument)
 			}
 		}
 	}
@@ -96,11 +108,107 @@ func ParseGitRef(ref string) (*GitRef, error) {
 		_, res.Remote, _ = strings.Cut(res.Remote, "://")
 	}
 	if remote.Opts != nil {
-		res.Commit, res.SubDir = remote.Opts.Ref, remote.Opts.Subdir
+		res.Ref, res.SubDir = remote.Opts.Ref, remote.Opts.Subdir
 	}
 
 	repoSplitBySlash := strings.Split(res.Remote, "/")
 	res.ShortName = strings.TrimSuffix(repoSplitBySlash[len(repoSplitBySlash)-1], ".git")
 
-	return res, nil
+	if err := res.loadQuery(remote.Query); err != nil {
+		return nil, true, err
+	}
+
+	return res, true, nil
+}
+
+func (gf *GitRef) loadQuery(query url.Values) error {
+	if len(query) == 0 {
+		return nil
+	}
+	var tag, branch string
+	for k, v := range query {
+		switch len(v) {
+		case 0, 1:
+			if len(v) == 0 || v[0] == "" {
+				switch k {
+				case "submodules", "keep-git-dir":
+					v = nil
+				default:
+					return errors.Errorf("query %q has no value", k)
+				}
+			}
+			// NOP
+		default:
+			return errors.Errorf("query %q has multiple values", k)
+		}
+		switch k {
+		case "ref":
+			if gf.Ref != "" && gf.Ref != v[0] {
+				return errors.Errorf("ref conflicts: %q vs %q", gf.Ref, v[0])
+			}
+			gf.Ref = v[0]
+		case "tag":
+			tag = v[0]
+		case "branch":
+			branch = v[0]
+		case "subdir":
+			if gf.SubDir != "" && gf.SubDir != v[0] {
+				return errors.Errorf("subdir conflicts: %q vs %q", gf.SubDir, v[0])
+			}
+			gf.SubDir = v[0]
+		case "checksum", "commit":
+			gf.Checksum = v[0]
+		case "keep-git-dir":
+			var vv bool
+			if len(v) == 0 {
+				vv = true
+			} else {
+				var err error
+				vv, err = strconv.ParseBool(v[0])
+				if err != nil {
+					return errors.Errorf("invalid keep-git-dir value: %q", v[0])
+				}
+			}
+			gf.KeepGitDir = &vv
+		case "submodules":
+			var vv bool
+			if len(v) == 0 {
+				vv = true
+			} else {
+				var err error
+				vv, err = strconv.ParseBool(v[0])
+				if err != nil {
+					return errors.Errorf("invalid submodules value: %q", v[0])
+				}
+			}
+			gf.Submodules = &vv
+		default:
+			return errors.Errorf("unexpected query %q", k)
+		}
+	}
+	if tag != "" {
+		const tagPrefix = "refs/tags/"
+		if !strings.HasPrefix(tag, tagPrefix) {
+			tag = tagPrefix + tag
+		}
+		if gf.Ref != "" && gf.Ref != tag {
+			return errors.Errorf("ref conflicts: %q vs %q", gf.Ref, tag)
+		}
+		gf.Ref = tag
+	}
+	if branch != "" {
+		if tag != "" {
+			// TODO: consider allowing this, when the tag actually exists on the branch
+			return errors.New("branch conflicts with tag")
+		}
+		const branchPrefix = "refs/heads/"
+		if !strings.HasPrefix(branch, branchPrefix) {
+			branch = branchPrefix + branch
+		}
+		if gf.Ref != "" && gf.Ref != branch {
+			return errors.Errorf("ref conflicts: %q vs %q", gf.Ref, branch)
+		}
+		gf.Ref = branch
+	}
+	return nil
 }

@@ -1,13 +1,14 @@
 package sshutil
 
 import (
-	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
+
+	"github.com/pkg/errors"
 )
 
-var gitSSHRegex = regexp.MustCompile("^([a-zA-Z0-9-_]+)@([a-zA-Z0-9-.]+):(.*?)(?:#(.*))?$")
+var gitSSHRegex = regexp.MustCompile(`^([a-zA-Z0-9-_]+)@([a-zA-Z0-9-.]+):(.*?)(?:\?(.*?))?(?:#(.*))?$`)
 
 func IsImplicitSSHTransport(s string) bool {
 	return gitSSHRegex.MatchString(s)
@@ -18,6 +19,7 @@ type SCPStyleURL struct {
 	Host string
 
 	Path     string
+	Query    url.Values
 	Fragment string
 }
 
@@ -26,18 +28,34 @@ func ParseSCPStyleURL(raw string) (*SCPStyleURL, error) {
 	if matches == nil {
 		return nil, errors.New("invalid scp-style url")
 	}
+
+	rawQuery := matches[4]
+	vals := url.Values{}
+	if rawQuery != "" {
+		var err error
+		vals, err = url.ParseQuery(rawQuery)
+		if err != nil {
+			return nil, errors.Wrap(err, "invalid query in scp-style url")
+		}
+	}
+
 	return &SCPStyleURL{
 		User:     url.User(matches[1]),
 		Host:     matches[2],
 		Path:     matches[3],
-		Fragment: matches[4],
+		Query:    vals,
+		Fragment: matches[5],
 	}, nil
 }
 
-func (url *SCPStyleURL) String() string {
-	base := fmt.Sprintf("%s@%s:%s", url.User.String(), url.Host, url.Path)
-	if url.Fragment == "" {
-		return base
+func (u *SCPStyleURL) String() string {
+	s := fmt.Sprintf("%s@%s:%s", u.User.String(), u.Host, u.Path)
+
+	if len(u.Query) > 0 {
+		s += "?" + u.Query.Encode()
 	}
-	return base + "#" + url.Fragment
+	if u.Fragment != "" {
+		s += "#" + u.Fragment
+	}
+	return s
 }
