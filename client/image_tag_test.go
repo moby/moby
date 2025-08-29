@@ -16,22 +16,20 @@ import (
 )
 
 func TestImageTagError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
 
-	err := client.ImageTag(context.Background(), "image_id", "repo:tag")
+	err = client.ImageTag(context.Background(), "image_id", "repo:tag")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 // Note: this is not testing all the InvalidReference as it's the responsibility
 // of distribution/reference package.
 func TestImageTagInvalidReference(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
 
-	err := client.ImageTag(context.Background(), "image_id", "aa/asdf$$^/aa")
+	err = client.ImageTag(context.Background(), "image_id", "aa/asdf$$^/aa")
 	assert.Check(t, is.Error(err, `error parsing reference: "aa/asdf$$^/aa" is not a valid repository/tag: invalid reference format`))
 }
 
@@ -39,9 +37,8 @@ func TestImageTagInvalidReference(t *testing.T) {
 func TestImageTagInvalidSourceImageName(t *testing.T) {
 	ctx := context.Background()
 
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "client should not have made an API call")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "client should not have made an API call")))
+	assert.NilError(t, err)
 
 	invalidRepos := []string{"fo$z$", "Foo@3cc", "Foo$3", "Foo*3", "Fo^3", "Foo!3", "F)xcz(", "fo%asd", "aa/asdf$$^/aa"}
 	for _, repo := range invalidRepos {
@@ -92,11 +89,10 @@ func generateRandomAlphaOnlyString(n int) string {
 }
 
 func TestImageTagHexSource(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusOK, "OK")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusOK, "OK")))
+	assert.NilError(t, err)
 
-	err := client.ImageTag(context.Background(), "0d409d33b27e47423b049f7f863faa08655a8c901749c2b25b93ca67d01a470d", "repo:tag")
+	err = client.ImageTag(context.Background(), "0d409d33b27e47423b049f7f863faa08655a8c901749c2b25b93ca67d01a470d", "repo:tag")
 	assert.NilError(t, err)
 }
 
@@ -157,28 +153,27 @@ func TestImageTag(t *testing.T) {
 		},
 	}
 	for _, tagCase := range tagCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
-				if !strings.HasPrefix(req.URL.Path, expectedURL) {
-					return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
+		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			if !strings.HasPrefix(req.URL.Path, expectedURL) {
+				return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
+			}
+			if req.Method != http.MethodPost {
+				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
+			}
+			query := req.URL.Query()
+			for key, expected := range tagCase.expectedQueryParams {
+				actual := query.Get(key)
+				if actual != expected {
+					return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
 				}
-				if req.Method != http.MethodPost {
-					return nil, fmt.Errorf("expected POST method, got %s", req.Method)
-				}
-				query := req.URL.Query()
-				for key, expected := range tagCase.expectedQueryParams {
-					actual := query.Get(key)
-					if actual != expected {
-						return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
-					}
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-				}, nil
-			}),
-		}
-		err := client.ImageTag(context.Background(), "image_id", tagCase.reference)
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
+			}, nil
+		}))
+		assert.NilError(t, err)
+		err = client.ImageTag(context.Background(), "image_id", tagCase.reference)
 		assert.NilError(t, err)
 	}
 }

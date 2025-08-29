@@ -17,13 +17,12 @@ import (
 )
 
 func TestImagePushReferenceError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			return nil, nil
-		}),
-	}
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		return nil, nil
+	}))
+	assert.NilError(t, err)
 	// An empty reference is an invalid reference
-	_, err := client.ImagePush(context.Background(), "", ImagePushOptions{})
+	_, err = client.ImagePush(context.Background(), "", ImagePushOptions{})
 	assert.Check(t, is.ErrorContains(err, "invalid reference format"))
 	// An canonical reference cannot be pushed
 	_, err = client.ImagePush(context.Background(), "repo@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", ImagePushOptions{})
@@ -31,42 +30,38 @@ func TestImagePushReferenceError(t *testing.T) {
 }
 
 func TestImagePushAnyError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ImagePush(context.Background(), "myimage", ImagePushOptions{})
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
+	_, err = client.ImagePush(context.Background(), "myimage", ImagePushOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImagePushStatusUnauthorizedError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
-	}
-	_, err := client.ImagePush(context.Background(), "myimage", ImagePushOptions{})
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")))
+	assert.NilError(t, err)
+	_, err = client.ImagePush(context.Background(), "myimage", ImagePushOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsUnauthorized))
 }
 
 func TestImagePushWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")))
+	assert.NilError(t, err)
 	privilegeFunc := func(_ context.Context) (string, error) {
 		return "", errors.New("Error requesting privilege")
 	}
-	_, err := client.ImagePush(context.Background(), "myimage", ImagePushOptions{
+	_, err = client.ImagePush(context.Background(), "myimage", ImagePushOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
 	assert.Check(t, is.Error(err, "Error requesting privilege"))
 }
 
 func TestImagePushWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")))
+	assert.NilError(t, err)
 	privilegeFunc := func(_ context.Context) (string, error) {
 		return "a-auth-header", nil
 	}
-	_, err := client.ImagePush(context.Background(), "myimage", ImagePushOptions{
+	_, err = client.ImagePush(context.Background(), "myimage", ImagePushOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsUnauthorized))
@@ -76,32 +71,31 @@ func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
 	const expectedURL = "/images/docker.io/myname/myimage/push"
 	const invalidAuth = "NotValid"
 	const validAuth = "IAmValid"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			auth := req.Header.Get(registry.AuthHeader)
-			if auth == invalidAuth {
-				return &http.Response{
-					StatusCode: http.StatusUnauthorized,
-					Body:       io.NopCloser(bytes.NewReader([]byte("Invalid credentials"))),
-				}, nil
-			}
-			if auth != validAuth {
-				return nil, fmt.Errorf("invalid auth header: expected %s, got %s", "IAmValid", auth)
-			}
-			query := req.URL.Query()
-			tag := query.Get("tag")
-			if tag != "tag" {
-				return nil, fmt.Errorf("tag not set in URL query properly. Expected '%s', got %s", "tag", tag)
-			}
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if !strings.HasPrefix(req.URL.Path, expectedURL) {
+			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		}
+		auth := req.Header.Get(registry.AuthHeader)
+		if auth == invalidAuth {
 			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte("hello world"))),
+				StatusCode: http.StatusUnauthorized,
+				Body:       io.NopCloser(bytes.NewReader([]byte("Invalid credentials"))),
 			}, nil
-		}),
-	}
+		}
+		if auth != validAuth {
+			return nil, fmt.Errorf("invalid auth header: expected %s, got %s", "IAmValid", auth)
+		}
+		query := req.URL.Query()
+		tag := query.Get("tag")
+		if tag != "tag" {
+			return nil, fmt.Errorf("tag not set in URL query properly. Expected '%s', got %s", "tag", tag)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader([]byte("hello world"))),
+		}, nil
+	}))
+	assert.NilError(t, err)
 	resp, err := client.ImagePush(context.Background(), "myname/myimage:tag", ImagePushOptions{
 		RegistryAuth:  invalidAuth,
 		PrivilegeFunc: staticAuth(validAuth),
@@ -175,23 +169,22 @@ func TestImagePushWithoutErrors(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%s,all-tags=%t", tc.reference, tc.all), func(t *testing.T) {
-			client := &Client{
-				client: newMockClient(func(req *http.Request) (*http.Response, error) {
-					expectedURL := fmt.Sprintf(expectedURLFormat, tc.expectedImage)
-					if !strings.HasPrefix(req.URL.Path, expectedURL) {
-						return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-					}
-					query := req.URL.Query()
-					tag := query.Get("tag")
-					if tag != tc.expectedTag {
-						return nil, fmt.Errorf("tag not set in URL query properly. Expected '%s', got %s", tc.expectedTag, tag)
-					}
-					return &http.Response{
-						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(bytes.NewReader([]byte(expectedOutput))),
-					}, nil
-				}),
-			}
+			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+				expectedURL := fmt.Sprintf(expectedURLFormat, tc.expectedImage)
+				if !strings.HasPrefix(req.URL.Path, expectedURL) {
+					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+				}
+				query := req.URL.Query()
+				tag := query.Get("tag")
+				if tag != tc.expectedTag {
+					return nil, fmt.Errorf("tag not set in URL query properly. Expected '%s', got %s", tc.expectedTag, tag)
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(bytes.NewReader([]byte(expectedOutput))),
+				}, nil
+			}))
+			assert.NilError(t, err)
 			resp, err := client.ImagePush(context.Background(), tc.reference, ImagePushOptions{
 				All: tc.all,
 			})

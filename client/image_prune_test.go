@@ -19,12 +19,10 @@ import (
 )
 
 func TestImagesPruneError(t *testing.T) {
-	client := &Client{
-		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-		version: "1.25",
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")), WithVersion("1.25"))
+	assert.NilError(t, err)
 
-	_, err := client.ImagesPrune(context.Background(), filters.NewArgs())
+	_, err = client.ImagesPrune(context.Background(), filters.NewArgs())
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -73,37 +71,35 @@ func TestImagesPrune(t *testing.T) {
 		},
 	}
 	for _, listCase := range listCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
-				if !strings.HasPrefix(req.URL.Path, expectedURL) {
-					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-				}
-				query := req.URL.Query()
-				for key, expected := range listCase.expectedQueryParams {
-					actual := query.Get(key)
-					assert.Check(t, is.Equal(expected, actual))
-				}
-				content, err := json.Marshal(image.PruneReport{
-					ImagesDeleted: []image.DeleteResponse{
-						{
-							Deleted: "image_id1",
-						},
-						{
-							Deleted: "image_id2",
-						},
+		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			if !strings.HasPrefix(req.URL.Path, expectedURL) {
+				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			}
+			query := req.URL.Query()
+			for key, expected := range listCase.expectedQueryParams {
+				actual := query.Get(key)
+				assert.Check(t, is.Equal(expected, actual))
+			}
+			content, err := json.Marshal(image.PruneReport{
+				ImagesDeleted: []image.DeleteResponse{
+					{
+						Deleted: "image_id1",
 					},
-					SpaceReclaimed: 9999,
-				})
-				if err != nil {
-					return nil, err
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader(content)),
-				}, nil
-			}),
-			version: "1.25",
-		}
+					{
+						Deleted: "image_id2",
+					},
+				},
+				SpaceReclaimed: 9999,
+			})
+			if err != nil {
+				return nil, err
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader(content)),
+			}, nil
+		}), WithVersion("1.25"))
+		assert.NilError(t, err)
 
 		report, err := client.ImagesPrune(context.Background(), listCase.filters)
 		assert.NilError(t, err)
