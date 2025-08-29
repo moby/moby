@@ -4,6 +4,7 @@ package network
 
 import (
 	"testing"
+	"time"
 
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -20,6 +21,7 @@ type mockFilterNetwork struct {
 	id         string
 	labels     map[string]string
 	scope      string
+	created    time.Time
 	containers bool
 	services   bool
 }
@@ -44,6 +46,10 @@ func (n mockFilterNetwork) Scope() string {
 	return n.scope
 }
 
+func (n mockFilterNetwork) Created() time.Time {
+	return n.created
+}
+
 func (n mockFilterNetwork) HasContainerAttachments() bool {
 	return n.containers
 }
@@ -55,41 +61,47 @@ func (n mockFilterNetwork) HasServiceAttachments() bool {
 func TestFilter(t *testing.T) {
 	networks := []mockFilterNetwork{
 		{
-			name:   network.NetworkHost,
-			id:     "ubfg", // ROT13(name)
-			driver: "host",
-			scope:  "local",
+			name:    network.NetworkHost,
+			id:      "ubfg", // ROT13(name)
+			driver:  "host",
+			scope:   "local",
+			created: time.Date(2025, time.June, 1, 0, 0, 0, 0, time.Local),
 		},
 		{
-			name:   network.NetworkBridge,
-			id:     "oevqtr",
-			driver: "bridge",
-			scope:  "local",
+			name:    network.NetworkBridge,
+			id:      "oevqtr",
+			driver:  "bridge",
+			scope:   "local",
+			created: time.Date(2025, time.June, 1, 0, 0, 0, 0, time.Local),
 		},
 		{
-			name:   network.NetworkNone,
-			id:     "abar",
-			driver: "null",
-			scope:  "local",
+			name:    network.NetworkNone,
+			id:      "abar",
+			driver:  "null",
+			scope:   "local",
+			created: time.Date(2025, time.June, 1, 0, 0, 0, 0, time.Local),
 		},
 		{
-			name:   "myoverlay",
-			id:     "zlbireynl",
-			driver: "overlay",
-			scope:  "swarm",
+			name:    "myoverlay",
+			id:      "zlbireynl",
+			driver:  "overlay",
+			scope:   "swarm",
+			created: time.Date(2024, time.June, 1, 12, 0, 0, 0, time.Local),
 		},
 		{
-			name:   "mydrivernet",
-			id:     "zlqevirearg",
-			driver: "mydriver",
-			scope:  "local",
-			labels: map[string]string{"foo": "bar"},
+			name:    "mydrivernet",
+			id:      "zlqevirearg",
+			driver:  "mydriver",
+			scope:   "local",
+			labels:  map[string]string{"foo": "bar"},
+			created: time.Date(2024, time.December, 1, 2, 0, 0, 0, time.Local),
 		},
 		{
-			name:   "mykvnet",
-			id:     "zlxiarg",
-			driver: "mykvdriver",
-			scope:  "global",
+			name:    "mykvnet",
+			id:      "zlxiarg",
+			driver:  "mykvdriver",
+			scope:   "global",
+			created: time.Date(2025, time.January, 1, 0, 0, 0, 0, time.Local),
 		},
 		{
 			name:       "networkwithcontainer",
@@ -97,6 +109,7 @@ func TestFilter(t *testing.T) {
 			driver:     "nwc",
 			scope:      "local",
 			containers: true,
+			created:    time.Date(2025, time.June, 1, 0, 0, 0, 0, time.Local),
 		},
 		{
 			name:     "networkwithservice",
@@ -104,6 +117,14 @@ func TestFilter(t *testing.T) {
 			driver:   "nwc",
 			scope:    "local",
 			services: true,
+			created:  time.Date(2025, time.June, 1, 0, 0, 0, 0, time.Local),
+		},
+		{
+			name:    "idoverlap",
+			id:      "aaaaa0my0bbbbbb",
+			driver:  "nwc",
+			scope:   "local",
+			created: time.Date(2025, time.February, 1, 0, 0, 0, 0, time.Local),
 		},
 	}
 
@@ -142,7 +163,7 @@ func TestFilter(t *testing.T) {
 		{
 			subtest: "type=custom",
 			filter:  filters.NewArgs(filters.Arg("type", "custom")),
-			results: []string{"myoverlay", "mydrivernet", "mykvnet", "networkwithcontainer", "networkwithservice"},
+			results: []string{"myoverlay", "mydrivernet", "mykvnet", "networkwithcontainer", "networkwithservice", "idoverlap"},
 		},
 		{
 			subtest: "type=builtin",
@@ -157,7 +178,7 @@ func TestFilter(t *testing.T) {
 		{
 			subtest: "scope=local",
 			filter:  filters.NewArgs(filters.Arg("scope", "local")),
-			results: []string{network.NetworkHost, network.NetworkBridge, network.NetworkNone, "mydrivernet", "networkwithcontainer", "networkwithservice"},
+			results: []string{network.NetworkHost, network.NetworkBridge, network.NetworkNone, "mydrivernet", "networkwithcontainer", "networkwithservice", "idoverlap"},
 		},
 		{
 			subtest: "scope=swarm",
@@ -172,12 +193,12 @@ func TestFilter(t *testing.T) {
 		{
 			subtest: "dangling=true",
 			filter:  filters.NewArgs(filters.Arg("dangling", "true")),
-			results: []string{"myoverlay", "mydrivernet", "mykvnet"},
+			results: []string{"myoverlay", "mydrivernet", "mykvnet", "idoverlap"},
 		},
 		{
 			subtest: "dangling=1",
 			filter:  filters.NewArgs(filters.Arg("dangling", "1")),
-			results: []string{"myoverlay", "mydrivernet", "mykvnet"},
+			results: []string{"myoverlay", "mydrivernet", "mykvnet", "idoverlap"},
 		},
 		{
 			subtest: "dangling=false",
@@ -226,6 +247,31 @@ func TestFilter(t *testing.T) {
 			subtest: "id=jbexjvgu",
 			filter:  filters.NewArgs(filters.Arg("id", "argjbex")),
 			results: []string{"networkwithcontainer", "networkwithservice"},
+		},
+		{
+			subtest: "id=my",
+			filter:  filters.NewArgs(filters.Arg("id", "my")),
+			results: []string{"idoverlap"},
+		},
+		{
+			subtest: "label!=foo",
+			filter:  filters.NewArgs(filters.Arg("label!", "foo")),
+			results: []string{network.NetworkHost, network.NetworkBridge, network.NetworkNone, "myoverlay", "mykvnet", "networkwithcontainer", "networkwithservice", "idoverlap"},
+		},
+		{
+			subtest: "until=2025-01-01",
+			filter:  filters.NewArgs(filters.Arg("until", "2025-01-01")),
+			results: []string{"myoverlay", "mydrivernet", "mykvnet"},
+		},
+		{
+			subtest: "until=2024-12-01T01:00:00",
+			filter:  filters.NewArgs(filters.Arg("until", "2024-12-01T01:00:00")),
+			results: []string{"myoverlay"},
+		},
+		{
+			subtest: "MultipleTerms=until",
+			filter:  filters.NewArgs(filters.Arg("until", "2024-12-01T01:00:00"), filters.Arg("until", "2h")),
+			err:     "more than one until filter specified",
 		},
 	}
 

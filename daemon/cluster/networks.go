@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/cluster/convert"
@@ -16,25 +15,11 @@ import (
 )
 
 // GetNetworks returns all current cluster managed networks.
-func (c *Cluster) GetNetworks(filter filters.Args) ([]network.Inspect, error) {
-	flt, err := networkSettings.NewFilter(filter)
-	if err != nil {
-		return nil, err
-	}
-
-	var f *swarmapi.ListNetworksRequest_Filters
-
-	if filter.Len() > 0 {
-		f = &swarmapi.ListNetworksRequest_Filters{}
-
-		if filter.Contains("name") {
-			f.Names = filter.Get("name")
-			f.NamePrefixes = filter.Get("name")
-		}
-
-		if filter.Contains("id") {
-			f.IDPrefixes = filter.Get("id")
-		}
+func (c *Cluster) GetNetworks(filter networkSettings.Filter) ([]network.Inspect, error) {
+	f := &swarmapi.ListNetworksRequest_Filters{
+		Names:        filter.Get("name"),
+		NamePrefixes: filter.Get("name"),
+		IDPrefixes:   filter.Get("id"),
 	}
 
 	list, err := c.listNetworks(context.TODO(), f)
@@ -46,7 +31,7 @@ func (c *Cluster) GetNetworks(filter filters.Args) ([]network.Inspect, error) {
 		if n.Spec.Annotations.Labels["com.docker.swarm.predefined"] == "true" {
 			continue
 		}
-		if flt.Matches(convert.FilterNetwork{N: n}) {
+		if filter.Matches(convert.FilterNetwork{N: n}) {
 			filtered = append(filtered, convert.BasicNetworkFromGRPC(*n))
 		}
 	}

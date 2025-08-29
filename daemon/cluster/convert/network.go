@@ -2,6 +2,7 @@ package convert
 
 import (
 	"strings"
+	"time"
 
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/network"
@@ -268,6 +269,11 @@ func (nw FilterNetwork) Labels() map[string]string {
 
 func (nw FilterNetwork) Scope() string {
 	return scope.Swarm
+}
+
+func (nw FilterNetwork) Created() time.Time {
+	t, _ := gogotypes.TimestampFromProto(nw.N.Meta.CreatedAt)
+	return t
 }
 
 func (nw FilterNetwork) HasContainerAttachments() bool {

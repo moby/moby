@@ -1,7 +1,10 @@
 package network
 
 import (
+	"time"
+
 	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 )
@@ -10,6 +13,7 @@ type Filter struct {
 	args filters.Args
 
 	filterByUse, danglingOnly bool
+	until                     time.Time
 }
 
 type FilterNetwork interface {
@@ -18,6 +22,7 @@ type FilterNetwork interface {
 	ID() string
 	Labels() map[string]string
 	Scope() string
+	Created() time.Time
 	HasContainerAttachments() bool
 	HasServiceAttachments() bool
 }
@@ -46,7 +51,31 @@ func NewFilter(args filters.Args) (Filter, error) {
 	if err := args.WalkValues("type", validateNetworkTypeFilter); err != nil {
 		return Filter{}, err
 	}
-	return Filter{args: args, filterByUse: filterByUse, danglingOnly: danglingOnly}, nil
+	until := time.Time{}
+	if untilFilters := args.Get("until"); len(untilFilters) > 0 {
+		if len(untilFilters) > 1 {
+			return Filter{}, errdefs.InvalidParameter(errors.New("more than one until filter specified"))
+		}
+		ts, err := timestamp.GetTimestamp(untilFilters[0], time.Now())
+		if err != nil {
+			return Filter{}, errdefs.InvalidParameter(err)
+		}
+		seconds, nanoseconds, err := timestamp.ParseTimestamps(ts, 0)
+		if err != nil {
+			return Filter{}, errdefs.InvalidParameter(err)
+		}
+		until = time.Unix(seconds, nanoseconds)
+	}
+	return Filter{
+		args:         args,
+		filterByUse:  filterByUse,
+		danglingOnly: danglingOnly,
+		until:        until,
+	}, nil
+}
+
+func (f Filter) Get(key string) []string {
+	return f.args.Get(key)
 }
 
 // Matches returns true if nw satisfies the filter criteria.
@@ -67,6 +96,10 @@ func (f Filter) Matches(nw FilterNetwork) bool {
 		!f.args.MatchKVList("label", nw.Labels()) {
 		return false
 	}
+	if f.args.Contains("label!") &&
+		f.args.MatchKVList("label!", nw.Labels()) {
+		return false
+	}
 	if f.args.Contains("scope") &&
 		!f.args.ExactMatch("scope", nw.Scope()) {
 		return false
@@ -82,6 +115,10 @@ func (f Filter) Matches(nw FilterNetwork) bool {
 	}
 	if netTypes := f.args.Get("type"); len(netTypes) > 0 &&
 		!matchesType(netTypes, nw) {
+		return false
+	}
+	if !f.until.IsZero() &&
+		nw.Created().After(f.until) {
 		return false
 	}
 	return true
