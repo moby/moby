@@ -27,14 +27,6 @@ func transportEnsureBody(f transportFunc) transportFunc {
 	}
 }
 
-func newMockClient(doer func(*http.Request) (*http.Response, error)) *http.Client {
-	return &http.Client{
-		// Some tests return a response with a nil body, this is incorrect semantically and causes a panic with wrapper transports (such as otelhttp's)
-		// Wrap the doer to ensure a body is always present even if it is empty.
-		Transport: transportEnsureBody(transportFunc(doer)),
-	}
-}
-
 // WithMockClient is a test helper that allows you to inject a mock client for testing.
 func WithMockClient(doer func(*http.Request) (*http.Response, error)) Opt {
 	return func(c *Client) error {
