@@ -14,7 +14,7 @@ import (
 func (c *Cluster) GetConfig(input string) (types.Config, error) {
 	var config *swarmapi.Config
 
-	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		s, err := getConfig(ctx, state.controlClient, input)
 		if err != nil {
 			return err
@@ -29,26 +29,19 @@ func (c *Cluster) GetConfig(input string) (types.Config, error) {
 
 // GetConfigs returns all configs of a managed swarm cluster.
 func (c *Cluster) GetConfigs(options swarmbackend.ConfigListOptions) ([]types.Config, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	state := c.currentNodeState()
-	if !state.IsActiveManager() {
-		return nil, c.errNoManager(state)
-	}
-
 	filters, err := newListConfigsFilters(options.Filters)
 	if err != nil {
 		return nil, err
 	}
 
-	ctx := context.TODO()
-	ctx, cancel := context.WithTimeout(ctx, swarmRequestTimeout)
-	defer cancel()
-
-	r, err := state.controlClient.ListConfigs(ctx,
-		&swarmapi.ListConfigsRequest{Filters: filters},
-		grpc.MaxCallRecvMsgSize(defaultRecvSizeForListResponse))
+	var r *swarmapi.ListConfigsResponse
+	err = c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+		var err error
+		r, err = state.controlClient.ListConfigs(ctx,
+			&swarmapi.ListConfigsRequest{Filters: filters},
+			grpc.MaxCallRecvMsgSize(defaultRecvSizeForListResponse))
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +58,7 @@ func (c *Cluster) GetConfigs(options swarmbackend.ConfigListOptions) ([]types.Co
 // CreateConfig creates a new config in a managed swarm cluster.
 func (c *Cluster) CreateConfig(s types.ConfigSpec) (string, error) {
 	var resp *swarmapi.CreateConfigResponse
-	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		configSpec := convert.ConfigSpecToGRPC(s)
 
 		r, err := state.controlClient.CreateConfig(ctx,
@@ -83,7 +76,7 @@ func (c *Cluster) CreateConfig(s types.ConfigSpec) (string, error) {
 
 // RemoveConfig removes a config from a managed swarm cluster.
 func (c *Cluster) RemoveConfig(input string) error {
-	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	return c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		config, err := getConfig(ctx, state.controlClient, input)
 		if err != nil {
 			return err
@@ -101,7 +94,7 @@ func (c *Cluster) RemoveConfig(input string) error {
 // UpdateConfig updates a config in a managed swarm cluster.
 // Note: this is not exposed to the CLI but is available from the API only
 func (c *Cluster) UpdateConfig(input string, version uint64, spec types.ConfigSpec) error {
-	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	return c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		config, err := getConfig(ctx, state.controlClient, input)
 		if err != nil {
 			return err

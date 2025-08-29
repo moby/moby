@@ -432,7 +432,7 @@ func detectLockedError(err error) error {
 	return err
 }
 
-func (c *Cluster) lockedManagerAction(fn func(ctx context.Context, state nodeState) error) error {
+func (c *Cluster) lockedManagerAction(ctx context.Context, fn func(ctx context.Context, state nodeState) error) error {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -441,7 +441,6 @@ func (c *Cluster) lockedManagerAction(fn func(ctx context.Context, state nodeSta
 		return c.errNoManager(state)
 	}
 
-	ctx := context.TODO()
 	ctx, cancel := context.WithTimeout(ctx, swarmRequestTimeout)
 	defer cancel()
 

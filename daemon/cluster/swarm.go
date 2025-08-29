@@ -219,7 +219,7 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 // Inspect retrieves the configuration properties of a managed swarm cluster.
 func (c *Cluster) Inspect() (types.Swarm, error) {
 	var swarm types.Swarm
-	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		s, err := c.inspect(ctx, state)
 		if err != nil {
 			return err
@@ -242,7 +242,7 @@ func (c *Cluster) inspect(ctx context.Context, state nodeState) (types.Swarm, er
 
 // Update updates configuration of a managed swarm cluster.
 func (c *Cluster) Update(version uint64, spec types.Spec, flags swarmbackend.UpdateFlags) error {
-	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	return c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		swarm, err := getSwarm(ctx, state.controlClient)
 		if err != nil {
 			return err
@@ -285,7 +285,7 @@ func (c *Cluster) Update(version uint64, spec types.Spec, flags swarmbackend.Upd
 // GetUnlockKey returns the unlock key for the swarm.
 func (c *Cluster) GetUnlockKey() (string, error) {
 	var resp *swarmapi.GetUnlockKeyResponse
-	if err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		client := swarmapi.NewCAClient(state.grpcConn)
 
 		r, err := client.GetUnlockKey(ctx, &swarmapi.GetUnlockKeyRequest{})
