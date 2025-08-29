@@ -11109,10 +11109,11 @@ paths:
                containers are returned.
             - `driver=<driver-name>` Matches a network's driver.
             - `id=<network-id>` Matches all or part of a network ID.
-            - `label=<key>` or `label=<key>=<value>` of a network label.
+            - `label` (`label=<key>`, `label=<key>=<value>`, `label!=<key>`, or `label!=<key>=<value>`) Matches networks with (or without, in case `label!=...` is used) the specified labels.
             - `name=<network-name>` Matches all or part of a network name.
             - `scope=["swarm"|"global"|"local"]` Filters networks by scope (`swarm`, `global`, or `local`).
             - `type=["custom"|"builtin"]` Filters networks by type. The `custom` keyword returns all user-defined networks.
+            - `until=<timestamp>` Matches networks created before this timestamp. The `<timestamp>` can be Unix timestamps, date formatted timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed relative to the daemon machine’s time.
           type: "string"
       tags: ["Network"]
 
@@ -11408,6 +11409,15 @@ paths:
             Available filters:
             - `until=<timestamp>` Prune networks created before this timestamp. The `<timestamp>` can be Unix timestamps, date formatted timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed relative to the daemon machine’s time.
             - `label` (`label=<key>`, `label=<key>=<value>`, `label!=<key>`, or `label!=<key>=<value>`) Prune networks with (or without, in case `label!=...` is used) the specified labels.
+            - `driver=<driver-name>` Prune networks based on their driver.
+            - `name=<network-name>` Prune networks by all or part of a network name.
+            - `scope=["swarm"|"global"|"local"]` Prune networks by scope (`swarm`, `global`, or `local`).
+
+            All the filters supported by the `GET /networks` endpoint are also supported here for consistency.
+            The filters not listed above are not very useful for pruning.
+            - `type=["custom"|"builtin"]` Built-in networks cannot be removed.
+            - `id=<network-id>` Equivalent to `DELETE /networks/{id}`.
+            - `dangling=<boolean>` Networks in use by a container cannot be removed.
           type: "string"
       responses:
         200:
