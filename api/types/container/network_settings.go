@@ -13,8 +13,11 @@ type NetworkSettings struct {
 }
 
 // NetworkSettingsBase holds networking state for a container when inspecting it.
+//
+// Deprecated: Most fields in NetworkSettingsBase are deprecated. Fields which aren't deprecated will move to
+// NetworkSettings in v29.0, and this struct will be removed.
 type NetworkSettingsBase struct {
-	Bridge     string      // Bridge contains the name of the default bridge interface iff it was set through the daemon --bridge flag.
+	Bridge     string      // Deprecated: This field is only set when the daemon is started with the --bridge flag specified.
 	SandboxID  string      // SandboxID uniquely represents a container's network stack
 	SandboxKey string      // SandboxKey identifies the sandbox
 	Ports      nat.PortMap // Ports is a collection of PortBinding indexed by Port
@@ -35,18 +38,44 @@ type NetworkSettingsBase struct {
 	SecondaryIPv6Addresses []network.Address // Deprecated: This field is never set and will be removed in a future release.
 }
 
-// DefaultNetworkSettings holds network information
-// during the 2 release deprecation period.
-// It will be removed in Docker 1.11.
+// DefaultNetworkSettings holds the networking state for the default bridge, if the container is connected to that
+// network.
+//
+// Deprecated: this struct is deprecated since Docker v1.11 and will be removed in v29. You should look for the default
+// network in NetworkSettings.Networks instead.
 type DefaultNetworkSettings struct {
-	EndpointID          string // EndpointID uniquely represents a service endpoint in a Sandbox
-	Gateway             string // Gateway holds the gateway address for the network
-	GlobalIPv6Address   string // GlobalIPv6Address holds network's global IPv6 address
-	GlobalIPv6PrefixLen int    // GlobalIPv6PrefixLen represents mask length of network's global IPv6 address
-	IPAddress           string // IPAddress holds the IPv4 address for the network
-	IPPrefixLen         int    // IPPrefixLen represents mask length of network's IPv4 address
-	IPv6Gateway         string // IPv6Gateway holds gateway address specific for IPv6
-	MacAddress          string // MacAddress holds the MAC address for the network
+	// EndpointID uniquely represents a service endpoint in a Sandbox
+	//
+	// Deprecated: This field will be removed in v29. You should look for the default network in NetworkSettings.Networks instead.
+	EndpointID string
+	// Gateway holds the gateway address for the network
+	//
+	// Deprecated: This field will be removed in v29. You should look for the default network in NetworkSettings.Networks instead.
+	Gateway string
+	// GlobalIPv6Address holds network's global IPv6 address
+	//
+	// Deprecated: This field will be removed in v29. You should look for the default network in NetworkSettings.Networks instead.
+	GlobalIPv6Address string
+	// GlobalIPv6PrefixLen represents mask length of network's global IPv6 address
+	//
+	// Deprecated: This field will be removed in v29. You should look for the default network in NetworkSettings.Networks instead.
+	GlobalIPv6PrefixLen int
+	// IPAddress holds the IPv4 address for the network
+	//
+	// Deprecated: This field will be removed in v29. You should look for the default network in NetworkSettings.Networks instead.
+	IPAddress string
+	// IPPrefixLen represents mask length of network's IPv4 address
+	//
+	// Deprecated: This field will be removed in v29. You should look for the default network in NetworkSettings.Networks instead.
+	IPPrefixLen int
+	// IPv6Gateway holds gateway address specific for IPv6
+	//
+	// Deprecated: This field will be removed in v29. You should look for the default network in NetworkSettings.Networks instead.
+	IPv6Gateway string
+	// MacAddress holds the MAC address for the network
+	//
+	// Deprecated: This field will be removed in v29. You should look for the default network in NetworkSettings.Networks instead.
+	MacAddress string
 }
 
 // NetworkSettingsSummary provides a summary of container's networks

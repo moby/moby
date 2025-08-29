@@ -97,9 +97,10 @@ ff02::2	ip6-allrouters
 			stdout := runCmd(ctrId, []string{"cat", "/etc/hosts"}, 0)
 			// Append the container's own addresses/name to the expected hosts file content.
 			inspect := container.Inspect(ctx, t, c, ctrId)
-			exp := tc.expEtcHosts + inspect.NetworkSettings.IPAddress + "\t" + inspect.Config.Hostname + "\n"
+			bridgeEp := inspect.NetworkSettings.Networks["bridge"]
+			exp := tc.expEtcHosts + bridgeEp.IPAddress + "\t" + inspect.Config.Hostname + "\n"
 			if tc.expIPv6Enabled {
-				exp += inspect.NetworkSettings.GlobalIPv6Address + "\t" + inspect.Config.Hostname + "\n"
+				exp += bridgeEp.GlobalIPv6Address + "\t" + inspect.Config.Hostname + "\n"
 			}
 			assert.Check(t, is.Equal(stdout, exp))
 		})
