@@ -10,11 +10,11 @@ import (
 
 type fakePortMapper struct{}
 
-func (f fakePortMapper) MapPorts(_ context.Context, _ []portmapperapi.PortBindingReq, _ portmapperapi.Firewaller) ([]portmapperapi.PortBinding, error) {
+func (f fakePortMapper) MapPorts(_ context.Context, _ []portmapperapi.PortBindingReq) ([]portmapperapi.PortBinding, error) {
 	return nil, nil
 }
 
-func (f fakePortMapper) UnmapPorts(_ context.Context, _ []portmapperapi.PortBinding, _ portmapperapi.Firewaller) error {
+func (f fakePortMapper) UnmapPorts(_ context.Context, _ []portmapperapi.PortBinding) error {
 	return nil
 }
 

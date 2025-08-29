@@ -45,7 +45,6 @@ func TestPortMappingConfig(t *testing.T) {
 
 	config := &configuration{
 		EnableIPTables: true,
-		Hairpin:        true,
 	}
 	genericOption := make(map[string]any)
 	genericOption[netlabel.GenericData] = config
@@ -563,7 +562,6 @@ func TestAddPortMappings(t *testing.T) {
 			cfg: []portmapperapi.PortBindingReq{
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22, HostIP: net.IPv6loopback}},
 			},
-			hairpin: true,
 			expLogs: []string{"Cannot map from IPv6 to an IPv4-only container because the userland proxy is disabled"},
 		},
 		{
@@ -573,7 +571,6 @@ func TestAddPortMappings(t *testing.T) {
 			cfg: []portmapperapi.PortBindingReq{
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22}},
 			},
-			hairpin: true,
 			expLogs: []string{"Cannot map from default host binding address to an IPv4-only container because the userland proxy is disabled"},
 		},
 		{
@@ -718,7 +715,7 @@ func TestAddPortMappings(t *testing.T) {
 
 			// Mock the startProxy function used by the code under test.
 			proxies := map[proxyCall]bool{} // proxy -> is not stopped
-			startProxy := func(pb types.PortBinding, listenSock *os.File) (stop func() error, retErr error) {
+			startProxy = func(pb types.PortBinding, _ string, listenSock *os.File) (stop func() error, retErr error) {
 				if tc.busyPortIPv4 > 0 && tc.busyPortIPv4 == int(pb.HostPort) && pb.HostIP.To4() != nil {
 					return nil, errors.New("busy port")
 				}
@@ -768,9 +765,7 @@ func TestAddPortMappings(t *testing.T) {
 
 			pms := &drvregistry.PortMappers{}
 			err := nat.Register(pms, nat.Config{
-				RlkClient:   pdc,
-				EnableProxy: tc.enableProxy,
-				StartProxy:  startProxy,
+				RlkClient: pdc,
 			})
 			assert.NilError(t, err)
 			err = routed.Register(pms)
@@ -791,7 +786,7 @@ func TestAddPortMappings(t *testing.T) {
 				netlabel.GenericData: &configuration{
 					EnableIPTables:  true,
 					EnableIP6Tables: true,
-					Hairpin:         tc.hairpin,
+					EnableProxy:     tc.enableProxy,
 				},
 			}
 			err = n.driver.configure(genericOption)
@@ -892,8 +887,8 @@ func TestAddPortMappings(t *testing.T) {
 			}
 
 			// Check a docker-proxy was started and stopped for each expected port binding.
+			expProxies := map[proxyCall]bool{}
 			if tc.enableProxy {
-				expProxies := map[proxyCall]bool{}
 				for _, expPB := range tc.expPBs {
 					hip := expChildIP(expPB.HostIP)
 					is4 := hip.To4() != nil
@@ -905,8 +900,8 @@ func TestAddPortMappings(t *testing.T) {
 						expPB.IP, int(expPB.Port))
 					expProxies[p] = tc.expReleaseErr != ""
 				}
-				assert.Check(t, is.DeepEqual(expProxies, proxies))
 			}
+			assert.Check(t, is.DeepEqual(expProxies, proxies))
 
 			// Check the port driver has seen the expected port mappings and no others,
 			// and that they have all been closed.
@@ -995,7 +990,7 @@ type stubPortMapper struct {
 	mapped []portmapperapi.PortBinding
 }
 
-func (pm *stubPortMapper) MapPorts(_ context.Context, reqs []portmapperapi.PortBindingReq, _ portmapperapi.Firewaller) ([]portmapperapi.PortBinding, error) {
+func (pm *stubPortMapper) MapPorts(_ context.Context, reqs []portmapperapi.PortBindingReq) ([]portmapperapi.PortBinding, error) {
 	if len(reqs) == 0 {
 		return []portmapperapi.PortBinding{}, nil
 	}
@@ -1007,7 +1002,7 @@ func (pm *stubPortMapper) MapPorts(_ context.Context, reqs []portmapperapi.PortB
 	return pbs, nil
 }
 
-func (pm *stubPortMapper) UnmapPorts(_ context.Context, reqs []portmapperapi.PortBinding, _ portmapperapi.Firewaller) error {
+func (pm *stubPortMapper) UnmapPorts(_ context.Context, reqs []portmapperapi.PortBinding) error {
 	for _, req := range reqs {
 		// We're only checking for the PortBinding here, not any other
 		// property of [portmapperapi.PortBinding].

@@ -29,10 +29,10 @@ type PortMapper interface {
 	// When an ephemeral port, or a single port from a range is requested
 	// MapPorts should attempt a few times to find a free port available
 	// across all IP addresses.
-	MapPorts(ctx context.Context, reqs []PortBindingReq, fwn Firewaller) ([]PortBinding, error)
+	MapPorts(ctx context.Context, reqs []PortBindingReq) ([]PortBinding, error)
 
 	// UnmapPorts takes a list of port bindings to unmap.
-	UnmapPorts(ctx context.Context, pbs []PortBinding, fwn Firewaller) error
+	UnmapPorts(ctx context.Context, pbs []PortBinding) error
 }
 
 type PortBindingReq struct {
@@ -92,9 +92,25 @@ func (pbReq PortBindingReq) Compare(other PortBindingReq) int {
 }
 
 type PortBinding struct {
+	// PortBinding contains the port binding information reported through the
+	// Engine API.
 	types.PortBinding
 	// Mapper is the name of the port mapper used to process this PortBinding.
 	Mapper string
+
+	// NAT represents the host IP and port that should be NATed to the
+	// container IP and port specified in types.PortBinding. When set, callers
+	// of the port mapper should reconfigure the host firewall. When it's not
+	// set, callers won't reconfigure the host firewall.
+	//
+	// If the address is invalid, or a non-unicast address, or the port is 0,
+	// it's treated as an error. If both Forwarding and NAT are specified, NAT
+	// takes precedence.
+	NAT netip.AddrPort
+	// Forwarding indicates whether callers of the port mapper should update
+	// the host firewall to allow traffic forwarding to IP:Port.
+	Forwarding bool
+
 	// BoundSocket is used to reserve a host port for the binding. If the
 	// userland proxy is in-use, it's passed to the proxy when the proxy is
 	// started, then it's closed and set to nil here.

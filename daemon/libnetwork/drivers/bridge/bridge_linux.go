@@ -69,10 +69,11 @@ type configuration struct {
 	DisableFilterForwardDrop bool
 	EnableIPTables           bool
 	EnableIP6Tables          bool
-	// Hairpin indicates whether packets sent from a container to a host port
-	// published by another container on the same bridge network should be
-	// hairpinned.
-	Hairpin            bool
+	// EnableProxy indicates whether the userland proxy should be used for NAT
+	// port-mappings that can't be fulfilled with firewall rules alone. This
+	// must not be true if ProxyPath is empty.
+	EnableProxy        bool
+	ProxyPath          string
 	AllowDirectRouting bool
 	AcceptFwMark       string
 }
@@ -472,15 +473,6 @@ func (n *bridgeNetwork) gwMode(v firewaller.IPVersion) gwMode {
 	return n.config.GwModeIPv6
 }
 
-func (n *bridgeNetwork) hairpin() bool {
-	n.Lock()
-	defer n.Unlock()
-	if n.driver == nil {
-		return false
-	}
-	return n.driver.config.Hairpin
-}
-
 func (n *bridgeNetwork) portMappers() *drvregistry.PortMappers {
 	n.Lock()
 	defer n.Unlock()
@@ -525,7 +517,7 @@ func (d *driver) configure(option map[string]any) error {
 	d.firewaller, err = newFirewaller(context.Background(), firewaller.Config{
 		IPv4:               config.EnableIPTables,
 		IPv6:               config.EnableIP6Tables,
-		Hairpin:            config.Hairpin,
+		Hairpin:            !config.EnableProxy,
 		AllowDirectRouting: config.AllowDirectRouting,
 		WSL2Mirrored:       isRunningUnderWSL2MirroredMode(context.Background()),
 	})
@@ -853,8 +845,8 @@ func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration
 	}
 
 	// Module br_netfilter needs to be loaded with net.bridge.bridge-nf-call-ip[6]tables
-	// enabled to implement icc=false, or DNAT when hairpin mode is enabled.
-	enableBrNfCallIptables := !config.EnableICC || d.config.Hairpin
+	// enabled to implement icc=false, or DNAT when the userland-proxy is disabled.
+	enableBrNfCallIptables := !config.EnableICC || !d.config.EnableProxy
 
 	// Conditionally queue setup steps depending on configuration values.
 	for _, step := range []struct {
@@ -906,7 +898,7 @@ func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration
 		},
 
 		// Setup Loopback Addresses Routing
-		{d.config.Hairpin, "setupLoopbackAddressesRouting", setupLoopbackAddressesRouting},
+		{!d.config.EnableProxy, "setupLoopbackAddressesRouting", setupLoopbackAddressesRouting},
 
 		// Setup DefaultGatewayIPv4
 		{config.DefaultGatewayIPv4 != nil, "setupGatewayIPv4", setupGatewayIPv4},
@@ -1185,7 +1177,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		return fmt.Errorf("adding interface %s to bridge %s failed: %v", hostIfName, config.BridgeName, err)
 	}
 
-	if dconfig.Hairpin {
+	if !dconfig.EnableProxy {
 		err = setHairpinMode(d.nlh, host, true)
 		if err != nil {
 			return err

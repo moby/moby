@@ -5,14 +5,21 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
+	"os"
 	"slices"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/internal/sliceutil"
+	"github.com/moby/moby/v2/daemon/libnetwork/drvregistry"
 	"github.com/moby/moby/v2/daemon/libnetwork/netutils"
+	"github.com/moby/moby/v2/daemon/libnetwork/portallocator"
+	"github.com/moby/moby/v2/daemon/libnetwork/portmapper"
 	"github.com/moby/moby/v2/daemon/libnetwork/portmapperapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
+
+// Allow unit tests to supply a dummy StartProxy.
+var startProxy = portmapper.StartProxy
 
 // addPortMappings takes cfg, the configuration for port mappings, selects host
 // ports when ranges are given, binds host ports to check they're available and
@@ -72,22 +79,104 @@ func (n *bridgeNetwork) addPortMappings(
 			continue
 		}
 
-		pm, err := pms.Get(c.Mapper)
+		newB, err := n.mapPorts(ctx, pms, toBind)
 		if err != nil {
 			return nil, err
 		}
-
-		newB, err := pm.MapPorts(ctx, toBind, n.firewallerNetwork)
-		if err != nil {
-			return nil, err
-		}
-		bindings = append(bindings, sliceutil.Map(newB, func(b portmapperapi.PortBinding) portmapperapi.PortBinding {
-			b.Mapper = c.Mapper
-			return b
-		})...)
+		bindings = append(bindings, newB...)
 
 		// Reset toBind now the ports are bound.
 		toBind = toBind[:0]
+	}
+
+	return bindings, nil
+}
+
+// mapPorts calls the port mapper used to map the ports in reqs, applies the firewall rules requested by that portmapper,
+// and starts userland proxies if needed. It returns an error if it fails on any of these steps, and rolls back any
+// changes it made. Caller must ensure that reqs is non-empty and all requests have the same Mapper set.
+func (n *bridgeNetwork) mapPorts(ctx context.Context, pms *drvregistry.PortMappers, reqs []portmapperapi.PortBindingReq) (_ []portmapperapi.PortBinding, retErr error) {
+	mapper := reqs[0].Mapper
+	pm, err := pms.Get(mapper)
+	if err != nil {
+		return nil, err
+	}
+
+	bindings, err := pm.MapPorts(ctx, reqs)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if retErr != nil {
+			if err := pm.UnmapPorts(ctx, bindings); err != nil {
+				log.G(ctx).WithFields(log.Fields{
+					"bindings": bindings,
+					"error":    err,
+					"origErr":  retErr,
+				}).Warn("Failed to unmap port bindings after error")
+			}
+			return
+		}
+	}()
+
+	for i := range bindings {
+		// Make sure that Mapper is correctly set such that UnmapPorts call the right portmapper.
+		bindings[i].Mapper = mapper
+	}
+
+	fwPorts := collectFirewallPorts(bindings)
+	if err := n.firewallerNetwork.AddPorts(ctx, fwPorts); err != nil {
+		return nil, err
+	}
+	defer func() {
+		if retErr != nil {
+			if err := n.firewallerNetwork.DelPorts(ctx, fwPorts); err != nil {
+				log.G(ctx).WithFields(log.Fields{
+					"bindings": bindings,
+					"error":    err,
+					"origErr":  retErr,
+				}).Warn("Failed to remove firewall rules after error")
+			}
+		}
+	}()
+
+	// Start userland proxy processes.
+	defer func() {
+		if retErr != nil {
+			for _, pb := range bindings {
+				if pb.StopProxy == nil {
+					continue
+				}
+				if err := pb.StopProxy(); err != nil {
+					log.G(ctx).WithFields(log.Fields{
+						"binding": pb.PortBinding,
+						"error":   err,
+					}).Warnf("failed to stop userland proxy for port mapping")
+				}
+			}
+		}
+	}()
+	if n.driver.config.EnableProxy {
+		for i, pb := range bindings {
+			if pb.BoundSocket == nil || pb.RootlesskitUnsupported || pb.StopProxy != nil {
+				continue
+			}
+			if err := portallocator.DetachSocketFilter(bindings[i].BoundSocket); err != nil {
+				return nil, fmt.Errorf("failed to detach socket filter for port mapping %s: %w", bindings[i].PortBinding, err)
+			}
+			var err error
+			bindings[i].StopProxy, err = startProxy(pb.ChildPortBinding(), n.driver.config.ProxyPath, pb.BoundSocket)
+			if err != nil {
+				return nil, fmt.Errorf("failed to start userland proxy for port mapping %s: %w", pb.PortBinding, err)
+			}
+			if err := bindings[i].BoundSocket.Close(); err != nil {
+				log.G(ctx).WithFields(log.Fields{
+					"error":   err,
+					"mapping": pb.PortBinding,
+				}).Warnf("failed to close proxy socket")
+			}
+			bindings[i].BoundSocket = nil
+		}
 	}
 
 	return bindings, nil
@@ -123,7 +212,6 @@ func (n *bridgeNetwork) sortAndNormPBs(
 		containerIPv6 = ep.addrv6.IP
 	}
 
-	hairpin := n.hairpin()
 	disableNAT4, disableNAT6 := n.getNATDisabled()
 
 	add4 := !ep.portBindingState.ipv4 && pbmReq.ipv4 || (disableNAT4 && !ep.portBindingState.routed && pbmReq.routed)
@@ -146,7 +234,7 @@ func (n *bridgeNetwork) sortAndNormPBs(
 		// This change was added to keep backward compatibility
 		containerIP := containerIPv6
 		if containerIPv6 == nil && pbmReq.ipv4 && add6 {
-			if hairpin {
+			if !n.driver.config.EnableProxy {
 				// There's no way to map from host-IPv6 to container-IPv4 with the userland proxy
 				// disabled.
 				// If that is required, don't treat it as an error because, as networks are
@@ -187,21 +275,6 @@ func needSamePort(a, b portmapperapi.PortBindingReq) bool {
 		a.Proto == b.Proto &&
 		a.HostPort == b.HostPort &&
 		a.HostPortEnd == b.HostPortEnd
-}
-
-// mergeChildHostIPs take a slice of PortBinding and returns a slice of
-// types.PortBinding, where the HostIP in each of the results has the
-// value of ChildHostIP from the input (if present).
-func mergeChildHostIPs(pbs []portmapperapi.PortBinding) []types.PortBinding {
-	res := make([]types.PortBinding, 0, len(pbs))
-	for _, b := range pbs {
-		pb := b.PortBinding
-		if b.ChildHostIP != nil {
-			pb.HostIP = b.ChildHostIP
-		}
-		res = append(res, pb)
-	}
-	return res
 }
 
 // configurePortBindingIPv4 returns a new port binding with the HostIP field
@@ -340,9 +413,18 @@ func (n *bridgeNetwork) unmapPBs(ctx context.Context, bindings []portmapperapi.P
 			continue
 		}
 
-		if err := pm.UnmapPorts(ctx, []portmapperapi.PortBinding{b}, n.firewallerNetwork); err != nil {
+		if err := pm.UnmapPorts(ctx, []portmapperapi.PortBinding{b}); err != nil {
 			errs = append(errs, fmt.Errorf("unmapping port binding %s: %w", b.PortBinding, err))
 		}
+		if b.StopProxy != nil {
+			if err := b.StopProxy(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+				errs = append(errs, fmt.Errorf("unmapping port binding %s: failed to stop userland proxy: %w", b.PortBinding, err))
+			}
+		}
+	}
+
+	if err := n.firewallerNetwork.DelPorts(ctx, collectFirewallPorts(bindings)); err != nil {
+		return err
 	}
 
 	return errors.Join(errs...)
@@ -365,7 +447,55 @@ func (n *bridgeNetwork) reapplyPerPortIptables() {
 		}
 	}
 
-	if err := n.firewallerNetwork.AddPorts(context.Background(), mergeChildHostIPs(allPBs)); err != nil {
+	if err := n.firewallerNetwork.AddPorts(context.Background(), collectFirewallPorts(allPBs)); err != nil {
 		log.G(context.TODO()).Warnf("Failed to reconfigure NAT: %s", err)
+	}
+}
+
+// collectFirewallPorts collects all the types.PortBinding needed to
+// reconfigure the host firewall for a given list of port bindings. If one of
+// the pbs is NATed, but has an invalid NAT field (i.e. multicast address, or a
+// port 0), an error is returned.
+func collectFirewallPorts(pbs []portmapperapi.PortBinding) []types.PortBinding {
+	var fwPBs []types.PortBinding
+	for _, pb := range pbs {
+		if pb.NAT.IsValid() {
+			if pb.NAT.Addr().IsMulticast() || pb.NAT.Port() == 0 {
+				log.G(context.Background()).WithFields(log.Fields{"pb": pb}).Error("invalid NAT address")
+				continue
+			}
+			fwPBs = append(fwPBs, toNATBinding(pb))
+		} else if pb.Forwarding {
+			fwPBs = append(fwPBs, toFwdBinding(pb))
+		}
+	}
+	return fwPBs
+}
+
+// toNATBinding converts a portmapperapi.PortBinding to a types.PortBinding
+// that can be passed to firewaller.Network for setting up a NAT rule.
+func toNATBinding(pb portmapperapi.PortBinding) types.PortBinding {
+	return types.PortBinding{
+		IP:          pb.IP,
+		Port:        pb.Port,
+		Proto:       pb.Proto,
+		HostIP:      pb.NAT.Addr().AsSlice(),
+		HostPort:    pb.NAT.Port(),
+		HostPortEnd: pb.NAT.Port(),
+	}
+}
+
+// toFwdBinding converts a portmapperapi.PortBinding to a types.PortBinding
+// that can be passed to firewaller.Network for setting up forwarding.
+func toFwdBinding(pb portmapperapi.PortBinding) types.PortBinding {
+	unspecAddr := netip.IPv4Unspecified()
+	if pb.IP.To4() == nil {
+		unspecAddr = netip.IPv6Unspecified()
+	}
+	return types.PortBinding{
+		IP:     pb.IP,
+		Port:   pb.Port,
+		Proto:  pb.Proto,
+		HostIP: unspecAddr.AsSlice(),
 	}
 }
