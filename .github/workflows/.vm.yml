@@ -1,0 +1,204 @@
+# reusable workflow
+name: .vm
+
+# TODO: hide reusable workflow from the UI. Tracked in https://github.com/community/community/discussions/12025
+
+# Default to 'contents: read', which grants actions to read commits.
+#
+# If any permission is set, any permission not included in the list is
+# implicitly set to "none".
+#
+# see https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions
+permissions:
+  contents: read
+
+on:
+  workflow_call:
+    inputs:
+      template:
+        required: true
+        type: string
+
+env:
+  GO_VERSION: "1.24.6"
+  TESTSTAT_VERSION: v0.1.25
+
+jobs:
+  integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    continue-on-error: ${{ github.event_name != 'pull_request' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        mode:
+          - ""
+          - rootless
+
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v4
+      -
+        name: Set up Lima
+        uses: lima-vm/lima-actions/setup@03b96d61959e83b2c737e44162c3088e81de0886  # v1.0.1
+        id: lima-actions-setup
+      -
+        name: Cache ~/.cache/lima
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/lima
+          key: lima-${{ steps.lima-actions-setup.outputs.version }}-${{ inputs.template }}
+      -
+        name: Start the guest VM
+        run: |
+          # --plain is set because the built-in containerd support conflicts with Docker
+          limactl start \
+            --name=default \
+            --cpus=4 \
+            --memory=12 \
+            --plain \
+            ${{ inputs.template }}
+      -
+        name: Load kernel modules in the guest VM
+        run: |
+          set -eux -o pipefail
+          cat <<-EOF | lima sudo tee /etc/modules-load.d/docker.conf
+          br_netfilter
+          bridge
+          ip6_tables
+          ip6table_filter
+          ip6table_nat
+          ip_tables
+          ip_vs
+          iptable_filter
+          iptable_nat
+          nf_tables
+          overlay
+          tap
+          tun
+          veth
+          x_tables
+          xt_addrtype
+          xt_comment
+          xt_conntrack
+          xt_mark
+          xt_multiport
+          xt_nat
+          xt_tcpudp
+          EOF
+          lima sudo systemctl restart systemd-modules-load.service
+      -
+        name: Install dockerd in the guest VM
+        run: |
+          set -eux -o pipefail
+          lima sudo mkdir -p /etc/systemd/system/docker.socket.d
+          cat <<-EOF | lima sudo tee /etc/systemd/system/docker.socket.d/override.conf
+          [Socket]
+          SocketUser=$(whoami)
+          EOF
+          # TODO: use native packages for AlmaLinux: https://github.com/docker/packaging/pull/138
+          lima sudo dnf config-manager --add-repo=https://download.docker.com/linux/rhel/docker-ce.repo
+          lima sudo dnf -q -y install --nobest docker-ce make
+          lima sudo systemctl enable --now docker
+          lima docker info
+      -
+        name: Copy the current directory
+        run: |
+          set -eux -o pipefail
+          limactl cp -r . default:/tmp/docker
+      -
+        name: Test
+        run: |
+          set -eux -o pipefail
+          DOCKER_ROOTLESS=
+          DOCKER_GRAPHDRIVER=overlay2
+          if [[ "${{ matrix.mode }}" == *"rootless"* ]]; then
+            DOCKER_ROOTLESS=1
+            if lima grep -q "AlmaLinux release 8" /etc/system-release; then
+              # kernel prior to 5.11 needs fuse-overlayfs
+              DOCKER_GRAPHDRIVER=fuse-overlayfs
+            fi
+          fi
+
+          DOCKER_IGNORE_BR_NETFILTER_ERROR=
+          if lima grep -q "AlmaLinux release 8" /etc/system-release; then
+            # DOCKER_IGNORE_BR_NETFILTER_ERROR=1 is set because /proc/sys/net/bridge does not appear in
+            # a container when the kernel is older than 5.3.
+            # https://web.archive.org/web/20201123224428/github.com/lxc/lxd/issues/3306#issuecomment-502857864
+            DOCKER_IGNORE_BR_NETFILTER_ERROR=1
+          fi
+
+          # TODO: just propagate the env from the host: https://github.com/lima-vm/lima/issues/3430
+          # TODO: enable GHA cache?
+          LIMA_WORKDIR=/tmp/docker lima \
+            TEST_SKIP_INTEGRATION_CLI=1 \
+            TEST_INTEGRATION_USE_GRAPHDRIVER=1 \
+            DOCKER_ROOTLESS=${DOCKER_ROOTLESS} \
+            DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER} \
+            DOCKER_IGNORE_BR_NETFILTER_ERROR=${DOCKER_IGNORE_BR_NETFILTER_ERROR} \
+            make test-integration
+      -
+        name: Prepare reports
+        if: always()
+        run: |
+          set -eux -o pipefail
+          limactl cp -v -r default:/tmp/docker/bundles . || true
+          reportsName="$(basename ${{ inputs.template }})"
+          if [ -n "${{ matrix.mode }}" ]; then
+            reportsName="$reportsName-${{ matrix.mode }}"
+          fi
+          reportsPath="/tmp/reports/$reportsName"
+          echo "TESTREPORTS_NAME=$reportsName" >> $GITHUB_ENV
+
+          mkdir -p bundles $reportsPath
+          find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
+          tar -xzf /tmp/reports.tar.gz -C $reportsPath
+          sudo chown -R $(id -u):$(id -g) $reportsPath
+          tree -nh $reportsPath
+      -
+        name: Test daemon logs
+        if: always()
+        run: |
+          cat bundles/test-integration/docker.log
+      -
+        name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-integration-${{ env.TESTREPORTS_NAME }}
+          path: /tmp/reports/*
+          retention-days: 1
+
+  integration-report:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    continue-on-error: ${{ github.event_name != 'pull_request' }}
+    if: always()
+    needs:
+      - integration
+    steps:
+      -
+        name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: vendor.sum
+      -
+        name: Prepare reports
+        run: echo "TESTREPORTS_NAME=$(basename ${{ inputs.template }})*" >> $GITHUB_ENV
+      -
+        name: Download reports
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/reports
+          pattern: test-reports-integration-${{ env.TESTREPORTS_NAME }}
+          merge-multiple: true
+      -
+        name: Install teststat
+        run: |
+          go install github.com/vearutop/teststat@${{ env.TESTSTAT_VERSION }}
+      -
+        name: Create summary
+        run: |
+          find /tmp/reports -type f -name '*-go-test-report.json' -exec teststat -markdown {} \+ >> $GITHUB_STEP_SUMMARY
