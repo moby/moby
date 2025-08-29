@@ -73,6 +73,11 @@ func WithHost(host string) Opt {
 		if transport, ok := c.client.Transport.(*http.Transport); ok {
 			return sockets.ConfigureTransport(transport, c.proto, c.addr)
 		}
+		// For test transports (like transportFunc), we skip transport configuration
+		// but still set the host fields so that the client can use them for headers
+		if _, ok := c.client.Transport.(transportFunc); ok {
+			return nil
+		}
 		return fmt.Errorf("cannot apply host to transport: %T", c.client.Transport)
 	}
 }
