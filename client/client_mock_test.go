@@ -29,7 +29,7 @@ func transportEnsureBody(f transportFunc) transportFunc {
 
 // WithMockClient is a test helper that allows you to inject a mock client for testing.
 func WithMockClient(doer func(*http.Request) (*http.Response, error)) Opt {
-	return func(c *Client) error {
+	return func(c *clientConfig) error {
 		c.client = &http.Client{
 			Transport: transportEnsureBody(transportFunc(doer)),
 		}
