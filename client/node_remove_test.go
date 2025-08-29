@@ -15,11 +15,10 @@ import (
 )
 
 func TestNodeRemoveError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
 
-	err := client.NodeRemove(context.Background(), "node_id", NodeRemoveOptions{Force: false})
+	err = client.NodeRemove(context.Background(), "node_id", NodeRemoveOptions{Force: false})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	err = client.NodeRemove(context.Background(), "", NodeRemoveOptions{Force: false})
@@ -48,27 +47,26 @@ func TestNodeRemove(t *testing.T) {
 	}
 
 	for _, removeCase := range removeCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
-				if !strings.HasPrefix(req.URL.Path, expectedURL) {
-					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-				}
-				if req.Method != http.MethodDelete {
-					return nil, fmt.Errorf("expected DELETE method, got %s", req.Method)
-				}
-				force := req.URL.Query().Get("force")
-				if force != removeCase.expectedForce {
-					return nil, fmt.Errorf("force not set in URL query properly. expected '%s', got %s", removeCase.expectedForce, force)
-				}
+		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			if !strings.HasPrefix(req.URL.Path, expectedURL) {
+				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			}
+			if req.Method != http.MethodDelete {
+				return nil, fmt.Errorf("expected DELETE method, got %s", req.Method)
+			}
+			force := req.URL.Query().Get("force")
+			if force != removeCase.expectedForce {
+				return nil, fmt.Errorf("force not set in URL query properly. expected '%s', got %s", removeCase.expectedForce, force)
+			}
 
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
-				}, nil
-			}),
-		}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
+			}, nil
+		}))
+		assert.NilError(t, err)
 
-		err := client.NodeRemove(context.Background(), "node_id", NodeRemoveOptions{Force: removeCase.force})
+		err = client.NodeRemove(context.Background(), "node_id", NodeRemoveOptions{Force: removeCase.force})
 		assert.NilError(t, err)
 	}
 }

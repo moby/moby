@@ -18,30 +18,27 @@ import (
 )
 
 func TestNodeInspectError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
 
-	_, _, err := client.NodeInspectWithRaw(context.Background(), "nothing")
+	_, _, err = client.NodeInspectWithRaw(context.Background(), "nothing")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestNodeInspectNodeNotFound(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusNotFound, "Server error")))
+	assert.NilError(t, err)
 
-	_, _, err := client.NodeInspectWithRaw(context.Background(), "unknown")
+	_, _, err = client.NodeInspectWithRaw(context.Background(), "unknown")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestNodeInspectWithEmptyID(t *testing.T) {
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			return nil, errors.New("should not make request")
-		}),
-	}
-	_, _, err := client.NodeInspectWithRaw(context.Background(), "")
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		return nil, errors.New("should not make request")
+	}))
+	assert.NilError(t, err)
+	_, _, err = client.NodeInspectWithRaw(context.Background(), "")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
@@ -52,23 +49,22 @@ func TestNodeInspectWithEmptyID(t *testing.T) {
 
 func TestNodeInspect(t *testing.T) {
 	expectedURL := "/nodes/node_id"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			content, err := json.Marshal(swarm.Node{
-				ID: "node_id",
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(content)),
-			}, nil
-		}),
-	}
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if !strings.HasPrefix(req.URL.Path, expectedURL) {
+			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		}
+		content, err := json.Marshal(swarm.Node{
+			ID: "node_id",
+		})
+		if err != nil {
+			return nil, err
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(content)),
+		}, nil
+	}))
+	assert.NilError(t, err)
 
 	nodeInspect, _, err := client.NodeInspectWithRaw(context.Background(), "node_id")
 	assert.NilError(t, err)
