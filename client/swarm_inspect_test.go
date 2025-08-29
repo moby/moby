@@ -17,35 +17,33 @@ import (
 )
 
 func TestSwarmInspectError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
 
-	_, err := client.SwarmInspect(context.Background())
+	_, err = client.SwarmInspect(context.Background())
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestSwarmInspect(t *testing.T) {
 	expectedURL := "/swarm"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			content, err := json.Marshal(swarm.Swarm{
-				ClusterInfo: swarm.ClusterInfo{
-					ID: "swarm_id",
-				},
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(content)),
-			}, nil
-		}),
-	}
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if !strings.HasPrefix(req.URL.Path, expectedURL) {
+			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		}
+		content, err := json.Marshal(swarm.Swarm{
+			ClusterInfo: swarm.ClusterInfo{
+				ID: "swarm_id",
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(content)),
+		}, nil
+	}))
+	assert.NilError(t, err)
 
 	swarmInspect, err := client.SwarmInspect(context.Background())
 	assert.NilError(t, err)

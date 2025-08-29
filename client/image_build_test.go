@@ -19,10 +19,9 @@ import (
 )
 
 func TestImageBuildError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ImageBuild(context.Background(), nil, build.ImageBuildOptions{})
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
+	_, err = client.ImageBuild(context.Background(), nil, build.ImageBuildOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -158,47 +157,46 @@ func TestImageBuild(t *testing.T) {
 	}
 	for _, buildCase := range buildCases {
 		expectedURL := "/build"
-		client := &Client{
-			client: newMockClient(func(r *http.Request) (*http.Response, error) {
-				if !strings.HasPrefix(r.URL.Path, expectedURL) {
-					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
-				}
-				// Check request headers
-				registryConfig := r.Header.Get("X-Registry-Config")
-				if registryConfig != buildCase.expectedRegistryConfig {
-					return nil, fmt.Errorf("X-Registry-Config header not properly set in the request. Expected '%s', got %s", buildCase.expectedRegistryConfig, registryConfig)
-				}
-				contentType := r.Header.Get("Content-Type")
-				if contentType != "application/x-tar" {
-					return nil, fmt.Errorf("Content-type header not properly set in the request. Expected 'application/x-tar', got %s", contentType)
-				}
+		client, err := NewClientWithOpts(WithMockClient(func(r *http.Request) (*http.Response, error) {
+			if !strings.HasPrefix(r.URL.Path, expectedURL) {
+				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
+			}
+			// Check request headers
+			registryConfig := r.Header.Get("X-Registry-Config")
+			if registryConfig != buildCase.expectedRegistryConfig {
+				return nil, fmt.Errorf("X-Registry-Config header not properly set in the request. Expected '%s', got %s", buildCase.expectedRegistryConfig, registryConfig)
+			}
+			contentType := r.Header.Get("Content-Type")
+			if contentType != "application/x-tar" {
+				return nil, fmt.Errorf("Content-type header not properly set in the request. Expected 'application/x-tar', got %s", contentType)
+			}
 
-				// Check query parameters
-				query := r.URL.Query()
-				for key, expected := range buildCase.expectedQueryParams {
-					actual := query.Get(key)
-					if actual != expected {
-						return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
-					}
+			// Check query parameters
+			query := r.URL.Query()
+			for key, expected := range buildCase.expectedQueryParams {
+				actual := query.Get(key)
+				if actual != expected {
+					return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
 				}
+			}
 
-				// Check tags
-				if len(buildCase.expectedTags) > 0 {
-					tags := query["t"]
-					if !reflect.DeepEqual(tags, buildCase.expectedTags) {
-						return nil, fmt.Errorf("t (tags) not set in URL query properly. Expected '%s', got %s", buildCase.expectedTags, tags)
-					}
+			// Check tags
+			if len(buildCase.expectedTags) > 0 {
+				tags := query["t"]
+				if !reflect.DeepEqual(tags, buildCase.expectedTags) {
+					return nil, fmt.Errorf("t (tags) not set in URL query properly. Expected '%s', got %s", buildCase.expectedTags, tags)
 				}
+			}
 
-				headers := http.Header{}
-				headers.Add("Ostype", "MyOS")
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
-					Header:     headers,
-				}, nil
-			}),
-		}
+			headers := http.Header{}
+			headers.Add("Ostype", "MyOS")
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
+				Header:     headers,
+			}, nil
+		}))
+		assert.NilError(t, err)
 		buildResponse, err := client.ImageBuild(context.Background(), nil, buildCase.buildOptions)
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal(buildResponse.OSType, "MyOS"))

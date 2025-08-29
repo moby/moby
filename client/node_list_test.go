@@ -18,11 +18,10 @@ import (
 )
 
 func TestNodeListError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
 
-	_, err := client.NodeList(context.Background(), NodeListOptions{})
+	_, err = client.NodeList(context.Background(), NodeListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -52,35 +51,34 @@ func TestNodeList(t *testing.T) {
 		},
 	}
 	for _, listCase := range listCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
-				if !strings.HasPrefix(req.URL.Path, expectedURL) {
-					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			if !strings.HasPrefix(req.URL.Path, expectedURL) {
+				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			}
+			query := req.URL.Query()
+			for key, expected := range listCase.expectedQueryParams {
+				actual := query.Get(key)
+				if actual != expected {
+					return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
 				}
-				query := req.URL.Query()
-				for key, expected := range listCase.expectedQueryParams {
-					actual := query.Get(key)
-					if actual != expected {
-						return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
-					}
-				}
-				content, err := json.Marshal([]swarm.Node{
-					{
-						ID: "node_id1",
-					},
-					{
-						ID: "node_id2",
-					},
-				})
-				if err != nil {
-					return nil, err
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader(content)),
-				}, nil
-			}),
-		}
+			}
+			content, err := json.Marshal([]swarm.Node{
+				{
+					ID: "node_id1",
+				},
+				{
+					ID: "node_id2",
+				},
+			})
+			if err != nil {
+				return nil, err
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader(content)),
+			}, nil
+		}))
+		assert.NilError(t, err)
 
 		nodes, err := client.NodeList(context.Background(), listCase.options)
 		assert.NilError(t, err)

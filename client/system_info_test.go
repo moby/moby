@@ -17,48 +17,45 @@ import (
 )
 
 func TestInfoServerError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.Info(context.Background())
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
+	_, err = client.Info(context.Background())
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestInfoInvalidResponseJSONError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte("invalid json"))),
-			}, nil
-		}),
-	}
-	_, err := client.Info(context.Background())
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader([]byte("invalid json"))),
+		}, nil
+	}))
+	assert.NilError(t, err)
+	_, err = client.Info(context.Background())
 	assert.Check(t, is.ErrorContains(err, "invalid character"))
 }
 
 func TestInfo(t *testing.T) {
 	expectedURL := "/info"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			info := &system.Info{
-				ID:         "daemonID",
-				Containers: 3,
-			}
-			b, err := json.Marshal(info)
-			if err != nil {
-				return nil, err
-			}
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if !strings.HasPrefix(req.URL.Path, expectedURL) {
+			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		}
+		info := &system.Info{
+			ID:         "daemonID",
+			Containers: 3,
+		}
+		b, err := json.Marshal(info)
+		if err != nil {
+			return nil, err
+		}
 
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(b)),
-			}, nil
-		}),
-	}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(b)),
+		}, nil
+	}))
+	assert.NilError(t, err)
 
 	info, err := client.Info(context.Background())
 	assert.NilError(t, err)
@@ -69,36 +66,35 @@ func TestInfo(t *testing.T) {
 
 func TestInfoWithDiscoveredDevices(t *testing.T) {
 	expectedURL := "/info"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			info := &system.Info{
-				ID:         "daemonID",
-				Containers: 3,
-				DiscoveredDevices: []system.DeviceInfo{
-					{
-						Source: "cdi",
-						ID:     "vendor.com/gpu=0",
-					},
-					{
-						Source: "cdi",
-						ID:     "vendor.com/gpu=1",
-					},
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if !strings.HasPrefix(req.URL.Path, expectedURL) {
+			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		}
+		info := &system.Info{
+			ID:         "daemonID",
+			Containers: 3,
+			DiscoveredDevices: []system.DeviceInfo{
+				{
+					Source: "cdi",
+					ID:     "vendor.com/gpu=0",
 				},
-			}
-			b, err := json.Marshal(info)
-			if err != nil {
-				return nil, err
-			}
+				{
+					Source: "cdi",
+					ID:     "vendor.com/gpu=1",
+				},
+			},
+		}
+		b, err := json.Marshal(info)
+		if err != nil {
+			return nil, err
+		}
 
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(b)),
-			}, nil
-		}),
-	}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(b)),
+		}, nil
+	}))
+	assert.NilError(t, err)
 
 	info, err := client.Info(context.Background())
 	assert.NilError(t, err)

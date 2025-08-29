@@ -20,10 +20,9 @@ import (
 )
 
 func TestServiceLogsError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ServiceLogs(context.Background(), "service_id", container.LogsOptions{})
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
+	_, err = client.ServiceLogs(context.Background(), "service_id", container.LogsOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	_, err = client.ServiceLogs(context.Background(), "service_id", container.LogsOptions{
@@ -96,25 +95,24 @@ func TestServiceLogs(t *testing.T) {
 		},
 	}
 	for _, logCase := range cases {
-		client := &Client{
-			client: newMockClient(func(r *http.Request) (*http.Response, error) {
-				if !strings.HasPrefix(r.URL.Path, expectedURL) {
-					return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, r.URL)
+		client, err := NewClientWithOpts(WithMockClient(func(r *http.Request) (*http.Response, error) {
+			if !strings.HasPrefix(r.URL.Path, expectedURL) {
+				return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, r.URL)
+			}
+			// Check query parameters
+			query := r.URL.Query()
+			for key, expected := range logCase.expectedQueryParams {
+				actual := query.Get(key)
+				if actual != expected {
+					return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
 				}
-				// Check query parameters
-				query := r.URL.Query()
-				for key, expected := range logCase.expectedQueryParams {
-					actual := query.Get(key)
-					if actual != expected {
-						return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
-					}
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader([]byte("response"))),
-				}, nil
-			}),
-		}
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader([]byte("response"))),
+			}, nil
+		}))
+		assert.NilError(t, err)
 		body, err := client.ServiceLogs(context.Background(), "service_id", logCase.options)
 		if logCase.expectedError != "" {
 			assert.Check(t, is.Error(err, logCase.expectedError))

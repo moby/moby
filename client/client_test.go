@@ -360,16 +360,16 @@ func TestNegotiateAPIVersionConnectionFailure(t *testing.T) {
 
 func TestNegotiateAPIVersionAutomatic(t *testing.T) {
 	var pingVersion string
-	httpClient := newMockClient(func(req *http.Request) (*http.Response, error) {
-		resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{}}
-		resp.Header.Set("Api-Version", pingVersion)
-		resp.Body = io.NopCloser(strings.NewReader("OK"))
-		return resp, nil
-	})
 
 	ctx := context.Background()
 	client, err := NewClientWithOpts(
-		WithHTTPClient(httpClient),
+		WithHTTPClient(&http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{}}
+				resp.Header.Set("Api-Version", pingVersion)
+				resp.Body = io.NopCloser(strings.NewReader("OK"))
+				return resp, nil
+			})}),
 		WithAPIVersionNegotiation(),
 	)
 	assert.NilError(t, err)

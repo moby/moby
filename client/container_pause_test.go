@@ -15,17 +15,19 @@ import (
 )
 
 func TestContainerPauseError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	err := client.ContainerPause(context.Background(), "nothing")
+	client, err := NewClientWithOpts(
+		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	)
+	assert.NilError(t, err)
+
+	err = client.ContainerPause(context.Background(), "nothing")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestContainerPause(t *testing.T) {
 	expectedURL := "/containers/container_id/pause"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -34,7 +36,9 @@ func TestContainerPause(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 			}, nil
 		}),
-	}
-	err := client.ContainerPause(context.Background(), "container_id")
+	)
+	assert.NilError(t, err)
+
+	err = client.ContainerPause(context.Background(), "container_id")
 	assert.NilError(t, err)
 }

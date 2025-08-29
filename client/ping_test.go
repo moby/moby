@@ -19,19 +19,18 @@ import (
 // panics.
 func TestPingFail(t *testing.T) {
 	var withHeader bool
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			resp := &http.Response{StatusCode: http.StatusInternalServerError}
-			if withHeader {
-				resp.Header = http.Header{}
-				resp.Header.Set("Api-Version", "awesome")
-				resp.Header.Set("Docker-Experimental", "true")
-				resp.Header.Set("Swarm", "inactive")
-			}
-			resp.Body = io.NopCloser(strings.NewReader("some error with the server"))
-			return resp, nil
-		}),
-	}
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		resp := &http.Response{StatusCode: http.StatusInternalServerError}
+		if withHeader {
+			resp.Header = http.Header{}
+			resp.Header.Set("Api-Version", "awesome")
+			resp.Header.Set("Docker-Experimental", "true")
+			resp.Header.Set("Swarm", "inactive")
+		}
+		resp.Body = io.NopCloser(strings.NewReader("some error with the server"))
+		return resp, nil
+	}))
+	assert.NilError(t, err)
 
 	ping, err := client.Ping(context.Background())
 	assert.Check(t, is.ErrorContains(err, "some error with the server"))
@@ -51,11 +50,10 @@ func TestPingFail(t *testing.T) {
 // TestPingWithError tests the case where there is a protocol error in the ping.
 // This test is mostly just testing that there are no panics in this code path.
 func TestPingWithError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			return nil, errors.New("some connection error")
-		}),
-	}
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		return nil, errors.New("some connection error")
+	}))
+	assert.NilError(t, err)
 
 	ping, err := client.Ping(context.Background())
 	assert.Check(t, is.ErrorContains(err, "some connection error"))
@@ -68,17 +66,16 @@ func TestPingWithError(t *testing.T) {
 // TestPingSuccess tests that we are able to get the expected API headers/ping
 // details on success.
 func TestPingSuccess(t *testing.T) {
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			resp := &http.Response{StatusCode: http.StatusOK}
-			resp.Header = http.Header{}
-			resp.Header.Set("Api-Version", "awesome")
-			resp.Header.Set("Docker-Experimental", "true")
-			resp.Header.Set("Swarm", "active/manager")
-			resp.Body = io.NopCloser(strings.NewReader("OK"))
-			return resp, nil
-		}),
-	}
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		resp := &http.Response{StatusCode: http.StatusOK}
+		resp.Header = http.Header{}
+		resp.Header.Set("Api-Version", "awesome")
+		resp.Header.Set("Docker-Experimental", "true")
+		resp.Header.Set("Swarm", "active/manager")
+		resp.Body = io.NopCloser(strings.NewReader("OK"))
+		return resp, nil
+	}))
+	assert.NilError(t, err)
 	ping, err := client.Ping(context.Background())
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(true, ping.Experimental))
@@ -113,17 +110,16 @@ func TestPingHeadFallback(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(http.StatusText(tc.status), func(t *testing.T) {
 			var reqs []string
-			client := &Client{
-				client: newMockClient(func(req *http.Request) (*http.Response, error) {
-					reqs = append(reqs, req.Method)
-					resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{}}
-					if req.Method == http.MethodHead {
-						resp.StatusCode = tc.status
-					}
-					resp.Header.Add("Api-Version", "v1.2.3")
-					return resp, nil
-				}),
-			}
+			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+				reqs = append(reqs, req.Method)
+				resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{}}
+				if req.Method == http.MethodHead {
+					resp.StatusCode = tc.status
+				}
+				resp.Header.Add("Api-Version", "v1.2.3")
+				return resp, nil
+			}))
+			assert.NilError(t, err)
 			ping, _ := client.Ping(context.Background())
 			assert.Check(t, is.Equal(ping.APIVersion, "v1.2.3"))
 			assert.Check(t, is.DeepEqual(reqs, tc.expected))

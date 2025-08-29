@@ -17,11 +17,12 @@ import (
 )
 
 func TestContainerExecCreateError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	)
+	assert.NilError(t, err)
 
-	_, err := client.ContainerExecCreate(context.Background(), "container_id", container.ExecOptions{})
+	_, err = client.ContainerExecCreate(context.Background(), "container_id", container.ExecOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	_, err = client.ContainerExecCreate(context.Background(), "", container.ExecOptions{})
@@ -47,8 +48,8 @@ func TestContainerExecCreateConnectionError(t *testing.T) {
 
 func TestContainerExecCreate(t *testing.T) {
 	expectedURL := "/containers/container_id/exec"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -77,7 +78,8 @@ func TestContainerExecCreate(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader(b)),
 			}, nil
 		}),
-	}
+	)
+	assert.NilError(t, err)
 
 	r, err := client.ContainerExecCreate(context.Background(), "container_id", container.ExecOptions{
 		User: "user",
@@ -87,17 +89,19 @@ func TestContainerExecCreate(t *testing.T) {
 }
 
 func TestContainerExecStartError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	err := client.ContainerExecStart(context.Background(), "nothing", container.ExecStartOptions{})
+	client, err := NewClientWithOpts(
+		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	)
+	assert.NilError(t, err)
+
+	err = client.ContainerExecStart(context.Background(), "nothing", container.ExecStartOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestContainerExecStart(t *testing.T) {
 	expectedURL := "/exec/exec_id/start"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -117,9 +121,10 @@ func TestContainerExecStart(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 			}, nil
 		}),
-	}
+	)
+	assert.NilError(t, err)
 
-	err := client.ContainerExecStart(context.Background(), "exec_id", container.ExecStartOptions{
+	err = client.ContainerExecStart(context.Background(), "exec_id", container.ExecStartOptions{
 		Detach: true,
 		Tty:    false,
 	})
@@ -127,17 +132,19 @@ func TestContainerExecStart(t *testing.T) {
 }
 
 func TestContainerExecInspectError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ContainerExecInspect(context.Background(), "nothing")
+	client, err := NewClientWithOpts(
+		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	)
+	assert.NilError(t, err)
+
+	_, err = client.ContainerExecInspect(context.Background(), "nothing")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestContainerExecInspect(t *testing.T) {
 	expectedURL := "/exec/exec_id/json"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -153,7 +160,8 @@ func TestContainerExecInspect(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader(b)),
 			}, nil
 		}),
-	}
+	)
+	assert.NilError(t, err)
 
 	inspect, err := client.ContainerExecInspect(context.Background(), "exec_id")
 	assert.NilError(t, err)

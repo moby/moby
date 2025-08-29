@@ -18,10 +18,12 @@ import (
 )
 
 func TestCheckpointCreateError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	err := client.CheckpointCreate(context.Background(), "nothing", checkpoint.CreateOptions{
+	client, err := NewClientWithOpts(
+		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	)
+	assert.NilError(t, err)
+
+	err = client.CheckpointCreate(context.Background(), "nothing", checkpoint.CreateOptions{
 		CheckpointID: "noting",
 		Exit:         true,
 	})
@@ -42,8 +44,8 @@ func TestCheckpointCreate(t *testing.T) {
 	expectedCheckpointID := "checkpoint_id"
 	expectedURL := "/containers/container_id/checkpoints"
 
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -70,9 +72,10 @@ func TestCheckpointCreate(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 			}, nil
 		}),
-	}
+	)
+	assert.NilError(t, err)
 
-	err := client.CheckpointCreate(context.Background(), expectedContainerID, checkpoint.CreateOptions{
+	err = client.CheckpointCreate(context.Background(), expectedContainerID, checkpoint.CreateOptions{
 		CheckpointID: expectedCheckpointID,
 		Exit:         true,
 	})

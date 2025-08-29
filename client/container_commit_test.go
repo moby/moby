@@ -17,10 +17,12 @@ import (
 )
 
 func TestContainerCommitError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ContainerCommit(context.Background(), "nothing", container.CommitOptions{})
+	client, err := NewClientWithOpts(
+		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	)
+	assert.NilError(t, err)
+
+	_, err = client.ContainerCommit(context.Background(), "nothing", container.CommitOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	_, err = client.ContainerCommit(context.Background(), "", container.CommitOptions{})
@@ -44,8 +46,8 @@ func TestContainerCommit(t *testing.T) {
 	)
 	expectedChanges := []string{"change1", "change2"}
 
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -89,7 +91,8 @@ func TestContainerCommit(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader(b)),
 			}, nil
 		}),
-	}
+	)
+	assert.NilError(t, err)
 
 	r, err := client.ContainerCommit(context.Background(), expectedContainerID, container.CommitOptions{
 		Reference: specifiedReference,

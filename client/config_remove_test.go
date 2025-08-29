@@ -15,21 +15,24 @@ import (
 )
 
 func TestConfigRemoveUnsupported(t *testing.T) {
-	client := &Client{
-		version: "1.29",
-		client:  &http.Client{},
-	}
-	err := client.ConfigRemove(context.Background(), "config_id")
+	client, err := NewClientWithOpts(
+		WithVersion("1.29"),
+		WithHTTPClient(&http.Client{}),
+	)
+	assert.NilError(t, err)
+
+	err = client.ConfigRemove(context.Background(), "config_id")
 	assert.Check(t, is.Error(err, `"config remove" requires API version 1.30, but the Docker daemon API version is 1.29`))
 }
 
 func TestConfigRemoveError(t *testing.T) {
-	client := &Client{
-		version: "1.30",
-		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithVersion("1.30"),
+		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	)
+	assert.NilError(t, err)
 
-	err := client.ConfigRemove(context.Background(), "config_id")
+	err = client.ConfigRemove(context.Background(), "config_id")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	err = client.ConfigRemove(context.Background(), "")
@@ -44,9 +47,9 @@ func TestConfigRemoveError(t *testing.T) {
 func TestConfigRemove(t *testing.T) {
 	expectedURL := "/v1.30/configs/config_id"
 
-	client := &Client{
-		version: "1.30",
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithVersion("1.30"),
+		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -58,8 +61,9 @@ func TestConfigRemove(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
 			}, nil
 		}),
-	}
+	)
+	assert.NilError(t, err)
 
-	err := client.ConfigRemove(context.Background(), "config_id")
+	err = client.ConfigRemove(context.Background(), "config_id")
 	assert.NilError(t, err)
 }

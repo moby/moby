@@ -15,11 +15,10 @@ import (
 )
 
 func TestSwarmLeaveError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
 
-	err := client.SwarmLeave(context.Background(), false)
+	err = client.SwarmLeave(context.Background(), false)
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -40,26 +39,25 @@ func TestSwarmLeave(t *testing.T) {
 	}
 
 	for _, leaveCase := range leaveCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
-				if !strings.HasPrefix(req.URL.Path, expectedURL) {
-					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-				}
-				if req.Method != http.MethodPost {
-					return nil, fmt.Errorf("expected POST method, got %s", req.Method)
-				}
-				force := req.URL.Query().Get("force")
-				if force != leaveCase.expectedForce {
-					return nil, fmt.Errorf("force not set in URL query properly. expected '%s', got %s", leaveCase.expectedForce, force)
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-				}, nil
-			}),
-		}
+		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			if !strings.HasPrefix(req.URL.Path, expectedURL) {
+				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			}
+			if req.Method != http.MethodPost {
+				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
+			}
+			force := req.URL.Query().Get("force")
+			if force != leaveCase.expectedForce {
+				return nil, fmt.Errorf("force not set in URL query properly. expected '%s', got %s", leaveCase.expectedForce, force)
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
+			}, nil
+		}))
+		assert.NilError(t, err)
 
-		err := client.SwarmLeave(context.Background(), leaveCase.force)
+		err = client.SwarmLeave(context.Background(), leaveCase.force)
 		assert.NilError(t, err)
 	}
 }

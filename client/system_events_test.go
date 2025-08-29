@@ -37,21 +37,19 @@ func TestEventsErrorInOptions(t *testing.T) {
 		},
 	}
 	for _, tc := range errorCases {
-		client := &Client{
-			client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-		}
+		client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+		assert.NilError(t, err)
 		_, errs := client.Events(context.Background(), tc.options)
-		err := <-errs
+		err = <-errs
 		assert.Check(t, is.ErrorContains(err, tc.expectedError))
 	}
 }
 
 func TestEventsErrorFromServer(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
 	_, errs := client.Events(context.Background(), EventsListOptions{})
-	err := <-errs
+	err = <-errs
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -110,33 +108,32 @@ func TestEvents(t *testing.T) {
 	}
 
 	for _, eventsCase := range eventsCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
-				if !strings.HasPrefix(req.URL.Path, expectedURL) {
-					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			if !strings.HasPrefix(req.URL.Path, expectedURL) {
+				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			}
+			query := req.URL.Query()
+
+			for key, expected := range eventsCase.expectedQueryParams {
+				actual := query.Get(key)
+				if actual != expected {
+					return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
 				}
-				query := req.URL.Query()
+			}
 
-				for key, expected := range eventsCase.expectedQueryParams {
-					actual := query.Get(key)
-					if actual != expected {
-						return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
-					}
-				}
+			buffer := new(bytes.Buffer)
 
-				buffer := new(bytes.Buffer)
+			for _, e := range eventsCase.events {
+				b, _ := json.Marshal(e)
+				buffer.Write(b)
+			}
 
-				for _, e := range eventsCase.events {
-					b, _ := json.Marshal(e)
-					buffer.Write(b)
-				}
-
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(buffer),
-				}, nil
-			}),
-		}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(buffer),
+			}, nil
+		}))
+		assert.NilError(t, err)
 
 		messages, errs := client.Events(context.Background(), eventsCase.options)
 

@@ -18,30 +18,27 @@ import (
 )
 
 func TestServiceInspectError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
 
-	_, _, err := client.ServiceInspectWithRaw(context.Background(), "nothing", ServiceInspectOptions{})
+	_, _, err = client.ServiceInspectWithRaw(context.Background(), "nothing", ServiceInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestServiceInspectServiceNotFound(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusNotFound, "Server error")))
+	assert.NilError(t, err)
 
-	_, _, err := client.ServiceInspectWithRaw(context.Background(), "unknown", ServiceInspectOptions{})
+	_, _, err = client.ServiceInspectWithRaw(context.Background(), "unknown", ServiceInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestServiceInspectWithEmptyID(t *testing.T) {
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			return nil, errors.New("should not make request")
-		}),
-	}
-	_, _, err := client.ServiceInspectWithRaw(context.Background(), "", ServiceInspectOptions{})
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		return nil, errors.New("should not make request")
+	}))
+	assert.NilError(t, err)
+	_, _, err = client.ServiceInspectWithRaw(context.Background(), "", ServiceInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
@@ -52,23 +49,22 @@ func TestServiceInspectWithEmptyID(t *testing.T) {
 
 func TestServiceInspect(t *testing.T) {
 	expectedURL := "/services/service_id"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			content, err := json.Marshal(swarm.Service{
-				ID: "service_id",
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(content)),
-			}, nil
-		}),
-	}
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if !strings.HasPrefix(req.URL.Path, expectedURL) {
+			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		}
+		content, err := json.Marshal(swarm.Service{
+			ID: "service_id",
+		})
+		if err != nil {
+			return nil, err
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(content)),
+		}, nil
+	}))
+	assert.NilError(t, err)
 
 	serviceInspect, _, err := client.ServiceInspectWithRaw(context.Background(), "service_id", ServiceInspectOptions{})
 	assert.NilError(t, err)

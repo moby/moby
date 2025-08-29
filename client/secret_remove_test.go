@@ -15,21 +15,17 @@ import (
 )
 
 func TestSecretRemoveUnsupported(t *testing.T) {
-	client := &Client{
-		version: "1.24",
-		client:  &http.Client{},
-	}
-	err := client.SecretRemove(context.Background(), "secret_id")
+	client, err := NewClientWithOpts(WithVersion("1.24"), WithHTTPClient(&http.Client{}))
+	assert.NilError(t, err)
+	err = client.SecretRemove(context.Background(), "secret_id")
 	assert.Check(t, is.Error(err, `"secret remove" requires API version 1.25, but the Docker daemon API version is 1.24`))
 }
 
 func TestSecretRemoveError(t *testing.T) {
-	client := &Client{
-		version: "1.25",
-		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithVersion("1.25"), WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
 
-	err := client.SecretRemove(context.Background(), "secret_id")
+	err = client.SecretRemove(context.Background(), "secret_id")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	err = client.SecretRemove(context.Background(), "")
@@ -44,22 +40,20 @@ func TestSecretRemoveError(t *testing.T) {
 func TestSecretRemove(t *testing.T) {
 	expectedURL := "/v1.25/secrets/secret_id"
 
-	client := &Client{
-		version: "1.25",
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			if req.Method != http.MethodDelete {
-				return nil, fmt.Errorf("expected DELETE method, got %s", req.Method)
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
-			}, nil
-		}),
-	}
+	client, err := NewClientWithOpts(WithVersion("1.25"), WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if !strings.HasPrefix(req.URL.Path, expectedURL) {
+			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		}
+		if req.Method != http.MethodDelete {
+			return nil, fmt.Errorf("expected DELETE method, got %s", req.Method)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
+		}, nil
+	}))
+	assert.NilError(t, err)
 
-	err := client.SecretRemove(context.Background(), "secret_id")
+	err = client.SecretRemove(context.Background(), "secret_id")
 	assert.NilError(t, err)
 }

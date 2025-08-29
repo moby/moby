@@ -18,21 +18,17 @@ import (
 )
 
 func TestSecretListUnsupported(t *testing.T) {
-	client := &Client{
-		version: "1.24",
-		client:  &http.Client{},
-	}
-	_, err := client.SecretList(context.Background(), SecretListOptions{})
+	client, err := NewClientWithOpts(WithVersion("1.24"), WithHTTPClient(&http.Client{}))
+	assert.NilError(t, err)
+	_, err = client.SecretList(context.Background(), SecretListOptions{})
 	assert.Check(t, is.Error(err, `"secret list" requires API version 1.25, but the Docker daemon API version is 1.24`))
 }
 
 func TestSecretListError(t *testing.T) {
-	client := &Client{
-		version: "1.25",
-		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithVersion("1.25"), WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
 
-	_, err := client.SecretList(context.Background(), SecretListOptions{})
+	_, err = client.SecretList(context.Background(), SecretListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -62,36 +58,34 @@ func TestSecretList(t *testing.T) {
 		},
 	}
 	for _, listCase := range listCases {
-		client := &Client{
-			version: "1.25",
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
-				if !strings.HasPrefix(req.URL.Path, expectedURL) {
-					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		client, err := NewClientWithOpts(WithVersion("1.25"), WithMockClient(func(req *http.Request) (*http.Response, error) {
+			if !strings.HasPrefix(req.URL.Path, expectedURL) {
+				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			}
+			query := req.URL.Query()
+			for key, expected := range listCase.expectedQueryParams {
+				actual := query.Get(key)
+				if actual != expected {
+					return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
 				}
-				query := req.URL.Query()
-				for key, expected := range listCase.expectedQueryParams {
-					actual := query.Get(key)
-					if actual != expected {
-						return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
-					}
-				}
-				content, err := json.Marshal([]swarm.Secret{
-					{
-						ID: "secret_id1",
-					},
-					{
-						ID: "secret_id2",
-					},
-				})
-				if err != nil {
-					return nil, err
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader(content)),
-				}, nil
-			}),
-		}
+			}
+			content, err := json.Marshal([]swarm.Secret{
+				{
+					ID: "secret_id1",
+				},
+				{
+					ID: "secret_id2",
+				},
+			})
+			if err != nil {
+				return nil, err
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader(content)),
+			}, nil
+		}))
+		assert.NilError(t, err)
 
 		secrets, err := client.SecretList(context.Background(), listCase.options)
 		assert.NilError(t, err)

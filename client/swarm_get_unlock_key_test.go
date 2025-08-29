@@ -17,11 +17,10 @@ import (
 )
 
 func TestSwarmGetUnlockKeyError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
 
-	_, err := client.SwarmGetUnlockKey(context.Background())
+	_, err = client.SwarmGetUnlockKey(context.Background())
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -29,30 +28,29 @@ func TestSwarmGetUnlockKey(t *testing.T) {
 	expectedURL := "/swarm/unlockkey"
 	unlockKey := "SWMKEY-1-y6guTZNTwpQeTL5RhUfOsdBdXoQjiB2GADHSRJvbXeE"
 
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			if req.Method != http.MethodGet {
-				return nil, fmt.Errorf("expected GET method, got %s", req.Method)
-			}
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if !strings.HasPrefix(req.URL.Path, expectedURL) {
+			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		}
+		if req.Method != http.MethodGet {
+			return nil, fmt.Errorf("expected GET method, got %s", req.Method)
+		}
 
-			key := swarm.UnlockKeyResponse{
-				UnlockKey: unlockKey,
-			}
+		key := swarm.UnlockKeyResponse{
+			UnlockKey: unlockKey,
+		}
 
-			b, err := json.Marshal(key)
-			if err != nil {
-				return nil, err
-			}
+		b, err := json.Marshal(key)
+		if err != nil {
+			return nil, err
+		}
 
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(b)),
-			}, nil
-		}),
-	}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(b)),
+		}, nil
+	}))
+	assert.NilError(t, err)
 
 	resp, err := client.SwarmGetUnlockKey(context.Background())
 	assert.NilError(t, err)

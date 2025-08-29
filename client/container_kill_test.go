@@ -15,10 +15,12 @@ import (
 )
 
 func TestContainerKillError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	err := client.ContainerKill(context.Background(), "nothing", "SIGKILL")
+	client, err := NewClientWithOpts(
+		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	)
+	assert.NilError(t, err)
+
+	err = client.ContainerKill(context.Background(), "nothing", "SIGKILL")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	err = client.ContainerKill(context.Background(), "", "")
@@ -32,8 +34,8 @@ func TestContainerKillError(t *testing.T) {
 
 func TestContainerKill(t *testing.T) {
 	expectedURL := "/containers/container_id/kill"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -46,8 +48,9 @@ func TestContainerKill(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 			}, nil
 		}),
-	}
+	)
+	assert.NilError(t, err)
 
-	err := client.ContainerKill(context.Background(), "container_id", "SIGKILL")
+	err = client.ContainerKill(context.Background(), "container_id", "SIGKILL")
 	assert.NilError(t, err)
 }

@@ -18,20 +18,18 @@ import (
 )
 
 func TestImageRemoveError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
 
-	_, err := client.ImageRemove(context.Background(), "image_id", ImageRemoveOptions{})
+	_, err = client.ImageRemove(context.Background(), "image_id", ImageRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImageRemoveImageNotFound(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "no such image: unknown")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusNotFound, "no such image: unknown")))
+	assert.NilError(t, err)
 
-	_, err := client.ImageRemove(context.Background(), "unknown", ImageRemoveOptions{})
+	_, err = client.ImageRemove(context.Background(), "unknown", ImageRemoveOptions{})
 	assert.Check(t, is.ErrorContains(err, "no such image: unknown"))
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
@@ -71,39 +69,38 @@ func TestImageRemove(t *testing.T) {
 		},
 	}
 	for _, removeCase := range removeCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
-				if !strings.HasPrefix(req.URL.Path, expectedURL) {
-					return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
+		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			if !strings.HasPrefix(req.URL.Path, expectedURL) {
+				return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
+			}
+			if req.Method != http.MethodDelete {
+				return nil, fmt.Errorf("expected DELETE method, got %s", req.Method)
+			}
+			query := req.URL.Query()
+			for key, expected := range removeCase.expectedQueryParams {
+				actual := query.Get(key)
+				if actual != expected {
+					return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
 				}
-				if req.Method != http.MethodDelete {
-					return nil, fmt.Errorf("expected DELETE method, got %s", req.Method)
-				}
-				query := req.URL.Query()
-				for key, expected := range removeCase.expectedQueryParams {
-					actual := query.Get(key)
-					if actual != expected {
-						return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
-					}
-				}
-				b, err := json.Marshal([]image.DeleteResponse{
-					{
-						Untagged: "image_id1",
-					},
-					{
-						Deleted: "image_id",
-					},
-				})
-				if err != nil {
-					return nil, err
-				}
+			}
+			b, err := json.Marshal([]image.DeleteResponse{
+				{
+					Untagged: "image_id1",
+				},
+				{
+					Deleted: "image_id",
+				},
+			})
+			if err != nil {
+				return nil, err
+			}
 
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader(b)),
-				}, nil
-			}),
-		}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader(b)),
+			}, nil
+		}))
+		assert.NilError(t, err)
 
 		opts := ImageRemoveOptions{
 			Force:         removeCase.force,
