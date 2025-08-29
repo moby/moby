@@ -46,7 +46,8 @@ type NetworkSettings = container.NetworkSettings
 
 // NetworkSettingsBase holds networking state for a container when inspecting it.
 //
-// Deprecated: use [container.NetworkSettingsBase].
+// Deprecated: [container.NetworkSettingsBase] will be removed in v29. Prefer
+// accessing the fields it contains through [container.NetworkSettings].
 type NetworkSettingsBase = container.NetworkSettingsBase //nolint:staticcheck // ignore SA1019: NetworkSettingsBase is deprecated in v28.4.
 
 // DefaultNetworkSettings holds network information
