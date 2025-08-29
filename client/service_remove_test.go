@@ -15,11 +15,10 @@ import (
 )
 
 func TestServiceRemoveError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
 
-	err := client.ServiceRemove(context.Background(), "service_id")
+	err = client.ServiceRemove(context.Background(), "service_id")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	err = client.ServiceRemove(context.Background(), "")
@@ -32,11 +31,10 @@ func TestServiceRemoveError(t *testing.T) {
 }
 
 func TestServiceRemoveNotFoundError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "no such service: service_id")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusNotFound, "no such service: service_id")))
+	assert.NilError(t, err)
 
-	err := client.ServiceRemove(context.Background(), "service_id")
+	err = client.ServiceRemove(context.Background(), "service_id")
 	assert.Check(t, is.ErrorContains(err, "no such service: service_id"))
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
@@ -44,21 +42,20 @@ func TestServiceRemoveNotFoundError(t *testing.T) {
 func TestServiceRemove(t *testing.T) {
 	expectedURL := "/services/service_id"
 
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			if req.Method != http.MethodDelete {
-				return nil, fmt.Errorf("expected DELETE method, got %s", req.Method)
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
-			}, nil
-		}),
-	}
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if !strings.HasPrefix(req.URL.Path, expectedURL) {
+			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		}
+		if req.Method != http.MethodDelete {
+			return nil, fmt.Errorf("expected DELETE method, got %s", req.Method)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
+		}, nil
+	}))
+	assert.NilError(t, err)
 
-	err := client.ServiceRemove(context.Background(), "service_id")
+	err = client.ServiceRemove(context.Background(), "service_id")
 	assert.NilError(t, err)
 }

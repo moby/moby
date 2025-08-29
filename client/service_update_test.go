@@ -16,11 +16,10 @@ import (
 )
 
 func TestServiceUpdateError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
 
-	_, err := client.ServiceUpdate(context.Background(), "service_id", swarm.Version{}, swarm.ServiceSpec{}, ServiceUpdateOptions{})
+	_, err = client.ServiceUpdate(context.Background(), "service_id", swarm.Version{}, swarm.ServiceSpec{}, ServiceUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	_, err = client.ServiceUpdate(context.Background(), "", swarm.Version{}, swarm.ServiceSpec{}, ServiceUpdateOptions{})
@@ -69,26 +68,25 @@ func TestServiceUpdate(t *testing.T) {
 	}
 
 	for _, updateCase := range updateCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
-				if !strings.HasPrefix(req.URL.Path, expectedURL) {
-					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-				}
-				if req.Method != http.MethodPost {
-					return nil, fmt.Errorf("expected POST method, got %s", req.Method)
-				}
-				version := req.URL.Query().Get("version")
-				if version != updateCase.expectedVersion {
-					return nil, fmt.Errorf("version not set in URL query properly, expected '%s', got %s", updateCase.expectedVersion, version)
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader([]byte("{}"))),
-				}, nil
-			}),
-		}
+		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			if !strings.HasPrefix(req.URL.Path, expectedURL) {
+				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			}
+			if req.Method != http.MethodPost {
+				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
+			}
+			version := req.URL.Query().Get("version")
+			if version != updateCase.expectedVersion {
+				return nil, fmt.Errorf("version not set in URL query properly, expected '%s', got %s", updateCase.expectedVersion, version)
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader([]byte("{}"))),
+			}, nil
+		}))
+		assert.NilError(t, err)
 
-		_, err := client.ServiceUpdate(context.Background(), "service_id", updateCase.swarmVersion, swarm.ServiceSpec{}, ServiceUpdateOptions{})
+		_, err = client.ServiceUpdate(context.Background(), "service_id", updateCase.swarmVersion, swarm.ServiceSpec{}, ServiceUpdateOptions{})
 		assert.NilError(t, err)
 	}
 }
