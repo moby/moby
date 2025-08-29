@@ -1868,6 +1868,35 @@ definitions:
           "WorkDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/work"
         }
 
+  StorageDriver:
+    description: |
+      Information about the storage driver used to store the container's filesystem.
+    type: "object"
+    x-go-name: "Driver"
+    required: [Type, Name]
+    properties:
+      Type:
+        description: "Type of storage driver."
+        type: "string"
+        enum: ["snapshotter"]
+        x-nullable: false
+        example: "snapshotter"
+      Name:
+        description: "Name of the storage driver."
+        type: "string"
+        x-nullable: false
+        example: "overlayfs"
+      Data:
+        description: |
+          Low-level storage metadata, provided as key/value pairs.
+
+          This information is driver-specific, and depends on the storage-driver
+          in use, and should be used for informational purposes only.
+        type: "object"
+        x-nullable: true
+        additionalProperties:
+          type: "string"
+
   FilesystemChange:
     description: |
       Change in the container's filesystem.
