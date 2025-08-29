@@ -22,9 +22,8 @@ import (
 )
 
 func TestContainerWaitError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
 	resultC, errC := client.ContainerWait(context.Background(), "nothing", "")
 	select {
 	case result := <-resultC:
@@ -53,23 +52,22 @@ func TestContainerWaitConnectionError(t *testing.T) {
 
 func TestContainerWait(t *testing.T) {
 	expectedURL := "/containers/container_id/wait"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			b, err := json.Marshal(container.WaitResponse{
-				StatusCode: 15,
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(b)),
-			}, nil
-		}),
-	}
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if !strings.HasPrefix(req.URL.Path, expectedURL) {
+			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		}
+		b, err := json.Marshal(container.WaitResponse{
+			StatusCode: 15,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(b)),
+		}, nil
+	}))
+	assert.NilError(t, err)
 
 	resultC, errC := client.ContainerWait(context.Background(), "container_id", "")
 	select {
@@ -83,18 +81,16 @@ func TestContainerWait(t *testing.T) {
 func TestContainerWaitProxyInterrupt(t *testing.T) {
 	expectedURL := "/v1.30/containers/container_id/wait"
 	msg := "copying response body from Docker: unexpected EOF"
-	client := &Client{
-		version: "1.30",
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(msg)),
-			}, nil
-		}),
-	}
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if !strings.HasPrefix(req.URL.Path, expectedURL) {
+			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(msg)),
+		}, nil
+	}), WithVersion("1.30"))
+	assert.NilError(t, err)
 
 	resultC, errC := client.ContainerWait(context.Background(), "container_id", "")
 	select {
@@ -108,18 +104,16 @@ func TestContainerWaitProxyInterrupt(t *testing.T) {
 func TestContainerWaitProxyInterruptLong(t *testing.T) {
 	expectedURL := "/v1.30/containers/container_id/wait"
 	msg := strings.Repeat("x", containerWaitErrorMsgLimit*5)
-	client := &Client{
-		version: "1.30",
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(msg)),
-			}, nil
-		}),
-	}
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if !strings.HasPrefix(req.URL.Path, expectedURL) {
+			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(msg)),
+		}, nil
+	}), WithVersion("1.30"))
+	assert.NilError(t, err)
 
 	resultC, errC := client.ContainerWait(context.Background(), "container_id", "")
 	select {
@@ -146,15 +140,13 @@ func TestContainerWaitErrorHandling(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			client := &Client{
-				version: "1.30",
-				client: newMockClient(func(req *http.Request) (*http.Response, error) {
-					return &http.Response{
-						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(test.rdr),
-					}, nil
-				}),
-			}
+			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(test.rdr),
+				}, nil
+			}), WithVersion("1.30"))
+			assert.NilError(t, err)
 			resultC, errC := client.ContainerWait(ctx, "container_id", "")
 			select {
 			case err := <-errC:

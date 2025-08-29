@@ -15,10 +15,12 @@ import (
 )
 
 func TestContainerExportError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ContainerExport(context.Background(), "nothing")
+	client, err := NewClientWithOpts(
+		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	)
+	assert.NilError(t, err)
+
+	_, err = client.ContainerExport(context.Background(), "nothing")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	_, err = client.ContainerExport(context.Background(), "")
@@ -32,8 +34,8 @@ func TestContainerExportError(t *testing.T) {
 
 func TestContainerExport(t *testing.T) {
 	expectedURL := "/containers/container_id/export"
-	client := &Client{
-		client: newMockClient(func(r *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithMockClient(func(r *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(r.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
 			}
@@ -43,7 +45,8 @@ func TestContainerExport(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader([]byte("response"))),
 			}, nil
 		}),
-	}
+	)
+	assert.NilError(t, err)
 	body, err := client.ContainerExport(context.Background(), "container_id")
 	assert.NilError(t, err)
 	defer body.Close()

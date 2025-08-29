@@ -14,10 +14,9 @@ import (
 )
 
 func TestContainerResizeError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	err := client.ContainerResize(context.Background(), "container_id", ContainerResizeOptions{})
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
+	err = client.ContainerResize(context.Background(), "container_id", ContainerResizeOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	err = client.ContainerResize(context.Background(), "", ContainerResizeOptions{})
@@ -30,10 +29,9 @@ func TestContainerResizeError(t *testing.T) {
 }
 
 func TestContainerExecResizeError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	err := client.ContainerExecResize(context.Background(), "exec_id", ContainerResizeOptions{})
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
+	err = client.ContainerExecResize(context.Background(), "exec_id", ContainerResizeOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -72,10 +70,9 @@ func TestContainerResize(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			client := &Client{
-				client: newMockClient(resizeTransport(t, expectedURL, tc.expectedHeight, tc.expectedWidth)),
-			}
-			err := client.ContainerResize(context.Background(), "container_id", tc.opts)
+			client, err := NewClientWithOpts(WithMockClient(resizeTransport(t, expectedURL, tc.expectedHeight, tc.expectedWidth)))
+			assert.NilError(t, err)
+			err = client.ContainerResize(context.Background(), "container_id", tc.opts)
 			assert.NilError(t, err)
 		})
 	}
@@ -115,10 +112,9 @@ func TestContainerExecResize(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			client := &Client{
-				client: newMockClient(resizeTransport(t, expectedURL, tc.expectedHeight, tc.expectedWidth)),
-			}
-			err := client.ContainerExecResize(context.Background(), "exec_id", tc.opts)
+			client, err := NewClientWithOpts(WithMockClient(resizeTransport(t, expectedURL, tc.expectedHeight, tc.expectedWidth)))
+			assert.NilError(t, err)
+			err = client.ContainerExecResize(context.Background(), "exec_id", tc.opts)
 			assert.NilError(t, err)
 		})
 	}

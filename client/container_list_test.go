@@ -18,18 +18,20 @@ import (
 )
 
 func TestContainerListError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ContainerList(context.Background(), container.ListOptions{})
+	client, err := NewClientWithOpts(
+		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	)
+	assert.NilError(t, err)
+
+	_, err = client.ContainerList(context.Background(), container.ListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestContainerList(t *testing.T) {
 	expectedURL := "/containers/json"
 	expectedFilters := `{"before":{"container":true},"label":{"label1":true,"label2":true}}`
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -76,7 +78,8 @@ func TestContainerList(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader(b)),
 			}, nil
 		}),
-	}
+	)
+	assert.NilError(t, err)
 
 	containers, err := client.ContainerList(context.Background(), container.ListOptions{
 		Size:  true,

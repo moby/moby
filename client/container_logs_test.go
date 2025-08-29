@@ -20,10 +20,12 @@ import (
 )
 
 func TestContainerLogsNotFoundError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
-	}
-	_, err := client.ContainerLogs(context.Background(), "container_id", container.LogsOptions{})
+	client, err := NewClientWithOpts(
+		WithMockClient(errorMock(http.StatusNotFound, "Not found")),
+	)
+	assert.NilError(t, err)
+
+	_, err = client.ContainerLogs(context.Background(), "container_id", container.LogsOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 
 	_, err = client.ContainerLogs(context.Background(), "", container.LogsOptions{})
@@ -36,10 +38,12 @@ func TestContainerLogsNotFoundError(t *testing.T) {
 }
 
 func TestContainerLogsError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ContainerLogs(context.Background(), "container_id", container.LogsOptions{})
+	client, err := NewClientWithOpts(
+		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	)
+	assert.NilError(t, err)
+
+	_, err = client.ContainerLogs(context.Background(), "container_id", container.LogsOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	_, err = client.ContainerLogs(context.Background(), "container_id", container.LogsOptions{
@@ -125,8 +129,8 @@ func TestContainerLogs(t *testing.T) {
 		},
 	}
 	for _, logCase := range cases {
-		client := &Client{
-			client: newMockClient(func(r *http.Request) (*http.Response, error) {
+		client, err := NewClientWithOpts(
+			WithMockClient(func(r *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(r.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, r.URL)
 				}
@@ -143,7 +147,8 @@ func TestContainerLogs(t *testing.T) {
 					Body:       io.NopCloser(bytes.NewReader([]byte("response"))),
 				}, nil
 			}),
-		}
+		)
+		assert.NilError(t, err)
 		body, err := client.ContainerLogs(context.Background(), "container_id", logCase.options)
 		if logCase.expectedError != "" {
 			assert.Check(t, is.Error(err, logCase.expectedError))

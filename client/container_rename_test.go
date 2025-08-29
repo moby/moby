@@ -15,10 +15,9 @@ import (
 )
 
 func TestContainerRenameError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	err := client.ContainerRename(context.Background(), "nothing", "newNothing")
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
+	err = client.ContainerRename(context.Background(), "nothing", "newNothing")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	err = client.ContainerRename(context.Background(), "", "newNothing")
@@ -32,22 +31,21 @@ func TestContainerRenameError(t *testing.T) {
 
 func TestContainerRename(t *testing.T) {
 	expectedURL := "/containers/container_id/rename"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			name := req.URL.Query().Get("name")
-			if name != "newName" {
-				return nil, fmt.Errorf("name not set in URL query properly. Expected 'newName', got %s", name)
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-			}, nil
-		}),
-	}
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if !strings.HasPrefix(req.URL.Path, expectedURL) {
+			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		}
+		name := req.URL.Query().Get("name")
+		if name != "newName" {
+			return nil, fmt.Errorf("name not set in URL query properly. Expected 'newName', got %s", name)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader([]byte(""))),
+		}, nil
+	}))
+	assert.NilError(t, err)
 
-	err := client.ContainerRename(context.Background(), "container_id", "newName")
+	err = client.ContainerRename(context.Background(), "container_id", "newName")
 	assert.NilError(t, err)
 }
