@@ -35,6 +35,22 @@ func newMockClient(doer func(*http.Request) (*http.Response, error)) *http.Clien
 	}
 }
 
+// WithMockClient is a test helper that allows you to inject a mock client for testing.
+func WithMockClient(doer func(*http.Request) (*http.Response, error)) Opt {
+	return func(c *Client) error {
+		c.client = &http.Client{
+			Transport: transportEnsureBody(transportFunc(doer)),
+		}
+		if !c.manualOverride {
+			c.version = ""
+		}
+		c.host = ""
+		c.proto = ""
+		c.addr = ""
+		return nil
+	}
+}
+
 func errorMock(statusCode int, message string) func(req *http.Request) (*http.Response, error) {
 	return func(req *http.Request) (*http.Response, error) {
 		header := http.Header{}
