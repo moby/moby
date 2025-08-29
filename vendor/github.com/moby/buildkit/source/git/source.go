@@ -94,6 +94,10 @@ func (gs *gitSource) Identifier(scheme, ref string, attrs map[string]string, pla
 			id.MountSSHSock = v
 		case pb.AttrGitChecksum:
 			id.Checksum = v
+		case pb.AttrGitSkipSubmodules:
+			if v == "true" {
+				id.SkipSubmodules = true
+			}
 		}
 	}
 
@@ -208,6 +212,9 @@ func (gs *gitSourceHandler) shaToCacheKey(sha, ref string) string {
 	}
 	if gs.src.Subdir != "" {
 		key += ":" + gs.src.Subdir
+	}
+	if gs.src.SkipSubmodules {
+		key += "(skip-submodules)"
 	}
 	return key
 }
@@ -567,6 +574,7 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 		}
 	}
 
+	cd := checkoutDir
 	if gs.src.KeepGitDir && subdir == "." {
 		checkoutDirGit := filepath.Join(checkoutDir, ".git")
 		if err := os.MkdirAll(checkoutDir, 0711); err != nil {
@@ -624,7 +632,6 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 		}
 		gitDir = checkoutDirGit
 	} else {
-		cd := checkoutDir
 		if subdir != "." {
 			cd, err = os.MkdirTemp(cd, "checkout")
 			if err != nil {
@@ -636,39 +643,42 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to checkout remote %s", urlutil.RedactCredentials(gs.src.Remote))
 		}
-		if subdir != "." {
-			d, err := os.Open(filepath.Join(cd, subdir))
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to open subdir %v", subdir)
-			}
-			defer func() {
-				if d != nil {
-					d.Close()
-				}
-			}()
-			names, err := d.Readdirnames(0)
-			if err != nil {
-				return nil, err
-			}
-			for _, n := range names {
-				if err := os.Rename(filepath.Join(cd, subdir, n), filepath.Join(checkoutDir, n)); err != nil {
-					return nil, err
-				}
-			}
-			if err := d.Close(); err != nil {
-				return nil, err
-			}
-			d = nil // reset defer
-			if err := os.RemoveAll(cd); err != nil {
-				return nil, err
-			}
+	}
+
+	git = git.New(gitutil.WithWorkTree(cd), gitutil.WithGitDir(gitDir))
+	if !gs.src.SkipSubmodules {
+		_, err = git.Run(ctx, "submodule", "update", "--init", "--recursive", "--depth=1")
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to update submodules for %s", urlutil.RedactCredentials(gs.src.Remote))
 		}
 	}
 
-	git = git.New(gitutil.WithWorkTree(checkoutDir), gitutil.WithGitDir(gitDir))
-	_, err = git.Run(ctx, "submodule", "update", "--init", "--recursive", "--depth=1")
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to update submodules for %s", urlutil.RedactCredentials(gs.src.Remote))
+	if subdir != "." {
+		d, err := os.Open(filepath.Join(cd, subdir))
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to open subdir %v", subdir)
+		}
+		defer func() {
+			if d != nil {
+				d.Close()
+			}
+		}()
+		names, err := d.Readdirnames(0)
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range names {
+			if err := os.Rename(filepath.Join(cd, subdir, n), filepath.Join(checkoutDir, n)); err != nil {
+				return nil, err
+			}
+		}
+		if err := d.Close(); err != nil {
+			return nil, err
+		}
+		d = nil // reset defer
+		if err := os.RemoveAll(cd); err != nil {
+			return nil, err
+		}
 	}
 
 	if idmap := mount.IdentityMapping(); idmap != nil {
