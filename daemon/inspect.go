@@ -147,20 +147,28 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 		ProcessLabel: ctr.ProcessLabel,
 		ExecIDs:      ctr.GetExecIDs(),
 		HostConfig:   &hostConfig,
-		GraphDriver: storage.DriverData{
-			Name: ctr.Driver,
-		},
-		Config: ctr.Config,
+		Config:       ctr.Config,
 	}
 
 	// Now set any platform-specific fields
 	inspectResponse = setPlatformSpecificContainerFields(ctr, inspectResponse)
 
 	if daemon.UsesSnapshotter() {
+		inspectResponse.Storage = &storage.Storage{
+			RootFS: &storage.RootFSStorage{
+				Snapshot: &storage.RootFSStorageSnapshot{
+					Name: ctr.Driver,
+				},
+			},
+		}
+
 		// Additional information only applies to graphDrivers, so we're done.
 		return inspectResponse, nil
 	}
 
+	inspectResponse.GraphDriver = &storage.DriverData{
+		Name: ctr.Driver,
+	}
 	if ctr.RWLayer == nil {
 		if ctr.State.Dead {
 			return inspectResponse, nil

@@ -83,6 +83,9 @@ EOT
 
 generate_model types/storage <<- 'EOT'
 	DriverData
+	RootFSStorage
+	RootFSStorageSnapshot
+	Storage
 EOT
 
 generate_model types/swarm <<- 'EOT'
