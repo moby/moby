@@ -51,7 +51,6 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.Var(&conf.ShmSize, "default-shm-size", "Default shm size for containers")
 	flags.BoolVar(&conf.NoNewPrivileges, "no-new-privileges", false, "Set no-new-privileges by default for new containers")
 	flags.StringVar(&conf.IpcMode, "default-ipc-mode", conf.IpcMode, `Default mode for containers ipc ("shareable" | "private")`)
-	flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "Default address pools for node specific local networks")
 	flags.StringVar(&conf.NetworkConfig.FirewallBackend, "firewall-backend", "", "Firewall backend to use, iptables or nftables")
 	// rootless needs to be explicitly specified for running "rootful" dockerd in rootless dockerd (#38702)
 	// Note that conf.BridgeConfig.UserlandProxyPath and honorXDG are configured according to the value of rootless.RunningWithRootlessKit, not the value of --rootless.
