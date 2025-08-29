@@ -17,41 +17,39 @@ import (
 )
 
 func TestVolumeCreateError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
 
-	_, err := client.VolumeCreate(context.Background(), volume.CreateOptions{})
+	_, err = client.VolumeCreate(context.Background(), volume.CreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestVolumeCreate(t *testing.T) {
 	expectedURL := "/volumes/create"
 
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if !strings.HasPrefix(req.URL.Path, expectedURL) {
+			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		}
 
-			if req.Method != http.MethodPost {
-				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
-			}
+		if req.Method != http.MethodPost {
+			return nil, fmt.Errorf("expected POST method, got %s", req.Method)
+		}
 
-			content, err := json.Marshal(volume.Volume{
-				Name:       "volume",
-				Driver:     "local",
-				Mountpoint: "mountpoint",
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(content)),
-			}, nil
-		}),
-	}
+		content, err := json.Marshal(volume.Volume{
+			Name:       "volume",
+			Driver:     "local",
+			Mountpoint: "mountpoint",
+		})
+		if err != nil {
+			return nil, err
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(content)),
+		}, nil
+	}))
+	assert.NilError(t, err)
 
 	vol, err := client.VolumeCreate(context.Background(), volume.CreateOptions{
 		Name:   "myvolume",
