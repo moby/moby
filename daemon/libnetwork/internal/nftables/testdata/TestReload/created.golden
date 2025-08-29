@@ -5,7 +5,7 @@ table ip this_is_a_table {
 			     "eth1" : return }
 	}
 
-	set set4 {
+	set this_is_a_set {
 		type ipv4_addr
 		flags interval
 		elements = { 192.0.2.0/24 }

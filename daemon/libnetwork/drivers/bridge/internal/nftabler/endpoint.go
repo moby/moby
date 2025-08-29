@@ -25,18 +25,24 @@ func (n *network) DelEndpoint(ctx context.Context, epIPv4, epIPv6 netip.Addr) er
 
 func (n *network) modEndpoint(ctx context.Context, epIPv4, epIPv6 netip.Addr, enable bool) error {
 	if n.fw.config.IPv4 && epIPv4.IsValid() {
-		if err := n.filterDirectAccess(ctx, n.fw.table4, n.config.Config4, epIPv4, enable); err != nil {
-			return err
+		tm := nftables.Modifier{}
+		updater := tm.Create
+		if !enable {
+			updater = tm.Delete
 		}
-		if err := nftApply(ctx, n.fw.table4); err != nil {
+		n.filterDirectAccess(updater, nftables.IPv4, n.config.Config4, epIPv4)
+		if err := n.fw.table4.Apply(ctx, tm); err != nil {
 			return fmt.Errorf("adding rules for bridge %s: %w", n.config.IfName, err)
 		}
 	}
 	if n.fw.config.IPv6 && epIPv6.IsValid() {
-		if err := n.filterDirectAccess(ctx, n.fw.table6, n.config.Config6, epIPv6, enable); err != nil {
-			return err
+		tm := nftables.Modifier{}
+		updater := tm.Create
+		if !enable {
+			updater = tm.Delete
 		}
-		if err := nftApply(ctx, n.fw.table6); err != nil {
+		n.filterDirectAccess(updater, nftables.IPv6, n.config.Config6, epIPv6)
+		if err := n.fw.table6.Apply(ctx, tm); err != nil {
 			return fmt.Errorf("adding rules for bridge %s: %w", n.config.IfName, err)
 		}
 	}
@@ -53,17 +59,21 @@ func (n *network) modEndpoint(ctx context.Context, epIPv4, epIPv6 netip.Addr, en
 //     kernel support).
 //
 // Packets originating on the bridge's own interface and addressed directly to the
-// container are allowed - the host always has direct access to its own containers
-// (it doesn't need to use the port mapped to its own addresses, although it can).
+// container are allowed - the host always has direct access to its own containers.
+// (It doesn't need to use the port mapped to its own addresses, although it can.)
 //
 // "Trusted interfaces" are treated in the same way as the bridge itself.
-func (n *network) filterDirectAccess(ctx context.Context, table nftables.TableRef, conf firewaller.NetworkConfigFam, epIP netip.Addr, enable bool) error {
+func (n *network) filterDirectAccess(updater func(nftables.Obj), fam nftables.Family, conf firewaller.NetworkConfigFam, epIP netip.Addr) {
 	if n.config.Internal || conf.Unprotected || conf.Routed || n.fw.config.AllowDirectRouting {
-		return nil
+		return
 	}
-	updater := table.ChainUpdateFunc(ctx, rawPreroutingChain, enable)
 	ifNames := strings.Join(n.config.TrustedHostInterfaces, ", ")
-	return updater(ctx, rawPreroutingPortsRuleGroup,
-		`%s daddr %s iifname != { %s, %s } counter drop comment "DROP DIRECT ACCESS"`,
-		table.Family(), epIP, n.config.IfName, ifNames)
+	updater(nftables.Rule{
+		Chain: rawPreroutingChain,
+		Group: rawPreroutingPortsRuleGroup,
+		Rule: []string{
+			string(fam), "daddr", epIP.String(),
+			"iifname != {", n.config.IfName, ",", ifNames, `} counter drop comment "DROP DIRECT ACCESS"`,
+		},
+	})
 }

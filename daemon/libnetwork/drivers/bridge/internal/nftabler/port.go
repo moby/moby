@@ -4,22 +4,14 @@ package nftabler
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"strconv"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
-
-type pbContext struct {
-	table nftables.TableRef
-	conf  firewaller.NetworkConfigFam
-	ipv   firewaller.IPVersion
-}
 
 func (n *network) AddPorts(ctx context.Context, pbs []types.PortBinding) error {
 	return n.modPorts(ctx, pbs, true)
@@ -42,14 +34,12 @@ func (n *network) modPorts(ctx context.Context, pbs []types.PortBinding, enable 
 
 	pbs4, pbs6 := splitByContainerFam(pbs)
 	if n.fw.config.IPv4 && n.config.Config4.Prefix.IsValid() {
-		pbc := pbContext{table: n.fw.table4, conf: n.config.Config4, ipv: firewaller.IPv4}
-		if err := n.setPerPortRules(ctx, pbs4, pbc, enable); err != nil {
+		if err := n.setPerPortRules(ctx, pbs4, n.fw.table4, nftables.IPv4, n.config.Config4.Unprotected, enable); err != nil {
 			return err
 		}
 	}
 	if n.fw.config.IPv6 && n.config.Config6.Prefix.IsValid() {
-		pbc := pbContext{table: n.fw.table6, conf: n.config.Config6, ipv: firewaller.IPv6}
-		if err := n.setPerPortRules(ctx, pbs6, pbc, enable); err != nil {
+		if err := n.setPerPortRules(ctx, pbs6, n.fw.table6, nftables.IPv6, n.config.Config6.Unprotected, enable); err != nil {
 			return err
 		}
 	}
@@ -68,30 +58,26 @@ func splitByContainerFam(pbs []types.PortBinding) ([]types.PortBinding, []types.
 	return pbs4, pbs6
 }
 
-func (n *network) setPerPortRules(ctx context.Context, pbs []types.PortBinding, pbc pbContext, enable bool) error {
-	if err := n.setPerPortForwarding(ctx, pbs, pbc, enable); err != nil {
-		return err
+func (n *network) setPerPortRules(ctx context.Context, pbs []types.PortBinding, table nftables.Table, ipv nftables.Family, unprotected, enable bool) error {
+	tm := nftables.Modifier{}
+	updater := tm.Create
+	if !enable {
+		updater = tm.Delete
 	}
-	if err := n.setPerPortDNAT(ctx, pbs, pbc, enable); err != nil {
-		return err
+	if !unprotected {
+		n.setPerPortForwarding(pbs, updater, ipv)
 	}
-	if err := n.setPerPortHairpinMasq(ctx, pbs, pbc, enable); err != nil {
-		return err
-	}
-	if err := n.filterPortMappedOnLoopback(ctx, pbs, pbc, enable); err != nil {
-		return err
-	}
-	if err := nftApply(ctx, pbc.table); err != nil {
+	n.setPerPortDNAT(pbs, updater, ipv)
+	n.setPerPortHairpinMasq(pbs, updater, ipv)
+	n.filterPortMappedOnLoopback(pbs, updater, ipv)
+	if err := table.Apply(ctx, tm); err != nil {
 		return fmt.Errorf("adding rules for bridge %s: %w", n.config.IfName, err)
 	}
 	return nil
 }
 
-func (n *network) setPerPortForwarding(ctx context.Context, pbs []types.PortBinding, pbc pbContext, enable bool) error {
-	if pbc.conf.Unprotected {
-		return nil
-	}
-	updateFwdIn := pbc.table.ChainUpdateFunc(ctx, chainFilterFwdIn(n.config.IfName), enable)
+func (n *network) setPerPortForwarding(pbs []types.PortBinding, updater func(nftables.Obj), ipv nftables.Family) {
+	chainName := chainFilterFwdIn(n.config.IfName)
 	for _, pb := range pbs {
 		// When more than one host port is mapped to a single container port, this will
 		// generate the same rule for each host port. So, ignore duplicates when adding,
@@ -101,24 +87,25 @@ func (n *network) setPerPortForwarding(ctx context.Context, pbs []types.PortBind
 		// also be deleted more than once.)
 		//
 		// TODO(robmry) - track port mappings, use that to edit nftables sets when bindings are added/removed.
-		rule := fmt.Sprintf("%s daddr %s %s dport %d counter accept", pbc.table.Family(), pb.IP, pb.Proto, pb.Port)
-		if err := updateFwdIn(ctx, fwdInPortsRuleGroup, rule); err != nil &&
-			!errors.Is(err, nftables.ErrRuleExist) && !errors.Is(err, nftables.ErrRuleNotExist) {
-			return fmt.Errorf("updating forwarding rule for port %s %s:%d/%s on %s, enable=%v: %w",
-				pbc.table.Family(), pb.IP, pb.Port, pb.Proto, n.config.IfName, enable, err)
-		}
+		updater(nftables.Rule{
+			Chain: chainName,
+			Group: fwdInPortsRuleGroup,
+			Rule: []string{
+				string(ipv), "daddr", pb.IP.String(), pb.Proto.String(),
+				"dport", strconv.Itoa(int(pb.Port)), "counter accept",
+			},
+			IgnoreExist: true,
+		})
 	}
-	return nil
 }
 
-func (n *network) setPerPortDNAT(ctx context.Context, pbs []types.PortBinding, pbc pbContext, enable bool) error {
-	updater := pbc.table.ChainUpdateFunc(ctx, natChain, enable)
+func (n *network) setPerPortDNAT(pbs []types.PortBinding, updater func(nftables.Obj), ipv nftables.Family) {
 	var proxySkip string
 	if !n.fw.config.Hairpin {
 		proxySkip = fmt.Sprintf("iifname != %s ", n.config.IfName)
 	}
 	var v6LLSkip string
-	if pbc.ipv == firewaller.IPv6 {
+	if ipv == nftables.IPv6 {
 		v6LLSkip = "ip6 saddr != fe80::/10 "
 	}
 	for _, pb := range pbs {
@@ -133,26 +120,26 @@ func (n *network) setPerPortDNAT(ctx context.Context, pbs []types.PortBinding, p
 		}
 		var daddrMatch string
 		if !pb.HostIP.IsUnspecified() {
-			daddrMatch = fmt.Sprintf("%s daddr %s ", pbc.table.Family(), pb.HostIP)
+			daddrMatch = fmt.Sprintf("%s daddr %s ", ipv, pb.HostIP)
 		}
-		rule := fmt.Sprintf("%s%s%s%s dport %d counter dnat to %s comment DNAT",
-			proxySkip, v6LLSkip, daddrMatch, pb.Proto, pb.HostPort,
-			net.JoinHostPort(pb.IP.String(), strconv.Itoa(int(pb.Port))))
-		if err := updater(ctx, initialRuleGroup, rule); err != nil {
-			return fmt.Errorf("adding DNAT for %s %s:%d -> %s:%d/%s on %s: %w",
-				pbc.table.Family(), pb.HostIP, pb.HostPort, pb.IP, pb.Port, pb.Proto, n.config.IfName, err)
-		}
+		updater(nftables.Rule{
+			Chain: natChain,
+			Group: initialRuleGroup,
+			Rule: []string{
+				proxySkip, v6LLSkip, daddrMatch, pb.Proto.String(), "dport", strconv.Itoa(int(pb.HostPort)), "counter dnat to",
+				net.JoinHostPort(pb.IP.String(), strconv.Itoa(int(pb.Port))), "comment DNAT",
+			},
+		})
 	}
-	return nil
 }
 
 // setPerPortHairpinMasq allows containers to access their own published ports on the host
 // when hairpin is enabled (no docker-proxy), by masquerading.
-func (n *network) setPerPortHairpinMasq(ctx context.Context, pbs []types.PortBinding, pbc pbContext, enable bool) error {
+func (n *network) setPerPortHairpinMasq(pbs []types.PortBinding, updater func(nftables.Obj), ipv nftables.Family) {
 	if !n.fw.config.Hairpin {
-		return nil
+		return
 	}
-	updater := pbc.table.ChainUpdateFunc(ctx, chainNatPostRtIn(n.config.IfName), enable)
+	chainName := chainNatPostRtIn(n.config.IfName)
 	for _, pb := range pbs {
 		// Nothing to do if NAT is disabled.
 		if pb.HostPort == 0 {
@@ -171,15 +158,17 @@ func (n *network) setPerPortHairpinMasq(ctx context.Context, pbs []types.PortBin
 		// than once.)
 		//
 		// TODO(robmry) - track port mappings, use that to edit nftables sets when bindings are added/removed.
-		rule := fmt.Sprintf(`%s saddr %s %s daddr %s %s dport %d counter masquerade comment "MASQ TO OWN PORT"`,
-			pbc.table.Family(), pb.IP, pbc.table.Family(), pb.IP, pb.Proto, pb.Port)
-		if err := updater(ctx, initialRuleGroup, rule); err != nil &&
-			!errors.Is(err, nftables.ErrRuleExist) && !errors.Is(err, nftables.ErrRuleNotExist) {
-			return fmt.Errorf("adding MASQ TO OWN PORT for %d -> %s:%d/%s: %w",
-				pb.Port, pb.IP, pb.Port, pb.Proto, err)
-		}
+		updater(nftables.Rule{
+			Chain: chainName,
+			Group: initialRuleGroup,
+			Rule: []string{
+				string(ipv), "saddr", pb.IP.String(), string(ipv),
+				"daddr", pb.IP.String(), pb.Proto.String(),
+				"dport", strconv.Itoa(int(pb.Port)),
+				`counter masquerade comment "MASQ TO OWN PORT"`,
+			},
+		})
 	}
-	return nil
 }
 
 // filterPortMappedOnLoopback adds a rule that drops remote connections to ports
@@ -188,11 +177,10 @@ func (n *network) setPerPortHairpinMasq(ctx context.Context, pbs []types.PortBin
 // This is a no-op if the portBinding is for IPv6 (IPv6 loopback address is
 // non-routable), or over a network with gw_mode=routed (PBs in routed mode
 // don't map ports on the host).
-func (n *network) filterPortMappedOnLoopback(ctx context.Context, pbs []types.PortBinding, pbc pbContext, enable bool) error {
-	if pbc.ipv == firewaller.IPv6 {
-		return nil
+func (n *network) filterPortMappedOnLoopback(pbs []types.PortBinding, updater func(nftables.Obj), ipv nftables.Family) {
+	if ipv == nftables.IPv6 {
+		return
 	}
-	updater := pbc.table.ChainUpdateFunc(ctx, rawPreroutingChain, enable)
 	for _, pb := range pbs {
 		// Nothing to do if not binding to the loopback address.
 		if pb.HostPort == 0 || !pb.HostIP.IsLoopback() {
@@ -203,18 +191,24 @@ func (n *network) filterPortMappedOnLoopback(ctx context.Context, pbs []types.Po
 			continue
 		}
 		if n.fw.config.WSL2Mirrored {
-			if err := updater(ctx, rawPreroutingPortsRuleGroup,
-				`iifname loopback0 ip daddr %s %s dport %d counter accept comment "%s"`,
-				pb.HostIP, pb.Proto, pb.HostPort, "ACCEPT WSL2 LOOPBACK"); err != nil {
-				return fmt.Errorf("adding WSL2 loopback rule for %d: %w", pb.HostPort, err)
-			}
+			updater(nftables.Rule{
+				Chain: rawPreroutingChain,
+				Group: rawPreroutingPortsRuleGroup,
+				Rule: []string{
+					"iifname loopback0 ip daddr", pb.HostIP.String(), pb.Proto.String(),
+					"dport", strconv.Itoa(int(pb.HostPort)),
+					`counter accept comment "ACCEPT WSL2 LOOPBACK"`,
+				},
+			})
 		}
-		if err := updater(ctx, rawPreroutingPortsRuleGroup,
-			`iifname != lo ip daddr %s %s dport %d counter drop comment "DROP REMOTE LOOPBACK"`,
-			pb.HostIP, pb.Proto, pb.HostPort); err != nil {
-			return fmt.Errorf("adding loopback filter rule for %d: %w", pb.HostPort, err)
-		}
+		updater(nftables.Rule{
+			Chain: rawPreroutingChain,
+			Group: rawPreroutingPortsRuleGroup,
+			Rule: []string{
+				`iifname != lo ip daddr`, pb.HostIP.String(), pb.Proto.String(),
+				"dport", strconv.Itoa(int(pb.HostPort)),
+				`counter drop comment "DROP REMOTE LOOPBACK"`,
+			},
+		})
 	}
-
-	return nil
 }
