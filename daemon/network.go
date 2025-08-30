@@ -17,7 +17,6 @@ import (
 	"github.com/docker/go-connections/nat"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/filters"
 	networktypes "github.com/moby/moby/api/types/network"
 	clustertypes "github.com/moby/moby/v2/daemon/cluster/provider"
 	"github.com/moby/moby/v2/daemon/config"
@@ -591,34 +590,19 @@ func (daemon *Daemon) deleteNetwork(nw *libnetwork.Network, dynamic bool) error 
 }
 
 // GetNetworks returns a list of all networks
-func (daemon *Daemon) GetNetworks(filter filters.Args, config backend.NetworkListConfig) ([]networktypes.Inspect, error) {
-	var idx map[string]*libnetwork.Network
-	if config.Detailed {
-		idx = make(map[string]*libnetwork.Network)
-	}
-
+func (daemon *Daemon) GetNetworks(filter network.Filter, config backend.NetworkListConfig) ([]networktypes.Inspect, error) {
 	allNetworks := daemon.getAllNetworks()
 	networks := make([]networktypes.Inspect, 0, len(allNetworks))
 	for _, n := range allNetworks {
-		nr := buildNetworkResource(n)
-		networks = append(networks, nr)
-		if config.Detailed {
-			idx[nr.ID] = n
-		}
-	}
-
-	var err error
-	networks, err = network.FilterNetworks(networks, filter)
-	if err != nil {
-		return nil, err
-	}
-
-	if config.Detailed {
-		for i, nw := range networks {
-			networks[i].Containers = buildContainerAttachments(idx[nw.ID])
-			if config.Verbose {
-				networks[i].Services = buildServiceAttachments(idx[nw.ID])
+		if filter.Matches(n) {
+			nr := buildNetworkResource(n)
+			if config.Detailed {
+				nr.Containers = buildContainerAttachments(n)
+				if config.Verbose {
+					nr.Services = buildServiceAttachments(n)
+				}
 			}
+			networks = append(networks, nr)
 		}
 	}
 

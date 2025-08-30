@@ -6,51 +6,75 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/moby/moby/api/types/filters"
-	"github.com/moby/moby/api/types/network"
 )
 
-func TestFilterNetworks(t *testing.T) {
-	networks := []network.Inspect{
+type mockFilterNetwork struct {
+	FilterNetwork
+	name, driver, scope string
+	containers          int
+}
+
+func (n mockFilterNetwork) Name() string {
+	return n.name
+}
+
+func (n mockFilterNetwork) Driver() string {
+	return n.driver
+}
+
+func (n mockFilterNetwork) Scope() string {
+	return n.scope
+}
+
+func (n mockFilterNetwork) ContainerAttachments() int {
+	return n.containers
+}
+
+func (n mockFilterNetwork) ServiceAttachments() int {
+	return 0
+}
+
+func TestFilter(t *testing.T) {
+	networks := []mockFilterNetwork{
 		{
-			Name:   "host",
-			Driver: "host",
-			Scope:  "local",
+			name:   "host",
+			driver: "host",
+			scope:  "local",
 		},
 		{
-			Name:   "bridge",
-			Driver: "bridge",
-			Scope:  "local",
+			name:   "bridge",
+			driver: "bridge",
+			scope:  "local",
 		},
 		{
-			Name:   "none",
-			Driver: "null",
-			Scope:  "local",
+			name:   "none",
+			driver: "null",
+			scope:  "local",
 		},
 		{
-			Name:   "myoverlay",
-			Driver: "overlay",
-			Scope:  "swarm",
+			name:   "myoverlay",
+			driver: "overlay",
+			scope:  "swarm",
 		},
 		{
-			Name:   "mydrivernet",
-			Driver: "mydriver",
-			Scope:  "local",
+			name:   "mydrivernet",
+			driver: "mydriver",
+			scope:  "local",
 		},
 		{
-			Name:   "mykvnet",
-			Driver: "mykvdriver",
-			Scope:  "global",
+			name:   "mykvnet",
+			driver: "mykvdriver",
+			scope:  "global",
 		},
 		{
-			Name:   "networkwithcontainer",
-			Driver: "nwc",
-			Scope:  "local",
-			Containers: map[string]network.EndpointResource{
-				"customcontainer": {
-					Name: "customendpoint",
-				},
-			},
+			name:       "networkwithcontainer",
+			driver:     "nwc",
+			scope:      "local",
+			containers: 1,
 		},
 	}
 
@@ -133,39 +157,32 @@ func TestFilterNetworks(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			ls := make([]network.Inspect, 0, len(networks))
-			ls = append(ls, networks...)
-			result, err := FilterNetworks(ls, testCase.filter)
+			flt, err := NewFilter(testCase.filter)
 			if testCase.err != "" {
 				if err == nil {
 					t.Fatalf("expect error '%s', got no error", testCase.err)
 				} else if !strings.Contains(err.Error(), testCase.err) {
 					t.Fatalf("expect error '%s', got '%s'", testCase.err, err)
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("expect no error, got error '%s'", err)
+				return
+			}
+			if err != nil {
+				t.Fatalf("expect no error, got error '%s'", err)
+			}
+			got := map[string]bool{}
+			for _, nw := range networks {
+				if flt.Matches(nw) {
+					got[nw.Name()] = true
 				}
-				// Make sure result is not nil
-				if result == nil {
-					t.Fatal("filterNetworks should not return nil")
-				}
+			}
 
-				if len(result) != testCase.resultCount {
-					t.Fatalf("expect '%d' networks, got '%d' networks", testCase.resultCount, len(result))
+			assert.Check(t, is.Len(got, testCase.resultCount))
+			if len(testCase.results) > 0 {
+				want := map[string]bool{}
+				for _, r := range testCase.results {
+					want[r] = true
 				}
-
-				if len(testCase.results) > 0 {
-					resultMap := make(map[string]bool)
-					for _, r := range result {
-						resultMap[r.Name] = true
-					}
-					for _, r := range testCase.results {
-						if _, ok := resultMap[r]; !ok {
-							t.Fatalf("expected result: '%s' not found", r)
-						}
-					}
-				}
+				assert.Check(t, is.DeepEqual(got, want))
 			}
 		})
 	}
