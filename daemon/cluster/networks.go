@@ -23,7 +23,6 @@ func (c *Cluster) GetNetworks(filter filters.Args) ([]network.Inspect, error) {
 		f = &swarmapi.ListNetworksRequest_Filters{}
 
 		if filter.Contains("name") {
-			f.Names = filter.Get("name")
 			f.NamePrefixes = filter.Get("name")
 		}
 
