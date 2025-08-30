@@ -95,4 +95,24 @@ func TestImageInspect(t *testing.T) {
 		assert.Equal(t, inspectArm64.Architecture, "arm64")
 		assert.Equal(t, inspectArm64.Os, "linux")
 	})
+
+	t.Run("inspect image returns correct storage driver information", func(t *testing.T) {
+		ctx := logtest.WithT(ctx, t)
+		service := fakeImageService(t, ctx, cs)
+
+		img := toContainerdImage(t, func(dir string) (*ocispec.Index, error) {
+			idx, _, err := specialimage.MultiPlatform(dir, "specialimage:latest", []ocispec.Platform{
+				{OS: "linux", Architecture: "arm64"},
+			})
+			return idx, err
+		})
+
+		_, err := service.images.Create(ctx, img)
+		assert.NilError(t, err)
+
+		inspectResp, err := service.ImageInspect(ctx, img.Name, backend.ImageInspectOpts{})
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(inspectResp.StorageDriver.Name, service.snapshotter))
+		assert.Check(t, is.Equal(inspectResp.StorageDriver.Type, "snapshotter"))
+	})
 }

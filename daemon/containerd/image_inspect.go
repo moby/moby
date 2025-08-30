@@ -99,6 +99,11 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts ba
 			Name: i.snapshotter,
 			Data: nil,
 		},
+		StorageDriver: storage.Driver{
+			Name: i.snapshotter,
+			Type: "snapshotter",
+			Data: nil,
+		},
 		Metadata: imagetypes.Metadata{
 			LastTagTime: lastUpdated,
 		},
