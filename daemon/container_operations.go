@@ -210,18 +210,6 @@ func (daemon *Daemon) updateNetworkSettings(ctr *container.Container, n *libnetw
 	return nil
 }
 
-func (daemon *Daemon) updateEndpointNetworkSettings(cfg *config.Config, ctr *container.Container, n *libnetwork.Network, ep *libnetwork.Endpoint) error {
-	if err := buildEndpointInfo(ctr.NetworkSettings, n, ep); err != nil {
-		return err
-	}
-
-	if ctr.HostConfig.NetworkMode == network.DefaultNetwork {
-		ctr.NetworkSettings.Bridge = cfg.BridgeConfig.Iface
-	}
-
-	return nil
-}
-
 // UpdateNetwork is used to update the container's network (e.g. when linked containers
 // get removed/unlinked).
 func (daemon *Daemon) updateNetwork(cfg *config.Config, ctr *container.Container) error {
@@ -739,7 +727,7 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 
 	delete(ctr.NetworkSettings.Networks, n.ID())
 
-	if err := daemon.updateEndpointNetworkSettings(cfg, ctr, n, ep); err != nil {
+	if err := buildEndpointInfo(ctr.NetworkSettings, n, ep); err != nil {
 		return err
 	}
 

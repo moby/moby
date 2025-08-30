@@ -42,6 +42,8 @@ PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/models_containers
 # automatically in linking containers. Thus, this test is expected to fail — skip it. See https://github.com/moby/moby/pull/50719
 PY_TEST_OPTIONS="${PY_TEST_OPTIONS} --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_create_with_links"
 
+# This test tries to read the MAC address from NetworkSettings.MacAddress which is removed in v29.0.
+PY_TEST_OPTIONS="${PY_TEST_OPTIONS} --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_create_with_mac_address"
 (
 	bundle .integration-daemon-start
 
