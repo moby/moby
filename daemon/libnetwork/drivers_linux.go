@@ -30,7 +30,9 @@ func registerNetworkDrivers(r driverapi.Registerer, store *datastore.Store, pms 
 		{ntype: host.NetworkType, register: func(r driverapi.Registerer, _ *datastore.Store, _ map[string]any) error {
 			return host.Register(r)
 		}},
-		{ntype: ipvlan.NetworkType, register: ipvlan.Register},
+		{ntype: ipvlan.NetworkType, register: func(r driverapi.Registerer, store *datastore.Store, _ map[string]any) error {
+			return ipvlan.Register(r, store)
+		}},
 		{ntype: macvlan.NetworkType, register: func(r driverapi.Registerer, store *datastore.Store, _ map[string]any) error {
 			return macvlan.Register(r, store)
 		}},
