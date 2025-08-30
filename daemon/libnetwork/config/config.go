@@ -8,7 +8,6 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/cluster"
 	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamutils"
-	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 )
 
@@ -96,17 +95,6 @@ func OptionDefaultAddressPoolConfig(addressPool []*ipamutils.NetworkToSplit) Opt
 func OptionDriverConfig(networkType string, config map[string]any) Option {
 	return func(c *Config) {
 		c.driverCfg[networkType] = config
-	}
-}
-
-// OptionLabels function returns an option setter for labels
-func OptionLabels(labels []string) Option {
-	return func(c *Config) {
-		for _, label := range labels {
-			if strings.HasPrefix(label, netlabel.Prefix) {
-				c.Labels = append(c.Labels, label)
-			}
-		}
 	}
 }
 

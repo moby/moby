@@ -46,6 +46,7 @@ package libnetwork
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net"
 	"path/filepath"
 	"runtime"
@@ -384,26 +385,7 @@ func (c *Controller) agentStopComplete() {
 }
 
 func (c *Controller) makeDriverConfig(ntype string) map[string]any {
-	if c.cfg == nil {
-		return nil
-	}
-
-	cfg := map[string]any{}
-	for _, label := range c.cfg.Labels {
-		key, val, _ := strings.Cut(label, "=")
-		if !strings.HasPrefix(key, netlabel.DriverPrefix+"."+ntype) {
-			continue
-		}
-
-		cfg[key] = val
-	}
-
-	// Merge in the existing config for this driver.
-	for k, v := range c.cfg.DriverConfig(ntype) {
-		cfg[k] = v
-	}
-
-	return cfg
+	return maps.Clone(c.cfg.DriverConfig(ntype))
 }
 
 // ID returns the controller's unique identity.
