@@ -32,8 +32,6 @@ var (
 
 type driver struct {
 	// Immutable; mu does not need to be held when accessing these fields.
-
-	config map[string]any
 	initOS sync.Once
 
 	// encrMu guards secMap and keys,
@@ -58,11 +56,10 @@ type driver struct {
 }
 
 // Register registers a new instance of the overlay driver.
-func Register(r driverapi.Registerer, config map[string]any) error {
+func Register(r driverapi.Registerer) error {
 	d := &driver{
 		networks: networkTable{},
 		secMap:   encrMap{},
-		config:   config,
 	}
 	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
 		DataScope:         scope.Global,

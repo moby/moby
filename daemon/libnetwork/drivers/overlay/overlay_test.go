@@ -41,14 +41,14 @@ func (dt *driverTester) RegisterNetworkAllocator(name string, _ driverapi.Networ
 }
 
 func TestOverlayInit(t *testing.T) {
-	if err := Register(&driverTester{t: t}, nil); err != nil {
+	if err := Register(&driverTester{t: t}); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestOverlayType(t *testing.T) {
 	dt := &driverTester{t: t}
-	if err := Register(dt, nil); err != nil {
+	if err := Register(dt); err != nil {
 		t.Fatal(err)
 	}
 

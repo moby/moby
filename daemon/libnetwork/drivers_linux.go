@@ -35,8 +35,8 @@ func registerNetworkDrivers(r driverapi.Registerer, store *datastore.Store, pms 
 		{ntype: null.NetworkType, register: func(r driverapi.Registerer, _ *datastore.Store, _ map[string]any) error {
 			return null.Register(r)
 		}},
-		{ntype: overlay.NetworkType, register: func(r driverapi.Registerer, _ *datastore.Store, config map[string]any) error {
-			return overlay.Register(r, config)
+		{ntype: overlay.NetworkType, register: func(r driverapi.Registerer, _ *datastore.Store, _ map[string]any) error {
+			return overlay.Register(r)
 		}},
 	} {
 		if err := nr.register(r, store, driverConfig(nr.ntype)); err != nil {
