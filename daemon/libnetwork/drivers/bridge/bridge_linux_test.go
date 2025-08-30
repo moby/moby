@@ -277,7 +277,7 @@ func TestCreateFullOptions(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
-	config := &configuration{
+	config := &Configuration{
 		EnableIPForwarding: true,
 		EnableIPTables:     true,
 	}
@@ -347,7 +347,7 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
-	config := &configuration{
+	config := &Configuration{
 		EnableIPForwarding: true,
 	}
 	genericOption := make(map[string]any)
@@ -591,7 +591,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 		assert.Check(t, is.Len(slices.Collect(maps.Keys(got)), 0), "Rules for bridges have not been deleted")
 	}
 
-	config := &configuration{
+	config := &Configuration{
 		EnableIPTables: true,
 	}
 	genericOption := make(map[string]any)
@@ -798,7 +798,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	d := newDriver(storeutils.NewTempStore(t), &pms)
 	portallocator.Get().ReleaseAll()
 
-	config := &configuration{
+	config := &Configuration{
 		EnableIPTables: true,
 	}
 	genericOption := make(map[string]any)
@@ -901,7 +901,7 @@ func TestLinkContainers(t *testing.T) {
 
 	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
-	config := &configuration{
+	config := &Configuration{
 		EnableIPTables: true,
 	}
 	genericOption := make(map[string]any)
@@ -1342,7 +1342,7 @@ func useStubFirewaller(t *testing.T) {
 func TestSetupIP6TablesWithHostIPv4(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
-	dc := &configuration{
+	dc := &Configuration{
 		EnableIPTables:  true,
 		EnableIP6Tables: true,
 	}

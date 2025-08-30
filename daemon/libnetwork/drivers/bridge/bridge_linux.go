@@ -63,8 +63,8 @@ const spanPrefix = "libnetwork.drivers.bridge"
 // FIXME(robmry) - it doesn't belong here.
 const DockerForwardChain = iptabler.DockerForwardChain
 
-// configuration info for the "bridge" driver.
-type configuration struct {
+// Configuration info for the "bridge" driver.
+type Configuration struct {
 	EnableIPForwarding       bool
 	DisableFilterForwardDrop bool
 	EnableIPTables           bool
@@ -156,7 +156,7 @@ type bridgeNetwork struct {
 }
 
 type driver struct {
-	config        configuration
+	config        Configuration
 	networks      map[string]*bridgeNetwork
 	store         *datastore.Store
 	nlh           nlwrap.Handle
@@ -497,15 +497,15 @@ func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
 }
 
 func (d *driver) configure(option map[string]any) error {
-	var config configuration
+	var config Configuration
 	switch opt := option[netlabel.GenericData].(type) {
 	case options.Generic:
-		opaqueConfig, err := options.GenerateFromModel(opt, &configuration{})
+		opaqueConfig, err := options.GenerateFromModel(opt, &Configuration{})
 		if err != nil {
 			return err
 		}
-		config = *opaqueConfig.(*configuration)
-	case *configuration:
+		config = *opaqueConfig.(*Configuration)
+	case *Configuration:
 		config = *opt
 	case nil:
 		// No GenericData option set. Use defaults.

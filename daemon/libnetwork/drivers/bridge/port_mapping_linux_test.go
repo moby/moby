@@ -43,7 +43,7 @@ func TestPortMappingConfig(t *testing.T) {
 
 	d := newDriver(storeutils.NewTempStore(t), &pms)
 
-	config := &configuration{
+	config := &Configuration{
 		EnableIPTables: true,
 	}
 	genericOption := make(map[string]any)
@@ -132,7 +132,7 @@ func TestPortMappingV6Config(t *testing.T) {
 
 	d := newDriver(storeutils.NewTempStore(t), &pms)
 
-	config := &configuration{
+	config := &Configuration{
 		EnableIPTables:  true,
 		EnableIP6Tables: true,
 	}
@@ -783,7 +783,7 @@ func TestAddPortMappings(t *testing.T) {
 				driver: newDriver(storeutils.NewTempStore(t), pms),
 			}
 			genericOption := map[string]any{
-				netlabel.GenericData: &configuration{
+				netlabel.GenericData: &Configuration{
 					EnableIPTables:  true,
 					EnableIP6Tables: true,
 					EnableProxy:     tc.enableProxy,
