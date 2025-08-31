@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"slices"
 	"strings"
 
 	"github.com/containerd/log"
@@ -80,9 +81,11 @@ type network struct {
 }
 
 type networkDriver struct {
-	driver     driverapi.Driver
-	name       string
-	capability *driverapi.Capability
+	driver driverapi.Driver // driver is nil when isNodeLocal == true
+	name   string
+	// isNodeLocal indicates whether that driver is locally-managed or requires
+	// global resources allocation.
+	isNodeLocal bool
 }
 
 // NewAllocator returns a new NetworkAllocator handle
@@ -95,7 +98,7 @@ func (p *Provider) NewAllocator(netConfig *networkallocator.Config) (networkallo
 		pg:       p.pg,
 	}
 
-	for ntype, i := range initializers {
+	for ntype, i := range globalDrivers {
 		if err := i(&na.networkRegistry); err != nil {
 			return nil, fmt.Errorf("failed to register %q network driver: %w", ntype, err)
 		}
@@ -129,7 +132,7 @@ func (na *cnmNetworkAllocator) Allocate(n *api.Network) error {
 	nw := &network{
 		nw:          n,
 		endpoints:   make(map[string]string),
-		isNodeLocal: d.capability.DataScope == scope.Local,
+		isNodeLocal: d.isNodeLocal,
 	}
 
 	// No swarm-level allocation can be provided by the network driver for
@@ -149,7 +152,7 @@ func (na *cnmNetworkAllocator) Allocate(n *api.Network) error {
 			return errors.Wrapf(err, "failed allocating pools and gateway IP for network %s", n.ID)
 		}
 
-		if err := na.allocateDriverState(n); err != nil {
+		if err := na.allocateDriverState(d, n); err != nil {
 			na.freePools(n, nw.pools)
 			return errors.Wrapf(err, "failed while allocating driver state for network %s", n.ID)
 		}
@@ -706,13 +709,16 @@ func (na *cnmNetworkAllocator) freeDriverState(n *api.Network) error {
 		return err
 	}
 
+	if d.driver == nil {
+		return fmt.Errorf("driver %s was loaded from localDrivers and can't be used to free driver state", d.name)
+	}
+
 	return d.driver.NetworkFree(n.ID)
 }
 
-func (na *cnmNetworkAllocator) allocateDriverState(n *api.Network) error {
-	d, err := na.resolveDriver(n)
-	if err != nil {
-		return err
+func (na *cnmNetworkAllocator) allocateDriverState(d *networkDriver, n *api.Network) error {
+	if d.driver == nil {
+		return fmt.Errorf("driver %s was loaded from localDrivers and can't be used to allocate driver state", d.name)
 	}
 
 	options := make(map[string]string)
@@ -776,20 +782,28 @@ func (na *cnmNetworkAllocator) resolveDriver(n *api.Network) (*networkDriver, er
 		dName = n.Spec.DriverConfig.Name
 	}
 
-	d, drvcap := na.networkRegistry.Driver(dName)
+	if slices.Contains(localDrivers, dName) {
+		return &networkDriver{name: dName, isNodeLocal: true}, nil
+	}
+
+	d, drvCap := na.networkRegistry.Driver(dName)
 	if d == nil {
 		err := na.loadDriver(dName)
 		if err != nil {
 			return nil, err
 		}
 
-		d, drvcap = na.networkRegistry.Driver(dName)
+		d, drvCap = na.networkRegistry.Driver(dName)
 		if d == nil {
 			return nil, fmt.Errorf("could not resolve network driver %s", dName)
 		}
 	}
 
-	return &networkDriver{driver: d, capability: &drvcap, name: dName}, nil
+	return &networkDriver{
+		driver:      d,
+		name:        dName,
+		isNodeLocal: drvCap.DataScope == scope.Local,
+	}, nil
 }
 
 func (na *cnmNetworkAllocator) loadDriver(name string) error {
@@ -966,8 +980,8 @@ func (na *cnmNetworkAllocator) IsVIPOnIngressNetwork(vip *api.Endpoint_VirtualIP
 // IsBuiltInDriver returns whether the passed driver is an internal network driver
 func IsBuiltInDriver(name string) bool {
 	n := strings.ToLower(name)
-	_, ok := initializers[n]
-	return ok
+	_, isGlobal := globalDrivers[n]
+	return isGlobal || slices.Contains(localDrivers, n)
 }
 
 // setIPAMSerialAlloc sets the ipam allocation method to serial
