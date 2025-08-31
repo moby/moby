@@ -178,19 +178,40 @@ const (
 )
 
 // New constructs a new bridge driver
-func newDriver(store *datastore.Store, pms *drvregistry.PortMappers) *driver {
-	return &driver{
+func newDriver(store *datastore.Store, config Configuration, pms *drvregistry.PortMappers) (*driver, error) {
+	fw, err := newFirewaller(context.Background(), firewaller.Config{
+		IPv4:               config.EnableIPTables,
+		IPv6:               config.EnableIP6Tables,
+		Hairpin:            !config.EnableProxy,
+		AllowDirectRouting: config.AllowDirectRouting,
+		WSL2Mirrored:       isRunningUnderWSL2MirroredMode(context.Background()),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	d := &driver{
 		store:       store,
+		config:      config,
 		nlh:         ns.NlHandle(),
 		networks:    map[string]*bridgeNetwork{},
+		firewaller:  fw,
 		portmappers: pms,
 	}
+
+	if err := d.initStore(); err != nil {
+		return nil, err
+	}
+
+	iptables.OnReloaded(d.handleFirewalldReload)
+
+	return d, nil
 }
 
 // Register registers a new instance of bridge driver.
 func Register(r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, config Configuration) error {
-	d := newDriver(store, pms)
-	if err := d.configure(config); err != nil {
+	d, err := newDriver(store, config, pms)
+	if err != nil {
 		return err
 	}
 	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
@@ -494,32 +515,6 @@ func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
 	}
 
 	return nil, nil
-}
-
-func (d *driver) configure(config Configuration) error {
-	var err error
-	d.firewaller, err = newFirewaller(context.Background(), firewaller.Config{
-		IPv4:               config.EnableIPTables,
-		IPv6:               config.EnableIP6Tables,
-		Hairpin:            !config.EnableProxy,
-		AllowDirectRouting: config.AllowDirectRouting,
-		WSL2Mirrored:       isRunningUnderWSL2MirroredMode(context.Background()),
-	})
-	if err != nil {
-		return err
-	}
-
-	d.mu.Lock()
-	d.config = config
-	d.mu.Unlock()
-
-	// Register for an event when firewalld is reloaded, but take the config lock so
-	// that events won't be processed until the initial load from Store is complete.
-	d.configNetwork.Lock()
-	defer d.configNetwork.Unlock()
-	iptables.OnReloaded(d.handleFirewalldReload)
-
-	return d.initStore()
 }
 
 var newFirewaller = func(ctx context.Context, config firewaller.Config) (firewaller.Firewaller, error) {

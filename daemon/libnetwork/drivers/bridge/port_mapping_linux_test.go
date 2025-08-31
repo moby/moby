@@ -41,13 +41,10 @@ func TestPortMappingConfig(t *testing.T) {
 	err := pms.Register("nat", pm)
 	assert.NilError(t, err)
 
-	d := newDriver(storeutils.NewTempStore(t), &pms)
-
-	if err := d.configure(Configuration{
+	d, err := newDriver(storeutils.NewTempStore(t), Configuration{
 		EnableIPTables: true,
-	}); err != nil {
-		t.Fatalf("Failed to setup driver config: %v", err)
-	}
+	}, &pms)
+	assert.NilError(t, err)
 
 	binding1 := types.PortBinding{Proto: types.SCTP, Port: 300, HostPort: 65000}
 	binding2 := types.PortBinding{Proto: types.UDP, Port: 400, HostPort: 54000}
@@ -126,14 +123,11 @@ func TestPortMappingV6Config(t *testing.T) {
 	err := pms.Register("nat", pm)
 	assert.NilError(t, err)
 
-	d := newDriver(storeutils.NewTempStore(t), &pms)
-
-	if err := d.configure(Configuration{
+	d, err := newDriver(storeutils.NewTempStore(t), Configuration{
 		EnableIPTables:  true,
 		EnableIP6Tables: true,
-	}); err != nil {
-		t.Fatalf("Failed to setup driver config: %v", err)
-	}
+	}, &pms)
+	assert.NilError(t, err)
 
 	portBindings := []types.PortBinding{
 		{Proto: types.UDP, Port: 400, HostPort: 54000},
@@ -763,6 +757,12 @@ func TestAddPortMappings(t *testing.T) {
 			err = routed.Register(pms)
 			assert.NilError(t, err)
 
+			driver, err := newDriver(storeutils.NewTempStore(t), Configuration{
+				EnableIPTables:  true,
+				EnableIP6Tables: true,
+				EnableProxy:     tc.enableProxy,
+			}, pms)
+			assert.NilError(t, err)
 			n := &bridgeNetwork{
 				config: &networkConfiguration{
 					BridgeName: "dummybridge",
@@ -772,14 +772,8 @@ func TestAddPortMappings(t *testing.T) {
 					GwModeIPv6: tc.gwMode6,
 				},
 				bridge: &bridgeInterface{},
-				driver: newDriver(storeutils.NewTempStore(t), pms),
+				driver: driver,
 			}
-			err = n.driver.configure(Configuration{
-				EnableIPTables:  true,
-				EnableIP6Tables: true,
-				EnableProxy:     tc.enableProxy,
-			})
-			assert.NilError(t, err)
 			fwn, err := n.newFirewallerNetwork(context.Background())
 			assert.NilError(t, err)
 			assert.Check(t, fwn != nil, "no firewaller network")
