@@ -43,13 +43,9 @@ func TestPortMappingConfig(t *testing.T) {
 
 	d := newDriver(storeutils.NewTempStore(t), &pms)
 
-	config := &Configuration{
+	if err := d.configure(Configuration{
 		EnableIPTables: true,
-	}
-	genericOption := make(map[string]any)
-	genericOption[netlabel.GenericData] = config
-
-	if err := d.configure(genericOption); err != nil {
+	}); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -132,14 +128,10 @@ func TestPortMappingV6Config(t *testing.T) {
 
 	d := newDriver(storeutils.NewTempStore(t), &pms)
 
-	config := &Configuration{
+	if err := d.configure(Configuration{
 		EnableIPTables:  true,
 		EnableIP6Tables: true,
-	}
-	genericOption := make(map[string]any)
-	genericOption[netlabel.GenericData] = config
-
-	if err := d.configure(genericOption); err != nil {
+	}); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -782,14 +774,11 @@ func TestAddPortMappings(t *testing.T) {
 				bridge: &bridgeInterface{},
 				driver: newDriver(storeutils.NewTempStore(t), pms),
 			}
-			genericOption := map[string]any{
-				netlabel.GenericData: &Configuration{
-					EnableIPTables:  true,
-					EnableIP6Tables: true,
-					EnableProxy:     tc.enableProxy,
-				},
-			}
-			err = n.driver.configure(genericOption)
+			err = n.driver.configure(Configuration{
+				EnableIPTables:  true,
+				EnableIP6Tables: true,
+				EnableProxy:     tc.enableProxy,
+			})
 			assert.NilError(t, err)
 			fwn, err := n.newFirewallerNetwork(context.Background())
 			assert.NilError(t, err)

@@ -188,7 +188,7 @@ func newDriver(store *datastore.Store, pms *drvregistry.PortMappers) *driver {
 }
 
 // Register registers a new instance of bridge driver.
-func Register(r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, config map[string]any) error {
+func Register(r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, config Configuration) error {
 	d := newDriver(store, pms)
 	if err := d.configure(config); err != nil {
 		return err
@@ -496,23 +496,7 @@ func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
 	return nil, nil
 }
 
-func (d *driver) configure(option map[string]any) error {
-	var config Configuration
-	switch opt := option[netlabel.GenericData].(type) {
-	case options.Generic:
-		opaqueConfig, err := options.GenerateFromModel(opt, &Configuration{})
-		if err != nil {
-			return err
-		}
-		config = *opaqueConfig.(*Configuration)
-	case *Configuration:
-		config = *opt
-	case nil:
-		// No GenericData option set. Use defaults.
-	default:
-		return errdefs.InvalidParameter(fmt.Errorf("invalid configuration type (%T) passed", opt))
-	}
-
+func (d *driver) configure(config Configuration) error {
 	var err error
 	d.firewaller, err = newFirewaller(context.Background(), firewaller.Config{
 		IPv4:               config.EnableIPTables,

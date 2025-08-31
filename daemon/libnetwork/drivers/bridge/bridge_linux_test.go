@@ -277,11 +277,6 @@ func TestCreateFullOptions(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
-	config := &Configuration{
-		EnableIPForwarding: true,
-		EnableIPTables:     true,
-	}
-
 	// Test this scenario: Default gw address does not belong to
 	// container network and it's greater than bridge address
 	cnw, _ := types.ParseCIDR("172.16.122.0/24")
@@ -289,10 +284,10 @@ func TestCreateFullOptions(t *testing.T) {
 	br, _ := types.ParseCIDR("172.16.0.1/16")
 	defgw, _ := types.ParseCIDR("172.16.0.100/16")
 
-	genericOption := make(map[string]any)
-	genericOption[netlabel.GenericData] = config
-
-	if err := d.configure(genericOption); err != nil {
+	if err := d.configure(Configuration{
+		EnableIPForwarding: true,
+		EnableIPTables:     true,
+	}); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -331,7 +326,7 @@ func TestCreateFullOptions(t *testing.T) {
 func TestCreateNoConfig(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
-	err := d.configure(nil)
+	err := d.configure(Configuration{})
 	assert.NilError(t, err)
 
 	netconfig := &networkConfiguration{BridgeName: DefaultBridgeName, EnableIPv4: true}
@@ -347,13 +342,9 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
-	config := &Configuration{
+	if err := d.configure(Configuration{
 		EnableIPForwarding: true,
-	}
-	genericOption := make(map[string]any)
-	genericOption[netlabel.GenericData] = config
-
-	if err := d.configure(genericOption); err != nil {
+	}); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -534,7 +525,7 @@ func TestCreate(t *testing.T) {
 
 	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
-	if err := d.configure(nil); err != nil {
+	if err := d.configure(Configuration{}); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -560,7 +551,7 @@ func TestCreateFail(t *testing.T) {
 
 	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
-	if err := d.configure(nil); err != nil {
+	if err := d.configure(Configuration{}); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -591,18 +582,14 @@ func TestCreateMultipleNetworks(t *testing.T) {
 		assert.Check(t, is.Len(slices.Collect(maps.Keys(got)), 0), "Rules for bridges have not been deleted")
 	}
 
-	config := &Configuration{
+	if err := d.configure(Configuration{
 		EnableIPTables: true,
-	}
-	genericOption := make(map[string]any)
-	genericOption[netlabel.GenericData] = config
-
-	if err := d.configure(genericOption); err != nil {
+	}); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
 	config1 := &networkConfiguration{BridgeName: "net_test_1", EnableIPv4: true}
-	genericOption = make(map[string]any)
+	genericOption := make(map[string]any)
 	genericOption[netlabel.GenericData] = config1
 	if err := d.CreateNetwork(context.Background(), "1", genericOption, nil, getIPv4Data(t), nil); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
@@ -798,13 +785,9 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	d := newDriver(storeutils.NewTempStore(t), &pms)
 	portallocator.Get().ReleaseAll()
 
-	config := &Configuration{
+	if err := d.configure(Configuration{
 		EnableIPTables: true,
-	}
-	genericOption := make(map[string]any)
-	genericOption[netlabel.GenericData] = config
-
-	if err := d.configure(genericOption); err != nil {
+	}); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -813,7 +796,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 		EnableIPv4: true,
 		EnableICC:  false,
 	}
-	genericOption = make(map[string]any)
+	genericOption := make(map[string]any)
 	genericOption[netlabel.GenericData] = netconfig
 
 	ipdList := getIPv4Data(t)
@@ -901,13 +884,9 @@ func TestLinkContainers(t *testing.T) {
 
 	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
-	config := &Configuration{
+	if err := d.configure(Configuration{
 		EnableIPTables: true,
-	}
-	genericOption := make(map[string]any)
-	genericOption[netlabel.GenericData] = config
-
-	if err := d.configure(genericOption); err != nil {
+	}); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -916,7 +895,7 @@ func TestLinkContainers(t *testing.T) {
 		EnableIPv4: true,
 		EnableICC:  false,
 	}
-	genericOption = make(map[string]any)
+	genericOption := make(map[string]any)
 	genericOption[netlabel.GenericData] = netconfig
 
 	ipdList := getIPv4Data(t)
@@ -1170,7 +1149,7 @@ func TestSetDefaultGw(t *testing.T) {
 
 	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
-	if err := d.configure(nil); err != nil {
+	if err := d.configure(Configuration{}); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -1220,7 +1199,7 @@ func TestCreateWithExistingBridge(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 
-	if err := d.configure(nil); err != nil {
+	if err := d.configure(Configuration{}); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -1293,7 +1272,7 @@ func TestCreateParallel(t *testing.T) {
 	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
 	portallocator.Get().ReleaseAll()
 
-	if err := d.configure(nil); err != nil {
+	if err := d.configure(Configuration{}); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -1342,11 +1321,10 @@ func useStubFirewaller(t *testing.T) {
 func TestSetupIP6TablesWithHostIPv4(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver(storeutils.NewTempStore(t), &drvregistry.PortMappers{})
-	dc := &Configuration{
+	if err := d.configure(Configuration{
 		EnableIPTables:  true,
 		EnableIP6Tables: true,
-	}
-	if err := d.configure(map[string]any{netlabel.GenericData: dc}); err != nil {
+	}); err != nil {
 		t.Fatal(err)
 	}
 	nc := &networkConfiguration{

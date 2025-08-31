@@ -19,31 +19,24 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/portmappers/routed"
 )
 
-func registerNetworkDrivers(r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, driverConfig func(string) map[string]any) error {
+func registerNetworkDrivers(r driverapi.Registerer, cfg *config.Config, store *datastore.Store, pms *drvregistry.PortMappers) error {
 	for _, nr := range []struct {
 		ntype    string
-		register func(driverapi.Registerer, *datastore.Store, map[string]any) error
+		register func() error
 	}{
-		{ntype: bridge.NetworkType, register: func(r driverapi.Registerer, store *datastore.Store, cfg map[string]any) error {
-			return bridge.Register(r, store, pms, cfg)
-		}},
-		{ntype: host.NetworkType, register: func(r driverapi.Registerer, _ *datastore.Store, _ map[string]any) error {
-			return host.Register(r)
-		}},
-		{ntype: ipvlan.NetworkType, register: func(r driverapi.Registerer, store *datastore.Store, _ map[string]any) error {
-			return ipvlan.Register(r, store)
-		}},
-		{ntype: macvlan.NetworkType, register: func(r driverapi.Registerer, store *datastore.Store, _ map[string]any) error {
-			return macvlan.Register(r, store)
-		}},
-		{ntype: null.NetworkType, register: func(r driverapi.Registerer, _ *datastore.Store, _ map[string]any) error {
-			return null.Register(r)
-		}},
-		{ntype: overlay.NetworkType, register: func(r driverapi.Registerer, _ *datastore.Store, _ map[string]any) error {
-			return overlay.Register(r)
-		}},
+		{
+			ntype: bridge.NetworkType,
+			register: func() error {
+				return bridge.Register(r, store, pms, cfg.BridgeConfig)
+			},
+		},
+		{ntype: host.NetworkType, register: func() error { return host.Register(r) }},
+		{ntype: ipvlan.NetworkType, register: func() error { return ipvlan.Register(r, store) }},
+		{ntype: macvlan.NetworkType, register: func() error { return macvlan.Register(r, store) }},
+		{ntype: null.NetworkType, register: func() error { return null.Register(r) }},
+		{ntype: overlay.NetworkType, register: func() error { return overlay.Register(r) }},
 	} {
-		if err := nr.register(r, store, driverConfig(nr.ntype)); err != nil {
+		if err := nr.register(); err != nil {
 			return fmt.Errorf("failed to register %q driver: %w", nr.ntype, err)
 		}
 	}

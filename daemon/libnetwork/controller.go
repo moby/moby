@@ -46,7 +46,6 @@ package libnetwork
 import (
 	"context"
 	"fmt"
-	"maps"
 	"net"
 	"path/filepath"
 	"runtime"
@@ -188,7 +187,7 @@ func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retEr
 		return nil, err
 	}
 
-	if err := registerNetworkDrivers(&c.drvRegistry, c.store, &c.pmRegistry, c.makeDriverConfig); err != nil {
+	if err := registerNetworkDrivers(&c.drvRegistry, c.cfg, c.store, &c.pmRegistry); err != nil {
 		return nil, err
 	}
 
@@ -382,10 +381,6 @@ func (c *Controller) agentStopComplete() {
 		c.agentStopDone = nil
 	}
 	c.mu.Unlock()
-}
-
-func (c *Controller) makeDriverConfig(ntype string) map[string]any {
-	return maps.Clone(c.cfg.DriverConfig(ntype))
 }
 
 // ID returns the controller's unique identity.

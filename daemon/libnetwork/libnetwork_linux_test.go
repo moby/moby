@@ -48,10 +48,8 @@ func newController(t *testing.T) *libnetwork.Controller {
 	c, err := libnetwork.New(
 		context.Background(),
 		config.OptionDataDir(t.TempDir()),
-		config.OptionDriverConfig(bridgeNetType, map[string]any{
-			netlabel.GenericData: options.Generic{
-				"EnableIPForwarding": true,
-			},
+		config.OptionBridgeConfig(bridge.Configuration{
+			EnableIPForwarding: true,
 		}),
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()),
 	)
