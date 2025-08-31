@@ -15,7 +15,6 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/ipams/defaultipam"
 	remoteipam "github.com/moby/moby/v2/daemon/libnetwork/ipams/remote"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
-	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
@@ -81,7 +80,7 @@ type network struct {
 }
 
 type networkDriver struct {
-	driver driverapi.Driver // driver is nil when isNodeLocal == true
+	driver driverapi.NetworkAllocator // driver is nil when isNodeLocal == true
 	name   string
 	// isNodeLocal indicates whether that driver is locally-managed or requires
 	// global resources allocation.
@@ -786,24 +785,25 @@ func (na *cnmNetworkAllocator) resolveDriver(n *api.Network) (*networkDriver, er
 		return &networkDriver{name: dName, isNodeLocal: true}, nil
 	}
 
-	d, drvCap := na.networkRegistry.Driver(dName)
-	if d == nil {
-		err := na.loadDriver(dName)
-		if err != nil {
-			return nil, err
+	if na.networkRegistry.HasDriverOrNwAllocator(dName) {
+		if nwAlloc := na.networkRegistry.NetworkAllocator(dName); nwAlloc != nil {
+			return &networkDriver{driver: nwAlloc, name: dName}, nil
 		}
-
-		d, drvCap = na.networkRegistry.Driver(dName)
-		if d == nil {
-			return nil, fmt.Errorf("could not resolve network driver %s", dName)
-		}
+		return &networkDriver{name: dName, isNodeLocal: true}, nil
 	}
 
-	return &networkDriver{
-		driver:      d,
-		name:        dName,
-		isNodeLocal: drvCap.DataScope == scope.Local,
-	}, nil
+	if err := na.loadDriver(dName); err != nil {
+		return nil, err
+	}
+
+	if na.networkRegistry.HasDriverOrNwAllocator(dName) {
+		if nwAlloc := na.networkRegistry.NetworkAllocator(dName); nwAlloc != nil {
+			return &networkDriver{driver: nwAlloc, name: dName}, nil
+		}
+		return &networkDriver{name: dName, isNodeLocal: true}, nil
+	}
+
+	return nil, fmt.Errorf("network driver %s not found", dName)
 }
 
 func (na *cnmNetworkAllocator) loadDriver(name string) error {

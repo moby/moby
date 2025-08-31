@@ -64,6 +64,11 @@ func Register(r driverapi.Registerer, pg plugingetter.PluginGetter) error {
 		if err = r.RegisterDriver(name, d, *c); err != nil {
 			log.G(context.TODO()).Errorf("error registering driver for %s due to %v", name, err)
 		}
+		if c.DataScope == scope.Global {
+			if err := r.RegisterNetworkAllocator(name, d); err != nil {
+				log.G(context.TODO()).Errorf("error registering network allocator for %s due to %v", name, err)
+			}
+		}
 	}
 
 	// Unit test code is unaware of a true PluginStore. So we fall back to v1 plugins.

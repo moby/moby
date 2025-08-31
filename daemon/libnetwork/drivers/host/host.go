@@ -23,14 +23,6 @@ func Register(r driverapi.Registerer) error {
 	})
 }
 
-func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
-	return nil, types.NotImplementedErrorf("not implemented")
-}
-
-func (d *driver) NetworkFree(id string) error {
-	return types.NotImplementedErrorf("not implemented")
-}
-
 func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]any, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	d.Lock()
 	defer d.Unlock()

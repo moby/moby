@@ -512,6 +512,10 @@ func (c *Controller) RegisterDriver(networkType string, driver driverapi.Driver,
 	return nil
 }
 
+func (c *Controller) RegisterNetworkAllocator(_ string, _ driverapi.NetworkAllocator) error {
+	return nil
+}
+
 // XXX  This should be made driver agnostic.  See comment below.
 const overlayDSROptionString = "dsr"
 

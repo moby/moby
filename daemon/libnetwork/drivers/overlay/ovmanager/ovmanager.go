@@ -13,8 +13,6 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/overlay/overlayutils"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
-	"github.com/moby/moby/v2/daemon/libnetwork/scope"
-	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 const (
@@ -48,10 +46,7 @@ type network struct {
 
 // Register registers a new instance of the overlay driver.
 func Register(r driverapi.Registerer) error {
-	return r.RegisterDriver(networkType, newDriver(), driverapi.Capability{
-		DataScope:         scope.Global,
-		ConnectivityScope: scope.Global,
-	})
+	return r.RegisterNetworkAllocator(networkType, newDriver())
 }
 
 func newDriver() *driver {
@@ -161,40 +156,6 @@ func (n *network) releaseVxlanID() {
 		n.driver.vxlanIdm.Unset(uint64(s.vni))
 		s.vni = 0
 	}
-}
-
-func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string]any, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
-	return types.NotImplementedErrorf("not implemented")
-}
-
-func (d *driver) DeleteNetwork(nid string) error {
-	return types.NotImplementedErrorf("not implemented")
-}
-
-func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]any) error {
-	return types.NotImplementedErrorf("not implemented")
-}
-
-func (d *driver) DeleteEndpoint(nid, eid string) error {
-	return types.NotImplementedErrorf("not implemented")
-}
-
-func (d *driver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
-	return nil, types.NotImplementedErrorf("not implemented")
-}
-
-// Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, _ map[string]any) error {
-	return types.NotImplementedErrorf("not implemented")
-}
-
-// Leave method is invoked when a Sandbox detaches from an endpoint.
-func (d *driver) Leave(nid, eid string) error {
-	return types.NotImplementedErrorf("not implemented")
-}
-
-func (d *driver) Type() string {
-	return networkType
 }
 
 func (d *driver) IsBuiltIn() bool {

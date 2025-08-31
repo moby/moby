@@ -689,14 +689,6 @@ func (d *driver) getNetworks() []*bridgeNetwork {
 	return ls
 }
 
-func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
-	return nil, types.NotImplementedErrorf("not implemented")
-}
-
-func (d *driver) NetworkFree(id string) error {
-	return types.NotImplementedErrorf("not implemented")
-}
-
 func (d *driver) GetSkipGwAlloc(opts options.Generic) (ipv4, ipv6 bool, _ error) {
 	// The network doesn't exist yet, so use a dummy id that's long enough to be
 	// truncated to a short-id (12 characters) and used in the bridge device name.

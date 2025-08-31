@@ -943,14 +943,6 @@ func (d *driver) Leave(nid, eid string) error {
 	return nil
 }
 
-func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
-	return nil, types.NotImplementedErrorf("not implemented")
-}
-
-func (d *driver) NetworkFree(id string) error {
-	return types.NotImplementedErrorf("not implemented")
-}
-
 func (d *driver) Type() string {
 	return d.name
 }

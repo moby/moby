@@ -22,8 +22,9 @@ type Networks struct {
 	// Notify is called whenever a network driver is registered.
 	Notify driverapi.Registerer
 
-	mu      sync.Mutex
-	drivers map[string]driverData
+	mu       sync.Mutex
+	drivers  map[string]driverData
+	nwAllocs map[string]driverapi.NetworkAllocator
 }
 
 var _ driverapi.Registerer = (*Networks)(nil)
@@ -87,4 +88,52 @@ func (nr *Networks) RegisterDriver(ntype string, driver driverapi.Driver, capabi
 	nr.drivers[ntype] = driverData{driver: driver, capability: capability}
 
 	return nil
+}
+
+// NetworkAllocator returns the NetworkAllocator registered under name, and its capability.
+func (nr *Networks) NetworkAllocator(name string) driverapi.NetworkAllocator {
+	nr.mu.Lock()
+	defer nr.mu.Unlock()
+
+	d := nr.nwAllocs[name]
+	return d
+}
+
+func (nr *Networks) RegisterNetworkAllocator(ntype string, nwAlloc driverapi.NetworkAllocator) error {
+	if strings.TrimSpace(ntype) == "" {
+		return errors.New("network type string cannot be empty")
+	}
+
+	nr.mu.Lock()
+	dd, ok := nr.nwAllocs[ntype]
+	nr.mu.Unlock()
+
+	if ok && dd.IsBuiltIn() {
+		return driverapi.ErrActiveRegistration(ntype)
+	}
+
+	if nr.Notify != nil {
+		if err := nr.Notify.RegisterNetworkAllocator(ntype, nwAlloc); err != nil {
+			return err
+		}
+	}
+
+	nr.mu.Lock()
+	defer nr.mu.Unlock()
+
+	if nr.nwAllocs == nil {
+		nr.nwAllocs = make(map[string]driverapi.NetworkAllocator)
+	}
+	nr.nwAllocs[ntype] = nwAlloc
+
+	return nil
+}
+
+func (nr *Networks) HasDriverOrNwAllocator(ntype string) bool {
+	nr.mu.Lock()
+	defer nr.mu.Unlock()
+
+	_, hasDriver := nr.drivers[ntype]
+	_, hasNwAlloc := nr.nwAllocs[ntype]
+	return hasDriver || hasNwAlloc
 }

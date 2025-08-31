@@ -13,16 +13,6 @@ const NetworkPluginEndpointType = "NetworkDriver"
 
 // Driver is an interface that every plugin driver needs to implement.
 type Driver interface {
-	// NetworkAllocate invokes the driver method to allocate network
-	// specific resources passing network id and network specific config.
-	// It returns a key,value pair of network specific driver allocations
-	// to the caller.
-	NetworkAllocate(nid string, options map[string]string, ipV4Data, ipV6Data []IPAMData) (map[string]string, error)
-
-	// NetworkFree invokes the driver method to free network specific resources
-	// associated with a given network id.
-	NetworkFree(nid string) error
-
 	// CreateNetwork invokes the driver method to create a network
 	// passing the network id and network specific config. The
 	// config mechanism will eventually be replaced with labels
@@ -59,6 +49,23 @@ type Driver interface {
 
 	// Type returns the type of this driver, the network type this driver manages
 	Type() string
+
+	// IsBuiltIn returns true if it is a built-in driver
+	IsBuiltIn() bool
+}
+
+// NetworkAllocator is a special kind of network driver used by cnmallocator to
+// allocate resources inside a Swarm cluster.
+type NetworkAllocator interface {
+	// NetworkAllocate invokes the driver method to allocate network
+	// specific resources passing network id and network specific config.
+	// It returns a key,value pair of network specific driver allocations
+	// to the caller.
+	NetworkAllocate(nid string, options map[string]string, ipV4Data, ipV6Data []IPAMData) (map[string]string, error)
+
+	// NetworkFree invokes the driver method to free network specific resources
+	// associated with a given network id.
+	NetworkFree(nid string) error
 
 	// IsBuiltIn returns true if it is a built-in driver
 	IsBuiltIn() bool
@@ -187,6 +194,7 @@ type JoinInfo interface {
 // Registerer provides a way for network drivers to be dynamically registered.
 type Registerer interface {
 	RegisterDriver(name string, driver Driver, capability Capability) error
+	RegisterNetworkAllocator(name string, driver NetworkAllocator) error
 }
 
 // Capability represents the high level capabilities of the drivers which libnetwork can make use of
