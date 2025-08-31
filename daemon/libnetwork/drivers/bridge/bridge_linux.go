@@ -1036,7 +1036,6 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	// Get the network handler and make sure it exists
 	d.mu.Lock()
 	n, ok := d.networks[nid]
-	dconfig := d.config
 	d.mu.Unlock()
 
 	if !ok {
@@ -1148,7 +1147,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		return fmt.Errorf("adding interface %s to bridge %s failed: %v", hostIfName, config.BridgeName, err)
 	}
 
-	if !dconfig.EnableProxy {
+	if !d.config.EnableProxy {
 		err = setHairpinMode(d.nlh, host, true)
 		if err != nil {
 			return err
