@@ -1,11 +1,21 @@
 package image
 
 import (
+	"context"
+	"io"
 	"testing"
 
+	"github.com/containerd/platforms"
+	buildtypes "github.com/docker/docker/api/types/build"
+	imagetypes "github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/build"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/fakecontext"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 func TestAPIImagesHistory(t *testing.T) {
@@ -30,4 +40,103 @@ func TestAPIImagesHistory(t *testing.T) {
 	}
 
 	assert.Assert(t, found)
+}
+
+// TestAPIImageHistoryCrossPlatform tests the image history functionality
+// when dealing with cross-platform image builds.
+// This is a regression test for https://github.com/moby/moby/issues/50851
+// where `docker history` fails with "snapshot does not exist" error for
+// images built for non-native platforms.
+func TestAPIImageHistoryCrossPlatform(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	// Determine the non-native platform to use for testing
+	nonNativePlatform := ocispec.Platform{OS: testEnv.DaemonInfo.OSType, Architecture: "amd64"}
+	if testEnv.DaemonInfo.Architecture == "amd64" {
+		nonNativePlatform = ocispec.Platform{OS: testEnv.DaemonInfo.OSType, Architecture: "arm64"}
+	}
+
+	// We need to pull the image for the non-native platform
+	// TODO: Make sure we have a multi-platform frozen image we could use
+	pullImageForPlatform(t, ctx, apiClient, "alpine", nonNativePlatform)
+
+	dockerfile := "FROM alpine\nRUN true"
+
+	buildCtx := fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile))
+	defer buildCtx.Close()
+
+	// Build the image for a non-native platform
+	resp, err := apiClient.ImageBuild(ctx, buildCtx.AsTarReader(t), buildtypes.ImageBuildOptions{
+		Version:  buildtypes.BuilderBuildKit,
+		Tags:     []string{"cross-platform-test"},
+		Platform: platforms.FormatAll(nonNativePlatform),
+	})
+	assert.NilError(t, err)
+	defer resp.Body.Close()
+
+	imgID := build.GetImageIDFromBody(t, resp.Body)
+	t.Cleanup(func() {
+		apiClient.ImageRemove(ctx, imgID, imagetypes.RemoveOptions{Force: true})
+	})
+
+	testCases := []struct {
+		name     string
+		imageRef string
+		options  []client.ImageHistoryOption
+	}{
+		{
+			name:     "without explicit platform",
+			imageRef: imgID,
+			options:  nil,
+		},
+		{
+			name:     "with explicit platform",
+			imageRef: imgID,
+			options:  []client.ImageHistoryOption{client.ImageHistoryWithPlatform(nonNativePlatform)},
+		},
+		{
+			name:     "using image reference",
+			imageRef: "cross-platform-test",
+			options:  nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+
+			hist, err := apiClient.ImageHistory(ctx, tc.imageRef, tc.options...)
+
+			assert.NilError(t, err)
+			found := false
+			for _, layer := range hist {
+				if layer.ID == imgID {
+					found = true
+					break
+				}
+			}
+			assert.Assert(t, found, "History should contain the built image ID")
+			assert.Assert(t, is.Len(hist, 3))
+
+			for i, layer := range hist {
+				assert.Assert(t, layer.Size >= 0, "Layer %d should not have negative size", i)
+			}
+		})
+	}
+}
+
+func pullImageForPlatform(t *testing.T, ctx context.Context, apiClient client.APIClient, ref string, platform ocispec.Platform) {
+	pullResp, err := apiClient.ImagePull(ctx, ref, imagetypes.PullOptions{Platform: platforms.FormatAll(platform)})
+	assert.NilError(t, err)
+	_, _ = io.Copy(io.Discard, pullResp)
+
+	_, err = apiClient.ImageInspect(ctx, ref)
+	assert.NilError(t, err)
+
+	t.Cleanup(func() {
+		_, _ = apiClient.ImageRemove(ctx, ref, imagetypes.RemoveOptions{Force: true})
+	})
 }
