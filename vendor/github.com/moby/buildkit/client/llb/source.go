@@ -247,9 +247,13 @@ const (
 // Formats that utilize SSH may need to supply credentials as a [GitOption].
 // You may need to check the source code for a full list of supported formats.
 //
+// Fragment can be used to pass ref:subdir format that can set in (old-style)
+// Docker Git URL format after # . This is provided for backwards compatibility.
+// It is recommended to leave it empty and call GitRef(), GitSubdir() options instead.
+//
 // By default the git repository is cloned with `--depth=1` to reduce the amount of data downloaded.
 // Additionally the ".git" directory is removed after the clone, you can keep ith with the [KeepGitDir] [GitOption].
-func Git(url, ref string, opts ...GitOption) State {
+func Git(url, fragment string, opts ...GitOption) State {
 	remote, err := gitutil.ParseURL(url)
 	if errors.Is(err, gitutil.ErrUnknownProtocol) {
 		url = "https://" + url
@@ -259,6 +263,20 @@ func Git(url, ref string, opts ...GitOption) State {
 		url = remote.Remote
 	}
 
+	gi := &GitInfo{
+		AuthHeaderSecret: GitAuthHeaderKey,
+		AuthTokenSecret:  GitAuthTokenKey,
+	}
+	ref, subdir, ok := strings.Cut(fragment, ":")
+	if ref != "" {
+		GitRef(ref).SetGitOption(gi)
+	}
+	if ok && subdir != "" {
+		GitSubDir(subdir).SetGitOption(gi)
+	}
+	for _, o := range opts {
+		o.SetGitOption(gi)
+	}
 	var id string
 	if err != nil {
 		// If we can't parse the URL, just use the full URL as the ID. The git
@@ -269,17 +287,12 @@ func Git(url, ref string, opts ...GitOption) State {
 		// for different protocols (e.g. https and ssh) that have the same
 		// host/path/fragment combination.
 		id = remote.Host + path.Join("/", remote.Path)
-		if ref != "" {
-			id += "#" + ref
+		if gi.Ref != "" || gi.SubDir != "" {
+			id += "#" + gi.Ref
+			if gi.SubDir != "" {
+				id += ":" + gi.SubDir
+			}
 		}
-	}
-
-	gi := &GitInfo{
-		AuthHeaderSecret: GitAuthHeaderKey,
-		AuthTokenSecret:  GitAuthTokenKey,
-	}
-	for _, o := range opts {
-		o.SetGitOption(gi)
 	}
 	attrs := map[string]string{}
 	if gi.KeepGitDir {
@@ -328,6 +341,11 @@ func Git(url, ref string, opts ...GitOption) State {
 		addCap(&gi.Constraints, pb.CapSourceGitChecksum)
 	}
 
+	if gi.SkipSubmodules {
+		attrs[pb.AttrGitSkipSubmodules] = "true"
+		addCap(&gi.Constraints, pb.CapSourceGitSkipSubmodules)
+	}
+
 	addCap(&gi.Constraints, pb.CapSourceGit)
 
 	source := NewSource("git://"+id, attrs, gi.Constraints)
@@ -352,6 +370,27 @@ type GitInfo struct {
 	KnownSSHHosts    string
 	MountSSHSock     string
 	Checksum         string
+	Ref              string
+	SubDir           string
+	SkipSubmodules   bool
+}
+
+func GitRef(v string) GitOption {
+	return gitOptionFunc(func(gi *GitInfo) {
+		gi.Ref = v
+	})
+}
+
+func GitSubDir(v string) GitOption {
+	return gitOptionFunc(func(gi *GitInfo) {
+		gi.SubDir = v
+	})
+}
+
+func GitSkipSubmodules() GitOption {
+	return gitOptionFunc(func(gi *GitInfo) {
+		gi.SkipSubmodules = true
+	})
 }
 
 func KeepGitDir() GitOption {
