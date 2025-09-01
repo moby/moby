@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -190,7 +191,7 @@ func (e *Execution) IsUserNamespaceInKernel() bool {
 // UsingSnapshotter returns whether containerd snapshotters are used for the
 // tests by checking if the "TEST_INTEGRATION_USE_GRAPHDRIVER" is empty
 func (e *Execution) UsingSnapshotter() bool {
-	return os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") == ""
+	return os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") == "" && runtime.GOOS != "windows"
 }
 
 // HasExistingImage checks whether there is an image with the given reference.
