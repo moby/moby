@@ -29,12 +29,10 @@ func Do(ctx context.Context, t *testing.T, client client.APIClient, buildCtx *fa
 
 // GetImageIDFromBody reads the image ID from the build response body.
 func GetImageIDFromBody(t *testing.T, body io.Reader) string {
-	var (
-		jm  jsonmessage.JSONMessage
-		br  types.BuildResult
-		dec = json.NewDecoder(body)
-	)
+	var id string
+	dec := json.NewDecoder(body)
 	for {
+		var jm jsonmessage.JSONMessage
 		err := dec.Decode(&jm)
 		if err == io.EOF {
 			break
@@ -43,10 +41,18 @@ func GetImageIDFromBody(t *testing.T, body io.Reader) string {
 		if jm.Aux == nil {
 			continue
 		}
-		assert.NilError(t, json.Unmarshal(*jm.Aux, &br))
-		assert.Assert(t, br.ID != "", "could not read image ID from build output")
-		break
+
+		var br types.BuildResult
+		if err := json.Unmarshal(*jm.Aux, &br); err == nil {
+			if br.ID == "" {
+				continue
+			}
+			id = br.ID
+			break
+		}
 	}
-	io.Copy(io.Discard, body)
-	return br.ID
+	_, _ = io.Copy(io.Discard, body)
+
+	assert.Assert(t, id != "", "could not read image ID from build output")
+	return id
 }
