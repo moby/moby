@@ -799,37 +799,25 @@ func writeLayerReexec() {
 }
 
 // writeLayer writes a layer from a tar file.
-func writeLayer(layerData io.Reader, home string, id string, parentLayerPaths ...string) (size int64, retErr error) {
-	err := winio.EnableProcessPrivileges([]string{winio.SeSecurityPrivilege, winio.SeBackupPrivilege, winio.SeRestorePrivilege})
-	if err != nil {
-		return 0, err
-	}
-	if noreexec {
-		defer func() {
-			if err := winio.DisableProcessPrivileges([]string{winio.SeSecurityPrivilege, winio.SeBackupPrivilege, winio.SeRestorePrivilege}); err != nil {
-				// This should never happen, but just in case when in debugging mode.
-				// See https://github.com/moby/moby/pull/28002#discussion_r86259241 for rationale.
-				panic("Failed to disabled process privileges while in non re-exec mode")
-			}
-		}()
-	}
-
-	w, err := hcsshim.NewLayerWriter(hcsshim.DriverInfo{Flavour: filterDriver, HomeDir: home}, id, parentLayerPaths)
-	if err != nil {
-		return 0, err
-	}
-
-	defer func() {
-		if err := w.Close(); err != nil {
-			// This error should not be discarded as a failure here
-			// could result in an invalid layer on disk
-			if retErr == nil {
-				retErr = err
-			}
+func writeLayer(layerData io.Reader, home string, id string, parentLayerPaths ...string) (size int64, _ error) {
+	err := winio.RunWithPrivileges([]string{winio.SeSecurityPrivilege, winio.SeBackupPrivilege, winio.SeRestorePrivilege}, func() error {
+		var err error
+		w, err := hcsshim.NewLayerWriter(hcsshim.DriverInfo{Flavour: filterDriver, HomeDir: home}, id, parentLayerPaths)
+		if err != nil {
+			return err
 		}
-	}()
 
-	return writeLayerFromTar(layerData, w, filepath.Join(home, id))
+		s, err := writeLayerFromTar(layerData, w, filepath.Join(home, id))
+		if err != nil {
+			// Close, but don't override the error from writeLayerFromTar
+			_ = w.Close()
+			return err
+		}
+
+		size = s
+		return w.Close()
+	})
+	return size, err
 }
 
 // resolveID computes the layerID information based on the given id.
