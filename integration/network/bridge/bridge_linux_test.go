@@ -9,10 +9,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/go-connections/nat"
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
@@ -940,4 +942,125 @@ func TestFirewallBackendSwitch(t *testing.T) {
 	assert.Check(t, numRules > 0, "Expected iptables to have at least one rule")
 	assert.Check(t, len(dockerChains) > 0, "Expected iptables to have at least one docker chain")
 	assert.Check(t, !nftablesTablesExist(), "nftables tables exist after running with iptables")
+}
+
+func TestEmptyPortBindingsBC(t *testing.T) {
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	createInspect := func(t *testing.T, version string, pbs []nat.PortBinding) (containertypes.PortMap, []string) {
+		apiClient := d.NewClientT(t, client.WithVersion(version))
+		defer apiClient.Close()
+
+		// Skip this subtest if the daemon doesn't support the client version.
+		// TODO(aker): drop this once the Engine supports API version >= 1.53
+		_, err := apiClient.ServerVersion(context.TODO())
+		if err != nil && strings.Contains(err.Error(), fmt.Sprintf("client version %s is too new", version)) {
+			t.Skipf("requires API %s", version)
+		}
+		assert.NilError(t, err)
+
+		// Create a container with an empty list of port bindings for container port 80/tcp.
+		config := ctr.NewTestConfig(ctr.WithCmd("top"),
+			ctr.WithExposedPorts("80/tcp"),
+			ctr.WithPortMap(containertypes.PortMap{"80/tcp": pbs}))
+		c, err := apiClient.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Platform, config.Name)
+		assert.NilError(t, err)
+		defer apiClient.ContainerRemove(ctx, c.ID, containertypes.RemoveOptions{Force: true})
+
+		// Inspect the container and return its port bindings, along with
+		// warnings returns on container create.
+		inspect, err := apiClient.ContainerInspect(ctx, c.ID)
+		assert.NilError(t, err)
+		return inspect.HostConfig.PortBindings, c.Warnings
+	}
+
+	t.Run("backfilling on old client version", func(t *testing.T) {
+		expMappings := containertypes.PortMap{"80/tcp": {
+			{}, // An empty PortBinding is backfilled
+		}}
+		expWarnings := make([]string, 0)
+
+		mappings, warnings := createInspect(t, "1.51", []nat.PortBinding{})
+		assert.DeepEqual(t, expMappings, mappings)
+		assert.DeepEqual(t, expWarnings, warnings)
+	})
+
+	t.Run("backfilling on API 1.52, with a warning", func(t *testing.T) {
+		expMappings := containertypes.PortMap{"80/tcp": {
+			{}, // An empty PortBinding is backfilled
+		}}
+		expWarnings := []string{
+			"Container port 80/tcp has an empty list of port-bindings. Starting with API 1.53, this will be discarded.",
+		}
+
+		mappings, warnings := createInspect(t, "1.52", []nat.PortBinding{})
+		assert.DeepEqual(t, expMappings, mappings)
+		assert.DeepEqual(t, expWarnings, warnings)
+	})
+
+	t.Run("no backfilling on API 1.53", func(t *testing.T) {
+		expMappings := containertypes.PortMap{}
+		expWarnings := make([]string, 0)
+
+		mappings, warnings := createInspect(t, "1.53", []nat.PortBinding{})
+		assert.DeepEqual(t, expMappings, mappings)
+		assert.DeepEqual(t, expWarnings, warnings)
+	})
+
+	for _, apiVersion := range []string{"1.51", "1.52", "1.53"} {
+		t.Run("no backfilling on API "+apiVersion+" with non-empty bindings", func(t *testing.T) {
+			expMappings := containertypes.PortMap{"80/tcp": {
+				{HostPort: "8080"},
+			}}
+			expWarnings := make([]string, 0)
+
+			mappings, warnings := createInspect(t, apiVersion, []nat.PortBinding{{HostPort: "8080"}})
+			assert.DeepEqual(t, expMappings, mappings)
+			assert.DeepEqual(t, expWarnings, warnings)
+		})
+	}
+}
+
+// TestPortBindingBackfillingForOlderContainers verify that the daemon
+// correctly backfills empty port bindings for containers created with prior
+// versions of the Engine.
+func TestPortBindingBackfillingForOlderContainers(t *testing.T) {
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	// We don't really care which version of the API is used here as we're
+	// going to tamper with the on-disk state of the container. Even if the
+	// daemon backfills the empty port bindings on ContainerCreate (e.g.,
+	// API < 1.53), the tampering will reinitialize the PortBindings slice to
+	// an empty list.
+	c := d.NewClientT(t)
+
+	cid := ctr.Create(ctx, t, c,
+		ctr.WithExposedPorts("80/tcp"),
+		ctr.WithPortMap(containertypes.PortMap{"80/tcp": {}}))
+	defer c.ContainerRemove(ctx, cid, containertypes.RemoveOptions{Force: true})
+
+	// Stop the daemon to safely tamper with the on-disk state.
+	d.Stop(t)
+
+	d.TamperWithContainerConfig(t, cid, func(container *container.Container) {
+		// Simulate a container created with an older version of the Engine
+		// by setting an empty list of port bindings.
+		container.HostConfig.PortBindings = containertypes.PortMap{"80/tcp": {}}
+	})
+
+	// Restart the daemon — it should backfill the empty port binding slice.
+	d.StartWithBusybox(ctx, t)
+
+	inspect := ctr.Inspect(ctx, t, c, cid)
+
+	expMappings := containertypes.PortMap{"80/tcp": {
+		{}, // An empty PortBinding is backfilled
+	}}
+	assert.DeepEqual(t, expMappings, inspect.HostConfig.PortBindings)
 }
