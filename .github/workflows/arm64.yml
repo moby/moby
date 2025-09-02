@@ -110,6 +110,9 @@ jobs:
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
           buildkitd-flags: --debug
       -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      -
         name: Build dev image
         uses: docker/bake-action@v6
         with:
@@ -198,6 +201,9 @@ jobs:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
           buildkitd-flags: --debug
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
       -
         name: Build dev image
         uses: docker/bake-action@v6
