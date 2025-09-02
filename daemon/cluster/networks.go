@@ -36,7 +36,28 @@ func (c *Cluster) GetNetworks(filter networkSettings.Filter) ([]network.Inspect,
 			continue
 		}
 		if filter.Matches(convert.FilterNetwork{N: n}) {
-			filtered = append(filtered, convert.BasicNetworkFromGRPC(*n))
+			filtered = append(filtered, network.Inspect{
+				Network:    convert.BasicNetworkFromGRPC(*n),
+				Containers: map[string]network.EndpointResource{},
+			})
+		}
+	}
+
+	return filtered, nil
+}
+
+func (c *Cluster) GetNetworkSummaries(filter networkSettings.Filter) ([]network.Summary, error) {
+	list, err := c.listNetworks(context.TODO(), nil)
+	if err != nil {
+		return nil, err
+	}
+	var filtered []network.Summary
+	for _, n := range list {
+		if n.Spec.Annotations.Labels["com.docker.swarm.predefined"] == "true" {
+			continue
+		}
+		if filter.Matches(convert.FilterNetwork{N: n}) {
+			filtered = append(filtered, network.Summary{Network: convert.BasicNetworkFromGRPC(*n)})
 		}
 	}
 
@@ -70,12 +91,15 @@ func (c *Cluster) GetNetwork(input string) (network.Inspect, error) {
 	}); err != nil {
 		return network.Inspect{}, err
 	}
-	return convert.BasicNetworkFromGRPC(*nw), nil
+	return network.Inspect{
+		Network:    convert.BasicNetworkFromGRPC(*nw),
+		Containers: map[string]network.EndpointResource{},
+	}, nil
 }
 
 // GetNetworksByName returns cluster managed networks by name.
 // It is ok to have multiple networks here. #18864
-func (c *Cluster) GetNetworksByName(name string) ([]network.Inspect, error) {
+func (c *Cluster) GetNetworksByName(name string) ([]network.Network, error) {
 	// Note that swarmapi.GetNetworkRequest.Name is not functional.
 	// So we cannot just use that with c.GetNetwork.
 	list, err := c.listNetworks(context.TODO(), &swarmapi.ListNetworksRequest_Filters{
@@ -84,7 +108,7 @@ func (c *Cluster) GetNetworksByName(name string) ([]network.Inspect, error) {
 	if err != nil {
 		return nil, err
 	}
-	nr := make([]network.Inspect, len(list))
+	nr := make([]network.Network, len(list))
 	for i, n := range list {
 		nr[i] = convert.BasicNetworkFromGRPC(*n)
 	}

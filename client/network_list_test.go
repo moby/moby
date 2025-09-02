@@ -74,8 +74,10 @@ func TestNetworkList(t *testing.T) {
 			}
 			content, err := json.Marshal([]network.Summary{
 				{
-					Name:   "network",
-					Driver: "bridge",
+					Network: network.Network{
+						Name:   "network",
+						Driver: "bridge",
+					},
 				},
 			})
 			if err != nil {
