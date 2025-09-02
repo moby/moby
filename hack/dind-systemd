@@ -63,10 +63,10 @@ if [ -d /sys/kernel/security ] && ! mountpoint -q /sys/kernel/security; then
 	}
 fi
 
-# Allow connections coming from the host (through eth0). This is needed to
-# access the daemon port (independently of which port is used), or run a
-# 'remote' Delve session, etc...
 if [ "${FIREWALLD:-}" = "true" ]; then
+	# Allow connections coming from the host (through eth0). This is needed to
+	# access the daemon port (independently of which port is used), or run a
+	# 'remote' Delve session, etc...
 	cat > /etc/firewalld/zones/trusted.xml << EOF
 <?xml version="1.0" encoding="utf-8"?>
 <zone target="ACCEPT">
@@ -76,6 +76,32 @@ if [ "${FIREWALLD:-}" = "true" ]; then
   <forward/>
 </zone>
 EOF
+
+	# Increase firewalld log verbosity to help debug issues
+	cat > /etc/systemd/system/firewalld.service << EOF
+[Service]
+ExecStart=
+ExecStart=/usr/sbin/firewalld --nofork --nopid --debug=4
+EOF
+
+	# Copy firewalld logs into the bundles/ folder on shutdown to let the CI
+	# include it in jobs reports.
+	cat > /etc/systemd/system/collect-firewalld-logs.service << EOF
+[Unit]
+Description=Collect firewalld logs on shutdown
+After=firewalld.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/true
+RemainAfterExit=true
+ExecStop=cp /var/log/firewalld /go/src/github.com/docker/docker/bundles/firewalld.log
+
+[Install]
+WantedBy=firewalld.service
+EOF
+
+	systemctl enable collect-firewalld-logs.service
 fi
 
 env > /etc/docker-entrypoint-env
