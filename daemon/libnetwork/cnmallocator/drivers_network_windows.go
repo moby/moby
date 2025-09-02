@@ -6,22 +6,24 @@ import (
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 )
 
-var initializers = map[string]func(driverapi.Registerer) error{
-	"overlay":  ovmanager.Register,
-	"internal": stubManager("internal"),
-	"l2bridge": stubManager("l2bridge"),
-	"nat":      stubManager("nat"),
+// globalDrivers is a map of network drivers that support cluster-wide
+// definition and require cluster-wide resources allocation (i.e. DataScope == scope.Global).
+var globalDrivers = map[string]func(driverapi.Registerer) error{
+	"overlay": ovmanager.Register,
+}
+
+// localDrivers is a list of builtin network drivers that support cluster-wide
+// definition (i.e. --scope=swarm on the CLI), but don't need global
+// resources allocations (i.e., DataScope == scope.Local).
+var localDrivers = []string{
+	"internal",
+	"l2bridge",
+	"nat",
 }
 
 // PredefinedNetworks returns the list of predefined network structures
 func (*Provider) PredefinedNetworks() []networkallocator.PredefinedNetworkData {
 	return []networkallocator.PredefinedNetworkData{
 		{Name: "nat", Driver: "nat"},
-	}
-}
-
-func stubManager(ntype string) func(driverapi.Registerer) error {
-	return func(r driverapi.Registerer) error {
-		return RegisterManager(r, ntype)
 	}
 }
