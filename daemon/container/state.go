@@ -39,7 +39,7 @@ type State struct {
 	RemovalInProgress bool `json:"-"` // No need for this to be persistent on disk.
 	Dead              bool
 	Pid               int
-	ExitCodeValue     int    `json:"ExitCode"`
+	ExitCode          int    `json:"ExitCode"`
 	ErrorMsg          string `json:"Error"` // contains last known error during container start, stop, or remove
 	StartedAt         time.Time
 	FinishedAt        time.Time
@@ -78,11 +78,6 @@ func (s StateStatus) Err() error {
 	return s.err
 }
 
-// NewState creates a default state object.
-func NewState() *State {
-	return &State{}
-}
-
 // String returns a human-readable description of the state
 func (s *State) String() string {
 	if s.Running {
@@ -90,7 +85,7 @@ func (s *State) String() string {
 			return fmt.Sprintf("Up %s (Paused)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
 		}
 		if s.Restarting {
-			return fmt.Sprintf("Restarting (%d) %s ago", s.ExitCodeValue, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
+			return fmt.Sprintf("Restarting (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 		}
 
 		if h := s.Health; h != nil {
@@ -116,7 +111,7 @@ func (s *State) String() string {
 		return ""
 	}
 
-	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCodeValue, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
+	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 }
 
 // StateString returns the container's current [ContainerState], based on the
@@ -167,7 +162,7 @@ func (s *State) Wait(ctx context.Context, condition container.WaitCondition) <-c
 
 	if s.conditionAlreadyMet(condition) {
 		resultC <- StateStatus{
-			exitCode: s.ExitCodeValue,
+			exitCode: s.ExitCode,
 			err:      s.Err(),
 		}
 
@@ -240,16 +235,10 @@ func (s *State) GetPID() int {
 	return s.Pid
 }
 
-// ExitCode returns current exitcode for the state. Take lock before if state
-// may be shared.
-func (s *State) ExitCode() int {
-	return s.ExitCodeValue
-}
-
 // SetExitCode sets current exitcode for the state. Take lock before if state
 // may be shared.
 func (s *State) SetExitCode(ec int) {
-	s.ExitCodeValue = ec
+	s.ExitCode = ec
 }
 
 // SetRunning sets the running state along with StartedAt time.
@@ -271,7 +260,7 @@ func (s *State) setRunning(ctr libcontainerdtypes.Container, tsk libcontainerdty
 	if start != nil {
 		s.Paused = false
 	}
-	s.ExitCodeValue = 0
+	s.ExitCode = 0
 	s.ctr = ctr
 	s.task = tsk
 	if tsk != nil {
@@ -296,7 +285,7 @@ func (s *State) SetStopped(exitStatus *ExitStatus) {
 	} else {
 		s.FinishedAt = exitStatus.ExitedAt
 	}
-	s.ExitCodeValue = exitStatus.ExitCode
+	s.ExitCode = exitStatus.ExitCode
 
 	s.notifyAndClear(&s.stopWaiters)
 }
@@ -311,7 +300,7 @@ func (s *State) SetRestarting(exitStatus *ExitStatus) {
 	s.Paused = false
 	s.Pid = 0
 	s.FinishedAt = time.Now().UTC()
-	s.ExitCodeValue = exitStatus.ExitCode
+	s.ExitCode = exitStatus.ExitCode
 
 	s.notifyAndClear(&s.stopWaiters)
 }
@@ -424,7 +413,7 @@ func (s *State) Err() error {
 
 func (s *State) notifyAndClear(waiters *[]chan<- StateStatus) {
 	result := StateStatus{
-		exitCode: s.ExitCodeValue,
+		exitCode: s.ExitCode,
 		err:      s.Err(),
 	}
 
