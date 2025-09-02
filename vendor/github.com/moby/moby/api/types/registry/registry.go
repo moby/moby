@@ -17,23 +17,6 @@ type ServiceConfig struct {
 	ExtraFields map[string]any `json:"-"`
 }
 
-// MarshalJSON implements a custom marshaler to include legacy fields
-// in API responses.
-func (sc *ServiceConfig) MarshalJSON() ([]byte, error) {
-	type tmp ServiceConfig
-	base, err := json.Marshal((*tmp)(sc))
-	if err != nil {
-		return nil, err
-	}
-	var merged map[string]any
-	_ = json.Unmarshal(base, &merged)
-
-	for k, v := range sc.ExtraFields {
-		merged[k] = v
-	}
-	return json.Marshal(merged)
-}
-
 // NetIPNet is the net.IPNet type, which can be marshalled and
 // unmarshalled to JSON
 type NetIPNet net.IPNet
