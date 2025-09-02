@@ -268,7 +268,7 @@ func TestSocketBacklogEqualsSomaxconn(t *testing.T) {
 			out, err := exec.Command("ss", "-Stl", "sport", "=", fmt.Sprintf("inet:%d", port)).Output()
 			assert.NilError(t, err)
 
-			t.Logf("ss output:\n" + string(out))
+			t.Log("ss output:\n" + string(out))
 
 			lines := strings.Split(string(out), "\n")
 			assert.Assert(t, len(lines) >= 2)
