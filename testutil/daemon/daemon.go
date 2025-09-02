@@ -1017,13 +1017,24 @@ func (d *Daemon) TamperWithContainerConfig(t testing.TB, containerID string, tam
 	configBytes, err := os.ReadFile(configPath)
 	assert.NilError(t, err)
 
+	hostConfigPath := filepath.Join(d.Root, "containers", containerID, "hostconfig.json")
+	hostConfigBytes, err := os.ReadFile(hostConfigPath)
+	assert.NilError(t, err)
+
 	var c container.Container
 	assert.NilError(t, json.Unmarshal(configBytes, &c))
+	assert.NilError(t, json.Unmarshal(hostConfigBytes, &c.HostConfig))
+
 	c.State = container.NewState()
 	tamper(&c)
+
 	configBytes, err = json.Marshal(&c)
 	assert.NilError(t, err)
 	assert.NilError(t, os.WriteFile(configPath, configBytes, 0o600))
+
+	hostConfigBytes, err = json.Marshal(&c.HostConfig)
+	assert.NilError(t, err)
+	assert.NilError(t, os.WriteFile(hostConfigPath, hostConfigBytes, 0o600))
 }
 
 // cleanupRaftDir removes swarmkit wal files if present

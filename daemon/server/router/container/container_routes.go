@@ -12,6 +12,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
+	"github.com/docker/go-connections/nat"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
@@ -684,6 +685,10 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		warnings = append(warnings, warn)
 	}
 
+	if warn := handlePortBindingsBC(hostConfig, version); warn != "" {
+		warnings = append(warnings, warn)
+	}
+
 	if hostConfig.PidsLimit != nil && *hostConfig.PidsLimit <= 0 {
 		// Don't set a limit if either no limit was specified, or "unlimited" was
 		// explicitly set.
@@ -872,6 +877,45 @@ func handleSysctlBC(
 	}
 
 	return warning, nil
+}
+
+// handlePortBindingsBC handles backward-compatibility for empty port bindings.
+//
+// Before Engine v29.0, an empty list of port bindings for a container port was
+// treated as if a PortBinding with an unspecified IP address and HostPort was
+// provided. The daemon was doing this backfilling on ContainerStart.
+//
+// Preserve this behavior for older API versions but emit a warning for API
+// v1.52 and drop that behavior for newer API versions.
+//
+// See https://github.com/moby/moby/pull/50710#discussion_r2315840899 for more
+// context.
+func handlePortBindingsBC(hostConfig *container.HostConfig, version string) string {
+	var warning string
+
+	for portProto, bindings := range hostConfig.PortBindings {
+		if len(bindings) > 0 {
+			continue
+		}
+		if versions.GreaterThan(version, "1.52") && len(bindings) == 0 {
+			// Starting with API 1.53, no backfilling is done. An empty slice
+			// of port bindings is treated as "no port bindings" by the daemon,
+			// but it still needs to backfill empty slices when loading the
+			// on-disk state for containers created by older versions of the
+			// Engine. Drop the PortBindings entry to ensure that no backfilling
+			// will happen when restarting the daemon.
+			delete(hostConfig.PortBindings, portProto)
+			continue
+		}
+
+		if versions.Equal(version, "1.52") {
+			warning = fmt.Sprintf("Container port %s has an empty list of port-bindings. Starting with API 1.53, this will be discarded.", portProto)
+		}
+
+		hostConfig.PortBindings[portProto] = []nat.PortBinding{{}}
+	}
+
+	return warning
 }
 
 // epConfigForNetMode finds, or creates, an entry in netConfig.EndpointsConfig

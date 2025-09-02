@@ -260,6 +260,7 @@ func (container *Container) readHostConfig() error {
 	}
 
 	container.InitDNSHostConfig()
+	container.BackfillEmptyPBs()
 
 	return nil
 }
@@ -622,6 +623,32 @@ func (container *Container) InitDNSHostConfig() {
 
 	if container.HostConfig.DNSOptions == nil {
 		container.HostConfig.DNSOptions = make([]string, 0)
+	}
+}
+
+// BackfillEmptyPBs backfills empty PortBindings slices with a port binding
+// with an unspecified HostIP and HostPort. This is required to ensure backward
+// compatibility for containers created with older Engine versions.
+//
+// Prior to v29.0, the daemon was doing this backfilling automatically through
+// github.com/docker/go-connections/nat on ContainerStart. Starting with that
+// version, it is done by the API for older API versions (i.e. < 1.53). Newer
+// API versions are just dropping entries with empty PortBindings slices.
+//
+// See https://github.com/moby/moby/pull/50710#discussion_r2315840899 for more
+// context.
+func (container *Container) BackfillEmptyPBs() {
+	if container.HostConfig == nil {
+		return
+	}
+
+	for portProto, pb := range container.HostConfig.PortBindings {
+		if len(pb) > 0 || pb == nil {
+			continue
+		}
+		container.HostConfig.PortBindings[portProto] = []containertypes.PortBinding{
+			{}, // Backfill an empty PortBinding
+		}
 	}
 }
 
