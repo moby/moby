@@ -494,22 +494,18 @@ func (c *container) Task(ctx context.Context) (libcontainerdtypes.Task, error) {
 // createIO creates the io to be used by a process
 // This needs to get a pointer to interface as upon closure the process may not have yet been registered
 func (c *container) createIO(fifos *cio.FIFOSet, stdinCloseSync chan containerd.Process, attachStdio libcontainerdtypes.StdioCallback) (cio.IO, error) {
-	var (
-		io  *cio.DirectIO
-		err error
-	)
-	io, err = c.client.newDirectIO(context.Background(), fifos)
+	dio, err := c.client.newDirectIO(context.Background(), fifos)
 	if err != nil {
 		return nil, err
 	}
 
-	if io.Stdin != nil {
+	if dio.Stdin != nil {
 		var (
 			errs      []error
 			stdinOnce sync.Once
 		)
-		pipe := io.Stdin
-		io.Stdin = ioutils.NewWriteCloserWrapper(pipe, func() error {
+		pipe := dio.Stdin
+		dio.Stdin = ioutils.NewWriteCloserWrapper(pipe, func() error {
 			stdinOnce.Do(func() {
 				errs = append(errs, pipe.Close())
 
@@ -538,10 +534,10 @@ func (c *container) createIO(fifos *cio.FIFOSet, stdinCloseSync chan containerd.
 		})
 	}
 
-	rio, err := attachStdio(io)
+	rio, err := attachStdio(dio)
 	if err != nil {
-		io.Cancel()
-		io.Close()
+		dio.Cancel()
+		_ = dio.Close()
 	}
 	return rio, err
 }
