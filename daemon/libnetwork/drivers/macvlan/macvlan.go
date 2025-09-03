@@ -55,7 +55,7 @@ type network struct {
 }
 
 // Register initializes and registers the libnetwork macvlan driver
-func Register(r driverapi.Registerer, store *datastore.Store, _ map[string]any) error {
+func Register(r driverapi.Registerer, store *datastore.Store) error {
 	d := &driver{
 		store:    store,
 		networks: networkTable{},

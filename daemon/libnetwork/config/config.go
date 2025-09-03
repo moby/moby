@@ -8,7 +8,6 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/cluster"
 	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamutils"
-	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 )
 
@@ -19,6 +18,8 @@ const (
 
 // Config encapsulates configurations of various Libnetwork components
 type Config struct {
+	PlatformConfig
+
 	DataDir string
 	// ExecRoot is the base-path for libnetwork external key listeners
 	// (created in "<ExecRoot>/libnetwork/<Controller-Short-ID>.sock"),
@@ -32,7 +33,6 @@ type Config struct {
 	DefaultNetwork         string
 	DefaultDriver          string
 	Labels                 []string
-	driverCfg              map[string]map[string]any
 	ClusterProvider        cluster.Provider
 	NetworkControlPlaneMTU int
 	DefaultAddressPool     []*ipamutils.NetworkToSplit
@@ -48,7 +48,6 @@ type Config struct {
 // New creates a new Config and initializes it with the given Options.
 func New(opts ...Option) *Config {
 	cfg := &Config{
-		driverCfg:       make(map[string]map[string]any),
 		DatastoreBucket: datastore.DefaultBucket,
 	}
 
@@ -59,10 +58,6 @@ func New(opts ...Option) *Config {
 	}
 
 	return cfg
-}
-
-func (c *Config) DriverConfig(name string) map[string]any {
-	return c.driverCfg[name]
 }
 
 // Option is an option setter function type used to pass various configurations
@@ -89,24 +84,6 @@ func OptionDefaultDriver(dd string) Option {
 func OptionDefaultAddressPoolConfig(addressPool []*ipamutils.NetworkToSplit) Option {
 	return func(c *Config) {
 		c.DefaultAddressPool = addressPool
-	}
-}
-
-// OptionDriverConfig returns an option setter for driver configuration.
-func OptionDriverConfig(networkType string, config map[string]any) Option {
-	return func(c *Config) {
-		c.driverCfg[networkType] = config
-	}
-}
-
-// OptionLabels function returns an option setter for labels
-func OptionLabels(labels []string) Option {
-	return func(c *Config) {
-		for _, label := range labels {
-			if strings.HasPrefix(label, netlabel.Prefix) {
-				c.Labels = append(c.Labels, label)
-			}
-		}
 	}
 }
 

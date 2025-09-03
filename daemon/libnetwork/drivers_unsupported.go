@@ -1,9 +1,7 @@
-//go:build !freebsd && !linux && !windows
+//go:build !linux && !windows
 
 package libnetwork
 
-import "github.com/moby/moby/v2/daemon/libnetwork/driverapi"
-
-func registerNetworkDrivers(r driverapi.Registerer, driverConfig func(string) map[string]any) error {
+func registerNetworkDrivers(cfg *config.Config, r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers) error {
 	return nil
 }

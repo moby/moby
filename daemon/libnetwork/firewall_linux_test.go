@@ -12,8 +12,6 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
 	"github.com/moby/moby/v2/daemon/libnetwork/iptables"
-	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
-	"github.com/moby/moby/v2/daemon/libnetwork/options"
 	"github.com/moby/moby/v2/internal/testutils/netnsutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -70,11 +68,9 @@ func TestUserChain(t *testing.T) {
 			c, err := New(
 				context.Background(),
 				config.OptionDataDir(t.TempDir()),
-				config.OptionDriverConfig("bridge", map[string]any{
-					netlabel.GenericData: options.Generic{
-						"EnableIPTables":  tc.iptables,
-						"EnableIP6Tables": tc.iptables,
-					},
+				config.OptionBridgeConfig(bridge.Configuration{
+					EnableIPTables:  tc.iptables,
+					EnableIP6Tables: tc.iptables,
 				}))
 			assert.NilError(t, err)
 			defer c.Stop()

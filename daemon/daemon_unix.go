@@ -35,7 +35,6 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
-	"github.com/moby/moby/v2/daemon/libnetwork/options"
 	lntypes "github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
 	volumemounts "github.com/moby/moby/v2/daemon/volume/mounts"
@@ -927,17 +926,15 @@ func networkPlatformOptions(conf *config.Config) []nwconfig.Option {
 	return []nwconfig.Option{
 		nwconfig.OptionRootless(conf.Rootless),
 		nwconfig.OptionUserlandProxy(conf.EnableUserlandProxy, conf.UserlandProxyPath),
-		nwconfig.OptionDriverConfig("bridge", options.Generic{
-			netlabel.GenericData: options.Generic{
-				"EnableIPForwarding":       conf.BridgeConfig.EnableIPForward,
-				"DisableFilterForwardDrop": conf.BridgeConfig.DisableFilterForwardDrop,
-				"EnableIPTables":           conf.BridgeConfig.EnableIPTables,
-				"EnableIP6Tables":          conf.BridgeConfig.EnableIP6Tables,
-				"EnableProxy":              conf.EnableUserlandProxy && conf.UserlandProxyPath != "",
-				"ProxyPath":                conf.UserlandProxyPath,
-				"AllowDirectRouting":       conf.BridgeConfig.AllowDirectRouting,
-				"AcceptFwMark":             conf.BridgeConfig.BridgeAcceptFwMark,
-			},
+		nwconfig.OptionBridgeConfig(bridge.Configuration{
+			EnableIPForwarding:       conf.BridgeConfig.EnableIPForward,
+			DisableFilterForwardDrop: conf.BridgeConfig.DisableFilterForwardDrop,
+			EnableIPTables:           conf.BridgeConfig.EnableIPTables,
+			EnableIP6Tables:          conf.BridgeConfig.EnableIP6Tables,
+			EnableProxy:              conf.EnableUserlandProxy && conf.UserlandProxyPath != "",
+			ProxyPath:                conf.UserlandProxyPath,
+			AllowDirectRouting:       conf.BridgeConfig.AllowDirectRouting,
+			AcceptFwMark:             conf.BridgeConfig.BridgeAcceptFwMark,
 		}),
 	}
 }

@@ -10,8 +10,6 @@ import (
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
 	"github.com/moby/moby/v2/daemon/libnetwork/iptables"
-	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
-	"github.com/moby/moby/v2/daemon/libnetwork/options"
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"
 )
 
@@ -34,24 +32,11 @@ func (c *Controller) FirewallBackend() *system.FirewallInfo {
 // enabledIptablesVersions returns the iptables versions that are enabled
 // for the controller.
 func (c *Controller) enabledIptablesVersions() []iptables.IPVersion {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.cfg == nil {
-		return nil
-	}
-	// parse map cfg["bridge"]["generic"]["EnableIPTable"]
-	cfgBridge := c.cfg.DriverConfig("bridge")
-	cfgGeneric, ok := cfgBridge[netlabel.GenericData].(options.Generic)
-	if !ok {
-		return nil
-	}
-
 	var versions []iptables.IPVersion
-	if enabled, ok := cfgGeneric["EnableIPTables"].(bool); enabled || !ok {
-		// iptables is enabled unless user explicitly disabled it
+	if c.cfg.BridgeConfig.EnableIPTables {
 		versions = append(versions, iptables.IPv4)
 	}
-	if enabled, _ := cfgGeneric["EnableIP6Tables"].(bool); enabled {
+	if c.cfg.BridgeConfig.EnableIP6Tables {
 		versions = append(versions, iptables.IPv6)
 	}
 	return versions

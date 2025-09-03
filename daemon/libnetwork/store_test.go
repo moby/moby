@@ -5,17 +5,12 @@ import (
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/config"
-	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
-	"github.com/moby/moby/v2/daemon/libnetwork/options"
 )
 
 func testLocalBackend(t *testing.T, path, bucket string) {
 	cfgOptions := []config.Option{
 		config.OptionDataDir(path),
 		func(c *config.Config) { c.DatastoreBucket = bucket },
-		config.OptionDriverConfig("host", map[string]any{
-			netlabel.GenericData: options.Generic{},
-		}),
 	}
 
 	testController, err := New(context.Background(), cfgOptions...)

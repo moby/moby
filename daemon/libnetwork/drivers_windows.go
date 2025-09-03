@@ -13,7 +13,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/drvregistry"
 )
 
-func registerNetworkDrivers(r driverapi.Registerer, store *datastore.Store, _ *drvregistry.PortMappers, _ func(string) map[string]any) error {
+func registerNetworkDrivers(r driverapi.Registerer, _ *config.Config, store *datastore.Store, _ *drvregistry.PortMappers) error {
 	for _, nr := range []struct {
 		ntype    string
 		register func(driverapi.Registerer) error
