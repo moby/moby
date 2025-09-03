@@ -255,14 +255,9 @@ func (t *task) Exec(ctx context.Context, execID string, spec *specs.Process, wit
 
 	fifos := newFIFOSet(md.Labels[DockerContainerBundlePath], execID, withStdin, spec.Terminal)
 
-	var (
-		rio            cio.IO
-		stdinCloseSync = make(chan containerd.Process, 1)
-	)
+	stdinCloseSync := make(chan containerd.Process, 1)
 	p, err := t.Task.Exec(ctx, execID, spec, func(id string) (cio.IO, error) {
-		var err error
-		rio, err = t.ctr.createIO(fifos, stdinCloseSync, attachStdio)
-		return rio, err
+		return t.ctr.createIO(fifos, stdinCloseSync, attachStdio)
 	})
 	if err != nil {
 		close(stdinCloseSync)
@@ -273,17 +268,6 @@ func (t *task) Exec(ctx context.Context, execID string, spec *specs.Process, wit
 	}
 
 	defer func() {
-		if retErr != nil && rio != nil {
-			// TODO(thaJeztah): this may be redundant, and already handled by the client;
-			//   [task.Exec], [task.Start], and [process.Start] already have a
-			//   defer to cancel and close the io.
-			//
-			// [task.Exec]: https://github.com/containerd/containerd/blob/v2.1.4/client/task.go#L424-L468
-			// [task.Start]: https://github.com/containerd/containerd/blob/v2.1.4/client/task.go#L243-L261
-			// [process.Start]: https://github.com/containerd/containerd/blob/v2.1.4/client/process.go#L123-L144
-			rio.Cancel()
-			_ = rio.Close()
-		}
 		// Signal c.createIO that it can call CloseIO
 		//
 		// the stdin of exec process will be created after p.Start in containerd
