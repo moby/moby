@@ -298,10 +298,10 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 	defer func() { stdinCloseSync <- p }()
 
 	if err := p.Start(ctx); err != nil {
-		// use new context for cleanup because old one may be cancelled by user, but leave a timeout to make sure
-		// we are not waiting forever if containerd is unresponsive or to work around fifo cancelling issues in
-		// older containerd-shim
-		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		// don't cancel cleanup if the context is cancelled, but add a timeout
+		// to make sure we are not waiting forever if containerd is unresponsive
+		// or to work around fifo cancelling issues in older containerd-shim.
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 45*time.Second)
 		defer cancel()
 		p.Delete(ctx)
 		return nil, wrapError(err)
