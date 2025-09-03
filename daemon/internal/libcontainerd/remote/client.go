@@ -726,13 +726,11 @@ func (c *client) bundleDir(id string) string {
 }
 
 func wrapError(err error) error {
-	switch {
-	case err == nil:
-		return nil
-	case cerrdefs.IsNotFound(err):
-		return errdefs.NotFound(err)
+	if err == nil || cerrdefs.IsNotFound(err) {
+		return err
 	}
 
+	// TODO(thaJeztah): don't depend on string-matching errors and remove wrapError; https://github.com/moby/moby/issues/50882
 	msg := err.Error()
 	for _, s := range []string{"container does not exist", "not found", "no such container"} {
 		if strings.Contains(msg, s) {
