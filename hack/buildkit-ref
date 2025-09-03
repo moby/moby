@@ -19,9 +19,6 @@ if [[ "${buildkit_ref}" == *-*-* ]]; then
 	buildkit_ref=$(curl -s "https://api.github.com/repos/${buildkit_repo}/commits/${buildkit_ref}" | jq -r .sha)
 fi
 
-# FIXME(crazy-max) temporarily overriding version to use for tests; remove with the next release of buildkit; see https://github.com/moby/buildkit/pull/6179
-buildkit_ref=a59c3fe07d1b25fd6563d3955d66c6d15264c49f
-
 cat << EOF
 BUILDKIT_REPO=$buildkit_repo
 BUILDKIT_REF=$buildkit_ref
