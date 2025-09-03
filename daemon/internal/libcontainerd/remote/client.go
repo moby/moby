@@ -213,23 +213,16 @@ func (c *container) NewTask(ctx context.Context, checkpointDir string, withStdin
 		taskOpts = append(taskOpts, withLogLevel(c.client.logger.Level))
 	}
 
-	var rio cio.IO
 	stdinCloseSync := make(chan containerd.Process, 1)
 	t, err := c.c8dCtr.NewTask(ctx,
 		func(id string) (cio.IO, error) {
 			fifos := newFIFOSet(bundle, id, withStdin, spec.Process.Terminal)
-
-			rio, err = c.createIO(fifos, stdinCloseSync, attachStdio)
-			return rio, err
+			return c.createIO(fifos, stdinCloseSync, attachStdio)
 		},
 		taskOpts...,
 	)
 	if err != nil {
 		close(stdinCloseSync)
-		if rio != nil {
-			rio.Cancel()
-			_ = rio.Close()
-		}
 		return nil, pkgerrors.Wrap(wrapError(err), "failed to create task for container")
 	}
 
