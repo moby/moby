@@ -319,7 +319,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	case <-ctx.Done():
 		logger := log.G(ctx).WithFields(log.Fields{
 			"container": ec.Container.ID,
-			"exeec":     ec.ID,
+			"execID":    ec.ID,
 		})
 		logger.Debug("Sending KILL signal to container process")
 		sigCtx, cancelFunc := context.WithTimeout(context.Background(), 30*time.Second)
