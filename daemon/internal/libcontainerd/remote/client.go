@@ -253,11 +253,6 @@ func (t *task) Start(ctx context.Context) error {
 // the Start call. stdinCloseSync channel should be closed after Start exec
 // process.
 func (t *task) Exec(ctx context.Context, execID string, spec *specs.Process, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (_ libcontainerdtypes.Process, retErr error) {
-	var (
-		rio            cio.IO
-		stdinCloseSync = make(chan containerd.Process, 1)
-	)
-
 	// Optimization: assume the DockerContainerBundlePath label has not been
 	// updated since the container metadata was last loaded/refreshed.
 	md, err := t.ctr.c8dCtr.Info(ctx, containerd.WithoutRefreshedMetadata)
@@ -267,13 +262,10 @@ func (t *task) Exec(ctx context.Context, execID string, spec *specs.Process, wit
 
 	fifos := newFIFOSet(md.Labels[DockerContainerBundlePath], execID, withStdin, spec.Terminal)
 
-	defer func() {
-		if retErr != nil && rio != nil {
-			rio.Cancel()
-			_ = rio.Close()
-		}
-	}()
-
+	var (
+		rio            cio.IO
+		stdinCloseSync = make(chan containerd.Process, 1)
+	)
 	p, err := t.Task.Exec(ctx, execID, spec, func(id string) (cio.IO, error) {
 		var err error
 		rio, err = t.ctr.createIO(fifos, stdinCloseSync, attachStdio)
@@ -287,10 +279,23 @@ func (t *task) Exec(ctx context.Context, execID string, spec *specs.Process, wit
 		return nil, wrapError(err)
 	}
 
-	// Signal c.createIO that it can call CloseIO
-	//
-	// the stdin of exec process will be created after p.Start in containerd
-	defer func() { stdinCloseSync <- p }()
+	defer func() {
+		if retErr != nil && rio != nil {
+			// TODO(thaJeztah): this may be redundant, and already handled by the client;
+			//   [task.Exec], [task.Start], and [process.Start] already have a
+			//   defer to cancel and close the io.
+			//
+			// [task.Exec]: https://github.com/containerd/containerd/blob/v2.1.4/client/task.go#L424-L468
+			// [task.Start]: https://github.com/containerd/containerd/blob/v2.1.4/client/task.go#L243-L261
+			// [process.Start]: https://github.com/containerd/containerd/blob/v2.1.4/client/process.go#L123-L144
+			rio.Cancel()
+			_ = rio.Close()
+		}
+		// Signal c.createIO that it can call CloseIO
+		//
+		// the stdin of exec process will be created after p.Start in containerd
+		stdinCloseSync <- p
+	}()
 
 	if err := p.Start(ctx); err != nil {
 		// don't cancel cleanup if the context is cancelled, but add a timeout
