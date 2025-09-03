@@ -891,7 +891,7 @@ func handleSysctlBC(
 // See https://github.com/moby/moby/pull/50710#discussion_r2315840899 for more
 // context.
 func handlePortBindingsBC(hostConfig *container.HostConfig, version string) string {
-	var warning string
+	var emptyPBs []string
 
 	for portProto, bindings := range hostConfig.PortBindings {
 		if len(bindings) > 0 {
@@ -909,13 +909,17 @@ func handlePortBindingsBC(hostConfig *container.HostConfig, version string) stri
 		}
 
 		if versions.Equal(version, "1.52") {
-			warning = fmt.Sprintf("Container port %s has an empty list of port-bindings. Starting with API 1.53, this will be discarded.", portProto)
+			emptyPBs = append(emptyPBs, string(portProto))
 		}
 
 		hostConfig.PortBindings[portProto] = []nat.PortBinding{{}}
 	}
 
-	return warning
+	if len(emptyPBs) > 0 {
+		return fmt.Sprintf("Following container port(s) have an empty list of port-bindings: %s. Starting with API 1.53, such bindings will be discarded.", strings.Join(emptyPBs, ", "))
+	}
+
+	return ""
 }
 
 // epConfigForNetMode finds, or creates, an entry in netConfig.EndpointsConfig

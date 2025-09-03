@@ -993,7 +993,7 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 			{}, // An empty PortBinding is backfilled
 		}}
 		expWarnings := []string{
-			"Container port 80/tcp has an empty list of port-bindings. Starting with API 1.53, this will be discarded.",
+			"Following container port(s) have an empty list of port-bindings: 80/tcp. Starting with API 1.53, such bindings will be discarded.",
 		}
 
 		mappings, warnings := createInspect(t, "1.52", []nat.PortBinding{})
