@@ -149,16 +149,10 @@ func (c *client) NewContainer(ctx context.Context, id string, ociSpec *specs.Spe
 
 // NewTask creates a task for the specified containerd id
 func (c *container) NewTask(ctx context.Context, checkpointDir string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (libcontainerdtypes.Task, error) {
-	var (
-		checkpoint     *types.Descriptor
-		t              containerd.Task
-		rio            cio.IO
-		stdinCloseSync = make(chan containerd.Process, 1)
-	)
-
 	ctx, span := otel.Tracer("").Start(ctx, "libcontainerd.remote.NewTask")
 	defer span.End()
 
+	var checkpoint *types.Descriptor
 	if checkpointDir != "" {
 		// write checkpoint to the content store
 		tar := archive.Diff(ctx, "", checkpointDir)
@@ -167,8 +161,7 @@ func (c *container) NewTask(ctx context.Context, checkpointDir string, withStdin
 		// remove the checkpoint when we're done
 		defer func() {
 			if checkpoint != nil {
-				err := c.client.client.ContentStore().Delete(ctx, digest.Digest(checkpoint.Digest))
-				if err != nil {
+				if err := c.client.client.ContentStore().Delete(ctx, digest.Digest(checkpoint.Digest)); err != nil {
 					c.client.logger.WithError(err).WithFields(log.Fields{
 						"ref":    checkpointDir,
 						"digest": checkpoint.Digest,
@@ -220,7 +213,9 @@ func (c *container) NewTask(ctx context.Context, checkpointDir string, withStdin
 		taskOpts = append(taskOpts, withLogLevel(c.client.logger.Level))
 	}
 
-	t, err = c.c8dCtr.NewTask(ctx,
+	var rio cio.IO
+	stdinCloseSync := make(chan containerd.Process, 1)
+	t, err := c.c8dCtr.NewTask(ctx,
 		func(id string) (cio.IO, error) {
 			fifos := newFIFOSet(bundle, id, withStdin, spec.Process.Terminal)
 
@@ -233,7 +228,7 @@ func (c *container) NewTask(ctx context.Context, checkpointDir string, withStdin
 		close(stdinCloseSync)
 		if rio != nil {
 			rio.Cancel()
-			rio.Close()
+			_ = rio.Close()
 		}
 		return nil, pkgerrors.Wrap(wrapError(err), "failed to create task for container")
 	}
