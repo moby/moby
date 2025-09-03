@@ -257,7 +257,7 @@ func (t *task) Start(ctx context.Context) error {
 // for the container main process, the stdin fifo will be created in Create not
 // the Start call. stdinCloseSync channel should be closed after Start exec
 // process.
-func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (_ libcontainerdtypes.Process, retErr error) {
+func (t *task) Exec(ctx context.Context, execID string, spec *specs.Process, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (_ libcontainerdtypes.Process, retErr error) {
 	var (
 		rio            cio.IO
 		stdinCloseSync = make(chan containerd.Process, 1)
@@ -270,7 +270,7 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 		return nil, wrapError(err)
 	}
 
-	fifos := newFIFOSet(md.Labels[DockerContainerBundlePath], processID, withStdin, spec.Terminal)
+	fifos := newFIFOSet(md.Labels[DockerContainerBundlePath], execID, withStdin, spec.Terminal)
 
 	defer func() {
 		if retErr != nil && rio != nil {
@@ -279,7 +279,7 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 		}
 	}()
 
-	p, err := t.Task.Exec(ctx, processID, spec, func(id string) (cio.IO, error) {
+	p, err := t.Task.Exec(ctx, execID, spec, func(id string) (cio.IO, error) {
 		var err error
 		rio, err = t.ctr.createIO(fifos, stdinCloseSync, attachStdio)
 		return rio, err
