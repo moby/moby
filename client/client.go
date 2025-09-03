@@ -456,3 +456,11 @@ func (cli *Client) dialer() func(context.Context) (net.Conn, error) {
 		}
 	}
 }
+
+// transportFunc allows us to inject a mock transport for testing. We define it
+// here so we can detect the tlsconfig and return nil for only this type.
+type transportFunc func(*http.Request) (*http.Response, error)
+
+func (tf transportFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return tf(req)
+}
