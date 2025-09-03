@@ -303,7 +303,13 @@ func (t *task) Exec(ctx context.Context, execID string, spec *specs.Process, wit
 		// or to work around fifo cancelling issues in older containerd-shim.
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 45*time.Second)
 		defer cancel()
-		p.Delete(ctx)
+		if _, err := p.Delete(ctx); err != nil && !cerrdefs.IsNotFound(err) {
+			log.G(ctx).WithFields(log.Fields{
+				"error":     err,
+				"container": t.ID(),
+				"execID":    execID,
+			}).Warn("Failed to delete exec process after failing to start")
+		}
 		return nil, wrapError(err)
 	}
 	return process{p}, nil
