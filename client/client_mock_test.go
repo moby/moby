@@ -9,14 +9,6 @@ import (
 	"github.com/moby/moby/api/types/common"
 )
 
-// transportFunc allows us to inject a mock transport for testing. We define it
-// here so we can detect the tlsconfig and return nil for only this type.
-type transportFunc func(*http.Request) (*http.Response, error)
-
-func (tf transportFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return tf(req)
-}
-
 func transportEnsureBody(f transportFunc) transportFunc {
 	return func(req *http.Request) (*http.Response, error) {
 		resp, err := f(req)
