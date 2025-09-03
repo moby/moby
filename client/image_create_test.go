@@ -16,10 +16,9 @@ import (
 )
 
 func TestImageCreateError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ImageCreate(context.Background(), "reference", ImageCreateOptions{})
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
+	_, err = client.ImageCreate(context.Background(), "reference", ImageCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -32,33 +31,32 @@ func TestImageCreate(t *testing.T) {
 		expectedRegistryAuth = "eyJodHRwczovL2luZGV4LmRvY2tlci5pby92MS8iOnsiYXV0aCI6ImRHOTBid289IiwiZW1haWwiOiJqb2huQGRvZS5jb20ifX0="
 	)
 
-	client := &Client{
-		client: newMockClient(func(r *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(r.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
-			}
-			registryAuth := r.Header.Get(registry.AuthHeader)
-			if registryAuth != expectedRegistryAuth {
-				return nil, fmt.Errorf("%s header not properly set in the request. Expected '%s', got %s", registry.AuthHeader, expectedRegistryAuth, registryAuth)
-			}
+	client, err := NewClientWithOpts(WithMockClient(func(r *http.Request) (*http.Response, error) {
+		if !strings.HasPrefix(r.URL.Path, expectedURL) {
+			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
+		}
+		registryAuth := r.Header.Get(registry.AuthHeader)
+		if registryAuth != expectedRegistryAuth {
+			return nil, fmt.Errorf("%s header not properly set in the request. Expected '%s', got %s", registry.AuthHeader, expectedRegistryAuth, registryAuth)
+		}
 
-			query := r.URL.Query()
-			fromImage := query.Get("fromImage")
-			if fromImage != expectedImage {
-				return nil, fmt.Errorf("fromImage not set in URL query properly. Expected '%s', got %s", expectedImage, fromImage)
-			}
+		query := r.URL.Query()
+		fromImage := query.Get("fromImage")
+		if fromImage != expectedImage {
+			return nil, fmt.Errorf("fromImage not set in URL query properly. Expected '%s', got %s", expectedImage, fromImage)
+		}
 
-			tag := query.Get("tag")
-			if tag != expectedTag {
-				return nil, fmt.Errorf("tag not set in URL query properly. Expected '%s', got %s", expectedTag, tag)
-			}
+		tag := query.Get("tag")
+		if tag != expectedTag {
+			return nil, fmt.Errorf("tag not set in URL query properly. Expected '%s', got %s", expectedTag, tag)
+		}
 
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
-			}, nil
-		}),
-	}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
+		}, nil
+	}))
+	assert.NilError(t, err)
 
 	createResponse, err := client.ImageCreate(context.Background(), specifiedReference, ImageCreateOptions{
 		RegistryAuth: expectedRegistryAuth,

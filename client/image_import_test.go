@@ -15,10 +15,9 @@ import (
 )
 
 func TestImageImportError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ImageImport(context.Background(), ImageImportSource{}, "image:tag", ImageImportOptions{})
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
+	_, err = client.ImageImport(context.Background(), ImageImportSource{}, "image:tag", ImageImportOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -68,17 +67,16 @@ func TestImageImport(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			client := &Client{
-				client: newMockClient(func(req *http.Request) (*http.Response, error) {
-					assert.Check(t, is.Equal(req.URL.Path, expectedURL))
-					query := req.URL.Query()
-					assert.Check(t, is.DeepEqual(query, tc.expectedQueryParams))
-					return &http.Response{
-						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(bytes.NewReader([]byte(expectedOutput))),
-					}, nil
-				}),
-			}
+			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+				assert.Check(t, is.Equal(req.URL.Path, expectedURL))
+				query := req.URL.Query()
+				assert.Check(t, is.DeepEqual(query, tc.expectedQueryParams))
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(bytes.NewReader([]byte(expectedOutput))),
+				}, nil
+			}))
+			assert.NilError(t, err)
 			resp, err := client.ImageImport(context.Background(), ImageImportSource{
 				Source:     strings.NewReader("source"),
 				SourceName: "image_source",

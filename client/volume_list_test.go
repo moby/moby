@@ -18,11 +18,10 @@ import (
 )
 
 func TestVolumeListError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
 
-	_, err := client.VolumeList(context.Background(), VolumeListOptions{})
+	_, err = client.VolumeList(context.Background(), VolumeListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -52,33 +51,32 @@ func TestVolumeList(t *testing.T) {
 	}
 
 	for _, listCase := range listCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
-				if !strings.HasPrefix(req.URL.Path, expectedURL) {
-					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-				}
-				query := req.URL.Query()
-				actualFilters := query.Get("filters")
-				if actualFilters != listCase.expectedFilters {
-					return nil, fmt.Errorf("filters not set in URL query properly. Expected '%s', got %s", listCase.expectedFilters, actualFilters)
-				}
-				content, err := json.Marshal(volume.ListResponse{
-					Volumes: []*volume.Volume{
-						{
-							Name:   "volume",
-							Driver: "local",
-						},
+		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			if !strings.HasPrefix(req.URL.Path, expectedURL) {
+				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			}
+			query := req.URL.Query()
+			actualFilters := query.Get("filters")
+			if actualFilters != listCase.expectedFilters {
+				return nil, fmt.Errorf("filters not set in URL query properly. Expected '%s', got %s", listCase.expectedFilters, actualFilters)
+			}
+			content, err := json.Marshal(volume.ListResponse{
+				Volumes: []*volume.Volume{
+					{
+						Name:   "volume",
+						Driver: "local",
 					},
-				})
-				if err != nil {
-					return nil, err
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader(content)),
-				}, nil
-			}),
-		}
+				},
+			})
+			if err != nil {
+				return nil, err
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader(content)),
+			}, nil
+		}))
+		assert.NilError(t, err)
 
 		volumeResponse, err := client.VolumeList(context.Background(), VolumeListOptions{Filters: listCase.filters})
 		assert.NilError(t, err)

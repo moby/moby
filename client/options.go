@@ -16,8 +16,43 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+type clientConfig struct {
+	// scheme sets the scheme for the client
+	scheme string
+	// host holds the server address to connect to
+	host string
+	// proto holds the client protocol i.e. unix.
+	proto string
+	// addr holds the client address.
+	addr string
+	// basePath holds the path to prepend to the requests.
+	basePath string
+	// client used to send and receive http requests.
+	client *http.Client
+	// version of the server to talk to.
+	version string
+	// userAgent is the User-Agent header to use for HTTP requests. It takes
+	// precedence over User-Agent headers set in customHTTPHeaders, and other
+	// header variables. When set to an empty string, the User-Agent header
+	// is removed, and no header is sent.
+	userAgent *string
+	// custom HTTP headers configured by users.
+	customHTTPHeaders map[string]string
+	// manualOverride is set to true when the version was set by users.
+	manualOverride bool
+
+	// negotiateVersion indicates if the client should automatically negotiate
+	// the API version to use when making requests. API version negotiation is
+	// performed on the first request, after which negotiated is set to "true"
+	// so that subsequent requests do not re-negotiate.
+	negotiateVersion bool
+
+	// traceOpts is a list of options to configure the tracing span.
+	traceOpts []otelhttp.Option
+}
+
 // Opt is a configuration option to initialize a [Client].
-type Opt func(*Client) error
+type Opt func(*clientConfig) error
 
 // FromEnv configures the client with values from environment variables. It
 // is the equivalent of using the [WithTLSClientConfigFromEnv], [WithHostFromEnv],
@@ -32,7 +67,7 @@ type Opt func(*Client) error
 //     which to load the TLS certificates ("ca.pem", "cert.pem", "key.pem').
 //   - DOCKER_TLS_VERIFY ([EnvTLSVerify]) to enable or disable TLS verification
 //     (off by default).
-func FromEnv(c *Client) error {
+func FromEnv(c *clientConfig) error {
 	ops := []Opt{
 		WithTLSClientConfigFromEnv(),
 		WithHostFromEnv(),
@@ -50,7 +85,7 @@ func FromEnv(c *Client) error {
 // used to set the Timeout and KeepAlive settings of the client. It returns
 // an error if the client does not have a [http.Transport] configured.
 func WithDialContext(dialContext func(ctx context.Context, network, addr string) (net.Conn, error)) Opt {
-	return func(c *Client) error {
+	return func(c *clientConfig) error {
 		if transport, ok := c.client.Transport.(*http.Transport); ok {
 			transport.DialContext = dialContext
 			return nil
@@ -61,7 +96,7 @@ func WithDialContext(dialContext func(ctx context.Context, network, addr string)
 
 // WithHost overrides the client host with the specified one.
 func WithHost(host string) Opt {
-	return func(c *Client) error {
+	return func(c *clientConfig) error {
 		hostURL, err := ParseHostURL(host)
 		if err != nil {
 			return err
@@ -73,6 +108,11 @@ func WithHost(host string) Opt {
 		if transport, ok := c.client.Transport.(*http.Transport); ok {
 			return sockets.ConfigureTransport(transport, c.proto, c.addr)
 		}
+		// For test transports (like transportFunc), we skip transport configuration
+		// but still set the host fields so that the client can use them for headers
+		if _, ok := c.client.Transport.(transportFunc); ok {
+			return nil
+		}
 		return fmt.Errorf("cannot apply host to transport: %T", c.client.Transport)
 	}
 }
@@ -81,7 +121,7 @@ func WithHost(host string) Opt {
 // DOCKER_HOST ([EnvOverrideHost]) environment variable. If DOCKER_HOST is not set,
 // or set to an empty value, the host is not modified.
 func WithHostFromEnv() Opt {
-	return func(c *Client) error {
+	return func(c *clientConfig) error {
 		if host := os.Getenv(EnvOverrideHost); host != "" {
 			return WithHost(host)(c)
 		}
@@ -91,7 +131,7 @@ func WithHostFromEnv() Opt {
 
 // WithHTTPClient overrides the client's HTTP client with the specified one.
 func WithHTTPClient(client *http.Client) Opt {
-	return func(c *Client) error {
+	return func(c *clientConfig) error {
 		if client != nil {
 			c.client = client
 		}
@@ -101,7 +141,7 @@ func WithHTTPClient(client *http.Client) Opt {
 
 // WithTimeout configures the time limit for requests made by the HTTP client.
 func WithTimeout(timeout time.Duration) Opt {
-	return func(c *Client) error {
+	return func(c *clientConfig) error {
 		c.client.Timeout = timeout
 		return nil
 	}
@@ -111,7 +151,7 @@ func WithTimeout(timeout time.Duration) Opt {
 // It overrides any User-Agent set in headers. When set to an empty string,
 // the User-Agent header is removed, and no header is sent.
 func WithUserAgent(ua string) Opt {
-	return func(c *Client) error {
+	return func(c *clientConfig) error {
 		c.userAgent = &ua
 		return nil
 	}
@@ -121,7 +161,7 @@ func WithUserAgent(ua string) Opt {
 // It does not allow for built-in headers (such as "User-Agent", if set) to
 // be overridden. Also see [WithUserAgent].
 func WithHTTPHeaders(headers map[string]string) Opt {
-	return func(c *Client) error {
+	return func(c *clientConfig) error {
 		c.customHTTPHeaders = headers
 		return nil
 	}
@@ -129,7 +169,7 @@ func WithHTTPHeaders(headers map[string]string) Opt {
 
 // WithScheme overrides the client scheme with the specified one.
 func WithScheme(scheme string) Opt {
-	return func(c *Client) error {
+	return func(c *clientConfig) error {
 		c.scheme = scheme
 		return nil
 	}
@@ -137,7 +177,7 @@ func WithScheme(scheme string) Opt {
 
 // WithTLSClientConfig applies a TLS config to the client transport.
 func WithTLSClientConfig(cacertPath, certPath, keyPath string) Opt {
-	return func(c *Client) error {
+	return func(c *clientConfig) error {
 		transport, ok := c.client.Transport.(*http.Transport)
 		if !ok {
 			return fmt.Errorf("cannot apply tls config to transport: %T", c.client.Transport)
@@ -168,7 +208,7 @@ func WithTLSClientConfig(cacertPath, certPath, keyPath string) Opt {
 //   - DOCKER_TLS_VERIFY ([EnvTLSVerify]) to enable or disable TLS verification
 //     (off by default).
 func WithTLSClientConfigFromEnv() Opt {
-	return func(c *Client) error {
+	return func(c *clientConfig) error {
 		dockerCertPath := os.Getenv(EnvOverrideCertPath)
 		if dockerCertPath == "" {
 			return nil
@@ -199,7 +239,7 @@ func WithTLSClientConfigFromEnv() Opt {
 // and callers should verify if the version is in the correct format and
 // lower than the maximum supported version as defined by [DefaultAPIVersion].
 func WithVersion(version string) Opt {
-	return func(c *Client) error {
+	return func(c *clientConfig) error {
 		if v := strings.TrimPrefix(version, "v"); v != "" {
 			c.version = v
 			c.manualOverride = true
@@ -217,7 +257,7 @@ func WithVersion(version string) Opt {
 // and callers should verify if the version is in the correct format and
 // lower than the maximum supported version as defined by [DefaultAPIVersion].
 func WithVersionFromEnv() Opt {
-	return func(c *Client) error {
+	return func(c *clientConfig) error {
 		return WithVersion(os.Getenv(EnvOverrideAPIVersion))(c)
 	}
 }
@@ -227,7 +267,7 @@ func WithVersionFromEnv() Opt {
 // to use when making requests. API version negotiation is performed on the first
 // request; subsequent requests do not re-negotiate.
 func WithAPIVersionNegotiation() Opt {
-	return func(c *Client) error {
+	return func(c *clientConfig) error {
 		c.negotiateVersion = true
 		return nil
 	}
@@ -241,7 +281,7 @@ func WithTraceProvider(provider trace.TracerProvider) Opt {
 
 // WithTraceOptions sets tracing span options for the client.
 func WithTraceOptions(opts ...otelhttp.Option) Opt {
-	return func(c *Client) error {
+	return func(c *clientConfig) error {
 		c.traceOpts = append(c.traceOpts, opts...)
 		return nil
 	}

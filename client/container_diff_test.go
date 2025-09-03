@@ -17,10 +17,12 @@ import (
 )
 
 func TestContainerDiffError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ContainerDiff(context.Background(), "nothing")
+	client, err := NewClientWithOpts(
+		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	)
+	assert.NilError(t, err)
+
+	_, err = client.ContainerDiff(context.Background(), "nothing")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	_, err = client.ContainerDiff(context.Background(), "")
@@ -50,8 +52,8 @@ func TestContainerDiff(t *testing.T) {
 		},
 	}
 
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -64,7 +66,8 @@ func TestContainerDiff(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader(b)),
 			}, nil
 		}),
-	}
+	)
+	assert.NilError(t, err)
 
 	changes, err := client.ContainerDiff(context.Background(), "container_id")
 	assert.NilError(t, err)

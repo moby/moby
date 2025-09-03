@@ -17,32 +17,38 @@ import (
 )
 
 func TestContainerCreateError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ContainerCreate(context.Background(), nil, nil, nil, nil, "nothing")
+	client, err := NewClientWithOpts(
+		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	)
+	assert.NilError(t, err)
+
+	_, err = client.ContainerCreate(context.Background(), nil, nil, nil, nil, "nothing")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	// 404 doesn't automatically means an unknown image
-	client = &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
-	}
+	client, err = NewClientWithOpts(
+		WithMockClient(errorMock(http.StatusNotFound, "Server error")),
+	)
+	assert.NilError(t, err)
+
 	_, err = client.ContainerCreate(context.Background(), nil, nil, nil, nil, "nothing")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestContainerCreateImageNotFound(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "No such image")),
-	}
-	_, err := client.ContainerCreate(context.Background(), &container.Config{Image: "unknown_image"}, nil, nil, nil, "unknown")
+	client, err := NewClientWithOpts(
+		WithMockClient(errorMock(http.StatusNotFound, "No such image")),
+	)
+	assert.NilError(t, err)
+
+	_, err = client.ContainerCreate(context.Background(), &container.Config{Image: "unknown_image"}, nil, nil, nil, "unknown")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestContainerCreateWithName(t *testing.T) {
 	expectedURL := "/containers/create"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -61,7 +67,8 @@ func TestContainerCreateWithName(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader(b)),
 			}, nil
 		}),
-	}
+	)
+	assert.NilError(t, err)
 
 	r, err := client.ContainerCreate(context.Background(), nil, nil, nil, nil, "container_name")
 	assert.NilError(t, err)
@@ -102,11 +109,13 @@ func TestContainerCreateAutoRemove(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.version, func(t *testing.T) {
-			client := &Client{
-				client:  newMockClient(autoRemoveValidator(tc.expectedAutoRemove)),
-				version: tc.version,
-			}
-			_, err := client.ContainerCreate(context.Background(), nil, &container.HostConfig{AutoRemove: true}, nil, nil, "")
+			client, err := NewClientWithOpts(
+				WithMockClient(autoRemoveValidator(tc.expectedAutoRemove)),
+				WithVersion(tc.version),
+			)
+			assert.NilError(t, err)
+
+			_, err = client.ContainerCreate(context.Background(), nil, &container.HostConfig{AutoRemove: true}, nil, nil, "")
 			assert.NilError(t, err)
 		})
 	}
@@ -145,8 +154,8 @@ func TestContainerCreateCapabilities(t *testing.T) {
 		"CAP_CAPABILITY_D",
 	}
 
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			var config container.CreateRequest
 
 			if err := json.NewDecoder(req.Body).Decode(&config); err != nil {
@@ -166,9 +175,10 @@ func TestContainerCreateCapabilities(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader(b)),
 			}, nil
 		}),
-		version: "1.24",
-	}
+		WithVersion("1.24"),
+	)
+	assert.NilError(t, err)
 
-	_, err := client.ContainerCreate(context.Background(), nil, &container.HostConfig{CapAdd: inputCaps, CapDrop: inputCaps}, nil, nil, "")
+	_, err = client.ContainerCreate(context.Background(), nil, &container.HostConfig{CapAdd: inputCaps, CapDrop: inputCaps}, nil, nil, "")
 	assert.NilError(t, err)
 }

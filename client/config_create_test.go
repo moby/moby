@@ -17,28 +17,32 @@ import (
 )
 
 func TestConfigCreateUnsupported(t *testing.T) {
-	client := &Client{
-		version: "1.29",
-		client:  &http.Client{},
-	}
-	_, err := client.ConfigCreate(context.Background(), swarm.ConfigSpec{})
+	client, err := NewClientWithOpts(
+		WithVersion("1.29"),
+		WithHTTPClient(&http.Client{}),
+	)
+	assert.NilError(t, err)
+
+	_, err = client.ConfigCreate(context.Background(), swarm.ConfigSpec{})
 	assert.Check(t, is.Error(err, `"config create" requires API version 1.30, but the Docker daemon API version is 1.29`))
 }
 
 func TestConfigCreateError(t *testing.T) {
-	client := &Client{
-		version: "1.30",
-		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ConfigCreate(context.Background(), swarm.ConfigSpec{})
+	client, err := NewClientWithOpts(
+		WithVersion("1.30"),
+		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	)
+	assert.NilError(t, err)
+
+	_, err = client.ConfigCreate(context.Background(), swarm.ConfigSpec{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestConfigCreate(t *testing.T) {
 	expectedURL := "/v1.30/configs/create"
-	client := &Client{
-		version: "1.30",
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithVersion("1.30"),
+		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -56,7 +60,8 @@ func TestConfigCreate(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader(b)),
 			}, nil
 		}),
-	}
+	)
+	assert.NilError(t, err)
 
 	r, err := client.ConfigCreate(context.Background(), swarm.ConfigSpec{})
 	assert.NilError(t, err)

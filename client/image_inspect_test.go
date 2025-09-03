@@ -19,54 +19,50 @@ import (
 )
 
 func TestImageInspectError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
 
-	_, err := client.ImageInspect(context.Background(), "nothing")
+	_, err = client.ImageInspect(context.Background(), "nothing")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImageInspectImageNotFound(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
-	}
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusNotFound, "Server error")))
+	assert.NilError(t, err)
 
-	_, err := client.ImageInspect(context.Background(), "unknown")
+	_, err = client.ImageInspect(context.Background(), "unknown")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestImageInspectWithEmptyID(t *testing.T) {
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			return nil, errors.New("should not make request")
-		}),
-	}
-	_, err := client.ImageInspect(context.Background(), "")
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		return nil, errors.New("should not make request")
+	}))
+	assert.NilError(t, err)
+	_, err = client.ImageInspect(context.Background(), "")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestImageInspect(t *testing.T) {
 	expectedURL := "/images/image_id/json"
 	expectedTags := []string{"tag1", "tag2"}
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			content, err := json.Marshal(image.InspectResponse{
-				ID:       "image_id",
-				RepoTags: expectedTags,
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(content)),
-			}, nil
-		}),
-	}
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if !strings.HasPrefix(req.URL.Path, expectedURL) {
+			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		}
+		content, err := json.Marshal(image.InspectResponse{
+			ID:       "image_id",
+			RepoTags: expectedTags,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(content)),
+		}, nil
+	}))
+	assert.NilError(t, err)
 
 	imageInspect, err := client.ImageInspect(context.Background(), "image_id")
 	assert.NilError(t, err)
@@ -84,32 +80,31 @@ func TestImageInspectWithPlatform(t *testing.T) {
 	expectedPlatform, err := encodePlatform(requestedPlatform)
 	assert.NilError(t, err)
 
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if !strings.HasPrefix(req.URL.Path, expectedURL) {
+			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		}
 
-			// Check if platform parameter is passed correctly
-			platform := req.URL.Query().Get("platform")
-			if platform != expectedPlatform {
-				return nil, fmt.Errorf("Expected platform '%s', got '%s'", expectedPlatform, platform)
-			}
+		// Check if platform parameter is passed correctly
+		platform := req.URL.Query().Get("platform")
+		if platform != expectedPlatform {
+			return nil, fmt.Errorf("Expected platform '%s', got '%s'", expectedPlatform, platform)
+		}
 
-			content, err := json.Marshal(image.InspectResponse{
-				ID:           "image_id",
-				Architecture: "arm64",
-				Os:           "linux",
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(content)),
-			}, nil
-		}),
-	}
+		content, err := json.Marshal(image.InspectResponse{
+			ID:           "image_id",
+			Architecture: "arm64",
+			Os:           "linux",
+		})
+		if err != nil {
+			return nil, err
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(content)),
+		}, nil
+	}))
+	assert.NilError(t, err)
 
 	imageInspect, err := client.ImageInspect(context.Background(), "image_id", ImageInspectWithPlatform(requestedPlatform))
 	assert.NilError(t, err)

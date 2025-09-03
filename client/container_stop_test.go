@@ -16,10 +16,9 @@ import (
 )
 
 func TestContainerStopError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	err := client.ContainerStop(context.Background(), "container_id", container.StopOptions{})
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
+	err = client.ContainerStop(context.Background(), "container_id", container.StopOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	err = client.ContainerStop(context.Background(), "", container.StopOptions{})
@@ -45,28 +44,26 @@ func TestContainerStopConnectionError(t *testing.T) {
 
 func TestContainerStop(t *testing.T) {
 	const expectedURL = "/v1.42/containers/container_id/stop"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			s := req.URL.Query().Get("signal")
-			if s != "SIGKILL" {
-				return nil, fmt.Errorf("signal not set in URL query. Expected 'SIGKILL', got '%s'", s)
-			}
-			t := req.URL.Query().Get("t")
-			if t != "100" {
-				return nil, fmt.Errorf("t (timeout) not set in URL query properly. Expected '100', got %s", t)
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-			}, nil
-		}),
-		version: "1.42",
-	}
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if !strings.HasPrefix(req.URL.Path, expectedURL) {
+			return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
+		}
+		s := req.URL.Query().Get("signal")
+		if s != "SIGKILL" {
+			return nil, fmt.Errorf("signal not set in URL query. Expected 'SIGKILL', got '%s'", s)
+		}
+		t := req.URL.Query().Get("t")
+		if t != "100" {
+			return nil, fmt.Errorf("t (timeout) not set in URL query properly. Expected '100', got %s", t)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader([]byte(""))),
+		}, nil
+	}), WithVersion("1.42"))
+	assert.NilError(t, err)
 	timeout := 100
-	err := client.ContainerStop(context.Background(), "container_id", container.StopOptions{
+	err = client.ContainerStop(context.Background(), "container_id", container.StopOptions{
 		Signal:  "SIGKILL",
 		Timeout: &timeout,
 	})

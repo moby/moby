@@ -18,11 +18,12 @@ import (
 )
 
 func TestContainerInspectError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	)
+	assert.NilError(t, err)
 
-	_, err := client.ContainerInspect(context.Background(), "nothing")
+	_, err = client.ContainerInspect(context.Background(), "nothing")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	_, err = client.ContainerInspect(context.Background(), "")
@@ -35,22 +36,24 @@ func TestContainerInspectError(t *testing.T) {
 }
 
 func TestContainerInspectContainerNotFound(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithMockClient(errorMock(http.StatusNotFound, "Server error")),
+	)
+	assert.NilError(t, err)
 
-	_, err := client.ContainerInspect(context.Background(), "unknown")
+	_, err = client.ContainerInspect(context.Background(), "unknown")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
 func TestContainerInspectWithEmptyID(t *testing.T) {
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			return nil, errors.New("should not make request")
 		}),
-	}
+	)
+	assert.NilError(t, err)
 
-	_, err := client.ContainerInspect(context.Background(), "")
+	_, err = client.ContainerInspect(context.Background(), "")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
@@ -69,8 +72,8 @@ func TestContainerInspectWithEmptyID(t *testing.T) {
 
 func TestContainerInspect(t *testing.T) {
 	expectedURL := "/containers/container_id/json"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -87,7 +90,8 @@ func TestContainerInspect(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader(content)),
 			}, nil
 		}),
-	}
+	)
+	assert.NilError(t, err)
 
 	r, err := client.ContainerInspect(context.Background(), "container_id")
 	assert.NilError(t, err)
