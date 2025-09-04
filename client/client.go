@@ -91,15 +91,14 @@ import (
 // [Go stdlib]: https://github.com/golang/go/blob/6244b1946bc2101b01955468f1be502dbadd6807/src/net/http/transport.go#L558-L569
 const DummyHost = "api.moby.localhost"
 
-// DefaultAPIVersion is the highest REST API version supported by the client.
+// MaxAPIVersion is the highest REST API version supported by the client.
 // If API-version negotiation is enabled (see [WithAPIVersionNegotiation],
 // [Client.NegotiateAPIVersion]), the client may downgrade its API version.
 // Similarly, the [WithVersion] and [WithVersionFromEnv] allow overriding
 // the version.
 //
-// This version may be lower than the [api.DefaultVersion], which is the default
-// (and highest supported) version of the api library module used.
-const DefaultAPIVersion = "1.52"
+// This version may be lower than the version of the api library module used.
+const MaxAPIVersion = "1.52"
 
 // fallbackAPIVersion is the version to fallback to if API-version negotiation
 // fails. This version is the highest version of the API before API-version
@@ -179,7 +178,7 @@ func NewClientWithOpts(ops ...Opt) (*Client, error) {
 	c := &Client{
 		clientConfig: clientConfig{
 			host:    DefaultDockerHost,
-			version: DefaultAPIVersion,
+			version: MaxAPIVersion,
 			client:  client,
 			proto:   hostURL.Scheme,
 			addr:    hostURL.Host,
@@ -363,7 +362,7 @@ func (cli *Client) negotiateAPIVersionPing(pingResponse types.Ping) {
 
 	// if the client is not initialized with a version, start with the latest supported version
 	if cli.version == "" {
-		cli.version = DefaultAPIVersion
+		cli.version = MaxAPIVersion
 	}
 
 	// if server version is lower than the client version, downgrade

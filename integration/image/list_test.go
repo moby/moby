@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/moby/moby/api"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/integration/internal/container"
 	iimage "github.com/moby/moby/v2/integration/internal/image"
 	"github.com/moby/moby/v2/internal/testutils/specialimage"
@@ -262,8 +262,8 @@ func TestAPIImagesListManifests(t *testing.T) {
 		container.WithPlatform(&containerPlatform))
 
 	t.Run("unsupported before 1.47", func(t *testing.T) {
-		// TODO: Remove when MinSupportedAPIVersion >= 1.47
-		c := d.NewClientT(t, client.WithVersion(api.MinSupportedAPIVersion))
+		// TODO: Remove when MinAPIVersion >= 1.47
+		c := d.NewClientT(t, client.WithVersion(config.MinAPIVersion))
 
 		images, err := c.ImageList(ctx, client.ImageListOptions{Manifests: true})
 		assert.NilError(t, err)

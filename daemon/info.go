@@ -114,7 +114,7 @@ func (daemon *Daemon) SystemVersion(ctx context.Context) (types.Version, error) 
 				Version: dockerversion.Version,
 				Details: map[string]string{
 					"GitCommit":     dockerversion.GitCommit,
-					"ApiVersion":    config.DefaultAPIVersion,
+					"ApiVersion":    config.MaxAPIVersion,
 					"MinAPIVersion": cfg.MinAPIVersion,
 					"GoVersion":     runtime.Version(),
 					"Os":            runtime.GOOS,
@@ -129,7 +129,7 @@ func (daemon *Daemon) SystemVersion(ctx context.Context) (types.Version, error) 
 		// Populate deprecated fields for older clients
 		Version:       dockerversion.Version,
 		GitCommit:     dockerversion.GitCommit,
-		APIVersion:    config.DefaultAPIVersion,
+		APIVersion:    config.MaxAPIVersion,
 		MinAPIVersion: cfg.MinAPIVersion,
 		GoVersion:     runtime.Version(),
 		Os:            runtime.GOOS,
