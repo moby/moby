@@ -9,6 +9,7 @@ import (
 	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/build"
 	containertypes "github.com/moby/moby/api/types/container"
+	client2 "github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/fakecontext"
@@ -81,7 +82,7 @@ func TestNoNewPrivileges(t *testing.T) {
 			poll.WaitOn(t, container.IsInState(ctx, client, cid, containertypes.StateExited))
 
 			// Assert on outputs
-			logReader, err := client.ContainerLogs(ctx, cid, containertypes.LogsOptions{
+			logReader, err := client.ContainerLogs(ctx, cid, client2.ContainerLogsOptions{
 				ShowStdout: true,
 				ShowStderr: true,
 			})

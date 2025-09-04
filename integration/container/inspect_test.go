@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/containerd/platforms"
-	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil/request"
@@ -57,7 +56,7 @@ func TestNetworkAliasesAreEmpty(t *testing.T) {
 				container.WithName("ctr-"+nwMode),
 				container.WithImage("busybox:latest"),
 				container.WithNetworkMode(nwMode))
-			defer apiClient.ContainerRemove(ctx, ctr, containertypes.RemoveOptions{
+			defer apiClient.ContainerRemove(ctx, ctr, client.ContainerRemoveOptions{
 				Force: true,
 			})
 
@@ -121,7 +120,7 @@ func TestInspectImageManifestPlatform(t *testing.T) {
 			apiClient := request.NewAPIClient(t)
 
 			ctr := container.Create(ctx, t, apiClient, container.WithImage(tc.image))
-			defer apiClient.ContainerRemove(ctx, ctr, containertypes.RemoveOptions{Force: true})
+			defer apiClient.ContainerRemove(ctx, ctr, client.ContainerRemoveOptions{Force: true})
 
 			img, err := apiClient.ImageInspect(ctx, tc.image)
 			assert.NilError(t, err)
@@ -149,7 +148,7 @@ func TestContainerInspectWithRaw(t *testing.T) {
 	apiClient := request.NewAPIClient(t)
 
 	ctrID := container.Create(ctx, t, apiClient)
-	defer apiClient.ContainerRemove(ctx, ctrID, containertypes.RemoveOptions{Force: true})
+	defer apiClient.ContainerRemove(ctx, ctrID, client.ContainerRemoveOptions{Force: true})
 
 	tests := []struct {
 		doc      string

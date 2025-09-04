@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 )
 
@@ -14,7 +14,7 @@ func (d *Daemon) ActiveContainers(ctx context.Context, t testing.TB) []string {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	containers, err := cli.ContainerList(context.Background(), container.ListOptions{})
+	containers, err := cli.ContainerList(context.Background(), client.ContainerListOptions{})
 	assert.NilError(t, err)
 
 	ids := make([]string, len(containers))

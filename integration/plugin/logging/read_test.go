@@ -62,13 +62,13 @@ func TestReadPluginNoRead(t *testing.T) {
 				"",
 			)
 			assert.Assert(t, err)
-			defer apiclient.ContainerRemove(ctx, c.ID, container.RemoveOptions{Force: true})
+			defer apiclient.ContainerRemove(ctx, c.ID, client.ContainerRemoveOptions{Force: true})
 
-			err = apiclient.ContainerStart(ctx, c.ID, container.StartOptions{})
+			err = apiclient.ContainerStart(ctx, c.ID, client.ContainerStartOptions{})
 			assert.Assert(t, err)
 
 			poll.WaitOn(t, testContainer.IsStopped(ctx, apiclient, c.ID))
-			logs, err := apiclient.ContainerLogs(ctx, c.ID, container.LogsOptions{ShowStdout: true})
+			logs, err := apiclient.ContainerLogs(ctx, c.ID, client.ContainerLogsOptions{ShowStdout: true})
 			if !test.logsSupported {
 				assert.Assert(t, err != nil)
 				return

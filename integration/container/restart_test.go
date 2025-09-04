@@ -103,10 +103,10 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 					}
 					resp, err := apiClient.ContainerCreate(ctx, &config, &hostConfig, nil, nil, "")
 					assert.NilError(t, err)
-					defer apiClient.ContainerRemove(ctx, resp.ID, container.RemoveOptions{Force: true})
+					defer apiClient.ContainerRemove(ctx, resp.ID, client.ContainerRemoveOptions{Force: true})
 
 					if tc.xStart {
-						err = apiClient.ContainerStart(ctx, resp.ID, container.StartOptions{})
+						err = apiClient.ContainerStart(ctx, resp.ID, client.ContainerStartOptions{})
 						assert.NilError(t, err)
 						if tc.xHealthCheck {
 							poll.WaitOn(t, pollForHealthStatus(ctx, apiClient, resp.ID, container.Healthy), poll.WithTimeout(30*time.Second))
@@ -180,7 +180,7 @@ func TestContainerWithAutoRemoveCanBeRestarted(t *testing.T) {
 		{
 			desc: "stop",
 			doSth: func(ctx context.Context, containerID string) error {
-				return apiClient.ContainerStop(ctx, containerID, container.StopOptions{Timeout: &noWaitTimeout})
+				return apiClient.ContainerStop(ctx, containerID, client.ContainerStopOptions{Timeout: &noWaitTimeout})
 			},
 		},
 	} {
@@ -191,13 +191,13 @@ func TestContainerWithAutoRemoveCanBeRestarted(t *testing.T) {
 				testContainer.WithAutoRemove,
 			)
 			defer func() {
-				err := apiClient.ContainerRemove(ctx, cID, container.RemoveOptions{Force: true})
+				err := apiClient.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{Force: true})
 				if t.Failed() && err != nil {
 					t.Logf("Cleaning up test container failed with error: %v", err)
 				}
 			}()
 
-			err := apiClient.ContainerRestart(ctx, cID, container.StopOptions{Timeout: &noWaitTimeout})
+			err := apiClient.ContainerRestart(ctx, cID, client.ContainerStopOptions{Timeout: &noWaitTimeout})
 			assert.NilError(t, err)
 
 			inspect, err := apiClient.ContainerInspect(ctx, cID)
@@ -234,7 +234,7 @@ func TestContainerRestartWithCancelledRequest(t *testing.T) {
 	// taking place.
 	cID := testContainer.Run(ctx, t, apiClient, testContainer.WithCmd("sh", "-c", "trap 'echo received TERM' TERM; while true; do usleep 10; done"))
 	defer func() {
-		err := apiClient.ContainerRemove(ctx, cID, container.RemoveOptions{Force: true})
+		err := apiClient.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{Force: true})
 		if t.Failed() && err != nil {
 			t.Logf("Cleaning up test container failed with error: %v", err)
 		}
@@ -252,7 +252,7 @@ func TestContainerRestartWithCancelledRequest(t *testing.T) {
 	// is (forcibly) killed.
 	ctx2, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
 	stopTimeout := 1
-	err := apiClient.ContainerRestart(ctx2, cID, container.StopOptions{
+	err := apiClient.ContainerRestart(ctx2, cID, client.ContainerStopOptions{
 		Timeout: &stopTimeout,
 	})
 	assert.Check(t, is.ErrorIs(err, context.DeadlineExceeded))

@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
@@ -502,7 +501,7 @@ func TestMacvlanIPAM(t *testing.T) {
 			assert.Check(t, n.IsNetworkAvailable(ctx, c, netName))
 
 			id := container.Run(ctx, t, c, container.WithNetworkMode(netName))
-			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
 			loRes := container.ExecT(ctx, t, c, id, []string{"ip", "a", "show", "dev", "lo"})
 			assert.Check(t, is.Contains(loRes.Combined(), " inet "))
@@ -597,7 +596,7 @@ func TestMACVlanDNS(t *testing.T) {
 			defer c.NetworkRemove(ctx, netName)
 
 			ctrId := container.Run(ctx, t, c, container.WithNetworkMode(netName))
-			defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
 			res, err := container.Exec(ctx, c, ctrId, []string{"nslookup", "test.example"})
 			assert.NilError(t, err)
 			if tc.expDNS {
@@ -629,7 +628,7 @@ func TestPointToPoint(t *testing.T) {
 		container.WithNetworkMode(netName),
 		container.WithName(ctrName),
 	)
-	defer apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+	defer apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
 	attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -637,7 +636,7 @@ func TestPointToPoint(t *testing.T) {
 		container.WithCmd([]string{"ping", "-c1", "-W3", ctrName}...),
 		container.WithNetworkMode(netName),
 	)
-	defer apiClient.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+	defer apiClient.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
 	assert.Check(t, is.Equal(res.ExitCode, 0))
 	assert.Check(t, is.Equal(res.Stderr.Len(), 0))
 	assert.Check(t, is.Contains(res.Stdout.String(), "1 packets transmitted, 1 packets received"))
@@ -665,7 +664,7 @@ func TestEndpointWithCustomIfname(t *testing.T) {
 				netlabel.Ifname: "foobar",
 			},
 		}))
-	defer container.Remove(ctx, t, apiClient, ctrID, containertypes.RemoveOptions{Force: true})
+	defer container.Remove(ctx, t, apiClient, ctrID, client.ContainerRemoveOptions{Force: true})
 
 	out, err := container.Output(ctx, apiClient, ctrID)
 	assert.NilError(t, err)
@@ -694,5 +693,5 @@ func TestParentDown(t *testing.T) {
 	)
 
 	ctrID := container.Run(ctx, t, apiClient, container.WithNetworkMode(netName))
-	defer container.Remove(ctx, t, apiClient, ctrID, containertypes.RemoveOptions{Force: true})
+	defer container.Remove(ctx, t, apiClient, ctrID, client.ContainerRemoveOptions{Force: true})
 }

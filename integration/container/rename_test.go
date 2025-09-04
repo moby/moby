@@ -32,7 +32,7 @@ func TestRenameLinkedContainer(t *testing.T) {
 
 	container.Run(ctx, t, apiClient, container.WithName(aName))
 
-	err = apiClient.ContainerRemove(ctx, bID, containertypes.RemoveOptions{Force: true})
+	err = apiClient.ContainerRemove(ctx, bID, client.ContainerRemoveOptions{Force: true})
 	assert.NilError(t, err)
 
 	bID = container.Run(ctx, t, apiClient, container.WithName(bName), container.WithLinks(aName))
@@ -129,9 +129,9 @@ func TestRenameAnonymousContainer(t *testing.T) {
 	assert.NilError(t, err)
 	// Stop/Start the container to get registered
 	// FIXME(vdemeester) this is a really weird behavior as it fails otherwise
-	err = apiClient.ContainerStop(ctx, container1Name, containertypes.StopOptions{})
+	err = apiClient.ContainerStop(ctx, container1Name, client.ContainerStopOptions{})
 	assert.NilError(t, err)
-	err = apiClient.ContainerStart(ctx, container1Name, containertypes.StartOptions{})
+	err = apiClient.ContainerStart(ctx, container1Name, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	count := "-c"
@@ -199,7 +199,7 @@ func TestRenameContainerTwice(t *testing.T) {
 	ctrName := "c0"
 	container.Run(ctx, t, apiClient, container.WithName("c0"))
 	defer func() {
-		container.Remove(ctx, t, apiClient, ctrName, containertypes.RemoveOptions{
+		container.Remove(ctx, t, apiClient, ctrName, client.ContainerRemoveOptions{
 			Force: true,
 		})
 	}()

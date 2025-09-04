@@ -62,15 +62,15 @@ func testServiceCreateInit(ctx context.Context, daemonEnabled bool) func(t *test
 	}
 }
 
-func inspectServiceContainer(ctx context.Context, t *testing.T, client client.APIClient, serviceID string) container.InspectResponse {
+func inspectServiceContainer(ctx context.Context, t *testing.T, apiClient client.APIClient, serviceID string) container.InspectResponse {
 	t.Helper()
-	containers, err := client.ContainerList(ctx, container.ListOptions{
+	containers, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("label", "com.docker.swarm.service.id="+serviceID)),
 	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(containers, 1))
 
-	i, err := client.ContainerInspect(ctx, containers[0].ID)
+	i, err := apiClient.ContainerInspect(ctx, containers[0].ID)
 	assert.NilError(t, err)
 	return i
 }
@@ -228,7 +228,7 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, instances), swarm.ServicePoll)
 
-	body, err := apiClient.ServiceLogs(ctx, serviceID, container.LogsOptions{
+	body, err := apiClient.ServiceLogs(ctx, serviceID, client.ContainerLogsOptions{
 		Tail:       "1",
 		ShowStdout: true,
 	})
@@ -285,7 +285,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, instances))
 
-	body, err := apiClient.ServiceLogs(ctx, serviceID, container.LogsOptions{
+	body, err := apiClient.ServiceLogs(ctx, serviceID, client.ContainerLogsOptions{
 		Tail:       "1",
 		ShowStdout: true,
 	})

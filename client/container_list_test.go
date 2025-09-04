@@ -23,7 +23,7 @@ func TestContainerListError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerList(context.Background(), container.ListOptions{})
+	_, err = client.ContainerList(context.Background(), ContainerListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -81,7 +81,7 @@ func TestContainerList(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	containers, err := client.ContainerList(context.Background(), container.ListOptions{
+	containers, err := client.ContainerList(context.Background(), ContainerListOptions{
 		Size:  true,
 		All:   true,
 		Since: "container",

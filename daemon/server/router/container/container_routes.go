@@ -95,7 +95,7 @@ func (c *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 		return err
 	}
 
-	config := &container.ListOptions{
+	config := &backend.ContainerListOptions{
 		All:     httputils.BoolValue(r, "all"),
 		Size:    httputils.BoolValue(r, "size"),
 		Since:   r.Form.Get("since"),
@@ -187,7 +187,7 @@ func (c *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 	}
 
 	containerName := vars["name"]
-	logsConfig := &container.LogsOptions{
+	logsConfig := &backend.ContainerLogsOptions{
 		Follow:     httputils.BoolValue(r, "follow"),
 		Timestamps: httputils.BoolValue(r, "timestamps"),
 		Since:      r.Form.Get("since"),
@@ -255,7 +255,7 @@ func (c *containerRouter) postContainersStop(ctx context.Context, w http.Respons
 	}
 
 	var (
-		options container.StopOptions
+		options backend.ContainerStopOptions
 		version = httputils.VersionFromContext(ctx)
 	)
 	if versions.GreaterThanOrEqualTo(version, "1.42") {
@@ -297,7 +297,7 @@ func (c *containerRouter) postContainersRestart(ctx context.Context, w http.Resp
 	}
 
 	var (
-		options container.StopOptions
+		options backend.ContainerStopOptions
 		version = httputils.VersionFromContext(ctx)
 	)
 	if versions.GreaterThanOrEqualTo(version, "1.42") {

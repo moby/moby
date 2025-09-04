@@ -3,12 +3,10 @@ package client
 import (
 	"context"
 	"net/url"
-
-	"github.com/moby/moby/api/types/container"
 )
 
 // ContainerRemove kills and removes a container from the docker host.
-func (cli *Client) ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error {
+func (cli *Client) ContainerRemove(ctx context.Context, containerID string, options ContainerRemoveOptions) error {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
 		return err

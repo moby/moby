@@ -7,6 +7,7 @@ import (
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/server/backend"
 )
 
 // ContainerRestart stops and starts a container. It attempts to
@@ -15,7 +16,7 @@ import (
 // timeout, ContainerRestart will wait forever until a graceful
 // stop. Returns an error if the container cannot be found, or if
 // there is an underlying error at any stage of the restart.
-func (daemon *Daemon) ContainerRestart(ctx context.Context, name string, options containertypes.StopOptions) error {
+func (daemon *Daemon) ContainerRestart(ctx context.Context, name string, options backend.ContainerStopOptions) error {
 	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -31,7 +32,7 @@ func (daemon *Daemon) ContainerRestart(ctx context.Context, name string, options
 // container. When stopping, wait for the given duration in seconds to
 // gracefully stop, before forcefully terminating the container. If
 // given a negative duration, wait forever for a graceful stop.
-func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configStore, container *container.Container, options containertypes.StopOptions) error {
+func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configStore, container *container.Container, options backend.ContainerStopOptions) error {
 	// Restarting is expected to be an atomic operation, and cancelling
 	// the request should not cancel the stop -> start sequence.
 	ctx = context.WithoutCancel(ctx)

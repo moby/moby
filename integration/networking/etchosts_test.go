@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/integration/internal/network"
 	"github.com/moby/moby/v2/testutil"
@@ -73,7 +73,7 @@ ff02::2	ip6-allrouters
 				container.WithSysctls(tc.sysctls),
 			)
 			defer func() {
-				c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+				c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
 			}()
 
 			runCmd := func(ctrId string, cmd []string, expExitCode int) string {
@@ -146,7 +146,7 @@ func TestEtcHostsDisconnect(t *testing.T) {
 		container.WithExtraHost("otherhost.invalid:192.0.2.3"),
 		container.WithExtraHost("otherhost.invalid:2001:db8::1234"),
 	)
-	defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
 
 	getEtcHosts := func() string {
 		er := container.ExecT(ctx, t, c, ctrId, []string{"cat", "/etc/hosts"})

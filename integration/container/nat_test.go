@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -99,7 +100,7 @@ func TestNetworkLoopbackNat(t *testing.T) {
 
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID))
 
-	body, err := apiClient.ContainerLogs(ctx, cID, containertypes.LogsOptions{
+	body, err := apiClient.ContainerLogs(ctx, cID, client.ContainerLogsOptions{
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)

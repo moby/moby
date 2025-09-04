@@ -42,7 +42,7 @@ func (s *DockerAPISuite) TestContainerAPIGetAll(c *testing.T) {
 	defer apiClient.Close()
 
 	ctx := testutil.GetContext(c)
-	containers, err := apiClient.ContainerList(ctx, container.ListOptions{
+	containers, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
 		All: true,
 	})
 	assert.NilError(c, err)
@@ -60,7 +60,7 @@ func (s *DockerAPISuite) TestContainerAPIGetJSONNoFieldsOmitted(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	options := container.ListOptions{
+	options := client.ContainerListOptions{
 		All: true,
 	}
 	ctx := testutil.GetContext(c)
@@ -448,7 +448,7 @@ func (s *DockerAPISuite) TestContainerAPICommit(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	options := container.CommitOptions{
+	options := client.ContainerCommitOptions{
 		Reference: "testcontainerapicommit:testtag",
 	}
 
@@ -474,7 +474,7 @@ func (s *DockerAPISuite) TestContainerAPICommitWithLabelInConfig(c *testing.T) {
 		Labels: map[string]string{"key1": "value1", "key2": "value2"},
 	}
 
-	options := container.CommitOptions{
+	options := client.ContainerCommitOptions{
 		Reference: "testcontainerapicommitwithconfig",
 		Config:    &config,
 	}
@@ -833,7 +833,7 @@ func (s *DockerAPISuite) TestContainerAPIRestart(c *testing.T) {
 	defer apiClient.Close()
 
 	timeout := 1
-	err = apiClient.ContainerRestart(testutil.GetContext(c), name, container.StopOptions{Timeout: &timeout})
+	err = apiClient.ContainerRestart(testutil.GetContext(c), name, client.ContainerStopOptions{Timeout: &timeout})
 	assert.NilError(c, err)
 
 	assert.NilError(c, waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 15*time.Second))
@@ -848,7 +848,7 @@ func (s *DockerAPISuite) TestContainerAPIRestartNotimeoutParam(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerRestart(testutil.GetContext(c), name, container.StopOptions{})
+	err = apiClient.ContainerRestart(testutil.GetContext(c), name, client.ContainerStopOptions{})
 	assert.NilError(c, err)
 
 	assert.NilError(c, waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 15*time.Second))
@@ -869,12 +869,12 @@ func (s *DockerAPISuite) TestContainerAPIStart(c *testing.T) {
 	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, name)
 	assert.NilError(c, err)
 
-	err = apiClient.ContainerStart(testutil.GetContext(c), name, container.StartOptions{})
+	err = apiClient.ContainerStart(testutil.GetContext(c), name, client.ContainerStartOptions{})
 	assert.NilError(c, err)
 
 	// second call to start should give 304
 	// maybe add ContainerStartWithRaw to test it
-	err = apiClient.ContainerStart(testutil.GetContext(c), name, container.StartOptions{})
+	err = apiClient.ContainerStart(testutil.GetContext(c), name, client.ContainerStartOptions{})
 	assert.NilError(c, err)
 
 	// TODO(tibor): figure out why this doesn't work on windows
@@ -889,7 +889,7 @@ func (s *DockerAPISuite) TestContainerAPIStop(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerStop(testutil.GetContext(c), name, container.StopOptions{
+	err = apiClient.ContainerStop(testutil.GetContext(c), name, client.ContainerStopOptions{
 		Timeout: &timeout,
 	})
 	assert.NilError(c, err)
@@ -897,7 +897,7 @@ func (s *DockerAPISuite) TestContainerAPIStop(c *testing.T) {
 
 	// second call to start should give 304
 	// maybe add ContainerStartWithRaw to test it
-	err = apiClient.ContainerStop(testutil.GetContext(c), name, container.StopOptions{
+	err = apiClient.ContainerStop(testutil.GetContext(c), name, client.ContainerStopOptions{
 		Timeout: &timeout,
 	})
 	assert.NilError(c, err)
@@ -935,7 +935,7 @@ func (s *DockerAPISuite) TestContainerAPIDelete(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerRemove(testutil.GetContext(c), id, container.RemoveOptions{})
+	err = apiClient.ContainerRemove(testutil.GetContext(c), id, client.ContainerRemoveOptions{})
 	assert.NilError(c, err)
 }
 
@@ -944,7 +944,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteNotExist(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerRemove(testutil.GetContext(c), "doesnotexist", container.RemoveOptions{})
+	err = apiClient.ContainerRemove(testutil.GetContext(c), "doesnotexist", client.ContainerRemoveOptions{})
 	assert.ErrorContains(c, err, "No such container: doesnotexist")
 }
 
@@ -952,7 +952,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteForce(c *testing.T) {
 	id := runSleepingContainer(c)
 	cli.WaitRun(c, id)
 
-	removeOptions := container.RemoveOptions{
+	removeOptions := client.ContainerRemoveOptions{
 		Force: true,
 	}
 
@@ -978,7 +978,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveLinks(c *testing.T) {
 	links := inspectFieldJSON(c, id2, "HostConfig.Links")
 	assert.Equal(c, links, `["/tlink1:/tlink2/tlink1"]`, "expected to have links between containers")
 
-	removeOptions := container.RemoveOptions{
+	removeOptions := client.ContainerRemoveOptions{
 		RemoveLinks: true,
 	}
 
@@ -1017,7 +1017,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveVolume(c *testing.T) {
 	_, err = os.Stat(mnt.Source)
 	assert.NilError(c, err)
 
-	removeOptions := container.RemoveOptions{
+	removeOptions := client.ContainerRemoveOptions{
 		Force:         true,
 		RemoveVolumes: true,
 	}
@@ -1057,7 +1057,7 @@ func (s *DockerAPISuite) TestContainerAPIPostContainerStop(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerStop(testutil.GetContext(c), containerID, container.StopOptions{})
+	err = apiClient.ContainerStop(testutil.GetContext(c), containerID, client.ContainerStopOptions{})
 	assert.NilError(c, err)
 	assert.NilError(c, waitInspect(containerID, "{{ .State.Running  }}", "false", 60*time.Second))
 }
@@ -1087,7 +1087,7 @@ func (s *DockerAPISuite) TestPutContainerArchiveErrSymlinkInVolumeToReadOnlyRoot
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
 
-	err = apiClient.CopyToContainer(testutil.GetContext(c), cID, "/vol2/symlinkToAbsDir", nil, container.CopyToContainerOptions{})
+	err = apiClient.CopyToContainer(testutil.GetContext(c), cID, "/vol2/symlinkToAbsDir", nil, client.CopyToContainerOptions{})
 	assert.ErrorContains(c, err, "container rootfs is marked read-only")
 }
 
@@ -1184,7 +1184,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteWithEmptyName(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerRemove(testutil.GetContext(c), "", container.RemoveOptions{})
+	err = apiClient.ContainerRemove(testutil.GetContext(c), "", client.ContainerRemoveOptions{})
 	assert.Check(c, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(c, is.ErrorContains(err, "value is empty"))
 }
@@ -1208,7 +1208,7 @@ func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) 
 	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, name)
 	assert.NilError(c, err)
 
-	err = apiClient.ContainerStart(testutil.GetContext(c), name, container.StartOptions{})
+	err = apiClient.ContainerStart(testutil.GetContext(c), name, client.ContainerStartOptions{})
 	assert.NilError(c, err)
 	cli.WaitRun(c, name)
 
@@ -1740,11 +1740,11 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 			assert.Check(c, is.Equal(tc.expected.Mode, mountPoint.Mode))
 			assert.Check(c, is.Equal(tc.expected.Destination, mountPoint.Destination))
 
-			err = apiclient.ContainerStart(ctx, ctr.ID, container.StartOptions{})
+			err = apiclient.ContainerStart(ctx, ctr.ID, client.ContainerStartOptions{})
 			assert.NilError(c, err)
 			poll.WaitOn(c, containerExit(ctx, apiclient, ctr.ID), poll.WithDelay(time.Second))
 
-			err = apiclient.ContainerRemove(ctx, ctr.ID, container.RemoveOptions{
+			err = apiclient.ContainerRemove(ctx, ctr.ID, client.ContainerRemoveOptions{
 				RemoveVolumes: true,
 				Force:         true,
 			})

@@ -108,14 +108,14 @@ func TestCopyToContainerError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
+	err = client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), CopyToContainerOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.CopyToContainer(context.Background(), "", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
+	err = client.CopyToContainer(context.Background(), "", "path/to/file", bytes.NewReader([]byte("")), CopyToContainerOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.CopyToContainer(context.Background(), "    ", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
+	err = client.CopyToContainer(context.Background(), "    ", "path/to/file", bytes.NewReader([]byte("")), CopyToContainerOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -126,7 +126,7 @@ func TestCopyToContainerNotFoundError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
+	err = client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), CopyToContainerOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
@@ -138,7 +138,7 @@ func TestCopyToContainerEmptyResponse(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), container.CopyToContainerOptions{})
+	err = client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), CopyToContainerOptions{})
 	assert.NilError(t, err)
 }
 
@@ -182,7 +182,7 @@ func TestCopyToContainer(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.CopyToContainer(context.Background(), "container_id", expectedPath, bytes.NewReader([]byte("content")), container.CopyToContainerOptions{
+	err = client.CopyToContainer(context.Background(), "container_id", expectedPath, bytes.NewReader([]byte("content")), CopyToContainerOptions{
 		AllowOverwriteDirWithFile: false,
 	})
 	assert.NilError(t, err)

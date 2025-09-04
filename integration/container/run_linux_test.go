@@ -188,7 +188,7 @@ func TestRunConsoleSize(t *testing.T) {
 
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID))
 
-	out, err := apiClient.ContainerLogs(ctx, cID, containertypes.LogsOptions{ShowStdout: true})
+	out, err := apiClient.ContainerLogs(ctx, cID, client.ContainerLogsOptions{ShowStdout: true})
 	assert.NilError(t, err)
 	defer out.Close()
 
@@ -233,7 +233,7 @@ func TestRunWithAlternativeContainerdShim(t *testing.T) {
 
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID))
 
-	out, err := apiClient.ContainerLogs(ctx, cID, containertypes.LogsOptions{ShowStdout: true})
+	out, err := apiClient.ContainerLogs(ctx, cID, client.ContainerLogsOptions{ShowStdout: true})
 	assert.NilError(t, err)
 	defer out.Close()
 
@@ -253,7 +253,7 @@ func TestRunWithAlternativeContainerdShim(t *testing.T) {
 
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID))
 
-	out, err = apiClient.ContainerLogs(ctx, cID, containertypes.LogsOptions{ShowStdout: true})
+	out, err = apiClient.ContainerLogs(ctx, cID, client.ContainerLogsOptions{ShowStdout: true})
 	assert.NilError(t, err)
 	defer out.Close()
 
@@ -285,7 +285,7 @@ func TestMacAddressIsAppliedToMainNetworkWithShortID(t *testing.T) {
 		container.WithStopSignal("SIGKILL"),
 		container.WithNetworkMode(n[:10]),
 		container.WithContainerWideMacAddress("02:42:08:26:a9:55"))
-	defer container.Remove(ctx, t, apiClient, cid, containertypes.RemoveOptions{Force: true})
+	defer container.Remove(ctx, t, apiClient, cid, client.ContainerRemoveOptions{Force: true})
 
 	c := container.Inspect(ctx, t, apiClient, cid)
 	assert.Equal(t, c.NetworkSettings.Networks["testnet"].MacAddress, "02:42:08:26:a9:55")
@@ -317,7 +317,7 @@ func TestStaticIPOutsideSubpool(t *testing.T) {
 
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID))
 
-	out, err := apiClient.ContainerLogs(ctx, cID, containertypes.LogsOptions{ShowStdout: true})
+	out, err := apiClient.ContainerLogs(ctx, cID, client.ContainerLogsOptions{ShowStdout: true})
 	assert.NilError(t, err)
 	defer out.Close()
 
@@ -347,7 +347,7 @@ func TestWorkingDirNormalization(t *testing.T) {
 				container.WithWorkingDir(tc.workdir),
 			)
 
-			defer container.Remove(ctx, t, apiClient, cID, containertypes.RemoveOptions{Force: true})
+			defer container.Remove(ctx, t, apiClient, cID, client.ContainerRemoveOptions{Force: true})
 
 			inspect := container.Inspect(ctx, t, apiClient, cID)
 
@@ -466,7 +466,7 @@ func TestCgroupRW(t *testing.T) {
 				return
 			}
 			// TODO check if ro or not
-			err = apiClient.ContainerStart(ctx, resp.ID, containertypes.StartOptions{})
+			err = apiClient.ContainerStart(ctx, resp.ID, client.ContainerStartOptions{})
 			assert.NilError(t, err)
 
 			res, err := container.Exec(ctx, apiClient, resp.ID, []string{"sh", "-ec", `
@@ -548,7 +548,7 @@ func TestContainerShmSize(t *testing.T) {
 			)
 
 			t.Cleanup(func() {
-				container.Remove(ctx, t, apiClient, cID, containertypes.RemoveOptions{})
+				container.Remove(ctx, t, apiClient, cID, client.ContainerRemoveOptions{})
 			})
 
 			expectedSize, err := units.RAMInBytes(tc.expSize)

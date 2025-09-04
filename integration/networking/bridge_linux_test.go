@@ -180,7 +180,7 @@ func TestBridgeICC(t *testing.T) {
 				container.WithImage("busybox:latest"),
 				container.WithCmd("top"),
 				container.WithNetworkMode(bridgeName))...)
-			defer c.ContainerRemove(ctx, id1, containertypes.RemoveOptions{
+			defer c.ContainerRemove(ctx, id1, client.ContainerRemoveOptions{
 				Force: true,
 			})
 
@@ -211,7 +211,7 @@ func TestBridgeICC(t *testing.T) {
 				container.WithImage("busybox:latest"),
 				container.WithCmd(pingCmd...),
 				container.WithNetworkMode(bridgeName))
-			defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{
+			defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{
 				Force: true,
 			})
 
@@ -317,7 +317,7 @@ func TestBridgeINC(t *testing.T) {
 				container.WithImage("busybox:latest"),
 				container.WithCmd("top"),
 				container.WithNetworkMode(bridge1))
-			defer c.ContainerRemove(ctx, id1, containertypes.RemoveOptions{
+			defer c.ContainerRemove(ctx, id1, client.ContainerRemoveOptions{
 				Force: true,
 			})
 			networking.FirewalldReload(t, d)
@@ -338,7 +338,7 @@ func TestBridgeINC(t *testing.T) {
 				container.WithImage("busybox:latest"),
 				container.WithCmd(pingCmd...),
 				container.WithNetworkMode(bridge2))
-			defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{
+			defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{
 				Force: true,
 			})
 
@@ -390,7 +390,7 @@ func TestBridgeINCRouted(t *testing.T) {
 			container.WithPortMap(containertypes.PortMap{"80/tcp": {}}),
 		)
 		t.Cleanup(func() {
-			c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+			c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
 		})
 
 		container.ExecT(ctx, t, c, ctrId, []string{"httpd", "-p", "80"})
@@ -567,7 +567,7 @@ func TestAccessToPublishedPort(t *testing.T) {
 				container.WithPortMap(containertypes.PortMap{"80/tcp": {containertypes.PortBinding{HostPort: "8080"}}}),
 				container.WithCmd("httpd", "-f"),
 			)
-			defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
 
 			const clientNetName = "tnet-client"
 			network.CreateNoError(ctx, t, c, clientNetName,
@@ -690,7 +690,7 @@ func TestInterNetworkDirectRouting(t *testing.T) {
 				container.WithPortMap(containertypes.PortMap{"80/tcp": {containertypes.PortBinding{HostPort: "8080"}}}),
 				container.WithCmd("httpd", "-f"),
 			)
-			defer c.ContainerRemove(ctx, ctrPubId, containertypes.RemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, ctrPubId, client.ContainerRemoveOptions{Force: true})
 			inspPub := container.Inspect(ctx, t, c, ctrPubId)
 			pub4 := inspPub.NetworkSettings.Networks[serverNetName].IPAddress
 			pub6 := inspPub.NetworkSettings.Networks[serverNetName].GlobalIPv6Address
@@ -700,7 +700,7 @@ func TestInterNetworkDirectRouting(t *testing.T) {
 				container.WithName("ctr-unpub"),
 				container.WithCmd("httpd", "-f"),
 			)
-			defer c.ContainerRemove(ctx, ctrUnpubId, containertypes.RemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, ctrUnpubId, client.ContainerRemoveOptions{Force: true})
 			inspUnpub := container.Inspect(ctx, t, c, ctrUnpubId)
 			unpub4 := inspUnpub.NetworkSettings.Networks[serverNetName].IPAddress
 			unpub6 := inspUnpub.NetworkSettings.Networks[serverNetName].GlobalIPv6Address
@@ -783,7 +783,7 @@ func TestDefaultBridgeIPv6(t *testing.T) {
 				container.WithImage("busybox:latest"),
 				container.WithCmd("top"),
 			)
-			defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{
+			defer c.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{
 				Force: true,
 			})
 
@@ -797,7 +797,7 @@ func TestDefaultBridgeIPv6(t *testing.T) {
 				container.WithImage("busybox:latest"),
 				container.WithCmd("ping", "-c1", "-W3", gIPv6),
 			)
-			defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{
+			defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{
 				Force: true,
 			})
 
@@ -887,7 +887,7 @@ func TestDefaultBridgeAddresses(t *testing.T) {
 
 				// Start a container, so that the bridge is set "up" and gets a kernel_ll address.
 				cID := container.Run(ctx, t, c)
-				defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
+				defer c.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{Force: true})
 
 				d.Stop(t)
 
@@ -940,7 +940,7 @@ func TestInternalNwConnectivity(t *testing.T) {
 		container.WithCmd("top"),
 		container.WithNetworkMode(bridgeName),
 	)
-	defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 	networking.FirewalldReload(t, d)
 
 	execCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
@@ -1011,7 +1011,7 @@ func TestDisableIPv6Addrs(t *testing.T) {
 
 			runRes := container.RunAttach(ctx, t, c, opts...)
 			defer c.ContainerRemove(ctx, runRes.ContainerID,
-				containertypes.RemoveOptions{Force: true},
+				client.ContainerRemoveOptions{Force: true},
 			)
 
 			stdout := runRes.Stdout.String()
@@ -1061,7 +1061,7 @@ func TestDisableIPv4(t *testing.T) {
 			defer network.RemoveNoError(ctx, t, c, netName)
 
 			id := container.Run(ctx, t, c, container.WithNetworkMode(netName))
-			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
 			loRes := container.ExecT(ctx, t, c, id, []string{"ip", "a", "show", "dev", "lo"})
 			assert.Check(t, is.Contains(loRes.Combined(), " inet ")) // 127.0.0.1
@@ -1096,7 +1096,7 @@ func TestNonIPv6Network(t *testing.T) {
 	defer network.RemoveNoError(ctx, t, c, netName)
 
 	id := container.Run(ctx, t, c, container.WithNetworkMode(netName))
-	defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
 	loRes := container.ExecT(ctx, t, c, id, []string{"ip", "a", "show", "dev", "lo"})
 	assert.Check(t, is.Contains(loRes.Combined(), " inet "))
@@ -1165,7 +1165,7 @@ func TestNoIP6Tables(t *testing.T) {
 			defer network.RemoveNoError(ctx, t, c, netName)
 
 			id := container.Run(ctx, t, c, container.WithNetworkMode(netName))
-			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
 			if tc.reloadFirewalld {
 				networking.FirewalldReload(t, d)
@@ -1213,7 +1213,7 @@ func TestSetInterfaceSysctl(t *testing.T) {
 
 	runRes := container.RunAttach(ctx, t, c, opts...)
 	defer c.ContainerRemove(ctx, runRes.ContainerID,
-		containertypes.RemoveOptions{Force: true},
+		client.ContainerRemoveOptions{Force: true},
 	)
 
 	stdout := runRes.Stdout.String()
@@ -1260,8 +1260,8 @@ func TestReadOnlySlashProc(t *testing.T) {
 				container.WithNetworkMode(net4Name),
 				container.WithCmd("ls"),
 			)
-			defer c.ContainerRemove(ctx, id4, containertypes.RemoveOptions{Force: true})
-			err := c.ContainerStart(ctx, id4, containertypes.StartOptions{})
+			defer c.ContainerRemove(ctx, id4, client.ContainerRemoveOptions{Force: true})
+			err := c.ContainerStart(ctx, id4, client.ContainerStartOptions{})
 			if tc.expErr == "" {
 				assert.Check(t, err)
 			} else {
@@ -1280,7 +1280,7 @@ func TestReadOnlySlashProc(t *testing.T) {
 				container.WithNetworkMode(net6Name),
 				container.WithCmd("ls"),
 			)
-			defer c.ContainerRemove(ctx, id6, containertypes.RemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, id6, client.ContainerRemoveOptions{Force: true})
 		})
 	}
 }
@@ -1309,7 +1309,7 @@ func TestSetEndpointSysctl(t *testing.T) {
 						},
 					}),
 				)
-				defer c.ContainerRemove(ctx, runRes.ContainerID, containertypes.RemoveOptions{Force: true})
+				defer c.ContainerRemove(ctx, runRes.ContainerID, client.ContainerRemoveOptions{Force: true})
 
 				stdout := runRes.Stdout.String()
 				assert.Check(t, is.Equal(strings.TrimSpace(stdout), val))
@@ -1346,7 +1346,7 @@ func TestContainerDisabledIPv6(t *testing.T) {
 	ctrWith6 := container.Run(ctx, t, c,
 		container.WithNetworkMode(netName),
 	)
-	defer c.ContainerRemove(ctx, ctrWith6, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, ctrWith6, client.ContainerRemoveOptions{Force: true})
 	inspect := container.Inspect(ctx, t, c, ctrWith6)
 	addr := inspect.NetworkSettings.Networks[netName].GlobalIPv6Address
 	assert.Check(t, is.Contains(addr, "fd64:40cd:7fb4:8971"))
@@ -1358,7 +1358,7 @@ func TestContainerDisabledIPv6(t *testing.T) {
 		container.WithNetworkMode(netName),
 		container.WithSysctls(map[string]string{"net.ipv6.conf.all.disable_ipv6": "1"}),
 	)
-	defer c.ContainerRemove(ctx, ctrNo6, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, ctrNo6, client.ContainerRemoveOptions{Force: true})
 	inspect = container.Inspect(ctx, t, c, ctrNo6)
 	addr = inspect.NetworkSettings.Networks[netName].GlobalIPv6Address
 	assert.Check(t, is.Equal(addr, ""))
@@ -1431,7 +1431,7 @@ func TestGatewaySelection(t *testing.T) {
 		container.WithPortMap(containertypes.PortMap{"80": {{HostPort: "8080"}}}),
 		container.WithCmd("httpd", "-f"),
 	)
-	defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
 
 	// The container only has an IPv4 endpoint, it should be the gateway, and
 	// the host-IPv6 should be proxied to container-IPv4.
@@ -1665,7 +1665,7 @@ func TestAdvertiseAddresses(t *testing.T) {
 			defer stopICMP6Listen()
 
 			ctr1Id := container.Run(ctx, t, c, container.WithName("ctr1"), container.WithNetworkMode(netName))
-			defer c.ContainerRemove(ctx, ctr1Id, containertypes.RemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, ctr1Id, client.ContainerRemoveOptions{Force: true})
 
 			const ctr2Name = "ctr2"
 			const ctr2Addr4 = "172.22.22.22"
@@ -1682,7 +1682,7 @@ func TestAdvertiseAddresses(t *testing.T) {
 			// Defer a closure so the updated ctr2Id is used after the container's restarted.
 			defer func() {
 				if ctr2Id != "" {
-					c.ContainerRemove(ctx, ctr2Id, containertypes.RemoveOptions{Force: true})
+					c.ContainerRemove(ctx, ctr2Id, client.ContainerRemoveOptions{Force: true})
 				}
 			}()
 
@@ -1718,7 +1718,7 @@ func TestAdvertiseAddresses(t *testing.T) {
 			assert.Equal(t, macBefore, findNeighMAC(ctr1Neighs.Stdout(), ctr2Addr6))
 
 			// Stop ctr2, start a new container with the same addresses.
-			c.ContainerRemove(ctx, ctr2Id, containertypes.RemoveOptions{Force: true})
+			c.ContainerRemove(ctx, ctr2Id, client.ContainerRemoveOptions{Force: true})
 			ctr1Neighs = container.ExecT(ctx, t, c, ctr1Id, []string{"ip", "neigh", "show"})
 			assert.Assert(t, is.Equal(ctr1Neighs.ExitCode, 0))
 			t.Logf("ctr1 neighbours after ctr2 stop:\n%s", ctr1Neighs.Combined())
@@ -1749,7 +1749,7 @@ func TestAdvertiseAddresses(t *testing.T) {
 
 			if tc.stopCtr2After > 0 {
 				time.Sleep(tc.stopCtr2After)
-				c.ContainerRemove(ctx, ctr2Id, containertypes.RemoveOptions{Force: true})
+				c.ContainerRemove(ctx, ctr2Id, client.ContainerRemoveOptions{Force: true})
 				ctr2Id = ""
 			}
 
@@ -1880,7 +1880,7 @@ func TestDropInForwardChain(t *testing.T) {
 			container.WithPortMap(containertypes.PortMap{"80": {{HostPort: hostPort}}}),
 			container.WithCmd("httpd", "-f"),
 		)
-		defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+		defer c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
 
 		// Make an HTTP request from a new container, via the published port on the host addresses.
 		// Expect a "404", not a timeout due to packets dropped by the FORWARD chain's extra rule.
@@ -1922,7 +1922,7 @@ func TestLegacyLinksEnvVars(t *testing.T) {
 			ctr1 := container.Run(ctx, t, c,
 				container.WithName("ctr1"),
 				container.WithCmd("httpd", "-f"))
-			defer c.ContainerRemove(ctx, ctr1, containertypes.RemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, ctr1, client.ContainerRemoveOptions{Force: true})
 
 			exportRes := container.RunAttach(ctx, t, c,
 				container.WithName("ctr2"),

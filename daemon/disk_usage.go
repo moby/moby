@@ -18,7 +18,7 @@ import (
 func (daemon *Daemon) containerDiskUsage(ctx context.Context) (*backend.ContainerDiskUsage, error) {
 	res, _, err := daemon.usageContainers.Do(ctx, struct{}{}, func(ctx context.Context) (*backend.ContainerDiskUsage, error) {
 		// Retrieve container list
-		containers, err := daemon.Containers(ctx, &container.ListOptions{
+		containers, err := daemon.Containers(ctx, &backend.ContainerListOptions{
 			Size: true,
 			All:  true,
 		})

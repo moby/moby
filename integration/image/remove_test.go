@@ -7,7 +7,6 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
 
-	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
@@ -28,7 +27,7 @@ func TestRemoveImageOrphaning(t *testing.T) {
 
 	// Create a container from busybox, and commit a small change so we have a new image
 	cID1 := container.Create(ctx, t, apiClient, container.WithCmd(""))
-	commitResp1, err := apiClient.ContainerCommit(ctx, cID1, containertypes.CommitOptions{
+	commitResp1, err := apiClient.ContainerCommit(ctx, cID1, client.ContainerCommitOptions{
 		Changes:   []string{`ENTRYPOINT ["true"]`},
 		Reference: imgName,
 	})
@@ -41,7 +40,7 @@ func TestRemoveImageOrphaning(t *testing.T) {
 
 	// Create a container from created image, and commit a small change with same reference name
 	cID2 := container.Create(ctx, t, apiClient, container.WithImage(imgName), container.WithCmd(""))
-	commitResp2, err := apiClient.ContainerCommit(ctx, cID2, containertypes.CommitOptions{
+	commitResp2, err := apiClient.ContainerCommit(ctx, cID2, client.ContainerCommitOptions{
 		Changes:   []string{`LABEL Maintainer="Integration Tests"`},
 		Reference: imgName,
 	})

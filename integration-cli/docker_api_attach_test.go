@@ -13,7 +13,6 @@ import (
 	"github.com/docker/go-connections/sockets"
 	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types"
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/testutil"
@@ -186,7 +185,7 @@ func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 	cid = strings.TrimSpace(cid)
 
 	// Make sure we don't see "hello" if Logs is false
-	attachOpts := container.AttachOptions{
+	attachOpts := client.ContainerAttachOptions{
 		Stream: true,
 		Stdin:  true,
 		Stdout: true,

@@ -236,8 +236,8 @@ func TestIPRangeAt64BitLimit(t *testing.T) {
 			defer network.RemoveNoError(ctx, t, c, netName)
 
 			id := ctr.Create(ctx, t, c, ctr.WithNetworkMode(netName))
-			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
-			err := c.ContainerStart(ctx, id, containertypes.StartOptions{})
+			defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
+			err := c.ContainerStart(ctx, id, client.ContainerStartOptions{})
 			assert.NilError(t, err)
 		})
 	}
@@ -410,7 +410,7 @@ func TestPointToPoint(t *testing.T) {
 				ctr.WithNetworkMode(netName),
 				ctr.WithName(ctrName),
 			)
-			defer apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+			defer apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
 			attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
@@ -418,7 +418,7 @@ func TestPointToPoint(t *testing.T) {
 				ctr.WithCmd([]string{"ping", "-c1", "-W3", ctrName}...),
 				ctr.WithNetworkMode(netName),
 			)
-			defer apiClient.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+			defer apiClient.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
 			assert.Check(t, is.Equal(res.ExitCode, 0))
 			assert.Check(t, is.Equal(res.Stderr.Len(), 0))
 			assert.Check(t, is.Contains(res.Stdout.String(), "1 packets transmitted, 1 packets received"))
@@ -462,7 +462,7 @@ func TestIsolated(t *testing.T) {
 		ctr.WithNetworkMode(netName),
 		ctr.WithName(ctrName),
 	)
-	defer apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+	defer apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
 	ping := func(t *testing.T, ipv string) {
 		t.Helper()
@@ -472,7 +472,7 @@ func TestIsolated(t *testing.T) {
 			ctr.WithCmd([]string{"ping", "-c1", "-W3", ipv, "ctr1"}...),
 			ctr.WithNetworkMode(netName),
 		)
-		defer apiClient.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+		defer apiClient.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
 		if ipv == "-6" && networking.FirewalldRunning() {
 			// FIXME(robmry) - this fails due to https://github.com/moby/moby/issues/49680
 			if res.ExitCode != 1 {
@@ -502,7 +502,7 @@ func TestEndpointWithCustomIfname(t *testing.T) {
 				netlabel.Ifname: "foobar",
 			},
 		}))
-	defer ctr.Remove(ctx, t, apiClient, ctrID, containertypes.RemoveOptions{Force: true})
+	defer ctr.Remove(ctx, t, apiClient, ctrID, client.ContainerRemoveOptions{Force: true})
 
 	out, err := ctr.Output(ctx, apiClient, ctrID)
 	assert.NilError(t, err)
@@ -522,16 +522,16 @@ func TestPublishedPortAlreadyInUse(t *testing.T) {
 		ctr.WithCmd("top"),
 		ctr.WithExposedPorts("80/tcp"),
 		ctr.WithPortMap(containertypes.PortMap{"80/tcp": {{HostPort: "8000"}}}))
-	defer ctr.Remove(ctx, t, apiClient, ctr1, containertypes.RemoveOptions{Force: true})
+	defer ctr.Remove(ctx, t, apiClient, ctr1, client.ContainerRemoveOptions{Force: true})
 
 	ctr2 := ctr.Create(ctx, t, apiClient,
 		ctr.WithCmd("top"),
 		ctr.WithRestartPolicy(containertypes.RestartPolicyAlways),
 		ctr.WithExposedPorts("80/tcp"),
 		ctr.WithPortMap(containertypes.PortMap{"80/tcp": {{HostPort: "8000"}}}))
-	defer ctr.Remove(ctx, t, apiClient, ctr2, containertypes.RemoveOptions{Force: true})
+	defer ctr.Remove(ctx, t, apiClient, ctr2, client.ContainerRemoveOptions{Force: true})
 
-	err := apiClient.ContainerStart(ctx, ctr2, containertypes.StartOptions{})
+	err := apiClient.ContainerStart(ctx, ctr2, client.ContainerStartOptions{})
 	assert.Assert(t, is.ErrorContains(err, "failed to set up container networking"))
 
 	inspect, err := apiClient.ContainerInspect(ctx, ctr2)
@@ -566,7 +566,7 @@ func TestAllPortMappingsAreReturned(t *testing.T) {
 		ctr.WithPortMap(containertypes.PortMap{"80/tcp": {{HostPort: "8000"}}}),
 		ctr.WithEndpointSettings("testnetv4", &networktypes.EndpointSettings{}),
 		ctr.WithEndpointSettings("testnetv6", &networktypes.EndpointSettings{}))
-	defer ctr.Remove(ctx, t, apiClient, ctrID, containertypes.RemoveOptions{Force: true})
+	defer ctr.Remove(ctx, t, apiClient, ctrID, client.ContainerRemoveOptions{Force: true})
 
 	inspect := ctr.Inspect(ctx, t, apiClient, ctrID)
 	assert.DeepEqual(t, inspect.NetworkSettings.Ports, containertypes.PortMap{
@@ -605,7 +605,7 @@ func TestFirewalldReloadNoZombies(t *testing.T) {
 		ctr.WithPortMap(containertypes.PortMap{"80/tcp": {{HostPort: "8000"}}}))
 	defer func() {
 		if !removed {
-			ctr.Remove(ctx, t, c, cid, containertypes.RemoveOptions{Force: true})
+			ctr.Remove(ctx, t, c, cid, client.ContainerRemoveOptions{Force: true})
 		}
 	}()
 
@@ -620,7 +620,7 @@ func TestFirewalldReloadNoZombies(t *testing.T) {
 		"With container: expected rules for %s in: %s", bridgeName, resBeforeDel.Combined())
 
 	// Delete the container and its network.
-	ctr.Remove(ctx, t, c, cid, containertypes.RemoveOptions{Force: true})
+	ctr.Remove(ctx, t, c, cid, client.ContainerRemoveOptions{Force: true})
 	network.RemoveNoError(ctx, t, c, nw)
 	removed = true
 
@@ -666,7 +666,7 @@ func TestLegacyLink(t *testing.T) {
 		ctr.WithCmd("httpd", "-f"),
 	)
 
-	defer ctr.Remove(ctx, t, c, cid, containertypes.RemoveOptions{Force: true})
+	defer ctr.Remove(ctx, t, c, cid, client.ContainerRemoveOptions{Force: true})
 	insp := ctr.Inspect(ctx, t, c, cid)
 	svrAddr := insp.NetworkSettings.Networks["bridge"].IPAddress
 
@@ -741,7 +741,7 @@ func TestRemoveLegacyLink(t *testing.T) {
 		ctr.WithName(svrName),
 		ctr.WithCmd("httpd", "-f"),
 	)
-	defer ctr.Remove(ctx, t, c, svrId, containertypes.RemoveOptions{Force: true})
+	defer ctr.Remove(ctx, t, c, svrId, client.ContainerRemoveOptions{Force: true})
 
 	// Run a container linked to the http server.
 	const svrAlias = "thealias"
@@ -750,14 +750,14 @@ func TestRemoveLegacyLink(t *testing.T) {
 		ctr.WithName(clientName),
 		ctr.WithLinks(svrName+":"+svrAlias),
 	)
-	defer ctr.Remove(ctx, t, c, clientId, containertypes.RemoveOptions{Force: true})
+	defer ctr.Remove(ctx, t, c, clientId, client.ContainerRemoveOptions{Force: true})
 
 	// Check the link works.
 	res := ctr.ExecT(ctx, t, c, clientId, []string{"wget", "-T3", "http://" + svrName})
 	assert.Check(t, is.Contains(res.Stderr(), "404 Not Found"))
 
 	// Remove the link ("docker rm --link client/thealias").
-	err := c.ContainerRemove(ctx, clientName+"/"+svrAlias, containertypes.RemoveOptions{RemoveLinks: true})
+	err := c.ContainerRemove(ctx, clientName+"/"+svrAlias, client.ContainerRemoveOptions{RemoveLinks: true})
 	assert.Check(t, err)
 
 	// Check both containers are still running.
@@ -797,7 +797,7 @@ func TestPortMappingRestore(t *testing.T) {
 		ctr.WithRestartPolicy(containertypes.RestartPolicyUnlessStopped),
 		ctr.WithCmd("httpd", "-f"),
 	)
-	defer func() { ctr.Remove(ctx, t, c, cid, containertypes.RemoveOptions{Force: true}) }()
+	defer func() { ctr.Remove(ctx, t, c, cid, client.ContainerRemoveOptions{Force: true}) }()
 
 	check := func() {
 		t.Helper()
@@ -968,7 +968,7 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 			ctr.WithPortMap(containertypes.PortMap{"80/tcp": pbs}))
 		c, err := apiClient.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Platform, config.Name)
 		assert.NilError(t, err)
-		defer apiClient.ContainerRemove(ctx, c.ID, containertypes.RemoveOptions{Force: true})
+		defer apiClient.ContainerRemove(ctx, c.ID, client.ContainerRemoveOptions{Force: true})
 
 		// Inspect the container and return its port bindings, along with
 		// warnings returns on container create.
@@ -1043,7 +1043,7 @@ func TestPortBindingBackfillingForOlderContainers(t *testing.T) {
 	cid := ctr.Create(ctx, t, c,
 		ctr.WithExposedPorts("80/tcp"),
 		ctr.WithPortMap(containertypes.PortMap{"80/tcp": {}}))
-	defer c.ContainerRemove(ctx, cid, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, cid, client.ContainerRemoveOptions{Force: true})
 
 	// Stop the daemon to safely tamper with the on-disk state.
 	d.Stop(t)

@@ -3,7 +3,7 @@ package network
 import (
 	"testing"
 
-	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/integration/internal/network"
 	"github.com/moby/moby/v2/testutil"
@@ -30,7 +30,7 @@ func TestDaemonDNSFallback(t *testing.T) {
 	defer c.NetworkRemove(ctx, "test")
 
 	cid := container.Run(ctx, t, c, container.WithNetworkMode("test"), container.WithCmd("nslookup", "docker.com"))
-	defer c.ContainerRemove(ctx, cid, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, cid, client.ContainerRemoveOptions{Force: true})
 
 	poll.WaitOn(t, container.IsSuccessful(ctx, c, cid))
 }
@@ -83,7 +83,7 @@ func TestIntDNSAsExtDNS(t *testing.T) {
 				container.WithDNS(tc.extServers),
 				container.WithCmd("nslookup", "docker.com"),
 			)
-			defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
 
 			assert.Check(t, is.Equal(res.ExitCode, tc.expExitCode))
 			assert.Check(t, is.Contains(res.Stdout.String(), tc.expStdout))
@@ -120,7 +120,7 @@ func TestExtDNSInIPv6OnlyNw(t *testing.T) {
 	defer network.RemoveNoError(ctx, t, c, netName)
 
 	ctrId := container.Run(ctx, t, c, container.WithNetworkMode(netName))
-	defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
 
 	res, err := container.Exec(ctx, c, ctrId, []string{"nslookup", "test.example"})
 	assert.NilError(t, err)

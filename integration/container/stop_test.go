@@ -5,6 +5,7 @@ import (
 	"time"
 
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -33,7 +34,7 @@ func TestStopContainerWithRestartPolicyAlways(t *testing.T) {
 	}
 
 	for _, name := range names {
-		err := apiClient.ContainerStop(ctx, name, containertypes.StopOptions{})
+		err := apiClient.ContainerStop(ctx, name, client.ContainerStopOptions{})
 		assert.NilError(t, err)
 	}
 
@@ -99,7 +100,7 @@ func TestStopContainerWithTimeout(t *testing.T) {
 			// t.Parallel()
 			id := container.Run(ctx, t, apiClient, testCmd)
 
-			err := apiClient.ContainerStop(ctx, id, containertypes.StopOptions{Timeout: &tc.timeout})
+			err := apiClient.ContainerStop(ctx, id, client.ContainerStopOptions{Timeout: &tc.timeout})
 			assert.NilError(t, err)
 
 			poll.WaitOn(t, container.IsStopped(ctx, apiClient, id), pollOpts...)

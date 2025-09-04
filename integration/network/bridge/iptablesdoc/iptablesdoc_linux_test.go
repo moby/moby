@@ -335,7 +335,7 @@ func createBridgeNetworks(ctx context.Context, t *testing.T, d *daemon.Daemon, s
 				container.WithPortMap(ctr.portMappings),
 			)
 			t.Cleanup(func() {
-				c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+				c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 			})
 		}
 	}
@@ -382,7 +382,7 @@ func createServices(ctx context.Context, t *testing.T, d *daemon.Daemon, section
 }
 
 func pollService(ctx context.Context, t *testing.T, c *client.Client, host networking.Host) poll.Result {
-	cl, err := c.ContainerList(ctx, containertypes.ListOptions{})
+	cl, err := c.ContainerList(ctx, client.ContainerListOptions{})
 	if err != nil {
 		return poll.Error(fmt.Errorf("failed to list containers: %w", err))
 	}

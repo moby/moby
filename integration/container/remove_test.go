@@ -6,6 +6,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -38,7 +39,7 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 	err := os.RemoveAll(tempDir.Path())
 	assert.NilError(t, err)
 
-	err = apiClient.ContainerRemove(ctx, cID, containertypes.RemoveOptions{
+	err = apiClient.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{
 		RemoveVolumes: true,
 	})
 	assert.NilError(t, err)
@@ -65,7 +66,7 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 	_, err = apiClient.VolumeInspect(ctx, volName)
 	assert.NilError(t, err)
 
-	err = apiClient.ContainerRemove(ctx, cID, containertypes.RemoveOptions{
+	err = apiClient.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{
 		Force:         true,
 		RemoveVolumes: true,
 	})
@@ -81,7 +82,7 @@ func TestRemoveContainerRunning(t *testing.T) {
 
 	cID := container.Run(ctx, t, apiClient)
 
-	err := apiClient.ContainerRemove(ctx, cID, containertypes.RemoveOptions{})
+	err := apiClient.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsConflict))
 	assert.Check(t, is.ErrorContains(err, "container is running"))
 }
@@ -92,7 +93,7 @@ func TestRemoveContainerForceRemoveRunning(t *testing.T) {
 
 	cID := container.Run(ctx, t, apiClient)
 
-	err := apiClient.ContainerRemove(ctx, cID, containertypes.RemoveOptions{
+	err := apiClient.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{
 		Force: true,
 	})
 	assert.NilError(t, err)
@@ -102,7 +103,7 @@ func TestRemoveInvalidContainer(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	err := apiClient.ContainerRemove(ctx, "unknown", containertypes.RemoveOptions{})
+	err := apiClient.ContainerRemove(ctx, "unknown", client.ContainerRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	assert.Check(t, is.ErrorContains(err, "No such container"))
 }

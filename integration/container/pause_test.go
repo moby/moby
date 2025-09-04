@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/client"
@@ -70,7 +69,7 @@ func TestPauseStopPausedContainer(t *testing.T) {
 	err := apiClient.ContainerPause(ctx, cID)
 	assert.NilError(t, err)
 
-	err = apiClient.ContainerStop(ctx, cID, containertypes.StopOptions{})
+	err = apiClient.ContainerStop(ctx, cID, client.ContainerStopOptions{})
 	assert.NilError(t, err)
 
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID))

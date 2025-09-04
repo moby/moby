@@ -3,7 +3,6 @@ package swarm
 import (
 	"context"
 
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/swarmbackend"
@@ -23,7 +22,7 @@ type Backend interface {
 	CreateService(swarm.ServiceSpec, string, bool) (*swarm.ServiceCreateResponse, error)
 	UpdateService(string, uint64, swarm.ServiceSpec, swarmbackend.ServiceUpdateOptions, bool) (*swarm.ServiceUpdateResponse, error)
 	RemoveService(string) error
-	ServiceLogs(context.Context, *backend.LogSelector, *container.LogsOptions) (<-chan *backend.LogMessage, error)
+	ServiceLogs(context.Context, *backend.LogSelector, *backend.ContainerLogsOptions) (<-chan *backend.LogMessage, error)
 	GetNodes(swarmbackend.NodeListOptions) ([]swarm.Node, error)
 	GetNode(string) (swarm.Node, error)
 	UpdateNode(string, uint64, swarm.NodeSpec) error

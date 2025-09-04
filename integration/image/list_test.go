@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
-	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/versions"
@@ -77,7 +76,7 @@ func TestImagesFilterUntil(t *testing.T) {
 			// Make sure each image has a distinct timestamp.
 			time.Sleep(time.Millisecond)
 		}
-		id, err := apiClient.ContainerCommit(ctx, ctr, containertypes.CommitOptions{Reference: fmt.Sprintf("%s:v%d", name, i)})
+		id, err := apiClient.ContainerCommit(ctx, ctr, client.ContainerCommitOptions{Reference: fmt.Sprintf("%s:v%d", name, i)})
 		assert.NilError(t, err)
 		imgs[i] = id.ID
 	}
@@ -121,7 +120,7 @@ func TestImagesFilterBeforeSince(t *testing.T) {
 			// Make sure each image has a distinct timestamp.
 			time.Sleep(time.Millisecond)
 		}
-		id, err := apiClient.ContainerCommit(ctx, ctr, containertypes.CommitOptions{Reference: fmt.Sprintf("%s:v%d", name, i)})
+		id, err := apiClient.ContainerCommit(ctx, ctr, client.ContainerCommitOptions{Reference: fmt.Sprintf("%s:v%d", name, i)})
 		assert.NilError(t, err)
 		imgs[i] = id.ID
 	}

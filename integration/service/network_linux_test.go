@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
@@ -54,7 +53,7 @@ func TestDockerNetworkConnectAliasPreV144(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	err = apiClient.ContainerStart(ctx, cID1, containertypes.StartOptions{})
+	err = apiClient.ContainerStart(ctx, cID1, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	ng1, err := apiClient.ContainerInspect(ctx, cID1)
@@ -77,7 +76,7 @@ func TestDockerNetworkConnectAliasPreV144(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	err = apiClient.ContainerStart(ctx, cID2, containertypes.StartOptions{})
+	err = apiClient.ContainerStart(ctx, cID2, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	ng2, err := apiClient.ContainerInspect(ctx, cID2)
@@ -111,7 +110,7 @@ func TestDockerNetworkReConnect(t *testing.T) {
 	err := apiClient.NetworkConnect(ctx, name, c1, &network.EndpointSettings{})
 	assert.NilError(t, err)
 
-	err = apiClient.ContainerStart(ctx, c1, containertypes.StartOptions{})
+	err = apiClient.ContainerStart(ctx, c1, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	n1, err := apiClient.ContainerInspect(ctx, c1)

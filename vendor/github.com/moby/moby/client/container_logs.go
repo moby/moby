@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client/internal/timestamp"
 )
 
@@ -37,7 +36,7 @@ import (
 // [stdcopy.StdType]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#StdType
 // [Stdout]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#Stdout
 // [Stderr]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#Stderr
-func (cli *Client) ContainerLogs(ctx context.Context, containerID string, options container.LogsOptions) (io.ReadCloser, error) {
+func (cli *Client) ContainerLogs(ctx context.Context, containerID string, options ContainerLogsOptions) (io.ReadCloser, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
 		return nil, err

@@ -8,6 +8,7 @@ import (
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/sys/signal"
 	"github.com/pkg/errors"
@@ -21,7 +22,7 @@ import (
 // If the timeout is nil, the container's StopTimeout value is used, if set,
 // otherwise the engine default. A negative timeout value can be specified,
 // meaning no timeout, i.e. no forceful termination is performed.
-func (daemon *Daemon) ContainerStop(ctx context.Context, name string, options containertypes.StopOptions) error {
+func (daemon *Daemon) ContainerStop(ctx context.Context, name string, options backend.ContainerStopOptions) error {
 	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -44,7 +45,7 @@ func (daemon *Daemon) ContainerStop(ctx context.Context, name string, options co
 // containerStop sends a stop signal, waits, sends a kill signal. It uses
 // a [context.WithoutCancel], so cancelling the context does not cancel
 // the request to stop the container.
-func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Container, options containertypes.StopOptions) (retErr error) {
+func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Container, options backend.ContainerStopOptions) (retErr error) {
 	// Cancelling the request should not cancel the stop.
 	ctx = context.WithoutCancel(ctx)
 

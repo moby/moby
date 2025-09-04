@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/stringid"
 	"github.com/moby/moby/v2/testutil/daemon"
@@ -89,7 +88,7 @@ func (d *Daemon) CheckActiveContainerCount(ctx context.Context) func(t *testing.
 		apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithHost(d.Sock()))
 		assert.NilError(t, err)
 
-		ctrs, err := apiClient.ContainerList(ctx, container.ListOptions{})
+		ctrs, err := apiClient.ContainerList(ctx, client.ContainerListOptions{})
 		_ = apiClient.Close()
 		assert.NilError(t, err)
 		var out strings.Builder

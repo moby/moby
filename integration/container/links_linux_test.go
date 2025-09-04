@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -43,7 +43,7 @@ func TestLinksContainerNames(t *testing.T) {
 	container.Run(ctx, t, apiClient, container.WithName(containerA))
 	container.Run(ctx, t, apiClient, container.WithName(containerB), container.WithLinks(containerA+":"+containerA))
 
-	containers, err := apiClient.ContainerList(ctx, containertypes.ListOptions{
+	containers, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", containerA)),
 	})
 	assert.NilError(t, err)

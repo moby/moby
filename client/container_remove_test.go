@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -18,14 +17,14 @@ import (
 func TestContainerRemoveError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	err = client.ContainerRemove(context.Background(), "container_id", container.RemoveOptions{})
+	err = client.ContainerRemove(context.Background(), "container_id", ContainerRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.ContainerRemove(context.Background(), "", container.RemoveOptions{})
+	err = client.ContainerRemove(context.Background(), "", ContainerRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.ContainerRemove(context.Background(), "    ", container.RemoveOptions{})
+	err = client.ContainerRemove(context.Background(), "    ", ContainerRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -33,7 +32,7 @@ func TestContainerRemoveError(t *testing.T) {
 func TestContainerRemoveNotFoundError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusNotFound, "no such container: container_id")))
 	assert.NilError(t, err)
-	err = client.ContainerRemove(context.Background(), "container_id", container.RemoveOptions{})
+	err = client.ContainerRemove(context.Background(), "container_id", ContainerRemoveOptions{})
 	assert.Check(t, is.ErrorContains(err, "no such container: container_id"))
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
@@ -64,7 +63,7 @@ func TestContainerRemove(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	err = client.ContainerRemove(context.Background(), "container_id", container.RemoveOptions{
+	err = client.ContainerRemove(context.Background(), "container_id", ContainerRemoveOptions{
 		RemoveVolumes: true,
 		Force:         true,
 	})

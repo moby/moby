@@ -50,9 +50,9 @@ func unpauseAllContainers(ctx context.Context, t testing.TB, client client.Conta
 	}
 }
 
-func getPausedContainers(ctx context.Context, t testing.TB, client client.ContainerAPIClient) []container.Summary {
+func getPausedContainers(ctx context.Context, t testing.TB, apiClient client.ContainerAPIClient) []container.Summary {
 	t.Helper()
-	containers, err := client.ContainerList(ctx, container.ListOptions{
+	containers, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("status", "paused")),
 		All:     true,
 	})
@@ -71,7 +71,7 @@ func deleteAllContainers(ctx context.Context, t testing.TB, apiclient client.Con
 		if _, ok := protectedContainers[ctr.ID]; ok {
 			continue
 		}
-		err := apiclient.ContainerRemove(ctx, ctr.ID, container.RemoveOptions{
+		err := apiclient.ContainerRemove(ctx, ctr.ID, client.ContainerRemoveOptions{
 			Force:         true,
 			RemoveVolumes: true,
 		})
@@ -84,9 +84,9 @@ func deleteAllContainers(ctx context.Context, t testing.TB, apiclient client.Con
 	}
 }
 
-func getAllContainers(ctx context.Context, t testing.TB, client client.ContainerAPIClient) []container.Summary {
+func getAllContainers(ctx context.Context, t testing.TB, apiClient client.ContainerAPIClient) []container.Summary {
 	t.Helper()
-	containers, err := client.ContainerList(ctx, container.ListOptions{
+	containers, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
 		All: true,
 	})
 	assert.Check(t, err, "failed to list containers")

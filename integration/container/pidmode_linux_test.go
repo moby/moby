@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -50,7 +50,7 @@ func TestPIDModeContainer(t *testing.T) {
 		ctr, err := container.CreateFromConfig(ctx, apiClient, container.NewTestConfig(container.WithPIDMode("container:"+pidCtrName)))
 		assert.NilError(t, err, "should not produce an error when creating, only when starting")
 
-		err = apiClient.ContainerStart(ctx, ctr.ID, containertypes.StartOptions{})
+		err = apiClient.ContainerStart(ctx, ctr.ID, client.ContainerStartOptions{})
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal), "should produce a System error when starting an existing container from an invalid state")
 		assert.Check(t, is.ErrorContains(err, "failed to join PID namespace"))
 		assert.Check(t, is.ErrorContains(err, cPIDContainerID+" is not running"))
@@ -63,7 +63,7 @@ func TestPIDModeContainer(t *testing.T) {
 		ctr, err := container.CreateFromConfig(ctx, apiClient, container.NewTestConfig(container.WithPIDMode("container:"+pidCtrName)))
 		assert.NilError(t, err)
 
-		err = apiClient.ContainerStart(ctx, ctr.ID, containertypes.StartOptions{})
+		err = apiClient.ContainerStart(ctx, ctr.ID, client.ContainerStartOptions{})
 		assert.Check(t, err)
 	})
 }

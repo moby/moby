@@ -70,7 +70,7 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 	ctrCreate, err := cli.ContainerCreate(ctx, &config, &hostConfig, &network.NetworkingConfig{}, nil, "")
 	assert.NilError(t, err)
 	// container will exit immediately because of no tty, but we only need the start sequence to test the condition
-	err = cli.ContainerStart(ctx, ctrCreate.ID, containertypes.StartOptions{})
+	err = cli.ContainerStart(ctx, ctrCreate.ID, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	// Check that host-located bind mount network file did not change ownership when the container was started
@@ -195,7 +195,7 @@ func TestMountDaemonRoot(t *testing.T) {
 					}
 
 					defer func() {
-						if err := apiClient.ContainerRemove(ctx, c.ID, containertypes.RemoveOptions{Force: true}); err != nil {
+						if err := apiClient.ContainerRemove(ctx, c.ID, client.ContainerRemoveOptions{Force: true}); err != nil {
 							panic(err)
 						}
 					}()

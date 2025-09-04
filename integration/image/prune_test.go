@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
@@ -87,7 +86,7 @@ func TestPruneLexographicalOrder(t *testing.T) {
 
 	// run container
 	cid := container.Create(ctx, t, apiClient, container.WithImage(id))
-	defer container.Remove(ctx, t, apiClient, cid, containertypes.RemoveOptions{Force: true})
+	defer container.Remove(ctx, t, apiClient, cid, client.ContainerRemoveOptions{Force: true})
 
 	pruned, err := apiClient.ImagesPrune(ctx, filters.NewArgs(filters.Arg("dangling", "false")))
 	assert.NilError(t, err)
@@ -216,7 +215,7 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 				cid := container.Run(ctx, t, apiClient,
 					container.WithImage(image),
 					container.WithCmd("sleep", "60"))
-				defer container.Remove(ctx, t, apiClient, cid, containertypes.RemoveOptions{Force: true})
+				defer container.Remove(ctx, t, apiClient, cid, client.ContainerRemoveOptions{Force: true})
 
 				// dangling=false also prunes unused images
 				pruned, err := apiClient.ImagesPrune(ctx, filters.NewArgs(filters.Arg("dangling", "false")))

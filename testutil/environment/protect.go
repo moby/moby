@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
@@ -81,8 +80,7 @@ func ProtectContainers(ctx context.Context, t testing.TB, testEnv *Execution) {
 
 func getExistingContainers(ctx context.Context, t testing.TB, testEnv *Execution) []string {
 	t.Helper()
-	client := testEnv.APIClient()
-	containerList, err := client.ContainerList(ctx, container.ListOptions{
+	containerList, err := testEnv.APIClient().ContainerList(ctx, client.ContainerListOptions{
 		All: true,
 	})
 	assert.NilError(t, err, "failed to list containers")

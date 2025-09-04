@@ -15,7 +15,6 @@ import (
 
 	"github.com/cpuguy83/tar2go"
 	"github.com/moby/go-archive/compression"
-	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/build"
@@ -397,10 +396,10 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 			cfg.Config.Cmd = []string{"true"}
 		})
 
-		res, err := apiClient.ContainerCommit(ctx, id, containertypes.CommitOptions{Reference: tag})
+		res, err := apiClient.ContainerCommit(ctx, id, client.ContainerCommitOptions{Reference: tag})
 		assert.NilError(t, err)
 
-		err = apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+		err = apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 		assert.NilError(t, err)
 
 		return res.ID

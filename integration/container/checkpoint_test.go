@@ -9,6 +9,7 @@ import (
 	"github.com/moby/moby/api/types/checkpoint"
 	containertypes "github.com/moby/moby/api/types/container"
 	mounttypes "github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil/request"
 	"gotest.tools/v3/assert"
@@ -116,7 +117,7 @@ func TestCheckpoint(t *testing.T) {
 
 	// Restore the container from a second checkpoint.
 	t.Log("Restore the container")
-	err = apiClient.ContainerStart(ctx, cID, containertypes.StartOptions{
+	err = apiClient.ContainerStart(ctx, cID, client.ContainerStartOptions{
 		CheckpointID: "test2",
 	})
 	assert.NilError(t, err)

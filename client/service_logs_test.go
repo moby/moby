@@ -14,7 +14,6 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -22,19 +21,19 @@ import (
 func TestServiceLogsError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	_, err = client.ServiceLogs(context.Background(), "service_id", container.LogsOptions{})
+	_, err = client.ServiceLogs(context.Background(), "service_id", ContainerLogsOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ServiceLogs(context.Background(), "service_id", container.LogsOptions{
+	_, err = client.ServiceLogs(context.Background(), "service_id", ContainerLogsOptions{
 		Since: "2006-01-02TZ",
 	})
 	assert.Check(t, is.ErrorContains(err, `parsing time "2006-01-02TZ"`))
 
-	_, err = client.ServiceLogs(context.Background(), "", container.LogsOptions{})
+	_, err = client.ServiceLogs(context.Background(), "", ContainerLogsOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ServiceLogs(context.Background(), "    ", container.LogsOptions{})
+	_, err = client.ServiceLogs(context.Background(), "    ", ContainerLogsOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -42,7 +41,7 @@ func TestServiceLogsError(t *testing.T) {
 func TestServiceLogs(t *testing.T) {
 	expectedURL := "/services/service_id/logs"
 	cases := []struct {
-		options             container.LogsOptions
+		options             ContainerLogsOptions
 		expectedQueryParams map[string]string
 		expectedError       string
 	}{
@@ -52,7 +51,7 @@ func TestServiceLogs(t *testing.T) {
 			},
 		},
 		{
-			options: container.LogsOptions{
+			options: ContainerLogsOptions{
 				Tail: "any",
 			},
 			expectedQueryParams: map[string]string{
@@ -60,7 +59,7 @@ func TestServiceLogs(t *testing.T) {
 			},
 		},
 		{
-			options: container.LogsOptions{
+			options: ContainerLogsOptions{
 				ShowStdout: true,
 				ShowStderr: true,
 				Timestamps: true,
@@ -77,7 +76,7 @@ func TestServiceLogs(t *testing.T) {
 			},
 		},
 		{
-			options: container.LogsOptions{
+			options: ContainerLogsOptions{
 				// timestamp is passed as-is
 				Since: "1136073600.000000001",
 			},
@@ -87,7 +86,7 @@ func TestServiceLogs(t *testing.T) {
 			},
 		},
 		{
-			options: container.LogsOptions{
+			options: ContainerLogsOptions{
 				// invalid dates are not passed.
 				Since: "invalid value",
 			},
@@ -131,7 +130,7 @@ func ExampleClient_ServiceLogs_withTimeout() {
 	defer cancel()
 
 	client, _ := NewClientWithOpts(FromEnv)
-	reader, err := client.ServiceLogs(ctx, "service_id", container.LogsOptions{})
+	reader, err := client.ServiceLogs(ctx, "service_id", ContainerLogsOptions{})
 	if err != nil {
 		log.Fatal(err)
 	}

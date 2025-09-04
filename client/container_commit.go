@@ -11,7 +11,7 @@ import (
 )
 
 // ContainerCommit applies changes to a container and creates a new tagged image.
-func (cli *Client) ContainerCommit(ctx context.Context, containerID string, options container.CommitOptions) (container.CommitResponse, error) {
+func (cli *Client) ContainerCommit(ctx context.Context, containerID string, options ContainerCommitOptions) (container.CommitResponse, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
 		return container.CommitResponse{}, err

@@ -7,6 +7,7 @@ import (
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 	systemutil "github.com/moby/moby/v2/integration/internal/system"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/daemon"
@@ -52,7 +53,7 @@ func TestAttach(t *testing.T) {
 				"",
 			)
 			assert.NilError(t, err)
-			attach, err := apiClient.ContainerAttach(ctx, resp.ID, container.AttachOptions{
+			attach, err := apiClient.ContainerAttach(ctx, resp.ID, client.ContainerAttachOptions{
 				Stdout: true,
 				Stderr: true,
 			})
@@ -78,9 +79,9 @@ func TestAttachDisconnectLeak(t *testing.T) {
 
 	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
 
-	client := d.NewClientT(t)
+	apiClient := d.NewClientT(t)
 
-	resp, err := client.ContainerCreate(ctx,
+	resp, err := apiClient.ContainerCreate(ctx,
 		&container.Config{
 			Image: "busybox",
 			Cmd:   []string{"/bin/sh", "-c", "while true; usleep 100000; done"},
@@ -92,20 +93,20 @@ func TestAttachDisconnectLeak(t *testing.T) {
 	)
 	assert.NilError(t, err)
 	cID := resp.ID
-	defer client.ContainerRemove(ctx, cID, container.RemoveOptions{
+	defer apiClient.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{
 		Force: true,
 	})
 
-	nGoroutines := systemutil.WaitForStableGoroutineCount(ctx, t, client)
+	nGoroutines := systemutil.WaitForStableGoroutineCount(ctx, t, apiClient)
 
-	attach, err := client.ContainerAttach(ctx, cID, container.AttachOptions{
+	attach, err := apiClient.ContainerAttach(ctx, cID, client.ContainerAttachOptions{
 		Stdout: true,
 	})
 	assert.NilError(t, err)
 	defer attach.Close()
 
 	poll.WaitOn(t, func(_ poll.LogT) poll.Result {
-		count := systemutil.WaitForStableGoroutineCount(ctx, t, client)
+		count := systemutil.WaitForStableGoroutineCount(ctx, t, apiClient)
 		if count > nGoroutines {
 			return poll.Success()
 		}
@@ -116,5 +117,5 @@ func TestAttachDisconnectLeak(t *testing.T) {
 
 	attach.Close()
 
-	poll.WaitOn(t, systemutil.CheckGoroutineCount(ctx, client, nGoroutines), poll.WithTimeout(time.Minute))
+	poll.WaitOn(t, systemutil.CheckGoroutineCount(ctx, apiClient, nGoroutines), poll.WithTimeout(time.Minute))
 }
