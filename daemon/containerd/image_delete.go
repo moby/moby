@@ -136,8 +136,8 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options
 			return i.untagReferences(ctx, sameRef)
 		} else if len(all) > 1 && !force {
 			// Since only a single used reference, remove all active
-			// TODO: Consider keeping the conflict and changing active
-			// reference calculation in image checker.
+			//
+			// TODO(dmcgowan): Consider keeping the conflict and changing active reference calculation in image checker; https://github.com/moby/moby/pull/46840
 			c &= ^conflictActiveReference
 		}
 
@@ -166,23 +166,18 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options
 
 			return false
 		}
-		// TODO: Should this also check parentage here?
-		ctr := i.containers.First(using)
-		if ctr != nil {
-			familiarRef := reference.FamiliarString(parsedRef)
+		// TODO(dmcgowan): Should this also check parentage here? https://github.com/moby/moby/pull/46840
+		if ctr := i.containers.First(using); ctr != nil {
 			if !force {
 				// If we removed the repository reference then
 				// this image would remain "dangling" and since
 				// we really want to avoid that the client must
 				// explicitly force its removal.
-				err := &imageDeleteConflict{
-					reference: familiarRef,
+				return nil, &imageDeleteConflict{
+					reference: reference.FamiliarString(parsedRef),
 					used:      true,
-					message: fmt.Sprintf("container %s is using its referenced image %s",
-						stringid.TruncateID(ctr.ID),
-						stringid.TruncateID(imgID.String())),
+					message:   fmt.Sprintf("container %s is using its referenced image %s", stringid.TruncateID(ctr.ID), stringid.TruncateID(imgID.String())),
 				}
-				return nil, err
 			}
 
 			if len(options.Platforms) > 0 {
@@ -190,14 +185,13 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options
 			}
 
 			// Delete all images
-			err := i.softImageDelete(ctx, *img, all)
-			if err != nil {
+			if err := i.softImageDelete(ctx, *img, all); err != nil {
 				return nil, err
 			}
 
+			familiarRef := reference.FamiliarString(parsedRef)
 			i.logImageEvent(*img, familiarRef, events.ActionUnTag)
-			records := []imagetypes.DeleteResponse{{Untagged: familiarRef}}
-			return records, nil
+			return []imagetypes.DeleteResponse{{Untagged: familiarRef}}, nil
 		}
 	}
 
@@ -248,8 +242,7 @@ func (i *ImageService) deleteImagePlatformByImageID(ctx context.Context, img *c8
 		return nil, err
 	}
 
-	// TODO: Check if these are not used by other images with different
-	// target root images.
+	// TODO(vvoland): Check if these are not used by other images with different target root images; https://github.com/moby/moby/pull/49982
 	// The same manifest can be referenced by different image indexes.
 	var response []imagetypes.DeleteResponse
 	for _, d := range toDelete {
@@ -273,7 +266,7 @@ func (i *ImageService) deleteImagePlatformByImageID(ctx context.Context, img *c8
 func (i *ImageService) deleteAll(ctx context.Context, imgID image.ID, all []c8dimages.Image, c conflictType, prune bool) (records []imagetypes.DeleteResponse, _ error) {
 	var parents []c8dimages.Image
 	if prune {
-		// TODO(dmcgowan): Consider using GC labels to walk for deletion
+		// TODO(dmcgowan): Consider using GC labels to walk for deletion; https://github.com/moby/moby/pull/46840
 		var err error
 		parents, err = i.parents(ctx, imgID)
 		if err != nil {
@@ -437,7 +430,7 @@ func (i *ImageService) imageDeleteHelper(ctx context.Context, img c8dimages.Imag
 		}
 	}
 
-	// TODO: Add target option
+	// TODO(dmcgowan): Add with target; https://github.com/moby/moby/pull/46840
 	err = i.images.Delete(ctx, img.Name, c8dimages.SynchronousDelete())
 	if err != nil {
 		return err
@@ -479,7 +472,7 @@ func (*imageDeleteConflict) Conflict() {}
 func (i *ImageService) untagReferences(ctx context.Context, refs []c8dimages.Image) ([]imagetypes.DeleteResponse, error) {
 	var records []imagetypes.DeleteResponse
 	for _, ref := range refs {
-		// TODO: Add with target
+		// TODO(dmcgowan): Add with target; https://github.com/moby/moby/pull/46840
 		err := i.images.Delete(ctx, ref.Name)
 		if err != nil {
 			return nil, err
@@ -527,7 +520,7 @@ func (i *ImageService) checkImageDeleteConflict(ctx context.Context, imgID image
 	}
 
 	if mask&conflictActiveReference != 0 {
-		// TODO: Count unexpired references...
+		// TODO(dmcgowan): Count unexpired references; https://github.com/moby/moby/pull/46840
 		if len(all) > 1 {
 			return &imageDeleteConflict{
 				reference: stringid.TruncateID(imgID.String()),

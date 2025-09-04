@@ -140,8 +140,8 @@ func TestRemoveWithPlatform(t *testing.T) {
 		platform *ocispec.Platform
 		deleted  ocispec.Descriptor
 	}{
-		{&platformHost, descs[0]},
-		{&someOtherPlatform, descs[3]},
+		{platform: &platformHost, deleted: descs[0]},
+		{platform: &someOtherPlatform, deleted: descs[3]},
 	} {
 		resp, err := apiClient.ImageRemove(ctx, imgName, client.ImageRemoveOptions{
 			Platforms: []ocispec.Platform{*tc.platform},
@@ -162,7 +162,7 @@ func TestRemoveWithPlatform(t *testing.T) {
 	assert.Check(t, is.Len(resp, 2))
 	assert.Check(t, is.Equal(resp[0].Untagged, imgName))
 	assert.Check(t, is.Equal(resp[1].Deleted, imageIdx.Manifests[0].Digest.String()))
-	// TODO: Should it also include platform-specific manifests?
+	// TODO(vvoland): Should it also include platform-specific manifests? https://github.com/moby/moby/pull/49982
 }
 
 func checkPlatformDeleted(t *testing.T, imageIdx *ocispec.Index, resp []image.DeleteResponse, mfstDesc ocispec.Descriptor) {
