@@ -2,6 +2,7 @@ package convert
 
 import (
 	"strings"
+	"time"
 
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/network"
@@ -239,4 +240,48 @@ func IsIngressNetwork(n *swarmapi.Network) bool {
 	// Check if legacy defined ingress network
 	_, ok := n.Spec.Annotations.Labels["com.docker.swarm.internal"]
 	return ok && n.Spec.Annotations.Name == "ingress"
+}
+
+// FilterNetwork adapts [swarmapi.Network] to the
+// [github.com/moby/moby/v2/daemon/network.FilterNetwork] interface.
+type FilterNetwork struct {
+	N *swarmapi.Network
+}
+
+func (nw FilterNetwork) ID() string {
+	return nw.N.ID
+}
+
+func (nw FilterNetwork) Name() string {
+	return nw.N.Spec.Annotations.Name
+}
+
+func (nw FilterNetwork) Driver() string {
+	if nw.N.DriverState != nil {
+		return nw.N.DriverState.Name
+	}
+	return ""
+}
+
+func (nw FilterNetwork) Labels() map[string]string {
+	return nw.N.Spec.Annotations.Labels
+}
+
+func (nw FilterNetwork) Scope() string {
+	return scope.Swarm
+}
+
+func (nw FilterNetwork) Created() time.Time {
+	t, _ := gogotypes.TimestampFromProto(nw.N.Meta.CreatedAt)
+	return t
+}
+
+func (nw FilterNetwork) HasContainerAttachments() bool {
+	// Not tracked in swarmkit
+	return false
+}
+
+func (nw FilterNetwork) HasServiceAttachments() bool {
+	// Not tracked in swarmkit
+	return false
 }

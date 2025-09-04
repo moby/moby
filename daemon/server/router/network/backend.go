@@ -5,13 +5,14 @@ import (
 
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
+	dnetwork "github.com/moby/moby/v2/daemon/network"
 	"github.com/moby/moby/v2/daemon/server/backend"
 )
 
 // Backend is all the methods that need to be implemented
 // to provide network specific functionality.
 type Backend interface {
-	GetNetworks(filters.Args, backend.NetworkListConfig) ([]network.Inspect, error)
+	GetNetworks(dnetwork.Filter, backend.NetworkListConfig) ([]network.Inspect, error)
 	CreateNetwork(ctx context.Context, nc network.CreateRequest) (*network.CreateResponse, error)
 	ConnectContainerToNetwork(ctx context.Context, containerName, networkName string, endpointConfig *network.EndpointSettings) error
 	DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error
@@ -22,7 +23,7 @@ type Backend interface {
 // ClusterBackend is all the methods that need to be implemented
 // to provide cluster network specific functionality.
 type ClusterBackend interface {
-	GetNetworks(filters.Args) ([]network.Inspect, error)
+	GetNetworks(dnetwork.Filter) ([]network.Inspect, error)
 	GetNetwork(name string) (network.Inspect, error)
 	GetNetworksByName(name string) ([]network.Inspect, error)
 	CreateNetwork(nc network.CreateRequest) (string, error)

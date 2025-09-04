@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/cluster/convert"
@@ -16,65 +15,45 @@ import (
 )
 
 // GetNetworks returns all current cluster managed networks.
-func (c *Cluster) GetNetworks(filter filters.Args) ([]network.Inspect, error) {
-	var f *swarmapi.ListNetworksRequest_Filters
-
-	if filter.Len() > 0 {
-		f = &swarmapi.ListNetworksRequest_Filters{}
-
-		if filter.Contains("name") {
-			f.Names = filter.Get("name")
-			f.NamePrefixes = filter.Get("name")
-		}
-
-		if filter.Contains("id") {
-			f.IDPrefixes = filter.Get("id")
-		}
-	}
-
-	list, err := c.getNetworks(f)
+func (c *Cluster) GetNetworks(filter networkSettings.Filter) ([]network.Inspect, error) {
+	// Swarmkit API's filters are too limited to express the Moby filter
+	// semantics with much fidelity. It only supports filtering on one of:
+	//  - Names (exact match)
+	//  - NamePrefixes (prefix match)
+	//  - IDPrefixes (prefix match)
+	// The first of the list that is set is used as the filter predicate.
+	// The other fields are ignored. However, the Engine API filter
+	// semantics are to match on any substring of the network name or ID. We
+	// therefore need to request all networks from Swarmkit and filter them
+	// ourselves.
+	list, err := c.listNetworks(context.TODO(), nil)
 	if err != nil {
 		return nil, err
 	}
-	filterPredefinedNetworks(&list)
-
-	return networkSettings.FilterNetworks(list, filter)
-}
-
-func filterPredefinedNetworks(networks *[]network.Inspect) {
-	if networks == nil {
-		return
-	}
-	var idxs []int
-	for i, nw := range *networks {
-		if v, ok := nw.Labels["com.docker.swarm.predefined"]; ok && v == "true" {
-			idxs = append(idxs, i)
+	var filtered []network.Inspect
+	for _, n := range list {
+		if n.Spec.Annotations.Labels["com.docker.swarm.predefined"] == "true" {
+			continue
+		}
+		if filter.Matches(convert.FilterNetwork{N: n}) {
+			filtered = append(filtered, convert.BasicNetworkFromGRPC(*n))
 		}
 	}
-	for i, idx := range idxs {
-		idx -= i
-		*networks = append((*networks)[:idx], (*networks)[idx+1:]...)
-	}
+
+	return filtered, nil
 }
 
-func (c *Cluster) getNetworks(filters *swarmapi.ListNetworksRequest_Filters) ([]network.Inspect, error) {
-	var r *swarmapi.ListNetworksResponse
-	err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
-		var err error
-		r, err = state.controlClient.ListNetworks(ctx, &swarmapi.ListNetworksRequest{Filters: filters})
-		return err
+func (c *Cluster) listNetworks(ctx context.Context, filters *swarmapi.ListNetworksRequest_Filters) ([]*swarmapi.Network, error) {
+	var list []*swarmapi.Network
+	err := c.lockedManagerAction(ctx, func(ctx context.Context, state nodeState) error {
+		l, err := state.controlClient.ListNetworks(ctx, &swarmapi.ListNetworksRequest{Filters: filters})
+		if err != nil {
+			return err
+		}
+		list = l.Networks
+		return nil
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	networks := make([]network.Inspect, 0, len(r.Networks))
-
-	for _, nw := range r.Networks {
-		networks = append(networks, convert.BasicNetworkFromGRPC(*nw))
-	}
-
-	return networks, nil
+	return list, err
 }
 
 // GetNetwork returns a cluster network by an ID.
@@ -99,9 +78,17 @@ func (c *Cluster) GetNetwork(input string) (network.Inspect, error) {
 func (c *Cluster) GetNetworksByName(name string) ([]network.Inspect, error) {
 	// Note that swarmapi.GetNetworkRequest.Name is not functional.
 	// So we cannot just use that with c.GetNetwork.
-	return c.getNetworks(&swarmapi.ListNetworksRequest_Filters{
+	list, err := c.listNetworks(context.TODO(), &swarmapi.ListNetworksRequest_Filters{
 		Names: []string{name},
 	})
+	if err != nil {
+		return nil, err
+	}
+	nr := make([]network.Inspect, len(list))
+	for i, n := range list {
+		nr[i] = convert.BasicNetworkFromGRPC(*n)
+	}
+	return nr, nil
 }
 
 func attacherKey(target, containerID string) string {
