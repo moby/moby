@@ -6,6 +6,16 @@ import (
 	"net/url"
 )
 
+// ContainerAttachOptions holds parameters to attach to a container.
+type ContainerAttachOptions struct {
+	Stream     bool
+	Stdin      bool
+	Stdout     bool
+	Stderr     bool
+	DetachKeys string
+	Logs       bool
+}
+
 // ContainerAttach attaches a connection to a container in the server.
 // It returns a [HijackedResponse] with the hijacked connection
 // and a reader to get output. It's up to the called to close

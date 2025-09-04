@@ -5,6 +5,12 @@ import (
 	"net/url"
 )
 
+// ContainerStartOptions holds parameters to start containers.
+type ContainerStartOptions struct {
+	CheckpointID  string
+	CheckpointDir string
+}
+
 // ContainerStart sends a request to the docker daemon to start a container.
 func (cli *Client) ContainerStart(ctx context.Context, containerID string, options ContainerStartOptions) error {
 	containerID, err := trimID("container", containerID)

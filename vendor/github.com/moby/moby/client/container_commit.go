@@ -10,6 +10,16 @@ import (
 	"github.com/moby/moby/api/types/container"
 )
 
+// ContainerCommitOptions holds parameters to commit changes into a container.
+type ContainerCommitOptions struct {
+	Reference string
+	Comment   string
+	Author    string
+	Changes   []string
+	Pause     bool
+	Config    *container.Config
+}
+
 // ContainerCommit applies changes to a container and creates a new tagged image.
 func (cli *Client) ContainerCommit(ctx context.Context, containerID string, options ContainerCommitOptions) (container.CommitResponse, error) {
 	containerID, err := trimID("container", containerID)
