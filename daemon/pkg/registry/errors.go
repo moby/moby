@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"fmt"
 	"net/url"
 
 	"github.com/docker/distribution/registry/api/errcode"
@@ -23,7 +24,7 @@ func invalidParam(err error) error {
 }
 
 func invalidParamf(format string, args ...any) error {
-	return invalidParameterErr{errors.Errorf(format, args...)}
+	return invalidParameterErr{fmt.Errorf(format, args...)}
 }
 
 func invalidParamWrapf(err error, format string, args ...any) error {

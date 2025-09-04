@@ -100,7 +100,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*build.ImageBui
 	if i := r.FormValue("isolation"); i != "" {
 		options.Isolation = container.Isolation(i)
 		if !options.Isolation.IsValid() {
-			return nil, invalidParam{errors.Errorf("unsupported isolation: %q", i)}
+			return nil, invalidParam{fmt.Errorf("unsupported isolation: %q", i)}
 		}
 	}
 
@@ -166,7 +166,7 @@ func parseVersion(s string) (build.BuilderVersion, error) {
 	case build.BuilderBuildKit:
 		return build.BuilderBuildKit, nil
 	default:
-		return "", invalidParam{errors.Errorf("invalid version %q", s)}
+		return "", invalidParam{fmt.Errorf("invalid version %q", s)}
 	}
 }
 

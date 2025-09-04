@@ -490,7 +490,7 @@ func killProcessDirectly(ctr *container.Container) error {
 			return err
 		}
 		if isZombie {
-			return errdefs.System(errors.Errorf("container %s PID %d is zombie and can not be killed. Use the --init option when creating containers to run an init inside the container that forwards signals and reaps processes", stringid.TruncateID(ctr.ID), pid))
+			return errdefs.System(fmt.Errorf("container %s PID %d is zombie and can not be killed. Use the --init option when creating containers to run an init inside the container that forwards signals and reaps processes", stringid.TruncateID(ctr.ID), pid))
 		}
 	}
 	return nil

@@ -2,6 +2,7 @@ package mounts
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"runtime/debug"
 	"syscall"
@@ -300,11 +301,11 @@ func (m *MountPoint) Path() string {
 }
 
 func errInvalidMode(mode string) error {
-	return errors.Errorf("invalid mode: %v", mode)
+	return fmt.Errorf("invalid mode: %v", mode)
 }
 
 func errInvalidSpec(spec string) error {
-	return errors.Errorf("invalid volume specification: '%s'", spec)
+	return fmt.Errorf("invalid volume specification: '%s'", spec)
 }
 
 // noCleanup is a no-op cleanup function.

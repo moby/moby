@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -12,7 +13,6 @@ import (
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/moby/moby/api/types/registry"
-	"github.com/pkg/errors"
 )
 
 // AuthClientID is used the ClientID used for the token server
@@ -96,7 +96,7 @@ func loginV2(ctx context.Context, authConfig *registry.AuthConfig, endpoint APIE
 
 	if resp.StatusCode != http.StatusOK {
 		// TODO(dmcgowan): Attempt to further interpret result, status code and error code string
-		return "", errors.Errorf("login attempt to %s failed with status: %d %s", endpointStr, resp.StatusCode, http.StatusText(resp.StatusCode))
+		return "", fmt.Errorf("login attempt to %s failed with status: %d %s", endpointStr, resp.StatusCode, http.StatusText(resp.StatusCode))
 	}
 
 	return credentialAuthConfig.IdentityToken, nil

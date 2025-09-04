@@ -13,7 +13,6 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/v2/testutil"
-	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -75,5 +74,5 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsBindNamedPipe(c *testing.T
 
 func mountWrapper(t *testing.T, device, target, mType, options string) error {
 	// This should never be called.
-	return errors.Errorf("there is no implementation of Mount on this platform")
+	return fmt.Errorf("there is no implementation of Mount on this platform")
 }

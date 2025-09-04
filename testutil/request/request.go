@@ -219,6 +219,6 @@ func SockConn(timeout time.Duration, daemon string) (net.Conn, error) {
 		}
 		return net.DialTimeout(daemonURL.Scheme, daemonURL.Host, timeout)
 	default:
-		return c, errors.Errorf("unknown scheme %v (%s)", daemonURL.Scheme, daemon)
+		return c, fmt.Errorf("unknown scheme %v (%s)", daemonURL.Scheme, daemon)
 	}
 }

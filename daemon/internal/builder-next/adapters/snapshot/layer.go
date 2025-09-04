@@ -2,13 +2,13 @@ package snapshot
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/pkg/longpath"
 	"github.com/opencontainers/image-spec/identity"
-	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 	"golang.org/x/sync/errgroup"
 )
@@ -34,7 +34,7 @@ func (s *snapshotter) EnsureLayer(ctx context.Context, key string) ([]layer.Diff
 
 	id, committed := s.getGraphDriverID(key)
 	if !committed {
-		return nil, errors.Errorf("can not convert active %s to layer", key)
+		return nil, fmt.Errorf("can not convert active %s to layer", key)
 	}
 
 	info, err := s.Stat(ctx, key)
@@ -122,5 +122,5 @@ func getGraphID(l layer.Layer) (string, error) {
 	}); ok {
 		return l.CacheID(), nil
 	}
-	return "", errors.Errorf("couldn't access cacheID for %s", l.ChainID())
+	return "", fmt.Errorf("couldn't access cacheID for %s", l.ChainID())
 }

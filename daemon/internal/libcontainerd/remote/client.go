@@ -132,7 +132,7 @@ func (c *client) NewContainer(ctx context.Context, id string, ociSpec *specs.Spe
 	ctr, err := c.client.NewContainer(ctx, id, opts...)
 	if err != nil {
 		if cerrdefs.IsAlreadyExists(err) {
-			return nil, pkgerrors.WithStack(errdefs.Conflict(errors.New("id already in use")))
+			return nil, pkgerrors.WithStack(errdefs.Conflict(pkgerrors.New("id already in use")))
 		}
 		return nil, wrapError(err)
 	}
@@ -282,7 +282,7 @@ func (t *task) Exec(ctx context.Context, execID string, spec *specs.Process, wit
 	if err != nil {
 		close(stdinCloseSync)
 		if cerrdefs.IsAlreadyExists(err) {
-			return nil, pkgerrors.WithStack(errdefs.Conflict(errors.New("id already in use")))
+			return nil, pkgerrors.WithStack(errdefs.Conflict(pkgerrors.New("id already in use")))
 		}
 		return nil, wrapError(err)
 	}
@@ -475,7 +475,7 @@ func (c *client) LoadContainer(ctx context.Context, id string) (libcontainerdtyp
 	ctr, err := c.client.LoadContainer(ctx, id)
 	if err != nil {
 		if cerrdefs.IsNotFound(err) {
-			return nil, pkgerrors.WithStack(errdefs.NotFound(errors.New("no such container")))
+			return nil, pkgerrors.WithStack(errdefs.NotFound(pkgerrors.New("no such container")))
 		}
 		return nil, wrapError(err)
 	}
@@ -575,7 +575,7 @@ func (c *client) waitServe(ctx context.Context) bool {
 	for {
 		serving, err := c.client.IsServing(ctx)
 		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			if pkgerrors.Is(err, context.DeadlineExceeded) || pkgerrors.Is(err, context.Canceled) {
 				return false
 			}
 			log.G(ctx).WithError(err).Warn("Error while testing if containerd API is ready")

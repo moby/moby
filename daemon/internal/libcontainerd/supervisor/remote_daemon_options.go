@@ -1,6 +1,7 @@
 package supervisor
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -57,7 +58,7 @@ func WithDetectLocalBinary() DaemonOpt {
 			return nil
 		}
 		if fi.IsDir() {
-			return errors.Errorf("local containerd path found (%s), but is a directory", localBinary)
+			return fmt.Errorf("local containerd path found (%s), but is a directory", localBinary)
 		}
 		r.daemonPath = localBinary
 		r.logger.WithField("daemon path", r.daemonPath).Debug("Local containerd daemon found.")
