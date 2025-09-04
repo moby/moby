@@ -61,10 +61,14 @@ EOT
 # See https://github.com/moby/moby/pull/47526#discussion_r1551800022
 
 generate_model types/network --keep-spec-order <<- 'EOT'
+	ConfigReference
+	EndpointResource
 	Network
 	NetworkCreateResponse
 	NetworkInspect
 	NetworkSummary
+	NetworkTaskInfo
+	PeerInfo
 EOT
 
 generate_model types/plugin <<- 'EOT'

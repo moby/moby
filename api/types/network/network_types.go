@@ -40,20 +40,6 @@ type Address struct {
 	PrefixLen int
 }
 
-// PeerInfo represents one peer of an overlay network
-type PeerInfo struct {
-	Name string
-	IP   string
-}
-
-// Task carries the information about one backend task
-type Task struct {
-	Name       string
-	EndpointID string
-	EndpointIP string
-	Info       map[string]string
-}
-
 // ServiceInfo represents service parameters with the list of service's tasks
 type ServiceInfo struct {
 	VIP          string
@@ -62,25 +48,10 @@ type ServiceInfo struct {
 	Tasks        []Task
 }
 
-// EndpointResource contains network resources allocated and used for a
-// container in a network.
-type EndpointResource struct {
-	Name        string
-	EndpointID  string
-	MacAddress  string
-	IPv4Address string
-	IPv6Address string
-}
-
 // NetworkingConfig represents the container's networking configuration for each of its interfaces
 // Carries the networking configs specified in the `docker run` and `docker network connect` commands
 type NetworkingConfig struct {
 	EndpointsConfig map[string]*EndpointSettings // Endpoint configs for each connecting network
-}
-
-// ConfigReference specifies the source which provides a network's configuration
-type ConfigReference struct {
-	Network string
 }
 
 // PruneReport contains the response for Engine API:

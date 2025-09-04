@@ -2606,6 +2606,54 @@ definitions:
             hints:
               nullable: false
 
+  ServiceInfo:
+    x-nullable: false
+    x-omitempty: false
+    description: >
+      represents service parameters with the list of service's tasks
+    type: "object"
+    properties:
+      VIP:
+        type: "string"
+        x-omitempty: false
+      Ports:
+        type: "array"
+        x-omitempty: false
+        items:
+          type: "string"
+      LocalLBIndex:
+        type: "integer"
+        format: "int"
+        x-omitempty: false
+      Tasks:
+        type: "array"
+        x-omitempty: false
+        items:
+          $ref: "#/definitions/NetworkTaskInfo"
+
+  NetworkTaskInfo:
+    x-nullable: false
+    x-omitempty: false
+    x-go-name: Task
+    description: >
+      carries the information about one backend task
+    type: "object"
+    properties:
+      Name:
+        type: "string"
+        x-omitempty: false
+      EndpointID:
+        type: "string"
+        x-omitempty: false
+      EndpointIP:
+        type: "string"
+        x-omitempty: false
+      Info:
+        type: "object"
+        x-omitempty: false
+        additionalProperties:
+          type: "string"
+
   ConfigReference:
     x-nullable: false
     x-omitempty: false
@@ -2620,6 +2668,7 @@ definitions:
           configuration. The specified network must be an existing config-only
           network. Only network names are allowed, not network IDs.
         type: "string"
+        x-omitempty: false
         example: "config_only_network_01"
 
   IPAM:
@@ -2669,26 +2718,34 @@ definitions:
 
   EndpointResource:
     type: "object"
+    description: >
+      contains network resources allocated and used for a
+      container in a network.
     properties:
       Name:
         type: "string"
+        x-omitempty: false
         example: "container_1"
       EndpointID:
         type: "string"
+        x-omitempty: false
         example: "628cadb8bcb92de107b2a1e516cbffe463e321f548feb37697cce00ad694f21a"
       MacAddress:
         type: "string"
+        x-omitempty: false
         example: "02:42:ac:13:00:02"
       IPv4Address:
         type: "string"
+        x-omitempty: false
         example: "172.19.0.2/16"
       IPv6Address:
         type: "string"
+        x-omitempty: false
         example: ""
 
   PeerInfo:
-    description: |
-      PeerInfo represents one peer of an overlay network.
+    description: >
+      represents one peer of an overlay network.
     type: "object"
     x-nullable: false
     properties:
@@ -2696,11 +2753,13 @@ definitions:
         description:
           ID of the peer-node in the Swarm cluster.
         type: "string"
+        x-omitempty: false
         example: "6869d7c1732b"
       IP:
         description:
           IP-address of the peer-node in the Swarm cluster.
         type: "string"
+        x-omitempty: false
         example: "10.133.77.91"
 
   NetworkCreateResponse:
