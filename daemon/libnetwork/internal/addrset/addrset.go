@@ -4,6 +4,7 @@ package addrset
 import (
 	"errors"
 	"fmt"
+	"math/bits"
 	"net"
 	"net/netip"
 	"strings"
@@ -155,6 +156,50 @@ func (as *AddrSet) String() string {
 		bmStrings = append(bmStrings, fmt.Sprintf("range %s %s", bmKey, bm))
 	}
 	return strings.Join(bmStrings, " ")
+}
+
+// Len returns the number of addresses in the set.
+func (as *AddrSet) Len() (hi, lo uint64) {
+	for _, bm := range as.bitmaps {
+		var carry uint64
+		lo, carry = bits.Add64(lo, bm.Bits()-bm.Unselected(), 0)
+		hi += carry
+	}
+	return hi, lo
+}
+
+// AddrsInPrefix returns the number of addresses in the set which have the given prefix.
+func (as *AddrSet) AddrsInPrefix(prefix netip.Prefix) (hi, lo uint64) {
+	prefix = prefix.Masked()
+	if !as.pool.Overlaps(prefix) {
+		return 0, 0
+	}
+	if prefix.Bits() <= as.pool.Bits() {
+		return as.Len()
+	}
+	for bmKey, bm := range as.bitmaps {
+		if !prefix.Overlaps(bmKey) {
+			continue
+		}
+		var ones uint64
+		if prefix.Bits() <= bmKey.Bits() {
+			ones = bm.Bits() - bm.Unselected()
+		} else {
+			var err error
+			ones, err = bm.OnesCount(netiputil.SubnetRange(bmKey, prefix))
+			// Since OnesCount only returns an error if the range
+			// exceeds the bitmap bounds, and we are responsible for
+			// picking the bitmap and the range to count, any error
+			// returned here is therefore a programming error.
+			if err != nil {
+				panic(fmt.Sprintf("OnesCount failed for bitmap key %v and prefix %v: %v", bmKey, prefix, err))
+			}
+		}
+		var carry uint64
+		lo, carry = bits.Add64(lo, ones, 0)
+		hi += carry
+	}
+	return hi, lo
 }
 
 func (as *AddrSet) getBitmap(addr netip.Addr) (*bitmap.Bitmap, netip.Prefix, error) {
