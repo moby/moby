@@ -18,7 +18,8 @@ swagger generate model -f api/swagger.yaml \
 swagger generate model -f api/swagger.yaml \
 	-t api -m types/storage -C api/swagger-gen.yaml \
 	-T api/templates --allow-template-override \
-	-n DriverData
+	-n DriverData \
+	-n StorageDriver
 
 swagger generate model -f api/swagger.yaml \
 	-t api -m types/container -C api/swagger-gen.yaml \

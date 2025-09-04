@@ -9,7 +9,6 @@ import (
 
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
-	"github.com/moby/moby/api/types/storage"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/network"
@@ -157,20 +156,21 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 		ProcessLabel: ctr.ProcessLabel,
 		ExecIDs:      ctr.GetExecIDs(),
 		HostConfig:   &hostConfig,
-		GraphDriver: storage.DriverData{
-			Name: ctr.Driver,
-		},
-		Config: ctr.Config,
+		Config:       ctr.Config,
 	}
 
 	// Now set any platform-specific fields
 	inspectResponse = setPlatformSpecificContainerFields(ctr, inspectResponse)
 
 	if daemon.UsesSnapshotter() {
+		inspectResponse.StorageDriver.Name = ctr.Driver
+		inspectResponse.StorageDriver.Type = "snapshotter"
+
 		// Additional information only applies to graphDrivers, so we're done.
 		return inspectResponse, nil
 	}
 
+	inspectResponse.GraphDriver.Name = ctr.Driver
 	if ctr.RWLayer == nil {
 		if ctr.Dead {
 			return inspectResponse, nil
