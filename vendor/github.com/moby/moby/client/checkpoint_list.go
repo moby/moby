@@ -8,8 +8,13 @@ import (
 	"github.com/moby/moby/api/types/checkpoint"
 )
 
+// CheckpointListOptions holds parameters to list checkpoints for a container.
+type CheckpointListOptions struct {
+	CheckpointDir string
+}
+
 // CheckpointList returns the checkpoints of the given container in the docker host.
-func (cli *Client) CheckpointList(ctx context.Context, container string, options checkpoint.ListOptions) ([]checkpoint.Summary, error) {
+func (cli *Client) CheckpointList(ctx context.Context, container string, options CheckpointListOptions) ([]checkpoint.Summary, error) {
 	var checkpoints []checkpoint.Summary
 
 	query := url.Values{}

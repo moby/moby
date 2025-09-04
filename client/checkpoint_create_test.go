@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/checkpoint"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -23,18 +22,18 @@ func TestCheckpointCreateError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.CheckpointCreate(context.Background(), "nothing", checkpoint.CreateOptions{
+	err = client.CheckpointCreate(context.Background(), "nothing", CheckpointCreateOptions{
 		CheckpointID: "noting",
 		Exit:         true,
 	})
 
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.CheckpointCreate(context.Background(), "", checkpoint.CreateOptions{})
+	err = client.CheckpointCreate(context.Background(), "", CheckpointCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.CheckpointCreate(context.Background(), "    ", checkpoint.CreateOptions{})
+	err = client.CheckpointCreate(context.Background(), "    ", CheckpointCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -54,7 +53,7 @@ func TestCheckpointCreate(t *testing.T) {
 				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
 			}
 
-			createOptions := &checkpoint.CreateOptions{}
+			createOptions := &CheckpointCreateOptions{}
 			if err := json.NewDecoder(req.Body).Decode(createOptions); err != nil {
 				return nil, err
 			}
@@ -75,7 +74,7 @@ func TestCheckpointCreate(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.CheckpointCreate(context.Background(), expectedContainerID, checkpoint.CreateOptions{
+	err = client.CheckpointCreate(context.Background(), expectedContainerID, CheckpointCreateOptions{
 		CheckpointID: expectedCheckpointID,
 		Exit:         true,
 	})

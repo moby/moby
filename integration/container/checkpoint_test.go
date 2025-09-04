@@ -6,7 +6,6 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/moby/moby/api/types/checkpoint"
 	containertypes "github.com/moby/moby/api/types/container"
 	mounttypes "github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/client"
@@ -55,7 +54,7 @@ func TestCheckpoint(t *testing.T) {
 	}()
 
 	t.Log("Do a checkpoint and leave the container running")
-	err = apiClient.CheckpointCreate(ctx, cID, checkpoint.CreateOptions{
+	err = apiClient.CheckpointCreate(ctx, cID, client.CheckpointCreateOptions{
 		Exit:         false,
 		CheckpointID: "test",
 	})
@@ -78,7 +77,7 @@ func TestCheckpoint(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(true, inspect.State.Running))
 
-	checkpoints, err := apiClient.CheckpointList(ctx, cID, checkpoint.ListOptions{})
+	checkpoints, err := apiClient.CheckpointList(ctx, cID, client.CheckpointListOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, len(checkpoints), 1)
 	assert.Equal(t, checkpoints[0].Name, "test")
@@ -91,7 +90,7 @@ func TestCheckpoint(t *testing.T) {
 
 	// Do a second checkpoint
 	t.Log("Do a checkpoint and stop the container")
-	err = apiClient.CheckpointCreate(ctx, cID, checkpoint.CreateOptions{
+	err = apiClient.CheckpointCreate(ctx, cID, client.CheckpointCreateOptions{
 		Exit:         true,
 		CheckpointID: "test2",
 	})
@@ -104,7 +103,7 @@ func TestCheckpoint(t *testing.T) {
 	assert.Check(t, is.Equal(false, inspect.State.Running))
 
 	// Check that both checkpoints are listed.
-	checkpoints, err = apiClient.CheckpointList(ctx, cID, checkpoint.ListOptions{})
+	checkpoints, err = apiClient.CheckpointList(ctx, cID, client.CheckpointListOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, len(checkpoints), 2)
 	cptNames := make([]string, 2)
@@ -133,7 +132,7 @@ func TestCheckpoint(t *testing.T) {
 	r.AssertSuccess(t)
 
 	for _, id := range []string{"test", "test2"} {
-		err = apiClient.CheckpointDelete(ctx, cID, checkpoint.DeleteOptions{
+		err = apiClient.CheckpointDelete(ctx, cID, client.CheckpointDeleteOptions{
 			CheckpointID: id,
 		})
 		assert.NilError(t, err)

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/moby/moby/api/types/checkpoint"
+	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 )
 
@@ -13,7 +14,7 @@ func (cr *checkpointRouter) postContainerCheckpoint(ctx context.Context, w http.
 		return err
 	}
 
-	var options checkpoint.CreateOptions
+	var options checkpoint.CreateRequest
 	if err := httputils.ReadJSON(r, &options); err != nil {
 		return err
 	}
@@ -32,7 +33,7 @@ func (cr *checkpointRouter) getContainerCheckpoints(ctx context.Context, w http.
 		return err
 	}
 
-	checkpoints, err := cr.backend.CheckpointList(vars["name"], checkpoint.ListOptions{
+	checkpoints, err := cr.backend.CheckpointList(vars["name"], backend.CheckpointListOptions{
 		CheckpointDir: r.Form.Get("dir"),
 	})
 	if err != nil {
@@ -47,7 +48,7 @@ func (cr *checkpointRouter) deleteContainerCheckpoint(ctx context.Context, w htt
 		return err
 	}
 
-	err := cr.backend.CheckpointDelete(vars["name"], checkpoint.DeleteOptions{
+	err := cr.backend.CheckpointDelete(vars["name"], backend.CheckpointDeleteOptions{
 		CheckpointDir: r.Form.Get("dir"),
 		CheckpointID:  vars["checkpoint"],
 	})

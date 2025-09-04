@@ -22,7 +22,7 @@ func TestCheckpointListError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.CheckpointList(context.Background(), "container_id", checkpoint.ListOptions{})
+	_, err = client.CheckpointList(context.Background(), "container_id", CheckpointListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -50,7 +50,7 @@ func TestCheckpointList(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	checkpoints, err := client.CheckpointList(context.Background(), "container_id", checkpoint.ListOptions{})
+	checkpoints, err := client.CheckpointList(context.Background(), "container_id", CheckpointListOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(checkpoints, 1))
 }
@@ -61,6 +61,6 @@ func TestCheckpointListContainerNotFound(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.CheckpointList(context.Background(), "unknown", checkpoint.ListOptions{})
+	_, err = client.CheckpointList(context.Background(), "unknown", CheckpointListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }

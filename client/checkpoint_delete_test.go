@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/checkpoint"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -21,17 +20,17 @@ func TestCheckpointDeleteError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.CheckpointDelete(context.Background(), "container_id", checkpoint.DeleteOptions{
+	err = client.CheckpointDelete(context.Background(), "container_id", CheckpointDeleteOptions{
 		CheckpointID: "checkpoint_id",
 	})
 
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.CheckpointDelete(context.Background(), "", checkpoint.DeleteOptions{})
+	err = client.CheckpointDelete(context.Background(), "", CheckpointDeleteOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.CheckpointDelete(context.Background(), "    ", checkpoint.DeleteOptions{})
+	err = client.CheckpointDelete(context.Background(), "    ", CheckpointDeleteOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -55,7 +54,7 @@ func TestCheckpointDelete(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.CheckpointDelete(context.Background(), "container_id", checkpoint.DeleteOptions{
+	err = client.CheckpointDelete(context.Background(), "container_id", CheckpointDeleteOptions{
 		CheckpointID: "checkpoint_id",
 	})
 	assert.NilError(t, err)
