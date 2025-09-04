@@ -1115,7 +1115,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		case "":
 			// Use graph driver but enable migration
 			driverName = "windowsfilter"
-			if os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") == "" {
+			if os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") == "" && d.containerdClient != nil {
 				// Don't force migration if graph driver is explicit
 				migrationThreshold = 0
 			}
@@ -1271,6 +1271,9 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	if d.imageService == nil {
+		if d.containerdClient == nil {
+			return nil, errors.New("containerd snapshotter is enabled but containerd is not configured")
+		}
 		log.G(ctx).Info("Starting daemon with containerd snapshotter integration enabled")
 
 		resp, err := d.containerdClient.IntrospectionService().Plugins(ctx, `type=="io.containerd.snapshotter.v1"`)
