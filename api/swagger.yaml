@@ -2057,6 +2057,7 @@ definitions:
         format: "int64"
         example: 1239828
       GraphDriver:
+        x-nullable: true
         $ref: "#/definitions/DriverData"
       RootFS:
         description: |

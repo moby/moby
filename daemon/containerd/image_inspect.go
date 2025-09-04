@@ -12,7 +12,6 @@ import (
 	"github.com/distribution/reference"
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
 	imagetypes "github.com/moby/moby/api/types/image"
-	"github.com/moby/moby/api/types/storage"
 	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -95,10 +94,6 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts ba
 		DockerVersion: "",
 		Size:          size,
 		Manifests:     manifests,
-		GraphDriver: storage.DriverData{
-			Name: i.snapshotter,
-			Data: nil,
-		},
 		Metadata: imagetypes.Metadata{
 			LastTagTime: lastUpdated,
 		},

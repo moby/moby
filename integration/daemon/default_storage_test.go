@@ -73,8 +73,10 @@ func TestGraphDriverPersistence(t *testing.T) {
 	assert.Check(t, is.Equal(info.Driver, prevDriver))
 
 	// Verify our image is still there
-	_, err = c.ImageInspect(ctx, testImage)
+	imageInspect, err := c.ImageInspect(ctx, testImage)
 	assert.NilError(t, err, "Test image should still be available after daemon restart")
+	assert.Check(t, imageInspect.GraphDriver != nil, "GraphDriver should be set for graphdriver backend")
+	assert.Check(t, is.Equal(imageInspect.GraphDriver.Name, prevDriver), "Image graphdriver data should match")
 
 	// Verify our container is still there
 	_, err = c.ContainerInspect(ctx, containerID)
