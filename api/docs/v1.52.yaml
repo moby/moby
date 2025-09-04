@@ -1620,6 +1620,8 @@ definitions:
       Bridge:
         description: |
           Name of the default bridge interface when dockerd's --bridge flag is set.
+
+          Deprecated: This field is only set when the daemon is started with the --bridge flag specified.
         type: "string"
         example: "docker0"
       SandboxID:
@@ -2055,6 +2057,7 @@ definitions:
         format: "int64"
         example: 1239828
       GraphDriver:
+        x-nullable: true
         $ref: "#/definitions/DriverData"
       RootFS:
         description: |
