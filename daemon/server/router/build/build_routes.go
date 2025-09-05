@@ -23,7 +23,6 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/versions"
-	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/pkg/ioutils"
@@ -314,7 +313,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 
 	wantAux := versions.GreaterThanOrEqualTo(version, "1.30")
 
-	imgID, err := br.backend.Build(ctx, backend.BuildConfig{
+	imgID, err := br.backend.Build(ctx, buildbackend.BuildConfig{
 		Source:         body,
 		Options:        buildOptions,
 		ProgressWriter: buildProgressWriter(out, wantAux, createProgressReader),
@@ -360,7 +359,7 @@ func (s *syncWriter) Write(b []byte) (int, error) {
 	return s.w.Write(b)
 }
 
-func buildProgressWriter(out io.Writer, wantAux bool, createProgressReader func(io.ReadCloser) io.ReadCloser) backend.ProgressWriter {
+func buildProgressWriter(out io.Writer, wantAux bool, createProgressReader func(io.ReadCloser) io.ReadCloser) buildbackend.ProgressWriter {
 	// see https://github.com/moby/moby/pull/21406
 	out = &syncWriter{w: out}
 
@@ -369,7 +368,7 @@ func buildProgressWriter(out io.Writer, wantAux bool, createProgressReader func(
 		aux = &streamformatter.AuxFormatter{Writer: out}
 	}
 
-	return backend.ProgressWriter{
+	return buildbackend.ProgressWriter{
 		Output:             out,
 		StdoutFormatter:    streamformatter.NewStdoutWriter(out),
 		StderrFormatter:    streamformatter.NewStderrWriter(out),

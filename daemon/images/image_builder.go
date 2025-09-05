@@ -17,6 +17,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -195,7 +196,7 @@ Please notify the image author to correct the configuration.`,
 // GetImageAndReleasableLayer returns an image and releaseable layer for a reference or ID.
 // Every call to GetImageAndReleasableLayer MUST call releasableLayer.Release() to prevent
 // leaking of layers.
-func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
+func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts buildbackend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
 	if refOrID == "" { // FROM scratch
 		if runtime.GOOS == "windows" {
 			return nil, nil, errors.New(`"FROM scratch" is not supported on Windows`)
@@ -209,9 +210,9 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 		return nil, lyr, err
 	}
 
-	if opts.PullOption != backend.PullOptionForcePull {
+	if opts.PullOption != buildbackend.PullOptionForcePull {
 		img, err := i.GetImage(ctx, refOrID, backend.GetImageOpts{Platform: opts.Platform})
-		if err != nil && opts.PullOption == backend.PullOptionNoPull {
+		if err != nil && opts.PullOption == buildbackend.PullOptionNoPull {
 			return nil, nil, err
 		}
 		if err != nil && !cerrdefs.IsNotFound(err) {

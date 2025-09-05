@@ -18,7 +18,7 @@ import (
 	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/moby/v2/daemon/builder/remotecontext"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
-	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/sys/user"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -62,7 +62,7 @@ func NewBuildManager(b builder.Backend, identityMapping user.IdentityMapping) (*
 }
 
 // Build starts a new build from a BuildConfig
-func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (*builder.Result, error) {
+func (bm *BuildManager) Build(ctx context.Context, config buildbackend.BuildConfig) (*builder.Result, error) {
 	buildsTriggered.Inc()
 	if config.Options.Dockerfile == "" {
 		config.Options.Dockerfile = builder.DefaultDockerfileName
@@ -100,7 +100,7 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 type builderOptions struct {
 	Options        *build.ImageBuildOptions
 	Backend        builder.Backend
-	ProgressWriter backend.ProgressWriter
+	ProgressWriter buildbackend.ProgressWriter
 	PathCache      pathCache
 	IDMapping      user.IdentityMapping
 }
@@ -112,7 +112,7 @@ type Builder struct {
 
 	Stdout io.Writer
 	Stderr io.Writer
-	Aux    backend.AuxEmitter
+	Aux    buildbackend.AuxEmitter
 	Output io.Writer
 
 	docker builder.Backend
@@ -217,7 +217,7 @@ func (b *Builder) build(ctx context.Context, source builder.Source, dockerfile *
 	return &builder.Result{ImageID: state.imageID, FromImage: state.baseImage}, nil
 }
 
-func emitImageID(aux backend.AuxEmitter, state *dispatchState) error {
+func emitImageID(aux buildbackend.AuxEmitter, state *dispatchState) error {
 	if aux == nil || state.imageID == "" {
 		return nil
 	}

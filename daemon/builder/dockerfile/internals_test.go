@@ -14,7 +14,7 @@ import (
 	"github.com/moby/moby/v2/daemon/builder/remotecontext"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
-	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -75,7 +75,7 @@ func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, 
 		dockerfilePath = builder.DefaultDockerfileName
 	}
 
-	config := backend.BuildConfig{
+	config := buildbackend.BuildConfig{
 		Options: &build.ImageBuildOptions{Dockerfile: dockerfilePath},
 		Source:  tarStream,
 	}

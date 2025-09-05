@@ -13,7 +13,6 @@ import (
 	buildkit "github.com/moby/moby/v2/daemon/internal/builder-next"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
-	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -27,7 +26,7 @@ type ImageComponent interface {
 
 // Builder defines interface for running a build
 type Builder interface {
-	Build(context.Context, backend.BuildConfig) (*builder.Result, error)
+	Build(context.Context, buildbackend.BuildConfig) (*builder.Result, error)
 }
 
 // Backend provides build functionality to the API router
@@ -51,7 +50,7 @@ func (b *Backend) RegisterGRPC(s *grpc.Server) {
 }
 
 // Build builds an image from a Source
-func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string, error) {
+func (b *Backend) Build(ctx context.Context, config buildbackend.BuildConfig) (string, error) {
 	options := config.Options
 	useBuildKit := options.Version == build.BuilderBuildKit
 

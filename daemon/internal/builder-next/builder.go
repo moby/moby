@@ -32,7 +32,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
-	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/sys/user"
@@ -243,7 +242,7 @@ func (b *Builder) Prune(ctx context.Context, opts buildbackend.CachePruneOptions
 }
 
 // Build executes a build request
-func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.Result, error) {
+func (b *Builder) Build(ctx context.Context, opt buildbackend.BuildConfig) (*builder.Result, error) {
 	if len(opt.Options.Outputs) > 1 {
 		return nil, errors.Errorf("multiple outputs not supported")
 	}

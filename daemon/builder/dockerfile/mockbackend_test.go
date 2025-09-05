@@ -12,6 +12,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -62,7 +63,7 @@ func (m *MockBackend) CopyOnBuild(containerID string, destPath string, srcRoot s
 	return nil
 }
 
-func (m *MockBackend) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
+func (m *MockBackend) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts buildbackend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
 	if m.getImageFunc != nil {
 		return m.getImageFunc(refOrID)
 	}
