@@ -97,6 +97,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   `GET /info` response are now always be `false` and will be omitted in API
   v1.49. The netfilter module is now loaded on-demand, and no longer during
   daemon startup, making these fields obsolete.
+* Deprecated: The `POST /build/prune` `keep-storage` query parameter has been
+  renamed to `reserved-space`. `keep-storage` support will be removed in API v1.52.
 * `GET /images/{name}/history` now supports a `platform` parameter (JSON
   encoded OCI Platform type) that allows to specify a platform to show the
   history of.
@@ -151,7 +153,7 @@ keywords: "API, Docker, rcli, REST, documentation"
   `GET /debug/pprof/profile`, `GET /debug/pprof/symbol`, `GET /debug/pprof/trace`,
   `GET /debug/pprof/{name}`) are now also accessible through the versioned-API
   paths (`/v<API-version>/<endpoint>`).
-* `POST /build/prune` renames `keep-bytes` to `reserved-space` and now supports
+* `POST /build/prune` renames `keep-storage` to `reserved-space` and now supports
   additional prune parameters `max-used-space` and `min-free-space`.
 * `GET /containers/json` now returns an `ImageManifestDescriptor` field
   matching the same field in `/containers/{name}/json`.
