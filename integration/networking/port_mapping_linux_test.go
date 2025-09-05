@@ -1057,12 +1057,12 @@ func TestRoutedNonGateway(t *testing.T) {
 	})
 }
 
-// TestAccessPublishedPortFromAnotherNetwork checks that a container can access
+// TestFlakyAccessPublishedPortFromAnotherNetwork checks that a container can access
 // ports published on the host by a container attached to a different network
 // using both its gateway IP address, and the host IP address.
 //
 // Regression test for https://github.com/moby/moby/pull/49310.
-func TestAccessPublishedPortFromAnotherNetwork(t *testing.T) {
+func TestFlakyAccessPublishedPortFromAnotherNetwork(t *testing.T) {
 	skip.If(t, testEnv.IsRootless, "rootlesskit maps ports on loopback in its own netns")
 
 	ctx := setupTest(t)
@@ -1128,39 +1128,24 @@ func TestAccessPublishedPortFromAnotherNetwork(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// TODO: Figure out why is it flaky and fix the actual issue.
 			// https://github.com/moby/moby/issues/49358
-			retryFlaky(t, 5, func(t *testing.T) is.Comparison {
-				serverID := container.Run(ctx, t, c,
-					container.WithName("server"),
-					container.WithCmd("nc", "-lp", "5000"),
-					container.WithExposedPorts("5000/tcp"),
-					container.WithPortMap(containertypes.PortMap{"5000/tcp": {{HostPort: "5000"}}}),
-					container.WithNetworkMode(servnet))
-				defer c.ContainerRemove(ctx, serverID, containertypes.RemoveOptions{Force: true})
+			serverID := container.Run(ctx, t, c,
+				container.WithName("server"),
+				container.WithCmd("nc", "-lp", "5000"),
+				container.WithExposedPorts("5000/tcp"),
+				container.WithPortMap(containertypes.PortMap{"5000/tcp": {{HostPort: "5000"}}}),
+				container.WithNetworkMode(servnet))
+			defer c.ContainerRemove(ctx, serverID, containertypes.RemoveOptions{Force: true})
 
-				clientID := container.Run(ctx, t, c,
-					container.WithName("client"),
-					container.WithCmd("/bin/sh", "-c", fmt.Sprintf("echo foobar | nc -w1 %s 5000", tc.daddr)),
-					container.WithNetworkMode(clientnet))
-				defer c.ContainerRemove(ctx, clientID, containertypes.RemoveOptions{Force: true})
+			clientID := container.Run(ctx, t, c,
+				container.WithName("client"),
+				container.WithCmd("/bin/sh", "-c", fmt.Sprintf("echo foobar | nc -w1 %s 5000", tc.daddr)),
+				container.WithNetworkMode(clientnet))
+			defer c.ContainerRemove(ctx, clientID, containertypes.RemoveOptions{Force: true})
 
-				logs := getContainerStdout(t, ctx, c, serverID)
-				return is.Contains(logs, "foobar")
-			})
+			logs := getContainerStdout(t, ctx, c, serverID)
+			assert.Assert(t, is.Contains(logs, "foobar"))
 		})
 	}
-}
-
-func retryFlaky(t *testing.T, retries int, f func(t *testing.T) is.Comparison) {
-	for i := 0; i < retries-1; i++ {
-		comp := f(t)
-		if comp().Success() {
-			return
-		}
-		t.Log("Retrying...")
-		time.Sleep(time.Second)
-	}
-
-	assert.Assert(t, f(t))
 }
 
 // TestDirectRemoteAccessOnExposedPort checks that remote hosts can't directly
