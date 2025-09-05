@@ -195,7 +195,7 @@ type BuildCache = build.CacheRecord
 // BuildCachePruneOptions hold parameters to prune the build cache
 //
 // Deprecated: use [build.CachePruneOptions].
-type BuildCachePruneOptions = build.CachePruneOptions
+type BuildCachePruneOptions = client.BuildCachePruneOptions
 
 // BuildCachePruneReport contains the response for Engine API:
 // POST "/build/prune"
@@ -212,19 +212,19 @@ type BuildResult = build.Result
 // necessary to build images.
 //
 // Deprecated: use [build.ImageBuildOptions].
-type ImageBuildOptions = build.ImageBuildOptions
+type ImageBuildOptions = client.ImageBuildOptions
 
 // ImageBuildOutput defines configuration for exporting a build result
 //
 // Deprecated: use [build.ImageBuildOutput].
-type ImageBuildOutput = build.ImageBuildOutput
+type ImageBuildOutput = client.ImageBuildOutput
 
 // ImageBuildResponse holds information
 // returned by a server after building
 // an image.
 //
 // Deprecated: use [build.ImageBuildResponse].
-type ImageBuildResponse = build.ImageBuildResponse
+type ImageBuildResponse = client.ImageBuildResponse
 
 // BuilderVersion sets the version of underlying builder to use
 //

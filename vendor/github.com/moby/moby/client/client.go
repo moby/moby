@@ -19,7 +19,6 @@ For example, to list running containers (the equivalent of "docker ps"):
 		"context"
 		"fmt"
 
-		"github.com/moby/moby/api/types/container"
 		"github.com/moby/moby/client"
 	)
 
@@ -29,7 +28,7 @@ For example, to list running containers (the equivalent of "docker ps"):
 			panic(err)
 		}
 
-		containers, err := cli.ContainerList(context.Background(), container.ListOptions{})
+		containers, err := cli.ContainerList(context.Background(), client.ContainerListOptions{})
 		if err != nil {
 			panic(err)
 		}
@@ -91,15 +90,14 @@ import (
 // [Go stdlib]: https://github.com/golang/go/blob/6244b1946bc2101b01955468f1be502dbadd6807/src/net/http/transport.go#L558-L569
 const DummyHost = "api.moby.localhost"
 
-// DefaultAPIVersion is the highest REST API version supported by the client.
+// MaxAPIVersion is the highest REST API version supported by the client.
 // If API-version negotiation is enabled (see [WithAPIVersionNegotiation],
 // [Client.NegotiateAPIVersion]), the client may downgrade its API version.
 // Similarly, the [WithVersion] and [WithVersionFromEnv] allow overriding
 // the version.
 //
-// This version may be lower than the [api.DefaultVersion], which is the default
-// (and highest supported) version of the api library module used.
-const DefaultAPIVersion = "1.52"
+// This version may be lower than the version of the api library module used.
+const MaxAPIVersion = "1.52"
 
 // fallbackAPIVersion is the version to fallback to if API-version negotiation
 // fails. This version is the highest version of the API before API-version
@@ -114,43 +112,13 @@ var _ APIClient = &Client{}
 // Client is the API client that performs all operations
 // against a docker server.
 type Client struct {
-	// scheme sets the scheme for the client
-	scheme string
-	// host holds the server address to connect to
-	host string
-	// proto holds the client protocol i.e. unix.
-	proto string
-	// addr holds the client address.
-	addr string
-	// basePath holds the path to prepend to the requests.
-	basePath string
-	// client used to send and receive http requests.
-	client *http.Client
-	// version of the server to talk to.
-	version string
-	// userAgent is the User-Agent header to use for HTTP requests. It takes
-	// precedence over User-Agent headers set in customHTTPHeaders, and other
-	// header variables. When set to an empty string, the User-Agent header
-	// is removed, and no header is sent.
-	userAgent *string
-	// custom HTTP headers configured by users.
-	customHTTPHeaders map[string]string
-	// manualOverride is set to true when the version was set by users.
-	manualOverride bool
-
-	// negotiateVersion indicates if the client should automatically negotiate
-	// the API version to use when making requests. API version negotiation is
-	// performed on the first request, after which negotiated is set to "true"
-	// so that subsequent requests do not re-negotiate.
-	negotiateVersion bool
+	clientConfig
 
 	// negotiated indicates that API version negotiation took place
 	negotiated atomic.Bool
 
 	// negotiateLock is used to single-flight the version negotiation process
 	negotiateLock sync.Mutex
-
-	traceOpts []otelhttp.Option
 
 	// When the client transport is an *http.Transport (default) we need to do some extra things (like closing idle connections).
 	// Store the original transport as the http.Client transport will be wrapped with tracing libs.
@@ -207,21 +175,23 @@ func NewClientWithOpts(ops ...Opt) (*Client, error) {
 		return nil, err
 	}
 	c := &Client{
-		host:    DefaultDockerHost,
-		version: DefaultAPIVersion,
-		client:  client,
-		proto:   hostURL.Scheme,
-		addr:    hostURL.Host,
-
-		traceOpts: []otelhttp.Option{
-			otelhttp.WithSpanNameFormatter(func(_ string, req *http.Request) string {
-				return req.Method + " " + req.URL.Path
-			}),
+		clientConfig: clientConfig{
+			host:    DefaultDockerHost,
+			version: MaxAPIVersion,
+			client:  client,
+			proto:   hostURL.Scheme,
+			addr:    hostURL.Host,
+			traceOpts: []otelhttp.Option{
+				otelhttp.WithSpanNameFormatter(func(_ string, req *http.Request) string {
+					return req.Method + " " + req.URL.Path
+				}),
+			},
 		},
 	}
+	cfg := &c.clientConfig
 
 	for _, op := range ops {
-		if err := op(c); err != nil {
+		if err := op(cfg); err != nil {
 			return nil, err
 		}
 	}
@@ -391,7 +361,7 @@ func (cli *Client) negotiateAPIVersionPing(pingResponse types.Ping) {
 
 	// if the client is not initialized with a version, start with the latest supported version
 	if cli.version == "" {
-		cli.version = DefaultAPIVersion
+		cli.version = MaxAPIVersion
 	}
 
 	// if server version is lower than the client version, downgrade
@@ -483,4 +453,12 @@ func (cli *Client) dialer() func(context.Context) (net.Conn, error) {
 			return net.Dial(cli.proto, cli.addr)
 		}
 	}
+}
+
+// transportFunc allows us to inject a mock transport for testing. We define it
+// here so we can detect the tlsconfig and return nil for only this type.
+type transportFunc func(*http.Request) (*http.Response, error)
+
+func (tf transportFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return tf(req)
 }

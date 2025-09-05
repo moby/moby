@@ -630,23 +630,25 @@ func buildNetworkResource(nw *libnetwork.Network) networktypes.Inspect {
 	}
 
 	return networktypes.Inspect{
-		Name:       nw.Name(),
-		ID:         nw.ID(),
-		Created:    nw.Created(),
-		Scope:      nw.Scope(),
-		Driver:     nw.Type(),
-		EnableIPv4: nw.IPv4Enabled(),
-		EnableIPv6: nw.IPv6Enabled(),
-		IPAM:       buildIPAMResources(nw),
-		Internal:   nw.Internal(),
-		Attachable: nw.Attachable(),
-		Ingress:    nw.Ingress(),
-		ConfigFrom: networktypes.ConfigReference{Network: nw.ConfigFrom()},
-		ConfigOnly: nw.ConfigOnly(),
+		Network: networktypes.Network{
+			Name:       nw.Name(),
+			ID:         nw.ID(),
+			Created:    nw.Created(),
+			Scope:      nw.Scope(),
+			Driver:     nw.Type(),
+			EnableIPv4: nw.IPv4Enabled(),
+			EnableIPv6: nw.IPv6Enabled(),
+			IPAM:       buildIPAMResources(nw),
+			Internal:   nw.Internal(),
+			Attachable: nw.Attachable(),
+			Ingress:    nw.Ingress(),
+			ConfigFrom: networktypes.ConfigReference{Network: nw.ConfigFrom()},
+			ConfigOnly: nw.ConfigOnly(),
+			Options:    nw.DriverOptions(),
+			Labels:     nw.Labels(),
+			Peers:      buildPeerInfoResources(nw.Peers()),
+		},
 		Containers: map[string]networktypes.EndpointResource{},
-		Options:    nw.DriverOptions(),
-		Labels:     nw.Labels(),
-		Peers:      buildPeerInfoResources(nw.Peers()),
 	}
 }
 

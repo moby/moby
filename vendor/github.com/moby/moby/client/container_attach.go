@@ -4,9 +4,17 @@ import (
 	"context"
 	"net/http"
 	"net/url"
-
-	"github.com/moby/moby/api/types/container"
 )
+
+// ContainerAttachOptions holds parameters to attach to a container.
+type ContainerAttachOptions struct {
+	Stream     bool
+	Stdin      bool
+	Stdout     bool
+	Stderr     bool
+	DetachKeys string
+	Logs       bool
+}
 
 // ContainerAttach attaches a connection to a container in the server.
 // It returns a [HijackedResponse] with the hijacked connection
@@ -36,7 +44,7 @@ import (
 // [stdcopy.StdType]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#StdType
 // [Stdout]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#Stdout
 // [Stderr]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#Stderr
-func (cli *Client) ContainerAttach(ctx context.Context, containerID string, options container.AttachOptions) (HijackedResponse, error) {
+func (cli *Client) ContainerAttach(ctx context.Context, containerID string, options ContainerAttachOptions) (HijackedResponse, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
 		return HijackedResponse{}, err

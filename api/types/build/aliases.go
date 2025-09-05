@@ -1,6 +1,9 @@
 package build
 
-import "github.com/moby/moby/api/types/build"
+import (
+	"github.com/moby/moby/api/types/build"
+	"github.com/moby/moby/client"
+)
 
 // BuilderVersion sets the version of underlying builder to use
 type BuilderVersion = build.BuilderVersion
@@ -17,21 +20,21 @@ type Result = build.Result
 
 // ImageBuildOptions holds the information
 // necessary to build images.
-type ImageBuildOptions = build.ImageBuildOptions
+type ImageBuildOptions = client.ImageBuildOptions
 
 // ImageBuildOutput defines configuration for exporting a build result
-type ImageBuildOutput = build.ImageBuildOutput
+type ImageBuildOutput = client.ImageBuildOutput
 
 // ImageBuildResponse holds information
 // returned by a server after building
 // an image.
-type ImageBuildResponse = build.ImageBuildResponse
+type ImageBuildResponse = client.ImageBuildResponse
 
 // CacheRecord contains information about a build cache record.
 type CacheRecord = build.CacheRecord
 
 // CachePruneOptions hold parameters to prune the build cache.
-type CachePruneOptions = build.CachePruneOptions
+type CachePruneOptions = client.BuildCachePruneOptions
 
 // CachePruneReport contains the response for Engine API:
 // POST "/build/prune"

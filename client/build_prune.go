@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/pkg/errors"
 )
 
@@ -22,11 +23,14 @@ func (cli *Client) BuildCachePrune(ctx context.Context, opts build.CachePruneOpt
 		query.Set("all", "1")
 	}
 
-	if opts.KeepStorage != 0 {
-		query.Set("keep-storage", strconv.Itoa(int(opts.KeepStorage)))
-	}
 	if opts.ReservedSpace != 0 {
-		query.Set("reserved-space", strconv.Itoa(int(opts.ReservedSpace)))
+		// Prior to API v1.48, 'keep-storage' was used to set the reserved space for the build cache.
+		// TODO(austinvazquez): remove once API v1.47 is no longer supported. See https://github.com/moby/moby/issues/50902
+		if versions.LessThanOrEqualTo(cli.version, "1.47") {
+			query.Set("keep-storage", strconv.Itoa(int(opts.ReservedSpace)))
+		} else {
+			query.Set("reserved-space", strconv.Itoa(int(opts.ReservedSpace)))
+		}
 	}
 	if opts.MaxUsedSpace != 0 {
 		query.Set("max-used-space", strconv.Itoa(int(opts.MaxUsedSpace)))

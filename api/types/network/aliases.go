@@ -97,11 +97,25 @@ type NetworkingConfig = network.NetworkingConfig
 // ConfigReference specifies the source which provides a network's configuration
 type ConfigReference = network.ConfigReference
 
+var acceptedFilters = map[string]bool{
+	"dangling": true,
+	"driver":   true,
+	"id":       true,
+	"label":    true,
+	"name":     true,
+	"scope":    true,
+	"type":     true,
+}
+
 // ValidateFilters validates the list of filter args with the available filters.
 func ValidateFilters(filter filters.Args) error {
-	return network.ValidateFilters(filter)
+	return filter.Validate(acceptedFilters)
 }
 
 // PruneReport contains the response for Engine API:
 // POST "/networks/prune"
 type PruneReport = network.PruneReport
+
+// ----- new types
+
+type Network = network.Network

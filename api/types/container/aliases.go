@@ -36,7 +36,7 @@ type CommitResponse = container.CommitResponse
 const MinimumDuration = container.MinimumDuration
 
 // StopOptions holds the options to stop or restart a container.
-type StopOptions = container.StopOptions
+type StopOptions = client.ContainerStopOptions
 
 // HealthConfig holds configuration settings for the HEALTHCHECK feature.
 type HealthConfig = container.HealthConfig
@@ -70,7 +70,7 @@ type PathStat = container.PathStat
 
 // CopyToContainerOptions holds information
 // about files to copy into a container
-type CopyToContainerOptions = container.CopyToContainerOptions
+type CopyToContainerOptions = client.CopyToContainerOptions
 
 // StatsResponseReader wraps an io.ReadCloser to read (a stream of) stats
 // for a container, as produced by the GET "/stats" endpoint.
@@ -281,22 +281,22 @@ type NetworkSettingsSummary = container.NetworkSettingsSummary
 type ResizeOptions = client.ContainerResizeOptions
 
 // AttachOptions holds parameters to attach to a container.
-type AttachOptions = container.AttachOptions
+type AttachOptions = client.ContainerAttachOptions
 
 // CommitOptions holds parameters to commit changes into a container.
-type CommitOptions = container.CommitOptions
+type CommitOptions = client.ContainerCommitOptions
 
 // RemoveOptions holds parameters to remove containers.
-type RemoveOptions = container.RemoveOptions
+type RemoveOptions = client.ContainerRemoveOptions
 
 // StartOptions holds parameters to start containers.
-type StartOptions = container.StartOptions
+type StartOptions = client.ContainerStartOptions
 
 // ListOptions holds parameters to list containers with.
-type ListOptions = container.ListOptions
+type ListOptions = client.ContainerListOptions
 
 // LogsOptions holds parameters to filter logs with.
-type LogsOptions = container.LogsOptions
+type LogsOptions = client.ContainerLogsOptions
 
 // Port An open port on a container
 type Port = container.PortSummary

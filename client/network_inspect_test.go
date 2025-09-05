@@ -47,12 +47,16 @@ func TestNetworkInspect(t *testing.T) {
 					"web": {},
 				}
 				content, err = json.Marshal(network.Inspect{
-					Name:     "mynetwork",
+					Network: network.Network{
+						Name: "mynetwork",
+					},
 					Services: s,
 				})
 			} else {
 				content, err = json.Marshal(network.Inspect{
-					Name: "mynetwork",
+					Network: network.Network{
+						Name: "mynetwork",
+					},
 				})
 			}
 			if err != nil {

@@ -38,7 +38,7 @@ type PruneReport = image.PruneReport
 //
 // We should deprecated the "quiet" option, as it's really a client
 // responsibility.
-type LoadResponse = image.LoadResponse
+type LoadResponse = client.LoadResponse
 
 // HistoryResponseItem individual image layer information in response to ImageHistory operation
 type HistoryResponseItem = image.HistoryResponseItem

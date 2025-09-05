@@ -98,7 +98,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts ba
 		DockerVersion: "",
 		Size:          size,
 		Manifests:     manifests,
-		GraphDriver: storage.DriverData{
+		GraphDriver: &storage.DriverData{
 			Name: i.snapshotter,
 			Data: nil,
 		},
