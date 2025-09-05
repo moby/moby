@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/registry"
 	"gotest.tools/v3/assert"
@@ -21,7 +20,7 @@ import (
 func TestImageBuildError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	_, err = client.ImageBuild(context.Background(), nil, build.ImageBuildOptions{})
+	_, err = client.ImageBuild(context.Background(), nil, ImageBuildOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -30,13 +29,13 @@ func TestImageBuild(t *testing.T) {
 	v2 := "value2"
 	emptyRegistryConfig := "bnVsbA=="
 	buildCases := []struct {
-		buildOptions           build.ImageBuildOptions
+		buildOptions           ImageBuildOptions
 		expectedQueryParams    map[string]string
 		expectedTags           []string
 		expectedRegistryConfig string
 	}{
 		{
-			buildOptions: build.ImageBuildOptions{
+			buildOptions: ImageBuildOptions{
 				SuppressOutput: true,
 				NoCache:        true,
 				Remove:         true,
@@ -53,7 +52,7 @@ func TestImageBuild(t *testing.T) {
 			expectedRegistryConfig: emptyRegistryConfig,
 		},
 		{
-			buildOptions: build.ImageBuildOptions{
+			buildOptions: ImageBuildOptions{
 				SuppressOutput: false,
 				NoCache:        false,
 				Remove:         false,
@@ -71,7 +70,7 @@ func TestImageBuild(t *testing.T) {
 			expectedRegistryConfig: emptyRegistryConfig,
 		},
 		{
-			buildOptions: build.ImageBuildOptions{
+			buildOptions: ImageBuildOptions{
 				RemoteContext: "remoteContext",
 				Isolation:     container.Isolation("isolation"),
 				CPUSetCPUs:    "2",
@@ -104,7 +103,7 @@ func TestImageBuild(t *testing.T) {
 			expectedRegistryConfig: emptyRegistryConfig,
 		},
 		{
-			buildOptions: build.ImageBuildOptions{
+			buildOptions: ImageBuildOptions{
 				BuildArgs: map[string]*string{
 					"ARG1": &v1,
 					"ARG2": &v2,
@@ -119,7 +118,7 @@ func TestImageBuild(t *testing.T) {
 			expectedRegistryConfig: emptyRegistryConfig,
 		},
 		{
-			buildOptions: build.ImageBuildOptions{
+			buildOptions: ImageBuildOptions{
 				Ulimits: []*container.Ulimit{
 					{
 						Name: "nproc",
@@ -141,7 +140,7 @@ func TestImageBuild(t *testing.T) {
 			expectedRegistryConfig: emptyRegistryConfig,
 		},
 		{
-			buildOptions: build.ImageBuildOptions{
+			buildOptions: ImageBuildOptions{
 				AuthConfigs: map[string]registry.AuthConfig{
 					"https://index.docker.io/v1/": {
 						Auth: "dG90bwo=",

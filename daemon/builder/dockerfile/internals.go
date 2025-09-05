@@ -16,7 +16,6 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/chrootarchive"
-	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/builder"
@@ -24,6 +23,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	networkSettings "github.com/moby/moby/v2/daemon/network"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -340,7 +340,7 @@ func (b *Builder) create(ctx context.Context, runConfig *container.Config) (stri
 	return ctr.ID, nil
 }
 
-func hostConfigFromOptions(options *build.ImageBuildOptions) *container.HostConfig {
+func hostConfigFromOptions(options *buildbackend.BuildOptions) *container.HostConfig {
 	resources := container.Resources{
 		CgroupParent: options.CgroupParent,
 		CPUShares:    options.CPUShares,

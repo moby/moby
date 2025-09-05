@@ -68,7 +68,7 @@ func TestAPIImageHistoryCrossPlatform(t *testing.T) {
 	defer buildCtx.Close()
 
 	// Build the image for a non-native platform
-	resp, err := apiClient.ImageBuild(ctx, buildCtx.AsTarReader(t), buildtypes.ImageBuildOptions{
+	resp, err := apiClient.ImageBuild(ctx, buildCtx.AsTarReader(t), client.ImageBuildOptions{
 		Version:  buildtypes.BuilderBuildKit,
 		Tags:     []string{"cross-platform-test"},
 		Platform: platforms.FormatAll(nonNativePlatform),

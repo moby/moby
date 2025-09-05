@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/api/types/build"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
@@ -320,13 +319,11 @@ func setupTestImage(t *testing.T, ctx context.Context, apiClient client.APIClien
 	)
 	defer source.Close()
 
-	resp, err := apiClient.ImageBuild(ctx,
-		source.AsTarReader(t),
-		build.ImageBuildOptions{
-			Remove:      false,
-			ForceRemove: false,
-			Tags:        []string{imgName},
-		})
+	resp, err := apiClient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
+		Remove:      false,
+		ForceRemove: false,
+		Tags:        []string{imgName},
+	})
 	assert.NilError(t, err)
 
 	out := bytes.NewBuffer(nil)

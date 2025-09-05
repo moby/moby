@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/moby/go-archive"
-	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/moby/v2/daemon/builder/remotecontext"
@@ -76,7 +75,7 @@ func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, 
 	}
 
 	config := buildbackend.BuildConfig{
-		Options: &build.ImageBuildOptions{Dockerfile: dockerfilePath},
+		Options: &buildbackend.BuildOptions{Dockerfile: dockerfilePath},
 		Source:  tarStream,
 	}
 	_, _, err = remotecontext.Detect(config)

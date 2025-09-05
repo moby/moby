@@ -35,8 +35,8 @@ type invalidParam struct {
 
 func (e invalidParam) InvalidParameter() {}
 
-func newImageBuildOptions(ctx context.Context, r *http.Request) (*build.ImageBuildOptions, error) {
-	options := &build.ImageBuildOptions{
+func newImageBuildOptions(ctx context.Context, r *http.Request) (*buildbackend.BuildOptions, error) {
+	options := &buildbackend.BuildOptions{
 		Version:        build.BuilderV1, // Builder V1 is the default, but can be overridden
 		Dockerfile:     r.FormValue("dockerfile"),
 		SuppressOutput: httputils.BoolValue(r, "q"),
@@ -81,7 +81,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*build.ImageBui
 	if versions.GreaterThanOrEqualTo(version, "1.40") {
 		outputsJSON := r.FormValue("outputs")
 		if outputsJSON != "" {
-			var outputs []build.ImageBuildOutput
+			var outputs []buildbackend.BuildOutput
 			if err := json.Unmarshal([]byte(outputsJSON), &outputs); err != nil {
 				return nil, invalidParam{errors.Wrap(err, "invalid outputs specified")}
 			}

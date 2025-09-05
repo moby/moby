@@ -18,7 +18,7 @@ import (
 
 // Do builds an image from the given context and returns the image ID.
 func Do(ctx context.Context, t *testing.T, apiClient client.APIClient, buildCtx *fakecontext.Fake) string {
-	resp, err := apiClient.ImageBuild(ctx, buildCtx.AsTarReader(t), build.ImageBuildOptions{})
+	resp, err := apiClient.ImageBuild(ctx, buildCtx.AsTarReader(t), client.ImageBuildOptions{})
 	if resp.Body != nil {
 		defer resp.Body.Close()
 	}

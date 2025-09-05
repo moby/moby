@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/api/types/build"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/testutil"
@@ -145,7 +144,7 @@ func newRemoteFileServer(t testing.TB, ctx *fakecontext.Fake, c client.APIClient
 COPY . /static`); err != nil {
 		t.Fatal(err)
 	}
-	resp, err := c.ImageBuild(context.Background(), ctx.AsTarReader(t), build.ImageBuildOptions{
+	resp, err := c.ImageBuild(context.Background(), ctx.AsTarReader(t), client.ImageBuildOptions{
 		NoCache: true,
 		Tags:    []string{imgName},
 	})

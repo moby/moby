@@ -98,7 +98,7 @@ func (bm *BuildManager) Build(ctx context.Context, config buildbackend.BuildConf
 
 // builderOptions are the dependencies required by the builder
 type builderOptions struct {
-	Options        *build.ImageBuildOptions
+	Options        *buildbackend.BuildOptions
 	Backend        builder.Backend
 	ProgressWriter buildbackend.ProgressWriter
 	PathCache      pathCache
@@ -108,7 +108,7 @@ type builderOptions struct {
 // Builder is a Dockerfile builder
 // It implements the builder.Backend interface.
 type Builder struct {
-	options *build.ImageBuildOptions
+	options *buildbackend.BuildOptions
 
 	Stdout io.Writer
 	Stderr io.Writer
@@ -130,7 +130,7 @@ type Builder struct {
 func newBuilder(ctx context.Context, options builderOptions) (*Builder, error) {
 	config := options.Options
 	if config == nil {
-		config = new(build.ImageBuildOptions)
+		config = &buildbackend.BuildOptions{}
 	}
 
 	imgProber, err := newImageProber(ctx, options.Backend, config.CacheFrom, config.NoCache)
@@ -343,7 +343,7 @@ func BuildFromConfig(ctx context.Context, config *container.Config, changes []st
 	}
 
 	b, err := newBuilder(ctx, builderOptions{
-		Options: &build.ImageBuildOptions{NoCache: true},
+		Options: &buildbackend.BuildOptions{NoCache: true},
 	})
 	if err != nil {
 		return nil, err

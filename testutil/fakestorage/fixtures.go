@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/moby/go-archive"
-	"github.com/moby/moby/api/types/build"
+	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
 )
 
@@ -76,7 +76,7 @@ CMD ["./httpserver"]
 	assert.NilError(t, err)
 
 	apiClient := testEnv.APIClient()
-	resp, err := apiClient.ImageBuild(context.Background(), reader, build.ImageBuildOptions{
+	resp, err := apiClient.ImageBuild(context.Background(), reader, client.ImageBuildOptions{
 		Remove:      true,
 		ForceRemove: true,
 		Tags:        []string{"httpserver"},
