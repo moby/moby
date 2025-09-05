@@ -216,9 +216,8 @@ func New(t testing.TB, ops ...Option) *Daemon {
 	if dest == "" {
 		dest = os.Getenv("DEST")
 	}
+	assert.Assert(t, dest != "", "Please set the DOCKER_INTEGRATION_DAEMON_DEST or the DEST environment variable")
 	dest = filepath.Join(dest, t.Name())
-
-	assert.Check(t, dest != "", "Please set the DOCKER_INTEGRATION_DAEMON_DEST or the DEST environment variable")
 
 	if os.Getenv("DOCKER_ROOTLESS") != "" {
 		if os.Getenv("DOCKER_REMAP_ROOT") != "" {
@@ -412,6 +411,9 @@ func (d *Daemon) ScanLogs(ctx context.Context, match func(s string) bool) (bool,
 
 // TailLogs tails N lines from the daemon logs
 func (d *Daemon) TailLogs(n int) ([][]byte, error) {
+	if d.logFile == nil {
+		return nil, errors.New("d.logFile is nil")
+	}
 	logF, err := os.Open(d.logFile.Name())
 	if err != nil {
 		return nil, errors.Wrap(err, "error opening daemon log file after failed start")
