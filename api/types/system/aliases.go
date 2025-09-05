@@ -1,6 +1,9 @@
 package system
 
-import "github.com/moby/moby/api/types/system"
+import (
+	"github.com/moby/moby/api/types/system"
+	"github.com/moby/moby/client/pkg/security"
+)
 
 // DiskUsage contains response of Engine API for API 1.49 and greater:
 // GET "/system/df"
@@ -40,13 +43,13 @@ type Runtime = system.Runtime
 type RuntimeWithStatus = system.RuntimeWithStatus
 
 // SecurityOpt contains the name and options of a security option
-type SecurityOpt = system.SecurityOpt
+type SecurityOpt = security.Option
 
 // DecodeSecurityOptions decodes a security options string slice to a
 // type-safe [SecurityOpt].
-func DecodeSecurityOptions(opts []string) ([]system.SecurityOpt, error) {
-	return system.DecodeSecurityOptions(opts)
+func DecodeSecurityOptions(opts []string) ([]security.Option, error) {
+	return security.DecodeOptions(opts)
 }
 
 // KeyValue holds a key/value pair.
-type KeyValue = system.KeyValue
+type KeyValue = security.KeyValue

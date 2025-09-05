@@ -11,8 +11,19 @@ import (
 	"github.com/moby/moby/api/types/versions"
 )
 
+// ContainerListOptions holds parameters to list containers with.
+type ContainerListOptions struct {
+	Size    bool
+	All     bool
+	Latest  bool
+	Since   string
+	Before  string
+	Limit   int
+	Filters filters.Args
+}
+
 // ContainerList returns the list of containers in the docker host.
-func (cli *Client) ContainerList(ctx context.Context, options container.ListOptions) ([]container.Summary, error) {
+func (cli *Client) ContainerList(ctx context.Context, options ContainerListOptions) ([]container.Summary, error) {
 	query := url.Values{}
 
 	if options.All {

@@ -13,39 +13,53 @@ import (
 func TestFilterNetworks(t *testing.T) {
 	networks := []network.Inspect{
 		{
-			Name:   "host",
-			Driver: "host",
-			Scope:  "local",
+			Network: network.Network{
+				Name:   "host",
+				Driver: "host",
+				Scope:  "local",
+			},
 		},
 		{
-			Name:   "bridge",
-			Driver: "bridge",
-			Scope:  "local",
+			Network: network.Network{
+				Name:   "bridge",
+				Driver: "bridge",
+				Scope:  "local",
+			},
 		},
 		{
-			Name:   "none",
-			Driver: "null",
-			Scope:  "local",
+			Network: network.Network{
+				Name:   "none",
+				Driver: "null",
+				Scope:  "local",
+			},
 		},
 		{
-			Name:   "myoverlay",
-			Driver: "overlay",
-			Scope:  "swarm",
+			Network: network.Network{
+				Name:   "myoverlay",
+				Driver: "overlay",
+				Scope:  "swarm",
+			},
 		},
 		{
-			Name:   "mydrivernet",
-			Driver: "mydriver",
-			Scope:  "local",
+			Network: network.Network{
+				Name:   "mydrivernet",
+				Driver: "mydriver",
+				Scope:  "local",
+			},
 		},
 		{
-			Name:   "mykvnet",
-			Driver: "mykvdriver",
-			Scope:  "global",
+			Network: network.Network{
+				Name:   "mykvnet",
+				Driver: "mykvdriver",
+				Scope:  "global",
+			},
 		},
 		{
-			Name:   "networkwithcontainer",
-			Driver: "nwc",
-			Scope:  "local",
+			Network: network.Network{
+				Name:   "networkwithcontainer",
+				Driver: "nwc",
+				Scope:  "local",
+			},
 			Containers: map[string]network.EndpointResource{
 				"customcontainer": {
 					Name: "customendpoint",

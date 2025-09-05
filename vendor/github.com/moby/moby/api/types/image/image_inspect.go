@@ -111,7 +111,7 @@ type InspectResponse struct {
 
 	// GraphDriver holds information about the storage driver used to store the
 	// container's and image's filesystem.
-	GraphDriver storage.DriverData
+	GraphDriver *storage.DriverData `json:"GraphDriver,omitempty"`
 
 	// RootFS contains information about the image's RootFS, including the
 	// layer IDs.
