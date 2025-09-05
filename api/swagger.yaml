@@ -2439,10 +2439,13 @@ definitions:
           Name of the network.
         type: "string"
         example: "my_network"
+        x-omitempty: false
       Id:
         description: |
           ID that uniquely identifies a network on a single machine.
         type: "string"
+        x-go-name: "ID"
+        x-omitempty: false
         example: "7d86d31b1478e7cca9ebed7e73aa0fdeec46c5ca29497431d3007d2d9e15ed99"
       Created:
         description: |
@@ -2450,36 +2453,53 @@ definitions:
           [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format with nano-seconds.
         type: "string"
         format: "dateTime"
+        x-omitempty: false
+        x-go-type:
+          type: Time
+          import:
+            package: time
+          hints:
+            nullable: false
         example: "2016-10-19T04:33:30.360899459Z"
       Scope:
         description: |
           The level at which the network exists (e.g. `swarm` for cluster-wide
           or `local` for machine level)
         type: "string"
+        x-omitempty: false
         example: "local"
       Driver:
         description: |
           The name of the driver used to create the network (e.g. `bridge`,
           `overlay`).
         type: "string"
+        x-omitempty: false
         example: "overlay"
       EnableIPv4:
         description: |
           Whether the network was created with IPv4 enabled.
         type: "boolean"
+        x-omitempty: false
         example: true
       EnableIPv6:
         description: |
           Whether the network was created with IPv6 enabled.
         type: "boolean"
+        x-omitempty: false
         example: false
       IPAM:
+        description: |
+          The network's IP Address Management.
         $ref: "#/definitions/IPAM"
+        x-nullable: false
+        x-omitempty: false
       Internal:
         description: |
           Whether the network is created to only allow internal networking
           connectivity.
         type: "boolean"
+        x-nullable: false
+        x-omitempty: false
         default: false
         example: false
       Attachable:
@@ -2487,16 +2507,22 @@ definitions:
           Whether a global / swarm scope network is manually attachable by regular
           containers from workers in swarm mode.
         type: "boolean"
+        x-nullable: false
+        x-omitempty: false
         default: false
         example: false
       Ingress:
         description: |
           Whether the network is providing the routing-mesh for the swarm cluster.
         type: "boolean"
+        x-nullable: false
+        x-omitempty: false
         default: false
         example: false
       ConfigFrom:
         $ref: "#/definitions/ConfigReference"
+        x-nullable: false
+        x-omitempty: false
       ConfigOnly:
         description: |
           Whether the network is a config-only network. Config-only networks are
@@ -2504,24 +2530,14 @@ definitions:
           networks. Config-only networks cannot be used directly to run containers
           or services.
         type: "boolean"
+        x-omitempty: false
+        x-nullable: false
         default: false
-      Containers:
-        description: |
-          Contains endpoints attached to the network.
-        type: "object"
-        additionalProperties:
-          $ref: "#/definitions/NetworkContainer"
-        example:
-          19a4d5d687db25203351ed79d478946f861258f018fe384f229f2efa4b23513c:
-            Name: "test"
-            EndpointID: "628cadb8bcb92de107b2a1e516cbffe463e321f548feb37697cce00ad694f21a"
-            MacAddress: "02:42:ac:13:00:02"
-            IPv4Address: "172.19.0.2/16"
-            IPv6Address: ""
       Options:
         description: |
           Network-specific options uses when creating the network.
         type: "object"
+        x-omitempty: false
         additionalProperties:
           type: "string"
         example:
@@ -2532,8 +2548,10 @@ definitions:
           com.docker.network.bridge.name: "docker0"
           com.docker.network.driver.mtu: "1500"
       Labels:
-        description: "User-defined key/value metadata."
+        description: |
+          Metadata specific to the network being created.
         type: "object"
+        x-omitempty: false
         additionalProperties:
           type: "string"
         example:
@@ -2544,12 +2562,101 @@ definitions:
           List of peer nodes for an overlay network. This field is only present
           for overlay networks, and omitted for other network types.
         type: "array"
+        x-omitempty: true
         items:
           $ref: "#/definitions/PeerInfo"
-        x-nullable: true
-      # TODO: Add Services (only present when "verbose" is set).
+
+  NetworkSummary:
+    description: "Network list response item"
+    x-go-name: Summary
+    type: "object"
+    allOf:
+      - $ref: "#/definitions/Network"
+
+  NetworkInspect:
+    description: 'The body of the "get network" http response message.'
+    x-go-name: Inspect
+    type: "object"
+    allOf:
+      - $ref: "#/definitions/Network"
+    properties:
+      Containers:
+        description: |
+          Contains endpoints attached to the network.
+        type: "object"
+        x-omitempty: false
+        additionalProperties:
+          $ref: "#/definitions/EndpointResource"
+        example:
+          19a4d5d687db25203351ed79d478946f861258f018fe384f229f2efa4b23513c:
+            Name: "test"
+            EndpointID: "628cadb8bcb92de107b2a1e516cbffe463e321f548feb37697cce00ad694f21a"
+            MacAddress: "02:42:ac:13:00:02"
+            IPv4Address: "172.19.0.2/16"
+            IPv6Address: ""
+      Services:
+        description: |
+          List of services using the network. This field is only present for
+          swarm scope networks, and omitted for local scope networks.
+        type: "object"
+        x-omitempty: true
+        additionalProperties:
+          x-go-type:
+            type: ServiceInfo
+            hints:
+              nullable: false
+
+  ServiceInfo:
+    x-nullable: false
+    x-omitempty: false
+    description: >
+      represents service parameters with the list of service's tasks
+    type: "object"
+    properties:
+      VIP:
+        type: "string"
+        x-omitempty: false
+      Ports:
+        type: "array"
+        x-omitempty: false
+        items:
+          type: "string"
+      LocalLBIndex:
+        type: "integer"
+        format: "int"
+        x-omitempty: false
+      Tasks:
+        type: "array"
+        x-omitempty: false
+        items:
+          $ref: "#/definitions/NetworkTaskInfo"
+
+  NetworkTaskInfo:
+    x-nullable: false
+    x-omitempty: false
+    x-go-name: Task
+    description: >
+      carries the information about one backend task
+    type: "object"
+    properties:
+      Name:
+        type: "string"
+        x-omitempty: false
+      EndpointID:
+        type: "string"
+        x-omitempty: false
+      EndpointIP:
+        type: "string"
+        x-omitempty: false
+      Info:
+        type: "object"
+        x-omitempty: false
+        additionalProperties:
+          type: "string"
 
   ConfigReference:
+    x-nullable: false
+    x-omitempty: false
     description: |
       The config-only network source to provide the configuration for
       this network.
@@ -2561,10 +2668,13 @@ definitions:
           configuration. The specified network must be an existing config-only
           network. Only network names are allowed, not network IDs.
         type: "string"
+        x-omitempty: false
         example: "config_only_network_01"
 
   IPAM:
     type: "object"
+    x-nullable: false
+    x-omitempty: false
     properties:
       Driver:
         description: "Name of the IPAM driver to use."
@@ -2606,39 +2716,50 @@ definitions:
         additionalProperties:
           type: "string"
 
-  NetworkContainer:
+  EndpointResource:
     type: "object"
+    description: >
+      contains network resources allocated and used for a
+      container in a network.
     properties:
       Name:
         type: "string"
+        x-omitempty: false
         example: "container_1"
       EndpointID:
         type: "string"
+        x-omitempty: false
         example: "628cadb8bcb92de107b2a1e516cbffe463e321f548feb37697cce00ad694f21a"
       MacAddress:
         type: "string"
+        x-omitempty: false
         example: "02:42:ac:13:00:02"
       IPv4Address:
         type: "string"
+        x-omitempty: false
         example: "172.19.0.2/16"
       IPv6Address:
         type: "string"
+        x-omitempty: false
         example: ""
 
   PeerInfo:
-    description: |
-      PeerInfo represents one peer of an overlay network.
+    description: >
+      represents one peer of an overlay network.
     type: "object"
+    x-nullable: false
     properties:
       Name:
         description:
           ID of the peer-node in the Swarm cluster.
         type: "string"
+        x-omitempty: false
         example: "6869d7c1732b"
       IP:
         description:
           IP-address of the peer-node in the Swarm cluster.
         type: "string"
+        x-omitempty: false
         example: "10.133.77.91"
 
   NetworkCreateResponse:
@@ -11027,7 +11148,7 @@ paths:
           schema:
             type: "array"
             items:
-              $ref: "#/definitions/Network"
+              $ref: "#/definitions/NetworkSummary"
           examples:
             application/json:
               - Name: "bridge"
@@ -11118,7 +11239,7 @@ paths:
         200:
           description: "No error"
           schema:
-            $ref: "#/definitions/Network"
+            $ref: "#/definitions/NetworkInspect"
         404:
           description: "Network not found"
           schema:

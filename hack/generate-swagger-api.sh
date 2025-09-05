@@ -5,11 +5,13 @@ set -eu
 
 generate_model() {
 	local package="$1"
+	shift
 	mapfile
 	swagger generate model --spec=api/swagger.yaml \
 		--target=api --model-package="$package" \
 		--config-file=api/swagger-gen.yaml \
 		--template-dir=api/templates --allow-template-override \
+		"$@" \
 		$(printf -- '--name=%s ' "${MAPFILE[@]}")
 }
 
@@ -58,8 +60,15 @@ EOT
 # TODO: Restore when go-swagger is updated
 # See https://github.com/moby/moby/pull/47526#discussion_r1551800022
 
-generate_model types/network <<- 'EOT'
+generate_model types/network --keep-spec-order <<- 'EOT'
+	ConfigReference
+	EndpointResource
+	Network
 	NetworkCreateResponse
+	NetworkInspect
+	NetworkSummary
+	NetworkTaskInfo
+	PeerInfo
 EOT
 
 generate_model types/plugin <<- 'EOT'
