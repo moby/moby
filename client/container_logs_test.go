@@ -14,7 +14,6 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -25,14 +24,14 @@ func TestContainerLogsNotFoundError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerLogs(context.Background(), "container_id", container.LogsOptions{})
+	_, err = client.ContainerLogs(context.Background(), "container_id", ContainerLogsOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 
-	_, err = client.ContainerLogs(context.Background(), "", container.LogsOptions{})
+	_, err = client.ContainerLogs(context.Background(), "", ContainerLogsOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ContainerLogs(context.Background(), "    ", container.LogsOptions{})
+	_, err = client.ContainerLogs(context.Background(), "    ", ContainerLogsOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -43,14 +42,14 @@ func TestContainerLogsError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerLogs(context.Background(), "container_id", container.LogsOptions{})
+	_, err = client.ContainerLogs(context.Background(), "container_id", ContainerLogsOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ContainerLogs(context.Background(), "container_id", container.LogsOptions{
+	_, err = client.ContainerLogs(context.Background(), "container_id", ContainerLogsOptions{
 		Since: "2006-01-02TZ",
 	})
 	assert.Check(t, is.ErrorContains(err, `parsing time "2006-01-02TZ"`))
-	_, err = client.ContainerLogs(context.Background(), "container_id", container.LogsOptions{
+	_, err = client.ContainerLogs(context.Background(), "container_id", ContainerLogsOptions{
 		Until: "2006-01-02TZ",
 	})
 	assert.Check(t, is.ErrorContains(err, `parsing time "2006-01-02TZ"`))
@@ -59,7 +58,7 @@ func TestContainerLogsError(t *testing.T) {
 func TestContainerLogs(t *testing.T) {
 	expectedURL := "/containers/container_id/logs"
 	cases := []struct {
-		options             container.LogsOptions
+		options             ContainerLogsOptions
 		expectedQueryParams map[string]string
 		expectedError       string
 	}{
@@ -69,7 +68,7 @@ func TestContainerLogs(t *testing.T) {
 			},
 		},
 		{
-			options: container.LogsOptions{
+			options: ContainerLogsOptions{
 				Tail: "any",
 			},
 			expectedQueryParams: map[string]string{
@@ -77,7 +76,7 @@ func TestContainerLogs(t *testing.T) {
 			},
 		},
 		{
-			options: container.LogsOptions{
+			options: ContainerLogsOptions{
 				ShowStdout: true,
 				ShowStderr: true,
 				Timestamps: true,
@@ -94,7 +93,7 @@ func TestContainerLogs(t *testing.T) {
 			},
 		},
 		{
-			options: container.LogsOptions{
+			options: ContainerLogsOptions{
 				// timestamp is passed as-is
 				Since: "1136073600.000000001",
 			},
@@ -104,7 +103,7 @@ func TestContainerLogs(t *testing.T) {
 			},
 		},
 		{
-			options: container.LogsOptions{
+			options: ContainerLogsOptions{
 				// timestamp is passed as-is
 				Until: "1136073600.000000001",
 			},
@@ -114,14 +113,14 @@ func TestContainerLogs(t *testing.T) {
 			},
 		},
 		{
-			options: container.LogsOptions{
+			options: ContainerLogsOptions{
 				// invalid dates are not passed.
 				Since: "invalid value",
 			},
 			expectedError: `invalid value for "since": failed to parse value as time or duration: "invalid value"`,
 		},
 		{
-			options: container.LogsOptions{
+			options: ContainerLogsOptions{
 				// invalid dates are not passed.
 				Until: "invalid value",
 			},
@@ -167,7 +166,7 @@ func ExampleClient_ContainerLogs_withTimeout() {
 	defer cancel()
 
 	client, _ := NewClientWithOpts(FromEnv)
-	reader, err := client.ContainerLogs(ctx, "container_id", container.LogsOptions{})
+	reader, err := client.ContainerLogs(ctx, "container_id", ContainerLogsOptions{})
 	if err != nil {
 		log.Fatal(err)
 	}

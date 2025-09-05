@@ -8,7 +8,6 @@ import (
 
 	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/build"
-	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil"
@@ -88,7 +87,7 @@ func TestBuildSquashParent(t *testing.T) {
 	)
 
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cid))
-	reader, err := apiClient.ContainerLogs(ctx, cid, containertypes.LogsOptions{
+	reader, err := apiClient.ContainerLogs(ctx, cid, client.ContainerLogsOptions{
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)

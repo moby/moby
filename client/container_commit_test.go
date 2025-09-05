@@ -22,14 +22,14 @@ func TestContainerCommitError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerCommit(context.Background(), "nothing", container.CommitOptions{})
+	_, err = client.ContainerCommit(context.Background(), "nothing", ContainerCommitOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ContainerCommit(context.Background(), "", container.CommitOptions{})
+	_, err = client.ContainerCommit(context.Background(), "", ContainerCommitOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ContainerCommit(context.Background(), "    ", container.CommitOptions{})
+	_, err = client.ContainerCommit(context.Background(), "    ", ContainerCommitOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -94,7 +94,7 @@ func TestContainerCommit(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	r, err := client.ContainerCommit(context.Background(), expectedContainerID, container.CommitOptions{
+	r, err := client.ContainerCommit(context.Background(), expectedContainerID, ContainerCommitOptions{
 		Reference: specifiedReference,
 		Comment:   expectedComment,
 		Author:    expectedAuthor,

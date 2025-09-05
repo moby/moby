@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -19,14 +18,14 @@ import (
 func TestContainerStartError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	err = client.ContainerStart(context.Background(), "nothing", container.StartOptions{})
+	err = client.ContainerStart(context.Background(), "nothing", ContainerStartOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.ContainerStart(context.Background(), "", container.StartOptions{})
+	err = client.ContainerStart(context.Background(), "", ContainerStartOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.ContainerStart(context.Background(), "    ", container.StartOptions{})
+	err = client.ContainerStart(context.Background(), "    ", ContainerStartOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -57,6 +56,6 @@ func TestContainerStart(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	err = client.ContainerStart(context.Background(), "container_id", container.StartOptions{CheckpointID: "checkpoint_id"})
+	err = client.ContainerStart(context.Background(), "container_id", ContainerStartOptions{CheckpointID: "checkpoint_id"})
 	assert.NilError(t, err)
 }

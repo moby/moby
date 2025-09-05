@@ -65,8 +65,8 @@ type HijackDialer interface {
 
 // ContainerAPIClient defines API client methods for the containers
 type ContainerAPIClient interface {
-	ContainerAttach(ctx context.Context, container string, options container.AttachOptions) (HijackedResponse, error)
-	ContainerCommit(ctx context.Context, container string, options container.CommitOptions) (container.CommitResponse, error)
+	ContainerAttach(ctx context.Context, container string, options ContainerAttachOptions) (HijackedResponse, error)
+	ContainerCommit(ctx context.Context, container string, options ContainerCommitOptions) (container.CommitResponse, error)
 	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *ocispec.Platform, containerName string) (container.CreateResponse, error)
 	ContainerDiff(ctx context.Context, container string) ([]container.FilesystemChange, error)
 	ContainerExecAttach(ctx context.Context, execID string, options container.ExecAttachOptions) (HijackedResponse, error)
@@ -78,24 +78,24 @@ type ContainerAPIClient interface {
 	ContainerInspect(ctx context.Context, container string) (container.InspectResponse, error)
 	ContainerInspectWithRaw(ctx context.Context, container string, getSize bool) (container.InspectResponse, []byte, error)
 	ContainerKill(ctx context.Context, container, signal string) error
-	ContainerList(ctx context.Context, options container.ListOptions) ([]container.Summary, error)
-	ContainerLogs(ctx context.Context, container string, options container.LogsOptions) (io.ReadCloser, error)
+	ContainerList(ctx context.Context, options ContainerListOptions) ([]container.Summary, error)
+	ContainerLogs(ctx context.Context, container string, options ContainerLogsOptions) (io.ReadCloser, error)
 	ContainerPause(ctx context.Context, container string) error
-	ContainerRemove(ctx context.Context, container string, options container.RemoveOptions) error
+	ContainerRemove(ctx context.Context, container string, options ContainerRemoveOptions) error
 	ContainerRename(ctx context.Context, container, newContainerName string) error
 	ContainerResize(ctx context.Context, container string, options ContainerResizeOptions) error
-	ContainerRestart(ctx context.Context, container string, options container.StopOptions) error
+	ContainerRestart(ctx context.Context, container string, options ContainerStopOptions) error
 	ContainerStatPath(ctx context.Context, container, path string) (container.PathStat, error)
 	ContainerStats(ctx context.Context, container string, stream bool) (StatsResponseReader, error)
 	ContainerStatsOneShot(ctx context.Context, container string) (StatsResponseReader, error)
-	ContainerStart(ctx context.Context, container string, options container.StartOptions) error
-	ContainerStop(ctx context.Context, container string, options container.StopOptions) error
+	ContainerStart(ctx context.Context, container string, options ContainerStartOptions) error
+	ContainerStop(ctx context.Context, container string, options ContainerStopOptions) error
 	ContainerTop(ctx context.Context, container string, arguments []string) (container.TopResponse, error)
 	ContainerUnpause(ctx context.Context, container string) error
 	ContainerUpdate(ctx context.Context, container string, updateConfig container.UpdateConfig) (container.UpdateResponse, error)
 	ContainerWait(ctx context.Context, container string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error)
 	CopyFromContainer(ctx context.Context, container, srcPath string) (io.ReadCloser, container.PathStat, error)
-	CopyToContainer(ctx context.Context, container, path string, content io.Reader, options container.CopyToContainerOptions) error
+	CopyToContainer(ctx context.Context, container, path string, content io.Reader, options CopyToContainerOptions) error
 	ContainersPrune(ctx context.Context, pruneFilters filters.Args) (container.PruneReport, error)
 }
 
@@ -167,8 +167,8 @@ type ServiceAPIClient interface {
 	ServiceList(ctx context.Context, options ServiceListOptions) ([]swarm.Service, error)
 	ServiceRemove(ctx context.Context, serviceID string) error
 	ServiceUpdate(ctx context.Context, serviceID string, version swarm.Version, service swarm.ServiceSpec, options ServiceUpdateOptions) (swarm.ServiceUpdateResponse, error)
-	ServiceLogs(ctx context.Context, serviceID string, options container.LogsOptions) (io.ReadCloser, error)
-	TaskLogs(ctx context.Context, taskID string, options container.LogsOptions) (io.ReadCloser, error)
+	ServiceLogs(ctx context.Context, serviceID string, options ContainerLogsOptions) (io.ReadCloser, error)
+	TaskLogs(ctx context.Context, taskID string, options ContainerLogsOptions) (io.ReadCloser, error)
 	TaskInspectWithRaw(ctx context.Context, taskID string) (swarm.Task, []byte, error)
 	TaskList(ctx context.Context, options TaskListOptions) ([]swarm.Task, error)
 }

@@ -10,7 +10,6 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/client"
@@ -84,7 +83,7 @@ func TestVolumesRemove(t *testing.T) {
 	})
 
 	t.Run("volume not in use", func(t *testing.T) {
-		err = apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{
+		err = apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{
 			Force: true,
 		})
 		assert.NilError(t, err)
@@ -136,7 +135,7 @@ func TestVolumesRemoveSwarmEnabled(t *testing.T) {
 	})
 
 	t.Run("volume not in use", func(t *testing.T) {
-		err = apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{
+		err = apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{
 			Force: true,
 		})
 		assert.NilError(t, err)
@@ -321,7 +320,7 @@ VOLUME ` + volDest
 	img := build.Do(ctx, t, apiClient, fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile)))
 
 	id := container.Create(ctx, t, apiClient, container.WithImage(img))
-	defer apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{})
+	defer apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{})
 
 	inspect, err := apiClient.ContainerInspect(ctx, id)
 	assert.NilError(t, err)
@@ -331,7 +330,7 @@ VOLUME ` + volDest
 	volumeName := inspect.Mounts[0].Name
 	assert.Assert(t, volumeName != "")
 
-	err = apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{})
+	err = apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{})
 	assert.NilError(t, err)
 
 	pruneReport, err := apiClient.VolumesPrune(ctx, filters.Args{})

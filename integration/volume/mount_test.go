@@ -85,7 +85,7 @@ func TestRunMountVolumeSubdir(t *testing.T) {
 			create, creatErr := apiClient.ContainerCreate(ctx, &cfg, &hostCfg, &network.NetworkingConfig{}, nil, ctrName)
 			id := create.ID
 			if id != "" {
-				defer apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+				defer apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 			}
 
 			if tc.createErr != "" {
@@ -94,7 +94,7 @@ func TestRunMountVolumeSubdir(t *testing.T) {
 			}
 			assert.NilError(t, creatErr, "container creation failed")
 
-			startErr := apiClient.ContainerStart(ctx, id, containertypes.StartOptions{})
+			startErr := apiClient.ContainerStart(ctx, id, client.ContainerStartOptions{})
 			if tc.startErr != "" {
 				assert.ErrorContains(t, startErr, tc.startErr)
 				return
@@ -168,7 +168,7 @@ func TestRunMountImage(t *testing.T) {
 			}
 
 			startContainer := func(id string) {
-				startErr := apiClient.ContainerStart(ctx, id, containertypes.StartOptions{})
+				startErr := apiClient.ContainerStart(ctx, id, client.ContainerStartOptions{})
 				if tc.startErr != "" {
 					assert.ErrorContains(t, startErr, tc.startErr)
 					return
@@ -180,7 +180,7 @@ func TestRunMountImage(t *testing.T) {
 			create, creatErr := apiClient.ContainerCreate(ctx, &cfg, &hostCfg, &network.NetworkingConfig{}, nil, ctrName)
 			id := create.ID
 			if id != "" {
-				defer container.Remove(ctx, t, apiClient, id, containertypes.RemoveOptions{Force: true})
+				defer container.Remove(ctx, t, apiClient, id, client.ContainerRemoveOptions{Force: true})
 			}
 
 			if tc.createErr != "" {
@@ -200,7 +200,7 @@ func TestRunMountImage(t *testing.T) {
 
 			// Test that the container servives a restart when mounted image is removed
 			if tc.name == "image_remove_force" {
-				stopErr := apiClient.ContainerStop(ctx, id, containertypes.StopOptions{})
+				stopErr := apiClient.ContainerStop(ctx, id, client.ContainerStopOptions{})
 				assert.NilError(t, stopErr)
 
 				_, removeErr := apiClient.ImageRemove(ctx, testImage, client.ImageRemoveOptions{Force: true})
@@ -278,7 +278,7 @@ func setupTestVolume(t *testing.T, apiClient client.APIClient) string {
 	}
 
 	cid := container.Run(ctx, t, apiClient, opts...)
-	defer container.Remove(ctx, t, apiClient, cid, containertypes.RemoveOptions{Force: true})
+	defer container.Remove(ctx, t, apiClient, cid, client.ContainerRemoveOptions{Force: true})
 	output, err := container.Output(ctx, apiClient, cid)
 
 	assert.NilError(t, err)
@@ -374,7 +374,7 @@ func TestRunMountImageMultipleTimes(t *testing.T) {
 		}),
 	)
 
-	defer apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+	defer apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
 	inspect, err := apiClient.ContainerInspect(ctx, id)
 	assert.NilError(t, err)

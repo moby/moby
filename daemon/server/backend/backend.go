@@ -7,6 +7,7 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -97,6 +98,47 @@ type ContainerStatsConfig struct {
 type ContainerInspectOptions struct {
 	// Size controls whether to propagate the container's size fields.
 	Size bool
+}
+
+// ContainerListOptions holds parameters to list containers with.
+type ContainerListOptions struct {
+	Size    bool
+	All     bool
+	Latest  bool
+	Since   string
+	Before  string
+	Limit   int
+	Filters filters.Args
+}
+
+// ContainerLogsOptions holds parameters to filter logs with.
+type ContainerLogsOptions struct {
+	ShowStdout bool
+	ShowStderr bool
+	Since      string
+	Until      string
+	Timestamps bool
+	Follow     bool
+	Tail       string
+	Details    bool
+}
+
+// ContainerStopOptions holds the options to stop or restart a container.
+type ContainerStopOptions struct {
+	// Signal (optional) is the signal to send to the container to (gracefully)
+	// stop it before forcibly terminating the container with SIGKILL after the
+	// timeout expires. If not value is set, the default (SIGTERM) is used.
+	Signal string `json:",omitempty"`
+
+	// Timeout (optional) is the timeout (in seconds) to wait for the container
+	// to stop gracefully before forcibly terminating it with SIGKILL.
+	//
+	// - Use nil to use the default timeout (10 seconds).
+	// - Use '-1' to wait indefinitely.
+	// - Use '0' to not wait for the container to exit gracefully, and
+	//   immediately proceeds to forcibly terminating the container.
+	// - Other positive values are used as timeout (in seconds).
+	Timeout *int `json:",omitempty"`
 }
 
 // ExecStartConfig holds the options to start container's exec.

@@ -32,9 +32,16 @@ func (cli *Client) ContainerStatPath(ctx context.Context, containerID, path stri
 	return getContainerPathStatFromHeader(resp.Header)
 }
 
+// CopyToContainerOptions holds information
+// about files to copy into a container
+type CopyToContainerOptions struct {
+	AllowOverwriteDirWithFile bool
+	CopyUIDGID                bool
+}
+
 // CopyToContainer copies content into the container filesystem.
 // Note that `content` must be a Reader for a TAR archive
-func (cli *Client) CopyToContainer(ctx context.Context, containerID, dstPath string, content io.Reader, options container.CopyToContainerOptions) error {
+func (cli *Client) CopyToContainer(ctx context.Context, containerID, dstPath string, content io.Reader, options CopyToContainerOptions) error {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
 		return err

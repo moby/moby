@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/cluster/convert"
@@ -608,7 +607,7 @@ func initClusterSpec(node *swarmnode.Node, spec types.Spec) error {
 
 func (c *Cluster) listContainerForNode(ctx context.Context, nodeID string) ([]string, error) {
 	var ids []string
-	containers, err := c.config.Backend.Containers(ctx, &container.ListOptions{
+	containers, err := c.config.Backend.Containers(ctx, &backend.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("label", "com.docker.swarm.node.id="+nodeID)),
 	})
 	if err != nil {

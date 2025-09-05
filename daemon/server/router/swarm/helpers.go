@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	basictypes "github.com/moby/moby/api/types"
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/v2/daemon/server/backend"
@@ -28,7 +27,7 @@ func (sr *swarmRouter) swarmLogs(ctx context.Context, w http.ResponseWriter, r *
 
 	// there is probably a neater way to manufacture the LogsOptions
 	// struct, probably in the caller, to eliminate the dependency on net/http
-	logsConfig := &container.LogsOptions{
+	logsConfig := &backend.ContainerLogsOptions{
 		Follow:     httputils.BoolValue(r, "follow"),
 		Timestamps: httputils.BoolValue(r, "timestamps"),
 		Since:      r.Form.Get("since"),

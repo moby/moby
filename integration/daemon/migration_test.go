@@ -6,7 +6,6 @@ import (
 	"runtime"
 	"testing"
 
-	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil"
@@ -66,7 +65,7 @@ func testMigrateSnapshotter(t *testing.T, graphdriver, snapshotter string) {
 	assert.Equal(t, info.Driver, graphdriver)
 	assert.Equal(t, info.Containers, 1)
 	assert.Equal(t, info.Images, allImages)
-	container.Remove(ctx, t, apiClient, containerID, containertypes.RemoveOptions{
+	container.Remove(ctx, t, apiClient, containerID, client.ContainerRemoveOptions{
 		Force: true,
 	})
 
@@ -85,7 +84,7 @@ func testMigrateSnapshotter(t *testing.T, graphdriver, snapshotter string) {
 		c.Config.Cmd = []string{"echo", "hello"}
 	})
 	assert.Equal(t, result.ExitCode, 0)
-	container.Remove(ctx, t, apiClient, result.ContainerID, containertypes.RemoveOptions{})
+	container.Remove(ctx, t, apiClient, result.ContainerID, client.ContainerRemoveOptions{})
 }
 
 func TestMigrateSaveLoad(t *testing.T) {
@@ -158,5 +157,5 @@ func TestMigrateSaveLoad(t *testing.T) {
 		c.Config.Cmd = []string{"echo", "hello"}
 	})
 	assert.Equal(t, result.ExitCode, 0)
-	container.Remove(ctx, t, apiClient, result.ContainerID, containertypes.RemoveOptions{})
+	container.Remove(ctx, t, apiClient, result.ContainerID, client.ContainerRemoveOptions{})
 }

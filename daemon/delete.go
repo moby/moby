@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
@@ -117,7 +116,7 @@ func (daemon *Daemon) cleanupContainer(ctr *container.Container, config backend.
 	// If you arrived here and know the answer, you earned yourself a picture
 	// of a cute animal of your own choosing.
 	stopTimeout := 3
-	if err := daemon.containerStop(context.TODO(), ctr, containertypes.StopOptions{Timeout: &stopTimeout}); err != nil {
+	if err := daemon.containerStop(context.TODO(), ctr, backend.ContainerStopOptions{Timeout: &stopTimeout}); err != nil {
 		return err
 	}
 

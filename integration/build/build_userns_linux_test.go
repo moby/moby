@@ -11,7 +11,7 @@ import (
 
 	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/build"
-	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil"
@@ -119,7 +119,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	)
 
 	poll.WaitOn(t, container.IsStopped(ctx, clientNoUserRemap, cid))
-	logReader, err := clientNoUserRemap.ContainerLogs(ctx, cid, containertypes.LogsOptions{
+	logReader, err := clientNoUserRemap.ContainerLogs(ctx, cid, client.ContainerLogsOptions{
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)

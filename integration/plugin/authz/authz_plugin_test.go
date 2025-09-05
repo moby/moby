@@ -19,7 +19,6 @@ import (
 
 	"github.com/docker/go-connections/sockets"
 	"github.com/moby/go-archive"
-	containertypes "github.com/moby/moby/api/types/container"
 	eventtypes "github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
@@ -401,7 +400,7 @@ func TestAuthzPluginEnsureContainerCopyToFrom(t *testing.T) {
 	c := d.NewClientT(t)
 
 	cID := container.Run(ctx, t, c)
-	defer c.ContainerRemove(ctx, cID, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{Force: true})
 
 	_, err = f.Seek(0, io.SeekStart)
 	assert.NilError(t, err)
@@ -415,7 +414,7 @@ func TestAuthzPluginEnsureContainerCopyToFrom(t *testing.T) {
 	dstDir, preparedArchive, err := archive.PrepareArchiveCopy(srcArchive, srcInfo, archive.CopyInfo{Path: "/test"})
 	assert.NilError(t, err)
 
-	err = c.CopyToContainer(ctx, cID, dstDir, preparedArchive, containertypes.CopyToContainerOptions{})
+	err = c.CopyToContainer(ctx, cID, dstDir, preparedArchive, client.CopyToContainerOptions{})
 	assert.NilError(t, err)
 
 	rdr, _, err := c.CopyFromContainer(ctx, cID, "/test")

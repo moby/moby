@@ -4,11 +4,10 @@ import (
 	"os"
 	"testing"
 
-	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/daemon"
-
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )
@@ -45,9 +44,9 @@ func TestCgroupDriverSystemdMemoryLimit(t *testing.T) {
 	ctrID := container.Create(ctx, t, c, func(ctr *container.TestContainerConfig) {
 		ctr.HostConfig.Resources.Memory = mem
 	})
-	defer c.ContainerRemove(ctx, ctrID, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, ctrID, client.ContainerRemoveOptions{Force: true})
 
-	err := c.ContainerStart(ctx, ctrID, containertypes.StartOptions{})
+	err := c.ContainerStart(ctx, ctrID, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	s, err := c.ContainerInspect(ctx, ctrID)

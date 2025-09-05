@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/integration/internal/network"
 	"github.com/moby/moby/v2/testutil/daemon"
@@ -45,7 +45,7 @@ func TestResolvConfLocalhostIPv6(t *testing.T) {
 		container.WithNetworkMode(netName),
 		container.WithCmd("cat", "/etc/resolv.conf"),
 	)
-	defer c.ContainerRemove(ctx, result.ContainerID, containertypes.RemoveOptions{
+	defer c.ContainerRemove(ctx, result.ContainerID, client.ContainerRemoveOptions{
 		Force: true,
 	})
 
@@ -100,7 +100,7 @@ func TestInternalNetworkDNS(t *testing.T) {
 	// Create a container, initially with external connectivity.
 	// Expect the external DNS server to respond to a request from the container.
 	ctrId := container.Run(ctx, t, c, container.WithNetworkMode(extNetName))
-	defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
 	res, err := container.Exec(ctx, c, ctrId, []string{"nslookup", "test.example"})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(res.ExitCode, 0))
@@ -171,7 +171,7 @@ func TestInternalNetworkLocalDNS(t *testing.T) {
 		}),
 		container.WithCmd("dnsd"),
 	)
-	defer c.ContainerRemove(ctx, serverId, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, serverId, client.ContainerRemoveOptions{Force: true})
 
 	// Get the DNS server's address.
 	inspect := container.Inspect(ctx, t, c, serverId)
@@ -183,7 +183,7 @@ func TestInternalNetworkLocalDNS(t *testing.T) {
 		container.WithDNS([]string{serverIP}),
 		container.WithCmd("nslookup", "-type=A", "foo.example"),
 	)
-	defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
 	assert.Check(t, is.Contains(res.Stdout.String(), "192.0.2.42"))
 }
 
@@ -200,7 +200,7 @@ func TestNslookupWindows(t *testing.T) {
 	res := container.RunAttach(attachCtx, t, c,
 		container.WithCmd("nslookup", "docker.com"),
 	)
-	defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
 
 	assert.Check(t, is.Equal(res.ExitCode, 0))
 	// Current default is to forward requests to external servers, which

@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -18,14 +17,14 @@ import (
 func TestContainerStopError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	err = client.ContainerStop(context.Background(), "container_id", container.StopOptions{})
+	err = client.ContainerStop(context.Background(), "container_id", ContainerStopOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.ContainerStop(context.Background(), "", container.StopOptions{})
+	err = client.ContainerStop(context.Background(), "", ContainerStopOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.ContainerStop(context.Background(), "    ", container.StopOptions{})
+	err = client.ContainerStop(context.Background(), "    ", ContainerStopOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -38,7 +37,7 @@ func TestContainerStopConnectionError(t *testing.T) {
 	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
-	err = client.ContainerStop(context.Background(), "container_id", container.StopOptions{})
+	err = client.ContainerStop(context.Background(), "container_id", ContainerStopOptions{})
 	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
 
@@ -63,7 +62,7 @@ func TestContainerStop(t *testing.T) {
 	}), WithVersion("1.42"))
 	assert.NilError(t, err)
 	timeout := 100
-	err = client.ContainerStop(context.Background(), "container_id", container.StopOptions{
+	err = client.ContainerStop(context.Background(), "container_id", ContainerStopOptions{
 		Signal:  "SIGKILL",
 		Timeout: &timeout,
 	})

@@ -11,6 +11,7 @@ import (
 	"github.com/moby/moby/api/pkg/stdcopy"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/system"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/daemon"
@@ -39,7 +40,7 @@ func TestCreateWithCDIDevices(t *testing.T) {
 		container.WithCmd("/bin/sh", "-c", "env"),
 		container.WithCDIDevices("vendor1.com/device=foo"),
 	)
-	defer apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+	defer apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
 	inspect, err := apiClient.ContainerInspect(ctx, id)
 	assert.NilError(t, err)
@@ -53,7 +54,7 @@ func TestCreateWithCDIDevices(t *testing.T) {
 	assert.Check(t, is.DeepEqual(inspect.HostConfig.DeviceRequests, expectedRequests))
 
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, id))
-	reader, err := apiClient.ContainerLogs(ctx, id, containertypes.LogsOptions{
+	reader, err := apiClient.ContainerLogs(ctx, id, client.ContainerLogsOptions{
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)

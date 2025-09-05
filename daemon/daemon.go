@@ -1247,7 +1247,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 						layer.ReleaseAndLog(imgSvcConfig.LayerStore, l)
 					}
 				}
-
 			}
 
 			if totalSize <= migrationThreshold {
@@ -1417,7 +1416,7 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 	ctx := context.WithoutCancel(context.TODO())
 
 	// If container failed to exit in stopTimeout seconds of SIGTERM, then using the force
-	if err := daemon.containerStop(ctx, c, containertypes.StopOptions{}); err != nil {
+	if err := daemon.containerStop(ctx, c, backend.ContainerStopOptions{}); err != nil {
 		return fmt.Errorf("Failed to stop container %s with error: %v", c.ID, err)
 	}
 
@@ -1469,7 +1468,7 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 	cfg := &daemon.config().Config
 	if cfg.LiveRestoreEnabled && daemon.containers != nil {
 		// check if there are any running containers, if none we should do some cleanup
-		if ls, err := daemon.Containers(ctx, &containertypes.ListOptions{}); len(ls) != 0 || err != nil {
+		if ls, err := daemon.Containers(ctx, &backend.ContainerListOptions{}); len(ls) != 0 || err != nil {
 			// metrics plugins still need some cleanup
 			metrics.CleanupPlugin(daemon.PluginStore)
 			return err

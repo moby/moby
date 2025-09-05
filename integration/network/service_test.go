@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
@@ -489,7 +488,7 @@ func TestCustomIfnameIsPreservedOnLiveRestore(t *testing.T) {
 				netlabel.Ifname: "foobar",
 			},
 		}))
-	defer container.Remove(ctx, t, apiClient, ctrId, containertypes.RemoveOptions{Force: true})
+	defer container.Remove(ctx, t, apiClient, ctrId, client.ContainerRemoveOptions{Force: true})
 
 	d.Restart(t, "--live-restore=true")
 
@@ -523,7 +522,7 @@ func TestCustomIfnameCollidesWithExistingIface(t *testing.T) {
 	ctrId := container.Run(ctx, t, apiClient,
 		container.WithCmd("top"),
 		container.WithEndpointSettings("bridge", &networktypes.EndpointSettings{}))
-	defer container.Remove(ctx, t, apiClient, ctrId, containertypes.RemoveOptions{Force: true})
+	defer container.Remove(ctx, t, apiClient, ctrId, client.ContainerRemoveOptions{Force: true})
 
 	err := apiClient.NetworkConnect(ctx, testnet, ctrId, &networktypes.EndpointSettings{DriverOpts: map[string]string{
 		netlabel.Ifname: "eth0",
@@ -568,7 +567,7 @@ func TestCustomIfnameWithMatchingDynamicPrefix(t *testing.T) {
 		}),
 		container.WithEndpointSettings("testnet1", &networktypes.EndpointSettings{}),
 	)
-	defer container.Remove(ctx, t, apiClient, ctrId, containertypes.RemoveOptions{Force: true})
+	defer container.Remove(ctx, t, apiClient, ctrId, client.ContainerRemoveOptions{Force: true})
 
 	checkIfaceAddr(t, ctx, apiClient, ctrId, "eth0", "inet 10.0.1.2/24")
 	checkIfaceAddr(t, ctx, apiClient, ctrId, "eth1", "inet 10.0.0.2/24")

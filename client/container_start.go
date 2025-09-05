@@ -3,12 +3,16 @@ package client
 import (
 	"context"
 	"net/url"
-
-	"github.com/moby/moby/api/types/container"
 )
 
+// ContainerStartOptions holds parameters to start containers.
+type ContainerStartOptions struct {
+	CheckpointID  string
+	CheckpointDir string
+}
+
 // ContainerStart sends a request to the docker daemon to start a container.
-func (cli *Client) ContainerStart(ctx context.Context, containerID string, options container.StartOptions) error {
+func (cli *Client) ContainerStart(ctx context.Context, containerID string, options ContainerStartOptions) error {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
 		return err

@@ -126,7 +126,7 @@ func TestDisableNAT(t *testing.T) {
 				container.WithExposedPorts("80/tcp"),
 				container.WithPortMap(containertypes.PortMap{"80/tcp": {{HostPort: "8080"}}}),
 			)
-			defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
 			inspect := container.Inspect(ctx, t, c, id)
 			assert.Check(t, is.DeepEqual(inspect.NetworkSettings.Ports, tc.expPortMap))
@@ -165,7 +165,7 @@ func TestPortMappedHairpinTCP(t *testing.T) {
 		container.WithPortMap(containertypes.PortMap{"80": {{HostIP: "0.0.0.0"}}}),
 		container.WithCmd("httpd", "-f"),
 	)
-	defer c.ContainerRemove(ctx, serverId, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, serverId, client.ContainerRemoveOptions{Force: true})
 
 	inspect := container.Inspect(ctx, t, c, serverId)
 	hostPort := inspect.NetworkSettings.Ports["80/tcp"][0].HostPort
@@ -176,7 +176,7 @@ func TestPortMappedHairpinTCP(t *testing.T) {
 		container.WithNetworkMode(clientNetName),
 		container.WithCmd("wget", "http://"+hostAddr+":"+hostPort),
 	)
-	defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
 	assert.Check(t, is.Contains(res.Stderr.String(), "404 Not Found"))
 }
 
@@ -212,7 +212,7 @@ func TestPortMappedHairpinUDP(t *testing.T) {
 		container.WithPortMap(containertypes.PortMap{"54/udp": {{HostIP: "0.0.0.0"}}}),
 		container.WithCmd("/bin/sh", "-c", "echo 'foobar.internal 192.168.155.23' | dnsd -c - -p 54"),
 	)
-	defer c.ContainerRemove(ctx, serverId, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, serverId, client.ContainerRemoveOptions{Force: true})
 
 	inspect := container.Inspect(ctx, t, c, serverId)
 	hostPort := inspect.NetworkSettings.Ports["54/udp"][0].HostPort
@@ -254,7 +254,7 @@ func TestProxy4To6(t *testing.T) {
 		container.WithPortMap(containertypes.PortMap{"80": {{HostIP: "::1"}}}),
 		container.WithCmd("httpd", "-f"),
 	)
-	defer c.ContainerRemove(ctx, serverId, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, serverId, client.ContainerRemoveOptions{Force: true})
 
 	inspect := container.Inspect(ctx, t, c, serverId)
 	hostPort := inspect.NetworkSettings.Ports["80/tcp"][0].HostPort
@@ -378,7 +378,7 @@ func TestAccessPublishedPortFromHost(t *testing.T) {
 				container.WithPortMap(containertypes.PortMap{"80/tcp": {{HostPort: hostPort}}}),
 				container.WithCmd("httpd", "-f"),
 				container.WithNetworkMode(bridgeName))
-			defer c.ContainerRemove(ctx, serverID, containertypes.RemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, serverID, client.ContainerRemoveOptions{Force: true})
 
 			for _, iface := range []string{"lo", "eth0"} {
 				for _, hostAddr := range getIfaceAddrs(t, iface, tc.ipv6) {
@@ -458,7 +458,7 @@ func TestAccessPublishedPortFromRemoteHost(t *testing.T) {
 		container.WithPortMap(containertypes.PortMap{"80/tcp": {{HostPort: hostPort}}}),
 		container.WithCmd("httpd", "-f"),
 		container.WithNetworkMode(bridgeName))
-	defer c.ContainerRemove(ctx, serverID, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, serverID, client.ContainerRemoveOptions{Force: true})
 
 	for _, ipv6 := range []bool{true, false} {
 		for _, hostAddr := range getIfaceAddrs(t, l3.Hosts["docker"].Iface, ipv6) {
@@ -556,7 +556,7 @@ func TestAccessPublishedPortFromCtr(t *testing.T) {
 				container.WithPortMap(containertypes.PortMap{"80": {{HostIP: "0.0.0.0"}}}),
 				container.WithCmd("httpd", "-f"),
 			)
-			defer c.ContainerRemove(ctx, serverId, containertypes.RemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, serverId, client.ContainerRemoveOptions{Force: true})
 
 			inspect := container.Inspect(ctx, t, c, serverId)
 			hostPort := inspect.NetworkSettings.Ports["80/tcp"][0].HostPort
@@ -567,7 +567,7 @@ func TestAccessPublishedPortFromCtr(t *testing.T) {
 				container.WithNetworkMode(netName),
 				container.WithCmd("wget", "http://"+net.JoinHostPort(hostAddr, hostPort)),
 			)
-			defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
 			assert.Check(t, is.Contains(res.Stderr.String(), "404 Not Found"))
 
 			// Also check that the container can reach its own published port.
@@ -609,7 +609,7 @@ func TestRestartUserlandProxyUnder2MSL(t *testing.T) {
 	}
 
 	container.Run(ctx, t, c, ctrOpts...)
-	defer c.ContainerRemove(ctx, ctrName, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, ctrName, client.ContainerRemoveOptions{Force: true})
 
 	// Make an HTTP request to open a TCP connection to the proxy. We don't
 	// care about the HTTP response, just that the connection is established.
@@ -623,7 +623,7 @@ func TestRestartUserlandProxyUnder2MSL(t *testing.T) {
 	// Removing the container will kill the userland proxy, and the connection
 	// opened by the previous HTTP request will be properly closed (ie. on both
 	// sides). Thus, that connection will transition to the TIME_WAIT state.
-	assert.NilError(t, c.ContainerRemove(ctx, ctrName, containertypes.RemoveOptions{Force: true}))
+	assert.NilError(t, c.ContainerRemove(ctx, ctrName, client.ContainerRemoveOptions{Force: true}))
 
 	// Make sure the container can be restarted. [container.Run] checks that
 	// the ContainerStart API call doesn't return an error. We don't need to
@@ -703,7 +703,7 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 			container.WithPortMap(containertypes.PortMap{"80/tcp": {}}),
 		)
 		t.Cleanup(func() {
-			c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+			c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
 		})
 
 		container.ExecT(ctx, t, c, ctrId, []string{"httpd", "-p", "80"})
@@ -852,7 +852,7 @@ func TestAcceptFwMark(t *testing.T) {
 		container.WithCmd("httpd", "-f"),
 	)
 	t.Cleanup(func() {
-		c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+		c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
 	})
 
 	insp := container.Inspect(ctx, t, c, ctrId)
@@ -984,7 +984,7 @@ func TestRoutedNonGateway(t *testing.T) {
 		container.WithNetworkMode(routedNetName),
 		container.WithEndpointSettings(natNetName, &networktypes.EndpointSettings{GwPriority: 1}),
 		container.WithEndpointSettings(routedNetName, &networktypes.EndpointSettings{GwPriority: 0}))
-	defer container.Remove(ctx, t, c, ctrId, containertypes.RemoveOptions{Force: true})
+	defer container.Remove(ctx, t, c, ctrId, client.ContainerRemoveOptions{Force: true})
 
 	testHttp := func(t *testing.T, addr, port, expOut string) {
 		t.Helper()
@@ -1135,13 +1135,13 @@ func TestAccessPublishedPortFromAnotherNetwork(t *testing.T) {
 					container.WithExposedPorts("5000/tcp"),
 					container.WithPortMap(containertypes.PortMap{"5000/tcp": {{HostPort: "5000"}}}),
 					container.WithNetworkMode(servnet))
-				defer c.ContainerRemove(ctx, serverID, containertypes.RemoveOptions{Force: true})
+				defer c.ContainerRemove(ctx, serverID, client.ContainerRemoveOptions{Force: true})
 
 				clientID := container.Run(ctx, t, c,
 					container.WithName("client"),
 					container.WithCmd("/bin/sh", "-c", fmt.Sprintf("echo foobar | nc -w1 %s 5000", tc.daddr)),
 					container.WithNetworkMode(clientnet))
-				defer c.ContainerRemove(ctx, clientID, containertypes.RemoveOptions{Force: true})
+				defer c.ContainerRemove(ctx, clientID, client.ContainerRemoveOptions{Force: true})
 
 				logs := getContainerStdout(t, ctx, c, serverID)
 				return is.Contains(logs, "foobar")
@@ -1335,7 +1335,7 @@ func testDirectRemoteAccessOnExposedPort(t *testing.T, ctx context.Context, d *d
 						IPAddress:   ctrIP.String(),
 						IPPrefixLen: ctrIP.BitLen(),
 					}))
-				defer c.ContainerRemove(ctx, serverID, containertypes.RemoveOptions{Force: true})
+				defer c.ContainerRemove(ctx, serverID, client.ContainerRemoveOptions{Force: true})
 
 				return sendPayloadFromHost(t, host, daddr, hostPort, payload, func() bool {
 					logs := getContainerStdout(t, ctx, c, serverID)
@@ -1417,7 +1417,7 @@ func TestAccessPortPublishedOnLoopbackAddress(t *testing.T) {
 			// This port is mapped on 127.0.0.2, so it should not be remotely accessible.
 			container.WithPortMap(containertypes.PortMap{"5000/udp": {{HostIP: loIP, HostPort: hostPort}}}),
 			container.WithNetworkMode(bridgeName))
-		defer c.ContainerRemove(ctx, serverID, containertypes.RemoveOptions{Force: true})
+		defer c.ContainerRemove(ctx, serverID, client.ContainerRemoveOptions{Force: true})
 
 		return sendPayloadFromHost(t, host, loIP, hostPort, payload, func() bool {
 			logs := getContainerStdout(t, ctx, c, serverID)
@@ -1469,7 +1469,7 @@ func sendPayloadFromHost(t *testing.T, host networking.Host, daddr, dport, paylo
 }
 
 func getContainerStdout(t *testing.T, ctx context.Context, c *client.Client, ctrID string) string {
-	logReader, err := c.ContainerLogs(ctx, ctrID, containertypes.LogsOptions{
+	logReader, err := c.ContainerLogs(ctx, ctrID, client.ContainerLogsOptions{
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)
@@ -1531,7 +1531,7 @@ func TestSkipRawRules(t *testing.T) {
 						{HostPort: "8081"},
 					}}),
 				)
-				defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+				defer c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
 
 				res4 := icmd.RunCommand("iptables", "-S", "-t", "raw")
 				golden.Assert(t, res4.Stdout(), t.Name()+"_ipv4.golden")
@@ -1564,7 +1564,7 @@ func TestMixAnyWithSpecificHostAddrs(t *testing.T) {
 					containertypes.PortRangeProto("80/" + proto): {{HostIP: "127.0.0.1"}},
 				}),
 			)
-			defer c.ContainerRemove(ctx, ctrId, containertypes.RemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
 
 			insp := container.Inspect(ctx, t, c, ctrId)
 			hostPorts := map[string]struct{}{}

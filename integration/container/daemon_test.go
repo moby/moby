@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil"
 	"github.com/moby/moby/v2/testutil/daemon"
@@ -35,7 +36,7 @@ func TestContainerKillOnDaemonStart(t *testing.T) {
 	// Sadly this means the test will take longer, but at least this test can be parallelized.
 	id := container.Run(ctx, t, apiClient, container.WithCmd("/bin/sh", "-c", "while true; do echo hello; sleep 1; done"))
 	defer func() {
-		err := apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+		err := apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 		assert.NilError(t, err)
 	}()
 
@@ -78,7 +79,7 @@ func TestNetworkStateCleanupOnDaemonStart(t *testing.T) {
 		container.WithPortMap(containertypes.PortMap{"80/tcp": {{}}}),
 		container.WithCmd("/bin/sh", "-c", "while true; do echo hello; sleep 1; done"))
 	defer func() {
-		err := apiClient.ContainerRemove(ctx, cid, containertypes.RemoveOptions{Force: true})
+		err := apiClient.ContainerRemove(ctx, cid, client.ContainerRemoveOptions{Force: true})
 		assert.NilError(t, err)
 	}()
 

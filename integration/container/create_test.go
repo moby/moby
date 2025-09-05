@@ -138,7 +138,7 @@ func TestCreateByImageID(t *testing.T) {
 				assert.Check(t, resp.ID != "")
 			}
 			// cleanup the container if one was created.
-			_ = apiClient.ContainerRemove(ctx, resp.ID, container.RemoveOptions{Force: true})
+			_ = apiClient.ContainerRemove(ctx, resp.ID, client.ContainerRemoveOptions{Force: true})
 		})
 	}
 }
@@ -315,11 +315,11 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 			assert.DeepEqual(t, ctrInspect.HostConfig.MaskedPaths, tc.expected)
 
 			// Start the container.
-			err = apiClient.ContainerStart(ctx, ctr.ID, container.StartOptions{})
+			err = apiClient.ContainerStart(ctx, ctr.ID, client.ContainerStartOptions{})
 			assert.NilError(t, err)
 
 			// It should die down by itself, but stop it to be sure.
-			err = apiClient.ContainerStop(ctx, ctr.ID, container.StopOptions{})
+			err = apiClient.ContainerStop(ctx, ctr.ID, client.ContainerStopOptions{})
 			assert.NilError(t, err)
 
 			ctrInspect, err = apiClient.ContainerInspect(ctx, ctr.ID)
@@ -388,11 +388,11 @@ func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 			assert.DeepEqual(t, ctrInspect.HostConfig.ReadonlyPaths, tc.expected)
 
 			// Start the container.
-			err = apiClient.ContainerStart(ctx, ctr.ID, container.StartOptions{})
+			err = apiClient.ContainerStart(ctx, ctr.ID, client.ContainerStartOptions{})
 			assert.NilError(t, err)
 
 			// It should die down by itself, but stop it to be sure.
-			err = apiClient.ContainerStop(ctx, ctr.ID, container.StopOptions{})
+			err = apiClient.ContainerStop(ctx, ctr.ID, client.ContainerStopOptions{})
 			assert.NilError(t, err)
 
 			ctrInspect, err = apiClient.ContainerInspect(ctx, ctr.ID)
@@ -503,7 +503,7 @@ func TestCreateTmpfsOverrideAnonymousVolume(t *testing.T) {
 	)
 
 	defer func() {
-		err := apiClient.ContainerRemove(ctx, id, container.RemoveOptions{Force: true})
+		err := apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 		assert.NilError(t, err)
 	}()
 
@@ -514,7 +514,7 @@ func TestCreateTmpfsOverrideAnonymousVolume(t *testing.T) {
 	assert.Assert(t, is.Len(inspect.Mounts, 0))
 
 	chWait, chErr := apiClient.ContainerWait(ctx, id, container.WaitConditionNextExit)
-	assert.NilError(t, apiClient.ContainerStart(ctx, id, container.StartOptions{}))
+	assert.NilError(t, apiClient.ContainerStart(ctx, id, client.ContainerStartOptions{}))
 
 	timeout := time.NewTimer(30 * time.Second)
 	defer timeout.Stop()
@@ -753,7 +753,7 @@ func TestContainerdContainerImageInfo(t *testing.T) {
 		// busybox is the default (as of this writing) used by the test client, but lets be explicit here.
 		cfg.Config.Image = "busybox"
 	})
-	defer apiClient.ContainerRemove(ctx, id, container.RemoveOptions{Force: true})
+	defer apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
 	c8dClient, err := containerd.New(info.Containerd.Address, containerd.WithDefaultNamespace(info.Containerd.Namespaces.Containers))
 	assert.NilError(t, err)

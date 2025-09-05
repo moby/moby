@@ -12,7 +12,6 @@ import (
 	"github.com/distribution/reference"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/pkg/authconfig"
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/cluster/convert"
@@ -422,7 +421,7 @@ func (c *Cluster) RemoveService(input string) error {
 }
 
 // ServiceLogs collects service logs and writes them back to `config.OutStream`
-func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector, config *container.LogsOptions) (<-chan *backend.LogMessage, error) {
+func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector, config *backend.ContainerLogsOptions) (<-chan *backend.LogMessage, error) {
 	// Get tail value squared away - the number of previous log lines we look at
 	var tail int64
 	// in ContainerLogs, if the tail value is ANYTHING non-integer, we just set

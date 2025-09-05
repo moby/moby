@@ -121,7 +121,7 @@ func TestExecResize(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	cID := container.Run(ctx, t, apiClient, container.WithTty(true))
-	defer container.Remove(ctx, t, apiClient, cID, containertypes.RemoveOptions{Force: true})
+	defer container.Remove(ctx, t, apiClient, cID, client.ContainerRemoveOptions{Force: true})
 
 	cmd := []string{"top"}
 	if runtime.GOOS == "windows" {

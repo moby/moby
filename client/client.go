@@ -19,7 +19,6 @@ For example, to list running containers (the equivalent of "docker ps"):
 		"context"
 		"fmt"
 
-		"github.com/moby/moby/api/types/container"
 		"github.com/moby/moby/client"
 	)
 
@@ -29,7 +28,7 @@ For example, to list running containers (the equivalent of "docker ps"):
 			panic(err)
 		}
 
-		containers, err := cli.ContainerList(context.Background(), container.ListOptions{})
+		containers, err := cli.ContainerList(context.Background(), client.ContainerListOptions{})
 		if err != nil {
 			panic(err)
 		}

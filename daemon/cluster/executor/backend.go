@@ -38,8 +38,8 @@ type Backend interface {
 	ReleaseIngress() (<-chan struct{}, error)
 	CreateManagedContainer(ctx context.Context, config backend.ContainerCreateConfig) (container.CreateResponse, error)
 	ContainerStart(ctx context.Context, name string, checkpoint string, checkpointDir string) error
-	ContainerStop(ctx context.Context, name string, config container.StopOptions) error
-	ContainerLogs(ctx context.Context, name string, config *container.LogsOptions) (msgs <-chan *backend.LogMessage, tty bool, err error)
+	ContainerStop(ctx context.Context, name string, config backend.ContainerStopOptions) error
+	ContainerLogs(ctx context.Context, name string, config *backend.ContainerLogsOptions) (msgs <-chan *backend.LogMessage, tty bool, err error)
 	ConnectContainerToNetwork(ctx context.Context, containerName, networkName string, endpointConfig *network.EndpointSettings) error
 	ActivateContainerServiceBinding(containerName string) error
 	DeactivateContainerServiceBinding(containerName string) error
@@ -52,7 +52,7 @@ type Backend interface {
 	SetContainerSecretReferences(name string, refs []*swarm.SecretReference) error
 	SetContainerConfigReferences(name string, refs []*swarm.ConfigReference) error
 	SystemInfo(context.Context) (*system.Info, error)
-	Containers(ctx context.Context, config *container.ListOptions) ([]*container.Summary, error)
+	Containers(ctx context.Context, config *backend.ContainerListOptions) ([]*container.Summary, error)
 	SetNetworkBootstrapKeys([]*networktypes.EncryptionKey) error
 	DaemonJoinsCluster(provider cluster.Provider)
 	DaemonLeavesCluster()

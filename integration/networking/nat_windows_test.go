@@ -7,6 +7,7 @@ import (
 	"time"
 
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/integration/internal/network"
 	"github.com/moby/moby/v2/testutil"
@@ -51,7 +52,7 @@ func TestNatNetworkICC(t *testing.T) {
 				container.WithName(ctr1Name),
 				container.WithNetworkMode(tc.netName),
 			)
-			defer c.ContainerRemove(ctx, id1, containertypes.RemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, id1, client.ContainerRemoveOptions{Force: true})
 
 			pingCmd := []string{"ping", "-n", "1", "-w", "3000", ctr1Name}
 
@@ -63,7 +64,7 @@ func TestNatNetworkICC(t *testing.T) {
 				container.WithCmd(pingCmd...),
 				container.WithNetworkMode(tc.netName),
 			)
-			defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
 
 			assert.Check(t, is.Equal(res.ExitCode, 0))
 			assert.Check(t, is.Equal(res.Stderr.Len(), 0))
@@ -99,7 +100,7 @@ func TestFlakyPortMappedHairpinWindows(t *testing.T) {
 		container.WithPortMap(containertypes.PortMap{"80": {{HostIP: "0.0.0.0"}}}),
 		container.WithCmd("httpd", "-f"),
 	)
-	defer c.ContainerRemove(ctx, serverId, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, serverId, client.ContainerRemoveOptions{Force: true})
 
 	inspect := container.Inspect(ctx, t, c, serverId)
 	hostPort := inspect.NetworkSettings.Ports["80/tcp"][0].HostPort
@@ -110,6 +111,6 @@ func TestFlakyPortMappedHairpinWindows(t *testing.T) {
 		container.WithNetworkMode(clientNetName),
 		container.WithCmd("wget", "http://"+hostAddr+":"+hostPort),
 	)
-	defer c.ContainerRemove(ctx, res.ContainerID, containertypes.RemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
 	assert.Check(t, is.Contains(res.Stderr.String(), "404 Not Found"))
 }

@@ -15,7 +15,7 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/types/build"
-	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil/fakecontext"
@@ -75,7 +75,7 @@ func TestCopyToContainerPathDoesNotExist(t *testing.T) {
 	apiClient := testEnv.APIClient()
 	cid := container.Create(ctx, t, apiClient)
 
-	err := apiClient.CopyToContainer(ctx, cid, "/dne", nil, containertypes.CopyToContainerOptions{})
+	err := apiClient.CopyToContainer(ctx, cid, "/dne", nil, client.CopyToContainerOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	assert.Check(t, is.ErrorContains(err, "Could not find the file /dne in container "+cid))
 }
@@ -88,17 +88,17 @@ func TestCopyEmptyFile(t *testing.T) {
 
 	// empty content
 	dstDir, _ := makeEmptyArchive(t)
-	err := apiClient.CopyToContainer(ctx, cid, dstDir, bytes.NewReader([]byte("")), containertypes.CopyToContainerOptions{})
+	err := apiClient.CopyToContainer(ctx, cid, dstDir, bytes.NewReader([]byte("")), client.CopyToContainerOptions{})
 	assert.NilError(t, err)
 
 	// tar with empty file
 	dstDir, preparedArchive := makeEmptyArchive(t)
-	err = apiClient.CopyToContainer(ctx, cid, dstDir, preparedArchive, containertypes.CopyToContainerOptions{})
+	err = apiClient.CopyToContainer(ctx, cid, dstDir, preparedArchive, client.CopyToContainerOptions{})
 	assert.NilError(t, err)
 
 	// tar with empty file archive mode
 	dstDir, preparedArchive = makeEmptyArchive(t)
-	err = apiClient.CopyToContainer(ctx, cid, dstDir, preparedArchive, containertypes.CopyToContainerOptions{
+	err = apiClient.CopyToContainer(ctx, cid, dstDir, preparedArchive, client.CopyToContainerOptions{
 		CopyUIDGID: true,
 	})
 	assert.NilError(t, err)
@@ -185,11 +185,11 @@ func TestCopyToContainerCopyUIDGID(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
 			cID := container.Run(ctx, t, apiClient, container.WithImage(imageID), container.WithUser(tc.user))
-			defer container.Remove(ctx, t, apiClient, cID, containertypes.RemoveOptions{Force: true})
+			defer container.Remove(ctx, t, apiClient, cID, client.ContainerRemoveOptions{Force: true})
 
 			// tar with empty file
 			dstDir, preparedArchive := makeEmptyArchive(t)
-			err := apiClient.CopyToContainer(ctx, cID, dstDir, preparedArchive, containertypes.CopyToContainerOptions{
+			err := apiClient.CopyToContainer(ctx, cID, dstDir, preparedArchive, client.CopyToContainerOptions{
 				CopyUIDGID: true,
 			})
 			assert.NilError(t, err)
@@ -264,7 +264,7 @@ func TestCopyToContainerPathIsNotDir(t *testing.T) {
 	if testEnv.DaemonInfo.OSType == "windows" {
 		path = "c:/windows/system32/drivers/etc/hosts/"
 	}
-	err := apiClient.CopyToContainer(ctx, cid, path, nil, containertypes.CopyToContainerOptions{})
+	err := apiClient.CopyToContainer(ctx, cid, path, nil, client.CopyToContainerOptions{})
 	assert.Check(t, is.ErrorContains(err, "not a directory"))
 }
 

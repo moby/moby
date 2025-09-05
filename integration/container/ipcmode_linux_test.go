@@ -69,7 +69,7 @@ func testIpcNonePrivateShareable(t *testing.T, mode string, mustBeMounted bool, 
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 
-	err = apiClient.ContainerStart(ctx, resp.ID, containertypes.StartOptions{})
+	err = apiClient.ContainerStart(ctx, resp.ID, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	// get major:minor pair for /dev/shm from container's /proc/self/mountinfo
@@ -141,7 +141,7 @@ func testIpcContainer(t *testing.T, donorMode string, mustWork bool) {
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 	name1 := resp.ID
 
-	err = apiClient.ContainerStart(ctx, name1, containertypes.StartOptions{})
+	err = apiClient.ContainerStart(ctx, name1, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	// create and start the second container
@@ -151,7 +151,7 @@ func testIpcContainer(t *testing.T, donorMode string, mustWork bool) {
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 	name2 := resp.ID
 
-	err = apiClient.ContainerStart(ctx, name2, containertypes.StartOptions{})
+	err = apiClient.ContainerStart(ctx, name2, client.ContainerStartOptions{})
 	if !mustWork {
 		// start should fail with a specific error
 		assert.Check(t, is.ErrorContains(err, "non-shareable IPC"))
@@ -207,7 +207,7 @@ func TestAPIIpcModeHost(t *testing.T) {
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 	name := resp.ID
 
-	err = apiClient.ContainerStart(ctx, name, containertypes.StartOptions{})
+	err = apiClient.ContainerStart(ctx, name, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	// check that IPC is shared
@@ -242,7 +242,7 @@ func testDaemonIpcPrivateShareable(t *testing.T, mustBeShared bool, arg ...strin
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 
-	err = c.ContainerStart(ctx, resp.ID, containertypes.StartOptions{})
+	err = c.ContainerStart(ctx, resp.ID, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	// get major:minor pair for /dev/shm from container's /proc/self/mountinfo
