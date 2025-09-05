@@ -9,6 +9,7 @@ import (
 	"github.com/moby/moby/api/types/checkpoint"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/names"
+	"github.com/moby/moby/v2/daemon/server/backend"
 )
 
 var (
@@ -52,7 +53,7 @@ func getCheckpointDir(checkDir, checkpointID, ctrName, ctrID, ctrCheckpointDir s
 }
 
 // CheckpointCreate checkpoints the process running in a container with CRIU
-func (daemon *Daemon) CheckpointCreate(name string, config checkpoint.CreateOptions) error {
+func (daemon *Daemon) CheckpointCreate(name string, config checkpoint.CreateRequest) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -86,7 +87,7 @@ func (daemon *Daemon) CheckpointCreate(name string, config checkpoint.CreateOpti
 }
 
 // CheckpointDelete deletes the specified checkpoint
-func (daemon *Daemon) CheckpointDelete(name string, config checkpoint.DeleteOptions) error {
+func (daemon *Daemon) CheckpointDelete(name string, config backend.CheckpointDeleteOptions) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -99,7 +100,7 @@ func (daemon *Daemon) CheckpointDelete(name string, config checkpoint.DeleteOpti
 }
 
 // CheckpointList lists all checkpoints of the specified container
-func (daemon *Daemon) CheckpointList(name string, config checkpoint.ListOptions) ([]checkpoint.Summary, error) {
+func (daemon *Daemon) CheckpointList(name string, config backend.CheckpointListOptions) ([]checkpoint.Summary, error) {
 	var out []checkpoint.Summary
 
 	container, err := daemon.GetContainer(name)
