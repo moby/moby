@@ -127,9 +127,11 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 
 	userlandProxy := true
 	if env := os.Getenv("DOCKER_USERLANDPROXY"); env != "" {
-		if val, err := strconv.ParseBool(env); err != nil {
-			userlandProxy = val
+		val, err := strconv.ParseBool(env)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse DOCKER_USERLANDPROXY")
 		}
+		userlandProxy = val
 	}
 	d := &Daemon{
 		id:            id,
