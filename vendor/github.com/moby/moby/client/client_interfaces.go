@@ -122,7 +122,7 @@ type ImageAPIClient interface {
 
 	ImageInspect(ctx context.Context, image string, _ ...ImageInspectOption) (image.InspectResponse, error)
 	ImageHistory(ctx context.Context, image string, _ ...ImageHistoryOption) ([]image.HistoryResponseItem, error)
-	ImageLoad(ctx context.Context, input io.Reader, _ ...ImageLoadOption) (image.LoadResponse, error)
+	ImageLoad(ctx context.Context, input io.Reader, _ ...ImageLoadOption) (LoadResponse, error)
 	ImageSave(ctx context.Context, images []string, _ ...ImageSaveOption) (io.ReadCloser, error)
 }
 
