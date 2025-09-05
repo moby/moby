@@ -1,60 +1,16 @@
-package buildbackend
+package client
 
 import (
 	"io"
 
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/registry"
 )
 
-type CachePruneOptions struct {
-	All           bool
-	ReservedSpace int64
-	MaxUsedSpace  int64
-	MinFreeSpace  int64
-	Filters       filters.Args
-}
-
-// PullOption defines different modes for accessing images
-type PullOption int
-
-const (
-	// PullOptionNoPull only returns local images
-	PullOptionNoPull PullOption = iota
-	// PullOptionForcePull always tries to pull a ref from the registry first
-	PullOptionForcePull
-	// PullOptionPreferLocal uses local image if it exists, otherwise pulls
-	PullOptionPreferLocal
-)
-
-// ProgressWriter is a data object to transport progress streams to the client
-type ProgressWriter struct {
-	Output             io.Writer
-	StdoutFormatter    io.Writer
-	StderrFormatter    io.Writer
-	AuxFormatter       AuxEmitter
-	ProgressReaderFunc func(io.ReadCloser) io.ReadCloser
-}
-
-// AuxEmitter is an interface for emitting aux messages during build progress
-type AuxEmitter interface {
-	Emit(string, any) error
-}
-
-// BuildConfig is the configuration used by a BuildManager to start a build
-type BuildConfig struct {
-	Source         io.ReadCloser
-	ProgressWriter ProgressWriter
-	Options        *BuildOptions
-}
-
-// BuildOptions holds the information
+// ImageBuildOptions holds the information
 // necessary to build images.
-type BuildOptions struct {
+type ImageBuildOptions struct {
 	Tags           []string
 	SuppressOutput bool
 	RemoteContext  string
@@ -103,19 +59,19 @@ type BuildOptions struct {
 	BuildID string
 	// Outputs defines configurations for exporting build results. Only supported
 	// in BuildKit mode
-	Outputs []BuildOutput
+	Outputs []ImageBuildOutput
 }
 
-// BuildOutput defines configuration for exporting a build result
-type BuildOutput struct {
+// ImageBuildOutput defines configuration for exporting a build result
+type ImageBuildOutput struct {
 	Type  string
 	Attrs map[string]string
 }
 
-// GetImageAndLayerOptions are the options supported by GetImageAndReleasableLayer
-type GetImageAndLayerOptions struct {
-	PullOption PullOption
-	AuthConfig map[string]registry.AuthConfig
-	Output     io.Writer
-	Platform   *ocispec.Platform
+// ImageBuildResponse holds information
+// returned by a server after building
+// an image.
+type ImageBuildResponse struct {
+	Body   io.ReadCloser
+	OSType string
 }

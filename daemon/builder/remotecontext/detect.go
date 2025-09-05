@@ -15,7 +15,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/moby/v2/daemon/builder/remotecontext/urlutil"
-	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/patternmatcher"
 	"github.com/moby/patternmatcher/ignorefile"
@@ -28,7 +28,7 @@ const ClientSessionRemote = "client-session"
 
 // Detect returns a context and dockerfile from remote location or local
 // archive.
-func Detect(config backend.BuildConfig) (remote builder.Source, dockerfile *parser.Result, _ error) {
+func Detect(config buildbackend.BuildConfig) (remote builder.Source, dockerfile *parser.Result, _ error) {
 	remoteURL := config.Options.RemoteContext
 	switch {
 	case remoteURL == "":

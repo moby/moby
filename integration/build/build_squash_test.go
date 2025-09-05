@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/pkg/stdcopy"
-	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/testutil"
@@ -51,13 +50,11 @@ func TestBuildSquashParent(t *testing.T) {
 	defer source.Close()
 
 	name := strings.ToLower(t.Name())
-	resp, err := apiClient.ImageBuild(ctx,
-		source.AsTarReader(t),
-		build.ImageBuildOptions{
-			Remove:      true,
-			ForceRemove: true,
-			Tags:        []string{name},
-		})
+	resp, err := apiClient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
+		Remove:      true,
+		ForceRemove: true,
+		Tags:        []string{name},
+	})
 	assert.NilError(t, err)
 	_, err = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
@@ -70,7 +67,7 @@ func TestBuildSquashParent(t *testing.T) {
 	// build with squash
 	resp, err = apiClient.ImageBuild(ctx,
 		source.AsTarReader(t),
-		build.ImageBuildOptions{
+		client.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
 			Squash:      true,

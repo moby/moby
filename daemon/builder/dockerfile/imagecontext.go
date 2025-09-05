@@ -8,7 +8,7 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/moby/moby/v2/daemon/builder"
 	dockerimage "github.com/moby/moby/v2/daemon/internal/image"
-	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -25,15 +25,15 @@ type imageSources struct {
 
 func newImageSources(options builderOptions) *imageSources {
 	getAndMount := func(ctx context.Context, idOrRef string, localOnly bool, platform *ocispec.Platform) (builder.Image, builder.ROLayer, error) {
-		pullOption := backend.PullOptionNoPull
+		pullOption := buildbackend.PullOptionNoPull
 		if !localOnly {
 			if options.Options.PullParent {
-				pullOption = backend.PullOptionForcePull
+				pullOption = buildbackend.PullOptionForcePull
 			} else {
-				pullOption = backend.PullOptionPreferLocal
+				pullOption = buildbackend.PullOptionPreferLocal
 			}
 		}
-		return options.Backend.GetImageAndReleasableLayer(ctx, idOrRef, backend.GetImageAndLayerOptions{
+		return options.Backend.GetImageAndReleasableLayer(ctx, idOrRef, buildbackend.GetImageAndLayerOptions{
 			PullOption: pullOption,
 			AuthConfig: options.Options.AuthConfigs,
 			Output:     options.ProgressWriter.Output,

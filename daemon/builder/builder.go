@@ -13,6 +13,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -52,7 +53,7 @@ type Backend interface {
 
 // ImageBackend are the interface methods required from an image component
 type ImageBackend interface {
-	GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (Image, ROLayer, error)
+	GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts buildbackend.GetImageAndLayerOptions) (Image, ROLayer, error)
 }
 
 // ExecBackend contains the interface methods required for executing containers

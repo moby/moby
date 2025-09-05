@@ -18,7 +18,7 @@ import (
 	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/moby/v2/daemon/builder/remotecontext"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
-	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/sys/user"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -62,7 +62,7 @@ func NewBuildManager(b builder.Backend, identityMapping user.IdentityMapping) (*
 }
 
 // Build starts a new build from a BuildConfig
-func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (*builder.Result, error) {
+func (bm *BuildManager) Build(ctx context.Context, config buildbackend.BuildConfig) (*builder.Result, error) {
 	buildsTriggered.Inc()
 	if config.Options.Dockerfile == "" {
 		config.Options.Dockerfile = builder.DefaultDockerfileName
@@ -98,9 +98,9 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 
 // builderOptions are the dependencies required by the builder
 type builderOptions struct {
-	Options        *build.ImageBuildOptions
+	Options        *buildbackend.BuildOptions
 	Backend        builder.Backend
-	ProgressWriter backend.ProgressWriter
+	ProgressWriter buildbackend.ProgressWriter
 	PathCache      pathCache
 	IDMapping      user.IdentityMapping
 }
@@ -108,11 +108,11 @@ type builderOptions struct {
 // Builder is a Dockerfile builder
 // It implements the builder.Backend interface.
 type Builder struct {
-	options *build.ImageBuildOptions
+	options *buildbackend.BuildOptions
 
 	Stdout io.Writer
 	Stderr io.Writer
-	Aux    backend.AuxEmitter
+	Aux    buildbackend.AuxEmitter
 	Output io.Writer
 
 	docker builder.Backend
@@ -130,7 +130,7 @@ type Builder struct {
 func newBuilder(ctx context.Context, options builderOptions) (*Builder, error) {
 	config := options.Options
 	if config == nil {
-		config = new(build.ImageBuildOptions)
+		config = &buildbackend.BuildOptions{}
 	}
 
 	imgProber, err := newImageProber(ctx, options.Backend, config.CacheFrom, config.NoCache)
@@ -217,7 +217,7 @@ func (b *Builder) build(ctx context.Context, source builder.Source, dockerfile *
 	return &builder.Result{ImageID: state.imageID, FromImage: state.baseImage}, nil
 }
 
-func emitImageID(aux backend.AuxEmitter, state *dispatchState) error {
+func emitImageID(aux buildbackend.AuxEmitter, state *dispatchState) error {
 	if aux == nil || state.imageID == "" {
 		return nil
 	}
@@ -343,7 +343,7 @@ func BuildFromConfig(ctx context.Context, config *container.Config, changes []st
 	}
 
 	b, err := newBuilder(ctx, builderOptions{
-		Options: &build.ImageBuildOptions{NoCache: true},
+		Options: &buildbackend.BuildOptions{NoCache: true},
 	})
 	if err != nil {
 		return nil, err

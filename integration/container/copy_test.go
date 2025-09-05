@@ -213,7 +213,7 @@ func makeTestImage(ctx context.Context, t *testing.T) (imageID string) {
 	`))
 	defer buildCtx.Close()
 
-	resp, err := apiClient.ImageBuild(ctx, buildCtx.AsTarReader(t), build.ImageBuildOptions{})
+	resp, err := apiClient.ImageBuild(ctx, buildCtx.AsTarReader(t), client.ImageBuildOptions{})
 	assert.NilError(t, err)
 	defer resp.Body.Close()
 
@@ -287,7 +287,7 @@ func TestCopyFromContainer(t *testing.T) {
 	`))
 	defer buildCtx.Close()
 
-	resp, err := apiClient.ImageBuild(ctx, buildCtx.AsTarReader(t), build.ImageBuildOptions{})
+	resp, err := apiClient.ImageBuild(ctx, buildCtx.AsTarReader(t), client.ImageBuildOptions{})
 	assert.NilError(t, err)
 	defer resp.Body.Close()
 

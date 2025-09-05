@@ -11,12 +11,12 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
-	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/pkg/oci"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -24,19 +24,18 @@ import (
 func newBuilderWithMockBackend(t *testing.T) *Builder {
 	t.Helper()
 	mockBackend := &MockBackend{}
-	opts := &build.ImageBuildOptions{}
 	ctx := context.Background()
 
 	imageProber, err := newImageProber(ctx, mockBackend, nil, false)
 	assert.NilError(t, err, "Could not create image prober")
 
 	b := &Builder{
-		options:       opts,
+		options:       &buildbackend.BuildOptions{},
 		docker:        mockBackend,
 		Stdout:        new(bytes.Buffer),
 		disableCommit: true,
 		imageSources: newImageSources(builderOptions{
-			Options: opts,
+			Options: &buildbackend.BuildOptions{},
 			Backend: mockBackend,
 		}),
 		imageProber:      imageProber,

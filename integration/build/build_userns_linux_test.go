@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/pkg/stdcopy"
-	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/integration/internal/container"
@@ -64,11 +63,9 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
 	defer source.Close()
 
-	resp, err := clientUserRemap.ImageBuild(ctx,
-		source.AsTarReader(t),
-		build.ImageBuildOptions{
-			Tags: []string{imageTag},
-		})
+	resp, err := clientUserRemap.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
+		Tags: []string{imageTag},
+	})
 	assert.NilError(t, err)
 	defer resp.Body.Close()
 
