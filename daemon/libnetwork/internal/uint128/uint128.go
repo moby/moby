@@ -66,3 +66,10 @@ func (x Uint128) Fill16(a *[16]byte) {
 func (x Uint128) Uint64() uint64 {
 	return x.lo
 }
+
+func (x Uint128) Uint64Sat() uint64 {
+	if x.hi != 0 {
+		return ^uint64(0)
+	}
+	return x.lo
+}

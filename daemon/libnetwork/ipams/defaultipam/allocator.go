@@ -8,6 +8,7 @@ import (
 	"net/netip"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/addrset"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
@@ -22,6 +23,8 @@ const (
 	localAddressSpace  = "LocalDefault"
 	globalAddressSpace = "GlobalDefault"
 )
+
+var _ ipamapi.PoolStatuser = &Allocator{}
 
 // Register registers the default ipam driver with libnetwork. It takes
 // two optional address pools respectively containing the list of user-defined
@@ -310,6 +313,21 @@ func getAddress(base netip.Prefix, addrSet *addrset.AddrSet, prefAddress netip.A
 		return netip.Addr{}, err
 	}
 	return addr, nil
+}
+
+// PoolStatus returns the operational status of the specified IPAM pool.
+func (a *Allocator) PoolStatus(poolID string) (network.SubnetStatus, error) {
+	k, err := PoolIDFromString(poolID)
+	if err != nil {
+		return network.SubnetStatus{}, types.InvalidParameterErrorf("invalid pool id: %s", poolID)
+	}
+
+	aSpace, err := a.getAddrSpace(k.AddressSpace, k.Is6())
+	if err != nil {
+		return network.SubnetStatus{}, err
+	}
+
+	return aSpace.allocationStatus(k.Subnet, k.ChildSubnet)
 }
 
 // IsBuiltIn returns true for builtin drivers
