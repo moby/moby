@@ -1,6 +1,7 @@
 package iterutil
 
 import (
+	"maps"
 	"slices"
 	"testing"
 
@@ -25,4 +26,43 @@ func TestDeref(t *testing.T) {
 	}
 	b := slices.Collect(Deref(slices.Values(a)))
 	assert.DeepEqual(t, b, []int{0, 1, 2})
+}
+
+func TestChain(t *testing.T) {
+	a := []int{1, 2, 3}
+	b := []int{4, 5}
+	c := []int{6}
+
+	ab := Chain(slices.Values(a), slices.Values(b))
+	abc := Chain(ab, slices.Values(c))
+
+	assert.DeepEqual(t, slices.Collect(ab), []int{1, 2, 3, 4, 5})
+	assert.DeepEqual(t, slices.Collect(abc), []int{1, 2, 3, 4, 5, 6})
+}
+
+func TestChain2(t *testing.T) {
+	a := map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	}
+	b := map[string]int{
+		"d": 4,
+		"e": 5,
+	}
+	c := map[string]int{
+		"f": 6,
+	}
+
+	ab := Chain2(maps.All(a), maps.All(b))
+	abc := Chain2(ab, maps.All(c))
+
+	expab := maps.Clone(a)
+	maps.Insert(expab, maps.All(b))
+
+	expabc := maps.Clone(expab)
+	maps.Insert(expabc, maps.All(c))
+
+	assert.DeepEqual(t, maps.Collect(ab), expab)
+	assert.DeepEqual(t, maps.Collect(abc), expabc)
 }
