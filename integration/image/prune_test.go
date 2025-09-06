@@ -21,6 +21,7 @@ import (
 func TestPruneDontDeleteUsedDangling(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot start multiple daemons on windows")
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+	skip.If(t, !strings.Contains(testEnv.DaemonInfo.Architecture, "amd64"), "test only works on amd64 hosts")
 
 	ctx := setupTest(t)
 
@@ -31,6 +32,7 @@ func TestPruneDontDeleteUsedDangling(t *testing.T) {
 	apiClient := d.NewClientT(t)
 	defer apiClient.Close()
 
+	// dangling image is for platform linux/amd64 only
 	danglingID := iimage.Load(ctx, t, apiClient, specialimage.Dangling)
 
 	_, err := apiClient.ImageInspect(ctx, danglingID)

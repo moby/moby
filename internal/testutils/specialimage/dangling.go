@@ -13,7 +13,7 @@ const (
 	danglingImageConfigDigest   = "sha256:0df1207206e5288f4a989a2f13d1f5b3c4e70467702c1d5d21dfc9f002b7bd43" // #nosec G101 -- ignoring: Potential hardcoded credentials (gosec)
 )
 
-// Dangling creates an image with no layers and no tag.
+// Dangling creates an image for platform linux/amd64 with no layers and no tag.
 // It also has an extra org.mobyproject.test.specialimage=1 label set.
 // Layout: OCI.
 func Dangling(dir string) (*ocispec.Index, error) {
