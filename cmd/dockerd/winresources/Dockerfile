@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG DEBIAN_VERSION=bookworm
+ARG DEBIAN_VERSION=trixie
 ARG XX_VERSION=1.6.1
 
 # xx is a helper for cross-compilation
