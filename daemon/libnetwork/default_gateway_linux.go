@@ -21,12 +21,17 @@ func (c *Controller) createGWNetwork() (*Network, error) {
 		otelutil.MustNewMemberRaw(otelutil.TriggerKey, "libnetwork.Controller.createGWNetwork"),
 	))
 
+	opts := map[string]string{
+		bridge.BridgeName:         libnGWNetwork,
+		bridge.EnableICC:          strconv.FormatBool(false),
+		bridge.EnableIPMasquerade: strconv.FormatBool(true),
+	}
+
+	// Merge daemon's default network opts, without overriding explicitly set keys
+	ApplyDefaultDriverOpts(ctx, opts, "bridge", libnGWNetwork, c.cfg.DefaultNetworkOpts)
+
 	n, err := c.NewNetwork(ctx, "bridge", libnGWNetwork, "",
-		NetworkOptionDriverOpts(map[string]string{
-			bridge.BridgeName:         libnGWNetwork,
-			bridge.EnableICC:          strconv.FormatBool(false),
-			bridge.EnableIPMasquerade: strconv.FormatBool(true),
-		}),
+		NetworkOptionDriverOpts(opts),
 		NetworkOptionEnableIPv4(true),
 		NetworkOptionEnableIPv6(false),
 	)
