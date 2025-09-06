@@ -5,6 +5,8 @@ package ipbits
 import (
 	"encoding/binary"
 	"net/netip"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/uint128"
 )
 
 // Add returns ip + (x << shift).
@@ -17,9 +19,9 @@ func Add(ip netip.Addr, x uint64, shift uint) netip.Addr {
 		return netip.AddrFrom4(a)
 	} else {
 		a := ip.As16()
-		addr := uint128From16(a)
-		addr = addr.add(uint128From(x).lsh(shift))
-		addr.fill16(&a)
+		addr := uint128.From16(a)
+		addr = addr.Add(uint128.From(0, x).Lsh(shift))
+		addr.Fill16(&a)
 		return netip.AddrFrom16(a)
 	}
 }
@@ -36,13 +38,13 @@ func SubnetsBetween(a1 netip.Addr, a2 netip.Addr, sz int) uint64 {
 	p1, _ := a1.Prefix(sz)
 	p2, _ := a2.Prefix(sz)
 
-	return subAddr(p2.Addr(), p1.Addr()).rsh(uint(a1.BitLen() - sz)).uint64()
+	return subAddr(p2.Addr(), p1.Addr()).Rsh(uint(a1.BitLen() - sz)).Uint64()
 }
 
 // subAddr returns 'ip1 - ip2'. Both netip.Addr have to be of the same address
 // family. 'ip1' as to be greater than or equal to 'ip2'.
-func subAddr(ip1 netip.Addr, ip2 netip.Addr) uint128 {
-	return uint128From16(ip1.As16()).sub(uint128From16(ip2.As16()))
+func subAddr(ip1 netip.Addr, ip2 netip.Addr) uint128.Uint128 {
+	return uint128.From16(ip1.As16()).Sub(uint128.From16(ip2.As16()))
 }
 
 // Field returns the value of the bitfield [u, v] in ip as an integer,
@@ -56,7 +58,7 @@ func Field(ip netip.Addr, u, v uint) uint64 {
 		a := ip.As4()
 		return uint64((binary.BigEndian.Uint32(a[:]) & mask) >> (32 - v))
 	} else {
-		mask := uint128From(0).not().rsh(u)
-		return uint128From16(ip.As16()).and(mask).rsh(128 - v).uint64()
+		mask := uint128.From(0, 0).Not().Rsh(u)
+		return uint128.From16(ip.As16()).And(mask).Rsh(128 - v).Uint64()
 	}
 }

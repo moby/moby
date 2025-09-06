@@ -7,7 +7,9 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/uint128"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamutils"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipbits"
@@ -368,4 +370,25 @@ func (aSpace *addrSpace) releaseAddress(nw, sub netip.Prefix, address netip.Addr
 	defer log.G(context.TODO()).Debugf("Released address Address:%v Sequence:%s", address, p.addrs)
 
 	return p.addrs.Remove(address)
+}
+
+func (aSpace *addrSpace) allocationStatus(nw, ipr netip.Prefix) (network.SubnetStatus, error) {
+	aSpace.mu.Lock()
+	defer aSpace.mu.Unlock()
+
+	if ipr == (netip.Prefix{}) {
+		ipr = nw
+	}
+	p, ok := aSpace.subnets[nw]
+	if !ok {
+		return network.SubnetStatus{}, types.NotFoundErrorf("cannot find address pool for %v", nw)
+	}
+
+	iprcap := uint128.From(0, 1).Lsh(uint(ipr.Addr().BitLen() - ipr.Bits()))
+	ipralloc := uint128.From(p.addrs.AddrsInPrefix(ipr))
+
+	return network.SubnetStatus{
+		IPsInUse:            uint128.From(p.addrs.Len()).Uint64Sat(),
+		DynamicIPsAvailable: iprcap.Sub(ipralloc).Uint64Sat(),
+	}, nil
 }

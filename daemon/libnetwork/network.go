@@ -9,12 +9,14 @@ import (
 	"net"
 	"net/netip"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
@@ -30,6 +32,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/errdefs"
+	"github.com/moby/moby/v2/internal/iterutil"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -2170,4 +2173,38 @@ func (n *Network) deleteLoadBalancerSandbox() error {
 		return fmt.Errorf("Failed to delete %s sandbox: %v", sandboxName, err)
 	}
 	return nil
+}
+
+func (n *Network) IPAMStatus(ctx context.Context) (network.IPAMStatus, error) {
+	status := network.IPAMStatus{
+		Subnets: make(map[netip.Prefix]network.SubnetStatus),
+	}
+
+	if n.hasSpecialDriver() {
+		// Special drivers do not assign addresses from IPAM
+		return status, nil
+	}
+
+	ipamdriver, _, err := n.getController().getIPAMDriver(n.ipamType)
+	if err != nil {
+		return status, err
+	}
+	ipam, ok := ipamdriver.(ipamapi.PoolStatuser)
+	if !ok {
+		return status, nil
+	}
+
+	var errs []error
+	info4, info6 := n.IpamInfo()
+	for info := range iterutil.Chain(slices.Values(info4), slices.Values(info6)) {
+		pstat, err := ipam.PoolStatus(info.PoolID)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to retrieve pool %s status: %w", info.PoolID, err))
+			continue
+		}
+		prefix, _ := netiputil.ToPrefix(info.Pool)
+		status.Subnets[prefix] = pstat
+	}
+
+	return status, errors.Join(errs...)
 }
