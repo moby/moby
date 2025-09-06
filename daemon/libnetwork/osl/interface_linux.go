@@ -228,6 +228,9 @@ func moveLink(ctx context.Context, nlhHost nlwrap.Handle, iface netlink.Link, i 
 // an auto-generated dest name that combines the provided dstPrefix and a
 // numeric suffix.
 //
+// If an IPv6 address is configured, but unused because of sysctl settings applied
+// after address assignment, it will be removed from the Interface.
+//
 // It's safe to call concurrently.
 func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix, dstName string, options ...IfaceOption) error {
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.osl.AddInterface", trace.WithAttributes(
@@ -872,6 +875,23 @@ func (n *Namespace) configureInterface(ctx context.Context, nlh nlwrap.Handle, i
 
 	if err := n.setSysctls(ctx, i.dstName, i.sysctls); err != nil {
 		return err
+	}
+
+	// If an IPv6 address was configured, and now it's gone away, it's because of a sysctl
+	// setting. Remove the address from the Interface so that there's no attempt to send
+	// Neighbour Advertisements for it, and the caller knows to release the address.
+	if i.addressIPv6 != nil {
+		v6addrs, err := nlh.AddrList(iface, netlink.FAMILY_V6)
+		if err != nil {
+			return fmt.Errorf("failed to check IPv6 addresses: %v", err)
+		}
+		if len(v6addrs) == 0 {
+			log.G(ctx).WithFields(log.Fields{
+				"ip":     i.addressIPv6.String(),
+				"ifname": i.dstName,
+			}).Debug("IPv6 address not present after applying sysctls")
+			i.addressIPv6 = nil
+		}
 	}
 
 	return nil
