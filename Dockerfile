@@ -445,7 +445,7 @@ ENV PATH=/usr/local/cli:$PATH
 ENV TEST_CLIENT_BINARY=/usr/local/cli-integration/docker
 ENV CONTAINERD_ADDRESS=/run/docker/containerd/containerd.sock
 ENV CONTAINERD_NAMESPACE=moby
-WORKDIR /go/src/github.com/docker/docker
+WORKDIR /go/src/github.com/moby/moby/v2
 VOLUME /var/lib/docker
 VOLUME /home/unprivilegeduser/.local/share/docker
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
@@ -475,13 +475,13 @@ RUN useradd --create-home --gid docker unprivilegeduser \
  && mkdir -p /home/unprivilegeduser/.local/share/docker \
  && chown -R unprivilegeduser /home/unprivilegeduser
 # Let us use a .bashrc file
-RUN ln -sfv /go/src/github.com/docker/docker/.bashrc ~/.bashrc
+RUN ln -sfv /go/src/github.com/moby/moby/v2/.bashrc ~/.bashrc
 # Activate bash completion
 RUN echo "source /usr/share/bash-completion/bash_completion" >> /etc/bash.bashrc
 RUN ldconfig
 # Set dev environment as safe git directory to prevent "dubious ownership" errors
 # when bind-mounting the source into the dev-container. See https://github.com/moby/moby/pull/44930
-RUN git config --global --add safe.directory $GOPATH/src/github.com/docker/docker
+RUN git config --global --add safe.directory $GOPATH/src/github.com/moby/moby/v2
 # This should only install packages that are specifically needed for the dev environment and nothing else
 # Do you really need to add another package here? Can it be done in a different build stage?
 RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
@@ -530,7 +530,7 @@ COPY --link --from=dockercli-integration /build/ /usr/local/cli-integration
 
 FROM base AS build
 COPY --from=gowinres /build/ /usr/local/bin/
-WORKDIR /go/src/github.com/docker/docker
+WORKDIR /go/src/github.com/moby/moby/v2
 ENV CGO_ENABLED=1
 RUN --mount=type=cache,sharing=locked,id=moby-build-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-build-aptcache,target=/var/cache/apt \

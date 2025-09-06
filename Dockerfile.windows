@@ -45,8 +45,8 @@
 #
 # 1. Clone the sources from github.com:
 #
-#    >>   git clone https://github.com/docker/docker.git C:\gopath\src\github.com\docker\docker
-#    >>   Cloning into 'C:\gopath\src\github.com\docker\docker'...
+#    >>   git clone https://github.com/moby/moby.git C:\gopath\src\github.com\moby\moby\v2
+#    >>   Cloning into 'C:\gopath\src\github.com\moby\moby\v2'...
 #    >>   remote: Counting objects: 186216, done.
 #    >>   remote: Compressing objects: 100% (21/21), done.
 #    >>   remote: Total 186216 (delta 5), reused 0 (delta 0), pack-reused 186195
@@ -59,7 +59,7 @@
 #
 # 2. Change directory to the cloned docker sources:
 #
-#    >>   cd C:\gopath\src\github.com\docker\docker 
+#    >>   cd C:\gopath\src\github.com\moby\moby\v2
 #
 #
 # 3. Build a docker image with the components required to build the docker binaries from source
@@ -79,8 +79,8 @@
 # 5. Copy the binaries out of the container, replacing HostPath with an appropriate destination 
 #    folder on the host system where you want the binaries to be located.
 #
-#    >>   docker cp binaries:C:\gopath\src\github.com\docker\docker\bundles\docker.exe C:\HostPath\docker.exe
-#    >>   docker cp binaries:C:\gopath\src\github.com\docker\docker\bundles\dockerd.exe C:\HostPath\dockerd.exe
+#    >>   docker cp binaries:C:\gopath\src\github.com\moby\moby\v2\bundles\docker.exe C:\HostPath\docker.exe
+#    >>   docker cp binaries:C:\gopath\src\github.com\moby\moby\v2\bundles\dockerd.exe C:\HostPath\dockerd.exe
 #
 #
 # 6. (Optional) Remove the interim container holding the built executable binaries:
@@ -268,7 +268,7 @@ RUN `
   Remove-Item C:\containerd.tar; `
   `
   # Ensure all directories exist that we will require below....
-  $srcDir = """$Env:GOPATH`\src\github.com\docker\docker\bundles"""; `
+  $srcDir = """$Env:GOPATH`\src\github.com\moby\moby\v2\bundles"""; `
   Write-Host INFO: Ensuring existence of directory $srcDir...; `
   New-Item -Force -ItemType Directory -Path $srcDir | Out-Null; `
   `
@@ -307,7 +307,7 @@ RUN `
 ENTRYPOINT ["powershell.exe"]
 
 # Set the working directory to the location of the sources
-WORKDIR ${GOPATH}\src\github.com\docker\docker
+WORKDIR ${GOPATH}\src\github.com\moby\moby\v2
 
 # Copy the sources into the container
 COPY . .
