@@ -300,9 +300,9 @@ func (daemon *Daemon) createNetwork(ctx context.Context, cfg *config.Config, cre
 		return nil, errdefs.Forbidden(errors.New(`This node is not a swarm manager. Use "docker swarm init" or "docker swarm join" to connect this node to swarm and try again.`))
 	}
 
-	networkOptions := make(map[string]string)
-	for k, v := range create.Options {
-		networkOptions[k] = v
+	networkOptions := maps.Clone(create.Options)
+	if networkOptions == nil {
+		networkOptions = make(map[string]string)
 	}
 	if defaultOpts, ok := cfg.DefaultNetworkOpts[driver]; create.ConfigFrom == nil && ok {
 		for k, v := range defaultOpts {
