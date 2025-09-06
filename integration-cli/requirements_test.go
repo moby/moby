@@ -19,7 +19,7 @@ import (
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/cli"
-	"github.com/moby/moby/v2/testutil/registry"
+	"github.com/moby/moby/v2/internal/testutil/registry"
 )
 
 func DaemonIsWindows() bool {

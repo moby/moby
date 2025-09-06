@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/v2/testutil/fakecontext"
+	"github.com/moby/moby/v2/internal/testutil/fakecontext"
 	"gotest.tools/v3/icmd"
 )
 

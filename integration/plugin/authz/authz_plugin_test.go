@@ -22,8 +22,8 @@ import (
 	eventtypes "github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
+	"github.com/moby/moby/v2/internal/testutil/environment"
 	"github.com/moby/moby/v2/pkg/authorization"
-	"github.com/moby/moby/v2/testutil/environment"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )

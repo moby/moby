@@ -9,7 +9,7 @@ import (
 
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/stringid"
-	"github.com/moby/moby/v2/testutil/daemon"
+	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"

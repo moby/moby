@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/v2/testutil"
+	"github.com/moby/moby/v2/internal/testutil"
 	"gotest.tools/v3/assert"
 )
 
