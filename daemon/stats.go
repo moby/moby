@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/container"
@@ -98,8 +99,8 @@ func (daemon *Daemon) unsubscribeToContainerStats(c *container.Container, ch cha
 }
 
 // GetContainerStats collects all the stats published by a container
-func (daemon *Daemon) GetContainerStats(container *container.Container) (*containertypes.StatsResponse, error) {
-	stats, err := daemon.stats(container)
+func (daemon *Daemon) GetContainerStats(ctr *container.Container) (*containertypes.StatsResponse, error) {
+	stats, err := daemon.stats(ctr)
 	if err != nil {
 		goto done
 	}
@@ -113,22 +114,21 @@ func (daemon *Daemon) GetContainerStats(container *container.Container) (*contai
 	}
 
 	// We already have the network stats on Windows directly from HCS.
-	if !container.Config.NetworkDisabled && runtime.GOOS != "windows" {
-		stats.Networks, err = daemon.getNetworkStats(container)
+	if !ctr.Config.NetworkDisabled && runtime.GOOS != "windows" {
+		stats.Networks, err = daemon.getNetworkStats(ctr)
 	}
 
 done:
-	switch err.(type) {
-	case nil:
-		return stats, nil
-	case errdefs.ErrConflict, errdefs.ErrNotFound:
-		// return empty stats containing only name and ID if not running or not found
-		return &containertypes.StatsResponse{
-			Name: container.Name,
-			ID:   container.ID,
-		}, nil
-	default:
-		log.G(context.TODO()).Errorf("collecting stats for container %s: %v", container.Name, err)
+	if err != nil {
+		if cerrdefs.IsNotFound(err) || cerrdefs.IsConflict(err) {
+			// return empty stats containing only name and ID if not running or not found
+			return &containertypes.StatsResponse{
+				Name: ctr.Name,
+				ID:   ctr.ID,
+			}, nil
+		}
+		log.G(context.TODO()).Errorf("collecting stats for container %s: %v", ctr.Name, err)
 		return nil, err
 	}
+	return stats, nil
 }
