@@ -14,7 +14,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamutils"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/options"
-	"github.com/moby/moby/v2/internal/testutils/netnsutils"
+	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

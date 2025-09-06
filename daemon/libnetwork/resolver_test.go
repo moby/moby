@@ -12,7 +12,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/miekg/dns"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
-	"github.com/moby/moby/v2/internal/testutils/netnsutils"
+	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

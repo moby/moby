@@ -8,8 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/moby/moby/v2/internal/testutils/netnsutils"
-
+	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

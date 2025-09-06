@@ -14,7 +14,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/moby/moby/v2/daemon/libnetwork/iptables"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
-	"github.com/moby/moby/v2/internal/testutils/netnsutils"
+	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/golden"
 	"gotest.tools/v3/icmd"

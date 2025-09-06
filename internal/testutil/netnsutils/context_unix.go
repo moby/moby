@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
-	"github.com/moby/moby/v2/internal/testutils"
+	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
@@ -143,7 +143,7 @@ func (c *OSContext) restore(t *testing.T) {
 //			t.Fatalf("%+v", err)
 //		}
 //	}
-func (c *OSContext) Set() (func(testutils.Logger), error) {
+func (c *OSContext) Set() (func(testutil.Logger), error) {
 	runtime.LockOSThread()
 	orig, err := netns.Get()
 	if err != nil {
@@ -158,7 +158,7 @@ func (c *OSContext) Set() (func(testutils.Logger), error) {
 	tid := unix.Gettid()
 	_, file, line, callerOK := runtime.Caller(0)
 
-	return func(log testutils.Logger) {
+	return func(log testutil.Logger) {
 		if unix.Gettid() != tid {
 			msg := "teardown function must be called from the same goroutine as c.Set()"
 			if callerOK {

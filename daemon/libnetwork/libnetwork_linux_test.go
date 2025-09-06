@@ -29,7 +29,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/options"
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
-	"github.com/moby/moby/v2/internal/testutils/netnsutils"
+	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"github.com/moby/moby/v2/pkg/plugins"
 	"github.com/moby/sys/reexec"
 	"github.com/pkg/errors"

@@ -11,7 +11,7 @@ import (
 	iimage "github.com/moby/moby/v2/integration/internal/image"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
-	"github.com/moby/moby/v2/internal/testutils/specialimage"
+	"github.com/moby/moby/v2/internal/testutil/specialimage"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"

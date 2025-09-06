@@ -18,7 +18,7 @@ import (
 	imagetypes "github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
-	"github.com/moby/moby/v2/internal/testutils/specialimage"
+	"github.com/moby/moby/v2/internal/testutil/specialimage"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"

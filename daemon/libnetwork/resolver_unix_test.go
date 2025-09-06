@@ -10,7 +10,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/moby/moby/v2/daemon/libnetwork/config"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamutils"
-	"github.com/moby/moby/v2/internal/testutils/netnsutils"
+	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 )
 
 // test only works on linux

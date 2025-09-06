@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
-	"github.com/moby/moby/v2/internal/testutils/storeutils"
+	"github.com/moby/moby/v2/internal/testutil/storeutils"
 )
 
 const testNetworkType = "macvlan"
