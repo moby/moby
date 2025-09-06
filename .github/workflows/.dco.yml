@@ -25,19 +25,19 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # tag=v4.2.2
         with:
           fetch-depth: 0
       -
         name: Dump context
-        uses: actions/github-script@v7
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # tag=v7.0.1
         with:
           script: |
             console.log(JSON.stringify(context, null, 2));
       -
         name: Get base ref
         id: base-ref
-        uses: actions/github-script@v7
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # tag=v7.0.1
         with:
           result-encoding: string
           script: |
