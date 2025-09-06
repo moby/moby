@@ -28,6 +28,9 @@ func (daemon *Daemon) LogContainerEventWithAttributes(container *container.Conta
 		attributes["image"] = container.Config.Image
 	}
 	attributes["name"] = strings.TrimPrefix(container.Name, "/")
+	if container.HasBeenManuallyRestarted || (container.State != nil && container.State.Restarting) {
+		attributes["restarting"] = "true"
+	}
 	daemon.EventsService.Log(action, events.ContainerEventType, events.Actor{
 		ID:         container.ID,
 		Attributes: attributes,
