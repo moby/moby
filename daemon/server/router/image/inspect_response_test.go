@@ -40,12 +40,12 @@ func TestInspectResponse(t *testing.T) {
 			expected:     `{"AttachStderr":false,"AttachStdin":false,"AttachStdout":false,"Cmd":["/bin/sh"],"Domainname":"","Entrypoint":null,"Env":null,"Hostname":"","Image":"","Labels":null,"OnBuild":null,"OpenStdin":false,"StdinOnce":false,"StopSignal":"SIGQUIT","Tty":false,"User":"","Volumes":null,"WorkingDir":""}`,
 		},
 		{
-			doc: "api >= v1.50",
+			doc: "api v1.50 - v1.51",
 			cfg: &ocispec.ImageConfig{
 				Cmd:        []string{"/bin/sh"},
 				StopSignal: "SIGQUIT",
 			},
-			legacyConfig: legacyConfigFields["current"],
+			legacyConfig: legacyConfigFields["v1.50-v1.51"],
 			expected:     `{"Cmd":["/bin/sh"],"Entrypoint":null,"Env":null,"Labels":null,"OnBuild":null,"StopSignal":"SIGQUIT","User":"","Volumes":null,"WorkingDir":""}`,
 		},
 	}

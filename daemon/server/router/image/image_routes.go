@@ -372,12 +372,8 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 		return err
 	}
 
-	// inspectResponse preserves fields in the response that have an
-	// "omitempty" in the OCI spec, but didn't omit such fields in
-	// legacy responses before API v1.50.
 	imageInspect := &inspectCompatResponse{
 		InspectResponse: resp,
-		legacyConfig:    legacyConfigFields["current"],
 	}
 
 	// Make sure we output empty arrays instead of nil. While Go nil slice is functionally equivalent to an empty slice,
@@ -406,8 +402,15 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 	if versions.LessThan(version, "1.48") {
 		imageInspect.Descriptor = nil
 	}
-	if versions.LessThan(version, "1.50") {
-		imageInspect.legacyConfig = legacyConfigFields["v1.49"]
+	if versions.LessThan(version, "1.52") {
+		if versions.LessThan(version, "1.50") {
+			imageInspect.legacyConfig = legacyConfigFields["v1.49"]
+		} else {
+			// inspectResponse preserves fields in the response that have an
+			// "omitempty" in the OCI spec, but didn't omit such fields in
+			// legacy responses before API v1.50.
+			imageInspect.legacyConfig = legacyConfigFields["v1.50-v1.51"]
+		}
 	}
 
 	return httputils.WriteJSON(w, http.StatusOK, imageInspect)
