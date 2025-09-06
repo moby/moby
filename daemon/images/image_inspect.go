@@ -71,7 +71,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts ba
 		Os:              img.OperatingSystem(),
 		OsVersion:       img.OSVersion,
 		Size:            size,
-		GraphDriver: storage.DriverData{
+		GraphDriver: &storage.DriverData{
 			Name: i.layerStore.DriverName(),
 			Data: layerMetadata,
 		},
