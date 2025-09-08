@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 
+	"github.com/moby/moby/client/imagepush"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -38,5 +39,14 @@ func (o *withSinglePlatformOption) applyImageInspectOption(opts *imageInspectOpt
 	}
 
 	opts.apiOptions.Platform = &o.platform
+	return nil
+}
+
+func (o *withSinglePlatformOption) applyImagePushOption(opts *imagepush.InternalOptions) error {
+	if opts.Platform != nil {
+		return fmt.Errorf("platform already set to %v", opts.Platform)
+	}
+
+	opts.Platform = &o.platform
 	return nil
 }

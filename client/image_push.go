@@ -12,36 +12,44 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
 	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/client/imagepush"
 )
 
 // ImagePush requests the docker host to push an image to a remote registry.
 // It executes the privileged function if the operation is unauthorized
 // and it tries one more time.
 // It's up to the caller to handle the [io.ReadCloser] and close it.
-func (cli *Client) ImagePush(ctx context.Context, image string, options ImagePushOptions) (io.ReadCloser, error) {
-	ref, err := reference.ParseNormalizedNamed(image)
+func (cli *Client) ImagePush(ctx context.Context, image string, options ...imagepush.Option) (io.ReadCloser, error) {
+	named, err := reference.ParseNormalizedNamed(image)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, ok := ref.(reference.Digested); ok {
+	if _, ok := named.(reference.Digested); ok {
 		return nil, errors.New("cannot push a digest reference")
 	}
 
+	var opts imagepush.InternalOptions
+	for _, o := range options {
+		if err := o.ApplyImagePushOption(&opts); err != nil {
+			return nil, err
+		}
+	}
+
 	query := url.Values{}
-	if !options.All {
-		ref = reference.TagNameOnly(ref)
-		if tagged, ok := ref.(reference.Tagged); ok {
+	if !opts.All {
+		named = reference.TagNameOnly(named)
+		if tagged, ok := named.(reference.Tagged); ok {
 			query.Set("tag", tagged.Tag())
 		}
 	}
 
-	if options.Platform != nil {
+	if opts.Platform != nil {
 		if err := cli.NewVersionError(ctx, "1.46", "platform"); err != nil {
 			return nil, err
 		}
 
-		p := *options.Platform
+		p := *opts.Platform
 		pJson, err := json.Marshal(p)
 		if err != nil {
 			return nil, fmt.Errorf("invalid platform: %v", err)
@@ -50,9 +58,9 @@ func (cli *Client) ImagePush(ctx context.Context, image string, options ImagePus
 		query.Set("platform", string(pJson))
 	}
 
-	resp, err := cli.tryImagePush(ctx, ref.Name(), query, staticAuth(options.RegistryAuth))
-	if cerrdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
-		resp, err = cli.tryImagePush(ctx, ref.Name(), query, options.PrivilegeFunc)
+	resp, err := cli.tryImagePush(ctx, named.Name(), query, staticAuth(opts.RegistryAuth))
+	if cerrdefs.IsUnauthorized(err) && opts.PrivilegeFunc != nil {
+		resp, err = cli.tryImagePush(ctx, named.Name(), query, opts.PrivilegeFunc)
 	}
 	if err != nil {
 		return nil, err
