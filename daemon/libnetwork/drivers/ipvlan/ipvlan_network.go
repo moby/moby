@@ -124,17 +124,11 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 }
 
 func (d *driver) GetSkipGwAlloc(opts options.Generic) (ipv4, ipv6 bool, _ error) {
-	cfg, err := parseNetworkOptions("dummy", opts)
-	if err != nil {
-		return false, false, err
-	}
 	// L3 ipvlans connect the default route to an interface, no gateway address is set up.
-	switch cfg.IpvlanMode {
-	case modeL3, modeL3S:
-		return true, true, nil
-	}
-	// "--internal" networks don't need a gateway address.
-	return cfg.Internal, cfg.Internal, nil
+	// L2 ipvlans only need a gateway address if the user configured one (the driver will
+	// configure a default route via the gateway, but the gateway is external to the Docker
+	// network, the driver doesn't assign it to anything).
+	return true, true, nil
 }
 
 // DeleteNetwork deletes the network for the specified driver type
@@ -274,15 +268,17 @@ func newConfigFromLabels(labels map[string]string) *configuration {
 // processIPAM parses v4 and v6 IP information and binds it to the network configuration
 func (config *configuration) processIPAM(ipamV4Data, ipamV6Data []driverapi.IPAMData) {
 	for _, ipd := range ipamV4Data {
-		config.Ipv4Subnets = append(config.Ipv4Subnets, &ipSubnet{
-			SubnetIP: ipd.Pool.String(),
-			GwIP:     ipd.Gateway.String(),
-		})
+		s := &ipSubnet{SubnetIP: ipd.Pool.String()}
+		if ipd.Gateway != nil {
+			s.GwIP = ipd.Gateway.String()
+		}
+		config.Ipv4Subnets = append(config.Ipv4Subnets, s)
 	}
 	for _, ipd := range ipamV6Data {
-		config.Ipv6Subnets = append(config.Ipv6Subnets, &ipSubnet{
-			SubnetIP: ipd.Pool.String(),
-			GwIP:     ipd.Gateway.String(),
-		})
+		s := &ipSubnet{SubnetIP: ipd.Pool.String()}
+		if ipd.Gateway != nil {
+			s.GwIP = ipd.Gateway.String()
+		}
+		config.Ipv6Subnets = append(config.Ipv6Subnets, s)
 	}
 }

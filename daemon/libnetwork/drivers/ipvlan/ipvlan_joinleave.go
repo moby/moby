@@ -96,16 +96,24 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 				if s == nil {
 					return fmt.Errorf("could not find a valid ipv4 subnet for endpoint %s", eid)
 				}
-				v4gw, _, err := net.ParseCIDR(s.GwIP)
-				if err != nil {
-					return fmt.Errorf("gateway %s is not a valid ipv4 address: %v", s.GwIP, err)
-				}
-				err = jinfo.SetGateway(v4gw)
-				if err != nil {
-					return err
+				if s.GwIP == "" {
+					// Can't set up a default gateway, but the network is not internal, so it should
+					// be treated as having external connectivity. (This preserves old behavior,
+					// where a gateway address was assigned from IPAM that did not necessarily
+					// correspond with a working gateway.)
+					jinfo.ForceGw4()
+				} else {
+					v4gw, _, err := net.ParseCIDR(s.GwIP)
+					if err != nil {
+						return fmt.Errorf("gateway %s is not a valid ipv4 address: %v", s.GwIP, err)
+					}
+					err = jinfo.SetGateway(v4gw)
+					if err != nil {
+						return err
+					}
 				}
 				log.G(ctx).Debugf("Ipvlan Endpoint Joined with IPv4_Addr: %s, Gateway: %s, Ipvlan_Mode: %s, Parent: %s",
-					ep.addr.IP.String(), v4gw.String(), n.config.IpvlanMode, n.config.Parent)
+					ep.addr.IP.String(), s.GwIP, n.config.IpvlanMode, n.config.Parent)
 			}
 			// parse and correlate the endpoint v6 address with the available v6 subnets
 			if len(n.config.Ipv6Subnets) > 0 {
@@ -113,20 +121,24 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 				if s == nil {
 					return fmt.Errorf("could not find a valid ipv6 subnet for endpoint %s", eid)
 				}
-				v6gw, _, err := net.ParseCIDR(s.GwIP)
-				if err != nil {
-					return fmt.Errorf("gateway %s is not a valid ipv6 address: %v", s.GwIP, err)
-				}
-				err = jinfo.SetGatewayIPv6(v6gw)
-				if err != nil {
-					return err
+				if s.GwIP == "" {
+					// Can't set up a default gateway, but the network is not internal, so it should
+					// be treated as having external connectivity. (This preserves old behavior,
+					// where a gateway address was assigned from IPAM that did not necessarily
+					// correspond with a working gateway.)
+					jinfo.ForceGw6()
+				} else {
+					v6gw, _, err := net.ParseCIDR(s.GwIP)
+					if err != nil {
+						return fmt.Errorf("gateway %s is not a valid ipv6 address: %v", s.GwIP, err)
+					}
+					err = jinfo.SetGatewayIPv6(v6gw)
+					if err != nil {
+						return err
+					}
 				}
 				log.G(ctx).Debugf("Ipvlan Endpoint Joined with IPv6_Addr: %s, Gateway: %s, Ipvlan_Mode: %s, Parent: %s",
-					ep.addrv6.IP.String(), v6gw.String(), n.config.IpvlanMode, n.config.Parent)
-			}
-			if len(n.config.Ipv4Subnets) == 0 && len(n.config.Ipv6Subnets) == 0 {
-				// With no addresses, don't need a gateway.
-				jinfo.DisableGatewayService()
+					ep.addrv6.IP.String(), s.GwIP, n.config.IpvlanMode, n.config.Parent)
 			}
 		}
 	} else {
@@ -138,11 +150,8 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 			log.G(ctx).Debugf("Ipvlan Endpoint Joined with IPv6_Addr: %s IpVlan_Mode: %s, Parent: %s",
 				ep.addrv6.IP.String(), n.config.IpvlanMode, n.config.Parent)
 		}
-		// If n.config.Internal was set locally by the driver because there's no parent
-		// interface, libnetwork doesn't know the network is internal. So, stop it from
-		// adding a gateway endpoint.
-		jinfo.DisableGatewayService()
 	}
+	jinfo.DisableGatewayService()
 	iNames := jinfo.InterfaceName()
 	err = iNames.SetNames(vethName, containerVethPrefix, netlabel.GetIfname(epOpts))
 	if err != nil {

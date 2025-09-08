@@ -92,7 +92,7 @@ func TestDockerNetworkIpvlan(t *testing.T) {
 			name: "L3MultiSubnet",
 			test: testIpvlanL3MultiSubnet,
 		}, {
-			name: "L2Addressing",
+			name: "L2Gateway",
 			test: testIpvlanL2Addressing,
 		}, {
 			name: "L3Addressing",
@@ -270,17 +270,10 @@ func testIpvlanL2MultiSubnet(t *testing.T, ctx context.Context, client dclient.A
 	)
 	c1, err := client.ContainerInspect(ctx, id1)
 	assert.NilError(t, err)
-	if parent == "" {
-		// Inspect the v4 gateway to ensure no default GW was assigned
-		assert.Check(t, is.Equal(c1.NetworkSettings.Networks[netName].Gateway, ""))
-		// Inspect the v6 gateway to ensure no default GW was assigned
-		assert.Check(t, is.Equal(c1.NetworkSettings.Networks[netName].IPv6Gateway, ""))
-	} else {
-		// Inspect the v4 gateway to ensure the proper default GW was assigned
-		assert.Check(t, is.Equal(c1.NetworkSettings.Networks[netName].Gateway, "172.28.200.1"))
-		// Inspect the v6 gateway to ensure the proper default GW was assigned
-		assert.Check(t, is.Equal(c1.NetworkSettings.Networks[netName].IPv6Gateway, "2001:db8:abc8::1"))
-	}
+	// Inspect the v4 gateway to ensure no default GW was assigned
+	assert.Check(t, is.Equal(c1.NetworkSettings.Networks[netName].Gateway, ""))
+	// Inspect the v6 gateway to ensure no default GW was assigned
+	assert.Check(t, is.Equal(c1.NetworkSettings.Networks[netName].IPv6Gateway, ""))
 
 	// verify ipv4 connectivity to the explicit --ip address second to first
 	_, err = container.Exec(ctx, client, id2, []string{"ping", "-c", "1", c1.NetworkSettings.Networks[netName].IPAddress})
@@ -405,14 +398,15 @@ func testIpvlanL2Addressing(t *testing.T, ctx context.Context, client dclient.AP
 	id := container.Run(ctx, t, client,
 		container.WithNetworkMode(netNameL2),
 	)
-	// Validate ipvlan l2 mode defaults gateway sets the default IPAM next-hop inferred from the subnet
+	// Check the supplied IPv4 gateway address is used in a default route.
 	result, err := container.Exec(ctx, client, id, []string{"ip", "route"})
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(result.Combined(), "default via 172.28.140.254 dev eth0"))
-	// Validate ipvlan l2 mode sets the v6 gateway to the user specified default gateway/next-hop
+	// No gateway address was supplied for IPv6, check that no default gateway was set up.
 	result, err = container.Exec(ctx, client, id, []string{"ip", "-6", "route"})
 	assert.NilError(t, err)
-	assert.Check(t, is.Contains(result.Combined(), "default via 2001:db8:abcb::1 dev eth0"))
+	assert.Check(t, !strings.Contains(result.Combined(), "default via"),
+		"result: %s", result.Combined())
 }
 
 // Validate ipvlan l3 mode sets the v4 gateway to dev eth0 and disregards any explicit or inferred next-hops
