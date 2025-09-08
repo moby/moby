@@ -10,7 +10,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
-	"github.com/moby/moby/v2/internal/testutils/storeutils"
+	"github.com/moby/moby/v2/internal/testutil/storeutils"
 	"gotest.tools/v3/assert"
 )
 

@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/moby/moby/v2/integration-cli/cli"
-	"github.com/moby/moby/v2/testutil"
+	"github.com/moby/moby/v2/internal/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

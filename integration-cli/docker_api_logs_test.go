@@ -14,8 +14,8 @@ import (
 	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/cli"
-	"github.com/moby/moby/v2/testutil"
-	"github.com/moby/moby/v2/testutil/request"
+	"github.com/moby/moby/v2/internal/testutil"
+	"github.com/moby/moby/v2/internal/testutil/request"
 	"gotest.tools/v3/assert"
 )
 

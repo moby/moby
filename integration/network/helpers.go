@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/moby/moby/client"
-	"github.com/moby/moby/v2/testutil"
+	"github.com/moby/moby/v2/internal/testutil"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 )

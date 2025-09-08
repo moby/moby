@@ -22,7 +22,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/netutils"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
-	"github.com/moby/moby/v2/internal/testutils/netnsutils"
+	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"

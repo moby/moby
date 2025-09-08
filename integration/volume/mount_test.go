@@ -17,7 +17,7 @@ import (
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/volume/safepath"
 	"github.com/moby/moby/v2/integration/internal/container"
-	"github.com/moby/moby/v2/testutil/fakecontext"
+	"github.com/moby/moby/v2/internal/testutil/fakecontext"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"

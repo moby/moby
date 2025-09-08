@@ -18,7 +18,7 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/integration-cli/cli/build"
-	"github.com/moby/moby/v2/testutil/fakecontext"
+	"github.com/moby/moby/v2/internal/testutil/fakecontext"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
 )

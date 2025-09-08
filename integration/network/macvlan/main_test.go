@@ -7,8 +7,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/moby/moby/v2/testutil"
-	"github.com/moby/moby/v2/testutil/environment"
+	"github.com/moby/moby/v2/internal/testutil"
+	"github.com/moby/moby/v2/internal/testutil/environment"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"

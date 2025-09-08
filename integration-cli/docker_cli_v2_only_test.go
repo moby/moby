@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/moby/moby/v2/testutil/registry"
+	"github.com/moby/moby/v2/internal/testutil/registry"
 	"gotest.tools/v3/assert"
 )
 

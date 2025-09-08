@@ -8,9 +8,9 @@ import (
 
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
-	"github.com/moby/moby/v2/testutil"
-	"github.com/moby/moby/v2/testutil/daemon"
-	"github.com/moby/moby/v2/testutil/fixtures/load"
+	"github.com/moby/moby/v2/internal/testutil"
+	"github.com/moby/moby/v2/internal/testutil/daemon"
+	"github.com/moby/moby/v2/internal/testutil/fixtures/load"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )

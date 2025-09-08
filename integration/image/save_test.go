@@ -20,9 +20,9 @@ import (
 	"github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/integration/internal/container"
 	iimage "github.com/moby/moby/v2/integration/internal/image"
-	"github.com/moby/moby/v2/internal/testutils"
-	"github.com/moby/moby/v2/internal/testutils/specialimage"
-	"github.com/moby/moby/v2/testutil/fakecontext"
+	"github.com/moby/moby/v2/internal/testutil"
+	"github.com/moby/moby/v2/internal/testutil/fakecontext"
+	"github.com/moby/moby/v2/internal/testutil/specialimage"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
@@ -174,7 +174,7 @@ func TestSaveOCI(t *testing.T) {
 					f, err := tarfs.Open(layerPath)
 					assert.NilError(t, err)
 
-					layerDigest, err := testutils.UncompressedTarDigest(f)
+					layerDigest, err := testutil.UncompressedTarDigest(f)
 					f.Close()
 
 					assert.NilError(t, err)

@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/ipams/defaultipam"
-	"github.com/moby/moby/v2/internal/testutils/netnsutils"
+	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 )
 
 func TestHostsEntries(t *testing.T) {

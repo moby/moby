@@ -8,7 +8,7 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
-	"github.com/moby/moby/v2/testutil"
+	"github.com/moby/moby/v2/internal/testutil"
 	"go.opentelemetry.io/otel"
 	"gotest.tools/v3/assert"
 )

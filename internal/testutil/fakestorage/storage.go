@@ -13,10 +13,10 @@ import (
 
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
-	"github.com/moby/moby/v2/testutil"
-	"github.com/moby/moby/v2/testutil/environment"
-	"github.com/moby/moby/v2/testutil/fakecontext"
-	"github.com/moby/moby/v2/testutil/request"
+	"github.com/moby/moby/v2/internal/testutil"
+	"github.com/moby/moby/v2/internal/testutil/environment"
+	"github.com/moby/moby/v2/internal/testutil/fakecontext"
+	"github.com/moby/moby/v2/internal/testutil/request"
 	"gotest.tools/v3/assert"
 )
 

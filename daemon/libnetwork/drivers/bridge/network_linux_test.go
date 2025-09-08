@@ -8,8 +8,8 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/drvregistry"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
-	"github.com/moby/moby/v2/internal/testutils/netnsutils"
-	"github.com/moby/moby/v2/internal/testutils/storeutils"
+	"github.com/moby/moby/v2/internal/testutil/netnsutils"
+	"github.com/moby/moby/v2/internal/testutil/storeutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

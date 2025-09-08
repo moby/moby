@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/moby/moby/v2/testutil/fakecontext"
-	"github.com/moby/moby/v2/testutil/fakestorage"
+	"github.com/moby/moby/v2/internal/testutil/fakecontext"
+	"github.com/moby/moby/v2/internal/testutil/fakestorage"
 )
 
 type gitServer interface {

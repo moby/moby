@@ -3,7 +3,7 @@ package daemon
 import (
 	"os/user"
 
-	"github.com/moby/moby/v2/testutil/environment"
+	"github.com/moby/moby/v2/internal/testutil/environment"
 )
 
 // Option is used to configure a daemon.

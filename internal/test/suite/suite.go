@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/v2/testutil"
+	"github.com/moby/moby/v2/internal/testutil"
 )
 
 // TimeoutFlag is the flag to set a per-test timeout when running tests. Defaults to `-timeout`.

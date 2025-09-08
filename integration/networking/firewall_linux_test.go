@@ -6,8 +6,8 @@ import (
 
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/testutils/networking"
-	"github.com/moby/moby/v2/testutil/daemon"
-	"github.com/moby/moby/v2/testutil/request"
+	"github.com/moby/moby/v2/internal/testutil/daemon"
+	"github.com/moby/moby/v2/internal/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

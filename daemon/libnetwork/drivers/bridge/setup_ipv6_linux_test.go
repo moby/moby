@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
-	"github.com/moby/moby/v2/internal/testutils/netnsutils"
+	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"github.com/vishvananda/netlink"
 )
 

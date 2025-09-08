@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/v2/internal/testutils/netnsutils"
+	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
@@ -327,8 +327,10 @@ func TestFlushChain(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Add a rule to the chain
-	rule := Rule{IPVer: IPv4, Table: table, Chain: chain,
-		Args: []string{"-j", "ACCEPT"}}
+	rule := Rule{
+		IPVer: IPv4, Table: table, Chain: chain,
+		Args: []string{"-j", "ACCEPT"},
+	}
 	assert.NilError(t, rule.Insert())
 
 	// Flush the chain

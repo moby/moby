@@ -12,7 +12,7 @@ import (
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/jsonmessage"
-	"github.com/moby/moby/v2/internal/testutils/specialimage"
+	"github.com/moby/moby/v2/internal/testutil/specialimage"
 	"gotest.tools/v3/assert"
 )
 

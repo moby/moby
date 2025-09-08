@@ -9,7 +9,7 @@ import (
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
-	"github.com/moby/moby/v2/internal/testutils/specialimage"
+	"github.com/moby/moby/v2/internal/testutil/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
