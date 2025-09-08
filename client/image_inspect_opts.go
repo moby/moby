@@ -50,10 +50,10 @@ func ImageInspectWithPlatform(platform *ocispec.Platform) ImageInspectOption {
 
 type imageInspectOpts struct {
 	raw        *bytes.Buffer
-	apiOptions ImageInspectOptions
+	apiOptions imageInspectOptions
 }
 
-type ImageInspectOptions struct {
+type imageInspectOptions struct {
 	// Manifests returns the image manifests.
 	Manifests bool
 
