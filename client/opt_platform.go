@@ -40,3 +40,12 @@ func (o *withSinglePlatformOption) ApplyImageInspectOption(opts *imageInspectOpt
 	opts.apiOptions.Platform = &o.platform
 	return nil
 }
+
+func (o *withSinglePlatformOption) ApplyImagePushOption(opts *imagePushOpts) error {
+	if opts.apiOptions.Platform != nil {
+		return fmt.Errorf("platform already set to %v", opts.apiOptions.Platform)
+	}
+
+	opts.apiOptions.Platform = &o.platform
+	return nil
+}
