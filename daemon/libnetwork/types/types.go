@@ -72,20 +72,6 @@ func (p PortBinding) HostAddr() (net.Addr, error) {
 	}
 }
 
-// ContainerAddr returns the container side transport address
-func (p PortBinding) ContainerAddr() (net.Addr, error) {
-	switch p.Proto {
-	case UDP:
-		return &net.UDPAddr{IP: p.IP, Port: int(p.Port)}, nil
-	case TCP:
-		return &net.TCPAddr{IP: p.IP, Port: int(p.Port)}, nil
-	case SCTP:
-		return &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: p.IP}}, Port: int(p.Port)}, nil
-	default:
-		return nil, fmt.Errorf("invalid transport protocol: %s", p.Proto.String())
-	}
-}
-
 // Copy returns a deep copy of the PortBinding.
 func (p PortBinding) Copy() PortBinding {
 	return PortBinding{
