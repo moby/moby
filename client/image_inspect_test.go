@@ -106,7 +106,12 @@ func TestImageInspectWithPlatform(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	imageInspect, err := client.ImageInspect(context.Background(), "image_id", ImageInspectWithPlatform(requestedPlatform))
+	var opts []ImageInspectOption
+	if requestedPlatform != nil {
+		opts = append(opts, WithPlatform(*requestedPlatform))
+	}
+
+	imageInspect, err := client.ImageInspect(context.Background(), "image_id", opts...)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(imageInspect.ID, "image_id"))
 	assert.Check(t, is.Equal(imageInspect.Architecture, "arm64"))
