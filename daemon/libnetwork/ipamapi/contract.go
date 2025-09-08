@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/netip"
 
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
@@ -55,6 +56,12 @@ type Ipam interface {
 
 	// IsBuiltIn returns true if it is a built-in driver.
 	IsBuiltIn() bool
+}
+
+type PoolStatuser interface {
+	Ipam
+	// Status returns the operational status of the specified IPAM pool.
+	PoolStatus(poolID string) (network.SubnetStatus, error)
 }
 
 type PoolRequest struct {

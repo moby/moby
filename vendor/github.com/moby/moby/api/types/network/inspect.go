@@ -20,4 +20,8 @@ type Inspect struct {
 	// swarm scope networks, and omitted for local scope networks.
 	//
 	Services map[string]ServiceInfo `json:"Services,omitempty"`
+
+	// provides runtime information about the network such as the number of allocated IPs.
+	//
+	Status *Status `json:"Status,omitempty"`
 }

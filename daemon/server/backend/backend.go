@@ -215,4 +215,5 @@ type PluginDisableConfig struct {
 // NetworkListConfig stores the options available for listing networks
 type NetworkListConfig struct {
 	WithServices bool
+	WithStatus   bool
 }

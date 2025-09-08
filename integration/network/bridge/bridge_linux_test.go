@@ -3,6 +3,7 @@ package bridge
 import (
 	"context"
 	"fmt"
+	"math"
 	"net"
 	"net/netip"
 	"strings"
@@ -1063,4 +1064,155 @@ func TestPortBindingBackfillingForOlderContainers(t *testing.T) {
 		{}, // An empty PortBinding is backfilled
 	}}
 	assert.DeepEqual(t, expMappings, inspect.HostConfig.PortBindings)
+}
+
+func TestBridgeIPAMStatus(t *testing.T) {
+	ctx := testutil.StartSpan(baseContext, t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t, client.WithVersion("1.52"))
+
+	checkSubnets := func(
+		netName string, want networktypes.SubnetStatuses) bool {
+		t.Helper()
+		nw, err := c.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
+		if assert.Check(t, err) && assert.Check(t, nw.Status != nil) {
+			return assert.Check(t, is.DeepEqual(want, nw.Status.IPAM.Subnets))
+		}
+		return false
+	}
+
+	t.Run("DualStack", func(t *testing.T) {
+		const (
+			netName = "testipambridge"
+
+			ipv4gw             = "192.168.0.1"
+			ipv4Range          = "192.168.0.64/31"
+			prefIPv4OutOfRange = "192.168.0.129"
+			auxIPv4FromRange   = "192.168.0.65"
+			auxIPv4OutOfRange  = "192.168.0.128"
+
+			ipv6gw             = "2001:db8:abcd::1"
+			ipv6Range          = "2001:db8:abcd::/120"
+			prefIPv6OutOfRange = "2001:db8:abcd::9000"
+			auxIPv6FromRange   = "2001:db8:abcd::2a"
+			auxIPv6OutOfRange  = "2001:db8:abcd::8000"
+		)
+		var (
+			cidrv4 = netip.MustParsePrefix("192.168.0.0/24")
+			cidrv6 = netip.MustParsePrefix("2001:db8:abcd::/64")
+		)
+
+		network.CreateNoError(ctx, t, c, netName,
+			network.WithIPv4(true),
+			network.WithIPAMConfig(networktypes.IPAMConfig{
+				Subnet:  cidrv4.String(),
+				IPRange: ipv4Range,
+				Gateway: ipv4gw,
+				AuxAddress: map[string]string{
+					"reserved":   auxIPv4FromRange,
+					"reserved_1": auxIPv4OutOfRange,
+				}}),
+			network.WithIPv6(),
+			network.WithIPAMConfig(networktypes.IPAMConfig{
+				Subnet:  cidrv6.String(),
+				IPRange: ipv6Range,
+				Gateway: ipv6gw,
+				AuxAddress: map[string]string{
+					"reserved1": auxIPv6FromRange,
+					"reserved2": auxIPv6OutOfRange,
+				},
+			}),
+		)
+		defer c.NetworkRemove(ctx, netName)
+
+		checkSubnets(netName, map[netip.Prefix]networktypes.SubnetStatus{
+			cidrv4: {
+				// 1 subnet + 1 gateway + 1 broadcast + 2 aux addresses
+				IPsInUse: 5,
+				// IPv4 /31 IPRange (2 addresses) - aux in-range
+				DynamicIPsAvailable: 1,
+			},
+			cidrv6: {
+				IPsInUse:            4,   // 1 gateway + 1 anycast + 2 aux addresses
+				DynamicIPsAvailable: 253, // IPv6 /120 IPRange (256 addresses) - 1 router-anycast - 1 gateway - 1 aux in-range
+			},
+		})
+
+		func() {
+			// From IPRange pool: both counters should be changed by 1
+			id := ctr.Run(ctx, t, c, ctr.WithNetworkMode(netName))
+			defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
+
+			checkSubnets(netName, map[netip.Prefix]networktypes.SubnetStatus{
+				cidrv4: {
+					IPsInUse:            6,
+					DynamicIPsAvailable: 0,
+				},
+				cidrv6: {
+					IPsInUse:            5,
+					DynamicIPsAvailable: 252,
+				},
+			})
+
+			// Out of IPRange pools: subnet counter should be changed by 1
+			id = ctr.Run(ctx, t, c,
+				ctr.WithNetworkMode(netName),
+				ctr.WithIPv4(netName, prefIPv4OutOfRange),
+				ctr.WithIPv6(netName, prefIPv6OutOfRange),
+			)
+			defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
+
+			checkSubnets(netName, map[netip.Prefix]networktypes.SubnetStatus{
+				cidrv4: {
+					IPsInUse:            7,
+					DynamicIPsAvailable: 0, // unchanged
+				},
+				cidrv6: {
+					IPsInUse:            6,
+					DynamicIPsAvailable: 252, // unchanged
+				},
+			})
+		}()
+
+		// Counters should decrease after container removal
+		checkSubnets(netName, map[netip.Prefix]networktypes.SubnetStatus{
+			cidrv4: {
+				IPsInUse:            5,
+				DynamicIPsAvailable: 1,
+			},
+			cidrv6: {
+				IPsInUse:            4,
+				DynamicIPsAvailable: 253,
+			},
+		})
+
+		oldc := d.NewClientT(t, client.WithVersion("1.51"))
+		nw, err := oldc.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
+		if assert.Check(t, err) {
+			assert.Check(t, nw.Status == nil, "expected nil Status with API version 1.51")
+		}
+	})
+
+	t.Run("IPv6", func(t *testing.T) {
+		const netName = "testipambridgev6"
+		cidr := netip.MustParsePrefix("2001:db8:abcd::/56")
+		network.CreateNoError(ctx, t, c, netName,
+			network.WithIPv4(false),
+			network.WithIPv6(),
+			network.WithIPAMConfig(networktypes.IPAMConfig{
+				Subnet: cidr.String(),
+			}),
+		)
+		defer c.NetworkRemove(ctx, netName)
+
+		checkSubnets(netName, map[netip.Prefix]networktypes.SubnetStatus{
+			cidr: {
+				IPsInUse:            2,
+				DynamicIPsAvailable: math.MaxUint64,
+			},
+		})
+	})
 }
