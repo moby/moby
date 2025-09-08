@@ -31,3 +31,5 @@ require (
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 )
+
+replace github.com/moby/moby/api => ../api
