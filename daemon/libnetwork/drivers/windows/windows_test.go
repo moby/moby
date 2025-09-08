@@ -134,6 +134,9 @@ func (test *testEndpoint) SetGatewayIPv6(ipv6 net.IP) error {
 	return nil
 }
 
+func (test *testEndpoint) ForceGw4() {}
+func (test *testEndpoint) ForceGw6() {}
+
 func (test *testEndpoint) SetNames(_, _, _ string) error {
 	return nil
 }

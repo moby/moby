@@ -63,12 +63,10 @@ func (d *driver) CreateNetwork(ctx context.Context, nid string, option map[strin
 }
 
 func (d *driver) GetSkipGwAlloc(opts options.Generic) (ipv4, ipv6 bool, _ error) {
-	cfg, err := parseNetworkOptions("dummy", opts)
-	if err != nil {
-		return false, false, err
-	}
-	// "--internal" networks don't need a gateway address.
-	return cfg.Internal, cfg.Internal, nil
+	// Only set up a default gateway if the user configured one (the gateway
+	// must be external to the Docker macvlan network, the driver doesn't assign
+	// the address to anything).
+	return true, true, nil
 }
 
 // createNetwork is used by new network callbacks and persistent network cache
@@ -272,15 +270,17 @@ func newConfigFromLabels(labels map[string]string) *configuration {
 // processIPAM parses v4 and v6 IP information and binds it to the network configuration
 func (config *configuration) processIPAM(ipamV4Data, ipamV6Data []driverapi.IPAMData) {
 	for _, ipd := range ipamV4Data {
-		config.Ipv4Subnets = append(config.Ipv4Subnets, &ipSubnet{
-			SubnetIP: ipd.Pool.String(),
-			GwIP:     ipd.Gateway.String(),
-		})
+		s := &ipSubnet{SubnetIP: ipd.Pool.String()}
+		if ipd.Gateway != nil {
+			s.GwIP = ipd.Gateway.String()
+		}
+		config.Ipv4Subnets = append(config.Ipv4Subnets, s)
 	}
 	for _, ipd := range ipamV6Data {
-		config.Ipv6Subnets = append(config.Ipv6Subnets, &ipSubnet{
-			SubnetIP: ipd.Pool.String(),
-			GwIP:     ipd.Gateway.String(),
-		})
+		s := &ipSubnet{SubnetIP: ipd.Pool.String()}
+		if ipd.Gateway != nil {
+			s.GwIP = ipd.Gateway.String()
+		}
+		config.Ipv6Subnets = append(config.Ipv6Subnets, s)
 	}
 }
