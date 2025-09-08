@@ -1,0 +1,8 @@
+module/client:
+  - changed-files:
+    - any-glob-to-any-file: 'client/**'
+
+module/api:
+  - changed-files:
+    - any-glob-to-any-file: 'api/**'
+
