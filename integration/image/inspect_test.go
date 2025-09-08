@@ -163,7 +163,7 @@ func TestImageInspectWithPlatform(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var opts []client.ImageInspectOption
 			if tc.requestedPlatform != nil {
-				opts = append(opts, client.ImageInspectWithPlatform(tc.requestedPlatform))
+				opts = append(opts, client.WithPlatform(*tc.requestedPlatform))
 			}
 			if tc.withManifests {
 				opts = append(opts, client.ImageInspectWithManifests(true))
