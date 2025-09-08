@@ -200,13 +200,6 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 		if bs, err := parseBytesFromFormValue("reserved-space"); err != nil {
 			return err
 		} else {
-			if bs == 0 {
-				// Deprecated parameter. Only checked if reserved-space is not used.
-				bs, err = parseBytesFromFormValue("keep-storage")
-				if err != nil {
-					return err
-				}
-			}
 			opts.ReservedSpace = bs
 		}
 
@@ -220,13 +213,6 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 			return err
 		} else {
 			opts.MinFreeSpace = bs
-		}
-	} else {
-		// Only keep-storage was valid in pre-1.48 versions.
-		if bs, err := parseBytesFromFormValue("keep-storage"); err != nil {
-			return err
-		} else {
-			opts.ReservedSpace = bs
 		}
 	}
 

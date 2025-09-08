@@ -9356,15 +9356,6 @@ paths:
         - "application/json"
       operationId: "BuildPrune"
       parameters:
-        - name: "keep-storage"
-          in: "query"
-          description: |
-            Amount of disk space in bytes to keep for cache
-
-            > **Deprecated**: This parameter is deprecated and has been renamed to "reserved-space".
-            > It is kept for backward compatibility and will be removed in API v1.52.
-          type: "integer"
-          format: "int64"
         - name: "reserved-space"
           in: "query"
           description: "Amount of disk space in bytes to keep for cache"
