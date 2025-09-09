@@ -735,10 +735,14 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 			}
 		}
 	}()
-	ctr.NetworkSettings.Networks[nwName] = endpointConfig
 
 	delete(ctr.NetworkSettings.Networks, n.ID())
-
+	ctr.NetworkSettings.Networks[nwName] = endpointConfig
+	defer func() {
+		if retErr != nil {
+			delete(ctr.NetworkSettings.Networks, nwName)
+		}
+	}()
 	if err := daemon.updateEndpointNetworkSettings(cfg, ctr, n, ep); err != nil {
 		return err
 	}
