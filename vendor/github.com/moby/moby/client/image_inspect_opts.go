@@ -8,11 +8,11 @@ import (
 
 // ImageInspectOption is a type representing functional options for the image inspect operation.
 type ImageInspectOption interface {
-	Apply(*imageInspectOpts) error
+	ApplyImageInspectOption(*imageInspectOpts) error
 }
 type imageInspectOptionFunc func(opt *imageInspectOpts) error
 
-func (f imageInspectOptionFunc) Apply(o *imageInspectOpts) error {
+func (f imageInspectOptionFunc) ApplyImageInspectOption(o *imageInspectOpts) error {
 	return f(o)
 }
 
@@ -37,31 +37,12 @@ func ImageInspectWithManifests(manifests bool) ImageInspectOption {
 	})
 }
 
-// ImageInspectWithPlatform sets platform API option for the image inspect operation.
-// This option is only available for API version 1.49 and up.
-// With this option set, the image inspect operation returns information for the
-// specified platform variant of the multi-platform image.
-func ImageInspectWithPlatform(platform *ocispec.Platform) ImageInspectOption {
-	return imageInspectOptionFunc(func(clientOpts *imageInspectOpts) error {
-		clientOpts.apiOptions.Platform = platform
-		return nil
-	})
-}
-
-// ImageInspectWithAPIOpts sets the API options for the image inspect operation.
-func ImageInspectWithAPIOpts(opts ImageInspectOptions) ImageInspectOption {
-	return imageInspectOptionFunc(func(clientOpts *imageInspectOpts) error {
-		clientOpts.apiOptions = opts
-		return nil
-	})
-}
-
 type imageInspectOpts struct {
 	raw        *bytes.Buffer
-	apiOptions ImageInspectOptions
+	apiOptions imageInspectOptions
 }
 
-type ImageInspectOptions struct {
+type imageInspectOptions struct {
 	// Manifests returns the image manifests.
 	Manifests bool
 

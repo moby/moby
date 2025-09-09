@@ -6,7 +6,6 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/image"
-	"github.com/moby/moby/client"
 	iimage "github.com/moby/moby/v2/integration/internal/image"
 	"github.com/moby/moby/v2/internal/testutil/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -29,7 +28,7 @@ func TestLoadDanglingImages(t *testing.T) {
 	})
 
 	// Should be one image.
-	images, err := apiClient.ImageList(ctx, client.ImageListOptions{})
+	images, err := apiClient.ImageList(ctx)
 	assert.NilError(t, err)
 
 	findImageByName := func(images []image.Summary, imageName string) (image.Summary, error) {
@@ -52,7 +51,7 @@ func TestLoadDanglingImages(t *testing.T) {
 		})
 	})
 
-	images, err = apiClient.ImageList(ctx, client.ImageListOptions{})
+	images, err = apiClient.ImageList(ctx)
 	assert.NilError(t, err)
 
 	newImage, err := findImageByName(images, "namedimage:latest")

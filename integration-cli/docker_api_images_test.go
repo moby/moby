@@ -102,7 +102,7 @@ func (s *DockerAPISuite) TestAPIImagesSizeCompatibility(c *testing.T) {
 	apiclient := testEnv.APIClient()
 	defer apiclient.Close()
 
-	images, err := apiclient.ImageList(testutil.GetContext(c), client.ImageListOptions{})
+	images, err := apiclient.ImageList(testutil.GetContext(c))
 	assert.NilError(c, err)
 	assert.Assert(c, len(images) != 0)
 	for _, img := range images {
@@ -113,7 +113,7 @@ func (s *DockerAPISuite) TestAPIImagesSizeCompatibility(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiclient.Close()
 
-	v124Images, err := apiclient.ImageList(testutil.GetContext(c), client.ImageListOptions{})
+	v124Images, err := apiclient.ImageList(testutil.GetContext(c))
 	assert.NilError(c, err)
 	assert.Assert(c, len(v124Images) != 0)
 	for _, img := range v124Images {
