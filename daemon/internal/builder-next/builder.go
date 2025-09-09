@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/v2/core/remotes/docker"
-	containerdoci "github.com/containerd/containerd/v2/pkg/oci"
+	coci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/platforms"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client"
@@ -100,7 +100,7 @@ type Opt struct {
 	ContainerdNamespace string
 	Callbacks           exporter.BuildkitCallbacks
 	CDICache            *cdi.Cache
-	SpecOpts            []containerdoci.SpecOpts
+	SpecOpts            []coci.SpecOpts
 }
 
 // Builder can build using BuildKit backend

@@ -16,7 +16,7 @@ import (
 	"time"
 
 	containerddefaults "github.com/containerd/containerd/v2/defaults"
-	containerdoci "github.com/containerd/containerd/v2/pkg/oci"
+	coci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
 	"github.com/docker/go-connections/tlsconfig"
@@ -405,9 +405,9 @@ func initBuildkit(ctx context.Context, d *daemon.Daemon, cdiCache *cdi.Cache) (_
 
 	cfg := d.Config()
 
-	specOpts := []containerdoci.SpecOpts{}
+	specOpts := []coci.SpecOpts{}
 	if d.DefaultIsolation().IsHyperV() {
-		specOpts = append(specOpts, containerdoci.WithWindowsHyperV)
+		specOpts = append(specOpts, coci.WithWindowsHyperV)
 	}
 
 	bk, err := buildkit.New(ctx, buildkit.Opt{

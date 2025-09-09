@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	ctd "github.com/containerd/containerd/v2/client"
-	containerdoci "github.com/containerd/containerd/v2/pkg/oci"
+	coci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/log"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/containerdexecutor"
@@ -32,7 +32,7 @@ func newExecutor(
 	cdiManager *cdidevices.Manager,
 	containerdAddr string,
 	containerdNamespace string,
-	specOpts []containerdoci.SpecOpts,
+	specOpts []coci.SpecOpts,
 ) (executor.Executor, error) {
 	netRoot := filepath.Join(root, "net")
 	np := map[pb.NetMode]network.Provider{
