@@ -18,7 +18,7 @@ import (
 // It executes the privileged function if the operation is unauthorized
 // and it tries one more time.
 // It's up to the caller to handle the [io.ReadCloser] and close it.
-func (cli *Client) ImagePush(ctx context.Context, image string, options ImagePushOptions) (io.ReadCloser, error) {
+func (cli *Client) ImagePush(ctx context.Context, image string, options ...ImagePushOption) (io.ReadCloser, error) {
 	ref, err := reference.ParseNormalizedNamed(image)
 	if err != nil {
 		return nil, err
@@ -28,20 +28,27 @@ func (cli *Client) ImagePush(ctx context.Context, image string, options ImagePus
 		return nil, errors.New("cannot push a digest reference")
 	}
 
+	var opts imagePushOpts
+	for _, o := range options {
+		if err := o.ApplyImagePushOption(&opts); err != nil {
+			return nil, err
+		}
+	}
+
 	query := url.Values{}
-	if !options.All {
+	if !opts.apiOptions.All {
 		ref = reference.TagNameOnly(ref)
 		if tagged, ok := ref.(reference.Tagged); ok {
 			query.Set("tag", tagged.Tag())
 		}
 	}
 
-	if options.Platform != nil {
+	if opts.apiOptions.Platform != nil {
 		if err := cli.NewVersionError(ctx, "1.46", "platform"); err != nil {
 			return nil, err
 		}
 
-		p := *options.Platform
+		p := *opts.apiOptions.Platform
 		pJson, err := json.Marshal(p)
 		if err != nil {
 			return nil, fmt.Errorf("invalid platform: %v", err)
@@ -50,9 +57,9 @@ func (cli *Client) ImagePush(ctx context.Context, image string, options ImagePus
 		query.Set("platform", string(pJson))
 	}
 
-	resp, err := cli.tryImagePush(ctx, ref.Name(), query, staticAuth(options.RegistryAuth))
-	if cerrdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
-		resp, err = cli.tryImagePush(ctx, ref.Name(), query, options.PrivilegeFunc)
+	resp, err := cli.tryImagePush(ctx, ref.Name(), query, staticAuth(opts.apiOptions.RegistryAuth))
+	if cerrdefs.IsUnauthorized(err) && opts.PrivilegeFunc != nil {
+		resp, err = cli.tryImagePush(ctx, ref.Name(), query, opts.PrivilegeFunc)
 	}
 	if err != nil {
 		return nil, err

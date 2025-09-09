@@ -3,23 +3,10 @@ package client
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/url"
 
 	"github.com/moby/moby/api/types/image"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
-
-// ImageHistoryWithPlatform sets the platform for the image history operation.
-func ImageHistoryWithPlatform(platform ocispec.Platform) ImageHistoryOption {
-	return imageHistoryOptionFunc(func(opt *imageHistoryOpts) error {
-		if opt.apiOptions.Platform != nil {
-			return fmt.Errorf("platform already set to %s", *opt.apiOptions.Platform)
-		}
-		opt.apiOptions.Platform = &platform
-		return nil
-	})
-}
 
 // ImageHistory returns the changes in an image in history format.
 func (cli *Client) ImageHistory(ctx context.Context, imageID string, historyOpts ...ImageHistoryOption) ([]image.HistoryResponseItem, error) {
@@ -27,7 +14,7 @@ func (cli *Client) ImageHistory(ctx context.Context, imageID string, historyOpts
 
 	var opts imageHistoryOpts
 	for _, o := range historyOpts {
-		if err := o.Apply(&opts); err != nil {
+		if err := o.ApplyImageHistoryOption(&opts); err != nil {
 			return nil, err
 		}
 	}
