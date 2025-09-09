@@ -95,7 +95,7 @@ func getAllContainers(ctx context.Context, t testing.TB, apiClient client.Contai
 
 func deleteAllImages(ctx context.Context, t testing.TB, apiclient client.ImageAPIClient, protectedImages map[string]struct{}) {
 	t.Helper()
-	images, err := apiclient.ImageList(ctx, client.ImageListOptions{})
+	images, err := apiclient.ImageList(ctx)
 	assert.Check(t, err, "failed to list images")
 
 	for _, img := range images {

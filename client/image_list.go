@@ -12,11 +12,11 @@ import (
 
 // ImageList returns a list of images in the docker host.
 //
-// Experimental: Set the [image.ListOptions.Manifest] option
+// Experimental: Pass the [ImageListWithManifests] option
 // to include [image.Summary.Manifests] with information about image manifests.
 // This is experimental and might change in the future without any backward
 // compatibility.
-func (cli *Client) ImageList(ctx context.Context, options ImageListOptions) ([]image.Summary, error) {
+func (cli *Client) ImageList(ctx context.Context, options ...ImageListOption) ([]image.Summary, error) {
 	var images []image.Summary
 
 	// Make sure we negotiated (if the client is configured to do so),
@@ -28,9 +28,16 @@ func (cli *Client) ImageList(ctx context.Context, options ImageListOptions) ([]i
 		return images, err
 	}
 
+	var opts imageListOpts
+	for _, o := range options {
+		if err := o.ApplyImageListOption(&opts); err != nil {
+			return nil, err
+		}
+	}
+
 	query := url.Values{}
 
-	optionFilters := options.Filters
+	optionFilters := opts.apiOptions.Filters
 	referenceFilters := optionFilters.Get("reference")
 	if versions.LessThan(cli.version, "1.25") && len(referenceFilters) > 0 {
 		query.Set("filter", referenceFilters[0])
@@ -52,13 +59,13 @@ func (cli *Client) ImageList(ctx context.Context, options ImageListOptions) ([]i
 		}
 		query.Set("filters", filterJSON)
 	}
-	if options.All {
+	if opts.apiOptions.All {
 		query.Set("all", "1")
 	}
-	if options.SharedSize && versions.GreaterThanOrEqualTo(cli.version, "1.42") {
+	if opts.apiOptions.SharedSize && versions.GreaterThanOrEqualTo(cli.version, "1.42") {
 		query.Set("shared-size", "1")
 	}
-	if options.Manifests && versions.GreaterThanOrEqualTo(cli.version, "1.47") {
+	if opts.apiOptions.Manifests && versions.GreaterThanOrEqualTo(cli.version, "1.47") {
 		query.Set("manifests", "1")
 	}
 

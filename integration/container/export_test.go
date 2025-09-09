@@ -44,9 +44,8 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	err = dec.Decode(&jm)
 	assert.NilError(t, err)
 
-	images, err := apiClient.ImageList(ctx, client.ImageListOptions{
-		Filters: filters.NewArgs(filters.Arg("reference", reference)),
-	})
+	images, err := apiClient.ImageList(ctx,
+		client.ImageListWithFilters(filters.NewArgs(filters.Arg("reference", reference))))
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(jm.Status, images[0].ID))
 }
