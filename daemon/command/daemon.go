@@ -16,6 +16,7 @@ import (
 	"time"
 
 	containerddefaults "github.com/containerd/containerd/v2/defaults"
+	containerdoci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
 	"github.com/docker/go-connections/tlsconfig"
@@ -404,6 +405,11 @@ func initBuildkit(ctx context.Context, d *daemon.Daemon, cdiCache *cdi.Cache) (_
 
 	cfg := d.Config()
 
+	specOpts := []containerdoci.SpecOpts{}
+	if d.DefaultIsolation().IsHyperV() {
+		specOpts = append(specOpts, containerdoci.WithWindowsHyperV)
+	}
+
 	bk, err := buildkit.New(ctx, buildkit.Opt{
 		SessionManager:      sm,
 		Root:                filepath.Join(cfg.Root, "buildkit"),
@@ -422,6 +428,7 @@ func initBuildkit(ctx context.Context, d *daemon.Daemon, cdiCache *cdi.Cache) (_
 		Snapshotter:         d.ImageService().StorageDriver(),
 		ContainerdAddress:   cfg.ContainerdAddr,
 		ContainerdNamespace: cfg.ContainerdNamespace,
+		SpecOpts:            specOpts,
 		Callbacks: exporter.BuildkitCallbacks{
 			Exported: d.ImageExportedByBuildkit,
 			Named:    d.ImageNamedByBuildkit,
