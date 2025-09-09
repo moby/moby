@@ -2,8 +2,10 @@ package jsonmessage
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"strings"
 	"time"
 
@@ -187,9 +189,32 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 	return nil
 }
 
+type JSONMessagesStream iter.Seq2[JSONMessage, error]
+
 // DisplayJSONMessagesStream reads a JSON message stream from in, and writes
-// each [JSONMessage] to out. It returns an error if an invalid JSONMessage
-// is received, or if a JSONMessage containers a non-zero [JSONMessage.Error].
+// each [JSONMessage] to out.
+// see DisplayJSONMessages for details
+func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(JSONMessage)) error {
+	var dec = json.NewDecoder(in)
+	var f JSONMessagesStream = func(yield func(JSONMessage, error) bool) {
+		for {
+			var jm JSONMessage
+			err := dec.Decode(&jm)
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if !yield(jm, err) {
+				return
+			}
+		}
+	}
+
+	return DisplayJSONMessages(f, out, terminalFd, isTerminal, auxCallback)
+}
+
+// DisplayJSONMessages writes each [JSONMessage] from stream to out.
+// It returns an error if an invalid JSONMessage is received, or if
+// a JSONMessage containers a non-zero [JSONMessage.Error].
 //
 // Presentation of the JSONMessage depends on whether a terminal is attached,
 // and on the terminal width. Progress bars ([JSONProgress]) are suppressed
@@ -203,19 +228,12 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 //   - auxCallback allows handling the [JSONMessage.Aux] field. It is
 //     called if a JSONMessage contains an Aux field, in which case
 //     DisplayJSONMessagesStream does not present the JSONMessage.
-func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(JSONMessage)) error {
-	var (
-		dec = json.NewDecoder(in)
-		ids = make(map[string]uint)
-	)
+func DisplayJSONMessages(messages JSONMessagesStream, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(JSONMessage)) error {
+	var ids = make(map[string]uint)
 
-	for {
+	for jm, err := range messages {
 		var diff uint
-		var jm JSONMessage
-		if err := dec.Decode(&jm); err != nil {
-			if err == io.EOF {
-				break
-			}
+		if err != nil {
 			return err
 		}
 

@@ -1,6 +1,8 @@
 package client
 
-import "context"
+import (
+	"context"
+)
 
 // ImagePullOptions holds information to pull images.
 type ImagePullOptions struct {
