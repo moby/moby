@@ -1,0 +1,46 @@
+name: vm
+
+# Default to 'contents: read', which grants actions to read commits.
+#
+# If any permission is set, any permission not included in the list is
+# implicitly set to "none".
+#
+# see https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'master'
+      - '[0-9]+.[0-9]+'
+      - '[0-9]+.x'
+  pull_request:
+
+jobs:
+  validate-dco:
+    uses: ./.github/workflows/.dco.yml
+
+  vm:
+    needs:
+      - validate-dco
+    uses: ./.github/workflows/.vm.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        template:
+          # EL 8 is used for running the tests with cgroup v1.
+          # Do not upgrade this to EL 9 until formally deprecating the cgroup v1 support.
+          #
+          # FIXME: use almalinux-8, then probably no need to keep oraclelinux-8 here.
+          # On almalinux-8, port forwarding tests are failing:
+          # https://github.com/moby/moby/pull/49819#issuecomment-2815676000
+          - template://oraclelinux-8  # Oracle's kernel 5.15
+          # - template://almalinux-8  # kernel 4.18
+    with:
+      template: ${{ matrix.template }}
