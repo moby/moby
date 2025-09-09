@@ -45,7 +45,11 @@ func (d *Daemon) RestartNode(t testing.TB) {
 // StartAndSwarmInit starts the daemon (with busybox) and init the swarm
 func (d *Daemon) StartAndSwarmInit(ctx context.Context, t testing.TB) {
 	d.StartNodeWithBusybox(ctx, t)
-	d.SwarmInit(ctx, t, swarm.InitRequest{})
+	var req swarm.InitRequest
+	if d.swarmListenAddr != defaultSwarmListenAddr {
+		req.AdvertiseAddr = d.swarmListenAddr
+	}
+	d.SwarmInit(ctx, t, req)
 }
 
 // StartAndSwarmJoin starts the daemon (with busybox) and join the specified swarm as worker or manager
@@ -59,10 +63,14 @@ func (d *Daemon) StartAndSwarmJoin(ctx context.Context, t testing.TB, leader *Da
 		token = tokens.Manager
 	}
 	t.Logf("[%s] joining swarm manager [%s]@%s, swarm listen addr %s", d.id, leader.id, leader.SwarmListenAddr(), d.SwarmListenAddr())
-	d.SwarmJoin(ctx, t, swarm.JoinRequest{
+	req := swarm.JoinRequest{
 		RemoteAddrs: []string{leader.SwarmListenAddr()},
 		JoinToken:   token,
-	})
+	}
+	if d.swarmListenAddr != defaultSwarmListenAddr {
+		req.AdvertiseAddr = d.swarmListenAddr
+	}
+	d.SwarmJoin(ctx, t, req)
 }
 
 // SpecConstructor defines a swarm spec constructor

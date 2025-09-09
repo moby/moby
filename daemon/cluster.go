@@ -21,7 +21,7 @@ type ClusterStatus interface {
 
 // NetworkManager provides methods to manage networks
 type NetworkManager interface {
-	GetNetwork(input string) (network.Inspect, error)
-	GetNetworks(dnetwork.Filter) ([]network.Inspect, error)
+	GetNetwork(input string, withStatus bool) (network.Inspect, error)
+	GetNetworks(filter dnetwork.Filter, withStatus bool) ([]network.Inspect, error)
 	RemoveNetwork(input string) error
 }

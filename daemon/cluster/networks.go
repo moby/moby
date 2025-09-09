@@ -5,9 +5,11 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
+	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/network"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/cluster/convert"
+	"github.com/moby/moby/v2/daemon/cluster/convert/netextra"
 	networkSettings "github.com/moby/moby/v2/daemon/network"
 	"github.com/moby/moby/v2/errdefs"
 	swarmapi "github.com/moby/swarmkit/v2/api"
@@ -15,7 +17,7 @@ import (
 )
 
 // GetNetworks returns all current cluster managed networks.
-func (c *Cluster) GetNetworks(filter networkSettings.Filter) ([]network.Inspect, error) {
+func (c *Cluster) GetNetworks(filter networkSettings.Filter, withStatus bool) ([]network.Inspect, error) {
 	// Swarmkit API's filters are too limited to express the Moby filter
 	// semantics with much fidelity. It only supports filtering on one of:
 	//  - Names (exact match)
@@ -26,7 +28,7 @@ func (c *Cluster) GetNetworks(filter networkSettings.Filter) ([]network.Inspect,
 	// semantics are to match on any substring of the network name or ID. We
 	// therefore need to request all networks from Swarmkit and filter them
 	// ourselves.
-	list, err := c.listNetworks(context.TODO(), nil)
+	list, err := c.listNetworks(context.TODO(), nil, withStatus)
 	if err != nil {
 		return nil, err
 	}
@@ -36,10 +38,11 @@ func (c *Cluster) GetNetworks(filter networkSettings.Filter) ([]network.Inspect,
 			continue
 		}
 		if filter.Matches(convert.FilterNetwork{N: n}) {
-			filtered = append(filtered, network.Inspect{
-				Network:    convert.BasicNetworkFromGRPC(*n),
-				Containers: map[string]network.EndpointResource{},
-			})
+			nn, err := convert.NetworkInspectFromGRPC(*n)
+			if err != nil {
+				return nil, fmt.Errorf("%s: failed to convert swarmapi.Network to network.Inspect: %w", n.ID, err)
+			}
+			filtered = append(filtered, nn)
 		}
 	}
 
@@ -47,7 +50,7 @@ func (c *Cluster) GetNetworks(filter networkSettings.Filter) ([]network.Inspect,
 }
 
 func (c *Cluster) GetNetworkSummaries(filter networkSettings.Filter) ([]network.Summary, error) {
-	list, err := c.listNetworks(context.TODO(), nil)
+	list, err := c.listNetworks(context.TODO(), nil, false)
 	if err != nil {
 		return nil, err
 	}
@@ -64,10 +67,21 @@ func (c *Cluster) GetNetworkSummaries(filter networkSettings.Filter) ([]network.
 	return filtered, nil
 }
 
-func (c *Cluster) listNetworks(ctx context.Context, filters *swarmapi.ListNetworksRequest_Filters) ([]*swarmapi.Network, error) {
+func (c *Cluster) listNetworks(ctx context.Context, filters *swarmapi.ListNetworksRequest_Filters, withStatus bool) ([]*swarmapi.Network, error) {
+	var appdata *gogotypes.Any
+	if withStatus {
+		var err error
+		appdata, err = gogotypes.MarshalAny(&netextra.GetNetworkExtraOptions{
+			WithIPAMStatus: withStatus,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal GetNetworkExtraOptions: %w", err)
+		}
+	}
+
 	var list []*swarmapi.Network
 	err := c.lockedManagerAction(ctx, func(ctx context.Context, state nodeState) error {
-		l, err := state.controlClient.ListNetworks(ctx, &swarmapi.ListNetworksRequest{Filters: filters})
+		l, err := state.controlClient.ListNetworks(ctx, &swarmapi.ListNetworksRequest{Filters: filters, Appdata: appdata})
 		if err != nil {
 			return err
 		}
@@ -78,11 +92,21 @@ func (c *Cluster) listNetworks(ctx context.Context, filters *swarmapi.ListNetwor
 }
 
 // GetNetwork returns a cluster network by an ID.
-func (c *Cluster) GetNetwork(input string) (network.Inspect, error) {
-	var nw *swarmapi.Network
+func (c *Cluster) GetNetwork(input string, withStatus bool) (network.Inspect, error) {
+	var appdata *gogotypes.Any
+	if withStatus {
+		var err error
+		appdata, err = gogotypes.MarshalAny(&netextra.GetNetworkExtraOptions{
+			WithIPAMStatus: withStatus,
+		})
+		if err != nil {
+			return network.Inspect{}, fmt.Errorf("failed to marshal GetNetworkExtraOptions: %w", err)
+		}
+	}
 
+	var nw *swarmapi.Network
 	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
-		n, err := getNetwork(ctx, state.controlClient, input)
+		n, err := getNetwork(ctx, state.controlClient, input, appdata)
 		if err != nil {
 			return err
 		}
@@ -91,10 +115,7 @@ func (c *Cluster) GetNetwork(input string) (network.Inspect, error) {
 	}); err != nil {
 		return network.Inspect{}, err
 	}
-	return network.Inspect{
-		Network:    convert.BasicNetworkFromGRPC(*nw),
-		Containers: map[string]network.EndpointResource{},
-	}, nil
+	return convert.NetworkInspectFromGRPC(*nw)
 }
 
 // GetNetworksByName returns cluster managed networks by name.
@@ -104,7 +125,7 @@ func (c *Cluster) GetNetworksByName(name string) ([]network.Network, error) {
 	// So we cannot just use that with c.GetNetwork.
 	list, err := c.listNetworks(context.TODO(), &swarmapi.ListNetworksRequest_Filters{
 		Names: []string{name},
-	})
+	}, false)
 	if err != nil {
 		return nil, err
 	}
@@ -296,7 +317,7 @@ func (c *Cluster) CreateNetwork(s network.CreateRequest) (string, error) {
 // RemoveNetwork removes a cluster network.
 func (c *Cluster) RemoveNetwork(input string) error {
 	return c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
-		nw, err := getNetwork(ctx, state.controlClient, input)
+		nw, err := getNetwork(ctx, state.controlClient, input, nil)
 		if err != nil {
 			return err
 		}
@@ -314,13 +335,13 @@ func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.Control
 		networks = s.Networks //nolint:staticcheck // ignore SA1019: field is deprecated.
 	}
 	for i, nw := range networks {
-		apiNetwork, err := getNetwork(ctx, client, nw.Target)
+		apiNetwork, err := getNetwork(ctx, client, nw.Target, nil)
 		if err != nil {
 			ln, _ := c.config.Backend.FindNetwork(nw.Target)
 			if ln != nil && networkSettings.IsPredefined(ln.Name()) {
 				// Need to retrieve the corresponding predefined swarm network
 				// and use its id for the request.
-				apiNetwork, err = getNetwork(ctx, client, ln.Name())
+				apiNetwork, err = getNetwork(ctx, client, ln.Name(), nil)
 				if err != nil {
 					return errors.Wrap(errdefs.NotFound(err), "could not find the corresponding predefined swarm network")
 				}

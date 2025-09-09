@@ -136,7 +136,7 @@ func (daemon *Daemon) clusterNetworksPrune(ctx context.Context, pruneFilters dne
 		return rep, nil
 	}
 
-	networks, err := cluster.GetNetworks(pruneFilters)
+	networks, err := cluster.GetNetworks(pruneFilters, false)
 	if err != nil {
 		return rep, err
 	}

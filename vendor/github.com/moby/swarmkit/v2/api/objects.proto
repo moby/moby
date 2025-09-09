@@ -332,6 +332,11 @@ message Network {
 	// the services that still use this service, and proceed to delete
 	// this network when all of these services are gone
 	bool pending_delete = 6;
+
+	// Extra encodes application-specific information about the live state
+	// of the network. The syntax and semantics of the value are dictated by
+	// the network allocator implementation.
+	google.protobuf.Any extra = 7;
 }
 
 // Cluster provides global cluster settings.

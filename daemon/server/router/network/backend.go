@@ -24,9 +24,9 @@ type Backend interface {
 // ClusterBackend is all the methods that need to be implemented
 // to provide cluster network specific functionality.
 type ClusterBackend interface {
-	GetNetworks(dnetwork.Filter) ([]network.Inspect, error)
+	GetNetworks(filter dnetwork.Filter, withStatus bool) ([]network.Inspect, error)
 	GetNetworkSummaries(dnetwork.Filter) ([]network.Summary, error)
-	GetNetwork(name string) (network.Inspect, error)
+	GetNetwork(name string, withStatus bool) (network.Inspect, error)
 	GetNetworksByName(name string) ([]network.Network, error)
 	CreateNetwork(nc network.CreateRequest) (string, error)
 	RemoveNetwork(name string) error
