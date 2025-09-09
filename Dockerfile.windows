@@ -255,14 +255,11 @@ RUN `
   Remove-Item C:\gitsetup.zip; `
   `
   Write-Host INFO: Downloading containerd; `
-  Install-Package -Force 7Zip4PowerShell; `
   $location='https://github.com/containerd/containerd/releases/download/'+$Env:CONTAINERD_VERSION+'/containerd-'+$Env:CONTAINERD_VERSION.TrimStart('v')+'-windows-amd64.tar.gz'; `
   Download-File $location C:\containerd.tar.gz; `
   New-Item -Path C:\containerd -ItemType Directory; `
-  Expand-7Zip C:\containerd.tar.gz C:\; `
-  Expand-7Zip C:\containerd.tar C:\containerd; `
+  tar -xzf C:\containerd.tar.gz -C C:\containerd; `
   Remove-Item C:\containerd.tar.gz; `
-  Remove-Item C:\containerd.tar; `
   `
   # Ensure all directories exist that we will require below....
   $srcDir = """$Env:GOPATH`\src\github.com\docker\docker\bundles"""; `
