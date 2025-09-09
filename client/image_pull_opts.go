@@ -1,6 +1,10 @@
 package client
 
-import "context"
+import (
+	"context"
+
+	"github.com/moby/moby/client/pkg/jsonmessage"
+)
 
 // ImagePullOptions holds information to pull images.
 type ImagePullOptions struct {
@@ -15,4 +19,8 @@ type ImagePullOptions struct {
 	// For details, refer to [github.com/moby/moby/api/types/registry.RequestAuthConfig].
 	PrivilegeFunc func(context.Context) (string, error)
 	Platform      string
+
+	// ProgressFunc is a function that clients can supply to access pull response
+	// as JSONMessages. If unset, ImagePull returns the raw json stream as an io.Reader
+	ProgressFunc func(message jsonmessage.JSONMessage)
 }
