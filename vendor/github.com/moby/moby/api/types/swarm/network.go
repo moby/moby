@@ -1,6 +1,8 @@
 package swarm
 
 import (
+	"net/netip"
+
 	"github.com/moby/moby/api/types/network"
 )
 
@@ -68,8 +70,8 @@ const (
 
 // EndpointVirtualIP represents the virtual ip of a port.
 type EndpointVirtualIP struct {
-	NetworkID string `json:",omitempty"`
-	Addr      string `json:",omitempty"`
+	NetworkID string     `json:",omitempty"`
+	Addr      netip.Addr `json:",omitempty"`
 }
 
 // Network represents a network.
@@ -103,8 +105,8 @@ type NetworkAttachmentConfig struct {
 
 // NetworkAttachment represents a network attachment.
 type NetworkAttachment struct {
-	Network   Network  `json:",omitempty"`
-	Addresses []string `json:",omitempty"`
+	Network   Network      `json:",omitempty"`
+	Addresses []netip.Addr `json:",omitempty"`
 }
 
 // IPAMOptions represents ipam options.
@@ -115,7 +117,7 @@ type IPAMOptions struct {
 
 // IPAMConfig represents ipam configuration.
 type IPAMConfig struct {
-	Subnet  string `json:",omitempty"`
-	Range   string `json:",omitempty"`
-	Gateway string `json:",omitempty"`
+	Subnet  netip.Prefix `json:",omitempty"`
+	Range   netip.Prefix `json:",omitempty"`
+	Gateway netip.Addr   `json:",omitempty"`
 }

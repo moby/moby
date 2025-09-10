@@ -1,6 +1,7 @@
 package swarm
 
 import (
+	"net/netip"
 	"time"
 
 	"github.com/moby/moby/api/types/container"
@@ -14,7 +15,7 @@ import (
 // TODO: `domain` is not supported yet.
 type DNSConfig struct {
 	// Nameservers specifies the IP addresses of the name servers
-	Nameservers []string `json:",omitempty"`
+	Nameservers []netip.Addr `json:",omitempty"`
 	// Search specifies the search list for host-name lookup
 	Search []string `json:",omitempty"`
 	// Options allows certain internal resolver variables to be modified
