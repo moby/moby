@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestLastAddr(t *testing.T) {
@@ -69,4 +70,20 @@ func TestParseCIDR(t *testing.T) {
 	got, err := ParseCIDR("invalid")
 	assert.Check(t, err != nil, "expected error for invalid input")
 	assert.Check(t, !got.IsValid(), "expected invalid result for invalid input")
+}
+
+func TestMaybeParse(t *testing.T) {
+	addr := MaybeParse(netip.ParseAddr)
+	got, err := addr("")
+	assert.Check(t, err)
+	assert.Check(t, !got.IsValid())
+
+	got, err = addr("bogus")
+	assert.Check(t, err != nil)
+	assert.Check(t, !got.IsValid())
+
+	got, err = addr("1.2.3.4")
+	if assert.Check(t, err) {
+		assert.Check(t, is.Equal(got, netip.MustParseAddr("1.2.3.4")))
+	}
 }

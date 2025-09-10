@@ -2,6 +2,7 @@ package container
 
 import (
 	"maps"
+	"net/netip"
 	"slices"
 	"strings"
 
@@ -172,7 +173,7 @@ func WithIPv4(networkName, ip string) func(*TestContainerConfig) {
 		if c.NetworkingConfig.EndpointsConfig[networkName].IPAMConfig == nil {
 			c.NetworkingConfig.EndpointsConfig[networkName].IPAMConfig = &network.EndpointIPAMConfig{}
 		}
-		c.NetworkingConfig.EndpointsConfig[networkName].IPAMConfig.IPv4Address = ip
+		c.NetworkingConfig.EndpointsConfig[networkName].IPAMConfig.IPv4Address = netip.MustParseAddr(ip)
 	}
 }
 
@@ -188,7 +189,7 @@ func WithIPv6(networkName, ip string) func(*TestContainerConfig) {
 		if c.NetworkingConfig.EndpointsConfig[networkName].IPAMConfig == nil {
 			c.NetworkingConfig.EndpointsConfig[networkName].IPAMConfig = &network.EndpointIPAMConfig{}
 		}
-		c.NetworkingConfig.EndpointsConfig[networkName].IPAMConfig.IPv6Address = ip
+		c.NetworkingConfig.EndpointsConfig[networkName].IPAMConfig.IPv6Address = netip.MustParseAddr(ip)
 	}
 }
 

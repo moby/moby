@@ -2,6 +2,7 @@ package network
 
 import (
 	"maps"
+	"net/netip"
 	"slices"
 )
 
@@ -25,11 +26,11 @@ type EndpointSettings struct {
 	// Operational data
 	NetworkID           string
 	EndpointID          string
-	Gateway             string
-	IPAddress           string
+	Gateway             netip.Addr
+	IPAddress           netip.Addr
 	IPPrefixLen         int
-	IPv6Gateway         string
-	GlobalIPv6Address   string
+	IPv6Gateway         netip.Addr
+	GlobalIPv6Address   netip.Addr
 	GlobalIPv6PrefixLen int
 	// DNSNames holds all the (non fully qualified) DNS names associated to this endpoint. First entry is used to
 	// generate PTR records.
@@ -54,9 +55,9 @@ func (es *EndpointSettings) Copy() *EndpointSettings {
 
 // EndpointIPAMConfig represents IPAM configurations for the endpoint
 type EndpointIPAMConfig struct {
-	IPv4Address  string   `json:",omitempty"`
-	IPv6Address  string   `json:",omitempty"`
-	LinkLocalIPs []string `json:",omitempty"`
+	IPv4Address  netip.Addr   `json:",omitempty"`
+	IPv6Address  netip.Addr   `json:",omitempty"`
+	LinkLocalIPs []netip.Addr `json:",omitempty"`
 }
 
 // Copy makes a copy of the endpoint ipam config

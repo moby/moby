@@ -98,9 +98,9 @@ ff02::2	ip6-allrouters
 			// Append the container's own addresses/name to the expected hosts file content.
 			inspect := container.Inspect(ctx, t, c, ctrId)
 			bridgeEp := inspect.NetworkSettings.Networks["bridge"]
-			exp := tc.expEtcHosts + bridgeEp.IPAddress + "\t" + inspect.Config.Hostname + "\n"
+			exp := tc.expEtcHosts + bridgeEp.IPAddress.String() + "\t" + inspect.Config.Hostname + "\n"
 			if tc.expIPv6Enabled {
-				exp += bridgeEp.GlobalIPv6Address + "\t" + inspect.Config.Hostname + "\n"
+				exp += bridgeEp.GlobalIPv6Address.String() + "\t" + inspect.Config.Hostname + "\n"
 			}
 			assert.Check(t, is.Equal(stdout, exp))
 		})
