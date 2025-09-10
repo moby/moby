@@ -5,10 +5,12 @@ package ipvlan
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/api/types/network"
 	dclient "github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
@@ -484,6 +486,11 @@ func TestIpvlanIPAM(t *testing.T) {
 		},
 	}
 
+	var (
+		subnetv4 = netip.MustParsePrefix("10.42.42.0/24")
+		subnetv6 = netip.MustParsePrefix("2001:db8:abcd::/64")
+	)
+
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
@@ -492,6 +499,15 @@ func TestIpvlanIPAM(t *testing.T) {
 			netOpts := []func(*dclient.NetworkCreateOptions){
 				net.WithIPvlan("", "l3"),
 				net.WithIPv4(tc.enableIPv4),
+				net.WithIPAMConfig(
+					network.IPAMConfig{
+						Subnet: subnetv4.String(),
+					},
+					network.IPAMConfig{
+						Subnet:  subnetv6.String(),
+						IPRange: "2001:db8:abcd::100/120",
+					},
+				),
 			}
 			if tc.enableIPv6 {
 				netOpts = append(netOpts, net.WithIPv6())
@@ -509,10 +525,15 @@ func TestIpvlanIPAM(t *testing.T) {
 			assert.Check(t, is.Contains(loRes.Combined(), " inet "))
 			assert.Check(t, is.Contains(loRes.Combined(), " inet6 "))
 
+			wantSubnetStatus := make(map[netip.Prefix]network.SubnetStatus)
 			eth0Res := container.ExecT(ctx, t, c, id, []string{"ip", "a", "show", "dev", "eth0"})
 			if tc.enableIPv4 || tc.expIPv4 {
 				assert.Check(t, is.Contains(eth0Res.Combined(), " inet "),
 					"Expected IPv4 in: %s", eth0Res.Combined())
+				wantSubnetStatus[subnetv4] = network.SubnetStatus{
+					IPsInUse:            3, // network, broadcast, container
+					DynamicIPsAvailable: 253,
+				}
 			} else {
 				assert.Check(t, !strings.Contains(eth0Res.Combined(), " inet "),
 					"Expected no IPv4 in: %s", eth0Res.Combined())
@@ -520,6 +541,10 @@ func TestIpvlanIPAM(t *testing.T) {
 			if tc.enableIPv6 {
 				assert.Check(t, is.Contains(eth0Res.Combined(), " inet6 "),
 					"Expected IPv6 in: %s", eth0Res.Combined())
+				wantSubnetStatus[subnetv6] = network.SubnetStatus{
+					IPsInUse:            2, // subnet-router anycast, container
+					DynamicIPsAvailable: 255,
+				}
 			} else {
 				assert.Check(t, !strings.Contains(eth0Res.Combined(), " inet6 "),
 					"Expected no IPv6 in: %s", eth0Res.Combined())
@@ -531,8 +556,186 @@ func TestIpvlanIPAM(t *testing.T) {
 				expDisableIPv6 = "0"
 			}
 			assert.Check(t, is.Equal(strings.TrimSpace(sysctlRes.Combined()), expDisableIPv6))
+
+			cc := d.NewClientT(t, dclient.WithVersion("1.52"))
+			inspect, err := cc.NetworkInspect(ctx, netName, dclient.NetworkInspectOptions{})
+			if assert.Check(t, err) && assert.Check(t, inspect.Status != nil) {
+				assert.Check(t, is.DeepEqual(wantSubnetStatus, inspect.Status.IPAM.Subnets, cmpopts.EquateEmpty()))
+			}
+			cc.Close()
+			cc = d.NewClientT(t, dclient.WithVersion("1.51"))
+			inspect, err = cc.NetworkInspect(ctx, netName, dclient.NetworkInspectOptions{})
+			assert.Check(t, err)
+			assert.Check(t, inspect.Status == nil)
+			cc.Close()
 		})
 	}
+}
+
+// IPVLAN networks are allowed to be assigned IPAM subnets that overlap with
+// other IPVLAN networks' IPAM subnets. But no two IPVLAN endpoints may be
+// assigned the same address, even when the endpoints are attached to different
+// networks. The assignment of an address to an endpoint on one network may
+// therefore reduce the number of available addresses to assign to other
+// networks' endpoints.
+func TestIpvlanIPAMOverlap(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
+
+	ctx := testutil.StartSpan(baseContext, t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+
+	checkNetworkIPAMState := func(networkID string, want map[netip.Prefix]network.SubnetStatus) bool {
+		t.Helper()
+		nw, err := c.NetworkInspect(ctx, networkID, dclient.NetworkInspectOptions{})
+		if assert.Check(t, err) && assert.Check(t, nw.Status != nil) {
+			return assert.Check(t, is.DeepEqual(want, nw.Status.IPAM.Subnets, cmpopts.EquateEmpty()))
+		}
+		return false
+	}
+
+	// Create three networks with joined and overlapped IPAM ranges
+	// and verify that the IPAM state is correct
+
+	const (
+		netName1 = "ipvlannet1"
+		netName2 = "ipvlannet2"
+		netName3 = "ipvlannet3"
+	)
+	cidrv4 := netip.MustParsePrefix("192.168.0.0/24")
+	cidrv6 := netip.MustParsePrefix("2001:db8:abcd::/64")
+
+	net.CreateNoError(ctx, t, c, netName1,
+		net.WithIPvlan("", "l3"),
+		net.WithIPv6(),
+		net.WithIPAMConfig(
+			network.IPAMConfig{
+				Subnet:  cidrv4.String(),
+				IPRange: "192.168.0.0/25",
+				Gateway: "192.168.0.1",
+				AuxAddress: map[string]string{
+					"reserved": "192.168.0.100",
+				},
+			},
+			network.IPAMConfig{
+				Subnet:  cidrv6.String(),
+				IPRange: "2001:db8:abcd::/124",
+			},
+		),
+	)
+	defer c.NetworkRemove(ctx, netName1)
+	assert.Check(t, n.IsNetworkAvailable(ctx, c, netName1))
+
+	checkNetworkIPAMState(netName1, map[netip.Prefix]network.SubnetStatus{
+		cidrv4: {
+			IPsInUse:            4,
+			DynamicIPsAvailable: 125,
+		},
+		cidrv6: {
+			IPsInUse:            1,
+			DynamicIPsAvailable: 15,
+		},
+	})
+
+	net.CreateNoError(ctx, t, c, netName2,
+		net.WithIPvlan("", "l3"),
+		net.WithIPv6(),
+		net.WithIPAMConfig(
+			network.IPAMConfig{
+				Subnet:  cidrv4.String(),
+				IPRange: "192.168.0.0/24",
+			},
+			network.IPAMConfig{
+				Subnet:  cidrv6.String(),
+				IPRange: "2001:db8:abcd::/120",
+			},
+		),
+	)
+
+	defer c.NetworkRemove(ctx, netName2)
+	assert.Check(t, n.IsNetworkAvailable(ctx, c, netName2))
+
+	checkNetworkIPAMState(netName2, map[netip.Prefix]network.SubnetStatus{
+		cidrv4: {
+			IPsInUse:            4,
+			DynamicIPsAvailable: 252,
+		},
+		cidrv6: {
+			IPsInUse:            1,
+			DynamicIPsAvailable: 255,
+		},
+	})
+
+	net.CreateNoError(ctx, t, c, netName3,
+		net.WithIPvlan("", "l3"),
+		net.WithIPv6(),
+		net.WithIPAMConfig(
+			network.IPAMConfig{
+				Subnet:  cidrv4.String(),
+				IPRange: "192.168.0.128/25",
+			},
+			network.IPAMConfig{
+				Subnet:  cidrv6.String(),
+				IPRange: "2001:db8:abcd::80/124",
+			},
+		),
+	)
+
+	defer c.NetworkRemove(ctx, netName3)
+	assert.Check(t, n.IsNetworkAvailable(ctx, c, netName3))
+
+	checkNetworkIPAMState(netName3, map[netip.Prefix]network.SubnetStatus{
+		cidrv4: {
+			IPsInUse:            4,
+			DynamicIPsAvailable: 127,
+		},
+		cidrv6: {
+			IPsInUse:            1,
+			DynamicIPsAvailable: 16,
+		},
+	})
+
+	// Create a container on one of the networks
+	id := container.Run(ctx, t, c, container.WithNetworkMode(netName1))
+	defer c.ContainerRemove(ctx, id, dclient.ContainerRemoveOptions{Force: true})
+
+	// Verify that the IPAM status of all three networks are affected.
+	checkNetworkIPAMState(netName1, map[netip.Prefix]network.SubnetStatus{
+		cidrv4: {
+			IPsInUse:            5,
+			DynamicIPsAvailable: 124,
+		},
+		cidrv6: {
+			IPsInUse:            2,
+			DynamicIPsAvailable: 14,
+		},
+	})
+
+	checkNetworkIPAMState(netName2, map[netip.Prefix]network.SubnetStatus{
+		cidrv4: {
+			IPsInUse:            5,
+			DynamicIPsAvailable: 251,
+		},
+		cidrv6: {
+			IPsInUse:            2,
+			DynamicIPsAvailable: 254,
+		},
+	})
+
+	checkNetworkIPAMState(netName3, map[netip.Prefix]network.SubnetStatus{
+		cidrv4: {
+			IPsInUse:            5,
+			DynamicIPsAvailable: 127,
+		},
+		cidrv6: {
+			IPsInUse:            2,
+			DynamicIPsAvailable: 16,
+		},
+	})
 }
 
 // TestIPVlanDNS checks whether DNS is forwarded, for combinations of l2/l3 mode,

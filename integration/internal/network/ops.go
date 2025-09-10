@@ -137,16 +137,20 @@ func WithIPAM(subnet, gateway string) func(*client.NetworkCreateOptions) {
 
 // WithIPAMRange adds an IPAM with the specified Subnet, IPRange and Gateway to the network
 func WithIPAMRange(subnet, iprange, gateway string) func(*client.NetworkCreateOptions) {
+	return WithIPAMConfig(network.IPAMConfig{
+		Subnet:     subnet,
+		IPRange:    iprange,
+		Gateway:    gateway,
+		AuxAddress: map[string]string{},
+	})
+}
+
+// WithIPAMConfig adds the provided IPAM configurations to the network
+func WithIPAMConfig(configs ...network.IPAMConfig) func(*client.NetworkCreateOptions) {
 	return func(n *client.NetworkCreateOptions) {
 		if n.IPAM == nil {
 			n.IPAM = &network.IPAM{}
 		}
-
-		n.IPAM.Config = append(n.IPAM.Config, network.IPAMConfig{
-			Subnet:     subnet,
-			IPRange:    iprange,
-			Gateway:    gateway,
-			AuxAddress: map[string]string{},
-		})
+		n.IPAM.Config = append(n.IPAM.Config, configs...)
 	}
 }

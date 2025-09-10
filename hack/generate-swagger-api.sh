@@ -60,15 +60,18 @@ EOT
 # TODO: Restore when go-swagger is updated
 # See https://github.com/moby/moby/pull/47526#discussion_r1551800022
 
-generate_model types/network --keep-spec-order <<- 'EOT'
+generate_model types/network --keep-spec-order --additional-initialism=IPAM <<- 'EOT'
 	ConfigReference
 	EndpointResource
+	IPAMStatus
 	Network
 	NetworkCreateResponse
 	NetworkInspect
+	NetworkStatus
 	NetworkSummary
 	NetworkTaskInfo
 	PeerInfo
+	SubnetStatus
 EOT
 
 generate_model types/plugin <<- 'EOT'

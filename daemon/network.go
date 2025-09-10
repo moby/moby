@@ -602,6 +602,19 @@ func (daemon *Daemon) GetNetworks(filter network.Filter, config backend.NetworkL
 			if config.WithServices {
 				nr.Services = buildServiceAttachments(n)
 			}
+			if config.WithStatus {
+				ipam, err := n.IPAMStatus(context.TODO())
+				if err != nil {
+					log.G(context.TODO()).WithFields(log.Fields{
+						"network": n.Name(),
+						"id":      n.ID(),
+						"error":   err,
+					}).Warning("Error encountered while gathering IPAM status for network")
+				}
+				nr.Status = &networktypes.Status{
+					IPAM: ipam,
+				}
+			}
 			networks = append(networks, nr)
 		}
 	}

@@ -146,7 +146,10 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 	}
 	filter.IDAlsoMatchesName = true
 
-	networks, _ := n.backend.GetNetworks(filter, backend.NetworkListConfig{WithServices: verbose})
+	networks, _ := n.backend.GetNetworks(filter, backend.NetworkListConfig{
+		WithServices: verbose,
+		WithStatus:   versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.52"),
+	})
 	for _, nw := range networks {
 		if nw.ID == term {
 			return httputils.WriteJSON(w, http.StatusOK, nw)

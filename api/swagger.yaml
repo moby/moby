@@ -2574,6 +2574,21 @@ definitions:
             type: ServiceInfo
             hints:
               nullable: false
+      Status:
+        description: >
+          provides runtime information about the network
+          such as the number of allocated IPs.
+        $ref: "#/definitions/NetworkStatus"
+
+  NetworkStatus:
+    description: >
+      provides runtime information about the network
+      such as the number of allocated IPs.
+    type: "object"
+    x-go-name: Status
+    properties:
+      IPAM:
+        $ref: "#/definitions/IPAMStatus"
 
   ServiceInfo:
     x-nullable: false
@@ -2684,6 +2699,46 @@ definitions:
         type: "object"
         additionalProperties:
           type: "string"
+
+  IPAMStatus:
+    type: "object"
+    x-nullable: false
+    x-omitempty: false
+    properties:
+      Subnets:
+        type: "object"
+        additionalProperties:
+          $ref: "#/definitions/SubnetStatus"
+        example:
+          "172.16.0.0/16":
+            IPsInUse: 3
+            DynamicIPsAvailable: 65533
+          "2001:db8:abcd:0012::0/96":
+            IPsInUse: 5
+            DynamicIPsAvailable: 4294967291
+        x-go-type:
+          type: SubnetStatuses
+          kind: map
+
+  SubnetStatus:
+    type: "object"
+    x-nullable: false
+    x-omitempty: false
+    properties:
+      IPsInUse:
+        description: >
+          Number of IP addresses in the subnet that are in use or reserved and
+          are therefore unavailable for allocation, saturating at 2<sup>64</sup> - 1.
+        type: integer
+        format: uint64
+        x-omitempty: false
+      DynamicIPsAvailable:
+        description: >
+          Number of IP addresses within the network's IPRange for the subnet
+          that are available for allocation, saturating at 2<sup>64</sup> - 1.
+        type: integer
+        format: uint64
+        x-omitempty: false
 
   EndpointResource:
     type: "object"
