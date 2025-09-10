@@ -7,6 +7,7 @@ import (
 	cryptorand "crypto/rand"
 	"fmt"
 	"math/rand/v2"
+	"net/netip"
 	"os"
 	"strings"
 	"sync"
@@ -120,7 +121,7 @@ type NetworkDB struct {
 // PeerInfo represents the peer (gossip cluster) nodes of a network
 type PeerInfo struct {
 	Name string
-	IP   string
+	IP   netip.Addr
 }
 
 // PeerClusterInfo represents the peer (gossip cluster) nodes
@@ -341,9 +342,10 @@ func (nDB *NetworkDB) ClusterPeers() []PeerInfo {
 	defer nDB.RUnlock()
 	peers := make([]PeerInfo, 0, len(nDB.nodes))
 	for _, node := range nDB.nodes {
+		ip, _ := netip.AddrFromSlice(node.Node.Addr)
 		peers = append(peers, PeerInfo{
 			Name: node.Name,
-			IP:   node.Node.Addr.String(),
+			IP:   ip.Unmap(),
 		})
 	}
 	return peers
@@ -356,14 +358,15 @@ func (nDB *NetworkDB) Peers(nid string) []PeerInfo {
 	peers := make([]PeerInfo, 0, len(nDB.networkNodes[nid]))
 	for _, nodeName := range nDB.networkNodes[nid] {
 		if node, ok := nDB.nodes[nodeName]; ok {
+			ip, _ := netip.AddrFromSlice(node.Node.Addr)
 			peers = append(peers, PeerInfo{
 				Name: node.Name,
-				IP:   node.Addr.String(),
+				IP:   ip.Unmap(),
 			})
 		} else {
 			// Added for testing purposes, this condition should never happen else mean that the network list
 			// is out of sync with the node list
-			peers = append(peers, PeerInfo{Name: nodeName, IP: "unknown"})
+			peers = append(peers, PeerInfo{Name: nodeName})
 		}
 	}
 	return peers

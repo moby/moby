@@ -71,6 +71,7 @@ generate_model types/network --keep-spec-order --additional-initialism=IPAM <<- 
 	NetworkSummary
 	NetworkTaskInfo
 	PeerInfo
+	ServiceInfo
 	SubnetStatus
 EOT
 

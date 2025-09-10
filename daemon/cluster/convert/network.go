@@ -1,6 +1,7 @@
 package convert
 
 import (
+	"maps"
 	"net/netip"
 	"strings"
 	"time"
@@ -9,9 +10,11 @@ import (
 	"github.com/moby/moby/api/types/network"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/cluster/convert/netextra"
+	"github.com/moby/moby/v2/daemon/internal/netipstringer"
 	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
+	"github.com/moby/moby/v2/internal/iterutil"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
 
@@ -159,12 +162,22 @@ func BasicNetworkFromGRPC(n swarmapi.Network) network.Network {
 		}
 		ipam.Config = make([]network.IPAMConfig, 0, len(n.IPAM.Configs))
 		for _, ic := range n.IPAM.Configs {
-			ipam.Config = append(ipam.Config, network.IPAMConfig{
-				Subnet:     ic.Subnet,
-				IPRange:    ic.Range,
-				Gateway:    ic.Gateway,
-				AuxAddress: ic.Reserved,
-			})
+			// Best-effort parse of user suppplied values that have
+			// been round-tripped through Swarm's Raft store. It is
+			// far too late to reject bogus values.
+			subnet, _ := netiputil.ParseCIDR(ic.Subnet)
+			iprange, _ := netiputil.ParseCIDR(ic.Range)
+			gw, _ := netip.ParseAddr(ic.Gateway)
+			cfg := network.IPAMConfig{
+				Subnet:  subnet.Masked(),
+				IPRange: iprange.Masked(),
+				Gateway: gw.Unmap(),
+			}
+			cfg.AuxAddress = maps.Collect(iterutil.Map2(maps.All(ic.Reserved), func(k, v string) (string, netip.Addr) {
+				addr, _ := netip.ParseAddr(v)
+				return k, addr.Unmap()
+			}))
+			ipam.Config = append(ipam.Config, cfg)
 		}
 	}
 
@@ -239,9 +252,9 @@ func BasicNetworkCreateToGRPC(create network.CreateRequest) swarmapi.NetworkSpec
 		ipamSpec := make([]*swarmapi.IPAMConfig, 0, len(create.IPAM.Config))
 		for _, ipamConfig := range create.IPAM.Config {
 			ipamSpec = append(ipamSpec, &swarmapi.IPAMConfig{
-				Subnet:  ipamConfig.Subnet,
-				Range:   ipamConfig.IPRange,
-				Gateway: ipamConfig.Gateway,
+				Subnet:  netipstringer.Prefix(netiputil.Unmap(ipamConfig.Subnet).Masked()),
+				Range:   netipstringer.Prefix(netiputil.Unmap(ipamConfig.IPRange).Masked()),
+				Gateway: netipstringer.Addr(ipamConfig.Gateway.Unmap()),
 			})
 		}
 		ns.IPAM.Configs = ipamSpec

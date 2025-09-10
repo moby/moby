@@ -3,6 +3,7 @@ package daemon
 import (
 	"encoding/json"
 	"errors"
+	"net/netip"
 	"testing"
 
 	containertypes "github.com/moby/moby/api/types/container"
@@ -67,9 +68,9 @@ func TestEndpointIPAMConfigWithOutOfRangeAddrs(t *testing.T) {
 		{
 			name: "valid config",
 			ipamConfig: &networktypes.EndpointIPAMConfig{
-				IPv4Address:  "192.168.100.10",
-				IPv6Address:  "2a01:d2:af:420b:25c1:1816:bb33:855c",
-				LinkLocalIPs: []string{"169.254.169.254", "fe80::42:a8ff:fe33:6230"},
+				IPv4Address:  netip.MustParseAddr("192.168.100.10"),
+				IPv6Address:  netip.MustParseAddr("2a01:d2:af:420b:25c1:1816:bb33:855c"),
+				LinkLocalIPs: []netip.Addr{netip.MustParseAddr("169.254.169.254"), netip.MustParseAddr("fe80::42:a8ff:fe33:6230")},
 			},
 			v4Subnets: []*libnetwork.IpamConf{
 				{PreferredPool: "192.168.100.0/24"},
@@ -81,8 +82,8 @@ func TestEndpointIPAMConfigWithOutOfRangeAddrs(t *testing.T) {
 		{
 			name: "static addresses out of range",
 			ipamConfig: &networktypes.EndpointIPAMConfig{
-				IPv4Address: "192.168.100.10",
-				IPv6Address: "2a01:d2:af:420b:25c1:1816:bb33:855c",
+				IPv4Address: netip.MustParseAddr("192.168.100.10"),
+				IPv6Address: netip.MustParseAddr("2a01:d2:af:420b:25c1:1816:bb33:855c"),
 			},
 			v4Subnets: []*libnetwork.IpamConf{
 				{PreferredPool: "192.168.255.0/24"},
@@ -98,8 +99,8 @@ func TestEndpointIPAMConfigWithOutOfRangeAddrs(t *testing.T) {
 		{
 			name: "static addresses with dynamic network subnets",
 			ipamConfig: &networktypes.EndpointIPAMConfig{
-				IPv4Address: "192.168.100.10",
-				IPv6Address: "2a01:d2:af:420b:25c1:1816:bb33:855c",
+				IPv4Address: netip.MustParseAddr("192.168.100.10"),
+				IPv6Address: netip.MustParseAddr("2a01:d2:af:420b:25c1:1816:bb33:855c"),
 			},
 			v4Subnets: []*libnetwork.IpamConf{
 				{},
@@ -141,38 +142,42 @@ func TestEndpointIPAMConfigWithInvalidConfig(t *testing.T) {
 		{
 			name: "valid config",
 			ipamConfig: &networktypes.EndpointIPAMConfig{
-				IPv4Address:  "192.168.100.10",
-				IPv6Address:  "2a01:d2:af:420b:25c1:1816:bb33:855c",
-				LinkLocalIPs: []string{"169.254.169.254", "fe80::42:a8ff:fe33:6230"},
+				IPv4Address:  netip.MustParseAddr("192.168.100.10"),
+				IPv6Address:  netip.MustParseAddr("2a01:d2:af:420b:25c1:1816:bb33:855c"),
+				LinkLocalIPs: []netip.Addr{netip.MustParseAddr("169.254.169.254"), netip.MustParseAddr("fe80::42:a8ff:fe33:6230")},
 			},
 		},
 		{
 			name: "invalid IP addresses",
 			ipamConfig: &networktypes.EndpointIPAMConfig{
-				IPv4Address:  "foo",
-				IPv6Address:  "bar",
-				LinkLocalIPs: []string{"baz", "foobar"},
+				IPv4Address: netip.MustParseAddr("2001::1"),
+				IPv6Address: netip.MustParseAddr("1.2.3.4"),
 			},
 			expectedErrors: []string{
-				"invalid IPv4 address: foo",
-				"invalid IPv6 address: bar",
-				"invalid link-local IP address: baz",
-				"invalid link-local IP address: foobar",
+				"invalid IPv4 address: 2001::1",
+				"invalid IPv6 address: 1.2.3.4",
 			},
 		},
 		{
 			name:       "ipv6 address with a zone",
-			ipamConfig: &networktypes.EndpointIPAMConfig{IPv6Address: "fe80::1cc0:3e8c:119f:c2e1%ens18"},
+			ipamConfig: &networktypes.EndpointIPAMConfig{IPv6Address: netip.MustParseAddr("fe80::1cc0:3e8c:119f:c2e1%ens18")},
 			expectedErrors: []string{
 				"invalid IPv6 address: fe80::1cc0:3e8c:119f:c2e1%ens18",
 			},
 		},
 		{
+			name:       "ipv6-mapped ipv4 address",
+			ipamConfig: &networktypes.EndpointIPAMConfig{IPv6Address: netip.MustParseAddr("::ffff:192.168.100.10")},
+			expectedErrors: []string{
+				"invalid IPv6 address: ::ffff:192.168.100.10",
+			},
+		},
+		{
 			name: "unspecified address is invalid",
 			ipamConfig: &networktypes.EndpointIPAMConfig{
-				IPv4Address:  "0.0.0.0",
-				IPv6Address:  "::",
-				LinkLocalIPs: []string{"0.0.0.0", "::"},
+				IPv4Address:  netip.IPv4Unspecified(),
+				IPv6Address:  netip.IPv6Unspecified(),
+				LinkLocalIPs: []netip.Addr{netip.IPv4Unspecified(), netip.IPv6Unspecified()},
 			},
 			expectedErrors: []string{
 				"invalid IPv4 address: 0.0.0.0",
@@ -184,7 +189,7 @@ func TestEndpointIPAMConfigWithInvalidConfig(t *testing.T) {
 		{
 			name: "empty link-local",
 			ipamConfig: &networktypes.EndpointIPAMConfig{
-				LinkLocalIPs: []string{""},
+				LinkLocalIPs: make([]netip.Addr, 1),
 			},
 			expectedErrors: []string{"invalid link-local IP address:"},
 		},
@@ -192,7 +197,7 @@ func TestEndpointIPAMConfigWithInvalidConfig(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			errs := validateEndpointIPAMConfig(nil, tc.ipamConfig)
+			errs := normalizeEndpointIPAMConfig(nil, tc.ipamConfig)
 			if tc.expectedErrors == nil {
 				assert.NilError(t, errors.Join(errs...))
 				return

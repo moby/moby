@@ -53,3 +53,26 @@ func Chain2[K, V any](iters ...iter.Seq2[K, V]) iter.Seq2[K, V] {
 		}
 	}
 }
+
+// Map applies a function to each element of the input sequence.
+func Map[T, U any](s iter.Seq[T], fn func(T) U) iter.Seq[U] {
+	return func(yield func(U) bool) {
+		for v := range s {
+			if !yield(fn(v)) {
+				return
+			}
+		}
+	}
+}
+
+// Map2 applies a function to each element of the input sequence.
+func Map2[K1, V1, K2, V2 any](s iter.Seq2[K1, V1], fn func(K1, V1) (K2, V2)) iter.Seq2[K2, V2] {
+	return func(yield func(K2, V2) bool) {
+		for k1, v1 := range s {
+			k2, v2 := fn(k1, v1)
+			if !yield(k2, v2) {
+				return
+			}
+		}
+	}
+}

@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/netip"
 	"slices"
 
+	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
@@ -265,9 +267,19 @@ func (epi *EndpointInterface) Address() *net.IPNet {
 	return types.GetIPNetCopy(epi.addr)
 }
 
+func (epi *EndpointInterface) Addr() netip.Prefix {
+	p, _ := netiputil.ToPrefix(epi.addr)
+	return p
+}
+
 // AddressIPv6 returns the IPv6 address assigned to the endpoint.
 func (epi *EndpointInterface) AddressIPv6() *net.IPNet {
 	return types.GetIPNetCopy(epi.addrv6)
+}
+
+func (epi *EndpointInterface) AddrIPv6() netip.Prefix {
+	p, _ := netiputil.ToPrefix(epi.addrv6)
+	return p
 }
 
 // LinkLocalAddresses returns the list of link-local (IPv4/IPv6) addresses assigned to the endpoint.

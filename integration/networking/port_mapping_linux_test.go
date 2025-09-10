@@ -716,8 +716,8 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 		insp := container.Inspect(ctx, t, c, ctrId)
 		return ctrDesc{
 			id:   ctrId,
-			ipv4: insp.NetworkSettings.Networks[netName].IPAddress,
-			ipv6: insp.NetworkSettings.Networks[netName].GlobalIPv6Address,
+			ipv4: insp.NetworkSettings.Networks[netName].IPAddress.String(),
+			ipv6: insp.NetworkSettings.Networks[netName].GlobalIPv6Address.String(),
 		}
 	}
 
@@ -894,16 +894,16 @@ func TestAcceptFwMark(t *testing.T) {
 	test := func(name string, expPing int, expHttp string) {
 		t.Run(name, func(t *testing.T) {
 			t.Run("v4/ping", func(t *testing.T) {
-				testPing(t, "ping", ctrIPv4, expPing)
+				testPing(t, "ping", ctrIPv4.String(), expPing)
 			})
 			t.Run("v6/ping", func(t *testing.T) {
-				testPing(t, "ping6", ctrIPv6, expPing)
+				testPing(t, "ping6", ctrIPv6.String(), expPing)
 			})
 			t.Run("v4/http", func(t *testing.T) {
-				testHttp(t, ctrIPv4, "80", expHttp)
+				testHttp(t, ctrIPv4.String(), "80", expHttp)
 			})
 			t.Run("v6/http", func(t *testing.T) {
-				testHttp(t, ctrIPv6, "80", expHttp)
+				testHttp(t, ctrIPv6.String(), "80", expHttp)
 			})
 		})
 	}
@@ -1029,25 +1029,25 @@ func TestRoutedNonGateway(t *testing.T) {
 		},
 		{
 			name:    "nat/direct/v4",
-			addr:    insp.NetworkSettings.Networks[natNetName].IPAddress,
+			addr:    insp.NetworkSettings.Networks[natNetName].IPAddress.String(),
 			port:    "80",
 			expHttp: httpFail,
 		},
 		{
 			name:    "nat/direct/v6",
-			addr:    insp.NetworkSettings.Networks[natNetName].GlobalIPv6Address,
+			addr:    insp.NetworkSettings.Networks[natNetName].GlobalIPv6Address.String(),
 			port:    "80",
 			expHttp: httpFail,
 		},
 		{
 			name:    "routed/direct/v4",
-			addr:    insp.NetworkSettings.Networks[routedNetName].IPAddress,
+			addr:    insp.NetworkSettings.Networks[routedNetName].IPAddress.String(),
 			port:    "80",
 			expHttp: httpSuccess,
 		},
 		{
 			name:    "routed/direct/v6",
-			addr:    insp.NetworkSettings.Networks[routedNetName].GlobalIPv6Address,
+			addr:    insp.NetworkSettings.Networks[routedNetName].GlobalIPv6Address.String(),
 			port:    "80",
 			expHttp: httpSuccess,
 		},
@@ -1342,7 +1342,7 @@ func testDirectRemoteAccessOnExposedPort(t *testing.T, ctx context.Context, d *d
 					}),
 					container.WithNetworkMode(bridgeName),
 					container.WithEndpointSettings(bridgeName, &networktypes.EndpointSettings{
-						IPAddress:   ctrIP.String(),
+						IPAddress:   ctrIP,
 						IPPrefixLen: ctrIP.BitLen(),
 					}))
 				defer c.ContainerRemove(ctx, serverID, client.ContainerRemoveOptions{Force: true})

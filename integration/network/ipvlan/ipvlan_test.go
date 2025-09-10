@@ -271,15 +271,15 @@ func testIpvlanL2MultiSubnet(t *testing.T, ctx context.Context, client dclient.A
 	c1, err := client.ContainerInspect(ctx, id1)
 	assert.NilError(t, err)
 	// Inspect the v4 gateway to ensure no default GW was assigned
-	assert.Check(t, is.Equal(c1.NetworkSettings.Networks[netName].Gateway, ""))
+	assert.Check(t, !c1.NetworkSettings.Networks[netName].Gateway.IsValid())
 	// Inspect the v6 gateway to ensure no default GW was assigned
-	assert.Check(t, is.Equal(c1.NetworkSettings.Networks[netName].IPv6Gateway, ""))
+	assert.Check(t, !c1.NetworkSettings.Networks[netName].IPv6Gateway.IsValid())
 
 	// verify ipv4 connectivity to the explicit --ip address second to first
-	_, err = container.Exec(ctx, client, id2, []string{"ping", "-c", "1", c1.NetworkSettings.Networks[netName].IPAddress})
+	_, err = container.Exec(ctx, client, id2, []string{"ping", "-c", "1", c1.NetworkSettings.Networks[netName].IPAddress.String()})
 	assert.NilError(t, err)
 	// verify ipv6 connectivity to the explicit --ip6 address second to first
-	_, err = container.Exec(ctx, client, id2, []string{"ping6", "-c", "1", c1.NetworkSettings.Networks[netName].GlobalIPv6Address})
+	_, err = container.Exec(ctx, client, id2, []string{"ping6", "-c", "1", c1.NetworkSettings.Networks[netName].GlobalIPv6Address.String()})
 	assert.NilError(t, err)
 
 	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.102.0/24 and 2001:db8:abc4::/64
@@ -297,21 +297,21 @@ func testIpvlanL2MultiSubnet(t *testing.T, ctx context.Context, client dclient.A
 	assert.NilError(t, err)
 	if parent == "" {
 		// Inspect the v4 gateway to ensure no default GW was assigned
-		assert.Check(t, is.Equal(c3.NetworkSettings.Networks[netName].Gateway, ""))
+		assert.Check(t, !c3.NetworkSettings.Networks[netName].Gateway.IsValid())
 		// Inspect the v6 gateway to ensure no default GW was assigned
-		assert.Check(t, is.Equal(c3.NetworkSettings.Networks[netName].IPv6Gateway, ""))
+		assert.Check(t, !c3.NetworkSettings.Networks[netName].IPv6Gateway.IsValid())
 	} else {
 		// Inspect the v4 gateway to ensure the proper explicitly assigned default GW was assigned
-		assert.Check(t, is.Equal(c3.NetworkSettings.Networks[netName].Gateway, "172.28.202.254"))
+		assert.Check(t, is.Equal(c3.NetworkSettings.Networks[netName].Gateway, netip.MustParseAddr("172.28.202.254")))
 		// Inspect the v6 gateway to ensure the proper explicitly assigned default GW was assigned
-		assert.Check(t, is.Equal(c3.NetworkSettings.Networks[netName].IPv6Gateway, "2001:db8:abc6::254"))
+		assert.Check(t, is.Equal(c3.NetworkSettings.Networks[netName].IPv6Gateway, netip.MustParseAddr("2001:db8:abc6::254")))
 	}
 
 	// verify ipv4 connectivity to the explicit --ip address from third to fourth
-	_, err = container.Exec(ctx, client, id4, []string{"ping", "-c", "1", c3.NetworkSettings.Networks[netName].IPAddress})
+	_, err = container.Exec(ctx, client, id4, []string{"ping", "-c", "1", c3.NetworkSettings.Networks[netName].IPAddress.String()})
 	assert.NilError(t, err)
 	// verify ipv6 connectivity to the explicit --ip6 address from third to fourth
-	_, err = container.Exec(ctx, client, id4, []string{"ping6", "-c", "1", c3.NetworkSettings.Networks[netName].GlobalIPv6Address})
+	_, err = container.Exec(ctx, client, id4, []string{"ping6", "-c", "1", c3.NetworkSettings.Networks[netName].GlobalIPv6Address.String()})
 	assert.NilError(t, err)
 }
 
@@ -342,10 +342,10 @@ func testIpvlanL3MultiSubnet(t *testing.T, ctx context.Context, client dclient.A
 	assert.NilError(t, err)
 
 	// verify ipv4 connectivity to the explicit --ipv address second to first
-	_, err = container.Exec(ctx, client, id2, []string{"ping", "-c", "1", c1.NetworkSettings.Networks[netName].IPAddress})
+	_, err = container.Exec(ctx, client, id2, []string{"ping", "-c", "1", c1.NetworkSettings.Networks[netName].IPAddress.String()})
 	assert.NilError(t, err)
 	// verify ipv6 connectivity to the explicit --ipv6 address second to first
-	_, err = container.Exec(ctx, client, id2, []string{"ping6", "-c", "1", c1.NetworkSettings.Networks[netName].GlobalIPv6Address})
+	_, err = container.Exec(ctx, client, id2, []string{"ping6", "-c", "1", c1.NetworkSettings.Networks[netName].GlobalIPv6Address.String()})
 	assert.NilError(t, err)
 
 	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.102.0/24 and 2001:db8:abc4::/64
@@ -363,20 +363,20 @@ func testIpvlanL3MultiSubnet(t *testing.T, ctx context.Context, client dclient.A
 	assert.NilError(t, err)
 
 	// verify ipv4 connectivity to the explicit --ipv address from third to fourth
-	_, err = container.Exec(ctx, client, id4, []string{"ping", "-c", "1", c3.NetworkSettings.Networks[netName].IPAddress})
+	_, err = container.Exec(ctx, client, id4, []string{"ping", "-c", "1", c3.NetworkSettings.Networks[netName].IPAddress.String()})
 	assert.NilError(t, err)
 	// verify ipv6 connectivity to the explicit --ipv6 address from third to fourth
-	_, err = container.Exec(ctx, client, id4, []string{"ping6", "-c", "1", c3.NetworkSettings.Networks[netName].GlobalIPv6Address})
+	_, err = container.Exec(ctx, client, id4, []string{"ping6", "-c", "1", c3.NetworkSettings.Networks[netName].GlobalIPv6Address.String()})
 	assert.NilError(t, err)
 
 	// Inspect the v4 gateway to ensure no next hop is assigned in L3 mode
-	assert.Equal(t, c1.NetworkSettings.Networks[netName].Gateway, "")
+	assert.Check(t, !c1.NetworkSettings.Networks[netName].Gateway.IsValid())
 	// Inspect the v6 gateway to ensure the explicitly specified default GW is ignored per L3 mode enabled
-	assert.Equal(t, c1.NetworkSettings.Networks[netName].IPv6Gateway, "")
+	assert.Check(t, !c1.NetworkSettings.Networks[netName].IPv6Gateway.IsValid())
 	// Inspect the v4 gateway to ensure no next hop is assigned in L3 mode
-	assert.Equal(t, c3.NetworkSettings.Networks[netName].Gateway, "")
+	assert.Check(t, !c3.NetworkSettings.Networks[netName].Gateway.IsValid())
 	// Inspect the v6 gateway to ensure the explicitly specified default GW is ignored per L3 mode enabled
-	assert.Equal(t, c3.NetworkSettings.Networks[netName].IPv6Gateway, "")
+	assert.Check(t, !c3.NetworkSettings.Networks[netName].IPv6Gateway.IsValid())
 }
 
 // Verify ipvlan l2 mode sets the proper default gateway routes via netlink
@@ -495,11 +495,11 @@ func TestIpvlanIPAM(t *testing.T) {
 				net.WithIPv4(tc.enableIPv4),
 				net.WithIPAMConfig(
 					network.IPAMConfig{
-						Subnet: subnetv4.String(),
+						Subnet: subnetv4,
 					},
 					network.IPAMConfig{
-						Subnet:  subnetv6.String(),
-						IPRange: "2001:db8:abcd::100/120",
+						Subnet:  subnetv6,
+						IPRange: netip.MustParsePrefix("2001:db8:abcd::100/120"),
 					},
 				),
 			}
@@ -608,16 +608,16 @@ func TestIpvlanIPAMOverlap(t *testing.T) {
 		net.WithIPv6(),
 		net.WithIPAMConfig(
 			network.IPAMConfig{
-				Subnet:  cidrv4.String(),
-				IPRange: "192.168.0.0/25",
-				Gateway: "192.168.0.1",
-				AuxAddress: map[string]string{
-					"reserved": "192.168.0.100",
+				Subnet:  cidrv4,
+				IPRange: netip.MustParsePrefix("192.168.0.0/25"),
+				Gateway: netip.MustParseAddr("192.168.0.1"),
+				AuxAddress: map[string]netip.Addr{
+					"reserved": netip.MustParseAddr("192.168.0.100"),
 				},
 			},
 			network.IPAMConfig{
-				Subnet:  cidrv6.String(),
-				IPRange: "2001:db8:abcd::/124",
+				Subnet:  cidrv6,
+				IPRange: netip.MustParsePrefix("2001:db8:abcd::/124"),
 			},
 		),
 	)
@@ -640,12 +640,12 @@ func TestIpvlanIPAMOverlap(t *testing.T) {
 		net.WithIPv6(),
 		net.WithIPAMConfig(
 			network.IPAMConfig{
-				Subnet:  cidrv4.String(),
-				IPRange: "192.168.0.0/24",
+				Subnet:  cidrv4,
+				IPRange: netip.MustParsePrefix("192.168.0.0/24"),
 			},
 			network.IPAMConfig{
-				Subnet:  cidrv6.String(),
-				IPRange: "2001:db8:abcd::/120",
+				Subnet:  cidrv6,
+				IPRange: netip.MustParsePrefix("2001:db8:abcd::/120"),
 			},
 		),
 	)
@@ -669,12 +669,12 @@ func TestIpvlanIPAMOverlap(t *testing.T) {
 		net.WithIPv6(),
 		net.WithIPAMConfig(
 			network.IPAMConfig{
-				Subnet:  cidrv4.String(),
-				IPRange: "192.168.0.128/25",
+				Subnet:  cidrv4,
+				IPRange: netip.MustParsePrefix("192.168.0.128/25"),
 			},
 			network.IPAMConfig{
-				Subnet:  cidrv6.String(),
-				IPRange: "2001:db8:abcd::80/124",
+				Subnet:  cidrv6,
+				IPRange: netip.MustParsePrefix("2001:db8:abcd::80/124"),
 			},
 		),
 	)

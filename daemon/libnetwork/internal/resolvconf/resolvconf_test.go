@@ -213,7 +213,7 @@ func TestRCModify(t *testing.T) {
 			}
 			rc, err := Parse(bytes.NewBufferString(input), "")
 			assert.NilError(t, err)
-			assert.Check(t, is.DeepEqual(a2s(rc.NameServers()), tc.inputNS))
+			assert.Check(t, is.DeepEqual(a2s(rc.NameServers()), tc.inputNS, cmpopts.EquateEmpty()))
 			assert.Check(t, is.DeepEqual(rc.Search(), tc.inputSearch))
 			assert.Check(t, is.DeepEqual(rc.Options(), tc.inputOptions))
 

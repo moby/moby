@@ -109,3 +109,21 @@ func ParseCIDR(s string) (netip.Prefix, error) {
 	prefix, err := netip.ParsePrefix(s)
 	return Unmap(prefix), err
 }
+
+// MaybeParse decorates a parse function to return no error when parsing the
+// empty string.
+func MaybeParse[T any](parse func(string) (T, error)) func(string) (T, error) {
+	return func(s string) (T, error) {
+		var zero T
+		if s == "" {
+			return zero, nil
+		}
+		return parse(s)
+	}
+}
+
+var (
+	MaybeParseAddr   = MaybeParse(netip.ParseAddr)
+	MaybeParsePrefix = MaybeParse(netip.ParsePrefix)
+	MaybeParseCIDR   = MaybeParse(ParseCIDR)
+)

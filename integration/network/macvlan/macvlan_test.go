@@ -359,15 +359,15 @@ func testMacvlanMultiSubnet(t *testing.T, ctx context.Context, client client.API
 	c1, err := client.ContainerInspect(ctx, id1)
 	assert.NilError(t, err)
 	// Inspect the v4 gateway to ensure no default GW was assigned
-	assert.Check(t, is.Equal(c1.NetworkSettings.Networks["dualstackbridge"].Gateway, ""))
+	assert.Check(t, !c1.NetworkSettings.Networks["dualstackbridge"].Gateway.IsValid())
 	// Inspect the v6 gateway to ensure no default GW was assigned
-	assert.Check(t, is.Equal(c1.NetworkSettings.Networks["dualstackbridge"].IPv6Gateway, ""))
+	assert.Check(t, !c1.NetworkSettings.Networks["dualstackbridge"].IPv6Gateway.IsValid())
 
 	// verify ipv4 connectivity to the explicit --ip address second to first
-	_, err = container.Exec(ctx, client, id2, []string{"ping", "-c", "1", c1.NetworkSettings.Networks["dualstackbridge"].IPAddress})
+	_, err = container.Exec(ctx, client, id2, []string{"ping", "-c", "1", c1.NetworkSettings.Networks["dualstackbridge"].IPAddress.String()})
 	assert.NilError(t, err)
 	// verify ipv6 connectivity to the explicit --ip6 address second to first
-	_, err = container.Exec(ctx, client, id2, []string{"ping6", "-c", "1", c1.NetworkSettings.Networks["dualstackbridge"].GlobalIPv6Address})
+	_, err = container.Exec(ctx, client, id2, []string{"ping6", "-c", "1", c1.NetworkSettings.Networks["dualstackbridge"].GlobalIPv6Address.String()})
 	assert.NilError(t, err)
 
 	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.102.0/24 and 2001:db8:abc4::/64
@@ -385,21 +385,21 @@ func testMacvlanMultiSubnet(t *testing.T, ctx context.Context, client client.API
 	assert.NilError(t, err)
 	if parent == "" {
 		// Inspect the v4 gateway to ensure no default GW was assigned
-		assert.Check(t, is.Equal(c3.NetworkSettings.Networks["dualstackbridge"].Gateway, ""))
+		assert.Check(t, !c3.NetworkSettings.Networks["dualstackbridge"].Gateway.IsValid())
 		// Inspect the v6 gateway to ensure no default GW was assigned
-		assert.Check(t, is.Equal(c3.NetworkSettings.Networks["dualstackbridge"].IPv6Gateway, ""))
+		assert.Check(t, !c3.NetworkSettings.Networks["dualstackbridge"].IPv6Gateway.IsValid())
 	} else {
 		// Inspect the v4 gateway to ensure the proper explicitly assigned default GW was assigned
-		assert.Check(t, is.Equal(c3.NetworkSettings.Networks["dualstackbridge"].Gateway, "172.28.102.254"))
+		assert.Check(t, is.Equal(c3.NetworkSettings.Networks["dualstackbridge"].Gateway, netip.MustParseAddr("172.28.102.254")))
 		// Inspect the v6 gateway to ensure the proper explicitly assigned default GW was assigned
-		assert.Check(t, is.Equal(c3.NetworkSettings.Networks["dualstackbridge"].IPv6Gateway, "2001:db8:abc4::254"))
+		assert.Check(t, is.Equal(c3.NetworkSettings.Networks["dualstackbridge"].IPv6Gateway, netip.MustParseAddr("2001:db8:abc4::254")))
 	}
 
 	// verify ipv4 connectivity to the explicit --ip address from third to fourth
-	_, err = container.Exec(ctx, client, id4, []string{"ping", "-c", "1", c3.NetworkSettings.Networks["dualstackbridge"].IPAddress})
+	_, err = container.Exec(ctx, client, id4, []string{"ping", "-c", "1", c3.NetworkSettings.Networks["dualstackbridge"].IPAddress.String()})
 	assert.NilError(t, err)
 	// verify ipv6 connectivity to the explicit --ip6 address from third to fourth
-	_, err = container.Exec(ctx, client, id4, []string{"ping6", "-c", "1", c3.NetworkSettings.Networks["dualstackbridge"].GlobalIPv6Address})
+	_, err = container.Exec(ctx, client, id4, []string{"ping6", "-c", "1", c3.NetworkSettings.Networks["dualstackbridge"].GlobalIPv6Address.String()})
 	assert.NilError(t, err)
 }
 
@@ -492,17 +492,17 @@ func TestMacvlanIPAM(t *testing.T) {
 				net.WithIPv4(tc.enableIPv4),
 				net.WithIPAMConfig(
 					network.IPAMConfig{
-						Subnet:  subnetv4.String(),
-						IPRange: "10.66.77.64/30",
-						Gateway: "10.66.77.1",
-						AuxAddress: map[string]string{
-							"inrange":    "10.66.77.65",
-							"outofrange": "10.66.77.128",
+						Subnet:  subnetv4,
+						IPRange: netip.MustParsePrefix("10.66.77.64/30"),
+						Gateway: netip.MustParseAddr("10.66.77.1"),
+						AuxAddress: map[string]netip.Addr{
+							"inrange":    netip.MustParseAddr("10.66.77.65"),
+							"outofrange": netip.MustParseAddr("10.66.77.128"),
 						},
 					},
 					network.IPAMConfig{
-						Subnet:  subnetv6.String(),
-						IPRange: "2001:db8:abcd::/120",
+						Subnet:  subnetv6,
+						IPRange: netip.MustParsePrefix("2001:db8:abcd::/120"),
 					},
 				),
 			}
@@ -611,16 +611,16 @@ func TestMacvlanIPAMOverlap(t *testing.T) {
 		net.WithIPv6(),
 		net.WithIPAMConfig(
 			network.IPAMConfig{
-				Subnet:  cidrv4.String(),
-				IPRange: "192.168.0.0/25",
-				Gateway: "192.168.0.1",
-				AuxAddress: map[string]string{
-					"reserved": "192.168.0.100",
+				Subnet:  cidrv4,
+				IPRange: netip.MustParsePrefix("192.168.0.0/25"),
+				Gateway: netip.MustParseAddr("192.168.0.1"),
+				AuxAddress: map[string]netip.Addr{
+					"reserved": netip.MustParseAddr("192.168.0.100"),
 				},
 			},
 			network.IPAMConfig{
-				Subnet:  cidrv6.String(),
-				IPRange: "2001:db8:abcd::/124",
+				Subnet:  cidrv6,
+				IPRange: netip.MustParsePrefix("2001:db8:abcd::/124"),
 			},
 		),
 	)
@@ -643,12 +643,12 @@ func TestMacvlanIPAMOverlap(t *testing.T) {
 		net.WithIPv6(),
 		net.WithIPAMConfig(
 			network.IPAMConfig{
-				Subnet:  cidrv4.String(),
-				IPRange: "192.168.0.0/24",
+				Subnet:  cidrv4,
+				IPRange: netip.MustParsePrefix("192.168.0.0/24"),
 			},
 			network.IPAMConfig{
-				Subnet:  cidrv6.String(),
-				IPRange: "2001:db8:abcd::/120",
+				Subnet:  cidrv6,
+				IPRange: netip.MustParsePrefix("2001:db8:abcd::/120"),
 			},
 		),
 	)
@@ -672,12 +672,12 @@ func TestMacvlanIPAMOverlap(t *testing.T) {
 		net.WithIPv6(),
 		net.WithIPAMConfig(
 			network.IPAMConfig{
-				Subnet:  cidrv4.String(),
-				IPRange: "192.168.0.128/25",
+				Subnet:  cidrv4,
+				IPRange: netip.MustParsePrefix("192.168.0.128/25"),
 			},
 			network.IPAMConfig{
-				Subnet:  cidrv6.String(),
-				IPRange: "2001:db8:abcd::80/124",
+				Subnet:  cidrv6,
+				IPRange: netip.MustParsePrefix("2001:db8:abcd::80/124"),
 			},
 		),
 	)

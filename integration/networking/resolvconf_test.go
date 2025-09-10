@@ -180,7 +180,7 @@ func TestInternalNetworkLocalDNS(t *testing.T) {
 	// Query the internal network's DNS server (via the daemon's internal DNS server).
 	res := container.RunAttach(ctx, t, c,
 		container.WithNetworkMode(intNetName),
-		container.WithDNS([]string{serverIP}),
+		container.WithDNS([]string{serverIP.String()}),
 		container.WithCmd("nslookup", "-type=A", "foo.example"),
 	)
 	defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})

@@ -19,6 +19,8 @@ import (
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/multierror"
+	"github.com/moby/moby/v2/daemon/internal/netipstringer"
+	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	lncluster "github.com/moby/moby/v2/daemon/libnetwork/cluster"
@@ -32,6 +34,7 @@ import (
 	"github.com/moby/moby/v2/daemon/pkg/opts"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
+	"github.com/moby/moby/v2/internal/iterutil"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 	"go.opentelemetry.io/otel/baggage"
 )
@@ -447,13 +450,8 @@ func (daemon *Daemon) pluginRefCount(driver, capability string, mode int) {
 func validateIpamConfig(data []networktypes.IPAMConfig, enableIPv6 bool) error {
 	var errs []error
 	for _, cfg := range data {
-		subnet, err := netip.ParsePrefix(cfg.Subnet)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("invalid subnet %s: invalid CIDR block notation", cfg.Subnet))
-			continue
-		}
 		subnetFamily := 4
-		if subnet.Addr().Is6() {
+		if cfg.Subnet.Addr().Is6() {
 			subnetFamily = 6
 		}
 
@@ -461,20 +459,20 @@ func validateIpamConfig(data []networktypes.IPAMConfig, enableIPv6 bool) error {
 			continue
 		}
 
-		if subnet != subnet.Masked() {
-			errs = append(errs, fmt.Errorf("invalid subnet %s: it should be %s", subnet, subnet.Masked()))
+		if cfg.Subnet != cfg.Subnet.Masked() {
+			errs = append(errs, fmt.Errorf("invalid subnet %s: it should be %s", cfg.Subnet, cfg.Subnet.Masked()))
 		}
 
-		if ipRangeErrs := validateIPRange(cfg.IPRange, subnet, subnetFamily); len(ipRangeErrs) > 0 {
+		if ipRangeErrs := validateIPRange(cfg.IPRange, cfg.Subnet, subnetFamily); len(ipRangeErrs) > 0 {
 			errs = append(errs, ipRangeErrs...)
 		}
 
-		if err := validateAddress(cfg.Gateway, subnet, subnetFamily); err != nil {
+		if err := validateAddress(cfg.Gateway, cfg.Subnet, subnetFamily); err != nil {
 			errs = append(errs, fmt.Errorf("invalid gateway %s: %w", cfg.Gateway, err))
 		}
 
 		for auxName, aux := range cfg.AuxAddress {
-			if err := validateAddress(aux, subnet, subnetFamily); err != nil {
+			if err := validateAddress(aux, cfg.Subnet, subnetFamily); err != nil {
 				errs = append(errs, fmt.Errorf("invalid auxiliary address %s: %w", auxName, err))
 			}
 		}
@@ -487,16 +485,12 @@ func validateIpamConfig(data []networktypes.IPAMConfig, enableIPv6 bool) error {
 	return nil
 }
 
-func validateIPRange(ipRange string, subnet netip.Prefix, subnetFamily int) []error {
-	if ipRange == "" {
+func validateIPRange(ipRange, subnet netip.Prefix, subnetFamily int) []error {
+	if !ipRange.IsValid() {
 		return nil
 	}
-	prefix, err := netip.ParsePrefix(ipRange)
-	if err != nil {
-		return []error{fmt.Errorf("invalid ip-range %s: invalid CIDR block notation", ipRange)}
-	}
 	family := 4
-	if prefix.Addr().Is6() {
+	if ipRange.Addr().Is6() {
 		family = 6
 	}
 
@@ -505,26 +499,22 @@ func validateIPRange(ipRange string, subnet netip.Prefix, subnetFamily int) []er
 	}
 
 	var errs []error
-	if prefix.Bits() < subnet.Bits() {
+	if ipRange.Bits() < subnet.Bits() {
 		errs = append(errs, fmt.Errorf("invalid ip-range %s: CIDR block is bigger than its parent subnet %s", ipRange, subnet))
 	}
-	if prefix != prefix.Masked() {
-		errs = append(errs, fmt.Errorf("invalid ip-range %s: it should be %s", prefix, prefix.Masked()))
+	if ipRange != ipRange.Masked() {
+		errs = append(errs, fmt.Errorf("invalid ip-range %s: it should be %s", ipRange, ipRange.Masked()))
 	}
-	if !subnet.Overlaps(prefix) {
+	if !subnet.Overlaps(ipRange) {
 		errs = append(errs, fmt.Errorf("invalid ip-range %s: parent subnet %s doesn't contain ip-range", ipRange, subnet))
 	}
 
 	return errs
 }
 
-func validateAddress(address string, subnet netip.Prefix, subnetFamily int) error {
-	if address == "" {
+func validateAddress(addr netip.Addr, subnet netip.Prefix, subnetFamily int) error {
+	if !addr.IsValid() {
 		return nil
-	}
-	addr, err := netip.ParseAddr(address)
-	if err != nil {
-		return errors.New("invalid address")
 	}
 	family := 4
 	if addr.Is6() {
@@ -545,16 +535,15 @@ func getIpamConfig(data []networktypes.IPAMConfig) ([]*libnetwork.IpamConf, []*l
 	ipamV4Cfg := []*libnetwork.IpamConf{}
 	ipamV6Cfg := []*libnetwork.IpamConf{}
 	for _, d := range data {
-		iCfg := libnetwork.IpamConf{}
-		iCfg.PreferredPool = d.Subnet
-		iCfg.SubPool = d.IPRange
-		iCfg.Gateway = d.Gateway
-		iCfg.AuxAddresses = d.AuxAddress
-		ip, _, err := net.ParseCIDR(d.Subnet)
-		if err != nil {
-			return nil, nil, fmt.Errorf("Invalid subnet %s : %v", d.Subnet, err)
+		iCfg := libnetwork.IpamConf{
+			PreferredPool: netipstringer.Prefix(netiputil.Unmap(d.Subnet).Masked()),
+			SubPool:       netipstringer.Prefix(netiputil.Unmap(d.IPRange).Masked()),
+			Gateway:       netipstringer.Addr(d.Gateway.Unmap()),
+			AuxAddresses: maps.Collect(iterutil.Map2(maps.All(d.AuxAddress), func(k string, v netip.Addr) (string, string) {
+				return k, v.Unmap().String()
+			})),
 		}
-		if ip.To4() != nil {
+		if d.Subnet.Addr().Unmap().Is4() {
 			ipamV4Cfg = append(ipamV4Cfg, &iCfg)
 		} else {
 			ipamV6Cfg = append(ipamV6Cfg, &iCfg)
@@ -782,15 +771,17 @@ func buildServiceAttachments(nw *libnetwork.Network) map[string]networktypes.Ser
 	for name, service := range nw.Services() {
 		tasks := make([]networktypes.Task, 0, len(service.Tasks))
 		for _, t := range service.Tasks {
+			eip, _ := netip.ParseAddr(t.EndpointIP)
 			tasks = append(tasks, networktypes.Task{
 				Name:       t.Name,
 				EndpointID: t.EndpointID,
-				EndpointIP: t.EndpointIP,
+				EndpointIP: eip.Unmap(),
 				Info:       t.Info,
 			})
 		}
+		vip, _ := netip.ParseAddr(service.VIP)
 		services[name] = networktypes.ServiceInfo{
-			VIP:          service.VIP,
+			VIP:          vip.Unmap(),
 			Ports:        service.Ports,
 			Tasks:        tasks,
 			LocalLBIndex: service.LocalLBIndex,
@@ -826,12 +817,7 @@ func buildIPAMResources(nw *libnetwork.Network) networktypes.IPAM {
 			continue
 		}
 		hasIPv4Config = true
-		ipamConfig = append(ipamConfig, networktypes.IPAMConfig{
-			Subnet:     cfg.PreferredPool,
-			IPRange:    cfg.SubPool,
-			Gateway:    cfg.Gateway,
-			AuxAddress: cfg.AuxAddresses,
-		})
+		ipamConfig = append(ipamConfig, cfg.IPAMConfig())
 	}
 
 	hasIPv6Config := false
@@ -840,26 +826,14 @@ func buildIPAMResources(nw *libnetwork.Network) networktypes.IPAM {
 			continue
 		}
 		hasIPv6Config = true
-		ipamConfig = append(ipamConfig, networktypes.IPAMConfig{
-			Subnet:     cfg.PreferredPool,
-			IPRange:    cfg.SubPool,
-			Gateway:    cfg.Gateway,
-			AuxAddress: cfg.AuxAddresses,
-		})
+		ipamConfig = append(ipamConfig, cfg.IPAMConfig())
 	}
 
 	if !hasIPv4Config || !hasIPv6Config {
 		ipv4Info, ipv6Info := nw.IpamInfo()
 		if !hasIPv4Config {
 			for _, info := range ipv4Info {
-				var gw string
-				if info.IPAMData.Gateway != nil {
-					gw = info.IPAMData.Gateway.IP.String()
-				}
-				ipamConfig = append(ipamConfig, networktypes.IPAMConfig{
-					Subnet:  info.IPAMData.Pool.String(),
-					Gateway: gw,
-				})
+				ipamConfig = append(ipamConfig, info.IPAMData.IPAMConfig())
 			}
 		}
 
@@ -868,14 +842,7 @@ func buildIPAMResources(nw *libnetwork.Network) networktypes.IPAM {
 				if info.IPAMData.Pool == nil {
 					continue
 				}
-				var gw string
-				if info.IPAMData.Gateway != nil {
-					gw = info.IPAMData.Gateway.IP.String()
-				}
-				ipamConfig = append(ipamConfig, networktypes.IPAMConfig{
-					Subnet:  info.IPAMData.Pool.String(),
-					Gateway: gw,
-				})
+				ipamConfig = append(ipamConfig, info.IPAMData.IPAMConfig())
 			}
 		}
 	}
@@ -895,15 +862,9 @@ func buildEndpointResource(ep *libnetwork.Endpoint, info libnetwork.EndpointInfo
 		Name:       ep.Name(),
 	}
 	if iface := info.Iface(); iface != nil {
-		if mac := iface.MacAddress(); mac != nil {
-			er.MacAddress = mac.String()
-		}
-		if ip := iface.Address(); ip != nil && len(ip.IP) > 0 {
-			er.IPv4Address = ip.String()
-		}
-		if ip := iface.AddressIPv6(); ip != nil && len(ip.IP) > 0 {
-			er.IPv6Address = ip.String()
-		}
+		er.MacAddress = iface.MacAddress().String()
+		er.IPv4Address = netiputil.Unmap(iface.Addr())
+		er.IPv6Address = iface.AddrIPv6()
 	}
 	return er
 }
@@ -946,25 +907,22 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 	if epConfig != nil {
 		if ipam := epConfig.IPAMConfig; ipam != nil {
 			var ipList []net.IP
-			for _, ips := range ipam.LinkLocalIPs {
-				linkIP := net.ParseIP(ips)
-				if linkIP == nil && ips != "" {
+			for _, linkIP := range ipam.LinkLocalIPs {
+				if !linkIP.IsValid() {
 					return nil, fmt.Errorf("invalid link-local IP address: %s", ipam.LinkLocalIPs)
 				}
-				ipList = append(ipList, linkIP)
+				ipList = append(ipList, linkIP.AsSlice())
 			}
 
-			ip := net.ParseIP(ipam.IPv4Address)
-			if ip == nil && ipam.IPv4Address != "" {
+			if ipam.IPv4Address.IsValid() && !ipam.IPv4Address.Is4() && !ipam.IPv4Address.Is4In6() {
 				return nil, fmt.Errorf("invalid IPv4 address: %s", ipam.IPv4Address)
 			}
 
-			ip6 := net.ParseIP(ipam.IPv6Address)
-			if ip6 == nil && ipam.IPv6Address != "" {
+			if ipam.IPv6Address.IsValid() && !ipam.IPv6Address.Is6() {
 				return nil, fmt.Errorf("invalid IPv6 address: %s", ipam.IPv6Address)
 			}
 
-			createOptions = append(createOptions, libnetwork.CreateOptionIPAM(ip, ip6, ipList))
+			createOptions = append(createOptions, libnetwork.CreateOptionIPAM(ipam.IPv4Address.AsSlice(), ipam.IPv6Address.AsSlice(), ipList))
 		}
 
 		createOptions = append(createOptions, libnetwork.CreateOptionDNSNames(epConfig.DNSNames))
@@ -1197,17 +1155,18 @@ func buildEndpointInfo(networkSettings *network.Settings, n *libnetwork.Network,
 
 	if iface.Address() != nil {
 		ones, _ := iface.Address().Mask.Size()
-		networkSettings.Networks[nwName].IPAddress = iface.Address().IP.String()
+		addr, _ := netip.AddrFromSlice(iface.Address().IP)
+		networkSettings.Networks[nwName].IPAddress = addr.Unmap()
 		networkSettings.Networks[nwName].IPPrefixLen = ones
 	}
 
 	if iface.AddressIPv6() != nil && iface.AddressIPv6().IP.To16() != nil {
 		onesv6, _ := iface.AddressIPv6().Mask.Size()
-		networkSettings.Networks[nwName].GlobalIPv6Address = iface.AddressIPv6().IP.String()
+		networkSettings.Networks[nwName].GlobalIPv6Address, _ = netip.AddrFromSlice(iface.AddressIPv6().IP)
 		networkSettings.Networks[nwName].GlobalIPv6PrefixLen = onesv6
 	} else {
 		// If IPv6 was disabled on the interface, and its address was removed, remove it here too.
-		networkSettings.Networks[nwName].GlobalIPv6Address = ""
+		networkSettings.Networks[nwName].GlobalIPv6Address = netip.Addr{}
 		networkSettings.Networks[nwName].GlobalIPv6PrefixLen = 0
 	}
 

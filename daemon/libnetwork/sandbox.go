@@ -81,7 +81,7 @@ type hostsPathConfig struct {
 
 type extraHost struct {
 	name string
-	IP   string
+	IP   netip.Addr
 }
 
 // These are the container configs used to customize container /etc/resolv.conf file.

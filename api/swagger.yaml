@@ -2455,6 +2455,10 @@ definitions:
       VIP:
         type: "string"
         x-omitempty: false
+        x-go-type:
+          type: Addr
+          import:
+            package: net/netip
       Ports:
         type: "array"
         x-omitempty: false
@@ -2464,6 +2468,8 @@ definitions:
         type: "integer"
         format: "int"
         x-omitempty: false
+        x-go-type:
+          type: int
       Tasks:
         type: "array"
         x-omitempty: false
@@ -2487,6 +2493,10 @@ definitions:
       EndpointIP:
         type: "string"
         x-omitempty: false
+        x-go-type:
+          type: Addr
+          import:
+            package: net/netip
       Info:
         type: "object"
         x-omitempty: false
@@ -2617,10 +2627,18 @@ definitions:
         type: "string"
         x-omitempty: false
         example: "172.19.0.2/16"
+        x-go-type:
+          type: Prefix
+          import:
+            package: net/netip
       IPv6Address:
         type: "string"
         x-omitempty: false
         example: ""
+        x-go-type:
+          type: Prefix
+          import:
+            package: net/netip
 
   PeerInfo:
     description: >
@@ -2640,6 +2658,10 @@ definitions:
         type: "string"
         x-omitempty: false
         example: "10.133.77.91"
+        x-go-type:
+          type: Addr
+          import:
+            package: net/netip
 
   NetworkCreateResponse:
     description: "OK response to NetworkCreate operation"
@@ -2910,6 +2932,10 @@ definitions:
           IPv4 address.
         type: "string"
         example: "172.17.0.4"
+        x-go-type:
+          type: Addr
+          import:
+            package: net/netip
       IPPrefixLen:
         description: |
           Mask length of the IPv4 address.
@@ -2920,11 +2946,19 @@ definitions:
           IPv6 gateway address.
         type: "string"
         example: "2001:db8:2::100"
+        x-go-type:
+          type: Addr
+          import:
+            package: net/netip
       GlobalIPv6Address:
         description: |
           Global IPv6 address.
         type: "string"
         example: "2001:db8::5689"
+        x-go-type:
+          type: Addr
+          import:
+            package: net/netip
       GlobalIPv6PrefixLen:
         description: |
           Mask length of the global IPv6 address.
@@ -2956,13 +2990,25 @@ definitions:
       IPv4Address:
         type: "string"
         example: "172.20.30.33"
+        x-go-type:
+          type: Addr
+          import:
+            package: net/netip
       IPv6Address:
         type: "string"
         example: "2001:db8:abcd::3033"
+        x-go-type:
+          type: Addr
+          import:
+            package: net/netip
       LinkLocalIPs:
         type: "array"
         items:
           type: "string"
+          x-go-type:
+            type: Addr
+            import:
+              package: net/netip
         example:
           - "169.254.34.68"
           - "fe80::3468"

@@ -42,7 +42,7 @@ func OptionOriginHostsPath(path string) SandboxOption {
 
 // OptionExtraHost function returns an option setter for extra /etc/hosts options
 // which is a name and IP as strings.
-func OptionExtraHost(name string, IP string) SandboxOption {
+func OptionExtraHost(name string, IP netip.Addr) SandboxOption {
 	return func(sb *Sandbox) {
 		sb.config.extraHosts = append(sb.config.extraHosts, extraHost{name: name, IP: IP})
 	}
