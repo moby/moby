@@ -260,3 +260,5 @@ exclude (
 )
 
 replace github.com/moby/moby/api => ./api
+
+replace github.com/moby/moby/client => ./client
