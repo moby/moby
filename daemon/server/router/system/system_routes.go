@@ -62,7 +62,7 @@ func (s *systemRouter) swarmStatus() string {
 }
 
 func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 	info, _, _ := s.collectSystemInfo.Do(ctx, version, func(ctx context.Context) (*infoResponse, error) {
 		info, err := s.backend.SystemInfo(ctx)
 		if err != nil {
@@ -188,7 +188,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		return err
 	}
 
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 
 	var getContainers, getImages, getVolumes, getBuildCache bool
 	typeStrs, ok := r.Form["type"]
@@ -362,7 +362,7 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 	defer s.backend.UnsubscribeFromEvents(l)
 
 	shouldSkip := func(ev events.Message) bool { return false }
-	if versions.LessThan(httputils.VersionFromContext(ctx), "1.46") {
+	if versions.LessThan(versions.FromContext(ctx), "1.46") {
 		// Image create events were added in API 1.46
 		shouldSkip = func(ev events.Message) bool {
 			return ev.Type == events.ImageEventType && ev.Action == events.ActionCreate

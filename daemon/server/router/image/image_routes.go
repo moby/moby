@@ -50,7 +50,7 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 
 	w.Header().Set("Content-Type", "application/json")
 
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 	if versions.GreaterThanOrEqualTo(version, "1.32") {
 		if p := r.FormValue("platform"); p != "" {
 			sp, err := platforms.Parse(p)
@@ -205,7 +205,7 @@ func (ir *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter
 	// This means that older clients may be sending a platform field, even
 	// though it wasn't really supported by the server.
 	// Don't break these clients and just ignore the platform field on older APIs.
-	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.46") {
+	if versions.GreaterThanOrEqualTo(versions.FromContext(ctx), "1.46") {
 		if formPlatform := r.Form.Get("platform"); formPlatform != "" {
 			p, err := httputils.DecodePlatform(formPlatform)
 			if err != nil {
@@ -243,11 +243,11 @@ func (ir *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, 
 
 	var platformList []ocispec.Platform
 	// platform param was introduced in API version 1.48
-	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.48") {
+	if versions.GreaterThanOrEqualTo(versions.FromContext(ctx), "1.48") {
 		var err error
 		formPlatforms := r.Form["platform"]
 		// multi-platform params were introduced in API version 1.52
-		if versions.LessThan(httputils.VersionFromContext(ctx), "1.52") && len(formPlatforms) > 1 {
+		if versions.LessThan(versions.FromContext(ctx), "1.52") && len(formPlatforms) > 1 {
 			return errdefs.InvalidParameter(errors.New("multiple platform parameters are not supported in this API version; use API version 1.52 or later"))
 		}
 		platformList, err = httputils.DecodePlatforms(formPlatforms)
@@ -273,11 +273,11 @@ func (ir *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter
 
 	var platformList []ocispec.Platform
 	// platform param was introduced in API version 1.48
-	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.48") {
+	if versions.GreaterThanOrEqualTo(versions.FromContext(ctx), "1.48") {
 		var err error
 		formPlatforms := r.Form["platform"]
 		// multi-platform params were introduced in API version 1.52
-		if versions.LessThan(httputils.VersionFromContext(ctx), "1.52") && len(formPlatforms) > 1 {
+		if versions.LessThan(versions.FromContext(ctx), "1.52") && len(formPlatforms) > 1 {
 			return errdefs.InvalidParameter(errors.New("multiple platform parameters are not supported in this API version; use API version 1.52 or later"))
 		}
 		platformList, err = httputils.DecodePlatforms(formPlatforms)
@@ -321,7 +321,7 @@ func (ir *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, 
 	prune := !httputils.BoolValue(r, "noprune")
 
 	var p []ocispec.Platform
-	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.50") {
+	if versions.GreaterThanOrEqualTo(versions.FromContext(ctx), "1.50") {
 		val, err := httputils.DecodePlatforms(r.Form["platforms"])
 		if err != nil {
 			return err
@@ -347,12 +347,12 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 	}
 
 	var manifests bool
-	if r.Form.Get("manifests") != "" && versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.48") {
+	if r.Form.Get("manifests") != "" && versions.GreaterThanOrEqualTo(versions.FromContext(ctx), "1.48") {
 		manifests = httputils.BoolValue(r, "manifests")
 	}
 
 	var platform *ocispec.Platform
-	if r.Form.Get("platform") != "" && versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.49") {
+	if r.Form.Get("platform") != "" && versions.GreaterThanOrEqualTo(versions.FromContext(ctx), "1.49") {
 		p, err := httputils.DecodePlatform(r.Form.Get("platform"))
 		if err != nil {
 			return errdefs.InvalidParameter(err)
@@ -389,7 +389,7 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 		imageInspect.RepoDigests = []string{}
 	}
 
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 	if versions.LessThan(version, "1.44") {
 		imageInspect.VirtualSize = imageInspect.Size //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.44.
 
@@ -423,7 +423,7 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 	if versions.LessThan(version, "1.41") {
 		// NOTE: filter is a shell glob string applied to repository names.
 		filterParam := r.Form.Get("filter")
@@ -491,7 +491,7 @@ func (ir *imageRouter) getImagesHistory(ctx context.Context, w http.ResponseWrit
 	}
 
 	var platform *ocispec.Platform
-	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.48") {
+	if versions.GreaterThanOrEqualTo(versions.FromContext(ctx), "1.48") {
 		if formPlatform := r.Form.Get("platform"); formPlatform != "" {
 			p, err := httputils.DecodePlatform(formPlatform)
 			if err != nil {

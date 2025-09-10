@@ -63,7 +63,7 @@ func (sr *swarmRouter) swarmLogs(ctx context.Context, w http.ResponseWriter, r *
 	}
 
 	contentType := basictypes.MediaTypeRawStream
-	if !tty && versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.42") {
+	if !tty && versions.GreaterThanOrEqualTo(versions.FromContext(ctx), "1.42") {
 		contentType = basictypes.MediaTypeMultiplexedStream
 	}
 	w.Header().Set("Content-Type", contentType)

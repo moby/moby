@@ -74,7 +74,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*buildbackend.B
 	} else {
 		options.Remove = httputils.BoolValue(r, "rm")
 	}
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 	if versions.GreaterThanOrEqualTo(version, "1.32") {
 		options.Platform = r.FormValue("platform")
 	}
@@ -195,7 +195,7 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 		return 0, nil
 	}
 
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 	if versions.GreaterThanOrEqualTo(version, "1.48") {
 		if bs, err := parseBytesFromFormValue("reserved-space"); err != nil {
 			return err
@@ -249,11 +249,6 @@ func (br *buildRouter) postCancel(ctx context.Context, w http.ResponseWriter, r 
 }
 
 func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var (
-		notVerboseBuffer = bytes.NewBuffer(nil)
-		version          = httputils.VersionFromContext(ctx)
-	)
-
 	w.Header().Set("Content-Type", "application/json")
 
 	body := r.Body
@@ -271,6 +266,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	output := ioutils.NewWriteFlusher(ww)
 	defer func() { _ = output.Close() }()
 
+	notVerboseBuffer := bytes.NewBuffer(nil)
 	errf := func(err error) error {
 		if httputils.BoolValue(r, "q") && notVerboseBuffer.Len() > 0 {
 			_, _ = output.Write(notVerboseBuffer.Bytes())
@@ -311,6 +307,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		return progress.NewProgressReader(in, progressOutput, r.ContentLength, "Downloading context", buildOptions.RemoteContext)
 	}
 
+	version := versions.FromContext(ctx)
 	wantAux := versions.GreaterThanOrEqualTo(version, "1.30")
 
 	imgID, err := br.backend.Build(ctx, buildbackend.BuildConfig{

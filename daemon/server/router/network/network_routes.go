@@ -34,7 +34,7 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 		return err
 	}
 
-	if versions.LessThan(httputils.VersionFromContext(ctx), "1.28") {
+	if versions.LessThan(versions.FromContext(ctx), "1.28") {
 		list, _ := n.cluster.GetNetworks(filter)
 		var idx map[string]bool
 		if len(list) > 0 {
@@ -241,7 +241,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		return libnetwork.NetworkNameError(create.Name)
 	}
 
-	version := httputils.VersionFromContext(ctx)
+	version := versions.FromContext(ctx)
 
 	// EnableIPv4 was introduced in API 1.48.
 	if versions.LessThan(version, "1.48") {
