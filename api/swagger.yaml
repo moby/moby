@@ -1586,58 +1586,16 @@ definitions:
     description: "NetworkSettings exposes the network settings in the API"
     type: "object"
     properties:
-      Bridge:
-        description: |
-          Name of the default bridge interface when dockerd's --bridge flag is set.
-
-          Deprecated: This field is only set when the daemon is started with the --bridge flag specified.
-        type: "string"
-        example: "docker0"
       SandboxID:
         description: SandboxID uniquely represents a container's network stack.
         type: "string"
         example: "9d12daf2c33f5959c8bf90aa513e4f65b561738661003029ec84830cd503a0c3"
-      HairpinMode:
-        description: |
-          Indicates if hairpin NAT should be enabled on the virtual interface.
-
-          Deprecated: This field is never set and will be removed in a future release.
-        type: "boolean"
-        example: false
-      LinkLocalIPv6Address:
-        description: |
-          IPv6 unicast address using the link-local prefix.
-
-          Deprecated: This field is never set and will be removed in a future release.
-        type: "string"
-        example: ""
-      LinkLocalIPv6PrefixLen:
-        description: |
-          Prefix length of the IPv6 unicast address.
-
-          Deprecated: This field is never set and will be removed in a future release.
-        type: "integer"
-        example: ""
-      Ports:
-        $ref: "#/definitions/PortMap"
       SandboxKey:
         description: SandboxKey is the full path of the netns handle
         type: "string"
         example: "/var/run/docker/netns/8ab54b426c38"
-
-      SecondaryIPAddresses:
-        description: "Deprecated: This field is never set and will be removed in a future release."
-        type: "array"
-        items:
-          $ref: "#/definitions/Address"
-        x-nullable: true
-
-      SecondaryIPv6Addresses:
-        description: "Deprecated: This field is never set and will be removed in a future release."
-        type: "array"
-        items:
-          $ref: "#/definitions/Address"
-        x-nullable: true
+      Ports:
+        $ref: "#/definitions/PortMap"
       Networks:
         description: |
           Information about all networks that the container is connected to.

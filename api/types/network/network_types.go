@@ -34,12 +34,6 @@ type CreateRequest struct {
 	CheckDuplicate *bool `json:",omitempty"`
 }
 
-// Address represents an IP address
-type Address struct {
-	Addr      string
-	PrefixLen int
-}
-
 // ServiceInfo represents service parameters with the list of service's tasks
 type ServiceInfo struct {
 	VIP          string
