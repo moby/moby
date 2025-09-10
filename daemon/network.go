@@ -22,6 +22,7 @@ import (
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
+	"github.com/moby/moby/v2/daemon/internal/portbinding"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	lncluster "github.com/moby/moby/v2/daemon/libnetwork/cluster"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
@@ -36,6 +37,7 @@ import (
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/internal/iterutil"
 	"github.com/moby/moby/v2/internal/netipstringer"
+	"github.com/moby/moby/v2/internal/sliceutil"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 	"go.opentelemetry.io/otel/baggage"
 )
@@ -893,14 +895,14 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 	// we're dealing with DNS config both here and in buildSandboxOptions. Following DNS options are only honored by
 	// Windows netdrivers, whereas DNS options in buildSandboxOptions are only honored by Linux netdrivers.
 	if !n.Internal() {
+		var nameservers []netip.Addr
 		if len(c.HostConfig.DNS) > 0 {
-			createOptions = append(createOptions, libnetwork.CreateOptionDNS(c.HostConfig.DNS))
+			nameservers = c.HostConfig.DNS
 		} else if len(daemonDNS) > 0 {
-			dns := make([]string, len(daemonDNS))
-			for i, a := range daemonDNS {
-				dns[i] = a.String()
-			}
-			createOptions = append(createOptions, libnetwork.CreateOptionDNS(dns))
+			nameservers = daemonDNS
+		}
+		if len(nameservers) > 0 {
+			createOptions = append(createOptions, libnetwork.CreateOptionDNS(sliceutil.Map(nameservers, (netip.Addr).String)))
 		}
 	}
 
@@ -939,7 +941,7 @@ func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwor
 	}
 
 	ports := slices.Collect(maps.Keys(bindings))
-	nat.SortPortMap(ports, bindings)
+	portbinding.SortPortMap(ports, bindings)
 
 	var (
 		exposedPorts   []lntypes.TransportPort
@@ -965,7 +967,7 @@ func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwor
 			publishedPorts = append(publishedPorts, lntypes.PortBinding{
 				Proto:       portProto,
 				Port:        portNum,
-				HostIP:      net.ParseIP(binding.HostIP),
+				HostIP:      binding.HostIP.AsSlice(),
 				HostPort:    uint16(portStart),
 				HostPortEnd: uint16(portEnd),
 			})
@@ -1037,7 +1039,8 @@ func getEndpointPortMapInfo(pm containertypes.PortMap, ep *libnetwork.Endpoint) 
 			if pp.HostPort > 0 {
 				hp = strconv.Itoa(int(pp.HostPort))
 			}
-			natBndg := containertypes.PortBinding{HostIP: pp.HostIP.String(), HostPort: hp}
+			natBndg := containertypes.PortBinding{HostPort: hp}
+			natBndg.HostIP, _ = netip.AddrFromSlice(pp.HostIP)
 			pm[natPort] = append(pm[natPort], natBndg)
 		}
 	}

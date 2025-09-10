@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/go-connections/nat"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/versions"
@@ -570,11 +570,11 @@ func TestAllPortMappingsAreReturned(t *testing.T) {
 	inspect := ctr.Inspect(ctx, t, apiClient, ctrID)
 	assert.DeepEqual(t, inspect.NetworkSettings.Ports, containertypes.PortMap{
 		"80/tcp": []containertypes.PortBinding{
-			{HostIP: "0.0.0.0", HostPort: "8000"},
-			{HostIP: "::", HostPort: "8000"},
+			{HostIP: netip.IPv4Unspecified(), HostPort: "8000"},
+			{HostIP: netip.IPv6Unspecified(), HostPort: "8000"},
 		},
 		"81/tcp": nil,
-	})
+	}, cmpopts.EquateComparable(netip.Addr{}))
 }
 
 // TestFirewalldReloadNoZombies checks that when firewalld is reloaded, rules
@@ -949,7 +949,7 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
-	createInspect := func(t *testing.T, version string, pbs []nat.PortBinding) (containertypes.PortMap, []string) {
+	createInspect := func(t *testing.T, version string, pbs []containertypes.PortBinding) (containertypes.PortMap, []string) {
 		apiClient := d.NewClientT(t, client.WithVersion(version))
 		defer apiClient.Close()
 
@@ -982,9 +982,9 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 		}}
 		expWarnings := make([]string, 0)
 
-		mappings, warnings := createInspect(t, "1.51", []nat.PortBinding{})
-		assert.DeepEqual(t, expMappings, mappings)
-		assert.DeepEqual(t, expWarnings, warnings)
+		mappings, warnings := createInspect(t, "1.51", []containertypes.PortBinding{})
+		assert.DeepEqual(t, expMappings, mappings, cmpopts.EquateComparable(netip.Addr{}))
+		assert.DeepEqual(t, expWarnings, warnings, cmpopts.EquateComparable(netip.Addr{}))
 	})
 
 	t.Run("backfilling on API 1.52, with a warning", func(t *testing.T) {
@@ -995,18 +995,18 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 			"Following container port(s) have an empty list of port-bindings: 80/tcp. Starting with API 1.53, such bindings will be discarded.",
 		}
 
-		mappings, warnings := createInspect(t, "1.52", []nat.PortBinding{})
-		assert.DeepEqual(t, expMappings, mappings)
-		assert.DeepEqual(t, expWarnings, warnings)
+		mappings, warnings := createInspect(t, "1.52", []containertypes.PortBinding{})
+		assert.DeepEqual(t, expMappings, mappings, cmpopts.EquateComparable(netip.Addr{}))
+		assert.DeepEqual(t, expWarnings, warnings, cmpopts.EquateComparable(netip.Addr{}))
 	})
 
 	t.Run("no backfilling on API 1.53", func(t *testing.T) {
 		expMappings := containertypes.PortMap{}
 		expWarnings := make([]string, 0)
 
-		mappings, warnings := createInspect(t, "1.53", []nat.PortBinding{})
-		assert.DeepEqual(t, expMappings, mappings)
-		assert.DeepEqual(t, expWarnings, warnings)
+		mappings, warnings := createInspect(t, "1.53", []containertypes.PortBinding{})
+		assert.DeepEqual(t, expMappings, mappings, cmpopts.EquateComparable(netip.Addr{}))
+		assert.DeepEqual(t, expWarnings, warnings, cmpopts.EquateComparable(netip.Addr{}))
 	})
 
 	for _, apiVersion := range []string{"1.51", "1.52", "1.53"} {
@@ -1016,9 +1016,9 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 			}}
 			expWarnings := make([]string, 0)
 
-			mappings, warnings := createInspect(t, apiVersion, []nat.PortBinding{{HostPort: "8080"}})
-			assert.DeepEqual(t, expMappings, mappings)
-			assert.DeepEqual(t, expWarnings, warnings)
+			mappings, warnings := createInspect(t, apiVersion, []containertypes.PortBinding{{HostPort: "8080"}})
+			assert.DeepEqual(t, expMappings, mappings, cmpopts.EquateComparable(netip.Addr{}))
+			assert.DeepEqual(t, expWarnings, warnings, cmpopts.EquateComparable(netip.Addr{}))
 		})
 	}
 }
@@ -1061,7 +1061,7 @@ func TestPortBindingBackfillingForOlderContainers(t *testing.T) {
 	expMappings := containertypes.PortMap{"80/tcp": {
 		{}, // An empty PortBinding is backfilled
 	}}
-	assert.DeepEqual(t, expMappings, inspect.HostConfig.PortBindings)
+	assert.DeepEqual(t, expMappings, inspect.HostConfig.PortBindings, cmpopts.EquateComparable(netip.Addr{}))
 }
 
 func TestBridgeIPAMStatus(t *testing.T) {

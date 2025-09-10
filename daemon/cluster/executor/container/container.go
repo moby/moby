@@ -22,6 +22,7 @@ import (
 	executorpkg "github.com/moby/moby/v2/daemon/cluster/executor"
 	clustertypes "github.com/moby/moby/v2/daemon/cluster/provider"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
+	"github.com/moby/moby/v2/internal/sliceutil"
 	"github.com/moby/swarmkit/v2/agent/exec"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/genericresource"
@@ -415,7 +416,7 @@ func (c *containerConfig) hostConfig(deps exec.VolumeGetter) *container.HostConf
 	}
 
 	if c.spec().DNSConfig != nil {
-		hc.DNS = c.spec().DNSConfig.Nameservers
+		hc.DNS = sliceutil.Map(c.spec().DNSConfig.Nameservers, func(ns string) netip.Addr { a, _ := netip.ParseAddr(ns); return a })
 		hc.DNSSearch = c.spec().DNSConfig.Search
 		hc.DNSOptions = c.spec().DNSConfig.Options
 	}
