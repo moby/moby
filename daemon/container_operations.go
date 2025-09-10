@@ -23,6 +23,7 @@ import (
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
 	"github.com/moby/moby/v2/daemon/internal/multierror"
+	"github.com/moby/moby/v2/daemon/internal/portbinding"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
@@ -38,18 +39,6 @@ import (
 )
 
 const errSetupNetworking = "failed to set up container networking"
-
-func toNetIP(ips []string) ([]netip.Addr, error) {
-	var dnsAddrs []netip.Addr
-	for _, ns := range ips {
-		addr, err := netip.ParseAddr(ns)
-		if err != nil {
-			return nil, fmt.Errorf("bad nameserver address %s: %w", ns, err)
-		}
-		dnsAddrs = append(dnsAddrs, addr)
-	}
-	return dnsAddrs, nil
-}
 
 func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnetwork.SandboxOption, error) {
 	var sboxOptions []libnetwork.SandboxOption
@@ -72,11 +61,7 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 	sboxOptions = append(sboxOptions, platformOpts...)
 
 	if len(ctr.HostConfig.DNS) > 0 {
-		dnsAddrs, err := toNetIP(ctr.HostConfig.DNS)
-		if err != nil {
-			return nil, err
-		}
-		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(dnsAddrs))
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(ctr.HostConfig.DNS))
 	} else if len(cfg.DNS) > 0 {
 		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(cfg.DNS))
 	}
@@ -121,7 +106,7 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 	}
 
 	ports := slices.Collect(maps.Keys(ctr.Config.ExposedPorts))
-	nat.SortPortMap(ports, bindings)
+	portbinding.SortPortMap(ports, bindings)
 
 	var (
 		publishedPorts []types.PortBinding
@@ -147,7 +132,7 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 			publishedPorts = append(publishedPorts, types.PortBinding{
 				Proto:       portProto,
 				Port:        portNum,
-				HostIP:      net.ParseIP(binding.HostIP),
+				HostIP:      binding.HostIP.AsSlice(),
 				HostPort:    uint16(portStart),
 				HostPortEnd: uint16(portEnd),
 			})
