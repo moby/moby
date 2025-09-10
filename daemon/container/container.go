@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -618,7 +619,7 @@ func (container *Container) InitDNSHostConfig() {
 	container.Lock()
 	defer container.Unlock()
 	if container.HostConfig.DNS == nil {
-		container.HostConfig.DNS = make([]string, 0)
+		container.HostConfig.DNS = make([]netip.Addr, 0)
 	}
 
 	if container.HostConfig.DNSSearch == nil {

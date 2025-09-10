@@ -3,6 +3,7 @@ package container
 import (
 	"errors"
 	"fmt"
+	"net/netip"
 	"strings"
 
 	"github.com/docker/go-units"
@@ -432,7 +433,7 @@ type HostConfig struct {
 	CapAdd          []string          // List of kernel capabilities to add to the container
 	CapDrop         []string          // List of kernel capabilities to remove from the container
 	CgroupnsMode    CgroupnsMode      // Cgroup namespace mode to use for the container
-	DNS             []string          `json:"Dns"`        // List of DNS server to lookup
+	DNS             []netip.Addr      `json:"Dns"`        // List of DNS server to lookup
 	DNSOptions      []string          `json:"DnsOptions"` // List of DNSOption to look for
 	DNSSearch       []string          `json:"DnsSearch"`  // List of DNSSearch to look for
 	ExtraHosts      []string          // List of extra hosts

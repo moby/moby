@@ -3,6 +3,7 @@ package networking
 import (
 	"context"
 	"net"
+	"net/netip"
 	"testing"
 	"time"
 
@@ -97,7 +98,7 @@ func TestFlakyPortMappedHairpinWindows(t *testing.T) {
 	serverId := container.Run(ctx, t, c,
 		container.WithNetworkMode(serverNetName),
 		container.WithExposedPorts("80"),
-		container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80"): {{HostIP: "0.0.0.0"}}}),
+		container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80"): {{HostIP: netip.IPv4Unspecified()}}}),
 		container.WithCmd("httpd", "-f"),
 	)
 	defer c.ContainerRemove(ctx, serverId, client.ContainerRemoveOptions{Force: true})

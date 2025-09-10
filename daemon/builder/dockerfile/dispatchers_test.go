@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/netip"
 	"reflect"
 	"runtime"
 	"strings"
@@ -662,7 +663,7 @@ func TestParsePortSpecs(t *testing.T) {
 			t.Fatalf("%s should have exactly one binding", portSpec)
 		}
 
-		if bindings[0].HostIP != "" {
+		if bindings[0].HostIP.IsValid() {
 			t.Fatalf("HostIP should not be set for %s", portSpec)
 		}
 
@@ -695,7 +696,7 @@ func TestParsePortSpecs(t *testing.T) {
 			t.Fatalf("%s should have exactly one binding", portSpec)
 		}
 
-		if bindings[0].HostIP != "" {
+		if bindings[0].HostIP.IsValid() {
 			t.Fatalf("HostIP should not be set for %s", portSpec)
 		}
 
@@ -728,7 +729,7 @@ func TestParsePortSpecs(t *testing.T) {
 			t.Fatalf("%s should have exactly one binding", portSpec)
 		}
 
-		if bindings[0].HostIP != "0.0.0.0" {
+		if bindings[0].HostIP != netip.IPv4Unspecified() {
 			t.Fatalf("HostIP is not 0.0.0.0 for %s", portSpec)
 		}
 
@@ -787,7 +788,7 @@ func TestParsePortSpecFull(t *testing.T) {
 		{
 			container.MustParsePort("3333/tcp"): []container.PortBinding{
 				{
-					HostIP:   "0.0.0.0",
+					HostIP:   netip.IPv4Unspecified(),
 					HostPort: "1234",
 				},
 			},
@@ -795,7 +796,7 @@ func TestParsePortSpecFull(t *testing.T) {
 		{
 			container.MustParsePort("3334/tcp"): []container.PortBinding{
 				{
-					HostIP:   "0.0.0.0",
+					HostIP:   netip.IPv4Unspecified(),
 					HostPort: "1235",
 				},
 			},
@@ -822,7 +823,7 @@ func TestPartPortSpecIPV6(t *testing.T) {
 				{
 					container.MustParsePort("333/tcp"): []container.PortBinding{
 						{
-							HostIP:   "2001:4860:0:2001::68",
+							HostIP:   netip.MustParseAddr("2001:4860:0:2001::68"),
 							HostPort: "",
 						},
 					},
@@ -836,7 +837,7 @@ func TestPartPortSpecIPV6(t *testing.T) {
 				{
 					container.MustParsePort("80/tcp"): []container.PortBinding{
 						{
-							HostIP:   "::1",
+							HostIP:   netip.IPv6Loopback(),
 							HostPort: "80",
 						},
 					},
@@ -850,7 +851,7 @@ func TestPartPortSpecIPV6(t *testing.T) {
 				{
 					container.MustParsePort("333/tcp"): []container.PortBinding{
 						{
-							HostIP:   "2001:4860:0:2001::68",
+							HostIP:   netip.MustParseAddr("2001:4860:0:2001::68"),
 							HostPort: "",
 						},
 					},
@@ -864,7 +865,7 @@ func TestPartPortSpecIPV6(t *testing.T) {
 				{
 					container.MustParsePort("80/tcp"): []container.PortBinding{
 						{
-							HostIP:   "::1",
+							HostIP:   netip.IPv6Loopback(),
 							HostPort: "80",
 						},
 					},
@@ -878,7 +879,7 @@ func TestPartPortSpecIPV6(t *testing.T) {
 				{
 					container.MustParsePort("80/tcp"): []container.PortBinding{
 						{
-							HostIP:   "::",
+							HostIP:   netip.IPv6Unspecified(),
 							HostPort: "",
 						},
 					},
@@ -929,7 +930,7 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 			t.Fatalf("%s should have exactly one binding", portSpec)
 		}
 
-		if bindings[0].HostIP != "" {
+		if bindings[0].HostIP.IsValid() {
 			t.Fatalf("HostIP should not be set for %s", portSpec)
 		}
 
@@ -961,7 +962,7 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 			t.Fatalf("%s should have exactly one binding", portSpec)
 		}
 
-		if bindings[0].HostIP != "" {
+		if bindings[0].HostIP.IsValid() {
 			t.Fatalf("HostIP should not be set for %s", portSpec)
 		}
 
@@ -989,7 +990,7 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 
 	for portSpec, bindings := range bindingMap {
 		_, port := splitProtoPort(portSpec.String())
-		if len(bindings) != 1 || bindings[0].HostIP != "0.0.0.0" || bindings[0].HostPort != port {
+		if len(bindings) != 1 || bindings[0].HostIP != netip.IPv4Unspecified() || bindings[0].HostPort != port {
 			t.Fatalf("Expect single binding to port %s but found %s", port, bindings)
 		}
 	}
@@ -1031,7 +1032,7 @@ func TestParseNetworkOptsPrivateOnly(t *testing.T) {
 		if s.HostPort != "" {
 			t.Errorf("Expected \"\" got %s", s.HostPort)
 		}
-		if s.HostIP != "192.168.1.100" {
+		if s.HostIP != netip.MustParseAddr("192.168.1.100") {
 			t.Errorf("Expected 192.168.1.100 got %s", s.HostIP)
 		}
 	}
@@ -1067,7 +1068,7 @@ func TestParseNetworkOptsPublic(t *testing.T) {
 		if s.HostPort != "8080" {
 			t.Errorf("Expected 8080 got %s", s.HostPort)
 		}
-		if s.HostIP != "192.168.1.100" {
+		if s.HostIP != netip.MustParseAddr("192.168.1.100") {
 			t.Errorf("Expected 192.168.1.100 got %s", s.HostIP)
 		}
 	}
@@ -1133,7 +1134,7 @@ func TestParseNetworkOptsUdp(t *testing.T) {
 		if s.HostPort != "" {
 			t.Errorf("Expected \"\" got %s", s.HostPort)
 		}
-		if s.HostIP != "192.168.1.100" {
+		if s.HostIP != netip.MustParseAddr("192.168.1.100") {
 			t.Errorf("Expected 192.168.1.100 got %s", s.HostIP)
 		}
 	}
@@ -1169,7 +1170,7 @@ func TestParseNetworkOptsSctp(t *testing.T) {
 		if s.HostPort != "" {
 			t.Errorf("Expected \"\" got %s", s.HostPort)
 		}
-		if s.HostIP != "192.168.1.100" {
+		if s.HostIP != netip.MustParseAddr("192.168.1.100") {
 			t.Errorf("Expected 192.168.1.100 got %s", s.HostIP)
 		}
 	}

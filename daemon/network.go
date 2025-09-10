@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/netip"
 	"sort"
@@ -35,6 +36,7 @@ import (
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/internal/iterutil"
+	"github.com/moby/moby/v2/internal/sliceutil"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 	"go.opentelemetry.io/otel/baggage"
 )
@@ -975,14 +977,14 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 	// we're dealing with DNS config both here and in buildSandboxOptions. Following DNS options are only honored by
 	// Windows netdrivers, whereas DNS options in buildSandboxOptions are only honored by Linux netdrivers.
 	if !n.Internal() {
+		var nameservers []netip.Addr
 		if len(c.HostConfig.DNS) > 0 {
-			createOptions = append(createOptions, libnetwork.CreateOptionDNS(c.HostConfig.DNS))
+			nameservers = c.HostConfig.DNS
 		} else if len(daemonDNS) > 0 {
-			dns := make([]string, len(daemonDNS))
-			for i, a := range daemonDNS {
-				dns[i] = a.String()
-			}
-			createOptions = append(createOptions, libnetwork.CreateOptionDNS(dns))
+			nameservers = daemonDNS
+		}
+		if len(nameservers) > 0 {
+			createOptions = append(createOptions, libnetwork.CreateOptionDNS(sliceutil.Map(nameservers, (netip.Addr).String)))
 		}
 	}
 
@@ -1040,7 +1042,7 @@ func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwor
 			publishedPorts = append(publishedPorts, lntypes.PortBinding{
 				Proto:       protocol,
 				Port:        p.Num(),
-				HostIP:      net.ParseIP(binding.HostIP),
+				HostIP:      binding.HostIP.AsSlice(),
 				HostPort:    portRange.Start(),
 				HostPortEnd: portRange.End(),
 			})
@@ -1113,7 +1115,8 @@ func getEndpointPortMapInfo(pm containertypes.PortMap, ep *libnetwork.Endpoint) 
 			if pp.HostPort > 0 {
 				hp = strconv.Itoa(int(pp.HostPort))
 			}
-			natBndg := containertypes.PortBinding{HostIP: pp.HostIP.String(), HostPort: hp}
+			natBndg := containertypes.PortBinding{HostPort: hp}
+			natBndg.HostIP, _ = netip.AddrFromSlice(pp.HostIP)
 			pm[natPort] = append(pm[natPort], natBndg)
 		}
 	}

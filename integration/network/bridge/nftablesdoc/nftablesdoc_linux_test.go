@@ -178,7 +178,7 @@ var index = []section{
 			containers: []ctrDesc{
 				{
 					name:         "c1",
-					portMappings: containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{HostIP: "127.0.0.1", HostPort: "8080"}}},
+					portMappings: containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{HostIP: netip.MustParseAddr("127.0.0.1"), HostPort: "8080"}}},
 				},
 			},
 		}},

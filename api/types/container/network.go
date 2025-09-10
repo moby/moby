@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"net/netip"
 	"strconv"
 	"strings"
 	"unique"
@@ -148,7 +149,7 @@ type PortSet = map[Port]struct{}
 // PortBinding represents a binding between a Host IP address and a Host Port.
 type PortBinding struct {
 	// HostIP is the host IP Address
-	HostIP string `json:"HostIp"`
+	HostIP netip.Addr `json:"HostIp"`
 	// HostPort is the host port number
 	HostPort string `json:"HostPort"`
 }
