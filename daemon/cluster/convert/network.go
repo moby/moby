@@ -1,12 +1,14 @@
 package convert
 
 import (
+	"net/netip"
 	"strings"
 	"time"
 
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/network"
 	types "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
@@ -15,7 +17,7 @@ func networkAttachmentFromGRPC(na *swarmapi.NetworkAttachment) types.NetworkAtta
 	if na != nil {
 		return types.NetworkAttachment{
 			Network:   networkFromGRPC(na.Network),
-			Addresses: na.Addresses,
+			Addresses: sliceutil.Map(na.Addresses, func(s string) netip.Addr { a, _ := netip.ParseAddr(s); return a }),
 		}
 	}
 	return types.NetworkAttachment{}
@@ -81,11 +83,11 @@ func ipamFromGRPC(i *swarmapi.IPAMOptions) *types.IPAMOptions {
 		}
 
 		for _, config := range i.Configs {
-			ipam.Configs = append(ipam.Configs, types.IPAMConfig{
-				Subnet:  config.Subnet,
-				Range:   config.Range,
-				Gateway: config.Gateway,
-			})
+			var cfg types.IPAMConfig
+			cfg.Subnet, _ = netip.ParsePrefix(config.Subnet)
+			cfg.Range, _ = netip.ParsePrefix(config.Range)
+			cfg.Gateway, _ = netip.ParseAddr(config.Gateway)
+			ipam.Configs = append(ipam.Configs, cfg)
 		}
 	}
 	return ipam
@@ -117,9 +119,10 @@ func endpointFromGRPC(e *swarmapi.Endpoint) types.Endpoint {
 		}
 
 		for _, v := range e.VirtualIPs {
+			vip, _ := netip.ParseAddr(v.Addr)
 			endpoint.VirtualIPs = append(endpoint.VirtualIPs, types.EndpointVirtualIP{
 				NetworkID: v.NetworkID,
-				Addr:      v.Addr,
+				Addr:      vip,
 			})
 		}
 	}

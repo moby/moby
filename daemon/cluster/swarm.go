@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -485,7 +486,8 @@ func (c *Cluster) Info(ctx context.Context) types.Info {
 
 	if state.swarmNode != nil {
 		for _, r := range state.swarmNode.Remotes() {
-			info.RemoteManagers = append(info.RemoteManagers, types.Peer{NodeID: r.NodeID, Addr: r.Addr})
+			addr, _ := netip.ParseAddr(r.Addr)
+			info.RemoteManagers = append(info.RemoteManagers, types.Peer{NodeID: r.NodeID, Addr: addr})
 		}
 		info.NodeID = state.swarmNode.NodeID()
 	}

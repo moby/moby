@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -417,7 +418,7 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 	ctx := setupTest(t)
 
 	d := swarm.NewSwarm(ctx, t, testEnv,
-		daemon.WithSwarmDefaultAddrPool([]string{"20.20.0.0/16"}),
+		daemon.WithSwarmDefaultAddrPool(netip.MustParsePrefix("20.20.0.0/16")),
 		daemon.WithSwarmDefaultAddrPoolSubnetSize(24))
 	defer d.Stop(t)
 	cli := d.NewClientT(t)

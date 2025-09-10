@@ -1,6 +1,7 @@
 package swarm
 
 import (
+	"net/netip"
 	"time"
 )
 
@@ -12,7 +13,7 @@ type ClusterInfo struct {
 	Spec                   Spec
 	TLSInfo                TLSInfo
 	RootRotationInProgress bool
-	DefaultAddrPool        []string
+	DefaultAddrPool        []netip.Prefix
 	SubnetSize             uint32
 	DataPathPort           uint32
 }
@@ -159,7 +160,7 @@ type InitRequest struct {
 	Spec             Spec
 	AutoLockManagers bool
 	Availability     NodeAvailability
-	DefaultAddrPool  []string
+	DefaultAddrPool  []netip.Prefix
 	SubnetSize       uint32
 }
 
@@ -226,7 +227,7 @@ type Status struct {
 // Peer represents a peer.
 type Peer struct {
 	NodeID string
-	Addr   string
+	Addr   netip.Addr
 }
 
 // UnlockKeyResponse contains the response for Engine API:
