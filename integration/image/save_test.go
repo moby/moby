@@ -339,7 +339,7 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 
 			// verify the loaded image has all the expected platforms
 			for _, p := range tc.expectedSavedPlatforms {
-				inspectResponse, err := apiClient.ImageInspect(ctx, repoName, client.ImageInspectWithPlatform(&p))
+				inspectResponse, err := apiClient.ImageInspect(ctx, repoName, client.WithPlatform(p))
 				assert.NilError(t, err)
 				assert.Check(t, is.Equal(inspectResponse.Os, p.OS))
 				assert.Check(t, is.Equal(inspectResponse.Architecture, p.Architecture))
@@ -377,7 +377,7 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 
 			// verify the image was loaded for the specified platforms
 			for _, p := range tc.expectedLoadedPlatforms {
-				inspectResponse, err := apiClient.ImageInspect(ctx, repoName, client.ImageInspectWithPlatform(&p))
+				inspectResponse, err := apiClient.ImageInspect(ctx, repoName, client.WithPlatform(p))
 				assert.NilError(t, err)
 				assert.Check(t, is.Equal(inspectResponse.Os, p.OS))
 				assert.Check(t, is.Equal(inspectResponse.Architecture, p.Architecture))
