@@ -1,7 +1,6 @@
 package network
 
 import (
-	"errors"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -16,10 +15,10 @@ type IPAM struct {
 
 // IPAMConfig represents IPAM configurations
 type IPAMConfig struct {
-	Subnet     string            `json:",omitempty"`
-	IPRange    string            `json:",omitempty"`
-	Gateway    string            `json:",omitempty"`
-	AuxAddress map[string]string `json:"AuxiliaryAddresses,omitempty"`
+	Subnet     netip.Prefix          `json:",omitempty"`
+	IPRange    netip.Prefix          `json:",omitempty"`
+	Gateway    netip.Addr            `json:",omitempty"`
+	AuxAddress map[string]netip.Addr `json:"AuxiliaryAddresses,omitempty"`
 }
 
 type SubnetStatuses = map[netip.Prefix]SubnetStatus
@@ -40,13 +39,8 @@ func ValidateIPAM(ipam *IPAM, enableIPv6 bool) error {
 
 	var errs []error
 	for _, cfg := range ipam.Config {
-		subnet, err := netip.ParsePrefix(cfg.Subnet)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("invalid subnet %s: invalid CIDR block notation", cfg.Subnet))
-			continue
-		}
 		subnetFamily := ip4
-		if subnet.Addr().Is6() {
+		if cfg.Subnet.Addr().Is6() {
 			subnetFamily = ip6
 		}
 
@@ -54,20 +48,20 @@ func ValidateIPAM(ipam *IPAM, enableIPv6 bool) error {
 			continue
 		}
 
-		if subnet != subnet.Masked() {
-			errs = append(errs, fmt.Errorf("invalid subnet %s: it should be %s", subnet, subnet.Masked()))
+		if cfg.Subnet != cfg.Subnet.Masked() {
+			errs = append(errs, fmt.Errorf("invalid subnet %s: it should be %s", cfg.Subnet, cfg.Subnet.Masked()))
 		}
 
-		if ipRangeErrs := validateIPRange(cfg.IPRange, subnet, subnetFamily); len(ipRangeErrs) > 0 {
+		if ipRangeErrs := validateIPRange(cfg.IPRange, cfg.Subnet, subnetFamily); len(ipRangeErrs) > 0 {
 			errs = append(errs, ipRangeErrs...)
 		}
 
-		if err := validateAddress(cfg.Gateway, subnet, subnetFamily); err != nil {
+		if err := validateAddress(cfg.Gateway, cfg.Subnet, subnetFamily); err != nil {
 			errs = append(errs, fmt.Errorf("invalid gateway %s: %w", cfg.Gateway, err))
 		}
 
 		for auxName, aux := range cfg.AuxAddress {
-			if err := validateAddress(aux, subnet, subnetFamily); err != nil {
+			if err := validateAddress(aux, cfg.Subnet, subnetFamily); err != nil {
 				errs = append(errs, fmt.Errorf("invalid auxiliary address %s: %w", auxName, err))
 			}
 		}
@@ -80,16 +74,12 @@ func ValidateIPAM(ipam *IPAM, enableIPv6 bool) error {
 	return nil
 }
 
-func validateIPRange(ipRange string, subnet netip.Prefix, subnetFamily ipFamily) []error {
-	if ipRange == "" {
+func validateIPRange(ipRange, subnet netip.Prefix, subnetFamily ipFamily) []error {
+	if !ipRange.IsValid() {
 		return nil
 	}
-	prefix, err := netip.ParsePrefix(ipRange)
-	if err != nil {
-		return []error{fmt.Errorf("invalid ip-range %s: invalid CIDR block notation", ipRange)}
-	}
 	family := ip4
-	if prefix.Addr().Is6() {
+	if ipRange.Addr().Is6() {
 		family = ip6
 	}
 
@@ -98,26 +88,22 @@ func validateIPRange(ipRange string, subnet netip.Prefix, subnetFamily ipFamily)
 	}
 
 	var errs []error
-	if prefix.Bits() < subnet.Bits() {
+	if ipRange.Bits() < subnet.Bits() {
 		errs = append(errs, fmt.Errorf("invalid ip-range %s: CIDR block is bigger than its parent subnet %s", ipRange, subnet))
 	}
-	if prefix != prefix.Masked() {
-		errs = append(errs, fmt.Errorf("invalid ip-range %s: it should be %s", prefix, prefix.Masked()))
+	if ipRange != ipRange.Masked() {
+		errs = append(errs, fmt.Errorf("invalid ip-range %s: it should be %s", ipRange, ipRange.Masked()))
 	}
-	if !subnet.Overlaps(prefix) {
+	if !subnet.Overlaps(ipRange) {
 		errs = append(errs, fmt.Errorf("invalid ip-range %s: parent subnet %s doesn't contain ip-range", ipRange, subnet))
 	}
 
 	return errs
 }
 
-func validateAddress(address string, subnet netip.Prefix, subnetFamily ipFamily) error {
-	if address == "" {
+func validateAddress(addr netip.Addr, subnet netip.Prefix, subnetFamily ipFamily) error {
+	if !addr.IsValid() {
 		return nil
-	}
-	addr, err := netip.ParseAddr(address)
-	if err != nil {
-		return errors.New("invalid address")
 	}
 	family := ip4
 	if addr.Is6() {

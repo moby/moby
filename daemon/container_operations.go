@@ -105,10 +105,10 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 				return nil, errors.New("unable to derive the IP value for host-gateway")
 			}
 			for _, gip := range cfg.HostGatewayIPs {
-				sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(host, gip.String()))
+				sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(host, gip))
 			}
 		} else {
-			sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(host, ip))
+			sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(host, netip.MustParseAddr(ip)))
 		}
 	}
 
@@ -294,11 +294,11 @@ func (daemon *Daemon) findAndAttachNetwork(ctr *container.Container, idOrName st
 
 	var addresses []string
 	if epConfig != nil && epConfig.IPAMConfig != nil {
-		if epConfig.IPAMConfig.IPv4Address != "" {
-			addresses = append(addresses, epConfig.IPAMConfig.IPv4Address)
+		if epConfig.IPAMConfig.IPv4Address.IsValid() {
+			addresses = append(addresses, epConfig.IPAMConfig.IPv4Address.String())
 		}
-		if epConfig.IPAMConfig.IPv6Address != "" {
-			addresses = append(addresses, epConfig.IPAMConfig.IPv6Address)
+		if epConfig.IPAMConfig.IPv6Address.IsValid() {
+			addresses = append(addresses, epConfig.IPAMConfig.IPv6Address.String())
 		}
 	}
 
@@ -541,7 +541,7 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 	// TODO(aker): move this into api/types/network/endpoint.go once enableIPOnPredefinedNetwork and
 	//  serviceDiscoveryOnDefaultNetwork are removed.
 	if !containertypes.NetworkMode(nwName).IsUserDefined() {
-		hasStaticAddresses := ipamConfig.IPv4Address != "" || ipamConfig.IPv6Address != ""
+		hasStaticAddresses := ipamConfig.IPv4Address.IsValid() || ipamConfig.IPv6Address.IsValid()
 		// On Linux, user specified IP address is accepted only by networks with user specified subnets.
 		if hasStaticAddresses && !enableIPOnPredefinedNetwork() {
 			errs = append(errs, cerrdefs.ErrInvalidArgument.WithMessage("user specified IP address is supported on user defined networks only"))
@@ -605,11 +605,11 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 // cleanOperationalData resets the operational data from the passed endpoint settings
 func cleanOperationalData(es *network.EndpointSettings) {
 	es.EndpointID = ""
-	es.Gateway = ""
-	es.IPAddress = ""
+	es.Gateway = netip.Addr{}
+	es.IPAddress = netip.Addr{}
 	es.IPPrefixLen = 0
-	es.IPv6Gateway = ""
-	es.GlobalIPv6Address = ""
+	es.IPv6Gateway = netip.Addr{}
+	es.GlobalIPv6Address = netip.Addr{}
 	es.GlobalIPv6PrefixLen = 0
 	es.MacAddress = ""
 	if es.IPAMOperational {
@@ -696,7 +696,7 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 	endpointConfig.IPAMOperational = false
 	if nwCfg != nil {
 		if epConfig, ok := nwCfg.EndpointsConfig[nwName]; ok {
-			if endpointConfig.IPAMConfig == nil || (endpointConfig.IPAMConfig.IPv4Address == "" && endpointConfig.IPAMConfig.IPv6Address == "" && len(endpointConfig.IPAMConfig.LinkLocalIPs) == 0) {
+			if endpointConfig.IPAMConfig == nil || (!endpointConfig.IPAMConfig.IPv4Address.IsValid() && !endpointConfig.IPAMConfig.IPv6Address.IsValid() && len(endpointConfig.IPAMConfig.LinkLocalIPs) == 0) {
 				endpointConfig.IPAMOperational = true
 			}
 
@@ -786,11 +786,11 @@ func updateJoinInfo(networkSettings *network.Settings, n *libnetwork.Network, ep
 		// It is not an error to get an empty endpoint info
 		return nil
 	}
-	if epInfo.Gateway() != nil {
-		networkSettings.Networks[n.Name()].Gateway = epInfo.Gateway().String()
+	if gw, ok := netip.AddrFromSlice(epInfo.Gateway()); ok {
+		networkSettings.Networks[n.Name()].Gateway = gw
 	}
-	if epInfo.GatewayIPv6().To16() != nil {
-		networkSettings.Networks[n.Name()].IPv6Gateway = epInfo.GatewayIPv6().String()
+	if gw6, ok := netip.AddrFromSlice(epInfo.GatewayIPv6()); ok && gw6.Is6() {
+		networkSettings.Networks[n.Name()].IPv6Gateway = gw6
 	}
 	return nil
 }

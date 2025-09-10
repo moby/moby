@@ -34,6 +34,8 @@ import (
 	"github.com/moby/moby/v2/daemon/pkg/opts"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
+	"github.com/moby/moby/v2/internal/iterutil"
+	"github.com/moby/moby/v2/internal/netipstringer"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 	"go.opentelemetry.io/otel/baggage"
 )
@@ -451,16 +453,15 @@ func getIpamConfig(data []networktypes.IPAMConfig) ([]*libnetwork.IpamConf, []*l
 	ipamV4Cfg := []*libnetwork.IpamConf{}
 	ipamV6Cfg := []*libnetwork.IpamConf{}
 	for _, d := range data {
-		iCfg := libnetwork.IpamConf{}
-		iCfg.PreferredPool = d.Subnet
-		iCfg.SubPool = d.IPRange
-		iCfg.Gateway = d.Gateway
-		iCfg.AuxAddresses = d.AuxAddress
-		ip, _, err := net.ParseCIDR(d.Subnet)
-		if err != nil {
-			return nil, nil, fmt.Errorf("Invalid subnet %s : %v", d.Subnet, err)
+		iCfg := libnetwork.IpamConf{
+			PreferredPool: netipstringer.Prefix(d.Subnet),
+			SubPool:       netipstringer.Prefix(d.IPRange),
+			Gateway:       netipstringer.Addr(d.Gateway),
+			AuxAddresses: maps.Collect(iterutil.Map2(maps.All(d.AuxAddress), func(k string, v netip.Addr) (string, string) {
+				return k, v.String()
+			})),
 		}
-		if ip.To4() != nil {
+		if d.Subnet.Addr().Is4() {
 			ipamV4Cfg = append(ipamV4Cfg, &iCfg)
 		} else {
 			ipamV6Cfg = append(ipamV6Cfg, &iCfg)
@@ -688,15 +689,17 @@ func buildServiceAttachments(nw *libnetwork.Network) map[string]networktypes.Ser
 	for name, service := range nw.Services() {
 		tasks := make([]networktypes.Task, 0, len(service.Tasks))
 		for _, t := range service.Tasks {
+			eip, _ := netip.ParseAddr(t.EndpointIP)
 			tasks = append(tasks, networktypes.Task{
 				Name:       t.Name,
 				EndpointID: t.EndpointID,
-				EndpointIP: t.EndpointIP,
+				EndpointIP: eip,
 				Info:       t.Info,
 			})
 		}
+		vip, _ := netip.ParseAddr(service.VIP)
 		services[name] = networktypes.ServiceInfo{
-			VIP:          service.VIP,
+			VIP:          vip,
 			Ports:        service.Ports,
 			Tasks:        tasks,
 			LocalLBIndex: service.LocalLBIndex,
@@ -732,12 +735,7 @@ func buildIPAMResources(nw *libnetwork.Network) networktypes.IPAM {
 			continue
 		}
 		hasIPv4Config = true
-		ipamConfig = append(ipamConfig, networktypes.IPAMConfig{
-			Subnet:     cfg.PreferredPool,
-			IPRange:    cfg.SubPool,
-			Gateway:    cfg.Gateway,
-			AuxAddress: cfg.AuxAddresses,
-		})
+		ipamConfig = append(ipamConfig, cfg.IPAMConfig())
 	}
 
 	hasIPv6Config := false
@@ -746,26 +744,14 @@ func buildIPAMResources(nw *libnetwork.Network) networktypes.IPAM {
 			continue
 		}
 		hasIPv6Config = true
-		ipamConfig = append(ipamConfig, networktypes.IPAMConfig{
-			Subnet:     cfg.PreferredPool,
-			IPRange:    cfg.SubPool,
-			Gateway:    cfg.Gateway,
-			AuxAddress: cfg.AuxAddresses,
-		})
+		ipamConfig = append(ipamConfig, cfg.IPAMConfig())
 	}
 
 	if !hasIPv4Config || !hasIPv6Config {
 		ipv4Info, ipv6Info := nw.IpamInfo()
 		if !hasIPv4Config {
 			for _, info := range ipv4Info {
-				var gw string
-				if info.IPAMData.Gateway != nil {
-					gw = info.IPAMData.Gateway.IP.String()
-				}
-				ipamConfig = append(ipamConfig, networktypes.IPAMConfig{
-					Subnet:  info.IPAMData.Pool.String(),
-					Gateway: gw,
-				})
+				ipamConfig = append(ipamConfig, info.IPAMData.IPAMConfig())
 			}
 		}
 
@@ -774,14 +760,7 @@ func buildIPAMResources(nw *libnetwork.Network) networktypes.IPAM {
 				if info.IPAMData.Pool == nil {
 					continue
 				}
-				var gw string
-				if info.IPAMData.Gateway != nil {
-					gw = info.IPAMData.Gateway.IP.String()
-				}
-				ipamConfig = append(ipamConfig, networktypes.IPAMConfig{
-					Subnet:  info.IPAMData.Pool.String(),
-					Gateway: gw,
-				})
+				ipamConfig = append(ipamConfig, info.IPAMData.IPAMConfig())
 			}
 		}
 	}
@@ -801,15 +780,9 @@ func buildEndpointResource(ep *libnetwork.Endpoint, info libnetwork.EndpointInfo
 		Name:       ep.Name(),
 	}
 	if iface := info.Iface(); iface != nil {
-		if mac := iface.MacAddress(); mac != nil {
-			er.MacAddress = mac.String()
-		}
-		if ip := iface.Address(); ip != nil && len(ip.IP) > 0 {
-			er.IPv4Address = ip.String()
-		}
-		if ip := iface.AddressIPv6(); ip != nil && len(ip.IP) > 0 {
-			er.IPv6Address = ip.String()
-		}
+		er.MacAddress = iface.MacAddress().String()
+		er.IPv4Address = iface.Addr()
+		er.IPv6Address = iface.AddrIPv6()
 	}
 	return er
 }
@@ -852,25 +825,22 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 	if epConfig != nil {
 		if ipam := epConfig.IPAMConfig; ipam != nil {
 			var ipList []net.IP
-			for _, ips := range ipam.LinkLocalIPs {
-				linkIP := net.ParseIP(ips)
-				if linkIP == nil && ips != "" {
+			for _, linkIP := range ipam.LinkLocalIPs {
+				if !linkIP.IsValid() {
 					return nil, fmt.Errorf("invalid link-local IP address: %s", ipam.LinkLocalIPs)
 				}
-				ipList = append(ipList, linkIP)
+				ipList = append(ipList, linkIP.AsSlice())
 			}
 
-			ip := net.ParseIP(ipam.IPv4Address)
-			if ip == nil && ipam.IPv4Address != "" {
+			if ipam.IPv4Address.IsValid() && !ipam.IPv4Address.Is4() {
 				return nil, fmt.Errorf("invalid IPv4 address: %s", ipam.IPv4Address)
 			}
 
-			ip6 := net.ParseIP(ipam.IPv6Address)
-			if ip6 == nil && ipam.IPv6Address != "" {
+			if ipam.IPv6Address.IsValid() && !ipam.IPv6Address.Is6() {
 				return nil, fmt.Errorf("invalid IPv6 address: %s", ipam.IPv6Address)
 			}
 
-			createOptions = append(createOptions, libnetwork.CreateOptionIPAM(ip, ip6, ipList))
+			createOptions = append(createOptions, libnetwork.CreateOptionIPAM(ipam.IPv4Address.AsSlice(), ipam.IPv6Address.AsSlice(), ipList))
 		}
 
 		createOptions = append(createOptions, libnetwork.CreateOptionDNSNames(epConfig.DNSNames))
@@ -1109,13 +1079,13 @@ func buildEndpointInfo(networkSettings *network.Settings, n *libnetwork.Network,
 
 	if iface.Address() != nil {
 		ones, _ := iface.Address().Mask.Size()
-		networkSettings.Networks[nwName].IPAddress = iface.Address().IP.String()
+		networkSettings.Networks[nwName].IPAddress, _ = netip.AddrFromSlice(iface.Address().IP)
 		networkSettings.Networks[nwName].IPPrefixLen = ones
 	}
 
 	if iface.AddressIPv6() != nil && iface.AddressIPv6().IP.To16() != nil {
 		onesv6, _ := iface.AddressIPv6().Mask.Size()
-		networkSettings.Networks[nwName].GlobalIPv6Address = iface.AddressIPv6().IP.String()
+		networkSettings.Networks[nwName].GlobalIPv6Address, _ = netip.AddrFromSlice(iface.AddressIPv6().IP)
 		networkSettings.Networks[nwName].GlobalIPv6PrefixLen = onesv6
 	}
 

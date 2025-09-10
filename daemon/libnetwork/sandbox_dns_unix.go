@@ -4,7 +4,6 @@ package libnetwork
 
 import (
 	"context"
-	"fmt"
 	"io/fs"
 	"net/netip"
 	"os"
@@ -29,15 +28,15 @@ const (
 )
 
 // AddHostsEntry adds an entry to /etc/hosts.
-func (sb *Sandbox) AddHostsEntry(ctx context.Context, name, ip string) error {
+func (sb *Sandbox) AddHostsEntry(ctx context.Context, name string, ip netip.Addr) error {
 	sb.config.extraHosts = append(sb.config.extraHosts, extraHost{name: name, IP: ip})
 	return sb.rebuildHostsFile(ctx)
 }
 
 // UpdateHostsEntry updates the IP address in a /etc/hosts entry where the
 // name matches the regular expression regexp.
-func (sb *Sandbox) UpdateHostsEntry(regexp, ip string) error {
-	return etchosts.Update(sb.config.hostsPath, ip, regexp)
+func (sb *Sandbox) UpdateHostsEntry(regexp string, ip netip.Addr) error {
+	return etchosts.Update(sb.config.hostsPath, ip.String(), regexp)
 }
 
 // rebuildHostsFile builds the container's /etc/hosts file, based on the current
@@ -142,11 +141,7 @@ func (sb *Sandbox) buildHostsFile(ctx context.Context, ifaceIPs []netip.Addr) er
 
 	extraContent := make([]etchosts.Record, 0, len(sb.config.extraHosts)+len(ifaceIPs))
 	for _, host := range sb.config.extraHosts {
-		addr, err := netip.ParseAddr(host.IP)
-		if err != nil {
-			return errdefs.InvalidParameter(fmt.Errorf("could not parse extra host IP %s: %v", host.IP, err))
-		}
-		extraContent = append(extraContent, etchosts.Record{Hosts: host.name, IP: addr})
+		extraContent = append(extraContent, etchosts.Record{Hosts: host.name, IP: host.IP})
 	}
 	extraContent = append(extraContent, sb.makeHostsRecs(ifaceIPs)...)
 

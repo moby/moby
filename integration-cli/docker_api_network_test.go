@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"strings"
 	"testing"
@@ -54,9 +54,7 @@ func (s *DockerAPISuite) TestAPINetworkInspectBridge(c *testing.T) {
 	_, ok := nr.Containers[containerID]
 	assert.Assert(c, ok)
 
-	ip, _, err := net.ParseCIDR(nr.Containers[containerID].IPv4Address)
-	assert.NilError(c, err)
-	assert.Equal(c, ip.String(), containerIP)
+	assert.Equal(c, nr.Containers[containerID].IPv4Address.Addr().String(), containerIP)
 }
 
 func (s *DockerAPISuite) TestAPINetworkInspectUserDefinedNetwork(c *testing.T) {
@@ -64,7 +62,7 @@ func (s *DockerAPISuite) TestAPINetworkInspectUserDefinedNetwork(c *testing.T) {
 	// IPAM configuration inspect
 	ipam := &network.IPAM{
 		Driver: "default",
-		Config: []network.IPAMConfig{{Subnet: "172.28.0.0/16", IPRange: "172.28.5.0/24", Gateway: "172.28.5.254"}},
+		Config: []network.IPAMConfig{{Subnet: netip.MustParsePrefix("172.28.0.0/16"), IPRange: netip.MustParsePrefix("172.28.5.0/24"), Gateway: netip.MustParseAddr("172.28.5.254")}},
 	}
 	config := network.CreateRequest{
 		Name:    "br0",
@@ -77,9 +75,9 @@ func (s *DockerAPISuite) TestAPINetworkInspectUserDefinedNetwork(c *testing.T) {
 
 	nr := getNetworkResource(c, id0)
 	assert.Equal(c, len(nr.IPAM.Config), 1)
-	assert.Equal(c, nr.IPAM.Config[0].Subnet, "172.28.0.0/16")
-	assert.Equal(c, nr.IPAM.Config[0].IPRange, "172.28.5.0/24")
-	assert.Equal(c, nr.IPAM.Config[0].Gateway, "172.28.5.254")
+	assert.Equal(c, nr.IPAM.Config[0].Subnet, netip.MustParsePrefix("172.28.0.0/16"))
+	assert.Equal(c, nr.IPAM.Config[0].IPRange, netip.MustParsePrefix("172.28.5.0/24"))
+	assert.Equal(c, nr.IPAM.Config[0].Gateway, netip.MustParseAddr("172.28.5.254"))
 	assert.Equal(c, nr.Options["foo"], "bar")
 	assert.Equal(c, nr.Options["opts"], "dopts")
 
@@ -115,10 +113,8 @@ func (s *DockerAPISuite) TestAPINetworkConnectDisconnect(c *testing.T) {
 	assert.Assert(c, ok)
 
 	// check if container IP matches network inspect
-	ip, _, err := net.ParseCIDR(nr.Containers[containerID].IPv4Address)
-	assert.NilError(c, err)
 	containerIP := findContainerIP(c, "test", "testnetwork")
-	assert.Equal(c, ip.String(), containerIP)
+	assert.Equal(c, nr.Containers[containerID].IPv4Address.Addr().String(), containerIP)
 
 	// disconnect container from the network
 	disconnectNetwork(c, nr.ID, containerID)
@@ -135,7 +131,7 @@ func (s *DockerAPISuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) 
 	// test0 bridge network
 	ipam0 := &network.IPAM{
 		Driver: "default",
-		Config: []network.IPAMConfig{{Subnet: "192.178.0.0/16", IPRange: "192.178.128.0/17", Gateway: "192.178.138.100"}},
+		Config: []network.IPAMConfig{{Subnet: netip.MustParsePrefix("192.178.0.0/16"), IPRange: netip.MustParsePrefix("192.178.128.0/17"), Gateway: netip.MustParseAddr("192.178.138.100")}},
 	}
 	config0 := network.CreateRequest{
 		Name:   "test0",
@@ -147,7 +143,7 @@ func (s *DockerAPISuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) 
 
 	ipam1 := &network.IPAM{
 		Driver: "default",
-		Config: []network.IPAMConfig{{Subnet: "192.178.128.0/17", Gateway: "192.178.128.1"}},
+		Config: []network.IPAMConfig{{Subnet: netip.MustParsePrefix("192.178.128.0/17"), Gateway: netip.MustParseAddr("192.178.128.1")}},
 	}
 	// test1 bridge network overlaps with test0
 	config1 := network.CreateRequest{
@@ -160,7 +156,7 @@ func (s *DockerAPISuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) 
 
 	ipam2 := &network.IPAM{
 		Driver: "default",
-		Config: []network.IPAMConfig{{Subnet: "192.169.0.0/16", Gateway: "192.169.100.100"}},
+		Config: []network.IPAMConfig{{Subnet: netip.MustParsePrefix("192.169.0.0/16"), Gateway: netip.MustParseAddr("192.169.100.100")}},
 	}
 	// test2 bridge network does not overlap
 	config2 := network.CreateRequest{

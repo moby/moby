@@ -190,7 +190,7 @@ func TestBridgeICC(t *testing.T) {
 			if pingHost == "" {
 				if tc.isLinkLocal {
 					inspect := container.Inspect(ctx, t, c, id1)
-					pingHost = inspect.NetworkSettings.Networks[bridgeName].GlobalIPv6Address + "%eth0"
+					pingHost = inspect.NetworkSettings.Networks[bridgeName].GlobalIPv6Address.WithZone("eth0").String()
 				} else {
 					pingHost = ctr1Name
 				}
@@ -328,7 +328,7 @@ func TestBridgeINC(t *testing.T) {
 				targetAddr = ctr1Info.NetworkSettings.Networks[bridge1].GlobalIPv6Address
 			}
 
-			pingCmd := []string{"ping", "-c1", "-W3", targetAddr}
+			pingCmd := []string{"ping", "-c1", "-W3", targetAddr.String()}
 
 			ctr2Name := sanitizeCtrName(t.Name() + "-ctr2")
 			attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -399,8 +399,8 @@ func TestBridgeINCRouted(t *testing.T) {
 		insp := container.Inspect(ctx, t, c, ctrId)
 		return ctrDesc{
 			id:   ctrId,
-			ipv4: insp.NetworkSettings.Networks[netName].IPAddress,
-			ipv6: insp.NetworkSettings.Networks[netName].GlobalIPv6Address,
+			ipv4: insp.NetworkSettings.Networks[netName].IPAddress.String(),
+			ipv6: insp.NetworkSettings.Networks[netName].GlobalIPv6Address.String(),
 		}
 	}
 
@@ -588,11 +588,11 @@ func TestAccessToPublishedPort(t *testing.T) {
 			assert.NilError(t, err)
 			for _, ipamCfg := range insp.IPAM.Config {
 				ipv := "ipv4"
-				if strings.Contains(ipamCfg.Gateway, ":") {
+				if ipamCfg.Gateway.Is6() {
 					ipv = "ipv6"
 				}
 				t.Run(ipv, func(t *testing.T) {
-					url := "http://" + net.JoinHostPort(ipamCfg.Gateway, "8080")
+					url := "http://" + net.JoinHostPort(ipamCfg.Gateway.String(), "8080")
 					res := container.RunAttach(ctx, t, c,
 						container.WithNetworkMode(clientNetName),
 						container.WithCmd("wget", "-O-", "-T3", url),
@@ -731,10 +731,10 @@ func TestInterNetworkDirectRouting(t *testing.T) {
 				}
 			}
 			t.Run("w", func(t *testing.T) { // Wait for the parallel tests to complete.
-				t.Run("ipv4/pub", checkHTTP(pub4, tc.expPubResp))
-				t.Run("ipv6/pub", checkHTTP(pub6, tc.expPubResp))
-				t.Run("ipv4/unpub", checkHTTP(unpub4, tc.expUnpubResp))
-				t.Run("ipv6/unpub", checkHTTP(unpub6, tc.expUnpubResp))
+				t.Run("ipv4/pub", checkHTTP(pub4.String(), tc.expPubResp))
+				t.Run("ipv6/pub", checkHTTP(pub6.String(), tc.expPubResp))
+				t.Run("ipv4/unpub", checkHTTP(unpub4.String(), tc.expUnpubResp))
+				t.Run("ipv6/unpub", checkHTTP(unpub6.String(), tc.expUnpubResp))
 			})
 		})
 	}
@@ -795,7 +795,7 @@ func TestDefaultBridgeIPv6(t *testing.T) {
 			defer cancel()
 			res := container.RunAttach(attachCtx, t, c,
 				container.WithImage("busybox:latest"),
-				container.WithCmd("ping", "-c1", "-W3", gIPv6),
+				container.WithCmd("ping", "-c1", "-W3", gIPv6.String()),
 			)
 			defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{
 				Force: true,
@@ -1349,7 +1349,7 @@ func TestContainerDisabledIPv6(t *testing.T) {
 	defer c.ContainerRemove(ctx, ctrWith6, client.ContainerRemoveOptions{Force: true})
 	inspect := container.Inspect(ctx, t, c, ctrWith6)
 	addr := inspect.NetworkSettings.Networks[netName].GlobalIPv6Address
-	assert.Check(t, is.Contains(addr, "fd64:40cd:7fb4:8971"))
+	assert.Check(t, is.Contains(addr, netip.MustParseAddr("fd64:40cd:7fb4:8971")))
 
 	// Run a container with IPv6 disabled.
 	const ctrNo6Name = "ctrNo6"
@@ -1361,7 +1361,7 @@ func TestContainerDisabledIPv6(t *testing.T) {
 	defer c.ContainerRemove(ctx, ctrNo6, client.ContainerRemoveOptions{Force: true})
 	inspect = container.Inspect(ctx, t, c, ctrNo6)
 	addr = inspect.NetworkSettings.Networks[netName].GlobalIPv6Address
-	assert.Check(t, is.Equal(addr, ""))
+	assert.Check(t, !addr.IsValid())
 
 	execCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -1498,7 +1498,7 @@ func checkProxies(ctx context.Context, t *testing.T, c *client.Client, daemonPid
 		if e.ctrIPv4 {
 			ctrIP = nw.IPAddress
 		}
-		wantProxies = append(wantProxies, makeExpStr(e.proto, e.hostIP, e.hostPort, ctrIP, e.ctrPort))
+		wantProxies = append(wantProxies, makeExpStr(e.proto, e.hostIP, e.hostPort, ctrIP.String(), e.ctrPort))
 	}
 
 	gotProxies := make([]string, 0, len(exp))
@@ -1824,8 +1824,7 @@ func TestNetworkInspectGateway(t *testing.T) {
 	insp, err := c.NetworkInspect(ctx, nid, client.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	for _, ipamCfg := range insp.IPAM.Config {
-		_, err := netip.ParseAddr(ipamCfg.Gateway)
-		assert.Check(t, err)
+		assert.Check(t, ipamCfg.Gateway.IsValid())
 	}
 }
 

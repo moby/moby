@@ -98,7 +98,7 @@ func TestHostIPv4BridgeLabel(t *testing.T) {
 			out.IPAM.Config[0].Subnet, ipv4SNATAddr)
 		assert.Check(t, is.Contains(chain, exp))
 	} else {
-		testutil.RunCommand(ctx, "iptables", "-t", "nat", "-C", "POSTROUTING", "-s", out.IPAM.Config[0].Subnet, "!", "-o", bridgeName, "-j", "SNAT", "--to-source", ipv4SNATAddr).Assert(t, icmd.Success)
+		testutil.RunCommand(ctx, "iptables", "-t", "nat", "-C", "POSTROUTING", "-s", out.IPAM.Config[0].Subnet.String(), "!", "-o", bridgeName, "-j", "SNAT", "--to-source", ipv4SNATAddr).Assert(t, icmd.Success)
 	}
 }
 

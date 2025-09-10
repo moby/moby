@@ -108,7 +108,7 @@ func (c *IpamConf) Validate() error {
 }
 
 // Contains checks whether the ipam master address pool contains [addr].
-func (c *IpamConf) Contains(addr net.IP) bool {
+func (c *IpamConf) Contains(addr netip.Addr) bool {
 	if c == nil {
 		return false
 	}
@@ -116,7 +116,7 @@ func (c *IpamConf) Contains(addr net.IP) bool {
 		return false
 	}
 
-	_, allowedRange, _ := net.ParseCIDR(c.PreferredPool)
+	allowedRange, _ := netip.ParsePrefix(c.PreferredPool)
 
 	return allowedRange.Contains(addr)
 }
@@ -124,6 +124,29 @@ func (c *IpamConf) Contains(addr net.IP) bool {
 // IsStatic checks whether the subnet was statically allocated (ie. user-defined).
 func (c *IpamConf) IsStatic() bool {
 	return c != nil && c.PreferredPool != ""
+}
+
+func (c *IpamConf) IPAMConfig() network.IPAMConfig {
+	var conf network.IPAMConfig
+	if c == nil {
+		return conf
+	}
+	if c.PreferredPool != "" {
+		conf.Subnet, _ = netip.ParsePrefix(c.PreferredPool)
+	}
+	if c.SubPool != "" {
+		conf.IPRange, _ = netip.ParsePrefix(c.SubPool)
+	}
+	if c.Gateway != "" {
+		conf.Gateway, _ = netip.ParseAddr(c.Gateway)
+	}
+	if c.AuxAddresses != nil {
+		conf.AuxAddress = maps.Collect(iterutil.Map2(maps.All(c.AuxAddresses), func(k, v string) (string, netip.Addr) {
+			a, _ := netip.ParseAddr(v)
+			return k, a
+		}))
+	}
+	return conf
 }
 
 // IpamInfo contains all the ipam related operational info for a network

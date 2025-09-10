@@ -1,6 +1,7 @@
 package convert
 
 import (
+	"maps"
 	"net/netip"
 	"strings"
 	"time"
@@ -10,6 +11,8 @@ import (
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
+	"github.com/moby/moby/v2/internal/iterutil"
+	"github.com/moby/moby/v2/internal/netipstringer"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
 
@@ -151,12 +154,15 @@ func BasicNetworkFromGRPC(n swarmapi.Network) network.Network {
 		}
 		ipam.Config = make([]network.IPAMConfig, 0, len(n.IPAM.Configs))
 		for _, ic := range n.IPAM.Configs {
-			ipam.Config = append(ipam.Config, network.IPAMConfig{
-				Subnet:     ic.Subnet,
-				IPRange:    ic.Range,
-				Gateway:    ic.Gateway,
-				AuxAddress: ic.Reserved,
-			})
+			var cfg network.IPAMConfig
+			cfg.Subnet, _ = netip.ParsePrefix(ic.Subnet)
+			cfg.IPRange, _ = netip.ParsePrefix(ic.Range)
+			cfg.Gateway, _ = netip.ParseAddr(ic.Gateway)
+			cfg.AuxAddress = maps.Collect(iterutil.Map2(maps.All(ic.Reserved), func(k, v string) (string, netip.Addr) {
+				addr, _ := netip.ParseAddr(v)
+				return k, addr
+			}))
+			ipam.Config = append(ipam.Config, cfg)
 		}
 	}
 
@@ -220,9 +226,9 @@ func BasicNetworkCreateToGRPC(create network.CreateRequest) swarmapi.NetworkSpec
 		ipamSpec := make([]*swarmapi.IPAMConfig, 0, len(create.IPAM.Config))
 		for _, ipamConfig := range create.IPAM.Config {
 			ipamSpec = append(ipamSpec, &swarmapi.IPAMConfig{
-				Subnet:  ipamConfig.Subnet,
-				Range:   ipamConfig.IPRange,
-				Gateway: ipamConfig.Gateway,
+				Subnet:  netipstringer.Prefix(ipamConfig.Subnet),
+				Range:   netipstringer.Prefix(ipamConfig.IPRange),
+				Gateway: netipstringer.Addr(ipamConfig.Gateway),
 			})
 		}
 		ns.IPAM.Configs = ipamSpec
