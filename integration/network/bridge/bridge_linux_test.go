@@ -1075,7 +1075,8 @@ func TestBridgeIPAMStatus(t *testing.T) {
 	c := d.NewClientT(t, client.WithVersion("1.52"))
 
 	checkSubnets := func(
-		netName string, want networktypes.SubnetStatuses) bool {
+		netName string, want networktypes.SubnetStatuses,
+	) bool {
 		t.Helper()
 		nw, err := c.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
 		if assert.Check(t, err) && assert.Check(t, nw.Status != nil) {
@@ -1114,7 +1115,8 @@ func TestBridgeIPAMStatus(t *testing.T) {
 				AuxAddress: map[string]string{
 					"reserved":   auxIPv4FromRange,
 					"reserved_1": auxIPv4OutOfRange,
-				}}),
+				},
+			}),
 			network.WithIPv6(),
 			network.WithIPAMConfig(networktypes.IPAMConfig{
 				Subnet:  cidrv6.String(),
