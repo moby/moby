@@ -100,7 +100,7 @@ func (sb *Sandbox) clearDefaultGW() error {
 	if ep = sb.getEndpointInGWNetwork(); ep == nil {
 		return nil
 	}
-	if err := ep.sbLeave(context.TODO(), sb, false); err != nil {
+	if err := ep.sbLeave(context.TODO(), sb, ep.getNetwork(), false); err != nil {
 		return fmt.Errorf("container %s: endpoint leaving GW Network failed: %v", sb.containerID, err)
 	}
 	if err := ep.Delete(context.TODO(), false); err != nil {

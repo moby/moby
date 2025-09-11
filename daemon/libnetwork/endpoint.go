@@ -753,20 +753,20 @@ func (ep *Endpoint) Leave(ctx context.Context, sb *Sandbox) error {
 	sb.joinLeaveMu.Lock()
 	defer sb.joinLeaveMu.Unlock()
 
-	return ep.sbLeave(ctx, sb, false)
-}
-
-func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error {
 	n, err := ep.getNetworkFromStore()
 	if err != nil {
 		return fmt.Errorf("failed to get network from store during leave: %v", err)
 	}
 
-	ep, err = n.getEndpointFromStore(ep.ID())
+	storedEp, err := n.getEndpointFromStore(ep.ID())
 	if err != nil {
 		return fmt.Errorf("failed to get endpoint from store during leave: %v", err)
 	}
 
+	return storedEp.sbLeave(ctx, sb, n, false)
+}
+
+func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force bool) error {
 	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
 		"nid": n.ID(),
 		"net": n.Name(),
@@ -920,7 +920,7 @@ func (ep *Endpoint) Delete(ctx context.Context, force bool) error {
 	}
 
 	if sb != nil {
-		if e := ep.sbLeave(context.WithoutCancel(ctx), sb, force); e != nil {
+		if e := ep.sbLeave(context.WithoutCancel(ctx), sb, n, force); e != nil {
 			log.G(ctx).Warnf("failed to leave sandbox for endpoint %s : %v", name, e)
 		}
 	}
