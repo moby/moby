@@ -10176,7 +10176,8 @@ paths:
 
       operationId: "SystemEvents"
       produces:
-        - "application/json"
+        - "application/x-ndjson"
+        - "application/json-seq"
       responses:
         200:
           description: "no error"
