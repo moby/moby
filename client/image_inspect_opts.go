@@ -17,18 +17,6 @@ func (f imageInspectOptionFunc) applyImageInspectOption(ctx context.Context, o *
 	return f(o)
 }
 
-// WithPlatform selects the specific platform of a multi-platform image.  This
-// effectively causes the operation to work on a single-platform image manifest
-// dereferenced from the original OCI index using the provided platform.
-//
-// Minimum API version: 1.49
-func WithInspectPlatform(platform ocispec.Platform) ImageInspectOption {
-	return imageInspectOptionFunc(func(opts *imageInspectOpts) error {
-		opts.apiOptions.Platform = &platform
-		return nil
-	})
-}
-
 // WithRawResponse instructs the client to additionally store the
 // raw inspect response in the provided buffer.
 func WithRawResponse(raw *bytes.Buffer) ImageInspectOption {

@@ -94,7 +94,7 @@ func TestAPIImageHistoryCrossPlatform(t *testing.T) {
 		{
 			name:     "with explicit platform",
 			imageRef: imgID,
-			options:  []client.ImageHistoryOption{client.WithHistoryPlatform(nonNativePlatform)},
+			options:  []client.ImageHistoryOption{client.WithPlatform(nonNativePlatform)},
 		},
 		{
 			name:     "using image reference",

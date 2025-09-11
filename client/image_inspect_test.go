@@ -108,7 +108,7 @@ func TestImageInspectWithPlatform(t *testing.T) {
 
 	var opts []ImageInspectOption
 	if requestedPlatform != nil {
-		opts = append(opts, WithInspectPlatform(*requestedPlatform))
+		opts = append(opts, WithPlatform(*requestedPlatform))
 	}
 
 	imageInspect, err := client.ImageInspect(context.Background(), "image_id", opts...)
