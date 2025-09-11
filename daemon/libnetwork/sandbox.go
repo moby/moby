@@ -36,27 +36,34 @@ func (sb *Sandbox) processOptions(options ...SandboxOption) {
 // Sandbox provides the control over the network container entity.
 // It is a one to one mapping with the container.
 type Sandbox struct {
-	id                 string
-	containerID        string
-	config             containerConfig
-	extDNS             []extDNSEntry
-	osSbox             *osl.Namespace
-	controller         *Controller
-	resolver           *Resolver
-	resolverOnce       sync.Once
+	id              string
+	containerID     string
+	config          containerConfig
+	extDNS          []extDNSEntry
+	osSbox          *osl.Namespace
+	controller      *Controller
+	resolver        *Resolver
+	resolverOnce    sync.Once
+	dbIndex         uint64
+	dbExists        bool
+	isStub          bool
+	inDelete        bool
+	ingress         bool
+	ndotsSet        bool
+	oslTypes        []osl.SandboxType // slice of properties of this sandbox
+	loadBalancerNID string            // NID that this SB is a load balancer for
+	mu              sync.Mutex
+
+	// joinLeaveMu is required as well as mu to modify the following fields,
+	// acquire joinLeaveMu first, and keep it at-least until gateway changes
+	// have been applied following updates to endpoints.
+	//
+	// mu is required to access these fields.
+	joinLeaveMu        sync.Mutex
 	endpoints          []*Endpoint
 	epPriority         map[string]int
 	populatedEndpoints map[string]struct{}
-	joinLeaveMu        sync.Mutex
-	dbIndex            uint64
-	dbExists           bool
-	isStub             bool
-	inDelete           bool
-	ingress            bool
-	ndotsSet           bool
-	oslTypes           []osl.SandboxType // slice of properties of this sandbox
-	loadBalancerNID    string            // NID that this SB is a load balancer for
-	mu                 sync.Mutex
+
 	// This mutex is used to serialize service related operation for an endpoint
 	// The lock is here because the endpoint is saved into the store so is not unique
 	service sync.Mutex

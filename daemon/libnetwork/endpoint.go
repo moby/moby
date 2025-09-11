@@ -914,15 +914,20 @@ func (ep *Endpoint) Delete(ctx context.Context, force bool) error {
 	sbid := ep.sandboxID
 	ep.mu.Unlock()
 
-	sb, _ := n.getController().SandboxByID(sbid)
-	if sb != nil && !force {
-		return &ActiveContainerError{name: name, id: epid}
-	}
-
-	if sb != nil {
-		if e := ep.sbLeave(context.WithoutCancel(ctx), sb, n, force); e != nil {
-			log.G(ctx).Warnf("failed to leave sandbox for endpoint %s : %v", name, e)
+	if sb, _ := n.getController().SandboxByID(sbid); sb != nil {
+		if !force {
+			return &ActiveContainerError{name: name, id: epid}
 		}
+		func() {
+			// Make sure this Delete isn't racing a Join/Leave/Delete that might also be
+			// updating the Sandbox's selection of gateway endpoints.
+			sb.joinLeaveMu.Lock()
+			defer sb.joinLeaveMu.Unlock()
+
+			if e := ep.sbLeave(context.WithoutCancel(ctx), sb, n, force); e != nil {
+				log.G(ctx).Warnf("failed to leave sandbox for endpoint %s : %v", name, e)
+			}
+		}()
 	}
 
 	if err = n.getController().deleteStoredEndpoint(ep); err != nil {
