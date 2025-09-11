@@ -82,10 +82,3 @@ func (c *lazySource) prepareHash(relPath string, fi os.FileInfo) (string, error)
 	c.sums[relPath] = sum
 	return sum, nil
 }
-
-// Rel is an alias for [filepath.Rel].
-//
-// Deprecated: use [filepath.Rel] instead; this function is no longer used and will be removed in the next release.
-func Rel(basepath string, targpath string) (string, error) {
-	return filepath.Rel(basepath, targpath)
-}
