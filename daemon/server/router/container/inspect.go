@@ -5,7 +5,9 @@ import (
 	"net/http"
 
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/v2/daemon/internal/compat"
 	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/server/backend"
@@ -34,5 +36,24 @@ func (c *containerRouter) getContainersByName(ctx context.Context, w http.Respon
 		ctr.ImageManifestDescriptor = nil
 	}
 
-	return httputils.WriteJSON(w, http.StatusOK, ctr)
+	var bridgeNw network.EndpointSettings
+	if v := ctr.NetworkSettings.Networks["bridge"]; v != nil {
+		bridgeNw = *v
+	}
+
+	var wrapOpts []compat.Option
+	if versions.LessThan(version, "1.52") {
+		wrapOpts = append(wrapOpts, compat.WithExtraFields(map[string]any{
+			"EndpointID":          bridgeNw.EndpointID,
+			"Gateway":             bridgeNw.Gateway,
+			"GlobalIPv6Address":   bridgeNw.GlobalIPv6Address,
+			"GlobalIPv6PrefixLen": bridgeNw.GlobalIPv6PrefixLen,
+			"IPAddress":           bridgeNw.IPAddress,
+			"IPPrefixLen":         bridgeNw.IPPrefixLen,
+			"IPv6Gateway":         bridgeNw.IPv6Gateway,
+			"MacAddress":          bridgeNw.MacAddress,
+		}))
+	}
+
+	return httputils.WriteJSON(w, http.StatusOK, compat.Wrap(ctr, wrapOpts...))
 }
