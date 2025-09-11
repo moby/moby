@@ -31,10 +31,10 @@ var legacyConfigFields = map[string]map[string]any{
 		"Volumes":      nil,
 		"WorkingDir":   "",
 	},
-	// Legacy fields for current API versions (v1.50 and up). These fields
+	// Legacy fields for current API versions (v1.50 and v1.52). These fields
 	// did not have an "omitempty" and were always included in the response,
 	// even if not set; see https://github.com/moby/moby/issues/50134
-	"current": {
+	"v1.50-v1.51": {
 		"Cmd":        nil,
 		"Entrypoint": nil,
 		"Env":        nil,
