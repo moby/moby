@@ -325,22 +325,6 @@ func (sb *Sandbox) addEndpoint(ep *Endpoint) {
 	sb.endpoints = slices.Insert(sb.endpoints, i, ep)
 }
 
-func (sb *Sandbox) removeEndpoint(ep *Endpoint) {
-	sb.mu.Lock()
-	defer sb.mu.Unlock()
-
-	sb.removeEndpointRaw(ep)
-}
-
-func (sb *Sandbox) removeEndpointRaw(ep *Endpoint) {
-	for i, e := range sb.endpoints {
-		if e == ep {
-			sb.endpoints = append(sb.endpoints[:i], sb.endpoints[i+1:]...)
-			return
-		}
-	}
-}
-
 func (sb *Sandbox) GetEndpoint(id string) *Endpoint {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()

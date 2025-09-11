@@ -514,9 +514,12 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	ep.mu.Unlock()
 	defer func() {
 		if retErr != nil {
-			ep.mu.Lock()
-			ep.sandboxID = ""
-			ep.mu.Unlock()
+			if err := ep.sbLeave(ctx, sb, n, true); err != nil {
+				log.G(ctx).WithFields(log.Fields{
+					"error":  err,
+					"retErr": retErr,
+				}).Warn("Failed to remove endpoint after join error")
+			}
 		}
 	}()
 
@@ -561,11 +564,6 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	gwepBefore4, gwepBefore6 := sb.getGatewayEndpoint()
 
 	sb.addEndpoint(ep)
-	defer func() {
-		if retErr != nil {
-			sb.removeEndpoint(ep)
-		}
-	}()
 
 	if err := sb.populateNetworkResources(ctx, ep); err != nil {
 		return err
