@@ -40,6 +40,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   `GlobalIPv6Address`, `GlobalIPv6PrefixLen`, `IPAddress`, `IPPrefixLen`,
   `IPv6Gateway`, and `MacAddress` fields. These fields were deprecated in
   API v1.21 (docker v1.9.0) but kept around for backward compatibility.
+* `GET /events` now reports `Content-Type: application/x-ndjson` as it produces a
+  Newline delimited JSON object stream.
 
 ## v1.51 API changes
 
