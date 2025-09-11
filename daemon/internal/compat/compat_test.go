@@ -1,7 +1,9 @@
 package compat_test
 
 import (
+	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/internal/compat"
@@ -101,5 +103,45 @@ func TestNestedCompat(t *testing.T) {
 	const expected = `{"name":"daemon","nested":{"field1":"ok","field2":42,"legacy_field":"hello"},"newfield":"new field","version":"v2.0"}`
 	if string(data) != expected {
 		t.Errorf("\nExpected: %s\nGot:      %s", expected, string(data))
+	}
+}
+
+func TestCompatDoesntEscapeHTML(t *testing.T) {
+	info := &Info{
+		Name: "foobar & daemon",
+	}
+
+	testcases := []struct {
+		name     string
+		options  []compat.Option
+		expected string
+	}{
+		{
+			name:     "no options",
+			expected: `{"name":"foobar & daemon","version":"","newfield":""}`,
+		},
+		{
+			name:     "with extra fields",
+			options:  []compat.Option{compat.WithExtraFields(map[string]any{"legacy_field": "<hello>"})},
+			expected: `{"legacy_field":"<hello>","name":"foobar & daemon","newfield":"","version":""}`,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			enc := json.NewEncoder(&buf)
+			enc.SetEscapeHTML(false)
+			err := enc.Encode(compat.Wrap(info, tc.options...))
+			if err != nil {
+				t.Fatalf("Marshal failed: %v", err)
+			}
+
+			// json.Encoder.Encode adds a LF char at the end, trim it for comparison.
+			// See https://pkg.go.dev/encoding/json#Encoder.Encode.
+			if strings.TrimSpace(buf.String()) != tc.expected {
+				t.Errorf("\nExpected: %s\nGot:      %s", tc.expected, buf.String())
+			}
+		})
 	}
 }

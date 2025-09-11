@@ -1,7 +1,10 @@
 // Package compat provides tools for backward-compatible API responses.
 package compat
 
-import "encoding/json"
+import (
+	"bytes"
+	"encoding/json"
+)
 
 // Wrapper augments a struct to add or omit fields for legacy JSON responses.
 type Wrapper struct {
@@ -13,7 +16,7 @@ type Wrapper struct {
 
 // MarshalJSON merges the JSON with extra fields or omits fields.
 func (w *Wrapper) MarshalJSON() ([]byte, error) {
-	base, err := json.Marshal(w.Base)
+	base, err := toJSON(w.Base)
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +36,18 @@ func (w *Wrapper) MarshalJSON() ([]byte, error) {
 		merged[key] = val
 	}
 
-	return json.Marshal(merged)
+	return toJSON(merged)
+}
+
+func toJSON(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	out, _ := bytes.CutSuffix(buf.Bytes(), []byte{'\n'})
+	return out, nil
 }
 
 type options struct {
