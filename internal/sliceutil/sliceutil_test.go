@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/internal/sliceutil"
+	"github.com/moby/moby/v2/internal/sliceutil"
 )
 
 func TestMap(t *testing.T) {

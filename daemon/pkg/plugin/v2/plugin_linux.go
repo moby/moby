@@ -8,8 +8,8 @@ import (
 
 	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/v2/daemon/internal/rootless/mountopts"
-	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/pkg/oci"
+	"github.com/moby/moby/v2/internal/sliceutil"
 	"github.com/moby/sys/userns"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
