@@ -2,48 +2,50 @@ package client
 
 import (
 	"bytes"
+	"context"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImageInspectOption is a type representing functional options for the image inspect operation.
 type ImageInspectOption interface {
-	Apply(*imageInspectOpts) error
+	applyImageInspectOption(ctx context.Context, opts *imageInspectOpts) error
 }
 type imageInspectOptionFunc func(opt *imageInspectOpts) error
 
-func (f imageInspectOptionFunc) Apply(o *imageInspectOpts) error {
+func (f imageInspectOptionFunc) applyImageInspectOption(ctx context.Context, o *imageInspectOpts) error {
 	return f(o)
 }
 
-// ImageInspectWithRawResponse instructs the client to additionally store the
+// WithPlatform selects the specific platform of a multi-platform image.  This
+// effectively causes the operation to work on a single-platform image manifest
+// dereferenced from the original OCI index using the provided platform.
+//
+// Minimum API version: 1.49
+func WithInspectPlatform(platform ocispec.Platform) ImageInspectOption {
+	return imageInspectOptionFunc(func(opts *imageInspectOpts) error {
+		opts.apiOptions.Platform = &platform
+		return nil
+	})
+}
+
+// WithRawResponse instructs the client to additionally store the
 // raw inspect response in the provided buffer.
-func ImageInspectWithRawResponse(raw *bytes.Buffer) ImageInspectOption {
+func WithRawResponse(raw *bytes.Buffer) ImageInspectOption {
 	return imageInspectOptionFunc(func(opts *imageInspectOpts) error {
 		opts.raw = raw
 		return nil
 	})
 }
 
-// ImageInspectWithManifests sets manifests API option for the image inspect operation.
+// WithImageManifests sets manifests API option for the image inspect operation.
 // This option is only available for API version 1.48 and up.
 // With this option set, the image inspect operation response includes
 // the [image.InspectResponse.Manifests] field if the server is multi-platform
 // capable.
-func ImageInspectWithManifests(manifests bool) ImageInspectOption {
+func WithImageManifests(manifests bool) ImageInspectOption {
 	return imageInspectOptionFunc(func(clientOpts *imageInspectOpts) error {
 		clientOpts.apiOptions.Manifests = manifests
-		return nil
-	})
-}
-
-// ImageInspectWithPlatform sets platform API option for the image inspect operation.
-// This option is only available for API version 1.49 and up.
-// With this option set, the image inspect operation returns information for the
-// specified platform variant of the multi-platform image.
-func ImageInspectWithPlatform(platform *ocispec.Platform) ImageInspectOption {
-	return imageInspectOptionFunc(func(clientOpts *imageInspectOpts) error {
-		clientOpts.apiOptions.Platform = platform
 		return nil
 	})
 }
