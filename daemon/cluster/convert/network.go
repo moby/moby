@@ -12,9 +12,9 @@ import (
 	"github.com/moby/moby/v2/daemon/cluster/convert/netextra"
 	"github.com/moby/moby/v2/daemon/internal/netipstringer"
 	"github.com/moby/moby/v2/daemon/internal/netiputil"
-	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/internal/iterutil"
+	"github.com/moby/moby/v2/internal/sliceutil"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
 
