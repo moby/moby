@@ -13,18 +13,12 @@ import (
 // Settings stores configuration details about the daemon network config
 // TODO Windows. Many of these fields can be factored out.,
 type Settings struct {
-	Bridge                 string
-	SandboxID              string
-	SandboxKey             string
-	HairpinMode            bool
-	LinkLocalIPv6Address   string
-	LinkLocalIPv6PrefixLen int
-	Networks               map[string]*EndpointSettings
-	Service                *clustertypes.ServiceConfig
-	Ports                  container.PortMap
-	SecondaryIPAddresses   []networktypes.Address
-	SecondaryIPv6Addresses []networktypes.Address
-	HasSwarmEndpoint       bool
+	SandboxID        string
+	SandboxKey       string
+	Networks         map[string]*EndpointSettings
+	Service          *clustertypes.ServiceConfig
+	Ports            container.PortMap
+	HasSwarmEndpoint bool
 }
 
 // EndpointSettings is a package local wrapper for

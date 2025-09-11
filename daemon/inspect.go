@@ -12,7 +12,6 @@ import (
 	"github.com/moby/moby/api/types/storage"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
-	"github.com/moby/moby/v2/daemon/network"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
 )
@@ -49,19 +48,10 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options
 	}
 
 	networkSettings := &containertypes.NetworkSettings{
-		NetworkSettingsBase: containertypes.NetworkSettingsBase{ //nolint:staticcheck // ignore SA1019: NetworkSettingsBase is deprecated in v28.4.
-			Bridge:                 ctr.NetworkSettings.Bridge,
-			SandboxID:              ctr.NetworkSettings.SandboxID,
-			SandboxKey:             ctr.NetworkSettings.SandboxKey,
-			Ports:                  ports,
-			HairpinMode:            ctr.NetworkSettings.HairpinMode,
-			LinkLocalIPv6Address:   ctr.NetworkSettings.LinkLocalIPv6Address,
-			LinkLocalIPv6PrefixLen: ctr.NetworkSettings.LinkLocalIPv6PrefixLen,
-			SecondaryIPAddresses:   ctr.NetworkSettings.SecondaryIPAddresses,
-			SecondaryIPv6Addresses: ctr.NetworkSettings.SecondaryIPv6Addresses,
-		},
-		DefaultNetworkSettings: getDefaultNetworkSettings(ctr.NetworkSettings.Networks),
-		Networks:               apiNetworks,
+		SandboxID:  ctr.NetworkSettings.SandboxID,
+		SandboxKey: ctr.NetworkSettings.SandboxKey,
+		Ports:      ports,
+		Networks:   apiNetworks,
 	}
 
 	mountPoints := ctr.GetMountPoints()
@@ -238,24 +228,4 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, err
 		DetachKeys:  e.DetachKeys,
 		Pid:         pid,
 	}, nil
-}
-
-// getDefaultNetworkSettings creates the deprecated structure that holds the information
-// about the bridge network for a container.
-func getDefaultNetworkSettings(networks map[string]*network.EndpointSettings) containertypes.DefaultNetworkSettings { //nolint:staticcheck // ignore SA1019: DefaultNetworkSettings is deprecated in v28.4.
-	nw, ok := networks[networktypes.NetworkBridge]
-	if !ok || nw.EndpointSettings == nil {
-		return containertypes.DefaultNetworkSettings{} //nolint:staticcheck // ignore SA1019: DefaultNetworkSettings is deprecated in v28.4.
-	}
-
-	return containertypes.DefaultNetworkSettings{ //nolint:staticcheck // ignore SA1019: DefaultNetworkSettings is deprecated in v28.4.
-		EndpointID:          nw.EndpointSettings.EndpointID,
-		Gateway:             nw.EndpointSettings.Gateway,
-		GlobalIPv6Address:   nw.EndpointSettings.GlobalIPv6Address,
-		GlobalIPv6PrefixLen: nw.EndpointSettings.GlobalIPv6PrefixLen,
-		IPAddress:           nw.EndpointSettings.IPAddress,
-		IPPrefixLen:         nw.EndpointSettings.IPPrefixLen,
-		IPv6Gateway:         nw.EndpointSettings.IPv6Gateway,
-		MacAddress:          nw.EndpointSettings.MacAddress,
-	}
 }
