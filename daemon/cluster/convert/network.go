@@ -9,10 +9,10 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/network"
 	types "github.com/moby/moby/api/types/swarm"
-	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/internal/iterutil"
 	"github.com/moby/moby/v2/internal/netipstringer"
+	"github.com/moby/moby/v2/internal/sliceutil"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
 
