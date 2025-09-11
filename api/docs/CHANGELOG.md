@@ -26,6 +26,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   a PortBinding with an empty HostIP and HostPort when calling `POST /containers/{id}/start`.
   This behavior is now deprecated, and a warning is returned by `POST /containers/create`.
   The next API version will drop empty `PortBindings` list altogether.
+* `GET /events` now reports `Content-Type: application/x-ndjson` as it produces a
+  Newline delimited JSON object stream.
 
 ## v1.51 API changes
 
