@@ -10,6 +10,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/api/pkg/authconfig"
+	"github.com/moby/moby/api/types"
 	buildtypes "github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
@@ -350,7 +351,11 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	contentType := types.MediaTypeJson
+	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.52") {
+		contentType = types.MediaTypeNDJson
+	}
+	w.Header().Set("Content-Type", contentType)
 	w.WriteHeader(http.StatusOK)
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
