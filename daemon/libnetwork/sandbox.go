@@ -319,14 +319,10 @@ func (sb *Sandbox) addEndpoint(ep *Endpoint) {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
 
-	l := len(sb.endpoints)
-	i := sort.Search(l, func(j int) bool {
+	i := sort.Search(len(sb.endpoints), func(j int) bool {
 		return ep.Less(sb.endpoints[j])
 	})
-
-	sb.endpoints = append(sb.endpoints, nil)
-	copy(sb.endpoints[i+1:], sb.endpoints[i:])
-	sb.endpoints[i] = ep
+	sb.endpoints = slices.Insert(sb.endpoints, i, ep)
 }
 
 func (sb *Sandbox) removeEndpoint(ep *Endpoint) {
@@ -571,62 +567,6 @@ func (sb *Sandbox) DisableService() error {
 	if len(failedEps) > 0 {
 		return fmt.Errorf("failed to disable service on sandbox:%s, for endpoints %s", sb.ID(), strings.Join(failedEps, ","))
 	}
-	return nil
-}
-
-func (sb *Sandbox) clearNetworkResources(origEp *Endpoint) error {
-	ep := sb.GetEndpoint(origEp.id)
-	if ep == nil {
-		return fmt.Errorf("could not find the sandbox endpoint data for endpoint %s",
-			origEp.id)
-	}
-
-	sb.mu.Lock()
-	osSbox := sb.osSbox
-	inDelete := sb.inDelete
-	sb.mu.Unlock()
-	if osSbox != nil {
-		releaseOSSboxResources(osSbox, ep)
-	}
-
-	sb.mu.Lock()
-	delete(sb.populatedEndpoints, ep.ID())
-
-	if len(sb.endpoints) == 0 {
-		// sb.endpoints should never be empty and this is unexpected error condition
-		// We log an error message to note this down for debugging purposes.
-		log.G(context.TODO()).Errorf("No endpoints in sandbox while trying to remove endpoint %s", ep.Name())
-		sb.mu.Unlock()
-		return nil
-	}
-
-	if !slices.Contains(sb.endpoints, ep) {
-		log.G(context.TODO()).Warnf("Endpoint %s has already been deleted", ep.Name())
-		sb.mu.Unlock()
-		return nil
-	}
-
-	gwepBefore4, gwepBefore6 := selectGatewayEndpoint(sb.endpoints)
-	sb.removeEndpointRaw(ep)
-	gwepAfter4, gwepAfter6 := selectGatewayEndpoint(sb.endpoints)
-	delete(sb.epPriority, ep.ID())
-
-	sb.mu.Unlock()
-
-	if (gwepAfter4 != nil && gwepBefore4 != gwepAfter4) || (gwepAfter6 != nil && gwepBefore6 != gwepAfter6) {
-		if err := sb.updateGateway(gwepAfter4, gwepAfter6); err != nil {
-			return fmt.Errorf("updating gateway endpoint: %w", err)
-		}
-	}
-
-	// Only update the store if we did not come here as part of
-	// sandbox delete. If we came here as part of delete then do
-	// not bother updating the store. The sandbox object will be
-	// deleted anyway
-	if !inDelete {
-		return sb.storeUpdate(context.TODO())
-	}
-
 	return nil
 }
 

@@ -820,16 +820,37 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 	// Capture the addresses that were added to the container's /etc/hosts here,
 	// before the endpoint is deleted, so that they can be removed from /etc/hosts.
 	etcHostsAddrs := ep.getEtcHostsAddrs()
+	// Before removing the Endpoint from the Sandbox's list of endpoints, check whether
+	// it's acting as a gateway so that new gateways can be selected if it is.
+	wasGwEp := sb.isGatewayEndpoint(ep.id)
 
-	if err := sb.clearNetworkResources(ep); err != nil {
-		log.G(ctx).WithError(err).Warn("Failed to clean up network resources on container disconnect")
+	// Remove the sb's references to ep.
+	sb.mu.Lock()
+	osSbox := sb.osSbox
+	delete(sb.populatedEndpoints, ep.id)
+	delete(sb.epPriority, ep.id)
+	sb.endpoints = slices.DeleteFunc(sb.endpoints, func(other *Endpoint) bool { return other.id == ep.id })
+	sb.mu.Unlock()
+
+	// Delete interfaces, routes etc. from the OS.
+	if osSbox != nil {
+		releaseOSSboxResources(osSbox, ep)
+
+		// Even if the interface was initially created in the container's namespace, it's
+		// now been moved out. When a legacy link is deleted, the Endpoint is removed and
+		// then re-added to the Sandbox. So, to make sure the re-add works, note that the
+		// interface is now outside the container's netns.
+		ep.iface.createdInContainer = false
 	}
 
-	// Even if the interface was initially created in the container's namespace, it's
-	// now been moved out. When a legacy link is deleted, the Endpoint is removed and
-	// then re-added to the Sandbox. So, to make sure the re-add works, note that the
-	// interface is now outside the container's netns.
-	ep.iface.createdInContainer = false
+	// Update gateway / static routes if the ep was the gateway.
+	var gwepAfter4, gwepAfter6 *Endpoint
+	if wasGwEp {
+		gwepAfter4, gwepAfter6 = sb.getGatewayEndpoint()
+		if err := sb.updateGateway(gwepAfter4, gwepAfter6); err != nil {
+			return fmt.Errorf("updating gateway endpoint: %w", err)
+		}
+	}
 
 	// Update the store about the sandbox detach only after we
 	// have completed sb.clearNetworkResources above to avoid
@@ -869,16 +890,17 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 		sb.resolver.SetForwardingPolicy(sb.hasExternalAccess())
 	}
 
-	// Find new endpoint(s) to provide external connectivity for the sandbox.
-	gwepAfter4, gwepAfter6 := sb.getGatewayEndpoint()
-	if gwepAfter4 != nil {
-		if err := gwepAfter4.programExternalConnectivity(ctx, gwepAfter4, gwepAfter6); err != nil {
-			log.G(ctx).WithError(err).Error("Failed to set IPv4 gateway")
+	// Configure the endpoints that now provide external connectivity for the sandbox.
+	if wasGwEp {
+		if gwepAfter4 != nil {
+			if err := gwepAfter4.programExternalConnectivity(ctx, gwepAfter4, gwepAfter6); err != nil {
+				log.G(ctx).WithError(err).Error("Failed to set IPv4 gateway")
+			}
 		}
-	}
-	if gwepAfter6 != nil && gwepAfter6 != gwepAfter4 {
-		if err := gwepAfter6.programExternalConnectivity(ctx, gwepAfter4, gwepAfter6); err != nil {
-			log.G(ctx).WithError(err).Error("Failed to set IPv6 gateway")
+		if gwepAfter6 != nil && gwepAfter6 != gwepAfter4 {
+			if err := gwepAfter6.programExternalConnectivity(ctx, gwepAfter4, gwepAfter6); err != nil {
+				log.G(ctx).WithError(err).Error("Failed to set IPv6 gateway")
+			}
 		}
 	}
 
