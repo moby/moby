@@ -28,7 +28,7 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 	}
 
 	// If the container is either not running or restarting and requires no stream, return an empty stats.
-	if !config.Stream && (!ctr.IsRunning() || ctr.IsRestarting()) {
+	if !config.Stream && (!ctr.State.IsRunning() || ctr.State.IsRestarting()) {
 		return json.NewEncoder(config.OutStream()).Encode(&containertypes.StatsResponse{
 			Name: ctr.Name,
 			ID:   ctr.ID,
