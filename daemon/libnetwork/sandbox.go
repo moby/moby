@@ -36,27 +36,34 @@ func (sb *Sandbox) processOptions(options ...SandboxOption) {
 // Sandbox provides the control over the network container entity.
 // It is a one to one mapping with the container.
 type Sandbox struct {
-	id                 string
-	containerID        string
-	config             containerConfig
-	extDNS             []extDNSEntry
-	osSbox             *osl.Namespace
-	controller         *Controller
-	resolver           *Resolver
-	resolverOnce       sync.Once
+	id              string
+	containerID     string
+	config          containerConfig
+	extDNS          []extDNSEntry
+	osSbox          *osl.Namespace
+	controller      *Controller
+	resolver        *Resolver
+	resolverOnce    sync.Once
+	dbIndex         uint64
+	dbExists        bool
+	isStub          bool
+	inDelete        bool
+	ingress         bool
+	ndotsSet        bool
+	oslTypes        []osl.SandboxType // slice of properties of this sandbox
+	loadBalancerNID string            // NID that this SB is a load balancer for
+	mu              sync.Mutex
+
+	// joinLeaveMu is required as well as mu to modify the following fields,
+	// acquire joinLeaveMu first, and keep it at-least until gateway changes
+	// have been applied following updates to endpoints.
+	//
+	// mu is required to access these fields.
+	joinLeaveMu        sync.Mutex
 	endpoints          []*Endpoint
 	epPriority         map[string]int
 	populatedEndpoints map[string]struct{}
-	joinLeaveMu        sync.Mutex
-	dbIndex            uint64
-	dbExists           bool
-	isStub             bool
-	inDelete           bool
-	ingress            bool
-	ndotsSet           bool
-	oslTypes           []osl.SandboxType // slice of properties of this sandbox
-	loadBalancerNID    string            // NID that this SB is a load balancer for
-	mu                 sync.Mutex
+
 	// This mutex is used to serialize service related operation for an endpoint
 	// The lock is here because the endpoint is saved into the store so is not unique
 	service sync.Mutex
@@ -312,30 +319,10 @@ func (sb *Sandbox) addEndpoint(ep *Endpoint) {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
 
-	l := len(sb.endpoints)
-	i := sort.Search(l, func(j int) bool {
+	i := sort.Search(len(sb.endpoints), func(j int) bool {
 		return ep.Less(sb.endpoints[j])
 	})
-
-	sb.endpoints = append(sb.endpoints, nil)
-	copy(sb.endpoints[i+1:], sb.endpoints[i:])
-	sb.endpoints[i] = ep
-}
-
-func (sb *Sandbox) removeEndpoint(ep *Endpoint) {
-	sb.mu.Lock()
-	defer sb.mu.Unlock()
-
-	sb.removeEndpointRaw(ep)
-}
-
-func (sb *Sandbox) removeEndpointRaw(ep *Endpoint) {
-	for i, e := range sb.endpoints {
-		if e == ep {
-			sb.endpoints = append(sb.endpoints[:i], sb.endpoints[i+1:]...)
-			return
-		}
-	}
+	sb.endpoints = slices.Insert(sb.endpoints, i, ep)
 }
 
 func (sb *Sandbox) GetEndpoint(id string) *Endpoint {
@@ -564,62 +551,6 @@ func (sb *Sandbox) DisableService() error {
 	if len(failedEps) > 0 {
 		return fmt.Errorf("failed to disable service on sandbox:%s, for endpoints %s", sb.ID(), strings.Join(failedEps, ","))
 	}
-	return nil
-}
-
-func (sb *Sandbox) clearNetworkResources(origEp *Endpoint) error {
-	ep := sb.GetEndpoint(origEp.id)
-	if ep == nil {
-		return fmt.Errorf("could not find the sandbox endpoint data for endpoint %s",
-			origEp.id)
-	}
-
-	sb.mu.Lock()
-	osSbox := sb.osSbox
-	inDelete := sb.inDelete
-	sb.mu.Unlock()
-	if osSbox != nil {
-		releaseOSSboxResources(osSbox, ep)
-	}
-
-	sb.mu.Lock()
-	delete(sb.populatedEndpoints, ep.ID())
-
-	if len(sb.endpoints) == 0 {
-		// sb.endpoints should never be empty and this is unexpected error condition
-		// We log an error message to note this down for debugging purposes.
-		log.G(context.TODO()).Errorf("No endpoints in sandbox while trying to remove endpoint %s", ep.Name())
-		sb.mu.Unlock()
-		return nil
-	}
-
-	if !slices.Contains(sb.endpoints, ep) {
-		log.G(context.TODO()).Warnf("Endpoint %s has already been deleted", ep.Name())
-		sb.mu.Unlock()
-		return nil
-	}
-
-	gwepBefore4, gwepBefore6 := selectGatewayEndpoint(sb.endpoints)
-	sb.removeEndpointRaw(ep)
-	gwepAfter4, gwepAfter6 := selectGatewayEndpoint(sb.endpoints)
-	delete(sb.epPriority, ep.ID())
-
-	sb.mu.Unlock()
-
-	if (gwepAfter4 != nil && gwepBefore4 != gwepAfter4) || (gwepAfter6 != nil && gwepBefore6 != gwepAfter6) {
-		if err := sb.updateGateway(gwepAfter4, gwepAfter6); err != nil {
-			return fmt.Errorf("updating gateway endpoint: %w", err)
-		}
-	}
-
-	// Only update the store if we did not come here as part of
-	// sandbox delete. If we came here as part of delete then do
-	// not bother updating the store. The sandbox object will be
-	// deleted anyway
-	if !inDelete {
-		return sb.storeUpdate(context.TODO())
-	}
-
 	return nil
 }
 

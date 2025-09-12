@@ -514,9 +514,12 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	ep.mu.Unlock()
 	defer func() {
 		if retErr != nil {
-			ep.mu.Lock()
-			ep.sandboxID = ""
-			ep.mu.Unlock()
+			if err := ep.sbLeave(ctx, sb, n, true); err != nil {
+				log.G(ctx).WithFields(log.Fields{
+					"error":  err,
+					"retErr": retErr,
+				}).Warn("Failed to remove endpoint after join error")
+			}
 		}
 	}()
 
@@ -561,11 +564,6 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	gwepBefore4, gwepBefore6 := sb.getGatewayEndpoint()
 
 	sb.addEndpoint(ep)
-	defer func() {
-		if retErr != nil {
-			sb.removeEndpoint(ep)
-		}
-	}()
 
 	if err := sb.populateNetworkResources(ctx, ep); err != nil {
 		return err
@@ -753,20 +751,20 @@ func (ep *Endpoint) Leave(ctx context.Context, sb *Sandbox) error {
 	sb.joinLeaveMu.Lock()
 	defer sb.joinLeaveMu.Unlock()
 
-	return ep.sbLeave(ctx, sb, false)
-}
-
-func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error {
 	n, err := ep.getNetworkFromStore()
 	if err != nil {
 		return fmt.Errorf("failed to get network from store during leave: %v", err)
 	}
 
-	ep, err = n.getEndpointFromStore(ep.ID())
+	storedEp, err := n.getEndpointFromStore(ep.ID())
 	if err != nil {
 		return fmt.Errorf("failed to get endpoint from store during leave: %v", err)
 	}
 
+	return storedEp.sbLeave(ctx, sb, n, false)
+}
+
+func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force bool) error {
 	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
 		"nid": n.ID(),
 		"net": n.Name(),
@@ -820,16 +818,37 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 	// Capture the addresses that were added to the container's /etc/hosts here,
 	// before the endpoint is deleted, so that they can be removed from /etc/hosts.
 	etcHostsAddrs := ep.getEtcHostsAddrs()
+	// Before removing the Endpoint from the Sandbox's list of endpoints, check whether
+	// it's acting as a gateway so that new gateways can be selected if it is.
+	wasGwEp := sb.isGatewayEndpoint(ep.id)
 
-	if err := sb.clearNetworkResources(ep); err != nil {
-		log.G(ctx).WithError(err).Warn("Failed to clean up network resources on container disconnect")
+	// Remove the sb's references to ep.
+	sb.mu.Lock()
+	osSbox := sb.osSbox
+	delete(sb.populatedEndpoints, ep.id)
+	delete(sb.epPriority, ep.id)
+	sb.endpoints = slices.DeleteFunc(sb.endpoints, func(other *Endpoint) bool { return other.id == ep.id })
+	sb.mu.Unlock()
+
+	// Delete interfaces, routes etc. from the OS.
+	if osSbox != nil {
+		releaseOSSboxResources(osSbox, ep)
+
+		// Even if the interface was initially created in the container's namespace, it's
+		// now been moved out. When a legacy link is deleted, the Endpoint is removed and
+		// then re-added to the Sandbox. So, to make sure the re-add works, note that the
+		// interface is now outside the container's netns.
+		ep.iface.createdInContainer = false
 	}
 
-	// Even if the interface was initially created in the container's namespace, it's
-	// now been moved out. When a legacy link is deleted, the Endpoint is removed and
-	// then re-added to the Sandbox. So, to make sure the re-add works, note that the
-	// interface is now outside the container's netns.
-	ep.iface.createdInContainer = false
+	// Update gateway / static routes if the ep was the gateway.
+	var gwepAfter4, gwepAfter6 *Endpoint
+	if wasGwEp {
+		gwepAfter4, gwepAfter6 = sb.getGatewayEndpoint()
+		if err := sb.updateGateway(gwepAfter4, gwepAfter6); err != nil {
+			return fmt.Errorf("updating gateway endpoint: %w", err)
+		}
+	}
 
 	// Update the store about the sandbox detach only after we
 	// have completed sb.clearNetworkResources above to avoid
@@ -869,16 +888,17 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, force bool) error 
 		sb.resolver.SetForwardingPolicy(sb.hasExternalAccess())
 	}
 
-	// Find new endpoint(s) to provide external connectivity for the sandbox.
-	gwepAfter4, gwepAfter6 := sb.getGatewayEndpoint()
-	if gwepAfter4 != nil {
-		if err := gwepAfter4.programExternalConnectivity(ctx, gwepAfter4, gwepAfter6); err != nil {
-			log.G(ctx).WithError(err).Error("Failed to set IPv4 gateway")
+	// Configure the endpoints that now provide external connectivity for the sandbox.
+	if wasGwEp {
+		if gwepAfter4 != nil {
+			if err := gwepAfter4.programExternalConnectivity(ctx, gwepAfter4, gwepAfter6); err != nil {
+				log.G(ctx).WithError(err).Error("Failed to set IPv4 gateway")
+			}
 		}
-	}
-	if gwepAfter6 != nil && gwepAfter6 != gwepAfter4 {
-		if err := gwepAfter6.programExternalConnectivity(ctx, gwepAfter4, gwepAfter6); err != nil {
-			log.G(ctx).WithError(err).Error("Failed to set IPv6 gateway")
+		if gwepAfter6 != nil && gwepAfter6 != gwepAfter4 {
+			if err := gwepAfter6.programExternalConnectivity(ctx, gwepAfter4, gwepAfter6); err != nil {
+				log.G(ctx).WithError(err).Error("Failed to set IPv6 gateway")
+			}
 		}
 	}
 
@@ -914,15 +934,20 @@ func (ep *Endpoint) Delete(ctx context.Context, force bool) error {
 	sbid := ep.sandboxID
 	ep.mu.Unlock()
 
-	sb, _ := n.getController().SandboxByID(sbid)
-	if sb != nil && !force {
-		return &ActiveContainerError{name: name, id: epid}
-	}
-
-	if sb != nil {
-		if e := ep.sbLeave(context.WithoutCancel(ctx), sb, force); e != nil {
-			log.G(ctx).Warnf("failed to leave sandbox for endpoint %s : %v", name, e)
+	if sb, _ := n.getController().SandboxByID(sbid); sb != nil {
+		if !force {
+			return &ActiveContainerError{name: name, id: epid}
 		}
+		func() {
+			// Make sure this Delete isn't racing a Join/Leave/Delete that might also be
+			// updating the Sandbox's selection of gateway endpoints.
+			sb.joinLeaveMu.Lock()
+			defer sb.joinLeaveMu.Unlock()
+
+			if e := ep.sbLeave(context.WithoutCancel(ctx), sb, n, force); e != nil {
+				log.G(ctx).Warnf("failed to leave sandbox for endpoint %s : %v", name, e)
+			}
+		}()
 	}
 
 	if err = n.getController().deleteStoredEndpoint(ep); err != nil {

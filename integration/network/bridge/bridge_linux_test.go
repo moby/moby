@@ -1075,7 +1075,8 @@ func TestBridgeIPAMStatus(t *testing.T) {
 	c := d.NewClientT(t, client.WithVersion("1.52"))
 
 	checkSubnets := func(
-		netName string, want networktypes.SubnetStatuses) bool {
+		netName string, want networktypes.SubnetStatuses,
+	) bool {
 		t.Helper()
 		nw, err := c.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
 		if assert.Check(t, err) && assert.Check(t, nw.Status != nil) {
@@ -1114,7 +1115,8 @@ func TestBridgeIPAMStatus(t *testing.T) {
 				AuxAddress: map[string]string{
 					"reserved":   auxIPv4FromRange,
 					"reserved_1": auxIPv4OutOfRange,
-				}}),
+				},
+			}),
 			network.WithIPv6(),
 			network.WithIPAMConfig(networktypes.IPAMConfig{
 				Subnet:  cidrv6.String(),
@@ -1215,4 +1217,77 @@ func TestBridgeIPAMStatus(t *testing.T) {
 			},
 		})
 	})
+}
+
+// TestJoinError checks that if network connection fails late in the process, it's
+// rolled back properly - the failed connection should not show up in container
+// or network inspect, and the container should not gain a network interface.
+func TestJoinError(t *testing.T) {
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+
+	const intNet = "intnet"
+	const gwAddr = "192.168.123.1"
+	network.CreateNoError(ctx, t, c, intNet,
+		network.WithInternal(),
+		network.WithIPAM("192.168.123.0/24", gwAddr),
+	)
+	defer network.RemoveNoError(ctx, t, c, intNet)
+
+	const extNet = "extnet"
+	network.CreateNoError(ctx, t, c, extNet)
+	defer network.RemoveNoError(ctx, t, c, extNet)
+
+	cid := ctr.Run(ctx, t, c,
+		ctr.WithNetworkMode(intNet),
+		ctr.WithPrivileged(true),
+	)
+	defer c.ContainerRemove(ctx, cid, client.ContainerRemoveOptions{Force: true})
+
+	// Add a default route to the container, so that connecting extNet will fail to
+	// set up its own default route.
+	res := ctr.ExecT(ctx, t, c, cid, []string{"ip", "route", "add", "default", "via", gwAddr})
+	assert.Equal(t, res.ExitCode, 0)
+
+	// Expect an error when connecting extNet.
+	err := c.NetworkConnect(ctx, extNet, cid, &networktypes.EndpointSettings{})
+	assert.Check(t, is.ErrorContains(err, "failed to set gateway: file exists"))
+
+	// Only intNet should show up in container inspect.
+	ctrInsp := ctr.Inspect(ctx, t, c, cid)
+	assert.Check(t, is.Len(ctrInsp.NetworkSettings.Networks, 1))
+	assert.Check(t, is.Contains(ctrInsp.NetworkSettings.Networks, intNet))
+
+	// extNet should not report any attached containers
+	extNetInsp, err := c.NetworkInspect(ctx, extNet, client.NetworkInspectOptions{})
+	assert.Check(t, err)
+	assert.Check(t, is.Len(extNetInsp.Containers, 0))
+
+	// The container should have an eth0, but no eth1.
+	res = ctr.ExecT(ctx, t, c, cid, []string{"ip", "link", "show", "eth0"})
+	assert.Check(t, is.Equal(res.ExitCode, 0), "container should have an eth0")
+	res = ctr.ExecT(ctx, t, c, cid, []string{"ip", "link", "show", "eth1"})
+	assert.Check(t, is.Contains(res.Stderr(), "can't find device"), "container should not have an eth1")
+
+	// Remove the dodgy route.
+	res = ctr.ExecT(ctx, t, c, cid, []string{"ip", "route", "del", "default", "via", gwAddr})
+	assert.Equal(t, res.ExitCode, 0)
+
+	// Check network connect now succeeds.
+	err = c.NetworkConnect(ctx, extNet, cid, &networktypes.EndpointSettings{})
+	assert.Check(t, err)
+	ctrInsp = ctr.Inspect(ctx, t, c, cid)
+	assert.Check(t, is.Len(ctrInsp.NetworkSettings.Networks, 2))
+	assert.Check(t, is.Contains(ctrInsp.NetworkSettings.Networks, intNet))
+	assert.Check(t, is.Contains(ctrInsp.NetworkSettings.Networks, extNet))
+	extNetInsp, err = c.NetworkInspect(ctx, extNet, client.NetworkInspectOptions{})
+	assert.Check(t, err)
+	assert.Check(t, is.Len(extNetInsp.Containers, 1))
+	res = ctr.ExecT(ctx, t, c, cid, []string{"ip", "link", "show", "eth0"})
+	assert.Check(t, is.Equal(res.ExitCode, 0), "container should have an eth0")
+	res = ctr.ExecT(ctx, t, c, cid, []string{"ip", "link", "show", "eth1"})
+	assert.Check(t, is.Equal(res.ExitCode, 0), "container should have an eth1")
 }

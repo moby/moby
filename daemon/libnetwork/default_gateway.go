@@ -100,7 +100,7 @@ func (sb *Sandbox) clearDefaultGW() error {
 	if ep = sb.getEndpointInGWNetwork(); ep == nil {
 		return nil
 	}
-	if err := ep.sbLeave(context.TODO(), sb, false); err != nil {
+	if err := ep.sbLeave(context.TODO(), sb, ep.getNetwork(), false); err != nil {
 		return fmt.Errorf("container %s: endpoint leaving GW Network failed: %v", sb.containerID, err)
 	}
 	if err := ep.Delete(context.TODO(), false); err != nil {
@@ -176,17 +176,16 @@ func (c *Controller) defaultGwNetwork() (*Network, error) {
 	return n, err
 }
 
+func (sb *Sandbox) isGatewayEndpoint(epId string) bool {
+	gw4, gw6 := sb.getGatewayEndpoint()
+	return (gw4 != nil && epId == gw4.ID()) || (gw6 != nil && epId == gw6.ID())
+}
+
 // getGatewayEndpoint returns the endpoints providing external connectivity to
 // the sandbox. If the gateway is dual-stack, ep4 and ep6 will point at the same
 // endpoint. If there is no IPv4/IPv6 connectivity, nil pointers will be returned.
 func (sb *Sandbox) getGatewayEndpoint() (ep4, ep6 *Endpoint) {
-	return selectGatewayEndpoint(sb.Endpoints())
-}
-
-// selectGatewayEndpoint is like getGatewayEndpoint, but selects only from
-// endpoints.
-func selectGatewayEndpoint(endpoints []*Endpoint) (ep4, ep6 *Endpoint) {
-	for _, ep := range endpoints {
+	for _, ep := range sb.Endpoints() {
 		if ep.getNetwork().Type() == "null" || ep.getNetwork().Type() == "host" {
 			continue
 		}
