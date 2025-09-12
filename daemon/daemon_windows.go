@@ -266,7 +266,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 				ipamDriver, ipamOptions, v4Conf, v6Conf := v.IpamConfig()
 				netOption := map[string]string{}
 				for k, v := range v.DriverOptions() {
-					if k != winlibnetwork.NetworkName && k != winlibnetwork.HNSID {
+					if k != winlibnetwork.HNSID {
 						netOption[k] = v
 					}
 				}
