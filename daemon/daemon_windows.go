@@ -266,7 +266,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 				ipamDriver, ipamOptions, v4Conf, v6Conf := v.IpamConfig()
 				netOption := map[string]string{}
 				for k, v := range v.DriverOptions() {
-					if k != winlibnetwork.NetworkName && k != winlibnetwork.HNSID {
+					if k != winlibnetwork.HNSID {
 						netOption[k] = v
 					}
 				}
@@ -349,7 +349,6 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 			if n.Scope() == scope.Global {
 				continue
 			}
-			v.Name = n.Name()
 			ipamDriver, ipamOptions, _, _ = n.IpamConfig()
 
 			// This will not cause network delete from HNS as the network
@@ -394,6 +393,9 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 		}
 
 		name := v.Name
+		if n != nil {
+			name = n.Name()
+		}
 
 		// If there is no nat network create one from the first NAT network
 		// encountered if it doesn't already exist
