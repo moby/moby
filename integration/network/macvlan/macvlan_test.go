@@ -358,17 +358,10 @@ func testMacvlanMultiSubnet(t *testing.T, ctx context.Context, client client.API
 	)
 	c1, err := client.ContainerInspect(ctx, id1)
 	assert.NilError(t, err)
-	if parent == "" {
-		// Inspect the v4 gateway to ensure no default GW was assigned
-		assert.Check(t, is.Equal(c1.NetworkSettings.Networks["dualstackbridge"].Gateway, ""))
-		// Inspect the v6 gateway to ensure no default GW was assigned
-		assert.Check(t, is.Equal(c1.NetworkSettings.Networks["dualstackbridge"].IPv6Gateway, ""))
-	} else {
-		// Inspect the v4 gateway to ensure the proper default GW was assigned
-		assert.Check(t, is.Equal(c1.NetworkSettings.Networks["dualstackbridge"].Gateway, "172.28.100.1"))
-		// Inspect the v6 gateway to ensure the proper default GW was assigned
-		assert.Check(t, is.Equal(c1.NetworkSettings.Networks["dualstackbridge"].IPv6Gateway, "2001:db8:abc2::1"))
-	}
+	// Inspect the v4 gateway to ensure no default GW was assigned
+	assert.Check(t, is.Equal(c1.NetworkSettings.Networks["dualstackbridge"].Gateway, ""))
+	// Inspect the v6 gateway to ensure no default GW was assigned
+	assert.Check(t, is.Equal(c1.NetworkSettings.Networks["dualstackbridge"].IPv6Gateway, ""))
 
 	// verify ipv4 connectivity to the explicit --ip address second to first
 	_, err = container.Exec(ctx, client, id2, []string{"ping", "-c", "1", c1.NetworkSettings.Networks["dualstackbridge"].IPAddress})
@@ -430,10 +423,11 @@ func testMacvlanAddressing(t *testing.T, ctx context.Context, client client.APIC
 		container.WithNetworkMode("dualstackbridge"),
 	)
 
-	// Validate macvlan bridge mode defaults gateway sets the default IPAM next-hop inferred from the subnet
+	// No gateway address was supplied for IPv4, check that no default gateway was set up.
 	result, err := container.Exec(ctx, client, id1, []string{"ip", "route"})
 	assert.NilError(t, err)
-	assert.Check(t, is.Contains(result.Combined(), "default via 172.28.130.1 dev eth0"))
+	assert.Check(t, !strings.Contains(result.Combined(), "default via"),
+		"result: %s", result.Combined())
 	// Validate macvlan bridge mode sets the v6 gateway to the user specified default gateway/next-hop
 	result, err = container.Exec(ctx, client, id1, []string{"ip", "-6", "route"})
 	assert.NilError(t, err)

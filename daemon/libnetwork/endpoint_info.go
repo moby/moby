@@ -174,6 +174,8 @@ func (epi *EndpointInterface) Copy() *EndpointInterface {
 type endpointJoinInfo struct {
 	gw                    net.IP
 	gw6                   net.IP
+	forceGw4              bool
+	forceGw6              bool
 	StaticRoutes          []*types.StaticRoute
 	driverTableEntries    []*tableEntry
 	disableGatewayService bool
@@ -412,14 +414,26 @@ func (ep *Endpoint) SetGatewayIPv6(gw6 net.IP) error {
 	return nil
 }
 
+func (ep *Endpoint) ForceGw4() {
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
+	ep.joinInfo.forceGw4 = true
+}
+
+func (ep *Endpoint) ForceGw6() {
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
+	ep.joinInfo.forceGw6 = true
+}
+
 // hasGatewayOrDefaultRoute returns true if ep has a gateway, or a route to '0.0.0.0'/'::'.
 func (ep *Endpoint) hasGatewayOrDefaultRoute() (v4, v6 bool) {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
 	if ep.joinInfo != nil {
-		v4 = len(ep.joinInfo.gw) > 0
-		v6 = len(ep.joinInfo.gw6) > 0
+		v4 = len(ep.joinInfo.gw) > 0 || ep.joinInfo.forceGw4
+		v6 = len(ep.joinInfo.gw6) > 0 || ep.joinInfo.forceGw6
 		if !v4 || !v6 {
 			for _, route := range ep.joinInfo.StaticRoutes {
 				if route.Destination.IP.IsUnspecified() && net.IP(route.Destination.Mask).IsUnspecified() {
