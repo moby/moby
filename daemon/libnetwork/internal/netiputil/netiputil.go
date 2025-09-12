@@ -21,6 +21,9 @@ func ToIPNet(p netip.Prefix) *net.IPNet {
 // ToPrefix converts n into a netip.Prefix. If n is not a valid IPv4 or IPV6
 // address, ToPrefix returns netip.Prefix{}, false.
 func ToPrefix(n *net.IPNet) (netip.Prefix, bool) {
+	if n == nil {
+		return netip.Prefix{}, false
+	}
 	if ll := len(n.Mask); ll != net.IPv4len && ll != net.IPv6len {
 		return netip.Prefix{}, false
 	}

@@ -86,8 +86,8 @@ func TestInspectNetwork(t *testing.T) {
 			assert.Assert(t, nw.IPAM.Config != nil)
 
 			for _, cfg := range nw.IPAM.Config {
-				assert.Assert(t, cfg.Gateway != "")
-				assert.Assert(t, cfg.Subnet != "")
+				assert.Assert(t, cfg.Gateway.IsValid())
+				assert.Assert(t, cfg.Subnet.IsValid())
 			}
 		})
 	}

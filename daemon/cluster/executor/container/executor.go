@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"sort"
 	"strings"
 	"sync"
@@ -225,11 +226,10 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 		}
 
 		for _, ic := range ingressNA.Network.IPAM.Configs {
-			c := network.IPAMConfig{
-				Subnet:  ic.Subnet,
-				IPRange: ic.Range,
-				Gateway: ic.Gateway,
-			}
+			var c network.IPAMConfig
+			c.Subnet, _ = netip.ParsePrefix(ic.Subnet)
+			c.IPRange, _ = netip.ParsePrefix(ic.Range)
+			c.Gateway, _ = netip.ParseAddr(ic.Gateway)
 			networkCreateRequest.IPAM.Config = append(networkCreateRequest.IPAM.Config, c)
 		}
 

@@ -14,7 +14,6 @@ import (
 	"testing"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/moby/moby/v2/daemon/libnetwork/drvregistry"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
@@ -24,6 +23,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/portmappers/nat"
 	"github.com/moby/moby/v2/daemon/libnetwork/portmappers/routed"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/internal/sliceutil"
 	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"github.com/moby/moby/v2/internal/testutil/storeutils"
 	"github.com/sirupsen/logrus"

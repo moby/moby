@@ -1,6 +1,9 @@
 package diagnostic
 
-import "fmt"
+import (
+	"fmt"
+	"net/netip"
+)
 
 // StringInterface interface that has to be implemented by messages
 type StringInterface interface {
@@ -88,9 +91,9 @@ func (t *TableObj) String() string {
 
 // PeerEntryObj entry in the networkdb peer table
 type PeerEntryObj struct {
-	Index int    `json:"-"`
-	Name  string `json:"-=name"`
-	IP    string `json:"ip"`
+	Index int        `json:"-"`
+	Name  string     `json:"-=name"`
+	IP    netip.Addr `json:"ip"`
 }
 
 func (p *PeerEntryObj) String() string {

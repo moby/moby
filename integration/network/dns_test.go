@@ -1,11 +1,13 @@
 package network
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/integration/internal/network"
+	"github.com/moby/moby/v2/internal/sliceutil"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"gotest.tools/v3/assert"
@@ -80,7 +82,7 @@ func TestIntDNSAsExtDNS(t *testing.T) {
 
 			res := container.RunAttach(ctx, t, c,
 				container.WithNetworkMode(netName),
-				container.WithDNS(tc.extServers),
+				container.WithDNS(sliceutil.Map(tc.extServers, netip.MustParseAddr)),
 				container.WithCmd("nslookup", "docker.com"),
 			)
 			defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
