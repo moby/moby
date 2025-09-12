@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/netip"
 	"slices"
 	"strings"
 
@@ -66,7 +67,7 @@ type network struct {
 
 	// pools is used to save the internal poolIDs needed when
 	// releasing the pool.
-	pools map[string]string
+	pools map[netip.Prefix]string
 
 	// endpoints is a map of endpoint IP to the poolID from which it
 	// was allocated.
@@ -834,7 +835,7 @@ func (na *cnmNetworkAllocator) resolveIPAM(n *api.Network) (ipamapi.Ipam, string
 	return ipam, dName, dOptions, nil
 }
 
-func (na *cnmNetworkAllocator) freePools(n *api.Network, pools map[string]string) error {
+func (na *cnmNetworkAllocator) freePools(n *api.Network, pools map[netip.Prefix]string) error {
 	ipam, _, _, err := na.resolveIPAM(n)
 	if err != nil {
 		return errors.Wrapf(err, "failed to resolve IPAM while freeing pools for network %s", n.ID)
@@ -844,9 +845,14 @@ func (na *cnmNetworkAllocator) freePools(n *api.Network, pools map[string]string
 	return nil
 }
 
-func releasePools(ipam ipamapi.Ipam, icList []*api.IPAMConfig, pools map[string]string) {
+func releasePools(ipam ipamapi.Ipam, icList []*api.IPAMConfig, pools map[netip.Prefix]string) {
 	for _, ic := range icList {
-		if err := ipam.ReleaseAddress(pools[ic.Subnet], net.ParseIP(ic.Gateway)); err != nil {
+		subnet, err := netip.ParsePrefix(ic.Subnet)
+		if err != nil {
+			log.G(context.TODO()).WithError(err).Errorf("Failed to parse subnet %q when releasing pools", ic.Subnet)
+			continue
+		}
+		if err := ipam.ReleaseAddress(pools[subnet], net.ParseIP(ic.Gateway)); err != nil {
 			log.G(context.TODO()).WithError(err).Errorf("Failed to release address %s", ic.Subnet)
 		}
 	}
@@ -858,7 +864,7 @@ func releasePools(ipam ipamapi.Ipam, icList []*api.IPAMConfig, pools map[string]
 	}
 }
 
-func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[string]string, error) {
+func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[netip.Prefix]string, error) {
 	ipam, dName, dOptions, err := na.resolveIPAM(n)
 	if err != nil {
 		return nil, err
@@ -871,7 +877,7 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[string]string,
 		return nil, err
 	}
 
-	pools := make(map[string]string)
+	pools := make(map[netip.Prefix]string)
 
 	var ipamConfigs []*api.IPAMConfig
 
@@ -908,7 +914,7 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[string]string,
 			releasePools(ipam, ipamConfigs[:i], pools)
 			return nil, err
 		}
-		pools[alloc.Pool.String()] = alloc.PoolID
+		pools[alloc.Pool] = alloc.PoolID
 
 		// The IPAM contract allows the IPAM driver to autonomously
 		// provide a network gateway in response to the pool request.

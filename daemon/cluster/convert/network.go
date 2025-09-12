@@ -7,6 +7,7 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/network"
 	types "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/v2/daemon/cluster/convert/netextra"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
@@ -183,6 +184,17 @@ func BasicNetworkFromGRPC(n swarmapi.Network) network.Network {
 	}
 
 	return nr
+}
+
+func NetworkInspectFromGRPC(n swarmapi.Network) (network.Inspect, error) {
+	ni := network.Inspect{
+		Network:    BasicNetworkFromGRPC(n),
+		Containers: make(map[string]network.EndpointResource),
+	}
+
+	var err error
+	ni.Status, err = netextra.StatusFrom(n.Extra)
+	return ni, err
 }
 
 // BasicNetworkCreateToGRPC converts a NetworkCreateRequest to a grpc NetworkSpec.

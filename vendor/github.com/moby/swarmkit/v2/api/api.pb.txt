@@ -7215,6 +7215,14 @@ file {
       type: TYPE_BOOL
       json_name: "pendingDelete"
     }
+    field {
+      name: "extra"
+      number: 7
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".google.protobuf.Any"
+      json_name: "extra"
+    }
     options {
       70001 {
         1 {
@@ -8296,6 +8304,14 @@ file {
       type: TYPE_STRING
       json_name: "networkId"
     }
+    field {
+      name: "appdata"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".google.protobuf.Any"
+      json_name: "appdata"
+    }
   }
   message_type {
     name: "GetNetworkResponse"
@@ -8337,6 +8353,14 @@ file {
       type: TYPE_MESSAGE
       type_name: ".docker.swarmkit.v1.ListNetworksRequest.Filters"
       json_name: "filters"
+    }
+    field {
+      name: "appdata"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".google.protobuf.Any"
+      json_name: "appdata"
     }
     nested_type {
       name: "Filters"

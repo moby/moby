@@ -148,6 +148,9 @@ func (s *Server) GetNetwork(ctx context.Context, request *api.GetNetworkRequest)
 	if n == nil {
 		return nil, status.Errorf(codes.NotFound, "network %s not found", request.NetworkID)
 	}
+	if err := s.networkhooks().OnGetNetwork(ctx, n, request.Appdata.GetTypeUrl(), request.Appdata.GetValue()); err != nil {
+		return nil, err
+	}
 	return &api.GetNetworkResponse{
 		Network: n,
 	}, nil
@@ -290,6 +293,10 @@ func (s *Server) ListNetworks(ctx context.Context, request *api.ListNetworksRequ
 				return filterMatchLabels(e.Spec.Annotations.Labels, request.Filters.Labels)
 			},
 		)
+	}
+
+	if err := s.networkhooks().OnListNetworks(ctx, networks, request.Appdata.GetTypeUrl(), request.Appdata.GetValue()); err != nil {
+		return nil, err
 	}
 
 	return &api.ListNetworksResponse{

@@ -484,6 +484,8 @@ message CreateNetworkResponse {
 message GetNetworkRequest {
 	string name = 1;
 	string network_id = 2;
+	// Application-specific message for the NetworkAllocator's OnGetNetwork callback.
+	google.protobuf.Any appdata = 3;
 }
 
 message GetNetworkResponse {
@@ -507,6 +509,8 @@ message ListNetworksRequest {
 	}
 
 	Filters filters = 1;
+	// Application-specific message for the NetworkAllocator's OnGetNetwork callback.
+	google.protobuf.Any appdata = 2;
 }
 
 message ListNetworksResponse {

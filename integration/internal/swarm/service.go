@@ -148,6 +148,13 @@ func ServiceWithMaxReplicas(n uint64) ServiceSpecOpt {
 	}
 }
 
+func ServiceWithPlacementConstraints(constraints ...string) ServiceSpecOpt {
+	return func(spec *swarmtypes.ServiceSpec) {
+		ensurePlacement(spec)
+		spec.TaskTemplate.Placement.Constraints = constraints
+	}
+}
+
 // ServiceWithName sets the name of the service
 func ServiceWithName(name string) ServiceSpecOpt {
 	return func(spec *swarmtypes.ServiceSpec) {

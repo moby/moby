@@ -61,8 +61,9 @@ func RunningTasksCount(ctx context.Context, apiClient client.ServiceAPIClient, s
 			switch task.Status.State {
 			case swarmtypes.TaskStateRunning:
 				running++
-			case swarmtypes.TaskStateFailed:
+			case swarmtypes.TaskStateFailed, swarmtypes.TaskStateRejected:
 				if task.Status.Err != "" {
+					log.Logf("task %v on node %v %v: %v", task.ID, task.NodeID, task.Status.State, task.Status.Err)
 					taskError = task.Status.Err
 				}
 			default:
@@ -158,5 +159,22 @@ func JobComplete(ctx context.Context, apiClient client.ServiceAPIClient, service
 				completed, running, totalCompletions,
 			)
 		}
+	}
+}
+
+func HasLeader(ctx context.Context, apiClient client.NodeAPIClient) func(log poll.LogT) poll.Result {
+	return func(log poll.LogT) poll.Result {
+		nodes, err := apiClient.NodeList(ctx, client.NodeListOptions{
+			Filters: filters.NewArgs(filters.Arg("role", "manager")),
+		})
+		if err != nil {
+			return poll.Error(err)
+		}
+		for _, node := range nodes {
+			if node.ManagerStatus != nil && node.ManagerStatus.Leader {
+				return poll.Success()
+			}
+		}
+		return poll.Continue("no leader elected yet")
 	}
 }
