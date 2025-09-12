@@ -47,7 +47,7 @@ func TestImageHistory(t *testing.T) {
 		},
 	}
 
-	imageHistories, err := client.ImageHistory(context.Background(), "image_id", ImageHistoryWithPlatform(ocispec.Platform{
+	imageHistories, err := client.ImageHistory(context.Background(), "image_id", WithPlatform(ocispec.Platform{
 		Architecture: "arm64",
 		OS:           "linux",
 		Variant:      "v8",
