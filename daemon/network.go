@@ -1117,6 +1117,10 @@ func buildEndpointInfo(networkSettings *network.Settings, n *libnetwork.Network,
 		onesv6, _ := iface.AddressIPv6().Mask.Size()
 		networkSettings.Networks[nwName].GlobalIPv6Address = iface.AddressIPv6().IP.String()
 		networkSettings.Networks[nwName].GlobalIPv6PrefixLen = onesv6
+	} else {
+		// If IPv6 was disabled on the interface, and its address was removed, remove it here too.
+		networkSettings.Networks[nwName].GlobalIPv6Address = ""
+		networkSettings.Networks[nwName].GlobalIPv6PrefixLen = 0
 	}
 
 	return nil
