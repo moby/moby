@@ -7,7 +7,6 @@ import (
 
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/plugin"
-	"github.com/moby/moby/api/types/versions"
 )
 
 // PluginList returns the installed plugins
@@ -19,13 +18,6 @@ func (cli *Client) PluginList(ctx context.Context, filter filters.Args) (plugin.
 		filterJSON, err := filters.ToJSON(filter)
 		if err != nil {
 			return plugins, err
-		}
-		if cli.version != "" && versions.LessThan(cli.version, "1.22") {
-			legacyFormat, err := encodeLegacyFilters(filterJSON)
-			if err != nil {
-				return plugins, err
-			}
-			filterJSON = legacyFormat
 		}
 		query.Set("filters", filterJSON)
 	}
