@@ -59,13 +59,6 @@ func (conf *Config) IsSwarmCompatible() error {
 	return nil
 }
 
-// ValidatePlatformConfig checks if any platform-specific configuration settings are invalid.
-//
-// Deprecated: this function was only used internally and is no longer used. Use [Validate] instead.
-func (conf *Config) ValidatePlatformConfig() error {
-	return validatePlatformConfig(conf)
-}
-
 // IsRootless returns conf.Rootless on Linux but false on Windows
 func (conf *Config) IsRootless() bool {
 	return false
