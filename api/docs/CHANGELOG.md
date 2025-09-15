@@ -25,6 +25,8 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /events` no longer includes the deprecated `status`, `id`, and `from`
   fields. These fields were removed in API v1.22, but still included
   in the response.
+* `GET /networks/{id}` now includes a `Status` field, providing statistics
+  about IPAM allocations for the subnets assigned to the network.
 * Deprecated: the Engine was automatically backfilling empty `PortBindings` lists with
   a PortBinding with an empty HostIP and HostPort when calling `POST /containers/{id}/start`.
   This behavior is now deprecated, and a warning is returned by `POST /containers/create`.
@@ -32,6 +34,12 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /images/{name}/json` now omits the following `Config` fields when
   not set, to closer align with the implementation of the [OCI Image Specification](https://github.com/opencontainers/image-spec/blob/v1.1.1/specs-go/v1/config.go#L23-L62)
   `Cmd`, `Entrypoint`, `Env`, `Labels`, `OnBuild`, `User`, `Volumes`, and `WorkingDir`.
+* `GET /containers/{id}/json`: the `NetworkSettings` no longer returns the deprecated
+  `Bridge`, `HairpinMode`, `LinkLocalIPv6Address`, `LinkLocalIPv6PrefixLen`,
+  `SecondaryIPAddresses`, `SecondaryIPv6Addresses`, `EndpointID`, `Gateway`,
+  `GlobalIPv6Address`, `GlobalIPv6PrefixLen`, `IPAddress`, `IPPrefixLen`,
+  `IPv6Gateway`, and `MacAddress` fields. These fields were deprecated in
+  API v1.21 (docker v1.9.0) but kept around for backward compatibility.
 
 ## v1.51 API changes
 
