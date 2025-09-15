@@ -87,14 +87,6 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 			}
 			info.SecurityOptions = nameOnly
 		}
-		if versions.LessThan(version, "1.39") {
-			if info.KernelVersion == "" {
-				info.KernelVersion = "<unknown>"
-			}
-			if info.OperatingSystem == "" {
-				info.OperatingSystem = "<unknown>"
-			}
-		}
 		if versions.LessThan(version, "1.44") {
 			for k, rt := range info.Runtimes {
 				// Status field introduced in API v1.44.
