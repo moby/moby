@@ -175,6 +175,10 @@ func (daemon *Daemon) fillPluginsInfo(ctx context.Context, v *system.Info, cfg *
 	}
 }
 
+// fillSecurityOptions fills the [system.Info.SecurityOptions] field based
+// on the daemon configuration.
+//
+// TODO(thaJeztah): consider making [system.Info.SecurityOptions] a structured response as originally intended in https://github.com/moby/moby/pull/26276
 func (daemon *Daemon) fillSecurityOptions(v *system.Info, sysInfo *sysinfo.SysInfo, cfg *config.Config) {
 	var securityOptions []string
 	if sysInfo.AppArmor {
