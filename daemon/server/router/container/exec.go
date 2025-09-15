@@ -78,7 +78,7 @@ func (c *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 		stdout, stderr, outStream io.Writer
 	)
 
-	options := &container.ExecStartOptions{}
+	options := &container.ExecStartRequest{}
 	if err := httputils.ReadJSON(r, options); err != nil {
 		return err
 	}

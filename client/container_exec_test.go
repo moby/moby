@@ -94,7 +94,7 @@ func TestContainerExecStartError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.ContainerExecStart(context.Background(), "nothing", container.ExecStartOptions{})
+	err = client.ContainerExecStart(context.Background(), "nothing", ExecStartOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -108,12 +108,12 @@ func TestContainerExecStart(t *testing.T) {
 			if err := req.ParseForm(); err != nil {
 				return nil, err
 			}
-			options := &container.ExecStartOptions{}
-			if err := json.NewDecoder(req.Body).Decode(options); err != nil {
+			request := &container.ExecStartRequest{}
+			if err := json.NewDecoder(req.Body).Decode(request); err != nil {
 				return nil, err
 			}
-			if options.Tty || !options.Detach {
-				return nil, fmt.Errorf("expected ExecStartOptions{Detach:true,Tty:false}, got %v", options)
+			if request.Tty || !request.Detach {
+				return nil, fmt.Errorf("expected ExecStartOptions{Detach:true,Tty:false}, got %v", request)
 			}
 
 			return &http.Response{
@@ -124,7 +124,7 @@ func TestContainerExecStart(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.ContainerExecStart(context.Background(), "exec_id", container.ExecStartOptions{
+	err = client.ContainerExecStart(context.Background(), "exec_id", ExecStartOptions{
 		Detach: true,
 		Tty:    false,
 	})

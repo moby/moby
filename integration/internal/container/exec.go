@@ -66,7 +66,7 @@ func Exec(ctx context.Context, apiClient client.APIClient, id string, cmd []stri
 	execID := cresp.ID
 
 	// run it, with stdout/stderr attached
-	aresp, err := apiClient.ContainerExecAttach(ctx, execID, container.ExecAttachOptions{})
+	aresp, err := apiClient.ContainerExecAttach(ctx, execID, client.ExecAttachOptions{})
 	if err != nil {
 		return ExecResult{}, err
 	}

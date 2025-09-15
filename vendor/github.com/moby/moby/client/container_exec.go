@@ -43,8 +43,19 @@ func (cli *Client) ContainerExecCreate(ctx context.Context, containerID string, 
 	return response, err
 }
 
+// ExecStartOptions is a temp struct used by execStart
+// Config fields is part of ExecConfig in runconfig package
+type ExecStartOptions struct {
+	// ExecStart will first check if it's detached
+	Detach bool
+	// Check if there's a tty
+	Tty bool
+	// Terminal size [height, width], unused if Tty == false
+	ConsoleSize *[2]uint `json:",omitempty"`
+}
+
 // ContainerExecStart starts an exec process already created in the docker host.
-func (cli *Client) ContainerExecStart(ctx context.Context, execID string, config container.ExecStartOptions) error {
+func (cli *Client) ContainerExecStart(ctx context.Context, execID string, config ExecStartOptions) error {
 	// Make sure we negotiated (if the client is configured to do so),
 	// as code below contains API-version specific handling of options.
 	//
@@ -57,10 +68,21 @@ func (cli *Client) ContainerExecStart(ctx context.Context, execID string, config
 	if versions.LessThan(cli.ClientVersion(), "1.42") {
 		config.ConsoleSize = nil
 	}
-	resp, err := cli.post(ctx, "/exec/"+execID+"/start", nil, config, nil)
+
+	req := container.ExecStartRequest{
+		Detach:      config.Detach,
+		Tty:         config.Tty,
+		ConsoleSize: config.ConsoleSize,
+	}
+	resp, err := cli.post(ctx, "/exec/"+execID+"/start", nil, req, nil)
 	defer ensureReaderClosed(resp)
 	return err
 }
+
+// ExecAttachOptions is a temp struct used by execAttach.
+//
+// TODO(thaJeztah): make this a separate type; ContainerExecAttach does not use the Detach option, and cannot run detached.
+type ExecAttachOptions = ExecStartOptions
 
 // ContainerExecAttach attaches a connection to an exec process in the server.
 //
@@ -80,11 +102,16 @@ func (cli *Client) ContainerExecStart(ctx context.Context, execID string, config
 // [Client.ContainerAttach] for details about the multiplexed stream.
 //
 // [stdcopy.StdCopy]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#StdCopy
-func (cli *Client) ContainerExecAttach(ctx context.Context, execID string, config container.ExecAttachOptions) (HijackedResponse, error) {
+func (cli *Client) ContainerExecAttach(ctx context.Context, execID string, config ExecAttachOptions) (HijackedResponse, error) {
 	if versions.LessThan(cli.ClientVersion(), "1.42") {
 		config.ConsoleSize = nil
 	}
-	return cli.postHijacked(ctx, "/exec/"+execID+"/start", nil, config, http.Header{
+	req := container.ExecStartRequest{
+		Detach:      config.Detach,
+		Tty:         config.Tty,
+		ConsoleSize: config.ConsoleSize,
+	}
+	return cli.postHijacked(ctx, "/exec/"+execID+"/start", nil, req, http.Header{
 		"Content-Type": {"application/json"},
 	})
 }

@@ -41,7 +41,7 @@ func TestExecWithCloseStdin(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	resp, err := apiClient.ContainerExecAttach(ctx, execResp.ID, containertypes.ExecAttachOptions{})
+	resp, err := apiClient.ContainerExecAttach(ctx, execResp.ID, client.ExecAttachOptions{})
 	assert.NilError(t, err)
 	defer resp.Close()
 
@@ -101,7 +101,7 @@ func TestExec(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(inspect.ExecID, id.ID))
 
-	resp, err := apiClient.ContainerExecAttach(ctx, id.ID, containertypes.ExecAttachOptions{})
+	resp, err := apiClient.ContainerExecAttach(ctx, id.ID, client.ExecAttachOptions{})
 	assert.NilError(t, err)
 	defer resp.Close()
 	r, err := io.ReadAll(resp.Reader)
@@ -134,7 +134,7 @@ func TestExecResize(t *testing.T) {
 	assert.NilError(t, err)
 	execID := resp.ID
 	assert.NilError(t, err)
-	err = apiClient.ContainerExecStart(ctx, execID, containertypes.ExecStartOptions{Detach: true})
+	err = apiClient.ContainerExecStart(ctx, execID, client.ExecStartOptions{Detach: true})
 	assert.NilError(t, err)
 
 	t.Run("success", func(t *testing.T) {

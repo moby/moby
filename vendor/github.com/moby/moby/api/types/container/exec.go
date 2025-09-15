@@ -24,22 +24,6 @@ type ExecOptions struct {
 	Cmd          []string // Execution commands and args
 }
 
-// ExecStartOptions is a temp struct used by execStart
-// Config fields is part of ExecConfig in runconfig package
-type ExecStartOptions struct {
-	// ExecStart will first check if it's detached
-	Detach bool
-	// Check if there's a tty
-	Tty bool
-	// Terminal size [height, width], unused if Tty == false
-	ConsoleSize *[2]uint `json:",omitempty"`
-}
-
-// ExecAttachOptions is a temp struct used by execAttach.
-//
-// TODO(thaJeztah): make this a separate type; ContainerExecAttach does not use the Detach option, and cannot run detached.
-type ExecAttachOptions = ExecStartOptions
-
 // ExecInspect holds information returned by exec inspect.
 //
 // It is used by the client to unmarshal a [ExecInspectResponse],
