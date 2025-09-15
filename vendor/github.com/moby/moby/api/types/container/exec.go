@@ -22,9 +22,6 @@ type ExecOptions struct {
 	Env          []string // Environment variables
 	WorkingDir   string   // Working directory
 	Cmd          []string // Execution commands and args
-
-	// Deprecated: the Detach field is not used, and will be removed in a future release.
-	Detach bool
 }
 
 // ExecStartOptions is a temp struct used by execStart
