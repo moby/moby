@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/checker"
 	"github.com/moby/moby/v2/integration-cli/cli"
@@ -65,7 +64,7 @@ func (s *DockerAPISuite) TestExecAPICreateContainerPaused(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	_, err = apiClient.ContainerExecCreate(testutil.GetContext(c), name, container.ExecOptions{
+	_, err = apiClient.ContainerExecCreate(testutil.GetContext(c), name, client.ExecCreateOptions{
 		Cmd: []string{"true"},
 	})
 	assert.ErrorContains(c, err, "Container "+name+" is paused, unpause the container before exec", "Expected message when creating exec command with Container %s is paused", name)
@@ -129,7 +128,7 @@ func (s *DockerAPISuite) TestExecAPIStartWithDetach(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	createResp, err := apiClient.ContainerExecCreate(ctx, name, container.ExecOptions{
+	createResp, err := apiClient.ContainerExecCreate(ctx, name, client.ExecCreateOptions{
 		Cmd:          []string{"true"},
 		AttachStderr: true,
 	})

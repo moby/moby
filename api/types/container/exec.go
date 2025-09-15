@@ -8,22 +8,6 @@ import "github.com/moby/moby/api/types/common"
 // TODO(thaJeztah): make this a distinct type.
 type ExecCreateResponse = common.IDResponse
 
-// ExecOptions is a small subset of the Config struct that holds the configuration
-// for the exec feature of docker.
-type ExecOptions struct {
-	User         string   // User that will run the command
-	Privileged   bool     // Is the container in privileged mode
-	Tty          bool     // Attach standard streams to a tty.
-	ConsoleSize  *[2]uint `json:",omitempty"` // Initial console size [height, width]
-	AttachStdin  bool     // Attach the standard input, makes possible user interaction
-	AttachStderr bool     // Attach the standard error
-	AttachStdout bool     // Attach the standard output
-	DetachKeys   string   // Escape keys for detach
-	Env          []string // Environment variables
-	WorkingDir   string   // Working directory
-	Cmd          []string // Execution commands and args
-}
-
 // ExecInspect holds information returned by exec inspect.
 //
 // It is used by the client to unmarshal a [ExecInspectResponse],

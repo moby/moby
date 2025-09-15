@@ -39,7 +39,7 @@ func (c *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 		return err
 	}
 
-	execConfig := &container.ExecOptions{}
+	execConfig := &container.ExecCreateRequest{}
 	if err := httputils.ReadJSON(r, execConfig); err != nil {
 		return err
 	}

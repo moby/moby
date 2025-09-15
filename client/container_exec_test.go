@@ -22,14 +22,14 @@ func TestContainerExecCreateError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerExecCreate(context.Background(), "container_id", container.ExecOptions{})
+	_, err = client.ContainerExecCreate(context.Background(), "container_id", ExecCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ContainerExecCreate(context.Background(), "", container.ExecOptions{})
+	_, err = client.ContainerExecCreate(context.Background(), "", ExecCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ContainerExecCreate(context.Background(), "    ", container.ExecOptions{})
+	_, err = client.ContainerExecCreate(context.Background(), "    ", ExecCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -42,7 +42,7 @@ func TestContainerExecCreateConnectionError(t *testing.T) {
 	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
-	_, err = client.ContainerExecCreate(context.Background(), "container_id", container.ExecOptions{})
+	_, err = client.ContainerExecCreate(context.Background(), "container_id", ExecCreateOptions{})
 	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
 
@@ -60,7 +60,7 @@ func TestContainerExecCreate(t *testing.T) {
 			if err := req.ParseForm(); err != nil {
 				return nil, err
 			}
-			execConfig := &container.ExecOptions{}
+			execConfig := &container.ExecCreateRequest{}
 			if err := json.NewDecoder(req.Body).Decode(execConfig); err != nil {
 				return nil, err
 			}
@@ -81,7 +81,7 @@ func TestContainerExecCreate(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	r, err := client.ContainerExecCreate(context.Background(), "container_id", container.ExecOptions{
+	r, err := client.ContainerExecCreate(context.Background(), "container_id", ExecCreateOptions{
 		User: "user",
 	})
 	assert.NilError(t, err)

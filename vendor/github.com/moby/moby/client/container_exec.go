@@ -9,8 +9,24 @@ import (
 	"github.com/moby/moby/api/types/versions"
 )
 
+// ExecCreateOptions is a small subset of the Config struct that holds the configuration
+// for the exec feature of docker.
+type ExecCreateOptions struct {
+	User         string   // User that will run the command
+	Privileged   bool     // Is the container in privileged mode
+	Tty          bool     // Attach standard streams to a tty.
+	ConsoleSize  *[2]uint `json:",omitempty"` // Initial console size [height, width]
+	AttachStdin  bool     // Attach the standard input, makes possible user interaction
+	AttachStderr bool     // Attach the standard error
+	AttachStdout bool     // Attach the standard output
+	DetachKeys   string   // Escape keys for detach
+	Env          []string // Environment variables
+	WorkingDir   string   // Working directory
+	Cmd          []string // Execution commands and args
+}
+
 // ContainerExecCreate creates a new exec configuration to run an exec process.
-func (cli *Client) ContainerExecCreate(ctx context.Context, containerID string, options container.ExecOptions) (container.ExecCreateResponse, error) {
+func (cli *Client) ContainerExecCreate(ctx context.Context, containerID string, options ExecCreateOptions) (container.ExecCreateResponse, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
 		return container.ExecCreateResponse{}, err
@@ -32,7 +48,21 @@ func (cli *Client) ContainerExecCreate(ctx context.Context, containerID string, 
 		options.ConsoleSize = nil
 	}
 
-	resp, err := cli.post(ctx, "/containers/"+containerID+"/exec", nil, options, nil)
+	req := container.ExecCreateRequest{
+		User:         options.User,
+		Privileged:   options.Privileged,
+		Tty:          options.Tty,
+		ConsoleSize:  options.ConsoleSize,
+		AttachStdin:  options.AttachStdin,
+		AttachStderr: options.AttachStderr,
+		AttachStdout: options.AttachStdout,
+		DetachKeys:   options.DetachKeys,
+		Env:          options.Env,
+		WorkingDir:   options.WorkingDir,
+		Cmd:          options.Cmd,
+	}
+
+	resp, err := cli.post(ctx, "/containers/"+containerID+"/exec", nil, req, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return container.ExecCreateResponse{}, err

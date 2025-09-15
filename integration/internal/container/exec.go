@@ -5,7 +5,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 )
 
@@ -47,9 +46,9 @@ func (res ExecResult) AssertSuccess(t testing.TB) {
 // containing stdout, stderr, and exit code. Note:
 //   - this is a synchronous operation;
 //   - cmd stdin is closed.
-func Exec(ctx context.Context, apiClient client.APIClient, id string, cmd []string, ops ...func(*container.ExecOptions)) (ExecResult, error) {
+func Exec(ctx context.Context, apiClient client.APIClient, id string, cmd []string, ops ...func(*client.ExecCreateOptions)) (ExecResult, error) {
 	// prepare exec
-	execOptions := container.ExecOptions{
+	execOptions := client.ExecCreateOptions{
 		AttachStdout: true,
 		AttachStderr: true,
 		Cmd:          cmd,
@@ -87,7 +86,7 @@ func Exec(ctx context.Context, apiClient client.APIClient, id string, cmd []stri
 }
 
 // ExecT calls Exec() and aborts the test if an error occurs.
-func ExecT(ctx context.Context, t testing.TB, apiClient client.APIClient, id string, cmd []string, ops ...func(*container.ExecOptions)) ExecResult {
+func ExecT(ctx context.Context, t testing.TB, apiClient client.APIClient, id string, cmd []string, ops ...func(*client.ExecCreateOptions)) ExecResult {
 	t.Helper()
 	res, err := Exec(ctx, apiClient, id, cmd, ops...)
 	if err != nil {

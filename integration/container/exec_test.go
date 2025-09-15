@@ -12,7 +12,6 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/common"
-	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/integration/internal/container"
@@ -34,7 +33,7 @@ func TestExecWithCloseStdin(t *testing.T) {
 	cID := container.Run(ctx, t, apiClient)
 
 	const expected = "closeIO"
-	execResp, err := apiClient.ContainerExecCreate(ctx, cID, containertypes.ExecOptions{
+	execResp, err := apiClient.ContainerExecCreate(ctx, cID, client.ExecCreateOptions{
 		AttachStdin:  true,
 		AttachStdout: true,
 		Cmd:          []string{"sh", "-c", "cat && echo " + expected},
@@ -89,7 +88,7 @@ func TestExec(t *testing.T) {
 
 	cID := container.Run(ctx, t, apiClient, container.WithTty(true), container.WithWorkingDir("/root"))
 
-	id, err := apiClient.ContainerExecCreate(ctx, cID, containertypes.ExecOptions{
+	id, err := apiClient.ContainerExecCreate(ctx, cID, client.ExecCreateOptions{
 		WorkingDir:   "/tmp",
 		Env:          []string{"FOO=BAR"},
 		AttachStdout: true,
@@ -127,7 +126,7 @@ func TestExecResize(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		cmd = []string{"sleep", "240"}
 	}
-	resp, err := apiClient.ContainerExecCreate(ctx, cID, containertypes.ExecOptions{
+	resp, err := apiClient.ContainerExecCreate(ctx, cID, client.ExecCreateOptions{
 		Tty: true, // Windows requires a TTY for the resize to work, otherwise fails with "is not a tty: failed precondition", see https://github.com/moby/moby/pull/48665#issuecomment-2412530345
 		Cmd: cmd,
 	})
@@ -296,8 +295,8 @@ func TestExecUser(t *testing.T) {
 	withoutEtcGroups := container.WithImage(build.Do(ctx, t, apiClient, fakecontext.New(t, "", fakecontext.WithDockerfile("FROM busybox\nRUN rm /etc/group"))))
 	withoutEtcPasswd := container.WithImage(build.Do(ctx, t, apiClient, fakecontext.New(t, "", fakecontext.WithDockerfile("FROM busybox\nRUN rm /etc/passwd"))))
 
-	withUser := func(user string) func(options *containertypes.ExecOptions) {
-		return func(options *containertypes.ExecOptions) { options.User = user }
+	withUser := func(user string) func(options *client.ExecCreateOptions) {
+		return func(options *client.ExecCreateOptions) { options.User = user }
 	}
 
 	tests := []struct {
