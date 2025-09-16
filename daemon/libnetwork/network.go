@@ -1240,7 +1240,7 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 	}
 	defer func() {
 		if err != nil {
-			ep.releaseAddress()
+			ep.releaseIPAddresses()
 		}
 	}()
 
@@ -1267,15 +1267,6 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 			}
 		}
 	}()
-
-	if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
-		n.updateSvcRecord(context.WithoutCancel(ctx), ep, true)
-		defer func() {
-			if err != nil {
-				n.updateSvcRecord(context.WithoutCancel(ctx), ep, false)
-			}
-		}()
-	}
 
 	return ep, nil
 }

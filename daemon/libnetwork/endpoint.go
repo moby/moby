@@ -22,7 +22,6 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
-	"github.com/moby/moby/v2/errdefs"
 	"go.opentelemetry.io/otel"
 )
 
@@ -532,6 +531,8 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		return fmt.Errorf("failed to get driver during join: %v", err)
 	}
 
+	// Tell the driver about the new endpoint. The driver populates ep.joinInfo using
+	// the Endpoint's JoinInfo interface.
 	if err := d.Join(ctx, nid, epid, sb.Key(), ep, ep.generic, sb.Labels()); err != nil {
 		return err
 	}
@@ -549,61 +550,39 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		ep.joinInfo.gw6 = nil
 	}
 
-	if !n.getController().isAgent() {
-		if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
-			n.updateSvcRecord(context.WithoutCancel(ctx), ep, true)
-		}
-	}
-
-	sb.addHostsEntries(ctx, ep.getEtcHostsAddrs())
-	if err := sb.updateDNS(n.enableIPv6); err != nil {
-		return err
-	}
-
-	// Current endpoint(s) providing external connectivity for the sandbox
+	// Current endpoint(s) providing external connectivity for the Sandbox.
+	// If ep is selected as a gateway endpoint once it's been added to the Sandbox,
+	// these are the endpoints that need to be un-gateway'd.
 	gwepBefore4, gwepBefore6 := sb.getGatewayEndpoint()
 
 	sb.addEndpoint(ep)
 
-	if err := sb.populateNetworkResources(ctx, ep); err != nil {
-		return err
-	}
-
-	if err := addEpToResolver(ctx, n.Name(), ep.Name(), &sb.config, ep.iface, n.Resolvers()); err != nil {
-		return errdefs.System(err)
+	// For Linux, at this point, in most cases, the container task has been created
+	// and the container's network namespace (sb.osSbox) is ready to be configured
+	// with addresses, routes and so on. The exception is when the SetKey re-exec is
+	// used by a build container. In that case, the osSbox doesn't exist yet. So,
+	// stop here and SetKey will finish off the configuration when it's ready.
+	// For Windows, canPopulateNetworkResources() is always true.
+	if sb.canPopulateNetworkResources() {
+		if err := sb.populateNetworkResources(ctx, ep); err != nil {
+			return err
+		}
+		if err := ep.updateExternalConnectivity(ctx, sb, gwepBefore4, gwepBefore6); err != nil {
+			return err
+		}
 	}
 
 	if err := n.getController().storeEndpoint(ctx, ep); err != nil {
 		return err
 	}
+	return nil
+}
 
-	if err := ep.addDriverInfoToCluster(); err != nil {
-		return err
-	}
-
-	defer func() {
-		if retErr != nil {
-			if e := ep.deleteDriverInfoFromCluster(); e != nil {
-				log.G(ctx).WithError(e).Error("Could not delete endpoint state from cluster on join failure")
-			}
-		}
-	}()
-
-	// Load balancing endpoints should never have a default gateway nor
-	// should they alter the status of a network's default gateway
-	if ep.loadBalancer && !sb.ingress {
-		return nil
-	}
-
-	if sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
-		return sb.setupDefaultGW()
-	}
-
-	// Enable upstream forwarding if the sandbox gained external connectivity.
-	if sb.resolver != nil {
-		sb.resolver.SetForwardingPolicy(sb.hasExternalAccess())
-	}
-
+// updateExternalConnectivity configures an Endpoint when it becomes the gateway
+// endpoint for a network, revoking external connectivity from the previous gateway
+// endpoints, if necessary. (It does not update the Sandbox's default gateway, the
+// Sandbox takes care of that. This is just about network driver config.)
+func (ep *Endpoint) updateExternalConnectivity(ctx context.Context, sb *Sandbox, gwepBefore4, gwepBefore6 *Endpoint) (retErr error) {
 	gwepAfter4, gwepAfter6 := sb.getGatewayEndpoint()
 
 	log.G(ctx).Infof("sbJoin: gwep4 '%s'->'%s', gwep6 '%s'->'%s'",
@@ -647,16 +626,6 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	// Tell the new endpoint whether it's a gateway.
 	if err := ep.programExternalConnectivity(ctx, gwepAfter4, gwepAfter6); err != nil {
 		return err
-	}
-
-	if !sb.needDefaultGW() {
-		if e := sb.clearDefaultGW(); e != nil {
-			log.G(ctx).WithFields(log.Fields{
-				"error": e,
-				"sid":   sb.ID(),
-				"cid":   sb.ContainerID(),
-			}).Warn("Failure while disconnecting sandbox from gateway network")
-		}
 	}
 
 	return nil
@@ -971,7 +940,7 @@ func (ep *Endpoint) Delete(ctx context.Context, force bool) error {
 		return err
 	}
 
-	ep.releaseAddress()
+	ep.releaseIPAddresses()
 
 	return nil
 }
@@ -1261,7 +1230,7 @@ func (ep *Endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 	return fmt.Errorf("no available IPv%d addresses on this network's address pools: %s (%s)", ipVer, n.Name(), n.ID())
 }
 
-func (ep *Endpoint) releaseAddress() {
+func (ep *Endpoint) releaseIPAddresses() {
 	n := ep.getNetwork()
 	if n.hasSpecialDriver() {
 		return
@@ -1286,6 +1255,53 @@ func (ep *Endpoint) releaseAddress() {
 			log.G(context.TODO()).Warnf("Failed to release ip address %s on delete of endpoint %s (%s): %v", ep.iface.addrv6.IP, ep.Name(), ep.ID(), err)
 		}
 	}
+}
+
+func (ep *Endpoint) releaseIPv6Address(ctx context.Context) error {
+	n := ep.network
+	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
+		"net": n.Name(),
+		"ep":  ep.name,
+		"ip":  ep.iface.addrv6,
+	}))
+
+	if ep.iface.addrv6 == nil || n.hasSpecialDriver() {
+		return nil
+	}
+
+	log.G(ctx).Debug("Releasing IPv6 address for endpoint")
+
+	ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
+	if err != nil {
+		log.G(ctx).WithError(err).Warn("Failed to retrieve ipam driver to release IPv6 address")
+		return err
+	}
+
+	if err := ipam.ReleaseAddress(ep.iface.v6PoolID, ep.iface.addrv6.IP); err != nil {
+		log.G(ctx).WithError(err).Warn("Failed to release IPv6 address")
+		return err
+	}
+
+	ep.iface.addrv6 = nil
+	if ep.joinInfo != nil {
+		ep.joinInfo.gw6 = nil
+	}
+
+	d, err := n.driver(true)
+	if err != nil {
+		return fmt.Errorf("fetching driver to release IPv6 address: %v", err)
+	}
+	if dr, ok := d.(driverapi.IPv6Releaser); ok {
+		if err := dr.ReleaseIPv6(ctx, n.id, ep.id); err != nil {
+			return fmt.Errorf("releasing IPv6 address: %v", err)
+		}
+	}
+
+	if err := ep.network.getController().updateToStore(ctx, ep); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *Controller) cleanupLocalEndpoints() error {

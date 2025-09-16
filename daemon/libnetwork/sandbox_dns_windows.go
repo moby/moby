@@ -17,12 +17,4 @@ func (sb *Sandbox) restoreHostsPath() {}
 
 func (sb *Sandbox) restoreResolvConfPath() {}
 
-func (sb *Sandbox) addHostsEntries(_ context.Context, ifaceIP []netip.Addr) error {
-	return nil
-}
-
 func (sb *Sandbox) deleteHostsEntries(ifaceAddrs []netip.Addr) {}
-
-func (sb *Sandbox) updateDNS(ipv6Enabled bool) error {
-	return nil
-}

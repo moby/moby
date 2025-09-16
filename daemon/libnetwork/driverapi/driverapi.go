@@ -107,6 +107,15 @@ type ExtConner interface {
 	ProgramExternalConnectivity(ctx context.Context, nid, eid string, gw4Id, gw6Id string) error
 }
 
+// IPv6Releaser is an optional interface for a network driver.
+type IPv6Releaser interface {
+	// ReleaseIPv6 tells the driver that an endpoint has no IPv6 address, even
+	// if the options passed to Driver.CreateEndpoint specified an address. This
+	// happens when, for example, sysctls applied after configuring the interface
+	// disable IPv6.
+	ReleaseIPv6(ctx context.Context, nid, eid string) error
+}
+
 // GwAllocChecker is an optional interface for a network driver.
 type GwAllocChecker interface {
 	// GetSkipGwAlloc returns true if the opts describe a network
