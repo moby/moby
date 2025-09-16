@@ -1,10 +1,10 @@
 package links
 
 import (
+	"slices"
 	"sort"
 	"testing"
 
-	"github.com/docker/go-connections/nat"
 	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 )
@@ -64,7 +64,7 @@ func TestLinkEnv(t *testing.T) {
 // TestSortPorts verifies that ports are sorted with TCP taking priority,
 // and ports with the same protocol to be sorted by port.
 func TestSortPorts(t *testing.T) {
-	ports := []nat.Port{
+	ports := []container.PortProto{
 		"6379/tcp",
 		"6376/udp",
 		"6380/tcp",
@@ -75,7 +75,7 @@ func TestSortPorts(t *testing.T) {
 		"6375/sctp",
 	}
 
-	expected := []nat.Port{
+	expected := []container.PortProto{
 		"6379/tcp",
 		"6380/tcp",
 		"6381/tcp",
@@ -86,7 +86,7 @@ func TestSortPorts(t *testing.T) {
 		"6381/udp",
 	}
 
-	nat.Sort(ports, withTCPPriority)
+	slices.SortFunc(ports, withTCPPriority)
 	assert.DeepEqual(t, expected, ports)
 }
 
