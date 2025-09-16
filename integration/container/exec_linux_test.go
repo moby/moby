@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
@@ -21,7 +21,7 @@ func TestExecConsoleSize(t *testing.T) {
 	cID := container.Run(ctx, t, apiClient, container.WithImage("busybox"))
 
 	result, err := container.Exec(ctx, apiClient, cID, []string{"stty", "size"},
-		func(ec *containertypes.ExecOptions) {
+		func(ec *client.ExecCreateOptions) {
 			ec.Tty = true
 			ec.ConsoleSize = &[2]uint{57, 123}
 		},

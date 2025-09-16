@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/mount"
@@ -28,7 +27,7 @@ func TestEventsExecDie(t *testing.T) {
 
 	cID := container.Run(ctx, t, apiClient)
 
-	id, err := apiClient.ContainerExecCreate(ctx, cID, containertypes.ExecOptions{
+	id, err := apiClient.ContainerExecCreate(ctx, cID, client.ExecCreateOptions{
 		Cmd: []string{"echo", "hello"},
 	})
 	assert.NilError(t, err)
@@ -40,7 +39,7 @@ func TestEventsExecDie(t *testing.T) {
 		),
 	})
 
-	err = apiClient.ContainerExecStart(ctx, id.ID, containertypes.ExecStartOptions{
+	err = apiClient.ContainerExecStart(ctx, id.ID, client.ExecStartOptions{
 		Detach: true,
 		Tty:    false,
 	})

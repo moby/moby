@@ -10,7 +10,6 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/pkg/stdcopy"
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
@@ -313,7 +312,7 @@ func TestTemplatedSecret(t *testing.T) {
 	tasks := swarm.GetRunningTasks(ctx, t, c, serviceID)
 	assert.Assert(t, len(tasks) > 0, "no running tasks found for service %s", serviceID)
 
-	resp := swarm.ExecTask(ctx, t, d, tasks[0], container.ExecOptions{
+	resp := swarm.ExecTask(ctx, t, d, tasks[0], client.ExecCreateOptions{
 		Cmd:          []string{"/bin/cat", "/run/secrets/templated_secret"},
 		AttachStdout: true,
 		AttachStderr: true,
@@ -328,7 +327,7 @@ func TestTemplatedSecret(t *testing.T) {
 
 	outBuf.Reset()
 	errBuf.Reset()
-	resp = swarm.ExecTask(ctx, t, d, tasks[0], container.ExecOptions{
+	resp = swarm.ExecTask(ctx, t, d, tasks[0], client.ExecCreateOptions{
 		Cmd:          []string{"mount"},
 		AttachStdout: true,
 		AttachStderr: true,
