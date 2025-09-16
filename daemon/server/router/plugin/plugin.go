@@ -32,7 +32,7 @@ func (pr *pluginRouter) initRoutes() {
 		router.NewPostRoute("/plugins/{name:.*}/disable", pr.disablePlugin),
 		router.NewPostRoute("/plugins/pull", pr.pullPlugin),
 		router.NewPostRoute("/plugins/{name:.*}/push", pr.pushPlugin),
-		router.NewPostRoute("/plugins/{name:.*}/upgrade", pr.upgradePlugin),
+		router.NewPostRoute("/plugins/{name:.*}/upgrade", pr.upgradePlugin, router.WithMinimumAPIVersion("1.26")),
 		router.NewPostRoute("/plugins/{name:.*}/set", pr.setPlugin),
 		router.NewPostRoute("/plugins/create", pr.createPlugin),
 	}

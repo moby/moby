@@ -43,17 +43,6 @@ func TestConfigInspectWithEmptyID(t *testing.T) {
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
-func TestConfigInspectUnsupported(t *testing.T) {
-	client, err := NewClientWithOpts(
-		WithVersion("1.29"),
-		WithHTTPClient(&http.Client{}),
-	)
-	assert.NilError(t, err)
-
-	_, _, err = client.ConfigInspectWithRaw(context.Background(), "nothing")
-	assert.Check(t, is.Error(err, `"config inspect" requires API version 1.30, but the Docker daemon API version is 1.29`))
-}
-
 func TestConfigInspectError(t *testing.T) {
 	client, err := NewClientWithOpts(
 		WithVersion("1.30"),

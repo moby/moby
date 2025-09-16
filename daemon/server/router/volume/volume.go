@@ -31,9 +31,9 @@ func (v *volumeRouter) initRoutes() {
 		router.NewGetRoute("/volumes/{name:.*}", v.getVolumeByName),
 		// POST
 		router.NewPostRoute("/volumes/create", v.postVolumesCreate),
-		router.NewPostRoute("/volumes/prune", v.postVolumesPrune),
+		router.NewPostRoute("/volumes/prune", v.postVolumesPrune, router.WithMinimumAPIVersion("1.25")),
 		// PUT
-		router.NewPutRoute("/volumes/{name:.*}", v.putVolumesUpdate),
+		router.NewPutRoute("/volumes/{name:.*}", v.putVolumesUpdate, router.WithMinimumAPIVersion("1.42")),
 		// DELETE
 		router.NewDeleteRoute("/volumes/{name:.*}", v.deleteVolumes),
 	}

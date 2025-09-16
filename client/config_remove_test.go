@@ -14,17 +14,6 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func TestConfigRemoveUnsupported(t *testing.T) {
-	client, err := NewClientWithOpts(
-		WithVersion("1.29"),
-		WithHTTPClient(&http.Client{}),
-	)
-	assert.NilError(t, err)
-
-	err = client.ConfigRemove(context.Background(), "config_id")
-	assert.Check(t, is.Error(err, `"config remove" requires API version 1.30, but the Docker daemon API version is 1.29`))
-}
-
 func TestConfigRemoveError(t *testing.T) {
 	client, err := NewClientWithOpts(
 		WithVersion("1.30"),

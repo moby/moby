@@ -23,10 +23,6 @@ type BuildCachePruneOptions struct {
 
 // BuildCachePrune requests the daemon to delete unused cache data.
 func (cli *Client) BuildCachePrune(ctx context.Context, opts BuildCachePruneOptions) (*build.CachePruneReport, error) {
-	if err := cli.NewVersionError(ctx, "1.31", "build prune"); err != nil {
-		return nil, err
-	}
-
 	query := url.Values{}
 	if opts.All {
 		query.Set("all", "1")

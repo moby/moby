@@ -16,17 +16,6 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func TestConfigCreateUnsupported(t *testing.T) {
-	client, err := NewClientWithOpts(
-		WithVersion("1.29"),
-		WithHTTPClient(&http.Client{}),
-	)
-	assert.NilError(t, err)
-
-	_, err = client.ConfigCreate(context.Background(), swarm.ConfigSpec{})
-	assert.Check(t, is.Error(err, `"config create" requires API version 1.30, but the Docker daemon API version is 1.29`))
-}
-
 func TestConfigCreateError(t *testing.T) {
 	client, err := NewClientWithOpts(
 		WithVersion("1.30"),

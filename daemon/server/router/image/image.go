@@ -41,7 +41,7 @@ func (ir *imageRouter) initRoutes() {
 		router.NewPostRoute("/images/create", ir.postImagesCreate),
 		router.NewPostRoute("/images/{name:.*}/push", ir.postImagesPush),
 		router.NewPostRoute("/images/{name:.*}/tag", ir.postImagesTag),
-		router.NewPostRoute("/images/prune", ir.postImagesPrune),
+		router.NewPostRoute("/images/prune", ir.postImagesPrune, router.WithMinimumAPIVersion("1.25")),
 		// DELETE
 		router.NewDeleteRoute("/images/{name:.*}", ir.deleteImages),
 	}

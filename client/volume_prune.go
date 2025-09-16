@@ -11,10 +11,6 @@ import (
 
 // VolumesPrune requests the daemon to delete unused data
 func (cli *Client) VolumesPrune(ctx context.Context, pruneFilters filters.Args) (volume.PruneReport, error) {
-	if err := cli.NewVersionError(ctx, "1.25", "volume prune"); err != nil {
-		return volume.PruneReport{}, err
-	}
-
 	query, err := getFiltersQuery(pruneFilters)
 	if err != nil {
 		return volume.PruneReport{}, err

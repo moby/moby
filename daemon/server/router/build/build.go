@@ -32,7 +32,7 @@ func (br *buildRouter) Routes() []router.Route {
 func (br *buildRouter) initRoutes() {
 	br.routes = []router.Route{
 		router.NewPostRoute("/build", br.postBuild),
-		router.NewPostRoute("/build/prune", br.postPrune),
+		router.NewPostRoute("/build/prune", br.postPrune, router.WithMinimumAPIVersion("1.31")),
 		router.NewPostRoute("/build/cancel", br.postCancel),
 	}
 }

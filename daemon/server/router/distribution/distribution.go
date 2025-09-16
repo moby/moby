@@ -26,6 +26,6 @@ func (dr *distributionRouter) Routes() []router.Route {
 func (dr *distributionRouter) initRoutes() {
 	dr.routes = []router.Route{
 		// GET
-		router.NewGetRoute("/distribution/{name:.*}/json", dr.getDistributionInfo),
+		router.NewGetRoute("/distribution/{name:.*}/json", dr.getDistributionInfo, router.WithMinimumAPIVersion("1.30")),
 	}
 }

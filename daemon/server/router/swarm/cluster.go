@@ -48,16 +48,16 @@ func (sr *swarmRouter) initRoutes() {
 		router.NewGetRoute("/tasks/{id}", sr.getTask),
 		router.NewGetRoute("/tasks/{id}/logs", sr.getTaskLogs),
 
-		router.NewGetRoute("/secrets", sr.getSecrets),
-		router.NewPostRoute("/secrets/create", sr.createSecret),
-		router.NewDeleteRoute("/secrets/{id}", sr.removeSecret),
-		router.NewGetRoute("/secrets/{id}", sr.getSecret),
-		router.NewPostRoute("/secrets/{id}/update", sr.updateSecret),
+		router.NewGetRoute("/secrets", sr.getSecrets, router.WithMinimumAPIVersion("1.25")),
+		router.NewPostRoute("/secrets/create", sr.createSecret, router.WithMinimumAPIVersion("1.25")),
+		router.NewDeleteRoute("/secrets/{id}", sr.removeSecret, router.WithMinimumAPIVersion("1.25")),
+		router.NewGetRoute("/secrets/{id}", sr.getSecret, router.WithMinimumAPIVersion("1.25")),
+		router.NewPostRoute("/secrets/{id}/update", sr.updateSecret, router.WithMinimumAPIVersion("1.25")),
 
-		router.NewGetRoute("/configs", sr.getConfigs),
-		router.NewPostRoute("/configs/create", sr.createConfig),
-		router.NewDeleteRoute("/configs/{id}", sr.removeConfig),
-		router.NewGetRoute("/configs/{id}", sr.getConfig),
-		router.NewPostRoute("/configs/{id}/update", sr.updateConfig),
+		router.NewGetRoute("/configs", sr.getConfigs, router.WithMinimumAPIVersion("1.30")),
+		router.NewPostRoute("/configs/create", sr.createConfig, router.WithMinimumAPIVersion("1.30")),
+		router.NewDeleteRoute("/configs/{id}", sr.removeConfig, router.WithMinimumAPIVersion("1.30")),
+		router.NewGetRoute("/configs/{id}", sr.getConfig, router.WithMinimumAPIVersion("1.30")),
+		router.NewPostRoute("/configs/{id}/update", sr.updateConfig, router.WithMinimumAPIVersion("1.30")),
 	}
 }

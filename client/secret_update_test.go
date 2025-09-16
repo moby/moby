@@ -15,13 +15,6 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func TestSecretUpdateUnsupported(t *testing.T) {
-	client, err := NewClientWithOpts(WithVersion("1.24"), WithHTTPClient(&http.Client{}))
-	assert.NilError(t, err)
-	err = client.SecretUpdate(context.Background(), "secret_id", swarm.Version{}, swarm.SecretSpec{})
-	assert.Check(t, is.Error(err, `"secret update" requires API version 1.25, but the Docker daemon API version is 1.24`))
-}
-
 func TestSecretUpdateError(t *testing.T) {
 	client, err := NewClientWithOpts(WithVersion("1.25"), WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
