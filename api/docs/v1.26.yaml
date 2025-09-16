@@ -432,10 +432,6 @@ definitions:
         description: "Disk limit (in bytes)."
         type: "integer"
         format: "int64"
-      KernelMemory:
-        description: "Kernel memory limit in bytes."
-        type: "integer"
-        format: "int64"
       MemoryReservation:
         description: "Memory soft limit in bytes."
         type: "integer"
@@ -2721,7 +2717,6 @@ paths:
                 Memory: 0
                 MemorySwap: 0
                 MemoryReservation: 0
-                KernelMemory: 0
                 NanoCpus: 500000
                 CpuPercent: 80
                 CpuShares: 512
