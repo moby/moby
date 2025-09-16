@@ -71,7 +71,7 @@ type ContainerAPIClient interface {
 	ContainerDiff(ctx context.Context, container string) ([]container.FilesystemChange, error)
 	ContainerExecAttach(ctx context.Context, execID string, options ExecAttachOptions) (HijackedResponse, error)
 	ContainerExecCreate(ctx context.Context, container string, options ExecCreateOptions) (container.ExecCreateResponse, error)
-	ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error)
+	ContainerExecInspect(ctx context.Context, execID string) (ExecInspect, error)
 	ContainerExecResize(ctx context.Context, execID string, options ContainerResizeOptions) error
 	ContainerExecStart(ctx context.Context, execID string, options ExecStartOptions) error
 	ContainerExport(ctx context.Context, container string) (io.ReadCloser, error)
