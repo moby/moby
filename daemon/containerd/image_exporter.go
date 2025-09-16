@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -20,6 +21,7 @@ import (
 	"github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/daemon/internal/streamformatter"
 	"github.com/moby/moby/v2/errdefs"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -34,6 +36,7 @@ import (
 func (i *ImageService) ExportImage(ctx context.Context, names []string, platformList []ocispec.Platform, outStream io.Writer) error {
 	// Get the platform matcher for the requested platforms (matches all platforms if none specified)
 	pm := matchAnyWithPreference(i.hostPlatformMatcher(), platformList)
+	referrers := newReferrersForExport(i.content)
 
 	opts := []archive.ExportOpt{
 		archive.WithSkipNonDistributableBlobs(),
@@ -51,6 +54,7 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, platform
 		// Importing the same archive into containerd, will not restrict the platforms.
 		archive.WithPlatform(pm),
 		archive.WithSkipMissing(i.content),
+		archive.WithReferrersProvider(referrers),
 	}
 
 	ctx, done, err := i.withLease(ctx, false)
@@ -198,6 +202,8 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, platform
 		}
 	}
 
+	opts = append(opts, archive.WithReferrersProvider(referrers))
+
 	return i.client.Export(ctx, outStream, opts...)
 }
 
@@ -248,6 +254,8 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 
 	opts := []containerd.ImportOpt{
 		containerd.WithImportPlatform(pm),
+
+		containerd.WithImportReferrers(newReferrersForImport(i.content)),
 
 		// Create an additional image with dangling name for imported images...
 		containerd.WithDigestRef(danglingImageName),
@@ -443,4 +451,80 @@ func (i *ImageService) verifyImagesProvidePlatform(ctx context.Context, imgs []c
 	}
 
 	return errdefs.NotFound(fmt.Errorf(msg, strings.Join(incompleteImgs, ", "), platformNames))
+}
+
+type referrersForImport struct {
+	store      content.Store
+	candidates *referrersList
+}
+
+func newReferrersForImport(store content.Store) *referrersForImport {
+	return &referrersForImport{
+		store:      store,
+		candidates: newReferrersList(),
+	}
+}
+
+func (r *referrersForImport) Referrers(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+	if r.candidates.readFrom(ctx, r.store, desc) != nil {
+		return nil, nil
+	}
+	refs, ok := r.candidates.Get(desc.Digest)
+	if !ok {
+		return nil, nil
+	}
+	return refs, nil
+}
+
+type referrersForExport struct {
+	store content.Store
+}
+
+func newReferrersForExport(store content.Store) *referrersForExport {
+	return &referrersForExport{
+		store: store,
+	}
+}
+
+func (r *referrersForExport) Referrers(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+	info, err := r.store.Info(ctx, desc.Digest)
+	if err != nil {
+		if errors.Is(err, cerrdefs.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var refs []ocispec.Descriptor
+	for k, v := range info.Labels {
+		if strings.HasPrefix(k, "containerd.io/gc.ref.content.referrer.sha256.") {
+			dgst, err := digest.Parse(v)
+			if err != nil {
+				continue
+			}
+			var desc ocispec.Descriptor
+			desc.Digest = dgst
+			info, err := r.store.Info(ctx, dgst)
+			if err != nil {
+				continue
+			}
+			desc.Size = info.Size
+			// parse mediatype and artifact type
+			dt, err := content.ReadBlob(ctx, r.store, ocispec.Descriptor{Digest: dgst})
+			if err != nil {
+				continue
+			}
+			var mfst ocispec.Manifest
+			if err := json.Unmarshal(dt, &mfst); err != nil {
+				continue
+			}
+			desc.MediaType = mfst.MediaType
+			if mfst.ArtifactType != "" {
+				desc.ArtifactType = mfst.ArtifactType
+			}
+			// TODO: we should only export signatures but cosign doesn't set artifact type on payload
+			refs = append(refs, desc)
+		}
+	}
+
+	return refs, nil
 }
