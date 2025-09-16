@@ -208,6 +208,9 @@ func (test *testEndpoint) DisableGatewayService() {
 	test.disableGatewayService = true
 }
 
+func (test *testEndpoint) ForceGw4() {}
+func (test *testEndpoint) ForceGw6() {}
+
 func (test *testEndpoint) AddTableEntry(tableName string, key string, value []byte) error {
 	return nil
 }

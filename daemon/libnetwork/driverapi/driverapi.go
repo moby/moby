@@ -195,6 +195,14 @@ type JoinInfo interface {
 	// DisableGatewayService tells libnetwork not to provide Default GW for the container
 	DisableGatewayService()
 
+	// ForceGw4 may be called by a driver to indicate that, even if it has not set up
+	// an IPv4 gateway, libnet should assume the endpoint has external IPv4 connectivity.
+	ForceGw4()
+
+	// ForceGw6 may be called by a driver to indicate that, even if it has not set up
+	// an IPv6 gateway, libnet should assume the endpoint has external IPv6 connectivity.
+	ForceGw6()
+
 	// AddTableEntry adds a table entry to the gossip layer
 	// passing the table name, key and an opaque value.
 	AddTableEntry(tableName string, key string, value []byte) error

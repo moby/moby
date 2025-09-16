@@ -103,7 +103,7 @@ func (sb *Sandbox) updateGateway(ep4, ep6 *Endpoint) error {
 			if err := osSbox.SetGateway(joinInfo.gw); err != nil {
 				return fmt.Errorf("failed to set gateway: %v", err)
 			}
-		} else {
+		} else if !joinInfo.forceGw4 {
 			if err := osSbox.SetDefaultRouteIPv4(ep4.iface.srcName); err != nil {
 				return fmt.Errorf("failed to set IPv4 default route: %v", err)
 			}
@@ -117,9 +117,9 @@ func (sb *Sandbox) updateGateway(ep4, ep6 *Endpoint) error {
 
 		if joinInfo.gw6 != nil {
 			if err := osSbox.SetGatewayIPv6(joinInfo.gw6); err != nil {
-				return fmt.Errorf("failed to set IPv6 gateway: %v", err)
+				return fmt.Errorf("failed to set IPv6 gateway (%s): %v", joinInfo.gw6, err)
 			}
-		} else {
+		} else if !joinInfo.forceGw6 {
 			if err := osSbox.SetDefaultRouteIPv6(ep6.iface.srcName); err != nil {
 				return fmt.Errorf("failed to set IPv6 default route: %v", err)
 			}
