@@ -422,6 +422,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 
 		config.HnsID = hnsresponse.Id
 		genData[HNSID] = config.HnsID
+		genData[NetworkName] = network.Name
 		n.created = true
 
 		defer func() {
