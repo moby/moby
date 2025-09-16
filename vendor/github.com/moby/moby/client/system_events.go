@@ -8,7 +8,6 @@ import (
 
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
-	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client/internal/timestamp"
 )
 
@@ -31,17 +30,7 @@ func (cli *Client) Events(ctx context.Context, options EventsListOptions) (<-cha
 	go func() {
 		defer close(errs)
 
-		// Make sure we negotiated (if the client is configured to do so),
-		// as code below contains API-version specific handling of options.
-		//
-		// Normally, version-negotiation (if enabled) would not happen until
-		// the API request is made.
-		if err := cli.checkVersion(ctx); err != nil {
-			close(started)
-			errs <- err
-			return
-		}
-		query, err := buildEventsQueryParams(cli.version, options)
+		query, err := buildEventsQueryParams(options)
 		if err != nil {
 			close(started)
 			errs <- err
@@ -85,7 +74,7 @@ func (cli *Client) Events(ctx context.Context, options EventsListOptions) (<-cha
 	return messages, errs
 }
 
-func buildEventsQueryParams(cliVersion string, options EventsListOptions) (url.Values, error) {
+func buildEventsQueryParams(options EventsListOptions) (url.Values, error) {
 	query := url.Values{}
 	ref := time.Now()
 
@@ -109,13 +98,6 @@ func buildEventsQueryParams(cliVersion string, options EventsListOptions) (url.V
 		filterJSON, err := filters.ToJSON(options.Filters)
 		if err != nil {
 			return nil, err
-		}
-		if cliVersion != "" && versions.LessThan(cliVersion, "1.22") {
-			legacyFormat, err := encodeLegacyFilters(filterJSON)
-			if err != nil {
-				return nil, err
-			}
-			filterJSON = legacyFormat
 		}
 		query.Set("filters", filterJSON)
 	}
