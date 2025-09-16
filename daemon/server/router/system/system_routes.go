@@ -118,9 +118,6 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 			info.RuncCommit.Expected = info.RuncCommit.ID             //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.
 			info.InitCommit.Expected = info.InitCommit.ID             //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.
 		}
-		if versions.GreaterThanOrEqualTo(version, "1.42") {
-			info.KernelMemory = false
-		}
 		if versions.LessThan(version, "1.50") {
 			info.DiscoveredDevices = nil
 

@@ -144,9 +144,6 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, isHyp
 	if resources.CpusetMems != "" {
 		return warnings, fmt.Errorf("invalid option: Windows does not support CpusetMems")
 	}
-	if resources.KernelMemory != 0 {
-		return warnings, fmt.Errorf("invalid option: Windows does not support KernelMemory")
-	}
 	if resources.MemoryReservation != 0 {
 		return warnings, fmt.Errorf("invalid option: Windows does not support MemoryReservation")
 	}

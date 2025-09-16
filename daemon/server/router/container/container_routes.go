@@ -461,11 +461,6 @@ func (c *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 		updateConfig.PidsLimit = nil
 	}
 
-	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.42") {
-		// Ignore KernelMemory removed in API 1.42.
-		updateConfig.KernelMemory = 0
-	}
-
 	if updateConfig.PidsLimit != nil && *updateConfig.PidsLimit <= 0 {
 		// Both `0` and `-1` are accepted to set "unlimited" when updating.
 		// Historically, any negative value was accepted, so treat them as
@@ -592,8 +587,6 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	}
 
 	if versions.GreaterThanOrEqualTo(version, "1.42") {
-		// Ignore KernelMemory removed in API 1.42.
-		hostConfig.KernelMemory = 0
 		for _, m := range hostConfig.Mounts {
 			if o := m.VolumeOptions; o != nil && m.Type != mount.TypeVolume {
 				return errdefs.InvalidParameter(fmt.Errorf("VolumeOptions must not be specified on mount type %q", m.Type))

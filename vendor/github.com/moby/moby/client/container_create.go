@@ -47,10 +47,6 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 			// When using API 1.24 and under, the client is responsible for removing the container
 			hostConfig.AutoRemove = false
 		}
-		if versions.GreaterThanOrEqualTo(cli.ClientVersion(), "1.42") || versions.LessThan(cli.ClientVersion(), "1.40") {
-			// KernelMemory was added in API 1.40, and deprecated in API 1.42
-			hostConfig.KernelMemory = 0
-		}
 		if platform != nil && platform.OS == "linux" && versions.LessThan(cli.ClientVersion(), "1.42") {
 			// When using API under 1.42, the Linux daemon doesn't respect the ConsoleSize
 			hostConfig.ConsoleSize = [2]uint{0, 0}

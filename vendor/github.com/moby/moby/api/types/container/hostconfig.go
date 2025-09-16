@@ -390,9 +390,6 @@ type Resources struct {
 	DeviceCgroupRules    []string        // List of rule to be added to the device cgroup
 	DeviceRequests       []DeviceRequest // List of device requests for device drivers
 
-	// KernelMemory specifies the kernel memory limit (in bytes) for the container.
-	// Deprecated: kernel 5.4 deprecated kmem.limit_in_bytes.
-	KernelMemory      int64     `json:",omitempty"`
 	KernelMemoryTCP   int64     `json:",omitempty"` // Hard limit for kernel TCP buffer memory (in bytes)
 	MemoryReservation int64     // Memory soft limit (in bytes)
 	MemorySwap        int64     // Total memory usage (memory + swap); set `-1` to enable unlimited swap
