@@ -17,17 +17,6 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func TestConfigListUnsupported(t *testing.T) {
-	client, err := NewClientWithOpts(
-		WithVersion("1.29"),
-		WithHTTPClient(&http.Client{}),
-	)
-	assert.NilError(t, err)
-
-	_, err = client.ConfigList(context.Background(), ConfigListOptions{})
-	assert.Check(t, is.Error(err, `"config list" requires API version 1.30, but the Docker daemon API version is 1.29`))
-}
-
 func TestConfigListError(t *testing.T) {
 	client, err := NewClientWithOpts(
 		WithVersion("1.30"),

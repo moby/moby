@@ -54,7 +54,7 @@ func (c *containerRouter) initRoutes() {
 		router.NewPostRoute("/exec/{name:.*}/resize", c.postContainerExecResize),
 		router.NewPostRoute("/containers/{name:.*}/rename", c.postContainerRename),
 		router.NewPostRoute("/containers/{name:.*}/update", c.postContainerUpdate),
-		router.NewPostRoute("/containers/prune", c.postContainersPrune),
+		router.NewPostRoute("/containers/prune", c.postContainersPrune, router.WithMinimumAPIVersion("1.25")),
 		router.NewPostRoute("/commit", c.postCommit),
 		// PUT
 		router.NewPutRoute("/containers/{name:.*}/archive", c.putContainersArchive),

@@ -11,10 +11,6 @@ import (
 
 // NetworksPrune requests the daemon to delete unused networks
 func (cli *Client) NetworksPrune(ctx context.Context, pruneFilters filters.Args) (network.PruneReport, error) {
-	if err := cli.NewVersionError(ctx, "1.25", "network prune"); err != nil {
-		return network.PruneReport{}, err
-	}
-
 	query, err := getFiltersQuery(pruneFilters)
 	if err != nil {
 		return network.PruneReport{}, err

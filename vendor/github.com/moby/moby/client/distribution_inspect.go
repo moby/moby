@@ -15,10 +15,6 @@ func (cli *Client) DistributionInspect(ctx context.Context, imageRef, encodedReg
 		return registry.DistributionInspect{}, objectNotFoundError{object: "distribution", id: imageRef}
 	}
 
-	if err := cli.NewVersionError(ctx, "1.30", "distribution inspect"); err != nil {
-		return registry.DistributionInspect{}, err
-	}
-
 	var headers http.Header
 	if encodedRegistryAuth != "" {
 		headers = http.Header{

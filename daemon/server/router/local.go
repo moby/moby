@@ -1,8 +1,10 @@
 package router
 
 import (
+	"context"
 	"net/http"
 
+	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 )
 
@@ -71,3 +73,32 @@ func NewOptionsRoute(path string, handler httputils.APIFunc, opts ...RouteWrappe
 func NewHeadRoute(path string, handler httputils.APIFunc, opts ...RouteWrapper) Route {
 	return NewRoute(http.MethodHead, path, handler, opts...)
 }
+
+// WithMinimumAPIVersion configures the minimum API version required for
+// a route. It produces a 400 (Invalid Request) error when accessing the
+// endpoint on API versions lower than "minAPIVersion".
+//
+// Note that technically, it should produce a 404 ("not found") error,
+// as the endpoint should be considered "non-existing" on such API versions,
+// but 404 status-codes are used in business logic for various endpoints.
+func WithMinimumAPIVersion(minAPIVersion string) RouteWrapper {
+	return func(route Route) Route {
+		return localRoute{
+			method: route.Method(),
+			path:   route.Path(),
+			handler: func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+				if v := httputils.VersionFromContext(ctx); v != "" && versions.LessThan(v, minAPIVersion) {
+					return versionError(route.Method() + " " + route.Path() + " requires minimum API version " + minAPIVersion)
+				}
+				return route.Handler()(ctx, w, r, vars)
+			},
+		}
+	}
+}
+
+type versionError string
+
+func (e versionError) Error() string {
+	return string(e)
+}
+func (e versionError) InvalidParameter() {}

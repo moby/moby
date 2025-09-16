@@ -19,9 +19,6 @@ func (cli *Client) PluginUpgrade(ctx context.Context, name string, options Plugi
 		return nil, err
 	}
 
-	if err := cli.NewVersionError(ctx, "1.26", "plugin upgrade"); err != nil {
-		return nil, err
-	}
 	query := url.Values{}
 	if _, err := reference.ParseNormalizedNamed(options.RemoteRef); err != nil {
 		return nil, fmt.Errorf("invalid remote reference: %w", err)
