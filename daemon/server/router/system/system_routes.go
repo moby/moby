@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/containerd/log"
@@ -22,7 +21,6 @@ import (
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/daemon/server/router/build"
-	"github.com/moby/moby/v2/daemon/server/systembackend"
 	"github.com/moby/moby/v2/pkg/ioutils"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -75,18 +73,6 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 			info.Warnings = append(info.Warnings, info.Swarm.Warnings...)
 		}
 
-		if versions.LessThan(version, "1.25") {
-			// TODO: handle this conversion in engine-api
-			kvSecOpts, err := decodeSecurityOptions(info.SecurityOptions)
-			if err != nil {
-				info.Warnings = append(info.Warnings, err.Error())
-			}
-			var nameOnly []string
-			for _, so := range kvSecOpts {
-				nameOnly = append(nameOnly, so.Name)
-			}
-			info.SecurityOptions = nameOnly
-		}
 		if versions.LessThan(version, "1.44") {
 			for k, rt := range info.Runtimes {
 				// Status field introduced in API v1.44.
@@ -135,36 +121,6 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 	})
 
 	return httputils.WriteJSON(w, http.StatusOK, info)
-}
-
-// decodeSecurityOptions decodes a security options string slice to a
-// type-safe [systembackend.SecurityOption].
-func decodeSecurityOptions(opts []string) ([]systembackend.SecurityOption, error) {
-	so := []systembackend.SecurityOption{}
-	for _, opt := range opts {
-		// support output from a < 1.13 docker daemon
-		if !strings.Contains(opt, "=") {
-			so = append(so, systembackend.SecurityOption{Name: opt})
-			continue
-		}
-		secopt := systembackend.SecurityOption{}
-		for _, s := range strings.Split(opt, ",") {
-			k, v, ok := strings.Cut(s, "=")
-			if !ok {
-				return nil, fmt.Errorf("invalid security option %q", s)
-			}
-			if k == "" || v == "" {
-				return nil, errors.New("invalid empty security option")
-			}
-			if k == "name" {
-				secopt.Name = v
-				continue
-			}
-			secopt.Options = append(secopt.Options, systembackend.KeyValue{Key: k, Value: v})
-		}
-		so = append(so, secopt)
-	}
-	return so, nil
 }
 
 func (s *systemRouter) getVersion(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
