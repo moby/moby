@@ -18,6 +18,8 @@ import (
 	winio "github.com/Microsoft/go-winio"
 )
 
+// TODO(go1.24): use [os.Root] and co. here
+
 func OpenRoot(path string) (*os.File, error) {
 	longpath, err := longpath.LongAbs(path)
 	if err != nil {

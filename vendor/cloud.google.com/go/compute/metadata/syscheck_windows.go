@@ -22,7 +22,8 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-func systemInfoSuggestsGCE() bool {
+// NOTE: systemInfoSuggestsGCE is assigned to a varible for test stubbing purposes.
+var systemInfoSuggestsGCE = func() bool {
 	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SYSTEM\HardwareConfig\Current`, registry.QUERY_VALUE)
 	if err != nil {
 		return false

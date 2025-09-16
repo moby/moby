@@ -1,6 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
+// Package internal provides internal functionality for the metric package.
 package internal // import "go.opentelemetry.io/otel/sdk/metric/internal"
 
 // ReuseSlice returns a zeroed view of slice if its capacity is greater than or

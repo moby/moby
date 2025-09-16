@@ -17,7 +17,7 @@
 package oci
 
 import (
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func defaultMounts() []specs.Mount {

@@ -1,5 +1,12 @@
 # Changes
 
+## [0.7.0](https://github.com/googleapis/google-cloud-go/compare/compute/metadata/v0.6.0...compute/metadata/v0.7.0) (2025-05-13)
+
+
+### Features
+
+* **compute/metadata:** Allow canceling GCE detection ([#11786](https://github.com/googleapis/google-cloud-go/issues/11786)) ([78100fe](https://github.com/googleapis/google-cloud-go/commit/78100fe7e28cd30f1e10b47191ac3c9839663b64))
+
 ## [0.6.0](https://github.com/googleapis/google-cloud-go/compare/compute/metadata/v0.5.2...compute/metadata/v0.6.0) (2024-12-13)
 
 

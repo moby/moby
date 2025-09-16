@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"regexp"
@@ -258,7 +257,7 @@ func (cs executableCredentialSource) getTokenFromOutputFile() (token string, err
 	}
 	defer file.Close()
 
-	data, err := ioutil.ReadAll(io.LimitReader(file, 1<<20))
+	data, err := io.ReadAll(io.LimitReader(file, 1<<20))
 	if err != nil || len(data) == 0 {
 		// Cachefile exists, but no data found. Get new credential.
 		return "", nil

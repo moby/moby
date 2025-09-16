@@ -73,7 +73,7 @@ func (pm *Manager) registryHostsFn(auth *registry.AuthConfig, httpFallback bool)
 				continue
 			}
 
-			caps := docker.HostCapabilityPull | docker.HostCapabilityResolve
+			caps := docker.HostCapabilityPull | docker.HostCapabilityResolve | docker.HostCapabilityReferrers
 			if !ep.Mirror {
 				caps = caps | docker.HostCapabilityPush
 			}
