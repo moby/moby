@@ -535,7 +535,8 @@ func dispatchExpose(ctx context.Context, d dispatchRequest, c *instructions.Expo
 		d.state.runConfig.ExposedPorts = make(container.PortSet)
 	}
 	for p := range ps {
-		d.state.runConfig.ExposedPorts[container.PortProto(p)] = struct{}{}
+		natPort, _ := container.ParsePort(string(p))
+		d.state.runConfig.ExposedPorts[natPort] = struct{}{}
 	}
 
 	return d.builder.commit(ctx, d.state, "EXPOSE "+strings.Join(c.Ports, " "))

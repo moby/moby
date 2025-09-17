@@ -1,202 +1,306 @@
 package container
 
 import (
+	"encoding/json"
 	"testing"
 )
 
-func TestPortProto(t *testing.T) {
-	p := PortProto("1234/tcp")
-
-	if string(p) != "1234/tcp" {
-		t.Fatal("tcp, 1234 did not result in the string 1234/tcp")
-	}
-
-	if p.Proto() != "tcp" {
-		t.Fatal("protocol was not tcp")
-	}
-
-	if p.Port() != "1234" {
-		t.Fatal("port string value was not 1234")
-	}
-
-	if portNum, err := p.Int(); err != nil {
-		t.Fatalf("port int value had an error: %v", err)
-	} else if portNum != 1234 {
-		t.Fatal("port int value was not 1234")
-	}
-
-	p = PortProto("1234")
-
-	if p.Proto() != "tcp" {
-		t.Fatal("default protocol was not tcp")
-	}
-
-	if p.Port() != "1234" {
-		t.Fatal("port string value was not 1234")
-	}
-
-	if portNum, err := p.Int(); err != nil {
-		t.Fatalf("port int value had an error: %v", err)
-	} else if portNum != 1234 {
-		t.Fatal("port int value was not 1234")
-	}
-
-	p = PortProto("asd1234/tcp")
-	if portNum, err := p.Int(); err == nil {
-		t.Fatalf("port int value was supposed to have an error, got %d", portNum)
-	}
-
-	p = PortProto("1234-1230/tcp")
-	if portNum, err := p.Int(); err == nil {
-		t.Fatalf("port int value was supposed to have an error, got %d", portNum)
-	}
-
-	p = PortProto("65536/tcp")
-	if portNum, err := p.Int(); err == nil {
-		t.Fatalf("port int value was supposed to have an error, got %d", portNum)
-	}
+type TestRanger interface {
+	Range() PortRange
 }
 
-func TestPortRangeProto(t *testing.T) {
-	pr := PortRangeProto("1234-1240/tcp")
+var _ TestRanger = Port{}
+var _ TestRanger = PortRange{}
 
-	if string(pr) != "1234-1240/tcp" {
-		t.Fatal("tcp, 1234-1240 did not result in the string 1234-1240/tcp")
-	}
-
-	if pr.Proto() != "tcp" {
-		t.Fatal("protocol was not tcp")
-	}
-
-	if pr.PortRange() != "1234-1240" {
-		t.Fatal("port range string value was not 1234-1240")
-	}
-
-	if start, end, err := pr.Range(); err != nil {
-		t.Fatalf("port range int value had an error: %v", err)
-	} else if start != 1234 || end != 1240 {
-		t.Fatalf("port range int value was not 1234-1240, got %d-%d", start, end)
-	}
-
-	pr = PortRangeProto("1234-1240")
-
-	if pr.Proto() != "tcp" {
-		t.Fatal("default protocol was not tcp")
-	}
-
-	if pr.PortRange() != "1234-1240" {
-		t.Fatal("port range string value was not 1234-1240")
-	}
-
-	if start, end, err := pr.Range(); err != nil {
-		t.Fatalf("port range int value had an error: %v", err)
-	} else if start != 1234 || end != 1240 {
-		t.Fatalf("port range int value was not 1234-1240, got %d-%d", start, end)
-	}
-
-	pr = PortRangeProto("/tcp")
-	if start, end, err := pr.Range(); err != nil {
-		t.Fatalf("port range int value had an error: %v", err)
-	} else if start != 0 || end != 0 {
-		t.Fatalf("port range int value was not 0-0, got %d-%d", start, end)
-	}
-
-	pr = PortRangeProto("1234/tcp")
-	if start, end, err := pr.Range(); err != nil {
-		t.Fatalf("port range int value had an error: %v", err)
-	} else if start != 1234 || end != 1234 {
-		t.Fatalf("port range int value was not 1234-1234, got %d-%d", start, end)
-	}
-
-	pr = PortRangeProto("asd1234-1240/tcp")
-	if start, end, err := pr.Range(); err == nil {
-		t.Fatalf("port range int value was supposed to have an error, got %d-%d", start, end)
-	}
-
-	pr = PortRangeProto("1234-asd1240/tcp")
-	if start, end, err := pr.Range(); err == nil {
-		t.Fatalf("port range int value was supposed to have an error, got %d-%d", start, end)
-	}
-
-	pr = PortRangeProto("1240-1234/tcp")
-	if start, end, err := pr.Range(); err == nil {
-		t.Fatalf("port range int value was supposed to have an error, got %d-%d", start, end)
-	}
-}
-
-func TestParsePortNumber(t *testing.T) {
+func TestParsePort(t *testing.T) {
 	tests := []struct {
-		doc    string
-		input  string
-		exp    int
-		expErr string
+		in        string
+		port      Port      // output of ParsePort()
+		str       string    // output of String(). If "", use in.
+		portRange PortRange // output of Range()
 	}{
+		// Zero port
 		{
-			doc:    "empty string",
-			input:  "",
-			expErr: "value is empty",
+			in:        "0/tcp",
+			port:      Port{num: 0, proto: TCP},
+			str:       "0/tcp",
+			portRange: PortRange{start: 0, end: 0, proto: TCP},
+		},
+		// Max valid port
+		{
+			in:        "65535/tcp",
+			port:      Port{num: 65535, proto: TCP},
+			str:       "65535/tcp",
+			portRange: PortRange{start: 65535, end: 65535, proto: TCP},
+		},
+		// Simple valid ports
+		{
+			in:        "1234/tcp",
+			port:      Port{num: 1234, proto: TCP},
+			str:       "1234/tcp",
+			portRange: PortRange{start: 1234, end: 1234, proto: TCP},
 		},
 		{
-			doc:    "whitespace only",
-			input:  "   ",
-			expErr: "invalid syntax",
+			in:        "1234/udp",
+			port:      Port{num: 1234, proto: UDP},
+			str:       "1234/udp",
+			portRange: PortRange{start: 1234, end: 1234, proto: UDP},
 		},
 		{
-			doc:   "single valid port",
-			input: "1234",
-			exp:   1234,
+			in:        "1234/sctp",
+			port:      Port{num: 1234, proto: SCTP},
+			str:       "1234/sctp",
+			portRange: PortRange{start: 1234, end: 1234, proto: SCTP},
 		},
+		// Default protocol is tcp
 		{
-			doc:   "zero port",
-			input: "0",
-			exp:   0,
-		},
-		{
-			doc:   "max valid port",
-			input: "65535",
-			exp:   65535,
-		},
-		{
-			doc:    "negative port",
-			input:  "-1",
-			expErr: "value out of range (0–65535)",
-		},
-		{
-			doc:    "too large port",
-			input:  "65536",
-			expErr: "value out of range (0–65535)",
-		},
-		{
-			doc:    "non-numeric",
-			input:  "foo",
-			expErr: "invalid syntax",
-		},
-		{
-			doc:    "trailing garbage",
-			input:  "1234abc",
-			expErr: "invalid syntax",
+			in:        "1234",
+			port:      Port{num: 1234, proto: TCP},
+			str:       "1234/tcp",
+			portRange: PortRange{start: 1234, end: 1234, proto: TCP},
 		},
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.doc, func(t *testing.T) {
-			got, err := parsePortNumber(tc.input)
+		t.Run(tc.in, func(t *testing.T) {
+			got, err := ParsePort(tc.in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tc.port {
+				t.Errorf("expected port %+v, got %+v", tc.port, got)
+			}
 
-			if tc.expErr == "" {
-				if err != nil {
-					t.Fatalf("expected no error, got %q", err)
-				}
-				if got != tc.exp {
-					t.Errorf("expected %d, got %d", tc.exp, got)
-				}
-			} else {
-				if err == nil {
-					t.Fatalf("expected error %q, got nil", tc.expErr)
-				}
-				if err.Error() != tc.expErr {
-					t.Errorf("expected error %q, got %q", tc.expErr, err.Error())
-				}
+			MustParsePort(tc.in) // should not panic
+
+			// Check that ParsePort is a pure function.
+			if got2, err := ParsePort(tc.in); err != nil {
+				t.Fatal(err)
+			} else if got2 != got {
+				t.Errorf("ParsePort(%q) got 2 different results %#v, %#v", tc.in, got, got2)
+			}
+
+			// Check that ParsePort(port.String()) is the identity function.
+			if got3, err := ParsePort(got.String()); err != nil {
+				t.Fatal(err)
+			} else if got3 != got {
+				t.Errorf("ParsePort(%q) != ParsePort(ParsePort(%q).String()) Got %#v, want %#v", tc.in, tc.in, got3, got)
+			}
+
+			// Check String() output
+			s := got.String()
+			wants := tc.str
+			if wants == "" {
+				wants = tc.in
+			}
+			if s != wants {
+				t.Errorf("ParsePort(%q).String() got %q, want %q", tc.in, s, wants)
+			}
+
+			js := `"` + tc.in + `"`
+			var jsgot Port
+			if err := json.Unmarshal([]byte(js), &jsgot); err != nil {
+				t.Fatal(err)
+			}
+			if jsgot != got {
+				t.Errorf("json.Unmarshal(%q) = %#v, want %#v", tc.in, jsgot, got)
+			}
+			jsb, err := json.Marshal(jsgot)
+			if err != nil {
+				t.Fatal(err)
+			}
+			jswant := `"` + wants + `"`
+			jsback := string(jsb)
+			if jsback != jswant {
+				t.Errorf("json.Marshal(json.Unmarshal(%q)) = %q, want %q", tc.in, jsback, jswant)
+			}
+
+			// Check Range() output
+			if r := got.Range(); r != tc.portRange {
+				t.Errorf("ParsePort(%q).Range() = %+v, want %+v", tc.in, r, tc.portRange)
 			}
 		})
+	}
+
+	negativeTests := []string{
+		// Empty string
+		"",
+		// Whitespace-only string
+		" ",
+		// Negative port
+		"-1",
+		// Too large port
+		"65536",
+		// Non-numeric port
+		"foo",
+		// Port range instead of single port
+		"1234-1240/udp",
+		// Port range instead of single port without protocol
+		"1234-1240",
+		// Garbage port
+		"asd1234/tcp",
+	}
+
+	for _, s := range negativeTests {
+		t.Run(s, func(t *testing.T) {
+			got, err := ParsePort(s)
+			if err == nil {
+				t.Errorf("ParsePort(%q), got port %+v", s, got)
+			}
+
+			var jsgot Port
+			js := []byte(`"` + s + `"`)
+			if err := json.Unmarshal(js, &jsgot); err == nil {
+				t.Errorf("json.Unmarshal(%q) = %#v", s, jsgot)
+			}
+		})
+	}
+}
+
+func TestPortRange(t *testing.T) {
+	tests := []struct {
+		in        string
+		portRange PortRange // output of ParsePortRange() and Range()
+		str       string    // output of String(). If "", use in.
+
+	}{
+		// Zero port
+		{
+			in:        "0-1234/tcp",
+			portRange: PortRange{start: 0, end: 1234, proto: TCP},
+			str:       "0-1234/tcp",
+		},
+		// Max valid port
+		{
+			in:        "1234-65535/tcp",
+			portRange: PortRange{start: 1234, end: 65535, proto: TCP},
+			str:       "1234-65535/tcp",
+		},
+		// Simple valid ports
+		{
+			in:        "1234-4567/tcp",
+			portRange: PortRange{start: 1234, end: 4567, proto: TCP},
+			str:       "1234-4567/tcp",
+		},
+		{
+			in:        "1234-4567/udp",
+			portRange: PortRange{start: 1234, end: 4567, proto: UDP},
+			str:       "1234-4567/udp",
+		},
+		// Default protocol is tcp
+		{
+			in:        "1234-4567",
+			portRange: PortRange{start: 1234, end: 4567, proto: TCP},
+			str:       "1234-4567/tcp",
+		},
+		{
+			in:        "1234/tcp",
+			portRange: PortRange{start: 1234, end: 1234, proto: TCP},
+			str:       "1234-1234/tcp",
+		},
+		{
+			in:        "1234",
+			portRange: PortRange{start: 1234, end: 1234, proto: TCP},
+			str:       "1234-1234/tcp",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.in, func(t *testing.T) {
+			got, err := ParsePortRange(tc.in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tc.portRange {
+				t.Errorf("expected port range %+v, got %+v", tc.portRange, got)
+			}
+
+			MustParsePortRange(tc.in) // should not panic
+
+			// Check that ParsePortRange is a pure function.
+			if got2, err := ParsePortRange(tc.in); err != nil {
+				t.Fatal(err)
+			} else if got2 != got {
+				t.Errorf("ParsePortRange(%q) got 2 different results %#v, %#v", tc.in, got, got2)
+			}
+
+			// Check that ParsePortRange(port.String()) is the identity function.
+			if got3, err := ParsePortRange(got.String()); err != nil {
+				t.Fatal(err)
+			} else if got3 != got {
+				t.Errorf("ParsePortRange(%q) != ParsePortRange(ParsePortRange(%q).String()) Got %#v, want %#v", tc.in, tc.in, got3, got)
+			}
+
+			// Check String() output
+			s := got.String()
+			wants := tc.str
+			if wants == "" {
+				wants = tc.in
+			}
+			if s != wants {
+				t.Errorf("ParsePortRange(%q).String() got %q, want %q", tc.in, s, wants)
+			}
+
+			js := `"` + tc.in + `"`
+			var jsgot PortRange
+			if err := json.Unmarshal([]byte(js), &jsgot); err != nil {
+				t.Fatal(err)
+			}
+			if jsgot != got {
+				t.Errorf("json.Unmarshal(%q) = %#v, want %#v", tc.in, jsgot, got)
+			}
+			jsb, err := json.Marshal(jsgot)
+			if err != nil {
+				t.Fatal(err)
+			}
+			jswant := `"` + wants + `"`
+			jsback := string(jsb)
+			if jsback != jswant {
+				t.Errorf("json.Marshal(json.Unmarshal(%q)) = %q, want %q", tc.in, jsback, jswant)
+			}
+
+			// Check Range() output
+			if r := got.Range(); r != tc.portRange {
+				t.Errorf("ParsePortRange(%q).Range() = %+v, want %+v", tc.in, r, tc.portRange)
+			}
+		})
+
+		negativeTests := []string{
+			// Empty string
+			"",
+			// Whitespace-only string
+			" ",
+			// Negative start port
+			"-1-1234",
+			// Negative end port
+			"1234--1",
+			// Too large start port
+			"65536-65537",
+			// Too large end port
+			"1234-65536",
+			// Non-numeric start port
+			"foo-1234",
+			// Non-numeric end port
+			"1234-bar",
+			// Start port greater than end port
+			"1234-1000",
+			// Garbage port range
+			"asd1234-5678/tcp",
+		}
+
+		for _, s := range negativeTests {
+			t.Run(s, func(t *testing.T) {
+				got, err := ParsePortRange(s)
+				if err == nil {
+					t.Errorf("ParsePortRange(%q), got port range %+v", s, got)
+				}
+
+				var jsgot PortRange
+				js := []byte(`"` + s + `"`)
+				if err := json.Unmarshal(js, &jsgot); err == nil {
+					t.Errorf("json.Unmarshal(%q) = %#v", s, jsgot)
+				}
+			})
+		}
 	}
 }

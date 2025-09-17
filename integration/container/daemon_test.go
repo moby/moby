@@ -76,7 +76,7 @@ func TestNetworkStateCleanupOnDaemonStart(t *testing.T) {
 	// Sadly this means the test will take longer, but at least this test can be parallelized.
 	cid := container.Run(ctx, t, apiClient,
 		container.WithExposedPorts("80/tcp"),
-		container.WithPortMap(containertypes.PortMap{"80/tcp": {{}}}),
+		container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{}}}),
 		container.WithCmd("/bin/sh", "-c", "while true; do echo hello; sleep 1; done"))
 	defer func() {
 		err := apiClient.ContainerRemove(ctx, cid, client.ContainerRemoveOptions{Force: true})
@@ -87,7 +87,7 @@ func TestNetworkStateCleanupOnDaemonStart(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, inspect.NetworkSettings.SandboxID != "")
 	assert.Assert(t, inspect.NetworkSettings.SandboxKey != "")
-	assert.Assert(t, inspect.NetworkSettings.Ports["80/tcp"] != nil)
+	assert.Assert(t, inspect.NetworkSettings.Ports[containertypes.MustParsePort("80/tcp")] != nil)
 
 	assert.NilError(t, d.Kill())
 	d.Start(t)
@@ -96,5 +96,5 @@ func TestNetworkStateCleanupOnDaemonStart(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, inspect.NetworkSettings.SandboxID == "")
 	assert.Assert(t, inspect.NetworkSettings.SandboxKey == "")
-	assert.Assert(t, is.Nil(inspect.NetworkSettings.Ports["80/tcp"]))
+	assert.Assert(t, is.Nil(inspect.NetworkSettings.Ports[containertypes.MustParsePort("80/tcp")]))
 }

@@ -3,6 +3,7 @@ package links
 import (
 	"cmp"
 	"fmt"
+	"maps"
 	"path"
 	"slices"
 	"strings"
@@ -21,21 +22,18 @@ type Link struct {
 	// Child environments variables
 	ChildEnvironment []string
 	// Child exposed ports
-	Ports []container.PortProto // TODO(thaJeztah): can we use []string here, or do we need the features of nat.Port?
+	Ports []container.Port
 }
 
 // EnvVars generates environment variables for the linked container
 // for the Link with the given options.
-func EnvVars(parentIP, childIP, name string, env []string, exposedPorts map[container.PortProto]struct{}) []string {
+func EnvVars(parentIP, childIP, name string, env []string, exposedPorts map[container.Port]struct{}) []string {
 	return NewLink(parentIP, childIP, name, env, exposedPorts).ToEnv()
 }
 
 // NewLink initializes a new Link struct with the provided options.
-func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[container.PortProto]struct{}) *Link {
-	ports := make([]container.PortProto, 0, len(exposedPorts))
-	for p := range exposedPorts {
-		ports = append(ports, p)
-	}
+func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[container.Port]struct{}) *Link {
+	ports := slices.Collect(maps.Keys(exposedPorts))
 
 	return &Link{
 		Name:             name,
@@ -56,33 +54,24 @@ func (l *Link) ToEnv() []string {
 	// sort the ports so that we can bulk the continuous ports together
 	slices.SortFunc(l.Ports, withTCPPriority)
 
-	var pStart, pEnd portIsh
 	env := make([]string, 0, 1+len(l.Ports)*4)
+	var pStart, pEnd container.Port
+
 	for i, p := range l.Ports {
 		if i == 0 {
 			pStart, pEnd = p, p
-			env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%s", alias, p.Proto(), l.ChildIP, p.Port()))
+			env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%d", alias, p.Proto(), l.ChildIP, p.Num()))
 		}
 
-		// These env-vars are produced for every port, regardless if they're
-		// part of a port-range.
-		portNum, err := p.Int()
-		if err != nil {
-			continue
-		}
-		prefix := fmt.Sprintf("%s_PORT_%d_%s", alias, portNum, strings.ToUpper(p.Proto()))
-		env = append(env, fmt.Sprintf("%s=%s://%s:%d", prefix, p.Proto(), l.ChildIP, portNum))
+		// These env-vars are produced for every port, regardless if they're part of a port-range.
+		prefix := fmt.Sprintf("%s_PORT_%d_%s", alias, p.Num(), strings.ToUpper(string(p.Proto())))
+		env = append(env, fmt.Sprintf("%s=%s://%s:%d", prefix, p.Proto(), l.ChildIP, p.Num()))
 		env = append(env, fmt.Sprintf("%s_ADDR=%s", prefix, l.ChildIP))
-		env = append(env, fmt.Sprintf("%s_PORT=%d", prefix, portNum))
+		env = append(env, fmt.Sprintf("%s_PORT=%d", prefix, p.Num()))
 		env = append(env, fmt.Sprintf("%s_PROTO=%s", prefix, p.Proto()))
 
-		// Detect whether this port is part of a range (consecutive port number
-		// and same protocol).
-		portEndNum, err := pEnd.Int()
-		if err != nil {
-			continue
-		}
-		if portNum == portEndNum+1 && strings.EqualFold(p.Proto(), pStart.Proto()) {
+		// Detect whether this port is part of a range (consecutive port number and same protocol).
+		if p.Num() == pEnd.Num()+1 && p.Proto() == pEnd.Proto() {
 			pEnd = p
 			if i < len(l.Ports)-1 {
 				continue
@@ -90,15 +79,11 @@ func (l *Link) ToEnv() []string {
 		}
 
 		if pEnd != pStart {
-			portStartNum, err := pStart.Int()
-			if err != nil {
-				continue
-			}
-			prefix = fmt.Sprintf("%s_PORT_%d_%s", alias, portStartNum, strings.ToUpper(pStart.Proto()))
-			env = append(env, fmt.Sprintf("%s_START=%s://%s:%d", prefix, pStart.Proto(), l.ChildIP, portStartNum))
-			env = append(env, fmt.Sprintf("%s_PORT_START=%d", prefix, portStartNum))
-			env = append(env, fmt.Sprintf("%s_END=%s://%s:%d", prefix, pEnd.Proto(), l.ChildIP, portEndNum))
-			env = append(env, fmt.Sprintf("%s_PORT_END=%d", prefix, portEndNum))
+			prefix = fmt.Sprintf("%s_PORT_%d_%s", alias, pStart.Num(), strings.ToUpper(string(pStart.Proto())))
+			env = append(env, fmt.Sprintf("%s_START=%s://%s:%d", prefix, pStart.Proto(), l.ChildIP, pStart.Num()))
+			env = append(env, fmt.Sprintf("%s_PORT_START=%d", prefix, pStart.Num()))
+			env = append(env, fmt.Sprintf("%s_END=%s://%s:%d", prefix, pEnd.Proto(), l.ChildIP, pEnd.Num()))
+			env = append(env, fmt.Sprintf("%s_PORT_END=%d", prefix, pEnd.Num()))
 		}
 
 		// Reset for next range (if any)
@@ -124,29 +109,21 @@ func (l *Link) ToEnv() []string {
 	return env
 }
 
-// FIXME(thaJeztah): update [nat.Sort] signature to accept an interface instead of only nat.Port as concrete type.
-type portIsh interface {
-	Proto() string
-	Int() (int, error)
-}
-
 // withTCPPriority prioritizes ports using TCP over other protocols before
 // comparing port-number and protocol.
-func withTCPPriority[T portIsh](ip, jp T) int {
-	if strings.EqualFold(ip.Proto(), jp.Proto()) {
-		i, _ := ip.Int()
-		j, _ := jp.Int()
-		return cmp.Compare(i, j)
+func withTCPPriority(ip, jp container.Port) int {
+	if ip.Proto() == jp.Proto() {
+		return cmp.Compare(ip.Num(), jp.Num())
 	}
 	var c int
-	if strings.EqualFold(ip.Proto(), "tcp") {
+	if ip.Proto() == container.TCP {
 		c--
 	}
-	if strings.EqualFold(jp.Proto(), "tcp") {
+	if jp.Proto() == container.TCP {
 		c++
 	}
 	if c != 0 {
 		return c
 	}
-	return cmp.Compare(strings.ToLower(ip.Proto()), strings.ToLower(jp.Proto()))
+	return cmp.Compare(ip.Proto(), jp.Proto())
 }

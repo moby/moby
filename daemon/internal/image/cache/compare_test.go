@@ -12,17 +12,17 @@ import (
 
 func TestCompare(t *testing.T) {
 	ports1 := container.PortSet{
-		"1111/tcp": struct{}{},
-		"2222/tcp": struct{}{},
+		container.MustParsePort("1111/tcp"): struct{}{},
+		container.MustParsePort("2222/tcp"): struct{}{},
 	}
 	ports2 := container.PortSet{
-		"3333/tcp": struct{}{},
-		"4444/tcp": struct{}{},
+		container.MustParsePort("3333/tcp"): struct{}{},
+		container.MustParsePort("4444/tcp"): struct{}{},
 	}
 	ports3 := container.PortSet{
-		"1111/tcp": struct{}{},
-		"2222/tcp": struct{}{},
-		"5555/tcp": struct{}{},
+		container.MustParsePort("1111/tcp"): struct{}{},
+		container.MustParsePort("2222/tcp"): struct{}{},
+		container.MustParsePort("5555/tcp"): struct{}{},
 	}
 	volumes1 := map[string]struct{}{
 		"/test1": {},

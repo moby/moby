@@ -131,14 +131,10 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 		exposedPorts   []types.TransportPort
 	)
 	for port, bindings := range portBindings {
-		portProto := types.ParseProtocol(port.Proto())
-		portNum, err := port.Int()
-		if err != nil {
-			return nil, fmt.Errorf("error parsing container port value (%s): %w", port.Port(), err)
-		}
+		protocol := types.ParseProtocol(string(port.Proto()))
 		exposedPorts = append(exposedPorts, types.TransportPort{
-			Proto: portProto,
-			Port:  uint16(portNum),
+			Proto: protocol,
+			Port:  port.Num(),
 		})
 
 		for _, binding := range bindings {
@@ -151,8 +147,8 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 				return nil, fmt.Errorf("Error parsing HostPort value(%s):%v", binding.HostPort, err)
 			}
 			publishedPorts = append(publishedPorts, types.PortBinding{
-				Proto:       portProto,
-				Port:        uint16(portNum),
+				Proto:       protocol,
+				Port:        port.Num(),
 				HostIP:      net.ParseIP(binding.HostIP),
 				HostPort:    uint16(portStart),
 				HostPortEnd: uint16(portEnd),
@@ -161,8 +157,8 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 
 		if ctr.HostConfig.PublishAllPorts && len(bindings) == 0 {
 			publishedPorts = append(publishedPorts, types.PortBinding{
-				Proto: portProto,
-				Port:  uint16(portNum),
+				Proto: protocol,
+				Port:  port.Num(),
 			})
 		}
 	}

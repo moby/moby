@@ -7,96 +7,177 @@ import (
 	"strings"
 )
 
-// PortSet is a collection of structs indexed by [PortProto].
-type PortSet = map[PortProto]struct{}
+type PortProto string
+
+const (
+	TCP  PortProto = "tcp"
+	UDP  PortProto = "udp"
+	SCTP PortProto = "sctp"
+)
+
+// Port is a type representing a single port number and protocol in the format "80/tcp".
+type Port struct {
+	num   uint16
+	proto PortProto
+}
+
+// ParsePort parses s as a [Port].
+func ParsePort(s string) (Port, error) {
+	if s == "" {
+		return Port{}, errors.New("value is empty")
+	}
+
+	port, proto, ok := strings.Cut(s, "/")
+	if !ok {
+		proto = "tcp"
+	}
+
+	portVal, err := parsePortNumber(port)
+	if err != nil {
+		return Port{}, fmt.Errorf("invalid port '%s': %w", port, err)
+	}
+
+	return Port{num: portVal, proto: PortProto(proto)}, nil
+}
+
+// MustParsePort calls [ParsePort](s) and panics on error.
+func MustParsePort(s string) Port {
+	p, err := ParsePort(s)
+	if err != nil {
+		panic(err)
+	}
+	return p
+}
+
+func (p Port) Num() uint16 {
+	return p.num
+}
+
+func (p Port) Proto() PortProto {
+	return p.proto
+}
+
+func (p Port) String() string {
+	return fmt.Sprintf("%d/%s", p.num, p.proto)
+}
+
+func (p Port) MarshalText() ([]byte, error) {
+	return []byte(p.String()), nil
+}
+
+func (p *Port) UnmarshalText(text []byte) error {
+	port, err := ParsePort(string(text))
+	if err != nil {
+		return err
+	}
+
+	*p = port
+	return nil
+}
+
+func (p Port) Range() PortRange {
+	return PortRange{start: p.num, end: p.num, proto: p.proto}
+}
+
+// PortSet is a collection of structs indexed by [Port].
+type PortSet = map[Port]struct{}
 
 // PortBinding represents a binding between a Host IP address and a Host Port.
 type PortBinding struct {
 	// HostIP is the host IP Address
 	HostIP string `json:"HostIp"`
 	// HostPort is the host port number
-	HostPort string
+	HostPort string `json:"HostPort"`
 }
 
-// PortMap is a collection of [PortBinding] indexed by [PortProto].
-type PortMap = map[PortProto][]PortBinding
+// PortMap is a collection of [PortBinding] indexed by [Port].
+type PortMap = map[Port][]PortBinding
 
-// PortProto is a string containing port number and protocol in the format "80/tcp".
-// It is the same as [PortRangeProto], but used in places where we only expect
-// a single port to be used (not a range).
-type PortProto string
+type PortRange struct {
+	start uint16
+	end   uint16
+	proto PortProto
+}
 
-// Proto returns the protocol of a Port
-func (p PortProto) Proto() string {
-	_, proto, _ := strings.Cut(string(p), "/")
-	if proto == "" {
+func ParsePortRange(s string) (PortRange, error) {
+	if s == "" {
+		return PortRange{}, errors.New("value is empty")
+	}
+
+	portRange, proto, ok := strings.Cut(s, "/")
+	if !ok {
 		proto = "tcp"
 	}
-	return proto
-}
 
-// Port returns the port number of a Port
-func (p PortProto) Port() string {
-	port, _, _ := strings.Cut(string(p), "/")
-	return port
-}
-
-// Int returns the port number of a Port as an int.
-func (p PortProto) Int() (int, error) {
-	port, _, _ := strings.Cut(string(p), "/")
-	return parsePortNumber(port)
-}
-
-// PortRangeProto is a string containing a range of port numbers and protocol in
-// the format "80-90/tcp". It the same as [PortProto], but used in places where
-// we expect a port-range to be used.
-type PortRangeProto string
-
-func (pr PortRangeProto) PortRange() string {
-	portRange, _, _ := strings.Cut(string(pr), "/")
-	return portRange
-}
-
-func (pr PortRangeProto) Proto() string {
-	_, proto, _ := strings.Cut(string(pr), "/")
-	if proto == "" {
-		proto = "tcp"
-	}
-	return proto
-}
-
-// Range returns the start/end port numbers of a Port range as ints
-func (pr PortRangeProto) Range() (int, int, error) {
-	portRange, _, _ := strings.Cut(string(pr), "/")
-	if portRange == "" {
-		return 0, 0, nil
-	}
 	start, end, ok := strings.Cut(portRange, "-")
-	startPort, err := parsePortNumber(start)
+	startVal, err := parsePortNumber(start)
 	if err != nil {
-		return 0, 0, fmt.Errorf("invalid start port '%s': %w", start, err)
-	}
-	if !ok || start == end {
-		return startPort, startPort, nil
+		return PortRange{}, fmt.Errorf("invalid start port '%s': %w", start, err)
 	}
 
-	endPort, err := parsePortNumber(end)
+	if !ok || start == end {
+		return PortRange{start: startVal, end: startVal, proto: PortProto(proto)}, nil
+	}
+
+	endVal, err := parsePortNumber(end)
 	if err != nil {
-		return 0, 0, fmt.Errorf("invalid end port '%s': %w", end, err)
+		return PortRange{}, fmt.Errorf("invalid end port '%s': %w", end, err)
 	}
-	if endPort < startPort {
-		return 0, 0, errors.New("invalid port range: " + portRange)
+	if endVal < startVal {
+		return PortRange{}, errors.New("invalid port range: " + s)
 	}
-	return startPort, endPort, nil
+	return PortRange{start: startVal, end: endVal, proto: PortProto(proto)}, nil
+}
+
+// MustParsePortRange calls [ParsePortRange](s) and panics on error.
+func MustParsePortRange(s string) PortRange {
+	pr, err := ParsePortRange(s)
+	if err != nil {
+		panic(err)
+	}
+	return pr
+}
+
+func (pr PortRange) Start() uint16 {
+	return pr.start
+}
+
+func (pr PortRange) End() uint16 {
+	return pr.end
+}
+
+func (pr PortRange) Proto() PortProto {
+	return pr.proto
+}
+
+func (pr PortRange) String() string {
+	return fmt.Sprintf("%d-%d/%s", pr.start, pr.end, pr.proto)
+}
+
+func (pr PortRange) MarshalText() ([]byte, error) {
+	return []byte(pr.String()), nil
+}
+
+func (pr *PortRange) UnmarshalText(text []byte) error {
+	portRange, err := ParsePortRange(string(text))
+	if err != nil {
+		return err
+	}
+	*pr = portRange
+	return nil
+}
+
+func (pr PortRange) Range() PortRange {
+	return pr
 }
 
 // parsePortNumber parses rawPort into an int, unwrapping strconv errors
 // and returning a single "out of range" error for any value outside 0–65535.
-func parsePortNumber(rawPort string) (int, error) {
+func parsePortNumber(rawPort string) (uint16, error) {
 	if rawPort == "" {
 		return 0, errors.New("value is empty")
 	}
-	port, err := strconv.ParseInt(rawPort, 10, 0)
+	port, err := strconv.ParseUint(rawPort, 10, 16)
 	if err != nil {
 		var numErr *strconv.NumError
 		if errors.As(err, &numErr) {
@@ -104,9 +185,6 @@ func parsePortNumber(rawPort string) (int, error) {
 		}
 		return 0, err
 	}
-	if port < 0 || port > 65535 {
-		return 0, errors.New("value out of range (0–65535)")
-	}
 
-	return int(port), nil
+	return uint16(port), nil
 }
