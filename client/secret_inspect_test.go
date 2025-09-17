@@ -5,10 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -18,7 +16,7 @@ import (
 )
 
 func TestSecretInspectError(t *testing.T) {
-	client, err := NewClientWithOpts(WithVersion("1.25"), WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, _, err = client.SecretInspectWithRaw(context.Background(), "nothing")
@@ -26,7 +24,7 @@ func TestSecretInspectError(t *testing.T) {
 }
 
 func TestSecretInspectSecretNotFound(t *testing.T) {
-	client, err := NewClientWithOpts(WithVersion("1.25"), WithMockClient(errorMock(http.StatusNotFound, "Server error")))
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusNotFound, "Server error")))
 	assert.NilError(t, err)
 
 	_, _, err = client.SecretInspectWithRaw(context.Background(), "unknown")
@@ -48,10 +46,10 @@ func TestSecretInspectWithEmptyID(t *testing.T) {
 }
 
 func TestSecretInspect(t *testing.T) {
-	expectedURL := "/v1.25/secrets/secret_id"
-	client, err := NewClientWithOpts(WithVersion("1.25"), WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+	const expectedURL = "/secrets/secret_id"
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+			return nil, err
 		}
 		content, err := json.Marshal(swarm.Secret{
 			ID: "secret_id",

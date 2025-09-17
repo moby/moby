@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -38,10 +37,10 @@ func TestContainerRemoveNotFoundError(t *testing.T) {
 }
 
 func TestContainerRemove(t *testing.T) {
-	expectedURL := "/containers/container_id"
+	const expectedURL = "/containers/container_id"
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		if err := assertRequest(req, http.MethodDelete, expectedURL); err != nil {
+			return nil, err
 		}
 		query := req.URL.Query()
 		volume := query.Get("v")

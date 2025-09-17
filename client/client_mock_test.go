@@ -3,11 +3,32 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/moby/moby/api/types/common"
 )
+
+// defaultAPIPath is the API path prefix for the default API version used.
+const defaultAPIPath = "/v" + MaxAPIVersion
+
+// assertRequest checks for the request method and path. If the expected
+// path does not contain a version prefix, it is prefixed with the current API
+// version.
+func assertRequest(req *http.Request, expMethod string, expectedPath string) error {
+	if !strings.HasPrefix(expectedPath, "/v1.") {
+		expectedPath = defaultAPIPath + expectedPath
+	}
+	if !strings.HasPrefix(req.URL.Path, expectedPath) {
+		return fmt.Errorf("expected URL '%s', got '%s'", expectedPath, req.URL.Path)
+	}
+	if req.Method != expMethod {
+		return fmt.Errorf("expected %s method, got %s", expMethod, req.Method)
+	}
+	return nil
+}
 
 func transportEnsureBody(f transportFunc) transportFunc {
 	return func(req *http.Request) (*http.Response, error) {
@@ -21,18 +42,9 @@ func transportEnsureBody(f transportFunc) transportFunc {
 
 // WithMockClient is a test helper that allows you to inject a mock client for testing.
 func WithMockClient(doer func(*http.Request) (*http.Response, error)) Opt {
-	return func(c *clientConfig) error {
-		c.client = &http.Client{
-			Transport: transportEnsureBody(transportFunc(doer)),
-		}
-		if !c.manualOverride {
-			c.version = ""
-		}
-		c.host = ""
-		c.proto = ""
-		c.addr = ""
-		return nil
-	}
+	return WithHTTPClient(&http.Client{
+		Transport: transportEnsureBody(transportFunc(doer)),
+	})
 }
 
 func errorMock(statusCode int, message string) func(req *http.Request) (*http.Response, error) {

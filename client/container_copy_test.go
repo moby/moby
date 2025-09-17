@@ -10,7 +10,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -63,15 +62,14 @@ func TestContainerStatPathNoHeaderError(t *testing.T) {
 }
 
 func TestContainerStatPath(t *testing.T) {
-	expectedURL := "/containers/container_id/archive"
-	expectedPath := "path/to/file"
+	const (
+		expectedURL  = "/containers/container_id/archive"
+		expectedPath = "path/to/file"
+	)
 	client, err := NewClientWithOpts(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			if req.Method != http.MethodHead {
-				return nil, fmt.Errorf("expected HEAD method, got %s", req.Method)
+			if err := assertRequest(req, http.MethodHead, expectedURL); err != nil {
+				return nil, err
 			}
 			query := req.URL.Query()
 			path := query.Get("path")
@@ -143,15 +141,14 @@ func TestCopyToContainerEmptyResponse(t *testing.T) {
 }
 
 func TestCopyToContainer(t *testing.T) {
-	expectedURL := "/containers/container_id/archive"
-	expectedPath := "path/to/file"
+	const (
+		expectedURL  = "/containers/container_id/archive"
+		expectedPath = "path/to/file"
+	)
 	client, err := NewClientWithOpts(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			if req.Method != http.MethodPut {
-				return nil, fmt.Errorf("expected PUT method, got %s", req.Method)
+			if err := assertRequest(req, http.MethodPut, expectedURL); err != nil {
+				return nil, err
 			}
 			query := req.URL.Query()
 			path := query.Get("path")
@@ -259,15 +256,14 @@ func TestCopyFromContainerNoHeaderError(t *testing.T) {
 }
 
 func TestCopyFromContainer(t *testing.T) {
-	expectedURL := "/containers/container_id/archive"
-	expectedPath := "path/to/file"
+	const (
+		expectedURL  = "/containers/container_id/archive"
+		expectedPath = "path/to/file"
+	)
 	client, err := NewClientWithOpts(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			if req.Method != http.MethodGet {
-				return nil, fmt.Errorf("expected GET method, got %s", req.Method)
+			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+				return nil, err
 			}
 			query := req.URL.Query()
 			path := query.Get("path")

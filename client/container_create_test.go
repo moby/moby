@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -50,11 +49,11 @@ func TestContainerCreateImageNotFound(t *testing.T) {
 }
 
 func TestContainerCreateWithName(t *testing.T) {
-	expectedURL := "/containers/create"
+	const expectedURL = "/containers/create"
 	client, err := NewClientWithOpts(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+				return nil, err
 			}
 			name := req.URL.Query().Get("name")
 			if name != "container_name" {
@@ -179,7 +178,6 @@ func TestContainerCreateCapabilities(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewReader(b)),
 			}, nil
 		}),
-		WithVersion("1.24"),
 	)
 	assert.NilError(t, err)
 

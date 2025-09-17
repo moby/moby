@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -51,10 +50,10 @@ func TestContainerWaitConnectionError(t *testing.T) {
 }
 
 func TestContainerWait(t *testing.T) {
-	expectedURL := "/containers/container_id/wait"
+	const expectedURL = "/containers/container_id/wait"
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+			return nil, err
 		}
 		b, err := json.Marshal(container.WaitResponse{
 			StatusCode: 15,
@@ -79,40 +78,43 @@ func TestContainerWait(t *testing.T) {
 }
 
 func TestContainerWaitProxyInterrupt(t *testing.T) {
-	expectedURL := "/v1.30/containers/container_id/wait"
-	msg := "copying response body from Docker: unexpected EOF"
+	const (
+		expectedURL = "/containers/container_id/wait"
+		expErr      = "copying response body from Docker: unexpected EOF"
+	)
+
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+			return nil, err
 		}
 		return &http.Response{
 			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(msg)),
+			Body:       io.NopCloser(strings.NewReader(expErr)),
 		}, nil
-	}), WithVersion("1.30"))
+	}))
 	assert.NilError(t, err)
 
 	resultC, errC := client.ContainerWait(context.Background(), "container_id", "")
 	select {
 	case err := <-errC:
-		assert.Check(t, is.ErrorContains(err, msg))
+		assert.Check(t, is.ErrorContains(err, expErr))
 	case result := <-resultC:
 		t.Fatalf("Unexpected result: %v", result)
 	}
 }
 
 func TestContainerWaitProxyInterruptLong(t *testing.T) {
-	expectedURL := "/v1.30/containers/container_id/wait"
+	const expectedURL = "/containers/container_id/wait"
 	msg := strings.Repeat("x", containerWaitErrorMsgLimit*5)
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+			return nil, err
 		}
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader(msg)),
 		}, nil
-	}), WithVersion("1.30"))
+	}))
 	assert.NilError(t, err)
 
 	resultC, errC := client.ContainerWait(context.Background(), "container_id", "")
@@ -145,7 +147,7 @@ func TestContainerWaitErrorHandling(t *testing.T) {
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(test.rdr),
 				}, nil
-			}), WithVersion("1.30"))
+			}))
 			assert.NilError(t, err)
 			resultC, errC := client.ContainerWait(ctx, "container_id", "")
 			select {

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -18,7 +17,7 @@ import (
 )
 
 func TestSecretListError(t *testing.T) {
-	client, err := NewClientWithOpts(WithVersion("1.25"), WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.SecretList(context.Background(), SecretListOptions{})
@@ -26,7 +25,7 @@ func TestSecretListError(t *testing.T) {
 }
 
 func TestSecretList(t *testing.T) {
-	const expectedURL = "/v1.25/secrets"
+	const expectedURL = "/secrets"
 
 	listCases := []struct {
 		options             SecretListOptions
@@ -51,9 +50,9 @@ func TestSecretList(t *testing.T) {
 		},
 	}
 	for _, listCase := range listCases {
-		client, err := NewClientWithOpts(WithVersion("1.25"), WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+				return nil, err
 			}
 			query := req.URL.Query()
 			for key, expected := range listCase.expectedQueryParams {

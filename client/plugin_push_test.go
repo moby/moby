@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -32,14 +31,11 @@ func TestPluginPushError(t *testing.T) {
 }
 
 func TestPluginPush(t *testing.T) {
-	expectedURL := "/plugins/plugin_name"
+	const expectedURL = "/plugins/plugin_name"
 
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-		}
-		if req.Method != http.MethodPost {
-			return nil, fmt.Errorf("expected POST method, got %s", req.Method)
+		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+			return nil, err
 		}
 		auth := req.Header.Get(registry.AuthHeader)
 		if auth != "authtoken" {

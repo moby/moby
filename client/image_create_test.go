@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -31,16 +30,16 @@ func TestImageCreate(t *testing.T) {
 		expectedRegistryAuth = "eyJodHRwczovL2luZGV4LmRvY2tlci5pby92MS8iOnsiYXV0aCI6ImRHOTBid289IiwiZW1haWwiOiJqb2huQGRvZS5jb20ifX0="
 	)
 
-	client, err := NewClientWithOpts(WithMockClient(func(r *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(r.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+			return nil, err
 		}
-		registryAuth := r.Header.Get(registry.AuthHeader)
+		registryAuth := req.Header.Get(registry.AuthHeader)
 		if registryAuth != expectedRegistryAuth {
 			return nil, fmt.Errorf("%s header not properly set in the request. Expected '%s', got %s", registry.AuthHeader, expectedRegistryAuth, registryAuth)
 		}
 
-		query := r.URL.Query()
+		query := req.URL.Query()
 		fromImage := query.Get("fromImage")
 		if fromImage != expectedImage {
 			return nil, fmt.Errorf("fromImage not set in URL query properly. Expected '%s', got %s", expectedImage, fromImage)

@@ -3,10 +3,8 @@ package client
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -43,14 +41,11 @@ func TestVolumeRemoveConnectionError(t *testing.T) {
 }
 
 func TestVolumeRemove(t *testing.T) {
-	expectedURL := "/volumes/volume_id"
+	const expectedURL = "/volumes/volume_id"
 
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-		}
-		if req.Method != http.MethodDelete {
-			return nil, fmt.Errorf("expected DELETE method, got %s", req.Method)
+		if err := assertRequest(req, http.MethodDelete, expectedURL); err != nil {
+			return nil, err
 		}
 		return &http.Response{
 			StatusCode: http.StatusOK,

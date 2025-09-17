@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -19,7 +18,6 @@ import (
 
 func TestConfigListError(t *testing.T) {
 	client, err := NewClientWithOpts(
-		WithVersion("1.30"),
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -29,7 +27,7 @@ func TestConfigListError(t *testing.T) {
 }
 
 func TestConfigList(t *testing.T) {
-	expectedURL := "/v1.30/configs"
+	const expectedURL = "/configs"
 
 	listCases := []struct {
 		options             ConfigListOptions
@@ -55,10 +53,9 @@ func TestConfigList(t *testing.T) {
 	}
 	for _, listCase := range listCases {
 		client, err := NewClientWithOpts(
-			WithVersion("1.30"),
 			WithMockClient(func(req *http.Request) (*http.Response, error) {
-				if !strings.HasPrefix(req.URL.Path, expectedURL) {
-					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+				if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+					return nil, err
 				}
 				query := req.URL.Query()
 				for key, expected := range listCase.expectedQueryParams {

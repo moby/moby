@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -35,7 +34,7 @@ func TestImageRemoveImageNotFound(t *testing.T) {
 }
 
 func TestImageRemove(t *testing.T) {
-	expectedURL := "/images/image_id"
+	const expectedURL = "/images/image_id"
 	removeCases := []struct {
 		force               bool
 		pruneChildren       bool
@@ -70,11 +69,8 @@ func TestImageRemove(t *testing.T) {
 	}
 	for _, removeCase := range removeCases {
 		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			if req.Method != http.MethodDelete {
-				return nil, fmt.Errorf("expected DELETE method, got %s", req.Method)
+			if err := assertRequest(req, http.MethodDelete, expectedURL); err != nil {
+				return nil, err
 			}
 			query := req.URL.Query()
 			for key, expected := range removeCase.expectedQueryParams {

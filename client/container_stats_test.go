@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -30,8 +29,8 @@ func TestContainerStatsError(t *testing.T) {
 }
 
 func TestContainerStats(t *testing.T) {
-	expectedURL := "/containers/container_id/stats"
-	cases := []struct {
+	const expectedURL = "/containers/container_id/stats"
+	tests := []struct {
 		stream         bool
 		expectedStream string
 	}{
@@ -43,16 +42,16 @@ func TestContainerStats(t *testing.T) {
 			expectedStream: "1",
 		},
 	}
-	for _, c := range cases {
-		client, err := NewClientWithOpts(WithMockClient(func(r *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(r.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, r.URL)
+	for _, tc := range tests {
+		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+				return nil, err
 			}
 
-			query := r.URL.Query()
+			query := req.URL.Query()
 			stream := query.Get("stream")
-			if stream != c.expectedStream {
-				return nil, fmt.Errorf("stream not set in URL query properly. Expected '%s', got %s", c.expectedStream, stream)
+			if stream != tc.expectedStream {
+				return nil, fmt.Errorf("stream not set in URL query properly. Expected '%s', got %s", tc.expectedStream, stream)
 			}
 
 			return &http.Response{
@@ -61,7 +60,7 @@ func TestContainerStats(t *testing.T) {
 			}, nil
 		}))
 		assert.NilError(t, err)
-		resp, err := client.ContainerStats(context.Background(), "container_id", c.stream)
+		resp, err := client.ContainerStats(context.Background(), "container_id", tc.stream)
 		assert.NilError(t, err)
 		t.Cleanup(func() {
 			_ = resp.Body.Close()

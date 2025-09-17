@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -42,10 +41,10 @@ func TestContainerRestartConnectionError(t *testing.T) {
 }
 
 func TestContainerRestart(t *testing.T) {
-	const expectedURL = "/v1.42/containers/container_id/restart"
+	const expectedURL = "/containers/container_id/restart"
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+			return nil, err
 		}
 		s := req.URL.Query().Get("signal")
 		if s != "SIGKILL" {
@@ -59,7 +58,7 @@ func TestContainerRestart(t *testing.T) {
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 		}, nil
-	}), WithVersion("1.42"))
+	}))
 	assert.NilError(t, err)
 	timeout := 100
 	err = client.ContainerRestart(context.Background(), "container_id", ContainerStopOptions{

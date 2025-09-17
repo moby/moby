@@ -33,15 +33,14 @@ func TestVolumeUpdateError(t *testing.T) {
 }
 
 func TestVolumeUpdate(t *testing.T) {
-	expectedURL := "/volumes/test1"
-	expectedVersion := "version=10"
+	const (
+		expectedURL     = "/volumes/test1"
+		expectedVersion = "version=10"
+	)
 
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-		}
-		if req.Method != http.MethodPut {
-			return nil, fmt.Errorf("expected PUT method, got %s", req.Method)
+		if err := assertRequest(req, http.MethodPut, expectedURL); err != nil {
+			return nil, err
 		}
 		if !strings.Contains(req.URL.RawQuery, expectedVersion) {
 			return nil, fmt.Errorf("expected query to contain '%s', got '%s'", expectedVersion, req.URL.RawQuery)

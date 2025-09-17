@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -17,22 +16,22 @@ import (
 )
 
 func TestNetworkInspect(t *testing.T) {
+	const expectedURL = "/networks/network_id"
+
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			return nil, errors.New("expected GET method, got " + req.Method)
-		}
-		if req.URL.Path == "/networks/" {
+		if req.URL.Path == defaultAPIPath+"/networks/" {
 			return errorMock(http.StatusInternalServerError, "client should not make a request for empty IDs")(req)
 		}
-		if strings.HasPrefix(req.URL.Path, "/networks/unknown") {
+		if strings.HasPrefix(req.URL.Path, defaultAPIPath+"/networks/unknown") {
 			return errorMock(http.StatusNotFound, "Error: No such network: unknown")(req)
 		}
-		if strings.HasPrefix(req.URL.Path, "/networks/test-500-response") {
+		if strings.HasPrefix(req.URL.Path, defaultAPIPath+"/networks/test-500-response") {
 			return errorMock(http.StatusInternalServerError, "Server error")(req)
 		}
+
 		// other test-cases all use "network_id"
-		if !strings.HasPrefix(req.URL.Path, "/networks/network_id") {
-			return nil, errors.New("expected URL '/networks/network_id', got " + req.URL.Path)
+		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+			return nil, err
 		}
 		if strings.Contains(req.URL.RawQuery, "scope=global") {
 			return errorMock(http.StatusNotFound, "Error: No such network: network_id")(req)

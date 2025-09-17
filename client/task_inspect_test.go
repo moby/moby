@@ -5,10 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -40,10 +38,10 @@ func TestTaskInspectWithEmptyID(t *testing.T) {
 }
 
 func TestTaskInspect(t *testing.T) {
-	expectedURL := "/tasks/task_id"
+	const expectedURL = "/tasks/task_id"
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+			return nil, err
 		}
 		content, err := json.Marshal(swarm.Task{
 			ID: "task_id",

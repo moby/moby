@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -32,7 +31,7 @@ func TestContainerTopError(t *testing.T) {
 }
 
 func TestContainerTop(t *testing.T) {
-	expectedURL := "/containers/container_id/top"
+	const expectedURL = "/containers/container_id/top"
 	expectedProcesses := [][]string{
 		{"p1", "p2"},
 		{"p3"},
@@ -40,8 +39,8 @@ func TestContainerTop(t *testing.T) {
 	expectedTitles := []string{"title1", "title2"}
 
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+			return nil, err
 		}
 		query := req.URL.Query()
 		args := query.Get("ps_args")

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -44,7 +43,7 @@ func TestServiceUpdateConnectionError(t *testing.T) {
 }
 
 func TestServiceUpdate(t *testing.T) {
-	expectedURL := "/services/service_id/update"
+	const expectedURL = "/services/service_id/update"
 
 	updateCases := []struct {
 		swarmVersion    swarm.Version
@@ -69,11 +68,8 @@ func TestServiceUpdate(t *testing.T) {
 
 	for _, updateCase := range updateCases {
 		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			if req.Method != http.MethodPost {
-				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
+			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+				return nil, err
 			}
 			version := req.URL.Query().Get("version")
 			if version != updateCase.expectedVersion {

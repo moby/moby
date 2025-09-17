@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -37,15 +35,11 @@ func TestNetworkCreateConnectionError(t *testing.T) {
 }
 
 func TestNetworkCreate(t *testing.T) {
-	expectedURL := "/networks/create"
+	const expectedURL = "/networks/create"
 
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-		}
-
-		if req.Method != http.MethodPost {
-			return nil, fmt.Errorf("expected POST method, got %s", req.Method)
+		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+			return nil, err
 		}
 
 		content, err := json.Marshal(network.CreateResponse{

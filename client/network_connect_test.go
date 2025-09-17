@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -34,15 +33,11 @@ func TestNetworkConnectError(t *testing.T) {
 }
 
 func TestNetworkConnectEmptyNilEndpointSettings(t *testing.T) {
-	expectedURL := "/networks/network_id/connect"
+	const expectedURL = "/networks/network_id/connect"
 
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-		}
-
-		if req.Method != http.MethodPost {
-			return nil, fmt.Errorf("expected POST method, got %s", req.Method)
+		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+			return nil, err
 		}
 
 		var connect NetworkConnectOptions
@@ -70,15 +65,11 @@ func TestNetworkConnectEmptyNilEndpointSettings(t *testing.T) {
 }
 
 func TestNetworkConnect(t *testing.T) {
-	expectedURL := "/networks/network_id/connect"
+	const expectedURL = "/networks/network_id/connect"
 
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-		}
-
-		if req.Method != http.MethodPost {
-			return nil, fmt.Errorf("expected POST method, got %s", req.Method)
+		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+			return nil, err
 		}
 
 		var connect NetworkConnectOptions

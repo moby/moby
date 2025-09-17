@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -25,15 +23,14 @@ func TestSwarmGetUnlockKeyError(t *testing.T) {
 }
 
 func TestSwarmGetUnlockKey(t *testing.T) {
-	expectedURL := "/swarm/unlockkey"
-	unlockKey := "SWMKEY-1-y6guTZNTwpQeTL5RhUfOsdBdXoQjiB2GADHSRJvbXeE"
+	const (
+		expectedURL = "/swarm/unlockkey"
+		unlockKey   = "SWMKEY-1-y6guTZNTwpQeTL5RhUfOsdBdXoQjiB2GADHSRJvbXeE"
+	)
 
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-		}
-		if req.Method != http.MethodGet {
-			return nil, fmt.Errorf("expected GET method, got %s", req.Method)
+		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+			return nil, err
 		}
 
 		key := swarm.UnlockKeyResponse{

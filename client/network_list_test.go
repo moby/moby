@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -61,11 +60,8 @@ func TestNetworkList(t *testing.T) {
 
 	for _, listCase := range listCases {
 		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			if req.Method != http.MethodGet {
-				return nil, fmt.Errorf("expected GET method, got %s", req.Method)
+			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+				return nil, err
 			}
 			query := req.URL.Query()
 			actualFilters := query.Get("filters")

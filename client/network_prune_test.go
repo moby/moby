@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -20,7 +18,6 @@ import (
 func TestNetworksPruneError(t *testing.T) {
 	client, err := NewClientWithOpts(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-		WithVersion("1.25"),
 	)
 	assert.NilError(t, err)
 
@@ -29,7 +26,7 @@ func TestNetworksPruneError(t *testing.T) {
 }
 
 func TestNetworksPrune(t *testing.T) {
-	const expectedURL = "/v1.25/networks/prune"
+	const expectedURL = "/networks/prune"
 
 	listCases := []struct {
 		filters             filters.Args
@@ -75,8 +72,8 @@ func TestNetworksPrune(t *testing.T) {
 	for _, listCase := range listCases {
 		client, err := NewClientWithOpts(
 			WithMockClient(func(req *http.Request) (*http.Response, error) {
-				if !strings.HasPrefix(req.URL.Path, expectedURL) {
-					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+				if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+					return nil, err
 				}
 				query := req.URL.Query()
 				for key, expected := range listCase.expectedQueryParams {
@@ -94,7 +91,6 @@ func TestNetworksPrune(t *testing.T) {
 					Body:       io.NopCloser(bytes.NewReader(content)),
 				}, nil
 			}),
-			WithVersion("1.25"),
 		)
 		assert.NilError(t, err)
 

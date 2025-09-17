@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -33,11 +32,11 @@ func TestContainerKillError(t *testing.T) {
 }
 
 func TestContainerKill(t *testing.T) {
-	expectedURL := "/containers/container_id/kill"
+	const expectedURL = "/containers/container_id/kill"
 	client, err := NewClientWithOpts(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+				return nil, err
 			}
 			signal := req.URL.Query().Get("signal")
 			if signal != "SIGKILL" {

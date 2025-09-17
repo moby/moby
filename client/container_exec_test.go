@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -47,14 +46,11 @@ func TestContainerExecCreateConnectionError(t *testing.T) {
 }
 
 func TestContainerExecCreate(t *testing.T) {
-	expectedURL := "/containers/container_id/exec"
+	const expectedURL = "/containers/container_id/exec"
 	client, err := NewClientWithOpts(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			if req.Method != http.MethodPost {
-				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
+			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+				return nil, err
 			}
 			// FIXME validate the content is the given ExecConfig ?
 			if err := req.ParseForm(); err != nil {
@@ -99,11 +95,11 @@ func TestContainerExecStartError(t *testing.T) {
 }
 
 func TestContainerExecStart(t *testing.T) {
-	expectedURL := "/exec/exec_id/start"
+	const expectedURL = "/exec/exec_id/start"
 	client, err := NewClientWithOpts(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+				return nil, err
 			}
 			if err := req.ParseForm(); err != nil {
 				return nil, err
@@ -142,11 +138,11 @@ func TestContainerExecInspectError(t *testing.T) {
 }
 
 func TestContainerExecInspect(t *testing.T) {
-	expectedURL := "/exec/exec_id/json"
+	const expectedURL = "/exec/exec_id/json"
 	client, err := NewClientWithOpts(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
+			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+				return nil, err
 			}
 			b, err := json.Marshal(container.ExecInspectResponse{
 				ID:          "exec_id",

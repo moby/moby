@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -31,7 +30,7 @@ func TestNodeRemoveError(t *testing.T) {
 }
 
 func TestNodeRemove(t *testing.T) {
-	expectedURL := "/nodes/node_id"
+	const expectedURL = "/nodes/node_id"
 
 	removeCases := []struct {
 		force         bool
@@ -48,11 +47,8 @@ func TestNodeRemove(t *testing.T) {
 
 	for _, removeCase := range removeCases {
 		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			if req.Method != http.MethodDelete {
-				return nil, fmt.Errorf("expected DELETE method, got %s", req.Method)
+			if err := assertRequest(req, http.MethodDelete, expectedURL); err != nil {
+				return nil, err
 			}
 			force := req.URL.Query().Get("force")
 			if force != removeCase.expectedForce {

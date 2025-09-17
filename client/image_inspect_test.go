@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -44,11 +43,11 @@ func TestImageInspectWithEmptyID(t *testing.T) {
 }
 
 func TestImageInspect(t *testing.T) {
-	expectedURL := "/images/image_id/json"
+	const expectedURL = "/images/image_id/json"
 	expectedTags := []string{"tag1", "tag2"}
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+			return nil, err
 		}
 		content, err := json.Marshal(image.InspectResponse{
 			ID:       "image_id",
@@ -71,7 +70,7 @@ func TestImageInspect(t *testing.T) {
 }
 
 func TestImageInspectWithPlatform(t *testing.T) {
-	expectedURL := "/images/image_id/json"
+	const expectedURL = "/images/image_id/json"
 	requestedPlatform := &ocispec.Platform{
 		OS:           "linux",
 		Architecture: "arm64",
@@ -81,8 +80,8 @@ func TestImageInspectWithPlatform(t *testing.T) {
 	assert.NilError(t, err)
 
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+			return nil, err
 		}
 
 		// Check if platform parameter is passed correctly
