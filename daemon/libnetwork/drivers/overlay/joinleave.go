@@ -11,8 +11,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/gogo/protobuf/proto"
+	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
-	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"

@@ -9,8 +9,8 @@ import (
 	"net/netip"
 	"strings"
 
+	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/bitmap"
-	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipbits"
 )
 

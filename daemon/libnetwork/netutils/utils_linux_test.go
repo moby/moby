@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
+	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"

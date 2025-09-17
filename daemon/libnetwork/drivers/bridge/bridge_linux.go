@@ -13,6 +13,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
@@ -22,7 +23,6 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/iptabler"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/nftabler"
 	"github.com/moby/moby/v2/daemon/libnetwork/drvregistry"
-	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
 	"github.com/moby/moby/v2/daemon/libnetwork/iptables"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
