@@ -440,10 +440,6 @@ definitions:
         description: "Disk limit (in bytes)."
         type: "integer"
         format: "int64"
-      KernelMemory:
-        description: "Kernel memory limit in bytes."
-        type: "integer"
-        format: "int64"
       MemoryReservation:
         description: "Memory soft limit in bytes."
         type: "integer"
@@ -2869,7 +2865,6 @@ paths:
                 Memory: 0
                 MemorySwap: 0
                 MemoryReservation: 0
-                KernelMemory: 0
                 NanoCpus: 500000
                 CpuPercent: 80
                 CpuShares: 512
@@ -3169,7 +3164,6 @@ paths:
                 Memory: 0
                 MemorySwap: 0
                 MemoryReservation: 0
-                KernelMemory: 0
                 OomKillDisable: false
                 OomScoreAdj: 500
                 NetworkMode: "bridge"
@@ -3860,7 +3854,6 @@ paths:
               Memory: 314572800
               MemorySwap: 514288000
               MemoryReservation: 209715200
-              KernelMemory: 52428800
               RestartPolicy:
                 MaximumRetryCount: 4
                 Name: "on-failure"
@@ -5292,7 +5285,6 @@ paths:
               IndexServerAddress: "https://index.docker.io/v1/"
               InitPath: "/usr/bin/docker"
               InitSha1: ""
-              KernelMemory: true
               KernelVersion: "3.12.0-1-amd64"
               Labels:
                 - "storage=ssd"

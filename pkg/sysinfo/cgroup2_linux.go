@@ -84,7 +84,6 @@ func applyMemoryCgroupInfoV2(info *SysInfo) {
 	info.MemoryReservation = true
 	info.OomKillDisable = false
 	info.MemorySwappiness = false
-	info.KernelMemory = false
 	info.KernelMemoryTCP = false
 }
 
