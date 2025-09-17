@@ -128,15 +128,15 @@ func (s *DockerCLISaveLoadSuite) TestSaveImageId(c *testing.T) {
 	assert.Assert(c, cleanedLongImageID != "", "Id should not be empty.")
 	assert.Assert(c, cleanedShortImageID != "", "Id should not be empty.")
 
+	// TODO(thaJeztah): this fails with full image ID
 	saveCmd := exec.Command(dockerBinary, "save", cleanedShortImageID)
 	tarCmd := exec.Command("tar", "t")
 
 	var err error
 	tarCmd.Stdin, err = saveCmd.StdoutPipe()
-	assert.Assert(c, err == nil, "cannot set stdout pipe for tar: %v", err)
-	grepCmd := exec.Command("grep", cleanedLongImageID)
-	grepCmd.Stdin, err = tarCmd.StdoutPipe()
-	assert.Assert(c, err == nil, "cannot set stdout pipe for grep: %v", err)
+	assert.NilError(c, err, "cannot set stdin pipe for tar: %v", err)
+	tarStream, err := tarCmd.StdoutPipe()
+	assert.NilError(c, err, "get tar output pipe: %v", err)
 
 	assert.Assert(c, tarCmd.Start() == nil, "tar failed with error: %v", err)
 	assert.Assert(c, saveCmd.Start() == nil, "docker save failed with error: %v", err)
@@ -146,9 +146,9 @@ func (s *DockerCLISaveLoadSuite) TestSaveImageId(c *testing.T) {
 		cli.DockerCmd(c, "rmi", imgRepoName)
 	}()
 
-	out, _, err = runCommandWithOutput(grepCmd)
-
-	assert.Assert(c, err == nil, "failed to save repo with image ID: %s, %v", out, err)
+	res := icmd.RunCmd(icmd.Command("grep", "blobs/sha256/"+cleanedLongImageID), icmd.WithStdin(tarStream))
+	out, err = res.Combined(), res.Error
+	assert.NilError(c, err, "failed to save repo with image ID: %s, %v", out, err)
 }
 
 // save a repo and try to load it using flags

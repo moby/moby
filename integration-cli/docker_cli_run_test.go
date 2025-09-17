@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -2407,10 +2406,15 @@ func (s *DockerCLIRunSuite) TestRunTTYWithPipe(c *testing.T) {
 		}
 
 		expected := "the input device is not a TTY"
-		if runtime.GOOS == "windows" {
-			expected += ".  If you are using mintty, try prefixing the command with 'winpty'"
-		}
-		if out, _, err := runCommandWithOutput(cmd); err == nil {
+		res := icmd.RunCmd(icmd.Cmd{
+			Command: cmd.Args,
+			Env:     cmd.Env,
+			Dir:     cmd.Dir,
+			Stdin:   cmd.Stdin,
+			Stdout:  cmd.Stdout,
+		})
+		out, err := res.Combined(), res.Error
+		if err == nil {
 			errChan <- errors.New("run should have failed")
 			return
 		} else if !strings.Contains(out, expected) {

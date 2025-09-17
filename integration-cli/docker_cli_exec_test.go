@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -165,10 +164,18 @@ func (s *DockerCLIExecSuite) TestExecTTYCloseStdin(c *testing.T) {
 	stdinRw, err := cmd.StdinPipe()
 	assert.NilError(c, err)
 
-	stdinRw.Write([]byte("test"))
-	stdinRw.Close()
+	_, err = stdinRw.Write([]byte("test"))
+	assert.Check(c, err)
+	_ = stdinRw.Close()
 
-	out, _, err := runCommandWithOutput(cmd)
+	res := icmd.RunCmd(icmd.Cmd{
+		Command: cmd.Args,
+		Env:     cmd.Env,
+		Dir:     cmd.Dir,
+		Stdin:   cmd.Stdin,
+		Stdout:  cmd.Stdout,
+	})
+	out, err := res.Combined(), res.Error
 	assert.NilError(c, err, out)
 
 	out = cli.DockerCmd(c, "top", "exec_tty_stdin").Combined()
@@ -193,10 +200,16 @@ func (s *DockerCLIExecSuite) TestExecTTYWithoutStdin(c *testing.T) {
 		}
 
 		expected := "the input device is not a TTY"
-		if runtime.GOOS == "windows" {
-			expected += ".  If you are using mintty, try prefixing the command with 'winpty'"
-		}
-		if out, _, err := runCommandWithOutput(cmd); err == nil {
+
+		res := icmd.RunCmd(icmd.Cmd{
+			Command: cmd.Args,
+			Env:     cmd.Env,
+			Dir:     cmd.Dir,
+			Stdin:   cmd.Stdin,
+			Stdout:  cmd.Stdout,
+		})
+		out, err := res.Combined(), res.Error
+		if err == nil {
 			errChan <- errors.New("exec should have failed")
 			return
 		} else if !strings.Contains(out, expected) {

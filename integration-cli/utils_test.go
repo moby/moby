@@ -11,7 +11,6 @@ import (
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/pkg/errors"
-	"gotest.tools/v3/icmd"
 )
 
 func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
@@ -19,19 +18,6 @@ func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
 		return "c:", `\`
 	}
 	return "", "/"
-}
-
-// TODO: update code to call cmd.RunCmd directly, and remove this function
-// Deprecated: use gotest.tools/icmd
-func runCommandWithOutput(execCmd *exec.Cmd) (string, int, error) {
-	result := icmd.RunCmd(icmd.Cmd{
-		Command: execCmd.Args,
-		Env:     execCmd.Env,
-		Dir:     execCmd.Dir,
-		Stdin:   execCmd.Stdin,
-		Stdout:  execCmd.Stdout,
-	})
-	return result.Combined(), result.ExitCode, result.Error
 }
 
 // ParseCgroupPaths parses 'procCgroupData', which is output of '/proc/<pid>/cgroup', and returns

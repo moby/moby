@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/icmd"
 )
 
 type fileType uint32
@@ -195,24 +195,12 @@ func containerCpPathTrailingSep(containerID string, pathElements ...string) stri
 func runDockerCp(t *testing.T, src, dst string) error {
 	t.Helper()
 
-	args := []string{"cp", src, dst}
-	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, args...)); err != nil {
+	res := icmd.RunCommand(dockerBinary, "cp", src, dst)
+	out, err := res.Combined(), res.Error
+	if err != nil {
 		return fmt.Errorf("error executing `docker cp` command: %s: %s", err, out)
 	}
 	return nil
-}
-
-func startContainerGetOutput(t *testing.T, containerID string) (string, error) {
-	t.Helper()
-
-	args := []string{"start", "-a", containerID}
-
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
-	if err != nil {
-		return "", fmt.Errorf("error executing `docker start` command: %s: %s", err, out)
-	}
-
-	return out, nil
 }
 
 func getTestDir(t *testing.T, label string) (tmpDir string) {
@@ -269,18 +257,18 @@ func symlinkTargetEquals(t *testing.T, symlink, expectedTarget string) error {
 	return nil
 }
 
+// TODO(thaJeztah): deprecate and replace uses with [icmd.RunCommand.Assert(icmd.Expected)]
 func containerStartOutputEquals(t *testing.T, containerID, contents string) error {
 	t.Helper()
 
-	out, err := startContainerGetOutput(t, containerID)
+	res := icmd.RunCommand(dockerBinary, "start", "-a", containerID)
+	out, err := res.Combined(), res.Error
 	if err != nil {
 		return err
 	}
-
 	if out != contents {
 		return fmt.Errorf("output contents not equal - expected %q, got %q", contents, out)
 	}
-
 	return nil
 }
 
