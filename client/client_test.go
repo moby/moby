@@ -78,9 +78,9 @@ func TestNewClientWithOpsFromEnv(t *testing.T) {
 		{
 			doc: "override api version",
 			envs: map[string]string{
-				"DOCKER_API_VERSION": "1.22",
+				"DOCKER_API_VERSION": "1.50",
 			},
-			expectedVersion: "1.22",
+			expectedVersion: "1.50",
 		},
 	}
 
@@ -129,43 +129,43 @@ func TestGetAPIPath(t *testing.T) {
 			expected: "/v" + MaxAPIVersion + "/containers/json?s=c",
 		},
 		{
-			version:  "1.22",
+			version:  "1.50",
 			path:     "/containers/json",
-			expected: "/v1.22/containers/json",
+			expected: "/v1.50/containers/json",
 		},
 		{
-			version:  "1.22",
-			path:     "/containers/json",
-			query:    url.Values{},
-			expected: "/v1.22/containers/json",
-		},
-		{
-			version:  "1.22",
-			path:     "/containers/json",
-			query:    url.Values{"s": []string{"c"}},
-			expected: "/v1.22/containers/json?s=c",
-		},
-		{
-			version:  "v1.22",
-			path:     "/containers/json",
-			expected: "/v1.22/containers/json",
-		},
-		{
-			version:  "v1.22",
+			version:  "1.50",
 			path:     "/containers/json",
 			query:    url.Values{},
-			expected: "/v1.22/containers/json",
+			expected: "/v1.50/containers/json",
 		},
 		{
-			version:  "v1.22",
+			version:  "1.50",
 			path:     "/containers/json",
 			query:    url.Values{"s": []string{"c"}},
-			expected: "/v1.22/containers/json?s=c",
+			expected: "/v1.50/containers/json?s=c",
 		},
 		{
-			version:  "v1.22",
+			version:  "v1.50",
+			path:     "/containers/json",
+			expected: "/v1.50/containers/json",
+		},
+		{
+			version:  "v1.50",
+			path:     "/containers/json",
+			query:    url.Values{},
+			expected: "/v1.50/containers/json",
+		},
+		{
+			version:  "v1.50",
+			path:     "/containers/json",
+			query:    url.Values{"s": []string{"c"}},
+			expected: "/v1.50/containers/json?s=c",
+		},
+		{
+			version:  "v1.50",
 			path:     "/networks/kiwl$%^",
-			expected: "/v1.22/networks/kiwl$%25%5E",
+			expected: "/v1.50/networks/kiwl$%25%5E",
 		},
 	}
 
@@ -236,7 +236,7 @@ func TestNewClientWithOpsFromEnvSetsDefaultVersion(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(client.ClientVersion(), MaxAPIVersion))
 
-	const expected = "1.22"
+	const expected = "1.50"
 	t.Setenv("DOCKER_API_VERSION", expected)
 	client, err = NewClientWithOpts(FromEnv)
 	assert.NilError(t, err)
@@ -398,7 +398,7 @@ func TestNegotiateAPIVersionWithEmptyVersion(t *testing.T) {
 	client, err := NewClientWithOpts(WithVersion(""))
 	assert.NilError(t, err)
 
-	const expected = "1.35"
+	const expected = "1.50"
 	client.NegotiateAPIVersionPing(types.Ping{APIVersion: expected})
 	assert.Check(t, is.Equal(client.ClientVersion(), expected))
 }
@@ -406,11 +406,11 @@ func TestNegotiateAPIVersionWithEmptyVersion(t *testing.T) {
 // TestNegotiateAPIVersionWithFixedVersion asserts that initializing a client
 // with a fixed version disables API-version negotiation
 func TestNegotiateAPIVersionWithFixedVersion(t *testing.T) {
-	const customVersion = "1.35"
+	const customVersion = "1.50"
 	client, err := NewClientWithOpts(WithVersion(customVersion))
 	assert.NilError(t, err)
 
-	client.NegotiateAPIVersionPing(types.Ping{APIVersion: "1.31"})
+	client.NegotiateAPIVersionPing(types.Ping{APIVersion: "1.49"})
 	assert.Check(t, is.Equal(client.ClientVersion(), customVersion))
 }
 
@@ -418,42 +418,65 @@ func TestNegotiateAPIVersionWithFixedVersion(t *testing.T) {
 // version.
 func TestCustomAPIVersion(t *testing.T) {
 	tests := []struct {
+		doc      string
 		version  string
 		expected string
 	}{
 		{
+			doc:      "empty version",
 			version:  "",
 			expected: MaxAPIVersion,
 		},
 		{
-			version:  "1.0",
-			expected: "1.0",
+			doc:      "custom lower version, no v-prefix",
+			version:  "1.50",
+			expected: "1.50",
 		},
 		{
+			// We allow upgrading the client to an unsupported higher version for testing.
+			doc:      "upgrade version, no v-prefix",
 			version:  "9.99",
 			expected: "9.99",
 		},
 		{
+			// We currently ignore malformed versions.
+			doc:      "empty version, with v-prefix",
 			version:  "v",
 			expected: MaxAPIVersion,
 		},
 		{
-			version:  "v1.0",
-			expected: "1.0",
+			doc:      "custom lower version, with v-prefix",
+			version:  "v1.50",
+			expected: "1.50",
 		},
 		{
+			// We allow upgrading the client to an unsupported higher version for testing.
+			doc:      "upgrade version, with v-prefix",
 			version:  "v9.99",
 			expected: "9.99",
 		},
 		{
+			// We currently allow downgrading the client to an unsupported lower version for testing.
+			doc:      "downgrade unsupported version, no v-prefix",
+			version:  "1.0",
+			expected: "1.0",
+		},
+		{
+			// We currently allow downgrading the client to an unsupported lower version for testing.
+			doc:      "downgrade unsupported version, no v-prefix",
+			version:  "v1.0",
+			expected: "1.0",
+		},
+		{
 			// When manually setting a version, no validation happens.
 			// so anything is accepted.
+			doc:      "malformed version",
 			version:  "something-weird",
 			expected: "something-weird",
 		},
 	}
 	for _, tc := range tests {
-		t.Run(tc.version, func(t *testing.T) {
+		t.Run(tc.doc, func(t *testing.T) {
 			client, err := NewClientWithOpts(WithVersion(tc.version))
 			assert.NilError(t, err)
 			assert.Check(t, is.Equal(client.ClientVersion(), tc.expected))
