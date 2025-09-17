@@ -169,3 +169,24 @@ func (c *containerRouter) postContainerExecResize(ctx context.Context, w http.Re
 
 	return c.backend.ContainerExecResize(ctx, vars["name"], height, width)
 }
+
+func (s *containerRouter) postContainerExecSignal(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	version := httputils.VersionFromContext(ctx)
+	if versions.LessThan(version, "1.42") {
+		return errdefs.InvalidParameter(fmt.Errorf("exec signal requires API version 1.42, but the Docker daemon API version is %s", version))
+	}
+	if err := httputils.ParseForm(r); err != nil {
+		return errdefs.InvalidParameter(err)
+	}
+
+	name := vars["name"]
+	config := types.ExecSignalConfig{Signal: r.Form.Get("signal")}
+
+	// If we have a signal, look at it. Otherwise, do nothing
+	if err := s.backend.ContainerExecSignal(ctx, name, config); err != nil {
+		return err
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}

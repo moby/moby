@@ -10793,6 +10793,39 @@ paths:
           required: true
           type: "string"
       tags: ["Exec"]
+  /exec/{id}/signal:
+    post:
+      summary: "Send a signal to an exec instance"
+      description: |
+         Send a POSIX signal to the exec instance, defaulting to SIGKILL.
+      operationId: "ExecSignal"
+      responses:
+        204:
+          description: "No error"
+        400:
+          description: "Invalid parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        404:
+          description: "No such exec instance"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "Server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "id"
+          in: "path"
+          description: "Exec instance ID"
+          required: true
+          type: "string"
+        - name: "signal"
+          in: "query"
+          description: "Signal to send to the container as an integer or string (e.g. `SIGINT`)"
+          type: "string"
+          default: "SIGKILL"
+      tags: ["Exec"]
 
   /volumes:
     get:

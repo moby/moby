@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/moby/go-archive"
+	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
 	containerpkg "github.com/moby/moby/v2/daemon/container"
@@ -18,6 +19,7 @@ type execBackend interface {
 	ContainerExecInspect(id string) (*container.ExecInspectResponse, error)
 	ContainerExecResize(ctx context.Context, name string, height, width uint32) error
 	ContainerExecStart(ctx context.Context, name string, options backend.ExecStartConfig) error
+	ContainerExecSignal(ctx context.Context, name string, config types.ExecSignalConfig) error
 	ExecExists(name string) (bool, error)
 }
 

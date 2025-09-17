@@ -52,6 +52,7 @@ func (c *containerRouter) initRoutes() {
 		router.NewPostRoute("/containers/{name:.*}/exec", c.postContainerExecCreate),
 		router.NewPostRoute("/exec/{name:.*}/start", c.postContainerExecStart),
 		router.NewPostRoute("/exec/{name:.*}/resize", c.postContainerExecResize),
+		router.NewPostRoute("/exec/{name:.*}/signal", c.postContainerExecSignal),
 		router.NewPostRoute("/containers/{name:.*}/rename", c.postContainerRename),
 		router.NewPostRoute("/containers/{name:.*}/update", c.postContainerUpdate),
 		router.NewPostRoute("/containers/prune", c.postContainersPrune, router.WithMinimumAPIVersion("1.25")),

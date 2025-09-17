@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/url"
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/versions"
@@ -185,4 +186,14 @@ func (cli *Client) ContainerExecInspect(ctx context.Context, execID string) (Exe
 		ExitCode:    ec,
 		Pid:         response.Pid,
 	}, nil
+}
+
+// ContainerExecSignal send a signal to exec process on the docker host.
+func (cli *Client) ContainerExecSignal(ctx context.Context, execID, signal string) error {
+	query := url.Values{}
+	query.Set("signal", signal)
+
+	resp, err := cli.post(ctx, "/exec/"+execID+"/signal", query, nil, nil)
+	ensureReaderClosed(resp)
+	return err
 }

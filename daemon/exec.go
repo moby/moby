@@ -7,10 +7,12 @@ import (
 	"io"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/log"
+	"github.com/moby/moby/api/types"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"
@@ -339,6 +341,31 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 		}
 	}
 	return nil
+}
+
+// ContainerExecSignal sends a signal to an exec instance.
+func (daemon *Daemon) ContainerExecSignal(ctx context.Context, name string, config types.ExecSignalConfig) error {
+	var err error
+	var sig syscall.Signal
+
+	if config.Signal != "" {
+		if sig, err = signal.ParseSignal(config.Signal); err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+		if !signal.ValidSignalForPlatform(sig) {
+			return errdefs.InvalidParameter(fmt.Errorf("the %s daemon does not support signal %d", runtime.GOOS, sig))
+		}
+	} else {
+		// If no signal is passed, default to SIGKILL
+		sig = signal.SignalMap["KILL"]
+	}
+
+	ec, err := daemon.getExecConfig(name)
+	if err != nil {
+		return err
+	}
+
+	return ec.Process.Kill(ctx, sig)
 }
 
 // execCommandGC runs a ticker to clean up the daemon references
