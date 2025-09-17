@@ -5,7 +5,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/icmd"
 )
 
 func (s *DockerCLICpSuite) TestCpToContainerWithPermissions(c *testing.T) {
@@ -33,11 +33,12 @@ func (s *DockerCLICpSuite) TestCpToContainerWithPermissions(c *testing.T) {
 	srcPath := cpPath(tmpDir, "permdirtest")
 	dstPath := containerCpPath(containerName, "/")
 
-	args := []string{"cp", "-a", srcPath, dstPath}
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
+	res := icmd.RunCommand(dockerBinary, "cp", "-a", srcPath, dstPath)
+	out, err := res.Combined(), res.Error
 	assert.NilError(c, err, "output: %v", out)
 
-	out, err = startContainerGetOutput(c, containerName)
+	res = icmd.RunCommand(dockerBinary, "start", "-a", containerName)
+	out, err = res.Combined(), res.Error
 	assert.NilError(c, err, "output: %v", out)
 	assert.Equal(c, strings.TrimSpace(out), "2 2 700\n65534 65534 400", "output: %v", out)
 }
