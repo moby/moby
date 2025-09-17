@@ -38,8 +38,7 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 	}
 
 	return ImageBuildResponse{
-		Body:   resp.Body,
-		OSType: resp.Header.Get("Ostype"),
+		Body: resp.Body,
 	}, nil
 }
 
