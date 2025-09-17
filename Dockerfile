@@ -95,8 +95,17 @@ RUN --mount=type=cache,target=/root/.cache/go-build,id=swagger-build-$TARGETPLAT
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=tmpfs,target=/go/src/ <<EOT
   set -e
-  GOBIN=/build CGO_ENABLED=0 xx-go install "github.com/go-swagger/go-swagger/cmd/swagger@${GO_SWAGGER_VERSION}"
+  # FIXME(thaJeztah): temporary workaround for https://github.com/moby/moby/pull/50313#issuecomment-3302457772
+  # Also see https://github.com/golang/go/issues/74462#issuecomment-3201513786
+  git init .
+  git remote add origin "https://github.com/go-swagger/go-swagger.git"
+  git fetch -q --depth 1 origin "${GO_SWAGGER_VERSION}" +refs/tags/*:refs/tags/*
+  git checkout -q "${GO_SWAGGER_VERSION}"
+  go get golang.org/x/tools@v0.24.1
+  go mod tidy
+  GOBIN=/build CGO_ENABLED=0 xx-go install ./cmd/swagger
   xx-verify /build/swagger
+  /build/swagger version
 EOT
 
 # frozen-images
