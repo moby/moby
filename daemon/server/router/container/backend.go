@@ -15,7 +15,7 @@ import (
 // execBackend includes functions to implement to provide exec functionality.
 type execBackend interface {
 	ContainerExecCreate(name string, options *container.ExecCreateRequest) (string, error)
-	ContainerExecInspect(id string) (*backend.ExecInspect, error)
+	ContainerExecInspect(id string) (*container.ExecInspectResponse, error)
 	ContainerExecResize(ctx context.Context, name string, height, width uint32) error
 	ContainerExecStart(ctx context.Context, name string, options backend.ExecStartConfig) error
 	ExecExists(name string) (bool, error)

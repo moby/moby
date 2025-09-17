@@ -149,14 +149,6 @@ type ExecStartConfig struct {
 	ConsoleSize *[2]uint `json:",omitempty"`
 }
 
-// ExecInspect holds information about a running process started
-// with docker exec.
-type ExecInspect = container.ExecInspectResponse
-
-// ExecProcessConfig holds information about the exec process
-// running on the host.
-type ExecProcessConfig = container.ExecProcessConfig
-
 // CreateImageConfig is the configuration for creating an image from a
 // container.
 type CreateImageConfig struct {
