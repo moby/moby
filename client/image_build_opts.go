@@ -72,6 +72,5 @@ type ImageBuildOutput struct {
 // returned by a server after building
 // an image.
 type ImageBuildResponse struct {
-	Body   io.ReadCloser
-	OSType string
+	Body io.ReadCloser
 }

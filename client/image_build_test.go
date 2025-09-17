@@ -187,21 +187,17 @@ func TestImageBuild(t *testing.T) {
 				}
 			}
 
-			headers := http.Header{}
-			headers.Add("Ostype", "MyOS")
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
-				Header:     headers,
 			}, nil
 		}))
 		assert.NilError(t, err)
 		buildResponse, err := client.ImageBuild(context.Background(), nil, buildCase.buildOptions)
 		assert.NilError(t, err)
-		assert.Check(t, is.Equal(buildResponse.OSType, "MyOS"))
 		response, err := io.ReadAll(buildResponse.Body)
 		assert.NilError(t, err)
-		buildResponse.Body.Close()
+		_ = buildResponse.Body.Close()
 		assert.Check(t, is.Equal(string(response), "body"))
 	}
 }
