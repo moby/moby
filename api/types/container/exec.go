@@ -8,21 +8,6 @@ import "github.com/moby/moby/api/types/common"
 // TODO(thaJeztah): make this a distinct type.
 type ExecCreateResponse = common.IDResponse
 
-// ExecInspect holds information returned by exec inspect.
-//
-// It is used by the client to unmarshal a [ExecInspectResponse],
-// but currently only provides a subset of the information included
-// in that type.
-//
-// TODO(thaJeztah): merge [ExecInspect] and [ExecInspectResponse],
-type ExecInspect struct {
-	ExecID      string `json:"ID"`
-	ContainerID string `json:"ContainerID"`
-	Running     bool   `json:"Running"`
-	ExitCode    int    `json:"ExitCode"`
-	Pid         int    `json:"Pid"`
-}
-
 // ExecInspectResponse is the API response for the "GET /exec/{id}/json"
 // endpoint and holds information about and exec.
 type ExecInspectResponse struct {

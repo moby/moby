@@ -146,15 +146,43 @@ func (cli *Client) ContainerExecAttach(ctx context.Context, execID string, confi
 	})
 }
 
+// ExecInspect holds information returned by exec inspect.
+//
+// It provides a subset of the information included in [container.ExecInspectResponse].
+//
+// TODO(thaJeztah): include all fields of [container.ExecInspectResponse] ?
+type ExecInspect struct {
+	ExecID      string `json:"ID"`
+	ContainerID string `json:"ContainerID"`
+	Running     bool   `json:"Running"`
+	ExitCode    int    `json:"ExitCode"`
+	Pid         int    `json:"Pid"`
+}
+
 // ContainerExecInspect returns information about a specific exec process on the docker host.
-func (cli *Client) ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error) {
+func (cli *Client) ContainerExecInspect(ctx context.Context, execID string) (ExecInspect, error) {
 	resp, err := cli.get(ctx, "/exec/"+execID+"/json", nil, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return container.ExecInspect{}, err
+		return ExecInspect{}, err
 	}
 
-	var response container.ExecInspect
+	var response container.ExecInspectResponse
 	err = json.NewDecoder(resp.Body).Decode(&response)
-	return response, err
+	if err != nil {
+		return ExecInspect{}, err
+	}
+
+	var ec int
+	if response.ExitCode != nil {
+		ec = *response.ExitCode
+	}
+
+	return ExecInspect{
+		ExecID:      response.ID,
+		ContainerID: response.ContainerID,
+		Running:     response.Running,
+		ExitCode:    ec,
+		Pid:         response.Pid,
+	}, nil
 }

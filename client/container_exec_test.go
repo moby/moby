@@ -146,10 +146,10 @@ func TestContainerExecInspect(t *testing.T) {
 	client, err := NewClientWithOpts(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+				return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			b, err := json.Marshal(container.ExecInspect{
-				ExecID:      "exec_id",
+			b, err := json.Marshal(container.ExecInspectResponse{
+				ID:          "exec_id",
 				ContainerID: "container_id",
 			})
 			if err != nil {
