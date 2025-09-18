@@ -289,7 +289,7 @@ func TestPredefinedPoolWithPreferredSubnetSize(t *testing.T) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
 
-	alloc1, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Options: map[string]string{SubnetSizeOption: "24"}})
+	alloc1, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Options: map[string]string{ipamapi.SubnetSizeOption: "24"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -343,11 +343,11 @@ func TestPredefinedPoolWithPreferredSubnetSize(t *testing.T) {
 	}
 
 	// Check invalid subnet size requests
-	if _, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Options: map[string]string{SubnetSizeOption: "AB"}}); err == nil {
+	if _, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Options: map[string]string{ipamapi.SubnetSizeOption: "AB"}}); err == nil {
 		t.Fatalf("Expected failure requesting pool with invalid subnet size")
 	}
 
-	if _, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "/24", Options: map[string]string{SubnetSizeOption: "24"}}); err == nil {
+	if _, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "/24", Options: map[string]string{ipamapi.SubnetSizeOption: "24"}}); err == nil {
 		t.Fatalf("Expected failure requesting pool with invalid subnet size")
 	}
 }

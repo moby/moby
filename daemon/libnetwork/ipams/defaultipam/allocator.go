@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"strconv"
 	"strings"
 
 	"github.com/containerd/log"
@@ -24,8 +23,6 @@ const (
 
 	localAddressSpace  = "LocalDefault"
 	globalAddressSpace = "GlobalDefault"
-
-	SubnetSizeOption = "subnet_size"
 )
 
 var _ ipamapi.PoolStatuser = &Allocator{}
@@ -141,6 +138,8 @@ func (a *Allocator) RequestPool(req ipamapi.PoolRequest) (ipamapi.AllocatedPool,
 
 	k := PoolID{AddressSpace: req.AddressSpace}
 
+	subnetSize := 0
+
 	if req.Pool != "" {
 		if strings.HasPrefix(req.Pool, "/") {
 			if req.V6 {
@@ -155,10 +154,6 @@ func (a *Allocator) RequestPool(req ipamapi.PoolRequest) (ipamapi.AllocatedPool,
 			return ipamapi.AllocatedPool{}, parseErr(ipamapi.ErrInvalidPool)
 		}
 
-		if _, found := req.Options[SubnetSizeOption]; found {
-			return ipamapi.AllocatedPool{}, parseErr(ipamapi.ErrInvalidPool)
-		}
-
 		if prefix.Addr().IsUnspecified() {
 			// If the prefix is unspecified, we're only interested in the prefix size.
 			// We'll attempt to use the specified size to allocate a subnet from the
@@ -169,7 +164,9 @@ func (a *Allocator) RequestPool(req ipamapi.PoolRequest) (ipamapi.AllocatedPool,
 				req.Options = make(map[string]string)
 			}
 
-			req.Options[SubnetSizeOption] = strconv.Itoa(prefix.Bits())
+			if prefix.Bits() > 0 {
+				subnetSize = prefix.Bits()
+			}
 		} else {
 			k.Subnet = prefix
 		}
@@ -180,8 +177,12 @@ func (a *Allocator) RequestPool(req ipamapi.PoolRequest) (ipamapi.AllocatedPool,
 	}
 
 	if req.Pool == "" {
-		var subnetSize int
-		if sizeValue, found := req.Options[SubnetSizeOption]; found {
+		if sizeValue, found := req.Options[ipamapi.SubnetSizeOption]; found {
+			if subnetSize > 0 {
+				// Can't specify both a specific subnet prefix and the subnet_size IPAM option
+				return ipamapi.AllocatedPool{}, parseErr(ipamapi.ErrInvalidPool)
+			}
+
 			var testPrefix string
 			if req.V6 {
 				testPrefix = "::/" + sizeValue
