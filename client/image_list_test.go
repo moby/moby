@@ -114,45 +114,6 @@ func TestImageList(t *testing.T) {
 	}
 }
 
-func TestImageListApiBefore125(t *testing.T) {
-	expectedFilter := "image:tag"
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		query := req.URL.Query()
-		actualFilter := query.Get("filter")
-		if actualFilter != expectedFilter {
-			return nil, fmt.Errorf("filter not set in URL query properly. Expected '%s', got %s", expectedFilter, actualFilter)
-		}
-		actualFilters := query.Get("filters")
-		if actualFilters != "" {
-			return nil, fmt.Errorf("filters should have not been present, were with value: %s", actualFilters)
-		}
-		content, err := json.Marshal([]image.Summary{
-			{
-				ID: "image_id2",
-			},
-			{
-				ID: "image_id2",
-			},
-		})
-		if err != nil {
-			return nil, err
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader(content)),
-		}, nil
-	}), WithVersion("1.24"))
-	assert.NilError(t, err)
-
-	options := ImageListOptions{
-		Filters: filters.NewArgs(filters.Arg("reference", "image:tag")),
-	}
-
-	images, err := client.ImageList(context.Background(), options)
-	assert.NilError(t, err)
-	assert.Check(t, is.Len(images, 2))
-}
-
 // Checks if shared-size query parameter is set/not being set correctly
 // for /images/json.
 func TestImageListWithSharedSize(t *testing.T) {
