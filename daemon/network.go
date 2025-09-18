@@ -18,6 +18,7 @@ import (
 	clustertypes "github.com/moby/moby/v2/daemon/cluster/provider"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/internal/multierror"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	lncluster "github.com/moby/moby/v2/daemon/libnetwork/cluster"
@@ -350,32 +351,31 @@ func (daemon *Daemon) createNetwork(ctx context.Context, cfg *config.Config, cre
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionConfigOnly())
 	}
 
-	if err := networktypes.ValidateIPAM(create.IPAM, enableIPv6); err != nil {
-		if agent {
-			// This function is called with agent=false for all networks. For swarm-scoped
-			// networks, the configuration is validated but ManagerRedirectError is returned
-			// and the network is not created. Then, each time a swarm-scoped network is
-			// needed, this function is called again with agent=true.
-			//
-			// Non-swarm networks created before ValidateIPAM was introduced continue to work
-			// as they did before-upgrade, even if they would fail the new checks on creation
-			// (for example, by having host-bits set in their subnet). Those networks are not
-			// seen again here.
-			//
-			// By dropping errors for agent networks, existing swarm-scoped networks also
-			// continue to behave as they did before upgrade - but new networks are still
-			// validated.
-			log.G(ctx).WithFields(log.Fields{
-				"error":   err,
-				"network": create.Name,
-			}).Warn("Continuing with validation errors in agent IPAM")
-		} else {
-			return nil, errdefs.InvalidParameter(err)
-		}
-	}
-
 	if create.IPAM != nil {
 		ipam := create.IPAM
+		if err := validateIpamConfig(ipam.Config, enableIPv6); err != nil {
+			if agent {
+				// This function is called with agent=false for all networks. For swarm-scoped
+				// networks, the configuration is validated but ManagerRedirectError is returned
+				// and the network is not created. Then, each time a swarm-scoped network is
+				// needed, this function is called again with agent=true.
+				//
+				// Non-swarm networks created before ValidateIPAM was introduced continue to work
+				// as they did before-upgrade, even if they would fail the new checks on creation
+				// (for example, by having host-bits set in their subnet). Those networks are not
+				// seen again here.
+				//
+				// By dropping errors for agent networks, existing swarm-scoped networks also
+				// continue to behave as they did before upgrade - but new networks are still
+				// validated.
+				log.G(ctx).WithFields(log.Fields{
+					"error":   err,
+					"network": create.Name,
+				}).Warn("Continuing with validation errors in agent IPAM")
+			} else {
+				return nil, errdefs.InvalidParameter(err)
+			}
+		}
 		v4Conf, v6Conf, err := getIpamConfig(ipam.Config)
 		if err != nil {
 			return nil, err
@@ -442,6 +442,103 @@ func (daemon *Daemon) pluginRefCount(driver, capability string, mode int) {
 			log.G(context.TODO()).WithError(err).WithFields(log.Fields{"mode": mode, "driver": driver}).Error("Error handling plugin refcount operation")
 		}
 	}
+}
+
+func validateIpamConfig(data []networktypes.IPAMConfig, enableIPv6 bool) error {
+	var errs []error
+	for _, cfg := range data {
+		subnet, err := netip.ParsePrefix(cfg.Subnet)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("invalid subnet %s: invalid CIDR block notation", cfg.Subnet))
+			continue
+		}
+		subnetFamily := 4
+		if subnet.Addr().Is6() {
+			subnetFamily = 6
+		}
+
+		if !enableIPv6 && subnetFamily == 6 {
+			continue
+		}
+
+		if subnet != subnet.Masked() {
+			errs = append(errs, fmt.Errorf("invalid subnet %s: it should be %s", subnet, subnet.Masked()))
+		}
+
+		if ipRangeErrs := validateIPRange(cfg.IPRange, subnet, subnetFamily); len(ipRangeErrs) > 0 {
+			errs = append(errs, ipRangeErrs...)
+		}
+
+		if err := validateAddress(cfg.Gateway, subnet, subnetFamily); err != nil {
+			errs = append(errs, fmt.Errorf("invalid gateway %s: %w", cfg.Gateway, err))
+		}
+
+		for auxName, aux := range cfg.AuxAddress {
+			if err := validateAddress(aux, subnet, subnetFamily); err != nil {
+				errs = append(errs, fmt.Errorf("invalid auxiliary address %s: %w", auxName, err))
+			}
+		}
+	}
+
+	if err := multierror.Join(errs...); err != nil {
+		return fmt.Errorf("invalid network config:\n%w", err)
+	}
+
+	return nil
+}
+
+func validateIPRange(ipRange string, subnet netip.Prefix, subnetFamily int) []error {
+	if ipRange == "" {
+		return nil
+	}
+	prefix, err := netip.ParsePrefix(ipRange)
+	if err != nil {
+		return []error{fmt.Errorf("invalid ip-range %s: invalid CIDR block notation", ipRange)}
+	}
+	family := 4
+	if prefix.Addr().Is6() {
+		family = 6
+	}
+
+	if family != subnetFamily {
+		return []error{fmt.Errorf("invalid ip-range %s: parent subnet is an IPv%d block", ipRange, subnetFamily)}
+	}
+
+	var errs []error
+	if prefix.Bits() < subnet.Bits() {
+		errs = append(errs, fmt.Errorf("invalid ip-range %s: CIDR block is bigger than its parent subnet %s", ipRange, subnet))
+	}
+	if prefix != prefix.Masked() {
+		errs = append(errs, fmt.Errorf("invalid ip-range %s: it should be %s", prefix, prefix.Masked()))
+	}
+	if !subnet.Overlaps(prefix) {
+		errs = append(errs, fmt.Errorf("invalid ip-range %s: parent subnet %s doesn't contain ip-range", ipRange, subnet))
+	}
+
+	return errs
+}
+
+func validateAddress(address string, subnet netip.Prefix, subnetFamily int) error {
+	if address == "" {
+		return nil
+	}
+	addr, err := netip.ParseAddr(address)
+	if err != nil {
+		return errors.New("invalid address")
+	}
+	family := 4
+	if addr.Is6() {
+		family = 6
+	}
+
+	if family != subnetFamily {
+		return fmt.Errorf("parent subnet is an IPv%d block", subnetFamily)
+	}
+	if !subnet.Contains(addr) {
+		return fmt.Errorf("parent subnet %s doesn't contain this address", subnet)
+	}
+
+	return nil
 }
 
 func getIpamConfig(data []networktypes.IPAMConfig) ([]*libnetwork.IpamConf, []*libnetwork.IpamConf, error) {
