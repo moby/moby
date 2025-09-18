@@ -102,6 +102,7 @@ func (proxy *UDPProxy) replyLoop(cte *connTrackEntry, serverAddr net.IP, clientA
 		proxy.connTrackLock.Lock()
 		delete(proxy.connTrackTable, *clientKey)
 		cte.mu.Lock()
+		defer cte.mu.Unlock()
 		proxy.connTrackLock.Unlock()
 		cte.conn.Close()
 	}()
@@ -205,7 +206,6 @@ func (proxy *UDPProxy) Run() {
 			i += written
 			cte.lastW = time.Now()
 		}
-		cte.mu.Unlock()
 	}
 }
 
