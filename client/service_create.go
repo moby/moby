@@ -62,12 +62,6 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 	}
 
 	headers := http.Header{}
-	if versions.LessThan(cli.version, "1.30") {
-		// the custom "version" header was used by engine API before 20.10
-		// (API 1.30) to switch between client- and server-side lookup of
-		// image digests.
-		headers["version"] = []string{cli.version}
-	}
 	if options.EncodedRegistryAuth != "" {
 		headers[registry.AuthHeader] = []string{options.EncodedRegistryAuth}
 	}
