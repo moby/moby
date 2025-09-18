@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -18,7 +16,6 @@ import (
 
 func TestConfigCreateError(t *testing.T) {
 	client, err := NewClientWithOpts(
-		WithVersion("1.30"),
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -28,15 +25,11 @@ func TestConfigCreateError(t *testing.T) {
 }
 
 func TestConfigCreate(t *testing.T) {
-	expectedURL := "/v1.30/configs/create"
+	const expectedURL = "/configs/create"
 	client, err := NewClientWithOpts(
-		WithVersion("1.30"),
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			if req.Method != http.MethodPost {
-				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
+			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+				return nil, err
 			}
 			b, err := json.Marshal(swarm.ConfigCreateResponse{
 				ID: "test_config",

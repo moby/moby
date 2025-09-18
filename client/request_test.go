@@ -52,8 +52,8 @@ func TestSetHostHeader(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.host, func(t *testing.T) {
 			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-				if !strings.HasPrefix(req.URL.Path, testEndpoint) {
-					return nil, fmt.Errorf("expected URL %q, got %q", testEndpoint, req.URL)
+				if err := assertRequest(req, http.MethodGet, testEndpoint); err != nil {
+					return nil, err
 				}
 				if req.Host != tc.expectedHost {
 					return nil, fmt.Errorf("wxpected host %q, got %q", tc.expectedHost, req.Host)

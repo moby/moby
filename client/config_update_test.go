@@ -3,10 +3,8 @@ package client
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -17,7 +15,6 @@ import (
 
 func TestConfigUpdateError(t *testing.T) {
 	client, err := NewClientWithOpts(
-		WithVersion("1.30"),
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -35,16 +32,12 @@ func TestConfigUpdateError(t *testing.T) {
 }
 
 func TestConfigUpdate(t *testing.T) {
-	expectedURL := "/v1.30/configs/config_id/update"
+	const expectedURL = "/configs/config_id/update"
 
 	client, err := NewClientWithOpts(
-		WithVersion("1.30"),
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-			if req.Method != http.MethodPost {
-				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
+			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+				return nil, err
 			}
 			return &http.Response{
 				StatusCode: http.StatusOK,

@@ -122,7 +122,7 @@ func TestContainerExecResize(t *testing.T) {
 
 func resizeTransport(t *testing.T, expectedURL, expectedHeight, expectedWidth string) func(req *http.Request) (*http.Response, error) {
 	return func(req *http.Request) (*http.Response, error) {
-		assert.Check(t, is.Equal(req.URL.Path, expectedURL))
+		assert.Check(t, assertRequest(req, http.MethodPost, expectedURL))
 
 		query := req.URL.Query()
 		assert.Check(t, is.Equal(query.Get("h"), expectedHeight))

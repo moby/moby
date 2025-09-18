@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -19,7 +17,7 @@ import (
 )
 
 func TestImagesPruneError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")), WithVersion("1.25"))
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.ImagesPrune(context.Background(), filters.NewArgs())
@@ -27,7 +25,7 @@ func TestImagesPruneError(t *testing.T) {
 }
 
 func TestImagesPrune(t *testing.T) {
-	const expectedURL = "/v1.25/images/prune"
+	const expectedURL = "/images/prune"
 
 	listCases := []struct {
 		filters             filters.Args
@@ -72,8 +70,8 @@ func TestImagesPrune(t *testing.T) {
 	}
 	for _, listCase := range listCases {
 		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+				return nil, err
 			}
 			query := req.URL.Query()
 			for key, expected := range listCase.expectedQueryParams {
@@ -98,7 +96,7 @@ func TestImagesPrune(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader(content)),
 			}, nil
-		}), WithVersion("1.25"))
+		}))
 		assert.NilError(t, err)
 
 		report, err := client.ImagesPrune(context.Background(), listCase.filters)

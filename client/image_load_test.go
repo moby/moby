@@ -82,7 +82,7 @@ func TestImageLoad(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
 			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-				assert.Check(t, is.Equal(req.URL.Path, expectedURL))
+				assert.Check(t, assertRequest(req, http.MethodPost, expectedURL))
 				assert.Check(t, is.Equal(req.Header.Get("Content-Type"), expectedContentType))
 				assert.Check(t, is.DeepEqual(req.URL.Query(), tc.expectedQueryParams))
 				return &http.Response{

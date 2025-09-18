@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"reflect"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -154,24 +153,24 @@ func TestImageBuild(t *testing.T) {
 			expectedRegistryConfig: "eyJodHRwczovL2luZGV4LmRvY2tlci5pby92MS8iOnsiYXV0aCI6ImRHOTBid289In19",
 		},
 	}
+	const expectedURL = "/build"
 	for _, buildCase := range buildCases {
-		expectedURL := "/build"
-		client, err := NewClientWithOpts(WithMockClient(func(r *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(r.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
+		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+				return nil, err
 			}
 			// Check request headers
-			registryConfig := r.Header.Get("X-Registry-Config")
+			registryConfig := req.Header.Get("X-Registry-Config")
 			if registryConfig != buildCase.expectedRegistryConfig {
 				return nil, fmt.Errorf("X-Registry-Config header not properly set in the request. Expected '%s', got %s", buildCase.expectedRegistryConfig, registryConfig)
 			}
-			contentType := r.Header.Get("Content-Type")
+			contentType := req.Header.Get("Content-Type")
 			if contentType != "application/x-tar" {
 				return nil, fmt.Errorf("Content-type header not properly set in the request. Expected 'application/x-tar', got %s", contentType)
 			}
 
 			// Check query parameters
-			query := r.URL.Query()
+			query := req.URL.Query()
 			for key, expected := range buildCase.expectedQueryParams {
 				actual := query.Get(key)
 				if actual != expected {

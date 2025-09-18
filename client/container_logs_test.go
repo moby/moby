@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -56,7 +55,7 @@ func TestContainerLogsError(t *testing.T) {
 }
 
 func TestContainerLogs(t *testing.T) {
-	expectedURL := "/containers/container_id/logs"
+	const expectedURL = "/containers/container_id/logs"
 	cases := []struct {
 		options             ContainerLogsOptions
 		expectedQueryParams map[string]string
@@ -129,12 +128,12 @@ func TestContainerLogs(t *testing.T) {
 	}
 	for _, logCase := range cases {
 		client, err := NewClientWithOpts(
-			WithMockClient(func(r *http.Request) (*http.Response, error) {
-				if !strings.HasPrefix(r.URL.Path, expectedURL) {
-					return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, r.URL)
+			WithMockClient(func(req *http.Request) (*http.Response, error) {
+				if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+					return nil, err
 				}
 				// Check query parameters
-				query := r.URL.Query()
+				query := req.URL.Query()
 				for key, expected := range logCase.expectedQueryParams {
 					actual := query.Get(key)
 					if actual != expected {

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -57,10 +56,10 @@ func TestImageSearchWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.
 }
 
 func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
-	expectedURL := "/images/search"
+	const expectedURL = "/images/search"
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+			return nil, err
 		}
 		auth := req.Header.Get(registry.AuthHeader)
 		if auth == "NotValid" {
@@ -107,8 +106,8 @@ func TestImageSearchWithoutErrors(t *testing.T) {
 	const expectedFilters = `{"is-automated":{"true":true},"stars":{"3":true}}`
 
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+			return nil, err
 		}
 		query := req.URL.Query()
 		term := query.Get("term")

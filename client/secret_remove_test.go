@@ -3,10 +3,8 @@ package client
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -15,7 +13,7 @@ import (
 )
 
 func TestSecretRemoveError(t *testing.T) {
-	client, err := NewClientWithOpts(WithVersion("1.25"), WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	err = client.SecretRemove(context.Background(), "secret_id")
@@ -31,14 +29,11 @@ func TestSecretRemoveError(t *testing.T) {
 }
 
 func TestSecretRemove(t *testing.T) {
-	expectedURL := "/v1.25/secrets/secret_id"
+	const expectedURL = "/secrets/secret_id"
 
-	client, err := NewClientWithOpts(WithVersion("1.25"), WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-		}
-		if req.Method != http.MethodDelete {
-			return nil, fmt.Errorf("expected DELETE method, got %s", req.Method)
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if err := assertRequest(req, http.MethodDelete, expectedURL); err != nil {
+			return nil, err
 		}
 		return &http.Response{
 			StatusCode: http.StatusOK,

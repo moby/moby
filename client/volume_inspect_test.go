@@ -5,10 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -48,7 +46,7 @@ func TestVolumeInspectWithEmptyID(t *testing.T) {
 }
 
 func TestVolumeInspect(t *testing.T) {
-	expectedURL := "/volumes/volume_id"
+	const expectedURL = "/volumes/volume_id"
 	expected := volume.Volume{
 		Name:       "name",
 		Driver:     "driver",
@@ -56,11 +54,8 @@ func TestVolumeInspect(t *testing.T) {
 	}
 
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-		}
-		if req.Method != http.MethodGet {
-			return nil, fmt.Errorf("expected GET method, got %s", req.Method)
+		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+			return nil, err
 		}
 		content, err := json.Marshal(expected)
 		if err != nil {

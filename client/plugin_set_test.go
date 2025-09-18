@@ -3,10 +3,8 @@ package client
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -31,14 +29,11 @@ func TestPluginSetError(t *testing.T) {
 }
 
 func TestPluginSet(t *testing.T) {
-	expectedURL := "/plugins/plugin_name/set"
+	const expectedURL = "/plugins/plugin_name/set"
 
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-		}
-		if req.Method != http.MethodPost {
-			return nil, fmt.Errorf("expected POST method, got %s", req.Method)
+		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+			return nil, err
 		}
 		return &http.Response{
 			StatusCode: http.StatusOK,

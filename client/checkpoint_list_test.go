@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -27,12 +25,12 @@ func TestCheckpointListError(t *testing.T) {
 }
 
 func TestCheckpointList(t *testing.T) {
-	expectedURL := "/containers/container_id/checkpoints"
+	const expectedURL = "/containers/container_id/checkpoints"
 
 	client, err := NewClientWithOpts(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+				return nil, err
 			}
 			content, err := json.Marshal([]checkpoint.Summary{
 				{

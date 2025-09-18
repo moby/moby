@@ -40,13 +40,10 @@ func TestServiceCreateConnectionError(t *testing.T) {
 }
 
 func TestServiceCreate(t *testing.T) {
-	expectedURL := "/services/create"
+	const expectedURL = "/services/create"
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
-		}
-		if req.Method != http.MethodPost {
-			return nil, fmt.Errorf("expected POST method, got %s", req.Method)
+		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+			return nil, err
 		}
 		b, err := json.Marshal(swarm.ServiceCreateResponse{
 			ID: "service_id",
@@ -67,8 +64,8 @@ func TestServiceCreate(t *testing.T) {
 }
 
 func TestServiceCreateCompatiblePlatforms(t *testing.T) {
-	client, err := NewClientWithOpts(WithVersion("1.30"), WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if strings.HasPrefix(req.URL.Path, "/v1.30/services/create") {
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if strings.HasPrefix(req.URL.Path, defaultAPIPath+"/services/create") {
 			var serviceSpec swarm.ServiceSpec
 
 			// check if the /distribution endpoint returned correct output
@@ -91,7 +88,7 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader(b)),
 			}, nil
-		} else if strings.HasPrefix(req.URL.Path, "/v1.30/distribution/") {
+		} else if strings.HasPrefix(req.URL.Path, defaultAPIPath+"/distribution/") {
 			b, err := json.Marshal(registrytypes.DistributionInspect{
 				Descriptor: ocispec.Descriptor{
 					Digest: "sha256:c0537ff6a5218ef531ece93d4984efc99bbf3f7497c0a7726c88e2bb7584dc96",
@@ -145,8 +142,8 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 		{"cannotresolve", "cannotresolve:latest"},
 	}
 
-	client, err := NewClientWithOpts(WithVersion("1.30"), WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if strings.HasPrefix(req.URL.Path, "/v1.30/services/create") {
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if strings.HasPrefix(req.URL.Path, defaultAPIPath+"/services/create") {
 			// reset and set image received by the service create endpoint
 			serviceCreateImage = ""
 			var service swarm.ServiceSpec
@@ -165,10 +162,10 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader(b)),
 			}, nil
-		} else if strings.HasPrefix(req.URL.Path, "/v1.30/distribution/cannotresolve") {
+		} else if strings.HasPrefix(req.URL.Path, defaultAPIPath+"/distribution/cannotresolve") {
 			// unresolvable image
 			return nil, errors.New("cannot resolve image")
-		} else if strings.HasPrefix(req.URL.Path, "/v1.30/distribution/") {
+		} else if strings.HasPrefix(req.URL.Path, defaultAPIPath+"/distribution/") {
 			// resolvable images
 			b, err := json.Marshal(registrytypes.DistributionInspect{
 				Descriptor: ocispec.Descriptor{

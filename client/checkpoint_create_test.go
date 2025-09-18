@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -39,18 +38,16 @@ func TestCheckpointCreateError(t *testing.T) {
 }
 
 func TestCheckpointCreate(t *testing.T) {
-	expectedContainerID := "container_id"
-	expectedCheckpointID := "checkpoint_id"
-	expectedURL := "/containers/container_id/checkpoints"
+	const (
+		expectedContainerID  = "container_id"
+		expectedCheckpointID = "checkpoint_id"
+		expectedURL          = "/containers/container_id/checkpoints"
+	)
 
 	client, err := NewClientWithOpts(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
-			}
-
-			if req.Method != http.MethodPost {
-				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
+			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+				return nil, err
 			}
 
 			createOptions := &CheckpointCreateOptions{}

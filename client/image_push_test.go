@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -72,8 +71,8 @@ func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
 	const invalidAuth = "NotValid"
 	const validAuth = "IAmValid"
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+			return nil, err
 		}
 		auth := req.Header.Get(registry.AuthHeader)
 		if auth == invalidAuth {
@@ -171,8 +170,8 @@ func TestImagePushWithoutErrors(t *testing.T) {
 		t.Run(fmt.Sprintf("%s,all-tags=%t", tc.reference, tc.all), func(t *testing.T) {
 			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
 				expectedURL := fmt.Sprintf(expectedURLFormat, tc.expectedImage)
-				if !strings.HasPrefix(req.URL.Path, expectedURL) {
-					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+				if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+					return nil, err
 				}
 				query := req.URL.Query()
 				tag := query.Get("tag")

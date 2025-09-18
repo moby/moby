@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -36,10 +34,10 @@ func TestInfoInvalidResponseJSONError(t *testing.T) {
 }
 
 func TestInfo(t *testing.T) {
-	expectedURL := "/info"
+	const expectedURL = "/info"
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+			return nil, err
 		}
 		info := &system.Info{
 			ID:         "daemonID",
@@ -65,10 +63,10 @@ func TestInfo(t *testing.T) {
 }
 
 func TestInfoWithDiscoveredDevices(t *testing.T) {
-	expectedURL := "/info"
+	const expectedURL = "/info"
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+			return nil, err
 		}
 		info := &system.Info{
 			ID:         "daemonID",

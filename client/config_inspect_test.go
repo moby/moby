@@ -5,10 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -45,7 +43,6 @@ func TestConfigInspectWithEmptyID(t *testing.T) {
 
 func TestConfigInspectError(t *testing.T) {
 	client, err := NewClientWithOpts(
-		WithVersion("1.30"),
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -56,7 +53,6 @@ func TestConfigInspectError(t *testing.T) {
 
 func TestConfigInspectConfigNotFound(t *testing.T) {
 	client, err := NewClientWithOpts(
-		WithVersion("1.30"),
 		WithMockClient(errorMock(http.StatusNotFound, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -66,12 +62,11 @@ func TestConfigInspectConfigNotFound(t *testing.T) {
 }
 
 func TestConfigInspect(t *testing.T) {
-	expectedURL := "/v1.30/configs/config_id"
+	const expectedURL = "/configs/config_id"
 	client, err := NewClientWithOpts(
-		WithVersion("1.30"),
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
+			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+				return nil, err
 			}
 			content, err := json.Marshal(swarm.Config{
 				ID: "config_id",

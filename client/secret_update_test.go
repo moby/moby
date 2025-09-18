@@ -3,10 +3,8 @@ package client
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -16,7 +14,7 @@ import (
 )
 
 func TestSecretUpdateError(t *testing.T) {
-	client, err := NewClientWithOpts(WithVersion("1.25"), WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	err = client.SecretUpdate(context.Background(), "secret_id", swarm.Version{}, swarm.SecretSpec{})
@@ -32,14 +30,11 @@ func TestSecretUpdateError(t *testing.T) {
 }
 
 func TestSecretUpdate(t *testing.T) {
-	expectedURL := "/v1.25/secrets/secret_id/update"
+	const expectedURL = "/secrets/secret_id/update"
 
-	client, err := NewClientWithOpts(WithVersion("1.25"), WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if !strings.HasPrefix(req.URL.Path, expectedURL) {
-			return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
-		}
-		if req.Method != http.MethodPost {
-			return nil, fmt.Errorf("expected POST method, got %s", req.Method)
+	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+			return nil, err
 		}
 		return &http.Response{
 			StatusCode: http.StatusOK,
