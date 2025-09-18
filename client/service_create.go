@@ -37,7 +37,7 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 		return response, err
 	}
 	if versions.LessThan(cli.version, "1.30") {
-		if err := validateAPIVersion(service, cli.version); err != nil {
+		if err := validateServiceSpecForAPIVersion(service, cli.version); err != nil {
 			return response, err
 		}
 	}
@@ -196,7 +196,7 @@ func validateServiceSpec(s swarm.ServiceSpec) error {
 	return nil
 }
 
-func validateAPIVersion(c swarm.ServiceSpec, apiVersion string) error {
+func validateServiceSpecForAPIVersion(c swarm.ServiceSpec, apiVersion string) error {
 	for _, m := range c.TaskTemplate.ContainerSpec.Mounts {
 		if m.BindOptions != nil {
 			if m.BindOptions.NonRecursive && versions.LessThan(apiVersion, "1.40") {
