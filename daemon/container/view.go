@@ -296,7 +296,7 @@ func (v *View) transform(ctr *Container) *Snapshot {
 	failingStreak := 0
 	if ctr.State.Health != nil {
 		health = ctr.State.Health.Status()
-		failingStreak = ctr.State.Health.FailingStreak
+		failingStreak = ctr.State.Health.Health.FailingStreak
 	}
 
 	snapshot := &Snapshot{
