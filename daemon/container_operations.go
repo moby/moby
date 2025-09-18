@@ -554,26 +554,11 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 		}
 	}
 
-	// TODO(aker): add a proper multierror.Append
-	if err := ipamConfig.Validate(); err != nil {
-		errs = append(errs, err.(interface{ Unwrap() []error }).Unwrap()...)
-	}
+	errs = validateEndpointIPAMConfig(errs, ipamConfig)
 
 	if nw != nil {
 		_, _, v4Configs, v6Configs := nw.IpamConfig()
-
-		var nwIPv4Subnets, nwIPv6Subnets []networktypes.NetworkSubnet
-		for _, nwIPAMConfig := range v4Configs {
-			nwIPv4Subnets = append(nwIPv4Subnets, nwIPAMConfig)
-		}
-		for _, nwIPAMConfig := range v6Configs {
-			nwIPv6Subnets = append(nwIPv6Subnets, nwIPAMConfig)
-		}
-
-		// TODO(aker): add a proper multierror.Append
-		if err := ipamConfig.IsInRange(nwIPv4Subnets, nwIPv6Subnets); err != nil {
-			errs = append(errs, err.(interface{ Unwrap() []error }).Unwrap()...)
-		}
+		errs = validateIPAMConfigIsInRange(errs, ipamConfig, v4Configs, v6Configs)
 	}
 
 	if epConfig.MacAddress != "" {
@@ -603,6 +588,65 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 	}
 
 	return nil
+}
+
+// validateEndpointIPAMConfig checks whether cfg is valid.
+func validateEndpointIPAMConfig(errs []error, cfg *networktypes.EndpointIPAMConfig) []error {
+	if cfg == nil {
+		return errs
+	}
+
+	if cfg.IPv4Address != "" {
+		if addr := net.ParseIP(cfg.IPv4Address); addr == nil || addr.To4() == nil || addr.IsUnspecified() {
+			errs = append(errs, fmt.Errorf("invalid IPv4 address: %s", cfg.IPv4Address))
+		}
+	}
+	if cfg.IPv6Address != "" {
+		if addr := net.ParseIP(cfg.IPv6Address); addr == nil || addr.To4() != nil || addr.IsUnspecified() {
+			errs = append(errs, fmt.Errorf("invalid IPv6 address: %s", cfg.IPv6Address))
+		}
+	}
+	for _, addr := range cfg.LinkLocalIPs {
+		if parsed := net.ParseIP(addr); parsed == nil || parsed.IsUnspecified() {
+			errs = append(errs, fmt.Errorf("invalid link-local IP address: %s", addr))
+		}
+	}
+
+	return errs
+}
+
+// validateIPAMConfigIsInRange checks whether static IP addresses are valid in a specific network.
+func validateIPAMConfigIsInRange(errs []error, cfg *networktypes.EndpointIPAMConfig, v4Subnets, v6Subnets []*libnetwork.IpamConf) []error {
+	if err := validateEndpointIPAddress(cfg.IPv4Address, v4Subnets); err != nil {
+		errs = append(errs, err)
+	}
+	if err := validateEndpointIPAddress(cfg.IPv6Address, v6Subnets); err != nil {
+		errs = append(errs, err)
+	}
+	return errs
+}
+
+func validateEndpointIPAddress(epAddr string, ipamSubnets []*libnetwork.IpamConf) error {
+	if epAddr == "" {
+		return nil
+	}
+
+	var staticSubnet bool
+	parsedAddr := net.ParseIP(epAddr)
+	for _, subnet := range ipamSubnets {
+		if subnet.IsStatic() {
+			staticSubnet = true
+			if subnet.Contains(parsedAddr) {
+				return nil
+			}
+		}
+	}
+
+	if staticSubnet {
+		return fmt.Errorf("no configured subnet or ip-range contain the IP address %s", epAddr)
+	}
+
+	return errors.New("user specified IP address is supported only when connecting to networks with user configured subnets")
 }
 
 // cleanOperationalData resets the operational data from the passed endpoint settings
