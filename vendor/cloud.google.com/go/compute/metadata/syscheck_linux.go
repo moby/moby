@@ -21,8 +21,10 @@ import (
 	"strings"
 )
 
-func systemInfoSuggestsGCE() bool {
+// NOTE: systemInfoSuggestsGCE is assigned to a varible for test stubbing purposes.
+var systemInfoSuggestsGCE = func() bool {
 	b, _ := os.ReadFile("/sys/class/dmi/id/product_name")
+
 	name := strings.TrimSpace(string(b))
 	return name == "Google" || name == "Google Compute Engine"
 }

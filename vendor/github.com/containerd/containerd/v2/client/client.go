@@ -431,6 +431,10 @@ type RemoteContext struct {
 	// ChildLabelMap sets the labels used to reference child objects in the content
 	// store. By default, all GC reference labels will be set for all fetched content.
 	ChildLabelMap func(ocispec.Descriptor) []string
+
+	// ReferrersProvider provides a way to lookup additional referrers for a given
+	// descriptor. For example pulling them with remotes.ReferrerFetcher.
+	ReferrersProvider content.ReferrersProvider
 }
 
 func defaultRemoteContext() *RemoteContext {

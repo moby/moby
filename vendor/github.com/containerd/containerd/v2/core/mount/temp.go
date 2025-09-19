@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/containerd/log"
 )
@@ -101,6 +102,25 @@ func RemoveVolatileOption(mounts []Mount) []Mount {
 		return out
 	}
 
+	return mounts
+}
+
+// RemoveIDMapOption copies and removes the uidmap/gidmap options on any of the mounts using it.
+func RemoveIDMapOption(mounts []Mount) []Mount {
+	var out []Mount
+	for i, m := range mounts {
+		for j, opt := range m.Options {
+			if strings.HasPrefix(opt, "uidmap") || strings.HasPrefix(opt, "gidmap") {
+				if out == nil {
+					out = copyMounts(mounts)
+				}
+				out[i].Options = append(out[i].Options[:j], out[i].Options[j+1:]...)
+			}
+		}
+	}
+	if out != nil {
+		return out
+	}
 	return mounts
 }
 

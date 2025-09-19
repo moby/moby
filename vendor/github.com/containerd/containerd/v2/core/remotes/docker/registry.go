@@ -57,6 +57,10 @@ const (
 	// manifests
 	HostCapabilityPush
 
+	// HostCapabilityReferrers represents the capability to generate a
+	// list of referrers using the OCI Distribution referrers endpoint.
+	HostCapabilityReferrers
+
 	// Reserved for future capabilities (i.e. search, catalog, remove)
 )
 
@@ -168,7 +172,7 @@ func ConfigureDefaultRegistries(ropts ...RegistryOpt) RegistryHosts {
 			Host:         host,
 			Scheme:       "https",
 			Path:         "/v2",
-			Capabilities: HostCapabilityPull | HostCapabilityResolve | HostCapabilityPush,
+			Capabilities: HostCapabilityPull | HostCapabilityResolve | HostCapabilityPush | HostCapabilityReferrers,
 		}
 
 		if config.Client == nil {
@@ -212,10 +216,10 @@ func MatchAllHosts(string) (bool, error) {
 // Note: this does not handle matching of ip addresses in octal,
 // decimal or hex form.
 func MatchLocalhost(host string) (bool, error) {
-	switch {
-	case host == "::1":
+	switch host {
+	case "::1":
 		return true, nil
-	case host == "[::1]":
+	case "[::1]":
 		return true, nil
 	}
 	h, p, err := net.SplitHostPort(host)

@@ -35,7 +35,7 @@ var invalidUser = User{Uid: invalidID, Gid: invalidID}
 
 // User is a Uid and Gid pair of a user
 //
-//nolint:revive
+//nolint:revive,staticcheck // ST1003: struct field Uid should be UID (staticcheck)
 type User struct {
 	Uid uint32
 	Gid uint32
@@ -43,7 +43,7 @@ type User struct {
 
 // IDMap contains the mappings of Uids and Gids.
 //
-//nolint:revive
+//nolint:revive,staticcheck // ST1003: struct field Uid should be UID (staticcheck)
 type IDMap struct {
 	UidMap []specs.LinuxIDMapping `json:"UidMap"`
 	GidMap []specs.LinuxIDMapping `json:"GidMap"`

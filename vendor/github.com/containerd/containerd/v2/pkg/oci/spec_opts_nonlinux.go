@@ -25,12 +25,12 @@ import (
 )
 
 // WithAllCurrentCapabilities propagates the effective capabilities of the caller process to the container process.
-// The capability set may differ from WithAllKnownCapabilities when running in a container.
-var WithAllCurrentCapabilities = func(ctx context.Context, client Client, c *containers.Container, s *Spec) error {
+// The capability set may differ from [WithAllKnownCapabilities] when running in a container.
+func WithAllCurrentCapabilities(ctx context.Context, client Client, c *containers.Container, s *Spec) error {
 	return WithCapabilities(nil)(ctx, client, c, s)
 }
 
-// WithAllKnownCapabilities sets all the known linux capabilities for the container process
-var WithAllKnownCapabilities = func(ctx context.Context, client Client, c *containers.Container, s *Spec) error {
+// WithAllKnownCapabilities sets all the known linux capabilities for the container process.
+func WithAllKnownCapabilities(ctx context.Context, client Client, c *containers.Container, s *Spec) error {
 	return WithCapabilities(nil)(ctx, client, c, s)
 }

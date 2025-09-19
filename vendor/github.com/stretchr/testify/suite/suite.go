@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -15,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var allTestsFilter = func(_, _ string) (bool, error) { return true, nil }
 var matchMethod = flag.String("testify.m", "", "regular expression to select tests of the testify suite to run")
 
 // Suite is a basic testing suite with methods for storing and
@@ -116,6 +116,11 @@ func (suite *Suite) Run(name string, subtest func()) bool {
 	})
 }
 
+type test = struct {
+	name string
+	run  func(t *testing.T)
+}
+
 // Run takes a testing suite and runs all of the tests attached
 // to it.
 func Run(t *testing.T, suite TestingSuite) {
@@ -124,45 +129,39 @@ func Run(t *testing.T, suite TestingSuite) {
 	suite.SetT(t)
 	suite.SetS(suite)
 
-	var suiteSetupDone bool
-
 	var stats *SuiteInformation
 	if _, ok := suite.(WithStats); ok {
 		stats = newSuiteInformation()
 	}
 
-	tests := []testing.InternalTest{}
+	var tests []test
 	methodFinder := reflect.TypeOf(suite)
 	suiteName := methodFinder.Elem().Name()
 
-	for i := 0; i < methodFinder.NumMethod(); i++ {
-		method := methodFinder.Method(i)
-
-		ok, err := methodFilter(method.Name)
+	var matchMethodRE *regexp.Regexp
+	if *matchMethod != "" {
+		var err error
+		matchMethodRE, err = regexp.Compile(*matchMethod)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "testify: invalid regexp for -m: %s\n", err)
 			os.Exit(1)
 		}
+	}
 
-		if !ok {
+	for i := 0; i < methodFinder.NumMethod(); i++ {
+		method := methodFinder.Method(i)
+
+		if !strings.HasPrefix(method.Name, "Test") {
+			continue
+		}
+		// Apply -testify.m filter
+		if matchMethodRE != nil && !matchMethodRE.MatchString(method.Name) {
 			continue
 		}
 
-		if !suiteSetupDone {
-			if stats != nil {
-				stats.Start = time.Now()
-			}
-
-			if setupAllSuite, ok := suite.(SetupAllSuite); ok {
-				setupAllSuite.SetupSuite()
-			}
-
-			suiteSetupDone = true
-		}
-
-		test := testing.InternalTest{
-			Name: method.Name,
-			F: func(t *testing.T) {
+		test := test{
+			name: method.Name,
+			run: func(t *testing.T) {
 				parentT := suite.T()
 				suite.SetT(t)
 				defer recoverAndFailOnPanic(t)
@@ -171,10 +170,7 @@ func Run(t *testing.T, suite TestingSuite) {
 
 					r := recover()
 
-					if stats != nil {
-						passed := !t.Failed() && r == nil
-						stats.end(method.Name, passed)
-					}
+					stats.end(method.Name, !t.Failed() && r == nil)
 
 					if afterTestSuite, ok := suite.(AfterTest); ok {
 						afterTestSuite.AfterTest(suiteName, method.Name)
@@ -195,59 +191,47 @@ func Run(t *testing.T, suite TestingSuite) {
 					beforeTestSuite.BeforeTest(methodFinder.Elem().Name(), method.Name)
 				}
 
-				if stats != nil {
-					stats.start(method.Name)
-				}
+				stats.start(method.Name)
 
 				method.Func.Call([]reflect.Value{reflect.ValueOf(suite)})
 			},
 		}
 		tests = append(tests, test)
 	}
-	if suiteSetupDone {
-		defer func() {
-			if tearDownAllSuite, ok := suite.(TearDownAllSuite); ok {
-				tearDownAllSuite.TearDownSuite()
-			}
 
-			if suiteWithStats, measureStats := suite.(WithStats); measureStats {
-				stats.End = time.Now()
-				suiteWithStats.HandleStats(suiteName, stats)
-			}
-		}()
+	if len(tests) == 0 {
+		return
 	}
+
+	if stats != nil {
+		stats.Start = time.Now()
+	}
+
+	if setupAllSuite, ok := suite.(SetupAllSuite); ok {
+		setupAllSuite.SetupSuite()
+	}
+
+	defer func() {
+		if tearDownAllSuite, ok := suite.(TearDownAllSuite); ok {
+			tearDownAllSuite.TearDownSuite()
+		}
+
+		if suiteWithStats, measureStats := suite.(WithStats); measureStats {
+			stats.End = time.Now()
+			suiteWithStats.HandleStats(suiteName, stats)
+		}
+	}()
 
 	runTests(t, tests)
 }
 
-// Filtering method according to set regular expression
-// specified command-line argument -m
-func methodFilter(name string) (bool, error) {
-	if ok, _ := regexp.MatchString("^Test", name); !ok {
-		return false, nil
-	}
-	return regexp.MatchString(*matchMethod, name)
-}
-
-func runTests(t testing.TB, tests []testing.InternalTest) {
+func runTests(t *testing.T, tests []test) {
 	if len(tests) == 0 {
 		t.Log("warning: no tests to run")
 		return
 	}
 
-	r, ok := t.(runner)
-	if !ok { // backwards compatibility with Go 1.6 and below
-		if !testing.RunTests(allTestsFilter, tests) {
-			t.Fail()
-		}
-		return
-	}
-
 	for _, test := range tests {
-		r.Run(test.Name, test.F)
+		t.Run(test.name, test.run)
 	}
-}
-
-type runner interface {
-	Run(name string, f func(t *testing.T)) bool
 }

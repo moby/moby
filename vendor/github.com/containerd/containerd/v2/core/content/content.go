@@ -170,6 +170,11 @@ type Syncer interface {
 	Sync() error
 }
 
+// ReferrersProvider handles looking up additional referrer objects for a given descriptor.
+type ReferrersProvider interface {
+	Referrers(context.Context, ocispec.Descriptor) ([]ocispec.Descriptor, error)
+}
+
 // Opt is used to alter the mutable properties of content
 type Opt func(*Info) error
 

@@ -2,20 +2,28 @@ package containerd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/core/content"
 	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/remotes"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/containerd/containerd/v2/pkg/snapshotters"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
+	slsa02 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.2"
+	slsa1 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v1"
+	"github.com/moby/buildkit/util/attestation"
 	"github.com/moby/moby/api/pkg/progress"
 	"github.com/moby/moby/api/pkg/streamformatter"
 	"github.com/moby/moby/api/types/events"
@@ -24,9 +32,12 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/metrics"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/errdefs"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
+
+const sigArtifactType = "application/vnd.dev.cosign.artifact.sig.v1+json"
 
 // PullImage initiates a pull operation. baseRef is the image to pull.
 // If reference is not tagged, all tags are pulled.
@@ -204,7 +215,11 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	// this information is used to enable remote snapshotters like nydus and stargz to query a registry.
 	// This is also needed for the pull progress to detect the `Extracting` status.
 	infoHandler := snapshotters.AppendInfoHandlerWrapper(ref.String())
-	opts = append(opts, containerd.WithImageHandlerWrapper(infoHandler))
+
+	referrers := newReferrersForPull(ref.String(), resolver, i.client.ContentStore())
+
+	opts = append(opts, containerd.WithImageHandlerWrapper(joinHandlerWrappers(infoHandler, referrers.Handler)))
+	opts = append(opts, containerd.WithReferrersProvider(referrers))
 
 	img, err := i.client.Pull(ctx, ref.String(), opts...)
 	if err != nil {
@@ -247,7 +262,191 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 
 	i.LogImageEvent(ctx, reference.FamiliarString(ref), reference.FamiliarName(ref), events.ActionPull)
 	outNewImg = img
+
 	return nil
+}
+
+func joinHandlerWrappers(funcs ...func(c8dimages.Handler) c8dimages.Handler) func(c8dimages.Handler) c8dimages.Handler {
+	return func(h c8dimages.Handler) c8dimages.Handler {
+		for _, f := range funcs {
+			h = f(h)
+		}
+		return h
+	}
+}
+
+type referrersForPull struct {
+	mu                    sync.Mutex
+	ref                   string
+	store                 content.Store
+	candidates            *referrersList
+	isAttestationManifest map[digest.Digest]struct{}
+	resolver              remotes.Resolver
+}
+
+func newReferrersForPull(ref string, resolver remotes.Resolver, st content.Store) *referrersForPull {
+	return &referrersForPull{
+		ref:                   ref,
+		candidates:            newReferrersList(),
+		isAttestationManifest: make(map[digest.Digest]struct{}),
+		store:                 st,
+		resolver:              resolver,
+	}
+}
+
+func (h *referrersForPull) Referrers(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if m, ok := h.candidates.Get(desc.Digest); ok {
+		for i, att := range m {
+			if att.Annotations[attestation.DockerAnnotationReferenceType] == attestation.DockerAnnotationReferenceTypeDefault {
+				att.Platform = nil
+				h.isAttestationManifest[att.Digest] = struct{}{}
+				m[i] = att
+			}
+		}
+		return m, nil
+	} else if _, ok := h.isAttestationManifest[desc.Digest]; ok {
+		f, err := h.resolver.Fetcher(ctx, h.ref)
+		if err != nil {
+			return nil, err
+		}
+		referrers, ok := f.(remotes.ReferrersFetcher)
+		if !ok {
+			return nil, errors.New("resolver does not support fetching referrers")
+		}
+
+		descs, err := referrers.FetchReferrers(ctx, desc.Digest, sigArtifactType)
+		if err != nil {
+			return nil, err
+		}
+		// containerd does not guarantee artifact type filtering atm
+		filtered := make([]ocispec.Descriptor, 0, len(descs))
+		for _, att := range descs {
+			if att.ArtifactType == sigArtifactType {
+				filtered = append(filtered, att)
+			}
+		}
+		return filtered, nil
+	}
+	return nil, nil
+}
+
+func (h *referrersForPull) Handler(f c8dimages.Handler) c8dimages.Handler {
+	return c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		children, err := f.Handle(ctx, desc)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := h.candidates.readFrom(ctx, h.store, desc); err != nil {
+			return nil, err
+		}
+
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		if c8dimages.IsManifestType(desc.MediaType) {
+			if _, ok := h.isAttestationManifest[desc.Digest]; ok {
+				// for matched attestation manifest, we only need provenance attestation
+				dt, err := content.ReadBlob(ctx, h.store, desc)
+				if err != nil {
+					return nil, err
+				}
+
+				var mfst ocispec.Manifest
+				if err := json.Unmarshal(dt, &mfst); err != nil {
+					return nil, err
+				}
+				var provenance []ocispec.Descriptor
+				for _, desc := range mfst.Layers {
+					pType, ok := desc.Annotations["in-toto.io/predicate-type"]
+					if !ok {
+						continue
+					}
+					switch pType {
+					case slsa1.PredicateSLSAProvenance, slsa02.PredicateSLSAProvenance:
+						provenance = append(provenance, desc)
+					default:
+					}
+				}
+				_ = provenance // TODO: filter out non-provenance attestation
+			}
+		}
+		return children, nil
+	})
+}
+
+type referrersList struct {
+	mu sync.RWMutex
+	m  map[digest.Digest][]ocispec.Descriptor
+}
+
+func newReferrersList() *referrersList {
+	return &referrersList{
+		m: make(map[digest.Digest][]ocispec.Descriptor),
+	}
+}
+func (rl *referrersList) Get(dgst digest.Digest) ([]ocispec.Descriptor, bool) {
+	rl.mu.RLock()
+	defer rl.mu.RUnlock()
+	descs, ok := rl.m[dgst]
+	return descs, ok
+}
+
+func (rl *referrersList) readFrom(ctx context.Context, st content.Store, desc ocispec.Descriptor) error {
+	if !c8dimages.IsIndexType(desc.MediaType) {
+		return nil
+	}
+
+	p, err := content.ReadBlob(ctx, st, desc)
+	if err != nil {
+		return err
+	}
+	var index ocispec.Index
+	if err := json.Unmarshal(p, &index); err != nil {
+		return err
+	}
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	if rl.m == nil {
+		rl.m = make(map[digest.Digest][]ocispec.Descriptor)
+	}
+	for _, desc := range index.Manifests {
+		if !c8dimages.IsManifestType(desc.MediaType) {
+			continue
+		}
+		subject, err := parseSubject(desc)
+		if err != nil || subject == "" {
+			continue
+		}
+		rl.m[subject] = slices.DeleteFunc(rl.m[subject], func(d ocispec.Descriptor) bool {
+			if d.Digest == desc.Digest {
+				return true
+			}
+			if _, ok := desc.Annotations[attestation.DockerAnnotationReferenceType]; ok {
+				// for inline attestation, last ref wins
+				return true
+			}
+			return false
+		})
+		rl.m[subject] = append(rl.m[subject], desc)
+	}
+	return nil
+}
+
+func parseSubject(desc ocispec.Descriptor) (digest.Digest, error) {
+	const annotationSubject = "org.opencontainers.image.referrer.subject"
+	var dgstStr string
+	if refType, ok := desc.Annotations[attestation.DockerAnnotationReferenceType]; ok && refType == attestation.DockerAnnotationReferenceTypeDefault {
+		dgstStr, ok = desc.Annotations[attestation.DockerAnnotationReferenceDigest]
+		if !ok {
+			return "", errors.New("invalid referrer manifest: missing subject digest")
+		}
+	} else if subject, ok := desc.Annotations[annotationSubject]; ok {
+		dgstStr = subject
+	}
+	return digest.Parse(dgstStr)
 }
 
 // writeStatus writes a status message to out. If newerDownloaded is true, the

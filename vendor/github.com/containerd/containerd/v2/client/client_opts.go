@@ -19,13 +19,13 @@ package client
 import (
 	"time"
 
+	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/remotes"
 	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/semaphore"
-
 	"google.golang.org/grpc"
 )
 
@@ -272,6 +272,14 @@ func WithMaxConcurrentUploadedLayers(max int) RemoteOpt {
 func WithAllMetadata() RemoteOpt {
 	return func(_ *Client, c *RemoteContext) error {
 		c.AllMetadata = true
+		return nil
+	}
+}
+
+// WithReferrersProvider sets a referrers provider to resolve referrer objects.
+func WithReferrersProvider(r content.ReferrersProvider) RemoteOpt {
+	return func(_ *Client, c *RemoteContext) error {
+		c.ReferrersProvider = r
 		return nil
 	}
 }

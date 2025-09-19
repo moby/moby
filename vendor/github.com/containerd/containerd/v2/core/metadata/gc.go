@@ -25,9 +25,10 @@ import (
 	"time"
 
 	eventstypes "github.com/containerd/containerd/api/events"
-	"github.com/containerd/containerd/v2/pkg/gc"
 	"github.com/containerd/log"
 	bolt "go.etcd.io/bbolt"
+
+	"github.com/containerd/containerd/v2/pkg/gc"
 )
 
 const (
@@ -60,11 +61,26 @@ const (
 )
 
 var (
-	labelGCRoot       = []byte("containerd.io/gc.root")
+	labelGCRoot = []byte("containerd.io/gc.root")
+
+	// Reference labels are used to directly establish a connection
+	// from a parent object to a child object. The child object will
+	// remain referred to for the lifecycle of the parent object.
+
 	labelGCRef        = []byte("containerd.io/gc.ref.")
 	labelGCSnapRef    = []byte("containerd.io/gc.ref.snapshot.")
 	labelGCContentRef = []byte("containerd.io/gc.ref.content")
 	labelGCImageRef   = []byte("containerd.io/gc.ref.image")
+
+	// Back reference labels are used to establish a reference relationship
+	// directly from a child object to a parent object. It allows a child
+	// object to attach itself to the lifecycle of a parent without updating
+	// the parent object or requiring the parent already exists.
+
+	labelGCContainerBackRef = []byte("containerd.io/gc.bref.container")
+	labelGCContentBackRef   = []byte("containerd.io/gc.bref.content")
+	labelGCImageBackRef     = []byte("containerd.io/gc.bref.image")
+	labelGCSnapBackRef      = []byte("containerd.io/gc.bref.snapshot.")
 
 	// labelGCExpire indicates that an object is collectible after the
 	// provided time. For image objects, this makes them available to
@@ -110,6 +126,10 @@ type CollectionContext interface {
 	Finish() error
 }
 
+type collectionWithBackRefs interface {
+	ActiveWithBackRefs(namespace string, fn func(gc.Node), bref func(gc.Node, gc.Node))
+}
+
 // Collector is an interface to manage resource collection for any collectible
 // resource registered for garbage collection.
 type Collector interface {
@@ -121,16 +141,70 @@ type Collector interface {
 type gcContext struct {
 	labelHandlers []referenceLabelHandler
 	contexts      map[gc.ResourceType]CollectionContext
+	backRefs      map[gc.Node][]gc.Node
 }
 
 type referenceLabelHandler struct {
 	key []byte
-	fn  func(string, []byte, []byte, func(gc.Node))
+
+	// functions to handle reference labels, only one may be set, if none are set
+	// the label is triggers the root callback
+	fn   func(string, []byte, []byte, func(gc.Node))
+	bref func(string, []byte, []byte, func(gc.Node))
 }
 
 func startGCContext(ctx context.Context, collectors map[gc.ResourceType]Collector) *gcContext {
 	var contexts map[gc.ResourceType]CollectionContext
 	labelHandlers := []referenceLabelHandler{
+		{
+			key: labelGCContainerBackRef,
+			bref: func(ns string, k, v []byte, fn func(gc.Node)) {
+				if ks := string(k); ks != string(labelGCContainerBackRef) {
+					// Allow reference naming separated by . or /, ignore names
+					if ks[len(labelGCContainerBackRef)] != '.' && ks[len(labelGCContainerBackRef)] != '/' {
+						return
+					}
+				}
+
+				fn(gcnode(ResourceContainer, ns, string(v)))
+			},
+		},
+		{
+			key: labelGCContentBackRef,
+			bref: func(ns string, k, v []byte, fn func(gc.Node)) {
+				if ks := string(k); ks != string(labelGCContentBackRef) {
+					// Allow reference naming separated by . or /, ignore names
+					if ks[len(labelGCContentBackRef)] != '.' && ks[len(labelGCContentBackRef)] != '/' {
+						return
+					}
+				}
+
+				fn(gcnode(ResourceContent, ns, string(v)))
+			},
+		},
+		{
+			key: labelGCImageBackRef,
+			bref: func(ns string, k, v []byte, fn func(gc.Node)) {
+				if ks := string(k); ks != string(labelGCImageBackRef) {
+					// Allow reference naming separated by . or /, ignore names
+					if ks[len(labelGCImageBackRef)] != '.' && ks[len(labelGCImageBackRef)] != '/' {
+						return
+					}
+				}
+
+				fn(gcnode(ResourceImage, ns, string(v)))
+			},
+		},
+		{
+			key: labelGCSnapBackRef,
+			bref: func(ns string, k, v []byte, fn func(gc.Node)) {
+				snapshotter := k[len(labelGCSnapBackRef):]
+				if i := bytes.IndexByte(snapshotter, '/'); i >= 0 {
+					snapshotter = snapshotter[:i]
+				}
+				fn(gcnode(ResourceSnapshot, ns, fmt.Sprintf("%s/%s", snapshotter, v)))
+			},
+		},
 		{
 			key: labelGCContentRef,
 			fn: func(ns string, k, v []byte, fn func(gc.Node)) {
@@ -145,16 +219,6 @@ func startGCContext(ctx context.Context, collectors map[gc.ResourceType]Collecto
 			},
 		},
 		{
-			key: labelGCSnapRef,
-			fn: func(ns string, k, v []byte, fn func(gc.Node)) {
-				snapshotter := k[len(labelGCSnapRef):]
-				if i := bytes.IndexByte(snapshotter, '/'); i >= 0 {
-					snapshotter = snapshotter[:i]
-				}
-				fn(gcnode(ResourceSnapshot, ns, fmt.Sprintf("%s/%s", snapshotter, v)))
-			},
-		},
-		{
 			key: labelGCImageRef,
 			fn: func(ns string, k, v []byte, fn func(gc.Node)) {
 				if ks := string(k); ks != string(labelGCImageRef) {
@@ -166,6 +230,19 @@ func startGCContext(ctx context.Context, collectors map[gc.ResourceType]Collecto
 
 				fn(gcnode(ResourceImage, ns, string(v)))
 			},
+		},
+		{
+			key: labelGCSnapRef,
+			fn: func(ns string, k, v []byte, fn func(gc.Node)) {
+				snapshotter := k[len(labelGCSnapRef):]
+				if i := bytes.IndexByte(snapshotter, '/'); i >= 0 {
+					snapshotter = snapshotter[:i]
+				}
+				fn(gcnode(ResourceSnapshot, ns, fmt.Sprintf("%s/%s", snapshotter, v)))
+			},
+		},
+		{
+			key: labelGCRoot,
 		},
 	}
 	if len(collectors) > 0 {
@@ -203,6 +280,7 @@ func startGCContext(ctx context.Context, collectors map[gc.ResourceType]Collecto
 	return &gcContext{
 		labelHandlers: labelHandlers,
 		contexts:      contexts,
+		backRefs:      make(map[gc.Node][]gc.Node),
 	}
 }
 
@@ -212,9 +290,15 @@ func (c *gcContext) all(fn func(gc.Node)) {
 	}
 }
 
-func (c *gcContext) active(namespace string, fn func(gc.Node)) {
+func (c *gcContext) active(namespace string, fn func(gc.Node), bref func(gc.Node, gc.Node)) {
 	for _, gctx := range c.contexts {
-		gctx.Active(namespace, fn)
+		if cc, ok := gctx.(collectionWithBackRefs); ok {
+			// If the context supports back references, use it
+			cc.ActiveWithBackRefs(namespace, fn, bref)
+		} else {
+			// Check if supports back references, if so, add
+			gctx.Active(namespace, fn)
+		}
 	}
 }
 
@@ -262,6 +346,14 @@ func (c *gcContext) scanRoots(ctx context.Context, tx *bolt.Tx, nc chan<- gc.Nod
 		case nc <- n:
 		case <-ctx.Done():
 			cerr = ctx.Err()
+		}
+	}
+
+	bref := func(n gc.Node, ref gc.Node) {
+		if _, ok := c.backRefs[n]; !ok {
+			c.backRefs[n] = []gc.Node{ref}
+		} else {
+			c.backRefs[n] = append(c.backRefs[n], ref)
 		}
 	}
 
@@ -385,8 +477,18 @@ func (c *gcContext) scanRoots(ctx context.Context, tx *bolt.Tx, nc chan<- gc.Nod
 
 				if !isExpiredImage(ctx, k, ibkt.Bucket(k), expThreshold) {
 					fn(gcnode(ResourceImage, ns, string(k)))
+				} else {
+					// If the image is expired, still allow it to be referenced from
+					// other resources, the back references are not relevant if the object
+					// is not expired since it is already a root object.
+					return c.sendLabelRefs(ns, ibkt.Bucket(k), nil, func(n gc.Node) {
+						bref(n, gcnode(ResourceImage, ns, string(k)))
+					}, nil)
+
 				}
+
 				return nil
+
 			}); err != nil {
 				return err
 			}
@@ -420,11 +522,11 @@ func (c *gcContext) scanRoots(ctx context.Context, tx *bolt.Tx, nc chan<- gc.Nod
 						return nil
 					}
 
-					if isRootRef(cbkt.Bucket(k)) {
+					return c.sendLabelRefs(ns, cbkt.Bucket(k), nil, func(n gc.Node) {
+						bref(n, gcnode(ResourceContent, ns, string(k)))
+					}, func() {
 						fn(gcnode(ResourceContent, ns, string(k)))
-					}
-
-					return nil
+					})
 				}); err != nil {
 					return err
 				}
@@ -438,14 +540,12 @@ func (c *gcContext) scanRoots(ctx context.Context, tx *bolt.Tx, nc chan<- gc.Nod
 					return nil
 				}
 
-				cibkt := cbkt.Bucket(k)
-				snapshotter := string(cibkt.Get(bucketKeySnapshotter))
-				if snapshotter != "" {
-					ss := string(cibkt.Get(bucketKeySnapshotKey))
-					fn(gcnode(ResourceSnapshot, ns, fmt.Sprintf("%s/%s", snapshotter, ss)))
-				}
+				fn(gcnode(ResourceContainer, ns, string(k)))
 
-				return c.sendLabelRefs(ns, cibkt, fn)
+				return c.sendLabelRefs(ns, cbkt.Bucket(k), nil, func(n gc.Node) {
+					bref(n, gcnode(ResourceContainer, ns, string(k)))
+
+				}, nil)
 			}); err != nil {
 				return err
 			}
@@ -463,10 +563,12 @@ func (c *gcContext) scanRoots(ctx context.Context, tx *bolt.Tx, nc chan<- gc.Nod
 					if v != nil {
 						return nil
 					}
-					if isRootRef(snbkt.Bucket(k)) {
+
+					return c.sendLabelRefs(ns, snbkt.Bucket(k), nil, func(n gc.Node) {
+						bref(n, gcnode(ResourceSnapshot, ns, fmt.Sprintf("%s/%s", sk, k)))
+					}, func() {
 						fn(gcnode(ResourceSnapshot, ns, fmt.Sprintf("%s/%s", sk, k)))
-					}
-					return nil
+					})
 				})
 			}); err != nil {
 				return err
@@ -481,19 +583,26 @@ func (c *gcContext) scanRoots(ctx context.Context, tx *bolt.Tx, nc chan<- gc.Nod
 				}
 
 				sbbkt := bbkt.Bucket(k)
-				return c.sendLabelRefs(ns, sbbkt, fn)
+
+				return c.sendLabelRefs(ns, sbbkt, fn, nil, nil)
 			}); err != nil {
 				return err
 			}
 		}
 
-		c.active(ns, fn)
+		c.active(ns, fn, bref)
 	}
 	return cerr
 }
 
 // references finds the resources that are reachable from the given node.
 func (c *gcContext) references(ctx context.Context, tx *bolt.Tx, node gc.Node, fn func(gc.Node)) error {
+	if refs, ok := c.backRefs[node]; ok {
+		// If we have back references, send them first
+		for _, ref := range refs {
+			fn(ref)
+		}
+	}
 	switch node.Type {
 	case ResourceContent:
 		bkt := getBucket(tx, bucketKeyVersion, []byte(node.Namespace), bucketKeyObjectContent, bucketKeyObjectBlob, []byte(node.Key))
@@ -502,7 +611,7 @@ func (c *gcContext) references(ctx context.Context, tx *bolt.Tx, node gc.Node, f
 			return nil
 		}
 
-		return c.sendLabelRefs(node.Namespace, bkt, fn)
+		return c.sendLabelRefs(node.Namespace, bkt, fn, nil, nil)
 	case ResourceSnapshot, resourceSnapshotFlat:
 		ss, name, ok := strings.Cut(node.Key, "/")
 		if !ok {
@@ -523,7 +632,7 @@ func (c *gcContext) references(ctx context.Context, tx *bolt.Tx, node gc.Node, f
 			return nil
 		}
 
-		return c.sendLabelRefs(node.Namespace, bkt, fn)
+		return c.sendLabelRefs(node.Namespace, bkt, fn, nil, nil)
 
 	case ResourceImage, resourceImageFlat:
 		bkt := getBucket(tx, bucketKeyVersion, []byte(node.Namespace), bucketKeyObjectImages, []byte(node.Key))
@@ -547,7 +656,7 @@ func (c *gcContext) references(ctx context.Context, tx *bolt.Tx, node gc.Node, f
 			return nil
 		}
 
-		return c.sendLabelRefs(node.Namespace, bkt, fn)
+		return c.sendLabelRefs(node.Namespace, bkt, fn, nil, nil)
 
 	case ResourceIngest:
 		// Send expected value
@@ -562,6 +671,21 @@ func (c *gcContext) references(ctx context.Context, tx *bolt.Tx, node gc.Node, f
 			fn(gcnode(ResourceContent, node.Namespace, string(expected)))
 		}
 		return nil
+
+	case ResourceContainer:
+		bkt := getBucket(tx, bucketKeyVersion, []byte(node.Namespace), bucketKeyObjectContainers, []byte(node.Key))
+		if bkt == nil {
+			// Node may be created from dead edge
+			return nil
+		}
+
+		snapshotter := string(bkt.Get(bucketKeySnapshotter))
+		if snapshotter != "" {
+			ss := string(bkt.Get(bucketKeySnapshotKey))
+			fn(gcnode(ResourceSnapshot, node.Namespace, fmt.Sprintf("%s/%s", snapshotter, ss)))
+		}
+
+		return c.sendLabelRefs(node.Namespace, bkt, fn, nil, nil)
 	}
 
 	return nil
@@ -741,30 +865,26 @@ func (c *gcContext) remove(ctx context.Context, tx *bolt.Tx, node gc.Node) (inte
 }
 
 // sendLabelRefs sends all snapshot and content references referred to by the labels in the bkt
-func (c *gcContext) sendLabelRefs(ns string, bkt *bolt.Bucket, fn func(gc.Node)) error {
+func (c *gcContext) sendLabelRefs(ns string, bkt *bolt.Bucket, fn func(gc.Node), bref func(gc.Node), root func()) error {
 	lbkt := bkt.Bucket(bucketKeyObjectLabels)
 	if lbkt != nil {
 		lc := lbkt.Cursor()
 		for i := range c.labelHandlers {
-			labelRef := string(c.labelHandlers[i].key)
-			for k, v := lc.Seek(c.labelHandlers[i].key); k != nil && strings.HasPrefix(string(k), labelRef); k, v = lc.Next() {
-				c.labelHandlers[i].fn(ns, k, v, fn)
+			if (bref == nil && c.labelHandlers[i].bref != nil) || (fn == nil && c.labelHandlers[i].fn != nil) {
+				continue
+			}
+			for k, v := lc.Seek(c.labelHandlers[i].key); k != nil && bytes.HasPrefix(k, c.labelHandlers[i].key); k, v = lc.Next() {
+				if c.labelHandlers[i].fn != nil {
+					c.labelHandlers[i].fn(ns, k, v, fn)
+				} else if c.labelHandlers[i].bref != nil {
+					c.labelHandlers[i].bref(ns, k, v, bref)
+				} else if root != nil {
+					root()
+				}
 			}
 		}
 	}
 	return nil
-}
-
-func isRootRef(bkt *bolt.Bucket) bool {
-	lbkt := bkt.Bucket(bucketKeyObjectLabels)
-	if lbkt != nil {
-		rv := lbkt.Get(labelGCRoot)
-		if rv != nil {
-			// TODO: interpret rv as a timestamp and skip if expired
-			return true
-		}
-	}
-	return false
 }
 
 func isExpiredImage(ctx context.Context, k []byte, bkt *bolt.Bucket, expTheshold time.Time) bool {
