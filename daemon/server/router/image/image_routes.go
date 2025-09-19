@@ -427,10 +427,12 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 	}
 
 	version := httputils.VersionFromContext(ctx)
-	if versions.LessThan(version, "1.41") {
+
+	// clients may be actively removing the new filter on API 1.24
+	// and under: https://github.com/moby/moby/blob/v28.4.0/client/image_list.go#L34-L40
+	if versions.LessThan(version, "1.25") && !imageFilters.Contains("reference") {
 		// NOTE: filter is a shell glob string applied to repository names.
-		filterParam := r.Form.Get("filter")
-		if filterParam != "" {
+		if filterParam := r.Form.Get("filter"); filterParam != "" {
 			imageFilters.Add("reference", filterParam)
 		}
 	}

@@ -33,13 +33,8 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 		service.TaskTemplate.ContainerSpec = &swarm.ContainerSpec{}
 	}
 
-	if err := validateServiceSpec(service); err != nil {
+	if err := validateServiceSpec(service, cli.version); err != nil {
 		return response, err
-	}
-	if versions.LessThan(cli.version, "1.30") {
-		if err := validateServiceSpecForAPIVersion(service, cli.version); err != nil {
-			return response, err
-		}
 	}
 
 	// ensure that the image is tagged
@@ -62,12 +57,6 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 	}
 
 	headers := http.Header{}
-	if versions.LessThan(cli.version, "1.30") {
-		// the custom "version" header was used by engine API before 20.10
-		// (API 1.30) to switch between client- and server-side lookup of
-		// image digests.
-		headers["version"] = []string{cli.version}
-	}
 	if options.EncodedRegistryAuth != "" {
 		headers[registry.AuthHeader] = []string{options.EncodedRegistryAuth}
 	}
@@ -183,7 +172,7 @@ func digestWarning(image string) string {
 	return fmt.Sprintf("image %s could not be accessed on a registry to record\nits digest. Each node will access %s independently,\npossibly leading to different nodes running different\nversions of the image.\n", image, image)
 }
 
-func validateServiceSpec(s swarm.ServiceSpec) error {
+func validateServiceSpec(s swarm.ServiceSpec, apiVersion string) error {
 	if s.TaskTemplate.ContainerSpec != nil && s.TaskTemplate.PluginSpec != nil {
 		return errors.New("must not specify both a container spec and a plugin spec in the task template")
 	}
@@ -193,18 +182,16 @@ func validateServiceSpec(s swarm.ServiceSpec) error {
 	if s.TaskTemplate.ContainerSpec != nil && (s.TaskTemplate.Runtime != "" && s.TaskTemplate.Runtime != swarm.RuntimeContainer) {
 		return errors.New("mismatched runtime with container spec")
 	}
-	return nil
-}
-
-func validateServiceSpecForAPIVersion(c swarm.ServiceSpec, apiVersion string) error {
-	for _, m := range c.TaskTemplate.ContainerSpec.Mounts {
-		if m.BindOptions != nil {
-			if m.BindOptions.NonRecursive && versions.LessThan(apiVersion, "1.40") {
-				return errors.New("bind-recursive=disabled requires API v1.40 or later")
-			}
-			// ReadOnlyNonRecursive can be safely ignored when API < 1.44
-			if m.BindOptions.ReadOnlyForceRecursive && versions.LessThan(apiVersion, "1.44") {
-				return errors.New("bind-recursive=readonly requires API v1.44 or later")
+	if s.TaskTemplate.ContainerSpec != nil && apiVersion != "" && versions.LessThan(apiVersion, "1.44") {
+		for _, m := range s.TaskTemplate.ContainerSpec.Mounts {
+			if m.BindOptions != nil {
+				if m.BindOptions.NonRecursive && versions.LessThan(apiVersion, "1.40") {
+					return errors.New("bind-recursive=disabled requires API v1.40 or later")
+				}
+				// ReadOnlyNonRecursive can be safely ignored when API < 1.44
+				if m.BindOptions.ReadOnlyForceRecursive && versions.LessThan(apiVersion, "1.44") {
+					return errors.New("bind-recursive=readonly requires API v1.44 or later")
+				}
 			}
 		}
 	}

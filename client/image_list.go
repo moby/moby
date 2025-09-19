@@ -30,16 +30,8 @@ func (cli *Client) ImageList(ctx context.Context, options ImageListOptions) ([]i
 
 	query := url.Values{}
 
-	optionFilters := options.Filters
-	referenceFilters := optionFilters.Get("reference")
-	if versions.LessThan(cli.version, "1.25") && len(referenceFilters) > 0 {
-		query.Set("filter", referenceFilters[0])
-		for _, filterValue := range referenceFilters {
-			optionFilters.Del("reference", filterValue)
-		}
-	}
-	if optionFilters.Len() > 0 {
-		filterJSON, err := filters.ToJSON(optionFilters)
+	if options.Filters.Len() > 0 {
+		filterJSON, err := filters.ToJSON(options.Filters)
 		if err != nil {
 			return images, err
 		}

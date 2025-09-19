@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"testing"
@@ -47,6 +48,10 @@ func TestVolumeRemove(t *testing.T) {
 		if err := assertRequest(req, http.MethodDelete, expectedURL); err != nil {
 			return nil, err
 		}
+		if v := req.URL.Query().Get("force"); v != "1" {
+			return nil, fmt.Errorf("expected force=1, got %s", v)
+		}
+
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
@@ -54,6 +59,6 @@ func TestVolumeRemove(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	err = client.VolumeRemove(context.Background(), "volume_id", false)
+	err = client.VolumeRemove(context.Background(), "volume_id", true)
 	assert.NilError(t, err)
 }
