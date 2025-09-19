@@ -11,6 +11,12 @@ const (
 
 	// MediaTypeMultiplexedStream is vendor specific MIME-Type set for stdin/stdout/stderr multiplexed streams
 	MediaTypeMultiplexedStream = "application/vnd.docker.multiplexed-stream"
+
+	// MediaTypeJson is the MIME-Type for JSON objects
+	MediaTypeJson = "application/json"
+
+	// MediaTypeNDJson is the MIME-Type for Newline Delimited JSON objects streams
+	MediaTypeNDJson = "application/x-ndjson"
 )
 
 // Ping contains response of Engine API:
