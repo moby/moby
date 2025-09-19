@@ -143,7 +143,7 @@ type localLogCacheMeta struct {
 func NewBaseContainer(id, root string) *Container {
 	return &Container{
 		ID:            id,
-		State:         NewState(),
+		State:         &State{},
 		ExecCommands:  NewExecStore(),
 		Root:          root,
 		MountPoints:   make(map[string]*volumemounts.MountPoint),
@@ -535,7 +535,11 @@ func (container *Container) GetExecIDs() []string {
 // ShouldRestart decides whether the daemon should restart the container or not.
 // This is based on the container's restart policy.
 func (container *Container) ShouldRestart() bool {
-	shouldRestart, _, _ := container.RestartManager().ShouldRestart(uint32(container.ExitCode()), container.HasBeenManuallyStopped, container.FinishedAt.Sub(container.StartedAt))
+	shouldRestart, _, _ := container.RestartManager().ShouldRestart(
+		uint32(container.State.ExitCode),
+		container.HasBeenManuallyStopped,
+		container.State.FinishedAt.Sub(container.State.StartedAt),
+	)
 	return shouldRestart
 }
 
@@ -837,11 +841,11 @@ func (container *Container) RestoreTask(ctx context.Context, client libcontainer
 	container.Lock()
 	defer container.Unlock()
 	var err error
-	container.ctr, err = client.LoadContainer(ctx, container.ID)
+	container.State.ctr, err = client.LoadContainer(ctx, container.ID)
 	if err != nil {
 		return err
 	}
-	container.task, err = container.ctr.AttachTask(ctx, container.InitializeStdio)
+	container.State.task, err = container.State.ctr.AttachTask(ctx, container.InitializeStdio)
 	if err != nil && !cerrdefs.IsNotFound(err) {
 		return err
 	}
@@ -857,10 +861,10 @@ func (container *Container) RestoreTask(ctx context.Context, client libcontainer
 //
 // The container lock must be held when calling this method.
 func (container *Container) GetRunningTask() (libcontainerdtypes.Task, error) {
-	if !container.Running {
+	if !container.State.Running {
 		return nil, errdefs.Conflict(fmt.Errorf("container %s is not running", container.ID))
 	}
-	tsk, ok := container.Task()
+	tsk, ok := container.State.Task()
 	if !ok {
 		return nil, errdefs.System(errors.WithStack(fmt.Errorf("container %s is in Running state but has no containerd Task set", container.ID)))
 	}

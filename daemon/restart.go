@@ -55,7 +55,7 @@ func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configSto
 		}
 	}
 
-	if container.IsRunning() {
+	if container.State.IsRunning() {
 		container.Lock()
 		container.HasBeenManuallyRestarted = true
 		container.Unlock()

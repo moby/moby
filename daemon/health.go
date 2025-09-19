@@ -197,14 +197,14 @@ func handleProbeResult(d *Daemon, c *container.Container, result *containertypes
 	h := c.State.Health
 	oldStatus := h.Status()
 
-	if len(h.Log) >= maxLogEntries {
-		h.Log = append(h.Log[len(h.Log)+1-maxLogEntries:], result)
+	if len(h.Health.Log) >= maxLogEntries {
+		h.Health.Log = append(h.Health.Log[len(h.Health.Log)+1-maxLogEntries:], result)
 	} else {
-		h.Log = append(h.Log, result)
+		h.Health.Log = append(h.Health.Log, result)
 	}
 
 	if result.ExitCode == exitStatusHealthy {
-		h.FailingStreak = 0
+		h.Health.FailingStreak = 0
 		h.SetStatus(containertypes.Healthy)
 	} else { // Failure (including invalid exit code)
 		shouldIncrementStreak := true
@@ -223,9 +223,9 @@ func handleProbeResult(d *Daemon, c *container.Container, result *containertypes
 		}
 
 		if shouldIncrementStreak {
-			h.FailingStreak++
+			h.Health.FailingStreak++
 
-			if h.FailingStreak >= retries {
+			if h.Health.FailingStreak >= retries {
 				h.SetStatus(containertypes.Unhealthy)
 			}
 		}
@@ -264,7 +264,7 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 			return probeInterval
 		}
 		c.Lock()
-		status := c.Health.Health.Status
+		status := c.State.Health.Health.Status
 		c.Unlock()
 
 		if status == containertypes.Starting {
@@ -351,11 +351,11 @@ func (daemon *Daemon) updateHealthMonitor(c *container.Container) {
 		return // No healthcheck configured
 	}
 
-	probe := getProbe(c)
-	wantRunning := c.Running && !c.Paused && probe != nil
+	healthProbe := getProbe(c)
+	wantRunning := c.State.Running && !c.State.Paused && healthProbe != nil
 	if wantRunning {
 		if stop := h.OpenMonitorChannel(); stop != nil {
-			go monitor(daemon, c, stop, probe)
+			go monitor(daemon, c, stop, healthProbe)
 		}
 	} else {
 		h.CloseMonitorChannel()
@@ -377,7 +377,7 @@ func (daemon *Daemon) initHealthMonitor(c *container.Container) {
 
 	if h := c.State.Health; h != nil {
 		h.SetStatus(containertypes.Starting)
-		h.FailingStreak = 0
+		h.Health.FailingStreak = 0
 	} else {
 		h := &container.Health{}
 		h.SetStatus(containertypes.Starting)

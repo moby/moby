@@ -114,8 +114,8 @@ func TestHealthStates(t *testing.T) {
 	if status := c.State.Health.Status(); status != containertypes.Starting {
 		t.Errorf("Expecting starting, but got %#v\n", status)
 	}
-	if c.State.Health.FailingStreak != 2 {
-		t.Errorf("Expecting FailingStreak=2, but got %d\n", c.State.Health.FailingStreak)
+	if c.State.Health.Health.FailingStreak != 2 {
+		t.Errorf("Expecting FailingStreak=2, but got %d\n", c.State.Health.Health.FailingStreak)
 	}
 	handleResult(c.State.StartedAt.Add(60*time.Second), 1)
 	expect(eventtypes.ActionHealthStatusUnhealthy)
@@ -123,7 +123,7 @@ func TestHealthStates(t *testing.T) {
 	handleResult(c.State.StartedAt.Add(80*time.Second), 0)
 	expect(eventtypes.ActionHealthStatusHealthy)
 	if c.State.Health.FailingStreak != 0 {
-		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.FailingStreak)
+		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.Health.FailingStreak)
 	}
 
 	// Test start period
@@ -136,19 +136,19 @@ func TestHealthStates(t *testing.T) {
 	if status := c.State.Health.Status(); status != containertypes.Starting {
 		t.Errorf("Expecting starting, but got %#v\n", status)
 	}
-	if c.State.Health.FailingStreak != 0 {
+	if c.State.Health.Health.FailingStreak != 0 {
 		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.FailingStreak)
 	}
 	handleResult(c.State.StartedAt.Add(50*time.Second), 1)
 	if status := c.State.Health.Status(); status != containertypes.Starting {
 		t.Errorf("Expecting starting, but got %#v\n", status)
 	}
-	if c.State.Health.FailingStreak != 1 {
-		t.Errorf("Expecting FailingStreak=1, but got %d\n", c.State.Health.FailingStreak)
+	if c.State.Health.Health.FailingStreak != 1 {
+		t.Errorf("Expecting FailingStreak=1, but got %d\n", c.State.Health.Health.FailingStreak)
 	}
 	handleResult(c.State.StartedAt.Add(80*time.Second), 0)
 	expect(eventtypes.ActionHealthStatusHealthy)
-	if c.State.Health.FailingStreak != 0 {
-		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.FailingStreak)
+	if c.State.Health.Health.FailingStreak != 0 {
+		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.Health.FailingStreak)
 	}
 }

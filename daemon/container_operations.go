@@ -939,10 +939,10 @@ func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerPrefi
 		// FIXME (thaJeztah): turns out we don't validate "--network container:<self>" during container create!
 		return nil, errdefs.System(errdefs.InvalidParameter(errors.New("cannot join own network namespace")))
 	}
-	if !nc.IsRunning() {
-		return nil, errdefs.Conflict(fmt.Errorf("cannot join network namespace of a non running container: container %s is %s", strings.TrimPrefix(nc.Name, "/"), nc.StateString()))
+	if !nc.State.IsRunning() {
+		return nil, errdefs.Conflict(fmt.Errorf("cannot join network namespace of a non running container: container %s is %s", strings.TrimPrefix(nc.Name, "/"), nc.State.StateString()))
 	}
-	if nc.IsRestarting() {
+	if nc.State.IsRestarting() {
 		return nil, fmt.Errorf("cannot join network namespace of container: %w", errContainerIsRestarting(connectedContainerPrefixOrName))
 	}
 	return nc, nil
@@ -1015,8 +1015,8 @@ func (daemon *Daemon) ConnectToNetwork(ctx context.Context, ctr *container.Conta
 	ctr.Lock()
 	defer ctr.Unlock()
 
-	if !ctr.Running {
-		if ctr.RemovalInProgress || ctr.Dead {
+	if !ctr.State.Running {
+		if ctr.State.RemovalInProgress || ctr.State.Dead {
 			return errRemovalContainer(ctr.ID)
 		}
 
@@ -1048,8 +1048,8 @@ func (daemon *Daemon) DisconnectFromNetwork(ctx context.Context, ctr *container.
 	ctr.Lock()
 	defer ctr.Unlock()
 
-	if !ctr.Running || (err != nil && force) {
-		if ctr.RemovalInProgress || ctr.Dead {
+	if !ctr.State.Running || (err != nil && force) {
+		if ctr.State.RemovalInProgress || ctr.State.Dead {
 			return errRemovalContainer(ctr.ID)
 		}
 		// In case networkName is resolved we will use n.Name()

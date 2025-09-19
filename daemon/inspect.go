@@ -113,8 +113,8 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 	if ctr.State.Health != nil {
 		containerHealth = &containertypes.Health{
 			Status:        ctr.State.Health.Status(),
-			FailingStreak: ctr.State.Health.FailingStreak,
-			Log:           append([]*containertypes.HealthcheckResult{}, ctr.State.Health.Log...),
+			FailingStreak: ctr.State.Health.Health.FailingStreak,
+			Log:           append([]*containertypes.HealthcheckResult{}, ctr.State.Health.Health.Log...),
 		}
 	}
 
@@ -131,7 +131,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 			OOMKilled:  ctr.State.OOMKilled,
 			Dead:       ctr.State.Dead,
 			Pid:        ctr.State.Pid,
-			ExitCode:   ctr.State.ExitCode(),
+			ExitCode:   ctr.State.ExitCode,
 			Error:      ctr.State.ErrorMsg,
 			StartedAt:  ctr.State.StartedAt.Format(time.RFC3339Nano),
 			FinishedAt: ctr.State.FinishedAt.Format(time.RFC3339Nano),
@@ -162,7 +162,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 	}
 
 	if ctr.RWLayer == nil {
-		if ctr.Dead {
+		if ctr.State.Dead {
 			return inspectResponse, nil
 		}
 		return nil, errdefs.System(errors.New("RWLayer of container " + ctr.ID + " is unexpectedly nil"))
@@ -170,7 +170,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 
 	graphDriverData, err := ctr.RWLayer.Metadata()
 	if err != nil {
-		if ctr.Dead {
+		if ctr.State.Dead {
 			// container is marked as Dead, and its graphDriver metadata may
 			// have been removed; we can ignore errors.
 			return inspectResponse, nil

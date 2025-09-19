@@ -57,13 +57,13 @@ func (daemon *Daemon) getExecConfig(name string) (*container.ExecConfig, error) 
 	if ctr == nil {
 		return nil, containerNotFound(name)
 	}
-	if !ctr.IsRunning() {
+	if !ctr.State.IsRunning() {
 		return nil, errNotRunning(ctr.ID)
 	}
-	if ctr.IsPaused() {
+	if ctr.State.IsPaused() {
 		return nil, errExecPaused(ctr.ID)
 	}
-	if ctr.IsRestarting() {
+	if ctr.State.IsRestarting() {
 		return nil, errContainerIsRestarting(ctr.ID)
 	}
 	return ec, nil
@@ -80,13 +80,13 @@ func (daemon *Daemon) getActiveContainer(name string) (*container.Container, err
 		return nil, err
 	}
 
-	if !ctr.IsRunning() {
+	if !ctr.State.IsRunning() {
 		return nil, errNotRunning(ctr.ID)
 	}
-	if ctr.IsPaused() {
+	if ctr.State.IsPaused() {
 		return nil, errExecPaused(name)
 	}
-	if ctr.IsRestarting() {
+	if ctr.State.IsRestarting() {
 		return nil, errContainerIsRestarting(ctr.ID)
 	}
 	return ctr, nil
