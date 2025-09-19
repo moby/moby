@@ -150,7 +150,10 @@ func (c *containerConfig) portBindings() container.PortMap {
 			continue
 		}
 
-		port := container.PortRangeProto(fmt.Sprintf("%d/%s", portConfig.TargetPort, strings.ToLower(portConfig.Protocol.String())))
+		port, err := container.ParsePort(fmt.Sprintf("%d/%s", portConfig.TargetPort, strings.ToLower(portConfig.Protocol.String())))
+		if err != nil {
+			continue
+		}
 		binding := []container.PortBinding{
 			{},
 		}
@@ -176,8 +179,8 @@ func (c *containerConfig) init() *bool {
 	return &init
 }
 
-func (c *containerConfig) exposedPorts() map[container.PortRangeProto]struct{} {
-	exposedPorts := make(map[container.PortRangeProto]struct{})
+func (c *containerConfig) exposedPorts() map[container.Port]struct{} {
+	exposedPorts := make(map[container.Port]struct{})
 	if c.task.Endpoint == nil {
 		return exposedPorts
 	}
@@ -187,7 +190,10 @@ func (c *containerConfig) exposedPorts() map[container.PortRangeProto]struct{} {
 			continue
 		}
 
-		port := container.PortRangeProto(fmt.Sprintf("%d/%s", portConfig.TargetPort, strings.ToLower(portConfig.Protocol.String())))
+		port, err := container.ParsePort(fmt.Sprintf("%d/%s", portConfig.TargetPort, strings.ToLower(portConfig.Protocol.String())))
+		if err != nil {
+			continue
+		}
 		exposedPorts[port] = struct{}{}
 	}
 

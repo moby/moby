@@ -525,6 +525,7 @@ func dispatchExpose(ctx context.Context, d dispatchRequest, c *instructions.Expo
 	}
 	c.Ports = ports
 
+	// FIXME(thaJeztah): make this a local utility; also see https://github.com/moby/buildkit/pull/6128
 	ps, _, err := nat.ParsePortSpecs(ports)
 	if err != nil {
 		return err
@@ -534,7 +535,8 @@ func dispatchExpose(ctx context.Context, d dispatchRequest, c *instructions.Expo
 		d.state.runConfig.ExposedPorts = make(container.PortSet)
 	}
 	for p := range ps {
-		d.state.runConfig.ExposedPorts[p] = struct{}{}
+		natPort, _ := container.ParsePort(string(p))
+		d.state.runConfig.ExposedPorts[natPort] = struct{}{}
 	}
 
 	return d.builder.commit(ctx, d.state, "EXPOSE "+strings.Join(c.Ports, " "))

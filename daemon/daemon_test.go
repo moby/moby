@@ -221,8 +221,8 @@ func TestContainerInitDNS(t *testing.T) {
 func TestMerge(t *testing.T) {
 	configImage := &containertypes.Config{
 		ExposedPorts: containertypes.PortSet{
-			"1111/tcp": struct{}{},
-			"2222/tcp": struct{}{},
+			containertypes.MustParsePort("1111/tcp"): struct{}{},
+			containertypes.MustParsePort("2222/tcp"): struct{}{},
 		},
 		Env: []string{"VAR1=1", "VAR2=2"},
 		Volumes: map[string]struct{}{
@@ -233,8 +233,8 @@ func TestMerge(t *testing.T) {
 
 	configUser := &containertypes.Config{
 		ExposedPorts: containertypes.PortSet{
-			"2222/tcp": struct{}{},
-			"3333/tcp": struct{}{},
+			containertypes.MustParsePort("2222/tcp"): struct{}{},
+			containertypes.MustParsePort("3333/tcp"): struct{}{},
 		},
 		Env: []string{"VAR2=3", "VAR3=3"},
 		Volumes: map[string]struct{}{
@@ -250,7 +250,7 @@ func TestMerge(t *testing.T) {
 		t.Fatalf("Expected 3 ExposedPorts, 1111, 2222 and 3333, found %d", len(configUser.ExposedPorts))
 	}
 	for portSpecs := range configUser.ExposedPorts {
-		if portSpecs.Port() != "1111" && portSpecs.Port() != "2222" && portSpecs.Port() != "3333" {
+		if portSpecs.Num() != 1111 && portSpecs.Num() != 2222 && portSpecs.Num() != 3333 {
 			t.Fatalf("Expected 1111 or 2222 or 3333, found %s", portSpecs)
 		}
 	}
@@ -273,7 +273,9 @@ func TestMerge(t *testing.T) {
 	}
 
 	configImage2 := &containertypes.Config{
-		ExposedPorts: map[containertypes.PortRangeProto]struct{}{"0/tcp": {}},
+		ExposedPorts: map[containertypes.Port]struct{}{
+			containertypes.MustParsePort("0/tcp"): {},
+		},
 	}
 
 	if err := merge(configUser, configImage2); err != nil {
@@ -284,7 +286,7 @@ func TestMerge(t *testing.T) {
 		t.Fatalf("Expected 4 ExposedPorts, 0000, 1111, 2222 and 3333, found %d", len(configUser.ExposedPorts))
 	}
 	for portSpecs := range configUser.ExposedPorts {
-		if portSpecs.Port() != "0" && portSpecs.Port() != "1111" && portSpecs.Port() != "2222" && portSpecs.Port() != "3333" {
+		if portSpecs.Num() != 0 && portSpecs.Num() != 1111 && portSpecs.Num() != 2222 && portSpecs.Num() != 3333 {
 			t.Fatalf("Expected %q or %q or %q or %q, found %s", 0, 1111, 2222, 3333, portSpecs)
 		}
 	}

@@ -4,10 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"net"
 	"net/netip"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -960,30 +958,18 @@ func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwor
 		return nil, nil
 	}
 
-	// Create a deep copy (as [nat.SortPortMap] mutates the map).
-	// Not using a maps.Clone here, as that won't dereference the
-	// slice (PortMap is a map[Port][]PortBinding).
-	bindings := make(containertypes.PortMap)
-	for p, b := range c.HostConfig.PortBindings {
-		bindings[p] = slices.Clone(b)
-	}
-
-	ports := slices.Collect(maps.Keys(bindings))
-	nat.SortPortMap(ports, bindings)
-
 	var (
 		exposedPorts   []lntypes.TransportPort
 		publishedPorts []lntypes.PortBinding
 	)
-	for _, port := range ports {
-		portProto := lntypes.ParseProtocol(port.Proto())
-		portNum := uint16(port.Int())
+	for p, bindings := range c.HostConfig.PortBindings {
+		protocol := lntypes.ParseProtocol(string(p.Proto()))
 		exposedPorts = append(exposedPorts, lntypes.TransportPort{
-			Proto: portProto,
-			Port:  portNum,
+			Proto: protocol,
+			Port:  p.Num(),
 		})
 
-		for _, binding := range bindings[port] {
+		for _, binding := range bindings {
 			newP, err := nat.NewPort(nat.SplitProtoPort(binding.HostPort))
 			var portStart, portEnd int
 			if err == nil {
@@ -993,18 +979,18 @@ func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwor
 				return nil, fmt.Errorf("error parsing HostPort value (%s): %w", binding.HostPort, err)
 			}
 			publishedPorts = append(publishedPorts, lntypes.PortBinding{
-				Proto:       portProto,
-				Port:        portNum,
+				Proto:       protocol,
+				Port:        p.Num(),
 				HostIP:      net.ParseIP(binding.HostIP),
 				HostPort:    uint16(portStart),
 				HostPortEnd: uint16(portEnd),
 			})
 		}
 
-		if c.HostConfig.PublishAllPorts && len(bindings[port]) == 0 {
+		if c.HostConfig.PublishAllPorts && len(bindings) == 0 {
 			publishedPorts = append(publishedPorts, lntypes.PortBinding{
-				Proto: portProto,
-				Port:  portNum,
+				Proto: protocol,
+				Port:  p.Num(),
 			})
 		}
 	}
@@ -1038,9 +1024,9 @@ func getEndpointPortMapInfo(pm containertypes.PortMap, ep *libnetwork.Endpoint) 
 	if expData, ok := driverInfo[netlabel.ExposedPorts]; ok {
 		if exposedPorts, ok := expData.([]lntypes.TransportPort); ok {
 			for _, tp := range exposedPorts {
-				natPort, err := nat.NewPort(tp.Proto.String(), strconv.Itoa(int(tp.Port)))
+				natPort, err := containertypes.ParsePort(fmt.Sprintf("%d/%s", tp.Port, tp.Proto))
 				if err != nil {
-					log.G(context.TODO()).Errorf("invalid exposed port %s: %v", tp.String(), err)
+					log.G(context.TODO()).WithError(err).Errorf("Invalid exposed port: %s", tp.String())
 					continue
 				}
 				if _, ok := pm[natPort]; !ok {
@@ -1057,12 +1043,13 @@ func getEndpointPortMapInfo(pm containertypes.PortMap, ep *libnetwork.Endpoint) 
 
 	if portMapping, ok := mapData.([]lntypes.PortBinding); ok {
 		for _, pp := range portMapping {
-			// Use an empty string for the host port if there's no port assigned.
-			natPort, err := nat.NewPort(pp.Proto.String(), strconv.Itoa(int(pp.Port)))
+			// Use an empty string for the host natPort if there's no natPort assigned.
+			natPort, err := containertypes.ParsePort(fmt.Sprintf("%d/%s", pp.Port, pp.Proto))
 			if err != nil {
-				log.G(context.TODO()).Errorf("invalid port binding %s: %v", pp, err)
+				log.G(context.TODO()).WithError(err).Errorf("Invalid port binding: %s", pp.String())
 				continue
 			}
+
 			var hp string
 			if pp.HostPort > 0 {
 				hp = strconv.Itoa(int(pp.HostPort))

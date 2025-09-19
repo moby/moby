@@ -375,7 +375,7 @@ func validateHealthCheck(healthConfig *containertypes.HealthConfig) error {
 
 func validatePortBindings(ports containertypes.PortMap) error {
 	for port := range ports {
-		_, portStr := nat.SplitProtoPort(string(port))
+		_, portStr := nat.SplitProtoPort(port.String())
 		if _, err := nat.ParsePort(portStr); err != nil {
 			return errors.Errorf("invalid port specification: %q", portStr)
 		}
