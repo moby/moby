@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"runtime"
 	"strconv"
+	"sync"
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
@@ -14,6 +15,11 @@ import (
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 )
+
+// osContextLock makes sure only one OSContext is active at a time, since
+// the namespace and netlink handles (initNs and initNl) in package ns are
+// reset when the OSContext is created, and again when it's cleaned up.
+var osContextLock sync.Mutex
 
 // OSContext is a handle to a test OS context.
 type OSContext struct {
@@ -45,6 +51,7 @@ func SetupTestOSContext(t *testing.T) func() {
 //	c := SetupTestOSContext(t)
 //	defer c.Cleanup(t)
 func SetupTestOSContextEx(t *testing.T) *OSContext {
+	osContextLock.Lock()
 	runtime.LockOSThread()
 	origNS, err := netns.Get()
 	if err != nil {
@@ -66,7 +73,7 @@ func SetupTestOSContextEx(t *testing.T) *OSContext {
 
 	// Since we are switching to a new test namespace make
 	// sure to re-initialize initNs context
-	ns.Init()
+	ns.ResetHandles()
 
 	nl := ns.NlHandle()
 	lo, err := nl.LinkByName("lo")
@@ -101,7 +108,8 @@ func (c *OSContext) Cleanup(t *testing.T) {
 		t.Logf("Warning: netns closing failed (%v)", err)
 	}
 	c.restore(t)
-	ns.Init()
+	ns.ResetHandles()
+	osContextLock.Unlock()
 }
 
 func (c *OSContext) restore(t *testing.T) {
