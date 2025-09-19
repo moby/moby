@@ -24,7 +24,7 @@ func TestImageInspectEmptyTagsAndDigests(t *testing.T) {
 	danglingID := iimage.Load(ctx, t, apiClient, specialimage.Dangling)
 
 	var raw bytes.Buffer
-	inspect, err := apiClient.ImageInspect(ctx, danglingID, client.ImageInspectWithRawResponse(&raw))
+	inspect, err := apiClient.ImageInspect(ctx, danglingID, client.WithRawResponse(&raw))
 	assert.NilError(t, err)
 
 	// Must be a zero length array, not null.
@@ -163,10 +163,10 @@ func TestImageInspectWithPlatform(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var opts []client.ImageInspectOption
 			if tc.requestedPlatform != nil {
-				opts = append(opts, client.ImageInspectWithPlatform(tc.requestedPlatform))
+				opts = append(opts, client.WithPlatform(*tc.requestedPlatform))
 			}
 			if tc.withManifests {
-				opts = append(opts, client.ImageInspectWithManifests(true))
+				opts = append(opts, client.WithImageManifests(true))
 			}
 			inspect, err := apiClient.ImageInspect(ctx, imageID, opts...)
 			if tc.expectedError != "" {
