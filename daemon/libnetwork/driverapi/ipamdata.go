@@ -3,9 +3,14 @@ package driverapi
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net"
+	"net/netip"
 
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/internal/iterutil"
 )
 
 // MarshalJSON encodes IPAMData into json message
@@ -100,4 +105,20 @@ func (i *IPAMData) IsV6() bool {
 
 func (i *IPAMData) String() string {
 	return fmt.Sprintf("AddressSpace: %s\nPool: %v\nGateway: %v\nAddresses: %v", i.AddressSpace, i.Pool, i.Gateway, i.AuxAddresses)
+}
+
+func (i *IPAMData) IPAMConfig() network.IPAMConfig {
+	var c network.IPAMConfig
+	c.Subnet, _ = netiputil.ToPrefix(i.Pool)
+	if i.Gateway != nil {
+		gw, _ := netip.AddrFromSlice(i.Gateway.IP)
+		c.Gateway = gw.Unmap()
+	}
+	if i.AuxAddresses != nil {
+		c.AuxAddress = maps.Collect(iterutil.Map2(maps.All(i.AuxAddresses), func(k string, v *net.IPNet) (string, netip.Addr) {
+			a, _ := netip.AddrFromSlice(v.IP)
+			return k, a.Unmap()
+		}))
+	}
+	return c
 }

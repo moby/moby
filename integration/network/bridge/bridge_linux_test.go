@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/go-connections/nat"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/versions"
@@ -72,8 +72,7 @@ func TestCreateWithIPv6DefaultsToULAPrefix(t *testing.T) {
 	assert.NilError(t, err)
 
 	for _, ipam := range nw.IPAM.Config {
-		ipr := netip.MustParsePrefix(ipam.Subnet)
-		if netip.MustParsePrefix("fd00::/8").Overlaps(ipr) {
+		if netip.MustParsePrefix("fd00::/8").Overlaps(ipam.Subnet) {
 			return
 		}
 	}
@@ -99,8 +98,7 @@ func TestCreateWithIPv6WithoutEnableIPv6Flag(t *testing.T) {
 	assert.NilError(t, err)
 
 	for _, ipam := range nw.IPAM.Config {
-		ipr := netip.MustParsePrefix(ipam.Subnet)
-		if netip.MustParsePrefix("fd00::/8").Overlaps(ipr) {
+		if netip.MustParsePrefix("fd00::/8").Overlaps(ipam.Subnet) {
 			return
 		}
 	}
@@ -572,11 +570,11 @@ func TestAllPortMappingsAreReturned(t *testing.T) {
 	inspect := ctr.Inspect(ctx, t, apiClient, ctrID)
 	assert.DeepEqual(t, inspect.NetworkSettings.Ports, containertypes.PortMap{
 		"80/tcp": []containertypes.PortBinding{
-			{HostIP: "0.0.0.0", HostPort: "8000"},
-			{HostIP: "::", HostPort: "8000"},
+			{HostIP: netip.IPv4Unspecified(), HostPort: "8000"},
+			{HostIP: netip.IPv6Unspecified(), HostPort: "8000"},
 		},
 		"81/tcp": nil,
-	})
+	}, cmpopts.EquateComparable(netip.Addr{}))
 }
 
 // TestFirewalldReloadNoZombies checks that when firewalld is reloaded, rules
@@ -680,13 +678,13 @@ func TestLegacyLink(t *testing.T) {
 	}{
 		{
 			name:   "no link",
-			host:   svrAddr,
+			host:   svrAddr.String(),
 			expect: "download timed out",
 		},
 		{
 			name:   "access by address",
 			links:  []string{svrName},
-			host:   svrAddr,
+			host:   svrAddr.String(),
 			expect: "404 Not Found", // Got a response, but the server has nothing to serve.
 		},
 		{
@@ -773,7 +771,7 @@ func TestRemoveLegacyLink(t *testing.T) {
 
 	// Check the icc=false rules now block access by address.
 	svrAddr := inspSvr.NetworkSettings.Networks["bridge"].IPAddress
-	res = ctr.ExecT(ctx, t, c, clientId, []string{"wget", "-T3", "http://" + svrAddr})
+	res = ctr.ExecT(ctx, t, c, clientId, []string{"wget", "-T3", "http://" + svrAddr.String()})
 	assert.Check(t, is.Contains(res.Stderr(), "download timed out"))
 }
 
@@ -951,7 +949,7 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
-	createInspect := func(t *testing.T, version string, pbs []nat.PortBinding) (containertypes.PortMap, []string) {
+	createInspect := func(t *testing.T, version string, pbs []containertypes.PortBinding) (containertypes.PortMap, []string) {
 		apiClient := d.NewClientT(t, client.WithVersion(version))
 		defer apiClient.Close()
 
@@ -984,9 +982,9 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 		}}
 		expWarnings := make([]string, 0)
 
-		mappings, warnings := createInspect(t, "1.51", []nat.PortBinding{})
-		assert.DeepEqual(t, expMappings, mappings)
-		assert.DeepEqual(t, expWarnings, warnings)
+		mappings, warnings := createInspect(t, "1.51", []containertypes.PortBinding{})
+		assert.DeepEqual(t, expMappings, mappings, cmpopts.EquateComparable(netip.Addr{}))
+		assert.DeepEqual(t, expWarnings, warnings, cmpopts.EquateComparable(netip.Addr{}))
 	})
 
 	t.Run("backfilling on API 1.52, with a warning", func(t *testing.T) {
@@ -997,18 +995,18 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 			"Following container port(s) have an empty list of port-bindings: 80/tcp. Starting with API 1.53, such bindings will be discarded.",
 		}
 
-		mappings, warnings := createInspect(t, "1.52", []nat.PortBinding{})
-		assert.DeepEqual(t, expMappings, mappings)
-		assert.DeepEqual(t, expWarnings, warnings)
+		mappings, warnings := createInspect(t, "1.52", []containertypes.PortBinding{})
+		assert.DeepEqual(t, expMappings, mappings, cmpopts.EquateComparable(netip.Addr{}))
+		assert.DeepEqual(t, expWarnings, warnings, cmpopts.EquateComparable(netip.Addr{}))
 	})
 
 	t.Run("no backfilling on API 1.53", func(t *testing.T) {
 		expMappings := containertypes.PortMap{}
 		expWarnings := make([]string, 0)
 
-		mappings, warnings := createInspect(t, "1.53", []nat.PortBinding{})
-		assert.DeepEqual(t, expMappings, mappings)
-		assert.DeepEqual(t, expWarnings, warnings)
+		mappings, warnings := createInspect(t, "1.53", []containertypes.PortBinding{})
+		assert.DeepEqual(t, expMappings, mappings, cmpopts.EquateComparable(netip.Addr{}))
+		assert.DeepEqual(t, expWarnings, warnings, cmpopts.EquateComparable(netip.Addr{}))
 	})
 
 	for _, apiVersion := range []string{"1.51", "1.52", "1.53"} {
@@ -1018,9 +1016,9 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 			}}
 			expWarnings := make([]string, 0)
 
-			mappings, warnings := createInspect(t, apiVersion, []nat.PortBinding{{HostPort: "8080"}})
-			assert.DeepEqual(t, expMappings, mappings)
-			assert.DeepEqual(t, expWarnings, warnings)
+			mappings, warnings := createInspect(t, apiVersion, []containertypes.PortBinding{{HostPort: "8080"}})
+			assert.DeepEqual(t, expMappings, mappings, cmpopts.EquateComparable(netip.Addr{}))
+			assert.DeepEqual(t, expWarnings, warnings, cmpopts.EquateComparable(netip.Addr{}))
 		})
 	}
 }
@@ -1063,7 +1061,7 @@ func TestPortBindingBackfillingForOlderContainers(t *testing.T) {
 	expMappings := containertypes.PortMap{"80/tcp": {
 		{}, // An empty PortBinding is backfilled
 	}}
-	assert.DeepEqual(t, expMappings, inspect.HostConfig.PortBindings)
+	assert.DeepEqual(t, expMappings, inspect.HostConfig.PortBindings, cmpopts.EquateComparable(netip.Addr{}))
 }
 
 func TestBridgeIPAMStatus(t *testing.T) {
@@ -1109,22 +1107,22 @@ func TestBridgeIPAMStatus(t *testing.T) {
 		network.CreateNoError(ctx, t, c, netName,
 			network.WithIPv4(true),
 			network.WithIPAMConfig(networktypes.IPAMConfig{
-				Subnet:  cidrv4.String(),
-				IPRange: ipv4Range,
-				Gateway: ipv4gw,
-				AuxAddress: map[string]string{
-					"reserved":   auxIPv4FromRange,
-					"reserved_1": auxIPv4OutOfRange,
+				Subnet:  cidrv4,
+				IPRange: netip.MustParsePrefix(ipv4Range),
+				Gateway: netip.MustParseAddr(ipv4gw),
+				AuxAddress: map[string]netip.Addr{
+					"reserved":   netip.MustParseAddr(auxIPv4FromRange),
+					"reserved_1": netip.MustParseAddr(auxIPv4OutOfRange),
 				},
 			}),
 			network.WithIPv6(),
 			network.WithIPAMConfig(networktypes.IPAMConfig{
-				Subnet:  cidrv6.String(),
-				IPRange: ipv6Range,
-				Gateway: ipv6gw,
-				AuxAddress: map[string]string{
-					"reserved1": auxIPv6FromRange,
-					"reserved2": auxIPv6OutOfRange,
+				Subnet:  cidrv6,
+				IPRange: netip.MustParsePrefix(ipv6Range),
+				Gateway: netip.MustParseAddr(ipv6gw),
+				AuxAddress: map[string]netip.Addr{
+					"reserved1": netip.MustParseAddr(auxIPv6FromRange),
+					"reserved2": netip.MustParseAddr(auxIPv6OutOfRange),
 				},
 			}),
 		)
@@ -1205,7 +1203,7 @@ func TestBridgeIPAMStatus(t *testing.T) {
 			network.WithIPv4(false),
 			network.WithIPv6(),
 			network.WithIPAMConfig(networktypes.IPAMConfig{
-				Subnet: cidr.String(),
+				Subnet: cidr,
 			}),
 		)
 		defer c.NetworkRemove(ctx, netName)

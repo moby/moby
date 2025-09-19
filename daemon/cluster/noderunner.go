@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -14,6 +15,7 @@ import (
 	"github.com/moby/moby/v2/daemon/cluster/executor/container"
 	lncluster "github.com/moby/moby/v2/daemon/libnetwork/cluster"
 	"github.com/moby/moby/v2/daemon/libnetwork/cnmallocator"
+	"github.com/moby/moby/v2/internal/sliceutil"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 	swarmnode "github.com/moby/swarmkit/v2/node"
@@ -55,7 +57,7 @@ type nodeStartConfig struct {
 	// DataPathAddr is the address that has to be used for the data path
 	DataPathAddr string
 	// DefaultAddressPool contains list of subnets
-	DefaultAddressPool []string
+	DefaultAddressPool []netip.Prefix
 	// SubnetSize contains subnet size of DefaultAddressPool
 	SubnetSize uint32
 	// DataPathPort contains Data path port (VXLAN UDP port) number that is used for data traffic.
@@ -126,7 +128,7 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		ListenRemoteAPI:    conf.ListenAddr,
 		AdvertiseRemoteAPI: conf.AdvertiseAddr,
 		NetworkConfig: &networkallocator.Config{
-			DefaultAddrPool: conf.DefaultAddressPool,
+			DefaultAddrPool: sliceutil.Map(conf.DefaultAddressPool, (netip.Prefix).String),
 			SubnetSize:      conf.SubnetSize,
 			VXLANUDPPort:    conf.DataPathPort,
 		},

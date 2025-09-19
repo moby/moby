@@ -3,6 +3,8 @@ package iterutil
 import (
 	"maps"
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -65,4 +67,18 @@ func TestChain2(t *testing.T) {
 
 	assert.DeepEqual(t, maps.Collect(ab), expab)
 	assert.DeepEqual(t, maps.Collect(abc), expabc)
+}
+
+func TestMap(t *testing.T) {
+	a := []int{1, 2, 3}
+	b := slices.Collect(Map(slices.Values(a), strconv.Itoa))
+	assert.DeepEqual(t, b, []string{"1", "2", "3"})
+}
+
+func TestMap2(t *testing.T) {
+	a := map[string]int{"a": 1, "b": 2, "c": 3}
+	b := maps.Collect(Map2(maps.All(a), func(k string, v int) (string, string) {
+		return strings.ToUpper(k), strconv.Itoa(v)
+	}))
+	assert.DeepEqual(t, b, map[string]string{"A": "1", "B": "2", "C": "3"})
 }

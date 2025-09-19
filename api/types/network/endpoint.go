@@ -1,10 +1,8 @@
 package network
 
 import (
-	"errors"
-	"fmt"
 	"maps"
-	"net"
+	"net/netip"
 	"slices"
 )
 
@@ -28,11 +26,11 @@ type EndpointSettings struct {
 	// Operational data
 	NetworkID           string
 	EndpointID          string
-	Gateway             string
-	IPAddress           string
+	Gateway             netip.Addr
+	IPAddress           netip.Addr
 	IPPrefixLen         int
-	IPv6Gateway         string
-	GlobalIPv6Address   string
+	IPv6Gateway         netip.Addr
+	GlobalIPv6Address   netip.Addr
 	GlobalIPv6PrefixLen int
 	// DNSNames holds all the (non fully qualified) DNS names associated to this endpoint. First entry is used to
 	// generate PTR records.
@@ -57,9 +55,9 @@ func (es *EndpointSettings) Copy() *EndpointSettings {
 
 // EndpointIPAMConfig represents IPAM configurations for the endpoint
 type EndpointIPAMConfig struct {
-	IPv4Address  string   `json:",omitempty"`
-	IPv6Address  string   `json:",omitempty"`
-	LinkLocalIPs []string `json:",omitempty"`
+	IPv4Address  netip.Addr   `json:",omitempty"`
+	IPv6Address  netip.Addr   `json:",omitempty"`
+	LinkLocalIPs []netip.Addr `json:",omitempty"`
 }
 
 // Copy makes a copy of the endpoint ipam config
@@ -70,77 +68,4 @@ func (cfg *EndpointIPAMConfig) Copy() *EndpointIPAMConfig {
 	cfgCopy := *cfg
 	cfgCopy.LinkLocalIPs = slices.Clone(cfg.LinkLocalIPs)
 	return &cfgCopy
-}
-
-// NetworkSubnet describes a user-defined subnet for a specific network. It's only used to validate if an
-// EndpointIPAMConfig is valid for a specific network.
-type NetworkSubnet interface {
-	// Contains checks whether the NetworkSubnet contains [addr].
-	Contains(addr net.IP) bool
-	// IsStatic checks whether the subnet was statically allocated (ie. user-defined).
-	IsStatic() bool
-}
-
-// IsInRange checks whether static IP addresses are valid in a specific network.
-func (cfg *EndpointIPAMConfig) IsInRange(v4Subnets []NetworkSubnet, v6Subnets []NetworkSubnet) error {
-	var errs []error
-
-	if err := validateEndpointIPAddress(cfg.IPv4Address, v4Subnets); err != nil {
-		errs = append(errs, err)
-	}
-	if err := validateEndpointIPAddress(cfg.IPv6Address, v6Subnets); err != nil {
-		errs = append(errs, err)
-	}
-
-	return errJoin(errs...)
-}
-
-func validateEndpointIPAddress(epAddr string, ipamSubnets []NetworkSubnet) error {
-	if epAddr == "" {
-		return nil
-	}
-
-	var staticSubnet bool
-	parsedAddr := net.ParseIP(epAddr)
-	for _, subnet := range ipamSubnets {
-		if subnet.IsStatic() {
-			staticSubnet = true
-			if subnet.Contains(parsedAddr) {
-				return nil
-			}
-		}
-	}
-
-	if staticSubnet {
-		return fmt.Errorf("no configured subnet or ip-range contain the IP address %s", epAddr)
-	}
-
-	return errors.New("user specified IP address is supported only when connecting to networks with user configured subnets")
-}
-
-// Validate checks whether cfg is valid.
-func (cfg *EndpointIPAMConfig) Validate() error {
-	if cfg == nil {
-		return nil
-	}
-
-	var errs []error
-
-	if cfg.IPv4Address != "" {
-		if addr := net.ParseIP(cfg.IPv4Address); addr == nil || addr.To4() == nil || addr.IsUnspecified() {
-			errs = append(errs, fmt.Errorf("invalid IPv4 address: %s", cfg.IPv4Address))
-		}
-	}
-	if cfg.IPv6Address != "" {
-		if addr := net.ParseIP(cfg.IPv6Address); addr == nil || addr.To4() != nil || addr.IsUnspecified() {
-			errs = append(errs, fmt.Errorf("invalid IPv6 address: %s", cfg.IPv6Address))
-		}
-	}
-	for _, addr := range cfg.LinkLocalIPs {
-		if parsed := net.ParseIP(addr); parsed == nil || parsed.IsUnspecified() {
-			errs = append(errs, fmt.Errorf("invalid link-local IP address: %s", addr))
-		}
-	}
-
-	return errJoin(errs...)
 }

@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/moby/moby/v2/daemon/internal/sliceutil"
+	"github.com/moby/moby/v2/internal/sliceutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
@@ -213,7 +213,7 @@ func TestRCModify(t *testing.T) {
 			}
 			rc, err := Parse(bytes.NewBufferString(input), "")
 			assert.NilError(t, err)
-			assert.Check(t, is.DeepEqual(a2s(rc.NameServers()), tc.inputNS))
+			assert.Check(t, is.DeepEqual(a2s(rc.NameServers()), tc.inputNS, cmpopts.EquateEmpty()))
 			assert.Check(t, is.DeepEqual(rc.Search(), tc.inputSearch))
 			assert.Check(t, is.DeepEqual(rc.Options(), tc.inputOptions))
 

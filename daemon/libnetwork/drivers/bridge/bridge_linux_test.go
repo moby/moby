@@ -14,10 +14,10 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/moby/moby/v2/daemon/libnetwork/drvregistry"
-	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipams/defaultipam"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamutils"

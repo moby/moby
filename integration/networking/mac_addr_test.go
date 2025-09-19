@@ -1,6 +1,7 @@
 package networking
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/moby/moby/client"
@@ -276,6 +277,6 @@ func TestWatchtowerCreate(t *testing.T) {
 	// Check that the container got the expected addresses.
 	inspect := container.Inspect(ctx, t, c, ctrName)
 	netSettings := inspect.NetworkSettings.Networks[netName]
-	assert.Check(t, is.Equal(netSettings.IPAddress, ctrIP))
+	assert.Check(t, is.Equal(netSettings.IPAddress, netip.MustParseAddr(ctrIP)))
 	assert.Check(t, is.Equal(netSettings.MacAddress, ctrMAC))
 }
