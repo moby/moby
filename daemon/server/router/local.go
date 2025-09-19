@@ -37,7 +37,7 @@ func (l localRoute) Path() string {
 
 // NewRoute initializes a new local route for the router.
 func NewRoute(method, path string, handler httputils.APIFunc, opts ...RouteWrapper) Route {
-	var r Route = localRoute{method, path, handler}
+	var r Route = localRoute{method: method, path: path, handler: handler}
 	for _, o := range opts {
 		r = o(r)
 	}

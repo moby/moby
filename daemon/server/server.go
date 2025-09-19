@@ -33,7 +33,9 @@ func (s *Server) UseMiddleware(m middleware.Middleware) {
 	s.middlewares = append(s.middlewares, m)
 }
 
-func (s *Server) makeHTTPHandler(handler httputils.APIFunc, operation string) http.HandlerFunc {
+func (s *Server) makeHTTPHandler(r router.Route) http.HandlerFunc {
+	handler := r.Handler()
+	operation := r.Method() + " " + r.Path()
 	return otelhttp.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Define the context that we'll pass around to share info
 		// like the docker-request-id.
@@ -91,7 +93,7 @@ func (s *Server) CreateMux(ctx context.Context, routers ...router.Router) *mux.R
 				return m
 			}
 			log.G(ctx).WithFields(log.Fields{"method": r.Method(), "path": r.Path()}).Debug("Registering route")
-			f := s.makeHTTPHandler(r.Handler(), r.Method()+" "+r.Path())
+			f := s.makeHTTPHandler(r)
 			m.Path(versionMatcher + r.Path()).Methods(r.Method()).Handler(f)
 			m.Path(r.Path()).Methods(r.Method()).Handler(f)
 		}
