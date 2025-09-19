@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"strings"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/network"
@@ -134,20 +135,74 @@ func (a *Allocator) RequestPool(req ipamapi.PoolRequest) (ipamapi.AllocatedPool,
 	if err != nil {
 		return ipamapi.AllocatedPool{}, err
 	}
+
+	k := PoolID{AddressSpace: req.AddressSpace}
+
+	subnetSize := 0
+
+	if req.Pool != "" {
+		if strings.HasPrefix(req.Pool, "/") {
+			if req.V6 {
+				req.Pool = "::" + req.Pool
+			} else {
+				req.Pool = "0.0.0.0" + req.Pool
+			}
+		}
+
+		prefix, err := netip.ParsePrefix(req.Pool)
+		if err != nil {
+			return ipamapi.AllocatedPool{}, parseErr(ipamapi.ErrInvalidPool)
+		}
+
+		if prefix.Addr().IsUnspecified() {
+			// If the prefix is unspecified, we're only interested in the prefix size.
+			// We'll attempt to use the specified size to allocate a subnet from the
+			// predefined pools.
+			req.Pool = ""
+
+			if req.Options == nil {
+				req.Options = make(map[string]string)
+			}
+
+			if prefix.Bits() > 0 {
+				subnetSize = prefix.Bits()
+			}
+		} else {
+			k.Subnet = prefix
+		}
+	}
+
 	if req.Pool == "" && req.SubPool != "" {
 		return ipamapi.AllocatedPool{}, parseErr(ipamapi.ErrInvalidSubPool)
 	}
 
-	k := PoolID{AddressSpace: req.AddressSpace}
 	if req.Pool == "" {
-		if k.Subnet, err = aSpace.allocatePredefinedPool(req.Exclude); err != nil {
+		if sizeValue, found := req.Options[ipamapi.SubnetSizeOption]; found {
+			if subnetSize > 0 {
+				// Can't specify both a specific subnet prefix and the subnet_size IPAM option
+				return ipamapi.AllocatedPool{}, parseErr(ipamapi.ErrInvalidPool)
+			}
+
+			var testPrefix string
+			if req.V6 {
+				testPrefix = "::/" + sizeValue
+			} else {
+				testPrefix = "0.0.0.0/" + sizeValue
+			}
+
+			if prefix, err := netip.ParsePrefix(testPrefix); err != nil {
+				return ipamapi.AllocatedPool{}, types.InvalidParameterErrorf("invalid subnet size: %s", sizeValue)
+			} else if !prefix.IsValid() {
+				return ipamapi.AllocatedPool{}, types.InvalidParameterErrorf("invalid subnet size: %s", sizeValue)
+			} else {
+				subnetSize = prefix.Bits()
+			}
+		}
+
+		if k.Subnet, err = aSpace.allocatePredefinedPool(req.Exclude, subnetSize); err != nil {
 			return ipamapi.AllocatedPool{}, err
 		}
 		return ipamapi.AllocatedPool{PoolID: k.String(), Pool: k.Subnet}, nil
-	}
-
-	if k.Subnet, err = netip.ParsePrefix(req.Pool); err != nil {
-		return ipamapi.AllocatedPool{}, parseErr(ipamapi.ErrInvalidPool)
 	}
 
 	if req.SubPool != "" {

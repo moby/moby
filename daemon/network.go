@@ -353,6 +353,19 @@ func (daemon *Daemon) createNetwork(ctx context.Context, cfg *config.Config, cre
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionConfigOnly())
 	}
 
+	if create.IPAM != nil {
+		// Normalize subnet strings that only specify the size, e.g. "/24"
+		for i, cfg := range create.IPAM.Config {
+			if strings.HasPrefix(cfg.Subnet, "/") {
+				if enableIPv6 {
+					create.IPAM.Config[i].Subnet = "::" + cfg.Subnet
+				} else {
+					create.IPAM.Config[i].Subnet = "0.0.0.0" + cfg.Subnet
+				}
+			}
+		}
+	}
+
 	if err := networktypes.ValidateIPAM(create.IPAM, enableIPv6); err != nil {
 		if agent {
 			// This function is called with agent=false for all networks. For swarm-scoped
@@ -725,37 +738,63 @@ func buildIPAMResources(nw *libnetwork.Network) networktypes.IPAM {
 	var ipamConfig []networktypes.IPAMConfig
 
 	ipamDriver, ipamOptions, ipv4Conf, ipv6Conf := nw.IpamConfig()
+	ipv4Info, ipv6Info := nw.IpamInfo()
 
 	hasIPv4Config := false
-	for _, cfg := range ipv4Conf {
-		if cfg.PreferredPool == "" {
-			continue
+	if len(ipv4Info) > 0 {
+		// Only check ipv4 networks if there were any allocated
+		for i, cfg := range ipv4Conf {
+			if cfg.PreferredPool == "" {
+				continue
+			}
+			hasIPv4Config = true
+			subnet := ipv4Info[i].IPAMData.Pool.String()
+			if subnet == "" {
+				subnet = cfg.PreferredPool
+			}
+			var gw string
+			if ipv4Info[i].IPAMData.Gateway != nil {
+				gw = ipv4Info[i].IPAMData.Gateway.IP.String()
+			} else {
+				gw = cfg.Gateway
+			}
+			ipamConfig = append(ipamConfig, networktypes.IPAMConfig{
+				Subnet:     subnet,
+				IPRange:    cfg.SubPool,
+				Gateway:    gw,
+				AuxAddress: cfg.AuxAddresses,
+			})
 		}
-		hasIPv4Config = true
-		ipamConfig = append(ipamConfig, networktypes.IPAMConfig{
-			Subnet:     cfg.PreferredPool,
-			IPRange:    cfg.SubPool,
-			Gateway:    cfg.Gateway,
-			AuxAddress: cfg.AuxAddresses,
-		})
 	}
 
 	hasIPv6Config := false
-	for _, cfg := range ipv6Conf {
-		if cfg.PreferredPool == "" {
-			continue
+	if len(ipv6Info) > 0 {
+		// Only check ipv6 networks if there were any allocated
+		for i, cfg := range ipv6Conf {
+			if cfg.PreferredPool == "" {
+				continue
+			}
+			hasIPv6Config = true
+			subnet := ipv6Info[i].IPAMData.Pool.String()
+			if subnet == "" {
+				subnet = cfg.PreferredPool
+			}
+			var gw string
+			if ipv6Info[i].IPAMData.Gateway != nil {
+				gw = ipv6Info[i].IPAMData.Gateway.IP.String()
+			} else {
+				gw = cfg.Gateway
+			}
+			ipamConfig = append(ipamConfig, networktypes.IPAMConfig{
+				Subnet:     subnet,
+				IPRange:    cfg.SubPool,
+				Gateway:    gw,
+				AuxAddress: cfg.AuxAddresses,
+			})
 		}
-		hasIPv6Config = true
-		ipamConfig = append(ipamConfig, networktypes.IPAMConfig{
-			Subnet:     cfg.PreferredPool,
-			IPRange:    cfg.SubPool,
-			Gateway:    cfg.Gateway,
-			AuxAddress: cfg.AuxAddresses,
-		})
 	}
 
 	if !hasIPv4Config || !hasIPv6Config {
-		ipv4Info, ipv6Info := nw.IpamInfo()
 		if !hasIPv4Config {
 			for _, info := range ipv4Info {
 				var gw string

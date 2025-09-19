@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"strings"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
@@ -44,6 +45,9 @@ func (a *allocator) RequestPool(req ipamapi.PoolRequest) (ipamapi.AllocatedPool,
 
 	pool := defaultPool
 	if req.Pool != "" {
+		if strings.HasPrefix(req.Pool, "/") {
+			req.Pool = "0.0.0.0" + req.Pool
+		}
 		var err error
 		if pool, err = netip.ParsePrefix(req.Pool); err != nil {
 			return ipamapi.AllocatedPool{}, fmt.Errorf("invalid IPAM request: %w", err)
