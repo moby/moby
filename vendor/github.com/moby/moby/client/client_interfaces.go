@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"net"
-	"net/http"
 
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/build"
@@ -38,7 +37,6 @@ type stableAPIClient interface {
 	VolumeAPIClient
 	ClientVersion() string
 	DaemonHost() string
-	HTTPClient() *http.Client
 	ServerVersion(ctx context.Context) (types.Version, error)
 	NegotiateAPIVersion(ctx context.Context)
 	NegotiateAPIVersionPing(types.Ping)
