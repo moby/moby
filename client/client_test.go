@@ -369,7 +369,8 @@ func TestNegotiateAPIVersionAutomatic(t *testing.T) {
 				resp.Header.Set("Api-Version", pingVersion)
 				resp.Body = io.NopCloser(strings.NewReader("OK"))
 				return resp, nil
-			})}),
+			}),
+		}),
 		WithAPIVersionNegotiation(),
 	)
 	assert.NilError(t, err)
