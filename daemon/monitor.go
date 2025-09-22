@@ -105,6 +105,10 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 		"exitCode":     strconv.Itoa(ctrExitStatus.ExitCode),
 		"execDuration": strconv.Itoa(int(execDuration.Seconds())),
 	}
+	if c.HasBeenManuallyRestarted {
+		attributes["restarting"] = "true"
+	}
+
 	daemon.Cleanup(context.TODO(), c)
 
 	if restart {
@@ -116,6 +120,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 			"manualRestart": c.HasBeenManuallyRestarted,
 		}).Debug("Restarting container")
 		c.SetRestarting(&ctrExitStatus)
+		attributes["restarting"] = "true"
 	} else {
 		c.SetStopped(&ctrExitStatus)
 		if !c.HasBeenManuallyRestarted {
