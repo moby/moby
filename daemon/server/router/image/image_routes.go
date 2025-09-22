@@ -103,7 +103,15 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 		//
 		// TODO(thaJeztah): accept empty values but return an error when failing to decode.
 		authConfig, _ := authconfig.Decode(r.Header.Get(registry.AuthHeader))
-		progressErr = ir.backend.PullImage(ctx, ref, platform, metaHeaders, authConfig, output)
+		pullOptions := imagebackend.PullOptions{
+			AuthConfig:  authConfig,
+			MetaHeaders: metaHeaders,
+			OutStream:   output,
+		}
+		if platform != nil {
+			pullOptions.Platforms = append(pullOptions.Platforms, *platform)
+		}
+		progressErr = ir.backend.PullImage(ctx, ref, pullOptions)
 	} else { // import
 		src := r.Form.Get("fromSrc")
 

@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"io"
 	"time"
 
 	"github.com/distribution/reference"
@@ -24,9 +23,9 @@ import (
 	networkSettings "github.com/moby/moby/v2/daemon/network"
 	"github.com/moby/moby/v2/daemon/pkg/plugin"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	volumeopts "github.com/moby/moby/v2/daemon/volume/service/opts"
 	"github.com/moby/swarmkit/v2/agent/exec"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // Backend defines the executor component for a swarm agent.
@@ -74,7 +73,7 @@ type VolumeBackend interface {
 
 // ImageBackend is used by an executor to perform image operations
 type ImageBackend interface {
-	PullImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error
+	PullImage(ctx context.Context, ref reference.Named, options imagebackend.PullOptions) error
 	GetRepositories(context.Context, reference.Named, *registry.AuthConfig) ([]distribution.Repository, error)
 	GetImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (*image.Image, error)
 }

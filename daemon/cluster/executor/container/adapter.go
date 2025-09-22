@@ -25,6 +25,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	networkSettings "github.com/moby/moby/v2/daemon/network"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	volumeopts "github.com/moby/moby/v2/daemon/volume/service/opts"
 	"github.com/moby/swarmkit/v2/agent/exec"
 	"github.com/moby/swarmkit/v2/api"
@@ -107,7 +108,11 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 
 		// Make sure the image has a tag, otherwise it will pull all tags.
 		ref := reference.TagNameOnly(named)
-		err := c.imageBackend.PullImage(ctx, ref, nil, metaHeaders, authConfig, pw)
+		err := c.imageBackend.PullImage(ctx, ref, imagebackend.PullOptions{
+			MetaHeaders: metaHeaders,
+			AuthConfig:  authConfig,
+			OutStream:   pw,
+		})
 		pw.CloseWithError(err)
 	}()
 
