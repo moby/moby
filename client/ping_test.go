@@ -3,8 +3,10 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 
@@ -85,6 +87,9 @@ func TestPingSuccess(t *testing.T) {
 
 // TestPingHeadFallback tests that the client falls back to GET if HEAD fails.
 func TestPingHeadFallback(t *testing.T) {
+	const expectedPath = "/_ping"
+	expMethods := []string{http.MethodHead, http.MethodGet}
+
 	tests := []struct {
 		status   int
 		expected []string
@@ -111,17 +116,23 @@ func TestPingHeadFallback(t *testing.T) {
 		t.Run(http.StatusText(tc.status), func(t *testing.T) {
 			var reqs []string
 			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+				if !strings.HasPrefix(req.URL.Path, expectedPath) {
+					return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedPath, req.URL.Path)
+				}
+				if !slices.Contains(expMethods, req.Method) {
+					return nil, fmt.Errorf("expected one of '%v', got '%s'", expMethods, req.Method)
+				}
 				reqs = append(reqs, req.Method)
 				resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{}}
 				if req.Method == http.MethodHead {
 					resp.StatusCode = tc.status
 				}
-				resp.Header.Add("Api-Version", "v1.2.3")
+				resp.Header.Add("Api-Version", "1.2.3")
 				return resp, nil
 			}))
 			assert.NilError(t, err)
 			ping, _ := client.Ping(context.Background())
-			assert.Check(t, is.Equal(ping.APIVersion, "v1.2.3"))
+			assert.Check(t, is.Equal(ping.APIVersion, "1.2.3"))
 			assert.Check(t, is.DeepEqual(reqs, tc.expected))
 		})
 	}
