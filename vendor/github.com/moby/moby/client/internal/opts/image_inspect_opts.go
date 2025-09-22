@@ -2,9 +2,16 @@ package opts
 
 import (
 	"bytes"
+	"context"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
+
+type InspectOptionFunc func(ctx context.Context, opt *ImageInspectOptions) error
+
+func (f InspectOptionFunc) ApplyImageInspectOption(ctx context.Context, o *ImageInspectOptions) error {
+	return f(ctx, o)
+}
 
 type ImageInspectOptions struct {
 	Raw        *bytes.Buffer

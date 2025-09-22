@@ -21,7 +21,7 @@ func (cli *Client) ImageInspect(ctx context.Context, imageID string, inspectOpts
 
 	var opts opts.ImageInspectOptions
 	for _, opt := range inspectOpts {
-		if err := opt.Apply(&opts); err != nil {
+		if err := opt.ApplyImageInspectOption(ctx, &opts); err != nil {
 			return image.InspectResponse{}, fmt.Errorf("error applying image inspect option: %w", err)
 		}
 	}

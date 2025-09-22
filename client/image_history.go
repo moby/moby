@@ -16,7 +16,7 @@ func (cli *Client) ImageHistory(ctx context.Context, imageID string, historyOpts
 
 	var opts opts.ImageHistoryOptions
 	for _, o := range historyOpts {
-		if err := o.Apply(&opts); err != nil {
+		if err := o.ApplyImageHistoryOption(ctx, &opts); err != nil {
 			return nil, err
 		}
 	}
