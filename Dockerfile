@@ -3,7 +3,10 @@
 ARG GO_VERSION=1.24.7
 ARG BASE_DEBIAN_DISTRO="bookworm"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
-ARG XX_VERSION=1.6.1
+
+# XX_VERSION specifies the version of the xx utility to use.
+# It must be a valid tag in the docker.io/tonistiigi/xx image repository.
+ARG XX_VERSION=1.7.0
 
 # VPNKIT_VERSION is the version of the vpnkit binary which is used as a fallback
 # network driver for rootless.
