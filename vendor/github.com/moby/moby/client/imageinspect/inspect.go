@@ -2,22 +2,18 @@ package imageinspect
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 
 	"github.com/moby/moby/client/internal/opts"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// Option is a type representing functional options for the image inspect operation.
-type Option interface {
-	ApplyImageInspectOption(ctx context.Context, opts *opts.ImageInspectOptions) error
-}
+type Option = opts.Option[opts.ImageInspectOptions]
 
 // WithRawResponse instructs the client to additionally store the
 // raw inspect response in the provided buffer.
 func WithRawResponse(raw *bytes.Buffer) Option {
-	return opts.InspectOptionFunc(func(_ context.Context, opts *opts.ImageInspectOptions) error {
+	return opts.OptionFunc[opts.ImageInspectOptions](func(opts *opts.ImageInspectOptions) error {
 		opts.Raw = raw
 		return nil
 	})
@@ -29,7 +25,7 @@ func WithRawResponse(raw *bytes.Buffer) Option {
 // the [image.InspectResponse.Manifests] field if the server is multi-platform
 // capable.
 func WithImageManifests(manifests bool) Option {
-	return opts.InspectOptionFunc(func(_ context.Context, clientOpts *opts.ImageInspectOptions) error {
+	return opts.OptionFunc[opts.ImageInspectOptions](func(clientOpts *opts.ImageInspectOptions) error {
 		clientOpts.ApiOptions.Manifests = manifests
 		return nil
 	})
@@ -41,7 +37,7 @@ func WithImageManifests(manifests bool) Option {
 //
 // Minimum API version required: 1.49
 func WithPlatform(platform ocispec.Platform) Option {
-	return opts.InspectOptionFunc(func(_ context.Context, opts *opts.ImageInspectOptions) error {
+	return opts.OptionFunc[opts.ImageInspectOptions](func(opts *opts.ImageInspectOptions) error {
 		if opts.ApiOptions.Platform != nil {
 			return fmt.Errorf("platform already set to %v", opts.ApiOptions.Platform)
 		}
