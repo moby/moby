@@ -17,11 +17,10 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/network"
-	"github.com/moby/moby/v2/daemon/internal/sliceutil"
+	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
-	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/setmatrix"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipams/defaultipam"
@@ -33,6 +32,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/internal/iterutil"
+	"github.com/moby/moby/v2/internal/sliceutil"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -108,7 +108,7 @@ func (c *IpamConf) Validate() error {
 }
 
 // Contains checks whether the ipam master address pool contains [addr].
-func (c *IpamConf) Contains(addr net.IP) bool {
+func (c *IpamConf) Contains(addr netip.Addr) bool {
 	if c == nil {
 		return false
 	}
@@ -116,7 +116,7 @@ func (c *IpamConf) Contains(addr net.IP) bool {
 		return false
 	}
 
-	_, allowedRange, _ := net.ParseCIDR(c.PreferredPool)
+	allowedRange, _ := netiputil.ParseCIDR(c.PreferredPool)
 
 	return allowedRange.Contains(addr)
 }
@@ -124,6 +124,30 @@ func (c *IpamConf) Contains(addr net.IP) bool {
 // IsStatic checks whether the subnet was statically allocated (ie. user-defined).
 func (c *IpamConf) IsStatic() bool {
 	return c != nil && c.PreferredPool != ""
+}
+
+func (c *IpamConf) IPAMConfig() network.IPAMConfig {
+	if c == nil {
+		return network.IPAMConfig{}
+	}
+
+	subnet, _ := netiputil.ParseCIDR(c.PreferredPool)
+	ipr, _ := netiputil.ParseCIDR(c.SubPool)
+	gw, _ := netip.ParseAddr(c.Gateway)
+
+	conf := network.IPAMConfig{
+		Subnet:  subnet.Masked(),
+		IPRange: ipr.Masked(),
+		Gateway: gw.Unmap(),
+	}
+
+	if c.AuxAddresses != nil {
+		conf.AuxAddress = maps.Collect(iterutil.Map2(maps.All(c.AuxAddresses), func(k, v string) (string, netip.Addr) {
+			a, _ := netip.ParseAddr(v)
+			return k, a.Unmap()
+		}))
+	}
+	return conf
 }
 
 // IpamInfo contains all the ipam related operational info for a network

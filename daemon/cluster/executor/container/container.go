@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 
@@ -20,7 +21,9 @@ import (
 	"github.com/moby/moby/v2/daemon/cluster/convert"
 	executorpkg "github.com/moby/moby/v2/daemon/cluster/executor"
 	clustertypes "github.com/moby/moby/v2/daemon/cluster/provider"
+	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
+	"github.com/moby/moby/v2/internal/sliceutil"
 	"github.com/moby/swarmkit/v2/agent/exec"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/genericresource"
@@ -414,7 +417,7 @@ func (c *containerConfig) hostConfig(deps exec.VolumeGetter) *container.HostConf
 	}
 
 	if c.spec().DNSConfig != nil {
-		hc.DNS = c.spec().DNSConfig.Nameservers
+		hc.DNS = sliceutil.Map(c.spec().DNSConfig.Nameservers, func(ns string) netip.Addr { a, _ := netip.ParseAddr(ns); return a })
 		hc.DNSSearch = c.spec().DNSConfig.Search
 		hc.DNSOptions = c.spec().DNSConfig.Options
 	}
@@ -531,20 +534,18 @@ func (c *containerConfig) createNetworkingConfig(b executorpkg.Backend) *network
 }
 
 func getEndpointConfig(na *api.NetworkAttachment, b executorpkg.Backend) *network.EndpointSettings {
-	var ipv4, ipv6 string
+	var ipv4, ipv6 netip.Addr
 	for _, addr := range na.Addresses {
-		ip, _, err := net.ParseCIDR(addr)
+		pfx, err := netiputil.ParseCIDR(addr)
 		if err != nil {
 			continue
 		}
+		ip := pfx.Addr()
 
-		if ip.To4() != nil {
-			ipv4 = ip.String()
-			continue
-		}
-
-		if ip.To16() != nil {
-			ipv6 = ip.String()
+		if ip.Is4() {
+			ipv4 = ip
+		} else {
+			ipv6 = ip
 		}
 	}
 
@@ -656,11 +657,18 @@ func networkCreateRequest(name string, nw *api.Network) clustertypes.NetworkCrea
 			Options: nw.IPAM.Driver.Options,
 		}
 		for _, ic := range nw.IPAM.Configs {
-			req.IPAM.Config = append(req.IPAM.Config, network.IPAMConfig{
-				Subnet:  ic.Subnet,
-				IPRange: ic.Range,
-				Gateway: ic.Gateway,
-			})
+			// The daemon validates the IPAM configs before creating
+			// the network in Swarm's Raft store, so these values
+			// should always either be empty strings or well-formed
+			// values.
+			cfg, err := ipamConfig(ic)
+			if err != nil {
+				log.G(context.TODO()).WithFields(log.Fields{
+					"network": name,
+					"error":   err,
+				}).Warn("invalid Swarm network IPAM config")
+			}
+			req.IPAM.Config = append(req.IPAM.Config, cfg)
 		}
 	}
 

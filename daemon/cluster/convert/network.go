@@ -1,6 +1,8 @@
 package convert
 
 import (
+	"maps"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -8,7 +10,11 @@ import (
 	"github.com/moby/moby/api/types/network"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/cluster/convert/netextra"
+	"github.com/moby/moby/v2/daemon/internal/netipstringer"
+	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
+	"github.com/moby/moby/v2/internal/iterutil"
+	"github.com/moby/moby/v2/internal/sliceutil"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
 
@@ -16,7 +22,7 @@ func networkAttachmentFromGRPC(na *swarmapi.NetworkAttachment) types.NetworkAtta
 	if na != nil {
 		return types.NetworkAttachment{
 			Network:   networkFromGRPC(na.Network),
-			Addresses: na.Addresses,
+			Addresses: sliceutil.Map(na.Addresses, func(s string) netip.Addr { a, _ := netip.ParseAddr(s); return a }),
 		}
 	}
 	return types.NetworkAttachment{}
@@ -82,10 +88,16 @@ func ipamFromGRPC(i *swarmapi.IPAMOptions) *types.IPAMOptions {
 		}
 
 		for _, config := range i.Configs {
+			// Best-effort parse of user suppplied values that have
+			// been round-tripped through Swarm's Raft store. It is
+			// far too late to reject bogus values.
+			subnet, _ := netiputil.ParseCIDR(config.Subnet)
+			iprange, _ := netiputil.ParseCIDR(config.Range)
+			gw, _ := netip.ParseAddr(config.Gateway)
 			ipam.Configs = append(ipam.Configs, types.IPAMConfig{
-				Subnet:  config.Subnet,
-				Range:   config.Range,
-				Gateway: config.Gateway,
+				Subnet:  subnet.Masked(),
+				Range:   iprange.Masked(),
+				Gateway: gw.Unmap(),
 			})
 		}
 	}
@@ -118,9 +130,10 @@ func endpointFromGRPC(e *swarmapi.Endpoint) types.Endpoint {
 		}
 
 		for _, v := range e.VirtualIPs {
+			vip, _ := netip.ParseAddr(v.Addr)
 			endpoint.VirtualIPs = append(endpoint.VirtualIPs, types.EndpointVirtualIP{
 				NetworkID: v.NetworkID,
-				Addr:      v.Addr,
+				Addr:      vip,
 			})
 		}
 	}
@@ -149,12 +162,22 @@ func BasicNetworkFromGRPC(n swarmapi.Network) network.Network {
 		}
 		ipam.Config = make([]network.IPAMConfig, 0, len(n.IPAM.Configs))
 		for _, ic := range n.IPAM.Configs {
-			ipam.Config = append(ipam.Config, network.IPAMConfig{
-				Subnet:     ic.Subnet,
-				IPRange:    ic.Range,
-				Gateway:    ic.Gateway,
-				AuxAddress: ic.Reserved,
-			})
+			// Best-effort parse of user suppplied values that have
+			// been round-tripped through Swarm's Raft store. It is
+			// far too late to reject bogus values.
+			subnet, _ := netiputil.ParseCIDR(ic.Subnet)
+			iprange, _ := netiputil.ParseCIDR(ic.Range)
+			gw, _ := netip.ParseAddr(ic.Gateway)
+			cfg := network.IPAMConfig{
+				Subnet:  subnet.Masked(),
+				IPRange: iprange.Masked(),
+				Gateway: gw.Unmap(),
+			}
+			cfg.AuxAddress = maps.Collect(iterutil.Map2(maps.All(ic.Reserved), func(k, v string) (string, netip.Addr) {
+				addr, _ := netip.ParseAddr(v)
+				return k, addr.Unmap()
+			}))
+			ipam.Config = append(ipam.Config, cfg)
 		}
 	}
 
@@ -229,9 +252,9 @@ func BasicNetworkCreateToGRPC(create network.CreateRequest) swarmapi.NetworkSpec
 		ipamSpec := make([]*swarmapi.IPAMConfig, 0, len(create.IPAM.Config))
 		for _, ipamConfig := range create.IPAM.Config {
 			ipamSpec = append(ipamSpec, &swarmapi.IPAMConfig{
-				Subnet:  ipamConfig.Subnet,
-				Range:   ipamConfig.IPRange,
-				Gateway: ipamConfig.Gateway,
+				Subnet:  netipstringer.Prefix(netiputil.Unmap(ipamConfig.Subnet).Masked()),
+				Range:   netipstringer.Prefix(netiputil.Unmap(ipamConfig.IPRange).Masked()),
+				Gateway: netipstringer.Addr(ipamConfig.Gateway.Unmap()),
 			})
 		}
 		ns.IPAM.Configs = ipamSpec

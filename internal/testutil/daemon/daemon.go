@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/netip"
 	"os"
 	"os/exec"
 	"os/user"
@@ -96,7 +97,7 @@ type Daemon struct {
 	swarmListenAddr   string
 	swarmWithIptables bool
 	SwarmPort         int // FIXME(vdemeester) should probably not be exported
-	DefaultAddrPool   []string
+	DefaultAddrPool   []netip.Prefix
 	SubnetSize        uint32
 	DataPathPort      uint32
 	OOMScoreAdjust    int

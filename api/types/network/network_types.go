@@ -30,14 +30,6 @@ type CreateRequest struct {
 	Labels     map[string]string // Labels holds metadata specific to the network being created.
 }
 
-// ServiceInfo represents service parameters with the list of service's tasks
-type ServiceInfo struct {
-	VIP          string
-	Ports        []string
-	LocalLBIndex int
-	Tasks        []Task
-}
-
 // NetworkingConfig represents the container's networking configuration for each of its interfaces
 // Carries the networking configs specified in the `docker run` and `docker network connect` commands
 type NetworkingConfig struct {

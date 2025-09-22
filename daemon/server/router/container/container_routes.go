@@ -12,7 +12,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
-	"github.com/docker/go-connections/nat"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
@@ -905,7 +904,7 @@ func handlePortBindingsBC(hostConfig *container.HostConfig, version string) stri
 			emptyPBs = append(emptyPBs, string(portProto))
 		}
 
-		hostConfig.PortBindings[portProto] = []nat.PortBinding{{}}
+		hostConfig.PortBindings[portProto] = []container.PortBinding{{}}
 	}
 
 	if len(emptyPBs) > 0 {
