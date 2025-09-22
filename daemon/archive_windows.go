@@ -302,7 +302,7 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 // loaded inside the utility VM, not the host.
 // IMPORTANT: The container lock MUST be held when calling this function.
 func (daemon *Daemon) isOnlineFSOperationPermitted(ctr *container.Container) error {
-	if !ctr.Running {
+	if !ctr.State.Running {
 		return nil
 	}
 

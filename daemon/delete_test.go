@@ -52,9 +52,8 @@ func TestContainerDelete(t *testing.T) {
 			doc:    "restarting container",
 			errMsg: "container is restarting: stop the container before removing or force remove",
 			initContainer: func() *container.Container {
-				c := newContainerWithState(container.NewState())
-				c.SetRunning(nil, nil, time.Now())
-				c.SetRestarting(&container.ExitStatus{})
+				c := newContainerWithState(&container.State{Running: true, StartedAt: time.Now()})
+				c.State.SetRestarting(&container.ExitStatus{})
 				return c
 			},
 		},
@@ -82,10 +81,10 @@ func TestContainerDelete(t *testing.T) {
 }
 
 func TestContainerDoubleDelete(t *testing.T) {
-	c := newContainerWithState(container.NewState())
+	c := newContainerWithState(&container.State{})
 
 	// Mark the container as having a delete in progress
-	c.SetRemovalInProgress()
+	c.State.SetRemovalInProgress()
 
 	d, cleanup := newDaemonWithTmpRoot(t)
 	defer cleanup()

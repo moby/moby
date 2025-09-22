@@ -51,7 +51,7 @@ func setupContainerWithName(t *testing.T, name string, daemon *Daemon) *containe
 		name = "/" + name
 	}
 	c.Name = name
-	c.Running = true
+	c.State.Running = true
 	c.HostConfig = &containertypes.HostConfig{}
 	c.Created = time.Now()
 

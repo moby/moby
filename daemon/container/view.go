@@ -294,14 +294,9 @@ func (v *View) GetAllNames() map[string][]string {
 func (v *View) transform(ctr *Container) *Snapshot {
 	health := container.NoHealthcheck
 	failingStreak := 0
-	if ctr.Health != nil {
-		health = ctr.Health.Status()
-		failingStreak = ctr.Health.FailingStreak
-	}
-
-	healthSummary := &container.HealthSummary{
-		Status:        health,
-		FailingStreak: failingStreak,
+	if ctr.State.Health != nil {
+		health = ctr.State.Health.Status()
+		failingStreak = ctr.State.Health.Health.FailingStreak
 	}
 
 	snapshot := &Snapshot{
@@ -313,20 +308,23 @@ func (v *View) transform(ctr *Container) *Snapshot {
 			Mounts:  ctr.GetMountPoints(),
 			State:   ctr.State.StateString(),
 			Status:  ctr.State.String(),
-			Health:  healthSummary,
+			Health: &container.HealthSummary{
+				Status:        health,
+				FailingStreak: failingStreak,
+			},
 			Created: ctr.Created.Unix(),
 		},
 		CreatedAt:    ctr.Created,
-		StartedAt:    ctr.StartedAt,
+		StartedAt:    ctr.State.StartedAt,
 		Name:         ctr.Name,
-		Pid:          ctr.Pid,
+		Pid:          ctr.State.Pid,
 		Managed:      ctr.Managed,
 		ExposedPorts: make(container.PortSet),
 		PortBindings: make(container.PortSet),
 		Health:       health,
-		Running:      ctr.Running,
-		Paused:       ctr.Paused,
-		ExitCode:     ctr.ExitCode(),
+		Running:      ctr.State.Running,
+		Paused:       ctr.State.Paused,
+		ExitCode:     ctr.State.ExitCode,
 	}
 
 	if snapshot.Names == nil {

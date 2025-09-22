@@ -18,7 +18,7 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(daemonCfg *configStore, cont
 
 	shim, opts, err := daemonCfg.Runtimes.Get(container.HostConfig.Runtime)
 	if err != nil {
-		return "", nil, setExitCodeFromError(container.SetExitCode, err)
+		return "", nil, setExitCodeFromError(container.State.SetExitCode, err)
 	}
 
 	return shim, opts, nil
