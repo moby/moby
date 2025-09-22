@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client/containerstats"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -16,14 +18,14 @@ import (
 func TestContainerStatsError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	_, err = client.ContainerStats(context.Background(), "nothing", false)
+	_, err = client.ContainerStats(context.Background(), "nothing")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ContainerStats(context.Background(), "", false)
+	_, err = client.ContainerStats(context.Background(), "")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ContainerStats(context.Background(), "    ", false)
+	_, err = client.ContainerStats(context.Background(), "    ")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -56,17 +58,23 @@ func TestContainerStats(t *testing.T) {
 
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte("response"))),
+				Body:       io.NopCloser(bytes.NewReader([]byte("{}"))),
 			}, nil
 		}))
 		assert.NilError(t, err)
-		resp, err := client.ContainerStats(context.Background(), "container_id", tc.stream)
+
+		var opts []containerstats.Option
+		stream := make(chan containerstats.StreamItem)
+		oneshot := container.StatsResponse{}
+		if tc.stream {
+			opts = append(opts, containerstats.WithStream(stream))
+		} else {
+			opts = append(opts, containerstats.WithOneshot(&oneshot))
+		}
+
+		_, err = client.ContainerStats(context.Background(), "container_id",
+			opts...,
+		)
 		assert.NilError(t, err)
-		t.Cleanup(func() {
-			_ = resp.Body.Close()
-		})
-		content, err := io.ReadAll(resp.Body)
-		assert.NilError(t, err)
-		assert.Check(t, is.Equal(string(content), "response"))
 	}
 }

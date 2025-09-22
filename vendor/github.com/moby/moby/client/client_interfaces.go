@@ -17,6 +17,7 @@ import (
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/client/containerstats"
 	"github.com/moby/moby/client/imagehistory"
 	"github.com/moby/moby/client/imageinspect"
 
@@ -83,8 +84,7 @@ type ContainerAPIClient interface {
 	ContainerResize(ctx context.Context, container string, options ContainerResizeOptions) error
 	ContainerRestart(ctx context.Context, container string, options ContainerStopOptions) error
 	ContainerStatPath(ctx context.Context, container, path string) (container.PathStat, error)
-	ContainerStats(ctx context.Context, container string, stream bool) (StatsResponseReader, error)
-	ContainerStatsOneShot(ctx context.Context, container string) (StatsResponseReader, error)
+	ContainerStats(ctx context.Context, container string, options ...containerstats.Option) (containerstats.Output, error)
 	ContainerStart(ctx context.Context, container string, options ContainerStartOptions) error
 	ContainerStop(ctx context.Context, container string, options ContainerStopOptions) error
 	ContainerTop(ctx context.Context, container string, arguments []string) (container.TopResponse, error)
