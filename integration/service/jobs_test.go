@@ -25,8 +25,8 @@ func TestCreateJob(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 
-	client := d.NewClientT(t)
-	defer client.Close()
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
 
 	for _, mode := range []swarmtypes.ServiceMode{
 		{ReplicatedJob: &swarmtypes.ReplicatedJob{}},
@@ -34,7 +34,7 @@ func TestCreateJob(t *testing.T) {
 	} {
 		id := swarm.CreateService(ctx, t, d, swarm.ServiceWithMode(mode))
 
-		poll.WaitOn(t, swarm.RunningTasksCount(ctx, client, id, 1), swarm.ServicePoll)
+		poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, id, 1), swarm.ServicePoll)
 	}
 }
 
