@@ -98,7 +98,7 @@ func TestContainerCommit(t *testing.T) {
 		Comment:   expectedComment,
 		Author:    expectedAuthor,
 		Changes:   expectedChanges,
-		Pause:     false,
+		NoPause:   true,
 	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(r.ID, "new_container_id"))
