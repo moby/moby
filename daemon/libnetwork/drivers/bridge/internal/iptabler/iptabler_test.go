@@ -149,7 +149,7 @@ func TestIptabler(t *testing.T) {
 }
 
 func testIptabler(t *testing.T, tn string, config firewaller.Config, netConfig firewaller.NetworkConfig, bindLocalhost bool, resName string) {
-	defer netnsutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t, netnsutils.WithSetNsHandles(false))()
 
 	stripComments := func(text string) string {
 		lines := strings.Split(text, "\n")

@@ -91,7 +91,7 @@ func TestNftabler(t *testing.T) {
 }
 
 func testNftabler(t *testing.T, tn string, config firewaller.Config, netConfig firewaller.NetworkConfig, bindLocalhost bool, resName string) {
-	defer netnsutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t, netnsutils.WithSetNsHandles(false))()
 
 	checkResults := func(family, name string, en bool) {
 		t.Helper()
