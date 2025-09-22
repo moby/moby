@@ -1,7 +1,10 @@
 # syntax=docker/dockerfile:1
 
 ARG DEBIAN_VERSION=bookworm
-ARG XX_VERSION=1.6.1
+
+# XX_VERSION specifies the version of the xx utility to use.
+# It must be a valid tag in the docker.io/tonistiigi/xx image repository.
+ARG XX_VERSION=1.7.0
 
 # xx is a helper for cross-compilation
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
