@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 ARG GO_VERSION=1.24.7
-ARG BASE_DEBIAN_DISTRO="bookworm"
+ARG BASE_DEBIAN_DISTRO=trixie
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 ARG XX_VERSION=1.6.1
 
@@ -491,6 +491,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             bash-completion \
             bzip2 \
             fuse-overlayfs \
+            e2fsprogs \
             inetutils-ping \
             iproute2 \
             iptables \
