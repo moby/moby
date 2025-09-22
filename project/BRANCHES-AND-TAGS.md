@@ -16,13 +16,13 @@ Currently (and previously) maintained release branches are documented in the tab
 | Branch Name                 | Sponsoring Maintainer(s)                       | Contribution Status   | Expected End of Maintenance | Known Distributors                        |
 |-----------------------------|------------------------------------------------|-----------------------|-----------------------------|-------------------------------------------|
 | master (development branch) | The Moby Project [MAINTAINERS](../MAINTAINERS) | N/A                   | -                           | N/A                                       |
-| 28.x                        | The Moby Project [MAINTAINERS](../MAINTAINERS) | Maintained            | After 29.x                  | [Docker, Inc.][docker], [Microsoft][msft]      |
+| 28.x                        | The Moby Project [MAINTAINERS](../MAINTAINERS) | Maintained            | After 29.x                  | [Docker, Inc.][docker], [Microsoft][msft] |
 | 27.x                        |                                                | Unmaintained          |                             |                                           |
 | 26.1                        |                                                | Unmaintained          |                             |                                           |
 | 26.0                        |                                                | Unmaintained          |                             |                                           |
 | 25.0                        | @corhere                                       | Maintained            | TBD                         | [Amazon][al2023], [Mirantis][mcr]         |
 | 24.0                        |                                                | Unmaintained          |                             |                                           |
-| 23.0                        | @corhere                                       | Maintained (security) | [2025-05-19][mcr23-maint]   | [Mirantis][mcr]                           |
+| 23.0                        |                                                | Unmaintained          | [2025-05-19][mcr23-maint]   |                                           |
 | Older than 23.0             |                                                | Unmaintained          |                             |                                           |
 
 [al2023]: https://docs.aws.amazon.com/linux/
