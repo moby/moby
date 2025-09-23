@@ -6552,7 +6552,7 @@ definitions:
 
           > **Deprecated**: netfilter module is now loaded on-demand and no longer
           > during daemon startup, making this field obsolete. This field is always
-          > `false` and will be removed in a API v1.49.
+          > `false` and will be removed in a API v1.50.
         type: "boolean"
         example: false
       BridgeNfIp6tables:
@@ -6563,7 +6563,7 @@ definitions:
 
           > **Deprecated**: netfilter module is now loaded on-demand, and no longer
           > during daemon startup, making this field obsolete. This field is always
-          > `false` and will be removed in a API v1.49.
+          > `false` and will be removed in a API v1.50.
         type: "boolean"
         example: false
       Debug:
