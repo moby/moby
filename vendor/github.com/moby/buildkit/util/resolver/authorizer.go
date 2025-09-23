@@ -453,7 +453,7 @@ func parseScopes(s []string) scopes {
 			return nil
 		}
 		// The scopeStr may have strings that contain multiple scopes separated by a space.
-		for _, scope := range strings.Split(scopeStr, " ") {
+		for scope := range strings.SplitSeq(scopeStr, " ") {
 			parts := strings.SplitN(scope, ":", 3)
 			names := []string{parts[0]}
 			if len(parts) > 1 {

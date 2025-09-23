@@ -12,6 +12,7 @@ const (
 	CapSourceImage            apicaps.CapID = "source.image"
 	CapSourceImageResolveMode apicaps.CapID = "source.image.resolvemode"
 	CapSourceImageLayerLimit  apicaps.CapID = "source.image.layerlimit"
+	CapSourceImageChecksum    apicaps.CapID = "source.image.checksum"
 
 	CapSourceLocal                apicaps.CapID = "source.local"
 	CapSourceLocalUnique          apicaps.CapID = "source.local.unique"
@@ -124,6 +125,12 @@ func init() {
 
 	Caps.Init(apicaps.Cap{
 		ID:      CapSourceImageLayerLimit,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapSourceImageChecksum,
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})

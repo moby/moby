@@ -237,8 +237,8 @@ func (bc *Client) init() error {
 	}
 	// old API
 	if cacheFromStr := opts[keyCacheFrom]; cacheFromStr != "" {
-		cacheFrom := strings.Split(cacheFromStr, ",")
-		for _, s := range cacheFrom {
+		cacheFrom := strings.SplitSeq(cacheFromStr, ",")
+		for s := range cacheFrom {
 			im := client.CacheOptionsEntry{
 				Type: "registry",
 				Attrs: map[string]string{

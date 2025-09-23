@@ -843,8 +843,8 @@ type cacheMapResp struct {
 
 type activeOp interface {
 	CacheMap(context.Context, int) (*cacheMapResp, error)
-	LoadCache(ctx context.Context, rec *CacheRecord) (Result, error)
-	Exec(ctx context.Context, inputs []Result) (outputs []Result, exporters []ExportableCacheKey, err error)
+	LoadCache(ctx context.Context, rec *CacheRecord) (Result, func(context.Context) context.Context, error)
+	Exec(ctx context.Context, inputs []Result) (outputs []Result, exporters []ExportableCacheKey, ctxOpts func(context.Context) context.Context, err error)
 	IgnoreCache() bool
 	Cache() CacheManager
 	CalcSlowCache(context.Context, Index, PreprocessFunc, ResultBasedCacheFunc, Result) (digest.Digest, error)
@@ -909,7 +909,7 @@ func (c cacheWithCacheOpts) Records(ctx context.Context, ck *CacheKey) ([]*Cache
 	return c.CacheManager.Records(withAncestorCacheOpts(ctx, c.st), ck)
 }
 
-func (s *sharedOp) LoadCache(ctx context.Context, rec *CacheRecord) (Result, error) {
+func (s *sharedOp) LoadCache(ctx context.Context, rec *CacheRecord) (Result, func(context.Context) context.Context, error) {
 	ctx = progress.WithProgress(ctx, s.st.mpw)
 	if s.st.mspan.Span != nil {
 		ctx = trace.ContextWithSpan(ctx, s.st.mspan)
@@ -921,7 +921,9 @@ func (s *sharedOp) LoadCache(ctx context.Context, rec *CacheRecord) (Result, err
 	res, err := s.Cache().Load(withAncestorCacheOpts(ctx, s.st), rec)
 	tracing.FinishWithError(span, err)
 	notifyCompleted(err, true)
-	return res, err
+	return res, func(ctx context.Context) context.Context {
+		return withAncestorCacheOpts(ctx, s.st)
+	}, err
 }
 
 // CalcSlowCache computes the digest of an input that is ready and has been
@@ -1079,14 +1081,14 @@ func (s *sharedOp) CacheMap(ctx context.Context, index int) (resp *cacheMapResp,
 	return &cacheMapResp{CacheMap: res[index], complete: s.cacheDone}, nil
 }
 
-func (s *sharedOp) Exec(ctx context.Context, inputs []Result) (outputs []Result, exporters []ExportableCacheKey, err error) {
+func (s *sharedOp) Exec(ctx context.Context, inputs []Result) (outputs []Result, exporters []ExportableCacheKey, ctxOpts func(context.Context) context.Context, err error) {
 	defer func() {
 		err = errdefs.WithOp(err, s.st.vtx.Sys(), s.st.vtx.Options().Description)
 		err = errdefs.WrapVertex(err, s.st.origDigest)
 	}()
 	op, err := s.getOp()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	flightControlKey := "exec"
 	res, err := s.gExecRes.Do(ctx, flightControlKey, func(ctx context.Context) (ret *execRes, retErr error) {
@@ -1150,9 +1152,11 @@ func (s *sharedOp) Exec(ctx context.Context, inputs []Result) (outputs []Result,
 		return s.execRes, nil
 	})
 	if res == nil || err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	return unwrapShared(res.execRes), res.execExporters, nil
+	return unwrapShared(res.execRes), res.execExporters, func(ctx context.Context) context.Context {
+		return withAncestorCacheOpts(ctx, s.st)
+	}, nil
 }
 
 func (s *sharedOp) getOp() (Op, error) {

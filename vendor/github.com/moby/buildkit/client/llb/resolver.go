@@ -2,6 +2,7 @@ package llb
 
 import (
 	"github.com/moby/buildkit/client/llb/sourceresolver"
+	digest "github.com/opencontainers/go-digest"
 )
 
 // WithMetaResolver adds a metadata resolver to an image
@@ -23,6 +24,12 @@ func ResolveDigest(v bool) ImageOption {
 func WithLayerLimit(l int) ImageOption {
 	return imageOptionFunc(func(ii *ImageInfo) {
 		ii.layerLimit = &l
+	})
+}
+
+func WithImageChecksum(dgst digest.Digest) ImageOption {
+	return imageOptionFunc(func(ii *ImageInfo) {
+		ii.checksum = dgst
 	})
 }
 

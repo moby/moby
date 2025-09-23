@@ -273,7 +273,7 @@ func prepareCgroupControllers() error {
 	if err != nil {
 		return err
 	}
-	for _, c := range strings.Split(string(dt), " ") {
+	for c := range strings.SplitSeq(string(dt), " ") {
 		if c == "" {
 			continue
 		}

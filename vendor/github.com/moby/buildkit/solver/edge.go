@@ -946,19 +946,19 @@ func (e *edge) loadCache(ctx context.Context) (any, error) {
 	e.cacheRecordsLoaded[rec.ID] = struct{}{}
 
 	bklog.G(ctx).Debugf("load cache for %s with %s", e.edge.Vertex.Name(), rec.ID)
-	res, err := e.op.LoadCache(ctx, rec)
+	res, ctxOpts, err := e.op.LoadCache(ctx, rec)
 	if err != nil {
 		bklog.G(ctx).Debugf("load cache for %s err: %v", e.edge.Vertex.Name(), err)
 		return nil, errors.Wrap(err, "failed to load cache")
 	}
 
-	return NewCachedResult(res, []ExportableCacheKey{{CacheKey: rec.key, Exporter: &exporter{k: rec.key, record: rec, edge: e}}}), nil
+	return NewCachedResult(res, []ExportableCacheKey{{CacheKey: rec.key, Exporter: &exporter{k: rec.key, record: rec, edge: e, recordCtxOpts: ctxOpts}}}), nil
 }
 
 // execOp creates a request to execute the vertex operation
 func (e *edge) execOp(ctx context.Context) (any, error) {
 	cacheKeys, inputs := e.commitOptions()
-	results, subExporters, err := e.op.Exec(ctx, toResultSlice(inputs))
+	results, subExporters, ctxOpts, err := e.op.Exec(ctx, toResultSlice(inputs))
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -986,6 +986,7 @@ func (e *edge) execOp(ctx context.Context) (any, error) {
 
 		if exp, ok := ck.Exporter.(*exporter); ok {
 			exp.edge = e
+			exp.recordCtxOpts = ctxOpts
 		}
 
 		exps := make([]CacheExporter, 0, len(subExporters))

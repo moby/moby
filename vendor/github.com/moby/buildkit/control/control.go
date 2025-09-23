@@ -74,6 +74,7 @@ type Opt struct {
 	HistoryConfig             *config.HistoryConfig
 	GarbageCollect            func(context.Context) error
 	GracefulStop              <-chan struct{}
+	ProvenanceEnv             map[string]any
 }
 
 type Controller struct { // TODO: ControlService
@@ -114,6 +115,7 @@ func NewController(opt Opt) (*Controller, error) {
 		SessionManager:   opt.SessionManager,
 		Entitlements:     opt.Entitlements,
 		HistoryQueue:     hq,
+		ProvenanceEnv:    opt.ProvenanceEnv,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create solver")
@@ -524,7 +526,7 @@ func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*
 				params[k] = v
 			}
 		}
-		procs = append(procs, proc.ProvenanceProcessor(slsaVersion, params))
+		procs = append(procs, proc.ProvenanceProcessor(slsaVersion, params, c.opt.ProvenanceEnv))
 	}
 
 	resp, err := c.solver.Solve(ctx, req.Ref, req.Session, frontend.SolveRequest{
