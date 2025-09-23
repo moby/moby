@@ -551,10 +551,7 @@ func (r *request) authorize(ctx context.Context, req *http.Request) error {
 	return nil
 }
 
-func (r *request) addNamespace(ns string) (err error) {
-	if !r.host.isProxy(ns) {
-		return nil
-	}
+func (r *request) addQuery(key, value string) (err error) {
 	var q url.Values
 	// Parse query
 	if i := strings.IndexByte(r.path, '?'); i > 0 {
@@ -567,11 +564,18 @@ func (r *request) addNamespace(ns string) (err error) {
 		r.path = r.path + "?"
 		q = url.Values{}
 	}
-	q.Add("ns", ns)
+	q.Add(key, value)
 
 	r.path = r.path + q.Encode()
 
 	return
+}
+
+func (r *request) addNamespace(ns string) error {
+	if !r.host.isProxy(ns) {
+		return nil
+	}
+	return r.addQuery("ns", ns)
 }
 
 type request struct {

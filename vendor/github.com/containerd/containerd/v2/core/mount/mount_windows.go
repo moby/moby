@@ -183,3 +183,93 @@ func UnmountAll(mount string, flags int) error {
 func UnmountRecursive(mount string, flags int) error {
 	return UnmountAll(mount, flags)
 }
+
+// CimFS specific constants
+const (
+	// LayerCimPathFlag is the option flag used to represent the path at which a layer
+	// CIM must be stored. This flag only applies if an image layer is being extracted
+	// onto the snapshot i.e the snapshot key has an UnpackKeyPrefix. For all other
+	// snapshots, this MUST be ignored.
+	LayerCimPathFlag = "cimpath="
+
+	// Similar to ParentLayerPathsFlag this is the optinos flag used to represent the JSON encoded list of
+	// parent layer CIMs
+	ParentLayerCimPathsFlag = "parentCimPaths="
+
+	// string to specify the standard cimfs type of mount
+	CimFSMountType string = "CimFS"
+
+	// flag that specifies what kind of a block CIM is being used in the snapshot
+	BlockCIMTypeFlag string = "blockCIMType="
+	// "file" type of block CIM that will usually be used in snapshots
+	BlockCIMTypeFile string = "file"
+	// flag that specifies the path of a merged block CIM.
+	MergedCIMPathFlag string = "mergedCIMPath="
+	// a block CIM snapshotter mount type
+	BlockCIMMountType string = "BlockCIM"
+	// flag that enables layer integrity for block CIMs
+	EnableLayerIntegrityFlag string = "enable_layer_integrity"
+	// flag that enables VHD footer for block CIMs
+	AppendVHDFooterFlag string = "append_vhd_footer"
+)
+
+// getOptionByPrefix finds an option that has the provided prefix, cuts the prefix from
+// that option string and return the remaining string. Boolean return is set to true if an
+// option is found with the given prefix. It is set to false otherwise.
+func getOptionByPrefix(m *Mount, prefix string) (string, bool) {
+	for _, option := range m.Options {
+		val, found := strings.CutPrefix(option, prefix)
+		if found {
+			return val, true
+		}
+	}
+	return "", false
+}
+
+// gets the paths of the parent cims of this mount
+func GetParentCimPaths(m *Mount) ([]string, error) {
+	if m.Type != CimFSMountType {
+		return nil, fmt.Errorf("invalid mount type: '%s'", m.Type)
+	}
+	var parentCimPaths []string
+	val, found := getOptionByPrefix(m, ParentLayerCimPathsFlag)
+	if !found {
+		return parentCimPaths, nil
+	}
+	err := json.Unmarshal([]byte(val), &parentCimPaths)
+	return parentCimPaths, err
+}
+
+// Only applies to a snapshot created for image extraction, for such a snapshot provides the
+// path to a cim in which image layer will be extracted.
+func GetCimPath(m *Mount) (string, error) {
+	if m.Type != CimFSMountType {
+		return "", fmt.Errorf("invalid mount type: '%s'", m.Type)
+	}
+	cimPath, found := getOptionByPrefix(m, LayerCimPathFlag)
+	if !found {
+		return "", fmt.Errorf("cim path not found")
+	}
+	return cimPath, nil
+
+}
+
+// GetEnableLayerIntegrity checks if the enableLayerIntegrity flag is present in mount options
+func GetEnableLayerIntegrity(m *Mount) bool {
+	for _, option := range m.Options {
+		if option == EnableLayerIntegrityFlag {
+			return true
+		}
+	}
+	return false
+}
+
+// GetAppendVHDFooter checks if the appendVHDFooter flag is present in mount options
+func GetAppendVHDFooter(m *Mount) bool {
+	for _, option := range m.Options {
+		if option == AppendVHDFooterFlag {
+			return true
+		}
+	}
+	return false
+}

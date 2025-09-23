@@ -10,7 +10,7 @@ type Temporality uint8
 
 const (
 	// undefinedTemporality represents an unset Temporality.
-	//nolint:deadcode,unused,varcheck
+	//nolint:unused
 	undefinedTemporality Temporality = iota
 
 	// CumulativeTemporality defines a measurement interval that continues to

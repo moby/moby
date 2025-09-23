@@ -193,14 +193,16 @@ func (r *PeriodicReader) temporality(kind InstrumentKind) metricdata.Temporality
 }
 
 // aggregation returns what Aggregation to use for kind.
-func (r *PeriodicReader) aggregation(kind InstrumentKind) Aggregation { // nolint:revive  // import-shadow for method scoped by type.
+func (r *PeriodicReader) aggregation(
+	kind InstrumentKind,
+) Aggregation { // nolint:revive  // import-shadow for method scoped by type.
 	return r.exporter.Aggregation(kind)
 }
 
 // collectAndExport gather all metric data related to the periodicReader r from
 // the SDK and exports it with r's exporter.
 func (r *PeriodicReader) collectAndExport(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, r.timeout)
+	ctx, cancel := context.WithTimeoutCause(ctx, r.timeout, errors.New("reader collect and export timeout"))
 	defer cancel()
 
 	// TODO (#3047): Use a sync.Pool or persistent pointer instead of allocating rm every Collect.
@@ -276,7 +278,7 @@ func (r *PeriodicReader) ForceFlush(ctx context.Context) error {
 	// Prioritize the ctx timeout if it is set.
 	if _, ok := ctx.Deadline(); !ok {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, r.timeout)
+		ctx, cancel = context.WithTimeoutCause(ctx, r.timeout, errors.New("reader force flush timeout"))
 		defer cancel()
 	}
 
@@ -309,7 +311,7 @@ func (r *PeriodicReader) Shutdown(ctx context.Context) error {
 		// Prioritize the ctx timeout if it is set.
 		if _, ok := ctx.Deadline(); !ok {
 			var cancel context.CancelFunc
-			ctx, cancel = context.WithTimeout(ctx, r.timeout)
+			ctx, cancel = context.WithTimeoutCause(ctx, r.timeout, errors.New("reader shutdown timeout"))
 			defer cancel()
 		}
 

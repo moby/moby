@@ -86,7 +86,7 @@ func mirrorsToRegistryHosts(mirrors []string, dHost docker.RegistryHost) []docke
 	var mirrorHosts []docker.RegistryHost
 	for _, mirror := range mirrors {
 		h := dHost
-		h.Capabilities = docker.HostCapabilityPull | docker.HostCapabilityResolve
+		h.Capabilities = docker.HostCapabilityPull | docker.HostCapabilityResolve | docker.HostCapabilityReferrers
 
 		u, err := url.Parse(mirror)
 		if err != nil || u.Host == "" {

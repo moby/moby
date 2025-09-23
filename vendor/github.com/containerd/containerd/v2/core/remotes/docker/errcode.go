@@ -46,7 +46,7 @@ func (ec ErrorCode) ErrorCode() ErrorCode {
 // Error returns the ID/Value
 func (ec ErrorCode) Error() string {
 	// NOTE(stevvooe): Cannot use message here since it may have unpopulated args.
-	return strings.ToLower(strings.Replace(ec.String(), "_", " ", -1))
+	return strings.ToLower(strings.ReplaceAll(ec.String(), "_", " "))
 }
 
 // Descriptor returns the descriptor for the error code.

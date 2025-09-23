@@ -48,7 +48,12 @@ type expoHistogramDataPoint[N int64 | float64] struct {
 	zeroCount  uint64
 }
 
-func newExpoHistogramDataPoint[N int64 | float64](attrs attribute.Set, maxSize int, maxScale int32, noMinMax, noSum bool) *expoHistogramDataPoint[N] { // nolint:revive // we need this control flag
+func newExpoHistogramDataPoint[N int64 | float64](
+	attrs attribute.Set,
+	maxSize int,
+	maxScale int32,
+	noMinMax, noSum bool,
+) *expoHistogramDataPoint[N] { // nolint:revive // we need this control flag
 	f := math.MaxFloat64
 	ma := N(f) // if N is int64, max will overflow to -9223372036854775808
 	mi := N(-f)
@@ -283,7 +288,12 @@ func (b *expoBuckets) downscale(delta int32) {
 // newExponentialHistogram returns an Aggregator that summarizes a set of
 // measurements as an exponential histogram. Each histogram is scoped by attributes
 // and the aggregation cycle the measurements were made in.
-func newExponentialHistogram[N int64 | float64](maxSize, maxScale int32, noMinMax, noSum bool, limit int, r func(attribute.Set) FilteredExemplarReservoir[N]) *expoHistogram[N] {
+func newExponentialHistogram[N int64 | float64](
+	maxSize, maxScale int32,
+	noMinMax, noSum bool,
+	limit int,
+	r func(attribute.Set) FilteredExemplarReservoir[N],
+) *expoHistogram[N] {
 	return &expoHistogram[N]{
 		noSum:    noSum,
 		noMinMax: noMinMax,
@@ -314,7 +324,12 @@ type expoHistogram[N int64 | float64] struct {
 	start time.Time
 }
 
-func (e *expoHistogram[N]) measure(ctx context.Context, value N, fltrAttr attribute.Set, droppedAttr []attribute.KeyValue) {
+func (e *expoHistogram[N]) measure(
+	ctx context.Context,
+	value N,
+	fltrAttr attribute.Set,
+	droppedAttr []attribute.KeyValue,
+) {
 	// Ignore NaN and infinity.
 	if math.IsInf(float64(value), 0) || math.IsNaN(float64(value)) {
 		return
@@ -360,11 +375,19 @@ func (e *expoHistogram[N]) delta(dest *metricdata.Aggregation) int {
 		hDPts[i].ZeroThreshold = 0.0
 
 		hDPts[i].PositiveBucket.Offset = val.posBuckets.startBin
-		hDPts[i].PositiveBucket.Counts = reset(hDPts[i].PositiveBucket.Counts, len(val.posBuckets.counts), len(val.posBuckets.counts))
+		hDPts[i].PositiveBucket.Counts = reset(
+			hDPts[i].PositiveBucket.Counts,
+			len(val.posBuckets.counts),
+			len(val.posBuckets.counts),
+		)
 		copy(hDPts[i].PositiveBucket.Counts, val.posBuckets.counts)
 
 		hDPts[i].NegativeBucket.Offset = val.negBuckets.startBin
-		hDPts[i].NegativeBucket.Counts = reset(hDPts[i].NegativeBucket.Counts, len(val.negBuckets.counts), len(val.negBuckets.counts))
+		hDPts[i].NegativeBucket.Counts = reset(
+			hDPts[i].NegativeBucket.Counts,
+			len(val.negBuckets.counts),
+			len(val.negBuckets.counts),
+		)
 		copy(hDPts[i].NegativeBucket.Counts, val.negBuckets.counts)
 
 		if !e.noSum {
@@ -413,11 +436,19 @@ func (e *expoHistogram[N]) cumulative(dest *metricdata.Aggregation) int {
 		hDPts[i].ZeroThreshold = 0.0
 
 		hDPts[i].PositiveBucket.Offset = val.posBuckets.startBin
-		hDPts[i].PositiveBucket.Counts = reset(hDPts[i].PositiveBucket.Counts, len(val.posBuckets.counts), len(val.posBuckets.counts))
+		hDPts[i].PositiveBucket.Counts = reset(
+			hDPts[i].PositiveBucket.Counts,
+			len(val.posBuckets.counts),
+			len(val.posBuckets.counts),
+		)
 		copy(hDPts[i].PositiveBucket.Counts, val.posBuckets.counts)
 
 		hDPts[i].NegativeBucket.Offset = val.negBuckets.startBin
-		hDPts[i].NegativeBucket.Counts = reset(hDPts[i].NegativeBucket.Counts, len(val.negBuckets.counts), len(val.negBuckets.counts))
+		hDPts[i].NegativeBucket.Counts = reset(
+			hDPts[i].NegativeBucket.Counts,
+			len(val.negBuckets.counts),
+			len(val.negBuckets.counts),
+		)
 		copy(hDPts[i].NegativeBucket.Counts, val.negBuckets.counts)
 
 		if !e.noSum {
