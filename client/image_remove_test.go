@@ -11,6 +11,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client/handle"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -20,7 +21,7 @@ func TestImageRemoveError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.ImageRemove(context.Background(), "image_id", ImageRemoveOptions{})
+	_, err = client.ImageRemove(context.Background(), handle.FromString("image_id"), ImageRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -28,7 +29,7 @@ func TestImageRemoveImageNotFound(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusNotFound, "no such image: unknown")))
 	assert.NilError(t, err)
 
-	_, err = client.ImageRemove(context.Background(), "unknown", ImageRemoveOptions{})
+	_, err = client.ImageRemove(context.Background(), handle.FromString("unknown"), ImageRemoveOptions{})
 	assert.Check(t, is.ErrorContains(err, "no such image: unknown"))
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
@@ -106,7 +107,7 @@ func TestImageRemove(t *testing.T) {
 			opts.Platforms = []ocispec.Platform{*removeCase.platform}
 		}
 
-		imageDeletes, err := client.ImageRemove(context.Background(), "image_id", opts)
+		imageDeletes, err := client.ImageRemove(context.Background(), handle.FromString("image_id"), opts)
 		assert.NilError(t, err)
 		assert.Check(t, is.Len(imageDeletes, 2))
 	}

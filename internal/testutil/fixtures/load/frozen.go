@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/handle"
 	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/term"
 	"github.com/pkg/errors"
@@ -73,7 +74,7 @@ func FrozenImagesLinux(ctx context.Context, apiClient client.APIClient, images .
 			if err := apiClient.ImageTag(ctx, img.srcName, img.destName); err != nil {
 				return errors.Wrapf(err, "failed to tag %s as %s", img.srcName, img.destName)
 			}
-			if _, err := apiClient.ImageRemove(ctx, img.srcName, client.ImageRemoveOptions{}); err != nil {
+			if _, err := apiClient.ImageRemove(ctx, handle.FromString(img.srcName), client.ImageRemoveOptions{}); err != nil {
 				return errors.Wrapf(err, "failed to remove %s", img.srcName)
 			}
 		}
@@ -174,7 +175,7 @@ func pullTagAndRemove(ctx context.Context, apiClient client.APIClient, ref strin
 	if err := apiClient.ImageTag(ctx, ref, tag); err != nil {
 		return errors.Wrapf(err, "failed to tag %s as %s", ref, tag)
 	}
-	_, err = apiClient.ImageRemove(ctx, ref, client.ImageRemoveOptions{})
+	_, err = apiClient.ImageRemove(ctx, handle.FromString(ref), client.ImageRemoveOptions{})
 	return errors.Wrapf(err, "failed to remove %s", ref)
 }
 

@@ -18,6 +18,7 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
 	"github.com/moby/moby/client"
+	handle "github.com/moby/moby/client/handle"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"github.com/moby/moby/v2/internal/testutil/registry"
 	"github.com/opencontainers/go-digest"
@@ -218,7 +219,7 @@ func TestImagePullKeepOldAsDangling(t *testing.T) {
 
 	assert.NilError(t, apiClient.ImageTag(ctx, "busybox:latest", "alpine:latest"))
 
-	_, err = apiClient.ImageRemove(ctx, "busybox:latest", client.ImageRemoveOptions{})
+	_, err = apiClient.ImageRemove(ctx, handle.FromString("busybox:latest"), client.ImageRemoveOptions{})
 	assert.NilError(t, err)
 
 	rc, err := apiClient.ImagePull(ctx, "alpine:latest", client.ImagePullOptions{})
