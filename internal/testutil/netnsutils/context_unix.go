@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"runtime"
 	"strconv"
+	"sync"
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
@@ -15,12 +16,31 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// osContextLock makes sure only one OSContext is active at a time, since
+// the namespace and netlink handles (initNs and initNl) in package ns are
+// reset when the OSContext is created, and again when it's cleaned up.
+var osContextLock sync.Mutex
+
 // OSContext is a handle to a test OS context.
 type OSContext struct {
 	origNS, newNS netns.NsHandle
 
-	tid    int
-	caller string // The file:line where SetupTestOSContextEx was called, for interpolating into error messages.
+	tid          int
+	caller       string // The file:line where SetupTestOSContextEx was called, for interpolating into error messages.
+	setNsHandles bool   // See [WithSetNsHandles].
+}
+
+// WithSetNsHandles is an option for [SetupTestOSContext]/[SetupTestOSContextEx],
+// value false prevents reset of the namespace and netlink handles in package ns.
+// This allows multiple OSContext instances to be active at the same time,
+// but means code that relies on package ns, including [ns.NlHandle], will
+// not work correctly. So, it's useful for tests that want clean network
+// namespaces for parallel subtests, as long as they don't use package ns.
+// The default is true.
+func WithSetNsHandles(p bool) func(*OSContext) {
+	return func(c *OSContext) {
+		c.setNsHandles = p
+	}
 }
 
 // SetupTestOSContext joins the current goroutine to a new network namespace,
@@ -29,8 +49,8 @@ type OSContext struct {
 // Example usage:
 //
 //	defer SetupTestOSContext(t)()
-func SetupTestOSContext(t *testing.T) func() {
-	c := SetupTestOSContextEx(t)
+func SetupTestOSContext(t *testing.T, opts ...func(*OSContext)) func() {
+	c := SetupTestOSContextEx(t, opts...)
 	return func() { c.Cleanup(t) }
 }
 
@@ -44,7 +64,19 @@ func SetupTestOSContext(t *testing.T) func() {
 //
 //	c := SetupTestOSContext(t)
 //	defer c.Cleanup(t)
-func SetupTestOSContextEx(t *testing.T) *OSContext {
+func SetupTestOSContextEx(t *testing.T, opts ...func(*OSContext)) *OSContext {
+	c := OSContext{
+		setNsHandles: true,
+	}
+	for _, o := range opts {
+		o(&c)
+	}
+	// If the namespace/netlink handles in package ns are to be reset, make sure
+	// only one OSContext is active at a time.
+	if c.setNsHandles {
+		osContextLock.Lock()
+	}
+
 	runtime.LockOSThread()
 	origNS, err := netns.Get()
 	if err != nil {
@@ -52,10 +84,8 @@ func SetupTestOSContextEx(t *testing.T) *OSContext {
 		t.Fatalf("Failed to open initial netns: %v", err)
 	}
 
-	c := OSContext{
-		tid:    unix.Gettid(),
-		origNS: origNS,
-	}
+	c.tid = unix.Gettid()
+	c.origNS = origNS
 	c.newNS, err = netns.New()
 	if err != nil {
 		// netns.New() is not atomic: it could have encountered an error
@@ -66,7 +96,9 @@ func SetupTestOSContextEx(t *testing.T) *OSContext {
 
 	// Since we are switching to a new test namespace make
 	// sure to re-initialize initNs context
-	ns.Init()
+	if c.setNsHandles {
+		ns.ResetHandles()
+	}
 
 	nl := ns.NlHandle()
 	lo, err := nl.LinkByName("lo")
@@ -101,7 +133,10 @@ func (c *OSContext) Cleanup(t *testing.T) {
 		t.Logf("Warning: netns closing failed (%v)", err)
 	}
 	c.restore(t)
-	ns.Init()
+	if c.setNsHandles {
+		ns.ResetHandles()
+		osContextLock.Unlock()
+	}
 }
 
 func (c *OSContext) restore(t *testing.T) {

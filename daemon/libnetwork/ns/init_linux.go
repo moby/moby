@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"syscall"
+	"testing"
 	"time"
 
 	"github.com/containerd/log"
@@ -13,15 +14,15 @@ import (
 )
 
 var (
-	initNs   netns.NsHandle
+	initNs   = netns.None()
 	initNl   nlwrap.Handle
 	initOnce sync.Once
 	// NetlinkSocketsTimeout represents the default timeout duration for the sockets
 	NetlinkSocketsTimeout = 3 * time.Second
 )
 
-// Init initializes a new network namespace
-func Init() {
+// initHandles initializes a new network namespace
+func initHandles() {
 	var err error
 	initNs, err = netns.Get()
 	if err != nil {
@@ -37,6 +38,24 @@ func Init() {
 	}
 }
 
+// ResetHandles resets the initial namespace and netlink handles.
+// This is useful for testing to ensure a clean state. It will
+// panic if called outside a test.
+func ResetHandles() {
+	if !testing.Testing() {
+		panic("ResetHandles should only be called from tests")
+	}
+	if initNs.IsOpen() {
+		initNs.Close()
+		initNs = netns.None()
+	}
+	if initNl.Handle != nil {
+		initNl.Close()
+		initNl = nlwrap.Handle{}
+	}
+	initOnce = sync.Once{}
+}
+
 // ParseHandlerInt transforms the namespace handler into an integer
 func ParseHandlerInt() int {
 	return int(getHandler())
@@ -44,13 +63,13 @@ func ParseHandlerInt() int {
 
 // GetHandler returns the namespace handler
 func getHandler() netns.NsHandle {
-	initOnce.Do(Init)
+	initOnce.Do(initHandles)
 	return initNs
 }
 
 // NlHandle returns the netlink handler
 func NlHandle() nlwrap.Handle {
-	initOnce.Do(Init)
+	initOnce.Do(initHandles)
 	return initNl
 }
 
