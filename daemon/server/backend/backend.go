@@ -153,7 +153,7 @@ type ExecStartConfig struct {
 // container.
 type CreateImageConfig struct {
 	Tag     reference.NamedTagged
-	Pause   bool
+	NoPause bool
 	Author  string
 	Comment string
 	Config  *container.Config

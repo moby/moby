@@ -144,7 +144,7 @@ func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string,
 		return "", errdefs.Conflict(fmt.Errorf("You cannot commit container %s which is being removed", container.ID))
 	}
 
-	if c.Pause && !container.State.IsPaused() {
+	if !c.NoPause && !container.State.IsPaused() {
 		daemon.containerPause(container)
 		defer daemon.containerUnpause(container)
 	}

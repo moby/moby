@@ -71,8 +71,13 @@ func (c *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter,
 		return errdefs.InvalidParameter(err)
 	}
 
+	var noPause bool
+	if r.Form.Has("pause") && !httputils.BoolValue(r, "pause") {
+		noPause = true
+	}
+
 	imgID, err := c.backend.CreateImageFromContainer(ctx, r.Form.Get("container"), &backend.CreateImageConfig{
-		Pause:   httputils.BoolValueOrDefault(r, "pause", true), // TODO(dnephin): remove pause arg, and always pause in backend
+		NoPause: noPause,
 		Tag:     ref,
 		Author:  r.Form.Get("author"),
 		Comment: r.Form.Get("comment"),
