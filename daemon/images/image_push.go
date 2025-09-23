@@ -2,22 +2,32 @@ package images
 
 import (
 	"context"
-	"io"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/moby/moby/api/pkg/progress"
-	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/daemon/internal/distribution"
 	progressutils "github.com/moby/moby/v2/daemon/internal/distribution/utils"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // PushImage initiates a push operation on the repository named localName.
-func (i *ImageService) PushImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error {
+// func (i *ImageService) PushImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error {
+func (i *ImageService) PushImage(ctx context.Context, ref reference.Named, options imagebackend.PushOptions) error {
+	if len(options.Platforms) > 1 {
+		// TODO(thaJeztah): add support for pushing multiple platforms
+		return cerrdefs.ErrInvalidArgument.WithMessage("multiple platforms is not supported")
+	}
+	var platform *ocispec.Platform
+	if len(options.Platforms) > 0 {
+		p := options.Platforms[0]
+		platform = &p
+	}
 	if platform != nil {
 		// Check if the image is actually the platform we want to push.
 		_, err := i.GetImage(ctx, ref.String(), backend.GetImageOpts{Platform: platform})
@@ -35,14 +45,14 @@ func (i *ImageService) PushImage(ctx context.Context, ref reference.Named, platf
 	ctx, cancelFunc := context.WithCancel(ctx)
 
 	go func() {
-		progressutils.WriteDistributionProgress(cancelFunc, outStream, progressChan)
+		progressutils.WriteDistributionProgress(cancelFunc, options.OutStream, progressChan)
 		close(writesDone)
 	}()
 
 	imagePushConfig := &distribution.ImagePushConfig{
 		Config: distribution.Config{
-			MetaHeaders:      metaHeaders,
-			AuthConfig:       authConfig,
+			MetaHeaders:      options.MetaHeaders,
+			AuthConfig:       options.AuthConfig,
 			ProgressOutput:   progress.ChanOutput(progressChan),
 			RegistryService:  i.registryService,
 			ImageEventLogger: i.LogImageEvent,

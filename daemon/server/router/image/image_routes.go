@@ -222,8 +222,15 @@ func (ir *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter
 			platform = p
 		}
 	}
-
-	if err := ir.backend.PushImage(ctx, ref, platform, metaHeaders, authConfig, output); err != nil {
+	pushOptions := imagebackend.PushOptions{
+		AuthConfig:  authConfig,
+		MetaHeaders: metaHeaders,
+		OutStream:   output,
+	}
+	if platform != nil {
+		pushOptions.Platforms = append(pushOptions.Platforms, *platform)
+	}
+	if err := ir.backend.PushImage(ctx, ref, pushOptions); err != nil {
 		if !output.Flushed() {
 			return err
 		}

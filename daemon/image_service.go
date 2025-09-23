@@ -9,7 +9,6 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
 	imagetype "github.com/moby/moby/api/types/image"
-	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/images"
@@ -29,7 +28,7 @@ type ImageService interface {
 	// Images
 
 	PullImage(ctx context.Context, ref reference.Named, options imagebackend.PullOptions) error
-	PushImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error
+	PushImage(ctx context.Context, ref reference.Named, options imagebackend.PushOptions) error
 	CreateImage(ctx context.Context, config []byte, parent string, contentStoreDigest digest.Digest) (builder.Image, error)
 	ImageDelete(ctx context.Context, imageRef string, options imagebackend.RemoveOptions) ([]imagetype.DeleteResponse, error)
 	ExportImage(ctx context.Context, names []string, platformList []ocispec.Platform, outStream io.Writer) error

@@ -16,6 +16,13 @@ type PullOptions struct {
 	OutStream   io.Writer
 }
 
+type PushOptions struct {
+	Platforms   []ocispec.Platform
+	MetaHeaders http.Header
+	AuthConfig  *registry.AuthConfig
+	OutStream   io.Writer
+}
+
 type RemoveOptions struct {
 	Platforms     []ocispec.Platform
 	Force         bool
