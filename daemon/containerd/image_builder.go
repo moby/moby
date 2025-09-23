@@ -34,6 +34,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/buildbackend"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
@@ -147,7 +148,14 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 		pullRegistryAuth = &resolvedConfig
 	}
 
-	if err := i.PullImage(ctx, reference.TagNameOnly(ref), platform, nil, pullRegistryAuth, output); err != nil {
+	pullOptions := imagebackend.PullOptions{
+		AuthConfig: pullRegistryAuth,
+		OutStream:  output,
+	}
+	if platform != nil {
+		pullOptions.Platforms = append(pullOptions.Platforms, *platform)
+	}
+	if err := i.PullImage(ctx, reference.TagNameOnly(ref), pullOptions); err != nil {
 		return nil, err
 	}
 

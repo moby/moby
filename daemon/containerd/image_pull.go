@@ -3,7 +3,6 @@ package containerd
 import (
 	"context"
 	"fmt"
-	"io"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -23,6 +22,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/distribution"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -30,14 +30,18 @@ import (
 
 // PullImage initiates a pull operation. baseRef is the image to pull.
 // If reference is not tagged, all tags are pulled.
-func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, outStream io.Writer) (retErr error) {
+func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, options imagebackend.PullOptions) (retErr error) {
+	if len(options.Platforms) > 1 {
+		// TODO(thaJeztah): add support for pulling multiple platforms
+		return cerrdefs.ErrInvalidArgument.WithMessage("multiple platforms is not supported")
+	}
 	start := time.Now()
 	defer func() {
 		if retErr == nil {
 			metrics.ImageActions.WithValues("pull").UpdateSince(start)
 		}
 	}()
-	out := streamformatter.NewJSONProgressOutput(outStream, false)
+	out := streamformatter.NewJSONProgressOutput(options.OutStream, false)
 
 	ctx, done, err := i.withLease(ctx, true)
 	if err != nil {
@@ -45,14 +49,20 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, p
 	}
 	defer done()
 
+	var platform *ocispec.Platform
+	if len(options.Platforms) > 0 {
+		p := options.Platforms[0]
+		platform = &p
+	}
+
 	if !reference.IsNameOnly(baseRef) {
-		return i.pullTag(ctx, baseRef, platform, metaHeaders, authConfig, out)
+		return i.pullTag(ctx, baseRef, platform, options.MetaHeaders, options.AuthConfig, out)
 	}
 
 	tags, err := distribution.Tags(ctx, baseRef, &distribution.Config{
 		RegistryService: i.registryService,
-		MetaHeaders:     metaHeaders,
-		AuthConfig:      authConfig,
+		MetaHeaders:     options.MetaHeaders,
+		AuthConfig:      options.AuthConfig,
 	})
 	if err != nil {
 		return err
@@ -68,7 +78,7 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, p
 			continue
 		}
 
-		if err := i.pullTag(ctx, ref, platform, metaHeaders, authConfig, out); err != nil {
+		if err := i.pullTag(ctx, ref, platform, options.MetaHeaders, options.AuthConfig, out); err != nil {
 			return fmt.Errorf("error pulling %s: %w", ref, err)
 		}
 	}

@@ -39,8 +39,8 @@ type importExportBackend interface {
 }
 
 type registryBackend interface {
-	PullImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error
-	PushImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error
+	PullImage(ctx context.Context, ref reference.Named, options imagebackend.PullOptions) error
+	PushImage(ctx context.Context, ref reference.Named, options imagebackend.PushOptions) error
 }
 
 type Searcher interface {

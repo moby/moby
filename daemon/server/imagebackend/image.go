@@ -1,9 +1,27 @@
 package imagebackend
 
 import (
+	"io"
+	"net/http"
+
 	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
+
+type PullOptions struct {
+	Platforms   []ocispec.Platform
+	MetaHeaders http.Header
+	AuthConfig  *registry.AuthConfig
+	OutStream   io.Writer
+}
+
+type PushOptions struct {
+	Platforms   []ocispec.Platform
+	MetaHeaders http.Header
+	AuthConfig  *registry.AuthConfig
+	OutStream   io.Writer
+}
 
 type RemoveOptions struct {
 	Platforms     []ocispec.Platform

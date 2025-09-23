@@ -3,7 +3,6 @@ package containerd
 import (
 	"context"
 	"fmt"
-	"io"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +22,7 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -40,14 +40,23 @@ import (
 // pointing to the new target repository. This will allow subsequent pushes
 // to perform cross-repo mounts of the shared content when pushing to a different
 // repository on the same registry.
-func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) (retErr error) {
+func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named, options imagebackend.PushOptions) (retErr error) {
+	if len(options.Platforms) > 1 {
+		// TODO(thaJeztah): add support for pushing multiple platforms
+		return cerrdefs.ErrInvalidArgument.WithMessage("multiple platforms is not supported")
+	}
 	start := time.Now()
 	defer func() {
 		if retErr == nil {
 			metrics.ImageActions.WithValues("push").UpdateSince(start)
 		}
 	}()
-	out := streamformatter.NewJSONProgressOutput(outStream, false)
+	var platform *ocispec.Platform
+	if len(options.Platforms) > 0 {
+		p := options.Platforms[0]
+		platform = &p
+	}
+	out := streamformatter.NewJSONProgressOutput(options.OutStream, false)
 	progress.Messagef(out, "", "The push refers to repository [%s]", sourceRef.Name())
 
 	if _, tagged := sourceRef.(reference.Tagged); !tagged {
@@ -75,7 +84,7 @@ func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named,
 					continue
 				}
 
-				if err := i.pushRef(ctx, named, platform, metaHeaders, authConfig, out); err != nil {
+				if err := i.pushRef(ctx, named, platform, options.MetaHeaders, options.AuthConfig, out); err != nil {
 					return err
 				}
 			}
@@ -84,7 +93,7 @@ func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named,
 		}
 	}
 
-	return i.pushRef(ctx, sourceRef, platform, metaHeaders, authConfig, out)
+	return i.pushRef(ctx, sourceRef, platform, options.MetaHeaders, options.AuthConfig, out)
 }
 
 func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, out progress.Output) (retErr error) {
