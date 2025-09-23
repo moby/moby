@@ -16,11 +16,14 @@ import (
 	"github.com/moby/moby/v2/pkg/useragent"
 )
 
-func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig *registrytypes.AuthConfig, ref reference.Named) (remotes.Resolver, docker.StatusTracker) {
+func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig *registrytypes.AuthConfig, ref reference.Named, metaHeaders http.Header) (remotes.Resolver, docker.StatusTracker) {
 	tracker := docker.NewInMemoryTracker()
 
 	hosts := hostsWrapper(i.registryHosts, authConfig, ref)
 	headers := http.Header{}
+	if metaHeaders != nil {
+		headers = metaHeaders.Clone()
+	}
 	headers.Set("User-Agent", dockerversion.DockerUserAgent(ctx, useragent.VersionInfo{Name: "containerd-client", Version: version.Version}, useragent.VersionInfo{Name: "storage-driver", Version: i.snapshotter}))
 
 	return docker.NewResolver(docker.ResolverOptions{
