@@ -56,7 +56,7 @@ func (sb *Sandbox) rebuildHostsFile(ctx context.Context) error {
 	return nil
 }
 
-func (sb *Sandbox) startResolver(restore bool) {
+func (sb *Sandbox) startResolver(ctx context.Context, restore bool) {
 	sb.resolverOnce.Do(func() {
 		var err error
 		// The resolver is started with proxyDNS=false if the sandbox does not currently
@@ -77,19 +77,19 @@ func (sb *Sandbox) startResolver(restore bool) {
 		if !restore {
 			err = sb.rebuildDNS()
 			if err != nil {
-				log.G(context.TODO()).Errorf("Updating resolv.conf failed for container %s, %q", sb.ContainerID(), err)
+				log.G(ctx).Errorf("Updating resolv.conf failed for container %s, %q", sb.ContainerID(), err)
 				return
 			}
 		}
 		sb.resolver.SetExtServers(sb.extDNS)
 
 		if err = sb.osSbox.InvokeFunc(sb.resolver.SetupFunc(0)); err != nil {
-			log.G(context.TODO()).Errorf("Resolver Setup function failed for container %s, %q", sb.ContainerID(), err)
+			log.G(ctx).Errorf("Resolver Setup function failed for container %s, %q", sb.ContainerID(), err)
 			return
 		}
 
-		if err = sb.resolver.Start(); err != nil {
-			log.G(context.TODO()).Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
+		if err = sb.resolver.Start(ctx); err != nil {
+			log.G(ctx).Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
 		}
 	})
 }

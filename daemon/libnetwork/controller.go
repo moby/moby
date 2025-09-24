@@ -833,7 +833,7 @@ func (c *Controller) addNetwork(ctx context.Context, n *Network) error {
 		return err
 	}
 
-	n.startResolver()
+	n.startResolver(ctx)
 
 	return nil
 }

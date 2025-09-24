@@ -171,7 +171,7 @@ func (r *Resolver) SetupFunc(port uint16) func() {
 }
 
 // Start starts the name server for the container.
-func (r *Resolver) Start() error {
+func (r *Resolver) Start(ctx context.Context) error {
 	r.startCh <- struct{}{}
 	defer func() { <-r.startCh }()
 
@@ -180,7 +180,7 @@ func (r *Resolver) Start() error {
 		return r.err
 	}
 
-	if err := r.setupNAT(context.TODO()); err != nil {
+	if err := r.setupNAT(ctx); err != nil {
 		return fmt.Errorf("setting up DNAT/SNAT rules failed: %v", err)
 	}
 
@@ -188,7 +188,7 @@ func (r *Resolver) Start() error {
 	r.server = s
 	go func() {
 		if err := s.ActivateAndServe(); err != nil {
-			r.log(context.TODO()).WithError(err).Error("[resolver] failed to start PacketConn DNS server")
+			r.log(context.Background()).WithError(err).Error("[resolver] PacketConn DNS server failed")
 		}
 	}()
 
@@ -196,7 +196,7 @@ func (r *Resolver) Start() error {
 	r.tcpServer = tcpServer
 	go func() {
 		if err := tcpServer.ActivateAndServe(); err != nil {
-			r.log(context.TODO()).WithError(err).Error("[resolver] failed to start TCP DNS server")
+			r.log(context.Background()).WithError(err).Error("[resolver] TCP DNS server failed")
 		}
 	}()
 	return nil
