@@ -34,7 +34,6 @@ func (daemon *Daemon) fillPlatformInfo(ctx context.Context, v *system.Info, sysI
 	if v.CgroupDriver != cgroupNoneDriver {
 		v.MemoryLimit = sysInfo.MemoryLimit
 		v.SwapLimit = sysInfo.SwapLimit
-		v.KernelMemory = sysInfo.KernelMemory
 		v.KernelMemoryTCP = sysInfo.KernelMemoryTCP
 		v.OomKillDisable = sysInfo.OomKillDisable
 		v.CPUCfsPeriod = sysInfo.CPUCfs

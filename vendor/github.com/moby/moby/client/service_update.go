@@ -8,7 +8,6 @@ import (
 
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
-	"github.com/moby/moby/api/types/versions"
 )
 
 // ServiceUpdate updates a Service. The version number is required to avoid
@@ -29,6 +28,9 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 	if err := cli.checkVersion(ctx); err != nil {
 		return swarm.ServiceUpdateResponse{}, err
 	}
+	if err := validateServiceSpec(service, cli.version); err != nil {
+		return swarm.ServiceUpdateResponse{}, err
+	}
 
 	query := url.Values{}
 	if options.RegistryAuthFrom != "" {
@@ -40,10 +42,6 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 	}
 
 	query.Set("version", version.String())
-
-	if err := validateServiceSpec(service); err != nil {
-		return swarm.ServiceUpdateResponse{}, err
-	}
 
 	// ensure that the image is tagged
 	var resolveWarning string
@@ -65,12 +63,6 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 	}
 
 	headers := http.Header{}
-	if versions.LessThan(cli.version, "1.30") {
-		// the custom "version" header was used by engine API before 20.10
-		// (API 1.30) to switch between client- and server-side lookup of
-		// image digests.
-		headers["version"] = []string{cli.version}
-	}
 	if options.EncodedRegistryAuth != "" {
 		headers.Set(registry.AuthHeader, options.EncodedRegistryAuth)
 	}

@@ -74,9 +74,6 @@ type Inspect = network.Inspect
 // be included when listing networks.
 type Summary = network.Summary
 
-// Address represents an IP address
-type Address = network.Address
-
 // PeerInfo represents one peer of an overlay network
 type PeerInfo = network.PeerInfo
 

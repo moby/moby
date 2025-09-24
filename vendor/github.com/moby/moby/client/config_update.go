@@ -13,9 +13,6 @@ func (cli *Client) ConfigUpdate(ctx context.Context, id string, version swarm.Ve
 	if err != nil {
 		return err
 	}
-	if err := cli.NewVersionError(ctx, "1.30", "config update"); err != nil {
-		return err
-	}
 	query := url.Values{}
 	query.Set("version", version.String())
 	resp, err := cli.post(ctx, "/configs/"+id+"/update", query, config, nil)

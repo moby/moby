@@ -22,6 +22,8 @@ type IPAMConfig struct {
 	AuxAddress map[string]string `json:"AuxiliaryAddresses,omitempty"`
 }
 
+type SubnetStatuses = map[netip.Prefix]SubnetStatus
+
 type ipFamily string
 
 const (

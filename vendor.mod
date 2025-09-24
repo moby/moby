@@ -9,8 +9,8 @@ go 1.24.0
 
 replace (
 	// FIXME(thaJeztah): temporarily need to pin on commits, otherwise go modules won't resolve until these are tagged.
-	github.com/moby/moby/api => github.com/moby/moby/api v1.52.0-beta.1 // master
-	github.com/moby/moby/client => github.com/moby/moby/client v0.1.0-beta.0 // master
+	github.com/moby/moby/api => github.com/moby/moby/api v1.52.0-beta.1.0.20250924115138-dcf5db2464b2 // master
+	github.com/moby/moby/client => github.com/moby/moby/client v0.1.0-beta.0.0.20250924115138-dcf5db2464b2 // master
 )
 
 require (

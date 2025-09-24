@@ -113,19 +113,19 @@ type ExecCreateResponse = container.ExecCreateResponse
 
 // ExecOptions is a small subset of the Config struct that holds the configuration
 // for the exec feature of docker.
-type ExecOptions = container.ExecOptions
+type ExecOptions = client.ExecCreateOptions
 
 // ExecStartOptions is a temp struct used by execStart
 // Config fields is part of ExecConfig in runconfig package
-type ExecStartOptions = container.ExecStartOptions
+type ExecStartOptions = client.ExecStartOptions
 
 // ExecAttachOptions is a temp struct used by execAttach.
 //
 // TODO(thaJeztah): make this a separate type; ContainerExecAttach does not use the Detach option, and cannot run detached.
-type ExecAttachOptions = container.ExecAttachOptions
+type ExecAttachOptions = client.ExecAttachOptions
 
 // ExecInspect holds information returned by exec inspect.
-type ExecInspect = container.ExecInspect
+type ExecInspect = client.ExecInspect
 
 // FilesystemChange Change in the container's filesystem.
 type FilesystemChange = container.FilesystemChange
@@ -259,17 +259,6 @@ type UpdateConfig = container.UpdateConfig
 // Here, "non-portable" means "dependent of the host we are running on".
 // Portable information *should* appear in Config.
 type HostConfig = container.HostConfig
-
-// NetworkSettings exposes the network settings in the api
-type NetworkSettings = container.NetworkSettings
-
-// NetworkSettingsBase holds networking state for a container when inspecting it.
-type NetworkSettingsBase = container.NetworkSettingsBase
-
-// DefaultNetworkSettings holds network information
-// during the 2 release deprecation period.
-// It will be removed in Docker 1.11.
-type DefaultNetworkSettings = container.DefaultNetworkSettings
 
 // NetworkSettingsSummary provides a summary of container's networks
 // in /containers/json

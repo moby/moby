@@ -28,16 +28,6 @@ type CreateRequest struct {
 	ConfigFrom *ConfigReference  // ConfigFrom specifies the source which will provide the configuration for this network. The specified network must be a config-only network; see [CreateOptions.ConfigOnly].
 	Options    map[string]string // Options specifies the network-specific options to use for when creating the network.
 	Labels     map[string]string // Labels holds metadata specific to the network being created.
-
-	// Deprecated: CheckDuplicate is deprecated since API v1.44, but it defaults to true when sent by the client
-	// package to older daemons.
-	CheckDuplicate *bool `json:",omitempty"`
-}
-
-// Address represents an IP address
-type Address struct {
-	Addr      string
-	PrefixLen int
 }
 
 // ServiceInfo represents service parameters with the list of service's tasks

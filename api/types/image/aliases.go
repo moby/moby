@@ -105,7 +105,18 @@ type LoadOptions struct {
 	Platforms []ocispec.Platform
 }
 
-type InspectOptions = client.ImageInspectOptions
+// ImageInspectOptions holds parameters to inspect images.
+//
+// FIXME(thaJeztah): no longer exported in client: either deprecate or export in client
+type ImageInspectOptions struct {
+	// Manifests returns the image manifests.
+	Manifests bool
+
+	// Platform selects the specific platform of a multi-platform image to inspect.
+	//
+	// This option is only available for API version 1.49 and up.
+	Platform *ocispec.Platform
+}
 
 // SaveOptions holds parameters to save images.
 //

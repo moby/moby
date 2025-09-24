@@ -15,9 +15,6 @@ func (cli *Client) VolumeUpdate(ctx context.Context, volumeID string, version sw
 	if err != nil {
 		return err
 	}
-	if err := cli.NewVersionError(ctx, "1.42", "volume update"); err != nil {
-		return err
-	}
 
 	query := url.Values{}
 	query.Set("version", version.String())

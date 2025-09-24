@@ -16,7 +16,7 @@ type ContainerCommitOptions struct {
 	Comment   string
 	Author    string
 	Changes   []string
-	Pause     bool
+	NoPause   bool // NoPause disables pausing the container during commit.
 	Config    *container.Config
 }
 
@@ -54,7 +54,7 @@ func (cli *Client) ContainerCommit(ctx context.Context, containerID string, opti
 	for _, change := range options.Changes {
 		query.Add("changes", change)
 	}
-	if !options.Pause {
+	if options.NoPause {
 		query.Set("pause", "0")
 	}
 

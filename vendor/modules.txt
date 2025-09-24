@@ -942,7 +942,7 @@ github.com/moby/ipvs
 # github.com/moby/locker v1.0.1
 ## explicit; go 1.13
 github.com/moby/locker
-# github.com/moby/moby/api v1.52.0-beta.1 => github.com/moby/moby/api v1.52.0-beta.1
+# github.com/moby/moby/api v1.52.0-beta.1 => github.com/moby/moby/api v1.52.0-beta.1.0.20250924115138-dcf5db2464b2
 ## explicit; go 1.23.0
 github.com/moby/moby/api/pkg/authconfig
 github.com/moby/moby/api/types
@@ -964,7 +964,7 @@ github.com/moby/moby/api/types/swarm
 github.com/moby/moby/api/types/system
 github.com/moby/moby/api/types/versions
 github.com/moby/moby/api/types/volume
-# github.com/moby/moby/client v0.1.0-beta.0 => github.com/moby/moby/client v0.1.0-beta.0
+# github.com/moby/moby/client v0.1.0-beta.0 => github.com/moby/moby/client v0.1.0-beta.0.0.20250924115138-dcf5db2464b2
 ## explicit; go 1.23.0
 github.com/moby/moby/client
 github.com/moby/moby/client/internal/timestamp
@@ -1757,5 +1757,5 @@ tags.cncf.io/container-device-interface/pkg/parser
 # tags.cncf.io/container-device-interface/specs-go v1.0.0
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
-# github.com/moby/moby/api => github.com/moby/moby/api v1.52.0-beta.1
-# github.com/moby/moby/client => github.com/moby/moby/client v0.1.0-beta.0
+# github.com/moby/moby/api => github.com/moby/moby/api v1.52.0-beta.1.0.20250924115138-dcf5db2464b2
+# github.com/moby/moby/client => github.com/moby/moby/client v0.1.0-beta.0.0.20250924115138-dcf5db2464b2

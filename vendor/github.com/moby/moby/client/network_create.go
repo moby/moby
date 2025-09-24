@@ -34,12 +34,29 @@ func (cli *Client) NetworkCreate(ctx context.Context, name string, options Netwo
 		Options:    options.Options,
 		Labels:     options.Labels,
 	}
+
+	var req any
 	if versions.LessThan(cli.version, "1.44") {
-		enabled := true
-		networkCreateRequest.CheckDuplicate = &enabled //nolint:staticcheck // ignore SA1019: CheckDuplicate is deprecated since API v1.44.
+		// CheckDuplicate is removed in API v1.44, and no longer used by
+		// daemons supporting that API version (v25.0.0-beta.1 and up)
+		// regardless of the API version used, but it must be set to true
+		// when sent to older daemons.
+		//
+		// TODO(thaJeztah) remove this once daemon versions v24.0 and lower are no
+		//   longer expected to be used (when Mirantis Container Runtime v23
+		//   is EOL);  https://github.com/moby/moby/blob/v2.0.0-beta.0/project/BRANCHES-AND-TAGS.md
+		req = struct {
+			network.CreateRequest
+			CheckDuplicate bool
+		}{
+			CreateRequest:  networkCreateRequest,
+			CheckDuplicate: true,
+		}
+	} else {
+		req = networkCreateRequest
 	}
 
-	resp, err := cli.post(ctx, "/networks/create", nil, networkCreateRequest, nil)
+	resp, err := cli.post(ctx, "/networks/create", nil, req, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return network.CreateResponse{}, err

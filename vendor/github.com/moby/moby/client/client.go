@@ -275,7 +275,7 @@ func (cli *Client) checkVersion(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		cli.negotiateAPIVersionPing(ping)
+		cli.negotiateAPIVersionPing(ping.APIVersion)
 	}
 	return nil
 }
@@ -324,7 +324,7 @@ func (cli *Client) NegotiateAPIVersion(ctx context.Context) {
 			// FIXME(thaJeztah): Ping returns an error when failing to connect to the API; we should not swallow the error here, and instead returning it.
 			return
 		}
-		cli.negotiateAPIVersionPing(ping)
+		cli.negotiateAPIVersionPing(ping.APIVersion)
 	}
 }
 
@@ -347,16 +347,18 @@ func (cli *Client) NegotiateAPIVersionPing(pingResponse types.Ping) {
 		cli.negotiateLock.Lock()
 		defer cli.negotiateLock.Unlock()
 
-		cli.negotiateAPIVersionPing(pingResponse)
+		cli.negotiateAPIVersionPing(pingResponse.APIVersion)
 	}
 }
 
 // negotiateAPIVersionPing queries the API and updates the version to match the
 // API version from the ping response.
-func (cli *Client) negotiateAPIVersionPing(pingResponse types.Ping) {
+func (cli *Client) negotiateAPIVersionPing(pingVersion string) {
+	pingVersion = strings.TrimPrefix(pingVersion, "v")
+
 	// default to the latest version before versioning headers existed
-	if pingResponse.APIVersion == "" {
-		pingResponse.APIVersion = fallbackAPIVersion
+	if pingVersion == "" {
+		pingVersion = fallbackAPIVersion
 	}
 
 	// if the client is not initialized with a version, start with the latest supported version
@@ -365,8 +367,8 @@ func (cli *Client) negotiateAPIVersionPing(pingResponse types.Ping) {
 	}
 
 	// if server version is lower than the client version, downgrade
-	if versions.LessThan(pingResponse.APIVersion, cli.version) {
-		cli.version = pingResponse.APIVersion
+	if versions.LessThan(pingVersion, cli.version) {
+		cli.version = pingVersion
 	}
 
 	// Store the results, so that automatic API version negotiation (if enabled)
@@ -379,12 +381,6 @@ func (cli *Client) negotiateAPIVersionPing(pingResponse types.Ping) {
 // DaemonHost returns the host address used by the client
 func (cli *Client) DaemonHost() string {
 	return cli.host
-}
-
-// HTTPClient returns a copy of the HTTP client bound to the server
-func (cli *Client) HTTPClient() *http.Client {
-	c := *cli.client
-	return &c
 }
 
 // ParseHostURL parses a url string, validates the string is a host url, and
