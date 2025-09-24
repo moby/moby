@@ -820,7 +820,7 @@ func (b *badDriver) CreateNetwork(ctx context.Context, nid string, options map[s
 	return nil
 }
 
-func (b *badDriver) DeleteNetwork(nid string) error {
+func (b *badDriver) DeleteNetwork(_ context.Context, nid string) error {
 	return nil
 }
 

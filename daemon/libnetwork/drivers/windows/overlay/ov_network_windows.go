@@ -79,7 +79,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 	existingNetwork := d.network(id)
 	if existingNetwork != nil {
 		log.G(ctx).Debugf("Network preexists. Deleting %s", id)
-		err := d.DeleteNetwork(id)
+		err := d.DeleteNetwork(ctx, id)
 		if err != nil {
 			log.G(ctx).Errorf("Error deleting stale network %s", err.Error())
 		}
@@ -156,7 +156,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 	}
 
 	for _, staleNetwork := range staleNetworks {
-		d.DeleteNetwork(staleNetwork)
+		d.DeleteNetwork(ctx, staleNetwork)
 	}
 
 	n.name = networkName
@@ -185,7 +185,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 	return err
 }
 
-func (d *driver) DeleteNetwork(nid string) error {
+func (d *driver) DeleteNetwork(ctx context.Context, nid string) error {
 	if nid == "" {
 		return fmt.Errorf("invalid network id")
 	}

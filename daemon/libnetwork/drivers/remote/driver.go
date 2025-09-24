@@ -197,7 +197,7 @@ func (d *driver) GetSkipGwAlloc(opts options.Generic) (ipv4, ipv6 bool, _ error)
 	return resp.SkipIPv4, resp.SkipIPv6, nil
 }
 
-func (d *driver) DeleteNetwork(nid string) error {
+func (d *driver) DeleteNetwork(_ context.Context, nid string) error {
 	return d.call("DeleteNetwork", &api.DeleteNetworkRequest{NetworkID: nid}, &api.DeleteNetworkResponse{})
 }
 

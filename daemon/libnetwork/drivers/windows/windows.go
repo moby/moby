@@ -427,7 +427,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 
 		defer func() {
 			if err != nil {
-				d.DeleteNetwork(n.id)
+				d.DeleteNetwork(ctx, n.id)
 			}
 		}()
 
@@ -476,7 +476,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 	return d.storeUpdate(config)
 }
 
-func (d *driver) DeleteNetwork(nid string) error {
+func (d *driver) DeleteNetwork(ctx context.Context, nid string) error {
 	n, err := d.getNetwork(nid)
 	if err != nil {
 		return types.InternalMaskableErrorf("%v", err)
@@ -500,7 +500,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 	// delete endpoints belong to this network
 	for _, ep := range n.endpoints {
 		if err := d.storeDelete(ep); err != nil {
-			log.G(context.TODO()).Warnf("Failed to remove bridge endpoint %.7s from store: %v", ep.id, err)
+			log.G(ctx).Warnf("Failed to remove bridge endpoint %.7s from store: %v", ep.id, err)
 		}
 	}
 

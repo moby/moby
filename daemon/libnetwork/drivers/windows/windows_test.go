@@ -38,7 +38,7 @@ func testNetwork(networkType string, t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 	defer func() {
-		err = d.DeleteNetwork("dummy")
+		err = d.DeleteNetwork(context.Background(), "dummy")
 		if err != nil {
 			t.Fatalf("Failed to create bridge: %v", err)
 		}

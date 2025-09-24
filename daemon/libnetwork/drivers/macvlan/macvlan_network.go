@@ -151,7 +151,7 @@ func (d *driver) parentHasSingleUser(n *network) bool {
 }
 
 // DeleteNetwork deletes the network for the specified driver type
-func (d *driver) DeleteNetwork(nid string) error {
+func (d *driver) DeleteNetwork(ctx context.Context, nid string) error {
 	n := d.network(nid)
 	if n == nil {
 		return fmt.Errorf("network id %s not found", nid)
@@ -162,14 +162,14 @@ func (d *driver) DeleteNetwork(nid string) error {
 		if n.config.Parent == getDummyName(nid) {
 			err := delDummyLink(n.config.Parent)
 			if err != nil {
-				log.G(context.TODO()).Debugf("link %s was not deleted, continuing the delete network operation: %v",
+				log.G(ctx).Debugf("link %s was not deleted, continuing the delete network operation: %v",
 					n.config.Parent, err)
 			}
 		} else {
 			// only delete the link if it matches iface.vlan naming
 			err := delVlanLink(n.config.Parent)
 			if err != nil {
-				log.G(context.TODO()).Debugf("link %s was not deleted, continuing the delete network operation: %v",
+				log.G(ctx).Debugf("link %s was not deleted, continuing the delete network operation: %v",
 					n.config.Parent, err)
 			}
 		}
@@ -177,12 +177,12 @@ func (d *driver) DeleteNetwork(nid string) error {
 	for _, ep := range n.endpoints {
 		if link, err := ns.NlHandle().LinkByName(ep.srcName); err == nil {
 			if err := ns.NlHandle().LinkDel(link); err != nil {
-				log.G(context.TODO()).WithError(err).Warnf("Failed to delete interface (%s)'s link on endpoint (%s) delete", ep.srcName, ep.id)
+				log.G(ctx).WithError(err).Warnf("Failed to delete interface (%s)'s link on endpoint (%s) delete", ep.srcName, ep.id)
 			}
 		}
 
 		if err := d.storeDelete(ep); err != nil {
-			log.G(context.TODO()).Warnf("Failed to remove macvlan endpoint %.7s from store: %v", ep.id, err)
+			log.G(ctx).Warnf("Failed to remove macvlan endpoint %.7s from store: %v", ep.id, err)
 		}
 	}
 	// delete the *network

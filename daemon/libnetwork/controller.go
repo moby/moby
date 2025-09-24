@@ -217,7 +217,7 @@ func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retEr
 	if err := c.cleanupLocalEndpoints(); err != nil {
 		log.G(ctx).WithError(err).Warnf("error during endpoint cleanup")
 	}
-	c.networkCleanup()
+	c.networkCleanup(ctx)
 
 	if err := c.startExternalKeyListener(); err != nil {
 		return nil, err
@@ -658,7 +658,7 @@ func (c *Controller) NewNetwork(ctx context.Context, networkType, name string, i
 	}
 	defer func() {
 		if retErr != nil {
-			if err := nw.deleteNetwork(); err != nil {
+			if err := nw.deleteNetwork(ctx); err != nil {
 				log.G(ctx).Warnf("couldn't roll back driver network on network %s creation failure: %v", nw.name, retErr)
 			}
 		}

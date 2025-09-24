@@ -36,7 +36,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 	return nil
 }
 
-func (d *driver) DeleteNetwork(nid string) error {
+func (d *driver) DeleteNetwork(_ context.Context, nid string) error {
 	return types.ForbiddenErrorf("network of type %q cannot be deleted", NetworkType)
 }
 

@@ -25,7 +25,7 @@ type Driver interface {
 
 	// DeleteNetwork invokes the driver method to delete network passing
 	// the network id.
-	DeleteNetwork(nid string) error
+	DeleteNetwork(ctx context.Context, nid string) error
 
 	// CreateEndpoint invokes the driver method to create an endpoint
 	// passing the network id, endpoint id endpoint information and driver

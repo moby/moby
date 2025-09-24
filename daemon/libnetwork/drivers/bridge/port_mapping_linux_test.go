@@ -862,7 +862,7 @@ func TestAddPortMappings(t *testing.T) {
 			}
 
 			// Release anything that was allocated.
-			err = n.releasePorts(&bridgeEndpoint{portMapping: pbs})
+			err = n.releasePorts(ctx, &bridgeEndpoint{portMapping: pbs})
 			if tc.expReleaseErr == "" {
 				assert.Check(t, err)
 			} else {

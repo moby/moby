@@ -909,14 +909,14 @@ func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration
 	return bridgeSetup.apply(ctx)
 }
 
-func (d *driver) DeleteNetwork(nid string) error {
+func (d *driver) DeleteNetwork(ctx context.Context, nid string) error {
 	d.configNetwork.Lock()
 	defer d.configNetwork.Unlock()
 
-	return d.deleteNetwork(nid)
+	return d.deleteNetwork(ctx, nid)
 }
 
-func (d *driver) deleteNetwork(nid string) error {
+func (d *driver) deleteNetwork(ctx context.Context, nid string) error {
 	var err error
 
 	// Get network handler and remove it from driver
@@ -932,7 +932,7 @@ func (d *driver) deleteNetwork(nid string) error {
 		// with its parent, make sure it's not in the store before reporting that it does
 		// not exist.
 		if err := d.storeDelete(&networkConfiguration{ID: nid}); err != nil && !errors.Is(err, datastore.ErrKeyNotFound) {
-			log.G(context.TODO()).WithFields(log.Fields{
+			log.G(ctx).WithFields(log.Fields{
 				"error":   err,
 				"network": nid,
 			}).Warnf("Failed to delete network from bridge store")
@@ -946,17 +946,17 @@ func (d *driver) deleteNetwork(nid string) error {
 
 	// delete endpoints belong to this network
 	for _, ep := range n.endpoints {
-		if err := n.releasePorts(ep); err != nil {
-			log.G(context.TODO()).Warn(err)
+		if err := n.releasePorts(ctx, ep); err != nil {
+			log.G(ctx).Warn(err)
 		}
 		if link, err := d.nlh.LinkByName(ep.srcName); err == nil {
 			if err := d.nlh.LinkDel(link); err != nil {
-				log.G(context.TODO()).WithError(err).Errorf("Failed to delete interface (%s)'s link on endpoint (%s) delete", ep.srcName, ep.id)
+				log.G(ctx).WithError(err).Errorf("Failed to delete interface (%s)'s link on endpoint (%s) delete", ep.srcName, ep.id)
 			}
 		}
 
 		if err := d.storeDelete(ep); err != nil {
-			log.G(context.TODO()).Warnf("Failed to remove bridge endpoint %.7s from store: %v", ep.id, err)
+			log.G(ctx).Warnf("Failed to remove bridge endpoint %.7s from store: %v", ep.id, err)
 		}
 	}
 
@@ -982,18 +982,18 @@ func (d *driver) deleteNetwork(nid string) error {
 		// it is not the default one (to keep the backward compatible behavior.)
 		if !config.DefaultBridge {
 			if err := d.nlh.LinkDel(n.bridge.Link); err != nil {
-				log.G(context.TODO()).Warnf("Failed to remove bridge interface %s on network %s delete: %v", config.BridgeName, nid, err)
+				log.G(ctx).Warnf("Failed to remove bridge interface %s on network %s delete: %v", config.BridgeName, nid, err)
 			}
 		}
 	case ifaceCreatedByUser:
 		// Don't delete the bridge interface if it was not created by libnetwork.
 	}
 
-	if err := n.firewallerNetwork.DelNetworkLevelRules(context.TODO()); err != nil {
-		log.G(context.TODO()).WithError(err).Warnf("Failed to clean iptables rules for bridge network")
+	if err := n.firewallerNetwork.DelNetworkLevelRules(ctx); err != nil {
+		log.G(ctx).WithError(err).Warnf("Failed to clean iptables rules for bridge network")
 	}
 	if err := iptables.DelInterfaceFirewalld(n.config.BridgeName); err != nil {
-		log.G(context.TODO()).WithError(err).Warnf("Failed to clean firewalld rules for bridge network")
+		log.G(ctx).WithError(err).Warnf("Failed to clean firewalld rules for bridge network")
 	}
 
 	return d.storeDelete(config)
@@ -1479,7 +1479,7 @@ func (d *driver) Leave(ctx context.Context, nid, eid string) error {
 	}
 
 	if endpoint.portMapping != nil {
-		if err := network.releasePorts(endpoint); err != nil {
+		if err := network.releasePorts(ctx, endpoint); err != nil {
 			return err
 		}
 		if err = d.storeUpdate(ctx, endpoint); err != nil {

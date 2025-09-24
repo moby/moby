@@ -490,7 +490,7 @@ func TestRemoteDriver(t *testing.T) {
 	if err = d.DeleteEndpoint(context.Background(), netID, endID); err != nil {
 		t.Fatal(err)
 	}
-	if err = d.DeleteNetwork(netID); err != nil {
+	if err = d.DeleteNetwork(context.Background(), netID); err != nil {
 		t.Fatal(err)
 	}
 

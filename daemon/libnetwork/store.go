@@ -127,11 +127,11 @@ retry:
 	return nil
 }
 
-func (c *Controller) networkCleanup() {
+func (c *Controller) networkCleanup(ctx context.Context) {
 	for _, n := range c.getNetworksFromStore(context.TODO()) {
 		if n.inDelete {
 			log.G(context.TODO()).Infof("Removing stale network %s (%s)", n.Name(), n.ID())
-			if err := n.delete(true, true); err != nil {
+			if err := n.delete(ctx, true, true); err != nil {
 				log.G(context.TODO()).Debugf("Error while removing stale network: %v", err)
 			}
 		}
