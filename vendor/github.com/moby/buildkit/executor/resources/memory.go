@@ -138,8 +138,8 @@ func parseKeyValueFile(filePath string, callback func(key string, value uint64))
 		return errors.Wrapf(err, "failed to read %s", filePath)
 	}
 
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(string(content), "\n")
+	for line := range lines {
 		if len(strings.TrimSpace(line)) == 0 {
 			continue
 		}

@@ -271,8 +271,8 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 	}
 
 	if e.opts.ImageName != "" {
-		targetNames := strings.Split(e.opts.ImageName, ",")
-		for _, targetName := range targetNames {
+		targetNames := strings.SplitSeq(e.opts.ImageName, ",")
+		for targetName := range targetNames {
 			if e.opt.Images != nil && e.store {
 				tagDone := progress.OneOff(ctx, "naming to "+targetName)
 

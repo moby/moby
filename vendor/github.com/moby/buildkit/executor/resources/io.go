@@ -35,8 +35,8 @@ func getCgroupIOStat(cgroupPath string) (*resourcestypes.IOStat, error) {
 	}
 
 	ioStat := &resourcestypes.IOStat{}
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(string(data), "\n")
+	for line := range lines {
 		parts := strings.Fields(line)
 		if len(parts) < 2 {
 			continue

@@ -898,7 +898,7 @@ func (lbf *llbBridgeForwarder) getImmutableRef(ctx context.Context, id string) (
 		}
 		if ref == nil {
 			lbf.mu.Unlock()
-			return nil, errors.Errorf("no such ref: %s, all %+v", id, maps.Keys(lbf.refs))
+			return nil, errors.Errorf("no such ref: %s, all %+v", id, slices.Collect(maps.Keys(lbf.refs)))
 		}
 	}
 	lbf.mu.Unlock()

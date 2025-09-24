@@ -9,7 +9,6 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/solver"
-	"github.com/moby/buildkit/util/bklog"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
@@ -118,149 +117,6 @@ type nlink struct {
 	input    int
 	selector string
 }
-type normalizeState struct {
-	added map[*item]*item
-	links map[*item]map[nlink]map[digest.Digest]struct{}
-	byKey map[digest.Digest]*item
-	next  int
-}
-
-func (s *normalizeState) removeLoops(ctx context.Context) {
-	roots := []digest.Digest{}
-	for dgst, it := range s.byKey {
-		if len(it.links) == 0 {
-			roots = append(roots, dgst)
-		}
-	}
-
-	visited := map[digest.Digest]struct{}{}
-
-	for _, d := range roots {
-		s.checkLoops(ctx, d, visited)
-	}
-}
-
-func (s *normalizeState) checkLoops(ctx context.Context, d digest.Digest, visited map[digest.Digest]struct{}) {
-	it, ok := s.byKey[d]
-	if !ok {
-		return
-	}
-	links, ok := s.links[it]
-	if !ok {
-		return
-	}
-	visited[d] = struct{}{}
-	defer func() {
-		delete(visited, d)
-	}()
-
-	for l, ids := range links {
-		for id := range ids {
-			if _, ok := visited[id]; ok {
-				it2, ok := s.byKey[id]
-				if !ok {
-					continue
-				}
-				if !it2.removeLink(it) {
-					bklog.G(ctx).Warnf("failed to remove looping cache key %s %s", d, id)
-				}
-				delete(links[l], id)
-			} else {
-				s.checkLoops(ctx, id, visited)
-			}
-		}
-	}
-}
-
-func normalizeItem(it *item, state *normalizeState) (*item, error) {
-	if it2, ok := state.added[it]; ok {
-		return it2, nil
-	}
-
-	if len(it.links) == 0 {
-		id := it.dgst
-		if it2, ok := state.byKey[id]; ok {
-			state.added[it] = it2
-			return it2, nil
-		}
-		state.byKey[id] = it
-		state.added[it] = it
-		return nil, nil
-	}
-
-	matches := map[digest.Digest]struct{}{}
-
-	// check if there is already a matching record
-	for i, m := range it.links {
-		if len(m) == 0 {
-			return nil, errors.Errorf("invalid incomplete links")
-		}
-		for l := range m {
-			nl := nlink{dgst: it.dgst, input: i, selector: l.selector}
-			it2, err := normalizeItem(l.src, state)
-			if err != nil {
-				return nil, err
-			}
-			links := state.links[it2][nl]
-			if i == 0 {
-				for id := range links {
-					matches[id] = struct{}{}
-				}
-			} else {
-				for id := range matches {
-					if _, ok := links[id]; !ok {
-						delete(matches, id)
-					}
-				}
-			}
-		}
-	}
-
-	var id digest.Digest
-
-	links := it.links
-
-	if len(matches) > 0 {
-		for m := range matches {
-			if id == "" || id > m {
-				id = m
-			}
-		}
-	} else {
-		// keep tmp IDs deterministic
-		state.next++
-		id = digest.FromBytes(fmt.Appendf(nil, "%d", state.next))
-		state.byKey[id] = it
-		it.links = make([]map[link]struct{}, len(it.links))
-		for i := range it.links {
-			it.links[i] = map[link]struct{}{}
-		}
-	}
-
-	it2 := state.byKey[id]
-	state.added[it] = it2
-
-	for i, m := range links {
-		for l := range m {
-			subIt, err := normalizeItem(l.src, state)
-			if err != nil {
-				return nil, err
-			}
-			it2.links[i][link{src: subIt, selector: l.selector}] = struct{}{}
-
-			nl := nlink{dgst: it.dgst, input: i, selector: l.selector}
-			if _, ok := state.links[subIt]; !ok {
-				state.links[subIt] = map[nlink]map[digest.Digest]struct{}{}
-			}
-			if _, ok := state.links[subIt][nl]; !ok {
-				state.links[subIt][nl] = map[digest.Digest]struct{}{}
-			}
-			state.links[subIt][nl][id] = struct{}{}
-		}
-	}
-
-	return it2, nil
-}
 
 type marshalState struct {
 	layers      []CacheLayer
@@ -323,13 +179,14 @@ func marshalItem(ctx context.Context, it *item, state *marshalState) error {
 	if _, ok := state.recordsByItem[it]; ok {
 		return nil
 	}
+	state.recordsByItem[it] = -1
 
 	rec := CacheRecord{
 		Digest: it.dgst,
-		Inputs: make([][]CacheInput, len(it.links)),
+		Inputs: make([][]CacheInput, len(it.parents)),
 	}
 
-	for i, m := range it.links {
+	for i, m := range it.parents {
 		for l := range m {
 			if err := marshalItem(ctx, l.src, state); err != nil {
 				return err
@@ -338,6 +195,9 @@ func marshalItem(ctx context.Context, it *item, state *marshalState) error {
 			if !ok {
 				return errors.Errorf("invalid source record: %v", l.src)
 			}
+			if idx == -1 {
+				continue
+			}
 			rec.Inputs[i] = append(rec.Inputs[i], CacheInput{
 				Selector:  l.selector,
 				LinkIndex: idx,
@@ -345,14 +205,14 @@ func marshalItem(ctx context.Context, it *item, state *marshalState) error {
 		}
 	}
 
-	if it.result != nil {
-		id := marshalRemote(ctx, it.result, state)
+	if res := it.bestResult(); res != nil {
+		id := marshalRemote(ctx, res.Result, state)
 		if id != "" {
 			idx, ok := state.chainsByID[id]
 			if !ok {
 				return errors.Errorf("parent chainid not found")
 			}
-			rec.Results = append(rec.Results, CacheResult{LayerIndex: idx, CreatedAt: it.resultTime})
+			rec.Results = append(rec.Results, CacheResult{LayerIndex: idx, CreatedAt: res.CreatedAt})
 		}
 	}
 

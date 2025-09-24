@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"google.golang.org/protobuf/compiler/protogen"
+	"google.golang.org/protobuf/internal/filedesc"
 	"google.golang.org/protobuf/internal/genid"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
@@ -279,8 +280,7 @@ func isLazy(field *protogen.Field) bool {
 	}
 
 	// Was the field marked as [lazy = true] in the .proto file?
-	fopts := field.Desc.Options().(*descriptorpb.FieldOptions)
-	return fopts.GetLazy()
+	return field.Desc.(interface{ IsLazy() bool }).IsLazy()
 }
 
 // opaqueGenGet generates a Get method for a field.
@@ -573,16 +573,8 @@ func usePresence(message *messageInfo, field *protogen.Field) bool {
 	if !message.isOpaque() {
 		return false
 	}
-	return opaqueFieldNeedsPresenceArray(message, field)
-}
-
-func opaqueFieldNeedsPresenceArray(message *messageInfo, field *protogen.Field) bool {
-	// Non optional fields need presence if truly lazy field, i.e. are message fields.
-	if isLazy(field) {
-		return true
-	}
-	isNotOneof := field.Desc.ContainingOneof() == nil || field.Desc.ContainingOneof().IsSynthetic()
-	return field.Desc.HasPresence() && field.Message == nil && isNotOneof
+	usePresence, _ := filedesc.UsePresenceForField(field.Desc)
+	return usePresence
 }
 
 // opaqueGenHas generates a Has method for a field.
@@ -832,7 +824,7 @@ func opaqueNeedsPresenceArray(message *messageInfo) bool {
 		return false
 	}
 	for _, field := range message.Fields {
-		if opaqueFieldNeedsPresenceArray(message, field) {
+		if usePresence, _ := filedesc.UsePresenceForField(field.Desc); usePresence {
 			return true
 		}
 	}
