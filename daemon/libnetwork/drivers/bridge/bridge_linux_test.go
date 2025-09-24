@@ -839,7 +839,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	}
 
 	// release host mapped ports
-	err = d.Leave("net1", "ep1")
+	err = d.Leave(context.Background(), "net1", "ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -953,7 +953,7 @@ func TestLinkContainers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to revoke external connectivity: %v", err)
 	}
-	err = d.Leave("net1", "ep2")
+	err = d.Leave(context.Background(), "net1", "ep2")
 	if err != nil {
 		t.Fatal("Failed to unlink ep1 and ep2")
 	}

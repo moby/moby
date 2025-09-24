@@ -1249,7 +1249,7 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 	}
 	defer func() {
 		if err != nil {
-			if e := ep.deleteEndpoint(false); e != nil {
+			if e := ep.deleteEndpoint(ctx, false); e != nil {
 				log.G(ctx).Warnf("cleaning up endpoint failed %s : %v", name, e)
 			}
 		}

@@ -51,7 +51,7 @@ func testNetwork(networkType string, t *testing.T) {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
 
-	err = d.DeleteEndpoint("dummy", "ep1")
+	err = d.DeleteEndpoint(context.Background(), "dummy", "ep1")
 	if err != nil {
 		t.Fatalf("Failed to delete an endpoint : %s", err.Error())
 	}

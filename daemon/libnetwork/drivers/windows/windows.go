@@ -812,7 +812,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 	return nil
 }
 
-func (d *driver) DeleteEndpoint(nid, eid string) error {
+func (d *driver) DeleteEndpoint(ctx context.Context, nid, eid string) error {
 	n, err := d.getNetwork(nid)
 	if err != nil {
 		return types.InternalMaskableErrorf("%v", err)
@@ -837,7 +837,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	}
 
 	if err := d.storeDelete(ep); err != nil {
-		log.G(context.TODO()).Warnf("Failed to remove bridge endpoint %.7s from store: %v", ep.id, err)
+		log.G(ctx).Warnf("Failed to remove bridge endpoint %.7s from store: %v", ep.id, err)
 	}
 	return nil
 }
@@ -917,7 +917,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
-func (d *driver) Leave(nid, eid string) error {
+func (d *driver) Leave(ctx context.Context, nid, eid string) error {
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return types.InternalMaskableErrorf("%v", err)

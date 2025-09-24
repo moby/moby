@@ -44,7 +44,7 @@ func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo drive
 	return nil
 }
 
-func (d *driver) DeleteEndpoint(nid, eid string) error {
+func (d *driver) DeleteEndpoint(_ context.Context, nid, eid string) error {
 	return nil
 }
 
@@ -58,7 +58,7 @@ func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo 
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
-func (d *driver) Leave(nid, eid string) error {
+func (d *driver) Leave(_ context.Context, nid, eid string) error {
 	return nil
 }
 

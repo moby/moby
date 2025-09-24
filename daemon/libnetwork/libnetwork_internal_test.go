@@ -828,7 +828,7 @@ func (b *badDriver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo dr
 	return errors.New("I will not create any endpoint")
 }
 
-func (b *badDriver) DeleteEndpoint(nid, eid string) error {
+func (b *badDriver) DeleteEndpoint(_ context.Context, nid, eid string) error {
 	return nil
 }
 
@@ -840,7 +840,7 @@ func (b *badDriver) Join(_ context.Context, nid, eid string, sboxKey string, jin
 	return errors.New("I will not allow any join")
 }
 
-func (b *badDriver) Leave(nid, eid string) error {
+func (b *badDriver) Leave(_ context.Context, nid, eid string) error {
 	return nil
 }
 

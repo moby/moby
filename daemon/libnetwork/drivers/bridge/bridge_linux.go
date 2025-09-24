@@ -1263,7 +1263,7 @@ func (d *driver) linkUp(ctx context.Context, host netlink.Link) error {
 	return d.nlh.LinkSetUp(host)
 }
 
-func (d *driver) DeleteEndpoint(nid, eid string) error {
+func (d *driver) DeleteEndpoint(ctx context.Context, nid, eid string) error {
 	var err error
 
 	// Get the network handler and make sure it exists
@@ -1296,7 +1296,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	}
 
 	netip4, netip6 := ep.netipAddrs()
-	if err := n.firewallerNetwork.DelEndpoint(context.TODO(), netip4, netip6); err != nil {
+	if err := n.firewallerNetwork.DelEndpoint(ctx, netip4, netip6); err != nil {
 		return err
 	}
 
@@ -1321,12 +1321,12 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	// Also make sure defer does not see this error either.
 	if link, err := d.nlh.LinkByName(ep.srcName); err == nil {
 		if err := d.nlh.LinkDel(link); err != nil {
-			log.G(context.TODO()).WithError(err).Errorf("Failed to delete interface (%s)'s link on endpoint (%s) delete", ep.srcName, ep.id)
+			log.G(ctx).WithError(err).Errorf("Failed to delete interface (%s)'s link on endpoint (%s) delete", ep.srcName, ep.id)
 		}
 	}
 
 	if err := d.storeDelete(ep); err != nil {
-		log.G(context.TODO()).Warnf("Failed to remove bridge endpoint %.7s from store: %v", ep.id, err)
+		log.G(ctx).Warnf("Failed to remove bridge endpoint %.7s from store: %v", ep.id, err)
 	}
 
 	return nil
@@ -1463,7 +1463,7 @@ func (d *driver) ReleaseIPv6(ctx context.Context, nid, eid string) error {
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
-func (d *driver) Leave(nid, eid string) error {
+func (d *driver) Leave(ctx context.Context, nid, eid string) error {
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return types.InternalMaskableErrorf("%v", err)
@@ -1482,7 +1482,7 @@ func (d *driver) Leave(nid, eid string) error {
 		if err := network.releasePorts(endpoint); err != nil {
 			return err
 		}
-		if err = d.storeUpdate(context.TODO(), endpoint); err != nil {
+		if err = d.storeUpdate(ctx, endpoint); err != nil {
 			return fmt.Errorf("during leave, failed to store bridge endpoint %.7s: %v", endpoint.id, err)
 		}
 	}
