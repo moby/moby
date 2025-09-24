@@ -82,6 +82,7 @@ type Opt struct {
 	WorkerController *worker.Controller
 	HistoryQueue     *HistoryQueue
 	ResourceMonitor  *resources.Monitor
+	ProvenanceEnv    map[string]any
 }
 
 type Solver struct {
@@ -96,6 +97,7 @@ type Solver struct {
 	entitlements              []string
 	history                   *HistoryQueue
 	sysSampler                *resources.Sampler[*resourcestypes.SysSample]
+	provenanceEnv             map[string]any
 }
 
 // Processor defines a processing function to be applied after solving, but
@@ -103,6 +105,18 @@ type Solver struct {
 type Processor func(ctx context.Context, result *Result, s *Solver, j *solver.Job, usage *resources.SysSampler) (*Result, error)
 
 func New(opt Opt) (*Solver, error) {
+	// buildConfig,builderPlatform,platform are not allowd
+	forbiddenKeys := map[string]struct{}{
+		"buildConfig":     {},
+		"builderPlatform": {},
+		"platform":        {},
+	}
+	for k := range opt.ProvenanceEnv {
+		if _, ok := forbiddenKeys[k]; ok {
+			return nil, errors.Errorf("key %q is builtin and not allowed to be modified in provenance config", k)
+		}
+	}
+
 	s := &Solver{
 		workerController:          opt.WorkerController,
 		resolveWorker:             defaultResolver(opt.WorkerController),
@@ -113,6 +127,7 @@ func New(opt Opt) (*Solver, error) {
 		sm:                        opt.SessionManager,
 		entitlements:              opt.Entitlements,
 		history:                   opt.HistoryQueue,
+		provenanceEnv:             opt.ProvenanceEnv,
 	}
 
 	sampler, err := resources.NewSysSampler()
@@ -241,7 +256,7 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 			span, ctx := tracing.StartSpan(ctx, fmt.Sprintf("create %s history provenance", name))
 			defer span.End()
 
-			pc, err := NewProvenanceCreator(ctx2, slsaVersion, cap, res, attrs, j, usage)
+			pc, err := NewProvenanceCreator(ctx2, slsaVersion, cap, res, attrs, j, usage, s.provenanceEnv)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -994,10 +1009,6 @@ func getRefProvenance(ref solver.ResultProxy, br *provenanceBridge) (*provenance
 		pr.Frontend = br.req.Frontend
 		pr.Args = provenance.FilterArgs(br.req.FrontendOpt)
 		// TODO: should also save some output options like compression
-
-		if len(br.req.FrontendInputs) > 0 {
-			pr.IncompleteMaterials = true // not implemented
-		}
 	}
 
 	return pr, nil

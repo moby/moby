@@ -124,20 +124,29 @@ type CacheExporter interface {
 
 // CacheExporterTarget defines object capable of receiving exports
 type CacheExporterTarget interface {
-	// Add creates a new object record that we can then add results to and
-	// connect to other records.
-	Add(dgst digest.Digest) CacheExporterRecord
-
-	// Visit marks a target as having been visited.
-	Visit(target any)
-	// Vistited returns true if a target has previously been marked as visited.
-	Visited(target any) bool
+	Add(dgst digest.Digest, deps [][]CacheLink, results []CacheExportResult) (CacheExporterRecord, bool, error)
 }
 
-// CacheExporterRecord is a single object being exported
+// opaque interface
 type CacheExporterRecord interface {
-	AddResult(vtx digest.Digest, index int, createdAt time.Time, result *Remote)
-	LinkFrom(src CacheExporterRecord, index int, selector string)
+	isCacheExporterRecord()
+}
+
+type CacheExporterRecordBase struct {
+}
+
+func (c *CacheExporterRecordBase) isCacheExporterRecord() {}
+
+type CacheLink struct {
+	Src      CacheExporterRecord
+	Selector string
+}
+
+type CacheExportResult struct {
+	CreatedAt  time.Time
+	Result     *Remote
+	EdgeVertex digest.Digest
+	EdgeIndex  Index
 }
 
 // Remote is a descriptor or a list of stacked descriptors that can be pulled
@@ -146,15 +155,6 @@ type CacheExporterRecord interface {
 type Remote struct {
 	Descriptors []ocispecs.Descriptor
 	Provider    content.InfoReaderProvider
-}
-
-// CacheLink is a link between two cache records
-type CacheLink struct {
-	Source   digest.Digest `json:",omitempty"`
-	Input    Index         `json:",omitempty"`
-	Output   Index         `json:",omitempty"`
-	Base     digest.Digest `json:",omitempty"`
-	Selector digest.Digest `json:",omitempty"`
 }
 
 type ReleaseFunc func()

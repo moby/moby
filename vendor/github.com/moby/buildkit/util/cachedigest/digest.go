@@ -121,11 +121,11 @@ func (r *Record) LoadSubRecords(loader func(d digest.Digest) (Type, []Frame, err
 			}
 		}
 	case TypeDigestList:
-		for _, dgst := range bytes.Split(dt, []byte{0}) {
+		for dgst := range bytes.SplitSeq(dt, []byte{0}) {
 			checksums = append(checksums, string(dgst))
 		}
 	case TypeFileList:
-		for _, nameChecksumPair := range bytes.Split(dt, []byte{0}) {
+		for nameChecksumPair := range bytes.SplitSeq(dt, []byte{0}) {
 			idx := bytes.LastIndex(nameChecksumPair, []byte("sha256:"))
 			if idx < 0 {
 				bklog.L.Warnf("invalid file list entry %q, missing sha256 prefix", nameChecksumPair)

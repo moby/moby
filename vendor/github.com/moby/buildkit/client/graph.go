@@ -24,7 +24,7 @@ type VertexStatus struct {
 	Name      string        `json:"name,omitempty"`
 	Total     int64         `json:"total,omitempty"`
 	Current   int64         `json:"current"`
-	Timestamp time.Time     `json:"timestamp,omitempty"`
+	Timestamp time.Time     `json:"timestamp"`
 	Started   *time.Time    `json:"started,omitempty"`
 	Completed *time.Time    `json:"completed,omitempty"`
 }

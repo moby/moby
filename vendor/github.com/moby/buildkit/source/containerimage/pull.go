@@ -46,6 +46,7 @@ type puller struct {
 	Ref            string
 	SessionManager *session.Manager
 	layerLimit     *int
+	checksum       digest.Digest
 	vtx            solver.Vertex
 	ResolverType
 	store sourceresolver.ResolveImageConfigOptStore
@@ -128,6 +129,10 @@ func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (cach
 		p.manifest, err = p.PullManifests(ctx, getResolver)
 		if err != nil {
 			return struct{}{}, err
+		}
+
+		if p.checksum != "" && p.manifest.MainManifestDesc.Digest != p.checksum {
+			return struct{}{}, errors.Errorf("image digest %s for %s does not match expected checksum %s", p.manifest.MainManifestDesc.Digest, p.Ref, p.checksum)
 		}
 
 		if ll := p.layerLimit; ll != nil {

@@ -42,6 +42,10 @@ type Config struct {
 	} `toml:"frontend"`
 
 	System *SystemConfig `toml:"system"`
+
+	// ProvenanceEnvDir is the directory where extra config is loaded
+	// that is added to the provenance of builds. Defaults to /etc/buildkit/provenance.d/ ,
+	ProvenanceEnvDir string `toml:"provenanceEnvDir"`
 }
 
 type SystemConfig struct {

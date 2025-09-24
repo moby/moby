@@ -92,6 +92,7 @@ type includedPath struct {
 	included         bool
 	includeMatchInfo patternmatcher.MatchInfo
 	excludeMatchInfo patternmatcher.MatchInfo
+	followLinks      bool
 }
 
 type cacheManager struct {
@@ -431,17 +432,16 @@ func (cc *cacheContext) Checksum(ctx context.Context, mountable cache.Mountable,
 		return "", err
 	}
 
-	if opts.FollowLinks {
-		for i, w := range includedPaths {
-			if w.record.Type == CacheRecordTypeSymlink {
-				dgst, err := cc.lazyChecksum(ctx, m, w.path, opts.FollowLinks)
-				if err != nil {
-					return "", err
-				}
-				includedPaths[i].record = &CacheRecord{Digest: string(dgst)}
+	for i, w := range includedPaths {
+		if w.followLinks && w.record.Type == CacheRecordTypeSymlink {
+			dgst, err := cc.lazyChecksum(ctx, m, w.path, opts.FollowLinks)
+			if err != nil {
+				return "", err
 			}
+			includedPaths[i].record = &CacheRecord{Digest: string(dgst)}
 		}
 	}
+
 	if len(includedPaths) == 0 {
 		return digest.FromBytes([]byte{}), nil
 	}
@@ -597,6 +597,10 @@ func (cc *cacheContext) includedPaths(ctx context.Context, m *mount, p string, o
 		}
 
 		maybeIncludedPath := &includedPath{path: fn}
+		if parentDir == nil && opts.FollowLinks {
+			maybeIncludedPath.followLinks = true
+		}
+
 		var shouldInclude bool
 		if opts.Wildcard {
 			if p != "" && (lastMatchedDir == "" || !strings.HasPrefix(fn, lastMatchedDir+"/")) {
