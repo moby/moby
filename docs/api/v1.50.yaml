@@ -1531,37 +1531,6 @@ definitions:
         items:
           type: "string"
         example: ["/bin/sh", "-c"]
-    # FIXME(thaJeztah): temporarily using a full example to remove some "omitempty" fields. Remove once the fields are removed.
-    example:
-      "User": "web:web"
-      "ExposedPorts": {
-        "80/tcp": {},
-        "443/tcp": {}
-      }
-      "Env": ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"]
-      "Cmd": ["/bin/sh"]
-      "Healthcheck": {
-        "Test": ["string"],
-        "Interval": 0,
-        "Timeout": 0,
-        "Retries": 0,
-        "StartPeriod": 0,
-        "StartInterval": 0
-      }
-      "ArgsEscaped": true
-      "Volumes": {
-        "/app/data": {},
-        "/app/config": {}
-      }
-      "WorkingDir": "/public/"
-      "Entrypoint": []
-      "OnBuild": []
-      "Labels": {
-        "com.example.some-label": "some-value",
-        "com.example.some-other-label": "some-other-value"
-      }
-      "StopSignal": "SIGTERM"
-      "Shell": ["/bin/sh", "-c"]
 
   NetworkingConfig:
     description: |
