@@ -1,10 +1,13 @@
-// Copyright (c) 2013, Suryandaru Triandana <syndtr@gmail.com>
+// Copyright 2024 The Capability Authors.
+// Copyright 2013 Suryandaru Triandana <syndtr@gmail.com>
 // All rights reserved.
 //
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
 package capability
+
+import "slices"
 
 type CapType uint
 
@@ -301,9 +304,27 @@ const (
 	CAP_CHECKPOINT_RESTORE = Cap(40)
 )
 
-var (
-	// Highest valid capability of the running kernel.
-	CAP_LAST_CAP = Cap(63)
+// List returns the list of all capabilities known to the package.
+//
+// Deprecated: use [ListKnown] or [ListSupported] instead.
+func List() []Cap {
+	return ListKnown()
+}
 
-	capUpperMask = ^uint32(0)
-)
+// ListKnown returns the list of all capabilities known to the package.
+func ListKnown() []Cap {
+	return list()
+}
+
+// ListSupported returns the list of all capabilities known to the package,
+// except those that are not supported by the currently running Linux kernel.
+func ListSupported() ([]Cap, error) {
+	last, err := LastCap()
+	if err != nil {
+		return nil, err
+	}
+	return slices.DeleteFunc(list(), func(c Cap) bool {
+		// Remove caps not supported by the kernel.
+		return c > last
+	}), nil
+}

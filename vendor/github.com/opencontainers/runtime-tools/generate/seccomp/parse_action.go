@@ -23,8 +23,10 @@ type SyscallOpts struct {
 func ParseSyscallFlag(args SyscallOpts, config *rspec.LinuxSeccomp) error {
 	var arguments []string
 	if args.Index != "" && args.Value != "" && args.ValueTwo != "" && args.Operator != "" {
-		arguments = []string{args.Action, args.Syscall, args.Index, args.Value,
-			args.ValueTwo, args.Operator}
+		arguments = []string{
+			args.Action, args.Syscall, args.Index, args.Value,
+			args.ValueTwo, args.Operator,
+		}
 	} else {
 		arguments = []string{args.Action, args.Syscall}
 	}
