@@ -130,6 +130,11 @@ func Image(ref string, opts ...ImageOption) State {
 		addCap(&info.Constraints, pb.CapSourceImageLayerLimit)
 	}
 
+	if info.checksum != "" {
+		attrs[pb.AttrImageChecksum] = info.checksum.String()
+		addCap(&info.Constraints, pb.CapSourceImageChecksum)
+	}
+
 	src := NewSource("docker-image://"+ref, attrs, info.Constraints) // controversial
 	if err != nil {
 		src.err = err
@@ -227,6 +232,7 @@ type ImageInfo struct {
 	resolveDigest bool
 	resolveMode   ResolveMode
 	layerLimit    *int
+	checksum      digest.Digest
 	RecordType    string
 }
 
@@ -623,11 +629,18 @@ func OCILayerLimit(limit int) OCILayoutOption {
 	})
 }
 
+func OCIChecksum(dgst digest.Digest) OCILayoutOption {
+	return ociLayoutOptionFunc(func(oi *OCILayoutInfo) {
+		oi.checksum = dgst
+	})
+}
+
 type OCILayoutInfo struct {
 	constraintsWrapper
 	sessionID  string
 	storeID    string
 	layerLimit *int
+	checksum   digest.Digest
 }
 
 type DiffType string

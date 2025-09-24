@@ -1,7 +1,7 @@
 package gitutil
 
 func IsCommitSHA(str string) bool {
-	if len(str) != 40 {
+	if l := len(str); l != 40 && l != 64 {
 		return false
 	}
 

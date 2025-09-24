@@ -34,6 +34,7 @@ const AttrImageResolveModeForcePull = "pull"
 const AttrImageResolveModePreferLocal = "local"
 const AttrImageRecordType = "image.recordtype"
 const AttrImageLayerLimit = "image.layerlimit"
+const AttrImageChecksum = "image.checksum"
 
 const AttrOCILayoutSessionID = "oci.session"
 const AttrOCILayoutStoreID = "oci.store"

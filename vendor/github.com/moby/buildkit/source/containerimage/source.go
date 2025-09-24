@@ -93,6 +93,7 @@ func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session
 		ref        reference.Spec
 		store      sourceresolver.ResolveImageConfigOptStore
 		layerLimit *int
+		checksum   digest.Digest
 	)
 	switch is.ResolverType {
 	case ResolverTypeRegistry:
@@ -108,6 +109,7 @@ func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session
 		recordType = imageIdentifier.RecordType
 		ref = imageIdentifier.Reference
 		layerLimit = imageIdentifier.LayerLimit
+		checksum = imageIdentifier.Checksum
 	case ResolverTypeOCILayout:
 		ociIdentifier, ok := id.(*OCIIdentifier)
 		if !ok {
@@ -146,6 +148,7 @@ func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session
 		vtx:            vtx,
 		store:          store,
 		layerLimit:     layerLimit,
+		checksum:       checksum,
 	}
 	return p, nil
 }
@@ -245,6 +248,12 @@ func (is *Source) registryIdentifier(ref string, attrs map[string]string, platfo
 				return nil, errors.Errorf("invalid layer limit %s", v)
 			}
 			id.LayerLimit = &l
+		case pb.AttrImageChecksum:
+			dgst, err := digest.Parse(v)
+			if err != nil {
+				return nil, errors.Wrapf(err, "invalid image checksum %s", v)
+			}
+			id.Checksum = dgst
 		}
 	}
 

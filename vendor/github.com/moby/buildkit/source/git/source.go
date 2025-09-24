@@ -105,7 +105,7 @@ func (gs *gitSource) Identifier(scheme, ref string, attrs map[string]string, pla
 }
 
 // needs to be called with repo lock
-func (gs *gitSource) mountRemote(ctx context.Context, remote string, authArgs []string, g session.Group) (target string, release func() error, retErr error) {
+func (gs *gitSource) mountRemote(ctx context.Context, remote string, authArgs []string, sha256 bool, g session.Group) (target string, release func() error, retErr error) {
 	sis, err := searchGitRemote(ctx, gs.cache, remote)
 	if err != nil {
 		return "", nil, errors.Wrapf(err, "failed to search metadata for %s", urlutil.RedactCredentials(remote))
@@ -171,7 +171,11 @@ func (gs *gitSource) mountRemote(ctx context.Context, remote string, authArgs []
 		// implied default to suppress "hint:" output about not having a
 		// default initial branch name set which otherwise spams unit
 		// test logs.
-		if _, err := git.Run(ctx, "-c", "init.defaultBranch=master", "init", "--bare"); err != nil {
+		args := []string{"-c", "init.defaultBranch=master", "init", "--bare"}
+		if sha256 {
+			args = append(args, "--object-format=sha256")
+		}
+		if _, err := git.Run(ctx, args...); err != nil {
 			return "", nil, errors.Wrapf(err, "failed to init repo at %s", dir)
 		}
 
@@ -198,6 +202,7 @@ type gitSourceHandler struct {
 	*gitSource
 	src      GitIdentifier
 	cacheKey string
+	sha256   bool
 	sm       *session.Manager
 	authArgs []string
 }
@@ -376,13 +381,14 @@ func (gs *gitSourceHandler) CacheKey(ctx context.Context, g session.Group, index
 	if refCommitFullHash != "" {
 		cacheKey := gs.shaToCacheKey(refCommitFullHash, ref2)
 		gs.cacheKey = cacheKey
+		gs.sha256 = len(refCommitFullHash) == 64
 		// gs.src.Checksum is verified when checking out the commit
 		return cacheKey, refCommitFullHash, nil, true, nil
 	}
 
 	gs.getAuthToken(ctx, g)
 
-	git, cleanup, err := gs.gitCli(ctx, g)
+	tmpGit, cleanup, err := gs.emptyGitCli(ctx, g)
 	if err != nil {
 		return "", "", nil, false, err
 	}
@@ -390,7 +396,7 @@ func (gs *gitSourceHandler) CacheKey(ctx context.Context, g session.Group, index
 
 	ref := gs.src.Ref
 	if ref == "" {
-		ref, err = getDefaultBranch(ctx, git, gs.src.Remote)
+		ref, err = getDefaultBranch(ctx, tmpGit, gs.src.Remote)
 		if err != nil {
 			return "", "", nil, false, err
 		}
@@ -398,7 +404,7 @@ func (gs *gitSourceHandler) CacheKey(ctx context.Context, g session.Group, index
 
 	// TODO: should we assume that remote tag is immutable? add a timer?
 
-	buf, err := git.Run(ctx, "ls-remote", "origin", ref, ref+"^{}")
+	buf, err := tmpGit.Run(ctx, "ls-remote", gs.src.Remote, ref, ref+"^{}")
 	if err != nil {
 		return "", "", nil, false, errors.Wrapf(err, "failed to fetch remote %s", urlutil.RedactCredentials(remote))
 	}
@@ -445,6 +451,7 @@ func (gs *gitSourceHandler) CacheKey(ctx context.Context, g session.Group, index
 	}
 	cacheKey := gs.shaToCacheKey(sha, usedRef)
 	gs.cacheKey = cacheKey
+	gs.sha256 = len(sha) == 64
 	return cacheKey, sha, nil, true, nil
 }
 
@@ -475,15 +482,18 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 	gs.locker.Lock(gs.src.Remote)
 	defer gs.locker.Unlock(gs.src.Remote)
 
-	git, cleanup, err := gs.gitCli(ctx, g)
+	git, cleanup, err := gs.emptyGitCli(ctx, g)
 	if err != nil {
 		return nil, err
 	}
 	defer cleanup()
-	gitDir, err := git.GitDir(ctx)
+
+	gitDir, unmountGitDir, err := gs.mountRemote(ctx, gs.src.Remote, gs.authArgs, gs.sha256, g)
 	if err != nil {
 		return nil, err
 	}
+	defer unmountGitDir()
+	git = git.New(gitutil.WithGitDir(gitDir))
 
 	ref := gs.src.Ref
 	if ref == "" {
@@ -581,7 +591,11 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 			return nil, err
 		}
 		checkoutGit := git.New(gitutil.WithWorkTree(checkoutDir), gitutil.WithGitDir(checkoutDirGit))
-		_, err = checkoutGit.Run(ctx, "-c", "init.defaultBranch=master", "init")
+		args := []string{"-c", "init.defaultBranch=master", "init"}
+		if gs.sha256 {
+			args = append(args, "--object-format=sha256")
+		}
+		_, err = checkoutGit.Run(ctx, args...)
 		if err != nil {
 			return nil, err
 		}
@@ -713,7 +727,7 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 	return snap, nil
 }
 
-func (gs *gitSourceHandler) gitCli(ctx context.Context, g session.Group, opts ...gitutil.Option) (*gitutil.GitCLI, func() error, error) {
+func (gs *gitSourceHandler) emptyGitCli(ctx context.Context, g session.Group, opts ...gitutil.Option) (*gitutil.GitCLI, func() error, error) {
 	var cleanups []func() error
 	cleanup := func() error {
 		var err error
@@ -726,13 +740,6 @@ func (gs *gitSourceHandler) gitCli(ctx context.Context, g session.Group, opts ..
 		return err
 	}
 	var err error
-
-	gitDir, unmountGitDir, err := gs.mountRemote(ctx, gs.src.Remote, gs.authArgs, g)
-	if err != nil {
-		cleanup()
-		return nil, nil, err
-	}
-	cleanups = append(cleanups, unmountGitDir)
 
 	var sock string
 	if gs.src.MountSSHSock != "" {
@@ -757,7 +764,6 @@ func (gs *gitSourceHandler) gitCli(ctx context.Context, g session.Group, opts ..
 	}
 
 	opts = append([]gitutil.Option{
-		gitutil.WithGitDir(gitDir),
 		gitutil.WithArgs(gs.authArgs...),
 		gitutil.WithSSHAuthSock(sock),
 		gitutil.WithSSHKnownHosts(knownHosts),
