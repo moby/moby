@@ -1,7 +1,10 @@
 package command
 
 import (
+	"context"
+
 	cdcgroups "github.com/containerd/cgroups/v3"
+	"github.com/containerd/log"
 	systemdDaemon "github.com/coreos/go-systemd/v22/daemon"
 	"github.com/moby/moby/v2/daemon"
 	"github.com/moby/moby/v2/daemon/config"
@@ -52,4 +55,18 @@ func validateCPURealtimeOptions(cfg *config.Config) error {
 		return errors.New("daemon-scoped cpu-rt-period and cpu-rt-runtime are not supported by the kernel")
 	}
 	return nil
+}
+
+// Buildkit breaks when userns remapping is enabled, and containerd snapshotter is used. As a workaround, disable
+// containerd snapshotter if userns remapping is enabled. See https://github.com/moby/moby/issues/47377.
+func disableC8dSnapshotterOnUsernsRemap(cfg *config.Config) {
+	if cfg.RemappedRoot != "" {
+		if enabled, ok := cfg.Features["containerd-snapshotter"]; !ok || enabled {
+			log.G(context.TODO()).Warn("userns remapping enabled, disabling containerd snapshotter")
+		}
+		if cfg.Features == nil {
+			cfg.Features = make(map[string]bool)
+		}
+		cfg.Features["containerd-snapshotter"] = false
+	}
 }
