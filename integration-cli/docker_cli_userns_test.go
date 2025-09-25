@@ -26,7 +26,7 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *testing.T) {
 	testRequires(c, UserNamespaceInKernel)
 
 	ctx := testutil.GetContext(c)
-	s.d.StartWithBusybox(ctx, c, "--userns-remap", "default")
+	s.d.StartWithBusybox(ctx, c, "--userns-remap", "default", "--storage-driver", "vfs")
 
 	out, err := s.d.Cmd("run", "busybox", "stat", "-c", "%u:%g", "/bin/cat")
 	assert.Check(c, err)

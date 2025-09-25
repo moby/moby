@@ -38,8 +38,8 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 
 	tmpDir := t.TempDir()
 
-	dUserRemap := daemon.New(t)
-	dUserRemap.Start(t, "--userns-remap", "default")
+	dUserRemap := daemon.New(t, daemon.WithUserNsRemap("default"))
+	dUserRemap.Start(t)
 	clientUserRemap := dUserRemap.NewClientT(t)
 	defer clientUserRemap.Close()
 

@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/sys/reexec"
 	"golang.org/x/sys/unix"
@@ -85,4 +86,60 @@ func TestLoadListenerNoAddr(t *testing.T) {
 	var resp listenerTestResponse
 	assert.NilError(t, json.NewDecoder(stdout).Decode(&resp))
 	assert.Equal(t, resp.Err, "")
+}
+
+func TestC8dSnapshotterWithUsernsRemap(t *testing.T) {
+	testcases := []struct {
+		name   string
+		cfg    *config.Config
+		expCfg *config.Config
+		expErr string
+	}{
+		{
+			name:   "no remap, no snapshotter",
+			cfg:    &config.Config{},
+			expCfg: &config.Config{},
+		},
+		{
+			name: "userns remap, no explicit containerd-snapshotter feature",
+			cfg:  &config.Config{RemappedRoot: "default"},
+			expCfg: &config.Config{
+				RemappedRoot: "default",
+				CommonConfig: config.CommonConfig{Features: map[string]bool{"containerd-snapshotter": false}},
+			},
+		},
+		{
+			name: "userns remap, explicit containerd-snapshotter feature",
+			cfg: &config.Config{
+				RemappedRoot: "default",
+				CommonConfig: config.CommonConfig{Features: map[string]bool{"containerd-snapshotter": true}},
+			},
+			expCfg: &config.Config{
+				RemappedRoot: "default",
+				CommonConfig: config.CommonConfig{Features: map[string]bool{"containerd-snapshotter": true}},
+			},
+			expErr: "containerd-snapshotter is explicitly enabled, but is not comptatible with userns remapping. Please disable userns remapping or containerd-snapshotter",
+		},
+		{
+			name: "no remap, explicit containerd-snapshotter feature",
+			cfg: &config.Config{
+				CommonConfig: config.CommonConfig{Features: map[string]bool{"containerd-snapshotter": true}},
+			},
+			expCfg: &config.Config{
+				CommonConfig: config.CommonConfig{Features: map[string]bool{"containerd-snapshotter": true}},
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := disableC8dSnapshotterOnUsernsRemap(tc.cfg)
+			assert.DeepEqual(t, tc.expCfg, tc.cfg, cmp.AllowUnexported(config.DefaultBridgeConfig{}))
+			if tc.expErr != "" {
+				assert.Equal(t, tc.expErr, err.Error())
+			} else {
+				assert.NilError(t, err)
+			}
+		})
+	}
 }
