@@ -24,7 +24,7 @@ import (
 )
 
 func TestLookup(t *testing.T) {
-	ctx := namespaces.WithNamespace(context.TODO(), "testing")
+	ctx := namespaces.WithNamespace(t.Context(), "testing")
 	ctx = logtest.WithT(ctx, t)
 	mdb := newTestDB(ctx, t)
 	service := &ImageService{

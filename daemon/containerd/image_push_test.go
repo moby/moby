@@ -27,7 +27,7 @@ type pushTestCase struct {
 }
 
 func TestImagePushIndex(t *testing.T) {
-	ctx := namespaces.WithNamespace(context.TODO(), "testing-"+t.Name())
+	ctx := namespaces.WithNamespace(t.Context(), "testing-"+t.Name())
 
 	csDir := t.TempDir()
 	store := &blobsDirContentStore{blobs: filepath.Join(csDir, "blobs/sha256")}

@@ -1,7 +1,6 @@
 package containerd
 
 import (
-	"context"
 	"testing"
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
@@ -17,7 +16,7 @@ import (
 )
 
 func TestImageDelete(t *testing.T) {
-	ctx := namespaces.WithNamespace(context.TODO(), "testing")
+	ctx := namespaces.WithNamespace(t.Context(), "testing")
 
 	for _, tc := range []struct {
 		ref       string

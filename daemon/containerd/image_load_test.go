@@ -30,7 +30,7 @@ func TestImageLoad(t *testing.T) {
 	linuxArmv5 := ocispec.Platform{OS: "linux", Architecture: "arm", Variant: "v5"}
 	linuxRiscv64 := ocispec.Platform{OS: "linux", Architecture: "riskv64"}
 
-	ctx := namespaces.WithNamespace(context.TODO(), "testing-"+t.Name())
+	ctx := namespaces.WithNamespace(t.Context(), "testing-"+t.Name())
 
 	store, err := local.NewLabeledStore(t.TempDir(), &labelstore.InMemory{})
 	assert.NilError(t, err)

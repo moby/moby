@@ -1,7 +1,6 @@
 package containerd
 
 import (
-	"context"
 	"fmt"
 	"path/filepath"
 	"testing"
@@ -17,7 +16,7 @@ import (
 )
 
 func TestImageInspect(t *testing.T) {
-	ctx := namespaces.WithNamespace(context.TODO(), "testing")
+	ctx := namespaces.WithNamespace(t.Context(), "testing")
 
 	blobsDir := t.TempDir()
 

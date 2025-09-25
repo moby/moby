@@ -89,7 +89,7 @@ func BenchmarkImageList(b *testing.B) {
 	for _, count := range []int{10, 100, 1000} {
 		csDir := b.TempDir()
 
-		ctx := namespaces.WithNamespace(context.TODO(), "testing-"+strconv.Itoa(count))
+		ctx := namespaces.WithNamespace(b.Context(), "testing-"+strconv.Itoa(count))
 
 		cs := &delayedStore{
 			store:    &blobsDirContentStore{blobs: filepath.Join(csDir, "blobs/sha256")},
@@ -113,7 +113,7 @@ func BenchmarkImageList(b *testing.B) {
 }
 
 func TestImageListCheckTotalSize(t *testing.T) {
-	ctx := namespaces.WithNamespace(context.TODO(), "testing")
+	ctx := namespaces.WithNamespace(t.Context(), "testing")
 
 	blobsDir := t.TempDir()
 	cs := &blobsDirContentStore{blobs: filepath.Join(blobsDir, "blobs/sha256")}
@@ -209,7 +209,7 @@ func blobSize(t *testing.T, ctx context.Context, cs content.Store, dgst digest.D
 }
 
 func TestImageList(t *testing.T) {
-	ctx := namespaces.WithNamespace(context.TODO(), "testing")
+	ctx := namespaces.WithNamespace(t.Context(), "testing")
 
 	blobsDir := t.TempDir()
 
