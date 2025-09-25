@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package memberlist
 
 import (
@@ -9,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/armon/go-metrics"
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-metrics/compat"
+	"github.com/hashicorp/go-multierror"
 )
 
 type Config struct {
@@ -253,6 +256,16 @@ type Config struct {
 
 	// MetricLabels is a map of optional labels to apply to all metrics emitted.
 	MetricLabels []metrics.Label
+
+	// QueueCheckInterval is the interval at which we check the message
+	// queue to apply the warning and max depth.
+	QueueCheckInterval time.Duration
+
+	// MsgpackUseNewTimeFormat when set to true, force the underlying msgpack
+	// codec to use the new format of time.Time when encoding (used in
+	// go-msgpack v1.1.5 by default). Decoding is not affected, as all
+	// go-msgpack v2.1.0+ decoders know how to decode both formats.
+	MsgpackUseNewTimeFormat bool
 }
 
 // ParseCIDRs return a possible empty list of all Network that have been parsed
@@ -322,6 +335,8 @@ func DefaultLANConfig() *Config {
 		HandoffQueueDepth: 1024,
 		UDPBufferSize:     1400,
 		CIDRsAllowed:      nil, // same as allow all
+
+		QueueCheckInterval: 30 * time.Second,
 	}
 }
 
