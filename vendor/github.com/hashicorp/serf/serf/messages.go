@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package serf
 
 import (
@@ -5,7 +8,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 )
 
 // messageType are the types of gossip messages Serf will send along
@@ -83,6 +86,7 @@ type messageQuery struct {
 	ID          uint32        // Query ID, randomly generated
 	Addr        []byte        // Source address, used for a direct reply
 	Port        uint16        // Source port, used for a direct reply
+	SourceNode  string        // Source name, used for a direct reply
 	Filters     [][]byte      // Potential query filters
 	Flags       uint32        // Used to provide various flags
 	RelayFactor uint8         // Used to set the number of duplicate relayed responses
@@ -127,15 +131,19 @@ func (m *messageQueryResponse) Ack() bool {
 }
 
 func decodeMessage(buf []byte, out interface{}) error {
-	var handle codec.MsgpackHandle
+	handle := codec.MsgpackHandle{}
 	return codec.NewDecoder(bytes.NewReader(buf), &handle).Decode(out)
 }
 
-func encodeMessage(t messageType, msg interface{}) ([]byte, error) {
+func encodeMessage(t messageType, msg interface{}, msgpackUseNewTimeFormat bool) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteByte(uint8(t))
 
-	handle := codec.MsgpackHandle{}
+	handle := codec.MsgpackHandle{
+		BasicHandle: codec.BasicHandle{
+			TimeNotBuiltin: !msgpackUseNewTimeFormat,
+		},
+	}
 	encoder := codec.NewEncoder(buf, &handle)
 	err := encoder.Encode(msg)
 	return buf.Bytes(), err
@@ -144,22 +152,33 @@ func encodeMessage(t messageType, msg interface{}) ([]byte, error) {
 // relayHeader is used to store the end destination of a relayed message
 type relayHeader struct {
 	DestAddr net.UDPAddr
+	DestName string
 }
 
 // encodeRelayMessage wraps a message in the messageRelayType, adding the length and
 // address of the end recipient to the front of the message
-func encodeRelayMessage(t messageType, addr net.UDPAddr, msg interface{}) ([]byte, error) {
+func encodeRelayMessage(
+	t messageType,
+	addr net.UDPAddr,
+	nodeName string,
+	msg interface{},
+) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	handle := codec.MsgpackHandle{}
 	encoder := codec.NewEncoder(buf, &handle)
 
 	buf.WriteByte(uint8(messageRelayType))
-	if err := encoder.Encode(relayHeader{DestAddr: addr}); err != nil {
+
+	err := encoder.Encode(relayHeader{
+		DestAddr: addr,
+		DestName: nodeName,
+	})
+	if err != nil {
 		return nil, err
 	}
 
 	buf.WriteByte(uint8(t))
-	err := encoder.Encode(msg)
+	err = encoder.Encode(msg)
 	return buf.Bytes(), err
 }
 
