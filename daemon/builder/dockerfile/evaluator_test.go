@@ -1,7 +1,6 @@
 package dockerfile
 
 import (
-	"context"
 	"os"
 	"runtime"
 	"testing"
@@ -130,7 +129,7 @@ func TestDispatch(t *testing.T) {
 
 			b := newBuilderWithMockBackend(t)
 			sb := newDispatchRequest(b, '`', buildContext, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
-			err = dispatch(context.TODO(), sb, tc.cmd)
+			err = dispatch(t.Context(), sb, tc.cmd)
 			assert.Check(t, is.ErrorContains(err, tc.expectedError))
 		})
 	}
