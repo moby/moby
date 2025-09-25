@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package memdb
 
 // Changes describes a set of mutations to memDB tables performed during a
