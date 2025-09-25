@@ -437,7 +437,7 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 	assert.Assert(t, epWanted != nil)
 	assert.Assert(t, is.Equal(epWanted, ep11))
 
-	ctx := context.TODO()
+	ctx := t.Context()
 	current := len(controller.Networks(ctx))
 
 	// Create network 2
@@ -1262,7 +1262,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	assert.NilError(t, err, "Failed to create new osl sandbox")
 	defer func() {
 		if err := extOsBox.Destroy(); err != nil {
-			log.G(context.TODO()).Warnf("Failed to remove os sandbox: %v", err)
+			log.G(t.Context()).Warnf("Failed to remove os sandbox: %v", err)
 		}
 	}()
 

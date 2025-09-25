@@ -1,7 +1,6 @@
 package libnetwork
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/netip"
@@ -176,7 +175,7 @@ func TestAddEpToResolver(t *testing.T) {
 			}
 
 			// Add the endpoint and check expected results.
-			err := addEpToResolverImpl(context.TODO(),
+			err := addEpToResolverImpl(t.Context(),
 				"netname", "epname", tc.epToAdd, resolvers, tc.hnsEndpoints)
 			assert.Check(t, err)
 			for i, resolver := range resolvers {

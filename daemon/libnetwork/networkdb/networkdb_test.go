@@ -38,6 +38,7 @@ type TestingT interface {
 	assert.TestingT
 	poll.TestingT
 	Helper()
+	Context() context.Context
 }
 
 func launchNode(t TestingT, conf Config) *NetworkDB {
@@ -82,7 +83,7 @@ func createNetworkDBInstances(t TestingT, num int, namePrefix string, conf *Conf
 
 func closeNetworkDBInstances(t TestingT, dbs []*NetworkDB) {
 	t.Helper()
-	log.G(context.TODO()).Print("Closing DB instances...")
+	log.G(t.Context()).Print("Closing DB instances...")
 	for _, db := range dbs {
 		db.Close()
 	}
@@ -923,7 +924,7 @@ func TestNetworkDBIslands(t *testing.T) {
 
 	// Now the 3 bootstrap nodes will cleanly leave, and will be properly removed from the other 2 nodes
 	for i := 0; i < 3; i++ {
-		log.G(context.TODO()).Infof("node %d leaving", i)
+		log.G(t.Context()).Infof("node %d leaving", i)
 		dbs[i].Close()
 	}
 
@@ -958,7 +959,7 @@ func TestNetworkDBIslands(t *testing.T) {
 
 	// Spawn again the first 3 nodes with different names but same IP:port
 	for i := 0; i < 3; i++ {
-		log.G(context.TODO()).Infof("node %d coming back", i)
+		log.G(t.Context()).Infof("node %d coming back", i)
 		conf := *dbs[i].config
 		conf.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
 		dbs[i] = launchNode(t, conf)
