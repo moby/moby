@@ -42,6 +42,7 @@ jobs:
   prepare:
     runs-on: ubuntu-24.04
     timeout-minutes: 20 # guardrails timeout for the whole job
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     outputs:
       platforms: ${{ steps.platforms.outputs.matrix }}
     steps:
@@ -94,10 +95,10 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 20 # guardrails timeout for the whole job
+    if: ${{ always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && (github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only')) }}
     needs:
       - validate-dco
       - prepare
-    if: always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
     strategy:
       fail-fast: false
       matrix:
@@ -170,9 +171,9 @@ jobs:
   merge:
     runs-on: ubuntu-24.04
     timeout-minutes: 40 # guardrails timeout for the whole job
+    if: ${{ always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && github.event_name != 'pull_request' && github.repository == 'moby/moby' }}
     needs:
       - build
-    if: always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && github.event_name != 'pull_request' && github.repository == 'moby/moby'
     steps:
       -
         name: Download meta bake definition
