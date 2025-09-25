@@ -142,7 +142,7 @@ func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.CreateLogGroup(context.TODO(), &cloudwatchlogs.CreateLogGroupInput{LogGroupName: aws.String("foo")})
+	_, err = client.CreateLogGroup(t.Context(), &cloudwatchlogs.CreateLogGroupInput{LogGroupName: aws.String("foo")})
 	assert.NilError(t, err)
 }
 
@@ -185,7 +185,7 @@ func TestNewAWSLogsClientLogFormatHeaderHandler(t *testing.T) {
 			)
 			assert.NilError(t, err)
 
-			_, err = client.CreateLogGroup(context.TODO(), &cloudwatchlogs.CreateLogGroupInput{LogGroupName: aws.String("foo")})
+			_, err = client.CreateLogGroup(t.Context(), &cloudwatchlogs.CreateLogGroupInput{LogGroupName: aws.String("foo")})
 			assert.NilError(t, err)
 		})
 	}
@@ -216,7 +216,7 @@ func TestNewAWSLogsClientAWSLogsEndpoint(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.CreateLogGroup(context.TODO(), &cloudwatchlogs.CreateLogGroupInput{LogGroupName: aws.String("foo")})
+	_, err = client.CreateLogGroup(t.Context(), &cloudwatchlogs.CreateLogGroupInput{LogGroupName: aws.String("foo")})
 	assert.NilError(t, err)
 
 	// make sure the endpoint was actually hit
@@ -1713,7 +1713,7 @@ func TestNewAWSLogsClientCredentialEndpointDetect(t *testing.T) {
 	client, err := newAWSLogsClient(info)
 	assert.Check(t, err)
 
-	_, err = client.CreateLogGroup(context.TODO(), &cloudwatchlogs.CreateLogGroupInput{LogGroupName: aws.String("foo")})
+	_, err = client.CreateLogGroup(t.Context(), &cloudwatchlogs.CreateLogGroupInput{LogGroupName: aws.String("foo")})
 	assert.NilError(t, err)
 
 	assert.Check(t, credsRetrieved)

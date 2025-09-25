@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"context"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -156,7 +155,7 @@ func TestAdapterReadLogs(t *testing.T) {
 	lr, ok := l.(LogReader)
 	assert.Check(t, ok, "Logger does not implement LogReader")
 
-	lw := lr.ReadLogs(context.TODO(), ReadConfig{})
+	lw := lr.ReadLogs(t.Context(), ReadConfig{})
 
 	for _, x := range testMsg {
 		select {
@@ -175,7 +174,7 @@ func TestAdapterReadLogs(t *testing.T) {
 	}
 	lw.ConsumerGone()
 
-	lw = lr.ReadLogs(context.TODO(), ReadConfig{Follow: true})
+	lw = lr.ReadLogs(t.Context(), ReadConfig{Follow: true})
 	for _, x := range testMsg {
 		select {
 		case msg := <-lw.Msg:
