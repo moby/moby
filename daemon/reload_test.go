@@ -25,7 +25,7 @@ func muteLogs(t *testing.T) {
 func newDaemonForReloadT(t *testing.T, cfg *config.Config) *Daemon {
 	t.Helper()
 	daemon := &Daemon{
-		imageService: images.NewImageService(context.TODO(), images.ImageServiceConfig{}),
+		imageService: images.NewImageService(t.Context(), images.ImageServiceConfig{}),
 	}
 	var err error
 	daemon.registryService, err = registry.NewService(registry.ServiceOptions{})
@@ -63,7 +63,7 @@ func TestDaemonReloadLabels(t *testing.T) {
 
 func TestDaemonReloadMirrors(t *testing.T) {
 	daemon := &Daemon{
-		imageService: images.NewImageService(context.TODO(), images.ImageServiceConfig{}),
+		imageService: images.NewImageService(t.Context(), images.ImageServiceConfig{}),
 	}
 	muteLogs(t)
 
@@ -162,7 +162,7 @@ func TestDaemonReloadMirrors(t *testing.T) {
 
 func TestDaemonReloadInsecureRegistries(t *testing.T) {
 	daemon := &Daemon{
-		imageService: images.NewImageService(context.TODO(), images.ImageServiceConfig{}),
+		imageService: images.NewImageService(t.Context(), images.ImageServiceConfig{}),
 	}
 	muteLogs(t)
 

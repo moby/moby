@@ -29,7 +29,7 @@ func TestExecResizeNoSuchExec(t *testing.T) {
 		Container: c,
 	}
 	d.registerExecCommand(c, ec)
-	err := d.ContainerExecResize(context.TODO(), "no-such-exec", height, width)
+	err := d.ContainerExecResize(t.Context(), "no-such-exec", height, width)
 	assert.ErrorContains(t, err, "No such exec instance")
 }
 
@@ -70,7 +70,7 @@ func TestExecResize(t *testing.T) {
 	close(ec.Started)
 	d.containers.Add(n, c)
 	d.registerExecCommand(c, ec)
-	err := d.ContainerExecResize(context.TODO(), n, height, width)
+	err := d.ContainerExecResize(t.Context(), n, height, width)
 	assert.NilError(t, err)
 	assert.Equal(t, mp.Width, width)
 	assert.Equal(t, mp.Height, height)
@@ -103,6 +103,6 @@ func TestExecResizeTimeout(t *testing.T) {
 	}
 	d.containers.Add(n, c)
 	d.registerExecCommand(c, ec)
-	err := d.ContainerExecResize(context.TODO(), n, height, width)
+	err := d.ContainerExecResize(t.Context(), n, height, width)
 	assert.ErrorContains(t, err, "timeout waiting for exec session ready")
 }
