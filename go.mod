@@ -29,7 +29,7 @@ require (
 	github.com/containerd/log v0.1.0
 	github.com/containerd/platforms v1.0.0-rc.1
 	github.com/containerd/typeurl/v2 v2.2.3
-	github.com/coreos/go-systemd/v22 v22.5.0
+	github.com/coreos/go-systemd/v22 v22.6.0
 	github.com/cpuguy83/tar2go v0.3.1
 	github.com/creack/pty v1.1.24
 	github.com/deckarep/golang-set/v2 v2.3.0
