@@ -32,7 +32,6 @@ func arches() []rspec.Arch {
 
 // DefaultProfile defines the whitelist for the default seccomp profile.
 func DefaultProfile(rs *specs.Spec) *rspec.LinuxSeccomp {
-
 	syscalls := []rspec.LinuxSyscall{
 		{
 			Names: []string{
@@ -535,7 +534,6 @@ func DefaultProfile(rs *specs.Spec) *rspec.LinuxSeccomp {
 				},
 			},
 		}...)
-
 	}
 
 	arch := runtime.GOARCH
