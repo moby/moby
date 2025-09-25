@@ -785,6 +785,10 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 	return daemon.config().IsSwarmCompatible()
 }
 
+func useContainerdByDefault() bool {
+	return os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") == "" && runtime.GOOS != "windows"
+}
+
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
 func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.Store, authzMiddleware *authorization.Middleware) (_ *Daemon, retErr error) {
@@ -894,7 +898,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			log.G(ctx).WithField("env", os.Environ()).Info("Migration to containerd is enabled, driver will be switched to snapshotter if there are no images or containers")
 		}
 	}
-	if config.Features["containerd-snapshotter"] {
+	if config.Features["containerd-snapshotter"] && useContainerdByDefault() {
 		log.G(ctx).Warn(`"containerd-snapshotter" is now the default and no longer needed to be set`)
 	}
 
@@ -1113,11 +1117,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		case "windowsfilter":
 			// Docker WCOW graphdriver
 		case "":
-			// Use graph driver but enable migration
+			// Use graph driver unless opted-in to containerd store
 			driverName = "windowsfilter"
-			if os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") == "" {
-				// Don't force migration if graph driver is explicit
-				migrationThreshold = 0
+			if useContainerdByDefault() || config.Features["containerd-snapshotter"] {
+				driverName = "windows"
 			}
 		default:
 			log.G(ctx).Infof("Using non-default snapshotter %s", driverName)
