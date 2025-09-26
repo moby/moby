@@ -77,10 +77,10 @@ func TestCheckpoint(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(true, inspect.State.Running))
 
-	checkpoints, err := apiClient.CheckpointList(ctx, cID, client.CheckpointListOptions{})
+	res, err := apiClient.CheckpointList(ctx, cID, client.CheckpointListOptions{})
 	assert.NilError(t, err)
-	assert.Equal(t, len(checkpoints), 1)
-	assert.Equal(t, checkpoints[0].Name, "test")
+	assert.Equal(t, len(res.Checkpoints), 1)
+	assert.Equal(t, res.Checkpoints[0].Name, "test")
 
 	// Create a test file on a tmpfs mount.
 	cmd := []string{"touch", "/tmp/test-file"}
@@ -103,11 +103,11 @@ func TestCheckpoint(t *testing.T) {
 	assert.Check(t, is.Equal(false, inspect.State.Running))
 
 	// Check that both checkpoints are listed.
-	checkpoints, err = apiClient.CheckpointList(ctx, cID, client.CheckpointListOptions{})
+	res, err = apiClient.CheckpointList(ctx, cID, client.CheckpointListOptions{})
 	assert.NilError(t, err)
-	assert.Equal(t, len(checkpoints), 2)
+	assert.Equal(t, len(res.Checkpoints), 2)
 	cptNames := make([]string, 2)
-	for i, c := range checkpoints {
+	for i, c := range res.Checkpoints {
 		cptNames[i] = c.Name
 	}
 	sort.Strings(cptNames)
