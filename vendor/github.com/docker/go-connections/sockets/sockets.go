@@ -2,13 +2,19 @@
 package sockets
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
+	"syscall"
 	"time"
 )
 
-const defaultTimeout = 10 * time.Second
+const (
+	defaultTimeout        = 10 * time.Second
+	maxUnixSocketPathSize = len(syscall.RawSockaddrUnix{}.Path)
+)
 
 // ErrProtocolNotAvailable is returned when a given transport protocol is not provided by the operating system.
 var ErrProtocolNotAvailable = errors.New("protocol not available")
@@ -32,6 +38,29 @@ func ConfigureTransport(tr *http.Transport, proto, addr string) error {
 		tr.DialContext = (&net.Dialer{
 			Timeout: defaultTimeout,
 		}).DialContext
+	}
+	return nil
+}
+
+// DialPipe connects to a Windows named pipe. It is not supported on
+// non-Windows platforms.
+//
+// Deprecated: use [github.com/Microsoft/go-winio.DialPipe] or [github.com/Microsoft/go-winio.DialPipeContext].
+func DialPipe(addr string, timeout time.Duration) (net.Conn, error) {
+	return dialPipe(addr, timeout)
+}
+
+func configureUnixTransport(tr *http.Transport, proto, addr string) error {
+	if len(addr) > maxUnixSocketPathSize {
+		return fmt.Errorf("unix socket path %q is too long", addr)
+	}
+	// No need for compression in local communications.
+	tr.DisableCompression = true
+	dialer := &net.Dialer{
+		Timeout: defaultTimeout,
+	}
+	tr.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
+		return dialer.DialContext(ctx, proto, addr)
 	}
 	return nil
 }

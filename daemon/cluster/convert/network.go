@@ -157,16 +157,18 @@ func BasicNetworkFromGRPC(n swarmapi.Network) network.Inspect {
 	}
 
 	nr := network.Inspect{
-		ID:         n.ID,
-		Name:       n.Spec.Annotations.Name,
-		Scope:      scope.Swarm,
-		EnableIPv4: true,
-		EnableIPv6: spec.Ipv6Enabled,
-		IPAM:       ipam,
-		Internal:   spec.Internal,
-		Attachable: spec.Attachable,
-		Ingress:    IsIngressNetwork(&n),
-		Labels:     n.Spec.Annotations.Labels,
+		Network: network.Network{
+			ID:         n.ID,
+			Name:       n.Spec.Annotations.Name,
+			Scope:      scope.Swarm,
+			EnableIPv4: true,
+			EnableIPv6: spec.Ipv6Enabled,
+			IPAM:       ipam,
+			Internal:   spec.Internal,
+			Attachable: spec.Attachable,
+			Ingress:    IsIngressNetwork(&n),
+			Labels:     n.Spec.Annotations.Labels,
+		},
 	}
 	nr.Created, _ = gogotypes.TimestampFromProto(n.Meta.CreatedAt)
 

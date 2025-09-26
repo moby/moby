@@ -302,9 +302,6 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 	if resources.MemoryReservation != 0 {
 		cResources.MemoryReservation = resources.MemoryReservation
 	}
-	if resources.KernelMemory != 0 {
-		cResources.KernelMemory = resources.KernelMemory
-	}
 	if resources.CPURealtimePeriod != 0 {
 		cResources.CPURealtimePeriod = resources.CPURealtimePeriod
 	}

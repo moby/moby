@@ -12,7 +12,7 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-func containsNetwork(nws []networktypes.Inspect, networkID string) bool {
+func containsNetwork(nws []networktypes.Summary, networkID string) bool {
 	for _, n := range nws {
 		if n.ID == networkID {
 			return true

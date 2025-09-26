@@ -108,10 +108,6 @@ func getMemoryResources(config containertypes.Resources) *specs.LinuxMemory {
 		memory.DisableOOMKiller = config.OomKillDisable
 	}
 
-	if config.KernelMemory != 0 { //nolint:staticcheck // ignore SA1019: memory.Kernel is deprecated: kernel-memory limits are not supported in cgroups v2, and were obsoleted in [kernel v5.4]. This field should no longer be used, as it may be ignored by runtimes.
-		memory.Kernel = &config.KernelMemory //nolint:staticcheck // ignore SA1019: memory.Kernel is deprecated: kernel-memory limits are not supported in cgroups v2, and were obsoleted in [kernel v5.4]. This field should no longer be used, as it may be ignored by runtimes.
-	}
-
 	if config.KernelMemoryTCP != 0 {
 		memory.KernelTCP = &config.KernelMemoryTCP
 	}
@@ -454,18 +450,6 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 	}
 	if resources.Memory > 0 && resources.MemoryReservation > 0 && resources.Memory < resources.MemoryReservation {
 		return warnings, fmt.Errorf("Minimum memory limit can not be less than memory reservation limit, see usage")
-	}
-	if resources.KernelMemory > 0 {
-		// Kernel memory limit is not supported on cgroup v2.
-		// Even on cgroup v1, kernel memory limit (`kmem.limit_in_bytes`) has been deprecated since kernel 5.4.
-		// https://github.com/torvalds/linux/commit/0158115f702b0ba208ab0b5adf44cae99b3ebcc7
-		if !sysInfo.KernelMemory {
-			warnings = append(warnings, "Your kernel does not support kernel memory limit capabilities or the cgroup is not mounted. Limitation discarded.")
-			resources.KernelMemory = 0
-		}
-		if resources.KernelMemory > 0 && resources.KernelMemory < linuxMinMemory {
-			return warnings, fmt.Errorf("Minimum kernel memory limit allowed is 6MB")
-		}
 	}
 	if resources.OomKillDisable != nil && !sysInfo.OomKillDisable {
 		// only produce warnings if the setting wasn't to *disable* the OOM Kill; no point
