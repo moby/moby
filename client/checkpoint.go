@@ -2,8 +2,6 @@ package client
 
 import (
 	"context"
-
-	"github.com/moby/moby/api/types/checkpoint"
 )
 
 // CheckpointAPIClient defines API client methods for the checkpoints.
@@ -14,5 +12,5 @@ import (
 type CheckpointAPIClient interface {
 	CheckpointCreate(ctx context.Context, container string, options CheckpointCreateOptions) error
 	CheckpointDelete(ctx context.Context, container string, options CheckpointDeleteOptions) error
-	CheckpointList(ctx context.Context, container string, options CheckpointListOptions) ([]checkpoint.Summary, error)
+	CheckpointList(ctx context.Context, container string, options CheckpointListOptions) (CheckpointListResult, error)
 }

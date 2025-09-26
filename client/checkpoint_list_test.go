@@ -48,9 +48,9 @@ func TestCheckpointList(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	checkpoints, err := client.CheckpointList(context.Background(), "container_id", CheckpointListOptions{})
+	res, err := client.CheckpointList(context.Background(), "container_id", CheckpointListOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Len(checkpoints, 1))
+	assert.Check(t, is.Len(res.Checkpoints, 1))
 }
 
 func TestCheckpointListContainerNotFound(t *testing.T) {

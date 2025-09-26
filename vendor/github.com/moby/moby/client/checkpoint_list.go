@@ -13,9 +13,14 @@ type CheckpointListOptions struct {
 	CheckpointDir string
 }
 
+// CheckpointListResult holds the result from the CheckpointList method.
+type CheckpointListResult struct {
+	Checkpoints []checkpoint.Summary
+}
+
 // CheckpointList returns the checkpoints of the given container in the docker host.
-func (cli *Client) CheckpointList(ctx context.Context, container string, options CheckpointListOptions) ([]checkpoint.Summary, error) {
-	var checkpoints []checkpoint.Summary
+func (cli *Client) CheckpointList(ctx context.Context, container string, options CheckpointListOptions) (CheckpointListResult, error) {
+	var out CheckpointListResult
 
 	query := url.Values{}
 	if options.CheckpointDir != "" {
@@ -25,9 +30,9 @@ func (cli *Client) CheckpointList(ctx context.Context, container string, options
 	resp, err := cli.get(ctx, "/containers/"+container+"/checkpoints", query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return checkpoints, err
+		return out, err
 	}
 
-	err = json.NewDecoder(resp.Body).Decode(&checkpoints)
-	return checkpoints, err
+	err = json.NewDecoder(resp.Body).Decode(&out.Checkpoints)
+	return out, err
 }
