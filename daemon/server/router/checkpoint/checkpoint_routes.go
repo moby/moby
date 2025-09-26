@@ -39,6 +39,9 @@ func (cr *checkpointRouter) getContainerCheckpoints(ctx context.Context, w http.
 	if err != nil {
 		return err
 	}
+	if checkpoints == nil {
+		checkpoints = []checkpoint.Summary{}
+	}
 
 	return httputils.WriteJSON(w, http.StatusOK, checkpoints)
 }
