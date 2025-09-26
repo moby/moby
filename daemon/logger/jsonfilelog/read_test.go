@@ -3,7 +3,6 @@ package jsonfilelog
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -64,7 +63,7 @@ func BenchmarkJSONFileLoggerReadLogs(b *testing.B) {
 		}
 	}()
 
-	lw := jsonlogger.(*JSONFileLogger).ReadLogs(context.TODO(), logger.ReadConfig{Follow: true})
+	lw := jsonlogger.(*JSONFileLogger).ReadLogs(b.Context(), logger.ReadConfig{Follow: true})
 	for {
 		select {
 		case _, ok := <-lw.Msg:

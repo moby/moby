@@ -957,7 +957,7 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 
 		// Skip this subtest if the daemon doesn't support the client version.
 		// TODO(aker): drop this once the Engine supports API version >= 1.53
-		_, err := apiClient.ServerVersion(context.TODO())
+		_, err := apiClient.ServerVersion(ctx)
 		if err != nil && strings.Contains(err.Error(), fmt.Sprintf("client version %s is too new", version)) {
 			t.Skipf("requires API %s", version)
 		}

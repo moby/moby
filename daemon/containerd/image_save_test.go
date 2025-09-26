@@ -1,7 +1,6 @@
 package containerd
 
 import (
-	"context"
 	"io"
 	"path/filepath"
 	"testing"
@@ -16,7 +15,7 @@ import (
 )
 
 func TestImageMultiplatformSaveShallowWithNative(t *testing.T) {
-	ctx := namespaces.WithNamespace(context.TODO(), "testing-"+t.Name())
+	ctx := namespaces.WithNamespace(t.Context(), "testing-"+t.Name())
 
 	contentDir := t.TempDir()
 	store := &blobsDirContentStore{blobs: filepath.Join(contentDir, "blobs/sha256")}
@@ -72,7 +71,7 @@ func TestImageMultiplatformSaveShallowWithNative(t *testing.T) {
 }
 
 func TestImageMultiplatformSaveShallowWithoutNative(t *testing.T) {
-	ctx := namespaces.WithNamespace(context.TODO(), "testing-"+t.Name())
+	ctx := namespaces.WithNamespace(t.Context(), "testing-"+t.Name())
 
 	contentDir := t.TempDir()
 	store := &blobsDirContentStore{blobs: filepath.Join(contentDir, "blobs/sha256")}

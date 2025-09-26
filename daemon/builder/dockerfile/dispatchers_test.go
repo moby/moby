@@ -53,7 +53,7 @@ func TestEnv2Variables(t *testing.T) {
 			instructions.KeyValuePair{Key: "var2", Value: "val2"},
 		},
 	}
-	err := dispatch(context.TODO(), sb, envCommand)
+	err := dispatch(t.Context(), sb, envCommand)
 	assert.NilError(t, err)
 
 	expected := []string{
@@ -72,7 +72,7 @@ func TestEnvValueWithExistingRunConfigEnv(t *testing.T) {
 			instructions.KeyValuePair{Key: "var1", Value: "val1"},
 		},
 	}
-	err := dispatch(context.TODO(), sb, envCommand)
+	err := dispatch(t.Context(), sb, envCommand)
 	assert.NilError(t, err)
 	expected := []string{
 		"var1=val1",
@@ -86,7 +86,7 @@ func TestMaintainer(t *testing.T) {
 	b := newBuilderWithMockBackend(t)
 	sb := newDispatchRequest(b, '\\', nil, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
 	cmd := &instructions.MaintainerCommand{Maintainer: maintainerEntry}
-	err := dispatch(context.TODO(), sb, cmd)
+	err := dispatch(t.Context(), sb, cmd)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(sb.state.maintainer, maintainerEntry))
 }
@@ -102,7 +102,7 @@ func TestLabel(t *testing.T) {
 			instructions.KeyValuePair{Key: labelName, Value: labelValue},
 		},
 	}
-	err := dispatch(context.TODO(), sb, cmd)
+	err := dispatch(t.Context(), sb, cmd)
 	assert.NilError(t, err)
 
 	assert.Assert(t, is.Contains(sb.state.runConfig.Labels, labelName))
@@ -115,7 +115,7 @@ func TestFromScratch(t *testing.T) {
 	cmd := &instructions.Stage{
 		BaseName: "scratch",
 	}
-	err := initializeStage(context.TODO(), sb, cmd)
+	err := initializeStage(t.Context(), sb, cmd)
 
 	if runtime.GOOS == "windows" {
 		assert.Check(t, is.Error(err, "Windows does not support FROM scratch"))
@@ -153,7 +153,7 @@ func TestFromWithArg(t *testing.T) {
 
 	sb := newDispatchRequest(b, '\\', nil, args, newStagesBuildResults())
 	assert.NilError(t, err)
-	err = initializeStage(context.TODO(), sb, cmd)
+	err = initializeStage(t.Context(), sb, cmd)
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Equal(sb.state.imageID, expected))
@@ -174,7 +174,7 @@ func TestFromWithArgButBuildArgsNotGiven(t *testing.T) {
 
 	sb := newDispatchRequest(b, '\\', nil, args, newStagesBuildResults())
 	assert.NilError(t, err)
-	err = initializeStage(context.TODO(), sb, cmd)
+	err = initializeStage(t.Context(), sb, cmd)
 	assert.Error(t, err, "base name (${THETAG}) should not be blank")
 }
 
@@ -194,7 +194,7 @@ func TestFromWithUndefinedArg(t *testing.T) {
 	cmd := &instructions.Stage{
 		BaseName: "alpine${THETAG}",
 	}
-	err := initializeStage(context.TODO(), sb, cmd)
+	err := initializeStage(t.Context(), sb, cmd)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(sb.state.imageID, expected))
 }
@@ -206,12 +206,12 @@ func TestFromMultiStageWithNamedStage(t *testing.T) {
 	previousResults := newStagesBuildResults()
 	firstSB := newDispatchRequest(b, '\\', nil, NewBuildArgs(make(map[string]*string)), previousResults)
 	secondSB := newDispatchRequest(b, '\\', nil, NewBuildArgs(make(map[string]*string)), previousResults)
-	err := initializeStage(context.TODO(), firstSB, firstFrom)
+	err := initializeStage(t.Context(), firstSB, firstFrom)
 	assert.NilError(t, err)
 	assert.Check(t, firstSB.state.hasFromImage())
 	previousResults.indexed["base"] = firstSB.state.runConfig
 	previousResults.flat = append(previousResults.flat, firstSB.state.runConfig)
-	err = initializeStage(context.TODO(), secondSB, secondFrom)
+	err = initializeStage(t.Context(), secondSB, secondFrom)
 	assert.NilError(t, err)
 	assert.Check(t, secondSB.state.hasFromImage())
 }
@@ -222,7 +222,7 @@ func TestOnbuild(t *testing.T) {
 	cmd := &instructions.OnbuildCommand{
 		Expression: "ADD . /app/src",
 	}
-	err := dispatch(context.TODO(), sb, cmd)
+	err := dispatch(t.Context(), sb, cmd)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(sb.state.runConfig.OnBuild[0], "ADD . /app/src"))
 }
@@ -239,7 +239,7 @@ func TestWorkdir(t *testing.T) {
 		Path: workingDir,
 	}
 
-	err := dispatch(context.TODO(), sb, cmd)
+	err := dispatch(t.Context(), sb, cmd)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(sb.state.runConfig.WorkingDir, workingDir))
 }
@@ -249,7 +249,7 @@ func TestCmd(t *testing.T) {
 	sb := newDispatchRequest(b, '`', nil, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
 	sb.state.baseImage = &mockImage{}
 
-	err := dispatch(context.TODO(), sb, &instructions.CmdCommand{
+	err := dispatch(t.Context(), sb, &instructions.CmdCommand{
 		ShellDependantCmdLine: instructions.ShellDependantCmdLine{
 			CmdLine:      []string{"./executable"},
 			PrependShell: true,
@@ -276,7 +276,7 @@ func TestHealthcheckNone(t *testing.T) {
 			Test: []string{"NONE"},
 		},
 	}
-	err := dispatch(context.TODO(), sb, cmd)
+	err := dispatch(t.Context(), sb, cmd)
 	assert.NilError(t, err)
 
 	assert.Assert(t, sb.state.runConfig.Healthcheck != nil)
@@ -292,7 +292,7 @@ func TestHealthcheckCmd(t *testing.T) {
 			Test: expectedTest,
 		},
 	}
-	err := dispatch(context.TODO(), sb, cmd)
+	err := dispatch(t.Context(), sb, cmd)
 	assert.NilError(t, err)
 
 	assert.Assert(t, sb.state.runConfig.Healthcheck != nil)
@@ -304,7 +304,7 @@ func TestEntrypoint(t *testing.T) {
 	sb := newDispatchRequest(b, '`', nil, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
 	sb.state.baseImage = &mockImage{}
 
-	err := dispatch(context.TODO(), sb, &instructions.EntrypointCommand{
+	err := dispatch(t.Context(), sb, &instructions.EntrypointCommand{
 		ShellDependantCmdLine: instructions.ShellDependantCmdLine{
 			CmdLine:      []string{"/usr/sbin/nginx"},
 			PrependShell: true,
@@ -329,7 +329,7 @@ func TestExpose(t *testing.T) {
 	cmd := &instructions.ExposeCommand{
 		Ports: []string{exposedPort},
 	}
-	err := dispatch(context.TODO(), sb, cmd)
+	err := dispatch(t.Context(), sb, cmd)
 	assert.NilError(t, err)
 
 	assert.Assert(t, sb.state.runConfig.ExposedPorts != nil)
@@ -345,7 +345,7 @@ func TestUser(t *testing.T) {
 	cmd := &instructions.UserCommand{
 		User: "test",
 	}
-	err := dispatch(context.TODO(), sb, cmd)
+	err := dispatch(t.Context(), sb, cmd)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(sb.state.runConfig.User, "test"))
 }
@@ -359,7 +359,7 @@ func TestVolume(t *testing.T) {
 	cmd := &instructions.VolumeCommand{
 		Volumes: []string{exposedVolume},
 	}
-	err := dispatch(context.TODO(), sb, cmd)
+	err := dispatch(t.Context(), sb, cmd)
 	assert.NilError(t, err)
 	assert.Assert(t, sb.state.runConfig.Volumes != nil)
 	assert.Check(t, is.Len(sb.state.runConfig.Volumes, 1))
@@ -379,7 +379,7 @@ func TestStopSignal(t *testing.T) {
 	cmd := &instructions.StopSignalCommand{
 		Signal: signal,
 	}
-	err := dispatch(context.TODO(), sb, cmd)
+	err := dispatch(t.Context(), sb, cmd)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(sb.state.runConfig.StopSignal, signal))
 }
@@ -391,7 +391,7 @@ func TestArg(t *testing.T) {
 	argName := "foo"
 	argVal := "bar"
 	cmd := &instructions.ArgCommand{Args: []instructions.KeyValuePairOptional{{Key: argName, Value: &argVal}}}
-	err := dispatch(context.TODO(), sb, cmd)
+	err := dispatch(t.Context(), sb, cmd)
 	assert.NilError(t, err)
 
 	expected := map[string]string{argName: argVal}
@@ -403,7 +403,7 @@ func TestShell(t *testing.T) {
 	sb := newDispatchRequest(b, '`', nil, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
 
 	shellCmd := []string{"powershell"}
-	err := dispatch(context.TODO(), sb, &instructions.ShellCommand{
+	err := dispatch(t.Context(), sb, &instructions.ShellCommand{
 		Shell: shellCmd,
 	})
 	assert.NilError(t, err)
@@ -459,7 +459,7 @@ func TestRunWithBuildArgs(t *testing.T) {
 		return imageCache
 	}
 
-	prober, err := newImageProber(context.TODO(), mockBackend, nil, false)
+	prober, err := newImageProber(t.Context(), mockBackend, nil, false)
 	assert.NilError(t, err, "Could not create image prober")
 	b.imageProber = prober
 
@@ -484,7 +484,7 @@ func TestRunWithBuildArgs(t *testing.T) {
 		return "", nil
 	}
 	from := &instructions.Stage{BaseName: "abcdef"}
-	err = initializeStage(context.TODO(), sb, from)
+	err = initializeStage(t.Context(), sb, from)
 	assert.NilError(t, err)
 	sb.state.buildArgs.AddArg("one", strPtr("two"))
 
@@ -504,7 +504,7 @@ func TestRunWithBuildArgs(t *testing.T) {
 	runinst.CmdLine = []string{"echo foo"}
 	runinst.PrependShell = true
 
-	assert.NilError(t, dispatch(context.TODO(), sb, runinst))
+	assert.NilError(t, dispatch(t.Context(), sb, runinst))
 
 	// Check that runConfig.Cmd has not been modified by run
 	assert.Check(t, is.DeepEqual(sb.state.runConfig.Cmd, origCmd))
@@ -528,10 +528,10 @@ func TestRunIgnoresHealthcheck(t *testing.T) {
 	mockBackend.makeImageCacheFunc = func(_ []string) builder.ImageCache {
 		return imageCache
 	}
-	imageProber, err := newImageProber(context.TODO(), mockBackend, nil, false)
+	imgProber, err := newImageProber(t.Context(), mockBackend, nil, false)
 	assert.NilError(t, err, "Could not create image prober")
 
-	b.imageProber = imageProber
+	b.imageProber = imgProber
 	mockBackend.getImageFunc = func(_ string) (builder.Image, builder.ROLayer, error) {
 		return &mockImage{
 			id:     "abcdef",
@@ -545,7 +545,7 @@ func TestRunIgnoresHealthcheck(t *testing.T) {
 		return "", nil
 	}
 	from := &instructions.Stage{BaseName: "abcdef"}
-	err = initializeStage(context.TODO(), sb, from)
+	err = initializeStage(t.Context(), sb, from)
 	assert.NilError(t, err)
 
 	expectedTest := []string{"CMD-SHELL", "curl -f http://localhost/ || exit 1"}
@@ -562,7 +562,7 @@ func TestRunIgnoresHealthcheck(t *testing.T) {
 	assert.NilError(t, err)
 	cmd := healthint.(*instructions.HealthCheckCommand)
 
-	assert.NilError(t, dispatch(context.TODO(), sb, cmd))
+	assert.NilError(t, dispatch(t.Context(), sb, cmd))
 	assert.Assert(t, sb.state.runConfig.Healthcheck != nil)
 
 	mockBackend.containerCreateFunc = func(config backend.ContainerCreateConfig) (container.CreateResponse, error) {
@@ -577,7 +577,7 @@ func TestRunIgnoresHealthcheck(t *testing.T) {
 	run := runint.(*instructions.RunCommand)
 	run.PrependShell = true
 
-	assert.NilError(t, dispatch(context.TODO(), sb, run))
+	assert.NilError(t, dispatch(t.Context(), sb, run))
 	assert.Check(t, is.DeepEqual(sb.state.runConfig.Healthcheck.Test, expectedTest))
 }
 
@@ -595,7 +595,7 @@ func TestDispatchUnsupportedOptions(t *testing.T) {
 			},
 			Chmod: "0655",
 		}
-		err := dispatch(context.TODO(), sb, cmd)
+		err := dispatch(t.Context(), sb, cmd)
 		assert.Error(t, err, "the --chmod option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled")
 	})
 
@@ -607,7 +607,7 @@ func TestDispatchUnsupportedOptions(t *testing.T) {
 			},
 			Chmod: "0655",
 		}
-		err := dispatch(context.TODO(), sb, cmd)
+		err := dispatch(t.Context(), sb, cmd)
 		assert.Error(t, err, "the --chmod option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled")
 	})
 
@@ -621,7 +621,7 @@ func TestDispatchUnsupportedOptions(t *testing.T) {
 		// one or more of these flags will be supported in future
 		for _, f := range []string{"mount", "network", "security", "any-flag"} {
 			cmd.FlagsUsed = []string{f}
-			err := dispatch(context.TODO(), sb, cmd)
+			err := dispatch(t.Context(), sb, cmd)
 			assert.Error(t, err, fmt.Sprintf("the --%s option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled", f))
 		}
 	})

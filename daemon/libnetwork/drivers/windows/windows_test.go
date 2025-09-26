@@ -46,7 +46,7 @@ func testNetwork(networkType string, t *testing.T) {
 
 	epOptions := make(map[string]any)
 	te := &testEndpoint{}
-	err = d.CreateEndpoint(context.TODO(), "dummy", "ep1", te.Interface(), epOptions)
+	err = d.CreateEndpoint(t.Context(), "dummy", "ep1", te.Interface(), epOptions)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
