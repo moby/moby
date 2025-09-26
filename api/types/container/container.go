@@ -134,7 +134,13 @@ type InspectResponse struct {
 	AppArmorProfile string
 	ExecIDs         []string
 	HostConfig      *HostConfig
-	GraphDriver     storage.DriverData
+
+	// GraphDriver contains information about the container's graph driver.
+	GraphDriver *storage.DriverData `json:"GraphDriver,omitempty"`
+
+	// Storage contains information about the storage used for the container's filesystem.
+	Storage *storage.Storage `json:"Storage,omitempty"`
+
 	SizeRw          *int64 `json:",omitempty"`
 	SizeRootFs      *int64 `json:",omitempty"`
 	Mounts          []MountPoint

@@ -19,8 +19,14 @@ func (s *DockerAPISuite) TestInspectAPIContainerResponse(c *testing.T) {
 
 	keysBase := []string{
 		"Id", "State", "Created", "Path", "Args", "Config", "Image", "NetworkSettings",
-		"ResolvConfPath", "HostnamePath", "HostsPath", "LogPath", "Name", "Driver", "MountLabel", "ProcessLabel", "GraphDriver",
+		"ResolvConfPath", "HostnamePath", "HostsPath", "LogPath", "Name", "Driver", "MountLabel", "ProcessLabel",
 		"Mounts",
+	}
+
+	if testEnv.UsingSnapshotter() {
+		keysBase = append(keysBase, "Storage")
+	} else {
+		keysBase = append(keysBase, "GraphDriver")
 	}
 
 	cases := []struct {

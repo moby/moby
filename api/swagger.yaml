@@ -1688,6 +1688,42 @@ definitions:
           "WorkDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/work"
         }
 
+  Storage:
+    description: |
+      Information about the storage used by the container.
+    type: "object"
+    properties:
+      RootFS:
+        description: |
+          Information about the storage used for the container's root filesystem.
+        type: "object"
+        x-nullable: true
+        $ref: "#/definitions/RootFSStorage"
+
+  RootFSStorage:
+    description: |
+      Information about the storage used for the container's root filesystem.
+    type: "object"
+    x-go-name: RootFSStorage
+    properties:
+      Snapshot:
+        description: |
+          Information about the snapshot used for the container's root filesystem.
+        type: "object"
+        x-nullable: true
+        $ref: "#/definitions/RootFSStorageSnapshot"
+
+  RootFSStorageSnapshot:
+    description: |
+      Information about a snapshot backend of the container's root filesystem.
+    type: "object"
+    x-go-name: RootFSStorageSnapshot
+    properties:
+      Name:
+        description: "Name of the snapshotter."
+        type: "string"
+        x-nullable: false
+
   FilesystemChange:
     description: |
       Change in the container's filesystem.
@@ -5116,6 +5152,10 @@ definitions:
         $ref: "#/definitions/HostConfig"
       GraphDriver:
         $ref: "#/definitions/DriverData"
+        x-nullable: true
+      Storage:
+        $ref: "#/definitions/Storage"
+        x-nullable: true
       SizeRw:
         description: |-
           The size of files that have been created or changed by this container.
