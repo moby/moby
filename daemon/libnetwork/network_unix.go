@@ -3,6 +3,7 @@
 package libnetwork
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"time"
@@ -17,7 +18,7 @@ type platformNetwork struct{} //nolint:nolintlint,unused // only populated on wi
 
 // Stub implementations for DNS related functions
 
-func (n *Network) startResolver() {
+func (n *Network) startResolver(context.Context) {
 }
 
 func deleteEpFromResolver(epName string, epIface *EndpointInterface, resolvers []*Resolver) error {

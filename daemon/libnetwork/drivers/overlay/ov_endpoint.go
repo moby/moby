@@ -81,7 +81,7 @@ func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo drive
 	return nil
 }
 
-func (d *driver) DeleteEndpoint(nid, eid string) error {
+func (d *driver) DeleteEndpoint(ctx context.Context, nid, eid string) error {
 	nlh := ns.NlHandle()
 
 	if err := validateID(nid, eid); err != nil {
@@ -107,11 +107,11 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 
 	link, err := nlh.LinkByName(ep.ifName)
 	if err != nil {
-		log.G(context.TODO()).Debugf("Failed to retrieve interface (%s)'s link on endpoint (%s) delete: %v", ep.ifName, ep.id, err)
+		log.G(ctx).Debugf("Failed to retrieve interface (%s)'s link on endpoint (%s) delete: %v", ep.ifName, ep.id, err)
 		return nil
 	}
 	if err := nlh.LinkDel(link); err != nil {
-		log.G(context.TODO()).Debugf("Failed to delete interface (%s)'s link on endpoint (%s) delete: %v", ep.ifName, ep.id, err)
+		log.G(ctx).Debugf("Failed to delete interface (%s)'s link on endpoint (%s) delete: %v", ep.ifName, ep.id, err)
 	}
 
 	return nil

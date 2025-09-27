@@ -268,6 +268,10 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 // Cleanup releases any network resources allocated to the container along with any rules
 // around how containers are linked together.  It also unmounts the container's root filesystem.
 func (daemon *Daemon) Cleanup(ctx context.Context, container *container.Container) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.Cleanup", trace.WithAttributes(
+		attribute.String("container.ID", container.ID), attribute.String("container.Name", container.Name)))
+	defer span.End()
+
 	// Microsoft HCS containers get in a bad state if host resources are
 	// released while the container still exists.
 	if ctr, ok := container.State.C8dContainer(); ok {

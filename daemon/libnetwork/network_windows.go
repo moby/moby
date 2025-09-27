@@ -48,12 +48,12 @@ func (n *Network) ExecFunc(f func()) error {
 	return nil
 }
 
-func (n *Network) startResolver() {
+func (n *Network) startResolver(ctx context.Context) {
 	if n.networkType == "ics" {
 		return
 	}
 	n.resolverOnce.Do(func() {
-		log.G(context.TODO()).Debugf("Launching DNS server for network %q", n.Name())
+		log.G(ctx).Debugf("Launching DNS server for network %q", n.Name())
 		hnsid := n.DriverOptions()[windows.HNSID]
 		if hnsid == "" {
 			return
@@ -61,7 +61,7 @@ func (n *Network) startResolver() {
 
 		hnsresponse, err := hcsshim.HNSNetworkRequest(http.MethodGet, hnsid, "")
 		if err != nil {
-			log.G(context.TODO()).Errorf("Resolver Setup/Start failed for container %s, %q", n.Name(), err)
+			log.G(ctx).Errorf("Resolver Setup/Start failed for container %s, %q", n.Name(), err)
 			return
 		}
 
@@ -69,15 +69,15 @@ func (n *Network) startResolver() {
 			if subnet.GatewayAddress != "" {
 				for i := 0; i < 3; i++ {
 					resolver := NewResolver(subnet.GatewayAddress, true, n)
-					log.G(context.TODO()).Debugf("Binding a resolver on network %s gateway %s", n.Name(), subnet.GatewayAddress)
+					log.G(ctx).Debugf("Binding a resolver on network %s gateway %s", n.Name(), subnet.GatewayAddress)
 					n.dnsCompartment = hnsresponse.DNSServerCompartment
 					n.ExecFunc(resolver.SetupFunc(53))
 
-					if err = resolver.Start(); err != nil {
-						log.G(context.TODO()).Errorf("Resolver Setup/Start failed for container %s, %q", n.Name(), err)
+					if err = resolver.Start(ctx); err != nil {
+						log.G(ctx).Errorf("Resolver Setup/Start failed for container %s, %q", n.Name(), err)
 						time.Sleep(1 * time.Second)
 					} else {
-						log.G(context.TODO()).Debugf("Resolver bound successfully for network %s", n.Name())
+						log.G(ctx).Debugf("Resolver bound successfully for network %s", n.Name())
 						n.resolver = append(n.resolver, resolver)
 						break
 					}

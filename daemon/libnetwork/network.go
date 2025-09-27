@@ -996,7 +996,11 @@ func (n *Network) Delete(options ...NetworkDeleteOption) error {
 	for _, opt := range options {
 		opt(&params)
 	}
-	return n.delete(false, params.rmLBEndpoint)
+	ctx, span := otel.Tracer("").Start(context.TODO(), "Network.Delete", trace.WithAttributes(
+		attribute.String("network.ID", n.ID()),
+		attribute.String("network.Name", n.Name())))
+	defer span.End()
+	return n.delete(ctx, false, params.rmLBEndpoint)
 }
 
 // This function gets called in 3 ways:
@@ -1007,7 +1011,7 @@ func (n *Network) Delete(options ...NetworkDeleteOption) error {
 //     remove load balancer and network if endpoint count == 1
 //   - controller.networkCleanup() -- (true, true)
 //     remove the network no matter what
-func (n *Network) delete(force bool, rmLBEndpoint bool) error {
+func (n *Network) delete(ctx context.Context, force bool, rmLBEndpoint bool) error {
 	n.mu.Lock()
 	c := n.ctrlr
 	name := n.name
@@ -1058,7 +1062,7 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 				return err
 			}
 			// continue deletion when force is true even on error
-			log.G(context.TODO()).Warnf("Error deleting load balancer sandbox: %v", err)
+			log.G(ctx).Warnf("Error deleting load balancer sandbox: %v", err)
 		}
 	}
 
@@ -1069,7 +1073,7 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 
 	// Mark the network for deletion
 	n.inDelete = true
-	if err = c.storeNetwork(context.TODO(), n); err != nil {
+	if err = c.storeNetwork(ctx, n); err != nil {
 		return fmt.Errorf("error marking network %s (%s) for deletion: %v", n.Name(), n.ID(), err)
 	}
 
@@ -1087,7 +1091,7 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 	// bindings cleanup requires the network in the store.
 	n.cancelDriverWatches()
 	if err = n.leaveCluster(); err != nil {
-		log.G(context.TODO()).Errorf("Failed leaving network %s from the agent cluster: %v", n.Name(), err)
+		log.G(ctx).Errorf("Failed leaving network %s from the agent cluster: %v", n.Name(), err)
 	}
 
 	// Cleanup the service discovery for this network
@@ -1101,11 +1105,11 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 	}
 
 	// Delete the network from the dataplane
-	if err = n.deleteNetwork(); err != nil {
+	if err = n.deleteNetwork(ctx); err != nil {
 		if !force {
 			return err
 		}
-		log.G(context.TODO()).Debugf("driver failed to delete stale network %s (%s): %v", n.Name(), n.ID(), err)
+		log.G(ctx).Debugf("driver failed to delete stale network %s (%s): %v", n.Name(), n.ID(), err)
 	}
 
 removeFromStore:
@@ -1120,7 +1124,7 @@ removeFromStore:
 	// always find it's zero (which is usually correct because the daemon had
 	// stopped), but older daemons fix it on startup anyway.
 	if err = c.deleteFromStore(&endpointCnt{n: n}); err != nil {
-		log.G(context.TODO()).Debugf("Error deleting endpoint count from store for stale network %s (%s) for deletion: %v", n.Name(), n.ID(), err)
+		log.G(ctx).Debugf("Error deleting endpoint count from store for stale network %s (%s) for deletion: %v", n.Name(), n.ID(), err)
 	}
 
 	if err = c.deleteStoredNetwork(n); err != nil {
@@ -1130,20 +1134,20 @@ removeFromStore:
 	return nil
 }
 
-func (n *Network) deleteNetwork() error {
+func (n *Network) deleteNetwork(ctx context.Context) error {
 	d, err := n.driver(true)
 	if err != nil {
 		return fmt.Errorf("failed deleting Network: %v", err)
 	}
 
-	if err := d.DeleteNetwork(n.ID()); err != nil {
+	if err := d.DeleteNetwork(ctx, n.ID()); err != nil {
 		// Forbidden Errors should be honored
 		if cerrdefs.IsPermissionDenied(err) {
 			return err
 		}
 
 		if _, ok := err.(types.MaskableError); !ok {
-			log.G(context.TODO()).Warnf("driver error deleting network %s : %v", n.name, err)
+			log.G(ctx).Warnf("driver error deleting network %s : %v", n.name, err)
 		}
 	}
 
@@ -1249,7 +1253,7 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 	}
 	defer func() {
 		if err != nil {
-			if e := ep.deleteEndpoint(false); e != nil {
+			if e := ep.deleteEndpoint(ctx, false); e != nil {
 				log.G(ctx).Warnf("cleaning up endpoint failed %s : %v", name, e)
 			}
 		}

@@ -64,7 +64,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 }
 
 // DeleteEndpoint removes the endpoint and associated netlink interface
-func (d *driver) DeleteEndpoint(nid, eid string) error {
+func (d *driver) DeleteEndpoint(ctx context.Context, nid, eid string) error {
 	if err := validateID(nid, eid); err != nil {
 		return err
 	}

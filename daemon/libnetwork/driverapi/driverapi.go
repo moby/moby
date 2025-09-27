@@ -25,7 +25,7 @@ type Driver interface {
 
 	// DeleteNetwork invokes the driver method to delete network passing
 	// the network id.
-	DeleteNetwork(nid string) error
+	DeleteNetwork(ctx context.Context, nid string) error
 
 	// CreateEndpoint invokes the driver method to create an endpoint
 	// passing the network id, endpoint id endpoint information and driver
@@ -36,7 +36,7 @@ type Driver interface {
 
 	// DeleteEndpoint invokes the driver method to delete an endpoint
 	// passing the network id and endpoint id.
-	DeleteEndpoint(nid, eid string) error
+	DeleteEndpoint(ctx context.Context, nid, eid string) error
 
 	// EndpointOperInfo retrieves from the driver the operational data related to the specified endpoint
 	EndpointOperInfo(nid, eid string) (map[string]any, error)
@@ -45,7 +45,7 @@ type Driver interface {
 	Join(ctx context.Context, nid, eid string, sboxKey string, jinfo JoinInfo, epOpts, sbOpts map[string]any) error
 
 	// Leave method is invoked when a Sandbox detaches from an endpoint.
-	Leave(nid, eid string) error
+	Leave(ctx context.Context, nid, eid string) error
 
 	// Type returns the type of this driver, the network type this driver manages
 	Type() string

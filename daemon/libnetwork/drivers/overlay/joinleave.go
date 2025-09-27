@@ -231,7 +231,7 @@ func (d *driver) EventNotify(nid, tableName, key string, prev, value []byte) {
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
-func (d *driver) Leave(nid, eid string) error {
+func (d *driver) Leave(ctx context.Context, nid, eid string) error {
 	if err := validateID(nid, eid); err != nil {
 		return err
 	}

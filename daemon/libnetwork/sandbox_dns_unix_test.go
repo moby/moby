@@ -37,7 +37,7 @@ func TestDNSOptions(t *testing.T) {
 	}
 
 	defer cleanup(sb)
-	sb.startResolver(false)
+	sb.startResolver(context.Background(), false)
 
 	err = sb.setupDNS()
 	assert.NilError(t, err)
@@ -63,7 +63,7 @@ func TestDNSOptions(t *testing.T) {
 	sb2, err := c.NewSandbox(context.Background(), "cnt2", nil)
 	assert.NilError(t, err)
 	defer cleanup(sb2)
-	sb2.startResolver(false)
+	sb2.startResolver(context.Background(), false)
 
 	sb2.config.dnsOptionsList = []string{"ndots:0"}
 	err = sb2.setupDNS()

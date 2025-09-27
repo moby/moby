@@ -392,14 +392,14 @@ func configurePortBindingIPv6(
 }
 
 // releasePorts attempts to release all port bindings, does not stop on failure
-func (n *bridgeNetwork) releasePorts(ep *bridgeEndpoint) error {
+func (n *bridgeNetwork) releasePorts(ctx context.Context, ep *bridgeEndpoint) error {
 	n.Lock()
 	pbs := ep.portMapping
 	ep.portMapping = nil
 	ep.portBindingState = portBindingMode{}
 	n.Unlock()
 
-	return n.unmapPBs(context.TODO(), pbs)
+	return n.unmapPBs(ctx, pbs)
 }
 
 func (n *bridgeNetwork) unmapPBs(ctx context.Context, bindings []portmapperapi.PortBinding) error {

@@ -148,10 +148,10 @@ func TestLinkDelete(t *testing.T) {
 	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te.Interface(), nil)
 	assert.NilError(t, err)
 
-	err = d.DeleteEndpoint("dummy", "")
+	err = d.DeleteEndpoint(context.Background(), "dummy", "")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Assert(t, is.Error(err, "invalid endpoint id: "))
 
-	err = d.DeleteEndpoint("dummy", "ep1")
+	err = d.DeleteEndpoint(context.Background(), "dummy", "ep1")
 	assert.NilError(t, err)
 }

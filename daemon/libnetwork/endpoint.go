@@ -538,7 +538,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	}
 	defer func() {
 		if retErr != nil {
-			if e := d.Leave(nid, epid); e != nil {
+			if e := d.Leave(ctx, nid, epid); e != nil {
 				log.G(ctx).Warnf("driver leave failed while rolling back join: %v", e)
 			}
 		}
@@ -769,7 +769,7 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 			}
 		}
 
-		if err := d.Leave(n.id, ep.id); err != nil {
+		if err := d.Leave(ctx, n.id, ep.id); err != nil {
 			if _, ok := err.(types.MaskableError); !ok {
 				log.G(ctx).WithError(err).Warn("driver error disconnecting container")
 			}
@@ -936,7 +936,7 @@ func (ep *Endpoint) Delete(ctx context.Context, force bool) error {
 		n.updateSvcRecord(context.WithoutCancel(ctx), ep, false)
 	}
 
-	if err = ep.deleteEndpoint(force); err != nil && !force {
+	if err = ep.deleteEndpoint(ctx, force); err != nil && !force {
 		return err
 	}
 
@@ -945,7 +945,7 @@ func (ep *Endpoint) Delete(ctx context.Context, force bool) error {
 	return nil
 }
 
-func (ep *Endpoint) deleteEndpoint(force bool) error {
+func (ep *Endpoint) deleteEndpoint(ctx context.Context, force bool) error {
 	ep.mu.Lock()
 	n := ep.network
 	name := ep.name
@@ -961,13 +961,13 @@ func (ep *Endpoint) deleteEndpoint(force bool) error {
 		return nil
 	}
 
-	if err := driver.DeleteEndpoint(n.id, epid); err != nil {
+	if err := driver.DeleteEndpoint(ctx, n.id, epid); err != nil {
 		if cerrdefs.IsPermissionDenied(err) {
 			return err
 		}
 
 		if _, ok := err.(types.MaskableError); !ok {
-			log.G(context.TODO()).Warnf("driver error deleting endpoint %s : %v", name, err)
+			log.G(ctx).Warnf("driver error deleting endpoint %s : %v", name, err)
 		}
 	}
 
