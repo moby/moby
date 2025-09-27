@@ -3,6 +3,7 @@
 package buildkit
 
 import (
+	coci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
@@ -10,6 +11,6 @@ import (
 	"github.com/moby/sys/user"
 )
 
-func newExecutor(_, _ string, _ *libnetwork.Controller, _ *oci.DNSConfig, _ bool, _ user.IdentityMapping, _ string, _ *cdidevices.Manager, _, _ string) (executor.Executor, error) {
+func newExecutor(_, _ string, _ *libnetwork.Controller, _ *oci.DNSConfig, _ bool, _ user.IdentityMapping, _ string, _ *cdidevices.Manager, _, _ string, _ []coci.SpecOpts) (executor.Executor, error) {
 	return &stubExecutor{}, nil
 }
