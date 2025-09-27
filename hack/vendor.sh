@@ -1,41 +1,49 @@
 #!/usr/bin/env bash
 #
-# This file is just a wrapper around the 'go mod vendor' tool.
-# For updating dependencies you should change `go.mod` file in root of the
-# project.
+# This file is a wrapper around "go mod" and "go work" commands. It is used
+# to update the vendor directory and to tidy go.mod in each module.
 
 set -e
 
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+ROOTDIR="${SCRIPTDIR}/.."
+
+# Detect workspace mode. Release branches may not have a go.work, and
+# use the api and client modules released from master / main.
+in_workspace=0
+if [ "$(go env GOWORK)" != "off" ]; then
+	in_workspace=1
+fi
+
 tidy() (
-		set -x
-		go mod tidy
+	set -ex
+
+	cd "$ROOTDIR"
+
+	if [ "$in_workspace" -eq 1 ]; then
+		( cd api    && go work sync )
+		( cd client && go work sync )
+	else
+		( cd api    && go mod tidy )
+		( cd client && go mod tidy )
+	fi
+
+	go mod tidy
 )
 
 vendor() (
-		set -x
-		go mod vendor
-)
+	set -ex
 
-replace() (
-	set -x
-	go mod edit -replace=github.com/moby/moby/api=./api -replace=github.com/moby/moby/client=./client
-	go mod edit -modfile client/go.mod -replace=github.com/moby/moby/api=../api
-)
-
-dropreplace() (
-	set -x
-	go mod edit -dropreplace=github.com/moby/moby/api -dropreplace=github.com/moby/moby/client
-	go mod edit -modfile client/go.mod -dropreplace=github.com/moby/moby/api
+	cd "${ROOTDIR}"
+	GOWORK=off go mod tidy
+	GOWORK=off go mod vendor
 )
 
 help() {
 	printf "%s:\n" "$(basename "$0")"
 	echo "  - tidy: run go mod tidy"
-	echo "  - vendor: run go mod vendor"
-	echo "  - replace: run go mod edit replace for local modules"
-	echo "  - dropreplace: run go mod edit dropreplace for local modules"
+	echo "  - vendor: run go work vendor (or go mod vendor)"
 	echo "  - all: run tidy && vendor"
 	echo "  - help: show this help"
 }
@@ -43,8 +51,6 @@ help() {
 case "$1" in
 	tidy) tidy ;;
 	vendor) vendor ;;
-	replace) replace ;;
-	dropreplace) dropreplace ;;
 	""|all) tidy && vendor ;;
 	*) help ;;
 esac
