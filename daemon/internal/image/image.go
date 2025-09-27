@@ -68,14 +68,7 @@ type V1Image struct {
 	// Config is the configuration of the container received from the client.
 	Config *container.Config `json:"config,omitempty"`
 
-	// Architecture is the hardware CPU architecture that the image runs on.
-	Architecture string `json:"architecture,omitempty"`
-
-	// Variant is the CPU architecture variant (presently ARM-only).
-	Variant string `json:"variant,omitempty"`
-
-	// OS is the Operating System the image is built to run on.
-	OS string `json:"os,omitempty"`
+	ocispec.Platform
 
 	// Size is the total size of the image including all layers it is composed of.
 	Size int64 `json:",omitempty"`
@@ -96,11 +89,6 @@ type Image struct {
 	// layer IDs.
 	RootFS  *RootFS   `json:"rootfs,omitempty"`
 	History []History `json:"history,omitempty"`
-
-	// OsVersion is the version of the Operating System the image is built to
-	// run on (especially for Windows).
-	OSVersion  string   `json:"os.version,omitempty"`
-	OSFeatures []string `json:"os.features,omitempty"`
 
 	// rawJSON caches the immutable JSON associated with this image.
 	rawJSON []byte
@@ -236,20 +224,22 @@ func NewChildImage(img *Image, child ChildConfig, os string) *Image {
 
 	return &Image{
 		V1Image: V1Image{
-			DockerVersion:   dockerversion.Version,
-			Config:          child.Config,
-			Architecture:    img.BaseImgArch(),
-			Variant:         img.BaseImgVariant(),
-			OS:              os,
+			DockerVersion: dockerversion.Version,
+			Config:        child.Config,
+			Platform: ocispec.Platform{
+				Architecture: img.BaseImgArch(),
+				Variant:      img.BaseImgVariant(),
+				OS:           os,
+				OSFeatures:   img.Platform().OSFeatures, // TODO(thaJeztah): the Platform method is shadowing the embedded Platform field
+				OSVersion:    img.Platform().OSVersion,  // TODO(thaJeztah): the Platform method is shadowing the embedded Platform field
+			},
 			Container:       child.ContainerID,
 			ContainerConfig: *child.ContainerConfig,
 			Author:          child.Author,
 			Created:         imgHistory.Created,
 		},
-		RootFS:     rootFS,
-		History:    append(img.History, imgHistory),
-		OSFeatures: img.OSFeatures,
-		OSVersion:  img.OSVersion,
+		RootFS:  rootFS,
+		History: append(img.History, imgHistory),
 	}
 }
 
