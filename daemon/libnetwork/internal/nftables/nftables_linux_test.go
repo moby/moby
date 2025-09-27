@@ -54,8 +54,10 @@ func TestTable(t *testing.T) {
 
 	tbl4, err := NewTable(IPv4, "ipv4_table")
 	assert.NilError(t, err)
+	defer tbl4.Close()
 	tbl6, err := NewTable(IPv6, "ipv6_table")
 	assert.NilError(t, err)
+	defer tbl6.Close()
 
 	// Update nftables and check what happened.
 	applyAndCheck(t, tbl4, Modifier{}, t.Name()+"/created4.golden")
@@ -68,6 +70,7 @@ func TestChain(t *testing.T) {
 	// Create a table.
 	tbl, err := NewTable(IPv4, "this_is_a_table")
 	assert.NilError(t, err)
+	defer tbl.Close()
 
 	// Create a base chain.
 	const bcName = "this_is_a_base_chain"
@@ -122,6 +125,7 @@ func TestChainRuleGroups(t *testing.T) {
 
 	tbl, err := NewTable(IPv4, "testtable")
 	assert.NilError(t, err)
+	defer tbl.Close()
 	tm := Modifier{}
 	chainName := "testchain"
 	tm.Create(Chain{Name: chainName})
@@ -137,6 +141,7 @@ func TestIgnoreExist(t *testing.T) {
 	defer testSetup(t)()
 	tbl, err := NewTable(IPv4, "this_is_a_table")
 	assert.NilError(t, err)
+	defer tbl.Close()
 	tm := Modifier{}
 
 	// Create a chain with a single rule, add the rule again but drop the duplicate.
@@ -179,6 +184,7 @@ func TestVMap(t *testing.T) {
 	// Create a table.
 	tbl, err := NewTable(IPv6, "this_is_a_table")
 	assert.NilError(t, err)
+	defer tbl.Close()
 	tm := Modifier{}
 
 	// Create a verdict map.
@@ -203,8 +209,10 @@ func TestSet(t *testing.T) {
 	// Create v4 and v6 tables.
 	tbl4, err := NewTable(IPv4, "table4")
 	assert.NilError(t, err)
+	defer tbl4.Close()
 	tbl6, err := NewTable(IPv6, "table6")
 	assert.NilError(t, err)
+	defer tbl6.Close()
 
 	// Create a set in each table.
 	const set4Name = "set4"
@@ -234,6 +242,7 @@ func TestReload(t *testing.T) {
 	const tableName = "this_is_a_table"
 	tbl, err := NewTable(IPv4, tableName)
 	assert.NilError(t, err)
+	defer tbl.Close()
 	tm := Modifier{}
 
 	const bcName = "a_base_chain"
@@ -627,6 +636,7 @@ func TestValidation(t *testing.T) {
 			defer testSetup(t)()
 			tbl, err := NewTable(IPv4, "tablename")
 			assert.NilError(t, err)
+			defer tbl.Close()
 			tm := Modifier{cmds: tc.cmds}
 			err = tbl.Apply(context.Background(), tm)
 			assert.Check(t, err != nil, "expected error containing '%s'", tc.expErr)

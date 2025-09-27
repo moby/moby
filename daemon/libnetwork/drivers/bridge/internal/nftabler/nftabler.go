@@ -4,6 +4,7 @@ package nftabler
 
 import (
 	"context"
+	"errors"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
@@ -50,6 +51,8 @@ type Nftabler struct {
 	table6  nftables.Table
 }
 
+// NewNftabler creates a new Nftabler instance, initializing the nftables tables.
+// Call Close() on the returned Nftabler to release resources when done.
 func NewNftabler(ctx context.Context, config firewaller.Config) (*Nftabler, error) {
 	nft := &Nftabler{config: config}
 
@@ -70,6 +73,12 @@ func NewNftabler(ctx context.Context, config firewaller.Config) (*Nftabler, erro
 	}
 
 	return nft, nil
+}
+
+// Close releases resources held by the Nftabler, the underlying nftables tables
+// are not modified or deleted.
+func (nft *Nftabler) Close() error {
+	return errors.Join(nft.table4.Close(), nft.table6.Close())
 }
 
 func (nft *Nftabler) init(ctx context.Context, family nftables.Family) (nftables.Table, error) {
