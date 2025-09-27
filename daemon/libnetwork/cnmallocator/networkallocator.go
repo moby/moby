@@ -949,7 +949,7 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[netip.Prefix]s
 			}
 		}
 
-		if ic.Subnet == "" {
+		if alloc.Pool.String() != "" {
 			ic.Subnet = alloc.Pool.String()
 		}
 
