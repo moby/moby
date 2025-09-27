@@ -10,6 +10,7 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/handle"
 	"go.opentelemetry.io/otel"
 	"gotest.tools/v3/assert"
 )
@@ -117,7 +118,7 @@ func deleteAllImages(ctx context.Context, t testing.TB, apiclient client.ImageAP
 
 func removeImage(ctx context.Context, t testing.TB, apiclient client.ImageAPIClient, ref string) {
 	t.Helper()
-	_, err := apiclient.ImageRemove(ctx, ref, client.ImageRemoveOptions{
+	_, err := apiclient.ImageRemove(ctx, handle.FromString(ref), client.ImageRemoveOptions{
 		Force: true,
 	})
 	if cerrdefs.IsNotFound(err) {

@@ -11,6 +11,7 @@ import (
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/handle"
 	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/internal/testutil/fakecontext"
 	"gotest.tools/v3/assert"
@@ -25,7 +26,7 @@ func Do(ctx context.Context, t *testing.T, apiClient client.APIClient, buildCtx 
 	assert.NilError(t, err)
 	img := GetImageIDFromBody(t, resp.Body)
 	t.Cleanup(func() {
-		apiClient.ImageRemove(ctx, img, client.ImageRemoveOptions{Force: true})
+		apiClient.ImageRemove(ctx, handle.FromString(img), client.ImageRemoveOptions{Force: true})
 	})
 	return img
 }

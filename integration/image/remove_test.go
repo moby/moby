@@ -9,6 +9,7 @@ import (
 
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/handle"
 	"github.com/moby/moby/v2/integration/internal/container"
 	iimage "github.com/moby/moby/v2/integration/internal/image"
 	"github.com/moby/moby/v2/internal/testutil/specialimage"
@@ -52,7 +53,7 @@ func TestRemoveImageOrphaning(t *testing.T) {
 	assert.Check(t, is.Equal(resp.ID, commitResp2.ID))
 
 	// try to remove the image, should not error out.
-	_, err = apiClient.ImageRemove(ctx, imgName, client.ImageRemoveOptions{})
+	_, err = apiClient.ImageRemove(ctx, handle.FromString(imgName), client.ImageRemoveOptions{})
 	assert.NilError(t, err)
 
 	// check if the first image is still there
@@ -86,7 +87,7 @@ func TestRemoveByDigest(t *testing.T) {
 	}
 	assert.Assert(t, id != "")
 
-	_, err = apiClient.ImageRemove(ctx, id, client.ImageRemoveOptions{})
+	_, err = apiClient.ImageRemove(ctx, handle.FromString(id), client.ImageRemoveOptions{})
 	assert.NilError(t, err, "error removing %s", id)
 
 	_, err = apiClient.ImageInspect(ctx, "busybox")
@@ -142,7 +143,7 @@ func TestRemoveWithPlatform(t *testing.T) {
 		{platform: &platformHost, deleted: descs[0]},
 		{platform: &someOtherPlatform, deleted: descs[3]},
 	} {
-		resp, err := apiClient.ImageRemove(ctx, imgName, client.ImageRemoveOptions{
+		resp, err := apiClient.ImageRemove(ctx, handle.FromString(imgName), client.ImageRemoveOptions{
 			Platforms: []ocispec.Platform{*tc.platform},
 			Force:     true,
 		})
@@ -155,7 +156,7 @@ func TestRemoveWithPlatform(t *testing.T) {
 	}
 
 	// Delete the rest
-	resp, err := apiClient.ImageRemove(ctx, imgName, client.ImageRemoveOptions{})
+	resp, err := apiClient.ImageRemove(ctx, handle.FromString(imgName), client.ImageRemoveOptions{})
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Len(resp, 2))

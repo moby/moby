@@ -6,10 +6,11 @@ import (
 	"net/url"
 
 	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client/handle"
 )
 
 // ImageRemove removes an image from the docker host.
-func (cli *Client) ImageRemove(ctx context.Context, imageID string, options ImageRemoveOptions) ([]image.DeleteResponse, error) {
+func (cli *Client) ImageRemove(ctx context.Context, img handle.ImageHandle, options ImageRemoveOptions) ([]image.DeleteResponse, error) {
 	query := url.Values{}
 
 	if options.Force {
@@ -27,7 +28,12 @@ func (cli *Client) ImageRemove(ctx context.Context, imageID string, options Imag
 		query["platforms"] = p
 	}
 
-	resp, err := cli.delete(ctx, "/images/"+imageID, query, nil)
+	rimg, err := img.ResolveImage(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := cli.delete(ctx, "/images/"+rimg.RefOrTruncatedID, query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return nil, err

@@ -17,6 +17,7 @@ import (
 	"github.com/moby/go-archive/compression"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
+	handle "github.com/moby/moby/client/handle"
 	"github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/integration/internal/container"
 	iimage "github.com/moby/moby/v2/integration/internal/image"
@@ -325,7 +326,7 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 			assert.NilError(t, err)
 
 			// remove the pulled image
-			_, err = apiClient.ImageRemove(ctx, repoName, client.ImageRemoveOptions{})
+			_, err = apiClient.ImageRemove(ctx, handle.FromString(repoName), client.ImageRemoveOptions{})
 			assert.NilError(t, err)
 
 			// load the full exported image (all platforms in it)
@@ -346,7 +347,7 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 			}
 
 			// remove the loaded image
-			_, err = apiClient.ImageRemove(ctx, repoName, client.ImageRemoveOptions{})
+			_, err = apiClient.ImageRemove(ctx, handle.FromString(repoName), client.ImageRemoveOptions{})
 			assert.NilError(t, err)
 
 			// pull the image again (start fresh)
@@ -363,7 +364,7 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 			assert.NilError(t, err)
 
 			// remove the pulled image
-			_, err = apiClient.ImageRemove(ctx, repoName, client.ImageRemoveOptions{})
+			_, err = apiClient.ImageRemove(ctx, handle.FromString(repoName), client.ImageRemoveOptions{})
 			assert.NilError(t, err)
 
 			// load the exported image on the specified platforms only

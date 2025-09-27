@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/handle"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/integration-cli/cli/build"
 	"github.com/moby/moby/v2/internal/testutil"
@@ -50,13 +51,13 @@ func (s *DockerAPISuite) TestAPIImagesDelete(c *testing.T) {
 
 	cli.DockerCmd(c, "tag", name, "test:tag1")
 
-	_, err = apiClient.ImageRemove(testutil.GetContext(c), id, client.ImageRemoveOptions{})
+	_, err = apiClient.ImageRemove(testutil.GetContext(c), handle.FromString(id), client.ImageRemoveOptions{})
 	assert.ErrorContains(c, err, "unable to delete")
 
-	_, err = apiClient.ImageRemove(testutil.GetContext(c), "test:noexist", client.ImageRemoveOptions{})
+	_, err = apiClient.ImageRemove(testutil.GetContext(c), handle.FromString("test:noexist"), client.ImageRemoveOptions{})
 	assert.ErrorContains(c, err, "No such image")
 
-	_, err = apiClient.ImageRemove(testutil.GetContext(c), "test:tag1", client.ImageRemoveOptions{})
+	_, err = apiClient.ImageRemove(testutil.GetContext(c), handle.FromString("test:tag1"), client.ImageRemoveOptions{})
 	assert.NilError(c, err)
 }
 

@@ -17,6 +17,7 @@ import (
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/client/handle"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -117,7 +118,7 @@ type ImageAPIClient interface {
 	ImageList(ctx context.Context, options ImageListOptions) ([]image.Summary, error)
 	ImagePull(ctx context.Context, ref string, options ImagePullOptions) (io.ReadCloser, error)
 	ImagePush(ctx context.Context, ref string, options ImagePushOptions) (io.ReadCloser, error)
-	ImageRemove(ctx context.Context, image string, options ImageRemoveOptions) ([]image.DeleteResponse, error)
+	ImageRemove(ctx context.Context, image handle.ImageHandle, options ImageRemoveOptions) ([]image.DeleteResponse, error)
 	ImageSearch(ctx context.Context, term string, options ImageSearchOptions) ([]registry.SearchResult, error)
 	ImageTag(ctx context.Context, image, ref string) error
 	ImagesPrune(ctx context.Context, pruneFilter filters.Args) (image.PruneReport, error)
