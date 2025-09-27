@@ -9,6 +9,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client/imagehistory"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -47,7 +48,7 @@ func TestImageHistory(t *testing.T) {
 		},
 	}
 
-	imageHistories, err := client.ImageHistory(context.Background(), "image_id", ImageHistoryWithPlatform(ocispec.Platform{
+	imageHistories, err := client.ImageHistory(context.Background(), "image_id", imagehistory.WithPlatform(ocispec.Platform{
 		Architecture: "arm64",
 		OS:           "linux",
 		Variant:      "v8",

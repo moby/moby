@@ -12,6 +12,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client/imageinspect"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -105,7 +106,12 @@ func TestImageInspectWithPlatform(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	imageInspect, err := client.ImageInspect(context.Background(), "image_id", ImageInspectWithPlatform(requestedPlatform))
+	var opts []imageinspect.Option
+	if requestedPlatform != nil {
+		opts = append(opts, imageinspect.WithPlatform(*requestedPlatform))
+	}
+
+	imageInspect, err := client.ImageInspect(context.Background(), "image_id", opts...)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(imageInspect.ID, "image_id"))
 	assert.Check(t, is.Equal(imageInspect.Architecture, "arm64"))

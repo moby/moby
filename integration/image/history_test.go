@@ -8,6 +8,7 @@ import (
 	"github.com/containerd/platforms"
 	buildtypes "github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/imagehistory"
 	build "github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/fakecontext"
@@ -84,7 +85,7 @@ func TestAPIImageHistoryCrossPlatform(t *testing.T) {
 	testCases := []struct {
 		name     string
 		imageRef string
-		options  []client.ImageHistoryOption
+		options  []imagehistory.Option
 	}{
 		{
 			name:     "without explicit platform",
@@ -94,7 +95,7 @@ func TestAPIImageHistoryCrossPlatform(t *testing.T) {
 		{
 			name:     "with explicit platform",
 			imageRef: imgID,
-			options:  []client.ImageHistoryOption{client.ImageHistoryWithPlatform(nonNativePlatform)},
+			options:  []imagehistory.Option{imagehistory.WithPlatform(nonNativePlatform)},
 		},
 		{
 			name:     "using image reference",

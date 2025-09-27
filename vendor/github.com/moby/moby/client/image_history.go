@@ -3,41 +3,30 @@ package client
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/url"
 
 	"github.com/moby/moby/api/types/image"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/moby/moby/client/imagehistory"
+	"github.com/moby/moby/client/internal/opts"
 )
 
-// ImageHistoryWithPlatform sets the platform for the image history operation.
-func ImageHistoryWithPlatform(platform ocispec.Platform) ImageHistoryOption {
-	return imageHistoryOptionFunc(func(opt *imageHistoryOpts) error {
-		if opt.apiOptions.Platform != nil {
-			return fmt.Errorf("platform already set to %s", *opt.apiOptions.Platform)
-		}
-		opt.apiOptions.Platform = &platform
-		return nil
-	})
-}
-
 // ImageHistory returns the changes in an image in history format.
-func (cli *Client) ImageHistory(ctx context.Context, imageID string, historyOpts ...ImageHistoryOption) ([]image.HistoryResponseItem, error) {
+func (cli *Client) ImageHistory(ctx context.Context, imageID string, historyOpts ...imagehistory.Option) ([]image.HistoryResponseItem, error) {
 	query := url.Values{}
 
-	var opts imageHistoryOpts
+	var opts opts.ImageHistoryOptions
 	for _, o := range historyOpts {
-		if err := o.Apply(&opts); err != nil {
+		if err := o.ApplyImageHistoryOption(ctx, &opts); err != nil {
 			return nil, err
 		}
 	}
 
-	if opts.apiOptions.Platform != nil {
+	if opts.ApiOptions.Platform != nil {
 		if err := cli.NewVersionError(ctx, "1.48", "platform"); err != nil {
 			return nil, err
 		}
 
-		p, err := encodePlatform(opts.apiOptions.Platform)
+		p, err := encodePlatform(opts.ApiOptions.Platform)
 		if err != nil {
 			return nil, err
 		}

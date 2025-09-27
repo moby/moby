@@ -967,6 +967,11 @@ github.com/moby/moby/api/types/volume
 # github.com/moby/moby/client v0.1.0-beta.0 => ./client
 ## explicit; go 1.23.0
 github.com/moby/moby/client
+github.com/moby/moby/client/containerstats
+github.com/moby/moby/client/imagehistory
+github.com/moby/moby/client/imageinspect
+github.com/moby/moby/client/internal/opts
+github.com/moby/moby/client/internal/shared
 github.com/moby/moby/client/internal/timestamp
 github.com/moby/moby/client/pkg/jsonmessage
 github.com/moby/moby/client/pkg/stringid

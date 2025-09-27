@@ -14,6 +14,7 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/containerstats"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/request"
@@ -236,9 +237,12 @@ func (s *DockerAPISuite) TestAPIStatsContainerNotFound(c *testing.T) {
 
 	expected := "No such container: nonexistent"
 
-	_, err = apiClient.ContainerStats(testutil.GetContext(c), "nonexistent", true)
+	stream := make(chan containerstats.StreamItem)
+	_, err = apiClient.ContainerStats(testutil.GetContext(c), "nonexistent", containerstats.WithStream(stream))
 	assert.ErrorContains(c, err, expected)
-	_, err = apiClient.ContainerStats(testutil.GetContext(c), "nonexistent", false)
+
+	v := container.StatsResponse{}
+	_, err = apiClient.ContainerStats(testutil.GetContext(c), "nonexistent", containerstats.WithOneshot(&v))
 	assert.ErrorContains(c, err, expected)
 }
 
