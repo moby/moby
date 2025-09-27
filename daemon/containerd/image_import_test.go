@@ -12,7 +12,7 @@ import (
 func TestContainerConfigToDockerImageConfig(t *testing.T) {
 	ociCFG := containerConfigToDockerOCIImageConfig(&container.Config{
 		ExposedPorts: container.PortSet{
-			"80/tcp": struct{}{},
+			container.PortFrom(80, container.TCP): struct{}{},
 		},
 	})
 
