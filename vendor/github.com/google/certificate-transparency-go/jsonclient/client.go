@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package jsonclient provides a simple client for fetching and parsing
+// JSON CT structures from a log.
 package jsonclient
 
 import (
@@ -272,7 +274,7 @@ func (c *JSONClient) waitForBackoff(ctx context.Context) error {
 }
 
 // PostAndParseWithRetry makes a HTTP POST call, but retries (with backoff) on
-// retriable errors; the caller should set a deadline on the provided context
+// retryable errors; the caller should set a deadline on the provided context
 // to prevent infinite retries.  Return values are as for PostAndParse.
 func (c *JSONClient) PostAndParseWithRetry(ctx context.Context, path string, req, rsp interface{}) (*http.Response, []byte, error) {
 	if ctx == nil {

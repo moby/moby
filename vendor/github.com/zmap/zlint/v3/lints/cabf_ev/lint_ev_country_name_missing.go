@@ -1,7 +1,7 @@
 package cabf_ev
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -29,12 +29,12 @@ func init() {
 		Citation:      "EVGs: 9.2.4",
 		Source:        lint.CABFEVGuidelines,
 		EffectiveDate: util.ZeroDate,
-		Lint:          &evCountryMissing{},
+		Lint:          NewEvCountryMissing,
 	})
 }
 
-func (l *evCountryMissing) Initialize() error {
-	return nil
+func NewEvCountryMissing() lint.LintInterface {
+	return &evCountryMissing{}
 }
 
 func (l *evCountryMissing) CheckApplies(c *x509.Certificate) bool {

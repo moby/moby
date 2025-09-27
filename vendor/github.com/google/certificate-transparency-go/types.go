@@ -555,7 +555,7 @@ type LeafEntry struct {
 	ExtraData []byte `json:"extra_data"`
 }
 
-// GetEntriesResponse respresents the JSON response to the get-entries GET method
+// GetEntriesResponse represents the JSON response to the get-entries GET method
 // from section 4.6.
 type GetEntriesResponse struct {
 	Entries []LeafEntry `json:"entries"` // the list of returned entries

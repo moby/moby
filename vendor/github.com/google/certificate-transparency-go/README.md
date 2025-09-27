@@ -1,19 +1,18 @@
 # Certificate Transparency: Go Code
 
-[![Build Status](https://travis-ci.org/google/certificate-transparency-go.svg?branch=master)](https://travis-ci.org/google/certificate-transparency-go)
 [![Go Report Card](https://goreportcard.com/badge/github.com/google/certificate-transparency-go)](https://goreportcard.com/report/github.com/google/certificate-transparency-go)
 [![GoDoc](https://godoc.org/github.com/google/certificate-transparency-go?status.svg)](https://godoc.org/github.com/google/certificate-transparency-go)
+![CodeQL workflow](https://github.com/google/certificate-transparency-go/actions/workflows/codeql.yml/badge.svg)
 
 This repository holds Go code related to
 [Certificate Transparency](https://www.certificate-transparency.org/) (CT).  The
-repository requires Go version 1.17.
+repository requires Go version 1.20.
 
  - [Repository Structure](#repository-structure)
  - [Trillian CT Personality](#trillian-ct-personality)
  - [Working on the Code](#working-on-the-code)
      - [Running Codebase Checks](#running-codebase-checks)
      - [Rebuilding Generated Code](#rebuilding-generated-code)
-     - [Updating Vendor Code](#updating-vendor-code)
 
 ## Repository Structure
 
@@ -72,10 +71,7 @@ and is [documented separately](trillian/README.md).
 ## Working on the Code
 
 Developers who want to make changes to the codebase need some additional
-dependencies and tools, described in the following sections.  The
-[Travis configuration](.travis.yml) for the codebase is also useful reference
-for the required tools and scripts, as it may be more up-to-date than this
-document.
+dependencies and tools, described in the following sections.
 
 ### Running Codebase Checks
 
@@ -85,7 +81,7 @@ pull requests for review.
 
 ```bash
 # Install golangci-lint
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.1
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.55.1
 
 # Run code generation, build, test and linters
 ./scripts/presubmit.sh
@@ -111,7 +107,7 @@ the original files; if you do, you'll need to install the prerequisites:
 
 - tools written in `go` can be installed with a single run of `go install`
   (courtesy of [`tools.go`](./tools/tools.go) and `go.mod`).
-- `protoc` tool: you'll need [version 3.12.4](https://github.com/protocolbuffers/protobuf/releases/tag/v3.12.4) installed, and `PATH` updated to include its `bin/` directory.
+- `protoc` tool: you'll need [version 3.20.1](https://github.com/protocolbuffers/protobuf/releases/tag/v3.20.1) installed, and `PATH` updated to include its `bin/` directory.
 
 With tools installed, run the following:
 

@@ -14,7 +14,6 @@ options:
   - name: go-modules
     path: /go
   env:
-  - GO111MODULE=on
   - GOPROXY=https://proxy.golang.org
   - PROJECT_ROOT=github.com/google/certificate-transparency-go
   - GOPATH=/go
@@ -22,6 +21,9 @@ options:
 substitutions:
   _CLUSTER_NAME: trillian-opensource-ci
   _MASTER_ZONE: us-central1-a
+
+# Cloud Build logs sent to GCS bucket
+logsBucket: 'gs://trillian-cloudbuild-logs'
 
 steps:
 # First build a "ct_testbase" docker image which contains most of the tools we need for the later steps:
@@ -73,10 +75,13 @@ steps:
         go.etcd.io/etcd/v3 go.etcd.io/etcd/etcdctl/v3 \
         github.com/fullstorydev/grpcurl/cmd/grpcurl
 
+      # Generate all protoc and mockgen files
+      go generate -run="protoc" ./...
+      go generate -run="mockgen" ./...
 
       # Cache all the modules we'll need too
       go mod download
-      go test -i ./...
+      go test ./...
 
       # Wait for trillian logserver to be up
       until nc -z deployment_trillian-log-server_1 8090; do echo .; sleep 5; done
@@ -87,6 +92,7 @@ steps:
   id: 'default_test'
   env:
     - 'GOFLAGS='
+    - 'PRESUBMIT_OPTS=--no-generate'
     - 'TRILLIAN_LOG_SERVERS=deployment_trillian-log-server_1:8090'
     - 'TRILLIAN_LOG_SERVER_1=deployment_trillian-log-server_1:8090'
   waitFor: ['ci-ready']

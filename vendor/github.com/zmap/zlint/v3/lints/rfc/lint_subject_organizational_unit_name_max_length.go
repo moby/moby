@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -38,12 +38,12 @@ func init() {
 		Citation:      "RFC 5280: A.1",
 		Source:        lint.RFC5280,
 		EffectiveDate: util.RFC2459Date,
-		Lint:          &subjectOrganizationalUnitNameMaxLength{},
+		Lint:          NewSubjectOrganizationalUnitNameMaxLength,
 	})
 }
 
-func (l *subjectOrganizationalUnitNameMaxLength) Initialize() error {
-	return nil
+func NewSubjectOrganizationalUnitNameMaxLength() lint.LintInterface {
+	return &subjectOrganizationalUnitNameMaxLength{}
 }
 
 func (l *subjectOrganizationalUnitNameMaxLength) CheckApplies(c *x509.Certificate) bool {

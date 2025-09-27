@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -40,12 +40,12 @@ func init() {
 		Citation:      "RFC 5280: 4.2.1.10",
 		Source:        lint.RFC5280,
 		EffectiveDate: util.RFC2459Date,
-		Lint:          &nameConstMin{},
+		Lint:          NewNameConstMin,
 	})
 }
 
-func (l *nameConstMin) Initialize() error {
-	return nil
+func NewNameConstMin() lint.LintInterface {
+	return &nameConstMin{}
 }
 
 func (l *nameConstMin) CheckApplies(c *x509.Certificate) bool {
@@ -53,6 +53,7 @@ func (l *nameConstMin) CheckApplies(c *x509.Certificate) bool {
 }
 
 //nolint:gocyclo
+//nolint:cyclop
 func (l *nameConstMin) Execute(c *x509.Certificate) *lint.LintResult {
 	for _, i := range c.PermittedDNSNames {
 		if i.Min != 0 {

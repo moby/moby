@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -37,12 +37,12 @@ func init() {
 		Citation:      "ITU-T X.520 (02/2001) UpperBounds",
 		Source:        lint.RFC5280,
 		EffectiveDate: util.RFC2459Date,
-		Lint:          &subjectStreetAddressMaxLength{},
+		Lint:          NewSubjectStreetAddressMaxLength,
 	})
 }
 
-func (l *subjectStreetAddressMaxLength) Initialize() error {
-	return nil
+func NewSubjectStreetAddressMaxLength() lint.LintInterface {
+	return &subjectStreetAddressMaxLength{}
 }
 
 func (l *subjectStreetAddressMaxLength) CheckApplies(c *x509.Certificate) bool {

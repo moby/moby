@@ -2,6 +2,185 @@
 
 ## HEAD
 
+## v1.1.7
+
+* Recommended Go version for development: 1.20
+  * This is the version used by the Cloud Build presubmits. Using a different version can lead to presubmits failing due to unexpected diffs.
+
+* Bump golangci-lint from 1.51.1 to 1.55.1 (developers should update to this version).
+
+### Add support for WASI port
+
+* Add build tags for wasip1 GOOS by @flavio in https://github.com/google/certificate-transparency-go/pull/1089
+
+### Add support for IBM Z operating system z/OS
+
+* Add build tags for zOS by @onlywork1984 in https://github.com/google/certificate-transparency-go/pull/1088
+
+### Log List
+
+* Add support for "is_all_logs" field in loglist3 by @phbnf in https://github.com/google/certificate-transparency-go/pull/1095
+
+### Documentation
+
+* Improve Dockerized Test Deployment documentation by @roger2hk in https://github.com/google/certificate-transparency-go/pull/1179
+
+### Misc
+
+* Escape forward slashes in certificate Subject names when used as user quota id strings by @robstradling in https://github.com/google/certificate-transparency-go/pull/1059
+* Search whole chain looking for issuer match by @mhutchinson in https://github.com/google/certificate-transparency-go/pull/1112
+* Use proper check per @AGWA instead of buggy check introduced in #1112 by @mhutchinson in https://github.com/google/certificate-transparency-go/pull/1114
+* Build the ctfe/ct_server binary without depending on glibc by @roger2hk in https://github.com/google/certificate-transparency-go/pull/1119
+* Migrate CTFE Ingress manifest to support GKE version 1.23 by @roger2hk in https://github.com/google/certificate-transparency-go/pull/1086
+* Remove Dependabot ignore configuration by @roger2hk in https://github.com/google/certificate-transparency-go/pull/1097
+* Add "github-actions" and "docker" Dependabot config by @roger2hk in https://github.com/google/certificate-transparency-go/pull/1101
+* Add top level permission in CodeQL workflow by @roger2hk in https://github.com/google/certificate-transparency-go/pull/1102
+* Pin Docker image dependencies by @roger2hk in https://github.com/google/certificate-transparency-go/pull/1110
+* Remove GO111MODULE from Dockerfile and Cloud Build yaml files by @roger2hk in https://github.com/google/certificate-transparency-go/pull/1113
+* Add docker Dependabot config by @roger2hk in https://github.com/google/certificate-transparency-go/pull/1126
+* Export is_mirror = 0.0 for non mirror instead of nothing by @phbnf in https://github.com/google/certificate-transparency-go/pull/1133
+* Add govulncheck GitHub action by @roger2hk in https://github.com/google/certificate-transparency-go/pull/1145
+* Spelling by @jsoref in https://github.com/google/certificate-transparency-go/pull/1144
+
+### Dependency update
+
+* Bump Go from 1.19 to 1.20 by @roger2hk in https://github.com/google/certificate-transparency-go/pull/1146
+* Bump golangci-lint from 1.51.1 to 1.55.1 by @roger2hk in https://github.com/google/certificate-transparency-go/pull/1214
+* Bump go.etcd.io/etcd/v3 from 3.5.8 to 3.5.9 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1083
+* Bump golang.org/x/crypto from 0.8.0 to 0.9.0 by @dependabot in https://github.com/google/certificate-transparency-go/pull/108
+* Bump github.com/mattn/go-sqlite3 from 1.14.16 to 1.14.17 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1092
+* Bump golang.org/x/net from 0.10.0 to 0.11.0 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1094
+* Bump github.com/prometheus/client_golang from 1.15.1 to 1.16.0 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1098
+* Bump google.golang.org/protobuf from 1.30.0 to 1.31.0 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1099
+* Bump golang.org/x/net from 0.11.0 to 0.12.0 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1108
+* Bump actions/checkout from 3.1.0 to 3.5.3 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1103
+* Bump github/codeql-action from 2.1.27 to 2.20.3 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1104
+* Bump ossf/scorecard-action from 2.0.6 to 2.2.0 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1105
+* Bump actions/upload-artifact from 3.1.0 to 3.1.2 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1106
+* Bump github/codeql-action from 2.20.3 to 2.20.4 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1115
+* Bump github/codeql-action from 2.20.4 to 2.21.0 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1117
+* Bump golang.org/x/net from 0.12.0 to 0.14.0 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1124
+* Bump github/codeql-action from 2.21.0 to 2.21.2 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1121
+* Bump github/codeql-action from 2.21.2 to 2.21.4 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1125
+* Bump golang from `fd9306e` to `eb3f9ac` in /integration by @dependabot in https://github.com/google/certificate-transparency-go/pull/1127
+* Bump alpine from 3.8 to 3.18 in /trillian/examples/deployment/docker/envsubst by @dependabot in https://github.com/google/certificate-transparency-go/pull/1129
+* Bump golang from `fd9306e` to `eb3f9ac` in /trillian/examples/deployment/docker/ctfe by @dependabot in https://github.com/google/certificate-transparency-go/pull/1128
+* Bump alpine from `82d1e9d` to `7144f7b` in /internal/witness/cmd/feeder by @dependabot in https://github.com/google/certificate-transparency-go/pull/1130
+* Bump golang from `fd9306e` to `eb3f9ac` in /internal/witness/cmd/witness by @dependabot in https://github.com/google/certificate-transparency-go/pull/1131
+* Bump golang from 1.19-alpine to 1.21-alpine in /internal/witness/cmd/feeder by @dependabot in https://github.com/google/certificate-transparency-go/pull/1132
+* Bump actions/checkout from 3.5.3 to 3.6.0 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1134
+* Bump github/codeql-action from 2.21.4 to 2.21.5 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1135
+* Bump distroless/base from `73deaaf` to `46c5b9b` in /trillian/examples/deployment/docker/ctfe by @dependabot in https://github.com/google/certificate-transparency-go/pull/1136
+* Bump actions/checkout from 3.6.0 to 4.0.0 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1137
+* Bump golang.org/x/net from 0.14.0 to 0.15.0 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1139
+* Bump github.com/rs/cors from 1.9.0 to 1.10.0 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1140
+* Bump actions/upload-artifact from 3.1.2 to 3.1.3 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1141
+* Bump golang from `445f340` to `96634e5` in /internal/witness/cmd/feeder by @dependabot in https://github.com/google/certificate-transparency-go/pull/1142
+* Bump github/codeql-action from 2.21.5 to 2.21.6 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1149
+* Bump Docker golang base images to 1.21.1 by @roger2hk in https://github.com/google/certificate-transparency-go/pull/1147
+* Bump github/codeql-action from 2.21.6 to 2.21.7 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1150
+* Bump github/codeql-action from 2.21.7 to 2.21.8 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1152
+* Bump golang from `d3114db` to `a0b3bc4` in /internal/witness/cmd/feeder by @dependabot in https://github.com/google/certificate-transparency-go/pull/1155
+* Bump golang from `d3114db` to `a0b3bc4` in /internal/witness/cmd/witness by @dependabot in https://github.com/google/certificate-transparency-go/pull/1157
+* Bump golang from `d3114db` to `a0b3bc4` in /integration by @dependabot in https://github.com/google/certificate-transparency-go/pull/1156
+* Bump golang from `d3114db` to `a0b3bc4` in /trillian/examples/deployment/docker/ctfe by @dependabot in https://github.com/google/certificate-transparency-go/pull/1158
+* Bump golang from `e06b3a4` to `114b9cc` in /integration by @dependabot in https://github.com/google/certificate-transparency-go/pull/1159
+* Bump golang from `a0b3bc4` to `114b9cc` in /internal/witness/cmd/feeder by @dependabot in https://github.com/google/certificate-transparency-go/pull/1160
+* Bump golang from `a0b3bc4` to `114b9cc` in /internal/witness/cmd/witness by @dependabot in https://github.com/google/certificate-transparency-go/pull/1161
+* Bump actions/checkout from 4.0.0 to 4.1.0 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1162
+* Bump golang from `114b9cc` to `9c7ea4a` in /internal/witness/cmd/feeder by @dependabot in https://github.com/google/certificate-transparency-go/pull/1163
+* Bump golang from `114b9cc` to `9c7ea4a` in /integration by @dependabot in https://github.com/google/certificate-transparency-go/pull/1166
+* Bump golang from `114b9cc` to `9c7ea4a` in /trillian/examples/deployment/docker/ctfe by @dependabot in https://github.com/google/certificate-transparency-go/pull/1165
+* Bump golang from `114b9cc` to `9c7ea4a` in /internal/witness/cmd/witness by @dependabot in https://github.com/google/certificate-transparency-go/pull/1164
+* Bump github/codeql-action from 2.21.8 to 2.21.9 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1169
+* Bump golang from `9c7ea4a` to `61f84bc` in /integration by @dependabot in https://github.com/google/certificate-transparency-go/pull/1168
+* Bump github.com/prometheus/client_golang from 1.16.0 to 1.17.0 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1172
+* Bump golang from `9c7ea4a` to `61f84bc` in /trillian/examples/deployment/docker/ctfe by @dependabot in https://github.com/google/certificate-transparency-go/pull/1170
+* Bump github.com/rs/cors from 1.10.0 to 1.10.1 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1176
+* Bump alpine from `7144f7b` to `eece025` in /trillian/examples/deployment/docker/envsubst by @dependabot in https://github.com/google/certificate-transparency-go/pull/1174
+* Bump alpine from `7144f7b` to `eece025` in /internal/witness/cmd/feeder by @dependabot in https://github.com/google/certificate-transparency-go/pull/1175
+* Bump golang from `9c7ea4a` to `61f84bc` in /internal/witness/cmd/witness by @dependabot in https://github.com/google/certificate-transparency-go/pull/1171
+* Bump golang from `9c7ea4a` to `61f84bc` in /internal/witness/cmd/feeder by @dependabot in https://github.com/google/certificate-transparency-go/pull/1173
+* Bump distroless/base from `46c5b9b` to `a35b652` in /trillian/examples/deployment/docker/ctfe by @dependabot in https://github.com/google/certificate-transparency-go/pull/1177
+* Bump golang.org/x/crypto from 0.13.0 to 0.14.0 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1178
+* Bump github/codeql-action from 2.21.9 to 2.22.0 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1180
+* Bump golang from 1.21.1-bookworm to 1.21.2-bookworm in /integration by @dependabot in https://github.com/google/certificate-transparency-go/pull/1181
+* Bump golang.org/x/net from 0.15.0 to 0.16.0 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1184
+* Bump golang from 1.21.1-bookworm to 1.21.2-bookworm in /internal/witness/cmd/witness by @dependabot in https://github.com/google/certificate-transparency-go/pull/1182
+* Bump golang from 1.21.1-bookworm to 1.21.2-bookworm in /internal/witness/cmd/feeder by @dependabot in https://github.com/google/certificate-transparency-go/pull/1185
+* Bump golang from 1.21.1-bookworm to 1.21.2-bookworm in /trillian/examples/deployment/docker/ctfe by @dependabot in https://github.com/google/certificate-transparency-go/pull/1183
+* Bump github/codeql-action from 2.22.0 to 2.22.1 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1186
+* Bump distroless/base from `a35b652` to `b31a6e0` in /trillian/examples/deployment/docker/ctfe by @dependabot in https://github.com/google/certificate-transparency-go/pull/1188
+* Bump ossf/scorecard-action from 2.2.0 to 2.3.0 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1187
+* Bump github.com/google/go-cmp from 0.5.9 to 0.6.0 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1189
+* Bump golang.org/x/net from 0.16.0 to 0.17.0 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1190
+* Bump go-version-input from 1.20.8 to 1.20.10 in govulncheck by @roger2hk in https://github.com/google/certificate-transparency-go/pull/1195
+* Bump golang from 1.21.2-bookworm to 1.21.3-bookworm in /internal/witness/cmd/witness by @dependabot in https://github.com/google/certificate-transparency-go/pull/1193
+* Bump golang from 1.21.2-bookworm to 1.21.3-bookworm in /internal/witness/cmd/feeder by @dependabot in https://github.com/google/certificate-transparency-go/pull/1191
+* Bump golang from 1.21.2-bookworm to 1.21.3-bookworm in /integration by @dependabot in https://github.com/google/certificate-transparency-go/pull/1194
+* Bump golang from 1.21.2-bookworm to 1.21.3-bookworm in /trillian/examples/deployment/docker/ctfe by @dependabot in https://github.com/google/certificate-transparency-go/pull/1192
+* Bump golang from `a94b089` to `8f9a1ec` in /internal/witness/cmd/feeder by @dependabot in https://github.com/google/certificate-transparency-go/pull/1196
+* Bump github/codeql-action from 2.22.1 to 2.22.2 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1197
+* Bump golang from `a94b089` to `5cc7ddc` in /integration by @dependabot in https://github.com/google/certificate-transparency-go/pull/1200
+* Bump golang from `a94b089` to `5cc7ddc` in /internal/witness/cmd/witness by @dependabot in https://github.com/google/certificate-transparency-go/pull/1199
+* Bump github/codeql-action from 2.22.2 to 2.22.3 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1202
+* Bump golang from `5cc7ddc` to `20f9ab5` in /integration by @dependabot in https://github.com/google/certificate-transparency-go/pull/1203
+* Bump golang from `a94b089` to `20f9ab5` in /trillian/examples/deployment/docker/ctfe by @dependabot in https://github.com/google/certificate-transparency-go/pull/1198
+* Bump golang from `8f9a1ec` to `20f9ab5` in /internal/witness/cmd/feeder by @dependabot in https://github.com/google/certificate-transparency-go/pull/1201
+* Bump actions/checkout from 4.1.0 to 4.1.1 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1204
+* Bump github/codeql-action from 2.22.3 to 2.22.4 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1206
+* Bump ossf/scorecard-action from 2.3.0 to 2.3.1 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1207
+* Bump github/codeql-action from 2.22.4 to 2.22.5 by @dependabot in https://github.com/google/certificate-transparency-go/pull/1209
+* Bump multiple Go module dependencies by @roger2hk in https://github.com/google/certificate-transparency-go/pull/1213
+
+## v1.1.6
+
+### Dependency update
+
+* Bump Trillian to v1.5.2
+* Bump Prometheus to v0.43.1
+
+## v1.1.5
+
+### Public/Private Key Consistency
+
+ * #1044: If a public key has been configured for a log, check that it is consistent with the private key.
+ * #1046: Ensure that no two logs in the CTFE configuration use the same private key.
+
+### Cleanup
+
+ * Remove v2 log list package files.
+
+### Misc
+
+ * Updated golangci-lint to v1.51.1 (developers should update to this version).
+ * Bump Go version from 1.17 to 1.19.
+
+## v1.1.4
+
+[Published 2022-10-21](https://github.com/google/certificate-transparency-go/releases/tag/v1.1.4)
+
+### Cleanup
+
+ * Remove log list v1 package and its dependencies.
+
+### Migrillian
+
+ * #960: Skip consistency check when root is size zero.
+
+### Misc
+
+ * Update Trillian to [0a389c4](https://github.com/google/trillian/commit/0a389c4bb8d97fb3be8f55d7e5b428cf4304986f)
+ * Migrate loglist dependency from v1 to v3 in ctclient cmd.
+ * Migrate loglist dependency from v1 to v3 in ctutil/loginfo.go
+ * Migrate loglist dependency from v1 to v3 in ctutil/sctscan.go
+ * Migrate loglist dependency from v1 to v3 in trillian/integration/ct_hammer/main.go
+ * Downgrade 429 errors to verbosity 2
+
+## v1.1.3
+
+[Published 2022-05-14](https://github.com/google/certificate-transparency-go/releases/tag/v1.1.3)
+
 ### Integration
 
  * Breaking change to API for `integration.HammerCTLog`:
@@ -16,11 +195,6 @@
  * `WithBalancerName` is deprecated and removed, using the recommended way.
  * `ctfe.PEMCertPool` type has been moved to `x509util.PEMCertPool` to reduce
    dependencies (#903).
- * Remove log list v1 package and its dependencies.
-
-### Migrillian
-
-* #960: Skip consistency check when root is size zero.
 
 ### Misc
 
@@ -29,13 +203,10 @@
  * `ctclient` tool now uses Cobra for better CLI experience (#901).
  * #800: Remove dependency from `ratelimit`.
  * #927: Add read-only mode to CTFE config.
- * Update Trillian to [0a389c4](https://github.com/google/trillian/commit/0a389c4bb8d97fb3be8f55d7e5b428cf4304986f)
- * Migrate loglist dependency from v1 to v3 in ctclient cmd.
- * Migrate loglist dependency from v1 to v3 in ctutil/loginfo.go
- * Migrate loglist dependency from v1 to v3 in ctutil/sctscan.go
- * Migrate loglist dependency from v1 to v3 in trillian/integration/ct_hammer/main.go
 
 ## v1.1.2
+
+[Published 2021-09-21](https://github.com/google/certificate-transparency-go/releases/tag/v1.1.2)
 
 ### CTFE
 
@@ -47,6 +218,7 @@
  * protobuf to v2
 
 ## v1.1.1
+
 [Published 2020-10-06](https://github.com/google/certificate-transparency-go/releases/tag/v1.1.1)
 
 ### Tools
@@ -105,7 +277,7 @@ entries whose `start` parameter does not fall on a multiple of the maximum
 permitted number of entries, will have their responses truncated such that
 subsequent requests will align with this boundary.
 This is intended to coerce callers of `get-entries` into all using the same
-`start` and `end` parameters and thereby increase the cachability of
+`start` and `end` parameters and thereby increase the cacheability of
 these requests.
 
 e.g.:
@@ -541,7 +713,7 @@ Commit [3955e4a00c42e83ff17ce25003976159c5d0f0f9](https://api.github.com/repos/g
 
 Published 2018-06-01 14:02:58 +0000 UTC
 
-This release is mostly fixes to the `x509` and `asn1` packages. Some command line utilties were also updated.
+This release is mostly fixes to the `x509` and `asn1` packages. Some command line utilities were also updated.
 
 Commit [ae40d07cce12f1227c6e658e61c9dddb7646f97b](https://api.github.com/repos/google/certificate-transparency-go/commits/ae40d07cce12f1227c6e658e61c9dddb7646f97b) Download [zip](https://api.github.com/repos/google/certificate-transparency-go/zipball/v1.0.5)
 
