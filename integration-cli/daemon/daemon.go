@@ -99,14 +99,9 @@ func (d *Daemon) CheckActiveContainerCount(ctx context.Context) func(t *testing.
 	}
 }
 
-// WaitRun waits for a container to be running for 10s
-func (d *Daemon) WaitRun(contID string) error {
-	args := []string{"--host", d.Sock()}
-	return WaitInspectWithArgs(d.dockerBinary, contID, "{{.State.Running}}", "true", 10*time.Second, args...)
-}
-
 // WaitInspectWithArgs waits for the specified expression to be equals to the specified expected string in the given time.
-// Deprecated: use cli.WaitCmd instead
+//
+// Deprecated: use [cli.WaitRun] instead.
 func WaitInspectWithArgs(dockerBinary, name, expr, expected string, timeout time.Duration, arg ...string) error {
 	after := time.After(timeout)
 
