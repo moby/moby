@@ -663,6 +663,8 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		return nil, err
 	}
 
+	disableC8dSnapshotterOnUsernsRemap(conf)
+
 	return conf, nil
 }
 
