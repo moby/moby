@@ -49,8 +49,8 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
 	github.com/hashicorp/go-memdb v1.3.5
-	github.com/hashicorp/memberlist v0.4.0
-	github.com/hashicorp/serf v0.8.5
+	github.com/hashicorp/memberlist v0.5.3
+	github.com/hashicorp/serf v0.10.2
 	github.com/ishidawataru/sctp v0.0.0-20250829011129-4b890084db30
 	github.com/miekg/dns v1.1.66
 	github.com/mistifyio/go-zfs/v3 v3.0.1
@@ -176,10 +176,11 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.1 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
-	github.com/hashicorp/go-msgpack v0.5.5 // indirect
+	github.com/hashicorp/go-metrics v0.5.4 // indirect
+	github.com/hashicorp/go-msgpack/v2 v2.1.2 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/hashicorp/go-sockaddr v1.0.2 // indirect
-	github.com/hashicorp/golang-lru v0.5.4 // indirect
+	github.com/hashicorp/go-sockaddr v1.0.5 // indirect
+	github.com/hashicorp/golang-lru v1.0.2 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/in-toto/in-toto-golang v0.9.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
