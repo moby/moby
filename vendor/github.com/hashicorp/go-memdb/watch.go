@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package memdb
 
 import (
@@ -5,7 +8,8 @@ import (
 	"time"
 )
 
-// WatchSet is a collection of watch channels.
+// WatchSet is a collection of watch channels. The zero value is not usable.
+// Use NewWatchSet to create a WatchSet.
 type WatchSet map[<-chan struct{}]struct{}
 
 // NewWatchSet constructs a new watch set.
@@ -31,7 +35,7 @@ func (w WatchSet) Add(watchCh <-chan struct{}) {
 // not by much.
 //
 // This is useful if you want to track individual items up to some limit, after
-// which you watch a higher-level channel (usually a channel from start start of
+// which you watch a higher-level channel (usually a channel from start of
 // an iterator higher up in the radix tree) that will watch a superset of items.
 func (w WatchSet) AddWithLimit(softLimit int, watchCh <-chan struct{}, altCh <-chan struct{}) {
 	// This is safe for a nil WatchSet so we don't need to check that here.
@@ -42,8 +46,9 @@ func (w WatchSet) AddWithLimit(softLimit int, watchCh <-chan struct{}, altCh <-c
 	}
 }
 
-// Watch is used to wait for either the watch set to trigger or a timeout.
-// Returns true on timeout.
+// Watch blocks until one of the channels in the watch set is closed, or
+// timeoutCh sends a value.
+// Returns true if timeoutCh is what caused Watch to unblock.
 func (w WatchSet) Watch(timeoutCh <-chan time.Time) bool {
 	if w == nil {
 		return false
@@ -64,9 +69,11 @@ func (w WatchSet) Watch(timeoutCh <-chan time.Time) bool {
 	return w.WatchCtx(ctx) == context.Canceled
 }
 
-// WatchCtx is used to wait for either the watch set to trigger or for the
-// context to be cancelled. Watch with a timeout channel can be mimicked by
-// creating a context with a deadline. WatchCtx should be preferred over Watch.
+// WatchCtx blocks until one of the channels in the watch set is closed, or
+// ctx is done (cancelled or exceeds the deadline). WatchCtx returns an error
+// if the ctx causes it to unblock, otherwise returns nil.
+//
+// WatchCtx should be preferred over Watch.
 func (w WatchSet) WatchCtx(ctx context.Context) error {
 	if w == nil {
 		return nil
@@ -87,10 +94,14 @@ func (w WatchSet) WatchCtx(ctx context.Context) error {
 
 // watchMany is used if there are many watchers.
 func (w WatchSet) watchMany(ctx context.Context) error {
+	// Cancel all watcher goroutines when return.
+	watcherCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	// Set up a goroutine for each watcher.
 	triggerCh := make(chan struct{}, 1)
 	watcher := func(chunk []<-chan struct{}) {
-		if err := watchFew(ctx, chunk); err == nil {
+		if err := watchFew(watcherCtx, chunk); err == nil {
 			select {
 			case triggerCh <- struct{}{}:
 			default:
@@ -128,7 +139,7 @@ func (w WatchSet) watchMany(ctx context.Context) error {
 	}
 }
 
-// WatchCh returns a channel that is used to wait for either the watch set to trigger
+// WatchCh returns a channel that is used to wait for any channel of the watch set to trigger
 // or for the context to be cancelled. WatchCh creates a new goroutine each call, so
 // callers may need to cache the returned channel to avoid creating extra goroutines.
 func (w WatchSet) WatchCh(ctx context.Context) <-chan error {
