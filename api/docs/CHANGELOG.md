@@ -40,6 +40,11 @@ keywords: "API, Docker, rcli, REST, documentation"
   `GlobalIPv6Address`, `GlobalIPv6PrefixLen`, `IPAddress`, `IPPrefixLen`,
   `IPv6Gateway`, and `MacAddress` fields. These fields were deprecated in
   API v1.21 (docker v1.9.0) but kept around for backward compatibility.
+* Removed the `KernelMemoryTCP` field from the `POST /containers/{id}/update` and
+  `GET /containers/{id}/json` endpoints, any value it is set to will be ignored
+  on API version `v1.52` and up. Older API versions still accept this field, but
+  may take no effect, depending on the kernel version and OCI runtime in use.
+* Removed the `KernelMemoryTCP` field from the `GET /info` endpoint.
 
 ## v1.51 API changes
 

@@ -103,9 +103,6 @@ func getMemoryResources(config containertypes.Resources) *specs.LinuxMemory {
 	if config.OomKillDisable != nil {
 		memory.DisableOOMKiller = config.OomKillDisable
 	}
-	if config.KernelMemoryTCP != 0 { //nolint:staticcheck // ignore SA1019: memory.KernelTCP is deprecated: kernel memory tcp accounting is not supported in cgroups v2, and has been deprecated in [kernel v6.12]. This field should no longer be used, as it may be ignored by runtimes.
-		memory.KernelTCP = &config.KernelMemoryTCP //nolint:staticcheck // ignore SA1019: memory.KernelTCP is deprecated: kernel memory tcp accounting is not supported in cgroups v2, and has been deprecated in [kernel v6.12]. This field should no longer be used, as it may be ignored by runtimes.
-	}
 
 	if memory != (specs.LinuxMemory{}) {
 		return &memory
