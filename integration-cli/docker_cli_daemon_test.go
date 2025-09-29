@@ -713,8 +713,21 @@ func (s *DockerDaemonSuite) TestTLSVerify(c *testing.T) {
 // by using a rogue client certificate and checks that it fails with the expected error.
 func (s *DockerDaemonSuite) TestHTTPSInfoRogueCert(c *testing.T) {
 	const (
-		errBadCertificate   = "bad certificate"
-		testDaemonHTTPSAddr = "tcp://localhost:4271"
+		// Go 1.25 /  TLS 1.3 may produce a generic "handshake failure"
+		// whereas TLS 1.2 may produce a "bad certificate" TLS alert.
+		// See https://github.com/golang/go/issues/56371
+		//
+		// > https://tip.golang.org/doc/go1.12#tls_1_3
+		// >
+		// > In TLS 1.3 the client is the last one to speak in the handshake, so if
+		// > it causes an error to occur on the server, it will be returned on the
+		// > client by the first Read, not by Handshake. For example, that will be
+		// > the case if the server rejects the client certificate.
+		//
+		// https://github.com/golang/go/blob/go1.25.1/src/crypto/tls/alert.go#L71-L72
+		alertBadCertificate   = "bad certificate"   // go1.24 / TLS 1.2
+		alertHandshakeFailure = "handshake failure" // go1.25 / TLS 1.3
+		testDaemonHTTPSAddr   = "tcp://localhost:4271"
 	)
 
 	s.d.Start(c,
@@ -733,8 +746,11 @@ func (s *DockerDaemonSuite) TestHTTPSInfoRogueCert(c *testing.T) {
 		"info",
 	}
 	out, err := s.d.Cmd(args...)
-	if err == nil || !strings.Contains(out, errBadCertificate) {
-		c.Fatalf("Expected err: %s, got instead: %s and output: %s", errBadCertificate, err, out)
+	if err == nil {
+		c.Errorf("Expected an error, but got none; output: %s", out)
+	}
+	if !strings.Contains(out, alertHandshakeFailure) && !strings.Contains(out, alertBadCertificate) {
+		c.Errorf("Expected %q or %q; output: %s", alertHandshakeFailure, alertBadCertificate, out)
 	}
 }
 

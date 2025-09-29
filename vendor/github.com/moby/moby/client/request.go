@@ -149,7 +149,25 @@ func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 		return nil, errConnectionFailed{fmt.Errorf("%w.\n* Are you trying to connect to a TLS-enabled daemon without TLS?", err)}
 	}
 
-	if cli.scheme == "https" && strings.Contains(err.Error(), "bad certificate") {
+	const (
+		// Go 1.25 /  TLS 1.3 may produce a generic "handshake failure"
+		// whereas TLS 1.2 may produce a "bad certificate" TLS alert.
+		// See https://github.com/golang/go/issues/56371
+		//
+		// > https://tip.golang.org/doc/go1.12#tls_1_3
+		// >
+		// > In TLS 1.3 the client is the last one to speak in the handshake, so if
+		// > it causes an error to occur on the server, it will be returned on the
+		// > client by the first Read, not by Handshake. For example, that will be
+		// > the case if the server rejects the client certificate.
+		//
+		// https://github.com/golang/go/blob/go1.25.1/src/crypto/tls/alert.go#L71-L72
+		alertBadCertificate   = "bad certificate"   // go1.24 / TLS 1.2
+		alertHandshakeFailure = "handshake failure" // go1.25 / TLS 1.3
+	)
+
+	// TODO(thaJeztah): see if we can use errors.As for a [crypto/tls.AlertError] instead of bare string matching.
+	if cli.scheme == "https" && (strings.Contains(err.Error(), alertHandshakeFailure) || strings.Contains(err.Error(), alertBadCertificate)) {
 		return nil, errConnectionFailed{fmt.Errorf("the server probably has client authentication (--tlsverify) enabled; check your TLS client certification settings: %w", err)}
 	}
 
