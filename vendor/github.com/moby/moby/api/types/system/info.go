@@ -9,19 +9,25 @@ import (
 // Info contains response of Engine API:
 // GET "/info"
 type Info struct {
-	ID                 string
-	Containers         int
-	ContainersRunning  int
-	ContainersPaused   int
-	ContainersStopped  int
-	Images             int
-	Driver             string
-	DriverStatus       [][2]string
-	SystemStatus       [][2]string `json:",omitempty"` // SystemStatus is only propagated by the Swarm standalone API
-	Plugins            PluginsInfo
-	MemoryLimit        bool
-	SwapLimit          bool
-	KernelMemoryTCP    bool `json:",omitempty"` // KernelMemoryTCP is not supported on cgroups v2.
+	ID                string
+	Containers        int
+	ContainersRunning int
+	ContainersPaused  int
+	ContainersStopped int
+	Images            int
+	Driver            string
+	DriverStatus      [][2]string
+	SystemStatus      [][2]string `json:",omitempty"` // SystemStatus is only propagated by the Swarm standalone API
+	Plugins           PluginsInfo
+	MemoryLimit       bool
+	SwapLimit         bool
+
+	// KernelMemoryLimit is not supported on cgroups v2.
+	//
+	// Deprecated: This field is deprecated and will be removed in the next release.
+	// Starting with kernel 6.12, the kernel has deprecated kernel memory tcp accounting
+	KernelMemoryTCP bool `json:",omitempty"`
+
 	CPUCfsPeriod       bool `json:"CpuCfsPeriod"`
 	CPUCfsQuota        bool `json:"CpuCfsQuota"`
 	CPUShares          bool

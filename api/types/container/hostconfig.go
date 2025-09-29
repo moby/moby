@@ -390,6 +390,11 @@ type Resources struct {
 	DeviceCgroupRules    []string        // List of rule to be added to the device cgroup
 	DeviceRequests       []DeviceRequest // List of device requests for device drivers
 
+	// Hard limit for kernel TCP buffer memory (in bytes).
+	//
+	// Deprecated: This field is deprecated and will be removed in the next release.
+	// Starting with 6.12, the kernel has deprecated kernel memory tcp accounting
+	// for cgroups v1.
 	KernelMemoryTCP   int64     `json:",omitempty"` // Hard limit for kernel TCP buffer memory (in bytes)
 	MemoryReservation int64     // Memory soft limit (in bytes)
 	MemorySwap        int64     // Total memory usage (memory + swap); set `-1` to enable unlimited swap

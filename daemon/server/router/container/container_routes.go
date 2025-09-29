@@ -538,7 +538,7 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		}
 
 		// Ignore KernelMemoryTCP because it was added in API 1.40.
-		hostConfig.KernelMemoryTCP = 0
+		hostConfig.KernelMemoryTCP = 0 //nolint:staticcheck // ignore SA1019 This field is still used for legacy support.
 
 		// Older clients (API < 1.40) expects the default to be shareable, make them happy
 		if hostConfig.IpcMode.IsEmpty() {
