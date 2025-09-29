@@ -6,6 +6,20 @@
 
 The missing `generic` set collection for the Go language.  Until Go has sets built-in...use this.
 
+## Psst
+* Hi there, 👋! Do you use or have interest in the [Zig programming language](https://ziglang.org/) created by Andrew Kelley? If so, the golang-set project has a new sibling project: [ziglang-set](https://github.com/deckarep/ziglang-set)! Come check it out!
+
+## Update 3/14/2025
+* Packaged version: `2.8.0` introduces support for true iterators for Go 1.23+. Please see [issue #141](https://github.com/deckarep/golang-set/issues/141)
+for further details on the implications of how iterations work between older Go versions vs newer Go versions. Additionally, this
+release has a minor unit-test spelling fix.
+
+## Update 12/3/2024
+* Packaged version: `2.7.0` fixes a long-standing bug with *JSON Unmarshaling*. A large refactor in the interest of performance
+introduced this bug and there was no way around it but to revert the code back to how it was previously. The performance
+difference was likely negligible to begin with. JSON Marshaling and Unmarshaling is now properly supported again without
+needing to do workarounds.
+
 ## Update 3/5/2023
 * Packaged version: `2.2.0` release includes a refactor to minimize pointer indirection, better method documentation standards and a few constructor convenience methods to increase ergonomics when appending items `Append` or creating a new set from an exist `Map`.
 * supports `new generic` syntax
@@ -16,6 +30,14 @@ The missing `generic` set collection for the Go language.  Until Go has sets bui
 
 Coming from Python one of the things I miss is the superbly wonderful set collection.  This is my attempt to mimic the primary features of the set collection from Python.
 You can of course argue that there is no need for a set in Go, otherwise the creators would have added one to the standard library.  To those I say simply ignore this repository and carry-on and to the rest that find this useful please contribute in helping me make it better by contributing with suggestions or PRs.
+
+## Install
+
+Use `go get` to install this package.
+
+```shell
+go get github.com/deckarep/golang-set/v2
+```
 
 ## Features
 
@@ -63,7 +85,7 @@ mySet := mapset.NewSet[int]()
 // Or perhaps you want a string set
 mySet := mapset.NewSet[string]()
 
-type myStruct {
+type myStruct struct {
   name string
   age uint8
 }
