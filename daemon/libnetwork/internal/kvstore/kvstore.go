@@ -5,8 +5,6 @@ import (
 )
 
 var (
-	// ErrBackendNotSupported is thrown when the backend k/v store is not supported by libkv
-	ErrBackendNotSupported = errors.New("Backend storage not supported yet, please choose one of")
 	// ErrKeyModified is thrown during an atomic operation if the index does not match the one in the store
 	ErrKeyModified = errors.New("Unable to complete atomic operation, key modified")
 	// ErrKeyNotFound is thrown when the key is not found in the store during a Get operation
