@@ -22,6 +22,11 @@ keywords: "API, Docker, rcli, REST, documentation"
   This field was previously always -1.
 * Deprecated: The field `NetworkSettings.Bridge` returned by `GET /containers/{id}/json`
   is deprecated and will be removed in the next API version.
+* Deprecated: The field `KernelMemoryTCP` as part of `POST /containers/{id}/update`
+  and returned by `GET /containers/{id}/json` is deprecated and will be removed
+  in the next API version.
+* Deprecated: The field `KernelMemoryTCP` as part of `GET /info` is deprecated
+  and will be removed in the next API version.
 
 ## v1.50 API changes
 

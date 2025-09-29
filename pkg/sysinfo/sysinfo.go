@@ -72,6 +72,10 @@ type cgroupMemInfo struct {
 
 	// Whether kernel memory TCP limit is supported or not. Kernel memory TCP
 	// limit (`memory.kmem.tcp.limit_in_bytes`) is not supported on cgroups v2.
+	//
+	// Deprecated: This field is deprecated and will be removed in the next release.
+	// Starting with 6.12, the kernel has deprecated kernel memory tcp accounting
+	// for cgroups v1.
 	KernelMemoryTCP bool
 }
 
