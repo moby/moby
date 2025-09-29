@@ -101,7 +101,7 @@ func TestPortMappingConfig(t *testing.T) {
 	}
 
 	// release host mapped ports
-	err = d.Leave("dummy", "ep1")
+	err = d.Leave(context.Background(), "dummy", "ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +175,7 @@ func TestPortMappingV6Config(t *testing.T) {
 	}
 
 	// release host mapped ports
-	err = d.Leave("dummy", "ep1")
+	err = d.Leave(context.Background(), "dummy", "ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -862,7 +862,7 @@ func TestAddPortMappings(t *testing.T) {
 			}
 
 			// Release anything that was allocated.
-			err = n.releasePorts(&bridgeEndpoint{portMapping: pbs})
+			err = n.releasePorts(ctx, &bridgeEndpoint{portMapping: pbs})
 			if tc.expReleaseErr == "" {
 				assert.Check(t, err)
 			} else {

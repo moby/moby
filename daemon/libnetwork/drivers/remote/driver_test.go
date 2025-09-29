@@ -484,13 +484,13 @@ func TestRemoteDriver(t *testing.T) {
 	if _, err = d.EndpointOperInfo(netID, endID); err != nil {
 		t.Fatal(err)
 	}
-	if err = d.Leave(netID, endID); err != nil {
+	if err = d.Leave(context.Background(), netID, endID); err != nil {
 		t.Fatal(err)
 	}
-	if err = d.DeleteEndpoint(netID, endID); err != nil {
+	if err = d.DeleteEndpoint(context.Background(), netID, endID); err != nil {
 		t.Fatal(err)
 	}
-	if err = d.DeleteNetwork(netID); err != nil {
+	if err = d.DeleteNetwork(context.Background(), netID); err != nil {
 		t.Fatal(err)
 	}
 

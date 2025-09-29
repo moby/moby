@@ -105,6 +105,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 		"exitCode":     strconv.Itoa(ctrExitStatus.ExitCode),
 		"execDuration": strconv.Itoa(int(execDuration.Seconds())),
 	}
+
 	daemon.Cleanup(context.TODO(), c)
 
 	if restart {

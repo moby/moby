@@ -31,7 +31,7 @@ func TestDriver(t *testing.T) {
 		t.Fatalf("Second network creation failed with unexpected error type")
 	}
 
-	err = d.DeleteNetwork("first")
+	err = d.DeleteNetwork(context.Background(), "first")
 	if err == nil {
 		t.Fatalf("network deletion should fail on this driver")
 	}
@@ -40,7 +40,7 @@ func TestDriver(t *testing.T) {
 	}
 
 	// we don't really check if it is there or not, delete is not allowed for this driver, period.
-	err = d.DeleteNetwork("unknown")
+	err = d.DeleteNetwork(context.Background(), "unknown")
 	if err == nil {
 		t.Fatalf("any network deletion should fail on this driver")
 	}

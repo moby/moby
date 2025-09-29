@@ -197,11 +197,11 @@ func (d *driver) GetSkipGwAlloc(opts options.Generic) (ipv4, ipv6 bool, _ error)
 	return resp.SkipIPv4, resp.SkipIPv6, nil
 }
 
-func (d *driver) DeleteNetwork(nid string) error {
+func (d *driver) DeleteNetwork(_ context.Context, nid string) error {
 	return d.call("DeleteNetwork", &api.DeleteNetworkRequest{NetworkID: nid}, &api.DeleteNetworkResponse{})
 }
 
-func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]any) (retErr error) {
+func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]any) (retErr error) {
 	if ifInfo == nil {
 		return errors.New("must not be called with nil InterfaceInfo")
 	}
@@ -230,7 +230,7 @@ func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo drive
 
 	defer func() {
 		if retErr != nil {
-			if err := d.DeleteEndpoint(nid, eid); err != nil {
+			if err := d.DeleteEndpoint(ctx, nid, eid); err != nil {
 				retErr = fmt.Errorf("%w; failed to roll back: %w", err, retErr)
 			} else {
 				retErr = fmt.Errorf("%w; rolled back", retErr)
@@ -266,7 +266,7 @@ func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo drive
 	return nil
 }
 
-func (d *driver) DeleteEndpoint(nid, eid string) error {
+func (d *driver) DeleteEndpoint(ctx context.Context, nid, eid string) error {
 	deleteRequest := &api.DeleteEndpointRequest{
 		NetworkID:  nid,
 		EndpointID: eid,
@@ -287,7 +287,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, options map[string]any) (retErr error) {
+func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, options map[string]any) (retErr error) {
 	join := &api.JoinRequest{
 		NetworkID:  nid,
 		EndpointID: eid,
@@ -304,7 +304,7 @@ func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo 
 
 	defer func() {
 		if retErr != nil {
-			if err := d.Leave(nid, eid); err != nil {
+			if err := d.Leave(ctx, nid, eid); err != nil {
 				retErr = fmt.Errorf("%w; failed to roll back: %w", err, retErr)
 			} else {
 				retErr = fmt.Errorf("%w; rolled back", retErr)
@@ -358,7 +358,7 @@ func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo 
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
-func (d *driver) Leave(nid, eid string) error {
+func (d *driver) Leave(ctx context.Context, nid, eid string) error {
 	leave := &api.LeaveRequest{
 		NetworkID:  nid,
 		EndpointID: eid,

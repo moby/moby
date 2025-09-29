@@ -60,7 +60,7 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 }
 
 // DeleteEndpoint remove the endpoint and associated netlink interface
-func (d *driver) DeleteEndpoint(nid, eid string) error {
+func (d *driver) DeleteEndpoint(ctx context.Context, nid, eid string) error {
 	if err := validateID(nid, eid); err != nil {
 		return err
 	}
@@ -74,12 +74,12 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	}
 	if link, err := ns.NlHandle().LinkByName(ep.srcName); err == nil {
 		if err := ns.NlHandle().LinkDel(link); err != nil {
-			log.G(context.TODO()).WithError(err).Warnf("Failed to delete interface (%s)'s link on endpoint (%s) delete", ep.srcName, ep.id)
+			log.G(ctx).WithError(err).Warnf("Failed to delete interface (%s)'s link on endpoint (%s) delete", ep.srcName, ep.id)
 		}
 	}
 
 	if err := d.storeDelete(ep); err != nil {
-		log.G(context.TODO()).Warnf("Failed to remove ipvlan endpoint %.7s from store: %v", ep.id, err)
+		log.G(ctx).Warnf("Failed to remove ipvlan endpoint %.7s from store: %v", ep.id, err)
 	}
 	n.deleteEndpoint(ep.id)
 	return nil

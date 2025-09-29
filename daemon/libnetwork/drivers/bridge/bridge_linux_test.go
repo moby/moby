@@ -601,22 +601,22 @@ func TestCreateMultipleNetworks(t *testing.T) {
 	}
 	checkFirewallerNetworks()
 
-	if err := d.DeleteNetwork("1"); err != nil {
+	if err := d.DeleteNetwork(context.Background(), "1"); err != nil {
 		t.Log(err)
 	}
 	checkFirewallerNetworks()
 
-	if err := d.DeleteNetwork("2"); err != nil {
+	if err := d.DeleteNetwork(context.Background(), "2"); err != nil {
 		t.Log(err)
 	}
 	checkFirewallerNetworks()
 
-	if err := d.DeleteNetwork("3"); err != nil {
+	if err := d.DeleteNetwork(context.Background(), "3"); err != nil {
 		t.Log(err)
 	}
 	checkFirewallerNetworks()
 
-	if err := d.DeleteNetwork("4"); err != nil {
+	if err := d.DeleteNetwork(context.Background(), "4"); err != nil {
 		t.Log(err)
 	}
 	checkFirewallerNetworks()
@@ -839,7 +839,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	}
 
 	// release host mapped ports
-	err = d.Leave("net1", "ep1")
+	err = d.Leave(context.Background(), "net1", "ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -953,7 +953,7 @@ func TestLinkContainers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to revoke external connectivity: %v", err)
 	}
-	err = d.Leave("net1", "ep2")
+	err = d.Leave(context.Background(), "net1", "ep2")
 	if err != nil {
 		t.Fatal("Failed to unlink ep1 and ep2")
 	}
@@ -1230,7 +1230,7 @@ func TestCreateWithExistingBridge(t *testing.T) {
 		t.Fatal("Creating bridge network with existing bridge interface unexpectedly modified the IP address of the bridge")
 	}
 
-	if err := d.DeleteNetwork(brName); err != nil {
+	if err := d.DeleteNetwork(context.Background(), brName); err != nil {
 		t.Fatalf("Failed to delete network %s: %v", brName, err)
 	}
 

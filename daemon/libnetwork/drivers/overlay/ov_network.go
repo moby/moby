@@ -196,7 +196,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 	return nil
 }
 
-func (d *driver) DeleteNetwork(nid string) error {
+func (d *driver) DeleteNetwork(ctx context.Context, nid string) error {
 	if nid == "" {
 		return errors.New("invalid network id")
 	}
@@ -219,7 +219,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 		if ep.ifName != "" {
 			if link, err := ns.NlHandle().LinkByName(ep.ifName); err == nil {
 				if err := ns.NlHandle().LinkDel(link); err != nil {
-					log.G(context.TODO()).WithError(err).Warnf("Failed to delete interface (%s)'s link on endpoint (%s) delete", ep.ifName, ep.id)
+					log.G(ctx).WithError(err).Warnf("Failed to delete interface (%s)'s link on endpoint (%s) delete", ep.ifName, ep.id)
 				}
 			}
 		}
@@ -228,14 +228,14 @@ func (d *driver) DeleteNetwork(nid string) error {
 	if n.secure {
 		for _, s := range n.subnets {
 			if err := d.programMangle(s.vni, false); err != nil {
-				log.G(context.TODO()).WithFields(log.Fields{
+				log.G(ctx).WithFields(log.Fields{
 					"error":      err,
 					"network_id": n.id,
 					"subnet":     s.subnetIP,
 				}).Warn("Failed to clean up iptables rules during overlay network deletion")
 			}
 			if err := d.programInput(s.vni, false); err != nil {
-				log.G(context.TODO()).WithFields(log.Fields{
+				log.G(ctx).WithFields(log.Fields{
 					"error":      err,
 					"network_id": n.id,
 					"subnet":     s.subnetIP,

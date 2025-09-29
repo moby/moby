@@ -187,7 +187,7 @@ func (sb *Sandbox) SetKey(ctx context.Context, basePath string) error {
 		sb.resolver.Stop()
 
 		if err := sb.osSbox.InvokeFunc(sb.resolver.SetupFunc(0)); err == nil {
-			if err := sb.resolver.Start(); err != nil {
+			if err := sb.resolver.Start(ctx); err != nil {
 				log.G(ctx).Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
 			}
 		} else {
@@ -294,7 +294,7 @@ func (sb *Sandbox) restoreOslSandbox() error {
 			routes = append(routes, joinInfo.StaticRoutes...)
 		}
 		if ep.needResolver() {
-			sb.startResolver(true)
+			sb.startResolver(context.TODO(), true)
 		}
 	}
 
@@ -365,7 +365,7 @@ func (sb *Sandbox) populateNetworkResourcesOS(ctx context.Context, ep *Endpoint)
 	ep.mu.Unlock()
 
 	if ep.needResolver() {
-		sb.startResolver(false)
+		sb.startResolver(ctx, false)
 	}
 
 	if i != nil && i.srcName != "" {
