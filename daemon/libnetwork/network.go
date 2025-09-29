@@ -1109,18 +1109,17 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 	}
 
 removeFromStore:
-	// deleteFromStore performs an atomic delete operation and the
-	// Network.epCnt will help prevent any possible
-	// race between endpoint join and network delete
-	//
 	// TODO(robmry) - remove this once downgrade past 28.1.0 is no longer supported.
 	// The endpoint count is no longer used, it's created in the store to make
 	// downgrade work, versions older than 28.1.0 expect to read it and error if they
-	// can't. The stored count is not maintained, so the downgraded version will
-	// always find it's zero (which is usually correct because the daemon had
-	// stopped), but older daemons fix it on startup anyway.
-	if err = c.deleteFromStore(&endpointCnt{n: n}); err != nil {
-		log.G(context.TODO()).Debugf("Error deleting endpoint count from store for stale network %s (%s) for deletion: %v", n.Name(), n.ID(), err)
+	// can't.
+	if err := c.store.DeleteObject(&endpointCnt{n: n}); err != nil {
+		if !errors.Is(err, datastore.ErrKeyNotFound) {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"network": n.name,
+				"error":   err,
+			}).Debug("Error deleting network endpoint count from store")
+		}
 	}
 
 	if err = c.deleteStoredNetwork(n); err != nil {
