@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"io"
 	"testing"
+
+	"github.com/moby/moby/api/pkg/progress"
 )
 
 func TestOutputOnPrematureClose(t *testing.T) {
 	content := []byte("TESTING")
 	reader := io.NopCloser(bytes.NewReader(content))
-	progressChan := make(chan Progress, 10)
+	progressChan := make(chan progress.Progress, 10)
 
 	pr := NewProgressReader(reader, ChanOutput(progressChan), int64(len(content)), "Test", "Read")
 
@@ -41,7 +43,7 @@ drainLoop:
 func TestCompleteSilently(t *testing.T) {
 	content := []byte("TESTING")
 	reader := io.NopCloser(bytes.NewReader(content))
-	progressChan := make(chan Progress, 10)
+	progressChan := make(chan progress.Progress, 10)
 
 	pr := NewProgressReader(reader, ChanOutput(progressChan), int64(len(content)), "Test", "Read")
 

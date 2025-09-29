@@ -213,36 +213,33 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 
 	if ingressNA == nil {
 		e.backend.ReleaseIngress()
-		return e.backend.GetAttachmentStore().ResetAttachments(attachments)
-	}
-
-	options := network.CreateOptions{
-		Driver: ingressNA.Network.DriverState.Name,
-		IPAM: &network.IPAM{
-			Driver: ingressNA.Network.IPAM.Driver.Name,
-		},
-		Options: ingressNA.Network.DriverState.Options,
-		Ingress: true,
-	}
-
-	for _, ic := range ingressNA.Network.IPAM.Configs {
-		c := network.IPAMConfig{
-			Subnet:  ic.Subnet,
-			IPRange: ic.Range,
-			Gateway: ic.Gateway,
+	} else {
+		networkCreateRequest := network.CreateRequest{
+			Name:   ingressNA.Network.Spec.Annotations.Name,
+			Driver: ingressNA.Network.DriverState.Name,
+			IPAM: &network.IPAM{
+				Driver: ingressNA.Network.IPAM.Driver.Name,
+			},
+			Ingress: true,
+			Options: ingressNA.Network.DriverState.Options,
 		}
-		options.IPAM.Config = append(options.IPAM.Config, c)
-	}
 
-	_, err := e.backend.SetupIngress(clustertypes.NetworkCreateRequest{
-		ID: ingressNA.Network.ID,
-		CreateRequest: network.CreateRequest{
-			Name:          ingressNA.Network.Spec.Annotations.Name,
-			CreateOptions: options,
-		},
-	}, ingressNA.Addresses[0])
-	if err != nil {
-		return err
+		for _, ic := range ingressNA.Network.IPAM.Configs {
+			c := network.IPAMConfig{
+				Subnet:  ic.Subnet,
+				IPRange: ic.Range,
+				Gateway: ic.Gateway,
+			}
+			networkCreateRequest.IPAM.Config = append(networkCreateRequest.IPAM.Config, c)
+		}
+
+		_, err := e.backend.SetupIngress(clustertypes.NetworkCreateRequest{
+			ID:            ingressNA.Network.ID,
+			CreateRequest: networkCreateRequest,
+		}, ingressNA.Addresses[0])
+		if err != nil {
+			return err
+		}
 	}
 
 	var (

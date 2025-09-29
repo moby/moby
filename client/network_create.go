@@ -20,8 +20,19 @@ func (cli *Client) NetworkCreate(ctx context.Context, name string, options netwo
 	}
 
 	networkCreateRequest := network.CreateRequest{
-		CreateOptions: options,
-		Name:          name,
+		Name:       name,
+		Driver:     options.Driver,
+		Scope:      options.Scope,
+		EnableIPv4: options.EnableIPv4,
+		EnableIPv6: options.EnableIPv6,
+		IPAM:       options.IPAM,
+		Internal:   options.Internal,
+		Attachable: options.Attachable,
+		Ingress:    options.Ingress,
+		ConfigOnly: options.ConfigOnly,
+		ConfigFrom: options.ConfigFrom,
+		Options:    options.Options,
+		Labels:     options.Labels,
 	}
 	if versions.LessThan(cli.version, "1.44") {
 		enabled := true

@@ -31,7 +31,7 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 		return err
 	}
 
-	var list []network.Summary
+	var list []network.Inspect
 	nr, err := n.cluster.GetNetworks(filter)
 	if err == nil {
 		list = nr
@@ -59,7 +59,7 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 	}
 
 	if list == nil {
-		list = []network.Summary{}
+		list = []network.Inspect{}
 	}
 
 	return httputils.WriteJSON(w, http.StatusOK, list)

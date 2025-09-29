@@ -73,7 +73,7 @@ func TestDecodeContainerConfig(t *testing.T) {
 			assert.NilError(t, err)
 
 			assert.Check(t, is.Equal(c.Image, tc.imgName))
-			assert.Check(t, is.DeepEqual([]string(c.Entrypoint), tc.entrypoint))
+			assert.Check(t, is.DeepEqual(c.Entrypoint, tc.entrypoint))
 
 			var expected int64 = 4194304
 			assert.Check(t, is.Equal(h.Memory, expected))

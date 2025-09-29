@@ -152,8 +152,8 @@ func TestContainerCreateCapabilities(t *testing.T) {
 			if err := json.NewDecoder(req.Body).Decode(&config); err != nil {
 				return nil, err
 			}
-			assert.Check(t, is.DeepEqual([]string(config.HostConfig.CapAdd), expectedCaps))
-			assert.Check(t, is.DeepEqual([]string(config.HostConfig.CapDrop), expectedCaps))
+			assert.Check(t, is.DeepEqual(config.HostConfig.CapAdd, expectedCaps))
+			assert.Check(t, is.DeepEqual(config.HostConfig.CapDrop, expectedCaps))
 
 			b, err := json.Marshal(container.CreateResponse{
 				ID: "container_id",
