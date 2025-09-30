@@ -35,7 +35,7 @@ func (daemon *Daemon) fillPlatformInfo(ctx context.Context, v *system.Info, sysI
 		v.MemoryLimit = sysInfo.MemoryLimit
 		v.SwapLimit = sysInfo.SwapLimit
 		v.KernelMemory = sysInfo.KernelMemory
-		v.KernelMemoryTCP = sysInfo.KernelMemoryTCP
+		v.KernelMemoryTCP = sysInfo.KernelMemoryTCP //nolint:staticcheck // ignore SA1019: memory.KernelTCP is deprecated: kernel memory tcp accounting is not supported in cgroups v2, and has been deprecated in [kernel v6.12]. This field should no longer be used, as it may be ignored by runtimes.
 		v.OomKillDisable = sysInfo.OomKillDisable
 		v.CPUCfsPeriod = sysInfo.CPUCfs
 		v.CPUCfsQuota = sysInfo.CPUCfs
@@ -94,7 +94,7 @@ func (daemon *Daemon) fillPlatformInfo(ctx context.Context, v *system.Info, sysI
 		if !v.SwapLimit {
 			v.Warnings = append(v.Warnings, "WARNING: No swap limit support")
 		}
-		if !v.KernelMemoryTCP && v.CgroupVersion == "1" {
+		if !v.KernelMemoryTCP && v.CgroupVersion == "1" { //nolint:staticcheck // ignore SA1019: memory.KernelTCP is deprecated: kernel memory tcp accounting is not supported in cgroups v2, and has been deprecated in [kernel v6.12]. This field should no longer be used, as it may be ignored by runtimes.
 			// kernel memory is not available for cgroup v2.
 			// Warning is not printed on cgroup v2, because there is no action user can take.
 			v.Warnings = append(v.Warnings, "WARNING: No kernel memory TCP limit support")

@@ -636,6 +636,9 @@ definitions:
           by the default (runc) runtime.
 
           This field is omitted when empty.
+
+          **Deprecated**: This field is deprecated as kernel 6.12 has deprecated `memory.kmem.tcp.limit_in_bytes` field
+          for cgroups v1. This field will be removed in a future release.
         type: "integer"
         format: "int64"
       MemoryReservation:
@@ -6351,6 +6354,8 @@ definitions:
 
           Kernel memory TCP limits are not supported when using cgroups v2, which
           does not support the corresponding `memory.kmem.tcp.limit_in_bytes` cgroup.
+
+          **Deprecated**: This field is deprecated as kernel 6.12 has deprecated kernel memory TCP accounting.
         type: "boolean"
         example: true
       CpuCfsPeriod:
