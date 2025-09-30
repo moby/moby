@@ -34,6 +34,12 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /images/{name}/json` now omits the following `Config` fields when
   not set, to closer align with the implementation of the [OCI Image Specification](https://github.com/opencontainers/image-spec/blob/v1.1.1/specs-go/v1/config.go#L23-L62)
   `Cmd`, `Entrypoint`, `Env`, `Labels`, `OnBuild`, `User`, `Volumes`, and `WorkingDir`.
+* `GET /images/{name}/json` now omits the following fields if their value
+  is empty: `Parent`, `Comment`, `DockerVersion`, `Author`. The `Parent`
+  and `DockerVersion` fields were set by the legacy builder, and are no
+  longer set when using BuildKit. The `Author` field is set through the
+  `MAINTAINER` Dockerfile instruction, which is deprecated, and the `Comment`
+  field is option, and may not be set depending on how the image was created.
 * `GET /containers/{id}/json`: the `NetworkSettings` no longer returns the deprecated
   `Bridge`, `HairpinMode`, `LinkLocalIPv6Address`, `LinkLocalIPv6PrefixLen`,
   `SecondaryIPAddresses`, `SecondaryIPv6Addresses`, `EndpointID`, `Gateway`,

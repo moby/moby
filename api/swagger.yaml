@@ -1839,13 +1839,13 @@ definitions:
           is only set for images that were built/created locally. This field
           is empty if the image was pulled from an image registry.
         type: "string"
-        x-nullable: false
+        x-nullable: true
         example: ""
       Comment:
         description: |
           Optional message that was set when committing or importing the image.
         type: "string"
-        x-nullable: false
+        x-nullable: true
         example: ""
       Created:
         description: |
@@ -1864,14 +1864,14 @@ definitions:
 
           Depending on how the image was created, this field may be empty.
         type: "string"
-        x-nullable: false
+        x-nullable: true
         example: "27.0.1"
       Author:
         description: |
           Name of the author that was specified when committing the image, or as
           specified through MAINTAINER (deprecated) in the Dockerfile.
         type: "string"
-        x-nullable: false
+        x-nullable: true
         example: ""
       Config:
         $ref: "#/definitions/ImageConfig"

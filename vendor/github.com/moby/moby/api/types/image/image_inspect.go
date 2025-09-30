@@ -47,12 +47,12 @@ type InspectResponse struct {
 	//
 	// Depending on how the image was created, this field may be empty and
 	// is only set for images that were built/created locally. This field
-	// is empty if the image was pulled from an image registry.
-	Parent string
+	// is omitted if the image was pulled from an image registry.
+	Parent string `json:",omitempty"`
 
 	// Comment is an optional message that can be set when committing or
-	// importing the image.
-	Comment string
+	// importing the image. This field is omitted if not set.
+	Comment string `json:",omitempty"`
 
 	// Created is the date and time at which the image was created, formatted in
 	// RFC 3339 nano-seconds (time.RFC3339Nano).
@@ -79,12 +79,13 @@ type InspectResponse struct {
 
 	// DockerVersion is the version of Docker that was used to build the image.
 	//
-	// Depending on how the image was created, this field may be empty.
-	DockerVersion string
+	// Depending on how the image was created, this field may be omitted.
+	DockerVersion string `json:",omitempty"`
 
 	// Author is the name of the author that was specified when committing the
 	// image, or as specified through MAINTAINER (deprecated) in the Dockerfile.
-	Author string
+	// This field is omitted if not set.
+	Author string `json:",omitempty"`
 	Config *dockerspec.DockerOCIImageConfig
 
 	// Architecture is the hardware CPU architecture that the image runs on.
