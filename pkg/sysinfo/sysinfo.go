@@ -63,10 +63,6 @@ type cgroupMemInfo struct {
 
 	// Whether memory swappiness is supported or not
 	MemorySwappiness bool
-
-	// Whether kernel memory TCP limit is supported or not. Kernel memory TCP
-	// limit (`memory.kmem.tcp.limit_in_bytes`) is not supported on cgroups v2.
-	KernelMemoryTCP bool
 }
 
 type cgroupCPUInfo struct {

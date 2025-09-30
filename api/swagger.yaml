@@ -641,15 +641,6 @@ definitions:
         type: "array"
         items:
           $ref: "#/definitions/DeviceRequest"
-      KernelMemoryTCP:
-        description: |
-          Hard limit for kernel TCP buffer memory (in bytes). Depending on the
-          OCI runtime in use, this option may be ignored. It is no longer supported
-          by the default (runc) runtime.
-
-          This field is omitted when empty.
-        type: "integer"
-        format: "int64"
       MemoryReservation:
         description: "Memory soft limit in bytes."
         type: "integer"
@@ -6390,15 +6381,6 @@ definitions:
         example: true
       SwapLimit:
         description: "Indicates if the host has memory swap limit support enabled."
-        type: "boolean"
-        example: true
-      KernelMemoryTCP:
-        description: |
-          Indicates if the host has kernel memory TCP limit support enabled. This
-          field is omitted if not supported.
-
-          Kernel memory TCP limits are not supported when using cgroups v2, which
-          does not support the corresponding `memory.kmem.tcp.limit_in_bytes` cgroup.
         type: "boolean"
         example: true
       CpuCfsPeriod:

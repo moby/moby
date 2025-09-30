@@ -34,7 +34,6 @@ func (daemon *Daemon) fillPlatformInfo(ctx context.Context, v *system.Info, sysI
 	if v.CgroupDriver != cgroupNoneDriver {
 		v.MemoryLimit = sysInfo.MemoryLimit
 		v.SwapLimit = sysInfo.SwapLimit
-		v.KernelMemoryTCP = sysInfo.KernelMemoryTCP
 		v.OomKillDisable = sysInfo.OomKillDisable
 		v.CPUCfsPeriod = sysInfo.CPUCfs
 		v.CPUCfsQuota = sysInfo.CPUCfs
@@ -92,11 +91,6 @@ func (daemon *Daemon) fillPlatformInfo(ctx context.Context, v *system.Info, sysI
 		}
 		if !v.SwapLimit {
 			v.Warnings = append(v.Warnings, "WARNING: No swap limit support")
-		}
-		if !v.KernelMemoryTCP && v.CgroupVersion == "1" {
-			// kernel memory is not available for cgroup v2.
-			// Warning is not printed on cgroup v2, because there is no action user can take.
-			v.Warnings = append(v.Warnings, "WARNING: No kernel memory TCP limit support")
 		}
 		if !v.OomKillDisable && v.CgroupVersion == "1" {
 			// oom kill disable is not available for cgroup v2.

@@ -103,9 +103,6 @@ func getMemoryResources(config containertypes.Resources) *specs.LinuxMemory {
 	if config.OomKillDisable != nil {
 		memory.DisableOOMKiller = config.OomKillDisable
 	}
-	if config.KernelMemoryTCP != 0 {
-		memory.KernelTCP = &config.KernelMemoryTCP
-	}
 
 	if memory != (specs.LinuxMemory{}) {
 		return &memory
