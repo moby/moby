@@ -19,9 +19,6 @@ if [[ "${buildkit_ref}" == *-*-* ]]; then
 	buildkit_ref=$(curl -s "https://api.github.com/repos/${buildkit_repo}/commits/${buildkit_ref}" | jq -r .sha)
 fi
 
-# Needed by v0.25.0-rc1
-buildkit_ref="e4d7acb44d7e29b594445a36c5cc28be44740142"
-
 cat << EOF
 BUILDKIT_REPO=$buildkit_repo
 BUILDKIT_REF=$buildkit_ref
