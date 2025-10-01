@@ -142,10 +142,20 @@ func Code(err error) codes.Code {
 	}
 
 	if wrapped, ok := err.(multiUnwrapper); ok {
+		var hasUnknown bool
+
 		for _, err := range wrapped.Unwrap() {
-			if c := Code(err); c != codes.OK && c != codes.Unknown {
+			c := Code(err)
+			if c != codes.OK && c != codes.Unknown {
 				return c
 			}
+			if c == codes.Unknown {
+				hasUnknown = true
+			}
+		}
+
+		if hasUnknown {
+			return codes.Unknown
 		}
 	}
 
@@ -159,7 +169,7 @@ func WrapCode(err error, code codes.Code) error {
 // AsGRPCStatus tries to extract a gRPC status from the error.
 // Supports  `Unwrap() error` and `Unwrap() []error` for wrapped errors.
 // When the `Unwrap() []error` returns multiple errors, the first one that
-// contains a gRPC status is returned.
+// contains a gRPC status that is not OK is returned with the full error message.
 func AsGRPCStatus(err error) (*status.Status, bool) {
 	if err == nil {
 		return nil, true
@@ -178,8 +188,17 @@ func AsGRPCStatus(err error) (*status.Status, bool) {
 
 	if wrapped, ok := err.(multiUnwrapper); ok {
 		for _, err := range wrapped.Unwrap() {
-			if st, ok := AsGRPCStatus(err); ok && st != nil {
-				return st, true
+			st, ok := AsGRPCStatus(err)
+			if !ok {
+				continue
+			}
+
+			if st != nil && st.Code() != codes.OK {
+				// Copy the full status so we can set the full error message
+				// Does the proto conversion so can keep any extra details.
+				proto := st.Proto()
+				proto.Message = err.Error()
+				return status.FromProto(proto), true
 			}
 		}
 	}
