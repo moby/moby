@@ -6,7 +6,6 @@ import (
 	"net"
 
 	"github.com/moby/moby/api/types"
-	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
@@ -109,8 +108,8 @@ type DistributionAPIClient interface {
 // ImageAPIClient defines API client methods for the images
 type ImageAPIClient interface {
 	ImageBuild(ctx context.Context, context io.Reader, options ImageBuildOptions) (ImageBuildResponse, error)
-	BuildCachePrune(ctx context.Context, opts BuildCachePruneOptions) (*build.CachePruneReport, error)
-	BuildCancel(ctx context.Context, id string) error
+	BuildCachePrune(ctx context.Context, opts BuildCachePruneOptions) (BuildCachePruneResult, error)
+	BuildCancel(ctx context.Context, id string, opts BuildCancelOptions) error
 	ImageCreate(ctx context.Context, parentReference string, options ImageCreateOptions) (io.ReadCloser, error)
 	ImageImport(ctx context.Context, source ImageImportSource, ref string, options ImageImportOptions) (io.ReadCloser, error)
 
