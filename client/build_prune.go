@@ -21,8 +21,14 @@ type BuildCachePruneOptions struct {
 	Filters       filters.Args
 }
 
+// BuildCachePruneResult holds the result from the BuildCachePrune method.
+type BuildCachePruneResult struct {
+	Report build.CachePruneReport
+}
+
 // BuildCachePrune requests the daemon to delete unused cache data.
-func (cli *Client) BuildCachePrune(ctx context.Context, opts BuildCachePruneOptions) (*build.CachePruneReport, error) {
+func (cli *Client) BuildCachePrune(ctx context.Context, opts BuildCachePruneOptions) (BuildCachePruneResult, error) {
+	var out BuildCachePruneResult
 	query := url.Values{}
 	if opts.All {
 		query.Set("all", "1")
@@ -45,7 +51,7 @@ func (cli *Client) BuildCachePrune(ctx context.Context, opts BuildCachePruneOpti
 	}
 	f, err := filters.ToJSON(opts.Filters)
 	if err != nil {
-		return nil, fmt.Errorf("prune could not marshal filters option: %w", err)
+		return BuildCachePruneResult{}, fmt.Errorf("prune could not marshal filters option: %w", err)
 	}
 	query.Set("filters", f)
 
@@ -53,13 +59,14 @@ func (cli *Client) BuildCachePrune(ctx context.Context, opts BuildCachePruneOpti
 	defer ensureReaderClosed(resp)
 
 	if err != nil {
-		return nil, err
+		return BuildCachePruneResult{}, err
 	}
 
 	report := build.CachePruneReport{}
 	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
-		return nil, fmt.Errorf("error retrieving disk usage: %w", err)
+		return BuildCachePruneResult{}, fmt.Errorf("error retrieving disk usage: %w", err)
 	}
 
-	return &report, nil
+	out.Report = report
+	return out, nil
 }
