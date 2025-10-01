@@ -9,7 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -66,6 +68,14 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
+
+// strongTLSCiphers defines a secure, modern set of TLS cipher suites for use by the daemon.
+var strongTLSCiphers = []uint16{
+	tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+	tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+	tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+	tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+}
 
 // DaemonCli represents the daemon CLI.
 type DaemonCli struct {
@@ -778,6 +788,18 @@ func newAPIServerTLSConfig(config *config.Config) (*tls.Config, error) {
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "invalid TLS configuration")
+		}
+		// Optionally enforce strong TLS ciphers via the environment variable DOCKER_DISABLE_WEAK_CIPHERS.
+		// When set to true, weak TLS ciphers are disabled, restricting the daemon to a modern, secure
+		// subset of cipher suites.
+		if disableWeakCiphers := os.Getenv("DOCKER_DISABLE_WEAK_CIPHERS"); disableWeakCiphers != "" {
+			disable, err := strconv.ParseBool(disableWeakCiphers)
+			if err != nil {
+				return nil, errors.Wrap(err, "invalid value for DOCKER_DISABLE_WEAK_CIPHERS")
+			}
+			if disable {
+				tlsConfig.CipherSuites = slices.Clone(strongTLSCiphers)
+			}
 		}
 	}
 
