@@ -531,7 +531,11 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 			// local refs are needed so they would be advertised on next fetches. Force is used
 			// in case the ref is a branch and it now points to a different commit sha
 			// TODO: is there a better way to do this?
-			args = append(args, "--force", ref+":tags/"+ref)
+			targetRef := ref
+			if !strings.HasPrefix(ref, "refs/tags/") {
+				targetRef = "tags/" + ref
+			}
+			args = append(args, "--force", ref+":"+targetRef)
 		}
 		if _, err := git.Run(ctx, args...); err != nil {
 			return nil, errors.Wrapf(err, "failed to fetch remote %s", urlutil.RedactCredentials(gs.src.Remote))
@@ -615,7 +619,11 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 
 		pullref := ref
 		if isAnnotatedTag {
-			pullref += ":refs/tags/" + pullref
+			targetRef := pullref
+			if !strings.HasPrefix(pullref, "refs/tags/") {
+				targetRef = "refs/tags/" + pullref
+			}
+			pullref += ":" + targetRef
 		} else if gitutil.IsCommitSHA(ref) {
 			pullref = "refs/buildkit/" + identity.NewID()
 			_, err = git.Run(ctx, "update-ref", pullref, ref)
