@@ -110,7 +110,7 @@ type DistributionAPIClient interface {
 type ImageAPIClient interface {
 	ImageBuild(ctx context.Context, context io.Reader, options ImageBuildOptions) (ImageBuildResponse, error)
 	BuildCachePrune(ctx context.Context, opts BuildCachePruneOptions) (*build.CachePruneReport, error)
-	BuildCancel(ctx context.Context, id string) error
+	BuildCancel(ctx context.Context, id string, opts BuildCancelOptions) error
 	ImageCreate(ctx context.Context, parentReference string, options ImageCreateOptions) (io.ReadCloser, error)
 	ImageImport(ctx context.Context, source ImageImportSource, ref string, options ImageImportOptions) (io.ReadCloser, error)
 
