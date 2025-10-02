@@ -19,6 +19,7 @@ import (
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/v2/daemon/builder/remotecontext"
+	"github.com/moby/moby/v2/daemon/internal/compat"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
@@ -379,7 +380,7 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 		return errdefs.InvalidParameter(errors.New("conflicting options: manifests and platform options cannot both be set"))
 	}
 
-	resp, err := ir.backend.ImageInspect(ctx, vars["name"], backend.ImageInspectOpts{
+	imageInspect, err := ir.backend.ImageInspect(ctx, vars["name"], backend.ImageInspectOpts{
 		Manifests: manifests,
 		Platform:  platform,
 	})
@@ -387,9 +388,7 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 		return err
 	}
 
-	imageInspect := &inspectCompatResponse{
-		InspectResponse: resp,
-	}
+	var legacyOptions []compat.Option
 
 	// Make sure we output empty arrays instead of nil. While Go nil slice is functionally equivalent to an empty slice,
 	// it matters for the JSON representation.
@@ -402,8 +401,9 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 
 	version := httputils.VersionFromContext(ctx)
 	if versions.LessThan(version, "1.44") {
-		imageInspect.VirtualSize = imageInspect.Size //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.44.
-
+		legacyOptions = append(legacyOptions, compat.WithExtraFields(map[string]any{
+			"VirtualSize": imageInspect.Size,
+		}))
 		if imageInspect.Created == "" {
 			// backwards compatibility for Created not existing returning "0001-01-01T00:00:00Z"
 			// https://github.com/moby/moby/issues/47368
@@ -419,15 +419,19 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 	}
 	if versions.LessThan(version, "1.52") {
 		if versions.LessThan(version, "1.50") {
-			imageInspect.legacyConfig = legacyConfigFields["v1.49"]
+			legacyOptions = append(legacyOptions, compat.WithExtraFields(legacyConfigFields["v1.49"]))
 		} else {
 			// inspectResponse preserves fields in the response that have an
 			// "omitempty" in the OCI spec, but didn't omit such fields in
 			// legacy responses before API v1.50.
-			imageInspect.legacyConfig = legacyConfigFields["v1.50-v1.51"]
+			legacyOptions = append(legacyOptions, compat.WithExtraFields(legacyConfigFields["v1.50-v1.51"]))
 		}
 	}
 
+	if len(legacyOptions) > 0 {
+		resp := compat.Wrap(imageInspect, legacyOptions...)
+		return httputils.WriteJSON(w, http.StatusOK, resp)
+	}
 	return httputils.WriteJSON(w, http.StatusOK, imageInspect)
 }
 
