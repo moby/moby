@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/imageinspect"
 	iimage "github.com/moby/moby/v2/integration/internal/image"
 	"github.com/moby/moby/v2/internal/testutil/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -24,7 +25,7 @@ func TestImageInspectEmptyTagsAndDigests(t *testing.T) {
 	danglingID := iimage.Load(ctx, t, apiClient, specialimage.Dangling)
 
 	var raw bytes.Buffer
-	inspect, err := apiClient.ImageInspect(ctx, danglingID, client.ImageInspectWithRawResponse(&raw))
+	inspect, err := apiClient.ImageInspect(ctx, danglingID, imageinspect.WithRawResponse(&raw))
 	assert.NilError(t, err)
 
 	// Must be a zero length array, not null.
@@ -161,12 +162,12 @@ func TestImageInspectWithPlatform(t *testing.T) {
 		}
 
 		t.Run(tc.name, func(t *testing.T) {
-			var opts []client.ImageInspectOption
+			var opts []imageinspect.Option
 			if tc.requestedPlatform != nil {
-				opts = append(opts, client.ImageInspectWithPlatform(tc.requestedPlatform))
+				opts = append(opts, imageinspect.WithPlatform(*tc.requestedPlatform))
 			}
 			if tc.withManifests {
-				opts = append(opts, client.ImageInspectWithManifests(true))
+				opts = append(opts, imageinspect.WithImageManifests(true))
 			}
 			inspect, err := apiClient.ImageInspect(ctx, imageID, opts...)
 			if tc.expectedError != "" {

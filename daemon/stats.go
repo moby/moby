@@ -41,6 +41,7 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 		if err != nil {
 			return err
 		}
+		log.G(ctx).Debugf("PRISONER stats: %+v", stats)
 		return json.NewEncoder(config.OutStream()).Encode(stats)
 	}
 

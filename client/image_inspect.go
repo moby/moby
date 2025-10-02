@@ -9,34 +9,36 @@ import (
 	"net/url"
 
 	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client/imageinspect"
+	"github.com/moby/moby/client/internal/opts"
 )
 
 // ImageInspect returns the image information.
-func (cli *Client) ImageInspect(ctx context.Context, imageID string, inspectOpts ...ImageInspectOption) (image.InspectResponse, error) {
+func (cli *Client) ImageInspect(ctx context.Context, imageID string, inspectOpts ...imageinspect.Option) (image.InspectResponse, error) {
 	if imageID == "" {
 		return image.InspectResponse{}, objectNotFoundError{object: "image", id: imageID}
 	}
 
-	var opts imageInspectOpts
+	var opts opts.ImageInspectOptions
 	for _, opt := range inspectOpts {
-		if err := opt.Apply(&opts); err != nil {
+		if err := opt.ApplyImageInspectOption(ctx, &opts); err != nil {
 			return image.InspectResponse{}, fmt.Errorf("error applying image inspect option: %w", err)
 		}
 	}
 
 	query := url.Values{}
-	if opts.apiOptions.Manifests {
+	if opts.ApiOptions.Manifests {
 		if err := cli.NewVersionError(ctx, "1.48", "manifests"); err != nil {
 			return image.InspectResponse{}, err
 		}
 		query.Set("manifests", "1")
 	}
 
-	if opts.apiOptions.Platform != nil {
+	if opts.ApiOptions.Platform != nil {
 		if err := cli.NewVersionError(ctx, "1.49", "platform"); err != nil {
 			return image.InspectResponse{}, err
 		}
-		platform, err := encodePlatform(opts.apiOptions.Platform)
+		platform, err := encodePlatform(opts.ApiOptions.Platform)
 		if err != nil {
 			return image.InspectResponse{}, err
 		}
@@ -49,7 +51,7 @@ func (cli *Client) ImageInspect(ctx context.Context, imageID string, inspectOpts
 		return image.InspectResponse{}, err
 	}
 
-	buf := opts.raw
+	buf := opts.Raw
 	if buf == nil {
 		buf = &bytes.Buffer{}
 	}
