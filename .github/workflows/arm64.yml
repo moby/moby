@@ -27,7 +27,7 @@ env:
   TESTSTAT_VERSION: v0.1.25
   DESTDIR: ./build
   SETUP_BUILDX_VERSION: v0.29.0-rc1
-  SETUP_BUILDKIT_IMAGE: moby/buildkit:latest
+  SETUP_BUILDKIT_IMAGE: moby/buildkit:v0.25.0
   DOCKER_EXPERIMENTAL: 1
 
 jobs:
