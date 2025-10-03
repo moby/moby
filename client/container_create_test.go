@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -78,18 +79,15 @@ func TestContainerCreateWithName(t *testing.T) {
 	assert.Check(t, is.Equal(r.ID, "container_id"))
 }
 
-// TestContainerCreateAutoRemove validates that a client using API 1.24 always disables AutoRemove. When using API 1.25
-// or up, AutoRemove should not be disabled.
 func TestContainerCreateAutoRemove(t *testing.T) {
-	autoRemoveValidator := func(expectedValue bool) func(req *http.Request) (*http.Response, error) {
-		return func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			var config container.CreateRequest
-
 			if err := json.NewDecoder(req.Body).Decode(&config); err != nil {
 				return nil, err
 			}
-			if config.HostConfig.AutoRemove != expectedValue {
-				return nil, fmt.Errorf("expected AutoRemove to be %v, got %v", expectedValue, config.HostConfig.AutoRemove)
+			if !config.HostConfig.AutoRemove {
+				return nil, errors.New("expected AutoRemove to be enabled")
 			}
 			b, err := json.Marshal(container.CreateResponse{
 				ID: "container_id",
@@ -101,27 +99,13 @@ func TestContainerCreateAutoRemove(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader(b)),
 			}, nil
-		}
-	}
-	testCases := []struct {
-		version            string
-		expectedAutoRemove bool
-	}{
-		{version: "1.24", expectedAutoRemove: false},
-		{version: "1.25", expectedAutoRemove: true},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.version, func(t *testing.T) {
-			client, err := NewClientWithOpts(
-				WithMockClient(autoRemoveValidator(tc.expectedAutoRemove)),
-				WithVersion(tc.version),
-			)
-			assert.NilError(t, err)
+		}),
+	)
+	assert.NilError(t, err)
 
-			_, err = client.ContainerCreate(context.Background(), &container.Config{}, &container.HostConfig{AutoRemove: true}, nil, nil, "")
-			assert.NilError(t, err)
-		})
-	}
+	resp, err := client.ContainerCreate(context.Background(), &container.Config{}, &container.HostConfig{AutoRemove: true}, nil, nil, "")
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(resp.ID, "container_id"))
 }
 
 // TestContainerCreateConnectionError verifies that connection errors occurring

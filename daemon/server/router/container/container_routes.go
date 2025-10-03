@@ -523,11 +523,6 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 
 	version := httputils.VersionFromContext(ctx)
 
-	// When using API 1.24 and under, the client is responsible for removing the container
-	if versions.LessThan(version, "1.25") {
-		hostConfig.AutoRemove = false
-	}
-
 	if versions.LessThan(version, "1.40") {
 		// Ignore BindOptions.NonRecursive because it was added in API 1.40.
 		for _, m := range hostConfig.Mounts {
