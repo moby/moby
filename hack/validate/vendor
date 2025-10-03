@@ -8,6 +8,17 @@ source "${SCRIPTDIR}/.validate"
 tidy_files=('go.mod' 'go.sum')
 vendor_files=("${tidy_files[@]}" 'vendor/')
 
+validate_vendor_files_exist() {
+	local file
+	for file in "${vendor_files[@]}"; do
+		if [ ! -e "$file" ]; then
+			echo >&2 "ERROR: required file '$file' does not exist"
+			return 1
+		fi
+	done
+	return 0
+}
+
 validate_vendor_tidy() {
 	# run mod tidy
 	./hack/vendor.sh tidy
@@ -36,6 +47,16 @@ validate_vendor_license() {
 		fi
 	done < <(awk '/^# /{ print $2 }' vendor/modules.txt)
 }
+
+# First check the required files exist as git diff will not report missing files.
+if ! validate_vendor_files_exist; then
+	{
+		echo 'FAIL: Vendoring was not performed correctly!'
+		echo
+		echo 'Please revendor with hack/vendor.sh'
+	} >&2
+	exit 1
+fi
 
 if validate_vendor_tidy && validate_vendor_diff && validate_vendor_license; then
 	echo >&2 'PASS: Vendoring has been performed correctly!'
