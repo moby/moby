@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"net"
+	"net/netip"
 	"slices"
 )
 
@@ -100,18 +101,18 @@ func validateEndpointIPAddress(epAddr string, ipamSubnets []NetworkSubnet) error
 		return nil
 	}
 
-	var staticSubnet bool
-	parsedAddr := net.ParseIP(epAddr)
-	for _, subnet := range ipamSubnets {
-		if subnet.IsStatic() {
-			staticSubnet = true
-			if subnet.Contains(parsedAddr) {
-				return nil
-			}
-		}
+	addr, err := netip.ParseAddr(epAddr)
+	if err != nil {
+		return fmt.Errorf("invalid IP address: %s", epAddr)
 	}
 
-	if staticSubnet {
+	for _, subnet := range ipamSubnets {
+		if !subnet.IsStatic() {
+			continue
+		}
+		if subnet.Contains(addr.AsSlice()) {
+			return nil
+		}
 		return fmt.Errorf("no configured subnet or ip-range contain the IP address %s", epAddr)
 	}
 
@@ -127,18 +128,21 @@ func (cfg *EndpointIPAMConfig) Validate() error {
 	var errs []error
 
 	if cfg.IPv4Address != "" {
-		if addr := net.ParseIP(cfg.IPv4Address); addr == nil || addr.To4() == nil || addr.IsUnspecified() {
+		addr, err := netip.ParseAddr(cfg.IPv4Address)
+		if err != nil || !addr.Is4() || addr.IsUnspecified() {
 			errs = append(errs, fmt.Errorf("invalid IPv4 address: %s", cfg.IPv4Address))
 		}
 	}
 	if cfg.IPv6Address != "" {
-		if addr := net.ParseIP(cfg.IPv6Address); addr == nil || addr.To4() != nil || addr.IsUnspecified() {
+		addr, err := netip.ParseAddr(cfg.IPv6Address)
+		if err != nil || !addr.Is6() || addr.IsUnspecified() || addr.Zone() != "" {
 			errs = append(errs, fmt.Errorf("invalid IPv6 address: %s", cfg.IPv6Address))
 		}
 	}
-	for _, addr := range cfg.LinkLocalIPs {
-		if parsed := net.ParseIP(addr); parsed == nil || parsed.IsUnspecified() {
-			errs = append(errs, fmt.Errorf("invalid link-local IP address: %s", addr))
+	for _, llIP := range cfg.LinkLocalIPs {
+		addr, err := netip.ParseAddr(llIP)
+		if err != nil || addr.IsUnspecified() || llIP == "" {
+			errs = append(errs, fmt.Errorf("invalid link-local IP address: %s", llIP))
 		}
 	}
 
