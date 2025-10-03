@@ -501,6 +501,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             jq \
             libcap2-bin \
             libnet1 \
+            libnftables-dev \
             libnl-3-200 \
             libprotobuf-c1 \
             libyajl2 \
@@ -548,6 +549,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-build-aptlib,target=/var/lib/apt \
         xx-apt-get install --no-install-recommends -y \
             gcc \
             libc6-dev \
+            libnftables-dev \
             libseccomp-dev \
             libsystemd-dev \
             pkg-config

@@ -97,6 +97,7 @@ func (r *Resolver) setupNftablesNAT(ctx context.Context, laddr, ltcpaddr, resolv
 	if err != nil {
 		return err
 	}
+	defer table.Close()
 	tm := nftables.Modifier{}
 
 	const dnatChain = "dns-dnat"

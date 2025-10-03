@@ -70,9 +70,11 @@ func TestNftabler(t *testing.T) {
 			t.Run(fmt.Sprintf("ipv4=%v/ipv6=%v/hairpin=%v/internal=%v/icc=%v/masq=%v/snat=%v/gwm=%v/bindlh=%v/wsl2mirrored=%v",
 				p(ipv4), p(ipv6), p(hairpin), p(internal), p(icc), p(masq), p(snat), gwmode, p(bindLocalhost), p(wsl2Mirrored)), func(t *testing.T) {
 				// If updating results, don't run in parallel because some of the results files are shared.
-				if !golden.FlagUpdate() {
-					t.Parallel()
-				}
+				// Tests are dynamically linked, so the nftables code under test uses cgo to call libnftables
+				// and they run faster without t.Parallel(). Strangely, when statically linked and exec-ing
+				// 'nft', they run faster in parallel.
+				// if !golden.FlagUpdate() { t.Parallel() }
+
 				// Combine results (golden output files) where possible to:
 				// - check params that should have no effect when made irrelevant by other params, and
 				// - minimise the number of results files.
@@ -101,7 +103,7 @@ func testNftabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 			return
 		}
 		out := strings.ReplaceAll(res.Combined(), "type nat hook output priority -100", "type nat hook output priority dstnat")
-		assert.Assert(t, res.Error)
+		assert.Assert(t, res.Error, out)
 		golden.Assert(t, out, name+"__"+family+".golden")
 	}
 
@@ -129,6 +131,7 @@ func testNftabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 	// end of the test (after deleting per-network and per-port rules).
 	fw, err := NewNftabler(context.Background(), config)
 	assert.NilError(t, err)
+	defer fw.Close()
 	checkResults("ip", rnWSL2Mirrored(fmt.Sprintf("%s/cleaned,hairpin=%v", tn, config.Hairpin)), config.IPv4)
 	checkResults("ip6", fmt.Sprintf("%s/cleaned,hairpin=%v", tn, config.Hairpin), config.IPv6)
 
