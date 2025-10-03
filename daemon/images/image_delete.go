@@ -13,7 +13,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
-	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -77,7 +76,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options
 		return nil, errdefs.InvalidParameter(errors.New("multiple platforms are not supported"))
 	}
 
-	img, err := i.GetImage(ctx, imageRef, backend.GetImageOpts{Platform: platform})
+	img, err := i.GetImage(ctx, imageRef, imagebackend.GetImageOpts{Platform: platform})
 	if err != nil {
 		return nil, err
 	}

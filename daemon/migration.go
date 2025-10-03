@@ -10,7 +10,7 @@ import (
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/multierror"
-	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -131,7 +131,7 @@ func (r daemonPlatformReader) ReadPlatformFromConfigByImageManifest(
 }
 
 func (r daemonPlatformReader) ReadPlatformFromImage(ctx context.Context, id image.ID) (ocispec.Platform, error) {
-	img, err := r.imageService.GetImage(ctx, id.String(), backend.GetImageOpts{})
+	img, err := r.imageService.GetImage(ctx, id.String(), imagebackend.GetImageOpts{})
 	if err != nil {
 		return ocispec.Platform{}, err
 	}

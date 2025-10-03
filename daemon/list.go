@@ -16,6 +16,7 @@ import (
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -328,7 +329,7 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 	if psFilters.Contains("ancestor") {
 		ancestorFilter = true
 		err := psFilters.WalkValues("ancestor", func(ancestor string) error {
-			img, err := daemon.imageService.GetImage(ctx, ancestor, backend.GetImageOpts{})
+			img, err := daemon.imageService.GetImage(ctx, ancestor, imagebackend.GetImageOpts{})
 			if err != nil {
 				log.G(ctx).Warnf("Error while looking up for image %v", ancestor)
 				return nil
@@ -618,7 +619,7 @@ func (daemon *Daemon) refreshImage(ctx context.Context, s *container.Snapshot) *
 	}
 
 	// Check if the image reference still resolves to the same digest.
-	img, err := daemon.imageService.GetImage(ctx, s.Image, backend.GetImageOpts{})
+	img, err := daemon.imageService.GetImage(ctx, s.Image, imagebackend.GetImageOpts{})
 	// If the image is no longer found or can't be resolved for some other
 	// reason. Update the Image to the specific ID of the original image it
 	// resolved to when the container was created.

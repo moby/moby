@@ -15,7 +15,7 @@ import (
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/daemon/internal/image"
-	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -41,7 +41,7 @@ func (e *errPlatformNotFound) Error() string {
 }
 
 // GetImage returns an image corresponding to the image referred to by refOrID.
-func (i *ImageService) GetImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (*image.Image, error) {
+func (i *ImageService) GetImage(ctx context.Context, refOrID string, options imagebackend.GetImageOpts) (*image.Image, error) {
 	img, err := i.resolveImage(ctx, refOrID)
 	if err != nil {
 		return nil, err

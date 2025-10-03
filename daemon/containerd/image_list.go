@@ -21,7 +21,6 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	imagetypes "github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
-	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/go-digest"
@@ -498,13 +497,13 @@ type imageFilterFunc func(image c8dimages.Image) bool
 func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Args) (filterFunc imageFilterFunc, outErr error) {
 	var fltrs []imageFilterFunc
 	err := imageFilters.WalkValues("before", func(value string) error {
-		img, err := i.GetImage(ctx, value, backend.GetImageOpts{})
+		img, err := i.GetImage(ctx, value, imagebackend.GetImageOpts{})
 		if err != nil {
 			return err
 		}
 		if img != nil && img.Created != nil {
 			fltrs = append(fltrs, func(candidate c8dimages.Image) bool {
-				cand, err := i.GetImage(ctx, candidate.Name, backend.GetImageOpts{})
+				cand, err := i.GetImage(ctx, candidate.Name, imagebackend.GetImageOpts{})
 				if err != nil {
 					return false
 				}
@@ -518,13 +517,13 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 	}
 
 	err = imageFilters.WalkValues("since", func(value string) error {
-		img, err := i.GetImage(ctx, value, backend.GetImageOpts{})
+		img, err := i.GetImage(ctx, value, imagebackend.GetImageOpts{})
 		if err != nil {
 			return err
 		}
 		if img != nil && img.Created != nil {
 			fltrs = append(fltrs, func(candidate c8dimages.Image) bool {
-				cand, err := i.GetImage(ctx, candidate.Name, backend.GetImageOpts{})
+				cand, err := i.GetImage(ctx, candidate.Name, imagebackend.GetImageOpts{})
 				if err != nil {
 					return false
 				}

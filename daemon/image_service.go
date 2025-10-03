@@ -39,11 +39,11 @@ type ImageService interface {
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*imagetype.PruneReport, error)
 	ImportImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, msg string, layerReader io.Reader, changes []string) (image.ID, error)
 	TagImage(ctx context.Context, imageID image.ID, newTag reference.Named) error
-	GetImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (*image.Image, error)
+	GetImage(ctx context.Context, refOrID string, options imagebackend.GetImageOpts) (*image.Image, error)
 	ImageHistory(ctx context.Context, name string, platform *ocispec.Platform) ([]*imagetype.HistoryResponseItem, error)
 	CommitImage(ctx context.Context, c backend.CommitConfig) (image.ID, error)
 	SquashImage(id, parent string) (string, error)
-	ImageInspect(ctx context.Context, refOrID string, opts backend.ImageInspectOpts) (*imagetype.InspectResponse, error)
+	ImageInspect(ctx context.Context, refOrID string, opts imagebackend.ImageInspectOpts) (*imagetype.InspectResponse, error)
 	ImageDiskUsage(ctx context.Context) (int64, error)
 
 	// Layers

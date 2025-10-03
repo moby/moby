@@ -11,7 +11,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/distribution"
 	progressutils "github.com/moby/moby/v2/daemon/internal/distribution/utils"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
-	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -30,7 +29,7 @@ func (i *ImageService) PushImage(ctx context.Context, ref reference.Named, optio
 	}
 	if platform != nil {
 		// Check if the image is actually the platform we want to push.
-		_, err := i.GetImage(ctx, ref.String(), backend.GetImageOpts{Platform: platform})
+		_, err := i.GetImage(ctx, ref.String(), imagebackend.GetImageOpts{Platform: platform})
 		if err != nil {
 			return err
 		}

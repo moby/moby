@@ -9,11 +9,11 @@ import (
 	"github.com/moby/moby/api/types/storage"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
-	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 )
 
-func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts backend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {
-	img, err := i.GetImage(ctx, refOrID, backend.GetImageOpts{Platform: opts.Platform})
+func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts imagebackend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {
+	img, err := i.GetImage(ctx, refOrID, imagebackend.GetImageOpts{Platform: opts.Platform})
 	if err != nil {
 		return nil, err
 	}

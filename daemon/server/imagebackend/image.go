@@ -43,3 +43,15 @@ type ListOptions struct {
 	// Manifests indicates whether the image manifests should be returned.
 	Manifests bool
 }
+
+// GetImageOpts holds parameters to retrieve image information
+// from the backend.
+type GetImageOpts struct {
+	Platform *ocispec.Platform
+}
+
+// ImageInspectOpts holds parameters to inspect an image.
+type ImageInspectOpts struct {
+	Manifests bool
+	Platform  *ocispec.Platform
+}

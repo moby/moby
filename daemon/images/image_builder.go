@@ -16,8 +16,8 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
-	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/buildbackend"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -169,7 +169,7 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 		return nil, err
 	}
 
-	img, err := i.GetImage(ctx, name, backend.GetImageOpts{Platform: platform})
+	img, err := i.GetImage(ctx, name, imagebackend.GetImageOpts{Platform: platform})
 	if cerrdefs.IsNotFound(err) && img != nil && platform != nil {
 		imgPlat := ocispec.Platform{
 			OS:           img.OS,
@@ -211,7 +211,7 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 	}
 
 	if opts.PullOption != buildbackend.PullOptionForcePull {
-		img, err := i.GetImage(ctx, refOrID, backend.GetImageOpts{Platform: opts.Platform})
+		img, err := i.GetImage(ctx, refOrID, imagebackend.GetImageOpts{Platform: opts.Platform})
 		if err != nil && opts.PullOption == buildbackend.PullOptionNoPull {
 			return nil, nil, err
 		}

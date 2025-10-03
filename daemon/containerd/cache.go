@@ -15,7 +15,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/image/cache"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/internal/multierror"
-	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -34,7 +34,7 @@ func (c cacheAdaptor) Get(id image.ID) (*image.Image, error) {
 	ctx := context.TODO()
 	ref := id.String()
 
-	outImg, err := c.is.GetImage(ctx, id.String(), backend.GetImageOpts{})
+	outImg, err := c.is.GetImage(ctx, id.String(), imagebackend.GetImageOpts{})
 	if err != nil {
 		return nil, fmt.Errorf("GetImage: %w", err)
 	}
@@ -110,7 +110,7 @@ func (c cacheAdaptor) Get(id image.ID) (*image.Image, error) {
 }
 
 func (c cacheAdaptor) GetByRef(ctx context.Context, refOrId string) (*image.Image, error) {
-	return c.is.GetImage(ctx, refOrId, backend.GetImageOpts{})
+	return c.is.GetImage(ctx, refOrId, imagebackend.GetImageOpts{})
 }
 
 func (c cacheAdaptor) SetParent(target, parent image.ID) error {

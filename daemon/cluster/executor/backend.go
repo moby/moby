@@ -75,5 +75,5 @@ type VolumeBackend interface {
 type ImageBackend interface {
 	PullImage(ctx context.Context, ref reference.Named, options imagebackend.PullOptions) error
 	GetRepositories(context.Context, reference.Named, *registry.AuthConfig) ([]distribution.Repository, error)
-	GetImage(ctx context.Context, refOrID string, options backend.GetImageOpts) (*image.Image, error)
+	GetImage(ctx context.Context, refOrID string, options imagebackend.GetImageOpts) (*image.Image, error)
 }

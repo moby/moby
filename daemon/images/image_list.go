@@ -13,7 +13,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
-	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 )
 
@@ -47,7 +46,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 
 	var beforeFilter, sinceFilter time.Time
 	err = opts.Filters.WalkValues("before", func(value string) error {
-		img, err := i.GetImage(ctx, value, backend.GetImageOpts{})
+		img, err := i.GetImage(ctx, value, imagebackend.GetImageOpts{})
 		if err != nil {
 			return err
 		}
@@ -82,7 +81,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 	}
 
 	err = opts.Filters.WalkValues("since", func(value string) error {
-		img, err := i.GetImage(ctx, value, backend.GetImageOpts{})
+		img, err := i.GetImage(ctx, value, imagebackend.GetImageOpts{})
 		if err != nil {
 			return err
 		}
