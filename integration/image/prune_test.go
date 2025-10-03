@@ -7,6 +7,7 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
+	handle "github.com/moby/moby/client/handle"
 	"github.com/moby/moby/v2/integration/internal/container"
 	iimage "github.com/moby/moby/v2/integration/internal/image"
 	"github.com/moby/moby/v2/internal/testutil"
@@ -81,7 +82,7 @@ func TestPruneLexographicalOrder(t *testing.T) {
 	err = apiClient.ImageTag(ctx, id, "busybox:z")
 	assert.NilError(t, err)
 
-	_, err = apiClient.ImageRemove(ctx, "busybox:latest", client.ImageRemoveOptions{Force: true})
+	_, err = apiClient.ImageRemove(ctx, handle.FromString("busybox:latest"), client.ImageRemoveOptions{Force: true})
 	assert.NilError(t, err)
 
 	// run container

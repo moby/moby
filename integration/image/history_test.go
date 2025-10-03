@@ -8,6 +8,7 @@ import (
 	"github.com/containerd/platforms"
 	buildtypes "github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/client"
+	handle "github.com/moby/moby/client/handle"
 	build "github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/fakecontext"
@@ -78,7 +79,7 @@ func TestAPIImageHistoryCrossPlatform(t *testing.T) {
 
 	imgID := build.GetImageIDFromBody(t, resp.Body)
 	t.Cleanup(func() {
-		apiClient.ImageRemove(ctx, imgID, client.ImageRemoveOptions{Force: true})
+		apiClient.ImageRemove(ctx, handle.FromString(imgID), client.ImageRemoveOptions{Force: true})
 	})
 
 	testCases := []struct {
@@ -136,6 +137,6 @@ func pullImageForPlatform(t *testing.T, ctx context.Context, apiClient client.AP
 	assert.NilError(t, err)
 
 	t.Cleanup(func() {
-		_, _ = apiClient.ImageRemove(ctx, ref, client.ImageRemoveOptions{Force: true})
+		_, _ = apiClient.ImageRemove(ctx, handle.FromString(ref), client.ImageRemoveOptions{Force: true})
 	})
 }

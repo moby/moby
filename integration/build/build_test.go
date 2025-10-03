@@ -20,6 +20,7 @@ import (
 	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/handle"
 	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/fakecontext"
@@ -801,7 +802,7 @@ func TestBuildHistoryDoesNotPreventRemoval(t *testing.T) {
 	err := buildImage("history-a")
 	assert.NilError(t, err)
 
-	resp, err := apiClient.ImageRemove(ctx, "history-a", client.ImageRemoveOptions{})
+	resp, err := apiClient.ImageRemove(ctx, handle.FromString("history-a"), client.ImageRemoveOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, slices.ContainsFunc(resp, func(r image.DeleteResponse) bool {
 		return r.Deleted != ""
