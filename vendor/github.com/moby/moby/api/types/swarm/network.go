@@ -54,25 +54,6 @@ const (
 	PortConfigPublishModeHost PortConfigPublishMode = "host"
 )
 
-// PortConfigProtocol represents the protocol of a port.
-//
-// Deprecated: use [network.IPProtocol] instead.
-type PortConfigProtocol = network.IPProtocol
-
-const (
-	// TODO(stevvooe): These should be used generally, not just for PortConfig.
-
-	// PortConfigProtocolTCP TCP
-	// Deprecated: use [network.TCP] instead.
-	PortConfigProtocolTCP PortConfigProtocol = network.TCP
-	// PortConfigProtocolUDP UDP
-	// Deprecated: use [network.UDP] instead.
-	PortConfigProtocolUDP PortConfigProtocol = network.UDP
-	// PortConfigProtocolSCTP SCTP
-	// Deprecated: use [network.SCTP] instead.
-	PortConfigProtocolSCTP PortConfigProtocol = network.SCTP
-)
-
 // EndpointVirtualIP represents the virtual ip of a port.
 type EndpointVirtualIP struct {
 	NetworkID string     `json:",omitempty"`
