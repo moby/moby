@@ -372,7 +372,7 @@ func validateHealthCheck(healthConfig *containertypes.HealthConfig) error {
 	return nil
 }
 
-func validatePortBindings(ports containertypes.PortMap) error {
+func validatePortBindings(ports networktypes.PortMap) error {
 	for port := range ports {
 		if !port.IsValid() {
 			return errors.Errorf("invalid port specification: %q", port.String())
@@ -384,7 +384,7 @@ func validatePortBindings(ports containertypes.PortMap) error {
 				continue
 			}
 
-			if _, err := containertypes.ParsePortRange(pb.HostPort); err != nil {
+			if _, err := networktypes.ParsePortRange(pb.HostPort); err != nil {
 				return errors.Errorf("invalid port specification: %q", pb.HostPort)
 			}
 		}

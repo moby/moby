@@ -11,6 +11,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/idtools"
 	"github.com/moby/moby/v2/daemon/libnetwork"
@@ -220,9 +221,9 @@ func TestContainerInitDNS(t *testing.T) {
 
 func TestMerge(t *testing.T) {
 	configImage := &containertypes.Config{
-		ExposedPorts: containertypes.PortSet{
-			containertypes.MustParsePort("1111/tcp"): struct{}{},
-			containertypes.MustParsePort("2222/tcp"): struct{}{},
+		ExposedPorts: network.PortSet{
+			network.MustParsePort("1111/tcp"): struct{}{},
+			network.MustParsePort("2222/tcp"): struct{}{},
 		},
 		Env: []string{"VAR1=1", "VAR2=2"},
 		Volumes: map[string]struct{}{
@@ -232,9 +233,9 @@ func TestMerge(t *testing.T) {
 	}
 
 	configUser := &containertypes.Config{
-		ExposedPorts: containertypes.PortSet{
-			containertypes.MustParsePort("2222/tcp"): struct{}{},
-			containertypes.MustParsePort("3333/tcp"): struct{}{},
+		ExposedPorts: network.PortSet{
+			network.MustParsePort("2222/tcp"): struct{}{},
+			network.MustParsePort("3333/tcp"): struct{}{},
 		},
 		Env: []string{"VAR2=3", "VAR3=3"},
 		Volumes: map[string]struct{}{
@@ -273,8 +274,8 @@ func TestMerge(t *testing.T) {
 	}
 
 	configImage2 := &containertypes.Config{
-		ExposedPorts: map[containertypes.Port]struct{}{
-			containertypes.MustParsePort("0/tcp"): {},
+		ExposedPorts: map[network.Port]struct{}{
+			network.MustParsePort("0/tcp"): {},
 		},
 	}
 

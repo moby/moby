@@ -13,6 +13,7 @@ import (
 	"github.com/containerd/log"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/server/backend"
@@ -403,7 +404,7 @@ func portOp(key string, filter map[string]bool) func(value string) error {
 			return fmt.Errorf("filter for '%s' should not contain ':': %s", key, value)
 		}
 		// support two formats, original format <portnum>/[<proto>] or <startport-endport>/[<proto>]
-		portRange, err := containertypes.ParsePortRange(value)
+		portRange, err := network.ParsePortRange(value)
 		if err != nil {
 			return fmt.Errorf("error while looking up for %s %s: %s", key, value, err)
 		}

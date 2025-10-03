@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/stringid"
 	"github.com/moby/moby/v2/integration-cli/cli"
@@ -2168,7 +2168,7 @@ func (s *DockerCLIRunSuite) TestRunAllowPortRangeThroughExpose(c *testing.T) {
 	id = strings.TrimSpace(id)
 
 	portstr := inspectFieldJSON(c, id, "NetworkSettings.Ports")
-	var ports container.PortMap
+	var ports network.PortMap
 	if err := json.Unmarshal([]byte(portstr), &ports); err != nil {
 		c.Fatal(err)
 	}
@@ -2505,7 +2505,7 @@ func (s *DockerCLIRunSuite) TestRunAllowPortRangeThroughPublish(c *testing.T) {
 	id = strings.TrimSpace(id)
 	portStr := inspectFieldJSON(c, id, "NetworkSettings.Ports")
 
-	var ports container.PortMap
+	var ports network.PortMap
 	err := json.Unmarshal([]byte(portStr), &ports)
 	assert.NilError(c, err, "failed to unmarshal: %v", portStr)
 	for port, binding := range ports {

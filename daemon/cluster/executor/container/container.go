@@ -143,8 +143,8 @@ func (c *containerConfig) image() string {
 	return reference.FamiliarString(reference.TagNameOnly(ref))
 }
 
-func (c *containerConfig) portBindings() container.PortMap {
-	portBindings := container.PortMap{}
+func (c *containerConfig) portBindings() network.PortMap {
+	portBindings := network.PortMap{}
 	if c.task.Endpoint == nil {
 		return portBindings
 	}
@@ -158,12 +158,12 @@ func (c *containerConfig) portBindings() container.PortMap {
 			continue
 		}
 
-		port, ok := container.PortFrom(uint16(portConfig.TargetPort), container.NetworkProtocol(portConfig.Protocol.String()))
+		port, ok := network.PortFrom(uint16(portConfig.TargetPort), network.IPProtocol(portConfig.Protocol.String()))
 		if !ok {
 			continue
 		}
 
-		binding := []container.PortBinding{
+		binding := []network.PortBinding{
 			{},
 		}
 
@@ -188,8 +188,8 @@ func (c *containerConfig) init() *bool {
 	return &init
 }
 
-func (c *containerConfig) exposedPorts() map[container.Port]struct{} {
-	exposedPorts := make(map[container.Port]struct{})
+func (c *containerConfig) exposedPorts() map[network.Port]struct{} {
+	exposedPorts := make(map[network.Port]struct{})
 	if c.task.Endpoint == nil {
 		return exposedPorts
 	}
@@ -203,7 +203,7 @@ func (c *containerConfig) exposedPorts() map[container.Port]struct{} {
 			continue
 		}
 
-		port, ok := container.PortFrom(uint16(portConfig.TargetPort), container.NetworkProtocol(portConfig.Protocol.String()))
+		port, ok := network.PortFrom(uint16(portConfig.TargetPort), network.IPProtocol(portConfig.Protocol.String()))
 		if !ok {
 			continue
 		}

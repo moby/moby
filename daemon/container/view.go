@@ -39,8 +39,8 @@ type Snapshot struct {
 	Running      bool
 	Paused       bool
 	Managed      bool
-	ExposedPorts container.PortSet
-	PortBindings container.PortSet
+	ExposedPorts network.PortSet
+	PortBindings network.PortSet
 	Health       container.HealthStatus
 	HostConfig   struct {
 		Isolation string
@@ -318,8 +318,8 @@ func (v *View) transform(ctr *Container) *Snapshot {
 		Name:         ctr.Name,
 		Pid:          ctr.State.Pid,
 		Managed:      ctr.Managed,
-		ExposedPorts: make(container.PortSet),
-		PortBindings: make(container.PortSet),
+		ExposedPorts: make(network.PortSet),
+		PortBindings: make(network.PortSet),
 		Health:       health,
 		Running:      ctr.State.Running,
 		Paused:       ctr.State.Paused,
@@ -398,8 +398,8 @@ func (v *View) transform(ctr *Container) *Snapshot {
 				continue
 			}
 			for _, binding := range bindings {
-				// TODO(thaJeztah): if this is always a port/proto (no range), we can simplify this to [container.ParsePort].
-				h, err := container.ParsePortRange(binding.HostPort)
+				// TODO(thaJeztah): if this is always a port/proto (no range), we can simplify this to [network.ParsePort].
+				h, err := network.ParsePortRange(binding.HostPort)
 				if err != nil {
 					log.G(context.TODO()).WithError(err).Warn("invalid host port map")
 					continue

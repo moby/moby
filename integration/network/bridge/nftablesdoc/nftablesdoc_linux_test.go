@@ -28,7 +28,7 @@ import (
 	"testing"
 	"text/template"
 
-	containertypes "github.com/moby/moby/api/types/container"
+	networktypes "github.com/moby/moby/api/types/network"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
@@ -50,7 +50,7 @@ var (
 
 type ctrDesc struct {
 	name         string
-	portMappings containertypes.PortMap
+	portMappings networktypes.PortMap
 }
 
 type networkDesc struct {
@@ -79,7 +79,7 @@ var index = []section{
 			containers: []ctrDesc{
 				{
 					name:         "c1",
-					portMappings: containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{HostPort: "8080"}}},
+					portMappings: networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {{HostPort: "8080"}}},
 				},
 			},
 		}},
@@ -92,7 +92,7 @@ var index = []section{
 			containers: []ctrDesc{
 				{
 					name:         "c1",
-					portMappings: containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{HostPort: "8080"}}},
+					portMappings: networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {{HostPort: "8080"}}},
 				},
 			},
 		}},
@@ -105,7 +105,7 @@ var index = []section{
 			containers: []ctrDesc{
 				{
 					name:         "c1",
-					portMappings: containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{HostPort: "8080"}}},
+					portMappings: networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {{HostPort: "8080"}}},
 				},
 			},
 		}},
@@ -139,7 +139,7 @@ var index = []section{
 			containers: []ctrDesc{
 				{
 					name:         "c1",
-					portMappings: containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{HostPort: "8080"}}},
+					portMappings: networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {{HostPort: "8080"}}},
 				},
 			},
 		}},
@@ -152,7 +152,7 @@ var index = []section{
 			containers: []ctrDesc{
 				{
 					name:         "c1",
-					portMappings: containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{HostPort: "8080"}}},
+					portMappings: networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {{HostPort: "8080"}}},
 				},
 			},
 		}},
@@ -178,7 +178,7 @@ var index = []section{
 			containers: []ctrDesc{
 				{
 					name:         "c1",
-					portMappings: containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{HostIP: netip.MustParseAddr("127.0.0.1"), HostPort: "8080"}}},
+					portMappings: networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {{HostIP: netip.MustParseAddr("127.0.0.1"), HostPort: "8080"}}},
 				},
 			},
 		}},

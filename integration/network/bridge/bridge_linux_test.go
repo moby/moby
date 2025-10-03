@@ -516,19 +516,19 @@ func TestEndpointWithCustomIfname(t *testing.T) {
 func TestPublishedPortAlreadyInUse(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	mappedPort := containertypes.MustParsePort("80/tcp")
+	mappedPort := networktypes.MustParsePort("80/tcp")
 
 	ctr1 := ctr.Run(ctx, t, apiClient,
 		ctr.WithCmd("top"),
 		ctr.WithExposedPorts("80/tcp"),
-		ctr.WithPortMap(containertypes.PortMap{mappedPort: {{HostPort: "8000"}}}))
+		ctr.WithPortMap(networktypes.PortMap{mappedPort: {{HostPort: "8000"}}}))
 	defer ctr.Remove(ctx, t, apiClient, ctr1, client.ContainerRemoveOptions{Force: true})
 
 	ctr2 := ctr.Create(ctx, t, apiClient,
 		ctr.WithCmd("top"),
 		ctr.WithRestartPolicy(containertypes.RestartPolicyAlways),
 		ctr.WithExposedPorts("80/tcp"),
-		ctr.WithPortMap(containertypes.PortMap{mappedPort: {{HostPort: "8000"}}}))
+		ctr.WithPortMap(networktypes.PortMap{mappedPort: {{HostPort: "8000"}}}))
 	defer ctr.Remove(ctx, t, apiClient, ctr2, client.ContainerRemoveOptions{Force: true})
 
 	err := apiClient.ContainerStart(ctx, ctr2, client.ContainerStartOptions{})
@@ -563,18 +563,18 @@ func TestAllPortMappingsAreReturned(t *testing.T) {
 
 	ctrID := ctr.Run(ctx, t, apiClient,
 		ctr.WithExposedPorts("80/tcp", "81/tcp"),
-		ctr.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{HostPort: "8000"}}}),
+		ctr.WithPortMap(networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {{HostPort: "8000"}}}),
 		ctr.WithEndpointSettings("testnetv4", &networktypes.EndpointSettings{}),
 		ctr.WithEndpointSettings("testnetv6", &networktypes.EndpointSettings{}))
 	defer ctr.Remove(ctx, t, apiClient, ctrID, client.ContainerRemoveOptions{Force: true})
 
 	inspect := ctr.Inspect(ctx, t, apiClient, ctrID)
-	assert.DeepEqual(t, inspect.NetworkSettings.Ports, containertypes.PortMap{
-		containertypes.MustParsePort("80/tcp"): []containertypes.PortBinding{
+	assert.DeepEqual(t, inspect.NetworkSettings.Ports, networktypes.PortMap{
+		networktypes.MustParsePort("80/tcp"): []networktypes.PortBinding{
 			{HostIP: netip.IPv4Unspecified(), HostPort: "8000"},
 			{HostIP: netip.IPv6Unspecified(), HostPort: "8000"},
 		},
-		containertypes.MustParsePort("81/tcp"): nil,
+		networktypes.MustParsePort("81/tcp"): nil,
 	}, cmpopts.EquateComparable(netip.Addr{}))
 }
 
@@ -602,7 +602,7 @@ func TestFirewalldReloadNoZombies(t *testing.T) {
 
 	cid := ctr.Run(ctx, t, c,
 		ctr.WithExposedPorts("80/tcp", "81/tcp"),
-		ctr.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{HostPort: "8000"}}}))
+		ctr.WithPortMap(networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {{HostPort: "8000"}}}))
 	defer func() {
 		if !removed {
 			ctr.Remove(ctx, t, c, cid, client.ContainerRemoveOptions{Force: true})
@@ -792,7 +792,7 @@ func TestPortMappingRestore(t *testing.T) {
 	const svrName = "svr"
 	cid := ctr.Run(ctx, t, c,
 		ctr.WithExposedPorts("80/tcp"),
-		ctr.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {}}),
+		ctr.WithPortMap(networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {}}),
 		ctr.WithName(svrName),
 		ctr.WithRestartPolicy(containertypes.RestartPolicyUnlessStopped),
 		ctr.WithCmd("httpd", "-f"),
@@ -803,9 +803,9 @@ func TestPortMappingRestore(t *testing.T) {
 		t.Helper()
 		insp := ctr.Inspect(ctx, t, c, cid)
 		assert.Check(t, is.Equal(insp.State.Running, true))
-		if assert.Check(t, is.Contains(insp.NetworkSettings.Ports, containertypes.MustParsePort("80/tcp"))) &&
-			assert.Check(t, is.Len(insp.NetworkSettings.Ports[containertypes.MustParsePort("80/tcp")], 2)) {
-			hostPort := insp.NetworkSettings.Ports[containertypes.MustParsePort("80/tcp")][0].HostPort
+		if assert.Check(t, is.Contains(insp.NetworkSettings.Ports, networktypes.MustParsePort("80/tcp"))) &&
+			assert.Check(t, is.Len(insp.NetworkSettings.Ports[networktypes.MustParsePort("80/tcp")], 2)) {
+			hostPort := insp.NetworkSettings.Ports[networktypes.MustParsePort("80/tcp")][0].HostPort
 			res := ctr.RunAttach(ctx, t, c,
 				ctr.WithExtraHost("thehost:host-gateway"),
 				ctr.WithCmd("wget", "-T3", "http://"+net.JoinHostPort("thehost", hostPort)),
@@ -950,7 +950,7 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
-	createInspect := func(t *testing.T, version string, pbs []containertypes.PortBinding) (containertypes.PortMap, []string) {
+	createInspect := func(t *testing.T, version string, pbs []networktypes.PortBinding) (networktypes.PortMap, []string) {
 		apiClient := d.NewClientT(t, client.WithVersion(version))
 		defer apiClient.Close()
 
@@ -965,7 +965,7 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 		// Create a container with an empty list of port bindings for container port 80/tcp.
 		config := ctr.NewTestConfig(ctr.WithCmd("top"),
 			ctr.WithExposedPorts("80/tcp"),
-			ctr.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80/tcp"): pbs}))
+			ctr.WithPortMap(networktypes.PortMap{networktypes.MustParsePort("80/tcp"): pbs}))
 		c, err := apiClient.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Platform, config.Name)
 		assert.NilError(t, err)
 		defer apiClient.ContainerRemove(ctx, c.ID, client.ContainerRemoveOptions{Force: true})
@@ -978,46 +978,46 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 	}
 
 	t.Run("backfilling on old client version", func(t *testing.T) {
-		expMappings := containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {
+		expMappings := networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {
 			{}, // An empty PortBinding is backfilled
 		}}
 		expWarnings := make([]string, 0)
 
-		mappings, warnings := createInspect(t, "1.51", []containertypes.PortBinding{})
+		mappings, warnings := createInspect(t, "1.51", []networktypes.PortBinding{})
 		assert.DeepEqual(t, expMappings, mappings, cmpopts.EquateComparable(netip.Addr{}))
 		assert.DeepEqual(t, expWarnings, warnings, cmpopts.EquateComparable(netip.Addr{}))
 	})
 
 	t.Run("backfilling on API 1.52, with a warning", func(t *testing.T) {
-		expMappings := containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {
+		expMappings := networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {
 			{}, // An empty PortBinding is backfilled
 		}}
 		expWarnings := []string{
 			"Following container port(s) have an empty list of port-bindings: 80/tcp. Starting with API 1.53, such bindings will be discarded.",
 		}
 
-		mappings, warnings := createInspect(t, "1.52", []containertypes.PortBinding{})
+		mappings, warnings := createInspect(t, "1.52", []networktypes.PortBinding{})
 		assert.DeepEqual(t, expMappings, mappings, cmpopts.EquateComparable(netip.Addr{}))
 		assert.DeepEqual(t, expWarnings, warnings, cmpopts.EquateComparable(netip.Addr{}))
 	})
 
 	t.Run("no backfilling on API 1.53", func(t *testing.T) {
-		expMappings := containertypes.PortMap{}
+		expMappings := networktypes.PortMap{}
 		expWarnings := make([]string, 0)
 
-		mappings, warnings := createInspect(t, "1.53", []containertypes.PortBinding{})
+		mappings, warnings := createInspect(t, "1.53", []networktypes.PortBinding{})
 		assert.DeepEqual(t, expMappings, mappings, cmpopts.EquateComparable(netip.Addr{}))
 		assert.DeepEqual(t, expWarnings, warnings, cmpopts.EquateComparable(netip.Addr{}))
 	})
 
 	for _, apiVersion := range []string{"1.51", "1.52", "1.53"} {
 		t.Run("no backfilling on API "+apiVersion+" with non-empty bindings", func(t *testing.T) {
-			expMappings := containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {
+			expMappings := networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {
 				{HostPort: "8080"},
 			}}
 			expWarnings := make([]string, 0)
 
-			mappings, warnings := createInspect(t, apiVersion, []containertypes.PortBinding{{HostPort: "8080"}})
+			mappings, warnings := createInspect(t, apiVersion, []networktypes.PortBinding{{HostPort: "8080"}})
 			assert.DeepEqual(t, expMappings, mappings, cmpopts.EquateComparable(netip.Addr{}))
 			assert.DeepEqual(t, expWarnings, warnings, cmpopts.EquateComparable(netip.Addr{}))
 		})
@@ -1042,7 +1042,7 @@ func TestPortBindingBackfillingForOlderContainers(t *testing.T) {
 
 	cid := ctr.Create(ctx, t, c,
 		ctr.WithExposedPorts("80/tcp"),
-		ctr.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {}}))
+		ctr.WithPortMap(networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {}}))
 	defer c.ContainerRemove(ctx, cid, client.ContainerRemoveOptions{Force: true})
 
 	// Stop the daemon to safely tamper with the on-disk state.
@@ -1051,7 +1051,7 @@ func TestPortBindingBackfillingForOlderContainers(t *testing.T) {
 	d.TamperWithContainerConfig(t, cid, func(container *container.Container) {
 		// Simulate a container created with an older version of the Engine
 		// by setting an empty list of port bindings.
-		container.HostConfig.PortBindings = containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {}}
+		container.HostConfig.PortBindings = networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {}}
 	})
 
 	// Restart the daemon — it should backfill the empty port binding slice.
@@ -1059,7 +1059,7 @@ func TestPortBindingBackfillingForOlderContainers(t *testing.T) {
 
 	inspect := ctr.Inspect(ctx, t, c, cid)
 
-	expMappings := containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {
+	expMappings := networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {
 		{}, // An empty PortBinding is backfilled
 	}}
 	assert.DeepEqual(t, expMappings, inspect.HostConfig.PortBindings, cmpopts.EquateComparable(netip.Addr{}))

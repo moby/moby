@@ -8,6 +8,7 @@ import (
 
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/moby/v2/daemon/builder/remotecontext"
 	"github.com/moby/moby/v2/daemon/internal/image"
@@ -135,9 +136,9 @@ func fullMutableRunConfig() *container.Config {
 	return &container.Config{
 		Cmd: []string{"command", "arg1"},
 		Env: []string{"env1=foo", "env2=bar"},
-		ExposedPorts: container.PortSet{
-			container.MustParsePort("1000/tcp"): {},
-			container.MustParsePort("1001/tcp"): {},
+		ExposedPorts: network.PortSet{
+			network.MustParsePort("1000/tcp"): {},
+			network.MustParsePort("1001/tcp"): {},
 		},
 		Volumes: map[string]struct{}{
 			"one": {},
@@ -160,7 +161,7 @@ func TestDeepCopyRunConfig(t *testing.T) {
 
 	ctrCfg.Cmd[1] = "arg2"
 	ctrCfg.Env[1] = "env2=new"
-	ctrCfg.ExposedPorts[container.MustParsePort("10002")] = struct{}{}
+	ctrCfg.ExposedPorts[network.MustParsePort("10002")] = struct{}{}
 	ctrCfg.Volumes["three"] = struct{}{}
 	ctrCfg.Entrypoint[1] = "arg2"
 	ctrCfg.OnBuild[0] = "start"

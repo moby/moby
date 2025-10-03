@@ -3,7 +3,7 @@ package container
 import (
 	"testing"
 
-	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/internal/testutil"
@@ -71,13 +71,13 @@ func TestNetworkStateCleanupOnDaemonStart(t *testing.T) {
 	defer d.Stop(t)
 
 	apiClient := d.NewClientT(t)
-	mappedPort := containertypes.MustParsePort("80/tcp")
+	mappedPort := network.MustParsePort("80/tcp")
 
 	// The intention of this container is to ignore stop signals.
 	// Sadly this means the test will take longer, but at least this test can be parallelized.
 	cid := container.Run(ctx, t, apiClient,
 		container.WithExposedPorts("80/tcp"),
-		container.WithPortMap(containertypes.PortMap{mappedPort: {{}}}),
+		container.WithPortMap(network.PortMap{mappedPort: {{}}}),
 		container.WithCmd("/bin/sh", "-c", "while true; do echo hello; sleep 1; done"))
 	defer func() {
 		err := apiClient.ContainerRemove(ctx, cid, client.ContainerRemoveOptions{Force: true})
