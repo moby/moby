@@ -92,7 +92,7 @@ func (nDB *NetworkDB) dbPeers(w http.ResponseWriter, r *http.Request) {
 	peers := nDB.Peers(r.Form["nid"][0])
 	rsp := &diagnostic.TableObj{Length: len(peers)}
 	for i, peerInfo := range peers {
-		if peerInfo.IP == "unknown" {
+		if !peerInfo.IP.IsValid() {
 			rsp.Elements = append(rsp.Elements, &diagnostic.PeerEntryObj{Index: i, Name: "orphan-" + peerInfo.Name, IP: peerInfo.IP})
 		} else {
 			rsp.Elements = append(rsp.Elements, &diagnostic.PeerEntryObj{Index: i, Name: peerInfo.Name, IP: peerInfo.IP})

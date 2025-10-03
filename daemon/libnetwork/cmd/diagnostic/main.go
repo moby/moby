@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/netip"
 	"os"
 	"strings"
 
@@ -67,7 +68,7 @@ func main() {
 	httpIsOk(resp.Body)
 
 	clusterPeers := fetchNodePeers(*ipPtr, *portPtr, "")
-	var networkPeers map[string]string
+	var networkPeers map[string]netip.Addr
 	var joinedNetwork bool
 	if *networkPtr != "" {
 		if *joinPtr {
@@ -103,7 +104,7 @@ func main() {
 	}
 }
 
-func fetchNodePeers(ip string, port int, network string) map[string]string {
+func fetchNodePeers(ip string, port int, network string) map[string]netip.Addr {
 	if network == "" {
 		log.G(context.TODO()).Infof("Fetch cluster peers")
 	} else {
@@ -134,7 +135,7 @@ func fetchNodePeers(ip string, port int, network string) map[string]string {
 	}
 
 	log.G(context.TODO()).Debugf("Parsing JSON response")
-	result := make(map[string]string, output.Details.(*diagnostic.TablePeersResult).Length)
+	result := make(map[string]netip.Addr, output.Details.(*diagnostic.TablePeersResult).Length)
 	for _, v := range output.Details.(*diagnostic.TablePeersResult).Elements {
 		log.G(context.TODO()).Debugf("name:%s ip:%s", v.Name, v.IP)
 		result[v.Name] = v.IP
@@ -142,7 +143,7 @@ func fetchNodePeers(ip string, port int, network string) map[string]string {
 	return result
 }
 
-func fetchTable(ip string, port int, network, tableName string, clusterPeers, networkPeers map[string]string, remediate bool) {
+func fetchTable(ip string, port int, network, tableName string, clusterPeers, networkPeers map[string]netip.Addr, remediate bool) {
 	log.G(context.TODO()).Infof("Fetch %s table and check owners", tableName)
 	resp, err := http.Get(fmt.Sprintf(dumpTable, ip, port, network, tableName))
 	if err != nil {

@@ -110,5 +110,5 @@ func (s *DockerAPISuite) TestInspectAPIBridgeNetworkSettings121(c *testing.T) {
 
 	settings := inspectJSON.NetworkSettings
 	assert.Assert(c, settings.Networks["bridge"] != nil)
-	assert.Assert(c, settings.Networks["bridge"].IPAddress != "")
+	assert.Assert(c, settings.Networks["bridge"].IPAddress.IsValid())
 }

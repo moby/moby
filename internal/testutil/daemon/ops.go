@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"net/netip"
 	"os/user"
 
 	"github.com/moby/moby/v2/internal/testutil/environment"
@@ -82,7 +83,7 @@ func WithSwarmIptables(useIptables bool) Option {
 }
 
 // WithSwarmDefaultAddrPool sets the swarm default address pool to use for swarm mode
-func WithSwarmDefaultAddrPool(defaultAddrPool []string) Option {
+func WithSwarmDefaultAddrPool(defaultAddrPool ...netip.Prefix) Option {
 	return func(d *Daemon) {
 		d.DefaultAddrPool = defaultAddrPool
 	}

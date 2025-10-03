@@ -8,7 +8,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/libnetwork/internal/netiputil"
+	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/vishvananda/netlink"

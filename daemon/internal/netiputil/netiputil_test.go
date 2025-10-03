@@ -1,10 +1,12 @@
 package netiputil
 
 import (
+	"net"
 	"net/netip"
 	"testing"
 
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestLastAddr(t *testing.T) {
@@ -42,5 +44,46 @@ func TestPrefixAfter(t *testing.T) {
 	for _, tc := range testcases {
 		next := PrefixAfter(tc.prev, tc.sz)
 		assert.Check(t, next == tc.want, "PrefixAfter(%q, %d) = %s; want: %s", tc.prev, tc.sz, next, tc.want)
+	}
+}
+
+func TestUnmap(t *testing.T) {
+	assert.Check(t, !Unmap(netip.Prefix{}).IsValid())
+}
+
+func TestParseCIDR(t *testing.T) {
+	tests := []string{"::ffff:1.2.3.4/24", "::ffff:1.2.3.4/1", "::ffff:1.2.3.4/120", "1.2.3.4/24", "::1/128", "2001:db8::/32"}
+	for _, s := range tests {
+		// From "github.com/moby/moby/v2/daemon/libnetwork/types".ParseCIDR
+		ip, net, err := net.ParseCIDR(s)
+		assert.NilError(t, err)
+		net.IP = ip
+		want := netip.MustParsePrefix(net.String())
+
+		got, err := ParseCIDR(s)
+		assert.Check(t, err)
+		if got != want {
+			t.Errorf("ParseCIDR(%q) = %v, want %v", s, got, want)
+		}
+	}
+
+	got, err := ParseCIDR("invalid")
+	assert.Check(t, err != nil, "expected error for invalid input")
+	assert.Check(t, !got.IsValid(), "expected invalid result for invalid input")
+}
+
+func TestMaybeParse(t *testing.T) {
+	addr := MaybeParse(netip.ParseAddr)
+	got, err := addr("")
+	assert.Check(t, err)
+	assert.Check(t, !got.IsValid())
+
+	got, err = addr("bogus")
+	assert.Check(t, err != nil)
+	assert.Check(t, !got.IsValid())
+
+	got, err = addr("1.2.3.4")
+	if assert.Check(t, err) {
+		assert.Check(t, is.Equal(got, netip.MustParseAddr("1.2.3.4")))
 	}
 }

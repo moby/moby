@@ -14,6 +14,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/internal/netipstringer"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
@@ -50,8 +51,8 @@ func (daemon *Daemon) setupLinkedContainers(ctr *container.Container) ([]string,
 		// Allow users to restore the old behavior through this escape hatch.
 		if os.Getenv("DOCKER_KEEP_DEPRECATED_LEGACY_LINKS_ENV_VARS") == "1" {
 			linkEnvVars := links.EnvVars(
-				bridgeSettings.IPAddress,
-				childBridgeSettings.IPAddress,
+				netipstringer.Addr(bridgeSettings.IPAddress.Unmap()),
+				netipstringer.Addr(childBridgeSettings.IPAddress.Unmap()),
 				linkAlias,
 				child.Config.Env,
 				child.Config.ExposedPorts,
@@ -104,12 +105,12 @@ func (daemon *Daemon) addLegacyLinks(
 			aliasList = aliasList + " " + child.Name[1:]
 		}
 		defaultNW := child.NetworkSettings.Networks[network.DefaultNetwork]
-		if defaultNW.IPAddress != "" {
-			if err := sb.AddHostsEntry(ctx, aliasList, defaultNW.IPAddress); err != nil {
+		if defaultNW.IPAddress.IsValid() {
+			if err := sb.AddHostsEntry(ctx, aliasList, defaultNW.IPAddress.Unmap()); err != nil {
 				return errors.Wrapf(err, "failed to add address to /etc/hosts for link to %s", child.Name)
 			}
 		}
-		if defaultNW.GlobalIPv6Address != "" {
+		if defaultNW.GlobalIPv6Address.IsValid() {
 			if err := sb.AddHostsEntry(ctx, aliasList, defaultNW.GlobalIPv6Address); err != nil {
 				return errors.Wrapf(err, "failed to add IPv6 address to /etc/hosts for link to %s", child.Name)
 			}
@@ -130,7 +131,7 @@ func (daemon *Daemon) addLegacyLinks(
 				return errors.Wrapf(err, "failed to update /etc/hosts of %s for alias %s with IP %s",
 					parent.ID, alias, epConfig.IPAddress)
 			}
-			if epConfig.GlobalIPv6Address != "" {
+			if epConfig.GlobalIPv6Address.IsValid() {
 				if err := psb.UpdateHostsEntry(alias, epConfig.GlobalIPv6Address); err != nil {
 					return errors.Wrapf(err, "failed to update /etc/hosts of %s for alias %s with IP %s",
 						parent.ID, alias, epConfig.GlobalIPv6Address)

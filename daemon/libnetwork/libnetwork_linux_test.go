@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -85,7 +86,7 @@ func TestNull(t *testing.T) {
 	cnt, err := controller.NewSandbox(context.Background(), "null_container",
 		libnetwork.OptionHostname("test"),
 		libnetwork.OptionDomainname("example.com"),
-		libnetwork.OptionExtraHost("web", "192.168.0.1"))
+		libnetwork.OptionExtraHost("web", netip.MustParseAddr("192.168.0.1")))
 	assert.NilError(t, err)
 
 	network, err := createTestNetwork(controller, "null", "testnull", options.Generic{}, nil, nil)
@@ -657,7 +658,7 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 	cnt, err := controller.NewSandbox(context.Background(), containerID,
 		libnetwork.OptionHostname("test"),
 		libnetwork.OptionDomainname("example.com"),
-		libnetwork.OptionExtraHost("web", "192.168.0.1"))
+		libnetwork.OptionExtraHost("web", netip.MustParseAddr("192.168.0.1")))
 	assert.NilError(t, err)
 	defer func() {
 		assert.Check(t, cnt.Delete(context.Background()))
@@ -702,7 +703,7 @@ func TestEndpointMultipleJoins(t *testing.T) {
 	sbx1, err := controller.NewSandbox(context.Background(), containerID,
 		libnetwork.OptionHostname("test"),
 		libnetwork.OptionDomainname("example.com"),
-		libnetwork.OptionExtraHost("web", "192.168.0.1"),
+		libnetwork.OptionExtraHost("web", netip.MustParseAddr("192.168.0.1")),
 	)
 	assert.NilError(t, err)
 	defer func() {
@@ -797,7 +798,7 @@ func TestContainerInvalidLeave(t *testing.T) {
 	cnt, err := controller.NewSandbox(context.Background(), containerID,
 		libnetwork.OptionHostname("test"),
 		libnetwork.OptionDomainname("example.com"),
-		libnetwork.OptionExtraHost("web", "192.168.0.1"))
+		libnetwork.OptionExtraHost("web", netip.MustParseAddr("192.168.0.1")))
 	assert.NilError(t, err)
 	defer func() {
 		assert.Check(t, cnt.Delete(context.Background()))
@@ -845,7 +846,7 @@ func TestEndpointUpdateParent(t *testing.T) {
 	sbx1, err := controller.NewSandbox(context.Background(), containerID,
 		libnetwork.OptionHostname("test"),
 		libnetwork.OptionDomainname("example.com"),
-		libnetwork.OptionExtraHost("web", "192.168.0.1"))
+		libnetwork.OptionExtraHost("web", netip.MustParseAddr("192.168.0.1")))
 	assert.NilError(t, err)
 	defer func() {
 		assert.Check(t, sbx1.Delete(context.Background()))
@@ -855,7 +856,7 @@ func TestEndpointUpdateParent(t *testing.T) {
 		libnetwork.OptionHostname("test2"),
 		libnetwork.OptionDomainname("example.com"),
 		libnetwork.OptionHostsPath("/var/lib/docker/test_network/container2/hosts"),
-		libnetwork.OptionExtraHost("web", "192.168.0.2"))
+		libnetwork.OptionExtraHost("web", netip.MustParseAddr("192.168.0.2")))
 	assert.NilError(t, err)
 	defer func() {
 		assert.Check(t, sbx2.Delete(context.Background()))
@@ -979,7 +980,7 @@ func TestHost(t *testing.T) {
 	sbx1, err := controller.NewSandbox(context.Background(), "host_c1",
 		libnetwork.OptionHostname("test1"),
 		libnetwork.OptionDomainname("example.com"),
-		libnetwork.OptionExtraHost("web", "192.168.0.1"),
+		libnetwork.OptionExtraHost("web", netip.MustParseAddr("192.168.0.1")),
 		libnetwork.OptionUseDefaultSandbox())
 	assert.NilError(t, err)
 	defer func() {
@@ -989,7 +990,7 @@ func TestHost(t *testing.T) {
 	sbx2, err := controller.NewSandbox(context.Background(), "host_c2",
 		libnetwork.OptionHostname("test2"),
 		libnetwork.OptionDomainname("example.com"),
-		libnetwork.OptionExtraHost("web", "192.168.0.1"),
+		libnetwork.OptionExtraHost("web", netip.MustParseAddr("192.168.0.1")),
 		libnetwork.OptionUseDefaultSandbox())
 	assert.NilError(t, err)
 	defer func() {
@@ -1025,7 +1026,7 @@ func TestHost(t *testing.T) {
 	cnt3, err := controller.NewSandbox(context.Background(), "host_c3",
 		libnetwork.OptionHostname("test3"),
 		libnetwork.OptionDomainname("example.com"),
-		libnetwork.OptionExtraHost("web", "192.168.0.1"),
+		libnetwork.OptionExtraHost("web", netip.MustParseAddr("192.168.0.1")),
 		libnetwork.OptionUseDefaultSandbox())
 	assert.NilError(t, err)
 	defer func() {
@@ -1126,7 +1127,7 @@ func TestEndpointJoin(t *testing.T) {
 	sb, err := controller.NewSandbox(context.Background(), containerID,
 		libnetwork.OptionHostname("test"),
 		libnetwork.OptionDomainname("example.com"),
-		libnetwork.OptionExtraHost("web", "192.168.0.1"))
+		libnetwork.OptionExtraHost("web", netip.MustParseAddr("192.168.0.1")))
 	assert.NilError(t, err)
 	defer func() {
 		assert.Check(t, sb.Delete(context.Background()))
@@ -1229,7 +1230,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 		libnetwork.OptionHostname("test"),
 		libnetwork.OptionDomainname("example.com"),
 		libnetwork.OptionUseExternalKey(),
-		libnetwork.OptionExtraHost("web", "192.168.0.1"))
+		libnetwork.OptionExtraHost("web", netip.MustParseAddr("192.168.0.1")))
 	assert.NilError(t, err)
 	defer func() {
 		assert.Check(t, cnt.Delete(context.Background()))

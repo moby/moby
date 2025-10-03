@@ -1,6 +1,8 @@
 package system
 
 import (
+	"net/netip"
+
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
@@ -146,7 +148,7 @@ type Commit struct {
 
 // NetworkAddressPool is a temp struct used by [Info] struct.
 type NetworkAddressPool struct {
-	Base string
+	Base netip.Prefix
 	Size int
 }
 

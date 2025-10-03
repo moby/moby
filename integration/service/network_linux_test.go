@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/api/types/network"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
@@ -121,7 +122,7 @@ func TestDockerNetworkReConnect(t *testing.T) {
 
 	n2, err := apiClient.ContainerInspect(ctx, c1)
 	assert.NilError(t, err)
-	assert.Check(t, is.DeepEqual(n1, n2))
+	assert.Check(t, is.DeepEqual(n1, n2, cmpopts.EquateComparable(netip.Addr{}, netip.Prefix{})))
 }
 
 // Check that a swarm-scoped network can't have EnableIPv4=false.

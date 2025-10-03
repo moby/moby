@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"os"
 	"strings"
 	"testing"
@@ -573,10 +574,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnect(c *testing.T) {
 	assert.Equal(c, len(nr.Containers), 1)
 
 	// check if container IP matches network inspect
-	ip, _, err := net.ParseCIDR(nr.Containers[containerID].IPv4Address)
-	assert.NilError(c, err)
 	containerIP := findContainerIP(c, "test", "test")
-	assert.Equal(c, ip.String(), containerIP)
+	assert.Equal(c, nr.Containers[containerID].IPv4Address.Addr().String(), containerIP)
 
 	// disconnect container from the network
 	cli.DockerCmd(c, "network", "disconnect", "test", containerID)
@@ -686,8 +685,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkNullIPAMDriver(c *testing.T) {
 	nr := getNetworkResource(c, "test000")
 	assert.Equal(c, nr.IPAM.Driver, "null")
 	assert.Equal(c, len(nr.IPAM.Config), 1)
-	assert.Equal(c, nr.IPAM.Config[0].Subnet, "0.0.0.0/0")
-	assert.Equal(c, nr.IPAM.Config[0].Gateway, "")
+	assert.Equal(c, nr.IPAM.Config[0].Subnet, netip.MustParsePrefix("0.0.0.0/0"))
+	assert.Assert(c, !nr.IPAM.Config[0].Gateway.IsValid())
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkInspectDefault(c *testing.T) {
@@ -744,9 +743,9 @@ func (s *DockerNetworkSuite) TestDockerNetworkInspectCustomSpecified(c *testing.
 	assert.Equal(c, nr.EnableIPv6, true)
 	assert.Equal(c, nr.IPAM.Driver, "default")
 	assert.Equal(c, len(nr.IPAM.Config), 2)
-	assert.Equal(c, nr.IPAM.Config[0].Subnet, "172.28.0.0/16")
-	assert.Equal(c, nr.IPAM.Config[0].IPRange, "172.28.5.0/24")
-	assert.Equal(c, nr.IPAM.Config[0].Gateway, "172.28.5.254")
+	assert.Equal(c, nr.IPAM.Config[0].Subnet, netip.MustParsePrefix("172.28.0.0/16"))
+	assert.Equal(c, nr.IPAM.Config[0].IPRange, netip.MustParsePrefix("172.28.5.0/24"))
+	assert.Equal(c, nr.IPAM.Config[0].Gateway, netip.MustParseAddr("172.28.5.254"))
 	assert.Equal(c, nr.Internal, false)
 	cli.DockerCmd(c, "network", "rm", "br0")
 	assertNwNotAvailable(c, "br0")
@@ -1733,9 +1732,9 @@ func (s *DockerNetworkSuite) TestDockerNetworkValidateIP(c *testing.T) {
 	verifyIPAddresses(c, "mynet0", "mynet", "172.28.99.88", "2001:db8:1234::9988")
 
 	_, _, err = dockerCmdWithError("run", "--net=mynet", "--ip", "mynet_ip", "--ip6", "2001:db8:1234::9999", "busybox", "top")
-	assert.ErrorContains(c, err, "invalid IPv4 address")
+	assert.ErrorContains(c, err, "unable to parse IP")
 	_, _, err = dockerCmdWithError("run", "--net=mynet", "--ip", "172.28.99.99", "--ip6", "mynet_ip6", "busybox", "top")
-	assert.ErrorContains(c, err, "invalid IPv6 address")
+	assert.ErrorContains(c, err, "unable to parse IP")
 
 	// This is a case of IPv4 address to `--ip6`
 	_, _, err = dockerCmdWithError("run", "--net=mynet", "--ip6", "172.28.99.99", "busybox", "top")

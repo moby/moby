@@ -225,10 +225,9 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 		}
 
 		for _, ic := range ingressNA.Network.IPAM.Configs {
-			c := network.IPAMConfig{
-				Subnet:  ic.Subnet,
-				IPRange: ic.Range,
-				Gateway: ic.Gateway,
+			c, err := ipamConfig(ic)
+			if err != nil {
+				swarmlog.G(ctx).WithError(err).Warn("invalid IPAM config for Swarm ingress network")
 			}
 			networkCreateRequest.IPAM.Config = append(networkCreateRequest.IPAM.Config, c)
 		}

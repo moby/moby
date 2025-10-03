@@ -95,7 +95,7 @@ func TestHostPortMappings(t *testing.T) {
 
 	var addrs []string
 	for _, port := range ctrs[0].Ports {
-		addrs = append(addrs, fmt.Sprintf("%s:%d/%s", net.JoinHostPort(port.IP, strconv.Itoa(int(port.PublicPort))), port.PrivatePort, port.Type))
+		addrs = append(addrs, fmt.Sprintf("%s:%d/%s", net.JoinHostPort(port.IP.String(), strconv.Itoa(int(port.PublicPort))), port.PrivatePort, port.Type))
 	}
 
 	assert.Check(t, len(addrs) >= 1 && len(addrs) <= 2)

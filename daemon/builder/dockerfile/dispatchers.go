@@ -25,6 +25,7 @@ import (
 	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/moby/v2/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/sys/signal"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -591,8 +592,9 @@ func parsePortSpec(rawPort string) ([]container.PortMap, error) {
 		}
 		ip = rawIP
 	}
-	if ip != "" && net.ParseIP(ip) == nil {
-		return nil, errors.New("invalid IP address: " + ip)
+	addr, err := netiputil.MaybeParseAddr(ip)
+	if err != nil {
+		return nil, fmt.Errorf("invalid IP address: %w", err)
 	}
 
 	pr, err := container.ParsePortRange(containerPort)
@@ -637,7 +639,7 @@ func parsePortSpec(rawPort string) ([]container.PortMap, error) {
 			}
 		}
 		ports = append(ports, container.PortMap{
-			container.MustParsePort(fmt.Sprintf("%d/%s", startPort+i, proto)): []container.PortBinding{{HostIP: ip, HostPort: hPort}},
+			container.MustParsePort(fmt.Sprintf("%d/%s", startPort+i, proto)): []container.PortBinding{{HostIP: addr, HostPort: hPort}},
 		})
 	}
 	return ports, nil

@@ -1,10 +1,12 @@
 package service
 
 import (
+	"net/netip"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/api/types/container"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
@@ -67,7 +69,10 @@ func cmpServiceOpts() cmp.Option {
 		return delta < threshold && delta > -threshold
 	})
 
-	return cmp.FilterPath(metaTimeFields, withinThreshold)
+	return cmp.Options{
+		cmp.FilterPath(metaTimeFields, withinThreshold),
+		cmpopts.EquateComparable(netip.Addr{}, netip.Prefix{}),
+	}
 }
 
 func fullSwarmServiceSpec(name string, replicas uint64) swarmtypes.ServiceSpec {
@@ -95,7 +100,7 @@ func fullSwarmServiceSpec(name string, replicas uint64) swarmtypes.ServiceSpec {
 				StopGracePeriod: &restartDelay,
 				Hosts:           []string{"8.8.8.8  google"},
 				DNSConfig: &swarmtypes.DNSConfig{
-					Nameservers: []string{"8.8.8.8"},
+					Nameservers: []netip.Addr{netip.MustParseAddr("8.8.8.8")},
 					Search:      []string{"somedomain"},
 				},
 				Isolation: container.IsolationDefault,

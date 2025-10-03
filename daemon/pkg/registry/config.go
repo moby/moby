@@ -2,12 +2,15 @@ package registry
 
 import (
 	"context"
+	"maps"
 	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -103,9 +106,9 @@ func (config *serviceConfig) copy() *registry.ServiceConfig {
 		ic[key] = value
 	}
 	return &registry.ServiceConfig{
-		InsecureRegistryCIDRs: append([]*registry.NetIPNet(nil), config.InsecureRegistryCIDRs...),
+		InsecureRegistryCIDRs: slices.Clone(config.InsecureRegistryCIDRs),
 		IndexConfigs:          ic,
-		Mirrors:               append([]string(nil), config.Mirrors...),
+		Mirrors:               slices.Clone(config.Mirrors),
 	}
 }
 
@@ -148,11 +151,10 @@ func (config *serviceConfig) loadInsecureRegistries(registries []string) error {
 	registries = append(registries, "::1/128", "127.0.0.0/8")
 
 	var (
-		insecureRegistryCIDRs = make([]*registry.NetIPNet, 0)
+		insecureRegistryCIDRs = make(map[netip.Prefix]struct{})
 		indexConfigs          = make(map[string]*registry.IndexInfo)
 	)
 
-skip:
 	for _, r := range registries {
 		// validate insecure registry
 		if _, err := ValidateIndexName(r); err != nil {
@@ -169,17 +171,9 @@ skip:
 			}
 		}
 		// Check if CIDR was passed to --insecure-registry
-		_, ipnet, err := net.ParseCIDR(r)
+		ipnet, err := netip.ParsePrefix(r)
 		if err == nil {
-			// Valid CIDR. If ipnet is already in config.InsecureRegistryCIDRs, skip.
-			data := (*registry.NetIPNet)(ipnet)
-			for _, value := range insecureRegistryCIDRs {
-				if value.IP.String() == data.IP.String() && value.Mask.String() == data.Mask.String() {
-					continue skip
-				}
-			}
-			// ipnet is not found, add it in config.InsecureRegistryCIDRs
-			insecureRegistryCIDRs = append(insecureRegistryCIDRs, data)
+			insecureRegistryCIDRs[ipnet.Masked()] = struct{}{}
 		} else {
 			if err := validateHostPort(r); err != nil {
 				return invalidParamWrapf(err, "insecure registry %s is not valid", r)
@@ -201,7 +195,7 @@ skip:
 		Secure:   true,
 		Official: true,
 	}
-	config.InsecureRegistryCIDRs = insecureRegistryCIDRs
+	config.InsecureRegistryCIDRs = slices.Collect(maps.Keys(insecureRegistryCIDRs))
 	config.IndexConfigs = indexConfigs
 
 	return nil
@@ -234,7 +228,7 @@ var lookupIP = net.LookupIP
 // isCIDRMatch returns true if urlHost matches an element of cidrs. urlHost is a URL.Host ("host:port" or "host")
 // where the `host` part can be either a domain name or an IP address. If it is a domain name, then it will be
 // resolved to IP addresses for matching. If resolution fails, false is returned.
-func isCIDRMatch(cidrs []*registry.NetIPNet, urlHost string) bool {
+func isCIDRMatch(cidrs []netip.Prefix, urlHost string) bool {
 	if len(cidrs) == 0 {
 		return false
 	}
@@ -245,23 +239,26 @@ func isCIDRMatch(cidrs []*registry.NetIPNet, urlHost string) bool {
 		host = urlHost
 	}
 
-	var addresses []net.IP
-	if ip := net.ParseIP(host); ip != nil {
+	addresses := make(map[netip.Addr]struct{})
+	if ip, err := netip.ParseAddr(host); err == nil {
 		// Host is an IP-address.
-		addresses = append(addresses, ip)
+		addresses[ip] = struct{}{}
 	} else {
 		// Try to resolve the host's IP-address.
-		addresses, err = lookupIP(host)
+		ips, err := lookupIP(host)
 		if err != nil {
 			// We failed to resolve the host; assume there's no match.
 			return false
 		}
+		for _, ip := range ips {
+			addr, _ := netip.AddrFromSlice(ip)
+			addresses[addr] = struct{}{}
+		}
 	}
 
-	for _, addr := range addresses {
+	for addr := range addresses {
 		for _, ipnet := range cidrs {
-			// check if the addr falls in the subnet
-			if (*net.IPNet)(ipnet).Contains(addr) {
+			if ipnet.Contains(addr.Unmap()) {
 				return true
 			}
 		}

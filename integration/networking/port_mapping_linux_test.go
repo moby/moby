@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/api/pkg/stdcopy"
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
@@ -74,8 +75,8 @@ func TestDisableNAT(t *testing.T) {
 			name: "defaults",
 			expPortMap: containertypes.PortMap{
 				containertypes.MustParsePort("80/tcp"): []containertypes.PortBinding{
-					{HostIP: "0.0.0.0", HostPort: "8080"},
-					{HostIP: "::", HostPort: "8080"},
+					{HostIP: netip.MustParseAddr("0.0.0.0"), HostPort: "8080"},
+					{HostIP: netip.MustParseAddr("::"), HostPort: "8080"},
 				},
 			},
 		},
@@ -85,8 +86,8 @@ func TestDisableNAT(t *testing.T) {
 			gwMode6: "routed",
 			expPortMap: containertypes.PortMap{
 				containertypes.MustParsePort("80/tcp"): []containertypes.PortBinding{
-					{HostIP: "0.0.0.0", HostPort: "8080"},
-					{HostIP: "::", HostPort: ""},
+					{HostIP: netip.MustParseAddr("0.0.0.0"), HostPort: "8080"},
+					{HostIP: netip.MustParseAddr("::"), HostPort: ""},
 				},
 			},
 		},
@@ -96,8 +97,8 @@ func TestDisableNAT(t *testing.T) {
 			gwMode6: "nat",
 			expPortMap: containertypes.PortMap{
 				containertypes.MustParsePort("80/tcp"): []containertypes.PortBinding{
-					{HostIP: "::", HostPort: "8080"},
-					{HostIP: "0.0.0.0", HostPort: ""},
+					{HostIP: netip.MustParseAddr("::"), HostPort: "8080"},
+					{HostIP: netip.MustParseAddr("0.0.0.0"), HostPort: ""},
 				},
 			},
 		},
@@ -129,7 +130,7 @@ func TestDisableNAT(t *testing.T) {
 			defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
 			inspect := container.Inspect(ctx, t, c, id)
-			assert.Check(t, is.DeepEqual(inspect.NetworkSettings.Ports, tc.expPortMap))
+			assert.Check(t, is.DeepEqual(inspect.NetworkSettings.Ports, tc.expPortMap, cmpopts.EquateComparable(netip.Addr{})))
 		})
 	}
 }
@@ -162,7 +163,7 @@ func TestPortMappedHairpinTCP(t *testing.T) {
 	serverId := container.Run(ctx, t, c,
 		container.WithNetworkMode(serverNetName),
 		container.WithExposedPorts("80"),
-		container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80"): {{HostIP: "0.0.0.0"}}}),
+		container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80"): {{HostIP: netip.MustParseAddr("0.0.0.0")}}}),
 		container.WithCmd("httpd", "-f"),
 	)
 	defer c.ContainerRemove(ctx, serverId, client.ContainerRemoveOptions{Force: true})
@@ -209,7 +210,7 @@ func TestPortMappedHairpinUDP(t *testing.T) {
 	serverId := container.Run(ctx, t, c,
 		container.WithNetworkMode(serverNetName),
 		container.WithExposedPorts("54/udp"),
-		container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("54/udp"): {{HostIP: "0.0.0.0"}}}),
+		container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("54/udp"): {{HostIP: netip.MustParseAddr("0.0.0.0")}}}),
 		container.WithCmd("/bin/sh", "-c", "echo 'foobar.internal 192.168.155.23' | dnsd -c - -p 54"),
 	)
 	defer c.ContainerRemove(ctx, serverId, client.ContainerRemoveOptions{Force: true})
@@ -251,7 +252,7 @@ func TestProxy4To6(t *testing.T) {
 	serverId := container.Run(ctx, t, c,
 		container.WithNetworkMode(netName),
 		container.WithExposedPorts("80"),
-		container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80"): {{HostIP: "::1"}}}),
+		container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80"): {{HostIP: netip.MustParseAddr("::1")}}}),
 		container.WithCmd("httpd", "-f"),
 	)
 	defer c.ContainerRemove(ctx, serverId, client.ContainerRemoveOptions{Force: true})
@@ -553,7 +554,7 @@ func TestAccessPublishedPortFromCtr(t *testing.T) {
 			serverId := container.Run(ctx, t, c,
 				container.WithNetworkMode(netName),
 				container.WithExposedPorts("80"),
-				container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{HostIP: "0.0.0.0"}}}),
+				container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{HostIP: netip.MustParseAddr("0.0.0.0")}}}),
 				container.WithCmd("httpd", "-f"),
 			)
 			defer c.ContainerRemove(ctx, serverId, client.ContainerRemoveOptions{Force: true})
@@ -716,8 +717,8 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 		insp := container.Inspect(ctx, t, c, ctrId)
 		return ctrDesc{
 			id:   ctrId,
-			ipv4: insp.NetworkSettings.Networks[netName].IPAddress,
-			ipv6: insp.NetworkSettings.Networks[netName].GlobalIPv6Address,
+			ipv4: insp.NetworkSettings.Networks[netName].IPAddress.String(),
+			ipv6: insp.NetworkSettings.Networks[netName].GlobalIPv6Address.String(),
 		}
 	}
 
@@ -894,16 +895,16 @@ func TestAcceptFwMark(t *testing.T) {
 	test := func(name string, expPing int, expHttp string) {
 		t.Run(name, func(t *testing.T) {
 			t.Run("v4/ping", func(t *testing.T) {
-				testPing(t, "ping", ctrIPv4, expPing)
+				testPing(t, "ping", ctrIPv4.String(), expPing)
 			})
 			t.Run("v6/ping", func(t *testing.T) {
-				testPing(t, "ping6", ctrIPv6, expPing)
+				testPing(t, "ping6", ctrIPv6.String(), expPing)
 			})
 			t.Run("v4/http", func(t *testing.T) {
-				testHttp(t, ctrIPv4, "80", expHttp)
+				testHttp(t, ctrIPv4.String(), "80", expHttp)
 			})
 			t.Run("v6/http", func(t *testing.T) {
-				testHttp(t, ctrIPv6, "80", expHttp)
+				testHttp(t, ctrIPv6.String(), "80", expHttp)
 			})
 		})
 	}
@@ -1029,25 +1030,25 @@ func TestRoutedNonGateway(t *testing.T) {
 		},
 		{
 			name:    "nat/direct/v4",
-			addr:    insp.NetworkSettings.Networks[natNetName].IPAddress,
+			addr:    insp.NetworkSettings.Networks[natNetName].IPAddress.String(),
 			port:    "80",
 			expHttp: httpFail,
 		},
 		{
 			name:    "nat/direct/v6",
-			addr:    insp.NetworkSettings.Networks[natNetName].GlobalIPv6Address,
+			addr:    insp.NetworkSettings.Networks[natNetName].GlobalIPv6Address.String(),
 			port:    "80",
 			expHttp: httpFail,
 		},
 		{
 			name:    "routed/direct/v4",
-			addr:    insp.NetworkSettings.Networks[routedNetName].IPAddress,
+			addr:    insp.NetworkSettings.Networks[routedNetName].IPAddress.String(),
 			port:    "80",
 			expHttp: httpSuccess,
 		},
 		{
 			name:    "routed/direct/v6",
-			addr:    insp.NetworkSettings.Networks[routedNetName].GlobalIPv6Address,
+			addr:    insp.NetworkSettings.Networks[routedNetName].GlobalIPv6Address.String(),
 			port:    "80",
 			expHttp: httpSuccess,
 		},
@@ -1342,7 +1343,7 @@ func testDirectRemoteAccessOnExposedPort(t *testing.T, ctx context.Context, d *d
 					}),
 					container.WithNetworkMode(bridgeName),
 					container.WithEndpointSettings(bridgeName, &networktypes.EndpointSettings{
-						IPAddress:   ctrIP.String(),
+						IPAddress:   ctrIP,
 						IPPrefixLen: ctrIP.BitLen(),
 					}))
 				defer c.ContainerRemove(ctx, serverID, client.ContainerRemoveOptions{Force: true})
@@ -1426,7 +1427,7 @@ func TestAccessPortPublishedOnLoopbackAddress(t *testing.T) {
 			container.WithExposedPorts("5000/udp"),
 			// This port is mapped on 127.0.0.2, so it should not be remotely accessible.
 			container.WithPortMap(containertypes.PortMap{
-				containertypes.MustParsePort("5000/udp"): {{HostIP: loIP, HostPort: hostPort}},
+				containertypes.MustParsePort("5000/udp"): {{HostIP: netip.MustParseAddr(loIP), HostPort: hostPort}},
 			}),
 			container.WithNetworkMode(bridgeName))
 		defer c.ContainerRemove(ctx, serverID, client.ContainerRemoveOptions{Force: true})
@@ -1539,7 +1540,7 @@ func TestSkipRawRules(t *testing.T) {
 				ctrId := container.Run(ctx, t, c,
 					container.WithExposedPorts("80/tcp"),
 					container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {
-						{HostIP: "127.0.0.1", HostPort: "8080"},
+						{HostIP: netip.MustParseAddr("127.0.0.1"), HostPort: "8080"},
 						{HostPort: "8081"},
 					}}),
 				)
@@ -1573,7 +1574,7 @@ func TestMixAnyWithSpecificHostAddrs(t *testing.T) {
 				container.WithPortMap(containertypes.PortMap{
 					containertypes.MustParsePort("81/" + proto): {{}},
 					containertypes.MustParsePort("82/" + proto): {{}},
-					containertypes.MustParsePort("80/" + proto): {{HostIP: "127.0.0.1"}},
+					containertypes.MustParsePort("80/" + proto): {{HostIP: netip.MustParseAddr("127.0.0.1")}},
 				}),
 			)
 			defer c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})

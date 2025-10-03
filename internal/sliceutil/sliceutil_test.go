@@ -5,19 +5,29 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/moby/moby/v2/daemon/internal/sliceutil"
+	"github.com/moby/moby/v2/internal/sliceutil"
 )
 
 func TestMap(t *testing.T) {
 	s := []int{1, 2, 3}
 	m := sliceutil.Map(s, func(i int) int { return i * 2 })
 	if len(m) != len(s) {
-		t.Fatalf("expected len %d, got %d", len(s), len(m))
+		t.Errorf("len(m) = %d; want %d", len(m), len(s))
 	}
 	for i, v := range m {
 		if expected := s[i] * 2; v != expected {
-			t.Fatalf("expected %d, got %d", expected, v)
+			t.Errorf("s[%d] = %d; want %d", i, expected, v)
 		}
+	}
+
+	m = sliceutil.Map([]int(nil), func(i int) int { return i * 2 })
+	if m != nil {
+		t.Errorf("sliceutil.Map(nil, ...) = %v; want nil", m)
+	}
+
+	m = sliceutil.Map([]int{}, func(i int) int { return i * 2 })
+	if m == nil || len(m) != 0 {
+		t.Errorf("sliceutil.Map([], ...) = %v; want []", m)
 	}
 }
 
@@ -39,11 +49,18 @@ func TestMapper(t *testing.T) {
 	mapper := sliceutil.Mapper(netip.MustParseAddr)
 	m := mapper(s)
 	if len(m) != len(s) {
-		t.Fatalf("expected len %d, got %d", len(s), len(m))
+		t.Errorf("expected len %d, got %d", len(s), len(m))
 	}
 	for i, v := range m {
 		if expected := netip.MustParseAddr(s[i]); v != expected {
-			t.Fatalf("expected %s, got %s", expected, v)
+			t.Errorf("expected %s, got %s", expected, v)
 		}
+	}
+
+	if m := mapper(nil); m != nil {
+		t.Errorf("mapper(nil) = %v; want nil", m)
+	}
+	if m := mapper([]string{}); m == nil || len(m) != 0 {
+		t.Errorf("mapper([]) = %v; want []", m)
 	}
 }

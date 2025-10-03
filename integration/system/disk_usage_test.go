@@ -1,8 +1,10 @@
 package system
 
 import (
+	"net/netip"
 	"testing"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/api/types/build"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
@@ -258,7 +260,7 @@ func TestDiskUsage(t *testing.T) {
 
 					du, err := apiClient.DiskUsage(ctx, tc.options)
 					assert.NilError(t, err)
-					assert.DeepEqual(t, du, tc.expected)
+					assert.DeepEqual(t, du, tc.expected, cmpopts.EquateComparable(netip.Addr{}, netip.Prefix{}))
 				})
 			}
 		})

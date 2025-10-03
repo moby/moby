@@ -21,7 +21,6 @@ import (
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
 	"github.com/moby/moby/v2/daemon/internal/multierror"
-	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
@@ -30,24 +29,13 @@ import (
 	"github.com/moby/moby/v2/daemon/network"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
 	"github.com/moby/moby/v2/errdefs"
+	"github.com/moby/moby/v2/internal/sliceutil"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
 const errSetupNetworking = "failed to set up container networking"
-
-func toNetIP(ips []string) ([]netip.Addr, error) {
-	var dnsAddrs []netip.Addr
-	for _, ns := range ips {
-		addr, err := netip.ParseAddr(ns)
-		if err != nil {
-			return nil, fmt.Errorf("bad nameserver address %s: %w", ns, err)
-		}
-		dnsAddrs = append(dnsAddrs, addr)
-	}
-	return dnsAddrs, nil
-}
 
 func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnetwork.SandboxOption, error) {
 	var sboxOptions []libnetwork.SandboxOption
@@ -70,11 +58,7 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 	sboxOptions = append(sboxOptions, platformOpts...)
 
 	if len(ctr.HostConfig.DNS) > 0 {
-		dnsAddrs, err := toNetIP(ctr.HostConfig.DNS)
-		if err != nil {
-			return nil, err
-		}
-		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(dnsAddrs))
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(ctr.HostConfig.DNS))
 	} else if len(cfg.DNS) > 0 {
 		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(cfg.DNS))
 	}
@@ -103,10 +87,10 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 				return nil, errors.New("unable to derive the IP value for host-gateway")
 			}
 			for _, gip := range cfg.HostGatewayIPs {
-				sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(host, gip.String()))
+				sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(host, gip.Unmap()))
 			}
 		} else {
-			sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(host, ip))
+			sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(host, netip.MustParseAddr(ip).Unmap()))
 		}
 	}
 
@@ -150,7 +134,7 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 			publishedPorts = append(publishedPorts, types.PortBinding{
 				Proto:       protocol,
 				Port:        port.Num(),
-				HostIP:      net.ParseIP(binding.HostIP),
+				HostIP:      binding.HostIP.AsSlice(),
 				HostPort:    portRange.Start(),
 				HostPortEnd: portRange.End(),
 			})
@@ -297,11 +281,11 @@ func (daemon *Daemon) findAndAttachNetwork(ctr *container.Container, idOrName st
 
 	var addresses []string
 	if epConfig != nil && epConfig.IPAMConfig != nil {
-		if epConfig.IPAMConfig.IPv4Address != "" {
-			addresses = append(addresses, epConfig.IPAMConfig.IPv4Address)
+		if epConfig.IPAMConfig.IPv4Address.IsValid() {
+			addresses = append(addresses, epConfig.IPAMConfig.IPv4Address.Unmap().String())
 		}
-		if epConfig.IPAMConfig.IPv6Address != "" {
-			addresses = append(addresses, epConfig.IPAMConfig.IPv6Address)
+		if epConfig.IPAMConfig.IPv6Address.IsValid() {
+			addresses = append(addresses, epConfig.IPAMConfig.IPv6Address.Unmap().String())
 		}
 	}
 
@@ -544,7 +528,7 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 	// TODO(aker): move this into api/types/network/endpoint.go once enableIPOnPredefinedNetwork and
 	//  serviceDiscoveryOnDefaultNetwork are removed.
 	if !containertypes.NetworkMode(nwName).IsUserDefined() {
-		hasStaticAddresses := ipamConfig.IPv4Address != "" || ipamConfig.IPv6Address != ""
+		hasStaticAddresses := ipamConfig.IPv4Address.IsValid() || ipamConfig.IPv6Address.IsValid()
 		// On Linux, user specified IP address is accepted only by networks with user specified subnets.
 		if hasStaticAddresses && !enableIPOnPredefinedNetwork() {
 			errs = append(errs, cerrdefs.ErrInvalidArgument.WithMessage("user specified IP address is supported on user defined networks only"))
@@ -554,26 +538,11 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 		}
 	}
 
-	// TODO(aker): add a proper multierror.Append
-	if err := ipamConfig.Validate(); err != nil {
-		errs = append(errs, err.(interface{ Unwrap() []error }).Unwrap()...)
-	}
+	errs = normalizeEndpointIPAMConfig(errs, ipamConfig)
 
 	if nw != nil {
 		_, _, v4Configs, v6Configs := nw.IpamConfig()
-
-		var nwIPv4Subnets, nwIPv6Subnets []networktypes.NetworkSubnet
-		for _, nwIPAMConfig := range v4Configs {
-			nwIPv4Subnets = append(nwIPv4Subnets, nwIPAMConfig)
-		}
-		for _, nwIPAMConfig := range v6Configs {
-			nwIPv6Subnets = append(nwIPv6Subnets, nwIPAMConfig)
-		}
-
-		// TODO(aker): add a proper multierror.Append
-		if err := ipamConfig.IsInRange(nwIPv4Subnets, nwIPv6Subnets); err != nil {
-			errs = append(errs, err.(interface{ Unwrap() []error }).Unwrap()...)
-		}
+		errs = validateIPAMConfigIsInRange(errs, ipamConfig, v4Configs, v6Configs)
 	}
 
 	if epConfig.MacAddress != "" {
@@ -605,14 +574,78 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 	return nil
 }
 
+// normalizeEndpointIPAMConfig checks whether cfg is valid and normalizes cfg in-place.
+func normalizeEndpointIPAMConfig(errs []error, cfg *networktypes.EndpointIPAMConfig) []error {
+	if cfg == nil {
+		return errs
+	}
+
+	if cfg.IPv4Address.IsValid() {
+		if !cfg.IPv4Address.Is4() && !cfg.IPv4Address.Is4In6() || cfg.IPv4Address.IsUnspecified() {
+			errs = append(errs, fmt.Errorf("invalid IPv4 address: %s", cfg.IPv4Address))
+		}
+	}
+	if cfg.IPv6Address.IsValid() {
+		if !cfg.IPv6Address.Is6() || cfg.IPv6Address.Is4In6() || cfg.IPv6Address.IsUnspecified() || cfg.IPv6Address.Zone() != "" {
+			errs = append(errs, fmt.Errorf("invalid IPv6 address: %s", cfg.IPv6Address))
+		}
+	}
+	for _, addr := range cfg.LinkLocalIPs {
+		if !addr.IsValid() || addr.IsUnspecified() {
+			errs = append(errs, fmt.Errorf("invalid link-local IP address: %s", addr))
+		}
+	}
+
+	cfg.IPv4Address = cfg.IPv4Address.Unmap()
+	cfg.IPv6Address = cfg.IPv6Address.Unmap()
+	for i, addr := range cfg.LinkLocalIPs {
+		cfg.LinkLocalIPs[i] = addr.Unmap()
+	}
+
+	return errs
+}
+
+// validateIPAMConfigIsInRange checks whether static IP addresses are valid in a specific network.
+func validateIPAMConfigIsInRange(errs []error, cfg *networktypes.EndpointIPAMConfig, v4Subnets, v6Subnets []*libnetwork.IpamConf) []error {
+	if err := validateEndpointIPAddress(cfg.IPv4Address, v4Subnets); err != nil {
+		errs = append(errs, err)
+	}
+	if err := validateEndpointIPAddress(cfg.IPv6Address, v6Subnets); err != nil {
+		errs = append(errs, err)
+	}
+	return errs
+}
+
+func validateEndpointIPAddress(epAddr netip.Addr, ipamSubnets []*libnetwork.IpamConf) error {
+	if !epAddr.IsValid() {
+		return nil
+	}
+
+	var staticSubnet bool
+	for _, subnet := range ipamSubnets {
+		if subnet.IsStatic() {
+			staticSubnet = true
+			if subnet.Contains(epAddr) {
+				return nil
+			}
+		}
+	}
+
+	if staticSubnet {
+		return fmt.Errorf("no configured subnet or ip-range contain the IP address %s", epAddr)
+	}
+
+	return errors.New("user specified IP address is supported only when connecting to networks with user configured subnets")
+}
+
 // cleanOperationalData resets the operational data from the passed endpoint settings
 func cleanOperationalData(es *network.EndpointSettings) {
 	es.EndpointID = ""
-	es.Gateway = ""
-	es.IPAddress = ""
+	es.Gateway = netip.Addr{}
+	es.IPAddress = netip.Addr{}
 	es.IPPrefixLen = 0
-	es.IPv6Gateway = ""
-	es.GlobalIPv6Address = ""
+	es.IPv6Gateway = netip.Addr{}
+	es.GlobalIPv6Address = netip.Addr{}
 	es.GlobalIPv6PrefixLen = 0
 	es.MacAddress = ""
 	if es.IPAMOperational {
@@ -699,7 +732,7 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 	endpointConfig.IPAMOperational = false
 	if nwCfg != nil {
 		if epConfig, ok := nwCfg.EndpointsConfig[nwName]; ok {
-			if endpointConfig.IPAMConfig == nil || (endpointConfig.IPAMConfig.IPv4Address == "" && endpointConfig.IPAMConfig.IPv6Address == "" && len(endpointConfig.IPAMConfig.LinkLocalIPs) == 0) {
+			if endpointConfig.IPAMConfig == nil || (!endpointConfig.IPAMConfig.IPv4Address.IsValid() && !endpointConfig.IPAMConfig.IPv6Address.IsValid() && len(endpointConfig.IPAMConfig.LinkLocalIPs) == 0) {
 				endpointConfig.IPAMOperational = true
 			}
 
@@ -811,11 +844,11 @@ func updateJoinInfo(networkSettings *network.Settings, n *libnetwork.Network, ep
 		// It is not an error to get an empty endpoint info
 		return nil
 	}
-	if epInfo.Gateway() != nil {
-		networkSettings.Networks[n.Name()].Gateway = epInfo.Gateway().String()
+	if gw, ok := netip.AddrFromSlice(epInfo.Gateway()); ok {
+		networkSettings.Networks[n.Name()].Gateway = gw.Unmap()
 	}
-	if epInfo.GatewayIPv6().To16() != nil {
-		networkSettings.Networks[n.Name()].IPv6Gateway = epInfo.GatewayIPv6().String()
+	if gw6, ok := netip.AddrFromSlice(epInfo.GatewayIPv6()); ok && gw6.Is6() {
+		networkSettings.Networks[n.Name()].IPv6Gateway = gw6
 	}
 	return nil
 }

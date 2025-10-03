@@ -8,10 +8,10 @@ import (
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/v2/daemon/internal/compat"
-	"github.com/moby/moby/v2/daemon/internal/sliceutil"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
+	"github.com/moby/moby/v2/internal/sliceutil"
 )
 
 // getContainersByName inspects container's configuration and serializes it as json.

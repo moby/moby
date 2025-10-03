@@ -21,6 +21,9 @@ func ToIPNet(p netip.Prefix) *net.IPNet {
 // ToPrefix converts n into a netip.Prefix. If n is not a valid IPv4 or IPV6
 // address, ToPrefix returns netip.Prefix{}, false.
 func ToPrefix(n *net.IPNet) (netip.Prefix, bool) {
+	if n == nil {
+		return netip.Prefix{}, false
+	}
 	if ll := len(n.Mask); ll != net.IPv4len && ll != net.IPv6len {
 		return netip.Prefix{}, false
 	}
@@ -88,3 +91,39 @@ func PrefixAfter(prev netip.Prefix, sz int) netip.Prefix {
 	}
 	return netip.PrefixFrom(addr, sz).Masked()
 }
+
+// Unmap returns p with any IPv4-mapped IPv6 address prefix removed, per the
+// quirky semantics that have been Hyrum's Law'ed into our Engine API contract:
+// the subnet mask is truncated to the length of the unmapped address.
+// For example:
+//   - "::ffff:1.2.3.4/24" -> 1.2.3.4/0
+//   - "::ffff:1.2.3.4/120" -> 1.2.3.4/24
+func Unmap(p netip.Prefix) netip.Prefix {
+	bits := p.Addr().Unmap().BitLen() - p.Addr().BitLen() + p.Bits()
+	return netip.PrefixFrom(p.Addr().Unmap(), max(0, bits))
+}
+
+// ParseCIDR parses s as an IP address prefix, like [netip.ParsePrefix],
+// unmapping any IPv4-mapped IPv6 address prefixes using [Unmap].
+func ParseCIDR(s string) (netip.Prefix, error) {
+	prefix, err := netip.ParsePrefix(s)
+	return Unmap(prefix), err
+}
+
+// MaybeParse decorates a parse function to return no error when parsing the
+// empty string.
+func MaybeParse[T any](parse func(string) (T, error)) func(string) (T, error) {
+	return func(s string) (T, error) {
+		var zero T
+		if s == "" {
+			return zero, nil
+		}
+		return parse(s)
+	}
+}
+
+var (
+	MaybeParseAddr   = MaybeParse(netip.ParseAddr)
+	MaybeParsePrefix = MaybeParse(netip.ParsePrefix)
+	MaybeParseCIDR   = MaybeParse(ParseCIDR)
+)

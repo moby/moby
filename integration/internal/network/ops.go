@@ -1,6 +1,8 @@
 package network
 
 import (
+	"net/netip"
+
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 )
@@ -137,12 +139,19 @@ func WithIPAM(subnet, gateway string) func(*client.NetworkCreateOptions) {
 
 // WithIPAMRange adds an IPAM with the specified Subnet, IPRange and Gateway to the network
 func WithIPAMRange(subnet, iprange, gateway string) func(*client.NetworkCreateOptions) {
-	return WithIPAMConfig(network.IPAMConfig{
-		Subnet:     subnet,
-		IPRange:    iprange,
-		Gateway:    gateway,
-		AuxAddress: map[string]string{},
-	})
+	c := network.IPAMConfig{
+		AuxAddress: map[string]netip.Addr{},
+	}
+	if subnet != "" {
+		c.Subnet = netip.MustParsePrefix(subnet)
+	}
+	if iprange != "" {
+		c.IPRange = netip.MustParsePrefix(iprange)
+	}
+	if gateway != "" {
+		c.Gateway = netip.MustParseAddr(gateway)
+	}
+	return WithIPAMConfig(c)
 }
 
 // WithIPAMConfig adds the provided IPAM configurations to the network
