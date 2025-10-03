@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net"
 	"strconv"
 	"strings"
@@ -150,7 +151,15 @@ func (c *containerConfig) portBindings() container.PortMap {
 			continue
 		}
 
-		port := container.PortRangeProto(fmt.Sprintf("%d/%s", portConfig.TargetPort, strings.ToLower(portConfig.Protocol.String())))
+		if portConfig.TargetPort > math.MaxUint16 {
+			continue
+		}
+
+		port, ok := container.PortFrom(uint16(portConfig.TargetPort), container.NetworkProtocol(portConfig.Protocol.String()))
+		if !ok {
+			continue
+		}
+
 		binding := []container.PortBinding{
 			{},
 		}
@@ -176,8 +185,8 @@ func (c *containerConfig) init() *bool {
 	return &init
 }
 
-func (c *containerConfig) exposedPorts() map[container.PortRangeProto]struct{} {
-	exposedPorts := make(map[container.PortRangeProto]struct{})
+func (c *containerConfig) exposedPorts() map[container.Port]struct{} {
+	exposedPorts := make(map[container.Port]struct{})
 	if c.task.Endpoint == nil {
 		return exposedPorts
 	}
@@ -187,7 +196,15 @@ func (c *containerConfig) exposedPorts() map[container.PortRangeProto]struct{} {
 			continue
 		}
 
-		port := container.PortRangeProto(fmt.Sprintf("%d/%s", portConfig.TargetPort, strings.ToLower(portConfig.Protocol.String())))
+		if portConfig.TargetPort > math.MaxUint16 {
+			continue
+		}
+
+		port, ok := container.PortFrom(uint16(portConfig.TargetPort), container.NetworkProtocol(portConfig.Protocol.String()))
+		if !ok {
+			continue
+		}
+
 		exposedPorts[port] = struct{}{}
 	}
 

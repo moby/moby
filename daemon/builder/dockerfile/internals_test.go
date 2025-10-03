@@ -136,8 +136,8 @@ func fullMutableRunConfig() *container.Config {
 		Cmd: []string{"command", "arg1"},
 		Env: []string{"env1=foo", "env2=bar"},
 		ExposedPorts: container.PortSet{
-			"1000/tcp": {},
-			"1001/tcp": {},
+			container.MustParsePort("1000/tcp"): {},
+			container.MustParsePort("1001/tcp"): {},
 		},
 		Volumes: map[string]struct{}{
 			"one": {},
@@ -160,7 +160,7 @@ func TestDeepCopyRunConfig(t *testing.T) {
 
 	ctrCfg.Cmd[1] = "arg2"
 	ctrCfg.Env[1] = "env2=new"
-	ctrCfg.ExposedPorts["10002"] = struct{}{}
+	ctrCfg.ExposedPorts[container.MustParsePort("10002")] = struct{}{}
 	ctrCfg.Volumes["three"] = struct{}{}
 	ctrCfg.Entrypoint[1] = "arg2"
 	ctrCfg.OnBuild[0] = "start"

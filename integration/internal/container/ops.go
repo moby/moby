@@ -73,9 +73,10 @@ func WithSysctls(sysctls map[string]string) func(*TestContainerConfig) {
 // WithExposedPorts sets the exposed ports of the container
 func WithExposedPorts(ports ...string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
-		c.Config.ExposedPorts = map[container.PortRangeProto]struct{}{}
+		c.Config.ExposedPorts = map[container.Port]struct{}{}
 		for _, port := range ports {
-			c.Config.ExposedPorts[container.PortRangeProto(port)] = struct{}{}
+			p, _ := container.ParsePort(port)
+			c.Config.ExposedPorts[p] = struct{}{}
 		}
 	}
 }

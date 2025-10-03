@@ -388,7 +388,7 @@ func TestBridgeINCRouted(t *testing.T) {
 			container.WithNetworkMode(netName),
 			container.WithName("ctr-"+gwMode),
 			container.WithExposedPorts("80/tcp"),
-			container.WithPortMap(containertypes.PortMap{"80/tcp": {}}),
+			container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {}}),
 		)
 		t.Cleanup(func() {
 			c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
@@ -565,7 +565,7 @@ func TestAccessToPublishedPort(t *testing.T) {
 				container.WithNetworkMode(serverNetName),
 				container.WithName("ctr-server"),
 				container.WithExposedPorts("80/tcp"),
-				container.WithPortMap(containertypes.PortMap{"80/tcp": {containertypes.PortBinding{HostPort: "8080"}}}),
+				container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {containertypes.PortBinding{HostPort: "8080"}}}),
 				container.WithCmd("httpd", "-f"),
 			)
 			defer c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
@@ -688,7 +688,7 @@ func TestInterNetworkDirectRouting(t *testing.T) {
 				container.WithNetworkMode(serverNetName),
 				container.WithName("ctr-pub"),
 				container.WithExposedPorts("80/tcp"),
-				container.WithPortMap(containertypes.PortMap{"80/tcp": {containertypes.PortBinding{HostPort: "8080"}}}),
+				container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {containertypes.PortBinding{HostPort: "8080"}}}),
 				container.WithCmd("httpd", "-f"),
 			)
 			defer c.ContainerRemove(ctx, ctrPubId, client.ContainerRemoveOptions{Force: true})
@@ -1063,7 +1063,7 @@ func TestDisableIPv6OnInterface(t *testing.T) {
 				container.WithName(ctrName),
 				container.WithNetworkMode(tc.netName),
 				container.WithExposedPorts("80/tcp"),
-				container.WithPortMap(containertypes.PortMap{"80/tcp": {{HostPort: "8080"}}}),
+				container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{HostPort: "8080"}}}),
 				container.WithEndpointSettings(tc.netName, &networktypes.EndpointSettings{
 					DriverOpts: map[string]string{
 						netlabel.EndpointSysctls: "net.ipv6.conf.IFNAME.disable_ipv6=1",
@@ -1504,7 +1504,7 @@ func TestGatewaySelection(t *testing.T) {
 		container.WithName(ctrName),
 		container.WithNetworkMode(netName4),
 		container.WithExposedPorts("80"),
-		container.WithPortMap(containertypes.PortMap{"80": {{HostPort: "8080"}}}),
+		container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80"): {{HostPort: "8080"}}}),
 		container.WithCmd("httpd", "-f"),
 	)
 	defer c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
@@ -1956,7 +1956,7 @@ func TestDropInForwardChain(t *testing.T) {
 		ctrId := container.Run(ctx, t, c,
 			container.WithNetworkMode(netName46),
 			container.WithExposedPorts("80"),
-			container.WithPortMap(containertypes.PortMap{"80": {{HostPort: hostPort}}}),
+			container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80"): {{HostPort: hostPort}}}),
 			container.WithCmd("httpd", "-f"),
 		)
 		defer c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})

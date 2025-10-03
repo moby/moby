@@ -26,7 +26,7 @@ func containerConfigToDockerOCIImageConfig(cfg *container.Config) imagespec.Dock
 		if len(cfg.ExposedPorts) > 0 {
 			ociCfg.ExposedPorts = map[string]struct{}{}
 			for k, v := range cfg.ExposedPorts {
-				ociCfg.ExposedPorts[string(k)] = v
+				ociCfg.ExposedPorts[k.String()] = v
 			}
 		}
 		ext.Healthcheck = cfg.Healthcheck

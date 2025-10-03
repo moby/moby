@@ -92,7 +92,7 @@ func (s *DockerCLICreateSuite) TestCreateWithPortRange(c *testing.T) {
 
 	var containers []struct {
 		HostConfig *struct {
-			PortBindings map[containertypes.PortRangeProto][]containertypes.PortBinding
+			PortBindings map[containertypes.Port][]containertypes.PortBinding
 		}
 	}
 	err := json.Unmarshal([]byte(out), &containers)
@@ -105,8 +105,8 @@ func (s *DockerCLICreateSuite) TestCreateWithPortRange(c *testing.T) {
 	assert.Equal(c, len(cont.HostConfig.PortBindings), 4, fmt.Sprintf("Expected 4 ports bindings, got %d", len(cont.HostConfig.PortBindings)))
 
 	for k, v := range cont.HostConfig.PortBindings {
-		assert.Equal(c, len(v), 1, fmt.Sprintf("Expected 1 ports binding, for the port  %s but found %s", k, v))
-		assert.Equal(c, k.Port(), v[0].HostPort, fmt.Sprintf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort))
+		assert.Equal(c, len(v), 1, fmt.Sprintf("Expected 1 ports binding, for the port %s but found %s", k, v))
+		assert.Equal(c, fmt.Sprintf("%d", k.Num()), v[0].HostPort, fmt.Sprintf("Expected host port %d to match published port %s", k.Num(), v[0].HostPort))
 	}
 }
 
@@ -118,7 +118,7 @@ func (s *DockerCLICreateSuite) TestCreateWithLargePortRange(c *testing.T) {
 
 	var containers []struct {
 		HostConfig *struct {
-			PortBindings map[containertypes.PortRangeProto][]containertypes.PortBinding
+			PortBindings map[containertypes.Port][]containertypes.PortBinding
 		}
 	}
 
@@ -132,7 +132,7 @@ func (s *DockerCLICreateSuite) TestCreateWithLargePortRange(c *testing.T) {
 
 	for k, v := range cont.HostConfig.PortBindings {
 		assert.Equal(c, len(v), 1)
-		assert.Equal(c, k.Port(), v[0].HostPort, fmt.Sprintf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort))
+		assert.Equal(c, fmt.Sprintf("%d", k.Num()), v[0].HostPort, fmt.Sprintf("Expected host port %d to match published port %s", k.Num(), v[0].HostPort))
 	}
 }
 

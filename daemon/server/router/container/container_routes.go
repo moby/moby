@@ -12,7 +12,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
-	"github.com/docker/go-connections/nat"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
@@ -888,7 +887,7 @@ func handleSysctlBC(
 func handlePortBindingsBC(hostConfig *container.HostConfig, version string) string {
 	var emptyPBs []string
 
-	for portProto, bindings := range hostConfig.PortBindings {
+	for port, bindings := range hostConfig.PortBindings {
 		if len(bindings) > 0 {
 			continue
 		}
@@ -899,15 +898,15 @@ func handlePortBindingsBC(hostConfig *container.HostConfig, version string) stri
 			// on-disk state for containers created by older versions of the
 			// Engine. Drop the PortBindings entry to ensure that no backfilling
 			// will happen when restarting the daemon.
-			delete(hostConfig.PortBindings, portProto)
+			delete(hostConfig.PortBindings, port)
 			continue
 		}
 
 		if versions.Equal(version, "1.52") {
-			emptyPBs = append(emptyPBs, string(portProto))
+			emptyPBs = append(emptyPBs, port.String())
 		}
 
-		hostConfig.PortBindings[portProto] = []nat.PortBinding{{}}
+		hostConfig.PortBindings[port] = []container.PortBinding{{}}
 	}
 
 	if len(emptyPBs) > 0 {
