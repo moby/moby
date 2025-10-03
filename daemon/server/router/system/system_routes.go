@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/golang/gddo/httputil"
 	"github.com/moby/moby/api/pkg/authconfig"
+	"github.com/moby/moby/api/types"
 	buildtypes "github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/filters"
@@ -296,13 +298,17 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	contentType := httputil.NegotiateContentType(r, []string{
+		types.MediaTypeNDJSON,
+		types.MediaTypeJSONSequence,
+	}, types.MediaTypeJSON) // output isn't actually JSON but API used to  this content-type
+	w.Header().Set("Content-Type", contentType)
 	w.WriteHeader(http.StatusOK)
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
 	output.Flush()
 
-	enc := json.NewEncoder(output)
+	encode := httputils.NewJSONStreamEncoder(output, contentType)
 
 	buffered, l := s.backend.SubscribeToEvents(since, until, ef)
 	defer s.backend.UnsubscribeFromEvents(l)
@@ -325,12 +331,12 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 			continue
 		}
 		if includeLegacyFields {
-			if err := enc.Encode(backFillLegacy(&ev)); err != nil {
+			if err := encode(backFillLegacy(&ev)); err != nil {
 				return err
 			}
 			continue
 		}
-		if err := enc.Encode(ev); err != nil {
+		if err := encode(ev); err != nil {
 			return err
 		}
 	}
@@ -351,12 +357,12 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 				continue
 			}
 			if includeLegacyFields {
-				if err := enc.Encode(backFillLegacy(&jev)); err != nil {
+				if err := encode(backFillLegacy(&jev)); err != nil {
 					return err
 				}
 				continue
 			}
-			if err := enc.Encode(jev); err != nil {
+			if err := encode(jev); err != nil {
 				return err
 			}
 		case <-timeout:

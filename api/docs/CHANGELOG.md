@@ -45,6 +45,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   on API version `v1.52` and up. Older API versions still accept this field, but
   may take no effect, depending on the kernel version and OCI runtime in use.
 * Removed the `KernelMemoryTCP` field from the `GET /info` endpoint.
+* `GET /events` supports content-type negotiation and can produce either `application/x-ndjson` 
+  (Newline delimited JSON object stream) or `application/json-seq` (RFC7464).
 
 ## v1.51 API changes
 
