@@ -4,7 +4,9 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/filters"
+	imagetypes "github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -54,4 +56,24 @@ type GetImageOpts struct {
 type ImageInspectOpts struct {
 	Manifests bool
 	Platform  *ocispec.Platform
+}
+
+type InspectData struct {
+	imagetypes.InspectResponse
+
+	// Container is the ID of the container that was used to create the image.
+	//
+	// Depending on how the image was created, this field may be empty.
+	//
+	// This field is removed in API v1.45, but used for API <= v1.44 responses.
+	Container string
+
+	// ContainerConfig is an optional field containing the configuration of the
+	// container that was last committed when creating the image.
+	//
+	// Previous versions of Docker builder used this field to store build cache,
+	// and it is not in active use anymore.
+	//
+	// This field is removed in API v1.45, but used for API <= v1.44 responses.
+	ContainerConfig *container.Config
 }

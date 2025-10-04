@@ -43,7 +43,7 @@ type ImageService interface {
 	ImageHistory(ctx context.Context, name string, platform *ocispec.Platform) ([]*imagetype.HistoryResponseItem, error)
 	CommitImage(ctx context.Context, c backend.CommitConfig) (image.ID, error)
 	SquashImage(id, parent string) (string, error)
-	ImageInspect(ctx context.Context, refOrID string, opts imagebackend.ImageInspectOpts) (*imagetype.InspectResponse, error)
+	ImageInspect(ctx context.Context, refOrID string, opts imagebackend.ImageInspectOpts) (*imagebackend.InspectData, error)
 	ImageDiskUsage(ctx context.Context) (int64, error)
 
 	// Layers

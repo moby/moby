@@ -18,7 +18,7 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts imagebackend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {
+func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts imagebackend.ImageInspectOpts) (*imagebackend.InspectData, error) {
 	requestedPlatform := opts.Platform
 
 	c8dImg, err := i.resolveImage(ctx, refOrID)
@@ -85,16 +85,18 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts im
 		target = multi.Best.Target()
 	}
 
-	resp := &imagetypes.InspectResponse{
-		ID:          target.Digest.String(),
-		RepoTags:    repoTags,
-		Descriptor:  &target,
-		RepoDigests: repoDigests,
-		Parent:      parent, //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present.
-		Size:        size,
-		Manifests:   manifests,
-		Metadata: imagetypes.Metadata{
-			LastTagTime: lastUpdated,
+	resp := &imagebackend.InspectData{
+		InspectResponse: imagetypes.InspectResponse{
+			ID:          target.Digest.String(),
+			RepoTags:    repoTags,
+			Descriptor:  &target,
+			RepoDigests: repoDigests,
+			Parent:      parent, //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present.
+			Size:        size,
+			Manifests:   manifests,
+			Metadata: imagetypes.Metadata{
+				LastTagTime: lastUpdated,
+			},
 		},
 	}
 
