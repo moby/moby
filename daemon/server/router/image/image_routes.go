@@ -418,6 +418,14 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 		imageInspect.Descriptor = nil
 	}
 	if versions.LessThan(version, "1.52") {
+		// These fields have "omitempty" on API v1.52 and higher,
+		// but older API versions returned them unconditionally.
+		legacyOptions = append(legacyOptions, compat.WithExtraFields(map[string]any{
+			"Parent":        imageInspect.Parent,
+			"Comment":       imageInspect.Comment,
+			"DockerVersion": imageInspect.DockerVersion,
+			"Author":        imageInspect.Author,
+		}))
 		if versions.LessThan(version, "1.50") {
 			legacyOptions = append(legacyOptions, compat.WithExtraFields(legacyConfigFields["v1.49"]))
 		} else {
