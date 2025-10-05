@@ -3,7 +3,7 @@ package containerd
 import (
 	"slices"
 
-	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
+	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/internal/image"
@@ -16,7 +16,7 @@ import (
 // - V1Image.ContainerConfig
 // - V1Image.Container
 // - Details
-func dockerOciImageToDockerImagePartial(id image.ID, img imagespec.DockerOCIImage) *image.Image {
+func dockerOciImageToDockerImagePartial(id image.ID, img dockerspec.DockerOCIImage) *image.Image {
 	v1Image := image.V1Image{
 		DockerVersion: dockerversion.Version,
 		Config:        dockerOCIImageConfigToContainerConfig(img.Config),
@@ -39,8 +39,8 @@ func dockerOciImageToDockerImagePartial(id image.ID, img imagespec.DockerOCIImag
 	return out
 }
 
-func dockerImageToDockerOCIImage(img image.Image) imagespec.DockerOCIImage {
-	return imagespec.DockerOCIImage{
+func dockerImageToDockerOCIImage(img image.Image) dockerspec.DockerOCIImage {
+	return dockerspec.DockerOCIImage{
 		Image: ocispec.Image{
 			Created: img.Created,
 			Author:  img.Author,
@@ -61,9 +61,9 @@ func dockerImageToDockerOCIImage(img image.Image) imagespec.DockerOCIImage {
 	}
 }
 
-func containerConfigToDockerOCIImageConfig(cfg *container.Config) imagespec.DockerOCIImageConfig {
+func containerConfigToDockerOCIImageConfig(cfg *container.Config) dockerspec.DockerOCIImageConfig {
 	var ociCfg ocispec.ImageConfig
-	var ext imagespec.DockerOCIImageConfigExt
+	var ext dockerspec.DockerOCIImageConfigExt
 
 	if cfg != nil {
 		ociCfg = ocispec.ImageConfig{
@@ -89,13 +89,13 @@ func containerConfigToDockerOCIImageConfig(cfg *container.Config) imagespec.Dock
 		ext.Shell = cfg.Shell
 	}
 
-	return imagespec.DockerOCIImageConfig{
+	return dockerspec.DockerOCIImageConfig{
 		ImageConfig:             ociCfg,
 		DockerOCIImageConfigExt: ext,
 	}
 }
 
-func dockerOCIImageConfigToContainerConfig(cfg imagespec.DockerOCIImageConfig) *container.Config {
+func dockerOCIImageConfigToContainerConfig(cfg dockerspec.DockerOCIImageConfig) *container.Config {
 	exposedPorts := make(network.PortSet, len(cfg.ExposedPorts))
 	for k := range cfg.ExposedPorts {
 		if p, err := network.ParsePort(k); err == nil {
