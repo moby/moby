@@ -1938,6 +1938,11 @@ definitions:
           Depending on how the image was created, this field may be empty and
           is only set for images that were built/created locally. This field
           is empty if the image was pulled from an image registry.
+
+          > **Deprecated**: This field is only set when using the deprecated
+          > legacy builder. It is included in API responses for informational
+          > purposes, but should not be depended on as it will be omitted
+          > once the legacy builder is removed.
         type: "string"
         x-nullable: false
         example: ""
@@ -1963,6 +1968,11 @@ definitions:
           The version of Docker that was used to build the image.
 
           Depending on how the image was created, this field may be empty.
+
+          > **Deprecated**: This field is only set when using the deprecated
+          > legacy builder. It is included in API responses for informational
+          > purposes, but should not be depended on as it will be omitted
+          > once the legacy builder is removed.
         type: "string"
         x-nullable: false
         example: "27.0.1"

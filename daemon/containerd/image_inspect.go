@@ -86,14 +86,13 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts ba
 	}
 
 	resp := &imagetypes.InspectResponse{
-		ID:            target.Digest.String(),
-		RepoTags:      repoTags,
-		Descriptor:    &target,
-		RepoDigests:   repoDigests,
-		Parent:        parent,
-		DockerVersion: "",
-		Size:          size,
-		Manifests:     manifests,
+		ID:          target.Digest.String(),
+		RepoTags:    repoTags,
+		Descriptor:  &target,
+		RepoDigests: repoDigests,
+		Parent:      parent, //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present.
+		Size:        size,
+		Manifests:   manifests,
 		Metadata: imagetypes.Metadata{
 			LastTagTime: lastUpdated,
 		},

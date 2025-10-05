@@ -421,9 +421,9 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 		// These fields have "omitempty" on API v1.52 and higher,
 		// but older API versions returned them unconditionally.
 		legacyOptions = append(legacyOptions, compat.WithExtraFields(map[string]any{
-			"Parent":        imageInspect.Parent,
+			"Parent":        imageInspect.Parent, //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present (built with legacy builder).
 			"Comment":       imageInspect.Comment,
-			"DockerVersion": imageInspect.DockerVersion,
+			"DockerVersion": imageInspect.DockerVersion, //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present.
 			"Author":        imageInspect.Author,
 		}))
 		if versions.LessThan(version, "1.50") {
