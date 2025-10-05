@@ -14,7 +14,6 @@ import (
 	"github.com/moby/moby/v2/daemon/builder/dockerfile"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
-	"github.com/moby/moby/v2/dockerversion"
 	"github.com/moby/moby/v2/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -53,13 +52,12 @@ func (i *ImageService) ImportImage(ctx context.Context, newRef reference.Named, 
 	created := time.Now().UTC()
 	imgConfig, err := json.Marshal(&image.Image{
 		V1Image: image.V1Image{
-			DockerVersion: dockerversion.Version,
-			Config:        config,
-			Architecture:  platform.Architecture,
-			Variant:       platform.Variant,
-			OS:            platform.OS,
-			Created:       &created,
-			Comment:       msg,
+			Config:       config,
+			Architecture: platform.Architecture,
+			Variant:      platform.Variant,
+			OS:           platform.OS,
+			Created:      &created,
+			Comment:      msg,
 		},
 		RootFS: &image.RootFS{
 			Type:    "layers",

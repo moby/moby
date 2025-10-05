@@ -11,7 +11,6 @@ import (
 	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
-	"github.com/moby/moby/v2/dockerversion"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -141,12 +140,11 @@ func (ic *ImageCache) restoreCachedImage(parent, target *image.Image, cfg *conta
 
 	restoredImg := image.Image{
 		V1Image: image.V1Image{
-			DockerVersion: dockerversion.Version,
-			Config:        cfg,
-			Architecture:  target.Architecture,
-			OS:            target.OS,
-			Author:        target.Author,
-			Created:       history[len(history)-1].Created,
+			Config:       cfg,
+			Architecture: target.Architecture,
+			OS:           target.OS,
+			Author:       target.Author,
+			Created:      history[len(history)-1].Created,
 		},
 		RootFS:     rootFS,
 		History:    history,

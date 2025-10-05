@@ -7,7 +7,6 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/internal/image"
-	"github.com/moby/moby/v2/dockerversion"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -18,13 +17,12 @@ import (
 // - Details
 func dockerOciImageToDockerImagePartial(id image.ID, img dockerspec.DockerOCIImage) *image.Image {
 	v1Image := image.V1Image{
-		DockerVersion: dockerversion.Version,
-		Config:        dockerOCIImageConfigToContainerConfig(img.Config),
-		Architecture:  img.Platform.Architecture,
-		Variant:       img.Platform.Variant,
-		OS:            img.Platform.OS,
-		Author:        img.Author,
-		Created:       img.Created,
+		Config:       dockerOCIImageConfigToContainerConfig(img.Config),
+		Architecture: img.Platform.Architecture,
+		Variant:      img.Platform.Variant,
+		OS:           img.Platform.OS,
+		Author:       img.Author,
+		Created:      img.Created,
 	}
 
 	out := image.NewImage(id)
