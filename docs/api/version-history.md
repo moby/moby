@@ -27,6 +27,12 @@ keywords: "API, Docker, rcli, REST, documentation"
   in the next API version.
 * Deprecated: The field `KernelMemoryTCP` as part of `GET /info` is deprecated
   and will be removed in the next API version.
+* Deprecated: the `Parent` and `DockerVersion` fields returned by the
+  `GET /images/{name}/json` endpoint are deprecated. These fields are set by
+  the legacy builder, and are no longer set when using BuildKit. The API
+  continues returning these fields when set for informational purposes, but
+  they should not be depended on as they will be omitted once the legacy builder
+  is removed.
 
 ## v1.50 API changes
 
