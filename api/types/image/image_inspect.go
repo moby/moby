@@ -42,15 +42,6 @@ type InspectResponse struct {
 	// the manifest is generated and its digest calculated.
 	RepoDigests []string
 
-	// Parent is the ID of the parent image.
-	//
-	// Depending on how the image was created, this field may be empty and
-	// is only set for images that were built/created locally. This field
-	// is omitted if the image was pulled from an image registry.
-	//
-	// Deprecated: this field is deprecated, and will be removed in the next release.
-	Parent string `json:",omitempty"`
-
 	// Comment is an optional message that can be set when committing or
 	// importing the image. This field is omitted if not set.
 	Comment string `json:",omitempty"`
@@ -61,13 +52,6 @@ type InspectResponse struct {
 	// This information is only available if present in the image,
 	// and omitted otherwise.
 	Created string `json:",omitempty"`
-
-	// DockerVersion is the version of Docker that was used to build the image.
-	//
-	// Depending on how the image was created, this field may be omitted.
-	//
-	// Deprecated: this field is deprecated, and will be removed in the next release.
-	DockerVersion string `json:",omitempty"`
 
 	// Author is the name of the author that was specified when committing the
 	// image, or as specified through MAINTAINER (deprecated) in the Dockerfile.

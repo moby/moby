@@ -56,20 +56,18 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts im
 	imgConfig := containerConfigToDockerOCIImageConfig(img.Config)
 	return &imagebackend.InspectData{
 		InspectResponse: imagetypes.InspectResponse{
-			ID:            img.ID().String(),
-			RepoTags:      repoTags,
-			RepoDigests:   repoDigests,
-			Parent:        img.Parent.String(), //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present (built with legacy builder).
-			Comment:       comment,
-			Created:       created,
-			DockerVersion: img.DockerVersion, //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present.
-			Author:        img.Author,
-			Config:        &imgConfig,
-			Architecture:  img.Architecture,
-			Variant:       img.Variant,
-			Os:            img.OperatingSystem(),
-			OsVersion:     img.OSVersion,
-			Size:          size,
+			ID:           img.ID().String(),
+			RepoTags:     repoTags,
+			RepoDigests:  repoDigests,
+			Comment:      comment,
+			Created:      created,
+			Author:       img.Author,
+			Config:       &imgConfig,
+			Architecture: img.Architecture,
+			Variant:      img.Variant,
+			Os:           img.OperatingSystem(),
+			OsVersion:    img.OSVersion,
+			Size:         size,
 			GraphDriver: &storage.DriverData{
 				Name: i.layerStore.DriverName(),
 				Data: layerMetadata,
@@ -82,6 +80,8 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts im
 				LastTagTime: lastUpdated,
 			},
 		},
+		Parent:          img.Parent.String(),  // field is deprecated with the legacy builder, but still included in response when present (built with legacy builder).
+		DockerVersion:   img.DockerVersion,    // field is deprecated with the legacy builder, but still included in response when present.
 		Container:       img.Container,        // field is deprecated, but still set on API < v1.45.
 		ContainerConfig: &img.ContainerConfig, // field is deprecated, but still set on API < v1.45.
 	}, nil

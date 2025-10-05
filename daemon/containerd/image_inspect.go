@@ -91,13 +91,13 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts im
 			RepoTags:    repoTags,
 			Descriptor:  &target,
 			RepoDigests: repoDigests,
-			Parent:      parent, //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present.
 			Size:        size,
 			Manifests:   manifests,
 			Metadata: imagetypes.Metadata{
 				LastTagTime: lastUpdated,
 			},
 		},
+		Parent: parent, // field is deprecated with the legacy builder, but returned by the API if present.
 	}
 
 	if multi.Best != nil {

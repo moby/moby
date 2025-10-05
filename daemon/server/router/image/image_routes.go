@@ -423,9 +423,9 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 		// These fields have "omitempty" on API v1.52 and higher,
 		// but older API versions returned them unconditionally.
 		legacyOptions = append(legacyOptions, compat.WithExtraFields(map[string]any{
-			"Parent":        inspectData.Parent, //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present (built with legacy builder).
+			"Parent":        inspectData.Parent, // field is deprecated, but still included in response when present (built with legacy builder).
 			"Comment":       inspectData.Comment,
-			"DockerVersion": inspectData.DockerVersion, //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present.
+			"DockerVersion": inspectData.DockerVersion, // field is deprecated, but still included in response when present.
 			"Author":        inspectData.Author,
 		}))
 
@@ -439,6 +439,15 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 			legacyOptions = append(legacyOptions, compat.WithExtraFields(map[string]any{
 				"Config": legacyConfigFields["v1.50-v1.51"],
 			}))
+		}
+	} else {
+		if inspectData.Parent != "" {
+			// field is deprecated, but still included in response when present (built with legacy builder).
+			legacyOptions = append(legacyOptions, compat.WithExtraFields(map[string]any{"Parent": inspectData.Parent}))
+		}
+		if inspectData.DockerVersion != "" {
+			// field is deprecated, but still included in response when present.
+			legacyOptions = append(legacyOptions, compat.WithExtraFields(map[string]any{"DockerVersion": inspectData.DockerVersion}))
 		}
 	}
 

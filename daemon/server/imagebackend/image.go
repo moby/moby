@@ -61,6 +61,22 @@ type ImageInspectOpts struct {
 type InspectData struct {
 	imagetypes.InspectResponse
 
+	// Parent is the ID of the parent image.
+	//
+	// Depending on how the image was created, this field may be empty and
+	// is only set for images that were built/created locally. This field
+	// is omitted if the image was pulled from an image registry.
+	//
+	// This field is deprecated with the legacy builder, but returned by the API if present.
+	Parent string `json:",omitempty"`
+
+	// DockerVersion is the version of Docker that was used to build the image.
+	//
+	// Depending on how the image was created, this field may be omitted.
+	//
+	// This field is deprecated with the legacy builder, but returned by the API if present.
+	DockerVersion string `json:",omitempty"`
+
 	// Container is the ID of the container that was used to create the image.
 	//
 	// Depending on how the image was created, this field may be empty.
