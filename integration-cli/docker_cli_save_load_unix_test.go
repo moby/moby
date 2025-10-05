@@ -78,7 +78,7 @@ func (s *DockerCLISaveLoadSuite) TestSaveAndLoadWithProgressBar(c *testing.T) {
 	skip.If(c, testEnv.UsingSnapshotter(), "TODO: Not implemented yet")
 
 	name := "test-load"
-	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM busybox
+	cli.BuildCmd(c, name, build.WithDockerfile(`FROM busybox
 	RUN touch aa
 	`))
 

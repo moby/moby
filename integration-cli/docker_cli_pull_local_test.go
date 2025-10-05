@@ -58,7 +58,7 @@ func (s *DockerRegistrySuite) TestConcurrentPullWholeRepo(t *testing.T) {
 	var repos []string
 	for _, tag := range []string{"recent", "fresh", "todays"} {
 		repo := fmt.Sprintf("%v:%v", imgRepo, tag)
-		buildImageSuccessfully(t, repo, build.WithDockerfile(fmt.Sprintf(`
+		cli.BuildCmd(t, repo, build.WithDockerfile(fmt.Sprintf(`
 		    FROM busybox
 		    ENTRYPOINT ["/bin/echo"]
 		    ENV FOO foo
@@ -130,7 +130,7 @@ func (s *DockerRegistrySuite) TestConcurrentPullMultipleTags(t *testing.T) {
 	var repos []string
 	for _, tag := range []string{"recent", "fresh", "todays"} {
 		repo := fmt.Sprintf("%v:%v", imgRepo, tag)
-		buildImageSuccessfully(t, repo, build.WithDockerfile(fmt.Sprintf(`
+		cli.BuildCmd(t, repo, build.WithDockerfile(fmt.Sprintf(`
 		    FROM busybox
 		    ENTRYPOINT ["/bin/echo"]
 		    ENV FOO foo
@@ -176,7 +176,7 @@ func (s *DockerRegistrySuite) TestPullIDStability(t *testing.T) {
 	const derivedImage = privateRegistryURL + "/dockercli/id-stability"
 	const baseImage = "busybox"
 
-	buildImageSuccessfully(t, derivedImage, build.WithDockerfile(fmt.Sprintf(`
+	cli.BuildCmd(t, derivedImage, build.WithDockerfile(fmt.Sprintf(`
 	    FROM %s
 	    ENV derived true
 	    ENV asdf true
@@ -226,7 +226,7 @@ func (s *DockerRegistrySuite) TestPullIDStability(t *testing.T) {
 func (s *DockerRegistrySuite) TestPullNoLayers(t *testing.T) {
 	const imgRepo = privateRegistryURL + "/dockercli/scratch"
 
-	buildImageSuccessfully(t, imgRepo, build.WithDockerfile(`
+	cli.BuildCmd(t, imgRepo, build.WithDockerfile(`
 	FROM scratch
 	ENV foo bar`))
 	cli.DockerCmd(t, "push", imgRepo)

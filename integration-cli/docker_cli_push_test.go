@@ -135,7 +135,7 @@ func (s *DockerRegistrySuite) TestConcurrentPush(c *testing.T) {
 	var repos []string
 	for _, tag := range []string{"push1", "push2", "push3"} {
 		repo := fmt.Sprintf("%v:%v", imgRepo, tag)
-		buildImageSuccessfully(c, repo, build.WithDockerfile(fmt.Sprintf("FROM busybox\nCMD echo hello from %s\n", repo)))
+		cli.BuildCmd(c, repo, build.WithDockerfile(fmt.Sprintf("FROM busybox\nCMD echo hello from %s\n", repo)))
 		repos = append(repos, repo)
 	}
 

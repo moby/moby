@@ -30,7 +30,7 @@ func (s *DockerCLIHistorySuite) OnTimeout(t *testing.T) {
 // sort is not predictable it doesn't always fail.
 func (s *DockerCLIHistorySuite) TestBuildHistory(c *testing.T) {
 	const name = "testbuildhistory"
-	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM `+minimalBaseImage()+`
+	cli.BuildCmd(c, name, build.WithDockerfile(`FROM `+minimalBaseImage()+`
 LABEL label.A="A"
 LABEL label.B="B"
 LABEL label.C="C"

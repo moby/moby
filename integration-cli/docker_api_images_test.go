@@ -16,7 +16,7 @@ import (
 
 func (s *DockerAPISuite) TestAPIImagesSaveAndLoad(c *testing.T) {
 	testRequires(c, Network)
-	buildImageSuccessfully(c, "saveandload", build.WithDockerfile("FROM busybox\nENV FOO bar"))
+	cli.BuildCmd(c, "saveandload", build.WithDockerfile("FROM busybox\nENV FOO bar"))
 	id := getIDByName(c, "saveandload")
 
 	ctx := testutil.GetContext(c)
@@ -45,7 +45,7 @@ func (s *DockerAPISuite) TestAPIImagesDelete(c *testing.T) {
 		testRequires(c, Network)
 	}
 	name := "test-api-images-delete"
-	buildImageSuccessfully(c, name, build.WithDockerfile("FROM busybox\nENV FOO bar"))
+	cli.BuildCmd(c, name, build.WithDockerfile("FROM busybox\nENV FOO bar"))
 	id := getIDByName(c, name)
 
 	cli.DockerCmd(c, "tag", name, "test:tag1")

@@ -312,7 +312,7 @@ func (s *DockerCLIEventSuite) TestEventsImageUntagDelete(c *testing.T) {
 	defer observer.Stop()
 
 	name := "testimageevents"
-	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM scratch
+	cli.BuildCmd(c, name, build.WithDockerfile(`FROM scratch
 		MAINTAINER "docker"`))
 	imageID := getIDByName(c, name)
 	assert.NilError(c, deleteImages(name))

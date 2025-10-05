@@ -60,15 +60,15 @@ func (s *DockerCLIImagesSuite) TestImagesEnsureImageWithBadTagIsNotListed(c *tes
 }
 
 func (s *DockerCLIImagesSuite) TestImagesOrderedByCreationDate(c *testing.T) {
-	buildImageSuccessfully(c, "order:test_a", build.WithDockerfile(`FROM busybox
+	cli.BuildCmd(c, "order:test_a", build.WithDockerfile(`FROM busybox
                 MAINTAINER dockerio1`))
 	id1 := getIDByName(c, "order:test_a")
 	time.Sleep(1 * time.Second)
-	buildImageSuccessfully(c, "order:test_c", build.WithDockerfile(`FROM busybox
+	cli.BuildCmd(c, "order:test_c", build.WithDockerfile(`FROM busybox
                 MAINTAINER dockerio2`))
 	id2 := getIDByName(c, "order:test_c")
 	time.Sleep(1 * time.Second)
-	buildImageSuccessfully(c, "order:test_b", build.WithDockerfile(`FROM busybox
+	cli.BuildCmd(c, "order:test_b", build.WithDockerfile(`FROM busybox
                 MAINTAINER dockerio3`))
 	id3 := getIDByName(c, "order:test_b")
 
@@ -89,15 +89,15 @@ func (s *DockerCLIImagesSuite) TestImagesFilterLabelMatch(c *testing.T) {
 	const imageName1 = "images_filter_test1"
 	const imageName2 = "images_filter_test2"
 	const imageName3 = "images_filter_test3"
-	buildImageSuccessfully(c, imageName1, build.WithDockerfile(`FROM busybox
+	cli.BuildCmd(c, imageName1, build.WithDockerfile(`FROM busybox
                  LABEL match me`))
 	image1ID := getIDByName(c, imageName1)
 
-	buildImageSuccessfully(c, imageName2, build.WithDockerfile(`FROM busybox
+	cli.BuildCmd(c, imageName2, build.WithDockerfile(`FROM busybox
                  LABEL match="me too"`))
 	image2ID := getIDByName(c, imageName2)
 
-	buildImageSuccessfully(c, imageName3, build.WithDockerfile(`FROM busybox
+	cli.BuildCmd(c, imageName3, build.WithDockerfile(`FROM busybox
                  LABEL nomatch me`))
 	image3ID := getIDByName(c, imageName3)
 
@@ -128,13 +128,13 @@ func (s *DockerCLIImagesSuite) TestCommitWithFilterLabel(c *testing.T) {
 }
 
 func (s *DockerCLIImagesSuite) TestImagesFilterSinceAndBefore(c *testing.T) {
-	buildImageSuccessfully(c, "image:1", build.WithDockerfile(`FROM `+minimalBaseImage()+`
+	cli.BuildCmd(c, "image:1", build.WithDockerfile(`FROM `+minimalBaseImage()+`
 LABEL number=1`))
 	imageID1 := getIDByName(c, "image:1")
-	buildImageSuccessfully(c, "image:2", build.WithDockerfile(`FROM `+minimalBaseImage()+`
+	cli.BuildCmd(c, "image:2", build.WithDockerfile(`FROM `+minimalBaseImage()+`
 LABEL number=2`))
 	imageID2 := getIDByName(c, "image:2")
-	buildImageSuccessfully(c, "image:3", build.WithDockerfile(`FROM `+minimalBaseImage()+`
+	cli.BuildCmd(c, "image:3", build.WithDockerfile(`FROM `+minimalBaseImage()+`
 LABEL number=3`))
 	imageID3 := getIDByName(c, "image:3")
 
@@ -299,7 +299,7 @@ func (s *DockerCLIImagesSuite) TestImagesEnsureImagesFromScratchShown(c *testing
         MAINTAINER docker`
 
 	const name = "scratch-image"
-	buildImageSuccessfully(c, name, build.WithDockerfile(dockerfile))
+	cli.BuildCmd(c, name, build.WithDockerfile(dockerfile))
 	id := getIDByName(c, name)
 
 	out := cli.DockerCmd(c, "images").Stdout()
@@ -315,7 +315,7 @@ func (s *DockerCLIImagesSuite) TestImagesEnsureImagesFromBusyboxShown(c *testing
         MAINTAINER docker`
 	const name = "busybox-image"
 
-	buildImageSuccessfully(c, name, build.WithDockerfile(dockerfile))
+	cli.BuildCmd(c, name, build.WithDockerfile(dockerfile))
 	id := getIDByName(c, name)
 
 	out := cli.DockerCmd(c, "images").Stdout()

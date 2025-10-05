@@ -133,12 +133,6 @@ func getIDByName(t *testing.T, name string) string {
 }
 
 // Deprecated: use cli.Docker
-func buildImageSuccessfully(t *testing.T, name string, cmdOperators ...cli.CmdOperator) {
-	t.Helper()
-	cli.Docker(cli.Args("build", "-t", name), cmdOperators...).Assert(t, icmd.Success)
-}
-
-// Deprecated: use cli.Docker
 func buildImage(name string, cmdOperators ...cli.CmdOperator) *icmd.Result {
 	return cli.Docker(cli.Args("build", "-t", name), cmdOperators...)
 }

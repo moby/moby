@@ -154,7 +154,7 @@ func (s *DockerCLIRmiSuite) TestRmiImgIDForce(c *testing.T) {
 // See https://github.com/moby/moby/issues/14116
 func (s *DockerCLIRmiSuite) TestRmiImageIDForceWithRunningContainersAndMultipleTags(c *testing.T) {
 	dockerfile := "FROM busybox\nRUN echo test 14116\n"
-	buildImageSuccessfully(c, "test-14116", build.WithDockerfile(dockerfile))
+	cli.BuildCmd(c, "test-14116", build.WithDockerfile(dockerfile))
 	imgID := getIDByName(c, "test-14116")
 
 	newTag := "newtag"
@@ -212,7 +212,7 @@ func (s *DockerCLIRmiSuite) TestRmiForceWithMultipleRepositories(c *testing.T) {
 	tag1 := imageName + ":tag1"
 	tag2 := imageName + ":tag2"
 
-	buildImageSuccessfully(c, tag1, build.WithDockerfile(`FROM busybox
+	cli.BuildCmd(c, tag1, build.WithDockerfile(`FROM busybox
 		MAINTAINER "docker"`))
 	cli.DockerCmd(c, "tag", tag1, tag2)
 
@@ -240,7 +240,7 @@ func (s *DockerCLIRmiSuite) TestRmiContainerImageNotFound(c *testing.T) {
 	imageIds := make([]string, 2)
 	for i, name := range imageNames {
 		dockerfile := fmt.Sprintf("FROM busybox\nMAINTAINER %s\nRUN echo %s\n", name, name)
-		buildImageSuccessfully(c, name, build.WithoutCache, build.WithDockerfile(dockerfile))
+		cli.BuildCmd(c, name, build.WithoutCache, build.WithDockerfile(dockerfile))
 		id := getIDByName(c, name)
 		imageIds[i] = id
 	}
@@ -269,7 +269,7 @@ RUN echo 0 #layer0
 RUN echo 1 #layer1
 RUN echo 2 #layer2
 `
-	buildImageSuccessfully(c, imgName, build.WithoutCache, build.WithDockerfile(dockerfile))
+	cli.BuildCmd(c, imgName, build.WithoutCache, build.WithDockerfile(dockerfile))
 	out := cli.DockerCmd(c, "history", "-q", imgName).Stdout()
 	ids := strings.Split(out, "\n")
 	idToTag := ids[2]
@@ -306,7 +306,7 @@ RUN echo 2 #layer2
 func (*DockerCLIRmiSuite) TestRmiParentImageFail(c *testing.T) {
 	skip.If(c, testEnv.UsingSnapshotter(), "image are independent when using the containerd image store")
 
-	buildImageSuccessfully(c, "test", build.WithDockerfile(`
+	cli.BuildCmd(c, "test", build.WithDockerfile(`
 	FROM busybox
 	RUN echo hello`))
 
