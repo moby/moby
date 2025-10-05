@@ -64,7 +64,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts ba
 		Container:       img.Container,        //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.45.
 		ContainerConfig: &img.ContainerConfig, //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.45.
 		DockerVersion:   img.DockerVersion,    //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present.
-		Author:          img.Author,
+		Author:          img.Author,           //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present.
 		Config:          &imgConfig,
 		Architecture:    img.Architecture,
 		Variant:         img.Variant,

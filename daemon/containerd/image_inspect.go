@@ -100,7 +100,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts ba
 
 	if multi.Best != nil {
 		imgConfig := img.Config
-		resp.Author = img.Author
+		resp.Author = img.Author //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present.
 		resp.Config = &imgConfig
 		resp.Architecture = img.Architecture
 		resp.Variant = img.Variant

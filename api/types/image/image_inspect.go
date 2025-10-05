@@ -89,6 +89,8 @@ type InspectResponse struct {
 	// Author is the name of the author that was specified when committing the
 	// image, or as specified through MAINTAINER (deprecated) in the Dockerfile.
 	// This field is omitted if not set.
+	//
+	// Deprecated: this field is deprecated, and will be removed in the next release.
 	Author string `json:",omitempty"`
 	Config *dockerspec.DockerOCIImageConfig
 

@@ -1880,6 +1880,10 @@ definitions:
         description: |
           Name of the author that was specified when committing the image, or as
           specified through MAINTAINER (deprecated) in the Dockerfile.
+
+          > **Deprecated**: This field is only set when using the deprecated
+          > MAINTAINER Dockerfile instruction. It is included in API responses
+          > for informational purposes, but should not be depended on.
         type: "string"
         x-nullable: true
         example: ""
