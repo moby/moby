@@ -32,11 +32,24 @@ func (w *Wrapper) MarshalJSON() ([]byte, error) {
 	for _, key := range w.omitFields {
 		delete(merged, key)
 	}
-	for key, val := range w.extraFields {
-		merged[key] = val
-	}
+
+	appendFields(w.extraFields, merged)
 
 	return toJSON(merged)
+}
+
+func appendFields(src, dst map[string]any) {
+	for k, v := range src {
+		if vmap, ok := v.(map[string]any); ok {
+			if dmap, ok := dst[k].(map[string]any); ok {
+				appendFields(vmap, dmap)
+				continue
+			}
+		}
+		if _, ok := dst[k]; !ok {
+			dst[k] = v
+		}
+	}
 }
 
 func toJSON(v any) ([]byte, error) {
@@ -58,15 +71,23 @@ type options struct {
 // Option for Wrapper.
 type Option func(*options)
 
-// WithExtraFields adds fields to the marshaled output.
+// WithExtraFields adds extra JSON object fields to the marshaled output.
+// The merge is recursive and additive-only: if a key already exists in
+// the output, its existing value is preserved and the incoming value is
+// ignored. For nested objects, missing keys are created as needed
+// (depth-first traversal).
+//
+// If a conflict occurs between an object and a non-object at the same key,
+// the existing (output) value is kept.
+//
+// Repeated calls accumulate; on conflicts, earlier calls win.
+// This affects only the marshaled JSON, and does not mutate the source struct.
 func WithExtraFields(fields map[string]any) Option {
 	return func(c *options) {
 		if c.extraFields == nil {
 			c.extraFields = make(map[string]any)
 		}
-		for k, v := range fields {
-			c.extraFields[k] = v
-		}
+		appendFields(fields, c.extraFields)
 	}
 }
 

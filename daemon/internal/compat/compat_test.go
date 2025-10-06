@@ -55,13 +55,16 @@ func TestWrap(t *testing.T) {
 			},
 			expected: `{"legacy_field":"hello","name":"daemon"}`,
 		},
-		{
-			name: "replace field",
-			options: []compat.Option{compat.WithExtraFields(map[string]any{"version": struct {
-				Major, Minor int
-			}{Major: 1, Minor: 0}})},
-			expected: `{"name":"daemon","newfield":"new field","version":{"Major":1,"Minor":0}}`,
-		},
+		// TODO(thaJeztah): add a "replace" option to allow replacing existing fields.
+		/*
+			{
+				name: "replace field",
+				options: []compat.Option{compat.WithExtraFields(map[string]any{"version": struct {
+					Major, Minor int
+				}{Major: 1, Minor: 0}})},
+				expected: `{"name":"daemon","newfield":"new field","version":{"Major":1,"Minor":0}}`,
+			},
+		*/
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
