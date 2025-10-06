@@ -1,0 +1,7 @@
+go 1.23.0
+
+// This go.work file overrides the go.work at the root of the repository.
+// It allows both the "client" and "v2" modules to use the (unreleased)
+// versions of other modules in this repository, without those impacting
+// shared dependencies in this module. It's the  equivalent of "GOWORK=off".
+use .
