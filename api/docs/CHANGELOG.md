@@ -74,6 +74,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   continues returning these fields when set for informational purposes, but
   they should not be depended on as they will be omitted once the legacy builder
   is removed.
+* Deprecated: the `Config.DockerVersion` field returned by the `GET /plugins`
+  and `GET /images/{name}/json` endpoints is deprecated. The field is no
+  longer set, and is omitted when empty.
 
 ## v1.50 API changes
 
