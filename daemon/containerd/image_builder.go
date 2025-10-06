@@ -21,7 +21,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
+	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/pkg/progress"
 	"github.com/moby/moby/api/pkg/streamformatter"
@@ -491,7 +491,7 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 	return image.Clone(imgToCreate, createdImageId), nil
 }
 
-func (i *ImageService) createImageOCI(ctx context.Context, imgToCreate imagespec.DockerOCIImage,
+func (i *ImageService) createImageOCI(ctx context.Context, imgToCreate dockerspec.DockerOCIImage,
 	parentDigest digest.Digest, layers []ocispec.Descriptor,
 	containerConfig container.Config,
 ) (image.ID, error) {
@@ -536,7 +536,7 @@ func (i *ImageService) createImageOCI(ctx context.Context, imgToCreate imagespec
 
 // writeContentsForImage will commit oci image config and manifest into containerd's content store.
 func writeContentsForImage(ctx context.Context, snName string, cs content.Store,
-	newConfig imagespec.DockerOCIImage, layers []ocispec.Descriptor,
+	newConfig dockerspec.DockerOCIImage, layers []ocispec.Descriptor,
 	containerConfig container.Config,
 ) (
 	manifestDesc ocispec.Descriptor,

@@ -12,7 +12,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
+	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
@@ -54,7 +54,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 		return nil, err
 	}
 
-	var ociImage imagespec.DockerOCIImage
+	var ociImage dockerspec.DockerOCIImage
 	err = im.ReadConfig(ctx, &ociImage)
 	if err != nil {
 		return nil, err
