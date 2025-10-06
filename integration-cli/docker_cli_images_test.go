@@ -200,7 +200,7 @@ func assertImageList(out string, expected []string) bool {
 func (s *DockerCLIImagesSuite) TestImagesFilterSpaceTrimCase(c *testing.T) {
 	const imageName = "images_filter_test"
 	// Build a image and fail to build so that we have dangling images ?
-	buildImage(imageName, build.WithDockerfile(`FROM busybox
+	cli.Docker(cli.Args("build", "-t", imageName), build.WithDockerfile(`FROM busybox
                  RUN touch /test/foo
                  RUN touch /test/bar
                  RUN touch /test/baz`)).Assert(c, icmd.Expected{
@@ -275,7 +275,7 @@ func (s *DockerCLIImagesSuite) TestImagesEnsureOnlyHeadsImagesShown(c *testing.T
         MAINTAINER docker
         ENV foo bar`
 	const name = "scratch-image"
-	result := buildImage(name, build.WithDockerfile(dockerfile))
+	result := cli.Docker(cli.Args("build", "-t", name), build.WithDockerfile(dockerfile))
 	result.Assert(c, icmd.Success)
 	id := getIDByName(c, name)
 
