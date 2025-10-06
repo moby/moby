@@ -337,7 +337,7 @@ func (s *DockerCLIEventSuite) TestEventsFilterImageLabels(c *testing.T) {
 	label := "io.docker.testing=image"
 
 	// Build a test image.
-	buildImageSuccessfully(c, name,
+	cli.BuildCmd(c, name,
 		build.WithDockerfile("FROM busybox:latest\nLABEL "+label),
 		build.WithoutCache, // Make sure image is actually built
 	)
@@ -418,7 +418,7 @@ func (s *DockerCLIEventSuite) TestEventsCommit(c *testing.T) {
 
 func (s *DockerCLIEventSuite) TestEventsCopy(c *testing.T) {
 	// Build a test image.
-	buildImageSuccessfully(c, "cpimg", build.WithDockerfile(`
+	cli.BuildCmd(c, "cpimg", build.WithDockerfile(`
 		  FROM busybox
 		  RUN echo HI > /file`))
 	id := getIDByName(c, "cpimg")
@@ -560,7 +560,7 @@ func (s *DockerCLIEventSuite) TestEventsFilterType(c *testing.T) {
 	label := "io.docker.testing=image"
 
 	// Build a test image.
-	buildImageSuccessfully(c, name,
+	cli.BuildCmd(c, name,
 		build.WithDockerfile("FROM busybox:latest\nLABEL "+label),
 		build.WithoutCache, // Make sure image is actually built
 	)

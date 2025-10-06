@@ -56,7 +56,7 @@ func (s *DockerCLIHealthSuite) TestHealth(c *testing.T) {
 	existingContainers := ExistingContainerIDs(c)
 
 	imageName := "testhealth"
-	buildImageSuccessfully(c, imageName, build.WithDockerfile(`FROM busybox
+	cli.BuildCmd(c, imageName, build.WithDockerfile(`FROM busybox
 		RUN echo OK > /status
 		CMD ["/bin/sleep", "120"]
 		STOPSIGNAL SIGKILL
@@ -100,7 +100,7 @@ func (s *DockerCLIHealthSuite) TestHealth(c *testing.T) {
 	cli.DockerCmd(c, "rm", "noh")
 
 	// Disable the check with a new build
-	buildImageSuccessfully(c, "no_healthcheck", build.WithDockerfile(`FROM testhealth
+	cli.BuildCmd(c, "no_healthcheck", build.WithDockerfile(`FROM testhealth
 		HEALTHCHECK NONE`))
 
 	out = cli.DockerCmd(c, "inspect", "--format={{.Config.Healthcheck.Test}}", "no_healthcheck").Stdout()
@@ -144,7 +144,7 @@ func (s *DockerCLIHealthSuite) TestHealth(c *testing.T) {
 	cli.DockerCmd(c, "rm", "-f", "test")
 
 	// Check JSON-format
-	buildImageSuccessfully(c, imageName, build.WithDockerfile(`FROM busybox
+	cli.BuildCmd(c, imageName, build.WithDockerfile(`FROM busybox
 		RUN echo OK > /status
 		CMD ["/bin/sleep", "120"]
 		STOPSIGNAL SIGKILL
@@ -159,7 +159,7 @@ func (s *DockerCLIHealthSuite) TestUnsetEnvVarHealthCheck(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // busybox doesn't work on Windows
 
 	imageName := "testhealth"
-	buildImageSuccessfully(c, imageName, build.WithDockerfile(`FROM busybox
+	cli.BuildCmd(c, imageName, build.WithDockerfile(`FROM busybox
 HEALTHCHECK --interval=1s --timeout=5s --retries=5 CMD /bin/sh -c "sleep 1"
 ENTRYPOINT /bin/sh -c "sleep 600"`))
 

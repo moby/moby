@@ -794,7 +794,7 @@ func (s *DockerCLIRunSuite) TestRunTmpfsMounts(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunTmpfsMountsOverrideImageVolumes(c *testing.T) {
 	const name = "img-with-volumes"
-	buildImageSuccessfully(c, name, build.WithDockerfile(`
+	cli.BuildCmd(c, name, build.WithDockerfile(`
     FROM busybox
     VOLUME /run
     RUN touch /run/stuff

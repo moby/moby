@@ -300,7 +300,7 @@ func (s *DockerCLISaveLoadSuite) TestSaveLoadNoTag(c *testing.T) {
 
 	name := "saveloadnotag"
 
-	buildImageSuccessfully(c, name, build.WithDockerfile("FROM busybox\nENV foo=bar"))
+	cli.BuildCmd(c, name, build.WithDockerfile("FROM busybox\nENV foo=bar"))
 	id := inspectField(c, name, "Id")
 
 	// Test to make sure that save w/o name just shows imageID during load

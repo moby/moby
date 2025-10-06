@@ -175,7 +175,7 @@ func (s *DockerRegistrySuite) TestBuildByDigest(t *testing.T) {
 
 	// do the build
 	const name = "buildbydigest"
-	buildImageSuccessfully(t, name, build.WithDockerfile(fmt.Sprintf(
+	cli.BuildCmd(t, name, build.WithDockerfile(fmt.Sprintf(
 		`FROM %s
      CMD ["/bin/echo", "Hello World"]`, imageReference)))
 	assert.NilError(t, err)
@@ -403,7 +403,7 @@ func (s *DockerRegistrySuite) TestPsListContainersFilterAncestorImageByDigest(t 
 
 	// build an image from it
 	const imageName1 = "images_ps_filter_test"
-	buildImageSuccessfully(t, imageName1, build.WithDockerfile(fmt.Sprintf(
+	cli.BuildCmd(t, imageName1, build.WithDockerfile(fmt.Sprintf(
 		`FROM %s
 		 LABEL match me 1`, imageReference)))
 

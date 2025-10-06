@@ -471,7 +471,7 @@ func (s *DockerCLIVolumeSuite) TestDuplicateMountpointsForVolumesFrom(c *testing
 	testRequires(c, DaemonIsLinux)
 
 	const imgName = "vimage"
-	buildImageSuccessfully(c, imgName, build.WithDockerfile(`
+	cli.BuildCmd(c, imgName, build.WithDockerfile(`
 		FROM busybox
 		VOLUME ["/tmp/data"]`))
 
@@ -512,7 +512,7 @@ func (s *DockerCLIVolumeSuite) TestDuplicateMountpointsForVolumesFromAndBind(c *
 	testRequires(c, DaemonIsLinux)
 
 	const imgName = "vimage"
-	buildImageSuccessfully(c, imgName, build.WithDockerfile(`
+	cli.BuildCmd(c, imgName, build.WithDockerfile(`
                 FROM busybox
                 VOLUME ["/tmp/data"]`))
 
@@ -554,7 +554,7 @@ func (s *DockerCLIVolumeSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	const imgName = "vimage"
-	buildImageSuccessfully(c, imgName, build.WithDockerfile(`
+	cli.BuildCmd(c, imgName, build.WithDockerfile(`
                 FROM busybox
                 VOLUME ["/tmp/data"]`))
 

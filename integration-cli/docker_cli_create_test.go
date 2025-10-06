@@ -178,7 +178,7 @@ func (s *DockerCLICreateSuite) TestCreateLabels(c *testing.T) {
 
 func (s *DockerCLICreateSuite) TestCreateLabelFromImage(c *testing.T) {
 	imageName := "testcreatebuildlabel"
-	buildImageSuccessfully(c, imageName, build.WithDockerfile(`FROM busybox
+	cli.BuildCmd(c, imageName, build.WithDockerfile(`FROM busybox
 		LABEL k1=v1 k2=v2`))
 
 	const name = "test_create_labels_from_image"
