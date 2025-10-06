@@ -17,7 +17,7 @@ import (
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/pkg/oci"
-	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -93,7 +93,7 @@ func (daemon *Daemon) isHyperV(c *container.Container) bool {
 }
 
 func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c *container.Container, mounts []container.Mount) (*specs.Spec, error) {
-	img, err := daemon.imageService.GetImage(ctx, string(c.ImageID), backend.GetImageOpts{})
+	img, err := daemon.imageService.GetImage(ctx, string(c.ImageID), imagebackend.GetImageOpts{})
 	if err != nil {
 		return nil, err
 	}

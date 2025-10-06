@@ -21,7 +21,6 @@ import (
 	"github.com/moby/moby/v2/daemon/builder/remotecontext"
 	"github.com/moby/moby/v2/daemon/internal/compat"
 	"github.com/moby/moby/v2/daemon/internal/image"
-	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/dockerversion"
@@ -380,7 +379,7 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 		return errdefs.InvalidParameter(errors.New("conflicting options: manifests and platform options cannot both be set"))
 	}
 
-	imageInspect, err := ir.backend.ImageInspect(ctx, vars["name"], backend.ImageInspectOpts{
+	imageInspect, err := ir.backend.ImageInspect(ctx, vars["name"], imagebackend.ImageInspectOpts{
 		Manifests: manifests,
 		Platform:  platform,
 	})
@@ -555,7 +554,7 @@ func (ir *imageRouter) postImagesTag(ctx context.Context, w http.ResponseWriter,
 		return errdefs.InvalidParameter(errors.New("refusing to create an ambiguous tag using digest algorithm as name"))
 	}
 
-	img, err := ir.backend.GetImage(ctx, vars["name"], backend.GetImageOpts{})
+	img, err := ir.backend.GetImage(ctx, vars["name"], imagebackend.GetImageOpts{})
 	if err != nil {
 		return errdefs.NotFound(err)
 	}

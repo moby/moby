@@ -15,7 +15,7 @@ import (
 	volumetypes "github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/layer"
-	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/daemon/volume"
 	volumemounts "github.com/moby/moby/v2/daemon/volume/mounts"
 	"github.com/moby/moby/v2/daemon/volume/service"
@@ -248,7 +248,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 		}
 
 		if mp.Type == mounttypes.TypeImage {
-			img, err := daemon.imageService.GetImage(ctx, mp.Source, backend.GetImageOpts{})
+			img, err := daemon.imageService.GetImage(ctx, mp.Source, imagebackend.GetImageOpts{})
 			if err != nil {
 				return err
 			}

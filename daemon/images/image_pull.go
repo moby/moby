@@ -16,7 +16,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/distribution"
 	progressutils "github.com/moby/moby/v2/daemon/internal/distribution/utils"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
-	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -50,7 +49,7 @@ func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, optio
 		// we allow the image to have a non-matching architecture. The code
 		// below checks for this situation, and returns a warning to the client,
 		// as well as logging it to the daemon logs.
-		img, err := i.GetImage(ctx, ref.String(), backend.GetImageOpts{Platform: platform})
+		img, err := i.GetImage(ctx, ref.String(), imagebackend.GetImageOpts{Platform: platform})
 
 		// Note that this is a special case where GetImage returns both an image
 		// and an error: https://github.com/moby/moby/blob/v28.3.3/daemon/images/image.go#L186-L193

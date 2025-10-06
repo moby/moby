@@ -160,18 +160,6 @@ type CreateImageConfig struct {
 	Changes []string
 }
 
-// GetImageOpts holds parameters to retrieve image information
-// from the backend.
-type GetImageOpts struct {
-	Platform *ocispec.Platform
-}
-
-// ImageInspectOpts holds parameters to inspect an image.
-type ImageInspectOpts struct {
-	Manifests bool
-	Platform  *ocispec.Platform
-}
-
 // CommitConfig is the configuration for creating an image as part of a build.
 type CommitConfig struct {
 	Author              string

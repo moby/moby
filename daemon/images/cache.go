@@ -10,7 +10,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/image/cache"
 	"github.com/moby/moby/v2/daemon/internal/layer"
-	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 )
 
 type cacheAdaptor struct {
@@ -22,7 +22,7 @@ func (c cacheAdaptor) Get(id image.ID) (*image.Image, error) {
 }
 
 func (c cacheAdaptor) GetByRef(ctx context.Context, refOrId string) (*image.Image, error) {
-	return c.is.GetImage(ctx, refOrId, backend.GetImageOpts{})
+	return c.is.GetImage(ctx, refOrId, imagebackend.GetImageOpts{})
 }
 
 func (c cacheAdaptor) SetParent(target, parent image.ID) error {

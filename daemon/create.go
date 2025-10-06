@@ -22,6 +22,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/multierror"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/sys/user"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -92,7 +93,7 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 	}
 
 	if opts.params.Platform == nil && opts.params.Config.Image != "" {
-		img, err := daemon.imageService.GetImage(ctx, opts.params.Config.Image, backend.GetImageOpts{})
+		img, err := daemon.imageService.GetImage(ctx, opts.params.Config.Image, imagebackend.GetImageOpts{})
 		if err != nil {
 			return containertypes.CreateResponse{}, err
 		}
@@ -173,7 +174,7 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	)
 
 	if opts.params.Config.Image != "" {
-		img, err = daemon.imageService.GetImage(ctx, opts.params.Config.Image, backend.GetImageOpts{Platform: opts.params.Platform})
+		img, err = daemon.imageService.GetImage(ctx, opts.params.Config.Image, imagebackend.GetImageOpts{Platform: opts.params.Platform})
 		if err != nil {
 			return nil, err
 		}

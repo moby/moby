@@ -15,7 +15,6 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
 	"github.com/moby/go-archive"
-	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/internal/testutil/labelstore"
 	"github.com/moby/moby/v2/internal/testutil/specialimage"
@@ -152,7 +151,7 @@ func TestImageLoad(t *testing.T) {
 
 func verifyImagePlatforms(ctx context.Context, imgSvc *ImageService, imgRef string, expectedPlatforms []ocispec.Platform) error {
 	// get the manifest(s) for the image
-	img, err := imgSvc.ImageInspect(ctx, imgRef, backend.ImageInspectOpts{Manifests: true})
+	img, err := imgSvc.ImageInspect(ctx, imgRef, imagebackend.ImageInspectOpts{Manifests: true})
 	if err != nil {
 		return err
 	}

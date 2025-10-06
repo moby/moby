@@ -9,7 +9,7 @@ import (
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
-	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -17,7 +17,7 @@ import (
 // name by walking the image lineage.
 func (i *ImageService) ImageHistory(ctx context.Context, name string, platform *ocispec.Platform) ([]*image.HistoryResponseItem, error) {
 	start := time.Now()
-	img, err := i.GetImage(ctx, name, backend.GetImageOpts{Platform: platform})
+	img, err := i.GetImage(ctx, name, imagebackend.GetImageOpts{Platform: platform})
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string, platform *
 		if id == "" {
 			break
 		}
-		histImg, err = i.GetImage(ctx, id.String(), backend.GetImageOpts{})
+		histImg, err = i.GetImage(ctx, id.String(), imagebackend.GetImageOpts{})
 		if err != nil {
 			break
 		}
