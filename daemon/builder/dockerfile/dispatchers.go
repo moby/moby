@@ -21,8 +21,8 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/jsonstream"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/netiputil"
@@ -533,7 +533,7 @@ func dispatchExpose(ctx context.Context, d dispatchRequest, c *instructions.Expo
 	}
 
 	if d.state.runConfig.ExposedPorts == nil {
-		d.state.runConfig.ExposedPorts = make(container.PortSet)
+		d.state.runConfig.ExposedPorts = make(network.PortSet)
 	}
 	for p := range ps {
 		d.state.runConfig.ExposedPorts[p] = struct{}{}
@@ -546,10 +546,10 @@ func dispatchExpose(ctx context.Context, d dispatchRequest, c *instructions.Expo
 //
 // parsePortSpecs receives port specs in the format of ip:public:private/proto and parses
 // these in to the internal types
-func parsePortSpecs(ports []string) (map[container.Port]struct{}, map[container.Port][]container.PortBinding, error) {
+func parsePortSpecs(ports []string) (map[network.Port]struct{}, network.PortMap, error) {
 	var (
-		exposedPorts = make(map[container.Port]struct{}, len(ports))
-		bindings     = make(map[container.Port][]container.PortBinding)
+		exposedPorts = make(map[network.Port]struct{}, len(ports))
+		bindings     = make(network.PortMap)
 	)
 	for _, p := range ports {
 		portMappings, err := parsePortSpec(p)
@@ -571,8 +571,8 @@ func parsePortSpecs(ports []string) (map[container.Port]struct{}, map[container.
 
 // Copied and modified from https://github.com/docker/go-connections/blob/c296721c0d56d3acad2973376ded214103a4fd2e/nat/nat.go#L172-L237
 //
-// parsePortSpec parses a port specification string into a slice of [container.PortMap]
-func parsePortSpec(rawPort string) ([]container.PortMap, error) {
+// parsePortSpec parses a port specification string into a slice of [network.PortMap]
+func parsePortSpec(rawPort string) ([]network.PortMap, error) {
 	ip, hostPort, containerPort := splitParts(rawPort)
 	proto, containerPort := splitProtoPort(containerPort)
 	if containerPort == "" {
@@ -597,7 +597,7 @@ func parsePortSpec(rawPort string) ([]container.PortMap, error) {
 		return nil, fmt.Errorf("invalid IP address: %w", err)
 	}
 
-	pr, err := container.ParsePortRange(containerPort)
+	pr, err := network.ParsePortRange(containerPort)
 	if err != nil {
 		return nil, errors.New("invalid containerPort: " + containerPort)
 	}
@@ -609,7 +609,7 @@ func parsePortSpec(rawPort string) ([]container.PortMap, error) {
 
 	var startHostPort, endHostPort uint16
 	if hostPort != "" {
-		hostPortRange, err := container.ParsePortRange(hostPort)
+		hostPortRange, err := network.ParsePortRange(hostPort)
 		if err != nil {
 			return nil, errors.New("invalid hostPort: " + hostPort)
 		}
@@ -626,7 +626,7 @@ func parsePortSpec(rawPort string) ([]container.PortMap, error) {
 	}
 
 	count := endPort - startPort + 1
-	ports := make([]container.PortMap, 0, count)
+	ports := make([]network.PortMap, 0, count)
 
 	for i := uint16(0); i < count; i++ {
 		hPort := ""
@@ -638,8 +638,8 @@ func parsePortSpec(rawPort string) ([]container.PortMap, error) {
 				hPort += "-" + strconv.Itoa(int(endHostPort))
 			}
 		}
-		ports = append(ports, container.PortMap{
-			container.MustParsePort(fmt.Sprintf("%d/%s", startPort+i, proto)): []container.PortBinding{{HostIP: addr, HostPort: hPort}},
+		ports = append(ports, network.PortMap{
+			network.MustParsePort(fmt.Sprintf("%d/%s", startPort+i, proto)): []network.PortBinding{{HostIP: addr, HostPort: hPort}},
 		})
 	}
 	return ports, nil

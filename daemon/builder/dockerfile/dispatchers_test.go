@@ -14,6 +14,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/pkg/oci"
@@ -337,7 +338,7 @@ func TestExpose(t *testing.T) {
 	assert.Assert(t, sb.state.runConfig.ExposedPorts != nil)
 	assert.Assert(t, is.Len(sb.state.runConfig.ExposedPorts, 1))
 
-	assert.Check(t, is.Contains(sb.state.runConfig.ExposedPorts, container.MustParsePort("80/tcp")))
+	assert.Check(t, is.Contains(sb.state.runConfig.ExposedPorts, network.MustParsePort("80/tcp")))
 }
 
 func TestUser(t *testing.T) {
@@ -632,29 +633,29 @@ func TestDispatchUnsupportedOptions(t *testing.T) {
 // Copied and modified from https://github.com/docker/go-connections/blob/c296721c0d56d3acad2973376ded214103a4fd2e/nat/nat_test.go#L390-L499
 func TestParsePortSpecs(t *testing.T) {
 	var (
-		portMap    map[container.Port]struct{}
-		bindingMap map[container.Port][]container.PortBinding
+		portSet    network.PortSet
+		bindingMap network.PortMap
 		err        error
 	)
 
-	tcp1234 := container.MustParsePort("1234/tcp")
-	udp2345 := container.MustParsePort("2345/udp")
-	sctp3456 := container.MustParsePort("3456/sctp")
+	tcp1234 := network.MustParsePort("1234/tcp")
+	udp2345 := network.MustParsePort("2345/udp")
+	sctp3456 := network.MustParsePort("3456/sctp")
 
-	portMap, bindingMap, err = parsePortSpecs([]string{tcp1234.String(), udp2345.String(), sctp3456.String()})
+	portSet, bindingMap, err = parsePortSpecs([]string{tcp1234.String(), udp2345.String(), sctp3456.String()})
 	if err != nil {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
 
-	if _, ok := portMap[tcp1234]; !ok {
+	if _, ok := portSet[tcp1234]; !ok {
 		t.Fatal("1234/tcp was not parsed properly")
 	}
 
-	if _, ok := portMap[udp2345]; !ok {
+	if _, ok := portSet[udp2345]; !ok {
 		t.Fatal("2345/udp was not parsed properly")
 	}
 
-	if _, ok := portMap[sctp3456]; !ok {
+	if _, ok := portSet[sctp3456]; !ok {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
@@ -672,20 +673,20 @@ func TestParsePortSpecs(t *testing.T) {
 		}
 	}
 
-	portMap, bindingMap, err = parsePortSpecs([]string{"1234:1234/tcp", "2345:2345/udp", "3456:3456/sctp"})
+	portSet, bindingMap, err = parsePortSpecs([]string{"1234:1234/tcp", "2345:2345/udp", "3456:3456/sctp"})
 	if err != nil {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
 
-	if _, ok := portMap[tcp1234]; !ok {
+	if _, ok := portSet[tcp1234]; !ok {
 		t.Fatal("1234/tcp was not parsed properly")
 	}
 
-	if _, ok := portMap[udp2345]; !ok {
+	if _, ok := portSet[udp2345]; !ok {
 		t.Fatal("2345/udp was not parsed properly")
 	}
 
-	if _, ok := portMap[sctp3456]; !ok {
+	if _, ok := portSet[sctp3456]; !ok {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
@@ -705,20 +706,20 @@ func TestParsePortSpecs(t *testing.T) {
 		}
 	}
 
-	portMap, bindingMap, err = parsePortSpecs([]string{"0.0.0.0:1234:1234/tcp", "0.0.0.0:2345:2345/udp", "0.0.0.0:3456:3456/sctp"})
+	portSet, bindingMap, err = parsePortSpecs([]string{"0.0.0.0:1234:1234/tcp", "0.0.0.0:2345:2345/udp", "0.0.0.0:3456:3456/sctp"})
 	if err != nil {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
 
-	if _, ok := portMap[tcp1234]; !ok {
+	if _, ok := portSet[tcp1234]; !ok {
 		t.Fatal("1234/tcp was not parsed properly")
 	}
 
-	if _, ok := portMap[udp2345]; !ok {
+	if _, ok := portSet[udp2345]; !ok {
 		t.Fatal("2345/udp was not parsed properly")
 	}
 
-	if _, ok := portMap[sctp3456]; !ok {
+	if _, ok := portSet[sctp3456]; !ok {
 		t.Fatal("3456/sctp was not parsed properly")
 	}
 
@@ -784,9 +785,9 @@ func TestParsePortSpecFull(t *testing.T) {
 		t.Fatalf("expected nil error, got: %v", err)
 	}
 
-	expected := []container.PortMap{
+	expected := []network.PortMap{
 		{
-			container.MustParsePort("3333/tcp"): []container.PortBinding{
+			network.MustParsePort("3333/tcp"): []network.PortBinding{
 				{
 					HostIP:   netip.IPv4Unspecified(),
 					HostPort: "1234",
@@ -794,7 +795,7 @@ func TestParsePortSpecFull(t *testing.T) {
 			},
 		},
 		{
-			container.MustParsePort("3334/tcp"): []container.PortBinding{
+			network.MustParsePort("3334/tcp"): []network.PortBinding{
 				{
 					HostIP:   netip.IPv4Unspecified(),
 					HostPort: "1235",
@@ -813,15 +814,15 @@ func TestPartPortSpecIPV6(t *testing.T) {
 	type test struct {
 		name     string
 		spec     string
-		expected []container.PortMap
+		expected []network.PortMap
 	}
 	cases := []test{
 		{
 			name: "square angled IPV6 without host port",
 			spec: "[2001:4860:0:2001::68]::333",
-			expected: []container.PortMap{
+			expected: []network.PortMap{
 				{
-					container.MustParsePort("333/tcp"): []container.PortBinding{
+					network.MustParsePort("333/tcp"): []network.PortBinding{
 						{
 							HostIP:   netip.MustParseAddr("2001:4860:0:2001::68"),
 							HostPort: "",
@@ -833,9 +834,9 @@ func TestPartPortSpecIPV6(t *testing.T) {
 		{
 			name: "square angled IPV6 with host port",
 			spec: "[::1]:80:80",
-			expected: []container.PortMap{
+			expected: []network.PortMap{
 				{
-					container.MustParsePort("80/tcp"): []container.PortBinding{
+					network.MustParsePort("80/tcp"): []network.PortBinding{
 						{
 							HostIP:   netip.IPv6Loopback(),
 							HostPort: "80",
@@ -847,9 +848,9 @@ func TestPartPortSpecIPV6(t *testing.T) {
 		{
 			name: "IPV6 without host port",
 			spec: "2001:4860:0:2001::68::333",
-			expected: []container.PortMap{
+			expected: []network.PortMap{
 				{
-					container.MustParsePort("333/tcp"): []container.PortBinding{
+					network.MustParsePort("333/tcp"): []network.PortBinding{
 						{
 							HostIP:   netip.MustParseAddr("2001:4860:0:2001::68"),
 							HostPort: "",
@@ -861,9 +862,9 @@ func TestPartPortSpecIPV6(t *testing.T) {
 		{
 			name: "IPV6 with host port",
 			spec: "::1:80:80",
-			expected: []container.PortMap{
+			expected: []network.PortMap{
 				{
-					container.MustParsePort("80/tcp"): []container.PortBinding{
+					network.MustParsePort("80/tcp"): []network.PortBinding{
 						{
 							HostIP:   netip.IPv6Loopback(),
 							HostPort: "80",
@@ -875,9 +876,9 @@ func TestPartPortSpecIPV6(t *testing.T) {
 		{
 			name: ":: IPV6, without host port",
 			spec: "::::80",
-			expected: []container.PortMap{
+			expected: []network.PortMap{
 				{
-					container.MustParsePort("80/tcp"): []container.PortBinding{
+					network.MustParsePort("80/tcp"): []network.PortBinding{
 						{
 							HostIP:   netip.IPv6Unspecified(),
 							HostPort: "",
@@ -903,25 +904,25 @@ func TestPartPortSpecIPV6(t *testing.T) {
 // Copied and modified from https://github.com/docker/go-connections/blob/c296721c0d56d3acad2973376ded214103a4fd2e/nat/nat_test.go#L501-L600
 func TestParsePortSpecsWithRange(t *testing.T) {
 	var (
-		portMap    map[container.Port]struct{}
-		bindingMap map[container.Port][]container.PortBinding
+		portSet    network.PortSet
+		bindingMap network.PortMap
 		err        error
 	)
 
-	portMap, bindingMap, err = parsePortSpecs([]string{"1234-1236/tcp", "2345-2347/udp", "3456-3458/sctp"})
+	portSet, bindingMap, err = parsePortSpecs([]string{"1234-1236/tcp", "2345-2347/udp", "3456-3458/sctp"})
 	if err != nil {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
 
-	if _, ok := portMap[container.MustParsePort("1235/tcp")]; !ok {
+	if _, ok := portSet[network.MustParsePort("1235/tcp")]; !ok {
 		t.Fatal("1234-1236/tcp was not parsed properly")
 	}
 
-	if _, ok := portMap[container.MustParsePort("2346/udp")]; !ok {
+	if _, ok := portSet[network.MustParsePort("2346/udp")]; !ok {
 		t.Fatal("2345-2347/udp was not parsed properly")
 	}
 
-	if _, ok := portMap[container.MustParsePort("3456/sctp")]; !ok {
+	if _, ok := portSet[network.MustParsePort("3456/sctp")]; !ok {
 		t.Fatal("3456-3458/sctp was not parsed properly")
 	}
 
@@ -939,20 +940,20 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 		}
 	}
 
-	portMap, bindingMap, err = parsePortSpecs([]string{"1234-1236:1234-1236/tcp", "2345-2347:2345-2347/udp", "3456-3458:3456-3458/sctp"})
+	portSet, bindingMap, err = parsePortSpecs([]string{"1234-1236:1234-1236/tcp", "2345-2347:2345-2347/udp", "3456-3458:3456-3458/sctp"})
 	if err != nil {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
 
-	if _, ok := portMap[container.MustParsePort("1235/tcp")]; !ok {
+	if _, ok := portSet[network.MustParsePort("1235/tcp")]; !ok {
 		t.Fatal("1234-1236 was not parsed properly")
 	}
 
-	if _, ok := portMap[container.MustParsePort("2346/udp")]; !ok {
+	if _, ok := portSet[network.MustParsePort("2346/udp")]; !ok {
 		t.Fatal("2345-2347 was not parsed properly")
 	}
 
-	if _, ok := portMap[container.MustParsePort("3456/sctp")]; !ok {
+	if _, ok := portSet[network.MustParsePort("3456/sctp")]; !ok {
 		t.Fatal("3456-3458 was not parsed properly")
 	}
 
@@ -971,20 +972,20 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 		}
 	}
 
-	portMap, bindingMap, err = parsePortSpecs([]string{"0.0.0.0:1234-1236:1234-1236/tcp", "0.0.0.0:2345-2347:2345-2347/udp", "0.0.0.0:3456-3458:3456-3458/sctp"})
+	portSet, bindingMap, err = parsePortSpecs([]string{"0.0.0.0:1234-1236:1234-1236/tcp", "0.0.0.0:2345-2347:2345-2347/udp", "0.0.0.0:3456-3458:3456-3458/sctp"})
 	if err != nil {
 		t.Fatalf("Error while processing ParsePortSpecs: %s", err)
 	}
 
-	if _, ok := portMap[container.MustParsePort("1235/tcp")]; !ok {
+	if _, ok := portSet[network.MustParsePort("1235/tcp")]; !ok {
 		t.Fatal("1234-1236 was not parsed properly")
 	}
 
-	if _, ok := portMap[container.MustParsePort("2346/udp")]; !ok {
+	if _, ok := portSet[network.MustParsePort("2346/udp")]; !ok {
 		t.Fatal("2345-2347 was not parsed properly")
 	}
 
-	if _, ok := portMap[container.MustParsePort("3456/sctp")]; !ok {
+	if _, ok := portSet[network.MustParsePort("3456/sctp")]; !ok {
 		t.Fatal("3456-3458 was not parsed properly")
 	}
 

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	gogotypes "github.com/gogo/protobuf/types"
+	"github.com/moby/moby/api/types/network"
 	types "github.com/moby/moby/api/types/swarm"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
@@ -75,7 +76,7 @@ func TaskFromGRPC(t swarmapi.Task) (types.Task, error) {
 	for _, p := range t.Status.PortStatus.Ports {
 		task.Status.PortStatus.Ports = append(task.Status.PortStatus.Ports, types.PortConfig{
 			Name:          p.Name,
-			Protocol:      types.PortConfigProtocol(strings.ToLower(swarmapi.PortConfig_Protocol_name[int32(p.Protocol)])),
+			Protocol:      network.IPProtocol(strings.ToLower(swarmapi.PortConfig_Protocol_name[int32(p.Protocol)])),
 			PublishMode:   types.PortConfigPublishMode(strings.ToLower(swarmapi.PortConfig_PublishMode_name[int32(p.PublishMode)])),
 			TargetPort:    p.TargetPort,
 			PublishedPort: p.PublishedPort,

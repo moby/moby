@@ -32,7 +32,7 @@ const (
 // PortConfig represents the config of a port.
 type PortConfig struct {
 	Name     string             `json:",omitempty"`
-	Protocol PortConfigProtocol `json:",omitempty"`
+	Protocol network.IPProtocol `json:",omitempty"`
 	// TargetPort is the port inside the container
 	TargetPort uint32 `json:",omitempty"`
 	// PublishedPort is the port on the swarm hosts
@@ -52,20 +52,6 @@ const (
 	// PortConfigPublishModeHost is used for ports published
 	// for direct host level access on the host where the task is running.
 	PortConfigPublishModeHost PortConfigPublishMode = "host"
-)
-
-// PortConfigProtocol represents the protocol of a port.
-type PortConfigProtocol string
-
-const (
-	// TODO(stevvooe): These should be used generally, not just for PortConfig.
-
-	// PortConfigProtocolTCP TCP
-	PortConfigProtocolTCP PortConfigProtocol = "tcp"
-	// PortConfigProtocolUDP UDP
-	PortConfigProtocolUDP PortConfigProtocol = "udp"
-	// PortConfigProtocolSCTP SCTP
-	PortConfigProtocolSCTP PortConfigProtocol = "sctp"
 )
 
 // EndpointVirtualIP represents the virtual ip of a port.

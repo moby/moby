@@ -1,4 +1,4 @@
-package container
+package network
 
 import (
 	"errors"
@@ -10,24 +10,24 @@ import (
 	"unique"
 )
 
-// NetworkProtocol represents a network protocol for a port.
-type NetworkProtocol string
+// IPProtocol represents a network protocol for a port.
+type IPProtocol string
 
 const (
-	TCP  NetworkProtocol = "tcp"
-	UDP  NetworkProtocol = "udp"
-	SCTP NetworkProtocol = "sctp"
+	TCP  IPProtocol = "tcp"
+	UDP  IPProtocol = "udp"
+	SCTP IPProtocol = "sctp"
 )
 
 // Sentinel port proto value for zero Port and PortRange values.
-var protoZero unique.Handle[NetworkProtocol]
+var protoZero unique.Handle[IPProtocol]
 
 // Port is a type representing a single port number and protocol in the format "<portnum>/[<proto>]".
 //
 // The zero port value, i.e. Port{}, is invalid; use [ParsePort] to create a valid Port value.
 type Port struct {
 	num   uint16
-	proto unique.Handle[NetworkProtocol]
+	proto unique.Handle[IPProtocol]
 }
 
 // ParsePort parses s as a [Port].
@@ -64,7 +64,7 @@ func MustParsePort(s string) Port {
 // PortFrom returns a [Port] with the given number and protocol.
 //
 // If no protocol is specified (i.e. proto == ""), then PortFrom returns Port{}, false.
-func PortFrom(num uint16, proto NetworkProtocol) (p Port, ok bool) {
+func PortFrom(num uint16, proto IPProtocol) (p Port, ok bool) {
 	if proto == "" {
 		return Port{}, false
 	}
@@ -78,7 +78,7 @@ func (p Port) Num() uint16 {
 }
 
 // Proto returns p's network protocol.
-func (p Port) Proto() NetworkProtocol {
+func (p Port) Proto() IPProtocol {
 	return p.proto.Value()
 }
 
@@ -163,7 +163,7 @@ type PortMap = map[Port][]PortBinding
 type PortRange struct {
 	start uint16
 	end   uint16
-	proto unique.Handle[NetworkProtocol]
+	proto unique.Handle[IPProtocol]
 }
 
 // ParsePortRange parses s as a [PortRange].
@@ -212,7 +212,7 @@ func MustParsePortRange(s string) PortRange {
 // PortRangeFrom returns a [PortRange] with the given start and end port numbers and protocol.
 //
 // If end < start or no protocol is specified (i.e. proto == ""), then PortRangeFrom returns PortRange{}, false.
-func PortRangeFrom(start, end uint16, proto NetworkProtocol) (pr PortRange, ok bool) {
+func PortRangeFrom(start, end uint16, proto IPProtocol) (pr PortRange, ok bool) {
 	if end < start || proto == "" {
 		return PortRange{}, false
 	}
@@ -231,7 +231,7 @@ func (pr PortRange) End() uint16 {
 }
 
 // Proto returns pr's network protocol.
-func (pr PortRange) Proto() NetworkProtocol {
+func (pr PortRange) Proto() IPProtocol {
 	return pr.proto.Value()
 }
 
@@ -335,12 +335,12 @@ func parsePortNumber(rawPort string) (uint16, error) {
 
 // normalizePortProto normalizes the protocol string such that "tcp", "TCP", and "tCp" are equivalent.
 // If proto is not specified, it defaults to "tcp".
-func normalizePortProto(proto string) unique.Handle[NetworkProtocol] {
+func normalizePortProto(proto string) unique.Handle[IPProtocol] {
 	if proto == "" {
 		return unique.Make(TCP)
 	}
 
 	proto = strings.ToLower(proto)
 
-	return unique.Make(NetworkProtocol(proto))
+	return unique.Make(IPProtocol(proto))
 }

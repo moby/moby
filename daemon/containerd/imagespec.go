@@ -5,6 +5,7 @@ import (
 
 	imagespec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/dockerversion"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -95,9 +96,9 @@ func containerConfigToDockerOCIImageConfig(cfg *container.Config) imagespec.Dock
 }
 
 func dockerOCIImageConfigToContainerConfig(cfg imagespec.DockerOCIImageConfig) *container.Config {
-	exposedPorts := make(container.PortSet, len(cfg.ExposedPorts))
+	exposedPorts := make(network.PortSet, len(cfg.ExposedPorts))
 	for k := range cfg.ExposedPorts {
-		if p, err := container.ParsePort(k); err == nil {
+		if p, err := network.ParsePort(k); err == nil {
 			exposedPorts[p] = struct{}{}
 		}
 	}

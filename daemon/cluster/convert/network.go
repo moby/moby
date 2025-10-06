@@ -144,7 +144,7 @@ func endpointFromGRPC(e *swarmapi.Endpoint) types.Endpoint {
 func swarmPortConfigToAPIPortConfig(portConfig *swarmapi.PortConfig) types.PortConfig {
 	return types.PortConfig{
 		Name:          portConfig.Name,
-		Protocol:      types.PortConfigProtocol(strings.ToLower(swarmapi.PortConfig_Protocol_name[int32(portConfig.Protocol)])),
+		Protocol:      network.IPProtocol(strings.ToLower(swarmapi.PortConfig_Protocol_name[int32(portConfig.Protocol)])),
 		PublishMode:   types.PortConfigPublishMode(strings.ToLower(swarmapi.PortConfig_PublishMode_name[int32(portConfig.PublishMode)])),
 		TargetPort:    portConfig.TargetPort,
 		PublishedPort: portConfig.PublishedPort,

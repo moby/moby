@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 )
 
 // Link struct holds information about parent/child linked container
@@ -22,17 +22,17 @@ type Link struct {
 	// Child environments variables
 	ChildEnvironment []string
 	// Child exposed ports
-	Ports []container.Port
+	Ports []network.Port
 }
 
 // EnvVars generates environment variables for the linked container
 // for the Link with the given options.
-func EnvVars(parentIP, childIP, name string, env []string, exposedPorts map[container.Port]struct{}) []string {
+func EnvVars(parentIP, childIP, name string, env []string, exposedPorts map[network.Port]struct{}) []string {
 	return NewLink(parentIP, childIP, name, env, exposedPorts).ToEnv()
 }
 
 // NewLink initializes a new Link struct with the provided options.
-func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[container.Port]struct{}) *Link {
+func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[network.Port]struct{}) *Link {
 	ports := slices.Collect(maps.Keys(exposedPorts))
 
 	return &Link{
@@ -55,7 +55,7 @@ func (l *Link) ToEnv() []string {
 	slices.SortFunc(l.Ports, withTCPPriority)
 
 	env := make([]string, 0, 1+len(l.Ports)*4)
-	var pStart, pEnd container.Port
+	var pStart, pEnd network.Port
 
 	for i, p := range l.Ports {
 		if i == 0 {
@@ -111,14 +111,14 @@ func (l *Link) ToEnv() []string {
 
 // withTCPPriority prioritizes ports using TCP over other protocols before
 // comparing port-number and protocol.
-func withTCPPriority(ip, jp container.Port) int {
+func withTCPPriority(ip, jp network.Port) int {
 	if ip.Proto() == jp.Proto() {
 		return cmp.Compare(ip.Num(), jp.Num())
 	}
-	if ip.Proto() == container.TCP {
+	if ip.Proto() == network.TCP {
 		return -1
 	}
-	if jp.Proto() == container.TCP {
+	if jp.Proto() == network.TCP {
 		return 1
 	}
 	return cmp.Compare(ip.Proto(), jp.Proto())

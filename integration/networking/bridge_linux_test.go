@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
-	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
@@ -388,7 +387,7 @@ func TestBridgeINCRouted(t *testing.T) {
 			container.WithNetworkMode(netName),
 			container.WithName("ctr-"+gwMode),
 			container.WithExposedPorts("80/tcp"),
-			container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {}}),
+			container.WithPortMap(networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {}}),
 		)
 		t.Cleanup(func() {
 			c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
@@ -565,7 +564,7 @@ func TestAccessToPublishedPort(t *testing.T) {
 				container.WithNetworkMode(serverNetName),
 				container.WithName("ctr-server"),
 				container.WithExposedPorts("80/tcp"),
-				container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {containertypes.PortBinding{HostPort: "8080"}}}),
+				container.WithPortMap(networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {networktypes.PortBinding{HostPort: "8080"}}}),
 				container.WithCmd("httpd", "-f"),
 			)
 			defer c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
@@ -688,7 +687,7 @@ func TestInterNetworkDirectRouting(t *testing.T) {
 				container.WithNetworkMode(serverNetName),
 				container.WithName("ctr-pub"),
 				container.WithExposedPorts("80/tcp"),
-				container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {containertypes.PortBinding{HostPort: "8080"}}}),
+				container.WithPortMap(networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {networktypes.PortBinding{HostPort: "8080"}}}),
 				container.WithCmd("httpd", "-f"),
 			)
 			defer c.ContainerRemove(ctx, ctrPubId, client.ContainerRemoveOptions{Force: true})
@@ -1063,7 +1062,7 @@ func TestDisableIPv6OnInterface(t *testing.T) {
 				container.WithName(ctrName),
 				container.WithNetworkMode(tc.netName),
 				container.WithExposedPorts("80/tcp"),
-				container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80/tcp"): {{HostPort: "8080"}}}),
+				container.WithPortMap(networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {{HostPort: "8080"}}}),
 				container.WithEndpointSettings(tc.netName, &networktypes.EndpointSettings{
 					DriverOpts: map[string]string{
 						netlabel.EndpointSysctls: "net.ipv6.conf.IFNAME.disable_ipv6=1",
@@ -1505,7 +1504,7 @@ func TestGatewaySelection(t *testing.T) {
 		container.WithName(ctrName),
 		container.WithNetworkMode(netName4),
 		container.WithExposedPorts("80"),
-		container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80"): {{HostPort: "8080"}}}),
+		container.WithPortMap(networktypes.PortMap{networktypes.MustParsePort("80"): {{HostPort: "8080"}}}),
 		container.WithCmd("httpd", "-f"),
 	)
 	defer c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
@@ -1956,7 +1955,7 @@ func TestDropInForwardChain(t *testing.T) {
 		ctrId := container.Run(ctx, t, c,
 			container.WithNetworkMode(netName46),
 			container.WithExposedPorts("80"),
-			container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80"): {{HostPort: hostPort}}}),
+			container.WithPortMap(networktypes.PortMap{networktypes.MustParsePort("80"): {{HostPort: hostPort}}}),
 			container.WithCmd("httpd", "-f"),
 		)
 		defer c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})

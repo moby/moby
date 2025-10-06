@@ -901,7 +901,7 @@ func handlePortBindingsBC(hostConfig *container.HostConfig, version string) stri
 			emptyPBs = append(emptyPBs, port.String())
 		}
 
-		hostConfig.PortBindings[port] = []container.PortBinding{{}}
+		hostConfig.PortBindings[port] = []network.PortBinding{{}}
 	}
 
 	if len(emptyPBs) > 0 {

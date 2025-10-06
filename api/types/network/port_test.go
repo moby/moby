@@ -1,4 +1,4 @@
-package container
+package network
 
 import (
 	"encoding/json"
@@ -51,7 +51,7 @@ func TestPort(t *testing.T) {
 	t.Run("PortFrom", func(t *testing.T) {
 		tests := []struct {
 			num   uint16
-			proto NetworkProtocol
+			proto IPProtocol
 		}{
 			{0, TCP},
 			{80, TCP},
@@ -80,7 +80,7 @@ func TestPort(t *testing.T) {
 
 		negativeTests := []struct {
 			num   uint16
-			proto NetworkProtocol
+			proto IPProtocol
 		}{
 			{0, ""},
 			{80, ""},
@@ -293,7 +293,7 @@ func TestPortRange(t *testing.T) {
 		tests := []struct {
 			start uint16
 			end   uint16
-			proto NetworkProtocol
+			proto IPProtocol
 		}{
 			{0, 0, TCP},
 			{0, 1234, TCP},
@@ -325,7 +325,7 @@ func TestPortRange(t *testing.T) {
 		negativeTests := []struct {
 			start uint16
 			end   uint16
-			proto NetworkProtocol
+			proto IPProtocol
 		}{
 			{1234, 80, TCP}, // end < start
 			{0, 0, ""},      // empty protocol
@@ -583,7 +583,7 @@ func BenchmarkPortRangeAll(b *testing.B) {
 	})
 }
 
-func portFrom(num uint16, proto NetworkProtocol) Port {
+func portFrom(num uint16, proto IPProtocol) Port {
 	p, ok := PortFrom(num, proto)
 	if !ok {
 		panic("invalid port")
@@ -591,7 +591,7 @@ func portFrom(num uint16, proto NetworkProtocol) Port {
 	return p
 }
 
-func portRangeFrom(start, end uint16, proto NetworkProtocol) PortRange {
+func portRangeFrom(start, end uint16, proto IPProtocol) PortRange {
 	pr, ok := PortRangeFrom(start, end, proto)
 	if !ok {
 		panic("invalid port range")

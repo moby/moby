@@ -276,7 +276,7 @@ func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
 		swarm.ServiceWithEndpoint(&swarmtypes.EndpointSpec{
 			Ports: []swarmtypes.PortConfig{
 				{
-					Protocol:    swarmtypes.PortConfigProtocolTCP,
+					Protocol:    networktypes.TCP,
 					TargetPort:  80,
 					PublishMode: swarmtypes.PortConfigPublishModeIngress,
 				},

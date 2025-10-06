@@ -4,7 +4,6 @@ import (
 	"net"
 	"sync"
 
-	"github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	clustertypes "github.com/moby/moby/v2/daemon/cluster/provider"
 	"github.com/pkg/errors"
@@ -17,7 +16,7 @@ type Settings struct {
 	SandboxKey       string
 	Networks         map[string]*EndpointSettings
 	Service          *clustertypes.ServiceConfig
-	Ports            container.PortMap
+	Ports            networktypes.PortMap
 	HasSwarmEndpoint bool
 }
 

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	containertypes "github.com/moby/moby/api/types/container"
+	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/integration/internal/network"
@@ -98,13 +98,13 @@ func TestFlakyPortMappedHairpinWindows(t *testing.T) {
 	serverId := container.Run(ctx, t, c,
 		container.WithNetworkMode(serverNetName),
 		container.WithExposedPorts("80"),
-		container.WithPortMap(containertypes.PortMap{containertypes.MustParsePort("80"): {{HostIP: netip.IPv4Unspecified()}}}),
+		container.WithPortMap(networktypes.PortMap{networktypes.MustParsePort("80"): {{HostIP: netip.IPv4Unspecified()}}}),
 		container.WithCmd("httpd", "-f"),
 	)
 	defer c.ContainerRemove(ctx, serverId, client.ContainerRemoveOptions{Force: true})
 
 	inspect := container.Inspect(ctx, t, c, serverId)
-	hostPort := inspect.NetworkSettings.Ports[containertypes.MustParsePort("80/tcp")][0].HostPort
+	hostPort := inspect.NetworkSettings.Ports[networktypes.MustParsePort("80/tcp")][0].HostPort
 
 	attachCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()

@@ -6,10 +6,13 @@ import (
 
 // NetworkSettings exposes the network settings in the api
 type NetworkSettings struct {
-	SandboxID  string  // SandboxID uniquely represents a container's network stack
-	SandboxKey string  // SandboxKey identifies the sandbox
-	Ports      PortMap // Ports is a collection of PortBinding indexed by Port
-	Networks   map[string]*network.EndpointSettings
+	SandboxID  string // SandboxID uniquely represents a container's network stack
+	SandboxKey string // SandboxKey identifies the sandbox
+
+	// Ports is a collection of [network.PortBinding] indexed by [network.Port]
+	Ports network.PortMap
+
+	Networks map[string]*network.EndpointSettings
 }
 
 // NetworkSettingsSummary provides a summary of container's networks

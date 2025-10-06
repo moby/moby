@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/integration-cli/cli/build"
 	"github.com/moby/moby/v2/internal/testutil/fakecontext"
@@ -92,7 +92,7 @@ func (s *DockerCLICreateSuite) TestCreateWithPortRange(c *testing.T) {
 
 	var containers []struct {
 		HostConfig *struct {
-			PortBindings map[containertypes.Port][]containertypes.PortBinding
+			PortBindings network.PortMap
 		}
 	}
 	err := json.Unmarshal([]byte(out), &containers)
@@ -118,7 +118,7 @@ func (s *DockerCLICreateSuite) TestCreateWithLargePortRange(c *testing.T) {
 
 	var containers []struct {
 		HostConfig *struct {
-			PortBindings map[containertypes.Port][]containertypes.PortBinding
+			PortBindings network.PortMap
 		}
 	}
 

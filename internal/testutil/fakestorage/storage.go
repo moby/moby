@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/environment"
@@ -164,7 +165,7 @@ COPY . /static`); err != nil {
 	// Find out the system assigned port
 	i, err := c.ContainerInspect(context.Background(), b.ID)
 	assert.NilError(t, err)
-	ports, exists := i.NetworkSettings.Ports[containertypes.MustParsePort("80/tcp")]
+	ports, exists := i.NetworkSettings.Ports[network.MustParsePort("80/tcp")]
 	assert.Assert(t, exists, "unable to find port 80/tcp for %s", ctrName)
 	if len(ports) == 0 {
 		t.Fatalf("no ports mapped for 80/tcp for %s: %#v", ctrName, i.NetworkSettings.Ports)

@@ -94,7 +94,7 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 		}
 	}
 
-	portBindings := make(containertypes.PortMap, len(ctr.HostConfig.PortBindings))
+	portBindings := make(networktypes.PortMap, len(ctr.HostConfig.PortBindings))
 	for p, b := range ctr.HostConfig.PortBindings {
 		portBindings[p] = slices.Clone(b)
 	}
@@ -119,13 +119,13 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 
 		for _, binding := range bindings {
 			var (
-				portRange containertypes.PortRange
+				portRange networktypes.PortRange
 				err       error
 			)
 
 			// Empty HostPort means to map to an ephemeral port.
 			if binding.HostPort != "" {
-				portRange, err = containertypes.ParsePortRange(binding.HostPort)
+				portRange, err = networktypes.ParsePortRange(binding.HostPort)
 				if err != nil {
 					return nil, fmt.Errorf("error parsing HostPort value(%s):%v", binding.HostPort, err)
 				}

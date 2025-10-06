@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -11,8 +12,8 @@ import (
 // regression test for https://github.com/moby/moby/issues/45904
 func TestContainerConfigToDockerImageConfig(t *testing.T) {
 	ociCFG := containerConfigToDockerOCIImageConfig(&container.Config{
-		ExposedPorts: container.PortSet{
-			container.MustParsePort("80/tcp"): struct{}{},
+		ExposedPorts: network.PortSet{
+			network.MustParsePort("80/tcp"): struct{}{},
 		},
 	})
 

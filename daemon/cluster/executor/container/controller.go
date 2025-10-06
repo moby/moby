@@ -11,6 +11,7 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/api/types/network"
 	executorpkg "github.com/moby/moby/v2/daemon/cluster/executor"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/swarmkit/v2/agent/exec"
@@ -639,17 +640,17 @@ func parsePortStatus(ctnr container.InspectResponse) (*api.PortStatus, error) {
 	return status, nil
 }
 
-func parsePortMap(portMap container.PortMap) ([]*api.PortConfig, error) {
+func parsePortMap(portMap network.PortMap) ([]*api.PortConfig, error) {
 	exposedPorts := make([]*api.PortConfig, 0, len(portMap))
 
 	for port, mapping := range portMap {
 		var protocol api.PortConfig_Protocol
 		switch port.Proto() {
-		case container.TCP:
+		case network.TCP:
 			protocol = api.ProtocolTCP
-		case container.UDP:
+		case network.UDP:
 			protocol = api.ProtocolUDP
-		case container.SCTP:
+		case network.SCTP:
 			protocol = api.ProtocolSCTP
 		default:
 			return nil, fmt.Errorf("invalid protocol: %s", port.Proto())

@@ -504,8 +504,8 @@ func (s *DockerAPISuite) TestContainerAPIBadPort(c *testing.T) {
 	}
 
 	hostConfig := container.HostConfig{
-		PortBindings: container.PortMap{
-			container.MustParsePort("8080/tcp"): []container.PortBinding{
+		PortBindings: network.PortMap{
+			network.MustParsePort("8080/tcp"): []network.PortBinding{
 				{
 					HostPort: "aa80",
 				},

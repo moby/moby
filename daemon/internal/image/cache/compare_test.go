@@ -5,24 +5,25 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestCompare(t *testing.T) {
-	ports1 := container.PortSet{
-		container.MustParsePort("1111/tcp"): struct{}{},
-		container.MustParsePort("2222/tcp"): struct{}{},
+	ports1 := network.PortSet{
+		network.MustParsePort("1111/tcp"): struct{}{},
+		network.MustParsePort("2222/tcp"): struct{}{},
 	}
-	ports2 := container.PortSet{
-		container.MustParsePort("3333/tcp"): struct{}{},
-		container.MustParsePort("4444/tcp"): struct{}{},
+	ports2 := network.PortSet{
+		network.MustParsePort("3333/tcp"): struct{}{},
+		network.MustParsePort("4444/tcp"): struct{}{},
 	}
-	ports3 := container.PortSet{
-		container.MustParsePort("1111/tcp"): struct{}{},
-		container.MustParsePort("2222/tcp"): struct{}{},
-		container.MustParsePort("5555/tcp"): struct{}{},
+	ports3 := network.PortSet{
+		network.MustParsePort("1111/tcp"): struct{}{},
+		network.MustParsePort("2222/tcp"): struct{}{},
+		network.MustParsePort("5555/tcp"): struct{}{},
 	}
 	volumes1 := map[string]struct{}{
 		"/test1": {},

@@ -82,7 +82,7 @@ func TestHostPortMappings(t *testing.T) {
 		swarm.ServiceWithNetwork(netName),
 		swarm.ServiceWithEndpoint(&swarmtypes.EndpointSpec{
 			Ports: []swarmtypes.PortConfig{
-				{Protocol: swarmtypes.PortConfigProtocolTCP, TargetPort: 80, PublishedPort: 80, PublishMode: swarmtypes.PortConfigPublishModeHost},
+				{Protocol: networktypes.TCP, TargetPort: 80, PublishedPort: 80, PublishMode: swarmtypes.PortConfigPublishModeHost},
 			},
 		}))
 	defer apiClient.ServiceRemove(ctx, svcID)

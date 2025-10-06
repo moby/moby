@@ -1027,13 +1027,13 @@ func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwor
 
 		for _, binding := range bindings {
 			var (
-				portRange containertypes.PortRange
+				portRange networktypes.PortRange
 				err       error
 			)
 
 			// Empty HostPort means to map to an ephemeral port.
 			if binding.HostPort != "" {
-				portRange, err = containertypes.ParsePortRange(binding.HostPort)
+				portRange, err = networktypes.ParsePortRange(binding.HostPort)
 				if err != nil {
 					return nil, fmt.Errorf("error parsing HostPort value(%s):%v", binding.HostPort, err)
 				}
@@ -1063,8 +1063,8 @@ func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwor
 }
 
 // getPortMapInfo retrieves the current port-mapping programmed for the given sandbox
-func getPortMapInfo(sb *libnetwork.Sandbox) containertypes.PortMap {
-	pm := containertypes.PortMap{}
+func getPortMapInfo(sb *libnetwork.Sandbox) networktypes.PortMap {
+	pm := networktypes.PortMap{}
 	if sb == nil {
 		return pm
 	}
@@ -1075,7 +1075,7 @@ func getPortMapInfo(sb *libnetwork.Sandbox) containertypes.PortMap {
 	return pm
 }
 
-func getEndpointPortMapInfo(pm containertypes.PortMap, ep *libnetwork.Endpoint) {
+func getEndpointPortMapInfo(pm networktypes.PortMap, ep *libnetwork.Endpoint) {
 	driverInfo, _ := ep.DriverInfo()
 	if driverInfo == nil {
 		// It is not an error for epInfo to be nil
@@ -1085,7 +1085,7 @@ func getEndpointPortMapInfo(pm containertypes.PortMap, ep *libnetwork.Endpoint) 
 	if expData, ok := driverInfo[netlabel.ExposedPorts]; ok {
 		if exposedPorts, ok := expData.([]lntypes.TransportPort); ok {
 			for _, tp := range exposedPorts {
-				natPort, ok := containertypes.PortFrom(tp.Port, containertypes.NetworkProtocol(tp.Proto.String()))
+				natPort, ok := networktypes.PortFrom(tp.Port, networktypes.IPProtocol(tp.Proto.String()))
 				if !ok {
 					log.G(context.TODO()).Errorf("Invalid exposed port: %s", tp.String())
 					continue
@@ -1105,7 +1105,7 @@ func getEndpointPortMapInfo(pm containertypes.PortMap, ep *libnetwork.Endpoint) 
 	if portMapping, ok := mapData.([]lntypes.PortBinding); ok {
 		for _, pp := range portMapping {
 			// Use an empty string for the host natPort if there's no natPort assigned.
-			natPort, ok := containertypes.PortFrom(pp.Port, containertypes.NetworkProtocol(pp.Proto.String()))
+			natPort, ok := networktypes.PortFrom(pp.Port, networktypes.IPProtocol(pp.Proto.String()))
 			if !ok {
 				log.G(context.TODO()).Errorf("Invalid port binding: %s", pp.String())
 				continue
@@ -1115,7 +1115,7 @@ func getEndpointPortMapInfo(pm containertypes.PortMap, ep *libnetwork.Endpoint) 
 			if pp.HostPort > 0 {
 				hp = strconv.Itoa(int(pp.HostPort))
 			}
-			natBndg := containertypes.PortBinding{HostPort: hp}
+			natBndg := networktypes.PortBinding{HostPort: hp}
 			natBndg.HostIP, _ = netip.AddrFromSlice(pp.HostIP)
 			pm[natPort] = append(pm[natPort], natBndg)
 		}
