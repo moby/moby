@@ -303,9 +303,8 @@ func checkResponseErr(serverResp *http.Response) (retErr error) {
 			daemonErr = errors.New(strings.TrimSpace(errorResponse.Message))
 		}
 	} else {
-		// Fall back to returning the response as-is for API versions < 1.24
-		// that didn't support JSON error responses, and for situations
-		// where a plain text error is returned. This branch may also catch
+		// Fall back to returning the response as-is for situations where a
+		// plain text error is returned. This branch may also catch
 		// situations where a proxy is involved, returning a HTML response.
 		daemonErr = errors.New(strings.TrimSpace(string(body)))
 	}

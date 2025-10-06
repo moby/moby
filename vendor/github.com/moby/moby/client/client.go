@@ -99,11 +99,9 @@ const DummyHost = "api.moby.localhost"
 // This version may be lower than the version of the api library module used.
 const MaxAPIVersion = "1.52"
 
-// fallbackAPIVersion is the version to fallback to if API-version negotiation
-// fails. This version is the highest version of the API before API-version
-// negotiation was introduced. If negotiation fails (or no API version was
-// included in the API response), we assume the API server uses the most
-// recent version before negotiation was introduced.
+// fallbackAPIVersion is the version to fall back to if API-version negotiation
+// fails. API versions below this version are not supported by the client,
+// and not considered when negotiating.
 const fallbackAPIVersion = "1.24"
 
 // Ensure that Client always implements APIClient.
@@ -311,8 +309,7 @@ func (cli *Client) ClientVersion() string {
 // If the API server's ping response does not contain an API version, or if the
 // client did not get a successful ping response, it assumes it is connected with
 // an old daemon that does not support API version negotiation, in which case it
-// downgrades to the latest version of the API before version negotiation was
-// added (1.24).
+// downgrades to the lowest supported API version.
 func (cli *Client) NegotiateAPIVersion(ctx context.Context) {
 	if !cli.manualOverride {
 		// Avoid concurrent modification of version-related fields
@@ -337,10 +334,8 @@ func (cli *Client) NegotiateAPIVersion(ctx context.Context) {
 // ([EnvOverrideAPIVersion]) environment variable, or if the client is initialized
 // with a fixed version ([WithVersion]), no negotiation is performed.
 //
-// If the API server's ping response does not contain an API version, we assume
-// we are connected with an old daemon without API version negotiation support,
-// and downgrade to the latest version of the API before version negotiation was
-// added (1.24).
+// If the API server's ping response does not contain an API version, it falls
+// back to the oldest API version supported.
 func (cli *Client) NegotiateAPIVersionPing(pingResponse types.Ping) {
 	if !cli.manualOverride {
 		// Avoid concurrent modification of version-related fields
@@ -355,8 +350,6 @@ func (cli *Client) NegotiateAPIVersionPing(pingResponse types.Ping) {
 // API version from the ping response.
 func (cli *Client) negotiateAPIVersionPing(pingVersion string) {
 	pingVersion = strings.TrimPrefix(pingVersion, "v")
-
-	// default to the latest version before versioning headers existed
 	if pingVersion == "" {
 		pingVersion = fallbackAPIVersion
 	}

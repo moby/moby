@@ -74,9 +74,9 @@ func TestSetHostHeader(t *testing.T) {
 	}
 }
 
-// TestPlainTextError tests the server returning an error in plain text for
-// backwards compatibility with API versions <1.24. All other tests use
-// errors returned as JSON
+// TestPlainTextError tests the server returning an error in plain text.
+// API versions < 1.24 returned plain text errors, but we may encounter
+// other situations where a non-JSON error is returned.
 func TestPlainTextError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(plainTextErrorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
