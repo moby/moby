@@ -7,8 +7,8 @@ import (
 
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/v2/daemon/internal/filters"
 )
 
 type CachePruneOptions struct {

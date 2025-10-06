@@ -1,6 +1,6 @@
 package swarmbackend
 
-import "github.com/moby/moby/api/types/filters"
+import "github.com/moby/moby/v2/daemon/internal/filters"
 
 type ConfigListOptions struct {
 	Filters filters.Args

@@ -13,8 +13,8 @@ import (
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 

@@ -6,7 +6,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/volume"
 	volumedrivers "github.com/moby/moby/v2/daemon/volume/drivers"
 	"github.com/moby/moby/v2/daemon/volume/service/opts"

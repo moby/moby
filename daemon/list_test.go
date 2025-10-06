@@ -10,8 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/opencontainers/go-digest"
