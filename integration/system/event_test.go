@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/client"
@@ -33,10 +32,7 @@ func TestEventsExecDie(t *testing.T) {
 	assert.NilError(t, err)
 
 	msg, errs := apiClient.Events(ctx, client.EventsListOptions{
-		Filters: filters.NewArgs(
-			filters.Arg("container", cID),
-			filters.Arg("event", string(events.ActionExecDie)),
-		),
+		Filters: make(client.Filters).Add("container", cID).Add("event", string(events.ActionExecDie)),
 	})
 
 	err = apiClient.ContainerExecStart(ctx, id.ID, client.ExecStartOptions{
@@ -108,11 +104,10 @@ func TestEventsVolumeCreate(t *testing.T) {
 	_, err := apiClient.VolumeCreate(ctx, volume.CreateOptions{Name: volName})
 	assert.NilError(t, err)
 
-	filter := filters.NewArgs(
-		filters.Arg("type", "volume"),
-		filters.Arg("event", "create"),
-		filters.Arg("volume", volName),
-	)
+	filter := make(client.Filters).
+		Add("type", "volume").
+		Add("event", "create").
+		Add("volume", volName)
 	messages, errs := apiClient.Events(ctx, client.EventsListOptions{
 		Since:   since,
 		Until:   request.DaemonUnixTime(ctx, t, apiClient, testEnv),

@@ -4,17 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/filters"
 )
 
 // ContainersPrune requests the daemon to delete unused data
-func (cli *Client) ContainersPrune(ctx context.Context, pruneFilters filters.Args) (container.PruneReport, error) {
-	query, err := getFiltersQuery(pruneFilters)
-	if err != nil {
-		return container.PruneReport{}, err
-	}
+func (cli *Client) ContainersPrune(ctx context.Context, pruneFilters Filters) (container.PruneReport, error) {
+	query := url.Values{}
+	pruneFilters.updateURLValues(query)
 
 	resp, err := cli.post(ctx, "/containers/prune", query, nil, nil)
 	defer ensureReaderClosed(resp)

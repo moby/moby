@@ -8,7 +8,6 @@ import (
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/plugin"
@@ -89,7 +88,7 @@ type ContainerAPIClient interface {
 	ContainerWait(ctx context.Context, container string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error)
 	CopyFromContainer(ctx context.Context, container, srcPath string) (io.ReadCloser, container.PathStat, error)
 	CopyToContainer(ctx context.Context, container, path string, content io.Reader, options CopyToContainerOptions) error
-	ContainersPrune(ctx context.Context, pruneFilters filters.Args) (container.PruneReport, error)
+	ContainersPrune(ctx context.Context, pruneFilters Filters) (container.PruneReport, error)
 }
 
 type ExecAPIClient interface {
@@ -119,7 +118,7 @@ type ImageAPIClient interface {
 	ImageRemove(ctx context.Context, image string, options ImageRemoveOptions) ([]image.DeleteResponse, error)
 	ImageSearch(ctx context.Context, term string, options ImageSearchOptions) ([]registry.SearchResult, error)
 	ImageTag(ctx context.Context, image, ref string) error
-	ImagesPrune(ctx context.Context, pruneFilter filters.Args) (image.PruneReport, error)
+	ImagesPrune(ctx context.Context, pruneFilter Filters) (image.PruneReport, error)
 
 	ImageInspect(ctx context.Context, image string, _ ...ImageInspectOption) (image.InspectResponse, error)
 	ImageHistory(ctx context.Context, image string, _ ...ImageHistoryOption) ([]image.HistoryResponseItem, error)
@@ -136,7 +135,7 @@ type NetworkAPIClient interface {
 	NetworkInspectWithRaw(ctx context.Context, network string, options NetworkInspectOptions) (network.Inspect, []byte, error)
 	NetworkList(ctx context.Context, options NetworkListOptions) ([]network.Summary, error)
 	NetworkRemove(ctx context.Context, network string) error
-	NetworksPrune(ctx context.Context, pruneFilter filters.Args) (network.PruneReport, error)
+	NetworksPrune(ctx context.Context, pruneFilter Filters) (network.PruneReport, error)
 }
 
 // NodeAPIClient defines API client methods for the nodes
@@ -149,7 +148,7 @@ type NodeAPIClient interface {
 
 // PluginAPIClient defines API client methods for the plugins
 type PluginAPIClient interface {
-	PluginList(ctx context.Context, filter filters.Args) (plugin.ListResponse, error)
+	PluginList(ctx context.Context, filter Filters) (plugin.ListResponse, error)
 	PluginRemove(ctx context.Context, name string, options PluginRemoveOptions) error
 	PluginEnable(ctx context.Context, name string, options PluginEnableOptions) error
 	PluginDisable(ctx context.Context, name string, options PluginDisableOptions) error
@@ -201,7 +200,7 @@ type VolumeAPIClient interface {
 	VolumeInspectWithRaw(ctx context.Context, volumeID string) (volume.Volume, []byte, error)
 	VolumeList(ctx context.Context, options VolumeListOptions) (volume.ListResponse, error)
 	VolumeRemove(ctx context.Context, volumeID string, force bool) error
-	VolumesPrune(ctx context.Context, pruneFilter filters.Args) (volume.PruneReport, error)
+	VolumesPrune(ctx context.Context, pruneFilter Filters) (volume.PruneReport, error)
 	VolumeUpdate(ctx context.Context, volumeID string, version swarm.Version, options volume.UpdateOptions) error
 }
 

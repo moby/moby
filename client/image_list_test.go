@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -55,11 +54,10 @@ func TestImageList(t *testing.T) {
 		},
 		{
 			options: ImageListOptions{
-				Filters: filters.NewArgs(
-					filters.Arg("label", "label1"),
-					filters.Arg("label", "label2"),
-					filters.Arg("dangling", "true"),
-				),
+				Filters: make(Filters).
+					Add("label", "label1").
+					Add("label", "label2").
+					Add("dangling", "true"),
 			},
 			expectedQueryParams: map[string]string{
 				"all":     "",
@@ -69,7 +67,7 @@ func TestImageList(t *testing.T) {
 		},
 		{
 			options: ImageListOptions{
-				Filters: filters.NewArgs(filters.Arg("dangling", "false")),
+				Filters: make(Filters).Add("dangling", "false"),
 			},
 			expectedQueryParams: map[string]string{
 				"all":     "",

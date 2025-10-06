@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
@@ -105,7 +104,7 @@ func (d *Daemon) CheckRunningTaskNetworks(ctx context.Context) func(t *testing.T
 		defer cli.Close()
 
 		tasks, err := cli.TaskList(ctx, client.TaskListOptions{
-			Filters: filters.NewArgs(filters.Arg("desired-state", "running")),
+			Filters: make(client.Filters).Add("desired-state", "running"),
 		})
 		assert.NilError(t, err)
 
@@ -126,7 +125,7 @@ func (d *Daemon) CheckRunningTaskImages(ctx context.Context) func(t *testing.T) 
 		defer cli.Close()
 
 		tasks, err := cli.TaskList(ctx, client.TaskListOptions{
-			Filters: filters.NewArgs(filters.Arg("desired-state", "running")),
+			Filters: make(client.Filters).Add("desired-state", "running"),
 		})
 		assert.NilError(t, err)
 

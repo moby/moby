@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/swarm"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -39,10 +38,8 @@ func TestNodeList(t *testing.T) {
 		},
 		{
 			options: NodeListOptions{
-				Filters: filters.NewArgs(
-					filters.Arg("label", "label1"),
-					filters.Arg("label", "label2"),
-				),
+				Filters: make(Filters).
+					Add("label", "label1", "label2"),
 			},
 			expectedQueryParams: map[string]string{
 				"filters": `{"label":{"label1":true,"label2":true}}`,

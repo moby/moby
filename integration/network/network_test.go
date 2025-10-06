@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/moby/moby/api/types/filters"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil"
@@ -132,7 +131,7 @@ func TestAPINetworkFilter(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	networks, err := apiClient.NetworkList(ctx, client.NetworkListOptions{
-		Filters: filters.NewArgs(filters.Arg("name", networkName)),
+		Filters: make(client.Filters).Add("name", networkName),
 	})
 
 	assert.NilError(t, err)

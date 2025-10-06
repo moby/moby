@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -21,7 +20,7 @@ func TestNetworksPruneError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.NetworksPrune(context.Background(), filters.NewArgs())
+	_, err = client.NetworksPrune(context.Background(), nil)
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -29,11 +28,11 @@ func TestNetworksPrune(t *testing.T) {
 	const expectedURL = "/networks/prune"
 
 	listCases := []struct {
-		filters             filters.Args
+		filters             Filters
 		expectedQueryParams map[string]string
 	}{
 		{
-			filters: filters.Args{},
+			filters: Filters{},
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -41,7 +40,7 @@ func TestNetworksPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: filters.NewArgs(filters.Arg("dangling", "true")),
+			filters: make(Filters).Add("dangling", "true"),
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -49,7 +48,7 @@ func TestNetworksPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: filters.NewArgs(filters.Arg("dangling", "false")),
+			filters: make(Filters).Add("dangling", "false"),
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -57,11 +56,10 @@ func TestNetworksPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: filters.NewArgs(
-				filters.Arg("dangling", "true"),
-				filters.Arg("label", "label1=foo"),
-				filters.Arg("label", "label2!=bar"),
-			),
+			filters: make(Filters).
+				Add("dangling", "true").
+				Add("label", "label1=foo").
+				Add("label", "label2!=bar"),
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",

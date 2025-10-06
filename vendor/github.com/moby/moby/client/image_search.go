@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/registry"
 )
 
@@ -22,13 +21,7 @@ func (cli *Client) ImageSearch(ctx context.Context, term string, options ImageSe
 		query.Set("limit", strconv.Itoa(options.Limit))
 	}
 
-	if options.Filters.Len() > 0 {
-		filterJSON, err := filters.ToJSON(options.Filters)
-		if err != nil {
-			return results, err
-		}
-		query.Set("filters", filterJSON)
-	}
+	options.Filters.updateURLValues(query)
 
 	resp, err := cli.tryImageSearch(ctx, query, options.RegistryAuth)
 	defer ensureReaderClosed(resp)

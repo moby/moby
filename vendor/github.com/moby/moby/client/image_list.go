@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/versions"
 )
@@ -30,13 +29,7 @@ func (cli *Client) ImageList(ctx context.Context, options ImageListOptions) ([]i
 
 	query := url.Values{}
 
-	if options.Filters.Len() > 0 {
-		filterJSON, err := filters.ToJSON(options.Filters)
-		if err != nil {
-			return images, err
-		}
-		query.Set("filters", filterJSON)
-	}
+	options.Filters.updateURLValues(query)
 	if options.All {
 		query.Set("all", "1")
 	}

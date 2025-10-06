@@ -8,7 +8,6 @@ import (
 	"io"
 	"testing"
 
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
@@ -111,7 +110,7 @@ func TestAuthZPluginV2RejectVolumeRequests(t *testing.T) {
 	assert.Assert(t, err != nil)
 	assert.ErrorContains(t, err, fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag))
 
-	_, err = c.VolumesPrune(ctx, filters.Args{})
+	_, err = c.VolumesPrune(ctx, nil)
 	assert.Assert(t, err != nil)
 	assert.ErrorContains(t, err, fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag))
 }

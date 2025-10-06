@@ -4,17 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/volume"
 )
 
 // VolumesPrune requests the daemon to delete unused data
-func (cli *Client) VolumesPrune(ctx context.Context, pruneFilters filters.Args) (volume.PruneReport, error) {
-	query, err := getFiltersQuery(pruneFilters)
-	if err != nil {
-		return volume.PruneReport{}, err
-	}
+func (cli *Client) VolumesPrune(ctx context.Context, pruneFilters Filters) (volume.PruneReport, error) {
+	query := url.Values{}
+	pruneFilters.updateURLValues(query)
 
 	resp, err := cli.post(ctx, "/volumes/prune", query, nil, nil)
 	defer ensureReaderClosed(resp)

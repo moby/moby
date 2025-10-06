@@ -4,17 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 )
 
 // ImagesPrune requests the daemon to delete unused data
-func (cli *Client) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (image.PruneReport, error) {
-	query, err := getFiltersQuery(pruneFilters)
-	if err != nil {
-		return image.PruneReport{}, err
-	}
+func (cli *Client) ImagesPrune(ctx context.Context, pruneFilters Filters) (image.PruneReport, error) {
+	query := url.Values{}
+	pruneFilters.updateURLValues(query)
 
 	resp, err := cli.post(ctx, "/images/prune", query, nil, nil)
 	defer ensureReaderClosed(resp)

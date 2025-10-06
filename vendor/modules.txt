@@ -951,7 +951,6 @@ github.com/moby/moby/api/types/checkpoint
 github.com/moby/moby/api/types/common
 github.com/moby/moby/api/types/container
 github.com/moby/moby/api/types/events
-github.com/moby/moby/api/types/filters
 github.com/moby/moby/api/types/image
 github.com/moby/moby/api/types/jsonstream
 github.com/moby/moby/api/types/mount

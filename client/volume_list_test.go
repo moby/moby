@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/volume"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -28,23 +27,19 @@ func TestVolumeList(t *testing.T) {
 	const expectedURL = "/volumes"
 
 	listCases := []struct {
-		filters         filters.Args
+		filters         Filters
 		expectedFilters string
 	}{
 		{
-			filters:         filters.NewArgs(),
 			expectedFilters: "",
 		}, {
-			filters:         filters.NewArgs(filters.Arg("dangling", "false")),
+			filters:         make(Filters).Add("dangling", "false"),
 			expectedFilters: `{"dangling":{"false":true}}`,
 		}, {
-			filters:         filters.NewArgs(filters.Arg("dangling", "true")),
+			filters:         make(Filters).Add("dangling", "true"),
 			expectedFilters: `{"dangling":{"true":true}}`,
 		}, {
-			filters: filters.NewArgs(
-				filters.Arg("label", "label1"),
-				filters.Arg("label", "label2"),
-			),
+			filters:         make(Filters).Add("label", "label1", "label2"),
 			expectedFilters: `{"label":{"label1":true,"label2":true}}`,
 		},
 	}

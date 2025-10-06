@@ -8,7 +8,6 @@ import (
 
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/client/internal"
 	"github.com/moby/moby/client/internal/timestamp"
 )
@@ -17,7 +16,7 @@ import (
 type EventsListOptions struct {
 	Since   string
 	Until   string
-	Filters filters.Args
+	Filters Filters
 }
 
 // Events returns a stream of events in the daemon. It's up to the caller to close the stream
@@ -100,13 +99,7 @@ func buildEventsQueryParams(options EventsListOptions) (url.Values, error) {
 		query.Set("until", ts)
 	}
 
-	if options.Filters.Len() > 0 {
-		filterJSON, err := filters.ToJSON(options.Filters)
-		if err != nil {
-			return nil, err
-		}
-		query.Set("filters", filterJSON)
-	}
+	options.Filters.updateURLValues(query)
 
 	return query, nil
 }

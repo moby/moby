@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/api/types/filters"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/swarm"
@@ -68,7 +67,7 @@ func TestServicePlugin(t *testing.T) {
 
 	// test that environment variables are passed from plugin service to plugin instance
 	service := d1.GetService(ctx, t, id)
-	tasks := d1.GetServiceTasks(ctx, t, service.Spec.Annotations.Name, filters.Arg("runtime", "plugin"))
+	tasks := d1.GetServiceTasksWithFilters(ctx, t, service.Spec.Annotations.Name, make(client.Filters).Add("runtime", "plugin"))
 	if len(tasks) == 0 {
 		t.Log("No tasks found for plugin service")
 		t.Fail()

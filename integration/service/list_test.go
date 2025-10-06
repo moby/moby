@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/moby/moby/api/types/filters"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/swarm"
@@ -54,7 +53,7 @@ func TestServiceListWithStatuses(t *testing.T) {
 		// bespoke closure right here.
 		poll.WaitOn(t, func(log poll.LogT) poll.Result {
 			tasks, err := apiClient.TaskList(ctx, client.TaskListOptions{
-				Filters: filters.NewArgs(filters.Arg("service", id)),
+				Filters: make(client.Filters).Add("service", id),
 			})
 
 			running := 0

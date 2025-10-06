@@ -7,7 +7,6 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/internal/testutil/request"
@@ -43,7 +42,7 @@ func TestPause(t *testing.T) {
 	messages, errs := apiClient.Events(ctx, client.EventsListOptions{
 		Since:   since,
 		Until:   until,
-		Filters: filters.NewArgs(filters.Arg(string(events.ContainerEventType), cID)),
+		Filters: make(client.Filters).Add(string(events.ContainerEventType), cID),
 	})
 	assert.Check(t, is.DeepEqual([]events.Action{events.ActionPause, events.ActionUnPause}, getEventActions(t, messages, errs)))
 }

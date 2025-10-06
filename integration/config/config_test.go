@@ -10,7 +10,6 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/pkg/stdcopy"
-	"github.com/moby/moby/api/types/filters"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/swarm"
@@ -76,32 +75,32 @@ func TestConfigList(t *testing.T) {
 
 	testCases := []struct {
 		desc     string
-		filters  filters.Args
+		filters  client.Filters
 		expected []string
 	}{
 		{
 			desc:     "test filter by name",
-			filters:  filters.NewArgs(filters.Arg("name", testName0)),
+			filters:  make(client.Filters).Add("name", testName0),
 			expected: []string{testName0},
 		},
 		{
 			desc:     "test filter by id",
-			filters:  filters.NewArgs(filters.Arg("id", config1ID)),
+			filters:  make(client.Filters).Add("id", config1ID),
 			expected: []string{testName1},
 		},
 		{
 			desc:     "test filter by label key only",
-			filters:  filters.NewArgs(filters.Arg("label", "type")),
+			filters:  make(client.Filters).Add("label", "type"),
 			expected: testNames,
 		},
 		{
 			desc:     "test filter by label key=value " + testName0,
-			filters:  filters.NewArgs(filters.Arg("label", "type=test")),
+			filters:  make(client.Filters).Add("label", "type=test"),
 			expected: []string{testName0},
 		},
 		{
 			desc:     "test filter by label key=value " + testName1,
-			filters:  filters.NewArgs(filters.Arg("label", "type=production")),
+			filters:  make(client.Filters).Add("label", "type=production"),
 			expected: []string{testName1},
 		},
 	}

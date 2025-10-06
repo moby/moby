@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
@@ -43,12 +42,8 @@ func TestImagesFilterMultiReference(t *testing.T) {
 		assert.NilError(t, err)
 	}
 
-	filter := filters.NewArgs()
-	filter.Add("reference", repoTags[0])
-	filter.Add("reference", repoTags[1])
-	filter.Add("reference", repoTags[2])
 	options := client.ImageListOptions{
-		Filters: filter,
+		Filters: make(client.Filters).Add("reference", repoTags[:3]...),
 	}
 	images, err := apiClient.ImageList(ctx, options)
 	assert.NilError(t, err)
@@ -89,12 +84,11 @@ func TestImagesFilterUntil(t *testing.T) {
 	assert.NilError(t, err)
 	laterUntil := laterImage.Created
 
-	filter := filters.NewArgs(
-		filters.Arg("since", imgs[0]),
-		filters.Arg("until", olderUntil),
-		filters.Arg("until", laterUntil),
-		filters.Arg("before", imgs[len(imgs)-1]),
-	)
+	filter := make(client.Filters).
+		Add("since", imgs[0]).
+		Add("until", olderUntil).
+		Add("until", laterUntil).
+		Add("before", imgs[len(imgs)-1])
 	list, err := apiClient.ImageList(ctx, client.ImageListOptions{Filters: filter})
 	assert.NilError(t, err)
 
@@ -125,10 +119,9 @@ func TestImagesFilterBeforeSince(t *testing.T) {
 		imgs[i] = id.ID
 	}
 
-	filter := filters.NewArgs(
-		filters.Arg("since", imgs[0]),
-		filters.Arg("before", imgs[len(imgs)-1]),
-	)
+	filter := make(client.Filters).
+		Add("since", imgs[0]).
+		Add("before", imgs[len(imgs)-1])
 	list, err := apiClient.ImageList(ctx, client.ImageListOptions{Filters: filter})
 	assert.NilError(t, err)
 
@@ -155,31 +148,31 @@ func TestAPIImagesFilters(t *testing.T) {
 
 	testcases := []struct {
 		name             string
-		filters          []filters.KeyValuePair
+		filters          client.Filters
 		expectedImages   int
 		expectedRepoTags int
 	}{
 		{
 			name:             "repository regex",
-			filters:          []filters.KeyValuePair{filters.Arg("reference", "utest*/*")},
+			filters:          make(client.Filters).Add("reference", "utest*/*"),
 			expectedImages:   1,
 			expectedRepoTags: 2,
 		},
 		{
 			name:             "image name regex",
-			filters:          []filters.KeyValuePair{filters.Arg("reference", "utest*")},
+			filters:          make(client.Filters).Add("reference", "utest*"),
 			expectedImages:   1,
 			expectedRepoTags: 1,
 		},
 		{
 			name:             "image name without a tag",
-			filters:          []filters.KeyValuePair{filters.Arg("reference", "utest")},
+			filters:          make(client.Filters).Add("reference", "utest"),
 			expectedImages:   1,
 			expectedRepoTags: 1,
 		},
 		{
 			name:             "registry port regex",
-			filters:          []filters.KeyValuePair{filters.Arg("reference", "*5000*/*")},
+			filters:          make(client.Filters).Add("reference", "*5000*/*"),
 			expectedImages:   1,
 			expectedRepoTags: 1,
 		},
@@ -191,7 +184,7 @@ func TestAPIImagesFilters(t *testing.T) {
 
 			ctx := testutil.StartSpan(ctx, t)
 			images, err := apiClient.ImageList(ctx, client.ImageListOptions{
-				Filters: filters.NewArgs(tc.filters...),
+				Filters: tc.filters,
 			})
 			assert.Check(t, err)
 			assert.Assert(t, is.Len(images, tc.expectedImages))

@@ -10,7 +10,6 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/build"
@@ -271,7 +270,7 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Prune anonymous volumes
-	pruneReport, err := apiClient.VolumesPrune(ctx, filters.Args{})
+	pruneReport, err := apiClient.VolumesPrune(ctx, nil)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(pruneReport.VolumesDeleted), 1))
 	assert.Check(t, is.Equal(pruneReport.VolumesDeleted[0], v.Name))
@@ -283,7 +282,7 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	_, err = apiClient.VolumeCreate(ctx, volume.CreateOptions{})
 	assert.NilError(t, err)
 
-	pruneReport, err = apiClient.VolumesPrune(ctx, filters.NewArgs(filters.Arg("all", "1")))
+	pruneReport, err = apiClient.VolumesPrune(ctx, make(client.Filters).Add("all", "1"))
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(pruneReport.VolumesDeleted), 2))
 
@@ -298,7 +297,7 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	vNamed, err = apiClient.VolumeCreate(ctx, volume.CreateOptions{Name: "test-api141"})
 	assert.NilError(t, err)
 
-	pruneReport, err = clientOld.VolumesPrune(ctx, filters.Args{})
+	pruneReport, err = clientOld.VolumesPrune(ctx, nil)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(pruneReport.VolumesDeleted), 2))
 	assert.Check(t, is.Contains(pruneReport.VolumesDeleted, v.Name))
@@ -333,7 +332,7 @@ VOLUME ` + volDest
 	err = apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{})
 	assert.NilError(t, err)
 
-	pruneReport, err := apiClient.VolumesPrune(ctx, filters.Args{})
+	pruneReport, err := apiClient.VolumesPrune(ctx, nil)
 	assert.NilError(t, err)
 	assert.Assert(t, is.Contains(pruneReport.VolumesDeleted, volumeName))
 }

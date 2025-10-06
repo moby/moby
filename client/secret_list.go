@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/swarm"
 )
 
@@ -13,15 +12,7 @@ import (
 func (cli *Client) SecretList(ctx context.Context, options SecretListOptions) ([]swarm.Secret, error) {
 	query := url.Values{}
 
-	if options.Filters.Len() > 0 {
-		filterJSON, err := filters.ToJSON(options.Filters)
-		if err != nil {
-			return nil, err
-		}
-
-		query.Set("filters", filterJSON)
-	}
-
+	options.Filters.updateURLValues(query)
 	resp, err := cli.get(ctx, "/secrets", query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {

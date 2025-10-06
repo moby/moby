@@ -7,7 +7,6 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"go.opentelemetry.io/otel"
@@ -53,7 +52,7 @@ func unpauseAllContainers(ctx context.Context, t testing.TB, client client.Conta
 func getPausedContainers(ctx context.Context, t testing.TB, apiClient client.ContainerAPIClient) []container.Summary {
 	t.Helper()
 	containers, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
-		Filters: filters.NewArgs(filters.Arg("status", "paused")),
+		Filters: make(client.Filters).Add("status", "paused"),
 		All:     true,
 	})
 	assert.Check(t, err, "failed to list containers")
@@ -163,7 +162,7 @@ func deleteAllNetworks(ctx context.Context, t testing.TB, c client.NetworkAPICli
 
 func deleteAllPlugins(ctx context.Context, t testing.TB, c client.PluginAPIClient, protectedPlugins map[string]struct{}) {
 	t.Helper()
-	plugins, err := c.PluginList(ctx, filters.Args{})
+	plugins, err := c.PluginList(ctx, nil)
 	// Docker EE does not allow cluster-wide plugin management.
 	if cerrdefs.IsNotImplemented(err) {
 		return

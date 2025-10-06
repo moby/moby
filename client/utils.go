@@ -3,11 +3,9 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"strings"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/filters"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -26,20 +24,6 @@ func trimID(objType, id string) (string, error) {
 		return "", emptyIDError(objType)
 	}
 	return id, nil
-}
-
-// getFiltersQuery returns a url query with "filters" query term, based on the
-// filters provided.
-func getFiltersQuery(f filters.Args) (url.Values, error) {
-	query := url.Values{}
-	if f.Len() > 0 {
-		filterJSON, err := filters.ToJSON(f)
-		if err != nil {
-			return query, err
-		}
-		query.Set("filters", filterJSON)
-	}
-	return query, nil
 }
 
 // encodePlatforms marshals the given platform(s) to JSON format, to

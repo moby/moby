@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/integration/internal/container"
@@ -45,7 +44,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	assert.NilError(t, err)
 
 	images, err := apiClient.ImageList(ctx, client.ImageListOptions{
-		Filters: filters.NewArgs(filters.Arg("reference", reference)),
+		Filters: make(client.Filters).Add("reference", reference),
 	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(jm.Status, images[0].ID))

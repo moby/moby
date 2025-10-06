@@ -9,7 +9,6 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/filters"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/network"
@@ -65,7 +64,7 @@ func testServiceCreateInit(ctx context.Context, daemonEnabled bool) func(t *test
 func inspectServiceContainer(ctx context.Context, t *testing.T, apiClient client.APIClient, serviceID string) container.InspectResponse {
 	t.Helper()
 	containers, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
-		Filters: filters.NewArgs(filters.Arg("label", "com.docker.swarm.service.id="+serviceID)),
+		Filters: make(client.Filters).Add("label", "com.docker.swarm.service.id="+serviceID),
 	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(containers, 1))
@@ -368,7 +367,7 @@ func TestCreateServiceSysctls(t *testing.T) {
 
 		// get all tasks of the service, so we can get the container
 		tasks, err := apiClient.TaskList(ctx, client.TaskListOptions{
-			Filters: filters.NewArgs(filters.Arg("service", serviceID)),
+			Filters: make(client.Filters).Add("service", serviceID),
 		})
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal(len(tasks), 1))
@@ -438,7 +437,7 @@ func TestCreateServiceCapabilities(t *testing.T) {
 
 	// get all tasks of the service, so we can get the container
 	tasks, err := apiClient.TaskList(ctx, client.TaskListOptions{
-		Filters: filters.NewArgs(filters.Arg("service", serviceID)),
+		Filters: make(client.Filters).Add("service", serviceID),
 	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(tasks), 1))

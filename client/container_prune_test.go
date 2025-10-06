@@ -10,7 +10,6 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/filters"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -19,7 +18,7 @@ func TestContainersPruneError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.ContainersPrune(context.Background(), filters.Args{})
+	_, err = client.ContainersPrune(context.Background(), Filters{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -27,11 +26,11 @@ func TestContainersPrune(t *testing.T) {
 	const expectedURL = "/containers/prune"
 
 	listCases := []struct {
-		filters             filters.Args
+		filters             Filters
 		expectedQueryParams map[string]string
 	}{
 		{
-			filters: filters.Args{},
+			filters: Filters{},
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -39,7 +38,7 @@ func TestContainersPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: filters.NewArgs(filters.Arg("dangling", "true")),
+			filters: make(Filters).Add("dangling", "true"),
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -47,10 +46,9 @@ func TestContainersPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: filters.NewArgs(
-				filters.Arg("dangling", "true"),
-				filters.Arg("until", "2016-12-15T14:00"),
-			),
+			filters: make(Filters).
+				Add("dangling", "true").
+				Add("until", "2016-12-15T14:00"),
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -58,7 +56,7 @@ func TestContainersPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: filters.NewArgs(filters.Arg("dangling", "false")),
+			filters: make(Filters).Add("dangling", "false"),
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -66,11 +64,10 @@ func TestContainersPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: filters.NewArgs(
-				filters.Arg("dangling", "true"),
-				filters.Arg("label", "label1=foo"),
-				filters.Arg("label", "label2!=bar"),
-			),
+			filters: make(Filters).
+				Add("dangling", "true").
+				Add("label", "label1=foo").
+				Add("label", "label2!=bar"),
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
