@@ -74,6 +74,11 @@ keywords: "API, Docker, rcli, REST, documentation"
   continues returning these fields when set for informational purposes, but
   they should not be depended on as they will be omitted once the legacy builder
   is removed.
+* Deprecated: the `Author` fields returned by the `GET /images/{name}/json`
+  endpoint is deprecated. The `Author` field is set through the `MAINTAINER`
+  Dockerfile instruction, which is deprecated, and may not be set depending
+  on how the image was created. The API continues returning this field when
+  set for informational purposes, but is should not be depended on.
 
 ## v1.50 API changes
 

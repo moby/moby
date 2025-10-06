@@ -423,7 +423,7 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 			"Parent":        imageInspect.Parent, //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present (built with legacy builder).
 			"Comment":       imageInspect.Comment,
 			"DockerVersion": imageInspect.DockerVersion, //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present.
-			"Author":        imageInspect.Author,
+			"Author":        imageInspect.Author,        //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present.
 		}))
 		if versions.LessThan(version, "1.50") {
 			legacyOptions = append(legacyOptions, compat.WithExtraFields(legacyConfigFields["v1.49"]))
