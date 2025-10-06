@@ -313,16 +313,16 @@ func (s *DockerAPISuite) TestBuildOnBuildCache(c *testing.T) {
 	assert.Assert(c, is.Len(imageIDs, 2))
 	parentID, childID := imageIDs[0], imageIDs[1]
 
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := testutil.GetContext(c)
 
 	// check parentID is correct
 	// Parent is graphdriver-only
 	if !testEnv.UsingSnapshotter() {
-		image, err := client.ImageInspect(ctx, childID)
+		image, err := apiClient.ImageInspect(ctx, childID)
 		assert.NilError(c, err)
 
-		assert.Check(c, is.Equal(parentID, image.Parent))
+		assert.Check(c, is.Equal(parentID, image.Parent)) //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present.
 	}
 }
 
