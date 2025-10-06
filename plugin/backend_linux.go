@@ -700,7 +700,7 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 		DiffIds: []string{rootFSBlob.Digest().String()},
 	}
 
-	config.DockerVersion = dockerversion.Version
+	config.DockerVersion = dockerversion.Version //nolint:staticcheck // ignore SA1019: field is deprecated.
 
 	configBlob, err := pm.blobStore.Writer(ctx, content.WithRef(name+"-config.json"))
 	if err != nil {
