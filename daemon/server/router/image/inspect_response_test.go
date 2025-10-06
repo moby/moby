@@ -6,6 +6,7 @@ import (
 
 	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/v2/daemon/internal/compat"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -59,10 +60,11 @@ func TestInspectResponse(t *testing.T) {
 					ImageConfig: *tc.cfg,
 				}
 			}
-			out, err := json.Marshal(&inspectCompatResponse{
-				InspectResponse: imgInspect,
-				legacyConfig:    tc.legacyConfig,
-			})
+			legacyConfigResponse := compat.Wrap(imgInspect, compat.WithExtraFields(map[string]any{
+				"Config": tc.legacyConfig,
+			}))
+
+			out, err := json.Marshal(&legacyConfigResponse)
 			assert.NilError(t, err)
 
 			var outMap struct{ Config json.RawMessage }

@@ -425,13 +425,17 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 			"DockerVersion": imageInspect.DockerVersion, //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present.
 			"Author":        imageInspect.Author,
 		}))
+
+		// preserve fields in the image Config that have an "omitempty"
+		// in the OCI spec, but weren't omitted in API v1.51 and lower.
 		if versions.LessThan(version, "1.50") {
-			legacyOptions = append(legacyOptions, compat.WithExtraFields(legacyConfigFields["v1.49"]))
+			legacyOptions = append(legacyOptions, compat.WithExtraFields(map[string]any{
+				"Config": legacyConfigFields["v1.49"],
+			}))
 		} else {
-			// inspectResponse preserves fields in the response that have an
-			// "omitempty" in the OCI spec, but didn't omit such fields in
-			// legacy responses before API v1.50.
-			legacyOptions = append(legacyOptions, compat.WithExtraFields(legacyConfigFields["v1.50-v1.51"]))
+			legacyOptions = append(legacyOptions, compat.WithExtraFields(map[string]any{
+				"Config": legacyConfigFields["v1.50-v1.51"],
+			}))
 		}
 	}
 
