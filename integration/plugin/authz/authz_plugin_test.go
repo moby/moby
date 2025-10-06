@@ -61,7 +61,7 @@ func setupTestV1(t *testing.T) context.Context {
 	ctx := setupTest(t)
 
 	// reset fields between tests
-	ctrl.Reset()
+	ctrl = &authorizationController{}
 
 	err := os.MkdirAll("/etc/docker/plugins", 0o755)
 	assert.NilError(t, err)
