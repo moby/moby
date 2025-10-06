@@ -82,6 +82,13 @@ func TestNewClientWithOpsFromEnv(t *testing.T) {
 			},
 			expectedVersion: "1.50",
 		},
+		{
+			doc: "override with unsupported api version",
+			envs: map[string]string{
+				"DOCKER_API_VERSION": "1.0",
+			},
+			expectedVersion: "1.0",
+		},
 	}
 
 	for _, tc := range testcases {
@@ -296,13 +303,11 @@ func TestNegotiateAPIVersion(t *testing.T) {
 			expectedVersion: fallbackAPIVersion,
 		},
 		{
-			// client should downgrade to the version reported by the daemon.
-			// version negotiation was added in API 1.25, so this is theoretical,
-			// but it should negotiate to versions before that if the daemon
-			// gives that as a response.
-			doc:             "downgrade old",
+			// client should not downgrade to the version reported by the daemon
+			// if the version is not supported.
+			doc:             "no downgrade old",
 			pingVersion:     "1.19",
-			expectedVersion: "1.19",
+			expectedVersion: MaxAPIVersion,
 		},
 		{
 			// client should not upgrade to a newer version if a version was set,
