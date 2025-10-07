@@ -108,7 +108,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: vendor.sum
+          cache: false
       -
         name: BuildKit ref
         run: |
@@ -191,6 +191,7 @@ jobs:
       - name: Env
         run: |
           Get-ChildItem Env: | Out-String
+
       - name: Moby - Init
         run: |
           New-Item -ItemType "directory" -Path "${{ github.workspace }}\go-build"
@@ -201,18 +202,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: vendor.sum
-      - name: Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~\AppData\Local\go-build
-            ~\go\pkg\mod
-            ${{ github.workspace }}\go-build
-            ${{ env.GOPATH }}\pkg\mod
-          key: ${{ inputs.os }}-${{ github.job }}-${{ hashFiles('**/vendor.sum') }}
-          restore-keys: |
-            ${{ inputs.os }}-${{ github.job }}-
+          cache: false
 
       - name: Docker info
         run: |
@@ -312,22 +302,27 @@ jobs:
             disabledFeatures="${disabledFeatures},merge_diff"
           fi
           echo "BUILDKIT_TEST_DISABLE_FEATURES=${disabledFeatures}" >> $GITHUB_ENV
+
       - name: Expose GitHub Runtime
         uses: crazy-max/ghaction-github-runtime@v3
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           path: moby
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: vendor.sum
+          cache: false
+
       - name: BuildKit ref
         shell: bash
         run: |
           echo "$(./hack/buildkit-ref)" >> $GITHUB_ENV
         working-directory: moby
+
       - name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
         uses: actions/checkout@v4
         with:
@@ -362,6 +357,7 @@ jobs:
            testFlags="${testFlags} --run=TestIntegration/$testSliceOffset.*/worker=${{ matrix.worker }}"
           fi
           echo "TESTFLAGS=${testFlags}" >> $GITHUB_ENV
+
       - name: Test
         shell: bash
         run: |
