@@ -1,6 +1,8 @@
 package networkallocator
 
 import (
+	"context"
+
 	"github.com/moby/swarmkit/v2/api"
 )
 
@@ -85,6 +87,27 @@ type NetworkAllocator interface {
 
 	// IsAttachmentAllocated If lb endpoint is allocated on the node
 	IsAttachmentAllocated(node *api.Node, networkAttachment *api.NetworkAttachment) bool
+}
+
+// OnGetNetworker is an optional interface that [NetworkAllocator] may implement
+// to customize the Control API response for GetNetwork and ListNetworks requests.
+type OnGetNetworker interface {
+	// OnGetNetwork is called with a copy of the network object that will be
+	// returned in a GetNetwork or ListNetworks Control API response. Any
+	// modifications to the network object will be reflected in the
+	// response. The modified network object will not be persisted to the
+	// store. Errors returned will be bubbled up to the Control API client.
+	//
+	// The appdataTypeURL and appdata parameters are set to the TypeUrl and
+	// value, respectively, of the appdata field in the ListNetworks or
+	// GetNetwork Control API request.
+	//
+	// The network may not have been allocated at the time of the call.
+	// Calling OnGetNetwork with an unallocated network should not be an
+	// error.
+	//
+	// This method may be called concurrently from multiple goroutines.
+	OnGetNetwork(ctx context.Context, network *api.Network, appdataTypeURL string, appdata []byte) error
 }
 
 // Config is used to store network related cluster config in the Manager.

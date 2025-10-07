@@ -21,6 +21,10 @@ type Server struct {
 	securityConfig *ca.SecurityConfig
 	netvalidator   networkallocator.DriverValidator
 	dr             *drivers.DriverProvider
+
+	// NetworkHooks intercept and mutate API server responses for GetNetwork
+	// and ListNetworks API requests when set.
+	NetworkHooks NetworkViewResponseMutator
 }
 
 // NewServer creates a Cluster API server.
