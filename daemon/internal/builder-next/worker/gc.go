@@ -72,6 +72,6 @@ func DefaultGCPolicy(p string, reservedSpace, maxUsedSpace, minFreeSpace int64) 
 }
 
 func diskPercentage(dstat disk.DiskStat, percentage int64) int64 {
-	avail := dstat.Total / percentage
+	avail := dstat.Total * percentage / 100
 	return (avail/(1<<30) + 1) * 1e9 // round up
 }
