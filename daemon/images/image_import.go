@@ -55,11 +55,13 @@ func (i *ImageService) ImportImage(ctx context.Context, newRef reference.Named, 
 		V1Image: image.V1Image{
 			DockerVersion: dockerversion.Version,
 			Config:        config,
-			Architecture:  platform.Architecture,
-			Variant:       platform.Variant,
-			OS:            platform.OS,
-			Created:       &created,
-			Comment:       msg,
+			Platform: ocispec.Platform{
+				Architecture: platform.Architecture,
+				Variant:      platform.Variant,
+				OS:           platform.OS,
+			},
+			Created: &created,
+			Comment: msg,
 		},
 		RootFS: &image.RootFS{
 			Type:    "layers",
