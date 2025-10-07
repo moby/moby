@@ -71,18 +71,6 @@ jobs:
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           }
       -
-        name: Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~\AppData\Local\go-build
-            ~\go\pkg\mod
-            ${{ github.workspace }}\go-build
-            ${{ env.GOPATH }}\pkg\mod
-          key: ${{ inputs.os }}-${{ github.job }}-${{ hashFiles('**/vendor.sum') }}
-          restore-keys: |
-            ${{ inputs.os }}-${{ github.job }}-
-      -
         name: Docker info
         run: |
           docker info
@@ -98,8 +86,6 @@ jobs:
         name: Build binaries
         run: |
           & docker run --name ${{ env.TEST_CTN_NAME }} -e "DOCKER_GITCOMMIT=${{ github.sha }}" `
-              -v "${{ github.workspace }}\go-build:C:\Users\ContainerAdministrator\AppData\Local\go-build" `
-              -v "${{ github.workspace }}\go\pkg\mod:C:\gopath\pkg\mod" `
               ${{ env.TEST_IMAGE_NAME }} hack\make.ps1 -Daemon -Client
       -
         name: Copy artifacts
@@ -150,18 +136,6 @@ jobs:
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           }
       -
-        name: Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~\AppData\Local\go-build
-            ~\go\pkg\mod
-            ${{ github.workspace }}\go-build
-            ${{ env.GOPATH }}\pkg\mod
-          key: ${{ inputs.os }}-${{ github.job }}-${{ hashFiles('**/vendor.sum') }}
-          restore-keys: |
-            ${{ inputs.os }}-${{ github.job }}-
-      -
         name: Docker info
         run: |
           docker info
@@ -177,8 +151,6 @@ jobs:
         name: Test
         run: |
           & docker run --name ${{ env.TEST_CTN_NAME }} -e "DOCKER_GITCOMMIT=${{ github.sha }}" `
-            -v "${{ github.workspace }}\go-build:C:\Users\ContainerAdministrator\AppData\Local\go-build" `
-            -v "${{ github.workspace }}\go\pkg\mod:C:\gopath\pkg\mod" `
             -v "${{ env.GOPATH }}\src\github.com\docker\docker\bundles:C:\gopath\src\github.com\docker\docker\bundles" `
             ${{ env.TEST_IMAGE_NAME }} hack\make.ps1 -TestUnit
       -
@@ -212,7 +184,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: vendor.sum
+          cache: false
       -
         name: Download artifacts
         uses: actions/download-artifact@v4
@@ -242,7 +214,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: vendor.sum
+          cache: false
       -
         name: Install gotestlist
         run:
@@ -295,6 +267,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: ${{ env.GOPATH }}/src/github.com/docker/docker
+      -
+        name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
       -
         name: Set up Jaeger
         run: |
@@ -427,12 +405,6 @@ jobs:
         env:
           DOCKER_HOST: npipe:////./pipe/docker_engine
       -
-        name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: vendor.sum
-      -
         name: Test integration
         if: matrix.test == './...'
         run: |
@@ -523,7 +495,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: vendor.sum
+          cache: false
       -
         name: Download reports
         uses: actions/download-artifact@v4
