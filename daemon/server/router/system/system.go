@@ -1,6 +1,7 @@
 package system
 
 import (
+	"github.com/moby/moby/v2/daemon/internal/compat"
 	"github.com/moby/moby/v2/daemon/server/router"
 	"resenje.org/singleflight"
 )
@@ -17,7 +18,7 @@ type systemRouter struct {
 	// collectSystemInfo is a single-flight for the /info endpoint,
 	// unique per API version (as different API versions may return
 	// a different API response).
-	collectSystemInfo singleflight.Group[string, *infoResponse]
+	collectSystemInfo singleflight.Group[string, *compat.Wrapper]
 }
 
 // NewRouter initializes a new system router
