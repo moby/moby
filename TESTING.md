@@ -133,5 +133,5 @@ You can change a version of golang used for building stuff that is being tested
 by setting `GO_VERSION` variable, for example:
 
 ```bash
-make GO_VERSION=1.24.7 test
+make GO_VERSION=1.24.8 test
 ```
