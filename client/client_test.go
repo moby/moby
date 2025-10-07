@@ -253,11 +253,11 @@ func TestNegotiateAPIVersionEmpty(t *testing.T) {
 	assert.NilError(t, err)
 
 	// set our version to something new
-	client.version = "1.25"
+	client.version = "1.51"
 
 	// if no version from server, expect the earliest
 	// version before APIVersion was implemented
-	const expected = "1.24"
+	const expected = fallbackAPIVersion
 
 	// test downgrade
 	client.NegotiateAPIVersionPing(types.Ping{})
@@ -276,16 +276,16 @@ func TestNegotiateAPIVersion(t *testing.T) {
 		{
 			// client should downgrade to the version reported by the daemon.
 			doc:             "downgrade from default",
-			pingVersion:     "1.21",
-			expectedVersion: "1.21",
+			pingVersion:     "1.50",
+			expectedVersion: "1.50",
 		},
 		{
 			// client should not downgrade to the version reported by the
 			// daemon if a custom version was set.
 			doc:             "no downgrade from custom version",
-			clientVersion:   "1.25",
-			pingVersion:     "1.21",
-			expectedVersion: "1.25",
+			clientVersion:   "1.51",
+			pingVersion:     "1.50",
+			expectedVersion: "1.51",
 		},
 		{
 			// client should downgrade to the last version before version
@@ -293,7 +293,7 @@ func TestNegotiateAPIVersion(t *testing.T) {
 			// a version.
 			doc:             "downgrade legacy",
 			pingVersion:     "",
-			expectedVersion: "1.24",
+			expectedVersion: fallbackAPIVersion,
 		},
 		{
 			// client should downgrade to the version reported by the daemon.
@@ -308,9 +308,9 @@ func TestNegotiateAPIVersion(t *testing.T) {
 			// client should not upgrade to a newer version if a version was set,
 			// even if both the daemon and the client support it.
 			doc:             "no upgrade",
-			clientVersion:   "1.20",
-			pingVersion:     "1.21",
-			expectedVersion: "1.20",
+			clientVersion:   "1.50",
+			pingVersion:     "1.51",
+			expectedVersion: "1.50",
 		},
 	}
 
@@ -380,14 +380,14 @@ func TestNegotiateAPIVersionAutomatic(t *testing.T) {
 	assert.Check(t, is.Equal(client.ClientVersion(), expected))
 
 	// First request should trigger negotiation
-	pingVersion = "1.35"
-	expected = "1.35"
+	pingVersion = "1.50"
+	expected = "1.50"
 	_, _ = client.Info(ctx)
 	assert.Check(t, is.Equal(client.ClientVersion(), expected))
 
 	// Once successfully negotiated, subsequent requests should not re-negotiate
-	pingVersion = "1.25"
-	expected = "1.35"
+	pingVersion = "1.49"
+	expected = "1.50"
 	_, _ = client.Info(ctx)
 	assert.Check(t, is.Equal(client.ClientVersion(), expected))
 }
