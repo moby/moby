@@ -32,6 +32,9 @@ on:
     #        * * * * *
     - cron: '0 9 * * 4'
 
+env:
+  GO_VERSION: "1.24.7"
+
 jobs:
   codeql:
     runs-on: ubuntu-24.04
@@ -55,10 +58,11 @@ jobs:
         run: |
           ln -s vendor.mod go.mod
           ln -s vendor.sum go.sum
-      - name: Update Go
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24.7"
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
