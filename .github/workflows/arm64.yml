@@ -89,7 +89,7 @@ jobs:
           targets: dev
           set: |
             *.cache-from=type=gha,scope=dev-arm64
-            *.cache-to=type=gha,scope=dev-arm64,mode=max
+            *.cache-to=type=gha,scope=dev-arm64
             *.output=type=cacheonly
 
   test-unit:
