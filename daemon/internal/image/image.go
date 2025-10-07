@@ -11,7 +11,6 @@ import (
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/internal/layer"
-	"github.com/moby/moby/v2/dockerversion"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -236,7 +235,6 @@ func NewChildImage(img *Image, child ChildConfig, os string) *Image {
 
 	return &Image{
 		V1Image: V1Image{
-			DockerVersion:   dockerversion.Version,
 			Config:          child.Config,
 			Architecture:    img.BaseImgArch(),
 			Variant:         img.BaseImgVariant(),
