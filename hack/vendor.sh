@@ -7,15 +7,31 @@
 set -e
 
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPTDIR/.." && pwd)"
+
+# All module paths are relative to PROJECT_DIR
+# Currently only a subset of modules are vendored.
+vendor_modules_paths=(. man)
+modules_paths=(api client "${vendor_modules_paths[@]}")
 
 tidy() (
-		set -x
-		go mod tidy
+	for module_path in "${modules_paths[@]}"; do
+		(
+			set -x
+			cd "$PROJECT_DIR/$module_path"
+			go mod tidy
+		)
+	done
 )
 
 vendor() (
-		set -x
-		go mod vendor
+	for module_path in "${vendor_modules_paths[@]}"; do
+		(
+			set -x
+			cd "$PROJECT_DIR/$module_path"
+			go mod vendor
+		)
+	done
 )
 
 replace() (
