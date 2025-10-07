@@ -121,6 +121,6 @@ automatically set the other above mentioned environment variables accordingly.
 You can change a version of golang used for building stuff that is being tested
 by setting `GO_VERSION` variable, for example:
 
-```
-make GO_VERSION=1.12.8 test
+```bash
+make GO_VERSION=1.24.8 test
 ```
