@@ -5,6 +5,7 @@ import (
 	"errors"
 	"slices"
 
+	cerrdefs "github.com/containerd/errdefs"
 	digest "github.com/opencontainers/go-digest"
 )
 
@@ -189,24 +190,28 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 		if (remote == nil || opt.CompressionOpt != nil) && opt.Mode != CacheExportModeRemoteOnly {
 			res, err := cm.results.Load(ctx, res)
 			if err != nil {
-				return nil, err
-			}
-			remotes, err := opt.ResolveRemotes(ctx, res)
-			if err != nil {
-				return nil, err
-			}
-			res.Release(context.TODO())
-			if remote == nil && len(remotes) > 0 {
-				remote, remotes = remotes[0], remotes[1:] // pop the first element
-			}
-			if opt.CompressionOpt != nil {
-				for _, r := range remotes { // record all remaining remotes as well
-					results = append(results, CacheExportResult{
-						CreatedAt:  v.CreatedAt,
-						Result:     r,
-						EdgeVertex: k.vtx,
-						EdgeIndex:  k.output,
-					})
+				if !errors.Is(err, cerrdefs.ErrNotFound) {
+					return nil, err
+				}
+				remote = nil
+			} else {
+				remotes, err := opt.ResolveRemotes(ctx, res)
+				if err != nil {
+					return nil, err
+				}
+				res.Release(context.TODO())
+				if remote == nil && len(remotes) > 0 {
+					remote, remotes = remotes[0], remotes[1:] // pop the first element
+				}
+				if opt.CompressionOpt != nil {
+					for _, r := range remotes { // record all remaining remotes as well
+						results = append(results, CacheExportResult{
+							CreatedAt:  v.CreatedAt,
+							Result:     r,
+							EdgeVertex: k.vtx,
+							EdgeIndex:  k.output,
+						})
+					}
 				}
 			}
 		}
@@ -232,7 +237,7 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 		for _, dep := range deps {
 			rec, err := dep.CacheKey.Exporter.ExportTo(ctx, t, opt)
 			if err != nil {
-				return nil, err
+				continue
 			}
 			for _, r := range rec {
 				srcs[i] = append(srcs[i], CacheLink{Src: r, Selector: string(dep.Selector)})
@@ -244,7 +249,7 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 		for _, de := range e.edge.secondaryExporters {
 			recs, err := de.cacheKey.CacheKey.Exporter.ExportTo(mainCtx, t, opt)
 			if err != nil {
-				return nil, nil
+				continue
 			}
 			for _, r := range recs {
 				srcs[de.index] = append(srcs[de.index], CacheLink{Src: r, Selector: de.cacheKey.Selector.String()})
@@ -258,6 +263,14 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 			if err != nil {
 				return nil, err
 			}
+		}
+	}
+
+	// validate deps are present
+	for _, deps := range srcs {
+		if len(deps) == 0 {
+			res[e] = nil
+			return res[e], nil
 		}
 	}
 
