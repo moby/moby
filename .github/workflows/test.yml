@@ -41,6 +41,7 @@ jobs:
         mode:
           - ""
           - systemd
+          - firewalld
     steps:
       -
         name: Prepare
@@ -58,7 +59,7 @@ jobs:
           targets: dev
           set: |
             *.cache-from=type=gha,scope=dev${{ matrix.mode }}
-            *.cache-to=type=gha,scope=dev${{ matrix.mode }},mode=max
+            *.cache-to=type=gha,scope=dev${{ matrix.mode }}
             *.output=type=cacheonly
 
   test:
