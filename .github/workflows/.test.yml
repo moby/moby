@@ -39,7 +39,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # tag=v4.2.2
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -48,14 +48,14 @@ jobs:
         uses: ./.github/actions/setup-tracing
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435  # tag=v3.11.1
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@v6
+        uses: docker/bake-action@37816e747588cb137173af99ab33873600c46ea8  # tag=v6.8.0
         with:
           targets: dev
           set: |
@@ -83,7 +83,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # tag=v4.6.2
         with:
           name: test-reports-docker-py-${{ inputs.storage }}
           path: /tmp/reports/*
@@ -96,20 +96,20 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # tag=v4.2.2
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435  # tag=v3.11.1
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@v6
+        uses: docker/bake-action@37816e747588cb137173af99ab33873600c46ea8  # tag=v6.8.0
         with:
           targets: dev
           set: |
@@ -131,7 +131,7 @@ jobs:
       -
         name: Create matrix includes
         id: set
-        uses: actions/github-script@v7
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # tag=v7.0.1
         with:
           script: |
             let includes = [
@@ -170,7 +170,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # tag=v4.2.2
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -198,14 +198,14 @@ jobs:
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435  # tag=v3.11.1
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@v6
+        uses: docker/bake-action@37816e747588cb137173af99ab33873600c46ea8  # tag=v6.8.0
         with:
           targets: dev
           set: |
@@ -237,7 +237,7 @@ jobs:
           curl -sSLf localhost:16686/api/traces?service=integration-test-client > $reportsPath/jaeger-trace.json
       -
         name: Send to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238  # tag=v4.6.0
         with:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
@@ -251,7 +251,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # tag=v4.6.2
         with:
           name: test-reports-integration-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
@@ -267,13 +267,13 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5  # tag=v5.5.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: vendor.sum
       -
         name: Download reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # tag=v4.3.0
         with:
           path: /tmp/reports
           pattern: test-reports-integration-${{ inputs.storage }}-*
@@ -296,10 +296,10 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # tag=v4.2.2
       -
         name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5  # tag=v5.5.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: vendor.sum
@@ -322,7 +322,7 @@ jobs:
       -
         name: Create gha matrix
         id: set
-        uses: actions/github-script@v7
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # tag=v7.0.1
         with:
           script: |
             let matrix = {
@@ -394,7 +394,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # tag=v4.2.2
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -415,14 +415,14 @@ jobs:
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435  # tag=v3.11.1
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@v6
+        uses: docker/bake-action@37816e747588cb137173af99ab33873600c46ea8  # tag=v6.8.0
         with:
           targets: dev
           set: |
@@ -453,7 +453,7 @@ jobs:
           curl -sSLf localhost:16686/api/traces?service=integration-test-client > $reportsPath/jaeger-trace.json
       -
         name: Send to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238  # tag=v4.6.0
         with:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
@@ -467,7 +467,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # tag=v4.6.2
         with:
           name: test-reports-integration-cli-${{ inputs.storage }}-${{ matrix.mode }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
@@ -483,13 +483,13 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5  # tag=v5.5.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: vendor.sum
       -
         name: Download reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # tag=v4.3.0
         with:
           path: /tmp/reports
           pattern: test-reports-integration-cli-${{ inputs.storage }}-${{ matrix.mode }}-*
