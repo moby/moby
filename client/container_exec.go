@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/versions"
 )
 
 // ExecCreateOptions is a small subset of the Config struct that holds the configuration
@@ -30,22 +29,6 @@ func (cli *Client) ContainerExecCreate(ctx context.Context, containerID string, 
 	containerID, err := trimID("container", containerID)
 	if err != nil {
 		return container.ExecCreateResponse{}, err
-	}
-
-	// Make sure we negotiated (if the client is configured to do so),
-	// as code below contains API-version specific handling of options.
-	//
-	// Normally, version-negotiation (if enabled) would not happen until
-	// the API request is made.
-	if err := cli.checkVersion(ctx); err != nil {
-		return container.ExecCreateResponse{}, err
-	}
-
-	if err := cli.NewVersionError(ctx, "1.25", "env"); len(options.Env) != 0 && err != nil {
-		return container.ExecCreateResponse{}, err
-	}
-	if versions.LessThan(cli.ClientVersion(), "1.42") {
-		options.ConsoleSize = nil
 	}
 
 	req := container.ExecCreateRequest{
@@ -86,19 +69,6 @@ type ExecStartOptions struct {
 
 // ContainerExecStart starts an exec process already created in the docker host.
 func (cli *Client) ContainerExecStart(ctx context.Context, execID string, config ExecStartOptions) error {
-	// Make sure we negotiated (if the client is configured to do so),
-	// as code below contains API-version specific handling of options.
-	//
-	// Normally, version-negotiation (if enabled) would not happen until
-	// the API request is made.
-	if err := cli.checkVersion(ctx); err != nil {
-		return err
-	}
-
-	if versions.LessThan(cli.ClientVersion(), "1.42") {
-		config.ConsoleSize = nil
-	}
-
 	req := container.ExecStartRequest{
 		Detach:      config.Detach,
 		Tty:         config.Tty,
@@ -133,9 +103,6 @@ type ExecAttachOptions = ExecStartOptions
 //
 // [stdcopy.StdCopy]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#StdCopy
 func (cli *Client) ContainerExecAttach(ctx context.Context, execID string, config ExecAttachOptions) (HijackedResponse, error) {
-	if versions.LessThan(cli.ClientVersion(), "1.42") {
-		config.ConsoleSize = nil
-	}
 	req := container.ExecStartRequest{
 		Detach:      config.Detach,
 		Tty:         config.Tty,

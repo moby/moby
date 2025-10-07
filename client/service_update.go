@@ -20,15 +20,7 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 		return swarm.ServiceUpdateResponse{}, err
 	}
 
-	// Make sure we negotiated (if the client is configured to do so),
-	// as code below contains API-version specific handling of options.
-	//
-	// Normally, version-negotiation (if enabled) would not happen until
-	// the API request is made.
-	if err := cli.checkVersion(ctx); err != nil {
-		return swarm.ServiceUpdateResponse{}, err
-	}
-	if err := validateServiceSpec(service, cli.version); err != nil {
+	if err := validateServiceSpec(service); err != nil {
 		return swarm.ServiceUpdateResponse{}, err
 	}
 

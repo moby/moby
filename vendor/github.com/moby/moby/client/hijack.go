@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/moby/moby/api/types/versions"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -26,11 +25,6 @@ func (cli *Client) postHijacked(ctx context.Context, path string, query url.Valu
 	conn, mediaType, err := setupHijackConn(cli.dialer(), req, "tcp")
 	if err != nil {
 		return HijackedResponse{}, err
-	}
-
-	if versions.LessThan(cli.ClientVersion(), "1.42") {
-		// Prior to 1.42, Content-Type is always set to raw-stream and not relevant
-		mediaType = ""
 	}
 
 	return NewHijackedResponse(conn, mediaType), nil
