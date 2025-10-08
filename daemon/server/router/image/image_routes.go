@@ -379,13 +379,14 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 		return errdefs.InvalidParameter(errors.New("conflicting options: manifests and platform options cannot both be set"))
 	}
 
-	imageInspect, err := ir.backend.ImageInspect(ctx, vars["name"], imagebackend.ImageInspectOpts{
+	inspectData, err := ir.backend.ImageInspect(ctx, vars["name"], imagebackend.ImageInspectOpts{
 		Manifests: manifests,
 		Platform:  platform,
 	})
 	if err != nil {
 		return err
 	}
+	imageInspect := inspectData.InspectResponse
 
 	var legacyOptions []compat.Option
 
@@ -409,9 +410,11 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 			imageInspect.Created = time.Time{}.Format(time.RFC3339Nano)
 		}
 	}
-	if versions.GreaterThanOrEqualTo(version, "1.45") {
-		imageInspect.Container = ""        //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.45.
-		imageInspect.ContainerConfig = nil //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.45.
+	if versions.LessThan(version, "1.45") {
+		legacyOptions = append(legacyOptions, compat.WithExtraFields(map[string]any{
+			"Container":       inspectData.Container,
+			"ContainerConfig": inspectData.ContainerConfig,
+		}))
 	}
 	if versions.LessThan(version, "1.48") {
 		imageInspect.Descriptor = nil
@@ -420,10 +423,10 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 		// These fields have "omitempty" on API v1.52 and higher,
 		// but older API versions returned them unconditionally.
 		legacyOptions = append(legacyOptions, compat.WithExtraFields(map[string]any{
-			"Parent":        imageInspect.Parent, //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present (built with legacy builder).
-			"Comment":       imageInspect.Comment,
-			"DockerVersion": imageInspect.DockerVersion, //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present.
-			"Author":        imageInspect.Author,
+			"Parent":        inspectData.Parent, // field is deprecated, but still included in response when present (built with legacy builder).
+			"Comment":       inspectData.Comment,
+			"DockerVersion": inspectData.DockerVersion, // field is deprecated, but still included in response when present.
+			"Author":        inspectData.Author,
 		}))
 
 		// preserve fields in the image Config that have an "omitempty"
@@ -436,6 +439,15 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 			legacyOptions = append(legacyOptions, compat.WithExtraFields(map[string]any{
 				"Config": legacyConfigFields["v1.50-v1.51"],
 			}))
+		}
+	} else {
+		if inspectData.Parent != "" {
+			// field is deprecated, but still included in response when present (built with legacy builder).
+			legacyOptions = append(legacyOptions, compat.WithExtraFields(map[string]any{"Parent": inspectData.Parent}))
+		}
+		if inspectData.DockerVersion != "" {
+			// field is deprecated, but still included in response when present.
+			legacyOptions = append(legacyOptions, compat.WithExtraFields(map[string]any{"DockerVersion": inspectData.DockerVersion}))
 		}
 	}
 

@@ -26,7 +26,7 @@ type imageBackend interface {
 	ImageHistory(ctx context.Context, imageName string, platform *ocispec.Platform) ([]*image.HistoryResponseItem, error)
 	Images(ctx context.Context, opts imagebackend.ListOptions) ([]*image.Summary, error)
 	GetImage(ctx context.Context, refOrID string, options imagebackend.GetImageOpts) (*dockerimage.Image, error)
-	ImageInspect(ctx context.Context, refOrID string, options imagebackend.ImageInspectOpts) (*image.InspectResponse, error)
+	ImageInspect(ctx context.Context, refOrID string, options imagebackend.ImageInspectOpts) (*imagebackend.InspectData, error)
 	TagImage(ctx context.Context, id dockerimage.ID, newRef reference.Named) error
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*image.PruneReport, error)
 }

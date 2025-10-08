@@ -12,7 +12,7 @@ import (
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 )
 
-func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts imagebackend.ImageInspectOpts) (*imagetypes.InspectResponse, error) {
+func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts imagebackend.ImageInspectOpts) (*imagebackend.InspectData, error) {
 	img, err := i.GetImage(ctx, refOrID, imagebackend.GetImageOpts{Platform: opts.Platform})
 	if err != nil {
 		return nil, err
@@ -54,34 +54,36 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts im
 	}
 
 	imgConfig := containerConfigToDockerOCIImageConfig(img.Config)
-	return &imagetypes.InspectResponse{
-		ID:              img.ID().String(),
-		RepoTags:        repoTags,
-		RepoDigests:     repoDigests,
-		Parent:          img.Parent.String(), //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present (built with legacy builder).
-		Comment:         comment,
-		Created:         created,
-		Container:       img.Container,        //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.45.
-		ContainerConfig: &img.ContainerConfig, //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.45.
-		DockerVersion:   img.DockerVersion,    //nolint:staticcheck // ignore SA1019: field is deprecated, but still included in response when present.
-		Author:          img.Author,
-		Config:          &imgConfig,
-		Architecture:    img.Architecture,
-		Variant:         img.Variant,
-		Os:              img.OperatingSystem(),
-		OsVersion:       img.OSVersion,
-		Size:            size,
-		GraphDriver: &storage.DriverData{
-			Name: i.layerStore.DriverName(),
-			Data: layerMetadata,
+	return &imagebackend.InspectData{
+		InspectResponse: imagetypes.InspectResponse{
+			ID:           img.ID().String(),
+			RepoTags:     repoTags,
+			RepoDigests:  repoDigests,
+			Comment:      comment,
+			Created:      created,
+			Author:       img.Author,
+			Config:       &imgConfig,
+			Architecture: img.Architecture,
+			Variant:      img.Variant,
+			Os:           img.OperatingSystem(),
+			OsVersion:    img.OSVersion,
+			Size:         size,
+			GraphDriver: &storage.DriverData{
+				Name: i.layerStore.DriverName(),
+				Data: layerMetadata,
+			},
+			RootFS: imagetypes.RootFS{
+				Type:   img.RootFS.Type,
+				Layers: layers,
+			},
+			Metadata: imagetypes.Metadata{
+				LastTagTime: lastUpdated,
+			},
 		},
-		RootFS: imagetypes.RootFS{
-			Type:   img.RootFS.Type,
-			Layers: layers,
-		},
-		Metadata: imagetypes.Metadata{
-			LastTagTime: lastUpdated,
-		},
+		Parent:          img.Parent.String(),  // field is deprecated with the legacy builder, but still included in response when present (built with legacy builder).
+		DockerVersion:   img.DockerVersion,    // field is deprecated with the legacy builder, but still included in response when present.
+		Container:       img.Container,        // field is deprecated, but still set on API < v1.45.
+		ContainerConfig: &img.ContainerConfig, // field is deprecated, but still set on API < v1.45.
 	}, nil
 }
 
