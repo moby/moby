@@ -181,6 +181,10 @@ type Server struct {
 type serverInternalState struct {
 	mu          sync.Mutex
 	activeConns map[*serverConn]struct{}
+
+	// Pool of error channels. This is per-Server rather than global
+	// because channels can't be reused across synctest bubbles.
+	errChanPool sync.Pool
 }
 
 func (s *serverInternalState) registerConn(sc *serverConn) {
@@ -212,6 +216,27 @@ func (s *serverInternalState) startGracefulShutdown() {
 	s.mu.Unlock()
 }
 
+// Global error channel pool used for uninitialized Servers.
+// We use a per-Server pool when possible to avoid using channels across synctest bubbles.
+var errChanPool = sync.Pool{
+	New: func() any { return make(chan error, 1) },
+}
+
+func (s *serverInternalState) getErrChan() chan error {
+	if s == nil {
+		return errChanPool.Get().(chan error) // Server used without calling ConfigureServer
+	}
+	return s.errChanPool.Get().(chan error)
+}
+
+func (s *serverInternalState) putErrChan(ch chan error) {
+	if s == nil {
+		errChanPool.Put(ch) // Server used without calling ConfigureServer
+		return
+	}
+	s.errChanPool.Put(ch)
+}
+
 // ConfigureServer adds HTTP/2 support to a net/http Server.
 //
 // The configuration conf may be nil.
@@ -224,7 +249,10 @@ func ConfigureServer(s *http.Server, conf *Server) error {
 	if conf == nil {
 		conf = new(Server)
 	}
-	conf.state = &serverInternalState{activeConns: make(map[*serverConn]struct{})}
+	conf.state = &serverInternalState{
+		activeConns: make(map[*serverConn]struct{}),
+		errChanPool: sync.Pool{New: func() any { return make(chan error, 1) }},
+	}
 	if h1, h2 := s, conf; h2.IdleTimeout == 0 {
 		if h1.IdleTimeout != 0 {
 			h2.IdleTimeout = h1.IdleTimeout
@@ -1124,25 +1152,6 @@ func (sc *serverConn) readPreface() error {
 	}
 }
 
-var errChanPool = sync.Pool{
-	New: func() interface{} { return make(chan error, 1) },
-}
-
-func getErrChan() chan error {
-	if inTests {
-		// Channels cannot be reused across synctest tests.
-		return make(chan error, 1)
-	} else {
-		return errChanPool.Get().(chan error)
-	}
-}
-
-func putErrChan(ch chan error) {
-	if !inTests {
-		errChanPool.Put(ch)
-	}
-}
-
 var writeDataPool = sync.Pool{
 	New: func() interface{} { return new(writeData) },
 }
@@ -1150,7 +1159,7 @@ var writeDataPool = sync.Pool{
 // writeDataFromHandler writes DATA response frames from a handler on
 // the given stream.
 func (sc *serverConn) writeDataFromHandler(stream *stream, data []byte, endStream bool) error {
-	ch := getErrChan()
+	ch := sc.srv.state.getErrChan()
 	writeArg := writeDataPool.Get().(*writeData)
 	*writeArg = writeData{stream.id, data, endStream}
 	err := sc.writeFrameFromHandler(FrameWriteRequest{
@@ -1182,7 +1191,7 @@ func (sc *serverConn) writeDataFromHandler(stream *stream, data []byte, endStrea
 			return errStreamClosed
 		}
 	}
-	putErrChan(ch)
+	sc.srv.state.putErrChan(ch)
 	if frameWriteDone {
 		writeDataPool.Put(writeArg)
 	}
@@ -2436,7 +2445,7 @@ func (sc *serverConn) writeHeaders(st *stream, headerData *writeResHeaders) erro
 		// waiting for this frame to be written, so an http.Flush mid-handler
 		// writes out the correct value of keys, before a handler later potentially
 		// mutates it.
-		errc = getErrChan()
+		errc = sc.srv.state.getErrChan()
 	}
 	if err := sc.writeFrameFromHandler(FrameWriteRequest{
 		write:  headerData,
@@ -2448,7 +2457,7 @@ func (sc *serverConn) writeHeaders(st *stream, headerData *writeResHeaders) erro
 	if errc != nil {
 		select {
 		case err := <-errc:
-			putErrChan(errc)
+			sc.srv.state.putErrChan(errc)
 			return err
 		case <-sc.doneServing:
 			return errClientDisconnected
@@ -3129,7 +3138,7 @@ func (w *responseWriter) Push(target string, opts *http.PushOptions) error {
 		method: opts.Method,
 		url:    u,
 		header: cloneHeader(opts.Header),
-		done:   getErrChan(),
+		done:   sc.srv.state.getErrChan(),
 	}
 
 	select {
@@ -3146,7 +3155,7 @@ func (w *responseWriter) Push(target string, opts *http.PushOptions) error {
 	case <-st.cw:
 		return errStreamClosed
 	case err := <-msg.done:
-		putErrChan(msg.done)
+		sc.srv.state.putErrChan(msg.done)
 		return err
 	}
 }
