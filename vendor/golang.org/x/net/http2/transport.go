@@ -193,50 +193,6 @@ type Transport struct {
 
 type transportTestHooks struct {
 	newclientconn func(*ClientConn)
-	group         synctestGroupInterface
-}
-
-func (t *Transport) markNewGoroutine() {
-	if t != nil && t.transportTestHooks != nil {
-		t.transportTestHooks.group.Join()
-	}
-}
-
-func (t *Transport) now() time.Time {
-	if t != nil && t.transportTestHooks != nil {
-		return t.transportTestHooks.group.Now()
-	}
-	return time.Now()
-}
-
-func (t *Transport) timeSince(when time.Time) time.Duration {
-	if t != nil && t.transportTestHooks != nil {
-		return t.now().Sub(when)
-	}
-	return time.Since(when)
-}
-
-// newTimer creates a new time.Timer, or a synthetic timer in tests.
-func (t *Transport) newTimer(d time.Duration) timer {
-	if t.transportTestHooks != nil {
-		return t.transportTestHooks.group.NewTimer(d)
-	}
-	return timeTimer{time.NewTimer(d)}
-}
-
-// afterFunc creates a new time.AfterFunc timer, or a synthetic timer in tests.
-func (t *Transport) afterFunc(d time.Duration, f func()) timer {
-	if t.transportTestHooks != nil {
-		return t.transportTestHooks.group.AfterFunc(d, f)
-	}
-	return timeTimer{time.AfterFunc(d, f)}
-}
-
-func (t *Transport) contextWithTimeout(ctx context.Context, d time.Duration) (context.Context, context.CancelFunc) {
-	if t.transportTestHooks != nil {
-		return t.transportTestHooks.group.ContextWithTimeout(ctx, d)
-	}
-	return context.WithTimeout(ctx, d)
 }
 
 func (t *Transport) maxHeaderListSize() uint32 {
@@ -366,7 +322,7 @@ type ClientConn struct {
 	readerErr  error         // set before readerDone is closed
 
 	idleTimeout time.Duration // or 0 for never
-	idleTimer   timer
+	idleTimer   *time.Timer
 
 	mu               sync.Mutex // guards following
 	cond             *sync.Cond // hold mu; broadcast on flow/closed changes
@@ -534,14 +490,12 @@ func (cs *clientStream) closeReqBodyLocked() {
 	cs.reqBodyClosed = make(chan struct{})
 	reqBodyClosed := cs.reqBodyClosed
 	go func() {
-		cs.cc.t.markNewGoroutine()
 		cs.reqBody.Close()
 		close(reqBodyClosed)
 	}()
 }
 
 type stickyErrWriter struct {
-	group   synctestGroupInterface
 	conn    net.Conn
 	timeout time.Duration
 	err     *error
@@ -551,7 +505,7 @@ func (sew stickyErrWriter) Write(p []byte) (n int, err error) {
 	if *sew.err != nil {
 		return 0, *sew.err
 	}
-	n, err = writeWithByteTimeout(sew.group, sew.conn, sew.timeout, p)
+	n, err = writeWithByteTimeout(sew.conn, sew.timeout, p)
 	*sew.err = err
 	return n, err
 }
@@ -650,9 +604,9 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt RoundTripOpt) (*http.Res
 				backoff := float64(uint(1) << (uint(retry) - 1))
 				backoff += backoff * (0.1 * mathrand.Float64())
 				d := time.Second * time.Duration(backoff)
-				tm := t.newTimer(d)
+				tm := time.NewTimer(d)
 				select {
-				case <-tm.C():
+				case <-tm.C:
 					t.vlogf("RoundTrip retrying after failure: %v", roundTripErr)
 					continue
 				case <-req.Context().Done():
@@ -699,6 +653,7 @@ var (
 	errClientConnUnusable       = errors.New("http2: client conn not usable")
 	errClientConnNotEstablished = errors.New("http2: client conn could not be established")
 	errClientConnGotGoAway      = errors.New("http2: Transport received Server's graceful shutdown GOAWAY")
+	errClientConnForceClosed    = errors.New("http2: client connection force closed via ClientConn.Close")
 )
 
 // shouldRetryRequest is called by RoundTrip when a request fails to get
@@ -838,14 +793,11 @@ func (t *Transport) newClientConn(c net.Conn, singleUse bool) (*ClientConn, erro
 		pingTimeout:                 conf.PingTimeout,
 		pings:                       make(map[[8]byte]chan struct{}),
 		reqHeaderMu:                 make(chan struct{}, 1),
-		lastActive:                  t.now(),
+		lastActive:                  time.Now(),
 	}
-	var group synctestGroupInterface
 	if t.transportTestHooks != nil {
-		t.markNewGoroutine()
 		t.transportTestHooks.newclientconn(cc)
 		c = cc.tconn
-		group = t.group
 	}
 	if VerboseLogs {
 		t.vlogf("http2: Transport creating client conn %p to %v", cc, c.RemoteAddr())
@@ -857,7 +809,6 @@ func (t *Transport) newClientConn(c net.Conn, singleUse bool) (*ClientConn, erro
 	// TODO: adjust this writer size to account for frame size +
 	// MTU + crypto/tls record padding.
 	cc.bw = bufio.NewWriter(stickyErrWriter{
-		group:   group,
 		conn:    c,
 		timeout: conf.WriteByteTimeout,
 		err:     &cc.werr,
@@ -906,7 +857,7 @@ func (t *Transport) newClientConn(c net.Conn, singleUse bool) (*ClientConn, erro
 	// Start the idle timer after the connection is fully initialized.
 	if d := t.idleConnTimeout(); d != 0 {
 		cc.idleTimeout = d
-		cc.idleTimer = t.afterFunc(d, cc.onIdleTimeout)
+		cc.idleTimer = time.AfterFunc(d, cc.onIdleTimeout)
 	}
 
 	go cc.readLoop()
@@ -917,7 +868,7 @@ func (cc *ClientConn) healthCheck() {
 	pingTimeout := cc.pingTimeout
 	// We don't need to periodically ping in the health check, because the readLoop of ClientConn will
 	// trigger the healthCheck again if there is no frame received.
-	ctx, cancel := cc.t.contextWithTimeout(context.Background(), pingTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), pingTimeout)
 	defer cancel()
 	cc.vlogf("http2: Transport sending health check")
 	err := cc.Ping(ctx)
@@ -1120,7 +1071,7 @@ func (cc *ClientConn) tooIdleLocked() bool {
 	// times are compared based on their wall time. We don't want
 	// to reuse a connection that's been sitting idle during
 	// VM/laptop suspend if monotonic time was also frozen.
-	return cc.idleTimeout != 0 && !cc.lastIdle.IsZero() && cc.t.timeSince(cc.lastIdle.Round(0)) > cc.idleTimeout
+	return cc.idleTimeout != 0 && !cc.lastIdle.IsZero() && time.Since(cc.lastIdle.Round(0)) > cc.idleTimeout
 }
 
 // onIdleTimeout is called from a time.AfterFunc goroutine. It will
@@ -1186,7 +1137,6 @@ func (cc *ClientConn) Shutdown(ctx context.Context) error {
 	done := make(chan struct{})
 	cancelled := false // guarded by cc.mu
 	go func() {
-		cc.t.markNewGoroutine()
 		cc.mu.Lock()
 		defer cc.mu.Unlock()
 		for {
@@ -1257,8 +1207,7 @@ func (cc *ClientConn) closeForError(err error) {
 //
 // In-flight requests are interrupted. For a graceful shutdown, use Shutdown instead.
 func (cc *ClientConn) Close() error {
-	err := errors.New("http2: client connection force closed via ClientConn.Close")
-	cc.closeForError(err)
+	cc.closeForError(errClientConnForceClosed)
 	return nil
 }
 
@@ -1427,7 +1376,6 @@ func (cc *ClientConn) roundTrip(req *http.Request, streamf func(*clientStream)) 
 //
 // It sends the request and performs post-request cleanup (closing Request.Body, etc.).
 func (cs *clientStream) doRequest(req *http.Request, streamf func(*clientStream)) {
-	cs.cc.t.markNewGoroutine()
 	err := cs.writeRequest(req, streamf)
 	cs.cleanupWriteRequest(err)
 }
@@ -1558,9 +1506,9 @@ func (cs *clientStream) writeRequest(req *http.Request, streamf func(*clientStre
 	var respHeaderTimer <-chan time.Time
 	var respHeaderRecv chan struct{}
 	if d := cc.responseHeaderTimeout(); d != 0 {
-		timer := cc.t.newTimer(d)
+		timer := time.NewTimer(d)
 		defer timer.Stop()
-		respHeaderTimer = timer.C()
+		respHeaderTimer = timer.C
 		respHeaderRecv = cs.respHeaderRecv
 	}
 	// Wait until the peer half-closes its end of the stream,
@@ -1753,7 +1701,7 @@ func (cc *ClientConn) awaitOpenSlotForStreamLocked(cs *clientStream) error {
 			// Return a fatal error which aborts the retry loop.
 			return errClientConnNotEstablished
 		}
-		cc.lastActive = cc.t.now()
+		cc.lastActive = time.Now()
 		if cc.closed || !cc.canTakeNewRequestLocked() {
 			return errClientConnUnusable
 		}
@@ -2092,10 +2040,10 @@ func (cc *ClientConn) forgetStreamID(id uint32) {
 	if len(cc.streams) != slen-1 {
 		panic("forgetting unknown stream id")
 	}
-	cc.lastActive = cc.t.now()
+	cc.lastActive = time.Now()
 	if len(cc.streams) == 0 && cc.idleTimer != nil {
 		cc.idleTimer.Reset(cc.idleTimeout)
-		cc.lastIdle = cc.t.now()
+		cc.lastIdle = time.Now()
 	}
 	// Wake up writeRequestBody via clientStream.awaitFlowControl and
 	// wake up RoundTrip if there is a pending request.
@@ -2121,7 +2069,6 @@ type clientConnReadLoop struct {
 
 // readLoop runs in its own goroutine and reads and dispatches frames.
 func (cc *ClientConn) readLoop() {
-	cc.t.markNewGoroutine()
 	rl := &clientConnReadLoop{cc: cc}
 	defer rl.cleanup()
 	cc.readerErr = rl.run()
@@ -2188,9 +2135,9 @@ func (rl *clientConnReadLoop) cleanup() {
 	if cc.idleTimeout > 0 && unusedWaitTime > cc.idleTimeout {
 		unusedWaitTime = cc.idleTimeout
 	}
-	idleTime := cc.t.now().Sub(cc.lastActive)
+	idleTime := time.Now().Sub(cc.lastActive)
 	if atomic.LoadUint32(&cc.atomicReused) == 0 && idleTime < unusedWaitTime && !cc.closedOnIdle {
-		cc.idleTimer = cc.t.afterFunc(unusedWaitTime-idleTime, func() {
+		cc.idleTimer = time.AfterFunc(unusedWaitTime-idleTime, func() {
 			cc.t.connPool().MarkDead(cc)
 		})
 	} else {
@@ -2250,9 +2197,9 @@ func (rl *clientConnReadLoop) run() error {
 	cc := rl.cc
 	gotSettings := false
 	readIdleTimeout := cc.readIdleTimeout
-	var t timer
+	var t *time.Timer
 	if readIdleTimeout != 0 {
-		t = cc.t.afterFunc(readIdleTimeout, cc.healthCheck)
+		t = time.AfterFunc(readIdleTimeout, cc.healthCheck)
 	}
 	for {
 		f, err := cc.fr.ReadFrame()
@@ -2998,7 +2945,6 @@ func (cc *ClientConn) Ping(ctx context.Context) error {
 	var pingError error
 	errc := make(chan struct{})
 	go func() {
-		cc.t.markNewGoroutine()
 		cc.wmu.Lock()
 		defer cc.wmu.Unlock()
 		if pingError = cc.fr.WritePing(false, p); pingError != nil {
@@ -3228,7 +3174,7 @@ func traceGotConn(req *http.Request, cc *ClientConn, reused bool) {
 	cc.mu.Lock()
 	ci.WasIdle = len(cc.streams) == 0 && reused
 	if ci.WasIdle && !cc.lastActive.IsZero() {
-		ci.IdleTime = cc.t.timeSince(cc.lastActive)
+		ci.IdleTime = time.Since(cc.lastActive)
 	}
 	cc.mu.Unlock()
 
