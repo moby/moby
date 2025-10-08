@@ -7,15 +7,26 @@ import (
 	"github.com/moby/moby/api/types/swarm"
 )
 
+// ConfigCreateOptions holds options for creating a config.
+type ConfigCreateOptions struct {
+	Config swarm.ConfigSpec
+}
+
+// ConfigCreateResult holds the result from the ConfigCreate method.
+type ConfigCreateResult struct {
+	Response swarm.ConfigCreateResponse
+}
+
 // ConfigCreate creates a new config.
-func (cli *Client) ConfigCreate(ctx context.Context, config swarm.ConfigSpec) (swarm.ConfigCreateResponse, error) {
-	resp, err := cli.post(ctx, "/configs/create", nil, config, nil)
+func (cli *Client) ConfigCreate(ctx context.Context, options ConfigCreateOptions) (ConfigCreateResult, error) {
+	var out ConfigCreateResult
+
+	resp, err := cli.post(ctx, "/configs/create", nil, options.Config, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return swarm.ConfigCreateResponse{}, err
+		return out, err
 	}
 
-	var response swarm.ConfigCreateResponse
-	err = json.NewDecoder(resp.Body).Decode(&response)
-	return response, err
+	err = json.NewDecoder(resp.Body).Decode(&out.Response)
+	return out, err
 }
