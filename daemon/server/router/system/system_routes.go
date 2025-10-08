@@ -64,7 +64,7 @@ func (s *systemRouter) swarmStatus() string {
 
 func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	version := httputils.VersionFromContext(ctx)
-	info, _, _ := s.collectSystemInfo.Do(ctx, version, func(ctx context.Context) (*infoResponse, error) {
+	info, _, _ := s.collectSystemInfo.Do(ctx, version, func(ctx context.Context) (*compat.Wrapper, error) {
 		info, err := s.backend.SystemInfo(ctx)
 		if err != nil {
 			return nil, err
@@ -75,6 +75,7 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 			info.Warnings = append(info.Warnings, info.Swarm.Warnings...)
 		}
 
+		var legacyOptions []compat.Option
 		if versions.LessThan(version, "1.44") {
 			for k, rt := range info.Runtimes {
 				// Status field introduced in API v1.44.
@@ -88,35 +89,36 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 		if versions.LessThan(version, "1.47") {
 			// Field is omitted in API 1.48 and up, but should still be included
 			// in older versions, even if no values are set.
-			info.RegistryConfig.ExtraFields = map[string]any{
-				"AllowNondistributableArtifactsCIDRs":     json.RawMessage(nil),
-				"AllowNondistributableArtifactsHostnames": json.RawMessage(nil),
-			}
+			legacyOptions = append(legacyOptions, compat.WithExtraFields(map[string]any{
+				"RegistryConfig": map[string]any{
+					"AllowNondistributableArtifactsCIDRs":     json.RawMessage(nil),
+					"AllowNondistributableArtifactsHostnames": json.RawMessage(nil),
+				},
+			}))
 		}
 		if versions.LessThan(version, "1.49") {
 			// FirewallBackend field introduced in API v1.49.
 			info.FirewallBackend = nil
-		}
 
-		extraFields := map[string]any{}
-		if versions.LessThan(version, "1.49") {
 			// Expected commits are omitted in API 1.49, but should still be
 			// included in older versions.
-			info.ContainerdCommit.Expected = info.ContainerdCommit.ID //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.
-			info.RuncCommit.Expected = info.RuncCommit.ID             //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.
-			info.InitCommit.Expected = info.InitCommit.ID             //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.
+			legacyOptions = append(legacyOptions, compat.WithExtraFields(map[string]any{
+				"ContainerdCommit": map[string]any{"Expected": info.ContainerdCommit.ID},
+				"RuncCommit":       map[string]any{"Expected": info.RuncCommit.ID},
+				"InitCommit":       map[string]any{"Expected": info.InitCommit.ID},
+			}))
 		}
 		if versions.LessThan(version, "1.50") {
 			info.DiscoveredDevices = nil
 
 			// These fields are omitted in > API 1.49, and always false
 			// older API versions.
-			extraFields = map[string]any{
+			legacyOptions = append(legacyOptions, compat.WithExtraFields(map[string]any{
 				"BridgeNfIptables":  json.RawMessage("false"),
 				"BridgeNfIp6tables": json.RawMessage("false"),
-			}
+			}))
 		}
-		return &infoResponse{Info: info, extraFields: extraFields}, nil
+		return compat.Wrap(info, legacyOptions...), nil
 	})
 
 	return httputils.WriteJSON(w, http.StatusOK, info)

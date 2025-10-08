@@ -11,9 +11,6 @@ type ServiceConfig struct {
 	InsecureRegistryCIDRs []netip.Prefix        `json:"InsecureRegistryCIDRs"`
 	IndexConfigs          map[string]*IndexInfo `json:"IndexConfigs"`
 	Mirrors               []string
-
-	// ExtraFields is for internal use to include deprecated fields on older API versions.
-	ExtraFields map[string]any `json:"-"`
 }
 
 // IndexInfo contains information about a registry

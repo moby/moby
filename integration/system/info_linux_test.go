@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -17,38 +16,63 @@ import (
 func TestInfoBinaryCommits(t *testing.T) {
 	ctx := setupTest(t)
 
-	t.Run("current", func(t *testing.T) {
-		apiClient := testEnv.APIClient()
+	// API v1.48 and lower returned both the "current" commit (ID) and "expected" commit.
+	// The "Expected" field has been removed in the API types, so define
+	// an ad-hoc type for this test.
+	type legacyCommit struct {
+		ID       string
+		Expected string
+	}
 
-		info, err := apiClient.Info(ctx)
+	type legacyInfo struct {
+		ContainerdCommit legacyCommit
+		RuncCommit       legacyCommit
+		InitCommit       legacyCommit
+	}
+
+	t.Run("current", func(t *testing.T) {
+		res, body, err := request.Get(ctx, "/info", request.JSON)
+		assert.NilError(t, err)
+		assert.Equal(t, res.StatusCode, http.StatusOK)
+
+		buf, err := request.ReadBody(body)
+		assert.NilError(t, err)
+
+		var info legacyInfo
+		err = json.Unmarshal(buf, &info)
 		assert.NilError(t, err)
 
 		assert.Check(t, info.ContainerdCommit.ID != "N/A")
-		assert.Check(t, is.Equal(info.ContainerdCommit.Expected, "")) //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.
+		assert.Check(t, is.Equal(info.ContainerdCommit.Expected, ""))
 
 		assert.Check(t, info.InitCommit.ID != "N/A")
-		assert.Check(t, is.Equal(info.InitCommit.Expected, "")) //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.
+		assert.Check(t, is.Equal(info.InitCommit.Expected, ""))
 
 		assert.Check(t, info.RuncCommit.ID != "N/A")
-		assert.Check(t, is.Equal(info.RuncCommit.Expected, "")) //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.
+		assert.Check(t, is.Equal(info.RuncCommit.Expected, ""))
 	})
 
 	// Expected commits are omitted in API 1.49, but should still be included in older versions.
 	t.Run("1.48", func(t *testing.T) {
-		apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion("1.48"))
+		res, body, err := request.Get(ctx, "/v1.48/info", request.JSON)
+		assert.NilError(t, err)
+		assert.Equal(t, res.StatusCode, http.StatusOK)
+
+		buf, err := request.ReadBody(body)
 		assert.NilError(t, err)
 
-		info, err := apiClient.Info(ctx)
+		var info legacyInfo
+		err = json.Unmarshal(buf, &info)
 		assert.NilError(t, err)
 
 		assert.Check(t, info.ContainerdCommit.ID != "N/A")
-		assert.Check(t, is.Equal(info.ContainerdCommit.Expected, info.ContainerdCommit.ID)) //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.
+		assert.Check(t, is.Equal(info.ContainerdCommit.Expected, info.ContainerdCommit.ID))
 
 		assert.Check(t, info.InitCommit.ID != "N/A")
-		assert.Check(t, is.Equal(info.InitCommit.Expected, info.InitCommit.ID)) //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.
+		assert.Check(t, is.Equal(info.InitCommit.Expected, info.InitCommit.ID))
 
 		assert.Check(t, info.RuncCommit.ID != "N/A")
-		assert.Check(t, is.Equal(info.RuncCommit.Expected, info.RuncCommit.ID)) //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.49.
+		assert.Check(t, is.Equal(info.RuncCommit.Expected, info.RuncCommit.ID))
 	})
 }
 
