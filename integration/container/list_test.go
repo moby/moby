@@ -7,7 +7,6 @@ import (
 	"time"
 
 	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
@@ -68,7 +67,7 @@ func TestContainerList_Annotations(t *testing.T) {
 
 			containers, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
 				All:     true,
-				Filters: filters.NewArgs(filters.Arg("id", id)),
+				Filters: make(client.Filters).Add("id", id),
 			})
 			assert.NilError(t, err)
 			assert.Assert(t, is.Len(containers, 1))
@@ -104,7 +103,7 @@ func TestContainerList_Filter(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
 		results, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
 			All:     true,
-			Filters: filters.NewArgs(filters.Arg("since", top)),
+			Filters: make(client.Filters).Add("since", top),
 		})
 		assert.NilError(t, err)
 		assert.Check(t, is.Contains(containerIDs(results), next))
@@ -114,7 +113,7 @@ func TestContainerList_Filter(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
 		results, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
 			All:     true,
-			Filters: filters.NewArgs(filters.Arg("before", top)),
+			Filters: make(client.Filters).Add("before", top),
 		})
 		assert.NilError(t, err)
 		assert.Check(t, is.Contains(containerIDs(results), prev))
@@ -152,7 +151,7 @@ func pollForHealthStatusSummary(ctx context.Context, apiClient client.APIClient,
 	return func(log poll.LogT) poll.Result {
 		containers, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
 			All:     true,
-			Filters: filters.NewArgs(filters.Arg("id", containerID)),
+			Filters: make(client.Filters).Add("id", containerID),
 		})
 		if err != nil {
 			return poll.Error(err)

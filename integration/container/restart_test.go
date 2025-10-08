@@ -9,7 +9,6 @@ import (
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/client"
 	testContainer "github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/internal/testutil"
@@ -242,10 +241,7 @@ func TestContainerRestartWithCancelledRequest(t *testing.T) {
 
 	// Start listening for events.
 	messages, errs := apiClient.Events(ctx, client.EventsListOptions{
-		Filters: filters.NewArgs(
-			filters.Arg("container", cID),
-			filters.Arg("event", string(events.ActionRestart)),
-		),
+		Filters: make(client.Filters).Add("container", cID).Add("event", string(events.ActionRestart)),
 	})
 
 	// Make restart request, but cancel the request before the container

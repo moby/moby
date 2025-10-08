@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/filters"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/network"
@@ -325,10 +324,7 @@ func TestServiceUpdatePidsLimit(t *testing.T) {
 func getServiceTaskContainer(ctx context.Context, t *testing.T, cli client.APIClient, serviceID string) container.InspectResponse {
 	t.Helper()
 	tasks, err := cli.TaskList(ctx, client.TaskListOptions{
-		Filters: filters.NewArgs(
-			filters.Arg("service", serviceID),
-			filters.Arg("desired-state", "running"),
-		),
+		Filters: make(client.Filters).Add("service", serviceID).Add("desired-state", "running"),
 	})
 	assert.NilError(t, err)
 	assert.Assert(t, len(tasks) > 0)

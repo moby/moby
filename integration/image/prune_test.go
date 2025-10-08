@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
@@ -40,7 +39,7 @@ func TestPruneDontDeleteUsedDangling(t *testing.T) {
 		container.WithImage(danglingID),
 		container.WithCmd("sleep", "60"))
 
-	pruned, err := apiClient.ImagesPrune(ctx, filters.NewArgs(filters.Arg("dangling", "true")))
+	pruned, err := apiClient.ImagesPrune(ctx, make(client.Filters).Add("dangling", "true"))
 	assert.NilError(t, err)
 
 	for _, deleted := range pruned.ImagesDeleted {
@@ -88,7 +87,7 @@ func TestPruneLexographicalOrder(t *testing.T) {
 	cid := container.Create(ctx, t, apiClient, container.WithImage(id))
 	defer container.Remove(ctx, t, apiClient, cid, client.ContainerRemoveOptions{Force: true})
 
-	pruned, err := apiClient.ImagesPrune(ctx, filters.NewArgs(filters.Arg("dangling", "false")))
+	pruned, err := apiClient.ImagesPrune(ctx, make(client.Filters).Add("dangling", "false"))
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Len(pruned.ImagesDeleted, len(tags)))
@@ -218,7 +217,7 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 				defer container.Remove(ctx, t, apiClient, cid, client.ContainerRemoveOptions{Force: true})
 
 				// dangling=false also prunes unused images
-				pruned, err := apiClient.ImagesPrune(ctx, filters.NewArgs(filters.Arg("dangling", "false")))
+				pruned, err := apiClient.ImagesPrune(ctx, make(client.Filters).Add("dangling", "false"))
 				assert.NilError(t, err)
 
 				env.check(t, apiClient, pruned)

@@ -4,17 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
 )
 
 // NetworksPrune requests the daemon to delete unused networks
-func (cli *Client) NetworksPrune(ctx context.Context, pruneFilters filters.Args) (network.PruneReport, error) {
-	query, err := getFiltersQuery(pruneFilters)
-	if err != nil {
-		return network.PruneReport{}, err
-	}
+func (cli *Client) NetworksPrune(ctx context.Context, pruneFilters Filters) (network.PruneReport, error) {
+	query := url.Values{}
+	pruneFilters.updateURLValues(query)
 
 	resp, err := cli.post(ctx, "/networks/prune", query, nil, nil)
 	defer ensureReaderClosed(resp)

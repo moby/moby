@@ -2,8 +2,6 @@ package client
 
 import (
 	"context"
-
-	"github.com/moby/moby/api/types/filters"
 )
 
 // ImageSearchOptions holds parameters to search images with.
@@ -17,6 +15,6 @@ type ImageSearchOptions struct {
 	//
 	// For details, refer to [github.com/moby/moby/api/types/registry.RequestAuthConfig].
 	PrivilegeFunc func(context.Context) (string, error)
-	Filters       filters.Args
+	Filters       Filters
 	Limit         int
 }

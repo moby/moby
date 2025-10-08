@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/api/types/filters"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
@@ -206,10 +205,9 @@ func GetRunningTasks(ctx context.Context, t *testing.T, c client.ServiceAPIClien
 	t.Helper()
 
 	tasks, err := c.TaskList(ctx, client.TaskListOptions{
-		Filters: filters.NewArgs(
-			filters.Arg("service", serviceID),
-			filters.Arg("desired-state", "running"),
-		),
+		Filters: make(client.Filters).
+			Add("service", serviceID).
+			Add("desired-state", "running"),
 	})
 
 	assert.NilError(t, err)

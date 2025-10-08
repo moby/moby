@@ -5,23 +5,13 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/swarm"
 )
 
 // NodeList returns the list of nodes.
 func (cli *Client) NodeList(ctx context.Context, options NodeListOptions) ([]swarm.Node, error) {
 	query := url.Values{}
-
-	if options.Filters.Len() > 0 {
-		filterJSON, err := filters.ToJSON(options.Filters)
-		if err != nil {
-			return nil, err
-		}
-
-		query.Set("filters", filterJSON)
-	}
-
+	options.Filters.updateURLValues(query)
 	resp, err := cli.get(ctx, "/nodes", query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {

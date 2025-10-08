@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/registry"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -133,10 +132,7 @@ func TestImageSearchWithoutErrors(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 	results, err := client.ImageSearch(context.Background(), "some-image", ImageSearchOptions{
-		Filters: filters.NewArgs(
-			filters.Arg("is-automated", "true"),
-			filters.Arg("stars", "3"),
-		),
+		Filters: make(Filters).Add("is-automated", "true").Add("stars", "3"),
 	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(results, 1))

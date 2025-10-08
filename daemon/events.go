@@ -9,9 +9,9 @@ import (
 	"github.com/containerd/log"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/v2/daemon/container"
 	daemonevents "github.com/moby/moby/v2/daemon/events"
+	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )

@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	"github.com/moby/moby/api/types/build"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/versions"
 )
 
@@ -18,7 +17,7 @@ type BuildCachePruneOptions struct {
 	ReservedSpace int64
 	MaxUsedSpace  int64
 	MinFreeSpace  int64
-	Filters       filters.Args
+	Filters       Filters
 }
 
 // BuildCachePruneResult holds the result from the BuildCachePrune method.
@@ -49,11 +48,7 @@ func (cli *Client) BuildCachePrune(ctx context.Context, opts BuildCachePruneOpti
 	if opts.MinFreeSpace != 0 {
 		query.Set("min-free-space", strconv.Itoa(int(opts.MinFreeSpace)))
 	}
-	f, err := filters.ToJSON(opts.Filters)
-	if err != nil {
-		return BuildCachePruneResult{}, fmt.Errorf("prune could not marshal filters option: %w", err)
-	}
-	query.Set("filters", f)
+	opts.Filters.updateURLValues(query)
 
 	resp, err := cli.post(ctx, "/build/prune", query, nil, nil)
 	defer ensureReaderClosed(resp)

@@ -13,8 +13,8 @@ import (
 	"gotest.tools/v3/assert"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/daemon/server/volumebackend"
 	"github.com/moby/moby/v2/daemon/volume/service/opts"

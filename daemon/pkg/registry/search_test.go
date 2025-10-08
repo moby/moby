@@ -11,8 +11,8 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/v2/daemon/internal/filters"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

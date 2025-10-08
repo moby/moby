@@ -17,7 +17,6 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/jsonmessage"
@@ -122,9 +121,9 @@ func TestBuildWithRemoveAndForceRemove(t *testing.T) {
 	}
 }
 
-func buildContainerIdsFilter(buildOutput io.Reader) (filters.Args, error) {
+func buildContainerIdsFilter(buildOutput io.Reader) (client.Filters, error) {
 	const intermediateContainerPrefix = " ---> Running in "
-	filter := filters.NewArgs()
+	filter := client.Filters{}
 
 	dec := json.NewDecoder(buildOutput)
 	for {

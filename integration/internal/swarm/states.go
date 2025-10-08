@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/moby/moby/api/types/filters"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
 	"gotest.tools/v3/poll"
@@ -14,9 +13,7 @@ import (
 func NoTasksForService(ctx context.Context, apiClient client.ServiceAPIClient, serviceID string) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
 		tasks, err := apiClient.TaskList(ctx, client.TaskListOptions{
-			Filters: filters.NewArgs(
-				filters.Arg("service", serviceID),
-			),
+			Filters: make(client.Filters).Add("service", serviceID),
 		})
 		if err == nil {
 			if len(tasks) == 0 {
@@ -50,10 +47,8 @@ func NoTasks(ctx context.Context, apiClient client.ServiceAPIClient) func(log po
 // RunningTasksCount verifies there are `instances` tasks running for `serviceID`
 func RunningTasksCount(ctx context.Context, apiClient client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		filter := filters.NewArgs()
-		filter.Add("service", serviceID)
 		tasks, err := apiClient.TaskList(ctx, client.TaskListOptions{
-			Filters: filter,
+			Filters: make(client.Filters).Add("service", serviceID),
 		})
 		var running int
 		var taskError string
@@ -90,7 +85,7 @@ func RunningTasksCount(ctx context.Context, apiClient client.ServiceAPIClient, s
 // completed additionally, while polling, it verifies that the job never
 // exceeds MaxConcurrent running tasks
 func JobComplete(ctx context.Context, apiClient client.ServiceAPIClient, service swarmtypes.Service) func(log poll.LogT) poll.Result {
-	filter := filters.NewArgs(filters.Arg("service", service.ID))
+	filter := make(client.Filters).Add("service", service.ID)
 
 	var jobIteration swarmtypes.Version
 	if service.JobStatus != nil {
@@ -165,7 +160,7 @@ func JobComplete(ctx context.Context, apiClient client.ServiceAPIClient, service
 func HasLeader(ctx context.Context, apiClient client.NodeAPIClient) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
 		nodes, err := apiClient.NodeList(ctx, client.NodeListOptions{
-			Filters: filters.NewArgs(filters.Arg("role", "manager")),
+			Filters: make(client.Filters).Add("role", "manager"),
 		})
 		if err != nil {
 			return poll.Error(err)

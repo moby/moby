@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil"
@@ -117,7 +116,7 @@ func getExistingImages(ctx context.Context, t testing.TB, testEnv *Execution) []
 	apiClient := testEnv.APIClient()
 	imageList, err := apiClient.ImageList(ctx, client.ImageListOptions{
 		All:     true,
-		Filters: filters.NewArgs(filters.Arg("dangling", "false")),
+		Filters: make(client.Filters).Add("dangling", "false"),
 	})
 	assert.NilError(t, err, "failed to list images")
 
@@ -195,7 +194,7 @@ func ProtectPlugins(ctx context.Context, t testing.TB, testEnv *Execution) {
 func getExistingPlugins(ctx context.Context, t testing.TB, testEnv *Execution) []string {
 	t.Helper()
 	client := testEnv.APIClient()
-	pluginList, err := client.PluginList(ctx, filters.Args{})
+	pluginList, err := client.PluginList(ctx, nil)
 	// Docker EE does not allow cluster-wide plugin management.
 	if cerrdefs.IsNotImplemented(err) {
 		return []string{}

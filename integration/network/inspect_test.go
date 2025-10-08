@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/moby/moby/api/types/filters"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/network"
@@ -166,7 +165,7 @@ func TestInspectNetwork(t *testing.T) {
 
 	leaderID := func() string {
 		ls, err := c1.NodeList(ctx, client.NodeListOptions{
-			Filters: filters.NewArgs(filters.Arg("role", "manager")),
+			Filters: make(client.Filters).Add("role", "manager"),
 		})
 		assert.NilError(t, err)
 		for _, node := range ls {

@@ -10,7 +10,6 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/pkg/stdcopy"
-	"github.com/moby/moby/api/types/filters"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/swarm"
@@ -73,30 +72,30 @@ func TestSecretList(t *testing.T) {
 	assert.Check(t, is.DeepEqual(secretNamesFromList(entries), testNames))
 
 	testCases := []struct {
-		filters  filters.Args
+		filters  client.Filters
 		expected []string
 	}{
 		// test filter by name `secret ls --filter name=xxx`
 		{
-			filters:  filters.NewArgs(filters.Arg("name", testName0)),
+			filters:  make(client.Filters).Add("name", testName0),
 			expected: []string{testName0},
 		},
 		// test filter by id `secret ls --filter id=xxx`
 		{
-			filters:  filters.NewArgs(filters.Arg("id", secret1ID)),
+			filters:  make(client.Filters).Add("id", secret1ID),
 			expected: []string{testName1},
 		},
 		// test filter by label `secret ls --filter label=xxx`
 		{
-			filters:  filters.NewArgs(filters.Arg("label", "type")),
+			filters:  make(client.Filters).Add("label", "type"),
 			expected: testNames,
 		},
 		{
-			filters:  filters.NewArgs(filters.Arg("label", "type=test")),
+			filters:  make(client.Filters).Add("label", "type=test"),
 			expected: []string{testName0},
 		},
 		{
-			filters:  filters.NewArgs(filters.Arg("label", "type=production")),
+			filters:  make(client.Filters).Add("label", "type=production"),
 			expected: []string{testName1},
 		},
 	}

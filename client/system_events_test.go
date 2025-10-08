@@ -12,7 +12,6 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/filters"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -55,7 +54,7 @@ func TestEventsErrorFromServer(t *testing.T) {
 func TestEvents(t *testing.T) {
 	const expectedURL = "/events"
 
-	fltrs := filters.NewArgs(filters.Arg("type", string(events.ContainerEventType)))
+	fltrs := make(Filters).Add("type", string(events.ContainerEventType))
 	expectedFiltersJSON := fmt.Sprintf(`{"type":{%q:true}}`, events.ContainerEventType)
 
 	eventsCases := []struct {

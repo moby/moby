@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/volume"
 )
 
@@ -13,13 +12,7 @@ import (
 func (cli *Client) VolumeList(ctx context.Context, options VolumeListOptions) (volume.ListResponse, error) {
 	query := url.Values{}
 
-	if options.Filters.Len() > 0 {
-		filterJSON, err := filters.ToJSON(options.Filters)
-		if err != nil {
-			return volume.ListResponse{}, err
-		}
-		query.Set("filters", filterJSON)
-	}
+	options.Filters.updateURLValues(query)
 	resp, err := cli.get(ctx, "/volumes", query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {

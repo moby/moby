@@ -1,7 +1,5 @@
 package client
 
-import "github.com/moby/moby/api/types/filters"
-
 // ImageListOptions holds parameters to list images with.
 type ImageListOptions struct {
 	// All controls whether all images in the graph are filtered, or just
@@ -9,7 +7,7 @@ type ImageListOptions struct {
 	All bool
 
 	// Filters is a JSON-encoded set of filter arguments.
-	Filters filters.Args
+	Filters Filters
 
 	// SharedSize indicates whether the shared size of images should be computed.
 	SharedSize bool

@@ -5,9 +5,9 @@ import (
 	"net/http"
 
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/filters"
 	imagetypes "github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/v2/daemon/internal/filters"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

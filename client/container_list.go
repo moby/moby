@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/filters"
 )
 
 // ContainerListOptions holds parameters to list containers with.
@@ -18,7 +17,7 @@ type ContainerListOptions struct {
 	Since   string
 	Before  string
 	Limit   int
-	Filters filters.Args
+	Filters Filters
 }
 
 // ContainerList returns the list of containers in the docker host.
@@ -45,13 +44,7 @@ func (cli *Client) ContainerList(ctx context.Context, options ContainerListOptio
 		query.Set("size", "1")
 	}
 
-	if options.Filters.Len() > 0 {
-		filterJSON, err := filters.ToJSON(options.Filters)
-		if err != nil {
-			return nil, err
-		}
-		query.Set("filters", filterJSON)
-	}
+	options.Filters.updateURLValues(query)
 
 	resp, err := cli.get(ctx, "/containers/json", query, nil)
 	defer ensureReaderClosed(resp)

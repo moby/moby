@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/network"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -37,22 +36,21 @@ func TestNetworkList(t *testing.T) {
 		},
 		{
 			options: NetworkListOptions{
-				Filters: filters.NewArgs(filters.Arg("dangling", "false")),
+				Filters: make(Filters).Add("dangling", "false"),
 			},
 			expectedFilters: `{"dangling":{"false":true}}`,
 		},
 		{
 			options: NetworkListOptions{
-				Filters: filters.NewArgs(filters.Arg("dangling", "true")),
+				Filters: make(Filters).Add("dangling", "true"),
 			},
 			expectedFilters: `{"dangling":{"true":true}}`,
 		},
 		{
 			options: NetworkListOptions{
-				Filters: filters.NewArgs(
-					filters.Arg("label", "label1"),
-					filters.Arg("label", "label2"),
-				),
+				Filters: make(Filters).
+					Add("label", "label1").
+					Add("label", "label2"),
 			},
 			expectedFilters: `{"label":{"label1":true,"label2":true}}`,
 		},

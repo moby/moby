@@ -2,10 +2,11 @@ package daemon
 
 import (
 	"context"
+	"maps"
+	"slices"
 	"testing"
 	"time"
 
-	"github.com/moby/moby/api/types/filters"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
 	"gotest.tools/v3/assert"
@@ -50,17 +51,19 @@ func (d *Daemon) GetService(ctx context.Context, t testing.TB, id string) *swarm
 }
 
 // GetServiceTasks returns the swarm tasks for the specified service
-func (d *Daemon) GetServiceTasks(ctx context.Context, t testing.TB, service string, additionalFilters ...filters.KeyValuePair) []swarm.Task {
+func (d *Daemon) GetServiceTasks(ctx context.Context, t testing.TB, service string) []swarm.Task {
+	return d.GetServiceTasksWithFilters(ctx, t, service, nil)
+}
+
+// GetServiceTasksWithFilters returns the swarm tasks for the specified service with additional filters
+func (d *Daemon) GetServiceTasksWithFilters(ctx context.Context, t testing.TB, service string, additionalFilters client.Filters) []swarm.Task {
 	t.Helper()
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	filterArgs := filters.NewArgs(
-		filters.Arg("desired-state", "running"),
-		filters.Arg("service", service),
-	)
-	for _, filter := range additionalFilters {
-		filterArgs.Add(filter.Key, filter.Value)
+	filterArgs := make(client.Filters).Add("desired-state", "running").Add("service", service)
+	for term, values := range additionalFilters {
+		filterArgs.Add(term, slices.Collect(maps.Keys(values))...)
 	}
 
 	options := client.TaskListOptions{

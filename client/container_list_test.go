@@ -11,7 +11,6 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/filters"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -86,11 +85,10 @@ func TestContainerList(t *testing.T) {
 		Size:  true,
 		All:   true,
 		Since: "container",
-		Filters: filters.NewArgs(
-			filters.Arg("label", "label1"),
-			filters.Arg("label", "label2"),
-			filters.Arg("before", "container"),
-		),
+		Filters: make(Filters).
+			Add("label", "label1").
+			Add("label", "label2").
+			Add("before", "container"),
 	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(containers, 2))
