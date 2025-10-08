@@ -19,6 +19,9 @@ if [[ "${buildkit_ref}" == *-*-* ]]; then
 	buildkit_ref=$(curl -s "https://api.github.com/repos/${buildkit_repo}/commits/${buildkit_ref}" | jq -r .sha)
 fi
 
+# https://github.com/moby/buildkit/pull/6278
+buildkit_ref="1030099b27bd3455bf7e5d5fe73b6be5dbec3c1f"
+
 cat << EOF
 BUILDKIT_REPO=$buildkit_repo
 BUILDKIT_REF=$buildkit_ref

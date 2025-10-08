@@ -10,6 +10,7 @@ import (
 
 	"github.com/cespare/xxhash/v2"
 	"github.com/containerd/containerd/v2/core/content"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	digest "github.com/opencontainers/go-digest"
@@ -246,7 +247,7 @@ func (p DescriptorProviderPair) Info(ctx context.Context, dgst digest.Digest) (c
 		return p.InfoProvider.Info(ctx, dgst)
 	}
 	if dgst != p.Descriptor.Digest {
-		return content.Info{}, errors.Errorf("content not found %s", dgst)
+		return content.Info{}, errors.Wrapf(cerrdefs.ErrNotFound, "blob %s", dgst)
 	}
 	return content.Info{
 		Digest: p.Descriptor.Digest,
