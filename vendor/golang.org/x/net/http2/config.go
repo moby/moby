@@ -55,7 +55,7 @@ func configFromServer(h1 *http.Server, h2 *Server) http2Config {
 		PermitProhibitedCipherSuites: h2.PermitProhibitedCipherSuites,
 		CountError:                   h2.CountError,
 	}
-	fillNetHTTPServerConfig(&conf, h1)
+	fillNetHTTPConfig(&conf, h1.HTTP2)
 	setConfigDefaults(&conf, true)
 	return conf
 }
@@ -81,7 +81,7 @@ func configFromTransport(h2 *Transport) http2Config {
 	}
 
 	if h2.t1 != nil {
-		fillNetHTTPTransportConfig(&conf, h2.t1)
+		fillNetHTTPConfig(&conf, h2.t1.HTTP2)
 	}
 	setConfigDefaults(&conf, false)
 	return conf
@@ -119,4 +119,46 @@ func adjustHTTP1MaxHeaderSize(n int64) int64 {
 	const perFieldOverhead = 32 // per http2 spec
 	const typicalHeaders = 10   // conservative
 	return n + typicalHeaders*perFieldOverhead
+}
+
+func fillNetHTTPConfig(conf *http2Config, h2 *http.HTTP2Config) {
+	if h2 == nil {
+		return
+	}
+	if h2.MaxConcurrentStreams != 0 {
+		conf.MaxConcurrentStreams = uint32(h2.MaxConcurrentStreams)
+	}
+	if h2.MaxEncoderHeaderTableSize != 0 {
+		conf.MaxEncoderHeaderTableSize = uint32(h2.MaxEncoderHeaderTableSize)
+	}
+	if h2.MaxDecoderHeaderTableSize != 0 {
+		conf.MaxDecoderHeaderTableSize = uint32(h2.MaxDecoderHeaderTableSize)
+	}
+	if h2.MaxConcurrentStreams != 0 {
+		conf.MaxConcurrentStreams = uint32(h2.MaxConcurrentStreams)
+	}
+	if h2.MaxReadFrameSize != 0 {
+		conf.MaxReadFrameSize = uint32(h2.MaxReadFrameSize)
+	}
+	if h2.MaxReceiveBufferPerConnection != 0 {
+		conf.MaxUploadBufferPerConnection = int32(h2.MaxReceiveBufferPerConnection)
+	}
+	if h2.MaxReceiveBufferPerStream != 0 {
+		conf.MaxUploadBufferPerStream = int32(h2.MaxReceiveBufferPerStream)
+	}
+	if h2.SendPingTimeout != 0 {
+		conf.SendPingTimeout = h2.SendPingTimeout
+	}
+	if h2.PingTimeout != 0 {
+		conf.PingTimeout = h2.PingTimeout
+	}
+	if h2.WriteByteTimeout != 0 {
+		conf.WriteByteTimeout = h2.WriteByteTimeout
+	}
+	if h2.PermitProhibitedCipherSuites {
+		conf.PermitProhibitedCipherSuites = true
+	}
+	if h2.CountError != nil {
+		conf.CountError = h2.CountError
+	}
 }
