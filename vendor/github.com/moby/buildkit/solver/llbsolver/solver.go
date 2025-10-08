@@ -847,6 +847,7 @@ func (s *Solver) runExporters(ctx context.Context, exporters []exporter.Exporter
 	eg, ctx := errgroup.WithContext(ctx)
 	resps := make([]map[string]string, len(exporters))
 	descs := make([]exporter.DescriptorReference, len(exporters))
+	var inlineCacheMu sync.Mutex
 	for i, exp := range exporters {
 		i, exp := i, exp
 		eg.Go(func() error {
@@ -865,6 +866,8 @@ func (s *Solver) runExporters(ctx context.Context, exporters []exporter.Exporter
 					}
 				}
 				inlineCache := exptypes.InlineCache(func(ctx context.Context) (*result.Result[*exptypes.InlineCacheEntry], error) {
+					inlineCacheMu.Lock() // ensure only one inline cache exporter runs at a time
+					defer inlineCacheMu.Unlock()
 					return runInlineCacheExporter(ctx, exp, inlineCacheExporter, job, cached)
 				})
 

@@ -1,6 +1,8 @@
 package types
 
 import (
+	"encoding/json"
+	"maps"
 	"slices"
 
 	slsa "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/common"
@@ -310,4 +312,96 @@ func (p *ProvenancePredicateSLSA02) ConvertToSLSA1() *ProvenancePredicateSLSA1 {
 		BuildDefinition: buildDef,
 		RunDetails:      runDetails,
 	}
+}
+
+// MarshalJSON flattens ProvenanceCustomEnv into top level.
+func (p ProvenanceInternalParametersSLSA1) MarshalJSON() ([]byte, error) {
+	type Alias ProvenanceInternalParametersSLSA1
+	base, err := json.Marshal(Alias(p))
+	if err != nil {
+		return nil, err
+	}
+	var m map[string]any
+	if err := json.Unmarshal(base, &m); err != nil {
+		return nil, err
+	}
+	maps.Copy(m, p.ProvenanceCustomEnv)
+	delete(m, "ProvenanceCustomEnv")
+	return json.Marshal(m)
+}
+
+// UnmarshalJSON fills both struct fields and flattened custom env.
+func (p *ProvenanceInternalParametersSLSA1) UnmarshalJSON(data []byte) error {
+	var m map[string]any
+	if err := json.Unmarshal(data, &m); err != nil {
+		return err
+	}
+
+	type Alias ProvenanceInternalParametersSLSA1
+	var a Alias
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	// Unmarshal known struct again to identify its keys
+	structBytes, err := json.Marshal(a)
+	if err != nil {
+		return err
+	}
+	var known map[string]any
+	if err := json.Unmarshal(structBytes, &known); err != nil {
+		return err
+	}
+
+	for k := range known {
+		delete(m, k)
+	}
+
+	*p = ProvenanceInternalParametersSLSA1(a)
+	p.ProvenanceCustomEnv = m
+	return nil
+}
+
+func (p Environment) MarshalJSON() ([]byte, error) {
+	type Alias Environment
+	base, err := json.Marshal(Alias(p))
+	if err != nil {
+		return nil, err
+	}
+	var m map[string]any
+	if err := json.Unmarshal(base, &m); err != nil {
+		return nil, err
+	}
+	maps.Copy(m, p.ProvenanceCustomEnv)
+	delete(m, "ProvenanceCustomEnv")
+	return json.Marshal(m)
+}
+
+func (p *Environment) UnmarshalJSON(data []byte) error {
+	var m map[string]any
+	if err := json.Unmarshal(data, &m); err != nil {
+		return err
+	}
+
+	type Alias Environment
+	var a Alias
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+	// Unmarshal known struct again to identify its keys
+	structBytes, err := json.Marshal(a)
+	if err != nil {
+		return err
+	}
+	var known map[string]any
+	if err := json.Unmarshal(structBytes, &known); err != nil {
+		return err
+	}
+
+	for k := range known {
+		delete(m, k)
+	}
+	*p = Environment(a)
+	p.ProvenanceCustomEnv = m
+	return nil
 }
