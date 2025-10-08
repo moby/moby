@@ -761,30 +761,6 @@ func (c *Controller) reservePools() {
 		if !doReplayPoolReserve(n) {
 			continue
 		}
-		// Construct pseudo configs for the auto IP case
-		autoIPv4 := (len(n.ipamV4Config) == 0 || (len(n.ipamV4Config) == 1 && n.ipamV4Config[0].PreferredPool == "")) && len(n.ipamV4Info) > 0
-		autoIPv6 := (len(n.ipamV6Config) == 0 || (len(n.ipamV6Config) == 1 && n.ipamV6Config[0].PreferredPool == "")) && len(n.ipamV6Info) > 0
-		if n.enableIPv4 && autoIPv4 {
-			n.ipamV4Config = []*IpamConf{{PreferredPool: n.ipamV4Info[0].Pool.String()}}
-		}
-		if n.enableIPv6 && autoIPv6 {
-			n.ipamV6Config = []*IpamConf{{PreferredPool: n.ipamV6Info[0].Pool.String()}}
-		}
-		// Account current network gateways
-		if n.enableIPv4 {
-			for i, cfg := range n.ipamV4Config {
-				if cfg.Gateway == "" && n.ipamV4Info[i].Gateway != nil {
-					cfg.Gateway = n.ipamV4Info[i].Gateway.IP.String()
-				}
-			}
-		}
-		if n.enableIPv6 {
-			for i, cfg := range n.ipamV6Config {
-				if cfg.Gateway == "" && n.ipamV6Info[i].Gateway != nil {
-					cfg.Gateway = n.ipamV6Info[i].Gateway.IP.String()
-				}
-			}
-		}
 		// Reserve pools
 		if err := n.ipamAllocate(); err != nil {
 			log.G(context.TODO()).Warnf("Failed to allocate ipam pool(s) for network %q (%s): %v", n.Name(), n.ID(), err)
