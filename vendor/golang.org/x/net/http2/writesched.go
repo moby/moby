@@ -42,6 +42,8 @@ type OpenStreamOptions struct {
 	// PusherID is zero if the stream was initiated by the client. Otherwise,
 	// PusherID names the stream that pushed the newly opened stream.
 	PusherID uint32
+	// priority is used to set the priority of the newly opened stream.
+	priority PriorityParam
 }
 
 // FrameWriteRequest is a request to write a frame.
