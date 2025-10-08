@@ -347,7 +347,7 @@ func (fr *Framer) maxHeaderListSize() uint32 {
 func (f *Framer) startWrite(ftype FrameType, flags Flags, streamID uint32) {
 	// Write the FrameHeader.
 	f.wbuf = append(f.wbuf[:0],
-		0, // 3 bytes of length, filled in in endWrite
+		0, // 3 bytes of length, filled in endWrite
 		0,
 		0,
 		byte(ftype),
@@ -1152,6 +1152,15 @@ type PriorityFrame struct {
 	PriorityParam
 }
 
+var defaultRFC9218Priority = PriorityParam{
+	incremental: 0,
+	urgency:     3,
+}
+
+// Note that HTTP/2 has had two different prioritization schemes, and
+// PriorityParam struct below is a superset of both schemes. The exported
+// symbols are from RFC 7540 and the non-exported ones are from RFC 9218.
+
 // PriorityParam are the stream prioritzation parameters.
 type PriorityParam struct {
 	// StreamDep is a 31-bit stream identifier for the
@@ -1167,6 +1176,20 @@ type PriorityParam struct {
 	// the spec, "Add one to the value to obtain a weight between
 	// 1 and 256."
 	Weight uint8
+
+	// "The urgency (u) parameter value is Integer (see Section 3.3.1 of
+	// [STRUCTURED-FIELDS]), between 0 and 7 inclusive, in descending order of
+	// priority. The default is 3."
+	urgency uint8
+
+	// "The incremental (i) parameter value is Boolean (see Section 3.3.6 of
+	// [STRUCTURED-FIELDS]). It indicates if an HTTP response can be processed
+	// incrementally, i.e., provide some meaningful output as chunks of the
+	// response arrive."
+	//
+	// We use uint8 (i.e. 0 is false, 1 is true) instead of bool so we can
+	// avoid unnecessary type conversions and because either type takes 1 byte.
+	incremental uint8
 }
 
 func (p PriorityParam) IsZero() bool {

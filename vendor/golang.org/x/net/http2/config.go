@@ -27,6 +27,7 @@ import (
 //   - If the resulting value is zero or out of range, use a default.
 type http2Config struct {
 	MaxConcurrentStreams         uint32
+	StrictMaxConcurrentRequests  bool
 	MaxDecoderHeaderTableSize    uint32
 	MaxEncoderHeaderTableSize    uint32
 	MaxReadFrameSize             uint32
@@ -64,12 +65,13 @@ func configFromServer(h1 *http.Server, h2 *Server) http2Config {
 // (the net/http Transport).
 func configFromTransport(h2 *Transport) http2Config {
 	conf := http2Config{
-		MaxEncoderHeaderTableSize: h2.MaxEncoderHeaderTableSize,
-		MaxDecoderHeaderTableSize: h2.MaxDecoderHeaderTableSize,
-		MaxReadFrameSize:          h2.MaxReadFrameSize,
-		SendPingTimeout:           h2.ReadIdleTimeout,
-		PingTimeout:               h2.PingTimeout,
-		WriteByteTimeout:          h2.WriteByteTimeout,
+		StrictMaxConcurrentRequests: h2.StrictMaxConcurrentStreams,
+		MaxEncoderHeaderTableSize:   h2.MaxEncoderHeaderTableSize,
+		MaxDecoderHeaderTableSize:   h2.MaxDecoderHeaderTableSize,
+		MaxReadFrameSize:            h2.MaxReadFrameSize,
+		SendPingTimeout:             h2.ReadIdleTimeout,
+		PingTimeout:                 h2.PingTimeout,
+		WriteByteTimeout:            h2.WriteByteTimeout,
 	}
 
 	// Unlike most config fields, where out-of-range values revert to the default,
@@ -127,6 +129,9 @@ func fillNetHTTPConfig(conf *http2Config, h2 *http.HTTP2Config) {
 	}
 	if h2.MaxConcurrentStreams != 0 {
 		conf.MaxConcurrentStreams = uint32(h2.MaxConcurrentStreams)
+	}
+	if http2ConfigStrictMaxConcurrentRequests(h2) {
+		conf.StrictMaxConcurrentRequests = true
 	}
 	if h2.MaxEncoderHeaderTableSize != 0 {
 		conf.MaxEncoderHeaderTableSize = uint32(h2.MaxEncoderHeaderTableSize)

@@ -355,6 +355,7 @@ type ClientConn struct {
 	readIdleTimeout             time.Duration
 	pingTimeout                 time.Duration
 	extendedConnectAllowed      bool
+	strictMaxConcurrentStreams  bool
 
 	// rstStreamPingsBlocked works around an unfortunate gRPC behavior.
 	// gRPC strictly limits the number of PING frames that it will receive.
@@ -784,7 +785,8 @@ func (t *Transport) newClientConn(c net.Conn, singleUse bool) (*ClientConn, erro
 		initialWindowSize:           65535,    // spec default
 		initialStreamRecvWindowSize: conf.MaxUploadBufferPerStream,
 		maxConcurrentStreams:        initialMaxConcurrentStreams, // "infinite", per spec. Use a smaller value until we have received server settings.
-		peerMaxHeaderListSize:       0xffffffffffffffff,          // "infinite", per spec. Use 2^64-1 instead.
+		strictMaxConcurrentStreams:  conf.StrictMaxConcurrentRequests,
+		peerMaxHeaderListSize:       0xffffffffffffffff, // "infinite", per spec. Use 2^64-1 instead.
 		streams:                     make(map[uint32]*clientStream),
 		singleUse:                   singleUse,
 		seenSettingsChan:            make(chan struct{}),
@@ -1018,7 +1020,7 @@ func (cc *ClientConn) idleStateLocked() (st clientConnIdleState) {
 		return
 	}
 	var maxConcurrentOkay bool
-	if cc.t.StrictMaxConcurrentStreams {
+	if cc.strictMaxConcurrentStreams {
 		// We'll tell the caller we can take a new request to
 		// prevent the caller from dialing a new TCP
 		// connection, but then we'll block later before
