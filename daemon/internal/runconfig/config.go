@@ -7,6 +7,7 @@ import (
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/pkg/sysinfo"
 )
 
@@ -14,27 +15,27 @@ import (
 // and performs some validation. Certain parameters need daemon-side validation
 // that cannot be done on the client, as only the daemon knows what is valid
 // for the platform.
-func DecodeCreateRequest(src io.Reader, si *sysinfo.SysInfo) (container.CreateRequest, error) {
+func DecodeCreateRequest(src io.Reader, si *sysinfo.SysInfo) (backend.CreateContainerRequest, error) {
 	w, err := decodeCreateRequest(src)
 	if err != nil {
-		return container.CreateRequest{}, err
+		return backend.CreateContainerRequest{}, err
 	}
 	if err := validateCreateRequest(w, si); err != nil {
-		return container.CreateRequest{}, err
+		return backend.CreateContainerRequest{}, err
 	}
 	return w, nil
 }
 
 // decodeCreateRequest decodes a json encoded [container.CreateRequest] struct
 // and sets some defaults.
-func decodeCreateRequest(src io.Reader) (container.CreateRequest, error) {
+func decodeCreateRequest(src io.Reader) (backend.CreateContainerRequest, error) {
 	// TODO(thaJeztah): replace with httputils.ReadJSON ?
-	var w container.CreateRequest
+	var w backend.CreateContainerRequest
 	if err := loadJSON(src, &w); err != nil {
-		return container.CreateRequest{}, err
+		return backend.CreateContainerRequest{}, err
 	}
 	if w.Config == nil {
-		return container.CreateRequest{}, validationError("config cannot be empty in order to create a container")
+		return backend.CreateContainerRequest{}, validationError("config cannot be empty in order to create a container")
 	}
 	if w.Config == nil {
 		w.Config.Volumes = make(map[string]struct{})
@@ -58,7 +59,7 @@ func decodeCreateRequest(src io.Reader) (container.CreateRequest, error) {
 	return w, nil
 }
 
-func validateCreateRequest(w container.CreateRequest, si *sysinfo.SysInfo) error {
+func validateCreateRequest(w backend.CreateContainerRequest, si *sysinfo.SysInfo) error {
 	if err := validateNetMode(w.Config, w.HostConfig); err != nil {
 		return err
 	}

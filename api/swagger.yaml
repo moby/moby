@@ -1390,13 +1390,6 @@ definitions:
         description: "Disable networking for the container."
         type: "boolean"
         x-nullable: true
-      MacAddress:
-        description: |
-          MAC address of the container.
-
-          Deprecated: this field is deprecated in API v1.44 and up. Use EndpointSettings.MacAddress instead.
-        type: "string"
-        x-nullable: true
       OnBuild:
         description: |
           `ONBUILD` metadata that were defined in the image's `Dockerfile`.
@@ -7890,7 +7883,6 @@ paths:
                 /volumes/data: {}
               WorkingDir: ""
               NetworkDisabled: false
-              MacAddress: "12:34:56:78:9a:bc"
               ExposedPorts:
                 22/tcp: {}
               StopSignal: "SIGTERM"

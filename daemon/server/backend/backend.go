@@ -12,6 +12,12 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+type CreateContainerRequest struct {
+	ContainerConfig
+	HostConfig       *container.HostConfig     `json:"HostConfig,omitempty"`
+	NetworkingConfig *network.NetworkingConfig `json:"NetworkingConfig,omitempty"`
+}
+
 // ContainerCreateConfig is the parameter set to ContainerCreate()
 type ContainerCreateConfig struct {
 	Name                        string
@@ -20,6 +26,16 @@ type ContainerCreateConfig struct {
 	NetworkingConfig            *network.NetworkingConfig
 	Platform                    *ocispec.Platform
 	DefaultReadOnlyNonRecursive bool
+}
+
+type ContainerConfig struct {
+	*container.Config
+
+	// MacAddress sets the container's network interface MAC address.
+	// This option was deprecated in API v1.44 and removed in v1.52.
+	// It is added here to keep compatibility with older API versions.
+	// New code should use NetworkingConfig.EndpointsConfig[networkName].MacAddress instead.
+	MacAddress string `json:"MacAddress,omitempty"`
 }
 
 // ContainerRmConfig holds arguments for the container remove

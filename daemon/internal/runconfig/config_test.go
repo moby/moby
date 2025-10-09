@@ -9,6 +9,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/pkg/sysinfo"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -127,7 +128,7 @@ func TestDecodeCreateRequestIsolation(t *testing.T) {
 			if tc.invalid {
 				assert.Check(t, is.ErrorContains(err, tc.expectedErr))
 				assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
-				assert.Check(t, is.DeepEqual(req, container.CreateRequest{}))
+				assert.Check(t, is.DeepEqual(req, backend.CreateContainerRequest{}))
 			} else {
 				assert.NilError(t, err)
 			}
@@ -147,7 +148,7 @@ func TestDecodeCreateRequestPrivileged(t *testing.T) {
 		const expected = "invalid option: privileged mode is not supported for Windows containers"
 		assert.Check(t, is.Error(err, expected))
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
-		assert.Check(t, is.DeepEqual(req, container.CreateRequest{}))
+		assert.Check(t, is.DeepEqual(req, backend.CreateContainerRequest{}))
 	} else {
 		assert.NilError(t, err)
 	}

@@ -97,18 +97,6 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 	// We merge the Ulimits from hostConfig with daemon default
 	daemon.mergeUlimits(&hostConfig, daemonCfg)
 
-	// Migrate the container's default network's MacAddress to the top-level
-	// Config.MacAddress field for older API versions (< 1.44). We set it here
-	// unconditionally, to keep backward compatibility with clients that use
-	// unversioned API endpoints.
-	if ctr.Config != nil && ctr.Config.MacAddress == "" { //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
-		if nwm := hostConfig.NetworkMode; nwm.IsBridge() || nwm.IsUserDefined() {
-			if epConf, ok := ctr.NetworkSettings.Networks[nwm.NetworkName()]; ok {
-				ctr.Config.MacAddress = epConf.DesiredMacAddress //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
-			}
-		}
-	}
-
 	var containerHealth *containertypes.Health
 	if ctr.State.Health != nil {
 		containerHealth = &containertypes.Health{

@@ -7,6 +7,7 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
+	"github.com/moby/moby/v2/daemon/server/backend"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -116,12 +117,19 @@ func TestHandleMACAddressBC(t *testing.T) {
 			expError:      "the container-wide MAC address must match the endpoint-specific MAC address",
 			expCtrWideMAC: "11:22:33:44:55:66",
 		},
+		{
+			name:          "new api no-network ctr-wide mac",
+			apiVersion:    "1.52",
+			ctrWideMAC:    "11:22:33:44:55:66",
+			expError:      "container-wide Mac address field is no longer supported",
+			expCtrWideMAC: "11:22:33:44:55:66", // unchanged due to error
+		},
 	}
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg := &container.Config{
-				MacAddress: tc.ctrWideMAC, //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
+			cfg := &backend.ContainerConfig{
+				MacAddress: tc.ctrWideMAC,
 			}
 			hostCfg := &container.HostConfig{
 				NetworkMode: tc.networkMode,
@@ -155,7 +163,7 @@ func TestHandleMACAddressBC(t *testing.T) {
 				got := netCfg.EndpointsConfig[tc.expEpWithNoMAC].MacAddress
 				assert.Check(t, is.Equal(got, ""))
 			}
-			gotCtrWideMAC := cfg.MacAddress //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
+			gotCtrWideMAC := cfg.MacAddress
 			assert.Check(t, is.Equal(gotCtrWideMAC, tc.expCtrWideMAC))
 		})
 	}

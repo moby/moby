@@ -42,13 +42,9 @@ type Config struct {
 	WorkingDir      string              // Current directory (PWD) in the command will be launched
 	Entrypoint      []string            // Entrypoint to run when starting the container
 	NetworkDisabled bool                `json:",omitempty"` // Is network disabled
-	// Mac Address of the container.
-	//
-	// Deprecated: this field is deprecated since API v1.44. Use EndpointSettings.MacAddress instead.
-	MacAddress  string            `json:",omitempty"`
-	OnBuild     []string          `json:",omitempty"` // ONBUILD metadata that were defined on the image Dockerfile
-	Labels      map[string]string // List of labels set to this container
-	StopSignal  string            `json:",omitempty"` // Signal to stop a container
-	StopTimeout *int              `json:",omitempty"` // Timeout (in seconds) to stop a container
-	Shell       []string          `json:",omitempty"` // Shell for shell-form of RUN, CMD, ENTRYPOINT
+	OnBuild         []string            `json:",omitempty"` // ONBUILD metadata that were defined on the image Dockerfile
+	Labels          map[string]string   // List of labels set to this container
+	StopSignal      string              `json:",omitempty"` // Signal to stop a container
+	StopTimeout     *int                `json:",omitempty"` // Timeout (in seconds) to stop a container
+	Shell           []string            `json:",omitempty"` // Shell for shell-form of RUN, CMD, ENTRYPOINT
 }
