@@ -56,8 +56,8 @@ const (
 
 // EndpointVirtualIP represents the virtual ip of a port.
 type EndpointVirtualIP struct {
-	NetworkID string     `json:",omitempty"`
-	Addr      netip.Addr `json:",omitempty"`
+	NetworkID string       `json:",omitempty"`
+	Addr      netip.Prefix `json:",omitempty"`
 }
 
 // Network represents a network.
