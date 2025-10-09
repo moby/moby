@@ -4,8 +4,6 @@ import (
 	"context"
 	"net/url"
 	"strconv"
-
-	"github.com/moby/moby/api/types/versions"
 )
 
 // ContainerStopOptions holds the options to stop or restart a container.
@@ -44,17 +42,7 @@ func (cli *Client) ContainerStop(ctx context.Context, containerID string, option
 		query.Set("t", strconv.Itoa(*options.Timeout))
 	}
 	if options.Signal != "" {
-		// Make sure we negotiated (if the client is configured to do so),
-		// as code below contains API-version specific handling of options.
-		//
-		// Normally, version-negotiation (if enabled) would not happen until
-		// the API request is made.
-		if err := cli.checkVersion(ctx); err != nil {
-			return err
-		}
-		if versions.GreaterThanOrEqualTo(cli.version, "1.42") {
-			query.Set("signal", options.Signal)
-		}
+		query.Set("signal", options.Signal)
 	}
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/stop", query, nil, nil)
 	defer ensureReaderClosed(resp)

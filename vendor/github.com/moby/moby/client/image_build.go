@@ -42,7 +42,7 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 	}, nil
 }
 
-func (cli *Client) imageBuildOptionsToQuery(ctx context.Context, options ImageBuildOptions) (url.Values, error) {
+func (cli *Client) imageBuildOptionsToQuery(_ context.Context, options ImageBuildOptions) (url.Values, error) {
 	query := url.Values{}
 	if len(options.Tags) > 0 {
 		query["t"] = options.Tags
@@ -79,9 +79,7 @@ func (cli *Client) imageBuildOptionsToQuery(ctx context.Context, options ImageBu
 	}
 
 	if options.Squash {
-		if err := cli.NewVersionError(ctx, "1.25", "squash"); err != nil {
-			return query, err
-		}
+		// TODO(thaJeztah): squash is experimental, and deprecated when using BuildKit?
 		query.Set("squash", "1")
 	}
 
@@ -157,9 +155,6 @@ func (cli *Client) imageBuildOptionsToQuery(ctx context.Context, options ImageBu
 		query.Set("session", options.SessionID)
 	}
 	if options.Platform != "" {
-		if err := cli.NewVersionError(ctx, "1.32", "platform"); err != nil {
-			return query, err
-		}
 		query.Set("platform", strings.ToLower(options.Platform))
 	}
 	if options.BuildID != "" {

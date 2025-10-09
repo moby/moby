@@ -9,7 +9,6 @@ import (
 	"net/url"
 
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/versions"
 )
 
 const containerWaitErrorMsgLimit = 2 * 1024 /* Max: 2KiB */
@@ -39,19 +38,6 @@ func (cli *Client) ContainerWait(ctx context.Context, containerID string, condit
 	if err != nil {
 		errC <- err
 		return resultC, errC
-	}
-
-	// Make sure we negotiated (if the client is configured to do so),
-	// as code below contains API-version specific handling of options.
-	//
-	// Normally, version-negotiation (if enabled) would not happen until
-	// the API request is made.
-	if err := cli.checkVersion(ctx); err != nil {
-		errC <- err
-		return resultC, errC
-	}
-	if versions.LessThan(cli.ClientVersion(), "1.30") {
-		return cli.legacyContainerWait(ctx, containerID)
 	}
 
 	query := url.Values{}

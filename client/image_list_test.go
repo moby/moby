@@ -123,9 +123,8 @@ func TestImageListWithSharedSize(t *testing.T) {
 		options    ImageListOptions
 		sharedSize string // expected value for the shared-size query param, or empty if it should not be set.
 	}{
-		{name: "unset after 1.42, no options set", version: "1.42"},
-		{name: "set after 1.42, if requested", version: "1.42", options: ImageListOptions{SharedSize: true}, sharedSize: "1"},
-		{name: "unset before 1.42, even if requested", version: "1.41", options: ImageListOptions{SharedSize: true}},
+		{name: "unset, no options set"},
+		{name: "set", options: ImageListOptions{SharedSize: true}, sharedSize: "1"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
