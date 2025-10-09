@@ -22,7 +22,7 @@ func networkAttachmentFromGRPC(na *swarmapi.NetworkAttachment) types.NetworkAtta
 	if na != nil {
 		return types.NetworkAttachment{
 			Network:   networkFromGRPC(na.Network),
-			Addresses: sliceutil.Map(na.Addresses, func(s string) netip.Addr { a, _ := netip.ParseAddr(s); return a }),
+			Addresses: sliceutil.Map(na.Addresses, func(s string) netip.Prefix { a, _ := netip.ParsePrefix(s); return a }),
 		}
 	}
 	return types.NetworkAttachment{}
@@ -130,7 +130,7 @@ func endpointFromGRPC(e *swarmapi.Endpoint) types.Endpoint {
 		}
 
 		for _, v := range e.VirtualIPs {
-			vip, _ := netip.ParseAddr(v.Addr)
+			vip, _ := netip.ParsePrefix(v.Addr)
 			endpoint.VirtualIPs = append(endpoint.VirtualIPs, types.EndpointVirtualIP{
 				NetworkID: v.NetworkID,
 				Addr:      vip,
