@@ -56,8 +56,8 @@ const (
 
 // EndpointVirtualIP represents the virtual ip of a port.
 type EndpointVirtualIP struct {
-	NetworkID string     `json:",omitempty"`
-	Addr      netip.Addr `json:",omitempty"`
+	NetworkID string       `json:",omitempty"`
+	Addr      netip.Prefix `json:",omitempty"`
 }
 
 // Network represents a network.
@@ -91,8 +91,8 @@ type NetworkAttachmentConfig struct {
 
 // NetworkAttachment represents a network attachment.
 type NetworkAttachment struct {
-	Network   Network      `json:",omitempty"`
-	Addresses []netip.Addr `json:",omitempty"`
+	Network   Network        `json:",omitempty"`
+	Addresses []netip.Prefix `json:",omitempty"`
 }
 
 // IPAMOptions represents ipam options.
