@@ -284,7 +284,7 @@ func TestMacAddressIsAppliedToMainNetworkWithShortID(t *testing.T) {
 		container.WithCmd("/bin/sleep", "infinity"),
 		container.WithStopSignal("SIGKILL"),
 		container.WithNetworkMode(n[:10]),
-		container.WithContainerWideMacAddress("02:42:08:26:a9:55"))
+		container.WithMacAddress("testnet", "02:42:08:26:a9:55"))
 	defer container.Remove(ctx, t, apiClient, cid, client.ContainerRemoveOptions{Force: true})
 
 	c := container.Inspect(ctx, t, apiClient, cid)
