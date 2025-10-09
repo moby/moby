@@ -1,4 +1,4 @@
-package stdcopy_test
+package stdcopymux_test
 
 import (
 	"errors"
@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/moby/moby/api/pkg/stdcopy"
+	"github.com/moby/moby/v2/daemon/internal/stdcopymux"
 )
 
 func ExampleNewStdWriter() {
@@ -25,9 +26,9 @@ func ExampleNewStdWriter() {
 	}()
 
 	// daemon writing to stdout, stderr, and systemErr.
-	stdout := stdcopy.NewStdWriter(muxStream, stdcopy.Stdout)
-	stderr := stdcopy.NewStdWriter(muxStream, stdcopy.Stderr)
-	systemErr := stdcopy.NewStdWriter(muxStream, stdcopy.Systemerr)
+	stdout := stdcopymux.NewStdWriter(muxStream, stdcopy.Stdout)
+	stderr := stdcopymux.NewStdWriter(muxStream, stdcopy.Stderr)
+	systemErr := stdcopymux.NewStdWriter(muxStream, stdcopy.Systemerr)
 
 	for range 10 {
 		_, _ = fmt.Fprintln(stdout, "hello from stdout")

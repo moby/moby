@@ -1,4 +1,4 @@
-package stdcopy
+package stdcopymux
 
 import (
 	"bytes"
@@ -6,10 +6,14 @@ import (
 	"io"
 	"strings"
 	"testing"
+
+	"github.com/moby/moby/api/pkg/stdcopy"
 )
 
+const startingBufLen = 32*1024 + 8 /* stdwriterPrefixLen */ + 1
+
 func TestNewStdWriter(t *testing.T) {
-	writer := NewStdWriter(io.Discard, Stdout)
+	writer := NewStdWriter(io.Discard, stdcopy.Stdout)
 	if writer == nil {
 		t.Fatalf("NewStdWriter with an invalid StdType should not return nil.")
 	}
@@ -18,7 +22,7 @@ func TestNewStdWriter(t *testing.T) {
 func TestWriteWithUninitializedStdWriter(t *testing.T) {
 	writer := stdWriter{
 		Writer: nil,
-		prefix: byte(Stdout),
+		prefix: byte(stdcopy.Stdout),
 	}
 	n, err := writer.Write([]byte("Something here"))
 	if n != 0 || err == nil {
@@ -27,7 +31,7 @@ func TestWriteWithUninitializedStdWriter(t *testing.T) {
 }
 
 func TestWriteWithNilBytes(t *testing.T) {
-	writer := NewStdWriter(io.Discard, Stdout)
+	writer := NewStdWriter(io.Discard, stdcopy.Stdout)
 	n, err := writer.Write(nil)
 	if err != nil {
 		t.Fatalf("Shouldn't have fail when given no data")
@@ -38,7 +42,7 @@ func TestWriteWithNilBytes(t *testing.T) {
 }
 
 func TestWrite(t *testing.T) {
-	writer := NewStdWriter(io.Discard, Stdout)
+	writer := NewStdWriter(io.Discard, stdcopy.Stdout)
 	data := []byte("Test StdWrite.Write")
 	n, err := writer.Write(data)
 	if err != nil {
@@ -64,7 +68,7 @@ func TestWriteWithWriterError(t *testing.T) {
 	writer := NewStdWriter(&errWriter{
 		n:   stdWriterPrefixLen + expectedReturnedBytes,
 		err: expectedError,
-	}, Stdout)
+	}, stdcopy.Stdout)
 	data := []byte("This won't get written, sigh")
 	n, err := writer.Write(data)
 	if !errors.Is(err, expectedError) {
@@ -77,7 +81,7 @@ func TestWriteWithWriterError(t *testing.T) {
 }
 
 func TestWriteDoesNotReturnNegativeWrittenBytes(t *testing.T) {
-	writer := NewStdWriter(&errWriter{n: -1}, Stdout)
+	writer := NewStdWriter(&errWriter{n: -1}, stdcopy.Stdout)
 	data := []byte("This won't get written, sigh")
 	actual, _ := writer.Write(data)
 	if actual != 0 {
@@ -87,12 +91,12 @@ func TestWriteDoesNotReturnNegativeWrittenBytes(t *testing.T) {
 
 func getSrcBuffer(stdOutBytes, stdErrBytes []byte) (*bytes.Buffer, error) {
 	buffer := new(bytes.Buffer)
-	dstOut := NewStdWriter(buffer, Stdout)
+	dstOut := NewStdWriter(buffer, stdcopy.Stdout)
 	_, err := dstOut.Write(stdOutBytes)
 	if err != nil {
 		return buffer, err
 	}
-	dstErr := NewStdWriter(buffer, Stderr)
+	dstErr := NewStdWriter(buffer, stdcopy.Stderr)
 	_, err = dstErr.Write(stdErrBytes)
 	return buffer, err
 }
@@ -104,7 +108,7 @@ func TestStdCopyWriteAndRead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	written, err := StdCopy(io.Discard, io.Discard, buffer)
+	written, err := stdcopy.StdCopy(io.Discard, io.Discard, buffer)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +139,7 @@ func TestStdCopyReturnsErrorReadingHeader(t *testing.T) {
 	reader := &customReader{
 		err: expectedError,
 	}
-	written, err := StdCopy(io.Discard, io.Discard, reader)
+	written, err := stdcopy.StdCopy(io.Discard, io.Discard, reader)
 	if written != 0 {
 		t.Fatalf("Expected 0 bytes read, got %d", written)
 	}
@@ -158,7 +162,7 @@ func TestStdCopyReturnsErrorReadingFrame(t *testing.T) {
 		err:          expectedError,
 		src:          buffer,
 	}
-	written, err := StdCopy(io.Discard, io.Discard, reader)
+	written, err := stdcopy.StdCopy(io.Discard, io.Discard, reader)
 	if written != 0 {
 		t.Fatalf("Expected 0 bytes read, got %d", written)
 	}
@@ -180,7 +184,7 @@ func TestStdCopyDetectsCorruptedFrame(t *testing.T) {
 		err:          io.EOF,
 		src:          buffer,
 	}
-	written, err := StdCopy(io.Discard, io.Discard, reader)
+	written, err := stdcopy.StdCopy(io.Discard, io.Discard, reader)
 	if written != startingBufLen {
 		t.Fatalf("Expected %d bytes read, got %d", startingBufLen, written)
 	}
@@ -190,10 +194,10 @@ func TestStdCopyDetectsCorruptedFrame(t *testing.T) {
 }
 
 func TestStdCopyWithInvalidInputHeader(t *testing.T) {
-	dstOut := NewStdWriter(io.Discard, Stdout)
-	dstErr := NewStdWriter(io.Discard, Stderr)
+	dstOut := NewStdWriter(io.Discard, stdcopy.Stdout)
+	dstErr := NewStdWriter(io.Discard, stdcopy.Stderr)
 	src := strings.NewReader("Invalid input")
-	_, err := StdCopy(dstOut, dstErr, src)
+	_, err := stdcopy.StdCopy(dstOut, dstErr, src)
 	if err == nil {
 		t.Fatal("StdCopy with invalid input header should fail.")
 	}
@@ -202,7 +206,7 @@ func TestStdCopyWithInvalidInputHeader(t *testing.T) {
 func TestStdCopyWithCorruptedPrefix(t *testing.T) {
 	data := []byte{0x01, 0x02, 0x03}
 	src := bytes.NewReader(data)
-	written, err := StdCopy(nil, nil, src)
+	written, err := stdcopy.StdCopy(nil, nil, src)
 	if err != nil {
 		t.Fatalf("StdCopy should not return an error with corrupted prefix.")
 	}
@@ -222,7 +226,7 @@ func TestStdCopyReturnsWriteErrors(t *testing.T) {
 
 	dstOut := &errWriter{err: expectedError}
 
-	written, err := StdCopy(dstOut, io.Discard, buffer)
+	written, err := stdcopy.StdCopy(dstOut, io.Discard, buffer)
 	if written != 0 {
 		t.Fatalf("StdCopy should have written 0, but has written %d", written)
 	}
@@ -240,7 +244,7 @@ func TestStdCopyDetectsNotFullyWrittenFrames(t *testing.T) {
 	}
 	dstOut := &errWriter{n: startingBufLen - 10}
 
-	written, err := StdCopy(dstOut, io.Discard, buffer)
+	written, err := stdcopy.StdCopy(dstOut, io.Discard, buffer)
 	if written != 0 {
 		t.Fatalf("StdCopy should have return 0 written bytes, but returned %d", written)
 	}
@@ -261,7 +265,7 @@ func TestStdCopyReturnsErrorFromSystem(t *testing.T) {
 	}
 	// add in an error message on the Systemerr stream
 	systemErrBytes := []byte(strings.Repeat("S", startingBufLen))
-	systemWriter := NewStdWriter(buffer, Systemerr)
+	systemWriter := NewStdWriter(buffer, stdcopy.Systemerr)
 	_, err = systemWriter.Write(systemErrBytes)
 	if err != nil {
 		t.Fatal(err)
@@ -269,7 +273,7 @@ func TestStdCopyReturnsErrorFromSystem(t *testing.T) {
 
 	// now copy and demux. we should expect an error containing the string we
 	// wrote out
-	_, err = StdCopy(io.Discard, io.Discard, buffer)
+	_, err = stdcopy.StdCopy(io.Discard, io.Discard, buffer)
 	if err == nil {
 		t.Fatal("expected error, got none")
 	}
@@ -279,7 +283,7 @@ func TestStdCopyReturnsErrorFromSystem(t *testing.T) {
 }
 
 func BenchmarkWrite(b *testing.B) {
-	w := NewStdWriter(io.Discard, Stdout)
+	w := NewStdWriter(io.Discard, stdcopy.Stdout)
 	data := []byte("Test line for testing stdwriter performance\n")
 	data = bytes.Repeat(data, 100)
 	b.SetBytes(int64(len(data)))

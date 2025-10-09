@@ -11,6 +11,7 @@ import (
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/v2/daemon/internal/stdcopymux"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/errdefs"
@@ -130,8 +131,8 @@ func (c *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 		if options.Tty {
 			stdout = outStream
 		} else {
-			stderr = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
-			stdout = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
+			stderr = stdcopymux.NewStdWriter(outStream, stdcopy.Stderr)
+			stdout = stdcopymux.NewStdWriter(outStream, stdcopy.Stdout)
 		}
 	}
 
