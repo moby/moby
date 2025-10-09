@@ -1524,6 +1524,10 @@ func (a *Allocator) procTasksNetwork(ctx context.Context, onRetry bool) {
 	}
 }
 
+func (a *Allocator) NetworkAllocator() networkallocator.NetworkAllocator {
+	return a.nwkAllocator
+}
+
 // updateTaskStatus sets TaskStatus and updates timestamp.
 func updateTaskStatus(t *api.Task, newStatus api.TaskState, message string) {
 	t.Status = api.TaskStatus{
