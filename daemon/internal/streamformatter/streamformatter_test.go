@@ -20,14 +20,14 @@ func TestFormatStatus(t *testing.T) {
 
 func TestFormatError(t *testing.T) {
 	res := FormatError(errors.New("Error for formatter"))
-	expected := `{"errorDetail":{"message":"Error for formatter"},"error":"Error for formatter"}` + "\r\n"
+	expected := `{"error":"Error for formatter","errorDetail":{"message":"Error for formatter"}}` + "\r\n"
 	assert.Check(t, is.Equal(expected, string(res)))
 }
 
 func TestFormatJSONError(t *testing.T) {
 	err := &jsonstream.Error{Code: 50, Message: "Json error"}
 	res := FormatError(err)
-	expected := `{"errorDetail":{"code":50,"message":"Json error"},"error":"Json error"}` + streamNewline
+	expected := `{"error":"Json error","errorDetail":{"code":50,"message":"Json error"}}` + streamNewline
 	assert.Check(t, is.Equal(expected, string(res)))
 }
 
@@ -40,12 +40,12 @@ func TestJsonProgressFormatterFormatProgress(t *testing.T) {
 	}
 	aux := "aux message"
 	res := sf.formatProgress("id", "action", jsonProgress, aux)
-	msg := &jsonMessage{}
+	msg := &jsonstream.Message{}
 
 	assert.NilError(t, json.Unmarshal(res, msg))
 
 	rawAux := json.RawMessage(`"` + aux + `"`)
-	expected := &jsonMessage{
+	expected := &jsonstream.Message{
 		ID:       "id",
 		Status:   "action",
 		Aux:      &rawAux,
