@@ -16,6 +16,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.1
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.60.0
 	go.opentelemetry.io/otel/trace v1.35.0
+	golang.org/x/time v0.11.0
 	gotest.tools/v3 v3.5.2
 )
 
@@ -30,7 +31,6 @@ require (
 	go.opentelemetry.io/otel v1.35.0 // indirect
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/time v0.11.0 // indirect
 )
 
 replace github.com/moby/moby/api => ../api

@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
-	"github.com/moby/moby/api/pkg/progress"
 	"github.com/moby/moby/api/types/jsonstream"
+	"github.com/moby/moby/client/pkg/progress"
 )
 
 // jsonMessage defines a message struct. It describes

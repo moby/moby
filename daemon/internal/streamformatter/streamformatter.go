@@ -7,8 +7,8 @@ import (
 	"io"
 	"sync"
 
-	"github.com/moby/moby/api/pkg/progress"
 	"github.com/moby/moby/api/types/jsonstream"
+	"github.com/moby/moby/v2/daemon/internal/progress"
 )
 
 // jsonMessage defines a message struct. It describes

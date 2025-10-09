@@ -16,11 +16,11 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/api/pkg/progress"
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/daemon/internal/filters"
+	"github.com/moby/moby/v2/daemon/internal/progress"
 	"github.com/moby/moby/v2/daemon/internal/streamformatter"
 	"github.com/moby/moby/v2/daemon/internal/versions"
 	"github.com/moby/moby/v2/daemon/server/buildbackend"
