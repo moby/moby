@@ -12,14 +12,14 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
+	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/client/internal"
-	"github.com/moby/moby/client/pkg/jsonmessage"
 )
 
 type ImagePushResponse interface {
 	io.ReadCloser
-	JSONMessages(ctx context.Context) iter.Seq2[jsonmessage.JSONMessage, error]
+	JSONMessages(ctx context.Context) iter.Seq2[jsonstream.Message, error]
 	Wait(ctx context.Context) error
 }
 

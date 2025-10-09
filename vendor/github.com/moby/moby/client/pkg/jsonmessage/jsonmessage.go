@@ -14,28 +14,14 @@ import (
 	"github.com/moby/term"
 )
 
+var timeNow = time.Now // For overriding in tests.
+
 // RFC3339NanoFixed is time.RFC3339Nano with nanoseconds padded using zeros to
 // ensure the formatted time isalways the same number of characters.
 const RFC3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
 
-// JSONProgress describes a progress message in a JSON stream.
-type JSONProgress struct {
-	jsonstream.Progress
-
-	// terminalFd is the fd of the current terminal, if any. It is used
-	// to get the terminal width.
-	terminalFd uintptr
-
-	// nowFunc is used to override the current time in tests.
-	nowFunc func() time.Time
-
-	// winSize is used to override the terminal width in tests.
-	winSize int
-}
-
-func (p *JSONProgress) String() string {
+func RenderTUIProgress(p jsonstream.Progress, width uint16) string {
 	var (
-		width      = p.width()
 		pbBox      string
 		numbersBox string
 	)
@@ -89,47 +75,13 @@ func (p *JSONProgress) String() string {
 	var timeLeftBox string
 	if width > 50 {
 		if p.Current > 0 && p.Start > 0 && percentage < 50 {
-			fromStart := p.now().Sub(time.Unix(p.Start, 0))
+			fromStart := timeNow().UTC().Sub(time.Unix(p.Start, 0))
 			perEntry := fromStart / time.Duration(p.Current)
 			left := time.Duration(p.Total-p.Current) * perEntry
 			timeLeftBox = " " + left.Round(time.Second).String()
 		}
 	}
 	return pbBox + numbersBox + timeLeftBox
-}
-
-// now returns the current time in UTC, but can be overridden in tests
-// by setting JSONProgress.nowFunc to a custom function.
-func (p *JSONProgress) now() time.Time {
-	if p.nowFunc != nil {
-		return p.nowFunc()
-	}
-	return time.Now().UTC()
-}
-
-// width returns the current terminal's width, but can be overridden
-// in tests by setting JSONProgress.winSize to a non-zero value.
-func (p *JSONProgress) width() int {
-	if p.winSize != 0 {
-		return p.winSize
-	}
-	ws, err := term.GetWinsize(p.terminalFd)
-	if err == nil {
-		return int(ws.Width)
-	}
-	return 200
-}
-
-// JSONMessage defines a message struct. It describes
-// the created time, where it from, status, ID of the
-// message. It's used for docker events.
-type JSONMessage struct {
-	Stream   string            `json:"stream,omitempty"`
-	Status   string            `json:"status,omitempty"`
-	Progress *JSONProgress     `json:"progressDetail,omitempty"`
-	ID       string            `json:"id,omitempty"`
-	Error    *jsonstream.Error `json:"errorDetail,omitempty"`
-	Aux      *json.RawMessage  `json:"aux,omitempty"` // Aux contains out-of-band data, such as digests for push signing and image id after building.
 }
 
 // We can probably use [aec.EmptyBuilder] for managing the output, but
@@ -164,7 +116,7 @@ func cursorDown(out io.Writer, l uint) {
 // Display prints the JSONMessage to out. If isTerminal is true, it erases
 // the entire current line when displaying the progressbar. It returns an
 // error if the [JSONMessage.Error] field is non-nil.
-func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
+func Display(jm jsonstream.Message, out io.Writer, isTerminal bool, width uint16) error {
 	if jm.Error != nil {
 		return jm.Error
 	}
@@ -173,14 +125,17 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 		clearLine(out)
 		endl = "\r"
 		_, _ = fmt.Fprint(out, endl)
-	} else if jm.Progress != nil && jm.Progress.String() != "" { // disable progressbar in non-terminal
+	} else if jm.Progress != nil && (jm.Progress.Current > 0 || jm.Progress.Total > 0) { // disable progressbar in non-terminal
 		return nil
 	}
 	if jm.ID != "" {
 		_, _ = fmt.Fprintf(out, "%s: ", jm.ID)
 	}
 	if jm.Progress != nil && isTerminal {
-		_, _ = fmt.Fprintf(out, "%s %s%s", jm.Status, jm.Progress.String(), endl)
+		if width == 0 {
+			width = 200
+		}
+		_, _ = fmt.Fprintf(out, "%s %s%s", jm.Status, RenderTUIProgress(*jm.Progress, width), endl)
 	} else if jm.Stream != "" {
 		_, _ = fmt.Fprintf(out, "%s%s", jm.Stream, endl)
 	} else {
@@ -189,16 +144,16 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 	return nil
 }
 
-type JSONMessagesStream iter.Seq2[JSONMessage, error]
+type JSONMessagesStream iter.Seq2[jsonstream.Message, error]
 
 // DisplayJSONMessagesStream reads a JSON message stream from in, and writes
 // each [JSONMessage] to out.
 // see DisplayJSONMessages for details
-func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(JSONMessage)) error {
+func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(jsonstream.Message)) error {
 	dec := json.NewDecoder(in)
-	var f JSONMessagesStream = func(yield func(JSONMessage, error) bool) {
+	var f JSONMessagesStream = func(yield func(jsonstream.Message, error) bool) {
 		for {
-			var jm JSONMessage
+			var jm jsonstream.Message
 			err := dec.Decode(&jm)
 			if errors.Is(err, io.EOF) {
 				break
@@ -228,8 +183,15 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 //   - auxCallback allows handling the [JSONMessage.Aux] field. It is
 //     called if a JSONMessage contains an Aux field, in which case
 //     DisplayJSONMessagesStream does not present the JSONMessage.
-func DisplayJSONMessages(messages JSONMessagesStream, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(JSONMessage)) error {
+func DisplayJSONMessages(messages JSONMessagesStream, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(jsonstream.Message)) error {
 	ids := make(map[string]uint)
+	var width uint16 = 200
+	if isTerminal {
+		ws, err := term.GetWinsize(terminalFd)
+		if err == nil {
+			width = ws.Width
+		}
+	}
 
 	for jm, err := range messages {
 		var diff uint
@@ -244,9 +206,6 @@ func DisplayJSONMessages(messages JSONMessagesStream, out io.Writer, terminalFd 
 			continue
 		}
 
-		if jm.Progress != nil {
-			jm.Progress.terminalFd = terminalFd
-		}
 		if jm.ID != "" && jm.Progress != nil {
 			line, ok := ids[jm.ID]
 			if !ok {
@@ -274,7 +233,7 @@ func DisplayJSONMessages(messages JSONMessagesStream, out io.Writer, terminalFd 
 			// with multiple tags).
 			ids = make(map[string]uint)
 		}
-		err := jm.Display(out, isTerminal)
+		err := Display(jm, out, isTerminal, width)
 		if jm.ID != "" && isTerminal {
 			cursorDown(out, diff)
 		}

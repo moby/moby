@@ -15,6 +15,7 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/types/build"
+	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/integration/internal/container"
@@ -217,7 +218,7 @@ func makeTestImage(ctx context.Context, t *testing.T) (imageID string) {
 	assert.NilError(t, err)
 	defer resp.Body.Close()
 
-	err = jsonmessage.DisplayJSONMessagesStream(resp.Body, io.Discard, 0, false, func(msg jsonmessage.JSONMessage) {
+	err = jsonmessage.DisplayJSONMessagesStream(resp.Body, io.Discard, 0, false, func(msg jsonstream.Message) {
 		var r build.Result
 		assert.NilError(t, json.Unmarshal(*msg.Aux, &r))
 		imageID = r.ID
@@ -292,7 +293,7 @@ func TestCopyFromContainer(t *testing.T) {
 	defer resp.Body.Close()
 
 	var imageID string
-	err = jsonmessage.DisplayJSONMessagesStream(resp.Body, io.Discard, 0, false, func(msg jsonmessage.JSONMessage) {
+	err = jsonmessage.DisplayJSONMessagesStream(resp.Body, io.Discard, 0, false, func(msg jsonstream.Message) {
 		var r build.Result
 		assert.NilError(t, json.Unmarshal(*msg.Aux, &r))
 		imageID = r.ID
