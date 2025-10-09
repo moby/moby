@@ -40,6 +40,7 @@ keywords: "API, Docker, rcli, REST, documentation"
   longer set when using BuildKit. The `Author` field is set through the
   `MAINTAINER` Dockerfile instruction, which is deprecated, and the `Comment`
   field is option, and may not be set depending on how the image was created.
+* `GET /container/{id}/json` now omits `Config.OnBuild` if its value is empty.
 * `GET /containers/{id}/json`: the `NetworkSettings` no longer returns the deprecated
   `Bridge`, `HairpinMode`, `LinkLocalIPv6Address`, `LinkLocalIPv6PrefixLen`,
   `SecondaryIPAddresses`, `SecondaryIPv6Addresses`, `EndpointID`, `Gateway`,
