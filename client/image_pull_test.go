@@ -12,6 +12,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/client/internal"
 	"github.com/moby/moby/client/pkg/jsonmessage"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -199,7 +200,7 @@ func TestImagePullWithoutErrors(t *testing.T) {
 
 func TestImagePullResponse(t *testing.T) {
 	r, w := io.Pipe()
-	response := newImagePullResponse(r)
+	response := internal.NewJSONMessageStream(r)
 	ctx, cancel := context.WithCancel(context.TODO())
 	messages := response.JSONMessages(ctx)
 	c := make(chan jsonmessage.JSONMessage)
