@@ -153,9 +153,7 @@ func TestImagePullStoredDigestForOtherRepo(t *testing.T) {
 
 	// Now, pull a totally different repo with a the same digest
 	rdr, err = apiClient.ImagePull(ctx, path.Join(registry.DefaultURL, "other:image@"+desc.Digest.String()), client.ImagePullOptions{})
-	if rdr != nil {
-		assert.Check(t, rdr.Close())
-	}
+	assert.Check(t, rdr.Close())
 	assert.Assert(t, err != nil, "Expected error, got none: %v", err)
 	assert.Assert(t, cerrdefs.IsNotFound(err), err)
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))

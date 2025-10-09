@@ -8,9 +8,11 @@ import (
 	"io"
 	"net/http"
 	"testing"
+	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/client/pkg/jsonmessage"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -193,4 +195,45 @@ func TestImagePullWithoutErrors(t *testing.T) {
 			assert.Check(t, is.Equal(string(body), expectedOutput))
 		})
 	}
+}
+
+func TestImagePullResponse(t *testing.T) {
+	r, w := io.Pipe()
+	response := newImagePullResponse(r)
+	ctx, cancel := context.WithCancel(context.TODO())
+	messages := response.JSONMessages(ctx)
+	c := make(chan jsonmessage.JSONMessage)
+	go func() {
+		for message, err := range messages {
+			if err != nil {
+				close(c)
+				break
+			}
+			c <- message
+		}
+	}()
+
+	// Check we receive message sent to json stream
+	w.Write([]byte(`{"id":"test"}`))
+	tiemout, _ := context.WithTimeout(context.TODO(), 100*time.Millisecond)
+	select {
+	case message := <-c:
+		assert.Equal(t, message.ID, "test")
+	case <-tiemout.Done():
+		t.Fatal("expected message not received")
+	}
+
+	// Check context cancelation
+	cancel()
+	tiemout, _ = context.WithTimeout(context.TODO(), 100*time.Millisecond)
+	select {
+	case _, ok := <-c:
+		assert.Check(t, !ok)
+	case <-tiemout.Done():
+		t.Fatal("expected message not received")
+	}
+
+	// Check Close can be ran twice without error
+	assert.NilError(t, response.Close())
+	assert.NilError(t, response.Close())
 }
