@@ -5,11 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
 	"sync"
-	"time"
 
-	"github.com/docker/go-units"
 	"github.com/moby/moby/api/pkg/progress"
 	"github.com/moby/moby/api/types/jsonstream"
 )
@@ -91,86 +88,6 @@ func (sf *jsonProgressFormatter) formatProgress(id, action string, progress *jso
 		return nil
 	}
 	return appendNewline(b)
-}
-
-type rawProgressFormatter struct{}
-
-func (sf *rawProgressFormatter) formatStatus(id, format string, a ...any) []byte {
-	return []byte(fmt.Sprintf(format, a...) + streamNewline)
-}
-
-func rawProgressString(p *jsonstream.Progress) string {
-	if p == nil || (p.Current <= 0 && p.Total <= 0) {
-		return ""
-	}
-	if p.Total <= 0 {
-		switch p.Units {
-		case "":
-			return fmt.Sprintf("%8v", units.HumanSize(float64(p.Current)))
-		default:
-			return fmt.Sprintf("%d %s", p.Current, p.Units)
-		}
-	}
-
-	percentage := int(float64(p.Current)/float64(p.Total)*100) / 2
-	if percentage > 50 {
-		percentage = 50
-	}
-
-	numSpaces := 0
-	if 50-percentage > 0 {
-		numSpaces = 50 - percentage
-	}
-	pbBox := fmt.Sprintf("[%s>%s] ", strings.Repeat("=", percentage), strings.Repeat(" ", numSpaces))
-
-	var numbersBox string
-	switch {
-	case p.HideCounts:
-	case p.Units == "": // no units, use bytes
-		current := units.HumanSize(float64(p.Current))
-		total := units.HumanSize(float64(p.Total))
-
-		numbersBox = fmt.Sprintf("%8v/%v", current, total)
-
-		if p.Current > p.Total {
-			// remove total display if the reported current is wonky.
-			numbersBox = fmt.Sprintf("%8v", current)
-		}
-	default:
-		numbersBox = fmt.Sprintf("%d/%d %s", p.Current, p.Total, p.Units)
-
-		if p.Current > p.Total {
-			// remove total display if the reported current is wonky.
-			numbersBox = fmt.Sprintf("%d %s", p.Current, p.Units)
-		}
-	}
-
-	var timeLeftBox string
-	if p.Current > 0 && p.Start > 0 && percentage < 50 {
-		fromStart := time.Since(time.Unix(p.Start, 0))
-		perEntry := fromStart / time.Duration(p.Current)
-		left := time.Duration(p.Total-p.Current) * perEntry
-		timeLeftBox = " " + left.Round(time.Second).String()
-	}
-	return pbBox + numbersBox + timeLeftBox
-}
-
-func (sf *rawProgressFormatter) formatProgress(id, action string, progress *jsonstream.Progress, aux any) []byte {
-	if progress == nil {
-		progress = &jsonstream.Progress{}
-	}
-	endl := "\r"
-	out := rawProgressString(progress)
-	if out == "" {
-		endl += "\n"
-	}
-	return []byte(action + " " + out + endl)
-}
-
-// NewProgressOutput returns a progress.Output object that can be passed to
-// progress.NewProgressReader.
-func NewProgressOutput(out io.Writer) progress.Output {
-	return &progressOutput{sf: &rawProgressFormatter{}, out: out, newLines: true}
 }
 
 // NewJSONProgressOutput returns a progress.Output that formats output
