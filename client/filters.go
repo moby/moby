@@ -30,6 +30,19 @@ func (f Filters) Add(term string, values ...string) Filters {
 	return f
 }
 
+// Clone returns a deep copy of f.
+func (f Filters) Clone() Filters {
+	out := make(Filters, len(f))
+	for term, values := range f {
+		inner := make(map[string]bool, len(values))
+		for v, ok := range values {
+			inner[v] = ok
+		}
+		out[term] = inner
+	}
+	return out
+}
+
 // updateURLValues sets the "filters" key in values to the marshalled value of
 // f, replacing any existing values. When f is empty, any existing "filters" key
 // is removed.
