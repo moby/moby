@@ -6,3 +6,150 @@ module/api:
   - changed-files:
     - any-glob-to-any-file: 'api/**'
 
+area/daemon:
+  - changed-files:
+    - any-glob-to-any-file: 'daemon/**'
+
+area/builder/buildkit:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*buildkit*'
+      - 'daemon/internal/builder-next/**'
+
+area/builder/classic-builder:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'daemon/images/*_build*'
+      - 'daemon/builder/**'
+
+area/builder:
+  - labels:
+    - any-glob-to-any-file:
+      - '**/*buildkit*'
+      - 'daemon/internal/builder-next/**'
+      - 'daemon/images/*_build*'
+      - 'daemon/builder/**'
+
+area/networking:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'daemon/network*'
+      - 'daemon/network/**'
+      - 'api/types/network/**'
+      - 'integration/network/**'
+      - 'integration/networking/**'
+
+area/volumes:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'daemon/volume/**'
+      - 'api/types/volume/**'
+      - 'integration/volume/**'
+
+area/swarm:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'daemon/cluster/**'
+      - 'api/types/swarm/**'
+
+area/images:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'daemon/images/**'
+      - 'api/types/image/**'
+      - 'integration/image/**'
+
+area/logging:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'daemon/logger/**'
+      - '**/*log*'
+
+area/security:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*seccomp*'
+      - '**/*apparmor*'
+      - '**/*selinux*'
+
+area/security/apparmor:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*apparmor*'
+      - 'contrib/apparmor/**'
+
+area/security/selinux:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*selinux*'
+      - 'contrib/selinux/**'
+
+area/security/seccomp:
+  - changed-files:
+    - any-glob-to-any-file: '**/*seccomp*'
+
+area/systemd:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*systemd*'
+      - 'contrib/init/systemd/**'
+
+area/contrib:
+  - changed-files:
+    - any-glob-to-any-file: 'contrib/**'
+
+area/packaging:
+  - changed-files:
+    - any-glob-to-any-file:
+      # files used in packaging
+      - 'contrib/dockerd-rootless.sh'
+      - 'contrib/dockerd-rootless-setuptool.sh'
+      - 'contrib/init/systemd/**'
+
+containerd-integration:
+  - changed-files:
+    - any-glob-to-any-file: 'daemon/containerd/**'
+
+area/rootless:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*rootless*'
+      - 'contrib/dockerd-rootless*'
+
+area/testing:
+  - changed-files:
+    - any-glob-to-all-files:
+      - 'integration/**'
+      - 'integration-cli/**'
+      - '**/*_test.go'
+      - 'internal/test*'
+      - 'internal/testutil/**'
+
+area/docs:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'api/docs/*.yaml'
+      - 'docs/**'
+      - '**/*.md'
+      - 'man/**'
+
+area/dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'go.mod'
+      - 'go.sum'
+      - 'vendor/**'
+
+area/ci:
+  - changed-files:
+    - any-glob-to-any-file: '.github/**'
+
+platform/windows:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*_windows.go'
+      - 'Dockerfile.windows'
+
+impact/changelog:
+  - changed-files:
+    - any-glob-to-any-file: 'api/docs/CHANGELOG.md'
