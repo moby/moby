@@ -122,8 +122,14 @@ func MaybeParse[T any](parse func(string) (T, error)) func(string) (T, error) {
 	}
 }
 
-var (
-	MaybeParseAddr   = MaybeParse(netip.ParseAddr)
-	MaybeParsePrefix = MaybeParse(netip.ParsePrefix)
-	MaybeParseCIDR   = MaybeParse(ParseCIDR)
-)
+func MaybeParseAddr(addr string) (netip.Addr, error) {
+	return MaybeParse(netip.ParseAddr)(addr)
+}
+
+func MaybeParsePrefix(prefix string) (netip.Prefix, error) {
+	return MaybeParse(netip.ParsePrefix)(prefix)
+}
+
+func MaybeParseCIDR(cidr string) (netip.Prefix, error) {
+	return MaybeParse(ParseCIDR)(cidr)
+}
