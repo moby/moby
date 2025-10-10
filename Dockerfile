@@ -90,7 +90,7 @@ ARG TARGETPLATFORM
 # GO_SWAGGER_VERSION specifies the version of the go-swagger binary to install.
 # Go-swagger is used in CI for generating types from swagger.yaml in
 # hack/validate/swagger-gen
-ARG GO_SWAGGER_VERSION=v0.32.3
+ARG GO_SWAGGER_VERSION=v0.33.1
 RUN --mount=type=cache,target=/root/.cache/go-build,id=swagger-build-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=tmpfs,target=/go/src/ <<EOT
