@@ -56,8 +56,12 @@ const (
 
 // EndpointVirtualIP represents the virtual ip of a port.
 type EndpointVirtualIP struct {
-	NetworkID string       `json:",omitempty"`
-	Addr      netip.Prefix `json:",omitempty"`
+	NetworkID string `json:",omitempty"`
+
+	// Addr is the virtual ip address.
+	// This field accepts CIDR notation, for example `10.0.0.1/24`, to maintain backwards
+	// compatibility, but only the IP address is used.
+	Addr netip.Prefix `json:",omitempty"`
 }
 
 // Network represents a network.
@@ -91,7 +95,11 @@ type NetworkAttachmentConfig struct {
 
 // NetworkAttachment represents a network attachment.
 type NetworkAttachment struct {
-	Network   Network        `json:",omitempty"`
+	Network Network `json:",omitempty"`
+
+	// Addresses contains the IP addresses associated with the endpoint in the network.
+	// This field accepts CIDR notation, for example `10.0.0.1/24`, to maintain backwards
+	// compatibility, but only the IP address is used.
 	Addresses []netip.Prefix `json:",omitempty"`
 }
 
