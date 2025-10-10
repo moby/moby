@@ -603,7 +603,7 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 	type hasTypeParams interface {
 		TypeParams() *types.TypeParamList
 	}
-	// abstraction of *types.{Named,TypeParam}
+	// abstraction of *types.{Alias,Named,TypeParam}
 	type hasObj interface {
 		Obj() *types.TypeName
 	}
@@ -698,7 +698,10 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 			} else if false && aliases.Enabled() {
 				// The Enabled check is too expensive, so for now we
 				// simply assume that aliases are not enabled.
-				// TODO(adonovan): replace with "if true {" when go1.24 is assured.
+				//
+				// Now that go1.24 is assured, we should be able to
+				// replace this with "if true {", but it causes tests
+				// to fail. TODO(adonovan): investigate.
 				return nil, fmt.Errorf("cannot apply %q to %s (got %T, want alias)", code, t, t)
 			}
 
