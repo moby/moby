@@ -662,11 +662,6 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	if warn := handleVolumeDriverBC(version, hostConfig); warn != "" {
 		warnings = append(warnings, warn)
 	}
-	if warn, err := handleMACAddressBC(config, hostConfig, networkingConfig, version); err != nil {
-		return err
-	} else if warn != "" {
-		warnings = append(warnings, warn)
-	}
 
 	if warn, err := handleSysctlBC(hostConfig, networkingConfig, version); err != nil {
 		return err
@@ -726,58 +721,6 @@ func handleVolumeDriverBC(version string, hostConfig *container.HostConfig) (war
 		return "WARNING: the container-wide volume-driver configuration is ignored for volumes specified via 'mount'. Use '--mount type=volume,volume-driver=...' instead"
 	}
 	return ""
-}
-
-// handleMACAddressBC takes care of backward-compatibility for the container-wide MAC address by mutating the
-// networkingConfig to set the endpoint-specific MACAddress field introduced in API v1.44. It returns a warning message
-// or an error if the container-wide field was specified for API >= v1.44.
-func handleMACAddressBC(config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, version string) (string, error) {
-	deprecatedMacAddress := config.MacAddress //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
-
-	// For older versions of the API, migrate the container-wide MAC address to EndpointsConfig.
-	if versions.LessThan(version, "1.44") {
-		if deprecatedMacAddress == "" {
-			// If a MAC address is supplied in EndpointsConfig, discard it because the old API
-			// would have ignored it.
-			for _, ep := range networkingConfig.EndpointsConfig {
-				ep.MacAddress = ""
-			}
-			return "", nil
-		}
-		if !hostConfig.NetworkMode.IsBridge() && !hostConfig.NetworkMode.IsUserDefined() {
-			return "", errdefs.InvalidParameter(errors.New("conflicting options: mac-address and the network mode"))
-		}
-
-		epConfig, err := epConfigForNetMode(version, hostConfig.NetworkMode, networkingConfig)
-		if err != nil {
-			return "", err
-		}
-		epConfig.MacAddress = deprecatedMacAddress
-		return "", nil
-	}
-
-	// The container-wide MacAddress parameter is deprecated and should now be specified in EndpointsConfig.
-	if deprecatedMacAddress == "" {
-		return "", nil
-	}
-	var warning string
-	if hostConfig.NetworkMode.IsBridge() || hostConfig.NetworkMode.IsUserDefined() {
-		ep, err := epConfigForNetMode(version, hostConfig.NetworkMode, networkingConfig)
-		if err != nil {
-			return "", errors.Wrap(err, "unable to migrate container-wide MAC address to a specific network")
-		}
-		// ep is the endpoint that needs the container-wide MAC address; migrate the address
-		// to it, or bail out if there's a mismatch.
-		if ep.MacAddress == "" {
-			ep.MacAddress = deprecatedMacAddress
-		} else if ep.MacAddress != deprecatedMacAddress {
-			return "", errdefs.InvalidParameter(errors.New("the container-wide MAC address must match the endpoint-specific MAC address for the main network, or be left empty"))
-		}
-	}
-	warning = "The container-wide MacAddress field is now deprecated. It should be specified in EndpointsConfig instead."
-	config.MacAddress = "" //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
-
-	return warning, nil
 }
 
 // handleSysctlBC migrates top level network endpoint-specific '--sysctl'
