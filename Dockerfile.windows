@@ -164,7 +164,7 @@ SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPref
 ARG GO_VERSION=1.24.8
 
 # GOTESTSUM_VERSION is the version of gotest.tools/gotestsum to install.
-ARG GOTESTSUM_VERSION=v1.12.3
+ARG GOTESTSUM_VERSION=v1.13.0
 
 # GOWINRES_VERSION is the version of go-winres to install.
 ARG GOWINRES_VERSION=v0.3.3
