@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"github.com/moby/moby/api/pkg/stdcopy"
+	"github.com/moby/moby/v2/daemon/internal/stdcopymux"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/pkg/ioutils"
 )
@@ -33,9 +34,9 @@ func WriteLogStream(_ context.Context, w http.ResponseWriter, msgs <-chan *backe
 	errStream := outStream
 	sysErrStream := errStream
 	if mux {
-		sysErrStream = stdcopy.NewStdWriter(outStream, stdcopy.Systemerr)
-		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
-		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
+		sysErrStream = stdcopymux.NewStdWriter(outStream, stdcopy.Systemerr)
+		errStream = stdcopymux.NewStdWriter(outStream, stdcopy.Stderr)
+		outStream = stdcopymux.NewStdWriter(outStream, stdcopy.Stdout)
 	}
 
 	for {

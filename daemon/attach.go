@@ -10,6 +10,7 @@ import (
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/internal/stdcopymux"
 	"github.com/moby/moby/v2/daemon/internal/stream"
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/server/backend"
@@ -74,8 +75,8 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, req *backend.Containe
 	defer inStream.Close()
 
 	if multiplexed {
-		errStream = stdcopy.NewStdWriter(errStream, stdcopy.Stderr)
-		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
+		errStream = stdcopymux.NewStdWriter(errStream, stdcopy.Stderr)
+		outStream = stdcopymux.NewStdWriter(outStream, stdcopy.Stdout)
 	}
 
 	if cfg.UseStdin {
