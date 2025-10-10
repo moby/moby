@@ -9,13 +9,20 @@
 # * Either one of slirp4netns (>= v0.4.0), VPNKit, lxc-user-nic needs to be installed.
 #
 # Recognized environment variables:
-# * DOCKERD_ROOTLESS_ROOTLESSKIT_STATE_DIR=DIR: the rootlesskit state dir. Defaults to "$XDG_RUNTIME_DIR/dockerd-rootless".
-# * DOCKERD_ROOTLESS_ROOTLESSKIT_NET=(slirp4netns|vpnkit|pasta|lxc-user-nic): the rootlesskit network driver. Defaults to "slirp4netns" if slirp4netns (>= v0.4.0) is installed. Otherwise defaults to "vpnkit".
-# * DOCKERD_ROOTLESS_ROOTLESSKIT_MTU=NUM: the MTU value for the rootlesskit network driver. Defaults to 65520 for slirp4netns, 1500 for other drivers.
-# * DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=(builtin|slirp4netns|implicit): the rootlesskit port driver. Defaults to "builtin".
-# * DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SANDBOX=(auto|true|false): whether to protect slirp4netns with a dedicated mount namespace. Defaults to "auto".
-# * DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SECCOMP=(auto|true|false): whether to protect slirp4netns with seccomp. Defaults to "auto".
-# * DOCKERD_ROOTLESS_ROOTLESSKIT_DISABLE_HOST_LOOPBACK=(true|false): prohibit connections to 127.0.0.1 on the host (including via 10.0.2.2, in the case of slirp4netns). Defaults to "true".
+# * DOCKERD_ROOTLESS_ROOTLESSKIT_STATE_DIR=DIR: the rootlesskit state dir.
+#   * Defaults to "$XDG_RUNTIME_DIR/dockerd-rootless".
+# * DOCKERD_ROOTLESS_ROOTLESSKIT_NET=(slirp4netns|vpnkit|pasta|lxc-user-nic): the rootlesskit network driver.
+#   * Defaults to "slirp4netns" if slirp4netns (>= v0.4.0) is installed, else "pasta", else "vpnkit".
+# * DOCKERD_ROOTLESS_ROOTLESSKIT_MTU=NUM: the MTU value for the rootlesskit network driver.
+#   * Defaults to 65520 for slirp4netns and pasta, 1500 for other rootlesskit network drivers.
+# * DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=(builtin|slirp4netns|implicit): the rootlesskit port driver.
+#   * Defaults to "implicit" for "pasta", "builtin" for other rootlesskit network drivers.
+# * DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SANDBOX=(auto|true|false): whether to protect slirp4netns with a dedicated mount namespace.
+#   * Defaults to "auto".
+# * DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SECCOMP=(auto|true|false): whether to protect slirp4netns with seccomp.
+#   * Defaults to "auto".
+# * DOCKERD_ROOTLESS_ROOTLESSKIT_DISABLE_HOST_LOOPBACK=(true|false): prohibit connections to 127.0.0.1 on the host (including via 10.0.2.2, in the case of slirp4netns).
+#   * Defaults to "true".
 
 # To apply an environment variable via systemd, create ~/.config/systemd/user/docker.service.d/override.conf as follows,
 # and run `systemctl --user daemon-reload && systemctl --user restart docker`:
@@ -93,35 +100,49 @@ fi
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_STATE_DIR:=$XDG_RUNTIME_DIR/dockerd-rootless}"
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_NET:=}"
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_MTU:=}"
-: "${DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER:=builtin}"
+: "${DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER:=}"
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SANDBOX:=auto}"
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SECCOMP:=auto}"
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_DISABLE_HOST_LOOPBACK:=}"
 net=$DOCKERD_ROOTLESS_ROOTLESSKIT_NET
+port_driver=$DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER
 mtu=$DOCKERD_ROOTLESS_ROOTLESSKIT_MTU
 if [ -z "$net" ]; then
 	if command -v slirp4netns > /dev/null 2>&1; then
 		# If --netns-type is present in --help, slirp4netns is >= v0.4.0.
 		if slirp4netns --help | grep -qw -- --netns-type; then
 			net=slirp4netns
-			if [ -z "$mtu" ]; then
-				mtu=65520
-			fi
 		else
-			echo "slirp4netns found but seems older than v0.4.0. Falling back to VPNKit."
+			echo "slirp4netns found but seems older than v0.4.0. Checking for other network drivers."
+		fi
+	fi
+	if [ -z "$net" ]; then
+		if command -v pasta > /dev/null 2>&1; then
+			net=pasta
 		fi
 	fi
 	if [ -z "$net" ]; then
 		if command -v vpnkit > /dev/null 2>&1; then
 			net=vpnkit
-		else
-			echo "Either slirp4netns (>= v0.4.0) or vpnkit needs to be installed"
-			exit 1
 		fi
+	fi
+	if [ -z "$net" ]; then
+		echo "One of slirp4netns (>= v0.4.0), pasta (passt >= 2023_12_04), or vpnkit needs to be installed"
 	fi
 fi
 if [ -z "$mtu" ]; then
-	mtu=1500
+	if [ "$net" = slirp4netns -o "$net" = pasta ]; then
+		mtu=65520
+	else
+		mtu=1500
+	fi
+fi
+if [ -z "$port_driver" ]; then
+	if [ "$net" = pasta ]; then
+		port_driver=implicit
+	else
+		port_driver=builtin
+	fi
 fi
 
 host_loopback="--disable-host-loopback"
@@ -156,7 +177,7 @@ if [ -z "$_DOCKERD_ROOTLESS_CHILD" ]; then
 		--net=$net --mtu=$mtu \
 		--slirp4netns-sandbox=$DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SANDBOX \
 		--slirp4netns-seccomp=$DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SECCOMP \
-		$host_loopback --port-driver=$DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER \
+		$host_loopback --port-driver=$port_driver \
 		--copy-up=/etc --copy-up=/run \
 		--propagation=rslave \
 		$DOCKERD_ROOTLESS_ROOTLESSKIT_FLAGS \
