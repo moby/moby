@@ -3,7 +3,7 @@
     and validation code, and contains a fix for CamelCase (IPv6 <--> IPV6).
 
     The orignal template can be found at:
-    https://github.com/go-swagger/go-swagger/blob/v0.32.3/generator/templates/schema.gotmpl
+    https://github.com/go-swagger/go-swagger/blob/v0.33.1/generator/templates/schema.gotmpl
 */}}
 {{- if and .IsBaseType .IsExported (not .IsSuperAlias) }}
   {{- template "schemaPolymorphic" . }}

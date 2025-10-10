@@ -59,7 +59,7 @@ type Volume struct {
 	// does not support this feature.
 	//
 	// Example: {"hello":"world"}
-	Status map[string]interface{} `json:"Status,omitempty"`
+	Status map[string]any `json:"Status,omitempty"`
 
 	// usage data
 	UsageData *UsageData `json:"UsageData,omitempty"`
