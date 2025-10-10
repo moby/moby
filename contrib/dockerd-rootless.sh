@@ -112,9 +112,6 @@ if [ -z "$net" ]; then
 		# If --netns-type is present in --help, slirp4netns is >= v0.4.0.
 		if slirp4netns --help | grep -qw -- --netns-type; then
 			net=slirp4netns
-			if [ -z "$mtu" ]; then
-				mtu=65520
-			fi
 		else
 			echo "slirp4netns found but seems older than v0.4.0. Checking for other network drivers."
 		fi
@@ -134,7 +131,7 @@ if [ -z "$net" ]; then
 	fi
 fi
 if [ -z "$mtu" ]; then
-	if [ "$net" = pasta ]; then
+	if [ "$net" = slirp4netns -o "$net" = pasta ]; then
 		mtu=65520
 	else
 		mtu=1500
