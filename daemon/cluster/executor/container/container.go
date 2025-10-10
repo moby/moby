@@ -541,6 +541,7 @@ func (c *containerConfig) resources() container.Resources {
 
 	if r.MemorySwappiness != nil {
 		resources.MemorySwappiness = &r.MemorySwappiness.Value
+		log.L.Debugf("Setting memory swappiness for container to %v", r.MemorySwappiness.Value)
 	}
 
 	if r.Limits.NanoCPUs > 0 {
