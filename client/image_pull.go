@@ -2,75 +2,22 @@ package client
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"io"
-	"iter"
 	"net/url"
 	"strings"
-	"sync"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
+	"github.com/moby/moby/client/internal"
 	"github.com/moby/moby/client/pkg/jsonmessage"
 )
 
-func newImagePullResponse(rc io.ReadCloser) ImagePullResponse {
-	if rc == nil {
-		panic("nil io.ReadCloser")
-	}
-	return ImagePullResponse{
-		rc:    rc,
-		close: sync.OnceValue(rc.Close),
-	}
-}
+type PullMessage = jsonmessage.JSONMessage
 
-type ImagePullResponse struct {
-	rc    io.ReadCloser
-	close func() error
-}
-
-// Read implements io.ReadCloser
-func (r ImagePullResponse) Read(p []byte) (n int, err error) {
-	if r.rc == nil {
-		return 0, io.EOF
-	}
-	return r.rc.Read(p)
-}
-
-// Close implements io.ReadCloser
-func (r ImagePullResponse) Close() error {
-	if r.close == nil {
-		return nil
-	}
-	return r.close()
-}
-
-// JSONMessages decodes the response stream as a sequence of JSONMessages.
-// if stream ends or context is cancelled, the underlying [io.Reader] is closed.
-func (r ImagePullResponse) JSONMessages(ctx context.Context) iter.Seq2[jsonmessage.JSONMessage, error] {
-	context.AfterFunc(ctx, func() {
-		_ = r.Close()
-	})
-	dec := json.NewDecoder(r)
-	return func(yield func(jsonmessage.JSONMessage, error) bool) {
-		defer r.Close()
-		for {
-			var jm jsonmessage.JSONMessage
-			err := dec.Decode(&jm)
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			if ctx.Err() != nil {
-				yield(jm, ctx.Err())
-				return
-			}
-			if !yield(jm, err) {
-				return
-			}
-		}
-	}
-}
+//	type ImagePullResponse interface {
+//		io.ReadCloser
+//		Messages(ctx context.Context) iter.Seq2[PullMessage, error]
+//	}
+type ImagePullResponse internal.Stream[PullMessage]
 
 // ImagePull requests the docker host to pull an image from a remote registry.
 // It executes the privileged function if the operation is unauthorized
@@ -88,7 +35,7 @@ func (cli *Client) ImagePull(ctx context.Context, refStr string, options ImagePu
 
 	ref, err := reference.ParseNormalizedNamed(refStr)
 	if err != nil {
-		return ImagePullResponse{}, err
+		return nil, err
 	}
 
 	query := url.Values{}
@@ -105,10 +52,10 @@ func (cli *Client) ImagePull(ctx context.Context, refStr string, options ImagePu
 		resp, err = cli.tryImageCreate(ctx, query, options.PrivilegeFunc)
 	}
 	if err != nil {
-		return ImagePullResponse{}, err
+		return nil, err
 	}
 
-	return newImagePullResponse(resp.Body), nil
+	return internal.NewMessageStream[PullMessage](resp.Body), nil
 }
 
 // getAPITagFromNamedRef returns a tag from the specified reference.
