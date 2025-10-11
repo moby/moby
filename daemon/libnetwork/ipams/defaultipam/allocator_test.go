@@ -285,6 +285,61 @@ func TestPredefinedPool(t *testing.T) {
 	}
 }
 
+func TestPredefinedPoolWithPreferredSubnetSize(t *testing.T) {
+	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+	assert.NilError(t, err)
+
+	alloc1, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "0.0.0.0/24"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	alloc2, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if alloc1.Pool == alloc2.Pool {
+		t.Fatalf("Unexpected default network returned: %s = %s", alloc2.Pool, alloc1.Pool)
+	}
+
+	if alloc1.Pool.Bits() != 24 {
+		t.Fatalf("Unexpected default network size: %s != 24", alloc1.Pool)
+	}
+
+	if alloc2.Pool.Bits() == 24 {
+		t.Fatalf("Unexpected default network size: %s == 24", alloc2.Pool)
+	}
+
+	// Release the second pool first
+	if err := a.ReleasePool(alloc2.PoolID); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "/24"})
+	if err == nil {
+		t.Fatal(err, "Expected failure requesting pool with unspecified address family")
+	}
+
+	alloc4, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "0.0.0.0/25"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if alloc4.Pool.Bits() != 25 {
+		t.Fatalf("Unexpected default network size: %s != 25", alloc4.Pool)
+	}
+
+	if err := a.ReleasePool(alloc4.PoolID); err != nil {
+		t.Fatal(err)
+	}
+
+	// Check invalid subnet size requests
+	if _, err := a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: "0.0.0.0/AB"}); err == nil {
+		t.Fatalf("Expected failure requesting pool with invalid subnet size")
+	}
+}
+
 func TestRemoveSubnet(t *testing.T) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
@@ -755,14 +810,15 @@ func TestOverlappingRequests(t *testing.T) {
 		{[]string{"10.0.0.0/8"}, "11.0.0.0/8", true},
 		{[]string{"74.0.0.0/7"}, "9.111.99.72/30", true},
 		{[]string{"110.192.0.0/10"}, "16.0.0.0/10", true},
+		{[]string{"0.0.0.0/16"}, "0.0.0.0/16", true}, // two default allocations should succeed
 
 		// Previously allocated network entirely contains request
 		{[]string{"10.0.0.0/8"}, "10.0.0.0/8", false}, // exact overlap
-		{[]string{"0.0.0.0/1"}, "16.182.0.0/15", false},
+		{[]string{"16.182.0.0/15"}, "16.182.0.0/16", false},
 		{[]string{"16.0.0.0/4"}, "17.11.66.0/23", false},
 
 		// Previously allocated network overlaps beginning of request
-		{[]string{"0.0.0.0/1"}, "0.0.0.0/0", false},
+		{[]string{"16.182.0.0/16"}, "16.182.0.0/15", false},
 		{[]string{"64.0.0.0/6"}, "64.0.0.0/3", false},
 		{[]string{"112.0.0.0/6"}, "112.0.0.0/4", false},
 
@@ -774,18 +830,21 @@ func TestOverlappingRequests(t *testing.T) {
 		// Previously allocated network entirely contained within request
 		{[]string{"10.0.0.0/8"}, "10.0.0.0/6", false}, // non-canonical
 		{[]string{"10.0.0.0/8"}, "8.0.0.0/6", false},  // canonical
-		{[]string{"25.173.144.0/20"}, "0.0.0.0/0", false},
+		{[]string{"25.173.144.0/20"}, "25.173.143.0/16", false},
 
 		// IPv6
+		{[]string{"::/0"}, "::/0", true},     // two default allocations should succeed
+		{[]string{"f000::/4"}, "::/0", true}, // default allocation shouldn't overlap explicit allocation
+
 		// Previously allocated network entirely contains request
-		{[]string{"::/0"}, "f656:3484:c878:a05:e540:a6ed:4d70:3740/123", false},
+		{[]string{"f656::/0"}, "f656:3484:c878:a05:e540:a6ed:4d70:3740/123", false},
 		{[]string{"8000::/1"}, "8fe8:e7c4:5779::/49", false},
 		{[]string{"f000::/4"}, "ffc7:6000::/19", false},
 
 		// Previously allocated network overlaps beginning of request
-		{[]string{"::/2"}, "::/0", false},
-		{[]string{"::/3"}, "::/1", false},
-		{[]string{"::/6"}, "::/5", false},
+		{[]string{"f656::/20"}, "f656::/16", false},
+		{[]string{"8000::/32"}, "8000::/31", false},
+		{[]string{"f000::/60"}, "f000::/20", false},
 
 		// Previously allocated network overlaps end of request
 		{[]string{"c000::/2"}, "8000::/1", false},
@@ -793,7 +852,7 @@ func TestOverlappingRequests(t *testing.T) {
 		{[]string{"cf80::/9"}, "c000::/4", false},
 
 		// Previously allocated network entirely contained within request
-		{[]string{"ff77:93f8::/29"}, "::/0", false},
+		{[]string{"ff77:93f8::/29"}, "ff77:93f7::/28", false},
 		{[]string{"9287:2e20:5134:fab6:9061:a0c6:bfe3:9400/119"}, "8000::/1", false},
 		{[]string{"3ea1:bfa9:8691:d1c6:8c46:519b:db6d:e700/120"}, "3000::/4", false},
 	}
@@ -805,15 +864,15 @@ func TestOverlappingRequests(t *testing.T) {
 		// Set up some existing allocations.  This should always succeed.
 		for _, env := range tc.environment {
 			_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: env})
-			assert.NilError(t, err)
+			assert.NilError(t, err, "error requesting pool %v, %v", localAddressSpace, env)
 		}
 
 		// Make the test allocation.
 		_, err = a.RequestPool(ipamapi.PoolRequest{AddressSpace: localAddressSpace, Pool: tc.subnet})
 		if tc.ok {
-			assert.NilError(t, err)
+			assert.NilError(t, err, "error requesting pool %v, %v", localAddressSpace, tc.subnet)
 		} else {
-			assert.Check(t, is.ErrorContains(err, ""))
+			assert.Check(t, is.ErrorContains(err, ""), "expected error requesting overlapping pool %v, %v", localAddressSpace, tc.subnet)
 		}
 	}
 }
