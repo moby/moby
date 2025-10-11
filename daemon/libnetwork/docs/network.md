@@ -44,6 +44,9 @@ Initial Setup ( before any services are created)
 
 
 1. In host NS, creates a docker_gwbridge bridge, assigning a subnet range to this bridge. In this above diagram 172.18.0.1/16. This subnet is local, and does not leak outside of the host.
+
+   The `docker_gwbridge` bridge applies any defaults configured through the daemon's `default-network-opts`, such as `com.docker.network.driver.mtu`.
+
 2. In host NS, adds masquerading rule in nat iptable (5) PREROUTING chain for any request with srcIP within 172.18.0.0/16 subnet.
 3. Creates a new network namespace ingress_sbox NS, creates two veth-pairs, one eth1 connects to docker_gwbridge bridge with fixed IP 172.18.0.2, and other (eth0) connected to ingress NS bridge br0. The eth0 is assigned an IP address, in this example, 10.255.0.2. 
 4. In ingress_sbox NS, adds to nat iptable(2)?s PREROUTING chain a rule that snat and redirect service request to ipvs for load-balancing. For instance, 

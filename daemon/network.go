@@ -307,13 +307,8 @@ func (daemon *Daemon) createNetwork(ctx context.Context, cfg *config.Config, cre
 	for k, v := range create.Options {
 		networkOptions[k] = v
 	}
-	if defaultOpts, ok := cfg.DefaultNetworkOpts[driver]; create.ConfigFrom == nil && ok {
-		for k, v := range defaultOpts {
-			if _, ok := networkOptions[k]; !ok {
-				log.G(ctx).WithFields(log.Fields{"driver": driver, "network": id, k: v}).Debug("Applying network default option")
-				networkOptions[k] = v
-			}
-		}
+	if create.ConfigFrom == nil {
+		libnetwork.ApplyDefaultDriverOpts(ctx, networkOptions, driver, id, cfg.DefaultNetworkOpts)
 	}
 
 	enableIPv4 := true

@@ -46,6 +46,13 @@ func TestGetConflictFreeConfiguration(t *testing.T) {
 
 	assert.Check(t, cc.Debug)
 
+	expectedNetworkOpts := map[string]map[string]string{
+		"overlay": {
+			"com.docker.network.driver.mtu": "1337",
+		},
+	}
+	assert.Check(t, is.DeepEqual(expectedNetworkOpts, cc.NetworkConfig.DefaultNetworkOpts))
+
 	expectedUlimits := map[string]*container.Ulimit{
 		"nofile": {
 			Name: "nofile",
