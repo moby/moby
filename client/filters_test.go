@@ -46,3 +46,26 @@ func TestFilters_UpdateURLValues(t *testing.T) {
 	Filters{"foo": map[string]bool{"bar": true}}.updateURLValues(v)
 	assert.Check(t, is.DeepEqual(v, url.Values{"filters": []string{`{"foo":{"bar":true}}`}}))
 }
+
+func TestFilters_Clone(t *testing.T) {
+	f1 := make(Filters).Add("foo", "one")
+	f2 := f1.Clone()
+
+	f2.Add("foo", "f2-extra").Add("f2", "f2-value")
+	assert.Check(t, is.DeepEqual(f1, Filters{"foo": {"one": true}}))
+	assert.Check(t, is.DeepEqual(f2, Filters{
+		"foo": {"one": true, "f2-extra": true},
+		"f2":  {"f2-value": true},
+	}))
+
+	f1.Add("foo", "f1-extra").Add("f1", "f1-value")
+	assert.Check(t, is.DeepEqual(f1, Filters{
+		"foo": {"one": true, "f1-extra": true},
+		"f1":  {"f1-value": true},
+	}))
+
+	assert.Check(t, is.DeepEqual(f2, Filters{
+		"foo": {"one": true, "f2-extra": true},
+		"f2":  {"f2-value": true},
+	}))
+}
