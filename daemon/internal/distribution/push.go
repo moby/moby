@@ -10,8 +10,8 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/moby/moby/api/pkg/progress"
 	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/v2/daemon/internal/progress"
 )
 
 const compressionBufSize = 32768
