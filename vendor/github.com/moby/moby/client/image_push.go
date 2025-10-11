@@ -17,9 +17,11 @@ import (
 	"github.com/moby/moby/client/pkg/jsonmessage"
 )
 
+type PushMessage = jsonmessage.JSONMessage
+
 type ImagePushResponse interface {
 	io.ReadCloser
-	JSONMessages(ctx context.Context) iter.Seq2[jsonmessage.JSONMessage, error]
+	JSONMessages(ctx context.Context) iter.Seq2[PushMessage, error]
 }
 
 // ImagePush requests the docker host to push an image to a remote registry.
@@ -68,7 +70,7 @@ func (cli *Client) ImagePush(ctx context.Context, image string, options ImagePus
 	if err != nil {
 		return nil, err
 	}
-	return internal.NewJSONMessageStream(resp.Body), nil
+	return internal.NewMessageStream[PushMessage](resp.Body), nil
 }
 
 func (cli *Client) tryImagePush(ctx context.Context, imageID string, query url.Values, resolveAuth registry.RequestAuthConfig) (*http.Response, error) {
