@@ -21,7 +21,7 @@ type PushMessage = jsonmessage.JSONMessage
 
 type ImagePushResponse interface {
 	io.ReadCloser
-	JSONMessages(ctx context.Context) iter.Seq2[PushMessage, error]
+	Messages(ctx context.Context) iter.Seq2[PushMessage, error]
 }
 
 // ImagePush requests the docker host to push an image to a remote registry.

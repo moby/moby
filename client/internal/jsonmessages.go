@@ -17,7 +17,7 @@ type stream[T any] struct {
 
 type Stream[T any] interface {
 	io.ReadCloser
-	JSONMessages(ctx context.Context) iter.Seq2[T, error]
+	Messages(ctx context.Context) iter.Seq2[T, error]
 }
 
 // NewMessageStream constructs a typed stream that yields values of T.
@@ -47,9 +47,9 @@ func (r *stream[T]) Close() error {
 	return r.close()
 }
 
-// JSONMessages decodes the response stream as a sequence of T.
+// Messages decodes the response stream as a sequence of T.
 // If the stream ends or the context is canceled, the underlying reader is closed.
-func (r *stream[T]) JSONMessages(ctx context.Context) iter.Seq2[T, error] {
+func (r *stream[T]) Messages(ctx context.Context) iter.Seq2[T, error] {
 	context.AfterFunc(ctx, func() { _ = r.Close() })
 	dec := json.NewDecoder(r)
 
