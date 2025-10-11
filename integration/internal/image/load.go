@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/moby/go-archive"
+	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/moby/client"
-	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/internal/testutil/specialimage"
 	"gotest.tools/v3/assert"
 )
@@ -46,7 +46,7 @@ func Load(ctx context.Context, t *testing.T, apiClient client.APIClient, imageFu
 
 	decoder := json.NewDecoder(bytes.NewReader(all))
 	for {
-		var msg jsonmessage.JSONMessage
+		var msg jsonstream.Message
 		err := decoder.Decode(&msg)
 		if errors.Is(err, io.EOF) {
 			break
