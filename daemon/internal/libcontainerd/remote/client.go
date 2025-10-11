@@ -113,7 +113,7 @@ func (c *container) AttachTask(ctx context.Context, attachStdio libcontainerdtyp
 	}
 	t, err := c.c8dCtr.Task(ctx, attachIO)
 	if err != nil {
-		return nil, pkgerrors.Wrap(wrapError(err), "error getting containerd task for container")
+		return nil, pkgerrors.Wrap(err, "error getting containerd task for container")
 	}
 	return c.newTask(t), nil
 }
@@ -134,7 +134,7 @@ func (c *client) NewContainer(ctx context.Context, id string, ociSpec *specs.Spe
 		if cerrdefs.IsAlreadyExists(err) {
 			return nil, pkgerrors.WithStack(errdefs.Conflict(errors.New("id already in use")))
 		}
-		return nil, wrapError(err)
+		return nil, err
 	}
 
 	created := container{
@@ -230,7 +230,7 @@ func (c *container) NewTask(ctx context.Context, checkpointDir string, withStdin
 			rio.Cancel()
 			_ = rio.Close()
 		}
-		return nil, pkgerrors.Wrap(wrapError(err), "failed to create task for container")
+		return nil, pkgerrors.Wrap(err, "failed to create task for container")
 	}
 
 	// Signal c.createIO that it can call CloseIO
@@ -242,7 +242,7 @@ func (c *container) NewTask(ctx context.Context, checkpointDir string, withStdin
 func (t *task) Start(ctx context.Context) error {
 	ctx, span := otel.Tracer("").Start(ctx, "libcontainerd.remote.task.Start")
 	defer span.End()
-	return wrapError(t.Task.Start(ctx))
+	return t.Task.Start(ctx)
 }
 
 // Exec creates exec process.
@@ -262,7 +262,7 @@ func (t *task) Exec(ctx context.Context, execID string, spec *specs.Process, wit
 	// updated since the container metadata was last loaded/refreshed.
 	md, err := t.ctr.c8dCtr.Info(ctx, containerd.WithoutRefreshedMetadata)
 	if err != nil {
-		return nil, wrapError(err)
+		return nil, err
 	}
 
 	fifos := newFIFOSet(md.Labels[DockerContainerBundlePath], execID, withStdin, spec.Terminal)
@@ -284,7 +284,7 @@ func (t *task) Exec(ctx context.Context, execID string, spec *specs.Process, wit
 		if cerrdefs.IsAlreadyExists(err) {
 			return nil, pkgerrors.WithStack(errdefs.Conflict(errors.New("id already in use")))
 		}
-		return nil, wrapError(err)
+		return nil, err
 	}
 
 	// Signal c.createIO that it can call CloseIO
@@ -305,25 +305,25 @@ func (t *task) Exec(ctx context.Context, execID string, spec *specs.Process, wit
 				"execID":    execID,
 			}).Warn("Failed to delete exec process after failing to start")
 		}
-		return nil, wrapError(err)
+		return nil, err
 	}
 	return process{p}, nil
 }
 
 func (t *task) Kill(ctx context.Context, signal syscall.Signal) error {
-	return wrapError(t.Task.Kill(ctx, signal))
+	return t.Task.Kill(ctx, signal)
 }
 
 func (p process) Kill(ctx context.Context, signal syscall.Signal) error {
-	return wrapError(p.Process.Kill(ctx, signal))
+	return p.Process.Kill(ctx, signal)
 }
 
 func (t *task) Pause(ctx context.Context) error {
-	return wrapError(t.Task.Pause(ctx))
+	return t.Task.Pause(ctx)
 }
 
 func (t *task) Resume(ctx context.Context) error {
-	return wrapError(t.Task.Resume(ctx))
+	return t.Task.Resume(ctx)
 }
 
 func (t *task) Stats(ctx context.Context) (*libcontainerdtypes.Stats, error) {
@@ -363,12 +363,12 @@ func (t *task) Summary(ctx context.Context) ([]libcontainerdtypes.Summary, error
 
 func (t *task) Delete(ctx context.Context) (*containerd.ExitStatus, error) {
 	s, err := t.Task.Delete(ctx)
-	return s, wrapError(err)
+	return s, err
 }
 
 func (p process) Delete(ctx context.Context) (*containerd.ExitStatus, error) {
 	s, err := p.Process.Delete(ctx)
-	return s, wrapError(err)
+	return s, err
 }
 
 func (c *container) Delete(ctx context.Context) error {
@@ -380,7 +380,7 @@ func (c *container) Delete(ctx context.Context) error {
 	}
 	bundle := md.Labels[DockerContainerBundlePath]
 	if err := c.c8dCtr.Delete(ctx); err != nil {
-		return wrapError(err)
+		return err
 	}
 	if os.Getenv("LIBCONTAINERD_NOCLEAN") != "1" {
 		if err := os.RemoveAll(bundle); err != nil {
@@ -395,17 +395,17 @@ func (c *container) Delete(ctx context.Context) error {
 
 func (t *task) ForceDelete(ctx context.Context) error {
 	_, err := t.Task.Delete(ctx, containerd.WithProcessKill)
-	return wrapError(err)
+	return err
 }
 
 func (t *task) Status(ctx context.Context) (containerd.Status, error) {
 	s, err := t.Task.Status(ctx)
-	return s, wrapError(err)
+	return s, err
 }
 
 func (p process) Status(ctx context.Context) (containerd.Status, error) {
 	s, err := p.Process.Status(ctx)
-	return s, wrapError(err)
+	return s, err
 }
 
 func (c *container) getCheckpointOptions(exit bool) containerd.CheckpointTaskOpts {
@@ -426,7 +426,7 @@ func (c *container) getCheckpointOptions(exit bool) containerd.CheckpointTaskOpt
 func (t *task) CreateCheckpoint(ctx context.Context, checkpointDir string, exit bool) error {
 	img, err := t.Task.Checkpoint(ctx, t.ctr.getCheckpointOptions(exit))
 	if err != nil {
-		return wrapError(err)
+		return err
 	}
 	// Whatever happens, delete the checkpoint from containerd
 	defer func() {
@@ -477,7 +477,7 @@ func (c *client) LoadContainer(ctx context.Context, id string) (libcontainerdtyp
 		if cerrdefs.IsNotFound(err) {
 			return nil, pkgerrors.WithStack(errdefs.NotFound(errors.New("no such container")))
 		}
-		return nil, wrapError(err)
+		return nil, err
 	}
 	return &container{client: c, c8dCtr: ctr}, nil
 }
@@ -485,7 +485,7 @@ func (c *client) LoadContainer(ctx context.Context, id string) (libcontainerdtyp
 func (c *container) Task(ctx context.Context) (libcontainerdtypes.Task, error) {
 	t, err := c.c8dCtr.Task(ctx, nil)
 	if err != nil {
-		return nil, wrapError(err)
+		return nil, err
 	}
 	return c.newTask(t), nil
 }
@@ -723,19 +723,4 @@ func (c *client) writeContent(ctx context.Context, mediaType, ref string, r io.R
 
 func (c *client) bundleDir(id string) string {
 	return filepath.Join(c.stateDir, id)
-}
-
-func wrapError(err error) error {
-	if err == nil || cerrdefs.IsNotFound(err) {
-		return err
-	}
-
-	// TODO(thaJeztah): don't depend on string-matching errors and remove wrapError; https://github.com/moby/moby/issues/50882
-	msg := err.Error()
-	for _, s := range []string{"container does not exist", "not found", "no such container"} {
-		if strings.Contains(msg, s) {
-			return errdefs.NotFound(err)
-		}
-	}
-	return err
 }
