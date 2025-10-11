@@ -1,3 +1,10 @@
+{{/*
+    Custom "schema" template for Moby; it disables generating marshaling
+    and validation code, and contains a fix for CamelCase (IPv6 <--> IPV6).
+
+    The orignal template can be found at:
+    https://github.com/go-swagger/go-swagger/blob/v0.32.3/generator/templates/schema.gotmpl
+*/}}
 {{- if and .IsBaseType .IsExported (not .IsSuperAlias) }}
   {{- template "schemaPolymorphic" . }}
 {{- else if .IsSuperAlias }}
@@ -74,7 +81,7 @@
     {{- end }}
     {{ template "mapOrSliceGetter" . }}
   {{- end }}
-  {{/* {{ template "schemaSerializer" . }} */}}
+  {{/* {{ template "schemaSerializer" . }} */}}{{/* TODO(moby): Disabled for moby/api */}}
 {{- end }}
 {{- if and .IncludeValidator (not .IsSuperAlias) (not .IsEmbedded) }}{{/* aliased types type A = B do not redefine methods */}}
   {{- if and (not (or .IsInterface .IsStream)) (or .Required .HasValidations .HasBaseType) }}
@@ -91,15 +98,15 @@ func ({{ .ReceiverName }} {{ .GoType }}) Pointer() *{{ .GoType }} {
 }
       {{- end }}
     {{- end }}
-    {{ if false }}{{ template "schemavalidator" . }}{{ end }}
-  {{- else if and false not (or .IsInterface .IsStream) }}
+    {{/* {{ template "schemavalidator" . }} */}}{{/* TODO(moby): Disabled for moby/api */}}
+  {{- else if and false not (or .IsInterface .IsStream) }}{{/* TODO(moby): Disabled for moby/api */}}
 // Validate validates this {{ humanize .Name }}{{/* this schema implements the runtime.Validatable interface but has no validations to check */}}
 func ({{.ReceiverName}} {{ if or .IsTuple .IsComplexObject .IsAdditionalProperties }}*{{ end }}{{ if or (not .IsExported) .Discriminates }}{{ camelize .Name }}{{ else }}{{ pascalize .Name }}{{ end }}) Validate(formats strfmt.Registry) error {
   return nil
 }
   {{- else }}{{/* {{ .Name }} does not implement the runtime.Validatable interface: noop */}}
   {{- end }}
-{{- if false }}
+{{- if false }}{{/* TODO(moby): Disabled for moby/api */}}
   {{- if and (not (or .IsInterface .IsStream)) (or .HasContextValidations) }}
     {{ template "schemacontextvalidator" . }}
   {{- else if not (or .IsInterface .IsStream) }}
@@ -111,8 +118,8 @@ func ({{.ReceiverName}} {{ if or .IsTuple .IsComplexObject .IsAdditionalProperti
   {{- end }}
 {{- end }}
 {{- if .WantsMarshalBinary }}
-  {{/* {{ template "marshalBinarySerializer" . }} */}}
-{{- end }}
+  {{/* {{ template "marshalBinarySerializer" . }} */}}{{/* TODO(moby): Disabled for moby/api */}}
+{{- end }}{{/* TODO(moby): Disabled for moby/api */}}
 {{- end }}
 {{- define "mapOrSliceGetter" }}{{/* signature for AdditionalProperties and AdditionalItems getter funcs */}}
   {{- if not .IsBaseType }}
