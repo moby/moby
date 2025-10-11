@@ -17,7 +17,7 @@ import (
 const testQuotaSize = 10 * 1024 * 1024
 
 func TestBlockDev(t *testing.T) {
-	if msg, ok := CanTestQuota(); !ok {
+	if msg, ok := CanTestQuota(t); !ok {
 		t.Skip(msg)
 	}
 

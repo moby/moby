@@ -22,7 +22,7 @@ const (
 )
 
 func TestQuota(t *testing.T) {
-	if msg, ok := quota.CanTestQuota(); !ok {
+	if msg, ok := quota.CanTestQuota(t); !ok {
 		t.Skip(msg)
 	}
 
