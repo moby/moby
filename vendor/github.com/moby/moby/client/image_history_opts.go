@@ -1,15 +1,13 @@
 package client
 
-import ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+import (
+	"context"
 
-// ImageHistoryOption is a type representing functional options for the image history operation.
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+)
+
 type ImageHistoryOption interface {
-	Apply(*imageHistoryOpts) error
-}
-type imageHistoryOptionFunc func(opt *imageHistoryOpts) error
-
-func (f imageHistoryOptionFunc) Apply(o *imageHistoryOpts) error {
-	return f(o)
+	applyImageHistoryOption(ctx context.Context, opts *imageHistoryOpts) error
 }
 
 type imageHistoryOpts struct {
