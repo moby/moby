@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/api/pkg/stdcopy"
+	"github.com/moby/moby/client/pkg/stdcopy"
 )
 
 const startingBufLen = 32*1024 + 8 /* stdwriterPrefixLen */ + 1

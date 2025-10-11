@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/stdcopy"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"

@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/stdcopy"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/request"

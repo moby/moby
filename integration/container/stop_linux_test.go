@@ -9,8 +9,8 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/stdcopy"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
