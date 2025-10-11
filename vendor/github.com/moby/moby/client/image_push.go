@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"iter"
 	"net/http"
 	"net/url"
 
@@ -19,10 +17,11 @@ import (
 
 type PushMessage = jsonmessage.JSONMessage
 
-type ImagePushResponse interface {
-	io.ReadCloser
-	Messages(ctx context.Context) iter.Seq2[PushMessage, error]
-}
+//	type ImagePushResponse interface {
+//		io.ReadCloser
+//		Messages(ctx context.Context) iter.Seq2[PushMessage, error]
+//	}
+type ImagePushResponse internal.Stream[PushMessage]
 
 // ImagePush requests the docker host to push an image to a remote registry.
 // It executes the privileged function if the operation is unauthorized
