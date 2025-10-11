@@ -202,7 +202,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM base AS gotestsum
 # GOTESTSUM_VERSION is the version of gotest.tools/gotestsum to install.
-ARG GOTESTSUM_VERSION=v1.12.3
+ARG GOTESTSUM_VERSION=v1.13.0
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
         GOBIN=/build CGO_ENABLED=0 go install "gotest.tools/gotestsum@${GOTESTSUM_VERSION}" \
