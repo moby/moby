@@ -13,9 +13,11 @@ import (
 	"github.com/moby/moby/client/pkg/jsonmessage"
 )
 
+type PullMessage = jsonmessage.JSONMessage
+
 type ImagePullResponse interface {
 	io.ReadCloser
-	JSONMessages(ctx context.Context) iter.Seq2[jsonmessage.JSONMessage, error]
+	JSONMessages(ctx context.Context) iter.Seq2[PullMessage, error]
 }
 
 // ImagePull requests the docker host to pull an image from a remote registry.
@@ -54,7 +56,7 @@ func (cli *Client) ImagePull(ctx context.Context, refStr string, options ImagePu
 		return nil, err
 	}
 
-	return internal.NewJSONMessageStream(resp.Body), nil
+	return internal.NewMessageStream[PullMessage](resp.Body), nil
 }
 
 // getAPITagFromNamedRef returns a tag from the specified reference.
