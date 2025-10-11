@@ -753,7 +753,7 @@ func (d *driver) checkConflict(config *networkConfiguration) error {
 	return nil
 }
 
-func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration) (err error) {
+func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration) (retErr error) {
 	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".createNetwork", trace.WithAttributes(
 		attribute.Bool("bridge.enable_ipv4", config.EnableIPv4),
 		attribute.Bool("bridge.enable_ipv6", config.EnableIPv6),
@@ -761,7 +761,7 @@ func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration
 		attribute.Int("bridge.mtu", config.Mtu),
 		attribute.Bool("bridge.internal", config.Internal)))
 	defer func() {
-		otelutil.RecordStatus(span, err)
+		otelutil.RecordStatus(span, retErr)
 		span.End()
 	}()
 
@@ -784,12 +784,16 @@ func (d *driver) createNetwork(ctx context.Context, config *networkConfiguration
 	d.networks[config.ID] = network
 	d.mu.Unlock()
 
-	// On failure make sure to reset driver network handler to nil
+	// On failure, clean up.
 	defer func() {
-		if err != nil {
-			d.mu.Lock()
-			delete(d.networks, config.ID)
-			d.mu.Unlock()
+		if retErr != nil {
+			if err := d.deleteNetwork(config.ID); err != nil && !errors.Is(err, datastore.ErrKeyNotFound) {
+				log.G(ctx).WithFields(log.Fields{
+					"network": stringid.TruncateID(config.ID),
+					"error":   err,
+					"retErr":  retErr,
+				}).Errorf("Error while cleaning up after network create error")
+			}
 		}
 	}()
 
@@ -980,7 +984,7 @@ func (d *driver) deleteNetwork(nid string) error {
 	case ifaceCreatedByLibnetwork, ifaceCreatorUnknown:
 		// We only delete the bridge if it was created by the bridge driver and
 		// it is not the default one (to keep the backward compatible behavior.)
-		if !config.DefaultBridge {
+		if !config.DefaultBridge && n.bridge != nil && n.bridge.Link != nil {
 			if err := d.nlh.LinkDel(n.bridge.Link); err != nil {
 				log.G(context.TODO()).Warnf("Failed to remove bridge interface %s on network %s delete: %v", config.BridgeName, nid, err)
 			}
@@ -989,8 +993,10 @@ func (d *driver) deleteNetwork(nid string) error {
 		// Don't delete the bridge interface if it was not created by libnetwork.
 	}
 
-	if err := n.firewallerNetwork.DelNetworkLevelRules(context.TODO()); err != nil {
-		log.G(context.TODO()).WithError(err).Warnf("Failed to clean iptables rules for bridge network")
+	if n.firewallerNetwork != nil {
+		if err := n.firewallerNetwork.DelNetworkLevelRules(context.TODO()); err != nil {
+			log.G(context.TODO()).WithError(err).Warnf("Failed to clean iptables rules for bridge network")
+		}
 	}
 	if err := iptables.DelInterfaceFirewalld(n.config.BridgeName); err != nil {
 		log.G(context.TODO()).WithError(err).Warnf("Failed to clean firewalld rules for bridge network")

@@ -1,11 +1,14 @@
 package bridge
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
+	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/integration/internal/network"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
+	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -63,4 +66,32 @@ func TestNetworkInitErrorUserDefined(t *testing.T) {
 	network.CreateNoError(ctx, t, c, netName,
 		network.WithOption(bridge.BridgeName, brName),
 	)
+}
+
+// TestNetworkCreateErrorNoBridge checks that no bridge device gets left around
+// when there's an error during network creation.
+func TestNetworkCreateErrorNoBridge(t *testing.T) {
+	ctx := setupTest(t)
+	d := daemon.New(t)
+
+	const netName = "testnet"
+	const brName = "br-" + netName
+
+	d.SetEnvVar("DOCKER_TEST_BRIDGE_INIT_ERROR", brName)
+	d.Start(t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	_, err := network.Create(ctx, c, netName, network.WithOption(bridge.BridgeName, brName))
+	if err == nil {
+		defer network.RemoveNoError(ctx, t, c, brName)
+		t.Fatalf("expected an error creating the network")
+	}
+	assert.Check(t, is.ErrorContains(err, "DOCKER_TEST_BRIDGE_INIT_ERROR"))
+
+	// Check there's no bridge device.
+	_, err = nlwrap.LinkByName(brName)
+	assert.Check(t, errors.As(err, &netlink.LinkNotFoundError{}), "expected LinkNotFoundError, got: %v", err)
 }
