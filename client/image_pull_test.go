@@ -201,7 +201,7 @@ func TestImagePullResponse(t *testing.T) {
 	r, w := io.Pipe()
 	response := internal.NewMessageStream[PullMessage](r)
 	ctx, cancel := context.WithCancel(context.TODO())
-	messages := response.JSONMessages(ctx)
+	messages := response.Messages(ctx)
 	c := make(chan PullMessage)
 	go func() {
 		for message, err := range messages {

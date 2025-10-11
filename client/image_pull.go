@@ -17,7 +17,7 @@ type PullMessage = jsonmessage.JSONMessage
 
 type ImagePullResponse interface {
 	io.ReadCloser
-	JSONMessages(ctx context.Context) iter.Seq2[PullMessage, error]
+	Messages(ctx context.Context) iter.Seq2[PullMessage, error]
 }
 
 // ImagePull requests the docker host to pull an image from a remote registry.
