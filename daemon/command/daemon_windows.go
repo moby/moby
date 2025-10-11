@@ -115,3 +115,8 @@ func (cli *daemonCLI) initContainerd(ctx context.Context) (func(time.Duration) e
 func validateCPURealtimeOptions(_ *config.Config) error {
 	return nil
 }
+
+// disableC8dSnapshotterOnUsernsRemap is a no-op on Windows.
+func disableC8dSnapshotterOnUsernsRemap(cfg *config.Config) error {
+	return nil
+}
