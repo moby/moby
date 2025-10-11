@@ -7,7 +7,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/moby/moby/api/pkg/stdcopy"
+	"github.com/moby/moby/client/pkg/stdcopy"
 )
 
 const (

@@ -941,7 +941,6 @@ github.com/moby/locker
 ## explicit; go 1.23.0
 github.com/moby/moby/api/pkg/authconfig
 github.com/moby/moby/api/pkg/progress
-github.com/moby/moby/api/pkg/stdcopy
 github.com/moby/moby/api/pkg/streamformatter
 github.com/moby/moby/api/types
 github.com/moby/moby/api/types/auxprogress
@@ -968,6 +967,7 @@ github.com/moby/moby/client
 github.com/moby/moby/client/internal
 github.com/moby/moby/client/internal/timestamp
 github.com/moby/moby/client/pkg/jsonmessage
+github.com/moby/moby/client/pkg/stdcopy
 github.com/moby/moby/client/pkg/stringid
 # github.com/moby/patternmatcher v0.6.0
 ## explicit; go 1.19

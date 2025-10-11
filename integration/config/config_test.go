@@ -9,9 +9,9 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/pkg/stdcopy"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/stdcopy"
 	"github.com/moby/moby/v2/integration/internal/swarm"
 	"github.com/moby/moby/v2/internal/testutil"
 	"gotest.tools/v3/assert"
