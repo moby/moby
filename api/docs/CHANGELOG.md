@@ -54,6 +54,18 @@ keywords: "API, Docker, rcli, REST, documentation"
 * Removed the `KernelMemoryTCP` field from the `GET /info` endpoint.
 * `GET /events` supports content-type negotiation and can produce either `application/x-ndjson` 
   (Newline delimited JSON object stream) or `application/json-seq` (RFC7464).
+* `GET /services` now returns `SwapBytes` and `MemorySwappiness` fields as part
+  of the `Resource` requirements.
+* `GET /services/{id}` now returns `SwapBytes` and `MemorySwappiness` fields as
+  part of the `Resource` requirements.
+* `POST /services/create` now accepts `SwapBytes` and `MemorySwappiness` fields
+  as part of the `Resource` requirements.
+* `POST /services/{id}/update` now accepts `SwapBytes` and `MemorySwappiness`
+  fields as part of the `Resource` requirements.
+* `GET /tasks` now  returns `SwapBytes` and `MemorySwappiness` fields as part
+  of the `Resource` requirements.
+* `GET /tasks/{id}` now  returns `SwapBytes` and `MemorySwappiness` fields as
+  part of the `Resource` requirements.
 
 ## v1.51 API changes
 
