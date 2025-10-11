@@ -2,8 +2,6 @@ package client
 
 import (
 	"context"
-	"io"
-	"iter"
 	"net/url"
 	"strings"
 
@@ -15,10 +13,11 @@ import (
 
 type PullMessage = jsonmessage.JSONMessage
 
-type ImagePullResponse interface {
-	io.ReadCloser
-	Messages(ctx context.Context) iter.Seq2[PullMessage, error]
-}
+//	type ImagePullResponse interface {
+//		io.ReadCloser
+//		Messages(ctx context.Context) iter.Seq2[PullMessage, error]
+//	}
+type ImagePullResponse internal.Stream[PullMessage]
 
 // ImagePull requests the docker host to pull an image from a remote registry.
 // It executes the privileged function if the operation is unauthorized

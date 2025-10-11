@@ -47,7 +47,7 @@ func (r *stream[T]) Close() error {
 	return r.close()
 }
 
-// JSONMessages decodes the response stream as a sequence of T.
+// Messages decodes the response stream as a sequence of T.
 // If the stream ends or the context is canceled, the underlying reader is closed.
 func (r *stream[T]) Messages(ctx context.Context) iter.Seq2[T, error] {
 	context.AfterFunc(ctx, func() { _ = r.Close() })
