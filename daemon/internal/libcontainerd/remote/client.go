@@ -213,23 +213,16 @@ func (c *container) NewTask(ctx context.Context, checkpointDir string, withStdin
 		taskOpts = append(taskOpts, withLogLevel(c.client.logger.Level))
 	}
 
-	var rio cio.IO
 	stdinCloseSync := make(chan containerd.Process, 1)
 	t, err := c.c8dCtr.NewTask(ctx,
 		func(id string) (cio.IO, error) {
 			fifos := newFIFOSet(bundle, id, withStdin, spec.Process.Terminal)
-
-			rio, err = c.createIO(fifos, stdinCloseSync, attachStdio)
-			return rio, err
+			return c.createIO(fifos, stdinCloseSync, attachStdio)
 		},
 		taskOpts...,
 	)
 	if err != nil {
 		close(stdinCloseSync)
-		if rio != nil {
-			rio.Cancel()
-			_ = rio.Close()
-		}
 		return nil, pkgerrors.Wrap(wrapError(err), "failed to create task for container")
 	}
 
@@ -253,11 +246,6 @@ func (t *task) Start(ctx context.Context) error {
 // the Start call. stdinCloseSync channel should be closed after Start exec
 // process.
 func (t *task) Exec(ctx context.Context, execID string, spec *specs.Process, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (_ libcontainerdtypes.Process, retErr error) {
-	var (
-		rio            cio.IO
-		stdinCloseSync = make(chan containerd.Process, 1)
-	)
-
 	// Optimization: assume the DockerContainerBundlePath label has not been
 	// updated since the container metadata was last loaded/refreshed.
 	md, err := t.ctr.c8dCtr.Info(ctx, containerd.WithoutRefreshedMetadata)
@@ -267,17 +255,9 @@ func (t *task) Exec(ctx context.Context, execID string, spec *specs.Process, wit
 
 	fifos := newFIFOSet(md.Labels[DockerContainerBundlePath], execID, withStdin, spec.Terminal)
 
-	defer func() {
-		if retErr != nil && rio != nil {
-			rio.Cancel()
-			_ = rio.Close()
-		}
-	}()
-
+	stdinCloseSync := make(chan containerd.Process, 1)
 	p, err := t.Task.Exec(ctx, execID, spec, func(id string) (cio.IO, error) {
-		var err error
-		rio, err = t.ctr.createIO(fifos, stdinCloseSync, attachStdio)
-		return rio, err
+		return t.ctr.createIO(fifos, stdinCloseSync, attachStdio)
 	})
 	if err != nil {
 		close(stdinCloseSync)
@@ -287,10 +267,12 @@ func (t *task) Exec(ctx context.Context, execID string, spec *specs.Process, wit
 		return nil, wrapError(err)
 	}
 
-	// Signal c.createIO that it can call CloseIO
-	//
-	// the stdin of exec process will be created after p.Start in containerd
-	defer func() { stdinCloseSync <- p }()
+	defer func() {
+		// Signal c.createIO that it can call CloseIO
+		//
+		// the stdin of exec process will be created after p.Start in containerd
+		stdinCloseSync <- p
+	}()
 
 	if err := p.Start(ctx); err != nil {
 		// don't cancel cleanup if the context is cancelled, but add a timeout
