@@ -60,7 +60,7 @@ require (
 	github.com/moby/go-archive v0.1.0
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
-	github.com/moby/moby/api v1.52.0-beta.1
+	github.com/moby/moby/api v1.52.0-beta.2
 	github.com/moby/moby/client v0.1.0-beta.0
 	github.com/moby/patternmatcher v0.6.0
 	github.com/moby/profiles/apparmor v0.1.0
@@ -258,7 +258,5 @@ exclude (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 )
-
-replace github.com/moby/moby/api => ./api
 
 replace github.com/moby/moby/client => ./client
