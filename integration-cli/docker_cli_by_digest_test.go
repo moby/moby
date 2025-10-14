@@ -405,7 +405,9 @@ func (s *DockerRegistrySuite) TestPsListContainersFilterAncestorImageByDigest(t 
 	const imageName1 = "images_ps_filter_test"
 	cli.BuildCmd(t, imageName1, build.WithDockerfile(fmt.Sprintf(
 		`FROM %s
-		 LABEL match me 1`, imageReference)))
+		 LABEL match me 1`, imageReference)),
+		build.WithBuildkit(false), // FIXME(thaJeztah): rewrite test to have something more predictable
+	)
 
 	// run a container based on that
 	cli.DockerCmd(t, "run", "--name=test1", imageReference, "echo", "hello")

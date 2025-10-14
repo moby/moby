@@ -3,12 +3,11 @@
 package main
 
 import (
-	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/moby/moby/v2/internal/testutil"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func (s *DockerSwarmSuite) TestServiceScale(c *testing.T) {
@@ -34,26 +33,20 @@ func (s *DockerSwarmSuite) TestServiceScale(c *testing.T) {
 
 	out, err := d.Cmd("service", "scale", "TestService1=foobar")
 	assert.ErrorContains(c, err, "")
-
-	str := fmt.Sprintf("%s: invalid replicas value %s", service1Name, "foobar")
-	if !strings.Contains(out, str) {
-		c.Errorf("got: %s, expected has sub string: %s", out, str)
-	}
+	assert.Check(c, is.Contains(out, service1Name))
+	expected := "invalid replicas value"
+	assert.Check(c, is.Contains(out, expected))
 
 	out, err = d.Cmd("service", "scale", "TestService1=-1")
 	assert.ErrorContains(c, err, "")
-
-	str = fmt.Sprintf("%s: invalid replicas value %s", service1Name, "-1")
-	if !strings.Contains(out, str) {
-		c.Errorf("got: %s, expected has sub string: %s", out, str)
-	}
+	assert.Check(c, is.Contains(out, service1Name))
+	expected = "invalid replicas value"
+	assert.Check(c, is.Contains(out, expected))
 
 	// TestService2 is a global mode
 	out, err = d.Cmd("service", "scale", "TestService2=2")
 	assert.ErrorContains(c, err, "")
-
-	str = fmt.Sprintf("%s: scale can only be used with replicated mode\n", service2Name)
-	if out != str {
-		c.Errorf("got: %s, expected: %s", out, str)
-	}
+	assert.Check(c, is.Contains(out, service2Name))
+	expected = "scale can only be used with replicated or replicated-job mode"
+	assert.Check(c, is.Contains(out, expected))
 }

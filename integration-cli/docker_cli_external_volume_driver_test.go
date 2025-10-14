@@ -476,7 +476,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverList(c *testing.T) {
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *testing.T) {
 	out, _, err := dockerCmdWithError("volume", "inspect", "dummy")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, is.Contains(out, "No such volume"))
+	assert.Assert(c, is.Contains(out, "no such volume"))
 	assert.Equal(c, s.ec.gets, 1)
 
 	cli.DockerCmd(c, "volume", "create", "test", "-d", volumePluginName)
@@ -514,7 +514,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGetEmptyResponse(c *
 
 	out, err = s.d.Cmd("volume", "inspect", "abc2")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, is.Contains(out, "No such volume"))
+	assert.Assert(c, is.Contains(out, "no such volume"))
 }
 
 // Ensure only cached paths are used in volume list to prevent N+1 calls to `VolumeDriver.Path`

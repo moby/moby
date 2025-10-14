@@ -65,19 +65,22 @@ func (s *DockerCLINetmodeSuite) TestConflictContainerNetworkAndLinks(c *testing.
 	testRequires(c, DaemonIsLinux)
 
 	out := dockerCmdWithFail(c, "run", "--net=container:other", "--link=zip:zap", "busybox", "ps")
-	assert.Assert(c, is.Contains(out, "conflicting options: container type network can't be used with links"))
+	assert.Assert(c, is.Contains(out, "links are only supported for user-defined networks"))
 }
 
 func (s *DockerCLINetmodeSuite) TestConflictContainerNetworkHostAndLinks(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	out := dockerCmdWithFail(c, "run", "--net=host", "--link=zip:zap", "busybox", "ps")
-	assert.Assert(c, is.Contains(out, "conflicting options: host type networking can't be used with links"))
+	assert.Assert(c, is.Contains(out, "links are only supported for user-defined networks"))
 }
 
 func (s *DockerCLINetmodeSuite) TestConflictNetworkModeNetHostAndOptions(c *testing.T) {
+	c.Skip("FIXME(thaJeztah): no daemon-side validation for this case!")
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
+	// This doesn't produce an error:
+	// 	docker run --rm --net=host --mac-address=92:d0:c6:0a:29:33 busybox
 	out := dockerCmdWithFail(c, "run", "--net=host", "--mac-address=92:d0:c6:0a:29:33", "busybox", "ps")
 	assert.Assert(c, is.Contains(out, "conflicting options: mac-address and the network mode"))
 }

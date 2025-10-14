@@ -533,7 +533,7 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 			errs = append(errs, cerrdefs.ErrInvalidArgument.WithMessage("user specified IP address is supported on user defined networks only"))
 		}
 		if len(epConfig.Aliases) > 0 && !serviceDiscoveryOnDefaultNetwork() {
-			errs = append(errs, cerrdefs.ErrInvalidArgument.WithMessage("network-scoped alias is supported only for containers in user defined networks"))
+			errs = append(errs, cerrdefs.ErrInvalidArgument.WithMessage("network-scoped aliases are only supported for user-defined networks"))
 		}
 	}
 
