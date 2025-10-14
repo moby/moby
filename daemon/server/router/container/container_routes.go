@@ -760,6 +760,11 @@ func handleMACAddressBC(config *container.Config, hostConfig *container.HostConf
 	if deprecatedMacAddress == "" {
 		return "", nil
 	}
+
+	if versions.GreaterThanOrEqualTo(version, "1.52") {
+		return "", errdefs.InvalidParameter(errors.New("container-wide MAC address no longer supported; use endpoint-specific MAC address instead"))
+	}
+
 	var warning string
 	if hostConfig.NetworkMode.IsBridge() || hostConfig.NetworkMode.IsUserDefined() {
 		ep, err := epConfigForNetMode(version, hostConfig.NetworkMode, networkingConfig)
