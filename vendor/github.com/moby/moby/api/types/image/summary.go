@@ -3,7 +3,6 @@ package image
 import ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
 type Summary struct {
-
 	// Number of containers using this image. Includes both stopped and running
 	// containers.
 	//
@@ -93,9 +92,4 @@ type Summary struct {
 	//
 	// Required: true
 	Size int64 `json:"Size"`
-
-	// Total size of the image including all layers it is composed of.
-	//
-	// Deprecated: this field is omitted in API v1.44, but kept for backward compatibility. Use Size instead.
-	VirtualSize int64 `json:"VirtualSize,omitempty"`
 }

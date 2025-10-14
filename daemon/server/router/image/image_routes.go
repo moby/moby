@@ -501,7 +501,6 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 	}
 
 	useNone := versions.LessThan(version, "1.43")
-	withVirtualSize := versions.LessThan(version, "1.44")
 	noDescriptor := versions.LessThan(version, "1.48")
 	noContainers := versions.LessThan(version, "1.51")
 	for _, img := range images {
@@ -517,9 +516,6 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 			if img.RepoDigests == nil {
 				img.RepoDigests = []string{}
 			}
-		}
-		if withVirtualSize {
-			img.VirtualSize = img.Size //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.44.
 		}
 		if noDescriptor {
 			img.Descriptor = nil
