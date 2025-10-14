@@ -8,10 +8,6 @@ import (
 type CacheRecord struct {
 	// ID is the unique ID of the build cache record.
 	ID string
-	// Parent is the ID of the parent build cache record.
-	//
-	// Deprecated: deprecated in API v1.42 and up, as it was deprecated in BuildKit; use Parents instead.
-	Parent string `json:"Parent,omitempty"`
 	// Parents is the list of parent build cache record IDs.
 	Parents []string `json:" Parents,omitempty"`
 	// Type is the cache record type.
