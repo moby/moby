@@ -205,6 +205,11 @@ func (daemon *Daemon) UsesSnapshotter() bool {
 	return daemon.usesSnapshotter
 }
 
+// DefaultIsolation returns the default isolation mode for the daemon to run in (only applicable on Windows).
+func (daemon *Daemon) DefaultIsolation() containertypes.Isolation {
+	return daemon.defaultIsolation
+}
+
 func (daemon *Daemon) loadContainers(ctx context.Context) (map[string]map[string]*container.Container, error) {
 	var mapLock sync.Mutex
 	driverContainers := make(map[string]map[string]*container.Container)
