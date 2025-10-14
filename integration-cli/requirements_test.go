@@ -18,7 +18,6 @@ import (
 	"github.com/containerd/containerd/v2/plugins"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
-	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/internal/testutil/registry"
 )
 
@@ -155,15 +154,6 @@ func SwarmInactive() bool {
 
 func TODOBuildkit() bool {
 	return os.Getenv("DOCKER_BUILDKIT") == ""
-}
-
-func DockerCLIVersion(t testing.TB) string {
-	out := cli.DockerCmd(t, "--version").Stdout()
-	version := strings.Fields(out)
-	if len(version) < 3 {
-		t.Fatal("unknown version output", version)
-	}
-	return version[2]
 }
 
 // testRequires checks if the environment satisfies the requirements
