@@ -22,7 +22,7 @@ import (
 
 const networkName = "bridge"
 
-func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfig *oci.DNSConfig, rootless bool, idmap user.IdentityMapping, apparmorProfile string, cdiManager *cdidevices.Manager, _, _ string) (executor.Executor, error) {
+func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfig *oci.DNSConfig, rootless bool, idmap user.IdentityMapping, apparmorProfile string, cdiManager *cdidevices.Manager, _, _ string, _ bool) (executor.Executor, error) {
 	netRoot := filepath.Join(root, "net")
 	networkProviders := map[pb.NetMode]network.Provider{
 		pb.NetMode_UNSET: &bridgeProvider{Controller: net, Root: netRoot},
@@ -88,6 +88,7 @@ func newExecutorGD(root, cgroupParent string, net *libnetwork.Controller, dnsCon
 		cdiManager,
 		"",
 		"",
+		false,
 	)
 }
 

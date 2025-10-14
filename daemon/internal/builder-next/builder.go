@@ -97,6 +97,7 @@ type Opt struct {
 	Snapshotter         string
 	ContainerdAddress   string
 	ContainerdNamespace string
+	HyperVIsolation     bool
 	Callbacks           exporter.BuildkitCallbacks
 	CDICache            *cdi.Cache
 }
