@@ -246,7 +246,6 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 	if du.BuildCache != nil {
 		v.BuildCache = du.BuildCache.Items
 	}
-	v.BuilderSize = builderSize
 	return httputils.WriteJSON(w, http.StatusOK, v)
 }
 
