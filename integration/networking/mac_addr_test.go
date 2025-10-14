@@ -146,7 +146,7 @@ func TestInspectCfgdMAC(t *testing.T) {
 
 	ctx := setupTest(t)
 
-	d := daemon.New(t)
+	d := daemon.New(t, daemon.WithEnvVars("DOCKER_MIN_API_VERSION=1.43"))
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
@@ -241,7 +241,7 @@ func TestWatchtowerCreate(t *testing.T) {
 
 	ctx := setupTest(t)
 
-	d := daemon.New(t)
+	d := daemon.New(t, daemon.WithEnvVars("DOCKER_MIN_API_VERSION=1.25"))
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 

@@ -28,7 +28,7 @@ import (
 func TestDockerNetworkConnectAliasPreV144(t *testing.T) {
 	ctx := setupTest(t)
 
-	d := swarm.NewSwarm(ctx, t, testEnv)
+	d := swarm.NewSwarm(ctx, t, testEnv, daemon.WithEnvVars("DOCKER_MIN_API_VERSION=1.43"))
 	defer d.Stop(t)
 	apiClient := d.NewClientT(t, client.WithVersion("1.43"))
 	defer apiClient.Close()
