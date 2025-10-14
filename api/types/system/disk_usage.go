@@ -24,10 +24,9 @@ const (
 // DiskUsage contains response of Engine API:
 // GET "/system/df"
 type DiskUsage struct {
-	LayersSize  int64
-	Images      []*image.Summary
-	Containers  []*container.Summary
-	Volumes     []*volume.Volume
-	BuildCache  []*build.CacheRecord
-	BuilderSize int64 `json:",omitempty"` // Deprecated: deprecated in API 1.38, and no longer used since API 1.40.
+	LayersSize int64
+	Images     []*image.Summary
+	Containers []*container.Summary
+	Volumes    []*volume.Volume
+	BuildCache []*build.CacheRecord
 }
