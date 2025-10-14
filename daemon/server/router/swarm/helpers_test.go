@@ -14,7 +14,7 @@ func TestAdjustForAPIVersion(t *testing.T) {
 	// testing the negative -- does this leave everything else alone? -- is
 	// prohibitively time-consuming to write, because it would need an object
 	// with literally every field filled in.
-	spec := &swarm.ServiceSpec{
+	serviceSpec := swarm.ServiceSpec{
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
 				Sysctls: expectedSysctls,
@@ -70,6 +70,9 @@ func TestAdjustForAPIVersion(t *testing.T) {
 		},
 	}
 
+	spec := &serviceWithLegacy{
+		ServiceSpec: serviceSpec,
+	}
 	adjustForAPIVersion("1.46", spec)
 	if !reflect.DeepEqual(
 		spec.TaskTemplate.ContainerSpec.Mounts[0].TmpfsOptions.Options,

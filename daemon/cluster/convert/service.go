@@ -94,15 +94,28 @@ func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) (*types.ServiceSpec, error)
 		return nil, nil
 	}
 
-	serviceNetworks := make([]types.NetworkAttachmentConfig, 0, len(spec.Networks))
-	for _, n := range spec.Networks {
-		netConfig := types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases, DriverOpts: n.DriverAttachmentOpts}
-		serviceNetworks = append(serviceNetworks, netConfig)
-	}
-
 	taskTemplate, err := taskSpecFromGRPC(spec.Task)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(taskTemplate.Networks) == 0 && len(spec.Networks) > 0 {
+		// The ServiceSpec.Networks field was deprecated in API v1.25, with
+		// the deprecation notice updated in API v1.44. We only consider this
+		// field on API < v1.44 and if the replacement TaskSpec.Networks is
+		// not set.
+		//
+		// Account for any service that was created using the old spec.
+		//
+		// TODO(thaJeztah): would swarm still return this? Remove this when we drop API v1.25
+		taskTemplate.Networks = make([]types.NetworkAttachmentConfig, 0, len(spec.Networks))
+		for _, n := range spec.Networks {
+			taskTemplate.Networks = append(taskTemplate.Networks, types.NetworkAttachmentConfig{
+				Target:     n.Target,
+				Aliases:    n.Aliases,
+				DriverOpts: n.DriverAttachmentOpts,
+			})
+		}
 	}
 
 	switch t := spec.Task.GetRuntime().(type) {
@@ -125,7 +138,6 @@ func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) (*types.ServiceSpec, error)
 	convertedSpec := &types.ServiceSpec{
 		Annotations:  annotationsFromGRPC(spec.Annotations),
 		TaskTemplate: taskTemplate,
-		Networks:     serviceNetworks,
 		EndpointSpec: endpointSpecFromGRPC(spec.Endpoint),
 	}
 
@@ -160,12 +172,6 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 		name = namesgenerator.GetRandomName(0)
 	}
 
-	serviceNetworks := make([]*swarmapi.NetworkAttachmentConfig, 0, len(s.Networks)) //nolint:staticcheck // ignore SA1019: field is deprecated.
-	for _, n := range s.Networks {                                                   //nolint:staticcheck // ignore SA1019: field is deprecated.
-		netConfig := &swarmapi.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases, DriverAttachmentOpts: n.DriverOpts}
-		serviceNetworks = append(serviceNetworks, netConfig)
-	}
-
 	taskNetworks := make([]*swarmapi.NetworkAttachmentConfig, 0, len(s.TaskTemplate.Networks))
 	for _, n := range s.TaskTemplate.Networks {
 		netConfig := &swarmapi.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases, DriverAttachmentOpts: n.DriverOpts}
@@ -183,7 +189,6 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 			Networks:    taskNetworks,
 			ForceUpdate: s.TaskTemplate.ForceUpdate,
 		},
-		Networks: serviceNetworks,
 	}
 
 	switch s.TaskTemplate.Runtime {
@@ -672,8 +677,11 @@ func networkAttachmentSpecFromGRPC(attachment swarmapi.NetworkAttachmentSpec) *t
 func taskSpecFromGRPC(taskSpec swarmapi.TaskSpec) (types.TaskSpec, error) {
 	taskNetworks := make([]types.NetworkAttachmentConfig, 0, len(taskSpec.Networks))
 	for _, n := range taskSpec.Networks {
-		netConfig := types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases, DriverOpts: n.DriverAttachmentOpts}
-		taskNetworks = append(taskNetworks, netConfig)
+		taskNetworks = append(taskNetworks, types.NetworkAttachmentConfig{
+			Target:     n.Target,
+			Aliases:    n.Aliases,
+			DriverOpts: n.DriverAttachmentOpts,
+		})
 	}
 
 	t := types.TaskSpec{

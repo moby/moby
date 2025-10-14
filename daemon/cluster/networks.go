@@ -328,12 +328,7 @@ func (c *Cluster) RemoveNetwork(input string) error {
 }
 
 func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.ControlClient, s *types.ServiceSpec) error {
-	// Always prefer NetworkAttachmentConfigs from TaskTemplate
-	// but fallback to service spec for backward compatibility
 	networks := s.TaskTemplate.Networks
-	if len(networks) == 0 {
-		networks = s.Networks //nolint:staticcheck // ignore SA1019: field is deprecated.
-	}
 	for i, nw := range networks {
 		apiNetwork, err := getNetwork(ctx, client, nw.Target, nil)
 		if err != nil {
