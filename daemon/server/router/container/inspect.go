@@ -37,22 +37,36 @@ func (c *containerRouter) getContainersByName(ctx context.Context, w http.Respon
 
 	var wrapOpts []compat.Option
 	if versions.LessThan(version, "1.52") {
+		var macAddress string
 		if bridgeNw := ctr.NetworkSettings.Networks["bridge"]; bridgeNw != nil {
-			// Old API versions showed the bridge's configuration as top-level
-			// fields in "NetworkConfig".
-			//
-			// This was deprecated in API v1.44, but kept in place until
-			// API v1.52, which removes this entirely.
+			macAddress = bridgeNw.MacAddress
+			// Copy all fields to the top-level, except for MacAddress, for
+			// which a custom network takes priority (if used).
 			wrapOpts = append(wrapOpts, compat.WithExtraFields(map[string]any{
-				"NetworkSettings": map[string]interface{}{
-					"EndpointID":          bridgeNw.EndpointID,
-					"Gateway":             bridgeNw.Gateway,
-					"GlobalIPv6Address":   bridgeNw.GlobalIPv6Address,
-					"GlobalIPv6PrefixLen": bridgeNw.GlobalIPv6PrefixLen,
-					"IPAddress":           bridgeNw.IPAddress,
-					"IPPrefixLen":         bridgeNw.IPPrefixLen,
-					"IPv6Gateway":         bridgeNw.IPv6Gateway,
-					"MacAddress":          bridgeNw.MacAddress,
+				"EndpointID":          bridgeNw.EndpointID,
+				"Gateway":             bridgeNw.Gateway,
+				"GlobalIPv6Address":   bridgeNw.GlobalIPv6Address,
+				"GlobalIPv6PrefixLen": bridgeNw.GlobalIPv6PrefixLen,
+				"IPAddress":           bridgeNw.IPAddress,
+				"IPPrefixLen":         bridgeNw.IPPrefixLen,
+				"IPv6Gateway":         bridgeNw.IPv6Gateway,
+			}))
+		}
+		if ctr.HostConfig != nil {
+			// Migrate the container's default network's MacAddress to the top-level
+			// Config.MacAddress field for older API versions (< 1.44). We set it here
+			// unconditionally, to keep backward compatibility with clients that use
+			// unversioned API endpoints.
+			if nwm := ctr.HostConfig.NetworkMode; nwm.IsBridge() || nwm.IsUserDefined() {
+				if v := ctr.NetworkSettings.Networks[nwm.NetworkName()]; v != nil && v.MacAddress != "" {
+					macAddress = v.MacAddress
+				}
+			}
+		}
+		if macAddress != "" {
+			wrapOpts = append(wrapOpts, compat.WithExtraFields(map[string]any{
+				"Config": map[string]any{
+					"MacAddress": macAddress,
 				},
 			}))
 		}
