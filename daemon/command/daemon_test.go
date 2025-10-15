@@ -157,7 +157,7 @@ func TestLoadDaemonCliConfigWithLogFormat(t *testing.T) {
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
 	assert.Assert(t, loadedConfig != nil)
-	assert.Check(t, is.Equal(log.JSONFormat, loadedConfig.LogFormat))
+	assert.Check(t, is.Equal(log.JSONFormat, loadedConfig.DaemonLogConfig.LogFormat))
 }
 
 func TestLoadDaemonCliConfigWithInvalidLogFormat(t *testing.T) {

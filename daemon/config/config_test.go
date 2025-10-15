@@ -367,7 +367,7 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			name: "with invalid log-level",
 			config: &Config{
 				CommonConfig: CommonConfig{
-					LogLevel: "foobar",
+					DaemonLogConfig: DaemonLogConfig{LogLevel: "foobar"},
 				},
 			},
 			expectedErr: "invalid logging level: foobar",
@@ -575,7 +575,7 @@ func TestValidateConfiguration(t *testing.T) {
 			field: "LogLevel",
 			config: &Config{
 				CommonConfig: CommonConfig{
-					LogLevel: "warn",
+					DaemonLogConfig: DaemonLogConfig{LogLevel: "warn"},
 				},
 			},
 		},

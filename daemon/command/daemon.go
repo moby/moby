@@ -758,10 +758,10 @@ func getContainerdDaemonOpts(cfg *config.Config) ([]supervisor.DaemonOpt, error)
 	if cfg.Debug {
 		opts = append(opts, supervisor.WithLogLevel("debug"))
 	} else {
-		opts = append(opts, supervisor.WithLogLevel(cfg.LogLevel))
+		opts = append(opts, supervisor.WithLogLevel(cfg.DaemonLogConfig.LogLevel))
 	}
 
-	if logFormat := cfg.LogFormat; logFormat != "" {
+	if logFormat := cfg.DaemonLogConfig.LogFormat; logFormat != "" {
 		opts = append(opts, supervisor.WithLogFormat(logFormat))
 	}
 

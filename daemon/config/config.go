@@ -189,7 +189,6 @@ type CommonConfig struct {
 	Labels                []string `json:"labels,omitempty"`
 	NetworkDiagnosticPort int      `json:"network-diagnostic-port,omitempty"`
 	Pidfile               string   `json:"pidfile,omitempty"`
-	RawLogs               bool     `json:"raw-logs,omitempty"`
 	Root                  string   `json:"data-root,omitempty"`
 	ExecRoot              string   `json:"exec-root,omitempty"`
 	SocketGroup           string   `json:"group,omitempty"`
@@ -217,12 +216,10 @@ type CommonConfig struct {
 	// to stop when daemon is being shutdown
 	ShutdownTimeout int `json:"shutdown-timeout,omitempty"`
 
-	Debug     bool             `json:"debug,omitempty"`
-	Hosts     []string         `json:"hosts,omitempty"`
-	LogLevel  string           `json:"log-level,omitempty"`
-	LogFormat log.OutputFormat `json:"log-format,omitempty"`
-	TLS       *bool            `json:"tls,omitempty"`
-	TLSVerify *bool            `json:"tlsverify,omitempty"`
+	Debug     bool     `json:"debug,omitempty"`
+	Hosts     []string `json:"hosts,omitempty"`
+	TLS       *bool    `json:"tls,omitempty"`
+	TLSVerify *bool    `json:"tlsverify,omitempty"`
 
 	// SwarmDefaultAdvertiseAddr is the default host/IP or network interface
 	// to use if a wildcard address is specified in the ListenAddr value
@@ -244,6 +241,7 @@ type CommonConfig struct {
 
 	// Embedded structs that allow config deserialization without the full struct.
 
+	DaemonLogConfig         // DaemonLogConfig holds options for configuring the daemon's logging.
 	TLSOptions              // TLSOptions defines TLS configuration for the API server.
 	DNSConfig               // DNSConfig defines default DNS options for containers.
 	LogConfig               // LogConfig defines default log configuration for containers.
@@ -294,6 +292,13 @@ type CommonConfig struct {
 	// FIXME(vdemeester) This part is not that clear and is mainly dependent on cli flags
 	// It should probably be handled outside this package.
 	ValuesSet map[string]any `json:"-"`
+}
+
+// DaemonLogConfig holds options for configuring the daemon's logging.
+type DaemonLogConfig struct {
+	LogLevel  string           `json:"log-level,omitempty"`
+	LogFormat log.OutputFormat `json:"log-format,omitempty"`
+	RawLogs   bool             `json:"raw-logs,omitempty"`
 }
 
 // Proxies holds the proxies that are configured for the daemon.
