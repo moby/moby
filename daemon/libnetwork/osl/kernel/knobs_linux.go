@@ -32,14 +32,16 @@ func ApplyOSTweaks(osConfig map[string]*OSValue) {
 		// read the existing property from disk
 		oldv, err := readSystemProperty(k)
 		if err != nil {
-			log.G(context.TODO()).WithError(err).Errorf("error reading the kernel parameter %s", k)
+			if !os.IsNotExist(err) {
+				log.G(context.TODO()).WithError(err).Errorf("error reading the kernel parameter %s", k)
+			}
 			continue
 		}
 
 		if propertyIsValid(oldv, v.Value, v.CheckFn) {
 			// write new prop value to disk
 			if err := writeSystemProperty(k, v.Value); err != nil {
-				log.G(context.TODO()).WithError(err).Errorf("error setting the kernel parameter %s = %s, (leaving as %s)", k, v.Value, oldv)
+				log.G(context.TODO()).WithError(err).Warnf("error setting the kernel parameter %s = %s, (leaving as %s)", k, v.Value, oldv)
 				continue
 			}
 			log.G(context.TODO()).Debugf("updated kernel parameter %s = %s (was %s)", k, v.Value, oldv)
