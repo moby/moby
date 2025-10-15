@@ -690,26 +690,8 @@ func ValidateMinAPIVersion(ver string) error {
 // such as config.DNS, config.Labels, config.DNSSearch,
 // as well as config.MaxConcurrentDownloads, config.MaxConcurrentUploads and config.MaxDownloadAttempts.
 func Validate(config *Config) error {
-	// validate log-level
-	if config.LogLevel != "" {
-		// FIXME(thaJeztah): find a better way for this; this depends on knowledge of containerd's log package internals.
-		// Alternatively: try  log.SetLevel(config.LogLevel), and restore the original level, but this also requires internal knowledge.
-		switch strings.ToLower(config.LogLevel) {
-		case "panic", "fatal", "error", "warn", "info", "debug", "trace":
-			// These are valid. See [log.SetLevel] for a list of accepted levels.
-		default:
-			return errors.Errorf("invalid logging level: %s", config.LogLevel)
-		}
-	}
-
-	// validate log-format
-	if logFormat := config.LogFormat; logFormat != "" {
-		switch logFormat {
-		case log.TextFormat, log.JSONFormat:
-			// These are valid
-		default:
-			return errors.Errorf("invalid log format: %s", logFormat)
-		}
+	if err := validateDaemonLogConfig(config.DaemonLogConfig); err != nil {
+		return err
 	}
 
 	// validate DNSSearch
@@ -770,6 +752,31 @@ func Validate(config *Config) error {
 
 	// validate platform-specific settings
 	return validatePlatformConfig(config)
+}
+
+func validateDaemonLogConfig(cfg DaemonLogConfig) error {
+	// validate log-level
+	if cfg.LogLevel != "" {
+		// FIXME(thaJeztah): find a better way for this; this depends on knowledge of containerd's log package internals.
+		// Alternatively: try  log.SetLevel(config.LogLevel), and restore the original level, but this also requires internal knowledge.
+		switch strings.ToLower(cfg.LogLevel) {
+		case "panic", "fatal", "error", "warn", "info", "debug", "trace":
+			// These are valid. See [log.SetLevel] for a list of accepted levels.
+		default:
+			return fmt.Errorf("invalid logging level: %s", cfg.LogLevel)
+		}
+	}
+
+	// validate log-format
+	if logFormat := cfg.LogFormat; logFormat != "" {
+		switch logFormat {
+		case log.TextFormat, log.JSONFormat:
+			// These are valid
+		default:
+			return fmt.Errorf("invalid log format: %s", logFormat)
+		}
+	}
+	return nil
 }
 
 // parseExecOptions parses the given exec-options into a map. It returns an
