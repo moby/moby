@@ -101,7 +101,7 @@ func newDaemonCLI(opts *daemonOptions) (*daemonCLI, error) {
 }
 
 func (cli *daemonCLI) start(ctx context.Context) (err error) {
-	configureProxyEnv(cli.Config)
+	configureProxyEnv(ctx, cli.Config.Proxies)
 	configureDaemonLogs(cli.Config)
 
 	log.G(ctx).Info("Starting up")
@@ -994,24 +994,24 @@ func configureDaemonLogs(conf *config.Config) {
 	}
 }
 
-func configureProxyEnv(cfg *config.Config) {
+func configureProxyEnv(ctx context.Context, cfg config.Proxies) {
 	if p := cfg.HTTPProxy; p != "" {
-		overrideProxyEnv("HTTP_PROXY", p)
-		overrideProxyEnv("http_proxy", p)
+		overrideProxyEnv(ctx, "HTTP_PROXY", p)
+		overrideProxyEnv(ctx, "http_proxy", p)
 	}
 	if p := cfg.HTTPSProxy; p != "" {
-		overrideProxyEnv("HTTPS_PROXY", p)
-		overrideProxyEnv("https_proxy", p)
+		overrideProxyEnv(ctx, "HTTPS_PROXY", p)
+		overrideProxyEnv(ctx, "https_proxy", p)
 	}
 	if p := cfg.NoProxy; p != "" {
-		overrideProxyEnv("NO_PROXY", p)
-		overrideProxyEnv("no_proxy", p)
+		overrideProxyEnv(ctx, "NO_PROXY", p)
+		overrideProxyEnv(ctx, "no_proxy", p)
 	}
 }
 
-func overrideProxyEnv(name, val string) {
+func overrideProxyEnv(ctx context.Context, name, val string) {
 	if oldVal := os.Getenv(name); oldVal != "" && oldVal != val {
-		log.G(context.TODO()).WithFields(log.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"name":      name,
 			"old-value": config.MaskCredentials(oldVal),
 			"new-value": config.MaskCredentials(val),
