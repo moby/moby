@@ -9,14 +9,14 @@ import (
 // Enable sets the DEBUG env var to true
 // and makes the logger to log at debug level.
 func Enable() {
-	os.Setenv("DEBUG", "1")
+	_ = os.Setenv("DEBUG", "1")
 	_ = log.SetLevel("debug")
 }
 
 // Disable sets the DEBUG env var to false
 // and makes the logger to log at info level.
 func Disable() {
-	os.Setenv("DEBUG", "")
+	_ = os.Unsetenv("DEBUG")
 	_ = log.SetLevel("info")
 }
 

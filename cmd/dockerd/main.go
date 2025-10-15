@@ -27,7 +27,7 @@ func main() {
 	// Set terminal emulation based on platform as required.
 	_, stdout, stderr := term.StdStreams()
 	onError := func(err error) {
-		fmt.Fprintf(stderr, "%s\n", err)
+		_, _ = fmt.Fprintln(stderr, err)
 		os.Exit(1)
 	}
 
