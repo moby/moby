@@ -36,7 +36,7 @@ func decodeCreateRequest(src io.Reader) (container.CreateRequest, error) {
 	if w.Config == nil {
 		return container.CreateRequest{}, validationError("config cannot be empty in order to create a container")
 	}
-	if w.Config == nil {
+	if w.Config.Volumes == nil {
 		w.Config.Volumes = make(map[string]struct{})
 	}
 	if w.HostConfig == nil {
