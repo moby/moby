@@ -166,7 +166,7 @@ type TLSOptions struct {
 	KeyFile  string `json:"tlskey,omitempty"`
 }
 
-// DNSConfig defines the DNS configurations.
+// DNSConfig defines default DNS options for containers.
 type DNSConfig struct {
 	DNS            []netip.Addr `json:"dns,omitempty"`
 	DNSOptions     []string     `json:"dns-opts,omitempty"`
@@ -224,10 +224,6 @@ type CommonConfig struct {
 	TLS       *bool            `json:"tls,omitempty"`
 	TLSVerify *bool            `json:"tlsverify,omitempty"`
 
-	// Embedded structs that allow config
-	// deserialization without the full struct.
-	TLSOptions
-
 	// SwarmDefaultAdvertiseAddr is the default host/IP or network interface
 	// to use if a wildcard address is specified in the ListenAddr value
 	// given to the /swarm/init endpoint and no advertise address is
@@ -246,15 +242,14 @@ type CommonConfig struct {
 
 	MetricsAddress string `json:"metrics-addr"`
 
-	DNSConfig
-	LogConfig
-	BridgeConfig // BridgeConfig holds bridge network specific configuration.
-	NetworkConfig
-	registry.ServiceOptions
+	// Embedded structs that allow config deserialization without the full struct.
 
-	// FIXME(vdemeester) This part is not that clear and is mainly dependent on cli flags
-	// It should probably be handled outside this package.
-	ValuesSet map[string]any `json:"-"`
+	TLSOptions              // TLSOptions defines TLS configuration for the API server.
+	DNSConfig               // DNSConfig defines default DNS options for containers.
+	LogConfig               // LogConfig defines default log configuration for containers.
+	BridgeConfig            // BridgeConfig holds bridge network specific configuration.
+	NetworkConfig           // NetworkConfig stores the daemon-wide networking configurations.
+	registry.ServiceOptions // TODO(thaJeztah): define this type in daemon/config and either import into pkg/registry, or convert when using.
 
 	Experimental bool `json:"experimental"` // Experimental indicates whether experimental features should be exposed or not
 
@@ -295,6 +290,10 @@ type CommonConfig struct {
 	// var should only be used for exceptional cases, and the MinAPIVersion
 	// field is therefore not included in the JSON representation.
 	MinAPIVersion string `json:"-"`
+
+	// FIXME(vdemeester) This part is not that clear and is mainly dependent on cli flags
+	// It should probably be handled outside this package.
+	ValuesSet map[string]any `json:"-"`
 }
 
 // Proxies holds the proxies that are configured for the daemon.
