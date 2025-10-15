@@ -40,6 +40,7 @@ DEFAULT_BUNDLES=(
 
 VERSION=${VERSION:-dev}
 case "$VERSION" in
+	refs/tags/docker-v*) VERSION=${VERSION#refs/tags/docker-v} ;;
 	refs/tags/v*) VERSION=${VERSION#refs/tags/v} ;;
 	refs/tags/*) VERSION=${VERSION#refs/tags/} ;;
 	refs/heads/*) VERSION=$(echo "${VERSION#refs/heads/}" | sed -r 's#/+#-#g') ;;

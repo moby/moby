@@ -22,6 +22,7 @@ on:
       - '[0-9]+.x'
     tags:
       - 'v*'
+      - 'docker-v*'
   pull_request:
 
 env:
@@ -69,11 +70,11 @@ jobs:
           ## push on 28.x branch
           # moby/moby-bin:28.x
           tags: |
-            type=semver,pattern={{version}}
             type=ref,event=branch
             type=ref,event=pr
-            type=semver,pattern={{major}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{version}},match=docker-(.*)
+            type=semver,pattern={{major}}.{{minor}},match=docker-(.*)
+            type=semver,pattern={{major}},match=docker-(.*)
       -
         name: Rename meta bake definition file
         # see https://github.com/docker/metadata-action/issues/381#issuecomment-1918607161
