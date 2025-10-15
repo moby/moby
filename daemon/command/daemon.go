@@ -102,7 +102,9 @@ func newDaemonCLI(opts *daemonOptions) (*daemonCLI, error) {
 
 func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	configureProxyEnv(ctx, cli.Config.Proxies)
-	configureDaemonLogs(cli.Config)
+	if err := configureDaemonLogs(ctx, cli.Config.DaemonLogConfig); err != nil {
+		return fmt.Errorf("failed to configure daemon logging: %w", err)
+	}
 
 	log.G(ctx).Info("Starting up")
 
@@ -965,15 +967,15 @@ func systemContainerdRunning(honorXDG bool) (string, bool, error) {
 
 // configureDaemonLogs sets the logging level and formatting. It expects
 // the passed configuration to already be validated, and ignores invalid options.
-func configureDaemonLogs(conf *config.Config) {
+func configureDaemonLogs(ctx context.Context, conf config.DaemonLogConfig) error {
 	switch conf.LogFormat {
 	case log.JSONFormat:
 		if err := log.SetFormat(log.JSONFormat); err != nil {
-			panic(err.Error())
+			return err
 		}
 	case log.TextFormat, "":
 		if err := log.SetFormat(log.TextFormat); err != nil {
-			panic(err.Error())
+			return err
 		}
 		if conf.RawLogs {
 			// FIXME(thaJeztah): this needs a better solution: containerd doesn't allow disabling colors, and this code is depending on internal knowledge of "log.SetFormat"
@@ -982,7 +984,7 @@ func configureDaemonLogs(conf *config.Config) {
 			}
 		}
 	default:
-		panic("unsupported log format " + conf.LogFormat)
+		return fmt.Errorf("unknown log format: %s", conf.LogFormat)
 	}
 
 	logLevel := conf.LogLevel
@@ -990,8 +992,9 @@ func configureDaemonLogs(conf *config.Config) {
 		logLevel = "info"
 	}
 	if err := log.SetLevel(logLevel); err != nil {
-		log.G(context.TODO()).WithError(err).Warn("configure log level")
+		log.G(ctx).WithError(err).Warn("configure log level")
 	}
+	return nil
 }
 
 func configureProxyEnv(ctx context.Context, cfg config.Proxies) {
