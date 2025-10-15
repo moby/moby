@@ -26,10 +26,10 @@ func TestGetInspectData(t *testing.T) {
 	cfg := &configStore{}
 	d.configStore.Store(cfg)
 
-	_, err := d.getInspectData(&cfg.Config, c)
+	_, _, err := d.getInspectData(&cfg.Config, c)
 	assert.Check(t, is.ErrorContains(err, "RWLayer of container inspect-me is unexpectedly nil"))
 
 	c.State.Dead = true
-	_, err = d.getInspectData(&cfg.Config, c)
+	_, _, err = d.getInspectData(&cfg.Config, c)
 	assert.Check(t, err)
 }
