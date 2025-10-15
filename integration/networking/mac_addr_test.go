@@ -287,13 +287,15 @@ func TestWatchtowerCreate(t *testing.T) {
 	const ctrName = "ctr1"
 	const ctrIP = "172.30.0.2"
 	const ctrMAC = "02:42:ac:11:00:42"
-	id := container.Run(ctx, t, c,
+	opts := []func(*container.TestContainerConfig){
 		container.WithName(ctrName),
 		container.WithNetworkMode(netId),
-		container.WithContainerWideMacAddress(ctrMAC),
 		container.WithIPv4(netName, ctrIP),
-	)
+	}
+	id := createLegacyContainer(ctx, t, c, ctrMAC, opts...)
 	defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
+	err := c.ContainerStart(ctx, id, client.ContainerStartOptions{})
+	assert.NilError(t, err)
 
 	// Check that the container got the expected addresses.
 	inspect := container.Inspect(ctx, t, c, ctrName)
