@@ -433,6 +433,14 @@ func ensureShared(path string) error {
 
 // Ensure mount point on which path is mounted, is either shared or slave.
 func ensureSharedOrSlave(path string) error {
+	// Skip mount check if SKIP_MOUNT_CHECK env is set to true.
+	// This is useful for testing environments where / is not a shared mount.
+	// Some minimalist Linux/Unix systems cannot pass this detection mechanism when using k8s, so you can choose to allow it.
+	// e.g. some CI systems, or when running inside a container.
+	skipMountCheck := strings.ToLower(os.Getenv("SKIP_MOUNT_CHECK"))
+	if skipMountCheck == "true" || skipMountCheck == "1" {
+		return nil
+	}
 	sourceMount, optionalOpts, err := getSourceMount(path)
 	if err != nil {
 		return err
