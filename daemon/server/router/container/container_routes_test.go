@@ -120,9 +120,6 @@ func TestHandleMACAddressBC(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg := &container.Config{
-				MacAddress: tc.ctrWideMAC, //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
-			}
 			hostCfg := &container.HostConfig{
 				NetworkMode: tc.networkMode,
 			}
@@ -135,7 +132,7 @@ func TestHandleMACAddressBC(t *testing.T) {
 				EndpointsConfig: epConfig,
 			}
 
-			warning, err := handleMACAddressBC(cfg, hostCfg, netCfg, tc.apiVersion)
+			warning, err := handleMACAddressBC(hostCfg, netCfg, tc.apiVersion, tc.ctrWideMAC)
 
 			if tc.expError == "" {
 				assert.Check(t, err)
@@ -155,8 +152,6 @@ func TestHandleMACAddressBC(t *testing.T) {
 				got := netCfg.EndpointsConfig[tc.expEpWithNoMAC].MacAddress
 				assert.Check(t, is.Equal(got, ""))
 			}
-			gotCtrWideMAC := cfg.MacAddress //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
-			assert.Check(t, is.Equal(gotCtrWideMAC, tc.expCtrWideMAC))
 		})
 	}
 }
