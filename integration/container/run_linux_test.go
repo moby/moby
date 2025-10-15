@@ -2,7 +2,10 @@ package container
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,6 +21,7 @@ import (
 	net "github.com/moby/moby/v2/integration/internal/network"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
+	"github.com/moby/moby/v2/internal/testutil/request"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -276,15 +280,21 @@ func TestMacAddressIsAppliedToMainNetworkWithShortID(t *testing.T) {
 
 	n := net.CreateNoError(ctx, t, apiClient, "testnet", net.WithIPAM("192.168.101.0/24", "192.168.101.1"))
 
-	cid := container.Run(ctx, t, apiClient,
+	opts := []func(*container.TestContainerConfig){
 		container.WithImage("busybox:latest"),
 		container.WithCmd("/bin/sleep", "infinity"),
 		container.WithStopSignal("SIGKILL"),
 		container.WithNetworkMode(n[:10]),
-		container.WithContainerWideMacAddress("02:42:08:26:a9:55"))
+	}
+
+	cid := createLegacyContainer(ctx, t, apiClient, "02:42:08:26:a9:55", opts...)
+	err := apiClient.ContainerStart(ctx, cid, client.ContainerStartOptions{})
+	assert.NilError(t, err)
+
 	defer container.Remove(ctx, t, apiClient, cid, client.ContainerRemoveOptions{Force: true})
 
 	c := container.Inspect(ctx, t, apiClient, cid)
+	assert.Assert(t, c.NetworkSettings.Networks["testnet"] != nil)
 	assert.Equal(t, c.NetworkSettings.Networks["testnet"].MacAddress, "02:42:08:26:a9:55")
 }
 
@@ -562,4 +572,37 @@ func TestContainerShmSize(t *testing.T) {
 			assert.Check(t, is.Contains(out.Stdout, "size="+tc.expSize))
 		})
 	}
+}
+
+type legacyCreateRequest struct {
+	containertypes.CreateRequest
+	// Mac Address of the container.
+	//
+	// MacAddress field is deprecated since API v1.44. Use EndpointSettings.MacAddress instead.
+	MacAddress string `json:",omitempty"`
+}
+
+func createLegacyContainer(ctx context.Context, t *testing.T, apiClient client.APIClient, desiredMAC string, ops ...func(*container.TestContainerConfig)) string {
+	t.Helper()
+	config := container.NewTestConfig(ops...)
+	ep := "/v" + apiClient.ClientVersion() + "/containers/create"
+	if config.Name != "" {
+		ep += "?name=" + config.Name
+	}
+	res, _, err := request.Post(ctx, ep, request.Host(apiClient.DaemonHost()), request.JSONBody(&legacyCreateRequest{
+		CreateRequest: containertypes.CreateRequest{
+			Config:           config.Config,
+			HostConfig:       config.HostConfig,
+			NetworkingConfig: config.NetworkingConfig,
+		},
+		MacAddress: desiredMAC,
+	}))
+	assert.NilError(t, err)
+	buf, err := request.ReadBody(res.Body)
+	assert.NilError(t, err)
+	assert.Equal(t, res.StatusCode, http.StatusCreated, string(buf))
+	var resp containertypes.CreateResponse
+	err = json.Unmarshal(buf, &resp)
+	assert.NilError(t, err)
+	return resp.ID
 }
