@@ -54,6 +54,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 * Removed the `KernelMemoryTCP` field from the `GET /info` endpoint.
 * `GET /events` supports content-type negotiation and can produce either `application/x-ndjson` 
   (Newline delimited JSON object stream) or `application/json-seq` (RFC7464).
+* `POST /containers/create` no longer supports configuring a container-wide MAC address
+  via the container's `Config.MacAddress` field. A container's MAC address can now only 
+  be configured via endpoint settings when connecting to a network.
 
 ## v1.51 API changes
 
