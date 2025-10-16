@@ -696,7 +696,6 @@ func TestCreateWithMultipleEndpointSettings(t *testing.T) {
 
 func TestCreateWithCustomMACs(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.44"), "requires API v1.44")
 
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()

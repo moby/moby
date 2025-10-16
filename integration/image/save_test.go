@@ -15,7 +15,6 @@ import (
 
 	"github.com/cpuguy83/tar2go"
 	"github.com/moby/go-archive/compression"
-	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/integration/internal/container"
@@ -91,8 +90,6 @@ func TestSaveCheckTimes(t *testing.T) {
 
 // Regression test for https://github.com/moby/moby/issues/47065
 func TestSaveOCI(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.44"), "OCI layout support was introduced in v25")
-
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 

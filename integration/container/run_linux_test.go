@@ -13,7 +13,6 @@ import (
 	"github.com/docker/go-units"
 	"github.com/moby/moby/api/pkg/stdcopy"
 	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	net "github.com/moby/moby/v2/integration/internal/network"
@@ -174,7 +173,6 @@ func TestPrivilegedHostDevices(t *testing.T) {
 
 func TestRunConsoleSize(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.42"), "skip test from new feature")
 
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
