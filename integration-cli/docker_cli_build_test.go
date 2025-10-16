@@ -6242,9 +6242,7 @@ func (s *DockerCLIBuildSuite) TestBuildEmitsEvents(t *testing.T) {
 					build.WithDockerfile("FROM busybox\nRUN echo hi >/hello"),
 					build.WithBuildkit(builder.buildkit),
 				)
-				b.Assert(t, icmd.Success)
-				t.Log(b.Stdout())
-				t.Log(b.Stderr())
+				assert.NilError(t, b.Compare(icmd.Success), b.Combined())
 
 				cmd := cli.Docker(
 					cli.Args("events",
@@ -6255,10 +6253,7 @@ func (s *DockerCLIBuildSuite) TestBuildEmitsEvents(t *testing.T) {
 					cli.WithEnvironmentVariables("DOCKER_API_VERSION=v1.46"), // FIXME(thaJeztah): integration-cli runs docker CLI 18.06; we're "upgrading" the API version to a version it doesn't support here ;)
 				)
 
-				stdout := cmd.Stdout()
-				t.Log(stdout)
-
-				tc.check(t, stdout)
+				tc.check(t, cmd.Stdout())
 			})
 		}
 	}
