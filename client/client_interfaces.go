@@ -63,7 +63,7 @@ type HijackDialer interface {
 type ContainerAPIClient interface {
 	ContainerAttach(ctx context.Context, container string, options ContainerAttachOptions) (HijackedResponse, error)
 	ContainerCommit(ctx context.Context, container string, options ContainerCommitOptions) (container.CommitResponse, error)
-	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *ocispec.Platform, containerName string) (container.CreateResponse, error)
+	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *container.NetworkingAttachOptions, platform *ocispec.Platform, containerName string) (container.CreateResponse, error)
 	ContainerDiff(ctx context.Context, container string) ([]container.FilesystemChange, error)
 	ExecAPIClient
 	ContainerExport(ctx context.Context, container string) (io.ReadCloser, error)

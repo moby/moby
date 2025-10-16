@@ -10,7 +10,6 @@ import (
 
 	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
@@ -22,7 +21,7 @@ type TestContainerConfig struct {
 	Name             string
 	Config           *container.Config
 	HostConfig       *container.HostConfig
-	NetworkingConfig *network.NetworkingConfig
+	NetworkingConfig *container.NetworkingAttachOptions
 	Platform         *ocispec.Platform
 }
 
@@ -41,7 +40,7 @@ func NewTestConfig(ops ...func(*TestContainerConfig)) *TestContainerConfig {
 			Cmd:   cmd,
 		},
 		HostConfig:       &container.HostConfig{},
-		NetworkingConfig: &network.NetworkingConfig{},
+		NetworkingConfig: &container.NetworkingAttachOptions{},
 	}
 
 	for _, op := range ops {

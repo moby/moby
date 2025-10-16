@@ -15,11 +15,23 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+// ContainerCreateOptions holds parameters to create a container.
+type ContainerCreateOptions struct {
+	Name             string
+	Config           container.Config
+	HostConfig       container.HostConfig
+	NetworkingConfig container.NetworkingAttachOptions
+	Platform         *ocispec.Platform
+}
+
 // ContainerCreate creates a new container based on the given configuration.
 // It can be associated with a name, but it's not mandatory.
-func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *ocispec.Platform, containerName string) (container.CreateResponse, error) {
+func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *container.NetworkingAttachOptions, platform *ocispec.Platform, containerName string) (container.CreateResponse, error) {
 	if config == nil {
 		return container.CreateResponse{}, cerrdefs.ErrInvalidArgument.WithMessage("config is nil")
+	}
+	if networkingConfig == nil {
+		networkingConfig = &container.NetworkingAttachOptions{}
 	}
 
 	var response container.CreateResponse
@@ -62,7 +74,7 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 	body := container.CreateRequest{
 		Config:           config,
 		HostConfig:       hostConfig,
-		NetworkingConfig: networkingConfig,
+		NetworkingConfig: *networkingConfig,
 	}
 
 	resp, err := cli.post(ctx, "/containers/create", query, body, nil)

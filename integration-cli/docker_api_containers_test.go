@@ -517,7 +517,7 @@ func (s *DockerAPISuite) TestContainerAPIBadPort(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, &network.NetworkingConfig{}, nil, "")
+	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, nil, nil, "")
 	assert.ErrorContains(c, err, `invalid port specification: "aa80"`)
 }
 
@@ -531,7 +531,7 @@ func (s *DockerAPISuite) TestContainerAPICreate(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	ctr, err := apiClient.ContainerCreate(testutil.GetContext(c), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "")
+	ctr, err := apiClient.ContainerCreate(testutil.GetContext(c), &config, nil, nil, nil, "")
 	assert.NilError(c, err)
 
 	out := cli.DockerCmd(c, "start", "-a", ctr.ID).Stdout()
@@ -543,7 +543,7 @@ func (s *DockerAPISuite) TestContainerAPICreateEmptyConfig(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &container.Config{}, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "")
+	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &container.Config{}, nil, nil, nil, "")
 
 	assert.ErrorContains(c, err, "no command specified")
 }
@@ -574,7 +574,7 @@ func UtilCreateNetworkMode(t *testing.T, networkMode container.NetworkMode) {
 	assert.NilError(t, err)
 	defer apiClient.Close()
 
-	ctr, err := apiClient.ContainerCreate(testutil.GetContext(t), &config, &hostConfig, &network.NetworkingConfig{}, nil, "")
+	ctr, err := apiClient.ContainerCreate(testutil.GetContext(t), &config, &hostConfig, nil, nil, "")
 	assert.NilError(t, err)
 
 	containerJSON, err := apiClient.ContainerInspect(testutil.GetContext(t), ctr.ID)
@@ -601,7 +601,7 @@ func (s *DockerAPISuite) TestContainerAPICreateWithCpuSharesCpuset(c *testing.T)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	ctr, err := apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, &network.NetworkingConfig{}, nil, "")
+	ctr, err := apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, nil, nil, "")
 	assert.NilError(c, err)
 
 	containerJSON, err := apiClient.ContainerInspect(testutil.GetContext(c), ctr.ID)
@@ -865,7 +865,7 @@ func (s *DockerAPISuite) TestContainerAPIStart(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, name)
+	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, nil, nil, nil, name)
 	assert.NilError(c, err)
 
 	err = apiClient.ContainerStart(testutil.GetContext(c), name, client.ContainerStartOptions{})
@@ -1108,7 +1108,7 @@ func (s *DockerAPISuite) TestPostContainersCreateWithWrongCpusetValues(c *testin
 	}
 	const name = "wrong-cpuset-cpus"
 
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig1, &network.NetworkingConfig{}, nil, name)
+	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig1, nil, nil, name)
 	expected := "Invalid value 1-42,, for cpuset cpus"
 	assert.ErrorContains(c, err, expected)
 
@@ -1118,7 +1118,7 @@ func (s *DockerAPISuite) TestPostContainersCreateWithWrongCpusetValues(c *testin
 		},
 	}
 	const name2 = "wrong-cpuset-mems"
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig2, &network.NetworkingConfig{}, nil, name2)
+	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig2, nil, nil, name2)
 	expected = "Invalid value 42-3,1-- for cpuset mems"
 	assert.ErrorContains(c, err, expected)
 }
@@ -1134,7 +1134,7 @@ func (s *DockerAPISuite) TestPostContainersCreateMemorySwappinessHostConfigOmitt
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	ctr, err := apiClient.ContainerCreate(testutil.GetContext(c), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "")
+	ctr, err := apiClient.ContainerCreate(testutil.GetContext(c), &config, nil, nil, nil, "")
 	assert.NilError(c, err)
 
 	containerJSON, err := apiClient.ContainerInspect(testutil.GetContext(c), ctr.ID)
@@ -1161,7 +1161,7 @@ func (s *DockerAPISuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *
 	defer apiClient.Close()
 
 	const name = "oomscoreadj-over"
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, &network.NetworkingConfig{}, nil, name)
+	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, nil, nil, name)
 
 	expected := "Invalid value 1001, range for oom score adj is [-1000, 1000]"
 	assert.ErrorContains(c, err, expected)
@@ -1171,7 +1171,7 @@ func (s *DockerAPISuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *
 	}
 
 	const name2 = "oomscoreadj-low"
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, &network.NetworkingConfig{}, nil, name2)
+	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, nil, nil, name2)
 
 	expected = "Invalid value -1001, range for oom score adj is [-1000, 1000]"
 	assert.ErrorContains(c, err, expected)
@@ -1204,7 +1204,7 @@ func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) 
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, name)
+	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, nil, nil, nil, name)
 	assert.NilError(c, err)
 
 	err = apiClient.ContainerStart(testutil.GetContext(c), name, client.ContainerStartOptions{})
@@ -1540,7 +1540,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 	// TODO add checks for statuscode returned by API
 	for i, tc := range tests {
 		c.Run(fmt.Sprintf("case %d", i), func(c *testing.T) {
-			_, err = apiClient.ContainerCreate(testutil.GetContext(c), &tc.config, &tc.hostConfig, &network.NetworkingConfig{}, nil, "")
+			_, err = apiClient.ContainerCreate(testutil.GetContext(c), &tc.config, &tc.hostConfig, nil, nil, "")
 			if tc.msg != "" {
 				assert.ErrorContains(c, err, tc.msg, "%v", tests[i].config)
 			} else {
@@ -1573,7 +1573,7 @@ func (s *DockerAPISuite) TestContainerAPICreateMountsBindRead(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, &network.NetworkingConfig{}, nil, "test")
+	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, nil, nil, "test")
 	assert.NilError(c, err)
 
 	out := cli.DockerCmd(c, "start", "-a", "test").Combined()
@@ -1711,7 +1711,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 				ctx,
 				&container.Config{Image: testImg},
 				&container.HostConfig{Mounts: []mount.Mount{tc.spec}},
-				&network.NetworkingConfig{},
+				nil,
 				nil,
 				"")
 			assert.NilError(c, err)
@@ -1824,7 +1824,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsTmpfs(c *testing.T) {
 			Mounts: []mount.Mount{x.cfg},
 		}
 
-		_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, &network.NetworkingConfig{}, nil, cName)
+		_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, nil, nil, cName)
 		assert.NilError(c, err)
 		out := cli.DockerCmd(c, "start", "-a", cName).Combined()
 		for _, option := range x.expectedOptions {
