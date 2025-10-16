@@ -270,10 +270,10 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Prune anonymous volumes
-	pruneReport, err := apiClient.VolumesPrune(ctx, nil)
+	res, err := apiClient.VolumesPrune(ctx, client.VolumePruneOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(len(pruneReport.VolumesDeleted), 1))
-	assert.Check(t, is.Equal(pruneReport.VolumesDeleted[0], v.Name))
+	assert.Check(t, is.Equal(len(res.Report.VolumesDeleted), 1))
+	assert.Check(t, is.Equal(res.Report.VolumesDeleted[0], v.Name))
 
 	_, err = apiClient.VolumeInspect(ctx, vNamed.Name)
 	assert.NilError(t, err)
@@ -282,9 +282,11 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	_, err = apiClient.VolumeCreate(ctx, volume.CreateOptions{})
 	assert.NilError(t, err)
 
-	pruneReport, err = apiClient.VolumesPrune(ctx, make(client.Filters).Add("all", "1"))
+	res, err = apiClient.VolumesPrune(ctx, client.VolumePruneOptions{
+		Filters: make(client.Filters).Add("all", "1"),
+	})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(len(pruneReport.VolumesDeleted), 2))
+	assert.Check(t, is.Equal(len(res.Report.VolumesDeleted), 2))
 
 	// Validate that older API versions still have the old behavior of pruning all local volumes
 	clientOld, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion("1.41"))
@@ -297,11 +299,11 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	vNamed, err = apiClient.VolumeCreate(ctx, volume.CreateOptions{Name: "test-api141"})
 	assert.NilError(t, err)
 
-	pruneReport, err = clientOld.VolumesPrune(ctx, nil)
+	res, err = clientOld.VolumesPrune(ctx, client.VolumePruneOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(len(pruneReport.VolumesDeleted), 2))
-	assert.Check(t, is.Contains(pruneReport.VolumesDeleted, v.Name))
-	assert.Check(t, is.Contains(pruneReport.VolumesDeleted, vNamed.Name))
+	assert.Check(t, is.Equal(len(res.Report.VolumesDeleted), 2))
+	assert.Check(t, is.Contains(res.Report.VolumesDeleted, v.Name))
+	assert.Check(t, is.Contains(res.Report.VolumesDeleted, vNamed.Name))
 }
 
 func TestVolumePruneAnonFromImage(t *testing.T) {
@@ -332,7 +334,7 @@ VOLUME ` + volDest
 	err = apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{})
 	assert.NilError(t, err)
 
-	pruneReport, err := apiClient.VolumesPrune(ctx, nil)
+	res, err := apiClient.VolumesPrune(ctx, client.VolumePruneOptions{})
 	assert.NilError(t, err)
-	assert.Assert(t, is.Contains(pruneReport.VolumesDeleted, volumeName))
+	assert.Assert(t, is.Contains(res.Report.VolumesDeleted, volumeName))
 }

@@ -200,7 +200,7 @@ type VolumeAPIClient interface {
 	VolumeInspectWithRaw(ctx context.Context, volumeID string) (volume.Volume, []byte, error)
 	VolumeList(ctx context.Context, options VolumeListOptions) (volume.ListResponse, error)
 	VolumeRemove(ctx context.Context, volumeID string, force bool) error
-	VolumesPrune(ctx context.Context, pruneFilter Filters) (volume.PruneReport, error)
+	VolumesPrune(ctx context.Context, opts VolumePruneOptions) (VolumePruneResult, error)
 	VolumeUpdate(ctx context.Context, volumeID string, version swarm.Version, options volume.UpdateOptions) error
 }
 

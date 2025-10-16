@@ -9,21 +9,31 @@ import (
 	"github.com/moby/moby/api/types/volume"
 )
 
+// VolumePruneOptions holds parameters to prune networks.
+type VolumePruneOptions struct {
+	Filters Filters
+}
+
+// VolumePruneResult holds the result from the [Client.VolumesPrune] method.
+type VolumePruneResult struct {
+	Report volume.PruneReport
+}
+
 // VolumesPrune requests the daemon to delete unused data
-func (cli *Client) VolumesPrune(ctx context.Context, pruneFilters Filters) (volume.PruneReport, error) {
+func (cli *Client) VolumesPrune(ctx context.Context, opts VolumePruneOptions) (VolumePruneResult, error) {
 	query := url.Values{}
-	pruneFilters.updateURLValues(query)
+	opts.Filters.updateURLValues(query)
 
 	resp, err := cli.post(ctx, "/volumes/prune", query, nil, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return volume.PruneReport{}, err
+		return VolumePruneResult{}, err
 	}
 
 	var report volume.PruneReport
 	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
-		return volume.PruneReport{}, fmt.Errorf("Error retrieving volume prune report: %v", err)
+		return VolumePruneResult{}, fmt.Errorf("Error retrieving volume prune report: %v", err)
 	}
 
-	return report, nil
+	return VolumePruneResult{Report: report}, nil
 }
