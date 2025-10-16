@@ -78,6 +78,9 @@ func (s *DockerCLINetmodeSuite) TestConflictContainerNetworkHostAndLinks(c *test
 func (s *DockerCLINetmodeSuite) TestConflictNetworkModeNetHostAndOptions(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
+	// FIXME(thaJeztah): no daemon-side validation for this case!
+	// This doesn't produce an error:
+	// 	docker run --rm --net=host --mac-address=92:d0:c6:0a:29:33 busybox
 	out := dockerCmdWithFail(c, "run", "--net=host", "--mac-address=92:d0:c6:0a:29:33", "busybox", "ps")
 	assert.Assert(c, is.Contains(out, "conflicting options: mac-address and the network mode"))
 }

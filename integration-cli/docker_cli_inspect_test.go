@@ -299,7 +299,7 @@ func (s *DockerCLIInspectSuite) TestInspectTemplateError(c *testing.T) {
 
 	out, _, err := dockerCmdWithError("inspect", "--type=container", "--format='Format container: {{.ThisDoesNotExist}}'", "container1")
 	assert.Assert(c, err != nil)
-	assert.Assert(c, is.Contains(out, "Template parsing error"))
+	assert.Assert(c, is.Contains(out, "template parsing error: template"))
 	out, _, err = dockerCmdWithError("inspect", "--type=image", "--format='Format container: {{.ThisDoesNotExist}}'", "busybox")
 	assert.Assert(c, err != nil)
 	assert.Assert(c, is.Contains(out, "template parsing error"))
