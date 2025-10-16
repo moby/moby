@@ -8,14 +8,10 @@ import (
 
 // EndpointSettings stores the network endpoint details
 type EndpointSettings struct {
-	// Configurations
+	// Configuration data
 	IPAMConfig *EndpointIPAMConfig
 	Links      []string
 	Aliases    []string // Aliases holds the list of extra, user-specified DNS names for this endpoint.
-	// MacAddress may be used to specify a MAC address when the container is created.
-	// Once the container is running, it becomes operational data (it may contain a
-	// generated address).
-	MacAddress string
 	DriverOpts map[string]string
 
 	// GwPriority determines which endpoint will provide the default gateway
@@ -23,17 +19,24 @@ type EndpointSettings struct {
 	// If multiple endpoints have the same priority, they are lexicographically
 	// sorted based on their network name, and the one that sorts first is picked.
 	GwPriority int
+
 	// Operational data
-	NetworkID           string
-	EndpointID          string
-	Gateway             netip.Addr
-	IPAddress           netip.Addr
+
+	NetworkID  string
+	EndpointID string
+	Gateway    netip.Addr
+	IPAddress  netip.Addr
+
+	// MacAddress may be used to specify a MAC address when the container is created.
+	// Once the container is running, it becomes operational data (it may contain a
+	// generated address).
+	MacAddress          string
 	IPPrefixLen         int
 	IPv6Gateway         netip.Addr
 	GlobalIPv6Address   netip.Addr
 	GlobalIPv6PrefixLen int
-	// DNSNames holds all the (non fully qualified) DNS names associated to this endpoint. First entry is used to
-	// generate PTR records.
+	// DNSNames holds all the (non fully qualified) DNS names associated to this
+	// endpoint. The first entry is used to generate PTR records.
 	DNSNames []string
 }
 

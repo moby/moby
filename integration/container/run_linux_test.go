@@ -268,7 +268,7 @@ func TestMacAddressIsAppliedToMainNetworkWithShortID(t *testing.T) {
 
 	ctx := testutil.StartSpan(baseContext, t)
 
-	d := daemon.New(t)
+	d := daemon.New(t, daemon.WithEnvVars("DOCKER_MIN_API_VERSION=1.43"))
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
