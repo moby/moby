@@ -11,7 +11,6 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
-	"github.com/moby/moby/api/types/versions"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -27,25 +26,6 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 	if hostConfig != nil {
 		hostConfig.CapAdd = normalizeCapabilities(hostConfig.CapAdd)
 		hostConfig.CapDrop = normalizeCapabilities(hostConfig.CapDrop)
-	}
-
-	// FIXME(thaJeztah): remove this once we updated our (integration) tests;
-	//  some integration tests depend on this to test old API versions; see https://github.com/moby/moby/pull/51120#issuecomment-3376224865
-	if config.MacAddress != "" { //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
-		// Make sure we negotiated (if the client is configured to do so),
-		// as code below contains API-version specific handling of options.
-		//
-		// Normally, version-negotiation (if enabled) would not happen until
-		// the API request is made.
-		if err := cli.checkVersion(ctx); err != nil {
-			return response, err
-		}
-		if versions.GreaterThanOrEqualTo(cli.ClientVersion(), "1.44") {
-			// Since API 1.44, the container-wide MacAddress is deprecated and triggers a WARNING if it's specified.
-			//
-			// FIXME(thaJeztah): remove the field from the API
-			config.MacAddress = "" //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
-		}
 	}
 
 	query := url.Values{}
