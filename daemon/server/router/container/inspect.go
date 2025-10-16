@@ -39,28 +39,39 @@ func (c *containerRouter) getContainersByName(ctx context.Context, w http.Respon
 	if versions.LessThan(version, "1.52") {
 		var macAddress string
 		if bridgeNw := ctr.NetworkSettings.Networks["bridge"]; bridgeNw != nil {
-			macAddress = bridgeNw.MacAddress
-			// Copy all fields to the top-level, except for MacAddress, for
-			// which a custom network takes priority (if used).
-			wrapOpts = append(wrapOpts, compat.WithExtraFields(map[string]any{
-				"EndpointID":          bridgeNw.EndpointID,
-				"Gateway":             bridgeNw.Gateway,
-				"GlobalIPv6Address":   bridgeNw.GlobalIPv6Address,
-				"GlobalIPv6PrefixLen": bridgeNw.GlobalIPv6PrefixLen,
-				"IPAddress":           bridgeNw.IPAddress,
-				"IPPrefixLen":         bridgeNw.IPPrefixLen,
-				"IPv6Gateway":         bridgeNw.IPv6Gateway,
-			}))
+			// Old API versions showed the bridge's configuration as top-level
+			// fields in "NetworkConfig".
+			//
+			// This was deprecated in API v1.44, but kept in place until
+			// API v1.52, which removes this entirely.
+			wrapOpts = append(wrapOpts,
+				compat.WithExtraFields(map[string]any{
+					"NetworkConfig": map[string]any{
+						"EndpointID":          bridgeNw.EndpointID,
+						"Gateway":             bridgeNw.Gateway,
+						"GlobalIPv6Address":   bridgeNw.GlobalIPv6Address,
+						"GlobalIPv6PrefixLen": bridgeNw.GlobalIPv6PrefixLen,
+						"IPAddress":           bridgeNw.IPAddress,
+						"IPPrefixLen":         bridgeNw.IPPrefixLen,
+						"IPv6Gateway":         bridgeNw.IPv6Gateway,
+						"MacAddress":          bridgeNw.MacAddress,
+					},
+				}),
+			)
 		}
+
+		// Migrate the container's main / default network's MacAddress to
+		// the Config.MacAddress field for older API versions (< 1.44).
+		//
+		// This was deprecated in API v1.44, but kept in place until
+		// API v1.52, which removed this entirely.
 		if ctr.HostConfig != nil {
-			// Migrate the container's default network's MacAddress to the top-level
-			// Config.MacAddress field for older API versions (< 1.44). We set it here
-			// unconditionally, to keep backward compatibility with clients that use
-			// unversioned API endpoints.
-			if nwm := ctr.HostConfig.NetworkMode; nwm.IsBridge() || nwm.IsUserDefined() {
-				if v := ctr.NetworkSettings.Networks[nwm.NetworkName()]; v != nil && v.MacAddress != "" {
-					macAddress = v.MacAddress
-				}
+			mainNetwork := "bridge"
+			if ctr.HostConfig.NetworkMode.IsUserDefined() {
+				mainNetwork = ctr.HostConfig.NetworkMode.NetworkName()
+			}
+			if v := ctr.NetworkSettings.Networks[mainNetwork]; v != nil && v.MacAddress != "" {
+				macAddress = v.MacAddress
 			}
 		}
 		if macAddress != "" {
