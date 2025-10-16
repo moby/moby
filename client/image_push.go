@@ -15,7 +15,7 @@ import (
 	"github.com/moby/moby/client/pkg/jsonmessage"
 )
 
-type PushMessage = jsonmessage.JSONMessage
+type PushMessage = jsonmessage.JSONMessage[json.RawMessage]
 
 //	type ImagePushResponse interface {
 //		io.ReadCloser

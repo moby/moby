@@ -54,7 +54,7 @@ func (r *stream[T]) Messages(ctx context.Context) iter.Seq2[T, error] {
 	dec := json.NewDecoder(r)
 
 	return func(yield func(T, error) bool) {
-		defer r.Close()
+		defer func() { _ = r.Close() }()
 		for {
 			var msg T
 			err := dec.Decode(&msg)
