@@ -101,8 +101,10 @@ func newDaemonCLI(opts *daemonOptions) (*daemonCLI, error) {
 }
 
 func (cli *daemonCLI) start(ctx context.Context) (err error) {
-	configureProxyEnv(cli.Config)
-	configureDaemonLogs(cli.Config)
+	configureProxyEnv(ctx, cli.Config.Proxies)
+	if err := configureDaemonLogs(ctx, cli.Config.DaemonLogConfig); err != nil {
+		return fmt.Errorf("failed to configure daemon logging: %w", err)
+	}
 
 	log.G(ctx).Info("Starting up")
 
@@ -555,8 +557,6 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	flags := opts.flags
 	conf.Debug = opts.Debug
 	conf.Hosts = opts.Hosts
-	conf.LogLevel = opts.LogLevel
-	conf.LogFormat = log.OutputFormat(opts.LogFormat)
 
 	// The DOCKER_MIN_API_VERSION env-var allows overriding the minimum API
 	// version provided by the daemon within constraints of the minimum and
@@ -758,10 +758,10 @@ func getContainerdDaemonOpts(cfg *config.Config) ([]supervisor.DaemonOpt, error)
 	if cfg.Debug {
 		opts = append(opts, supervisor.WithLogLevel("debug"))
 	} else {
-		opts = append(opts, supervisor.WithLogLevel(cfg.LogLevel))
+		opts = append(opts, supervisor.WithLogLevel(cfg.DaemonLogConfig.LogLevel))
 	}
 
-	if logFormat := cfg.LogFormat; logFormat != "" {
+	if logFormat := cfg.DaemonLogConfig.LogFormat; logFormat != "" {
 		opts = append(opts, supervisor.WithLogFormat(logFormat))
 	}
 
@@ -965,15 +965,15 @@ func systemContainerdRunning(honorXDG bool) (string, bool, error) {
 
 // configureDaemonLogs sets the logging level and formatting. It expects
 // the passed configuration to already be validated, and ignores invalid options.
-func configureDaemonLogs(conf *config.Config) {
+func configureDaemonLogs(ctx context.Context, conf config.DaemonLogConfig) error {
 	switch conf.LogFormat {
 	case log.JSONFormat:
 		if err := log.SetFormat(log.JSONFormat); err != nil {
-			panic(err.Error())
+			return err
 		}
 	case log.TextFormat, "":
 		if err := log.SetFormat(log.TextFormat); err != nil {
-			panic(err.Error())
+			return err
 		}
 		if conf.RawLogs {
 			// FIXME(thaJeztah): this needs a better solution: containerd doesn't allow disabling colors, and this code is depending on internal knowledge of "log.SetFormat"
@@ -982,7 +982,7 @@ func configureDaemonLogs(conf *config.Config) {
 			}
 		}
 	default:
-		panic("unsupported log format " + conf.LogFormat)
+		return fmt.Errorf("unknown log format: %s", conf.LogFormat)
 	}
 
 	logLevel := conf.LogLevel
@@ -990,28 +990,29 @@ func configureDaemonLogs(conf *config.Config) {
 		logLevel = "info"
 	}
 	if err := log.SetLevel(logLevel); err != nil {
-		log.G(context.TODO()).WithError(err).Warn("configure log level")
+		log.G(ctx).WithError(err).Warn("configure log level")
 	}
+	return nil
 }
 
-func configureProxyEnv(cfg *config.Config) {
+func configureProxyEnv(ctx context.Context, cfg config.Proxies) {
 	if p := cfg.HTTPProxy; p != "" {
-		overrideProxyEnv("HTTP_PROXY", p)
-		overrideProxyEnv("http_proxy", p)
+		overrideProxyEnv(ctx, "HTTP_PROXY", p)
+		overrideProxyEnv(ctx, "http_proxy", p)
 	}
 	if p := cfg.HTTPSProxy; p != "" {
-		overrideProxyEnv("HTTPS_PROXY", p)
-		overrideProxyEnv("https_proxy", p)
+		overrideProxyEnv(ctx, "HTTPS_PROXY", p)
+		overrideProxyEnv(ctx, "https_proxy", p)
 	}
 	if p := cfg.NoProxy; p != "" {
-		overrideProxyEnv("NO_PROXY", p)
-		overrideProxyEnv("no_proxy", p)
+		overrideProxyEnv(ctx, "NO_PROXY", p)
+		overrideProxyEnv(ctx, "no_proxy", p)
 	}
 }
 
-func overrideProxyEnv(name, val string) {
+func overrideProxyEnv(ctx context.Context, name, val string) {
 	if oldVal := os.Getenv(name); oldVal != "" && oldVal != val {
-		log.G(context.TODO()).WithFields(log.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"name":      name,
 			"old-value": config.MaskCredentials(oldVal),
 			"new-value": config.MaskCredentials(val),

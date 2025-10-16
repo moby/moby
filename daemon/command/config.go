@@ -1,8 +1,10 @@
 package command
 
 import (
+	"fmt"
 	"runtime"
 
+	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/config"
 	dopts "github.com/moby/moby/v2/daemon/internal/opts"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
@@ -44,7 +46,11 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.IntVar(&conf.NetworkDiagnosticPort, "network-diagnostic-port", 0, "TCP port number of the network diagnostic server")
 	_ = flags.MarkHidden("network-diagnostic-port")
 
-	flags.BoolVar(&conf.RawLogs, "raw-logs", false, "Full timestamps without ANSI coloring")
+	// Daemon log config
+	flags.BoolVar(&conf.DaemonLogConfig.RawLogs, "raw-logs", conf.DaemonLogConfig.RawLogs, "Full timestamps without ANSI coloring")
+	flags.StringVarP(&conf.DaemonLogConfig.LogLevel, "log-level", "l", conf.DaemonLogConfig.LogLevel, `Set the logging level ("debug"|"info"|"warn"|"error"|"fatal")`)
+	flags.Var(&stringVar[log.OutputFormat]{val: &conf.DaemonLogConfig.LogFormat}, "log-format", fmt.Sprintf(`Set the logging format (%q|%q)`, log.TextFormat, log.JSONFormat))
+
 	flags.Var(dopts.NewNamedIPListOptsRef("dns", &conf.DNS), "dns", "DNS server to use")
 	flags.Var(opts.NewNamedListOptsRef("dns-opts", &conf.DNSOptions, nil), "dns-opt", "DNS options to use")
 	flags.Var(opts.NewListOptsRef(&conf.DNSSearch, opts.ValidateDNSSearch), "dns-search", "DNS search domains to use")
@@ -77,3 +83,20 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.BoolVarP(&conf.AutoRestart, "restart", "r", true, "--restart on the daemon has been deprecated in favor of --restart policies on docker run")
 	_ = flags.MarkDeprecated("restart", "Please use a restart policy on docker run")
 }
+
+// stringVar is a bare-bones implementation of a [pflag.Value] using
+// generics to create flags for typed string values / enums.
+type stringVar[T ~string] struct{ val *T }
+
+func (v *stringVar[T]) Set(s string) error {
+	*v.val = T(s)
+	return nil
+}
+
+func (v *stringVar[T]) String() string {
+	return string(*v.val)
+}
+
+func (v *stringVar[T]) Type() string { return "string" }
+
+var _ pflag.Value = (*stringVar[string])(nil)
