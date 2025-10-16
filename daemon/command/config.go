@@ -74,10 +74,6 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.Var(opts.NewNamedListOptsRef("cdi-spec-dirs", &conf.CDISpecDirs, nil), "cdi-spec-dir", "CDI specification directories to use")
 
 	// Deprecated flags / options
-	allowNonDistributable := opts.NewNamedListOptsRef("allow-nondistributable-artifacts", &([]string{}), registry.ValidateIndexName)
-	flags.Var(allowNonDistributable, "allow-nondistributable-artifacts", "Allow push of nondistributable artifacts to registry")
-	_ = flags.MarkDeprecated("allow-nondistributable-artifacts", "Pushing nondistributable artifacts is now enabled by default. ")
-
 	flags.BoolVarP(&conf.AutoRestart, "restart", "r", true, "--restart on the daemon has been deprecated in favor of --restart policies on docker run")
 	_ = flags.MarkDeprecated("restart", "Please use a restart policy on docker run")
 }
