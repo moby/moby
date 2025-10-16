@@ -88,7 +88,7 @@ type ContainerAPIClient interface {
 	ContainerWait(ctx context.Context, container string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error)
 	CopyFromContainer(ctx context.Context, container, srcPath string) (io.ReadCloser, container.PathStat, error)
 	CopyToContainer(ctx context.Context, container, path string, content io.Reader, options CopyToContainerOptions) error
-	ContainersPrune(ctx context.Context, pruneFilters Filters) (container.PruneReport, error)
+	ContainersPrune(ctx context.Context, opts ContainerPruneOptions) (ContainerPruneResult, error)
 }
 
 type ExecAPIClient interface {
@@ -118,7 +118,7 @@ type ImageAPIClient interface {
 	ImageRemove(ctx context.Context, image string, options ImageRemoveOptions) ([]image.DeleteResponse, error)
 	ImageSearch(ctx context.Context, term string, options ImageSearchOptions) ([]registry.SearchResult, error)
 	ImageTag(ctx context.Context, image, ref string) error
-	ImagesPrune(ctx context.Context, pruneFilter Filters) (image.PruneReport, error)
+	ImagesPrune(ctx context.Context, opts ImagePruneOptions) (ImagePruneResult, error)
 
 	ImageInspect(ctx context.Context, image string, _ ...ImageInspectOption) (image.InspectResponse, error)
 	ImageHistory(ctx context.Context, image string, _ ...ImageHistoryOption) ([]image.HistoryResponseItem, error)
@@ -135,7 +135,7 @@ type NetworkAPIClient interface {
 	NetworkInspectWithRaw(ctx context.Context, network string, options NetworkInspectOptions) (network.Inspect, []byte, error)
 	NetworkList(ctx context.Context, options NetworkListOptions) ([]network.Summary, error)
 	NetworkRemove(ctx context.Context, network string) error
-	NetworksPrune(ctx context.Context, pruneFilter Filters) (network.PruneReport, error)
+	NetworksPrune(ctx context.Context, opts NetworkPruneOptions) (NetworkPruneResult, error)
 }
 
 // NodeAPIClient defines API client methods for the nodes
@@ -200,7 +200,7 @@ type VolumeAPIClient interface {
 	VolumeInspectWithRaw(ctx context.Context, volumeID string) (volume.Volume, []byte, error)
 	VolumeList(ctx context.Context, options VolumeListOptions) (volume.ListResponse, error)
 	VolumeRemove(ctx context.Context, volumeID string, force bool) error
-	VolumesPrune(ctx context.Context, pruneFilter Filters) (volume.PruneReport, error)
+	VolumesPrune(ctx context.Context, opts VolumePruneOptions) (VolumePruneResult, error)
 	VolumeUpdate(ctx context.Context, volumeID string, version swarm.Version, options volume.UpdateOptions) error
 }
 

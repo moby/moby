@@ -9,21 +9,31 @@ import (
 	"github.com/moby/moby/api/types/container"
 )
 
+// ContainerPruneOptions holds parameters to prune containers.
+type ContainerPruneOptions struct {
+	Filters Filters
+}
+
+// ContainerPruneResult holds the result from the [Client.ContainersPrune] method.
+type ContainerPruneResult struct {
+	Report container.PruneReport
+}
+
 // ContainersPrune requests the daemon to delete unused data
-func (cli *Client) ContainersPrune(ctx context.Context, pruneFilters Filters) (container.PruneReport, error) {
+func (cli *Client) ContainersPrune(ctx context.Context, opts ContainerPruneOptions) (ContainerPruneResult, error) {
 	query := url.Values{}
-	pruneFilters.updateURLValues(query)
+	opts.Filters.updateURLValues(query)
 
 	resp, err := cli.post(ctx, "/containers/prune", query, nil, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return container.PruneReport{}, err
+		return ContainerPruneResult{}, err
 	}
 
 	var report container.PruneReport
 	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
-		return container.PruneReport{}, fmt.Errorf("Error retrieving disk usage: %v", err)
+		return ContainerPruneResult{}, fmt.Errorf("Error retrieving disk usage: %v", err)
 	}
 
-	return report, nil
+	return ContainerPruneResult{Report: report}, nil
 }

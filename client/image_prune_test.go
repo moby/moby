@@ -19,7 +19,7 @@ func TestImagesPruneError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.ImagesPrune(context.Background(), nil)
+	_, err = client.ImagesPrune(context.Background(), ImagePruneOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -96,9 +96,9 @@ func TestImagesPrune(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 
-		report, err := client.ImagesPrune(context.Background(), listCase.filters)
+		res, err := client.ImagesPrune(context.Background(), ImagePruneOptions{Filters: listCase.filters})
 		assert.NilError(t, err)
-		assert.Check(t, is.Len(report.ImagesDeleted, 2))
-		assert.Check(t, is.Equal(uint64(9999), report.SpaceReclaimed))
+		assert.Check(t, is.Len(res.Report.ImagesDeleted, 2))
+		assert.Check(t, is.Equal(uint64(9999), res.Report.SpaceReclaimed))
 	}
 }

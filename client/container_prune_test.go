@@ -18,7 +18,7 @@ func TestContainersPruneError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.ContainersPrune(context.Background(), Filters{})
+	_, err = client.ContainersPrune(context.Background(), ContainerPruneOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -99,9 +99,9 @@ func TestContainersPrune(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 
-		report, err := client.ContainersPrune(context.Background(), listCase.filters)
+		req, err := client.ContainersPrune(context.Background(), ContainerPruneOptions{Filters: listCase.filters})
 		assert.NilError(t, err)
-		assert.Check(t, is.Len(report.ContainersDeleted, 2))
-		assert.Check(t, is.Equal(uint64(9999), report.SpaceReclaimed))
+		assert.Check(t, is.Len(req.Report.ContainersDeleted, 2))
+		assert.Check(t, is.Equal(uint64(9999), req.Report.SpaceReclaimed))
 	}
 }
