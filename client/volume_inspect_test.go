@@ -47,11 +47,11 @@ func TestVolumeInspectWithEmptyID(t *testing.T) {
 
 func TestVolumeInspect(t *testing.T) {
 	const expectedURL = "/volumes/volume_id"
-	expected := volume.Volume{
+	expected := VolumeInspectResult{Volume: volume.Volume{
 		Name:       "name",
 		Driver:     "driver",
 		Mountpoint: "mountpoint",
-	}
+	}}
 
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
