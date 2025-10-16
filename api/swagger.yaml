@@ -1824,21 +1824,6 @@ definitions:
         example:
           - "example@sha256:afcc7f1ac1b49db317a7196c902e61c6c3c4607d63599ee1a82d702d249a0ccb"
           - "internal.registry.example.com:5000/example@sha256:b69959407d21e8a062e0416bf13405bb2b71ed7a84dde4158ebafacfa06f5578"
-      Parent:
-        description: |
-          ID of the parent image.
-
-          Depending on how the image was created, this field may be empty and
-          is only set for images that were built/created locally. This field
-          is empty if the image was pulled from an image registry.
-
-          > **Deprecated**: This field is only set when using the deprecated
-          > legacy builder. It is included in API responses for informational
-          > purposes, but should not be depended on as it will be omitted
-          > once the legacy builder is removed.
-        type: "string"
-        x-nullable: true
-        example: ""
       Comment:
         description: |
           Optional message that was set when committing or importing the image.
@@ -1856,19 +1841,6 @@ definitions:
         format: "dateTime"
         x-nullable: true
         example: "2022-02-04T21:20:12.497794809Z"
-      DockerVersion:
-        description: |
-          The version of Docker that was used to build the image.
-
-          Depending on how the image was created, this field may be empty.
-
-          > **Deprecated**: This field is only set when using the deprecated
-          > legacy builder. It is included in API responses for informational
-          > purposes, but should not be depended on as it will be omitted
-          > once the legacy builder is removed.
-        type: "string"
-        x-nullable: true
-        example: "27.0.1"
       Author:
         description: |
           Name of the author that was specified when committing the image, or as
