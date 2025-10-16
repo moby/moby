@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -116,7 +117,7 @@ func loadFrozenImages(ctx context.Context, apiClient client.APIClient) error {
 	}
 	defer resp.Close()
 	fd, isTerminal := term.GetFdInfo(os.Stdout)
-	return jsonmessage.DisplayJSONMessagesStream(resp, os.Stdout, fd, isTerminal, nil)
+	return jsonmessage.DisplayJSONMessagesStream[json.RawMessage](resp, os.Stdout, fd, isTerminal, nil)
 }
 
 func pullImages(ctx context.Context, client client.APIClient, images []string) error {
@@ -167,7 +168,7 @@ func pullTagAndRemove(ctx context.Context, apiClient client.APIClient, ref strin
 	}
 	defer resp.Close()
 	fd, isTerminal := term.GetFdInfo(os.Stdout)
-	if err := jsonmessage.DisplayJSONMessagesStream(resp, os.Stdout, fd, isTerminal, nil); err != nil {
+	if err := jsonmessage.DisplayJSONMessagesStream[json.RawMessage](resp, os.Stdout, fd, isTerminal, nil); err != nil {
 		return err
 	}
 

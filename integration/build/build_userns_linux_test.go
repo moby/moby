@@ -3,6 +3,7 @@ package build
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -70,7 +71,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	defer resp.Body.Close()
 
 	buf := bytes.NewBuffer(nil)
-	err = jsonmessage.DisplayJSONMessagesStream(resp.Body, buf, 0, false, nil)
+	err = jsonmessage.DisplayJSONMessagesStream[json.RawMessage](resp.Body, buf, 0, false, nil)
 	assert.NilError(t, err)
 
 	reader, err := clientUserRemap.ImageSave(ctx, []string{imageTag})
@@ -107,7 +108,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	assert.NilError(t, err, "failed to load image tar file")
 	defer loadResp.Close()
 	buf = bytes.NewBuffer(nil)
-	err = jsonmessage.DisplayJSONMessagesStream(loadResp, buf, 0, false, nil)
+	err = jsonmessage.DisplayJSONMessagesStream[json.RawMessage](loadResp, buf, 0, false, nil)
 	assert.NilError(t, err)
 
 	cid := container.Run(ctx, t, clientNoUserRemap,

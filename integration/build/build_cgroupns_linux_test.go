@@ -23,7 +23,7 @@ func getCgroupFromBuildOutput(buildOutput io.Reader) (string, error) {
 
 	dec := json.NewDecoder(buildOutput)
 	for {
-		m := jsonmessage.JSONMessage{}
+		m := jsonmessage.JSONMessage[json.RawMessage]{}
 		err := dec.Decode(&m)
 		if err == io.EOF {
 			return "", nil

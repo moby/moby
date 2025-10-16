@@ -46,7 +46,7 @@ func Load(ctx context.Context, t *testing.T, apiClient client.APIClient, imageFu
 
 	decoder := json.NewDecoder(bytes.NewReader(all))
 	for {
-		var msg jsonmessage.JSONMessage
+		var msg jsonmessage.JSONMessage[json.RawMessage]
 		err := decoder.Decode(&msg)
 		if errors.Is(err, io.EOF) {
 			break

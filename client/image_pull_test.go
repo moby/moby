@@ -95,7 +95,7 @@ func TestImagePullWithPrivilegedFuncNoError(t *testing.T) {
 	})
 	assert.NilError(t, err)
 	var buf bytes.Buffer
-	err = jsonmessage.DisplayJSONMessagesStream(resp, &buf, 0, false, nil)
+	err = jsonmessage.DisplayJSONMessagesStream[PullMessage](resp, &buf, 0, false, nil)
 	assert.NilError(t, err)
 
 	// body, err := io.ReadAll(resp)

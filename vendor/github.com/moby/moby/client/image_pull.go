@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 	"strings"
 
@@ -11,7 +12,7 @@ import (
 	"github.com/moby/moby/client/pkg/jsonmessage"
 )
 
-type PullMessage = jsonmessage.JSONMessage
+type PullMessage = jsonmessage.JSONMessage[json.RawMessage]
 
 type ImagePullResponse internal.Stream[PullMessage]
 
