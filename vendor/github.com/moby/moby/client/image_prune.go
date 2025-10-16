@@ -9,21 +9,31 @@ import (
 	"github.com/moby/moby/api/types/image"
 )
 
+// ImagePruneOptions holds parameters to prune images.
+type ImagePruneOptions struct {
+	Filters Filters
+}
+
+// ImagePruneResult holds the result from the [Client.ImagesPrune] method.
+type ImagePruneResult struct {
+	Report image.PruneReport
+}
+
 // ImagesPrune requests the daemon to delete unused data
-func (cli *Client) ImagesPrune(ctx context.Context, pruneFilters Filters) (image.PruneReport, error) {
+func (cli *Client) ImagesPrune(ctx context.Context, opts ImagePruneOptions) (ImagePruneResult, error) {
 	query := url.Values{}
-	pruneFilters.updateURLValues(query)
+	opts.Filters.updateURLValues(query)
 
 	resp, err := cli.post(ctx, "/images/prune", query, nil, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return image.PruneReport{}, err
+		return ImagePruneResult{}, err
 	}
 
 	var report image.PruneReport
 	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
-		return image.PruneReport{}, fmt.Errorf("Error retrieving disk usage: %v", err)
+		return ImagePruneResult{}, fmt.Errorf("Error retrieving disk usage: %v", err)
 	}
 
-	return report, nil
+	return ImagePruneResult{Report: report}, nil
 }

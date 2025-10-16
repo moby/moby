@@ -28,7 +28,6 @@ func TestPruneDontDeleteUsedDangling(t *testing.T) {
 	defer d.Stop(t)
 
 	apiClient := d.NewClientT(t)
-	defer apiClient.Close()
 
 	danglingID := iimage.Load(ctx, t, apiClient, specialimage.Dangling)
 
@@ -39,10 +38,12 @@ func TestPruneDontDeleteUsedDangling(t *testing.T) {
 		container.WithImage(danglingID),
 		container.WithCmd("sleep", "60"))
 
-	pruned, err := apiClient.ImagesPrune(ctx, make(client.Filters).Add("dangling", "true"))
+	res, err := apiClient.ImagesPrune(ctx, client.ImagePruneOptions{
+		Filters: make(client.Filters).Add("dangling", "true"),
+	})
 	assert.NilError(t, err)
 
-	for _, deleted := range pruned.ImagesDeleted {
+	for _, deleted := range res.Report.ImagesDeleted {
 		if strings.Contains(deleted.Deleted, danglingID) || strings.Contains(deleted.Untagged, danglingID) {
 			t.Errorf("used dangling image %s shouldn't be deleted", danglingID)
 		}
@@ -63,7 +64,6 @@ func TestPruneLexographicalOrder(t *testing.T) {
 	defer d.Stop(t)
 
 	apiClient := d.NewClientT(t)
-	defer apiClient.Close()
 
 	d.LoadBusybox(ctx, t)
 
@@ -87,11 +87,13 @@ func TestPruneLexographicalOrder(t *testing.T) {
 	cid := container.Create(ctx, t, apiClient, container.WithImage(id))
 	defer container.Remove(ctx, t, apiClient, cid, client.ContainerRemoveOptions{Force: true})
 
-	pruned, err := apiClient.ImagesPrune(ctx, make(client.Filters).Add("dangling", "false"))
+	res, err := apiClient.ImagesPrune(ctx, client.ImagePruneOptions{
+		Filters: make(client.Filters).Add("dangling", "false"),
+	})
 	assert.NilError(t, err)
 
-	assert.Check(t, is.Len(pruned.ImagesDeleted, len(tags)))
-	for _, p := range pruned.ImagesDeleted {
+	assert.Check(t, is.Len(res.Report.ImagesDeleted, len(tags)))
+	for _, p := range res.Report.ImagesDeleted {
 		assert.Check(t, is.Equal(p.Deleted, ""))
 		assert.Check(t, p.Untagged != "busybox:z")
 	}
@@ -196,7 +198,6 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 				defer d.Stop(t)
 
 				apiClient := d.NewClientT(t)
-				defer apiClient.Close()
 
 				d.LoadBusybox(ctx, t)
 
@@ -208,19 +209,21 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 				inspect, err := apiClient.ImageInspect(ctx, "busybox:latest")
 				assert.NilError(t, err)
 
-				image := tc.imageID(t, inspect)
-				t.Log(image)
+				img := tc.imageID(t, inspect)
+				t.Log(img)
 
 				cid := container.Run(ctx, t, apiClient,
-					container.WithImage(image),
+					container.WithImage(img),
 					container.WithCmd("sleep", "60"))
 				defer container.Remove(ctx, t, apiClient, cid, client.ContainerRemoveOptions{Force: true})
 
 				// dangling=false also prunes unused images
-				pruned, err := apiClient.ImagesPrune(ctx, make(client.Filters).Add("dangling", "false"))
+				res, err := apiClient.ImagesPrune(ctx, client.ImagePruneOptions{
+					Filters: make(client.Filters).Add("dangling", "false"),
+				})
 				assert.NilError(t, err)
 
-				env.check(t, apiClient, pruned)
+				env.check(t, apiClient, res.Report)
 			})
 		}
 	}
