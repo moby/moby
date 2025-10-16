@@ -9,9 +9,7 @@ import (
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/api/types/image"
-	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
-	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/integration/internal/container"
 	iimage "github.com/moby/moby/v2/integration/internal/image"
 	"github.com/moby/moby/v2/internal/testutil"
@@ -255,7 +253,7 @@ func TestAPIImagesListManifests(t *testing.T) {
 
 	t.Run("unsupported before 1.47", func(t *testing.T) {
 		// TODO: Remove when MinAPIVersion >= 1.47
-		c := d.NewClientT(t, client.WithVersion(config.MinAPIVersion))
+		c := d.NewClientT(t, client.WithVersion("1.46"))
 
 		images, err := c.ImageList(ctx, client.ImageListOptions{Manifests: true})
 		assert.NilError(t, err)
@@ -263,8 +261,6 @@ func TestAPIImagesListManifests(t *testing.T) {
 		assert.Assert(t, is.Len(images, 1))
 		assert.Check(t, is.Nil(images[0].Manifests))
 	})
-
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.47"))
 
 	api147 := d.NewClientT(t, client.WithVersion("1.47"))
 

@@ -26,7 +26,7 @@ type Daemon struct {
 // The daemon will not automatically start.
 func New(t testing.TB, dockerBinary string, dockerdBinary string, ops ...daemon.Option) *Daemon {
 	t.Helper()
-	ops = append(ops, daemon.WithDockerdBinary(dockerdBinary))
+	ops = append(ops, daemon.WithDockerdBinary(dockerdBinary), daemon.WithEnvVars("DOCKER_MIN_API_VERSION=1.24"))
 	d := daemon.New(t, ops...)
 	return &Daemon{
 		Daemon:       d,

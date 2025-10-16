@@ -59,10 +59,12 @@ const (
 	//
 	// This version may be lower than the version of the api library module used.
 	MaxAPIVersion = "1.52"
-	// MinAPIVersion is the minimum API version supported by the API.
+	// defaultMinAPIVersion is the minimum API version supported by the API.
 	// This version can be overridden through the "DOCKER_MIN_API_VERSION"
-	// environment variable. It currently defaults to the minimum API version
-	// implemented in the API module.
+	// environment variable. The minimum allowed version is determined
+	// by [MinAPIVersion].
+	defaultMinAPIVersion = "1.44"
+	// MinAPIVersion is the minimum API version supported by the daemon.
 	MinAPIVersion = "1.24"
 	// SeccompProfileDefault is the built-in default seccomp profile.
 	SeccompProfileDefault = "builtin"
@@ -347,7 +349,7 @@ func New() (*Config, error) {
 			ContainerdPluginNamespace: DefaultPluginNamespace,
 			Features:                  make(map[string]bool),
 			DefaultRuntime:            StockRuntimeName,
-			MinAPIVersion:             MinAPIVersion,
+			MinAPIVersion:             defaultMinAPIVersion,
 		},
 	}
 
