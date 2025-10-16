@@ -327,6 +327,10 @@ func New() (*Config, error) {
 			LogConfig: LogConfig{
 				Config: make(map[string]string),
 			},
+			DaemonLogConfig: DaemonLogConfig{
+				LogLevel:  "info",
+				LogFormat: log.TextFormat,
+			},
 			MaxConcurrentDownloads: DefaultMaxConcurrentDownloads,
 			MaxConcurrentUploads:   DefaultMaxConcurrentUploads,
 			MaxDownloadAttempts:    DefaultDownloadAttempts,

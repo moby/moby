@@ -1,11 +1,9 @@
 package command
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/containerd/log"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
@@ -73,8 +71,6 @@ type daemonOptions struct {
 	flags        *pflag.FlagSet
 	Debug        bool
 	Hosts        []string
-	LogLevel     string
-	LogFormat    string
 	TLS          bool
 	TLSVerify    bool
 	TLSOptions   *tlsconfig.Options
@@ -107,8 +103,6 @@ func (o *daemonOptions) installFlags(flags *pflag.FlagSet) {
 
 	flags.BoolVarP(&o.Debug, "debug", "D", false, "Enable debug mode")
 	flags.BoolVar(&o.Validate, "validate", false, "Validate daemon configuration and exit")
-	flags.StringVarP(&o.LogLevel, "log-level", "l", "info", `Set the logging level ("debug"|"info"|"warn"|"error"|"fatal")`)
-	flags.StringVar(&o.LogFormat, "log-format", string(log.TextFormat), fmt.Sprintf(`Set the logging format (%q|%q)`, log.TextFormat, log.JSONFormat))
 	flags.BoolVar(&o.TLS, FlagTLS, DefaultTLSValue, "Use TLS; implied by --tlsverify")
 	flags.BoolVar(&o.TLSVerify, FlagTLSVerify, dockerTLSVerify || DefaultTLSValue, "Use TLS and verify the remote")
 

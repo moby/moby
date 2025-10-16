@@ -557,8 +557,6 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	flags := opts.flags
 	conf.Debug = opts.Debug
 	conf.Hosts = opts.Hosts
-	conf.LogLevel = opts.LogLevel
-	conf.LogFormat = log.OutputFormat(opts.LogFormat)
 
 	// The DOCKER_MIN_API_VERSION env-var allows overriding the minimum API
 	// version provided by the daemon within constraints of the minimum and
