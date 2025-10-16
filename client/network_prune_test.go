@@ -20,7 +20,7 @@ func TestNetworksPruneError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.NetworksPrune(context.Background(), nil)
+	_, err = client.NetworksPrune(context.Background(), NetworkPruneOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -92,8 +92,8 @@ func TestNetworksPrune(t *testing.T) {
 		)
 		assert.NilError(t, err)
 
-		report, err := client.NetworksPrune(context.Background(), listCase.filters)
+		res, err := client.NetworksPrune(context.Background(), NetworkPruneOptions{Filters: listCase.filters})
 		assert.NilError(t, err)
-		assert.Check(t, is.Len(report.NetworksDeleted, 2))
+		assert.Check(t, is.Len(res.Report.NetworksDeleted, 2))
 	}
 }
