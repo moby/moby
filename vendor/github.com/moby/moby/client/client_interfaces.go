@@ -148,7 +148,7 @@ type NodeAPIClient interface {
 
 // PluginAPIClient defines API client methods for the plugins
 type PluginAPIClient interface {
-	PluginList(ctx context.Context, filter Filters) (plugin.ListResponse, error)
+	PluginList(ctx context.Context, opts PluginListOptions) (plugin.ListResponse, error)
 	PluginRemove(ctx context.Context, name string, options PluginRemoveOptions) error
 	PluginEnable(ctx context.Context, name string, options PluginEnableOptions) error
 	PluginDisable(ctx context.Context, name string, options PluginDisableOptions) error

@@ -193,8 +193,8 @@ func ProtectPlugins(ctx context.Context, t testing.TB, testEnv *Execution) {
 
 func getExistingPlugins(ctx context.Context, t testing.TB, testEnv *Execution) []string {
 	t.Helper()
-	client := testEnv.APIClient()
-	pluginList, err := client.PluginList(ctx, nil)
+	apiClient := testEnv.APIClient()
+	pluginList, err := apiClient.PluginList(ctx, client.PluginListOptions{})
 	// Docker EE does not allow cluster-wide plugin management.
 	if cerrdefs.IsNotImplemented(err) {
 		return []string{}

@@ -8,12 +8,17 @@ import (
 	"github.com/moby/moby/api/types/plugin"
 )
 
+// PluginListOptions holds parameters to list plugins.
+type PluginListOptions struct {
+	Filters Filters
+}
+
 // PluginList returns the installed plugins
-func (cli *Client) PluginList(ctx context.Context, filter Filters) (plugin.ListResponse, error) {
+func (cli *Client) PluginList(ctx context.Context, opts PluginListOptions) (plugin.ListResponse, error) {
 	var plugins plugin.ListResponse
 	query := url.Values{}
 
-	filter.updateURLValues(query)
+	opts.Filters.updateURLValues(query)
 	resp, err := cli.get(ctx, "/plugins", query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
