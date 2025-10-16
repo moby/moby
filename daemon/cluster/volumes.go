@@ -107,7 +107,7 @@ func (c *Cluster) RemoveVolume(nameOrID string, force bool) error {
 }
 
 // UpdateVolume updates a volume in the swarm cluster.
-func (c *Cluster) UpdateVolume(nameOrID string, version uint64, volume volumetypes.UpdateOptions) error {
+func (c *Cluster) UpdateVolume(nameOrID string, version uint64, volume volumebackend.UpdateOptions) error {
 	return c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		v, err := getVolume(ctx, state.controlClient, nameOrID)
 		if err != nil {

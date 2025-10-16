@@ -334,7 +334,7 @@ func TestUpdateVolume(t *testing.T) {
 		cluster: c,
 	}
 
-	volumeUpdate := volume.UpdateOptions{
+	volumeUpdate := volumebackend.UpdateOptions{
 		Spec: &volume.ClusterVolumeSpec{},
 	}
 
@@ -363,7 +363,7 @@ func TestUpdateVolumeNoSwarm(t *testing.T) {
 		cluster: c,
 	}
 
-	volumeUpdate := volume.UpdateOptions{
+	volumeUpdate := volumebackend.UpdateOptions{
 		Spec: &volume.ClusterVolumeSpec{},
 	}
 
@@ -395,7 +395,7 @@ func TestUpdateVolumeNotFound(t *testing.T) {
 		cluster: c,
 	}
 
-	volumeUpdate := volume.UpdateOptions{
+	volumeUpdate := volumebackend.UpdateOptions{
 		Spec: &volume.ClusterVolumeSpec{},
 	}
 
@@ -746,7 +746,7 @@ func (c *fakeClusterBackend) RemoveVolume(nameOrID string, force bool) error {
 	return nil
 }
 
-func (c *fakeClusterBackend) UpdateVolume(nameOrID string, version uint64, _ volume.UpdateOptions) error {
+func (c *fakeClusterBackend) UpdateVolume(nameOrID string, version uint64, _ volumebackend.UpdateOptions) error {
 	if err := c.checkSwarm(); err != nil {
 		return err
 	}

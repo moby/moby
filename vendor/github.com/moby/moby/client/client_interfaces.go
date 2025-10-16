@@ -201,7 +201,7 @@ type VolumeAPIClient interface {
 	VolumeList(ctx context.Context, options VolumeListOptions) (volume.ListResponse, error)
 	VolumeRemove(ctx context.Context, volumeID string, force bool) error
 	VolumesPrune(ctx context.Context, opts VolumePruneOptions) (VolumePruneResult, error)
-	VolumeUpdate(ctx context.Context, volumeID string, version swarm.Version, options volume.UpdateOptions) error
+	VolumeUpdate(ctx context.Context, volumeID string, version swarm.Version, options VolumeUpdateOptions) error
 }
 
 // SecretAPIClient defines API client methods for secrets
