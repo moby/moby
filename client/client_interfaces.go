@@ -196,10 +196,10 @@ type SystemAPIClient interface {
 // VolumeAPIClient defines API client methods for the volumes
 type VolumeAPIClient interface {
 	VolumeCreate(ctx context.Context, options volume.CreateOptions) (volume.Volume, error)
-	VolumeInspect(ctx context.Context, volumeID string) (volume.Volume, error)
-	VolumeInspectWithRaw(ctx context.Context, volumeID string) (volume.Volume, []byte, error)
-	VolumeList(ctx context.Context, options VolumeListOptions) (volume.ListResponse, error)
-	VolumeRemove(ctx context.Context, volumeID string, force bool) error
+	VolumeInspect(ctx context.Context, volumeID string) (VolumeInspectResult, error)
+	VolumeInspectWithRaw(ctx context.Context, volumeID string) (VolumeInspectResult, []byte, error)
+	VolumeList(ctx context.Context, options VolumeListOptions) (VolumeListResult, error)
+	VolumeRemove(ctx context.Context, volumeID string, options VolumeRemoveOptions) error
 	VolumesPrune(ctx context.Context, opts VolumePruneOptions) (VolumePruneResult, error)
 	VolumeUpdate(ctx context.Context, volumeID string, version swarm.Version, options VolumeUpdateOptions) error
 }
