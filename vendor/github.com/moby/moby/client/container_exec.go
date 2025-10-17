@@ -101,7 +101,7 @@ type ExecAttachOptions = ExecStartOptions
 // You can use [stdcopy.StdCopy] to demultiplex this stream. Refer to
 // [Client.ContainerAttach] for details about the multiplexed stream.
 //
-// [stdcopy.StdCopy]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#StdCopy
+// [stdcopy.StdCopy]: https://pkg.go.dev/github.com/moby/moby/client/pkg/stdcopy#StdCopy
 func (cli *Client) ContainerExecAttach(ctx context.Context, execID string, config ExecAttachOptions) (HijackedResponse, error) {
 	req := container.ExecStartRequest{
 		Detach:      config.Detach,
