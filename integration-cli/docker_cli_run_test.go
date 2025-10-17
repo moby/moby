@@ -288,9 +288,13 @@ func (s *DockerCLIRunSuite) TestRunWithNetAliasOnDefaultNetworks(c *testing.T) {
 
 	defaults := []string{"bridge", "host", "none"}
 	for _, nw := range defaults {
-		out, _, err := dockerCmdWithError("run", "-d", "--net", nw, "--net-alias", "alias_"+nw, "busybox", "top")
-		assert.ErrorContains(c, err, "")
-		assert.Assert(c, is.Contains(out, "network-scoped alias is supported only for containers in user defined networks"))
+		c.Run(nw, func(t *testing.T) {
+			out, _, err := dockerCmdWithError("run", "-d", "--net", nw, "--net-alias", "alias_"+nw, "busybox", "top")
+			assert.ErrorContains(t, err, "")
+
+			// TODO(thaJeztah): this validation should be on the daemon side (and already is?): https://github.com/moby/moby/blob/5856ec5348ccacf430f8b17fe8a6e30c579a7817/daemon/container_operations.go#L528-L539
+			assert.Assert(t, is.Contains(out, "network-scoped aliases are only supported for user-defined networks"))
+		})
 	}
 }
 
