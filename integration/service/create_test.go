@@ -256,11 +256,13 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 	defer apiClient.Close()
 
 	configName := "TestConfig_" + t.Name()
-	configResp, err := apiClient.ConfigCreate(ctx, swarmtypes.ConfigSpec{
-		Annotations: swarmtypes.Annotations{
-			Name: configName,
+	configResp, err := apiClient.ConfigCreate(ctx, client.ConfigCreateOptions{
+		Config: swarmtypes.ConfigSpec{
+			Annotations: swarmtypes.Annotations{
+				Name: configName,
+			},
+			Data: []byte("TESTCONFIG"),
 		},
-		Data: []byte("TESTCONFIG"),
 	})
 	assert.NilError(t, err)
 
@@ -277,7 +279,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 				GID:  "0",
 				Mode: 0o777,
 			},
-			ConfigID:   configResp.ID,
+			ConfigID:   configResp.Response.ID,
 			ConfigName: configName,
 		}),
 	)
@@ -299,7 +301,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 	assert.NilError(t, err)
 	poll.WaitOn(t, swarm.NoTasksForService(ctx, apiClient, serviceID))
 
-	err = apiClient.ConfigRemove(ctx, configName)
+	_, err = apiClient.ConfigRemove(ctx, configName, client.ConfigRemoveOptions{})
 	assert.NilError(t, err)
 }
 

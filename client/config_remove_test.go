@@ -18,14 +18,14 @@ func TestConfigRemoveError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.ConfigRemove(context.Background(), "config_id")
+	_, err = client.ConfigRemove(context.Background(), "config_id", ConfigRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.ConfigRemove(context.Background(), "")
+	_, err = client.ConfigRemove(context.Background(), "", ConfigRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.ConfigRemove(context.Background(), "    ")
+	_, err = client.ConfigRemove(context.Background(), "    ", ConfigRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -46,6 +46,6 @@ func TestConfigRemove(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.ConfigRemove(context.Background(), "config_id")
+	_, err = client.ConfigRemove(context.Background(), "config_id", ConfigRemoveOptions{})
 	assert.NilError(t, err)
 }
