@@ -10,6 +10,6 @@ import (
 	"github.com/moby/sys/user"
 )
 
-func newExecutor(_, _ string, _ *libnetwork.Controller, _ *oci.DNSConfig, _ bool, _ user.IdentityMapping, _ string, _ *cdidevices.Manager, _, _ string) (executor.Executor, error) {
+func newExecutor(_, _ string, _ *libnetwork.Controller, _ *oci.DNSConfig, _ bool, _ user.IdentityMapping, _ string, _ *cdidevices.Manager, _, _ string, _ bool) (executor.Executor, error) {
 	return &stubExecutor{}, nil
 }
