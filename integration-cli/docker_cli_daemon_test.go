@@ -1977,7 +1977,7 @@ func (s *DockerDaemonSuite) TestExecWithUserAfterLiveRestore(c *testing.T) {
 	out, err := s.d.Cmd("run", "--init", "-d", "--name=top", "busybox", "sh", "-c", "addgroup -S testgroup && adduser -S -G testgroup test -D -s /bin/sh && touch /adduser_end && exec top")
 	assert.NilError(c, err, "Output: %s", out)
 
-	s.d.WaitRun("top")
+	cli.WaitRun(c, "top")
 
 	// Wait for shell command to be completed
 	_, err = s.d.Cmd("exec", "top", "sh", "-c", `for i in $(seq 1 5); do if [ -e /adduser_end ]; then rm -f /adduser_end && break; else sleep 1 && false; fi; done`)
@@ -2004,7 +2004,7 @@ func (s *DockerDaemonSuite) TestRemoveContainerAfterLiveRestore(c *testing.T) {
 	out, err := s.d.Cmd("run", "-d", "--name=top", "busybox", "top")
 	assert.NilError(c, err, "Output: %s", out)
 
-	s.d.WaitRun("top")
+	cli.WaitRun(c, "top")
 
 	// restart daemon.
 	s.d.Restart(c, "--live-restore")
