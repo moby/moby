@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/containerd/v2/pkg/protobuf/proto"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/moby/api/types/build"
+	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/internal/testutil/fakecontext"
@@ -36,7 +37,7 @@ func GetImageIDFromBody(t *testing.T, body io.Reader) string {
 	buf := bytes.NewBuffer(nil)
 	dec := json.NewDecoder(body)
 	for {
-		var jm jsonmessage.JSONMessage
+		var jm jsonstream.Message
 		err := dec.Decode(&jm)
 		if err == io.EOF {
 			break
@@ -48,7 +49,7 @@ func GetImageIDFromBody(t *testing.T, body io.Reader) string {
 		}
 
 		buf.Reset()
-		jm.Display(buf, false)
+		jsonmessage.Display(jm, buf, false, 0)
 		if buf.Len() == 0 {
 			continue
 		}
@@ -76,7 +77,7 @@ func GetImageIDFromBody(t *testing.T, body io.Reader) string {
 	return id
 }
 
-func processBuildkitAux(t *testing.T, jm *jsonmessage.JSONMessage, id *string) bool {
+func processBuildkitAux(t *testing.T, jm *jsonstream.Message, id *string) bool {
 	if jm.ID == "moby.buildkit.trace" {
 		var dt []byte
 		if err := json.Unmarshal(*jm.Aux, &dt); err != nil {

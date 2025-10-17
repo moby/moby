@@ -7,10 +7,10 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/moby/moby/api/pkg/progress"
 	"github.com/moby/moby/v2/daemon/internal/distribution"
 	progressutils "github.com/moby/moby/v2/daemon/internal/distribution/utils"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
+	"github.com/moby/moby/v2/daemon/internal/progress"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )

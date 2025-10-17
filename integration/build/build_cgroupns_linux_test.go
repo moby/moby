@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/moby/client"
-	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/integration/internal/requirement"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
@@ -23,7 +23,7 @@ func getCgroupFromBuildOutput(buildOutput io.Reader) (string, error) {
 
 	dec := json.NewDecoder(buildOutput)
 	for {
-		m := jsonmessage.JSONMessage{}
+		m := jsonstream.Message{}
 		err := dec.Decode(&m)
 		if err == io.EOF {
 			return "", nil
