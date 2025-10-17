@@ -10,7 +10,6 @@ import (
 
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/mount"
-	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/internal/testutil/request"
@@ -101,7 +100,7 @@ func TestEventsVolumeCreate(t *testing.T) {
 		}
 	}
 
-	_, err := apiClient.VolumeCreate(ctx, volume.CreateOptions{Name: volName})
+	_, err := apiClient.VolumeCreate(ctx, client.VolumeCreateOptions{Name: volName})
 	assert.NilError(t, err)
 
 	filter := make(client.Filters).

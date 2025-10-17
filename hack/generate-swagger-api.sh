@@ -96,7 +96,6 @@ EOT
 
 generate_model types/volume <<- 'EOT'
 	Volume
-	VolumeCreateOptions
 	VolumeListResponse
 EOT
 
