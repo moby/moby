@@ -67,6 +67,6 @@ func (d *Daemon) UpdateConfig(t testing.TB, id string, f ...ConfigConstructor) {
 		fn(config)
 	}
 
-	err := cli.ConfigUpdate(context.Background(), config.ID, config.Version, config.Spec)
+	err := cli.ConfigUpdate(context.Background(), client.SwarmVersionedID{ID: config.ID, Version: config.Version}, config.Spec)
 	assert.NilError(t, err)
 }

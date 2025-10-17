@@ -219,5 +219,5 @@ type ConfigAPIClient interface {
 	ConfigCreate(ctx context.Context, config swarm.ConfigSpec) (swarm.ConfigCreateResponse, error)
 	ConfigRemove(ctx context.Context, id string) error
 	ConfigInspectWithRaw(ctx context.Context, name string) (swarm.Config, []byte, error)
-	ConfigUpdate(ctx context.Context, id string, version swarm.Version, config swarm.ConfigSpec) error
+	ConfigUpdate(ctx context.Context, id SwarmVersionedID, config swarm.ConfigSpec) error
 }

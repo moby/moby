@@ -185,7 +185,7 @@ func TestConfigsUpdate(t *testing.T) {
 
 	// test UpdateConfig with full ID
 	insp.Spec.Labels = map[string]string{"test": "test1"}
-	err = c.ConfigUpdate(ctx, configID, insp.Version, insp.Spec)
+	err = c.ConfigUpdate(ctx, client.SwarmVersionedID{ID: configID, Version: insp.Version}, insp.Spec)
 	assert.NilError(t, err)
 
 	insp, _, err = c.ConfigInspectWithRaw(ctx, configID)
@@ -194,7 +194,7 @@ func TestConfigsUpdate(t *testing.T) {
 
 	// test UpdateConfig with full name
 	insp.Spec.Labels = map[string]string{"test": "test2"}
-	err = c.ConfigUpdate(ctx, testName, insp.Version, insp.Spec)
+	err = c.ConfigUpdate(ctx, client.SwarmVersionedID{ID: testName, Version: insp.Version}, insp.Spec)
 	assert.NilError(t, err)
 
 	insp, _, err = c.ConfigInspectWithRaw(ctx, configID)
@@ -203,7 +203,7 @@ func TestConfigsUpdate(t *testing.T) {
 
 	// test UpdateConfig with prefix ID
 	insp.Spec.Labels = map[string]string{"test": "test3"}
-	err = c.ConfigUpdate(ctx, configID[:1], insp.Version, insp.Spec)
+	err = c.ConfigUpdate(ctx, client.SwarmVersionedID{ID: configID[:1], Version: insp.Version}, insp.Spec)
 	assert.NilError(t, err)
 
 	insp, _, err = c.ConfigInspectWithRaw(ctx, configID)
@@ -213,7 +213,7 @@ func TestConfigsUpdate(t *testing.T) {
 	// test UpdateConfig in updating Data which is not supported in daemon
 	// this test will produce an error in func UpdateConfig
 	insp.Spec.Data = []byte("TESTINGDATA2")
-	err = c.ConfigUpdate(ctx, configID, insp.Version, insp.Spec)
+	err = c.ConfigUpdate(ctx, client.SwarmVersionedID{ID: configID, Version: insp.Version}, insp.Spec)
 	assert.Check(t, cerrdefs.IsInvalidArgument(err))
 	assert.Check(t, is.ErrorContains(err, "only updates to Labels are allowed"))
 }
