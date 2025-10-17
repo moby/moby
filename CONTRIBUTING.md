@@ -2,7 +2,7 @@
 
 Want to hack on the Moby Project? Awesome! We have a contributor's guide that explains
 [setting up a development environment and the contribution
-process](docs/contributing/). 
+process](docs/contributing/).
 
 [![Contributors guide](docs/static_files/contributors.png)](https://docs.docker.com/opensource/project/who-written-for/)
 
@@ -13,11 +13,24 @@ start participating.
 
 ## Topics
 
-* [Reporting Security Issues](#reporting-security-issues)
-* [Design and Cleanup Proposals](#design-and-cleanup-proposals)
-* [Reporting Issues](#reporting-other-issues)
-* [Quick Contribution Tips and Guidelines](#quick-contribution-tips-and-guidelines)
-* [Community Guidelines](#moby-community-guidelines)
+- [Reporting Security Issues](#reporting-security-issues)
+- [Design and Cleanup Proposals](#design-and-cleanup-proposals)
+- [Reporting Issues](#reporting-other-issues)
+- [Quick Contribution Tips and Guidelines](#quick-contribution-tips-and-guidelines)
+- [Community Guidelines](#moby-community-guidelines)
+
+### Quick Start Checklist
+
+Follow these steps to contribute quickly:
+
+1. **Fork the repo** – click the "Fork" button at the top right of the GitHub page.
+2. **Clone your fork** – `git clone https://github.com/your-username/moby.git`
+3. **Create a new branch** – `git checkout -b issue-123-description`
+4. **Make your changes** – edit the relevant files.
+5. **Commit and push** – `git add . && git commit -s -m "Fix/Enhance XYZ"`
+6. **Open a Pull Request** – go to your fork on GitHub and click "New Pull Request".
+
+- [Community Guidelines](#moby-community-guidelines)
 
 ## Reporting security issues
 
@@ -32,7 +45,6 @@ although we keep your name confidential if you request it. We also like to send
 gifts&mdash;if you're into schwag, make sure to let us know. We currently do not
 offer a paid security bounty program, but are not ruling it out in the future.
 
-
 ## Reporting other issues
 
 A great way to contribute to the project is to send a detailed report when you
@@ -42,15 +54,15 @@ and will thank you for it!
 Check that [our issue database](https://github.com/moby/moby/issues)
 doesn't already include that problem or suggestion before submitting an issue.
 If you find a match, you can use the "subscribe" button to get notified on
-updates. Do *not* leave random "+1" or "I have this too" comments, as they
+updates. Do _not_ leave random "+1" or "I have this too" comments, as they
 only clutter the discussion, and don't help resolving it. However, if you
 have ways to reproduce the issue or have additional information that may help
 resolving the issue, please leave a comment.
 
 When reporting issues, always include:
 
-* The output of `docker version`.
-* The output of `docker info`.
+- The output of `docker version`.
+- The output of `docker info`.
 
 Also include the steps required to reproduce the problem if possible and
 applicable. This information will help us review and fix your issue faster.
@@ -149,16 +161,15 @@ directories.
   </tr>
 </table>
 
-
 ### Conventions
 
 Fork the repository and make changes on your fork in a feature branch:
 
 - If it's a bug fix branch, name it XXXX-something where XXXX is the number of
-	the issue. 
+  the issue.
 - If it's a feature branch, create an enhancement issue to announce
-	your intentions, and name it XXXX-something where XXXX is the number of the
-	issue.
+  your intentions, and name it XXXX-something where XXXX is the number of the
+  issue.
 
 Submit tests for your changes. See [TESTING.md](./TESTING.md) for details.
 
@@ -334,7 +345,7 @@ commit automatically with `git commit -s`.
 
 ### How can I become a maintainer?
 
-The procedures for adding new maintainers are explained in the 
+The procedures for adding new maintainers are explained in the
 [/project/GOVERNANCE.md](/project/GOVERNANCE.md)
 file in this repository.
 
@@ -348,25 +359,25 @@ We want to keep the Moby community awesome, growing and collaborative. We need
 your help to keep it that way. To help with this we've come up with some general
 guidelines for the community as a whole:
 
-* Be nice: Be courteous, respectful and polite to fellow community members:
+- Be nice: Be courteous, respectful and polite to fellow community members:
   no regional, racial, gender, or other abuse will be tolerated. We like
   nice people way better than mean ones!
 
-* Encourage diversity and participation: Make everyone in our community feel
+- Encourage diversity and participation: Make everyone in our community feel
   welcome, regardless of their background and the extent of their
   contributions, and do everything possible to encourage participation in
   our community.
 
-* Keep it legal: Basically, don't get us in trouble. Share only content that
+- Keep it legal: Basically, don't get us in trouble. Share only content that
   you own, do not share private or sensitive information, and don't break
   the law.
 
-* Stay on topic: Make sure that you are posting to the correct channel and
+- Stay on topic: Make sure that you are posting to the correct channel and
   avoid off-topic discussions. Remember when you update an issue or respond
   to an email you are potentially sending to a large number of people. Please
   consider this before you update. Also remember that nobody likes spam.
 
-* Don't send email to the maintainers: There's no need to send email to the
+- Don't send email to the maintainers: There's no need to send email to the
   maintainers to ask them to investigate an issue or to take a look at a
   pull request. Instead of sending an email, GitHub mentions should be
   used to ping maintainers to review a pull request, a proposal or an
@@ -393,24 +404,24 @@ do need a fair way to deal with people who are making our community suck.
 
 **Notes:**
 
-* Obvious spammers are banned on first occurrence. If we don't do this, we'll
+- Obvious spammers are banned on first occurrence. If we don't do this, we'll
   have spam all over the place.
 
-* Violations are forgiven after 6 months of good behavior, and we won't hold a
+- Violations are forgiven after 6 months of good behavior, and we won't hold a
   grudge.
 
-* People who commit minor infractions will get some education, rather than
+- People who commit minor infractions will get some education, rather than
   hammering them in the 3 strikes process.
 
-* The rules apply equally to everyone in the community, no matter how much
-	you've contributed.
+- The rules apply equally to everyone in the community, no matter how much
+  you've contributed.
 
-* Extreme violations of a threatening, abusive, destructive or illegal nature
-	will be addressed immediately and are not subject to 3 strikes or forgiveness.
+- Extreme violations of a threatening, abusive, destructive or illegal nature
+  will be addressed immediately and are not subject to 3 strikes or forgiveness.
 
-* Contact abuse@docker.com to report abuse or appeal violations. In the case of
-	appeals, we know that mistakes happen, and we'll work with you to come up with a
-	fair solution if there has been a misunderstanding.
+- Contact abuse@docker.com to report abuse or appeal violations. In the case of
+  appeals, we know that mistakes happen, and we'll work with you to come up with a
+  fair solution if there has been a misunderstanding.
 
 ## Coding Style
 
