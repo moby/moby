@@ -76,7 +76,7 @@ func TestVolumesRemove(t *testing.T) {
 	vname := c.Mounts[0].Name
 
 	t.Run("volume in use", func(t *testing.T) {
-		err = apiClient.VolumeRemove(ctx, vname, false)
+		err = apiClient.VolumeRemove(ctx, vname, client.VolumeRemoveOptions{})
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsConflict))
 		assert.Check(t, is.ErrorContains(err, "volume is in use"))
 	})
@@ -87,17 +87,17 @@ func TestVolumesRemove(t *testing.T) {
 		})
 		assert.NilError(t, err)
 
-		err = apiClient.VolumeRemove(ctx, vname, false)
+		err = apiClient.VolumeRemove(ctx, vname, client.VolumeRemoveOptions{})
 		assert.NilError(t, err)
 	})
 
 	t.Run("non-existing volume", func(t *testing.T) {
-		err = apiClient.VolumeRemove(ctx, "no_such_volume", false)
+		err = apiClient.VolumeRemove(ctx, "no_such_volume", client.VolumeRemoveOptions{})
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	})
 
 	t.Run("non-existing volume force", func(t *testing.T) {
-		err = apiClient.VolumeRemove(ctx, "no_such_volume", true)
+		err = apiClient.VolumeRemove(ctx, "no_such_volume", client.VolumeRemoveOptions{Force: true})
 		assert.NilError(t, err)
 	})
 }
@@ -128,7 +128,7 @@ func TestVolumesRemoveSwarmEnabled(t *testing.T) {
 	vname := c.Mounts[0].Name
 
 	t.Run("volume in use", func(t *testing.T) {
-		err = apiClient.VolumeRemove(ctx, vname, false)
+		err = apiClient.VolumeRemove(ctx, vname, client.VolumeRemoveOptions{})
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsConflict))
 		assert.Check(t, is.ErrorContains(err, "volume is in use"))
 	})
@@ -139,17 +139,17 @@ func TestVolumesRemoveSwarmEnabled(t *testing.T) {
 		})
 		assert.NilError(t, err)
 
-		err = apiClient.VolumeRemove(ctx, vname, false)
+		err = apiClient.VolumeRemove(ctx, vname, client.VolumeRemoveOptions{})
 		assert.NilError(t, err)
 	})
 
 	t.Run("non-existing volume", func(t *testing.T) {
-		err = apiClient.VolumeRemove(ctx, "no_such_volume", false)
+		err = apiClient.VolumeRemove(ctx, "no_such_volume", client.VolumeRemoveOptions{})
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	})
 
 	t.Run("non-existing volume force", func(t *testing.T) {
-		err = apiClient.VolumeRemove(ctx, "no_such_volume", true)
+		err = apiClient.VolumeRemove(ctx, "no_such_volume", client.VolumeRemoveOptions{Force: true})
 		assert.NilError(t, err)
 	})
 }
@@ -165,7 +165,7 @@ func TestVolumesInspect(t *testing.T) {
 	inspected, err := apiClient.VolumeInspect(ctx, vol.Name)
 	assert.NilError(t, err)
 
-	assert.Check(t, is.DeepEqual(inspected, vol, cmpopts.EquateEmpty()))
+	assert.Check(t, is.DeepEqual(inspected.Volume, vol, cmpopts.EquateEmpty()))
 
 	// comparing CreatedAt field time for the new volume to now. Truncate to 1 minute precision to avoid false positive
 	createdAt, err := time.Parse(time.RFC3339, strings.TrimSpace(inspected.CreatedAt))

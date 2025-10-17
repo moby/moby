@@ -567,7 +567,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 			d.Restart(t, "--live-restore", "--iptables=false", "--ip6tables=false")
 
 			// Try to remove the volume
-			err = c.VolumeRemove(ctx, volName, false)
+			err = c.VolumeRemove(ctx, volName, client.VolumeRemoveOptions{})
 			assert.ErrorContains(t, err, "volume is in use")
 
 			_, err = c.VolumeInspect(ctx, volName)
@@ -626,7 +626,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 
 		// Try to remove the volume
 		// This should fail since its used by a container
-		err = c.VolumeRemove(ctx, v.Name, false)
+		err = c.VolumeRemove(ctx, v.Name, client.VolumeRemoveOptions{})
 		assert.ErrorContains(t, err, "volume is in use")
 
 		t.Run("volume still mounted", func(t *testing.T) {
@@ -660,7 +660,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 		assert.NilError(t, err)
 
 		// Now we should be able to remove the volume
-		err = c.VolumeRemove(ctx, v.Name, false)
+		err = c.VolumeRemove(ctx, v.Name, client.VolumeRemoveOptions{})
 		assert.NilError(t, err)
 	})
 
