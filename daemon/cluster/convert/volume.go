@@ -3,6 +3,7 @@ package convert
 import (
 	gogotypes "github.com/gogo/protobuf/types"
 	volumetypes "github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/v2/daemon/server/volumebackend"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
 
@@ -134,7 +135,7 @@ func volumeSpecToGRPC(spec volumetypes.ClusterVolumeSpec) *swarmapi.VolumeSpec {
 
 // VolumeCreateToGRPC takes a VolumeCreateBody and outputs the matching
 // swarmapi VolumeSpec.
-func VolumeCreateToGRPC(volume *volumetypes.CreateOptions) *swarmapi.VolumeSpec {
+func VolumeCreateToGRPC(volume *volumebackend.CreateOptions) *swarmapi.VolumeSpec {
 	var swarmSpec *swarmapi.VolumeSpec
 	if volume != nil && volume.ClusterVolumeSpec != nil {
 		swarmSpec = volumeSpecToGRPC(*volume.ClusterVolumeSpec)

@@ -32,7 +32,7 @@ func TestVolumesCreateAndList(t *testing.T) {
 	if testEnv.DaemonInfo.OSType == "windows" {
 		name = strings.ToLower(name)
 	}
-	vol, err := apiClient.VolumeCreate(ctx, volume.CreateOptions{
+	vol, err := apiClient.VolumeCreate(ctx, client.VolumeCreateOptions{
 		Name: name,
 	})
 	assert.NilError(t, err)
@@ -159,7 +159,7 @@ func TestVolumesInspect(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	now := time.Now()
-	vol, err := apiClient.VolumeCreate(ctx, volume.CreateOptions{})
+	vol, err := apiClient.VolumeCreate(ctx, client.VolumeCreateOptions{})
 	assert.NilError(t, err)
 
 	inspected, err := apiClient.VolumeInspect(ctx, vol.Name)
@@ -260,11 +260,11 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	// Create an anonymous volume
-	v, err := apiClient.VolumeCreate(ctx, volume.CreateOptions{})
+	v, err := apiClient.VolumeCreate(ctx, client.VolumeCreateOptions{})
 	assert.NilError(t, err)
 
 	// Create a named volume
-	vNamed, err := apiClient.VolumeCreate(ctx, volume.CreateOptions{
+	vNamed, err := apiClient.VolumeCreate(ctx, client.VolumeCreateOptions{
 		Name: "test",
 	})
 	assert.NilError(t, err)
@@ -279,7 +279,7 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Prune all volumes
-	_, err = apiClient.VolumeCreate(ctx, volume.CreateOptions{})
+	_, err = apiClient.VolumeCreate(ctx, client.VolumeCreateOptions{})
 	assert.NilError(t, err)
 
 	res, err = apiClient.VolumesPrune(ctx, client.VolumePruneOptions{
@@ -294,9 +294,9 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	defer clientOld.Close()
 	assert.Equal(t, clientOld.ClientVersion(), "1.41")
 
-	v, err = apiClient.VolumeCreate(ctx, volume.CreateOptions{})
+	v, err = apiClient.VolumeCreate(ctx, client.VolumeCreateOptions{})
 	assert.NilError(t, err)
-	vNamed, err = apiClient.VolumeCreate(ctx, volume.CreateOptions{Name: "test-api141"})
+	vNamed, err = apiClient.VolumeCreate(ctx, client.VolumeCreateOptions{Name: "test-api141"})
 	assert.NilError(t, err)
 
 	res, err = clientOld.VolumesPrune(ctx, client.VolumePruneOptions{})

@@ -17,13 +17,13 @@ import (
 	"github.com/moby/moby/api/types/events"
 	enginemount "github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
-	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/v2/daemon/cluster/convert"
 	executorpkg "github.com/moby/moby/v2/daemon/cluster/executor"
 	clustertypes "github.com/moby/moby/v2/daemon/cluster/provider"
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
+	"github.com/moby/moby/v2/daemon/server/volumebackend"
 	"github.com/moby/moby/v2/internal/sliceutil"
 	"github.com/moby/swarmkit/v2/agent/exec"
 	"github.com/moby/swarmkit/v2/api"
@@ -474,7 +474,7 @@ func (c *containerConfig) hostConfig(deps exec.VolumeGetter) *container.HostConf
 }
 
 // This handles the case of volumes that are defined inside a service Mount
-func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *volume.CreateOptions {
+func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *volumebackend.CreateOptions {
 	var (
 		driverName string
 		driverOpts map[string]string
@@ -488,7 +488,7 @@ func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *volume.CreateOp
 	}
 
 	if mount.VolumeOptions != nil {
-		return &volume.CreateOptions{
+		return &volumebackend.CreateOptions{
 			Name:       mount.Source,
 			Driver:     driverName,
 			DriverOpts: driverOpts,

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	volumetypes "github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/v2/daemon/server/volumebackend"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 
 	"gotest.tools/v3/assert"
@@ -123,7 +124,7 @@ func TestAccessModeFromGRPC(t *testing.T) {
 // TestVolumeCreateToGRPC tests that a docker-typed VolumeCreateBody is
 // correctly converted to a swarm-typed VolumeSpec.
 func TestVolumeCreateToGRPC(t *testing.T) {
-	volume := &volumetypes.CreateOptions{
+	volume := &volumebackend.CreateOptions{
 		Driver:     "plug1",
 		DriverOpts: map[string]string{"options": "yeah"},
 		Labels:     map[string]string{"labeled": "yeah"},

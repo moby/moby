@@ -8,7 +8,6 @@ import (
 	"io"
 	"testing"
 
-	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/integration/internal/requirement"
@@ -67,7 +66,7 @@ func TestAuthZPluginV2Disable(t *testing.T) {
 	d.Restart(t, "--authorization-plugin="+authzPluginNameWithTag)
 	d.LoadBusybox(ctx, t)
 
-	_, err = c.VolumeCreate(ctx, volume.CreateOptions{Driver: "local"})
+	_, err = c.VolumeCreate(ctx, client.VolumeCreateOptions{Driver: "local"})
 	assert.Assert(t, err != nil)
 	assert.ErrorContains(t, err, fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag))
 
@@ -76,7 +75,7 @@ func TestAuthZPluginV2Disable(t *testing.T) {
 	assert.NilError(t, err)
 
 	// now test to see if the docker api works.
-	_, err = c.VolumeCreate(ctx, volume.CreateOptions{Driver: "local"})
+	_, err = c.VolumeCreate(ctx, client.VolumeCreateOptions{Driver: "local"})
 	assert.NilError(t, err)
 }
 
@@ -93,7 +92,7 @@ func TestAuthZPluginV2RejectVolumeRequests(t *testing.T) {
 	// restart the daemon with the plugin
 	d.Restart(t, "--authorization-plugin="+authzPluginNameWithTag)
 
-	_, err = c.VolumeCreate(ctx, volume.CreateOptions{Driver: "local"})
+	_, err = c.VolumeCreate(ctx, client.VolumeCreateOptions{Driver: "local"})
 	assert.Assert(t, err != nil)
 	assert.ErrorContains(t, err, fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag))
 
