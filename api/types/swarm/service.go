@@ -35,12 +35,7 @@ type ServiceSpec struct {
 	Mode           ServiceMode   `json:",omitempty"`
 	UpdateConfig   *UpdateConfig `json:",omitempty"`
 	RollbackConfig *UpdateConfig `json:",omitempty"`
-
-	// Networks specifies which networks the service should attach to.
-	//
-	// Deprecated: This field is deprecated since v1.44. The Networks field in TaskSpec should be used instead.
-	Networks     []NetworkAttachmentConfig `json:",omitempty"`
-	EndpointSpec *EndpointSpec             `json:",omitempty"`
+	EndpointSpec   *EndpointSpec `json:",omitempty"`
 }
 
 // ServiceMode represents the mode of a service.
