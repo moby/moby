@@ -6,19 +6,32 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"net/http"
 	"net/url"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
 	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/client/internal"
+	"github.com/moby/moby/client/pkg/jsonmessage"
 )
+
+type ImagePushResponse interface {
+	io.ReadCloser
+	JSONMessages(ctx context.Context) iter.Seq2[jsonmessage.JSONMessage, error]
+	Wait(ctx context.Context) error
+}
 
 // ImagePush requests the docker host to push an image to a remote registry.
 // It executes the privileged function if the operation is unauthorized
 // and it tries one more time.
-// It's up to the caller to handle the [io.ReadCloser] and close it.
-func (cli *Client) ImagePush(ctx context.Context, image string, options ImagePushOptions) (io.ReadCloser, error) {
+// Callers can
+// - use [ImagePushResponse.Wait] to wait for push to complete
+// - use [ImagePushResponse.JSONMessages] to monitor pull progress as a sequence
+//   of JSONMessages, [ImagePushResponse.Close] does not need to be called in this case.
+// - use the [io.Reader] interface and call [ImagePushResponse.Close] after processing.
+func (cli *Client) ImagePush(ctx context.Context, image string, options ImagePushOptions) (ImagePushResponse, error) {
 	ref, err := reference.ParseNormalizedNamed(image)
 	if err != nil {
 		return nil, err
@@ -57,7 +70,7 @@ func (cli *Client) ImagePush(ctx context.Context, image string, options ImagePus
 	if err != nil {
 		return nil, err
 	}
-	return resp.Body, nil
+	return internal.NewJSONMessageStream(resp.Body), nil
 }
 
 func (cli *Client) tryImagePush(ctx context.Context, imageID string, query url.Values, resolveAuth registry.RequestAuthConfig) (*http.Response, error) {
