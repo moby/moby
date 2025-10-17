@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -12,26 +11,6 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
-
-func TestRawProgressFormatterFormatStatus(t *testing.T) {
-	sf := rawProgressFormatter{}
-	res := sf.formatStatus("ID", "%s%d", "a", 1)
-	assert.Check(t, is.Equal("a1\r\n", string(res)))
-}
-
-func TestRawProgressFormatterFormatProgress(t *testing.T) {
-	sf := rawProgressFormatter{}
-	jsonProgress := &jsonstream.Progress{
-		Current: 15,
-		Total:   30,
-		Start:   1,
-	}
-	res := sf.formatProgress("id", "action", jsonProgress, nil)
-	out := string(res)
-	assert.Check(t, strings.HasPrefix(out, "action [===="))
-	assert.Check(t, is.Contains(out, "15B/30B"))
-	assert.Check(t, strings.HasSuffix(out, "\r"))
-}
 
 func TestFormatStatus(t *testing.T) {
 	res := FormatStatus("ID", "%s%d", "a", 1)
@@ -41,14 +20,14 @@ func TestFormatStatus(t *testing.T) {
 
 func TestFormatError(t *testing.T) {
 	res := FormatError(errors.New("Error for formatter"))
-	expected := `{"errorDetail":{"message":"Error for formatter"},"error":"Error for formatter"}` + "\r\n"
+	expected := `{"error":"Error for formatter","errorDetail":{"message":"Error for formatter"}}` + "\r\n"
 	assert.Check(t, is.Equal(expected, string(res)))
 }
 
 func TestFormatJSONError(t *testing.T) {
 	err := &jsonstream.Error{Code: 50, Message: "Json error"}
 	res := FormatError(err)
-	expected := `{"errorDetail":{"code":50,"message":"Json error"},"error":"Json error"}` + streamNewline
+	expected := `{"error":"Json error","errorDetail":{"code":50,"message":"Json error"}}` + streamNewline
 	assert.Check(t, is.Equal(expected, string(res)))
 }
 
@@ -61,12 +40,12 @@ func TestJsonProgressFormatterFormatProgress(t *testing.T) {
 	}
 	aux := "aux message"
 	res := sf.formatProgress("id", "action", jsonProgress, aux)
-	msg := &jsonMessage{}
+	msg := &jsonstream.Message{}
 
 	assert.NilError(t, json.Unmarshal(res, msg))
 
 	rawAux := json.RawMessage(`"` + aux + `"`)
-	expected := &jsonMessage{
+	expected := &jsonstream.Message{
 		ID:       "id",
 		Status:   "action",
 		Aux:      &rawAux,
