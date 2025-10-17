@@ -147,7 +147,7 @@ func (v *volumeRouter) putVolumesUpdate(ctx context.Context, w http.ResponseWrit
 		return errdefs.InvalidParameter(err)
 	}
 
-	var req volume.UpdateOptions
+	var req volumebackend.UpdateOptions
 	if err := httputils.ReadJSON(r, &req); err != nil {
 		return err
 	}

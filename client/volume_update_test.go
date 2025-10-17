@@ -11,7 +11,6 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/swarm"
-	volumetypes "github.com/moby/moby/api/types/volume"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -20,14 +19,14 @@ func TestVolumeUpdateError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	err = client.VolumeUpdate(context.Background(), "volume", swarm.Version{}, volumetypes.UpdateOptions{})
+	err = client.VolumeUpdate(context.Background(), "volume", swarm.Version{}, VolumeUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.VolumeUpdate(context.Background(), "", swarm.Version{}, volumetypes.UpdateOptions{})
+	err = client.VolumeUpdate(context.Background(), "", swarm.Version{}, VolumeUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.VolumeUpdate(context.Background(), "    ", swarm.Version{}, volumetypes.UpdateOptions{})
+	err = client.VolumeUpdate(context.Background(), "    ", swarm.Version{}, VolumeUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -52,6 +51,6 @@ func TestVolumeUpdate(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	err = client.VolumeUpdate(context.Background(), "test1", swarm.Version{Index: uint64(10)}, volumetypes.UpdateOptions{})
+	err = client.VolumeUpdate(context.Background(), "test1", swarm.Version{Index: uint64(10)}, VolumeUpdateOptions{})
 	assert.NilError(t, err)
 }

@@ -28,6 +28,6 @@ type ClusterBackend interface {
 	GetVolumes(options volumebackend.ListOptions) ([]*volume.Volume, error)
 	CreateVolume(volume volume.CreateOptions) (*volume.Volume, error)
 	RemoveVolume(nameOrID string, force bool) error
-	UpdateVolume(nameOrID string, version uint64, volume volume.UpdateOptions) error
+	UpdateVolume(nameOrID string, version uint64, volume volumebackend.UpdateOptions) error
 	IsManager() bool
 }
