@@ -19,14 +19,14 @@ func TestConfigUpdateError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.ConfigUpdate(context.Background(), "config_id", swarm.Version{}, swarm.ConfigSpec{})
+	_, err = client.ConfigUpdate(context.Background(), "config_id", ConfigUpdateOptions{Version: swarm.Version{}, Config: swarm.ConfigSpec{}})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.ConfigUpdate(context.Background(), "", swarm.Version{}, swarm.ConfigSpec{})
+	_, err = client.ConfigUpdate(context.Background(), "", ConfigUpdateOptions{Version: swarm.Version{}, Config: swarm.ConfigSpec{}})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.ConfigUpdate(context.Background(), "    ", swarm.Version{}, swarm.ConfigSpec{})
+	_, err = client.ConfigUpdate(context.Background(), "    ", ConfigUpdateOptions{Version: swarm.Version{}, Config: swarm.ConfigSpec{}})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -47,6 +47,6 @@ func TestConfigUpdate(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.ConfigUpdate(context.Background(), "config_id", swarm.Version{}, swarm.ConfigSpec{})
+	_, err = client.ConfigUpdate(context.Background(), "config_id", ConfigUpdateOptions{Version: swarm.Version{}, Config: swarm.ConfigSpec{}})
 	assert.NilError(t, err)
 }

@@ -21,7 +21,7 @@ func TestConfigInspectNotFound(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, _, err = client.ConfigInspectWithRaw(context.Background(), "unknown")
+	_, err = client.ConfigInspect(context.Background(), "unknown", ConfigInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
@@ -32,11 +32,11 @@ func TestConfigInspectWithEmptyID(t *testing.T) {
 		}),
 	)
 	assert.NilError(t, err)
-	_, _, err = client.ConfigInspectWithRaw(context.Background(), "")
+	_, err = client.ConfigInspect(context.Background(), "", ConfigInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, _, err = client.ConfigInspectWithRaw(context.Background(), "    ")
+	_, err = client.ConfigInspect(context.Background(), "    ", ConfigInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -47,7 +47,7 @@ func TestConfigInspectError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, _, err = client.ConfigInspectWithRaw(context.Background(), "nothing")
+	_, err = client.ConfigInspect(context.Background(), "nothing", ConfigInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -57,7 +57,7 @@ func TestConfigInspectConfigNotFound(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, _, err = client.ConfigInspectWithRaw(context.Background(), "unknown")
+	_, err = client.ConfigInspect(context.Background(), "unknown", ConfigInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
@@ -82,7 +82,7 @@ func TestConfigInspect(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	configInspect, _, err := client.ConfigInspectWithRaw(context.Background(), "config_id")
+	result, err := client.ConfigInspect(context.Background(), "config_id", ConfigInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(configInspect.ID, "config_id"))
+	assert.Check(t, is.Equal(result.Config.ID, "config_id"))
 }

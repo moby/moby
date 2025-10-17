@@ -246,7 +246,9 @@ func TestTemplatedSecret(t *testing.T) {
 		},
 		Data: []byte("this is a config"),
 	}
-	referencedConfig, err := c.ConfigCreate(ctx, referencedConfigSpec)
+	referencedConfigResult, err := c.ConfigCreate(ctx, client.ConfigCreateOptions{
+		Config: referencedConfigSpec,
+	})
 	assert.Check(t, err)
 
 	templatedSecretName := "templated_secret_" + t.Name()
@@ -287,7 +289,7 @@ func TestTemplatedSecret(t *testing.T) {
 					GID:  "0",
 					Mode: 0o600,
 				},
-				ConfigID:   referencedConfig.ID,
+				ConfigID:   referencedConfigResult.Response.ID,
 				ConfigName: referencedConfigName,
 			},
 		),
