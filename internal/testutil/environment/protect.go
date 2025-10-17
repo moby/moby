@@ -231,7 +231,7 @@ func getExistingVolumes(ctx context.Context, t testing.TB, testEnv *Execution) [
 	assert.NilError(t, err, "failed to list volumes")
 
 	var volumes []string
-	for _, vol := range volumeList.Volumes {
+	for _, vol := range volumeList.Response.Volumes {
 		volumes = append(volumes, vol.Name)
 	}
 	return volumes
