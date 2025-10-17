@@ -662,13 +662,13 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	if warn := handleVolumeDriverBC(version, hostConfig); warn != "" {
 		warnings = append(warnings, warn)
 	}
-	if warn, err := handleMACAddressBC(config, hostConfig, networkingConfig, version); err != nil {
+	if warn, err := handleMACAddressBC(config, hostConfig, &networkingConfig, version); err != nil {
 		return err
 	} else if warn != "" {
 		warnings = append(warnings, warn)
 	}
 
-	if warn, err := handleSysctlBC(hostConfig, networkingConfig, version); err != nil {
+	if warn, err := handleSysctlBC(hostConfig, &networkingConfig, version); err != nil {
 		return err
 	} else if warn != "" {
 		warnings = append(warnings, warn)
@@ -731,7 +731,7 @@ func handleVolumeDriverBC(version string, hostConfig *container.HostConfig) (war
 // handleMACAddressBC takes care of backward-compatibility for the container-wide MAC address by mutating the
 // networkingConfig to set the endpoint-specific MACAddress field introduced in API v1.44. It returns a warning message
 // or an error if the container-wide field was specified for API >= v1.44.
-func handleMACAddressBC(config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, version string) (string, error) {
+func handleMACAddressBC(config *container.Config, hostConfig *container.HostConfig, networkingConfig *container.NetworkingAttachOptions, version string) (string, error) {
 	deprecatedMacAddress := config.MacAddress //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
 
 	// For older versions of the API, migrate the container-wide MAC address to EndpointsConfig.
@@ -807,7 +807,7 @@ func handleMACAddressBC(config *container.Config, hostConfig *container.HostConf
 // A warning is generated when settings are migrated.
 func handleSysctlBC(
 	hostConfig *container.HostConfig,
-	netConfig *network.NetworkingConfig,
+	netConfig *container.NetworkingAttachOptions,
 	version string,
 ) (string, error) {
 	if !hostConfig.NetworkMode.IsPrivate() {
@@ -928,16 +928,16 @@ func handlePortBindingsBC(hostConfig *container.HostConfig, version string) stri
 func epConfigForNetMode(
 	version string,
 	nwMode container.NetworkMode,
-	netConfig *network.NetworkingConfig,
-) (*network.EndpointSettings, error) {
+	netConfig *container.NetworkingAttachOptions,
+) (*container.EndpointSettings, error) {
 	nwName := nwMode.NetworkName()
 
 	// It's always safe to create an EndpointsConfig entry under nwName if there are
 	// no entries already (because there can't be an entry for this network nwName
 	// refers to under any other name/short-id/id).
 	if len(netConfig.EndpointsConfig) == 0 {
-		es := &network.EndpointSettings{}
-		netConfig.EndpointsConfig = map[string]*network.EndpointSettings{
+		es := &container.EndpointSettings{}
+		netConfig.EndpointsConfig = map[string]*container.EndpointSettings{
 			nwName: es,
 		}
 		return es, nil

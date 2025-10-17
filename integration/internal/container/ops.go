@@ -153,10 +153,10 @@ func WithTmpfs(targetAndOpts string) func(config *TestContainerConfig) {
 func WithMacAddress(networkName, mac string) func(config *TestContainerConfig) {
 	return func(c *TestContainerConfig) {
 		if c.NetworkingConfig.EndpointsConfig == nil {
-			c.NetworkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{}
+			c.NetworkingConfig.EndpointsConfig = map[string]*container.EndpointSettings{}
 		}
 		if v, ok := c.NetworkingConfig.EndpointsConfig[networkName]; !ok || v == nil {
-			c.NetworkingConfig.EndpointsConfig[networkName] = &network.EndpointSettings{}
+			c.NetworkingConfig.EndpointsConfig[networkName] = &container.EndpointSettings{}
 		}
 		c.NetworkingConfig.EndpointsConfig[networkName].MacAddress = mac
 	}
@@ -166,10 +166,10 @@ func WithMacAddress(networkName, mac string) func(config *TestContainerConfig) {
 func WithIPv4(networkName, ip string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
 		if c.NetworkingConfig.EndpointsConfig == nil {
-			c.NetworkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{}
+			c.NetworkingConfig.EndpointsConfig = map[string]*container.EndpointSettings{}
 		}
 		if v, ok := c.NetworkingConfig.EndpointsConfig[networkName]; !ok || v == nil {
-			c.NetworkingConfig.EndpointsConfig[networkName] = &network.EndpointSettings{}
+			c.NetworkingConfig.EndpointsConfig[networkName] = &container.EndpointSettings{}
 		}
 		if c.NetworkingConfig.EndpointsConfig[networkName].IPAMConfig == nil {
 			c.NetworkingConfig.EndpointsConfig[networkName].IPAMConfig = &network.EndpointIPAMConfig{}
@@ -182,10 +182,10 @@ func WithIPv4(networkName, ip string) func(*TestContainerConfig) {
 func WithIPv6(networkName, ip string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
 		if c.NetworkingConfig.EndpointsConfig == nil {
-			c.NetworkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{}
+			c.NetworkingConfig.EndpointsConfig = map[string]*container.EndpointSettings{}
 		}
 		if v, ok := c.NetworkingConfig.EndpointsConfig[networkName]; !ok || v == nil {
-			c.NetworkingConfig.EndpointsConfig[networkName] = &network.EndpointSettings{}
+			c.NetworkingConfig.EndpointsConfig[networkName] = &container.EndpointSettings{}
 		}
 		if c.NetworkingConfig.EndpointsConfig[networkName].IPAMConfig == nil {
 			c.NetworkingConfig.EndpointsConfig[networkName].IPAMConfig = &network.EndpointIPAMConfig{}
@@ -194,10 +194,10 @@ func WithIPv6(networkName, ip string) func(*TestContainerConfig) {
 	}
 }
 
-func WithEndpointSettings(nw string, config *network.EndpointSettings) func(*TestContainerConfig) {
+func WithEndpointSettings(nw string, config *container.EndpointSettings) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
 		if c.NetworkingConfig.EndpointsConfig == nil {
-			c.NetworkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{}
+			c.NetworkingConfig.EndpointsConfig = map[string]*container.EndpointSettings{}
 		}
 		if _, ok := c.NetworkingConfig.EndpointsConfig[nw]; !ok {
 			c.NetworkingConfig.EndpointsConfig[nw] = config

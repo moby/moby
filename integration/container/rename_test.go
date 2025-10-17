@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"gotest.tools/v3/assert"
@@ -118,7 +117,7 @@ func TestRenameAnonymousContainer(t *testing.T) {
 
 	assert.NilError(t, err)
 	cID := container.Run(ctx, t, apiClient, func(c *container.TestContainerConfig) {
-		c.NetworkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{
+		c.NetworkingConfig.EndpointsConfig = map[string]*containertypes.EndpointSettings{
 			networkName: {},
 		}
 		c.HostConfig.NetworkMode = containertypes.NetworkMode(networkName)
@@ -139,7 +138,7 @@ func TestRenameAnonymousContainer(t *testing.T) {
 		count = "-n"
 	}
 	cID = container.Run(ctx, t, apiClient, func(c *container.TestContainerConfig) {
-		c.NetworkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{
+		c.NetworkingConfig.EndpointsConfig = map[string]*containertypes.EndpointSettings{
 			networkName: {},
 		}
 		c.HostConfig.NetworkMode = containertypes.NetworkMode(networkName)

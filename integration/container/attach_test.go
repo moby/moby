@@ -6,7 +6,6 @@ import (
 
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	systemutil "github.com/moby/moby/v2/integration/internal/system"
 	"github.com/moby/moby/v2/internal/testutil"
@@ -47,8 +46,8 @@ func TestAttach(t *testing.T) {
 					Cmd:   []string{"echo", "hello"},
 					Tty:   tc.tty,
 				},
-				&container.HostConfig{},
-				&network.NetworkingConfig{},
+				nil,
+				nil,
 				nil,
 				"",
 			)
@@ -86,8 +85,8 @@ func TestAttachDisconnectLeak(t *testing.T) {
 			Image: "busybox",
 			Cmd:   []string{"/bin/sh", "-c", "while true; usleep 100000; done"},
 		},
-		&container.HostConfig{},
-		&network.NetworkingConfig{},
+		nil,
+		nil,
 		nil,
 		"",
 	)

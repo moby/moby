@@ -254,7 +254,27 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 
 	var endpointsConfigs map[string]*networktypes.EndpointSettings
 	if opts.params.NetworkingConfig != nil {
-		endpointsConfigs = opts.params.NetworkingConfig.EndpointsConfig
+		endpointsConfigs = make(map[string]*networktypes.EndpointSettings, len(opts.params.NetworkingConfig.EndpointsConfig))
+		for n, v := range opts.params.NetworkingConfig.EndpointsConfig {
+			// TODO(thaJeztah): deep copy / de-reference?
+			endpointsConfigs[n] = &networktypes.EndpointSettings{
+				IPAMConfig:          v.IPAMConfig,
+				Links:               v.Links,
+				Aliases:             v.Aliases,
+				DriverOpts:          v.DriverOpts,
+				GwPriority:          v.GwPriority,
+				NetworkID:           v.NetworkID,
+				EndpointID:          v.EndpointID,
+				Gateway:             v.Gateway,
+				IPAddress:           v.IPAddress,
+				MacAddress:          v.MacAddress,
+				IPPrefixLen:         v.IPPrefixLen,
+				IPv6Gateway:         v.IPv6Gateway,
+				GlobalIPv6Address:   v.GlobalIPv6Address,
+				GlobalIPv6PrefixLen: v.GlobalIPv6PrefixLen,
+				DNSNames:            v.DNSNames,
+			}
+		}
 	}
 	// Make sure NetworkMode has an acceptable value. We do this to ensure
 	// backwards API compatibility.
@@ -353,7 +373,7 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *i
 }
 
 // validateNetworkingConfig checks whether a container's NetworkingConfig is valid.
-func (daemon *Daemon) validateNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
+func (daemon *Daemon) validateNetworkingConfig(nwConfig *containertypes.NetworkingAttachOptions) error {
 	if nwConfig == nil {
 		return nil
 	}

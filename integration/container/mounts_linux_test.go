@@ -67,7 +67,7 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 	assert.NilError(t, err)
 	defer cli.Close()
 
-	ctrCreate, err := cli.ContainerCreate(ctx, &config, &hostConfig, &network.NetworkingConfig{}, nil, "")
+	ctrCreate, err := cli.ContainerCreate(ctx, &config, &hostConfig, nil, nil, "")
 	assert.NilError(t, err)
 	// container will exit immediately because of no tty, but we only need the start sequence to test the condition
 	err = cli.ContainerStart(ctx, ctrCreate.ID, client.ContainerStartOptions{})
