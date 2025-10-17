@@ -19,7 +19,7 @@ func TestPluginListError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.PluginList(context.Background(), nil)
+	_, err = client.PluginList(context.Background(), PluginListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -85,7 +85,9 @@ func TestPluginList(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 
-		plugins, err := client.PluginList(context.Background(), listCase.filters)
+		plugins, err := client.PluginList(context.Background(), PluginListOptions{
+			Filters: listCase.filters,
+		})
 		assert.NilError(t, err)
 		assert.Check(t, is.Len(plugins, 2))
 	}

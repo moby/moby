@@ -162,7 +162,7 @@ func deleteAllNetworks(ctx context.Context, t testing.TB, c client.NetworkAPICli
 
 func deleteAllPlugins(ctx context.Context, t testing.TB, c client.PluginAPIClient, protectedPlugins map[string]struct{}) {
 	t.Helper()
-	plugins, err := c.PluginList(ctx, nil)
+	plugins, err := c.PluginList(ctx, client.PluginListOptions{})
 	// Docker EE does not allow cluster-wide plugin management.
 	if cerrdefs.IsNotImplemented(err) {
 		return
