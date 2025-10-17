@@ -168,7 +168,7 @@ ARG GOTESTSUM_VERSION=v1.13.0
 
 # GOWINRES_VERSION is the version of go-winres to install.
 ARG GOWINRES_VERSION=v0.3.3
-ARG CONTAINERD_VERSION=v1.7.28
+ARG CONTAINERD_VERSION=v2.0.6
 
 # Environment variable notes:
 #  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
