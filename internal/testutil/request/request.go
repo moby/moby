@@ -105,12 +105,6 @@ func Do(ctx context.Context, endpoint string, modifiers ...func(*Options)) (*htt
 	return resp, body, err
 }
 
-// ReadBody read the specified ReadCloser content and returns it
-func ReadBody(b io.ReadCloser) ([]byte, error) {
-	defer b.Close()
-	return io.ReadAll(b)
-}
-
 // newRequest creates a new http Request to the specified host and endpoint, with the specified request modifiers
 func newRequest(endpoint string, opts *Options) (*http.Request, error) {
 	hostURL, err := client.ParseHostURL(opts.host)
