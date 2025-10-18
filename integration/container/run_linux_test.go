@@ -422,13 +422,13 @@ func TestCgroupRW(t *testing.T) {
 		},
 		{
 			name: "writable",
-			ops:  []func(*container.TestContainerConfig){container.WithSecurityOpt("writable-cgroups")},
+			ops:  []func(*container.TestContainerConfig){container.WithSecurityOpt("writable-cgroups"), container.WithSecurityOpt("label=disable")},
 			// no err msg, because this is correct key=bool
 			expectedExitCode: 0,
 		},
 		{
 			name: "writable=true",
-			ops:  []func(*container.TestContainerConfig){container.WithSecurityOpt("writable-cgroups=true")},
+			ops:  []func(*container.TestContainerConfig){container.WithSecurityOpt("writable-cgroups=true"), container.WithSecurityOpt("label=disable")},
 			// no err msg, because this is correct key=value
 			expectedExitCode: 0,
 		},
@@ -445,7 +445,7 @@ func TestCgroupRW(t *testing.T) {
 		},
 		{
 			name:           "writable=1",
-			ops:            []func(*container.TestContainerConfig){container.WithSecurityOpt("writable-cgroups=1")},
+			ops:            []func(*container.TestContainerConfig){container.WithSecurityOpt("writable-cgroups=1"), container.WithSecurityOpt("label=disable")},
 			expectedErrMsg: `Error response from daemon: invalid --security-opt 2: "writable-cgroups=1"`,
 		},
 		{

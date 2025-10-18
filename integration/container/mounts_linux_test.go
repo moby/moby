@@ -361,7 +361,7 @@ func TestContainerVolumesMountedAsSlave(t *testing.T) {
 	topCmd := []string{"top"}
 
 	apiClient := testEnv.APIClient()
-	containerID := container.Run(ctx, t, apiClient, container.WithTty(true), container.WithMount(slaveMount), container.WithCmd(topCmd...))
+	containerID := container.Run(ctx, t, apiClient, container.WithTty(true), container.WithMount(slaveMount), container.WithCmd(topCmd...), container.WithSecurityOpt("label=disable"))
 
 	// Bind mount tmpDir2/ onto tmpDir1/mnt1. If mount propagates inside
 	// container then contents of tmpDir2/slave-testfile should become
@@ -608,15 +608,15 @@ func TestContainerBindMountRecursivelyReadOnly(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	containers := []string{
-		container.Run(ctx, t, apiClient, container.WithMount(ro), container.WithCmd(roVerifier...)),
-		container.Run(ctx, t, apiClient, container.WithBindRaw(roAsStr), container.WithCmd(roVerifier...)),
+		container.Run(ctx, t, apiClient, container.WithMount(ro), container.WithCmd(roVerifier...), container.WithSecurityOpt("label=disable")),
+		container.Run(ctx, t, apiClient, container.WithBindRaw(roAsStr), container.WithCmd(roVerifier...), container.WithSecurityOpt("label=disable")),
 
-		container.Run(ctx, t, apiClient, container.WithMount(nonRecursive), container.WithCmd(nonRecursiveVerifier...)),
+		container.Run(ctx, t, apiClient, container.WithMount(nonRecursive), container.WithCmd(nonRecursiveVerifier...), container.WithSecurityOpt("label=disable")),
 	}
 
 	if rroSupported {
 		containers = append(containers,
-			container.Run(ctx, t, apiClient, container.WithMount(forceRecursive), container.WithCmd(forceRecursiveVerifier...)),
+			container.Run(ctx, t, apiClient, container.WithMount(forceRecursive), container.WithCmd(forceRecursiveVerifier...), container.WithSecurityOpt("label=disable")),
 		)
 	}
 
