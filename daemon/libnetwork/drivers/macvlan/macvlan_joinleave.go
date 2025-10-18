@@ -29,9 +29,11 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	if err != nil {
 		return err
 	}
-	endpoint := n.endpoint(eid)
-	if endpoint == nil {
-		return fmt.Errorf("could not find endpoint with id %s", eid)
+
+	// TODO(thaJeztah): why are we fetching the endpoint twice?
+	endpoint, err := n.endpoint(eid)
+	if err != nil {
+		return err
 	}
 	// generate a name for the iface that will be renamed to eth0 in the sbox
 	containerIfName, err := netutils.GenerateIfaceName(ns.NlHandle(), vethPrefix, vethLen)
@@ -45,9 +47,9 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	}
 	// bind the generated iface name to the endpoint
 	endpoint.srcName = vethName
-	ep := n.endpoint(eid)
-	if ep == nil {
-		return fmt.Errorf("could not find endpoint with id %s", eid)
+	ep, err := n.endpoint(eid)
+	if err != nil {
+		return err
 	}
 	// parse and match the endpoint address with the available v4 subnets
 	if !n.config.Internal {
@@ -125,18 +127,6 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
 func (d *driver) Leave(nid, eid string) error {
-	network, err := d.getNetwork(nid)
-	if err != nil {
-		return err
-	}
-	endpoint, err := network.getEndpoint(eid)
-	if err != nil {
-		return err
-	}
-	if endpoint == nil {
-		return fmt.Errorf("could not find endpoint with id %s", eid)
-	}
-
 	return nil
 }
 
