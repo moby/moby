@@ -18,15 +18,9 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-type staticRoute struct {
-	Destination *net.IPNet
-	RouteType   types.RouteType
-	NextHop     net.IP
-}
-
-const (
-	defaultV4RouteCidr = "0.0.0.0/0"
-	defaultV6RouteCidr = "::/0"
+var (
+	defaultV4Net = &net.IPNet{IP: net.IPv4zero, Mask: net.CIDRMask(0, 32)}  // "0.0.0.0/0"
+	defaultV6Net = &net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 128)} // "::/0"
 )
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
@@ -41,9 +35,11 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	if err != nil {
 		return err
 	}
-	endpoint := n.endpoint(eid)
-	if endpoint == nil {
-		return fmt.Errorf("could not find endpoint with id %s", eid)
+
+	// TODO(thaJeztah): why are we fetching the endpoint twice?
+	endpoint, err := n.endpoint(eid)
+	if err != nil {
+		return err
 	}
 	// generate a name for the iface that will be renamed to eth0 in the sbox
 	containerIfName, err := netutils.GenerateIfaceName(ns.NlHandle(), vethPrefix, vethLen)
@@ -57,9 +53,9 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	}
 	// bind the generated iface name to the endpoint
 	endpoint.srcName = vethName
-	ep := n.endpoint(eid)
-	if ep == nil {
-		return fmt.Errorf("could not find endpoint with id %s", eid)
+	ep, err := n.endpoint(eid)
+	if err != nil {
+		return err
 	}
 	if !n.config.Internal {
 		switch n.config.IpvlanMode {
@@ -67,11 +63,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 			// disable gateway services to add a default gw using dev eth0 only
 			jinfo.DisableGatewayService()
 			if ep.addr != nil {
-				defaultRoute, err := ifaceGateway(defaultV4RouteCidr)
-				if err != nil {
-					return err
-				}
-				if err := jinfo.AddStaticRoute(defaultRoute.Destination, defaultRoute.RouteType, defaultRoute.NextHop); err != nil {
+				if err := jinfo.AddStaticRoute(defaultV4Net, types.CONNECTED, nil); err != nil {
 					return fmt.Errorf("failed to set an ipvlan l3/l3s mode ipv4 default gateway: %v", err)
 				}
 				log.G(ctx).Debugf("Ipvlan Endpoint Joined with IPv4_Addr: %s, Ipvlan_Mode: %s, Parent: %s",
@@ -79,11 +71,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 			}
 			// If the endpoint has a v6 address, set a v6 default route
 			if ep.addrv6 != nil {
-				default6Route, err := ifaceGateway(defaultV6RouteCidr)
-				if err != nil {
-					return err
-				}
-				if err = jinfo.AddStaticRoute(default6Route.Destination, default6Route.RouteType, default6Route.NextHop); err != nil {
+				if err := jinfo.AddStaticRoute(defaultV6Net, types.CONNECTED, nil); err != nil {
 					return fmt.Errorf("failed to set an ipvlan l3/l3s mode ipv6 default gateway: %v", err)
 				}
 				log.G(ctx).Debugf("Ipvlan Endpoint Joined with IPv6_Addr: %s, Ipvlan_Mode: %s, Parent: %s",
@@ -166,34 +154,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
 func (d *driver) Leave(nid, eid string) error {
-	network, err := d.getNetwork(nid)
-	if err != nil {
-		return err
-	}
-	endpoint, err := network.getEndpoint(eid)
-	if err != nil {
-		return err
-	}
-	if endpoint == nil {
-		return fmt.Errorf("could not find endpoint with id %s", eid)
-	}
-
 	return nil
-}
-
-// ifaceGateway returns a static route for either v4/v6 to be set to the container eth0
-func ifaceGateway(dfNet string) (*staticRoute, error) {
-	nh, dst, err := net.ParseCIDR(dfNet)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse default route %v", err)
-	}
-	defaultRoute := &staticRoute{
-		Destination: dst,
-		RouteType:   types.CONNECTED,
-		NextHop:     nh,
-	}
-
-	return defaultRoute, nil
 }
 
 // getSubnetforIPv4 returns the ipv4 subnet to which the given IP belongs
