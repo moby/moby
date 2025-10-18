@@ -479,12 +479,6 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 		}
 	}
 
-	var sharedSize bool
-	if versions.GreaterThanOrEqualTo(version, "1.42") {
-		// NOTE: Support for the "shared-size" parameter was added in API 1.42.
-		sharedSize = httputils.BoolValue(r, "shared-size")
-	}
-
 	var manifests bool
 	if versions.GreaterThanOrEqualTo(version, "1.47") {
 		manifests = httputils.BoolValue(r, "manifests")
@@ -493,29 +487,21 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 	images, err := ir.backend.Images(ctx, imagebackend.ListOptions{
 		All:        httputils.BoolValue(r, "all"),
 		Filters:    imageFilters,
-		SharedSize: sharedSize,
+		SharedSize: httputils.BoolValue(r, "shared-size"),
 		Manifests:  manifests,
 	})
 	if err != nil {
 		return err
 	}
 
-	useNone := versions.LessThan(version, "1.43")
 	noDescriptor := versions.LessThan(version, "1.48")
 	noContainers := versions.LessThan(version, "1.51")
 	for _, img := range images {
-		if useNone {
-			if len(img.RepoTags) == 0 && len(img.RepoDigests) == 0 {
-				img.RepoTags = append(img.RepoTags, "<none>:<none>")
-				img.RepoDigests = append(img.RepoDigests, "<none>@<none>")
-			}
-		} else {
-			if img.RepoTags == nil {
-				img.RepoTags = []string{}
-			}
-			if img.RepoDigests == nil {
-				img.RepoDigests = []string{}
-			}
+		if img.RepoTags == nil {
+			img.RepoTags = []string{}
+		}
+		if img.RepoDigests == nil {
+			img.RepoDigests = []string{}
 		}
 		if noDescriptor {
 			img.Descriptor = nil
