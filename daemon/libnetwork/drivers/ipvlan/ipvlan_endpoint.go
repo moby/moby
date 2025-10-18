@@ -68,9 +68,9 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	if n == nil {
 		return fmt.Errorf("network id %q not found", nid)
 	}
-	ep := n.endpoint(eid)
-	if ep == nil {
-		return fmt.Errorf("endpoint id %q not found", eid)
+	ep, err := n.endpoint(eid)
+	if err != nil {
+		return err
 	}
 	if link, err := ns.NlHandle().LinkByName(ep.srcName); err == nil {
 		if err := ns.NlHandle().LinkDel(link); err != nil {

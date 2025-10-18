@@ -39,9 +39,9 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	if err != nil {
 		return err
 	}
-	ep := n.endpoint(eid)
-	if ep == nil {
-		return fmt.Errorf("could not find endpoint with id %s", eid)
+	ep, err := n.endpoint(eid)
+	if err != nil {
+		return err
 	}
 	// bind the generated iface name to the endpoint
 	//
@@ -124,18 +124,6 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
 func (d *driver) Leave(nid, eid string) error {
-	network, err := d.getNetwork(nid)
-	if err != nil {
-		return err
-	}
-	endpoint, err := network.getEndpoint(eid)
-	if err != nil {
-		return err
-	}
-	if endpoint == nil {
-		return fmt.Errorf("could not find endpoint with id %s", eid)
-	}
-
 	return nil
 }
 

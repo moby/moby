@@ -5,7 +5,6 @@ package macvlan
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
@@ -47,11 +46,18 @@ func (d *driver) getNetworks() []*network {
 	return ls
 }
 
-func (n *network) endpoint(eid string) *endpoint {
+func (n *network) endpoint(eid string) (*endpoint, error) {
+	if eid == "" {
+		return nil, errors.New("invalid endpoint id")
+	}
 	n.Lock()
 	defer n.Unlock()
 
-	return n.endpoints[eid]
+	ep, ok := n.endpoints[eid]
+	if !ok || ep == nil {
+		return nil, errors.New("could not find endpoint with id " + eid)
+	}
+	return ep, nil
 }
 
 func (n *network) addEndpoint(ep *endpoint) {
@@ -64,19 +70,6 @@ func (n *network) deleteEndpoint(eid string) {
 	n.Lock()
 	delete(n.endpoints, eid)
 	n.Unlock()
-}
-
-func (n *network) getEndpoint(eid string) (*endpoint, error) {
-	n.Lock()
-	defer n.Unlock()
-	if eid == "" {
-		return nil, fmt.Errorf("endpoint id %s not found", eid)
-	}
-	if ep, ok := n.endpoints[eid]; ok {
-		return ep, nil
-	}
-
-	return nil, nil
 }
 
 func validateID(nid, eid string) error {
