@@ -30,12 +30,8 @@ const (
 	flagVepa    = "vepa"    // ipvlan flag vepa
 )
 
-type endpointTable map[string]*endpoint
-
-type networkTable map[string]*network
-
 type driver struct {
-	networks networkTable
+	networks map[string]*network
 	sync.Once
 	sync.Mutex
 	store *datastore.Store
@@ -54,7 +50,7 @@ type endpoint struct {
 
 type network struct {
 	id        string
-	endpoints endpointTable
+	endpoints map[string]*endpoint
 	driver    *driver
 	config    *configuration
 	sync.Mutex
@@ -64,7 +60,7 @@ type network struct {
 func Register(r driverapi.Registerer, store *datastore.Store) error {
 	d := &driver{
 		store:    store,
-		networks: networkTable{},
+		networks: map[string]*network{},
 	}
 	if err := d.initStore(); err != nil {
 		return err

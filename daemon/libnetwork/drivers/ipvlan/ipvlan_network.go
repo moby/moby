@@ -113,7 +113,7 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 		n := &network{
 			id:        config.ID,
 			driver:    d,
-			endpoints: endpointTable{},
+			endpoints: map[string]*endpoint{},
 			config:    config,
 		}
 		// add the network
