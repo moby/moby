@@ -41,10 +41,6 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	if err != nil {
 		return err
 	}
-	endpoint := n.endpoint(eid)
-	if endpoint == nil {
-		return fmt.Errorf("could not find endpoint with id %s", eid)
-	}
 	// generate a name for the iface that will be renamed to eth0 in the sbox
 	containerIfName, err := netutils.GenerateIfaceName(ns.NlHandle(), vethPrefix, vethLen)
 	if err != nil {
@@ -55,12 +51,15 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	if err != nil {
 		return err
 	}
-	// bind the generated iface name to the endpoint
-	endpoint.srcName = vethName
 	ep := n.endpoint(eid)
 	if ep == nil {
 		return fmt.Errorf("could not find endpoint with id %s", eid)
 	}
+	// bind the generated iface name to the endpoint
+	//
+	// TODO(thaJeztah): this should really be done under a lock.
+	ep.srcName = vethName
+
 	if !n.config.Internal {
 		switch n.config.IpvlanMode {
 		case modeL3, modeL3S:
