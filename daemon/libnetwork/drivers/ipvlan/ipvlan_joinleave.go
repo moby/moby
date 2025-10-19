@@ -142,7 +142,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	if err != nil {
 		return err
 	}
-	if err = d.storeUpdate(ep); err != nil {
+	if err := d.storeUpdate(ep); err != nil {
 		return fmt.Errorf("failed to save ipvlan endpoint %.7s to store: %v", ep.id, err)
 	}
 
