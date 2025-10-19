@@ -32,7 +32,6 @@ const (
 
 type driver struct {
 	networks map[string]*network
-	sync.Once
 	sync.Mutex
 	store *datastore.Store
 }
