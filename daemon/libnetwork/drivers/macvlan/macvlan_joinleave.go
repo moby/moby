@@ -51,7 +51,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	if !n.config.Internal {
 		// parse and correlate the endpoint v4 address with the available v4 subnets
 		if ep.addr != nil && len(n.config.Ipv4Subnets) > 0 {
-			s := n.getSubnetforIPv4(ep.addr)
+			s := getSubnetForIP(ep.addr, n.config.Ipv4Subnets)
 			if s == nil {
 				return fmt.Errorf("could not find a valid ipv4 subnet for endpoint %s", eid)
 			}
@@ -76,7 +76,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 		}
 		// parse and correlate the endpoint v6 address with the available v6 subnets
 		if ep.addrv6 != nil && len(n.config.Ipv6Subnets) > 0 {
-			s := n.getSubnetforIPv6(ep.addrv6)
+			s := getSubnetForIP(ep.addrv6, n.config.Ipv6Subnets)
 			if s == nil {
 				return fmt.Errorf("could not find a valid ipv6 subnet for endpoint %s", eid)
 			}
@@ -139,16 +139,7 @@ func (d *driver) Leave(nid, eid string) error {
 	return nil
 }
 
-// getSubnetforIPv4 returns the ipv4 subnet to which the given IP belongs
-func (n *network) getSubnetforIPv4(ip *net.IPNet) *ipSubnet {
-	return getSubnetForIP(ip, n.config.Ipv4Subnets)
-}
-
-// getSubnetforIPv6 returns the ipv6 subnet to which the given IP belongs
-func (n *network) getSubnetforIPv6(ip *net.IPNet) *ipSubnet {
-	return getSubnetForIP(ip, n.config.Ipv6Subnets)
-}
-
+// getSubnetForIP returns the (IPv4 or IPv6) subnet to which the given IP belongs.
 func getSubnetForIP(ip *net.IPNet, subnets []*ipSubnet) *ipSubnet {
 	for _, s := range subnets {
 		_, snet, err := net.ParseCIDR(s.SubnetIP)
