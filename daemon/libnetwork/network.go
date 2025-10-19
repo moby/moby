@@ -961,33 +961,8 @@ func NetworkDeleteOptionRemoveLB(p *networkDeleteParams) {
 	p.rmLBEndpoint = true
 }
 
-func (n *Network) resolveDriver(name string, load bool) (driverapi.Driver, driverapi.Capability, error) {
-	c := n.getController()
-
-	// Check if a driver for the specified network type is available
-	d, capabilities := c.drvRegistry.Driver(name)
-	if d == nil {
-		if load {
-			err := c.loadDriver(name)
-			if err != nil {
-				return nil, driverapi.Capability{}, err
-			}
-
-			d, capabilities = c.drvRegistry.Driver(name)
-			if d == nil {
-				return nil, driverapi.Capability{}, fmt.Errorf("could not resolve driver %s in registry", name)
-			}
-		} else {
-			// don't fail if driver loading is not required
-			return nil, driverapi.Capability{}, nil
-		}
-	}
-
-	return d, capabilities, nil
-}
-
 func (n *Network) driverIsMultihost() bool {
-	_, capabilities, err := n.resolveDriver(n.networkType, true)
+	_, capabilities, err := n.getController().resolveDriver(n.networkType, true)
 	if err != nil {
 		return false
 	}
@@ -995,7 +970,7 @@ func (n *Network) driverIsMultihost() bool {
 }
 
 func (n *Network) driver(load bool) (driverapi.Driver, error) {
-	d, capabilities, err := n.resolveDriver(n.networkType, load)
+	d, capabilities, err := n.getController().resolveDriver(n.networkType, load)
 	if err != nil {
 		return nil, err
 	}

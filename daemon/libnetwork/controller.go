@@ -71,6 +71,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 	"github.com/moby/moby/v2/pkg/plugins"
 	"github.com/pkg/errors"
@@ -482,7 +483,7 @@ func (c *Controller) GetPluginGetter() plugingetter.PluginGetter {
 	return c.cfg.PluginGetter
 }
 
-func (c *Controller) RegisterDriver(networkType string, driver driverapi.Driver, capability driverapi.Capability) error {
+func (c *Controller) RegisterDriver(_ string, driver driverapi.Driver, _ driverapi.Capability) error {
 	if d, ok := driver.(discoverapi.Discover); ok {
 		c.agentDriverNotify(d)
 	}
@@ -565,7 +566,7 @@ func (c *Controller) NewNetwork(ctx context.Context, networkType, name string, i
 		goto addToStore
 	}
 
-	_, caps, err = nw.resolveDriver(nw.networkType, true)
+	_, caps, err = c.resolveDriver(nw.networkType, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1033,9 +1034,36 @@ func (c *Controller) SandboxDestroy(ctx context.Context, id string) error {
 	return sb.Delete(ctx)
 }
 
+// resolveDriver checks if a driver for the specified network type is available,
+// optionally attempting to load the driver if it's not loaded.
+func (c *Controller) resolveDriver(name string, load bool) (driverapi.Driver, driverapi.Capability, error) {
+	d, capabilities := c.drvRegistry.Driver(name)
+	if d != nil {
+		return d, capabilities, nil
+	}
+	if !load {
+		// don't fail if driver loading is not required
+		//
+		// TODO(thaJeztah): can we return a sentinel "not exists" error?
+		return nil, driverapi.Capability{}, nil
+	}
+
+	err := c.loadDriver(name)
+	if err != nil {
+		return nil, driverapi.Capability{}, err
+	}
+
+	d, capabilities = c.drvRegistry.Driver(name)
+	if d == nil {
+		return nil, driverapi.Capability{}, fmt.Errorf("could not resolve driver %s in registry", name)
+	}
+	return d, capabilities, nil
+}
+
 func (c *Controller) loadDriver(networkType string) error {
 	var err error
 
+	// TODO(thaJeztah): plugingetter.Get ALSO has a fallback to plugins.Get if allowV1PluginsFallback (const) is true.
 	if pg := c.GetPluginGetter(); pg != nil {
 		_, err = pg.Get(networkType, driverapi.NetworkPluginEndpointType, plugingetter.Lookup)
 	} else {
@@ -1044,7 +1072,7 @@ func (c *Controller) loadDriver(networkType string) error {
 
 	if err != nil {
 		if errors.Is(err, plugins.ErrNotFound) {
-			return types.NotFoundErrorf("%v", err)
+			return errdefs.NotFound(err)
 		}
 		return err
 	}
