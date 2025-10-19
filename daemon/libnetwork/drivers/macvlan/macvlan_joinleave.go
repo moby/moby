@@ -32,7 +32,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	// generate a name for the iface that will be renamed to eth0 in the sbox
 	containerIfName, err := netutils.GenerateIfaceName(ns.NlHandle(), vethPrefix, vethLen)
 	if err != nil {
-		return fmt.Errorf("error generating an interface name: %s", err)
+		return fmt.Errorf("error generating an interface name: %w", err)
 	}
 	// create the netlink macvlan interface
 	vethName, err := createMacVlan(containerIfName, n.config.Parent, n.config.MacvlanMode)
@@ -48,9 +48,9 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	// TODO(thaJeztah): this should really be done under a lock.
 	ep.srcName = vethName
 
-	// parse and match the endpoint address with the available v4 subnets
 	if !n.config.Internal {
-		if len(n.config.Ipv4Subnets) > 0 {
+		// parse and correlate the endpoint v4 address with the available v4 subnets
+		if ep.addr != nil && len(n.config.Ipv4Subnets) > 0 {
 			s := n.getSubnetforIPv4(ep.addr)
 			if s == nil {
 				return fmt.Errorf("could not find a valid ipv4 subnet for endpoint %s", eid)
@@ -74,7 +74,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 			log.G(ctx).Debugf("Macvlan Endpoint Joined with IPv4_Addr: %s, Gateway: %s, MacVlan_Mode: %s, Parent: %s",
 				ep.addr.IP.String(), s.GwIP, n.config.MacvlanMode, n.config.Parent)
 		}
-		// parse and match the endpoint address with the available v6 subnets
+		// parse and correlate the endpoint v6 address with the available v6 subnets
 		if ep.addrv6 != nil && len(n.config.Ipv6Subnets) > 0 {
 			s := n.getSubnetforIPv6(ep.addrv6)
 			if s == nil {

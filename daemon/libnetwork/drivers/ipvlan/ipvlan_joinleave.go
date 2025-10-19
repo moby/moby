@@ -44,7 +44,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	// generate a name for the iface that will be renamed to eth0 in the sbox
 	containerIfName, err := netutils.GenerateIfaceName(ns.NlHandle(), vethPrefix, vethLen)
 	if err != nil {
-		return fmt.Errorf("error generating an interface name: %v", err)
+		return fmt.Errorf("error generating an interface name: %w", err)
 	}
 	// create the netlink ipvlan interface
 	vethName, err := createIPVlan(containerIfName, n.config.Parent, n.config.IpvlanMode, n.config.IpvlanFlag)
@@ -90,7 +90,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 			}
 		case modeL2:
 			// parse and correlate the endpoint v4 address with the available v4 subnets
-			if len(n.config.Ipv4Subnets) > 0 {
+			if ep.addr != nil && len(n.config.Ipv4Subnets) > 0 {
 				s := n.getSubnetforIPv4(ep.addr)
 				if s == nil {
 					return fmt.Errorf("could not find a valid ipv4 subnet for endpoint %s", eid)
@@ -115,7 +115,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 					ep.addr.IP.String(), s.GwIP, n.config.IpvlanMode, n.config.Parent)
 			}
 			// parse and correlate the endpoint v6 address with the available v6 subnets
-			if len(n.config.Ipv6Subnets) > 0 {
+			if ep.addrv6 != nil && len(n.config.Ipv6Subnets) > 0 {
 				s := n.getSubnetforIPv6(ep.addrv6)
 				if s == nil {
 					return fmt.Errorf("could not find a valid ipv6 subnet for endpoint %s", eid)
