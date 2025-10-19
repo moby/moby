@@ -31,9 +31,11 @@ const (
 )
 
 type driver struct {
-	networks map[string]*network
-	sync.Mutex
 	store *datastore.Store
+
+	// mu protects the networks map.
+	mu       sync.Mutex
+	networks map[string]*network
 }
 
 type endpoint struct {
@@ -48,11 +50,13 @@ type endpoint struct {
 }
 
 type network struct {
-	id        string
+	id     string
+	driver *driver
+	config *configuration
+
+	// mu protects the endpoints map.
+	mu        sync.Mutex
 	endpoints map[string]*endpoint
-	driver    *driver
-	config    *configuration
-	sync.Mutex
 }
 
 // Register initializes and registers the libnetwork ipvlan driver.

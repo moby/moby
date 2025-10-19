@@ -11,9 +11,9 @@ import (
 )
 
 func (d *driver) network(nid string) *network {
-	d.Lock()
+	d.mu.Lock()
 	n, ok := d.networks[nid]
-	d.Unlock()
+	d.mu.Unlock()
 	if !ok {
 		log.G(context.TODO()).Errorf("network id %s not found", nid)
 	}
@@ -22,21 +22,21 @@ func (d *driver) network(nid string) *network {
 }
 
 func (d *driver) addNetwork(n *network) {
-	d.Lock()
+	d.mu.Lock()
 	d.networks[n.id] = n
-	d.Unlock()
+	d.mu.Unlock()
 }
 
 func (d *driver) deleteNetwork(nid string) {
-	d.Lock()
+	d.mu.Lock()
 	delete(d.networks, nid)
-	d.Unlock()
+	d.mu.Unlock()
 }
 
 // getNetworks Safely returns a slice of existing networks
 func (d *driver) getNetworks() []*network {
-	d.Lock()
-	defer d.Unlock()
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	ls := make([]*network, 0, len(d.networks))
 	for _, nw := range d.networks {
@@ -50,8 +50,8 @@ func (n *network) endpoint(eid string) (*endpoint, error) {
 	if eid == "" {
 		return nil, errors.New("invalid endpoint id")
 	}
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	ep, ok := n.endpoints[eid]
 	if !ok || ep == nil {
@@ -61,15 +61,15 @@ func (n *network) endpoint(eid string) (*endpoint, error) {
 }
 
 func (n *network) addEndpoint(ep *endpoint) {
-	n.Lock()
+	n.mu.Lock()
 	n.endpoints[ep.id] = ep
-	n.Unlock()
+	n.mu.Unlock()
 }
 
 func (n *network) deleteEndpoint(eid string) {
-	n.Lock()
+	n.mu.Lock()
 	delete(n.endpoints, eid)
-	n.Unlock()
+	n.mu.Unlock()
 }
 
 func validateID(nid, eid string) error {
@@ -84,15 +84,15 @@ func validateID(nid, eid string) error {
 }
 
 func (d *driver) getNetwork(id string) (*network, error) {
-	d.Lock()
-	defer d.Unlock()
 	if id == "" {
-		return nil, types.InvalidParameterErrorf("invalid network id: %s", id)
+		return nil, types.InvalidParameterErrorf("invalid network id")
 	}
 
-	if nw, ok := d.networks[id]; ok {
-		return nw, nil
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	nw, ok := d.networks[id]
+	if !ok || nw == nil {
+		return nil, types.NotFoundErrorf("network not found: %s", id)
 	}
-
-	return nil, types.NotFoundErrorf("network not found: %s", id)
+	return nw, nil
 }
