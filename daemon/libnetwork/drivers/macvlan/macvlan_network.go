@@ -139,14 +139,20 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 	return foundExisting, nil
 }
 
-func (d *driver) parentHasSingleUser(n *network) bool {
+func (d *driver) parentHasSingleUser(parent string) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	users := 0
-	networkList := d.getNetworks()
-	for _, testN := range networkList {
-		if n.config.Parent == testN.config.Parent {
+	for _, nw := range d.networks {
+		if nw.config.Parent == parent {
 			users++
 		}
+		if users > 1 {
+			return false
+		}
 	}
+	// TODO(thaJeztah): "zero users" should also return "true?" (this would be theoretical as we're checking a network to be the last remaining user)
 	return users == 1
 }
 
@@ -157,7 +163,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 		return fmt.Errorf("network id %s not found", nid)
 	}
 	// if the driver created the slave interface and this network is the last user, delete it, otherwise leave it
-	if n.config.CreatedSlaveLink && parentExists(n.config.Parent) && d.parentHasSingleUser(n) {
+	if n.config.CreatedSlaveLink && parentExists(n.config.Parent) && d.parentHasSingleUser(n.config.Parent) {
 		// only delete the link if it is named the net_id
 		if n.config.Parent == getDummyName(nid) {
 			err := delDummyLink(n.config.Parent)
