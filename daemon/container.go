@@ -79,16 +79,6 @@ func (daemon *Daemon) load(id string) (*container.Container, error) {
 	}
 	selinux.ReserveLabel(ctr.ProcessLabel)
 
-	if ctr.ImagePlatform.Architecture == "" {
-		migration := daemonPlatformReader{
-			imageService: daemon.imageService,
-		}
-		if daemon.containerdClient != nil {
-			migration.content = daemon.containerdClient.ContentStore()
-		}
-		migrateContainerOS(context.TODO(), migration, ctr)
-	}
-
 	if ctr.ID != id {
 		return ctr, fmt.Errorf("Container %s is stored at %s", ctr.ID, id)
 	}
