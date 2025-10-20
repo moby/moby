@@ -5,7 +5,6 @@ import (
 	"io"
 	"net"
 
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/system"
 )
@@ -27,7 +26,7 @@ type stableAPIClient interface {
 	VolumeAPIClient
 	ClientVersion() string
 	DaemonHost() string
-	ServerVersion(ctx context.Context) (types.Version, error)
+	ServerVersion(ctx context.Context, options ServerVersionOptions) (ServerVersionResult, error)
 	HijackDialer
 	Dialer() func(context.Context) (net.Conn, error)
 	Close() error
