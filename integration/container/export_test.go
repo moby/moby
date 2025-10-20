@@ -47,7 +47,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 		Filters: make(client.Filters).Add("reference", reference),
 	})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(jm.Status, images.Images[0].ID))
+	assert.Check(t, is.Equal(jm.Status, images.Items[0].ID))
 }
 
 // TestExportContainerAfterDaemonRestart checks that a container

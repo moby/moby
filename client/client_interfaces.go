@@ -111,7 +111,7 @@ type ImageAPIClient interface {
 	ImageCreate(ctx context.Context, parentReference string, options ImageCreateOptions) (ImageCreateResult, error)
 	ImageImport(ctx context.Context, source ImageImportSource, ref string, options ImageImportOptions) (ImageImportResult, error)
 
-	ImageList(ctx context.Context, options ImageListOptions) ([]image.Summary, error)
+	ImageList(ctx context.Context, options ImageListOptions) (ImageListResult, error)
 	ImagePull(ctx context.Context, ref string, options ImagePullOptions) (ImagePullResponse, error)
 	ImagePush(ctx context.Context, ref string, options ImagePushOptions) (ImagePushResponse, error)
 	ImageRemove(ctx context.Context, image string, options ImageRemoveOptions) ([]image.DeleteResponse, error)

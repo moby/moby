@@ -29,7 +29,7 @@ func TestLoadDanglingImages(t *testing.T) {
 	})
 
 	// Should be one image.
-	images, err := apiClient.ImageList(ctx, client.ImageListOptions{})
+	imageList, err := apiClient.ImageList(ctx, client.ImageListOptions{})
 	assert.NilError(t, err)
 
 	findImageByName := func(images []image.Summary, imageName string) (image.Summary, error) {
@@ -42,7 +42,7 @@ func TestLoadDanglingImages(t *testing.T) {
 		return images[index], nil
 	}
 
-	oldImage, err := findImageByName(images, "namedimage:latest")
+	oldImage, err := findImageByName(imageList.Items, "namedimage:latest")
 	assert.NilError(t, err)
 
 	// Retain a copy of the old image and then replace it with a new one.
@@ -52,10 +52,10 @@ func TestLoadDanglingImages(t *testing.T) {
 		})
 	})
 
-	images, err = apiClient.ImageList(ctx, client.ImageListOptions{})
+	imageList, err = apiClient.ImageList(ctx, client.ImageListOptions{})
 	assert.NilError(t, err)
 
-	newImage, err := findImageByName(images, "namedimage:latest")
+	newImage, err := findImageByName(imageList.Items, "namedimage:latest")
 	assert.NilError(t, err)
 
 	// IDs should be different.
@@ -72,7 +72,7 @@ func TestLoadDanglingImages(t *testing.T) {
 		return images[index], nil
 	}
 
-	danglingImage, err := findImageById(images, oldImage.ID)
+	danglingImage, err := findImageById(imageList.Items, oldImage.ID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(danglingImage.RepoTags, 0))
 }

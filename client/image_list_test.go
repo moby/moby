@@ -108,7 +108,7 @@ func TestImageList(t *testing.T) {
 
 		images, err := client.ImageList(context.Background(), listCase.options)
 		assert.NilError(t, err)
-		assert.Check(t, is.Len(images, 2))
+		assert.Check(t, is.Len(images.Items, 2))
 	}
 }
 

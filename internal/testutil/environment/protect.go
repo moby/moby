@@ -121,7 +121,7 @@ func getExistingImages(ctx context.Context, t testing.TB, testEnv *Execution) []
 	assert.NilError(t, err, "failed to list images")
 
 	var images []string
-	for _, img := range imageList {
+	for _, img := range imageList.Items {
 		images = append(images, tagsFromImageSummary(img)...)
 	}
 	return images

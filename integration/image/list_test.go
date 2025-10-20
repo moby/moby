@@ -43,12 +43,12 @@ func TestImagesFilterMultiReference(t *testing.T) {
 	options := client.ImageListOptions{
 		Filters: make(client.Filters).Add("reference", repoTags[:3]...),
 	}
-	images, err := apiClient.ImageList(ctx, options)
+	imageList, err := apiClient.ImageList(ctx, options)
 	assert.NilError(t, err)
 
-	assert.Assert(t, is.Len(images, 1))
-	assert.Check(t, is.Len(images[0].RepoTags, 3))
-	for _, repoTag := range images[0].RepoTags {
+	assert.Assert(t, is.Len(imageList.Items, 1))
+	assert.Check(t, is.Len(imageList.Items[0].RepoTags, 3))
+	for _, repoTag := range imageList.Items[0].RepoTags {
 		if repoTag != repoTags[0] && repoTag != repoTags[1] && repoTag != repoTags[2] {
 			t.Errorf("list images doesn't match any repoTag we expected, repoTag: %s", repoTag)
 		}
@@ -91,7 +91,7 @@ func TestImagesFilterUntil(t *testing.T) {
 	assert.NilError(t, err)
 
 	var listedIDs []string
-	for _, i := range list {
+	for _, i := range list.Items {
 		t.Logf("ImageList: ID=%v RepoTags=%v", i.ID, i.RepoTags)
 		listedIDs = append(listedIDs, i.ID)
 	}
@@ -124,7 +124,7 @@ func TestImagesFilterBeforeSince(t *testing.T) {
 	assert.NilError(t, err)
 
 	var listedIDs []string
-	for _, i := range list {
+	for _, i := range list.Items {
 		t.Logf("ImageList: ID=%v RepoTags=%v", i.ID, i.RepoTags)
 		listedIDs = append(listedIDs, i.ID)
 	}
@@ -181,12 +181,12 @@ func TestAPIImagesFilters(t *testing.T) {
 			t.Parallel()
 
 			ctx := testutil.StartSpan(ctx, t)
-			images, err := apiClient.ImageList(ctx, client.ImageListOptions{
+			imageList, err := apiClient.ImageList(ctx, client.ImageListOptions{
 				Filters: tc.filters,
 			})
 			assert.Check(t, err)
-			assert.Assert(t, is.Len(images, tc.expectedImages))
-			assert.Check(t, is.Len(images[0].RepoTags, tc.expectedRepoTags))
+			assert.Assert(t, is.Len(imageList.Items, tc.expectedImages))
+			assert.Check(t, is.Len(imageList.Items[0].RepoTags, tc.expectedRepoTags))
 		})
 	}
 }
@@ -255,31 +255,31 @@ func TestAPIImagesListManifests(t *testing.T) {
 		// TODO: Remove when MinAPIVersion >= 1.47
 		c := d.NewClientT(t, client.WithVersion("1.46"))
 
-		images, err := c.ImageList(ctx, client.ImageListOptions{Manifests: true})
+		imageList, err := c.ImageList(ctx, client.ImageListOptions{Manifests: true})
 		assert.NilError(t, err)
 
-		assert.Assert(t, is.Len(images, 1))
-		assert.Check(t, is.Nil(images[0].Manifests))
+		assert.Assert(t, is.Len(imageList.Items, 1))
+		assert.Check(t, is.Nil(imageList.Items[0].Manifests))
 	})
 
 	api147 := d.NewClientT(t, client.WithVersion("1.47"))
 
 	t.Run("no manifests if not requested", func(t *testing.T) {
-		images, err := api147.ImageList(ctx, client.ImageListOptions{})
+		imageList, err := api147.ImageList(ctx, client.ImageListOptions{})
 		assert.NilError(t, err)
 
-		assert.Assert(t, is.Len(images, 1))
-		assert.Check(t, is.Nil(images[0].Manifests))
+		assert.Assert(t, is.Len(imageList.Items, 1))
+		assert.Check(t, is.Nil(imageList.Items[0].Manifests))
 	})
 
-	images, err := api147.ImageList(ctx, client.ImageListOptions{Manifests: true})
+	imageList, err := api147.ImageList(ctx, client.ImageListOptions{Manifests: true})
 	assert.NilError(t, err)
 
-	assert.Check(t, is.Len(images, 1))
-	assert.Check(t, images[0].Manifests != nil)
-	assert.Check(t, is.Len(images[0].Manifests, 3))
+	assert.Check(t, is.Len(imageList.Items, 1))
+	assert.Check(t, imageList.Items[0].Manifests != nil)
+	assert.Check(t, is.Len(imageList.Items[0].Manifests, 3))
 
-	for _, mfst := range images[0].Manifests {
+	for _, mfst := range imageList.Items[0].Manifests {
 		// All manifests should be image manifests
 		assert.Check(t, is.Equal(mfst.Kind, image.ManifestKindImage))
 

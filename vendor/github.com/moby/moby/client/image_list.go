@@ -15,7 +15,7 @@ import (
 // to include [image.Summary.Manifests] with information about image manifests.
 // This is experimental and might change in the future without any backward
 // compatibility.
-func (cli *Client) ImageList(ctx context.Context, options ImageListOptions) ([]image.Summary, error) {
+func (cli *Client) ImageList(ctx context.Context, options ImageListOptions) (ImageListResult, error) {
 	var images []image.Summary
 
 	query := url.Values{}
@@ -34,7 +34,7 @@ func (cli *Client) ImageList(ctx context.Context, options ImageListOptions) ([]i
 		// Normally, version-negotiation (if enabled) would not happen until
 		// the API request is made.
 		if err := cli.checkVersion(ctx); err != nil {
-			return images, err
+			return ImageListResult{}, err
 		}
 
 		if versions.GreaterThanOrEqualTo(cli.version, "1.47") {
@@ -45,9 +45,9 @@ func (cli *Client) ImageList(ctx context.Context, options ImageListOptions) ([]i
 	resp, err := cli.get(ctx, "/images/json", query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return images, err
+		return ImageListResult{}, err
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&images)
-	return images, err
+	return ImageListResult{Items: images}, err
 }
