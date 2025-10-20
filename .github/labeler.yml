@@ -139,6 +139,9 @@ area/dependencies:
       - 'go.mod'
       - 'go.sum'
       - 'vendor/**'
+    - all-globs-to-all-files:
+      - '!client/**'
+      - '!api/**'
 
 area/ci:
   - changed-files:
