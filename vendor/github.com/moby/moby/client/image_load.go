@@ -9,16 +9,16 @@ import (
 
 // ImageLoad loads an image in the docker host from the client host.
 // It's up to the caller to close the [io.ReadCloser] in the
-// [image.LoadResponse] returned by this function.
+// [ImageLoadResult] returned by this function.
 //
 // Platform is an optional parameter that specifies the platform to load from
 // the provided multi-platform image. Passing a platform only has an effect
 // if the input image is a multi-platform image.
-func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, loadOpts ...ImageLoadOption) (LoadResponse, error) {
+func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, loadOpts ...ImageLoadOption) (ImageLoadResult, error) {
 	var opts imageLoadOpts
 	for _, opt := range loadOpts {
 		if err := opt.Apply(&opts); err != nil {
-			return LoadResponse{}, err
+			return ImageLoadResult{}, err
 		}
 	}
 
@@ -29,12 +29,12 @@ func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, loadOpts ...I
 	}
 	if len(opts.apiOptions.Platforms) > 0 {
 		if err := cli.NewVersionError(ctx, "1.48", "platform"); err != nil {
-			return LoadResponse{}, err
+			return ImageLoadResult{}, err
 		}
 
 		p, err := encodePlatforms(opts.apiOptions.Platforms...)
 		if err != nil {
-			return LoadResponse{}, err
+			return ImageLoadResult{}, err
 		}
 		query["platform"] = p
 	}
@@ -43,10 +43,10 @@ func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, loadOpts ...I
 		"Content-Type": {"application/x-tar"},
 	})
 	if err != nil {
-		return LoadResponse{}, err
+		return ImageLoadResult{}, err
 	}
-	return LoadResponse{
-		Body: resp.Body,
+	return ImageLoadResult{
+		body: resp.Body,
 		JSON: resp.Header.Get("Content-Type") == "application/json",
 	}, nil
 }
@@ -73,8 +73,19 @@ func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, loadOpts ...I
 //
 // We should deprecated the "quiet" option, as it's really a client
 // responsibility.
-type LoadResponse struct {
+type ImageLoadResult struct {
 	// Body must be closed to avoid a resource leak
-	Body io.ReadCloser
+	body io.ReadCloser
 	JSON bool
+}
+
+func (r ImageLoadResult) Read(p []byte) (n int, err error) {
+	return r.body.Read(p)
+}
+
+func (r ImageLoadResult) Close() error {
+	if r.body == nil {
+		return nil
+	}
+	return r.body.Close()
 }

@@ -114,9 +114,9 @@ func loadFrozenImages(ctx context.Context, apiClient client.APIClient) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to load frozen images")
 	}
-	defer resp.Body.Close()
+	defer resp.Close()
 	fd, isTerminal := term.GetFdInfo(os.Stdout)
-	return jsonmessage.DisplayJSONMessagesStream(resp.Body, os.Stdout, fd, isTerminal, nil)
+	return jsonmessage.DisplayJSONMessagesStream(resp, os.Stdout, fd, isTerminal, nil)
 }
 
 func pullImages(ctx context.Context, client client.APIClient, images []string) error {

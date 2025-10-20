@@ -105,9 +105,9 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	tarReader := bufio.NewReader(tarFile)
 	loadResp, err := clientNoUserRemap.ImageLoad(ctx, tarReader)
 	assert.NilError(t, err, "failed to load image tar file")
-	defer loadResp.Body.Close()
+	defer loadResp.Close()
 	buf = bytes.NewBuffer(nil)
-	err = jsonmessage.DisplayJSONMessagesStream(loadResp.Body, buf, 0, false, nil)
+	err = jsonmessage.DisplayJSONMessagesStream(loadResp, buf, 0, false, nil)
 	assert.NilError(t, err)
 
 	cid := container.Run(ctx, t, clientNoUserRemap,

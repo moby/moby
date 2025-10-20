@@ -94,7 +94,7 @@ func TestRemoveByDigest(t *testing.T) {
 
 	inspect, err = apiClient.ImageInspect(ctx, "test-remove-by-digest")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
-	assert.Check(t, is.DeepEqual(inspect, image.InspectResponse{}))
+	assert.Check(t, is.DeepEqual(inspect, client.ImageInspectResult{}))
 }
 
 func TestRemoveWithPlatform(t *testing.T) {

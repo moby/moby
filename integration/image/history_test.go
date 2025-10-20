@@ -25,13 +25,13 @@ func TestAPIImagesHistory(t *testing.T) {
 
 	imgID := build.Do(ctx, t, client, fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile)))
 
-	historydata, err := client.ImageHistory(ctx, imgID)
+	res, err := client.ImageHistory(ctx, imgID)
 	assert.NilError(t, err)
 
-	assert.Assert(t, len(historydata) != 0)
+	assert.Assert(t, len(res.Items) != 0)
 
 	var found bool
-	for _, imageLayer := range historydata {
+	for _, imageLayer := range res.Items {
 		if imageLayer.ID == imgID {
 			found = true
 			break
@@ -107,20 +107,20 @@ func TestAPIImageHistoryCrossPlatform(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 
-			hist, err := apiClient.ImageHistory(ctx, tc.imageRef, tc.options...)
+			res, err := apiClient.ImageHistory(ctx, tc.imageRef, tc.options...)
 
 			assert.NilError(t, err)
 			found := false
-			for _, layer := range hist {
+			for _, layer := range res.Items {
 				if layer.ID == imgID {
 					found = true
 					break
 				}
 			}
 			assert.Assert(t, found, "History should contain the built image ID")
-			assert.Assert(t, is.Len(hist, 3))
+			assert.Assert(t, is.Len(res.Items, 3))
 
-			for i, layer := range hist {
+			for i, layer := range res.Items {
 				assert.Assert(t, layer.Size >= 0, "Layer %d should not have negative size", i)
 			}
 		})

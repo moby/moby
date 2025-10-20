@@ -30,10 +30,10 @@ func Load(ctx context.Context, t *testing.T, apiClient client.APIClient, imageFu
 	resp, err := apiClient.ImageLoad(ctx, rc, client.ImageLoadWithQuiet(true))
 	assert.NilError(t, err, "Failed to load dangling image")
 
-	defer resp.Body.Close()
+	defer resp.Close()
 
 	if !assert.Check(t, err) {
-		respBody, err := io.ReadAll(resp.Body)
+		respBody, err := io.ReadAll(resp)
 		if err != nil {
 			t.Fatalf("Failed to read response body: %v", err)
 			return ""
@@ -41,7 +41,7 @@ func Load(ctx context.Context, t *testing.T, apiClient client.APIClient, imageFu
 		t.Fatalf("Failed load: %s", string(respBody))
 	}
 
-	all, err := io.ReadAll(resp.Body)
+	all, err := io.ReadAll(resp)
 	assert.NilError(t, err)
 
 	decoder := json.NewDecoder(bytes.NewReader(all))

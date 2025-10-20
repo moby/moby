@@ -111,6 +111,6 @@ func TestBuildSquashParent(t *testing.T) {
 
 	inspect, err = apiClient.ImageInspect(ctx, name)
 	assert.NilError(t, err)
-	assert.Check(t, is.Len(testHistory, len(origHistory)+1))
+	assert.Check(t, is.Len(testHistory.Items, len(origHistory.Items)+1))
 	assert.Check(t, is.Len(inspect.RootFS.Layers, 2))
 }

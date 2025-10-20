@@ -328,8 +328,8 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 			// load the full exported image (all platforms in it)
 			resp, err := apiClient.ImageLoad(ctx, rdr)
 			assert.NilError(t, err)
-			_, err = io.ReadAll(resp.Body)
-			resp.Body.Close()
+			_, err = io.ReadAll(resp)
+			resp.Close()
 			assert.NilError(t, err)
 
 			rdr.Close()
@@ -366,8 +366,8 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 			// load the exported image on the specified platforms only
 			resp, err = apiClient.ImageLoad(ctx, rdr, client.ImageLoadWithPlatforms(tc.loadPlatforms...))
 			assert.NilError(t, err)
-			_, err = io.ReadAll(resp.Body)
-			resp.Body.Close()
+			_, err = io.ReadAll(resp)
+			resp.Close()
 			assert.NilError(t, err)
 
 			rdr.Close()
