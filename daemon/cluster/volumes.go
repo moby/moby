@@ -59,7 +59,7 @@ func (c *Cluster) GetVolumes(options volumebackend.ListOptions) ([]*volumetypes.
 // CreateVolume creates a new cluster volume in the swarm cluster.
 //
 // Returns the volume ID if creation is successful, or an error if not.
-func (c *Cluster) CreateVolume(v volumetypes.CreateOptions) (*volumetypes.Volume, error) {
+func (c *Cluster) CreateVolume(v volumetypes.CreateRequest) (*volumetypes.Volume, error) {
 	var resp *swarmapi.CreateVolumeResponse
 	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		volumeSpec := convert.VolumeCreateToGRPC(&v)

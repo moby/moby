@@ -32,11 +32,11 @@ func TestVolumesCreateAndList(t *testing.T) {
 	if testEnv.DaemonInfo.OSType == "windows" {
 		name = strings.ToLower(name)
 	}
-	create, err := apiClient.VolumeCreate(ctx, client.VolumeCreateOptions{
+	created, err := apiClient.VolumeCreate(ctx, client.VolumeCreateOptions{
 		Name: name,
 	})
 	assert.NilError(t, err)
-	namedV := create.Volume
+	namedV := created.Volume
 
 	expected := volume.Volume{
 		// Ignore timestamp of CreatedAt
@@ -161,9 +161,9 @@ func TestVolumesInspect(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	now := time.Now()
-	create, err := apiClient.VolumeCreate(ctx, client.VolumeCreateOptions{})
+	created, err := apiClient.VolumeCreate(ctx, client.VolumeCreateOptions{})
 	assert.NilError(t, err)
-	v := create.Volume
+	v := created.Volume
 
 	inspected, err := apiClient.VolumeInspect(ctx, v.Name)
 	assert.NilError(t, err)

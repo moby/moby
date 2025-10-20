@@ -123,7 +123,7 @@ func TestAccessModeFromGRPC(t *testing.T) {
 // TestVolumeCreateToGRPC tests that a docker-typed VolumeCreateBody is
 // correctly converted to a swarm-typed VolumeSpec.
 func TestVolumeCreateToGRPC(t *testing.T) {
-	volume := &volumetypes.CreateOptions{
+	volume := &volumetypes.CreateRequest{
 		Driver:     "plug1",
 		DriverOpts: map[string]string{"options": "yeah"},
 		Labels:     map[string]string{"labeled": "yeah"},

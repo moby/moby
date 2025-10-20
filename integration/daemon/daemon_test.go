@@ -585,7 +585,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 	// Addresses https://github.com/moby/moby/issues/44422
 	t.Run("local volume with mount options", func(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
-		res, err := c.VolumeCreate(ctx, client.VolumeCreateOptions{
+		created, err := c.VolumeCreate(ctx, client.VolumeCreateOptions{
 			Driver: "local",
 			Name:   "test-live-restore-volume-references-local",
 			DriverOpts: map[string]string{
@@ -594,7 +594,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 			},
 		})
 		assert.NilError(t, err)
-		v := res.Volume
+		v := created.Volume
 		m := mount.Mount{
 			Type:   mount.TypeVolume,
 			Source: v.Name,

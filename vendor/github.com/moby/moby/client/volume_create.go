@@ -23,7 +23,7 @@ type VolumeCreateResult struct {
 
 // VolumeCreate creates a volume in the docker host.
 func (cli *Client) VolumeCreate(ctx context.Context, options VolumeCreateOptions) (VolumeCreateResult, error) {
-	createRequest := volume.CreateOptions{
+	createRequest := volume.CreateRequest{
 		Name:              options.Name,
 		Driver:            options.Driver,
 		DriverOpts:        options.DriverOpts,

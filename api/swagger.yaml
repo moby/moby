@@ -2184,11 +2184,11 @@ definitions:
               is set to `-1` if the reference-count is not available.
             x-nullable: false
 
-  VolumeCreateOptions:
+  VolumeCreateRequest:
     description: "Volume configuration"
     type: "object"
     title: "VolumeConfig"
-    x-go-name: "CreateOptions"
+    x-go-name: "CreateRequest"
     properties:
       Name:
         description: |
@@ -10855,7 +10855,7 @@ paths:
           required: true
           description: "Volume configuration"
           schema:
-            $ref: "#/definitions/VolumeCreateOptions"
+            $ref: "#/definitions/VolumeCreateRequest"
       tags: ["Volume"]
 
   /volumes/{name}:
