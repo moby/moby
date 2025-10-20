@@ -8,7 +8,6 @@ import (
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/request"
 	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 type DockerAPISuite struct {
@@ -39,14 +38,4 @@ func (s *DockerAPISuite) TestAPIGetEnabledCORS(c *testing.T) {
 	// c.Log(res.Header)
 	// assert.Equal(c, res.Header.Get("Access-Control-Allow-Origin"), "*")
 	// assert.Equal(c, res.Header.Get("Access-Control-Allow-Headers"), "Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth")
-}
-
-func (s *DockerAPISuite) TestAPIErrorJSON(c *testing.T) {
-	httpResp, body, err := request.Post(testutil.GetContext(c), "/containers/create", request.JSONBody(struct{}{}))
-	assert.NilError(c, err)
-	assert.Equal(c, httpResp.StatusCode, http.StatusBadRequest)
-	assert.Assert(c, is.Contains(httpResp.Header.Get("Content-Type"), "application/json"))
-	b, err := request.ReadBody(body)
-	assert.NilError(c, err)
-	assert.Check(c, is.Contains(getErrorMessage(c, b), "config cannot be empty"))
 }

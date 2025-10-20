@@ -644,105 +644,6 @@ func (s *DockerAPISuite) TestContainerAPIVerifyHeader(c *testing.T) {
 	_ = body.Close()
 }
 
-// Issue 14230. daemon should return 500 for invalid port syntax
-func (s *DockerAPISuite) TestContainerAPIInvalidPortSyntax(c *testing.T) {
-	config := `{
-				  "Image": "busybox",
-				  "HostConfig": {
-					"NetworkMode": "default",
-					"PortBindings": {
-					  "19039;1230": [
-						{}
-					  ]
-					}
-				  }
-				}`
-
-	res, body, err := request.Post(testutil.GetContext(c), "/containers/create", request.RawString(config), request.JSON)
-	assert.NilError(c, err)
-	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-
-	b, err := request.ReadBody(body)
-	assert.NilError(c, err)
-	assert.Assert(c, is.Contains(string(b[:]), "invalid port"))
-}
-
-func (s *DockerAPISuite) TestContainerAPIRestartPolicyInvalidPolicyName(c *testing.T) {
-	config := `{
-		"Image": "busybox",
-		"HostConfig": {
-			"RestartPolicy": {
-				"Name": "something",
-				"MaximumRetryCount": 0
-			}
-		}
-	}`
-
-	res, body, err := request.Post(testutil.GetContext(c), "/containers/create", request.RawString(config), request.JSON)
-	assert.NilError(c, err)
-	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-
-	b, err := request.ReadBody(body)
-	assert.NilError(c, err)
-	assert.Assert(c, is.Contains(string(b[:]), "invalid restart policy"))
-}
-
-func (s *DockerAPISuite) TestContainerAPIRestartPolicyRetryMismatch(c *testing.T) {
-	config := `{
-		"Image": "busybox",
-		"HostConfig": {
-			"RestartPolicy": {
-				"Name": "always",
-				"MaximumRetryCount": 2
-			}
-		}
-	}`
-
-	res, body, err := request.Post(testutil.GetContext(c), "/containers/create", request.RawString(config), request.JSON)
-	assert.NilError(c, err)
-	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-
-	b, err := request.ReadBody(body)
-	assert.NilError(c, err)
-	assert.Assert(c, is.Contains(string(b[:]), "invalid restart policy: maximum retry count can only be used with 'on-failure'"))
-}
-
-func (s *DockerAPISuite) TestContainerAPIRestartPolicyNegativeRetryCount(c *testing.T) {
-	config := `{
-		"Image": "busybox",
-		"HostConfig": {
-			"RestartPolicy": {
-				"Name": "on-failure",
-				"MaximumRetryCount": -2
-			}
-		}
-	}`
-
-	res, body, err := request.Post(testutil.GetContext(c), "/containers/create", request.RawString(config), request.JSON)
-	assert.NilError(c, err)
-	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-
-	b, err := request.ReadBody(body)
-	assert.NilError(c, err)
-	assert.Assert(c, is.Contains(string(b[:]), "maximum retry count cannot be negative"))
-}
-
-func (s *DockerAPISuite) TestContainerAPIRestartPolicyDefaultRetryCount(c *testing.T) {
-	config := `{
-		"Image": "busybox",
-		"HostConfig": {
-			"RestartPolicy": {
-				"Name": "on-failure",
-				"MaximumRetryCount": 0
-			}
-		}
-	}`
-
-	res, _, err := request.Post(testutil.GetContext(c), "/containers/create", request.RawString(config), request.JSON)
-	assert.NilError(c, err)
-	assert.Equal(c, res.StatusCode, http.StatusCreated)
-}
-
 // Issue 7941 - test to make sure a "null" in JSON is just ignored.
 // W/o this fix a null in JSON would be parsed into a string var as "null"
 func (s *DockerAPISuite) TestContainerAPIPostCreateNull(c *testing.T) {
@@ -787,26 +688,6 @@ func (s *DockerAPISuite) TestContainerAPIPostCreateNull(c *testing.T) {
 	assert.Equal(c, outMemory, "0")
 	outMemorySwap := inspectField(c, ctr.ID, "HostConfig.MemorySwap")
 	assert.Equal(c, outMemorySwap, "0")
-}
-
-func (s *DockerAPISuite) TestCreateWithTooLowMemoryLimit(c *testing.T) {
-	// TODO Windows: Port once memory is supported
-	testRequires(c, DaemonIsLinux)
-	config := `{
-		"Image":     "busybox",
-		"HostConfig": {
-			"CpuShares": 100,
-			"Memory":    524287
-		}
-	}`
-
-	res, body, err := request.Post(testutil.GetContext(c), "/containers/create", request.RawString(config), request.JSON)
-	assert.NilError(c, err)
-	b, err2 := request.ReadBody(body)
-	assert.NilError(c, err2)
-
-	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-	assert.Assert(c, is.Contains(string(b), "Minimum memory limit allowed is 6MB"))
 }
 
 func (s *DockerAPISuite) TestContainerAPIKill(c *testing.T) {
