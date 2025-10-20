@@ -97,7 +97,7 @@ func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
 		PrivilegeFunc: privilegeFunc,
 	})
 	assert.NilError(t, err)
-	assert.Check(t, is.Len(results, 1))
+	assert.Check(t, is.Len(results.Items, 1))
 }
 
 func TestImageSearchWithoutErrors(t *testing.T) {
@@ -135,5 +135,5 @@ func TestImageSearchWithoutErrors(t *testing.T) {
 		Filters: make(Filters).Add("is-automated", "true").Add("stars", "3"),
 	})
 	assert.NilError(t, err)
-	assert.Check(t, is.Len(results, 1))
+	assert.Check(t, is.Len(results.Items, 1))
 }

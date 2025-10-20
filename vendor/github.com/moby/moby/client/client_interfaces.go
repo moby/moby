@@ -8,7 +8,6 @@ import (
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/api/types/registry"
@@ -114,8 +113,8 @@ type ImageAPIClient interface {
 	ImageList(ctx context.Context, options ImageListOptions) (ImageListResult, error)
 	ImagePull(ctx context.Context, ref string, options ImagePullOptions) (ImagePullResponse, error)
 	ImagePush(ctx context.Context, ref string, options ImagePushOptions) (ImagePushResponse, error)
-	ImageRemove(ctx context.Context, image string, options ImageRemoveOptions) ([]image.DeleteResponse, error)
-	ImageSearch(ctx context.Context, term string, options ImageSearchOptions) ([]registry.SearchResult, error)
+	ImageRemove(ctx context.Context, image string, options ImageRemoveOptions) (ImageRemoveResult, error)
+	ImageSearch(ctx context.Context, term string, options ImageSearchOptions) (ImageSearchResult, error)
 	ImageTag(ctx context.Context, image, ref string) error
 	ImagesPrune(ctx context.Context, opts ImagePruneOptions) (ImagePruneResult, error)
 

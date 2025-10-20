@@ -2,7 +2,14 @@ package client
 
 import (
 	"context"
+
+	"github.com/moby/moby/api/types/registry"
 )
+
+// ImageSearchResult wraps results returned by ImageSearch.
+type ImageSearchResult struct {
+	Items []registry.SearchResult
+}
 
 // ImageSearchOptions holds parameters to search images with.
 type ImageSearchOptions struct {
