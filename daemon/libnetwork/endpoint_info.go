@@ -54,94 +54,74 @@ type EndpointInterface struct {
 	createdInContainer bool
 }
 
+// endpointInterface is an intermediate struct used to marshal/unmarshal
+// am [EndpointInterface] to JSON.
+//
+// TODO(thaJeztah): use "omitzero" for all fields once we no longer have to consider downgrades to < v29.0; see https://github.com/moby/moby/pull/51223#discussion_r2445826610
+type endpointInterface struct {
+	MAC                string         `json:"mac"`
+	Addr               netip.Prefix   `json:"addr"`
+	AddrV6             netip.Prefix   `json:"addrv6"`
+	LLAddrs            []netip.Prefix `json:"llAddrs"`
+	Routes             []netip.Prefix `json:"routes"`
+	SrcName            string         `json:"srcName"`
+	DstPrefix          string         `json:"dstPrefix"`
+	DstName            string         `json:"dstName"`
+	V4PoolID           string         `json:"v4PoolID"`
+	V6PoolID           string         `json:"v6PoolID"`
+	CreatedInContainer bool           `json:"createdInContainer"`
+}
+
 func (epi *EndpointInterface) MarshalJSON() ([]byte, error) {
-	epMap := make(map[string]any)
+	mac := ""
 	if epi.mac != nil {
-		epMap["mac"] = epi.mac.String()
+		mac = epi.mac.String()
 	}
-	if epi.addr != nil {
-		epMap["addr"] = epi.addr.String()
-	}
-	if epi.addrv6 != nil {
-		epMap["addrv6"] = epi.addrv6.String()
-	}
-	if len(epi.llAddrs) != 0 {
-		list := make([]string, 0, len(epi.llAddrs))
-		for _, ll := range epi.llAddrs {
-			list = append(list, ll.String())
-		}
-		epMap["llAddrs"] = list
-	}
-	epMap["srcName"] = epi.srcName
-	epMap["dstPrefix"] = epi.dstPrefix
-	epMap["dstName"] = epi.dstName
-	var routes []string
-	for _, route := range epi.routes {
-		routes = append(routes, route.String())
-	}
-	epMap["routes"] = routes
-	epMap["v4PoolID"] = epi.v4PoolID
-	epMap["v6PoolID"] = epi.v6PoolID
-	epMap["createdInContainer"] = epi.createdInContainer
-	return json.Marshal(epMap)
+
+	return json.Marshal(&endpointInterface{
+		MAC:                mac,
+		Addr:               toPrefix(epi.addr),
+		AddrV6:             toPrefix(epi.addrv6),
+		LLAddrs:            toPrefixes(epi.llAddrs),
+		Routes:             toPrefixes(epi.routes),
+		SrcName:            epi.srcName,
+		DstPrefix:          epi.dstPrefix,
+		DstName:            epi.dstName,
+		V4PoolID:           epi.v4PoolID,
+		V6PoolID:           epi.v6PoolID,
+		CreatedInContainer: epi.createdInContainer,
+	})
 }
 
 func (epi *EndpointInterface) UnmarshalJSON(b []byte) error {
-	var (
-		err   error
-		epMap map[string]any
-	)
-	if err = json.Unmarshal(b, &epMap); err != nil {
+	var epiTmp endpointInterface
+	if err := json.Unmarshal(b, &epiTmp); err != nil {
 		return err
 	}
-	if v, ok := epMap["mac"]; ok {
-		if epi.mac, err = net.ParseMAC(v.(string)); err != nil {
-			return types.InternalErrorf("failed to decode endpoint interface mac address after json unmarshal: %s", v.(string))
-		}
-	}
-	if v, ok := epMap["addr"]; ok {
-		if epi.addr, err = types.ParseCIDR(v.(string)); err != nil {
-			return types.InternalErrorf("failed to decode endpoint interface ipv4 address after json unmarshal: %v", err)
-		}
-	}
-	if v, ok := epMap["addrv6"]; ok {
-		if epi.addrv6, err = types.ParseCIDR(v.(string)); err != nil {
-			return types.InternalErrorf("failed to decode endpoint interface ipv6 address after json unmarshal: %v", err)
-		}
-	}
-	if v, ok := epMap["llAddrs"]; ok {
-		list := v.([]any)
-		epi.llAddrs = make([]*net.IPNet, 0, len(list))
-		for _, llS := range list {
-			ll, err := types.ParseCIDR(llS.(string))
-			if err != nil {
-				return types.InternalErrorf("failed to decode endpoint interface link-local address (%v) after json unmarshal: %v", llS, err)
-			}
-			epi.llAddrs = append(epi.llAddrs, ll)
-		}
-	}
-	epi.srcName = epMap["srcName"].(string)
-	epi.dstPrefix = epMap["dstPrefix"].(string)
 
-	// TODO(cpuguy83): linter noticed we don't check the error here... no idea why but it seems like it could introduce problems if we start checking
-	rb, _ := json.Marshal(epMap["routes"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
-	var routes []string
-	_ = json.Unmarshal(rb, &routes) //nolint:errcheck
-
-	epi.routes = make([]*net.IPNet, 0)
-	for _, route := range routes {
-		ip, ipr, err := net.ParseCIDR(route)
-		if err == nil {
-			ipr.IP = ip
-			epi.routes = append(epi.routes, ipr)
+	var mac net.HardwareAddr
+	if epiTmp.MAC != "" {
+		hw, err := net.ParseMAC(epiTmp.MAC)
+		if err != nil {
+			return types.InternalErrorf("invalid mac %q: %v", epiTmp.MAC, err)
 		}
+		mac = hw
 	}
-	epi.v4PoolID = epMap["v4PoolID"].(string)
-	epi.v6PoolID = epMap["v6PoolID"].(string)
 
-	if v, ok := epMap["createdInContainer"]; ok {
-		epi.createdInContainer = v.(bool)
+	*epi = EndpointInterface{
+		mac:                mac,
+		addr:               netiputil.ToIPNet(epiTmp.Addr),
+		addrv6:             netiputil.ToIPNet(epiTmp.AddrV6),
+		llAddrs:            toIPNets(epiTmp.LLAddrs),
+		routes:             toIPNets(epiTmp.Routes),
+		srcName:            epiTmp.SrcName,
+		dstPrefix:          epiTmp.DstPrefix,
+		dstName:            epiTmp.DstName,
+		v4PoolID:           epiTmp.V4PoolID,
+		v6PoolID:           epiTmp.V6PoolID,
+		createdInContainer: epiTmp.CreatedInContainer,
 	}
+
 	return nil
 }
 
@@ -548,4 +528,29 @@ func (epj *endpointJoinInfo) Copy() *endpointJoinInfo {
 		driverTableEntries:    slices.Clone(epj.driverTableEntries),
 		disableGatewayService: epj.disableGatewayService,
 	}
+}
+
+func toPrefix(n *net.IPNet) netip.Prefix {
+	p, _ := netiputil.ToPrefix(n)
+	return p
+}
+
+func toIPNets(ps []netip.Prefix) []*net.IPNet {
+	out := make([]*net.IPNet, 0, len(ps))
+	for _, p := range ps {
+		if n := netiputil.ToIPNet(p); n != nil {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+func toPrefixes(nets []*net.IPNet) []netip.Prefix {
+	out := make([]netip.Prefix, 0, len(nets))
+	for _, n := range nets {
+		if prefix, ok := netiputil.ToPrefix(n); ok {
+			out = append(out, prefix)
+		}
+	}
+	return out
 }
