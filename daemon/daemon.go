@@ -327,6 +327,18 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 
 			baseLogger := log.G(ctx).WithField("container", c.ID)
 
+			// Fill in missing platform information with platform from image for older containers
+			// Remove this in a future release
+			if c.ImagePlatform.Architecture == "" {
+				migration := daemonPlatformReader{
+					imageService: daemon.imageService,
+				}
+				if daemon.containerdClient != nil {
+					migration.content = daemon.containerdClient.ContentStore()
+				}
+				migrateContainerOS(ctx, migration, c)
+			}
+
 			if c.HostConfig != nil {
 				// Migrate containers that don't have the default ("no") restart-policy set.
 				// The RestartPolicy.Name field may be empty for containers that were
