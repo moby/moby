@@ -21,8 +21,6 @@ func newCache(ds store.Store) *cache {
 }
 
 func (c *cache) kmap(kvObject KVObject) (kvMap, error) {
-	var err error
-
 	c.mu.Lock()
 	keyPrefix := Key(kvObject.KeyPrefix()...)
 	kmap, ok := c.kmm[keyPrefix]
@@ -52,8 +50,7 @@ func (c *cache) kmap(kvObject KVObject) (kvMap, error) {
 		}
 
 		dstO := kvObject.New()
-		err = dstO.SetValue(kvPair.Value)
-		if err != nil {
+		if err := dstO.SetValue(kvPair.Value); err != nil {
 			return nil, err
 		}
 
@@ -116,19 +113,18 @@ func (c *cache) del(kvObject KVObject, atomic bool) error {
 	}
 
 	c.mu.Lock()
+	defer c.mu.Unlock()
 	// If atomic is true, cache needs to maintain its own index
 	// for atomicity and del needs to be atomic.
 	if atomic {
 		if prev, ok := kmap[Key(kvObject.Key()...)]; ok {
 			if prev.Index() != kvObject.Index() {
-				c.mu.Unlock()
 				return ErrKeyModified
 			}
 		}
 	}
 
 	delete(kmap, Key(kvObject.Key()...))
-	c.mu.Unlock()
 	return nil
 }
 

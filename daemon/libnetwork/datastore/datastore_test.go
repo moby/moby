@@ -77,7 +77,6 @@ type dummyObject struct {
 	ID          string
 	DBIndex     uint64
 	DBExists    bool
-	SkipSave    bool
 	ReturnValue bool
 }
 
@@ -119,27 +118,34 @@ func (n *dummyObject) Exists() bool {
 }
 
 func (n *dummyObject) Skip() bool {
-	return n.SkipSave
+	return false
+}
+
+type tmpStruct struct {
+	Name        string          `json:"name"`
+	NetworkType string          `json:"networkType"`
+	EnableIPv6  bool            `json:"enableIPv6"`
+	Generic     options.Generic `json:"generic"`
 }
 
 func (n *dummyObject) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]any{
-		"name":        n.Name,
-		"networkType": n.NetworkType,
-		"enableIPv6":  n.EnableIPv6,
-		"generic":     n.Generic,
+	return json.Marshal(tmpStruct{
+		Name:        n.Name,
+		NetworkType: n.NetworkType,
+		EnableIPv6:  n.EnableIPv6,
+		Generic:     n.Generic,
 	})
 }
 
 func (n *dummyObject) UnmarshalJSON(b []byte) error {
-	var netMap map[string]any
+	var netMap tmpStruct
 	if err := json.Unmarshal(b, &netMap); err != nil {
 		return err
 	}
-	n.Name = netMap["name"].(string)
-	n.NetworkType = netMap["networkType"].(string)
-	n.EnableIPv6 = netMap["enableIPv6"].(bool)
-	n.Generic = netMap["generic"].(map[string]any)
+	n.Name = netMap.Name
+	n.NetworkType = netMap.NetworkType
+	n.EnableIPv6 = netMap.EnableIPv6
+	n.Generic = netMap.Generic
 	return nil
 }
 
@@ -199,22 +205,23 @@ func (r *recStruct) Skip() bool {
 }
 
 func dummyKVObject(id string, retValue bool) *dummyObject {
-	cDict := map[string]string{
-		"foo":   "bar",
-		"hello": "world",
-	}
 	return &dummyObject{
 		Name:        "testNw",
 		NetworkType: "bridge",
 		EnableIPv6:  true,
-		Rec:         &recStruct{Name: "gen", Field1: 5, Dict: cDict},
+		Rec: &recStruct{Name: "gen", Field1: 5, Dict: map[string]string{
+			"foo":   "bar",
+			"hello": "world",
+		}},
 		ID:          id,
 		DBIndex:     0,
 		ReturnValue: retValue,
 		DBExists:    false,
-		SkipSave:    false,
-		Generic: map[string]any{
-			"label1": &recStruct{Name: "value1", Field1: 1, Dict: cDict},
+		Generic: options.Generic{
+			"label1": &recStruct{Name: "value1", Field1: 1, Dict: map[string]string{
+				"foo":   "bar",
+				"hello": "world",
+			}},
 			"label2": "subnet=10.1.1.0/16",
 		},
 	}
