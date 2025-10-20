@@ -73,7 +73,7 @@ func (sr *swarmRouter) swarmLogs(ctx context.Context, w http.ResponseWriter, r *
 
 // adjustForAPIVersion takes a version and service spec and removes fields to
 // make the spec compatible with the specified version.
-func adjustForAPIVersion(cliVersion string, service *swarm.ServiceSpec) {
+func adjustForAPIVersion(cliVersion string, service *serviceWithLegacy) {
 	if cliVersion == "" {
 		return
 	}
@@ -142,6 +142,25 @@ func adjustForAPIVersion(cliVersion string, service *swarm.ServiceSpec) {
 				service.TaskTemplate.ContainerSpec.Healthcheck.StartInterval = 0
 			}
 		}
+
+		// Always prefer NetworkAttachmentConfigs from TaskTemplate
+		// but fallback to service spec for backward compatibility.
+		//
+		// The ServiceSpec.Networks field was deprecated in API v1.25, with
+		// the deprecation notice updated in API v1.44. We only consider this
+		// field on API < v1.44 and if the replacement TaskSpec.Networks is
+		// not set.
+		if len(service.TaskTemplate.Networks) == 0 && len(service.Networks) > 0 {
+			service.TaskTemplate.Networks = make([]swarm.NetworkAttachmentConfig, 0, len(service.Networks))
+			for _, n := range service.Networks {
+				service.TaskTemplate.Networks = append(service.TaskTemplate.Networks, swarm.NetworkAttachmentConfig{
+					Target:     n.Target,
+					Aliases:    n.Aliases,
+					DriverOpts: n.DriverOpts,
+				})
+			}
+		}
+
 	}
 
 	if versions.LessThan(cliVersion, "1.46") {
