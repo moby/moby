@@ -610,14 +610,6 @@ func parseEndpointOptions(epOptions map[string]any) (*endpointOption, error) {
 		}
 	}
 
-	if opt, ok := epOptions[netlabel.DNSServers]; ok {
-		if dns, ok := opt.([]string); ok {
-			ec.DNSServers = dns
-		} else {
-			return nil, fmt.Errorf("Invalid endpoint configuration")
-		}
-	}
-
 	if opt, ok := epOptions[DisableICC]; ok {
 		if disableICC, ok := opt.(bool); ok {
 			ec.DisableICC = disableICC
@@ -635,6 +627,17 @@ func parseEndpointOptions(epOptions map[string]any) (*endpointOption, error) {
 	}
 
 	return ec, nil
+}
+
+func ParseDNSServers(epOptions map[string]any) (string, error) {
+	if opt, ok := epOptions[netlabel.DNSServers]; ok {
+		if dns, ok := opt.([]string); ok {
+			return strings.Join(dns, ","), nil
+		} else {
+			return "", fmt.Errorf("Invalid endpoint configuration")
+		}
+	}
+	return "", nil
 }
 
 // ParseEndpointConnectivity parses options passed to CreateEndpoint, specifically port bindings, and store in a endpointConnectivity object.
@@ -729,7 +732,11 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 		endpointStruct.IPAddress = ifInfo.Address().IP
 	}
 
-	endpointStruct.DNSServerList = strings.Join(epOption.DNSServers, ",")
+	dnsServerList, err := ParseDNSServers(epOptions)
+	if err != nil {
+		return err
+	}
+	endpointStruct.DNSServerList = dnsServerList
 
 	// overwrite the ep DisableDNS option if DisableGatewayDNS was set to true during the network creation option
 	if n.config.DisableGatewayDNS {

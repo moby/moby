@@ -124,12 +124,18 @@ func (d *driver) CreateEndpoint(ctx context.Context, nid, eid string, ifInfo dri
 
 	// Todo: Add port bindings and qos policies here
 
+	dnsServerList, err := windows.ParseDNSServers(epOptions)
+	if err != nil {
+		return err
+	}
+
 	hnsEndpoint := &hcsshim.HNSEndpoint{
 		Name:              eid,
 		VirtualNetwork:    n.hnsID,
 		IPAddress:         ep.addr.IP,
 		EnableInternalDNS: true,
 		GatewayAddress:    s.gwIP.String(),
+		DNSServerList:     dnsServerList,
 	}
 
 	if ep.mac != nil {
