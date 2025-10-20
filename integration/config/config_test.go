@@ -118,7 +118,7 @@ func TestConfigList(t *testing.T) {
 
 func createConfig(ctx context.Context, t *testing.T, apiClient client.APIClient, name string, data []byte, labels map[string]string) string {
 	result, err := apiClient.ConfigCreate(ctx, client.ConfigCreateOptions{
-		Config: swarmtypes.ConfigSpec{
+		Spec: swarmtypes.ConfigSpec{
 			Annotations: swarmtypes.Annotations{
 				Name:   name,
 				Labels: labels,
@@ -127,8 +127,8 @@ func createConfig(ctx context.Context, t *testing.T, apiClient client.APIClient,
 		},
 	})
 	assert.NilError(t, err)
-	assert.Check(t, result.Response.ID != "")
-	return result.Response.ID
+	assert.Check(t, result.ID != "")
+	return result.ID
 }
 
 func TestConfigsCreateAndDelete(t *testing.T) {
@@ -187,7 +187,7 @@ func TestConfigsUpdate(t *testing.T) {
 
 	// test UpdateConfig with full ID
 	insp.Config.Spec.Labels = map[string]string{"test": "test1"}
-	_, err = c.ConfigUpdate(ctx, client.SwarmVersionedID{ID: configID, Version: insp.Config.Version}, client.ConfigUpdateOptions{Config: insp.Config.Spec})
+	_, err = c.ConfigUpdate(ctx, configID, client.ConfigUpdateOptions{Version: insp.Config.Version, Spec: insp.Config.Spec})
 	assert.NilError(t, err)
 
 	insp, err = c.ConfigInspect(ctx, configID, client.ConfigInspectOptions{})
@@ -196,7 +196,7 @@ func TestConfigsUpdate(t *testing.T) {
 
 	// test UpdateConfig with full name
 	insp.Config.Spec.Labels = map[string]string{"test": "test2"}
-	_, err = c.ConfigUpdate(ctx, client.SwarmVersionedID{ID: testName, Version: insp.Config.Version}, client.ConfigUpdateOptions{Config: insp.Config.Spec})
+	_, err = c.ConfigUpdate(ctx, testName, client.ConfigUpdateOptions{Version: insp.Config.Version, Spec: insp.Config.Spec})
 	assert.NilError(t, err)
 
 	insp, err = c.ConfigInspect(ctx, configID, client.ConfigInspectOptions{})
@@ -205,7 +205,7 @@ func TestConfigsUpdate(t *testing.T) {
 
 	// test UpdateConfig with prefix ID
 	insp.Config.Spec.Labels = map[string]string{"test": "test3"}
-	_, err = c.ConfigUpdate(ctx, client.SwarmVersionedID{ID: configID[:1], Version: insp.Config.Version}, client.ConfigUpdateOptions{Config: insp.Config.Spec})
+	_, err = c.ConfigUpdate(ctx, configID[:1], client.ConfigUpdateOptions{Version: insp.Config.Version, Spec: insp.Config.Spec})
 	assert.NilError(t, err)
 
 	insp, err = c.ConfigInspect(ctx, configID, client.ConfigInspectOptions{})
@@ -215,7 +215,7 @@ func TestConfigsUpdate(t *testing.T) {
 	// test UpdateConfig in updating Data which is not supported in daemon
 	// this test will produce an error in func UpdateConfig
 	insp.Config.Spec.Data = []byte("TESTINGDATA2")
-	_, err = c.ConfigUpdate(ctx, client.SwarmVersionedID{ID: configID, Version: insp.Config.Version}, client.ConfigUpdateOptions{Config: insp.Config.Spec})
+	_, err = c.ConfigUpdate(ctx, configID, client.ConfigUpdateOptions{Version: insp.Config.Version, Spec: insp.Config.Spec})
 	assert.Check(t, cerrdefs.IsInvalidArgument(err))
 	assert.Check(t, is.ErrorContains(err, "only updates to Labels are allowed"))
 }
@@ -247,7 +247,7 @@ func TestTemplatedConfig(t *testing.T) {
 		Data: []byte("this is a config"),
 	}
 	referencedConfigResult, err := c.ConfigCreate(ctx, client.ConfigCreateOptions{
-		Config: referencedConfigSpec,
+		Spec: referencedConfigSpec,
 	})
 	assert.Check(t, err)
 
@@ -266,7 +266,7 @@ func TestTemplatedConfig(t *testing.T) {
 	}
 
 	templatedConfigResult, err := c.ConfigCreate(ctx, client.ConfigCreateOptions{
-		Config: configSpec,
+		Spec: configSpec,
 	})
 	assert.Check(t, err)
 
@@ -280,7 +280,7 @@ func TestTemplatedConfig(t *testing.T) {
 					GID:  "0",
 					Mode: 0o600,
 				},
-				ConfigID:   templatedConfigResult.Response.ID,
+				ConfigID:   templatedConfigResult.ID,
 				ConfigName: templatedConfigName,
 			},
 		),
@@ -292,7 +292,7 @@ func TestTemplatedConfig(t *testing.T) {
 					GID:  "0",
 					Mode: 0o600,
 				},
-				ConfigID:   referencedConfigResult.Response.ID,
+				ConfigID:   referencedConfigResult.ID,
 				ConfigName: referencedConfigName,
 			},
 		),

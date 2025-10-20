@@ -256,8 +256,8 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 	defer apiClient.Close()
 
 	configName := "TestConfig_" + t.Name()
-	configResp, err := apiClient.ConfigCreate(ctx, client.ConfigCreateOptions{
-		Config: swarmtypes.ConfigSpec{
+	resp, err := apiClient.ConfigCreate(ctx, client.ConfigCreateOptions{
+		Spec: swarmtypes.ConfigSpec{
 			Annotations: swarmtypes.Annotations{
 				Name: configName,
 			},
@@ -279,7 +279,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 				GID:  "0",
 				Mode: 0o777,
 			},
-			ConfigID:   configResp.Response.ID,
+			ConfigID:   resp.ID,
 			ConfigName: configName,
 		}),
 	)

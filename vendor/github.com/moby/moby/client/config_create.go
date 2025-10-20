@@ -9,7 +9,7 @@ import (
 
 // ConfigCreateOptions holds options for creating a config.
 type ConfigCreateOptions struct {
-	Config swarm.ConfigSpec
+	Spec swarm.ConfigSpec
 }
 
 // ConfigCreateResult holds the result from the ConfigCreate method.
@@ -19,7 +19,7 @@ type ConfigCreateResult struct {
 
 // ConfigCreate creates a new config.
 func (cli *Client) ConfigCreate(ctx context.Context, options ConfigCreateOptions) (ConfigCreateResult, error) {
-	resp, err := cli.post(ctx, "/configs/create", nil, options.Config, nil)
+	resp, err := cli.post(ctx, "/configs/create", nil, options.Spec, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return ConfigCreateResult{}, err

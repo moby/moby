@@ -19,10 +19,10 @@ func (d *Daemon) CreateConfig(t testing.TB, configSpec swarm.ConfigSpec) string 
 	defer cli.Close()
 
 	result, err := cli.ConfigCreate(context.Background(), client.ConfigCreateOptions{
-		Config: configSpec,
+		Spec: configSpec,
 	})
 	assert.NilError(t, err)
-	return result.Response.ID
+	return result.ID
 }
 
 // ListConfigs returns the list of the current swarm configs
@@ -69,6 +69,6 @@ func (d *Daemon) UpdateConfig(t testing.TB, id string, f ...ConfigConstructor) {
 		fn(config)
 	}
 
-	_, err := cli.ConfigUpdate(context.Background(), client.SwarmVersionedID{ID: config.ID, Version: config.Version}, client.ConfigUpdateOptions{Config: config.Spec})
+	_, err := cli.ConfigUpdate(context.Background(), config.ID, client.ConfigUpdateOptions{Version: config.Version, Spec: config.Spec})
 	assert.NilError(t, err)
 }

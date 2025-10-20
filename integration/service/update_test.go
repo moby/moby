@@ -145,8 +145,8 @@ func TestServiceUpdateConfigs(t *testing.T) {
 
 	configName := "TestConfig_" + t.Name()
 	configTarget := "targetName"
-	configResp, err := apiClient.ConfigCreate(ctx, client.ConfigCreateOptions{
-		Config: swarmtypes.ConfigSpec{
+	resp, err := apiClient.ConfigCreate(ctx, client.ConfigCreateOptions{
+		Spec: swarmtypes.ConfigSpec{
 			Annotations: swarmtypes.Annotations{
 				Name: configName,
 			},
@@ -154,7 +154,7 @@ func TestServiceUpdateConfigs(t *testing.T) {
 		},
 	})
 	assert.NilError(t, err)
-	assert.Check(t, configResp.Response.ID != "")
+	assert.Check(t, resp.ID != "")
 
 	serviceName := "TestService_" + t.Name()
 	serviceID := swarm.CreateService(ctx, t, d, swarm.ServiceWithName(serviceName))
@@ -169,7 +169,7 @@ func TestServiceUpdateConfigs(t *testing.T) {
 				GID:  "0",
 				Mode: 0o600,
 			},
-			ConfigID:   configResp.Response.ID,
+			ConfigID:   resp.ID,
 			ConfigName: configName,
 		},
 	)

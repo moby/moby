@@ -10,7 +10,7 @@ import (
 // ConfigUpdateOptions holds options for updating a config.
 type ConfigUpdateOptions struct {
 	Version swarm.Version
-	Config  swarm.ConfigSpec
+	Spec    swarm.ConfigSpec
 }
 
 type ConfigUpdateResult struct{}
@@ -23,7 +23,7 @@ func (cli *Client) ConfigUpdate(ctx context.Context, id string, options ConfigUp
 	}
 	query := url.Values{}
 	query.Set("version", options.Version.String())
-	resp, err := cli.post(ctx, "/configs/"+id+"/update", query, options.Config, nil)
+	resp, err := cli.post(ctx, "/configs/"+id+"/update", query, options.Spec, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return ConfigUpdateResult{}, err
