@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/swarm"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -19,14 +18,14 @@ func TestConfigUpdateError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.ConfigUpdate(context.Background(), "config_id", swarm.Version{}, swarm.ConfigSpec{})
+	_, err = client.ConfigUpdate(context.Background(), "config_id", ConfigUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.ConfigUpdate(context.Background(), "", swarm.Version{}, swarm.ConfigSpec{})
+	_, err = client.ConfigUpdate(context.Background(), "", ConfigUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.ConfigUpdate(context.Background(), "    ", swarm.Version{}, swarm.ConfigSpec{})
+	_, err = client.ConfigUpdate(context.Background(), "    ", ConfigUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -47,6 +46,6 @@ func TestConfigUpdate(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.ConfigUpdate(context.Background(), "config_id", swarm.Version{}, swarm.ConfigSpec{})
+	_, err = client.ConfigUpdate(context.Background(), "config_id", ConfigUpdateOptions{})
 	assert.NilError(t, err)
 }

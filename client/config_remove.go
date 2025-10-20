@@ -2,13 +2,20 @@ package client
 
 import "context"
 
+type ConfigRemoveOptions struct{}
+
+type ConfigRemoveResult struct{}
+
 // ConfigRemove removes a config.
-func (cli *Client) ConfigRemove(ctx context.Context, id string) error {
+func (cli *Client) ConfigRemove(ctx context.Context, id string, options ConfigRemoveOptions) (ConfigRemoveResult, error) {
 	id, err := trimID("config", id)
 	if err != nil {
-		return err
+		return ConfigRemoveResult{}, err
 	}
 	resp, err := cli.delete(ctx, "/configs/"+id, nil, nil)
 	defer ensureReaderClosed(resp)
-	return err
+	if err != nil {
+		return ConfigRemoveResult{}, err
+	}
+	return ConfigRemoveResult{}, nil
 }

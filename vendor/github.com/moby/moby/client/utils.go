@@ -1,8 +1,12 @@
 package client
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -64,4 +68,19 @@ func encodePlatform(platform *ocispec.Platform) (string, error) {
 		return "", fmt.Errorf("%w: invalid platform: %v", cerrdefs.ErrInvalidArgument, err)
 	}
 	return string(p), nil
+}
+
+func decodeWithRaw[T any](resp *http.Response, out *T) (raw []byte, _ error) {
+	if resp == nil || resp.Body == nil {
+		return nil, errors.New("empty response")
+	}
+	defer resp.Body.Close()
+
+	var buf bytes.Buffer
+	tr := io.TeeReader(resp.Body, &buf)
+	err := json.NewDecoder(tr).Decode(out)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

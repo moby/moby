@@ -18,9 +18,11 @@ func (d *Daemon) CreateConfig(t testing.TB, configSpec swarm.ConfigSpec) string 
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	scr, err := cli.ConfigCreate(context.Background(), configSpec)
+	result, err := cli.ConfigCreate(context.Background(), client.ConfigCreateOptions{
+		Spec: configSpec,
+	})
 	assert.NilError(t, err)
-	return scr.ID
+	return result.ID
 }
 
 // ListConfigs returns the list of the current swarm configs
@@ -29,9 +31,9 @@ func (d *Daemon) ListConfigs(t testing.TB) []swarm.Config {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	configs, err := cli.ConfigList(context.Background(), client.ConfigListOptions{})
+	result, err := cli.ConfigList(context.Background(), client.ConfigListOptions{})
 	assert.NilError(t, err)
-	return configs
+	return result.Configs
 }
 
 // GetConfig returns a swarm config identified by the specified id
@@ -40,9 +42,9 @@ func (d *Daemon) GetConfig(t testing.TB, id string) *swarm.Config {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	config, _, err := cli.ConfigInspectWithRaw(context.Background(), id)
+	result, err := cli.ConfigInspect(context.Background(), id, client.ConfigInspectOptions{})
 	assert.NilError(t, err)
-	return &config
+	return &result.Config
 }
 
 // DeleteConfig removes the swarm config identified by the specified id
@@ -51,7 +53,7 @@ func (d *Daemon) DeleteConfig(t testing.TB, id string) {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	err := cli.ConfigRemove(context.Background(), id)
+	_, err := cli.ConfigRemove(context.Background(), id, client.ConfigRemoveOptions{})
 	assert.NilError(t, err)
 }
 
@@ -67,6 +69,6 @@ func (d *Daemon) UpdateConfig(t testing.TB, id string, f ...ConfigConstructor) {
 		fn(config)
 	}
 
-	err := cli.ConfigUpdate(context.Background(), config.ID, config.Version, config.Spec)
+	_, err := cli.ConfigUpdate(context.Background(), config.ID, client.ConfigUpdateOptions{Version: config.Version, Spec: config.Spec})
 	assert.NilError(t, err)
 }

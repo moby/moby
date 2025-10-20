@@ -83,14 +83,14 @@ func TestServiceUpdateSecrets(t *testing.T) {
 
 	secretName := "TestSecret_" + t.Name()
 	secretTarget := "targetName"
-	resp, err := apiClient.SecretCreate(ctx, swarmtypes.SecretSpec{
+	secretResp, err := apiClient.SecretCreate(ctx, swarmtypes.SecretSpec{
 		Annotations: swarmtypes.Annotations{
 			Name: secretName,
 		},
 		Data: []byte("TESTINGDATA"),
 	})
 	assert.NilError(t, err)
-	assert.Check(t, resp.ID != "")
+	assert.Check(t, secretResp.ID != "")
 
 	serviceName := "TestService_" + t.Name()
 	serviceID := swarm.CreateService(ctx, t, d, swarm.ServiceWithName(serviceName))
@@ -105,7 +105,7 @@ func TestServiceUpdateSecrets(t *testing.T) {
 				GID:  "0",
 				Mode: 0o600,
 			},
-			SecretID:   resp.ID,
+			SecretID:   secretResp.ID,
 			SecretName: secretName,
 		},
 	)
@@ -145,11 +145,13 @@ func TestServiceUpdateConfigs(t *testing.T) {
 
 	configName := "TestConfig_" + t.Name()
 	configTarget := "targetName"
-	resp, err := apiClient.ConfigCreate(ctx, swarmtypes.ConfigSpec{
-		Annotations: swarmtypes.Annotations{
-			Name: configName,
+	resp, err := apiClient.ConfigCreate(ctx, client.ConfigCreateOptions{
+		Spec: swarmtypes.ConfigSpec{
+			Annotations: swarmtypes.Annotations{
+				Name: configName,
+			},
+			Data: []byte("TESTINGDATA"),
 		},
-		Data: []byte("TESTINGDATA"),
 	})
 	assert.NilError(t, err)
 	assert.Check(t, resp.ID != "")
