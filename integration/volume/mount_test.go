@@ -13,7 +13,6 @@ import (
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/versions"
-	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/volume/safepath"
 	"github.com/moby/moby/v2/integration/internal/container"
@@ -241,7 +240,7 @@ func setupTestVolume(t *testing.T, apiClient client.APIClient) string {
 	err := apiClient.VolumeRemove(ctx, volumeName, client.VolumeRemoveOptions{Force: true})
 	assert.NilError(t, err, "failed to clean volume")
 
-	_, err = apiClient.VolumeCreate(ctx, volume.CreateOptions{
+	_, err = apiClient.VolumeCreate(ctx, client.VolumeCreateOptions{
 		Name: volumeName,
 	})
 	assert.NilError(t, err, "failed to setup volume")

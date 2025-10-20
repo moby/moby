@@ -18,7 +18,7 @@ func TestVolumeCreateError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.VolumeCreate(context.Background(), volume.CreateOptions{})
+	_, err = client.VolumeCreate(context.Background(), VolumeCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -45,7 +45,7 @@ func TestVolumeCreate(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	vol, err := client.VolumeCreate(context.Background(), volume.CreateOptions{
+	res, err := client.VolumeCreate(context.Background(), VolumeCreateOptions{
 		Name:   "myvolume",
 		Driver: "mydriver",
 		DriverOpts: map[string]string{
@@ -53,7 +53,8 @@ func TestVolumeCreate(t *testing.T) {
 		},
 	})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(vol.Name, "volume"))
-	assert.Check(t, is.Equal(vol.Driver, "local"))
-	assert.Check(t, is.Equal(vol.Mountpoint, "mountpoint"))
+	v := res.Volume
+	assert.Check(t, is.Equal(v.Name, "volume"))
+	assert.Check(t, is.Equal(v.Driver, "local"))
+	assert.Check(t, is.Equal(v.Mountpoint, "mountpoint"))
 }
