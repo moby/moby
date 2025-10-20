@@ -24,9 +24,27 @@ const (
 // DiskUsage contains response of Engine API:
 // GET "/system/df"
 type DiskUsage struct {
-	LayersSize int64
-	Images     []*image.Summary
-	Containers []*container.Summary
-	Volumes    []*volume.Volume
-	BuildCache []*build.CacheRecord
+	LegacyDiskUsage
+
+	ImageUsage      *ImagesDiskUsage     `json:"ImageUsage,omitempty"`
+	ContainerUsage  *ContainersDiskUsage `json:"ContainerUsage,omitempty"`
+	VolumeUsage     *VolumesDiskUsage    `json:"VolumeUsage,omitempty"`
+	BuildCacheUsage *BuildCacheDiskUsage `json:"BuildCacheUsage,omitempty"`
+}
+
+type LegacyDiskUsage struct {
+	// Deprecated: kept to maintain backwards compatibility with API < v1.52, use [ImagesDiskUsage.TotalSize] instead.
+	LayersSize int64 `json:"LayersSize,omitempty"`
+
+	// Deprecated: kept to maintain backwards compatibility with API < v1.52, use [ImagesDiskUsage.Items] instead.
+	Images []*image.Summary `json:"Images,omitempty"`
+
+	// Deprecated: kept to maintain backwards compatibility with API < v1.52, use [ContainersDiskUsage.Items] instead.
+	Containers []*container.Summary `json:"Containers,omitempty"`
+
+	// Deprecated: kept to maintain backwards compatibility with API < v1.52, use [VolumesDiskUsage.Items] instead.
+	Volumes []*volume.Volume `json:"Volumes,omitempty"`
+
+	// Deprecated: kept to maintain backwards compatibility with API < v1.52, use [BuildCacheDiskUsage.Items] instead.
+	BuildCache []*build.CacheRecord `json:"BuildCache,omitempty"`
 }

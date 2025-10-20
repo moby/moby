@@ -95,6 +95,13 @@ generate_model types/storage <<- 'EOT'
 	Storage
 EOT
 
+generate_model types/system <<- 'EOT'
+	BuildCacheDiskUsage
+	ContainersDiskUsage
+	ImagesDiskUsage
+	VolumesDiskUsage
+EOT
+
 generate_model types/swarm <<- 'EOT'
 	ServiceCreateResponse
 	ServiceUpdateResponse
