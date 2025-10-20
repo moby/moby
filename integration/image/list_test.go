@@ -36,7 +36,7 @@ func TestImagesFilterMultiReference(t *testing.T) {
 	}
 
 	for _, repoTag := range repoTags {
-		err := apiClient.ImageTag(ctx, "busybox:latest", repoTag)
+		_, err := apiClient.ImageTag(ctx, client.ImageTagOptions{Source: "busybox:latest", Target: repoTag})
 		assert.NilError(t, err)
 	}
 
@@ -140,7 +140,7 @@ func TestAPIImagesFilters(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	for _, n := range []string{"utest:tag1", "utest/docker:tag2", "utest:5000/docker:tag3"} {
-		err := apiClient.ImageTag(ctx, "busybox:latest", n)
+		_, err := apiClient.ImageTag(ctx, client.ImageTagOptions{Source: "busybox:latest", Target: n})
 		assert.NilError(t, err)
 	}
 

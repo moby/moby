@@ -70,7 +70,7 @@ func FrozenImagesLinux(ctx context.Context, apiClient client.APIClient, images .
 
 	for _, img := range loadImages {
 		if img.srcName != img.destName {
-			if err := apiClient.ImageTag(ctx, img.srcName, img.destName); err != nil {
+			if _, err := apiClient.ImageTag(ctx, client.ImageTagOptions{Source: img.srcName, Target: img.destName}); err != nil {
 				return errors.Wrapf(err, "failed to tag %s as %s", img.srcName, img.destName)
 			}
 			if _, err := apiClient.ImageRemove(ctx, img.srcName, client.ImageRemoveOptions{}); err != nil {
@@ -171,7 +171,7 @@ func pullTagAndRemove(ctx context.Context, apiClient client.APIClient, ref strin
 		return err
 	}
 
-	if err := apiClient.ImageTag(ctx, ref, tag); err != nil {
+	if _, err := apiClient.ImageTag(ctx, client.ImageTagOptions{Source: ref, Target: tag}); err != nil {
 		return errors.Wrapf(err, "failed to tag %s as %s", ref, tag)
 	}
 	_, err = apiClient.ImageRemove(ctx, ref, client.ImageRemoveOptions{})

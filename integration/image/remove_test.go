@@ -71,7 +71,7 @@ func TestRemoveByDigest(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	err := apiClient.ImageTag(ctx, "busybox", "test-remove-by-digest:latest")
+	_, err := apiClient.ImageTag(ctx, client.ImageTagOptions{Source: "busybox", Target: "test-remove-by-digest:latest"})
 	assert.NilError(t, err)
 
 	inspect, err := apiClient.ImageInspect(ctx, "test-remove-by-digest")
