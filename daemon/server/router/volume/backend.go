@@ -26,7 +26,7 @@ type Backend interface {
 type ClusterBackend interface {
 	GetVolume(nameOrID string) (volume.Volume, error)
 	GetVolumes(options volumebackend.ListOptions) ([]*volume.Volume, error)
-	CreateVolume(volume volume.CreateOptions) (*volume.Volume, error)
+	CreateVolume(volume volume.CreateRequest) (*volume.Volume, error)
 	RemoveVolume(nameOrID string, force bool) error
 	UpdateVolume(nameOrID string, version uint64, volume volumebackend.UpdateOptions) error
 	IsManager() bool

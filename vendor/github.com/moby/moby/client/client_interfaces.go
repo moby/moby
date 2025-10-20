@@ -14,7 +14,6 @@ import (
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/system"
-	"github.com/moby/moby/api/types/volume"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -195,7 +194,7 @@ type SystemAPIClient interface {
 
 // VolumeAPIClient defines API client methods for the volumes
 type VolumeAPIClient interface {
-	VolumeCreate(ctx context.Context, options volume.CreateOptions) (volume.Volume, error)
+	VolumeCreate(ctx context.Context, options VolumeCreateOptions) (VolumeCreateResult, error)
 	VolumeInspect(ctx context.Context, volumeID string) (VolumeInspectResult, error)
 	VolumeInspectWithRaw(ctx context.Context, volumeID string) (VolumeInspectResult, []byte, error)
 	VolumeList(ctx context.Context, options VolumeListOptions) (VolumeListResult, error)

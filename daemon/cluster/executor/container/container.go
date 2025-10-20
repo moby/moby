@@ -474,7 +474,7 @@ func (c *containerConfig) hostConfig(deps exec.VolumeGetter) *container.HostConf
 }
 
 // This handles the case of volumes that are defined inside a service Mount
-func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *volume.CreateOptions {
+func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *volume.CreateRequest {
 	var (
 		driverName string
 		driverOpts map[string]string
@@ -488,7 +488,7 @@ func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *volume.CreateOp
 	}
 
 	if mount.VolumeOptions != nil {
-		return &volume.CreateOptions{
+		return &volume.CreateRequest{
 			Name:       mount.Source,
 			Driver:     driverName,
 			DriverOpts: driverOpts,

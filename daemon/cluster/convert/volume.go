@@ -134,7 +134,7 @@ func volumeSpecToGRPC(spec volumetypes.ClusterVolumeSpec) *swarmapi.VolumeSpec {
 
 // VolumeCreateToGRPC takes a VolumeCreateBody and outputs the matching
 // swarmapi VolumeSpec.
-func VolumeCreateToGRPC(volume *volumetypes.CreateOptions) *swarmapi.VolumeSpec {
+func VolumeCreateToGRPC(volume *volumetypes.CreateRequest) *swarmapi.VolumeSpec {
 	var swarmSpec *swarmapi.VolumeSpec
 	if volume != nil && volume.ClusterVolumeSpec != nil {
 		swarmSpec = volumeSpecToGRPC(*volume.ClusterVolumeSpec)

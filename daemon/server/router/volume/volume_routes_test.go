@@ -187,7 +187,7 @@ func TestCreateRegularVolume(t *testing.T) {
 		cluster: c,
 	}
 
-	volumeCreate := volume.CreateOptions{
+	volumeCreate := volume.CreateRequest{
 		Name:   "vol1",
 		Driver: "foodriver",
 	}
@@ -224,7 +224,7 @@ func TestCreateSwarmVolumeNoSwarm(t *testing.T) {
 		cluster: c,
 	}
 
-	volumeCreate := volume.CreateOptions{
+	volumeCreate := volume.CreateRequest{
 		ClusterVolumeSpec: &volume.ClusterVolumeSpec{},
 		Name:              "volCluster",
 		Driver:            "someCSI",
@@ -253,7 +253,7 @@ func TestCreateSwarmVolumeNotManager(t *testing.T) {
 		cluster: c,
 	}
 
-	volumeCreate := volume.CreateOptions{
+	volumeCreate := volume.CreateRequest{
 		ClusterVolumeSpec: &volume.ClusterVolumeSpec{},
 		Name:              "volCluster",
 		Driver:            "someCSI",
@@ -285,7 +285,7 @@ func TestCreateVolumeCluster(t *testing.T) {
 		cluster: c,
 	}
 
-	volumeCreate := volume.CreateOptions{
+	volumeCreate := volume.CreateRequest{
 		ClusterVolumeSpec: &volume.ClusterVolumeSpec{},
 		Name:              "volCluster",
 		Driver:            "someCSI",
@@ -692,7 +692,7 @@ func (c *fakeClusterBackend) GetVolumes(_ volumebackend.ListOptions) ([]*volume.
 	return volumes, nil
 }
 
-func (c *fakeClusterBackend) CreateVolume(volumeCreate volume.CreateOptions) (*volume.Volume, error) {
+func (c *fakeClusterBackend) CreateVolume(volumeCreate volume.CreateRequest) (*volume.Volume, error) {
 	if err := c.checkSwarm(); err != nil {
 		return nil, err
 	}

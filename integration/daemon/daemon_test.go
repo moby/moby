@@ -18,7 +18,6 @@ import (
 	"github.com/moby/moby/api/pkg/stdcopy"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
-	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/integration/internal/container"
@@ -551,7 +550,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 		t.Run(string(policy), func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			volName := "test-live-restore-volume-references-" + string(policy)
-			_, err := c.VolumeCreate(ctx, volume.CreateOptions{Name: volName})
+			_, err := c.VolumeCreate(ctx, client.VolumeCreateOptions{Name: volName})
 			assert.NilError(t, err)
 
 			// Create a container that uses the volume
@@ -586,7 +585,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 	// Addresses https://github.com/moby/moby/issues/44422
 	t.Run("local volume with mount options", func(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
-		v, err := c.VolumeCreate(ctx, volume.CreateOptions{
+		created, err := c.VolumeCreate(ctx, client.VolumeCreateOptions{
 			Driver: "local",
 			Name:   "test-live-restore-volume-references-local",
 			DriverOpts: map[string]string{
@@ -595,6 +594,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 			},
 		})
 		assert.NilError(t, err)
+		v := created.Volume
 		m := mount.Mount{
 			Type:   mount.TypeVolume,
 			Source: v.Name,
