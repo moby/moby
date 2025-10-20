@@ -77,14 +77,14 @@ func TestImageImport(t *testing.T) {
 				}, nil
 			}))
 			assert.NilError(t, err)
-			resp, err := client.ImageImport(context.Background(), ImageImportSource{
+			result, err := client.ImageImport(context.Background(), ImageImportSource{
 				Source:     strings.NewReader("source"),
 				SourceName: "image_source",
 			}, "repository_name:imported", tc.options)
 			assert.NilError(t, err)
-			defer assert.NilError(t, resp.Close())
+			defer assert.NilError(t, result.Close())
 
-			body, err := io.ReadAll(resp)
+			body, err := io.ReadAll(result)
 			assert.NilError(t, err)
 			assert.Check(t, is.Equal(string(body), expectedOutput))
 		})

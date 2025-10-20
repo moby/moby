@@ -27,10 +27,10 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID))
 
 	reference := "repo/" + strings.ToLower(t.Name()) + ":v1"
-	exportResp, err := apiClient.ContainerExport(ctx, cID)
+	exportRes, err := apiClient.ContainerExport(ctx, cID)
 	assert.NilError(t, err)
-	importResp, err := apiClient.ImageImport(ctx, client.ImageImportSource{
-		Source:     exportResp,
+	importRes, err := apiClient.ImageImport(ctx, client.ImageImportSource{
+		Source:     exportRes,
 		SourceName: "-",
 	}, reference, client.ImageImportOptions{})
 	assert.NilError(t, err)
@@ -38,7 +38,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	// If the import is successfully, then the message output should contain
 	// the image ID and match with the output from `docker images`.
 
-	dec := json.NewDecoder(importResp)
+	dec := json.NewDecoder(importRes)
 	var jm jsonmessage.JSONMessage
 	err = dec.Decode(&jm)
 	assert.NilError(t, err)
@@ -47,7 +47,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 		Filters: make(client.Filters).Add("reference", reference),
 	})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(jm.Status, images[0].ID))
+	assert.Check(t, is.Equal(jm.Status, images.Images[0].ID))
 }
 
 // TestExportContainerAfterDaemonRestart checks that a container
