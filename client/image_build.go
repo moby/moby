@@ -17,15 +17,15 @@ import (
 // ImageBuild sends a request to the daemon to build images.
 // The Body in the response implements an [io.ReadCloser] and it's up to the caller to
 // close it.
-func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, options ImageBuildOptions) (ImageBuildResponse, error) {
+func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, options ImageBuildOptions) (ImageBuildResult, error) {
 	query, err := cli.imageBuildOptionsToQuery(ctx, options)
 	if err != nil {
-		return ImageBuildResponse{}, err
+		return ImageBuildResult{}, err
 	}
 
 	buf, err := json.Marshal(options.AuthConfigs)
 	if err != nil {
-		return ImageBuildResponse{}, err
+		return ImageBuildResult{}, err
 	}
 
 	headers := http.Header{}
@@ -34,10 +34,10 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 
 	resp, err := cli.postRaw(ctx, "/build", query, buildContext, headers)
 	if err != nil {
-		return ImageBuildResponse{}, err
+		return ImageBuildResult{}, err
 	}
 
-	return ImageBuildResponse{
+	return ImageBuildResult{
 		Body: resp.Body,
 	}, nil
 }

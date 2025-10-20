@@ -68,9 +68,9 @@ type ImageBuildOutput struct {
 	Attrs map[string]string
 }
 
-// ImageBuildResponse holds information
+// ImageBuildResult holds information
 // returned by a server after building
 // an image.
-type ImageBuildResponse struct {
+type ImageBuildResult struct {
 	Body io.ReadCloser
 }
