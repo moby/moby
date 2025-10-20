@@ -21,9 +21,10 @@ func TestStats(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	info, err := apiClient.Info(ctx)
+	result, err := apiClient.Info(ctx, client.InfoOptions{})
 	assert.NilError(t, err)
 
+	info := result.Info
 	cID := container.Run(ctx, t, apiClient)
 	t.Run("no-stream", func(t *testing.T) {
 		resp, err := apiClient.ContainerStats(ctx, cID, client.ContainerStatsOptions{

@@ -54,8 +54,9 @@ func (s *DockerCLIPluginLogDriverSuite) TestPluginLogDriverInfoList(c *testing.T
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	info, err := apiClient.Info(testutil.GetContext(c))
+	result, err := apiClient.Info(testutil.GetContext(c), client.InfoOptions{})
 	assert.NilError(c, err)
+	info := result.Info
 
 	drivers := strings.Join(info.Plugins.Log, " ")
 	assert.Assert(c, is.Contains(drivers, "json-file"))

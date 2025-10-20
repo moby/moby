@@ -46,10 +46,11 @@ func New(ctx context.Context) (*Execution, error) {
 
 // FromClient creates a new Execution environment from the passed in client
 func FromClient(ctx context.Context, c *client.Client) (*Execution, error) {
-	info, err := c.Info(ctx)
+	result, err := c.Info(ctx, client.InfoOptions{})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get info from daemon")
 	}
+	info := result.Info
 	v, err := c.ServerVersion(context.Background())
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get version info from daemon")

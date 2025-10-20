@@ -21,8 +21,9 @@ func (s *DockerCLIInfoSuite) TestInfoSecurityOptions(c *testing.T) {
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
-	info, err := apiClient.Info(testutil.GetContext(c))
+	result, err := apiClient.Info(testutil.GetContext(c), client.InfoOptions{})
 	assert.NilError(c, err)
+	info := result.Info
 
 	if Apparmor() {
 		assert.Check(c, is.Contains(info.SecurityOptions, "name=apparmor"))

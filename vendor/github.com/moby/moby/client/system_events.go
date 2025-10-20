@@ -19,11 +19,17 @@ type EventsListOptions struct {
 	Filters Filters
 }
 
+// EventsResult holds the result of an Events query.
+type EventsResult struct {
+	Messages <-chan events.Message
+	Err      <-chan error
+}
+
 // Events returns a stream of events in the daemon. It's up to the caller to close the stream
 // by cancelling the context. Once the stream has been completely read an [io.EOF] error is
 // sent over the error channel. If an error is sent, all processing is stopped. It's up
 // to the caller to reopen the stream in the event of an error by reinvoking this method.
-func (cli *Client) Events(ctx context.Context, options EventsListOptions) (<-chan events.Message, <-chan error) {
+func (cli *Client) Events(ctx context.Context, options EventsListOptions) EventsResult {
 	messages := make(chan events.Message)
 	errs := make(chan error, 1)
 
@@ -76,7 +82,10 @@ func (cli *Client) Events(ctx context.Context, options EventsListOptions) (<-cha
 	}()
 	<-started
 
-	return messages, errs
+	return EventsResult{
+		Messages: messages,
+		Err:      errs,
+	}
 }
 
 func buildEventsQueryParams(options EventsListOptions) (url.Values, error) {

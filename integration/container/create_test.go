@@ -807,9 +807,10 @@ func TestContainerdContainerImageInfo(t *testing.T) {
 	apiClient := testEnv.APIClient()
 	defer apiClient.Close()
 
-	info, err := apiClient.Info(ctx)
+	result, err := apiClient.Info(ctx, client.InfoOptions{})
 	assert.NilError(t, err)
 
+	info := result.Info
 	skip.If(t, info.Containerd == nil, "requires containerd")
 
 	// Currently a containerd container is only created when the container is started.
