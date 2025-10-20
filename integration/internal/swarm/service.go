@@ -204,14 +204,14 @@ func ServiceWithPidsLimit(limit int64) ServiceSpecOpt {
 func GetRunningTasks(ctx context.Context, t *testing.T, c client.ServiceAPIClient, serviceID string) []swarmtypes.Task {
 	t.Helper()
 
-	tasks, err := c.TaskList(ctx, client.TaskListOptions{
+	result, err := c.TaskList(ctx, client.TaskListOptions{
 		Filters: make(client.Filters).
 			Add("service", serviceID).
 			Add("desired-state", "running"),
 	})
 
 	assert.NilError(t, err)
-	return tasks
+	return result.Tasks
 }
 
 // ExecTask runs the passed in exec config on the given task

@@ -368,19 +368,19 @@ func TestCreateServiceSysctls(t *testing.T) {
 		// more complex)
 
 		// get all tasks of the service, so we can get the container
-		tasks, err := apiClient.TaskList(ctx, client.TaskListOptions{
+		taskResult, err := apiClient.TaskList(ctx, client.TaskListOptions{
 			Filters: make(client.Filters).Add("service", serviceID),
 		})
 		assert.NilError(t, err)
-		assert.Check(t, is.Equal(len(tasks), 1))
+		assert.Check(t, is.Equal(len(taskResult.Tasks), 1))
 
 		// verify that the container has the sysctl option set
-		ctnr, err := apiClient.ContainerInspect(ctx, tasks[0].Status.ContainerStatus.ContainerID)
+		ctnr, err := apiClient.ContainerInspect(ctx, taskResult.Tasks[0].Status.ContainerStatus.ContainerID)
 		assert.NilError(t, err)
 		assert.DeepEqual(t, ctnr.HostConfig.Sysctls, expectedSysctls)
 
 		// verify that the task has the sysctl option set in the task object
-		assert.DeepEqual(t, tasks[0].Spec.ContainerSpec.Sysctls, expectedSysctls)
+		assert.DeepEqual(t, taskResult.Tasks[0].Spec.ContainerSpec.Sysctls, expectedSysctls)
 
 		// verify that the service also has the sysctl set in the spec.
 		service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
@@ -438,21 +438,21 @@ func TestCreateServiceCapabilities(t *testing.T) {
 	// level has been tested elsewhere.
 
 	// get all tasks of the service, so we can get the container
-	tasks, err := apiClient.TaskList(ctx, client.TaskListOptions{
+	taskResult, err := apiClient.TaskList(ctx, client.TaskListOptions{
 		Filters: make(client.Filters).Add("service", serviceID),
 	})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(len(tasks), 1))
+	assert.Check(t, is.Equal(len(taskResult.Tasks), 1))
 
 	// verify that the container has the capabilities option set
-	ctnr, err := apiClient.ContainerInspect(ctx, tasks[0].Status.ContainerStatus.ContainerID)
+	ctnr, err := apiClient.ContainerInspect(ctx, taskResult.Tasks[0].Status.ContainerStatus.ContainerID)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, ctnr.HostConfig.CapAdd, capAdd)
 	assert.DeepEqual(t, ctnr.HostConfig.CapDrop, capDrop)
 
 	// verify that the task has the capabilities option set in the task object
-	assert.DeepEqual(t, tasks[0].Spec.ContainerSpec.CapabilityAdd, capAdd)
-	assert.DeepEqual(t, tasks[0].Spec.ContainerSpec.CapabilityDrop, capDrop)
+	assert.DeepEqual(t, taskResult.Tasks[0].Spec.ContainerSpec.CapabilityAdd, capAdd)
+	assert.DeepEqual(t, taskResult.Tasks[0].Spec.ContainerSpec.CapabilityDrop, capDrop)
 
 	// verify that the service also has the capabilities set in the spec.
 	service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
