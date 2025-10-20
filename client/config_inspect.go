@@ -1,10 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"io"
 
 	"github.com/moby/moby/api/types/swarm"
 )
@@ -32,15 +29,7 @@ func (cli *Client) ConfigInspect(ctx context.Context, id string, options ConfigI
 		return ConfigInspectResult{}, err
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return ConfigInspectResult{}, err
-	}
-
 	var out ConfigInspectResult
-	out.Raw = body
-	rdr := bytes.NewReader(body)
-	err = json.NewDecoder(rdr).Decode(&out.Config)
-
+	out.Raw, err = decodeWithRaw(resp, &out.Config)
 	return out, err
 }
