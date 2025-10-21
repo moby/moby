@@ -11,12 +11,12 @@ import (
 // IsNetworkAvailable provides a comparison to check if a docker network is available
 func IsNetworkAvailable(ctx context.Context, c client.NetworkAPIClient, name string) cmp.Comparison {
 	return func() cmp.Result {
-		networks, err := c.NetworkList(ctx, client.NetworkListOptions{})
+		res, err := c.NetworkList(ctx, client.NetworkListOptions{})
 		if err != nil {
 			return cmp.ResultFromError(err)
 		}
-		for _, network := range networks {
-			if network.Name == name {
+		for _, nw := range res.Items {
+			if nw.Name == name {
 				return cmp.ResultSuccess
 			}
 		}
@@ -27,12 +27,12 @@ func IsNetworkAvailable(ctx context.Context, c client.NetworkAPIClient, name str
 // IsNetworkNotAvailable provides a comparison to check if a docker network is not available
 func IsNetworkNotAvailable(ctx context.Context, c client.NetworkAPIClient, name string) cmp.Comparison {
 	return func() cmp.Result {
-		networks, err := c.NetworkList(ctx, client.NetworkListOptions{})
+		res, err := c.NetworkList(ctx, client.NetworkListOptions{})
 		if err != nil {
 			return cmp.ResultFromError(err)
 		}
-		for _, network := range networks {
-			if network.Name == name {
+		for _, nw := range res.Items {
+			if nw.Name == name {
 				return cmp.ResultFailure(fmt.Sprintf("network %s is still present", name))
 			}
 		}

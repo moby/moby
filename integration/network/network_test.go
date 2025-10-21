@@ -130,15 +130,15 @@ func TestAPINetworkFilter(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	networks, err := apiClient.NetworkList(ctx, client.NetworkListOptions{
+	res, err := apiClient.NetworkList(ctx, client.NetworkListOptions{
 		Filters: make(client.Filters).Add("name", networkName),
 	})
 
 	assert.NilError(t, err)
 
 	found := false
-	for _, network := range networks {
-		if network.Name == networkName {
+	for _, nw := range res.Items {
+		if nw.Name == networkName {
 			found = true
 		}
 	}

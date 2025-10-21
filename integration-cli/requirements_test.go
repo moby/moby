@@ -35,8 +35,8 @@ func OnlyDefaultNetworks(ctx context.Context) bool {
 	if err != nil {
 		return false
 	}
-	networks, err := apiClient.NetworkList(ctx, client.NetworkListOptions{})
-	if err != nil || len(networks) > 0 {
+	res, err := apiClient.NetworkList(ctx, client.NetworkListOptions{})
+	if err != nil || len(res.Items) > 0 {
 		return false
 	}
 	return true

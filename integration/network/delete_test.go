@@ -31,12 +31,12 @@ func createAmbiguousNetworks(ctx context.Context, t *testing.T, apiClient client
 	idPrefixNet := network.CreateNoError(ctx, t, apiClient, testNet[:12])
 	fullIDNet := network.CreateNoError(ctx, t, apiClient, testNet)
 
-	nws, err := apiClient.NetworkList(ctx, client.NetworkListOptions{})
+	res, err := apiClient.NetworkList(ctx, client.NetworkListOptions{})
 	assert.NilError(t, err)
 
-	assert.Check(t, is.Equal(true, containsNetwork(nws, testNet)), "failed to create network testNet")
-	assert.Check(t, is.Equal(true, containsNetwork(nws, idPrefixNet)), "failed to create network idPrefixNet")
-	assert.Check(t, is.Equal(true, containsNetwork(nws, fullIDNet)), "failed to create network fullIDNet")
+	assert.Check(t, is.Equal(true, containsNetwork(res.Items, testNet)), "failed to create network testNet")
+	assert.Check(t, is.Equal(true, containsNetwork(res.Items, idPrefixNet)), "failed to create network idPrefixNet")
+	assert.Check(t, is.Equal(true, containsNetwork(res.Items, fullIDNet)), "failed to create network fullIDNet")
 	return testNet, idPrefixNet, fullIDNet
 }
 
@@ -79,9 +79,9 @@ func TestDockerNetworkDeletePreferID(t *testing.T) {
 	assert.NilError(t, err)
 
 	// networks "testNet" and "idPrefixNet" should be removed, but "fullIDNet" should still exist
-	nws, err := apiClient.NetworkList(ctx, client.NetworkListOptions{})
+	res, err := apiClient.NetworkList(ctx, client.NetworkListOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(false, containsNetwork(nws, testNet)), "Network testNet not removed")
-	assert.Check(t, is.Equal(false, containsNetwork(nws, idPrefixNet)), "Network idPrefixNet not removed")
-	assert.Check(t, is.Equal(true, containsNetwork(nws, fullIDNet)), "Network fullIDNet not found")
+	assert.Check(t, is.Equal(false, containsNetwork(res.Items, testNet)), "Network testNet not removed")
+	assert.Check(t, is.Equal(false, containsNetwork(res.Items, idPrefixNet)), "Network idPrefixNet not removed")
+	assert.Check(t, is.Equal(true, containsNetwork(res.Items, fullIDNet)), "Network fullIDNet not found")
 }

@@ -144,22 +144,22 @@ func deleteAllVolumes(ctx context.Context, t testing.TB, c client.VolumeAPIClien
 
 func deleteAllNetworks(ctx context.Context, t testing.TB, c client.NetworkAPIClient, daemonPlatform string, protectedNetworks map[string]struct{}) {
 	t.Helper()
-	networks, err := c.NetworkList(ctx, client.NetworkListOptions{})
+	res, err := c.NetworkList(ctx, client.NetworkListOptions{})
 	assert.Check(t, err, "failed to list networks")
 
-	for _, n := range networks {
-		if n.Name == network.NetworkBridge || n.Name == network.NetworkNone || n.Name == network.NetworkHost {
+	for _, nw := range res.Items {
+		if nw.Name == network.NetworkBridge || nw.Name == network.NetworkNone || nw.Name == network.NetworkHost {
 			continue
 		}
-		if _, ok := protectedNetworks[n.ID]; ok {
+		if _, ok := protectedNetworks[nw.ID]; ok {
 			continue
 		}
-		if daemonPlatform == "windows" && strings.ToLower(n.Name) == network.NetworkNat {
+		if daemonPlatform == "windows" && strings.ToLower(nw.Name) == network.NetworkNat {
 			// nat is a pre-defined network on Windows and cannot be removed
 			continue
 		}
-		err := c.NetworkRemove(ctx, n.ID)
-		assert.Check(t, err, "failed to remove network %s", n.ID)
+		err := c.NetworkRemove(ctx, nw.ID)
+		assert.Check(t, err, "failed to remove network %s", nw.ID)
 	}
 }
 

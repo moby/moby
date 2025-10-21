@@ -84,8 +84,8 @@ func TestNetworkList(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 
-		networkResources, err := client.NetworkList(context.Background(), listCase.options)
+		res, err := client.NetworkList(context.Background(), listCase.options)
 		assert.NilError(t, err)
-		assert.Check(t, is.Len(networkResources, 1))
+		assert.Check(t, is.Len(res.Items, 1))
 	}
 }

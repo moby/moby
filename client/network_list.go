@@ -8,16 +8,21 @@ import (
 	"github.com/moby/moby/api/types/network"
 )
 
+// NetworkListResult holds the result from the [Client.NetworkList] method.
+type NetworkListResult struct {
+	Items []network.Summary
+}
+
 // NetworkList returns the list of networks configured in the docker host.
-func (cli *Client) NetworkList(ctx context.Context, options NetworkListOptions) ([]network.Summary, error) {
+func (cli *Client) NetworkList(ctx context.Context, options NetworkListOptions) (NetworkListResult, error) {
 	query := url.Values{}
 	options.Filters.updateURLValues(query)
-	var networkResources []network.Summary
 	resp, err := cli.get(ctx, "/networks", query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return networkResources, err
+		return NetworkListResult{}, err
 	}
-	err = json.NewDecoder(resp.Body).Decode(&networkResources)
-	return networkResources, err
+	var res NetworkListResult
+	err = json.NewDecoder(resp.Body).Decode(&res.Items)
+	return res, err
 }
