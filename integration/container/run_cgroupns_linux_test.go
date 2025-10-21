@@ -44,6 +44,7 @@ func TestCgroupNamespacesRun(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
+	skip.If(t, testEnv.IsRootless, "scenario doesn't work with rootless mode")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -71,6 +72,7 @@ func TestCgroupNamespacesRunDaemonHostMode(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
+	skip.If(t, testEnv.IsRootless, "scenario doesn't work with rootless mode")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -84,6 +86,7 @@ func TestCgroupNamespacesRunHostMode(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
+	skip.If(t, testEnv.IsRootless, "scenario doesn't work with rootless mode")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -97,6 +100,7 @@ func TestCgroupNamespacesRunPrivateMode(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
+	skip.If(t, testEnv.IsRootless, "scenario doesn't work with rootless mode")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -110,6 +114,7 @@ func TestCgroupNamespacesRunPrivilegedAndPrivate(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
+	skip.If(t, testEnv.IsRootless, "scenario doesn't work with rootless mode")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -135,6 +140,7 @@ func TestCgroupNamespacesRunOlderClient(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
+	skip.If(t, testEnv.IsRootless, "scenario doesn't work with rootless mode")
 
 	ctx := testutil.StartSpan(baseContext, t)
 

@@ -71,6 +71,7 @@ func TestCgroupNamespacesBuild(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
+	skip.If(t, testEnv.IsRootless, "scenario doesn't work with rootless mode")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -84,6 +85,7 @@ func TestCgroupNamespacesBuildDaemonHostMode(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
+	skip.If(t, testEnv.IsRootless, "scenario doesn't work with rootless mode")
 
 	ctx := testutil.StartSpan(baseContext, t)
 

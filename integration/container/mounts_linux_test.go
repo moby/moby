@@ -34,6 +34,7 @@ const testNonExistingPlugin = "this-plugin-does-not-exist"
 func TestContainerNetworkMountsNoChown(t *testing.T) {
 	// chown only applies to Linux bind mounted volumes; must be same host to verify
 	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "scenario doesn't work with rootless mode")
 
 	ctx := setupTest(t)
 
@@ -549,6 +550,7 @@ func TestContainerBindMountReadOnlyDefault(t *testing.T) {
 func TestContainerBindMountRecursivelyReadOnly(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.44"), "requires API v1.44")
+	skip.If(t, testEnv.IsRootless, "scenario doesn't work with rootless mode")
 
 	ctx := setupTest(t)
 
