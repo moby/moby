@@ -195,7 +195,6 @@ type SystemAPIClient interface {
 type VolumeAPIClient interface {
 	VolumeCreate(ctx context.Context, options VolumeCreateOptions) (VolumeCreateResult, error)
 	VolumeInspect(ctx context.Context, volumeID string) (VolumeInspectResult, error)
-	VolumeInspectWithRaw(ctx context.Context, volumeID string) (VolumeInspectResult, []byte, error)
 	VolumeList(ctx context.Context, options VolumeListOptions) (VolumeListResult, error)
 	VolumeRemove(ctx context.Context, volumeID string, options VolumeRemoveOptions) error
 	VolumesPrune(ctx context.Context, opts VolumePruneOptions) (VolumePruneResult, error)

@@ -36,11 +36,11 @@ func TestVolumeInspectWithEmptyID(t *testing.T) {
 		return nil, errors.New("should not make request")
 	}))
 	assert.NilError(t, err)
-	_, _, err = client.VolumeInspectWithRaw(context.Background(), "")
+	_, err = client.VolumeInspect(context.Background(), "")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, _, err = client.VolumeInspectWithRaw(context.Background(), "    ")
+	_, err = client.VolumeInspect(context.Background(), "    ")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
