@@ -33,7 +33,7 @@ func (d *Daemon) ListConfigs(t testing.TB) []swarm.Config {
 
 	result, err := cli.ConfigList(context.Background(), client.ConfigListOptions{})
 	assert.NilError(t, err)
-	return result.Configs
+	return result.Items
 }
 
 // GetConfig returns a swarm config identified by the specified id

@@ -56,7 +56,7 @@ func TestConfigList(t *testing.T) {
 	// This test case is ported from the original TestConfigsEmptyList
 	result, err := c.ConfigList(ctx, client.ConfigListOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(len(result.Configs), 0))
+	assert.Check(t, is.Equal(len(result.Items), 0))
 
 	testName0 := "test0-" + t.Name()
 	testName1 := "test1-" + t.Name()
@@ -69,9 +69,9 @@ func TestConfigList(t *testing.T) {
 	config1ID := createConfig(ctx, t, c, testName1, []byte("TESTINGDATA1"), map[string]string{"type": "production"})
 
 	// test by `config ls`
-	entries, err := c.ConfigList(ctx, client.ConfigListOptions{})
+	res, err := c.ConfigList(ctx, client.ConfigListOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.DeepEqual(configNamesFromList(entries.Configs), testNames))
+	assert.Check(t, is.DeepEqual(configNamesFromList(res.Items), testNames))
 
 	testCases := []struct {
 		desc     string
@@ -107,11 +107,11 @@ func TestConfigList(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
-			entries, err = c.ConfigList(ctx, client.ConfigListOptions{
+			res, err = c.ConfigList(ctx, client.ConfigListOptions{
 				Filters: tc.filters,
 			})
 			assert.NilError(t, err)
-			assert.Check(t, is.DeepEqual(configNamesFromList(entries.Configs), tc.expected))
+			assert.Check(t, is.DeepEqual(configNamesFromList(res.Items), tc.expected))
 		})
 	}
 }
@@ -360,18 +360,18 @@ func TestConfigCreateResolve(t *testing.T) {
 	fakeName := configID
 	fakeID := createConfig(ctx, t, c, fakeName, []byte("fake foo"), nil)
 
-	entries, err := c.ConfigList(ctx, client.ConfigListOptions{})
+	res, err := c.ConfigList(ctx, client.ConfigListOptions{})
 	assert.NilError(t, err)
-	assert.Assert(t, is.Contains(configNamesFromList(entries.Configs), configName))
-	assert.Assert(t, is.Contains(configNamesFromList(entries.Configs), fakeName))
+	assert.Assert(t, is.Contains(configNamesFromList(res.Items), configName))
+	assert.Assert(t, is.Contains(configNamesFromList(res.Items), fakeName))
 
 	_, err = c.ConfigRemove(ctx, configID, client.ConfigRemoveOptions{})
 	assert.NilError(t, err)
 
 	// Fake one will remain
-	entries, err = c.ConfigList(ctx, client.ConfigListOptions{})
+	res, err = c.ConfigList(ctx, client.ConfigListOptions{})
 	assert.NilError(t, err)
-	assert.Assert(t, is.DeepEqual(configNamesFromList(entries.Configs), []string{fakeName}))
+	assert.Assert(t, is.DeepEqual(configNamesFromList(res.Items), []string{fakeName}))
 
 	// Remove based on name prefix of the fake one
 	// (which is the same as the ID of foo one) should not work
@@ -381,16 +381,16 @@ func TestConfigCreateResolve(t *testing.T) {
 	// - Partial ID (prefix)
 	_, err = c.ConfigRemove(ctx, configID[:5], client.ConfigRemoveOptions{})
 	assert.Assert(t, err != nil)
-	entries, err = c.ConfigList(ctx, client.ConfigListOptions{})
+	res, err = c.ConfigList(ctx, client.ConfigListOptions{})
 	assert.NilError(t, err)
-	assert.Assert(t, is.DeepEqual(configNamesFromList(entries.Configs), []string{fakeName}))
+	assert.Assert(t, is.DeepEqual(configNamesFromList(res.Items), []string{fakeName}))
 
 	// Remove based on ID prefix of the fake one should succeed
 	_, err = c.ConfigRemove(ctx, fakeID[:5], client.ConfigRemoveOptions{})
 	assert.NilError(t, err)
-	entries, err = c.ConfigList(ctx, client.ConfigListOptions{})
+	res, err = c.ConfigList(ctx, client.ConfigListOptions{})
 	assert.NilError(t, err)
-	assert.Assert(t, is.Equal(0, len(entries.Configs)))
+	assert.Assert(t, is.Equal(0, len(res.Items)))
 }
 
 func configNamesFromList(entries []swarmtypes.Config) []string {
