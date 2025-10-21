@@ -36,16 +36,17 @@ func TestImageHistory(t *testing.T) {
 		}, nil
 	}))
 	assert.NilError(t, err)
-	expected := []image.HistoryResponseItem{
-		{
-			ID:   "image_id1",
-			Tags: []string{"tag1", "tag2"},
-		},
-		{
-			ID:   "image_id2",
-			Tags: []string{"tag1", "tag2"},
-		},
-	}
+	expected := ImageHistoryResult{
+		Items: []image.HistoryResponseItem{
+			{
+				ID:   "image_id1",
+				Tags: []string{"tag1", "tag2"},
+			},
+			{
+				ID:   "image_id2",
+				Tags: []string{"tag1", "tag2"},
+			},
+		}}
 
 	imageHistories, err := client.ImageHistory(context.Background(), "image_id", ImageHistoryWithPlatform(ocispec.Platform{
 		Architecture: "arm64",

@@ -448,7 +448,7 @@ func imageLoad(ctx context.Context, apiClient client.APIClient, path string) err
 	if err != nil {
 		return err
 	}
-	defer response.Body.Close()
+	defer response.Close()
 	return nil
 }
 

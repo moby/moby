@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 
+	"github.com/moby/moby/api/types/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -61,4 +62,8 @@ type imageInspectOptions struct {
 	//
 	// This option is only available for API version 1.49 and up.
 	Platform *ocispec.Platform
+}
+
+type ImageInspectResult struct {
+	image.InspectResponse
 }

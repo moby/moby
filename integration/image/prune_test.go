@@ -145,29 +145,29 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 	} {
 		for _, tc := range []struct {
 			name    string
-			imageID func(t *testing.T, inspect image.InspectResponse) string
+			imageID func(t *testing.T, inspect client.ImageInspectResult) string
 		}{
 			{
 				name: "full id",
-				imageID: func(t *testing.T, inspect image.InspectResponse) string {
+				imageID: func(t *testing.T, inspect client.ImageInspectResult) string {
 					return inspect.ID
 				},
 			},
 			{
 				name: "full id without sha256 prefix",
-				imageID: func(t *testing.T, inspect image.InspectResponse) string {
+				imageID: func(t *testing.T, inspect client.ImageInspectResult) string {
 					return strings.TrimPrefix(inspect.ID, "sha256:")
 				},
 			},
 			{
 				name: "truncated id (without sha256 prefix)",
-				imageID: func(t *testing.T, inspect image.InspectResponse) string {
+				imageID: func(t *testing.T, inspect client.ImageInspectResult) string {
 					return strings.TrimPrefix(inspect.ID, "sha256:")[:8]
 				},
 			},
 			{
 				name: "repo and digest without tag",
-				imageID: func(t *testing.T, inspect image.InspectResponse) string {
+				imageID: func(t *testing.T, inspect client.ImageInspectResult) string {
 					skip.If(t, !testEnv.UsingSnapshotter())
 
 					return "busybox@" + inspect.ID
@@ -175,7 +175,7 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 			},
 			{
 				name: "tagged and digested",
-				imageID: func(t *testing.T, inspect image.InspectResponse) string {
+				imageID: func(t *testing.T, inspect client.ImageInspectResult) string {
 					skip.If(t, !testEnv.UsingSnapshotter())
 
 					return "busybox:latest@" + inspect.ID
@@ -183,7 +183,7 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 			},
 			{
 				name: "repo digest",
-				imageID: func(t *testing.T, inspect image.InspectResponse) string {
+				imageID: func(t *testing.T, inspect client.ImageInspectResult) string {
 					// graphdriver won't have a repo digest
 					skip.If(t, len(inspect.RepoDigests) == 0, "no repo digest")
 

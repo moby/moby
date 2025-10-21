@@ -119,10 +119,10 @@ type ImageAPIClient interface {
 	ImageTag(ctx context.Context, image, ref string) error
 	ImagesPrune(ctx context.Context, opts ImagePruneOptions) (ImagePruneResult, error)
 
-	ImageInspect(ctx context.Context, image string, _ ...ImageInspectOption) (image.InspectResponse, error)
-	ImageHistory(ctx context.Context, image string, _ ...ImageHistoryOption) ([]image.HistoryResponseItem, error)
-	ImageLoad(ctx context.Context, input io.Reader, _ ...ImageLoadOption) (LoadResponse, error)
-	ImageSave(ctx context.Context, images []string, _ ...ImageSaveOption) (io.ReadCloser, error)
+	ImageInspect(ctx context.Context, image string, _ ...ImageInspectOption) (ImageInspectResult, error)
+	ImageHistory(ctx context.Context, image string, _ ...ImageHistoryOption) (ImageHistoryResult, error)
+	ImageLoad(ctx context.Context, input io.Reader, _ ...ImageLoadOption) (ImageLoadResult, error)
+	ImageSave(ctx context.Context, images []string, _ ...ImageSaveOption) (ImageSaveResult, error)
 }
 
 // NetworkAPIClient defines API client methods for the networks

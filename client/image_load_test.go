@@ -101,7 +101,7 @@ func TestImageLoad(t *testing.T) {
 			assert.NilError(t, err)
 			assert.Check(t, is.Equal(imageLoadResponse.JSON, tc.expectedResponseJSON))
 
-			body, err := io.ReadAll(imageLoadResponse.Body)
+			body, err := io.ReadAll(imageLoadResponse)
 			assert.NilError(t, err)
 			assert.Check(t, is.Equal(string(body), expectedOutput))
 		})
