@@ -113,7 +113,7 @@ type ImageAPIClient interface {
 
 	ImageList(ctx context.Context, options ImageListOptions) ([]image.Summary, error)
 	ImagePull(ctx context.Context, ref string, options ImagePullOptions) (ImagePullResponse, error)
-	ImagePush(ctx context.Context, ref string, options ImagePushOptions) (io.ReadCloser, error)
+	ImagePush(ctx context.Context, ref string, options ImagePushOptions) (ImagePushResponse, error)
 	ImageRemove(ctx context.Context, image string, options ImageRemoveOptions) ([]image.DeleteResponse, error)
 	ImageSearch(ctx context.Context, term string, options ImageSearchOptions) ([]registry.SearchResult, error)
 	ImageTag(ctx context.Context, image, ref string) error
