@@ -43,7 +43,7 @@ func TestSwarmInspect(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	swarmInspect, err := client.SwarmInspect(context.Background())
+	inspect, err := client.SwarmInspect(context.Background())
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(swarmInspect.ID, "swarm_id"))
+	assert.Check(t, is.Equal(inspect.Swarm.ID, "swarm_id"))
 }

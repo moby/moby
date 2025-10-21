@@ -101,7 +101,18 @@ func (d *Daemon) SwarmInitWithError(ctx context.Context, t testing.TB, req swarm
 	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
-	_, err := cli.SwarmInit(ctx, req)
+	_, err := cli.SwarmInit(ctx, client.SwarmInitOptions{
+		ListenAddr:       req.ListenAddr,
+		AdvertiseAddr:    req.AdvertiseAddr,
+		DataPathAddr:     req.DataPathAddr,
+		DataPathPort:     req.DataPathPort,
+		ForceNewCluster:  req.ForceNewCluster,
+		Spec:             req.Spec,
+		AutoLockManagers: req.AutoLockManagers,
+		Availability:     req.Availability,
+		DefaultAddrPool:  req.DefaultAddrPool,
+		SubnetSize:       req.SubnetSize,
+	})
 	if err == nil {
 		d.CachedInfo = d.Info(t)
 	}
@@ -123,7 +134,14 @@ func (d *Daemon) SwarmJoin(ctx context.Context, t testing.TB, req swarm.JoinRequ
 	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
-	err := cli.SwarmJoin(ctx, req)
+	_, err := cli.SwarmJoin(ctx, client.SwarmJoinOptions{
+		ListenAddr:    req.ListenAddr,
+		AdvertiseAddr: req.AdvertiseAddr,
+		DataPathAddr:  req.DataPathAddr,
+		RemoteAddrs:   req.RemoteAddrs,
+		JoinToken:     req.JoinToken,
+		Availability:  req.Availability,
+	})
 	assert.NilError(t, err, "[%s] joining swarm", d.id)
 	d.CachedInfo = d.Info(t)
 }
@@ -136,7 +154,8 @@ func (d *Daemon) SwarmJoin(ctx context.Context, t testing.TB, req swarm.JoinRequ
 func (d *Daemon) SwarmLeave(ctx context.Context, t testing.TB, force bool) error {
 	cli := d.NewClientT(t)
 	defer cli.Close()
-	return cli.SwarmLeave(ctx, force)
+	_, err := cli.SwarmLeave(ctx, client.SwarmLeaveOptions{Force: force})
+	return err
 }
 
 // SwarmInfo returns the swarm information of the daemon
@@ -157,7 +176,7 @@ func (d *Daemon) SwarmUnlock(t testing.TB, req swarm.UnlockRequest) error {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	err := cli.SwarmUnlock(context.Background(), req)
+	_, err := cli.SwarmUnlock(context.Background(), client.SwarmUnlockOptions{Key: req.UnlockKey})
 	if err != nil {
 		err = errors.Wrap(err, "unlocking swarm")
 	}
@@ -170,9 +189,9 @@ func (d *Daemon) GetSwarm(t testing.TB) swarm.Swarm {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	sw, err := cli.SwarmInspect(context.Background())
+	result, err := cli.SwarmInspect(context.Background())
 	assert.NilError(t, err)
-	return sw
+	return result.Swarm
 }
 
 // UpdateSwarm updates the current swarm object with the specified spec constructors
@@ -186,7 +205,9 @@ func (d *Daemon) UpdateSwarm(t testing.TB, f ...SpecConstructor) {
 		fn(&sw.Spec)
 	}
 
-	err := cli.SwarmUpdate(context.Background(), sw.Version, sw.Spec, client.SwarmUpdateFlags{})
+	_, err := cli.SwarmUpdate(context.Background(), sw.Version, client.SwarmUpdateOptions{
+		Swarm: sw.Spec,
+	})
 	assert.NilError(t, err)
 }
 
@@ -196,15 +217,14 @@ func (d *Daemon) RotateTokens(t testing.TB) {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	sw, err := cli.SwarmInspect(context.Background())
+	result, err := cli.SwarmInspect(context.Background())
 	assert.NilError(t, err)
 
-	flags := client.SwarmUpdateFlags{
+	_, err = cli.SwarmUpdate(context.Background(), result.Swarm.Version, client.SwarmUpdateOptions{
+		Swarm:              result.Swarm.Spec,
 		RotateManagerToken: true,
 		RotateWorkerToken:  true,
-	}
-
-	err = cli.SwarmUpdate(context.Background(), sw.Version, sw.Spec, flags)
+	})
 	assert.NilError(t, err)
 }
 
@@ -214,9 +234,9 @@ func (d *Daemon) JoinTokens(t testing.TB) swarm.JoinTokens {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	sw, err := cli.SwarmInspect(context.Background())
+	result, err := cli.SwarmInspect(context.Background())
 	assert.NilError(t, err)
-	return sw.JoinTokens
+	return result.Swarm.JoinTokens
 }
 
 func (d *Daemon) startArgs() []string {

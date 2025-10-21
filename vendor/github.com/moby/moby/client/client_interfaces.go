@@ -174,13 +174,13 @@ type ServiceAPIClient interface {
 
 // SwarmAPIClient defines API client methods for the swarm
 type SwarmAPIClient interface {
-	SwarmInit(ctx context.Context, req swarm.InitRequest) (string, error)
-	SwarmJoin(ctx context.Context, req swarm.JoinRequest) error
-	SwarmGetUnlockKey(ctx context.Context) (swarm.UnlockKeyResponse, error)
-	SwarmUnlock(ctx context.Context, req swarm.UnlockRequest) error
-	SwarmLeave(ctx context.Context, force bool) error
-	SwarmInspect(ctx context.Context) (swarm.Swarm, error)
-	SwarmUpdate(ctx context.Context, version swarm.Version, swarm swarm.Spec, flags SwarmUpdateFlags) error
+	SwarmInit(ctx context.Context, options SwarmInitOptions) (SwarmInitResult, error)
+	SwarmJoin(ctx context.Context, options SwarmJoinOptions) (SwarmJoinResult, error)
+	SwarmGetUnlockKey(ctx context.Context) (SwarmGetUnlockKeyResult, error)
+	SwarmUnlock(ctx context.Context, options SwarmUnlockOptions) (SwarmUnlockResult, error)
+	SwarmLeave(ctx context.Context, options SwarmLeaveOptions) (SwarmLeaveResult, error)
+	SwarmInspect(ctx context.Context) (SwarmInspectResult, error)
+	SwarmUpdate(ctx context.Context, version swarm.Version, options SwarmUpdateOptions) (SwarmUpdateResult, error)
 }
 
 // SystemAPIClient defines API client methods for the system
