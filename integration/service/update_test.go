@@ -227,7 +227,7 @@ func TestServiceUpdateNetwork(t *testing.T) {
 		Scope:   "swarm",
 	})
 	assert.NilError(t, err)
-	assert.Assert(t, len(netInfo.Containers) == 2, "Expected 2 endpoints, one for container and one for LB Sandbox")
+	assert.Assert(t, len(netInfo.Network.Containers) == 2, "Expected 2 endpoints, one for container and one for LB Sandbox")
 
 	// Remove network from service
 	service.Spec.TaskTemplate.Networks = []swarmtypes.NetworkAttachmentConfig{}
@@ -241,7 +241,7 @@ func TestServiceUpdateNetwork(t *testing.T) {
 	})
 
 	assert.NilError(t, err)
-	assert.Assert(t, len(netInfo.Containers) == 0, "Load balancing endpoint still exists in network")
+	assert.Assert(t, len(netInfo.Network.Containers) == 0, "Load balancing endpoint still exists in network")
 
 	err = apiClient.NetworkRemove(ctx, overlayID)
 	assert.NilError(t, err)

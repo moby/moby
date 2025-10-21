@@ -125,34 +125,34 @@ func TestInspectNetwork(t *testing.T) {
 				for _, d := range append([]*daemon.Daemon{worker1}, mgr[:]...) {
 					t.Logf("--- Node %s (%s) ---", d.ID(), d.NodeID())
 					c := d.NewClientT(t)
-					nw, err := c.NetworkInspect(ctx, tc.network, tc.opts)
+					res, err := c.NetworkInspect(ctx, tc.network, tc.opts)
 					if !assert.Check(t, err) {
 						continue
 					}
 
-					assert.Check(t, nw.IPAM.Config != nil)
-					for _, cfg := range nw.IPAM.Config {
+					assert.Check(t, res.Network.IPAM.Config != nil)
+					for _, cfg := range res.Network.IPAM.Config {
 						assert.Assert(t, cfg.Gateway.IsValid())
 						assert.Assert(t, cfg.Subnet.IsValid())
 					}
 
 					if d.CachedInfo.Swarm.ControlAvailable {
 						// The global view of the network status is only available from manager nodes.
-						if assert.Check(t, nw.Status != nil) {
+						if assert.Check(t, res.Network.Status != nil) {
 							wantSubnetStatus := map[netip.Prefix]networktypes.SubnetStatus{
 								cidrv4: {
 									IPsInUse:            uint64(1 + instances + len(mgr) + 1),
 									DynamicIPsAvailable: uint64(128 - (instances + len(mgr) + 1)),
 								},
 							}
-							assert.Check(t, is.DeepEqual(wantSubnetStatus, nw.Status.IPAM.Subnets))
+							assert.Check(t, is.DeepEqual(wantSubnetStatus, res.Network.Status.IPAM.Subnets))
 						}
 					} else {
 						// Services are only inspectable on nodes that have the network instantiated in
 						// libnetwork, i.e. nodes with tasks attached to the network. In this test, only
 						// the one worker node has tasks assigned.
-						if assert.Check(t, is.Contains(nw.Services, serviceName)) {
-							assert.Check(t, is.Len(nw.Services[serviceName].Tasks, instances))
+						if assert.Check(t, is.Contains(res.Network.Services, serviceName)) {
+							assert.Check(t, is.Len(res.Network.Services[serviceName].Tasks, instances))
 						}
 					}
 					c.Close()

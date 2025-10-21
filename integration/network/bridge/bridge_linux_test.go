@@ -65,10 +65,10 @@ func TestCreateWithIPv6DefaultsToULAPrefix(t *testing.T) {
 	network.CreateNoError(ctx, t, apiClient, nwName, network.WithIPv6())
 	defer network.RemoveNoError(ctx, t, apiClient, nwName)
 
-	nw, err := apiClient.NetworkInspect(ctx, "testnetula", client.NetworkInspectOptions{})
+	res, err := apiClient.NetworkInspect(ctx, "testnetula", client.NetworkInspectOptions{})
 	assert.NilError(t, err)
 
-	for _, ipam := range nw.IPAM.Config {
+	for _, ipam := range res.Network.IPAM.Config {
 		if netip.MustParsePrefix("fd00::/8").Overlaps(ipam.Subnet) {
 			return
 		}
@@ -91,10 +91,10 @@ func TestCreateWithIPv6WithoutEnableIPv6Flag(t *testing.T) {
 	network.CreateNoError(ctx, t, apiClient, nwName)
 	defer network.RemoveNoError(ctx, t, apiClient, nwName)
 
-	nw, err := apiClient.NetworkInspect(ctx, "testnetula", client.NetworkInspectOptions{})
+	res, err := apiClient.NetworkInspect(ctx, "testnetula", client.NetworkInspectOptions{})
 	assert.NilError(t, err)
 
-	for _, ipam := range nw.IPAM.Config {
+	for _, ipam := range res.Network.IPAM.Config {
 		if netip.MustParsePrefix("fd00::/8").Overlaps(ipam.Subnet) {
 			return
 		}
@@ -135,20 +135,20 @@ func TestDefaultIPvOptOverride(t *testing.T) {
 					network.CreateNoError(ctx, t, c, netName, nopts...)
 					defer network.RemoveNoError(ctx, t, c, netName)
 
-					insp, err := c.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
+					res, err := c.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
 					assert.NilError(t, err)
-					t.Log("override4", override4, "override6", override6, "->", insp.Options)
+					t.Log("override4", override4, "override6", override6, "->", res.Network.Options)
 
-					gotOpt4, have4 := insp.Options[netlabel.EnableIPv4]
+					gotOpt4, have4 := res.Network.Options[netlabel.EnableIPv4]
 					assert.Check(t, is.Equal(have4, !override4))
-					assert.Check(t, is.Equal(insp.EnableIPv4, override4))
+					assert.Check(t, is.Equal(res.Network.EnableIPv4, override4))
 					if have4 {
 						assert.Check(t, is.Equal(gotOpt4, opt4))
 					}
 
-					gotOpt6, have6 := insp.Options[netlabel.EnableIPv6]
+					gotOpt6, have6 := res.Network.Options[netlabel.EnableIPv6]
 					assert.Check(t, is.Equal(have6, !override6))
-					assert.Check(t, is.Equal(insp.EnableIPv6, true))
+					assert.Check(t, is.Equal(res.Network.EnableIPv6, true))
 					if have6 {
 						assert.Check(t, is.Equal(gotOpt6, opt6))
 					}
@@ -1074,9 +1074,9 @@ func TestBridgeIPAMStatus(t *testing.T) {
 		netName string, want networktypes.SubnetStatuses,
 	) bool {
 		t.Helper()
-		nw, err := c.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
-		if assert.Check(t, err) && assert.Check(t, nw.Status != nil) {
-			return assert.Check(t, is.DeepEqual(want, nw.Status.IPAM.Subnets))
+		res, err := c.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
+		if assert.Check(t, err) && assert.Check(t, res.Network.Status != nil) {
+			return assert.Check(t, is.DeepEqual(want, res.Network.Status.IPAM.Subnets))
 		}
 		return false
 	}
@@ -1188,9 +1188,9 @@ func TestBridgeIPAMStatus(t *testing.T) {
 		})
 
 		oldc := d.NewClientT(t, client.WithVersion("1.51"))
-		nw, err := oldc.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
+		res, err := oldc.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
 		if assert.Check(t, err) {
-			assert.Check(t, nw.Status == nil, "expected nil Status with API version 1.51")
+			assert.Check(t, res.Network.Status == nil, "expected nil Status with API version 1.51")
 		}
 	})
 
@@ -1260,7 +1260,7 @@ func TestJoinError(t *testing.T) {
 	// extNet should not report any attached containers
 	extNetInsp, err := c.NetworkInspect(ctx, extNet, client.NetworkInspectOptions{})
 	assert.Check(t, err)
-	assert.Check(t, is.Len(extNetInsp.Containers, 0))
+	assert.Check(t, is.Len(extNetInsp.Network.Containers, 0))
 
 	// The container should have an eth0, but no eth1.
 	res = ctr.ExecT(ctx, t, c, cid, []string{"ip", "link", "show", "eth0"})
@@ -1281,7 +1281,7 @@ func TestJoinError(t *testing.T) {
 	assert.Check(t, is.Contains(ctrInsp.NetworkSettings.Networks, extNet))
 	extNetInsp, err = c.NetworkInspect(ctx, extNet, client.NetworkInspectOptions{})
 	assert.Check(t, err)
-	assert.Check(t, is.Len(extNetInsp.Containers, 1))
+	assert.Check(t, is.Len(extNetInsp.Network.Containers, 1))
 	res = ctr.ExecT(ctx, t, c, cid, []string{"ip", "link", "show", "eth0"})
 	assert.Check(t, is.Equal(res.ExitCode, 0), "container should have an eth0")
 	res = ctr.ExecT(ctx, t, c, cid, []string{"ip", "link", "show", "eth1"})

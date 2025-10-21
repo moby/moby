@@ -555,16 +555,16 @@ func TestMacvlanIPAM(t *testing.T) {
 			assert.Check(t, is.Equal(strings.TrimSpace(sysctlRes.Combined()), expDisableIPv6))
 
 			cc := d.NewClientT(t, client.WithVersion("1.52"))
-			inspect, err := cc.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
-			if assert.Check(t, err) && assert.Check(t, inspect.Status != nil) {
-				assert.Check(t, is.DeepEqual(wantSubnetStatus, inspect.Status.IPAM.Subnets, cmpopts.EquateEmpty()))
+			res, err := cc.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
+			if assert.Check(t, err) && assert.Check(t, res.Network.Status != nil) {
+				assert.Check(t, is.DeepEqual(wantSubnetStatus, res.Network.Status.IPAM.Subnets, cmpopts.EquateEmpty()))
 			}
-			cc.Close()
+			_ = cc.Close()
 			cc = d.NewClientT(t, client.WithVersion("1.51"))
-			inspect, err = cc.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
+			res, err = cc.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
 			assert.Check(t, err)
-			assert.Check(t, inspect.Status == nil)
-			cc.Close()
+			assert.Check(t, res.Network.Status == nil)
+			_ = cc.Close()
 		})
 	}
 }
@@ -588,9 +588,9 @@ func TestMacvlanIPAMOverlap(t *testing.T) {
 
 	checkNetworkIPAMState := func(networkID string, want map[netip.Prefix]network.SubnetStatus) bool {
 		t.Helper()
-		nw, err := c.NetworkInspect(ctx, networkID, client.NetworkInspectOptions{})
-		if assert.Check(t, err) && assert.Check(t, nw.Status != nil) {
-			return assert.Check(t, is.DeepEqual(want, nw.Status.IPAM.Subnets, cmpopts.EquateEmpty()))
+		res, err := c.NetworkInspect(ctx, networkID, client.NetworkInspectOptions{})
+		if assert.Check(t, err) && assert.Check(t, res.Network.Status != nil) {
+			return assert.Check(t, is.DeepEqual(want, res.Network.Status.IPAM.Subnets, cmpopts.EquateEmpty()))
 		}
 		return false
 	}
