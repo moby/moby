@@ -15,7 +15,7 @@ import (
 
 // getContainersByName inspects container's configuration and serializes it as json.
 func (c *containerRouter) getContainersByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	ctr, err := c.backend.ContainerInspect(ctx, vars["name"], backend.ContainerInspectOptions{
+	ctr, desiredMACAddress, err := c.backend.ContainerInspect(ctx, vars["name"], backend.ContainerInspectOptions{
 		Size: httputils.BoolValue(r, "size"),
 	})
 	if err != nil {
@@ -39,7 +39,7 @@ func (c *containerRouter) getContainersByName(ctx context.Context, w http.Respon
 	if versions.LessThan(version, "1.52") {
 		if bridgeNw := ctr.NetworkSettings.Networks["bridge"]; bridgeNw != nil {
 			// Old API versions showed the bridge's configuration as top-level
-			// fields in "NetworkConfig".
+			// fields in "NetworkSettings".
 			//
 			// This was deprecated in API v1.44, but kept in place until
 			// API v1.52, which removes this entirely.
@@ -53,6 +53,19 @@ func (c *containerRouter) getContainersByName(ctx context.Context, w http.Respon
 					"IPPrefixLen":         bridgeNw.IPPrefixLen,
 					"IPv6Gateway":         bridgeNw.IPv6Gateway,
 					"MacAddress":          bridgeNw.MacAddress,
+				},
+			}))
+		}
+
+		// Migrate the container's main / default network's MacAddress to
+		// the Config.MacAddress field for older API versions (< 1.44).
+		//
+		// This was deprecated in API v1.44, but kept in place until
+		// API v1.52, which removed this entirely.
+		if desiredMACAddress != "" {
+			wrapOpts = append(wrapOpts, compat.WithExtraFields(map[string]any{
+				"Config": map[string]any{
+					"MacAddress": desiredMACAddress,
 				},
 			}))
 		}

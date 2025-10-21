@@ -360,12 +360,6 @@ func WithStopSignal(stopSignal string) func(c *TestContainerConfig) {
 	}
 }
 
-func WithContainerWideMacAddress(address string) func(c *TestContainerConfig) {
-	return func(c *TestContainerConfig) {
-		c.Config.MacAddress = address //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
-	}
-}
-
 // WithHostConfig sets a custom [container.HostConfig] for the container.
 func WithHostConfig(hc *container.HostConfig) func(c *TestContainerConfig) {
 	return func(c *TestContainerConfig) {

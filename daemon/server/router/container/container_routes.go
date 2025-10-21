@@ -1,6 +1,7 @@
 package container
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -497,8 +498,12 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 
 	name := r.Form.Get("name")
 
+	// Use a tee-reader to allow reading the body for legacy fields.
+	var requestBody bytes.Buffer
+	rdr := io.TeeReader(r.Body, &requestBody)
+
 	// TODO(thaJeztah): do we prefer [backend.ContainerCreateConfig] here?
-	req, err := runconfig.DecodeCreateRequest(r.Body, c.backend.RawSysInfo())
+	req, err := runconfig.DecodeCreateRequest(rdr, c.backend.RawSysInfo())
 	if err != nil {
 		return err
 	}
@@ -662,10 +667,19 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	if warn := handleVolumeDriverBC(version, hostConfig); warn != "" {
 		warnings = append(warnings, warn)
 	}
-	if warn, err := handleMACAddressBC(config, hostConfig, networkingConfig, version); err != nil {
-		return err
-	} else if warn != "" {
-		warnings = append(warnings, warn)
+	if versions.LessThan(version, "1.52") {
+		var legacyConfig struct {
+			// Mac Address of the container.
+			//
+			// MacAddress field is deprecated since API v1.44. Use EndpointSettings.MacAddress instead.
+			MacAddress string `json:",omitempty"`
+		}
+		_ = json.Unmarshal(requestBody.Bytes(), &legacyConfig)
+		if warn, err := handleMACAddressBC(hostConfig, networkingConfig, version, legacyConfig.MacAddress); err != nil {
+			return err
+		} else if warn != "" {
+			warnings = append(warnings, warn)
+		}
 	}
 
 	if warn, err := handleSysctlBC(hostConfig, networkingConfig, version); err != nil {
@@ -731,9 +745,7 @@ func handleVolumeDriverBC(version string, hostConfig *container.HostConfig) (war
 // handleMACAddressBC takes care of backward-compatibility for the container-wide MAC address by mutating the
 // networkingConfig to set the endpoint-specific MACAddress field introduced in API v1.44. It returns a warning message
 // or an error if the container-wide field was specified for API >= v1.44.
-func handleMACAddressBC(config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, version string) (string, error) {
-	deprecatedMacAddress := config.MacAddress //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
-
+func handleMACAddressBC(hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, version string, deprecatedMacAddress string) (string, error) {
 	// For older versions of the API, migrate the container-wide MAC address to EndpointsConfig.
 	if versions.LessThan(version, "1.44") {
 		if deprecatedMacAddress == "" {
@@ -780,7 +792,6 @@ func handleMACAddressBC(config *container.Config, hostConfig *container.HostConf
 		}
 	}
 	warning = "The container-wide MacAddress field is now deprecated. It should be specified in EndpointsConfig instead."
-	config.MacAddress = "" //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
 
 	return warning, nil
 }

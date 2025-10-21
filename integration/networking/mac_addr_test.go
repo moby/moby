@@ -1,15 +1,20 @@
 package networking
 
 import (
+	"context"
+	"encoding/json"
+	"net/http"
 	"net/netip"
 	"testing"
 
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/integration/internal/network"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
+	"github.com/moby/moby/v2/internal/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -189,6 +194,8 @@ func TestInspectCfgdMAC(t *testing.T) {
 			var copts []client.Opt
 			if tc.ctrWide {
 				copts = append(copts, client.WithVersion("1.43"))
+			} else {
+				copts = append(copts, client.WithVersion("1.51"))
 			}
 			c := d.NewClientT(t, copts...)
 			defer c.Close()
@@ -213,21 +220,35 @@ func TestInspectCfgdMAC(t *testing.T) {
 			if tc.netName != "bridge" {
 				opts = append(opts, container.WithNetworkMode(tc.netName))
 			}
+			var id string
 			if tc.desiredMAC != "" {
 				if tc.ctrWide {
-					opts = append(opts, container.WithContainerWideMacAddress(tc.desiredMAC))
+					id = createLegacyContainer(ctx, t, c, tc.desiredMAC, opts...)
 				} else {
 					opts = append(opts, container.WithMacAddress(tc.netName, tc.desiredMAC))
+					id = container.Create(ctx, t, c, opts...)
 				}
+			} else {
+				id = container.Create(ctx, t, c, opts...)
 			}
-			id := container.Create(ctx, t, c, opts...)
 			defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{
 				Force: true,
 			})
 
-			inspect := container.Inspect(ctx, t, c, ctrName)
-			configMAC := inspect.Config.MacAddress //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
-			assert.Check(t, is.DeepEqual(configMAC, tc.desiredMAC))
+			_, raw, err := c.ContainerInspectWithRaw(ctx, id, false)
+			assert.NilError(t, err)
+			var inspect struct {
+				Config struct {
+					// Mac Address of the container.
+					//
+					// MacAddress field is deprecated since API v1.44. Use EndpointSettings.MacAddress instead.
+					MacAddress string `json:",omitempty"`
+				}
+			}
+			err = json.Unmarshal(raw, &inspect)
+			assert.NilError(t, err, string(raw))
+			configMAC := inspect.Config.MacAddress
+			assert.Check(t, is.DeepEqual(configMAC, tc.desiredMAC), string(raw))
 		})
 	}
 }
@@ -266,17 +287,52 @@ func TestWatchtowerCreate(t *testing.T) {
 	const ctrName = "ctr1"
 	const ctrIP = "172.30.0.2"
 	const ctrMAC = "02:42:ac:11:00:42"
-	id := container.Run(ctx, t, c,
+	opts := []func(*container.TestContainerConfig){
 		container.WithName(ctrName),
 		container.WithNetworkMode(netId),
-		container.WithContainerWideMacAddress(ctrMAC),
 		container.WithIPv4(netName, ctrIP),
-	)
+	}
+	id := createLegacyContainer(ctx, t, c, ctrMAC, opts...)
 	defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
+	err := c.ContainerStart(ctx, id, client.ContainerStartOptions{})
+	assert.NilError(t, err)
 
 	// Check that the container got the expected addresses.
 	inspect := container.Inspect(ctx, t, c, ctrName)
 	netSettings := inspect.NetworkSettings.Networks[netName]
 	assert.Check(t, is.Equal(netSettings.IPAddress, netip.MustParseAddr(ctrIP)))
 	assert.Check(t, is.Equal(netSettings.MacAddress, ctrMAC))
+}
+
+type legacyCreateRequest struct {
+	containertypes.CreateRequest
+	// Mac Address of the container.
+	//
+	// MacAddress field is deprecated since API v1.44. Use EndpointSettings.MacAddress instead.
+	MacAddress string `json:",omitempty"`
+}
+
+func createLegacyContainer(ctx context.Context, t *testing.T, apiClient client.APIClient, desiredMAC string, ops ...func(*container.TestContainerConfig)) string {
+	t.Helper()
+	config := container.NewTestConfig(ops...)
+	ep := "/v" + apiClient.ClientVersion() + "/containers/create"
+	if config.Name != "" {
+		ep += "?name=" + config.Name
+	}
+	res, _, err := request.Post(ctx, ep, request.Host(apiClient.DaemonHost()), request.JSONBody(&legacyCreateRequest{
+		CreateRequest: containertypes.CreateRequest{
+			Config:           config.Config,
+			HostConfig:       config.HostConfig,
+			NetworkingConfig: config.NetworkingConfig,
+		},
+		MacAddress: desiredMAC,
+	}))
+	assert.NilError(t, err)
+	buf, err := request.ReadBody(res.Body)
+	assert.NilError(t, err)
+	assert.Equal(t, res.StatusCode, http.StatusCreated, string(buf))
+	var resp containertypes.CreateResponse
+	err = json.Unmarshal(buf, &resp)
+	assert.NilError(t, err)
+	return resp.ID
 }
