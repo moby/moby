@@ -8,14 +8,18 @@ import (
 	"github.com/moby/moby/api/types/swarm"
 )
 
-// ConfigListResult holds the result from the ConfigList method.
+// ConfigListOptions holds parameters to list configs
+type ConfigListOptions struct {
+	Filters Filters
+}
+
+// ConfigListResult holds the result from the [client.ConfigList] method.
 type ConfigListResult struct {
-	Configs []swarm.Config
+	Items []swarm.Config
 }
 
 // ConfigList returns the list of configs.
 func (cli *Client) ConfigList(ctx context.Context, options ConfigListOptions) (ConfigListResult, error) {
-	var out ConfigListResult
 	query := url.Values{}
 	options.Filters.updateURLValues(query)
 
@@ -25,7 +29,8 @@ func (cli *Client) ConfigList(ctx context.Context, options ConfigListOptions) (C
 		return ConfigListResult{}, err
 	}
 
-	err = json.NewDecoder(resp.Body).Decode(&out.Configs)
+	var out ConfigListResult
+	err = json.NewDecoder(resp.Body).Decode(&out.Items)
 	if err != nil {
 		return ConfigListResult{}, err
 	}
