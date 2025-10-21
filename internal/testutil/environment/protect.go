@@ -229,10 +229,9 @@ func getExistingVolumes(ctx context.Context, t testing.TB, testEnv *Execution) [
 	apiClient := testEnv.APIClient()
 	res, err := apiClient.VolumeList(ctx, client.VolumeListOptions{})
 	assert.NilError(t, err, "failed to list volumes")
-	volumeList := res.List
 
 	var volumes []string
-	for _, vol := range volumeList.Volumes {
+	for _, vol := range res.Items.Volumes {
 		volumes = append(volumes, vol.Name)
 	}
 	return volumes

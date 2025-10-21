@@ -15,7 +15,7 @@ type VolumeListOptions struct {
 
 // VolumeListResult holds the result from the [Client.VolumeList] method.
 type VolumeListResult struct {
-	List volume.ListResponse
+	Items volume.ListResponse
 }
 
 // VolumeList returns the volumes configured in the docker host.
@@ -29,7 +29,7 @@ func (cli *Client) VolumeList(ctx context.Context, options VolumeListOptions) (V
 		return VolumeListResult{}, err
 	}
 
-	var volumes volume.ListResponse
-	err = json.NewDecoder(resp.Body).Decode(&volumes)
-	return VolumeListResult{List: volumes}, err
+	var res VolumeListResult
+	err = json.NewDecoder(resp.Body).Decode(&res.Items)
+	return res, err
 }

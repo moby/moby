@@ -50,11 +50,10 @@ func TestVolumesCreateAndList(t *testing.T) {
 
 	res, err := apiClient.VolumeList(ctx, client.VolumeListOptions{})
 	assert.NilError(t, err)
-	volList := res.List
-	assert.Assert(t, len(volList.Volumes) > 0)
+	assert.Assert(t, len(res.Items.Volumes) > 0)
 
-	volumes := volList.Volumes[:0]
-	for _, v := range volList.Volumes {
+	volumes := res.Items.Volumes[:0]
+	for _, v := range res.Items.Volumes {
 		if v.Name == namedV.Name {
 			volumes = append(volumes, v)
 		}
