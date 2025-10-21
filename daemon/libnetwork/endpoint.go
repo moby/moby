@@ -538,8 +538,8 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	}
 	defer func() {
 		if retErr != nil {
-			if e := d.Leave(nid, epid); e != nil {
-				log.G(ctx).Warnf("driver leave failed while rolling back join: %v", e)
+			if err := d.Leave(nid, epid); err != nil {
+				log.G(ctx).WithError(err).Warnf("driver leave failed while rolling back join")
 			}
 		}
 	}()

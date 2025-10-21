@@ -64,7 +64,7 @@ func (d *driver) CreateNetwork(ctx context.Context, nid string, option map[strin
 	err = d.storeUpdate(config)
 	if err != nil {
 		d.deleteNetwork(config.ID)
-		log.G(context.TODO()).Debugf("encountered an error rolling back a network create for %s : %v", config.ID, err)
+		log.G(ctx).Debugf("encountered an error rolling back a network create for %s : %v", config.ID, err)
 		return err
 	}
 
@@ -110,14 +110,12 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 		}
 	}
 	if !foundExisting {
-		n := &network{
+		d.addNetwork(&network{
 			id:        config.ID,
 			driver:    d,
-			endpoints: endpointTable{},
+			endpoints: map[string]*endpoint{},
 			config:    config,
-		}
-		// add the network
-		d.addNetwork(n)
+		})
 	}
 
 	return foundExisting, nil
@@ -138,23 +136,17 @@ func (d *driver) DeleteNetwork(nid string) error {
 		return fmt.Errorf("network id %s not found", nid)
 	}
 	// if the driver created the slave interface, delete it, otherwise leave it
-	if ok := n.config.CreatedSlaveLink; ok {
-		// if the interface exists, only delete if it matches iface.vlan or dummy.net_id naming
-		if ok := parentExists(n.config.Parent); ok {
-			// only delete the link if it is named the net_id
-			if n.config.Parent == getDummyName(nid) {
-				err := delDummyLink(n.config.Parent)
-				if err != nil {
-					log.G(context.TODO()).Debugf("link %s was not deleted, continuing the delete network operation: %v",
-						n.config.Parent, err)
-				}
-			} else {
-				// only delete the link if it matches iface.vlan naming
-				err := delVlanLink(n.config.Parent)
-				if err != nil {
-					log.G(context.TODO()).Debugf("link %s was not deleted, continuing the delete network operation: %v",
-						n.config.Parent, err)
-				}
+	// if the interface exists, only delete if it matches iface.vlan or dummy.net_id naming
+	if n.config.CreatedSlaveLink && parentExists(n.config.Parent) {
+		// only delete the link if it is named the net_id
+		if n.config.Parent == getDummyName(nid) {
+			if err := delDummyLink(n.config.Parent); err != nil {
+				log.G(context.TODO()).WithError(err).Debugf("link %s was not deleted, continuing the delete network operation", n.config.Parent)
+			}
+		} else {
+			// only delete the link if it matches iface.vlan naming
+			if err := delVlanLink(n.config.Parent); err != nil {
+				log.G(context.TODO()).WithError(err).Debugf("link %s was not deleted, continuing the delete network operation", n.config.Parent)
 			}
 		}
 	}
@@ -166,14 +158,13 @@ func (d *driver) DeleteNetwork(nid string) error {
 		}
 
 		if err := d.storeDelete(ep); err != nil {
-			log.G(context.TODO()).Warnf("Failed to remove ipvlan endpoint %.7s from store: %v", ep.id, err)
+			log.G(context.TODO()).WithError(err).Warnf("Failed to remove ipvlan endpoint %.7s from store", ep.id)
 		}
 	}
 	// delete the *network
 	d.deleteNetwork(nid)
 	// delete the network record from persistent cache
-	err := d.storeDelete(n.config)
-	if err != nil {
+	if err := d.storeDelete(n.config); err != nil {
 		return fmt.Errorf("error deleting id %s from datastore: %v", nid, err)
 	}
 	return nil
@@ -181,13 +172,13 @@ func (d *driver) DeleteNetwork(nid string) error {
 
 // parseNetworkOptions parses docker network options
 func parseNetworkOptions(id string, option options.Generic) (*configuration, error) {
-	var (
-		err    error
-		config = &configuration{}
-	)
+	var config = &configuration{}
+
 	// parse generic labels first
 	if genData, ok := option[netlabel.GenericData]; ok && genData != nil {
-		if config, err = parseNetworkGenericOptions(genData); err != nil {
+		var err error
+		config, err = parseNetworkGenericOptions(genData)
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -233,7 +224,7 @@ func parseNetworkOptions(id string, option options.Generic) (*configuration, err
 	return config, nil
 }
 
-// parseNetworkGenericOptions parse generic driver docker network options
+// parseNetworkGenericOptions parses generic driver docker network options
 func parseNetworkGenericOptions(data any) (*configuration, error) {
 	switch opt := data.(type) {
 	case *configuration:

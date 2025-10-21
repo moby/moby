@@ -5,16 +5,15 @@ package macvlan
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
 func (d *driver) network(nid string) *network {
-	d.Lock()
+	d.mu.Lock()
 	n, ok := d.networks[nid]
-	d.Unlock()
+	d.mu.Unlock()
 	if !ok {
 		log.G(context.TODO()).Errorf("network id %s not found", nid)
 	}
@@ -23,21 +22,21 @@ func (d *driver) network(nid string) *network {
 }
 
 func (d *driver) addNetwork(n *network) {
-	d.Lock()
+	d.mu.Lock()
 	d.networks[n.id] = n
-	d.Unlock()
+	d.mu.Unlock()
 }
 
 func (d *driver) deleteNetwork(nid string) {
-	d.Lock()
+	d.mu.Lock()
 	delete(d.networks, nid)
-	d.Unlock()
+	d.mu.Unlock()
 }
 
 // getNetworks Safely returns a slice of existing networks
 func (d *driver) getNetworks() []*network {
-	d.Lock()
-	defer d.Unlock()
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	ls := make([]*network, 0, len(d.networks))
 	for _, nw := range d.networks {
@@ -47,36 +46,30 @@ func (d *driver) getNetworks() []*network {
 	return ls
 }
 
-func (n *network) endpoint(eid string) *endpoint {
-	n.Lock()
-	defer n.Unlock()
+func (n *network) endpoint(eid string) (*endpoint, error) {
+	if eid == "" {
+		return nil, errors.New("invalid endpoint id")
+	}
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
-	return n.endpoints[eid]
+	ep, ok := n.endpoints[eid]
+	if !ok || ep == nil {
+		return nil, errors.New("could not find endpoint with id " + eid)
+	}
+	return ep, nil
 }
 
 func (n *network) addEndpoint(ep *endpoint) {
-	n.Lock()
+	n.mu.Lock()
 	n.endpoints[ep.id] = ep
-	n.Unlock()
+	n.mu.Unlock()
 }
 
 func (n *network) deleteEndpoint(eid string) {
-	n.Lock()
+	n.mu.Lock()
 	delete(n.endpoints, eid)
-	n.Unlock()
-}
-
-func (n *network) getEndpoint(eid string) (*endpoint, error) {
-	n.Lock()
-	defer n.Unlock()
-	if eid == "" {
-		return nil, fmt.Errorf("endpoint id %s not found", eid)
-	}
-	if ep, ok := n.endpoints[eid]; ok {
-		return ep, nil
-	}
-
-	return nil, nil
+	n.mu.Unlock()
 }
 
 func validateID(nid, eid string) error {
@@ -90,14 +83,15 @@ func validateID(nid, eid string) error {
 }
 
 func (d *driver) getNetwork(id string) (*network, error) {
-	d.Lock()
-	defer d.Unlock()
 	if id == "" {
-		return nil, types.InvalidParameterErrorf("invalid network id: %s", id)
-	}
-	if nw, ok := d.networks[id]; ok {
-		return nw, nil
+		return nil, types.InvalidParameterErrorf("invalid network id")
 	}
 
-	return nil, types.NotFoundErrorf("network not found: %s", id)
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	nw, ok := d.networks[id]
+	if !ok || nw == nil {
+		return nil, types.NotFoundErrorf("network not found: %s", id)
+	}
+	return nw, nil
 }

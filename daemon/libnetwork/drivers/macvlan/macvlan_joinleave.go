@@ -29,30 +29,29 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	if err != nil {
 		return err
 	}
-	endpoint := n.endpoint(eid)
-	if endpoint == nil {
-		return fmt.Errorf("could not find endpoint with id %s", eid)
-	}
 	// generate a name for the iface that will be renamed to eth0 in the sbox
 	containerIfName, err := netutils.GenerateIfaceName(ns.NlHandle(), vethPrefix, vethLen)
 	if err != nil {
-		return fmt.Errorf("error generating an interface name: %s", err)
+		return fmt.Errorf("error generating an interface name: %w", err)
 	}
 	// create the netlink macvlan interface
 	vethName, err := createMacVlan(containerIfName, n.config.Parent, n.config.MacvlanMode)
 	if err != nil {
 		return err
 	}
-	// bind the generated iface name to the endpoint
-	endpoint.srcName = vethName
-	ep := n.endpoint(eid)
-	if ep == nil {
-		return fmt.Errorf("could not find endpoint with id %s", eid)
+	ep, err := n.endpoint(eid)
+	if err != nil {
+		return err
 	}
-	// parse and match the endpoint address with the available v4 subnets
+	// bind the generated iface name to the endpoint
+	//
+	// TODO(thaJeztah): this should really be done under a lock.
+	ep.srcName = vethName
+
 	if !n.config.Internal {
-		if len(n.config.Ipv4Subnets) > 0 {
-			s := n.getSubnetforIPv4(ep.addr)
+		// parse and correlate the endpoint v4 address with the available v4 subnets
+		if ep.addr != nil && len(n.config.Ipv4Subnets) > 0 {
+			s := getSubnetForIP(ep.addr, n.config.Ipv4Subnets)
 			if s == nil {
 				return fmt.Errorf("could not find a valid ipv4 subnet for endpoint %s", eid)
 			}
@@ -75,9 +74,9 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 			log.G(ctx).Debugf("Macvlan Endpoint Joined with IPv4_Addr: %s, Gateway: %s, MacVlan_Mode: %s, Parent: %s",
 				ep.addr.IP.String(), s.GwIP, n.config.MacvlanMode, n.config.Parent)
 		}
-		// parse and match the endpoint address with the available v6 subnets
+		// parse and correlate the endpoint v6 address with the available v6 subnets
 		if ep.addrv6 != nil && len(n.config.Ipv6Subnets) > 0 {
-			s := n.getSubnetforIPv6(ep.addrv6)
+			s := getSubnetForIP(ep.addrv6, n.config.Ipv6Subnets)
 			if s == nil {
 				return fmt.Errorf("could not find a valid ipv6 subnet for endpoint %s", eid)
 			}
@@ -125,31 +124,10 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
 func (d *driver) Leave(nid, eid string) error {
-	network, err := d.getNetwork(nid)
-	if err != nil {
-		return err
-	}
-	endpoint, err := network.getEndpoint(eid)
-	if err != nil {
-		return err
-	}
-	if endpoint == nil {
-		return fmt.Errorf("could not find endpoint with id %s", eid)
-	}
-
 	return nil
 }
 
-// getSubnetforIPv4 returns the ipv4 subnet to which the given IP belongs
-func (n *network) getSubnetforIPv4(ip *net.IPNet) *ipSubnet {
-	return getSubnetForIP(ip, n.config.Ipv4Subnets)
-}
-
-// getSubnetforIPv6 returns the ipv6 subnet to which the given IP belongs
-func (n *network) getSubnetforIPv6(ip *net.IPNet) *ipSubnet {
-	return getSubnetForIP(ip, n.config.Ipv6Subnets)
-}
-
+// getSubnetForIP returns the (IPv4 or IPv6) subnet to which the given IP belongs.
 func getSubnetForIP(ip *net.IPNet, subnets []*ipSubnet) *ipSubnet {
 	for _, s := range subnets {
 		_, snet, err := net.ParseCIDR(s.SubnetIP)

@@ -55,14 +55,14 @@ func (d *driver) CreateNetwork(ctx context.Context, nid string, option map[strin
 	err = d.storeUpdate(config)
 	if err != nil {
 		d.deleteNetwork(config.ID)
-		log.G(context.TODO()).Debugf("encountered an error rolling back a network create for %s : %v", config.ID, err)
+		log.G(ctx).Debugf("encountered an error rolling back a network create for %s : %v", config.ID, err)
 		return err
 	}
 
 	return nil
 }
 
-func (d *driver) GetSkipGwAlloc(opts options.Generic) (ipv4, ipv6 bool, _ error) {
+func (d *driver) GetSkipGwAlloc(options.Generic) (ipv4, ipv6 bool, _ error) {
 	// Only set up a default gateway if the user configured one (the gateway
 	// must be external to the Docker macvlan network, the driver doesn't assign
 	// the address to anything).
@@ -131,7 +131,7 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 		d.addNetwork(&network{
 			id:        config.ID,
 			driver:    d,
-			endpoints: endpointTable{},
+			endpoints: map[string]*endpoint{},
 			config:    config,
 		})
 	}
@@ -139,14 +139,20 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 	return foundExisting, nil
 }
 
-func (d *driver) parentHasSingleUser(n *network) bool {
+func (d *driver) parentHasSingleUser(parent string) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	users := 0
-	networkList := d.getNetworks()
-	for _, testN := range networkList {
-		if n.config.Parent == testN.config.Parent {
+	for _, nw := range d.networks {
+		if nw.config.Parent == parent {
 			users++
 		}
+		if users > 1 {
+			return false
+		}
 	}
+	// TODO(thaJeztah): "zero users" should also return "true?" (this would be theoretical as we're checking a network to be the last remaining user)
 	return users == 1
 }
 
@@ -157,20 +163,16 @@ func (d *driver) DeleteNetwork(nid string) error {
 		return fmt.Errorf("network id %s not found", nid)
 	}
 	// if the driver created the slave interface and this network is the last user, delete it, otherwise leave it
-	if n.config.CreatedSlaveLink && parentExists(n.config.Parent) && d.parentHasSingleUser(n) {
+	if n.config.CreatedSlaveLink && parentExists(n.config.Parent) && d.parentHasSingleUser(n.config.Parent) {
 		// only delete the link if it is named the net_id
 		if n.config.Parent == getDummyName(nid) {
-			err := delDummyLink(n.config.Parent)
-			if err != nil {
-				log.G(context.TODO()).Debugf("link %s was not deleted, continuing the delete network operation: %v",
-					n.config.Parent, err)
+			if err := delDummyLink(n.config.Parent); err != nil {
+				log.G(context.TODO()).WithError(err).Debugf("link %s was not deleted, continuing the delete network operation", n.config.Parent)
 			}
 		} else {
 			// only delete the link if it matches iface.vlan naming
-			err := delVlanLink(n.config.Parent)
-			if err != nil {
-				log.G(context.TODO()).Debugf("link %s was not deleted, continuing the delete network operation: %v",
-					n.config.Parent, err)
+			if err := delVlanLink(n.config.Parent); err != nil {
+				log.G(context.TODO()).WithError(err).Debugf("link %s was not deleted, continuing the delete network operation", n.config.Parent)
 			}
 		}
 	}
@@ -182,14 +184,13 @@ func (d *driver) DeleteNetwork(nid string) error {
 		}
 
 		if err := d.storeDelete(ep); err != nil {
-			log.G(context.TODO()).Warnf("Failed to remove macvlan endpoint %.7s from store: %v", ep.id, err)
+			log.G(context.TODO()).WithError(err).Warnf("Failed to remove macvlan endpoint %.7s from store", ep.id)
 		}
 	}
 	// delete the *network
 	d.deleteNetwork(nid)
 	// delete the network record from persistent cache
-	err := d.storeDelete(n.config)
-	if err != nil {
+	if err := d.storeDelete(n.config); err != nil {
 		return fmt.Errorf("error deleting id %s from datastore: %v", nid, err)
 	}
 	return nil
@@ -197,13 +198,13 @@ func (d *driver) DeleteNetwork(nid string) error {
 
 // parseNetworkOptions parses docker network options
 func parseNetworkOptions(id string, option options.Generic) (*configuration, error) {
-	var (
-		err    error
-		config = &configuration{}
-	)
+	var config = &configuration{}
+
 	// parse generic labels first
 	if genData, ok := option[netlabel.GenericData]; ok && genData != nil {
-		if config, err = parseNetworkGenericOptions(genData); err != nil {
+		var err error
+		config, err = parseNetworkGenericOptions(genData)
+		if err != nil {
 			return nil, err
 		}
 	}
