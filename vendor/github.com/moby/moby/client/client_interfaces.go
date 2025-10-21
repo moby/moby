@@ -203,11 +203,11 @@ type VolumeAPIClient interface {
 
 // SecretAPIClient defines API client methods for secrets
 type SecretAPIClient interface {
-	SecretList(ctx context.Context, options SecretListOptions) ([]swarm.Secret, error)
-	SecretCreate(ctx context.Context, secret swarm.SecretSpec) (swarm.SecretCreateResponse, error)
-	SecretRemove(ctx context.Context, id string) error
-	SecretInspectWithRaw(ctx context.Context, name string) (swarm.Secret, []byte, error)
-	SecretUpdate(ctx context.Context, id string, version swarm.Version, secret swarm.SecretSpec) error
+	SecretList(ctx context.Context, options SecretListOptions) (SecretListResult, error)
+	SecretCreate(ctx context.Context, options SecretCreateOptions) (SecretCreateResult, error)
+	SecretRemove(ctx context.Context, id string, options SecretRemoveOptions) (SecretRemoveResult, error)
+	SecretInspect(ctx context.Context, id string, options SecretInspectOptions) (SecretInspectResult, error)
+	SecretUpdate(ctx context.Context, id string, options SecretUpdateOptions) (SecretUpdateResult, error)
 }
 
 // ConfigAPIClient defines API client methods for configs

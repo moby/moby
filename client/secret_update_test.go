@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/swarm"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -17,14 +16,14 @@ func TestSecretUpdateError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	err = client.SecretUpdate(context.Background(), "secret_id", swarm.Version{}, swarm.SecretSpec{})
+	_, err = client.SecretUpdate(context.Background(), "secret_id", SecretUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.SecretUpdate(context.Background(), "", swarm.Version{}, swarm.SecretSpec{})
+	_, err = client.SecretUpdate(context.Background(), "", SecretUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.SecretUpdate(context.Background(), "    ", swarm.Version{}, swarm.SecretSpec{})
+	_, err = client.SecretUpdate(context.Background(), "    ", SecretUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -43,6 +42,6 @@ func TestSecretUpdate(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	err = client.SecretUpdate(context.Background(), "secret_id", swarm.Version{}, swarm.SecretSpec{})
+	_, err = client.SecretUpdate(context.Background(), "secret_id", SecretUpdateOptions{})
 	assert.NilError(t, err)
 }

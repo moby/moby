@@ -19,7 +19,7 @@ func TestSecretInspectError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, _, err = client.SecretInspectWithRaw(context.Background(), "nothing")
+	_, err = client.SecretInspect(context.Background(), "nothing", SecretInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -27,7 +27,7 @@ func TestSecretInspectSecretNotFound(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusNotFound, "Server error")))
 	assert.NilError(t, err)
 
-	_, _, err = client.SecretInspectWithRaw(context.Background(), "unknown")
+	_, err = client.SecretInspect(context.Background(), "unknown", SecretInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
@@ -36,11 +36,11 @@ func TestSecretInspectWithEmptyID(t *testing.T) {
 		return nil, errors.New("should not make request")
 	}))
 	assert.NilError(t, err)
-	_, _, err = client.SecretInspectWithRaw(context.Background(), "")
+	_, err = client.SecretInspect(context.Background(), "", SecretInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, _, err = client.SecretInspectWithRaw(context.Background(), "    ")
+	_, err = client.SecretInspect(context.Background(), "    ", SecretInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -64,7 +64,7 @@ func TestSecretInspect(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	secretInspect, _, err := client.SecretInspectWithRaw(context.Background(), "secret_id")
+	res, err := client.SecretInspect(context.Background(), "secret_id", SecretInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(secretInspect.ID, "secret_id"))
+	assert.Check(t, is.Equal(res.Secret.ID, "secret_id"))
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/checker"
 	"github.com/moby/moby/v2/internal/testutil"
 	"gotest.tools/v3/assert"
@@ -71,16 +72,20 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *testing.T) {
 func (s *DockerSwarmSuite) TestServiceCreateWithSecretSimple(c *testing.T) {
 	ctx := testutil.GetContext(c)
 	d := s.AddDaemon(ctx, c, true, true)
+	apiClient := d.NewClientT(c)
 
 	serviceName := "test-service-secret"
 	testName := "test_secret"
-	id := d.CreateSecret(c, swarm.SecretSpec{
-		Annotations: swarm.Annotations{
-			Name: testName,
+	scr, err := apiClient.SecretCreate(ctx, client.SecretCreateOptions{
+		Spec: swarm.SecretSpec{
+			Annotations: swarm.Annotations{
+				Name: testName,
+			},
+			Data: []byte("TESTINGDATA"),
 		},
-		Data: []byte("TESTINGDATA"),
 	})
-	assert.Assert(c, id != "", "secrets: %s", id)
+	assert.NilError(c, err)
+	assert.Assert(c, scr.ID != "", "secrets: %s", scr.ID)
 
 	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", serviceName, "--secret", testName, "busybox", "top")
 	assert.NilError(c, err, out)
@@ -100,7 +105,8 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSimple(c *testing.T) {
 
 	out, err = d.Cmd("service", "rm", serviceName)
 	assert.NilError(c, err, out)
-	d.DeleteSecret(c, testName)
+	_, err = apiClient.SecretRemove(c.Context(), testName, client.SecretRemoveOptions{})
+	assert.NilError(c, err)
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTargetPaths(c *testing.T) {
@@ -116,15 +122,18 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTargetPaths(c *testi
 
 	var secretFlags []string
 
+	apiClient := d.NewClientT(c)
 	for testName, testTarget := range testPaths {
-		id := d.CreateSecret(c, swarm.SecretSpec{
-			Annotations: swarm.Annotations{
-				Name: testName,
+		scr, err := apiClient.SecretCreate(ctx, client.SecretCreateOptions{
+			Spec: swarm.SecretSpec{
+				Annotations: swarm.Annotations{
+					Name: testName,
+				},
+				Data: []byte("TESTINGDATA " + testName + " " + testTarget),
 			},
-			Data: []byte("TESTINGDATA " + testName + " " + testTarget),
 		})
-		assert.Assert(c, id != "", "secrets: %s", id)
-
+		assert.NilError(c, err)
+		assert.Assert(c, scr.ID != "", "secrets: %s", scr.ID)
 		secretFlags = append(secretFlags, "--secret", fmt.Sprintf("source=%s,target=%s", testName, testTarget))
 	}
 
@@ -174,13 +183,17 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretReferencedTwice(c *testing
 	ctx := testutil.GetContext(c)
 	d := s.AddDaemon(ctx, c, true, true)
 
-	id := d.CreateSecret(c, swarm.SecretSpec{
-		Annotations: swarm.Annotations{
-			Name: "mysecret",
+	apiClient := d.NewClientT(c)
+	scr, err := apiClient.SecretCreate(ctx, client.SecretCreateOptions{
+		Spec: swarm.SecretSpec{
+			Annotations: swarm.Annotations{
+				Name: "mysecret",
+			},
+			Data: []byte("TESTINGDATA"),
 		},
-		Data: []byte("TESTINGDATA"),
 	})
-	assert.Assert(c, id != "", "secrets: %s", id)
+	assert.NilError(c, err)
+	assert.Assert(c, scr.ID != "", "secrets: %s", scr.ID)
 
 	serviceName := "svc"
 	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", serviceName, "--secret", "source=mysecret,target=target1", "--secret", "source=mysecret,target=target2", "busybox", "top")

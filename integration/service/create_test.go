@@ -199,11 +199,13 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 	defer apiClient.Close()
 
 	secretName := "TestSecret_" + t.Name()
-	secretResp, err := apiClient.SecretCreate(ctx, swarmtypes.SecretSpec{
-		Annotations: swarmtypes.Annotations{
-			Name: secretName,
+	secretResp, err := apiClient.SecretCreate(ctx, client.SecretCreateOptions{
+		Spec: swarmtypes.SecretSpec{
+			Annotations: swarmtypes.Annotations{
+				Name: secretName,
+			},
+			Data: []byte("TESTSECRET"),
 		},
-		Data: []byte("TESTSECRET"),
 	})
 	assert.NilError(t, err)
 
@@ -242,7 +244,7 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 	assert.NilError(t, err)
 	poll.WaitOn(t, swarm.NoTasksForService(ctx, apiClient, serviceID), swarm.ServicePoll)
 
-	err = apiClient.SecretRemove(ctx, secretName)
+	_, err = apiClient.SecretRemove(ctx, secretName, client.SecretRemoveOptions{})
 	assert.NilError(t, err)
 }
 

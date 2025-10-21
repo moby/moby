@@ -21,6 +21,7 @@ import (
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
 	remoteipam "github.com/moby/moby/v2/daemon/libnetwork/ipams/remote/api"
@@ -1985,20 +1986,27 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsNetwork(c *testing.T) {
 func (s *DockerSwarmSuite) TestSwarmClusterEventsSecret(c *testing.T) {
 	ctx := testutil.GetContext(c)
 	d := s.AddDaemon(ctx, c, true, true)
+	apiClient := d.NewClientT(c)
 
 	testName := "test_secret"
-	id := d.CreateSecret(c, swarm.SecretSpec{
-		Annotations: swarm.Annotations{
-			Name: testName,
+	scr, err := apiClient.SecretCreate(ctx, client.SecretCreateOptions{
+		Spec: swarm.SecretSpec{
+			Annotations: swarm.Annotations{
+				Name: testName,
+			},
+			Data: []byte("TESTINGDATA"),
 		},
-		Data: []byte("TESTINGDATA"),
 	})
-	assert.Assert(c, id != "", "secrets: %s", id)
+	assert.NilError(c, err)
+	assert.Assert(c, scr.ID != "", "secrets: %s", scr.ID)
+	id := scr.ID
 
 	waitForEvent(c, d, "0", "-f scope=swarm", "secret create "+id, defaultRetryCount)
 
 	t1 := daemonUnixTime(c)
-	d.DeleteSecret(c, id)
+	_, err = apiClient.SecretRemove(c.Context(), id, client.SecretRemoveOptions{})
+	assert.NilError(c, err)
+
 	// filtered by secret
 	waitForEvent(c, d, t1, "-f type=secret", "secret remove "+id, defaultRetryCount)
 }
