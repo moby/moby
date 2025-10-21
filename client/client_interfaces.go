@@ -178,7 +178,7 @@ type SwarmAPIClient interface {
 	SwarmGetUnlockKey(ctx context.Context) (SwarmGetUnlockKeyResult, error)
 	SwarmUnlock(ctx context.Context, options SwarmUnlockOptions) (SwarmUnlockResult, error)
 	SwarmLeave(ctx context.Context, options SwarmLeaveOptions) (SwarmLeaveResult, error)
-	SwarmInspect(ctx context.Context) (SwarmInspectResult, error)
+	SwarmInspect(ctx context.Context, options SwarmInspectOptions) (SwarmInspectResult, error)
 	SwarmUpdate(ctx context.Context, version swarm.Version, options SwarmUpdateOptions) (SwarmUpdateResult, error)
 }
 
