@@ -2,7 +2,6 @@ package client
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -18,7 +17,7 @@ func TestSwarmInspectError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.SwarmInspect(context.Background())
+	_, err = client.SwarmInspect(t.Context(), SwarmInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -43,7 +42,7 @@ func TestSwarmInspect(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	inspect, err := client.SwarmInspect(context.Background())
+	res, err := client.SwarmInspect(t.Context(), SwarmInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(inspect.Swarm.ID, "swarm_id"))
+	assert.Check(t, is.Equal(res.Swarm.ID, "swarm_id"))
 }

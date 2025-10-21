@@ -164,25 +164,25 @@ func TestVolumesInspect(t *testing.T) {
 	assert.NilError(t, err)
 	v := created.Volume
 
-	inspected, err := apiClient.VolumeInspect(ctx, v.Name)
+	res, err := apiClient.VolumeInspect(ctx, v.Name, client.VolumeInspectOptions{})
 	assert.NilError(t, err)
 
-	assert.Check(t, is.DeepEqual(inspected.Volume, v, cmpopts.EquateEmpty()))
+	assert.Check(t, is.DeepEqual(res.Volume, v, cmpopts.EquateEmpty()))
 
 	// comparing CreatedAt field time for the new volume to now. Truncate to 1 minute precision to avoid false positive
-	createdAt, err := time.Parse(time.RFC3339, strings.TrimSpace(inspected.Volume.CreatedAt))
+	createdAt, err := time.Parse(time.RFC3339, strings.TrimSpace(res.Volume.CreatedAt))
 	assert.NilError(t, err)
 	assert.Check(t, createdAt.Unix()-now.Unix() < 60, "CreatedAt (%s) exceeds creation time (%s) 60s", createdAt, now)
 
 	// update atime and mtime for the "_data" directory (which would happen during volume initialization)
 	modifiedAt := time.Now().Local().Add(5 * time.Hour)
-	err = os.Chtimes(inspected.Volume.Mountpoint, modifiedAt, modifiedAt)
+	err = os.Chtimes(res.Volume.Mountpoint, modifiedAt, modifiedAt)
 	assert.NilError(t, err)
 
-	inspected, err = apiClient.VolumeInspect(ctx, v.Name)
+	res, err = apiClient.VolumeInspect(ctx, v.Name, client.VolumeInspectOptions{})
 	assert.NilError(t, err)
 
-	createdAt2, err := time.Parse(time.RFC3339, strings.TrimSpace(inspected.Volume.CreatedAt))
+	createdAt2, err := time.Parse(time.RFC3339, strings.TrimSpace(res.Volume.CreatedAt))
 	assert.NilError(t, err)
 
 	// Check that CreatedAt didn't change after updating atime and mtime of the "_data" directory
@@ -280,7 +280,7 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	assert.Check(t, is.Equal(len(report.VolumesDeleted), 1))
 	assert.Check(t, is.Equal(report.VolumesDeleted[0], anonV.Name))
 
-	_, err = apiClient.VolumeInspect(ctx, namedV.Name)
+	_, err = apiClient.VolumeInspect(ctx, namedV.Name, client.VolumeInspectOptions{})
 	assert.NilError(t, err)
 
 	// Prune all volumes

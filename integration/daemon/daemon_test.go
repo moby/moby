@@ -569,7 +569,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 			err = c.VolumeRemove(ctx, volName, client.VolumeRemoveOptions{})
 			assert.ErrorContains(t, err, "volume is in use")
 
-			_, err = c.VolumeInspect(ctx, volName)
+			_, err = c.VolumeInspect(ctx, volName, client.VolumeInspectOptions{})
 			assert.NilError(t, err)
 		})
 	}

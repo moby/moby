@@ -63,7 +63,7 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 	assert.Check(t, is.Equal(1, len(ctrInspect.Mounts)))
 	volName := ctrInspect.Mounts[0].Name
 
-	_, err = apiClient.VolumeInspect(ctx, volName)
+	_, err = apiClient.VolumeInspect(ctx, volName, client.VolumeInspectOptions{})
 	assert.NilError(t, err)
 
 	err = apiClient.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{
@@ -72,7 +72,7 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	_, err = apiClient.VolumeInspect(ctx, volName)
+	_, err = apiClient.VolumeInspect(ctx, volName, client.VolumeInspectOptions{})
 	assert.ErrorType(t, err, cerrdefs.IsNotFound, "Expected anonymous volume to be removed")
 }
 

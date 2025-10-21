@@ -1633,7 +1633,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 			switch {
 			// Named volumes still exist after the container is removed
 			case tc.spec.Type == "volume" && tc.spec.Source != "":
-				_, err := apiclient.VolumeInspect(ctx, mountPoint.Name)
+				_, err := apiclient.VolumeInspect(ctx, mountPoint.Name, client.VolumeInspectOptions{})
 				assert.NilError(c, err)
 
 			// Bind mounts are never removed with the container
@@ -1641,7 +1641,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 
 			// anonymous volumes are removed
 			default:
-				_, err := apiclient.VolumeInspect(ctx, mountPoint.Name)
+				_, err := apiclient.VolumeInspect(ctx, mountPoint.Name, client.VolumeInspectOptions{})
 				assert.Check(c, is.ErrorType(err, cerrdefs.IsNotFound))
 			}
 		})

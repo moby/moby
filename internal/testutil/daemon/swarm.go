@@ -189,7 +189,7 @@ func (d *Daemon) GetSwarm(t testing.TB) swarm.Swarm {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	result, err := cli.SwarmInspect(context.Background())
+	result, err := cli.SwarmInspect(t.Context(), client.SwarmInspectOptions{})
 	assert.NilError(t, err)
 	return result.Swarm
 }
@@ -217,10 +217,10 @@ func (d *Daemon) RotateTokens(t testing.TB) {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	result, err := cli.SwarmInspect(context.Background())
+	result, err := cli.SwarmInspect(t.Context(), client.SwarmInspectOptions{})
 	assert.NilError(t, err)
 
-	_, err = cli.SwarmUpdate(context.Background(), result.Swarm.Version, client.SwarmUpdateOptions{
+	_, err = cli.SwarmUpdate(t.Context(), result.Swarm.Version, client.SwarmUpdateOptions{
 		Swarm:              result.Swarm.Spec,
 		RotateManagerToken: true,
 		RotateWorkerToken:  true,
@@ -234,7 +234,7 @@ func (d *Daemon) JoinTokens(t testing.TB) swarm.JoinTokens {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	result, err := cli.SwarmInspect(context.Background())
+	result, err := cli.SwarmInspect(t.Context(), client.SwarmInspectOptions{})
 	assert.NilError(t, err)
 	return result.Swarm.JoinTokens
 }
