@@ -2,7 +2,6 @@ package client
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -19,7 +18,7 @@ func TestVolumeInspectError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.VolumeInspect(context.Background(), "nothing")
+	_, err = client.VolumeInspect(t.Context(), "nothing", VolumeInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -27,7 +26,7 @@ func TestVolumeInspectNotFound(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusNotFound, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.VolumeInspect(context.Background(), "unknown")
+	_, err = client.VolumeInspect(t.Context(), "unknown", VolumeInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
@@ -36,11 +35,11 @@ func TestVolumeInspectWithEmptyID(t *testing.T) {
 		return nil, errors.New("should not make request")
 	}))
 	assert.NilError(t, err)
-	_, err = client.VolumeInspect(context.Background(), "")
+	_, err = client.VolumeInspect(t.Context(), "", VolumeInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.VolumeInspect(context.Background(), "    ")
+	_, err = client.VolumeInspect(t.Context(), "    ", VolumeInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -68,7 +67,7 @@ func TestVolumeInspect(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	result, err := client.VolumeInspect(context.Background(), "volume_id")
+	result, err := client.VolumeInspect(t.Context(), "volume_id", VolumeInspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(expected, result.Volume))
 }

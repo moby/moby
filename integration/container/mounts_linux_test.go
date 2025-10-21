@@ -410,13 +410,13 @@ func TestContainerVolumeAnonymous(t *testing.T) {
 		assert.Check(t, is.Len(vol.Name, 64), "volume name should be 64 bytes (from stringid.GenerateRandomID())")
 		assert.Check(t, is.Equal(vol.Driver, volume.DefaultDriverName))
 
-		volInspect, err := apiClient.VolumeInspect(ctx, vol.Name)
+		res, err := apiClient.VolumeInspect(ctx, vol.Name, client.VolumeInspectOptions{})
 		assert.NilError(t, err)
 
 		// see [daemon.AnonymousLabel]; we don't want to import the daemon package here.
 		const expectedAnonymousLabel = "com.docker.volume.anonymous"
-		assert.Check(t, is.Contains(volInspect.Volume.Labels, expectedAnonymousLabel))
-		assert.Check(t, is.Equal(volInspect.Volume.Driver, volume.DefaultDriverName))
+		assert.Check(t, is.Contains(res.Volume.Labels, expectedAnonymousLabel))
+		assert.Check(t, is.Equal(res.Volume.Driver, volume.DefaultDriverName))
 	})
 
 	// Verify that specifying a custom driver is still taken into account.

@@ -6,6 +6,11 @@ import (
 	"github.com/moby/moby/api/types/volume"
 )
 
+// VolumeInspectOptions holds options for inspecting a volume.
+type VolumeInspectOptions struct {
+	// Add future optional parameters here
+}
+
 // VolumeInspectResult holds the result from the [Client.VolumeInspect] method.
 type VolumeInspectResult struct {
 	Raw    []byte
@@ -13,7 +18,7 @@ type VolumeInspectResult struct {
 }
 
 // VolumeInspect returns the information about a specific volume in the docker host.
-func (cli *Client) VolumeInspect(ctx context.Context, volumeID string) (VolumeInspectResult, error) {
+func (cli *Client) VolumeInspect(ctx context.Context, volumeID string, options VolumeInspectOptions) (VolumeInspectResult, error) {
 	volumeID, err := trimID("volume", volumeID)
 	if err != nil {
 		return VolumeInspectResult{}, err
