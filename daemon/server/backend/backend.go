@@ -7,7 +7,6 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -17,7 +16,7 @@ type ContainerCreateConfig struct {
 	Name                        string
 	Config                      *container.Config
 	HostConfig                  *container.HostConfig
-	NetworkingConfig            *network.NetworkingConfig
+	NetworkingConfig            *container.NetworkingAttachOptions
 	Platform                    *ocispec.Platform
 	DefaultReadOnlyNonRecursive bool
 }

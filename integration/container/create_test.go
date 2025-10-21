@@ -58,8 +58,8 @@ func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			_, err := apiClient.ContainerCreate(ctx,
 				&container.Config{Image: tc.image},
-				&container.HostConfig{},
-				&network.NetworkingConfig{},
+				nil,
+				nil,
 				nil,
 				"",
 			)
@@ -124,8 +124,8 @@ func TestCreateByImageID(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			resp, err := apiClient.ContainerCreate(ctx,
 				&container.Config{Image: tc.image},
-				&container.HostConfig{},
-				&network.NetworkingConfig{},
+				nil,
+				nil,
 				nil,
 				"",
 			)
@@ -197,8 +197,8 @@ func TestCreateWithInvalidEnv(t *testing.T) {
 					Image: "busybox",
 					Env:   []string{tc.env},
 				},
-				&container.HostConfig{},
-				&network.NetworkingConfig{},
+				nil,
+				nil,
 				nil,
 				"",
 			)
@@ -479,7 +479,7 @@ func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 				cfg.Healthcheck.StartPeriod = tc.startPeriod
 			}
 
-			resp, err := apiClient.ContainerCreate(ctx, &cfg, &container.HostConfig{}, nil, nil, "")
+			resp, err := apiClient.ContainerCreate(ctx, &cfg, nil, nil, nil, "")
 			assert.Check(t, is.Equal(len(resp.Warnings), 0))
 			assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 			assert.ErrorContains(t, err, tc.expectedErr)
@@ -550,7 +550,7 @@ func TestCreateDifferentPlatform(t *testing.T) {
 			Architecture: img.Architecture,
 			Variant:      img.Variant,
 		}
-		_, err := apiClient.ContainerCreate(ctx, &container.Config{Image: "busybox:latest"}, &container.HostConfig{}, nil, &p, "")
+		_, err := apiClient.ContainerCreate(ctx, &container.Config{Image: "busybox:latest"}, nil, nil, &p, "")
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	})
 	t.Run("different cpu arch", func(t *testing.T) {
@@ -560,7 +560,7 @@ func TestCreateDifferentPlatform(t *testing.T) {
 			Architecture: img.Architecture + "DifferentArch",
 			Variant:      img.Variant,
 		}
-		_, err := apiClient.ContainerCreate(ctx, &container.Config{Image: "busybox:latest"}, &container.HostConfig{}, nil, &p, "")
+		_, err := apiClient.ContainerCreate(ctx, &container.Config{Image: "busybox:latest"}, nil, nil, &p, "")
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	})
 }
@@ -592,7 +592,7 @@ func TestCreatePlatformSpecificImageNoPlatform(t *testing.T) {
 	_, err := apiClient.ContainerCreate(
 		ctx,
 		&container.Config{Image: "arm32v7/hello-world"},
-		&container.HostConfig{},
+		nil,
 		nil,
 		nil,
 		"",
@@ -677,14 +677,14 @@ func TestCreateWithMultipleEndpointSettings(t *testing.T) {
 			config := container.Config{
 				Image: "busybox",
 			}
-			networkingConfig := network.NetworkingConfig{
+			networkingConfig := container.NetworkingAttachOptions{
 				EndpointsConfig: map[string]*network.EndpointSettings{
 					"net1": {},
 					"net2": {},
 					"net3": {},
 				},
 			}
-			_, err = apiClient.ContainerCreate(ctx, &config, &container.HostConfig{}, &networkingConfig, nil, "")
+			_, err = apiClient.ContainerCreate(ctx, &config, nil, &networkingConfig, nil, "")
 			if tc.expectedErr == "" {
 				assert.NilError(t, err)
 			} else {

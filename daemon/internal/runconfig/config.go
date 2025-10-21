@@ -49,11 +49,8 @@ func decodeCreateRequest(src io.Reader) (container.CreateRequest, error) {
 	if runtime.GOOS != "windows" && w.HostConfig.NetworkMode == "" {
 		w.HostConfig.NetworkMode = network.NetworkDefault
 	}
-	if w.NetworkingConfig == nil {
-		w.NetworkingConfig = &network.NetworkingConfig{}
-	}
 	if w.NetworkingConfig.EndpointsConfig == nil {
-		w.NetworkingConfig.EndpointsConfig = make(map[string]*network.EndpointSettings)
+		w.NetworkingConfig.EndpointsConfig = make(map[string]*container.EndpointSettings)
 	}
 	return w, nil
 }

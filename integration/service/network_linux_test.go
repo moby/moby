@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
@@ -40,8 +41,8 @@ func TestDockerNetworkConnectAliasPreV144(t *testing.T) {
 	)
 
 	cID1 := container.Create(ctx, t, apiClient, func(c *container.TestContainerConfig) {
-		c.NetworkingConfig = &network.NetworkingConfig{
-			EndpointsConfig: map[string]*network.EndpointSettings{
+		c.NetworkingConfig = &containertypes.NetworkingAttachOptions{
+			EndpointsConfig: map[string]*containertypes.EndpointSettings{
 				name: {},
 			},
 		}
@@ -63,8 +64,8 @@ func TestDockerNetworkConnectAliasPreV144(t *testing.T) {
 	assert.Check(t, is.Equal(ng1.NetworkSettings.Networks[name].Aliases[0], "aaa"))
 
 	cID2 := container.Create(ctx, t, apiClient, func(c *container.TestContainerConfig) {
-		c.NetworkingConfig = &network.NetworkingConfig{
-			EndpointsConfig: map[string]*network.EndpointSettings{
+		c.NetworkingConfig = &containertypes.NetworkingAttachOptions{
+			EndpointsConfig: map[string]*containertypes.EndpointSettings{
 				name: {},
 			},
 		}
@@ -101,8 +102,8 @@ func TestDockerNetworkReConnect(t *testing.T) {
 	)
 
 	c1 := container.Create(ctx, t, apiClient, func(c *container.TestContainerConfig) {
-		c.NetworkingConfig = &network.NetworkingConfig{
-			EndpointsConfig: map[string]*network.EndpointSettings{
+		c.NetworkingConfig = &containertypes.NetworkingAttachOptions{
+			EndpointsConfig: map[string]*containertypes.EndpointSettings{
 				name: {},
 			},
 		}
