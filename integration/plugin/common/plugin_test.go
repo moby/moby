@@ -120,7 +120,7 @@ func TestPluginInstall(t *testing.T) {
 		_, err = io.Copy(io.Discard, rdr)
 		assert.NilError(t, err)
 
-		_, _, err = apiclient.PluginInspectWithRaw(ctx, repo)
+		_, err = apiclient.PluginInspect(ctx, repo, client.PluginInspectOptions{})
 		assert.NilError(t, err)
 	})
 
@@ -163,7 +163,7 @@ func TestPluginInstall(t *testing.T) {
 		_, err = io.Copy(io.Discard, rdr)
 		assert.NilError(t, err)
 
-		_, _, err = apiclient.PluginInspectWithRaw(ctx, repo)
+		_, err = apiclient.PluginInspect(ctx, repo, client.PluginInspectOptions{})
 		assert.NilError(t, err)
 	})
 
@@ -192,7 +192,7 @@ func TestPluginInstall(t *testing.T) {
 		_, err = io.Copy(io.Discard, rdr)
 		assert.NilError(t, err)
 
-		_, _, err = apiclient.PluginInspectWithRaw(ctx, repo)
+		_, err = apiclient.PluginInspect(ctx, repo, client.PluginInspectOptions{})
 		assert.NilError(t, err)
 	})
 	t.Run("with insecure", func(t *testing.T) {
@@ -234,15 +234,15 @@ func TestPluginInstall(t *testing.T) {
 		repo := path.Join(regURL, name+":latest")
 		assert.NilError(t, plugin.CreateInRegistry(ctx, repo, nil, plugin.WithInsecureRegistry(regURL)))
 
-		apiclient := d.NewClientT(t)
-		rdr, err := apiclient.PluginInstall(ctx, repo, client.PluginInstallOptions{Disabled: true, RemoteRef: repo})
+		apiClient := d.NewClientT(t)
+		rdr, err := apiClient.PluginInstall(ctx, repo, client.PluginInstallOptions{Disabled: true, RemoteRef: repo})
 		assert.NilError(t, err)
 		defer rdr.Close()
 
 		_, err = io.Copy(io.Discard, rdr)
 		assert.NilError(t, err)
 
-		_, _, err = apiclient.PluginInspectWithRaw(ctx, repo)
+		_, err = apiClient.PluginInspect(ctx, repo, client.PluginInspectOptions{})
 		assert.NilError(t, err)
 	})
 	// TODO: test insecure registry with https

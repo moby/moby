@@ -67,12 +67,12 @@ func (d *Daemon) CheckServiceUpdateState(ctx context.Context, service string) fu
 func (d *Daemon) CheckPluginRunning(ctx context.Context, plugin string) func(c *testing.T) (any, string) {
 	return func(t *testing.T) (any, string) {
 		apiclient := d.NewClientT(t)
-		resp, _, err := apiclient.PluginInspectWithRaw(ctx, plugin)
+		resp, err := apiclient.PluginInspect(ctx, plugin, client.PluginInspectOptions{})
 		if cerrdefs.IsNotFound(err) {
 			return false, fmt.Sprintf("%v", err)
 		}
 		assert.NilError(t, err)
-		return resp.Enabled, fmt.Sprintf("%+v", resp)
+		return resp.Plugin.Enabled, fmt.Sprintf("%+v", resp.Plugin)
 	}
 }
 
@@ -80,12 +80,12 @@ func (d *Daemon) CheckPluginRunning(ctx context.Context, plugin string) func(c *
 func (d *Daemon) CheckPluginImage(ctx context.Context, plugin string) func(c *testing.T) (any, string) {
 	return func(t *testing.T) (any, string) {
 		apiclient := d.NewClientT(t)
-		resp, _, err := apiclient.PluginInspectWithRaw(ctx, plugin)
+		resp, err := apiclient.PluginInspect(ctx, plugin, client.PluginInspectOptions{})
 		if cerrdefs.IsNotFound(err) {
 			return false, fmt.Sprintf("%v", err)
 		}
 		assert.NilError(t, err)
-		return resp.PluginReference, fmt.Sprintf("%+v", resp)
+		return resp.Plugin.PluginReference, fmt.Sprintf("%+v", resp.Plugin)
 	}
 }
 

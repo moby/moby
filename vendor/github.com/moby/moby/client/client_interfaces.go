@@ -154,7 +154,7 @@ type PluginAPIClient interface {
 	PluginUpgrade(ctx context.Context, name string, options PluginInstallOptions) (io.ReadCloser, error)
 	PluginPush(ctx context.Context, name string, registryAuth string) (io.ReadCloser, error)
 	PluginSet(ctx context.Context, name string, args []string) error
-	PluginInspectWithRaw(ctx context.Context, name string) (*plugin.Plugin, []byte, error)
+	PluginInspect(ctx context.Context, name string, options PluginInspectOptions) (PluginInspectResult, error)
 	PluginCreate(ctx context.Context, createContext io.Reader, options PluginCreateOptions) error
 }
 

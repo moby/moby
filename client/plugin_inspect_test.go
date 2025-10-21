@@ -2,7 +2,6 @@ package client
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -19,7 +18,7 @@ func TestPluginInspectError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, _, err = client.PluginInspectWithRaw(context.Background(), "nothing")
+	_, err = client.PluginInspect(t.Context(), "nothing", PluginInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -28,11 +27,11 @@ func TestPluginInspectWithEmptyID(t *testing.T) {
 		return nil, errors.New("should not make request")
 	}))
 	assert.NilError(t, err)
-	_, _, err = client.PluginInspectWithRaw(context.Background(), "")
+	_, err = client.PluginInspect(t.Context(), "", PluginInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, _, err = client.PluginInspectWithRaw(context.Background(), "    ")
+	_, err = client.PluginInspect(t.Context(), "    ", PluginInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -56,7 +55,7 @@ func TestPluginInspect(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	pluginInspect, _, err := client.PluginInspectWithRaw(context.Background(), "plugin_name")
+	resp, err := client.PluginInspect(t.Context(), "plugin_name", PluginInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(pluginInspect.ID, "plugin_id"))
+	assert.Check(t, is.Equal(resp.Plugin.ID, "plugin_id"))
 }

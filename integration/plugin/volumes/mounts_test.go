@@ -54,7 +54,7 @@ func TestPluginWithDevMounts(t *testing.T) {
 		assert.Check(t, err)
 	}()
 
-	p, _, err := c.PluginInspectWithRaw(ctx, "test")
+	resp, err := c.PluginInspect(ctx, "test", client.PluginInspectOptions{})
 	assert.NilError(t, err)
-	assert.Assert(t, p.Enabled)
+	assert.Assert(t, resp.Plugin.Enabled)
 }
