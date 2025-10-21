@@ -49,7 +49,7 @@ func TestSwarmGetUnlockKey(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	resp, err := client.SwarmGetUnlockKey(context.Background())
+	result, err := client.SwarmGetUnlockKey(context.Background())
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(unlockKey, resp.UnlockKey))
+	assert.Check(t, is.Equal(unlockKey, result.Key))
 }

@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/swarm"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -17,7 +16,7 @@ func TestSwarmJoinError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	err = client.SwarmJoin(context.Background(), swarm.JoinRequest{})
+	_, err = client.SwarmJoin(context.Background(), SwarmJoinOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -35,7 +34,7 @@ func TestSwarmJoin(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	err = client.SwarmJoin(context.Background(), swarm.JoinRequest{
+	_, err = client.SwarmJoin(context.Background(), SwarmJoinOptions{
 		ListenAddr: "0.0.0.0:2377",
 	})
 	assert.NilError(t, err)

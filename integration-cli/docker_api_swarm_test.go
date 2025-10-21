@@ -91,7 +91,7 @@ func (s *DockerSwarmSuite) TestAPISwarmJoinToken(c *testing.T) {
 
 	d2 := s.AddDaemon(ctx, c, false, false)
 	c2 := d2.NewClientT(c)
-	err := c2.SwarmJoin(testutil.GetContext(c), swarm.JoinRequest{
+	_, err := c2.SwarmJoin(testutil.GetContext(c), client.SwarmJoinOptions{
 		ListenAddr:  d2.SwarmListenAddr(),
 		RemoteAddrs: []string{d1.SwarmListenAddr()},
 	})
@@ -99,7 +99,7 @@ func (s *DockerSwarmSuite) TestAPISwarmJoinToken(c *testing.T) {
 	info := d2.SwarmInfo(ctx, c)
 	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateInactive)
 
-	err = c2.SwarmJoin(testutil.GetContext(c), swarm.JoinRequest{
+	_, err = c2.SwarmJoin(testutil.GetContext(c), client.SwarmJoinOptions{
 		ListenAddr:  d2.SwarmListenAddr(),
 		JoinToken:   "foobaz",
 		RemoteAddrs: []string{d1.SwarmListenAddr()},
@@ -124,7 +124,7 @@ func (s *DockerSwarmSuite) TestAPISwarmJoinToken(c *testing.T) {
 	// change tokens
 	d1.RotateTokens(c)
 
-	err = c2.SwarmJoin(testutil.GetContext(c), swarm.JoinRequest{
+	_, err = c2.SwarmJoin(testutil.GetContext(c), client.SwarmJoinOptions{
 		ListenAddr:  d2.SwarmListenAddr(),
 		JoinToken:   workerToken,
 		RemoteAddrs: []string{d1.SwarmListenAddr()},
@@ -145,7 +145,7 @@ func (s *DockerSwarmSuite) TestAPISwarmJoinToken(c *testing.T) {
 	// change spec, don't change tokens
 	d1.UpdateSwarm(c, func(s *swarm.Spec) {})
 
-	err = c2.SwarmJoin(testutil.GetContext(c), swarm.JoinRequest{
+	_, err = c2.SwarmJoin(testutil.GetContext(c), client.SwarmJoinOptions{
 		ListenAddr:  d2.SwarmListenAddr(),
 		RemoteAddrs: []string{d1.SwarmListenAddr()},
 	})
@@ -192,7 +192,7 @@ func (s *DockerSwarmSuite) TestAPISwarmCAHash(c *testing.T) {
 	splitToken[2] = "1kxftv4ofnc6mt30lmgipg6ngf9luhwqopfk1tz6bdmnkubg0e"
 	replacementToken := strings.Join(splitToken, "-")
 	c2 := d2.NewClientT(c)
-	err := c2.SwarmJoin(testutil.GetContext(c), swarm.JoinRequest{
+	_, err := c2.SwarmJoin(testutil.GetContext(c), client.SwarmJoinOptions{
 		ListenAddr:  d2.SwarmListenAddr(),
 		JoinToken:   replacementToken,
 		RemoteAddrs: []string{d1.SwarmListenAddr()},
@@ -463,7 +463,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaveOnPendingJoin(c *testing.T) {
 	id = strings.TrimSpace(id)
 
 	c2 := d2.NewClientT(c)
-	err = c2.SwarmJoin(testutil.GetContext(c), swarm.JoinRequest{
+	_, err = c2.SwarmJoin(testutil.GetContext(c), client.SwarmJoinOptions{
 		ListenAddr:  d2.SwarmListenAddr(),
 		RemoteAddrs: []string{"123.123.123.123:1234"},
 	})
@@ -487,8 +487,8 @@ func (s *DockerSwarmSuite) TestAPISwarmRestoreOnPendingJoin(c *testing.T) {
 
 	ctx := testutil.GetContext(c)
 	d := s.AddDaemon(ctx, c, false, false)
-	client := d.NewClientT(c)
-	err := client.SwarmJoin(testutil.GetContext(c), swarm.JoinRequest{
+	cli := d.NewClientT(c)
+	_, err := cli.SwarmJoin(testutil.GetContext(c), client.SwarmJoinOptions{
 		ListenAddr:  d.SwarmListenAddr(),
 		RemoteAddrs: []string{"123.123.123.123:1234"},
 	})
@@ -909,8 +909,8 @@ func (s *DockerSwarmSuite) TestAPISwarmErrorHandling(c *testing.T) {
 	assert.NilError(c, err)
 	defer ln.Close()
 	d := s.AddDaemon(ctx, c, false, false)
-	client := d.NewClientT(c)
-	_, err = client.SwarmInit(testutil.GetContext(c), swarm.InitRequest{
+	cli := d.NewClientT(c)
+	_, err = cli.SwarmInit(testutil.GetContext(c), client.SwarmInitOptions{
 		ListenAddr: d.SwarmListenAddr(),
 	})
 	assert.ErrorContains(c, err, "address already in use")

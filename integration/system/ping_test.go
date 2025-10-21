@@ -9,6 +9,7 @@ import (
 
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"github.com/moby/moby/v2/internal/testutil/request"
@@ -73,7 +74,7 @@ func TestPingSwarmHeader(t *testing.T) {
 		assert.Equal(t, p.SwarmStatus.ControlAvailable, false)
 	})
 
-	_, err := apiClient.SwarmInit(ctx, swarm.InitRequest{ListenAddr: "127.0.0.1", AdvertiseAddr: "127.0.0.1:2377"})
+	_, err := apiClient.SwarmInit(ctx, client.SwarmInitOptions{ListenAddr: "127.0.0.1", AdvertiseAddr: "127.0.0.1:2377"})
 	assert.NilError(t, err)
 
 	t.Run("after swarm init", func(t *testing.T) {
@@ -84,7 +85,7 @@ func TestPingSwarmHeader(t *testing.T) {
 		assert.Equal(t, p.SwarmStatus.ControlAvailable, true)
 	})
 
-	err = apiClient.SwarmLeave(ctx, true)
+	_, err = apiClient.SwarmLeave(ctx, client.SwarmLeaveOptions{Force: true})
 	assert.NilError(t, err)
 
 	t.Run("after swarm leave", func(t *testing.T) {

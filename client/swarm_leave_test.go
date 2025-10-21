@@ -17,7 +17,7 @@ func TestSwarmLeaveError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	err = client.SwarmLeave(context.Background(), false)
+	_, err = client.SwarmLeave(context.Background(), SwarmLeaveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -53,7 +53,7 @@ func TestSwarmLeave(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 
-		err = client.SwarmLeave(context.Background(), leaveCase.force)
+		_, err = client.SwarmLeave(context.Background(), SwarmLeaveOptions{Force: leaveCase.force})
 		assert.NilError(t, err)
 	}
 }
