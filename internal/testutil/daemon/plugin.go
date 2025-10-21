@@ -33,7 +33,7 @@ func (d *Daemon) PluginIsNotRunning(t testing.TB, name string) func(poll.LogT) p
 // PluginIsNotPresent provides a poller to check if the specified plugin is not present
 func (d *Daemon) PluginIsNotPresent(t testing.TB, name string) func(poll.LogT) poll.Result {
 	return withClient(t, d, func(c client.APIClient, t poll.LogT) poll.Result {
-		_, _, err := c.PluginInspectWithRaw(context.Background(), name)
+		_, err := c.PluginInspect(context.Background(), name, client.PluginInspectOptions{})
 		if cerrdefs.IsNotFound(err) {
 			return poll.Success()
 		}
@@ -56,14 +56,14 @@ func (d *Daemon) PluginReferenceIs(t testing.TB, name, expectedRef string) func(
 
 func withPluginInspect(name string, f func(*plugin.Plugin, poll.LogT) poll.Result) func(client.APIClient, poll.LogT) poll.Result {
 	return func(c client.APIClient, t poll.LogT) poll.Result {
-		p, _, err := c.PluginInspectWithRaw(context.Background(), name)
+		res, err := c.PluginInspect(context.Background(), name, client.PluginInspectOptions{})
 		if cerrdefs.IsNotFound(err) {
 			return poll.Continue("plugin %q not found", name)
 		}
 		if err != nil {
 			return poll.Error(err)
 		}
-		return f(p, t)
+		return f(&res.Plugin, t)
 	}
 }
 

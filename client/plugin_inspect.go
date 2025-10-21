@@ -1,32 +1,35 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"io"
 
 	"github.com/moby/moby/api/types/plugin"
 )
 
-// PluginInspectWithRaw inspects an existing plugin
-func (cli *Client) PluginInspectWithRaw(ctx context.Context, name string) (*plugin.Plugin, []byte, error) {
+// PluginInspectOptions holds parameters to inspect a plugin.
+type PluginInspectOptions struct {
+	// Add future optional parameters here
+}
+
+// PluginInspectResult holds the result from the [Client.PluginInspect] method.
+type PluginInspectResult struct {
+	Raw    []byte
+	Plugin plugin.Plugin
+}
+
+// PluginInspect inspects an existing plugin
+func (cli *Client) PluginInspect(ctx context.Context, name string, options PluginInspectOptions) (PluginInspectResult, error) {
 	name, err := trimID("plugin", name)
 	if err != nil {
-		return nil, nil, err
+		return PluginInspectResult{}, err
 	}
 	resp, err := cli.get(ctx, "/plugins/"+name+"/json", nil, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return nil, nil, err
+		return PluginInspectResult{}, err
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, nil, err
-	}
-	var p plugin.Plugin
-	rdr := bytes.NewReader(body)
-	err = json.NewDecoder(rdr).Decode(&p)
-	return &p, body, err
+	var out PluginInspectResult
+	out.Raw, err = decodeWithRaw(resp, &out.Plugin)
+	return out, err
 }

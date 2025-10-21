@@ -2225,11 +2225,11 @@ func (s *DockerDaemonSuite) TestFailedPluginRemove(c *testing.T) {
 
 	ctx, cancel = context.WithTimeout(testutil.GetContext(c), 30*time.Second)
 	defer cancel()
-	p, _, err := apiClient.PluginInspectWithRaw(ctx, name)
+	res, err := apiClient.PluginInspect(ctx, name, client.PluginInspectOptions{})
 	assert.NilError(c, err)
 
 	// simulate a bad/partial removal by removing the plugin config.
-	configPath := filepath.Join(d.Root, "plugins", p.ID, "config.json")
+	configPath := filepath.Join(d.Root, "plugins", res.Plugin.ID, "config.json")
 	assert.NilError(c, os.Remove(configPath))
 
 	d.Restart(c)
@@ -2238,7 +2238,7 @@ func (s *DockerDaemonSuite) TestFailedPluginRemove(c *testing.T) {
 	_, err = apiClient.Ping(ctx)
 	assert.NilError(c, err)
 
-	_, _, err = apiClient.PluginInspectWithRaw(ctx, name)
+	_, err = apiClient.PluginInspect(ctx, name, client.PluginInspectOptions{})
 	// plugin should be gone since the config.json is gone
 	assert.ErrorContains(c, err, "")
 }
