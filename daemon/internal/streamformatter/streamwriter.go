@@ -3,6 +3,8 @@ package streamformatter
 import (
 	"encoding/json"
 	"io"
+
+	"github.com/moby/moby/api/types/jsonstream"
 )
 
 type streamWriter struct {
@@ -20,7 +22,7 @@ func (sw *streamWriter) Write(buf []byte) (int, error) {
 }
 
 func (sw *streamWriter) format(buf []byte) []byte {
-	msg := &jsonMessage{Stream: sw.lineFormat(buf)}
+	msg := &jsonstream.Message{Stream: sw.lineFormat(buf)}
 	b, err := json.Marshal(msg)
 	if err != nil {
 		return FormatError(err)

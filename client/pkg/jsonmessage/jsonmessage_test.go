@@ -32,27 +32,26 @@ func TestProgressString(t *testing.T) {
 
 	testcases := []struct {
 		name     string
-		progress JSONProgress
+		progress jsonstream.Progress
 		expected expected
+		nowFunc  func() time.Time
 	}{
 		{
 			name: "no progress",
 		},
 		{
 			name:     "progress 1",
-			progress: JSONProgress{Progress: jsonstream.Progress{Current: 1}},
+			progress: jsonstream.Progress{Current: 1},
 			expected: shortAndLong("      1B", "      1B"),
 		},
 		{
 			name: "some progress with a start time",
-			progress: JSONProgress{
-				Progress: jsonstream.Progress{
-					Current: 20,
-					Total:   100,
-					Start:   start.Unix(),
-				},
-				nowFunc: timeAfter(time.Second),
+			progress: jsonstream.Progress{
+				Current: 20,
+				Total:   100,
+				Start:   start.Unix(),
 			},
+			nowFunc: timeAfter(time.Second),
 			expected: shortAndLong(
 				"     20B/100B 4s",
 				"[==========>                                        ]      20B/100B 4s",
@@ -60,7 +59,7 @@ func TestProgressString(t *testing.T) {
 		},
 		{
 			name:     "some progress without a start time",
-			progress: JSONProgress{Progress: jsonstream.Progress{Current: 50, Total: 100}},
+			progress: jsonstream.Progress{Current: 50, Total: 100},
 			expected: shortAndLong(
 				"     50B/100B",
 				"[=========================>                         ]      50B/100B",
@@ -68,7 +67,7 @@ func TestProgressString(t *testing.T) {
 		},
 		{
 			name:     "current more than total is not negative gh#7136",
-			progress: JSONProgress{Progress: jsonstream.Progress{Current: 50, Total: 40}},
+			progress: jsonstream.Progress{Current: 50, Total: 40},
 			expected: shortAndLong(
 				"     50B",
 				"[==================================================>]      50B",
@@ -76,7 +75,7 @@ func TestProgressString(t *testing.T) {
 		},
 		{
 			name:     "with units",
-			progress: JSONProgress{Progress: jsonstream.Progress{Current: 50, Total: 100, Units: "units"}},
+			progress: jsonstream.Progress{Current: 50, Total: 100, Units: "units"},
 			expected: shortAndLong(
 				"50/100 units",
 				"[=========================>                         ] 50/100 units",
@@ -84,7 +83,7 @@ func TestProgressString(t *testing.T) {
 		},
 		{
 			name:     "current more than total with units is not negative ",
-			progress: JSONProgress{Progress: jsonstream.Progress{Current: 50, Total: 40, Units: "units"}},
+			progress: jsonstream.Progress{Current: 50, Total: 40, Units: "units"},
 			expected: shortAndLong(
 				"50 units",
 				"[==================================================>] 50 units",
@@ -92,7 +91,7 @@ func TestProgressString(t *testing.T) {
 		},
 		{
 			name:     "hide counts",
-			progress: JSONProgress{Progress: jsonstream.Progress{Current: 50, Total: 100, HideCounts: true}},
+			progress: jsonstream.Progress{Current: 50, Total: 100, HideCounts: true},
 			expected: shortAndLong(
 				"",
 				"[=========================>                         ] ",
@@ -102,17 +101,19 @@ func TestProgressString(t *testing.T) {
 
 	for _, testcase := range testcases {
 		t.Run(testcase.name, func(t *testing.T) {
-			testcase.progress.winSize = 100
-			assert.Equal(t, testcase.progress.String(), testcase.expected.short)
-
-			testcase.progress.winSize = 200
-			assert.Equal(t, testcase.progress.String(), testcase.expected.long)
+			if testcase.nowFunc != nil {
+				originalTimeNow := timeNow
+				timeNow = testcase.nowFunc
+				defer func() { timeNow = originalTimeNow }()
+			}
+			assert.Equal(t, RenderTUIProgress(testcase.progress, 100), testcase.expected.short)
+			assert.Equal(t, RenderTUIProgress(testcase.progress, 200), testcase.expected.long)
 		})
 	}
 }
 
 func TestJSONMessageDisplay(t *testing.T) {
-	messages := map[JSONMessage][]string{
+	messages := map[jsonstream.Message][]string{
 		// Empty
 		{}: {"\n", "\n"},
 		// Status
@@ -142,7 +143,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 		{
 			Status:   "status",
 			Stream:   "",
-			Progress: &JSONProgress{Progress: jsonstream.Progress{Current: 1}},
+			Progress: &jsonstream.Progress{Current: 1},
 		}: {
 			"",
 			fmt.Sprintf("%c[2K\rstatus       1B\r", 27),
@@ -153,7 +154,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 	for jsonMessage, expectedMessages := range messages {
 		// Without terminal
 		data := bytes.NewBuffer([]byte{})
-		if err := jsonMessage.Display(data, false); err != nil {
+		if err := Display(jsonMessage, data, false, 0); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[0] {
@@ -161,7 +162,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 		}
 		// With terminal
 		data = bytes.NewBuffer([]byte{})
-		if err := jsonMessage.Display(data, true); err != nil {
+		if err := Display(jsonMessage, data, true, 0); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[1] {
@@ -173,15 +174,15 @@ func TestJSONMessageDisplay(t *testing.T) {
 // Test JSONMessage with an Error. It returns an error with the given text, not the meaning of the HTTP code.
 func TestJSONMessageDisplayWithJSONError(t *testing.T) {
 	data := bytes.NewBuffer([]byte{})
-	jsonMessage := JSONMessage{Error: &jsonstream.Error{Code: 404, Message: "Can't find it"}}
+	jsonMessage := jsonstream.Message{Error: &jsonstream.Error{Code: 404, Message: "Can't find it"}}
 
-	err := jsonMessage.Display(data, true)
+	err := Display(jsonMessage, data, true, 0)
 	if err == nil || err.Error() != "Can't find it" {
 		t.Fatalf("Expected a jsonstream.Error 404, got %q", err)
 	}
 
-	jsonMessage = JSONMessage{Error: &jsonstream.Error{Code: 401, Message: "Anything"}}
-	err = jsonMessage.Display(data, true)
+	jsonMessage = jsonstream.Message{Error: &jsonstream.Error{Code: 401, Message: "Anything"}}
+	err = Display(jsonMessage, data, true, 0)
 	assert.Check(t, is.Error(err, "Anything"))
 }
 
