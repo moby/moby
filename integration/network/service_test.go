@@ -45,9 +45,9 @@ func TestDaemonRestartWithLiveRestore(t *testing.T) {
 	defer c.Close()
 
 	// Verify bridge network's subnet
-	out, err := c.NetworkInspect(ctx, "bridge", client.NetworkInspectOptions{})
+	res, err := c.NetworkInspect(ctx, "bridge", client.NetworkInspectOptions{})
 	assert.NilError(t, err)
-	subnet := out.IPAM.Config[0].Subnet
+	subnet := res.Network.IPAM.Config[0].Subnet
 
 	d.Restart(t,
 		"--live-restore=true",
@@ -55,10 +55,10 @@ func TestDaemonRestartWithLiveRestore(t *testing.T) {
 		"--default-address-pool", "base=175.33.0.0/16,size=24",
 	)
 
-	out1, err := c.NetworkInspect(ctx, "bridge", client.NetworkInspectOptions{})
+	res1, err := c.NetworkInspect(ctx, "bridge", client.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	// Make sure docker0 doesn't get override with new IP in live restore case
-	assert.Equal(t, out1.IPAM.Config[0].Subnet, subnet)
+	assert.Equal(t, res1.Network.IPAM.Config[0].Subnet, subnet)
 }
 
 func TestDaemonDefaultNetworkPools(t *testing.T) {
@@ -82,9 +82,9 @@ func TestDaemonDefaultNetworkPools(t *testing.T) {
 	defer c.Close()
 
 	// Verify bridge network's subnet
-	out, err := c.NetworkInspect(ctx, "bridge", client.NetworkInspectOptions{})
+	res, err := c.NetworkInspect(ctx, "bridge", client.NetworkInspectOptions{})
 	assert.NilError(t, err)
-	assert.Equal(t, out.IPAM.Config[0].Subnet, netip.MustParsePrefix("175.30.0.0/16"))
+	assert.Equal(t, res.Network.IPAM.Config[0].Subnet, netip.MustParsePrefix("175.30.0.0/16"))
 
 	// Create a bridge network and verify its subnet is the second default pool
 	name := "elango" + t.Name()
@@ -92,9 +92,9 @@ func TestDaemonDefaultNetworkPools(t *testing.T) {
 		network.WithDriver("bridge"),
 	)
 	defer network.RemoveNoError(ctx, t, c, name)
-	out, err = c.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
+	res, err = c.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(out.IPAM.Config[0].Subnet, netip.MustParsePrefix("175.33.0.0/24")))
+	assert.Check(t, is.Equal(res.Network.IPAM.Config[0].Subnet, netip.MustParsePrefix("175.33.0.0/24")))
 
 	// Create a bridge network and verify its subnet is the third default pool
 	name = "saanvi" + t.Name()
@@ -102,9 +102,9 @@ func TestDaemonDefaultNetworkPools(t *testing.T) {
 		network.WithDriver("bridge"),
 	)
 	defer network.RemoveNoError(ctx, t, c, name)
-	out, err = c.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
+	res, err = c.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(out.IPAM.Config[0].Subnet, netip.MustParsePrefix("175.33.1.0/24")))
+	assert.Check(t, is.Equal(res.Network.IPAM.Config[0].Subnet, netip.MustParsePrefix("175.33.1.0/24")))
 }
 
 func TestDaemonRestartWithExistingNetwork(t *testing.T) {
@@ -127,9 +127,9 @@ func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 	defer network.RemoveNoError(ctx, t, c, name)
 
 	// Verify bridge network's subnet
-	out, err := c.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
+	res, err := c.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
 	assert.NilError(t, err)
-	networkip := out.IPAM.Config[0].Subnet
+	networkip := res.Network.IPAM.Config[0].Subnet
 
 	// Restart daemon with default address pool option
 	d.Restart(t,
@@ -137,9 +137,9 @@ func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 		"--default-address-pool", "base=175.33.0.0/16,size=24")
 	defer delInterface(ctx, t, "docker0")
 
-	out1, err := c.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
+	res2, err := c.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
 	assert.NilError(t, err)
-	assert.Equal(t, out1.IPAM.Config[0].Subnet, networkip)
+	assert.Equal(t, res2.Network.IPAM.Config[0].Subnet, networkip)
 }
 
 func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
@@ -163,9 +163,9 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 	defer network.RemoveNoError(ctx, t, c, name)
 
 	// Verify bridge network's subnet
-	out, err := c.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
+	res, err := c.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
 	assert.NilError(t, err)
-	networkip := out.IPAM.Config[0].Subnet
+	networkip := res.Network.IPAM.Config[0].Subnet
 
 	// Create a bridge network
 	name = "sthira" + t.Name()
@@ -173,9 +173,9 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 		network.WithDriver("bridge"),
 	)
 	defer network.RemoveNoError(ctx, t, c, name)
-	out, err = c.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
+	res, err = c.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
 	assert.NilError(t, err)
-	networkip2 := out.IPAM.Config[0].Subnet
+	networkip2 := res.Network.IPAM.Config[0].Subnet
 
 	// Restart daemon with default address pool option
 	d.Restart(t,
@@ -190,11 +190,11 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 		network.WithDriver("bridge"),
 	)
 	defer network.RemoveNoError(ctx, t, c, name)
-	out1, err := c.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
+	res1, err := c.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
 	assert.NilError(t, err)
 
-	assert.Check(t, out1.IPAM.Config[0].Subnet != networkip)
-	assert.Check(t, out1.IPAM.Config[0].Subnet != networkip2)
+	assert.Check(t, res1.Network.IPAM.Config[0].Subnet != networkip)
+	assert.Check(t, res1.Network.IPAM.Config[0].Subnet != networkip2)
 }
 
 func TestDaemonWithBipAndDefaultNetworkPool(t *testing.T) {
@@ -217,10 +217,10 @@ func TestDaemonWithBipAndDefaultNetworkPool(t *testing.T) {
 	defer c.Close()
 
 	// Verify bridge network's subnet
-	out, err := c.NetworkInspect(ctx, "bridge", client.NetworkInspectOptions{})
+	res, err := c.NetworkInspect(ctx, "bridge", client.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	// Make sure BIP IP doesn't get override with new default address pool .
-	assert.Equal(t, out.IPAM.Config[0].Subnet, netip.MustParsePrefix("172.60.0.0/16"))
+	assert.Equal(t, res.Network.IPAM.Config[0].Subnet, netip.MustParsePrefix("172.60.0.0/16"))
 }
 
 func TestServiceWithPredefinedNetwork(t *testing.T) {
@@ -297,33 +297,33 @@ func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
 
 	// Ensure that "ingress" is not removed or corrupted
 	time.Sleep(10 * time.Second)
-	netInfo, err := c.NetworkInspect(ctx, ingressNet, client.NetworkInspectOptions{
+	res, err := c.NetworkInspect(ctx, ingressNet, client.NetworkInspectOptions{
 		Verbose: true,
 		Scope:   "swarm",
 	})
 	assert.NilError(t, err, "Ingress network was removed after removing service!")
-	assert.Assert(t, len(netInfo.Containers) != 0, "No load balancing endpoints in ingress network")
-	assert.Assert(t, len(netInfo.Peers) != 0, "No peers (including self) in ingress network")
-	_, ok := netInfo.Containers["ingress-sbox"]
+	assert.Assert(t, len(res.Network.Containers) != 0, "No load balancing endpoints in ingress network")
+	assert.Assert(t, len(res.Network.Peers) != 0, "No peers (including self) in ingress network")
+	_, ok := res.Network.Containers["ingress-sbox"]
 	assert.Assert(t, ok, "ingress-sbox not present in ingress network")
 }
 
 //nolint:unused // for some reason, the "unused" linter marks this function as "unused"
 func swarmIngressReady(ctx context.Context, apiClient client.NetworkAPIClient) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		netInfo, err := apiClient.NetworkInspect(ctx, ingressNet, client.NetworkInspectOptions{
+		res, err := apiClient.NetworkInspect(ctx, ingressNet, client.NetworkInspectOptions{
 			Verbose: true,
 			Scope:   "swarm",
 		})
 		if err != nil {
 			return poll.Error(err)
 		}
-		np := len(netInfo.Peers)
-		nc := len(netInfo.Containers)
+		np := len(res.Network.Peers)
+		nc := len(res.Network.Containers)
 		if np == 0 || nc == 0 {
 			return poll.Continue("ingress not ready: %d peers and %d containers", nc, np)
 		}
-		_, ok := netInfo.Containers["ingress-sbox"]
+		_, ok := res.Network.Containers["ingress-sbox"]
 		if !ok {
 			return poll.Continue("ingress not ready: does not contain the ingress-sbox")
 		}
@@ -443,21 +443,21 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 	_, _, err := cli.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
-	out, err := cli.NetworkInspect(ctx, overlayID, client.NetworkInspectOptions{Verbose: true})
+	res, err := cli.NetworkInspect(ctx, overlayID, client.NetworkInspectOptions{Verbose: true})
 	assert.NilError(t, err)
-	t.Logf("%s: NetworkInspect: %+v", t.Name(), out)
-	assert.Assert(t, len(out.IPAM.Config) > 0)
+	t.Logf("%s: NetworkInspect: %+v", t.Name(), res)
+	assert.Assert(t, len(res.Network.IPAM.Config) > 0)
 	// As of docker/swarmkit#2890, the ingress network uses the default address
 	// pool (whereas before, the subnet for the ingress network was hard-coded.
 	// This means that the ingress network gets the subnet 20.20.0.0/24, and
 	// the network we just created gets subnet 20.20.1.0/24.
-	assert.Equal(t, out.IPAM.Config[0].Subnet, netip.MustParsePrefix("20.20.1.0/24"))
+	assert.Equal(t, res.Network.IPAM.Config[0].Subnet, netip.MustParsePrefix("20.20.1.0/24"))
 
 	// Also inspect ingress network and make sure its in the same subnet
-	out, err = cli.NetworkInspect(ctx, "ingress", client.NetworkInspectOptions{Verbose: true})
+	res, err = cli.NetworkInspect(ctx, "ingress", client.NetworkInspectOptions{Verbose: true})
 	assert.NilError(t, err)
-	assert.Assert(t, len(out.IPAM.Config) > 0)
-	assert.Equal(t, out.IPAM.Config[0].Subnet, netip.MustParsePrefix("20.20.0.0/24"))
+	assert.Assert(t, len(res.Network.IPAM.Config) > 0)
+	assert.Equal(t, res.Network.IPAM.Config[0].Subnet, netip.MustParsePrefix("20.20.0.0/24"))
 
 	err = cli.ServiceRemove(ctx, serviceID)
 	poll.WaitOn(t, noServices(ctx, cli), swarm.ServicePoll)

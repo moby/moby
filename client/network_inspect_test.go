@@ -77,13 +77,13 @@ func TestNetworkInspect(t *testing.T) {
 	t.Run("no options", func(t *testing.T) {
 		r, err := client.NetworkInspect(context.Background(), "network_id", NetworkInspectOptions{})
 		assert.NilError(t, err)
-		assert.Check(t, is.Equal(r.Name, "mynetwork"))
+		assert.Check(t, is.Equal(r.Network.Name, "mynetwork"))
 	})
 	t.Run("verbose", func(t *testing.T) {
 		r, err := client.NetworkInspect(context.Background(), "network_id", NetworkInspectOptions{Verbose: true})
 		assert.NilError(t, err)
-		assert.Check(t, is.Equal(r.Name, "mynetwork"))
-		_, ok := r.Services["web"]
+		assert.Check(t, is.Equal(r.Network.Name, "mynetwork"))
+		_, ok := r.Network.Services["web"]
 		assert.Check(t, ok, "expected service `web` missing in the verbose output")
 	})
 	t.Run("global scope", func(t *testing.T) {

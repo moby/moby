@@ -88,17 +88,17 @@ func TestHostIPv4BridgeLabel(t *testing.T) {
 		network.WithOption("com.docker.network.bridge.name", bridgeName),
 	)
 	defer network.RemoveNoError(ctx, t, c, bridgeName)
-	out, err := c.NetworkInspect(ctx, bridgeName, client.NetworkInspectOptions{Verbose: true})
+	res, err := c.NetworkInspect(ctx, bridgeName, client.NetworkInspectOptions{Verbose: true})
 	assert.NilError(t, err)
-	assert.Assert(t, len(out.IPAM.Config) > 0)
+	assert.Assert(t, len(res.Network.IPAM.Config) > 0)
 	// Make sure the SNAT rule exists
 	if strings.HasPrefix(testEnv.FirewallBackendDriver(), "nftables") {
 		chain := testutil.RunCommand(ctx, "nft", "--stateless", "list", "chain", "ip", "docker-bridges", "nat-postrouting-out__hostIPv4Bridge").Combined()
 		exp := fmt.Sprintf(`oifname != "hostIPv4Bridge" ip saddr %s counter snat to %s comment "SNAT"`,
-			out.IPAM.Config[0].Subnet, ipv4SNATAddr)
+			res.Network.IPAM.Config[0].Subnet, ipv4SNATAddr)
 		assert.Check(t, is.Contains(chain, exp))
 	} else {
-		testutil.RunCommand(ctx, "iptables", "-t", "nat", "-C", "POSTROUTING", "-s", out.IPAM.Config[0].Subnet.String(), "!", "-o", bridgeName, "-j", "SNAT", "--to-source", ipv4SNATAddr).Assert(t, icmd.Success)
+		testutil.RunCommand(ctx, "iptables", "-t", "nat", "-C", "POSTROUTING", "-s", res.Network.IPAM.Config[0].Subnet.String(), "!", "-o", bridgeName, "-j", "SNAT", "--to-source", ipv4SNATAddr).Assert(t, icmd.Success)
 	}
 }
 

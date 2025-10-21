@@ -1,26 +1,23 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"io"
 	"net/url"
 
 	"github.com/moby/moby/api/types/network"
 )
 
-// NetworkInspect returns the information for a specific network configured in the docker host.
-func (cli *Client) NetworkInspect(ctx context.Context, networkID string, options NetworkInspectOptions) (network.Inspect, error) {
-	networkResource, _, err := cli.NetworkInspectWithRaw(ctx, networkID, options)
-	return networkResource, err
+// NetworkInspectResult contains the result of a network inspection.
+type NetworkInspectResult struct {
+	Network network.Inspect
+	Raw     []byte
 }
 
-// NetworkInspectWithRaw returns the information for a specific network configured in the docker host and its raw representation.
-func (cli *Client) NetworkInspectWithRaw(ctx context.Context, networkID string, options NetworkInspectOptions) (network.Inspect, []byte, error) {
+// NetworkInspect returns the information for a specific network configured in the docker host.
+func (cli *Client) NetworkInspect(ctx context.Context, networkID string, options NetworkInspectOptions) (NetworkInspectResult, error) {
 	networkID, err := trimID("network", networkID)
 	if err != nil {
-		return network.Inspect{}, nil, err
+		return NetworkInspectResult{}, err
 	}
 	query := url.Values{}
 	if options.Verbose {
@@ -33,15 +30,10 @@ func (cli *Client) NetworkInspectWithRaw(ctx context.Context, networkID string, 
 	resp, err := cli.get(ctx, "/networks/"+networkID, query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return network.Inspect{}, nil, err
+		return NetworkInspectResult{}, err
 	}
 
-	raw, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return network.Inspect{}, nil, err
-	}
-
-	var nw network.Inspect
-	err = json.NewDecoder(bytes.NewReader(raw)).Decode(&nw)
-	return nw, raw, err
+	var out NetworkInspectResult
+	out.Raw, err = decodeWithRaw(resp, &out.Network)
+	return out, err
 }
