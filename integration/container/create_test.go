@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 
 	containerd "github.com/containerd/containerd/v2/client"
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/moby/moby/api/types/common"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/versions"
@@ -20,6 +22,7 @@ import (
 	testContainer "github.com/moby/moby/v2/integration/internal/container"
 	net "github.com/moby/moby/v2/integration/internal/network"
 	"github.com/moby/moby/v2/internal/testutil"
+	"github.com/moby/moby/v2/internal/testutil/request"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -654,6 +657,79 @@ func TestCreateInvalidHostConfig(t *testing.T) {
 			assert.Check(t, is.Equal(len(resp.Warnings), 0))
 			assert.Check(t, cerrdefs.IsInvalidArgument(err), "got: %T", err)
 			assert.Error(t, err, tc.expectedErr)
+		})
+	}
+}
+
+func TestCreateValidation(t *testing.T) {
+	tests := []struct {
+		name      string
+		body      string
+		skipOn    string
+		expStatus int
+		expError  string
+	}{
+		{
+			name:      "empty body",
+			body:      ``,
+			expStatus: http.StatusBadRequest,
+			expError:  `invalid JSON: EOF`, // TODO(thaJeztah): this could use a nicer error message.
+		},
+		{
+			name:      "empty config",
+			body:      `{}`,
+			expStatus: http.StatusBadRequest,
+			expError:  `config cannot be empty in order to create a container`,
+		},
+		{
+			name:      "invalid port syntax", // issue https://github.com/moby/moby/issues/14230 for invalid port syntax
+			body:      `{"Image": "busybox", "HostConfig": {"NetworkMode": "default", "PortBindings": {"19039;1230": [{}]}}}`,
+			expStatus: http.StatusBadRequest,
+			expError:  `invalid JSON: invalid port '19039;1230': invalid syntax`,
+		},
+		{
+			name:      "invalid memory-limit: value too low",
+			body:      `{"Image": "busybox", "HostConfig": {"CpuShares": 100, "Memory": 524287}}`,
+			skipOn:    "windows", // TODO Windows: Port once memory is supported
+			expStatus: http.StatusBadRequest,
+			expError:  `Minimum memory limit allowed is 6MB`,
+		},
+		{
+			name:      "invalid restart policy name",
+			body:      `{"Image": "busybox", "HostConfig": {"RestartPolicy": {"Name": "something", "MaximumRetryCount": 0}}}`,
+			expStatus: http.StatusBadRequest,
+			expError:  `invalid restart policy: unknown policy 'something'`,
+		},
+		{
+			name:      "invalid restart policy: retry not allowed",
+			body:      `{"Image": "busybox", "HostConfig": {"RestartPolicy": {"Name": "always", "MaximumRetryCount": 2}}}`,
+			expStatus: http.StatusBadRequest,
+			expError:  `invalid restart policy: maximum retry count can only be used with 'on-failure'`,
+		},
+		{
+			name:      "invalid restart policy: retry negative",
+			body:      `{"Image": "busybox", "HostConfig": {"RestartPolicy": {"Name": "on-failure", "MaximumRetryCount": -2}}}`,
+			expStatus: http.StatusBadRequest,
+			expError:  `invalid restart policy: maximum retry count cannot be negative`,
+		},
+		{
+			name:      "restart policy: default retry count",
+			body:      `{"Image": "busybox", "HostConfig": {"RestartPolicy": {"Name": "on-failure", "MaximumRetryCount": 0}}}`,
+			expStatus: http.StatusCreated,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			skip.If(t, testEnv.DaemonInfo.OSType == tc.skipOn)
+			res, _, err := request.Post(testutil.GetContext(t), "/containers/create", request.RawString(tc.body), request.JSON)
+			assert.NilError(t, err)
+			assert.Equal(t, res.StatusCode, tc.expStatus)
+
+			if tc.expError != "" {
+				var respErr common.ErrorResponse
+				assert.NilError(t, request.ReadJSONResponse(res, &respErr))
+				assert.ErrorContains(t, respErr, tc.expError)
+			}
 		})
 	}
 }
