@@ -115,7 +115,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 	if !ok {
 		return errors.New("no VNI provided")
 	}
-	log.G(context.TODO()).Debugf("overlay: Received vxlan IDs: %s", vnisOpt)
+	log.G(ctx).Debugf("overlay: Received vxlan IDs: %s", vnisOpt)
 	var err error
 	vnis, err = overlayutils.AppendVNIList(vnis, vnisOpt)
 	if err != nil {
