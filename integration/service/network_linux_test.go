@@ -171,7 +171,7 @@ func TestSwarmScopedNetFromConfig(t *testing.T) {
 		swarm.ServiceWithNetwork(swarmNetName),
 	)
 	defer func() {
-		err := c.ServiceRemove(ctx, serviceID)
+		_, err := c.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
 		assert.NilError(t, err)
 	}()
 
@@ -246,7 +246,7 @@ func TestDockerIngressChainPosition(t *testing.T) {
 			}),
 		)
 		defer func() {
-			err := c.ServiceRemove(ctx, serviceID)
+			_, err := c.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
 			assert.NilError(t, err)
 		}()
 
@@ -306,7 +306,7 @@ func TestRestoreIngressRulesOnFirewalldReload(t *testing.T) {
 		}),
 	)
 	defer func() {
-		err := c.ServiceRemove(ctx, serviceID)
+		_, err := c.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
 		assert.NilError(t, err)
 	}()
 

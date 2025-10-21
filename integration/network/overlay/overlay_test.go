@@ -85,7 +85,7 @@ func TestHostPortMappings(t *testing.T) {
 				{Protocol: networktypes.TCP, TargetPort: 80, PublishedPort: 80, PublishMode: swarmtypes.PortConfigPublishModeHost},
 			},
 		}))
-	defer apiClient.ServiceRemove(ctx, svcID)
+	defer apiClient.ServiceRemove(ctx, svcID, client.ServiceRemoveOptions{})
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, svcID, 1), swarm.ServicePoll)
 

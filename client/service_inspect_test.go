@@ -19,7 +19,7 @@ func TestServiceInspectError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, _, err = client.ServiceInspectWithRaw(context.Background(), "nothing", ServiceInspectOptions{})
+	_, err = client.ServiceInspect(context.Background(), "nothing", ServiceInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -27,7 +27,7 @@ func TestServiceInspectServiceNotFound(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusNotFound, "Server error")))
 	assert.NilError(t, err)
 
-	_, _, err = client.ServiceInspectWithRaw(context.Background(), "unknown", ServiceInspectOptions{})
+	_, err = client.ServiceInspect(context.Background(), "unknown", ServiceInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
@@ -36,11 +36,11 @@ func TestServiceInspectWithEmptyID(t *testing.T) {
 		return nil, errors.New("should not make request")
 	}))
 	assert.NilError(t, err)
-	_, _, err = client.ServiceInspectWithRaw(context.Background(), "", ServiceInspectOptions{})
+	_, err = client.ServiceInspect(context.Background(), "", ServiceInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, _, err = client.ServiceInspectWithRaw(context.Background(), "    ", ServiceInspectOptions{})
+	_, err = client.ServiceInspect(context.Background(), "    ", ServiceInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -64,7 +64,7 @@ func TestServiceInspect(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	serviceInspect, _, err := client.ServiceInspectWithRaw(context.Background(), "service_id", ServiceInspectOptions{})
+	inspect, err := client.ServiceInspect(context.Background(), "service_id", ServiceInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(serviceInspect.ID, "service_id"))
+	assert.Check(t, is.Equal(inspect.Service.ID, "service_id"))
 }

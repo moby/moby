@@ -20,19 +20,19 @@ import (
 func TestServiceLogsError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	_, err = client.ServiceLogs(context.Background(), "service_id", ContainerLogsOptions{})
+	_, err = client.ServiceLogs(context.Background(), "service_id", ServiceLogsOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ServiceLogs(context.Background(), "service_id", ContainerLogsOptions{
+	_, err = client.ServiceLogs(context.Background(), "service_id", ServiceLogsOptions{
 		Since: "2006-01-02TZ",
 	})
 	assert.Check(t, is.ErrorContains(err, `parsing time "2006-01-02TZ"`))
 
-	_, err = client.ServiceLogs(context.Background(), "", ContainerLogsOptions{})
+	_, err = client.ServiceLogs(context.Background(), "", ServiceLogsOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ServiceLogs(context.Background(), "    ", ContainerLogsOptions{})
+	_, err = client.ServiceLogs(context.Background(), "    ", ServiceLogsOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -40,7 +40,7 @@ func TestServiceLogsError(t *testing.T) {
 func TestServiceLogs(t *testing.T) {
 	const expectedURL = "/services/service_id/logs"
 	cases := []struct {
-		options             ContainerLogsOptions
+		options             ServiceLogsOptions
 		expectedQueryParams map[string]string
 		expectedError       string
 	}{
@@ -50,7 +50,7 @@ func TestServiceLogs(t *testing.T) {
 			},
 		},
 		{
-			options: ContainerLogsOptions{
+			options: ServiceLogsOptions{
 				Tail: "any",
 			},
 			expectedQueryParams: map[string]string{
@@ -58,7 +58,7 @@ func TestServiceLogs(t *testing.T) {
 			},
 		},
 		{
-			options: ContainerLogsOptions{
+			options: ServiceLogsOptions{
 				ShowStdout: true,
 				ShowStderr: true,
 				Timestamps: true,
@@ -75,7 +75,7 @@ func TestServiceLogs(t *testing.T) {
 			},
 		},
 		{
-			options: ContainerLogsOptions{
+			options: ServiceLogsOptions{
 				// timestamp is passed as-is
 				Since: "1136073600.000000001",
 			},
@@ -85,7 +85,7 @@ func TestServiceLogs(t *testing.T) {
 			},
 		},
 		{
-			options: ContainerLogsOptions{
+			options: ServiceLogsOptions{
 				// invalid dates are not passed.
 				Since: "invalid value",
 			},
@@ -129,7 +129,7 @@ func ExampleClient_ServiceLogs_withTimeout() {
 	defer cancel()
 
 	client, _ := NewClientWithOpts(FromEnv)
-	reader, err := client.ServiceLogs(ctx, "service_id", ContainerLogsOptions{})
+	reader, err := client.ServiceLogs(ctx, "service_id", ServiceLogsOptions{})
 	if err != nil {
 		log.Fatal(err)
 	}

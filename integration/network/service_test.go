@@ -245,10 +245,10 @@ func TestServiceWithPredefinedNetwork(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, c, serviceID, instances), swarm.ServicePoll)
 
-	_, _, err := c.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
+	_, err := c.ServiceInspect(ctx, serviceID, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
-	err = c.ServiceRemove(ctx, serviceID)
+	_, err = c.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
 	assert.NilError(t, err)
 }
 
@@ -286,10 +286,10 @@ func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, c, serviceID, instances), swarm.ServicePoll)
 
-	_, _, err := c.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
+	_, err := c.ServiceInspect(ctx, serviceID, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
-	err = c.ServiceRemove(ctx, serviceID)
+	_, err = c.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
 	assert.NilError(t, err)
 
 	poll.WaitOn(t, noServices(ctx, c), swarm.ServicePoll)
@@ -333,14 +333,14 @@ func swarmIngressReady(ctx context.Context, apiClient client.NetworkAPIClient) f
 
 func noServices(ctx context.Context, apiClient client.ServiceAPIClient) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		services, err := apiClient.ServiceList(ctx, client.ServiceListOptions{})
+		result, err := apiClient.ServiceList(ctx, client.ServiceListOptions{})
 		switch {
 		case err != nil:
 			return poll.Error(err)
-		case len(services) == 0:
+		case len(result.Services) == 0:
 			return poll.Success()
 		default:
-			return poll.Continue("waiting for all services to be removed: service count at %d", len(services))
+			return poll.Continue("waiting for all services to be removed: service count at %d", len(result.Services))
 		}
 	}
 }
@@ -369,7 +369,7 @@ func TestServiceWithDataPathPortInit(t *testing.T) {
 
 	info := d.Info(t)
 	assert.Equal(t, info.Swarm.Cluster.DataPathPort, datapathPort)
-	err := c.ServiceRemove(ctx, serviceID)
+	_, err := c.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
 	assert.NilError(t, err)
 	poll.WaitOn(t, noServices(ctx, c), swarm.ServicePoll)
 	poll.WaitOn(t, swarm.NoTasks(ctx, c), swarm.ServicePoll)
@@ -402,7 +402,7 @@ func TestServiceWithDataPathPortInit(t *testing.T) {
 	info = d.Info(t)
 	var defaultDataPathPort uint32 = 4789
 	assert.Equal(t, info.Swarm.Cluster.DataPathPort, defaultDataPathPort)
-	err = nc.ServiceRemove(ctx, serviceID)
+	_, err = nc.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
 	assert.NilError(t, err)
 	poll.WaitOn(t, noServices(ctx, nc), swarm.ServicePoll)
 	poll.WaitOn(t, swarm.NoTasks(ctx, nc), swarm.ServicePoll)
@@ -440,7 +440,7 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, cli, serviceID, instances), swarm.ServicePoll)
 
-	_, _, err := cli.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
+	_, err := cli.ServiceInspect(ctx, serviceID, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
 	res, err := cli.NetworkInspect(ctx, overlayID, client.NetworkInspectOptions{Verbose: true})
@@ -459,7 +459,7 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 	assert.Assert(t, len(res.Network.IPAM.Config) > 0)
 	assert.Equal(t, res.Network.IPAM.Config[0].Subnet, netip.MustParsePrefix("20.20.0.0/24"))
 
-	err = cli.ServiceRemove(ctx, serviceID)
+	_, err = cli.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
 	poll.WaitOn(t, noServices(ctx, cli), swarm.ServicePoll)
 	poll.WaitOn(t, swarm.NoTasks(ctx, cli), swarm.ServicePoll)
 	assert.NilError(t, err)

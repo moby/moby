@@ -77,6 +77,6 @@ func TestTaskList(t *testing.T) {
 
 		result, err := client.TaskList(context.Background(), listCase.options)
 		assert.NilError(t, err)
-		assert.Check(t, is.Len(result.Tasks, 2))
+		assert.Check(t, is.Len(result.Items, 2))
 	}
 }

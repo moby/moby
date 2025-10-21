@@ -14,35 +14,59 @@ import (
 	"github.com/opencontainers/go-digest"
 )
 
-// ServiceCreate creates a new service.
-func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec, options ServiceCreateOptions) (swarm.ServiceCreateResponse, error) {
-	var response swarm.ServiceCreateResponse
+// ServiceCreateOptions contains the options to use when creating a service.
+type ServiceCreateOptions struct {
+	// EncodedRegistryAuth is the encoded registry authorization credentials to
+	// use when updating the service.
+	//
+	// This field follows the format of the X-Registry-Auth header.
+	EncodedRegistryAuth string
 
+	// QueryRegistry indicates whether the service update requires
+	// contacting a registry. A registry may be contacted to retrieve
+	// the image digest and manifest, which in turn can be used to update
+	// platform or other information about the service.
+	QueryRegistry bool
+}
+
+// ServiceCreateResult represents the result of creating a service.
+type ServiceCreateResult struct {
+	// ID is the ID of the created service.
+	ID string
+
+	// Warnings is a list of warnings that occurred during service creation.
+	Warnings []string
+}
+
+// ServiceCreate creates a new service.
+func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec, options ServiceCreateOptions) (ServiceCreateResult, error) {
 	// Make sure containerSpec is not nil when no runtime is set or the runtime is set to container
 	if service.TaskTemplate.ContainerSpec == nil && (service.TaskTemplate.Runtime == "" || service.TaskTemplate.Runtime == swarm.RuntimeContainer) {
 		service.TaskTemplate.ContainerSpec = &swarm.ContainerSpec{}
 	}
 
 	if err := validateServiceSpec(service); err != nil {
-		return response, err
+		return ServiceCreateResult{}, err
 	}
 
 	// ensure that the image is tagged
-	var resolveWarning string
+	var warnings []string
 	switch {
 	case service.TaskTemplate.ContainerSpec != nil:
 		if taggedImg := imageWithTagString(service.TaskTemplate.ContainerSpec.Image); taggedImg != "" {
 			service.TaskTemplate.ContainerSpec.Image = taggedImg
 		}
 		if options.QueryRegistry {
-			resolveWarning = resolveContainerSpecImage(ctx, cli, &service.TaskTemplate, options.EncodedRegistryAuth)
+			resolveWarning := resolveContainerSpecImage(ctx, cli, &service.TaskTemplate, options.EncodedRegistryAuth)
+			warnings = append(warnings, resolveWarning)
 		}
 	case service.TaskTemplate.PluginSpec != nil:
 		if taggedImg := imageWithTagString(service.TaskTemplate.PluginSpec.Remote); taggedImg != "" {
 			service.TaskTemplate.PluginSpec.Remote = taggedImg
 		}
 		if options.QueryRegistry {
-			resolveWarning = resolvePluginSpecRemote(ctx, cli, &service.TaskTemplate, options.EncodedRegistryAuth)
+			resolveWarning := resolvePluginSpecRemote(ctx, cli, &service.TaskTemplate, options.EncodedRegistryAuth)
+			warnings = append(warnings, resolveWarning)
 		}
 	}
 
@@ -53,15 +77,17 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 	resp, err := cli.post(ctx, "/services/create", nil, service, headers)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return response, err
+		return ServiceCreateResult{}, err
 	}
 
+	var response swarm.ServiceCreateResponse
 	err = json.NewDecoder(resp.Body).Decode(&response)
-	if resolveWarning != "" {
-		response.Warnings = append(response.Warnings, resolveWarning)
-	}
+	warnings = append(warnings, response.Warnings...)
 
-	return response, err
+	return ServiceCreateResult{
+		ID:       response.ID,
+		Warnings: warnings,
+	}, err
 }
 
 func resolveContainerSpecImage(ctx context.Context, cli DistributionAPIClient, taskSpec *swarm.TaskSpec, encodedAuth string) string {

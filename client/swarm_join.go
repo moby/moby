@@ -17,7 +17,9 @@ type SwarmJoinOptions struct {
 }
 
 // SwarmJoinResult contains the result of joining a swarm.
-type SwarmJoinResult struct{}
+type SwarmJoinResult struct {
+	// No fields currently; placeholder for future use
+}
 
 // SwarmJoin joins the swarm.
 func (cli *Client) SwarmJoin(ctx context.Context, options SwarmJoinOptions) (SwarmJoinResult, error) {

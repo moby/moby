@@ -74,12 +74,12 @@ func TestReplicatedJob(t *testing.T) {
 		swarm.ServiceWithCommand([]string{"true"}),
 	)
 
-	service, _, err := apiClient.ServiceInspectWithRaw(
+	result, err := apiClient.ServiceInspect(
 		ctx, id, client.ServiceInspectOptions{},
 	)
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, swarm.JobComplete(ctx, apiClient, service), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.JobComplete(ctx, apiClient, result.Service), swarm.ServicePoll)
 }
 
 // TestUpdateReplicatedJob tests that a job can be updated, and that it runs with the
@@ -107,33 +107,33 @@ func TestUpdateReplicatedJob(t *testing.T) {
 		swarm.ServiceWithCommand([]string{"true"}),
 	)
 
-	service, _, err := apiClient.ServiceInspectWithRaw(
+	result, err := apiClient.ServiceInspect(
 		ctx, id, client.ServiceInspectOptions{},
 	)
 	assert.NilError(t, err)
 
 	// wait for the job to completed
-	poll.WaitOn(t, swarm.JobComplete(ctx, apiClient, service), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.JobComplete(ctx, apiClient, result.Service), swarm.ServicePoll)
 
 	// update the job.
-	spec := service.Spec
+	spec := result.Service.Spec
 	spec.TaskTemplate.ForceUpdate++
 
 	_, err = apiClient.ServiceUpdate(
-		ctx, id, service.Version, spec, client.ServiceUpdateOptions{},
+		ctx, id, result.Service.Version, spec, client.ServiceUpdateOptions{},
 	)
 	assert.NilError(t, err)
 
-	service2, _, err := apiClient.ServiceInspectWithRaw(
+	result2, err := apiClient.ServiceInspect(
 		ctx, id, client.ServiceInspectOptions{},
 	)
 	assert.NilError(t, err)
 
 	// assert that the job iteration has increased
 	assert.Assert(t,
-		service.JobStatus.JobIteration.Index < service2.JobStatus.JobIteration.Index,
+		result.Service.JobStatus.JobIteration.Index < result2.Service.JobStatus.JobIteration.Index,
 	)
 
 	// now wait for the service to complete a second time.
-	poll.WaitOn(t, swarm.JobComplete(ctx, apiClient, service2), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.JobComplete(ctx, apiClient, result2.Service), swarm.ServicePoll)
 }

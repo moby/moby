@@ -68,7 +68,7 @@ func TestServiceUpdateLabel(t *testing.T) {
 	service = getService(ctx, t, apiClient, serviceID)
 	assert.Check(t, is.DeepEqual(service.Spec.Labels, map[string]string{"foo": "bar"}))
 
-	err = apiClient.ServiceRemove(ctx, serviceID)
+	_, err = apiClient.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
 	assert.NilError(t, err)
 }
 
@@ -130,7 +130,7 @@ func TestServiceUpdateSecrets(t *testing.T) {
 	service = getService(ctx, t, apiClient, serviceID)
 	assert.Check(t, is.Equal(0, len(service.Spec.TaskTemplate.ContainerSpec.Secrets)))
 
-	err = apiClient.ServiceRemove(ctx, serviceID)
+	_, err = apiClient.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
 	assert.NilError(t, err)
 }
 
@@ -194,7 +194,7 @@ func TestServiceUpdateConfigs(t *testing.T) {
 	service = getService(ctx, t, apiClient, serviceID)
 	assert.Check(t, is.Equal(0, len(service.Spec.TaskTemplate.ContainerSpec.Configs)))
 
-	err = apiClient.ServiceRemove(ctx, serviceID)
+	_, err = apiClient.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
 	assert.NilError(t, err)
 }
 
@@ -246,7 +246,7 @@ func TestServiceUpdateNetwork(t *testing.T) {
 	err = apiClient.NetworkRemove(ctx, overlayID)
 	assert.NilError(t, err)
 
-	err = apiClient.ServiceRemove(ctx, serviceID)
+	_, err = apiClient.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
 	assert.NilError(t, err)
 }
 
@@ -319,19 +319,19 @@ func TestServiceUpdatePidsLimit(t *testing.T) {
 		})
 	}
 
-	err := apiClient.ServiceRemove(ctx, serviceID)
+	_, err := apiClient.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
 	assert.NilError(t, err)
 }
 
 func getServiceTaskContainer(ctx context.Context, t *testing.T, cli client.APIClient, serviceID string) container.InspectResponse {
 	t.Helper()
-	taskResult, err := cli.TaskList(ctx, client.TaskListOptions{
+	taskList, err := cli.TaskList(ctx, client.TaskListOptions{
 		Filters: make(client.Filters).Add("service", serviceID).Add("desired-state", "running"),
 	})
 	assert.NilError(t, err)
-	assert.Assert(t, len(taskResult.Tasks) > 0)
+	assert.Assert(t, len(taskList.Items) > 0)
 
-	ctr, err := cli.ContainerInspect(ctx, taskResult.Tasks[0].Status.ContainerStatus.ContainerID)
+	ctr, err := cli.ContainerInspect(ctx, taskList.Items[0].Status.ContainerStatus.ContainerID)
 	assert.NilError(t, err)
 	assert.Equal(t, ctr.State.Running, true)
 	return ctr
@@ -339,17 +339,19 @@ func getServiceTaskContainer(ctx context.Context, t *testing.T, cli client.APICl
 
 func getService(ctx context.Context, t *testing.T, apiClient client.ServiceAPIClient, serviceID string) swarmtypes.Service {
 	t.Helper()
-	service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
+	result, err := apiClient.ServiceInspect(ctx, serviceID, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
-	return service
+	return result.Service
 }
 
 func serviceIsUpdated(ctx context.Context, apiClient client.ServiceAPIClient, serviceID string) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
-		switch {
-		case err != nil:
+		result, err := apiClient.ServiceInspect(ctx, serviceID, client.ServiceInspectOptions{})
+		if err != nil {
 			return poll.Error(err)
+		}
+		service := result.Service
+		switch {
 		case service.UpdateStatus != nil && service.UpdateStatus.State == swarmtypes.UpdateStateCompleted:
 			return poll.Success()
 		default:
@@ -363,11 +365,11 @@ func serviceIsUpdated(ctx context.Context, apiClient client.ServiceAPIClient, se
 
 func serviceSpecIsUpdated(ctx context.Context, apiClient client.ServiceAPIClient, serviceID string, serviceOldVersion uint64) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
+		result, err := apiClient.ServiceInspect(ctx, serviceID, client.ServiceInspectOptions{})
 		switch {
 		case err != nil:
 			return poll.Error(err)
-		case service.Version.Index > serviceOldVersion:
+		case result.Service.Version.Index > serviceOldVersion:
 			return poll.Success()
 		default:
 			return poll.Continue("waiting for service %s to be updated", serviceID)
