@@ -19,7 +19,7 @@ func TestTaskInspectError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, _, err = client.TaskInspectWithRaw(context.Background(), "nothing")
+	_, err = client.TaskInspect(context.Background(), "nothing")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -28,11 +28,11 @@ func TestTaskInspectWithEmptyID(t *testing.T) {
 		return nil, errors.New("should not make request")
 	}))
 	assert.NilError(t, err)
-	_, _, err = client.TaskInspectWithRaw(context.Background(), "")
+	_, err = client.TaskInspect(context.Background(), "")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, _, err = client.TaskInspectWithRaw(context.Background(), "    ")
+	_, err = client.TaskInspect(context.Background(), "    ")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -56,7 +56,7 @@ func TestTaskInspect(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	taskInspect, _, err := client.TaskInspectWithRaw(context.Background(), "task_id")
+	result, err := client.TaskInspect(context.Background(), "task_id")
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(taskInspect.ID, "task_id"))
+	assert.Check(t, is.Equal(result.Task.ID, "task_id"))
 }

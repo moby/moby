@@ -1,34 +1,31 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"io"
 
 	"github.com/moby/moby/api/types/swarm"
 )
 
-// TaskInspectWithRaw returns the task information and its raw representation.
-func (cli *Client) TaskInspectWithRaw(ctx context.Context, taskID string) (swarm.Task, []byte, error) {
+// TaskInspectResult contains the result of a task inspection.
+type TaskInspectResult struct {
+	Task swarm.Task
+	Raw  []byte
+}
+
+// TaskInspect returns the task information and its raw representation.
+func (cli *Client) TaskInspect(ctx context.Context, taskID string) (TaskInspectResult, error) {
 	taskID, err := trimID("task", taskID)
 	if err != nil {
-		return swarm.Task{}, nil, err
+		return TaskInspectResult{}, err
 	}
 
 	resp, err := cli.get(ctx, "/tasks/"+taskID, nil, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return swarm.Task{}, nil, err
+		return TaskInspectResult{}, err
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return swarm.Task{}, nil, err
-	}
-
-	var response swarm.Task
-	rdr := bytes.NewReader(body)
-	err = json.NewDecoder(rdr).Decode(&response)
-	return response, body, err
+	var out TaskInspectResult
+	out.Raw, err = decodeWithRaw(resp, &out.Task)
+	return out, err
 }

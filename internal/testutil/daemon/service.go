@@ -70,9 +70,9 @@ func (d *Daemon) GetServiceTasksWithFilters(ctx context.Context, t testing.TB, s
 		Filters: filterArgs,
 	}
 
-	tasks, err := cli.TaskList(ctx, options)
+	result, err := cli.TaskList(ctx, options)
 	assert.NilError(t, err)
-	return tasks
+	return result.Tasks
 }
 
 // UpdateService updates a swarm service with the specified service constructor
@@ -116,7 +116,7 @@ func (d *Daemon) GetTask(ctx context.Context, t testing.TB, id string) swarm.Tas
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	task, _, err := cli.TaskInspectWithRaw(ctx, id)
+	result, err := cli.TaskInspect(ctx, id)
 	assert.NilError(t, err)
-	return task
+	return result.Task
 }

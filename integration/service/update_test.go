@@ -325,13 +325,13 @@ func TestServiceUpdatePidsLimit(t *testing.T) {
 
 func getServiceTaskContainer(ctx context.Context, t *testing.T, cli client.APIClient, serviceID string) container.InspectResponse {
 	t.Helper()
-	tasks, err := cli.TaskList(ctx, client.TaskListOptions{
+	taskResult, err := cli.TaskList(ctx, client.TaskListOptions{
 		Filters: make(client.Filters).Add("service", serviceID).Add("desired-state", "running"),
 	})
 	assert.NilError(t, err)
-	assert.Assert(t, len(tasks) > 0)
+	assert.Assert(t, len(taskResult.Tasks) > 0)
 
-	ctr, err := cli.ContainerInspect(ctx, tasks[0].Status.ContainerStatus.ContainerID)
+	ctr, err := cli.ContainerInspect(ctx, taskResult.Tasks[0].Status.ContainerStatus.ContainerID)
 	assert.NilError(t, err)
 	assert.Equal(t, ctr.State.Running, true)
 	return ctr

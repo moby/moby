@@ -52,12 +52,12 @@ func TestServiceListWithStatuses(t *testing.T) {
 		// serviceContainerCount function does not do. instead, we'll use a
 		// bespoke closure right here.
 		poll.WaitOn(t, func(log poll.LogT) poll.Result {
-			tasks, err := apiClient.TaskList(ctx, client.TaskListOptions{
+			taskResult, err := apiClient.TaskList(ctx, client.TaskListOptions{
 				Filters: make(client.Filters).Add("service", id),
 			})
 
 			running := 0
-			for _, task := range tasks {
+			for _, task := range taskResult.Tasks {
 				if task.Status.State == swarmtypes.TaskStateRunning {
 					running++
 				}
@@ -71,7 +71,7 @@ func TestServiceListWithStatuses(t *testing.T) {
 			default:
 				return poll.Continue(
 					"running task count %d (%d total), waiting for %d",
-					running, len(tasks), i+1,
+					running, len(taskResult.Tasks), i+1,
 				)
 			}
 		})

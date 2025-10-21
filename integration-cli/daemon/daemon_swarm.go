@@ -103,13 +103,13 @@ func (d *Daemon) CheckRunningTaskNetworks(ctx context.Context) func(t *testing.T
 		cli := d.NewClientT(t)
 		defer cli.Close()
 
-		tasks, err := cli.TaskList(ctx, client.TaskListOptions{
+		taskResult, err := cli.TaskList(ctx, client.TaskListOptions{
 			Filters: make(client.Filters).Add("desired-state", "running"),
 		})
 		assert.NilError(t, err)
 
 		result := make(map[string]int)
-		for _, task := range tasks {
+		for _, task := range taskResult.Tasks {
 			for _, network := range task.Spec.Networks {
 				result[network.Target]++
 			}
@@ -124,13 +124,13 @@ func (d *Daemon) CheckRunningTaskImages(ctx context.Context) func(t *testing.T) 
 		cli := d.NewClientT(t)
 		defer cli.Close()
 
-		tasks, err := cli.TaskList(ctx, client.TaskListOptions{
+		taskResult, err := cli.TaskList(ctx, client.TaskListOptions{
 			Filters: make(client.Filters).Add("desired-state", "running"),
 		})
 		assert.NilError(t, err)
 
 		result := make(map[string]int)
-		for _, task := range tasks {
+		for _, task := range taskResult.Tasks {
 			if task.Status.State == swarm.TaskStateRunning && task.Spec.ContainerSpec != nil {
 				result[task.Spec.ContainerSpec.Image]++
 			}
