@@ -129,9 +129,8 @@ func deleteAllVolumes(ctx context.Context, t testing.TB, c client.VolumeAPIClien
 	t.Helper()
 	res, err := c.VolumeList(ctx, client.VolumeListOptions{})
 	assert.Check(t, err, "failed to list volumes")
-	volumeList := res.List
 
-	for _, v := range volumeList.Volumes {
+	for _, v := range res.Items.Volumes {
 		if _, ok := protectedVolumes[v.Name]; ok {
 			continue
 		}

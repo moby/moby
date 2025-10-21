@@ -74,6 +74,6 @@ func TestVolumeList(t *testing.T) {
 
 		result, err := client.VolumeList(context.Background(), VolumeListOptions{Filters: listCase.filters})
 		assert.NilError(t, err)
-		assert.Check(t, is.Len(result.List.Volumes, 1))
+		assert.Check(t, is.Len(result.Items.Volumes, 1))
 	}
 }
