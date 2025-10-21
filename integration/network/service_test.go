@@ -445,7 +445,7 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 
 	res, err := cli.NetworkInspect(ctx, overlayID, client.NetworkInspectOptions{Verbose: true})
 	assert.NilError(t, err)
-	t.Logf("%s: NetworkInspect: %+v", t.Name(), res)
+	t.Logf("%s: NetworkInspect: %+v", t.Name(), res.Network)
 	assert.Assert(t, len(res.Network.IPAM.Config) > 0)
 	// As of docker/swarmkit#2890, the ingress network uses the default address
 	// pool (whereas before, the subnet for the ingress network was hard-coded.
