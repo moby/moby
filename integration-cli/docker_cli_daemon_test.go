@@ -2235,7 +2235,7 @@ func (s *DockerDaemonSuite) TestFailedPluginRemove(c *testing.T) {
 	d.Restart(c)
 	ctx, cancel = context.WithTimeout(testutil.GetContext(c), 30*time.Second)
 	defer cancel()
-	_, err = apiClient.Ping(ctx)
+	_, err = apiClient.Ping(ctx, client.PingOptions{})
 	assert.NilError(c, err)
 
 	_, err = apiClient.PluginInspect(ctx, name, client.PluginInspectOptions{})

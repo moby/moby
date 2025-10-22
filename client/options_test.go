@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"runtime"
 	"testing"
@@ -72,7 +71,7 @@ func TestWithUserAgent(t *testing.T) {
 			}),
 		)
 		assert.NilError(t, err)
-		_, err = c.Ping(context.Background())
+		_, err = c.Ping(t.Context(), PingOptions{})
 		assert.NilError(t, err)
 		assert.NilError(t, c.Close())
 	})
@@ -87,7 +86,7 @@ func TestWithUserAgent(t *testing.T) {
 			}),
 		)
 		assert.NilError(t, err)
-		_, err = c.Ping(context.Background())
+		_, err = c.Ping(t.Context(), PingOptions{})
 		assert.NilError(t, err)
 		assert.NilError(t, c.Close())
 	})
@@ -101,7 +100,7 @@ func TestWithUserAgent(t *testing.T) {
 			}),
 		)
 		assert.NilError(t, err)
-		_, err = c.Ping(context.Background())
+		_, err = c.Ping(t.Context(), PingOptions{})
 		assert.NilError(t, err)
 		assert.NilError(t, c.Close())
 	})
@@ -115,7 +114,7 @@ func TestWithUserAgent(t *testing.T) {
 			}),
 		)
 		assert.NilError(t, err)
-		_, err = c.Ping(context.Background())
+		_, err = c.Ping(t.Context(), PingOptions{})
 		assert.NilError(t, err)
 		assert.NilError(t, c.Close())
 	})
@@ -130,7 +129,7 @@ func TestWithUserAgent(t *testing.T) {
 			}),
 		)
 		assert.NilError(t, err)
-		_, err = c.Ping(context.Background())
+		_, err = c.Ping(t.Context(), PingOptions{})
 		assert.NilError(t, err)
 		assert.NilError(t, c.Close())
 	})

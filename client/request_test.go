@@ -210,7 +210,7 @@ func TestResponseErrors(t *testing.T) {
 				client, err = NewClientWithOpts(WithHTTPClient(client.client), WithVersion(tc.apiVersion))
 			}
 			assert.NilError(t, err)
-			_, err = client.Ping(context.Background())
+			_, err = client.Ping(t.Context(), PingOptions{})
 			assert.Check(t, is.Error(err, tc.expected))
 			assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 		})
@@ -229,7 +229,7 @@ func TestInfiniteError(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	_, err = client.Ping(context.Background())
+	_, err = client.Ping(t.Context(), PingOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 	assert.Check(t, is.ErrorContains(err, "request returned Internal Server Error"))
 }

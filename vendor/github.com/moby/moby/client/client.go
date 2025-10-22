@@ -56,7 +56,6 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/go-connections/sockets"
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/versions"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
@@ -270,7 +269,7 @@ func (cli *Client) checkVersion(ctx context.Context) error {
 			return nil
 		}
 
-		ping, err := cli.Ping(ctx)
+		ping, err := cli.Ping(ctx, PingOptions{})
 		if err != nil {
 			return err
 		}
@@ -317,7 +316,7 @@ func (cli *Client) NegotiateAPIVersion(ctx context.Context) {
 		cli.negotiateLock.Lock()
 		defer cli.negotiateLock.Unlock()
 
-		ping, err := cli.Ping(ctx)
+		ping, err := cli.Ping(ctx, PingOptions{})
 		if err != nil {
 			// FIXME(thaJeztah): Ping returns an error when failing to connect to the API; we should not swallow the error here, and instead returning it.
 			return
@@ -338,7 +337,8 @@ func (cli *Client) NegotiateAPIVersion(ctx context.Context) {
 //
 // If the API server's ping response does not contain an API version, it falls
 // back to the oldest API version supported.
-func (cli *Client) NegotiateAPIVersionPing(pingResponse types.Ping) {
+func (cli *Client) NegotiateAPIVersionPing(pingResponse PingResult) {
+	// TODO(thaJeztah): should this take a "Ping" option? It only consumes the version. This method should be removed overall and not be exported.
 	if !cli.manualOverride {
 		// Avoid concurrent modification of version-related fields
 		cli.negotiateLock.Lock()

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -10,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/api/types/swarm"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -34,19 +32,19 @@ func TestPingFail(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	ping, err := client.Ping(context.Background())
+	ping, err := client.Ping(t.Context(), PingOptions{})
 	assert.Check(t, is.ErrorContains(err, "some error with the server"))
 	assert.Check(t, is.Equal(false, ping.Experimental))
 	assert.Check(t, is.Equal("", ping.APIVersion))
-	var si *swarm.Status
+	var si *SwarmStatus
 	assert.Check(t, is.Equal(si, ping.SwarmStatus))
 
 	withHeader = true
-	ping2, err := client.Ping(context.Background())
+	ping2, err := client.Ping(t.Context(), PingOptions{})
 	assert.Check(t, is.ErrorContains(err, "some error with the server"))
 	assert.Check(t, is.Equal(true, ping2.Experimental))
 	assert.Check(t, is.Equal("awesome", ping2.APIVersion))
-	assert.Check(t, is.Equal(swarm.Status{NodeState: "inactive"}, *ping2.SwarmStatus))
+	assert.Check(t, is.Equal(SwarmStatus{NodeState: "inactive"}, *ping2.SwarmStatus))
 }
 
 // TestPingWithError tests the case where there is a protocol error in the ping.
@@ -57,11 +55,11 @@ func TestPingWithError(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	ping, err := client.Ping(context.Background())
+	ping, err := client.Ping(t.Context(), PingOptions{})
 	assert.Check(t, is.ErrorContains(err, "some connection error"))
 	assert.Check(t, is.Equal(false, ping.Experimental))
 	assert.Check(t, is.Equal("", ping.APIVersion))
-	var si *swarm.Status
+	var si *SwarmStatus
 	assert.Check(t, is.Equal(si, ping.SwarmStatus))
 }
 
@@ -78,11 +76,11 @@ func TestPingSuccess(t *testing.T) {
 		return resp, nil
 	}))
 	assert.NilError(t, err)
-	ping, err := client.Ping(context.Background())
+	ping, err := client.Ping(t.Context(), PingOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(true, ping.Experimental))
 	assert.Check(t, is.Equal("awesome", ping.APIVersion))
-	assert.Check(t, is.Equal(swarm.Status{NodeState: "active", ControlAvailable: true}, *ping.SwarmStatus))
+	assert.Check(t, is.Equal(SwarmStatus{NodeState: "active", ControlAvailable: true}, *ping.SwarmStatus))
 }
 
 // TestPingHeadFallback tests that the client falls back to GET if HEAD fails.
@@ -131,7 +129,7 @@ func TestPingHeadFallback(t *testing.T) {
 				return resp, nil
 			}))
 			assert.NilError(t, err)
-			ping, _ := client.Ping(context.Background())
+			ping, _ := client.Ping(t.Context(), PingOptions{})
 			assert.Check(t, is.Equal(ping.APIVersion, "1.2.3"))
 			assert.Check(t, is.DeepEqual(reqs, tc.expected))
 		})

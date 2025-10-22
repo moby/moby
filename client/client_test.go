@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/api/types"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -267,7 +266,7 @@ func TestNegotiateAPIVersionEmpty(t *testing.T) {
 	const expected = fallbackAPIVersion
 
 	// test downgrade
-	client.NegotiateAPIVersionPing(types.Ping{})
+	client.NegotiateAPIVersionPing(PingResult{})
 	assert.Check(t, is.Equal(client.ClientVersion(), expected))
 }
 
@@ -330,7 +329,7 @@ func TestNegotiateAPIVersion(t *testing.T) {
 			}
 			client, err := NewClientWithOpts(opts...)
 			assert.NilError(t, err)
-			client.NegotiateAPIVersionPing(types.Ping{APIVersion: tc.pingVersion})
+			client.NegotiateAPIVersionPing(PingResult{APIVersion: tc.pingVersion})
 			assert.Check(t, is.Equal(tc.expectedVersion, client.ClientVersion()))
 		})
 	}
@@ -346,7 +345,7 @@ func TestNegotiateAPIVersionOverride(t *testing.T) {
 	assert.NilError(t, err)
 
 	// test that we honored the env var
-	client.NegotiateAPIVersionPing(types.Ping{APIVersion: "1.24"})
+	client.NegotiateAPIVersionPing(PingResult{APIVersion: "1.24"})
 	assert.Check(t, is.Equal(client.ClientVersion(), expected))
 }
 
@@ -404,7 +403,7 @@ func TestNegotiateAPIVersionWithEmptyVersion(t *testing.T) {
 	assert.NilError(t, err)
 
 	const expected = "1.50"
-	client.NegotiateAPIVersionPing(types.Ping{APIVersion: expected})
+	client.NegotiateAPIVersionPing(PingResult{APIVersion: expected})
 	assert.Check(t, is.Equal(client.ClientVersion(), expected))
 }
 
@@ -415,7 +414,7 @@ func TestNegotiateAPIVersionWithFixedVersion(t *testing.T) {
 	client, err := NewClientWithOpts(WithVersion(customVersion))
 	assert.NilError(t, err)
 
-	client.NegotiateAPIVersionPing(types.Ping{APIVersion: "1.49"})
+	client.NegotiateAPIVersionPing(PingResult{APIVersion: "1.49"})
 	assert.Check(t, is.Equal(client.ClientVersion(), customVersion))
 }
 

@@ -1,10 +1,5 @@
 package types
 
-import (
-	"github.com/moby/moby/api/types/build"
-	"github.com/moby/moby/api/types/swarm"
-)
-
 const (
 	// MediaTypeRawStream is vendor specific MIME-Type set for raw TTY streams
 	MediaTypeRawStream = "application/vnd.docker.raw-stream"
@@ -21,24 +16,6 @@ const (
 	// MediaTypeJsonSequence is the MIME-Type for JSON Text Sequences (RFC7464)
 	MediaTypeJSONSequence = "application/json-seq"
 )
-
-// Ping contains response of Engine API:
-// GET "/_ping"
-type Ping struct {
-	APIVersion     string
-	OSType         string
-	Experimental   bool
-	BuilderVersion build.BuilderVersion
-
-	// SwarmStatus provides information about the current swarm status of the
-	// engine, obtained from the "Swarm" header in the API response.
-	//
-	// It can be a nil struct if the API version does not provide this header
-	// in the ping response, or if an error occurred, in which case the client
-	// should use other ways to get the current swarm status, such as the /swarm
-	// endpoint.
-	SwarmStatus *swarm.Status
-}
 
 // ComponentVersion describes the version information for a specific component.
 type ComponentVersion struct {

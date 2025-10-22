@@ -35,7 +35,7 @@ type stableAPIClient interface {
 	DaemonHost() string
 	ServerVersion(ctx context.Context) (types.Version, error)
 	NegotiateAPIVersion(ctx context.Context)
-	NegotiateAPIVersionPing(types.Ping)
+	NegotiateAPIVersionPing(PingResult)
 	HijackDialer
 	Dialer() func(context.Context) (net.Conn, error)
 	Close() error
@@ -187,7 +187,7 @@ type SystemAPIClient interface {
 	Info(ctx context.Context) (system.Info, error)
 	RegistryLogin(ctx context.Context, auth registry.AuthConfig) (registry.AuthenticateOKBody, error)
 	DiskUsage(ctx context.Context, options DiskUsageOptions) (system.DiskUsage, error)
-	Ping(ctx context.Context) (types.Ping, error)
+	Ping(ctx context.Context, options PingOptions) (PingResult, error)
 }
 
 // VolumeAPIClient defines API client methods for the volumes
