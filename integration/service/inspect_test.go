@@ -38,7 +38,7 @@ func TestInspect(t *testing.T) {
 	id := resp.ID
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, id, instances))
 
-	service, _, err := apiClient.ServiceInspectWithRaw(ctx, id, client.ServiceInspectOptions{})
+	result, err := apiClient.ServiceInspect(ctx, id, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
 	expected := swarmtypes.Service{
@@ -50,7 +50,7 @@ func TestInspect(t *testing.T) {
 			UpdatedAt: now,
 		},
 	}
-	assert.Check(t, is.DeepEqual(service, expected, cmpServiceOpts()))
+	assert.Check(t, is.DeepEqual(result.Service, expected, cmpServiceOpts()))
 }
 
 // TODO: use helpers from gotest.tools/assert/opt when available

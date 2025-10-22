@@ -45,9 +45,9 @@ func (d *Daemon) GetService(ctx context.Context, t testing.TB, id string) *swarm
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	service, _, err := cli.ServiceInspectWithRaw(ctx, id, client.ServiceInspectOptions{})
+	res, err := cli.ServiceInspect(ctx, id, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
-	return &service
+	return &res.Service
 }
 
 // GetServiceTasks returns the swarm tasks for the specified service
@@ -70,9 +70,9 @@ func (d *Daemon) GetServiceTasksWithFilters(ctx context.Context, t testing.TB, s
 		Filters: filterArgs,
 	}
 
-	result, err := cli.TaskList(ctx, options)
+	taskList, err := cli.TaskList(ctx, options)
 	assert.NilError(t, err)
-	return result.Tasks
+	return taskList.Items
 }
 
 // UpdateService updates a swarm service with the specified service constructor
@@ -95,7 +95,7 @@ func (d *Daemon) RemoveService(ctx context.Context, t testing.TB, id string) {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	err := cli.ServiceRemove(ctx, id)
+	_, err := cli.ServiceRemove(ctx, id, client.ServiceRemoveOptions{})
 	assert.NilError(t, err)
 }
 
@@ -105,9 +105,9 @@ func (d *Daemon) ListServices(ctx context.Context, t testing.TB) []swarm.Service
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	services, err := cli.ServiceList(ctx, client.ServiceListOptions{})
+	res, err := cli.ServiceList(ctx, client.ServiceListOptions{})
 	assert.NilError(t, err)
-	return services
+	return res.Services
 }
 
 // GetTask returns the swarm task identified by the specified id
@@ -116,7 +116,7 @@ func (d *Daemon) GetTask(ctx context.Context, t testing.TB, id string) swarm.Tas
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	result, err := cli.TaskInspect(ctx, id)
+	result, err := cli.TaskInspect(ctx, id, client.TaskInspectOptions{})
 	assert.NilError(t, err)
 	return result.Task
 }

@@ -12,15 +12,15 @@ import (
 // NoTasksForService verifies that there are no more tasks for the given service
 func NoTasksForService(ctx context.Context, apiClient client.ServiceAPIClient, serviceID string) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		result, err := apiClient.TaskList(ctx, client.TaskListOptions{
+		taskList, err := apiClient.TaskList(ctx, client.TaskListOptions{
 			Filters: make(client.Filters).Add("service", serviceID),
 		})
 		if err == nil {
-			if len(result.Tasks) == 0 {
+			if len(taskList.Items) == 0 {
 				return poll.Success()
 			}
-			if len(result.Tasks) > 0 {
-				return poll.Continue("task count for service %s at %d waiting for 0", serviceID, len(result.Tasks))
+			if len(taskList.Items) > 0 {
+				return poll.Continue("task count for service %s at %d waiting for 0", serviceID, len(taskList.Items))
 			}
 			return poll.Continue("waiting for tasks for service %s to be deleted", serviceID)
 		}
@@ -32,14 +32,14 @@ func NoTasksForService(ctx context.Context, apiClient client.ServiceAPIClient, s
 // NoTasks verifies that all tasks are gone
 func NoTasks(ctx context.Context, apiClient client.ServiceAPIClient) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		result, err := apiClient.TaskList(ctx, client.TaskListOptions{})
+		taskResult, err := apiClient.TaskList(ctx, client.TaskListOptions{})
 		switch {
 		case err != nil:
 			return poll.Error(err)
-		case len(result.Tasks) == 0:
+		case len(taskResult.Items) == 0:
 			return poll.Success()
 		default:
-			return poll.Continue("waiting for all tasks to be removed: task count at %d", len(result.Tasks))
+			return poll.Continue("waiting for all tasks to be removed: task count at %d", len(taskResult.Items))
 		}
 	}
 }
@@ -47,12 +47,12 @@ func NoTasks(ctx context.Context, apiClient client.ServiceAPIClient) func(log po
 // RunningTasksCount verifies there are `instances` tasks running for `serviceID`
 func RunningTasksCount(ctx context.Context, apiClient client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		result, err := apiClient.TaskList(ctx, client.TaskListOptions{
+		taskList, err := apiClient.TaskList(ctx, client.TaskListOptions{
 			Filters: make(client.Filters).Add("service", serviceID),
 		})
 		var running int
 		var taskError string
-		for _, task := range result.Tasks {
+		for _, task := range taskList.Items {
 			switch task.Status.State {
 			case swarmtypes.TaskStateRunning:
 				running++
@@ -76,7 +76,7 @@ func RunningTasksCount(ctx context.Context, apiClient client.ServiceAPIClient, s
 		case running == int(instances):
 			return poll.Success()
 		default:
-			return poll.Continue("running task count at %d waiting for %d (total tasks: %d)", running, instances, len(result.Tasks))
+			return poll.Continue("running task count at %d waiting for %d (total tasks: %d)", running, instances, len(taskList.Items))
 		}
 	}
 }
@@ -97,7 +97,7 @@ func JobComplete(ctx context.Context, apiClient client.ServiceAPIClient, service
 	previousResult := ""
 
 	return func(log poll.LogT) poll.Result {
-		result, err := apiClient.TaskList(ctx, client.TaskListOptions{
+		taskList, err := apiClient.TaskList(ctx, client.TaskListOptions{
 			Filters: filter,
 		})
 		if err != nil {
@@ -110,7 +110,7 @@ func JobComplete(ctx context.Context, apiClient client.ServiceAPIClient, service
 		var runningSlot []int
 		var runningID []string
 
-		for _, task := range result.Tasks {
+		for _, task := range taskList.Items {
 			// make sure the task has the same job iteration
 			if task.JobIteration == nil || task.JobIteration.Index != jobIteration.Index {
 				continue

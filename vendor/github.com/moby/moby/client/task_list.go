@@ -15,7 +15,7 @@ type TaskListOptions struct {
 
 // TaskListResult contains the result of a task list operation.
 type TaskListResult struct {
-	Tasks []swarm.Task
+	Items []swarm.Task
 }
 
 // TaskList returns the list of tasks.
@@ -32,5 +32,5 @@ func (cli *Client) TaskList(ctx context.Context, options TaskListOptions) (TaskL
 
 	var tasks []swarm.Task
 	err = json.NewDecoder(resp.Body).Decode(&tasks)
-	return TaskListResult{Tasks: tasks}, err
+	return TaskListResult{Items: tasks}, err
 }

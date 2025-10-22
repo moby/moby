@@ -100,10 +100,10 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	serviceID := swarm.CreateService(ctx, t, d, serviceSpec...)
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, instances), swarm.ServicePoll)
 
-	_, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
+	_, err := apiClient.ServiceInspect(ctx, serviceID, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
-	err = apiClient.ServiceRemove(ctx, serviceID)
+	_, err = apiClient.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
 	assert.NilError(t, err)
 
 	poll.WaitOn(t, swarm.NoTasksForService(ctx, apiClient, serviceID), swarm.ServicePoll)
@@ -111,7 +111,7 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	serviceID2 := swarm.CreateService(ctx, t, d, serviceSpec...)
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID2, instances), swarm.ServicePoll)
 
-	err = apiClient.ServiceRemove(ctx, serviceID2)
+	_, err = apiClient.ServiceRemove(ctx, serviceID2, client.ServiceRemoveOptions{})
 	assert.NilError(t, err)
 
 	// we can't just wait on no tasks for the service, counter-intuitively.
@@ -185,7 +185,7 @@ func TestCreateServiceMaxReplicas(t *testing.T) {
 	serviceID := swarm.CreateService(ctx, t, d, serviceSpec...)
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, maxReplicas), swarm.ServicePoll)
 
-	_, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
+	_, err := apiClient.ServiceInspect(ctx, serviceID, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
 }
 
@@ -227,7 +227,7 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, instances), swarm.ServicePoll)
 
-	body, err := apiClient.ServiceLogs(ctx, serviceID, client.ContainerLogsOptions{
+	body, err := apiClient.ServiceLogs(ctx, serviceID, client.ServiceLogsOptions{
 		Tail:       "1",
 		ShowStdout: true,
 	})
@@ -238,7 +238,7 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(string(content), "-rwxrwxrwx"))
 
-	err = apiClient.ServiceRemove(ctx, serviceID)
+	_, err = apiClient.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
 	assert.NilError(t, err)
 	poll.WaitOn(t, swarm.NoTasksForService(ctx, apiClient, serviceID), swarm.ServicePoll)
 
@@ -286,7 +286,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, instances))
 
-	body, err := apiClient.ServiceLogs(ctx, serviceID, client.ContainerLogsOptions{
+	body, err := apiClient.ServiceLogs(ctx, serviceID, client.ServiceLogsOptions{
 		Tail:       "1",
 		ShowStdout: true,
 	})
@@ -297,7 +297,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(string(content), "-rwxrwxrwx"))
 
-	err = apiClient.ServiceRemove(ctx, serviceID)
+	_, err = apiClient.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
 	assert.NilError(t, err)
 	poll.WaitOn(t, swarm.NoTasksForService(ctx, apiClient, serviceID))
 
@@ -368,25 +368,25 @@ func TestCreateServiceSysctls(t *testing.T) {
 		// more complex)
 
 		// get all tasks of the service, so we can get the container
-		taskResult, err := apiClient.TaskList(ctx, client.TaskListOptions{
+		taskList, err := apiClient.TaskList(ctx, client.TaskListOptions{
 			Filters: make(client.Filters).Add("service", serviceID),
 		})
 		assert.NilError(t, err)
-		assert.Check(t, is.Equal(len(taskResult.Tasks), 1))
+		assert.Check(t, is.Equal(len(taskList.Items), 1))
 
 		// verify that the container has the sysctl option set
-		ctnr, err := apiClient.ContainerInspect(ctx, taskResult.Tasks[0].Status.ContainerStatus.ContainerID)
+		ctnr, err := apiClient.ContainerInspect(ctx, taskList.Items[0].Status.ContainerStatus.ContainerID)
 		assert.NilError(t, err)
 		assert.DeepEqual(t, ctnr.HostConfig.Sysctls, expectedSysctls)
 
 		// verify that the task has the sysctl option set in the task object
-		assert.DeepEqual(t, taskResult.Tasks[0].Spec.ContainerSpec.Sysctls, expectedSysctls)
+		assert.DeepEqual(t, taskList.Items[0].Spec.ContainerSpec.Sysctls, expectedSysctls)
 
 		// verify that the service also has the sysctl set in the spec.
-		service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
+		result, err := apiClient.ServiceInspect(ctx, serviceID, client.ServiceInspectOptions{})
 		assert.NilError(t, err)
 		assert.DeepEqual(t,
-			service.Spec.TaskTemplate.ContainerSpec.Sysctls, expectedSysctls,
+			result.Service.Spec.TaskTemplate.ContainerSpec.Sysctls, expectedSysctls,
 		)
 	}
 }
@@ -438,25 +438,25 @@ func TestCreateServiceCapabilities(t *testing.T) {
 	// level has been tested elsewhere.
 
 	// get all tasks of the service, so we can get the container
-	taskResult, err := apiClient.TaskList(ctx, client.TaskListOptions{
+	taskList, err := apiClient.TaskList(ctx, client.TaskListOptions{
 		Filters: make(client.Filters).Add("service", serviceID),
 	})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(len(taskResult.Tasks), 1))
+	assert.Check(t, is.Equal(len(taskList.Items), 1))
 
 	// verify that the container has the capabilities option set
-	ctnr, err := apiClient.ContainerInspect(ctx, taskResult.Tasks[0].Status.ContainerStatus.ContainerID)
+	ctnr, err := apiClient.ContainerInspect(ctx, taskList.Items[0].Status.ContainerStatus.ContainerID)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, ctnr.HostConfig.CapAdd, capAdd)
 	assert.DeepEqual(t, ctnr.HostConfig.CapDrop, capDrop)
 
 	// verify that the task has the capabilities option set in the task object
-	assert.DeepEqual(t, taskResult.Tasks[0].Spec.ContainerSpec.CapabilityAdd, capAdd)
-	assert.DeepEqual(t, taskResult.Tasks[0].Spec.ContainerSpec.CapabilityDrop, capDrop)
+	assert.DeepEqual(t, taskList.Items[0].Spec.ContainerSpec.CapabilityAdd, capAdd)
+	assert.DeepEqual(t, taskList.Items[0].Spec.ContainerSpec.CapabilityDrop, capDrop)
 
 	// verify that the service also has the capabilities set in the spec.
-	service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
+	result, err := apiClient.ServiceInspect(ctx, serviceID, client.ServiceInspectOptions{})
 	assert.NilError(t, err)
-	assert.DeepEqual(t, service.Spec.TaskTemplate.ContainerSpec.CapabilityAdd, capAdd)
-	assert.DeepEqual(t, service.Spec.TaskTemplate.ContainerSpec.CapabilityDrop, capDrop)
+	assert.DeepEqual(t, result.Service.Spec.TaskTemplate.ContainerSpec.CapabilityAdd, capAdd)
+	assert.DeepEqual(t, result.Service.Spec.TaskTemplate.ContainerSpec.CapabilityDrop, capDrop)
 }

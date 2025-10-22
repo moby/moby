@@ -76,7 +76,8 @@ func TestInspectNetwork(t *testing.T) {
 		swarm.ServiceWithNetwork(networkName),
 	)
 	defer func() {
-		assert.NilError(t, c1.ServiceRemove(ctx, serviceID))
+		_, err := c1.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
+		assert.NilError(t, err)
 		poll.WaitOn(t, swarm.NoTasksForService(ctx, c1, serviceID), swarm.ServicePoll)
 	}()
 
