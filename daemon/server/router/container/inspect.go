@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/storage"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/v2/daemon/internal/compat"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
@@ -68,6 +69,15 @@ func (c *containerRouter) getContainersByName(ctx context.Context, w http.Respon
 					"MacAddress": desiredMACAddress,
 				},
 			}))
+		}
+
+		// Restore the GraphDriver field, now omitted when a snapshotter is used.
+		// Remove the Storage field that replaced it.
+		if ctr.GraphDriver == nil && ctr.Storage != nil && ctr.Storage.RootFS != nil && ctr.Storage.RootFS.Snapshot != nil {
+			ctr.GraphDriver = &storage.DriverData{
+				Name: ctr.Storage.RootFS.Snapshot.Name,
+			}
+			ctr.Storage = nil
 		}
 	}
 

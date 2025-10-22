@@ -12,6 +12,7 @@ import (
 	"github.com/distribution/reference"
 	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	imagetypes "github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/storage"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/internal/sliceutil"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -98,6 +99,9 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts im
 			},
 		},
 		Parent: parent, // field is deprecated with the legacy builder, but returned by the API if present.
+
+		// GraphDriver is omitted in API v1.52 unless using a graphdriver.
+		GraphDriverLegacy: &storage.DriverData{Name: i.snapshotter},
 	}
 
 	if multi.Best != nil {
