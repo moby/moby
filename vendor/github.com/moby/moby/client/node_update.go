@@ -5,8 +5,7 @@ import (
 	"net/url"
 )
 
-type NodeUpdateResult struct {
-}
+type NodeUpdateResult struct{}
 
 // NodeUpdate updates a Node.
 func (cli *Client) NodeUpdate(ctx context.Context, nodeID string, options NodeUpdateOptions) (NodeUpdateResult, error) {

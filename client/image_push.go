@@ -27,10 +27,10 @@ type ImagePushResponse interface {
 // It executes the privileged function if the operation is unauthorized
 // and it tries one more time.
 // Callers can
-// - use [ImagePushResponse.Wait] to wait for push to complete
-// - use [ImagePushResponse.JSONMessages] to monitor pull progress as a sequence
-//   of JSONMessages, [ImagePushResponse.Close] does not need to be called in this case.
-// - use the [io.Reader] interface and call [ImagePushResponse.Close] after processing.
+//   - use [ImagePushResponse.Wait] to wait for push to complete
+//   - use [ImagePushResponse.JSONMessages] to monitor pull progress as a sequence
+//     of JSONMessages, [ImagePushResponse.Close] does not need to be called in this case.
+//   - use the [io.Reader] interface and call [ImagePushResponse.Close] after processing.
 func (cli *Client) ImagePush(ctx context.Context, image string, options ImagePushOptions) (ImagePushResponse, error) {
 	ref, err := reference.ParseNormalizedNamed(image)
 	if err != nil {

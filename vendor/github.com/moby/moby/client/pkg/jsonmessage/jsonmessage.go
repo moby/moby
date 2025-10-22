@@ -195,7 +195,7 @@ type JSONMessagesStream iter.Seq2[JSONMessage, error]
 // each [JSONMessage] to out.
 // see DisplayJSONMessages for details
 func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(JSONMessage)) error {
-	var dec = json.NewDecoder(in)
+	dec := json.NewDecoder(in)
 	var f JSONMessagesStream = func(yield func(JSONMessage, error) bool) {
 		for {
 			var jm JSONMessage
@@ -229,7 +229,7 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 //     called if a JSONMessage contains an Aux field, in which case
 //     DisplayJSONMessagesStream does not present the JSONMessage.
 func DisplayJSONMessages(messages JSONMessagesStream, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(JSONMessage)) error {
-	var ids = make(map[string]uint)
+	ids := make(map[string]uint)
 
 	for jm, err := range messages {
 		var diff uint

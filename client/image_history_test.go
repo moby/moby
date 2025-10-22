@@ -46,7 +46,8 @@ func TestImageHistory(t *testing.T) {
 				ID:   "image_id2",
 				Tags: []string{"tag1", "tag2"},
 			},
-		}}
+		},
+	}
 
 	imageHistories, err := client.ImageHistory(context.Background(), "image_id", ImageHistoryWithPlatform(ocispec.Platform{
 		Architecture: "arm64",
