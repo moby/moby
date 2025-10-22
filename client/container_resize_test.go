@@ -28,10 +28,10 @@ func TestContainerResizeError(t *testing.T) {
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
-func TestContainerExecResizeError(t *testing.T) {
+func TestExecResizeError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	err = client.ContainerExecResize(context.Background(), "exec_id", ContainerResizeOptions{})
+	_, err = client.ExecResize(context.Background(), "exec_id", ExecResizeOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -78,22 +78,22 @@ func TestContainerResize(t *testing.T) {
 	}
 }
 
-func TestContainerExecResize(t *testing.T) {
+func TestExecResize(t *testing.T) {
 	const expectedURL = "/exec/exec_id/resize"
 	tests := []struct {
 		doc                           string
-		opts                          ContainerResizeOptions
+		opts                          ExecResizeOptions
 		expectedHeight, expectedWidth string
 	}{
 		{
 			doc:            "zero width height", // valid, but not very useful
-			opts:           ContainerResizeOptions{},
+			opts:           ExecResizeOptions{},
 			expectedWidth:  "0",
 			expectedHeight: "0",
 		},
 		{
 			doc: "valid resize",
-			opts: ContainerResizeOptions{
+			opts: ExecResizeOptions{
 				Height: 500,
 				Width:  600,
 			},
@@ -102,7 +102,7 @@ func TestContainerExecResize(t *testing.T) {
 		},
 		{
 			doc: "larger than maxint64",
-			opts: ContainerResizeOptions{
+			opts: ExecResizeOptions{
 				Height: math.MaxInt64 + 1,
 				Width:  math.MaxInt64 + 2,
 			},
@@ -114,7 +114,7 @@ func TestContainerExecResize(t *testing.T) {
 		t.Run(tc.doc, func(t *testing.T) {
 			client, err := NewClientWithOpts(WithMockClient(resizeTransport(t, expectedURL, tc.expectedHeight, tc.expectedWidth)))
 			assert.NilError(t, err)
-			err = client.ContainerExecResize(context.Background(), "exec_id", tc.opts)
+			_, err = client.ExecResize(context.Background(), "exec_id", tc.opts)
 			assert.NilError(t, err)
 		})
 	}

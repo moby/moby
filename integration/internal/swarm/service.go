@@ -220,12 +220,12 @@ func ExecTask(ctx context.Context, t *testing.T, d *daemon.Daemon, task swarmtyp
 	apiClient := d.NewClientT(t)
 	defer apiClient.Close()
 
-	resp, err := apiClient.ContainerExecCreate(ctx, task.Status.ContainerStatus.ContainerID, options)
+	resp, err := apiClient.ExecCreate(ctx, task.Status.ContainerStatus.ContainerID, options)
 	assert.NilError(t, err, "error creating exec")
 
-	attach, err := apiClient.ContainerExecAttach(ctx, resp.ID, client.ExecAttachOptions{})
+	attach, err := apiClient.ExecAttach(ctx, resp.ID, client.ExecAttachOptions{})
 	assert.NilError(t, err, "error attaching to exec")
-	return attach
+	return attach.HijackedResponse
 }
 
 func ensureResources(spec *swarmtypes.ServiceSpec) {

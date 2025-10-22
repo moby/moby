@@ -15,37 +15,37 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func TestContainerExecCreateError(t *testing.T) {
+func TestExecCreateError(t *testing.T) {
 	client, err := NewClientWithOpts(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerExecCreate(context.Background(), "container_id", ExecCreateOptions{})
+	_, err = client.ExecCreate(context.Background(), "container_id", ExecCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ContainerExecCreate(context.Background(), "", ExecCreateOptions{})
+	_, err = client.ExecCreate(context.Background(), "", ExecCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ContainerExecCreate(context.Background(), "    ", ExecCreateOptions{})
+	_, err = client.ExecCreate(context.Background(), "    ", ExecCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
-// TestContainerExecCreateConnectionError verifies that connection errors occurring
+// TestExecCreateConnectionError verifies that connection errors occurring
 // during API-version negotiation are not shadowed by API-version errors.
 //
 // Regression test for https://github.com/docker/cli/issues/4890
-func TestContainerExecCreateConnectionError(t *testing.T) {
+func TestExecCreateConnectionError(t *testing.T) {
 	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
-	_, err = client.ContainerExecCreate(context.Background(), "container_id", ExecCreateOptions{})
+	_, err = client.ExecCreate(context.Background(), "container_id", ExecCreateOptions{})
 	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
 
-func TestContainerExecCreate(t *testing.T) {
+func TestExecCreate(t *testing.T) {
 	const expectedURL = "/containers/container_id/exec"
 	client, err := NewClientWithOpts(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
@@ -77,24 +77,24 @@ func TestContainerExecCreate(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	r, err := client.ContainerExecCreate(context.Background(), "container_id", ExecCreateOptions{
+	r, err := client.ExecCreate(context.Background(), "container_id", ExecCreateOptions{
 		User: "user",
 	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(r.ID, "exec_id"))
 }
 
-func TestContainerExecStartError(t *testing.T) {
+func TestExecStartError(t *testing.T) {
 	client, err := NewClientWithOpts(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
 
-	err = client.ContainerExecStart(context.Background(), "nothing", ExecStartOptions{})
+	_, err = client.ExecStart(context.Background(), "nothing", ExecStartOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
-func TestContainerExecStart(t *testing.T) {
+func TestExecStart(t *testing.T) {
 	const expectedURL = "/exec/exec_id/start"
 	client, err := NewClientWithOpts(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
@@ -120,24 +120,24 @@ func TestContainerExecStart(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.ContainerExecStart(context.Background(), "exec_id", ExecStartOptions{
+	_, err = client.ExecStart(context.Background(), "exec_id", ExecStartOptions{
 		Detach: true,
 		Tty:    false,
 	})
 	assert.NilError(t, err)
 }
 
-func TestContainerExecInspectError(t *testing.T) {
+func TestExecInspectError(t *testing.T) {
 	client, err := NewClientWithOpts(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerExecInspect(context.Background(), "nothing")
+	_, err = client.ExecInspect(context.Background(), "nothing", ExecInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
-func TestContainerExecInspect(t *testing.T) {
+func TestExecInspect(t *testing.T) {
 	const expectedURL = "/exec/exec_id/json"
 	client, err := NewClientWithOpts(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
@@ -159,7 +159,7 @@ func TestContainerExecInspect(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	inspect, err := client.ContainerExecInspect(context.Background(), "exec_id")
+	inspect, err := client.ExecInspect(context.Background(), "exec_id", ExecInspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(inspect.ExecID, "exec_id"))
 	assert.Check(t, is.Equal(inspect.ContainerID, "container_id"))

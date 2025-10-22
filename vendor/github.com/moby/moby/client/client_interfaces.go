@@ -89,11 +89,11 @@ type ContainerAPIClient interface {
 }
 
 type ExecAPIClient interface {
-	ContainerExecCreate(ctx context.Context, container string, options ExecCreateOptions) (container.ExecCreateResponse, error)
-	ContainerExecStart(ctx context.Context, execID string, options ExecStartOptions) error
-	ContainerExecAttach(ctx context.Context, execID string, options ExecAttachOptions) (HijackedResponse, error)
-	ContainerExecInspect(ctx context.Context, execID string) (ExecInspect, error)
-	ContainerExecResize(ctx context.Context, execID string, options ContainerResizeOptions) error
+	ExecCreate(ctx context.Context, container string, options ExecCreateOptions) (ExecCreateResult, error)
+	ExecStart(ctx context.Context, execID string, options ExecStartOptions) (ExecStartResult, error)
+	ExecAttach(ctx context.Context, execID string, options ExecAttachOptions) (ExecAttachResult, error)
+	ExecInspect(ctx context.Context, execID string, options ExecInspectOptions) (ExecInspectResult, error)
+	ExecResize(ctx context.Context, execID string, options ExecResizeOptions) (ExecResizeResult, error)
 }
 
 // DistributionAPIClient defines API client methods for the registry
