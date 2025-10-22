@@ -3,20 +3,21 @@ package client
 import (
 	"context"
 	"net/url"
-
-	"github.com/moby/moby/api/types/swarm"
 )
 
+type NodeUpdateResult struct {
+}
+
 // NodeUpdate updates a Node.
-func (cli *Client) NodeUpdate(ctx context.Context, nodeID string, version swarm.Version, node swarm.NodeSpec) error {
+func (cli *Client) NodeUpdate(ctx context.Context, nodeID string, options NodeUpdateOptions) (NodeUpdateResult, error) {
 	nodeID, err := trimID("node", nodeID)
 	if err != nil {
-		return err
+		return NodeUpdateResult{}, err
 	}
 
 	query := url.Values{}
-	query.Set("version", version.String())
-	resp, err := cli.post(ctx, "/nodes/"+nodeID+"/update", query, node, nil)
+	query.Set("version", options.Version.String())
+	resp, err := cli.post(ctx, "/nodes/"+nodeID+"/update", query, options.Node, nil)
 	defer ensureReaderClosed(resp)
-	return err
+	return NodeUpdateResult{}, err
 }

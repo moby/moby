@@ -165,11 +165,11 @@ func TestInspectNetwork(t *testing.T) {
 	t.Run("BeforeLeaderChange", checkNetworkInspect)
 
 	leaderID := func() string {
-		ls, err := c1.NodeList(ctx, client.NodeListOptions{
+		result, err := c1.NodeList(ctx, client.NodeListOptions{
 			Filters: make(client.Filters).Add("role", "manager"),
 		})
 		assert.NilError(t, err)
-		for _, node := range ls {
+		for _, node := range result.Items {
 			if node.ManagerStatus != nil && node.ManagerStatus.Leader {
 				return node.ID
 			}

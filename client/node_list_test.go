@@ -76,8 +76,8 @@ func TestNodeList(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 
-		nodes, err := client.NodeList(context.Background(), listCase.options)
+		result, err := client.NodeList(context.Background(), listCase.options)
 		assert.NilError(t, err)
-		assert.Check(t, is.Len(nodes, 2))
+		assert.Check(t, is.Len(result.Items, 2))
 	}
 }

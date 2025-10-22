@@ -159,13 +159,13 @@ func JobComplete(ctx context.Context, apiClient client.ServiceAPIClient, service
 
 func HasLeader(ctx context.Context, apiClient client.NodeAPIClient) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		nodes, err := apiClient.NodeList(ctx, client.NodeListOptions{
+		result, err := apiClient.NodeList(ctx, client.NodeListOptions{
 			Filters: make(client.Filters).Add("role", "manager"),
 		})
 		if err != nil {
 			return poll.Error(err)
 		}
-		for _, node := range nodes {
+		for _, node := range result.Items {
 			if node.ManagerStatus != nil && node.ManagerStatus.Leader {
 				return poll.Success()
 			}

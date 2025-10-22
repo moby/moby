@@ -17,14 +17,14 @@ func TestNodeRemoveError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	err = client.NodeRemove(context.Background(), "node_id", NodeRemoveOptions{Force: false})
+	_, err = client.NodeRemove(context.Background(), "node_id", NodeRemoveOptions{Force: false})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.NodeRemove(context.Background(), "", NodeRemoveOptions{Force: false})
+	_, err = client.NodeRemove(context.Background(), "", NodeRemoveOptions{Force: false})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.NodeRemove(context.Background(), "    ", NodeRemoveOptions{Force: false})
+	_, err = client.NodeRemove(context.Background(), "    ", NodeRemoveOptions{Force: false})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -62,7 +62,7 @@ func TestNodeRemove(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 
-		err = client.NodeRemove(context.Background(), "node_id", NodeRemoveOptions{Force: removeCase.force})
+		_, err = client.NodeRemove(context.Background(), "node_id", NodeRemoveOptions{Force: removeCase.force})
 		assert.NilError(t, err)
 	}
 }

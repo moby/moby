@@ -178,12 +178,12 @@ func (d *Daemon) CheckLeader(ctx context.Context) func(t *testing.T) (any, strin
 
 		errList := "could not get node list"
 
-		ls, err := cli.NodeList(ctx, client.NodeListOptions{})
+		result, err := cli.NodeList(ctx, client.NodeListOptions{})
 		if err != nil {
 			return err, errList
 		}
 
-		for _, node := range ls {
+		for _, node := range result.Items {
 			if node.ManagerStatus != nil && node.ManagerStatus.Leader {
 				return nil, ""
 			}
