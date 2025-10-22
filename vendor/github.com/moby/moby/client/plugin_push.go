@@ -8,17 +8,27 @@ import (
 	"github.com/moby/moby/api/types/registry"
 )
 
+// PluginPushOptions holds parameters to push a plugin.
+type PluginPushOptions struct {
+	RegistryAuth string // RegistryAuth is the base64 encoded credentials for the registry
+}
+
+// PluginPushResult is the result of a plugin push operation
+type PluginPushResult struct {
+	io.ReadCloser
+}
+
 // PluginPush pushes a plugin to a registry
-func (cli *Client) PluginPush(ctx context.Context, name string, registryAuth string) (io.ReadCloser, error) {
+func (cli *Client) PluginPush(ctx context.Context, name string, options PluginPushOptions) (PluginPushResult, error) {
 	name, err := trimID("plugin", name)
 	if err != nil {
-		return nil, err
+		return PluginPushResult{}, err
 	}
 	resp, err := cli.post(ctx, "/plugins/"+name+"/push", nil, nil, http.Header{
-		registry.AuthHeader: {registryAuth},
+		registry.AuthHeader: {options.RegistryAuth},
 	})
 	if err != nil {
-		return nil, err
+		return PluginPushResult{}, err
 	}
-	return resp.Body, nil
+	return PluginPushResult{resp.Body}, nil
 }

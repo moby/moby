@@ -34,7 +34,7 @@ func TestReadPluginNoRead(t *testing.T) {
 	assert.Assert(t, err)
 	createPlugin(ctx, t, apiclient, "test", "discard", asLogDriver)
 
-	err = apiclient.PluginEnable(ctx, "test", client.PluginEnableOptions{Timeout: 30})
+	_, err = apiclient.PluginEnable(ctx, "test", client.PluginEnableOptions{Timeout: 30})
 	assert.Check(t, err)
 	d.Stop(t)
 

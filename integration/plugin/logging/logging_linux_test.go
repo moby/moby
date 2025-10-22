@@ -31,9 +31,12 @@ func TestContinueAfterPluginCrash(t *testing.T) {
 
 	ctxT, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	assert.Assert(t, apiclient.PluginEnable(ctxT, "test", client.PluginEnableOptions{Timeout: 30}))
+	_, err := apiclient.PluginEnable(ctxT, "test", client.PluginEnableOptions{Timeout: 30})
+	assert.NilError(t, err)
 	cancel()
-	defer apiclient.PluginRemove(ctx, "test", client.PluginRemoveOptions{Force: true})
+	defer func() {
+		_, _ = apiclient.PluginRemove(ctx, "test", client.PluginRemoveOptions{Force: true})
+	}()
 
 	ctxT, cancel = context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()

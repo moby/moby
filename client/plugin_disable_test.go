@@ -16,14 +16,14 @@ func TestPluginDisableError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	err = client.PluginDisable(context.Background(), "plugin_name", PluginDisableOptions{})
+	_, err = client.PluginDisable(context.Background(), "plugin_name", PluginDisableOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.PluginDisable(context.Background(), "", PluginDisableOptions{})
+	_, err = client.PluginDisable(context.Background(), "", PluginDisableOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.PluginDisable(context.Background(), "    ", PluginDisableOptions{})
+	_, err = client.PluginDisable(context.Background(), "    ", PluginDisableOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -42,6 +42,6 @@ func TestPluginDisable(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	err = client.PluginDisable(context.Background(), "plugin_name", PluginDisableOptions{})
+	_, err = client.PluginDisable(context.Background(), "plugin_name", PluginDisableOptions{})
 	assert.NilError(t, err)
 }

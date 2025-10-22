@@ -135,14 +135,14 @@ func TestPluginInstall(t *testing.T) {
 		err := plugin.Create(ctx, apiclient, repo)
 		assert.NilError(t, err)
 
-		rdr, err := apiclient.PluginPush(ctx, repo, "")
+		pushResult, err := apiclient.PluginPush(ctx, repo, client.PluginPushOptions{})
 		assert.NilError(t, err)
-		defer rdr.Close()
+		defer pushResult.Close()
 
 		buf := &strings.Builder{}
 		assert.NilError(t, err)
 		var digest string
-		assert.NilError(t, jsonmessage.DisplayJSONMessagesStream(rdr, buf, 0, false, func(j jsonmessage.JSONMessage) {
+		assert.NilError(t, jsonmessage.DisplayJSONMessagesStream(pushResult, buf, 0, false, func(j jsonmessage.JSONMessage) {
 			if j.Aux != nil {
 				var r types.PushResult
 				assert.NilError(t, json.Unmarshal(*j.Aux, &r))
@@ -150,17 +150,17 @@ func TestPluginInstall(t *testing.T) {
 			}
 		}), buf)
 
-		err = apiclient.PluginRemove(ctx, repo, client.PluginRemoveOptions{Force: true})
+		_, err = apiclient.PluginRemove(ctx, repo, client.PluginRemoveOptions{Force: true})
 		assert.NilError(t, err)
 
-		rdr, err = apiclient.PluginInstall(ctx, repo, client.PluginInstallOptions{
+		installResult, err := apiclient.PluginInstall(ctx, repo, client.PluginInstallOptions{
 			Disabled:  true,
 			RemoteRef: repo + "@" + digest,
 		})
 		assert.NilError(t, err)
-		defer rdr.Close()
+		defer installResult.Close()
 
-		_, err = io.Copy(io.Discard, rdr)
+		_, err = io.Copy(io.Discard, installResult)
 		assert.NilError(t, err)
 
 		_, err = apiclient.PluginInspect(ctx, repo, client.PluginInspectOptions{})
@@ -268,9 +268,12 @@ func TestPluginsWithRuntimes(t *testing.T) {
 	apiclient := d.NewClientT(t)
 
 	assert.NilError(t, plugin.Create(ctx, apiclient, "test:latest"))
-	defer apiclient.PluginRemove(ctx, "test:latest", client.PluginRemoveOptions{Force: true})
+	defer func() {
+		_, _ = apiclient.PluginRemove(ctx, "test:latest", client.PluginRemoveOptions{Force: true})
+	}()
 
-	assert.NilError(t, apiclient.PluginEnable(ctx, "test:latest", client.PluginEnableOptions{Timeout: 30}))
+	_, err = apiclient.PluginEnable(ctx, "test:latest", client.PluginEnableOptions{Timeout: 30})
+	assert.NilError(t, err)
 
 	p := filepath.Join(dir, "myrt")
 	script := fmt.Sprintf(`#!/bin/sh
@@ -331,12 +334,12 @@ func TestPluginBackCompatMediaTypes(t *testing.T) {
 
 	assert.NilError(t, plugin.Create(ctx, apiclient, repo))
 
-	rdr, err := apiclient.PluginPush(ctx, repo, "")
+	res, err := apiclient.PluginPush(ctx, repo, client.PluginPushOptions{})
 	assert.NilError(t, err)
-	defer rdr.Close()
+	defer res.Close()
 
 	buf := &strings.Builder{}
-	assert.NilError(t, jsonmessage.DisplayJSONMessagesStream(rdr, buf, 0, false, nil), buf)
+	assert.NilError(t, jsonmessage.DisplayJSONMessagesStream(res, buf, 0, false, nil), buf)
 
 	// Use custom header here because older versions of the registry do not
 	// parse the accept header correctly and does not like the accept header
@@ -356,7 +359,7 @@ func TestPluginBackCompatMediaTypes(t *testing.T) {
 	fetcher, err := resolver.Fetcher(ctx, n)
 	assert.NilError(t, err)
 
-	rdr, err = fetcher.Fetch(ctx, desc)
+	rdr, err := fetcher.Fetch(ctx, desc)
 	assert.NilError(t, err)
 	defer rdr.Close()
 
