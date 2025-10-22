@@ -17,14 +17,23 @@ func TestNodeUpdateError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	err = client.NodeUpdate(context.Background(), "node_id", swarm.Version{}, swarm.NodeSpec{})
+	_, err = client.NodeUpdate(context.Background(), "node_id", NodeUpdateOptions{
+		Version: swarm.Version{},
+		Node:    swarm.NodeSpec{},
+	})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.NodeUpdate(context.Background(), "", swarm.Version{}, swarm.NodeSpec{})
+	_, err = client.NodeUpdate(context.Background(), "", NodeUpdateOptions{
+		Version: swarm.Version{},
+		Node:    swarm.NodeSpec{},
+	})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.NodeUpdate(context.Background(), "    ", swarm.Version{}, swarm.NodeSpec{})
+	_, err = client.NodeUpdate(context.Background(), "    ", NodeUpdateOptions{
+		Version: swarm.Version{},
+		Node:    swarm.NodeSpec{},
+	})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -43,6 +52,9 @@ func TestNodeUpdate(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	err = client.NodeUpdate(context.Background(), "node_id", swarm.Version{}, swarm.NodeSpec{})
+	_, err = client.NodeUpdate(context.Background(), "node_id", NodeUpdateOptions{
+		Version: swarm.Version{},
+		Node:    swarm.NodeSpec{},
+	})
 	assert.NilError(t, err)
 }

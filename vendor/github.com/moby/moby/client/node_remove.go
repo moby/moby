@@ -5,11 +5,14 @@ import (
 	"net/url"
 )
 
+type NodeRemoveResult struct {
+}
+
 // NodeRemove removes a Node.
-func (cli *Client) NodeRemove(ctx context.Context, nodeID string, options NodeRemoveOptions) error {
+func (cli *Client) NodeRemove(ctx context.Context, nodeID string, options NodeRemoveOptions) (NodeRemoveResult, error) {
 	nodeID, err := trimID("node", nodeID)
 	if err != nil {
-		return err
+		return NodeRemoveResult{}, err
 	}
 
 	query := url.Values{}
@@ -19,5 +22,5 @@ func (cli *Client) NodeRemove(ctx context.Context, nodeID string, options NodeRe
 
 	resp, err := cli.delete(ctx, "/nodes/"+nodeID, query, nil)
 	defer ensureReaderClosed(resp)
-	return err
+	return NodeRemoveResult{}, err
 }
