@@ -9,16 +9,26 @@ import (
 	"github.com/moby/moby/api/types/registry"
 )
 
+// DistributionInspectResult holds the result of the DistributionInspect operation.
+type DistributionInspectResult struct {
+	registry.DistributionInspect
+}
+
+// DistributionInspectOptions holds options for the DistributionInspect operation.
+type DistributionInspectOptions struct {
+	EncodedRegistryAuth string
+}
+
 // DistributionInspect returns the image digest with the full manifest.
-func (cli *Client) DistributionInspect(ctx context.Context, imageRef, encodedRegistryAuth string) (registry.DistributionInspect, error) {
+func (cli *Client) DistributionInspect(ctx context.Context, imageRef string, options DistributionInspectOptions) (DistributionInspectResult, error) {
 	if imageRef == "" {
-		return registry.DistributionInspect{}, objectNotFoundError{object: "distribution", id: imageRef}
+		return DistributionInspectResult{}, objectNotFoundError{object: "distribution", id: imageRef}
 	}
 
 	var headers http.Header
-	if encodedRegistryAuth != "" {
+	if options.EncodedRegistryAuth != "" {
 		headers = http.Header{
-			registry.AuthHeader: {encodedRegistryAuth},
+			registry.AuthHeader: {options.EncodedRegistryAuth},
 		}
 	}
 
@@ -26,10 +36,10 @@ func (cli *Client) DistributionInspect(ctx context.Context, imageRef, encodedReg
 	resp, err := cli.get(ctx, "/distribution/"+imageRef+"/json", url.Values{}, headers)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return registry.DistributionInspect{}, err
+		return DistributionInspectResult{}, err
 	}
 
 	var distributionInspect registry.DistributionInspect
 	err = json.NewDecoder(resp.Body).Decode(&distributionInspect)
-	return distributionInspect, err
+	return DistributionInspectResult{DistributionInspect: distributionInspect}, err
 }

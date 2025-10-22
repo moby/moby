@@ -123,7 +123,9 @@ func resolvePluginSpecRemote(ctx context.Context, cli DistributionAPIClient, tas
 }
 
 func imageDigestAndPlatforms(ctx context.Context, cli DistributionAPIClient, image, encodedAuth string) (string, []swarm.Platform, error) {
-	distributionInspect, err := cli.DistributionInspect(ctx, image, encodedAuth)
+	distributionInspect, err := cli.DistributionInspect(ctx, image, DistributionInspectOptions{
+		EncodedRegistryAuth: encodedAuth,
+	})
 	var platforms []swarm.Platform
 	if err != nil {
 		return "", nil, err
