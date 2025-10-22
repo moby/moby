@@ -20,4 +20,10 @@ const (
 	// AnnotationImageName is an annotation on a Descriptor in an index.json
 	// containing the `Name` value as used by an `Image` struct
 	AnnotationImageName = "io.containerd.image.name"
+
+	// AnnotationManifestSubject is an annotation on a Descriptor that means
+	// that current descriptor is a referrer to the subject manifest.
+	// If descriptor in image.json has this annotation, it will not create
+	// a new image.
+	AnnotationManifestSubject = "io.containerd.manifest.subject"
 )

@@ -207,6 +207,9 @@ func (c *Client) fetch(ctx context.Context, rCtx *RemoteContext, ref string, lim
 	}
 	// Get all the children for a descriptor
 	childrenHandler := images.ChildrenHandler(store)
+	if rCtx.ReferrersProvider != nil {
+		childrenHandler = images.SetReferrers(rCtx.ReferrersProvider, childrenHandler)
+	}
 	// Set any children labels for that content
 	childrenHandler = images.SetChildrenMappedLabels(store, childrenHandler, rCtx.ChildLabelMap)
 	if rCtx.AllMetadata {

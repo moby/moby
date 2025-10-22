@@ -28,7 +28,7 @@ type InstrumentKind uint8
 const (
 	// instrumentKindUndefined is an undefined instrument kind, it should not
 	// be used by any initialized type.
-	instrumentKindUndefined InstrumentKind = 0 // nolint:deadcode,varcheck,unused
+	instrumentKindUndefined InstrumentKind = 0 // nolint:unused
 	// InstrumentKindCounter identifies a group of instruments that record
 	// increasing values synchronously with the code path they are measuring.
 	InstrumentKindCounter InstrumentKind = 1
@@ -208,7 +208,11 @@ func (i *int64Inst) Enabled(_ context.Context) bool {
 	return len(i.measures) != 0
 }
 
-func (i *int64Inst) aggregate(ctx context.Context, val int64, s attribute.Set) { // nolint:revive  // okay to shadow pkg with method.
+func (i *int64Inst) aggregate(
+	ctx context.Context,
+	val int64,
+	s attribute.Set,
+) { // nolint:revive  // okay to shadow pkg with method.
 	for _, in := range i.measures {
 		in(ctx, val, s)
 	}

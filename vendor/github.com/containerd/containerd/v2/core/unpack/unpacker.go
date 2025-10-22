@@ -35,7 +35,6 @@ import (
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
-	"golang.org/x/sync/semaphore"
 
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/diff"
@@ -63,8 +62,8 @@ type unpackerConfig struct {
 
 	content content.Store
 
-	limiter               *semaphore.Weighted
-	duplicationSuppressor kmutex.KeyedLocker
+	limiter               Limiter
+	duplicationSuppressor KeyedLocker
 }
 
 // Platform represents a platform-specific unpack configuration which includes
@@ -87,6 +86,20 @@ type Platform struct {
 	// LayerTypes are the supported types to be considered layers
 	// Defaults to OCI image layers
 	LayerTypes []string
+}
+
+// KeyedLocker is an interface for managing job duplication by
+// locking on a given key.
+type KeyedLocker interface {
+	Lock(ctx context.Context, key string) error
+	Unlock(key string)
+}
+
+// Limiter interface is used to restrict the number of concurrent operations by
+// requiring operations to first acquire from the limiter and release when complete.
+type Limiter interface {
+	Acquire(context.Context, int64) error
+	Release(int64)
 }
 
 type UnpackerOpt func(*unpackerConfig) error
@@ -116,14 +129,14 @@ func WithUnpackPlatform(u Platform) UnpackerOpt {
 	})
 }
 
-func WithLimiter(l *semaphore.Weighted) UnpackerOpt {
+func WithLimiter(l Limiter) UnpackerOpt {
 	return UnpackerOpt(func(c *unpackerConfig) error {
 		c.limiter = l
 		return nil
 	})
 }
 
-func WithDuplicationSuppressor(d kmutex.KeyedLocker) UnpackerOpt {
+func WithDuplicationSuppressor(d KeyedLocker) UnpackerOpt {
 	return UnpackerOpt(func(c *unpackerConfig) error {
 		c.duplicationSuppressor = d
 		return nil

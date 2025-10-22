@@ -11,7 +11,13 @@ linters:
     - misspell
   disable:
     - errcheck
-
+  # Continue supporting deprecated CNI conf formats (ref: https://github.com/containernetworking/cni/pull/1052#issuecomment-1922233640)
+  exclusions:
+    rules:
+      - path: opts.go
+        linters:
+          - staticcheck
+        text: "SA1019:"
 # FIXME: re-enable after fixing GoDoc in this repository
 #issues:
 #  include:

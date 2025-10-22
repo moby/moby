@@ -23,9 +23,10 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/containerd/containerd/v2/internal/randutil"
 	kernel "github.com/containerd/containerd/v2/pkg/kernelversion"
-	"golang.org/x/sys/unix"
 )
 
 const (
@@ -44,6 +45,7 @@ type LoopParams struct {
 	Autoclear bool
 	// Use direct IO to access the loop backing file
 	Direct bool
+	// TODO: Support block size, offset, sizelimit
 }
 
 func getFreeLoopDev() (uint32, error) {
@@ -188,6 +190,29 @@ func setupLoop(backingFile string, param LoopParams) (*os.File, error) {
 	}
 
 	return nil, errors.New("timeout creating new loopback device")
+}
+
+func setLoopAutoclear(loop *os.File, autoclear bool) error {
+	info, err := unix.IoctlLoopGetStatus64(int(loop.Fd()))
+	if err != nil {
+		return fmt.Errorf("failed to get loop device info: %w", err)
+	}
+
+	flags := info.Flags
+	if autoclear {
+		flags |= unix.LO_FLAGS_AUTOCLEAR
+	} else {
+		flags &= ^uint32(unix.LO_FLAGS_AUTOCLEAR)
+	}
+
+	if flags != info.Flags {
+		info.Flags = flags
+		err = unix.IoctlLoopSetStatus64(int(loop.Fd()), info)
+		if err != nil {
+			return fmt.Errorf("failed to set loop device info: %w", err)
+		}
+	}
+	return nil
 }
 
 func removeLoop(loopdev string) error {

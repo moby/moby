@@ -143,7 +143,11 @@ func (s *sum[N]) cumulative(dest *metricdata.Aggregation) int {
 // newPrecomputedSum returns an aggregator that summarizes a set of
 // observations as their arithmetic sum. Each sum is scoped by attributes and
 // the aggregation cycle the measurements were made in.
-func newPrecomputedSum[N int64 | float64](monotonic bool, limit int, r func(attribute.Set) FilteredExemplarReservoir[N]) *precomputedSum[N] {
+func newPrecomputedSum[N int64 | float64](
+	monotonic bool,
+	limit int,
+	r func(attribute.Set) FilteredExemplarReservoir[N],
+) *precomputedSum[N] {
 	return &precomputedSum[N]{
 		valueMap:  newValueMap[N](limit, r),
 		monotonic: monotonic,

@@ -31,13 +31,13 @@ type ModificationRequest struct {
 }
 
 type NetworkModifyRequest struct {
-	AdapterId   string      `json:"AdapterId,omitempty"` //nolint:stylecheck
+	AdapterId   string      `json:"AdapterId,omitempty"` //nolint:staticcheck // ST1003: ALL_CAPS
 	RequestType RequestType `json:"RequestType,omitempty"`
 	Settings    interface{} `json:"Settings,omitempty"`
 }
 
 type RS4NetworkModifyRequest struct {
-	AdapterInstanceId string      `json:"AdapterInstanceId,omitempty"` //nolint:stylecheck
+	AdapterInstanceId string      `json:"AdapterInstanceId,omitempty"` //nolint:staticcheck // ST1003: ALL_CAPS
 	RequestType       RequestType `json:"RequestType,omitempty"`
 	Settings          interface{} `json:"Settings,omitempty"`
 }

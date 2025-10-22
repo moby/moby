@@ -18,6 +18,7 @@ package cio
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -205,16 +206,16 @@ func (c *cio) Wait() {
 }
 
 func (c *cio) Close() error {
-	var lastErr error
+	var errs []error
 	for _, closer := range c.closers {
 		if closer == nil {
 			continue
 		}
 		if err := closer.Close(); err != nil {
-			lastErr = err
+			errs = append(errs, err)
 		}
 	}
-	return lastErr
+	return errors.Join(errs...)
 }
 
 func (c *cio) Cancel() {

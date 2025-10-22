@@ -22,17 +22,9 @@ import (
 
 	bolt "go.etcd.io/bbolt"
 	errbolt "go.etcd.io/bbolt/errors"
+
+	"github.com/containerd/containerd/v2/core/metadata/boltutil"
 )
-
-type transactionKey struct{}
-
-// WithTransactionContext returns a new context holding the provided
-// bolt transaction. Functions which require a bolt transaction will
-// first check to see if a transaction is already created on the
-// context before creating their own.
-func WithTransactionContext(ctx context.Context, tx *bolt.Tx) context.Context {
-	return context.WithValue(ctx, transactionKey{}, tx)
-}
 
 // Transactor is the database interface for running transactions
 type Transactor interface {
@@ -43,7 +35,7 @@ type Transactor interface {
 // view gets a bolt db transaction either from the context
 // or starts a new one with the provided bolt database.
 func view(ctx context.Context, db Transactor, fn func(*bolt.Tx) error) error {
-	tx, ok := ctx.Value(transactionKey{}).(*bolt.Tx)
+	tx, ok := boltutil.Transaction(ctx)
 	if !ok {
 		return db.View(fn)
 	}
@@ -53,7 +45,7 @@ func view(ctx context.Context, db Transactor, fn func(*bolt.Tx) error) error {
 // update gets a writable bolt db transaction either from the context
 // or starts a new one with the provided bolt database.
 func update(ctx context.Context, db Transactor, fn func(*bolt.Tx) error) error {
-	tx, ok := ctx.Value(transactionKey{}).(*bolt.Tx)
+	tx, ok := boltutil.Transaction(ctx)
 	if !ok {
 		return db.Update(fn)
 	} else if !tx.Writable() {
