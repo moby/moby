@@ -23,10 +23,10 @@ type ImagePullResponse interface {
 // It executes the privileged function if the operation is unauthorized
 // and it tries one more time.
 // Callers can:
-// - use [ImagePullResponse.Wait] to wait for pull to complete
-// - use [ImagePullResponse.JSONMessages] to monitor pull progress as a sequence
-//   of JSONMessages, [ImagePullResponse.Close] does not need to be called in this case.
-// - use the [io.Reader] interface and call [ImagePullResponse.Close] after processing.
+//   - use [ImagePullResponse.Wait] to wait for pull to complete
+//   - use [ImagePullResponse.JSONMessages] to monitor pull progress as a sequence
+//     of JSONMessages, [ImagePullResponse.Close] does not need to be called in this case.
+//   - use the [io.Reader] interface and call [ImagePullResponse.Close] after processing.
 func (cli *Client) ImagePull(ctx context.Context, refStr string, options ImagePullOptions) (ImagePullResponse, error) {
 	// FIXME(vdemeester): there is currently used in a few way in docker/docker
 	// - if not in trusted content, ref is used to pass the whole reference, and tag is empty

@@ -5,8 +5,7 @@ import (
 	"net/url"
 )
 
-type NodeRemoveResult struct {
-}
+type NodeRemoveResult struct{}
 
 // NodeRemove removes a Node.
 func (cli *Client) NodeRemove(ctx context.Context, nodeID string, options NodeRemoveOptions) (NodeRemoveResult, error) {
