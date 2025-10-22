@@ -56,5 +56,6 @@ func TestNetworkCreate(t *testing.T) {
 	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(networkResponse.ID, "network_id"))
-	assert.Check(t, is.Equal(networkResponse.Warning, "warning"))
+	assert.Check(t, is.Len(networkResponse.Warning, 1))
+	assert.Check(t, is.Equal(networkResponse.Warning[0], "warning"))
 }

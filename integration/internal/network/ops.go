@@ -63,7 +63,7 @@ func WithConfigOnly(co bool) func(*client.NetworkCreateOptions) {
 // WithConfigFrom sets the ConfigOnly flag in the create network request
 func WithConfigFrom(name string) func(*client.NetworkCreateOptions) {
 	return func(n *client.NetworkCreateOptions) {
-		n.ConfigFrom = &network.ConfigReference{Network: name}
+		n.ConfigFrom = name
 	}
 }
 
