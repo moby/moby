@@ -373,7 +373,7 @@ func TestServiceWithDataPathPortInit(t *testing.T) {
 	assert.NilError(t, err)
 	poll.WaitOn(t, noServices(ctx, c), swarm.ServicePoll)
 	poll.WaitOn(t, swarm.NoTasks(ctx, c), swarm.ServicePoll)
-	err = c.NetworkRemove(ctx, overlayID)
+	_, err = c.NetworkRemove(ctx, overlayID, client.NetworkRemoveOptions{})
 	assert.NilError(t, err)
 	c.Close()
 	err = d.SwarmLeave(ctx, t, true)
@@ -406,7 +406,7 @@ func TestServiceWithDataPathPortInit(t *testing.T) {
 	assert.NilError(t, err)
 	poll.WaitOn(t, noServices(ctx, nc), swarm.ServicePoll)
 	poll.WaitOn(t, swarm.NoTasks(ctx, nc), swarm.ServicePoll)
-	err = nc.NetworkRemove(ctx, overlayID)
+	_, err = nc.NetworkRemove(ctx, overlayID, client.NetworkRemoveOptions{})
 	assert.NilError(t, err)
 	err = d.SwarmLeave(ctx, t, true)
 	assert.NilError(t, err)
@@ -463,7 +463,7 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 	poll.WaitOn(t, noServices(ctx, cli), swarm.ServicePoll)
 	poll.WaitOn(t, swarm.NoTasks(ctx, cli), swarm.ServicePoll)
 	assert.NilError(t, err)
-	err = cli.NetworkRemove(ctx, overlayID)
+	_, err = cli.NetworkRemove(ctx, overlayID, client.NetworkRemoveOptions{})
 	assert.NilError(t, err)
 	err = d.SwarmLeave(ctx, t, true)
 	assert.NilError(t, err)
@@ -501,7 +501,7 @@ func TestCustomIfnameIsPreservedOnLiveRestore(t *testing.T) {
 	// On live-restore, the daemon rebuilds the list of interfaces for all
 	// containers. Call NetworkDisconnect here to make sure that the right
 	// dstName is used internally.
-	err = apiClient.NetworkDisconnect(ctx, "bridge", ctrId, true)
+	_, err = apiClient.NetworkDisconnect(ctx, "bridge", client.NetworkDisconnectOptions{Container: ctrId, Force: true})
 	assert.NilError(t, err)
 }
 
@@ -525,9 +525,12 @@ func TestCustomIfnameCollidesWithExistingIface(t *testing.T) {
 		container.WithEndpointSettings("bridge", &networktypes.EndpointSettings{}))
 	defer container.Remove(ctx, t, apiClient, ctrId, client.ContainerRemoveOptions{Force: true})
 
-	err := apiClient.NetworkConnect(ctx, testnet, ctrId, &networktypes.EndpointSettings{DriverOpts: map[string]string{
-		netlabel.Ifname: "eth0",
-	}})
+	_, err := apiClient.NetworkConnect(ctx, testnet, client.NetworkConnectOptions{
+		Container: ctrId,
+		EndpointConfig: &networktypes.EndpointSettings{DriverOpts: map[string]string{
+			netlabel.Ifname: "eth0",
+		}},
+	})
 	assert.ErrorContains(t, err, "error renaming interface")
 	assert.ErrorContains(t, err, "file exists")
 }
@@ -573,18 +576,22 @@ func TestCustomIfnameWithMatchingDynamicPrefix(t *testing.T) {
 	checkIfaceAddr(t, ctx, apiClient, ctrId, "eth0", "inet 10.0.1.2/24")
 	checkIfaceAddr(t, ctx, apiClient, ctrId, "eth1", "inet 10.0.0.2/24")
 
-	err := apiClient.NetworkConnect(ctx, "testnet2", ctrId, nil)
+	_, err := apiClient.NetworkConnect(ctx, "testnet2", client.NetworkConnectOptions{
+		Container: ctrId,
+	})
 	assert.NilError(t, err)
 	checkIfaceAddr(t, ctx, apiClient, ctrId, "eth2", "inet 10.0.2.2/24")
 
 	// Disconnect from testnet1 (ie. eth0), and testnet2 (ie. eth2)
-	err = apiClient.NetworkDisconnect(ctx, "testnet1", ctrId, false)
+	_, err = apiClient.NetworkDisconnect(ctx, "testnet1", client.NetworkDisconnectOptions{Container: ctrId, Force: false})
 	assert.NilError(t, err)
-	err = apiClient.NetworkDisconnect(ctx, "testnet2", ctrId, false)
+	_, err = apiClient.NetworkDisconnect(ctx, "testnet2", client.NetworkDisconnectOptions{Container: ctrId, Force: false})
 	assert.NilError(t, err)
 
 	// Reconnect to testnet2 -- it should now provide eth0.
-	err = apiClient.NetworkConnect(ctx, "testnet2", ctrId, nil)
+	_, err = apiClient.NetworkConnect(ctx, "testnet2", client.NetworkConnectOptions{
+		Container: ctrId,
+	})
 	assert.NilError(t, err)
 	checkIfaceAddr(t, ctx, apiClient, ctrId, "eth0", "inet 10.0.2.2/24")
 }

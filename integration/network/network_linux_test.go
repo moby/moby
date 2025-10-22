@@ -148,7 +148,7 @@ func TestDefaultNetworkOpts(t *testing.T) {
 						"com.docker.network.driver.mtu": fmt.Sprint(tc.mtu),
 					}
 				})
-				defer c.NetworkRemove(ctx, "from-net")
+				defer c.NetworkRemove(ctx, "from-net", client.NetworkRemoveOptions{})
 			}
 
 			// Create a new network
@@ -160,7 +160,7 @@ func TestDefaultNetworkOpts(t *testing.T) {
 					}
 				}
 			})
-			defer c.NetworkRemove(ctx, networkName)
+			defer c.NetworkRemove(ctx, networkName, client.NetworkRemoveOptions{})
 
 			// Check the MTU of the bridge itself, before any devices are connected. (The
 			// bridge's MTU will be set to the minimum MTU of anything connected to it, but
@@ -318,26 +318,38 @@ func TestConnectWithPriority(t *testing.T) {
 	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET6, 4, "default via fddd:4901:f594::1 dev eth0")
 
 	// testnet5 has a negative priority -- the default gateway should not change.
-	err := apiClient.NetworkConnect(ctx, "testnet5", ctrID, &networktypes.EndpointSettings{GwPriority: -100})
+	_, err := apiClient.NetworkConnect(ctx, "testnet5", client.NetworkConnectOptions{
+		Container:      ctrID,
+		EndpointConfig: &networktypes.EndpointSettings{GwPriority: -100},
+	})
 	assert.NilError(t, err)
 	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET, 3, "default via 10.100.10.1 dev eth0")
 	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET6, 7, "default via fddd:4901:f594::1 dev eth0")
 
 	// testnet2 has a higher priority. It should now provide the default gateway.
-	err = apiClient.NetworkConnect(ctx, "testnet2", ctrID, &networktypes.EndpointSettings{GwPriority: 100})
+	_, err = apiClient.NetworkConnect(ctx, "testnet2", client.NetworkConnectOptions{
+		Container:      ctrID,
+		EndpointConfig: &networktypes.EndpointSettings{GwPriority: 100},
+	})
 	assert.NilError(t, err)
 	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET, 4, "default via 10.100.20.1 dev eth2")
 	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET6, 10, "default via fd83:7683:7008::1 dev eth2")
 
 	// testnet3 has a lower priority, so testnet2 should still provide the default gateway.
-	err = apiClient.NetworkConnect(ctx, "testnet3", ctrID, &networktypes.EndpointSettings{GwPriority: 10})
+	_, err = apiClient.NetworkConnect(ctx, "testnet3", client.NetworkConnectOptions{
+		Container:      ctrID,
+		EndpointConfig: &networktypes.EndpointSettings{GwPriority: 10},
+	})
 	assert.NilError(t, err)
 	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET, 5, "default via 10.100.20.1 dev eth2")
 	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET6, 13, "default via fd83:7683:7008::1 dev eth2")
 
 	// testnet4 has the same priority as testnet3, but it sorts after in
 	// lexicographic order. For now, testnet2 stays the default gateway.
-	err = apiClient.NetworkConnect(ctx, "testnet4", ctrID, &networktypes.EndpointSettings{GwPriority: 10})
+	_, err = apiClient.NetworkConnect(ctx, "testnet4", client.NetworkConnectOptions{
+		Container:      ctrID,
+		EndpointConfig: &networktypes.EndpointSettings{GwPriority: 10},
+	})
 	assert.NilError(t, err)
 	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET, 6, "default via 10.100.20.1 dev eth2")
 	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET6, 16, "default via fd83:7683:7008::1 dev eth2")
@@ -352,19 +364,19 @@ func TestConnectWithPriority(t *testing.T) {
 	// Disconnect testnet2, so testnet3 should now provide the default gateway.
 	// When two endpoints have the same priority (eg. testnet3 vs testnet4),
 	// the one that sorts first in lexicographic order is picked.
-	err = apiClient.NetworkDisconnect(ctx, "testnet2", ctrID, true)
+	_, err = apiClient.NetworkDisconnect(ctx, "testnet2", client.NetworkDisconnectOptions{Container: ctrID, Force: true})
 	assert.NilError(t, err)
 	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET, 5, "default via 10.100.30.1 dev eth3")
 	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET6, 13, "default via fd72:de0:adad::1 dev eth3")
 
 	// Disconnect testnet3, so testnet4 should now provide the default gateway.
-	err = apiClient.NetworkDisconnect(ctx, "testnet3", ctrID, true)
+	_, err = apiClient.NetworkDisconnect(ctx, "testnet3", client.NetworkDisconnectOptions{Container: ctrID, Force: true})
 	assert.NilError(t, err)
 	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET, 4, "default via 10.100.40.1 dev eth4")
 	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET6, 10, "default via fd4c:c927:7d90::1 dev eth4")
 
 	// Disconnect testnet4, so testnet1 should now provide the default gateway.
-	err = apiClient.NetworkDisconnect(ctx, "testnet4", ctrID, true)
+	_, err = apiClient.NetworkDisconnect(ctx, "testnet4", client.NetworkDisconnectOptions{Container: ctrID, Force: true})
 	assert.NilError(t, err)
 	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET, 3, "default via 10.100.10.1 dev eth0")
 	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET6, 7, "default via fddd:4901:f594::1 dev eth0")
@@ -511,19 +523,22 @@ func TestMixL3IPVlanAndBridge(t *testing.T) {
 			checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET6, 10, "default via fd6f:36f8:3005::1 dev bds")
 
 			// Disconnect the dual-stack bridge network, expect the ipvlan's default route to be set up.
-			c.NetworkDisconnect(ctx, br46NetName, ctrId, false)
+			c.NetworkDisconnect(ctx, br46NetName, client.NetworkDisconnectOptions{Container: ctrId, Force: false})
 			checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET, 2, "default dev eth")
 			checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET6, 7, "default dev eth")
 
 			// Disconnect the ipvlan, expect the IPv6-only network to be the gateway, with no IPv4 gateway.
 			// (For this to work in the live-restore case the "dstName" of the interface must have been
 			// restored in the osSbox, based on matching the running interface's IPv6 address.)
-			c.NetworkDisconnect(ctx, ipvNetName, ctrId, false)
+			c.NetworkDisconnect(ctx, ipvNetName, client.NetworkDisconnectOptions{Container: ctrId, Force: false})
 			checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET, 0, "")
 			checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET6, 4, "default via fdc9:adaf:b5da::1 dev bss")
 
 			// Reconnect the dual-stack bridge, expect it to be the gateway for both addr families.
-			c.NetworkConnect(ctx, br46NetName, ctrId, &networktypes.EndpointSettings{GwPriority: 1})
+			c.NetworkConnect(ctx, br46NetName, client.NetworkConnectOptions{
+				Container:      ctrId,
+				EndpointConfig: &networktypes.EndpointSettings{GwPriority: 1},
+			})
 			checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET, 2, "default via 192.168.123.1 dev bds")
 			checkCtrRoutes(t, ctx, c, ctrId, syscall.AF_INET6, 7, "default via fd6f:36f8:3005::1 dev bds")
 		})

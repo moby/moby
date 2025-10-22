@@ -109,7 +109,9 @@ func TestInternalNetworkDNS(t *testing.T) {
 
 	// Connect the container to the internal network as well.
 	// External DNS should still be used.
-	err = c.NetworkConnect(ctx, intNetName, ctrId, nil)
+	_, err = c.NetworkConnect(ctx, intNetName, client.NetworkConnectOptions{
+		Container: ctrId,
+	})
 	assert.NilError(t, err)
 	res, err = container.Exec(ctx, c, ctrId, []string{"nslookup", "test.example"})
 	assert.NilError(t, err)
@@ -118,7 +120,7 @@ func TestInternalNetworkDNS(t *testing.T) {
 
 	// Disconnect from the external network.
 	// Expect no access to the external DNS.
-	err = c.NetworkDisconnect(ctx, extNetName, ctrId, true)
+	_, err = c.NetworkDisconnect(ctx, extNetName, client.NetworkDisconnectOptions{Container: ctrId, Force: true})
 	assert.NilError(t, err)
 	res, err = container.Exec(ctx, c, ctrId, []string{"nslookup", "test.example"})
 	assert.NilError(t, err)
@@ -127,7 +129,9 @@ func TestInternalNetworkDNS(t *testing.T) {
 
 	// Reconnect the external network.
 	// Check that the external DNS server is used again.
-	err = c.NetworkConnect(ctx, extNetName, ctrId, nil)
+	_, err = c.NetworkConnect(ctx, extNetName, client.NetworkConnectOptions{
+		Container: ctrId,
+	})
 	assert.NilError(t, err)
 	res, err = container.Exec(ctx, c, ctrId, []string{"nslookup", "test.example"})
 	assert.NilError(t, err)

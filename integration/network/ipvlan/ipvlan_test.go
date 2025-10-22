@@ -12,7 +12,7 @@ import (
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/api/types/network"
-	dclient "github.com/moby/moby/client"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/integration/internal/container"
 	net "github.com/moby/moby/v2/integration/internal/network"
@@ -62,7 +62,7 @@ func TestDockerNetworkIpvlan(t *testing.T) {
 
 	for _, tc := range []struct {
 		name string
-		test func(*testing.T, context.Context, dclient.APIClient)
+		test func(*testing.T, context.Context, client.APIClient)
 	}{
 		{
 			name: "Subinterface",
@@ -112,27 +112,27 @@ func TestDockerNetworkIpvlan(t *testing.T) {
 	}
 }
 
-func testIpvlanSubinterface(t *testing.T, ctx context.Context, client dclient.APIClient) {
+func testIpvlanSubinterface(t *testing.T, ctx context.Context, apiClient client.APIClient) {
 	master := "di-dummy0"
 	n.CreateMasterDummy(ctx, t, master)
 	defer n.DeleteInterface(ctx, t, master)
 
 	netName := "di-subinterface"
-	net.CreateNoError(ctx, t, client, netName,
+	net.CreateNoError(ctx, t, apiClient, netName,
 		net.WithIPvlan("di-dummy0.60", ""),
 	)
-	assert.Check(t, n.IsNetworkAvailable(ctx, client, netName))
+	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, netName))
 
 	// delete the network while preserving the parent link
-	err := client.NetworkRemove(ctx, netName)
+	_, err := apiClient.NetworkRemove(ctx, netName, client.NetworkRemoveOptions{})
 	assert.NilError(t, err)
 
-	assert.Check(t, n.IsNetworkNotAvailable(ctx, client, netName))
+	assert.Check(t, n.IsNetworkNotAvailable(ctx, apiClient, netName))
 	// verify the network delete did not delete the predefined link
 	n.LinkExists(ctx, t, "di-dummy0")
 }
 
-func testIpvlanOverlapParent(t *testing.T, ctx context.Context, client dclient.APIClient) {
+func testIpvlanOverlapParent(t *testing.T, ctx context.Context, client client.APIClient) {
 	// verify the same parent interface cannot be used if already in use by an existing network
 	master := "di-dummy0"
 	parent := master + ".30"
@@ -153,99 +153,99 @@ func testIpvlanOverlapParent(t *testing.T, ctx context.Context, client dclient.A
 	assert.Check(t, err != nil)
 }
 
-func testIpvlanL2NilParent(t *testing.T, ctx context.Context, client dclient.APIClient) {
+func testIpvlanL2NilParent(t *testing.T, ctx context.Context, apiClient client.APIClient) {
 	// ipvlan l2 mode - dummy parent interface is provisioned dynamically
 	netName := "di-nil-parent"
-	net.CreateNoError(ctx, t, client, netName,
+	net.CreateNoError(ctx, t, apiClient, netName,
 		net.WithIPvlan("", ""),
 	)
-	assert.Check(t, n.IsNetworkAvailable(ctx, client, netName))
+	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, netName))
 
-	id1 := container.Run(ctx, t, client, container.WithNetworkMode(netName))
-	id2 := container.Run(ctx, t, client, container.WithNetworkMode(netName))
+	id1 := container.Run(ctx, t, apiClient, container.WithNetworkMode(netName))
+	id2 := container.Run(ctx, t, apiClient, container.WithNetworkMode(netName))
 
-	_, err := container.Exec(ctx, client, id2, []string{"ping", "-c", "1", id1})
+	_, err := container.Exec(ctx, apiClient, id2, []string{"ping", "-c", "1", id1})
 	assert.NilError(t, err)
 }
 
-func testIpvlanL2InternalMode(t *testing.T, ctx context.Context, client dclient.APIClient) {
+func testIpvlanL2InternalMode(t *testing.T, ctx context.Context, apiClient client.APIClient) {
 	netName := "di-internal"
-	net.CreateNoError(ctx, t, client, netName,
+	net.CreateNoError(ctx, t, apiClient, netName,
 		net.WithIPvlan("", ""),
 		net.WithInternal(),
 	)
-	assert.Check(t, n.IsNetworkAvailable(ctx, client, netName))
+	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, netName))
 
-	id1 := container.Run(ctx, t, client, container.WithNetworkMode(netName))
-	id2 := container.Run(ctx, t, client, container.WithNetworkMode(netName))
+	id1 := container.Run(ctx, t, apiClient, container.WithNetworkMode(netName))
+	id2 := container.Run(ctx, t, apiClient, container.WithNetworkMode(netName))
 
-	result, _ := container.Exec(ctx, client, id1, []string{"ping", "-c", "1", "8.8.8.8"})
+	result, _ := container.Exec(ctx, apiClient, id1, []string{"ping", "-c", "1", "8.8.8.8"})
 	assert.Check(t, is.Contains(result.Combined(), "Network is unreachable"))
 
-	_, err := container.Exec(ctx, client, id2, []string{"ping", "-c", "1", id1})
+	_, err := container.Exec(ctx, apiClient, id2, []string{"ping", "-c", "1", id1})
 	assert.NilError(t, err)
 }
 
-func testIpvlanL3NilParent(t *testing.T, ctx context.Context, client dclient.APIClient) {
+func testIpvlanL3NilParent(t *testing.T, ctx context.Context, apiClient client.APIClient) {
 	netName := "di-nil-parent-l3"
-	net.CreateNoError(ctx, t, client, netName,
+	net.CreateNoError(ctx, t, apiClient, netName,
 		net.WithIPvlan("", "l3"),
 		net.WithIPAM("172.28.230.0/24", ""),
 		net.WithIPAM("172.28.220.0/24", ""),
 	)
-	assert.Check(t, n.IsNetworkAvailable(ctx, client, netName))
+	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, netName))
 
-	id1 := container.Run(ctx, t, client,
+	id1 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode(netName),
 		container.WithIPv4(netName, "172.28.220.10"),
 	)
-	id2 := container.Run(ctx, t, client,
+	id2 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode(netName),
 		container.WithIPv4(netName, "172.28.230.10"),
 	)
 
-	_, err := container.Exec(ctx, client, id2, []string{"ping", "-c", "1", id1})
+	_, err := container.Exec(ctx, apiClient, id2, []string{"ping", "-c", "1", id1})
 	assert.NilError(t, err)
 }
 
-func testIpvlanL3InternalMode(t *testing.T, ctx context.Context, client dclient.APIClient) {
+func testIpvlanL3InternalMode(t *testing.T, ctx context.Context, apiClient client.APIClient) {
 	netName := "di-internal-l3"
-	net.CreateNoError(ctx, t, client, netName,
+	net.CreateNoError(ctx, t, apiClient, netName,
 		net.WithIPvlan("", "l3"),
 		net.WithInternal(),
 		net.WithIPAM("172.28.230.0/24", ""),
 		net.WithIPAM("172.28.220.0/24", ""),
 	)
-	assert.Check(t, n.IsNetworkAvailable(ctx, client, netName))
+	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, netName))
 
-	id1 := container.Run(ctx, t, client,
+	id1 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode(netName),
 		container.WithIPv4(netName, "172.28.220.10"),
 	)
-	id2 := container.Run(ctx, t, client,
+	id2 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode(netName),
 		container.WithIPv4(netName, "172.28.230.10"),
 	)
 
-	result, _ := container.Exec(ctx, client, id1, []string{"ping", "-c", "1", "8.8.8.8"})
+	result, _ := container.Exec(ctx, apiClient, id1, []string{"ping", "-c", "1", "8.8.8.8"})
 	assert.Check(t, is.Contains(result.Combined(), "Network is unreachable"))
 
-	_, err := container.Exec(ctx, client, id2, []string{"ping", "-c", "1", id1})
+	_, err := container.Exec(ctx, apiClient, id2, []string{"ping", "-c", "1", id1})
 	assert.NilError(t, err)
 }
 
-func testIpvlanL2MultiSubnetWithParent(t *testing.T, ctx context.Context, client dclient.APIClient) {
+func testIpvlanL2MultiSubnetWithParent(t *testing.T, ctx context.Context, apiClient client.APIClient) {
 	const parentIfName = "di-dummy0"
 	n.CreateMasterDummy(ctx, t, parentIfName)
 	defer n.DeleteInterface(ctx, t, parentIfName)
-	testIpvlanL2MultiSubnet(t, ctx, client, parentIfName)
+	testIpvlanL2MultiSubnet(t, ctx, apiClient, parentIfName)
 }
 
-func testIpvlanL2MultiSubnetNoParent(t *testing.T, ctx context.Context, client dclient.APIClient) {
-	testIpvlanL2MultiSubnet(t, ctx, client, "")
+func testIpvlanL2MultiSubnetNoParent(t *testing.T, ctx context.Context, apiClient client.APIClient) {
+	testIpvlanL2MultiSubnet(t, ctx, apiClient, "")
 }
 
-func testIpvlanL2MultiSubnet(t *testing.T, ctx context.Context, apiClient dclient.APIClient, parent string) {
+func testIpvlanL2MultiSubnet(t *testing.T, ctx context.Context, apiClient client.APIClient, parent string) {
 	netName := "dualstackl2"
 	net.CreateNoError(ctx, t, apiClient, netName,
 		net.WithIPvlan(parent, ""),
@@ -268,7 +268,7 @@ func testIpvlanL2MultiSubnet(t *testing.T, ctx context.Context, apiClient dclien
 		container.WithIPv4(netName, "172.28.200.21"),
 		container.WithIPv6(netName, "2001:db8:abc8::21"),
 	)
-	c1, err := apiClient.ContainerInspect(ctx, id1, dclient.ContainerInspectOptions{})
+	c1, err := apiClient.ContainerInspect(ctx, id1, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 	// Inspect the v4 gateway to ensure no default GW was assigned
 	assert.Check(t, !c1.Container.NetworkSettings.Networks[netName].Gateway.IsValid())
@@ -293,7 +293,7 @@ func testIpvlanL2MultiSubnet(t *testing.T, ctx context.Context, apiClient dclien
 		container.WithIPv4(netName, "172.28.202.21"),
 		container.WithIPv6(netName, "2001:db8:abc6::21"),
 	)
-	c3, err := apiClient.ContainerInspect(ctx, id3, dclient.ContainerInspectOptions{})
+	c3, err := apiClient.ContainerInspect(ctx, id3, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 	if parent == "" {
 		// Inspect the v4 gateway to ensure no default GW was assigned
@@ -315,9 +315,9 @@ func testIpvlanL2MultiSubnet(t *testing.T, ctx context.Context, apiClient dclien
 	assert.NilError(t, err)
 }
 
-func testIpvlanL3MultiSubnet(t *testing.T, ctx context.Context, client dclient.APIClient) {
+func testIpvlanL3MultiSubnet(t *testing.T, ctx context.Context, apiClient client.APIClient) {
 	netName := "dualstackl3"
-	net.CreateNoError(ctx, t, client, netName,
+	net.CreateNoError(ctx, t, apiClient, netName,
 		net.WithIPvlan("", "l3"),
 		net.WithIPv6(),
 		net.WithIPAM("172.28.10.0/24", ""),
@@ -325,48 +325,48 @@ func testIpvlanL3MultiSubnet(t *testing.T, ctx context.Context, client dclient.A
 		net.WithIPAM("2001:db8:abc9::/64", ""),
 		net.WithIPAM("2001:db8:abc7::/64", "2001:db8:abc7::254"),
 	)
-	assert.Check(t, n.IsNetworkAvailable(ctx, client, netName))
+	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, netName))
 
 	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.100.0/24 and 2001:db8:abc2::/64
-	id1 := container.Run(ctx, t, client,
+	id1 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode(netName),
 		container.WithIPv4(netName, "172.28.10.20"),
 		container.WithIPv6(netName, "2001:db8:abc9::20"),
 	)
-	id2 := container.Run(ctx, t, client,
+	id2 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode(netName),
 		container.WithIPv4(netName, "172.28.10.21"),
 		container.WithIPv6(netName, "2001:db8:abc9::21"),
 	)
-	c1, err := client.ContainerInspect(ctx, id1, dclient.ContainerInspectOptions{})
+	c1, err := apiClient.ContainerInspect(ctx, id1, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 
 	// verify ipv4 connectivity to the explicit --ipv address second to first
-	_, err = container.Exec(ctx, client, id2, []string{"ping", "-c", "1", c1.Container.NetworkSettings.Networks[netName].IPAddress.String()})
+	_, err = container.Exec(ctx, apiClient, id2, []string{"ping", "-c", "1", c1.Container.NetworkSettings.Networks[netName].IPAddress.String()})
 	assert.NilError(t, err)
 	// verify ipv6 connectivity to the explicit --ipv6 address second to first
-	_, err = container.Exec(ctx, client, id2, []string{"ping6", "-c", "1", c1.Container.NetworkSettings.Networks[netName].GlobalIPv6Address.String()})
+	_, err = container.Exec(ctx, apiClient, id2, []string{"ping6", "-c", "1", c1.Container.NetworkSettings.Networks[netName].GlobalIPv6Address.String()})
 	assert.NilError(t, err)
 
 	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.102.0/24 and 2001:db8:abc4::/64
-	id3 := container.Run(ctx, t, client,
+	id3 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode(netName),
 		container.WithIPv4(netName, "172.28.12.20"),
 		container.WithIPv6(netName, "2001:db8:abc7::20"),
 	)
-	id4 := container.Run(ctx, t, client,
+	id4 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode(netName),
 		container.WithIPv4(netName, "172.28.12.21"),
 		container.WithIPv6(netName, "2001:db8:abc7::21"),
 	)
-	c3, err := client.ContainerInspect(ctx, id3, dclient.ContainerInspectOptions{})
+	c3, err := apiClient.ContainerInspect(ctx, id3, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 
 	// verify ipv4 connectivity to the explicit --ipv address from third to fourth
-	_, err = container.Exec(ctx, client, id4, []string{"ping", "-c", "1", c3.Container.NetworkSettings.Networks[netName].IPAddress.String()})
+	_, err = container.Exec(ctx, apiClient, id4, []string{"ping", "-c", "1", c3.Container.NetworkSettings.Networks[netName].IPAddress.String()})
 	assert.NilError(t, err)
 	// verify ipv6 connectivity to the explicit --ipv6 address from third to fourth
-	_, err = container.Exec(ctx, client, id4, []string{"ping6", "-c", "1", c3.Container.NetworkSettings.Networks[netName].GlobalIPv6Address.String()})
+	_, err = container.Exec(ctx, apiClient, id4, []string{"ping6", "-c", "1", c3.Container.NetworkSettings.Networks[netName].GlobalIPv6Address.String()})
 	assert.NilError(t, err)
 
 	// Inspect the v4 gateway to ensure no next hop is assigned in L3 mode
@@ -381,58 +381,58 @@ func testIpvlanL3MultiSubnet(t *testing.T, ctx context.Context, client dclient.A
 
 // Verify ipvlan l2 mode sets the proper default gateway routes via netlink
 // for either an explicitly set route by the user or inferred via default IPAM
-func testIpvlanL2Addressing(t *testing.T, ctx context.Context, client dclient.APIClient) {
+func testIpvlanL2Addressing(t *testing.T, ctx context.Context, apiClient client.APIClient) {
 	const parentIfName = "di-dummy0"
 	n.CreateMasterDummy(ctx, t, parentIfName)
 	defer n.DeleteInterface(ctx, t, parentIfName)
 
 	netNameL2 := "dualstackl2"
-	net.CreateNoError(ctx, t, client, netNameL2,
+	net.CreateNoError(ctx, t, apiClient, netNameL2,
 		net.WithIPvlan(parentIfName, "l2"),
 		net.WithIPv6(),
 		net.WithIPAM("172.28.140.0/24", "172.28.140.254"),
 		net.WithIPAM("2001:db8:abcb::/64", ""),
 	)
-	assert.Check(t, n.IsNetworkAvailable(ctx, client, netNameL2))
+	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, netNameL2))
 
-	id := container.Run(ctx, t, client,
+	id := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode(netNameL2),
 	)
 	// Check the supplied IPv4 gateway address is used in a default route.
-	result, err := container.Exec(ctx, client, id, []string{"ip", "route"})
+	result, err := container.Exec(ctx, apiClient, id, []string{"ip", "route"})
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(result.Combined(), "default via 172.28.140.254 dev eth0"))
 	// No gateway address was supplied for IPv6, check that no default gateway was set up.
-	result, err = container.Exec(ctx, client, id, []string{"ip", "-6", "route"})
+	result, err = container.Exec(ctx, apiClient, id, []string{"ip", "-6", "route"})
 	assert.NilError(t, err)
 	assert.Check(t, !strings.Contains(result.Combined(), "default via"),
 		"result: %s", result.Combined())
 }
 
 // Validate ipvlan l3 mode sets the v4 gateway to dev eth0 and disregards any explicit or inferred next-hops
-func testIpvlanL3Addressing(t *testing.T, ctx context.Context, client dclient.APIClient) {
+func testIpvlanL3Addressing(t *testing.T, ctx context.Context, apiClient client.APIClient) {
 	const parentIfName = "di-dummy0"
 	n.CreateMasterDummy(ctx, t, parentIfName)
 	defer n.DeleteInterface(ctx, t, parentIfName)
 
 	netNameL3 := "dualstackl3"
-	net.CreateNoError(ctx, t, client, netNameL3,
+	net.CreateNoError(ctx, t, apiClient, netNameL3,
 		net.WithIPvlan(parentIfName, "l3"),
 		net.WithIPv6(),
 		net.WithIPAM("172.28.160.0/24", "172.28.160.254"),
 		net.WithIPAM("2001:db8:abcd::/64", "2001:db8:abcd::254"),
 	)
-	assert.Check(t, n.IsNetworkAvailable(ctx, client, netNameL3))
+	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, netNameL3))
 
-	id := container.Run(ctx, t, client,
+	id := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode(netNameL3),
 	)
 	// Validate ipvlan l3 mode sets the v4 gateway to dev eth0 and disregards any explicit or inferred next-hops
-	result, err := container.Exec(ctx, client, id, []string{"ip", "route"})
+	result, err := container.Exec(ctx, apiClient, id, []string{"ip", "route"})
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(result.Combined(), "default dev eth0"))
 	// Validate ipvlan l3 mode sets the v6 gateway to dev eth0 and disregards any explicit or inferred next-hops
-	result, err = container.Exec(ctx, client, id, []string{"ip", "-6", "route"})
+	result, err = container.Exec(ctx, apiClient, id, []string{"ip", "-6", "route"})
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(result.Combined(), "default dev eth0"))
 }
@@ -488,9 +488,9 @@ func TestIpvlanIPAM(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
-			c := d.NewClientT(t, dclient.WithVersion(tc.apiVersion))
+			c := d.NewClientT(t, client.WithVersion(tc.apiVersion))
 
-			netOpts := []func(*dclient.NetworkCreateOptions){
+			netOpts := []func(*client.NetworkCreateOptions){
 				net.WithIPvlan("", "l3"),
 				net.WithIPv4(tc.enableIPv4),
 				net.WithIPAMConfig(
@@ -509,11 +509,11 @@ func TestIpvlanIPAM(t *testing.T) {
 
 			const netName = "ipvlannet"
 			net.CreateNoError(ctx, t, c, netName, netOpts...)
-			defer c.NetworkRemove(ctx, netName)
+			defer c.NetworkRemove(ctx, netName, client.NetworkRemoveOptions{})
 			assert.Check(t, n.IsNetworkAvailable(ctx, c, netName))
 
 			id := container.Run(ctx, t, c, container.WithNetworkMode(netName))
-			defer c.ContainerRemove(ctx, id, dclient.ContainerRemoveOptions{Force: true})
+			defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
 			loRes := container.ExecT(ctx, t, c, id, []string{"ip", "a", "show", "dev", "lo"})
 			assert.Check(t, is.Contains(loRes.Combined(), " inet "))
@@ -551,14 +551,14 @@ func TestIpvlanIPAM(t *testing.T) {
 			}
 			assert.Check(t, is.Equal(strings.TrimSpace(sysctlRes.Combined()), expDisableIPv6))
 
-			cc := d.NewClientT(t, dclient.WithVersion("1.52"))
-			res, err := cc.NetworkInspect(ctx, netName, dclient.NetworkInspectOptions{})
+			cc := d.NewClientT(t, client.WithVersion("1.52"))
+			res, err := cc.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
 			if assert.Check(t, err) && assert.Check(t, res.Network.Status != nil) {
 				assert.Check(t, is.DeepEqual(wantSubnetStatus, res.Network.Status.IPAM.Subnets, cmpopts.EquateEmpty()))
 			}
 			cc.Close()
-			cc = d.NewClientT(t, dclient.WithVersion("1.51"))
-			res, err = cc.NetworkInspect(ctx, netName, dclient.NetworkInspectOptions{})
+			cc = d.NewClientT(t, client.WithVersion("1.51"))
+			res, err = cc.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
 			assert.Check(t, err)
 			assert.Check(t, res.Network.Status == nil)
 			cc.Close()
@@ -585,7 +585,7 @@ func TestIpvlanIPAMOverlap(t *testing.T) {
 
 	checkNetworkIPAMState := func(networkID string, want map[netip.Prefix]network.SubnetStatus) bool {
 		t.Helper()
-		res, err := c.NetworkInspect(ctx, networkID, dclient.NetworkInspectOptions{})
+		res, err := c.NetworkInspect(ctx, networkID, client.NetworkInspectOptions{})
 		if assert.Check(t, err) && assert.Check(t, res.Network.Status != nil) {
 			return assert.Check(t, is.DeepEqual(want, res.Network.Status.IPAM.Subnets, cmpopts.EquateEmpty()))
 		}
@@ -621,7 +621,7 @@ func TestIpvlanIPAMOverlap(t *testing.T) {
 			},
 		),
 	)
-	defer c.NetworkRemove(ctx, netName1)
+	defer c.NetworkRemove(ctx, netName1, client.NetworkRemoveOptions{})
 	assert.Check(t, n.IsNetworkAvailable(ctx, c, netName1))
 
 	checkNetworkIPAMState(netName1, map[netip.Prefix]network.SubnetStatus{
@@ -650,7 +650,7 @@ func TestIpvlanIPAMOverlap(t *testing.T) {
 		),
 	)
 
-	defer c.NetworkRemove(ctx, netName2)
+	defer c.NetworkRemove(ctx, netName2, client.NetworkRemoveOptions{})
 	assert.Check(t, n.IsNetworkAvailable(ctx, c, netName2))
 
 	checkNetworkIPAMState(netName2, map[netip.Prefix]network.SubnetStatus{
@@ -679,7 +679,7 @@ func TestIpvlanIPAMOverlap(t *testing.T) {
 		),
 	)
 
-	defer c.NetworkRemove(ctx, netName3)
+	defer c.NetworkRemove(ctx, netName3, client.NetworkRemoveOptions{})
 	assert.Check(t, n.IsNetworkAvailable(ctx, c, netName3))
 
 	checkNetworkIPAMState(netName3, map[netip.Prefix]network.SubnetStatus{
@@ -695,7 +695,7 @@ func TestIpvlanIPAMOverlap(t *testing.T) {
 
 	// Create a container on one of the networks
 	id := container.Run(ctx, t, c, container.WithNetworkMode(netName1))
-	defer c.ContainerRemove(ctx, id, dclient.ContainerRemoveOptions{Force: true})
+	defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
 	// Verify that the IPAM status of all three networks are affected.
 	checkNetworkIPAMState(netName1, map[netip.Prefix]network.SubnetStatus{
@@ -787,17 +787,17 @@ func TestIPVlanDNS(t *testing.T) {
 			name := fmt.Sprintf("Mode=%v/HasParent=%v/Internal=%v", mode, tc.parent != "", tc.internal)
 			t.Run(name, func(t *testing.T) {
 				ctx := testutil.StartSpan(ctx, t)
-				createOpts := []func(*dclient.NetworkCreateOptions){
+				createOpts := []func(*client.NetworkCreateOptions){
 					net.WithIPvlan(tc.parent, mode),
 				}
 				if tc.internal {
 					createOpts = append(createOpts, net.WithInternal())
 				}
 				net.CreateNoError(ctx, t, c, netName, createOpts...)
-				defer c.NetworkRemove(ctx, netName)
+				defer c.NetworkRemove(ctx, netName, client.NetworkRemoveOptions{})
 
 				ctrId := container.Run(ctx, t, c, container.WithNetworkMode(netName))
-				defer c.ContainerRemove(ctx, ctrId, dclient.ContainerRemoveOptions{Force: true})
+				defer c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})
 				res, err := container.Exec(ctx, c, ctrId, []string{"nslookup", "test.example"})
 				assert.NilError(t, err)
 				if tc.expDNS {
@@ -864,7 +864,7 @@ func TestPointToPoint(t *testing.T) {
 				container.WithNetworkMode(netName),
 				container.WithName(ctrName),
 			)
-			defer apiClient.ContainerRemove(ctx, id, dclient.ContainerRemoveOptions{Force: true})
+			defer apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
 			attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
@@ -872,7 +872,7 @@ func TestPointToPoint(t *testing.T) {
 				container.WithCmd([]string{"ping", "-c1", "-W3", ctrName}...),
 				container.WithNetworkMode(netName),
 			)
-			defer apiClient.ContainerRemove(ctx, res.ContainerID, dclient.ContainerRemoveOptions{Force: true})
+			defer apiClient.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
 			assert.Check(t, is.Equal(res.ExitCode, 0))
 			assert.Check(t, is.Equal(res.Stderr.Len(), 0))
 			assert.Check(t, is.Contains(res.Stdout.String(), "1 packets transmitted, 1 packets received"))
@@ -903,7 +903,7 @@ func TestEndpointWithCustomIfname(t *testing.T) {
 				netlabel.Ifname: "foobar",
 			},
 		}))
-	defer container.Remove(ctx, t, apiClient, ctrID, dclient.ContainerRemoveOptions{Force: true})
+	defer container.Remove(ctx, t, apiClient, ctrID, client.ContainerRemoveOptions{Force: true})
 
 	out, err := container.Output(ctx, apiClient, ctrID)
 	assert.NilError(t, err)

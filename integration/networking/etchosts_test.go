@@ -157,27 +157,31 @@ func TestEtcHostsDisconnect(t *testing.T) {
 
 	// Connect a second network (don't do this in the Run, because then the /etc/hosts
 	// entries for the two networks can end up in either order).
-	err = c.NetworkConnect(ctx, netName2, ctrName, nil)
+	_, err = c.NetworkConnect(ctx, netName2, client.NetworkConnectOptions{
+		Container: ctrName,
+	})
 	assert.Check(t, err)
 	golden.Assert(t, getEtcHosts(), "TestEtcHostsDisconnect1.golden")
 
 	// Disconnect net1, its hosts entries are currently before net2's.
-	err = c.NetworkDisconnect(ctx, netName1, ctrName, false)
+	_, err = c.NetworkDisconnect(ctx, netName1, client.NetworkDisconnectOptions{Container: ctrName, Force: false})
 	assert.Check(t, err)
 	golden.Assert(t, getEtcHosts(), "TestEtcHostsDisconnect2.golden")
 
 	// Reconnect net1, so that its entries will follow net2's.
-	err = c.NetworkConnect(ctx, netName1, ctrName, nil)
+	_, err = c.NetworkConnect(ctx, netName1, client.NetworkConnectOptions{
+		Container: ctrName,
+	})
 	assert.Check(t, err)
 	golden.Assert(t, getEtcHosts(), "TestEtcHostsDisconnect3.golden")
 
 	// Disconnect net1 again, removing its entries from the end of the file.
-	err = c.NetworkDisconnect(ctx, netName1, ctrName, false)
+	_, err = c.NetworkDisconnect(ctx, netName1, client.NetworkDisconnectOptions{Container: ctrName, Force: false})
 	assert.Check(t, err)
 	golden.Assert(t, getEtcHosts(), "TestEtcHostsDisconnect4.golden")
 
 	// Disconnect net2, the only network.
-	err = c.NetworkDisconnect(ctx, netName2, ctrName, false)
+	_, err = c.NetworkDisconnect(ctx, netName2, client.NetworkDisconnectOptions{Container: ctrName, Force: false})
 	assert.Check(t, err)
 	golden.Assert(t, getEtcHosts(), "TestEtcHostsDisconnect5.golden")
 }

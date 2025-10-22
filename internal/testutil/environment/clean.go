@@ -157,7 +157,7 @@ func deleteAllNetworks(ctx context.Context, t testing.TB, c client.NetworkAPICli
 			// nat is a pre-defined network on Windows and cannot be removed
 			continue
 		}
-		err := c.NetworkRemove(ctx, nw.ID)
+		_, err := c.NetworkRemove(ctx, nw.ID, client.NetworkRemoveOptions{})
 		assert.Check(t, err, "failed to remove network %s", nw.ID)
 	}
 }

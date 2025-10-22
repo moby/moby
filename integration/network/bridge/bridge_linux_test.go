@@ -1130,7 +1130,7 @@ func TestBridgeIPAMStatus(t *testing.T) {
 				},
 			}),
 		)
-		defer c.NetworkRemove(ctx, netName)
+		defer c.NetworkRemove(ctx, netName, client.NetworkRemoveOptions{})
 
 		checkSubnets(netName, map[netip.Prefix]networktypes.SubnetStatus{
 			cidrv4: {
@@ -1210,7 +1210,7 @@ func TestBridgeIPAMStatus(t *testing.T) {
 				Subnet: cidr,
 			}),
 		)
-		defer c.NetworkRemove(ctx, netName)
+		defer c.NetworkRemove(ctx, netName, client.NetworkRemoveOptions{})
 
 		checkSubnets(netName, map[netip.Prefix]networktypes.SubnetStatus{
 			cidr: {
@@ -1255,7 +1255,9 @@ func TestJoinError(t *testing.T) {
 	assert.Equal(t, res.ExitCode, 0)
 
 	// Expect an error when connecting extNet.
-	err := c.NetworkConnect(ctx, extNet, cid, &networktypes.EndpointSettings{})
+	_, err := c.NetworkConnect(ctx, extNet, client.NetworkConnectOptions{
+		Container: cid,
+	})
 	assert.Check(t, is.ErrorContains(err, "failed to set gateway: file exists"))
 
 	// Only intNet should show up in container inspect.
@@ -1279,7 +1281,9 @@ func TestJoinError(t *testing.T) {
 	assert.Equal(t, res.ExitCode, 0)
 
 	// Check network connect now succeeds.
-	err = c.NetworkConnect(ctx, extNet, cid, &networktypes.EndpointSettings{})
+	_, err = c.NetworkConnect(ctx, extNet, client.NetworkConnectOptions{
+		Container: cid,
+	})
 	assert.Check(t, err)
 	ctrInsp = ctr.Inspect(ctx, t, c, cid)
 	assert.Check(t, is.Len(ctrInsp.NetworkSettings.Networks, 2))

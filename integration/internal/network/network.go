@@ -51,6 +51,6 @@ func InspectNoError(ctx context.Context, t *testing.T, apiClient client.APIClien
 func RemoveNoError(ctx context.Context, t *testing.T, apiClient client.APIClient, name string) {
 	t.Helper()
 
-	err := apiClient.NetworkRemove(ctx, name)
+	_, err := apiClient.NetworkRemove(ctx, name, client.NetworkRemoveOptions{})
 	assert.NilError(t, err)
 }
