@@ -21,6 +21,7 @@ import (
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
 	remoteipam "github.com/moby/moby/v2/daemon/libnetwork/ipams/remote/api"
@@ -2008,18 +2009,24 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsConfig(c *testing.T) {
 	d := s.AddDaemon(ctx, c, true, true)
 
 	testName := "test_config"
-	id := d.CreateConfig(c, swarm.ConfigSpec{
-		Annotations: swarm.Annotations{
-			Name: testName,
+	apiClient := d.NewClientT(c)
+	result, err := apiClient.ConfigCreate(ctx, client.ConfigCreateOptions{
+		Spec: swarm.ConfigSpec{
+			Annotations: swarm.Annotations{
+				Name: testName,
+			},
+			Data: []byte("TESTINGDATA"),
 		},
-		Data: []byte("TESTINGDATA"),
 	})
-	assert.Assert(c, id != "", "configs: %s", id)
+	assert.NilError(c, err)
+	assert.Assert(c, result.ID != "", "configs: %s", result.ID)
+	id := result.ID
 
 	waitForEvent(c, d, "0", "-f scope=swarm", "config create "+id, defaultRetryCount)
 
 	t1 := daemonUnixTime(c)
-	d.DeleteConfig(c, id)
+	_, err = apiClient.ConfigRemove(ctx, id, client.ConfigRemoveOptions{})
+	assert.NilError(c, err)
 	// filtered by config
 	waitForEvent(c, d, t1, "-f type=config", "config remove "+id, defaultRetryCount)
 }
