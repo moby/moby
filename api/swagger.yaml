@@ -2842,6 +2842,42 @@ definitions:
         type: "string"
         x-nullable: false
 
+  NetworkConnectRequest:
+    description: |
+      NetworkConnectRequest represents the data to be used to connect a container to a network.
+    type: "object"
+    x-go-name: "ConnectRequest"
+    required: ["Container"]
+    properties:
+      Container:
+        type: "string"
+        description: "The ID or name of the container to connect to the network."
+        x-nullable: false
+        example: "3613f73ba0e4"
+      EndpointConfig:
+        $ref: "#/definitions/EndpointSettings"
+        x-nullable: true
+
+  NetworkDisconnectRequest:
+    description: |
+      NetworkDisconnectRequest represents the data to be used to disconnect a container from a network.
+    type: "object"
+    x-go-name: "DisconnectRequest"
+    required: ["Container"]
+    properties:
+      Container:
+        type: "string"
+        description: "The ID or name of the container to disconnect from the network."
+        x-nullable: false
+        example: "3613f73ba0e4"
+      Force:
+        type: "boolean"
+        description: "Force the container to disconnect from the network."
+        default: false
+        x-nullable: false
+        x-omitempty: false
+        example: false
+
   EndpointSettings:
     description: "Configuration for a network endpoint."
     type: "object"
@@ -11359,22 +11395,7 @@ paths:
           in: "body"
           required: true
           schema:
-            type: "object"
-            title: "NetworkConnectRequest"
-            properties:
-              Container:
-                type: "string"
-                description: "The ID or name of the container to connect to the network."
-              EndpointConfig:
-                $ref: "#/definitions/EndpointSettings"
-            example:
-              Container: "3613f73ba0e4"
-              EndpointConfig:
-                IPAMConfig:
-                  IPv4Address: "172.24.56.89"
-                  IPv6Address: "2001:db8::5689"
-                MacAddress: "02:42:ac:12:05:02"
-                Priority: 100
+            $ref: "#/definitions/NetworkConnectRequest"
       tags: ["Network"]
 
   /networks/{id}/disconnect:
@@ -11408,17 +11429,7 @@ paths:
           in: "body"
           required: true
           schema:
-            type: "object"
-            title: "NetworkDisconnectRequest"
-            properties:
-              Container:
-                type: "string"
-                description: |
-                  The ID or name of the container to disconnect from the network.
-              Force:
-                type: "boolean"
-                description: |
-                  Force the container to disconnect from the network.
+            $ref: "#/definitions/NetworkDisconnectRequest"
       tags: ["Network"]
   /networks/prune:
     post:

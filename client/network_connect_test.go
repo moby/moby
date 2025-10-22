@@ -38,7 +38,7 @@ func TestNetworkConnectEmptyNilEndpointSettings(t *testing.T) {
 			return nil, err
 		}
 
-		var connect NetworkConnectOptions
+		var connect network.ConnectRequest
 		if err := json.NewDecoder(req.Body).Decode(&connect); err != nil {
 			return nil, err
 		}
