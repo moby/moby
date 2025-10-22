@@ -71,7 +71,7 @@ func TestAuthZPluginV2Disable(t *testing.T) {
 	assert.ErrorContains(t, err, fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag))
 
 	// disable the plugin
-	err = c.PluginDisable(ctx, authzPluginNameWithTag, client.PluginDisableOptions{})
+	_, err = c.PluginDisable(ctx, authzPluginNameWithTag, client.PluginDisableOptions{})
 	assert.NilError(t, err)
 
 	// now test to see if the docker api works.

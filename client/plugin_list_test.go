@@ -85,10 +85,10 @@ func TestPluginList(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 
-		plugins, err := client.PluginList(context.Background(), PluginListOptions{
+		list, err := client.PluginList(context.Background(), PluginListOptions{
 			Filters: listCase.filters,
 		})
 		assert.NilError(t, err)
-		assert.Check(t, is.Len(plugins, 2))
+		assert.Check(t, is.Len(list.Items, 2))
 	}
 }

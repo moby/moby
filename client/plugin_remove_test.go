@@ -16,14 +16,14 @@ func TestPluginRemoveError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	err = client.PluginRemove(context.Background(), "plugin_name", PluginRemoveOptions{})
+	_, err = client.PluginRemove(context.Background(), "plugin_name", PluginRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.PluginRemove(context.Background(), "", PluginRemoveOptions{})
+	_, err = client.PluginRemove(context.Background(), "", PluginRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.PluginRemove(context.Background(), "   ", PluginRemoveOptions{})
+	_, err = client.PluginRemove(context.Background(), "   ", PluginRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -42,6 +42,6 @@ func TestPluginRemove(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	err = client.PluginRemove(context.Background(), "plugin_name", PluginRemoveOptions{})
+	_, err = client.PluginRemove(context.Background(), "plugin_name", PluginRemoveOptions{})
 	assert.NilError(t, err)
 }

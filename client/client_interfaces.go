@@ -9,7 +9,6 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/network"
-	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/system"
@@ -145,16 +144,16 @@ type NodeAPIClient interface {
 
 // PluginAPIClient defines API client methods for the plugins
 type PluginAPIClient interface {
-	PluginList(ctx context.Context, opts PluginListOptions) (plugin.ListResponse, error)
-	PluginRemove(ctx context.Context, name string, options PluginRemoveOptions) error
-	PluginEnable(ctx context.Context, name string, options PluginEnableOptions) error
-	PluginDisable(ctx context.Context, name string, options PluginDisableOptions) error
-	PluginInstall(ctx context.Context, name string, options PluginInstallOptions) (io.ReadCloser, error)
-	PluginUpgrade(ctx context.Context, name string, options PluginInstallOptions) (io.ReadCloser, error)
-	PluginPush(ctx context.Context, name string, registryAuth string) (io.ReadCloser, error)
-	PluginSet(ctx context.Context, name string, args []string) error
+	PluginList(ctx context.Context, options PluginListOptions) (PluginListResult, error)
+	PluginRemove(ctx context.Context, name string, options PluginRemoveOptions) (PluginRemoveResult, error)
+	PluginEnable(ctx context.Context, name string, options PluginEnableOptions) (PluginEnableResult, error)
+	PluginDisable(ctx context.Context, name string, options PluginDisableOptions) (PluginDisableResult, error)
+	PluginInstall(ctx context.Context, name string, options PluginInstallOptions) (PluginInstallResult, error)
+	PluginUpgrade(ctx context.Context, name string, options PluginUpgradeOptions) (PluginUpgradeResult, error)
+	PluginPush(ctx context.Context, name string, options PluginPushOptions) (PluginPushResult, error)
+	PluginSet(ctx context.Context, name string, options PluginSetOptions) (PluginSetResult, error)
 	PluginInspect(ctx context.Context, name string, options PluginInspectOptions) (PluginInspectResult, error)
-	PluginCreate(ctx context.Context, createContext io.Reader, options PluginCreateOptions) error
+	PluginCreate(ctx context.Context, createContext io.Reader, options PluginCreateOptions) (PluginCreateResult, error)
 }
 
 // ServiceAPIClient defines API client methods for the services
