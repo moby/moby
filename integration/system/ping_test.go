@@ -68,7 +68,7 @@ func TestPingSwarmHeader(t *testing.T) {
 
 	t.Run("before swarm init", func(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
-		p, err := apiClient.Ping(ctx)
+		p, err := apiClient.Ping(ctx, client.PingOptions{})
 		assert.NilError(t, err)
 		assert.Equal(t, p.SwarmStatus.NodeState, swarm.LocalNodeStateInactive)
 		assert.Equal(t, p.SwarmStatus.ControlAvailable, false)
@@ -79,7 +79,7 @@ func TestPingSwarmHeader(t *testing.T) {
 
 	t.Run("after swarm init", func(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
-		p, err := apiClient.Ping(ctx)
+		p, err := apiClient.Ping(ctx, client.PingOptions{})
 		assert.NilError(t, err)
 		assert.Equal(t, p.SwarmStatus.NodeState, swarm.LocalNodeStateActive)
 		assert.Equal(t, p.SwarmStatus.ControlAvailable, true)
@@ -90,7 +90,7 @@ func TestPingSwarmHeader(t *testing.T) {
 
 	t.Run("after swarm leave", func(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
-		p, err := apiClient.Ping(ctx)
+		p, err := apiClient.Ping(ctx, client.PingOptions{})
 		assert.NilError(t, err)
 		assert.Equal(t, p.SwarmStatus.NodeState, swarm.LocalNodeStateInactive)
 		assert.Equal(t, p.SwarmStatus.ControlAvailable, false)
@@ -116,7 +116,7 @@ func TestPingBuilderHeader(t *testing.T) {
 			expected = build.BuilderV1
 		}
 
-		p, err := apiClient.Ping(ctx)
+		p, err := apiClient.Ping(ctx, client.PingOptions{})
 		assert.NilError(t, err)
 		assert.Equal(t, p.BuilderVersion, expected)
 	})
@@ -130,7 +130,7 @@ func TestPingBuilderHeader(t *testing.T) {
 		defer d.Stop(t)
 
 		expected := build.BuilderV1
-		p, err := apiClient.Ping(ctx)
+		p, err := apiClient.Ping(ctx, client.PingOptions{})
 		assert.NilError(t, err)
 		assert.Equal(t, p.BuilderVersion, expected)
 	})
