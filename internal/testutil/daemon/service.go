@@ -107,7 +107,7 @@ func (d *Daemon) ListServices(ctx context.Context, t testing.TB) []swarm.Service
 
 	res, err := cli.ServiceList(ctx, client.ServiceListOptions{})
 	assert.NilError(t, err)
-	return res.Services
+	return res.Items
 }
 
 // GetTask returns the swarm task identified by the specified id
