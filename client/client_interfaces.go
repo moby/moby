@@ -99,7 +99,7 @@ type ExecAPIClient interface {
 
 // DistributionAPIClient defines API client methods for the registry
 type DistributionAPIClient interface {
-	DistributionInspect(ctx context.Context, image, encodedRegistryAuth string) (registry.DistributionInspect, error)
+	DistributionInspect(ctx context.Context, image string, options DistributionInspectOptions) (DistributionInspectResult, error)
 }
 
 // ImageAPIClient defines API client methods for the images
