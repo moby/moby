@@ -23,13 +23,21 @@ func (cli *Client) ContainerResize(ctx context.Context, containerID string, opti
 	return cli.resize(ctx, "/containers/"+containerID, options.Height, options.Width)
 }
 
-// ContainerExecResize changes the size of the tty for an exec process running inside a container.
-func (cli *Client) ContainerExecResize(ctx context.Context, execID string, options ContainerResizeOptions) error {
+// ExecResizeOptions holds options for resizing a container exec TTY.
+type ExecResizeOptions ContainerResizeOptions
+
+// ExecResizeResult holds the result of resizing a container exec TTY.
+type ExecResizeResult struct {
+}
+
+// ExecResize changes the size of the tty for an exec process running inside a container.
+func (cli *Client) ExecResize(ctx context.Context, execID string, options ExecResizeOptions) (ExecResizeResult, error) {
 	execID, err := trimID("exec", execID)
 	if err != nil {
-		return err
+		return ExecResizeResult{}, err
 	}
-	return cli.resize(ctx, "/exec/"+execID, options.Height, options.Width)
+	err = cli.resize(ctx, "/exec/"+execID, options.Height, options.Width)
+	return ExecResizeResult{}, err
 }
 
 func (cli *Client) resize(ctx context.Context, basePath string, height, width uint) error {

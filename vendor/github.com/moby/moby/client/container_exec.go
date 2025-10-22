@@ -24,11 +24,16 @@ type ExecCreateOptions struct {
 	Cmd          []string // Execution commands and args
 }
 
-// ContainerExecCreate creates a new exec configuration to run an exec process.
-func (cli *Client) ContainerExecCreate(ctx context.Context, containerID string, options ExecCreateOptions) (container.ExecCreateResponse, error) {
+// ExecCreateResult holds the result of creating a container exec.
+type ExecCreateResult struct {
+	container.ExecCreateResponse
+}
+
+// ExecCreate creates a new exec configuration to run an exec process.
+func (cli *Client) ExecCreate(ctx context.Context, containerID string, options ExecCreateOptions) (ExecCreateResult, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
-		return container.ExecCreateResponse{}, err
+		return ExecCreateResult{}, err
 	}
 
 	req := container.ExecCreateRequest{
@@ -48,17 +53,15 @@ func (cli *Client) ContainerExecCreate(ctx context.Context, containerID string, 
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/exec", nil, req, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return container.ExecCreateResponse{}, err
+		return ExecCreateResult{}, err
 	}
 
 	var response container.ExecCreateResponse
 	err = json.NewDecoder(resp.Body).Decode(&response)
-	return response, err
+	return ExecCreateResult{ExecCreateResponse: response}, err
 }
 
-// ExecStartOptions is a temp struct used by execStart
-// Config fields is part of ExecConfig in runconfig package
-type ExecStartOptions struct {
+type execStartAttachOptions struct {
 	// ExecStart will first check if it's detached
 	Detach bool
 	// Check if there's a tty
@@ -67,24 +70,34 @@ type ExecStartOptions struct {
 	ConsoleSize *[2]uint `json:",omitempty"`
 }
 
-// ContainerExecStart starts an exec process already created in the docker host.
-func (cli *Client) ContainerExecStart(ctx context.Context, execID string, config ExecStartOptions) error {
+// ExecStartOptions holds options for starting a container exec.
+type ExecStartOptions execStartAttachOptions
+
+// ExecStartResult holds the result of starting a container exec.
+type ExecStartResult struct {
+}
+
+// ExecStart starts an exec process already created in the docker host.
+func (cli *Client) ExecStart(ctx context.Context, execID string, options ExecStartOptions) (ExecStartResult, error) {
 	req := container.ExecStartRequest{
-		Detach:      config.Detach,
-		Tty:         config.Tty,
-		ConsoleSize: config.ConsoleSize,
+		Detach:      options.Detach,
+		Tty:         options.Tty,
+		ConsoleSize: options.ConsoleSize,
 	}
 	resp, err := cli.post(ctx, "/exec/"+execID+"/start", nil, req, nil)
 	defer ensureReaderClosed(resp)
-	return err
+	return ExecStartResult{}, err
 }
 
-// ExecAttachOptions is a temp struct used by execAttach.
-//
-// TODO(thaJeztah): make this a separate type; ContainerExecAttach does not use the Detach option, and cannot run detached.
-type ExecAttachOptions = ExecStartOptions
+// ExecAttachOptions holds options for attaching to a container exec.
+type ExecAttachOptions execStartAttachOptions
 
-// ContainerExecAttach attaches a connection to an exec process in the server.
+// ExecAttachResult holds the result of attaching to a container exec.
+type ExecAttachResult struct {
+	HijackedResponse
+}
+
+// ExecAttach attaches a connection to an exec process in the server.
 //
 // It returns a [HijackedResponse] with the hijacked connection
 // and a reader to get output. It's up to the called to close
@@ -102,15 +115,16 @@ type ExecAttachOptions = ExecStartOptions
 // [Client.ContainerAttach] for details about the multiplexed stream.
 //
 // [stdcopy.StdCopy]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#StdCopy
-func (cli *Client) ContainerExecAttach(ctx context.Context, execID string, config ExecAttachOptions) (HijackedResponse, error) {
+func (cli *Client) ExecAttach(ctx context.Context, execID string, options ExecAttachOptions) (ExecAttachResult, error) {
 	req := container.ExecStartRequest{
-		Detach:      config.Detach,
-		Tty:         config.Tty,
-		ConsoleSize: config.ConsoleSize,
+		Detach:      options.Detach,
+		Tty:         options.Tty,
+		ConsoleSize: options.ConsoleSize,
 	}
-	return cli.postHijacked(ctx, "/exec/"+execID+"/start", nil, req, http.Header{
+	response, err := cli.postHijacked(ctx, "/exec/"+execID+"/start", nil, req, http.Header{
 		"Content-Type": {"application/json"},
 	})
+	return ExecAttachResult{HijackedResponse: response}, err
 }
 
 // ExecInspect holds information returned by exec inspect.
@@ -126,18 +140,27 @@ type ExecInspect struct {
 	Pid         int    `json:"Pid"`
 }
 
-// ContainerExecInspect returns information about a specific exec process on the docker host.
-func (cli *Client) ContainerExecInspect(ctx context.Context, execID string) (ExecInspect, error) {
+// ExecInspectOptions holds options for inspecting a container exec.
+type ExecInspectOptions struct {
+}
+
+// ExecInspectResult holds the result of inspecting a container exec.
+type ExecInspectResult struct {
+	ExecInspect
+}
+
+// ExecInspect returns information about a specific exec process on the docker host.
+func (cli *Client) ExecInspect(ctx context.Context, execID string, options ExecInspectOptions) (ExecInspectResult, error) {
 	resp, err := cli.get(ctx, "/exec/"+execID+"/json", nil, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return ExecInspect{}, err
+		return ExecInspectResult{}, err
 	}
 
 	var response container.ExecInspectResponse
 	err = json.NewDecoder(resp.Body).Decode(&response)
 	if err != nil {
-		return ExecInspect{}, err
+		return ExecInspectResult{}, err
 	}
 
 	var ec int
@@ -145,11 +168,11 @@ func (cli *Client) ContainerExecInspect(ctx context.Context, execID string) (Exe
 		ec = *response.ExitCode
 	}
 
-	return ExecInspect{
+	return ExecInspectResult{ExecInspect: ExecInspect{
 		ExecID:      response.ID,
 		ContainerID: response.ContainerID,
 		Running:     response.Running,
 		ExitCode:    ec,
 		Pid:         response.Pid,
-	}, nil
+	}}, nil
 }

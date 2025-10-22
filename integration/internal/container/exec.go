@@ -58,26 +58,26 @@ func Exec(ctx context.Context, apiClient client.APIClient, id string, cmd []stri
 		op(&execOptions)
 	}
 
-	cresp, err := apiClient.ContainerExecCreate(ctx, id, execOptions)
+	cresp, err := apiClient.ExecCreate(ctx, id, execOptions)
 	if err != nil {
 		return ExecResult{}, err
 	}
 	execID := cresp.ID
 
 	// run it, with stdout/stderr attached
-	aresp, err := apiClient.ContainerExecAttach(ctx, execID, client.ExecAttachOptions{})
+	aresp, err := apiClient.ExecAttach(ctx, execID, client.ExecAttachOptions{})
 	if err != nil {
 		return ExecResult{}, err
 	}
 
 	// read the output
-	s, err := demultiplexStreams(ctx, aresp)
+	s, err := demultiplexStreams(ctx, aresp.HijackedResponse)
 	if err != nil {
 		return ExecResult{}, err
 	}
 
 	// get the exit code
-	iresp, err := apiClient.ContainerExecInspect(ctx, execID)
+	iresp, err := apiClient.ExecInspect(ctx, execID, client.ExecInspectOptions{})
 	if err != nil {
 		return ExecResult{}, err
 	}
