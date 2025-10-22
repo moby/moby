@@ -337,10 +337,10 @@ func noServices(ctx context.Context, apiClient client.ServiceAPIClient) func(log
 		switch {
 		case err != nil:
 			return poll.Error(err)
-		case len(result.Services) == 0:
+		case len(result.Items) == 0:
 			return poll.Success()
 		default:
-			return poll.Continue("waiting for all services to be removed: service count at %d", len(result.Services))
+			return poll.Continue("waiting for all services to be removed: service count at %d", len(result.Items))
 		}
 	}
 }

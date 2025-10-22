@@ -19,7 +19,7 @@ type ServiceListOptions struct {
 
 // ServiceListResult represents the result of a service list operation.
 type ServiceListResult struct {
-	Services []swarm.Service
+	Items []swarm.Service
 }
 
 // ServiceList returns the list of services.
@@ -40,5 +40,5 @@ func (cli *Client) ServiceList(ctx context.Context, options ServiceListOptions) 
 
 	var services []swarm.Service
 	err = json.NewDecoder(resp.Body).Decode(&services)
-	return ServiceListResult{Services: services}, err
+	return ServiceListResult{Items: services}, err
 }

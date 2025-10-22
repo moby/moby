@@ -33,7 +33,6 @@ func TestServiceListWithStatuses(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	apiClient := d.NewClientT(t)
-	defer apiClient.Close()
 
 	serviceCount := 3
 	// create some services.
@@ -80,16 +79,16 @@ func TestServiceListWithStatuses(t *testing.T) {
 	// now, let's do the list operation with no status arg set.
 	result, err := apiClient.ServiceList(ctx, client.ServiceListOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Len(result.Services, serviceCount))
-	for _, service := range result.Services {
+	assert.Check(t, is.Len(result.Items, serviceCount))
+	for _, service := range result.Items {
 		assert.Check(t, is.Nil(service.ServiceStatus))
 	}
 
 	// now try again, but with Status: true. This time, we should have statuses
 	result, err = apiClient.ServiceList(ctx, client.ServiceListOptions{Status: true})
 	assert.NilError(t, err)
-	assert.Check(t, is.Len(result.Services, serviceCount))
-	for _, service := range result.Services {
+	assert.Check(t, is.Len(result.Items, serviceCount))
+	for _, service := range result.Items {
 		replicas := *service.Spec.Mode.Replicated.Replicas
 
 		assert.Assert(t, service.ServiceStatus != nil)

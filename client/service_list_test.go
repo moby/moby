@@ -77,6 +77,6 @@ func TestServiceList(t *testing.T) {
 
 		list, err := client.ServiceList(context.Background(), listCase.options)
 		assert.NilError(t, err)
-		assert.Check(t, is.Len(list.Services, 2))
+		assert.Check(t, is.Len(list.Items, 2))
 	}
 }
