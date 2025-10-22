@@ -74,10 +74,10 @@ func TestPruneLexographicalOrder(t *testing.T) {
 
 	tags := []string{"h", "a", "j", "o", "s", "q", "w", "e", "r", "t"}
 	for _, tag := range tags {
-		err = apiClient.ImageTag(ctx, id, "busybox:"+tag)
+		_, err = apiClient.ImageTag(ctx, client.ImageTagOptions{Source: id, Target: "busybox:" + tag})
 		assert.NilError(t, err)
 	}
-	err = apiClient.ImageTag(ctx, id, "busybox:z")
+	_, err = apiClient.ImageTag(ctx, client.ImageTagOptions{Source: id, Target: "busybox:z"})
 	assert.NilError(t, err)
 
 	_, err = apiClient.ImageRemove(ctx, "busybox:latest", client.ImageRemoveOptions{Force: true})
@@ -127,7 +127,8 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 			// busybox:other tag pointing to the same image.
 			name: "two tags",
 			prepare: func(t *testing.T, d *daemon.Daemon, apiClient *client.Client) error {
-				return apiClient.ImageTag(ctx, "busybox:latest", "busybox:a")
+				_, err := apiClient.ImageTag(ctx, client.ImageTagOptions{Source: "busybox:latest", Target: "busybox:a"})
+				return err
 			},
 			check: func(t *testing.T, apiClient *client.Client, pruned image.PruneReport) {
 				if assert.Check(t, is.Len(pruned.ImagesDeleted, 1)) {

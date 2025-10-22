@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"io"
 	"net/url"
 	"strings"
 
@@ -11,11 +10,11 @@ import (
 
 // ImageImport creates a new image based on the source options.
 // It returns the JSON content in the response body.
-func (cli *Client) ImageImport(ctx context.Context, source ImageImportSource, ref string, options ImageImportOptions) (io.ReadCloser, error) {
+func (cli *Client) ImageImport(ctx context.Context, source ImageImportSource, ref string, options ImageImportOptions) (ImageImportResult, error) {
 	if ref != "" {
 		// Check if the given image name can be resolved
 		if _, err := reference.ParseNormalizedNamed(ref); err != nil {
-			return nil, err
+			return ImageImportResult{}, err
 		}
 	}
 
@@ -41,7 +40,7 @@ func (cli *Client) ImageImport(ctx context.Context, source ImageImportSource, re
 
 	resp, err := cli.postRaw(ctx, "/images/create", query, source.Source, nil)
 	if err != nil {
-		return nil, err
+		return ImageImportResult{}, err
 	}
-	return resp.Body, nil
+	return ImageImportResult{body: resp.Body}, nil
 }

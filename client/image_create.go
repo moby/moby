@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -13,10 +12,10 @@ import (
 
 // ImageCreate creates a new image based on the parent options.
 // It returns the JSON content in the response body.
-func (cli *Client) ImageCreate(ctx context.Context, parentReference string, options ImageCreateOptions) (io.ReadCloser, error) {
+func (cli *Client) ImageCreate(ctx context.Context, parentReference string, options ImageCreateOptions) (ImageCreateResult, error) {
 	ref, err := reference.ParseNormalizedNamed(parentReference)
 	if err != nil {
-		return nil, err
+		return ImageCreateResult{}, err
 	}
 
 	query := url.Values{}
@@ -27,9 +26,9 @@ func (cli *Client) ImageCreate(ctx context.Context, parentReference string, opti
 	}
 	resp, err := cli.tryImageCreate(ctx, query, staticAuth(options.RegistryAuth))
 	if err != nil {
-		return nil, err
+		return ImageCreateResult{}, err
 	}
-	return resp.Body, nil
+	return ImageCreateResult{Body: resp.Body}, nil
 }
 
 func (cli *Client) tryImageCreate(ctx context.Context, query url.Values, resolveAuth registry.RequestAuthConfig) (*http.Response, error) {

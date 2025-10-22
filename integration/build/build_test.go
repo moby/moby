@@ -800,9 +800,9 @@ func TestBuildHistoryDoesNotPreventRemoval(t *testing.T) {
 	err := buildImage("history-a")
 	assert.NilError(t, err)
 
-	resp, err := apiClient.ImageRemove(ctx, "history-a", client.ImageRemoveOptions{})
+	res, err := apiClient.ImageRemove(ctx, "history-a", client.ImageRemoveOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, slices.ContainsFunc(resp, func(r image.DeleteResponse) bool {
+	assert.Check(t, slices.ContainsFunc(res.Deleted, func(r image.DeleteResponse) bool {
 		return r.Deleted != ""
 	}))
 }

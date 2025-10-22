@@ -205,7 +205,7 @@ func (e *Execution) HasExistingImage(t testing.TB, reference string) bool {
 	})
 	assert.NilError(t, err, "failed to list images")
 
-	return len(imageList) > 0
+	return len(imageList.Items) > 0
 }
 
 // EnsureFrozenImagesLinux loads frozen test images into the daemon

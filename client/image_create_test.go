@@ -57,13 +57,13 @@ func TestImageCreate(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	createResponse, err := client.ImageCreate(context.Background(), specifiedReference, ImageCreateOptions{
+	createResult, err := client.ImageCreate(context.Background(), specifiedReference, ImageCreateOptions{
 		RegistryAuth: expectedRegistryAuth,
 	})
 	assert.NilError(t, err)
-	response, err := io.ReadAll(createResponse)
+	response, err := io.ReadAll(createResult.Body)
 	assert.NilError(t, err)
-	err = createResponse.Close()
+	err = createResult.Body.Close()
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(string(response), "body"))
 }

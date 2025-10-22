@@ -8,7 +8,6 @@ import (
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/api/types/registry"
@@ -105,18 +104,18 @@ type DistributionAPIClient interface {
 
 // ImageAPIClient defines API client methods for the images
 type ImageAPIClient interface {
-	ImageBuild(ctx context.Context, context io.Reader, options ImageBuildOptions) (ImageBuildResponse, error)
+	ImageBuild(ctx context.Context, context io.Reader, options ImageBuildOptions) (ImageBuildResult, error)
 	BuildCachePrune(ctx context.Context, opts BuildCachePruneOptions) (BuildCachePruneResult, error)
-	BuildCancel(ctx context.Context, id string, opts BuildCancelOptions) error
-	ImageCreate(ctx context.Context, parentReference string, options ImageCreateOptions) (io.ReadCloser, error)
-	ImageImport(ctx context.Context, source ImageImportSource, ref string, options ImageImportOptions) (io.ReadCloser, error)
+	BuildCancel(ctx context.Context, id string, opts BuildCancelOptions) (BuildCancelResult, error)
+	ImageCreate(ctx context.Context, parentReference string, options ImageCreateOptions) (ImageCreateResult, error)
+	ImageImport(ctx context.Context, source ImageImportSource, ref string, options ImageImportOptions) (ImageImportResult, error)
 
-	ImageList(ctx context.Context, options ImageListOptions) ([]image.Summary, error)
+	ImageList(ctx context.Context, options ImageListOptions) (ImageListResult, error)
 	ImagePull(ctx context.Context, ref string, options ImagePullOptions) (ImagePullResponse, error)
 	ImagePush(ctx context.Context, ref string, options ImagePushOptions) (ImagePushResponse, error)
-	ImageRemove(ctx context.Context, image string, options ImageRemoveOptions) ([]image.DeleteResponse, error)
-	ImageSearch(ctx context.Context, term string, options ImageSearchOptions) ([]registry.SearchResult, error)
-	ImageTag(ctx context.Context, image, ref string) error
+	ImageRemove(ctx context.Context, image string, options ImageRemoveOptions) (ImageRemoveResult, error)
+	ImageSearch(ctx context.Context, term string, options ImageSearchOptions) (ImageSearchResult, error)
+	ImageTag(ctx context.Context, options ImageTagOptions) (ImageTagResult, error)
 	ImagesPrune(ctx context.Context, opts ImagePruneOptions) (ImagePruneResult, error)
 
 	ImageInspect(ctx context.Context, image string, _ ...ImageInspectOption) (ImageInspectResult, error)

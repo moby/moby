@@ -18,7 +18,7 @@ func TestImageTagError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	err = client.ImageTag(context.Background(), "image_id", "repo:tag")
+	_, err = client.ImageTag(context.Background(), ImageTagOptions{Source: "image_id", Target: "repo:tag"})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -28,7 +28,7 @@ func TestImageTagInvalidReference(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	err = client.ImageTag(context.Background(), "image_id", "aa/asdf$$^/aa")
+	_, err = client.ImageTag(context.Background(), ImageTagOptions{Source: "image_id", Target: "aa/asdf$$^/aa"})
 	assert.Check(t, is.Error(err, `error parsing reference: "aa/asdf$$^/aa" is not a valid repository/tag: invalid reference format`))
 }
 
@@ -43,7 +43,7 @@ func TestImageTagInvalidSourceImageName(t *testing.T) {
 	for _, repo := range invalidRepos {
 		t.Run("invalidRepo/"+repo, func(t *testing.T) {
 			t.Parallel()
-			err := client.ImageTag(ctx, "busybox", repo)
+			_, err := client.ImageTag(ctx, ImageTagOptions{Source: "busybox", Target: repo})
 			assert.Check(t, is.ErrorContains(err, "not a valid repository/tag"))
 		})
 	}
@@ -53,26 +53,26 @@ func TestImageTagInvalidSourceImageName(t *testing.T) {
 	for _, repotag := range invalidTags {
 		t.Run("invalidTag/"+repotag, func(t *testing.T) {
 			t.Parallel()
-			err := client.ImageTag(ctx, "busybox", repotag)
+			_, err := client.ImageTag(ctx, ImageTagOptions{Source: "busybox", Target: repotag})
 			assert.Check(t, is.ErrorContains(err, "not a valid repository/tag"))
 		})
 	}
 
 	t.Run("test repository name begin with '-'", func(t *testing.T) {
 		t.Parallel()
-		err := client.ImageTag(ctx, "busybox:latest", "-busybox:test")
+		_, err := client.ImageTag(ctx, ImageTagOptions{Source: "busybox:latest", Target: "-busybox:test"})
 		assert.Check(t, is.ErrorContains(err, "error parsing reference"))
 	})
 
 	t.Run("test namespace name begin with '-'", func(t *testing.T) {
 		t.Parallel()
-		err := client.ImageTag(ctx, "busybox:latest", "-test/busybox:test")
+		_, err := client.ImageTag(ctx, ImageTagOptions{Source: "busybox:latest", Target: "-test/busybox:test"})
 		assert.Check(t, is.ErrorContains(err, "error parsing reference"))
 	})
 
 	t.Run("test index name begin with '-'", func(t *testing.T) {
 		t.Parallel()
-		err := client.ImageTag(ctx, "busybox:latest", "-index:5000/busybox:test")
+		_, err := client.ImageTag(ctx, ImageTagOptions{Source: "busybox:latest", Target: "-index:5000/busybox:test"})
 		assert.Check(t, is.ErrorContains(err, "error parsing reference"))
 	})
 }
@@ -91,7 +91,7 @@ func TestImageTagHexSource(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusOK, "OK")))
 	assert.NilError(t, err)
 
-	err = client.ImageTag(context.Background(), "0d409d33b27e47423b049f7f863faa08655a8c901749c2b25b93ca67d01a470d", "repo:tag")
+	_, err = client.ImageTag(context.Background(), ImageTagOptions{Source: "0d409d33b27e47423b049f7f863faa08655a8c901749c2b25b93ca67d01a470d", Target: "repo:tag"})
 	assert.NilError(t, err)
 }
 
@@ -169,7 +169,7 @@ func TestImageTag(t *testing.T) {
 			}, nil
 		}))
 		assert.NilError(t, err)
-		err = client.ImageTag(context.Background(), "image_id", tagCase.reference)
+		_, err = client.ImageTag(context.Background(), ImageTagOptions{Source: "image_id", Target: tagCase.reference})
 		assert.NilError(t, err)
 	}
 }

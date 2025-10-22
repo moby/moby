@@ -344,7 +344,7 @@ func (s *DockerRegistrySuite) TestBuildCopyFromForcePull(c *testing.T) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 	// tag the image to upload it to the private registry
 	ctx := testutil.GetContext(c)
-	err := apiClient.ImageTag(ctx, "busybox", repoName)
+	_, err := apiClient.ImageTag(ctx, client.ImageTagOptions{Source: "busybox", Target: repoName})
 	assert.Check(c, err)
 	// push the image to the registry
 	rc, err := apiClient.ImagePush(ctx, repoName, client.ImagePushOptions{RegistryAuth: "{}"})

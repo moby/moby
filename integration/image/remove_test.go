@@ -71,7 +71,7 @@ func TestRemoveByDigest(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	err := apiClient.ImageTag(ctx, "busybox", "test-remove-by-digest:latest")
+	_, err := apiClient.ImageTag(ctx, client.ImageTagOptions{Source: "busybox", Target: "test-remove-by-digest:latest"})
 	assert.NilError(t, err)
 
 	inspect, err := apiClient.ImageInspect(ctx, "test-remove-by-digest")
@@ -142,25 +142,25 @@ func TestRemoveWithPlatform(t *testing.T) {
 		{platform: &platformHost, deleted: descs[0]},
 		{platform: &someOtherPlatform, deleted: descs[3]},
 	} {
-		resp, err := apiClient.ImageRemove(ctx, imgName, client.ImageRemoveOptions{
+		res, err := apiClient.ImageRemove(ctx, imgName, client.ImageRemoveOptions{
 			Platforms: []ocispec.Platform{*tc.platform},
 			Force:     true,
 		})
 		assert.NilError(t, err)
-		assert.Check(t, is.Len(resp, 1))
-		for _, r := range resp {
+		assert.Check(t, is.Len(res.Deleted, 1))
+		for _, r := range res.Deleted {
 			assert.Check(t, is.Equal(r.Untagged, ""), "No image should be untagged")
 		}
-		checkPlatformDeleted(t, imageIdx, resp, tc.deleted)
+		checkPlatformDeleted(t, imageIdx, res.Deleted, tc.deleted)
 	}
 
 	// Delete the rest
 	resp, err := apiClient.ImageRemove(ctx, imgName, client.ImageRemoveOptions{})
 	assert.NilError(t, err)
 
-	assert.Check(t, is.Len(resp, 2))
-	assert.Check(t, is.Equal(resp[0].Untagged, imgName))
-	assert.Check(t, is.Equal(resp[1].Deleted, imageIdx.Manifests[0].Digest.String()))
+	assert.Check(t, is.Len(resp.Deleted, 2))
+	assert.Check(t, is.Equal(resp.Deleted[0].Untagged, imgName))
+	assert.Check(t, is.Equal(resp.Deleted[1].Deleted, imageIdx.Manifests[0].Digest.String()))
 	// TODO(vvoland): Should it also include platform-specific manifests? https://github.com/moby/moby/pull/49982
 }
 

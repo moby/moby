@@ -108,6 +108,6 @@ func TestImageRemove(t *testing.T) {
 
 		imageDeletes, err := client.ImageRemove(context.Background(), "image_id", opts)
 		assert.NilError(t, err)
-		assert.Check(t, is.Len(imageDeletes, 2))
+		assert.Check(t, is.Len(imageDeletes.Deleted, 2))
 	}
 }
