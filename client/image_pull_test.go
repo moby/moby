@@ -201,7 +201,7 @@ func TestImagePullWithoutErrors(t *testing.T) {
 func TestImagePullResponse(t *testing.T) {
 	r, w := io.Pipe()
 	response := internal.NewJSONMessageStream(r)
-	ctx, cancel := context.WithCancel(context.TODO())
+	ctx, cancel := context.WithCancel(t.Context())
 	messages := response.JSONMessages(ctx)
 	c := make(chan jsonmessage.JSONMessage)
 	go func() {
@@ -215,26 +215,28 @@ func TestImagePullResponse(t *testing.T) {
 	}()
 
 	// Check we receive message sent to json stream
-	w.Write([]byte(`{"id":"test"}`))
-	tiemout, _ := context.WithTimeout(context.TODO(), 100*time.Millisecond)
+	_, _ = w.Write([]byte(`{"id":"test"}`))
+	ctxTO, toCancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer toCancel()
 	select {
 	case message := <-c:
 		assert.Equal(t, message.ID, "test")
-	case <-tiemout.Done():
+	case <-ctxTO.Done():
 		t.Fatal("expected message not received")
 	}
 
 	// Check context cancelation
 	cancel()
-	tiemout, _ = context.WithTimeout(context.TODO(), 100*time.Millisecond)
+	ctxTO2, toCancel2 := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer toCancel2()
 	select {
 	case _, ok := <-c:
 		assert.Check(t, !ok)
-	case <-tiemout.Done():
+	case <-ctxTO2.Done():
 		t.Fatal("expected message not received")
 	}
 
-	// Check Close can be ran twice without error
+	// Check that Close can be called twice without error
 	assert.NilError(t, response.Close())
 	assert.NilError(t, response.Close())
 }

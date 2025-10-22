@@ -23,7 +23,7 @@ func TestImagePushReferenceError(t *testing.T) {
 	// An empty reference is an invalid reference
 	_, err = client.ImagePush(context.Background(), "", ImagePushOptions{})
 	assert.Check(t, is.ErrorContains(err, "invalid reference format"))
-	// An canonical reference cannot be pushed
+	// A canonical reference cannot be pushed
 	_, err = client.ImagePush(context.Background(), "repo@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", ImagePushOptions{})
 	assert.Check(t, is.Error(err, "cannot push a digest reference"))
 }
@@ -46,12 +46,12 @@ func TestImagePushWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")))
 	assert.NilError(t, err)
 	privilegeFunc := func(_ context.Context) (string, error) {
-		return "", errors.New("Error requesting privilege")
+		return "", errors.New("error requesting privilege")
 	}
 	_, err = client.ImagePush(context.Background(), "myimage", ImagePushOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
-	assert.Check(t, is.Error(err, "Error requesting privilege"))
+	assert.Check(t, is.Error(err, "error requesting privilege"))
 }
 
 func TestImagePushWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T) {
