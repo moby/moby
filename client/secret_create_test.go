@@ -17,7 +17,7 @@ import (
 func TestSecretCreateError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	_, err = client.SecretCreate(context.Background(), swarm.SecretSpec{})
+	_, err = client.SecretCreate(context.Background(), SecretCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -40,7 +40,7 @@ func TestSecretCreate(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	r, err := client.SecretCreate(context.Background(), swarm.SecretSpec{})
+	r, err := client.SecretCreate(context.Background(), SecretCreateOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(r.ID, "test_secret"))
 }

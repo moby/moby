@@ -83,11 +83,13 @@ func TestServiceUpdateSecrets(t *testing.T) {
 
 	secretName := "TestSecret_" + t.Name()
 	secretTarget := "targetName"
-	secretResp, err := apiClient.SecretCreate(ctx, swarmtypes.SecretSpec{
-		Annotations: swarmtypes.Annotations{
-			Name: secretName,
+	secretResp, err := apiClient.SecretCreate(ctx, client.SecretCreateOptions{
+		Spec: swarmtypes.SecretSpec{
+			Annotations: swarmtypes.Annotations{
+				Name: secretName,
+			},
+			Data: []byte("TESTINGDATA"),
 		},
-		Data: []byte("TESTINGDATA"),
 	})
 	assert.NilError(t, err)
 	assert.Check(t, secretResp.ID != "")

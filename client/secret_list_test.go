@@ -75,8 +75,8 @@ func TestSecretList(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 
-		secrets, err := client.SecretList(context.Background(), listCase.options)
+		res, err := client.SecretList(context.Background(), listCase.options)
 		assert.NilError(t, err)
-		assert.Check(t, is.Len(secrets, 2))
+		assert.Check(t, is.Len(res.Items, 2))
 	}
 }
