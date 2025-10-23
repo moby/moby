@@ -299,10 +299,10 @@ func (s *DockerCLIInspectSuite) TestInspectTemplateError(c *testing.T) {
 
 	out, _, err := dockerCmdWithError("inspect", "--type=container", "--format='Format container: {{.ThisDoesNotExist}}'", "container1")
 	assert.Assert(c, err != nil)
-	assert.Assert(c, is.Contains(out, "Template parsing error"))
+	assert.Assert(c, is.Contains(out, "template parsing error: template"))
 	out, _, err = dockerCmdWithError("inspect", "--type=image", "--format='Format container: {{.ThisDoesNotExist}}'", "busybox")
 	assert.Assert(c, err != nil)
-	assert.Assert(c, is.Contains(out, "Template parsing error"))
+	assert.Assert(c, is.Contains(out, "template parsing error"))
 }
 
 func (s *DockerCLIInspectSuite) TestInspectJSONFields(c *testing.T) {
@@ -332,14 +332,14 @@ func (s *DockerCLIInspectSuite) TestInspectStopWhenNotFound(c *testing.T) {
 	assert.Assert(c, result.Error != nil)
 	assert.Assert(c, is.Contains(result.Stdout(), "busybox1"))
 	assert.Assert(c, is.Contains(result.Stdout(), "busybox2"))
-	assert.Assert(c, is.Contains(result.Stderr(), "Error: No such container: missing"))
+	assert.Assert(c, is.Contains(result.Stderr(), "No such container: missing"))
 	// test inspect would not fast fail
 	result = cli.Docker(cli.Args("inspect", "--type=container", "--format='{{.Name}}'", "missing", "busybox1", "busybox2"))
 
 	assert.Assert(c, result.Error != nil)
 	assert.Assert(c, is.Contains(result.Stdout(), "busybox1"))
 	assert.Assert(c, is.Contains(result.Stdout(), "busybox2"))
-	assert.Assert(c, is.Contains(result.Stderr(), "Error: No such container: missing"))
+	assert.Assert(c, is.Contains(result.Stderr(), "No such container: missing"))
 }
 
 func (s *DockerCLIInspectSuite) TestInspectHistory(c *testing.T) {

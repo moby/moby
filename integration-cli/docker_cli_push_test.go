@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"github.com/distribution/reference"
-	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/integration-cli/cli/build"
 	"golang.org/x/sync/errgroup"
@@ -73,14 +72,7 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *testing.T) {
 	cli.DockerCmd(c, "tag", "busybox", repoTag1)
 	cli.DockerCmd(c, "tag", "busybox", repoTag2)
 
-	args := []string{"push"}
-	if versions.GreaterThanOrEqualTo(DockerCLIVersion(c), "20.10.0") {
-		// 20.10 CLI removed implicit push all tags and requires the "--all" flag
-		args = append(args, "--all-tags")
-	}
-	args = append(args, imgRepo)
-
-	cli.DockerCmd(c, args...)
+	cli.DockerCmd(c, "push", "--all-tags")
 
 	imageAlreadyExists := ": Image already exists"
 
