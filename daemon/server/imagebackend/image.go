@@ -7,6 +7,7 @@ import (
 	"github.com/moby/moby/api/types/container"
 	imagetypes "github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/api/types/storage"
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -92,4 +93,8 @@ type InspectData struct {
 	//
 	// This field is removed in API v1.45, but used for API <= v1.44 responses.
 	ContainerConfig *container.Config
+
+	// GraphDriverLegacy is used for API versions < v1.52, which included the
+	// name of the snapshotter the GraphDriver field.
+	GraphDriverLegacy *storage.DriverData
 }

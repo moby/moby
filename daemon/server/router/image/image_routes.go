@@ -440,6 +440,11 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 				"Config": legacyConfigFields["v1.50-v1.51"],
 			}))
 		}
+
+		// Restore the GraphDriver field, now omitted when a snapshotter is used.
+		if imageInspect.GraphDriver == nil && inspectData.GraphDriverLegacy != nil {
+			imageInspect.GraphDriver = inspectData.GraphDriverLegacy
+		}
 	} else {
 		if inspectData.Parent != "" {
 			// field is deprecated, but still included in response when present (built with legacy builder).

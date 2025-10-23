@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/storage"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"gotest.tools/v3/assert"
@@ -83,4 +85,92 @@ func TestGraphDriverPersistence(t *testing.T) {
 	assert.NilError(t, err, "Test container should still exist after daemon restart")
 	assert.Check(t, containerInspect.GraphDriver != nil, "GraphDriver should be set for graphdriver backend")
 	assert.Check(t, is.Equal(containerInspect.GraphDriver.Name, prevDriver), "Container graphdriver data should match")
+}
+
+// TestInspectGraphDriverAPIBC checks API backward compatibility of the GraphDriver field in image/container inspect.
+func TestInspectGraphDriverAPIBC(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Windows does not support running sub-daemons")
+	t.Setenv("DOCKER_DRIVER", "")
+	t.Setenv("DOCKER_GRAPHDRIVER", "")
+	t.Setenv("TEST_INTEGRATION_USE_GRAPHDRIVER", "")
+	ctx := testutil.StartSpan(baseContext, t)
+
+	tests := []struct {
+		name          string
+		apiVersion    string
+		storageDriver string
+
+		expContainerdSnapshotter bool
+		expGraphDriver           string
+		expRootFSStorage         bool
+	}{
+		{
+			name:                     "vCurrent/containerd",
+			expContainerdSnapshotter: true,
+			expRootFSStorage:         true,
+		},
+		{
+			name:                     "v1.51/containerd",
+			apiVersion:               "v1.51",
+			expContainerdSnapshotter: true,
+			expGraphDriver:           "overlayfs",
+		},
+		{
+			name:           "vCurrent/graphdriver",
+			storageDriver:  "vfs",
+			expGraphDriver: "vfs",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			d := daemon.New(t)
+			defer d.Stop(t)
+			d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false", "--storage-driver="+tc.storageDriver)
+			c := d.NewClientT(t, client.WithVersion(tc.apiVersion))
+
+			// Check selection of containerd / storage-driver worked.
+			info := d.Info(t)
+			if tc.expContainerdSnapshotter {
+				assert.Check(t, is.Equal(info.Driver, "overlayfs"))
+				assert.Check(t, is.Equal(info.DriverStatus[0][0], "driver-type"))
+				assert.Check(t, is.Equal(info.DriverStatus[0][1], "io.containerd.snapshotter.v1"))
+			} else {
+				assert.Check(t, is.Equal(info.Driver, "vfs"))
+				assert.Check(t, is.Len(info.DriverStatus, 0))
+			}
+
+			const testImage = "busybox:latest"
+			ctr, err := c.ContainerCreate(ctx, &containertypes.Config{Image: testImage}, nil, nil, nil, "test-container")
+			assert.NilError(t, err)
+			defer func() { _ = c.ContainerRemove(ctx, ctr.ID, client.ContainerRemoveOptions{Force: true}) }()
+
+			if imageInspect, err := c.ImageInspect(ctx, testImage); assert.Check(t, err) {
+				if tc.expGraphDriver != "" {
+					if assert.Check(t, imageInspect.GraphDriver != nil) {
+						assert.Check(t, is.Equal(imageInspect.GraphDriver.Name, tc.expGraphDriver))
+					}
+				} else {
+					assert.Check(t, is.Nil(imageInspect.GraphDriver))
+				}
+			}
+
+			if containerInspect, err := c.ContainerInspect(ctx, ctr.ID); assert.Check(t, err) {
+				if tc.expGraphDriver != "" {
+					if assert.Check(t, containerInspect.GraphDriver != nil) {
+						assert.Check(t, is.Equal(containerInspect.GraphDriver.Name, tc.expGraphDriver))
+					}
+				} else {
+					assert.Check(t, is.Nil(containerInspect.GraphDriver))
+				}
+				if tc.expRootFSStorage {
+					assert.DeepEqual(t, containerInspect.Storage, &storage.Storage{
+						RootFS: &storage.RootFSStorage{Snapshot: &storage.RootFSStorageSnapshot{Name: "overlayfs"}},
+					})
+				} else {
+					assert.Check(t, is.Nil(containerInspect.Storage))
+				}
+			}
+		})
+	}
 }
