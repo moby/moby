@@ -1,14 +1,11 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"io"
 	"net/http"
 	"net/url"
 	"runtime"
-	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -365,15 +362,11 @@ func TestNegotiateAPIVersionConnectionFailure(t *testing.T) {
 func TestNegotiateAPIVersionAutomatic(t *testing.T) {
 	var pingVersion string
 
-	ctx := context.Background()
+	ctx := t.Context()
 	client, err := NewClientWithOpts(
-		WithHTTPClient(&http.Client{
-			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{}}
-				resp.Header.Set("Api-Version", pingVersion)
-				resp.Body = io.NopCloser(strings.NewReader("OK"))
-				return resp, nil
-			}),
+		WithMockClient(func(req *http.Request) (*http.Response, error) {
+			hdr := http.Header{"Api-Version": []string{pingVersion}}
+			return mockResponse(http.StatusOK, hdr, "OK")(req)
 		}),
 		WithAPIVersionNegotiation(),
 	)
@@ -493,32 +486,14 @@ func TestCustomAPIVersion(t *testing.T) {
 	}
 }
 
-type roundTripFunc func(*http.Request) (*http.Response, error)
-
-func (rtf roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return rtf(req)
-}
-
-type bytesBufferClose struct {
-	*bytes.Buffer
-}
-
-func (bbc bytesBufferClose) Close() error {
-	return nil
-}
-
 func TestClientRedirect(t *testing.T) {
 	client := &http.Client{
 		CheckRedirect: CheckRedirect,
-		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		Transport: ensureBody(func(req *http.Request) (*http.Response, error) {
 			if req.URL.String() == "/bla" {
-				return &http.Response{StatusCode: http.StatusNotFound}, nil
+				return mockResponse(http.StatusNotFound, nil, "")(req)
 			}
-			return &http.Response{
-				StatusCode: http.StatusMovedPermanently,
-				Header:     http.Header{"Location": {"/bla"}},
-				Body:       bytesBufferClose{bytes.NewBuffer(nil)},
-			}, nil
+			return mockResponse(http.StatusMovedPermanently, http.Header{"Location": {"/bla"}}, "")(req)
 		}),
 	}
 

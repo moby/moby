@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,7 +29,9 @@ func assertRequest(req *http.Request, expMethod string, expectedPath string) err
 	return nil
 }
 
-func transportEnsureBody(f transportFunc) transportFunc {
+// ensureBody makes sure the response has a Body, using [http.NoBody] if
+// none is present, and returns it as a testRoundTripper.
+func ensureBody(f func(req *http.Request) (*http.Response, error)) testRoundTripper {
 	return func(req *http.Request) (*http.Response, error) {
 		resp, err := f(req)
 		if resp != nil && resp.Body == nil {
@@ -43,35 +44,46 @@ func transportEnsureBody(f transportFunc) transportFunc {
 // WithMockClient is a test helper that allows you to inject a mock client for testing.
 func WithMockClient(doer func(*http.Request) (*http.Response, error)) Opt {
 	return WithHTTPClient(&http.Client{
-		Transport: transportEnsureBody(transportFunc(doer)),
+		Transport: ensureBody(doer),
 	})
 }
 
 func errorMock(statusCode int, message string) func(req *http.Request) (*http.Response, error) {
-	return func(req *http.Request) (*http.Response, error) {
-		header := http.Header{}
-		header.Set("Content-Type", "application/json")
-
-		body, err := json.Marshal(&common.ErrorResponse{
-			Message: message,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		return &http.Response{
-			StatusCode: statusCode,
-			Body:       io.NopCloser(bytes.NewReader(body)),
-			Header:     header,
-		}, nil
-	}
+	return mockJSONResponse(statusCode, nil, common.ErrorResponse{
+		Message: message,
+	})
 }
 
-func plainTextErrorMock(statusCode int, message string) func(req *http.Request) (*http.Response, error) {
+func mockJSONResponse[T any](statusCode int, headers http.Header, resp T) func(req *http.Request) (*http.Response, error) {
+	respBody, err := json.Marshal(&resp)
+	if err != nil {
+		panic(err)
+	}
+	hdr := make(http.Header)
+	if headers != nil {
+		hdr = headers.Clone()
+	}
+	hdr.Set("Content-Type", "application/json")
+	return mockResponse(statusCode, hdr, string(respBody))
+}
+
+func mockResponse(statusCode int, headers http.Header, respBody string) func(req *http.Request) (*http.Response, error) {
+	if headers == nil {
+		headers = make(http.Header)
+	}
+	var body io.ReadCloser
+	if respBody == "" {
+		body = http.NoBody
+	} else {
+		body = io.NopCloser(strings.NewReader(respBody))
+	}
 	return func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
+			Status:     fmt.Sprintf("%d %s", statusCode, http.StatusText(statusCode)),
 			StatusCode: statusCode,
-			Body:       io.NopCloser(bytes.NewReader([]byte(message))),
+			Header:     headers,
+			Body:       body,
+			Request:    req,
 		}, nil
 	}
 }
