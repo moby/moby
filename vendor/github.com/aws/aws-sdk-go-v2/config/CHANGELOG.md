@@ -1,3 +1,283 @@
+# v1.31.15 (2025-10-23)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.14 (2025-10-22)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.13 (2025-10-16)
+
+* **Dependency Update**: Bump minimum Go version to 1.23.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.12 (2025-09-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.11 (2025-09-26)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.10 (2025-09-23)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.9 (2025-09-22)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.8 (2025-09-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.7 (2025-09-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.6 (2025-08-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.5 (2025-08-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.4 (2025-08-27)
+
+* **Dependency Update**: Update to smithy-go v1.23.0.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.3 (2025-08-26)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.2 (2025-08-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.1 (2025-08-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.0 (2025-08-11)
+
+* **Feature**: Add support for configuring per-service Options via callback on global config.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.30.3 (2025-08-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.30.2 (2025-07-30)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.30.1 (2025-07-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.30.0 (2025-07-28)
+
+* **Feature**: Add support for HTTP interceptors.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.18 (2025-07-19)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.17 (2025-06-17)
+
+* **Dependency Update**: Update to smithy-go v1.22.4.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.16 (2025-06-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.15 (2025-06-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.14 (2025-04-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.13 (2025-04-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.12 (2025-03-27)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.11 (2025-03-25)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.10 (2025-03-24)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.9 (2025-03-04.2)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.8 (2025-02-27)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.7 (2025-02-18)
+
+* **Bug Fix**: Bump go version to 1.22
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.6 (2025-02-05)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.5 (2025-02-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.4 (2025-01-31)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.3 (2025-01-30)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.2 (2025-01-24)
+
+* **Bug Fix**: Fix env config naming and usage of deprecated ioutil
+* **Dependency Update**: Updated to the latest SDK module versions
+* **Dependency Update**: Upgrade to smithy-go v1.22.2.
+
+# v1.29.1 (2025-01-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.0 (2025-01-15)
+
+* **Feature**: S3 client behavior is updated to always calculate a checksum by default for operations that support it (such as PutObject or UploadPart), or require it (such as DeleteObjects). The checksum algorithm used by default now becomes CRC32. Checksum behavior can be configured using `when_supported` and `when_required` options - in code using RequestChecksumCalculation, in shared config using request_checksum_calculation, or as env variable using AWS_REQUEST_CHECKSUM_CALCULATION. The S3 client attempts to validate response checksums for all S3 API operations that support checksums. However, if the SDK has not implemented the specified checksum algorithm then this validation is skipped. Checksum validation behavior can be configured using `when_supported` and `when_required` options - in code using ResponseChecksumValidation, in shared config using response_checksum_validation, or as env variable using AWS_RESPONSE_CHECKSUM_VALIDATION.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.28.11 (2025-01-14)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.28.10 (2025-01-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.28.9 (2025-01-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.28.8 (2025-01-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.28.7 (2024-12-19)
+
+* **Bug Fix**: Fix improper use of printf-style functions.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.28.6 (2024-12-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.28.5 (2024-11-18)
+
+* **Dependency Update**: Update to smithy-go v1.22.1.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.28.4 (2024-11-14)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.28.3 (2024-11-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.28.2 (2024-11-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.28.1 (2024-10-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.28.0 (2024-10-16)
+
+* **Feature**: Adds the LoadOptions hook `WithBaseEndpoint` for setting global endpoint override in-code.
+
+# v1.27.43 (2024-10-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.27.42 (2024-10-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.27.41 (2024-10-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.27.40 (2024-10-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.27.39 (2024-09-27)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.27.38 (2024-09-25)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.27.37 (2024-09-23)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.27.36 (2024-09-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.27.35 (2024-09-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.27.34 (2024-09-16)
+
+* **Bug Fix**: Read `AWS_CONTAINER_CREDENTIALS_FULL_URI` env variable if set when reading a profile with `credential_source`. Also ensure `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI` is always read before it
+
+# v1.27.33 (2024-09-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.27.32 (2024-09-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.27.31 (2024-08-26)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.27.30 (2024-08-23)
+
+* **Bug Fix**: Don't fail credentials unit tests if credentials are found on a file
+
+# v1.27.29 (2024-08-22)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.27.28 (2024-08-15)
+
+* **Dependency Update**: Bump minimum Go version to 1.21.
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.27.27 (2024-07-18)
 
 * **Dependency Update**: Updated to the latest SDK module versions

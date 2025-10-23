@@ -182,6 +182,36 @@ func resolveAccountIDEndpointMode(ctx context.Context, cfg *aws.Config, configs 
 	return nil
 }
 
+// resolveRequestChecksumCalculation extracts the RequestChecksumCalculation from the configs slice's
+// SharedConfig or EnvConfig
+func resolveRequestChecksumCalculation(ctx context.Context, cfg *aws.Config, configs configs) error {
+	c, found, err := getRequestChecksumCalculation(ctx, configs)
+	if err != nil {
+		return err
+	}
+
+	if !found {
+		c = aws.RequestChecksumCalculationWhenSupported
+	}
+	cfg.RequestChecksumCalculation = c
+	return nil
+}
+
+// resolveResponseValidation extracts the ResponseChecksumValidation from the configs slice's
+// SharedConfig or EnvConfig
+func resolveResponseChecksumValidation(ctx context.Context, cfg *aws.Config, configs configs) error {
+	c, found, err := getResponseChecksumValidation(ctx, configs)
+	if err != nil {
+		return err
+	}
+
+	if !found {
+		c = aws.ResponseChecksumValidationWhenSupported
+	}
+	cfg.ResponseChecksumValidation = c
+	return nil
+}
+
 // resolveDefaultRegion extracts the first instance of a default region and sets `aws.Config.Region` to the default
 // region if region had not been resolved from other sources.
 func resolveDefaultRegion(ctx context.Context, cfg *aws.Config, configs configs) error {
@@ -379,5 +409,36 @@ func resolveRetryMode(ctx context.Context, cfg *aws.Config, configs configs) err
 	}
 	cfg.RetryMode = retryMode
 
+	return nil
+}
+
+func resolveInterceptors(ctx context.Context, cfg *aws.Config, configs configs) error {
+	// LoadOptions is the only thing that you can really configure interceptors
+	// on so just check that directly.
+	for _, c := range configs {
+		if loadopts, ok := c.(LoadOptions); ok {
+			cfg.Interceptors = loadopts.Interceptors.Copy()
+		}
+	}
+	return nil
+}
+
+func resolveAuthSchemePreference(ctx context.Context, cfg *aws.Config, configs configs) error {
+	if pref, ok := getAuthSchemePreference(ctx, configs); ok {
+		cfg.AuthSchemePreference = pref
+	}
+	return nil
+}
+
+func resolveServiceOptions(ctx context.Context, cfg *aws.Config, configs configs) error {
+	serviceOptions, found, err := getServiceOptions(ctx, configs)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return nil
+	}
+
+	cfg.ServiceOptions = serviceOptions
 	return nil
 }

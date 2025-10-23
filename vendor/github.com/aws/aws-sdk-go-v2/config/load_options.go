@@ -14,6 +14,7 @@ import (
 	smithybearer "github.com/aws/smithy-go/auth/bearer"
 	"github.com/aws/smithy-go/logging"
 	"github.com/aws/smithy-go/middleware"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // LoadOptionsFunc is a type alias for LoadOptions functional option
@@ -216,7 +217,29 @@ type LoadOptions struct {
 	// Whether S3 Express auth is disabled.
 	S3DisableExpressAuth *bool
 
+	// Whether account id should be built into endpoint resolution
 	AccountIDEndpointMode aws.AccountIDEndpointMode
+
+	// Specify if request checksum should be calculated
+	RequestChecksumCalculation aws.RequestChecksumCalculation
+
+	// Specifies if response checksum should be validated
+	ResponseChecksumValidation aws.ResponseChecksumValidation
+
+	// Service endpoint override. This value is not necessarily final and is
+	// passed to the service's EndpointResolverV2 for further delegation.
+	BaseEndpoint string
+
+	// Registry of operation interceptors.
+	Interceptors smithyhttp.InterceptorRegistry
+
+	// Priority list of preferred auth scheme names (e.g. sigv4a).
+	AuthSchemePreference []string
+
+	// ServiceOptions provides service specific configuration options that will be applied
+	// when constructing clients for specific services. Each callback function receives the service ID
+	// and the service's Options struct, allowing for dynamic configuration based on the service.
+	ServiceOptions []func(string, any)
 }
 
 func (o LoadOptions) getDefaultsMode(ctx context.Context) (aws.DefaultsMode, bool, error) {
@@ -284,6 +307,31 @@ func (o LoadOptions) getAccountIDEndpointMode(ctx context.Context) (aws.AccountI
 	return o.AccountIDEndpointMode, len(o.AccountIDEndpointMode) > 0, nil
 }
 
+func (o LoadOptions) getRequestChecksumCalculation(ctx context.Context) (aws.RequestChecksumCalculation, bool, error) {
+	return o.RequestChecksumCalculation, o.RequestChecksumCalculation > 0, nil
+}
+
+func (o LoadOptions) getResponseChecksumValidation(ctx context.Context) (aws.ResponseChecksumValidation, bool, error) {
+	return o.ResponseChecksumValidation, o.ResponseChecksumValidation > 0, nil
+}
+
+func (o LoadOptions) getBaseEndpoint(context.Context) (string, bool, error) {
+	return o.BaseEndpoint, o.BaseEndpoint != "", nil
+}
+
+func (o LoadOptions) getServiceOptions(context.Context) ([]func(string, any), bool, error) {
+	return o.ServiceOptions, len(o.ServiceOptions) > 0, nil
+}
+
+// GetServiceBaseEndpoint satisfies (internal/configsources).ServiceBaseEndpointProvider.
+//
+// The sdkID value is unused because LoadOptions only supports setting a GLOBAL
+// endpoint override. In-code, per-service endpoint overrides are performed via
+// functional options in service client space.
+func (o LoadOptions) GetServiceBaseEndpoint(context.Context, string) (string, bool, error) {
+	return o.BaseEndpoint, o.BaseEndpoint != "", nil
+}
+
 // WithRegion is a helper function to construct functional options
 // that sets Region on config's LoadOptions. Setting the region to
 // an empty string, will result in the region value being ignored.
@@ -336,6 +384,26 @@ func WithAccountIDEndpointMode(m aws.AccountIDEndpointMode) LoadOptionsFunc {
 		if m != "" {
 			o.AccountIDEndpointMode = m
 		}
+		return nil
+	}
+}
+
+// WithRequestChecksumCalculation is a helper function to construct functional options
+// that sets RequestChecksumCalculation on config's LoadOptions
+func WithRequestChecksumCalculation(c aws.RequestChecksumCalculation) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		if c > 0 {
+			o.RequestChecksumCalculation = c
+		}
+		return nil
+	}
+}
+
+// WithResponseChecksumValidation is a helper function to construct functional options
+// that sets ResponseChecksumValidation on config's LoadOptions
+func WithResponseChecksumValidation(v aws.ResponseChecksumValidation) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		o.ResponseChecksumValidation = v
 		return nil
 	}
 }
@@ -1138,4 +1206,150 @@ func WithS3DisableExpressAuth(v bool) LoadOptionsFunc {
 		o.S3DisableExpressAuth = &v
 		return nil
 	}
+}
+
+// WithBaseEndpoint is a helper function to construct functional options that
+// sets BaseEndpoint on config's LoadOptions. Empty values have no effect, and
+// subsequent calls to this API override previous ones.
+//
+// This is an in-code setting, therefore, any value set using this hook takes
+// precedence over and will override ALL environment and shared config
+// directives that set endpoint URLs. Functional options on service clients
+// have higher specificity, and functional options that modify the value of
+// BaseEndpoint on a client will take precedence over this setting.
+func WithBaseEndpoint(v string) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		o.BaseEndpoint = v
+		return nil
+	}
+}
+
+// WithServiceOptions is a helper function to construct functional options
+// that sets ServiceOptions on config's LoadOptions.
+func WithServiceOptions(callbacks ...func(string, any)) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		o.ServiceOptions = append(o.ServiceOptions, callbacks...)
+		return nil
+	}
+}
+
+// WithBeforeExecution adds the BeforeExecutionInterceptor to config.
+func WithBeforeExecution(i smithyhttp.BeforeExecutionInterceptor) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		o.Interceptors.BeforeExecution = append(o.Interceptors.BeforeExecution, i)
+		return nil
+	}
+}
+
+// WithBeforeSerialization adds the BeforeSerializationInterceptor to config.
+func WithBeforeSerialization(i smithyhttp.BeforeSerializationInterceptor) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		o.Interceptors.BeforeSerialization = append(o.Interceptors.BeforeSerialization, i)
+		return nil
+	}
+}
+
+// WithAfterSerialization adds the AfterSerializationInterceptor to config.
+func WithAfterSerialization(i smithyhttp.AfterSerializationInterceptor) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		o.Interceptors.AfterSerialization = append(o.Interceptors.AfterSerialization, i)
+		return nil
+	}
+}
+
+// WithBeforeRetryLoop adds the BeforeRetryLoopInterceptor to config.
+func WithBeforeRetryLoop(i smithyhttp.BeforeRetryLoopInterceptor) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		o.Interceptors.BeforeRetryLoop = append(o.Interceptors.BeforeRetryLoop, i)
+		return nil
+	}
+}
+
+// WithBeforeAttempt adds the BeforeAttemptInterceptor to config.
+func WithBeforeAttempt(i smithyhttp.BeforeAttemptInterceptor) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		o.Interceptors.BeforeAttempt = append(o.Interceptors.BeforeAttempt, i)
+		return nil
+	}
+}
+
+// WithBeforeSigning adds the BeforeSigningInterceptor to config.
+func WithBeforeSigning(i smithyhttp.BeforeSigningInterceptor) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		o.Interceptors.BeforeSigning = append(o.Interceptors.BeforeSigning, i)
+		return nil
+	}
+}
+
+// WithAfterSigning adds the AfterSigningInterceptor to config.
+func WithAfterSigning(i smithyhttp.AfterSigningInterceptor) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		o.Interceptors.AfterSigning = append(o.Interceptors.AfterSigning, i)
+		return nil
+	}
+}
+
+// WithBeforeTransmit adds the BeforeTransmitInterceptor to config.
+func WithBeforeTransmit(i smithyhttp.BeforeTransmitInterceptor) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		o.Interceptors.BeforeTransmit = append(o.Interceptors.BeforeTransmit, i)
+		return nil
+	}
+}
+
+// WithAfterTransmit adds the AfterTransmitInterceptor to config.
+func WithAfterTransmit(i smithyhttp.AfterTransmitInterceptor) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		o.Interceptors.AfterTransmit = append(o.Interceptors.AfterTransmit, i)
+		return nil
+	}
+}
+
+// WithBeforeDeserialization adds the BeforeDeserializationInterceptor to config.
+func WithBeforeDeserialization(i smithyhttp.BeforeDeserializationInterceptor) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		o.Interceptors.BeforeDeserialization = append(o.Interceptors.BeforeDeserialization, i)
+		return nil
+	}
+}
+
+// WithAfterDeserialization adds the AfterDeserializationInterceptor to config.
+func WithAfterDeserialization(i smithyhttp.AfterDeserializationInterceptor) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		o.Interceptors.AfterDeserialization = append(o.Interceptors.AfterDeserialization, i)
+		return nil
+	}
+}
+
+// WithAfterAttempt adds the AfterAttemptInterceptor to config.
+func WithAfterAttempt(i smithyhttp.AfterAttemptInterceptor) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		o.Interceptors.AfterAttempt = append(o.Interceptors.AfterAttempt, i)
+		return nil
+	}
+}
+
+// WithAfterExecution adds the AfterExecutionInterceptor to config.
+func WithAfterExecution(i smithyhttp.AfterExecutionInterceptor) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		o.Interceptors.AfterExecution = append(o.Interceptors.AfterExecution, i)
+		return nil
+	}
+}
+
+// WithAuthSchemePreference sets the priority order of auth schemes on config.
+//
+// Schemes are expressed as names e.g. sigv4a or sigv4.
+func WithAuthSchemePreference(schemeIDs ...string) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		o.AuthSchemePreference = schemeIDs
+		return nil
+	}
+}
+
+func (o LoadOptions) getAuthSchemePreference() ([]string, bool) {
+	if len(o.AuthSchemePreference) > 0 {
+		return o.AuthSchemePreference, true
+	}
+	return nil, false
 }

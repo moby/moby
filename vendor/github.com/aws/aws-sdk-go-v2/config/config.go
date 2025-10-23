@@ -83,6 +83,19 @@ var defaultAWSConfigResolvers = []awsConfigResolver{
 
 	// Sets the AccountIDEndpointMode if present in env var or shared config profile
 	resolveAccountIDEndpointMode,
+
+	// Sets the RequestChecksumCalculation if present in env var or shared config profile
+	resolveRequestChecksumCalculation,
+
+	// Sets the ResponseChecksumValidation if present in env var or shared config profile
+	resolveResponseChecksumValidation,
+
+	resolveInterceptors,
+
+	resolveAuthSchemePreference,
+
+	// Sets the ServiceOptions if present in LoadOptions
+	resolveServiceOptions,
 }
 
 // A Config represents a generic configuration value or set of values. This type
@@ -212,7 +225,7 @@ func resolveConfigLoaders(options *LoadOptions) []loader {
 	loaders[0] = loadEnvConfig
 
 	// specification of a profile should cause a load failure if it doesn't exist
-	if os.Getenv(awsProfileEnvVar) != "" || options.SharedConfigProfile != "" {
+	if os.Getenv(awsProfileEnv) != "" || options.SharedConfigProfile != "" {
 		loaders[1] = loadSharedConfig
 	} else {
 		loaders[1] = loadSharedConfigIgnoreNotExist

@@ -118,6 +118,13 @@ const (
 
 	accountIDKey          = "aws_account_id"
 	accountIDEndpointMode = "account_id_endpoint_mode"
+
+	requestChecksumCalculationKey = "request_checksum_calculation"
+	responseChecksumValidationKey = "response_checksum_validation"
+	checksumWhenSupported         = "when_supported"
+	checksumWhenRequired          = "when_required"
+
+	authSchemePreferenceKey = "auth_scheme_preference"
 )
 
 // defaultSharedConfigProfile allows for swapping the default profile for testing
@@ -346,6 +353,15 @@ type SharedConfig struct {
 	S3DisableExpressAuth *bool
 
 	AccountIDEndpointMode aws.AccountIDEndpointMode
+
+	// RequestChecksumCalculation indicates if the request checksum should be calculated
+	RequestChecksumCalculation aws.RequestChecksumCalculation
+
+	// ResponseChecksumValidation indicates if the response checksum should be validated
+	ResponseChecksumValidation aws.ResponseChecksumValidation
+
+	// Priority list of preferred auth scheme names (e.g. sigv4a).
+	AuthSchemePreference []string
 }
 
 func (c SharedConfig) getDefaultsMode(ctx context.Context) (value aws.DefaultsMode, ok bool, err error) {
@@ -879,6 +895,8 @@ func mergeSections(dst *ini.Sections, src ini.Sections) error {
 			ssoRegionKey,
 			ssoRoleNameKey,
 			ssoStartURLKey,
+
+			authSchemePreferenceKey,
 		}
 		for i := range stringKeys {
 			if err := mergeStringKey(&srcSection, &dstSection, sectionName, stringKeys[i]); err != nil {
@@ -1133,6 +1151,13 @@ func (c *SharedConfig) setFromIniSection(profile string, section ini.Section) er
 		return fmt.Errorf("failed to load %s from shared config, %w", accountIDEndpointMode, err)
 	}
 
+	if err := updateRequestChecksumCalculation(&c.RequestChecksumCalculation, section, requestChecksumCalculationKey); err != nil {
+		return fmt.Errorf("failed to load %s from shared config, %w", requestChecksumCalculationKey, err)
+	}
+	if err := updateResponseChecksumValidation(&c.ResponseChecksumValidation, section, responseChecksumValidationKey); err != nil {
+		return fmt.Errorf("failed to load %s from shared config, %w", responseChecksumValidationKey, err)
+	}
+
 	// Shared Credentials
 	creds := aws.Credentials{
 		AccessKeyID:     section.String(accessKeyIDKey),
@@ -1147,6 +1172,8 @@ func (c *SharedConfig) setFromIniSection(profile string, section ini.Section) er
 	}
 
 	updateString(&c.ServicesSectionName, section, servicesSectionKey)
+
+	c.AuthSchemePreference = toAuthSchemePreferenceList(section.String(authSchemePreferenceKey))
 
 	return nil
 }
@@ -1207,6 +1234,42 @@ func updateAIDEndpointMode(m *aws.AccountIDEndpointMode, sec ini.Section, key st
 	return nil
 }
 
+func updateRequestChecksumCalculation(m *aws.RequestChecksumCalculation, sec ini.Section, key string) error {
+	if !sec.Has(key) {
+		return nil
+	}
+
+	v := sec.String(key)
+	switch strings.ToLower(v) {
+	case checksumWhenSupported:
+		*m = aws.RequestChecksumCalculationWhenSupported
+	case checksumWhenRequired:
+		*m = aws.RequestChecksumCalculationWhenRequired
+	default:
+		return fmt.Errorf("invalid value for shared config profile field, %s=%s, must be when_supported/when_required", key, v)
+	}
+
+	return nil
+}
+
+func updateResponseChecksumValidation(m *aws.ResponseChecksumValidation, sec ini.Section, key string) error {
+	if !sec.Has(key) {
+		return nil
+	}
+
+	v := sec.String(key)
+	switch strings.ToLower(v) {
+	case checksumWhenSupported:
+		*m = aws.ResponseChecksumValidationWhenSupported
+	case checksumWhenRequired:
+		*m = aws.ResponseChecksumValidationWhenRequired
+	default:
+		return fmt.Errorf("invalid value for shared config profile field, %s=%s, must be when_supported/when_required", key, v)
+	}
+
+	return nil
+}
+
 func (c SharedConfig) getRequestMinCompressSizeBytes(ctx context.Context) (int64, bool, error) {
 	if c.RequestMinCompressSizeBytes == nil {
 		return 0, false, nil
@@ -1223,6 +1286,14 @@ func (c SharedConfig) getDisableRequestCompression(ctx context.Context) (bool, b
 
 func (c SharedConfig) getAccountIDEndpointMode(ctx context.Context) (aws.AccountIDEndpointMode, bool, error) {
 	return c.AccountIDEndpointMode, len(c.AccountIDEndpointMode) > 0, nil
+}
+
+func (c SharedConfig) getRequestChecksumCalculation(ctx context.Context) (aws.RequestChecksumCalculation, bool, error) {
+	return c.RequestChecksumCalculation, c.RequestChecksumCalculation > 0, nil
+}
+
+func (c SharedConfig) getResponseChecksumValidation(ctx context.Context) (aws.ResponseChecksumValidation, bool, error) {
+	return c.ResponseChecksumValidation, c.ResponseChecksumValidation > 0, nil
 }
 
 func updateDefaultsMode(mode *aws.DefaultsMode, section ini.Section, key string) error {
@@ -1615,4 +1686,11 @@ func updateUseFIPSEndpoint(dst *aws.FIPSEndpointState, section ini.Section, key 
 	}
 
 	return
+}
+
+func (c SharedConfig) getAuthSchemePreference() ([]string, bool) {
+	if len(c.AuthSchemePreference) > 0 {
+		return c.AuthSchemePreference, true
+	}
+	return nil, false
 }

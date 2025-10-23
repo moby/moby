@@ -242,6 +242,40 @@ func getAccountIDEndpointMode(ctx context.Context, configs configs) (value aws.A
 	return
 }
 
+// requestChecksumCalculationProvider provides access to the RequestChecksumCalculation
+type requestChecksumCalculationProvider interface {
+	getRequestChecksumCalculation(context.Context) (aws.RequestChecksumCalculation, bool, error)
+}
+
+func getRequestChecksumCalculation(ctx context.Context, configs configs) (value aws.RequestChecksumCalculation, found bool, err error) {
+	for _, cfg := range configs {
+		if p, ok := cfg.(requestChecksumCalculationProvider); ok {
+			value, found, err = p.getRequestChecksumCalculation(ctx)
+			if err != nil || found {
+				break
+			}
+		}
+	}
+	return
+}
+
+// responseChecksumValidationProvider provides access to the ResponseChecksumValidation
+type responseChecksumValidationProvider interface {
+	getResponseChecksumValidation(context.Context) (aws.ResponseChecksumValidation, bool, error)
+}
+
+func getResponseChecksumValidation(ctx context.Context, configs configs) (value aws.ResponseChecksumValidation, found bool, err error) {
+	for _, cfg := range configs {
+		if p, ok := cfg.(responseChecksumValidationProvider); ok {
+			value, found, err = p.getResponseChecksumValidation(ctx)
+			if err != nil || found {
+				break
+			}
+		}
+	}
+	return
+}
+
 // ec2IMDSRegionProvider provides access to the ec2 imds region
 // configuration value
 type ec2IMDSRegionProvider interface {
@@ -712,6 +746,37 @@ func getRetryMode(ctx context.Context, configs configs) (v aws.RetryMode, found 
 	for _, c := range configs {
 		if p, ok := c.(retryModeProvider); ok {
 			v, found, err = p.GetRetryMode(ctx)
+			if err != nil || found {
+				break
+			}
+		}
+	}
+	return v, found, err
+}
+
+func getAuthSchemePreference(ctx context.Context, configs configs) ([]string, bool) {
+	type provider interface {
+		getAuthSchemePreference() ([]string, bool)
+	}
+
+	for _, cfg := range configs {
+		if p, ok := cfg.(provider); ok {
+			if v, ok := p.getAuthSchemePreference(); ok {
+				return v, true
+			}
+		}
+	}
+	return nil, false
+}
+
+type serviceOptionsProvider interface {
+	getServiceOptions(ctx context.Context) ([]func(string, any), bool, error)
+}
+
+func getServiceOptions(ctx context.Context, configs configs) (v []func(string, any), found bool, err error) {
+	for _, c := range configs {
+		if p, ok := c.(serviceOptionsProvider); ok {
+			v, found, err = p.getServiceOptions(ctx)
 			if err != nil || found {
 				break
 			}
