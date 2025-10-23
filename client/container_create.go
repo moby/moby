@@ -58,7 +58,7 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 // formatPlatform returns a formatted string representing platform (e.g., "linux/arm/v7").
 //
 // It is a fork of [platforms.Format], and does not yet support "os.version",
-// as [[platforms.FormatAll] does.
+// as [platforms.FormatAll] does.
 //
 // [platforms.Format]: https://github.com/containerd/platforms/blob/v1.0.0-rc.1/platforms.go#L309-L316
 // [platforms.FormatAll]: https://github.com/containerd/platforms/blob/v1.0.0-rc.1/platforms.go#L318-L330
@@ -67,19 +67,6 @@ func formatPlatform(platform ocispec.Platform) string {
 		return "unknown"
 	}
 	return path.Join(platform.OS, platform.Architecture, platform.Variant)
-}
-
-// hasEndpointSpecificMacAddress checks whether one of the endpoint in networkingConfig has a MacAddress defined.
-func hasEndpointSpecificMacAddress(networkingConfig *network.NetworkingConfig) bool {
-	if networkingConfig == nil {
-		return false
-	}
-	for _, endpoint := range networkingConfig.EndpointsConfig {
-		if endpoint.MacAddress != "" {
-			return true
-		}
-	}
-	return false
 }
 
 // allCapabilities is a magic value for "all capabilities"
