@@ -30,7 +30,9 @@ func assertRequest(req *http.Request, expMethod string, expectedPath string) err
 	return nil
 }
 
-func transportEnsureBody(f transportFunc) transportFunc {
+// ensureBody makes sure the response has a Body, using [http.NoBody] if
+// none is present, and returns it as a testRoundTripper.
+func ensureBody(f func(req *http.Request) (*http.Response, error)) testRoundTripper {
 	return func(req *http.Request) (*http.Response, error) {
 		resp, err := f(req)
 		if resp != nil && resp.Body == nil {
@@ -43,7 +45,7 @@ func transportEnsureBody(f transportFunc) transportFunc {
 // WithMockClient is a test helper that allows you to inject a mock client for testing.
 func WithMockClient(doer func(*http.Request) (*http.Response, error)) Opt {
 	return WithHTTPClient(&http.Client{
-		Transport: transportEnsureBody(transportFunc(doer)),
+		Transport: ensureBody(doer),
 	})
 }
 

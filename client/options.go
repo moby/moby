@@ -108,14 +108,24 @@ func WithHost(host string) Opt {
 		if transport, ok := c.client.Transport.(*http.Transport); ok {
 			return sockets.ConfigureTransport(transport, c.proto, c.addr)
 		}
-		// For test transports (like transportFunc), we skip transport configuration
-		// but still set the host fields so that the client can use them for headers
-		if _, ok := c.client.Transport.(transportFunc); ok {
+		// For test transports, we skip transport configuration but still
+		// set the host fields so that the client can use them for headers
+		if _, ok := c.client.Transport.(testRoundTripper); ok {
 			return nil
 		}
 		return fmt.Errorf("cannot apply host to transport: %T", c.client.Transport)
 	}
 }
+
+// testRoundTripper allows us to inject a mock-transport for testing. We define it
+// here so we can detect the tlsconfig and return nil for only this type.
+type testRoundTripper func(*http.Request) (*http.Response, error)
+
+func (tf testRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return tf(req)
+}
+
+func (testRoundTripper) skipConfigureTransport() bool { return true }
 
 // WithHostFromEnv overrides the client host with the host specified in the
 // DOCKER_HOST ([EnvOverrideHost]) environment variable. If DOCKER_HOST is not set,
