@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"io"
 	"net/http"
@@ -71,10 +70,7 @@ func TestImageImport(t *testing.T) {
 				assert.Check(t, assertRequest(req, http.MethodPost, expectedURL))
 				query := req.URL.Query()
 				assert.Check(t, is.DeepEqual(query, tc.expectedQueryParams))
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader([]byte(expectedOutput))),
-				}, nil
+				return mockResponse(http.StatusOK, nil, expectedOutput)(req)
 			}))
 			assert.NilError(t, err)
 			result, err := client.ImageImport(context.Background(), ImageImportSource{

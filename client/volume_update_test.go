@@ -1,10 +1,8 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -44,10 +42,7 @@ func TestVolumeUpdate(t *testing.T) {
 		if !strings.Contains(req.URL.RawQuery, expectedVersion) {
 			return nil, fmt.Errorf("expected query to contain '%s', got '%s'", expectedVersion, req.URL.RawQuery)
 		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
-		}, nil
+		return mockResponse(http.StatusOK, nil, "body")(req)
 	}))
 	assert.NilError(t, err)
 

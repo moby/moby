@@ -1,10 +1,8 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 
@@ -55,10 +53,7 @@ func TestNodeRemove(t *testing.T) {
 				return nil, fmt.Errorf("force not set in URL query properly. expected '%s', got %s", removeCase.expectedForce, force)
 			}
 
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
-			}, nil
+			return mockResponse(http.StatusOK, nil, "body")(req)
 		}))
 		assert.NilError(t, err)
 

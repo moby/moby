@@ -1,10 +1,8 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 
@@ -55,10 +53,7 @@ func TestContainerRemove(t *testing.T) {
 		if link != "" {
 			return nil, fmt.Errorf("link should have not be present in query, go %s", link)
 		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-		}, nil
+		return mockResponse(http.StatusOK, nil, "")(req)
 	}))
 	assert.NilError(t, err)
 

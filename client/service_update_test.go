@@ -1,9 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 
@@ -74,10 +72,7 @@ func TestServiceUpdate(t *testing.T) {
 			if version != updateCase.expectedVersion {
 				return nil, fmt.Errorf("version not set in URL query properly, expected '%s', got %s", updateCase.expectedVersion, version)
 			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte("{}"))),
-			}, nil
+			return mockResponse(http.StatusOK, nil, "{}")(req)
 		}))
 		assert.NilError(t, err)
 

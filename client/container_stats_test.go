@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -53,11 +52,7 @@ func TestContainerStats(t *testing.T) {
 			if stream != tc.expectedStream {
 				return nil, fmt.Errorf("stream not set in URL query properly. Expected '%s', got %s", tc.expectedStream, stream)
 			}
-
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte("response"))),
-			}, nil
+			return mockResponse(http.StatusOK, nil, "response")(req)
 		}))
 		assert.NilError(t, err)
 		resp, err := client.ContainerStats(context.Background(), "container_id", tc.stream)

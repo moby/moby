@@ -48,12 +48,7 @@ func TestContainerStatPathNotFoundError(t *testing.T) {
 
 func TestContainerStatPathNoHeaderError(t *testing.T) {
 	client, err := NewClientWithOpts(
-		WithMockClient(func(req *http.Request) (*http.Response, error) {
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-			}, nil
-		}),
+		WithMockClient(mockResponse(http.StatusOK, nil, "")),
 	)
 	assert.NilError(t, err)
 
@@ -84,13 +79,10 @@ func TestContainerStatPath(t *testing.T) {
 				return nil, err
 			}
 			base64PathStat := base64.StdEncoding.EncodeToString(content)
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-				Header: http.Header{
-					"X-Docker-Container-Path-Stat": []string{base64PathStat},
-				},
-			}, nil
+			hdr := http.Header{
+				"X-Docker-Container-Path-Stat": []string{base64PathStat},
+			}
+			return mockResponse(http.StatusOK, hdr, "")(req)
 		}),
 	)
 	assert.NilError(t, err)
@@ -171,10 +163,7 @@ func TestCopyToContainer(t *testing.T) {
 				return nil, fmt.Errorf("expected content to be 'content', got %s", string(content))
 			}
 
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-			}, nil
+			return mockResponse(http.StatusOK, nil, "")(req)
 		}),
 	)
 	assert.NilError(t, err)
@@ -226,12 +215,10 @@ func TestCopyFromContainerEmptyResponse(t *testing.T) {
 				return nil, err
 			}
 			base64PathStat := base64.StdEncoding.EncodeToString(content)
-			return &http.Response{
-				StatusCode: http.StatusNoContent,
-				Header: http.Header{
-					"X-Docker-Container-Path-Stat": []string{base64PathStat},
-				},
-			}, nil
+			hdr := http.Header{
+				"X-Docker-Container-Path-Stat": []string{base64PathStat},
+			}
+			return mockResponse(http.StatusNoContent, hdr, "")(req)
 		}),
 	)
 	assert.NilError(t, err)
@@ -242,12 +229,7 @@ func TestCopyFromContainerEmptyResponse(t *testing.T) {
 
 func TestCopyFromContainerNoHeaderError(t *testing.T) {
 	client, err := NewClientWithOpts(
-		WithMockClient(func(req *http.Request) (*http.Response, error) {
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-			}, nil
-		}),
+		WithMockClient(mockResponse(http.StatusOK, nil, "")),
 	)
 	assert.NilError(t, err)
 
@@ -279,14 +261,10 @@ func TestCopyFromContainer(t *testing.T) {
 				return nil, err
 			}
 			base64PathStat := base64.StdEncoding.EncodeToString(headercontent)
-
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte("content"))),
-				Header: http.Header{
-					"X-Docker-Container-Path-Stat": []string{base64PathStat},
-				},
-			}, nil
+			hdr := http.Header{
+				"X-Docker-Container-Path-Stat": []string{base64PathStat},
+			}
+			return mockResponse(http.StatusOK, hdr, "content")(req)
 		}),
 	)
 	assert.NilError(t, err)

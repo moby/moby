@@ -1,9 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"io"
 	"net/http"
 	"testing"
 
@@ -27,10 +25,7 @@ func TestSwarmInit(t *testing.T) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader([]byte(`"body"`))),
-		}, nil
+		return mockJSONResponse(http.StatusOK, nil, "node-id")(req)
 	}))
 	assert.NilError(t, err)
 
@@ -38,5 +33,5 @@ func TestSwarmInit(t *testing.T) {
 		ListenAddr: "0.0.0.0:2377",
 	})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(result.NodeID, "body"))
+	assert.Check(t, is.Equal(result.NodeID, "node-id"))
 }

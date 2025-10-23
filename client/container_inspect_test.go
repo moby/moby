@@ -1,11 +1,8 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"testing"
 
@@ -75,18 +72,11 @@ func TestContainerInspect(t *testing.T) {
 			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 				return nil, err
 			}
-			content, err := json.Marshal(container.InspectResponse{
+			return mockJSONResponse(http.StatusOK, nil, container.InspectResponse{
 				ID:    "container_id",
 				Image: "image",
 				Name:  "name",
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(content)),
-			}, nil
+			})(req)
 		}),
 	)
 	assert.NilError(t, err)

@@ -1,10 +1,7 @@
 package client
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 
@@ -75,17 +72,10 @@ func TestVolumePrune(t *testing.T) {
 				if actualFilters != tc.expectedFilters {
 					return nil, fmt.Errorf("filters not set in URL query properly. Expected '%s', got %s", tc.expectedFilters, actualFilters)
 				}
-				content, err := json.Marshal(volume.PruneReport{
+				return mockJSONResponse(http.StatusOK, nil, volume.PruneReport{
 					VolumesDeleted: []string{"volume"},
 					SpaceReclaimed: 12345,
-				})
-				if err != nil {
-					return nil, err
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader(content)),
-				}, nil
+				})(req)
 			}))
 			assert.NilError(t, err)
 

@@ -1,9 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"io"
 	"math"
 	"net/http"
 	"testing"
@@ -127,9 +125,6 @@ func resizeTransport(t *testing.T, expectedURL, expectedHeight, expectedWidth st
 		query := req.URL.Query()
 		assert.Check(t, is.Equal(query.Get("h"), expectedHeight))
 		assert.Check(t, is.Equal(query.Get("w"), expectedWidth))
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-		}, nil
+		return mockResponse(http.StatusOK, nil, "")(req)
 	}
 }

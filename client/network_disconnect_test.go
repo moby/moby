@@ -1,11 +1,9 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 
@@ -52,10 +50,7 @@ func TestNetworkDisconnect(t *testing.T) {
 			return nil, fmt.Errorf("expected Force to be true, got %v", disconnect.Force)
 		}
 
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-		}, nil
+		return mockResponse(http.StatusOK, nil, "")(req)
 	}))
 	assert.NilError(t, err)
 

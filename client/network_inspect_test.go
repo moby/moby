@@ -1,10 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -36,31 +33,20 @@ func TestNetworkInspect(t *testing.T) {
 		if strings.Contains(req.URL.RawQuery, "scope=global") {
 			return errorMock(http.StatusNotFound, "Error: No such network: network_id")(req)
 		}
-		var (
-			content []byte
-			err     error
-		)
+		var resp network.Inspect
 		if strings.Contains(req.URL.RawQuery, "verbose=true") {
-			s := map[string]network.ServiceInfo{
-				"web": {},
-			}
-			content, err = json.Marshal(network.Inspect{
-				Network:  network.Network{Name: "mynetwork"},
-				Services: s,
-			})
-		} else {
-			content, err = json.Marshal(network.Inspect{
+			resp = network.Inspect{
 				Network: network.Network{Name: "mynetwork"},
-			})
+				Services: map[string]network.ServiceInfo{
+					"web": {},
+				},
+			}
+		} else {
+			resp = network.Inspect{
+				Network: network.Network{Name: "mynetwork"},
+			}
 		}
-		if err != nil {
-			return nil, err
-		}
-		return &http.Response{
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader(content)),
-		}, nil
+		return mockJSONResponse(http.StatusOK, nil, resp)(req)
 	}))
 	assert.NilError(t, err)
 

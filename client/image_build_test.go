@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -186,10 +185,7 @@ func TestImageBuild(t *testing.T) {
 				}
 			}
 
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
-			}, nil
+			return mockResponse(http.StatusOK, nil, "body")(req)
 		}))
 		assert.NilError(t, err)
 		buildResponse, err := client.ImageBuild(context.Background(), nil, buildCase.buildOptions)

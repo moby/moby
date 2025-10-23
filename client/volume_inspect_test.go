@@ -1,10 +1,7 @@
 package client
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"testing"
 
@@ -56,14 +53,7 @@ func TestVolumeInspect(t *testing.T) {
 		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 			return nil, err
 		}
-		content, err := json.Marshal(expected)
-		if err != nil {
-			return nil, err
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader(content)),
-		}, nil
+		return mockJSONResponse(http.StatusOK, nil, expected)(req)
 	}))
 	assert.NilError(t, err)
 

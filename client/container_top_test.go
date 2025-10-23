@@ -1,11 +1,8 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 
@@ -47,22 +44,13 @@ func TestContainerTop(t *testing.T) {
 		if args != "arg1 arg2" {
 			return nil, fmt.Errorf("args not set in URL query properly. Expected 'arg1 arg2', got %v", args)
 		}
-
-		b, err := json.Marshal(container.TopResponse{
+		return mockJSONResponse(http.StatusOK, nil, container.TopResponse{
 			Processes: [][]string{
 				{"p1", "p2"},
 				{"p3"},
 			},
 			Titles: []string{"title1", "title2"},
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader(b)),
-		}, nil
+		})(req)
 	}))
 	assert.NilError(t, err)
 

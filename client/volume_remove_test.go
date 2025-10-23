@@ -1,10 +1,8 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 
@@ -52,10 +50,7 @@ func TestVolumeRemove(t *testing.T) {
 			return nil, fmt.Errorf("expected force=1, got %s", v)
 		}
 
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
-		}, nil
+		return mockResponse(http.StatusOK, nil, "body")(req)
 	}))
 	assert.NilError(t, err)
 

@@ -1,10 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"testing"
 
@@ -85,17 +82,10 @@ func TestContainersPrune(t *testing.T) {
 				actual := query.Get(key)
 				assert.Check(t, is.Equal(expected, actual))
 			}
-			content, err := json.Marshal(container.PruneReport{
+			return mockJSONResponse(http.StatusOK, nil, container.PruneReport{
 				ContainersDeleted: []string{"container_id1", "container_id2"},
 				SpaceReclaimed:    9999,
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(content)),
-			}, nil
+			})(req)
 		}))
 		assert.NilError(t, err)
 

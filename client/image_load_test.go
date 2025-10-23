@@ -85,11 +85,9 @@ func TestImageLoad(t *testing.T) {
 				assert.Check(t, assertRequest(req, http.MethodPost, expectedURL))
 				assert.Check(t, is.Equal(req.Header.Get("Content-Type"), expectedContentType))
 				assert.Check(t, is.DeepEqual(req.URL.Query(), tc.expectedQueryParams))
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader([]byte(expectedOutput))),
-					Header:     http.Header{"Content-Type": []string{tc.responseContentType}},
-				}, nil
+
+				hdr := http.Header{"Content-Type": []string{tc.responseContentType}}
+				return mockResponse(http.StatusOK, hdr, expectedOutput)(req)
 			}))
 			assert.NilError(t, err)
 

@@ -1,11 +1,9 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 
@@ -53,10 +51,7 @@ func TestNetworkConnectEmptyNilEndpointSettings(t *testing.T) {
 			return nil, fmt.Errorf("expected connect.EndpointConfig to be nil, got %v", connect.EndpointConfig)
 		}
 
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-		}, nil
+		return mockResponse(http.StatusOK, nil, "")(req)
 	}))
 	assert.NilError(t, err)
 
@@ -89,10 +84,7 @@ func TestNetworkConnect(t *testing.T) {
 			return nil, fmt.Errorf("expected 'NetworkID', got %s", connect.EndpointConfig.NetworkID)
 		}
 
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-		}, nil
+		return mockResponse(http.StatusOK, nil, "")(req)
 	}))
 	assert.NilError(t, err)
 

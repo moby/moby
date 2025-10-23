@@ -1,9 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"io"
 	"net/http"
 	"testing"
 
@@ -41,10 +39,7 @@ func TestCheckpointDelete(t *testing.T) {
 			if err := assertRequest(req, http.MethodDelete, expectedURL); err != nil {
 				return nil, err
 			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-			}, nil
+			return mockResponse(http.StatusOK, nil, "")(req)
 		}),
 	)
 	assert.NilError(t, err)

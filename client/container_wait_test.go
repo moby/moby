@@ -1,9 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"log"
@@ -55,16 +53,9 @@ func TestContainerWait(t *testing.T) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}
-		b, err := json.Marshal(container.WaitResponse{
+		return mockJSONResponse(http.StatusOK, nil, container.WaitResponse{
 			StatusCode: 15,
-		})
-		if err != nil {
-			return nil, err
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader(b)),
-		}, nil
+		})(req)
 	}))
 	assert.NilError(t, err)
 
@@ -87,10 +78,7 @@ func TestContainerWaitProxyInterrupt(t *testing.T) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(expErr)),
-		}, nil
+		return mockResponse(http.StatusOK, nil, expErr)(req)
 	}))
 	assert.NilError(t, err)
 
@@ -110,10 +98,7 @@ func TestContainerWaitProxyInterruptLong(t *testing.T) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(msg)),
-		}, nil
+		return mockResponse(http.StatusOK, nil, msg)(req)
 	}))
 	assert.NilError(t, err)
 

@@ -1,10 +1,8 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 
@@ -54,10 +52,7 @@ func TestContainerRestart(t *testing.T) {
 		if t != "100" {
 			return nil, fmt.Errorf("t (timeout) not set in URL query properly. Expected '100', got %s", t)
 		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-		}, nil
+		return mockResponse(http.StatusOK, nil, "")(req)
 	}))
 	assert.NilError(t, err)
 	timeout := 100

@@ -1,10 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"testing"
 
@@ -29,19 +26,11 @@ func TestVolumeCreate(t *testing.T) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}
-
-		content, err := json.Marshal(volume.Volume{
+		return mockJSONResponse(http.StatusOK, nil, volume.Volume{
 			Name:       "volume",
 			Driver:     "local",
 			Mountpoint: "mountpoint",
-		})
-		if err != nil {
-			return nil, err
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader(content)),
-		}, nil
+		})(req)
 	}))
 	assert.NilError(t, err)
 

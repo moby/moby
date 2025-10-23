@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -72,10 +71,7 @@ func TestImagePullWithPrivilegedFuncNoError(t *testing.T) {
 		}
 		auth := req.Header.Get(registry.AuthHeader)
 		if auth == invalidAuth {
-			return &http.Response{
-				StatusCode: http.StatusUnauthorized,
-				Body:       io.NopCloser(bytes.NewReader([]byte("Invalid credentials"))),
-			}, nil
+			return mockResponse(http.StatusUnauthorized, nil, "Invalid credentials")(req)
 		}
 		if auth != validAuth {
 			return nil, fmt.Errorf("invalid auth header: expected %s, got %s", "IAmValid", auth)
@@ -89,10 +85,7 @@ func TestImagePullWithPrivilegedFuncNoError(t *testing.T) {
 		if tag != "latest" {
 			return nil, fmt.Errorf("tag not set in URL query properly. Expected '%s', got %s", "latest", tag)
 		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader([]byte("hello world"))),
-		}, nil
+		return mockResponse(http.StatusOK, nil, "hello world")(req)
 	}))
 	assert.NilError(t, err)
 	resp, err := client.ImagePull(context.Background(), "myimage", ImagePullOptions{
@@ -181,10 +174,7 @@ func TestImagePullWithoutErrors(t *testing.T) {
 				if tag != pullCase.expectedTag {
 					return nil, fmt.Errorf("tag not set in URL query properly. Expected '%s', got %s", pullCase.expectedTag, tag)
 				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader([]byte(expectedOutput))),
-				}, nil
+				return mockResponse(http.StatusOK, nil, expectedOutput)(req)
 			}))
 			assert.NilError(t, err)
 			resp, err := client.ImagePull(context.Background(), pullCase.reference, ImagePullOptions{

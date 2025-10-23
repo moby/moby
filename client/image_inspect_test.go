@@ -1,12 +1,9 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 
@@ -49,17 +46,10 @@ func TestImageInspect(t *testing.T) {
 		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 			return nil, err
 		}
-		content, err := json.Marshal(image.InspectResponse{
+		return mockJSONResponse(http.StatusOK, nil, image.InspectResponse{
 			ID:       "image_id",
 			RepoTags: expectedTags,
-		})
-		if err != nil {
-			return nil, err
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader(content)),
-		}, nil
+		})(req)
 	}))
 	assert.NilError(t, err)
 
@@ -90,18 +80,11 @@ func TestImageInspectWithPlatform(t *testing.T) {
 			return nil, fmt.Errorf("Expected platform '%s', got '%s'", expectedPlatform, platform)
 		}
 
-		content, err := json.Marshal(image.InspectResponse{
+		return mockJSONResponse(http.StatusOK, nil, image.InspectResponse{
 			ID:           "image_id",
 			Architecture: "arm64",
 			Os:           "linux",
-		})
-		if err != nil {
-			return nil, err
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader(content)),
-		}, nil
+		})(req)
 	}))
 	assert.NilError(t, err)
 

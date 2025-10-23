@@ -1,12 +1,10 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 
@@ -62,11 +60,7 @@ func TestCheckpointCreate(t *testing.T) {
 			if !createOptions.Exit {
 				return nil, errors.New("expected Exit to be true")
 			}
-
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-			}, nil
+			return mockJSONResponse(http.StatusOK, nil, "")(req)
 		}),
 	)
 	assert.NilError(t, err)

@@ -3,7 +3,6 @@ package client
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"slices"
 	"strings"
@@ -20,15 +19,14 @@ import (
 func TestPingFail(t *testing.T) {
 	var withHeader bool
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		resp := &http.Response{StatusCode: http.StatusInternalServerError}
+		var hdr http.Header
 		if withHeader {
-			resp.Header = http.Header{}
-			resp.Header.Set("Api-Version", "awesome")
-			resp.Header.Set("Docker-Experimental", "true")
-			resp.Header.Set("Swarm", "inactive")
+			hdr = http.Header{}
+			hdr.Set("Api-Version", "awesome")
+			hdr.Set("Docker-Experimental", "true")
+			hdr.Set("Swarm", "inactive")
 		}
-		resp.Body = io.NopCloser(strings.NewReader("some error with the server"))
-		return resp, nil
+		return mockResponse(http.StatusInternalServerError, hdr, "some error with the server")(req)
 	}))
 	assert.NilError(t, err)
 
@@ -67,13 +65,11 @@ func TestPingWithError(t *testing.T) {
 // details on success.
 func TestPingSuccess(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		resp := &http.Response{StatusCode: http.StatusOK}
-		resp.Header = http.Header{}
-		resp.Header.Set("Api-Version", "awesome")
-		resp.Header.Set("Docker-Experimental", "true")
-		resp.Header.Set("Swarm", "active/manager")
-		resp.Body = io.NopCloser(strings.NewReader("OK"))
-		return resp, nil
+		hdr := http.Header{}
+		hdr.Set("Api-Version", "awesome")
+		hdr.Set("Docker-Experimental", "true")
+		hdr.Set("Swarm", "active/manager")
+		return mockResponse(http.StatusOK, hdr, "OK")(req)
 	}))
 	assert.NilError(t, err)
 	ping, err := client.Ping(t.Context(), PingOptions{})

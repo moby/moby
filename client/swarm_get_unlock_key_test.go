@@ -1,10 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"testing"
 
@@ -32,20 +29,9 @@ func TestSwarmGetUnlockKey(t *testing.T) {
 		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 			return nil, err
 		}
-
-		key := swarm.UnlockKeyResponse{
+		return mockJSONResponse(http.StatusOK, nil, swarm.UnlockKeyResponse{
 			UnlockKey: unlockKey,
-		}
-
-		b, err := json.Marshal(key)
-		if err != nil {
-			return nil, err
-		}
-
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader(b)),
-		}, nil
+		})(req)
 	}))
 	assert.NilError(t, err)
 

@@ -1,10 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"testing"
 
@@ -32,18 +29,9 @@ func TestCheckpointList(t *testing.T) {
 			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 				return nil, err
 			}
-			content, err := json.Marshal([]checkpoint.Summary{
-				{
-					Name: "checkpoint",
-				},
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(content)),
-			}, nil
+			return mockJSONResponse(http.StatusOK, nil, []checkpoint.Summary{
+				{Name: "checkpoint"},
+			})(req)
 		}),
 	)
 	assert.NilError(t, err)

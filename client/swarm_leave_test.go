@@ -1,10 +1,8 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 
@@ -46,10 +44,7 @@ func TestSwarmLeave(t *testing.T) {
 			if force != leaveCase.expectedForce {
 				return nil, fmt.Errorf("force not set in URL query properly. expected '%s', got %s", leaveCase.expectedForce, force)
 			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-			}, nil
+			return mockResponse(http.StatusOK, nil, "")(req)
 		}))
 		assert.NilError(t, err)
 
