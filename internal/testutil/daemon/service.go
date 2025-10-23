@@ -21,6 +21,7 @@ func (d *Daemon) createServiceWithOptions(ctx context.Context, t testing.TB, opt
 	for _, fn := range f {
 		fn(&service)
 	}
+	opts.Spec = service.Spec
 
 	cli := d.NewClientT(t)
 	defer cli.Close()
@@ -28,7 +29,7 @@ func (d *Daemon) createServiceWithOptions(ctx context.Context, t testing.TB, opt
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	res, err := cli.ServiceCreate(ctx, service.Spec, opts)
+	res, err := cli.ServiceCreate(ctx, opts)
 	assert.NilError(t, err)
 	return res.ID
 }
@@ -78,14 +79,17 @@ func (d *Daemon) GetServiceTasksWithFilters(ctx context.Context, t testing.TB, s
 // UpdateService updates a swarm service with the specified service constructor
 func (d *Daemon) UpdateService(ctx context.Context, t testing.TB, service *swarm.Service, f ...ServiceConstructor) {
 	t.Helper()
-	cli := d.NewClientT(t)
-	defer cli.Close()
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
 
 	for _, fn := range f {
 		fn(service)
 	}
 
-	_, err := cli.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, client.ServiceUpdateOptions{})
+	_, err := apiClient.ServiceUpdate(ctx, service.ID, client.ServiceUpdateOptions{
+		Version: service.Version,
+		Spec:    service.Spec,
+	})
 	assert.NilError(t, err)
 }
 

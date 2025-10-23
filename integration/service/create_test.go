@@ -163,7 +163,9 @@ func TestCreateServiceConflict(t *testing.T) {
 	swarm.CreateService(ctx, t, d, serviceSpec...)
 
 	spec := swarm.CreateServiceSpec(t, serviceSpec...)
-	_, err := c.ServiceCreate(ctx, spec, client.ServiceCreateOptions{})
+	_, err := c.ServiceCreate(ctx, client.ServiceCreateOptions{
+		Spec: spec,
+	})
 	assert.Check(t, cerrdefs.IsConflict(err))
 	assert.ErrorContains(t, err, "service "+serviceName+" already exists")
 }

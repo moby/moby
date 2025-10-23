@@ -43,7 +43,8 @@ func TestServiceListWithStatuses(t *testing.T) {
 		// tasks to fail and exit. instead, we'll just pass no args, which
 		// works.
 		spec.TaskTemplate.ContainerSpec.Args = []string{}
-		resp, err := apiClient.ServiceCreate(ctx, spec, client.ServiceCreateOptions{
+		resp, err := apiClient.ServiceCreate(ctx, client.ServiceCreateOptions{
+			Spec:          spec,
 			QueryRegistry: false,
 		})
 		assert.NilError(t, err)

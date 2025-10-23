@@ -2,7 +2,6 @@ package client
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,7 +22,7 @@ import (
 func TestServiceCreateError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	_, err = client.ServiceCreate(context.Background(), swarm.ServiceSpec{}, ServiceCreateOptions{})
+	_, err = client.ServiceCreate(t.Context(), ServiceCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -35,7 +34,7 @@ func TestServiceCreateConnectionError(t *testing.T) {
 	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
-	_, err = client.ServiceCreate(context.Background(), swarm.ServiceSpec{}, ServiceCreateOptions{})
+	_, err = client.ServiceCreate(t.Context(), ServiceCreateOptions{})
 	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
 
@@ -58,7 +57,7 @@ func TestServiceCreate(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	r, err := client.ServiceCreate(context.Background(), swarm.ServiceSpec{}, ServiceCreateOptions{})
+	r, err := client.ServiceCreate(t.Context(), ServiceCreateOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(r.ID, "service_id"))
 }
@@ -113,9 +112,14 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	spec := swarm.ServiceSpec{TaskTemplate: swarm.TaskSpec{ContainerSpec: &swarm.ContainerSpec{Image: "foobar:1.0"}}}
-
-	r, err := client.ServiceCreate(context.Background(), spec, ServiceCreateOptions{QueryRegistry: true})
+	r, err := client.ServiceCreate(t.Context(), ServiceCreateOptions{
+		Spec: swarm.ServiceSpec{
+			TaskTemplate: swarm.TaskSpec{
+				ContainerSpec: &swarm.ContainerSpec{Image: "foobar:1.0"},
+			},
+		},
+		QueryRegistry: true,
+	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal("service_linux_amd64", r.ID))
 }
@@ -186,17 +190,18 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 
 	// run pin by digest tests
 	for _, p := range pinByDigestTests {
-		r, err := client.ServiceCreate(context.Background(), swarm.ServiceSpec{
-			TaskTemplate: swarm.TaskSpec{
-				ContainerSpec: &swarm.ContainerSpec{
-					Image: p.img,
+		r, err := client.ServiceCreate(t.Context(), ServiceCreateOptions{
+			Spec: swarm.ServiceSpec{
+				TaskTemplate: swarm.TaskSpec{
+					ContainerSpec: &swarm.ContainerSpec{
+						Image: p.img,
+					},
 				},
 			},
-		}, ServiceCreateOptions{QueryRegistry: true})
+			QueryRegistry: true,
+		})
 		assert.NilError(t, err)
-
 		assert.Check(t, is.Equal(r.ID, "service_id"))
-
 		assert.Check(t, is.Equal(p.expected, serviceCreateImage))
 	}
 }

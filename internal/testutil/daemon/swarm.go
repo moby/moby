@@ -205,8 +205,9 @@ func (d *Daemon) UpdateSwarm(t testing.TB, f ...SpecConstructor) {
 		fn(&sw.Spec)
 	}
 
-	_, err := cli.SwarmUpdate(context.Background(), sw.Version, client.SwarmUpdateOptions{
-		Swarm: sw.Spec,
+	_, err := cli.SwarmUpdate(t.Context(), client.SwarmUpdateOptions{
+		Version: sw.Version,
+		Spec:    sw.Spec,
 	})
 	assert.NilError(t, err)
 }
@@ -220,8 +221,9 @@ func (d *Daemon) RotateTokens(t testing.TB) {
 	result, err := cli.SwarmInspect(t.Context(), client.SwarmInspectOptions{})
 	assert.NilError(t, err)
 
-	_, err = cli.SwarmUpdate(t.Context(), result.Swarm.Version, client.SwarmUpdateOptions{
-		Swarm:              result.Swarm.Spec,
+	_, err = cli.SwarmUpdate(t.Context(), client.SwarmUpdateOptions{
+		Version:            result.Swarm.Version,
+		Spec:               result.Swarm.Spec,
 		RotateManagerToken: true,
 		RotateWorkerToken:  true,
 	})
