@@ -812,27 +812,49 @@ func buildIPAMResources(nw *libnetwork.Network) networktypes.IPAM {
 	var ipamConfig []networktypes.IPAMConfig
 
 	ipamDriver, ipamOptions, ipv4Conf, ipv6Conf := nw.IpamConfig()
+	ipv4Info, ipv6Info := nw.IpamInfo()
 
 	hasIPv4Config := false
-	for _, cfg := range ipv4Conf {
-		if cfg.PreferredPool == "" {
-			continue
+	if len(ipv4Info) > 0 {
+		// Only check ipv4 networks if there were any allocated
+		for i, cfg := range ipv4Conf {
+			if cfg.PreferredPool == "" {
+				continue
+			}
+			hasIPv4Config = true
+			subnet := ipv4Info[i].IPAMData.Pool
+			if subnet != nil {
+				cfg.PreferredPool = subnet.String()
+			}
+			if ipv4Info[i].IPAMData.Gateway != nil && cfg.Gateway == "" {
+				cfg.Gateway = ipv4Info[i].IPAMData.Gateway.IP.String()
+			}
+
+			ipamConfig = append(ipamConfig, cfg.IPAMConfig())
 		}
-		hasIPv4Config = true
-		ipamConfig = append(ipamConfig, cfg.IPAMConfig())
 	}
 
 	hasIPv6Config := false
-	for _, cfg := range ipv6Conf {
-		if cfg.PreferredPool == "" {
-			continue
+	if len(ipv6Info) > 0 {
+		// Only check ipv6 networks if there were any allocated
+		for i, cfg := range ipv6Conf {
+			if cfg.PreferredPool == "" {
+				continue
+			}
+			hasIPv6Config = true
+			subnet := ipv6Info[i].IPAMData.Pool
+			if subnet != nil {
+				cfg.PreferredPool = subnet.String()
+			}
+
+			if ipv6Info[i].IPAMData.Gateway != nil && cfg.Gateway == "" {
+				cfg.Gateway = ipv6Info[i].IPAMData.Gateway.IP.String()
+			}
+			ipamConfig = append(ipamConfig, cfg.IPAMConfig())
 		}
-		hasIPv6Config = true
-		ipamConfig = append(ipamConfig, cfg.IPAMConfig())
 	}
 
 	if !hasIPv4Config || !hasIPv6Config {
-		ipv4Info, ipv6Info := nw.IpamInfo()
 		if !hasIPv4Config {
 			for _, info := range ipv4Info {
 				ipamConfig = append(ipamConfig, info.IPAMData.IPAMConfig())

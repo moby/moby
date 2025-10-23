@@ -33,6 +33,21 @@ func CreateNoError(ctx context.Context, t *testing.T, apiClient client.APIClient
 	return name
 }
 
+// Inspect inspects a network with the specified options
+func Inspect(ctx context.Context, apiClient client.APIClient, name string, options client.NetworkInspectOptions) (client.NetworkInspectResult, error) {
+	return apiClient.NetworkInspect(ctx, name, options)
+}
+
+// InspectNoError inspects a network with the specified options and verifies there were no errors
+func InspectNoError(ctx context.Context, t *testing.T, apiClient client.APIClient, name string, options client.NetworkInspectOptions) client.NetworkInspectResult {
+	t.Helper()
+
+	c, err := apiClient.NetworkInspect(ctx, name, options)
+	assert.NilError(t, err)
+
+	return c
+}
+
 func RemoveNoError(ctx context.Context, t *testing.T, apiClient client.APIClient, name string) {
 	t.Helper()
 

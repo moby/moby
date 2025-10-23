@@ -32,6 +32,7 @@ func TestDynamicPoolAllocation(t *testing.T) {
 	testcases := []struct {
 		name       string
 		predefined []*ipamutils.NetworkToSplit
+		subnetSize int
 		allocated  []netip.Prefix
 		reserved   []netip.Prefix
 		expPrefix  netip.Prefix
@@ -343,6 +344,92 @@ func TestDynamicPoolAllocation(t *testing.T) {
 			},
 			expPrefix: netip.MustParsePrefix("192.168.0.0/24"),
 		},
+		{
+			name: "Smaller requested network subnet size than predefined",
+			predefined: []*ipamutils.NetworkToSplit{
+				{Base: netip.MustParsePrefix("172.17.0.0/12"), Size: 16},
+			},
+			subnetSize: 24,
+			expPrefix:  netip.MustParsePrefix("172.17.0.0/24"),
+		},
+		{
+			name: "Larger requested network subnet size than predefined",
+			predefined: []*ipamutils.NetworkToSplit{
+				{Base: netip.MustParsePrefix("172.17.0.0/12"), Size: 20},
+			},
+			subnetSize: 16,
+			expPrefix:  netip.MustParsePrefix("172.17.0.0/16"),
+		},
+		{
+			name: "Invalid specified network subnet size",
+			predefined: []*ipamutils.NetworkToSplit{
+				{Base: netip.MustParsePrefix("172.17.0.0/12"), Size: 16},
+			},
+			subnetSize: 150,
+			expErr:     ipamapi.ErrInvalidPool,
+		},
+		{
+			name: "Partially allocated predefined pool with specified size",
+			predefined: []*ipamutils.NetworkToSplit{
+				{Base: netip.MustParsePrefix("172.17.0.0/12"), Size: 16},
+			},
+			allocated: []netip.Prefix{
+				netip.MustParsePrefix("172.17.0.0/20"),
+			},
+			subnetSize: 24,
+			expPrefix:  netip.MustParsePrefix("172.17.16.0/24"),
+		},
+		{
+			name: "Partially allocated predefined with gap and specified size",
+			predefined: []*ipamutils.NetworkToSplit{
+				{Base: netip.MustParsePrefix("172.17.0.0/12"), Size: 16},
+			},
+			allocated: []netip.Prefix{
+				netip.MustParsePrefix("172.17.0.0/20"),
+				netip.MustParsePrefix("172.18.0.0/20"),
+			},
+			subnetSize: 24,
+			expPrefix:  netip.MustParsePrefix("172.17.16.0/24"),
+		},
+		{
+			name: "Partially allocated avoids overlapping",
+			predefined: []*ipamutils.NetworkToSplit{
+				{Base: netip.MustParsePrefix("172.17.0.0/12"), Size: 16},
+			},
+			allocated: []netip.Prefix{
+				netip.MustParsePrefix("172.17.0.0/24"),
+			},
+			expPrefix: netip.MustParsePrefix("172.18.0.0/16"),
+		},
+		{
+			name: "Multiple predefined pools last one satisfies specified size",
+			predefined: []*ipamutils.NetworkToSplit{
+				{Base: netip.MustParsePrefix("172.17.0.0/12"), Size: 24},
+				{Base: netip.MustParsePrefix("10.0.0.0/12"), Size: 20},
+			},
+			subnetSize: 20,
+			expPrefix:  netip.MustParsePrefix("10.0.0.0/20"),
+		},
+		{
+			name: "Multiple predefined pools none matching specified size",
+			predefined: []*ipamutils.NetworkToSplit{
+				{Base: netip.MustParsePrefix("172.17.0.0/24"), Size: 24},
+				{Base: netip.MustParsePrefix("172.18.0.0/20"), Size: 20},
+				{Base: netip.MustParsePrefix("172.19.0.0/24"), Size: 24},
+			},
+			subnetSize: 16,
+			expErr:     ipamapi.ErrInvalidPool,
+		},
+		{
+			name: "Multiple predefined pools none valid for specified size",
+			predefined: []*ipamutils.NetworkToSplit{
+				{Base: netip.MustParsePrefix("172.17.0.0/24"), Size: 24},
+				{Base: netip.MustParsePrefix("172.18.0.0/20"), Size: 20},
+				{Base: netip.MustParsePrefix("172.19.0.0/24"), Size: 23},
+			},
+			subnetSize: 33,
+			expErr:     ipamapi.ErrInvalidPool,
+		},
 	}
 
 	for _, tc := range testcases {
@@ -351,7 +438,7 @@ func TestDynamicPoolAllocation(t *testing.T) {
 			assert.NilError(t, err)
 			as.allocated = tc.allocated
 
-			p, err := as.allocatePredefinedPool(tc.reserved)
+			p, err := as.allocatePredefinedPool(tc.reserved, tc.subnetSize)
 
 			assert.Check(t, is.ErrorIs(err, tc.expErr))
 			assert.Check(t, is.Equal(p, tc.expPrefix))
@@ -465,7 +552,7 @@ func TestPoolAllocateAndRelease(t *testing.T) {
 				// Allocate a pool for netname, check that a subnet is returned that
 				// isn't already allocated, and doesn't overlap with a reserved range.
 				alloc: func(netname string) {
-					subnet, err := as.allocatePredefinedPool(tc.reserved)
+					subnet, err := as.allocatePredefinedPool(tc.reserved, 0)
 					assert.NilError(t, err)
 
 					otherNetname, exists := subnetToNetname[subnet]

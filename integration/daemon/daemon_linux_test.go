@@ -70,8 +70,8 @@ func TestDaemonDefaultBridgeIPAM_Docker0(t *testing.T) {
 				"--fixed-cidr-v6", "fdd1:8161:2d2c::/64",
 			},
 			expIPAMConfig: []network.IPAMConfig{
-				{Subnet: netip.MustParsePrefix("192.168.176.0/24"), IPRange: netip.MustParsePrefix("192.168.176.0/24")},
-				{Subnet: netip.MustParsePrefix("fdd1:8161:2d2c::/64"), IPRange: netip.MustParsePrefix("fdd1:8161:2d2c::/64")},
+				{Subnet: netip.MustParsePrefix("192.168.176.0/24"), IPRange: netip.MustParsePrefix("192.168.176.0/24"), Gateway: netip.MustParseAddr("192.168.176.1")},
+				{Subnet: netip.MustParsePrefix("fdd1:8161:2d2c::/64"), IPRange: netip.MustParsePrefix("fdd1:8161:2d2c::/64"), Gateway: netip.MustParseAddr("fdd1:8161:2d2c::1")},
 			},
 		},
 		{
@@ -123,7 +123,7 @@ func TestDaemonDefaultBridgeIPAM_Docker0(t *testing.T) {
 				"--fixed-cidr-v6", "fe80::/64",
 			},
 			expIPAMConfig: []network.IPAMConfig{
-				{Subnet: netip.MustParsePrefix("192.168.176.0/24"), IPRange: netip.MustParsePrefix("192.168.176.0/24")},
+				{Subnet: netip.MustParsePrefix("192.168.176.0/24"), IPRange: netip.MustParsePrefix("192.168.176.0/24"), Gateway: netip.MustParseAddr("192.168.176.1")},
 				{Subnet: netip.MustParsePrefix("fe80::/64"), IPRange: netip.MustParsePrefix("fe80::/64"), Gateway: llGwPlaceholder},
 			},
 		},
@@ -173,15 +173,8 @@ func TestDaemonDefaultBridgeIPAM_Docker0(t *testing.T) {
 			// The bridge's address/subnet should be ignored, this is a change
 			// of fixed-cidr.
 			expIPAMConfig: []network.IPAMConfig{
-				{Subnet: netip.MustParsePrefix("192.168.177.0/24"), IPRange: netip.MustParsePrefix("192.168.177.0/24")},
-				{Subnet: netip.MustParsePrefix("fdd1:8161:2d2c:1::/64"), IPRange: netip.MustParsePrefix("fdd1:8161:2d2c:1::/64")},
-				// No Gateway is configured, because the address could not be learnt from the
-				// bridge. An address will have been allocated but, because there's config (the
-				// fixed-cidr), inspect shows just the config. (Surprisingly, when there's no
-				// config at all, the inspect output still says its showing config but actually
-				// shows the running state.) When the daemon is restarted, after a gateway
-				// address has been assigned to the bridge, that address will become config - so
-				// a Gateway address will show up in the inspect output.
+				{Subnet: netip.MustParsePrefix("192.168.177.0/24"), IPRange: netip.MustParsePrefix("192.168.177.0/24"), Gateway: netip.MustParseAddr("192.168.177.1")},
+				{Subnet: netip.MustParsePrefix("fdd1:8161:2d2c:1::/64"), IPRange: netip.MustParsePrefix("fdd1:8161:2d2c:1::/64"), Gateway: netip.MustParseAddr("fdd1:8161:2d2c:1::1")},
 			},
 		},
 		{
@@ -225,8 +218,8 @@ func TestDaemonDefaultBridgeIPAM_UserBr(t *testing.T) {
 				"--fixed-cidr-v6", "fdd1:8161:2d2c::/64",
 			},
 			expIPAMConfig: []network.IPAMConfig{
-				{Subnet: netip.MustParsePrefix("192.168.176.0/24"), IPRange: netip.MustParsePrefix("192.168.176.0/24")},
-				{Subnet: netip.MustParsePrefix("fdd1:8161:2d2c::/64"), IPRange: netip.MustParsePrefix("fdd1:8161:2d2c::/64")},
+				{Subnet: netip.MustParsePrefix("192.168.176.0/24"), IPRange: netip.MustParsePrefix("192.168.176.0/24"), Gateway: netip.MustParseAddr("192.168.176.1")},
+				{Subnet: netip.MustParsePrefix("fdd1:8161:2d2c::/64"), IPRange: netip.MustParsePrefix("fdd1:8161:2d2c::/64"), Gateway: netip.MustParseAddr("fdd1:8161:2d2c::1")},
 			},
 		},
 		{
@@ -428,7 +421,7 @@ func testDefaultBridgeIPAM(ctx context.Context, t *testing.T, tc defaultBridgeIP
 					expIPAMConfig[i].Gateway = llAddr
 				}
 			}
-			assert.Check(t, is.DeepEqual(res.Network.IPAM.Config, expIPAMConfig, cmpopts.EquateComparable(netip.Addr{}, netip.Prefix{})))
+			assert.Check(t, is.DeepEqual(res.Network.IPAM.Config, expIPAMConfig, cmpopts.EquateComparable(netip.Addr{}, netip.Prefix{})), "unexpected IPAM config '%s'", tc.name)
 		})
 	})
 }

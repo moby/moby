@@ -134,20 +134,40 @@ func (a *Allocator) RequestPool(req ipamapi.PoolRequest) (ipamapi.AllocatedPool,
 	if err != nil {
 		return ipamapi.AllocatedPool{}, err
 	}
+
+	k := PoolID{AddressSpace: req.AddressSpace}
+
+	prefixLength := 0
+
+	if req.Pool != "" {
+		prefix, err := netip.ParsePrefix(req.Pool)
+		if err != nil {
+			return ipamapi.AllocatedPool{}, parseErr(ipamapi.ErrInvalidPool)
+		}
+
+		if prefix.Addr().IsUnspecified() {
+			// If the prefix is unspecified, we're only interested in the prefix size.
+			// We'll attempt to use the specified size to allocate a subnet from the
+			// predefined pools.
+			req.Pool = ""
+
+			if prefix.Bits() > 0 {
+				prefixLength = prefix.Bits()
+			}
+		} else {
+			k.Subnet = prefix
+		}
+	}
+
 	if req.Pool == "" && req.SubPool != "" {
 		return ipamapi.AllocatedPool{}, parseErr(ipamapi.ErrInvalidSubPool)
 	}
 
-	k := PoolID{AddressSpace: req.AddressSpace}
 	if req.Pool == "" {
-		if k.Subnet, err = aSpace.allocatePredefinedPool(req.Exclude); err != nil {
+		if k.Subnet, err = aSpace.allocatePredefinedPool(req.Exclude, prefixLength); err != nil {
 			return ipamapi.AllocatedPool{}, err
 		}
 		return ipamapi.AllocatedPool{PoolID: k.String(), Pool: k.Subnet}, nil
-	}
-
-	if k.Subnet, err = netip.ParsePrefix(req.Pool); err != nil {
-		return ipamapi.AllocatedPool{}, parseErr(ipamapi.ErrInvalidPool)
 	}
 
 	if req.SubPool != "" {
