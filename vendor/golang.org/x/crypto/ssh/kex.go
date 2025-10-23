@@ -8,12 +8,14 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/fips140"
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"math/big"
+	"slices"
 
 	"golang.org/x/crypto/curve25519"
 )
@@ -395,9 +397,27 @@ func ecHash(curve elliptic.Curve) crypto.Hash {
 	return crypto.SHA512
 }
 
+// kexAlgoMap defines the supported KEXs. KEXs not included are not supported
+// and will not be negotiated, even if explicitly configured. When FIPS mode is
+// enabled, only FIPS-approved algorithms are included.
 var kexAlgoMap = map[string]kexAlgorithm{}
 
 func init() {
+	// mlkem768x25519-sha256 we'll work with fips140=on but not fips140=only
+	// until Go 1.26.
+	kexAlgoMap[KeyExchangeMLKEM768X25519] = &mlkem768WithCurve25519sha256{}
+	kexAlgoMap[KeyExchangeECDHP521] = &ecdh{elliptic.P521()}
+	kexAlgoMap[KeyExchangeECDHP384] = &ecdh{elliptic.P384()}
+	kexAlgoMap[KeyExchangeECDHP256] = &ecdh{elliptic.P256()}
+
+	if fips140.Enabled() {
+		defaultKexAlgos = slices.DeleteFunc(defaultKexAlgos, func(algo string) bool {
+			_, ok := kexAlgoMap[algo]
+			return !ok
+		})
+		return
+	}
+
 	p, _ := new(big.Int).SetString(oakleyGroup2, 16)
 	kexAlgoMap[InsecureKeyExchangeDH1SHA1] = &dhGroup{
 		g:        new(big.Int).SetInt64(2),
@@ -431,14 +451,10 @@ func init() {
 		hashFunc: crypto.SHA512,
 	}
 
-	kexAlgoMap[KeyExchangeECDHP521] = &ecdh{elliptic.P521()}
-	kexAlgoMap[KeyExchangeECDHP384] = &ecdh{elliptic.P384()}
-	kexAlgoMap[KeyExchangeECDHP256] = &ecdh{elliptic.P256()}
 	kexAlgoMap[KeyExchangeCurve25519] = &curve25519sha256{}
 	kexAlgoMap[keyExchangeCurve25519LibSSH] = &curve25519sha256{}
 	kexAlgoMap[InsecureKeyExchangeDHGEXSHA1] = &dhGEXSHA{hashFunc: crypto.SHA1}
 	kexAlgoMap[KeyExchangeDHGEXSHA256] = &dhGEXSHA{hashFunc: crypto.SHA256}
-	kexAlgoMap[KeyExchangeMLKEM768X25519] = &mlkem768WithCurve25519sha256{}
 }
 
 // curve25519sha256 implements the curve25519-sha256 (formerly known as
