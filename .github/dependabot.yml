@@ -1,0 +1,28 @@
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      aws-sdk:
+        patterns:
+          - "github.com/aws/aws-sdk-go-v2/*"
+      containerd:
+        patterns:
+          - "github.com/containerd/*"
+      golang-x:
+        patterns:
+          - "golang.org/x/*"
+      moby-sys:
+        patterns:
+          - "github.com/moby/sys/*"
+      otel:
+        patterns:
+          - "go.opentelemetry.io/*"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
