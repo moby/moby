@@ -102,7 +102,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.35.0
 	go.opentelemetry.io/otel/sdk v1.35.0
 	go.opentelemetry.io/otel/trace v1.35.0
-	golang.org/x/mod v0.28.0
+	golang.org/x/mod v0.29.0
 	golang.org/x/net v0.45.0
 	golang.org/x/sync v0.17.0
 	golang.org/x/sys v0.37.0
