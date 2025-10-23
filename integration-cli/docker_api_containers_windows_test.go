@@ -65,10 +65,10 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsBindNamedPipe(c *testing.T
 						Target: containerPipeName,
 					},
 				},
-			},
-			NetworkingConfig: &network.NetworkingConfig{},
-			ContainerName:    name,
-		})
+		},
+		NetworkingConfig: &network.NetworkingConfig{},
+		Name:             name,
+	})
 	assert.NilError(c, err)
 
 	err = apiClient.ContainerStart(ctx, name, client.ContainerStartOptions{})

@@ -84,7 +84,7 @@ func TestRunMountVolumeSubdir(t *testing.T) {
 				Config:           &cfg,
 				HostConfig:       &hostCfg,
 				NetworkingConfig: &network.NetworkingConfig{},
-				ContainerName:    ctrName,
+				Name:             ctrName,
 			})
 			id := create.ID
 			if id != "" {
@@ -184,7 +184,7 @@ func TestRunMountImage(t *testing.T) {
 				Config:           &cfg,
 				HostConfig:       &hostCfg,
 				NetworkingConfig: &network.NetworkingConfig{},
-				ContainerName:    ctrName,
+				Name:             ctrName,
 			})
 			id := create.ID
 			if id != "" {

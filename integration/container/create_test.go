@@ -291,7 +291,7 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 					Privileged:  tc.privileged,
 					MaskedPaths: tc.maskedPaths,
 				},
-				ContainerName: fmt.Sprintf("create-masked-paths-%d", i),
+				Name: fmt.Sprintf("create-masked-paths-%d", i),
 			})
 			assert.NilError(t, err)
 
@@ -362,7 +362,7 @@ func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 					Privileged:    tc.privileged,
 					ReadonlyPaths: tc.readonlyPaths,
 				},
-				ContainerName: fmt.Sprintf("create-readonly-paths-%d", i),
+				Name: fmt.Sprintf("create-readonly-paths-%d", i),
 			})
 			assert.NilError(t, err)
 

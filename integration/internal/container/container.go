@@ -60,7 +60,7 @@ func Create(ctx context.Context, t *testing.T, apiClient client.APIClient, ops .
 		HostConfig:       config.HostConfig,
 		NetworkingConfig: config.NetworkingConfig,
 		Platform:         config.Platform,
-		ContainerName:    config.Name,
+		Name:             config.Name,
 	})
 	assert.NilError(t, err)
 
@@ -79,7 +79,7 @@ func CreateFromConfig(ctx context.Context, apiClient client.APIClient, config *T
 		HostConfig:       config.HostConfig,
 		NetworkingConfig: config.NetworkingConfig,
 		Platform:         config.Platform,
-		ContainerName:    config.Name,
+		Name:             config.Name,
 	})
 }
 

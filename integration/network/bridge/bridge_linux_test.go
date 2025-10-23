@@ -968,7 +968,7 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 			HostConfig:       config.HostConfig,
 			NetworkingConfig: config.NetworkingConfig,
 			Platform:         config.Platform,
-			ContainerName:    config.Name,
+			Name:             config.Name,
 		})
 		assert.NilError(t, err)
 		defer apiClient.ContainerRemove(ctx, c.ID, client.ContainerRemoveOptions{Force: true})

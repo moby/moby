@@ -22,11 +22,11 @@ func TestContainerCreateError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerCreate(context.Background(), ContainerCreateOptions{Config: nil, ContainerName: "nothing"})
+	_, err = client.ContainerCreate(context.Background(), ContainerCreateOptions{Config: nil, Name: "nothing"})
 	assert.Error(t, err, "config is nil")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 
-	_, err = client.ContainerCreate(context.Background(), ContainerCreateOptions{Config: &container.Config{}, ContainerName: "nothing"})
+	_, err = client.ContainerCreate(context.Background(), ContainerCreateOptions{Config: &container.Config{}, Name: "nothing"})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	// 404 doesn't automatically means an unknown image
@@ -35,7 +35,7 @@ func TestContainerCreateError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerCreate(context.Background(), ContainerCreateOptions{Config: &container.Config{}, ContainerName: "nothing"})
+	_, err = client.ContainerCreate(context.Background(), ContainerCreateOptions{Config: &container.Config{}, Name: "nothing"})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
@@ -45,7 +45,7 @@ func TestContainerCreateImageNotFound(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerCreate(context.Background(), ContainerCreateOptions{Config: &container.Config{Image: "unknown_image"}, ContainerName: "unknown"})
+	_, err = client.ContainerCreate(context.Background(), ContainerCreateOptions{Config: &container.Config{Image: "unknown_image"}, Name: "unknown"})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
@@ -74,7 +74,7 @@ func TestContainerCreateWithName(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	r, err := client.ContainerCreate(context.Background(), ContainerCreateOptions{Config: &container.Config{}, ContainerName: "container_name"})
+	r, err := client.ContainerCreate(context.Background(), ContainerCreateOptions{Config: &container.Config{}, Name: "container_name"})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(r.ID, "container_id"))
 }

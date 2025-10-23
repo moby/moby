@@ -34,8 +34,8 @@ func (cli *Client) ContainerCreate(ctx context.Context, options ContainerCreateO
 		}
 	}
 
-	if options.ContainerName != "" {
-		query.Set("name", options.ContainerName)
+	if options.Name != "" {
+		query.Set("name", options.Name)
 	}
 
 	body := container.CreateRequest{

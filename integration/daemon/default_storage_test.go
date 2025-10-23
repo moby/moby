@@ -60,7 +60,7 @@ func TestGraphDriverPersistence(t *testing.T) {
 			Image: testImage,
 			Cmd:   []string{"echo", "test"},
 		},
-		ContainerName: "test-container",
+		Name: "test-container",
 	})
 	assert.NilError(t, err, "Failed to create container")
 

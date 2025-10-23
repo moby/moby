@@ -442,7 +442,7 @@ func TestContainerVolumeAnonymous(t *testing.T) {
 			HostConfig:       config.HostConfig,
 			NetworkingConfig: config.NetworkingConfig,
 			Platform:         config.Platform,
-			ContainerName:    config.Name,
+			Name:             config.Name,
 		})
 		// We use [testNonExistingPlugin] for this, which produces an error
 		// when used, which we use as indicator that the driver was passed

@@ -12,7 +12,7 @@ type ContainerCreateOptions struct {
 	HostConfig       *container.HostConfig
 	NetworkingConfig *network.NetworkingConfig
 	Platform         *ocispec.Platform
-	ContainerName    string
+	Name             string
 }
 
 // ContainerCreateResult is the result from creating a container.

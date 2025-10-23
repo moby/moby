@@ -600,7 +600,7 @@ func (s *DockerCLIVolumeSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c
 		Config:           &config,
 		HostConfig:       &hostConfig,
 		NetworkingConfig: &network.NetworkingConfig{},
-		ContainerName:    "app",
+		Name:             "app",
 	})
 
 	assert.NilError(c, err)

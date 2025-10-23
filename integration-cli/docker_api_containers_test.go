@@ -770,7 +770,7 @@ func (s *DockerAPISuite) TestContainerAPIStart(c *testing.T) {
 		Config:           &config,
 		HostConfig:       &container.HostConfig{},
 		NetworkingConfig: &network.NetworkingConfig{},
-		ContainerName:    name,
+		Name:             name,
 	})
 	assert.NilError(c, err)
 
@@ -1018,7 +1018,7 @@ func (s *DockerAPISuite) TestPostContainersCreateWithWrongCpusetValues(c *testin
 		Config:           &config,
 		HostConfig:       &hostConfig1,
 		NetworkingConfig: &network.NetworkingConfig{},
-		ContainerName:    name,
+		Name:             name,
 	})
 	expected := "Invalid value 1-42,, for cpuset cpus"
 	assert.ErrorContains(c, err, expected)
@@ -1033,7 +1033,7 @@ func (s *DockerAPISuite) TestPostContainersCreateWithWrongCpusetValues(c *testin
 		Config:           &config,
 		HostConfig:       &hostConfig2,
 		NetworkingConfig: &network.NetworkingConfig{},
-		ContainerName:    name2,
+		Name:             name2,
 	})
 	expected = "Invalid value 42-3,1-- for cpuset mems"
 	assert.ErrorContains(c, err, expected)
@@ -1085,7 +1085,7 @@ func (s *DockerAPISuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *
 		Config:           &config,
 		HostConfig:       &hostConfig,
 		NetworkingConfig: &network.NetworkingConfig{},
-		ContainerName:    name,
+		Name:             name,
 	})
 
 	expected := "Invalid value 1001, range for oom score adj is [-1000, 1000]"
@@ -1100,7 +1100,7 @@ func (s *DockerAPISuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *
 		Config:           &config,
 		HostConfig:       &hostConfig,
 		NetworkingConfig: &network.NetworkingConfig{},
-		ContainerName:    name2,
+		Name:             name2,
 	})
 
 	expected = "Invalid value -1001, range for oom score adj is [-1000, 1000]"
@@ -1138,7 +1138,7 @@ func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) 
 		Config:           &config,
 		HostConfig:       &container.HostConfig{},
 		NetworkingConfig: &network.NetworkingConfig{},
-		ContainerName:    name,
+		Name:             name,
 	})
 	assert.NilError(c, err)
 
@@ -1516,7 +1516,7 @@ func (s *DockerAPISuite) TestContainerAPICreateMountsBindRead(c *testing.T) {
 		Config:           &config,
 		HostConfig:       &hostConfig,
 		NetworkingConfig: &network.NetworkingConfig{},
-		ContainerName:    "test",
+		Name:             "test",
 	})
 	assert.NilError(c, err)
 
@@ -1772,7 +1772,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsTmpfs(c *testing.T) {
 			Config:           &config,
 			HostConfig:       &hostConfig,
 			NetworkingConfig: &network.NetworkingConfig{},
-			ContainerName:    cName,
+			Name:             cName,
 		})
 		assert.NilError(c, err)
 		out := cli.DockerCmd(c, "start", "-a", cName).Combined()
