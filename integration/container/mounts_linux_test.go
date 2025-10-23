@@ -67,7 +67,11 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 	assert.NilError(t, err)
 	defer cli.Close()
 
-	ctrCreate, err := cli.ContainerCreate(ctx, &config, &hostConfig, &network.NetworkingConfig{}, nil, "")
+	ctrCreate, err := cli.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config:           &config,
+		HostConfig:       &hostConfig,
+		NetworkingConfig: &network.NetworkingConfig{},
+	})
 	assert.NilError(t, err)
 	// container will exit immediately because of no tty, but we only need the start sequence to test the condition
 	err = cli.ContainerStart(ctx, ctrCreate.ID, client.ContainerStartOptions{})
@@ -179,10 +183,13 @@ func TestMountDaemonRoot(t *testing.T) {
 
 					ctx := testutil.StartSpan(ctx, t)
 
-					c, err := apiClient.ContainerCreate(ctx, &containertypes.Config{
-						Image: "busybox",
-						Cmd:   []string{"true"},
-					}, hc, nil, nil, "")
+					c, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+						Config: &containertypes.Config{
+							Image: "busybox",
+							Cmd:   []string{"true"},
+						},
+						HostConfig: hc,
+					})
 					if err != nil {
 						if test.expected != "" {
 							t.Fatal(err)
@@ -430,7 +437,13 @@ func TestContainerVolumeAnonymous(t *testing.T) {
 				},
 			},
 		}))
-		_, err := apiClient.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Platform, config.Name)
+		_, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+			Config:           config.Config,
+			HostConfig:       config.HostConfig,
+			NetworkingConfig: config.NetworkingConfig,
+			Platform:         config.Platform,
+			ContainerName:    config.Name,
+		})
 		// We use [testNonExistingPlugin] for this, which produces an error
 		// when used, which we use as indicator that the driver was passed
 		// through. We should have a cleaner way for this, but that would

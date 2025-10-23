@@ -596,7 +596,12 @@ func (s *DockerCLIVolumeSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c
 			},
 		},
 	}
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, &network.NetworkingConfig{}, nil, "app")
+	_, err = apiClient.ContainerCreate(testutil.GetContext(c), client.ContainerCreateOptions{
+		Config:           &config,
+		HostConfig:       &hostConfig,
+		NetworkingConfig: &network.NetworkingConfig{},
+		ContainerName:    "app",
+	})
 
 	assert.NilError(c, err)
 

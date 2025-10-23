@@ -59,13 +59,11 @@ func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
 		t.Run(tc.doc, func(t *testing.T) {
 			t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
-			_, err := apiClient.ContainerCreate(ctx,
-				&container.Config{Image: tc.image},
-				&container.HostConfig{},
-				&network.NetworkingConfig{},
-				nil,
-				"",
-			)
+			_, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+				Config:           &container.Config{Image: tc.image},
+				HostConfig:       &container.HostConfig{},
+				NetworkingConfig: &network.NetworkingConfig{},
+			})
 			assert.Check(t, is.ErrorContains(err, tc.expectedError))
 			assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 		})
@@ -125,15 +123,11 @@ func TestCreateByImageID(t *testing.T) {
 		t.Run(tc.doc, func(t *testing.T) {
 			t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
-			resp, err := apiClient.ContainerCreate(ctx,
-				&container.Config{Image: tc.image},
-				&container.HostConfig{},
-				&network.NetworkingConfig{},
-				nil,
-				"",
-			)
+			resp, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+				Config: &container.Config{Image: tc.image},
+			})
 			if tc.expectedErr != "" {
-				assert.Check(t, is.DeepEqual(resp, container.CreateResponse{}))
+				assert.Check(t, is.DeepEqual(resp, client.ContainerCreateResult{}))
 				assert.Check(t, is.Error(err, tc.expectedErr))
 				assert.Check(t, is.ErrorType(err, tc.expectedErrType))
 			} else {
@@ -154,17 +148,14 @@ func TestCreateLinkToNonExistingContainer(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	_, err := apiClient.ContainerCreate(ctx,
-		&container.Config{
+	_, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config: &container.Config{
 			Image: "busybox",
 		},
-		&container.HostConfig{
+		HostConfig: &container.HostConfig{
 			Links: []string{"no-such-container"},
 		},
-		&network.NetworkingConfig{},
-		nil,
-		"",
-	)
+	})
 	assert.Check(t, is.ErrorContains(err, "could not get container for no-such-container"))
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 }
@@ -195,16 +186,12 @@ func TestCreateWithInvalidEnv(t *testing.T) {
 		t.Run(strconv.Itoa(index), func(t *testing.T) {
 			t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
-			_, err := apiClient.ContainerCreate(ctx,
-				&container.Config{
+			_, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+				Config: &container.Config{
 					Image: "busybox",
 					Env:   []string{tc.env},
 				},
-				&container.HostConfig{},
-				&network.NetworkingConfig{},
-				nil,
-				"",
-			)
+			})
 			assert.Check(t, is.ErrorContains(err, tc.expectedError))
 			assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 		})
@@ -241,17 +228,14 @@ func TestCreateTmpfsMountsTarget(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		_, err := apiClient.ContainerCreate(ctx,
-			&container.Config{
+		_, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+			Config: &container.Config{
 				Image: "busybox",
 			},
-			&container.HostConfig{
+			HostConfig: &container.HostConfig{
 				Tmpfs: map[string]string{tc.target: ""},
 			},
-			&network.NetworkingConfig{},
-			nil,
-			"",
-		)
+		})
 		assert.Check(t, is.ErrorContains(err, tc.expectedError))
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	}
@@ -298,19 +282,17 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 			t.Parallel()
 
 			// Create the container.
-			ctr, err := apiClient.ContainerCreate(ctx,
-				&container.Config{
+			ctr, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+				Config: &container.Config{
 					Image: "busybox",
 					Cmd:   []string{"true"},
 				},
-				&container.HostConfig{
+				HostConfig: &container.HostConfig{
 					Privileged:  tc.privileged,
 					MaskedPaths: tc.maskedPaths,
 				},
-				nil,
-				nil,
-				fmt.Sprintf("create-masked-paths-%d", i),
-			)
+				ContainerName: fmt.Sprintf("create-masked-paths-%d", i),
+			})
 			assert.NilError(t, err)
 
 			ctrInspect, err := apiClient.ContainerInspect(ctx, ctr.ID)
@@ -371,19 +353,17 @@ func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 	for i, tc := range testCases {
 		t.Run(tc.doc, func(t *testing.T) {
 			t.Parallel()
-			ctr, err := apiClient.ContainerCreate(ctx,
-				&container.Config{
+			ctr, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+				Config: &container.Config{
 					Image: "busybox",
 					Cmd:   []string{"true"},
 				},
-				&container.HostConfig{
+				HostConfig: &container.HostConfig{
 					Privileged:    tc.privileged,
 					ReadonlyPaths: tc.readonlyPaths,
 				},
-				nil,
-				nil,
-				fmt.Sprintf("create-readonly-paths-%d", i),
-			)
+				ContainerName: fmt.Sprintf("create-readonly-paths-%d", i),
+			})
 			assert.NilError(t, err)
 
 			ctrInspect, err := apiClient.ContainerInspect(ctx, ctr.ID)
@@ -482,7 +462,9 @@ func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 				cfg.Healthcheck.StartPeriod = tc.startPeriod
 			}
 
-			resp, err := apiClient.ContainerCreate(ctx, &cfg, &container.HostConfig{}, nil, nil, "")
+			resp, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+				Config: &cfg,
+			})
 			assert.Check(t, is.Equal(len(resp.Warnings), 0))
 			assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 			assert.ErrorContains(t, err, tc.expectedErr)
@@ -553,7 +535,10 @@ func TestCreateDifferentPlatform(t *testing.T) {
 			Architecture: img.Architecture,
 			Variant:      img.Variant,
 		}
-		_, err := apiClient.ContainerCreate(ctx, &container.Config{Image: "busybox:latest"}, &container.HostConfig{}, nil, &p, "")
+		_, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+			Config:   &container.Config{Image: "busybox:latest"},
+			Platform: &p,
+		})
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	})
 	t.Run("different cpu arch", func(t *testing.T) {
@@ -563,7 +548,10 @@ func TestCreateDifferentPlatform(t *testing.T) {
 			Architecture: img.Architecture + "DifferentArch",
 			Variant:      img.Variant,
 		}
-		_, err := apiClient.ContainerCreate(ctx, &container.Config{Image: "busybox:latest"}, &container.HostConfig{}, nil, &p, "")
+		_, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+			Config:   &container.Config{Image: "busybox:latest"},
+			Platform: &p,
+		})
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	})
 }
@@ -574,12 +562,10 @@ func TestCreateVolumesFromNonExistingContainer(t *testing.T) {
 
 	_, err := apiClient.ContainerCreate(
 		ctx,
-		&container.Config{Image: "busybox"},
-		&container.HostConfig{VolumesFrom: []string{"nosuchcontainer"}},
-		nil,
-		nil,
-		"",
-	)
+		client.ContainerCreateOptions{
+			Config:     &container.Config{Image: "busybox"},
+			HostConfig: &container.HostConfig{VolumesFrom: []string{"nosuchcontainer"}},
+		})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 }
 
@@ -594,12 +580,9 @@ func TestCreatePlatformSpecificImageNoPlatform(t *testing.T) {
 
 	_, err := apiClient.ContainerCreate(
 		ctx,
-		&container.Config{Image: "arm32v7/hello-world"},
-		&container.HostConfig{},
-		nil,
-		nil,
-		"",
-	)
+		client.ContainerCreateOptions{
+			Config: &container.Config{Image: "arm32v7/hello-world"},
+		})
 	assert.NilError(t, err)
 }
 
@@ -653,7 +636,10 @@ func TestCreateInvalidHostConfig(t *testing.T) {
 			cfg := container.Config{
 				Image: "busybox",
 			}
-			resp, err := apiClient.ContainerCreate(ctx, &cfg, &tc.hc, nil, nil, "")
+			resp, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+				Config:     &cfg,
+				HostConfig: &tc.hc,
+			})
 			assert.Check(t, is.Equal(len(resp.Warnings), 0))
 			assert.Check(t, cerrdefs.IsInvalidArgument(err), "got: %T", err)
 			assert.Error(t, err, tc.expectedErr)
@@ -760,7 +746,10 @@ func TestCreateWithMultipleEndpointSettings(t *testing.T) {
 					"net3": {},
 				},
 			}
-			_, err = apiClient.ContainerCreate(ctx, &config, &container.HostConfig{}, &networkingConfig, nil, "")
+			_, err = apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+				Config:           &config,
+				NetworkingConfig: &networkingConfig,
+			})
 			if tc.expectedErr == "" {
 				assert.NilError(t, err)
 			} else {

@@ -54,13 +54,12 @@ func TestReadPluginNoRead(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			d.Start(t, append([]string{"--iptables=false", "--ip6tables=false"}, test.dOpts...)...)
 			defer d.Stop(t)
-			c, err := apiclient.ContainerCreate(ctx,
-				cfg,
-				&container.HostConfig{LogConfig: container.LogConfig{Type: "test"}},
-				nil,
-				nil,
-				"",
-			)
+			c, err := apiclient.ContainerCreate(ctx, client.ContainerCreateOptions{
+				Config: cfg,
+				HostConfig: &container.HostConfig{
+					LogConfig: container.LogConfig{Type: "test"},
+				},
+			})
 			assert.Assert(t, err)
 			defer apiclient.ContainerRemove(ctx, c.ID, client.ContainerRemoveOptions{Force: true})
 

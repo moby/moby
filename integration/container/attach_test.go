@@ -41,17 +41,15 @@ func TestAttach(t *testing.T) {
 			t.Parallel()
 
 			ctx := testutil.StartSpan(ctx, t)
-			resp, err := apiClient.ContainerCreate(ctx,
-				&container.Config{
+			resp, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+				Config: &container.Config{
 					Image: "busybox",
 					Cmd:   []string{"echo", "hello"},
 					Tty:   tc.tty,
 				},
-				&container.HostConfig{},
-				&network.NetworkingConfig{},
-				nil,
-				"",
-			)
+				HostConfig:       &container.HostConfig{},
+				NetworkingConfig: &network.NetworkingConfig{},
+			})
 			assert.NilError(t, err)
 			attach, err := apiClient.ContainerAttach(ctx, resp.ID, client.ContainerAttachOptions{
 				Stdout: true,
@@ -81,16 +79,14 @@ func TestAttachDisconnectLeak(t *testing.T) {
 
 	apiClient := d.NewClientT(t)
 
-	resp, err := apiClient.ContainerCreate(ctx,
-		&container.Config{
+	resp, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config: &container.Config{
 			Image: "busybox",
 			Cmd:   []string{"/bin/sh", "-c", "while true; usleep 100000; done"},
 		},
-		&container.HostConfig{},
-		&network.NetworkingConfig{},
-		nil,
-		"",
-	)
+		HostConfig:       &container.HostConfig{},
+		NetworkingConfig: &network.NetworkingConfig{},
+	})
 	assert.NilError(t, err)
 	cID := resp.ID
 	defer apiClient.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{

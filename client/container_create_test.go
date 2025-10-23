@@ -22,11 +22,11 @@ func TestContainerCreateError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerCreate(context.Background(), nil, nil, nil, nil, "nothing")
+	_, err = client.ContainerCreate(context.Background(), ContainerCreateOptions{Config: nil, ContainerName: "nothing"})
 	assert.Error(t, err, "config is nil")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 
-	_, err = client.ContainerCreate(context.Background(), &container.Config{}, nil, nil, nil, "nothing")
+	_, err = client.ContainerCreate(context.Background(), ContainerCreateOptions{Config: &container.Config{}, ContainerName: "nothing"})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	// 404 doesn't automatically means an unknown image
@@ -35,7 +35,7 @@ func TestContainerCreateError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerCreate(context.Background(), &container.Config{}, nil, nil, nil, "nothing")
+	_, err = client.ContainerCreate(context.Background(), ContainerCreateOptions{Config: &container.Config{}, ContainerName: "nothing"})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
@@ -45,7 +45,7 @@ func TestContainerCreateImageNotFound(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerCreate(context.Background(), &container.Config{Image: "unknown_image"}, nil, nil, nil, "unknown")
+	_, err = client.ContainerCreate(context.Background(), ContainerCreateOptions{Config: &container.Config{Image: "unknown_image"}, ContainerName: "unknown"})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
@@ -74,7 +74,7 @@ func TestContainerCreateWithName(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	r, err := client.ContainerCreate(context.Background(), &container.Config{}, nil, nil, nil, "container_name")
+	r, err := client.ContainerCreate(context.Background(), ContainerCreateOptions{Config: &container.Config{}, ContainerName: "container_name"})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(r.ID, "container_id"))
 }
@@ -103,7 +103,7 @@ func TestContainerCreateAutoRemove(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	resp, err := client.ContainerCreate(context.Background(), &container.Config{}, &container.HostConfig{AutoRemove: true}, nil, nil, "")
+	resp, err := client.ContainerCreate(context.Background(), ContainerCreateOptions{Config: &container.Config{}, HostConfig: &container.HostConfig{AutoRemove: true}})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(resp.ID, "container_id"))
 }
@@ -116,7 +116,7 @@ func TestContainerCreateConnectionError(t *testing.T) {
 	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
-	_, err = client.ContainerCreate(context.Background(), &container.Config{}, nil, nil, nil, "")
+	_, err = client.ContainerCreate(context.Background(), ContainerCreateOptions{Config: &container.Config{}})
 	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
 
@@ -165,6 +165,6 @@ func TestContainerCreateCapabilities(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerCreate(context.Background(), &container.Config{}, &container.HostConfig{CapAdd: inputCaps, CapDrop: inputCaps}, nil, nil, "")
+	_, err = client.ContainerCreate(context.Background(), ContainerCreateOptions{Config: &container.Config{}, HostConfig: &container.HostConfig{CapAdd: inputCaps, CapDrop: inputCaps}})
 	assert.NilError(t, err)
 }

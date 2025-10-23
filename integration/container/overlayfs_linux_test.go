@@ -28,7 +28,7 @@ func TestNoOverlayfsWarningsAboutUndefinedBehaviors(t *testing.T) {
 		operation func(t *testing.T) error
 	}{
 		{name: "diff", operation: func(*testing.T) error {
-			_, err := apiClient.ContainerDiff(ctx, cID)
+			_, err := apiClient.ContainerDiff(ctx, cID, client.ContainerDiffOptions{})
 			return err
 		}},
 		{name: "export", operation: func(*testing.T) error {

@@ -20,14 +20,14 @@ func TestContainerDiffError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerDiff(context.Background(), "nothing")
+	_, err = client.ContainerDiff(context.Background(), "nothing", ContainerDiffOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ContainerDiff(context.Background(), "")
+	_, err = client.ContainerDiff(context.Background(), "", ContainerDiffOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ContainerDiff(context.Background(), "    ")
+	_, err = client.ContainerDiff(context.Background(), "    ", ContainerDiffOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -67,7 +67,7 @@ func TestContainerDiff(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	changes, err := client.ContainerDiff(context.Background(), "container_id")
+	result, err := client.ContainerDiff(context.Background(), "container_id", ContainerDiffOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.DeepEqual(changes, expected))
+	assert.Check(t, is.DeepEqual(result.Changes, expected))
 }

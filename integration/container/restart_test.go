@@ -100,7 +100,10 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 							Interval:      60 * time.Second,
 						}
 					}
-					resp, err := apiClient.ContainerCreate(ctx, &config, &hostConfig, nil, nil, "")
+					resp, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+						Config:     &config,
+						HostConfig: &hostConfig,
+					})
 					assert.NilError(t, err)
 					defer apiClient.ContainerRemove(ctx, resp.ID, client.ContainerRemoveOptions{Force: true})
 

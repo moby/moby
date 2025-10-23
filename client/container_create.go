@@ -10,49 +10,48 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/network"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ContainerCreate creates a new container based on the given configuration.
 // It can be associated with a name, but it's not mandatory.
-func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *ocispec.Platform, containerName string) (container.CreateResponse, error) {
-	if config == nil {
-		return container.CreateResponse{}, cerrdefs.ErrInvalidArgument.WithMessage("config is nil")
+func (cli *Client) ContainerCreate(ctx context.Context, options ContainerCreateOptions) (ContainerCreateResult, error) {
+	if options.Config == nil {
+		return ContainerCreateResult{}, cerrdefs.ErrInvalidArgument.WithMessage("config is nil")
 	}
 
 	var response container.CreateResponse
 
-	if hostConfig != nil {
-		hostConfig.CapAdd = normalizeCapabilities(hostConfig.CapAdd)
-		hostConfig.CapDrop = normalizeCapabilities(hostConfig.CapDrop)
+	if options.HostConfig != nil {
+		options.HostConfig.CapAdd = normalizeCapabilities(options.HostConfig.CapAdd)
+		options.HostConfig.CapDrop = normalizeCapabilities(options.HostConfig.CapDrop)
 	}
 
 	query := url.Values{}
-	if platform != nil {
-		if p := formatPlatform(*platform); p != "unknown" {
+	if options.Platform != nil {
+		if p := formatPlatform(*options.Platform); p != "unknown" {
 			query.Set("platform", p)
 		}
 	}
 
-	if containerName != "" {
-		query.Set("name", containerName)
+	if options.ContainerName != "" {
+		query.Set("name", options.ContainerName)
 	}
 
 	body := container.CreateRequest{
-		Config:           config,
-		HostConfig:       hostConfig,
-		NetworkingConfig: networkingConfig,
+		Config:           options.Config,
+		HostConfig:       options.HostConfig,
+		NetworkingConfig: options.NetworkingConfig,
 	}
 
 	resp, err := cli.post(ctx, "/containers/create", query, body, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return response, err
+		return ContainerCreateResult{}, err
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&response)
-	return response, err
+	return ContainerCreateResult{ID: response.ID, Warnings: response.Warnings}, err
 }
 
 // formatPlatform returns a formatted string representing platform (e.g., "linux/arm/v7").

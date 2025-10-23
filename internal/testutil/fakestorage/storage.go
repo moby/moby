@@ -154,10 +154,11 @@ COPY . /static`); err != nil {
 	assert.NilError(t, err)
 
 	// Start the container
-	b, err := c.ContainerCreate(context.Background(),
-		&containertypes.Config{Image: imgName},
-		&containertypes.HostConfig{PublishAllPorts: true},
-		nil, nil, ctrName)
+	b, err := c.ContainerCreate(context.Background(), client.ContainerCreateOptions{
+		Config:        &containertypes.Config{Image: imgName},
+		HostConfig:    &containertypes.HostConfig{PublishAllPorts: true},
+		ContainerName: ctrName,
+	})
 	assert.NilError(t, err)
 	err = c.ContainerStart(context.Background(), b.ID, client.ContainerStartOptions{})
 	assert.NilError(t, err)

@@ -12,7 +12,6 @@ import (
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/system"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // APIClient is an interface that clients that talk with a docker server must implement.
@@ -58,10 +57,10 @@ type HijackDialer interface {
 
 // ContainerAPIClient defines API client methods for the containers
 type ContainerAPIClient interface {
-	ContainerAttach(ctx context.Context, container string, options ContainerAttachOptions) (HijackedResponse, error)
-	ContainerCommit(ctx context.Context, container string, options ContainerCommitOptions) (container.CommitResponse, error)
-	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *ocispec.Platform, containerName string) (container.CreateResponse, error)
-	ContainerDiff(ctx context.Context, container string) ([]container.FilesystemChange, error)
+	ContainerAttach(ctx context.Context, container string, options ContainerAttachOptions) (ContainerAttachResult, error)
+	ContainerCommit(ctx context.Context, container string, options ContainerCommitOptions) (ContainerCommitResult, error)
+	ContainerCreate(ctx context.Context, options ContainerCreateOptions) (ContainerCreateResult, error)
+	ContainerDiff(ctx context.Context, container string, options ContainerDiffOptions) (ContainerDiffResult, error)
 	ExecAPIClient
 	ContainerExport(ctx context.Context, container string) (io.ReadCloser, error)
 	ContainerInspect(ctx context.Context, container string) (container.InspectResponse, error)
