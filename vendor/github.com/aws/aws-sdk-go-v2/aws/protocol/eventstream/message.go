@@ -10,9 +10,6 @@ const preludeLen = 8
 const preludeCRCLen = 4
 const msgCRCLen = 4
 const minMsgLen = preludeLen + preludeCRCLen + msgCRCLen
-const maxPayloadLen = 1024 * 1024 * 16 // 16MB
-const maxHeadersLen = 1024 * 128       // 128KB
-const maxMsgLen = minMsgLen + maxHeadersLen + maxPayloadLen
 
 var crc32IEEETable = crc32.MakeTable(crc32.IEEE)
 
@@ -82,28 +79,13 @@ func (p messagePrelude) PayloadLen() uint32 {
 }
 
 func (p messagePrelude) ValidateLens() error {
-	if p.Length == 0 || p.Length > maxMsgLen {
+	if p.Length == 0 {
 		return LengthError{
 			Part: "message prelude",
-			Want: maxMsgLen,
+			Want: minMsgLen,
 			Have: int(p.Length),
 		}
 	}
-	if p.HeadersLen > maxHeadersLen {
-		return LengthError{
-			Part: "message headers",
-			Want: maxHeadersLen,
-			Have: int(p.HeadersLen),
-		}
-	}
-	if payloadLen := p.PayloadLen(); payloadLen > maxPayloadLen {
-		return LengthError{
-			Part: "message payload",
-			Want: maxPayloadLen,
-			Have: int(payloadLen),
-		}
-	}
-
 	return nil
 }
 

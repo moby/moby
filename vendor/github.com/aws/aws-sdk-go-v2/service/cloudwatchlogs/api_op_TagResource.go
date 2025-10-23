@@ -6,23 +6,28 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Assigns one or more tags (key-value pairs) to the specified CloudWatch Logs
 // resource. Currently, the only CloudWatch Logs resources that can be tagged are
-// log groups and destinations. Tags can help you organize and categorize your
-// resources. You can also use them to scope user permissions by granting a user
-// permission to access or change only resources with certain tag values. Tags
-// don't have any semantic meaning to Amazon Web Services and are interpreted
-// strictly as strings of characters. You can use the TagResource action with a
-// resource that already has tags. If you specify a new tag key for the alarm, this
-// tag is appended to the list of tags associated with the alarm. If you specify a
-// tag key that is already associated with the alarm, the new tag value that you
-// specify replaces the previous value for that tag. You can associate as many as
-// 50 tags with a CloudWatch Logs resource.
+// log groups and destinations.
+//
+// Tags can help you organize and categorize your resources. You can also use them
+// to scope user permissions by granting a user permission to access or change only
+// resources with certain tag values.
+//
+// Tags don't have any semantic meaning to Amazon Web Services and are interpreted
+// strictly as strings of characters.
+//
+// You can use the TagResource action with a resource that already has tags. If
+// you specify a new tag key for the alarm, this tag is appended to the list of
+// tags associated with the alarm. If you specify a tag key that is already
+// associated with the alarm, the new tag value that you specify replaces the
+// previous value for that tag.
+//
+// You can associate as many as 50 tags with a CloudWatch Logs resource.
 func (c *Client) TagResource(ctx context.Context, params *TagResourceInput, optFns ...func(*Options)) (*TagResourceOutput, error) {
 	if params == nil {
 		params = &TagResourceInput{}
@@ -40,12 +45,17 @@ func (c *Client) TagResource(ctx context.Context, params *TagResourceInput, optF
 
 type TagResourceInput struct {
 
-	// The ARN of the resource that you're adding tags to. The ARN format of a log
-	// group is arn:aws:logs:Region:account-id:log-group:log-group-name  The ARN
-	// format of a destination is
-	// arn:aws:logs:Region:account-id:destination:destination-name For more
-	// information about ARN format, see CloudWatch Logs resources and operations (https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/iam-access-control-overview-cwl.html)
-	// .
+	// The ARN of the resource that you're adding tags to.
+	//
+	// The ARN format of a log group is
+	// arn:aws:logs:Region:account-id:log-group:log-group-name
+	//
+	// The ARN format of a destination is
+	// arn:aws:logs:Region:account-id:destination:destination-name
+	//
+	// For more information about ARN format, see [CloudWatch Logs resources and operations].
+	//
+	// [CloudWatch Logs resources and operations]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/iam-access-control-overview-cwl.html
 	//
 	// This member is required.
 	ResourceArn *string
@@ -87,25 +97,28 @@ func (c *Client) addOperationTagResourceMiddlewares(stack *middleware.Stack, opt
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -120,13 +133,22 @@ func (c *Client) addOperationTagResourceMiddlewares(stack *middleware.Stack, opt
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpTagResourceValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opTagResource(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -139,6 +161,48 @@ func (c *Client) addOperationTagResourceMiddlewares(stack *middleware.Stack, opt
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptExecution(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptTransmit(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

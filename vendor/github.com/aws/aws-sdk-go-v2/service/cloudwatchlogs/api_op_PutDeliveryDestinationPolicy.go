@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -17,26 +16,30 @@ import (
 // configure the delivery of logs from an Amazon Web Services service in another
 // account to a logs delivery destination in the current account, you must do the
 // following:
+//
 //   - Create a delivery source, which is a logical object that represents the
-//     resource that is actually sending the logs. For more information, see
-//     PutDeliverySource (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDeliverySource.html)
-//     .
+//     resource that is actually sending the logs. For more information, see [PutDeliverySource].
+//
 //   - Create a delivery destination, which is a logical object that represents
-//     the actual delivery destination. For more information, see
-//     PutDeliveryDestination (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDeliveryDestination.html)
-//     .
+//     the actual delivery destination. For more information, see [PutDeliveryDestination].
+//
 //   - Use this operation in the destination account to assign an IAM policy to
 //     the destination. This policy allows delivery to that destination.
+//
 //   - Create a delivery by pairing exactly one delivery source and one delivery
-//     destination. For more information, see CreateDelivery (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateDelivery.html)
-//     .
+//     destination. For more information, see [CreateDelivery].
 //
 // Only some Amazon Web Services services support being configured as a delivery
-// source. These services are listed as Supported [V2 Permissions] in the table at
-// Enabling logging from Amazon Web Services services. (https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/AWS-logs-and-resource-policy.html)
+// source. These services are listed as Supported [V2 Permissions] in the table at [Enabling logging from Amazon Web Services services.]
+//
 // The contents of the policy must include two statements. One statement enables
 // general logs delivery, and the other allows delivery to the chosen destination.
 // See the examples for the needed policies.
+//
+// [PutDeliveryDestination]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDeliveryDestination.html
+// [PutDeliverySource]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDeliverySource.html
+// [Enabling logging from Amazon Web Services services.]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/AWS-logs-and-resource-policy.html
+// [CreateDelivery]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateDelivery.html
 func (c *Client) PutDeliveryDestinationPolicy(ctx context.Context, params *PutDeliveryDestinationPolicyInput, optFns ...func(*Options)) (*PutDeliveryDestinationPolicyOutput, error) {
 	if params == nil {
 		params = &PutDeliveryDestinationPolicyInput{}
@@ -100,25 +103,28 @@ func (c *Client) addOperationPutDeliveryDestinationPolicyMiddlewares(stack *midd
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -133,13 +139,22 @@ func (c *Client) addOperationPutDeliveryDestinationPolicyMiddlewares(stack *midd
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpPutDeliveryDestinationPolicyValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opPutDeliveryDestinationPolicy(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -152,6 +167,48 @@ func (c *Client) addOperationPutDeliveryDestinationPolicyMiddlewares(stack *midd
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptExecution(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptTransmit(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

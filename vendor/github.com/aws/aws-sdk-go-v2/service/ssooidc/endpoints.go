@@ -16,6 +16,7 @@ import (
 	smithyendpoints "github.com/aws/smithy-go/endpoints"
 	"github.com/aws/smithy-go/middleware"
 	"github.com/aws/smithy-go/ptr"
+	"github.com/aws/smithy-go/tracing"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"net/http"
 	"net/url"
@@ -327,7 +328,9 @@ func (r *resolver) ResolveEndpoint(
 		return endpoint, fmt.Errorf("endpoint parameters are not valid, %w", err)
 	}
 	_UseDualStack := *params.UseDualStack
+	_ = _UseDualStack
 	_UseFIPS := *params.UseFIPS
+	_ = _UseFIPS
 
 	if exprVal := params.Endpoint; exprVal != nil {
 		_Endpoint := *exprVal
@@ -502,12 +505,11 @@ func (*resolveEndpointV2Middleware) ID() string {
 func (m *resolveEndpointV2Middleware) HandleFinalize(ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler) (
 	out middleware.FinalizeOutput, metadata middleware.Metadata, err error,
 ) {
+	_, span := tracing.StartSpan(ctx, "ResolveEndpoint")
+	defer span.End()
+
 	if awsmiddleware.GetRequiresLegacyEndpoints(ctx) {
 		return next.HandleFinalize(ctx, in)
-	}
-
-	if err := checkAccountID(getIdentity(ctx), m.options.AccountIDEndpointMode); err != nil {
-		return out, metadata, fmt.Errorf("invalid accountID set: %w", err)
 	}
 
 	req, ok := in.Request.(*smithyhttp.Request)
@@ -520,10 +522,15 @@ func (m *resolveEndpointV2Middleware) HandleFinalize(ctx context.Context, in mid
 	}
 
 	params := bindEndpointParams(ctx, getOperationInput(ctx), m.options)
-	endpt, err := m.options.EndpointResolverV2.ResolveEndpoint(ctx, *params)
+	endpt, err := timeOperationMetric(ctx, "client.call.resolve_endpoint_duration",
+		func() (smithyendpoints.Endpoint, error) {
+			return m.options.EndpointResolverV2.ResolveEndpoint(ctx, *params)
+		})
 	if err != nil {
 		return out, metadata, fmt.Errorf("failed to resolve service endpoint, %w", err)
 	}
+
+	span.SetProperty("client.call.resolved_endpoint", endpt.URI.String())
 
 	if endpt.URI.RawPath == "" && req.URL.RawPath != "" {
 		endpt.URI.RawPath = endpt.URI.Path
@@ -546,5 +553,6 @@ func (m *resolveEndpointV2Middleware) HandleFinalize(ctx context.Context, in mid
 		rscheme.SignerProperties.SetAll(&o.SignerProperties)
 	}
 
+	span.End()
 	return next.HandleFinalize(ctx, in)
 }

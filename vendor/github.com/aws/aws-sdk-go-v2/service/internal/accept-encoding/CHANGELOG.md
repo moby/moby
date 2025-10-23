@@ -1,3 +1,43 @@
+# v1.13.2 (2025-10-16)
+
+* **Dependency Update**: Bump minimum Go version to 1.23.
+
+# v1.13.1 (2025-08-27)
+
+* **Dependency Update**: Update to smithy-go v1.23.0.
+
+# v1.13.0 (2025-07-28)
+
+* **Feature**: Add support for HTTP interceptors.
+
+# v1.12.4 (2025-06-17)
+
+* **Dependency Update**: Update to smithy-go v1.22.4.
+
+# v1.12.3 (2025-02-18)
+
+* **Bug Fix**: Bump go version to 1.22
+
+# v1.12.2 (2025-01-24)
+
+* **Dependency Update**: Upgrade to smithy-go v1.22.2.
+
+# v1.12.1 (2024-11-18)
+
+* **Dependency Update**: Update to smithy-go v1.22.1.
+
+# v1.12.0 (2024-10-04)
+
+* **Feature**: Add support for HTTP client metrics.
+
+# v1.11.5 (2024-09-20)
+
+* No change notes available for this release.
+
+# v1.11.4 (2024-08-15)
+
+* **Dependency Update**: Bump minimum Go version to 1.21.
+
 # v1.11.3 (2024-06-28)
 
 * No change notes available for this release.

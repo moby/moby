@@ -31,7 +31,7 @@ import (
 // Services credentials. Instead, the identity of the caller is validated by using
 // a token from the web identity provider. For a comparison of
 // AssumeRoleWithWebIdentity with the other API operations that produce temporary
-// credentials, see [Requesting Temporary Security Credentials]and [Comparing the Amazon Web Services STS API operations] in the IAM User Guide.
+// credentials, see [Requesting Temporary Security Credentials]and [Compare STS credentials] in the IAM User Guide.
 //
 // The temporary security credentials returned by this API consist of an access
 // key ID, a secret access key, and a security token. Applications can use these
@@ -45,7 +45,7 @@ import (
 // DurationSeconds parameter to specify the duration of your session. You can
 // provide a value from 900 seconds (15 minutes) up to the maximum session duration
 // setting for the role. This setting can have a value from 1 hour to 12 hours. To
-// learn how to view the maximum value for your role, see [View the Maximum Session Duration Setting for a Role]in the IAM User Guide.
+// learn how to view the maximum value for your role, see [Update the maximum session duration for a role]in the IAM User Guide.
 // The maximum session duration limit applies when you use the AssumeRole* API
 // operations or the assume-role* CLI commands. However the limit does not apply
 // when you use those operations to create a console URL. For more information, see
@@ -111,34 +111,23 @@ import (
 // that you avoid using any personally identifiable information (PII) in this
 // field. For example, you could instead use a GUID or a pairwise identifier, as [suggested in the OIDC specification].
 //
-// For more information about how to use web identity federation and the
+// For more information about how to use OIDC federation and the
 // AssumeRoleWithWebIdentity API, see the following resources:
 //
 // [Using Web Identity Federation API Operations for Mobile Apps]
 //   - and [Federation Through a Web-based Identity Provider].
-//
-// [Web Identity Federation Playground]
-//   - . Walk through the process of authenticating through Login with Amazon,
-//     Facebook, or Google, getting temporary security credentials, and then using
-//     those credentials to make a request to Amazon Web Services.
 //
 // [Amazon Web Services SDK for iOS Developer Guide]
 //   - and [Amazon Web Services SDK for Android Developer Guide]. These toolkits contain sample apps that show how to invoke the
 //     identity providers. The toolkits then show how to use the information from these
 //     providers to get and use temporary security credentials.
 //
-// [Web Identity Federation with Mobile Applications]
-//   - . This article discusses web identity federation and shows an example of
-//     how to use web identity federation to get access to content in Amazon S3.
-//
 // [Amazon Web Services SDK for iOS Developer Guide]: http://aws.amazon.com/sdkforios/
-// [View the Maximum Session Duration Setting for a Role]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use.html#id_roles_use_view-role-max-session
-// [Web Identity Federation Playground]: https://aws.amazon.com/blogs/aws/the-aws-web-identity-federation-playground/
 // [Amazon Web Services SDK for Android Developer Guide]: http://aws.amazon.com/sdkforandroid/
 // [IAM and STS Character Limits]: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-limits.html#reference_iam-limits-entity-length
-// [Comparing the Amazon Web Services STS API operations]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#stsapi_comparison
 // [session policies]: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#policies_session
 // [Requesting Temporary Security Credentials]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html
+// [Compare STS credentials]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_sts-comparison.html
 // [Subject]: http://openid.net/specs/openid-connect-core-1_0.html#Claims
 // [Tutorial: Using Tags for Attribute-Based Access Control]: https://docs.aws.amazon.com/IAM/latest/UserGuide/tutorial_attribute-based-access-control.html
 // [Amazon Cognito identity pools]: https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-identity.html
@@ -148,7 +137,7 @@ import (
 // [Amazon Cognito federated identities]: https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-identity.html
 // [Passing Session Tags in STS]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_session-tags.html
 // [Chaining Roles with Session Tags]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_session-tags.html#id_session-tags_role-chaining
-// [Web Identity Federation with Mobile Applications]: http://aws.amazon.com/articles/web-identity-federation-with-mobile-applications
+// [Update the maximum session duration for a role]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_update-role-settings.html#id_roles_update-session-duration
 // [Using Web Identity Federation API Operations for Mobile Apps]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_oidc_manual.html
 // [suggested in the OIDC specification]: http://openid.net/specs/openid-connect-core-1_0.html#SubjectIDTypes
 func (c *Client) AssumeRoleWithWebIdentity(ctx context.Context, params *AssumeRoleWithWebIdentityInput, optFns ...func(*Options)) (*AssumeRoleWithWebIdentityOutput, error) {
@@ -170,6 +159,17 @@ type AssumeRoleWithWebIdentityInput struct {
 
 	// The Amazon Resource Name (ARN) of the role that the caller is assuming.
 	//
+	// Additional considerations apply to Amazon Cognito identity pools that assume [cross-account IAM roles].
+	// The trust policies of these roles must accept the cognito-identity.amazonaws.com
+	// service principal and must contain the cognito-identity.amazonaws.com:aud
+	// condition key to restrict role assumption to users from your intended identity
+	// pools. A policy that trusts Amazon Cognito identity pools without this condition
+	// creates a risk that a user from an unintended identity pool can assume the role.
+	// For more information, see [Trust policies for IAM roles in Basic (Classic) authentication]in the Amazon Cognito Developer Guide.
+	//
+	// [cross-account IAM roles]: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies-cross-account-resource-access.html
+	// [Trust policies for IAM roles in Basic (Classic) authentication]: https://docs.aws.amazon.com/cognito/latest/developerguide/iam-roles.html#trust-policies
+	//
 	// This member is required.
 	RoleArn *string
 
@@ -179,9 +179,17 @@ type AssumeRoleWithWebIdentityInput struct {
 	// associated with that user. This session name is included as part of the ARN and
 	// assumed role ID in the AssumedRoleUser response element.
 	//
+	// For security purposes, administrators can view this field in [CloudTrail logs] to help identify
+	// who performed an action in Amazon Web Services. Your administrator might require
+	// that you specify your user name as the session name when you assume the role.
+	// For more information, see [sts:RoleSessionName]sts:RoleSessionName .
+	//
 	// The regex used to validate this parameter is a string of characters consisting
 	// of upper- and lower-case alphanumeric characters with no spaces. You can also
 	// include underscores or any of the following characters: =,.@-
+	//
+	// [CloudTrail logs]: https://docs.aws.amazon.com/IAM/latest/UserGuide/cloudtrail-integration.html#cloudtrail-integration_signin-tempcreds
+	// [sts:RoleSessionName]: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_iam-condition-keys.html#ck_rolesessionname
 	//
 	// This member is required.
 	RoleSessionName *string
@@ -189,8 +197,10 @@ type AssumeRoleWithWebIdentityInput struct {
 	// The OAuth 2.0 access token or OpenID Connect ID token that is provided by the
 	// identity provider. Your application must get this token by authenticating the
 	// user who is using your application with a web identity provider before the
-	// application makes an AssumeRoleWithWebIdentity call. Only tokens with RSA
-	// algorithms (RS256) are supported.
+	// application makes an AssumeRoleWithWebIdentity call. Timestamps in the token
+	// must be formatted as either an integer or a long integer. Tokens must be signed
+	// using either RSA keys (RS256, RS384, or RS512) or ECDSA keys (ES256, ES384, or
+	// ES512).
 	//
 	// This member is required.
 	WebIdentityToken *string
@@ -232,6 +242,8 @@ type AssumeRoleWithWebIdentityInput struct {
 	// \u00FF). It can also include the tab (\u0009), linefeed (\u000A), and carriage
 	// return (\u000D) characters.
 	//
+	// For more information about role session permissions, see [Session policies].
+	//
 	// An Amazon Web Services conversion compresses the passed inline session policy,
 	// managed policy ARNs, and session tags into a packed binary format that has a
 	// separate limit. Your request can fail for this limit even if your plaintext
@@ -240,6 +252,7 @@ type AssumeRoleWithWebIdentityInput struct {
 	// size limit.
 	//
 	// [Session Policies]: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#policies_session
+	// [Session policies]: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#policies_session
 	Policy *string
 
 	// The Amazon Resource Names (ARNs) of the IAM managed policies that you want to
@@ -337,7 +350,7 @@ type AssumeRoleWithWebIdentityOutput struct {
 	// of upper- and lower-case alphanumeric characters with no spaces. You can also
 	// include underscores or any of the following characters: =,.@-
 	//
-	// [chained role]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_terms-and-concepts#iam-term-role-chaining
+	// [chained role]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles.html#id_roles_terms-and-concepts
 	// [Monitor and control actions taken with assumed roles]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_control-access_monitor.html
 	// [Using Tokens with User Pools]: https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-tokens-with-identity-providers.html
 	SourceIdentity *string
@@ -396,6 +409,9 @@ func (c *Client) addOperationAssumeRoleWithWebIdentityMiddlewares(stack *middlew
 	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
+		return err
+	}
 	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
@@ -412,6 +428,9 @@ func (c *Client) addOperationAssumeRoleWithWebIdentityMiddlewares(stack *middlew
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpAssumeRoleWithWebIdentityValidationMiddleware(stack); err != nil {
@@ -433,6 +452,48 @@ func (c *Client) addOperationAssumeRoleWithWebIdentityMiddlewares(stack *middlew
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptExecution(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptTransmit(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

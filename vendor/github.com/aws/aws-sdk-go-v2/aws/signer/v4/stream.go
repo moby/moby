@@ -59,7 +59,7 @@ func (s *StreamSigner) GetSignature(ctx context.Context, headers, payload []byte
 
 	prevSignature := s.prevSignature
 
-	st := v4Internal.NewSigningTime(signingTime)
+	st := v4Internal.NewSigningTime(signingTime.UTC())
 
 	sigKey := s.signingKeyDeriver.DeriveKey(s.credentials, s.service, s.region, st)
 

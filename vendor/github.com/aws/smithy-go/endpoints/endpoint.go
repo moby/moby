@@ -9,7 +9,7 @@ import (
 
 // Endpoint is the endpoint object returned by Endpoint resolution V2
 type Endpoint struct {
-	// The complete URL minimally specfiying the scheme and host.
+	// The complete URL minimally specifying the scheme and host.
 	// May optionally specify the port and base path component.
 	URI url.URL
 

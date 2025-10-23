@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
@@ -14,21 +13,34 @@ import (
 // Creates an export task so that you can efficiently export data from a log group
 // to an Amazon S3 bucket. When you perform a CreateExportTask operation, you must
 // use credentials that have permission to write to the S3 bucket that you specify
-// as the destination. Exporting log data to S3 buckets that are encrypted by KMS
-// is supported. Exporting log data to Amazon S3 buckets that have S3 Object Lock
-// enabled with a retention period is also supported. Exporting to S3 buckets that
-// are encrypted with AES-256 is supported. This is an asynchronous call. If all
-// the required information is provided, this operation initiates an export task
-// and responds with the ID of the task. After the task has started, you can use
-// DescribeExportTasks (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DescribeExportTasks.html)
-// to get the status of the export task. Each account can only have one active (
-// RUNNING or PENDING ) export task at a time. To cancel an export task, use
-// CancelExportTask (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CancelExportTask.html)
-// . You can export logs from multiple log groups or multiple time ranges to the
+// as the destination.
+//
+// Exporting log data to S3 buckets that are encrypted by KMS is supported.
+// Exporting log data to Amazon S3 buckets that have S3 Object Lock enabled with a
+// retention period is also supported.
+//
+// Exporting to S3 buckets that are encrypted with AES-256 is supported.
+//
+// This is an asynchronous call. If all the required information is provided, this
+// operation initiates an export task and responds with the ID of the task. After
+// the task has started, you can use [DescribeExportTasks]to get the status of the export task. Each
+// account can only have one active ( RUNNING or PENDING ) export task at a time.
+// To cancel an export task, use [CancelExportTask].
+//
+// You can export logs from multiple log groups or multiple time ranges to the
 // same S3 bucket. To separate log data for each export task, specify a prefix to
-// be used as the Amazon S3 key prefix for all exported objects. Time-based sorting
-// on chunks of log data inside an exported file is not guaranteed. You can sort
-// the exported log field data by using Linux utilities.
+// be used as the Amazon S3 key prefix for all exported objects.
+//
+// We recommend that you don't regularly export to Amazon S3 as a way to
+// continuously archive your logs. For that use case, we instead recommend that you
+// use subscriptions. For more information about subscriptions, see [Real-time processing of log data with subscriptions].
+//
+// Time-based sorting on chunks of log data inside an exported file is not
+// guaranteed. You can sort the exported log field data by using Linux utilities.
+//
+// [CancelExportTask]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CancelExportTask.html
+// [DescribeExportTasks]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DescribeExportTasks.html
+// [Real-time processing of log data with subscriptions]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/Subscriptions.html
 func (c *Client) CreateExportTask(ctx context.Context, params *CreateExportTaskInput, optFns ...func(*Options)) (*CreateExportTaskOutput, error) {
 	if params == nil {
 		params = &CreateExportTaskInput{}
@@ -66,14 +78,20 @@ type CreateExportTaskInput struct {
 
 	// The end time of the range for the request, expressed as the number of
 	// milliseconds after Jan 1, 1970 00:00:00 UTC . Events with a timestamp later than
-	// this time are not exported. You must specify a time that is not earlier than
-	// when this log group was created.
+	// this time are not exported.
+	//
+	// You must specify a time that is not earlier than when this log group was
+	// created.
 	//
 	// This member is required.
 	To *int64
 
 	// The prefix used as the start of the key for every object exported. If you don't
 	// specify a value, the default is exportedlogs .
+	//
+	// The length of this parameter must comply with the S3 object key name length
+	// limits. The object key name is a sequence of Unicode characters with UTF-8
+	// encoding, and can be up to 1,024 bytes.
 	DestinationPrefix *string
 
 	// Export only log streams that match the provided prefix. If you don't specify a
@@ -119,25 +137,28 @@ func (c *Client) addOperationCreateExportTaskMiddlewares(stack *middleware.Stack
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -152,13 +173,22 @@ func (c *Client) addOperationCreateExportTaskMiddlewares(stack *middleware.Stack
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpCreateExportTaskValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opCreateExportTask(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -171,6 +201,48 @@ func (c *Client) addOperationCreateExportTaskMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptExecution(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptTransmit(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

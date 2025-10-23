@@ -6,28 +6,31 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Sets the retention of the specified log group. With a retention policy, you can
 // configure the number of days for which to retain log events in the specified log
-// group. CloudWatch Logs doesn’t immediately delete log events when they reach
-// their retention setting. It typically takes up to 72 hours after that before log
-// events are deleted, but in rare situations might take longer. To illustrate,
-// imagine that you change a log group to have a longer retention setting when it
-// contains log events that are past the expiration date, but haven’t been deleted.
-// Those log events will take up to 72 hours to be deleted after the new retention
-// date is reached. To make sure that log data is deleted permanently, keep a log
-// group at its lower retention setting until 72 hours after the previous retention
-// period ends. Alternatively, wait to change the retention setting until you
-// confirm that the earlier log events are deleted. When log events reach their
-// retention setting they are marked for deletion. After they are marked for
-// deletion, they do not add to your archival storage costs anymore, even if they
-// are not actually deleted until later. These log events marked for deletion are
-// also not included when you use an API to retrieve the storedBytes value to see
-// how many bytes a log group is storing.
+// group.
+//
+// CloudWatch Logs doesn't immediately delete log events when they reach their
+// retention setting. It typically takes up to 72 hours after that before log
+// events are deleted, but in rare situations might take longer.
+//
+// To illustrate, imagine that you change a log group to have a longer retention
+// setting when it contains log events that are past the expiration date, but
+// haven't been deleted. Those log events will take up to 72 hours to be deleted
+// after the new retention date is reached. To make sure that log data is deleted
+// permanently, keep a log group at its lower retention setting until 72 hours
+// after the previous retention period ends. Alternatively, wait to change the
+// retention setting until you confirm that the earlier log events are deleted.
+//
+// When log events reach their retention setting they are marked for deletion.
+// After they are marked for deletion, they do not add to your archival storage
+// costs anymore, even if they are not actually deleted until later. These log
+// events marked for deletion are also not included when you use an API to retrieve
+// the storedBytes value to see how many bytes a log group is storing.
 func (c *Client) PutRetentionPolicy(ctx context.Context, params *PutRetentionPolicyInput, optFns ...func(*Options)) (*PutRetentionPolicyOutput, error) {
 	if params == nil {
 		params = &PutRetentionPolicyInput{}
@@ -52,9 +55,11 @@ type PutRetentionPolicyInput struct {
 
 	// The number of days to retain the log events in the specified log group.
 	// Possible values are: 1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545,
-	// 731, 1096, 1827, 2192, 2557, 2922, 3288, and 3653. To set a log group so that
-	// its log events do not expire, use DeleteRetentionPolicy (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DeleteRetentionPolicy.html)
-	// .
+	// 731, 1096, 1827, 2192, 2557, 2922, 3288, and 3653.
+	//
+	// To set a log group so that its log events do not expire, use [DeleteRetentionPolicy].
+	//
+	// [DeleteRetentionPolicy]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DeleteRetentionPolicy.html
 	//
 	// This member is required.
 	RetentionInDays *int32
@@ -91,25 +96,28 @@ func (c *Client) addOperationPutRetentionPolicyMiddlewares(stack *middleware.Sta
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -124,13 +132,22 @@ func (c *Client) addOperationPutRetentionPolicyMiddlewares(stack *middleware.Sta
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpPutRetentionPolicyValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opPutRetentionPolicy(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -143,6 +160,48 @@ func (c *Client) addOperationPutRetentionPolicyMiddlewares(stack *middleware.Sta
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptExecution(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptTransmit(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

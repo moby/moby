@@ -6,23 +6,26 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Lists the specified log groups. You can list all your log groups or filter the
-// results by prefix. The results are ASCII-sorted by log group name. CloudWatch
-// Logs doesn’t support IAM policies that control access to the DescribeLogGroups
-// action by using the aws:ResourceTag/key-name  condition key. Other CloudWatch
-// Logs actions do support the use of the aws:ResourceTag/key-name  condition key
-// to control access. For more information about using tags to control access, see
-// Controlling access to Amazon Web Services resources using tags (https://docs.aws.amazon.com/IAM/latest/UserGuide/access_tags.html)
-// . If you are using CloudWatch cross-account observability, you can use this
+// Returns information about log groups. You can return all your log groups or
+// filter the results by prefix. The results are ASCII-sorted by log group name.
+//
+// CloudWatch Logs doesn't support IAM policies that control access to the
+// DescribeLogGroups action by using the aws:ResourceTag/key-name  condition key.
+// Other CloudWatch Logs actions do support the use of the
+// aws:ResourceTag/key-name condition key to control access. For more information
+// about using tags to control access, see [Controlling access to Amazon Web Services resources using tags].
+//
+// If you are using CloudWatch cross-account observability, you can use this
 // operation in a monitoring account and view data from the linked source accounts.
-// For more information, see CloudWatch cross-account observability (https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Unified-Cross-Account.html)
-// .
+// For more information, see [CloudWatch cross-account observability].
+//
+// [CloudWatch cross-account observability]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Unified-Cross-Account.html
+// [Controlling access to Amazon Web Services resources using tags]: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_tags.html
 func (c *Client) DescribeLogGroups(ctx context.Context, params *DescribeLogGroupsInput, optFns ...func(*Options)) (*DescribeLogGroupsOutput, error) {
 	if params == nil {
 		params = &DescribeLogGroupsInput{}
@@ -40,41 +43,74 @@ func (c *Client) DescribeLogGroups(ctx context.Context, params *DescribeLogGroup
 
 type DescribeLogGroupsInput struct {
 
-	// When includeLinkedAccounts is set to True , use this parameter to specify the
+	// When includeLinkedAccounts is set to true , use this parameter to specify the
 	// list of accounts to search. You can specify as many as 20 account IDs in the
 	// array.
 	AccountIdentifiers []string
 
-	// If you are using a monitoring account, set this to True to have the operation
-	// return log groups in the accounts listed in accountIdentifiers . If this
-	// parameter is set to true and accountIdentifiers contains a null value, the
-	// operation returns all log groups in the monitoring account and all log groups in
-	// all source accounts that are linked to the monitoring account.
+	// If you are using a monitoring account, set this to true to have the operation
+	// return log groups in the accounts listed in accountIdentifiers .
+	//
+	// If this parameter is set to true and accountIdentifiers contains a null value,
+	// the operation returns all log groups in the monitoring account and all log
+	// groups in all source accounts that are linked to the monitoring account.
+	//
+	// The default for this parameter is false .
 	IncludeLinkedAccounts *bool
 
 	// The maximum number of items returned. If you don't specify a value, the default
 	// is up to 50 items.
 	Limit *int32
 
-	// Specifies the log group class for this log group. There are two classes:
+	// Use this parameter to limit the results to only those log groups in the
+	// specified log group class. If you omit this parameter, log groups of all classes
+	// can be returned.
+	//
+	// Specifies the log group class for this log group. There are three classes:
+	//
 	//   - The Standard log class supports all CloudWatch Logs features.
+	//
 	//   - The Infrequent Access log class supports a subset of CloudWatch Logs
 	//   features and incurs lower costs.
-	// For details about the features supported by each class, see Log classes (https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html)
+	//
+	//   - Use the Delivery log class only for delivering Lambda logs to store in
+	//   Amazon S3 or Amazon Data Firehose. Log events in log groups in the Delivery
+	//   class are kept in CloudWatch Logs for only one day. This log class doesn't offer
+	//   rich CloudWatch Logs capabilities such as CloudWatch Logs Insights queries.
+	//
+	// For details about the features supported by each class, see [Log classes]
+	//
+	// [Log classes]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html
 	LogGroupClass types.LogGroupClass
+
+	// Use this array to filter the list of log groups returned. If you specify this
+	// parameter, the only other filter that you can choose to specify is
+	// includeLinkedAccounts .
+	//
+	// If you are using this operation in a monitoring account, you can specify the
+	// ARNs of log groups in source accounts and in the monitoring account itself. If
+	// you are using this operation in an account that is not a cross-account
+	// monitoring account, you can specify only log group names in the same account as
+	// the operation.
+	LogGroupIdentifiers []string
 
 	// If you specify a string for this parameter, the operation returns only log
 	// groups that have names that match the string based on a case-sensitive substring
-	// search. For example, if you specify Foo , log groups named FooBar , aws/Foo ,
-	// and GroupFoo would match, but foo , F/o/o and Froo would not match. If you
-	// specify logGroupNamePattern in your request, then only arn , creationTime , and
-	// logGroupName are included in the response. logGroupNamePattern and
-	// logGroupNamePrefix are mutually exclusive. Only one of these parameters can be
-	// passed.
+	// search. For example, if you specify DataLogs , log groups named DataLogs ,
+	// aws/DataLogs , and GroupDataLogs would match, but datalogs , Data/log/s and
+	// Groupdata would not match.
+	//
+	// If you specify logGroupNamePattern in your request, then only arn , creationTime
+	// , and logGroupName are included in the response.
+	//
+	// logGroupNamePattern and logGroupNamePrefix are mutually exclusive. Only one of
+	// these parameters can be passed.
 	LogGroupNamePattern *string
 
-	// The prefix to match. logGroupNamePrefix and logGroupNamePattern are mutually
-	// exclusive. Only one of these parameters can be passed.
+	// The prefix to match.
+	//
+	// logGroupNamePrefix and logGroupNamePattern are mutually exclusive. Only one of
+	// these parameters can be passed.
 	LogGroupNamePrefix *string
 
 	// The token for the next set of items to return. (You received this token from a
@@ -86,8 +122,8 @@ type DescribeLogGroupsInput struct {
 
 type DescribeLogGroupsOutput struct {
 
-	// The log groups. If the retentionInDays value is not included for a log group,
-	// then that log group's events do not expire.
+	// An array of structures, where each structure contains the information about one
+	// log group.
 	LogGroups []types.LogGroup
 
 	// The token for the next set of items to return. The token expires after 24 hours.
@@ -121,25 +157,28 @@ func (c *Client) addOperationDescribeLogGroupsMiddlewares(stack *middleware.Stac
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -154,10 +193,19 @@ func (c *Client) addOperationDescribeLogGroupsMiddlewares(stack *middleware.Stac
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeLogGroups(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -172,16 +220,50 @@ func (c *Client) addOperationDescribeLogGroupsMiddlewares(stack *middleware.Stac
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptExecution(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptTransmit(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
+		return err
+	}
 	return nil
 }
-
-// DescribeLogGroupsAPIClient is a client that implements the DescribeLogGroups
-// operation.
-type DescribeLogGroupsAPIClient interface {
-	DescribeLogGroups(context.Context, *DescribeLogGroupsInput, ...func(*Options)) (*DescribeLogGroupsOutput, error)
-}
-
-var _ DescribeLogGroupsAPIClient = (*Client)(nil)
 
 // DescribeLogGroupsPaginatorOptions is the paginator options for DescribeLogGroups
 type DescribeLogGroupsPaginatorOptions struct {
@@ -247,6 +329,9 @@ func (p *DescribeLogGroupsPaginator) NextPage(ctx context.Context, optFns ...fun
 	}
 	params.Limit = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.DescribeLogGroups(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -265,6 +350,14 @@ func (p *DescribeLogGroupsPaginator) NextPage(ctx context.Context, optFns ...fun
 
 	return result, nil
 }
+
+// DescribeLogGroupsAPIClient is a client that implements the DescribeLogGroups
+// operation.
+type DescribeLogGroupsAPIClient interface {
+	DescribeLogGroups(context.Context, *DescribeLogGroupsInput, ...func(*Options)) (*DescribeLogGroupsOutput, error)
+}
+
+var _ DescribeLogGroupsAPIClient = (*Client)(nil)
 
 func newServiceMetadataMiddleware_opDescribeLogGroups(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{

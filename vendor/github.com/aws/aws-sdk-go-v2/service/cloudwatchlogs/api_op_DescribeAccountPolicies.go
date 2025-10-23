@@ -6,13 +6,27 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Returns a list of all CloudWatch Logs account policies in the account.
+//
+// To use this operation, you must be signed on with the correct permissions
+// depending on the type of policy that you are retrieving information for.
+//
+//   - To see data protection policies, you must have the
+//     logs:GetDataProtectionPolicy and logs:DescribeAccountPolicies permissions.
+//
+//   - To see subscription filter policies, you must have the
+//     logs:DescribeSubscriptionFilters and logs:DescribeAccountPolicies permissions.
+//
+//   - To see transformer policies, you must have the logs:GetTransformer and
+//     logs:DescribeAccountPolicies permissions.
+//
+//   - To see field index policies, you must have the logs:DescribeIndexPolicies
+//     and logs:DescribeAccountPolicies permissions.
 func (c *Client) DescribeAccountPolicies(ctx context.Context, params *DescribeAccountPoliciesInput, optFns ...func(*Options)) (*DescribeAccountPoliciesOutput, error) {
 	if params == nil {
 		params = &DescribeAccountPoliciesInput{}
@@ -40,9 +54,14 @@ type DescribeAccountPoliciesInput struct {
 	// CloudWatch unified cross-account observability, you can use this to specify the
 	// account ID of a source account. If you do, the operation returns the account
 	// policy for the specified account. Currently, you can specify only one account ID
-	// in this parameter. If you omit this parameter, only the policy in the current
-	// account is returned.
+	// in this parameter.
+	//
+	// If you omit this parameter, only the policy in the current account is returned.
 	AccountIdentifiers []string
+
+	// The token for the next set of items to return. (You received this token from a
+	// previous call.)
+	NextToken *string
 
 	// Use this parameter to limit the returned policies to only the policy with the
 	// name that you specify.
@@ -56,6 +75,10 @@ type DescribeAccountPoliciesOutput struct {
 	// An array of structures that contain information about the CloudWatch Logs
 	// account policies that match the specified filters.
 	AccountPolicies []types.AccountPolicy
+
+	// The token to use when requesting the next set of items. The token expires after
+	// 24 hours.
+	NextToken *string
 
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
@@ -85,25 +108,28 @@ func (c *Client) addOperationDescribeAccountPoliciesMiddlewares(stack *middlewar
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -118,13 +144,22 @@ func (c *Client) addOperationDescribeAccountPoliciesMiddlewares(stack *middlewar
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDescribeAccountPoliciesValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeAccountPolicies(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -137,6 +172,48 @@ func (c *Client) addOperationDescribeAccountPoliciesMiddlewares(stack *middlewar
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptExecution(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptTransmit(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

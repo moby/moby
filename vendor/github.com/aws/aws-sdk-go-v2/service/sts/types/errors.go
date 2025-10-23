@@ -95,8 +95,8 @@ func (e *IDPRejectedClaimException) ErrorCode() string {
 func (e *IDPRejectedClaimException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
 
 // The error returned if the message passed to DecodeAuthorizationMessage was
-// invalid. This can happen if the token contains invalid characters, such as
-// linebreaks.
+// invalid. This can happen if the token contains invalid characters, such as line
+// breaks, or if the message has expired.
 type InvalidAuthorizationMessageException struct {
 	Message *string
 
@@ -218,10 +218,10 @@ func (e *PackedPolicyTooLargeException) ErrorFault() smithy.ErrorFault { return 
 
 // STS is not activated in the requested region for the account that is being
 // asked to generate credentials. The account administrator must use the IAM
-// console to activate STS in that region. For more information, see [Activating and Deactivating Amazon Web Services STS in an Amazon Web Services Region]in the IAM
+// console to activate STS in that region. For more information, see [Activating and Deactivating STS in an Amazon Web Services Region]in the IAM
 // User Guide.
 //
-// [Activating and Deactivating Amazon Web Services STS in an Amazon Web Services Region]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_enable-regions.html
+// [Activating and Deactivating STS in an Amazon Web Services Region]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_enable-regions.html
 type RegionDisabledException struct {
 	Message *string
 

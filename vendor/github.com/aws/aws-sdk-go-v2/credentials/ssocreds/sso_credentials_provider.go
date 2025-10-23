@@ -49,6 +49,10 @@ type Options struct {
 	// Used by the SSOCredentialProvider if a token configuration
 	// profile is used in the shared config
 	SSOTokenProvider *SSOTokenProvider
+
+	// The chain of providers that was used to create this provider.
+	// These values are for reporting purposes and are not meant to be set up directly
+	CredentialSources []aws.CredentialSource
 }
 
 // Provider is an AWS credential provider that retrieves temporary AWS
@@ -131,6 +135,14 @@ func (p *Provider) Retrieve(ctx context.Context) (aws.Credentials, error) {
 		Source:          ProviderName,
 		AccountID:       p.options.AccountID,
 	}, nil
+}
+
+// ProviderSources returns the credential chain that was used to construct this provider
+func (p *Provider) ProviderSources() []aws.CredentialSource {
+	if p.options.CredentialSources == nil {
+		return []aws.CredentialSource{aws.CredentialSourceSSO}
+	}
+	return p.options.CredentialSources
 }
 
 // InvalidTokenError is the error type that is returned if loaded token has

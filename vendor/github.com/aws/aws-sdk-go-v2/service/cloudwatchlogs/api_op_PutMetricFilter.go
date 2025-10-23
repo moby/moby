@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -14,19 +13,35 @@ import (
 
 // Creates or updates a metric filter and associates it with the specified log
 // group. With metric filters, you can configure rules to extract metric data from
-// log events ingested through PutLogEvents (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html)
-// . The maximum number of metric filters that can be associated with a log group
-// is 100. When you create a metric filter, you can also optionally assign a unit
-// and dimensions to the metric that is created. Metrics extracted from log events
-// are charged as custom metrics. To prevent unexpected high charges, do not
-// specify high-cardinality fields such as IPAddress or requestID as dimensions.
-// Each different value found for a dimension is treated as a separate metric and
-// accrues charges as a separate custom metric. CloudWatch Logs might disable a
-// metric filter if it generates 1,000 different name/value pairs for your
-// specified dimensions within one hour. You can also set up a billing alarm to
-// alert you if your charges are higher than expected. For more information, see
-// Creating a Billing Alarm to Monitor Your Estimated Amazon Web Services Charges (https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/monitor_estimated_charges_with_cloudwatch.html)
-// .
+// log events ingested through [PutLogEvents].
+//
+// The maximum number of metric filters that can be associated with a log group is
+// 100.
+//
+// Using regular expressions in filter patterns is supported. For these filters,
+// there is a quota of two regular expression patterns within a single filter
+// pattern. There is also a quota of five regular expression patterns per log
+// group. For more information about using regular expressions in filter patterns,
+// see [Filter pattern syntax for metric filters, subscription filters, filter log events, and Live Tail].
+//
+// When you create a metric filter, you can also optionally assign a unit and
+// dimensions to the metric that is created.
+//
+// Metrics extracted from log events are charged as custom metrics. To prevent
+// unexpected high charges, do not specify high-cardinality fields such as
+// IPAddress or requestID as dimensions. Each different value found for a
+// dimension is treated as a separate metric and accrues charges as a separate
+// custom metric.
+//
+// CloudWatch Logs might disable a metric filter if it generates 1,000 different
+// name/value pairs for your specified dimensions within one hour.
+//
+// You can also set up a billing alarm to alert you if your charges are higher
+// than expected. For more information, see [Creating a Billing Alarm to Monitor Your Estimated Amazon Web Services Charges].
+//
+// [Creating a Billing Alarm to Monitor Your Estimated Amazon Web Services Charges]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/monitor_estimated_charges_with_cloudwatch.html
+// [PutLogEvents]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
+// [Filter pattern syntax for metric filters, subscription filters, filter log events, and Live Tail]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/FilterAndPatternSyntax.html
 func (c *Client) PutMetricFilter(ctx context.Context, params *PutMetricFilterInput, optFns ...func(*Options)) (*PutMetricFilterOutput, error) {
 	if params == nil {
 		params = &PutMetricFilterInput{}
@@ -64,6 +79,29 @@ type PutMetricFilterInput struct {
 	// This member is required.
 	MetricTransformations []types.MetricTransformation
 
+	// This parameter is valid only for log groups that have an active log
+	// transformer. For more information about log transformers, see [PutTransformer].
+	//
+	// If the log group uses either a log-group level or account-level transformer,
+	// and you specify true , the metric filter will be applied on the transformed
+	// version of the log events instead of the original ingested log events.
+	//
+	// [PutTransformer]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutTransformer.html
+	ApplyOnTransformedLogs bool
+
+	// A list of system fields to emit as additional dimensions in the generated
+	// metrics. Valid values are @aws.account and @aws.region . These dimensions help
+	// identify the source of centralized log data and count toward the total dimension
+	// limit for metric filters.
+	EmitSystemFieldDimensions []string
+
+	// A filter expression that specifies which log events should be processed by this
+	// metric filter based on system fields such as source account and source region.
+	// Uses selection criteria syntax with operators like = , != , AND , OR , IN , NOT
+	// IN . Example: @aws.region = "us-east-1" or @aws.account IN ["123456789012",
+	// "987654321098"] . Maximum length: 2000 characters.
+	FieldSelectionCriteria *string
+
 	noSmithyDocumentSerde
 }
 
@@ -96,25 +134,28 @@ func (c *Client) addOperationPutMetricFilterMiddlewares(stack *middleware.Stack,
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -129,13 +170,22 @@ func (c *Client) addOperationPutMetricFilterMiddlewares(stack *middleware.Stack,
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpPutMetricFilterValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opPutMetricFilter(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -148,6 +198,48 @@ func (c *Client) addOperationPutMetricFilterMiddlewares(stack *middleware.Stack,
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptExecution(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptTransmit(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

@@ -25,11 +25,12 @@
         "protocol_test.go",
         "serializers.go",
         "snapshot_test.go",
+        "sra_operation_order_test.go",
         "types/errors.go",
         "types/types.go",
         "validators.go"
     ],
-    "go": "1.15",
+    "go": "1.23",
     "module": "github.com/aws/aws-sdk-go-v2/service/sso",
     "unstable": false
 }

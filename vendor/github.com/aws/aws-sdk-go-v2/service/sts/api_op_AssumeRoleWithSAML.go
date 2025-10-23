@@ -16,7 +16,7 @@ import (
 // mechanism for tying an enterprise identity store or directory to role-based
 // Amazon Web Services access without user-specific credentials or configuration.
 // For a comparison of AssumeRoleWithSAML with the other API operations that
-// produce temporary credentials, see [Requesting Temporary Security Credentials]and [Comparing the Amazon Web Services STS API operations] in the IAM User Guide.
+// produce temporary credentials, see [Requesting Temporary Security Credentials]and [Compare STS credentials] in the IAM User Guide.
 //
 // The temporary security credentials returned by this operation consist of an
 // access key ID, a secret access key, and a security token. Applications can use
@@ -130,10 +130,10 @@ import (
 // [View the Maximum Session Duration Setting for a Role]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use.html#id_roles_use_view-role-max-session
 // [Creating a Role for SAML 2.0 Federation]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-idp_saml.html
 // [IAM and STS Character Limits]: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-limits.html#reference_iam-limits-entity-length
-// [Comparing the Amazon Web Services STS API operations]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#stsapi_comparison
 // [Creating SAML Identity Providers]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_saml.html
 // [session policies]: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#policies_session
 // [Requesting Temporary Security Credentials]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html
+// [Compare STS credentials]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_sts-comparison.html
 // [Tutorial: Using Tags for Attribute-Based Access Control]: https://docs.aws.amazon.com/IAM/latest/UserGuide/tutorial_attribute-based-access-control.html
 // [Configuring a Relying Party and Claims]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_saml_relying-party.html
 // [Role chaining]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_terms-and-concepts.html#iam-term-role-chaining
@@ -219,6 +219,8 @@ type AssumeRoleWithSAMLInput struct {
 	// \u00FF). It can also include the tab (\u0009), linefeed (\u000A), and carriage
 	// return (\u000D) characters.
 	//
+	// For more information about role session permissions, see [Session policies].
+	//
 	// An Amazon Web Services conversion compresses the passed inline session policy,
 	// managed policy ARNs, and session tags into a packed binary format that has a
 	// separate limit. Your request can fail for this limit even if your plaintext
@@ -227,6 +229,7 @@ type AssumeRoleWithSAMLInput struct {
 	// size limit.
 	//
 	// [Session Policies]: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#policies_session
+	// [Session policies]: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#policies_session
 	Policy *string
 
 	// The Amazon Resource Names (ARNs) of the IAM managed policies that you want to
@@ -304,7 +307,8 @@ type AssumeRoleWithSAMLOutput struct {
 	// allowed space.
 	PackedPolicySize *int32
 
-	// The value in the SourceIdentity attribute in the SAML assertion.
+	// The value in the SourceIdentity attribute in the SAML assertion. The source
+	// identity value persists across [chained role]sessions.
 	//
 	// You can require users to set a source identity value when they assume a role.
 	// You do this by using the sts:SourceIdentity condition key in a role trust
@@ -321,7 +325,7 @@ type AssumeRoleWithSAMLOutput struct {
 	// of upper- and lower-case alphanumeric characters with no spaces. You can also
 	// include underscores or any of the following characters: =,.@-
 	//
-	// [chained role]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_terms-and-concepts#iam-term-role-chaining
+	// [chained role]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles.html#id_roles_terms-and-concepts
 	// [Monitor and control actions taken with assumed roles]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_control-access_monitor.html
 	SourceIdentity *string
 
@@ -385,6 +389,9 @@ func (c *Client) addOperationAssumeRoleWithSAMLMiddlewares(stack *middleware.Sta
 	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
+		return err
+	}
 	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
@@ -401,6 +408,9 @@ func (c *Client) addOperationAssumeRoleWithSAMLMiddlewares(stack *middleware.Sta
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpAssumeRoleWithSAMLValidationMiddleware(stack); err != nil {
@@ -422,6 +432,48 @@ func (c *Client) addOperationAssumeRoleWithSAMLMiddlewares(stack *middleware.Sta
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptExecution(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptTransmit(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

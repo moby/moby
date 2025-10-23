@@ -22,7 +22,7 @@ import (
 // the call returns, IAM users can then make programmatic calls to API operations
 // that require MFA authentication. An incorrect MFA code causes the API to return
 // an access denied error. For a comparison of GetSessionToken with the other API
-// operations that produce temporary credentials, see [Requesting Temporary Security Credentials]and [Comparing the Amazon Web Services STS API operations] in the IAM User Guide.
+// operations that produce temporary credentials, see [Requesting Temporary Security Credentials]and [Compare STS credentials] in the IAM User Guide.
 //
 // No permissions are required for users to perform this operation. The purpose of
 // the sts:GetSessionToken operation is to authenticate the user using MFA. You
@@ -63,10 +63,10 @@ import (
 // credentials, see [Temporary Credentials for Users in Untrusted Environments]in the IAM User Guide.
 //
 // [Permissions for GetSessionToken]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_control-access_getsessiontoken.html
-// [Comparing the Amazon Web Services STS API operations]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#stsapi_comparison
 // [Temporary Credentials for Users in Untrusted Environments]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#api_getsessiontoken
 // [Safeguard your root user credentials and don't use them for everyday tasks]: https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html#lock-away-credentials
 // [Requesting Temporary Security Credentials]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html
+// [Compare STS credentials]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_sts-comparison.html
 func (c *Client) GetSessionToken(ctx context.Context, params *GetSessionTokenInput, optFns ...func(*Options)) (*GetSessionTokenOutput, error) {
 	if params == nil {
 		params = &GetSessionTokenInput{}
@@ -179,6 +179,9 @@ func (c *Client) addOperationGetSessionTokenMiddlewares(stack *middleware.Stack,
 	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
+		return err
+	}
 	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
@@ -197,6 +200,9 @@ func (c *Client) addOperationGetSessionTokenMiddlewares(stack *middleware.Stack,
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opGetSessionToken(options.Region), middleware.Before); err != nil {
 		return err
 	}
@@ -213,6 +219,48 @@ func (c *Client) addOperationGetSessionTokenMiddlewares(stack *middleware.Stack,
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptExecution(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptTransmit(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

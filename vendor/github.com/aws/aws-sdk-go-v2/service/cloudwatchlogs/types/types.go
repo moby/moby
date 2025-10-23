@@ -15,8 +15,9 @@ type AccountPolicy struct {
 	// The date and time that this policy was most recently updated.
 	LastUpdatedTime *int64
 
-	// The policy document for this account policy. The JSON specified in
-	// policyDocument can be up to 30,720 characters.
+	// The policy document for this account policy.
+	//
+	// The JSON specified in policyDocument can be up to 30,720 characters.
 	PolicyDocument *string
 
 	// The name of the account policy.
@@ -28,16 +29,57 @@ type AccountPolicy struct {
 	// The scope of the account policy.
 	Scope Scope
 
-	// The log group selection criteria for this subscription filter policy.
+	// The log group selection criteria that is used for this policy.
 	SelectionCriteria *string
 
 	noSmithyDocumentSerde
 }
 
+// This object defines one key that will be added with the [addKeys] processor.
+//
+// [addKeys]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-addKey
+type AddKeyEntry struct {
+
+	// The key of the new entry to be added to the log event
+	//
+	// This member is required.
+	Key *string
+
+	// The value of the new entry to be added to the log event
+	//
+	// This member is required.
+	Value *string
+
+	// Specifies whether to overwrite the value if the key already exists in the log
+	// event. If you omit this, the default is false .
+	OverwriteIfExists bool
+
+	noSmithyDocumentSerde
+}
+
+// This processor adds new key-value pairs to the log event.
+//
+// For more information about this processor including examples, see [addKeys] in the
+// CloudWatch Logs User Guide.
+//
+// [addKeys]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-addKeys
+type AddKeys struct {
+
+	// An array of objects, where each object contains the information about one key
+	// to add to the log event.
+	//
+	// This member is required.
+	Entries []AddKeyEntry
+
+	noSmithyDocumentSerde
+}
+
 // This structure represents one anomaly that has been found by a logs anomaly
-// detector. For more information about patterns and anomalies, see
-// CreateLogAnomalyDetector (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateLogAnomalyDetector.html)
-// .
+// detector.
+//
+// For more information about patterns and anomalies, see [CreateLogAnomalyDetector].
+//
+// [CreateLogAnomalyDetector]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateLogAnomalyDetector.html
 type Anomaly struct {
 
 	// Specifies whether this anomaly is still ongoing.
@@ -93,7 +135,7 @@ type Anomaly struct {
 	// anomaly.
 	//
 	// This member is required.
-	LogSamples []string
+	LogSamples []LogEvent
 
 	// The ID of the pattern used to help identify this anomaly.
 	//
@@ -112,10 +154,11 @@ type Anomaly struct {
 	PatternTokens []PatternToken
 
 	// Indicates the current state of this anomaly. If it is still being treated as an
-	// anomaly, the value is Active . If you have suppressed this anomaly by using the
-	// UpdateAnomaly (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_UpdateAnomaly.html)
+	// anomaly, the value is Active . If you have suppressed this anomaly by using the [UpdateAnomaly]
 	// operation, the value is Suppressed . If this behavior is now considered to be
 	// normal, the value is Baseline .
+	//
+	// [UpdateAnomaly]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_UpdateAnomaly.html
 	//
 	// This member is required.
 	State State
@@ -134,8 +177,9 @@ type Anomaly struct {
 	Priority *string
 
 	// Indicates whether this anomaly is currently suppressed. To suppress an anomaly,
-	// use UpdateAnomaly (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_UpdateAnomaly.html)
-	// .
+	// use [UpdateAnomaly].
+	//
+	// [UpdateAnomaly]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_UpdateAnomaly.html
 	Suppressed *bool
 
 	// If the anomaly is suppressed, this indicates when it was suppressed.
@@ -156,8 +200,9 @@ type AnomalyDetector struct {
 	AnomalyDetectorArn *string
 
 	// Specifies the current status of the anomaly detector. To pause an anomaly
-	// detector, use the enabled parameter in the UpdateLogAnomalyDetector (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_UpdateLogAnomalyDetector.html)
-	// operation.
+	// detector, use the enabled parameter in the [UpdateLogAnomalyDetector] operation.
+	//
+	// [UpdateLogAnomalyDetector]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_UpdateLogAnomalyDetector.html
 	AnomalyDetectorStatus AnomalyDetectorStatus
 
 	// The number of days used as the life cycle of anomalies. After this time,
@@ -180,7 +225,7 @@ type AnomalyDetector struct {
 	// the log event message.
 	FilterPattern *string
 
-	// The ID of the KMS key assigned to this anomaly detector, if any.
+	// The ARN of the KMS key assigned to this anomaly detector, if any.
 	KmsKeyId *string
 
 	// The date and time when this anomaly detector was most recently modified.
@@ -192,11 +237,234 @@ type AnomalyDetector struct {
 	noSmithyDocumentSerde
 }
 
-// This structure contains information about one delivery in your account. A
-// delivery is a connection between a logical delivery source and a logical
-// delivery destination. For more information, see CreateDelivery (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateDelivery.html)
-// . You can't update an existing delivery. You can only create and delete
-// deliveries.
+// A structure containing information about the deafult settings and available
+// settings that you can use to configure a [delivery]or a [delivery destination].
+//
+// [delivery]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_Delivery.html
+// [delivery destination]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DeliveryDestination.html
+type ConfigurationTemplate struct {
+
+	// The action permissions that a caller needs to have to be able to successfully
+	// create a delivery source on the desired resource type when calling [PutDeliverySource].
+	//
+	// [PutDeliverySource]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDeliverySource.html
+	AllowedActionForAllowVendedLogsDeliveryForResource *string
+
+	// The valid values that a caller can use as field delimiters when calling [CreateDelivery] or [UpdateDeliveryConfiguration] on
+	// a delivery that delivers in Plain , W3C , or Raw format.
+	//
+	// [CreateDelivery]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateDelivery.html
+	// [UpdateDeliveryConfiguration]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_UpdateDeliveryConfiguration.html
+	AllowedFieldDelimiters []string
+
+	// The allowed fields that a caller can use in the recordFields parameter of a [CreateDelivery] or [UpdateDeliveryConfiguration]
+	// operation.
+	//
+	// [CreateDelivery]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateDelivery.html
+	// [UpdateDeliveryConfiguration]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_UpdateDeliveryConfiguration.html
+	AllowedFields []RecordField
+
+	// The list of delivery destination output formats that are supported by this log
+	// source.
+	AllowedOutputFormats []OutputFormat
+
+	// The list of variable fields that can be used in the suffix path of a delivery
+	// that delivers to an S3 bucket.
+	AllowedSuffixPathFields []string
+
+	// A mapping that displays the default value of each property within a delivery's
+	// configuration, if it is not specified in the request.
+	DefaultDeliveryConfigValues *ConfigurationTemplateDeliveryConfigValues
+
+	// A string specifying which destination type this configuration template applies
+	// to.
+	DeliveryDestinationType DeliveryDestinationType
+
+	// A string specifying which log type this configuration template applies to.
+	LogType *string
+
+	// A string specifying which resource type this configuration template applies to.
+	ResourceType *string
+
+	// A string specifying which service this configuration template applies to. For
+	// more information about supported services see [Enable logging from Amazon Web Services services.].
+	//
+	// [Enable logging from Amazon Web Services services.]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/AWS-logs-and-resource-policy.html
+	Service *string
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains the default values that are used for each configuration
+// parameter when you use [CreateDelivery]to create a deliver under the current service type,
+// resource type, and log type.
+//
+// [CreateDelivery]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateDelivery.html
+type ConfigurationTemplateDeliveryConfigValues struct {
+
+	// The default field delimiter that is used in a [CreateDelivery] operation when the field
+	// delimiter is not specified in that operation. The field delimiter is used only
+	// when the final output delivery is in Plain , W3C , or Raw format.
+	//
+	// [CreateDelivery]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateDelivery.html
+	FieldDelimiter *string
+
+	// The default record fields that will be delivered when a list of record fields
+	// is not provided in a [CreateDelivery]operation.
+	//
+	// [CreateDelivery]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateDelivery.html
+	RecordFields []string
+
+	// The delivery parameters that are used when you create a delivery to a delivery
+	// destination that is an S3 Bucket.
+	S3DeliveryConfiguration *S3DeliveryConfiguration
+
+	noSmithyDocumentSerde
+}
+
+// This processor copies values within a log event. You can also use this
+// processor to add metadata to log events by copying the values of the following
+// metadata keys into the log events: @logGroupName , @logGroupStream , @accountId
+// , @regionName .
+//
+// For more information about this processor including examples, see [copyValue] in the
+// CloudWatch Logs User Guide.
+//
+// [copyValue]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-copyValue
+type CopyValue struct {
+
+	// An array of CopyValueEntry objects, where each object contains the information
+	// about one field value to copy.
+	//
+	// This member is required.
+	Entries []CopyValueEntry
+
+	noSmithyDocumentSerde
+}
+
+// This object defines one value to be copied with the [copyValue] processor.
+//
+// [copyValue]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-copoyValue
+type CopyValueEntry struct {
+
+	// The key to copy.
+	//
+	// This member is required.
+	Source *string
+
+	// The key of the field to copy the value to.
+	//
+	// This member is required.
+	Target *string
+
+	// Specifies whether to overwrite the value if the destination key already exists.
+	// If you omit this, the default is false .
+	OverwriteIfExists bool
+
+	noSmithyDocumentSerde
+}
+
+// The CSV processor parses comma-separated values (CSV) from the log events into
+// columns.
+//
+// For more information about this processor including examples, see [csv] in the
+// CloudWatch Logs User Guide.
+//
+// [csv]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-csv
+type CSV struct {
+
+	// An array of names to use for the columns in the transformed log event.
+	//
+	// If you omit this, default column names ( [column_1, column_2 ...] ) are used.
+	Columns []string
+
+	// The character used to separate each column in the original comma-separated
+	// value log event. If you omit this, the processor looks for the comma ,
+	// character as the delimiter.
+	Delimiter *string
+
+	// The character used used as a text qualifier for a single column of data. If you
+	// omit this, the double quotation mark " character is used.
+	QuoteCharacter *string
+
+	// The path to the field in the log event that has the comma separated values to
+	// be parsed. If you omit this value, the whole log message is processed.
+	Source *string
+
+	noSmithyDocumentSerde
+}
+
+// This processor converts a datetime string into a format that you specify.
+//
+// For more information about this processor including examples, see [datetimeConverter] in the
+// CloudWatch Logs User Guide.
+//
+// [datetimeConverter]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-datetimeConverter
+type DateTimeConverter struct {
+
+	// A list of patterns to match against the source field.
+	//
+	// This member is required.
+	MatchPatterns []string
+
+	// The key to apply the date conversion to.
+	//
+	// This member is required.
+	Source *string
+
+	// The JSON field to store the result in.
+	//
+	// This member is required.
+	Target *string
+
+	// The locale of the source field. If you omit this, the default of locale.ROOT is
+	// used.
+	Locale *string
+
+	// The time zone of the source field. If you omit this, the default used is the
+	// UTC zone.
+	SourceTimezone *string
+
+	// The datetime format to use for the converted data in the target field.
+	//
+	// If you omit this, the default of  yyyy-MM-dd'T'HH:mm:ss.SSS'Z is used.
+	TargetFormat *string
+
+	// The time zone of the target field. If you omit this, the default used is the
+	// UTC zone.
+	TargetTimezone *string
+
+	noSmithyDocumentSerde
+}
+
+// This processor deletes entries from a log event. These entries are key-value
+// pairs.
+//
+// For more information about this processor including examples, see [deleteKeys] in the
+// CloudWatch Logs User Guide.
+//
+// [deleteKeys]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-deleteKeys
+type DeleteKeys struct {
+
+	// The list of keys to delete.
+	//
+	// This member is required.
+	WithKeys []string
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains information about one delivery in your account.
+//
+// A delivery is a connection between a logical delivery source and a logical
+// delivery destination.
+//
+// For more information, see [CreateDelivery].
+//
+// To update an existing delivery configuration, use [UpdateDeliveryConfiguration].
+//
+// [CreateDelivery]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateDelivery.html
+// [UpdateDeliveryConfiguration]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_UpdateDeliveryConfiguration.html
 type Delivery struct {
 
 	// The Amazon Resource Name (ARN) that uniquely identifies this delivery.
@@ -206,14 +474,25 @@ type Delivery struct {
 	DeliveryDestinationArn *string
 
 	// Displays whether the delivery destination associated with this delivery is
-	// CloudWatch Logs, Amazon S3, or Kinesis Data Firehose.
+	// CloudWatch Logs, Amazon S3, Firehose, or X-Ray.
 	DeliveryDestinationType DeliveryDestinationType
 
 	// The name of the delivery source that is associated with this delivery.
 	DeliverySourceName *string
 
+	// The field delimiter that is used between record fields when the final output
+	// format of a delivery is in Plain , W3C , or Raw format.
+	FieldDelimiter *string
+
 	// The unique ID that identifies this delivery in your account.
 	Id *string
+
+	// The record fields used in this delivery.
+	RecordFields []string
+
+	// This structure contains delivery configurations that apply only when the
+	// delivery destination resource is an S3 bucket.
+	S3DeliveryConfiguration *S3DeliveryConfiguration
 
 	// The tags that have been assigned to this delivery.
 	Tags map[string]string
@@ -224,27 +503,32 @@ type Delivery struct {
 // This structure contains information about one delivery destination in your
 // account. A delivery destination is an Amazon Web Services resource that
 // represents an Amazon Web Services service that logs can be sent to. CloudWatch
-// Logs, Amazon S3, are supported as Kinesis Data Firehose delivery destinations.
-// To configure logs delivery between a supported Amazon Web Services service and a
-// destination, you must do the following:
+// Logs, Amazon S3, Firehose, and X-Ray are supported as delivery destinations.
+//
+// To configure logs delivery between a supported Amazon Web Services service and
+// a destination, you must do the following:
+//
 //   - Create a delivery source, which is a logical object that represents the
-//     resource that is actually sending the logs. For more information, see
-//     PutDeliverySource (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDeliverySource.html)
-//     .
+//     resource that is actually sending the logs. For more information, see [PutDeliverySource].
+//
 //   - Create a delivery destination, which is a logical object that represents
 //     the actual delivery destination.
-//   - If you are delivering logs cross-account, you must use
-//     PutDeliveryDestinationPolicy (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDeliveryDestinationPolicy.html)
-//     in the destination account to assign an IAM policy to the destination. This
-//     policy allows delivery to that destination.
+//
+//   - If you are delivering logs cross-account, you must use [PutDeliveryDestinationPolicy]in the destination
+//     account to assign an IAM policy to the destination. This policy allows delivery
+//     to that destination.
+//
 //   - Create a delivery by pairing exactly one delivery source and one delivery
-//     destination. For more information, see CreateDelivery (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateDelivery.html)
-//     .
+//     destination. For more information, see [CreateDelivery].
 //
 // You can configure a single delivery source to send logs to multiple
 // destinations by creating multiple deliveries. You can also create multiple
 // deliveries to configure multiple delivery sources to send logs to the same
 // delivery destination.
+//
+// [PutDeliverySource]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDeliverySource.html
+// [CreateDelivery]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateDelivery.html
+// [PutDeliveryDestinationPolicy]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDeliveryDestinationPolicy.html
 type DeliveryDestination struct {
 
 	// The Amazon Resource Name (ARN) that uniquely identifies this delivery
@@ -255,8 +539,8 @@ type DeliveryDestination struct {
 	// receive the logs.
 	DeliveryDestinationConfiguration *DeliveryDestinationConfiguration
 
-	// Displays whether this delivery destination is CloudWatch Logs, Amazon S3, or
-	// Kinesis Data Firehose.
+	// Displays whether this delivery destination is CloudWatch Logs, Amazon S3,
+	// Firehose, or X-Ray.
 	DeliveryDestinationType DeliveryDestinationType
 
 	// The name of this delivery destination.
@@ -276,8 +560,7 @@ type DeliveryDestinationConfiguration struct {
 
 	// The ARN of the Amazon Web Services destination that this delivery destination
 	// represents. That Amazon Web Services destination can be a log group in
-	// CloudWatch Logs, an Amazon S3 bucket, or a delivery stream in Kinesis Data
-	// Firehose.
+	// CloudWatch Logs, an Amazon S3 bucket, or a delivery stream in Firehose.
 	//
 	// This member is required.
 	DestinationResourceArn *string
@@ -288,32 +571,37 @@ type DeliveryDestinationConfiguration struct {
 // This structure contains information about one delivery source in your account.
 // A delivery source is an Amazon Web Services resource that sends logs to an
 // Amazon Web Services destination. The destination can be CloudWatch Logs, Amazon
-// S3, or Kinesis Data Firehose. Only some Amazon Web Services services support
-// being configured as a delivery source. These services are listed as Supported
-// [V2 Permissions] in the table at Enabling logging from Amazon Web Services
-// services. (https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/AWS-logs-and-resource-policy.html)
-// To configure logs delivery between a supported Amazon Web Services service and a
-// destination, you must do the following:
+// S3, or Firehose.
+//
+// Only some Amazon Web Services services support being configured as a delivery
+// source. These services are listed as Supported [V2 Permissions] in the table at [Enabling logging from Amazon Web Services services.]
+//
+// To configure logs delivery between a supported Amazon Web Services service and
+// a destination, you must do the following:
+//
 //   - Create a delivery source, which is a logical object that represents the
-//     resource that is actually sending the logs. For more information, see
-//     PutDeliverySource (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDeliverySource.html)
-//     .
+//     resource that is actually sending the logs. For more information, see [PutDeliverySource].
+//
 //   - Create a delivery destination, which is a logical object that represents
-//     the actual delivery destination. For more information, see
-//     PutDeliveryDestination (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDeliveryDestination.html)
-//     .
-//   - If you are delivering logs cross-account, you must use
-//     PutDeliveryDestinationPolicy (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDeliveryDestinationPolicy.html)
-//     in the destination account to assign an IAM policy to the destination. This
-//     policy allows delivery to that destination.
+//     the actual delivery destination. For more information, see [PutDeliveryDestination].
+//
+//   - If you are delivering logs cross-account, you must use [PutDeliveryDestinationPolicy]in the destination
+//     account to assign an IAM policy to the destination. This policy allows delivery
+//     to that destination.
+//
 //   - Create a delivery by pairing exactly one delivery source and one delivery
-//     destination. For more information, see CreateDelivery (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateDelivery.html)
-//     .
+//     destination. For more information, see [CreateDelivery].
 //
 // You can configure a single delivery source to send logs to multiple
 // destinations by creating multiple deliveries. You can also create multiple
 // deliveries to configure multiple delivery sources to send logs to the same
 // delivery destination.
+//
+// [PutDeliveryDestination]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDeliveryDestination.html
+// [PutDeliverySource]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDeliverySource.html
+// [Enabling logging from Amazon Web Services services.]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/AWS-logs-and-resource-policy.html
+// [CreateDelivery]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateDelivery.html
+// [PutDeliveryDestinationPolicy]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDeliveryDestinationPolicy.html
 type DeliverySource struct {
 
 	// The Amazon Resource Name (ARN) that uniquely identifies this delivery source.
@@ -363,6 +651,33 @@ type Destination struct {
 	// The Amazon Resource Name (ARN) of the physical target where the log events are
 	// delivered (for example, a Kinesis stream).
 	TargetArn *string
+
+	noSmithyDocumentSerde
+}
+
+// The entity associated with the log events in a PutLogEvents call.
+type Entity struct {
+
+	// Additional attributes of the entity that are not used to specify the identity
+	// of the entity. A list of key-value pairs.
+	//
+	// For details about how to use the attributes, see [How to add related information to telemetry] in the CloudWatch User Guide.
+	//
+	// [How to add related information to telemetry]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/adding-your-own-related-telemetry.html
+	Attributes map[string]string
+
+	// The attributes of the entity which identify the specific entity, as a list of
+	// key-value pairs. Entities with the same keyAttributes are considered to be the
+	// same entity.
+	//
+	// There are five allowed attributes (key names): Type , ResourceType , Identifier
+	// Name , and Environment .
+	//
+	// For details about how to use the key attributes, see [How to add related information to telemetry] in the CloudWatch User
+	// Guide.
+	//
+	// [How to add related information to telemetry]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/adding-your-own-related-telemetry.html
+	KeyAttributes map[string]string
 
 	noSmithyDocumentSerde
 }
@@ -429,6 +744,45 @@ type ExportTaskStatus struct {
 	noSmithyDocumentSerde
 }
 
+// This structure describes one log event field that is used as an index in at
+// least one index policy in this account.
+type FieldIndex struct {
+
+	// The string that this field index matches.
+	FieldIndexName *string
+
+	// The time and date of the earliest log event that matches this field index,
+	// after the index policy that contains it was created.
+	FirstEventTime *int64
+
+	// The time and date of the most recent log event that matches this field index.
+	LastEventTime *int64
+
+	// The most recent time that CloudWatch Logs scanned ingested log events to search
+	// for this field index to improve the speed of future CloudWatch Logs Insights
+	// queries that search for this field index.
+	LastScanTime *int64
+
+	// If this field index appears in an index policy that applies only to a single
+	// log group, the ARN of that log group is displayed here.
+	LogGroupIdentifier *string
+
+	noSmithyDocumentSerde
+}
+
+// A structure containing the extracted fields from a log event. These fields are
+// extracted based on the log format and can be used for structured querying and
+// analysis.
+type FieldsData struct {
+
+	// The actual log data content returned in the streaming response. This contains
+	// the fields and values of the log event in a structured format that can be parsed
+	// and processed by the client.
+	Data []byte
+
+	noSmithyDocumentSerde
+}
+
 // Represents a matched event.
 type FilteredLogEvent struct {
 
@@ -452,11 +806,80 @@ type FilteredLogEvent struct {
 	noSmithyDocumentSerde
 }
 
+// A stream of structured log data returned by the GetLogObject operation. This
+// stream contains log events with their associated metadata and extracted fields.
+//
+// The following types satisfy this interface:
+//
+//	GetLogObjectResponseStreamMemberFields
+type GetLogObjectResponseStream interface {
+	isGetLogObjectResponseStream()
+}
+
+// A structure containing the extracted fields from a log event. These fields are
+// extracted based on the log format and can be used for structured querying and
+// analysis.
+type GetLogObjectResponseStreamMemberFields struct {
+	Value FieldsData
+
+	noSmithyDocumentSerde
+}
+
+func (*GetLogObjectResponseStreamMemberFields) isGetLogObjectResponseStream() {}
+
+// This processor uses pattern matching to parse and structure unstructured data.
+// This processor can also extract fields from log messages.
+//
+// For more information about this processor including examples, see [grok] in the
+// CloudWatch Logs User Guide.
+//
+// [grok]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation-Processors.html#CloudWatch-Logs-Transformation-Grok
+type Grok struct {
+
+	// The grok pattern to match against the log event. For a list of supported grok
+	// patterns, see [Supported grok patterns].
+	//
+	// [Supported grok patterns]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation-Processors.html#Grok-Patterns
+	//
+	// This member is required.
+	Match *string
+
+	// The path to the field in the log event that you want to parse. If you omit this
+	// value, the whole log message is parsed.
+	Source *string
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains information about one field index policy in this
+// account.
+type IndexPolicy struct {
+
+	// The date and time that this index policy was most recently updated.
+	LastUpdateTime *int64
+
+	// The ARN of the log group that this index policy applies to.
+	LogGroupIdentifier *string
+
+	// The policy document for this index policy, in JSON format.
+	PolicyDocument *string
+
+	// The name of this policy. Responses about log group-level field index policies
+	// don't have this field, because those policies don't have names.
+	PolicyName *string
+
+	// This field indicates whether this is an account-level index policy or an index
+	// policy that applies only to a single log group.
+	Source IndexSource
+
+	noSmithyDocumentSerde
+}
+
 // Represents a log event, which is a record of activity that was recorded by the
 // application or resource being monitored.
 type InputLogEvent struct {
 
-	// The raw event message. Each log event can be no larger than 256 KB.
+	// The raw event message. Each log event can be no larger than 1 MB.
 	//
 	// This member is required.
 	Message *string
@@ -466,6 +889,92 @@ type InputLogEvent struct {
 	//
 	// This member is required.
 	Timestamp *int64
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains information about the integration configuration. For an
+// integration with OpenSearch Service, this includes information about OpenSearch
+// Service resources such as the collection, the workspace, and policies.
+//
+// This structure is returned by a [GetIntegration] operation.
+//
+// The following types satisfy this interface:
+//
+//	IntegrationDetailsMemberOpenSearchIntegrationDetails
+//
+// [GetIntegration]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_GetIntegration.html
+type IntegrationDetails interface {
+	isIntegrationDetails()
+}
+
+// This structure contains complete information about one integration between
+// CloudWatch Logs and OpenSearch Service.
+type IntegrationDetailsMemberOpenSearchIntegrationDetails struct {
+	Value OpenSearchIntegrationDetails
+
+	noSmithyDocumentSerde
+}
+
+func (*IntegrationDetailsMemberOpenSearchIntegrationDetails) isIntegrationDetails() {}
+
+// This structure contains information about one CloudWatch Logs integration. This
+// structure is returned by a [ListIntegrations]operation.
+//
+// [ListIntegrations]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_ListIntegrations.html
+type IntegrationSummary struct {
+
+	// The name of this integration.
+	IntegrationName *string
+
+	// The current status of this integration.
+	IntegrationStatus IntegrationStatus
+
+	// The type of integration. Integrations with OpenSearch Service have the type
+	// OPENSEARCH .
+	IntegrationType IntegrationType
+
+	noSmithyDocumentSerde
+}
+
+// This processor takes a list of objects that contain key fields, and converts
+// them into a map of target keys.
+//
+// For more information about this processor including examples, see [listToMap] in the
+// CloudWatch Logs User Guide.
+//
+// [listToMap]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation-Processors.html#CloudWatch-Logs-Transformation-listToMap
+type ListToMap struct {
+
+	// The key of the field to be extracted as keys in the generated map
+	//
+	// This member is required.
+	Key *string
+
+	// The key in the log event that has a list of objects that will be converted to a
+	// map.
+	//
+	// This member is required.
+	Source *string
+
+	// A Boolean value to indicate whether the list will be flattened into single
+	// items. Specify true to flatten the list. The default is false
+	Flatten bool
+
+	// If you set flatten to true , use flattenedElement to specify which element,
+	// first or last , to keep.
+	//
+	// You must specify this parameter if flatten is true
+	FlattenedElement FlattenedElement
+
+	// The key of the field that will hold the generated map
+	Target *string
+
+	// If this is specified, the values that you specify in this parameter will be
+	// extracted from the source objects and put into the values of the generated map.
+	// Otherwise, original objects in the source list will be put into the values of
+	// the generated map.
+	ValueKey *string
 
 	noSmithyDocumentSerde
 }
@@ -499,8 +1008,9 @@ type LiveTailSessionLogEvent struct {
 type LiveTailSessionMetadata struct {
 
 	// If this is true , then more than 500 log events matched the request for this
-	// update, and the sessionResults includes a sample of 500 of those events. If
-	// this is false , then 500 or fewer log events matched the request for this
+	// update, and the sessionResults includes a sample of 500 of those events.
+	//
+	// If this is false , then 500 or fewer log events matched the request for this
 	// update, so no sampling was necessary. In this case, the sessionResults array
 	// includes all log events that matched your request during this time.
 	Sampled bool
@@ -514,9 +1024,11 @@ type LiveTailSessionStart struct {
 
 	// An optional pattern to filter the results to include only log events that match
 	// the pattern. For example, a filter pattern of error 404 displays only log
-	// events that include both error and 404 . For more information about filter
-	// pattern syntax, see Filter and Pattern Syntax (https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/FilterAndPatternSyntax.html)
-	// .
+	// events that include both error and 404 .
+	//
+	// For more information about filter pattern syntax, see [Filter and Pattern Syntax].
+	//
+	// [Filter and Pattern Syntax]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/FilterAndPatternSyntax.html
 	LogEventFilterPattern *string
 
 	// An array of the names and ARNs of the log groups included in this Live Tail
@@ -550,11 +1062,25 @@ type LiveTailSessionUpdate struct {
 	SessionMetadata *LiveTailSessionMetadata
 
 	// An array, where each member of the array includes the information for one log
-	// event in the Live Tail session. A sessionResults array can include as many as
-	// 500 log events. If the number of log events matching the request exceeds 500 per
-	// second, the log events are sampled down to 500 log events to be included in each
-	// sessionUpdate structure.
+	// event in the Live Tail session.
+	//
+	// A sessionResults array can include as many as 500 log events. If the number of
+	// log events matching the request exceeds 500 per second, the log events are
+	// sampled down to 500 log events to be included in each sessionUpdate structure.
 	SessionResults []LiveTailSessionLogEvent
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains the information for one sample log event that is
+// associated with an anomaly found by a log anomaly detector.
+type LogEvent struct {
+
+	// The message content of the log event.
+	Message *string
+
+	// The time stamp of the log event.
+	Timestamp *int64
 
 	noSmithyDocumentSerde
 }
@@ -563,13 +1089,16 @@ type LiveTailSessionUpdate struct {
 type LogGroup struct {
 
 	// The Amazon Resource Name (ARN) of the log group. This version of the ARN
-	// includes a trailing :* after the log group name. Use this version to refer to
-	// the ARN in IAM policies when specifying permissions for most API actions. The
-	// exception is when specifying permissions for TagResource (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_TagResource.html)
-	// , UntagResource (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_UntagResource.html)
-	// , and ListTagsForResource (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_ListTagsForResource.html)
-	// . The permissions for those three actions require the ARN version that doesn't
-	// include a trailing :* .
+	// includes a trailing :* after the log group name.
+	//
+	// Use this version to refer to the ARN in IAM policies when specifying
+	// permissions for most API actions. The exception is when specifying permissions
+	// for [TagResource], [UntagResource], and [ListTagsForResource]. The permissions for those three actions require the ARN version
+	// that doesn't include a trailing :* .
+	//
+	// [TagResource]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_TagResource.html
+	// [UntagResource]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_UntagResource.html
+	// [ListTagsForResource]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_ListTagsForResource.html
 	Arn *string
 
 	// The creation time of the log group, expressed as the number of milliseconds
@@ -577,8 +1106,9 @@ type LogGroup struct {
 	CreationTime *int64
 
 	// Displays whether this log group has a protection policy, or whether it had one
-	// in the past. For more information, see PutDataProtectionPolicy (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDataProtectionPolicy.html)
-	// .
+	// in the past. For more information, see [PutDataProtectionPolicy].
+	//
+	// [PutDataProtectionPolicy]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDataProtectionPolicy.html
 	DataProtectionStatus DataProtectionStatus
 
 	// Displays all the properties that this log group has inherited from
@@ -589,21 +1119,37 @@ type LogGroup struct {
 	KmsKeyId *string
 
 	// The Amazon Resource Name (ARN) of the log group. This version of the ARN
-	// doesn't include a trailing :* after the log group name. Use this version to
-	// refer to the ARN in the following situations:
+	// doesn't include a trailing :* after the log group name.
+	//
+	// Use this version to refer to the ARN in the following situations:
+	//
 	//   - In the logGroupIdentifier input field in many CloudWatch Logs APIs.
+	//
 	//   - In the resourceArn field in tagging APIs
-	//   - In IAM policies, when specifying permissions for TagResource (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_TagResource.html)
-	//   , UntagResource (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_UntagResource.html)
-	//   , and ListTagsForResource (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_ListTagsForResource.html)
-	//   .
+	//
+	//   - In IAM policies, when specifying permissions for [TagResource], [UntagResource], and [ListTagsForResource].
+	//
+	// [TagResource]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_TagResource.html
+	// [UntagResource]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_UntagResource.html
+	// [ListTagsForResource]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_ListTagsForResource.html
 	LogGroupArn *string
 
-	// This specifies the log group class for this log group. There are two classes:
+	// This specifies the log group class for this log group. There are three classes:
+	//
 	//   - The Standard log class supports all CloudWatch Logs features.
+	//
 	//   - The Infrequent Access log class supports a subset of CloudWatch Logs
 	//   features and incurs lower costs.
-	// For details about the features supported by each class, see Log classes (https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html)
+	//
+	//   - Use the Delivery log class only for delivering Lambda logs to store in
+	//   Amazon S3 or Amazon Data Firehose. Log events in log groups in the Delivery
+	//   class are kept in CloudWatch Logs for only one day. This log class doesn't offer
+	//   rich CloudWatch Logs capabilities such as CloudWatch Logs Insights queries.
+	//
+	// For details about the features supported by the Standard and Infrequent Access
+	// classes, see [Log classes]
+	//
+	// [Log classes]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html
 	LogGroupClass LogGroupClass
 
 	// The name of the log group.
@@ -614,9 +1160,11 @@ type LogGroup struct {
 
 	// The number of days to retain the log events in the specified log group.
 	// Possible values are: 1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545,
-	// 731, 1096, 1827, 2192, 2557, 2922, 3288, and 3653. To set a log group so that
-	// its log events do not expire, use DeleteRetentionPolicy (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DeleteRetentionPolicy.html)
-	// .
+	// 731, 1096, 1827, 2192, 2557, 2922, 3288, and 3653.
+	//
+	// To set a log group so that its log events do not expire, use [DeleteRetentionPolicy].
+	//
+	// [DeleteRetentionPolicy]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DeleteRetentionPolicy.html
 	RetentionInDays *int32
 
 	// The number of bytes stored.
@@ -634,6 +1182,24 @@ type LogGroupField struct {
 
 	// The percentage of log events queried that contained the field.
 	Percent int32
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains information about one log group in your account.
+type LogGroupSummary struct {
+
+	// The Amazon Resource Name (ARN) of the log group.
+	LogGroupArn *string
+
+	// The log group class for this log group. For details about the features
+	// supported by each log group class, see [Log classes]
+	//
+	// [Log classes]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html
+	LogGroupClass LogGroupClass
+
+	// The name of the log group.
+	LogGroupName *string
 
 	noSmithyDocumentSerde
 }
@@ -669,21 +1235,39 @@ type LogStream struct {
 	// The name of the log stream.
 	LogStreamName *string
 
-	// The number of bytes stored. Important: As of June 17, 2019, this parameter is
-	// no longer supported for log streams, and is always reported as zero. This change
-	// applies only to log streams. The storedBytes parameter for log groups is not
-	// affected.
+	// The number of bytes stored.
+	//
+	// Important: As of June 17, 2019, this parameter is no longer supported for log
+	// streams, and is always reported as zero. This change applies only to log
+	// streams. The storedBytes parameter for log groups is not affected.
 	//
 	// Deprecated: Starting on June 17, 2019, this parameter will be deprecated for
 	// log streams, and will be reported as zero. This change applies only to log
 	// streams. The storedBytes parameter for log groups is not affected.
 	StoredBytes *int64
 
-	// The sequence token. The sequence token is now ignored in PutLogEvents actions.
-	// PutLogEvents actions are always accepted regardless of receiving an invalid
-	// sequence token. You don't need to obtain uploadSequenceToken to use a
-	// PutLogEvents action.
+	// The sequence token.
+	//
+	// The sequence token is now ignored in PutLogEvents actions. PutLogEvents actions
+	// are always accepted regardless of receiving an invalid sequence token. You don't
+	// need to obtain uploadSequenceToken to use a PutLogEvents action.
 	UploadSequenceToken *string
+
+	noSmithyDocumentSerde
+}
+
+// This processor converts a string to lowercase.
+//
+// For more information about this processor including examples, see [lowerCaseString] in the
+// CloudWatch Logs User Guide.
+//
+// [lowerCaseString]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-lowerCaseString
+type LowerCaseString struct {
+
+	// The array caontaining the keys of the fields to convert to lowercase.
+	//
+	// This member is required.
+	WithKeys []string
 
 	noSmithyDocumentSerde
 }
@@ -693,9 +1277,28 @@ type LogStream struct {
 // metric.
 type MetricFilter struct {
 
+	// This parameter is valid only for log groups that have an active log
+	// transformer. For more information about log transformers, see [PutTransformer].
+	//
+	// If this value is true , the metric filter is applied on the transformed version
+	// of the log events instead of the original ingested log events.
+	//
+	// [PutTransformer]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutTransformer.html
+	ApplyOnTransformedLogs bool
+
 	// The creation time of the metric filter, expressed as the number of milliseconds
 	// after Jan 1, 1970 00:00:00 UTC .
 	CreationTime *int64
+
+	// The list of system fields that are emitted as additional dimensions in the
+	// generated metrics. Returns the emitSystemFieldDimensions value if it was
+	// specified when the metric filter was created.
+	EmitSystemFieldDimensions []string
+
+	// The filter expression that specifies which log events are processed by this
+	// metric filter based on system fields. Returns the fieldSelectionCriteria value
+	// if it was specified when the metric filter was created.
+	FieldSelectionCriteria *string
 
 	// The name of the metric filter.
 	FilterName *string
@@ -740,8 +1343,9 @@ type MetricTransformation struct {
 	MetricName *string
 
 	// A custom namespace to contain your metric in CloudWatch. Use namespaces to
-	// group together metrics that are similar. For more information, see Namespaces (https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/cloudwatch_concepts.html#Namespace)
-	// .
+	// group together metrics that are similar. For more information, see [Namespaces].
+	//
+	// [Namespaces]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/cloudwatch_concepts.html#Namespace
 	//
 	// This member is required.
 	MetricNamespace *string
@@ -757,21 +1361,360 @@ type MetricTransformation struct {
 	DefaultValue *float64
 
 	// The fields to use as dimensions for the metric. One metric filter can include
-	// as many as three dimensions. Metrics extracted from log events are charged as
-	// custom metrics. To prevent unexpected high charges, do not specify
-	// high-cardinality fields such as IPAddress or requestID as dimensions. Each
-	// different value found for a dimension is treated as a separate metric and
-	// accrues charges as a separate custom metric. CloudWatch Logs disables a metric
-	// filter if it generates 1000 different name/value pairs for your specified
-	// dimensions within a certain amount of time. This helps to prevent accidental
-	// high charges. You can also set up a billing alarm to alert you if your charges
-	// are higher than expected. For more information, see Creating a Billing Alarm to
-	// Monitor Your Estimated Amazon Web Services Charges (https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/monitor_estimated_charges_with_cloudwatch.html)
-	// .
+	// as many as three dimensions.
+	//
+	// Metrics extracted from log events are charged as custom metrics. To prevent
+	// unexpected high charges, do not specify high-cardinality fields such as
+	// IPAddress or requestID as dimensions. Each different value found for a
+	// dimension is treated as a separate metric and accrues charges as a separate
+	// custom metric.
+	//
+	// CloudWatch Logs disables a metric filter if it generates 1000 different
+	// name/value pairs for your specified dimensions within a certain amount of time.
+	// This helps to prevent accidental high charges.
+	//
+	// You can also set up a billing alarm to alert you if your charges are higher
+	// than expected. For more information, see [Creating a Billing Alarm to Monitor Your Estimated Amazon Web Services Charges].
+	//
+	// [Creating a Billing Alarm to Monitor Your Estimated Amazon Web Services Charges]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/monitor_estimated_charges_with_cloudwatch.html
 	Dimensions map[string]string
 
 	// The unit to assign to the metric. If you omit this, the unit is set as None .
 	Unit StandardUnit
+
+	noSmithyDocumentSerde
+}
+
+// This object defines one key that will be moved with the [moveKey] processor.
+//
+// [moveKey]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-moveKey
+type MoveKeyEntry struct {
+
+	// The key to move.
+	//
+	// This member is required.
+	Source *string
+
+	// The key to move to.
+	//
+	// This member is required.
+	Target *string
+
+	// Specifies whether to overwrite the value if the destination key already exists.
+	// If you omit this, the default is false .
+	OverwriteIfExists bool
+
+	noSmithyDocumentSerde
+}
+
+// This processor moves a key from one field to another. The original key is
+// deleted.
+//
+// For more information about this processor including examples, see [moveKeys] in the
+// CloudWatch Logs User Guide.
+//
+// [moveKeys]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-moveKeys
+type MoveKeys struct {
+
+	// An array of objects, where each object contains the information about one key
+	// to move.
+	//
+	// This member is required.
+	Entries []MoveKeyEntry
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains information about the OpenSearch Service application
+// used for this integration. An OpenSearch Service application is the web
+// application created by the integration with CloudWatch Logs. It hosts the vended
+// logs dashboards.
+type OpenSearchApplication struct {
+
+	// The Amazon Resource Name (ARN) of the application.
+	ApplicationArn *string
+
+	// The endpoint of the application.
+	ApplicationEndpoint *string
+
+	// The ID of the application.
+	ApplicationId *string
+
+	// This structure contains information about the status of this OpenSearch Service
+	// resource.
+	Status *OpenSearchResourceStatus
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains information about the OpenSearch Service collection
+// used for this integration. An OpenSearch Service collection is a logical
+// grouping of one or more indexes that represent an analytics workload. For more
+// information, see [Creating and managing OpenSearch Service Serverless collections].
+//
+// [Creating and managing OpenSearch Service Serverless collections]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-collections.html
+type OpenSearchCollection struct {
+
+	// The ARN of the collection.
+	CollectionArn *string
+
+	// The endpoint of the collection.
+	CollectionEndpoint *string
+
+	// This structure contains information about the status of this OpenSearch Service
+	// resource.
+	Status *OpenSearchResourceStatus
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains information about the OpenSearch Service data access
+// policy used for this integration. The access policy defines the access controls
+// for the collection. This data access policy was automatically created as part of
+// the integration setup. For more information about OpenSearch Service data access
+// policies, see [Data access control for Amazon OpenSearch Serverless]in the OpenSearch Service Developer Guide.
+//
+// [Data access control for Amazon OpenSearch Serverless]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-data-access.html
+type OpenSearchDataAccessPolicy struct {
+
+	// The name of the data access policy.
+	PolicyName *string
+
+	// This structure contains information about the status of this OpenSearch Service
+	// resource.
+	Status *OpenSearchResourceStatus
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains information about the OpenSearch Service data source
+// used for this integration. This data source was created as part of the
+// integration setup. An OpenSearch Service data source defines the source and
+// destination for OpenSearch Service queries. It includes the role required to
+// execute queries and write to collections.
+//
+// For more information about OpenSearch Service data sources , see [Creating OpenSearch Service data source integrations with Amazon S3.]
+//
+// [Creating OpenSearch Service data source integrations with Amazon S3.]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/direct-query-s3-creating.html
+type OpenSearchDataSource struct {
+
+	// The name of the OpenSearch Service data source.
+	DataSourceName *string
+
+	// This structure contains information about the status of this OpenSearch Service
+	// resource.
+	Status *OpenSearchResourceStatus
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains information about the OpenSearch Service encryption
+// policy used for this integration. The encryption policy was created
+// automatically when you created the integration. For more information, see [Encryption policies]in
+// the OpenSearch Service Developer Guide.
+//
+// [Encryption policies]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-encryption.html#serverless-encryption-policies
+type OpenSearchEncryptionPolicy struct {
+
+	// The name of the encryption policy.
+	PolicyName *string
+
+	// This structure contains information about the status of this OpenSearch Service
+	// resource.
+	Status *OpenSearchResourceStatus
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains complete information about one CloudWatch Logs
+// integration. This structure is returned by a [GetIntegration]operation.
+//
+// [GetIntegration]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_GetIntegration.html
+type OpenSearchIntegrationDetails struct {
+
+	// This structure contains information about the OpenSearch Service data access
+	// policy used for this integration. The access policy defines the access controls
+	// for the collection. This data access policy was automatically created as part of
+	// the integration setup. For more information about OpenSearch Service data access
+	// policies, see [Data access control for Amazon OpenSearch Serverless]in the OpenSearch Service Developer Guide.
+	//
+	// [Data access control for Amazon OpenSearch Serverless]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-data-access.html
+	AccessPolicy *OpenSearchDataAccessPolicy
+
+	// This structure contains information about the OpenSearch Service application
+	// used for this integration. An OpenSearch Service application is the web
+	// application that was created by the integration with CloudWatch Logs. It hosts
+	// the vended logs dashboards.
+	Application *OpenSearchApplication
+
+	// This structure contains information about the OpenSearch Service collection
+	// used for this integration. This collection was created as part of the
+	// integration setup. An OpenSearch Service collection is a logical grouping of one
+	// or more indexes that represent an analytics workload. For more information, see [Creating and managing OpenSearch Service Serverless collections]
+	// .
+	//
+	// [Creating and managing OpenSearch Service Serverless collections]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-collections.html
+	Collection *OpenSearchCollection
+
+	// This structure contains information about the OpenSearch Service data source
+	// used for this integration. This data source was created as part of the
+	// integration setup. An OpenSearch Service data source defines the source and
+	// destination for OpenSearch Service queries. It includes the role required to
+	// execute queries and write to collections.
+	//
+	// For more information about OpenSearch Service data sources , see [Creating OpenSearch Service data source integrations with Amazon S3.]
+	//
+	// [Creating OpenSearch Service data source integrations with Amazon S3.]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/direct-query-s3-creating.html
+	DataSource *OpenSearchDataSource
+
+	// This structure contains information about the OpenSearch Service encryption
+	// policy used for this integration. The encryption policy was created
+	// automatically when you created the integration. For more information, see [Encryption policies]in
+	// the OpenSearch Service Developer Guide.
+	//
+	// [Encryption policies]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-encryption.html#serverless-encryption-policies
+	EncryptionPolicy *OpenSearchEncryptionPolicy
+
+	// This structure contains information about the OpenSearch Service data lifecycle
+	// policy used for this integration. The lifecycle policy determines the lifespan
+	// of the data in the collection. It was automatically created as part of the
+	// integration setup.
+	//
+	// For more information, see [Using data lifecycle policies with OpenSearch Service Serverless] in the OpenSearch Service Developer Guide.
+	//
+	// [Using data lifecycle policies with OpenSearch Service Serverless]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-lifecycle.html
+	LifecyclePolicy *OpenSearchLifecyclePolicy
+
+	// This structure contains information about the OpenSearch Service network policy
+	// used for this integration. The network policy assigns network access settings to
+	// collections. For more information, see [Network policies]in the OpenSearch Service Developer
+	// Guide.
+	//
+	// [Network policies]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-network.html#serverless-network-policies
+	NetworkPolicy *OpenSearchNetworkPolicy
+
+	// This structure contains information about the OpenSearch Service workspace used
+	// for this integration. An OpenSearch Service workspace is the collection of
+	// dashboards along with other OpenSearch Service tools. This workspace was created
+	// automatically as part of the integration setup. For more information, see [Centralized OpenSearch user interface (Dashboards) with OpenSearch Service].
+	//
+	// [Centralized OpenSearch user interface (Dashboards) with OpenSearch Service]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/application.html
+	Workspace *OpenSearchWorkspace
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains information about the OpenSearch Service data lifecycle
+// policy used for this integration. The lifecycle policy determines the lifespan
+// of the data in the collection. It was automatically created as part of the
+// integration setup.
+//
+// For more information, see [Using data lifecycle policies with OpenSearch Service Serverless] in the OpenSearch Service Developer Guide.
+//
+// [Using data lifecycle policies with OpenSearch Service Serverless]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-lifecycle.html
+type OpenSearchLifecyclePolicy struct {
+
+	// The name of the lifecycle policy.
+	PolicyName *string
+
+	// This structure contains information about the status of this OpenSearch Service
+	// resource.
+	Status *OpenSearchResourceStatus
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains information about the OpenSearch Service network policy
+// used for this integration. The network policy assigns network access settings to
+// collections. For more information, see [Network policies]in the OpenSearch Service Developer
+// Guide.
+//
+// [Network policies]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-network.html#serverless-network-policies
+type OpenSearchNetworkPolicy struct {
+
+	// The name of the network policy.
+	PolicyName *string
+
+	// This structure contains information about the status of this OpenSearch Service
+	// resource.
+	Status *OpenSearchResourceStatus
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains configuration details about an integration between
+// CloudWatch Logs and OpenSearch Service.
+type OpenSearchResourceConfig struct {
+
+	// Specify the ARNs of IAM roles and IAM users who you want to grant permission to
+	// for viewing the dashboards.
+	//
+	// In addition to specifying these users here, you must also grant them the
+	// CloudWatchOpenSearchDashboardAccess IAM policy. For more information, see [IAM policies for users].
+	//
+	// [IAM policies for users]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/OpenSearch-Dashboards-UserRoles.html
+	//
+	// This member is required.
+	DashboardViewerPrincipals []string
+
+	// Specify the ARN of an IAM role that CloudWatch Logs will use to create the
+	// integration. This role must have the permissions necessary to access the
+	// OpenSearch Service collection to be able to create the dashboards. For more
+	// information about the permissions needed, see [Permissions that the integration needs]in the CloudWatch Logs User Guide.
+	//
+	// [Permissions that the integration needs]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/OpenSearch-Dashboards-CreateRole.html
+	//
+	// This member is required.
+	DataSourceRoleArn *string
+
+	// Specify how many days that you want the data derived by OpenSearch Service to
+	// be retained in the index that the dashboard refers to. This also sets the
+	// maximum time period that you can choose when viewing data in the dashboard.
+	// Choosing a longer time frame will incur additional costs.
+	//
+	// This member is required.
+	RetentionDays *int32
+
+	// If you want to use an existing OpenSearch Service application for your
+	// integration with OpenSearch Service, specify it here. If you omit this, a new
+	// application will be created.
+	ApplicationArn *string
+
+	// To have the vended dashboard data encrypted with KMS instead of the CloudWatch
+	// Logs default encryption method, specify the ARN of the KMS key that you want to
+	// use.
+	KmsKeyArn *string
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains information about the status of an OpenSearch Service
+// resource.
+type OpenSearchResourceStatus struct {
+
+	// The current status of this resource.
+	Status OpenSearchResourceStatusType
+
+	// A message with additional information about the status of this resource.
+	StatusMessage *string
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains information about the OpenSearch Service workspace used
+// for this integration. An OpenSearch Service workspace is the collection of
+// dashboards along with other OpenSearch Service tools. This workspace was created
+// automatically as part of the integration setup. For more information, see [Centralized OpenSearch user interface (Dashboards) with OpenSearch Service].
+//
+// [Centralized OpenSearch user interface (Dashboards) with OpenSearch Service]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/application.html
+type OpenSearchWorkspace struct {
+
+	// This structure contains information about the status of an OpenSearch Service
+	// resource.
+	Status *OpenSearchResourceStatus
+
+	// The ID of this workspace.
+	WorkspaceId *string
 
 	noSmithyDocumentSerde
 }
@@ -793,10 +1736,200 @@ type OutputLogEvent struct {
 	noSmithyDocumentSerde
 }
 
-// A tructures that contains information about one pattern token related to an
-// anomaly. For more information about patterns and tokens, see
-// CreateLogAnomalyDetector (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateLogAnomalyDetector.html)
-// .
+// This processor parses CloudFront vended logs, extract fields, and convert them
+// into JSON format. Encoded field values are decoded. Values that are integers and
+// doubles are treated as such. For more information about this processor including
+// examples, see [parseCloudfront]
+//
+// For more information about CloudFront log format, see [Configure and use standard logs (access logs)].
+//
+// If you use this processor, it must be the first processor in your transformer.
+//
+// [parseCloudfront]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-parseCloudfront
+// [Configure and use standard logs (access logs)]: https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/AccessLogs.html
+type ParseCloudfront struct {
+
+	// Omit this parameter and the whole log message will be processed by this
+	// processor. No other value than @message is allowed for source .
+	Source *string
+
+	noSmithyDocumentSerde
+}
+
+// This processor parses log events that are in JSON format. It can extract JSON
+// key-value pairs and place them under a destination that you specify.
+//
+// Additionally, because you must have at least one parse-type processor in a
+// transformer, you can use ParseJSON as that processor for JSON-format logs, so
+// that you can also apply other processors, such as mutate processors, to these
+// logs.
+//
+// For more information about this processor including examples, see [parseJSON] in the
+// CloudWatch Logs User Guide.
+//
+// [parseJSON]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-parseJSON
+type ParseJSON struct {
+
+	// The location to put the parsed key value pair into. If you omit this parameter,
+	// it is placed under the root node.
+	Destination *string
+
+	// Path to the field in the log event that will be parsed. Use dot notation to
+	// access child fields. For example, store.book
+	Source *string
+
+	noSmithyDocumentSerde
+}
+
+// This processor parses a specified field in the original log event into
+// key-value pairs.
+//
+// For more information about this processor including examples, see [parseKeyValue] in the
+// CloudWatch Logs User Guide.
+//
+// [parseKeyValue]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-parseKeyValue
+type ParseKeyValue struct {
+
+	// The destination field to put the extracted key-value pairs into
+	Destination *string
+
+	// The field delimiter string that is used between key-value pairs in the original
+	// log events. If you omit this, the ampersand & character is used.
+	FieldDelimiter *string
+
+	// If you want to add a prefix to all transformed keys, specify it here.
+	KeyPrefix *string
+
+	// The delimiter string to use between the key and value in each pair in the
+	// transformed log event.
+	//
+	// If you omit this, the equal = character is used.
+	KeyValueDelimiter *string
+
+	// A value to insert into the value field in the result, when a key-value pair is
+	// not successfully split.
+	NonMatchValue *string
+
+	// Specifies whether to overwrite the value if the destination key already exists.
+	// If you omit this, the default is false .
+	OverwriteIfExists bool
+
+	// Path to the field in the log event that will be parsed. Use dot notation to
+	// access child fields. For example, store.book
+	Source *string
+
+	noSmithyDocumentSerde
+}
+
+// Use this processor to parse RDS for PostgreSQL vended logs, extract fields, and
+// and convert them into a JSON format. This processor always processes the entire
+// log event message. For more information about this processor including examples,
+// see [parsePostGres].
+//
+// For more information about RDS for PostgreSQL log format, see [RDS for PostgreSQL database log filesTCP flag sequence].
+//
+// If you use this processor, it must be the first processor in your transformer.
+//
+// [RDS for PostgreSQL database log filesTCP flag sequence]: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_LogAccess.Concepts.PostgreSQL.html#USER_LogAccess.Concepts.PostgreSQL.Log_Format.log-line-prefix
+// [parsePostGres]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-parsePostGres
+type ParsePostgres struct {
+
+	// Omit this parameter and the whole log message will be processed by this
+	// processor. No other value than @message is allowed for source .
+	Source *string
+
+	noSmithyDocumentSerde
+}
+
+// Use this processor to parse Route 53 vended logs, extract fields, and and
+// convert them into a JSON format. This processor always processes the entire log
+// event message. For more information about this processor including examples, see
+// [parseRoute53].
+//
+// If you use this processor, it must be the first processor in your transformer.
+//
+// [parseRoute53]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-parseRoute53
+type ParseRoute53 struct {
+
+	// Omit this parameter and the whole log message will be processed by this
+	// processor. No other value than @message is allowed for source .
+	Source *string
+
+	noSmithyDocumentSerde
+}
+
+// This processor converts logs into [Open Cybersecurity Schema Framework (OCSF)] events.
+//
+// For more information about this processor including examples, see [parseToOSCF] in the
+// CloudWatch Logs User Guide.
+//
+// [parseToOSCF]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-parseToOCSF
+// [Open Cybersecurity Schema Framework (OCSF)]: https://ocsf.io
+type ParseToOCSF struct {
+
+	// Specify the service or process that produces the log events that will be
+	// converted with this processor.
+	//
+	// This member is required.
+	EventSource EventSource
+
+	// Specify which version of the OCSF schema to use for the transformed log events.
+	//
+	// This member is required.
+	OcsfVersion OCSFVersion
+
+	// The path to the field in the log event that you want to parse. If you omit this
+	// value, the whole log message is parsed.
+	Source *string
+
+	noSmithyDocumentSerde
+}
+
+// Use this processor to parse Amazon VPC vended logs, extract fields, and and
+// convert them into a JSON format. This processor always processes the entire log
+// event message.
+//
+// This processor doesn't support custom log formats, such as NAT gateway logs.
+// For more information about custom log formats in Amazon VPC, see [parseVPC]For more
+// information about this processor including examples, see [parseVPC].
+//
+// If you use this processor, it must be the first processor in your transformer.
+//
+// [parseVPC]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-parseVPC
+type ParseVPC struct {
+
+	// Omit this parameter and the whole log message will be processed by this
+	// processor. No other value than @message is allowed for source .
+	Source *string
+
+	noSmithyDocumentSerde
+}
+
+// Use this processor to parse WAF vended logs, extract fields, and and convert
+// them into a JSON format. This processor always processes the entire log event
+// message. For more information about this processor including examples, see [parseWAF].
+//
+// For more information about WAF log format, see [Log examples for web ACL traffic].
+//
+// If you use this processor, it must be the first processor in your transformer.
+//
+// [Log examples for web ACL traffic]: https://docs.aws.amazon.com/waf/latest/developerguide/logging-examples.html
+// [parseWAF]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-parsePostGres
+type ParseWAF struct {
+
+	// Omit this parameter and the whole log message will be processed by this
+	// processor. No other value than @message is allowed for source .
+	Source *string
+
+	noSmithyDocumentSerde
+}
+
+// A structure that contains information about one pattern token related to an
+// anomaly.
+//
+// For more information about patterns and tokens, see [CreateLogAnomalyDetector].
+//
+// [CreateLogAnomalyDetector]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateLogAnomalyDetector.html
 type PatternToken struct {
 
 	// For a dynamic token, this indicates where in the pattern that this token
@@ -807,6 +1940,18 @@ type PatternToken struct {
 	// Contains the values found for a dynamic token, and the number of times each
 	// value was found.
 	Enumerations map[string]int64
+
+	// A name that CloudWatch Logs assigned to this dynamic token to make the pattern
+	// more readable. The string part of the inferredTokenName gives you a clearer
+	// idea of the content of this token. The number part of the inferredTokenName
+	// shows where in the pattern this token appears, compared to other dynamic tokens.
+	// CloudWatch Logs assigns the string part of the name based on analyzing the
+	// content of the log events that contain it.
+	//
+	// For example, an inferred token name of IPAddress-3 means that the token
+	// represents an IP address, and this token is the third dynamic token in the
+	// pattern.
+	InferredTokenName *string
 
 	// Specifies whether this is a dynamic token.
 	IsDynamic *bool
@@ -823,6 +1968,136 @@ type Policy struct {
 
 	// The contents of the delivery destination policy.
 	DeliveryDestinationPolicy *string
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains the information about one processor in a log
+// transformer.
+type Processor struct {
+
+	// Use this parameter to include the [addKeys] processor in your transformer.
+	//
+	// [addKeys]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-addKeys
+	AddKeys *AddKeys
+
+	// Use this parameter to include the [copyValue] processor in your transformer.
+	//
+	// [copyValue]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-copyValue
+	CopyValue *CopyValue
+
+	// Use this parameter to include the [CSV] processor in your transformer.
+	//
+	// [CSV]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-CSV
+	Csv *CSV
+
+	// Use this parameter to include the [datetimeConverter] processor in your transformer.
+	//
+	// [datetimeConverter]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-datetimeConverter
+	DateTimeConverter *DateTimeConverter
+
+	// Use this parameter to include the [deleteKeys] processor in your transformer.
+	//
+	// [deleteKeys]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-deleteKeys
+	DeleteKeys *DeleteKeys
+
+	// Use this parameter to include the [grok] processor in your transformer.
+	//
+	// [grok]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-grok
+	Grok *Grok
+
+	// Use this parameter to include the [listToMap] processor in your transformer.
+	//
+	// [listToMap]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-listToMap
+	ListToMap *ListToMap
+
+	// Use this parameter to include the [lowerCaseString] processor in your transformer.
+	//
+	// [lowerCaseString]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-lowerCaseString
+	LowerCaseString *LowerCaseString
+
+	// Use this parameter to include the [moveKeys] processor in your transformer.
+	//
+	// [moveKeys]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-moveKeys
+	MoveKeys *MoveKeys
+
+	// Use this parameter to include the [parseCloudfront] processor in your transformer.
+	//
+	// If you use this processor, it must be the first processor in your transformer.
+	//
+	// [parseCloudfront]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-parseCloudfront
+	ParseCloudfront *ParseCloudfront
+
+	// Use this parameter to include the [parseJSON] processor in your transformer.
+	//
+	// [parseJSON]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-parseJSON
+	ParseJSON *ParseJSON
+
+	// Use this parameter to include the [parseKeyValue] processor in your transformer.
+	//
+	// [parseKeyValue]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-parseKeyValue
+	ParseKeyValue *ParseKeyValue
+
+	// Use this parameter to include the [parsePostGres] processor in your transformer.
+	//
+	// If you use this processor, it must be the first processor in your transformer.
+	//
+	// [parsePostGres]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-parsePostGres
+	ParsePostgres *ParsePostgres
+
+	// Use this parameter to include the [parseRoute53] processor in your transformer.
+	//
+	// If you use this processor, it must be the first processor in your transformer.
+	//
+	// [parseRoute53]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-parseRoute53
+	ParseRoute53 *ParseRoute53
+
+	// Use this parameter to convert logs into Open Cybersecurity Schema (OCSF) format.
+	ParseToOCSF *ParseToOCSF
+
+	// Use this parameter to include the [parseVPC] processor in your transformer.
+	//
+	// If you use this processor, it must be the first processor in your transformer.
+	//
+	// [parseVPC]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-parseVPC
+	ParseVPC *ParseVPC
+
+	// Use this parameter to include the [parseWAF] processor in your transformer.
+	//
+	// If you use this processor, it must be the first processor in your transformer.
+	//
+	// [parseWAF]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-parseWAF
+	ParseWAF *ParseWAF
+
+	// Use this parameter to include the [renameKeys] processor in your transformer.
+	//
+	// [renameKeys]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-renameKeys
+	RenameKeys *RenameKeys
+
+	// Use this parameter to include the [splitString] processor in your transformer.
+	//
+	// [splitString]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-splitString
+	SplitString *SplitString
+
+	// Use this parameter to include the [substituteString] processor in your transformer.
+	//
+	// [substituteString]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-substituteString
+	SubstituteString *SubstituteString
+
+	// Use this parameter to include the [trimString] processor in your transformer.
+	//
+	// [trimString]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-trimString
+	TrimString *TrimString
+
+	// Use this parameter to include the [typeConverter] processor in your transformer.
+	//
+	// [typeConverter]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-typeConverter
+	TypeConverter *TypeConverter
+
+	// Use this parameter to include the [upperCaseString] processor in your transformer.
+	//
+	// [upperCaseString]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-upperCaseString
+	UpperCaseString *UpperCaseString
 
 	noSmithyDocumentSerde
 }
@@ -868,9 +2143,15 @@ type QueryDefinition struct {
 	// The unique ID of the query definition.
 	QueryDefinitionId *string
 
-	// The query string to use for this definition. For more information, see
-	// CloudWatch Logs Insights Query Syntax (https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_QuerySyntax.html)
-	// .
+	// The query language used for this query. For more information about the query
+	// languages that CloudWatch Logs supports, see [Supported query languages].
+	//
+	// [Supported query languages]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_AnalyzeLogData_Languages.html
+	QueryLanguage QueryLanguage
+
+	// The query string to use for this definition. For more information, see [CloudWatch Logs Insights Query Syntax].
+	//
+	// [CloudWatch Logs Insights Query Syntax]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_QuerySyntax.html
 	QueryString *string
 
 	noSmithyDocumentSerde
@@ -889,6 +2170,12 @@ type QueryInfo struct {
 	// The unique ID number of this query.
 	QueryId *string
 
+	// The query language used for this query. For more information about the query
+	// languages that CloudWatch Logs supports, see [Supported query languages].
+	//
+	// [Supported query languages]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_AnalyzeLogData_Languages.html
+	QueryLanguage QueryLanguage
+
 	// The query string used in this query.
 	QueryString *string
 
@@ -902,10 +2189,36 @@ type QueryInfo struct {
 // Contains the number of log events scanned by the query, the number of log
 // events that matched the query criteria, and the total number of bytes in the log
 // events that were scanned.
+//
+// If the query involved log groups that have field index policies, the estimated
+// number of skipped log events and the total bytes of those skipped log events are
+// included. Using field indexes to skip log events in queries reduces scan volume
+// and improves performance. For more information, see [Create field indexes to improve query performance and reduce scan volume].
+//
+// [Create field indexes to improve query performance and reduce scan volume]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatchLogs-Field-Indexing.html
 type QueryStatistics struct {
 
 	// The total number of bytes in the log events scanned during the query.
 	BytesScanned float64
+
+	// An estimate of the number of bytes in the log events that were skipped when
+	// processing this query, because the query contained an indexed field. Skipping
+	// these entries lowers query costs and improves the query performance time. For
+	// more information about field indexes, see [PutIndexPolicy].
+	//
+	// [PutIndexPolicy]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutIndexPolicy.html
+	EstimatedBytesSkipped float64
+
+	// An estimate of the number of log events that were skipped when processing this
+	// query, because the query contained an indexed field. Skipping these entries
+	// lowers query costs and improves the query performance time. For more information
+	// about field indexes, see [PutIndexPolicy].
+	//
+	// [PutIndexPolicy]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutIndexPolicy.html
+	EstimatedRecordsSkipped float64
+
+	// The number of log groups that were scanned by this query.
+	LogGroupsScanned float64
 
 	// The number of log events that matched the query string.
 	RecordsMatched float64
@@ -916,20 +2229,112 @@ type QueryStatistics struct {
 	noSmithyDocumentSerde
 }
 
+// A structure that represents a valid record field header and whether it is
+// mandatory.
+type RecordField struct {
+
+	// If this is true , the record field must be present in the recordFields
+	// parameter provided to a [CreateDelivery]or [UpdateDeliveryConfiguration] operation.
+	//
+	// [CreateDelivery]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateDelivery.html
+	// [UpdateDeliveryConfiguration]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_UpdateDeliveryConfiguration.html
+	Mandatory *bool
+
+	// The name to use when specifying this record field in a [CreateDelivery] or [UpdateDeliveryConfiguration] operation.
+	//
+	// [CreateDelivery]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateDelivery.html
+	// [UpdateDeliveryConfiguration]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_UpdateDeliveryConfiguration.html
+	Name *string
+
+	noSmithyDocumentSerde
+}
+
+// If an entity is rejected when a PutLogEvents request was made, this includes
+// details about the reason for the rejection.
+type RejectedEntityInfo struct {
+
+	// The type of error that caused the rejection of the entity when calling
+	// PutLogEvents .
+	//
+	// This member is required.
+	ErrorType EntityRejectionErrorType
+
+	noSmithyDocumentSerde
+}
+
 // Represents the rejected events.
 type RejectedLogEventsInfo struct {
 
 	// The expired log events.
 	ExpiredLogEventEndIndex *int32
 
-	// The log events that are too new.
+	// The index of the first log event that is too new. This field is inclusive.
 	TooNewLogEventStartIndex *int32
 
-	// The log events that are dated too far in the past.
+	// The index of the last log event that is too old. This field is exclusive.
 	TooOldLogEventEndIndex *int32
 
 	noSmithyDocumentSerde
 }
+
+// This object defines one key that will be renamed with the [renameKey] processor.
+//
+// [renameKey]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-renameKey
+type RenameKeyEntry struct {
+
+	// The key to rename
+	//
+	// This member is required.
+	Key *string
+
+	// The string to use for the new key name
+	//
+	// This member is required.
+	RenameTo *string
+
+	// Specifies whether to overwrite the existing value if the destination key
+	// already exists. The default is false
+	OverwriteIfExists bool
+
+	noSmithyDocumentSerde
+}
+
+// Use this processor to rename keys in a log event.
+//
+// For more information about this processor including examples, see [renameKeys] in the
+// CloudWatch Logs User Guide.
+//
+// [renameKeys]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-renameKeys
+type RenameKeys struct {
+
+	// An array of RenameKeyEntry objects, where each object contains the information
+	// about a single key to rename.
+	//
+	// This member is required.
+	Entries []RenameKeyEntry
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains configuration details about an integration between
+// CloudWatch Logs and another entity.
+//
+// The following types satisfy this interface:
+//
+//	ResourceConfigMemberOpenSearchResourceConfig
+type ResourceConfig interface {
+	isResourceConfig()
+}
+
+// This structure contains configuration details about an integration between
+// CloudWatch Logs and OpenSearch Service.
+type ResourceConfigMemberOpenSearchResourceConfig struct {
+	Value OpenSearchResourceConfig
+
+	noSmithyDocumentSerde
+}
+
+func (*ResourceConfigMemberOpenSearchResourceConfig) isResourceConfig() {}
 
 // A policy enabling one or more entities to put logs to a log group in this
 // account.
@@ -945,13 +2350,27 @@ type ResourcePolicy struct {
 	// The name of the resource policy.
 	PolicyName *string
 
+	// Specifies scope of the resource policy. Valid values are ACCOUNT or RESOURCE.
+	PolicyScope PolicyScope
+
+	// The ARN of the CloudWatch Logs resource to which the resource policy is
+	// attached. Only populated for resource-scoped policies.
+	ResourceArn *string
+
+	// The revision ID of the resource policy. Only populated for resource-scoped
+	// policies.
+	RevisionId *string
+
 	noSmithyDocumentSerde
 }
 
 // Contains one field from one log event returned by a CloudWatch Logs Insights
-// query, along with the value of that field. For more information about the fields
-// that are generated by CloudWatch logs, see Supported Logs and Discovered Fields (https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_AnalyzeLogData-discoverable-fields.html)
-// .
+// query, along with the value of that field.
+//
+// For more information about the fields that are generated by CloudWatch logs,
+// see [Supported Logs and Discovered Fields].
+//
+// [Supported Logs and Discovered Fields]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_AnalyzeLogData-discoverable-fields.html
 type ResultField struct {
 
 	// The log event field.
@@ -959,6 +2378,26 @@ type ResultField struct {
 
 	// The value of this field.
 	Value *string
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains delivery configurations that apply only when the
+// delivery destination resource is an S3 bucket.
+type S3DeliveryConfiguration struct {
+
+	// This parameter causes the S3 objects that contain delivered logs to use a
+	// prefix structure that allows for integration with Apache Hive.
+	EnableHiveCompatiblePath *bool
+
+	// This string allows re-configuring the S3 object prefix to contain either static
+	// or variable sections. The valid variables to use in the suffix path will vary by
+	// each log source. To find the values supported for the suffix path for each log
+	// source, use the [DescribeConfigurationTemplates]operation and check the allowedSuffixPathFields field in the
+	// response.
+	//
+	// [DescribeConfigurationTemplates]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DescribeConfigurationTemplates.html
+	SuffixPath *string
 
 	noSmithyDocumentSerde
 }
@@ -975,13 +2414,50 @@ type SearchedLogStream struct {
 	noSmithyDocumentSerde
 }
 
-// This object includes the stream returned by your StartLiveTail (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_StartLiveTail.html)
-// request.
+// Use this processor to split a field into an array of strings using a delimiting
+// character.
+//
+// For more information about this processor including examples, see [splitString] in the
+// CloudWatch Logs User Guide.
+//
+// [splitString]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-splitString
+type SplitString struct {
+
+	// An array of SplitStringEntry objects, where each object contains the
+	// information about one field to split.
+	//
+	// This member is required.
+	Entries []SplitStringEntry
+
+	noSmithyDocumentSerde
+}
+
+// This object defines one log field that will be split with the [splitString] processor.
+//
+// [splitString]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-splitString
+type SplitStringEntry struct {
+
+	// The separator characters to split the string entry on.
+	//
+	// This member is required.
+	Delimiter *string
+
+	// The key of the field to split.
+	//
+	// This member is required.
+	Source *string
+
+	noSmithyDocumentSerde
+}
+
+// This object includes the stream returned by your [StartLiveTail] request.
 //
 // The following types satisfy this interface:
 //
 //	StartLiveTailResponseStreamMemberSessionStart
 //	StartLiveTailResponseStreamMemberSessionUpdate
+//
+// [StartLiveTail]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_StartLiveTail.html
 type StartLiveTailResponseStream interface {
 	isStartLiveTailResponseStream()
 }
@@ -1008,6 +2484,15 @@ func (*StartLiveTailResponseStreamMemberSessionUpdate) isStartLiveTailResponseSt
 // Represents a subscription filter.
 type SubscriptionFilter struct {
 
+	// This parameter is valid only for log groups that have an active log
+	// transformer. For more information about log transformers, see [PutTransformer].
+	//
+	// If this value is true , the subscription filter is applied on the transformed
+	// version of the log events instead of the original ingested log events.
+	//
+	// [PutTransformer]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutTransformer.html
+	ApplyOnTransformedLogs bool
+
 	// The creation time of the subscription filter, expressed as the number of
 	// milliseconds after Jan 1, 1970 00:00:00 UTC .
 	CreationTime *int64
@@ -1018,6 +2503,16 @@ type SubscriptionFilter struct {
 	// The method used to distribute log data to the destination, which can be either
 	// random or grouped by log stream.
 	Distribution Distribution
+
+	// The list of system fields that are included in the log events sent to the
+	// subscription destination. Returns the emitSystemFields value if it was
+	// specified when the subscription filter was created.
+	EmitSystemFields []string
+
+	// The filter expression that specifies which log events are processed by this
+	// subscription filter based on system fields. Returns the fieldSelectionCriteria
+	// value if it was specified when the subscription filter was created.
+	FieldSelectionCriteria *string
 
 	// The name of the subscription filter.
 	FilterName *string
@@ -1037,6 +2532,52 @@ type SubscriptionFilter struct {
 	noSmithyDocumentSerde
 }
 
+// This processor matches a key’s value against a regular expression and replaces
+// all matches with a replacement string.
+//
+// For more information about this processor including examples, see [substituteString] in the
+// CloudWatch Logs User Guide.
+//
+// [substituteString]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-substituteString
+type SubstituteString struct {
+
+	// An array of objects, where each object contains the information about one key
+	// to match and replace.
+	//
+	// This member is required.
+	Entries []SubstituteStringEntry
+
+	noSmithyDocumentSerde
+}
+
+// This object defines one log field key that will be replaced using the [substituteString]
+// processor.
+//
+// [substituteString]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-substituteString
+type SubstituteStringEntry struct {
+
+	// The regular expression string to be replaced. Special regex characters such as
+	// [ and ] must be escaped using \\ when using double quotes and with \ when using
+	// single quotes. For more information, see [Class Pattern]on the Oracle web site.
+	//
+	// [Class Pattern]: https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/regex/Pattern.html
+	//
+	// This member is required.
+	From *string
+
+	// The key to modify
+	//
+	// This member is required.
+	Source *string
+
+	// The string to be substituted for each match of from
+	//
+	// This member is required.
+	To *string
+
+	noSmithyDocumentSerde
+}
+
 // If you are suppressing an anomaly temporariliy, this structure defines how long
 // the suppression period is to be.
 type SuppressionPeriod struct {
@@ -1047,6 +2588,93 @@ type SuppressionPeriod struct {
 	// Specifies the number of seconds, minutes or hours to suppress this anomaly.
 	// There is no maximum.
 	Value int32
+
+	noSmithyDocumentSerde
+}
+
+// This structure contains information for one log event that has been processed
+// by a log transformer.
+type TransformedLogRecord struct {
+
+	// The original log event message before it was transformed.
+	EventMessage *string
+
+	// The event number.
+	EventNumber int64
+
+	// The log event message after being transformed.
+	TransformedEventMessage *string
+
+	noSmithyDocumentSerde
+}
+
+// Use this processor to remove leading and trailing whitespace.
+//
+// For more information about this processor including examples, see [trimString] in the
+// CloudWatch Logs User Guide.
+//
+// [trimString]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-trimString
+type TrimString struct {
+
+	// The array containing the keys of the fields to trim.
+	//
+	// This member is required.
+	WithKeys []string
+
+	noSmithyDocumentSerde
+}
+
+// Use this processor to convert a value type associated with the specified key to
+// the specified type. It's a casting processor that changes the types of the
+// specified fields. Values can be converted into one of the following datatypes:
+// integer , double , string and boolean .
+//
+// For more information about this processor including examples, see [trimString] in the
+// CloudWatch Logs User Guide.
+//
+// [trimString]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-trimString
+type TypeConverter struct {
+
+	// An array of TypeConverterEntry objects, where each object contains the
+	// information about one field to change the type of.
+	//
+	// This member is required.
+	Entries []TypeConverterEntry
+
+	noSmithyDocumentSerde
+}
+
+// This object defines one value type that will be converted using the [typeConverter] processor.
+//
+// [typeConverter]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-typeConverter
+type TypeConverterEntry struct {
+
+	// The key with the value that is to be converted to a different type.
+	//
+	// This member is required.
+	Key *string
+
+	// The type to convert the field value to. Valid values are integer , double ,
+	// string and boolean .
+	//
+	// This member is required.
+	Type Type
+
+	noSmithyDocumentSerde
+}
+
+// This processor converts a string field to uppercase.
+//
+// For more information about this processor including examples, see [upperCaseString] in the
+// CloudWatch Logs User Guide.
+//
+// [upperCaseString]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-upperCaseString
+type UpperCaseString struct {
+
+	// The array of containing the keys of the field to convert to uppercase.
+	//
+	// This member is required.
+	WithKeys []string
 
 	noSmithyDocumentSerde
 }
@@ -1062,4 +2690,7 @@ type UnknownUnionMember struct {
 	noSmithyDocumentSerde
 }
 
+func (*UnknownUnionMember) isGetLogObjectResponseStream()  {}
+func (*UnknownUnionMember) isIntegrationDetails()          {}
+func (*UnknownUnionMember) isResourceConfig()              {}
 func (*UnknownUnionMember) isStartLiveTailResponseStream() {}

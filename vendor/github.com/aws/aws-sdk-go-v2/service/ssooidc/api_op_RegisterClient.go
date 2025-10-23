@@ -10,9 +10,9 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Registers a client with IAM Identity Center. This allows clients to initiate
-// device authorization. The output should be persisted for reuse through many
-// authentication requests.
+// Registers a public client with IAM Identity Center. This allows clients to
+// perform authorization using the authorization code grant with Proof Key for Code
+// Exchange (PKCE) or the device code grant.
 func (c *Client) RegisterClient(ctx context.Context, params *RegisterClientInput, optFns ...func(*Options)) (*RegisterClientOutput, error) {
 	if params == nil {
 		params = &RegisterClientInput{}
@@ -48,7 +48,15 @@ type RegisterClientInput struct {
 	EntitledApplicationArn *string
 
 	// The list of OAuth 2.0 grant types that are defined by the client. This list is
-	// used to restrict the token granting flows available to the client.
+	// used to restrict the token granting flows available to the client. Supports the
+	// following OAuth 2.0 grant types: Authorization Code, Device Code, and Refresh
+	// Token.
+	//
+	// * Authorization Code - authorization_code
+	//
+	// * Device Code - urn:ietf:params:oauth:grant-type:device_code
+	//
+	// * Refresh Token - refresh_token
 	GrantTypes []string
 
 	// The IAM Identity Center Issuer URL associated with an instance of IAM Identity
@@ -135,6 +143,9 @@ func (c *Client) addOperationRegisterClientMiddlewares(stack *middleware.Stack, 
 	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
+		return err
+	}
 	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
@@ -151,6 +162,9 @@ func (c *Client) addOperationRegisterClientMiddlewares(stack *middleware.Stack, 
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpRegisterClientValidationMiddleware(stack); err != nil {
@@ -172,6 +186,48 @@ func (c *Client) addOperationRegisterClientMiddlewares(stack *middleware.Stack, 
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptExecution(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptTransmit(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

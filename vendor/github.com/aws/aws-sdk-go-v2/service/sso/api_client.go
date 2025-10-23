@@ -4,6 +4,7 @@ package sso
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/defaults"
@@ -19,7 +20,9 @@ import (
 	smithyauth "github.com/aws/smithy-go/auth"
 	smithydocument "github.com/aws/smithy-go/document"
 	"github.com/aws/smithy-go/logging"
+	"github.com/aws/smithy-go/metrics"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/tracing"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"net"
 	"net/http"
@@ -29,6 +32,133 @@ import (
 
 const ServiceID = "SSO"
 const ServiceAPIVersion = "2019-06-10"
+
+type operationMetrics struct {
+	Duration                metrics.Float64Histogram
+	SerializeDuration       metrics.Float64Histogram
+	ResolveIdentityDuration metrics.Float64Histogram
+	ResolveEndpointDuration metrics.Float64Histogram
+	SignRequestDuration     metrics.Float64Histogram
+	DeserializeDuration     metrics.Float64Histogram
+}
+
+func (m *operationMetrics) histogramFor(name string) metrics.Float64Histogram {
+	switch name {
+	case "client.call.duration":
+		return m.Duration
+	case "client.call.serialization_duration":
+		return m.SerializeDuration
+	case "client.call.resolve_identity_duration":
+		return m.ResolveIdentityDuration
+	case "client.call.resolve_endpoint_duration":
+		return m.ResolveEndpointDuration
+	case "client.call.signing_duration":
+		return m.SignRequestDuration
+	case "client.call.deserialization_duration":
+		return m.DeserializeDuration
+	default:
+		panic("unrecognized operation metric")
+	}
+}
+
+func timeOperationMetric[T any](
+	ctx context.Context, metric string, fn func() (T, error),
+	opts ...metrics.RecordMetricOption,
+) (T, error) {
+	instr := getOperationMetrics(ctx).histogramFor(metric)
+	opts = append([]metrics.RecordMetricOption{withOperationMetadata(ctx)}, opts...)
+
+	start := time.Now()
+	v, err := fn()
+	end := time.Now()
+
+	elapsed := end.Sub(start)
+	instr.Record(ctx, float64(elapsed)/1e9, opts...)
+	return v, err
+}
+
+func startMetricTimer(ctx context.Context, metric string, opts ...metrics.RecordMetricOption) func() {
+	instr := getOperationMetrics(ctx).histogramFor(metric)
+	opts = append([]metrics.RecordMetricOption{withOperationMetadata(ctx)}, opts...)
+
+	var ended bool
+	start := time.Now()
+	return func() {
+		if ended {
+			return
+		}
+		ended = true
+
+		end := time.Now()
+
+		elapsed := end.Sub(start)
+		instr.Record(ctx, float64(elapsed)/1e9, opts...)
+	}
+}
+
+func withOperationMetadata(ctx context.Context) metrics.RecordMetricOption {
+	return func(o *metrics.RecordMetricOptions) {
+		o.Properties.Set("rpc.service", middleware.GetServiceID(ctx))
+		o.Properties.Set("rpc.method", middleware.GetOperationName(ctx))
+	}
+}
+
+type operationMetricsKey struct{}
+
+func withOperationMetrics(parent context.Context, mp metrics.MeterProvider) (context.Context, error) {
+	meter := mp.Meter("github.com/aws/aws-sdk-go-v2/service/sso")
+	om := &operationMetrics{}
+
+	var err error
+
+	om.Duration, err = operationMetricTimer(meter, "client.call.duration",
+		"Overall call duration (including retries and time to send or receive request and response body)")
+	if err != nil {
+		return nil, err
+	}
+	om.SerializeDuration, err = operationMetricTimer(meter, "client.call.serialization_duration",
+		"The time it takes to serialize a message body")
+	if err != nil {
+		return nil, err
+	}
+	om.ResolveIdentityDuration, err = operationMetricTimer(meter, "client.call.auth.resolve_identity_duration",
+		"The time taken to acquire an identity (AWS credentials, bearer token, etc) from an Identity Provider")
+	if err != nil {
+		return nil, err
+	}
+	om.ResolveEndpointDuration, err = operationMetricTimer(meter, "client.call.resolve_endpoint_duration",
+		"The time it takes to resolve an endpoint (endpoint resolver, not DNS) for the request")
+	if err != nil {
+		return nil, err
+	}
+	om.SignRequestDuration, err = operationMetricTimer(meter, "client.call.auth.signing_duration",
+		"The time it takes to sign a request")
+	if err != nil {
+		return nil, err
+	}
+	om.DeserializeDuration, err = operationMetricTimer(meter, "client.call.deserialization_duration",
+		"The time it takes to deserialize a message body")
+	if err != nil {
+		return nil, err
+	}
+
+	return context.WithValue(parent, operationMetricsKey{}, om), nil
+}
+
+func operationMetricTimer(m metrics.Meter, name, desc string) (metrics.Float64Histogram, error) {
+	return m.Float64Histogram(name, func(o *metrics.InstrumentOptions) {
+		o.UnitLabel = "s"
+		o.Description = desc
+	})
+}
+
+func getOperationMetrics(ctx context.Context) *operationMetrics {
+	return ctx.Value(operationMetricsKey{}).(*operationMetrics)
+}
+
+func operationTracer(p tracing.TracerProvider) tracing.Tracer {
+	return p.Tracer("github.com/aws/aws-sdk-go-v2/service/sso")
+}
 
 // Client provides the API client to make operations call for AWS Single Sign-On.
 type Client struct {
@@ -55,6 +185,10 @@ func New(options Options, optFns ...func(*Options)) *Client {
 	resolveHTTPSignerV4(&options)
 
 	resolveEndpointResolverV2(&options)
+
+	resolveTracerProvider(&options)
+
+	resolveMeterProvider(&options)
 
 	resolveAuthSchemeResolver(&options)
 
@@ -88,8 +222,15 @@ func (c *Client) Options() Options {
 	return c.options.Copy()
 }
 
-func (c *Client) invokeOperation(ctx context.Context, opID string, params interface{}, optFns []func(*Options), stackFns ...func(*middleware.Stack, Options) error) (result interface{}, metadata middleware.Metadata, err error) {
+func (c *Client) invokeOperation(
+	ctx context.Context, opID string, params interface{}, optFns []func(*Options), stackFns ...func(*middleware.Stack, Options) error,
+) (
+	result interface{}, metadata middleware.Metadata, err error,
+) {
 	ctx = middleware.ClearStackValues(ctx)
+	ctx = middleware.WithServiceID(ctx, ServiceID)
+	ctx = middleware.WithOperationName(ctx, opID)
+
 	stack := middleware.NewStack(opID, smithyhttp.NewStackRequest)
 	options := c.options.Copy()
 
@@ -113,15 +254,56 @@ func (c *Client) invokeOperation(ctx context.Context, opID string, params interf
 		}
 	}
 
-	handler := middleware.DecorateHandler(smithyhttp.NewClientHandler(options.HTTPClient), stack)
-	result, metadata, err = handler.Handle(ctx, params)
+	ctx, err = withOperationMetrics(ctx, options.MeterProvider)
 	if err != nil {
+		return nil, metadata, err
+	}
+
+	tracer := operationTracer(options.TracerProvider)
+	spanName := fmt.Sprintf("%s.%s", ServiceID, opID)
+
+	ctx = tracing.WithOperationTracer(ctx, tracer)
+
+	ctx, span := tracer.StartSpan(ctx, spanName, func(o *tracing.SpanOptions) {
+		o.Kind = tracing.SpanKindClient
+		o.Properties.Set("rpc.system", "aws-api")
+		o.Properties.Set("rpc.method", opID)
+		o.Properties.Set("rpc.service", ServiceID)
+	})
+	endTimer := startMetricTimer(ctx, "client.call.duration")
+	defer endTimer()
+	defer span.End()
+
+	handler := smithyhttp.NewClientHandlerWithOptions(options.HTTPClient, func(o *smithyhttp.ClientHandler) {
+		o.Meter = options.MeterProvider.Meter("github.com/aws/aws-sdk-go-v2/service/sso")
+	})
+	decorated := middleware.DecorateHandler(handler, stack)
+	result, metadata, err = decorated.Handle(ctx, params)
+	if err != nil {
+		span.SetProperty("exception.type", fmt.Sprintf("%T", err))
+		span.SetProperty("exception.message", err.Error())
+
+		var aerr smithy.APIError
+		if errors.As(err, &aerr) {
+			span.SetProperty("api.error_code", aerr.ErrorCode())
+			span.SetProperty("api.error_message", aerr.ErrorMessage())
+			span.SetProperty("api.error_fault", aerr.ErrorFault().String())
+		}
+
 		err = &smithy.OperationError{
 			ServiceID:     ServiceID,
 			OperationName: opID,
 			Err:           err,
 		}
 	}
+
+	span.SetProperty("error", err != nil)
+	if err == nil {
+		span.SetStatus(tracing.SpanStatusOK)
+	} else {
+		span.SetStatus(tracing.SpanStatusError)
+	}
+
 	return result, metadata, err
 }
 
@@ -159,7 +341,7 @@ func addProtocolFinalizerMiddlewares(stack *middleware.Stack, options Options, o
 	if err := stack.Finalize.Insert(&resolveEndpointV2Middleware{options: options}, "GetIdentity", middleware.After); err != nil {
 		return fmt.Errorf("add ResolveEndpointV2: %v", err)
 	}
-	if err := stack.Finalize.Insert(&signRequestMiddleware{}, "ResolveEndpointV2", middleware.After); err != nil {
+	if err := stack.Finalize.Insert(&signRequestMiddleware{options: options}, "ResolveEndpointV2", middleware.After); err != nil {
 		return fmt.Errorf("add Signing: %w", err)
 	}
 	return nil
@@ -237,25 +419,33 @@ func setResolvedDefaultsMode(o *Options) {
 // NewFromConfig returns a new client from the provided config.
 func NewFromConfig(cfg aws.Config, optFns ...func(*Options)) *Client {
 	opts := Options{
-		Region:                cfg.Region,
-		DefaultsMode:          cfg.DefaultsMode,
-		RuntimeEnvironment:    cfg.RuntimeEnvironment,
-		HTTPClient:            cfg.HTTPClient,
-		Credentials:           cfg.Credentials,
-		APIOptions:            cfg.APIOptions,
-		Logger:                cfg.Logger,
-		ClientLogMode:         cfg.ClientLogMode,
-		AppID:                 cfg.AppID,
-		AccountIDEndpointMode: cfg.AccountIDEndpointMode,
+		Region:               cfg.Region,
+		DefaultsMode:         cfg.DefaultsMode,
+		RuntimeEnvironment:   cfg.RuntimeEnvironment,
+		HTTPClient:           cfg.HTTPClient,
+		Credentials:          cfg.Credentials,
+		APIOptions:           cfg.APIOptions,
+		Logger:               cfg.Logger,
+		ClientLogMode:        cfg.ClientLogMode,
+		AppID:                cfg.AppID,
+		AuthSchemePreference: cfg.AuthSchemePreference,
 	}
 	resolveAWSRetryerProvider(cfg, &opts)
 	resolveAWSRetryMaxAttempts(cfg, &opts)
 	resolveAWSRetryMode(cfg, &opts)
 	resolveAWSEndpointResolver(cfg, &opts)
+	resolveInterceptors(cfg, &opts)
 	resolveUseDualStackEndpoint(cfg, &opts)
 	resolveUseFIPSEndpoint(cfg, &opts)
 	resolveBaseEndpoint(cfg, &opts)
-	return New(opts, optFns...)
+	return New(opts, func(o *Options) {
+		for _, opt := range cfg.ServiceOptions {
+			opt(ServiceID, o)
+		}
+		for _, opt := range optFns {
+			opt(o)
+		}
+	})
 }
 
 func resolveHTTPClient(o *Options) {
@@ -369,6 +559,10 @@ func resolveAWSEndpointResolver(cfg aws.Config, o *Options) {
 	o.EndpointResolver = withEndpointResolver(cfg.EndpointResolver, cfg.EndpointResolverWithOptions)
 }
 
+func resolveInterceptors(cfg aws.Config, o *Options) {
+	o.Interceptors = cfg.Interceptors.Copy()
+}
+
 func addClientUserAgent(stack *middleware.Stack, options Options) error {
 	ua, err := getOrAddRequestUserAgent(stack)
 	if err != nil {
@@ -434,6 +628,30 @@ func addRawResponseToMetadata(stack *middleware.Stack) error {
 func addRecordResponseTiming(stack *middleware.Stack) error {
 	return stack.Deserialize.Add(&awsmiddleware.RecordResponseTiming{}, middleware.After)
 }
+
+func addSpanRetryLoop(stack *middleware.Stack, options Options) error {
+	return stack.Finalize.Insert(&spanRetryLoop{options: options}, "Retry", middleware.Before)
+}
+
+type spanRetryLoop struct {
+	options Options
+}
+
+func (*spanRetryLoop) ID() string {
+	return "spanRetryLoop"
+}
+
+func (m *spanRetryLoop) HandleFinalize(
+	ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler,
+) (
+	middleware.FinalizeOutput, middleware.Metadata, error,
+) {
+	tracer := operationTracer(m.options.TracerProvider)
+	ctx, span := tracer.StartSpan(ctx, "RetryLoop")
+	defer span.End()
+
+	return next.HandleFinalize(ctx, in)
+}
 func addStreamingEventsPayload(stack *middleware.Stack) error {
 	return stack.Finalize.Add(&v4.StreamingEventsPayload{}, middleware.Before)
 }
@@ -477,8 +695,9 @@ func addIsPaginatorUserAgent(o *Options) {
 func addRetry(stack *middleware.Stack, o Options) error {
 	attempt := retry.NewAttemptMiddleware(o.Retryer, smithyhttp.RequestCloner, func(m *retry.Attempt) {
 		m.LogAttempts = o.ClientLogMode.IsRetries()
+		m.OperationMeter = o.MeterProvider.Meter("github.com/aws/aws-sdk-go-v2/service/sso")
 	})
-	if err := stack.Finalize.Insert(attempt, "Signing", middleware.Before); err != nil {
+	if err := stack.Finalize.Insert(attempt, "ResolveAuthScheme", middleware.Before); err != nil {
 		return err
 	}
 	if err := stack.Finalize.Insert(&retry.MetricsHeader{}, attempt.ID(), middleware.After); err != nil {
@@ -540,25 +759,6 @@ func initializeTimeOffsetResolver(c *Client) {
 	c.timeOffset = new(atomic.Int64)
 }
 
-func checkAccountID(identity smithyauth.Identity, mode aws.AccountIDEndpointMode) error {
-	switch mode {
-	case aws.AccountIDEndpointModeUnset:
-	case aws.AccountIDEndpointModePreferred:
-	case aws.AccountIDEndpointModeDisabled:
-	case aws.AccountIDEndpointModeRequired:
-		if ca, ok := identity.(*internalauthsmithy.CredentialsAdapter); !ok {
-			return fmt.Errorf("accountID is required but not set")
-		} else if ca.Credentials.AccountID == "" {
-			return fmt.Errorf("accountID is required but not set")
-		}
-	// default check in case invalid mode is configured through request config
-	default:
-		return fmt.Errorf("invalid accountID endpoint mode %s, must be preferred/required/disabled", mode)
-	}
-
-	return nil
-}
-
 func addUserAgentRetryMode(stack *middleware.Stack, options Options) error {
 	ua, err := getOrAddRequestUserAgent(stack)
 	if err != nil {
@@ -572,6 +772,49 @@ func addUserAgentRetryMode(stack *middleware.Stack, options Options) error {
 		ua.AddUserAgentFeature(awsmiddleware.UserAgentFeatureRetryModeAdaptive)
 	}
 	return nil
+}
+
+type setCredentialSourceMiddleware struct {
+	ua      *awsmiddleware.RequestUserAgent
+	options Options
+}
+
+func (m setCredentialSourceMiddleware) ID() string { return "SetCredentialSourceMiddleware" }
+
+func (m setCredentialSourceMiddleware) HandleBuild(ctx context.Context, in middleware.BuildInput, next middleware.BuildHandler) (
+	out middleware.BuildOutput, metadata middleware.Metadata, err error,
+) {
+	asProviderSource, ok := m.options.Credentials.(aws.CredentialProviderSource)
+	if !ok {
+		return next.HandleBuild(ctx, in)
+	}
+	providerSources := asProviderSource.ProviderSources()
+	for _, source := range providerSources {
+		m.ua.AddCredentialsSource(source)
+	}
+	return next.HandleBuild(ctx, in)
+}
+
+func addCredentialSource(stack *middleware.Stack, options Options) error {
+	ua, err := getOrAddRequestUserAgent(stack)
+	if err != nil {
+		return err
+	}
+
+	mw := setCredentialSourceMiddleware{ua: ua, options: options}
+	return stack.Build.Insert(&mw, "UserAgent", middleware.Before)
+}
+
+func resolveTracerProvider(options *Options) {
+	if options.TracerProvider == nil {
+		options.TracerProvider = &tracing.NopTracerProvider{}
+	}
+}
+
+func resolveMeterProvider(options *Options) {
+	if options.MeterProvider == nil {
+		options.MeterProvider = metrics.NopMeterProvider{}
+	}
 }
 
 func addRecursionDetection(stack *middleware.Stack) error {
@@ -624,4 +867,153 @@ func addDisableHTTPSMiddleware(stack *middleware.Stack, o Options) error {
 	return stack.Finalize.Insert(&disableHTTPSMiddleware{
 		DisableHTTPS: o.EndpointOptions.DisableHTTPS,
 	}, "ResolveEndpointV2", middleware.After)
+}
+
+func addInterceptBeforeRetryLoop(stack *middleware.Stack, opts Options) error {
+	return stack.Finalize.Insert(&smithyhttp.InterceptBeforeRetryLoop{
+		Interceptors: opts.Interceptors.BeforeRetryLoop,
+	}, "Retry", middleware.Before)
+}
+
+func addInterceptAttempt(stack *middleware.Stack, opts Options) error {
+	return stack.Finalize.Insert(&smithyhttp.InterceptAttempt{
+		BeforeAttempt: opts.Interceptors.BeforeAttempt,
+		AfterAttempt:  opts.Interceptors.AfterAttempt,
+	}, "Retry", middleware.After)
+}
+
+func addInterceptExecution(stack *middleware.Stack, opts Options) error {
+	return stack.Initialize.Add(&smithyhttp.InterceptExecution{
+		BeforeExecution: opts.Interceptors.BeforeExecution,
+		AfterExecution:  opts.Interceptors.AfterExecution,
+	}, middleware.Before)
+}
+
+func addInterceptBeforeSerialization(stack *middleware.Stack, opts Options) error {
+	return stack.Serialize.Insert(&smithyhttp.InterceptBeforeSerialization{
+		Interceptors: opts.Interceptors.BeforeSerialization,
+	}, "OperationSerializer", middleware.Before)
+}
+
+func addInterceptAfterSerialization(stack *middleware.Stack, opts Options) error {
+	return stack.Serialize.Insert(&smithyhttp.InterceptAfterSerialization{
+		Interceptors: opts.Interceptors.AfterSerialization,
+	}, "OperationSerializer", middleware.After)
+}
+
+func addInterceptBeforeSigning(stack *middleware.Stack, opts Options) error {
+	return stack.Finalize.Insert(&smithyhttp.InterceptBeforeSigning{
+		Interceptors: opts.Interceptors.BeforeSigning,
+	}, "Signing", middleware.Before)
+}
+
+func addInterceptAfterSigning(stack *middleware.Stack, opts Options) error {
+	return stack.Finalize.Insert(&smithyhttp.InterceptAfterSigning{
+		Interceptors: opts.Interceptors.AfterSigning,
+	}, "Signing", middleware.After)
+}
+
+func addInterceptTransmit(stack *middleware.Stack, opts Options) error {
+	return stack.Deserialize.Add(&smithyhttp.InterceptTransmit{
+		BeforeTransmit: opts.Interceptors.BeforeTransmit,
+		AfterTransmit:  opts.Interceptors.AfterTransmit,
+	}, middleware.After)
+}
+
+func addInterceptBeforeDeserialization(stack *middleware.Stack, opts Options) error {
+	return stack.Deserialize.Insert(&smithyhttp.InterceptBeforeDeserialization{
+		Interceptors: opts.Interceptors.BeforeDeserialization,
+	}, "OperationDeserializer", middleware.After) // (deserialize stack is called in reverse)
+}
+
+func addInterceptAfterDeserialization(stack *middleware.Stack, opts Options) error {
+	return stack.Deserialize.Insert(&smithyhttp.InterceptAfterDeserialization{
+		Interceptors: opts.Interceptors.AfterDeserialization,
+	}, "OperationDeserializer", middleware.Before)
+}
+
+type spanInitializeStart struct {
+}
+
+func (*spanInitializeStart) ID() string {
+	return "spanInitializeStart"
+}
+
+func (m *spanInitializeStart) HandleInitialize(
+	ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler,
+) (
+	middleware.InitializeOutput, middleware.Metadata, error,
+) {
+	ctx, _ = tracing.StartSpan(ctx, "Initialize")
+
+	return next.HandleInitialize(ctx, in)
+}
+
+type spanInitializeEnd struct {
+}
+
+func (*spanInitializeEnd) ID() string {
+	return "spanInitializeEnd"
+}
+
+func (m *spanInitializeEnd) HandleInitialize(
+	ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler,
+) (
+	middleware.InitializeOutput, middleware.Metadata, error,
+) {
+	ctx, span := tracing.PopSpan(ctx)
+	span.End()
+
+	return next.HandleInitialize(ctx, in)
+}
+
+type spanBuildRequestStart struct {
+}
+
+func (*spanBuildRequestStart) ID() string {
+	return "spanBuildRequestStart"
+}
+
+func (m *spanBuildRequestStart) HandleSerialize(
+	ctx context.Context, in middleware.SerializeInput, next middleware.SerializeHandler,
+) (
+	middleware.SerializeOutput, middleware.Metadata, error,
+) {
+	ctx, _ = tracing.StartSpan(ctx, "BuildRequest")
+
+	return next.HandleSerialize(ctx, in)
+}
+
+type spanBuildRequestEnd struct {
+}
+
+func (*spanBuildRequestEnd) ID() string {
+	return "spanBuildRequestEnd"
+}
+
+func (m *spanBuildRequestEnd) HandleBuild(
+	ctx context.Context, in middleware.BuildInput, next middleware.BuildHandler,
+) (
+	middleware.BuildOutput, middleware.Metadata, error,
+) {
+	ctx, span := tracing.PopSpan(ctx)
+	span.End()
+
+	return next.HandleBuild(ctx, in)
+}
+
+func addSpanInitializeStart(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&spanInitializeStart{}, middleware.Before)
+}
+
+func addSpanInitializeEnd(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&spanInitializeEnd{}, middleware.After)
+}
+
+func addSpanBuildRequestStart(stack *middleware.Stack) error {
+	return stack.Serialize.Add(&spanBuildRequestStart{}, middleware.Before)
+}
+
+func addSpanBuildRequestEnd(stack *middleware.Stack) error {
+	return stack.Build.Add(&spanBuildRequestEnd{}, middleware.After)
 }
