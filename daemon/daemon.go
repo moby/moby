@@ -1665,6 +1665,7 @@ func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.Plugin
 		nwconfig.OptionDefaultNetwork(network.DefaultNetwork),
 		nwconfig.OptionNetworkControlPlaneMTU(conf.NetworkControlPlaneMTU),
 		nwconfig.OptionFirewallBackend(conf.FirewallBackend),
+		nwconfig.OptionDefaultNetworkOpts(conf.DefaultNetworkOpts),
 	}
 
 	options = append(options, networkPlatformOptions(conf)...)

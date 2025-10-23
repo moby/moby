@@ -12,6 +12,7 @@ import (
 	"time"
 
 	networktypes "github.com/moby/moby/api/types/network"
+	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
@@ -230,6 +231,56 @@ func TestHostGatewayFromDocker0(t *testing.T) {
 	assert.Check(t, is.Equal(res.ExitCode, 0))
 	assert.Check(t, is.Contains(res.Stdout.String(), "192.168.50.1\thg"))
 	assert.Check(t, is.Contains(res.Stdout.String(), "fddd:6ff4:6e08::1\thg"))
+}
+
+func setupDefaultMTUDaemon(t *testing.T, extraArgs ...string) (context.Context, *daemon.Daemon, client.APIClient) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
+
+	ctx := testutil.StartSpan(baseContext, t)
+
+	args := append([]string{
+		"--iptables=false",
+		"--default-network-opt", "bridge=com.docker.network.driver.mtu=1234",
+	}, extraArgs...)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t, args...)
+	c := d.NewClientT(t)
+
+	t.Cleanup(func() {
+		c.Close()
+		d.Stop(t)
+	})
+
+	return ctx, d, c
+}
+
+func TestDockerGWBridgeDefaultMTU(t *testing.T) {
+	ctx, d, c := setupDefaultMTUDaemon(t, "--swarm-default-advertise-addr=lo")
+
+	d.SwarmInit(ctx, t, swarmtypes.InitRequest{})
+
+	out, err := c.NetworkInspect(ctx, "docker_gwbridge", networktypes.InspectOptions{})
+	assert.NilError(t, err)
+	assert.Equal(t, out.Options["com.docker.network.driver.mtu"], "1234")
+
+	res := testutil.RunCommand(ctx, "ip", "link", "show", "docker_gwbridge")
+	res.Assert(t, icmd.Success)
+	assert.Check(t, is.Contains(res.Combined(), " mtu 1234 "))
+}
+
+func TestBridgeNetworkDefaultMTU(t *testing.T) {
+	ctx, _, c := setupDefaultMTUDaemon(t)
+
+	out, err := c.NetworkInspect(ctx, "bridge", networktypes.InspectOptions{})
+	assert.NilError(t, err)
+	assert.Equal(t, out.Options["com.docker.network.driver.mtu"], "1234")
+
+	res := testutil.RunCommand(ctx, "ip", "link", "show", "docker0")
+	res.Assert(t, icmd.Success)
+	assert.Check(t, is.Contains(res.Combined(), " mtu 1234 "))
 }
 
 func TestCreateWithPriority(t *testing.T) {
