@@ -78,7 +78,7 @@ func TestSetHostHeader(t *testing.T) {
 // API versions < 1.24 returned plain text errors, but we may encounter
 // other situations where a non-JSON error is returned.
 func TestPlainTextError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(plainTextErrorMock(http.StatusInternalServerError, "Server error")))
+	client, err := NewClientWithOpts(WithMockClient(mockResponse(http.StatusInternalServerError, nil, "Server error")))
 	assert.NilError(t, err)
 	_, err = client.ContainerList(context.Background(), ContainerListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
