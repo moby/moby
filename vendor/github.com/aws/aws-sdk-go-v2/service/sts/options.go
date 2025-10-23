@@ -9,7 +9,9 @@ import (
 	internalauthsmithy "github.com/aws/aws-sdk-go-v2/internal/auth/smithy"
 	smithyauth "github.com/aws/smithy-go/auth"
 	"github.com/aws/smithy-go/logging"
+	"github.com/aws/smithy-go/metrics"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/tracing"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"net/http"
 )
@@ -23,9 +25,6 @@ type Options struct {
 	// operations invoked for this client. Use functional options on operation call to
 	// modify this list for per operation behavior.
 	APIOptions []func(*middleware.Stack) error
-
-	// Indicates how aws account ID is applied in endpoint2.0 routing
-	AccountIDEndpointMode aws.AccountIDEndpointMode
 
 	// The optional application specific identifier appended to the User-Agent header.
 	AppID string
@@ -69,6 +68,9 @@ type Options struct {
 	// The logger writer interface to write logging messages to.
 	Logger logging.Logger
 
+	// The client meter provider.
+	MeterProvider metrics.MeterProvider
+
 	// The region to send requests to. (Required)
 	Region string
 
@@ -103,6 +105,9 @@ type Options struct {
 	// within your applications.
 	RuntimeEnvironment aws.RuntimeEnvironment
 
+	// The client tracer provider.
+	TracerProvider tracing.TracerProvider
+
 	// The initial DefaultsMode used when the client options were constructed. If the
 	// DefaultsMode was set to aws.DefaultsModeAuto this will store what the resolved
 	// value was at that point in time.
@@ -114,12 +119,18 @@ type Options struct {
 	// implementation if nil.
 	HTTPClient HTTPClient
 
+	// Client registry of operation interceptors.
+	Interceptors smithyhttp.InterceptorRegistry
+
 	// The auth scheme resolver which determines how to authenticate for each
 	// operation.
 	AuthSchemeResolver AuthSchemeResolver
 
 	// The list of auth schemes supported by the client.
 	AuthSchemes []smithyhttp.AuthScheme
+
+	// Priority list of preferred auth scheme names (e.g. sigv4a).
+	AuthSchemePreference []string
 }
 
 // Copy creates a clone where the APIOptions list is deep copied.
@@ -127,6 +138,7 @@ func (o Options) Copy() Options {
 	to := o
 	to.APIOptions = make([]func(*middleware.Stack) error, len(o.APIOptions))
 	copy(to.APIOptions, o.APIOptions)
+	to.Interceptors = o.Interceptors.Copy()
 
 	return to
 }

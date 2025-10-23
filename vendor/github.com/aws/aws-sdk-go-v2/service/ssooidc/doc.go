@@ -8,9 +8,12 @@
 // Center. The service also enables the client to fetch the user’s access token
 // upon successful authentication and authorization with IAM Identity Center.
 //
-// IAM Identity Center uses the sso and identitystore API namespaces.
+// # API namespaces
 //
-// # Considerations for Using This Guide
+// IAM Identity Center uses the sso and identitystore API namespaces. IAM Identity
+// Center OpenID Connect uses the sso-oauth namespace.
+//
+// # Considerations for using this guide
 //
 // Before you begin using this guide, we recommend that you first review the
 // following important information about how the IAM Identity Center OIDC service

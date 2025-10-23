@@ -6,13 +6,13 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Retrieves information about the log anomaly detector that you specify.
+// Retrieves information about the log anomaly detector that you specify. The KMS
+// key ARN detected is valid.
 func (c *Client) GetLogAnomalyDetector(ctx context.Context, params *GetLogAnomalyDetectorInput, optFns ...func(*Options)) (*GetLogAnomalyDetectorOutput, error) {
 	if params == nil {
 		params = &GetLogAnomalyDetectorInput{}
@@ -31,9 +31,9 @@ func (c *Client) GetLogAnomalyDetector(ctx context.Context, params *GetLogAnomal
 type GetLogAnomalyDetectorInput struct {
 
 	// The ARN of the anomaly detector to retrieve information about. You can find the
-	// ARNs of log anomaly detectors in your account by using the
-	// ListLogAnomalyDetectors (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_ListLogAnomalyDetectors.html)
-	// operation.
+	// ARNs of log anomaly detectors in your account by using the [ListLogAnomalyDetectors]operation.
+	//
+	// [ListLogAnomalyDetectors]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_ListLogAnomalyDetectors.html
 	//
 	// This member is required.
 	AnomalyDetectorArn *string
@@ -44,8 +44,9 @@ type GetLogAnomalyDetectorInput struct {
 type GetLogAnomalyDetectorOutput struct {
 
 	// Specifies whether the anomaly detector is currently active. To change its
-	// status, use the enabled parameter in the UpdateLogAnomalyDetector (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_UpdateLogAnomalyDetector.html)
-	// operation.
+	// status, use the enabled parameter in the [UpdateLogAnomalyDetector] operation.
+	//
+	// [UpdateLogAnomalyDetector]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_UpdateLogAnomalyDetector.html
 	AnomalyDetectorStatus types.AnomalyDetectorStatus
 
 	// The number of days used as the life cycle of anomalies. After this time,
@@ -71,7 +72,7 @@ type GetLogAnomalyDetectorOutput struct {
 	// the log event message.
 	FilterPattern *string
 
-	// The ID of the KMS key assigned to this anomaly detector, if any.
+	// The ARN of the KMS key assigned to this anomaly detector, if any.
 	KmsKeyId *string
 
 	// The date and time when this anomaly detector was most recently modified.
@@ -109,25 +110,28 @@ func (c *Client) addOperationGetLogAnomalyDetectorMiddlewares(stack *middleware.
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -142,13 +146,22 @@ func (c *Client) addOperationGetLogAnomalyDetectorMiddlewares(stack *middleware.
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpGetLogAnomalyDetectorValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opGetLogAnomalyDetector(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -161,6 +174,48 @@ func (c *Client) addOperationGetLogAnomalyDetectorMiddlewares(stack *middleware.
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptExecution(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptTransmit(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil
