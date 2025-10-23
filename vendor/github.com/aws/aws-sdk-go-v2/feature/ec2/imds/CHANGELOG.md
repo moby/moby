@@ -1,3 +1,151 @@
+# v1.18.11 (2025-10-23)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.10 (2025-10-16)
+
+* **Dependency Update**: Bump minimum Go version to 1.23.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.9 (2025-09-26)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.8 (2025-09-23)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.7 (2025-09-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.6 (2025-08-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.5 (2025-08-27)
+
+* **Dependency Update**: Update to smithy-go v1.23.0.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.4 (2025-08-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.3 (2025-08-11)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.2 (2025-08-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.1 (2025-07-30)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.0 (2025-07-29)
+
+* **Feature**: Add config switch `DisableDefaultMaxBackoff` that allows you to disable the default maximum backoff (1 second) for IMDS calls retry attempt
+
+# v1.17.0 (2025-07-28)
+
+* **Feature**: Add support for HTTP interceptors.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.33 (2025-07-19)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.32 (2025-06-17)
+
+* **Dependency Update**: Update to smithy-go v1.22.4.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.31 (2025-06-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.30 (2025-02-27)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.29 (2025-02-18)
+
+* **Bug Fix**: Bump go version to 1.22
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.28 (2025-02-05)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.27 (2025-01-31)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.26 (2025-01-30)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.25 (2025-01-24)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+* **Dependency Update**: Upgrade to smithy-go v1.22.2.
+
+# v1.16.24 (2025-01-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.23 (2025-01-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.22 (2024-12-19)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.21 (2024-12-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.20 (2024-11-18)
+
+* **Dependency Update**: Update to smithy-go v1.22.1.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.19 (2024-11-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.18 (2024-10-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.17 (2024-10-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.16 (2024-10-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.15 (2024-10-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.14 (2024-09-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.13 (2024-09-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.12 (2024-08-15)
+
+* **Dependency Update**: Bump minimum Go version to 1.21.
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.16.11 (2024-07-10.2)
 
 * **Dependency Update**: Updated to the latest SDK module versions
