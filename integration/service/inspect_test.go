@@ -30,7 +30,8 @@ func TestInspect(t *testing.T) {
 	var instances uint64 = 2
 	serviceSpec := fullSwarmServiceSpec("test-service-inspect"+t.Name(), instances)
 
-	resp, err := apiClient.ServiceCreate(ctx, serviceSpec, client.ServiceCreateOptions{
+	resp, err := apiClient.ServiceCreate(ctx, client.ServiceCreateOptions{
+		Spec:          serviceSpec,
 		QueryRegistry: false,
 	})
 	assert.NilError(t, err)

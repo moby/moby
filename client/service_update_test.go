@@ -2,7 +2,6 @@ package client
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,14 +17,14 @@ func TestServiceUpdateError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.ServiceUpdate(context.Background(), "service_id", swarm.Version{}, swarm.ServiceSpec{}, ServiceUpdateOptions{})
+	_, err = client.ServiceUpdate(t.Context(), "service_id", ServiceUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ServiceUpdate(context.Background(), "", swarm.Version{}, swarm.ServiceSpec{}, ServiceUpdateOptions{})
+	_, err = client.ServiceUpdate(t.Context(), "", ServiceUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ServiceUpdate(context.Background(), "    ", swarm.Version{}, swarm.ServiceSpec{}, ServiceUpdateOptions{})
+	_, err = client.ServiceUpdate(t.Context(), "    ", ServiceUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -38,7 +37,7 @@ func TestServiceUpdateConnectionError(t *testing.T) {
 	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
-	_, err = client.ServiceUpdate(context.Background(), "service_id", swarm.Version{}, swarm.ServiceSpec{}, ServiceUpdateOptions{})
+	_, err = client.ServiceUpdate(t.Context(), "service_id", ServiceUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
 
@@ -82,7 +81,10 @@ func TestServiceUpdate(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 
-		_, err = client.ServiceUpdate(context.Background(), "service_id", updateCase.swarmVersion, swarm.ServiceSpec{}, ServiceUpdateOptions{})
+		_, err = client.ServiceUpdate(t.Context(), "service_id", ServiceUpdateOptions{
+			Version: updateCase.swarmVersion,
+			Spec:    swarm.ServiceSpec{},
+		})
 		assert.NilError(t, err)
 	}
 }

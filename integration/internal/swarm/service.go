@@ -61,7 +61,9 @@ func CreateService(ctx context.Context, t *testing.T, d *daemon.Daemon, opts ...
 	defer apiClient.Close()
 
 	spec := CreateServiceSpec(t, opts...)
-	resp, err := apiClient.ServiceCreate(ctx, spec, client.ServiceCreateOptions{})
+	resp, err := apiClient.ServiceCreate(ctx, client.ServiceCreateOptions{
+		Spec: spec,
+	})
 	assert.NilError(t, err, "error creating service")
 	return resp.ID
 }

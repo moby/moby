@@ -12,6 +12,9 @@ import (
 
 // ServiceUpdateOptions contains the options to be used for updating services.
 type ServiceUpdateOptions struct {
+	Version swarm.Version
+	Spec    swarm.ServiceSpec
+
 	// EncodedRegistryAuth is the encoded registry authorization credentials to
 	// use when updating the service.
 	//
@@ -50,13 +53,13 @@ type ServiceUpdateResult struct {
 // conflicting writes. It must be the value as set *before* the update.
 // You can find this value in the [swarm.Service.Meta] field, which can
 // be found using [Client.ServiceInspectWithRaw].
-func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version swarm.Version, service swarm.ServiceSpec, options ServiceUpdateOptions) (ServiceUpdateResult, error) {
+func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, options ServiceUpdateOptions) (ServiceUpdateResult, error) {
 	serviceID, err := trimID("service", serviceID)
 	if err != nil {
 		return ServiceUpdateResult{}, err
 	}
 
-	if err := validateServiceSpec(service); err != nil {
+	if err := validateServiceSpec(options.Spec); err != nil {
 		return ServiceUpdateResult{}, err
 	}
 
@@ -69,25 +72,25 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 		query.Set("rollback", options.Rollback)
 	}
 
-	query.Set("version", version.String())
+	query.Set("version", options.Version.String())
 
 	// ensure that the image is tagged
 	var warnings []string
 	switch {
-	case service.TaskTemplate.ContainerSpec != nil:
-		if taggedImg := imageWithTagString(service.TaskTemplate.ContainerSpec.Image); taggedImg != "" {
-			service.TaskTemplate.ContainerSpec.Image = taggedImg
+	case options.Spec.TaskTemplate.ContainerSpec != nil:
+		if taggedImg := imageWithTagString(options.Spec.TaskTemplate.ContainerSpec.Image); taggedImg != "" {
+			options.Spec.TaskTemplate.ContainerSpec.Image = taggedImg
 		}
 		if options.QueryRegistry {
-			resolveWarning := resolveContainerSpecImage(ctx, cli, &service.TaskTemplate, options.EncodedRegistryAuth)
+			resolveWarning := resolveContainerSpecImage(ctx, cli, &options.Spec.TaskTemplate, options.EncodedRegistryAuth)
 			warnings = append(warnings, resolveWarning)
 		}
-	case service.TaskTemplate.PluginSpec != nil:
-		if taggedImg := imageWithTagString(service.TaskTemplate.PluginSpec.Remote); taggedImg != "" {
-			service.TaskTemplate.PluginSpec.Remote = taggedImg
+	case options.Spec.TaskTemplate.PluginSpec != nil:
+		if taggedImg := imageWithTagString(options.Spec.TaskTemplate.PluginSpec.Remote); taggedImg != "" {
+			options.Spec.TaskTemplate.PluginSpec.Remote = taggedImg
 		}
 		if options.QueryRegistry {
-			resolveWarning := resolvePluginSpecRemote(ctx, cli, &service.TaskTemplate, options.EncodedRegistryAuth)
+			resolveWarning := resolvePluginSpecRemote(ctx, cli, &options.Spec.TaskTemplate, options.EncodedRegistryAuth)
 			warnings = append(warnings, resolveWarning)
 		}
 	}
@@ -96,7 +99,7 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 	if options.EncodedRegistryAuth != "" {
 		headers.Set(registry.AuthHeader, options.EncodedRegistryAuth)
 	}
-	resp, err := cli.post(ctx, "/services/"+serviceID+"/update", query, service, headers)
+	resp, err := cli.post(ctx, "/services/"+serviceID+"/update", query, options.Spec, headers)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return ServiceUpdateResult{}, err

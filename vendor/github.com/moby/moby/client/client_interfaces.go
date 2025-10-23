@@ -158,11 +158,11 @@ type PluginAPIClient interface {
 
 // ServiceAPIClient defines API client methods for the services
 type ServiceAPIClient interface {
-	ServiceCreate(ctx context.Context, service swarm.ServiceSpec, options ServiceCreateOptions) (ServiceCreateResult, error)
+	ServiceCreate(ctx context.Context, options ServiceCreateOptions) (ServiceCreateResult, error)
 	ServiceInspect(ctx context.Context, serviceID string, options ServiceInspectOptions) (ServiceInspectResult, error)
 	ServiceList(ctx context.Context, options ServiceListOptions) (ServiceListResult, error)
 	ServiceRemove(ctx context.Context, serviceID string, options ServiceRemoveOptions) (ServiceRemoveResult, error)
-	ServiceUpdate(ctx context.Context, serviceID string, version swarm.Version, service swarm.ServiceSpec, options ServiceUpdateOptions) (ServiceUpdateResult, error)
+	ServiceUpdate(ctx context.Context, serviceID string, options ServiceUpdateOptions) (ServiceUpdateResult, error)
 	ServiceLogs(ctx context.Context, serviceID string, options ServiceLogsOptions) (ServiceLogsResult, error)
 	TaskLogs(ctx context.Context, taskID string, options TaskLogsOptions) (TaskLogsResult, error)
 	TaskInspect(ctx context.Context, taskID string, options TaskInspectOptions) (TaskInspectResult, error)
@@ -177,7 +177,7 @@ type SwarmAPIClient interface {
 	SwarmUnlock(ctx context.Context, options SwarmUnlockOptions) (SwarmUnlockResult, error)
 	SwarmLeave(ctx context.Context, options SwarmLeaveOptions) (SwarmLeaveResult, error)
 	SwarmInspect(ctx context.Context, options SwarmInspectOptions) (SwarmInspectResult, error)
-	SwarmUpdate(ctx context.Context, version swarm.Version, options SwarmUpdateOptions) (SwarmUpdateResult, error)
+	SwarmUpdate(ctx context.Context, options SwarmUpdateOptions) (SwarmUpdateResult, error)
 }
 
 // SystemAPIClient defines API client methods for the system

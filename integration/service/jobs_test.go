@@ -119,8 +119,10 @@ func TestUpdateReplicatedJob(t *testing.T) {
 	spec := result.Service.Spec
 	spec.TaskTemplate.ForceUpdate++
 
-	_, err = apiClient.ServiceUpdate(
-		ctx, id, result.Service.Version, spec, client.ServiceUpdateOptions{},
+	_, err = apiClient.ServiceUpdate(ctx, id, client.ServiceUpdateOptions{
+		Version: result.Service.Version,
+		Spec:    spec,
+	},
 	)
 	assert.NilError(t, err)
 
