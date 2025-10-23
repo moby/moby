@@ -16,8 +16,23 @@ import (
 // ContainerCreate creates a new container based on the given configuration.
 // It can be associated with a name, but it's not mandatory.
 func (cli *Client) ContainerCreate(ctx context.Context, options ContainerCreateOptions) (ContainerCreateResult, error) {
-	if options.Config == nil {
-		return ContainerCreateResult{}, cerrdefs.ErrInvalidArgument.WithMessage("config is nil")
+	cfg := options.Config
+
+	if cfg == nil {
+		cfg = &container.Config{}
+	}
+
+	if options.Image != "" {
+		if cfg.Image != "" {
+			return ContainerCreateResult{}, cerrdefs.ErrInvalidArgument.WithMessage("either Image or config.Image should be set")
+		}
+		newCfg := *cfg
+		newCfg.Image = options.Image
+		cfg = &newCfg
+	}
+
+	if cfg.Image == "" {
+		return ContainerCreateResult{}, cerrdefs.ErrInvalidArgument.WithMessage("config.Image or Image is required")
 	}
 
 	var response container.CreateResponse
@@ -39,7 +54,7 @@ func (cli *Client) ContainerCreate(ctx context.Context, options ContainerCreateO
 	}
 
 	body := container.CreateRequest{
-		Config:           options.Config,
+		Config:           cfg,
 		HostConfig:       options.HostConfig,
 		NetworkingConfig: options.NetworkingConfig,
 	}

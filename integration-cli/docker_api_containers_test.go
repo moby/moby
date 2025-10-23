@@ -557,7 +557,7 @@ func (s *DockerAPISuite) TestContainerAPICreateEmptyConfig(c *testing.T) {
 		NetworkingConfig: &network.NetworkingConfig{},
 	})
 
-	assert.ErrorContains(c, err, "no command specified")
+	assert.ErrorContains(c, err, "config.Image or Image is required")
 }
 
 func (s *DockerAPISuite) TestContainerAPICreateBridgeNetworkMode(c *testing.T) {
