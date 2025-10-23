@@ -7,6 +7,8 @@ import (
 	"github.com/aws/smithy-go/encoding/httpbinding"
 )
 
+const keySeparator = "."
+
 // Value represents a Query Value type.
 type Value struct {
 	// The query values to add the value to.
