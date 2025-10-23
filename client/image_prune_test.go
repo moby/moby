@@ -1,10 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"testing"
 
@@ -75,24 +72,14 @@ func TestImagesPrune(t *testing.T) {
 				actual := query.Get(key)
 				assert.Check(t, is.Equal(expected, actual))
 			}
-			content, err := json.Marshal(image.PruneReport{
+
+			return mockJSONResponse(http.StatusOK, nil, image.PruneReport{
 				ImagesDeleted: []image.DeleteResponse{
-					{
-						Deleted: "image_id1",
-					},
-					{
-						Deleted: "image_id2",
-					},
+					{Deleted: "image_id1"},
+					{Deleted: "image_id2"},
 				},
 				SpaceReclaimed: 9999,
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(content)),
-			}, nil
+			})(req)
 		}))
 		assert.NilError(t, err)
 

@@ -1,14 +1,10 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -88,21 +84,10 @@ func TestImageList(t *testing.T) {
 					return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
 				}
 			}
-			content, err := json.Marshal([]image.Summary{
-				{
-					ID: "image_id2",
-				},
-				{
-					ID: "image_id2",
-				},
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(content)),
-			}, nil
+			return mockJSONResponse(http.StatusOK, nil, []image.Summary{
+				{ID: "image_id2"},
+				{ID: "image_id2"},
+			})(req)
 		}))
 		assert.NilError(t, err)
 
@@ -131,10 +116,7 @@ func TestImageListWithSharedSize(t *testing.T) {
 			var query url.Values
 			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
 				query = req.URL.Query()
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader("[]")),
-				}, nil
+				return mockResponse(http.StatusOK, nil, "[]")(req)
 			}), WithVersion(tc.version))
 			assert.NilError(t, err)
 			_, err = client.ImageList(context.Background(), tc.options)

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -76,10 +75,7 @@ func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
 		}
 		auth := req.Header.Get(registry.AuthHeader)
 		if auth == invalidAuth {
-			return &http.Response{
-				StatusCode: http.StatusUnauthorized,
-				Body:       io.NopCloser(bytes.NewReader([]byte("Invalid credentials"))),
-			}, nil
+			return mockResponse(http.StatusUnauthorized, nil, "Invalid credentials")(req)
 		}
 		if auth != validAuth {
 			return nil, fmt.Errorf("invalid auth header: expected %s, got %s", "IAmValid", auth)
@@ -89,10 +85,7 @@ func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
 		if tag != "tag" {
 			return nil, fmt.Errorf("tag not set in URL query properly. Expected '%s', got %s", "tag", tag)
 		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader([]byte("hello world"))),
-		}, nil
+		return mockResponse(http.StatusOK, nil, "hello world")(req)
 	}))
 	assert.NilError(t, err)
 	resp, err := client.ImagePush(context.Background(), "myname/myimage:tag", ImagePushOptions{
@@ -178,10 +171,7 @@ func TestImagePushWithoutErrors(t *testing.T) {
 				if tag != tc.expectedTag {
 					return nil, fmt.Errorf("tag not set in URL query properly. Expected '%s', got %s", tc.expectedTag, tag)
 				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader([]byte(expectedOutput))),
-				}, nil
+				return mockResponse(http.StatusOK, nil, expectedOutput)(req)
 			}))
 			assert.NilError(t, err)
 			resp, err := client.ImagePush(context.Background(), tc.reference, ImagePushOptions{

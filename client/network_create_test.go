@@ -1,10 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"testing"
 
@@ -41,18 +38,10 @@ func TestNetworkCreate(t *testing.T) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}
-
-		content, err := json.Marshal(network.CreateResponse{
+		return mockJSONResponse(http.StatusOK, nil, network.CreateResponse{
 			ID:      "network_id",
 			Warning: "warning",
-		})
-		if err != nil {
-			return nil, err
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader(content)),
-		}, nil
+		})(req)
 	}))
 	assert.NilError(t, err)
 

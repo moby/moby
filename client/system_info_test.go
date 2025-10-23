@@ -1,10 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"testing"
 
@@ -22,12 +19,7 @@ func TestInfoServerError(t *testing.T) {
 }
 
 func TestInfoInvalidResponseJSONError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader([]byte("invalid json"))),
-		}, nil
-	}))
+	client, err := NewClientWithOpts(WithMockClient(mockResponse(http.StatusOK, nil, "invalid json")))
 	assert.NilError(t, err)
 	_, err = client.Info(context.Background())
 	assert.Check(t, is.ErrorContains(err, "invalid character"))
@@ -39,19 +31,10 @@ func TestInfo(t *testing.T) {
 		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 			return nil, err
 		}
-		info := &system.Info{
+		return mockJSONResponse(http.StatusOK, nil, system.Info{
 			ID:         "daemonID",
 			Containers: 3,
-		}
-		b, err := json.Marshal(info)
-		if err != nil {
-			return nil, err
-		}
-
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader(b)),
-		}, nil
+		})(req)
 	}))
 	assert.NilError(t, err)
 
@@ -68,7 +51,7 @@ func TestInfoWithDiscoveredDevices(t *testing.T) {
 		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 			return nil, err
 		}
-		info := &system.Info{
+		return mockJSONResponse(http.StatusOK, nil, system.Info{
 			ID:         "daemonID",
 			Containers: 3,
 			DiscoveredDevices: []system.DeviceInfo{
@@ -81,16 +64,7 @@ func TestInfoWithDiscoveredDevices(t *testing.T) {
 					ID:     "vendor.com/gpu=1",
 				},
 			},
-		}
-		b, err := json.Marshal(info)
-		if err != nil {
-			return nil, err
-		}
-
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader(b)),
-		}, nil
+		})(req)
 	}))
 	assert.NilError(t, err)
 

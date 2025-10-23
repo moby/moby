@@ -1,10 +1,8 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 
@@ -42,10 +40,7 @@ func TestContainerKill(t *testing.T) {
 			if signal != "SIGKILL" {
 				return nil, fmt.Errorf("signal not set in URL query properly. Expected 'SIGKILL', got %s", signal)
 			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-			}, nil
+			return mockResponse(http.StatusOK, nil, "")(req)
 		}),
 	)
 	assert.NilError(t, err)

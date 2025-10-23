@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -50,10 +49,7 @@ func TestImageCreate(t *testing.T) {
 			return nil, fmt.Errorf("tag not set in URL query properly. Expected '%s', got %s", expectedTag, tag)
 		}
 
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
-		}, nil
+		return mockResponse(http.StatusOK, nil, "body")(req)
 	}))
 	assert.NilError(t, err)
 

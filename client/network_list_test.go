@@ -1,11 +1,8 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 
@@ -66,21 +63,14 @@ func TestNetworkList(t *testing.T) {
 			if actualFilters != listCase.expectedFilters {
 				return nil, fmt.Errorf("filters not set in URL query properly. Expected '%s', got %s", listCase.expectedFilters, actualFilters)
 			}
-			content, err := json.Marshal([]network.Summary{
+			return mockJSONResponse(http.StatusOK, nil, []network.Summary{
 				{
 					Network: network.Network{
 						Name:   "network",
 						Driver: "bridge",
 					},
 				},
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(content)),
-			}, nil
+			})(req)
 		}))
 		assert.NilError(t, err)
 

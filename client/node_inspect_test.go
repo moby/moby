@@ -1,11 +1,8 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"testing"
 
@@ -51,16 +48,9 @@ func TestNodeInspect(t *testing.T) {
 		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 			return nil, err
 		}
-		content, err := json.Marshal(swarm.Node{
+		return mockJSONResponse(http.StatusOK, nil, swarm.Node{
 			ID: "node_id",
-		})
-		if err != nil {
-			return nil, err
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader(content)),
-		}, nil
+		})(req)
 	}))
 	assert.NilError(t, err)
 

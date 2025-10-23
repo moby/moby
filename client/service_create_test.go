@@ -1,11 +1,9 @@
 package client
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -44,16 +42,9 @@ func TestServiceCreate(t *testing.T) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}
-		b, err := json.Marshal(swarm.ServiceCreateResponse{
+		return mockJSONResponse(http.StatusOK, nil, swarm.ServiceCreateResponse{
 			ID: "service_id",
-		})
-		if err != nil {
-			return nil, err
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader(b)),
-		}, nil
+		})(req)
 	}))
 	assert.NilError(t, err)
 
@@ -77,18 +68,11 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 			assert.Check(t, is.Len(serviceSpec.TaskTemplate.Placement.Platforms, 1))
 
 			p := serviceSpec.TaskTemplate.Placement.Platforms[0]
-			b, err := json.Marshal(swarm.ServiceCreateResponse{
+			return mockJSONResponse(http.StatusOK, nil, swarm.ServiceCreateResponse{
 				ID: "service_" + p.OS + "_" + p.Architecture,
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(b)),
-			}, nil
+			})(req)
 		} else if strings.HasPrefix(req.URL.Path, defaultAPIPath+"/distribution/") {
-			b, err := json.Marshal(registrytypes.DistributionInspect{
+			return mockJSONResponse(http.StatusOK, nil, registrytypes.DistributionInspect{
 				Descriptor: ocispec.Descriptor{
 					Digest: "sha256:c0537ff6a5218ef531ece93d4984efc99bbf3f7497c0a7726c88e2bb7584dc96",
 				},
@@ -98,14 +82,7 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 						OS:           "linux",
 					},
 				},
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(b)),
-			}, nil
+			})(req)
 		} else {
 			return nil, fmt.Errorf("unexpected URL '%s'", req.URL.Path)
 		}
@@ -156,33 +133,19 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 			}
 			serviceCreateImage = service.TaskTemplate.ContainerSpec.Image
 
-			b, err := json.Marshal(swarm.ServiceCreateResponse{
+			return mockJSONResponse(http.StatusOK, nil, swarm.ServiceCreateResponse{
 				ID: "service_id",
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(b)),
-			}, nil
+			})(req)
 		} else if strings.HasPrefix(req.URL.Path, defaultAPIPath+"/distribution/cannotresolve") {
 			// unresolvable image
 			return nil, errors.New("cannot resolve image")
 		} else if strings.HasPrefix(req.URL.Path, defaultAPIPath+"/distribution/") {
 			// resolvable images
-			b, err := json.Marshal(registrytypes.DistributionInspect{
+			return mockJSONResponse(http.StatusOK, nil, registrytypes.DistributionInspect{
 				Descriptor: ocispec.Descriptor{
 					Digest: digest.Digest(dgst),
 				},
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(b)),
-			}, nil
+			})(req)
 		}
 		return nil, fmt.Errorf("unexpected URL '%s'", req.URL.Path)
 	}))

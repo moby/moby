@@ -1,10 +1,8 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 
@@ -41,10 +39,7 @@ func TestPluginPush(t *testing.T) {
 		if auth != "authtoken" {
 			return nil, fmt.Errorf("invalid auth header: expected 'authtoken', got %s", auth)
 		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-		}, nil
+		return mockResponse(http.StatusOK, nil, "")(req)
 	}))
 	assert.NilError(t, err)
 

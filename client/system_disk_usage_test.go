@@ -1,10 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"testing"
 
@@ -28,22 +25,12 @@ func TestDiskUsage(t *testing.T) {
 			return nil, err
 		}
 
-		du := system.DiskUsage{
+		return mockJSONResponse(http.StatusOK, nil, system.DiskUsage{
 			LayersSize: int64(100),
 			Images:     nil,
 			Containers: nil,
 			Volumes:    nil,
-		}
-
-		b, err := json.Marshal(du)
-		if err != nil {
-			return nil, err
-		}
-
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader(b)),
-		}, nil
+		})(req)
 	}))
 	assert.NilError(t, err)
 	_, err = client.DiskUsage(context.Background(), DiskUsageOptions{})

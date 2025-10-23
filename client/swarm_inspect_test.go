@@ -1,9 +1,6 @@
 package client
 
 import (
-	"bytes"
-	"encoding/json"
-	"io"
 	"net/http"
 	"testing"
 
@@ -27,18 +24,11 @@ func TestSwarmInspect(t *testing.T) {
 		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 			return nil, err
 		}
-		content, err := json.Marshal(swarm.Swarm{
+		return mockJSONResponse(http.StatusOK, nil, swarm.Swarm{
 			ClusterInfo: swarm.ClusterInfo{
 				ID: "swarm_id",
 			},
-		})
-		if err != nil {
-			return nil, err
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader(content)),
-		}, nil
+		})(req)
 	}))
 	assert.NilError(t, err)
 

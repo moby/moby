@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -61,10 +60,7 @@ func TestSetHostHeader(t *testing.T) {
 				if req.URL.Host != tc.expectedURLHost {
 					return nil, fmt.Errorf("expected URL host %q, got %q", tc.expectedURLHost, req.URL.Host)
 				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-				}, nil
+				return mockResponse(http.StatusOK, nil, "")(req)
 			}), WithHost(tc.host))
 			assert.NilError(t, err)
 
@@ -200,11 +196,7 @@ func TestResponseErrors(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
 			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-				return &http.Response{
-					StatusCode: http.StatusBadRequest,
-					Header:     http.Header{"Content-Type": []string{tc.contentType}},
-					Body:       io.NopCloser(bytes.NewReader([]byte(tc.response))),
-				}, nil
+				return mockResponse(http.StatusBadRequest, http.Header{"Content-Type": []string{tc.contentType}}, tc.response)(req)
 			}))
 			if tc.apiVersion != "" {
 				client, err = NewClientWithOpts(WithHTTPClient(client.client), WithVersion(tc.apiVersion))

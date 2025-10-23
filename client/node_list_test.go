@@ -1,11 +1,8 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 
@@ -58,21 +55,10 @@ func TestNodeList(t *testing.T) {
 					return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
 				}
 			}
-			content, err := json.Marshal([]swarm.Node{
-				{
-					ID: "node_id1",
-				},
-				{
-					ID: "node_id2",
-				},
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(content)),
-			}, nil
+			return mockJSONResponse(http.StatusOK, nil, []swarm.Node{
+				{ID: "node_id1"},
+				{ID: "node_id2"},
+			})(req)
 		}))
 		assert.NilError(t, err)
 

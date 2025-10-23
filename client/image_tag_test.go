@@ -1,10 +1,8 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"math/rand"
 	"net/http"
 	"testing"
@@ -88,7 +86,7 @@ func generateRandomAlphaOnlyString(n int) string {
 }
 
 func TestImageTagHexSource(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusOK, "OK")))
+	client, err := NewClientWithOpts(WithMockClient(mockResponse(http.StatusOK, nil, "OK")))
 	assert.NilError(t, err)
 
 	_, err = client.ImageTag(context.Background(), ImageTagOptions{Source: "0d409d33b27e47423b049f7f863faa08655a8c901749c2b25b93ca67d01a470d", Target: "repo:tag"})
@@ -163,10 +161,7 @@ func TestImageTag(t *testing.T) {
 					return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
 				}
 			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-			}, nil
+			return mockResponse(http.StatusOK, nil, "")(req)
 		}))
 		assert.NilError(t, err)
 		_, err = client.ImageTag(context.Background(), ImageTagOptions{Source: "image_id", Target: tagCase.reference})

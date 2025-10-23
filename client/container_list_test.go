@@ -1,11 +1,8 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 
@@ -60,23 +57,10 @@ func TestContainerList(t *testing.T) {
 			if fltrs != expectedFilters {
 				return nil, fmt.Errorf("expected filters incoherent '%v' with actual filters %v", expectedFilters, fltrs)
 			}
-
-			b, err := json.Marshal([]container.Summary{
-				{
-					ID: "container_id1",
-				},
-				{
-					ID: "container_id2",
-				},
-			})
-			if err != nil {
-				return nil, err
-			}
-
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(b)),
-			}, nil
+			return mockJSONResponse(http.StatusOK, nil, []container.Summary{
+				{ID: "container_id1"},
+				{ID: "container_id2"},
+			})(req)
 		}),
 	)
 	assert.NilError(t, err)

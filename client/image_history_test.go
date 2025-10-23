@@ -2,9 +2,7 @@ package client
 
 import (
 	"context"
-	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -30,10 +28,7 @@ func TestImageHistory(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		assert.Check(t, assertRequest(req, http.MethodGet, expectedURL))
 		assert.Check(t, is.Equal(req.URL.Query().Get("platform"), expectedPlatform))
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(historyResponse)),
-		}, nil
+		return mockResponse(http.StatusOK, nil, historyResponse)(req)
 	}))
 	assert.NilError(t, err)
 	expected := ImageHistoryResult{

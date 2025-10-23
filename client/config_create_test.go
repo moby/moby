@@ -1,10 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"testing"
 
@@ -31,16 +28,9 @@ func TestConfigCreate(t *testing.T) {
 			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 				return nil, err
 			}
-			b, err := json.Marshal(swarm.ConfigCreateResponse{
+			return mockJSONResponse(http.StatusCreated, nil, swarm.ConfigCreateResponse{
 				ID: "test_config",
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(bytes.NewReader(b)),
-			}, nil
+			})(req)
 		}),
 	)
 	assert.NilError(t, err)

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"io"
 	"net/http"
@@ -37,10 +36,7 @@ func TestContainerExport(t *testing.T) {
 			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 				return nil, err
 			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader([]byte("response"))),
-			}, nil
+			return mockResponse(http.StatusOK, nil, "response")(req)
 		}),
 	)
 	assert.NilError(t, err)

@@ -1,10 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"testing"
 
@@ -78,16 +75,9 @@ func TestNetworksPrune(t *testing.T) {
 					actual := query.Get(key)
 					assert.Check(t, is.Equal(expected, actual))
 				}
-				content, err := json.Marshal(network.PruneReport{
+				return mockJSONResponse(http.StatusOK, nil, network.PruneReport{
 					NetworksDeleted: []string{"network_id1", "network_id2"},
-				})
-				if err != nil {
-					return nil, err
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader(content)),
-				}, nil
+				})(req)
 			}),
 		)
 		assert.NilError(t, err)

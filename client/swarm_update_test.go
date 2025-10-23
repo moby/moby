@@ -1,8 +1,6 @@
 package client
 
 import (
-	"bytes"
-	"io"
 	"net/http"
 	"testing"
 
@@ -26,10 +24,7 @@ func TestSwarmUpdate(t *testing.T) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-		}, nil
+		return mockResponse(http.StatusOK, nil, "")(req)
 	}))
 	assert.NilError(t, err)
 

@@ -1,12 +1,10 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 
@@ -60,16 +58,9 @@ func TestContainerCreateWithName(t *testing.T) {
 			if name != "container_name" {
 				return nil, fmt.Errorf("container name not set in URL query properly. Expected `container_name`, got %s", name)
 			}
-			b, err := json.Marshal(container.CreateResponse{
+			return mockJSONResponse(http.StatusOK, nil, container.CreateResponse{
 				ID: "container_id",
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(b)),
-			}, nil
+			})(req)
 		}),
 	)
 	assert.NilError(t, err)
@@ -89,16 +80,9 @@ func TestContainerCreateAutoRemove(t *testing.T) {
 			if !config.HostConfig.AutoRemove {
 				return nil, errors.New("expected AutoRemove to be enabled")
 			}
-			b, err := json.Marshal(container.CreateResponse{
+			return mockJSONResponse(http.StatusOK, nil, container.CreateResponse{
 				ID: "container_id",
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(b)),
-			}, nil
+			})(req)
 		}),
 	)
 	assert.NilError(t, err)
@@ -151,16 +135,9 @@ func TestContainerCreateCapabilities(t *testing.T) {
 			assert.Check(t, is.DeepEqual(config.HostConfig.CapAdd, expectedCaps))
 			assert.Check(t, is.DeepEqual(config.HostConfig.CapDrop, expectedCaps))
 
-			b, err := json.Marshal(container.CreateResponse{
+			return mockJSONResponse(http.StatusOK, nil, container.CreateResponse{
 				ID: "container_id",
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(b)),
-			}, nil
+			})(req)
 		}),
 	)
 	assert.NilError(t, err)

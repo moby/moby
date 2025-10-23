@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"io"
 	"net/http"
@@ -67,10 +66,7 @@ func TestImageSave(t *testing.T) {
 			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
 				assert.Check(t, assertRequest(req, http.MethodGet, expectedURL))
 				assert.Check(t, is.DeepEqual(req.URL.Query(), tc.expectedQueryParams))
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader([]byte(expectedOutput))),
-				}, nil
+				return mockResponse(http.StatusOK, nil, expectedOutput)(req)
 			}))
 			assert.NilError(t, err)
 			resp, err := client.ImageSave(context.Background(), []string{"image_id1", "image_id2"}, tc.options...)
