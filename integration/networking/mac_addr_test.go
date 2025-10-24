@@ -235,9 +235,9 @@ func TestInspectCfgdMAC(t *testing.T) {
 				Force: true,
 			})
 
-			_, raw, err := c.ContainerInspectWithRaw(ctx, id, false)
+			inspect, err := c.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 			assert.NilError(t, err)
-			var inspect struct {
+			var resp struct {
 				Config struct {
 					// Mac Address of the container.
 					//
@@ -245,10 +245,10 @@ func TestInspectCfgdMAC(t *testing.T) {
 					MacAddress string `json:",omitempty"`
 				}
 			}
-			err = json.Unmarshal(raw, &inspect)
-			assert.NilError(t, err, string(raw))
-			configMAC := inspect.Config.MacAddress
-			assert.Check(t, is.DeepEqual(configMAC, tc.desiredMAC), string(raw))
+			err = json.Unmarshal(inspect.Raw, &resp)
+			assert.NilError(t, err, string(inspect.Raw))
+			configMAC := resp.Config.MacAddress
+			assert.Check(t, is.DeepEqual(configMAC, tc.desiredMAC), string(inspect.Raw))
 		})
 	}
 }

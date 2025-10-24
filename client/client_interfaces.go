@@ -63,8 +63,7 @@ type ContainerAPIClient interface {
 	ContainerDiff(ctx context.Context, container string, options ContainerDiffOptions) (ContainerDiffResult, error)
 	ExecAPIClient
 	ContainerExport(ctx context.Context, container string) (io.ReadCloser, error)
-	ContainerInspect(ctx context.Context, container string) (container.InspectResponse, error)
-	ContainerInspectWithRaw(ctx context.Context, container string, getSize bool) (container.InspectResponse, []byte, error)
+	ContainerInspect(ctx context.Context, container string, options ContainerInspectOptions) (ContainerInspectResult, error)
 	ContainerKill(ctx context.Context, container, signal string) error
 	ContainerList(ctx context.Context, options ContainerListOptions) ([]container.Summary, error)
 	ContainerLogs(ctx context.Context, container string, options ContainerLogsOptions) (io.ReadCloser, error)

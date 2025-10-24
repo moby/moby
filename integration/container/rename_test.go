@@ -37,9 +37,9 @@ func TestRenameLinkedContainer(t *testing.T) {
 
 	bID = container.Run(ctx, t, apiClient, container.WithName(bName), container.WithLinks(aName))
 
-	inspect, err := apiClient.ContainerInspect(ctx, bID)
+	inspect, err := apiClient.ContainerInspect(ctx, bID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.DeepEqual([]string{"/" + aName + ":/" + bName + "/" + aName}, inspect.HostConfig.Links))
+	assert.Check(t, is.DeepEqual([]string{"/" + aName + ":/" + bName + "/" + aName}, inspect.Container.HostConfig.Links))
 }
 
 func TestRenameStoppedContainer(t *testing.T) {
@@ -49,17 +49,17 @@ func TestRenameStoppedContainer(t *testing.T) {
 	oldName := "first_name" + t.Name()
 	cID := container.Run(ctx, t, apiClient, container.WithName(oldName), container.WithCmd("sh"))
 
-	inspect, err := apiClient.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal("/"+oldName, inspect.Name))
+	assert.Check(t, is.Equal("/"+oldName, inspect.Container.Name))
 
 	newName := "new_name" + cID // using cID as random suffix
 	err = apiClient.ContainerRename(ctx, oldName, newName)
 	assert.NilError(t, err)
 
-	inspect, err = apiClient.ContainerInspect(ctx, cID)
+	inspect, err = apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal("/"+newName, inspect.Name))
+	assert.Check(t, is.Equal("/"+newName, inspect.Container.Name))
 }
 
 func TestRenameRunningContainerAndReuse(t *testing.T) {
@@ -73,18 +73,18 @@ func TestRenameRunningContainerAndReuse(t *testing.T) {
 	err := apiClient.ContainerRename(ctx, oldName, newName)
 	assert.NilError(t, err)
 
-	inspect, err := apiClient.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal("/"+newName, inspect.Name))
+	assert.Check(t, is.Equal("/"+newName, inspect.Container.Name))
 
-	_, err = apiClient.ContainerInspect(ctx, oldName)
+	_, err = apiClient.ContainerInspect(ctx, oldName, client.ContainerInspectOptions{})
 	assert.Check(t, is.ErrorContains(err, "No such container: "+oldName))
 
 	cID = container.Run(ctx, t, apiClient, container.WithName(oldName))
 
-	inspect, err = apiClient.ContainerInspect(ctx, cID)
+	inspect, err = apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal("/"+oldName, inspect.Name))
+	assert.Check(t, is.Equal("/"+oldName, inspect.Container.Name))
 }
 
 func TestRenameInvalidName(t *testing.T) {
@@ -97,9 +97,9 @@ func TestRenameInvalidName(t *testing.T) {
 	err := apiClient.ContainerRename(ctx, oldName, "new:invalid")
 	assert.Check(t, is.ErrorContains(err, "Invalid container name"))
 
-	inspect, err := apiClient.ContainerInspect(ctx, oldName)
+	inspect, err := apiClient.ContainerInspect(ctx, oldName, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(cID, inspect.ID))
+	assert.Check(t, is.Equal(cID, inspect.Container.ID))
 }
 
 // Test case for GitHub issue 22466
@@ -146,9 +146,9 @@ func TestRenameAnonymousContainer(t *testing.T) {
 	}, container.WithCmd("ping", count, "1", container1Name))
 	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, containertypes.StateExited))
 
-	inspect, err := apiClient.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(0, inspect.State.ExitCode), "container %s exited with the wrong exitcode: %s", cID, inspect.State.Error)
+	assert.Check(t, is.Equal(0, inspect.Container.State.ExitCode), "container %s exited with the wrong exitcode: %s", cID, inspect.Container.State.Error)
 }
 
 // TODO: should be a unit test
@@ -186,9 +186,9 @@ func TestRenameContainerWithLinkedContainer(t *testing.T) {
 	err := apiClient.ContainerRename(ctx, app1Name, app2Name)
 	assert.NilError(t, err)
 
-	inspect, err := apiClient.ContainerInspect(ctx, app2Name+"/mysql")
+	inspect, err := apiClient.ContainerInspect(ctx, app2Name+"/mysql", client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(db1ID, inspect.ID))
+	assert.Check(t, is.Equal(db1ID, inspect.Container.ID))
 }
 
 // Regression test for https://github.com/moby/moby/issues/47186

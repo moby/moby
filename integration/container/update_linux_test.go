@@ -45,10 +45,10 @@ func TestUpdateMemory(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	inspect, err := apiClient.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(setMemory, inspect.HostConfig.Memory))
-	assert.Check(t, is.Equal(setMemorySwap, inspect.HostConfig.MemorySwap))
+	assert.Check(t, is.Equal(setMemory, inspect.Container.HostConfig.Memory))
+	assert.Check(t, is.Equal(setMemorySwap, inspect.Container.HostConfig.MemorySwap))
 
 	memoryFile := "/sys/fs/cgroup/memory/memory.limit_in_bytes"
 	if testEnv.DaemonInfo.CgroupVersion == "2" {
@@ -116,9 +116,9 @@ func TestUpdateCPUQuota(t *testing.T) {
 			assert.NilError(t, err)
 		}
 
-		inspect, err := apiClient.ContainerInspect(ctx, cID)
+		inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 		assert.NilError(t, err)
-		assert.Check(t, is.Equal(test.update, inspect.HostConfig.CPUQuota))
+		assert.Check(t, is.Equal(test.update, inspect.Container.HostConfig.CPUQuota))
 
 		if testEnv.DaemonInfo.CgroupVersion == "2" {
 			res, err := container.Exec(ctx, apiClient, cID,
@@ -192,10 +192,10 @@ func TestUpdatePidsLimit(t *testing.T) {
 			})
 			assert.NilError(t, err)
 
-			inspect, err := c.ContainerInspect(ctx, cID)
+			inspect, err := c.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 			assert.NilError(t, err)
-			assert.Assert(t, inspect.HostConfig.Resources.PidsLimit != nil)
-			assert.Equal(t, *inspect.HostConfig.Resources.PidsLimit, test.expect)
+			assert.Assert(t, inspect.Container.HostConfig.Resources.PidsLimit != nil)
+			assert.Equal(t, *inspect.Container.HostConfig.Resources.PidsLimit, test.expect)
 
 			ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 			defer cancel()

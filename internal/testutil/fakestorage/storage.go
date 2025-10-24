@@ -164,12 +164,12 @@ COPY . /static`); err != nil {
 	assert.NilError(t, err)
 
 	// Find out the system assigned port
-	i, err := c.ContainerInspect(context.Background(), b.ID)
+	inspect, err := c.ContainerInspect(context.Background(), b.ID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	ports, exists := i.NetworkSettings.Ports[network.MustParsePort("80/tcp")]
+	ports, exists := inspect.Container.NetworkSettings.Ports[network.MustParsePort("80/tcp")]
 	assert.Assert(t, exists, "unable to find port 80/tcp for %s", ctrName)
 	if len(ports) == 0 {
-		t.Fatalf("no ports mapped for 80/tcp for %s: %#v", ctrName, i.NetworkSettings.Ports)
+		t.Fatalf("no ports mapped for 80/tcp for %s: %#v", ctrName, inspect.Container.NetworkSettings.Ports)
 	}
 	// TODO(thaJeztah): this will be "0.0.0.0" or "::", is that expected, should this use the IP of the testEnv.Server?
 	host := ports[0].HostIP

@@ -3689,10 +3689,10 @@ func (s *DockerCLIRunSuite) TestRunNamedVolumesFromNotRemoved(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	container, err := apiClient.ContainerInspect(testutil.GetContext(c), strings.TrimSpace(cid))
+	inspect, err := apiClient.ContainerInspect(testutil.GetContext(c), strings.TrimSpace(cid), client.ContainerInspectOptions{})
 	assert.NilError(c, err)
 	var vname string
-	for _, v := range container.Mounts {
+	for _, v := range inspect.Container.Mounts {
 		if v.Name != "test" {
 			vname = v.Name
 		}

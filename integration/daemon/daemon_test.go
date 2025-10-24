@@ -505,7 +505,7 @@ func testLiveRestoreAutoRemove(t *testing.T) {
 		d.Restart(t, "--live-restore", "--iptables=false", "--ip6tables=false")
 
 		apiClient := d.NewClientT(t)
-		_, err := apiClient.ContainerInspect(ctx, cID)
+		_, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 		assert.NilError(t, err, "Container shouldn't be removed after engine restart")
 
 		finishContainer()
@@ -518,9 +518,9 @@ func testLiveRestoreAutoRemove(t *testing.T) {
 		apiClient := d.NewClientT(t)
 
 		// Get PID of the container process.
-		inspect, err := apiClient.ContainerInspect(ctx, cID)
+		inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 		assert.NilError(t, err)
-		pid := inspect.State.Pid
+		pid := inspect.Container.State.Pid
 
 		d.Stop(t)
 
@@ -639,9 +639,9 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 
 			poll.WaitOn(t, container.IsStopped(ctx, c, cID2))
 
-			inspect, err := c.ContainerInspect(ctx, cID2)
+			inspect, err := c.ContainerInspect(ctx, cID2, client.ContainerInspectOptions{})
 			if assert.Check(t, err) {
-				assert.Check(t, is.Equal(inspect.State.ExitCode, 0), "volume doesn't have the same file")
+				assert.Check(t, is.Equal(inspect.Container.State.ExitCode, 0), "volume doesn't have the same file")
 			}
 
 			logs, err := c.ContainerLogs(ctx, cID2, client.ContainerLogsOptions{ShowStdout: true})

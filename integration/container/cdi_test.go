@@ -42,7 +42,7 @@ func TestCreateWithCDIDevices(t *testing.T) {
 	)
 	defer apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
-	inspect, err := apiClient.ContainerInspect(ctx, id)
+	res, err := apiClient.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 
 	expectedRequests := []containertypes.DeviceRequest{
@@ -51,7 +51,7 @@ func TestCreateWithCDIDevices(t *testing.T) {
 			DeviceIDs: []string{"vendor1.com/device=foo"},
 		},
 	}
-	assert.Check(t, is.DeepEqual(inspect.HostConfig.DeviceRequests, expectedRequests))
+	assert.Check(t, is.DeepEqual(res.Container.HostConfig.DeviceRequests, expectedRequests))
 
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, id))
 	reader, err := apiClient.ContainerLogs(ctx, id, client.ContainerLogsOptions{

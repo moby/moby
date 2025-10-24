@@ -44,7 +44,7 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	_, err = apiClient.ContainerInspect(ctx, cID)
+	_, err = apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	assert.Check(t, is.ErrorContains(err, "No such container"))
 }
@@ -58,10 +58,10 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 
 	cID := container.Run(ctx, t, apiClient, container.WithVolume(prefix+slash+"srv"))
 
-	ctrInspect, err := apiClient.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(1, len(ctrInspect.Mounts)))
-	volName := ctrInspect.Mounts[0].Name
+	assert.Check(t, is.Equal(1, len(inspect.Container.Mounts)))
+	volName := inspect.Container.Mounts[0].Name
 
 	_, err = apiClient.VolumeInspect(ctx, volName, client.VolumeInspectOptions{})
 	assert.NilError(t, err)

@@ -71,9 +71,9 @@ func TestVolumesRemove(t *testing.T) {
 
 	id := container.Create(ctx, t, apiClient, container.WithVolume(prefix+slash+"foo"))
 
-	c, err := apiClient.ContainerInspect(ctx, id)
+	inspect, err := apiClient.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	vname := c.Mounts[0].Name
+	vname := inspect.Container.Mounts[0].Name
 
 	t.Run("volume in use", func(t *testing.T) {
 		err = apiClient.VolumeRemove(ctx, vname, client.VolumeRemoveOptions{})
@@ -123,9 +123,9 @@ func TestVolumesRemoveSwarmEnabled(t *testing.T) {
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	id := container.Create(ctx, t, apiClient, container.WithVolume(prefix+slash+"foo"))
 
-	c, err := apiClient.ContainerInspect(ctx, id)
+	inspect, err := apiClient.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	vname := c.Mounts[0].Name
+	vname := inspect.Container.Mounts[0].Name
 
 	t.Run("volume in use", func(t *testing.T) {
 		err = apiClient.VolumeRemove(ctx, vname, client.VolumeRemoveOptions{})
@@ -343,12 +343,12 @@ VOLUME ` + volDest
 	id := container.Create(ctx, t, apiClient, container.WithImage(img))
 	defer apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{})
 
-	inspect, err := apiClient.ContainerInspect(ctx, id)
+	inspect, err := apiClient.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 
-	assert.Assert(t, is.Len(inspect.Mounts, 1))
+	assert.Assert(t, is.Len(inspect.Container.Mounts, 1))
 
-	volumeName := inspect.Mounts[0].Name
+	volumeName := inspect.Container.Mounts[0].Name
 	assert.Assert(t, volumeName != "")
 
 	err = apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{})

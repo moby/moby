@@ -49,7 +49,7 @@ func TestCgroupDriverSystemdMemoryLimit(t *testing.T) {
 	err := c.ContainerStart(ctx, ctrID, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
-	s, err := c.ContainerInspect(ctx, ctrID)
+	s, err := c.ContainerInspect(ctx, ctrID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Equal(t, s.HostConfig.Memory, mem)
+	assert.Equal(t, s.Container.HostConfig.Memory, mem)
 }

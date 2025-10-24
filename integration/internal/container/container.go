@@ -127,10 +127,10 @@ func RunAttach(ctx context.Context, t *testing.T, apiClient client.APIClient, op
 
 	// Inspect to get the exit code. A new context is used here to make sure that if the context passed as argument as
 	// reached timeout during the demultiplexStream call, we still return a RunResult.
-	resp, err := apiClient.ContainerInspect(context.Background(), id)
+	inspect, err := apiClient.ContainerInspect(context.Background(), id, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 
-	return RunResult{ContainerID: id, ExitCode: resp.State.ExitCode, Stdout: &s.stdout, Stderr: &s.stderr}
+	return RunResult{ContainerID: id, ExitCode: inspect.Container.State.ExitCode, Stdout: &s.stdout, Stderr: &s.stderr}
 }
 
 type streams struct {
@@ -187,10 +187,10 @@ func RemoveAll(ctx context.Context, t *testing.T, apiClient client.APIClient) {
 func Inspect(ctx context.Context, t *testing.T, apiClient client.APIClient, containerRef string) container.InspectResponse {
 	t.Helper()
 
-	c, err := apiClient.ContainerInspect(ctx, containerRef)
+	inspect, err := apiClient.ContainerInspect(ctx, containerRef, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 
-	return c
+	return inspect.Container
 }
 
 type ContainerOutput struct {

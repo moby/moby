@@ -40,16 +40,16 @@ func TestContainerKillOnDaemonStart(t *testing.T) {
 		assert.NilError(t, err)
 	}()
 
-	inspect, err := apiClient.ContainerInspect(ctx, id)
+	inspect, err := apiClient.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Assert(t, inspect.State.Running)
+	assert.Assert(t, inspect.Container.State.Running)
 
 	assert.NilError(t, d.Kill())
 	d.Start(t, "--iptables=false", "--ip6tables=false")
 
-	inspect, err = apiClient.ContainerInspect(ctx, id)
+	inspect, err = apiClient.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 	assert.Check(t, is.Nil(err))
-	assert.Assert(t, !inspect.State.Running)
+	assert.Assert(t, !inspect.Container.State.Running)
 }
 
 // When the daemon doesn't stop in a clean way (eg. it crashes, the host has a power failure, etc..), or if it's started
@@ -84,18 +84,18 @@ func TestNetworkStateCleanupOnDaemonStart(t *testing.T) {
 		assert.NilError(t, err)
 	}()
 
-	inspect, err := apiClient.ContainerInspect(ctx, cid)
+	inspect, err := apiClient.ContainerInspect(ctx, cid, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Assert(t, inspect.NetworkSettings.SandboxID != "")
-	assert.Assert(t, inspect.NetworkSettings.SandboxKey != "")
-	assert.Assert(t, inspect.NetworkSettings.Ports[mappedPort] != nil)
+	assert.Assert(t, inspect.Container.NetworkSettings.SandboxID != "")
+	assert.Assert(t, inspect.Container.NetworkSettings.SandboxKey != "")
+	assert.Assert(t, inspect.Container.NetworkSettings.Ports[mappedPort] != nil)
 
 	assert.NilError(t, d.Kill())
 	d.Start(t)
 
-	inspect, err = apiClient.ContainerInspect(ctx, cid)
+	inspect, err = apiClient.ContainerInspect(ctx, cid, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Assert(t, inspect.NetworkSettings.SandboxID == "")
-	assert.Assert(t, inspect.NetworkSettings.SandboxKey == "")
-	assert.Assert(t, is.Nil(inspect.NetworkSettings.Ports[mappedPort]))
+	assert.Assert(t, inspect.Container.NetworkSettings.SandboxID == "")
+	assert.Assert(t, inspect.Container.NetworkSettings.SandboxKey == "")
+	assert.Assert(t, is.Nil(inspect.Container.NetworkSettings.Ports[mappedPort]))
 }

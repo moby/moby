@@ -295,9 +295,9 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 			})
 			assert.NilError(t, err)
 
-			ctrInspect, err := apiClient.ContainerInspect(ctx, ctr.ID)
+			inspect, err := apiClient.ContainerInspect(ctx, ctr.ID, client.ContainerInspectOptions{})
 			assert.NilError(t, err)
-			assert.DeepEqual(t, ctrInspect.HostConfig.MaskedPaths, tc.expected)
+			assert.DeepEqual(t, inspect.Container.HostConfig.MaskedPaths, tc.expected)
 
 			// Start the container.
 			err = apiClient.ContainerStart(ctx, ctr.ID, client.ContainerStartOptions{})
@@ -307,9 +307,9 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 			err = apiClient.ContainerStop(ctx, ctr.ID, client.ContainerStopOptions{})
 			assert.NilError(t, err)
 
-			ctrInspect, err = apiClient.ContainerInspect(ctx, ctr.ID)
+			inspect, err = apiClient.ContainerInspect(ctx, ctr.ID, client.ContainerInspectOptions{})
 			assert.NilError(t, err)
-			assert.DeepEqual(t, ctrInspect.HostConfig.MaskedPaths, tc.expected)
+			assert.DeepEqual(t, inspect.Container.HostConfig.MaskedPaths, tc.expected)
 		})
 	}
 }
@@ -366,9 +366,9 @@ func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 			})
 			assert.NilError(t, err)
 
-			ctrInspect, err := apiClient.ContainerInspect(ctx, ctr.ID)
+			ctrInspect, err := apiClient.ContainerInspect(ctx, ctr.ID, client.ContainerInspectOptions{})
 			assert.NilError(t, err)
-			assert.DeepEqual(t, ctrInspect.HostConfig.ReadonlyPaths, tc.expected)
+			assert.DeepEqual(t, ctrInspect.Container.HostConfig.ReadonlyPaths, tc.expected)
 
 			// Start the container.
 			err = apiClient.ContainerStart(ctx, ctr.ID, client.ContainerStartOptions{})
@@ -378,9 +378,9 @@ func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 			err = apiClient.ContainerStop(ctx, ctr.ID, client.ContainerStopOptions{})
 			assert.NilError(t, err)
 
-			ctrInspect, err = apiClient.ContainerInspect(ctx, ctr.ID)
+			ctrInspect, err = apiClient.ContainerInspect(ctx, ctr.ID, client.ContainerInspectOptions{})
 			assert.NilError(t, err)
-			assert.DeepEqual(t, ctrInspect.HostConfig.ReadonlyPaths, tc.expected)
+			assert.DeepEqual(t, ctrInspect.Container.HostConfig.ReadonlyPaths, tc.expected)
 		})
 	}
 }
@@ -492,11 +492,11 @@ func TestCreateTmpfsOverrideAnonymousVolume(t *testing.T) {
 		assert.NilError(t, err)
 	}()
 
-	inspect, err := apiClient.ContainerInspect(ctx, id)
+	inspect, err := apiClient.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 	// tmpfs do not currently get added to inspect.Mounts
 	// Normally an anonymous volume would, except now tmpfs should prevent that.
-	assert.Assert(t, is.Len(inspect.Mounts, 0))
+	assert.Assert(t, is.Len(inspect.Container.Mounts, 0))
 
 	chWait, chErr := apiClient.ContainerWait(ctx, id, container.WaitConditionNextExit)
 	assert.NilError(t, apiClient.ContainerStart(ctx, id, client.ContainerStartOptions{}))

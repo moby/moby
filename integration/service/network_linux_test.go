@@ -57,10 +57,10 @@ func TestDockerNetworkConnectAliasPreV144(t *testing.T) {
 	err = apiClient.ContainerStart(ctx, cID1, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
-	ng1, err := apiClient.ContainerInspect(ctx, cID1)
+	ng1, err := apiClient.ContainerInspect(ctx, cID1, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(len(ng1.NetworkSettings.Networks[name].Aliases), 2))
-	assert.Check(t, is.Equal(ng1.NetworkSettings.Networks[name].Aliases[0], "aaa"))
+	assert.Check(t, is.Equal(len(ng1.Container.NetworkSettings.Networks[name].Aliases), 2))
+	assert.Check(t, is.Equal(ng1.Container.NetworkSettings.Networks[name].Aliases[0], "aaa"))
 
 	cID2 := container.Create(ctx, t, apiClient, func(c *container.TestContainerConfig) {
 		c.NetworkingConfig = &network.NetworkingConfig{
@@ -80,10 +80,10 @@ func TestDockerNetworkConnectAliasPreV144(t *testing.T) {
 	err = apiClient.ContainerStart(ctx, cID2, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
-	ng2, err := apiClient.ContainerInspect(ctx, cID2)
+	ng2, err := apiClient.ContainerInspect(ctx, cID2, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(len(ng2.NetworkSettings.Networks[name].Aliases), 2))
-	assert.Check(t, is.Equal(ng2.NetworkSettings.Networks[name].Aliases[0], "bbb"))
+	assert.Check(t, is.Equal(len(ng2.Container.NetworkSettings.Networks[name].Aliases), 2))
+	assert.Check(t, is.Equal(ng2.Container.NetworkSettings.Networks[name].Aliases[0], "bbb"))
 }
 
 func TestDockerNetworkReConnect(t *testing.T) {
@@ -114,15 +114,15 @@ func TestDockerNetworkReConnect(t *testing.T) {
 	err = apiClient.ContainerStart(ctx, c1, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
-	n1, err := apiClient.ContainerInspect(ctx, c1)
+	n1, err := apiClient.ContainerInspect(ctx, c1, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 
 	err = apiClient.NetworkConnect(ctx, name, c1, &network.EndpointSettings{})
 	assert.ErrorContains(t, err, "is already attached to network")
 
-	n2, err := apiClient.ContainerInspect(ctx, c1)
+	n2, err := apiClient.ContainerInspect(ctx, c1, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.DeepEqual(n1, n2, cmpopts.EquateComparable(netip.Addr{}, netip.Prefix{})))
+	assert.Check(t, is.DeepEqual(n1.Container, n2.Container, cmpopts.EquateComparable(netip.Addr{}, netip.Prefix{})))
 }
 
 // Check that a swarm-scoped network can't have EnableIPv4=false.

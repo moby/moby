@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/request"
@@ -160,9 +161,9 @@ func TestInspectOomKilledTrue(t *testing.T) {
 
 	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, containertypes.StateExited))
 
-	inspect, err := apiClient.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(true, inspect.State.OOMKilled))
+	assert.Check(t, is.Equal(true, inspect.Container.State.OOMKilled))
 }
 
 func TestInspectOomKilledFalse(t *testing.T) {
@@ -175,7 +176,7 @@ func TestInspectOomKilledFalse(t *testing.T) {
 
 	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, containertypes.StateExited))
 
-	inspect, err := apiClient.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(false, inspect.State.OOMKilled))
+	assert.Check(t, is.Equal(false, inspect.Container.State.OOMKilled))
 }

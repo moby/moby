@@ -70,9 +70,9 @@ func inspectServiceContainer(ctx context.Context, t *testing.T, apiClient client
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(containers, 1))
 
-	i, err := apiClient.ContainerInspect(ctx, containers[0].ID)
+	inspect, err := apiClient.ContainerInspect(ctx, containers[0].ID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	return i
+	return inspect.Container
 }
 
 func TestCreateServiceMultipleTimes(t *testing.T) {
@@ -380,9 +380,9 @@ func TestCreateServiceSysctls(t *testing.T) {
 		assert.Check(t, is.Equal(len(taskList.Items), 1))
 
 		// verify that the container has the sysctl option set
-		ctnr, err := apiClient.ContainerInspect(ctx, taskList.Items[0].Status.ContainerStatus.ContainerID)
+		inspect, err := apiClient.ContainerInspect(ctx, taskList.Items[0].Status.ContainerStatus.ContainerID, client.ContainerInspectOptions{})
 		assert.NilError(t, err)
-		assert.DeepEqual(t, ctnr.HostConfig.Sysctls, expectedSysctls)
+		assert.DeepEqual(t, inspect.Container.HostConfig.Sysctls, expectedSysctls)
 
 		// verify that the task has the sysctl option set in the task object
 		assert.DeepEqual(t, taskList.Items[0].Spec.ContainerSpec.Sysctls, expectedSysctls)
@@ -450,10 +450,10 @@ func TestCreateServiceCapabilities(t *testing.T) {
 	assert.Check(t, is.Equal(len(taskList.Items), 1))
 
 	// verify that the container has the capabilities option set
-	ctnr, err := apiClient.ContainerInspect(ctx, taskList.Items[0].Status.ContainerStatus.ContainerID)
+	inspect, err := apiClient.ContainerInspect(ctx, taskList.Items[0].Status.ContainerStatus.ContainerID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.DeepEqual(t, ctnr.HostConfig.CapAdd, capAdd)
-	assert.DeepEqual(t, ctnr.HostConfig.CapDrop, capDrop)
+	assert.DeepEqual(t, inspect.Container.HostConfig.CapAdd, capAdd)
+	assert.DeepEqual(t, inspect.Container.HostConfig.CapDrop, capDrop)
 
 	// verify that the task has the capabilities option set in the task object
 	assert.DeepEqual(t, taskList.Items[0].Spec.ContainerSpec.CapabilityAdd, capAdd)
@@ -541,9 +541,9 @@ func TestCreateServiceMemorySwap(t *testing.T) {
 			// if the host supports it (see https://github.com/moby/moby/blob/v17.03.2-ce/daemon/daemon_unix.go#L290-L294)
 			// then check that the swap option is set on the container, and properly reported by the group FS as well
 			if testEnv.DaemonInfo.SwapLimit {
-				ctnr, err := apiClient.ContainerInspect(ctx, task.Status.ContainerStatus.ContainerID)
+				ctr, err := apiClient.ContainerInspect(ctx, task.Status.ContainerStatus.ContainerID, client.ContainerInspectOptions{})
 				assert.NilError(t, err)
-				assert.Equal(t, testCase.expectedDockerSwap, ctnr.HostConfig.Resources.MemorySwap)
+				assert.Equal(t, testCase.expectedDockerSwap, ctr.Container.HostConfig.Resources.MemorySwap)
 			}
 		})
 	}

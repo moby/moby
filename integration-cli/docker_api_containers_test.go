@@ -593,10 +593,10 @@ func UtilCreateNetworkMode(t *testing.T, networkMode container.NetworkMode) {
 	})
 	assert.NilError(t, err)
 
-	containerJSON, err := apiClient.ContainerInspect(testutil.GetContext(t), ctr.ID)
+	res, err := apiClient.ContainerInspect(testutil.GetContext(t), ctr.ID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 
-	assert.Equal(t, containerJSON.HostConfig.NetworkMode, networkMode, "Mismatched NetworkMode")
+	assert.Equal(t, res.Container.HostConfig.NetworkMode, networkMode, "Mismatched NetworkMode")
 }
 
 func (s *DockerAPISuite) TestContainerAPICreateWithCpuSharesCpuset(c *testing.T) {
@@ -624,13 +624,13 @@ func (s *DockerAPISuite) TestContainerAPICreateWithCpuSharesCpuset(c *testing.T)
 	})
 	assert.NilError(c, err)
 
-	containerJSON, err := apiClient.ContainerInspect(testutil.GetContext(c), ctr.ID)
+	res, err := apiClient.ContainerInspect(testutil.GetContext(c), ctr.ID, client.ContainerInspectOptions{})
 	assert.NilError(c, err)
 
-	out := inspectField(c, containerJSON.ID, "HostConfig.CpuShares")
+	out := inspectField(c, res.Container.ID, "HostConfig.CpuShares")
 	assert.Equal(c, out, "512")
 
-	outCpuset := inspectField(c, containerJSON.ID, "HostConfig.CpusetCpus")
+	outCpuset := inspectField(c, res.Container.ID, "HostConfig.CpusetCpus")
 	assert.Equal(c, outCpuset, "0")
 }
 
@@ -913,10 +913,10 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveVolume(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	ctrInspect, err := apiClient.ContainerInspect(testutil.GetContext(c), id)
+	res, err := apiClient.ContainerInspect(testutil.GetContext(c), id, client.ContainerInspectOptions{})
 	assert.NilError(c, err)
-	assert.Assert(c, is.Len(ctrInspect.Mounts, 1), "expected to have 1 mount")
-	mnt := ctrInspect.Mounts[0]
+	assert.Assert(c, is.Len(res.Container.Mounts, 1), "expected to have 1 mount")
+	mnt := res.Container.Mounts[0]
 	assert.Equal(c, mnt.Destination, testVol)
 
 	_, err = os.Stat(mnt.Source)
@@ -949,7 +949,7 @@ func (s *DockerAPISuite) TestContainerAPIChunkedEncoding(c *testing.T) {
 		req.ContentLength = -1
 		return nil
 	}))
-	assert.Assert(c, err == nil, "error creating container with chunked encoding")
+	assert.NilError(c, err, "error creating container with chunked encoding")
 	defer resp.Body.Close()
 	assert.Equal(c, resp.StatusCode, http.StatusCreated)
 }
@@ -1057,10 +1057,10 @@ func (s *DockerAPISuite) TestPostContainersCreateMemorySwappinessHostConfigOmitt
 	})
 	assert.NilError(c, err)
 
-	containerJSON, err := apiClient.ContainerInspect(testutil.GetContext(c), ctr.ID)
+	res, err := apiClient.ContainerInspect(testutil.GetContext(c), ctr.ID, client.ContainerInspectOptions{})
 	assert.NilError(c, err)
 
-	assert.Assert(c, is.Nil(containerJSON.HostConfig.MemorySwappiness))
+	assert.Assert(c, is.Nil(res.Container.HostConfig.MemorySwappiness))
 }
 
 // check validation is done daemon side and not only in cli
@@ -1660,9 +1660,9 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 				})
 			assert.NilError(c, err)
 
-			containerInspect, err := apiclient.ContainerInspect(ctx, ctr.ID)
+			res, err := apiclient.ContainerInspect(ctx, ctr.ID, client.ContainerInspectOptions{})
 			assert.NilError(c, err)
-			mps := containerInspect.Mounts
+			mps := res.Container.Mounts
 			assert.Assert(c, is.Len(mps, 1))
 			mountPoint := mps[0]
 
@@ -1713,13 +1713,13 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 
 func containerExit(ctx context.Context, apiclient client.APIClient, name string) func(poll.LogT) poll.Result {
 	return func(logT poll.LogT) poll.Result {
-		ctr, err := apiclient.ContainerInspect(ctx, name)
+		res, err := apiclient.ContainerInspect(ctx, name, client.ContainerInspectOptions{})
 		if err != nil {
 			return poll.Error(err)
 		}
-		switch ctr.State.Status {
+		switch s := res.Container.State.Status; s {
 		case container.StateCreated, container.StateRunning:
-			return poll.Continue("container %s is %s, waiting for exit", name, ctr.State.Status)
+			return poll.Continue("container %s is %s, waiting for exit", name, s)
 		case container.StatePaused, container.StateRestarting, container.StateRemoving, container.StateExited, container.StateDead:
 			// done
 		}

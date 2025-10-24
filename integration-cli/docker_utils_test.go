@@ -251,14 +251,14 @@ func waitInspect(name, expr, expected string, timeout time.Duration) error {
 	return daemon.WaitInspectWithArgs(dockerBinary, name, expr, expected, timeout)
 }
 
-func getInspectBody(t *testing.T, version, id string) []byte {
+func getInspectBody(t *testing.T, version, id string) json.RawMessage {
 	t.Helper()
 	apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(version))
 	assert.NilError(t, err)
 	defer apiClient.Close()
-	_, body, err := apiClient.ContainerInspectWithRaw(testutil.GetContext(t), id, false)
+	inspect, err := apiClient.ContainerInspect(testutil.GetContext(t), id, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	return body
+	return inspect.Raw
 }
 
 // Run a long running idle task in a background container using the

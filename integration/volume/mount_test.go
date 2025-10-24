@@ -107,9 +107,9 @@ func TestRunMountVolumeSubdir(t *testing.T) {
 			output, err := container.Output(ctx, apiClient, id)
 			assert.Check(t, err)
 
-			inspect, err := apiClient.ContainerInspect(ctx, id)
+			inspect, err := apiClient.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 			if assert.Check(t, err) {
-				assert.Check(t, is.Equal(inspect.State.ExitCode, 0))
+				assert.Check(t, is.Equal(inspect.Container.State.ExitCode, 0))
 			}
 
 			assert.Check(t, is.Equal(strings.TrimSpace(output.Stderr), ""))
@@ -222,9 +222,9 @@ func TestRunMountImage(t *testing.T) {
 			output, err := container.Output(ctx, apiClient, id)
 			assert.Check(t, err)
 
-			inspect, err := apiClient.ContainerInspect(ctx, id)
+			inspect, err := apiClient.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 			if tc.startErr == "" && assert.Check(t, err) {
-				assert.Check(t, is.Equal(inspect.State.ExitCode, 0))
+				assert.Check(t, is.Equal(inspect.Container.State.ExitCode, 0))
 			}
 
 			assert.Check(t, is.Equal(strings.TrimSpace(output.Stderr), ""))
@@ -294,9 +294,9 @@ func setupTestVolume(t *testing.T, apiClient client.APIClient) string {
 	assert.NilError(t, err)
 	assert.Assert(t, is.Equal(output.Stderr, ""))
 
-	inspect, err := apiClient.ContainerInspect(ctx, cid)
+	inspect, err := apiClient.ContainerInspect(ctx, cid, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Assert(t, is.Equal(inspect.State.ExitCode, 0))
+	assert.Assert(t, is.Equal(inspect.Container.State.ExitCode, 0))
 
 	return volumeName
 }
@@ -384,12 +384,12 @@ func TestRunMountImageMultipleTimes(t *testing.T) {
 
 	defer apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
-	inspect, err := apiClient.ContainerInspect(ctx, id)
+	inspect, err := apiClient.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 
-	assert.Equal(t, len(inspect.Mounts), 2)
+	assert.Equal(t, len(inspect.Container.Mounts), 2)
 	var hasFoo, hasBar bool
-	for _, mnt := range inspect.Mounts {
+	for _, mnt := range inspect.Container.Mounts {
 		if mnt.Destination == "/etc/foo" {
 			hasFoo = true
 		}

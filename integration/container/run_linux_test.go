@@ -49,10 +49,10 @@ func TestNISDomainname(t *testing.T) {
 		c.Config.Hostname = hostname
 		c.Config.Domainname = domainname
 	})
-	inspect, err := apiClient.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(hostname, inspect.Config.Hostname))
-	assert.Check(t, is.Equal(domainname, inspect.Config.Domainname))
+	assert.Check(t, is.Equal(hostname, inspect.Container.Config.Hostname))
+	assert.Check(t, is.Equal(domainname, inspect.Container.Config.Domainname))
 
 	// Check hostname.
 	res, err := container.Exec(ctx, apiClient, cID,
@@ -89,9 +89,9 @@ func TestHostnameDnsResolution(t *testing.T) {
 		c.Config.Hostname = hostname
 		c.HostConfig.NetworkMode = containertypes.NetworkMode(netName)
 	})
-	inspect, err := apiClient.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(hostname, inspect.Config.Hostname))
+	assert.Check(t, is.Equal(hostname, inspect.Container.Config.Hostname))
 
 	// Clear hosts file so ping will use DNS for hostname resolution
 	res, err := container.Exec(ctx, apiClient, cID,

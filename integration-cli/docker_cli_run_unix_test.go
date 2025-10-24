@@ -1560,9 +1560,9 @@ func (s *DockerCLIRunSuite) TestRunWithNanoCPUs(c *testing.T) {
 
 	clt, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	inspect, err := clt.ContainerInspect(testutil.GetContext(c), "test")
+	res, err := clt.ContainerInspect(testutil.GetContext(c), "test", client.ContainerInspectOptions{})
 	assert.NilError(c, err)
-	assert.Equal(c, inspect.HostConfig.NanoCPUs, int64(500000000))
+	assert.Equal(c, res.Container.HostConfig.NanoCPUs, int64(500000000))
 
 	out = inspectField(c, "test", "HostConfig.CpuQuota")
 	assert.Equal(c, out, "0", "CPU CFS quota should be 0")
