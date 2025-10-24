@@ -25,7 +25,7 @@ func TestEventsExecDie(t *testing.T) {
 
 	cID := container.Run(ctx, t, apiClient)
 
-	id, err := apiClient.ExecCreate(ctx, cID, client.ExecCreateOptions{
+	res, err := apiClient.ExecCreate(ctx, cID, client.ExecCreateOptions{
 		Cmd: []string{"echo", "hello"},
 	})
 	assert.NilError(t, err)
@@ -34,7 +34,7 @@ func TestEventsExecDie(t *testing.T) {
 		Filters: make(client.Filters).Add("container", cID).Add("event", string(events.ActionExecDie)),
 	})
 
-	_, err = apiClient.ExecStart(ctx, id.ID, client.ExecStartOptions{
+	_, err = apiClient.ExecStart(ctx, res.ID, client.ExecStartOptions{
 		Detach: true,
 		Tty:    false,
 	})
@@ -45,7 +45,7 @@ func TestEventsExecDie(t *testing.T) {
 		assert.Equal(t, m.Type, events.ContainerEventType)
 		assert.Equal(t, m.Actor.ID, cID)
 		assert.Equal(t, m.Action, events.ActionExecDie)
-		assert.Equal(t, m.Actor.Attributes["execID"], id.ID)
+		assert.Equal(t, m.Actor.Attributes["execID"], res.ID)
 		assert.Equal(t, m.Actor.Attributes["exitCode"], "0")
 	case err = <-errs:
 		assert.NilError(t, err)

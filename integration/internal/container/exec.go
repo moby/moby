@@ -58,11 +58,11 @@ func Exec(ctx context.Context, apiClient client.APIClient, id string, cmd []stri
 		op(&execOptions)
 	}
 
-	cresp, err := apiClient.ExecCreate(ctx, id, execOptions)
+	res, err := apiClient.ExecCreate(ctx, id, execOptions)
 	if err != nil {
 		return ExecResult{}, err
 	}
-	execID := cresp.ID
+	execID := res.ID
 
 	// run it, with stdout/stderr attached
 	aresp, err := apiClient.ExecAttach(ctx, execID, client.ExecAttachOptions{})

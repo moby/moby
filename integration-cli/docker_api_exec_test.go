@@ -128,13 +128,13 @@ func (s *DockerAPISuite) TestExecAPIStartWithDetach(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	createResp, err := apiClient.ExecCreate(ctx, name, client.ExecCreateOptions{
+	res, err := apiClient.ExecCreate(ctx, name, client.ExecCreateOptions{
 		Cmd:          []string{"true"},
 		AttachStderr: true,
 	})
 	assert.NilError(c, err)
 
-	_, body, err := request.Post(ctx, fmt.Sprintf("/exec/%s/start", createResp.ID), request.RawString(`{"Detach": true}`), request.JSON)
+	_, body, err := request.Post(ctx, fmt.Sprintf("/exec/%s/start", res.ID), request.RawString(`{"Detach": true}`), request.JSON)
 	assert.NilError(c, err)
 
 	b, err := request.ReadBody(body)

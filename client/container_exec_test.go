@@ -68,11 +68,11 @@ func TestExecCreate(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	r, err := client.ExecCreate(context.Background(), "container_id", ExecCreateOptions{
+	res, err := client.ExecCreate(context.Background(), "container_id", ExecCreateOptions{
 		User: "user",
 	})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(r.ID, "exec_id"))
+	assert.Check(t, is.Equal(res.ID, "exec_id"))
 }
 
 func TestExecStartError(t *testing.T) {
