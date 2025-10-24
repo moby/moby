@@ -47,9 +47,11 @@ func TestDockerNetworkConnectAliasPreV144(t *testing.T) {
 		}
 	})
 
-	err := apiClient.NetworkConnect(ctx, name, cID1, &network.EndpointSettings{
-		Aliases: []string{
-			"aaa",
+	_, err := apiClient.NetworkConnect(ctx, name, cID1, client.NetworkConnectOptions{
+		EndpointConfig: &network.EndpointSettings{
+			Aliases: []string{
+				"aaa",
+			},
 		},
 	})
 	assert.NilError(t, err)
@@ -70,9 +72,11 @@ func TestDockerNetworkConnectAliasPreV144(t *testing.T) {
 		}
 	})
 
-	err = apiClient.NetworkConnect(ctx, name, cID2, &network.EndpointSettings{
-		Aliases: []string{
-			"bbb",
+	_, err = apiClient.NetworkConnect(ctx, name, cID2, client.NetworkConnectOptions{
+		EndpointConfig: &network.EndpointSettings{
+			Aliases: []string{
+				"bbb",
+			},
 		},
 	})
 	assert.NilError(t, err)
@@ -108,7 +112,9 @@ func TestDockerNetworkReConnect(t *testing.T) {
 		}
 	})
 
-	err := apiClient.NetworkConnect(ctx, name, c1, &network.EndpointSettings{})
+	_, err := apiClient.NetworkConnect(ctx, name, c1, client.NetworkConnectOptions{
+		EndpointConfig: &network.EndpointSettings{},
+	})
 	assert.NilError(t, err)
 
 	err = apiClient.ContainerStart(ctx, c1, client.ContainerStartOptions{})
@@ -117,7 +123,9 @@ func TestDockerNetworkReConnect(t *testing.T) {
 	n1, err := apiClient.ContainerInspect(ctx, c1)
 	assert.NilError(t, err)
 
-	err = apiClient.NetworkConnect(ctx, name, c1, &network.EndpointSettings{})
+	_, err = apiClient.NetworkConnect(ctx, name, c1, client.NetworkConnectOptions{
+		EndpointConfig: &network.EndpointSettings{},
+	})
 	assert.ErrorContains(t, err, "is already attached to network")
 
 	n2, err := apiClient.ContainerInspect(ctx, c1)

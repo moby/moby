@@ -8,7 +8,6 @@ import (
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/system"
@@ -124,12 +123,12 @@ type ImageAPIClient interface {
 
 // NetworkAPIClient defines API client methods for the networks
 type NetworkAPIClient interface {
-	NetworkConnect(ctx context.Context, network, container string, config *network.EndpointSettings) error
-	NetworkCreate(ctx context.Context, name string, options NetworkCreateOptions) (network.CreateResponse, error)
-	NetworkDisconnect(ctx context.Context, network, container string, force bool) error
+	NetworkConnect(ctx context.Context, network, container string, options NetworkConnectOptions) (NetworkConnectResult, error)
+	NetworkCreate(ctx context.Context, name string, options NetworkCreateOptions) (NetworkCreateResult, error)
+	NetworkDisconnect(ctx context.Context, network, container string, options NetworkDisconnectOptions) (NetworkDisconnectResult, error)
 	NetworkInspect(ctx context.Context, network string, options NetworkInspectOptions) (NetworkInspectResult, error)
 	NetworkList(ctx context.Context, options NetworkListOptions) (NetworkListResult, error)
-	NetworkRemove(ctx context.Context, network string) error
+	NetworkRemove(ctx context.Context, network string, options NetworkRemoveOptions) (NetworkRemoveResult, error)
 	NetworksPrune(ctx context.Context, opts NetworkPruneOptions) (NetworkPruneResult, error)
 }
 

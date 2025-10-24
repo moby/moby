@@ -51,7 +51,7 @@ func TestNetworkCreateDelete(t *testing.T) {
 	assert.Check(t, IsNetworkAvailable(ctx, apiClient, netName))
 
 	// delete the network and make sure it is deleted
-	err := apiClient.NetworkRemove(ctx, netName)
+	_, err := apiClient.NetworkRemove(ctx, netName, client.NetworkRemoveOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, IsNetworkNotAvailable(ctx, apiClient, netName))
 }
@@ -70,12 +70,12 @@ func TestDockerNetworkDeletePreferID(t *testing.T) {
 
 	// Delete the network using a prefix of the first network's ID as name.
 	// This should the network name with the id-prefix, not the original network.
-	err := apiClient.NetworkRemove(ctx, testNet[:12])
+	_, err := apiClient.NetworkRemove(ctx, testNet[:12], client.NetworkRemoveOptions{})
 	assert.NilError(t, err)
 
 	// Delete the network using networkID. This should remove the original
 	// network, not the network with the name equal to the networkID
-	err = apiClient.NetworkRemove(ctx, testNet)
+	_, err = apiClient.NetworkRemove(ctx, testNet, client.NetworkRemoveOptions{})
 	assert.NilError(t, err)
 
 	// networks "testNet" and "idPrefixNet" should be removed, but "fullIDNet" should still exist

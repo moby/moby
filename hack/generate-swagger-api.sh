@@ -65,7 +65,9 @@ generate_model types/network --keep-spec-order --additional-initialism=IPAM <<- 
 	EndpointResource
 	IPAMStatus
 	Network
+	NetworkConnectRequest
 	NetworkCreateResponse
+	NetworkDisconnectRequest
 	NetworkInspect
 	NetworkStatus
 	NetworkSummary

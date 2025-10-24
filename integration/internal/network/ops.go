@@ -17,32 +17,28 @@ func WithDriver(driver string) func(*client.NetworkCreateOptions) {
 // WithIPv4 enables/disables IPv4 on the network
 func WithIPv4(enable bool) func(*client.NetworkCreateOptions) {
 	return func(n *client.NetworkCreateOptions) {
-		enableIPv4 := enable
-		n.EnableIPv4 = &enableIPv4
+		n.EnableIPv4 = enable
 	}
 }
 
 // WithIPv6 Enables IPv6 on the network
 func WithIPv6() func(*client.NetworkCreateOptions) {
 	return func(n *client.NetworkCreateOptions) {
-		enableIPv6 := true
-		n.EnableIPv6 = &enableIPv6
+		n.EnableIPv6 = true
 	}
 }
 
 // WithIPv4Disabled makes sure IPv4 is disabled on the network.
 func WithIPv4Disabled() func(*client.NetworkCreateOptions) {
 	return func(n *client.NetworkCreateOptions) {
-		enable := false
-		n.EnableIPv4 = &enable
+		n.EnableIPv4 = false
 	}
 }
 
 // WithIPv6Disabled makes sure IPv6 is disabled on the network.
 func WithIPv6Disabled() func(*client.NetworkCreateOptions) {
 	return func(n *client.NetworkCreateOptions) {
-		enable := false
-		n.EnableIPv6 = &enable
+		n.EnableIPv6 = false
 	}
 }
 

@@ -275,7 +275,7 @@ func TestServiceUpdateNetwork(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, len(netInfo.Network.Containers) == 0, "Load balancing endpoint still exists in network")
 
-	err = apiClient.NetworkRemove(ctx, overlayID)
+	_, err = apiClient.NetworkRemove(ctx, overlayID, client.NetworkRemoveOptions{})
 	assert.NilError(t, err)
 
 	_, err = apiClient.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})

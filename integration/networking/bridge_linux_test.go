@@ -1519,7 +1519,7 @@ func TestGatewaySelection(t *testing.T) {
 	// Connect the IPv6-only network. The IPv6 endpoint should become the
 	// gateway for IPv6, the IPv4 endpoint should be reconfigured as the
 	// gateway for IPv4 only.
-	err := c.NetworkConnect(ctx, netId6, ctrId, nil)
+	_, err := c.NetworkConnect(ctx, netId6, ctrId, client.NetworkConnectOptions{})
 	assert.NilError(t, err)
 	checkProxies(ctx, t, c, d.Pid(), []expProxyCfg{
 		{"tcp", "0.0.0.0", "8080", ctrName, netName4, true, "80"},
@@ -1528,7 +1528,7 @@ func TestGatewaySelection(t *testing.T) {
 
 	// Disconnect the IPv6-only network, the IPv4 should get back the mapping
 	// from host-IPv6.
-	err = c.NetworkDisconnect(ctx, netId6, ctrId, false)
+	_, err = c.NetworkDisconnect(ctx, netId6, ctrId, client.NetworkDisconnectOptions{Force: false})
 	assert.NilError(t, err)
 	checkProxies(ctx, t, c, d.Pid(), []expProxyCfg{
 		{"tcp", "0.0.0.0", "8080", ctrName, netName4, true, "80"},
@@ -1536,7 +1536,7 @@ func TestGatewaySelection(t *testing.T) {
 	})
 
 	// Connect the dual-stack network, it should become the gateway for v6 and v4.
-	err = c.NetworkConnect(ctx, netId46, ctrId, nil)
+	_, err = c.NetworkConnect(ctx, netId46, ctrId, client.NetworkConnectOptions{})
 	assert.NilError(t, err)
 	checkProxies(ctx, t, c, d.Pid(), []expProxyCfg{
 		{"tcp", "0.0.0.0", "8080", ctrName, netName46, true, "80"},
@@ -1544,7 +1544,7 @@ func TestGatewaySelection(t *testing.T) {
 	})
 
 	// Go back to the IPv4-only gateway, with proxy from host IPv6.
-	err = c.NetworkDisconnect(ctx, netId46, ctrId, false)
+	_, err = c.NetworkDisconnect(ctx, netId46, ctrId, client.NetworkDisconnectOptions{Force: false})
 	assert.NilError(t, err)
 	checkProxies(ctx, t, c, d.Pid(), []expProxyCfg{
 		{"tcp", "0.0.0.0", "8080", ctrName, netName4, true, "80"},
@@ -1553,7 +1553,7 @@ func TestGatewaySelection(t *testing.T) {
 
 	// Connect the IPv6-only ipvlan network, its new Endpoint should become the IPv6
 	// gateway, so the IPv4-only bridge is expected to drop its mapping from host IPv6.
-	err = c.NetworkConnect(ctx, netIdIpvlan6, ctrId, nil)
+	_, err = c.NetworkConnect(ctx, netIdIpvlan6, ctrId, client.NetworkConnectOptions{})
 	assert.NilError(t, err)
 	checkProxies(ctx, t, c, d.Pid(), []expProxyCfg{
 		{"tcp", "0.0.0.0", "8080", ctrName, netName4, true, "80"},

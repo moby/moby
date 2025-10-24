@@ -17,15 +17,15 @@ func TestNetworkConnectError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	err = client.NetworkConnect(context.Background(), "network_id", "container_id", nil)
+	_, err = client.NetworkConnect(context.Background(), "network_id", "container_id", NetworkConnectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	// Empty network ID or container ID
-	err = client.NetworkConnect(context.Background(), "", "container_id", nil)
+	_, err = client.NetworkConnect(context.Background(), "", "container_id", NetworkConnectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.NetworkConnect(context.Background(), "network_id", "", nil)
+	_, err = client.NetworkConnect(context.Background(), "network_id", "", NetworkConnectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -38,7 +38,7 @@ func TestNetworkConnectEmptyNilEndpointSettings(t *testing.T) {
 			return nil, err
 		}
 
-		var connect NetworkConnectOptions
+		var connect network.ConnectRequest
 		if err := json.NewDecoder(req.Body).Decode(&connect); err != nil {
 			return nil, err
 		}
@@ -55,7 +55,7 @@ func TestNetworkConnectEmptyNilEndpointSettings(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	err = client.NetworkConnect(context.Background(), "network_id", "container_id", nil)
+	_, err = client.NetworkConnect(context.Background(), "network_id", "container_id", NetworkConnectOptions{})
 	assert.NilError(t, err)
 }
 
@@ -67,7 +67,7 @@ func TestNetworkConnect(t *testing.T) {
 			return nil, err
 		}
 
-		var connect NetworkConnectOptions
+		var connect network.ConnectRequest
 		if err := json.NewDecoder(req.Body).Decode(&connect); err != nil {
 			return nil, err
 		}
@@ -88,8 +88,10 @@ func TestNetworkConnect(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	err = client.NetworkConnect(context.Background(), "network_id", "container_id", &network.EndpointSettings{
-		NetworkID: "NetworkID",
+	_, err = client.NetworkConnect(context.Background(), "network_id", "container_id", NetworkConnectOptions{
+		EndpointConfig: &network.EndpointSettings{
+			NetworkID: "NetworkID",
+		},
 	})
 	assert.NilError(t, err)
 }

@@ -45,10 +45,9 @@ func TestNetworkCreate(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	enableIPv6 := true
 	networkResponse, err := client.NetworkCreate(context.Background(), "mynetwork", NetworkCreateOptions{
 		Driver:     "mydriver",
-		EnableIPv6: &enableIPv6,
+		EnableIPv6: true,
 		Internal:   true,
 		Options: map[string]string{
 			"opt-key": "opt-value",
@@ -56,5 +55,6 @@ func TestNetworkCreate(t *testing.T) {
 	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(networkResponse.ID, "network_id"))
-	assert.Check(t, is.Equal(networkResponse.Warning, "warning"))
+	assert.Check(t, is.Len(networkResponse.Warning, 1))
+	assert.Check(t, is.Equal(networkResponse.Warning[0], "warning"))
 }

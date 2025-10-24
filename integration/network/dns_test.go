@@ -29,7 +29,7 @@ func TestDaemonDNSFallback(t *testing.T) {
 	c := d.NewClientT(t)
 
 	network.CreateNoError(ctx, t, c, "test")
-	defer c.NetworkRemove(ctx, "test")
+	defer c.NetworkRemove(ctx, "test", client.NetworkRemoveOptions{})
 
 	cid := container.Run(ctx, t, c, container.WithNetworkMode("test"), container.WithCmd("nslookup", "docker.com"))
 	defer c.ContainerRemove(ctx, cid, client.ContainerRemoveOptions{Force: true})

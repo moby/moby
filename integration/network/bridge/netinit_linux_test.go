@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/integration/internal/network"
@@ -58,7 +59,7 @@ func TestNetworkInitErrorUserDefined(t *testing.T) {
 	d.SetEnvVar("DOCKER_TEST_BRIDGE_INIT_ERROR", brName)
 	d.Restart(t)
 
-	err := c.NetworkRemove(ctx, netName)
+	_, err := c.NetworkRemove(ctx, netName, client.NetworkRemoveOptions{})
 	assert.NilError(t, err)
 
 	d.SetEnvVar("DOCKER_TEST_BRIDGE_INIT_ERROR", "")
