@@ -77,12 +77,12 @@ func Exec(ctx context.Context, apiClient client.APIClient, id string, cmd []stri
 	}
 
 	// get the exit code
-	iresp, err := apiClient.ExecInspect(ctx, execID, client.ExecInspectOptions{})
+	inspect, err := apiClient.ExecInspect(ctx, execID, client.ExecInspectOptions{})
 	if err != nil {
 		return ExecResult{}, err
 	}
 
-	return ExecResult{ExitCode: iresp.ExitCode, outBuffer: &s.stdout, errBuffer: &s.stderr}, nil
+	return ExecResult{ExitCode: inspect.ExitCode, outBuffer: &s.stdout, errBuffer: &s.stderr}, nil
 }
 
 // ExecT calls Exec() and aborts the test if an error occurs.

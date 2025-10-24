@@ -98,7 +98,7 @@ func TestExec(t *testing.T) {
 
 	inspect, err := apiClient.ExecInspect(ctx, res.ID, client.ExecInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(inspect.ExecID, res.ID))
+	assert.Check(t, is.Equal(inspect.ID, res.ID))
 
 	resp, err := apiClient.ExecAttach(ctx, res.ID, client.ExecAttachOptions{})
 	assert.NilError(t, err)

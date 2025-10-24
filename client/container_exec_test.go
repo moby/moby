@@ -141,6 +141,6 @@ func TestExecInspect(t *testing.T) {
 
 	inspect, err := client.ExecInspect(context.Background(), "exec_id", ExecInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(inspect.ExecID, "exec_id"))
+	assert.Check(t, is.Equal(inspect.ID, "exec_id"))
 	assert.Check(t, is.Equal(inspect.ContainerID, "container_id"))
 }

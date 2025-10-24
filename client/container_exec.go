@@ -127,26 +127,21 @@ func (cli *Client) ExecAttach(ctx context.Context, execID string, options ExecAt
 	return ExecAttachResult{HijackedResponse: response}, err
 }
 
-// ExecInspect holds information returned by exec inspect.
-//
-// It provides a subset of the information included in [container.ExecInspectResponse].
-//
-// TODO(thaJeztah): include all fields of [container.ExecInspectResponse] ?
-type ExecInspect struct {
-	ExecID      string `json:"ID"`
-	ContainerID string `json:"ContainerID"`
-	Running     bool   `json:"Running"`
-	ExitCode    int    `json:"ExitCode"`
-	Pid         int    `json:"Pid"`
-}
-
 // ExecInspectOptions holds options for inspecting a container exec.
 type ExecInspectOptions struct {
 }
 
 // ExecInspectResult holds the result of inspecting a container exec.
+//
+// It provides a subset of the information included in [container.ExecInspectResponse].
+//
+// TODO(thaJeztah): include all fields of [container.ExecInspectResponse] ?
 type ExecInspectResult struct {
-	ExecInspect
+	ID          string
+	ContainerID string
+	Running     bool
+	ExitCode    int
+	PID         int
 }
 
 // ExecInspect returns information about a specific exec process on the docker host.
@@ -168,11 +163,11 @@ func (cli *Client) ExecInspect(ctx context.Context, execID string, options ExecI
 		ec = *response.ExitCode
 	}
 
-	return ExecInspectResult{ExecInspect: ExecInspect{
-		ExecID:      response.ID,
+	return ExecInspectResult{
+		ID:          response.ID,
 		ContainerID: response.ContainerID,
 		Running:     response.Running,
 		ExitCode:    ec,
-		Pid:         response.Pid,
-	}}, nil
+		PID:         response.Pid,
+	}, nil
 }
