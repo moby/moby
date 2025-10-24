@@ -6,7 +6,7 @@ import (
 	"net/url"
 
 	"github.com/moby/moby/api/types/image"
-	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/client/pkg/versions"
 )
 
 // ImageList returns a list of images in the docker host.

@@ -21,7 +21,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/command"
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/compression"
-	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/client/pkg/versions"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/integration-cli/cli/build"
 	"github.com/moby/moby/v2/internal/testutil"

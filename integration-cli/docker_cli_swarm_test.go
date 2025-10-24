@@ -20,8 +20,8 @@ import (
 
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/moby/moby/api/types/swarm"
-	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/versions"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
 	remoteipam "github.com/moby/moby/v2/daemon/libnetwork/ipams/remote/api"

@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/moby/moby/api/types/build"
-	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/client/pkg/versions"
 )
 
 // BuildCachePruneOptions hold parameters to prune the build cache.

@@ -13,8 +13,8 @@ import (
 
 	"dario.cat/mergo"
 	"github.com/containerd/log"
-	"github.com/moby/moby/api/types/versions"
 	dopts "github.com/moby/moby/v2/daemon/internal/opts"
+	"github.com/moby/moby/v2/daemon/internal/versions"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
 	"github.com/moby/moby/v2/daemon/pkg/registry"
 	"github.com/pkg/errors"
