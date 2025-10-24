@@ -9,6 +9,9 @@ import (
 	"github.com/moby/moby/api/types/swarm"
 )
 
+// NodeInspectOptions holds parameters to inspect nodes with.
+type NodeInspectOptions struct{}
+
 type NodeInspectResult struct {
 	Node swarm.Node
 	Raw  []byte

@@ -20,16 +20,19 @@ type ImageImportOptions struct {
 
 // ImageImportResult holds the response body returned by the daemon for image import.
 type ImageImportResult struct {
-	body io.ReadCloser
+	rc io.ReadCloser
 }
 
 func (r ImageImportResult) Read(p []byte) (n int, err error) {
-	return r.body.Read(p)
+	if r.rc == nil {
+		return 0, io.EOF
+	}
+	return r.rc.Read(p)
 }
 
 func (r ImageImportResult) Close() error {
-	if r.body == nil {
+	if r.rc == nil {
 		return nil
 	}
-	return r.body.Close()
+	return r.rc.Close()
 }

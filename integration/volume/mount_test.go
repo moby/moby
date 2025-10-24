@@ -151,7 +151,9 @@ func TestRunMountImage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			testImage := setupTestImage(t, ctx, apiClient, tc.name)
 			if testImage != "" {
-				defer apiClient.ImageRemove(ctx, testImage, client.ImageRemoveOptions{Force: true})
+				defer func() {
+					_, _ = apiClient.ImageRemove(ctx, testImage, client.ImageRemoveOptions{Force: true})
+				}()
 			}
 
 			cfg := containertypes.Config{

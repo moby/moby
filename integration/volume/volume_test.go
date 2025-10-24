@@ -50,18 +50,17 @@ func TestVolumesCreateAndList(t *testing.T) {
 
 	res, err := apiClient.VolumeList(ctx, client.VolumeListOptions{})
 	assert.NilError(t, err)
-	assert.Assert(t, len(res.Items.Volumes) > 0)
+	assert.Assert(t, len(res.Items) > 0)
 
-	volumes := res.Items.Volumes[:0]
-	for _, v := range res.Items.Volumes {
+	volumes := res.Items[:0]
+	for _, v := range res.Items {
 		if v.Name == namedV.Name {
 			volumes = append(volumes, v)
 		}
 	}
 
 	assert.Check(t, is.Equal(len(volumes), 1))
-	assert.Check(t, volumes[0] != nil)
-	assert.Check(t, is.DeepEqual(*volumes[0], expected, cmpopts.EquateEmpty()))
+	assert.Check(t, is.DeepEqual(volumes[0], expected, cmpopts.EquateEmpty()))
 }
 
 func TestVolumesRemove(t *testing.T) {

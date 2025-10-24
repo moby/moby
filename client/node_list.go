@@ -8,6 +8,11 @@ import (
 	"github.com/moby/moby/api/types/swarm"
 )
 
+// NodeListOptions holds parameters to list nodes with.
+type NodeListOptions struct {
+	Filters Filters
+}
+
 type NodeListResult struct {
 	Items []swarm.Node
 }

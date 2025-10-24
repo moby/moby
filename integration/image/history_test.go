@@ -78,7 +78,7 @@ func TestAPIImageHistoryCrossPlatform(t *testing.T) {
 
 	imgID := build.GetImageIDFromBody(t, resp.Body)
 	t.Cleanup(func() {
-		apiClient.ImageRemove(ctx, imgID, client.ImageRemoveOptions{Force: true})
+		_, _ = apiClient.ImageRemove(ctx, imgID, client.ImageRemoveOptions{Force: true})
 	})
 
 	testCases := []struct {

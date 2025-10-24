@@ -33,14 +33,14 @@ func TestExecWithCloseStdin(t *testing.T) {
 	cID := container.Run(ctx, t, apiClient)
 
 	const expected = "closeIO"
-	execResp, err := apiClient.ExecCreate(ctx, cID, client.ExecCreateOptions{
+	res, err := apiClient.ExecCreate(ctx, cID, client.ExecCreateOptions{
 		AttachStdin:  true,
 		AttachStdout: true,
 		Cmd:          []string{"sh", "-c", "cat && echo " + expected},
 	})
 	assert.NilError(t, err)
 
-	resp, err := apiClient.ExecAttach(ctx, execResp.ID, client.ExecAttachOptions{})
+	resp, err := apiClient.ExecAttach(ctx, res.ID, client.ExecAttachOptions{})
 	assert.NilError(t, err)
 	defer resp.Close()
 
@@ -88,7 +88,7 @@ func TestExec(t *testing.T) {
 
 	cID := container.Run(ctx, t, apiClient, container.WithTty(true), container.WithWorkingDir("/root"))
 
-	id, err := apiClient.ExecCreate(ctx, cID, client.ExecCreateOptions{
+	res, err := apiClient.ExecCreate(ctx, cID, client.ExecCreateOptions{
 		WorkingDir:   "/tmp",
 		Env:          []string{"FOO=BAR"},
 		AttachStdout: true,
@@ -96,11 +96,11 @@ func TestExec(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	inspect, err := apiClient.ExecInspect(ctx, id.ID, client.ExecInspectOptions{})
+	inspect, err := apiClient.ExecInspect(ctx, res.ID, client.ExecInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(inspect.ExecID, id.ID))
+	assert.Check(t, is.Equal(inspect.ID, res.ID))
 
-	resp, err := apiClient.ExecAttach(ctx, id.ID, client.ExecAttachOptions{})
+	resp, err := apiClient.ExecAttach(ctx, res.ID, client.ExecAttachOptions{})
 	assert.NilError(t, err)
 	defer resp.Close()
 	r, err := io.ReadAll(resp.Reader)
@@ -126,12 +126,12 @@ func TestExecResize(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		cmd = []string{"sleep", "240"}
 	}
-	resp, err := apiClient.ExecCreate(ctx, cID, client.ExecCreateOptions{
+	res, err := apiClient.ExecCreate(ctx, cID, client.ExecCreateOptions{
 		Tty: true, // Windows requires a TTY for the resize to work, otherwise fails with "is not a tty: failed precondition", see https://github.com/moby/moby/pull/48665#issuecomment-2412530345
 		Cmd: cmd,
 	})
 	assert.NilError(t, err)
-	execID := resp.ID
+	execID := res.ID
 	assert.NilError(t, err)
 	_, err = apiClient.ExecStart(ctx, execID, client.ExecStartOptions{
 		Detach: true,
