@@ -36,7 +36,7 @@ func TestEventsExecDie(t *testing.T) {
 
 	_, err = apiClient.ExecStart(ctx, res.ID, client.ExecStartOptions{
 		Detach: true,
-		Tty:    false,
+		TTY:    false,
 	})
 	assert.NilError(t, err)
 

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/containerd/errdefs"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
@@ -109,9 +110,26 @@ func TestExecStart(t *testing.T) {
 
 	_, err = client.ExecStart(context.Background(), "exec_id", ExecStartOptions{
 		Detach: true,
-		Tty:    false,
+		TTY:    false,
 	})
 	assert.NilError(t, err)
+}
+
+func TestExecStartConsoleSize(t *testing.T) {
+	client, err := NewClientWithOpts(
+		WithMockClient(func(req *http.Request) (*http.Response, error) {
+			return nil, nil
+		}),
+	)
+	assert.NilError(t, err)
+
+	_, err = client.ExecStart(context.Background(), "exec_id", ExecStartOptions{
+		Detach:      true,
+		TTY:         false,
+		ConsoleSize: ConsoleSize{Height: 100, Width: 100},
+	})
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "console size is only supported when TTY is enabled"))
 }
 
 func TestExecInspectError(t *testing.T) {
