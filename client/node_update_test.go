@@ -17,20 +17,20 @@ func TestNodeUpdateError(t *testing.T) {
 
 	_, err = client.NodeUpdate(context.Background(), "node_id", NodeUpdateOptions{
 		Version: swarm.Version{},
-		Node:    swarm.NodeSpec{},
+		Spec:    swarm.NodeSpec{},
 	})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	_, err = client.NodeUpdate(context.Background(), "", NodeUpdateOptions{
 		Version: swarm.Version{},
-		Node:    swarm.NodeSpec{},
+		Spec:    swarm.NodeSpec{},
 	})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
 	_, err = client.NodeUpdate(context.Background(), "    ", NodeUpdateOptions{
 		Version: swarm.Version{},
-		Node:    swarm.NodeSpec{},
+		Spec:    swarm.NodeSpec{},
 	})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
@@ -49,7 +49,7 @@ func TestNodeUpdate(t *testing.T) {
 
 	_, err = client.NodeUpdate(context.Background(), "node_id", NodeUpdateOptions{
 		Version: swarm.Version{},
-		Node:    swarm.NodeSpec{},
+		Spec:    swarm.NodeSpec{},
 	})
 	assert.NilError(t, err)
 }

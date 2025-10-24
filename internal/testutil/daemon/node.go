@@ -60,7 +60,7 @@ func (d *Daemon) UpdateNode(ctx context.Context, t testing.TB, id string, f ...N
 
 		_, err := cli.NodeUpdate(ctx, node.ID, client.NodeUpdateOptions{
 			Version: node.Version,
-			Node:    node.Spec,
+			Spec:    node.Spec,
 		})
 		if i < 10 && err != nil && strings.Contains(err.Error(), "update out of sequence") {
 			time.Sleep(100 * time.Millisecond)
