@@ -178,13 +178,18 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 		taskNetworks = append(taskNetworks, netConfig)
 	}
 
+	resources, err := resourcesToGRPC(s.TaskTemplate.Resources)
+	if err != nil {
+		return swarmapi.ServiceSpec{}, err
+	}
+
 	spec := swarmapi.ServiceSpec{
 		Annotations: swarmapi.Annotations{
 			Name:   name,
 			Labels: s.Labels,
 		},
 		Task: swarmapi.TaskSpec{
-			Resources:   resourcesToGRPC(s.TaskTemplate.Resources),
+			Resources:   resources,
 			LogDriver:   driverToGRPC(s.TaskTemplate.LogDriver),
 			Networks:    taskNetworks,
 			ForceUpdate: s.TaskTemplate.ForceUpdate,
@@ -439,9 +444,18 @@ func resourcesFromGRPC(ts *swarmapi.TaskSpec) *types.ResourceRequirements {
 				GenericResources: GenericResourcesFromGRPC(res.Reservations.Generic),
 			}
 		}
+		resources.SwapBytes = int64PointerFromGRPC(res.SwapBytes)
+		resources.MemorySwappiness = int64PointerFromGRPC(res.MemorySwappiness)
 	}
 
 	return resources
+}
+
+func int64PointerFromGRPC(v *gogotypes.Int64Value) *int64 {
+	if v == nil {
+		return nil
+	}
+	return &v.Value
 }
 
 // GenericResourcesToGRPC converts a GenericResource to a GRPC GenericResource
@@ -462,7 +476,7 @@ func GenericResourcesToGRPC(genericRes []types.GenericResource) []*swarmapi.Gene
 	return generic
 }
 
-func resourcesToGRPC(res *types.ResourceRequirements) *swarmapi.ResourceRequirements {
+func resourcesToGRPC(res *types.ResourceRequirements) (*swarmapi.ResourceRequirements, error) {
 	var reqs *swarmapi.ResourceRequirements
 	if res != nil {
 		reqs = &swarmapi.ResourceRequirements{}
@@ -480,8 +494,21 @@ func resourcesToGRPC(res *types.ResourceRequirements) *swarmapi.ResourceRequirem
 				Generic:     GenericResourcesToGRPC(res.Reservations.GenericResources),
 			}
 		}
+		reqs.SwapBytes = int64PointerToGRPC(res.SwapBytes)
+		reqs.MemorySwappiness = int64PointerToGRPC(res.MemorySwappiness)
+
+		if reqs.SwapBytes != nil && (reqs.Limits == nil || reqs.Limits.MemoryBytes == 0) {
+			return nil, errors.New("memory swap provided, but no memory-limit was set")
+		}
 	}
-	return reqs
+	return reqs, nil
+}
+
+func int64PointerToGRPC(v *int64) *gogotypes.Int64Value {
+	if v == nil {
+		return nil
+	}
+	return &gogotypes.Int64Value{Value: *v}
 }
 
 func restartPolicyFromGRPC(p *swarmapi.RestartPolicy) *types.RestartPolicy {

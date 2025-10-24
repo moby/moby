@@ -202,6 +202,21 @@ func ServiceWithPidsLimit(limit int64) ServiceSpecOpt {
 	}
 }
 
+func ServiceWithMemorySwap(swap *int64, memoryLimit int64) ServiceSpecOpt {
+	return func(spec *swarmtypes.ServiceSpec) {
+		ensureResources(spec)
+		spec.TaskTemplate.Resources.SwapBytes = swap
+		spec.TaskTemplate.Resources.Limits.MemoryBytes = memoryLimit
+	}
+}
+
+func ServiceWithMemorySwappiness(swappiness *int64) ServiceSpecOpt {
+	return func(spec *swarmtypes.ServiceSpec) {
+		ensureResources(spec)
+		spec.TaskTemplate.Resources.MemorySwappiness = swappiness
+	}
+}
+
 // GetRunningTasks gets the list of running tasks for a service
 func GetRunningTasks(ctx context.Context, t *testing.T, c client.ServiceAPIClient, serviceID string) []swarmtypes.Task {
 	t.Helper()

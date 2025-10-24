@@ -57,6 +57,18 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /containers/create` no longer supports configuring a container-wide MAC address
   via the container's `Config.MacAddress` field. A container's MAC address can now only 
   be configured via endpoint settings when connecting to a network.
+* `GET /services` now returns `SwapBytes` and `MemorySwappiness` fields as part
+  of the `Resource` requirements.
+* `GET /services/{id}` now returns `SwapBytes` and `MemorySwappiness` fields as
+  part of the `Resource` requirements.
+* `POST /services/create` now accepts `SwapBytes` and `MemorySwappiness` fields
+  as part of the `Resource` requirements.
+* `POST /services/{id}/update` now accepts `SwapBytes` and `MemorySwappiness`
+  fields as part of the `Resource` requirements.
+* `GET /tasks` now  returns `SwapBytes` and `MemorySwappiness` fields as part
+  of the `Resource` requirements.
+* `GET /tasks/{id}` now  returns `SwapBytes` and `MemorySwappiness` fields as
+  part of the `Resource` requirements.
 
 ## v1.51 API changes
 
