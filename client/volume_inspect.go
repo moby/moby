@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/moby/moby/api/types/volume"
 )
@@ -13,8 +14,8 @@ type VolumeInspectOptions struct {
 
 // VolumeInspectResult holds the result from the [Client.VolumeInspect] method.
 type VolumeInspectResult struct {
-	Raw    []byte
 	Volume volume.Volume
+	Raw    json.RawMessage
 }
 
 // VolumeInspect returns the information about a specific volume in the docker host.
@@ -25,7 +26,6 @@ func (cli *Client) VolumeInspect(ctx context.Context, volumeID string, options V
 	}
 
 	resp, err := cli.get(ctx, "/volumes/"+volumeID, nil, nil)
-	defer ensureReaderClosed(resp)
 	if err != nil {
 		return VolumeInspectResult{}, err
 	}

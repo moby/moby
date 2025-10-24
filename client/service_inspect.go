@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -16,7 +17,7 @@ type ServiceInspectOptions struct {
 // ServiceInspectResult represents the result of a service inspect operation.
 type ServiceInspectResult struct {
 	Service swarm.Service
-	Raw     []byte
+	Raw     json.RawMessage
 }
 
 // ServiceInspect retrieves detailed information about a specific service by its ID.
@@ -29,7 +30,6 @@ func (cli *Client) ServiceInspect(ctx context.Context, serviceID string, options
 	query := url.Values{}
 	query.Set("insertDefaults", fmt.Sprintf("%v", options.InsertDefaults))
 	resp, err := cli.get(ctx, "/services/"+serviceID, query, nil)
-	defer ensureReaderClosed(resp)
 	if err != nil {
 		return ServiceInspectResult{}, err
 	}

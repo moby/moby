@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/moby/moby/api/types/swarm"
 )
@@ -14,7 +15,7 @@ type SecretInspectOptions struct {
 // SecretInspectResult holds the result from the [Client.SecretInspect]. method.
 type SecretInspectResult struct {
 	Secret swarm.Secret
-	Raw    []byte
+	Raw    json.RawMessage
 }
 
 // SecretInspect returns the secret information with raw data.
@@ -24,7 +25,6 @@ func (cli *Client) SecretInspect(ctx context.Context, id string, options SecretI
 		return SecretInspectResult{}, err
 	}
 	resp, err := cli.get(ctx, "/secrets/"+id, nil, nil)
-	defer ensureReaderClosed(resp)
 	if err != nil {
 		return SecretInspectResult{}, err
 	}

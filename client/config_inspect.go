@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/moby/moby/api/types/swarm"
 )
@@ -14,7 +15,7 @@ type ConfigInspectOptions struct {
 // ConfigInspectResult holds the result from the ConfigInspect method.
 type ConfigInspectResult struct {
 	Config swarm.Config
-	Raw    []byte
+	Raw    json.RawMessage
 }
 
 // ConfigInspect returns the config information with raw data
@@ -24,7 +25,6 @@ func (cli *Client) ConfigInspect(ctx context.Context, id string, options ConfigI
 		return ConfigInspectResult{}, err
 	}
 	resp, err := cli.get(ctx, "/configs/"+id, nil, nil)
-	defer ensureReaderClosed(resp)
 	if err != nil {
 		return ConfigInspectResult{}, err
 	}

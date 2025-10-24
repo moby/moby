@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/moby/moby/api/types/swarm"
 )
@@ -14,7 +15,7 @@ type TaskInspectOptions struct {
 // TaskInspectResult contains the result of a task inspection.
 type TaskInspectResult struct {
 	Task swarm.Task
-	Raw  []byte
+	Raw  json.RawMessage
 }
 
 // TaskInspect returns the task information and its raw representation.
@@ -25,7 +26,6 @@ func (cli *Client) TaskInspect(ctx context.Context, taskID string, options TaskI
 	}
 
 	resp, err := cli.get(ctx, "/tasks/"+taskID, nil, nil)
-	defer ensureReaderClosed(resp)
 	if err != nil {
 		return TaskInspectResult{}, err
 	}

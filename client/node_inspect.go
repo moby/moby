@@ -14,7 +14,7 @@ type NodeInspectOptions struct{}
 
 type NodeInspectResult struct {
 	Node swarm.Node
-	Raw  []byte
+	Raw  json.RawMessage
 }
 
 // NodeInspect returns the node information.
