@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/v2/daemon/internal/versions"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 )
 

@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/moby/moby/api/types/network"
-	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/v2/daemon/internal/filters"
+	"github.com/moby/moby/v2/daemon/internal/versions"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	dnetwork "github.com/moby/moby/v2/daemon/network"

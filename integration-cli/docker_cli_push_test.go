@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/distribution/reference"
-	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/client/pkg/versions"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/integration-cli/cli/build"
 	"golang.org/x/sync/errgroup"

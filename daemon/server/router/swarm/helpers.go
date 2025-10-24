@@ -7,7 +7,7 @@ import (
 
 	basictypes "github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/swarm"
-	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/v2/daemon/internal/versions"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 )

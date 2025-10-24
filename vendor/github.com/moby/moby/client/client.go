@@ -56,7 +56,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/go-connections/sockets"
-	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/client/pkg/versions"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
