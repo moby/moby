@@ -26,7 +26,6 @@ func (cli *Client) TaskInspect(ctx context.Context, taskID string, options TaskI
 	}
 
 	resp, err := cli.get(ctx, "/tasks/"+taskID, nil, nil)
-	defer ensureReaderClosed(resp)
 	if err != nil {
 		return TaskInspectResult{}, err
 	}

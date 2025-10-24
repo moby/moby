@@ -29,7 +29,6 @@ func (cli *Client) NetworkInspect(ctx context.Context, networkID string, options
 	}
 
 	resp, err := cli.get(ctx, "/networks/"+networkID, query, nil)
-	defer ensureReaderClosed(resp)
 	if err != nil {
 		return NetworkInspectResult{}, err
 	}

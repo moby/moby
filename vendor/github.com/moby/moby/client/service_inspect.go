@@ -30,7 +30,6 @@ func (cli *Client) ServiceInspect(ctx context.Context, serviceID string, options
 	query := url.Values{}
 	query.Set("insertDefaults", fmt.Sprintf("%v", options.InsertDefaults))
 	resp, err := cli.get(ctx, "/services/"+serviceID, query, nil)
-	defer ensureReaderClosed(resp)
 	if err != nil {
 		return ServiceInspectResult{}, err
 	}

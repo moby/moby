@@ -25,7 +25,6 @@ func (cli *Client) SecretInspect(ctx context.Context, id string, options SecretI
 		return SecretInspectResult{}, err
 	}
 	resp, err := cli.get(ctx, "/secrets/"+id, nil, nil)
-	defer ensureReaderClosed(resp)
 	if err != nil {
 		return SecretInspectResult{}, err
 	}

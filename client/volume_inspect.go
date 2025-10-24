@@ -26,7 +26,6 @@ func (cli *Client) VolumeInspect(ctx context.Context, volumeID string, options V
 	}
 
 	resp, err := cli.get(ctx, "/volumes/"+volumeID, nil, nil)
-	defer ensureReaderClosed(resp)
 	if err != nil {
 		return VolumeInspectResult{}, err
 	}

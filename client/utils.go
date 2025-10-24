@@ -74,7 +74,7 @@ func decodeWithRaw[T any](resp *http.Response, out *T) (raw json.RawMessage, _ e
 	if resp == nil || resp.Body == nil {
 		return nil, errors.New("empty response")
 	}
-	defer resp.Body.Close()
+	defer ensureReaderClosed(resp)
 
 	var buf bytes.Buffer
 	tr := io.TeeReader(resp.Body, &buf)

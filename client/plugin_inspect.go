@@ -25,7 +25,6 @@ func (cli *Client) PluginInspect(ctx context.Context, name string, options Plugi
 		return PluginInspectResult{}, err
 	}
 	resp, err := cli.get(ctx, "/plugins/"+name+"/json", nil, nil)
-	defer ensureReaderClosed(resp)
 	if err != nil {
 		return PluginInspectResult{}, err
 	}

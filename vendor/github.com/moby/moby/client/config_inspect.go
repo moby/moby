@@ -25,7 +25,6 @@ func (cli *Client) ConfigInspect(ctx context.Context, id string, options ConfigI
 		return ConfigInspectResult{}, err
 	}
 	resp, err := cli.get(ctx, "/configs/"+id, nil, nil)
-	defer ensureReaderClosed(resp)
 	if err != nil {
 		return ConfigInspectResult{}, err
 	}
