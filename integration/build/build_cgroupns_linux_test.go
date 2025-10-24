@@ -31,8 +31,8 @@ func getCgroupFromBuildOutput(buildOutput io.Reader) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if ix := strings.Index(m.Stream, prefix); ix == 0 {
-			return strings.TrimSpace(m.Stream), nil
+		if ix := strings.Index(m.Status, prefix); ix == 0 {
+			return strings.TrimSpace(m.Status), nil
 		}
 	}
 }

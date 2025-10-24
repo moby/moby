@@ -20,7 +20,7 @@ import (
 //
 // It is a reduced set of [jsonmessage.JSONMessage].
 type jsonMessage struct {
-	Stream   string               `json:"stream,omitempty"`
+	Stream   string               `json:"-"`
 	Status   string               `json:"status,omitempty"`
 	Progress *jsonstream.Progress `json:"progressDetail,omitempty"`
 	ID       string               `json:"id,omitempty"`
