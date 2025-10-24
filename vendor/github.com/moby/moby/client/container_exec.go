@@ -26,7 +26,7 @@ type ExecCreateOptions struct {
 
 // ExecCreateResult holds the result of creating a container exec.
 type ExecCreateResult struct {
-	container.ExecCreateResponse
+	ID string
 }
 
 // ExecCreate creates a new exec configuration to run an exec process.
@@ -58,7 +58,7 @@ func (cli *Client) ExecCreate(ctx context.Context, containerID string, options E
 
 	var response container.ExecCreateResponse
 	err = json.NewDecoder(resp.Body).Decode(&response)
-	return ExecCreateResult{ExecCreateResponse: response}, err
+	return ExecCreateResult{ID: response.ID}, err
 }
 
 type execStartAttachOptions struct {

@@ -5,6 +5,10 @@ import (
 	"net/url"
 )
 
+// NodeRemoveOptions holds parameters to remove nodes with.
+type NodeRemoveOptions struct {
+	Force bool
+}
 type NodeRemoveResult struct{}
 
 // NodeRemove removes a Node.
