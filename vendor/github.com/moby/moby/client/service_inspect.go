@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -16,7 +17,7 @@ type ServiceInspectOptions struct {
 // ServiceInspectResult represents the result of a service inspect operation.
 type ServiceInspectResult struct {
 	Service swarm.Service
-	Raw     []byte
+	Raw     json.RawMessage
 }
 
 // ServiceInspect retrieves detailed information about a specific service by its ID.

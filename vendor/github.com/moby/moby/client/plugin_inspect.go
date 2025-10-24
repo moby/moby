@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/moby/moby/api/types/plugin"
 )
@@ -13,8 +14,8 @@ type PluginInspectOptions struct {
 
 // PluginInspectResult holds the result from the [Client.PluginInspect] method.
 type PluginInspectResult struct {
-	Raw    []byte
 	Plugin plugin.Plugin
+	Raw    json.RawMessage
 }
 
 // PluginInspect inspects an existing plugin

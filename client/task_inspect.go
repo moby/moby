@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/moby/moby/api/types/swarm"
 )
@@ -14,7 +15,7 @@ type TaskInspectOptions struct {
 // TaskInspectResult contains the result of a task inspection.
 type TaskInspectResult struct {
 	Task swarm.Task
-	Raw  []byte
+	Raw  json.RawMessage
 }
 
 // TaskInspect returns the task information and its raw representation.

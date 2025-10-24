@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/moby/moby/api/types/swarm"
 )
@@ -14,7 +15,7 @@ type ConfigInspectOptions struct {
 // ConfigInspectResult holds the result from the ConfigInspect method.
 type ConfigInspectResult struct {
 	Config swarm.Config
-	Raw    []byte
+	Raw    json.RawMessage
 }
 
 // ConfigInspect returns the config information with raw data

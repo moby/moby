@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 
 	"github.com/moby/moby/api/types/network"
@@ -10,7 +11,7 @@ import (
 // NetworkInspectResult contains the result of a network inspection.
 type NetworkInspectResult struct {
 	Network network.Inspect
-	Raw     []byte
+	Raw     json.RawMessage
 }
 
 // NetworkInspect returns the information for a specific network configured in the docker host.

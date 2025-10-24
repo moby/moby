@@ -70,7 +70,7 @@ func encodePlatform(platform *ocispec.Platform) (string, error) {
 	return string(p), nil
 }
 
-func decodeWithRaw[T any](resp *http.Response, out *T) (raw []byte, _ error) {
+func decodeWithRaw[T any](resp *http.Response, out *T) (raw json.RawMessage, _ error) {
 	if resp == nil || resp.Body == nil {
 		return nil, errors.New("empty response")
 	}

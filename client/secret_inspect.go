@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/moby/moby/api/types/swarm"
 )
@@ -14,7 +15,7 @@ type SecretInspectOptions struct {
 // SecretInspectResult holds the result from the [Client.SecretInspect]. method.
 type SecretInspectResult struct {
 	Secret swarm.Secret
-	Raw    []byte
+	Raw    json.RawMessage
 }
 
 // SecretInspect returns the secret information with raw data.
