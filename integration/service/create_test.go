@@ -471,7 +471,6 @@ func TestCreateServiceMemorySwap(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	apiClient := d.NewClientT(t)
-	defer apiClient.Close()
 
 	toPtr := func(v int64) *int64 { return &v }
 	tests := []struct {
@@ -519,7 +518,7 @@ func TestCreateServiceMemorySwap(t *testing.T) {
 			)
 			poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, 1))
 
-			service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
+			inspect, err := apiClient.ServiceInspect(ctx, serviceID, client.ServiceInspectOptions{})
 			assert.NilError(t, err)
 
 			filter := make(client.Filters)
@@ -528,15 +527,15 @@ func TestCreateServiceMemorySwap(t *testing.T) {
 				Filters: filter,
 			})
 			assert.NilError(t, err)
-			assert.Check(t, is.Equal(len(tasks), 1))
-			task := tasks[0]
+			assert.Check(t, is.Equal(len(tasks.Items), 1))
+			task := tasks.Items[0]
 
 			if testCase.swapSpec == nil {
 				assert.Check(t, is.Nil(task.Spec.Resources.SwapBytes))
-				assert.Check(t, is.Nil(service.Spec.TaskTemplate.Resources.SwapBytes))
+				assert.Check(t, is.Nil(inspect.Service.Spec.TaskTemplate.Resources.SwapBytes))
 			} else {
 				assert.Equal(t, *testCase.swapSpec, *task.Spec.Resources.SwapBytes)
-				assert.Equal(t, *testCase.swapSpec, *service.Spec.TaskTemplate.Resources.SwapBytes)
+				assert.Equal(t, *testCase.swapSpec, *inspect.Service.Spec.TaskTemplate.Resources.SwapBytes)
 			}
 
 			// if the host supports it (see https://github.com/moby/moby/blob/v17.03.2-ce/daemon/daemon_unix.go#L290-L294)
@@ -558,7 +557,9 @@ func TestCreateServiceMemorySwap(t *testing.T) {
 		}
 
 		spec := swarm.CreateServiceSpec(t, serviceOpts)
-		_, err := apiClient.ServiceCreate(context.Background(), spec, client.ServiceCreateOptions{})
+		_, err := apiClient.ServiceCreate(t.Context(), client.ServiceCreateOptions{
+			Spec: spec,
+		})
 
 		assert.ErrorContains(t, err, "memory swap provided, but no memory-limit was set")
 	})
@@ -569,7 +570,6 @@ func TestCreateServiceMemorySwappiness(t *testing.T) {
 	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	apiClient := d.NewClientT(t)
-	defer apiClient.Close()
 
 	toPtr := func(v int64) *int64 { return &v }
 
@@ -596,10 +596,10 @@ func TestCreateServiceMemorySwappiness(t *testing.T) {
 				Filters: filter,
 			})
 			assert.NilError(t, err)
-			assert.Check(t, is.Equal(len(tasks), 1))
-			task := tasks[0]
+			assert.Check(t, is.Equal(len(tasks.Items), 1))
+			task := tasks.Items[0]
 
-			service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
+			inspect, err := apiClient.ServiceInspect(ctx, serviceID, client.ServiceInspectOptions{})
 			assert.NilError(t, err)
 
 			// An earlier version of this test also inspected the container
@@ -616,10 +616,10 @@ func TestCreateServiceMemorySwappiness(t *testing.T) {
 
 			if testCase.swappinessSpec == nil {
 				assert.Check(t, is.Nil(task.Spec.Resources.MemorySwappiness))
-				assert.Check(t, is.Nil(service.Spec.TaskTemplate.Resources.MemorySwappiness))
+				assert.Check(t, is.Nil(inspect.Service.Spec.TaskTemplate.Resources.MemorySwappiness))
 			} else {
 				assert.Equal(t, *testCase.swappinessSpec, *task.Spec.Resources.MemorySwappiness)
-				assert.Equal(t, *testCase.swappinessSpec, *service.Spec.TaskTemplate.Resources.MemorySwappiness)
+				assert.Equal(t, *testCase.swappinessSpec, *inspect.Service.Spec.TaskTemplate.Resources.MemorySwappiness)
 			}
 		})
 	}
