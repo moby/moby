@@ -80,7 +80,12 @@ func TestRunMountVolumeSubdir(t *testing.T) {
 			}
 
 			ctrName := strings.ReplaceAll(t.Name(), "/", "_")
-			create, creatErr := apiClient.ContainerCreate(ctx, &cfg, &hostCfg, &network.NetworkingConfig{}, nil, ctrName)
+			create, creatErr := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+				Config:           &cfg,
+				HostConfig:       &hostCfg,
+				NetworkingConfig: &network.NetworkingConfig{},
+				Name:             ctrName,
+			})
 			id := create.ID
 			if id != "" {
 				defer apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
@@ -175,7 +180,12 @@ func TestRunMountImage(t *testing.T) {
 			}
 
 			ctrName := strings.ReplaceAll(t.Name(), "/", "_")
-			create, creatErr := apiClient.ContainerCreate(ctx, &cfg, &hostCfg, &network.NetworkingConfig{}, nil, ctrName)
+			create, creatErr := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+				Config:           &cfg,
+				HostConfig:       &hostCfg,
+				NetworkingConfig: &network.NetworkingConfig{},
+				Name:             ctrName,
+			})
 			id := create.ID
 			if id != "" {
 				defer container.Remove(ctx, t, apiClient, id, client.ContainerRemoveOptions{Force: true})

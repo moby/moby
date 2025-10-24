@@ -5,6 +5,7 @@ import (
 	"time"
 
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
@@ -24,9 +25,9 @@ func TestDiff(t *testing.T) {
 	}
 
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID))
-	items, err := apiClient.ContainerDiff(ctx, cID)
+	result, err := apiClient.ContainerDiff(ctx, cID, client.ContainerDiffOptions{})
 	assert.NilError(t, err)
-	assert.DeepEqual(t, expected, items)
+	assert.DeepEqual(t, expected, result.Changes)
 }
 
 func TestDiffStoppedContainer(t *testing.T) {
@@ -51,7 +52,7 @@ func TestDiffStoppedContainer(t *testing.T) {
 		}
 	}
 
-	items, err := apiClient.ContainerDiff(ctx, cID)
+	result, err := apiClient.ContainerDiff(ctx, cID, client.ContainerDiffOptions{})
 	assert.NilError(t, err)
-	assert.DeepEqual(t, expected, items)
+	assert.DeepEqual(t, expected, result.Changes)
 }

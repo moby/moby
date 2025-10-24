@@ -64,7 +64,10 @@ func testIpcNonePrivateShareable(t *testing.T, mode string, mustBeMounted bool, 
 	}
 	apiClient := testEnv.APIClient()
 
-	resp, err := apiClient.ContainerCreate(ctx, &cfg, &hostCfg, nil, nil, "")
+	resp, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config:     &cfg,
+		HostConfig: &hostCfg,
+	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 
@@ -135,7 +138,10 @@ func testIpcContainer(t *testing.T, donorMode string, mustWork bool) {
 	apiClient := testEnv.APIClient()
 
 	// create and start the "donor" container
-	resp, err := apiClient.ContainerCreate(ctx, &cfg, &hostCfg, nil, nil, "")
+	resp, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config:     &cfg,
+		HostConfig: &hostCfg,
+	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 	name1 := resp.ID
@@ -145,7 +151,10 @@ func testIpcContainer(t *testing.T, donorMode string, mustWork bool) {
 
 	// create and start the second container
 	hostCfg.IpcMode = containertypes.IpcMode("container:" + name1)
-	resp, err = apiClient.ContainerCreate(ctx, &cfg, &hostCfg, nil, nil, "")
+	resp, err = apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config:     &cfg,
+		HostConfig: &hostCfg,
+	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 	name2 := resp.ID
@@ -201,7 +210,10 @@ func TestAPIIpcModeHost(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)
 
 	apiClient := testEnv.APIClient()
-	resp, err := apiClient.ContainerCreate(ctx, &cfg, &hostCfg, nil, nil, "")
+	resp, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config:     &cfg,
+		HostConfig: &hostCfg,
+	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 	name := resp.ID
@@ -237,7 +249,10 @@ func testDaemonIpcPrivateShareable(t *testing.T, mustBeShared bool, arg ...strin
 		Cmd:   []string{"top"},
 	}
 
-	resp, err := c.ContainerCreate(ctx, &cfg, &containertypes.HostConfig{}, nil, nil, "")
+	resp, err := c.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config:     &cfg,
+		HostConfig: &containertypes.HostConfig{},
+	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 

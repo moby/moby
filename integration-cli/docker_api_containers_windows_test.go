@@ -12,6 +12,7 @@ import (
 	"github.com/Microsoft/go-winio"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/pkg/errors"
@@ -51,19 +52,23 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsBindNamedPipe(c *testing.T
 	ctx := testutil.GetContext(c)
 	apiClient := testEnv.APIClient()
 	_, err = apiClient.ContainerCreate(ctx,
-		&container.Config{
-			Image: testEnv.PlatformDefaults.BaseImage,
-			Cmd:   []string{"cmd", "/c", cmd},
-		}, &container.HostConfig{
-			Mounts: []mount.Mount{
-				{
-					Type:   "npipe",
-					Source: hostPipeName,
-					Target: containerPipeName,
-				},
+		client.ContainerCreateOptions{
+			Config: &container.Config{
+				Image: testEnv.PlatformDefaults.BaseImage,
+				Cmd:   []string{"cmd", "/c", cmd},
 			},
+			HostConfig: &container.HostConfig{
+				Mounts: []mount.Mount{
+					{
+						Type:   "npipe",
+						Source: hostPipeName,
+						Target: containerPipeName,
+					},
+				},
 		},
-		nil, nil, name)
+		NetworkingConfig: &network.NetworkingConfig{},
+		Name:             name,
+	})
 	assert.NilError(c, err)
 
 	err = apiClient.ContainerStart(ctx, name, client.ContainerStartOptions{})

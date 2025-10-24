@@ -55,10 +55,13 @@ func TestGraphDriverPersistence(t *testing.T) {
 	assert.Check(t, info.DriverStatus[0][1] != "io.containerd.snapshotter.v1")
 	prevDriver := info.Driver
 
-	containerResp, err := c.ContainerCreate(ctx, &containertypes.Config{
-		Image: testImage,
-		Cmd:   []string{"echo", "test"},
-	}, nil, nil, nil, "test-container")
+	containerResp, err := c.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config: &containertypes.Config{
+			Image: testImage,
+			Cmd:   []string{"echo", "test"},
+		},
+		Name: "test-container",
+	})
 	assert.NilError(t, err, "Failed to create container")
 
 	containerID := containerResp.ID
@@ -141,7 +144,7 @@ func TestInspectGraphDriverAPIBC(t *testing.T) {
 			}
 
 			const testImage = "busybox:latest"
-			ctr, err := c.ContainerCreate(ctx, &containertypes.Config{Image: testImage}, nil, nil, nil, "test-container")
+			ctr, err := c.ContainerCreate(ctx, client.ContainerCreateOptions{Image: testImage, Name: "test-container"})
 			assert.NilError(t, err)
 			defer func() { _ = c.ContainerRemove(ctx, ctr.ID, client.ContainerRemoveOptions{Force: true}) }()
 

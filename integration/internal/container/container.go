@@ -55,7 +55,13 @@ func NewTestConfig(ops ...func(*TestContainerConfig)) *TestContainerConfig {
 func Create(ctx context.Context, t *testing.T, apiClient client.APIClient, ops ...func(*TestContainerConfig)) string {
 	t.Helper()
 	config := NewTestConfig(ops...)
-	c, err := apiClient.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Platform, config.Name)
+	c, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config:           config.Config,
+		HostConfig:       config.HostConfig,
+		NetworkingConfig: config.NetworkingConfig,
+		Platform:         config.Platform,
+		Name:             config.Name,
+	})
 	assert.NilError(t, err)
 
 	return c.ID
@@ -67,8 +73,14 @@ func Create(ctx context.Context, t *testing.T, apiClient client.APIClient, ops .
 //
 //	ctr, err := container.CreateFromConfig(ctx, apiClient, container.NewTestConfig(container.WithAutoRemove))
 //	assert.Check(t, err)
-func CreateFromConfig(ctx context.Context, apiClient client.APIClient, config *TestContainerConfig) (container.CreateResponse, error) {
-	return apiClient.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Platform, config.Name)
+func CreateFromConfig(ctx context.Context, apiClient client.APIClient, config *TestContainerConfig) (client.ContainerCreateResult, error) {
+	return apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config:           config.Config,
+		HostConfig:       config.HostConfig,
+		NetworkingConfig: config.NetworkingConfig,
+		Platform:         config.Platform,
+		Name:             config.Name,
+	})
 }
 
 // Run creates and start a container with the specified options
@@ -108,7 +120,7 @@ func RunAttach(ctx context.Context, t *testing.T, apiClient client.APIClient, op
 	err = apiClient.ContainerStart(ctx, id, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
-	s, err := demultiplexStreams(ctx, aresp)
+	s, err := demultiplexStreams(ctx, aresp.HijackedResponse)
 	if !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
 		assert.NilError(t, err)
 	}

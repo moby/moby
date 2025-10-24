@@ -963,7 +963,13 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 		config := ctr.NewTestConfig(ctr.WithCmd("top"),
 			ctr.WithExposedPorts("80/tcp"),
 			ctr.WithPortMap(networktypes.PortMap{networktypes.MustParsePort("80/tcp"): pbs}))
-		c, err := apiClient.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Platform, config.Name)
+		c, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+			Config:           config.Config,
+			HostConfig:       config.HostConfig,
+			NetworkingConfig: config.NetworkingConfig,
+			Platform:         config.Platform,
+			Name:             config.Name,
+		})
 		assert.NilError(t, err)
 		defer apiClient.ContainerRemove(ctx, c.ID, client.ContainerRemoveOptions{Force: true})
 
