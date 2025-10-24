@@ -14,5 +14,5 @@ type ImageRemoveOptions struct {
 
 // ImageRemoveResult holds the delete responses returned by the daemon.
 type ImageRemoveResult struct {
-	Deleted []image.DeleteResponse
+	Items []image.DeleteResponse
 }

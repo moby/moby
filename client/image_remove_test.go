@@ -91,8 +91,8 @@ func TestImageRemove(t *testing.T) {
 			opts.Platforms = []ocispec.Platform{*removeCase.platform}
 		}
 
-		imageDeletes, err := client.ImageRemove(context.Background(), "image_id", opts)
+		res, err := client.ImageRemove(context.Background(), "image_id", opts)
 		assert.NilError(t, err)
-		assert.Check(t, is.Len(imageDeletes.Deleted, 2))
+		assert.Check(t, is.Len(res.Items, 2))
 	}
 }
