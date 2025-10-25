@@ -53,9 +53,9 @@ func TestStopContainerWithTimeoutCancel(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("timeout waiting for stop request to be cancelled")
 	}
-	inspect, err := apiClient.ContainerInspect(ctx, id)
+	inspect, err := apiClient.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 	assert.Check(t, err)
-	assert.Check(t, inspect.State.Running)
+	assert.Check(t, inspect.Container.State.Running)
 
 	// container should be stopped after stopTimeout is reached. The daemon.containerStop
 	// code is rather convoluted, and waits another 2 seconds for the container to

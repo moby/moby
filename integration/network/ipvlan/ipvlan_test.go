@@ -245,9 +245,9 @@ func testIpvlanL2MultiSubnetNoParent(t *testing.T, ctx context.Context, client d
 	testIpvlanL2MultiSubnet(t, ctx, client, "")
 }
 
-func testIpvlanL2MultiSubnet(t *testing.T, ctx context.Context, client dclient.APIClient, parent string) {
+func testIpvlanL2MultiSubnet(t *testing.T, ctx context.Context, apiClient dclient.APIClient, parent string) {
 	netName := "dualstackl2"
-	net.CreateNoError(ctx, t, client, netName,
+	net.CreateNoError(ctx, t, apiClient, netName,
 		net.WithIPvlan(parent, ""),
 		net.WithIPv6(),
 		net.WithIPAM("172.28.200.0/24", ""),
@@ -255,63 +255,63 @@ func testIpvlanL2MultiSubnet(t *testing.T, ctx context.Context, client dclient.A
 		net.WithIPAM("2001:db8:abc8::/64", ""),
 		net.WithIPAM("2001:db8:abc6::/64", "2001:db8:abc6::254"),
 	)
-	assert.Check(t, n.IsNetworkAvailable(ctx, client, netName))
+	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, netName))
 
 	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.100.0/24 and 2001:db8:abc2::/64
-	id1 := container.Run(ctx, t, client,
+	id1 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode(netName),
 		container.WithIPv4(netName, "172.28.200.20"),
 		container.WithIPv6(netName, "2001:db8:abc8::20"),
 	)
-	id2 := container.Run(ctx, t, client,
+	id2 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode(netName),
 		container.WithIPv4(netName, "172.28.200.21"),
 		container.WithIPv6(netName, "2001:db8:abc8::21"),
 	)
-	c1, err := client.ContainerInspect(ctx, id1)
+	c1, err := apiClient.ContainerInspect(ctx, id1, dclient.ContainerInspectOptions{})
 	assert.NilError(t, err)
 	// Inspect the v4 gateway to ensure no default GW was assigned
-	assert.Check(t, !c1.NetworkSettings.Networks[netName].Gateway.IsValid())
+	assert.Check(t, !c1.Container.NetworkSettings.Networks[netName].Gateway.IsValid())
 	// Inspect the v6 gateway to ensure no default GW was assigned
-	assert.Check(t, !c1.NetworkSettings.Networks[netName].IPv6Gateway.IsValid())
+	assert.Check(t, !c1.Container.NetworkSettings.Networks[netName].IPv6Gateway.IsValid())
 
 	// verify ipv4 connectivity to the explicit --ip address second to first
-	_, err = container.Exec(ctx, client, id2, []string{"ping", "-c", "1", c1.NetworkSettings.Networks[netName].IPAddress.String()})
+	_, err = container.Exec(ctx, apiClient, id2, []string{"ping", "-c", "1", c1.Container.NetworkSettings.Networks[netName].IPAddress.String()})
 	assert.NilError(t, err)
 	// verify ipv6 connectivity to the explicit --ip6 address second to first
-	_, err = container.Exec(ctx, client, id2, []string{"ping6", "-c", "1", c1.NetworkSettings.Networks[netName].GlobalIPv6Address.String()})
+	_, err = container.Exec(ctx, apiClient, id2, []string{"ping6", "-c", "1", c1.Container.NetworkSettings.Networks[netName].GlobalIPv6Address.String()})
 	assert.NilError(t, err)
 
 	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.102.0/24 and 2001:db8:abc4::/64
-	id3 := container.Run(ctx, t, client,
+	id3 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode(netName),
 		container.WithIPv4(netName, "172.28.202.20"),
 		container.WithIPv6(netName, "2001:db8:abc6::20"),
 	)
-	id4 := container.Run(ctx, t, client,
+	id4 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode(netName),
 		container.WithIPv4(netName, "172.28.202.21"),
 		container.WithIPv6(netName, "2001:db8:abc6::21"),
 	)
-	c3, err := client.ContainerInspect(ctx, id3)
+	c3, err := apiClient.ContainerInspect(ctx, id3, dclient.ContainerInspectOptions{})
 	assert.NilError(t, err)
 	if parent == "" {
 		// Inspect the v4 gateway to ensure no default GW was assigned
-		assert.Check(t, !c3.NetworkSettings.Networks[netName].Gateway.IsValid())
+		assert.Check(t, !c3.Container.NetworkSettings.Networks[netName].Gateway.IsValid())
 		// Inspect the v6 gateway to ensure no default GW was assigned
-		assert.Check(t, !c3.NetworkSettings.Networks[netName].IPv6Gateway.IsValid())
+		assert.Check(t, !c3.Container.NetworkSettings.Networks[netName].IPv6Gateway.IsValid())
 	} else {
 		// Inspect the v4 gateway to ensure the proper explicitly assigned default GW was assigned
-		assert.Check(t, is.Equal(c3.NetworkSettings.Networks[netName].Gateway, netip.MustParseAddr("172.28.202.254")))
+		assert.Check(t, is.Equal(c3.Container.NetworkSettings.Networks[netName].Gateway, netip.MustParseAddr("172.28.202.254")))
 		// Inspect the v6 gateway to ensure the proper explicitly assigned default GW was assigned
-		assert.Check(t, is.Equal(c3.NetworkSettings.Networks[netName].IPv6Gateway, netip.MustParseAddr("2001:db8:abc6::254")))
+		assert.Check(t, is.Equal(c3.Container.NetworkSettings.Networks[netName].IPv6Gateway, netip.MustParseAddr("2001:db8:abc6::254")))
 	}
 
 	// verify ipv4 connectivity to the explicit --ip address from third to fourth
-	_, err = container.Exec(ctx, client, id4, []string{"ping", "-c", "1", c3.NetworkSettings.Networks[netName].IPAddress.String()})
+	_, err = container.Exec(ctx, apiClient, id4, []string{"ping", "-c", "1", c3.Container.NetworkSettings.Networks[netName].IPAddress.String()})
 	assert.NilError(t, err)
 	// verify ipv6 connectivity to the explicit --ip6 address from third to fourth
-	_, err = container.Exec(ctx, client, id4, []string{"ping6", "-c", "1", c3.NetworkSettings.Networks[netName].GlobalIPv6Address.String()})
+	_, err = container.Exec(ctx, apiClient, id4, []string{"ping6", "-c", "1", c3.Container.NetworkSettings.Networks[netName].GlobalIPv6Address.String()})
 	assert.NilError(t, err)
 }
 
@@ -338,14 +338,14 @@ func testIpvlanL3MultiSubnet(t *testing.T, ctx context.Context, client dclient.A
 		container.WithIPv4(netName, "172.28.10.21"),
 		container.WithIPv6(netName, "2001:db8:abc9::21"),
 	)
-	c1, err := client.ContainerInspect(ctx, id1)
+	c1, err := client.ContainerInspect(ctx, id1, dclient.ContainerInspectOptions{})
 	assert.NilError(t, err)
 
 	// verify ipv4 connectivity to the explicit --ipv address second to first
-	_, err = container.Exec(ctx, client, id2, []string{"ping", "-c", "1", c1.NetworkSettings.Networks[netName].IPAddress.String()})
+	_, err = container.Exec(ctx, client, id2, []string{"ping", "-c", "1", c1.Container.NetworkSettings.Networks[netName].IPAddress.String()})
 	assert.NilError(t, err)
 	// verify ipv6 connectivity to the explicit --ipv6 address second to first
-	_, err = container.Exec(ctx, client, id2, []string{"ping6", "-c", "1", c1.NetworkSettings.Networks[netName].GlobalIPv6Address.String()})
+	_, err = container.Exec(ctx, client, id2, []string{"ping6", "-c", "1", c1.Container.NetworkSettings.Networks[netName].GlobalIPv6Address.String()})
 	assert.NilError(t, err)
 
 	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.102.0/24 and 2001:db8:abc4::/64
@@ -359,24 +359,24 @@ func testIpvlanL3MultiSubnet(t *testing.T, ctx context.Context, client dclient.A
 		container.WithIPv4(netName, "172.28.12.21"),
 		container.WithIPv6(netName, "2001:db8:abc7::21"),
 	)
-	c3, err := client.ContainerInspect(ctx, id3)
+	c3, err := client.ContainerInspect(ctx, id3, dclient.ContainerInspectOptions{})
 	assert.NilError(t, err)
 
 	// verify ipv4 connectivity to the explicit --ipv address from third to fourth
-	_, err = container.Exec(ctx, client, id4, []string{"ping", "-c", "1", c3.NetworkSettings.Networks[netName].IPAddress.String()})
+	_, err = container.Exec(ctx, client, id4, []string{"ping", "-c", "1", c3.Container.NetworkSettings.Networks[netName].IPAddress.String()})
 	assert.NilError(t, err)
 	// verify ipv6 connectivity to the explicit --ipv6 address from third to fourth
-	_, err = container.Exec(ctx, client, id4, []string{"ping6", "-c", "1", c3.NetworkSettings.Networks[netName].GlobalIPv6Address.String()})
+	_, err = container.Exec(ctx, client, id4, []string{"ping6", "-c", "1", c3.Container.NetworkSettings.Networks[netName].GlobalIPv6Address.String()})
 	assert.NilError(t, err)
 
 	// Inspect the v4 gateway to ensure no next hop is assigned in L3 mode
-	assert.Check(t, !c1.NetworkSettings.Networks[netName].Gateway.IsValid())
+	assert.Check(t, !c1.Container.NetworkSettings.Networks[netName].Gateway.IsValid())
 	// Inspect the v6 gateway to ensure the explicitly specified default GW is ignored per L3 mode enabled
-	assert.Check(t, !c1.NetworkSettings.Networks[netName].IPv6Gateway.IsValid())
+	assert.Check(t, !c1.Container.NetworkSettings.Networks[netName].IPv6Gateway.IsValid())
 	// Inspect the v4 gateway to ensure no next hop is assigned in L3 mode
-	assert.Check(t, !c3.NetworkSettings.Networks[netName].Gateway.IsValid())
+	assert.Check(t, !c3.Container.NetworkSettings.Networks[netName].Gateway.IsValid())
 	// Inspect the v6 gateway to ensure the explicitly specified default GW is ignored per L3 mode enabled
-	assert.Check(t, !c3.NetworkSettings.Networks[netName].IPv6Gateway.IsValid())
+	assert.Check(t, !c3.Container.NetworkSettings.Networks[netName].IPv6Gateway.IsValid())
 }
 
 // Verify ipvlan l2 mode sets the proper default gateway routes via netlink

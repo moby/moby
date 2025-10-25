@@ -73,9 +73,9 @@ func TestCheckpoint(t *testing.T) {
 	}
 	assert.NilError(t, err)
 
-	inspect, err := apiClient.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(true, inspect.State.Running))
+	assert.Check(t, is.Equal(true, inspect.Container.State.Running))
 
 	res, err := apiClient.CheckpointList(ctx, cID, client.CheckpointListOptions{})
 	assert.NilError(t, err)
@@ -98,9 +98,9 @@ func TestCheckpoint(t *testing.T) {
 
 	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, containertypes.StateExited))
 
-	inspect, err = apiClient.ContainerInspect(ctx, cID)
+	inspect, err = apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(false, inspect.State.Running))
+	assert.Check(t, is.Equal(false, inspect.Container.State.Running))
 
 	// Check that both checkpoints are listed.
 	res, err = apiClient.CheckpointList(ctx, cID, client.CheckpointListOptions{})
@@ -121,9 +121,9 @@ func TestCheckpoint(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	inspect, err = apiClient.ContainerInspect(ctx, cID)
+	inspect, err = apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(true, inspect.State.Running))
+	assert.Check(t, is.Equal(true, inspect.Container.State.Running))
 
 	// Check that the test file has been restored.
 	cmd = []string{"test", "-f", "/tmp/test-file"}

@@ -531,9 +531,9 @@ func TestPublishedPortAlreadyInUse(t *testing.T) {
 	err := apiClient.ContainerStart(ctx, ctr2, client.ContainerStartOptions{})
 	assert.Assert(t, is.ErrorContains(err, "failed to set up container networking"))
 
-	inspect, err := apiClient.ContainerInspect(ctx, ctr2)
+	inspect, err := apiClient.ContainerInspect(ctx, ctr2, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(inspect.State.Status, containertypes.StateCreated))
+	assert.Check(t, is.Equal(inspect.Container.State.Status, containertypes.StateCreated))
 }
 
 // TestAllPortMappingsAreReturned check that dual-stack ports mapped through
@@ -975,9 +975,9 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 
 		// Inspect the container and return its port bindings, along with
 		// warnings returns on container create.
-		inspect, err := apiClient.ContainerInspect(ctx, c.ID)
+		inspect, err := apiClient.ContainerInspect(ctx, c.ID, client.ContainerInspectOptions{})
 		assert.NilError(t, err)
-		return inspect.HostConfig.PortBindings, c.Warnings
+		return inspect.Container.HostConfig.PortBindings, c.Warnings
 	}
 
 	t.Run("backfilling on old client version", func(t *testing.T) {

@@ -158,8 +158,8 @@ func TestWaitConditions(t *testing.T) {
 			default:
 			}
 
-			info, _ := cli.ContainerInspect(ctx, containerID)
-			assert.Equal(t, info.State.Status, containertypes.StateRunning)
+			inspect, _ := cli.ContainerInspect(ctx, containerID, client.ContainerInspectOptions{})
+			assert.Equal(t, inspect.Container.State.Status, containertypes.StateRunning)
 
 			_, err = streams.Conn.Write([]byte("\n"))
 			assert.NilError(t, err)
@@ -170,8 +170,8 @@ func TestWaitConditions(t *testing.T) {
 			case waitRes := <-waitResC:
 				assert.Check(t, is.Equal(int64(99), waitRes.StatusCode))
 			case <-time.After(StopContainerWindowsPollTimeout):
-				ctr, _ := cli.ContainerInspect(ctx, containerID)
-				t.Fatalf("Timed out waiting for container exit code (status = %q)", ctr.State.Status)
+				ctr, _ := cli.ContainerInspect(ctx, containerID, client.ContainerInspectOptions{})
+				t.Fatalf("Timed out waiting for container exit code (status = %q)", ctr.Container.State.Status)
 			}
 		})
 	}

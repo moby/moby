@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"testing"
@@ -18,14 +17,14 @@ func TestContainerInspectError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerInspect(context.Background(), "nothing")
+	_, err = client.ContainerInspect(t.Context(), "nothing", ContainerInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ContainerInspect(context.Background(), "")
+	_, err = client.ContainerInspect(t.Context(), "", ContainerInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ContainerInspect(context.Background(), "    ")
+	_, err = client.ContainerInspect(t.Context(), "    ", ContainerInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -36,7 +35,7 @@ func TestContainerInspectContainerNotFound(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerInspect(context.Background(), "unknown")
+	_, err = client.ContainerInspect(t.Context(), "unknown", ContainerInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
@@ -48,19 +47,11 @@ func TestContainerInspectWithEmptyID(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerInspect(context.Background(), "")
+	_, err = client.ContainerInspect(t.Context(), "", ContainerInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ContainerInspect(context.Background(), "    ")
-	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
-	assert.Check(t, is.ErrorContains(err, "value is empty"))
-
-	_, _, err = client.ContainerInspectWithRaw(context.Background(), "", false)
-	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
-	assert.Check(t, is.ErrorContains(err, "value is empty"))
-
-	_, _, err = client.ContainerInspectWithRaw(context.Background(), "    ", false)
+	_, err = client.ContainerInspect(t.Context(), "    ", ContainerInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -81,9 +72,9 @@ func TestContainerInspect(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	r, err := client.ContainerInspect(context.Background(), "container_id")
+	res, err := client.ContainerInspect(t.Context(), "container_id", ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(r.ID, "container_id"))
-	assert.Check(t, is.Equal(r.Image, "image"))
-	assert.Check(t, is.Equal(r.Name, "name"))
+	assert.Check(t, is.Equal(res.Container.ID, "container_id"))
+	assert.Check(t, is.Equal(res.Container.Image, "image"))
+	assert.Check(t, is.Equal(res.Container.Name, "name"))
 }

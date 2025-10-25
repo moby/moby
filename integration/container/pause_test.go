@@ -30,9 +30,9 @@ func TestPause(t *testing.T) {
 	err := apiClient.ContainerPause(ctx, cID)
 	assert.NilError(t, err)
 
-	inspect, err := apiClient.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(true, inspect.State.Paused))
+	assert.Check(t, is.Equal(true, inspect.Container.State.Paused))
 
 	err = apiClient.ContainerUnpause(ctx, cID)
 	assert.NilError(t, err)

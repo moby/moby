@@ -84,10 +84,10 @@ func TestGraphDriverPersistence(t *testing.T) {
 	assert.Check(t, is.Equal(imageInspect.GraphDriver.Name, prevDriver), "Image graphdriver data should match")
 
 	// Verify our container is still there
-	containerInspect, err := c.ContainerInspect(ctx, containerID)
+	inspect, err := c.ContainerInspect(ctx, containerID, client.ContainerInspectOptions{})
 	assert.NilError(t, err, "Test container should still exist after daemon restart")
-	assert.Check(t, containerInspect.GraphDriver != nil, "GraphDriver should be set for graphdriver backend")
-	assert.Check(t, is.Equal(containerInspect.GraphDriver.Name, prevDriver), "Container graphdriver data should match")
+	assert.Check(t, inspect.Container.GraphDriver != nil, "GraphDriver should be set for graphdriver backend")
+	assert.Check(t, is.Equal(inspect.Container.GraphDriver.Name, prevDriver), "Container graphdriver data should match")
 }
 
 // TestInspectGraphDriverAPIBC checks API backward compatibility of the GraphDriver field in image/container inspect.
@@ -158,20 +158,20 @@ func TestInspectGraphDriverAPIBC(t *testing.T) {
 				}
 			}
 
-			if containerInspect, err := c.ContainerInspect(ctx, ctr.ID); assert.Check(t, err) {
+			if inspect, err := c.ContainerInspect(ctx, ctr.ID, client.ContainerInspectOptions{}); assert.Check(t, err) {
 				if tc.expGraphDriver != "" {
-					if assert.Check(t, containerInspect.GraphDriver != nil) {
-						assert.Check(t, is.Equal(containerInspect.GraphDriver.Name, tc.expGraphDriver))
+					if assert.Check(t, inspect.Container.GraphDriver != nil) {
+						assert.Check(t, is.Equal(inspect.Container.GraphDriver.Name, tc.expGraphDriver))
 					}
 				} else {
-					assert.Check(t, is.Nil(containerInspect.GraphDriver))
+					assert.Check(t, is.Nil(inspect.Container.GraphDriver))
 				}
 				if tc.expRootFSStorage {
-					assert.DeepEqual(t, containerInspect.Storage, &storage.Storage{
+					assert.DeepEqual(t, inspect.Container.Storage, &storage.Storage{
 						RootFS: &storage.RootFSStorage{Snapshot: &storage.RootFSStorageSnapshot{Name: "overlayfs"}},
 					})
 				} else {
-					assert.Check(t, is.Nil(containerInspect.Storage))
+					assert.Check(t, is.Nil(inspect.Container.Storage))
 				}
 			}
 		})

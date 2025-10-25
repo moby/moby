@@ -1,57 +1,47 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"io"
 	"net/url"
 
 	"github.com/moby/moby/api/types/container"
 )
 
-// ContainerInspect returns the container information.
-func (cli *Client) ContainerInspect(ctx context.Context, containerID string) (container.InspectResponse, error) {
-	containerID, err := trimID("container", containerID)
-	if err != nil {
-		return container.InspectResponse{}, err
-	}
-
-	resp, err := cli.get(ctx, "/containers/"+containerID+"/json", nil, nil)
-	defer ensureReaderClosed(resp)
-	if err != nil {
-		return container.InspectResponse{}, err
-	}
-
-	var response container.InspectResponse
-	err = json.NewDecoder(resp.Body).Decode(&response)
-	return response, err
+// ContainerInspectOptions holds options for inspecting a container using
+// the [Client.ConfigInspect] method.
+type ContainerInspectOptions struct {
+	// Size controls whether the container's filesystem size should be calculated.
+	// When set, the [container.InspectResponse.SizeRw] and [container.InspectResponse.SizeRootFs]
+	// fields in [ContainerInspectResult.Container] are populated with the result.
+	//
+	// Calculating the size can be a costly operation, and should not be used
+	// unless needed.
+	Size bool
 }
 
-// ContainerInspectWithRaw returns the container information and its raw representation.
-func (cli *Client) ContainerInspectWithRaw(ctx context.Context, containerID string, getSize bool) (container.InspectResponse, []byte, error) {
+// ContainerInspectResult holds the result from the [Client.ConfigInspect] method.
+type ContainerInspectResult struct {
+	Container container.InspectResponse
+	Raw       json.RawMessage
+}
+
+// ContainerInspect returns the container information.
+func (cli *Client) ContainerInspect(ctx context.Context, containerID string, options ContainerInspectOptions) (ContainerInspectResult, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
-		return container.InspectResponse{}, nil, err
+		return ContainerInspectResult{}, err
 	}
 
 	query := url.Values{}
-	if getSize {
+	if options.Size {
 		query.Set("size", "1")
 	}
 	resp, err := cli.get(ctx, "/containers/"+containerID+"/json", query, nil)
-	defer ensureReaderClosed(resp)
 	if err != nil {
-		return container.InspectResponse{}, nil, err
+		return ContainerInspectResult{}, err
 	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return container.InspectResponse{}, nil, err
-	}
-
-	var response container.InspectResponse
-	rdr := bytes.NewReader(body)
-	err = json.NewDecoder(rdr).Decode(&response)
-	return response, body, err
+	var out ContainerInspectResult
+	out.Raw, err = decodeWithRaw(resp, &out.Container)
+	return out, err
 }

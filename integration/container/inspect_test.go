@@ -33,9 +33,9 @@ func TestInspectAnnotations(t *testing.T) {
 		},
 	)
 
-	inspect, err := apiClient.ContainerInspect(ctx, id)
+	inspect, err := apiClient.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.DeepEqual(inspect.HostConfig.Annotations, annotations))
+	assert.Check(t, is.DeepEqual(inspect.Container.HostConfig.Annotations, annotations))
 }
 
 // TestNetworkAliasesAreEmpty verifies that network-scoped aliases are not set
@@ -165,12 +165,14 @@ func TestContainerInspectWithRaw(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			ctrInspect, raw, err := apiClient.ContainerInspectWithRaw(ctx, ctrID, tc.withSize)
+			inspect, err := apiClient.ContainerInspect(ctx, ctrID, client.ContainerInspectOptions{
+				Size: tc.withSize,
+			})
 			assert.NilError(t, err)
-			assert.Check(t, is.Equal(ctrInspect.ID, ctrID))
+			assert.Check(t, is.Equal(inspect.Container.ID, ctrID))
 
 			var rawInspect map[string]any
-			err = json.Unmarshal(raw, &rawInspect)
+			err = json.Unmarshal(inspect.Raw, &rawInspect)
 			assert.NilError(t, err, "Should produce valid JSON")
 
 			if tc.withSize {
@@ -179,12 +181,12 @@ func TestContainerInspectWithRaw(t *testing.T) {
 					// See https://github.com/moby/moby/blob/2837112c8ead55cdad36eaac61bafc713b4f669a/daemon/images/image_windows.go#L12-L16
 					t.Log("skip checking SizeRw, SizeRootFs on windows as it's not yet implemented")
 				} else {
-					if assert.Check(t, ctrInspect.SizeRw != nil) {
+					if assert.Check(t, inspect.Container.SizeRw != nil) {
 						// RW-layer size can be zero.
-						assert.Check(t, *ctrInspect.SizeRw >= 0, "Should have a size: %d", *ctrInspect.SizeRw)
+						assert.Check(t, *inspect.Container.SizeRw >= 0, "Should have a size: %d", *inspect.Container.SizeRw)
 					}
-					if assert.Check(t, ctrInspect.SizeRootFs != nil) {
-						assert.Check(t, *ctrInspect.SizeRootFs > 0, "Should have a size: %d", *ctrInspect.SizeRootFs)
+					if assert.Check(t, inspect.Container.SizeRootFs != nil) {
+						assert.Check(t, *inspect.Container.SizeRootFs > 0, "Should have a size: %d", *inspect.Container.SizeRootFs)
 					}
 				}
 
@@ -193,12 +195,12 @@ func TestContainerInspectWithRaw(t *testing.T) {
 				_, ok = rawInspect["SizeRootFs"]
 				assert.Check(t, ok)
 			} else {
-				assert.Check(t, is.Nil(ctrInspect.SizeRw))
-				assert.Check(t, is.Nil(ctrInspect.SizeRootFs))
+				assert.Check(t, is.Nil(inspect.Container.SizeRw))
+				assert.Check(t, is.Nil(inspect.Container.SizeRootFs))
 				_, ok := rawInspect["SizeRw"]
-				assert.Check(t, !ok, "Should not contain SizeRw:\n%s", string(raw))
+				assert.Check(t, !ok, "Should not contain SizeRw:\n%s", string(inspect.Raw))
 				_, ok = rawInspect["SizeRootFs"]
-				assert.Check(t, !ok, "Should not contain SizeRootFs:\n%s", string(raw))
+				assert.Check(t, !ok, "Should not contain SizeRootFs:\n%s", string(inspect.Raw))
 			}
 		})
 	}

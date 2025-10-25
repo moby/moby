@@ -332,9 +332,9 @@ func testMacvlanMultiSubnetNoParent(t *testing.T, ctx context.Context, client cl
 	testMacvlanMultiSubnet(t, ctx, client, "")
 }
 
-func testMacvlanMultiSubnet(t *testing.T, ctx context.Context, client client.APIClient, parent string) {
+func testMacvlanMultiSubnet(t *testing.T, ctx context.Context, apiClient client.APIClient, parent string) {
 	netName := "dualstackbridge"
-	net.CreateNoError(ctx, t, client, netName,
+	net.CreateNoError(ctx, t, apiClient, netName,
 		net.WithMacvlan(parent),
 		net.WithIPv6(),
 		net.WithIPAM("172.28.100.0/24", ""),
@@ -343,63 +343,63 @@ func testMacvlanMultiSubnet(t *testing.T, ctx context.Context, client client.API
 		net.WithIPAM("2001:db8:abc4::/64", "2001:db8:abc4::254"),
 	)
 
-	assert.Check(t, n.IsNetworkAvailable(ctx, client, netName))
+	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, netName))
 
 	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.100.0/24 and 2001:db8:abc2::/64
-	id1 := container.Run(ctx, t, client,
+	id1 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode("dualstackbridge"),
 		container.WithIPv4("dualstackbridge", "172.28.100.20"),
 		container.WithIPv6("dualstackbridge", "2001:db8:abc2::20"),
 	)
-	id2 := container.Run(ctx, t, client,
+	id2 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode("dualstackbridge"),
 		container.WithIPv4("dualstackbridge", "172.28.100.21"),
 		container.WithIPv6("dualstackbridge", "2001:db8:abc2::21"),
 	)
-	c1, err := client.ContainerInspect(ctx, id1)
+	c1, err := apiClient.ContainerInspect(ctx, id1, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 	// Inspect the v4 gateway to ensure no default GW was assigned
-	assert.Check(t, !c1.NetworkSettings.Networks["dualstackbridge"].Gateway.IsValid())
+	assert.Check(t, !c1.Container.NetworkSettings.Networks["dualstackbridge"].Gateway.IsValid())
 	// Inspect the v6 gateway to ensure no default GW was assigned
-	assert.Check(t, !c1.NetworkSettings.Networks["dualstackbridge"].IPv6Gateway.IsValid())
+	assert.Check(t, !c1.Container.NetworkSettings.Networks["dualstackbridge"].IPv6Gateway.IsValid())
 
 	// verify ipv4 connectivity to the explicit --ip address second to first
-	_, err = container.Exec(ctx, client, id2, []string{"ping", "-c", "1", c1.NetworkSettings.Networks["dualstackbridge"].IPAddress.String()})
+	_, err = container.Exec(ctx, apiClient, id2, []string{"ping", "-c", "1", c1.Container.NetworkSettings.Networks["dualstackbridge"].IPAddress.String()})
 	assert.NilError(t, err)
 	// verify ipv6 connectivity to the explicit --ip6 address second to first
-	_, err = container.Exec(ctx, client, id2, []string{"ping6", "-c", "1", c1.NetworkSettings.Networks["dualstackbridge"].GlobalIPv6Address.String()})
+	_, err = container.Exec(ctx, apiClient, id2, []string{"ping6", "-c", "1", c1.Container.NetworkSettings.Networks["dualstackbridge"].GlobalIPv6Address.String()})
 	assert.NilError(t, err)
 
 	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.102.0/24 and 2001:db8:abc4::/64
-	id3 := container.Run(ctx, t, client,
+	id3 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode("dualstackbridge"),
 		container.WithIPv4("dualstackbridge", "172.28.102.20"),
 		container.WithIPv6("dualstackbridge", "2001:db8:abc4::20"),
 	)
-	id4 := container.Run(ctx, t, client,
+	id4 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode("dualstackbridge"),
 		container.WithIPv4("dualstackbridge", "172.28.102.21"),
 		container.WithIPv6("dualstackbridge", "2001:db8:abc4::21"),
 	)
-	c3, err := client.ContainerInspect(ctx, id3)
+	c3, err := apiClient.ContainerInspect(ctx, id3, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 	if parent == "" {
 		// Inspect the v4 gateway to ensure no default GW was assigned
-		assert.Check(t, !c3.NetworkSettings.Networks["dualstackbridge"].Gateway.IsValid())
+		assert.Check(t, !c3.Container.NetworkSettings.Networks["dualstackbridge"].Gateway.IsValid())
 		// Inspect the v6 gateway to ensure no default GW was assigned
-		assert.Check(t, !c3.NetworkSettings.Networks["dualstackbridge"].IPv6Gateway.IsValid())
+		assert.Check(t, !c3.Container.NetworkSettings.Networks["dualstackbridge"].IPv6Gateway.IsValid())
 	} else {
 		// Inspect the v4 gateway to ensure the proper explicitly assigned default GW was assigned
-		assert.Check(t, is.Equal(c3.NetworkSettings.Networks["dualstackbridge"].Gateway, netip.MustParseAddr("172.28.102.254")))
+		assert.Check(t, is.Equal(c3.Container.NetworkSettings.Networks["dualstackbridge"].Gateway, netip.MustParseAddr("172.28.102.254")))
 		// Inspect the v6 gateway to ensure the proper explicitly assigned default GW was assigned
-		assert.Check(t, is.Equal(c3.NetworkSettings.Networks["dualstackbridge"].IPv6Gateway, netip.MustParseAddr("2001:db8:abc4::254")))
+		assert.Check(t, is.Equal(c3.Container.NetworkSettings.Networks["dualstackbridge"].IPv6Gateway, netip.MustParseAddr("2001:db8:abc4::254")))
 	}
 
 	// verify ipv4 connectivity to the explicit --ip address from third to fourth
-	_, err = container.Exec(ctx, client, id4, []string{"ping", "-c", "1", c3.NetworkSettings.Networks["dualstackbridge"].IPAddress.String()})
+	_, err = container.Exec(ctx, apiClient, id4, []string{"ping", "-c", "1", c3.Container.NetworkSettings.Networks["dualstackbridge"].IPAddress.String()})
 	assert.NilError(t, err)
 	// verify ipv6 connectivity to the explicit --ip6 address from third to fourth
-	_, err = container.Exec(ctx, client, id4, []string{"ping6", "-c", "1", c3.NetworkSettings.Networks["dualstackbridge"].GlobalIPv6Address.String()})
+	_, err = container.Exec(ctx, apiClient, id4, []string{"ping6", "-c", "1", c3.Container.NetworkSettings.Networks["dualstackbridge"].GlobalIPv6Address.String()})
 	assert.NilError(t, err)
 }
 

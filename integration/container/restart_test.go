@@ -145,15 +145,15 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 	}
 }
 
-func pollForNewHealthCheck(ctx context.Context, client *client.Client, startTime time.Time, containerID string) func(log poll.LogT) poll.Result {
+func pollForNewHealthCheck(ctx context.Context, apiClient *client.Client, startTime time.Time, containerID string) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		inspect, err := client.ContainerInspect(ctx, containerID)
+		inspect, err := apiClient.ContainerInspect(ctx, containerID, client.ContainerInspectOptions{})
 		if err != nil {
 			return poll.Error(err)
 		}
-		healthChecksTotal := len(inspect.State.Health.Log)
+		healthChecksTotal := len(inspect.Container.State.Health.Log)
 		if healthChecksTotal > 0 {
-			if inspect.State.Health.Log[healthChecksTotal-1].Start.After(startTime) {
+			if inspect.Container.State.Health.Log[healthChecksTotal-1].Start.After(startTime) {
 				return poll.Success()
 			}
 		}
@@ -202,9 +202,9 @@ func TestContainerWithAutoRemoveCanBeRestarted(t *testing.T) {
 			err := apiClient.ContainerRestart(ctx, cID, client.ContainerStopOptions{Timeout: &noWaitTimeout})
 			assert.NilError(t, err)
 
-			inspect, err := apiClient.ContainerInspect(ctx, cID)
+			inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 			assert.NilError(t, err)
-			assert.Assert(t, inspect.State.Status != container.StateRemoving, "Container should not be removing yet")
+			assert.Assert(t, inspect.Container.State.Status != container.StateRemoving, "Container should not be removing yet")
 
 			poll.WaitOn(t, testContainer.IsInState(ctx, apiClient, cID, container.StateRunning))
 
@@ -278,7 +278,7 @@ func TestContainerRestartWithCancelledRequest(t *testing.T) {
 	}
 
 	// Container should be restarted (running).
-	inspect, err := apiClient.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(inspect.State.Status, container.StateRunning))
+	assert.Check(t, is.Equal(inspect.Container.State.Status, container.StateRunning))
 }

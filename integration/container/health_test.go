@@ -131,13 +131,13 @@ func TestHealthStartInterval(t *testing.T) {
 		if ctxPoll.Err() != nil {
 			return poll.Error(ctxPoll.Err())
 		}
-		inspect, err := apiClient.ContainerInspect(ctxPoll, id)
+		inspect, err := apiClient.ContainerInspect(ctxPoll, id, client.ContainerInspectOptions{})
 		if err != nil {
 			return poll.Error(err)
 		}
-		if inspect.State.Health.Status != containertypes.Healthy {
-			if len(inspect.State.Health.Log) > 0 {
-				t.Log(inspect.State.Health.Log[len(inspect.State.Health.Log)-1])
+		if inspect.Container.State.Health.Status != containertypes.Healthy {
+			if len(inspect.Container.State.Health.Log) > 0 {
+				t.Log(inspect.Container.State.Health.Log[len(inspect.Container.State.Health.Log)-1])
 			}
 			return poll.Continue("waiting on container to be ready")
 		}
@@ -150,19 +150,19 @@ func TestHealthStartInterval(t *testing.T) {
 	dl, _ = ctxPoll.Deadline()
 
 	poll.WaitOn(t, func(log poll.LogT) poll.Result {
-		inspect, err := apiClient.ContainerInspect(ctxPoll, id)
+		inspect, err := apiClient.ContainerInspect(ctxPoll, id, client.ContainerInspectOptions{})
 		if err != nil {
 			return poll.Error(err)
 		}
 
-		hLen := len(inspect.State.Health.Log)
+		hLen := len(inspect.Container.State.Health.Log)
 		if hLen < 2 {
 			return poll.Continue("waiting for more healthcheck results")
 		}
 
-		h1 := inspect.State.Health.Log[hLen-1]
-		h2 := inspect.State.Health.Log[hLen-2]
-		if h1.Start.Sub(h2.Start) >= inspect.Config.Healthcheck.Interval {
+		h1 := inspect.Container.State.Health.Log[hLen-1]
+		h2 := inspect.Container.State.Health.Log[hLen-2]
+		if h1.Start.Sub(h2.Start) >= inspect.Container.Config.Healthcheck.Interval {
 			return poll.Success()
 		}
 		t.Log(h1.Start.Sub(h2.Start))
@@ -170,15 +170,15 @@ func TestHealthStartInterval(t *testing.T) {
 	}, poll.WithDelay(time.Second), poll.WithTimeout(time.Until(dl)))
 }
 
-func pollForHealthCheckLog(ctx context.Context, client client.APIClient, containerID string, expected string) func(log poll.LogT) poll.Result {
+func pollForHealthCheckLog(ctx context.Context, apiClient client.APIClient, containerID string, expected string) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		inspect, err := client.ContainerInspect(ctx, containerID)
+		inspect, err := apiClient.ContainerInspect(ctx, containerID, client.ContainerInspectOptions{})
 		if err != nil {
 			return poll.Error(err)
 		}
-		healthChecksTotal := len(inspect.State.Health.Log)
+		healthChecksTotal := len(inspect.Container.State.Health.Log)
 		if healthChecksTotal > 0 {
-			output := inspect.State.Health.Log[healthChecksTotal-1].Output
+			output := inspect.Container.State.Health.Log[healthChecksTotal-1].Output
 			if output == expected {
 				return poll.Success()
 			}
@@ -188,14 +188,14 @@ func pollForHealthCheckLog(ctx context.Context, client client.APIClient, contain
 	}
 }
 
-func pollForHealthStatus(ctx context.Context, client client.APIClient, containerID string, healthStatus containertypes.HealthStatus) func(log poll.LogT) poll.Result {
+func pollForHealthStatus(ctx context.Context, apiClient client.APIClient, containerID string, healthStatus containertypes.HealthStatus) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		inspect, err := client.ContainerInspect(ctx, containerID)
+		inspect, err := apiClient.ContainerInspect(ctx, containerID, client.ContainerInspectOptions{})
 
 		switch {
 		case err != nil:
 			return poll.Error(err)
-		case inspect.State.Health.Status == healthStatus:
+		case inspect.Container.State.Health.Status == healthStatus:
 			return poll.Success()
 		default:
 			return poll.Continue("waiting for container to become %s", healthStatus)

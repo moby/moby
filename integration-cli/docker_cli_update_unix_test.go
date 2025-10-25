@@ -266,9 +266,9 @@ func (s *DockerCLIUpdateSuite) TestUpdateWithNanoCPUs(c *testing.T) {
 
 	clt, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	inspect, err := clt.ContainerInspect(testutil.GetContext(c), "top")
+	res, err := clt.ContainerInspect(testutil.GetContext(c), "top", client.ContainerInspectOptions{})
 	assert.NilError(c, err)
-	assert.Equal(c, inspect.HostConfig.NanoCPUs, int64(500000000))
+	assert.Equal(c, res.Container.HostConfig.NanoCPUs, int64(500000000))
 
 	out = inspectField(c, "top", "HostConfig.CpuQuota")
 	assert.Equal(c, out, "0", "CPU CFS quota should be 0")
@@ -280,9 +280,9 @@ func (s *DockerCLIUpdateSuite) TestUpdateWithNanoCPUs(c *testing.T) {
 	assert.Assert(c, is.Contains(out, "Conflicting options: CPU Quota cannot be updated as NanoCPUs has already been set"))
 
 	cli.DockerCmd(c, "update", "--cpus", "0.8", "top")
-	inspect, err = clt.ContainerInspect(testutil.GetContext(c), "top")
+	res, err = clt.ContainerInspect(testutil.GetContext(c), "top", client.ContainerInspectOptions{})
 	assert.NilError(c, err)
-	assert.Equal(c, inspect.HostConfig.NanoCPUs, int64(800000000))
+	assert.Equal(c, res.Container.HostConfig.NanoCPUs, int64(800000000))
 
 	out = inspectField(c, "top", "HostConfig.CpuQuota")
 	assert.Equal(c, out, "0", "CPU CFS quota should be 0")

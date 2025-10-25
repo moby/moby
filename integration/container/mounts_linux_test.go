@@ -207,15 +207,15 @@ func TestMountDaemonRoot(t *testing.T) {
 						}
 					}()
 
-					inspect, err := apiClient.ContainerInspect(ctx, c.ID)
+					inspect, err := apiClient.ContainerInspect(ctx, c.ID, client.ContainerInspectOptions{})
 					if err != nil {
 						t.Fatal(err)
 					}
-					if len(inspect.Mounts) != 1 {
-						t.Fatalf("unexpected number of mounts: %+v", inspect.Mounts)
+					if len(inspect.Container.Mounts) != 1 {
+						t.Fatalf("unexpected number of mounts: %+v", inspect.Container.Mounts)
 					}
 
-					m := inspect.Mounts[0]
+					m := inspect.Container.Mounts[0]
 					if m.Propagation != test.expected {
 						t.Fatalf("got unexpected propagation mode, expected %q, got: %v", test.expected, m.Propagation)
 					}

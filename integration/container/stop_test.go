@@ -105,9 +105,9 @@ func TestStopContainerWithTimeout(t *testing.T) {
 
 			poll.WaitOn(t, container.IsStopped(ctx, apiClient, id), pollOpts...)
 
-			inspect, err := apiClient.ContainerInspect(ctx, id)
+			inspect, err := apiClient.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 			assert.NilError(t, err)
-			assert.Check(t, is.Equal(inspect.State.ExitCode, tc.expectedExitCode))
+			assert.Check(t, is.Equal(inspect.Container.State.ExitCode, tc.expectedExitCode))
 		})
 	}
 }

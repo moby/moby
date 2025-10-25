@@ -366,10 +366,10 @@ func getServiceTaskContainer(ctx context.Context, t *testing.T, cli client.APICl
 	assert.NilError(t, err)
 	assert.Assert(t, len(taskList.Items) > 0)
 
-	ctr, err := cli.ContainerInspect(ctx, taskList.Items[0].Status.ContainerStatus.ContainerID)
+	inspect, err := cli.ContainerInspect(ctx, taskList.Items[0].Status.ContainerStatus.ContainerID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Equal(t, ctr.State.Running, true)
-	return ctr
+	assert.Equal(t, inspect.Container.State.Running, true)
+	return inspect.Container
 }
 
 func getService(ctx context.Context, t *testing.T, apiClient client.ServiceAPIClient, serviceID string) swarmtypes.Service {

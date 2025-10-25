@@ -52,15 +52,15 @@ func TestContainerStartOnDaemonRestart(t *testing.T) {
 	err := c.ContainerStart(ctx, cID, client.ContainerStartOptions{})
 	assert.Check(t, err, "error starting test container")
 
-	inspect, err := c.ContainerInspect(ctx, cID)
+	inspect, err := c.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.Check(t, err, "error getting inspect data")
 
-	ppid := getContainerdShimPid(t, inspect)
+	ppid := getContainerdShimPid(t, inspect.Container)
 
 	err = d.Kill()
 	assert.Check(t, err, "failed to kill test daemon")
 
-	err = unix.Kill(inspect.State.Pid, unix.SIGKILL)
+	err = unix.Kill(inspect.Container.State.Pid, unix.SIGKILL)
 	assert.Check(t, err, "failed to kill container process")
 
 	err = unix.Kill(ppid, unix.SIGKILL)
@@ -107,25 +107,25 @@ func TestDaemonRestartIpcMode(t *testing.T) {
 	)
 	defer c.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{Force: true})
 
-	inspect, err := c.ContainerInspect(ctx, cID)
+	inspect, err := c.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(string(inspect.HostConfig.IpcMode), "private"))
+	assert.Check(t, is.Equal(string(inspect.Container.HostConfig.IpcMode), "private"))
 
 	// restart the daemon with shareable default ipc mode
 	d.Restart(t, "--iptables=false", "--ip6tables=false", "--default-ipc-mode=shareable")
 
 	// check the container is still having private ipc mode
-	inspect, err = c.ContainerInspect(ctx, cID)
+	inspect, err = c.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(string(inspect.HostConfig.IpcMode), "private"))
+	assert.Check(t, is.Equal(string(inspect.Container.HostConfig.IpcMode), "private"))
 
 	// check a new container is created with shareable ipc mode as per new daemon default
 	cID = container.Run(ctx, t, c)
 	defer c.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{Force: true})
 
-	inspect, err = c.ContainerInspect(ctx, cID)
+	inspect, err = c.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(string(inspect.HostConfig.IpcMode), "shareable"))
+	assert.Check(t, is.Equal(string(inspect.Container.HostConfig.IpcMode), "shareable"))
 }
 
 // TestDaemonHostGatewayIP verifies that when a magic string "host-gateway" is passed
@@ -267,11 +267,11 @@ func TestHardRestartWhenContainerIsRunning(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
-		inspect, err := apiClient.ContainerInspect(ctx, noPolicy)
+		inspect, err := apiClient.ContainerInspect(ctx, noPolicy, client.ContainerInspectOptions{})
 		assert.NilError(t, err)
-		assert.Check(t, is.Equal(inspect.State.Status, containertypes.StateExited))
-		assert.Check(t, is.Equal(inspect.State.ExitCode, 255))
-		finishedAt, err := time.Parse(time.RFC3339Nano, inspect.State.FinishedAt)
+		assert.Check(t, is.Equal(inspect.Container.State.Status, containertypes.StateExited))
+		assert.Check(t, is.Equal(inspect.Container.State.ExitCode, 255))
+		finishedAt, err := time.Parse(time.RFC3339Nano, inspect.Container.State.FinishedAt)
 		if assert.Check(t, err) {
 			assert.Check(t, is.DeepEqual(finishedAt, time.Now(), opt.TimeWithThreshold(time.Minute)))
 		}
@@ -281,11 +281,11 @@ func TestHardRestartWhenContainerIsRunning(t *testing.T) {
 		ctx := testutil.StartSpan(ctx, t)
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
-		inspect, err := apiClient.ContainerInspect(ctx, onFailure)
+		inspect, err := apiClient.ContainerInspect(ctx, onFailure, client.ContainerInspectOptions{})
 		assert.NilError(t, err)
-		assert.Check(t, is.Equal(inspect.State.Status, containertypes.StateRunning))
-		assert.Check(t, is.Equal(inspect.State.ExitCode, 0))
-		finishedAt, err := time.Parse(time.RFC3339Nano, inspect.State.FinishedAt)
+		assert.Check(t, is.Equal(inspect.Container.State.Status, containertypes.StateRunning))
+		assert.Check(t, is.Equal(inspect.Container.State.ExitCode, 0))
+		finishedAt, err := time.Parse(time.RFC3339Nano, inspect.Container.State.FinishedAt)
 		if assert.Check(t, err) {
 			assert.Check(t, is.DeepEqual(finishedAt, time.Now(), opt.TimeWithThreshold(time.Minute)))
 		}

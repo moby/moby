@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/internal/testutil"
 	"gotest.tools/v3/assert"
@@ -190,14 +191,14 @@ func assertPortList(t *testing.T, out string, expected []string) {
 }
 
 func assertPortRange(ctx context.Context, id string, expectedTCP, expectedUDP []int) error {
-	client := testEnv.APIClient()
-	inspect, err := client.ContainerInspect(ctx, id)
+	apiClient := testEnv.APIClient()
+	res, err := apiClient.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 	if err != nil {
 		return err
 	}
 
 	var validTCP, validUDP bool
-	for port, binding := range inspect.NetworkSettings.Ports {
+	for port, binding := range res.Container.NetworkSettings.Ports {
 		if port.Proto() == "tcp" && len(expectedTCP) == 0 {
 			continue
 		}

@@ -323,15 +323,15 @@ func TestIpcModeOlderClient(t *testing.T) {
 	// pre-check: default ipc mode in daemon is private
 	cID := container.Create(ctx, t, apiClient, container.WithAutoRemove)
 
-	inspect, err := apiClient.ContainerInspect(ctx, cID)
+	inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(string(inspect.HostConfig.IpcMode), "private"))
+	assert.Check(t, is.Equal(string(inspect.Container.HostConfig.IpcMode), "private"))
 
 	// main check: using older client creates "shareable" container
 	apiClient = request.NewAPIClient(t, client.WithVersion("1.39"))
 	cID = container.Create(ctx, t, apiClient, container.WithAutoRemove)
 
-	inspect, err = apiClient.ContainerInspect(ctx, cID)
+	inspect, err = apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(string(inspect.HostConfig.IpcMode), "shareable"))
+	assert.Check(t, is.Equal(string(inspect.Container.HostConfig.IpcMode), "shareable"))
 }
