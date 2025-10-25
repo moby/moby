@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -24,9 +25,13 @@ func TestStats(t *testing.T) {
 	assert.NilError(t, err)
 
 	cID := container.Run(ctx, t, apiClient)
-	resp, err := apiClient.ContainerStats(ctx, cID, false)
+	resp, err := apiClient.ContainerStats(ctx, cID, client.ContainerStatsOptions{
+		IncludePreviousSample: true,
+	})
 	assert.NilError(t, err)
-	defer resp.Body.Close()
+	t.Cleanup(func() {
+		_ = resp.Body.Close()
+	})
 
 	var v containertypes.StatsResponse
 	err = json.NewDecoder(resp.Body).Decode(&v)
@@ -36,9 +41,11 @@ func TestStats(t *testing.T) {
 	err = json.NewDecoder(resp.Body).Decode(&v)
 	assert.Assert(t, is.ErrorContains(err, ""), io.EOF)
 
-	resp, err = apiClient.ContainerStatsOneShot(ctx, cID)
+	resp, err = apiClient.ContainerStats(ctx, cID, client.ContainerStatsOptions{})
 	assert.NilError(t, err)
-	defer resp.Body.Close()
+	t.Cleanup(func() {
+		_ = resp.Body.Close()
+	})
 
 	v = containertypes.StatsResponse{}
 	err = json.NewDecoder(resp.Body).Decode(&v)

@@ -236,9 +236,9 @@ func (s *DockerAPISuite) TestAPIStatsContainerNotFound(c *testing.T) {
 
 	expected := "No such container: nonexistent"
 
-	_, err = apiClient.ContainerStats(testutil.GetContext(c), "nonexistent", true)
+	_, err = apiClient.ContainerStats(testutil.GetContext(c), "nonexistent", client.ContainerStatsOptions{Stream: true})
 	assert.ErrorContains(c, err, expected)
-	_, err = apiClient.ContainerStats(testutil.GetContext(c), "nonexistent", false)
+	_, err = apiClient.ContainerStats(testutil.GetContext(c), "nonexistent", client.ContainerStatsOptions{})
 	assert.ErrorContains(c, err, expected)
 }
 
