@@ -15,6 +15,8 @@ type ImageLoadResult interface {
 
 // ImageLoad loads an image in the docker host from the client host. It's up
 // to the caller to close the [ImageLoadResult] returned by this function.
+//
+// The underlying [io.ReadCloser] is automatically closed if the context is canceled,
 func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, loadOpts ...ImageLoadOption) (ImageLoadResult, error) {
 	var opts imageLoadOpts
 	for _, opt := range loadOpts {
@@ -47,31 +49,16 @@ func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, loadOpts ...I
 		return nil, err
 	}
 	return &imageLoadResult{
-		body: resp.Body,
+		ReadCloser: newCancelReadCloser(ctx, resp.Body),
 	}, nil
 }
 
 // imageLoadResult returns information to the client about a load process.
 type imageLoadResult struct {
-	// body must be closed to avoid a resource leak
-	body io.ReadCloser
+	io.ReadCloser
 }
 
 var (
 	_ io.ReadCloser   = (*imageLoadResult)(nil)
 	_ ImageLoadResult = (*imageLoadResult)(nil)
 )
-
-func (r *imageLoadResult) Read(p []byte) (int, error) {
-	if r == nil || r.body == nil {
-		return 0, io.EOF
-	}
-	return r.body.Read(p)
-}
-
-func (r *imageLoadResult) Close() error {
-	if r == nil || r.body == nil {
-		return nil
-	}
-	return r.body.Close()
-}

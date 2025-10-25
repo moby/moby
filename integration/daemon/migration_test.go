@@ -146,10 +146,10 @@ func TestMigrateSaveLoad(t *testing.T) {
 	assert.Equal(t, info.Images, 0)
 
 	// Import
-	lr, err := apiClient.ImageLoad(ctx, bytes.NewReader(buf.Bytes()), client.ImageLoadWithQuiet(true))
+	resp, err := apiClient.ImageLoad(ctx, bytes.NewReader(buf.Bytes()), client.ImageLoadWithQuiet(true))
 	assert.NilError(t, err)
-	io.Copy(io.Discard, lr)
-	lr.Close()
+	_, _ = io.Copy(io.Discard, resp)
+	_ = resp.Close()
 
 	result := container.RunAttach(ctx, t, apiClient, func(c *container.TestContainerConfig) {
 		c.Name = "Migration-save-load-" + snapshotter

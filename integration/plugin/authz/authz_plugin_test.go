@@ -445,11 +445,12 @@ func imageLoad(ctx context.Context, apiClient client.APIClient, path string) err
 		return err
 	}
 	defer file.Close()
-	response, err := apiClient.ImageLoad(ctx, file, client.ImageLoadWithQuiet(true))
+	resp, err := apiClient.ImageLoad(ctx, file, client.ImageLoadWithQuiet(true))
 	if err != nil {
 		return err
 	}
-	defer response.Close()
+	_, _ = io.Copy(io.Discard, resp)
+	_ = resp.Close()
 	return nil
 }
 
