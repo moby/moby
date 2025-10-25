@@ -148,7 +148,7 @@ func (s *DockerAPISuite) TestGetContainerStats(c *testing.T) {
 	runSleepingContainer(c, "--name", name)
 
 	type b struct {
-		stats client.StatsResponseReader
+		stats client.ContainerStatsResult
 		err   error
 	}
 
@@ -158,7 +158,9 @@ func (s *DockerAPISuite) TestGetContainerStats(c *testing.T) {
 		assert.NilError(c, err)
 		defer apiClient.Close()
 
-		stats, err := apiClient.ContainerStats(testutil.GetContext(c), name, true)
+		stats, err := apiClient.ContainerStats(testutil.GetContext(c), name, client.ContainerStatsOptions{
+			Stream: true,
+		})
 		assert.NilError(c, err)
 		bc <- b{stats, err}
 	}()
@@ -192,7 +194,9 @@ func (s *DockerAPISuite) TestGetContainerStatsRmRunning(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	stats, err := apiClient.ContainerStats(testutil.GetContext(c), id, true)
+	stats, err := apiClient.ContainerStats(testutil.GetContext(c), id, client.ContainerStatsOptions{
+		Stream: true,
+	})
 	assert.NilError(c, err)
 	defer stats.Body.Close()
 
@@ -253,7 +257,7 @@ func (s *DockerAPISuite) TestGetContainerStatsStream(c *testing.T) {
 	runSleepingContainer(c, "--name", name)
 
 	type b struct {
-		stats client.StatsResponseReader
+		stats client.ContainerStatsResult
 		err   error
 	}
 
@@ -263,7 +267,9 @@ func (s *DockerAPISuite) TestGetContainerStatsStream(c *testing.T) {
 		assert.NilError(c, err)
 		defer apiClient.Close()
 
-		stats, err := apiClient.ContainerStats(testutil.GetContext(c), name, true)
+		stats, err := apiClient.ContainerStats(testutil.GetContext(c), name, client.ContainerStatsOptions{
+			Stream: true,
+		})
 		assert.NilError(c, err)
 		bc <- b{stats, err}
 	}()
@@ -302,7 +308,10 @@ func (s *DockerAPISuite) TestGetContainerStatsNoStream(c *testing.T) {
 	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 10*time.Second)
 	defer cancel()
 
-	stats, err := apiClient.ContainerStats(ctx, cID, false)
+	stats, err := apiClient.ContainerStats(ctx, cID, client.ContainerStatsOptions{
+		Stream:                false,
+		IncludePreviousSample: true,
+	})
 	assert.NilError(c, err)
 	defer func() { _ = stats.Body.Close() }()
 
@@ -327,7 +336,10 @@ func (s *DockerAPISuite) TestGetStoppedContainerStats(c *testing.T) {
 	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 10*time.Second)
 	defer cancel()
 
-	stats, err := apiClient.ContainerStats(ctx, name, false)
+	stats, err := apiClient.ContainerStats(ctx, name, client.ContainerStatsOptions{
+		Stream:                false,
+		IncludePreviousSample: true,
+	})
 	assert.NilError(c, err)
 	defer func() { _ = stats.Body.Close() }()
 
@@ -1133,7 +1145,10 @@ func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) 
 	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 10*time.Second)
 	defer cancel()
 
-	stats, err := apiClient.ContainerStats(ctx, name, false)
+	stats, err := apiClient.ContainerStats(ctx, name, client.ContainerStatsOptions{
+		Stream:                false,
+		IncludePreviousSample: true,
+	})
 	assert.NilError(c, err)
 	defer func() { _ = stats.Body.Close() }()
 
