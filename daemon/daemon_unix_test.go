@@ -12,6 +12,7 @@ import (
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/sysinfo"
 	"github.com/opencontainers/selinux/go-selinux"
 	"golang.org/x/sys/unix"
@@ -26,7 +27,7 @@ type fakeContainerGetter struct {
 func (f *fakeContainerGetter) GetContainer(cid string) (*container.Container, error) {
 	ctr, ok := f.containers[cid]
 	if !ok {
-		return nil, errors.New("container not found")
+		return nil, errdefs.NotFound(errors.New("container not found"))
 	}
 	return ctr, nil
 }

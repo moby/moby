@@ -20,6 +20,7 @@ import (
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -320,8 +321,7 @@ func cleanup(ctx context.Context, do func(context.Context)) {
 func (i *ImageService) CommitBuildStep(ctx context.Context, c backend.CommitConfig) (image.ID, error) {
 	ctr := i.containers.Get(c.ContainerID)
 	if ctr == nil {
-		// TODO: use typed error
-		return "", fmt.Errorf("container not found: %s", c.ContainerID)
+		return "", errdefs.NotFound(fmt.Errorf("container not found: %s", c.ContainerID))
 	}
 	c.ContainerMountLabel = ctr.MountLabel
 	c.ContainerOS = ctr.ImagePlatform.OS

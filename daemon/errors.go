@@ -54,11 +54,6 @@ func errExecPaused(id string) error {
 	return errdefs.Conflict(cause)
 }
 
-func errNotPaused(id string) error {
-	cause := errors.Errorf("Container %s is already paused", id)
-	return errdefs.Conflict(cause)
-}
-
 type nameConflictError struct {
 	id   string
 	name string

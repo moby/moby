@@ -57,8 +57,8 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 		return &ss
 	}
 
-	updates := daemon.subscribeToContainerStats(ctr)
-	defer daemon.unsubscribeToContainerStats(ctr, updates)
+	updates, cancel := daemon.subscribeToContainerStats(ctr)
+	defer cancel()
 
 	noStreamFirstFrame := !config.OneShot
 
@@ -90,12 +90,15 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 	}
 }
 
-func (daemon *Daemon) subscribeToContainerStats(c *container.Container) chan any {
-	return daemon.statsCollector.Collect(c)
-}
-
-func (daemon *Daemon) unsubscribeToContainerStats(c *container.Container, ch chan any) {
-	daemon.statsCollector.Unsubscribe(c, ch)
+// subscribeToContainerStats starts collecting stats for the given container.
+// It returns a channel containing [containertypes.StatsResponse] records,
+// and a cancel function to unsubscribe and stop collecting stats.
+func (daemon *Daemon) subscribeToContainerStats(c *container.Container) (updates chan any, cancel func()) {
+	ch := daemon.statsCollector.Collect(c)
+	cancel = func() {
+		daemon.statsCollector.Unsubscribe(c, ch)
+	}
+	return ch, cancel
 }
 
 // GetContainerStats collects all the stats published by a container

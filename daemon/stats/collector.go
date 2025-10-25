@@ -95,9 +95,12 @@ func (s *Collector) Run() {
 		// but saves allocations in further iterations
 		pairs = pairs[:0]
 
-		for container, publisher := range s.publishers {
+		for ctr, publisher := range s.publishers {
 			// copy pointers here to release the lock ASAP
-			pairs = append(pairs, publishersPair{container, publisher})
+			pairs = append(pairs, publishersPair{
+				container: ctr,
+				publisher: publisher,
+			})
 		}
 
 		s.cond.L.Unlock()
