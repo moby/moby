@@ -208,6 +208,9 @@ func IsAttestationType(mt string) bool {
 
 // ChildGCLabels returns the label for a given descriptor to reference it
 func ChildGCLabels(desc ocispec.Descriptor) []string {
+	if _, ok := desc.Annotations[AnnotationManifestSubject]; ok {
+		return []string{"containerd.io/gc.ref.content.referrer.sha256."}
+	}
 	mt := desc.MediaType
 	if IsKnownConfig(mt) {
 		return []string{"containerd.io/gc.ref.content.config"}

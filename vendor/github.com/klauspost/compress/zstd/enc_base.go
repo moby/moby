@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	dictShardBits = 6
+	dictShardBits = 7
 )
 
 type fastBase struct {
@@ -41,11 +41,9 @@ func (e *fastBase) AppendCRC(dst []byte) []byte {
 // or a window size small enough to contain the input size, if > 0.
 func (e *fastBase) WindowSize(size int64) int32 {
 	if size > 0 && size < int64(e.maxMatchOff) {
-		b := int32(1) << uint(bits.Len(uint(size)))
-		// Keep minimum window.
-		if b < 1024 {
-			b = 1024
-		}
+		b := max(
+			// Keep minimum window.
+			int32(1)<<uint(bits.Len(uint(size))), 1024)
 		return b
 	}
 	return e.maxMatchOff

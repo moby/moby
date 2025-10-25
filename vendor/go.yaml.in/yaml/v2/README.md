@@ -1,13 +1,3 @@
-# go-yaml fork
-
-This package is a fork of the go-yaml library and is intended solely for consumption
-by kubernetes projects. In this fork, we plan to support only critical changes required for
-kubernetes, such as small bug fixes and regressions. Larger, general-purpose feature requests
-should be made in the upstream go-yaml library, and we will reject such changes in this fork
-unless we are pulling them from upstream.
-
-This fork is based on v2.4.0: https://github.com/go-yaml/yaml/releases/tag/v2.4.0
-
 # YAML support for the Go language
 
 Introduction
@@ -30,18 +20,16 @@ supported since they're a poor design and are gone in YAML 1.2.
 Installation and usage
 ----------------------
 
-The import path for the package is *gopkg.in/yaml.v2*.
+The import path for the package is *go.yaml.in/yaml/v2*.
 
 To install it, run:
 
-    go get gopkg.in/yaml.v2
+    go get go.yaml.in/yaml/v2
 
 API documentation
 -----------------
 
-If opened in a browser, the import path itself leads to the API documentation:
-
-  * [https://gopkg.in/yaml.v2](https://gopkg.in/yaml.v2)
+See: <https://pkg.go.dev/go.yaml.in/yaml/v2>
 
 API stability
 -------------
@@ -65,7 +53,7 @@ import (
         "fmt"
         "log"
 
-        "gopkg.in/yaml.v2"
+        "go.yaml.in/yaml/v2"
 )
 
 var data = `

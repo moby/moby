@@ -194,17 +194,17 @@ func BuildDict(o BuildDictOptions) ([]byte, error) {
 	hist := o.History
 	contents := o.Contents
 	debug := o.DebugOut != nil
-	println := func(args ...interface{}) {
+	println := func(args ...any) {
 		if o.DebugOut != nil {
 			fmt.Fprintln(o.DebugOut, args...)
 		}
 	}
-	printf := func(s string, args ...interface{}) {
+	printf := func(s string, args ...any) {
 		if o.DebugOut != nil {
 			fmt.Fprintf(o.DebugOut, s, args...)
 		}
 	}
-	print := func(args ...interface{}) {
+	print := func(args ...any) {
 		if o.DebugOut != nil {
 			fmt.Fprint(o.DebugOut, args...)
 		}
@@ -424,16 +424,10 @@ func BuildDict(o BuildDictOptions) ([]byte, error) {
 	}
 
 	// Literal table
-	avgSize := litTotal
-	if avgSize > huff0.BlockSizeMax/2 {
-		avgSize = huff0.BlockSizeMax / 2
-	}
+	avgSize := min(litTotal, huff0.BlockSizeMax/2)
 	huffBuff := make([]byte, 0, avgSize)
 	// Target size
-	div := litTotal / avgSize
-	if div < 1 {
-		div = 1
-	}
+	div := max(litTotal/avgSize, 1)
 	if debug {
 		println("Huffman weights:")
 	}
@@ -454,7 +448,7 @@ func BuildDict(o BuildDictOptions) ([]byte, error) {
 		huffBuff = append(huffBuff, 255)
 	}
 	scratch := &huff0.Scratch{TableLog: 11}
-	for tries := 0; tries < 255; tries++ {
+	for tries := range 255 {
 		scratch = &huff0.Scratch{TableLog: 11}
 		_, _, err = huff0.Compress1X(huffBuff, scratch)
 		if err == nil {
@@ -471,7 +465,7 @@ func BuildDict(o BuildDictOptions) ([]byte, error) {
 
 			// Bail out.... Just generate something
 			huffBuff = append(huffBuff, bytes.Repeat([]byte{255}, 10000)...)
-			for i := 0; i < 128; i++ {
+			for i := range 128 {
 				huffBuff = append(huffBuff, byte(i))
 			}
 			continue

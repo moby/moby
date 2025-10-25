@@ -38,18 +38,15 @@ func Load64[I Indexer](b []byte, i I) uint64 {
 
 // Store16 will store v at b.
 func Store16(b []byte, v uint16) {
-	//binary.LittleEndian.PutUint16(b, v)
 	*(*uint16)(unsafe.Pointer(unsafe.SliceData(b))) = v
 }
 
 // Store32 will store v at b.
 func Store32(b []byte, v uint32) {
-	//binary.LittleEndian.PutUint32(b, v)
 	*(*uint32)(unsafe.Pointer(unsafe.SliceData(b))) = v
 }
 
-// Store64 will store v at b.
-func Store64(b []byte, v uint64) {
-	//binary.LittleEndian.PutUint64(b, v)
-	*(*uint64)(unsafe.Pointer(unsafe.SliceData(b))) = v
+// Store64 will store v at b[i:].
+func Store64[I Indexer](b []byte, i I, v uint64) {
+	*(*uint64)(unsafe.Add(unsafe.Pointer(unsafe.SliceData(b)), i)) = v
 }

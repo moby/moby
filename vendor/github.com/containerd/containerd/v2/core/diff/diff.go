@@ -69,6 +69,8 @@ type ApplyConfig struct {
 	ProcessorPayloads map[string]typeurl.Any
 	// SyncFs is to synchronize the underlying filesystem containing files
 	SyncFs bool
+	// Progress is a function which reports status of processed read data
+	Progress func(int64)
 }
 
 // ApplyOpt is used to configure an Apply operation
@@ -131,6 +133,18 @@ func WithPayloads(payloads map[string]typeurl.Any) ApplyOpt {
 func WithSyncFs(sync bool) ApplyOpt {
 	return func(_ context.Context, _ ocispec.Descriptor, c *ApplyConfig) error {
 		c.SyncFs = sync
+		return nil
+	}
+}
+
+// WithProgress is used to indicate process of the apply operation, should
+// atleast expect a progress of 0 and of the final size. It is up to the applier
+// how much progress it reports in between.
+func WithProgress(f func(ocispec.Descriptor, int64)) ApplyOpt {
+	return func(_ context.Context, desc ocispec.Descriptor, c *ApplyConfig) error {
+		c.Progress = func(state int64) {
+			f(desc, state)
+		}
 		return nil
 	}
 }

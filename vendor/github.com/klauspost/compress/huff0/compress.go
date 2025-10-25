@@ -276,7 +276,7 @@ func (s *Scratch) compress4X(src []byte) ([]byte, error) {
 	offsetIdx := len(s.Out)
 	s.Out = append(s.Out, sixZeros[:]...)
 
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		toDo := src
 		if len(toDo) > segmentSize {
 			toDo = toDo[:segmentSize]
@@ -312,7 +312,7 @@ func (s *Scratch) compress4Xp(src []byte) ([]byte, error) {
 	segmentSize := (len(src) + 3) / 4
 	var wg sync.WaitGroup
 	wg.Add(4)
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		toDo := src
 		if len(toDo) > segmentSize {
 			toDo = toDo[:segmentSize]
@@ -326,7 +326,7 @@ func (s *Scratch) compress4Xp(src []byte) ([]byte, error) {
 		}(i)
 	}
 	wg.Wait()
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		o := s.tmpOut[i]
 		if len(o) > math.MaxUint16 {
 			// We cannot store the size in the jump table

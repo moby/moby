@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"slices"
 	"sort"
 	"strings"
 
@@ -43,6 +44,7 @@ type exportOptions struct {
 	allPlatforms       bool
 	skipDockerManifest bool
 	blobRecordOptions  blobRecordOptions
+	referrers          content.ReferrersProvider
 }
 
 // ExportOpt defines options for configuring exported descriptors
@@ -141,6 +143,15 @@ func WithSkipNonDistributableBlobs() ExportOpt {
 		return !images.IsNonDistributable(desc.MediaType)
 	}
 	return WithBlobFilter(f)
+}
+
+// WithReferrersProvider sets a referrers provider to resolve referrer objects
+// that are included in the exported archive.
+func WithReferrersProvider(p content.ReferrersProvider) ExportOpt {
+	return func(ctx context.Context, o *exportOptions) error {
+		o.referrers = p
+		return nil
+	}
 }
 
 // WithSkipMissing excludes blobs referenced by manifests if not all blobs
@@ -242,7 +253,7 @@ func Export(ctx context.Context, store content.InfoReaderProvider, writer io.Wri
 			mt, ok := dManifests[desc.Digest]
 			if !ok {
 				// TODO(containerd): Skip if already added
-				r, err := getRecords(ctx, store, desc, algorithms, &eo.blobRecordOptions)
+				r, err := getRecords(ctx, store, desc, algorithms, &eo.blobRecordOptions, eo.referrers)
 				if err != nil {
 					return err
 				}
@@ -286,7 +297,7 @@ func Export(ctx context.Context, store content.InfoReaderProvider, writer io.Wri
 						}
 					}
 
-					r, err := getRecords(ctx, store, m, algorithms, &eo.blobRecordOptions)
+					r, err := getRecords(ctx, store, m, algorithms, &eo.blobRecordOptions, eo.referrers)
 					if err != nil {
 						return err
 					}
@@ -327,7 +338,7 @@ func Export(ctx context.Context, store content.InfoReaderProvider, writer io.Wri
 		}
 	}
 
-	records = append(records, ociIndexRecord(manifests))
+	records = append(records, ociIndexRecord(slices.Concat(manifests, filterReferrers(records))))
 
 	if !eo.skipDockerManifest && len(dManifests) > 0 {
 		tr, err := manifestsRecord(ctx, store, dManifests)
@@ -350,7 +361,7 @@ func Export(ctx context.Context, store content.InfoReaderProvider, writer io.Wri
 	return writeTar(ctx, tw, records)
 }
 
-func getRecords(ctx context.Context, store content.Provider, desc ocispec.Descriptor, algorithms map[string]struct{}, brOpts *blobRecordOptions) ([]tarRecord, error) {
+func getRecords(ctx context.Context, store content.Provider, desc ocispec.Descriptor, algorithms map[string]struct{}, brOpts *blobRecordOptions, referrers content.ReferrersProvider) ([]tarRecord, error) {
 	var records []tarRecord
 	exportHandler := func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		if err := desc.Digest.Validate(); err != nil {
@@ -364,6 +375,36 @@ func getRecords(ctx context.Context, store content.Provider, desc ocispec.Descri
 	childrenHandler := brOpts.childrenHandler
 	if childrenHandler == nil {
 		childrenHandler = images.ChildrenHandler(store)
+	}
+
+	if referrers != nil {
+		ch := childrenHandler
+		childrenHandler = func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+			children, err := ch(ctx, desc)
+			if err != nil {
+				return nil, err
+			}
+			if !images.IsManifestType(desc.MediaType) && !images.IsIndexType(desc.MediaType) {
+				return children, nil
+			}
+
+			refs, err := referrers.Referrers(ctx, desc)
+			if err != nil {
+				if errdefs.IsNotFound(err) {
+					return children, nil
+				}
+				return nil, err
+			}
+			for _, r := range refs {
+				if r.Annotations == nil {
+					r.Annotations = map[string]string{}
+				}
+				r.Annotations[images.AnnotationManifestSubject] = desc.Digest.String()
+				children = append(children, r)
+			}
+
+			return children, nil
+		}
 	}
 
 	handlers := images.Handlers(
@@ -380,9 +421,38 @@ func getRecords(ctx context.Context, store content.Provider, desc ocispec.Descri
 	return records, nil
 }
 
+// filterReferrers filters records with referrer annotations that are not
+// exported in another way already
+func filterReferrers(records []tarRecord) []ocispec.Descriptor {
+	inTree := map[digest.Digest]struct{}{}
+	referrersMap := map[digest.Digest]ocispec.Descriptor{}
+	for _, r := range records {
+		if r.Descriptor != nil {
+			if _, ok := r.Descriptor.Annotations[images.AnnotationManifestSubject]; ok {
+				referrersMap[r.Descriptor.Digest] = *r.Descriptor
+			} else {
+				inTree[r.Descriptor.Digest] = struct{}{}
+			}
+		}
+	}
+
+	var referrers []ocispec.Descriptor
+	for dgst, desc := range referrersMap {
+		if _, ok := inTree[dgst]; ok {
+			continue
+		}
+		referrers = append(referrers, desc)
+	}
+	slices.SortFunc(referrers, func(a, b ocispec.Descriptor) int {
+		return strings.Compare(a.Digest.String(), b.Digest.String())
+	})
+	return referrers
+}
+
 type tarRecord struct {
-	Header *tar.Header
-	CopyTo func(context.Context, io.Writer) (int64, error)
+	Header     *tar.Header
+	CopyTo     func(context.Context, io.Writer) (int64, error)
+	Descriptor *ocispec.Descriptor
 }
 
 type blobRecordOptions struct {
@@ -395,6 +465,7 @@ func blobRecord(cs content.Provider, desc ocispec.Descriptor, opts *blobRecordOp
 		return tarRecord{}
 	}
 	return tarRecord{
+		Descriptor: &desc,
 		Header: &tar.Header{
 			Name:     path.Join(ocispec.ImageBlobsDir, desc.Digest.Algorithm().String(), desc.Digest.Encoded()),
 			Mode:     0444,

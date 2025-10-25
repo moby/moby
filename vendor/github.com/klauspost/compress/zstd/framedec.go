@@ -238,10 +238,7 @@ func (d *frameDec) reset(br byteBuffer) error {
 
 	if d.WindowSize == 0 && d.SingleSegment {
 		// We may not need window in this case.
-		d.WindowSize = d.FrameContentSize
-		if d.WindowSize < MinWindowSize {
-			d.WindowSize = MinWindowSize
-		}
+		d.WindowSize = max(d.FrameContentSize, MinWindowSize)
 		if d.WindowSize > d.o.maxDecodedSize {
 			if debugDecoder {
 				printf("window size %d > max %d\n", d.WindowSize, d.o.maxWindowSize)

@@ -158,11 +158,9 @@ func (e *bestFastEncoder) Encode(blk *blockEnc, src []byte) {
 
 	// Use this to estimate literal cost.
 	// Scaled by 10 bits.
-	bitsPerByte := int32((compress.ShannonEntropyBits(src) * 1024) / len(src))
-	// Huffman can never go < 1 bit/byte
-	if bitsPerByte < 1024 {
-		bitsPerByte = 1024
-	}
+	bitsPerByte := max(
+		// Huffman can never go < 1 bit/byte
+		int32((compress.ShannonEntropyBits(src)*1024)/len(src)), 1024)
 
 	// Override src
 	src = e.hist
@@ -235,10 +233,7 @@ encodeLoop:
 				// Extend candidate match backwards as far as possible.
 				// Do not extend repeats as we can assume they are optimal
 				// and offsets change if s == nextEmit.
-				tMin := s - e.maxMatchOff
-				if tMin < 0 {
-					tMin = 0
-				}
+				tMin := max(s-e.maxMatchOff, 0)
 				for offset > tMin && s > nextEmit && src[offset-1] == src[s-1] && l < maxMatchLength {
 					s--
 					offset--
@@ -382,10 +377,7 @@ encodeLoop:
 			nextEmit = s
 
 			// Index skipped...
-			end := s
-			if s > sLimit+4 {
-				end = sLimit + 4
-			}
+			end := min(s, sLimit+4)
 			off := index0 + e.cur
 			for index0 < end {
 				cv0 := load6432(src, index0)
@@ -444,10 +436,7 @@ encodeLoop:
 		nextEmit = s
 
 		// Index old s + 1 -> s - 1 or sLimit
-		end := s
-		if s > sLimit-4 {
-			end = sLimit - 4
-		}
+		end := min(s, sLimit-4)
 
 		off := index0 + e.cur
 		for index0 < end {

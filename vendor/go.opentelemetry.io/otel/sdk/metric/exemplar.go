@@ -18,7 +18,10 @@ type ExemplarReservoirProviderSelector func(Aggregation) exemplar.ReservoirProvi
 
 // reservoirFunc returns the appropriately configured exemplar reservoir
 // creation func based on the passed InstrumentKind and filter configuration.
-func reservoirFunc[N int64 | float64](provider exemplar.ReservoirProvider, filter exemplar.Filter) func(attribute.Set) aggregate.FilteredExemplarReservoir[N] {
+func reservoirFunc[N int64 | float64](
+	provider exemplar.ReservoirProvider,
+	filter exemplar.Filter,
+) func(attribute.Set) aggregate.FilteredExemplarReservoir[N] {
 	return func(attrs attribute.Set) aggregate.FilteredExemplarReservoir[N] {
 		return aggregate.NewFilteredExemplarReservoir[N](filter, provider(attrs))
 	}
