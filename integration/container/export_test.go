@@ -39,7 +39,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	// the image ID and match with the output from `docker images`.
 
 	dec := json.NewDecoder(importRes)
-	var jm jsonmessage.JSONMessage
+	var jm jsonmessage.JSONMessage[json.RawMessage]
 	err = dec.Decode(&jm)
 	assert.NilError(t, err)
 

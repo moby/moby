@@ -123,13 +123,16 @@ func (p *JSONProgress) width() int {
 // JSONMessage defines a message struct. It describes
 // the created time, where it from, status, ID of the
 // message. It's used for docker events.
-type JSONMessage struct {
+//
+// Generic parameter A is the concrete type of the auxiliary payload.
+// If you don't need a typed Aux, use A = json.RawMessage.
+type JSONMessage[A any] struct {
 	Stream   string            `json:"stream,omitempty"`
 	Status   string            `json:"status,omitempty"`
 	Progress *JSONProgress     `json:"progressDetail,omitempty"`
 	ID       string            `json:"id,omitempty"`
 	Error    *jsonstream.Error `json:"errorDetail,omitempty"`
-	Aux      *json.RawMessage  `json:"aux,omitempty"` // Aux contains out-of-band data, such as digests for push signing and image id after building.
+	Aux      *A                `json:"aux,omitempty"` // Aux contains out-of-band data, such as digests for push signing and image id after building.
 }
 
 // We can probably use [aec.EmptyBuilder] for managing the output, but
@@ -164,7 +167,7 @@ func cursorDown(out io.Writer, l uint) {
 // Display prints the JSONMessage to out. If isTerminal is true, it erases
 // the entire current line when displaying the progressbar. It returns an
 // error if the [JSONMessage.Error] field is non-nil.
-func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
+func (jm *JSONMessage[A]) Display(out io.Writer, isTerminal bool) error {
 	if jm.Error != nil {
 		return jm.Error
 	}
@@ -189,16 +192,17 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 	return nil
 }
 
-type JSONMessagesStream iter.Seq2[JSONMessage, error]
+// JSONMessagesStream is a stream of typed JSON messages.
+type JSONMessagesStream[A any] iter.Seq2[JSONMessage[A], error]
 
 // DisplayJSONMessagesStream reads a JSON message stream from in, and writes
-// each [JSONMessage] to out.
+// each [JSONMessage[A]] to out.
 // see DisplayJSONMessages for details
-func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(JSONMessage)) error {
+func DisplayJSONMessagesStream[A any](in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(JSONMessage[A])) error {
 	dec := json.NewDecoder(in)
-	var f JSONMessagesStream = func(yield func(JSONMessage, error) bool) {
+	var f JSONMessagesStream[A] = func(yield func(JSONMessage[A], error) bool) {
 		for {
-			var jm JSONMessage
+			var jm JSONMessage[A]
 			err := dec.Decode(&jm)
 			if errors.Is(err, io.EOF) {
 				break
@@ -209,12 +213,12 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 		}
 	}
 
-	return DisplayJSONMessages(f, out, terminalFd, isTerminal, auxCallback)
+	return DisplayJSONMessages[A](f, out, terminalFd, isTerminal, auxCallback)
 }
 
-// DisplayJSONMessages writes each [JSONMessage] from stream to out.
+// DisplayJSONMessages writes each [JSONMessage[A]] from stream to out.
 // It returns an error if an invalid JSONMessage is received, or if
-// a JSONMessage containers a non-zero [JSONMessage.Error].
+// a JSONMessage contains a non-zero [JSONMessage.Error].
 //
 // Presentation of the JSONMessage depends on whether a terminal is attached,
 // and on the terminal width. Progress bars ([JSONProgress]) are suppressed
@@ -228,7 +232,7 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 //   - auxCallback allows handling the [JSONMessage.Aux] field. It is
 //     called if a JSONMessage contains an Aux field, in which case
 //     DisplayJSONMessagesStream does not present the JSONMessage.
-func DisplayJSONMessages(messages JSONMessagesStream, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(JSONMessage)) error {
+func DisplayJSONMessages[A any](messages JSONMessagesStream[A], out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(JSONMessage[A])) error {
 	ids := make(map[string]uint)
 
 	for jm, err := range messages {
@@ -283,4 +287,47 @@ func DisplayJSONMessages(messages JSONMessagesStream, out io.Writer, terminalFd 
 		}
 	}
 	return nil
+}
+
+/*
+   ---- Extended/embedded message support ----
+
+   If you have an extended struct that embeds JSONMessage[A], e.g.:
+
+       type MyExtendedMessage struct {
+           jsonmessage.JSONMessage[MyAuxStruct]
+           OtherField string
+       }
+
+   you can still reuse the display logic by providing an accessor
+   that projects the embedded JSONMessage[A] from your extended type.
+*/
+
+// DisplayExtendedMessages renders a stream of extended messages M that contain
+// (typically embed) a JSONMessage[A]. The getter returns a pointer to the
+// embedded/base JSONMessage so the renderer can operate on it.
+func DisplayExtendedMessages[A any, M any](messages iter.Seq2[M, error], getBase func(M) *JSONMessage[A], out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(JSONMessage[A])) error {
+	// Adapt the extended stream into a JSONMessagesStream[A].
+	adapted := func(yield func(JSONMessage[A], error) bool) {
+		for m, err := range messages {
+			if err != nil {
+				// Forward the error; zero-value JSONMessage[A] is fine.
+				var zero JSONMessage[A]
+				_ = yield(zero, err)
+				continue
+			}
+			base := getBase(m)
+			if base == nil {
+				var zero JSONMessage[A]
+				_ = yield(zero, errors.New("nil base JSONMessage"))
+				continue
+			}
+			// Yield a copy of the base so downstream cannot mutate caller state.
+			val := *base
+			if !yield(val, nil) {
+				return
+			}
+		}
+	}
+	return DisplayJSONMessages[A](adapted, out, terminalFd, isTerminal, auxCallback)
 }
