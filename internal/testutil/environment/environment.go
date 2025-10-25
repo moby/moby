@@ -50,7 +50,7 @@ func FromClient(ctx context.Context, c *client.Client) (*Execution, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get info from daemon")
 	}
-	v, err := c.ServerVersion(context.Background())
+	result, err := c.ServerVersion(context.Background())
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get version info from daemon")
 	}
@@ -58,7 +58,7 @@ func FromClient(ctx context.Context, c *client.Client) (*Execution, error) {
 	return &Execution{
 		client:            c,
 		DaemonInfo:        info,
-		DaemonVersion:     v,
+		DaemonVersion:     result.Version,
 		PlatformDefaults:  getPlatformDefaults(info),
 		protectedElements: newProtectedElements(),
 	}, nil
@@ -128,11 +128,11 @@ func (e *Execution) IsRemoteDaemon() bool {
 
 // DaemonAPIVersion returns the negotiated daemon api version
 func (e *Execution) DaemonAPIVersion() string {
-	version, err := e.APIClient().ServerVersion(context.TODO())
+	result, err := e.APIClient().ServerVersion(context.TODO())
 	if err != nil {
 		return ""
 	}
-	return version.APIVersion
+	return result.Version.APIVersion
 }
 
 // Print the execution details to stdout

@@ -16,8 +16,9 @@ func TestVersion(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	version, err := apiClient.ServerVersion(ctx)
+	result, err := apiClient.ServerVersion(ctx)
 	assert.NilError(t, err)
+	version := result.Version
 
 	assert.Check(t, version.APIVersion != "")
 	assert.Check(t, version.Version != "")

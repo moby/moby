@@ -31,7 +31,7 @@ type stableAPIClient interface {
 	VolumeAPIClient
 	ClientVersion() string
 	DaemonHost() string
-	ServerVersion(ctx context.Context) (types.Version, error)
+	ServerVersion(ctx context.Context) (ServerVersionResult, error)
 	NegotiateAPIVersion(ctx context.Context)
 	NegotiateAPIVersionPing(PingResult)
 	HijackDialer

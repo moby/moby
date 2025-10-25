@@ -7,15 +7,20 @@ import (
 	"github.com/moby/moby/api/types"
 )
 
-// ServerVersion returns information of the docker client and server host.
-func (cli *Client) ServerVersion(ctx context.Context) (types.Version, error) {
+// ServerVersionResult contains information about the Docker server host.
+type ServerVersionResult struct {
+	Version types.Version
+}
+
+// ServerVersion returns information of the Docker server host.
+func (cli *Client) ServerVersion(ctx context.Context) (ServerVersionResult, error) {
 	resp, err := cli.get(ctx, "/version", nil, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return types.Version{}, err
+		return ServerVersionResult{}, err
 	}
 
-	var server types.Version
-	err = json.NewDecoder(resp.Body).Decode(&server)
-	return server, err
+	var version types.Version
+	err = json.NewDecoder(resp.Body).Decode(&version)
+	return ServerVersionResult{Version: version}, err
 }
