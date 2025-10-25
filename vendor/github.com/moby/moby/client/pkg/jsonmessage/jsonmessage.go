@@ -124,7 +124,7 @@ func (p *JSONProgress) width() int {
 // the created time, where it from, status, ID of the
 // message. It's used for docker events.
 type JSONMessage struct {
-	Stream   string            `json:"stream,omitempty"`
+	Stream   string            `json:"-"`
 	Status   string            `json:"status,omitempty"`
 	Progress *JSONProgress     `json:"progressDetail,omitempty"`
 	ID       string            `json:"id,omitempty"`

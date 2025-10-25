@@ -17,7 +17,7 @@ func TestStreamWriterStdout(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(content), size))
 
-	expected := `{"stream":"content"}` + streamNewline
+	expected := `{"status":"content"}` + streamNewline
 	assert.Check(t, is.Equal(expected, buffer.String()))
 }
 
@@ -30,6 +30,6 @@ func TestStreamWriterStderr(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(content), size))
 
-	expected := `{"stream":"\u001b[91mcontent\u001b[0m"}` + streamNewline
+	expected := `{"status":"\u001b[91mcontent\u001b[0m"}` + streamNewline
 	assert.Check(t, is.Equal(expected, buffer.String()))
 }

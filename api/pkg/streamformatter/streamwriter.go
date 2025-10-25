@@ -3,6 +3,7 @@ package streamformatter
 import (
 	"encoding/json"
 	"io"
+	"strings"
 )
 
 type streamWriter struct {
@@ -20,7 +21,8 @@ func (sw *streamWriter) Write(buf []byte) (int, error) {
 }
 
 func (sw *streamWriter) format(buf []byte) []byte {
-	msg := &jsonMessage{Stream: sw.lineFormat(buf)}
+	// Remove any trailing newlines (CR, LF, CRLF)
+	msg := &jsonMessage{Status: strings.TrimRight(sw.lineFormat(buf), streamNewline)}
 	b, err := json.Marshal(msg)
 	if err != nil {
 		return FormatError(err)
