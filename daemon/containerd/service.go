@@ -18,6 +18,7 @@ import (
 	daemonevents "github.com/moby/moby/v2/daemon/events"
 	dimages "github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/daemon/internal/distribution"
+	"github.com/moby/moby/v2/daemon/internal/quota"
 	"github.com/moby/moby/v2/daemon/snapshotter"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/sys/user"
@@ -43,12 +44,14 @@ type ImageService struct {
 
 	// defaultPlatformOverride is used in tests to override the host platform.
 	defaultPlatformOverride platforms.MatchComparer
+	quotaCtl                *quota.Control
 }
 
 type ImageServiceConfig struct {
 	Client          *containerd.Client
 	Containers      container.Store
 	Snapshotter     string
+	RootDir         string
 	RegistryHosts   docker.RegistryHosts
 	Registry        distribution.RegistryResolver
 	EventsService   *daemonevents.Events
@@ -58,6 +61,10 @@ type ImageServiceConfig struct {
 
 // NewService creates a new ImageService.
 func NewService(config ImageServiceConfig) *ImageService {
+	var quotaCtl *quota.Control
+	if config.RootDir != "" {
+		quotaCtl, _ = quota.NewControl(config.RootDir)
+	}
 	return &ImageService{
 		client:  config.Client,
 		images:  config.Client.ImageService(),
@@ -72,6 +79,7 @@ func NewService(config ImageServiceConfig) *ImageService {
 		eventsService:   config.EventsService,
 		refCountMounter: config.RefCountMounter,
 		idMapping:       config.IDMapping,
+		quotaCtl:        quotaCtl,
 	}
 }
 
