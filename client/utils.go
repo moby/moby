@@ -2,12 +2,14 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 
 	cerrdefs "github.com/containerd/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -84,3 +86,22 @@ func decodeWithRaw[T any](resp *http.Response, out *T) (raw json.RawMessage, _ e
 	}
 	return buf.Bytes(), nil
 }
+
+// newCancelReadCloser wraps rc so it's automatically closed when ctx is canceled.
+// Close is idempotent and returns the first error from rc.Close.
+func newCancelReadCloser(ctx context.Context, rc io.ReadCloser) io.ReadCloser {
+	crc := &cancelReadCloser{
+		rc:    rc,
+		close: sync.OnceValue(rc.Close),
+	}
+	context.AfterFunc(ctx, func() { _ = crc.Close() })
+	return crc
+}
+
+type cancelReadCloser struct {
+	rc    io.ReadCloser
+	close func() error
+}
+
+func (c *cancelReadCloser) Read(p []byte) (int, error) { return c.rc.Read(p) }
+func (c *cancelReadCloser) Close() error               { return c.close() }
