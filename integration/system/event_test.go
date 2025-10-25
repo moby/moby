@@ -30,9 +30,11 @@ func TestEventsExecDie(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	msg, errs := apiClient.Events(ctx, client.EventsListOptions{
+	result := apiClient.Events(ctx, client.EventsListOptions{
 		Filters: make(client.Filters).Add("container", cID).Add("event", string(events.ActionExecDie)),
 	})
+	msg := result.Messages
+	errs := result.Err
 
 	_, err = apiClient.ExecStart(ctx, res.ID, client.ExecStartOptions{
 		Detach: true,
@@ -107,11 +109,13 @@ func TestEventsVolumeCreate(t *testing.T) {
 		Add("type", "volume").
 		Add("event", "create").
 		Add("volume", volName)
-	messages, errs := apiClient.Events(ctx, client.EventsListOptions{
+	result := apiClient.Events(ctx, client.EventsListOptions{
 		Since:   since,
 		Until:   request.DaemonUnixTime(ctx, t, apiClient, testEnv),
 		Filters: filter,
 	})
+	messages := result.Messages
+	errs := result.Err
 
 	volEvents, err := getEvents(messages, errs)
 	assert.NilError(t, err)
@@ -123,11 +127,13 @@ func TestEventsVolumeCreate(t *testing.T) {
 		Target: "/tmp/foo",
 	}))
 
-	messages, errs = apiClient.Events(ctx, client.EventsListOptions{
+	result = apiClient.Events(ctx, client.EventsListOptions{
 		Since:   since,
 		Until:   request.DaemonUnixTime(ctx, t, apiClient, testEnv),
 		Filters: filter,
 	})
+	messages = result.Messages
+	errs = result.Err
 
 	volEvents, err = getEvents(messages, errs)
 	assert.NilError(t, err)

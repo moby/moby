@@ -740,10 +740,12 @@ func TestBuildEmitsImageCreateEvent(t *testing.T) {
 			assert.NilError(t, err)
 			buildLogs := out.String()
 
-			eventsChan, errs := apiClient.Events(ctx, client.EventsListOptions{
+			result := apiClient.Events(ctx, client.EventsListOptions{
 				Since: since.Format(time.RFC3339Nano),
 				Until: time.Now().Format(time.RFC3339Nano),
 			})
+			eventsChan := result.Messages
+			errs := result.Err
 
 			var eventsReceived []string
 			imageCreateEvts := 0

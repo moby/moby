@@ -37,8 +37,8 @@ func TestEventsErrorInOptions(t *testing.T) {
 	for _, tc := range errorCases {
 		client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 		assert.NilError(t, err)
-		_, errs := client.Events(context.Background(), tc.options)
-		err = <-errs
+		events := client.Events(context.Background(), tc.options)
+		err = <-events.Err
 		assert.Check(t, is.ErrorContains(err, tc.expectedError))
 	}
 }
@@ -46,8 +46,8 @@ func TestEventsErrorInOptions(t *testing.T) {
 func TestEventsErrorFromServer(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	_, errs := client.Events(context.Background(), EventsListOptions{})
-	err = <-errs
+	events := client.Events(context.Background(), EventsListOptions{})
+	err = <-events.Err
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -133,18 +133,18 @@ func TestEvents(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 
-		messages, errs := client.Events(context.Background(), eventsCase.options)
+		events := client.Events(context.Background(), eventsCase.options)
 
 	loop:
 		for {
 			select {
-			case err := <-errs:
+			case err := <-events.Err:
 				if err != nil && !errors.Is(err, io.EOF) {
 					t.Fatal(err)
 				}
 
 				break loop
-			case e := <-messages:
+			case e := <-events.Messages:
 				_, ok := eventsCase.expectedEvents[e.Actor.ID]
 				assert.Check(t, ok, "event received not expected with action %s & id %s", e.Action, e.Actor.ID)
 			}

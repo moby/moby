@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/client"
 	registrypkg "github.com/moby/moby/v2/daemon/pkg/registry"
 	"github.com/moby/moby/v2/integration/internal/requirement"
 	"gotest.tools/v3/assert"
@@ -19,7 +19,7 @@ func TestLoginFailsWithBadCredentials(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	_, err := apiClient.RegistryLogin(ctx, registry.AuthConfig{
+	_, err := apiClient.RegistryLogin(ctx, client.RegistryLoginOptions{
 		Username: "no-user",
 		Password: "no-password",
 	})

@@ -188,8 +188,9 @@ func TestCDIInfoDiscoveredDevices(t *testing.T) {
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
-	info, err := c.Info(ctx)
+	result, err := c.Info(ctx, client.InfoOptions{})
 	assert.NilError(t, err)
+	info := result.Info
 
 	assert.Check(t, is.Len(info.CDISpecDirs, 1))
 	assert.Check(t, is.Equal(info.CDISpecDirs[0], cdiDir))

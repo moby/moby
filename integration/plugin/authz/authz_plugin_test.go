@@ -276,9 +276,10 @@ func systemTime(ctx context.Context, t *testing.T, apiClient client.APIClient, t
 		return time.Now()
 	}
 
-	info, err := apiClient.Info(ctx)
+	result, err := apiClient.Info(ctx, client.InfoOptions{})
 	assert.NilError(t, err)
 
+	info := result.Info
 	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
 	assert.NilError(t, err, "invalid time format in GET /info response")
 	return dt
@@ -289,9 +290,9 @@ func systemEventsSince(ctx context.Context, apiClient client.APIClient, since st
 		Since: since,
 	}
 	ctx, cancel := context.WithCancel(ctx)
-	events, errs := apiClient.Events(ctx, eventOptions)
+	result := apiClient.Events(ctx, eventOptions)
 
-	return events, errs, cancel
+	return result.Messages, result.Err, cancel
 }
 
 func TestAuthZPluginErrorResponse(t *testing.T) {

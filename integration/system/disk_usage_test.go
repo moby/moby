@@ -30,14 +30,14 @@ func TestDiskUsage(t *testing.T) {
 	defer d.Stop(t)
 	apiClient := d.NewClientT(t)
 
-	var stepDU system.DiskUsage
+	var stepDU client.DiskUsageResult
 	for _, step := range []struct {
 		doc  string
-		next func(t *testing.T, prev system.DiskUsage) system.DiskUsage
+		next func(t *testing.T, prev client.DiskUsageResult) client.DiskUsageResult
 	}{
 		{
 			doc: "empty",
-			next: func(t *testing.T, _ system.DiskUsage) system.DiskUsage {
+			next: func(t *testing.T, _ client.DiskUsageResult) client.DiskUsageResult {
 				du, err := apiClient.DiskUsage(ctx, client.DiskUsageOptions{})
 				assert.NilError(t, err)
 
@@ -45,63 +45,110 @@ func TestDiskUsage(t *testing.T) {
 				// TODO: Investigate https://github.com/moby/moby/issues/47119
 				// Make 4096 (block size) also a valid value for zero usage.
 				if testEnv.UsingSnapshotter() && testEnv.IsRootless() {
-					if du.LayersSize == 4096 {
-						expectedLayersSize = du.LayersSize
+					if du.DiskUsage.LayersSize == 4096 {
+						expectedLayersSize = 4096
 					}
 				}
 
-				assert.DeepEqual(t, du, system.DiskUsage{
-					LayersSize: expectedLayersSize,
-					Images:     []*image.Summary{},
-					Containers: []*containertypes.Summary{},
-					Volumes:    []*volume.Volume{},
-					BuildCache: []*build.CacheRecord{},
+				assert.DeepEqual(t, du, client.DiskUsageResult{
+					DiskUsage: system.DiskUsage{
+						LayersSize: expectedLayersSize,
+						Images:     []*image.Summary{},
+						Containers: []*containertypes.Summary{},
+						Volumes:    []*volume.Volume{},
+						BuildCache: []*build.CacheRecord{},
+					},
+					Containers: client.ContainerDiskUsage{
+						Items: []containertypes.Summary{},
+					},
+					Images: client.ImageDiskUsage{
+						TotalSize: expectedLayersSize,
+						Items:     []image.Summary{},
+					},
+					BuildCache: client.BuildCacheDiskUsage{
+						Items: []build.CacheRecord{},
+					},
+					Volumes: client.VolumeDiskUsage{
+						Items: []volume.Volume{},
+					},
 				})
 				return du
 			},
 		},
 		{
 			doc: "after LoadBusybox",
-			next: func(t *testing.T, _ system.DiskUsage) system.DiskUsage {
+			next: func(t *testing.T, _ client.DiskUsageResult) client.DiskUsageResult {
 				d.LoadBusybox(ctx, t)
 
 				du, err := apiClient.DiskUsage(ctx, client.DiskUsageOptions{})
 				assert.NilError(t, err)
-				assert.Assert(t, du.LayersSize > 0)
-				assert.Equal(t, len(du.Images), 1)
-				assert.Equal(t, len(du.Images[0].RepoTags), 1)
-				assert.Check(t, is.Equal(du.Images[0].RepoTags[0], "busybox:latest"))
+
+				// Older disk usage shape
+				assert.Assert(t, du.DiskUsage.LayersSize > 0)
+				assert.Assert(t, len(du.DiskUsage.Images) == 1)
+				assert.Assert(t, len(du.DiskUsage.Images[0].RepoTags) == 1)
+				assert.Assert(t, du.DiskUsage.Images[0].RepoTags[0] == "busybox:latest")
 
 				// Image size is layer size + content size. Content size is included in layers size.
-				assert.Equal(t, du.Images[0].Size, du.LayersSize)
+				assert.Equal(t, du.DiskUsage.Images[0].Size, du.DiskUsage.LayersSize)
+
+				// New disk usage shape
+				assert.Assert(t, du.Images.TotalSize > 0)
+				assert.Equal(t, len(du.Images.Items), 1)
+				assert.Equal(t, len(du.Images.Items[0].RepoTags), 1)
+				assert.Check(t, is.Equal(du.Images.Items[0].RepoTags[0], "busybox:latest"))
+
+				// Image size is layer size + content size. Content size is included in layers size.
+				assert.Equal(t, du.Images.Items[0].Size, du.Images.TotalSize)
 
 				return du
 			},
 		},
 		{
 			doc: "after container.Run",
-			next: func(t *testing.T, prev system.DiskUsage) system.DiskUsage {
+			next: func(t *testing.T, prev client.DiskUsageResult) client.DiskUsageResult {
 				cID := container.Run(ctx, t, apiClient)
 
 				du, err := apiClient.DiskUsage(ctx, client.DiskUsageOptions{})
 				assert.NilError(t, err)
-				assert.Equal(t, len(du.Containers), 1)
-				assert.Equal(t, len(du.Containers[0].Names), 1)
-				assert.Assert(t, len(prev.Images) > 0)
-				assert.Check(t, du.Containers[0].Created >= prev.Images[0].Created)
+
+				// Older disk usage shape
+				assert.Equal(t, len(du.DiskUsage.Containers), 1)
+				assert.Equal(t, len(du.DiskUsage.Containers[0].Names), 1)
+				assert.Assert(t, len(prev.DiskUsage.Images) > 0)
+				assert.Check(t, du.DiskUsage.Containers[0].Created >= prev.DiskUsage.Images[0].Created)
 
 				// Additional container layer could add to the size
-				assert.Check(t, du.LayersSize >= prev.LayersSize)
+				assert.Check(t, du.DiskUsage.LayersSize >= prev.DiskUsage.LayersSize)
 
-				assert.Equal(t, len(du.Images), 1)
-				assert.Equal(t, du.Images[0].Containers, prev.Images[0].Containers+1)
+				assert.Equal(t, len(du.DiskUsage.Images), 1)
+				assert.Equal(t, du.DiskUsage.Images[0].Containers, prev.DiskUsage.Images[0].Containers+1)
 
-				assert.Check(t, is.Equal(du.Containers[0].ID, cID))
-				assert.Check(t, is.Equal(du.Containers[0].Image, "busybox"))
-				assert.Check(t, is.Equal(du.Containers[0].ImageID, prev.Images[0].ID))
+				assert.Check(t, is.Equal(du.DiskUsage.Containers[0].ID, cID))
+				assert.Check(t, is.Equal(du.DiskUsage.Containers[0].Image, "busybox"))
+				assert.Check(t, is.Equal(du.DiskUsage.Containers[0].ImageID, prev.DiskUsage.Images[0].ID))
 
 				// ImageManifestDescriptor should NOT be populated.
-				assert.Check(t, is.Nil(du.Containers[0].ImageManifestDescriptor))
+				assert.Check(t, is.Nil(du.DiskUsage.Containers[0].ImageManifestDescriptor))
+
+				// New disk usage shape
+				assert.Equal(t, len(du.Containers.Items), 1)
+				assert.Equal(t, len(du.Containers.Items[0].Names), 1)
+				assert.Assert(t, len(prev.Images.Items) > 0)
+				assert.Check(t, du.Containers.Items[0].Created >= prev.Images.Items[0].Created)
+
+				// Additional container layer could add to the size
+				assert.Check(t, du.Images.TotalSize >= prev.Images.TotalSize)
+
+				assert.Equal(t, len(du.Images.Items), 1)
+				assert.Equal(t, du.Images.Items[0].Containers, prev.Images.Items[0].Containers+1)
+
+				assert.Check(t, is.Equal(du.Containers.Items[0].ID, cID))
+				assert.Check(t, is.Equal(du.Containers.Items[0].Image, "busybox"))
+				assert.Check(t, is.Equal(du.Containers.Items[0].ImageID, prev.Images.Items[0].ID))
+
+				// ImageManifestDescriptor should NOT be populated.
+				assert.Check(t, is.Nil(du.Containers.Items[0].ImageManifestDescriptor))
 
 				return du
 			},
@@ -114,143 +161,183 @@ func TestDiskUsage(t *testing.T) {
 			for _, tc := range []struct {
 				doc      string
 				options  client.DiskUsageOptions
-				expected system.DiskUsage
+				expected client.DiskUsageResult
 			}{
 				{
 					doc: "container types",
 					options: client.DiskUsageOptions{
-						Types: []system.DiskUsageObject{
-							system.ContainerObject,
-						},
+						Containers: true,
 					},
-					expected: system.DiskUsage{
+					expected: client.DiskUsageResult{
+						DiskUsage: system.DiskUsage{
+							Containers: stepDU.DiskUsage.Containers,
+						},
 						Containers: stepDU.Containers,
+						Images:     client.ImageDiskUsage{TotalSize: 0, Items: []image.Summary{}},
+						BuildCache: client.BuildCacheDiskUsage{Items: []build.CacheRecord{}},
+						Volumes:    client.VolumeDiskUsage{Items: []volume.Volume{}},
 					},
 				},
 				{
 					doc: "image types",
 					options: client.DiskUsageOptions{
-						Types: []system.DiskUsageObject{
-							system.ImageObject,
-						},
+						Images: true,
 					},
-					expected: system.DiskUsage{
-						LayersSize: stepDU.LayersSize,
+					expected: client.DiskUsageResult{
+						DiskUsage: system.DiskUsage{
+							LayersSize: stepDU.DiskUsage.LayersSize,
+							Images:     stepDU.DiskUsage.Images,
+						},
+						Containers: client.ContainerDiskUsage{Items: []containertypes.Summary{}},
 						Images:     stepDU.Images,
+						BuildCache: client.BuildCacheDiskUsage{Items: []build.CacheRecord{}},
+						Volumes:    client.VolumeDiskUsage{Items: []volume.Volume{}},
 					},
 				},
 				{
 					doc: "volume types",
 					options: client.DiskUsageOptions{
-						Types: []system.DiskUsageObject{
-							system.VolumeObject,
-						},
+						Volumes: true,
 					},
-					expected: system.DiskUsage{
-						Volumes: stepDU.Volumes,
+					expected: client.DiskUsageResult{
+						DiskUsage: system.DiskUsage{
+							Volumes: stepDU.DiskUsage.Volumes,
+						},
+						Containers: client.ContainerDiskUsage{Items: []containertypes.Summary{}},
+						Images:     client.ImageDiskUsage{TotalSize: 0, Items: []image.Summary{}},
+						BuildCache: client.BuildCacheDiskUsage{Items: []build.CacheRecord{}},
+						Volumes:    stepDU.Volumes,
 					},
 				},
 				{
 					doc: "build-cache types",
 					options: client.DiskUsageOptions{
-						Types: []system.DiskUsageObject{
-							system.BuildCacheObject,
-						},
+						BuildCache: true,
 					},
-					expected: system.DiskUsage{
+					expected: client.DiskUsageResult{
+						DiskUsage: system.DiskUsage{
+							BuildCache: stepDU.DiskUsage.BuildCache,
+						},
+						Containers: client.ContainerDiskUsage{Items: []containertypes.Summary{}},
+						Images:     client.ImageDiskUsage{TotalSize: 0, Items: []image.Summary{}},
 						BuildCache: stepDU.BuildCache,
+						Volumes:    client.VolumeDiskUsage{Items: []volume.Volume{}},
 					},
 				},
 				{
 					doc: "container, volume types",
 					options: client.DiskUsageOptions{
-						Types: []system.DiskUsageObject{
-							system.ContainerObject,
-							system.VolumeObject,
-						},
+						Containers: true,
+						Volumes:    true,
 					},
-					expected: system.DiskUsage{
+					expected: client.DiskUsageResult{
+						DiskUsage: system.DiskUsage{
+							Containers: stepDU.DiskUsage.Containers,
+							Volumes:    stepDU.DiskUsage.Volumes,
+						},
 						Containers: stepDU.Containers,
+						Images:     client.ImageDiskUsage{TotalSize: 0, Items: []image.Summary{}},
+						BuildCache: client.BuildCacheDiskUsage{Items: []build.CacheRecord{}},
 						Volumes:    stepDU.Volumes,
 					},
 				},
 				{
 					doc: "image, build-cache types",
 					options: client.DiskUsageOptions{
-						Types: []system.DiskUsageObject{
-							system.ImageObject,
-							system.BuildCacheObject,
-						},
+						Images:     true,
+						BuildCache: true,
 					},
-					expected: system.DiskUsage{
-						LayersSize: stepDU.LayersSize,
+					expected: client.DiskUsageResult{
+						DiskUsage: system.DiskUsage{
+							LayersSize: stepDU.DiskUsage.LayersSize,
+							Images:     stepDU.DiskUsage.Images,
+							BuildCache: stepDU.DiskUsage.BuildCache,
+						},
+						Containers: client.ContainerDiskUsage{Items: []containertypes.Summary{}},
 						Images:     stepDU.Images,
 						BuildCache: stepDU.BuildCache,
+						Volumes:    client.VolumeDiskUsage{Items: []volume.Volume{}},
 					},
 				},
 				{
 					doc: "container, volume, build-cache types",
 					options: client.DiskUsageOptions{
-						Types: []system.DiskUsageObject{
-							system.ContainerObject,
-							system.VolumeObject,
-							system.BuildCacheObject,
-						},
+						Containers: true,
+						BuildCache: true,
+						Volumes:    true,
 					},
-					expected: system.DiskUsage{
+					expected: client.DiskUsageResult{
+						DiskUsage: system.DiskUsage{
+							Containers: stepDU.DiskUsage.Containers,
+							Volumes:    stepDU.DiskUsage.Volumes,
+							BuildCache: stepDU.DiskUsage.BuildCache,
+						},
 						Containers: stepDU.Containers,
-						Volumes:    stepDU.Volumes,
+						Images:     client.ImageDiskUsage{TotalSize: 0, Items: []image.Summary{}},
 						BuildCache: stepDU.BuildCache,
+						Volumes:    stepDU.Volumes,
 					},
 				},
 				{
 					doc: "image, volume, build-cache types",
 					options: client.DiskUsageOptions{
-						Types: []system.DiskUsageObject{
-							system.ImageObject,
-							system.VolumeObject,
-							system.BuildCacheObject,
-						},
+						Images:     true,
+						BuildCache: true,
+						Volumes:    true,
 					},
-					expected: system.DiskUsage{
-						LayersSize: stepDU.LayersSize,
+					expected: client.DiskUsageResult{
+						DiskUsage: system.DiskUsage{
+							LayersSize: stepDU.DiskUsage.LayersSize,
+							Images:     stepDU.DiskUsage.Images,
+							Volumes:    stepDU.DiskUsage.Volumes,
+							BuildCache: stepDU.DiskUsage.BuildCache,
+						},
+						Containers: client.ContainerDiskUsage{Items: []containertypes.Summary{}},
 						Images:     stepDU.Images,
-						Volumes:    stepDU.Volumes,
 						BuildCache: stepDU.BuildCache,
+						Volumes:    stepDU.Volumes,
 					},
 				},
 				{
 					doc: "container, image, volume types",
 					options: client.DiskUsageOptions{
-						Types: []system.DiskUsageObject{
-							system.ContainerObject,
-							system.ImageObject,
-							system.VolumeObject,
-						},
+						Containers: true,
+						Images:     true,
+						Volumes:    true,
 					},
-					expected: system.DiskUsage{
-						LayersSize: stepDU.LayersSize,
+					expected: client.DiskUsageResult{
+						DiskUsage: system.DiskUsage{
+							LayersSize: stepDU.DiskUsage.LayersSize,
+							Containers: stepDU.DiskUsage.Containers,
+							Images:     stepDU.DiskUsage.Images,
+							Volumes:    stepDU.DiskUsage.Volumes,
+						},
 						Containers: stepDU.Containers,
 						Images:     stepDU.Images,
+						BuildCache: client.BuildCacheDiskUsage{Items: []build.CacheRecord{}},
 						Volumes:    stepDU.Volumes,
 					},
 				},
 				{
 					doc: "container, image, volume, build-cache types",
 					options: client.DiskUsageOptions{
-						Types: []system.DiskUsageObject{
-							system.ContainerObject,
-							system.ImageObject,
-							system.VolumeObject,
-							system.BuildCacheObject,
-						},
+						Containers: true,
+						Images:     true,
+						BuildCache: true,
+						Volumes:    true,
 					},
-					expected: system.DiskUsage{
-						LayersSize: stepDU.LayersSize,
+					expected: client.DiskUsageResult{
+						DiskUsage: system.DiskUsage{
+							LayersSize: stepDU.DiskUsage.LayersSize,
+							Images:     stepDU.DiskUsage.Images,
+							Containers: stepDU.DiskUsage.Containers,
+							Volumes:    stepDU.DiskUsage.Volumes,
+							BuildCache: stepDU.DiskUsage.BuildCache,
+						},
 						Containers: stepDU.Containers,
 						Images:     stepDU.Images,
-						Volumes:    stepDU.Volumes,
 						BuildCache: stepDU.BuildCache,
+						Volumes:    stepDU.Volumes,
 					},
 				},
 			} {

@@ -31,8 +31,9 @@ func TestInfoFirewallBackend(t *testing.T) {
 	if !testEnv.IsRootless() && networking.FirewalldRunning() {
 		expDriver += "+firewalld"
 	}
-	info, err := c.Info(ctx)
+	result, err := c.Info(ctx, client.InfoOptions{})
 	assert.NilError(t, err)
+	info := result.Info
 	assert.Assert(t, info.FirewallBackend != nil, "expected firewall backend in info response")
 	t.Log("FirewallBackend: Driver:", info.FirewallBackend.Driver)
 	for _, kv := range info.FirewallBackend.Info {
@@ -43,8 +44,9 @@ func TestInfoFirewallBackend(t *testing.T) {
 	// Check FirewallBackend is omitted for API <= 1.48.
 	t.Run("api 1.48", func(t *testing.T) {
 		c148 := request.NewAPIClient(t, client.WithVersion("1.48"))
-		info148, err := c148.Info(ctx)
+		result, err := c148.Info(ctx, client.InfoOptions{})
 		assert.NilError(t, err)
+		info148 := result.Info
 		assert.Check(t, is.Nil(info148.FirewallBackend))
 	})
 }
