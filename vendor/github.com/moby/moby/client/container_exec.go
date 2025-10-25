@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
 )
 
@@ -61,17 +62,19 @@ func (cli *Client) ExecCreate(ctx context.Context, containerID string, options E
 	return ExecCreateResult{ID: response.ID}, err
 }
 
-type execStartAttachOptions struct {
-	// ExecStart will first check if it's detached
-	Detach bool
-	// Check if there's a tty
-	Tty bool
-	// Terminal size [height, width], unused if Tty == false
-	ConsoleSize *[2]uint `json:",omitempty"`
+type ConsoleSize struct {
+	Height, Width uint
 }
 
 // ExecStartOptions holds options for starting a container exec.
-type ExecStartOptions execStartAttachOptions
+type ExecStartOptions struct {
+	// ExecStart will first check if it's detached
+	Detach bool
+	// Check if there's a tty
+	TTY bool
+	// Terminal size [height, width], unused if TTY == false
+	ConsoleSize ConsoleSize `json:",omitzero"`
+}
 
 // ExecStartResult holds the result of starting a container exec.
 type ExecStartResult struct {
@@ -80,9 +83,11 @@ type ExecStartResult struct {
 // ExecStart starts an exec process already created in the docker host.
 func (cli *Client) ExecStart(ctx context.Context, execID string, options ExecStartOptions) (ExecStartResult, error) {
 	req := container.ExecStartRequest{
-		Detach:      options.Detach,
-		Tty:         options.Tty,
-		ConsoleSize: options.ConsoleSize,
+		Detach: options.Detach,
+		Tty:    options.TTY,
+	}
+	if err := applyConsoleSize(&req, &options.ConsoleSize); err != nil {
+		return ExecStartResult{}, err
 	}
 	resp, err := cli.post(ctx, "/exec/"+execID+"/start", nil, req, nil)
 	defer ensureReaderClosed(resp)
@@ -90,7 +95,12 @@ func (cli *Client) ExecStart(ctx context.Context, execID string, options ExecSta
 }
 
 // ExecAttachOptions holds options for attaching to a container exec.
-type ExecAttachOptions execStartAttachOptions
+type ExecAttachOptions struct {
+	// Check if there's a tty
+	TTY bool
+	// Terminal size [height, width], unused if TTY == false
+	ConsoleSize ConsoleSize `json:",omitzero"`
+}
 
 // ExecAttachResult holds the result of attaching to a container exec.
 type ExecAttachResult struct {
@@ -117,14 +127,26 @@ type ExecAttachResult struct {
 // [stdcopy.StdCopy]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#StdCopy
 func (cli *Client) ExecAttach(ctx context.Context, execID string, options ExecAttachOptions) (ExecAttachResult, error) {
 	req := container.ExecStartRequest{
-		Detach:      options.Detach,
-		Tty:         options.Tty,
-		ConsoleSize: options.ConsoleSize,
+		Detach: false,
+		Tty:    options.TTY,
+	}
+	if err := applyConsoleSize(&req, &options.ConsoleSize); err != nil {
+		return ExecAttachResult{}, err
 	}
 	response, err := cli.postHijacked(ctx, "/exec/"+execID+"/start", nil, req, http.Header{
 		"Content-Type": {"application/json"},
 	})
 	return ExecAttachResult{HijackedResponse: response}, err
+}
+
+func applyConsoleSize(req *container.ExecStartRequest, consoleSize *ConsoleSize) error {
+	if consoleSize.Height != 0 || consoleSize.Width != 0 {
+		if !req.Tty {
+			return errdefs.ErrInvalidArgument.WithMessage("console size is only supported when TTY is enabled")
+		}
+		req.ConsoleSize = &[2]uint{consoleSize.Height, consoleSize.Width}
+	}
+	return nil
 }
 
 // ExecInspectOptions holds options for inspecting a container exec.
