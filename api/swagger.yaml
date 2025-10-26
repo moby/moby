@@ -5627,16 +5627,18 @@ definitions:
     x-go-name: "StatsResponse"
     title: "ContainerStatsResponse"
     properties:
-      name:
-        description: "Name of the container"
-        type: "string"
-        x-nullable: true
-        example: "boring_wozniak"
       id:
-        description: "ID of the container"
+        description: |
+          ID of the container for which the stats were collected.
         type: "string"
         x-nullable: true
         example: "ede54ee1afda366ab42f824e8a5ffd195155d853ceaec74a927f249ea270c743"
+      name:
+        description: |
+          Name of the container for which the stats were collected.
+        type: "string"
+        x-nullable: true
+        example: "boring_wozniak"
       read:
         description: |
           Date and time at which this sample was collected.
@@ -5645,35 +5647,7 @@ definitions:
         type: "string"
         format: "date-time"
         example: "2025-01-16T13:55:22.165243637Z"
-      preread:
-        description: |
-          Date and time at which this first sample was collected. This field
-          is not propagated if the "one-shot" option is set. If the "one-shot"
-          option is set, this field may be omitted, empty, or set to a default
-          date (`0001-01-01T00:00:00Z`).
-
-          The value is formatted as [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt)
-          with nano-seconds.
-        type: "string"
-        format: "date-time"
-        example: "2025-01-16T13:55:21.160452595Z"
-      pids_stats:
-        $ref: "#/definitions/ContainerPidsStats"
-      blkio_stats:
-        $ref: "#/definitions/ContainerBlkioStats"
-      num_procs:
-        description: |
-          The number of processors on the system.
-
-          This field is Windows-specific and always zero for Linux containers.
-        type: "integer"
-        format: "uint32"
-        example: 16
-      storage_stats:
-        $ref: "#/definitions/ContainerStorageStats"
       cpu_stats:
-        $ref: "#/definitions/ContainerCPUStats"
-      precpu_stats:
         $ref: "#/definitions/ContainerCPUStats"
       memory_stats:
         $ref: "#/definitions/ContainerMemoryStats"
@@ -5704,6 +5678,34 @@ definitions:
             tx_dropped: 0
             tx_errors: 0
             tx_packets: 9
+      pids_stats:
+        $ref: "#/definitions/ContainerPidsStats"
+      blkio_stats:
+        $ref: "#/definitions/ContainerBlkioStats"
+      num_procs:
+        description: |
+          The number of processors on the system.
+
+          This field is Windows-specific and always zero for Linux containers.
+        type: "integer"
+        format: "uint32"
+        example: 16
+      storage_stats:
+        $ref: "#/definitions/ContainerStorageStats"
+      preread:
+        description: |
+          Date and time at which this first sample was collected. This field
+          is not propagated if the "one-shot" option is set. If the "one-shot"
+          option is set, this field may be omitted, empty, or set to a default
+          date (`0001-01-01T00:00:00Z`).
+
+          The value is formatted as [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt)
+          with nano-seconds.
+        type: "string"
+        format: "date-time"
+        example: "2025-01-16T13:55:21.160452595Z"
+      precpu_stats:
+        $ref: "#/definitions/ContainerCPUStats"
 
   ContainerBlkioStats:
     description: |
