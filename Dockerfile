@@ -83,22 +83,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
 FROM distribution/distribution:$REGISTRY_VERSION AS registry
 RUN mkdir /build && mv /bin/registry /build/registry
 
-# go-swagger
-FROM base AS swagger
-WORKDIR /go/src/github.com/go-swagger/go-swagger
-ARG TARGETPLATFORM
-# GO_SWAGGER_VERSION specifies the version of the go-swagger binary to install.
-# Go-swagger is used in CI for generating types from swagger.yaml in
-# hack/validate/swagger-gen
-ARG GO_SWAGGER_VERSION=v0.33.1
-RUN --mount=type=cache,target=/root/.cache/go-build,id=swagger-build-$TARGETPLATFORM \
-    --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=tmpfs,target=/go/src/ <<EOT
-  set -e
-  GOBIN=/build CGO_ENABLED=0 xx-go install "github.com/go-swagger/go-swagger/cmd/swagger@${GO_SWAGGER_VERSION}"
-  xx-verify /build/swagger
-EOT
-
 # frozen-images
 # See also frozenImages in "testutil/environment/protect.go" (which needs to
 # be updated when adding images to this list)
@@ -421,7 +405,6 @@ FROM docker/compose-bin:${COMPOSE_VERSION} AS compose
 
 FROM base AS dev-systemd-false
 COPY --link --from=frozen-images /build/ /docker-frozen-images
-COPY --link --from=swagger       /build/ /usr/local/bin/
 COPY --link --from=delve         /build/ /usr/local/bin/
 COPY --link --from=gowinres      /build/ /usr/local/bin/
 COPY --link --from=tini          /build/ /usr/local/bin/
