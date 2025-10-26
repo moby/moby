@@ -44,21 +44,18 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 		return json.NewEncoder(config.OutStream()).Encode(stats)
 	}
 
-	var preCPUStats containertypes.CPUStats
-	var preRead time.Time
-	getStatJSON := func(v any) *containertypes.StatsResponse {
-		ss := v.(containertypes.StatsResponse)
-		ss.PreCPUStats = preCPUStats
-		ss.PreRead = preRead
-		preCPUStats = ss.CPUStats
-		preRead = ss.Read
-		return &ss
-	}
-
 	updates, cancel := daemon.subscribeToContainerStats(ctr)
 	defer cancel()
 
-	noStreamFirstFrame := !config.OneShot
+	var (
+		previousRead     time.Time               // Previous Read time to populate the PreRead field.
+		previousCPUStats containertypes.CPUStats // Previous CPUStats to populate the PreCPUStats field.
+
+		// For the first non-streaming result (when OneShot=false), we
+		// collect two samples for the first result to populate the PreRead
+		// and PreCPUStats fields.
+		needPrevSample = !config.Stream && !config.OneShot
+	)
 
 	enc := json.NewEncoder(config.OutStream())
 	for {
@@ -68,20 +65,31 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 				return nil
 			}
 
-			statsJSON := getStatJSON(v)
-			if !config.Stream && noStreamFirstFrame {
-				// prime the cpu stats so they aren't 0 in the final output
-				noStreamFirstFrame = false
+			statsJSON, ok := v.(containertypes.StatsResponse)
+			if !ok {
+				return cerrdefs.ErrInternal.WithMessage("stats: unexpected value type")
+			}
+
+			if needPrevSample {
+				// Take first sample only to populate Pre* for the next one.
+				previousRead = statsJSON.Read
+				previousCPUStats = statsJSON.CPUStats
+				needPrevSample = false
 				continue
 			}
 
-			if err := enc.Encode(statsJSON); err != nil {
+			statsJSON.PreRead = previousRead
+			statsJSON.PreCPUStats = previousCPUStats
+			if err := enc.Encode(&statsJSON); err != nil {
 				return err
 			}
 
 			if !config.Stream {
 				return nil
 			}
+
+			previousRead = statsJSON.Read
+			previousCPUStats = statsJSON.CPUStats
 		case <-ctx.Done():
 			return nil
 		}
