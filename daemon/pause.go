@@ -7,6 +7,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 // ContainerPause pauses a container
@@ -32,7 +33,7 @@ func (daemon *Daemon) containerPause(container *container.Container) error {
 
 	// We cannot Pause the container which is already paused
 	if container.State.Paused {
-		return errNotPaused(container.ID)
+		return errdefs.Conflict(fmt.Errorf("container %s is already paused", container.ID))
 	}
 
 	// We cannot Pause the container which is restarting

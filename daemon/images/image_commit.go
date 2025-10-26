@@ -3,14 +3,15 @@ package images
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/ioutils"
-	"github.com/pkg/errors"
 )
 
 // CommitImage creates a new image from a commit config
@@ -122,8 +123,7 @@ func exportContainerRw(layerStore layer.Store, id, mountLabel string) (arch io.R
 func (i *ImageService) CommitBuildStep(ctx context.Context, c backend.CommitConfig) (image.ID, error) {
 	ctr := i.containers.Get(c.ContainerID)
 	if ctr == nil {
-		// TODO: use typed error
-		return "", errors.Errorf("container not found: %s", c.ContainerID)
+		return "", errdefs.NotFound(fmt.Errorf("container not found: %s", c.ContainerID))
 	}
 	c.ContainerMountLabel = ctr.MountLabel
 	c.ContainerOS = ctr.ImagePlatform.OS
