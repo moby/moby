@@ -51,7 +51,7 @@ func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, loadOpts ...I
 	}, nil
 }
 
-// LoadResponse returns information to the client about a load process.
+// ImageLoadResult returns information to the client about a load process.
 //
 // TODO(thaJeztah): remove this type, and just use an io.ReadCloser
 //
