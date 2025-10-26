@@ -47,10 +47,11 @@ func (daemon *Daemon) stats(c *container.Container) (*containertypes.StatsRespon
 		return nil, err
 	}
 	s := &containertypes.StatsResponse{
+		Name: c.Name,
+		ID:   c.ID,
 		Read: cs.Read,
 	}
-	stats := cs.Metrics
-	switch t := stats.(type) {
+	switch t := cs.Metrics.(type) {
 	case *statsV1.Metrics:
 		return daemon.statsV1(s, t)
 	case *statsV2.Metrics:

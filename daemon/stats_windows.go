@@ -28,6 +28,8 @@ func (daemon *Daemon) stats(c *container.Container) (*containertypes.StatsRespon
 
 	// Start with an empty structure
 	s := &containertypes.StatsResponse{
+		Name:     c.Name,
+		ID:       c.ID,
 		Read:     stats.Read,
 		NumProcs: platform.NumProcs(),
 	}
