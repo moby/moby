@@ -58,6 +58,7 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 	)
 
 	enc := json.NewEncoder(config.OutStream())
+	enc.SetEscapeHTML(false)
 	for {
 		select {
 		case v, ok := <-updates:
