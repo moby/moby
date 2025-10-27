@@ -149,24 +149,72 @@ type PidsStats struct {
 
 // StatsResponse aggregates all types of stats of one container.
 type StatsResponse struct {
+	// ID is the ID of the container for which the stats were collected.
+	ID string `json:"id,omitempty"`
+
+	// Name is the name of the container for which the stats were collected.
 	Name string `json:"name,omitempty"`
-	ID   string `json:"id,omitempty"`
 
-	// Common stats
-	Read    time.Time `json:"read"`
-	PreRead time.Time `json:"preread"`
+	// Read is the date and time at which this sample was collected.
+	Read time.Time `json:"read"`
 
-	// Linux specific stats, not populated on Windows.
-	PidsStats  PidsStats  `json:"pids_stats,omitempty"`
+	// CPUStats contains CPU related info of the container.
+	CPUStats CPUStats `json:"cpu_stats,omitempty"`
+
+	// MemoryStats aggregates all memory stats since container inception on Linux.
+	// Windows returns stats for commit and private working set only.
+	MemoryStats MemoryStats `json:"memory_stats,omitempty"`
+
+	// Networks contains Nntwork statistics for the container per interface.
+	//
+	// This field is omitted if the container has no networking enabled.
+	Networks map[string]NetworkStats `json:"networks,omitempty"`
+
+	// -------------------------------------------------------------------------
+	// Linux-specific stats, not populated on Windows.
+	// -------------------------------------------------------------------------
+
+	// PidsStats contains Linux-specific stats of a container's process-IDs (PIDs).
+	//
+	// This field is Linux-specific and omitted for Windows containers.
+	PidsStats PidsStats `json:"pids_stats,omitempty"`
+
+	// BlkioStats stores all IO service stats for data read and write.
+	//
+	// This type is Linux-specific and holds many fields that are specific
+	// to cgroups v1.
+	//
+	// On a cgroup v2 host, all fields other than "io_service_bytes_recursive"
+	// are omitted or "null".
+	//
+	// This type is only populated on Linux and omitted for Windows containers.
 	BlkioStats BlkioStats `json:"blkio_stats,omitempty"`
 
-	// Windows specific stats, not populated on Linux.
-	NumProcs     uint32       `json:"num_procs"`
+	// -------------------------------------------------------------------------
+	// Windows-specific stats, not populated on Linux.
+	// -------------------------------------------------------------------------
+
+	// NumProcs is the number of processors on the system.
+	//
+	// This field is Windows-specific and always zero for Linux containers.
+	NumProcs uint32 `json:"num_procs"`
+
+	// StorageStats is the disk I/O stats for read/write on Windows.
+	//
+	// This type is Windows-specific and omitted for Linux containers.
 	StorageStats StorageStats `json:"storage_stats,omitempty"`
 
-	// Shared stats
-	CPUStats    CPUStats                `json:"cpu_stats,omitempty"`
-	PreCPUStats CPUStats                `json:"precpu_stats,omitempty"` // "Pre"="Previous"
-	MemoryStats MemoryStats             `json:"memory_stats,omitempty"`
-	Networks    map[string]NetworkStats `json:"networks,omitempty"`
+	// -------------------------------------------------------------------------
+	// PreRead and PreCPUStats contain the previous sample of stats for
+	// the container, and can be used to perform delta-calculation.
+	// -------------------------------------------------------------------------
+
+	// PreRead is the date and time at which this first sample was collected.
+	// This field is not propagated if the "one-shot" option is set. If the
+	// "one-shot" option is set, this field may be omitted, empty, or set
+	// to a default date (`0001-01-01T00:00:00Z`).
+	PreRead time.Time `json:"preread"`
+
+	// PreCPUStats contains the CPUStats of the previous sample.
+	PreCPUStats CPUStats `json:"precpu_stats,omitempty"`
 }
