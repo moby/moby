@@ -184,11 +184,16 @@ func (s *DockerAPISuite) TestAPIStatsContainerNotFound(c *testing.T) {
 	assert.NilError(c, err)
 	defer func() { _ = apiClient.Close() }()
 
-	_, err = apiClient.ContainerStats(testutil.GetContext(c), "no-such-container", true)
+	_, err = apiClient.ContainerStats(testutil.GetContext(c), "no-such-container", client.ContainerStatsOptions{
+		Stream: true,
+	})
 	assert.ErrorType(c, err, cerrdefs.IsNotFound)
 	assert.ErrorContains(c, err, "no-such-container")
 
-	_, err = apiClient.ContainerStats(testutil.GetContext(c), "no-such-container", false)
+	_, err = apiClient.ContainerStats(testutil.GetContext(c), "no-such-container", client.ContainerStatsOptions{
+		Stream:                false,
+		IncludePreviousSample: true,
+	})
 	assert.ErrorType(c, err, cerrdefs.IsNotFound)
 	assert.ErrorContains(c, err, "no-such-container")
 }

@@ -6,61 +6,72 @@ import (
 	"net/url"
 )
 
-// StatsResponseReader wraps an [io.ReadCloser] to read (a stream of) stats
-// for a container, as produced by the GET "/stats" endpoint.
-//
-// The OSType field is set to the server's platform to allow
-// platform-specific handling of the response.
-//
-// TODO(thaJeztah): remove this wrapper, and make OSType part of [github.com/moby/moby/api/types/container.StatsResponse].
-type StatsResponseReader struct {
-	Body   io.ReadCloser `json:"body"`
-	OSType string        `json:"ostype"`
+// ContainerStatsOptions holds parameters to retrieve container statistics
+// using the [Client.ContainerStats] method.
+type ContainerStatsOptions struct {
+	// Stream enables streaming [container.StatsResponse] results instead
+	// of collecting a single sample. If enabled, the client remains attached
+	// until the [ContainerStatsResult.Body] is closed or the context is
+	// cancelled.
+	Stream bool
+
+	// IncludePreviousSample asks the daemon to  collect a prior sample to populate the
+	// [container.StatsResponse.PreRead] and [container.StatsResponse.PreCPUStats]
+	// fields.
+	//
+	// It set, the daemon collects two samples at a one-second interval before
+	// returning the result. The first sample populates the PreCPUStats (“previous
+	// CPU”) field, allowing delta calculations for CPU usage. If false, only
+	// a single sample is taken and returned immediately, leaving PreRead and
+	// PreCPUStats empty.
+	//
+	// This option has no effect if Stream is enabled. If Stream is enabled,
+	// [container.StatsResponse.PreCPUStats] is never populated for the first
+	// record.
+	IncludePreviousSample bool
 }
 
-// ContainerStats returns near realtime stats for a given container.
-// It's up to the caller to close the [io.ReadCloser] returned.
-func (cli *Client) ContainerStats(ctx context.Context, containerID string, stream bool) (StatsResponseReader, error) {
+// ContainerStatsResult holds the result from [Client.ContainerStats].
+//
+// It wraps an [io.ReadCloser] that provides one or more [container.StatsResponse]
+// objects for a container, as produced by the "GET /containers/{id}/stats" endpoint.
+// If streaming is disabled, the stream contains a single record.
+//
+// The OSType field reports the daemon's operating system, allowing platform-specific
+// handling of the response.
+type ContainerStatsResult struct {
+	Body   io.ReadCloser
+	OSType string // TODO(thaJeztah): consider moving OSType into [container.StatsResponse].
+}
+
+// ContainerStats retrieves live resource usage statistics for the specified
+// container. The caller must close the [io.ReadCloser] in the returned result
+// to release associated resources.
+func (cli *Client) ContainerStats(ctx context.Context, containerID string, options ContainerStatsOptions) (ContainerStatsResult, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
-		return StatsResponseReader{}, err
+		return ContainerStatsResult{}, err
 	}
 
 	query := url.Values{}
-	query.Set("stream", "0")
-	if stream {
-		query.Set("stream", "1")
+	if options.Stream {
+		query.Set("stream", "true")
+	} else {
+		// Note: daemons before v29.0 return an error if both set: "cannot have stream=true and one-shot=true"
+		//
+		// TODO(thaJeztah): consider making "stream=false" the default for the API as well, or using Accept Header to switch.
+		query.Set("stream", "false")
+		if !options.IncludePreviousSample {
+			query.Set("one-shot", "true")
+		}
 	}
 
 	resp, err := cli.get(ctx, "/containers/"+containerID+"/stats", query, nil)
 	if err != nil {
-		return StatsResponseReader{}, err
+		return ContainerStatsResult{}, err
 	}
 
-	return StatsResponseReader{
-		Body:   resp.Body,
-		OSType: resp.Header.Get("Ostype"),
-	}, nil
-}
-
-// ContainerStatsOneShot gets a single stat entry from a container.
-// It differs from `ContainerStats` in that the API should not wait to prime the stats
-func (cli *Client) ContainerStatsOneShot(ctx context.Context, containerID string) (StatsResponseReader, error) {
-	containerID, err := trimID("container", containerID)
-	if err != nil {
-		return StatsResponseReader{}, err
-	}
-
-	query := url.Values{}
-	query.Set("stream", "0")
-	query.Set("one-shot", "1")
-
-	resp, err := cli.get(ctx, "/containers/"+containerID+"/stats", query, nil)
-	if err != nil {
-		return StatsResponseReader{}, err
-	}
-
-	return StatsResponseReader{
+	return ContainerStatsResult{
 		Body:   resp.Body,
 		OSType: resp.Header.Get("Ostype"),
 	}, nil

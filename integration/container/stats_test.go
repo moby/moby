@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -25,7 +26,10 @@ func TestStats(t *testing.T) {
 
 	cID := container.Run(ctx, t, apiClient)
 	t.Run("no-stream", func(t *testing.T) {
-		resp, err := apiClient.ContainerStats(ctx, cID, false)
+		resp, err := apiClient.ContainerStats(ctx, cID, client.ContainerStatsOptions{
+			Stream:                false,
+			IncludePreviousSample: true,
+		})
 		assert.NilError(t, err)
 		defer func() { _ = resp.Body.Close() }()
 
@@ -39,7 +43,10 @@ func TestStats(t *testing.T) {
 	})
 
 	t.Run("one-shot", func(t *testing.T) {
-		resp, err := apiClient.ContainerStatsOneShot(ctx, cID)
+		resp, err := apiClient.ContainerStats(ctx, cID, client.ContainerStatsOptions{
+			Stream:                false,
+			IncludePreviousSample: false,
+		})
 		assert.NilError(t, err)
 		defer func() { _ = resp.Body.Close() }()
 
