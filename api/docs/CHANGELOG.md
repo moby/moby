@@ -69,6 +69,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   of the `Resource` requirements.
 * `GET /tasks/{id}` now  returns `SwapBytes` and `MemorySwappiness` fields as
   part of the `Resource` requirements.
+* `GET /containers/{id}/stats` now returns an `os_type` field to allow platform-
+  specific handling of the stats.
 
 ## v1.51 API changes
 

@@ -36,12 +36,8 @@ type ContainerStatsOptions struct {
 // It wraps an [io.ReadCloser] that provides one or more [container.StatsResponse]
 // objects for a container, as produced by the "GET /containers/{id}/stats" endpoint.
 // If streaming is disabled, the stream contains a single record.
-//
-// The OSType field reports the daemon's operating system, allowing platform-specific
-// handling of the response.
 type ContainerStatsResult struct {
-	Body   io.ReadCloser
-	OSType string // TODO(thaJeztah): consider moving OSType into [container.StatsResponse].
+	Body io.ReadCloser
 }
 
 // ContainerStats retrieves live resource usage statistics for the specified
@@ -72,7 +68,6 @@ func (cli *Client) ContainerStats(ctx context.Context, containerID string, optio
 	}
 
 	return ContainerStatsResult{
-		Body:   resp.Body,
-		OSType: resp.Header.Get("Ostype"),
+		Body: resp.Body,
 	}, nil
 }

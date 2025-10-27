@@ -5639,6 +5639,13 @@ definitions:
         type: "string"
         x-nullable: true
         example: "boring_wozniak"
+      os_type:
+        description: |
+          OSType is the OS of the container ("linux" or "windows") to allow
+          platform-specific handling of stats.
+        type: "string"
+        x-nullable: true
+        example: "linux"
       read:
         description: |
           Date and time at which this sample was collected.

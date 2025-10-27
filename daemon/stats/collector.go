@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"runtime"
 	"sync"
 	"time"
 
@@ -109,8 +110,9 @@ func (s *Collector) Run() {
 			stats, err := s.supervisor.GetContainerStats(pair.container)
 			if err != nil {
 				stats = &containertypes.StatsResponse{
-					Name: pair.container.Name,
-					ID:   pair.container.ID,
+					ID:     pair.container.ID,
+					Name:   pair.container.Name,
+					OSType: runtime.GOOS,
 				}
 			}
 			pair.publisher.Publish(*stats)

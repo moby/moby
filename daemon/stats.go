@@ -29,8 +29,9 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 		if !ctr.State.IsRunning() || ctr.State.IsRestarting() {
 			// The container is either not running or restarting, return an empty stats.
 			return json.NewEncoder(config.OutStream()).Encode(&containertypes.StatsResponse{
-				Name: ctr.Name,
-				ID:   ctr.ID,
+				ID:     ctr.ID,
+				Name:   ctr.Name,
+				OSType: runtime.GOOS,
 			})
 		}
 		if config.OneShot {
@@ -133,8 +134,9 @@ done:
 		if cerrdefs.IsNotFound(err) || cerrdefs.IsConflict(err) {
 			// return empty stats containing only name and ID if not running or not found
 			return &containertypes.StatsResponse{
-				Name: ctr.Name,
-				ID:   ctr.ID,
+				ID:     ctr.ID,
+				Name:   ctr.Name,
+				OSType: runtime.GOOS,
 			}, nil
 		}
 		log.G(context.TODO()).Errorf("collecting stats for container %s: %v", ctr.Name, err)
