@@ -48,8 +48,6 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 	var preRead time.Time
 	getStatJSON := func(v any) *containertypes.StatsResponse {
 		ss := v.(containertypes.StatsResponse)
-		ss.Name = ctr.Name
-		ss.ID = ctr.ID
 		ss.PreCPUStats = preCPUStats
 		ss.PreRead = preRead
 		preCPUStats = ss.CPUStats
