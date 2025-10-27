@@ -460,17 +460,17 @@ func imageImport(ctx context.Context, apiClient client.APIClient, path string) e
 		return err
 	}
 	defer file.Close()
-	options := client.ImageImportOptions{}
 	ref := ""
 	source := client.ImageImportSource{
 		Source:     file,
 		SourceName: "-",
 	}
-	responseReader, err := apiClient.ImageImport(ctx, source, ref, options)
+	resp, err := apiClient.ImageImport(ctx, source, ref, client.ImageImportOptions{})
 	if err != nil {
 		return err
 	}
-	defer responseReader.Close()
+	_, _ = io.Copy(io.Discard, resp)
+	_ = resp.Close()
 	return nil
 }
 
