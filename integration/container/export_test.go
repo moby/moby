@@ -34,11 +34,12 @@ func TestExportContainerAndImportImage(t *testing.T) {
 		SourceName: "-",
 	}, reference, client.ImageImportOptions{})
 	assert.NilError(t, err)
+	defer func() { _ = importRes.Body.Close() }()
 
 	// If the import is successfully, then the message output should contain
 	// the image ID and match with the output from `docker images`.
 
-	dec := json.NewDecoder(importRes)
+	dec := json.NewDecoder(importRes.Body)
 	var jm jsonstream.Message
 	err = dec.Decode(&jm)
 	assert.NilError(t, err)

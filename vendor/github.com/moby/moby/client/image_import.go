@@ -7,8 +7,11 @@ import (
 	"github.com/distribution/reference"
 )
 
-// ImageImport creates a new image based on the source options.
-// It returns the JSON content in the response body.
+// ImageImport creates a new image based on the source options. It returns the
+// JSON content in the [ImageImportResult.Body].
+//
+// If the context is canceled, the underlying [io.ReadCloser] is automatically
+// closed.
 func (cli *Client) ImageImport(ctx context.Context, source ImageImportSource, ref string, options ImageImportOptions) (ImageImportResult, error) {
 	if ref != "" {
 		// Check if the given image name can be resolved
@@ -42,5 +45,7 @@ func (cli *Client) ImageImport(ctx context.Context, source ImageImportSource, re
 	if err != nil {
 		return ImageImportResult{}, err
 	}
-	return ImageImportResult{rc: resp.Body}, nil
+	return ImageImportResult{
+		Body: newCancelReadCloser(ctx, resp.Body),
+	}, nil
 }

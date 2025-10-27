@@ -83,10 +83,10 @@ func TestImageImport(t *testing.T) {
 			}, "repository_name:imported", tc.options)
 			assert.NilError(t, err)
 			defer func() {
-				assert.NilError(t, result.Close())
+				assert.NilError(t, result.Body.Close())
 			}()
 
-			body, err := io.ReadAll(result)
+			body, err := io.ReadAll(result.Body)
 			assert.NilError(t, err)
 			assert.Check(t, is.Equal(string(body), expectedOutput))
 		})
