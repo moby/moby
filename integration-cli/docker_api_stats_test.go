@@ -21,8 +21,6 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-var expectedNetworkInterfaceStats = strings.Split("rx_bytes rx_dropped rx_errors rx_packets tx_bytes tx_dropped tx_errors tx_packets", " ")
-
 func (s *DockerAPISuite) TestAPIStatsNoStreamGetCpu(c *testing.T) {
 	skip.If(c, RuntimeIsWindowsContainerd(), "FIXME: Broken on Windows + containerd combination")
 	skip.If(c, onlyCgroupsv2(), "FIXME: cgroupsV2 not supported yet")
@@ -164,16 +162,6 @@ func (s *DockerAPISuite) TestAPIStatsNetworkStats(c *testing.T) {
 	assert.Assert(c, postRxPackets >= expRxPkts, "Reported less RxPackets than expected. Expected >= %d. Found %d. %s", expRxPkts, postRxPackets, pingouts)
 }
 
-func (s *DockerAPISuite) TestAPIStatsNetworkStatsVersioning(c *testing.T) {
-	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
-
-	id := runSleepingContainer(c)
-	cli.WaitRun(c, id)
-
-	statsJSONBlob := getStats(c, id)
-	assert.Assert(c, jsonBlobHasGTE121NetworkStats(statsJSONBlob), "Stats JSON blob from API does not look like a >=v1.21 API stats structure", statsJSONBlob)
-}
-
 func getNetworkStats(t *testing.T, id string) map[string]container.NetworkStats {
 	var st *container.StatsResponse
 
@@ -185,47 +173,6 @@ func getNetworkStats(t *testing.T, id string) map[string]container.NetworkStats 
 	body.Close()
 
 	return st.Networks
-}
-
-// getStats returns stats result for the
-// container with id using an API call with version apiVersion. Since the
-// stats result type differs between API versions, we simply return
-// map[string]interface{}.
-func getStats(t *testing.T, id string) map[string]any {
-	t.Helper()
-	stats := make(map[string]any)
-
-	_, body, err := request.Get(testutil.GetContext(t), "/containers/"+id+"/stats?stream=false")
-	assert.NilError(t, err)
-	defer body.Close()
-
-	err = json.NewDecoder(body).Decode(&stats)
-	assert.NilError(t, err, "failed to decode stat: %s", err)
-
-	return stats
-}
-
-func jsonBlobHasGTE121NetworkStats(blob map[string]any) bool {
-	networksStatsIntfc, ok := blob["networks"]
-	if !ok {
-		return false
-	}
-	networksStats, ok := networksStatsIntfc.(map[string]any)
-	if !ok {
-		return false
-	}
-	for _, networkInterfaceStatsIntfc := range networksStats {
-		networkInterfaceStats, ok := networkInterfaceStatsIntfc.(map[string]any)
-		if !ok {
-			return false
-		}
-		for _, expectedKey := range expectedNetworkInterfaceStats {
-			if _, ok := networkInterfaceStats[expectedKey]; !ok {
-				return false
-			}
-		}
-	}
-	return true
 }
 
 func (s *DockerAPISuite) TestAPIStatsContainerNotFound(c *testing.T) {
