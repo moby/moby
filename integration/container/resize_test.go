@@ -22,7 +22,7 @@ func TestResize(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		cID := container.Run(ctx, t, apiClient, container.WithTty(true))
 		defer container.Remove(ctx, t, apiClient, cID, client.ContainerRemoveOptions{Force: true})
-		err := apiClient.ContainerResize(ctx, cID, client.ContainerResizeOptions{
+		_, err := apiClient.ContainerResize(ctx, cID, client.ContainerResizeOptions{
 			Height: 40,
 			Width:  40,
 		})
@@ -129,7 +129,7 @@ func TestResize(t *testing.T) {
 	t.Run("invalid state", func(t *testing.T) {
 		cID := container.Create(ctx, t, apiClient, container.WithCmd("echo"))
 		defer container.Remove(ctx, t, apiClient, cID, client.ContainerRemoveOptions{Force: true})
-		err := apiClient.ContainerResize(ctx, cID, client.ContainerResizeOptions{
+		_, err := apiClient.ContainerResize(ctx, cID, client.ContainerResizeOptions{
 			Height: 40,
 			Width:  40,
 		})

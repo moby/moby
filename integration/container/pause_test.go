@@ -27,14 +27,14 @@ func TestPause(t *testing.T) {
 
 	since := request.DaemonUnixTime(ctx, t, apiClient, testEnv)
 
-	err := apiClient.ContainerPause(ctx, cID)
+	_, err := apiClient.ContainerPause(ctx, cID, client.ContainerPauseOptions{})
 	assert.NilError(t, err)
 
 	inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(true, inspect.Container.State.Paused))
 
-	err = apiClient.ContainerUnpause(ctx, cID)
+	_, err = apiClient.ContainerUnpause(ctx, cID, client.ContainerUnPauseOptions{})
 	assert.NilError(t, err)
 
 	until := request.DaemonUnixTime(ctx, t, apiClient, testEnv)
@@ -54,7 +54,7 @@ func TestPauseFailsOnWindowsServerContainers(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	cID := container.Run(ctx, t, apiClient)
-	err := apiClient.ContainerPause(ctx, cID)
+	_, err := apiClient.ContainerPause(ctx, cID, client.ContainerPauseOptions{})
 	assert.Check(t, is.ErrorContains(err, cerrdefs.ErrNotImplemented.Error()))
 }
 
@@ -65,10 +65,10 @@ func TestPauseStopPausedContainer(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	cID := container.Run(ctx, t, apiClient)
-	err := apiClient.ContainerPause(ctx, cID)
+	_, err := apiClient.ContainerPause(ctx, cID, client.ContainerPauseOptions{})
 	assert.NilError(t, err)
 
-	err = apiClient.ContainerStop(ctx, cID, client.ContainerStopOptions{})
+	_, err = apiClient.ContainerStop(ctx, cID, client.ContainerStopOptions{})
 	assert.NilError(t, err)
 
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID))

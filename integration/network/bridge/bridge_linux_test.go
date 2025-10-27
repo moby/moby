@@ -233,7 +233,7 @@ func TestIPRangeAt64BitLimit(t *testing.T) {
 
 			id := ctr.Create(ctx, t, c, ctr.WithNetworkMode(netName))
 			defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
-			err := c.ContainerStart(ctx, id, client.ContainerStartOptions{})
+			_, err := c.ContainerStart(ctx, id, client.ContainerStartOptions{})
 			assert.NilError(t, err)
 		})
 	}
@@ -528,7 +528,7 @@ func TestPublishedPortAlreadyInUse(t *testing.T) {
 		ctr.WithPortMap(networktypes.PortMap{mappedPort: {{HostPort: "8000"}}}))
 	defer ctr.Remove(ctx, t, apiClient, ctr2, client.ContainerRemoveOptions{Force: true})
 
-	err := apiClient.ContainerStart(ctx, ctr2, client.ContainerStartOptions{})
+	_, err := apiClient.ContainerStart(ctx, ctr2, client.ContainerStartOptions{})
 	assert.Assert(t, is.ErrorContains(err, "failed to set up container networking"))
 
 	inspect, err := apiClient.ContainerInspect(ctx, ctr2, client.ContainerInspectOptions{})
@@ -754,7 +754,7 @@ func TestRemoveLegacyLink(t *testing.T) {
 	assert.Check(t, is.Contains(res.Stderr(), "404 Not Found"))
 
 	// Remove the link ("docker rm --link client/thealias").
-	err := c.ContainerRemove(ctx, clientName+"/"+svrAlias, client.ContainerRemoveOptions{RemoveLinks: true})
+	_, err := c.ContainerRemove(ctx, clientName+"/"+svrAlias, client.ContainerRemoveOptions{RemoveLinks: true})
 	assert.Check(t, err)
 
 	// Check both containers are still running.

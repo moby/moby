@@ -54,7 +54,7 @@ func TestDockerNetworkConnectAliasPreV144(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	err = apiClient.ContainerStart(ctx, cID1, client.ContainerStartOptions{})
+	_, err = apiClient.ContainerStart(ctx, cID1, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	ng1, err := apiClient.ContainerInspect(ctx, cID1, client.ContainerInspectOptions{})
@@ -77,7 +77,7 @@ func TestDockerNetworkConnectAliasPreV144(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	err = apiClient.ContainerStart(ctx, cID2, client.ContainerStartOptions{})
+	_, err = apiClient.ContainerStart(ctx, cID2, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	ng2, err := apiClient.ContainerInspect(ctx, cID2, client.ContainerInspectOptions{})
@@ -111,7 +111,7 @@ func TestDockerNetworkReConnect(t *testing.T) {
 	err := apiClient.NetworkConnect(ctx, name, c1, &network.EndpointSettings{})
 	assert.NilError(t, err)
 
-	err = apiClient.ContainerStart(ctx, c1, client.ContainerStartOptions{})
+	_, err = apiClient.ContainerStart(ctx, c1, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	n1, err := apiClient.ContainerInspect(ctx, c1, client.ContainerInspectOptions{})

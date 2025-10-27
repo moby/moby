@@ -6,11 +6,11 @@ import (
 	"strconv"
 )
 
-// ContainerStopOptions holds the options to stop or restart a container.
+// ContainerStopOptions holds the options for [Client.ContainerStop].
 type ContainerStopOptions struct {
 	// Signal (optional) is the signal to send to the container to (gracefully)
 	// stop it before forcibly terminating the container with SIGKILL after the
-	// timeout expires. If not value is set, the default (SIGTERM) is used.
+	// timeout expires. If no value is set, the default (SIGTERM) is used.
 	Signal string `json:",omitempty"`
 
 	// Timeout (optional) is the timeout (in seconds) to wait for the container
@@ -24,6 +24,11 @@ type ContainerStopOptions struct {
 	Timeout *int `json:",omitempty"`
 }
 
+// ContainerStopResult holds the result of [Client.ContainerStop],
+type ContainerStopResult struct {
+	// Add future fields here.
+}
+
 // ContainerStop stops a container. In case the container fails to stop
 // gracefully within a time frame specified by the timeout argument,
 // it is forcefully terminated (killed).
@@ -31,10 +36,10 @@ type ContainerStopOptions struct {
 // If the timeout is nil, the container's StopTimeout value is used, if set,
 // otherwise the engine default. A negative timeout value can be specified,
 // meaning no timeout, i.e. no forceful termination is performed.
-func (cli *Client) ContainerStop(ctx context.Context, containerID string, options ContainerStopOptions) error {
+func (cli *Client) ContainerStop(ctx context.Context, containerID string, options ContainerStopOptions) (ContainerStopResult, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
-		return err
+		return ContainerStopResult{}, err
 	}
 
 	query := url.Values{}
@@ -46,5 +51,8 @@ func (cli *Client) ContainerStop(ctx context.Context, containerID string, option
 	}
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/stop", query, nil, nil)
 	defer ensureReaderClosed(resp)
-	return err
+	if err != nil {
+		return ContainerStopResult{}, err
+	}
+	return ContainerStopResult{}, nil
 }

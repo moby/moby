@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -14,14 +13,14 @@ import (
 func TestContainerRemoveError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	err = client.ContainerRemove(context.Background(), "container_id", ContainerRemoveOptions{})
+	_, err = client.ContainerRemove(t.Context(), "container_id", ContainerRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.ContainerRemove(context.Background(), "", ContainerRemoveOptions{})
+	_, err = client.ContainerRemove(t.Context(), "", ContainerRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.ContainerRemove(context.Background(), "    ", ContainerRemoveOptions{})
+	_, err = client.ContainerRemove(t.Context(), "    ", ContainerRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -29,7 +28,7 @@ func TestContainerRemoveError(t *testing.T) {
 func TestContainerRemoveNotFoundError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusNotFound, "no such container: container_id")))
 	assert.NilError(t, err)
-	err = client.ContainerRemove(context.Background(), "container_id", ContainerRemoveOptions{})
+	_, err = client.ContainerRemove(t.Context(), "container_id", ContainerRemoveOptions{})
 	assert.Check(t, is.ErrorContains(err, "no such container: container_id"))
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
@@ -57,7 +56,7 @@ func TestContainerRemove(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	err = client.ContainerRemove(context.Background(), "container_id", ContainerRemoveOptions{
+	_, err = client.ContainerRemove(t.Context(), "container_id", ContainerRemoveOptions{
 		RemoveVolumes: true,
 		Force:         true,
 	})

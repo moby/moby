@@ -656,7 +656,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 		})
 
 		// Remove that container which should free the references in the volume
-		err = c.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{Force: true})
+		_, err = c.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{Force: true})
 		assert.NilError(t, err)
 
 		// Now we should be able to remove the volume
@@ -704,7 +704,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 		assert.ErrorContains(t, err, fmt.Sprintf("container %s is using its referenced image", cID[:12]))
 
 		// Remove that container which should free the references in the volume
-		err = c.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{Force: true})
+		_, err = c.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{Force: true})
 		assert.NilError(t, err)
 
 		// Now we should be able to remove the volume
@@ -727,7 +727,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 
 		d.Restart(t, "--live-restore", "--iptables=false", "--ip6tables=false")
 
-		err := c.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{Force: true})
+		_, err := c.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{Force: true})
 		assert.NilError(t, err)
 	})
 }

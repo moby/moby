@@ -288,7 +288,7 @@ func TestMacAddressIsAppliedToMainNetworkWithShortID(t *testing.T) {
 	}
 
 	cid := createLegacyContainer(ctx, t, apiClient, "02:42:08:26:a9:55", opts...)
-	err := apiClient.ContainerStart(ctx, cid, client.ContainerStartOptions{})
+	_, err := apiClient.ContainerStart(ctx, cid, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	defer container.Remove(ctx, t, apiClient, cid, client.ContainerRemoveOptions{Force: true})
@@ -473,7 +473,7 @@ func TestCgroupRW(t *testing.T) {
 				return
 			}
 			// TODO check if ro or not
-			err = apiClient.ContainerStart(ctx, resp.ID, client.ContainerStartOptions{})
+			_, err = apiClient.ContainerStart(ctx, resp.ID, client.ContainerStartOptions{})
 			assert.NilError(t, err)
 
 			res, err := container.Exec(ctx, apiClient, resp.ID, []string{"sh", "-ec", `

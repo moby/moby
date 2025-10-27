@@ -116,7 +116,7 @@ func TestCheckpoint(t *testing.T) {
 
 	// Restore the container from a second checkpoint.
 	t.Log("Restore the container")
-	err = apiClient.ContainerStart(ctx, cID, client.ContainerStartOptions{
+	_, err = apiClient.ContainerStart(ctx, cID, client.ContainerStartOptions{
 		CheckpointID: "test2",
 	})
 	assert.NilError(t, err)

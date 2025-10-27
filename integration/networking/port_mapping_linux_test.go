@@ -625,7 +625,8 @@ func TestRestartUserlandProxyUnder2MSL(t *testing.T) {
 	// Removing the container will kill the userland proxy, and the connection
 	// opened by the previous HTTP request will be properly closed (ie. on both
 	// sides). Thus, that connection will transition to the TIME_WAIT state.
-	assert.NilError(t, c.ContainerRemove(ctx, ctrName, client.ContainerRemoveOptions{Force: true}))
+	_, err = c.ContainerRemove(ctx, ctrName, client.ContainerRemoveOptions{Force: true})
+	assert.NilError(t, err)
 
 	// Make sure the container can be restarted. [container.Run] checks that
 	// the ContainerStart API call doesn't return an error. We don't need to

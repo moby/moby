@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -16,7 +15,7 @@ func TestContainerPauseError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.ContainerPause(context.Background(), "nothing")
+	_, err = client.ContainerPause(t.Context(), "nothing", ContainerPauseOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -32,6 +31,6 @@ func TestContainerPause(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.ContainerPause(context.Background(), "container_id")
+	_, err = client.ContainerPause(t.Context(), "container_id", ContainerPauseOptions{})
 	assert.NilError(t, err)
 }

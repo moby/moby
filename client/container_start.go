@@ -5,17 +5,22 @@ import (
 	"net/url"
 )
 
-// ContainerStartOptions holds parameters to start containers.
+// ContainerStartOptions holds options for [Client.ContainerStart].
 type ContainerStartOptions struct {
 	CheckpointID  string
 	CheckpointDir string
 }
 
+// ContainerStartResult holds the result of [Client.ContainerStart],
+type ContainerStartResult struct {
+	// Add future fields here.
+}
+
 // ContainerStart sends a request to the docker daemon to start a container.
-func (cli *Client) ContainerStart(ctx context.Context, containerID string, options ContainerStartOptions) error {
+func (cli *Client) ContainerStart(ctx context.Context, containerID string, options ContainerStartOptions) (ContainerStartResult, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
-		return err
+		return ContainerStartResult{}, err
 	}
 
 	query := url.Values{}
@@ -28,5 +33,8 @@ func (cli *Client) ContainerStart(ctx context.Context, containerID string, optio
 
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/start", query, nil, nil)
 	defer ensureReaderClosed(resp)
-	return err
+	if err != nil {
+		return ContainerStartResult{}, err
+	}
+	return ContainerStartResult{}, nil
 }

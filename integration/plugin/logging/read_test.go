@@ -63,7 +63,7 @@ func TestReadPluginNoRead(t *testing.T) {
 			assert.Assert(t, err)
 			defer apiclient.ContainerRemove(ctx, c.ID, client.ContainerRemoveOptions{Force: true})
 
-			err = apiclient.ContainerStart(ctx, c.ID, client.ContainerStartOptions{})
+			_, err = apiclient.ContainerStart(ctx, c.ID, client.ContainerStartOptions{})
 			assert.Assert(t, err)
 
 			poll.WaitOn(t, testContainer.IsStopped(ctx, apiclient, c.ID))

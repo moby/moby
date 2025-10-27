@@ -82,7 +82,7 @@ func TestVolumesRemove(t *testing.T) {
 	})
 
 	t.Run("volume not in use", func(t *testing.T) {
-		err = apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{
+		_, err = apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{
 			Force: true,
 		})
 		assert.NilError(t, err)
@@ -134,7 +134,7 @@ func TestVolumesRemoveSwarmEnabled(t *testing.T) {
 	})
 
 	t.Run("volume not in use", func(t *testing.T) {
-		err = apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{
+		_, err = apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{
 			Force: true,
 		})
 		assert.NilError(t, err)
@@ -351,7 +351,7 @@ VOLUME ` + volDest
 	volumeName := inspect.Container.Mounts[0].Name
 	assert.Assert(t, volumeName != "")
 
-	err = apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{})
+	_, err = apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{})
 	assert.NilError(t, err)
 
 	res, err := apiClient.VolumesPrune(ctx, client.VolumePruneOptions{})

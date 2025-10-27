@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -14,14 +13,14 @@ import (
 func TestContainerStopError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	err = client.ContainerStop(context.Background(), "container_id", ContainerStopOptions{})
+	_, err = client.ContainerStop(t.Context(), "container_id", ContainerStopOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.ContainerStop(context.Background(), "", ContainerStopOptions{})
+	_, err = client.ContainerStop(t.Context(), "", ContainerStopOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.ContainerStop(context.Background(), "    ", ContainerStopOptions{})
+	_, err = client.ContainerStop(t.Context(), "    ", ContainerStopOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -34,7 +33,7 @@ func TestContainerStopConnectionError(t *testing.T) {
 	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
-	err = client.ContainerStop(context.Background(), "container_id", ContainerStopOptions{})
+	_, err = client.ContainerStop(t.Context(), "container_id", ContainerStopOptions{})
 	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
 
@@ -56,7 +55,7 @@ func TestContainerStop(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 	timeout := 100
-	err = client.ContainerStop(context.Background(), "container_id", ContainerStopOptions{
+	_, err = client.ContainerStop(t.Context(), "container_id", ContainerStopOptions{
 		Signal:  "SIGKILL",
 		Timeout: &timeout,
 	})

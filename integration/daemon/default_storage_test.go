@@ -146,7 +146,7 @@ func TestInspectGraphDriverAPIBC(t *testing.T) {
 			const testImage = "busybox:latest"
 			ctr, err := c.ContainerCreate(ctx, client.ContainerCreateOptions{Image: testImage, Name: "test-container"})
 			assert.NilError(t, err)
-			defer func() { _ = c.ContainerRemove(ctx, ctr.ID, client.ContainerRemoveOptions{Force: true}) }()
+			defer func() { _, _ = c.ContainerRemove(ctx, ctr.ID, client.ContainerRemoveOptions{Force: true}) }()
 
 			if imageInspect, err := c.ImageInspect(ctx, testImage); assert.Check(t, err) {
 				if tc.expGraphDriver != "" {

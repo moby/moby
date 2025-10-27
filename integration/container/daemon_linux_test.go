@@ -49,7 +49,7 @@ func TestContainerStartOnDaemonRestart(t *testing.T) {
 	cID := container.Create(ctx, t, c)
 	defer c.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{Force: true})
 
-	err := c.ContainerStart(ctx, cID, client.ContainerStartOptions{})
+	_, err := c.ContainerStart(ctx, cID, client.ContainerStartOptions{})
 	assert.Check(t, err, "error starting test container")
 
 	inspect, err := c.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
@@ -68,7 +68,7 @@ func TestContainerStartOnDaemonRestart(t *testing.T) {
 
 	d.Start(t, "--iptables=false", "--ip6tables=false")
 
-	err = c.ContainerStart(ctx, cID, client.ContainerStartOptions{})
+	_, err = c.ContainerStart(ctx, cID, client.ContainerStartOptions{})
 	assert.Check(t, err, "failed to start test container")
 }
 
@@ -291,6 +291,9 @@ func TestHardRestartWhenContainerIsRunning(t *testing.T) {
 		}
 
 		stopTimeout := 0
-		assert.Assert(t, apiClient.ContainerStop(ctx, onFailure, client.ContainerStopOptions{Timeout: &stopTimeout}))
+		_, err = apiClient.ContainerStop(ctx, onFailure, client.ContainerStopOptions{
+			Timeout: &stopTimeout,
+		})
+		assert.NilError(t, err)
 	})
 }

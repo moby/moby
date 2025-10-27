@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -17,34 +16,39 @@ func TestContainerKillError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.ContainerKill(context.Background(), "nothing", "SIGKILL")
+	_, err = client.ContainerKill(t.Context(), "nothing", ContainerKillOptions{
+		Signal: "SIGKILL",
+	})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.ContainerKill(context.Background(), "", "")
+	_, err = client.ContainerKill(t.Context(), "", ContainerKillOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.ContainerKill(context.Background(), "    ", "")
+	_, err = client.ContainerKill(t.Context(), "    ", ContainerKillOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
 
 func TestContainerKill(t *testing.T) {
 	const expectedURL = "/containers/container_id/kill"
+	const expectedSignal = "SIG_SOMETHING"
 	client, err := NewClientWithOpts(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 				return nil, err
 			}
 			signal := req.URL.Query().Get("signal")
-			if signal != "SIGKILL" {
-				return nil, fmt.Errorf("signal not set in URL query properly. Expected 'SIGKILL', got %s", signal)
+			if signal != expectedSignal {
+				return nil, fmt.Errorf("signal not set in URL query properly. Expected '%s', got %s", expectedSignal, signal)
 			}
 			return mockResponse(http.StatusOK, nil, "")(req)
 		}),
 	)
 	assert.NilError(t, err)
 
-	err = client.ContainerKill(context.Background(), "container_id", "SIGKILL")
+	_, err = client.ContainerKill(t.Context(), "container_id", ContainerKillOptions{
+		Signal: expectedSignal,
+	})
 	assert.NilError(t, err)
 }
