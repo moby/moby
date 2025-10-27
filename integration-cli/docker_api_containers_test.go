@@ -174,7 +174,7 @@ func (s *DockerAPISuite) TestGetContainerStats(c *testing.T) {
 		c.Fatal("stream was not closed after container was removed")
 	case sr := <-bc:
 		dec := json.NewDecoder(sr.stats.Body)
-		var s *container.StatsResponse
+		var s container.StatsResponse
 		// decode only one object from the stream
 		err := dec.Decode(&s)
 		_ = sr.stats.Body.Close()

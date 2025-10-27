@@ -37,10 +37,10 @@ func (s *DockerAPISuite) TestAPIStatsNoStreamGetCpu(c *testing.T) {
 	assert.Equal(c, resp.Header.Get("Content-Type"), "application/json")
 	assert.Equal(c, resp.Header.Get("Content-Type"), "application/json")
 
-	var v *container.StatsResponse
+	var v container.StatsResponse
 	err = json.NewDecoder(body).Decode(&v)
 	assert.NilError(c, err)
-	body.Close()
+	_ = body.Close()
 
 	cpuPercent := 0.0
 
@@ -76,7 +76,7 @@ func (s *DockerAPISuite) TestAPIStatsStoppedContainerInGoroutines(c *testing.T) 
 		info := system.Info{}
 		err = json.NewDecoder(body).Decode(&info)
 		assert.NilError(c, err)
-		body.Close()
+		_ = body.Close()
 		return info.NGoroutines
 	}
 
@@ -84,7 +84,7 @@ func (s *DockerAPISuite) TestAPIStatsStoppedContainerInGoroutines(c *testing.T) 
 	routines := getGoRoutines()
 	_, body, err := request.Get(testutil.GetContext(c), "/containers/"+id+"/stats")
 	assert.NilError(c, err)
-	body.Close()
+	_ = body.Close()
 
 	t := time.After(30 * time.Second)
 	for {
@@ -167,14 +167,13 @@ func (s *DockerAPISuite) TestAPIStatsNetworkStats(c *testing.T) {
 }
 
 func getNetworkStats(t *testing.T, id string) map[string]container.NetworkStats {
-	var st *container.StatsResponse
-
 	_, body, err := request.Get(testutil.GetContext(t), "/containers/"+id+"/stats?stream=false")
 	assert.NilError(t, err)
 
+	var st container.StatsResponse
 	err = json.NewDecoder(body).Decode(&st)
 	assert.NilError(t, err)
-	body.Close()
+	_ = body.Close()
 
 	return st.Networks
 }
