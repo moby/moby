@@ -259,23 +259,13 @@ func (cli *Client) Close() error {
 // be negotiated when making the actual requests, and for which cases
 // we cannot do the negotiation lazily.
 func (cli *Client) checkVersion(ctx context.Context) error {
-	if !cli.manualOverride && cli.negotiateVersion && !cli.negotiated.Load() {
-		// Ensure exclusive write access to version and negotiated fields
-		cli.negotiateLock.Lock()
-		defer cli.negotiateLock.Unlock()
-
-		// May have been set during last execution of critical zone
-		if cli.negotiated.Load() {
-			return nil
-		}
-
-		ping, err := cli.Ping(ctx, PingOptions{})
-		if err != nil {
-			return err
-		}
-		return cli.negotiateAPIVersion(ping.APIVersion)
+	if cli.manualOverride || !cli.negotiateVersion || cli.negotiated.Load() {
+		return nil
 	}
-	return nil
+	_, err := cli.Ping(ctx, PingOptions{
+		NegotiateAPIVersion: true,
+	})
+	return err
 }
 
 // getAPIPath returns the versioned request path to call the API.
@@ -294,59 +284,6 @@ func (cli *Client) getAPIPath(ctx context.Context, p string, query url.Values) s
 // ClientVersion returns the API version used by this client.
 func (cli *Client) ClientVersion() string {
 	return cli.version
-}
-
-// NegotiateAPIVersion queries the API and updates the version to match the API
-// version. NegotiateAPIVersion downgrades the client's API version to match the
-// APIVersion if the ping version is lower than the default version. If the API
-// version reported by the server is higher than the maximum version supported
-// by the client, it uses the client's maximum version.
-//
-// If a manual override is in place, either through the "DOCKER_API_VERSION"
-// ([EnvOverrideAPIVersion]) environment variable, or if the client is initialized
-// with a fixed version ([WithVersion]), no negotiation is performed.
-//
-// If the API server's ping response does not contain an API version, or if the
-// client did not get a successful ping response, it assumes it is connected with
-// an old daemon that does not support API version negotiation, in which case it
-// downgrades to the lowest supported API version.
-func (cli *Client) NegotiateAPIVersion(ctx context.Context) {
-	if !cli.manualOverride {
-		// Avoid concurrent modification of version-related fields
-		cli.negotiateLock.Lock()
-		defer cli.negotiateLock.Unlock()
-
-		ping, err := cli.Ping(ctx, PingOptions{})
-		if err != nil {
-			// FIXME(thaJeztah): Ping returns an error when failing to connect to the API; we should not swallow the error here, and instead returning it.
-			return
-		}
-		// FIXME(thaJeztah): we should not swallow the error here, and instead returning it.
-		_ = cli.negotiateAPIVersion(ping.APIVersion)
-	}
-}
-
-// NegotiateAPIVersionPing downgrades the client's API version to match the
-// APIVersion in the ping response. If the API version in pingResponse is higher
-// than the maximum version supported by the client, it uses the client's maximum
-// version.
-//
-// If a manual override is in place, either through the "DOCKER_API_VERSION"
-// ([EnvOverrideAPIVersion]) environment variable, or if the client is initialized
-// with a fixed version ([WithVersion]), no negotiation is performed.
-//
-// If the API server's ping response does not contain an API version, it falls
-// back to the oldest API version supported.
-func (cli *Client) NegotiateAPIVersionPing(pingResponse PingResult) {
-	// TODO(thaJeztah): should this take a "Ping" option? It only consumes the version. This method should be removed overall and not be exported.
-	if !cli.manualOverride {
-		// Avoid concurrent modification of version-related fields
-		cli.negotiateLock.Lock()
-		defer cli.negotiateLock.Unlock()
-
-		// FIXME(thaJeztah): we should not swallow the error here, and instead returning it.
-		_ = cli.negotiateAPIVersion(pingResponse.APIVersion)
-	}
 }
 
 // negotiateAPIVersion updates the version to match the API version from
