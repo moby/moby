@@ -194,10 +194,10 @@ func (s *DockerCLIUpdateSuite) TestUpdateStats(c *testing.T) {
 		assert.NilError(c, err)
 		assert.Equal(c, resp.Header.Get("Content-Type"), "application/json")
 
-		var v *container.StatsResponse
+		var v container.StatsResponse
 		err = json.NewDecoder(body).Decode(&v)
 		assert.NilError(c, err)
-		body.Close()
+		_ = body.Close()
 
 		return v.MemoryStats.Limit
 	}

@@ -174,7 +174,7 @@ func (s *DockerAPISuite) TestGetContainerStats(c *testing.T) {
 		c.Fatal("stream was not closed after container was removed")
 	case sr := <-bc:
 		dec := json.NewDecoder(sr.stats.Body)
-		var s *container.StatsResponse
+		var s container.StatsResponse
 		// decode only one object from the stream
 		err := dec.Decode(&s)
 		_ = sr.stats.Body.Close()
@@ -291,69 +291,52 @@ func (s *DockerAPISuite) TestGetContainerStatsStream(c *testing.T) {
 
 func (s *DockerAPISuite) TestGetContainerStatsNoStream(c *testing.T) {
 	const name = "statscontainer2"
-	runSleepingContainer(c, "--name", name)
+	cID := runSleepingContainer(c, "--name", name)
+	defer cli.DockerCmd(c, "rm", "-f", cID)
 
-	type b struct {
-		stats client.StatsResponseReader
-		err   error
-	}
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	assert.NilError(c, err)
+	defer apiClient.Close()
 
-	bc := make(chan b, 1)
+	// We expect an immediate response, but if it's not immediate, the test would hang.
+	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 10*time.Second)
+	defer cancel()
 
-	go func() {
-		apiClient, err := client.NewClientWithOpts(client.FromEnv)
-		assert.NilError(c, err)
-		defer apiClient.Close()
+	stats, err := apiClient.ContainerStats(ctx, cID, false)
+	assert.NilError(c, err)
+	defer func() { _ = stats.Body.Close() }()
 
-		stats, err := apiClient.ContainerStats(testutil.GetContext(c), name, false)
-		assert.NilError(c, err)
-		bc <- b{stats, err}
-	}()
-
-	// allow some time to stream the stats from the container
-	time.Sleep(4 * time.Second)
-	cli.DockerCmd(c, "rm", "-f", name)
-
-	// collect the results from the stats stream or timeout and fail
-	// if the stream was not disconnected.
-	select {
-	case <-time.After(2 * time.Second):
-		c.Fatal("stream was not closed after container was removed")
-	case sr := <-bc:
-		b, err := io.ReadAll(sr.stats.Body)
-		defer sr.stats.Body.Close()
-		assert.NilError(c, err)
-		s := string(b)
-		// count occurrences of `"read"` of types.Stats
-		assert.Assert(c, strings.Count(s, `"read"`) == 1, "Expected only one stat streamed, got %d", strings.Count(s, `"read"`))
-	}
+	var v container.StatsResponse
+	dec := json.NewDecoder(stats.Body)
+	assert.NilError(c, dec.Decode(&v))
+	assert.Check(c, is.Equal(v.ID, cID))
+	err = dec.Decode(&v)
+	assert.Check(c, is.ErrorIs(err, io.EOF), "expected only a single result")
 }
 
 func (s *DockerAPISuite) TestGetStoppedContainerStats(c *testing.T) {
 	const name = "statscontainer3"
 	cli.DockerCmd(c, "create", "--name", name, "busybox", "ps")
+	defer cli.DockerCmd(c, "rm", "-f", name)
 
-	chResp := make(chan error, 1)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	assert.NilError(c, err)
+	defer apiClient.Close()
 
-	// We expect an immediate response, but if it's not immediate, the test would hang, so put it in a goroutine
-	// below we'll check this on a timeout.
-	go func() {
-		apiClient, err := client.NewClientWithOpts(client.FromEnv)
-		assert.NilError(c, err)
-		defer apiClient.Close()
+	// We expect an immediate response, but if it's not immediate, the test would hang.
+	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 10*time.Second)
+	defer cancel()
 
-		resp, err := apiClient.ContainerStats(testutil.GetContext(c), name, false)
-		assert.NilError(c, err)
-		defer resp.Body.Close()
-		chResp <- err
-	}()
+	stats, err := apiClient.ContainerStats(ctx, name, false)
+	assert.NilError(c, err)
+	defer func() { _ = stats.Body.Close() }()
 
-	select {
-	case err := <-chResp:
-		assert.NilError(c, err)
-	case <-time.After(10 * time.Second):
-		c.Fatal("timeout waiting for stats response for stopped container")
-	}
+	var v container.StatsResponse
+	dec := json.NewDecoder(stats.Body)
+	assert.NilError(c, dec.Decode(&v))
+	assert.Check(c, v.ID != "", "expected non-empty stats response for stopped container: %+v", v)
+	err = dec.Decode(&v)
+	assert.Check(c, is.ErrorIs(err, io.EOF), "expected only a single result")
 }
 
 func (s *DockerAPISuite) TestContainerAPIPause(c *testing.T) {
@@ -1141,37 +1124,25 @@ func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) 
 		Name:             name,
 	})
 	assert.NilError(c, err)
+	defer cli.DockerCmd(c, "rm", "-f", name)
 
 	err = apiClient.ContainerStart(testutil.GetContext(c), ctr.ID, client.ContainerStartOptions{})
 	assert.NilError(c, err)
 	cli.WaitRun(c, ctr.ID)
 
-	type b struct {
-		stats client.StatsResponseReader
-		err   error
-	}
-	bc := make(chan b, 1)
-	go func() {
-		stats, err := apiClient.ContainerStats(testutil.GetContext(c), name, false)
-		bc <- b{stats: stats, err: err}
-	}()
+	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 10*time.Second)
+	defer cancel()
 
-	// allow some time to stream the stats from the container
-	time.Sleep(4 * time.Second)
-	cli.DockerCmd(c, "rm", "-f", name)
+	stats, err := apiClient.ContainerStats(ctx, name, false)
+	assert.NilError(c, err)
+	defer func() { _ = stats.Body.Close() }()
 
-	// collect the results from the stats stream or timeout and fail
-	// if the stream was not disconnected.
-	select {
-	case <-time.After(2 * time.Second):
-		c.Fatal("stream was not closed after container was removed")
-	case sr := <-bc:
-		assert.NilError(c, sr.err)
-		var v container.StatsResponse
-		assert.NilError(c, json.NewDecoder(sr.stats.Body).Decode(&v))
-		assert.Check(c, is.Equal(v.ID, ctr.ID))
-		_ = sr.stats.Body.Close()
-	}
+	var v container.StatsResponse
+	dec := json.NewDecoder(stats.Body)
+	assert.NilError(c, dec.Decode(&v))
+	assert.Check(c, is.Equal(v.ID, ctr.ID))
+	err = dec.Decode(&v)
+	assert.Check(c, is.ErrorIs(err, io.EOF), "expected only a single result")
 }
 
 func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
