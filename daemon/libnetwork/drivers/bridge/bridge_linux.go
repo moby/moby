@@ -1885,6 +1885,8 @@ func parseConnectivityOptions(cOptions map[string]any) (*connectivityConfigurati
 			cc.PortBindings = sliceutil.Map(pbs, func(pb types.PortBinding) portmapperapi.PortBindingReq {
 				return portmapperapi.PortBindingReq{
 					PortBinding: pb.Copy(),
+					Mapper:      pb.Mapper,
+					ExtraParams: pb.ExtraParams,
 				}
 			})
 		} else {

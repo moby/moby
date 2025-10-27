@@ -152,6 +152,21 @@ type PortBinding struct {
 	HostIP netip.Addr `json:"HostIp"`
 	// HostPort is the host port number
 	HostPort string `json:"HostPort"`
+
+	// Mapper is an optional field that defines which portmapper should be used
+	// to create this PortBinding. When not specified, an appropriate builtin
+	// portmapper will be selected.
+	//
+	// WARNING: This is experimental and may change at any time without any
+	// backward compatibility.
+	Mapper string `json:",omitempty"`
+
+	// ExtraParams defines additional parameters passed to the Mapper when it
+	// creates or removes this PortBinding.
+	//
+	// WARNING: This is experimental and may change at any time without any
+	// backward compatibility.
+	ExtraParams map[string]string `json:",omitempty"`
 }
 
 // PortMap is a collection of [PortBinding] indexed by [Port].

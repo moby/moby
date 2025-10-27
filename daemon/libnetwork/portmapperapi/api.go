@@ -39,6 +39,9 @@ type PortBindingReq struct {
 	types.PortBinding
 	// Mapper is the name of the port mapper used to process this PortBindingReq.
 	Mapper string
+	// ExtraParams is a map of extra parameters passed to the mapper to map and
+	// unmap this port binding.
+	ExtraParams map[string]string
 	// ChildHostIP is a temporary field used to pass the host IP address as
 	// seen from the daemon. (It'll be removed once the portmapper API is
 	// implemented).
