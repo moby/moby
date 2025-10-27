@@ -78,7 +78,9 @@ func TestImageImport(t *testing.T) {
 				SourceName: "image_source",
 			}, "repository_name:imported", tc.options)
 			assert.NilError(t, err)
-			defer assert.NilError(t, result.Close())
+			defer func() {
+				assert.NilError(t, result.Close())
+			}()
 
 			body, err := io.ReadAll(result)
 			assert.NilError(t, err)

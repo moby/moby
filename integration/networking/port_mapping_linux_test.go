@@ -322,7 +322,9 @@ func TestAccessPublishedPortFromHost(t *testing.T) {
 	revertIPv6OnAll := enableIPv6OnAll(t)
 	defer revertIPv6OnAll()
 	assert.NilError(t, exec.Command("ip", "addr", "add", "fdfb:5cbb:29bf::2/64", "dev", "eth0", "nodad").Run())
-	defer assert.NilError(t, exec.Command("ip", "addr", "del", "fdfb:5cbb:29bf::2/64", "dev", "eth0").Run())
+	defer func() {
+		assert.NilError(t, exec.Command("ip", "addr", "del", "fdfb:5cbb:29bf::2/64", "dev", "eth0").Run())
+	}()
 
 	testcases := []struct {
 		ulpEnabled bool

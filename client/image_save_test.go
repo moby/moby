@@ -71,7 +71,9 @@ func TestImageSave(t *testing.T) {
 			assert.NilError(t, err)
 			resp, err := client.ImageSave(context.Background(), []string{"image_id1", "image_id2"}, tc.options...)
 			assert.NilError(t, err)
-			defer assert.NilError(t, resp.Close())
+			defer func() {
+				assert.NilError(t, resp.Close())
+			}()
 
 			body, err := io.ReadAll(resp)
 			assert.NilError(t, err)

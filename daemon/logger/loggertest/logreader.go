@@ -292,7 +292,9 @@ func (tr Reader) TestFollow(t *testing.T) {
 		}()
 
 		expected := logMessages(t, l, mm)[:2]
-		defer assert.NilError(t, l.Close()) // Reading should end before the logger is closed.
+		defer func() {
+			assert.NilError(t, l.Close()) // Reading should end before the logger is closed.
+		}()
 		<-doneReading
 		assert.DeepEqual(t, logs, expected, compareLog)
 	})
@@ -317,7 +319,9 @@ func (tr Reader) TestFollow(t *testing.T) {
 		}()
 
 		expected := logMessages(t, l, mm)[1:2]
-		defer assert.NilError(t, l.Close()) // Reading should end before the logger is closed.
+		defer func() {
+			assert.NilError(t, l.Close()) // Reading should end before the logger is closed.
+		}()
 		<-doneReading
 		assert.DeepEqual(t, logs, expected, compareLog)
 	})
