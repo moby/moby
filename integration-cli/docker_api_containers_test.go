@@ -1134,7 +1134,7 @@ func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) 
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), client.ContainerCreateOptions{
+	ctr, err := apiClient.ContainerCreate(testutil.GetContext(c), client.ContainerCreateOptions{
 		Config:           &config,
 		HostConfig:       &container.HostConfig{},
 		NetworkingConfig: &network.NetworkingConfig{},
@@ -1142,9 +1142,9 @@ func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) 
 	})
 	assert.NilError(c, err)
 
-	err = apiClient.ContainerStart(testutil.GetContext(c), name, client.ContainerStartOptions{})
+	err = apiClient.ContainerStart(testutil.GetContext(c), ctr.ID, client.ContainerStartOptions{})
 	assert.NilError(c, err)
-	cli.WaitRun(c, name)
+	cli.WaitRun(c, ctr.ID)
 
 	type b struct {
 		stats client.StatsResponseReader
@@ -1153,7 +1153,7 @@ func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) 
 	bc := make(chan b, 1)
 	go func() {
 		stats, err := apiClient.ContainerStats(testutil.GetContext(c), name, false)
-		bc <- b{stats, err}
+		bc <- b{stats: stats, err: err}
 	}()
 
 	// allow some time to stream the stats from the container
@@ -1167,7 +1167,10 @@ func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) 
 		c.Fatal("stream was not closed after container was removed")
 	case sr := <-bc:
 		assert.NilError(c, sr.err)
-		sr.stats.Body.Close()
+		var v container.StatsResponse
+		assert.NilError(c, json.NewDecoder(sr.stats.Body).Decode(&v))
+		assert.Check(c, is.Equal(v.ID, ctr.ID))
+		_ = sr.stats.Body.Close()
 	}
 }
 
