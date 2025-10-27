@@ -53,12 +53,12 @@ func Load(ctx context.Context, t *testing.T, apiClient client.APIClient, imageFu
 		}
 		assert.NilError(t, err)
 
-		msg.Stream = strings.TrimSpace(msg.Stream)
+		msg.Status = strings.TrimSpace(msg.Status)
 
-		if _, imageID, hasID := strings.Cut(msg.Stream, "Loaded image ID: "); hasID {
+		if _, imageID, hasID := strings.Cut(msg.Status, "Loaded image ID: "); hasID {
 			return imageID
 		}
-		if _, imageRef, hasRef := strings.Cut(msg.Stream, "Loaded image: "); hasRef {
+		if _, imageRef, hasRef := strings.Cut(msg.Status, "Loaded image: "); hasRef {
 			return imageRef
 		}
 	}
