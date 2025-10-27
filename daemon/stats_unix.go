@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -47,9 +48,10 @@ func (daemon *Daemon) stats(c *container.Container) (*containertypes.StatsRespon
 		return nil, err
 	}
 	s := &containertypes.StatsResponse{
-		Name: c.Name,
-		ID:   c.ID,
-		Read: cs.Read,
+		ID:     c.ID,
+		Name:   c.Name,
+		OSType: runtime.GOOS,
+		Read:   cs.Read,
 	}
 	switch t := cs.Metrics.(type) {
 	case *statsV1.Metrics:

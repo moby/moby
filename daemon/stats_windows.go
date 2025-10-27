@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"runtime"
 
 	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/moby/moby/api/types/container"
@@ -28,8 +29,9 @@ func (daemon *Daemon) stats(c *container.Container) (*containertypes.StatsRespon
 
 	// Start with an empty structure
 	s := &containertypes.StatsResponse{
-		Name:     c.Name,
 		ID:       c.ID,
+		Name:     c.Name,
+		OSType:   runtime.GOOS,
 		Read:     stats.Read,
 		NumProcs: platform.NumProcs(),
 	}

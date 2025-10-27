@@ -155,6 +155,10 @@ type StatsResponse struct {
 	// Name is the name of the container for which the stats were collected.
 	Name string `json:"name,omitempty"`
 
+	// OSType is the OS of the container ("linux" or "windows") to allow
+	// platform-specific handling of stats.
+	OSType string `json:"os_type,omitempty"`
+
 	// Read is the date and time at which this sample was collected.
 	Read time.Time `json:"read"`
 
