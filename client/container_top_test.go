@@ -15,14 +15,14 @@ import (
 func TestContainerTopError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	_, err = client.ContainerTop(context.Background(), "nothing", []string{})
+	_, err = client.ContainerTop(context.Background(), "nothing", ContainerTopOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ContainerTop(context.Background(), "", []string{})
+	_, err = client.ContainerTop(context.Background(), "", ContainerTopOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ContainerTop(context.Background(), "    ", []string{})
+	_, err = client.ContainerTop(context.Background(), "    ", ContainerTopOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -54,7 +54,9 @@ func TestContainerTop(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	processList, err := client.ContainerTop(context.Background(), "container_id", []string{"arg1", "arg2"})
+	processList, err := client.ContainerTop(context.Background(), "container_id", ContainerTopOptions{
+		Arguments: []string{"arg1", "arg2"},
+	})
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(expectedProcesses, processList.Processes))
 	assert.Check(t, is.DeepEqual(expectedTitles, processList.Titles))
