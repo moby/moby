@@ -10,7 +10,6 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/registry"
-	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/system"
 )
 
@@ -193,7 +192,7 @@ type VolumeAPIClient interface {
 	VolumeList(ctx context.Context, options VolumeListOptions) (VolumeListResult, error)
 	VolumeRemove(ctx context.Context, volumeID string, options VolumeRemoveOptions) (VolumeRemoveResult, error)
 	VolumesPrune(ctx context.Context, opts VolumePruneOptions) (VolumePruneResult, error)
-	VolumeUpdate(ctx context.Context, volumeID string, version swarm.Version, options VolumeUpdateOptions) error
+	VolumeUpdate(ctx context.Context, volumeID string, options VolumeUpdateOptions) (VolumeUpdateResult, error)
 }
 
 // SecretAPIClient defines API client methods for secrets

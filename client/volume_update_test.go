@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -17,14 +16,14 @@ func TestVolumeUpdateError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	err = client.VolumeUpdate(context.Background(), "volume", swarm.Version{}, VolumeUpdateOptions{})
+	_, err = client.VolumeUpdate(t.Context(), "volume", VolumeUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.VolumeUpdate(context.Background(), "", swarm.Version{}, VolumeUpdateOptions{})
+	_, err = client.VolumeUpdate(t.Context(), "", VolumeUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.VolumeUpdate(context.Background(), "    ", swarm.Version{}, VolumeUpdateOptions{})
+	_, err = client.VolumeUpdate(t.Context(), "    ", VolumeUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -46,6 +45,8 @@ func TestVolumeUpdate(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	err = client.VolumeUpdate(context.Background(), "test1", swarm.Version{Index: uint64(10)}, VolumeUpdateOptions{})
+	_, err = client.VolumeUpdate(t.Context(), "test1", VolumeUpdateOptions{
+		Version: swarm.Version{Index: uint64(10)},
+	})
 	assert.NilError(t, err)
 }
