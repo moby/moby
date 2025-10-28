@@ -45,11 +45,11 @@ func TestWaitNonBlocked(t *testing.T) {
 			containerID := container.Run(ctx, t, cli, container.WithCmd("sh", "-c", tc.cmd))
 			poll.WaitOn(t, container.IsInState(ctx, cli, containerID, containertypes.StateExited), poll.WithTimeout(30*time.Second))
 
-			waitResC, errC := cli.ContainerWait(ctx, containerID, "")
+			wait := cli.ContainerWait(ctx, containerID, client.ContainerWaitOptions{})
 			select {
-			case err := <-errC:
+			case err := <-wait.Errors:
 				assert.NilError(t, err)
-			case waitRes := <-waitResC:
+			case waitRes := <-wait.Results:
 				assert.Check(t, is.Equal(tc.expectedCode, waitRes.StatusCode))
 			}
 		})
@@ -85,15 +85,15 @@ func TestWaitBlocked(t *testing.T) {
 			// t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
 			containerID := container.Run(ctx, t, cli, container.WithCmd("sh", "-c", tc.cmd))
-			waitResC, errC := cli.ContainerWait(ctx, containerID, "")
+			wait := cli.ContainerWait(ctx, containerID, client.ContainerWaitOptions{})
 
 			_, err := cli.ContainerStop(ctx, containerID, client.ContainerStopOptions{})
 			assert.NilError(t, err)
 
 			select {
-			case err := <-errC:
+			case err := <-wait.Errors:
 				assert.NilError(t, err)
-			case waitRes := <-waitResC:
+			case waitRes := <-wait.Results:
 				assert.Check(t, is.Equal(tc.expectedCode, waitRes.StatusCode))
 			case <-time.After(2 * time.Second):
 				t.Fatal("timeout waiting for `docker wait`")
@@ -150,11 +150,11 @@ func TestWaitConditions(t *testing.T) {
 
 			_, err = cli.ContainerStart(ctx, containerID, client.ContainerStartOptions{})
 			assert.NilError(t, err)
-			waitResC, errC := cli.ContainerWait(ctx, containerID, tc.waitCond)
+			wait := cli.ContainerWait(ctx, containerID, client.ContainerWaitOptions{Condition: tc.waitCond})
 			select {
-			case err := <-errC:
+			case err := <-wait.Errors:
 				t.Fatalf("ContainerWait() err = %v", err)
-			case res := <-waitResC:
+			case res := <-wait.Results:
 				t.Fatalf("ContainerWait() sent exit code (%v) before ContainerStart()", res)
 			default:
 			}
@@ -166,9 +166,9 @@ func TestWaitConditions(t *testing.T) {
 			assert.NilError(t, err)
 
 			select {
-			case err := <-errC:
+			case err := <-wait.Errors:
 				assert.NilError(t, err)
-			case waitRes := <-waitResC:
+			case waitRes := <-wait.Results:
 				assert.Check(t, is.Equal(int64(99), waitRes.StatusCode))
 			case <-time.After(StopContainerWindowsPollTimeout):
 				ctr, _ := cli.ContainerInspect(ctx, containerID, client.ContainerInspectOptions{})
@@ -213,7 +213,7 @@ func TestWaitRestartedContainer(t *testing.T) {
 			defer cli.ContainerRemove(ctx, containerID, client.ContainerRemoveOptions{Force: true})
 
 			// Container is running now, wait for exit
-			waitResC, errC := cli.ContainerWait(ctx, containerID, tc.waitCond)
+			wait := cli.ContainerWait(ctx, containerID, client.ContainerWaitOptions{Condition: tc.waitCond})
 
 			timeout := 10
 			// On Windows it will always timeout, because our process won't receive SIGTERM
@@ -229,11 +229,11 @@ func TestWaitRestartedContainer(t *testing.T) {
 			assert.NilError(t, err)
 
 			select {
-			case err := <-errC:
+			case err := <-wait.Errors:
 				t.Fatalf("Unexpected error: %v", err)
 			case <-time.After(time.Second * 3):
 				t.Fatalf("Wait should end after restart")
-			case waitRes := <-waitResC:
+			case waitRes := <-wait.Results:
 				expectedCode := int64(5)
 
 				if !isWindowDaemon {
