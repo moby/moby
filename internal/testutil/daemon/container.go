@@ -14,11 +14,11 @@ func (d *Daemon) ActiveContainers(ctx context.Context, t testing.TB) []string {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	containers, err := cli.ContainerList(context.Background(), client.ContainerListOptions{})
+	list, err := cli.ContainerList(context.Background(), client.ContainerListOptions{})
 	assert.NilError(t, err)
 
-	ids := make([]string, len(containers))
-	for i, c := range containers {
+	ids := make([]string, len(list.Items))
+	for i, c := range list.Items {
 		ids[i] = c.ID
 	}
 	return ids

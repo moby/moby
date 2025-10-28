@@ -176,10 +176,10 @@ func Remove(ctx context.Context, t *testing.T, apiClient client.APIClient, conta
 func RemoveAll(ctx context.Context, t *testing.T, apiClient client.APIClient) {
 	t.Helper()
 
-	containers, err := apiClient.ContainerList(ctx, client.ContainerListOptions{All: true})
+	list, err := apiClient.ContainerList(ctx, client.ContainerListOptions{All: true})
 	assert.NilError(t, err)
 
-	for _, c := range containers {
+	for _, c := range list.Items {
 		Remove(ctx, t, apiClient, c.ID, client.ContainerRemoveOptions{Force: true})
 	}
 }

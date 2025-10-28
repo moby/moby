@@ -42,12 +42,12 @@ func (s *DockerAPISuite) TestContainerAPIGetAll(c *testing.T) {
 	defer apiClient.Close()
 
 	ctx := testutil.GetContext(c)
-	containers, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
+	list, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
 		All: true,
 	})
 	assert.NilError(c, err)
-	assert.Equal(c, len(containers), startCount+1)
-	actual := containers[0].Names[0]
+	assert.Equal(c, len(list.Items), startCount+1)
+	actual := list.Items[0].Names[0]
 	assert.Equal(c, actual, "/"+name)
 }
 
@@ -64,10 +64,10 @@ func (s *DockerAPISuite) TestContainerAPIGetJSONNoFieldsOmitted(c *testing.T) {
 		All: true,
 	}
 	ctx := testutil.GetContext(c)
-	containers, err := apiClient.ContainerList(ctx, options)
+	list, err := apiClient.ContainerList(ctx, options)
 	assert.NilError(c, err)
-	assert.Equal(c, len(containers), startCount+1)
-	actual := fmt.Sprintf("%+v", containers[0])
+	assert.Equal(c, len(list.Items), startCount+1)
+	actual := fmt.Sprintf("%+v", list.Items[0])
 
 	// empty Labels field triggered this bug, make sense to check for everything
 	// cause even Ports for instance can trigger this bug

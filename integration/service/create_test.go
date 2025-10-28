@@ -64,13 +64,13 @@ func testServiceCreateInit(ctx context.Context, daemonEnabled bool) func(t *test
 
 func inspectServiceContainer(ctx context.Context, t *testing.T, apiClient client.APIClient, serviceID string) container.InspectResponse {
 	t.Helper()
-	containers, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
+	list, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
 		Filters: make(client.Filters).Add("label", "com.docker.swarm.service.id="+serviceID),
 	})
 	assert.NilError(t, err)
-	assert.Check(t, is.Len(containers, 1))
+	assert.Check(t, is.Len(list.Items, 1))
 
-	inspect, err := apiClient.ContainerInspect(ctx, containers[0].ID, client.ContainerInspectOptions{})
+	inspect, err := apiClient.ContainerInspect(ctx, list.Items[0].ID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 	return inspect.Container
 }

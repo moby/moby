@@ -20,8 +20,12 @@ type ContainerListOptions struct {
 	Filters Filters
 }
 
+type ContainerListResult struct {
+	Items []container.Summary
+}
+
 // ContainerList returns the list of containers in the docker host.
-func (cli *Client) ContainerList(ctx context.Context, options ContainerListOptions) ([]container.Summary, error) {
+func (cli *Client) ContainerList(ctx context.Context, options ContainerListOptions) (ContainerListResult, error) {
 	query := url.Values{}
 
 	if options.All {
@@ -49,10 +53,10 @@ func (cli *Client) ContainerList(ctx context.Context, options ContainerListOptio
 	resp, err := cli.get(ctx, "/containers/json", query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return nil, err
+		return ContainerListResult{}, err
 	}
 
 	var containers []container.Summary
 	err = json.NewDecoder(resp.Body).Decode(&containers)
-	return containers, err
+	return ContainerListResult{Items: containers}, err
 }

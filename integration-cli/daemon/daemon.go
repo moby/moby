@@ -88,14 +88,14 @@ func (d *Daemon) CheckActiveContainerCount(ctx context.Context) func(t *testing.
 		apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithHost(d.Sock()))
 		assert.NilError(t, err)
 
-		ctrs, err := apiClient.ContainerList(ctx, client.ContainerListOptions{})
+		list, err := apiClient.ContainerList(ctx, client.ContainerListOptions{})
 		_ = apiClient.Close()
 		assert.NilError(t, err)
 		var out strings.Builder
-		for _, ctr := range ctrs {
+		for _, ctr := range list.Items {
 			out.WriteString(stringid.TruncateID(ctr.ID) + "\n")
 		}
-		return len(ctrs), out.String()
+		return len(list.Items), out.String()
 	}
 }
 

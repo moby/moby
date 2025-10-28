@@ -382,12 +382,12 @@ func createServices(ctx context.Context, t *testing.T, d *daemon.Daemon, section
 }
 
 func pollService(ctx context.Context, t *testing.T, c *client.Client, host networking.Host) poll.Result {
-	cl, err := c.ContainerList(ctx, client.ContainerListOptions{})
+	list, err := c.ContainerList(ctx, client.ContainerListOptions{})
 	if err != nil {
 		return poll.Error(fmt.Errorf("failed to list containers: %w", err))
 	}
-	if len(cl) != 1 {
-		return poll.Continue("got %d containers, want 1", len(cl))
+	if len(list.Items) != 1 {
+		return poll.Continue("got %d containers, want 1", len(list.Items))
 	}
 	// The DOCKER-INGRESS chain seems to be created, then populated, a few
 	// milliseconds after the container starts. So, also wait for a conntrack
