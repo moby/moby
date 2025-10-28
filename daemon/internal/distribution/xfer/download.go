@@ -10,9 +10,9 @@ import (
 	"github.com/containerd/log"
 	"github.com/docker/distribution"
 	"github.com/moby/go-archive/compression"
-	"github.com/moby/moby/api/pkg/progress"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
+	"github.com/moby/moby/v2/daemon/internal/progress"
 	"github.com/moby/moby/v2/pkg/ioutils"
 )
 
