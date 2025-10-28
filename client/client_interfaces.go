@@ -32,8 +32,6 @@ type stableAPIClient interface {
 	ClientVersion() string
 	DaemonHost() string
 	ServerVersion(ctx context.Context) (types.Version, error)
-	NegotiateAPIVersion(ctx context.Context)
-	NegotiateAPIVersionPing(PingResult)
 	HijackDialer
 	Dialer() func(context.Context) (net.Conn, error)
 	Close() error

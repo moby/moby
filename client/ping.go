@@ -12,7 +12,29 @@ import (
 
 // PingOptions holds options for [client.Ping].
 type PingOptions struct {
-	// Add future optional parameters here
+	// NegotiateAPIVersion queries the API and updates the version to match the API
+	// version. NegotiateAPIVersion downgrades the client's API version to match the
+	// APIVersion if the ping version is lower than the default version. If the API
+	// version reported by the server is higher than the maximum version supported
+	// by the client, it uses the client's maximum version.
+	//
+	// If a manual override is in place, either through the "DOCKER_API_VERSION"
+	// ([EnvOverrideAPIVersion]) environment variable, or if the client is initialized
+	// with a fixed version ([WithVersion]), no negotiation is performed.
+	//
+	// If the API server's ping response does not contain an API version, or if the
+	// client did not get a successful ping response, it assumes it is connected with
+	// an old daemon that does not support API version negotiation, in which case it
+	// downgrades to the lowest supported API version.
+	NegotiateAPIVersion bool
+
+	// ForceNegotiate forces the client to re-negotiate the API version, even if
+	// API-version negotiation already happened. This option cannot be
+	// used if the client is configured with a fixed version using (using
+	// [WithVersion] or [WithVersionFromEnv]).
+	//
+	// This option has no effect if NegotiateAPIVersion is not set.
+	ForceNegotiate bool
 }
 
 // PingResult holds the result of a [Client.Ping] API call.
@@ -50,6 +72,30 @@ type SwarmStatus struct {
 // for other non-success status codes, failing to connect to the API, or failing
 // to parse the API response.
 func (cli *Client) Ping(ctx context.Context, options PingOptions) (PingResult, error) {
+	if cli.manualOverride {
+		return cli.ping(ctx)
+	}
+	if !options.NegotiateAPIVersion && !cli.negotiateVersion {
+		return cli.ping(ctx)
+	}
+
+	// Ensure exclusive write access to version and negotiated fields
+	cli.negotiateLock.Lock()
+	defer cli.negotiateLock.Unlock()
+
+	ping, err := cli.ping(ctx)
+	if err != nil {
+		return cli.ping(ctx)
+	}
+
+	if cli.negotiated.Load() && !options.ForceNegotiate {
+		return ping, nil
+	}
+
+	return ping, cli.negotiateAPIVersion(ping.APIVersion)
+}
+
+func (cli *Client) ping(ctx context.Context) (PingResult, error) {
 	// Using cli.buildRequest() + cli.doRequest() instead of cli.sendRequest()
 	// because ping requests are used during API version negotiation, so we want
 	// to hit the non-versioned /_ping endpoint, not /v1.xx/_ping
