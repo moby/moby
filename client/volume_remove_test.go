@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -15,14 +14,14 @@ func TestVolumeRemoveError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	err = client.VolumeRemove(context.Background(), "volume_id", VolumeRemoveOptions{})
+	_, err = client.VolumeRemove(t.Context(), "volume_id", VolumeRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.VolumeRemove(context.Background(), "", VolumeRemoveOptions{})
+	_, err = client.VolumeRemove(t.Context(), "", VolumeRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.VolumeRemove(context.Background(), "    ", VolumeRemoveOptions{})
+	_, err = client.VolumeRemove(t.Context(), "    ", VolumeRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -35,7 +34,7 @@ func TestVolumeRemoveConnectionError(t *testing.T) {
 	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
-	err = client.VolumeRemove(context.Background(), "volume_id", VolumeRemoveOptions{})
+	_, err = client.VolumeRemove(t.Context(), "volume_id", VolumeRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
 
@@ -54,6 +53,6 @@ func TestVolumeRemove(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	err = client.VolumeRemove(context.Background(), "volume_id", VolumeRemoveOptions{Force: true})
+	_, err = client.VolumeRemove(t.Context(), "volume_id", VolumeRemoveOptions{Force: true})
 	assert.NilError(t, err)
 }

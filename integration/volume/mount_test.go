@@ -249,7 +249,7 @@ func setupTestVolume(t *testing.T, apiClient client.APIClient) string {
 
 	volumeName := t.Name() + "-volume"
 
-	err := apiClient.VolumeRemove(ctx, volumeName, client.VolumeRemoveOptions{Force: true})
+	_, err := apiClient.VolumeRemove(ctx, volumeName, client.VolumeRemoveOptions{Force: true})
 	assert.NilError(t, err, "failed to clean volume")
 
 	_, err = apiClient.VolumeCreate(ctx, client.VolumeCreateOptions{
