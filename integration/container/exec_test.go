@@ -273,7 +273,7 @@ func TestExecResize(t *testing.T) {
 		//          Error response from daemon: No such exec instance: cc728a332d3f594249fb7ee9adb3bb12a59a5d1776f8f6dedc56355364361711
 		skip.If(t, testEnv.DaemonInfo.OSType == "windows" && !testEnv.RuntimeIsWindowsContainerd(), "FIXME. Windows + builtin returns a NotFound instead of a Conflict error")
 
-		err := apiClient.ContainerKill(ctx, cID, "SIGKILL")
+		_, err := apiClient.ContainerKill(ctx, cID, client.ContainerKillOptions{})
 		assert.NilError(t, err)
 
 		_, err = apiClient.ExecResize(ctx, execID, client.ExecResizeOptions{

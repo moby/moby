@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -14,14 +13,14 @@ import (
 func TestContainerRestartError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	err = client.ContainerRestart(context.Background(), "nothing", ContainerStopOptions{})
+	_, err = client.ContainerRestart(t.Context(), "nothing", ContainerRestartOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.ContainerRestart(context.Background(), "", ContainerStopOptions{})
+	_, err = client.ContainerRestart(t.Context(), "", ContainerRestartOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.ContainerRestart(context.Background(), "    ", ContainerStopOptions{})
+	_, err = client.ContainerRestart(t.Context(), "    ", ContainerRestartOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -34,7 +33,7 @@ func TestContainerRestartConnectionError(t *testing.T) {
 	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
-	err = client.ContainerRestart(context.Background(), "nothing", ContainerStopOptions{})
+	_, err = client.ContainerRestart(t.Context(), "nothing", ContainerRestartOptions{})
 	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
 
@@ -56,7 +55,7 @@ func TestContainerRestart(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 	timeout := 100
-	err = client.ContainerRestart(context.Background(), "container_id", ContainerStopOptions{
+	_, err = client.ContainerRestart(t.Context(), "container_id", ContainerRestartOptions{
 		Signal:  "SIGKILL",
 		Timeout: &timeout,
 	})

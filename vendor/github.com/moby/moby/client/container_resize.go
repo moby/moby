@@ -14,13 +14,28 @@ type ContainerResizeOptions struct {
 	Width  uint
 }
 
+// ContainerResizeResult holds the result of [Client.ContainerResize],
+type ContainerResizeResult struct {
+	// Add future fields here.
+}
+
 // ContainerResize changes the size of the pseudo-TTY for a container.
-func (cli *Client) ContainerResize(ctx context.Context, containerID string, options ContainerResizeOptions) error {
+func (cli *Client) ContainerResize(ctx context.Context, containerID string, options ContainerResizeOptions) (ContainerResizeResult, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
-		return err
+		return ContainerResizeResult{}, err
 	}
-	return cli.resize(ctx, "/containers/"+containerID, options.Height, options.Width)
+	// FIXME(thaJeztah): the API / backend accepts uint32, but container.ResizeOptions uses uint.
+	query := url.Values{}
+	query.Set("h", strconv.FormatUint(uint64(options.Height), 10))
+	query.Set("w", strconv.FormatUint(uint64(options.Width), 10))
+
+	resp, err := cli.post(ctx, "/containers/"+containerID+"/resize", query, nil, nil)
+	defer ensureReaderClosed(resp)
+	if err != nil {
+		return ContainerResizeResult{}, err
+	}
+	return ContainerResizeResult{}, nil
 }
 
 // ExecResizeOptions holds options for resizing a container exec TTY.
@@ -36,17 +51,16 @@ func (cli *Client) ExecResize(ctx context.Context, execID string, options ExecRe
 	if err != nil {
 		return ExecResizeResult{}, err
 	}
-	err = cli.resize(ctx, "/exec/"+execID, options.Height, options.Width)
-	return ExecResizeResult{}, err
-}
-
-func (cli *Client) resize(ctx context.Context, basePath string, height, width uint) error {
 	// FIXME(thaJeztah): the API / backend accepts uint32, but container.ResizeOptions uses uint.
 	query := url.Values{}
-	query.Set("h", strconv.FormatUint(uint64(height), 10))
-	query.Set("w", strconv.FormatUint(uint64(width), 10))
+	query.Set("h", strconv.FormatUint(uint64(options.Height), 10))
+	query.Set("w", strconv.FormatUint(uint64(options.Width), 10))
 
-	resp, err := cli.post(ctx, basePath+"/resize", query, nil, nil)
+	resp, err := cli.post(ctx, "/exec/"+execID+"/resize", query, nil, nil)
 	defer ensureReaderClosed(resp)
-	return err
+	if err != nil {
+		return ExecResizeResult{}, err
+	}
+	return ExecResizeResult{}, nil
+
 }

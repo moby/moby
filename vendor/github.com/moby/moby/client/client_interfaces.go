@@ -64,20 +64,20 @@ type ContainerAPIClient interface {
 	ExecAPIClient
 	ContainerExport(ctx context.Context, container string) (io.ReadCloser, error)
 	ContainerInspect(ctx context.Context, container string, options ContainerInspectOptions) (ContainerInspectResult, error)
-	ContainerKill(ctx context.Context, container, signal string) error
+	ContainerKill(ctx context.Context, container string, options ContainerKillOptions) (ContainerKillResult, error)
 	ContainerList(ctx context.Context, options ContainerListOptions) ([]container.Summary, error)
 	ContainerLogs(ctx context.Context, container string, options ContainerLogsOptions) (io.ReadCloser, error)
-	ContainerPause(ctx context.Context, container string) error
-	ContainerRemove(ctx context.Context, container string, options ContainerRemoveOptions) error
+	ContainerPause(ctx context.Context, container string, options ContainerPauseOptions) (ContainerPauseResult, error)
+	ContainerRemove(ctx context.Context, container string, options ContainerRemoveOptions) (ContainerRemoveResult, error)
 	ContainerRename(ctx context.Context, container, newContainerName string) error
-	ContainerResize(ctx context.Context, container string, options ContainerResizeOptions) error
-	ContainerRestart(ctx context.Context, container string, options ContainerStopOptions) error
+	ContainerResize(ctx context.Context, container string, options ContainerResizeOptions) (ContainerResizeResult, error)
+	ContainerRestart(ctx context.Context, container string, options ContainerRestartOptions) (ContainerRestartResult, error)
 	ContainerStatPath(ctx context.Context, container, path string) (container.PathStat, error)
 	ContainerStats(ctx context.Context, container string, options ContainerStatsOptions) (ContainerStatsResult, error)
-	ContainerStart(ctx context.Context, container string, options ContainerStartOptions) error
-	ContainerStop(ctx context.Context, container string, options ContainerStopOptions) error
+	ContainerStart(ctx context.Context, container string, options ContainerStartOptions) (ContainerStartResult, error)
+	ContainerStop(ctx context.Context, container string, options ContainerStopOptions) (ContainerStopResult, error)
 	ContainerTop(ctx context.Context, container string, arguments []string) (container.TopResponse, error)
-	ContainerUnpause(ctx context.Context, container string) error
+	ContainerUnpause(ctx context.Context, container string, options ContainerUnPauseOptions) (ContainerUnPauseResult, error)
 	ContainerUpdate(ctx context.Context, container string, updateConfig container.UpdateConfig) (container.UpdateResponse, error)
 	ContainerWait(ctx context.Context, container string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error)
 	CopyFromContainer(ctx context.Context, container, srcPath string) (io.ReadCloser, container.PathStat, error)

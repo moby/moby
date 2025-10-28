@@ -20,12 +20,16 @@ func TestKillContainerInvalidSignal(t *testing.T) {
 	apiClient := testEnv.APIClient()
 	id := container.Run(ctx, t, apiClient)
 
-	err := apiClient.ContainerKill(ctx, id, "0")
+	_, err := apiClient.ContainerKill(ctx, id, client.ContainerKillOptions{
+		Signal: "0",
+	})
 	assert.ErrorContains(t, err, "Error response from daemon:")
 	assert.ErrorContains(t, err, "nvalid signal: 0") // match "(I|i)nvalid" case-insensitive to allow testing against older daemons.
 	poll.WaitOn(t, container.IsInState(ctx, apiClient, id, containertypes.StateRunning))
 
-	err = apiClient.ContainerKill(ctx, id, "SIG42")
+	_, err = apiClient.ContainerKill(ctx, id, client.ContainerKillOptions{
+		Signal: "SIG42",
+	})
 	assert.ErrorContains(t, err, "Error response from daemon:")
 	assert.ErrorContains(t, err, "nvalid signal: SIG42") // match "(I|i)nvalid" case-insensitive to allow testing against older daemons.
 	poll.WaitOn(t, container.IsInState(ctx, apiClient, id, containertypes.StateRunning))
@@ -71,7 +75,9 @@ func TestKillContainer(t *testing.T) {
 			skip.If(t, testEnv.DaemonInfo.OSType == tc.skipOs, "Windows does not support SIGWINCH")
 			ctx := testutil.StartSpan(ctx, t)
 			id := container.Run(ctx, t, apiClient)
-			err := apiClient.ContainerKill(ctx, id, tc.signal)
+			_, err := apiClient.ContainerKill(ctx, id, client.ContainerKillOptions{
+				Signal: tc.signal,
+			})
 			assert.NilError(t, err)
 
 			poll.WaitOn(t, container.IsInState(ctx, apiClient, id, tc.status), pollOpts...)
@@ -112,8 +118,11 @@ func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
 				container.WithRestartPolicy(containertypes.RestartPolicyAlways),
 				func(c *container.TestContainerConfig) {
 					c.Config.StopSignal = tc.stopsignal
-				})
-			err := apiClient.ContainerKill(ctx, id, "TERM")
+				},
+			)
+			_, err := apiClient.ContainerKill(ctx, id, client.ContainerKillOptions{
+				Signal: "TERM",
+			})
 			assert.NilError(t, err)
 
 			poll.WaitOn(t, container.IsInState(ctx, apiClient, id, tc.status), pollOpts...)
@@ -125,7 +134,7 @@ func TestKillStoppedContainer(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 	id := container.Create(ctx, t, apiClient)
-	err := apiClient.ContainerKill(ctx, id, "SIGKILL")
+	_, err := apiClient.ContainerKill(ctx, id, client.ContainerKillOptions{})
 	assert.ErrorContains(t, err, "")
 	assert.ErrorContains(t, err, "is not running")
 }
@@ -141,7 +150,7 @@ func TestKillDifferentUserContainer(t *testing.T) {
 		c.Config.User = "daemon"
 	})
 
-	err := apiClient.ContainerKill(ctx, id, "SIGKILL")
+	_, err := apiClient.ContainerKill(ctx, id, client.ContainerKillOptions{})
 	assert.NilError(t, err)
 	poll.WaitOn(t, container.IsInState(ctx, apiClient, id, containertypes.StateExited))
 }

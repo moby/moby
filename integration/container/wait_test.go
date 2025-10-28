@@ -87,7 +87,7 @@ func TestWaitBlocked(t *testing.T) {
 			containerID := container.Run(ctx, t, cli, container.WithCmd("sh", "-c", tc.cmd))
 			waitResC, errC := cli.ContainerWait(ctx, containerID, "")
 
-			err := cli.ContainerStop(ctx, containerID, client.ContainerStopOptions{})
+			_, err := cli.ContainerStop(ctx, containerID, client.ContainerStopOptions{})
 			assert.NilError(t, err)
 
 			select {
@@ -148,7 +148,8 @@ func TestWaitConditions(t *testing.T) {
 			assert.NilError(t, err)
 			defer streams.Close()
 
-			assert.NilError(t, cli.ContainerStart(ctx, containerID, client.ContainerStartOptions{}))
+			_, err = cli.ContainerStart(ctx, containerID, client.ContainerStartOptions{})
+			assert.NilError(t, err)
 			waitResC, errC := cli.ContainerWait(ctx, containerID, tc.waitCond)
 			select {
 			case err := <-errC:
@@ -221,7 +222,10 @@ func TestWaitRestartedContainer(t *testing.T) {
 				timeout = 0
 			}
 
-			err := cli.ContainerRestart(ctx, containerID, client.ContainerStopOptions{Timeout: &timeout, Signal: "SIGTERM"})
+			_, err := cli.ContainerRestart(ctx, containerID, client.ContainerRestartOptions{
+				Timeout: &timeout,
+				Signal:  "SIGTERM",
+			})
 			assert.NilError(t, err)
 
 			select {

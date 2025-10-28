@@ -38,7 +38,8 @@ func TestStopContainerWithTimeoutCancel(t *testing.T) {
 	stoppedCh := make(chan error)
 	go func() {
 		sto := stopTimeout
-		stoppedCh <- apiClient.ContainerStop(ctxCancel, id, client.ContainerStopOptions{Timeout: &sto})
+		_, err := apiClient.ContainerStop(ctxCancel, id, client.ContainerStopOptions{Timeout: &sto})
+		stoppedCh <- err
 	}()
 
 	poll.WaitOn(t, logsContains(ctx, apiClient, id, "received TERM"))

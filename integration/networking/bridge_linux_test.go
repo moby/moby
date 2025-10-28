@@ -1336,7 +1336,7 @@ func TestReadOnlySlashProc(t *testing.T) {
 				container.WithCmd("ls"),
 			)
 			defer c.ContainerRemove(ctx, id4, client.ContainerRemoveOptions{Force: true})
-			err := c.ContainerStart(ctx, id4, client.ContainerStartOptions{})
+			_, err := c.ContainerStart(ctx, id4, client.ContainerStartOptions{})
 			if tc.expErr == "" {
 				assert.Check(t, err)
 			} else {

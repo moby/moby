@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -13,14 +12,14 @@ import (
 func TestContainerUnpauseError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	err = client.ContainerUnpause(context.Background(), "nothing")
+	_, err = client.ContainerUnpause(t.Context(), "nothing", ContainerUnPauseOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.ContainerUnpause(context.Background(), "")
+	_, err = client.ContainerUnpause(t.Context(), "", ContainerUnPauseOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.ContainerUnpause(context.Background(), "    ")
+	_, err = client.ContainerUnpause(t.Context(), "    ", ContainerUnPauseOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -34,6 +33,6 @@ func TestContainerUnpause(t *testing.T) {
 		return mockResponse(http.StatusOK, nil, "")(req)
 	}))
 	assert.NilError(t, err)
-	err = client.ContainerUnpause(context.Background(), "container_id")
+	_, err = client.ContainerUnpause(t.Context(), "container_id", ContainerUnPauseOptions{})
 	assert.NilError(t, err)
 }

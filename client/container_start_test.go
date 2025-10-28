@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,14 +14,14 @@ import (
 func TestContainerStartError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	err = client.ContainerStart(context.Background(), "nothing", ContainerStartOptions{})
+	_, err = client.ContainerStart(t.Context(), "nothing", ContainerStartOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.ContainerStart(context.Background(), "", ContainerStartOptions{})
+	_, err = client.ContainerStart(t.Context(), "", ContainerStartOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.ContainerStart(context.Background(), "    ", ContainerStartOptions{})
+	_, err = client.ContainerStart(t.Context(), "    ", ContainerStartOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -49,6 +48,6 @@ func TestContainerStart(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	err = client.ContainerStart(context.Background(), "container_id", ContainerStartOptions{CheckpointID: "checkpoint_id"})
+	_, err = client.ContainerStart(t.Context(), "container_id", ContainerStartOptions{CheckpointID: "checkpoint_id"})
 	assert.NilError(t, err)
 }

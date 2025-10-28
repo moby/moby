@@ -36,7 +36,7 @@ func TestContainerKillOnDaemonStart(t *testing.T) {
 	// Sadly this means the test will take longer, but at least this test can be parallelized.
 	id := container.Run(ctx, t, apiClient, container.WithCmd("/bin/sh", "-c", "while true; do echo hello; sleep 1; done"))
 	defer func() {
-		err := apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
+		_, err := apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 		assert.NilError(t, err)
 	}()
 
@@ -80,7 +80,7 @@ func TestNetworkStateCleanupOnDaemonStart(t *testing.T) {
 		container.WithPortMap(network.PortMap{mappedPort: {{}}}),
 		container.WithCmd("/bin/sh", "-c", "while true; do echo hello; sleep 1; done"))
 	defer func() {
-		err := apiClient.ContainerRemove(ctx, cid, client.ContainerRemoveOptions{Force: true})
+		_, err := apiClient.ContainerRemove(ctx, cid, client.ContainerRemoveOptions{Force: true})
 		assert.NilError(t, err)
 	}()
 

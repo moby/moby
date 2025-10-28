@@ -34,7 +34,7 @@ func TestStopContainerWithRestartPolicyAlways(t *testing.T) {
 	}
 
 	for _, name := range names {
-		err := apiClient.ContainerStop(ctx, name, client.ContainerStopOptions{})
+		_, err := apiClient.ContainerStop(ctx, name, client.ContainerStopOptions{})
 		assert.NilError(t, err)
 	}
 
@@ -100,7 +100,7 @@ func TestStopContainerWithTimeout(t *testing.T) {
 			// t.Parallel()
 			id := container.Run(ctx, t, apiClient, testCmd)
 
-			err := apiClient.ContainerStop(ctx, id, client.ContainerStopOptions{Timeout: &tc.timeout})
+			_, err := apiClient.ContainerStop(ctx, id, client.ContainerStopOptions{Timeout: &tc.timeout})
 			assert.NilError(t, err)
 
 			poll.WaitOn(t, container.IsStopped(ctx, apiClient, id), pollOpts...)

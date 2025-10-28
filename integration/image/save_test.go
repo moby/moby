@@ -396,7 +396,7 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 		res, err := apiClient.ContainerCommit(ctx, id, client.ContainerCommitOptions{Reference: tag})
 		assert.NilError(t, err)
 
-		err = apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
+		_, err = apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 		assert.NilError(t, err)
 
 		return res.ID

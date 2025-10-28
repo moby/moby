@@ -38,12 +38,12 @@ func (e *Execution) Clean(ctx context.Context, t testing.TB) {
 	}
 }
 
-func unpauseAllContainers(ctx context.Context, t testing.TB, client client.ContainerAPIClient) {
+func unpauseAllContainers(ctx context.Context, t testing.TB, apiClient client.ContainerAPIClient) {
 	t.Helper()
-	containers := getPausedContainers(ctx, t, client)
+	containers := getPausedContainers(ctx, t, apiClient)
 	if len(containers) > 0 {
 		for _, ctr := range containers {
-			err := client.ContainerUnpause(ctx, ctr.ID)
+			_, err := apiClient.ContainerUnpause(ctx, ctr.ID, client.ContainerUnPauseOptions{})
 			assert.Check(t, err, "failed to unpause container %s", ctr.ID)
 		}
 	}
@@ -70,7 +70,7 @@ func deleteAllContainers(ctx context.Context, t testing.TB, apiclient client.Con
 		if _, ok := protectedContainers[ctr.ID]; ok {
 			continue
 		}
-		err := apiclient.ContainerRemove(ctx, ctr.ID, client.ContainerRemoveOptions{
+		_, err := apiclient.ContainerRemove(ctx, ctr.ID, client.ContainerRemoveOptions{
 			Force:         true,
 			RemoveVolumes: true,
 		})

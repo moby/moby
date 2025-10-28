@@ -124,10 +124,11 @@ func (f *remoteFileServer) Close() error {
 	if f.container == "" {
 		return nil
 	}
-	return f.client.ContainerRemove(context.Background(), f.container, client.ContainerRemoveOptions{
+	_, err := f.client.ContainerRemove(context.Background(), f.container, client.ContainerRemoveOptions{
 		Force:         true,
 		RemoveVolumes: true,
 	})
+	return err
 }
 
 func newRemoteFileServer(t testing.TB, ctx *fakecontext.Fake, c client.APIClient) *remoteFileServer {
@@ -160,7 +161,7 @@ COPY . /static`); err != nil {
 		Name:       ctrName,
 	})
 	assert.NilError(t, err)
-	err = c.ContainerStart(context.Background(), b.ID, client.ContainerStartOptions{})
+	_, err = c.ContainerStart(context.Background(), b.ID, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	// Find out the system assigned port

@@ -97,7 +97,7 @@ func TestRunMountVolumeSubdir(t *testing.T) {
 			}
 			assert.NilError(t, creatErr, "container creation failed")
 
-			startErr := apiClient.ContainerStart(ctx, id, client.ContainerStartOptions{})
+			_, startErr := apiClient.ContainerStart(ctx, id, client.ContainerStartOptions{})
 			if tc.startErr != "" {
 				assert.ErrorContains(t, startErr, tc.startErr)
 				return
@@ -173,7 +173,7 @@ func TestRunMountImage(t *testing.T) {
 			}
 
 			startContainer := func(id string) {
-				startErr := apiClient.ContainerStart(ctx, id, client.ContainerStartOptions{})
+				_, startErr := apiClient.ContainerStart(ctx, id, client.ContainerStartOptions{})
 				if tc.startErr != "" {
 					assert.ErrorContains(t, startErr, tc.startErr)
 					return
@@ -210,7 +210,7 @@ func TestRunMountImage(t *testing.T) {
 
 			// Test that the container servives a restart when mounted image is removed
 			if tc.name == "image_remove_force" {
-				stopErr := apiClient.ContainerStop(ctx, id, client.ContainerStopOptions{})
+				_, stopErr := apiClient.ContainerStop(ctx, id, client.ContainerStopOptions{})
 				assert.NilError(t, stopErr)
 
 				_, removeErr := apiClient.ImageRemove(ctx, testImage, client.ImageRemoveOptions{Force: true})

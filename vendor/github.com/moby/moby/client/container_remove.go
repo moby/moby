@@ -12,11 +12,16 @@ type ContainerRemoveOptions struct {
 	Force         bool
 }
 
+// ContainerRemoveResult holds the result of [Client.ContainerRemove],
+type ContainerRemoveResult struct {
+	// Add future fields here.
+}
+
 // ContainerRemove kills and removes a container from the docker host.
-func (cli *Client) ContainerRemove(ctx context.Context, containerID string, options ContainerRemoveOptions) error {
+func (cli *Client) ContainerRemove(ctx context.Context, containerID string, options ContainerRemoveOptions) (ContainerRemoveResult, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
-		return err
+		return ContainerRemoveResult{}, err
 	}
 
 	query := url.Values{}
@@ -33,5 +38,8 @@ func (cli *Client) ContainerRemove(ctx context.Context, containerID string, opti
 
 	resp, err := cli.delete(ctx, "/containers/"+containerID, query, nil)
 	defer ensureReaderClosed(resp)
-	return err
+	if err != nil {
+		return ContainerRemoveResult{}, err
+	}
+	return ContainerRemoveResult{}, nil
 }

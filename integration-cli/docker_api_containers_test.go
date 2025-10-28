@@ -366,7 +366,7 @@ func (s *DockerAPISuite) TestContainerAPIPause(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerPause(testutil.GetContext(c), ContainerID)
+	_, err = apiClient.ContainerPause(testutil.GetContext(c), ContainerID, client.ContainerPauseOptions{})
 	assert.NilError(c, err)
 
 	pausedContainers := getPaused(c)
@@ -375,7 +375,7 @@ func (s *DockerAPISuite) TestContainerAPIPause(c *testing.T) {
 		c.Fatalf("there should be one paused container and not %d", len(pausedContainers))
 	}
 
-	err = apiClient.ContainerUnpause(testutil.GetContext(c), ContainerID)
+	_, err = apiClient.ContainerUnpause(testutil.GetContext(c), ContainerID, client.ContainerUnPauseOptions{})
 	assert.NilError(c, err)
 
 	pausedContainers = getPaused(c)
@@ -713,7 +713,9 @@ func (s *DockerAPISuite) TestContainerAPIKill(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerKill(testutil.GetContext(c), name, "SIGKILL")
+	_, err = apiClient.ContainerKill(testutil.GetContext(c), name, client.ContainerKillOptions{
+		Signal: "SIGKILL",
+	})
 	assert.NilError(c, err)
 
 	state := inspectField(c, name, "State.Running")
@@ -728,7 +730,9 @@ func (s *DockerAPISuite) TestContainerAPIRestart(c *testing.T) {
 	defer apiClient.Close()
 
 	timeout := 1
-	err = apiClient.ContainerRestart(testutil.GetContext(c), name, client.ContainerStopOptions{Timeout: &timeout})
+	_, err = apiClient.ContainerRestart(testutil.GetContext(c), name, client.ContainerRestartOptions{
+		Timeout: &timeout,
+	})
 	assert.NilError(c, err)
 
 	assert.NilError(c, waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 15*time.Second))
@@ -743,7 +747,7 @@ func (s *DockerAPISuite) TestContainerAPIRestartNotimeoutParam(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerRestart(testutil.GetContext(c), name, client.ContainerStopOptions{})
+	_, err = apiClient.ContainerRestart(testutil.GetContext(c), name, client.ContainerRestartOptions{})
 	assert.NilError(c, err)
 
 	assert.NilError(c, waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 15*time.Second))
@@ -769,12 +773,12 @@ func (s *DockerAPISuite) TestContainerAPIStart(c *testing.T) {
 	})
 	assert.NilError(c, err)
 
-	err = apiClient.ContainerStart(testutil.GetContext(c), name, client.ContainerStartOptions{})
+	_, err = apiClient.ContainerStart(testutil.GetContext(c), name, client.ContainerStartOptions{})
 	assert.NilError(c, err)
 
 	// second call to start should give 304
 	// maybe add ContainerStartWithRaw to test it
-	err = apiClient.ContainerStart(testutil.GetContext(c), name, client.ContainerStartOptions{})
+	_, err = apiClient.ContainerStart(testutil.GetContext(c), name, client.ContainerStartOptions{})
 	assert.NilError(c, err)
 
 	// TODO(tibor): figure out why this doesn't work on windows
@@ -789,7 +793,7 @@ func (s *DockerAPISuite) TestContainerAPIStop(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerStop(testutil.GetContext(c), name, client.ContainerStopOptions{
+	_, err = apiClient.ContainerStop(testutil.GetContext(c), name, client.ContainerStopOptions{
 		Timeout: &timeout,
 	})
 	assert.NilError(c, err)
@@ -797,7 +801,7 @@ func (s *DockerAPISuite) TestContainerAPIStop(c *testing.T) {
 
 	// second call to start should give 304
 	// maybe add ContainerStartWithRaw to test it
-	err = apiClient.ContainerStop(testutil.GetContext(c), name, client.ContainerStopOptions{
+	_, err = apiClient.ContainerStop(testutil.GetContext(c), name, client.ContainerStopOptions{
 		Timeout: &timeout,
 	})
 	assert.NilError(c, err)
@@ -835,7 +839,7 @@ func (s *DockerAPISuite) TestContainerAPIDelete(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerRemove(testutil.GetContext(c), id, client.ContainerRemoveOptions{})
+	_, err = apiClient.ContainerRemove(testutil.GetContext(c), id, client.ContainerRemoveOptions{})
 	assert.NilError(c, err)
 }
 
@@ -844,7 +848,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteNotExist(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerRemove(testutil.GetContext(c), "doesnotexist", client.ContainerRemoveOptions{})
+	_, err = apiClient.ContainerRemove(testutil.GetContext(c), "doesnotexist", client.ContainerRemoveOptions{})
 	assert.ErrorContains(c, err, "No such container: doesnotexist")
 }
 
@@ -860,7 +864,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteForce(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerRemove(testutil.GetContext(c), id, removeOptions)
+	_, err = apiClient.ContainerRemove(testutil.GetContext(c), id, removeOptions)
 	assert.NilError(c, err)
 }
 
@@ -886,7 +890,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveLinks(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerRemove(testutil.GetContext(c), "tlink2/tlink1", removeOptions)
+	_, err = apiClient.ContainerRemove(testutil.GetContext(c), "tlink2/tlink1", removeOptions)
 	assert.NilError(c, err)
 
 	linksPostRm := inspectFieldJSON(c, id2, "HostConfig.Links")
@@ -922,7 +926,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveVolume(c *testing.T) {
 		RemoveVolumes: true,
 	}
 
-	err = apiClient.ContainerRemove(testutil.GetContext(c), id, removeOptions)
+	_, err = apiClient.ContainerRemove(testutil.GetContext(c), id, removeOptions)
 	assert.NilError(c, err)
 
 	_, err = os.Stat(mnt.Source)
@@ -957,7 +961,7 @@ func (s *DockerAPISuite) TestContainerAPIPostContainerStop(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerStop(testutil.GetContext(c), containerID, client.ContainerStopOptions{})
+	_, err = apiClient.ContainerStop(testutil.GetContext(c), containerID, client.ContainerStopOptions{})
 	assert.NilError(c, err)
 	assert.NilError(c, waitInspect(containerID, "{{ .State.Running  }}", "false", 60*time.Second))
 }
@@ -1108,7 +1112,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteWithEmptyName(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	err = apiClient.ContainerRemove(testutil.GetContext(c), "", client.ContainerRemoveOptions{})
+	_, err = apiClient.ContainerRemove(testutil.GetContext(c), "", client.ContainerRemoveOptions{})
 	assert.Check(c, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(c, is.ErrorContains(err, "value is empty"))
 }
@@ -1138,7 +1142,7 @@ func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) 
 	assert.NilError(c, err)
 	defer cli.DockerCmd(c, "rm", "-f", name)
 
-	err = apiClient.ContainerStart(testutil.GetContext(c), ctr.ID, client.ContainerStartOptions{})
+	_, err = apiClient.ContainerStart(testutil.GetContext(c), ctr.ID, client.ContainerStartOptions{})
 	assert.NilError(c, err)
 	cli.WaitRun(c, ctr.ID)
 
@@ -1672,11 +1676,11 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 			assert.Check(c, is.Equal(tc.expected.Mode, mountPoint.Mode))
 			assert.Check(c, is.Equal(tc.expected.Destination, mountPoint.Destination))
 
-			err = apiclient.ContainerStart(ctx, ctr.ID, client.ContainerStartOptions{})
+			_, err = apiclient.ContainerStart(ctx, ctr.ID, client.ContainerStartOptions{})
 			assert.NilError(c, err)
 			poll.WaitOn(c, containerExit(ctx, apiclient, ctr.ID), poll.WithDelay(time.Second))
 
-			err = apiclient.ContainerRemove(ctx, ctr.ID, client.ContainerRemoveOptions{
+			_, err = apiclient.ContainerRemove(ctx, ctr.ID, client.ContainerRemoveOptions{
 				RemoveVolumes: true,
 				Force:         true,
 			})

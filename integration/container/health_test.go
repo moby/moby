@@ -76,14 +76,18 @@ while true; do sleep 1; done
 	defer cancel()
 	poll.WaitOn(t, pollForHealthStatus(ctxPoll, apiClient, id, "healthy"))
 
-	err := apiClient.ContainerKill(ctx, id, "SIGUSR1")
+	_, err := apiClient.ContainerKill(ctx, id, client.ContainerKillOptions{
+		Signal: "SIGUSR1",
+	})
 	assert.NilError(t, err)
 
 	ctxPoll, cancel = context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	poll.WaitOn(t, pollForHealthStatus(ctxPoll, apiClient, id, "unhealthy"))
 
-	err = apiClient.ContainerKill(ctx, id, "SIGUSR1")
+	_, err = apiClient.ContainerKill(ctx, id, client.ContainerKillOptions{
+		Signal: "SIGUSR1",
+	})
 	assert.NilError(t, err)
 
 	ctxPoll, cancel = context.WithTimeout(ctx, 30*time.Second)

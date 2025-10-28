@@ -55,7 +55,7 @@ func TestMACAddrOnRestart(t *testing.T) {
 	defer c.ContainerRemove(ctx, id1, client.ContainerRemoveOptions{
 		Force: true,
 	})
-	err := c.ContainerStop(ctx, ctr1Name, client.ContainerStopOptions{})
+	_, err := c.ContainerStop(ctx, ctr1Name, client.ContainerStopOptions{})
 	assert.Assert(t, is.Nil(err))
 
 	// Start a second container, giving the daemon a chance to recycle the first container's
@@ -71,7 +71,7 @@ func TestMACAddrOnRestart(t *testing.T) {
 	})
 
 	// Restart the first container.
-	err = c.ContainerStart(ctx, ctr1Name, client.ContainerStartOptions{})
+	_, err = c.ContainerStart(ctx, ctr1Name, client.ContainerStartOptions{})
 	assert.Assert(t, is.Nil(err))
 
 	// Check that the containers ended up with different MAC addresses.
@@ -124,7 +124,7 @@ func TestCfgdMACAddrOnRestart(t *testing.T) {
 
 	startAndCheck := func() {
 		t.Helper()
-		err := c.ContainerStart(ctx, ctr1Name, client.ContainerStartOptions{})
+		_, err := c.ContainerStart(ctx, ctr1Name, client.ContainerStartOptions{})
 		assert.Assert(t, is.Nil(err))
 		inspect = container.Inspect(ctx, t, c, ctr1Name)
 		gotMAC = inspect.NetworkSettings.Networks[netName].MacAddress
@@ -132,12 +132,12 @@ func TestCfgdMACAddrOnRestart(t *testing.T) {
 	}
 
 	// Restart the container, check that the MAC address is restored.
-	err := c.ContainerStop(ctx, ctr1Name, client.ContainerStopOptions{})
+	_, err := c.ContainerStop(ctx, ctr1Name, client.ContainerStopOptions{})
 	assert.Assert(t, is.Nil(err))
 	startAndCheck()
 
 	// Restart the daemon, check that the MAC address is restored.
-	err = c.ContainerStop(ctx, ctr1Name, client.ContainerStopOptions{})
+	_, err = c.ContainerStop(ctx, ctr1Name, client.ContainerStopOptions{})
 	assert.Assert(t, is.Nil(err))
 	d.Restart(t)
 	startAndCheck()
@@ -294,7 +294,7 @@ func TestWatchtowerCreate(t *testing.T) {
 	}
 	id := createLegacyContainer(ctx, t, c, ctrMAC, opts...)
 	defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
-	err := c.ContainerStart(ctx, id, client.ContainerStartOptions{})
+	_, err := c.ContainerStart(ctx, id, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	// Check that the container got the expected addresses.

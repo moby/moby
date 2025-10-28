@@ -46,7 +46,7 @@ func TestCgroupDriverSystemdMemoryLimit(t *testing.T) {
 	})
 	defer c.ContainerRemove(ctx, ctrID, client.ContainerRemoveOptions{Force: true})
 
-	err := c.ContainerStart(ctx, ctrID, client.ContainerStartOptions{})
+	_, err := c.ContainerStart(ctx, ctrID, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	s, err := c.ContainerInspect(ctx, ctrID, client.ContainerInspectOptions{})

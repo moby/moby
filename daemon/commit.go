@@ -145,8 +145,10 @@ func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string,
 	}
 
 	if !c.NoPause && !container.State.IsPaused() {
-		daemon.containerPause(container)
-		defer daemon.containerUnpause(container)
+		_ = daemon.containerPause(container)
+		defer func() {
+			_ = daemon.containerUnpause(container)
+		}()
 	}
 
 	if c.Config == nil {
