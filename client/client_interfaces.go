@@ -191,7 +191,7 @@ type VolumeAPIClient interface {
 	VolumeInspect(ctx context.Context, volumeID string, options VolumeInspectOptions) (VolumeInspectResult, error)
 	VolumeList(ctx context.Context, options VolumeListOptions) (VolumeListResult, error)
 	VolumeRemove(ctx context.Context, volumeID string, options VolumeRemoveOptions) (VolumeRemoveResult, error)
-	VolumesPrune(ctx context.Context, opts VolumePruneOptions) (VolumePruneResult, error)
+	VolumesPrune(ctx context.Context, options VolumePruneOptions) (VolumePruneResult, error)
 	VolumeUpdate(ctx context.Context, volumeID string, options VolumeUpdateOptions) (VolumeUpdateResult, error)
 }
 
