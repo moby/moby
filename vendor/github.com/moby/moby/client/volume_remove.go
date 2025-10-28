@@ -5,17 +5,22 @@ import (
 	"net/url"
 )
 
-// VolumeRemoveOptions holds optional parameters for volume removal.
+// VolumeRemoveOptions holds options for [Client.VolumeRemove].
 type VolumeRemoveOptions struct {
 	// Force the removal of the volume
 	Force bool
 }
 
+// VolumeRemoveResult holds the result of [Client.VolumeRemove],
+type VolumeRemoveResult struct {
+	// Add future fields here.
+}
+
 // VolumeRemove removes a volume from the docker host.
-func (cli *Client) VolumeRemove(ctx context.Context, volumeID string, options VolumeRemoveOptions) error {
+func (cli *Client) VolumeRemove(ctx context.Context, volumeID string, options VolumeRemoveOptions) (VolumeRemoveResult, error) {
 	volumeID, err := trimID("volume", volumeID)
 	if err != nil {
-		return err
+		return VolumeRemoveResult{}, err
 	}
 
 	query := url.Values{}
@@ -24,5 +29,8 @@ func (cli *Client) VolumeRemove(ctx context.Context, volumeID string, options Vo
 	}
 	resp, err := cli.delete(ctx, "/volumes/"+volumeID, query, nil)
 	defer ensureReaderClosed(resp)
-	return err
+	if err != nil {
+		return VolumeRemoveResult{}, err
+	}
+	return VolumeRemoveResult{}, nil
 }

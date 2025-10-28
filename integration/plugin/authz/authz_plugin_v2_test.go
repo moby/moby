@@ -101,7 +101,7 @@ func TestAuthZPluginV2RejectVolumeRequests(t *testing.T) {
 	assert.ErrorContains(t, err, fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag))
 
 	// The plugin will block the command before it can determine the volume does not exist
-	err = c.VolumeRemove(ctx, "test", client.VolumeRemoveOptions{})
+	_, err = c.VolumeRemove(ctx, "test", client.VolumeRemoveOptions{})
 	assert.Assert(t, err != nil)
 	assert.ErrorContains(t, err, fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag))
 
