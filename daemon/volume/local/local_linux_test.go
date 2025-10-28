@@ -235,13 +235,15 @@ func TestVolCreateValidation(t *testing.T) {
 			}
 			v, err := r.Create(tc.name, tc.opts)
 			if v != nil {
-				defer assert.Check(t, r.Remove(v))
+				defer func() {
+					assert.Check(t, r.Remove(v))
+				}()
 			}
 			if tc.expectedErr == "" {
 				assert.NilError(t, err)
 			} else {
 				assert.Check(t, cerrdefs.IsInvalidArgument(err), "got: %T", err)
-				assert.ErrorContains(t, err, tc.expectedErr)
+				assert.Check(t, is.ErrorContains(err, tc.expectedErr))
 			}
 		})
 	}
