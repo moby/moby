@@ -27,11 +27,19 @@ var ErrProtocolNotAvailable = errors.New("protocol not available")
 // make sure you do it _after_ any subsequent calls to ConfigureTransport is made against the same
 // [http.Transport].
 func ConfigureTransport(tr *http.Transport, proto, addr string) error {
+	if tr.MaxIdleConns == 0 {
+		// prevent long-lived processes from leaking connections
+		// due to idle connections not being released.
+		//
+		// TODO: see if we can also address this from the server side; see: https://github.com/moby/moby/issues/45539
+		tr.MaxIdleConns = 6
+		tr.IdleConnTimeout = 30 * time.Second
+	}
 	switch proto {
 	case "unix":
-		return configureUnixTransport(tr, proto, addr)
+		return configureUnixTransport(tr, addr)
 	case "npipe":
-		return configureNpipeTransport(tr, proto, addr)
+		return configureNpipeTransport(tr, addr)
 	default:
 		tr.Proxy = http.ProxyFromEnvironment
 		tr.DisableCompression = false
@@ -42,15 +50,7 @@ func ConfigureTransport(tr *http.Transport, proto, addr string) error {
 	return nil
 }
 
-// DialPipe connects to a Windows named pipe. It is not supported on
-// non-Windows platforms.
-//
-// Deprecated: use [github.com/Microsoft/go-winio.DialPipe] or [github.com/Microsoft/go-winio.DialPipeContext].
-func DialPipe(addr string, timeout time.Duration) (net.Conn, error) {
-	return dialPipe(addr, timeout)
-}
-
-func configureUnixTransport(tr *http.Transport, proto, addr string) error {
+func configureUnixTransport(tr *http.Transport, addr string) error {
 	if len(addr) > maxUnixSocketPathSize {
 		return fmt.Errorf("unix socket path %q is too long", addr)
 	}
@@ -60,7 +60,7 @@ func configureUnixTransport(tr *http.Transport, proto, addr string) error {
 		Timeout: defaultTimeout,
 	}
 	tr.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
-		return dialer.DialContext(ctx, proto, addr)
+		return dialer.DialContext(ctx, "unix", addr)
 	}
 	return nil
 }
