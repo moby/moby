@@ -370,7 +370,7 @@ func (s *systemRouter) postAuth(ctx context.Context, w http.ResponseWriter, r *h
 	if err != nil {
 		return err
 	}
-	return httputils.WriteJSON(w, http.StatusOK, &registry.AuthenticateOKBody{
+	return httputils.WriteJSON(w, http.StatusOK, &registry.AuthResponse{
 		Status:        "Login Succeeded",
 		IdentityToken: token,
 	})

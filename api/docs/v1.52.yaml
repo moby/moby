@@ -2073,6 +2073,23 @@ definitions:
       password: "xxxx"
       serveraddress: "https://index.docker.io/v1/"
 
+  AuthResponse:
+    description: |
+      An identity token was generated successfully.
+    type: "object"
+    required: [Status]
+    properties:
+      Status:
+        description: "The status of the authentication"
+        type: "string"
+        example: "Login Succeeded"
+        x-nullable: false
+      IdentityToken:
+        description: "An opaque token used to authenticate a user after a successful login"
+        type: "string"
+        example: "9cbaf023786cd7..."
+        x-nullable: false
+
   ProcessConfig:
     type: "object"
     properties:
@@ -10023,22 +10040,7 @@ paths:
         200:
           description: "An identity token was generated successfully."
           schema:
-            type: "object"
-            title: "SystemAuthResponse"
-            required: [Status]
-            properties:
-              Status:
-                description: "The status of the authentication"
-                type: "string"
-                x-nullable: false
-              IdentityToken:
-                description: "An opaque token used to authenticate a user after a successful login"
-                type: "string"
-                x-nullable: false
-          examples:
-            application/json:
-              Status: "Login Succeeded"
-              IdentityToken: "9cbaf023786cd7..."
+            $ref: "#/definitions/AuthResponse"
         204:
           description: "No error"
         401:

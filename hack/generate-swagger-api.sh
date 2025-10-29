@@ -84,6 +84,10 @@ generate_model types/plugin <<- 'EOT'
 	PluginMount
 EOT
 
+generate_model types/registry <<- 'EOT'
+	AuthResponse
+EOT
+
 generate_model types/storage <<- 'EOT'
 	DriverData
 	RootFSStorage
