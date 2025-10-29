@@ -27,7 +27,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID))
 
 	reference := "repo/" + strings.ToLower(t.Name()) + ":v1"
-	exportRes, err := apiClient.ContainerExport(ctx, cID)
+	exportRes, err := apiClient.ContainerExport(ctx, cID, client.ContainerExportOptions{})
 	assert.NilError(t, err)
 	importRes, err := apiClient.ImageImport(ctx, client.ImageImportSource{
 		Source:     exportRes,
@@ -70,6 +70,6 @@ func TestExportContainerAfterDaemonRestart(t *testing.T) {
 
 	d.Restart(t)
 
-	_, err := c.ContainerExport(ctx, ctrID)
+	_, err := c.ContainerExport(ctx, ctrID, client.ContainerExportOptions{})
 	assert.NilError(t, err)
 }

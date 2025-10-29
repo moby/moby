@@ -17,14 +17,14 @@ func TestContainerExportError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerExport(context.Background(), "nothing")
+	_, err = client.ContainerExport(context.Background(), "nothing", ContainerExportOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ContainerExport(context.Background(), "")
+	_, err = client.ContainerExport(context.Background(), "", ContainerExportOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ContainerExport(context.Background(), "    ")
+	_, err = client.ContainerExport(context.Background(), "    ", ContainerExportOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -40,7 +40,7 @@ func TestContainerExport(t *testing.T) {
 		}),
 	)
 	assert.NilError(t, err)
-	body, err := client.ContainerExport(context.Background(), "container_id")
+	body, err := client.ContainerExport(context.Background(), "container_id", ContainerExportOptions{})
 	assert.NilError(t, err)
 	defer body.Close()
 	content, err := io.ReadAll(body)

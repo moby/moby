@@ -32,7 +32,7 @@ func TestNoOverlayfsWarningsAboutUndefinedBehaviors(t *testing.T) {
 			return err
 		}},
 		{name: "export", operation: func(*testing.T) error {
-			rc, err := apiClient.ContainerExport(ctx, cID)
+			rc, err := apiClient.ContainerExport(ctx, cID, client.ContainerExportOptions{})
 			if err == nil {
 				defer rc.Close()
 				_, err = io.Copy(io.Discard, rc)

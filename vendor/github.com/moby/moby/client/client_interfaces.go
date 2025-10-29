@@ -59,7 +59,7 @@ type ContainerAPIClient interface {
 	ContainerCreate(ctx context.Context, options ContainerCreateOptions) (ContainerCreateResult, error)
 	ContainerDiff(ctx context.Context, container string, options ContainerDiffOptions) (ContainerDiffResult, error)
 	ExecAPIClient
-	ContainerExport(ctx context.Context, container string) (io.ReadCloser, error)
+	ContainerExport(ctx context.Context, container string, options ContainerExportOptions) (ContainerExportResult, error)
 	ContainerInspect(ctx context.Context, container string, options ContainerInspectOptions) (ContainerInspectResult, error)
 	ContainerKill(ctx context.Context, container string, options ContainerKillOptions) (ContainerKillResult, error)
 	ContainerList(ctx context.Context, options ContainerListOptions) (ContainerListResult, error)
