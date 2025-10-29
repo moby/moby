@@ -7,20 +7,20 @@ generate_model() {
 	local package="$1"
 	shift
 	mapfile
-	swagger generate model --spec=api/swagger.yaml \
-		--target=api --model-package="$package" \
-		--config-file=api/swagger-gen.yaml \
-		--template-dir=api/templates --allow-template-override \
+	swagger generate model --spec=swagger.yaml \
+		--target=. --model-package="$package" \
+		--config-file=swagger-gen.yaml \
+		--template-dir=templates --allow-template-override \
 		"$@" \
 		$(printf -- '--name=%s ' "${MAPFILE[@]}")
 }
 
 generate_operation() {
 	mapfile
-	swagger generate operation --spec=api/swagger.yaml \
-		--target=api --api-package=types --model-package=types \
-		--config-file=api/swagger-gen.yaml \
-		--template-dir=api/templates --allow-template-override \
+	swagger generate operation --spec=swagger.yaml \
+		--target=. --api-package=types --model-package=types \
+		--config-file=swagger-gen.yaml \
+		--template-dir=templates --allow-template-override \
 		"$@" \
 		$(printf -- '--name=%s ' "${MAPFILE[@]}")
 }
