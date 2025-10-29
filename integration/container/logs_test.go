@@ -30,10 +30,8 @@ func TestLogsFollowTailEmpty(t *testing.T) {
 	id := container.Run(ctx, t, apiClient, container.WithCmd("sleep", "100000"))
 
 	logs, err := apiClient.ContainerLogs(ctx, id, client.ContainerLogsOptions{ShowStdout: true, Tail: "2"})
-	if logs != nil {
-		defer logs.Close()
-	}
 	assert.Check(t, err)
+	defer logs.Close()
 
 	_, err = stdcopy.StdCopy(io.Discard, io.Discard, logs)
 	assert.Check(t, err)
