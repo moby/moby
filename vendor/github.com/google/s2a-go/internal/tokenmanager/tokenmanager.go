@@ -23,7 +23,8 @@ import (
 	"fmt"
 	"os"
 
-	commonpb "github.com/google/s2a-go/internal/proto/common_go_proto"
+	commonpbv1 "github.com/google/s2a-go/internal/proto/common_go_proto"
+	commonpb "github.com/google/s2a-go/internal/proto/v2/common_go_proto"
 )
 
 const (
@@ -37,7 +38,7 @@ type AccessTokenManager interface {
 	DefaultToken() (token string, err error)
 	// Token returns a token that an application with local identity equal to
 	// identity must use to authenticate to S2A.
-	Token(identity *commonpb.Identity) (token string, err error)
+	Token(identity interface{}) (token string, err error)
 }
 
 type singleTokenAccessTokenManager struct {
@@ -65,6 +66,14 @@ func (m *singleTokenAccessTokenManager) DefaultToken() (string, error) {
 }
 
 // Token always returns the token managed by the singleTokenAccessTokenManager.
-func (m *singleTokenAccessTokenManager) Token(*commonpb.Identity) (string, error) {
+func (m *singleTokenAccessTokenManager) Token(identity interface{}) (string, error) {
+	switch v := identity.(type) {
+	case *commonpbv1.Identity:
+		// valid type.
+	case *commonpb.Identity:
+		// valid type.
+	default:
+		return "", fmt.Errorf("Incorrect identity type: %v", v)
+	}
 	return m.token, nil
 }

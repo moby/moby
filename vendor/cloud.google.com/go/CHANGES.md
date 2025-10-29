@@ -1,5 +1,75 @@
 # Changes
 
+## [0.115.1](https://github.com/googleapis/google-cloud-go/compare/v0.115.0...v0.115.1) (2024-08-13)
+
+
+### Bug Fixes
+
+* **cloud.google.com/go:** Bump google.golang.org/grpc@v1.64.1 ([8ecc4e9](https://github.com/googleapis/google-cloud-go/commit/8ecc4e9622e5bbe9b90384d5848ab816027226c5))
+
+## [0.115.0](https://github.com/googleapis/google-cloud-go/compare/v0.114.0...v0.115.0) (2024-06-12)
+
+
+### Features
+
+* **internal/trace:** Deprecate OpenCensus support ([#10287](https://github.com/googleapis/google-cloud-go/issues/10287)) ([430ce8a](https://github.com/googleapis/google-cloud-go/commit/430ce8adea2d0be43461e2ca783b7c17794e983f)), refs [#2205](https://github.com/googleapis/google-cloud-go/issues/2205) [#8655](https://github.com/googleapis/google-cloud-go/issues/8655)
+
+
+### Bug Fixes
+
+* **internal/postprocessor:** Use approved image tag ([#10341](https://github.com/googleapis/google-cloud-go/issues/10341)) ([a388fe5](https://github.com/googleapis/google-cloud-go/commit/a388fe5cf075d0af986861c70dcb7b9f97c31019))
+
+## [0.114.0](https://github.com/googleapis/google-cloud-go/compare/v0.113.0...v0.114.0) (2024-05-23)
+
+
+### Features
+
+* **civil:** Add Compare method to Date, Time, and DateTime ([#10193](https://github.com/googleapis/google-cloud-go/issues/10193)) ([c2920d7](https://github.com/googleapis/google-cloud-go/commit/c2920d7c9007a11d9232c628fba5496197deeba4))
+
+
+### Bug Fixes
+
+* **internal/postprocessor:** Add scopes to all appropriate commit lines ([#10192](https://github.com/googleapis/google-cloud-go/issues/10192)) ([c21399b](https://github.com/googleapis/google-cloud-go/commit/c21399bdc362c6c646c2c0f8c2c55903898e0eab))
+
+## [0.113.0](https://github.com/googleapis/google-cloud-go/compare/v0.112.2...v0.113.0) (2024-05-08)
+
+
+### Features
+
+* **civil:** Add Compare method to Date, Time, and DateTime ([#10010](https://github.com/googleapis/google-cloud-go/issues/10010)) ([34455c1](https://github.com/googleapis/google-cloud-go/commit/34455c15d62b089f3281ff4c663245e72b257f37))
+
+
+### Bug Fixes
+
+* **all:** Bump x/net to v0.24.0 ([#10000](https://github.com/googleapis/google-cloud-go/issues/10000)) ([ba31ed5](https://github.com/googleapis/google-cloud-go/commit/ba31ed5fda2c9664f2e1cf972469295e63deb5b4))
+* **debugger:** Add internaloption.WithDefaultEndpointTemplate ([3b41408](https://github.com/googleapis/google-cloud-go/commit/3b414084450a5764a0248756e95e13383a645f90))
+* **internal/aliasfix:** Handle import paths correctly ([#10097](https://github.com/googleapis/google-cloud-go/issues/10097)) ([fafaf0d](https://github.com/googleapis/google-cloud-go/commit/fafaf0d0a293096559a4655ea61062cb896f1568))
+* **rpcreplay:** Properly unmarshal dynamic message ([#9774](https://github.com/googleapis/google-cloud-go/issues/9774)) ([53ccb20](https://github.com/googleapis/google-cloud-go/commit/53ccb20d925ccb00f861958d9658b55738097dc6)), refs [#9773](https://github.com/googleapis/google-cloud-go/issues/9773)
+
+
+### Documentation
+
+* **testing:** Switch deprecated WithInsecure to WithTransportCredentials ([#10091](https://github.com/googleapis/google-cloud-go/issues/10091)) ([2b576ab](https://github.com/googleapis/google-cloud-go/commit/2b576abd1c3bfca2f962de0e024524f72d3652c0))
+
+## [0.112.2](https://github.com/googleapis/google-cloud-go/compare/v0.112.1...v0.112.2) (2024-03-27)
+
+
+### Bug Fixes
+
+* **all:** Release protobuf dep bump ([#9586](https://github.com/googleapis/google-cloud-go/issues/9586)) ([30b038d](https://github.com/googleapis/google-cloud-go/commit/30b038d8cac0b8cd5dd4761c87f3f298760dd33a))
+
+## [0.112.1](https://github.com/googleapis/google-cloud-go/compare/v0.112.0...v0.112.1) (2024-02-26)
+
+
+### Bug Fixes
+
+* **internal/postprocessor:** Handle googleapis link in commit body ([#9251](https://github.com/googleapis/google-cloud-go/issues/9251)) ([1dd3515](https://github.com/googleapis/google-cloud-go/commit/1dd35157bff871a2b3e5b0e3cac33502737fd631))
+
+
+### Documentation
+
+* **main:** Add OpenTelemetry-Go compatibility warning to debug.md ([#9268](https://github.com/googleapis/google-cloud-go/issues/9268)) ([18f9bb9](https://github.com/googleapis/google-cloud-go/commit/18f9bb94fbc239255a873b29462fc7c2eac3c0aa)), refs [#9267](https://github.com/googleapis/google-cloud-go/issues/9267)
+
 ## [0.112.0](https://github.com/googleapis/google-cloud-go/compare/v0.111.0...v0.112.0) (2024-01-11)
 
 

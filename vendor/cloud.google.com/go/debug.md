@@ -1,8 +1,8 @@
 # Logging, Debugging and Telemetry
 
-**Warning:The OpenCensus project is obsolete and was archived on July 31st,
+**Warning: The OpenCensus project is obsolete and was archived on July 31st,
 2023.** This means that any security vulnerabilities that are found will not be
-patched. We recommend that you begin migrating to OpenCensus tracing to
+patched. We recommend that you migrate from OpenCensus tracing to
 OpenTelemetry, the successor project. See [OpenCensus](#opencensus) below for
 details.
 
@@ -16,7 +16,7 @@ into a system's health.
 
 ## Logging and debugging
 
-While working with the Go Client libraries you may run into some situations
+While working with the Go Client Libraries you may run into some situations
 where you need a deeper level of understanding about what is going on in order
 to solve your problem. Here are some tips and tricks that you can use in these
 cases. *Note* that many of the tips in this section will have a performance
@@ -179,17 +179,18 @@ func main() {
 
 ## Telemetry
 
-**Warning:The OpenCensus project is obsolete and was archived on July 31st,
+**Warning: The OpenCensus project is obsolete and was archived on July 31st,
 2023.** This means that any security vulnerabilities that are found will not be
-patched. We recommend that you begin migrating to OpenCensus tracing to
-OpenTelemetry, the successor project. See [OpenCensus](#opencensus) below for
-details.
+patched. We recommend that you migrate from OpenCensus tracing to
+OpenTelemetry, the successor project. The default experimental tracing support
+for OpenCensus is now deprecated in the Google Cloud client libraries for Go.
+See [OpenCensus](#opencensus) below for details.
 
-The Google Cloud client libraries for Go still use the OpenCensus project by
-default. However, opt-in support for
-[OpenTelemetry](https://opentelemetry.io/docs/what-is-opentelemetry/) is now
-available. The transition from OpenCensus to OpenTelemetry is covered in the
-following sections.
+The Google Cloud client libraries for Go now use the
+[OpenTelemetry](https://opentelemetry.io/docs/what-is-opentelemetry/) project by
+default. Temporary opt-in support for OpenCensus is still available. The
+transition from OpenCensus to OpenTelemetry is covered in the following
+sections.
 
 ### Tracing (experimental)
 
@@ -204,17 +205,18 @@ hand-written clients are in scope for the discussion in this section:
 * [cloud.google.com/go/spanner](https://pkg.go.dev/cloud.google.com/go/spanner)
 * [cloud.google.com/go/storage](https://pkg.go.dev/cloud.google.com/go/storage)
 
-Currently, the spans created by these clients are for OpenCensus. However,
-OpenCensus users are urged to transition to OpenTelemetry as soon as possible,
-as explained in the next section. OpenTelemetry users can opt-in to experimental
-OpenTelemetry support via an environment variable, as described below.
+Currently, the spans created by these clients are for OpenTelemetry. OpenCensus
+users are urged to transition to OpenTelemetry as soon as possible, as explained
+in the next section. OpenCensus users can still opt-in to the deprecated
+OpenCensus support via an environment variable, as described below.
 
 #### OpenCensus
 
-**Warning:The OpenCensus project is obsolete and was archived on July 31st,
+**Warning: The OpenCensus project is obsolete and was archived on July 31st,
 2023.** This means that any security vulnerabilities that are found will not be
-patched. We recommend that you begin migrating to OpenCensus tracing to
-OpenTelemetry, the successor project.
+patched. We recommend that you migrate from OpenCensus tracing to
+OpenTelemetry, the successor project. The default experimental tracing support
+for OpenCensus is now deprecated in the Google Cloud client libraries for Go.
 
 Using the [OpenTelemetry-Go - OpenCensus Bridge](https://pkg.go.dev/go.opentelemetry.io/otel/bridge/opencensus), you can immediately begin exporting your traces with OpenTelemetry, even while
 dependencies of your application remain instrumented with OpenCensus. If you do
@@ -226,9 +228,9 @@ instrumentation are used.
 On May 29, 2024, six months after the
 [release](https://github.com/googleapis/google-cloud-go/releases/tag/v0.111.0)
 of experimental, opt-in support for OpenTelemetry tracing, the default tracing
-support in the clients above will change from OpenCensus to OpenTelemetry, and
-the experimental OpenCensus support will be marked as deprecated. To continue
-using the OpenCensus support after this change, set the environment variable
+support in the clients above was changed from OpenCensus to OpenTelemetry, and
+the experimental OpenCensus support was marked as deprecated. To continue
+using the OpenCensus support, set the environment variable
 `GOOGLE_API_GO_EXPERIMENTAL_TELEMETRY_PLATFORM_TRACING` to the case-insensitive
 value `opencensus` before loading the client library.
 
@@ -252,17 +254,20 @@ Please refer to the following resources:
 
 #### OpenTelemetry
 
-To opt-in to experimental OpenTelemetry tracing currently available in the
-clients listed above, set the environment variable
-`GOOGLE_API_GO_EXPERIMENTAL_TELEMETRY_PLATFORM_TRACING` to the case-insensitive
-value `opentelemetry` before loading the client library.
+The default experimental tracing support for OpenCensus is now deprecated in the
+Google Cloud client libraries for Go.
 
-```sh
-export GOOGLE_API_GO_EXPERIMENTAL_TELEMETRY_PLATFORM_TRACING=opentelemetry
-```
+On May 29, 2024, the default experimental tracing support in the Google Cloud
+client libraries for Go was changed from OpenCensus to OpenTelemetry.
 
-On May 29, 2024, the default tracing support will change from OpenCensus to
-OpenTelemetry, and this environment variable will no longer be needed.
+**Warning: OpenTelemetry-Go ensures
+[compatibility](https://github.com/open-telemetry/opentelemetry-go/tree/main?tab=readme-ov-file#compatibility)
+with ONLY the current supported versions of the [Go
+language](https://go.dev/doc/devel/release#policy). This support may be narrower
+than the support that has been offered historically by the Go Client Libraries.
+Ensure that your Go runtime version is supported by the OpenTelemetry-Go
+[compatibility](https://github.com/open-telemetry/opentelemetry-go/tree/main?tab=readme-ov-file#compatibility)
+policy before enabling OpenTelemetry instrumentation.**
 
 Please refer to the following resources:
 
@@ -332,7 +337,6 @@ func main() {
 
 ```
 
-
 ##### Configuring context propagation
 
 In order to pass options to OpenTelemetry trace context propagation, follow the
@@ -378,7 +382,6 @@ if err != nil {
 }
 defer c.Close()
 ```
-
 
 ### Metrics (experimental)
 

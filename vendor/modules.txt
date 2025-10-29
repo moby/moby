@@ -1,17 +1,36 @@
-# cloud.google.com/go v0.112.0
-## explicit; go 1.19
+# cloud.google.com/go v0.115.1
+## explicit; go 1.20
 cloud.google.com/go
+# cloud.google.com/go/auth v0.9.0
+## explicit; go 1.21
+cloud.google.com/go/auth
+cloud.google.com/go/auth/credentials
+cloud.google.com/go/auth/credentials/internal/externalaccount
+cloud.google.com/go/auth/credentials/internal/externalaccountuser
+cloud.google.com/go/auth/credentials/internal/gdch
+cloud.google.com/go/auth/credentials/internal/impersonate
+cloud.google.com/go/auth/credentials/internal/stsexchange
+cloud.google.com/go/auth/grpctransport
+cloud.google.com/go/auth/httptransport
+cloud.google.com/go/auth/internal
+cloud.google.com/go/auth/internal/credsfile
+cloud.google.com/go/auth/internal/jwt
+cloud.google.com/go/auth/internal/transport
+cloud.google.com/go/auth/internal/transport/cert
+# cloud.google.com/go/auth/oauth2adapt v0.2.4
+## explicit; go 1.20
+cloud.google.com/go/auth/oauth2adapt
 # cloud.google.com/go/compute/metadata v0.7.0
 ## explicit; go 1.23.0
 cloud.google.com/go/compute/metadata
-# cloud.google.com/go/logging v1.9.0
-## explicit; go 1.19
+# cloud.google.com/go/logging v1.11.0
+## explicit; go 1.20
 cloud.google.com/go/logging
 cloud.google.com/go/logging/apiv2
 cloud.google.com/go/logging/apiv2/loggingpb
 cloud.google.com/go/logging/internal
-# cloud.google.com/go/longrunning v0.5.5
-## explicit; go 1.19
+# cloud.google.com/go/longrunning v0.6.0
+## explicit; go 1.21
 cloud.google.com/go/longrunning
 cloud.google.com/go/longrunning/autogen
 cloud.google.com/go/longrunning/autogen/longrunningpb
@@ -599,10 +618,7 @@ github.com/golang/protobuf/jsonpb
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/protoc-gen-go
 github.com/golang/protobuf/protoc-gen-go/descriptor
-github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
-github.com/golang/protobuf/ptypes/duration
-github.com/golang/protobuf/ptypes/struct
 github.com/golang/protobuf/ptypes/timestamp
 github.com/golang/protobuf/ptypes/wrappers
 # github.com/google/btree v1.1.3
@@ -626,8 +642,8 @@ github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
 github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
-# github.com/google/s2a-go v0.1.7
-## explicit; go 1.19
+# github.com/google/s2a-go v0.1.8
+## explicit; go 1.20
 github.com/google/s2a-go
 github.com/google/s2a-go/fallback
 github.com/google/s2a-go/internal/authinfo
@@ -659,13 +675,14 @@ github.com/google/uuid
 ## explicit; go 1.19
 github.com/googleapis/enterprise-certificate-proxy/client
 github.com/googleapis/enterprise-certificate-proxy/client/util
-# github.com/googleapis/gax-go/v2 v2.12.0
-## explicit; go 1.19
+# github.com/googleapis/gax-go/v2 v2.13.0
+## explicit; go 1.20
 github.com/googleapis/gax-go/v2
 github.com/googleapis/gax-go/v2/apierror
 github.com/googleapis/gax-go/v2/apierror/internal/proto
 github.com/googleapis/gax-go/v2/callctx
 github.com/googleapis/gax-go/v2/internal
+github.com/googleapis/gax-go/v2/iterator
 # github.com/gorilla/mux v1.8.1
 ## explicit; go 1.20
 github.com/gorilla/mux
@@ -1552,8 +1569,8 @@ golang.org/x/tools/internal/stdlib
 golang.org/x/tools/internal/typeparams
 golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/versions
-# google.golang.org/api v0.160.0
-## explicit; go 1.19
+# google.golang.org/api v0.193.0
+## explicit; go 1.21
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/transport
 google.golang.org/api/internal
@@ -1567,8 +1584,8 @@ google.golang.org/api/support/bundler
 google.golang.org/api/transport/grpc
 google.golang.org/api/transport/http
 google.golang.org/api/transport/http/internal/propagation
-# google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de
-## explicit; go 1.19
+# google.golang.org/genproto v0.0.0-20240903143218-8af14fe29dc1
+## explicit; go 1.21
 google.golang.org/genproto/googleapis/logging/type
 # google.golang.org/genproto/googleapis/api v0.0.0-20250218202821-56aae31c358a
 ## explicit; go 1.22

@@ -60,6 +60,7 @@ func defaultOperationsGRPCClientOptions() []option.ClientOption {
 		internaloption.WithDefaultAudience("https://longrunning.googleapis.com/"),
 		internaloption.WithDefaultScopes(DefaultAuthScopes()...),
 		internaloption.EnableJwtWithScope(),
+		internaloption.EnableNewAuthLibrary(),
 		option.WithGRPCDialOption(grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(math.MaxInt32))),
 	}
@@ -351,7 +352,9 @@ func (c *operationsGRPCClient) Connection() *grpc.ClientConn {
 func (c *operationsGRPCClient) setGoogleClientInfo(keyval ...string) {
 	kv := append([]string{"gl-go", gax.GoVersion}, keyval...)
 	kv = append(kv, "gapic", getVersionClient(), "gax", gax.Version, "grpc", grpc.Version)
-	c.xGoogHeaders = []string{"x-goog-api-client", gax.XGoogHeader(kv...)}
+	c.xGoogHeaders = []string{
+		"x-goog-api-client", gax.XGoogHeader(kv...),
+	}
 }
 
 // Close closes the connection to the API service. The user should invoke this when
@@ -412,6 +415,7 @@ func defaultOperationsRESTClientOptions() []option.ClientOption {
 		internaloption.WithDefaultUniverseDomain("googleapis.com"),
 		internaloption.WithDefaultAudience("https://longrunning.googleapis.com/"),
 		internaloption.WithDefaultScopes(DefaultAuthScopes()...),
+		internaloption.EnableNewAuthLibrary(),
 	}
 }
 
@@ -421,7 +425,9 @@ func defaultOperationsRESTClientOptions() []option.ClientOption {
 func (c *operationsRESTClient) setGoogleClientInfo(keyval ...string) {
 	kv := append([]string{"gl-go", gax.GoVersion}, keyval...)
 	kv = append(kv, "gapic", getVersionClient(), "gax", gax.Version, "rest", "UNKNOWN")
-	c.xGoogHeaders = []string{"x-goog-api-client", gax.XGoogHeader(kv...)}
+	c.xGoogHeaders = []string{
+		"x-goog-api-client", gax.XGoogHeader(kv...),
+	}
 }
 
 // Close closes the connection to the API service. The user should invoke this when
@@ -815,11 +821,11 @@ func (c *operationsRESTClient) WaitOperation(ctx context.Context, req *longrunni
 		params.Add("name", fmt.Sprintf("%v", req.GetName()))
 	}
 	if req.GetTimeout() != nil {
-		timeout, err := protojson.Marshal(req.GetTimeout())
+		field, err := protojson.Marshal(req.GetTimeout())
 		if err != nil {
 			return nil, err
 		}
-		params.Add("timeout", string(timeout[1:len(timeout)-1]))
+		params.Add("timeout", string(field[1:len(field)-1]))
 	}
 
 	baseUrl.RawQuery = params.Encode()
