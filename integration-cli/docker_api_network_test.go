@@ -236,7 +236,7 @@ func createNetwork(t *testing.T, config network.CreateRequest, expectedStatusCod
 }
 
 func connectNetwork(t *testing.T, nid, cid string) {
-	resp, _, err := request.Post(testutil.GetContext(t), "/networks/"+nid+"/connect", request.JSONBody(client.NetworkConnectOptions{
+	resp, _, err := request.Post(testutil.GetContext(t), "/networks/"+nid+"/connect", request.JSONBody(network.ConnectRequest{
 		Container: cid,
 	}))
 	assert.NilError(t, err)
