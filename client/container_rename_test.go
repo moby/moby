@@ -14,14 +14,14 @@ import (
 func TestContainerRenameError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	err = client.ContainerRename(context.Background(), "nothing", "newNothing")
+	_, err = client.ContainerRename(context.Background(), "nothing", ContainerRenameOptions{NewName: "newNothing"})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.ContainerRename(context.Background(), "", "newNothing")
+	_, err = client.ContainerRename(context.Background(), "", ContainerRenameOptions{NewName: "newNothing"})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.ContainerRename(context.Background(), "    ", "newNothing")
+	_, err = client.ContainerRename(context.Background(), "    ", ContainerRenameOptions{NewName: "newNothing"})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -40,6 +40,6 @@ func TestContainerRename(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	err = client.ContainerRename(context.Background(), "container_id", "newName")
+	_, err = client.ContainerRename(context.Background(), "container_id", ContainerRenameOptions{NewName: "newName"})
 	assert.NilError(t, err)
 }

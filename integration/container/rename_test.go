@@ -27,7 +27,7 @@ func TestRenameLinkedContainer(t *testing.T) {
 	aID := container.Run(ctx, t, apiClient, container.WithName(aName))
 	bID := container.Run(ctx, t, apiClient, container.WithName(bName), container.WithLinks(aName))
 
-	err := apiClient.ContainerRename(ctx, aID, "a1"+t.Name())
+	_, err := apiClient.ContainerRename(ctx, aID, client.ContainerRenameOptions{NewName: "a1" + t.Name()})
 	assert.NilError(t, err)
 
 	container.Run(ctx, t, apiClient, container.WithName(aName))
@@ -54,7 +54,7 @@ func TestRenameStoppedContainer(t *testing.T) {
 	assert.Check(t, is.Equal("/"+oldName, inspect.Container.Name))
 
 	newName := "new_name" + cID // using cID as random suffix
-	err = apiClient.ContainerRename(ctx, oldName, newName)
+	_, err = apiClient.ContainerRename(ctx, oldName, client.ContainerRenameOptions{NewName: newName})
 	assert.NilError(t, err)
 
 	inspect, err = apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
@@ -70,7 +70,7 @@ func TestRenameRunningContainerAndReuse(t *testing.T) {
 	cID := container.Run(ctx, t, apiClient, container.WithName(oldName))
 
 	newName := "new_name" + cID // using cID as random suffix
-	err := apiClient.ContainerRename(ctx, oldName, newName)
+	_, err := apiClient.ContainerRename(ctx, oldName, client.ContainerRenameOptions{NewName: newName})
 	assert.NilError(t, err)
 
 	inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
@@ -94,7 +94,7 @@ func TestRenameInvalidName(t *testing.T) {
 	oldName := "first_name" + t.Name()
 	cID := container.Run(ctx, t, apiClient, container.WithName(oldName))
 
-	err := apiClient.ContainerRename(ctx, oldName, "new:invalid")
+	_, err := apiClient.ContainerRename(ctx, oldName, client.ContainerRenameOptions{NewName: "new:invalid"})
 	assert.Check(t, is.ErrorContains(err, "Invalid container name"))
 
 	inspect, err := apiClient.ContainerInspect(ctx, oldName, client.ContainerInspectOptions{})
@@ -125,7 +125,7 @@ func TestRenameAnonymousContainer(t *testing.T) {
 	})
 
 	container1Name := "container1" + t.Name()
-	err = apiClient.ContainerRename(ctx, cID, container1Name)
+	_, err = apiClient.ContainerRename(ctx, cID, client.ContainerRenameOptions{NewName: container1Name})
 	assert.NilError(t, err)
 	// Stop/Start the container to get registered
 	// FIXME(vdemeester) this is a really weird behavior as it fails otherwise
@@ -158,9 +158,9 @@ func TestRenameContainerWithSameName(t *testing.T) {
 
 	oldName := "old" + t.Name()
 	cID := container.Run(ctx, t, apiClient, container.WithName(oldName))
-	err := apiClient.ContainerRename(ctx, oldName, oldName)
+	_, err := apiClient.ContainerRename(ctx, oldName, client.ContainerRenameOptions{NewName: oldName})
 	assert.Check(t, is.ErrorContains(err, "Renaming a container with the same name"))
-	err = apiClient.ContainerRename(ctx, cID, oldName)
+	_, err = apiClient.ContainerRename(ctx, cID, client.ContainerRenameOptions{NewName: oldName})
 	assert.Check(t, is.ErrorContains(err, "Renaming a container with the same name"))
 }
 
@@ -183,7 +183,7 @@ func TestRenameContainerWithLinkedContainer(t *testing.T) {
 	app2Name := "app2" + t.Name()
 	container.Run(ctx, t, apiClient, container.WithName(app1Name), container.WithLinks(db1Name+":/mysql"))
 
-	err := apiClient.ContainerRename(ctx, app1Name, app2Name)
+	_, err := apiClient.ContainerRename(ctx, app1Name, client.ContainerRenameOptions{NewName: app2Name})
 	assert.NilError(t, err)
 
 	inspect, err := apiClient.ContainerInspect(ctx, app2Name+"/mysql", client.ContainerInspectOptions{})
@@ -204,11 +204,11 @@ func TestRenameContainerTwice(t *testing.T) {
 		})
 	}()
 
-	err := apiClient.ContainerRename(ctx, "c0", "c1")
+	_, err := apiClient.ContainerRename(ctx, "c0", client.ContainerRenameOptions{NewName: "c1"})
 	assert.NilError(t, err)
 	ctrName = "c1"
 
-	err = apiClient.ContainerRename(ctx, "c1", "c2")
+	_, err = apiClient.ContainerRename(ctx, "c1", client.ContainerRenameOptions{NewName: "c2"})
 	assert.NilError(t, err)
 	ctrName = "c2"
 }
