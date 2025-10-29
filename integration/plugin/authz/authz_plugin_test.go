@@ -362,7 +362,7 @@ func TestAuthZPluginEnsureLoadImportWorking(t *testing.T) {
 
 	cID := container.Run(ctx, t, c)
 
-	responseReader, err := c.ContainerExport(ctx, cID)
+	responseReader, err := c.ContainerExport(ctx, cID, client.ContainerExportOptions{})
 	assert.NilError(t, err)
 	defer responseReader.Close()
 	file, err := os.Create(exportedImagePath)
