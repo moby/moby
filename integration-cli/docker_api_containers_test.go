@@ -823,9 +823,9 @@ func (s *DockerAPISuite) TestContainerAPIWait(c *testing.T) {
 	wait := apiClient.ContainerWait(testutil.GetContext(c), name, client.ContainerWaitOptions{})
 
 	select {
-	case err = <-wait.Errors:
+	case err = <-wait.Error:
 		assert.NilError(c, err)
-	case waitRes := <-wait.Results:
+	case waitRes := <-wait.Result:
 		assert.Equal(c, waitRes.StatusCode, int64(0))
 	}
 }

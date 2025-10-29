@@ -47,9 +47,9 @@ func TestWaitNonBlocked(t *testing.T) {
 
 			wait := cli.ContainerWait(ctx, containerID, client.ContainerWaitOptions{})
 			select {
-			case err := <-wait.Errors:
+			case err := <-wait.Error:
 				assert.NilError(t, err)
-			case waitRes := <-wait.Results:
+			case waitRes := <-wait.Result:
 				assert.Check(t, is.Equal(tc.expectedCode, waitRes.StatusCode))
 			}
 		})
@@ -91,9 +91,9 @@ func TestWaitBlocked(t *testing.T) {
 			assert.NilError(t, err)
 
 			select {
-			case err := <-wait.Errors:
+			case err := <-wait.Error:
 				assert.NilError(t, err)
-			case waitRes := <-wait.Results:
+			case waitRes := <-wait.Result:
 				assert.Check(t, is.Equal(tc.expectedCode, waitRes.StatusCode))
 			case <-time.After(2 * time.Second):
 				t.Fatal("timeout waiting for `docker wait`")
@@ -152,9 +152,9 @@ func TestWaitConditions(t *testing.T) {
 			assert.NilError(t, err)
 			wait := cli.ContainerWait(ctx, containerID, client.ContainerWaitOptions{Condition: tc.waitCond})
 			select {
-			case err := <-wait.Errors:
+			case err := <-wait.Error:
 				t.Fatalf("ContainerWait() err = %v", err)
-			case res := <-wait.Results:
+			case res := <-wait.Result:
 				t.Fatalf("ContainerWait() sent exit code (%v) before ContainerStart()", res)
 			default:
 			}
@@ -166,9 +166,9 @@ func TestWaitConditions(t *testing.T) {
 			assert.NilError(t, err)
 
 			select {
-			case err := <-wait.Errors:
+			case err := <-wait.Error:
 				assert.NilError(t, err)
-			case waitRes := <-wait.Results:
+			case waitRes := <-wait.Result:
 				assert.Check(t, is.Equal(int64(99), waitRes.StatusCode))
 			case <-time.After(StopContainerWindowsPollTimeout):
 				ctr, _ := cli.ContainerInspect(ctx, containerID, client.ContainerInspectOptions{})
@@ -229,11 +229,11 @@ func TestWaitRestartedContainer(t *testing.T) {
 			assert.NilError(t, err)
 
 			select {
-			case err := <-wait.Errors:
+			case err := <-wait.Error:
 				t.Fatalf("Unexpected error: %v", err)
 			case <-time.After(time.Second * 3):
 				t.Fatalf("Wait should end after restart")
-			case waitRes := <-wait.Results:
+			case waitRes := <-wait.Result:
 				expectedCode := int64(5)
 
 				if !isWindowDaemon {
