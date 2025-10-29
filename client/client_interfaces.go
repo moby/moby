@@ -66,7 +66,7 @@ type ContainerAPIClient interface {
 	ContainerLogs(ctx context.Context, container string, options ContainerLogsOptions) (io.ReadCloser, error)
 	ContainerPause(ctx context.Context, container string, options ContainerPauseOptions) (ContainerPauseResult, error)
 	ContainerRemove(ctx context.Context, container string, options ContainerRemoveOptions) (ContainerRemoveResult, error)
-	ContainerRename(ctx context.Context, container, newContainerName string) error
+	ContainerRename(ctx context.Context, container string, options ContainerRenameOptions) (ContainerRenameResult, error)
 	ContainerResize(ctx context.Context, container string, options ContainerResizeOptions) (ContainerResizeResult, error)
 	ContainerRestart(ctx context.Context, container string, options ContainerRestartOptions) (ContainerRestartResult, error)
 	ContainerStatPath(ctx context.Context, container, path string) (container.PathStat, error)
