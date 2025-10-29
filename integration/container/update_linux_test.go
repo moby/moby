@@ -37,8 +37,8 @@ func TestUpdateMemory(t *testing.T) {
 		setMemorySwap int64 = 524288000
 	)
 
-	_, err := apiClient.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
-		Resources: containertypes.Resources{
+	_, err := apiClient.ContainerUpdate(ctx, cID, client.ContainerUpdateOptions{
+		Resources: &containertypes.Resources{
 			Memory:     setMemory,
 			MemorySwap: setMemorySwap,
 		},
@@ -100,16 +100,16 @@ func TestUpdateCPUQuota(t *testing.T) {
 			// On v2, specifying CPUQuota without CPUPeriod is currently broken:
 			// https://github.com/opencontainers/runc/issues/2456
 			// As a workaround we set them together.
-			_, err := apiClient.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
-				Resources: containertypes.Resources{
+			_, err := apiClient.ContainerUpdate(ctx, cID, client.ContainerUpdateOptions{
+				Resources: &containertypes.Resources{
 					CPUQuota:  test.update,
 					CPUPeriod: 100000,
 				},
 			})
 			assert.NilError(t, err)
 		} else {
-			_, err := apiClient.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
-				Resources: containertypes.Resources{
+			_, err := apiClient.ContainerUpdate(ctx, cID, client.ContainerUpdateOptions{
+				Resources: &containertypes.Resources{
 					CPUQuota: test.update,
 				},
 			})
@@ -185,8 +185,8 @@ func TestUpdatePidsLimit(t *testing.T) {
 			// Using "network=host" to speed up creation (13.96s vs 6.54s)
 			cID := container.Run(ctx, t, apiClient, container.WithPidsLimit(test.initial), container.WithNetworkMode("host"))
 
-			_, err := c.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
-				Resources: containertypes.Resources{
+			_, err := c.ContainerUpdate(ctx, cID, client.ContainerUpdateOptions{
+				Resources: &containertypes.Resources{
 					PidsLimit: test.update,
 				},
 			})
