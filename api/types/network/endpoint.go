@@ -1,10 +1,35 @@
 package network
 
 import (
+	"encoding/json"
 	"maps"
+	"net"
 	"net/netip"
 	"slices"
 )
+
+type MACAddress net.HardwareAddr
+
+func (m MACAddress) String() string {
+	return net.HardwareAddr(m).String()
+}
+
+func (m MACAddress) MarshalJSON() ([]byte, error) {
+	return json.Marshal(m.String())
+}
+
+func (m *MACAddress) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	addr, err := net.ParseMAC(s)
+	if err != nil {
+		return err
+	}
+	*m = MACAddress(addr)
+	return nil
+}
 
 // EndpointSettings stores the network endpoint details
 type EndpointSettings struct {
@@ -30,7 +55,7 @@ type EndpointSettings struct {
 	// MacAddress may be used to specify a MAC address when the container is created.
 	// Once the container is running, it becomes operational data (it may contain a
 	// generated address).
-	MacAddress          string
+    MacAddress          MACAddress `json:",omitempty"`
 	IPPrefixLen         int
 	IPv6Gateway         netip.Addr
 	GlobalIPv6Address   netip.Addr
