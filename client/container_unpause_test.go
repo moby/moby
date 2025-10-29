@@ -10,7 +10,7 @@ import (
 )
 
 func TestContainerUnpauseError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	_, err = client.ContainerUnpause(t.Context(), "nothing", ContainerUnpauseOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
@@ -26,7 +26,7 @@ func TestContainerUnpauseError(t *testing.T) {
 
 func TestContainerUnpause(t *testing.T) {
 	const expectedURL = "/containers/container_id/unpause"
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}

@@ -14,7 +14,7 @@ import (
 )
 
 func TestImageSaveError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	armv64 := ocispec.Platform{Architecture: "arm64", OS: "linux", Variant: "v8"}
 	_, err = client.ImageSave(context.Background(), []string{"nothing"}, ImageSaveWithPlatforms(armv64))
@@ -63,7 +63,7 @@ func TestImageSave(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 				assert.Check(t, assertRequest(req, http.MethodGet, expectedURL))
 				assert.Check(t, is.DeepEqual(req.URL.Query(), tc.expectedQueryParams))
 				return mockResponse(http.StatusOK, nil, expectedOutput)(req)

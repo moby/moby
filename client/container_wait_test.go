@@ -19,7 +19,7 @@ import (
 )
 
 func TestContainerWaitError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	wait := client.ContainerWait(t.Context(), "nothing", ContainerWaitOptions{})
 	select {
@@ -35,7 +35,7 @@ func TestContainerWaitError(t *testing.T) {
 //
 // Regression test for https://github.com/docker/cli/issues/4890
 func TestContainerWaitConnectionError(t *testing.T) {
-	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	client, err := New(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
 	wait := client.ContainerWait(t.Context(), "nothing", ContainerWaitOptions{})
@@ -49,7 +49,7 @@ func TestContainerWaitConnectionError(t *testing.T) {
 
 func TestContainerWait(t *testing.T) {
 	const expectedURL = "/containers/container_id/wait"
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}
@@ -74,7 +74,7 @@ func TestContainerWaitProxyInterrupt(t *testing.T) {
 		expErr      = "copying response body from Docker: unexpected EOF"
 	)
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}
@@ -94,7 +94,7 @@ func TestContainerWaitProxyInterrupt(t *testing.T) {
 func TestContainerWaitProxyInterruptLong(t *testing.T) {
 	const expectedURL = "/containers/container_id/wait"
 	msg := strings.Repeat("x", containerWaitErrorMsgLimit*5)
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}
@@ -127,7 +127,7 @@ func TestContainerWaitErrorHandling(t *testing.T) {
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
-			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 				return &http.Response{
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(test.rdr),
@@ -152,7 +152,7 @@ func ExampleClient_ContainerWait_withTimeout() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	client, _ := NewClientWithOpts(FromEnv)
+	client, _ := New(FromEnv)
 	wait := client.ContainerWait(ctx, "container_id", ContainerWaitOptions{})
 	if err := <-wait.Error; err != nil {
 		log.Fatal(err)

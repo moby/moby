@@ -63,7 +63,7 @@ func TestVolumePrune(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 				if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 					return nil, err
 				}

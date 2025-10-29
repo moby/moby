@@ -11,7 +11,7 @@ import (
 )
 
 func TestContainerStopError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	_, err = client.ContainerStop(t.Context(), "container_id", ContainerStopOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
@@ -30,7 +30,7 @@ func TestContainerStopError(t *testing.T) {
 //
 // Regression test for https://github.com/docker/cli/issues/4890
 func TestContainerStopConnectionError(t *testing.T) {
-	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	client, err := New(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
 	_, err = client.ContainerStop(t.Context(), "container_id", ContainerStopOptions{})
@@ -39,7 +39,7 @@ func TestContainerStopConnectionError(t *testing.T) {
 
 func TestContainerStop(t *testing.T) {
 	const expectedURL = "/containers/container_id/stop"
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}

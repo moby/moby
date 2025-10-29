@@ -27,7 +27,7 @@ import (
 func NewAPIClient(t testing.TB, ops ...client.Opt) client.APIClient {
 	t.Helper()
 	ops = append([]client.Opt{client.FromEnv}, ops...)
-	clt, err := client.NewClientWithOpts(ops...)
+	clt, err := client.New(ops...)
 	assert.NilError(t, err)
 	return clt
 }

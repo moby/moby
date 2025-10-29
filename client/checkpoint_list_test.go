@@ -12,7 +12,7 @@ import (
 )
 
 func TestCheckpointListError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -24,7 +24,7 @@ func TestCheckpointListError(t *testing.T) {
 func TestCheckpointList(t *testing.T) {
 	const expectedURL = "/containers/container_id/checkpoints"
 
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 				return nil, err
@@ -42,7 +42,7 @@ func TestCheckpointList(t *testing.T) {
 }
 
 func TestCheckpointListContainerNotFound(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusNotFound, "Server error")),
 	)
 	assert.NilError(t, err)

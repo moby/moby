@@ -14,7 +14,7 @@ import (
 )
 
 func TestImageImportError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	_, err = client.ImageImport(context.Background(), ImageImportSource{}, "image:tag", ImageImportOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
@@ -66,7 +66,7 @@ func TestImageImport(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 				assert.Check(t, assertRequest(req, http.MethodPost, expectedURL))
 				query := req.URL.Query()
 				assert.Check(t, is.DeepEqual(query, tc.expectedQueryParams))

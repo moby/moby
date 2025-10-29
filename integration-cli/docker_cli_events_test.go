@@ -449,7 +449,7 @@ func (s *DockerCLIEventSuite) TestEventsResize(c *testing.T) {
 	cID := runSleepingContainer(c, "-d", "-t")
 	cli.WaitRun(c, cID)
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 

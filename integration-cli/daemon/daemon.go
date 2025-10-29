@@ -85,7 +85,7 @@ func (d *Daemon) inspectFieldWithError(name, field string) (string, error) {
 func (d *Daemon) CheckActiveContainerCount(ctx context.Context) func(t *testing.T) (any, string) {
 	return func(t *testing.T) (any, string) {
 		t.Helper()
-		apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithHost(d.Sock()))
+		apiClient, err := client.New(client.FromEnv, client.WithHost(d.Sock()))
 		assert.NilError(t, err)
 
 		list, err := apiClient.ContainerList(ctx, client.ContainerListOptions{})

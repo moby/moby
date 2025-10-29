@@ -11,7 +11,7 @@ import (
 )
 
 func TestContainerKillError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -33,7 +33,7 @@ func TestContainerKillError(t *testing.T) {
 func TestContainerKill(t *testing.T) {
 	const expectedURL = "/containers/container_id/kill"
 	const expectedSignal = "SIG_SOMETHING"
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 				return nil, err

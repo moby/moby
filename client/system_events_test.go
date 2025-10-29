@@ -35,7 +35,7 @@ func TestEventsErrorInOptions(t *testing.T) {
 		},
 	}
 	for _, tc := range errorCases {
-		client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+		client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 		assert.NilError(t, err)
 		events := client.Events(context.Background(), tc.options)
 		err = <-events.Err
@@ -44,7 +44,7 @@ func TestEventsErrorInOptions(t *testing.T) {
 }
 
 func TestEventsErrorFromServer(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	events := client.Events(context.Background(), EventsListOptions{})
 	err = <-events.Err
@@ -106,7 +106,7 @@ func TestEvents(t *testing.T) {
 	}
 
 	for _, eventsCase := range eventsCases {
-		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 				return nil, err
 			}

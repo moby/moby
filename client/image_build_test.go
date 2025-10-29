@@ -16,7 +16,7 @@ import (
 )
 
 func TestImageBuildError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	_, err = client.ImageBuild(context.Background(), nil, ImageBuildOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
@@ -154,7 +154,7 @@ func TestImageBuild(t *testing.T) {
 	}
 	const expectedURL = "/build"
 	for _, buildCase := range buildCases {
-		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 				return nil, err
 			}

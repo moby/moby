@@ -92,7 +92,7 @@ func TestNewClientWithOpsFromEnv(t *testing.T) {
 			for key, value := range tc.envs {
 				t.Setenv(key, value)
 			}
-			client, err := NewClientWithOpts(FromEnv)
+			client, err := New(FromEnv)
 			if tc.expectedError != "" {
 				assert.Check(t, is.Error(err, tc.expectedError))
 			} else {
@@ -174,7 +174,7 @@ func TestGetAPIPath(t *testing.T) {
 
 	ctx := context.TODO()
 	for _, tc := range tests {
-		client, err := NewClientWithOpts(
+		client, err := New(
 			WithVersion(tc.version),
 			WithHost("tcp://localhost:2375"),
 		)
@@ -235,13 +235,13 @@ func TestNewClientWithOpsFromEnvSetsDefaultVersion(t *testing.T) {
 	t.Setenv("DOCKER_TLS_VERIFY", "")
 	t.Setenv("DOCKER_CERT_PATH", "")
 
-	client, err := NewClientWithOpts(FromEnv)
+	client, err := New(FromEnv)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(client.ClientVersion(), MaxAPIVersion))
 
 	const expected = "1.50"
 	t.Setenv("DOCKER_API_VERSION", expected)
-	client, err = NewClientWithOpts(FromEnv)
+	client, err = New(FromEnv)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(client.ClientVersion(), expected))
 }
@@ -256,7 +256,7 @@ func TestNegotiateAPIVersionEmpty(t *testing.T) {
 	// version before APIVersion was implemented
 	const expected = fallbackAPIVersion
 
-	client, err := NewClientWithOpts(FromEnv,
+	client, err := New(FromEnv,
 		WithAPIVersionNegotiation(),
 		WithMockClient(mockResponse(http.StatusOK, http.Header{"Api-Version": []string{expected}}, "OK")),
 	)
@@ -340,7 +340,7 @@ func TestNegotiateAPIVersion(t *testing.T) {
 				// doing this just to be explicit we are using the default.
 				opts = append(opts, WithVersion(tc.clientVersion))
 			}
-			client, err := NewClientWithOpts(opts...)
+			client, err := New(opts...)
 			assert.NilError(t, err)
 			_, err = client.Ping(t.Context(), PingOptions{
 				NegotiateAPIVersion: true,
@@ -361,7 +361,7 @@ func TestNegotiateAPIVersionOverride(t *testing.T) {
 	const expected = "9.99"
 	t.Setenv("DOCKER_API_VERSION", expected)
 
-	client, err := NewClientWithOpts(
+	client, err := New(
 		FromEnv,
 		WithMockClient(mockResponse(http.StatusOK, http.Header{"Api-Version": []string{"1.45"}}, "OK")),
 	)
@@ -379,7 +379,7 @@ func TestNegotiateAPIVersionOverride(t *testing.T) {
 func TestNegotiateAPIVersionConnectionFailure(t *testing.T) {
 	const expected = "9.99"
 
-	client, err := NewClientWithOpts(WithHost("tcp://no-such-host.invalid"))
+	client, err := New(WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 	client.version = expected
 	_, err = client.Ping(t.Context(), PingOptions{
@@ -392,7 +392,7 @@ func TestNegotiateAPIVersionAutomatic(t *testing.T) {
 	var pingVersion string
 
 	ctx := t.Context()
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			hdr := http.Header{"Api-Version": []string{pingVersion}}
 			return mockResponse(http.StatusOK, hdr, "OK")(req)
@@ -421,7 +421,7 @@ func TestNegotiateAPIVersionAutomatic(t *testing.T) {
 // TestNegotiateAPIVersionWithEmptyVersion asserts that initializing a client
 // with an empty version string does still allow API-version negotiation
 func TestNegotiateAPIVersionWithEmptyVersion(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithVersion(""),
 		WithMockClient(mockResponse(http.StatusOK, http.Header{"Api-Version": []string{"1.50"}}, "OK")),
 	)
@@ -438,7 +438,7 @@ func TestNegotiateAPIVersionWithEmptyVersion(t *testing.T) {
 // with a fixed version disables API-version negotiation
 func TestNegotiateAPIVersionWithFixedVersion(t *testing.T) {
 	const customVersion = "1.50"
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithVersion(customVersion),
 		WithMockClient(mockResponse(http.StatusOK, http.Header{"Api-Version": []string{"1.49"}}, "OK")),
 	)
@@ -515,12 +515,12 @@ func TestCustomAPIVersion(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			client, err := NewClientWithOpts(WithVersion(tc.version))
+			client, err := New(WithVersion(tc.version))
 			assert.NilError(t, err)
 			assert.Check(t, is.Equal(client.ClientVersion(), tc.expected))
 
 			t.Setenv(EnvOverrideAPIVersion, tc.expected)
-			client, err = NewClientWithOpts(WithVersionFromEnv())
+			client, err = New(WithVersionFromEnv())
 			assert.NilError(t, err)
 			assert.Check(t, is.Equal(client.ClientVersion(), tc.expected))
 		})

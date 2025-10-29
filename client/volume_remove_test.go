@@ -11,7 +11,7 @@ import (
 )
 
 func TestVolumeRemoveError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.VolumeRemove(t.Context(), "volume_id", VolumeRemoveOptions{})
@@ -31,7 +31,7 @@ func TestVolumeRemoveError(t *testing.T) {
 //
 // Regression test for https://github.com/docker/cli/issues/4890
 func TestVolumeRemoveConnectionError(t *testing.T) {
-	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	client, err := New(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
 	_, err = client.VolumeRemove(t.Context(), "volume_id", VolumeRemoveOptions{})
@@ -41,7 +41,7 @@ func TestVolumeRemoveConnectionError(t *testing.T) {
 func TestVolumeRemove(t *testing.T) {
 	const expectedURL = "/volumes/volume_id"
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodDelete, expectedURL); err != nil {
 			return nil, err
 		}

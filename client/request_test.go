@@ -50,7 +50,7 @@ func TestSetHostHeader(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.host, func(t *testing.T) {
-			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 				if err := assertRequest(req, http.MethodGet, testEndpoint); err != nil {
 					return nil, err
 				}
@@ -74,7 +74,7 @@ func TestSetHostHeader(t *testing.T) {
 // API versions < 1.24 returned plain text errors, but we may encounter
 // other situations where a non-JSON error is returned.
 func TestPlainTextError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(mockResponse(http.StatusInternalServerError, nil, "Server error")))
+	client, err := New(WithMockClient(mockResponse(http.StatusInternalServerError, nil, "Server error")))
 	assert.NilError(t, err)
 	_, err = client.ContainerList(context.Background(), ContainerListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
@@ -195,11 +195,11 @@ func TestResponseErrors(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 				return mockResponse(http.StatusBadRequest, http.Header{"Content-Type": []string{tc.contentType}}, tc.response)(req)
 			}))
 			if tc.apiVersion != "" {
-				client, err = NewClientWithOpts(WithHTTPClient(client.client), WithVersion(tc.apiVersion))
+				client, err = New(WithHTTPClient(client.client), WithVersion(tc.apiVersion))
 			}
 			assert.NilError(t, err)
 			_, err = client.Ping(t.Context(), PingOptions{})
@@ -211,7 +211,7 @@ func TestResponseErrors(t *testing.T) {
 
 func TestInfiniteError(t *testing.T) {
 	infinitR := rand.New(rand.NewSource(42))
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		resp := &http.Response{
 			StatusCode: http.StatusInternalServerError,
 			Header:     http.Header{},
@@ -229,7 +229,7 @@ func TestInfiniteError(t *testing.T) {
 func TestCanceledContext(t *testing.T) {
 	const testEndpoint = "/test"
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		assert.Check(t, is.ErrorType(req.Context().Err(), context.Canceled))
 		return nil, context.Canceled
 	}))
@@ -245,7 +245,7 @@ func TestCanceledContext(t *testing.T) {
 func TestDeadlineExceededContext(t *testing.T) {
 	const testEndpoint = "/test"
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		assert.Check(t, is.ErrorType(req.Context().Err(), context.DeadlineExceeded))
 		return nil, context.DeadlineExceeded
 	}))

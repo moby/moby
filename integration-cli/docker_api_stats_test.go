@@ -180,7 +180,7 @@ func getNetworkStats(t *testing.T, id string) map[string]container.NetworkStats 
 
 func (s *DockerAPISuite) TestAPIStatsContainerNotFound(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer func() { _ = apiClient.Close() }()
 

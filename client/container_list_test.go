@@ -13,7 +13,7 @@ import (
 )
 
 func TestContainerListError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -27,7 +27,7 @@ func TestContainerList(t *testing.T) {
 		expectedURL     = "/containers/json"
 		expectedFilters = `{"before":{"container":true},"label":{"label1":true,"label2":true}}`
 	)
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 				return nil, err

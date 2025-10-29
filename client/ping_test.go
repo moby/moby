@@ -18,7 +18,7 @@ import (
 // panics.
 func TestPingFail(t *testing.T) {
 	var withHeader bool
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		var hdr http.Header
 		if withHeader {
 			hdr = http.Header{}
@@ -48,7 +48,7 @@ func TestPingFail(t *testing.T) {
 // TestPingWithError tests the case where there is a protocol error in the ping.
 // This test is mostly just testing that there are no panics in this code path.
 func TestPingWithError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		return nil, errors.New("some connection error")
 	}))
 	assert.NilError(t, err)
@@ -64,7 +64,7 @@ func TestPingWithError(t *testing.T) {
 // TestPingSuccess tests that we are able to get the expected API headers/ping
 // details on success.
 func TestPingSuccess(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		hdr := http.Header{}
 		hdr.Set("Api-Version", "awesome")
 		hdr.Set("Docker-Experimental", "true")
@@ -109,7 +109,7 @@ func TestPingHeadFallback(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(http.StatusText(tc.status), func(t *testing.T) {
 			var reqs []string
-			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedPath) {
 					return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedPath, req.URL.Path)
 				}

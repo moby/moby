@@ -14,7 +14,7 @@ import (
 )
 
 func TestNetworkDisconnectError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.NetworkDisconnect(context.Background(), "network_id", NetworkDisconnectOptions{
@@ -37,7 +37,7 @@ func TestNetworkDisconnectError(t *testing.T) {
 func TestNetworkDisconnect(t *testing.T) {
 	const expectedURL = "/networks/network_id/disconnect"
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}

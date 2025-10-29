@@ -14,7 +14,7 @@ import (
 )
 
 func TestNetworkConnectError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.NetworkConnect(context.Background(), "network_id", NetworkConnectOptions{
@@ -37,7 +37,7 @@ func TestNetworkConnectError(t *testing.T) {
 func TestNetworkConnectEmptyNilEndpointSettings(t *testing.T) {
 	const expectedURL = "/networks/network_id/connect"
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}
@@ -68,7 +68,7 @@ func TestNetworkConnectEmptyNilEndpointSettings(t *testing.T) {
 func TestNetworkConnect(t *testing.T) {
 	const expectedURL = "/networks/network_id/connect"
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}

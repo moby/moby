@@ -72,7 +72,7 @@ func (s *DockerAPISuite) TestInspectAPIContainerVolumeDriver(c *testing.T) {
 
 func (s *DockerAPISuite) TestInspectAPIImageResponse(c *testing.T) {
 	cli.DockerCmd(c, "tag", "busybox:latest", "busybox:mytag")
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 

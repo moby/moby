@@ -19,7 +19,7 @@ import (
 )
 
 func TestContainerStatPathError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -37,7 +37,7 @@ func TestContainerStatPathError(t *testing.T) {
 }
 
 func TestContainerStatPathNotFoundError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusNotFound, "Not found")),
 	)
 	assert.NilError(t, err)
@@ -47,7 +47,7 @@ func TestContainerStatPathNotFoundError(t *testing.T) {
 }
 
 func TestContainerStatPathNoHeaderError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(mockResponse(http.StatusOK, nil, "")),
 	)
 	assert.NilError(t, err)
@@ -61,7 +61,7 @@ func TestContainerStatPath(t *testing.T) {
 		expectedURL  = "/containers/container_id/archive"
 		expectedPath = "path/to/file"
 	)
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodHead, expectedURL); err != nil {
 				return nil, err
@@ -93,7 +93,7 @@ func TestContainerStatPath(t *testing.T) {
 }
 
 func TestCopyToContainerError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -120,7 +120,7 @@ func TestCopyToContainerError(t *testing.T) {
 }
 
 func TestCopyToContainerNotFoundError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusNotFound, "Not found")),
 	)
 	assert.NilError(t, err)
@@ -135,7 +135,7 @@ func TestCopyToContainerNotFoundError(t *testing.T) {
 // TestCopyToContainerEmptyResponse verifies that no error is returned when a
 // "204 No Content" is returned by the API.
 func TestCopyToContainerEmptyResponse(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusNoContent, "No content")),
 	)
 	assert.NilError(t, err)
@@ -152,7 +152,7 @@ func TestCopyToContainer(t *testing.T) {
 		expectedURL  = "/containers/container_id/archive"
 		expectedPath = "path/to/file"
 	)
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodPut, expectedURL); err != nil {
 				return nil, err
@@ -192,7 +192,7 @@ func TestCopyToContainer(t *testing.T) {
 }
 
 func TestCopyFromContainerError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -210,7 +210,7 @@ func TestCopyFromContainerError(t *testing.T) {
 }
 
 func TestCopyFromContainerNotFoundError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusNotFound, "Not found")),
 	)
 	assert.NilError(t, err)
@@ -222,7 +222,7 @@ func TestCopyFromContainerNotFoundError(t *testing.T) {
 // TestCopyFromContainerEmptyResponse verifies that no error is returned when a
 // "204 No Content" is returned by the API.
 func TestCopyFromContainerEmptyResponse(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			content, err := json.Marshal(container.PathStat{
 				Name: "path/to/file",
@@ -245,7 +245,7 @@ func TestCopyFromContainerEmptyResponse(t *testing.T) {
 }
 
 func TestCopyFromContainerNoHeaderError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(mockResponse(http.StatusOK, nil, "")),
 	)
 	assert.NilError(t, err)
@@ -259,7 +259,7 @@ func TestCopyFromContainer(t *testing.T) {
 		expectedURL  = "/containers/container_id/archive"
 		expectedPath = "path/to/file"
 	)
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 				return nil, err

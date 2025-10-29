@@ -11,7 +11,7 @@ import (
 )
 
 func TestPluginEnableError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.PluginEnable(context.Background(), "plugin_name", PluginEnableOptions{})
@@ -29,7 +29,7 @@ func TestPluginEnableError(t *testing.T) {
 func TestPluginEnable(t *testing.T) {
 	const expectedURL = "/plugins/plugin_name/enable"
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}

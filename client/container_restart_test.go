@@ -11,7 +11,7 @@ import (
 )
 
 func TestContainerRestartError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	_, err = client.ContainerRestart(t.Context(), "nothing", ContainerRestartOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
@@ -30,7 +30,7 @@ func TestContainerRestartError(t *testing.T) {
 //
 // Regression test for https://github.com/docker/cli/issues/4890
 func TestContainerRestartConnectionError(t *testing.T) {
-	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	client, err := New(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
 	_, err = client.ContainerRestart(t.Context(), "nothing", ContainerRestartOptions{})
@@ -39,7 +39,7 @@ func TestContainerRestartConnectionError(t *testing.T) {
 
 func TestContainerRestart(t *testing.T) {
 	const expectedURL = "/containers/container_id/restart"
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}

@@ -12,7 +12,7 @@ import (
 )
 
 func TestContainerUpdateError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	_, err = client.ContainerUpdate(context.Background(), "nothing", ContainerUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
@@ -29,7 +29,7 @@ func TestContainerUpdateError(t *testing.T) {
 func TestContainerUpdate(t *testing.T) {
 	const expectedURL = "/containers/container_id/update"
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}

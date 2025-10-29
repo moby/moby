@@ -15,7 +15,7 @@ import (
 )
 
 func TestImagePushReferenceError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		return nil, nil
 	}))
 	assert.NilError(t, err)
@@ -28,21 +28,21 @@ func TestImagePushReferenceError(t *testing.T) {
 }
 
 func TestImagePushAnyError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	_, err = client.ImagePush(context.Background(), "myimage", ImagePushOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImagePushStatusUnauthorizedError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")))
+	client, err := New(WithMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")))
 	assert.NilError(t, err)
 	_, err = client.ImagePush(context.Background(), "myimage", ImagePushOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsUnauthorized))
 }
 
 func TestImagePushWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")))
+	client, err := New(WithMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")))
 	assert.NilError(t, err)
 	privilegeFunc := func(_ context.Context) (string, error) {
 		return "", errors.New("error requesting privilege")
@@ -54,7 +54,7 @@ func TestImagePushWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 }
 
 func TestImagePushWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")))
+	client, err := New(WithMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")))
 	assert.NilError(t, err)
 	privilegeFunc := func(_ context.Context) (string, error) {
 		return "a-auth-header", nil
@@ -69,7 +69,7 @@ func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
 	const expectedURL = "/images/docker.io/myname/myimage/push"
 	const invalidAuth = "NotValid"
 	const validAuth = "IAmValid"
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}
@@ -161,7 +161,7 @@ func TestImagePushWithoutErrors(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%s,all-tags=%t", tc.reference, tc.all), func(t *testing.T) {
-			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 				expectedURL := fmt.Sprintf(expectedURLFormat, tc.expectedImage)
 				if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 					return nil, err

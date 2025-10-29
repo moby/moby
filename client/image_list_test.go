@@ -14,7 +14,7 @@ import (
 )
 
 func TestImageListError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.ImageList(context.Background(), ImageListOptions{})
@@ -26,7 +26,7 @@ func TestImageListError(t *testing.T) {
 //
 // Regression test for https://github.com/docker/cli/issues/4890
 func TestImageListConnectionError(t *testing.T) {
-	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	client, err := New(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
 	_, err = client.ImageList(context.Background(), ImageListOptions{})
@@ -73,7 +73,7 @@ func TestImageList(t *testing.T) {
 		},
 	}
 	for _, listCase := range listCases {
-		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 				return nil, err
 			}
@@ -114,7 +114,7 @@ func TestImageListWithSharedSize(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var query url.Values
-			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 				query = req.URL.Query()
 				return mockResponse(http.StatusOK, nil, "[]")(req)
 			}), WithVersion(tc.version))

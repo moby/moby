@@ -60,7 +60,7 @@ func (s *DockerAPISuite) TestExecAPICreateContainerPaused(c *testing.T) {
 
 	cli.DockerCmd(c, "pause", name)
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -124,7 +124,7 @@ func (s *DockerAPISuite) TestExecAPIStartWithDetach(c *testing.T) {
 
 	ctx := testutil.GetContext(c)
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 

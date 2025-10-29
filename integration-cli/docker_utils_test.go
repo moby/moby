@@ -196,7 +196,7 @@ func daemonTime(t *testing.T) time.Time {
 	if testEnv.IsLocalDaemon() {
 		return time.Now()
 	}
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(t, err)
 	defer apiClient.Close()
 
@@ -254,7 +254,7 @@ func waitInspect(name, expr, expected string, timeout time.Duration) error {
 
 func getInspectBody(t *testing.T, version, id string) json.RawMessage {
 	t.Helper()
-	apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(version))
+	apiClient, err := client.New(client.FromEnv, client.WithVersion(version))
 	assert.NilError(t, err)
 	defer apiClient.Close()
 	inspect, err := apiClient.ContainerInspect(testutil.GetContext(t), id, client.ContainerInspectOptions{})

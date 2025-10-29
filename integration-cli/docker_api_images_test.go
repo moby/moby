@@ -37,7 +37,7 @@ func (s *DockerAPISuite) TestAPIImagesSaveAndLoad(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestAPIImagesDelete(c *testing.T) {
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -109,7 +109,7 @@ func (s *DockerAPISuite) TestAPIImagesSizeCompatibility(c *testing.T) {
 		assert.Assert(c, img.Size != int64(-1))
 	}
 
-	apiclient, err = client.NewClientWithOpts(client.FromEnv, client.WithVersion("v1.24"))
+	apiclient, err = client.New(client.FromEnv, client.WithVersion("v1.24"))
 	assert.NilError(c, err)
 	defer apiclient.Close()
 

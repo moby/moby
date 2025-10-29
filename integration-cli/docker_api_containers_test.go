@@ -37,7 +37,7 @@ func (s *DockerAPISuite) TestContainerAPIGetAll(c *testing.T) {
 	const name = "getall"
 	cli.DockerCmd(c, "run", "--name", name, "busybox", "true")
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -56,7 +56,7 @@ func (s *DockerAPISuite) TestContainerAPIGetJSONNoFieldsOmitted(c *testing.T) {
 	startCount := getContainerCount(c)
 	cli.DockerCmd(c, "run", "busybox", "true")
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -99,7 +99,7 @@ func (s *DockerAPISuite) TestContainerAPIGetExport(c *testing.T) {
 	const name = "exportcontainer"
 	cli.DockerCmd(c, "run", "--name", name, "busybox", "touch", "/test")
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -126,7 +126,7 @@ func (s *DockerAPISuite) TestContainerAPIGetChanges(c *testing.T) {
 	const name = "changescontainer"
 	cli.DockerCmd(c, "run", "--name", name, "busybox", "rm", "/etc/passwd")
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -154,7 +154,7 @@ func (s *DockerAPISuite) TestGetContainerStats(c *testing.T) {
 
 	bc := make(chan b, 1)
 	go func() {
-		apiClient, err := client.NewClientWithOpts(client.FromEnv)
+		apiClient, err := client.New(client.FromEnv)
 		assert.NilError(c, err)
 		defer apiClient.Close()
 
@@ -190,7 +190,7 @@ func (s *DockerAPISuite) TestGetContainerStatsRmRunning(c *testing.T) {
 	buf := &ChannelBuffer{C: make(chan []byte, 1)}
 	defer buf.Close()
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -263,7 +263,7 @@ func (s *DockerAPISuite) TestGetContainerStatsStream(c *testing.T) {
 
 	bc := make(chan b, 1)
 	go func() {
-		apiClient, err := client.NewClientWithOpts(client.FromEnv)
+		apiClient, err := client.New(client.FromEnv)
 		assert.NilError(c, err)
 		defer apiClient.Close()
 
@@ -300,7 +300,7 @@ func (s *DockerAPISuite) TestGetContainerStatsNoStream(c *testing.T) {
 	cID := runSleepingContainer(c, "--name", name)
 	defer cli.DockerCmd(c, "rm", "-f", cID)
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -328,7 +328,7 @@ func (s *DockerAPISuite) TestGetStoppedContainerStats(c *testing.T) {
 	cli.DockerCmd(c, "create", "--name", name, "busybox", "ps")
 	defer cli.DockerCmd(c, "rm", "-f", name)
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -362,7 +362,7 @@ func (s *DockerAPISuite) TestContainerAPIPause(c *testing.T) {
 	out := cli.DockerCmd(c, "run", "-d", "busybox", "sleep", "30").Combined()
 	ContainerID := strings.TrimSpace(out)
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -388,7 +388,7 @@ func (s *DockerAPISuite) TestContainerAPITop(c *testing.T) {
 	id := strings.TrimSpace(out)
 	cli.WaitRun(c, id)
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -410,7 +410,7 @@ func (s *DockerAPISuite) TestContainerAPITopWindows(c *testing.T) {
 	id := runSleepingContainer(c, "-d")
 	cli.WaitRun(c, id)
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -439,7 +439,7 @@ func (s *DockerAPISuite) TestContainerAPICommit(c *testing.T) {
 	const cName = "testapicommit"
 	cli.DockerCmd(c, "run", "--name="+cName, "busybox", "/bin/sh", "-c", "touch /test")
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -461,7 +461,7 @@ func (s *DockerAPISuite) TestContainerAPICommitWithLabelInConfig(c *testing.T) {
 	const cName = "testapicommitwithconfig"
 	cli.DockerCmd(c, "run", "--name="+cName, "busybox", "/bin/sh", "-c", "touch /test")
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -508,7 +508,7 @@ func (s *DockerAPISuite) TestContainerAPIBadPort(c *testing.T) {
 		},
 	}
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -526,7 +526,7 @@ func (s *DockerAPISuite) TestContainerAPICreate(c *testing.T) {
 		Cmd:   []string{"/bin/sh", "-c", "touch /test && ls /test"},
 	}
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -542,7 +542,7 @@ func (s *DockerAPISuite) TestContainerAPICreate(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestContainerAPICreateEmptyConfig(c *testing.T) {
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -577,7 +577,7 @@ func UtilCreateNetworkMode(t *testing.T, networkMode container.NetworkMode) {
 		NetworkMode: networkMode,
 	}
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(t, err)
 	defer apiClient.Close()
 
@@ -608,7 +608,7 @@ func (s *DockerAPISuite) TestContainerAPICreateWithCpuSharesCpuset(c *testing.T)
 		},
 	}
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -709,7 +709,7 @@ func (s *DockerAPISuite) TestContainerAPIKill(c *testing.T) {
 	const name = "test-api-kill"
 	runSleepingContainer(c, "-i", "--name", name)
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -725,7 +725,7 @@ func (s *DockerAPISuite) TestContainerAPIKill(c *testing.T) {
 func (s *DockerAPISuite) TestContainerAPIRestart(c *testing.T) {
 	const name = "test-api-restart"
 	runSleepingContainer(c, "-di", "--name", name)
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -743,7 +743,7 @@ func (s *DockerAPISuite) TestContainerAPIRestartNotimeoutParam(c *testing.T) {
 	id := runSleepingContainer(c, "-di", "--name", name)
 	cli.WaitRun(c, id)
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -761,7 +761,7 @@ func (s *DockerAPISuite) TestContainerAPIStart(c *testing.T) {
 		OpenStdin: true,
 	}
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -789,7 +789,7 @@ func (s *DockerAPISuite) TestContainerAPIStop(c *testing.T) {
 	runSleepingContainer(c, "-i", "--name", name)
 	timeout := 30
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -816,7 +816,7 @@ func (s *DockerAPISuite) TestContainerAPIWait(c *testing.T) {
 	}
 	cli.DockerCmd(c, "run", "--name", name, "busybox", sleepCmd, "2")
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -835,7 +835,7 @@ func (s *DockerAPISuite) TestContainerAPIDelete(c *testing.T) {
 	cli.WaitRun(c, id)
 	cli.DockerCmd(c, "stop", id)
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -844,7 +844,7 @@ func (s *DockerAPISuite) TestContainerAPIDelete(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestContainerAPIDeleteNotExist(c *testing.T) {
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -860,7 +860,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteForce(c *testing.T) {
 		Force: true,
 	}
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -886,7 +886,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveLinks(c *testing.T) {
 		RemoveLinks: true,
 	}
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -908,7 +908,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveVolume(c *testing.T) {
 	id := runSleepingContainer(c, "-v", testVol)
 	cli.WaitRun(c, id)
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -957,7 +957,7 @@ func (s *DockerAPISuite) TestContainerAPIPostContainerStop(c *testing.T) {
 	containerID := runSleepingContainer(c)
 	cli.WaitRun(c, containerID)
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -988,7 +988,7 @@ func (s *DockerAPISuite) TestPutContainerArchiveErrSymlinkInVolumeToReadOnlyRoot
 	// Attempt to extract to a symlink in the volume which points to a
 	// directory outside the volume. This should cause an error because the
 	// rootfs is read-only.
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 
 	_, err = apiClient.CopyToContainer(testutil.GetContext(c), cID, client.CopyToContainerOptions{DestinationPath: "/vol2/symlinkToAbsDir"})
@@ -999,7 +999,7 @@ func (s *DockerAPISuite) TestPostContainersCreateWithWrongCpusetValues(c *testin
 	// Not supported on Windows
 	testRequires(c, DaemonIsLinux)
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -1045,7 +1045,7 @@ func (s *DockerAPISuite) TestPostContainersCreateMemorySwappinessHostConfigOmitt
 		Image: "busybox",
 	}
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -1075,7 +1075,7 @@ func (s *DockerAPISuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *
 		OomScoreAdj: 1001,
 	}
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -1108,7 +1108,7 @@ func (s *DockerAPISuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *
 
 // test case for #22210 where an empty container name caused panic.
 func (s *DockerAPISuite) TestContainerAPIDeleteWithEmptyName(c *testing.T) {
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -1129,7 +1129,7 @@ func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) 
 		NetworkDisabled: true,
 	}
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -1461,7 +1461,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 			},
 		}...)
 	}
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -1501,7 +1501,7 @@ func (s *DockerAPISuite) TestContainerAPICreateMountsBindRead(c *testing.T) {
 			{Type: "bind", Source: tmpDir, Target: destPath},
 		},
 	}
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
@@ -1747,7 +1747,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsTmpfs(c *testing.T) {
 		},
 	}
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 

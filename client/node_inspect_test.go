@@ -13,7 +13,7 @@ import (
 )
 
 func TestNodeInspectError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.NodeInspect(context.Background(), "nothing", NodeInspectOptions{})
@@ -21,7 +21,7 @@ func TestNodeInspectError(t *testing.T) {
 }
 
 func TestNodeInspectNodeNotFound(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusNotFound, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusNotFound, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.NodeInspect(context.Background(), "unknown", NodeInspectOptions{})
@@ -29,7 +29,7 @@ func TestNodeInspectNodeNotFound(t *testing.T) {
 }
 
 func TestNodeInspectWithEmptyID(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		return nil, errors.New("should not make request")
 	}))
 	assert.NilError(t, err)
@@ -44,7 +44,7 @@ func TestNodeInspectWithEmptyID(t *testing.T) {
 
 func TestNodeInspect(t *testing.T) {
 	const expectedURL = "/nodes/node_id"
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 			return nil, err
 		}

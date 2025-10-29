@@ -734,7 +734,7 @@ func TestCreateWithMultipleEndpointSettings(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run("with API v"+tc.apiVersion, func(t *testing.T) {
-			apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(tc.apiVersion))
+			apiClient, err := client.New(client.FromEnv, client.WithVersion(tc.apiVersion))
 			assert.NilError(t, err)
 
 			config := container.Config{

@@ -12,7 +12,7 @@ import (
 )
 
 func TestNodeRemoveError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.NodeRemove(context.Background(), "node_id", NodeRemoveOptions{Force: false})
@@ -44,7 +44,7 @@ func TestNodeRemove(t *testing.T) {
 	}
 
 	for _, removeCase := range removeCases {
-		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodDelete, expectedURL); err != nil {
 				return nil, err
 			}

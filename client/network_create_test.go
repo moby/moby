@@ -12,7 +12,7 @@ import (
 )
 
 func TestNetworkCreateError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.NetworkCreate(context.Background(), "mynetwork", NetworkCreateOptions{})
@@ -24,7 +24,7 @@ func TestNetworkCreateError(t *testing.T) {
 //
 // Regression test for https://github.com/docker/cli/issues/4890
 func TestNetworkCreateConnectionError(t *testing.T) {
-	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	client, err := New(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
 	_, err = client.NetworkCreate(context.Background(), "mynetwork", NetworkCreateOptions{})
@@ -34,7 +34,7 @@ func TestNetworkCreateConnectionError(t *testing.T) {
 func TestNetworkCreate(t *testing.T) {
 	const expectedURL = "/networks/create"
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}

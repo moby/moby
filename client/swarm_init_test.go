@@ -11,7 +11,7 @@ import (
 )
 
 func TestSwarmInitError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.SwarmInit(context.Background(), SwarmInitOptions{})
@@ -21,7 +21,7 @@ func TestSwarmInitError(t *testing.T) {
 func TestSwarmInit(t *testing.T) {
 	const expectedURL = "/swarm/init"
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}

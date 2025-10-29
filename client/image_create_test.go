@@ -14,7 +14,7 @@ import (
 )
 
 func TestImageCreateError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	_, err = client.ImageCreate(context.Background(), "reference", ImageCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
@@ -29,7 +29,7 @@ func TestImageCreate(t *testing.T) {
 		expectedRegistryAuth = "eyJodHRwczovL2luZGV4LmRvY2tlci5pby92MS8iOnsiYXV0aCI6ImRHOTBid289IiwiZW1haWwiOiJqb2huQGRvZS5jb20ifX0="
 	)
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}

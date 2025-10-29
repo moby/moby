@@ -17,7 +17,7 @@ import (
 )
 
 func TestContainerLogsNotFoundError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusNotFound, "Not found")),
 	)
 	assert.NilError(t, err)
@@ -35,7 +35,7 @@ func TestContainerLogsNotFoundError(t *testing.T) {
 }
 
 func TestContainerLogsError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -135,7 +135,7 @@ func TestContainerLogs(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.doc, func(t *testing.T) {
-			client, err := NewClientWithOpts(
+			client, err := New(
 				WithMockClient(func(req *http.Request) (*http.Response, error) {
 					if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 						return nil, err
@@ -167,10 +167,13 @@ func TestContainerLogs(t *testing.T) {
 }
 
 func ExampleClient_ContainerLogs_withTimeout() {
+	client, err := New(FromEnv, WithAPIVersionNegotiation())
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
-	client, _ := NewClientWithOpts(FromEnv)
 	res, err := client.ContainerLogs(ctx, "container_id", ContainerLogsOptions{})
 	if err != nil {
 		log.Fatal(err)

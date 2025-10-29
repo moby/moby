@@ -11,7 +11,7 @@ import (
 )
 
 func TestCheckpointDeleteError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -34,7 +34,7 @@ func TestCheckpointDeleteError(t *testing.T) {
 func TestCheckpointDelete(t *testing.T) {
 	const expectedURL = "/containers/container_id/checkpoints/checkpoint_id"
 
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodDelete, expectedURL); err != nil {
 				return nil, err

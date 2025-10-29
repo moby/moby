@@ -12,7 +12,7 @@ import (
 )
 
 func TestDiskUsageError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	_, err = client.DiskUsage(context.Background(), DiskUsageOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
@@ -20,7 +20,7 @@ func TestDiskUsageError(t *testing.T) {
 
 func TestDiskUsage(t *testing.T) {
 	const expectedURL = "/system/df"
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 			return nil, err
 		}

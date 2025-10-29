@@ -12,7 +12,7 @@ import (
 )
 
 func TestSwarmLeaveError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.SwarmLeave(context.Background(), SwarmLeaveOptions{})
@@ -36,7 +36,7 @@ func TestSwarmLeave(t *testing.T) {
 	}
 
 	for _, leaveCase := range leaveCases {
-		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 				return nil, err
 			}
