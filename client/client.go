@@ -8,8 +8,10 @@ https://docs.docker.com/reference/api/engine/
 
 You use the library by constructing a client object using [NewClientWithOpts]
 and calling methods on it. The client can be configured from environment
-variables by passing the [FromEnv] option, or configured manually by passing any
-of the other available [Opts].
+variables by passing the [FromEnv] option, and the [WithAPIVersionNegotiation]
+option to allow downgrading the API version used when connecting with an older
+daemon version. Other options cen be configured manually by passing any of
+the available [Opt] options.
 
 For example, to list running containers (the equivalent of "docker ps"):
 
@@ -18,23 +20,33 @@ For example, to list running containers (the equivalent of "docker ps"):
 	import (
 		"context"
 		"fmt"
+		"log"
 
 		"github.com/moby/moby/client"
 	)
 
 	func main() {
-		cli, err := client.NewClientWithOpts(client.FromEnv)
+		// Create a new client that handles common environment variables
+		// for configuration (DOCKER_HOST, DOCKER_API_VERSION), and does
+		// API-version negotiation to allow downgrading the API version
+		// when connecting with an older daemon version.
+		apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 
-		containers, err := cli.ContainerList(context.Background(), client.ContainerListOptions{})
+		// List all containers (both stopped and running).
+		result, err := apiClient.ContainerList(context.Background(), client.ContainerListOptions{
+			All: true,
+		})
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 
-		for _, ctr := range containers {
-			fmt.Printf("%s %s\n", ctr.ID, ctr.Image)
+		// Print each container's ID, status and the image it was created from.
+		fmt.Printf("%s  %-22s  %s\n", "ID", "STATUS", "IMAGE")
+		for _, ctr := range result.Items {
+			fmt.Printf("%s  %-22s  %s\n", ctr.ID, ctr.Status, ctr.Image)
 		}
 	}
 */
