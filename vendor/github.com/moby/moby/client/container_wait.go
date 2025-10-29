@@ -13,34 +13,31 @@ import (
 
 const containerWaitErrorMsgLimit = 2 * 1024 /* Max: 2KiB */
 
-// ContainerWaitOptions holds options for container wait operations.
+// ContainerWaitOptions holds options for [Client.ContainerWait].
 type ContainerWaitOptions struct {
 	Condition container.WaitCondition
 }
 
-// ContainerWaitResult defines the result of a container wait operation.
+// ContainerWaitResult defines the result from the [Client.ContainerWait] method.
 type ContainerWaitResult struct {
 	Results <-chan container.WaitResponse
 	Errors  <-chan error
 }
 
 // ContainerWait waits until the specified container is in a certain state
-// indicated by the given condition, either "not-running" ([container.WaitConditionNotRunning])
-// (default),  "next-exit" ([container.WaitConditionNextExit]), or "removed".
-// ([container.WaitConditionRemoved]).
+// indicated by the given condition, either;
 //
-// If this client's API version is before 1.30, "condition" is ignored and
-// ContainerWait returns immediately with the two channels, as the server
-// waits as if the condition were "not-running".
+//   - "not-running" ([container.WaitConditionNotRunning]) (default)
+//   - "next-exit" ([container.WaitConditionNextExit])
+//   - "removed" ([container.WaitConditionRemoved])
 //
-// If this client's API version is at least 1.30, ContainerWait blocks until
-// the request has been acknowledged by the server (with a response header),
-// then returns two channels on which the caller can wait for the exit status
-// of the container or an error if there was a problem either beginning the
-// wait request or in getting the response. This allows the caller to
-// synchronize ContainerWait with other calls, such as specifying a
-// "next-exit" condition ([container.WaitConditionNextExit]) before
-// issuing a [Client.ContainerStart] request.
+// ContainerWait blocks until the request has been acknowledged by the server
+// (with a response header), then returns two channels on which the caller can
+// wait for the exit status of the container or an error if there was a problem
+// either beginning the wait request or in getting the response. This allows the
+// caller to synchronize ContainerWait with other calls, such as specifying a
+// "next-exit" condition ([container.WaitConditionNextExit]) before issuing a
+// [Client.ContainerStart] request.
 func (cli *Client) ContainerWait(ctx context.Context, containerID string, options ContainerWaitOptions) ContainerWaitResult {
 	resultC := make(chan container.WaitResponse)
 	errC := make(chan error, 1)
@@ -92,30 +89,4 @@ func (cli *Client) ContainerWait(ctx context.Context, containerID string, option
 	}()
 
 	return ContainerWaitResult{Results: resultC, Errors: errC}
-}
-
-// legacyContainerWait returns immediately and doesn't have an option to wait
-// until the container is removed.
-func (cli *Client) legacyContainerWait(ctx context.Context, containerID string) (<-chan container.WaitResponse, <-chan error) {
-	resultC := make(chan container.WaitResponse)
-	errC := make(chan error)
-
-	go func() {
-		resp, err := cli.post(ctx, "/containers/"+containerID+"/wait", nil, nil, nil)
-		if err != nil {
-			errC <- err
-			return
-		}
-		defer ensureReaderClosed(resp)
-
-		var res container.WaitResponse
-		if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-			errC <- err
-			return
-		}
-
-		resultC <- res
-	}()
-
-	return resultC, errC
 }
