@@ -43,7 +43,7 @@ func unpauseAllContainers(ctx context.Context, t testing.TB, apiClient client.Co
 	containers := getPausedContainers(ctx, t, apiClient)
 	if len(containers) > 0 {
 		for _, ctr := range containers {
-			_, err := apiClient.ContainerUnpause(ctx, ctr.ID, client.ContainerUnPauseOptions{})
+			_, err := apiClient.ContainerUnpause(ctx, ctr.ID, client.ContainerUnpauseOptions{})
 			assert.Check(t, err, "failed to unpause container %s", ctr.ID)
 		}
 	}

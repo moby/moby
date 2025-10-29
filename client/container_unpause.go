@@ -2,27 +2,27 @@ package client
 
 import "context"
 
-// ContainerUnPauseOptions holds options for [Client.ContainerUnpause].
-type ContainerUnPauseOptions struct {
+// ContainerUnpauseOptions holds options for [Client.ContainerUnpause].
+type ContainerUnpauseOptions struct {
 	// Add future optional parameters here.
 }
 
-// ContainerUnPauseResult holds the result of [Client.ContainerUnpause],
-type ContainerUnPauseResult struct {
+// ContainerUnpauseResult holds the result of [Client.ContainerUnpause],
+type ContainerUnpauseResult struct {
 	// Add future fields here.
 }
 
 // ContainerUnpause resumes the process execution within a container.
-func (cli *Client) ContainerUnpause(ctx context.Context, containerID string, options ContainerUnPauseOptions) (ContainerUnPauseResult, error) {
+func (cli *Client) ContainerUnpause(ctx context.Context, containerID string, options ContainerUnpauseOptions) (ContainerUnpauseResult, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
-		return ContainerUnPauseResult{}, err
+		return ContainerUnpauseResult{}, err
 	}
 
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/unpause", nil, nil, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return ContainerUnPauseResult{}, err
+		return ContainerUnpauseResult{}, err
 	}
-	return ContainerUnPauseResult{}, nil
+	return ContainerUnpauseResult{}, nil
 }

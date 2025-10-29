@@ -34,7 +34,7 @@ func TestPause(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(true, inspect.Container.State.Paused))
 
-	_, err = apiClient.ContainerUnpause(ctx, cID, client.ContainerUnPauseOptions{})
+	_, err = apiClient.ContainerUnpause(ctx, cID, client.ContainerUnpauseOptions{})
 	assert.NilError(t, err)
 
 	until := request.DaemonUnixTime(ctx, t, apiClient, testEnv)

@@ -375,7 +375,7 @@ func (s *DockerAPISuite) TestContainerAPIPause(c *testing.T) {
 		c.Fatalf("there should be one paused container and not %d", len(pausedContainers))
 	}
 
-	_, err = apiClient.ContainerUnpause(testutil.GetContext(c), ContainerID, client.ContainerUnPauseOptions{})
+	_, err = apiClient.ContainerUnpause(testutil.GetContext(c), ContainerID, client.ContainerUnpauseOptions{})
 	assert.NilError(c, err)
 
 	pausedContainers = getPaused(c)
