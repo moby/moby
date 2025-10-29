@@ -14,41 +14,57 @@ import (
 	"github.com/moby/moby/api/types/container"
 )
 
+type ContainerStatPathOptions struct {
+	Path string
+}
+
+type ContainerStatPathResult struct {
+	Stat container.PathStat
+}
+
 // ContainerStatPath returns stat information about a path inside the container filesystem.
-func (cli *Client) ContainerStatPath(ctx context.Context, containerID, path string) (container.PathStat, error) {
+func (cli *Client) ContainerStatPath(ctx context.Context, containerID string, options ContainerStatPathOptions) (ContainerStatPathResult, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
-		return container.PathStat{}, err
+		return ContainerStatPathResult{}, err
 	}
 
 	query := url.Values{}
-	query.Set("path", filepath.ToSlash(path)) // Normalize the paths used in the API.
+	query.Set("path", filepath.ToSlash(options.Path)) // Normalize the paths used in the API.
 
 	resp, err := cli.head(ctx, "/containers/"+containerID+"/archive", query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return container.PathStat{}, err
+		return ContainerStatPathResult{}, err
 	}
-	return getContainerPathStatFromHeader(resp.Header)
+	stat, err := getContainerPathStatFromHeader(resp.Header)
+	if err != nil {
+		return ContainerStatPathResult{}, err
+	}
+	return ContainerStatPathResult{Stat: stat}, nil
 }
 
 // CopyToContainerOptions holds information
 // about files to copy into a container
 type CopyToContainerOptions struct {
+	DestinationPath           string
+	Content                   io.Reader
 	AllowOverwriteDirWithFile bool
 	CopyUIDGID                bool
 }
 
+type CopyToContainerResult struct{}
+
 // CopyToContainer copies content into the container filesystem.
 // Note that `content` must be a Reader for a TAR archive
-func (cli *Client) CopyToContainer(ctx context.Context, containerID, dstPath string, content io.Reader, options CopyToContainerOptions) error {
+func (cli *Client) CopyToContainer(ctx context.Context, containerID string, options CopyToContainerOptions) (CopyToContainerResult, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
-		return err
+		return CopyToContainerResult{}, err
 	}
 
 	query := url.Values{}
-	query.Set("path", filepath.ToSlash(dstPath)) // Normalize the paths used in the API.
+	query.Set("path", filepath.ToSlash(options.DestinationPath)) // Normalize the paths used in the API.
 	// Do not allow for an existing directory to be overwritten by a non-directory and vice versa.
 	if !options.AllowOverwriteDirWithFile {
 		query.Set("noOverwriteDirNonDir", "true")
@@ -58,29 +74,38 @@ func (cli *Client) CopyToContainer(ctx context.Context, containerID, dstPath str
 		query.Set("copyUIDGID", "true")
 	}
 
-	response, err := cli.putRaw(ctx, "/containers/"+containerID+"/archive", query, content, nil)
+	response, err := cli.putRaw(ctx, "/containers/"+containerID+"/archive", query, options.Content, nil)
 	defer ensureReaderClosed(response)
 	if err != nil {
-		return err
+		return CopyToContainerResult{}, err
 	}
 
-	return nil
+	return CopyToContainerResult{}, nil
+}
+
+type CopyFromContainerOptions struct {
+	SourcePath string
+}
+
+type CopyFromContainerResult struct {
+	Content io.ReadCloser
+	Stat    container.PathStat
 }
 
 // CopyFromContainer gets the content from the container and returns it as a Reader
 // for a TAR archive to manipulate it in the host. It's up to the caller to close the reader.
-func (cli *Client) CopyFromContainer(ctx context.Context, containerID, srcPath string) (io.ReadCloser, container.PathStat, error) {
+func (cli *Client) CopyFromContainer(ctx context.Context, containerID string, options CopyFromContainerOptions) (CopyFromContainerResult, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
-		return nil, container.PathStat{}, err
+		return CopyFromContainerResult{}, err
 	}
 
 	query := make(url.Values, 1)
-	query.Set("path", filepath.ToSlash(srcPath)) // Normalize the paths used in the API.
+	query.Set("path", filepath.ToSlash(options.SourcePath)) // Normalize the paths used in the API.
 
 	resp, err := cli.get(ctx, "/containers/"+containerID+"/archive", query, nil)
 	if err != nil {
-		return nil, container.PathStat{}, err
+		return CopyFromContainerResult{}, err
 	}
 
 	// In order to get the copy behavior right, we need to know information
@@ -91,9 +116,10 @@ func (cli *Client) CopyFromContainer(ctx context.Context, containerID, srcPath s
 	// can be when copying a file/dir from one location to another file/dir.
 	stat, err := getContainerPathStatFromHeader(resp.Header)
 	if err != nil {
-		return nil, stat, fmt.Errorf("unable to get resource stat from response: %s", err)
+		ensureReaderClosed(resp)
+		return CopyFromContainerResult{Stat: stat}, fmt.Errorf("unable to get resource stat from response: %s", err)
 	}
-	return resp.Body, stat, err
+	return CopyFromContainerResult{Content: resp.Body, Stat: stat}, nil
 }
 
 func getContainerPathStatFromHeader(header http.Header) (container.PathStat, error) {

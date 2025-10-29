@@ -67,7 +67,7 @@ type ContainerAPIClient interface {
 	ContainerRename(ctx context.Context, container string, options ContainerRenameOptions) (ContainerRenameResult, error)
 	ContainerResize(ctx context.Context, container string, options ContainerResizeOptions) (ContainerResizeResult, error)
 	ContainerRestart(ctx context.Context, container string, options ContainerRestartOptions) (ContainerRestartResult, error)
-	ContainerStatPath(ctx context.Context, container, path string) (container.PathStat, error)
+	ContainerStatPath(ctx context.Context, container string, options ContainerStatPathOptions) (ContainerStatPathResult, error)
 	ContainerStats(ctx context.Context, container string, options ContainerStatsOptions) (ContainerStatsResult, error)
 	ContainerStart(ctx context.Context, container string, options ContainerStartOptions) (ContainerStartResult, error)
 	ContainerStop(ctx context.Context, container string, options ContainerStopOptions) (ContainerStopResult, error)
@@ -75,8 +75,8 @@ type ContainerAPIClient interface {
 	ContainerUnpause(ctx context.Context, container string, options ContainerUnpauseOptions) (ContainerUnpauseResult, error)
 	ContainerUpdate(ctx context.Context, container string, updateConfig container.UpdateConfig) (container.UpdateResponse, error)
 	ContainerWait(ctx context.Context, container string, options ContainerWaitOptions) ContainerWaitResult
-	CopyFromContainer(ctx context.Context, container, srcPath string) (io.ReadCloser, container.PathStat, error)
-	CopyToContainer(ctx context.Context, container, path string, content io.Reader, options CopyToContainerOptions) error
+	CopyFromContainer(ctx context.Context, container string, options CopyFromContainerOptions) (CopyFromContainerResult, error)
+	CopyToContainer(ctx context.Context, container string, options CopyToContainerOptions) (CopyToContainerResult, error)
 	ContainersPrune(ctx context.Context, opts ContainerPruneOptions) (ContainerPruneResult, error)
 }
 
