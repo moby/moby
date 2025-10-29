@@ -393,7 +393,7 @@ func (s *DockerAPISuite) TestContainerAPITop(c *testing.T) {
 	defer apiClient.Close()
 
 	// sort by comm[andline] to make sure order stays the same in case of PID rollover
-	top, err := apiClient.ContainerTop(testutil.GetContext(c), id, []string{"aux", "--sort=comm"})
+	top, err := apiClient.ContainerTop(testutil.GetContext(c), id, client.ContainerTopOptions{Arguments: []string{"aux", "--sort=comm"}})
 	assert.NilError(c, err)
 	assert.Equal(c, len(top.Titles), 11, fmt.Sprintf("expected 11 titles, found %d: %v", len(top.Titles), top.Titles))
 
@@ -414,7 +414,7 @@ func (s *DockerAPISuite) TestContainerAPITopWindows(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	top, err := apiClient.ContainerTop(testutil.GetContext(c), id, nil)
+	top, err := apiClient.ContainerTop(testutil.GetContext(c), id, client.ContainerTopOptions{})
 	assert.NilError(c, err)
 	assert.Equal(c, len(top.Titles), 4, "expected 4 titles, found %d: %v", len(top.Titles), top.Titles)
 
