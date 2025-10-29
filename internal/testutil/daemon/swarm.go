@@ -162,8 +162,9 @@ func (d *Daemon) SwarmLeave(ctx context.Context, t testing.TB, force bool) error
 func (d *Daemon) SwarmInfo(ctx context.Context, t testing.TB) swarm.Info {
 	t.Helper()
 	cli := d.NewClientT(t)
-	info, err := cli.Info(ctx)
+	result, err := cli.Info(ctx, client.InfoOptions{})
 	assert.NilError(t, err, "get swarm info")
+	info := result.Info
 	return info.Swarm
 }
 

@@ -98,10 +98,11 @@ func TestMountDaemonRoot(t *testing.T) {
 
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	info, err := apiClient.Info(ctx)
+	result, err := apiClient.Info(ctx, client.InfoOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
+	info := result.Info
 
 	for _, test := range []struct {
 		desc        string

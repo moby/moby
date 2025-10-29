@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"gotest.tools/v3/assert"
@@ -17,9 +18,10 @@ func TestInfoAPI(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	info, err := apiClient.Info(ctx)
+	result, err := apiClient.Info(ctx, client.InfoOptions{})
 	assert.NilError(t, err)
 
+	info := result.Info
 	// TODO(thaJeztah): make sure we have other tests that run a local daemon and check other fields based on known state.
 	assert.Check(t, info.ID != "")
 	assert.Check(t, is.Equal(info.Containers, info.ContainersRunning+info.ContainersPaused+info.ContainersStopped))
@@ -51,8 +53,10 @@ func TestInfoAPIWarnings(t *testing.T) {
 	d.Start(t, "-H=0.0.0.0:23756", "-H="+d.Sock())
 	defer d.Stop(t)
 
-	info, err := c.Info(ctx)
+	result, err := c.Info(ctx, client.InfoOptions{})
 	assert.NilError(t, err)
+
+	info := result.Info
 
 	stringsToCheck := []string{
 		"Access to the remote API is equivalent to root access",

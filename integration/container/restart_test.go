@@ -247,9 +247,11 @@ func TestContainerRestartWithCancelledRequest(t *testing.T) {
 	}()
 
 	// Start listening for events.
-	messages, errs := apiClient.Events(ctx, client.EventsListOptions{
+	result := apiClient.Events(ctx, client.EventsListOptions{
 		Filters: make(client.Filters).Add("container", cID).Add("event", string(events.ActionRestart)),
 	})
+	messages := result.Messages
+	errs := result.Err
 
 	// Make restart request, but cancel the request before the container
 	// is (forcibly) killed.

@@ -408,13 +408,13 @@ func TestNegotiateAPIVersionAutomatic(t *testing.T) {
 	// First request should trigger negotiation
 	pingVersion = "1.50"
 	expected = "1.50"
-	_, _ = client.Info(ctx)
+	_, _ = client.Info(ctx, InfoOptions{})
 	assert.Check(t, is.Equal(client.ClientVersion(), expected))
 
 	// Once successfully negotiated, subsequent requests should not re-negotiate
 	pingVersion = "1.49"
 	expected = "1.50"
-	_, _ = client.Info(ctx)
+	_, _ = client.Info(ctx, InfoOptions{})
 	assert.Check(t, is.Equal(client.ClientVersion(), expected))
 }
 

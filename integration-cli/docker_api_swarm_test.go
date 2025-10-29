@@ -756,9 +756,9 @@ func checkClusterHealth(t *testing.T, cl []*daemon.Daemon, managerCount, workerC
 
 		// check info in a poll.WaitOn(), because if the cluster doesn't have a leader, `info` will return an error
 		checkInfo := func(t *testing.T) (any, string) {
-			client := d.NewClientT(t)
-			daemonInfo, err := client.Info(ctx)
-			info = daemonInfo.Swarm
+			apiClient := d.NewClientT(t)
+			result, err := apiClient.Info(ctx, client.InfoOptions{})
+			info = result.Info.Swarm
 			return err, "cluster not ready in time"
 		}
 		poll.WaitOn(t, pollCheck(t, checkInfo, checker.IsNil()), poll.WithTimeout(defaultReconciliationTimeout))

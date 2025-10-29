@@ -200,8 +200,9 @@ func daemonTime(t *testing.T) time.Time {
 	assert.NilError(t, err)
 	defer apiClient.Close()
 
-	info, err := apiClient.Info(testutil.GetContext(t))
+	result, err := apiClient.Info(testutil.GetContext(t), client.InfoOptions{})
 	assert.NilError(t, err)
+	info := result.Info
 
 	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
 	assert.Assert(t, err == nil, "invalid time format in GET /info response")
@@ -286,11 +287,11 @@ func minimalBaseImage() string {
 }
 
 func getGoroutineNumber(ctx context.Context, apiClient client.APIClient) (int, error) {
-	info, err := apiClient.Info(ctx)
+	result, err := apiClient.Info(ctx, client.InfoOptions{})
 	if err != nil {
 		return 0, err
 	}
-	return info.NGoroutines, nil
+	return result.Info.NGoroutines, nil
 }
 
 func waitForStableGoroutineCount(ctx context.Context, t poll.TestingT, apiClient client.APIClient) int {

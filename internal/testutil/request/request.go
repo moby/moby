@@ -33,14 +33,15 @@ func NewAPIClient(t testing.TB, ops ...client.Opt) client.APIClient {
 }
 
 // DaemonTime provides the current time on the daemon host
-func DaemonTime(ctx context.Context, t testing.TB, client client.APIClient, testEnv *environment.Execution) time.Time {
+func DaemonTime(ctx context.Context, t testing.TB, apiClient client.APIClient, testEnv *environment.Execution) time.Time {
 	t.Helper()
 	if testEnv.IsLocalDaemon() {
 		return time.Now()
 	}
 
-	info, err := client.Info(ctx)
+	result, err := apiClient.Info(ctx, client.InfoOptions{})
 	assert.NilError(t, err)
+	info := result.Info
 
 	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
 	assert.NilError(t, err, "invalid time format in GET /info response")

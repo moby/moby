@@ -7,9 +7,7 @@ import (
 
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/network"
-	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/system"
 )
 
@@ -176,9 +174,9 @@ type SwarmAPIClient interface {
 
 // SystemAPIClient defines API client methods for the system
 type SystemAPIClient interface {
-	Events(ctx context.Context, options EventsListOptions) (<-chan events.Message, <-chan error)
-	Info(ctx context.Context) (system.Info, error)
-	RegistryLogin(ctx context.Context, auth registry.AuthConfig) (registry.AuthenticateOKBody, error)
+	Events(ctx context.Context, options EventsListOptions) EventsResult
+	Info(ctx context.Context, options InfoOptions) (SystemInfoResult, error)
+	RegistryLogin(ctx context.Context, auth RegistryLoginOptions) (RegistryLoginResult, error)
 	DiskUsage(ctx context.Context, options DiskUsageOptions) (system.DiskUsage, error)
 	Ping(ctx context.Context, options PingOptions) (PingResult, error)
 }

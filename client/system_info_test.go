@@ -14,14 +14,14 @@ import (
 func TestInfoServerError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	_, err = client.Info(context.Background())
+	_, err = client.Info(context.Background(), InfoOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestInfoInvalidResponseJSONError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(mockResponse(http.StatusOK, nil, "invalid json")))
 	assert.NilError(t, err)
-	_, err = client.Info(context.Background())
+	_, err = client.Info(context.Background(), InfoOptions{})
 	assert.Check(t, is.ErrorContains(err, "invalid character"))
 }
 
@@ -38,8 +38,9 @@ func TestInfo(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	info, err := client.Info(context.Background())
+	result, err := client.Info(context.Background(), InfoOptions{})
 	assert.NilError(t, err)
+	info := result.Info
 
 	assert.Check(t, is.Equal(info.ID, "daemonID"))
 	assert.Check(t, is.Equal(info.Containers, 3))
@@ -68,8 +69,9 @@ func TestInfoWithDiscoveredDevices(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	info, err := client.Info(context.Background())
+	result, err := client.Info(context.Background(), InfoOptions{})
 	assert.NilError(t, err)
+	info := result.Info
 
 	assert.Check(t, is.Equal(info.ID, "daemonID"))
 	assert.Check(t, is.Equal(info.Containers, 3))
