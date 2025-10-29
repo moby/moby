@@ -13,6 +13,17 @@ import (
 
 const containerWaitErrorMsgLimit = 2 * 1024 /* Max: 2KiB */
 
+// ContainerWaitOptions holds options for container wait operations.
+type ContainerWaitOptions struct {
+	Condition container.WaitCondition
+}
+
+// ContainerWaitResult defines the result of a container wait operation.
+type ContainerWaitResult struct {
+	Results <-chan container.WaitResponse
+	Errors  <-chan error
+}
+
 // ContainerWait waits until the specified container is in a certain state
 // indicated by the given condition, either "not-running" ([container.WaitConditionNotRunning])
 // (default),  "next-exit" ([container.WaitConditionNextExit]), or "removed".
@@ -30,26 +41,26 @@ const containerWaitErrorMsgLimit = 2 * 1024 /* Max: 2KiB */
 // synchronize ContainerWait with other calls, such as specifying a
 // "next-exit" condition ([container.WaitConditionNextExit]) before
 // issuing a [Client.ContainerStart] request.
-func (cli *Client) ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error) {
+func (cli *Client) ContainerWait(ctx context.Context, containerID string, options ContainerWaitOptions) ContainerWaitResult {
 	resultC := make(chan container.WaitResponse)
 	errC := make(chan error, 1)
 
 	containerID, err := trimID("container", containerID)
 	if err != nil {
 		errC <- err
-		return resultC, errC
+		return ContainerWaitResult{Results: resultC, Errors: errC}
 	}
 
 	query := url.Values{}
-	if condition != "" {
-		query.Set("condition", string(condition))
+	if options.Condition != "" {
+		query.Set("condition", string(options.Condition))
 	}
 
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/wait", query, nil, nil)
 	if err != nil {
 		defer ensureReaderClosed(resp)
 		errC <- err
-		return resultC, errC
+		return ContainerWaitResult{Results: resultC, Errors: errC}
 	}
 
 	go func() {
@@ -80,7 +91,7 @@ func (cli *Client) ContainerWait(ctx context.Context, containerID string, condit
 		resultC <- res
 	}()
 
-	return resultC, errC
+	return ContainerWaitResult{Results: resultC, Errors: errC}
 }
 
 // legacyContainerWait returns immediately and doesn't have an option to wait

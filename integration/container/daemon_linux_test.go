@@ -216,10 +216,10 @@ func TestRestartDaemonWithRestartingContainer(t *testing.T) {
 
 	ctxTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	chOk, chErr := apiClient.ContainerWait(ctxTimeout, id, containertypes.WaitConditionNextExit)
+	wait := apiClient.ContainerWait(ctxTimeout, id, client.ContainerWaitOptions{Condition: containertypes.WaitConditionNextExit})
 	select {
-	case <-chOk:
-	case err := <-chErr:
+	case <-wait.Results:
+	case err := <-wait.Errors:
 		assert.NilError(t, err)
 	}
 }
