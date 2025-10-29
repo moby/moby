@@ -218,7 +218,7 @@ func ServiceWithMemorySwappiness(swappiness *int64) ServiceSpecOpt {
 }
 
 // GetRunningTasks gets the list of running tasks for a service
-func GetRunningTasks(ctx context.Context, t *testing.T, c client.ServiceAPIClient, serviceID string) []swarmtypes.Task {
+func GetRunningTasks(ctx context.Context, t *testing.T, c client.TaskAPIClient, serviceID string) []swarmtypes.Task {
 	t.Helper()
 
 	taskList, err := c.TaskList(ctx, client.TaskListOptions{

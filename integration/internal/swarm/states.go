@@ -10,7 +10,7 @@ import (
 )
 
 // NoTasksForService verifies that there are no more tasks for the given service
-func NoTasksForService(ctx context.Context, apiClient client.ServiceAPIClient, serviceID string) func(log poll.LogT) poll.Result {
+func NoTasksForService(ctx context.Context, apiClient client.TaskAPIClient, serviceID string) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
 		taskList, err := apiClient.TaskList(ctx, client.TaskListOptions{
 			Filters: make(client.Filters).Add("service", serviceID),
@@ -30,7 +30,7 @@ func NoTasksForService(ctx context.Context, apiClient client.ServiceAPIClient, s
 }
 
 // NoTasks verifies that all tasks are gone
-func NoTasks(ctx context.Context, apiClient client.ServiceAPIClient) func(log poll.LogT) poll.Result {
+func NoTasks(ctx context.Context, apiClient client.TaskAPIClient) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
 		taskResult, err := apiClient.TaskList(ctx, client.TaskListOptions{})
 		switch {
@@ -45,7 +45,7 @@ func NoTasks(ctx context.Context, apiClient client.ServiceAPIClient) func(log po
 }
 
 // RunningTasksCount verifies there are `instances` tasks running for `serviceID`
-func RunningTasksCount(ctx context.Context, apiClient client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
+func RunningTasksCount(ctx context.Context, apiClient client.TaskAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
 		taskList, err := apiClient.TaskList(ctx, client.TaskListOptions{
 			Filters: make(client.Filters).Add("service", serviceID),
@@ -84,7 +84,7 @@ func RunningTasksCount(ctx context.Context, apiClient client.ServiceAPIClient, s
 // JobComplete is a poll function for determining that a ReplicatedJob is
 // completed additionally, while polling, it verifies that the job never
 // exceeds MaxConcurrent running tasks
-func JobComplete(ctx context.Context, apiClient client.ServiceAPIClient, service swarmtypes.Service) func(log poll.LogT) poll.Result {
+func JobComplete(ctx context.Context, apiClient client.TaskAPIClient, service swarmtypes.Service) func(log poll.LogT) poll.Result {
 	filter := make(client.Filters).Add("service", service.ID)
 
 	var jobIteration swarmtypes.Version
