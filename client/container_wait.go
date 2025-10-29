@@ -20,8 +20,8 @@ type ContainerWaitOptions struct {
 
 // ContainerWaitResult defines the result from the [Client.ContainerWait] method.
 type ContainerWaitResult struct {
-	Results <-chan container.WaitResponse
-	Errors  <-chan error
+	Result <-chan container.WaitResponse
+	Error  <-chan error
 }
 
 // ContainerWait waits until the specified container is in a certain state
@@ -45,7 +45,7 @@ func (cli *Client) ContainerWait(ctx context.Context, containerID string, option
 	containerID, err := trimID("container", containerID)
 	if err != nil {
 		errC <- err
-		return ContainerWaitResult{Results: resultC, Errors: errC}
+		return ContainerWaitResult{Result: resultC, Error: errC}
 	}
 
 	query := url.Values{}
@@ -57,7 +57,7 @@ func (cli *Client) ContainerWait(ctx context.Context, containerID string, option
 	if err != nil {
 		defer ensureReaderClosed(resp)
 		errC <- err
-		return ContainerWaitResult{Results: resultC, Errors: errC}
+		return ContainerWaitResult{Result: resultC, Error: errC}
 	}
 
 	go func() {
@@ -88,5 +88,5 @@ func (cli *Client) ContainerWait(ctx context.Context, containerID string, option
 		resultC <- res
 	}()
 
-	return ContainerWaitResult{Results: resultC, Errors: errC}
+	return ContainerWaitResult{Result: resultC, Error: errC}
 }

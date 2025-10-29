@@ -218,8 +218,8 @@ func TestRestartDaemonWithRestartingContainer(t *testing.T) {
 	defer cancel()
 	wait := apiClient.ContainerWait(ctxTimeout, id, client.ContainerWaitOptions{Condition: containertypes.WaitConditionNextExit})
 	select {
-	case <-wait.Results:
-	case err := <-wait.Errors:
+	case <-wait.Result:
+	case err := <-wait.Error:
 		assert.NilError(t, err)
 	}
 }
