@@ -134,6 +134,7 @@ area/docs:
       - 'man/**'
 
 area/dependencies:
+- all:
   - changed-files:
     - any-glob-to-any-file:
       - 'go.mod'
