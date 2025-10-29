@@ -3,6 +3,9 @@ package client
 import (
 	"context"
 	"net/url"
+	"strings"
+
+	"github.com/containerd/errdefs"
 )
 
 // ContainerRenameOptions represents the options for renaming a container.
@@ -20,6 +23,12 @@ func (cli *Client) ContainerRename(ctx context.Context, containerID string, opti
 	containerID, err := trimID("container", containerID)
 	if err != nil {
 		return ContainerRenameResult{}, err
+	}
+	options.NewName = strings.TrimSpace(options.NewName)
+	if options.NewName == "" || strings.TrimPrefix(options.NewName, "/") == "" {
+		// daemons before v29.0 did not handle the canonical name ("/") well
+		// let's be nice and validate it here before sending
+		return ContainerRenameResult{}, errdefs.ErrInvalidArgument.WithMessage("new name cannot be blank")
 	}
 
 	query := url.Values{}

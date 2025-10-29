@@ -18,7 +18,9 @@ import (
 // to find the container. An error is returned if newName is already
 // reserved.
 func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
-	if oldName == "" || newName == "" {
+	oldName = strings.TrimSpace(oldName)
+	newName = strings.TrimSpace(newName)
+	if strings.TrimPrefix(oldName, "/") == "" || strings.TrimPrefix(newName, "/") == "" {
 		return errdefs.InvalidParameter(errors.New("Neither old nor new names may be empty"))
 	}
 
