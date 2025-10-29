@@ -18,7 +18,7 @@ type RegistryLoginOptions struct {
 
 // RegistryLoginResult holds the result of a RegistryLogin query.
 type RegistryLoginResult struct {
-	Auth registry.AuthenticateOKBody
+	Auth registry.AuthResponse
 }
 
 // RegistryLogin authenticates the docker server with a given docker registry.
@@ -39,7 +39,7 @@ func (cli *Client) RegistryLogin(ctx context.Context, options RegistryLoginOptio
 		return RegistryLoginResult{}, err
 	}
 
-	var response registry.AuthenticateOKBody
+	var response registry.AuthResponse
 	err = json.NewDecoder(resp.Body).Decode(&response)
 	return RegistryLoginResult{Auth: response}, err
 }
