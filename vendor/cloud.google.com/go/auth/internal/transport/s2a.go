@@ -15,6 +15,7 @@
 package transport
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -84,7 +85,7 @@ func getMetadataMTLSAutoConfig() {
 }
 
 var httpGetMetadataMTLSConfig = func() (string, error) {
-	return metadata.Get(configEndpointSuffix)
+	return metadata.GetWithContext(context.Background(), configEndpointSuffix)
 }
 
 func queryConfig() (*mtlsConfig, error) {

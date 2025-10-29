@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package auth provides utilities for managing Google Cloud credentials,
+// including functionality for creating, caching, and refreshing OAuth2 tokens.
+// It offers customizable options for different OAuth2 flows, such as 2-legged
+// (2LO) and 3-legged (3LO) OAuth, along with support for PKCE and automatic
+// token management.
 package auth
 
 import (
@@ -130,7 +135,9 @@ func (t *Token) isEmpty() bool {
 }
 
 // Credentials holds Google credentials, including
-// [Application Default Credentials](https://developers.google.com/accounts/docs/application-default-credentials).
+// [Application Default Credentials].
+//
+// [Application Default Credentials]: https://developers.google.com/accounts/docs/application-default-credentials
 type Credentials struct {
 	json           []byte
 	projectID      CredentialsPropertyProvider
@@ -258,7 +265,7 @@ func (ctpo *CachedTokenProviderOptions) autoRefresh() bool {
 }
 
 func (ctpo *CachedTokenProviderOptions) expireEarly() time.Duration {
-	if ctpo == nil {
+	if ctpo == nil || ctpo.ExpireEarly == 0 {
 		return defaultExpiryDelta
 	}
 	return ctpo.ExpireEarly

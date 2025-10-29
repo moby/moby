@@ -130,6 +130,7 @@ func newClientNewAuth(ctx context.Context, base http.RoundTripper, ds *internal.
 			DefaultScopes:           ds.DefaultScopes,
 			SkipValidation:          skipValidation,
 		},
+		UniverseDomain: ds.UniverseDomain,
 	})
 	if err != nil {
 		return nil, err

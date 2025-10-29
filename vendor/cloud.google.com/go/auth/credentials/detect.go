@@ -98,8 +98,8 @@ func DetectDefault(opts *DetectOptions) (*auth.Credentials, error) {
 	if OnGCE() {
 		return auth.NewCredentials(&auth.CredentialsOptions{
 			TokenProvider: computeTokenProvider(opts),
-			ProjectIDProvider: auth.CredentialsPropertyFunc(func(context.Context) (string, error) {
-				return metadata.ProjectID()
+			ProjectIDProvider: auth.CredentialsPropertyFunc(func(ctx context.Context) (string, error) {
+				return metadata.ProjectIDWithContext(ctx)
 			}),
 			UniverseDomainProvider: &internal.ComputeUniverseDomainProvider{},
 		}), nil

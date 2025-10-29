@@ -62,11 +62,11 @@ func NewSecureConnectProvider(configFilePath string) (Provider, error) {
 
 	file, err := os.ReadFile(configFilePath)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			// Config file missing means Secure Connect is not supported.
-			return nil, errSourceUnavailable
-		}
-		return nil, err
+		// Config file missing means Secure Connect is not supported.
+		// There are non-os.ErrNotExist errors that may be returned.
+		// (e.g. if the home directory is /dev/null, *nix systems will
+		// return ENOTDIR instead of ENOENT)
+		return nil, errSourceUnavailable
 	}
 
 	var metadata secureConnectMetadata

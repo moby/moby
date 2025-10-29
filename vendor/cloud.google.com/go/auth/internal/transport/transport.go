@@ -81,12 +81,14 @@ func ValidateUniverseDomain(clientUniverseDomain, credentialsUniverseDomain stri
 
 // DefaultHTTPClientWithTLS constructs an HTTPClient using the provided tlsConfig, to support mTLS.
 func DefaultHTTPClientWithTLS(tlsConfig *tls.Config) *http.Client {
-	trans := baseTransport()
+	trans := BaseTransport()
 	trans.TLSClientConfig = tlsConfig
 	return &http.Client{Transport: trans}
 }
 
-func baseTransport() *http.Transport {
+// BaseTransport returns a default [http.Transport] which can be used if
+// [http.DefaultTransport] has been overwritten.
+func BaseTransport() *http.Transport {
 	return &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{

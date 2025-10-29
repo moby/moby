@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package grpctransport provides functionality for managing gRPC client
+// connections to Google Cloud services.
 package grpctransport
 
 import (
@@ -38,7 +40,7 @@ const (
 	// Check env to decide if using google-c2p resolver for DirectPath traffic.
 	enableDirectPathXdsEnvVar = "GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"
 
-	quotaProjectHeaderKey = "X-Goog-User-Project"
+	quotaProjectHeaderKey = "X-goog-user-project"
 )
 
 var (
@@ -271,7 +273,10 @@ func dial(ctx context.Context, secure bool, opts *Options) (*grpc.ClientConn, er
 			if metadata == nil {
 				metadata = make(map[string]string, 1)
 			}
-			metadata[quotaProjectHeaderKey] = qp
+			// Don't overwrite user specified quota
+			if _, ok := metadata[quotaProjectHeaderKey]; !ok {
+				metadata[quotaProjectHeaderKey] = qp
+			}
 		}
 		grpcOpts = append(grpcOpts,
 			grpc.WithPerRPCCredentials(&grpcCredentialsProvider{
@@ -291,7 +296,7 @@ func dial(ctx context.Context, secure bool, opts *Options) (*grpc.ClientConn, er
 	grpcOpts = addOCStatsHandler(grpcOpts, opts)
 	grpcOpts = append(grpcOpts, opts.GRPCDialOpts...)
 
-	return grpc.DialContext(ctx, endpoint, grpcOpts...)
+	return grpc.NewClient(endpoint, grpcOpts...)
 }
 
 // grpcKeyProvider satisfies https://pkg.go.dev/google.golang.org/grpc/credentials#PerRPCCredentials.

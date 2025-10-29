@@ -1,5 +1,19 @@
 # Changes
 
+## [1.12.0](https://github.com/googleapis/google-cloud-go/compare/logging/v1.11.0...logging/v1.12.0) (2024-10-16)
+
+
+### Features
+
+* **logging:** Add support for Go 1.23 iterators ([84461c0](https://github.com/googleapis/google-cloud-go/commit/84461c0ba464ec2f951987ba60030e37c8a8fc18))
+
+
+### Bug Fixes
+
+* **logging:** Bump dependencies ([2ddeb15](https://github.com/googleapis/google-cloud-go/commit/2ddeb1544a53188a7592046b98913982f1b0cf04))
+* **logging:** Fixed input validation for X-Cloud-Trace-Context; encoded spanID from XCTC header into hex string. ([#10979](https://github.com/googleapis/google-cloud-go/issues/10979)) ([a157558](https://github.com/googleapis/google-cloud-go/commit/a157558fd92adb1e6f608d5764316652e06dcd02))
+* **logging:** Update google.golang.org/api to v0.191.0 ([5b32644](https://github.com/googleapis/google-cloud-go/commit/5b32644eb82eb6bd6021f80b4fad471c60fb9d73))
+
 ## [1.11.0](https://github.com/googleapis/google-cloud-go/compare/logging/v1.10.0...logging/v1.11.0) (2024-07-24)
 
 

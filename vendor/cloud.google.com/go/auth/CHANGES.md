@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.9.3](https://github.com/googleapis/google-cloud-go/compare/auth/v0.9.2...auth/v0.9.3) (2024-09-03)
+
+
+### Bug Fixes
+
+* **auth:** Choose quota project envvar over file when both present ([#10807](https://github.com/googleapis/google-cloud-go/issues/10807)) ([2d8dd77](https://github.com/googleapis/google-cloud-go/commit/2d8dd7700eff92d4b95027be55e26e1e7aa79181)), refs [#10804](https://github.com/googleapis/google-cloud-go/issues/10804)
+
+## [0.9.2](https://github.com/googleapis/google-cloud-go/compare/auth/v0.9.1...auth/v0.9.2) (2024-08-30)
+
+
+### Bug Fixes
+
+* **auth:** Handle non-Transport DefaultTransport ([#10733](https://github.com/googleapis/google-cloud-go/issues/10733)) ([98d91dc](https://github.com/googleapis/google-cloud-go/commit/98d91dc8316b247498fab41ab35e57a0446fe556)), refs [#10742](https://github.com/googleapis/google-cloud-go/issues/10742)
+* **auth:** Make sure quota option takes precedence over env/file ([#10797](https://github.com/googleapis/google-cloud-go/issues/10797)) ([f1b050d](https://github.com/googleapis/google-cloud-go/commit/f1b050d56d804b245cab048c2980d32b0eaceb4e)), refs [#10795](https://github.com/googleapis/google-cloud-go/issues/10795)
+
+
+### Documentation
+
+* **auth:** Fix Go doc comment link ([#10751](https://github.com/googleapis/google-cloud-go/issues/10751)) ([015acfa](https://github.com/googleapis/google-cloud-go/commit/015acfab4d172650928bb1119bc2cd6307b9a437))
+
+## [0.9.1](https://github.com/googleapis/google-cloud-go/compare/auth/v0.9.0...auth/v0.9.1) (2024-08-22)
+
+
+### Bug Fixes
+
+* **auth:** Setting expireEarly to default when the value is 0 ([#10732](https://github.com/googleapis/google-cloud-go/issues/10732)) ([5e67869](https://github.com/googleapis/google-cloud-go/commit/5e67869a31e9e8ecb4eeebd2cfa11a761c3b1948))
+
 ## [0.9.0](https://github.com/googleapis/google-cloud-go/compare/auth/v0.8.1...auth/v0.9.0) (2024-08-16)
 
 
