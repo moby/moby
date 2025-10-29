@@ -42,10 +42,10 @@ func TestLinksContainerNames(t *testing.T) {
 	container.Run(ctx, t, apiClient, container.WithName(containerA))
 	container.Run(ctx, t, apiClient, container.WithName(containerB), container.WithLinks(containerA+":"+containerA))
 
-	containers, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
+	list, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
 		Filters: make(client.Filters).Add("name", containerA),
 	})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(1, len(containers)))
-	assert.Check(t, is.DeepEqual([]string{"/" + containerA, "/" + containerB + "/" + containerA}, containers[0].Names))
+	assert.Check(t, is.Equal(1, len(list.Items)))
+	assert.Check(t, is.DeepEqual([]string{"/" + containerA, "/" + containerB + "/" + containerA}, list.Items[0].Names))
 }

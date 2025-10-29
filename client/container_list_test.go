@@ -65,7 +65,7 @@ func TestContainerList(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	containers, err := client.ContainerList(context.Background(), ContainerListOptions{
+	list, err := client.ContainerList(context.Background(), ContainerListOptions{
 		Size:  true,
 		All:   true,
 		Since: "container",
@@ -75,5 +75,5 @@ func TestContainerList(t *testing.T) {
 			Add("before", "container"),
 	})
 	assert.NilError(t, err)
-	assert.Check(t, is.Len(containers, 2))
+	assert.Check(t, is.Len(list.Items, 2))
 }

@@ -116,7 +116,7 @@ func TestBuildWithRemoveAndForceRemove(t *testing.T) {
 			assert.NilError(t, err)
 			remainingContainers, err := apiClient.ContainerList(ctx, client.ContainerListOptions{Filters: filter, All: true})
 			assert.NilError(t, err)
-			assert.Equal(t, tc.numberOfIntermediateContainers, len(remainingContainers), "Expected %v remaining intermediate containers, got %v", tc.numberOfIntermediateContainers, len(remainingContainers))
+			assert.Equal(t, tc.numberOfIntermediateContainers, len(remainingContainers.Items), "Expected %v remaining intermediate containers, got %v", tc.numberOfIntermediateContainers, len(remainingContainers.Items))
 		})
 	}
 }

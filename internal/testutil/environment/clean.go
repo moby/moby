@@ -51,12 +51,12 @@ func unpauseAllContainers(ctx context.Context, t testing.TB, apiClient client.Co
 
 func getPausedContainers(ctx context.Context, t testing.TB, apiClient client.ContainerAPIClient) []container.Summary {
 	t.Helper()
-	containers, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
+	list, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
 		Filters: make(client.Filters).Add("status", "paused"),
 		All:     true,
 	})
 	assert.Check(t, err, "failed to list containers")
-	return containers
+	return list.Items
 }
 
 func deleteAllContainers(ctx context.Context, t testing.TB, apiclient client.ContainerAPIClient, protectedContainers map[string]struct{}) {
@@ -85,11 +85,11 @@ func deleteAllContainers(ctx context.Context, t testing.TB, apiclient client.Con
 
 func getAllContainers(ctx context.Context, t testing.TB, apiClient client.ContainerAPIClient) []container.Summary {
 	t.Helper()
-	containers, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
+	list, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
 		All: true,
 	})
 	assert.Check(t, err, "failed to list containers")
-	return containers
+	return list.Items
 }
 
 func deleteAllImages(ctx context.Context, t testing.TB, apiclient client.ImageAPIClient, protectedImages map[string]struct{}) {

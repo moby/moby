@@ -89,12 +89,12 @@ func TestHostPortMappings(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, svcID, 1), swarm.ServicePoll)
 
-	ctrs, err := apiClient.ContainerList(ctx, client.ContainerListOptions{})
+	list, err := apiClient.ContainerList(ctx, client.ContainerListOptions{})
 	assert.NilError(t, err)
-	assert.Equal(t, 1, len(ctrs))
+	assert.Equal(t, 1, len(list.Items))
 
 	var addrs []string
-	for _, port := range ctrs[0].Ports {
+	for _, port := range list.Items[0].Ports {
 		addrs = append(addrs, fmt.Sprintf("%s:%d/%s", net.JoinHostPort(port.IP.String(), strconv.Itoa(int(port.PublicPort))), port.PrivatePort, port.Type))
 	}
 

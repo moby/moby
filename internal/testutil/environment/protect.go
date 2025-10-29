@@ -79,13 +79,13 @@ func ProtectContainers(ctx context.Context, t testing.TB, testEnv *Execution) {
 
 func getExistingContainers(ctx context.Context, t testing.TB, testEnv *Execution) []string {
 	t.Helper()
-	containerList, err := testEnv.APIClient().ContainerList(ctx, client.ContainerListOptions{
+	list, err := testEnv.APIClient().ContainerList(ctx, client.ContainerListOptions{
 		All: true,
 	})
 	assert.NilError(t, err, "failed to list containers")
 
 	var containers []string
-	for _, container := range containerList {
+	for _, container := range list.Items {
 		containers = append(containers, container.ID)
 	}
 	return containers

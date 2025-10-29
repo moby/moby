@@ -62,7 +62,7 @@ type ContainerAPIClient interface {
 	ContainerExport(ctx context.Context, container string) (io.ReadCloser, error)
 	ContainerInspect(ctx context.Context, container string, options ContainerInspectOptions) (ContainerInspectResult, error)
 	ContainerKill(ctx context.Context, container string, options ContainerKillOptions) (ContainerKillResult, error)
-	ContainerList(ctx context.Context, options ContainerListOptions) ([]container.Summary, error)
+	ContainerList(ctx context.Context, options ContainerListOptions) (ContainerListResult, error)
 	ContainerLogs(ctx context.Context, container string, options ContainerLogsOptions) (io.ReadCloser, error)
 	ContainerPause(ctx context.Context, container string, options ContainerPauseOptions) (ContainerPauseResult, error)
 	ContainerRemove(ctx context.Context, container string, options ContainerRemoveOptions) (ContainerRemoveResult, error)
