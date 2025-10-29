@@ -53,12 +53,12 @@ func (e objectNotFoundError) Error() string {
 	return fmt.Sprintf("Error: No such %s: %s", e.object, e.id)
 }
 
-// NewVersionError returns an error if the APIVersion required is less than the
+// requiresVersion returns an error if the APIVersion required is less than the
 // current supported version.
 //
 // It performs API-version negotiation if the Client is configured with this
 // option, otherwise it assumes the latest API version is used.
-func (cli *Client) NewVersionError(ctx context.Context, APIrequired, feature string) error {
+func (cli *Client) requiresVersion(ctx context.Context, apiRequired, feature string) error {
 	// Make sure we negotiated (if the client is configured to do so),
 	// as code below contains API-version specific handling of options.
 	//
@@ -67,8 +67,8 @@ func (cli *Client) NewVersionError(ctx context.Context, APIrequired, feature str
 	if err := cli.checkVersion(ctx); err != nil {
 		return err
 	}
-	if cli.version != "" && versions.LessThan(cli.version, APIrequired) {
-		return fmt.Errorf("%q requires API version %s, but the Docker daemon API version is %s", feature, APIrequired, cli.version)
+	if cli.version != "" && versions.LessThan(cli.version, apiRequired) {
+		return fmt.Errorf("%q requires API version %s, but the Docker daemon API version is %s", feature, apiRequired, cli.version)
 	}
 	return nil
 }
