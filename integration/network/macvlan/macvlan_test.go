@@ -110,7 +110,7 @@ func TestDockerNetworkMacvlan(t *testing.T) {
 	}
 }
 
-func testMacvlanOverlapParent(t *testing.T, ctx context.Context, client client.APIClient) {
+func testMacvlanOverlapParent(t *testing.T, ctx context.Context, apiClient client.APIClient) {
 	// verify the same parent interface can be used if already in use by an existing network
 	// as long as neither are passthru
 	master := "dm-dummy0"
@@ -119,35 +119,35 @@ func testMacvlanOverlapParent(t *testing.T, ctx context.Context, client client.A
 
 	netName := "dm-subinterface"
 	parentName := "dm-dummy0.40"
-	net.CreateNoError(ctx, t, client, netName,
+	net.CreateNoError(ctx, t, apiClient, netName,
 		net.WithMacvlan(parentName),
 	)
-	assert.Check(t, n.IsNetworkAvailable(ctx, client, netName))
+	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, netName))
 	n.LinkExists(ctx, t, parentName)
 
 	overlapNetName := "dm-parent-net-overlap"
-	_, err := net.Create(ctx, client, overlapNetName,
+	_, err := net.Create(ctx, apiClient, overlapNetName,
 		net.WithMacvlan(parentName),
 	)
 	assert.Check(t, err)
 
 	// delete the second network while preserving the parent link
-	err = client.NetworkRemove(ctx, overlapNetName)
+	_, err = apiClient.NetworkRemove(ctx, overlapNetName, client.NetworkRemoveOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, n.IsNetworkNotAvailable(ctx, client, overlapNetName))
+	assert.Check(t, n.IsNetworkNotAvailable(ctx, apiClient, overlapNetName))
 	n.LinkExists(ctx, t, parentName)
 
 	// delete the first network
-	err = client.NetworkRemove(ctx, netName)
+	_, err = apiClient.NetworkRemove(ctx, netName, client.NetworkRemoveOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, n.IsNetworkNotAvailable(ctx, client, netName))
+	assert.Check(t, n.IsNetworkNotAvailable(ctx, apiClient, netName))
 	n.LinkDoesntExist(ctx, t, parentName)
 
 	// verify the network delete did not delete the root link
 	n.LinkExists(ctx, t, master)
 }
 
-func testMacvlanOverlapParentPassthruFirst(t *testing.T, ctx context.Context, client client.APIClient) {
+func testMacvlanOverlapParentPassthruFirst(t *testing.T, ctx context.Context, apiClient client.APIClient) {
 	// verify creating a second interface sharing a parent with another passthru interface is rejected
 	master := "dm-dummy0"
 	n.CreateMasterDummy(ctx, t, master)
@@ -155,26 +155,26 @@ func testMacvlanOverlapParentPassthruFirst(t *testing.T, ctx context.Context, cl
 
 	netName := "dm-subinterface"
 	parentName := "dm-dummy0.40"
-	net.CreateNoError(ctx, t, client, netName,
+	net.CreateNoError(ctx, t, apiClient, netName,
 		net.WithMacvlanPassthru(parentName),
 	)
-	assert.Check(t, n.IsNetworkAvailable(ctx, client, netName))
+	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, netName))
 
-	_, err := net.Create(ctx, client, "dm-parent-net-overlap",
+	_, err := net.Create(ctx, apiClient, "dm-parent-net-overlap",
 		net.WithMacvlan(parentName),
 	)
 	assert.Check(t, err != nil)
 
 	// delete the network while preserving the parent link
-	err = client.NetworkRemove(ctx, netName)
+	_, err = apiClient.NetworkRemove(ctx, netName, client.NetworkRemoveOptions{})
 	assert.NilError(t, err)
 
-	assert.Check(t, n.IsNetworkNotAvailable(ctx, client, netName))
+	assert.Check(t, n.IsNetworkNotAvailable(ctx, apiClient, netName))
 	// verify the network delete did not delete the predefined link
 	n.LinkExists(ctx, t, master)
 }
 
-func testMacvlanOverlapParentPassthruSecond(t *testing.T, ctx context.Context, client client.APIClient) {
+func testMacvlanOverlapParentPassthruSecond(t *testing.T, ctx context.Context, apiClient client.APIClient) {
 	// verify creating a passthru interface sharing a parent with another interface is rejected
 	master := "dm-dummy0"
 	n.CreateMasterDummy(ctx, t, master)
@@ -182,26 +182,26 @@ func testMacvlanOverlapParentPassthruSecond(t *testing.T, ctx context.Context, c
 
 	netName := "dm-subinterface"
 	parentName := "dm-dummy0.40"
-	net.CreateNoError(ctx, t, client, netName,
+	net.CreateNoError(ctx, t, apiClient, netName,
 		net.WithMacvlan(parentName),
 	)
-	assert.Check(t, n.IsNetworkAvailable(ctx, client, netName))
+	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, netName))
 
-	_, err := net.Create(ctx, client, "dm-parent-net-overlap",
+	_, err := net.Create(ctx, apiClient, "dm-parent-net-overlap",
 		net.WithMacvlanPassthru(parentName),
 	)
 	assert.Check(t, err != nil)
 
 	// delete the network while preserving the parent link
-	err = client.NetworkRemove(ctx, netName)
+	_, err = apiClient.NetworkRemove(ctx, netName, client.NetworkRemoveOptions{})
 	assert.NilError(t, err)
 
-	assert.Check(t, n.IsNetworkNotAvailable(ctx, client, netName))
+	assert.Check(t, n.IsNetworkNotAvailable(ctx, apiClient, netName))
 	// verify the network delete did not delete the predefined link
 	n.LinkExists(ctx, t, master)
 }
 
-func testMacvlanOverlapDeleteCreatedSecond(t *testing.T, ctx context.Context, client client.APIClient) {
+func testMacvlanOverlapDeleteCreatedSecond(t *testing.T, ctx context.Context, apiClient client.APIClient) {
 	// verify that a shared created parent interface is kept when the original interface is deleted first
 	master := "dm-dummy0"
 	n.CreateMasterDummy(ctx, t, master)
@@ -209,34 +209,34 @@ func testMacvlanOverlapDeleteCreatedSecond(t *testing.T, ctx context.Context, cl
 
 	netName := "dm-subinterface"
 	parentName := "dm-dummy0.40"
-	net.CreateNoError(ctx, t, client, netName,
+	net.CreateNoError(ctx, t, apiClient, netName,
 		net.WithMacvlan(parentName),
 	)
-	assert.Check(t, n.IsNetworkAvailable(ctx, client, netName))
+	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, netName))
 
 	overlapNetName := "dm-parent-net-overlap"
-	_, err := net.Create(ctx, client, overlapNetName,
+	_, err := net.Create(ctx, apiClient, overlapNetName,
 		net.WithMacvlan(parentName),
 	)
 	assert.Check(t, err)
 
 	// delete the original network while preserving the parent link
-	err = client.NetworkRemove(ctx, netName)
+	_, err = apiClient.NetworkRemove(ctx, netName, client.NetworkRemoveOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, n.IsNetworkNotAvailable(ctx, client, netName))
+	assert.Check(t, n.IsNetworkNotAvailable(ctx, apiClient, netName))
 	n.LinkExists(ctx, t, parentName)
 
 	// delete the second network
-	err = client.NetworkRemove(ctx, overlapNetName)
+	_, err = apiClient.NetworkRemove(ctx, overlapNetName, client.NetworkRemoveOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, n.IsNetworkNotAvailable(ctx, client, overlapNetName))
+	assert.Check(t, n.IsNetworkNotAvailable(ctx, apiClient, overlapNetName))
 	n.LinkDoesntExist(ctx, t, parentName)
 
 	// verify the network delete did not delete the root link
 	n.LinkExists(ctx, t, master)
 }
 
-func testMacvlanOverlapKeepExisting(t *testing.T, ctx context.Context, client client.APIClient) {
+func testMacvlanOverlapKeepExisting(t *testing.T, ctx context.Context, apiClient client.APIClient) {
 	// verify that deleting interfaces sharing a previously existing parent doesn't delete the
 	// parent
 	master := "dm-dummy0"
@@ -244,27 +244,27 @@ func testMacvlanOverlapKeepExisting(t *testing.T, ctx context.Context, client cl
 	defer n.DeleteInterface(ctx, t, master)
 
 	netName := "dm-subinterface"
-	net.CreateNoError(ctx, t, client, netName,
+	net.CreateNoError(ctx, t, apiClient, netName,
 		net.WithMacvlan(master),
 	)
-	assert.Check(t, n.IsNetworkAvailable(ctx, client, netName))
+	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, netName))
 
 	overlapNetName := "dm-parent-net-overlap"
-	_, err := net.Create(ctx, client, overlapNetName,
+	_, err := net.Create(ctx, apiClient, overlapNetName,
 		net.WithMacvlan(master),
 	)
 	assert.Check(t, err)
 
-	err = client.NetworkRemove(ctx, overlapNetName)
+	_, err = apiClient.NetworkRemove(ctx, overlapNetName, client.NetworkRemoveOptions{})
 	assert.NilError(t, err)
-	err = client.NetworkRemove(ctx, netName)
+	_, err = apiClient.NetworkRemove(ctx, netName, client.NetworkRemoveOptions{})
 	assert.NilError(t, err)
 
 	// verify the network delete did not delete the root link
 	n.LinkExists(ctx, t, master)
 }
 
-func testMacvlanSubinterface(t *testing.T, ctx context.Context, client client.APIClient) {
+func testMacvlanSubinterface(t *testing.T, ctx context.Context, apiClient client.APIClient) {
 	// verify the same parent interface cannot be used if already in use by an existing network
 	master := "dm-dummy0"
 	parentName := "dm-dummy0.20"
@@ -273,16 +273,16 @@ func testMacvlanSubinterface(t *testing.T, ctx context.Context, client client.AP
 	n.CreateVlanInterface(ctx, t, master, parentName, "20")
 
 	netName := "dm-subinterface"
-	net.CreateNoError(ctx, t, client, netName,
+	net.CreateNoError(ctx, t, apiClient, netName,
 		net.WithMacvlan(parentName),
 	)
-	assert.Check(t, n.IsNetworkAvailable(ctx, client, netName))
+	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, netName))
 
 	// delete the network while preserving the parent link
-	err := client.NetworkRemove(ctx, netName)
+	_, err := apiClient.NetworkRemove(ctx, netName, client.NetworkRemoveOptions{})
 	assert.NilError(t, err)
 
-	assert.Check(t, n.IsNetworkNotAvailable(ctx, client, netName))
+	assert.Check(t, n.IsNetworkNotAvailable(ctx, apiClient, netName))
 	// verify the network delete did not delete the predefined link
 	n.LinkExists(ctx, t, parentName)
 }
@@ -512,7 +512,7 @@ func TestMacvlanIPAM(t *testing.T) {
 
 			const netName = "macvlannet"
 			net.CreateNoError(ctx, t, c, netName, netOpts...)
-			defer c.NetworkRemove(ctx, netName)
+			defer c.NetworkRemove(ctx, netName, client.NetworkRemoveOptions{})
 			assert.Check(t, n.IsNetworkAvailable(ctx, c, netName))
 
 			id := container.Run(ctx, t, c, container.WithNetworkMode(netName))
@@ -624,7 +624,7 @@ func TestMacvlanIPAMOverlap(t *testing.T) {
 			},
 		),
 	)
-	defer c.NetworkRemove(ctx, netName1)
+	defer c.NetworkRemove(ctx, netName1, client.NetworkRemoveOptions{})
 	assert.Check(t, n.IsNetworkAvailable(ctx, c, netName1))
 
 	checkNetworkIPAMState(netName1, map[netip.Prefix]network.SubnetStatus{
@@ -653,7 +653,7 @@ func TestMacvlanIPAMOverlap(t *testing.T) {
 		),
 	)
 
-	defer c.NetworkRemove(ctx, netName2)
+	defer c.NetworkRemove(ctx, netName2, client.NetworkRemoveOptions{})
 	assert.Check(t, n.IsNetworkAvailable(ctx, c, netName2))
 
 	checkNetworkIPAMState(netName2, map[netip.Prefix]network.SubnetStatus{
@@ -682,7 +682,7 @@ func TestMacvlanIPAMOverlap(t *testing.T) {
 		),
 	)
 
-	defer c.NetworkRemove(ctx, netName3)
+	defer c.NetworkRemove(ctx, netName3, client.NetworkRemoveOptions{})
 	assert.Check(t, n.IsNetworkAvailable(ctx, c, netName3))
 
 	checkNetworkIPAMState(netName3, map[netip.Prefix]network.SubnetStatus{
@@ -795,7 +795,7 @@ func TestMACVlanDNS(t *testing.T) {
 				createOpts = append(createOpts, net.WithInternal())
 			}
 			net.CreateNoError(ctx, t, c, netName, createOpts...)
-			defer c.NetworkRemove(ctx, netName)
+			defer c.NetworkRemove(ctx, netName, client.NetworkRemoveOptions{})
 
 			ctrId := container.Run(ctx, t, c, container.WithNetworkMode(netName))
 			defer c.ContainerRemove(ctx, ctrId, client.ContainerRemoveOptions{Force: true})

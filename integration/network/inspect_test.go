@@ -62,7 +62,8 @@ func TestInspectNetwork(t *testing.T) {
 	// object) leaking, which prevents other daemons on the same kernel from
 	// creating a new vxlan link with the same VNI.
 	defer func() {
-		assert.NilError(t, c1.NetworkRemove(ctx, overlayID))
+		_, err := c1.NetworkRemove(ctx, overlayID, client.NetworkRemoveOptions{})
+		assert.NilError(t, err)
 		poll.WaitOn(t, network.IsRemoved(ctx, w1, overlayID), swarm.NetworkPoll)
 	}()
 

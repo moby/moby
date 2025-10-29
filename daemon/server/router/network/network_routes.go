@@ -287,7 +287,7 @@ func (n *networkRouter) postNetworkConnect(ctx context.Context, w http.ResponseW
 		return err
 	}
 
-	var connect networkbackend.ConnectOptions
+	var connect networkbackend.ConnectRequest
 	if err := httputils.ReadJSON(r, &connect); err != nil {
 		return err
 	}
@@ -304,7 +304,7 @@ func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.Respon
 		return err
 	}
 
-	var disconnect networkbackend.DisconnectOptions
+	var disconnect networkbackend.DisconnectRequest
 	if err := httputils.ReadJSON(r, &disconnect); err != nil {
 		return err
 	}
