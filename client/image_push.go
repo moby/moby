@@ -50,7 +50,7 @@ func (cli *Client) ImagePush(ctx context.Context, image string, options ImagePus
 	}
 
 	if options.Platform != nil {
-		if err := cli.NewVersionError(ctx, "1.46", "platform"); err != nil {
+		if err := cli.requiresVersion(ctx, "1.46", "platform"); err != nil {
 			return nil, err
 		}
 

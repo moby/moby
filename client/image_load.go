@@ -28,7 +28,7 @@ func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, loadOpts ...I
 		query.Set("quiet", "1")
 	}
 	if len(opts.apiOptions.Platforms) > 0 {
-		if err := cli.NewVersionError(ctx, "1.48", "platform"); err != nil {
+		if err := cli.requiresVersion(ctx, "1.48", "platform"); err != nil {
 			return ImageLoadResult{}, err
 		}
 

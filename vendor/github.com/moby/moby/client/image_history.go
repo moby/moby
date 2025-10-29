@@ -32,7 +32,7 @@ func (cli *Client) ImageHistory(ctx context.Context, imageID string, historyOpts
 	}
 
 	if opts.apiOptions.Platform != nil {
-		if err := cli.NewVersionError(ctx, "1.48", "platform"); err != nil {
+		if err := cli.requiresVersion(ctx, "1.48", "platform"); err != nil {
 			return ImageHistoryResult{}, err
 		}
 
