@@ -415,12 +415,12 @@ func TestAuthzPluginEnsureContainerCopyToFrom(t *testing.T) {
 	dstDir, preparedArchive, err := archive.PrepareArchiveCopy(srcArchive, srcInfo, archive.CopyInfo{Path: "/test"})
 	assert.NilError(t, err)
 
-	err = c.CopyToContainer(ctx, cID, dstDir, preparedArchive, client.CopyToContainerOptions{})
+	_, err = c.CopyToContainer(ctx, cID, client.CopyToContainerOptions{DestinationPath: dstDir, Content: preparedArchive})
 	assert.NilError(t, err)
 
-	rdr, _, err := c.CopyFromContainer(ctx, cID, "/test")
+	res, err := c.CopyFromContainer(ctx, cID, client.CopyFromContainerOptions{SourcePath: "/test"})
 	assert.NilError(t, err)
-	_, err = io.Copy(io.Discard, rdr)
+	_, err = io.Copy(io.Discard, res.Content)
 	assert.NilError(t, err)
 }
 

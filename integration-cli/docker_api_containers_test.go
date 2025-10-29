@@ -991,7 +991,7 @@ func (s *DockerAPISuite) TestPutContainerArchiveErrSymlinkInVolumeToReadOnlyRoot
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
 
-	err = apiClient.CopyToContainer(testutil.GetContext(c), cID, "/vol2/symlinkToAbsDir", nil, client.CopyToContainerOptions{})
+	_, err = apiClient.CopyToContainer(testutil.GetContext(c), cID, client.CopyToContainerOptions{DestinationPath: "/vol2/symlinkToAbsDir"})
 	assert.ErrorContains(c, err, "container rootfs is marked read-only")
 }
 

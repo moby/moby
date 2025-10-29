@@ -480,7 +480,7 @@ func TestContainerCopyLeaksMounts(t *testing.T) {
 
 	mountsBefore := getMounts()
 
-	_, _, err := apiClient.CopyFromContainer(ctx, cid, "/etc/passwd")
+	_, err := apiClient.CopyFromContainer(ctx, cid, client.CopyFromContainerOptions{SourcePath: "/etc/passwd"})
 	assert.NilError(t, err)
 
 	mountsAfter := getMounts()

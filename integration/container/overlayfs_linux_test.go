@@ -42,13 +42,14 @@ func TestNoOverlayfsWarningsAboutUndefinedBehaviors(t *testing.T) {
 		{name: "cp to container", operation: func(t *testing.T) error {
 			archiveReader, err := archive.Generate("new-file", "hello-world")
 			assert.NilError(t, err, "failed to create a temporary archive")
-			return apiClient.CopyToContainer(ctx, cID, "/", archiveReader, client.CopyToContainerOptions{})
+			_, err = apiClient.CopyToContainer(ctx, cID, client.CopyToContainerOptions{DestinationPath: "/", Content: archiveReader})
+			return err
 		}},
 		{name: "cp from container", operation: func(*testing.T) error {
-			rc, _, err := apiClient.CopyFromContainer(ctx, cID, "/file")
+			res, err := apiClient.CopyFromContainer(ctx, cID, client.CopyFromContainerOptions{SourcePath: "/file"})
 			if err == nil {
-				defer rc.Close()
-				_, err = io.Copy(io.Discard, rc)
+				defer res.Content.Close()
+				_, err = io.Copy(io.Discard, res.Content)
 			}
 
 			return err
