@@ -219,7 +219,7 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 	type testCase struct {
 		testName                string
 		containerdStoreOnly     bool
-		pullPlatforms           []string
+		pullPlatforms           []ocispec.Platform
 		savePlatforms           []ocispec.Platform
 		loadPlatforms           []ocispec.Platform
 		expectedSavedPlatforms  []ocispec.Platform
@@ -230,9 +230,13 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 		{
 			testName:            "With no platforms specified",
 			containerdStoreOnly: true,
-			pullPlatforms:       []string{"linux/amd64", "linux/riscv64", "linux/arm64/v8"},
-			savePlatforms:       nil,
-			loadPlatforms:       nil,
+			pullPlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "amd64"},
+				{OS: "linux", Architecture: "riscv64"},
+				{OS: "linux", Architecture: "arm64", Variant: "v8"},
+			},
+			savePlatforms: nil,
+			loadPlatforms: nil,
 			expectedSavedPlatforms: []ocispec.Platform{
 				{OS: "linux", Architecture: "amd64"},
 				{OS: "linux", Architecture: "riscv64"},
@@ -246,16 +250,20 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 		},
 		{
 			testName:                "With single pulled platform",
-			pullPlatforms:           []string{"linux/amd64"},
+			pullPlatforms:           []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
 			savePlatforms:           []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
 			loadPlatforms:           []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
 			expectedSavedPlatforms:  []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
 			expectedLoadedPlatforms: []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
 		},
 		{
-			testName:                "With single platform save and load",
-			containerdStoreOnly:     true,
-			pullPlatforms:           []string{"linux/amd64", "linux/riscv64", "linux/arm64/v8"},
+			testName:            "With single platform save and load",
+			containerdStoreOnly: true,
+			pullPlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "amd64"},
+				{OS: "linux", Architecture: "riscv64"},
+				{OS: "linux", Architecture: "arm64", Variant: "v8"},
+			},
 			savePlatforms:           []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
 			loadPlatforms:           []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
 			expectedSavedPlatforms:  []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
@@ -264,7 +272,11 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 		{
 			testName:            "With multiple platforms save and load",
 			containerdStoreOnly: true,
-			pullPlatforms:       []string{"linux/amd64", "linux/riscv64", "linux/arm64/v8"},
+			pullPlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "amd64"},
+				{OS: "linux", Architecture: "riscv64"},
+				{OS: "linux", Architecture: "arm64", Variant: "v8"},
+			},
 			savePlatforms: []ocispec.Platform{
 				{OS: "linux", Architecture: "arm64", Variant: "v8"},
 				{OS: "linux", Architecture: "riscv64"},
@@ -285,7 +297,11 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 		{
 			testName:            "With mixed platform save and load",
 			containerdStoreOnly: true,
-			pullPlatforms:       []string{"linux/amd64", "linux/riscv64", "linux/arm64/v8"},
+			pullPlatforms: []ocispec.Platform{
+				{OS: "linux", Architecture: "amd64"},
+				{OS: "linux", Architecture: "riscv64"},
+				{OS: "linux", Architecture: "arm64", Variant: "v8"},
+			},
 			savePlatforms: []ocispec.Platform{
 				{OS: "linux", Architecture: "arm64", Variant: "v8"},
 				{OS: "linux", Architecture: "riscv64"},
@@ -310,7 +326,7 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 		t.Run(tc.testName, func(t *testing.T) {
 			// pull the image
 			for _, p := range tc.pullPlatforms {
-				resp, err := apiClient.ImagePull(ctx, repoName, client.ImagePullOptions{Platform: p})
+				resp, err := apiClient.ImagePull(ctx, repoName, client.ImagePullOptions{Platforms: []ocispec.Platform{p}})
 				assert.NilError(t, err)
 				_, err = io.ReadAll(resp)
 				resp.Close()
@@ -348,10 +364,10 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 
 			// pull the image again (start fresh)
 			for _, p := range tc.pullPlatforms {
-				resp, err := apiClient.ImagePull(ctx, repoName, client.ImagePullOptions{Platform: p})
+				pullRes, err := apiClient.ImagePull(ctx, repoName, client.ImagePullOptions{Platforms: []ocispec.Platform{p}})
 				assert.NilError(t, err)
-				_, err = io.ReadAll(resp)
-				resp.Close()
+				_, err = io.ReadAll(pullRes)
+				_ = pullRes.Close()
 				assert.NilError(t, err)
 			}
 

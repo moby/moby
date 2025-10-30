@@ -33,7 +33,9 @@ func TestImagePullPlatformInvalid(t *testing.T) {
 
 	apiClient := testEnv.APIClient()
 
-	_, err := apiClient.ImagePull(ctx, "docker.io/library/hello-world:latest", client.ImagePullOptions{Platform: "foobar"})
+	_, err := apiClient.ImagePull(ctx, "docker.io/library/hello-world:latest", client.ImagePullOptions{
+		Platforms: []ocispec.Platform{{OS: "foobar"}},
+	})
 	assert.Assert(t, err != nil)
 	assert.Check(t, is.ErrorContains(err, "unknown operating system or architecture"))
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))

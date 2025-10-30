@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"net/url"
-	"strings"
 
 	"github.com/distribution/reference"
 )
@@ -31,8 +30,9 @@ func (cli *Client) ImageImport(ctx context.Context, source ImageImportSource, re
 	if options.Message != "" {
 		query.Set("message", options.Message)
 	}
-	if options.Platform != "" {
-		query.Set("platform", strings.ToLower(options.Platform))
+	if p := formatPlatform(options.Platform); p != "unknown" {
+		// TODO(thaJeztah): would we ever support mutiple platforms here? (would require multiple rootfs tars as well?)
+		query.Set("platform", p)
 	}
 	for _, change := range options.Changes {
 		query.Add("changes", change)

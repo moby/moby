@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -55,7 +56,10 @@ func TestImageImport(t *testing.T) {
 		{
 			doc: "with platform",
 			options: ImageImportOptions{
-				Platform: "linux/amd64",
+				Platform: ocispec.Platform{
+					Architecture: "amd64",
+					OS:           "linux",
+				},
 			},
 			expectedQueryParams: url.Values{
 				"fromSrc":  {"image_source"},

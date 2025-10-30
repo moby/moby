@@ -22,6 +22,7 @@ import (
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/fakecontext"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -662,7 +663,7 @@ func TestBuildPlatformInvalid(t *testing.T) {
 	_, err = testEnv.APIClient().ImageBuild(ctx, buf, client.ImageBuildOptions{
 		Remove:      true,
 		ForceRemove: true,
-		Platform:    "foobar",
+		Platforms:   []ocispec.Platform{{OS: "foobar"}},
 	})
 
 	assert.Check(t, is.ErrorContains(err, "unknown operating system or architecture"))

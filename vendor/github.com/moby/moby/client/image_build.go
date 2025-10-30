@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 )
@@ -154,8 +154,12 @@ func (cli *Client) imageBuildOptionsToQuery(_ context.Context, options ImageBuil
 	if options.SessionID != "" {
 		query.Set("session", options.SessionID)
 	}
-	if options.Platform != "" {
-		query.Set("platform", strings.ToLower(options.Platform))
+	if len(options.Platforms) > 0 {
+		if len(options.Platforms) > 1 {
+			// TODO(thaJeztah): update API spec and add equivalent check on the daemon. We need this still for older daemons, which would ignore it.
+			return query, cerrdefs.ErrInvalidArgument.WithMessage("specifying multiple platforms is not yet supported")
+		}
+		query.Set("platform", formatPlatform(options.Platforms[0]))
 	}
 	if options.BuildID != "" {
 		query.Set("buildid", options.BuildID)
