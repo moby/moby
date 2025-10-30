@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -214,10 +213,8 @@ func makeTestImage(ctx context.Context, t *testing.T) (imageID string) {
 	assert.NilError(t, err)
 	defer resp.Body.Close()
 
-	err = jsonmessage.DisplayJSONMessagesStream(resp.Body, io.Discard, 0, false, func(msg jsonmessage.JSONMessage) {
-		var r build.Result
-		assert.NilError(t, json.Unmarshal(*msg.Aux, &r))
-		imageID = r.ID
+	err = jsonmessage.DisplayJSONMessagesStream[build.Result](resp.Body, io.Discard, 0, false, func(msg jsonmessage.JSONMessage[build.Result]) {
+		imageID = msg.Aux.ID
 	})
 	assert.NilError(t, err)
 	assert.Assert(t, imageID != "")
@@ -289,10 +286,8 @@ func TestCopyFromContainer(t *testing.T) {
 	defer resp.Body.Close()
 
 	var imageID string
-	err = jsonmessage.DisplayJSONMessagesStream(resp.Body, io.Discard, 0, false, func(msg jsonmessage.JSONMessage) {
-		var r build.Result
-		assert.NilError(t, json.Unmarshal(*msg.Aux, &r))
-		imageID = r.ID
+	err = jsonmessage.DisplayJSONMessagesStream[build.Result](resp.Body, io.Discard, 0, false, func(msg jsonmessage.JSONMessage[build.Result]) {
+		imageID = msg.Aux.ID
 	})
 	assert.NilError(t, err)
 	assert.Assert(t, imageID != "")

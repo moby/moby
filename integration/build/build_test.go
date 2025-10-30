@@ -127,7 +127,7 @@ func buildContainerIdsFilter(buildOutput io.Reader) (client.Filters, error) {
 
 	dec := json.NewDecoder(buildOutput)
 	for {
-		m := jsonmessage.JSONMessage{}
+		m := jsonmessage.JSONMessage[build.Result]{}
 		err := dec.Decode(&m)
 		if err == io.EOF {
 			return filter, nil
@@ -813,7 +813,7 @@ func readBuildImageIDs(t *testing.T, rd io.Reader) string {
 	t.Helper()
 	decoder := json.NewDecoder(rd)
 	for {
-		var jm jsonmessage.JSONMessage
+		var jm jsonmessage.JSONMessage[build.Result]
 		if err := decoder.Decode(&jm); err != nil {
 			if err == io.EOF {
 				break
@@ -824,14 +824,8 @@ func readBuildImageIDs(t *testing.T, rd io.Reader) string {
 		if jm.Aux == nil {
 			continue
 		}
-
-		var auxId struct {
-			ID string `json:"ID"`
-		}
-
-		json.Unmarshal(*jm.Aux, &auxId)
-		if auxId.ID != "" {
-			return auxId.ID
+		if jm.Aux.ID != "" {
+			return jm.Aux.ID
 		}
 	}
 

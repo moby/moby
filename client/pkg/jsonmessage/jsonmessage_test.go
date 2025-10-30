@@ -2,6 +2,7 @@ package jsonmessage
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -112,7 +113,7 @@ func TestProgressString(t *testing.T) {
 }
 
 func TestJSONMessageDisplay(t *testing.T) {
-	messages := map[JSONMessage][]string{
+	messages := map[JSONMessage[json.RawMessage]][]string{
 		// Empty
 		{}: {"\n", "\n"},
 		// Status
@@ -173,14 +174,14 @@ func TestJSONMessageDisplay(t *testing.T) {
 // Test JSONMessage with an Error. It returns an error with the given text, not the meaning of the HTTP code.
 func TestJSONMessageDisplayWithJSONError(t *testing.T) {
 	data := bytes.NewBuffer([]byte{})
-	jsonMessage := JSONMessage{Error: &jsonstream.Error{Code: 404, Message: "Can't find it"}}
+	jsonMessage := JSONMessage[json.RawMessage]{Error: &jsonstream.Error{Code: 404, Message: "Can't find it"}}
 
 	err := jsonMessage.Display(data, true)
 	if err == nil || err.Error() != "Can't find it" {
 		t.Fatalf("Expected a jsonstream.Error 404, got %q", err)
 	}
 
-	jsonMessage = JSONMessage{Error: &jsonstream.Error{Code: 401, Message: "Anything"}}
+	jsonMessage = JSONMessage[json.RawMessage]{Error: &jsonstream.Error{Code: 401, Message: "Anything"}}
 	err = jsonMessage.Display(data, true)
 	assert.Check(t, is.Error(err, "Anything"))
 }
@@ -192,7 +193,7 @@ func TestDisplayJSONMessagesStreamInvalidJSON(t *testing.T) {
 	inFd, _ = term.GetFdInfo(reader)
 
 	exp := "invalid character "
-	if err := DisplayJSONMessagesStream(reader, data, inFd, false, nil); err == nil || !strings.HasPrefix(err.Error(), exp) {
+	if err := DisplayJSONMessagesStream[JSONMessage[json.RawMessage]](reader, data, inFd, false, nil); err == nil || !strings.HasPrefix(err.Error(), exp) {
 		t.Fatalf("Expected error (%s...), got %q", exp, err)
 	}
 }
@@ -233,7 +234,7 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 		inFd, _ = term.GetFdInfo(reader)
 
 		// Without terminal
-		if err := DisplayJSONMessagesStream(reader, data, inFd, false, nil); err != nil {
+		if err := DisplayJSONMessagesStream[JSONMessage[json.RawMessage]](reader, data, inFd, false, nil); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[0] {
@@ -243,7 +244,7 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 		// With terminal
 		data = bytes.NewBuffer([]byte{})
 		reader = strings.NewReader(jsonMessage)
-		if err := DisplayJSONMessagesStream(reader, data, inFd, true, nil); err != nil {
+		if err := DisplayJSONMessagesStream[JSONMessage[json.RawMessage]](reader, data, inFd, true, nil); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[1] {
