@@ -425,17 +425,17 @@ func TestAuthzPluginEnsureContainerCopyToFrom(t *testing.T) {
 }
 
 func imageSave(ctx context.Context, apiClient client.APIClient, path, imgRef string) error {
-	responseReader, err := apiClient.ImageSave(ctx, []string{imgRef})
+	resp, err := apiClient.ImageSave(ctx, []string{imgRef})
 	if err != nil {
 		return err
 	}
-	defer responseReader.Close()
+	defer func() { _ = resp.Close() }()
 	file, err := os.Create(path)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
-	_, err = io.Copy(file, responseReader)
+	_, err = io.Copy(file, resp)
+	_ = file.Close()
 	return err
 }
 

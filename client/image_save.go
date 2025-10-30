@@ -11,7 +11,8 @@ type ImageSaveResult interface {
 }
 
 // ImageSave retrieves one or more images from the docker host as an
-// [ImageSaveResult].
+// [ImageSaveResult]. Callers should close the reader, but the underlying
+// [io.ReadCloser] is automatically closed if the context is canceled,
 //
 // Platforms is an optional parameter that specifies the platforms to save
 // from the image. Passing a platform only has an effect if the input image
@@ -44,30 +45,15 @@ func (cli *Client) ImageSave(ctx context.Context, imageIDs []string, saveOpts ..
 		return nil, err
 	}
 	return &imageSaveResult{
-		body: resp.Body,
+		ReadCloser: newCancelReadCloser(ctx, resp.Body),
 	}, nil
 }
 
 type imageSaveResult struct {
-	// body must be closed to avoid a resource leak
-	body io.ReadCloser
+	io.ReadCloser
 }
 
 var (
 	_ io.ReadCloser   = (*imageSaveResult)(nil)
 	_ ImageSaveResult = (*imageSaveResult)(nil)
 )
-
-func (r *imageSaveResult) Read(p []byte) (int, error) {
-	if r == nil || r.body == nil {
-		return 0, io.EOF
-	}
-	return r.body.Read(p)
-}
-
-func (r *imageSaveResult) Close() error {
-	if r == nil || r.body == nil {
-		return nil
-	}
-	return r.body.Close()
-}

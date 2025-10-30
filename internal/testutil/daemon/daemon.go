@@ -879,7 +879,7 @@ func (d *Daemon) LoadImage(ctx context.Context, t testing.TB, img string) {
 
 	reader, err := clientHost.ImageSave(ctx, []string{img})
 	assert.NilError(t, err, "[%s] failed to download %s", d.id, img)
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	c := d.NewClientT(t)
 	defer c.Close()
