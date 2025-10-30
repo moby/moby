@@ -8,7 +8,7 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/cluster/internal/runtime"
-	"github.com/moby/moby/v2/pkg/namesgenerator"
+	"github.com/moby/moby/v2/internal/namesgenerator"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/genericresource"
 	"github.com/pkg/errors"

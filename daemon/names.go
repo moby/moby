@@ -10,7 +10,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/names"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/moby/moby/v2/pkg/namesgenerator"
+	"github.com/moby/moby/v2/internal/namesgenerator"
 	"github.com/pkg/errors"
 )
 
