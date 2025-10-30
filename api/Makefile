@@ -6,7 +6,7 @@ DOCKER ?= docker
 BUILDX ?= $(DOCKER) buildx
 
 API_DIR := $(CURDIR)
-PROJECT_PATH := /go/src/github.com/docker/docker
+PROJECT_PATH := /go/src/github.com/moby/moby
 
 DOCKER_ENVS := -e GOPATH=/go
 
@@ -22,8 +22,8 @@ DOCKER_RUN := $(DOCKER_FLAGS) "$(DOCKER_IMAGE)"
 DOCKER_CONTAINER_NAME := $(if $(CONTAINER_NAME),--name $(CONTAINER_NAME),)
 
 BUILD_CMD := $(BUILDX) build
-GO_VERSION ?= 1.25
-SWAGGER_VERSION ?= v0.31.0
+GO_VERSION ?= 1.25.3
+SWAGGER_VERSION ?= v0.33.1
 SWAGGER_DOCS_PORT ?= 9000
 
 .DEFAULT_GOAL := help
@@ -46,7 +46,8 @@ swagger-gen: build ## generate swagger API types
 .PHONY: swagger-docs
 swagger-docs: ## preview the API documentation
 	@echo "API docs preview will be running at http://localhost:$(SWAGGER_DOCS_PORT)"
-	@docker run --rm -v $(PWD)/swagger.yaml:/usr/share/nginx/html/swagger.yaml \
+	@docker run --rm \
+		-v $(PWD)/swagger.yaml:/usr/share/nginx/html/swagger.yaml \
 		-e 'REDOC_OPTIONS=hide-hostname="true" lazy-rendering' \
 		-p $(SWAGGER_DOCS_PORT):80 \
 		bfirsh/redoc:1.14.0
