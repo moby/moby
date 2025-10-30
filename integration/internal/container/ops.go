@@ -2,6 +2,7 @@ package container
 
 import (
 	"maps"
+	"net"
 	"net/netip"
 	"slices"
 	"strings"
@@ -151,6 +152,10 @@ func WithTmpfs(targetAndOpts string) func(config *TestContainerConfig) {
 }
 
 func WithMacAddress(networkName, mac string) func(config *TestContainerConfig) {
+	maddr, err := net.ParseMAC(mac)
+	if err != nil {
+		panic(err)
+	}
 	return func(c *TestContainerConfig) {
 		if c.NetworkingConfig.EndpointsConfig == nil {
 			c.NetworkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{}
@@ -158,7 +163,7 @@ func WithMacAddress(networkName, mac string) func(config *TestContainerConfig) {
 		if v, ok := c.NetworkingConfig.EndpointsConfig[networkName]; !ok || v == nil {
 			c.NetworkingConfig.EndpointsConfig[networkName] = &network.EndpointSettings{}
 		}
-		c.NetworkingConfig.EndpointsConfig[networkName].MacAddress = mac
+		c.NetworkingConfig.EndpointsConfig[networkName].MacAddress = network.HardwareAddr(maddr)
 	}
 }
 

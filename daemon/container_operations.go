@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"net/netip"
 	"os"
 	"runtime"
@@ -545,13 +544,6 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 		errs = validateIPAMConfigIsInRange(errs, ipamConfig, v4Configs, v6Configs)
 	}
 
-	if epConfig.MacAddress != "" {
-		_, err := net.ParseMAC(epConfig.MacAddress)
-		if err != nil {
-			return fmt.Errorf("invalid MAC address %s", epConfig.MacAddress)
-		}
-	}
-
 	if sysctls, ok := epConfig.DriverOpts[netlabel.EndpointSysctls]; ok {
 		for _, sysctl := range strings.Split(sysctls, ",") {
 			scname := strings.SplitN(sysctl, ".", 5)
@@ -647,7 +639,7 @@ func cleanOperationalData(es *network.EndpointSettings) {
 	es.IPv6Gateway = netip.Addr{}
 	es.GlobalIPv6Address = netip.Addr{}
 	es.GlobalIPv6PrefixLen = 0
-	es.MacAddress = ""
+	es.MacAddress = nil
 	if es.IPAMOperational {
 		es.IPAMConfig = nil
 	}

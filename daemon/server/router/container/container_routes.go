@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -672,7 +673,7 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 			// Mac Address of the container.
 			//
 			// MacAddress field is deprecated since API v1.44. Use EndpointSettings.MacAddress instead.
-			MacAddress string `json:",omitempty"`
+			MacAddress network.HardwareAddr `json:",omitempty"`
 		}
 		_ = json.Unmarshal(requestBody.Bytes(), &legacyConfig)
 		if warn, err := handleMACAddressBC(hostConfig, networkingConfig, version, legacyConfig.MacAddress); err != nil {
@@ -745,14 +746,14 @@ func handleVolumeDriverBC(version string, hostConfig *container.HostConfig) (war
 // handleMACAddressBC takes care of backward-compatibility for the container-wide MAC address by mutating the
 // networkingConfig to set the endpoint-specific MACAddress field introduced in API v1.44. It returns a warning message
 // or an error if the container-wide field was specified for API >= v1.44.
-func handleMACAddressBC(hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, version string, deprecatedMacAddress string) (string, error) {
+func handleMACAddressBC(hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, version string, deprecatedMacAddress network.HardwareAddr) (string, error) {
 	// For older versions of the API, migrate the container-wide MAC address to EndpointsConfig.
 	if versions.LessThan(version, "1.44") {
-		if deprecatedMacAddress == "" {
+		if len(deprecatedMacAddress) == 0 {
 			// If a MAC address is supplied in EndpointsConfig, discard it because the old API
 			// would have ignored it.
 			for _, ep := range networkingConfig.EndpointsConfig {
-				ep.MacAddress = ""
+				ep.MacAddress = nil
 			}
 			return "", nil
 		}
@@ -769,7 +770,7 @@ func handleMACAddressBC(hostConfig *container.HostConfig, networkingConfig *netw
 	}
 
 	// The container-wide MacAddress parameter is deprecated and should now be specified in EndpointsConfig.
-	if deprecatedMacAddress == "" {
+	if len(deprecatedMacAddress) == 0 {
 		return "", nil
 	}
 
@@ -785,9 +786,9 @@ func handleMACAddressBC(hostConfig *container.HostConfig, networkingConfig *netw
 		}
 		// ep is the endpoint that needs the container-wide MAC address; migrate the address
 		// to it, or bail out if there's a mismatch.
-		if ep.MacAddress == "" {
+		if len(ep.MacAddress) == 0 {
 			ep.MacAddress = deprecatedMacAddress
-		} else if ep.MacAddress != deprecatedMacAddress {
+		} else if !slices.Equal(ep.MacAddress, deprecatedMacAddress) {
 			return "", errdefs.InvalidParameter(errors.New("the container-wide MAC address must match the endpoint-specific MAC address for the main network, or be left empty"))
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/netip"
+	"slices"
 	"testing"
 
 	containertypes "github.com/moby/moby/api/types/container"
@@ -82,7 +83,7 @@ func TestMACAddrOnRestart(t *testing.T) {
 	ctr2Inspect := container.Inspect(ctx, t, c, ctr2Name)
 	ctr2MAC := ctr2Inspect.NetworkSettings.Networks[netName].MacAddress
 
-	assert.Check(t, ctr1MAC != ctr2MAC,
+	assert.Check(t, !slices.Equal(ctr1MAC, ctr2MAC),
 		"expected containers to have different MAC addresses; got %q for both", ctr1MAC)
 }
 
@@ -120,7 +121,7 @@ func TestCfgdMACAddrOnRestart(t *testing.T) {
 
 	inspect := container.Inspect(ctx, t, c, ctr1Name)
 	gotMAC := inspect.NetworkSettings.Networks[netName].MacAddress
-	assert.Check(t, is.Equal(wantMAC, gotMAC))
+	assert.Check(t, is.Equal(wantMAC, gotMAC.String()))
 
 	startAndCheck := func() {
 		t.Helper()
@@ -128,7 +129,7 @@ func TestCfgdMACAddrOnRestart(t *testing.T) {
 		assert.Assert(t, is.Nil(err))
 		inspect = container.Inspect(ctx, t, c, ctr1Name)
 		gotMAC = inspect.NetworkSettings.Networks[netName].MacAddress
-		assert.Check(t, is.Equal(wantMAC, gotMAC))
+		assert.Check(t, is.Equal(wantMAC, gotMAC.String()))
 	}
 
 	// Restart the container, check that the MAC address is restored.
@@ -301,7 +302,7 @@ func TestWatchtowerCreate(t *testing.T) {
 	inspect := container.Inspect(ctx, t, c, ctrName)
 	netSettings := inspect.NetworkSettings.Networks[netName]
 	assert.Check(t, is.Equal(netSettings.IPAddress, netip.MustParseAddr(ctrIP)))
-	assert.Check(t, is.Equal(netSettings.MacAddress, ctrMAC))
+	assert.Check(t, is.Equal(netSettings.MacAddress.String(), ctrMAC))
 }
 
 type legacyCreateRequest struct {

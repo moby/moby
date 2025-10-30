@@ -2628,6 +2628,8 @@ definitions:
         type: "string"
         x-omitempty: false
         example: "02:42:ac:13:00:02"
+        x-go-type:
+          type: HardwareAddr
       IPv4Address:
         type: "string"
         x-omitempty: false
@@ -2914,6 +2916,8 @@ definitions:
           MAC address for the endpoint on this network. The network driver might ignore this parameter.
         type: "string"
         example: "02:42:ac:11:00:04"
+        x-go-type:
+          type: HardwareAddr
       Aliases:
         type: "array"
         items:

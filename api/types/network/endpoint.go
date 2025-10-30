@@ -30,7 +30,7 @@ type EndpointSettings struct {
 	// MacAddress may be used to specify a MAC address when the container is created.
 	// Once the container is running, it becomes operational data (it may contain a
 	// generated address).
-	MacAddress          string
+	MacAddress          HardwareAddr
 	IPPrefixLen         int
 	IPv6Gateway         netip.Addr
 	GlobalIPv6Address   netip.Addr

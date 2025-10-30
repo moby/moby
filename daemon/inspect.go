@@ -19,10 +19,10 @@ import (
 // ContainerInspect returns low-level information about a
 // container. Returns an error if the container cannot be found, or if
 // there is an error getting the data.
-func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options backend.ContainerInspectOptions) (_ *containertypes.InspectResponse, desiredMACAddress string, _ error) {
+func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options backend.ContainerInspectOptions) (_ *containertypes.InspectResponse, desiredMACAddress networktypes.HardwareAddr, _ error) {
 	ctr, err := daemon.GetContainer(name)
 	if err != nil {
-		return nil, "", err
+		return nil, nil, err
 	}
 
 	ctr.Lock()
@@ -30,7 +30,7 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options
 	base, desiredMACAddress, err := daemon.getInspectData(&daemon.config().Config, ctr)
 	if err != nil {
 		ctr.Unlock()
-		return nil, "", err
+		return nil, nil, err
 	}
 
 	// TODO(thaJeztah): do we need a deep copy here? Otherwise we could use maps.Clone (see https://github.com/moby/moby/commit/7917a36cc787ada58987320e67cc6d96858f3b55)
@@ -61,7 +61,7 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options
 	if options.Size {
 		sizeRw, sizeRootFs, err := daemon.imageService.GetContainerLayerSize(ctx, base.ID)
 		if err != nil {
-			return nil, "", err
+			return nil, nil, err
 		}
 		base.SizeRw = &sizeRw
 		base.SizeRootFs = &sizeRootFs
@@ -83,7 +83,7 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options
 	return base, desiredMACAddress, nil
 }
 
-func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Container) (_ *containertypes.InspectResponse, desiredMACAddress string, _ error) {
+func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Container) (_ *containertypes.InspectResponse, desiredMACAddress networktypes.HardwareAddr, _ error) {
 	// make a copy to play with
 	hostConfig := *ctr.HostConfig
 
@@ -101,7 +101,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 	// Config.MacAddress field for older API versions (< 1.44). We set it here
 	// unconditionally, to keep backward compatibility with clients that use
 	// unversioned API endpoints.
-	var macAddress string
+	var macAddress networktypes.HardwareAddr
 	if ctr.Config != nil {
 		if nwm := hostConfig.NetworkMode; nwm.IsBridge() || nwm.IsUserDefined() {
 			if epConf, ok := ctr.NetworkSettings.Networks[nwm.NetworkName()]; ok {
@@ -174,7 +174,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 		if ctr.State.Dead {
 			return inspectResponse, macAddress, nil
 		}
-		return nil, "", errdefs.System(errors.New("RWLayer of container " + ctr.ID + " is unexpectedly nil"))
+		return nil, nil, errdefs.System(errors.New("RWLayer of container " + ctr.ID + " is unexpectedly nil"))
 	}
 
 	graphDriverData, err := ctr.RWLayer.Metadata()
@@ -184,7 +184,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 			// have been removed; we can ignore errors.
 			return inspectResponse, macAddress, nil
 		}
-		return nil, "", errdefs.System(err)
+		return nil, nil, errdefs.System(err)
 	}
 
 	inspectResponse.GraphDriver.Data = graphDriverData

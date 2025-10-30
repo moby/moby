@@ -63,7 +63,7 @@ func (c *containerRouter) getContainersByName(ctx context.Context, w http.Respon
 		//
 		// This was deprecated in API v1.44, but kept in place until
 		// API v1.52, which removed this entirely.
-		if desiredMACAddress != "" {
+		if len(desiredMACAddress) != 0 {
 			wrapOpts = append(wrapOpts, compat.WithExtraFields(map[string]any{
 				"Config": map[string]any{
 					"MacAddress": desiredMACAddress,
