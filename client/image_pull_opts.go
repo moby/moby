@@ -2,6 +2,8 @@ package client
 
 import (
 	"context"
+
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImagePullOptions holds information to pull images.
@@ -16,5 +18,8 @@ type ImagePullOptions struct {
 	//
 	// For details, refer to [github.com/moby/moby/api/types/registry.RequestAuthConfig].
 	PrivilegeFunc func(context.Context) (string, error)
-	Platform      string
+
+	// Platforms selects the platforms to pull. Multiple platforms can be
+	// specified if the image ia a multi-platform image.
+	Platforms []ocispec.Platform
 }

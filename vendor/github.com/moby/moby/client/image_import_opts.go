@@ -2,6 +2,8 @@ package client
 
 import (
 	"io"
+
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImageImportSource holds source information for ImageImport
@@ -12,10 +14,10 @@ type ImageImportSource struct {
 
 // ImageImportOptions holds information to import images from the client host.
 type ImageImportOptions struct {
-	Tag      string   // Tag is the name to tag this image with. This attribute is deprecated.
-	Message  string   // Message is the message to tag the image with
-	Changes  []string // Changes are the raw changes to apply to this image
-	Platform string   // Platform is the target platform of the image
+	Tag      string           // Tag is the name to tag this image with. This attribute is deprecated.
+	Message  string           // Message is the message to tag the image with
+	Changes  []string         // Changes are the raw changes to apply to this image
+	Platform ocispec.Platform // Platform is the target platform of the image
 }
 
 // ImageImportResult holds the response body returned by the daemon for image import.

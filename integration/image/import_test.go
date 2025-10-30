@@ -14,6 +14,7 @@ import (
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -70,33 +71,30 @@ func TestImportWithCustomPlatform(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		platform string
-		expected platforms.Platform
+		platform ocispec.Platform
+		expected ocispec.Platform
 	}{
 		{
-			platform: "",
-			expected: platforms.Platform{
+			expected: ocispec.Platform{
 				OS:           runtime.GOOS,
 				Architecture: runtime.GOARCH, // this may fail on armhf due to normalization?
 			},
 		},
 		{
-			platform: runtime.GOOS,
-			expected: platforms.Platform{
+			platform: ocispec.Platform{
+				OS: runtime.GOOS,
+			},
+			expected: ocispec.Platform{
 				OS:           runtime.GOOS,
 				Architecture: runtime.GOARCH, // this may fail on armhf due to normalization?
 			},
 		},
 		{
-			platform: strings.ToUpper(runtime.GOOS),
-			expected: platforms.Platform{
+			platform: ocispec.Platform{
 				OS:           runtime.GOOS,
-				Architecture: runtime.GOARCH, // this may fail on armhf due to normalization?
+				Architecture: "sparc64",
 			},
-		},
-		{
-			platform: runtime.GOOS + "/sparc64",
-			expected: platforms.Platform{
+			expected: ocispec.Platform{
 				OS:           runtime.GOOS,
 				Architecture: "sparc64",
 			},
@@ -104,7 +102,7 @@ func TestImportWithCustomPlatform(t *testing.T) {
 	}
 
 	for i, tc := range tests {
-		t.Run(tc.platform, func(t *testing.T) {
+		t.Run(platforms.Format(tc.platform), func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			reference := "import-with-platform:tc-" + strconv.Itoa(i)
 
@@ -140,36 +138,45 @@ func TestImportWithCustomPlatformReject(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		platform    string
+		platform    ocispec.Platform
 		expectedErr string
 	}{
 		{
-			platform:    "       ",
+			name: "whitespace-only platform",
+			platform: ocispec.Platform{
+				OS: "       ",
+			},
 			expectedErr: "is an invalid OS component",
 		},
 		{
-			platform:    "/",
-			expectedErr: "is an invalid OS component",
-		},
-		{
-			platform:    "macos",
+			name: "valid, but unsupported os",
+			platform: ocispec.Platform{
+				OS: "macos",
+			},
 			expectedErr: "operating system is not supported",
 		},
 		{
-			platform:    "macos/arm64",
+			name: "valid, but unsupported os/arch",
+			platform: ocispec.Platform{
+				OS:           "macos",
+				Architecture: "arm64",
+			},
 			expectedErr: "operating system is not supported",
 		},
 		{
+			name: "valid, but unsupported os",
 			// TODO: platforms.Normalize() only validates os or arch if a single component is passed,
 			//       but ignores unknown os/arch in other cases. See:
 			//       https://github.com/containerd/containerd/blob/7d4891783aac5adf6cd83f657852574a71875631/platforms/platforms.go#L183-L209
-			platform:    "nintendo64",
+			platform: ocispec.Platform{
+				OS: "nintendo64",
+			},
 			expectedErr: "unknown operating system or architecture",
 		},
 	}
 
 	for i, tc := range tests {
-		t.Run(tc.platform, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			reference := "import-with-platform:tc-" + strconv.Itoa(i)
 			_, err = apiClient.ImageImport(ctx,

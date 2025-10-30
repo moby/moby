@@ -6,6 +6,7 @@ import (
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/registry"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImageBuildOptions holds the information
@@ -50,7 +51,9 @@ type ImageBuildOptions struct {
 	ExtraHosts  []string // List of extra hosts
 	Target      string
 	SessionID   string
-	Platform    string
+	// Platforms selects the platforms to build the image for. Multiple platforms
+	// can be provided if the daemon supports multi-platform builds.
+	Platforms []ocispec.Platform
 	// Version specifies the version of the underlying builder to use
 	Version build.BuilderVersion
 	// BuildID is an optional identifier that can be passed together with the

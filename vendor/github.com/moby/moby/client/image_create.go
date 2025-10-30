@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/http"
 	"net/url"
-	"strings"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
 	"github.com/moby/moby/api/types/registry"
 )
@@ -21,8 +21,12 @@ func (cli *Client) ImageCreate(ctx context.Context, parentReference string, opti
 	query := url.Values{}
 	query.Set("fromImage", ref.Name())
 	query.Set("tag", getAPITagFromNamedRef(ref))
-	if options.Platform != "" {
-		query.Set("platform", strings.ToLower(options.Platform))
+	if len(options.Platforms) > 0 {
+		if len(options.Platforms) > 1 {
+			// TODO(thaJeztah): update API spec and add equivalent check on the daemon. We need this still for older daemons, which would ignore it.
+			return ImageCreateResult{}, cerrdefs.ErrInvalidArgument.WithMessage("specifying multiple platforms is not yet supported")
+		}
+		query.Set("platform", formatPlatform(options.Platforms[0]))
 	}
 	resp, err := cli.tryImageCreate(ctx, query, staticAuth(options.RegistryAuth))
 	if err != nil {

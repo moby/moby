@@ -5,7 +5,6 @@ import (
 	"io"
 	"testing"
 
-	"github.com/containerd/platforms"
 	buildtypes "github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/client"
 	build "github.com/moby/moby/v2/integration/internal/build"
@@ -19,13 +18,13 @@ import (
 
 func TestAPIImagesHistory(t *testing.T) {
 	ctx := setupTest(t)
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	dockerfile := "FROM busybox\nENV FOO bar"
 
-	imgID := build.Do(ctx, t, client, fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile)))
+	imgID := build.Do(ctx, t, apiClient, fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile)))
 
-	res, err := client.ImageHistory(ctx, imgID)
+	res, err := apiClient.ImageHistory(ctx, imgID)
 	assert.NilError(t, err)
 
 	assert.Assert(t, len(res.Items) != 0)
@@ -69,9 +68,9 @@ func TestAPIImageHistoryCrossPlatform(t *testing.T) {
 
 	// Build the image for a non-native platform
 	resp, err := apiClient.ImageBuild(ctx, buildCtx.AsTarReader(t), client.ImageBuildOptions{
-		Version:  buildtypes.BuilderBuildKit,
-		Tags:     []string{"cross-platform-test"},
-		Platform: platforms.FormatAll(nonNativePlatform),
+		Version:   buildtypes.BuilderBuildKit,
+		Tags:      []string{"cross-platform-test"},
+		Platforms: []ocispec.Platform{nonNativePlatform},
 	})
 	assert.NilError(t, err)
 	defer resp.Body.Close()
@@ -128,7 +127,9 @@ func TestAPIImageHistoryCrossPlatform(t *testing.T) {
 }
 
 func pullImageForPlatform(t *testing.T, ctx context.Context, apiClient client.APIClient, ref string, platform ocispec.Platform) {
-	pullResp, err := apiClient.ImagePull(ctx, ref, client.ImagePullOptions{Platform: platforms.FormatAll(platform)})
+	pullResp, err := apiClient.ImagePull(ctx, ref, client.ImagePullOptions{
+		Platforms: []ocispec.Platform{platform},
+	})
 	assert.NilError(t, err)
 	_, _ = io.Copy(io.Discard, pullResp)
 
