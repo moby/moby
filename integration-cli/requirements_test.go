@@ -43,11 +43,11 @@ func OnlyDefaultNetworks(ctx context.Context) bool {
 }
 
 func IsAmd64() bool {
-	return testEnv.DaemonVersion.Arch == "amd64"
+	return testEnv.DaemonInfo.Architecture == "amd64"
 }
 
 func NotPpc64le() bool {
-	return testEnv.DaemonVersion.Arch != "ppc64le"
+	return testEnv.DaemonInfo.Architecture != "ppc64le"
 }
 
 func UnixCli() bool {

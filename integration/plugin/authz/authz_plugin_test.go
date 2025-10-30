@@ -106,7 +106,7 @@ func TestAuthZPluginAllowRequest(t *testing.T) {
 	assertURIRecorded(t, ctrl.requestsURIs, "/containers/create")
 	assertURIRecorded(t, ctrl.requestsURIs, fmt.Sprintf("/containers/%s/start", cID))
 
-	_, err := c.ServerVersion(ctx)
+	_, err := c.ServerVersion(ctx, client.ServerVersionOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, 1, ctrl.versionReqCount)
 	assert.Equal(t, 1, ctrl.versionResCount)
@@ -137,7 +137,7 @@ func TestAuthZPluginTLS(t *testing.T) {
 	c, err := newTLSAPIClient(testDaemonHTTPSAddr, cacertPath, clientCertPath, clientKeyPath)
 	assert.NilError(t, err)
 
-	_, err = c.ServerVersion(ctx)
+	_, err = c.ServerVersion(ctx, client.ServerVersionOptions{})
 	assert.NilError(t, err)
 
 	assert.Equal(t, "client", ctrl.reqUser)
@@ -165,7 +165,7 @@ func TestAuthZPluginDenyRequest(t *testing.T) {
 	c := d.NewClientT(t)
 
 	// Ensure command is blocked
-	_, err := c.ServerVersion(ctx)
+	_, err := c.ServerVersion(ctx, client.ServerVersionOptions{})
 	assert.Assert(t, err != nil)
 	assert.Equal(t, 1, ctrl.versionReqCount)
 	assert.Equal(t, 0, ctrl.versionResCount)
@@ -211,7 +211,7 @@ func TestAuthZPluginDenyResponse(t *testing.T) {
 	c := d.NewClientT(t)
 
 	// Ensure command is blocked
-	_, err := c.ServerVersion(ctx)
+	_, err := c.ServerVersion(ctx, client.ServerVersionOptions{})
 	assert.Assert(t, err != nil)
 	assert.Equal(t, 1, ctrl.versionReqCount)
 	assert.Equal(t, 1, ctrl.versionResCount)
@@ -304,7 +304,7 @@ func TestAuthZPluginErrorResponse(t *testing.T) {
 	c := d.NewClientT(t)
 
 	// Ensure command is blocked
-	_, err := c.ServerVersion(ctx)
+	_, err := c.ServerVersion(ctx, client.ServerVersionOptions{})
 	assert.Assert(t, err != nil)
 	assert.Equal(t, fmt.Sprintf("Error response from daemon: plugin %s failed with error: %s: %s", testAuthZPlugin, authorization.AuthZApiResponse, errorMessage), err.Error())
 }
@@ -317,7 +317,7 @@ func TestAuthZPluginErrorRequest(t *testing.T) {
 	c := d.NewClientT(t)
 
 	// Ensure command is blocked
-	_, err := c.ServerVersion(ctx)
+	_, err := c.ServerVersion(ctx, client.ServerVersionOptions{})
 	assert.Assert(t, err != nil)
 	assert.Equal(t, fmt.Sprintf("Error response from daemon: plugin %s failed with error: %s: %s", testAuthZPlugin, authorization.AuthZApiRequest, errorMessage), err.Error())
 }
@@ -331,7 +331,7 @@ func TestAuthZPluginEnsureNoDuplicatePluginRegistration(t *testing.T) {
 
 	c := d.NewClientT(t)
 
-	_, err := c.ServerVersion(ctx)
+	_, err := c.ServerVersion(ctx, client.ServerVersionOptions{})
 	assert.NilError(t, err)
 
 	// assert plugin is only called once..

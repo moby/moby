@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil/fixtures/load"
@@ -20,11 +19,11 @@ import (
 // Execution contains information about the current test execution and daemon
 // under test
 type Execution struct {
-	client            client.APIClient
-	DaemonInfo        system.Info
-	DaemonVersion     types.Version
-	PlatformDefaults  PlatformDefaults
-	protectedElements protectedElements
+	client              client.APIClient
+	DaemonInfo          system.Info
+	DaemonMinAPIVersion string
+	PlatformDefaults    PlatformDefaults
+	protectedElements   protectedElements
 }
 
 // PlatformDefaults are defaults values for the platform of the daemon under test
@@ -46,22 +45,27 @@ func New(ctx context.Context) (*Execution, error) {
 
 // FromClient creates a new Execution environment from the passed in client
 func FromClient(ctx context.Context, c *client.Client) (*Execution, error) {
+	_, err := c.Ping(ctx, client.PingOptions{NegotiateAPIVersion: true})
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to ping daemon to negotiate api version")
+	}
+
 	result, err := c.Info(ctx, client.InfoOptions{})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get info from daemon")
 	}
-	info := result.Info
-	v, err := c.ServerVersion(context.Background())
+
+	version, err := c.ServerVersion(ctx, client.ServerVersionOptions{})
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get version info from daemon")
+		return nil, errors.Wrapf(err, "failed to get version from daemon")
 	}
 
 	return &Execution{
-		client:            c,
-		DaemonInfo:        info,
-		DaemonVersion:     v,
-		PlatformDefaults:  getPlatformDefaults(info),
-		protectedElements: newProtectedElements(),
+		client:              c,
+		DaemonInfo:          result.Info,
+		DaemonMinAPIVersion: version.MinAPIVersion,
+		PlatformDefaults:    getPlatformDefaults(result.Info),
+		protectedElements:   newProtectedElements(),
 	}, nil
 }
 
@@ -129,11 +133,7 @@ func (e *Execution) IsRemoteDaemon() bool {
 
 // DaemonAPIVersion returns the negotiated daemon api version
 func (e *Execution) DaemonAPIVersion() string {
-	version, err := e.APIClient().ServerVersion(context.TODO())
-	if err != nil {
-		return ""
-	}
-	return version.APIVersion
+	return e.APIClient().ClientVersion()
 }
 
 // Print the execution details to stdout
@@ -228,7 +228,7 @@ func (e *Execution) GitHubActions() bool {
 
 // NotAmd64 returns true if the daemon's architecture is not amd64
 func (e *Execution) NotAmd64() bool {
-	return e.DaemonVersion.Arch != "amd64"
+	return e.DaemonInfo.Architecture != "amd64"
 }
 
 // FirewallBackendDriver returns the value of FirewallBackend.Driver from
