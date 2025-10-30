@@ -19,19 +19,19 @@ import (
 func TestServiceLogsError(t *testing.T) {
 	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	_, err = client.ServiceLogs(context.Background(), "service_id", ServiceLogsOptions{})
+	_, err = client.ServiceLogs(t.Context(), "service_id", ServiceLogsOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ServiceLogs(context.Background(), "service_id", ServiceLogsOptions{
+	_, err = client.ServiceLogs(t.Context(), "service_id", ServiceLogsOptions{
 		Since: "2006-01-02TZ",
 	})
 	assert.Check(t, is.ErrorContains(err, `parsing time "2006-01-02TZ"`))
 
-	_, err = client.ServiceLogs(context.Background(), "", ServiceLogsOptions{})
+	_, err = client.ServiceLogs(t.Context(), "", ServiceLogsOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ServiceLogs(context.Background(), "    ", ServiceLogsOptions{})
+	_, err = client.ServiceLogs(t.Context(), "    ", ServiceLogsOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -39,16 +39,19 @@ func TestServiceLogsError(t *testing.T) {
 func TestServiceLogs(t *testing.T) {
 	const expectedURL = "/services/service_id/logs"
 	cases := []struct {
+		doc                 string
 		options             ServiceLogsOptions
 		expectedQueryParams map[string]string
 		expectedError       string
 	}{
 		{
+			doc: "no options",
 			expectedQueryParams: map[string]string{
 				"tail": "",
 			},
 		},
 		{
+			doc: "tail",
 			options: ServiceLogsOptions{
 				Tail: "any",
 			},
@@ -57,6 +60,7 @@ func TestServiceLogs(t *testing.T) {
 			},
 		},
 		{
+			doc: "all options",
 			options: ServiceLogsOptions{
 				ShowStdout: true,
 				ShowStderr: true,
@@ -74,6 +78,7 @@ func TestServiceLogs(t *testing.T) {
 			},
 		},
 		{
+			doc: "since",
 			options: ServiceLogsOptions{
 				// timestamp is passed as-is
 				Since: "1136073600.000000001",
@@ -84,6 +89,7 @@ func TestServiceLogs(t *testing.T) {
 			},
 		},
 		{
+			doc: "invalid since",
 			options: ServiceLogsOptions{
 				// invalid dates are not passed.
 				Since: "invalid value",
@@ -91,32 +97,34 @@ func TestServiceLogs(t *testing.T) {
 			expectedError: `invalid value for "since": failed to parse value as time or duration: "invalid value"`,
 		},
 	}
-	for _, logCase := range cases {
-		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
-				return nil, err
-			}
-			// Check query parameters
-			query := req.URL.Query()
-			for key, expected := range logCase.expectedQueryParams {
-				actual := query.Get(key)
-				if actual != expected {
-					return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
+	for _, tc := range cases {
+		t.Run(tc.doc, func(t *testing.T) {
+			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+				if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+					return nil, err
 				}
+				// Check query parameters
+				query := req.URL.Query()
+				for key, expected := range tc.expectedQueryParams {
+					actual := query.Get(key)
+					if actual != expected {
+						return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
+					}
+				}
+				return mockResponse(http.StatusOK, nil, "response")(req)
+			}))
+			assert.NilError(t, err)
+			res, err := client.ServiceLogs(t.Context(), "service_id", tc.options)
+			if tc.expectedError != "" {
+				assert.Check(t, is.Error(err, tc.expectedError))
+				return
 			}
-			return mockResponse(http.StatusOK, nil, "response")(req)
-		}))
-		assert.NilError(t, err)
-		body, err := client.ServiceLogs(context.Background(), "service_id", logCase.options)
-		if logCase.expectedError != "" {
-			assert.Check(t, is.Error(err, logCase.expectedError))
-			continue
-		}
-		assert.NilError(t, err)
-		defer body.Close()
-		content, err := io.ReadAll(body)
-		assert.NilError(t, err)
-		assert.Check(t, is.Contains(string(content), "response"))
+			assert.NilError(t, err)
+			defer func() { _ = res.Close() }()
+			content, err := io.ReadAll(res)
+			assert.NilError(t, err)
+			assert.Check(t, is.Contains(string(content), "response"))
+		})
 	}
 }
 
@@ -125,12 +133,13 @@ func ExampleClient_ServiceLogs_withTimeout() {
 	defer cancel()
 
 	client, _ := NewClientWithOpts(FromEnv)
-	reader, err := client.ServiceLogs(ctx, "service_id", ServiceLogsOptions{})
+	res, err := client.ServiceLogs(ctx, "service_id", ServiceLogsOptions{})
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer res.Close()
 
-	_, err = io.Copy(os.Stdout, reader)
+	_, err = io.Copy(os.Stdout, res)
 	if err != nil && !errors.Is(err, io.EOF) {
 		log.Fatal(err)
 	}
