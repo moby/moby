@@ -30,7 +30,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	exportRes, err := apiClient.ContainerExport(ctx, cID, client.ContainerExportOptions{})
 	assert.NilError(t, err)
 	importRes, err := apiClient.ImageImport(ctx, client.ImageImportSource{
-		Source:     exportRes,
+		Source:     exportRes.Body,
 		SourceName: "-",
 	}, reference, client.ImageImportOptions{})
 	assert.NilError(t, err)
@@ -71,6 +71,7 @@ func TestExportContainerAfterDaemonRestart(t *testing.T) {
 
 	d.Restart(t)
 
-	_, err := c.ContainerExport(ctx, ctrID, client.ContainerExportOptions{})
+	res, err := c.ContainerExport(ctx, ctrID, client.ContainerExportOptions{})
 	assert.NilError(t, err)
+	_ = res.Body.Close()
 }
