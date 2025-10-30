@@ -15,7 +15,6 @@ import (
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/jsonstream"
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/system"
@@ -136,16 +135,27 @@ func TestPluginInstall(t *testing.T) {
 		err := plugin.Create(ctx, apiclient, repo)
 		assert.NilError(t, err)
 
-		pushResult, err := apiclient.PluginPush(ctx, repo, client.PluginPushOptions{})
+		res, err := apiclient.PluginPush(ctx, repo, client.PluginPushOptions{})
 		assert.NilError(t, err)
-		defer pushResult.Close()
+		defer res.Close()
 
 		buf := &strings.Builder{}
 		assert.NilError(t, err)
 		var digest string
-		assert.NilError(t, jsonmessage.DisplayJSONMessagesStream(pushResult, buf, 0, false, func(j jsonstream.Message) {
+
+		// PushResult contains the tag, manifest digest, and manifest size from the
+		// push. It's used to signal this information to the trust code in the client
+		// so it can sign the manifest if necessary.
+		//
+		// TODO(thaJeztah): this aux-type is only present for docker content trust, which is deprecated.
+		type pushResult struct {
+			Tag    string
+			Digest string
+			Size   int
+		}
+		assert.NilError(t, jsonmessage.DisplayJSONMessagesStream(res, buf, 0, false, func(j jsonstream.Message) {
 			if j.Aux != nil {
-				var r types.PushResult
+				var r pushResult
 				assert.NilError(t, json.Unmarshal(*j.Aux, &r))
 				digest = r.Digest
 			}

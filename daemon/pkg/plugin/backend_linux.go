@@ -22,7 +22,6 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/moby/go-archive/chrootarchive"
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/api/types/registry"
@@ -464,8 +463,19 @@ func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header
 		progress.Update(out, pj.names[j], "Upload complete")
 	}
 
+	// pushResult contains the tag, manifest digest, and manifest size from the
+	// push. It's used to signal this information to the trust code in the client
+	// so it can sign the manifest if necessary.
+	//
+	// TODO(thaJeztah): this aux-type is only present for docker content trust, which is deprecated.
+	type pushResult struct {
+		Tag    string
+		Digest string
+		Size   int
+	}
+
 	// Signal the client for content trust verification
-	progress.Aux(out, types.PushResult{Tag: ref.(reference.Tagged).Tag(), Digest: desc.Digest.String(), Size: int(desc.Size)})
+	progress.Aux(out, pushResult{Tag: ref.(reference.Tagged).Tag(), Digest: desc.Digest.String(), Size: int(desc.Size)})
 
 	return nil
 }
