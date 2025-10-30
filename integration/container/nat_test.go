@@ -100,14 +100,14 @@ func TestNetworkLoopbackNat(t *testing.T) {
 
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID))
 
-	body, err := apiClient.ContainerLogs(ctx, cID, client.ContainerLogsOptions{
+	logs, err := apiClient.ContainerLogs(ctx, cID, client.ContainerLogsOptions{
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)
-	defer body.Close()
+	defer logs.Close()
 
 	var b bytes.Buffer
-	_, err = io.Copy(&b, body)
+	_, err = io.Copy(&b, logs)
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Equal(msg, strings.TrimSpace(b.String())))
