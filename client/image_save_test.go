@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"net/url"
@@ -17,7 +16,7 @@ func TestImageSaveError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	armv64 := ocispec.Platform{Architecture: "arm64", OS: "linux", Variant: "v8"}
-	_, err = client.ImageSave(context.Background(), []string{"nothing"}, ImageSaveWithPlatforms(armv64))
+	_, err = client.ImageSave(t.Context(), []string{"nothing"}, ImageSaveWithPlatforms(armv64))
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -69,13 +68,13 @@ func TestImageSave(t *testing.T) {
 				return mockResponse(http.StatusOK, nil, expectedOutput)(req)
 			}))
 			assert.NilError(t, err)
-			resp, err := client.ImageSave(context.Background(), []string{"image_id1", "image_id2"}, tc.options...)
+			resp, err := client.ImageSave(t.Context(), []string{"image_id1", "image_id2"}, tc.options...)
 			assert.NilError(t, err)
 			defer func() {
-				assert.NilError(t, resp.Close())
+				assert.NilError(t, resp.Body.Close())
 			}()
 
-			body, err := io.ReadAll(resp)
+			body, err := io.ReadAll(resp.Body)
 			assert.NilError(t, err)
 			assert.Check(t, is.Equal(string(body), expectedOutput))
 		})

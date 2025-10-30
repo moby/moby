@@ -6,7 +6,8 @@ import (
 )
 
 // ImageSave retrieves one or more images from the docker host as an
-// [ImageSaveResult].
+// [ImageSaveResult]. Callers should close the reader, but the underlying
+// [io.ReadCloser] is automatically closed if the context is canceled,
 //
 // Platforms is an optional parameter that specifies the platforms to save
 // from the image. Passing a platform only has an effect if the input image
@@ -38,5 +39,5 @@ func (cli *Client) ImageSave(ctx context.Context, imageIDs []string, saveOpts ..
 	if err != nil {
 		return ImageSaveResult{}, err
 	}
-	return newImageSaveResult(resp.Body), nil
+	return ImageSaveResult{Body: newCancelReadCloser(ctx, resp.Body)}, nil
 }

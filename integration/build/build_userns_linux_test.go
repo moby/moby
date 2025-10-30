@@ -75,13 +75,13 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 
 	reader, err := clientUserRemap.ImageSave(ctx, []string{imageTag})
 	assert.NilError(t, err, "failed to download capabilities image")
-	defer reader.Close()
+	defer func() { _ = reader.Body.Close() }()
 
 	tar, err := os.Create(filepath.Join(tmpDir, "image.tar"))
 	assert.NilError(t, err, "failed to create image tar file")
 	defer tar.Close()
 
-	_, err = io.Copy(tar, reader)
+	_, err = io.Copy(tar, reader.Body)
 	assert.NilError(t, err, "failed to write image tar file")
 
 	dUserRemap.Stop(t)
