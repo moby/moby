@@ -409,12 +409,12 @@ definitions:
             default: false
           ReadOnlyNonRecursive:
             description: |
-              Make the mount non-recursively read-only, but still leave the mount recursive
-              (unless NonRecursive is set to `true` in conjunction).
+               Make the mount non-recursively read-only, but still leave the mount recursive
+               (unless NonRecursive is set to `true` in conjunction).
 
-              Added in v1.44, before that version all read-only mounts were
-              non-recursive by default. To match the previous behaviour this
-              will default to `true` for clients on versions prior to v1.44.
+               Added in v1.44, before that version all read-only mounts were
+               non-recursive by default. To match the previous behaviour this
+               will default to `true` for clients on versions prior to v1.44.
             type: "boolean"
             default: false
           ReadOnlyForceRecursive:
@@ -482,7 +482,8 @@ definitions:
               maxItems: 2
               items:
                 type: "string"
-            example: [["noexec"]]
+            example:
+              [["noexec"]]
 
   RestartPolicy:
     description: |
@@ -1312,7 +1313,10 @@ definitions:
           enum:
             - {}
           default: {}
-        example: { "80/tcp": {}, "443/tcp": {} }
+        example: {
+          "80/tcp": {},
+          "443/tcp": {}
+        }
       Tty:
         description: |
           Attach standard streams to a TTY, including `stdin` if it is not closed.
@@ -1444,7 +1448,10 @@ definitions:
           enum:
             - {}
           default: {}
-        example: { "80/tcp": {}, "443/tcp": {} }
+        example: {
+          "80/tcp": {},
+          "443/tcp": {}
+        }
       Env:
         description: |
           A list of environment variables to set inside the container in the
@@ -1671,12 +1678,11 @@ definitions:
         x-nullable: false
         additionalProperties:
           type: "string"
-        example:
-          {
-            "MergedDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/merged",
-            "UpperDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/diff",
-            "WorkDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/work",
-          }
+        example: {
+          "MergedDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/merged",
+          "UpperDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/diff",
+          "WorkDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/work"
+        }
 
   Storage:
     description: |
@@ -1774,15 +1780,15 @@ definitions:
         $ref: "#/definitions/OCIDescriptor"
       Manifests:
         description: |
-          Manifests is a list of image manifests available in this image. It
-          provides a more detailed view of the platform-specific image manifests or
-          other image-attached data like build attestations.
+            Manifests is a list of image manifests available in this image. It
+            provides a more detailed view of the platform-specific image manifests or
+            other image-attached data like build attestations.
 
-          Only available if the daemon provides a multi-platform image store
-          and the `manifests` option is set in the inspect request.
+            Only available if the daemon provides a multi-platform image store
+            and the `manifests` option is set in the inspect request.
 
-          WARNING: This is experimental and may change at any time without any backward
-          compatibility.
+            WARNING: This is experimental and may change at any time without any backward
+            compatibility.
         type: "array"
         x-nullable: true
         items:
@@ -2629,12 +2635,14 @@ definitions:
     x-nullable: false
     properties:
       Name:
-        description: ID of the peer-node in the Swarm cluster.
+        description:
+          ID of the peer-node in the Swarm cluster.
         type: "string"
         x-omitempty: false
         example: "6869d7c1732b"
       IP:
-        description: IP-address of the peer-node in the Swarm cluster.
+        description:
+          IP-address of the peer-node in the Swarm cluster.
         type: "string"
         x-omitempty: false
         example: "10.133.77.91"
@@ -2712,7 +2720,7 @@ definitions:
         type: "string"
         description: |
           Description of the build-step that produced the build cache.
-        example: 'mount / from exec /bin/sh -c echo ''Binary::apt::APT::Keep-Downloaded-Packages "true";'' > /etc/apt/apt.conf.d/keep-cache'
+        example: "mount / from exec /bin/sh -c echo 'Binary::apt::APT::Keep-Downloaded-Packages \"true\";' > /etc/apt/apt.conf.d/keep-cache"
       InUse:
         type: "boolean"
         description: |
@@ -3501,7 +3509,8 @@ definitions:
           certificates.
         type: "string"
       CertIssuerSubject:
-        description: The base64-url-safe-encoded raw subject bytes of the issuer.
+        description:
+          The base64-url-safe-encoded raw subject bytes of the issuer.
         type: "string"
       CertIssuerPublicKey:
         description: |
@@ -4950,24 +4959,29 @@ definitions:
         EndpointSpec:
           Mode: "vip"
           Ports:
-            - Protocol: "tcp"
+            -
+              Protocol: "tcp"
               TargetPort: 6379
               PublishedPort: 30001
       Endpoint:
         Spec:
           Mode: "vip"
           Ports:
-            - Protocol: "tcp"
+            -
+              Protocol: "tcp"
               TargetPort: 6379
               PublishedPort: 30001
         Ports:
-          - Protocol: "tcp"
+          -
+            Protocol: "tcp"
             TargetPort: 6379
             PublishedPort: 30001
         VirtualIPs:
-          - NetworkID: "4qvuz4ko70xaltuqbt8956gd1"
+          -
+            NetworkID: "4qvuz4ko70xaltuqbt8956gd1"
             Addr: "10.255.0.2/16"
-          - NetworkID: "4qvuz4ko70xaltuqbt8956gd1"
+          -
+            NetworkID: "4qvuz4ko70xaltuqbt8956gd1"
             Addr: "10.255.0.3/16"
 
   ImageDeleteResponseItem:
@@ -5517,16 +5531,7 @@ definitions:
           String representation of the container state. Can be one of "created",
           "running", "paused", "restarting", "removing", "exited", or "dead".
         type: "string"
-        enum:
-          [
-            "created",
-            "running",
-            "paused",
-            "restarting",
-            "removing",
-            "exited",
-            "dead",
-          ]
+        enum: ["created", "running", "paused", "restarting", "removing", "exited", "dead"]
         example: "running"
       Running:
         description: |
@@ -5774,11 +5779,10 @@ definitions:
         items:
           $ref: "#/definitions/ContainerBlkioStatEntry"
     example:
-      io_service_bytes_recursive:
-        [
-          { "major": 254, "minor": 0, "op": "read", "value": 7593984 },
-          { "major": 254, "minor": 0, "op": "write", "value": 100 },
-        ]
+      io_service_bytes_recursive: [
+        {"major": 254, "minor": 0, "op": "read", "value": 7593984},
+        {"major": 254, "minor": 0, "op": "write", "value": 100}
+      ]
       io_serviced_recursive: null
       io_queue_recursive: null
       io_service_time_recursive: null
@@ -6010,7 +6014,7 @@ definitions:
             "unevictable": 0,
             "workingset_activate": 0,
             "workingset_nodereclaim": 0,
-            "workingset_refault": 0,
+            "workingset_refault": 0
           }
       failcnt:
         description: |
@@ -6194,7 +6198,8 @@ definitions:
             type: "string"
         example:
           Processes:
-            - - "root"
+            -
+              - "root"
               - "13642"
               - "882"
               - "0"
@@ -6202,7 +6207,8 @@ definitions:
               - "pts/0"
               - "00:00:00"
               - "/bin/bash"
-            - - "root"
+            -
+              - "root"
               - "13735"
               - "13642"
               - "0"
@@ -6907,17 +6913,8 @@ definitions:
         type: "array"
         items:
           type: "string"
-        example:
-          [
-            "awslogs",
-            "fluentd",
-            "gcplogs",
-            "gelf",
-            "journald",
-            "json-file",
-            "splunk",
-            "syslog",
-          ]
+        example: ["awslogs", "fluentd", "gcplogs", "gelf", "journald", "json-file", "splunk", "syslog"]
+
 
   RegistryServiceConfig:
     description: |
@@ -6992,7 +6989,8 @@ definitions:
           - "https://[2001:db8:a0b:12f0::1]/"
 
   IndexInfo:
-    description: IndexInfo contains information about a registry.
+    description:
+      IndexInfo contains information about a registry.
     type: "object"
     x-nullable: true
     properties:
@@ -7080,7 +7078,7 @@ definitions:
         additionalProperties:
           type: "string"
         example:
-          "org.opencontainers.runtime-spec.features": '{"ociVersionMin":"1.0.0","ociVersionMax":"1.1.0","...":"..."}'
+          "org.opencontainers.runtime-spec.features": "{\"ociVersionMin\":\"1.0.0\",\"ociVersionMax\":\"1.1.0\",\"...\":\"...\"}"
 
   Commit:
     description: |
@@ -7225,20 +7223,7 @@ definitions:
       Type:
         description: "The type of object emitting the event"
         type: "string"
-        enum:
-          [
-            "builder",
-            "config",
-            "container",
-            "daemon",
-            "image",
-            "network",
-            "node",
-            "plugin",
-            "secret",
-            "service",
-            "volume",
-          ]
+        enum: ["builder", "config", "container", "daemon", "image", "network", "node", "plugin", "secret", "service", "volume"]
         example: "container"
       Action:
         description: "The type of event"
@@ -7702,11 +7687,7 @@ definitions:
             type: "array"
             items:
               type: "string"
-            example:
-              [
-                "ede54ee1fda366ab42f824e8a5ffd195155d853ceaec74a927f249ea270c7430",
-                "abadbce344c096744d8d6071a90d474d28af8f1034b5ea9fb03c3f4bfc6d005e",
-              ]
+            example: ["ede54ee1fda366ab42f824e8a5ffd195155d853ceaec74a927f249ea270c7430", "abadbce344c096744d8d6071a90d474d28af8f1034b5ea9fb03c3f4bfc6d005e"]
           Size:
             type: "object"
             x-nullable: false
@@ -7926,8 +7907,7 @@ paths:
                 DeviceRequests:
                   - Driver: "nvidia"
                     Count: -1
-                    DeviceIDs":
-                      ["0", "1", "GPU-fef8089b-4820-abfc-e83e-94318197576e"]
+                    DeviceIDs": ["0", "1", "GPU-fef8089b-4820-abfc-e83e-94318197576e"]
                     Capabilities: [["gpu", "nvidia", "compute"]]
                     Options:
                       property1: "string"
@@ -10097,15 +10077,7 @@ paths:
               description: "If the server is running with experimental mode enabled"
             Swarm:
               type: "string"
-              enum:
-                [
-                  "inactive",
-                  "pending",
-                  "error",
-                  "locked",
-                  "active/worker",
-                  "active/manager",
-                ]
+              enum: ["inactive", "pending", "error", "locked", "active/worker", "active/manager"]
               description: |
                 Contains information about Swarm status of the daemon,
                 and if the daemon is acting as a manager or worker node.
@@ -10151,15 +10123,7 @@ paths:
               description: "If the server is running with experimental mode enabled"
             Swarm:
               type: "string"
-              enum:
-                [
-                  "inactive",
-                  "pending",
-                  "error",
-                  "locked",
-                  "active/worker",
-                  "active/manager",
-                ]
+              enum: ["inactive", "pending", "error", "locked", "active/worker", "active/manager"]
               description: |
                 Contains information about Swarm status of the daemon,
                 and if the daemon is acting as a manager or worker node.
@@ -10343,7 +10307,8 @@ paths:
             example:
               LayersSize: 1092588
               Images:
-                - Id: "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749"
+                -
+                  Id: "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749"
                   ParentId: ""
                   RepoTags:
                     - "busybox:latest"
@@ -10355,7 +10320,8 @@ paths:
                   Labels: {}
                   Containers: 1
               Containers:
-                - Id: "e575172ed11dc01bfce087fb27bee502db149e1a0fad7c296ad300bbff178148"
+                -
+                  Id: "e575172ed11dc01bfce087fb27bee502db149e1a0fad7c296ad300bbff178148"
                   Names:
                     - "/top"
                   Image: "busybox"
@@ -10386,7 +10352,8 @@ paths:
                         MacAddress: "02:42:ac:12:00:02"
                   Mounts: []
               Volumes:
-                - Name: "my-volume"
+                -
+                  Name: "my-volume"
                   Driver: "local"
                   Mountpoint: "/var/lib/docker/volumes/my-volume/_data"
                   Labels: null
@@ -10396,7 +10363,8 @@ paths:
                     Size: 10920104
                     RefCount: 2
               BuildCache:
-                - ID: "hw53o5aio51xtltp5xjp8v7fx"
+                -
+                  ID: "hw53o5aio51xtltp5xjp8v7fx"
                   Parents: []
                   Type: "regular"
                   Description: "pulled from docker.io/library/debian@sha256:234cb88d3020898631af0ccbbcca9a66ae7306ecd30c9720690858c1b007d2a0"
@@ -10406,10 +10374,11 @@ paths:
                   CreatedAt: "2021-06-28T13:31:01.474619385Z"
                   LastUsedAt: "2021-07-07T22:02:32.738075951Z"
                   UsageCount: 26
-                - ID: "ndlpt0hhvkqcdfkputsk4cq9c"
+                -
+                  ID: "ndlpt0hhvkqcdfkputsk4cq9c"
                   Parents: ["ndlpt0hhvkqcdfkputsk4cq9c"]
                   Type: "regular"
-                  Description: 'mount / from exec /bin/sh -c echo ''Binary::apt::APT::Keep-Downloaded-Packages "true";'' > /etc/apt/apt.conf.d/keep-cache'
+                  Description: "mount / from exec /bin/sh -c echo 'Binary::apt::APT::Keep-Downloaded-Packages \"true\";' > /etc/apt/apt.conf.d/keep-cache"
                   InUse: false
                   Shared: true
                   Size: 51
@@ -11100,7 +11069,8 @@ paths:
                 IPAM:
                   Driver: "default"
                   Config:
-                    - Subnet: "172.17.0.0/16"
+                    -
+                      Subnet: "172.17.0.0/16"
                 Options:
                   com.docker.network.bridge.default_bridge: "true"
                   com.docker.network.bridge.enable_icc: "true"
@@ -12425,7 +12395,8 @@ paths:
                     ContainerSpec:
                       Image: "nginx:alpine"
                       Mounts:
-                        - ReadOnly: true
+                        -
+                          ReadOnly: true
                           Source: "web-data"
                           Target: "/usr/share/nginx/html"
                           Type: "volume"
@@ -12433,18 +12404,15 @@ paths:
                             DriverConfig: {}
                             Labels:
                               com.example.something: "something-value"
-                      Hosts:
-                        [
-                          "10.10.10.10 host1",
-                          "ABCD:EF01:2345:6789:ABCD:EF01:2345:6789 host2",
-                        ]
+                      Hosts: ["10.10.10.10 host1", "ABCD:EF01:2345:6789:ABCD:EF01:2345:6789 host2"]
                       User: "33"
                       DNSConfig:
                         Nameservers: ["8.8.8.8"]
                         Search: ["example.org"]
                         Options: ["timeout:3"]
                       Secrets:
-                        - File:
+                        -
+                          File:
                             Name: "www.example.org.key"
                             UID: "33"
                             GID: "33"
@@ -12483,7 +12451,8 @@ paths:
                     MaxFailureRatio: 0.15
                   EndpointSpec:
                     Ports:
-                      - Protocol: "tcp"
+                      -
+                        Protocol: "tcp"
                         PublishedPort: 8080
                         TargetPort: 80
                   Labels:
