@@ -1,4 +1,4 @@
-name: windows-2019
+name: windows-2025
 
 # Default to 'contents: read', which grants actions to read commits.
 #
@@ -14,9 +14,13 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  schedule:
-    - cron: '0 10 * * *'
   workflow_dispatch:
+  push:
+    branches:
+      - 'master'
+      - '[0-9]+.[0-9]+'
+      - '[0-9]+.x'
+  pull_request:
 
 jobs:
   validate-dco:
@@ -37,6 +41,6 @@ jobs:
       matrix:
         storage: ${{ fromJson(needs.test-prepare.outputs.matrix) }}
     with:
-      os: windows-2019
+      os: windows-2025
       storage: ${{ matrix.storage }}
       send_coverage: false

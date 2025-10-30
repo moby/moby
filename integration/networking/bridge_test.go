@@ -238,7 +238,7 @@ func TestBridgeICCWindows(t *testing.T) {
 			pingCmd := []string{"ping", "-n", "1", "-w", "3000", ctr1Name}
 
 			const ctr2Name = "ctr2"
-			attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			attachCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 			defer cancel()
 			res := container.RunAttach(attachCtx, t, c,
 				container.WithName(ctr2Name),
