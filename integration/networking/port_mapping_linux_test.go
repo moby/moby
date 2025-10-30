@@ -1488,10 +1488,10 @@ func getContainerStdout(t *testing.T, ctx context.Context, c *client.Client, ctr
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)
-	defer logReader.Close()
+	defer logReader.Body.Close()
 
 	var logs bytes.Buffer
-	_, err = stdcopy.StdCopy(&logs, nil, logReader)
+	_, err = stdcopy.StdCopy(&logs, nil, logReader.Body)
 	assert.NilError(t, err)
 
 	return logs.String()

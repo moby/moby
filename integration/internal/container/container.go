@@ -204,10 +204,10 @@ func Output(ctx context.Context, apiClient client.APIClient, id string) (Contain
 		return ContainerOutput{}, err
 	}
 
-	defer logs.Close()
+	defer logs.Body.Close()
 
 	var stdoutBuf, stderrBuf bytes.Buffer
-	_, err = stdcopy.StdCopy(&stdoutBuf, &stderrBuf, logs)
+	_, err = stdcopy.StdCopy(&stdoutBuf, &stderrBuf, logs.Body)
 	if err != nil {
 		return ContainerOutput{}, err
 	}

@@ -73,13 +73,13 @@ func TestReadPluginNoRead(t *testing.T) {
 				return
 			}
 			assert.Assert(t, err)
-			defer logs.Close()
+			defer logs.Body.Close()
 
 			buf := bytes.NewBuffer(nil)
 
 			errCh := make(chan error, 1)
 			go func() {
-				_, err := stdcopy.StdCopy(buf, buf, logs)
+				_, err := stdcopy.StdCopy(buf, buf, logs.Body)
 				errCh <- err
 			}()
 

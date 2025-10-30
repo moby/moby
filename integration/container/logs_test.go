@@ -31,9 +31,9 @@ func TestLogsFollowTailEmpty(t *testing.T) {
 
 	logs, err := apiClient.ContainerLogs(ctx, id, client.ContainerLogsOptions{ShowStdout: true, Tail: "2"})
 	assert.Check(t, err)
-	defer logs.Close()
+	defer logs.Body.Close()
 
-	_, err = stdcopy.StdCopy(io.Discard, io.Discard, logs)
+	_, err = stdcopy.StdCopy(io.Discard, io.Discard, logs.Body)
 	assert.Check(t, err)
 }
 
@@ -139,14 +139,14 @@ func testLogs(t *testing.T, logDriver string) {
 
 			logs, err := apiClient.ContainerLogs(ctx, id, tc.logOps)
 			assert.NilError(t, err)
-			defer logs.Close()
+			defer logs.Body.Close()
 
 			var stdout, stderr bytes.Buffer
 			if tty {
 				// TTY, only one output stream
-				_, err = io.Copy(&stdout, logs)
+				_, err = io.Copy(&stdout, logs.Body)
 			} else {
-				_, err = stdcopy.StdCopy(&stdout, &stderr, logs)
+				_, err = stdcopy.StdCopy(&stdout, &stderr, logs.Body)
 			}
 			assert.NilError(t, err)
 

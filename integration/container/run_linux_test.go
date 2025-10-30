@@ -192,10 +192,10 @@ func TestRunConsoleSize(t *testing.T) {
 
 	out, err := apiClient.ContainerLogs(ctx, cID, client.ContainerLogsOptions{ShowStdout: true})
 	assert.NilError(t, err)
-	defer out.Close()
+	defer out.Body.Close()
 
 	var b bytes.Buffer
-	_, err = io.Copy(&b, out)
+	_, err = io.Copy(&b, out.Body)
 	assert.NilError(t, err)
 
 	assert.Equal(t, strings.TrimSpace(b.String()), "123 57")
@@ -237,10 +237,10 @@ func TestRunWithAlternativeContainerdShim(t *testing.T) {
 
 	out, err := apiClient.ContainerLogs(ctx, cID, client.ContainerLogsOptions{ShowStdout: true})
 	assert.NilError(t, err)
-	defer out.Close()
+	defer out.Body.Close()
 
 	var b bytes.Buffer
-	_, err = stdcopy.StdCopy(&b, io.Discard, out)
+	_, err = stdcopy.StdCopy(&b, io.Discard, out.Body)
 	assert.NilError(t, err)
 
 	assert.Equal(t, strings.TrimSpace(b.String()), "Hello, world!")
@@ -257,10 +257,10 @@ func TestRunWithAlternativeContainerdShim(t *testing.T) {
 
 	out, err = apiClient.ContainerLogs(ctx, cID, client.ContainerLogsOptions{ShowStdout: true})
 	assert.NilError(t, err)
-	defer out.Close()
+	defer out.Body.Close()
 
 	b.Reset()
-	_, err = stdcopy.StdCopy(&b, io.Discard, out)
+	_, err = stdcopy.StdCopy(&b, io.Discard, out.Body)
 	assert.NilError(t, err)
 
 	assert.Equal(t, strings.TrimSpace(b.String()), "Hello, world!")
@@ -326,10 +326,10 @@ func TestStaticIPOutsideSubpool(t *testing.T) {
 
 	out, err := apiClient.ContainerLogs(ctx, cID, client.ContainerLogsOptions{ShowStdout: true})
 	assert.NilError(t, err)
-	defer out.Close()
+	defer out.Body.Close()
 
 	var b bytes.Buffer
-	_, err = io.Copy(&b, out)
+	_, err = io.Copy(&b, out.Body)
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Contains(b.String(), "inet 10.42.1.3/16"))

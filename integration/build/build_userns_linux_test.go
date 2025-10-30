@@ -116,15 +116,15 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	)
 
 	poll.WaitOn(t, container.IsStopped(ctx, clientNoUserRemap, cid))
-	logReader, err := clientNoUserRemap.ContainerLogs(ctx, cid, client.ContainerLogsOptions{
+	res, err := clientNoUserRemap.ContainerLogs(ctx, cid, client.ContainerLogsOptions{
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)
-	defer logReader.Close()
+	defer res.Body.Close()
 
 	actualStdout := new(bytes.Buffer)
 	actualStderr := io.Discard
-	_, err = stdcopy.StdCopy(actualStdout, actualStderr, logReader)
+	_, err = stdcopy.StdCopy(actualStdout, actualStderr, res.Body)
 	assert.NilError(t, err)
 	if strings.TrimSpace(actualStdout.String()) != "/bin/sleep cap_net_bind_service=eip" {
 		t.Fatalf("run produced invalid output: %q, expected %q", actualStdout.String(), "/bin/sleep cap_net_bind_service=eip")

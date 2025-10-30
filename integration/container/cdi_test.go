@@ -61,7 +61,7 @@ func TestCreateWithCDIDevices(t *testing.T) {
 
 	actualStdout := new(bytes.Buffer)
 	actualStderr := io.Discard
-	_, err = stdcopy.StdCopy(actualStdout, actualStderr, reader)
+	_, err = stdcopy.StdCopy(actualStdout, actualStderr, reader.Body)
 	assert.NilError(t, err)
 
 	outlines := strings.Split(actualStdout.String(), "\n")
