@@ -16,6 +16,7 @@ import (
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/jsonstream"
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/client"
@@ -142,7 +143,7 @@ func TestPluginInstall(t *testing.T) {
 		buf := &strings.Builder{}
 		assert.NilError(t, err)
 		var digest string
-		assert.NilError(t, jsonmessage.DisplayJSONMessagesStream(pushResult, buf, 0, false, func(j jsonmessage.JSONMessage) {
+		assert.NilError(t, jsonmessage.DisplayJSONMessagesStream(pushResult, buf, 0, false, func(j jsonstream.Message) {
 			if j.Aux != nil {
 				var r types.PushResult
 				assert.NilError(t, json.Unmarshal(*j.Aux, &r))

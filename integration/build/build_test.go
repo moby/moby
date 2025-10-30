@@ -18,8 +18,8 @@ import (
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/moby/client"
-	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/fakecontext"
 	"gotest.tools/v3/assert"
@@ -127,7 +127,7 @@ func buildContainerIdsFilter(buildOutput io.Reader) (client.Filters, error) {
 
 	dec := json.NewDecoder(buildOutput)
 	for {
-		m := jsonmessage.JSONMessage{}
+		m := jsonstream.Message{}
 		err := dec.Decode(&m)
 		if err == io.EOF {
 			return filter, nil
@@ -813,7 +813,7 @@ func readBuildImageIDs(t *testing.T, rd io.Reader) string {
 	t.Helper()
 	decoder := json.NewDecoder(rd)
 	for {
-		var jm jsonmessage.JSONMessage
+		var jm jsonstream.Message
 		if err := decoder.Decode(&jm); err != nil {
 			if err == io.EOF {
 				break

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/moby/client"
-	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
@@ -39,7 +39,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	// the image ID and match with the output from `docker images`.
 
 	dec := json.NewDecoder(importRes)
-	var jm jsonmessage.JSONMessage
+	var jm jsonstream.Message
 	err = dec.Decode(&jm)
 	assert.NilError(t, err)
 

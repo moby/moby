@@ -8,7 +8,7 @@ import (
 	"iter"
 	"sync"
 
-	"github.com/moby/moby/client/pkg/jsonmessage"
+	"github.com/moby/moby/api/types/jsonstream"
 )
 
 func NewJSONMessageStream(rc io.ReadCloser) stream {
@@ -44,15 +44,15 @@ func (r stream) Close() error {
 
 // JSONMessages decodes the response stream as a sequence of JSONMessages.
 // if stream ends or context is cancelled, the underlying [io.Reader] is closed.
-func (r stream) JSONMessages(ctx context.Context) iter.Seq2[jsonmessage.JSONMessage, error] {
+func (r stream) JSONMessages(ctx context.Context) iter.Seq2[jsonstream.Message, error] {
 	context.AfterFunc(ctx, func() {
 		_ = r.Close()
 	})
 	dec := json.NewDecoder(r)
-	return func(yield func(jsonmessage.JSONMessage, error) bool) {
+	return func(yield func(jsonstream.Message, error) bool) {
 		defer r.Close()
 		for {
-			var jm jsonmessage.JSONMessage
+			var jm jsonstream.Message
 			err := dec.Decode(&jm)
 			if errors.Is(err, io.EOF) {
 				break
