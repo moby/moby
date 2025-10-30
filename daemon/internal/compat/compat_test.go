@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/internal/compat"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 type Info struct {
@@ -75,6 +77,49 @@ func TestWrap(t *testing.T) {
 			}
 			if string(data) != tc.expected {
 				t.Errorf("\nExpected: %s\nGot:      %s", tc.expected, string(data))
+			}
+		})
+	}
+}
+
+func TestWrapNilPtrField(t *testing.T) {
+	type bStruct struct {
+		StringField string `json:"stringfield"`
+	}
+	type aStruct struct {
+		IntField    *int     `json:"intfield"`
+		StructField *bStruct `json:"structfield"`
+	}
+	info := &aStruct{}
+
+	tests := []struct {
+		name     string
+		options  []compat.Option
+		expected string
+	}{
+		{
+			name:     "none",
+			expected: `{"intfield":null,"structfield":null}`,
+		},
+		{
+			name:     "replace nil int",
+			options:  []compat.Option{compat.WithExtraFields(map[string]any{"intfield": 42})},
+			expected: `{"intfield":42,"structfield":null}`,
+		},
+		{
+			name: "replace nil struct",
+			options: []compat.Option{compat.WithExtraFields(map[string]any{
+				"structfield": map[string]any{"stringfield": "hello"},
+			})},
+			expected: `{"intfield":null,"structfield":{"stringfield":"hello"}}`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			resp := compat.Wrap(info, tc.options...)
+			data, err := json.Marshal(resp)
+			if assert.Check(t, err) {
+				assert.Check(t, is.Equal(string(data), tc.expected))
 			}
 		})
 	}

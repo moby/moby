@@ -46,7 +46,7 @@ func appendFields(src, dst map[string]any) {
 				continue
 			}
 		}
-		if _, ok := dst[k]; !ok {
+		if existing, ok := dst[k]; !ok || existing == nil {
 			dst[k] = v
 		}
 	}
