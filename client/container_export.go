@@ -19,6 +19,8 @@ type ContainerExportResult interface {
 // ContainerExport retrieves the raw contents of a container
 // and returns them as an [io.ReadCloser]. It's up to the caller
 // to close the stream.
+//
+// The underlying [io.ReadCloser] is automatically closed if the context is canceled,
 func (cli *Client) ContainerExport(ctx context.Context, containerID string, options ContainerExportOptions) (ContainerExportResult, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
@@ -31,30 +33,15 @@ func (cli *Client) ContainerExport(ctx context.Context, containerID string, opti
 	}
 
 	return &containerExportResult{
-		body: resp.Body,
+		ReadCloser: newCancelReadCloser(ctx, resp.Body),
 	}, nil
 }
 
 type containerExportResult struct {
-	// body must be closed to avoid a resource leak
-	body io.ReadCloser
+	io.ReadCloser
 }
 
 var (
 	_ io.ReadCloser         = (*containerExportResult)(nil)
 	_ ContainerExportResult = (*containerExportResult)(nil)
 )
-
-func (r *containerExportResult) Read(p []byte) (int, error) {
-	if r == nil || r.body == nil {
-		return 0, io.EOF
-	}
-	return r.body.Read(p)
-}
-
-func (r *containerExportResult) Close() error {
-	if r == nil || r.body == nil {
-		return nil
-	}
-	return r.body.Close()
-}

@@ -71,6 +71,7 @@ func TestExportContainerAfterDaemonRestart(t *testing.T) {
 
 	d.Restart(t)
 
-	_, err := c.ContainerExport(ctx, ctrID, client.ContainerExportOptions{})
+	res, err := c.ContainerExport(ctx, ctrID, client.ContainerExportOptions{})
 	assert.NilError(t, err)
+	_ = res.Close()
 }

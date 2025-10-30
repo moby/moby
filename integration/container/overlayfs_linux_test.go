@@ -32,10 +32,10 @@ func TestNoOverlayfsWarningsAboutUndefinedBehaviors(t *testing.T) {
 			return err
 		}},
 		{name: "export", operation: func(*testing.T) error {
-			rc, err := apiClient.ContainerExport(ctx, cID, client.ContainerExportOptions{})
+			res, err := apiClient.ContainerExport(ctx, cID, client.ContainerExportOptions{})
 			if err == nil {
-				defer rc.Close()
-				_, err = io.Copy(io.Discard, rc)
+				_, err = io.Copy(io.Discard, res)
+				_ = res.Close()
 			}
 			return err
 		}},
@@ -48,8 +48,8 @@ func TestNoOverlayfsWarningsAboutUndefinedBehaviors(t *testing.T) {
 		{name: "cp from container", operation: func(*testing.T) error {
 			res, err := apiClient.CopyFromContainer(ctx, cID, client.CopyFromContainerOptions{SourcePath: "/file"})
 			if err == nil {
-				defer res.Content.Close()
 				_, err = io.Copy(io.Discard, res.Content)
+				_ = res.Content.Close()
 			}
 
 			return err

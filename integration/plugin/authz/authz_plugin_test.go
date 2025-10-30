@@ -363,13 +363,13 @@ func TestAuthZPluginEnsureLoadImportWorking(t *testing.T) {
 
 	cID := container.Run(ctx, t, c)
 
-	responseReader, err := c.ContainerExport(ctx, cID, client.ContainerExportOptions{})
+	res, err := c.ContainerExport(ctx, cID, client.ContainerExportOptions{})
 	assert.NilError(t, err)
-	defer responseReader.Close()
+	defer func() { _ = res.Close() }()
 	file, err := os.Create(exportedImagePath)
 	assert.NilError(t, err)
-	defer file.Close()
-	_, err = io.Copy(file, responseReader)
+	defer func() { _ = file.Close() }()
+	_, err = io.Copy(file, res)
 	assert.NilError(t, err)
 
 	err = imageImport(ctx, c, exportedImagePath)
