@@ -1816,7 +1816,7 @@ func TestAdvertiseAddresses(t *testing.T) {
 			// The original defer will stop ctr2Id.
 
 			ctr2NewMAC := container.Inspect(ctx, t, c, ctr2Id).NetworkSettings.Networks[netName].MacAddress
-			assert.Check(t, ctr2OrigMAC != ctr2NewMAC, "expected restarted ctr2 to have a different MAC address")
+			assert.Check(t, !slices.Equal(ctr2OrigMAC, ctr2NewMAC), "expected restarted ctr2 to have a different MAC address")
 
 			ctr1Neighs = container.ExecT(ctx, t, c, ctr1Id, []string{"ip", "neigh", "show"})
 			assert.Assert(t, is.Equal(ctr1Neighs.ExitCode, 0))
@@ -1843,9 +1843,6 @@ func TestAdvertiseAddresses(t *testing.T) {
 
 			// Check ARP/NA messages received for ctr2's new address (all unsolicited).
 
-			ctr2NewHwAddr, err := net.ParseMAC(ctr2NewMAC)
-			assert.NilError(t, err)
-
 			checkPkts := func(pktDesc string, pkts []network.TimestampedPkt, matchIP netip.Addr, unpack func(pkt network.TimestampedPkt) (sh net.HardwareAddr, sp netip.Addr, err error)) {
 				t.Helper()
 				var count int
@@ -1860,7 +1857,7 @@ func TestAdvertiseAddresses(t *testing.T) {
 						continue
 					}
 					t.Logf("%s %d: %s '%s' is at '%s'", pktDesc, i+1, p.ReceivedAt.Format("15:04:05.000"), pa, ha)
-					if pa != matchIP || slices.Compare(ha, ctr2NewHwAddr) != 0 {
+					if pa != matchIP || slices.Compare(ha, net.HardwareAddr(ctr2NewMAC)) != 0 {
 						continue
 					}
 					count++

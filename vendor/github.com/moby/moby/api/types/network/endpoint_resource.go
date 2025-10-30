@@ -24,7 +24,7 @@ type EndpointResource struct {
 
 	// mac address
 	// Example: 02:42:ac:13:00:02
-	MacAddress string `json:"MacAddress"`
+	MacAddress HardwareAddr `json:"MacAddress"`
 
 	// IPv4 address
 	// Example: 172.19.0.2/16

@@ -28,7 +28,7 @@ type EndpointSettings struct {
 	IPAMOperational bool
 	// DesiredMacAddress is the configured value, it's copied from MacAddress (the
 	// API param field) when the container is created.
-	DesiredMacAddress string
+	DesiredMacAddress networktypes.HardwareAddr
 }
 
 // AttachmentStore stores the load balancer IP address for a network id.

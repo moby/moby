@@ -16,6 +16,7 @@ import (
 	"github.com/docker/go-units"
 	"github.com/moby/moby/api/pkg/stdcopy"
 	containertypes "github.com/moby/moby/api/types/container"
+	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	net "github.com/moby/moby/v2/integration/internal/network"
@@ -295,7 +296,7 @@ func TestMacAddressIsAppliedToMainNetworkWithShortID(t *testing.T) {
 
 	c := container.Inspect(ctx, t, apiClient, cid)
 	assert.Assert(t, c.NetworkSettings.Networks["testnet"] != nil)
-	assert.Equal(t, c.NetworkSettings.Networks["testnet"].MacAddress, "02:42:08:26:a9:55")
+	assert.DeepEqual(t, c.NetworkSettings.Networks["testnet"].MacAddress, networktypes.HardwareAddr{0x02, 0x42, 0x08, 0x26, 0xa9, 0x55})
 }
 
 func TestStaticIPOutsideSubpool(t *testing.T) {

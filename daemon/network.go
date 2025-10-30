@@ -886,7 +886,7 @@ func buildEndpointResource(ep *libnetwork.Endpoint, info libnetwork.EndpointInfo
 		Name:       ep.Name(),
 	}
 	if iface := info.Iface(); iface != nil {
-		er.MacAddress = iface.MacAddress().String()
+		er.MacAddress = networktypes.HardwareAddr(iface.MacAddress())
 		er.IPv4Address = netiputil.Unmap(iface.Addr())
 		er.IPv6Address = iface.AddrIPv6()
 	}
@@ -955,12 +955,8 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 			createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(options.Generic{k: v}))
 		}
 
-		if epConfig.DesiredMacAddress != "" {
-			mac, err := net.ParseMAC(epConfig.DesiredMacAddress)
-			if err != nil {
-				return nil, err
-			}
-			genericOptions[netlabel.MacAddress] = mac
+		if len(epConfig.DesiredMacAddress) != 0 {
+			genericOptions[netlabel.MacAddress] = net.HardwareAddr(epConfig.DesiredMacAddress)
 		}
 	}
 
@@ -1174,8 +1170,8 @@ func buildEndpointInfo(networkSettings *network.Settings, n *libnetwork.Network,
 		return nil
 	}
 
-	if iface.MacAddress() != nil {
-		networkSettings.Networks[nwName].MacAddress = iface.MacAddress().String()
+	if mac := iface.MacAddress(); mac != nil {
+		networkSettings.Networks[nwName].MacAddress = networktypes.HardwareAddr(mac)
 	}
 
 	if iface.Address() != nil {

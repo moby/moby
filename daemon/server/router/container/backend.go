@@ -6,6 +6,7 @@ import (
 
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	containerpkg "github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/server/backend"
@@ -48,7 +49,7 @@ type stateBackend interface {
 // monitorBackend includes functions to implement to provide containers monitoring functionality.
 type monitorBackend interface {
 	ContainerChanges(ctx context.Context, name string) ([]archive.Change, error)
-	ContainerInspect(ctx context.Context, name string, options backend.ContainerInspectOptions) (_ *container.InspectResponse, desiredMACAddress string, _ error)
+	ContainerInspect(ctx context.Context, name string, options backend.ContainerInspectOptions) (_ *container.InspectResponse, desiredMACAddress network.HardwareAddr, _ error)
 	ContainerLogs(ctx context.Context, name string, config *backend.ContainerLogsOptions) (msgs <-chan *backend.LogMessage, tty bool, err error)
 	ContainerStats(ctx context.Context, name string, config *backend.ContainerStatsConfig) error
 	ContainerTop(name string, psArgs string) (*container.TopResponse, error)
