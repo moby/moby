@@ -15,7 +15,7 @@ import (
 func TestNetworkInspect(t *testing.T) {
 	const expectedURL = "/networks/network_id"
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if req.URL.Path == defaultAPIPath+"/networks/" {
 			return errorMock(http.StatusInternalServerError, "client should not make a request for empty IDs")(req)
 		}

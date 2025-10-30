@@ -15,7 +15,7 @@ import (
 )
 
 func TestContainerCreateError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -29,7 +29,7 @@ func TestContainerCreateError(t *testing.T) {
 }
 
 func TestContainerCreateImageNotFound(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusNotFound, "No such image")),
 	)
 	assert.NilError(t, err)
@@ -40,7 +40,7 @@ func TestContainerCreateImageNotFound(t *testing.T) {
 
 func TestContainerCreateWithName(t *testing.T) {
 	const expectedURL = "/containers/create"
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 				return nil, err
@@ -62,7 +62,7 @@ func TestContainerCreateWithName(t *testing.T) {
 }
 
 func TestContainerCreateAutoRemove(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			var config container.CreateRequest
 			if err := json.NewDecoder(req.Body).Decode(&config); err != nil {
@@ -88,7 +88,7 @@ func TestContainerCreateAutoRemove(t *testing.T) {
 //
 // Regression test for https://github.com/docker/cli/issues/4890
 func TestContainerCreateConnectionError(t *testing.T) {
-	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	client, err := New(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
 	_, err = client.ContainerCreate(context.Background(), ContainerCreateOptions{Config: &container.Config{Image: "test"}})
@@ -116,7 +116,7 @@ func TestContainerCreateCapabilities(t *testing.T) {
 		"CAP_CAPABILITY_D",
 	}
 
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			var config container.CreateRequest
 

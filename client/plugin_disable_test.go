@@ -11,7 +11,7 @@ import (
 )
 
 func TestPluginDisableError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.PluginDisable(context.Background(), "plugin_name", PluginDisableOptions{})
@@ -29,7 +29,7 @@ func TestPluginDisableError(t *testing.T) {
 func TestPluginDisable(t *testing.T) {
 	const expectedURL = "/plugins/plugin_name/disable"
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}

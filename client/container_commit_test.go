@@ -13,7 +13,7 @@ import (
 )
 
 func TestContainerCommitError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -42,7 +42,7 @@ func TestContainerCommit(t *testing.T) {
 	)
 	expectedChanges := []string{"change1", "change2"}
 
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 				return nil, err

@@ -13,7 +13,7 @@ import (
 )
 
 func TestImageTagError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.ImageTag(context.Background(), ImageTagOptions{Source: "image_id", Target: "repo:tag"})
@@ -23,7 +23,7 @@ func TestImageTagError(t *testing.T) {
 // Note: this is not testing all the InvalidReference as it's the responsibility
 // of distribution/reference package.
 func TestImageTagInvalidReference(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.ImageTag(context.Background(), ImageTagOptions{Source: "image_id", Target: "aa/asdf$$^/aa"})
@@ -34,7 +34,7 @@ func TestImageTagInvalidReference(t *testing.T) {
 func TestImageTagInvalidSourceImageName(t *testing.T) {
 	ctx := context.Background()
 
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "client should not have made an API call")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "client should not have made an API call")))
 	assert.NilError(t, err)
 
 	invalidRepos := []string{"fo$z$", "Foo@3cc", "Foo$3", "Foo*3", "Fo^3", "Foo!3", "F)xcz(", "fo%asd", "aa/asdf$$^/aa"}
@@ -86,7 +86,7 @@ func generateRandomAlphaOnlyString(n int) string {
 }
 
 func TestImageTagHexSource(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(mockResponse(http.StatusOK, nil, "OK")))
+	client, err := New(WithMockClient(mockResponse(http.StatusOK, nil, "OK")))
 	assert.NilError(t, err)
 
 	_, err = client.ImageTag(context.Background(), ImageTagOptions{Source: "0d409d33b27e47423b049f7f863faa08655a8c901749c2b25b93ca67d01a470d", Target: "repo:tag"})
@@ -150,7 +150,7 @@ func TestImageTag(t *testing.T) {
 		},
 	}
 	for _, tagCase := range tagCases {
-		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 				return nil, err
 			}

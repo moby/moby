@@ -11,7 +11,7 @@ import (
 )
 
 func TestNetworkRemoveError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.NetworkRemove(context.Background(), "network_id", NetworkRemoveOptions{})
@@ -29,7 +29,7 @@ func TestNetworkRemoveError(t *testing.T) {
 func TestNetworkRemove(t *testing.T) {
 	const expectedURL = "/networks/network_id"
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodDelete, expectedURL); err != nil {
 			return nil, err
 		}

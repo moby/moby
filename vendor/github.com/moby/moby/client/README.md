@@ -23,7 +23,7 @@ import (
 )
 
 func main() {
-	apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	apiClient, err := client.New(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		panic(err)
 	}

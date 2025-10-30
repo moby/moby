@@ -12,7 +12,7 @@ import (
 )
 
 func TestVolumeInspectError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.VolumeInspect(t.Context(), "nothing", VolumeInspectOptions{})
@@ -20,7 +20,7 @@ func TestVolumeInspectError(t *testing.T) {
 }
 
 func TestVolumeInspectNotFound(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusNotFound, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusNotFound, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.VolumeInspect(t.Context(), "unknown", VolumeInspectOptions{})
@@ -28,7 +28,7 @@ func TestVolumeInspectNotFound(t *testing.T) {
 }
 
 func TestVolumeInspectWithEmptyID(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		return nil, errors.New("should not make request")
 	}))
 	assert.NilError(t, err)
@@ -49,7 +49,7 @@ func TestVolumeInspect(t *testing.T) {
 		Mountpoint: "mountpoint",
 	}
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 			return nil, err
 		}

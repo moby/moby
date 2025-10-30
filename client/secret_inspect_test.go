@@ -13,7 +13,7 @@ import (
 )
 
 func TestSecretInspectError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.SecretInspect(context.Background(), "nothing", SecretInspectOptions{})
@@ -21,7 +21,7 @@ func TestSecretInspectError(t *testing.T) {
 }
 
 func TestSecretInspectSecretNotFound(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusNotFound, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusNotFound, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.SecretInspect(context.Background(), "unknown", SecretInspectOptions{})
@@ -29,7 +29,7 @@ func TestSecretInspectSecretNotFound(t *testing.T) {
 }
 
 func TestSecretInspectWithEmptyID(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		return nil, errors.New("should not make request")
 	}))
 	assert.NilError(t, err)
@@ -44,7 +44,7 @@ func TestSecretInspectWithEmptyID(t *testing.T) {
 
 func TestSecretInspect(t *testing.T) {
 	const expectedURL = "/secrets/secret_id"
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 			return nil, err
 		}

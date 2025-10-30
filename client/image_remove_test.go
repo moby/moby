@@ -14,7 +14,7 @@ import (
 )
 
 func TestImageRemoveError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.ImageRemove(context.Background(), "image_id", ImageRemoveOptions{})
@@ -22,7 +22,7 @@ func TestImageRemoveError(t *testing.T) {
 }
 
 func TestImageRemoveImageNotFound(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusNotFound, "no such image: unknown")))
+	client, err := New(WithMockClient(errorMock(http.StatusNotFound, "no such image: unknown")))
 	assert.NilError(t, err)
 
 	_, err = client.ImageRemove(context.Background(), "unknown", ImageRemoveOptions{})
@@ -65,7 +65,7 @@ func TestImageRemove(t *testing.T) {
 		},
 	}
 	for _, removeCase := range removeCases {
-		client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodDelete, expectedURL); err != nil {
 				return nil, err
 			}

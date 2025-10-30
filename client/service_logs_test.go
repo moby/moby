@@ -17,7 +17,7 @@ import (
 )
 
 func TestServiceLogsError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	_, err = client.ServiceLogs(t.Context(), "service_id", ServiceLogsOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
@@ -99,7 +99,7 @@ func TestServiceLogs(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.doc, func(t *testing.T) {
-			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 				if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 					return nil, err
 				}
@@ -129,10 +129,13 @@ func TestServiceLogs(t *testing.T) {
 }
 
 func ExampleClient_ServiceLogs_withTimeout() {
+	client, err := New(FromEnv, WithAPIVersionNegotiation())
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
-	client, _ := NewClientWithOpts(FromEnv)
 	res, err := client.ServiceLogs(ctx, "service_id", ServiceLogsOptions{})
 	if err != nil {
 		log.Fatal(err)

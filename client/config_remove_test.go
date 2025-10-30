@@ -11,7 +11,7 @@ import (
 )
 
 func TestConfigRemoveError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -31,7 +31,7 @@ func TestConfigRemoveError(t *testing.T) {
 func TestConfigRemove(t *testing.T) {
 	const expectedURL = "/configs/config_id"
 
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodDelete, expectedURL); err != nil {
 				return nil, err

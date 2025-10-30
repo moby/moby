@@ -12,14 +12,14 @@ import (
 )
 
 func TestInfoServerError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	_, err = client.Info(context.Background(), InfoOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestInfoInvalidResponseJSONError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(mockResponse(http.StatusOK, nil, "invalid json")))
+	client, err := New(WithMockClient(mockResponse(http.StatusOK, nil, "invalid json")))
 	assert.NilError(t, err)
 	_, err = client.Info(context.Background(), InfoOptions{})
 	assert.Check(t, is.ErrorContains(err, "invalid character"))
@@ -27,7 +27,7 @@ func TestInfoInvalidResponseJSONError(t *testing.T) {
 
 func TestInfo(t *testing.T) {
 	const expectedURL = "/info"
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 			return nil, err
 		}
@@ -48,7 +48,7 @@ func TestInfo(t *testing.T) {
 
 func TestInfoWithDiscoveredDevices(t *testing.T) {
 	const expectedURL = "/info"
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 			return nil, err
 		}

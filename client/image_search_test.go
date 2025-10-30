@@ -14,21 +14,21 @@ import (
 )
 
 func TestImageSearchAnyError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	_, err = client.ImageSearch(context.Background(), "some-image", ImageSearchOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImageSearchStatusUnauthorizedError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")))
+	client, err := New(WithMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")))
 	assert.NilError(t, err)
 	_, err = client.ImageSearch(context.Background(), "some-image", ImageSearchOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsUnauthorized))
 }
 
 func TestImageSearchWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")))
+	client, err := New(WithMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")))
 	assert.NilError(t, err)
 	privilegeFunc := func(_ context.Context) (string, error) {
 		return "", errors.New("Error requesting privilege")
@@ -40,7 +40,7 @@ func TestImageSearchWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 }
 
 func TestImageSearchWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")))
+	client, err := New(WithMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")))
 	assert.NilError(t, err)
 	privilegeFunc := func(_ context.Context) (string, error) {
 		return "a-auth-header", nil
@@ -53,7 +53,7 @@ func TestImageSearchWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.
 
 func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
 	const expectedURL = "/images/search"
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 			return nil, err
 		}
@@ -89,7 +89,7 @@ func TestImageSearchWithoutErrors(t *testing.T) {
 	const expectedURL = "/images/search"
 	const expectedFilters = `{"is-automated":{"true":true},"stars":{"3":true}}`
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 			return nil, err
 		}

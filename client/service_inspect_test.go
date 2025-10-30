@@ -13,7 +13,7 @@ import (
 )
 
 func TestServiceInspectError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.ServiceInspect(context.Background(), "nothing", ServiceInspectOptions{})
@@ -21,7 +21,7 @@ func TestServiceInspectError(t *testing.T) {
 }
 
 func TestServiceInspectServiceNotFound(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusNotFound, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusNotFound, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.ServiceInspect(context.Background(), "unknown", ServiceInspectOptions{})
@@ -29,7 +29,7 @@ func TestServiceInspectServiceNotFound(t *testing.T) {
 }
 
 func TestServiceInspectWithEmptyID(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		return nil, errors.New("should not make request")
 	}))
 	assert.NilError(t, err)
@@ -44,7 +44,7 @@ func TestServiceInspectWithEmptyID(t *testing.T) {
 
 func TestServiceInspect(t *testing.T) {
 	const expectedURL = "/services/service_id"
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 			return nil, err
 		}

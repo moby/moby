@@ -308,7 +308,7 @@ func TestStaticIPOutsideSubpool(t *testing.T) {
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion("1.43"))
+	apiClient, err := client.New(client.FromEnv, client.WithVersion("1.43"))
 	assert.NilError(t, err)
 
 	const netname = "subnet-range"

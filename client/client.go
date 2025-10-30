@@ -6,7 +6,7 @@ https://docs.docker.com/reference/api/engine/
 
 # Usage
 
-You use the library by constructing a client object using [NewClientWithOpts]
+You use the library by constructing a client object using [New]
 and calling methods on it. The client can be configured from environment
 variables by passing the [FromEnv] option, and the [WithAPIVersionNegotiation]
 option to allow downgrading the API version used when connecting with an older
@@ -30,7 +30,7 @@ For example, to list running containers (the equivalent of "docker ps"):
 		// for configuration (DOCKER_HOST, DOCKER_API_VERSION), and does
 		// API-version negotiation to allow downgrading the API version
 		// when connecting with an older daemon version.
-		apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+		apiClient, err := client.New(client.FromEnv, client.WithAPIVersionNegotiation())
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -160,7 +160,14 @@ func CheckRedirect(_ *http.Request, via []*http.Request) error {
 	return ErrRedirect
 }
 
-// NewClientWithOpts initializes a new API client with a default HTTPClient, and
+// NewClientWithOpts initializes a new API client.
+//
+// Deprecated: use New. This function will be removed in the next release.
+func NewClientWithOpts(ops ...Opt) (*Client, error) {
+	return New(ops...)
+}
+
+// New initializes a new API client with a default HTTPClient, and
 // default API host and version. It also initializes the custom HTTP headers to
 // add to each request.
 //
@@ -170,11 +177,11 @@ func CheckRedirect(_ *http.Request, via []*http.Request) error {
 // itself with values from environment variables ([FromEnv]), and has automatic
 // API version negotiation enabled ([WithAPIVersionNegotiation]).
 //
-//	cli, err := client.NewClientWithOpts(
+//	cli, err := client.New(
 //		client.FromEnv,
 //		client.WithAPIVersionNegotiation(),
 //	)
-func NewClientWithOpts(ops ...Opt) (*Client, error) {
+func New(ops ...Opt) (*Client, error) {
 	hostURL, err := ParseHostURL(DefaultDockerHost)
 	if err != nil {
 		return nil, err

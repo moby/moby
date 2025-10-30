@@ -15,7 +15,7 @@ import (
 )
 
 func TestImageInspectError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.ImageInspect(context.Background(), "nothing")
@@ -23,7 +23,7 @@ func TestImageInspectError(t *testing.T) {
 }
 
 func TestImageInspectImageNotFound(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusNotFound, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusNotFound, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.ImageInspect(context.Background(), "unknown")
@@ -31,7 +31,7 @@ func TestImageInspectImageNotFound(t *testing.T) {
 }
 
 func TestImageInspectWithEmptyID(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		return nil, errors.New("should not make request")
 	}))
 	assert.NilError(t, err)
@@ -42,7 +42,7 @@ func TestImageInspectWithEmptyID(t *testing.T) {
 func TestImageInspect(t *testing.T) {
 	const expectedURL = "/images/image_id/json"
 	expectedTags := []string{"tag1", "tag2"}
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 			return nil, err
 		}
@@ -69,7 +69,7 @@ func TestImageInspectWithPlatform(t *testing.T) {
 	expectedPlatform, err := encodePlatform(requestedPlatform)
 	assert.NilError(t, err)
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 			return nil, err
 		}

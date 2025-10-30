@@ -12,7 +12,7 @@ import (
 )
 
 func TestPluginInspectError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.PluginInspect(t.Context(), "nothing", PluginInspectOptions{})
@@ -20,7 +20,7 @@ func TestPluginInspectError(t *testing.T) {
 }
 
 func TestPluginInspectWithEmptyID(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		return nil, errors.New("should not make request")
 	}))
 	assert.NilError(t, err)
@@ -35,7 +35,7 @@ func TestPluginInspectWithEmptyID(t *testing.T) {
 
 func TestPluginInspect(t *testing.T) {
 	const expectedURL = "/plugins/plugin_name"
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 			return nil, err
 		}

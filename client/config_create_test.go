@@ -12,7 +12,7 @@ import (
 )
 
 func TestConfigCreateError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -23,7 +23,7 @@ func TestConfigCreateError(t *testing.T) {
 
 func TestConfigCreate(t *testing.T) {
 	const expectedURL = "/configs/create"
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 				return nil, err

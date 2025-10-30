@@ -11,7 +11,7 @@ import (
 )
 
 func TestContainerRemoveError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	_, err = client.ContainerRemove(t.Context(), "container_id", ContainerRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
@@ -26,7 +26,7 @@ func TestContainerRemoveError(t *testing.T) {
 }
 
 func TestContainerRemoveNotFoundError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusNotFound, "no such container: container_id")))
+	client, err := New(WithMockClient(errorMock(http.StatusNotFound, "no such container: container_id")))
 	assert.NilError(t, err)
 	_, err = client.ContainerRemove(t.Context(), "container_id", ContainerRemoveOptions{})
 	assert.Check(t, is.ErrorContains(err, "no such container: container_id"))
@@ -35,7 +35,7 @@ func TestContainerRemoveNotFoundError(t *testing.T) {
 
 func TestContainerRemove(t *testing.T) {
 	const expectedURL = "/containers/container_id"
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodDelete, expectedURL); err != nil {
 			return nil, err
 		}

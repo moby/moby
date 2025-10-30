@@ -18,7 +18,7 @@ import (
 )
 
 func TestServiceCreateError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	_, err = client.ServiceCreate(t.Context(), ServiceCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
@@ -29,7 +29,7 @@ func TestServiceCreateError(t *testing.T) {
 //
 // Regression test for https://github.com/docker/cli/issues/4890
 func TestServiceCreateConnectionError(t *testing.T) {
-	client, err := NewClientWithOpts(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	client, err := New(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
 	_, err = client.ServiceCreate(t.Context(), ServiceCreateOptions{})
@@ -38,7 +38,7 @@ func TestServiceCreateConnectionError(t *testing.T) {
 
 func TestServiceCreate(t *testing.T) {
 	const expectedURL = "/services/create"
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 			return nil, err
 		}
@@ -54,7 +54,7 @@ func TestServiceCreate(t *testing.T) {
 }
 
 func TestServiceCreateCompatiblePlatforms(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if strings.HasPrefix(req.URL.Path, defaultAPIPath+"/services/create") {
 			var serviceSpec swarm.ServiceSpec
 
@@ -123,7 +123,7 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 		{"cannotresolve", "cannotresolve:latest"},
 	}
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if strings.HasPrefix(req.URL.Path, defaultAPIPath+"/services/create") {
 			// reset and set image received by the service create endpoint
 			serviceCreateImage = ""

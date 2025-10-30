@@ -13,7 +13,7 @@ import (
 )
 
 func TestConfigInspectNotFound(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusNotFound, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -23,7 +23,7 @@ func TestConfigInspectNotFound(t *testing.T) {
 }
 
 func TestConfigInspectWithEmptyID(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			return nil, errors.New("should not make request")
 		}),
@@ -39,7 +39,7 @@ func TestConfigInspectWithEmptyID(t *testing.T) {
 }
 
 func TestConfigInspectError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -49,7 +49,7 @@ func TestConfigInspectError(t *testing.T) {
 }
 
 func TestConfigInspectConfigNotFound(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusNotFound, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -60,7 +60,7 @@ func TestConfigInspectConfigNotFound(t *testing.T) {
 
 func TestConfigInspect(t *testing.T) {
 	const expectedURL = "/configs/config_id"
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 				return nil, err

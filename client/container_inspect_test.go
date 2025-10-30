@@ -12,7 +12,7 @@ import (
 )
 
 func TestContainerInspectError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -30,7 +30,7 @@ func TestContainerInspectError(t *testing.T) {
 }
 
 func TestContainerInspectContainerNotFound(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusNotFound, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -40,7 +40,7 @@ func TestContainerInspectContainerNotFound(t *testing.T) {
 }
 
 func TestContainerInspectWithEmptyID(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			return nil, errors.New("should not make request")
 		}),
@@ -58,7 +58,7 @@ func TestContainerInspectWithEmptyID(t *testing.T) {
 
 func TestContainerInspect(t *testing.T) {
 	const expectedURL = "/containers/container_id/json"
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 				return nil, err

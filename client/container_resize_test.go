@@ -11,7 +11,7 @@ import (
 )
 
 func TestContainerResizeError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	_, err = client.ContainerResize(t.Context(), "container_id", ContainerResizeOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
@@ -26,7 +26,7 @@ func TestContainerResizeError(t *testing.T) {
 }
 
 func TestExecResizeError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	_, err = client.ExecResize(t.Context(), "exec_id", ExecResizeOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
@@ -67,7 +67,7 @@ func TestContainerResize(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			client, err := NewClientWithOpts(WithMockClient(resizeTransport(t, expectedURL, tc.expectedHeight, tc.expectedWidth)))
+			client, err := New(WithMockClient(resizeTransport(t, expectedURL, tc.expectedHeight, tc.expectedWidth)))
 			assert.NilError(t, err)
 			_, err = client.ContainerResize(t.Context(), "container_id", tc.opts)
 			assert.NilError(t, err)
@@ -109,7 +109,7 @@ func TestExecResize(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			client, err := NewClientWithOpts(WithMockClient(resizeTransport(t, expectedURL, tc.expectedHeight, tc.expectedWidth)))
+			client, err := New(WithMockClient(resizeTransport(t, expectedURL, tc.expectedHeight, tc.expectedWidth)))
 			assert.NilError(t, err)
 			_, err = client.ExecResize(t.Context(), "exec_id", tc.opts)
 			assert.NilError(t, err)

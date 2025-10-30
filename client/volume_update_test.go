@@ -13,7 +13,7 @@ import (
 )
 
 func TestVolumeUpdateError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.VolumeUpdate(t.Context(), "volume", VolumeUpdateOptions{})
@@ -34,7 +34,7 @@ func TestVolumeUpdate(t *testing.T) {
 		expectedVersion = "version=10"
 	)
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodPut, expectedURL); err != nil {
 			return nil, err
 		}

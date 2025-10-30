@@ -13,7 +13,7 @@ import (
 )
 
 func TestImageHistoryError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 	_, err = client.ImageHistory(context.Background(), "nothing")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
@@ -25,7 +25,7 @@ func TestImageHistory(t *testing.T) {
 		historyResponse  = `[{"Comment":"","Created":0,"CreatedBy":"","Id":"image_id1","Size":0,"Tags":["tag1","tag2"]},{"Comment":"","Created":0,"CreatedBy":"","Id":"image_id2","Size":0,"Tags":["tag1","tag2"]}]`
 		expectedPlatform = `{"architecture":"arm64","os":"linux","variant":"v8"}`
 	)
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		assert.Check(t, assertRequest(req, http.MethodGet, expectedURL))
 		assert.Check(t, is.Equal(req.URL.Query().Get("platform"), expectedPlatform))
 		return mockResponse(http.StatusOK, nil, historyResponse)(req)

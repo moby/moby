@@ -149,7 +149,7 @@ func newTLSAPIClient(host, cacertPath, certPath, keyPath string) (client.APIClie
 		KeepAlive: 30 * time.Second,
 		Timeout:   30 * time.Second,
 	}
-	return client.NewClientWithOpts(
+	return client.New(
 		client.WithTLSClientConfig(cacertPath, certPath, keyPath),
 		client.WithDialContext(dialer.DialContext),
 		client.WithHost(host))

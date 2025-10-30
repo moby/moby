@@ -14,7 +14,7 @@ import (
 )
 
 func TestCheckpointCreateError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -42,7 +42,7 @@ func TestCheckpointCreate(t *testing.T) {
 		expectedURL          = "/containers/container_id/checkpoints"
 	)
 
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 				return nil, err

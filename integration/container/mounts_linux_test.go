@@ -63,7 +63,7 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 		},
 	}
 
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	cli, err := client.New(client.FromEnv)
 	assert.NilError(t, err)
 	defer cli.Close()
 
@@ -524,7 +524,7 @@ func TestContainerBindMountReadOnlyDefault(t *testing.T) {
 			skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), minDaemonVersion), "requires API v"+minDaemonVersion)
 
 			if tc.clientVersion != "" {
-				c, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(tc.clientVersion))
+				c, err := client.New(client.FromEnv, client.WithVersion(tc.clientVersion))
 				assert.NilError(t, err, "failed to create client with version v%s", tc.clientVersion)
 				apiClient = c
 			}

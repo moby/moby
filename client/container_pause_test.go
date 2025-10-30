@@ -10,7 +10,7 @@ import (
 )
 
 func TestContainerPauseError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -21,7 +21,7 @@ func TestContainerPauseError(t *testing.T) {
 
 func TestContainerPause(t *testing.T) {
 	const expectedURL = "/containers/container_id/pause"
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 				return nil, err

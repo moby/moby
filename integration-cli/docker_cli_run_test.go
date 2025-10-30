@@ -3685,7 +3685,7 @@ func (s *DockerCLIRunSuite) TestRunNamedVolumesFromNotRemoved(c *testing.T) {
 	cid := cli.DockerCmd(c, "run", "-d", "--name=parent", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true").Stdout()
 	cli.DockerCmd(c, "run", "--name=child", "--volumes-from=parent", "busybox", "true")
 
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 

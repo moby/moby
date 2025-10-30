@@ -1558,7 +1558,7 @@ func (s *DockerCLIRunSuite) TestRunWithNanoCPUs(c *testing.T) {
 	out := cli.DockerCmd(c, "run", "--cpus", "0.5", "--name", "test", "busybox", "sh", "-c", fmt.Sprintf("cat %s && cat %s", file1, file2)).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "50000\n100000")
 
-	clt, err := client.NewClientWithOpts(client.FromEnv)
+	clt, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	res, err := clt.ContainerInspect(testutil.GetContext(c), "test", client.ContainerInspectOptions{})
 	assert.NilError(c, err)

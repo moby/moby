@@ -309,7 +309,7 @@ func (d *Daemon) NewClient(extraOpts ...client.Opt) (*client.Client, error) {
 	}
 	clientOpts = append(clientOpts, extraOpts...)
 
-	return client.NewClientWithOpts(clientOpts...)
+	return client.New(clientOpts...)
 }
 
 // Cleanup cleans the daemon files : exec root (network namespaces, ...), swarmkit files
@@ -873,7 +873,7 @@ func (d *Daemon) LoadBusybox(ctx context.Context, t testing.TB) {
 
 func (d *Daemon) LoadImage(ctx context.Context, t testing.TB, img string) {
 	t.Helper()
-	clientHost, err := client.NewClientWithOpts(client.FromEnv)
+	clientHost, err := client.New(client.FromEnv)
 	assert.NilError(t, err, "[%s] failed to create client", d.id)
 	defer clientHost.Close()
 

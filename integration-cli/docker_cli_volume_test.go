@@ -577,7 +577,7 @@ func (s *DockerCLIVolumeSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c
 	assert.NilError(c, err)
 
 	// Mounts is available in API
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.New(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 

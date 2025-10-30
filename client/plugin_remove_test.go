@@ -11,7 +11,7 @@ import (
 )
 
 func TestPluginRemoveError(t *testing.T) {
-	client, err := NewClientWithOpts(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
 	_, err = client.PluginRemove(context.Background(), "plugin_name", PluginRemoveOptions{})
@@ -29,7 +29,7 @@ func TestPluginRemoveError(t *testing.T) {
 func TestPluginRemove(t *testing.T) {
 	const expectedURL = "/plugins/plugin_name"
 
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 		if err := assertRequest(req, http.MethodDelete, expectedURL); err != nil {
 			return nil, err
 		}

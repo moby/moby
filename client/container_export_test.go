@@ -12,7 +12,7 @@ import (
 )
 
 func TestContainerExportError(t *testing.T) {
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
@@ -31,7 +31,7 @@ func TestContainerExportError(t *testing.T) {
 
 func TestContainerExport(t *testing.T) {
 	const expectedURL = "/containers/container_id/export"
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 				return nil, err
