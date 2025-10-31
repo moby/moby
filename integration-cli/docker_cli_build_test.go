@@ -1169,9 +1169,7 @@ func (s *DockerCLIBuildSuite) TestBuildForceRm(c *testing.T) {
 	}
 
 	containerCountAfter := getContainerCount(c)
-	if containerCountBefore != containerCountAfter {
-		c.Fatalf("--force-rm shouldn't have left containers behind")
-	}
+	assert.Check(c, is.Equal(containerCountBefore, containerCountAfter), "--force-rm shouldn't have left containers behind")
 }
 
 func (s *DockerCLIBuildSuite) TestBuildRm(c *testing.T) {
