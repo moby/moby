@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
@@ -59,4 +60,24 @@ func TestStats(t *testing.T) {
 		err = json.NewDecoder(resp.Body).Decode(&v)
 		assert.Assert(t, is.ErrorIs(err, io.EOF))
 	})
+}
+
+func TestStatsContainerNotFound(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	_, err := apiClient.ContainerStats(ctx, "no-such-container", client.ContainerStatsOptions{
+		Stream: true,
+	})
+	assert.ErrorType(t, err, cerrdefs.IsNotFound)
+	assert.ErrorContains(t, err, "no-such-container")
+
+	_, err = apiClient.ContainerStats(ctx, "no-such-container", client.ContainerStatsOptions{
+		Stream:                false,
+		IncludePreviousSample: true,
+	})
+	assert.ErrorType(t, err, cerrdefs.IsNotFound)
+	assert.ErrorContains(t, err, "no-such-container")
 }
