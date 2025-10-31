@@ -3735,7 +3735,7 @@ func (s *DockerCLIRunSuite) TestRunAttachFailedNoLeak(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	// Wait until container is fully up and running
-	assert.NilError(c, d.WaitRun("test"))
+	cli.WaitRun(c, "test")
 
 	out, err = d.Cmd("run", "--name=fail", "-p", "8000:8000", "busybox", "true")
 
@@ -3921,7 +3921,7 @@ func (s *DockerDaemonSuite) TestRunWithUlimitAndDaemonDefault(c *testing.T) {
 	name := "test-A"
 	_, err := d.Cmd("run", "--name", name, "-d", "busybox", "top")
 	assert.NilError(c, err)
-	assert.NilError(c, d.WaitRun(name))
+	cli.WaitRun(c, name)
 
 	out, err := d.Cmd("inspect", "--format", "{{.HostConfig.Ulimits}}", name)
 	assert.NilError(c, err)
@@ -3929,7 +3929,7 @@ func (s *DockerDaemonSuite) TestRunWithUlimitAndDaemonDefault(c *testing.T) {
 	name = "test-B"
 	_, err = d.Cmd("run", "--name", name, "--ulimit=nofile=42", "-d", "busybox", "top")
 	assert.NilError(c, err)
-	assert.NilError(c, d.WaitRun(name))
+	cli.WaitRun(c, name)
 
 	out, err = d.Cmd("inspect", "--format", "{{.HostConfig.Ulimits}}", name)
 	assert.NilError(c, err)

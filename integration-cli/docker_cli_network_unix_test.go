@@ -1129,8 +1129,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c 
 		assert.NilError(c, err, out)
 
 		// verify container has finished starting before killing daemon
-		err = s.d.WaitRun(cName)
-		assert.NilError(c, err)
+		cli.WaitRun(c, cName)
 	}
 
 	// Kill daemon ungracefully and restart
@@ -1139,8 +1138,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c 
 
 	// make sure all the containers are up and running
 	for i := 0; i < 10; i++ {
-		err := s.d.WaitRun(fmt.Sprintf("hostc-%d", i))
-		assert.NilError(c, err)
+		cli.WaitRun(c, fmt.Sprintf("hostc-%d", i))
 	}
 }
 
