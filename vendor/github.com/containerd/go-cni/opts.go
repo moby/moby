@@ -66,9 +66,9 @@ func WithPluginConfDir(dir string) Opt {
 
 // WithPluginMaxConfNum can be used to configure the
 // max cni plugin config file num.
-func WithPluginMaxConfNum(max int) Opt {
+func WithPluginMaxConfNum(maxConfigs int) Opt {
 	return func(c *libcni) error {
-		c.pluginMaxConfNum = max
+		c.pluginMaxConfNum = maxConfigs
 		return nil
 	}
 }
@@ -209,7 +209,7 @@ func WithAllConf(c *libcni) error {
 // loadFromConfDir detects network config files from the
 // configured cni config directory and load them. max is
 // the maximum network config to load (max i<= 0 means no limit).
-func loadFromConfDir(c *libcni, max int) error {
+func loadFromConfDir(c *libcni, maxConfigs int) error {
 	files, err := cnilibrary.ConfFiles(c.pluginConfDir, []string{".conf", ".conflist", ".json"})
 	switch {
 	case err != nil:
@@ -245,7 +245,6 @@ func loadFromConfDir(c *libcni, max int) error {
 			if conf.Network.Type == "" {
 				return fmt.Errorf("network type not found in %s: %w", confFile, ErrInvalidConfig)
 			}
-
 			confList, err = cnilibrary.ConfListFromConf(conf)
 			if err != nil {
 				return fmt.Errorf("failed to convert CNI config file %s to CNI config list: %v: %w", confFile, err, ErrInvalidConfig)
@@ -261,7 +260,7 @@ func loadFromConfDir(c *libcni, max int) error {
 			ifName: getIfName(c.prefix, i),
 		})
 		i++
-		if i == max {
+		if i == maxConfigs {
 			break
 		}
 	}

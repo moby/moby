@@ -19,7 +19,7 @@ const ZipMethodWinZip = 93
 const ZipMethodPKWare = 20
 
 // zipReaderPool is the default reader pool.
-var zipReaderPool = sync.Pool{New: func() interface{} {
+var zipReaderPool = sync.Pool{New: func() any {
 	z, err := NewReader(nil, WithDecoderLowmem(true), WithDecoderMaxWindow(128<<20), WithDecoderConcurrency(1))
 	if err != nil {
 		panic(err)

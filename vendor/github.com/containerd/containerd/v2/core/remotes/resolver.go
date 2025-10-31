@@ -75,6 +75,10 @@ type FetcherByDigest interface {
 	FetchByDigest(ctx context.Context, dgst digest.Digest, opts ...FetchByDigestOpts) (io.ReadCloser, ocispec.Descriptor, error)
 }
 
+type ReferrersFetcher interface {
+	FetchReferrers(ctx context.Context, dgst digest.Digest, artifactTypes ...string) ([]ocispec.Descriptor, error)
+}
+
 // Pusher pushes content
 type Pusher interface {
 	// Push returns a content writer for the given resource identified

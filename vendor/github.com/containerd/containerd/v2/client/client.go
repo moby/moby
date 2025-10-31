@@ -40,6 +40,18 @@ import (
 	transferapi "github.com/containerd/containerd/api/services/transfer/v1"
 	versionservice "github.com/containerd/containerd/api/services/version/v1"
 	apitypes "github.com/containerd/containerd/api/types"
+	"github.com/containerd/errdefs"
+	"github.com/containerd/platforms"
+	"github.com/containerd/typeurl/v2"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go/features"
+	"golang.org/x/sync/semaphore"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/health/grpc_health_v1"
+
 	"github.com/containerd/containerd/v2/core/containers"
 	"github.com/containerd/containerd/v2/core/content"
 	contentproxy "github.com/containerd/containerd/v2/core/content/proxy"
@@ -50,6 +62,8 @@ import (
 	introspectionproxy "github.com/containerd/containerd/v2/core/introspection/proxy"
 	"github.com/containerd/containerd/v2/core/leases"
 	leasesproxy "github.com/containerd/containerd/v2/core/leases/proxy"
+	"github.com/containerd/containerd/v2/core/mount"
+	mountproxy "github.com/containerd/containerd/v2/core/mount/proxy"
 	"github.com/containerd/containerd/v2/core/remotes"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/containerd/containerd/v2/core/sandbox"
@@ -64,17 +78,6 @@ import (
 	ptypes "github.com/containerd/containerd/v2/pkg/protobuf/types"
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/containerd/v2/plugins"
-	"github.com/containerd/errdefs"
-	"github.com/containerd/platforms"
-	"github.com/containerd/typeurl/v2"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/opencontainers/runtime-spec/specs-go/features"
-	"golang.org/x/sync/semaphore"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/backoff"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func init() {
@@ -114,7 +117,11 @@ func New(address string, opts ...Opt) (*Client, error) {
 	}
 
 	if copts.defaultRuntime != "" {
-		c.runtime.value = copts.defaultRuntime
+		c.defaults.runtime = copts.defaultRuntime
+	}
+
+	if copts.defaultSandboxer != "" {
+		c.defaults.sandboxer = copts.defaultSandboxer
 	}
 
 	if copts.defaultPlatform != nil {
@@ -190,7 +197,11 @@ func NewWithConn(conn *grpc.ClientConn, opts ...Opt) (*Client, error) {
 	}
 
 	if copts.defaultRuntime != "" {
-		c.runtime.value = copts.defaultRuntime
+		c.defaults.runtime = copts.defaultRuntime
+	}
+
+	if copts.defaultSandboxer != "" {
+		c.defaults.sandboxer = copts.defaultSandboxer
 	}
 
 	if copts.defaultPlatform != nil {
@@ -215,10 +226,11 @@ type Client struct {
 	platform  platforms.MatchComparer
 	connector func() (*grpc.ClientConn, error)
 
-	// this should only be accessed via defaultRuntime()
-	runtime struct {
-		value string
-		mut   sync.Mutex
+	// this should only be accessed via default*() functions
+	defaults struct {
+		runtime   string
+		sandboxer string
+		mut       sync.Mutex
 	}
 }
 
@@ -245,11 +257,11 @@ func (c *Client) Runtime() string {
 }
 
 func (c *Client) defaultRuntime(ctx context.Context) (string, error) {
-	c.runtime.mut.Lock()
-	defer c.runtime.mut.Unlock()
+	c.defaults.mut.Lock()
+	defer c.defaults.mut.Unlock()
 
-	if c.runtime.value != "" {
-		return c.runtime.value, nil
+	if c.defaults.runtime != "" {
+		return c.defaults.runtime, nil
 	}
 
 	if c.defaultns != "" {
@@ -259,12 +271,35 @@ func (c *Client) defaultRuntime(ctx context.Context) (string, error) {
 			return defaults.DefaultRuntime, fmt.Errorf("failed to get default runtime label: %w", err)
 		}
 		if label != "" {
-			c.runtime.value = label
+			c.defaults.runtime = label
 			return label, nil
 		}
 	}
-	c.runtime.value = defaults.DefaultRuntime
-	return c.runtime.value, nil
+	c.defaults.runtime = defaults.DefaultRuntime
+	return c.defaults.runtime, nil
+}
+
+func (c *Client) defaultSandboxer(ctx context.Context) (string, error) {
+	c.defaults.mut.Lock()
+	defer c.defaults.mut.Unlock()
+
+	if c.defaults.sandboxer != "" {
+		return c.defaults.sandboxer, nil
+	}
+
+	if c.defaultns != "" {
+		label, err := c.GetLabel(ctx, defaults.DefaultSandboxerNSLabel)
+		if err != nil {
+			// Don't set the sandboxer value if there's an error
+			return defaults.DefaultSandboxer, fmt.Errorf("failed to get default sandboxer label: %w", err)
+		}
+		if label != "" {
+			c.defaults.sandboxer = label
+			return label, nil
+		}
+	}
+	c.defaults.sandboxer = defaults.DefaultSandboxer
+	return c.defaults.sandboxer, nil
 }
 
 // IsServing returns true if the client can successfully connect to the
@@ -431,6 +466,10 @@ type RemoteContext struct {
 	// ChildLabelMap sets the labels used to reference child objects in the content
 	// store. By default, all GC reference labels will be set for all fetched content.
 	ChildLabelMap func(ocispec.Descriptor) []string
+
+	// ReferrersProvider provides a way to lookup additional referrers for a given
+	// descriptor. For example pulling them with remotes.ReferrerFetcher.
+	ReferrersProvider content.ReferrersProvider
 }
 
 func defaultRemoteContext() *RemoteContext {
@@ -791,6 +830,16 @@ func (c *Client) TransferService() transfer.Transferrer {
 	c.connMu.Lock()
 	defer c.connMu.Unlock()
 	return transferproxy.NewTransferrer(transferapi.NewTransferClient(c.conn), c.streamCreator())
+}
+
+// MountManager returns the underlying mount manager client
+func (c *Client) MountManager() mount.Manager {
+	if c.mountManager != nil {
+		return c.mountManager
+	}
+	c.connMu.Lock()
+	defer c.connMu.Unlock()
+	return mountproxy.NewMountManager(c.conn)
 }
 
 // VersionService returns the underlying VersionClient

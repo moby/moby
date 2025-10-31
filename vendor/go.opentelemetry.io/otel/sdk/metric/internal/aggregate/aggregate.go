@@ -121,7 +121,10 @@ func (b Builder[N]) Sum(monotonic bool) (Measure[N], ComputeAggregation) {
 
 // ExplicitBucketHistogram returns a histogram aggregate function input and
 // output.
-func (b Builder[N]) ExplicitBucketHistogram(boundaries []float64, noMinMax, noSum bool) (Measure[N], ComputeAggregation) {
+func (b Builder[N]) ExplicitBucketHistogram(
+	boundaries []float64,
+	noMinMax, noSum bool,
+) (Measure[N], ComputeAggregation) {
 	h := newHistogram[N](boundaries, noMinMax, noSum, b.AggregationLimit, b.resFunc())
 	switch b.Temporality {
 	case metricdata.DeltaTemporality:
@@ -133,7 +136,10 @@ func (b Builder[N]) ExplicitBucketHistogram(boundaries []float64, noMinMax, noSu
 
 // ExponentialBucketHistogram returns a histogram aggregate function input and
 // output.
-func (b Builder[N]) ExponentialBucketHistogram(maxSize, maxScale int32, noMinMax, noSum bool) (Measure[N], ComputeAggregation) {
+func (b Builder[N]) ExponentialBucketHistogram(
+	maxSize, maxScale int32,
+	noMinMax, noSum bool,
+) (Measure[N], ComputeAggregation) {
 	h := newExponentialHistogram[N](maxSize, maxScale, noMinMax, noSum, b.AggregationLimit, b.resFunc())
 	switch b.Temporality {
 	case metricdata.DeltaTemporality:

@@ -31,14 +31,18 @@ import (
 
 // ALTSRecordCrypto is the interface for gRPC ALTS record protocol.
 type ALTSRecordCrypto interface {
-	// Encrypt encrypts the plaintext and computes the tag (if any) of dst
-	// and plaintext. dst and plaintext may fully overlap or not at all.
+	// Encrypt encrypts the plaintext, computes the tag (if any) of dst and
+	// plaintext, and appends the result to dst, returning the updated slice.
+	// dst and plaintext may fully overlap or not at all.
 	Encrypt(dst, plaintext []byte) ([]byte, error)
 	// EncryptionOverhead returns the tag size (if any) in bytes.
 	EncryptionOverhead() int
-	// Decrypt decrypts ciphertext and verify the tag (if any). dst and
-	// ciphertext may alias exactly or not at all. To reuse ciphertext's
-	// storage for the decrypted output, use ciphertext[:0] as dst.
+	// Decrypt decrypts ciphertext and verifies the tag (if any). If successful,
+	// this function appends the resulting plaintext to dst, returning the
+	// updated slice. dst and ciphertext may alias exactly or not at all. To
+	// reuse ciphertext's storage for the decrypted output, use ciphertext[:0]
+	// as dst. Even if the function fails, the contents of dst, up to its
+	// capacity, may be overwritten.
 	Decrypt(dst, ciphertext []byte) ([]byte, error)
 }
 
@@ -63,6 +67,8 @@ const (
 	// The maximum write buffer size. This *must* be multiple of
 	// altsRecordDefaultLength.
 	altsWriteBufferMaxSize = 512 * 1024 // 512KiB
+	// The initial buffer used to read from the network.
+	altsReadBufferInitialSize = 32 * 1024 // 32KiB
 )
 
 var (
@@ -83,7 +89,7 @@ type conn struct {
 	net.Conn
 	crypto ALTSRecordCrypto
 	// buf holds data that has been read from the connection and decrypted,
-	// but has not yet been returned by Read.
+	// but has not yet been returned by Read. It is a sub-slice of protected.
 	buf                []byte
 	payloadLengthLimit int
 	// protected holds data read from the network but have not yet been
@@ -111,21 +117,13 @@ func NewConn(c net.Conn, side core.Side, recordProtocol string, key []byte, prot
 	}
 	overhead := MsgLenFieldSize + msgTypeFieldSize + crypto.EncryptionOverhead()
 	payloadLengthLimit := altsRecordDefaultLength - overhead
-	var protectedBuf []byte
-	if protected == nil {
-		// We pre-allocate protected to be of size
-		// 2*altsRecordDefaultLength-1 during initialization. We only
-		// read from the network into protected when protected does not
-		// contain a complete frame, which is at most
-		// altsRecordDefaultLength-1 (bytes). And we read at most
-		// altsRecordDefaultLength (bytes) data into protected at one
-		// time. Therefore, 2*altsRecordDefaultLength-1 is large enough
-		// to buffer data read from the network.
-		protectedBuf = make([]byte, 0, 2*altsRecordDefaultLength-1)
-	} else {
-		protectedBuf = make([]byte, len(protected))
-		copy(protectedBuf, protected)
-	}
+	// We pre-allocate protected to be of size 32KB during initialization.
+	// We increase the size of the buffer by the required amount if it can't
+	// hold a complete encrypted record.
+	protectedBuf := make([]byte, max(altsReadBufferInitialSize, len(protected)))
+	// Copy additional data from hanshaker service.
+	copy(protectedBuf, protected)
+	protectedBuf = protectedBuf[:len(protected)]
 
 	altsConn := &conn{
 		Conn:               c,
@@ -162,11 +160,26 @@ func (p *conn) Read(b []byte) (n int, err error) {
 		// Check whether a complete frame has been received yet.
 		for len(framedMsg) == 0 {
 			if len(p.protected) == cap(p.protected) {
-				tmp := make([]byte, len(p.protected), cap(p.protected)+altsRecordDefaultLength)
-				copy(tmp, p.protected)
-				p.protected = tmp
+				// We can parse the length header to know exactly how large
+				// the buffer needs to be to hold the entire frame.
+				length, didParse := parseMessageLength(p.protected)
+				if !didParse {
+					// The protected buffer is initialized with a capacity of
+					// larger than 4B. It should always hold the message length
+					// header.
+					panic(fmt.Sprintf("protected buffer length shorter than expected: %d vs %d", len(p.protected), MsgLenFieldSize))
+				}
+				oldProtectedBuf := p.protected
+				// The new buffer must be able to hold the message length header
+				// and the entire message.
+				requiredCapacity := int(length) + MsgLenFieldSize
+				p.protected = make([]byte, requiredCapacity)
+				// Copy the contents of the old buffer and set the length of the
+				// new buffer to the number of bytes already read.
+				copy(p.protected, oldProtectedBuf)
+				p.protected = p.protected[:len(oldProtectedBuf)]
 			}
-			n, err = p.Conn.Read(p.protected[len(p.protected):min(cap(p.protected), len(p.protected)+altsRecordDefaultLength)])
+			n, err = p.Conn.Read(p.protected[len(p.protected):cap(p.protected)])
 			if err != nil {
 				return 0, err
 			}
@@ -185,6 +198,15 @@ func (p *conn) Read(b []byte) (n int, err error) {
 		}
 		ciphertext := msg[msgTypeFieldSize:]
 
+		// Decrypt directly into the buffer, avoiding a copy from p.buf if
+		// possible.
+		if len(b) >= len(ciphertext) {
+			dec, err := p.crypto.Decrypt(b[:0], ciphertext)
+			if err != nil {
+				return 0, err
+			}
+			return len(dec), nil
+		}
 		// Decrypt requires that if the dst and ciphertext alias, they
 		// must alias exactly. Code here used to use msg[:0], but msg
 		// starts MsgLenFieldSize+msgTypeFieldSize bytes earlier than

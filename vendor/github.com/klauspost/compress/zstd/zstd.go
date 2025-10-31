@@ -98,13 +98,13 @@ var (
 	ErrDecoderNilInput = errors.New("nil input provided as reader")
 )
 
-func println(a ...interface{}) {
+func println(a ...any) {
 	if debug || debugDecoder || debugEncoder {
 		log.Println(a...)
 	}
 }
 
-func printf(format string, a ...interface{}) {
+func printf(format string, a ...any) {
 	if debug || debugDecoder || debugEncoder {
 		log.Printf(format, a...)
 	}

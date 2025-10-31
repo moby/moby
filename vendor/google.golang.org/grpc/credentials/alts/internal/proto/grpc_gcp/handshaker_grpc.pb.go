@@ -95,7 +95,7 @@ type HandshakerServiceServer interface {
 type UnimplementedHandshakerServiceServer struct{}
 
 func (UnimplementedHandshakerServiceServer) DoHandshake(grpc.BidiStreamingServer[HandshakerReq, HandshakerResp]) error {
-	return status.Errorf(codes.Unimplemented, "method DoHandshake not implemented")
+	return status.Error(codes.Unimplemented, "method DoHandshake not implemented")
 }
 func (UnimplementedHandshakerServiceServer) mustEmbedUnimplementedHandshakerServiceServer() {}
 func (UnimplementedHandshakerServiceServer) testEmbeddedByValue()                           {}

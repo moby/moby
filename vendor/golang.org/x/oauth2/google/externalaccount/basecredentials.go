@@ -486,11 +486,11 @@ func (ts tokenSource) Token() (*oauth2.Token, error) {
 		ClientID:     conf.ClientID,
 		ClientSecret: conf.ClientSecret,
 	}
-	var options map[string]interface{}
+	var options map[string]any
 	// Do not pass workforce_pool_user_project when client authentication is used.
 	// The client ID is sufficient for determining the user project.
 	if conf.WorkforcePoolUserProject != "" && conf.ClientID == "" {
-		options = map[string]interface{}{
+		options = map[string]any{
 			"userProject": conf.WorkforcePoolUserProject,
 		}
 	}

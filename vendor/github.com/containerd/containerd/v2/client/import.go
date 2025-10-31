@@ -20,6 +20,7 @@ import (
 	"context"
 	"io"
 
+	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/images/archive"
 	"github.com/containerd/errdefs"
@@ -39,6 +40,7 @@ type importOpts struct {
 	discardLayers   bool
 	skipMissing     bool
 	imageLabels     map[string]string
+	referrers       content.ReferrersProvider
 }
 
 // ImportOpt allows the caller to specify import specific options
@@ -132,6 +134,15 @@ func WithSkipMissing() ImportOpt {
 	}
 }
 
+// WithImportReferrers allows to set a custom referrers provider
+// for setting referrer objects during import.
+func WithImportReferrers(r content.ReferrersProvider) ImportOpt {
+	return func(c *importOpts) error {
+		c.referrers = r
+		return nil
+	}
+}
+
 // Import imports an image from a Tar stream using reader.
 // Caller needs to specify importer. Future version may use oci.v1 as the default.
 // Note that unreferenced blobs may be imported to the content store as well.
@@ -202,6 +213,10 @@ func (c *Client) Import(ctx context.Context, reader io.Reader, opts ...ImportOpt
 					Target: m,
 				})
 			}
+			// don't create images for referrer descriptors
+			if _, ok := m.Annotations[images.AnnotationManifestSubject]; ok {
+				continue
+			}
 			if iopts.skipDgstRef != nil {
 				if iopts.skipDgstRef(name) {
 					continue
@@ -222,6 +237,9 @@ func (c *Client) Import(ctx context.Context, reader io.Reader, opts ...ImportOpt
 	}
 
 	handler = images.FilterPlatforms(handler, platformMatcher)
+	if iopts.referrers != nil {
+		handler = images.SetReferrers(iopts.referrers, handler)
+	}
 	if iopts.discardLayers {
 		handler = images.SetChildrenMappedLabels(cs, handler, images.ChildGCLabelsFilterLayers)
 	} else {
