@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/registry"
@@ -18,7 +17,7 @@ import (
 // system specific functionality.
 type Backend interface {
 	SystemInfo(context.Context) (*system.Info, error)
-	SystemVersion(context.Context) (types.Version, error)
+	SystemVersion(context.Context) (system.VersionResponse, error)
 	SystemDiskUsage(ctx context.Context, opts backend.DiskUsageOptions) (*backend.DiskUsage, error)
 	SubscribeToEvents(since, until time.Time, ef filters.Args) ([]events.Message, chan any)
 	UnsubscribeFromEvents(chan any)

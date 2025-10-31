@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/system"
 )
 
 // ServerVersionOptions specifies options for the server version request.
@@ -41,7 +41,7 @@ type ServerVersionResult struct {
 	// Components contains version information for the components making
 	// up the server. Information in this field is for informational
 	// purposes, and not part of the API contract.
-	Components []types.ComponentVersion
+	Components []system.ComponentVersion
 }
 
 // PlatformInfo holds information about the platform (product name) the
@@ -60,7 +60,7 @@ func (cli *Client) ServerVersion(ctx context.Context, _ ServerVersionOptions) (S
 		return ServerVersionResult{}, err
 	}
 
-	var v types.Version
+	var v system.VersionResponse
 	err = json.NewDecoder(resp.Body).Decode(&v)
 	if err != nil {
 		return ServerVersionResult{}, err

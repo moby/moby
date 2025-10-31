@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil/request"
 	"gotest.tools/v3/assert"
@@ -21,7 +21,7 @@ func TestVersion(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, len(version.Components) > 0, "expected at least one component in version.Components")
 
-	var engine types.ComponentVersion
+	var engine system.ComponentVersion
 	var found bool
 
 	for _, comp := range version.Components {
