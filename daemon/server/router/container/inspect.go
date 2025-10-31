@@ -81,5 +81,8 @@ func (c *containerRouter) getContainersByName(ctx context.Context, w http.Respon
 		}
 	}
 
+	if ctr.Config == nil {
+		ctr.Config = &container.Config{}
+	}
 	return httputils.WriteJSON(w, http.StatusOK, compat.Wrap(ctr, wrapOpts...))
 }
