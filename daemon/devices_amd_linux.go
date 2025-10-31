@@ -16,7 +16,7 @@ func setAMDGPUs(s *specs.Spec, dev *deviceInstance) error {
 	case len(req.DeviceIDs) > 0:
 		s.Process.Env = append(s.Process.Env, "AMD_VISIBLE_DEVICES="+strings.Join(req.DeviceIDs, ","))
 	case req.Count > 0:
-		s.Process.Env = append(s.Process.Env, "AMD_VISIBLE_DEVICES="+countToDevices(req.Count))
+		s.Process.Env = append(s.Process.Env, "AMD_VISIBLE_DEVICES="+strings.Join(countToDevices(req.Count), ","))
 	case req.Count < 0:
 		s.Process.Env = append(s.Process.Env, "AMD_VISIBLE_DEVICES=all")
 	case req.Count == 0:
