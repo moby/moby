@@ -167,7 +167,7 @@ func (daemon *Daemon) cleanupContainer(ctr *container.Container, config backend.
 	linkNames := daemon.linkIndex.delete(ctr)
 	selinux.ReleaseLabel(ctr.ProcessLabel)
 	daemon.containers.Delete(ctr.ID)
-	daemon.containersReplica.Delete(ctr)
+	daemon.containersReplica.Delete(ctr.ID)
 	if err := daemon.removeMountPoints(ctr, config.RemoveVolume); err != nil {
 		log.G(context.TODO()).Error(err)
 	}
