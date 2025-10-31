@@ -14,7 +14,6 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/client"
-	apitypes "github.com/moby/moby/api/types"
 	"github.com/moby/moby/v2/daemon/internal/distribution/metadata"
 	"github.com/moby/moby/v2/daemon/internal/distribution/xfer"
 	"github.com/moby/moby/v2/daemon/internal/layer"
@@ -211,9 +210,20 @@ func (p *pusher) pushTag(ctx context.Context, ref reference.NamedTagged, id dige
 		return err
 	}
 
+	// pushResult contains the tag, manifest digest, and manifest size from the
+	// push. It's used to signal this information to the trust code in the client
+	// so it can sign the manifest if necessary.
+	//
+	// TODO(thaJeztah): this aux-type is only present for docker content trust, which is deprecated.
+	type pushResult struct {
+		Tag    string
+		Digest string
+		Size   int
+	}
+
 	// Signal digest to the trust client so it can sign the
 	// push, if appropriate.
-	progress.Aux(p.config.ProgressOutput, apitypes.PushResult{Tag: ref.Tag(), Digest: manifestDigest.String(), Size: len(canonicalManifest)})
+	progress.Aux(p.config.ProgressOutput, pushResult{Tag: ref.Tag(), Digest: manifestDigest.String(), Size: len(canonicalManifest)})
 
 	return nil
 }
