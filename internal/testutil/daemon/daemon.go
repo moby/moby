@@ -15,7 +15,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -239,6 +238,17 @@ func New(t testing.TB, ops ...Option) *Daemon {
 		t.Skipf("DOCKER_ROOTLESS doesn't support specifying non-default dockerd binary path %q", d.dockerdBinary)
 	}
 
+	t.Cleanup(func() {
+		if err := d.Kill(); err != nil && !errors.Is(err, errDaemonNotStarted) {
+			t.Errorf("[%s] error while stopping the daemon during cleanup: %v", d.id, err)
+		}
+		if !t.Failed() {
+			// cleanup the daemon's storage if the test didn't fail.
+			// for failed tests, we keep the files to allow investigating.
+			d.Cleanup(t)
+		}
+	})
+
 	return d
 }
 
@@ -315,6 +325,9 @@ func (d *Daemon) NewClient(extraOpts ...client.Opt) (*client.Client, error) {
 // Cleanup cleans the daemon files : exec root (network namespaces, ...), swarmkit files
 func (d *Daemon) Cleanup(t testing.TB) {
 	t.Helper()
+	if err := d.Kill(); err != nil && !errors.Is(err, errDaemonNotStarted) {
+		t.Errorf("[%s] error while stopping the daemon during cleanup: %v", d.id, err)
+	}
 	cleanupMount(t, d)
 	cleanupRaftDir(t, d)
 	cleanupDaemonStorage(t, d)
@@ -571,20 +584,20 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		close(wait)
 	}()
 
-	clientConfig, err := d.getClientConfig()
+	clientCfg, err := d.getClientConfig()
 	if err != nil {
 		return err
 	}
-	client := &http.Client{
-		Transport: clientConfig.transport,
+	httpClient := &http.Client{
+		Transport: clientCfg.transport,
 	}
 
 	req, err := http.NewRequest(http.MethodGet, "/_ping", http.NoBody)
 	if err != nil {
 		return errors.Wrapf(err, "[%s] could not create new request", d.id)
 	}
-	req.URL.Host = clientConfig.addr
-	req.URL.Scheme = clientConfig.scheme
+	req.URL.Host = clientCfg.addr
+	req.URL.Scheme = clientCfg.scheme
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -602,7 +615,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 			rctx, rcancel := context.WithTimeout(context.TODO(), 2*time.Second)
 			defer rcancel()
 
-			resp, err := client.Do(req.WithContext(rctx))
+			resp, err := httpClient.Do(req.WithContext(rctx))
 			if err != nil {
 				if i > 2 { // don't log the first couple, this ends up just being noise
 					d.log.Logf("[%s] error pinging daemon on start: %v", d.id, err)
@@ -615,7 +628,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 				continue
 			}
 
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			if resp.StatusCode != http.StatusOK {
 				d.log.Logf("[%s] received status != 200 OK: %s\n", d.id, resp.Status)
 			}
@@ -644,18 +657,16 @@ func (d *Daemon) Kill() error {
 	}
 
 	defer func() {
-		d.logFile.Close()
+		_ = d.logFile.Close()
 		d.cmd = nil
 	}()
 
-	if err := d.cmd.Process.Kill(); err != nil {
+	if err := d.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 		return err
 	}
 
-	_, err := d.cmd.Process.Wait()
-	if err != nil && !errors.Is(err, syscall.ECHILD) {
-		return err
-	}
+	// errors may be expected after a SIGKILL; ignore them.
+	_ = d.cmd.Wait()
 
 	if d.pidFile != "" {
 		_ = os.Remove(d.pidFile)
@@ -1068,9 +1079,13 @@ func cleanupDaemonStorage(t testing.TB, d *Daemon) {
 		"builder",
 		"buildkit",
 		"containers",
+		"engine-id",
 		"image",
 		"network",
 		"plugins",
+		"rootfs",
+		"runtimes",
+		"swarm",
 		"tmp",
 		"trust",
 		"volumes",
@@ -1084,5 +1099,8 @@ func cleanupDaemonStorage(t testing.TB, d *Daemon) {
 		if err := os.RemoveAll(dir); err != nil {
 			t.Logf("[%s] error removing %v: %v", d.id, dir, err)
 		}
+	}
+	if err := os.RemoveAll(d.Root); err != nil {
+		t.Logf("[%s] error removing %v: %v", d.id, d.Root, err)
 	}
 }

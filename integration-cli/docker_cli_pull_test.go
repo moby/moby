@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os/exec"
 	"regexp"
 	"strings"
 	"testing"
@@ -125,7 +126,7 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistryImplicitRefParts(c *test
 // TestPullScratchNotAllowed verifies that pulling 'scratch' is rejected.
 func (s *DockerHubPullSuite) TestPullScratchNotAllowed(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	out, err := s.CmdWithError("pull", "scratch")
+	out, err := s.CmdWithError(c, "pull", "scratch")
 	assert.ErrorContains(c, err, "", "expected pull of scratch to fail")
 	assert.Assert(c, is.Contains(out, "'scratch' is a reserved name"))
 	assert.Assert(c, !strings.Contains(out, "Pulling repository scratch"))
@@ -183,23 +184,32 @@ func (s *DockerHubPullSuite) TestPullClientDisconnect(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	const imgRepo = "hello-world:latest"
 
-	pullCmd := s.MakeCmd("pull", imgRepo)
+	ctx, cancel := context.WithCancel(c.Context())
+	pullCmd := exec.CommandContext(ctx, dockerBinary, "--host", s.d.Sock(), "pull", imgRepo)
 	stdout, err := pullCmd.StdoutPipe()
+	assert.NilError(c, err)
+	stderr, err := pullCmd.StderrPipe()
 	assert.NilError(c, err)
 	err = pullCmd.Start()
 	assert.NilError(c, err)
-	go pullCmd.Wait()
+
+	// Make sure the pull command is gone before the daemon is torn down
+	c.Cleanup(func() {
+		cancel()
+		_ = stdout.Close()
+		_ = stderr.Close()
+		_ = pullCmd.Wait()
+	})
 
 	// Cancel as soon as we get some output.
 	buf := make([]byte, 10)
-	_, err = stdout.Read(buf)
-	assert.NilError(c, err)
+	_, _ = stdout.Read(buf)
 
 	err = pullCmd.Process.Kill()
 	assert.NilError(c, err)
 
 	time.Sleep(2 * time.Second)
-	_, err = s.CmdWithError("inspect", imgRepo)
+	_, err = s.CmdWithError(c, "inspect", imgRepo)
 	assert.ErrorContains(c, err, "", "image was pulled after client disconnected")
 }
 
