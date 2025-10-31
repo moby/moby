@@ -133,6 +133,7 @@ func TestPrivilegedHostDevices(t *testing.T) {
 	// so needs to be same host.
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.IsRootless, "scenario doesn't work with rootless mode")
 
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
@@ -205,6 +206,7 @@ func TestRunConsoleSize(t *testing.T) {
 func TestRunWithAlternativeContainerdShim(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.IsRootless, "scenario doesn't work with rootless mode")
 
 	ctx := testutil.StartSpan(baseContext, t)
 

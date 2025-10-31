@@ -15,6 +15,7 @@ import (
 func TestPIDModeHost(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRootless, "scenario doesn't work with rootless mode")
 
 	hostPid, err := os.Readlink("/proc/1/ns/pid")
 	assert.NilError(t, err)
