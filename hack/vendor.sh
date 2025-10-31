@@ -44,6 +44,15 @@ dropreplace() (
 	set -x
 	go mod edit -dropreplace=github.com/moby/moby/api -dropreplace=github.com/moby/moby/client
 	go mod edit -modfile client/go.mod -dropreplace=github.com/moby/moby/api
+
+	go mod edit -modfile client/go.mod -require='github.com/moby/moby/api@master'
+	(cd client; go mod tidy)
+
+	go mod edit \
+		-require='github.com/moby/moby/api@master' \
+		-require='github.com/moby/moby/client@master'
+	go mod tidy
+	go mod vendor
 )
 
 help() {
