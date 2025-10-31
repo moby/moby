@@ -96,7 +96,6 @@ type ImageAPIClient interface {
 	ImageBuild(ctx context.Context, context io.Reader, options ImageBuildOptions) (ImageBuildResult, error)
 	BuildCachePrune(ctx context.Context, opts BuildCachePruneOptions) (BuildCachePruneResult, error)
 	BuildCancel(ctx context.Context, id string, opts BuildCancelOptions) (BuildCancelResult, error)
-	ImageCreate(ctx context.Context, parentReference string, options ImageCreateOptions) (ImageCreateResult, error)
 	ImageImport(ctx context.Context, source ImageImportSource, ref string, options ImageImportOptions) (ImageImportResult, error)
 
 	ImageList(ctx context.Context, options ImageListOptions) (ImageListResult, error)
