@@ -938,7 +938,7 @@ github.com/moby/ipvs
 # github.com/moby/locker v1.0.1
 ## explicit; go 1.13
 github.com/moby/locker
-# github.com/moby/moby/api v1.52.0-beta.3.0.20251031172312-ba3f5f56dc4c
+# github.com/moby/moby/api v1.52.0-beta.4
 ## explicit; go 1.23.0
 github.com/moby/moby/api/pkg/authconfig
 github.com/moby/moby/api/pkg/stdcopy
