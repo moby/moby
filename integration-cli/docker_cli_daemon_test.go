@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/cloudflare/cfssl/helpers"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/creack/pty"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
@@ -361,9 +362,10 @@ func (s *DockerDaemonSuite) TestDaemonExitOnFailure(c *testing.T) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonBridgeNone(c *testing.T) {
+	ctx := testutil.GetContext(c)
 	// start with bridge none
 	d := s.d
-	d.StartWithBusybox(testutil.GetContext(c), c, "--bridge", "none")
+	d.StartWithBusybox(ctx, c, "--bridge", "none")
 	defer d.Restart(c)
 
 	// verify docker0 iface is not there
@@ -374,9 +376,9 @@ func (s *DockerDaemonSuite) TestDaemonBridgeNone(c *testing.T) {
 	})
 
 	// verify default "bridge" network is not there
-	out, err := d.Cmd("network", "inspect", "bridge")
-	assert.ErrorContains(c, err, "", `"bridge" network should not be present if daemon started with --bridge=none`)
-	assert.Assert(c, is.Contains(out, "No such network"))
+	apiClient := d.NewClientT(c)
+	_, err := apiClient.NetworkInspect(ctx, "bridge", client.NetworkInspectOptions{})
+	assert.ErrorType(c, err, cerrdefs.IsNotFound, `"bridge" network should not be present if daemon started with --bridge=none`)
 }
 
 func createInterface(t *testing.T, ifType string, ifName string, ipNet string) {
@@ -725,9 +727,10 @@ func (s *DockerDaemonSuite) TestHTTPSInfoRogueCert(c *testing.T) {
 		// > the case if the server rejects the client certificate.
 		//
 		// https://github.com/golang/go/blob/go1.25.1/src/crypto/tls/alert.go#L71-L72
-		alertBadCertificate   = "bad certificate"   // go1.24 / TLS 1.2
-		alertHandshakeFailure = "handshake failure" // go1.25 / TLS 1.3
-		testDaemonHTTPSAddr   = "tcp://localhost:4271"
+		alertBadCertificate      = "bad certificate"   // go1.24 / TLS 1.2
+		alertHandshakeFailure    = "handshake failure" // go1.25 / TLS 1.3
+		alertCertificateRequired = "certificate required"
+		testDaemonHTTPSAddr      = "tcp://localhost:4271"
 	)
 
 	s.d.Start(c,
@@ -749,8 +752,8 @@ func (s *DockerDaemonSuite) TestHTTPSInfoRogueCert(c *testing.T) {
 	if err == nil {
 		c.Errorf("Expected an error, but got none; output: %s", out)
 	}
-	if !strings.Contains(out, alertHandshakeFailure) && !strings.Contains(out, alertBadCertificate) {
-		c.Errorf("Expected %q or %q; output: %s", alertHandshakeFailure, alertBadCertificate, out)
+	if !strings.Contains(out, alertHandshakeFailure) && !strings.Contains(out, alertBadCertificate) && !strings.Contains(out, alertCertificateRequired) {
+		c.Errorf("Expected %q, %q, or %q; output: %s", alertHandshakeFailure, alertBadCertificate, alertCertificateRequired, out)
 	}
 }
 
@@ -1629,6 +1632,7 @@ func (s *DockerDaemonSuite) TestBuildOnDisabledBridgeNetworkDaemon(c *testing.T)
         FROM busybox
         RUN cat /etc/hosts`),
 		build.WithoutCache,
+		build.WithBuildkit(false), // FIXME(thaJeztah): doesn't work with BuildKit? 'ERROR: process "/bin/sh -c cat /etc/hosts" did not complete successfully: network bridge not found'
 	)
 	comment := fmt.Sprintf("Failed to build image. output %s, exitCode %d, err %v", result.Combined(), result.ExitCode, result.Error)
 	assert.Assert(c, result.Error == nil, comment)

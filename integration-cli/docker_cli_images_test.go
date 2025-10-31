@@ -60,23 +60,22 @@ func (s *DockerCLIImagesSuite) TestImagesEnsureImageWithBadTagIsNotListed(c *tes
 }
 
 func (s *DockerCLIImagesSuite) TestImagesOrderedByCreationDate(c *testing.T) {
-	cli.BuildCmd(c, "order:test_a", build.WithDockerfile(`FROM busybox
-                MAINTAINER dockerio1`))
-	id1 := getIDByName(c, "order:test_a")
-	time.Sleep(1 * time.Second)
-	cli.BuildCmd(c, "order:test_c", build.WithDockerfile(`FROM busybox
-                MAINTAINER dockerio2`))
-	id2 := getIDByName(c, "order:test_c")
-	time.Sleep(1 * time.Second)
-	cli.BuildCmd(c, "order:test_b", build.WithDockerfile(`FROM busybox
-                MAINTAINER dockerio3`))
-	id3 := getIDByName(c, "order:test_b")
+	cli.BuildCmd(c, "order:test_a", build.WithDockerfile("FROM busybox\nRUN echo a > /result.txt\n"))
+	imageID1 := getIDByName(c, "order:test_a")
 
-	out := cli.DockerCmd(c, "images", "-q", "--no-trunc").Stdout()
-	imgs := strings.Split(out, "\n")
-	assert.Equal(c, imgs[0], id3, fmt.Sprintf("First image must be %s, got %s", id3, imgs[0]))
-	assert.Equal(c, imgs[1], id2, fmt.Sprintf("First image must be %s, got %s", id2, imgs[1]))
-	assert.Equal(c, imgs[2], id1, fmt.Sprintf("First image must be %s, got %s", id1, imgs[2]))
+	time.Sleep(1 * time.Second) // need some delay to make sure images sort predictable
+	cli.BuildCmd(c, "order:test_b", build.WithDockerfile("FROM busybox\nRUN echo bb > /result.txt\n"))
+	imageID2 := getIDByName(c, "order:test_b")
+
+	time.Sleep(1 * time.Second) // need some delay to make sure images sort predictable
+	cli.BuildCmd(c, "order:test_c", build.WithDockerfile("FROM busybox\nRUN echo ccc > /result.txt\n"))
+	imageID3 := getIDByName(c, "order:test_c")
+
+	out := cli.DockerCmd(c, "image", "ls", "--format", `{{.Tag}}\t{{.ID}}`, "--no-trunc", "order").Stdout()
+	c.Log(out)
+	actual := getImageIDs(out)
+	expected := []string{imageID3, imageID2, imageID1}
+	assert.DeepEqual(c, actual, expected)
 }
 
 func (s *DockerCLIImagesSuite) TestImagesErrorWithInvalidFilterNameTest(c *testing.T) {
@@ -128,72 +127,86 @@ func (s *DockerCLIImagesSuite) TestCommitWithFilterLabel(c *testing.T) {
 }
 
 func (s *DockerCLIImagesSuite) TestImagesFilterSinceAndBefore(c *testing.T) {
-	cli.BuildCmd(c, "image:1", build.WithDockerfile(`FROM `+minimalBaseImage()+`
-LABEL number=1`))
-	imageID1 := getIDByName(c, "image:1")
-	cli.BuildCmd(c, "image:2", build.WithDockerfile(`FROM `+minimalBaseImage()+`
-LABEL number=2`))
-	imageID2 := getIDByName(c, "image:2")
-	cli.BuildCmd(c, "image:3", build.WithDockerfile(`FROM `+minimalBaseImage()+`
-LABEL number=3`))
-	imageID3 := getIDByName(c, "image:3")
+	cli.BuildCmd(c, "testfilter:test_1", build.WithDockerfile("FROM busybox\nRUN echo 1 > /result.txt\n"))
+	imageID1 := getIDByName(c, "testfilter:test_1")
 
-	expected := []string{imageID3, imageID2}
+	time.Sleep(1 * time.Second) // need some delay to make sure images sort predictable
+	cli.BuildCmd(c, "testfilter:test_2", build.WithDockerfile("FROM busybox\nRUN echo 22 > /result.txt\n"))
+	imageID2 := getIDByName(c, "testfilter:test_2")
 
-	out := cli.DockerCmd(c, "images", "-f", "since=image:1", "image").Stdout()
-	assert.Equal(c, assertImageList(out, expected), true, fmt.Sprintf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
+	time.Sleep(1 * time.Second) // need some delay to make sure images sort predictable
+	cli.BuildCmd(c, "testfilter:test_3", build.WithDockerfile("FROM busybox\nRUN echo 333 > /result.txt\n"))
+	imageID3 := getIDByName(c, "testfilter:test_3")
 
-	out = cli.DockerCmd(c, "images", "-f", "since="+imageID1, "image").Stdout()
-	assert.Equal(c, assertImageList(out, expected), true, fmt.Sprintf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
+	out := cli.DockerCmd(c, "image", "ls", "--format", `{{.Tag}}\t{{.ID}}\t{{.CreatedAt}}`, "--no-trunc", "testfilter").Stdout()
+	c.Log(out)
 
-	expected = []string{imageID3}
+	tests := []struct {
+		name     string
+		filter   string
+		expected []string
+	}{
+		{
+			name:     "since image 1",
+			filter:   "since=testfilter:test_1",
+			expected: []string{imageID3, imageID2},
+		},
+		{
+			name:     "since image 1 digest",
+			filter:   "since=" + imageID1,
+			expected: []string{imageID3, imageID2},
+		},
+		{
+			name:     "since image 2",
+			filter:   "since=testfilter:test_2",
+			expected: []string{imageID3},
+		},
+		{
+			name:     "since image 2 digest",
+			filter:   "since=" + imageID2,
+			expected: []string{imageID3},
+		},
+		{
+			name:     "before image 3",
+			filter:   "before=testfilter:test_3",
+			expected: []string{imageID2, imageID1},
+		},
+		{
+			name:     "before image 3 digest",
+			filter:   "before=" + imageID3,
+			expected: []string{imageID2, imageID1},
+		},
+		{
+			name:     "before image 2",
+			filter:   "before=testfilter:test_2",
+			expected: []string{imageID1},
+		},
+		{
+			name:     "before image 2 digest",
+			filter:   "before=" + imageID2,
+			expected: []string{imageID1},
+		},
+	}
 
-	out = cli.DockerCmd(c, "images", "-f", "since=image:2", "image").Stdout()
-	assert.Equal(c, assertImageList(out, expected), true, fmt.Sprintf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
-
-	out = cli.DockerCmd(c, "images", "-f", "since="+imageID2, "image").Stdout()
-	assert.Equal(c, assertImageList(out, expected), true, fmt.Sprintf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
-
-	expected = []string{imageID2, imageID1}
-
-	out = cli.DockerCmd(c, "images", "-f", "before=image:3", "image").Stdout()
-	assert.Equal(c, assertImageList(out, expected), true, fmt.Sprintf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
-
-	out = cli.DockerCmd(c, "images", "-f", "before="+imageID3, "image").Stdout()
-	assert.Equal(c, assertImageList(out, expected), true, fmt.Sprintf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
-
-	expected = []string{imageID1}
-
-	out = cli.DockerCmd(c, "images", "-f", "before=image:2", "image").Stdout()
-	assert.Equal(c, assertImageList(out, expected), true, fmt.Sprintf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
-
-	out = cli.DockerCmd(c, "images", "-f", "before="+imageID2, "image").Stdout()
-	assert.Equal(c, assertImageList(out, expected), true, fmt.Sprintf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
+	for _, tc := range tests {
+		c.Run(tc.filter, func(t *testing.T) {
+			out = cli.DockerCmd(t, "image", "ls", "--format", `{{.Tag}}\t{{.ID}}`, "--no-trunc", "--filter", tc.filter, "testfilter").Stdout()
+			actual := getImageIDs(out)
+			assert.Check(t, is.DeepEqual(actual, tc.expected), "image list is not in the correct order")
+		})
+	}
 }
 
-func assertImageList(out string, expected []string) bool {
-	lines := strings.Split(strings.Trim(out, "\n "), "\n")
-
-	if len(lines)-1 != len(expected) {
-		return false
-	}
-
-	imageIDIndex := strings.Index(lines[0], "IMAGE ID")
-	for i := 0; i < len(expected); i++ {
-		imageID := lines[i+1][imageIDIndex : imageIDIndex+12]
-		found := false
-		for _, e := range expected {
-			if imageID == e[7:19] {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return false
+func getImageIDs(out string) []string {
+	var actual []string
+	imgs := strings.Split(out, "\n")
+	for _, l := range imgs {
+		imgTag, imgDigest, _ := strings.Cut(l, "\t")
+		if strings.HasPrefix(imgTag, "test_") {
+			actual = append(actual, imgDigest)
 		}
 	}
-
-	return true
+	return actual
 }
 
 // FIXME(vdemeester) should be a unit test on `docker image ls`

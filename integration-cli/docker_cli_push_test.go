@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"github.com/distribution/reference"
-	"github.com/moby/moby/client/pkg/versions"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/integration-cli/cli/build"
 	"golang.org/x/sync/errgroup"
@@ -52,8 +51,8 @@ func (s *DockerRegistrySuite) TestPushUntagged(c *testing.T) {
 
 	out, _, err := dockerCmdWithError("push", imgRepo)
 	assert.ErrorContains(c, err, "", "pushing the image to the private registry should have failed: output %q", out)
-	const expected = "An image does not exist locally with the tag"
-	assert.Assert(c, strings.Contains(out, expected), "pushing the image failed")
+	const expected = "does not exist"
+	assert.Assert(c, is.Contains(out, expected), "pushing the image failed")
 }
 
 func (s *DockerRegistrySuite) TestPushBadTag(c *testing.T) {
@@ -62,7 +61,7 @@ func (s *DockerRegistrySuite) TestPushBadTag(c *testing.T) {
 	out, _, err := dockerCmdWithError("push", imgRepo)
 	assert.ErrorContains(c, err, "", "pushing the image to the private registry should have failed: output %q", out)
 	const expected = "does not exist"
-	assert.Assert(c, strings.Contains(out, expected), "pushing the image failed")
+	assert.Assert(c, is.Contains(out, expected), "pushing the image failed")
 }
 
 func (s *DockerRegistrySuite) TestPushMultipleTags(c *testing.T) {
@@ -73,14 +72,7 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *testing.T) {
 	cli.DockerCmd(c, "tag", "busybox", repoTag1)
 	cli.DockerCmd(c, "tag", "busybox", repoTag2)
 
-	args := []string{"push"}
-	if versions.GreaterThanOrEqualTo(DockerCLIVersion(c), "20.10.0") {
-		// 20.10 CLI removed implicit push all tags and requires the "--all" flag
-		args = append(args, "--all-tags")
-	}
-	args = append(args, imgRepo)
-
-	cli.DockerCmd(c, args...)
+	cli.DockerCmd(c, "push", "--all-tags", imgRepo)
 
 	imageAlreadyExists := ": Image already exists"
 

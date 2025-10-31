@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -288,9 +289,13 @@ func (s *DockerCLIRunSuite) TestRunWithNetAliasOnDefaultNetworks(c *testing.T) {
 
 	defaults := []string{"bridge", "host", "none"}
 	for _, nw := range defaults {
-		out, _, err := dockerCmdWithError("run", "-d", "--net", nw, "--net-alias", "alias_"+nw, "busybox", "top")
-		assert.ErrorContains(c, err, "")
-		assert.Assert(c, is.Contains(out, "network-scoped alias is supported only for containers in user defined networks"))
+		c.Run(nw, func(t *testing.T) {
+			out, _, err := dockerCmdWithError("run", "-d", "--net", nw, "--net-alias", "alias_"+nw, "busybox", "top")
+			assert.ErrorContains(t, err, "")
+
+			// TODO(thaJeztah): this validation should be on the daemon side (and already is?): https://github.com/moby/moby/blob/5856ec5348ccacf430f8b17fe8a6e30c579a7817/daemon/container_operations.go#L528-L539
+			assert.Assert(t, is.Contains(out, "network-scoped aliases are only supported for user-defined networks"))
+		})
 	}
 }
 
@@ -2351,17 +2356,24 @@ func (s *DockerCLIRunSuite) TestRunModeUTSHost(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunTLSVerify(c *testing.T) {
 	// Remote daemons use TLS and this test is not applicable when TLS is required.
 	testRequires(c, testEnv.IsLocalDaemon)
-	if out, code, err := dockerCmdWithError("ps"); err != nil || code != 0 {
+	if out, code, err := dockerCmdWithError("version"); err != nil || code != 0 {
 		c.Fatalf("Should have worked: %v:\n%v", err, out)
+	}
+
+	var notFoundErr string
+	if runtime.GOOS == "windows" {
+		notFoundErr = "ca.pem: The system cannot find the file specified"
+	} else {
+		notFoundErr = "ca.pem: no such file or directory"
 	}
 
 	// Regardless of whether we specify true or false we need to
 	// test to make sure tls is turned on if --tlsverify is specified at all
-	result := cli.Docker(cli.Args("--tlsverify=false", "ps"))
-	result.Assert(c, icmd.Expected{ExitCode: 1, Err: "error during connect"})
+	result := cli.Docker(cli.Args("--tlsverify=false", "version"))
+	result.Assert(c, icmd.Expected{ExitCode: 1, Err: notFoundErr})
 
-	result = cli.Docker(cli.Args("--tlsverify=true", "ps"))
-	result.Assert(c, icmd.Expected{ExitCode: 1, Err: "cert"})
+	result = cli.Docker(cli.Args("--tlsverify=true", "version"))
+	result.Assert(c, icmd.Expected{ExitCode: 1, Err: notFoundErr})
 }
 
 func (s *DockerCLIRunSuite) TestRunPortFromDockerRangeInUse(c *testing.T) {

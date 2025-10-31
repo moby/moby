@@ -74,9 +74,9 @@ func (s *DockerSwarmSuite) TestSwarmUpdate(c *testing.T) {
 
 	version := cli.Docker(cli.Args("version", "--format", "{{ .Client.Version }}"), cli.Daemon(d)).Stdout()
 	version = strings.TrimSpace(version)
-	// This was broken in v18.06
+	// This was broken between v18.06 and 28.2.0
 	// See: https://github.com/docker/cli/pull/5995
-	if version != "" && versions.LessThan(version, "18.06") {
+	if version != "" && versions.GreaterThanOrEqualTo(version, "28.2") {
 		spec = getSpec()
 		sw := d.GetSwarm(c)
 		if assert.Check(c, is.Len(spec.CAConfig.ExternalCAs, 2)) {
@@ -131,14 +131,13 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *testing.T) {
 
 	version := cli.Docker(cli.Args("version", "--format", "{{ .Client.Version }}"), cli.Daemon(d)).Stdout()
 	version = strings.TrimSpace(version)
-	// This was broken in v18.06
+	// This was broken between v18.06 and 28.2.0
 	// See: https://github.com/docker/cli/pull/5995
-	if version != "" && versions.LessThan(version, "18.06") {
+	if version != "" && versions.GreaterThanOrEqualTo(version, "28.2") {
 		if assert.Check(c, is.Len(spec.CAConfig.ExternalCAs, 2)) {
 			// TODO: Should this actually be:
 			// assert.Check(c, is.Equal(spec.CAConfig.ExternalCAs[0].CACert, sw.TLSInfo.TrustRoot))
 			assert.Check(c, is.Equal(spec.CAConfig.ExternalCAs[0].CACert, ""))
-
 			assert.Check(c, is.Equal(spec.CAConfig.ExternalCAs[1].CACert, string(expected)))
 		}
 	}

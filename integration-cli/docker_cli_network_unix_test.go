@@ -480,7 +480,7 @@ func (s *DockerCLINetworkSuite) TestDockerInspectMultipleNetworksIncludingNonexi
 	result := cli.Docker(cli.Args("network", "inspect", "host", "nonexistent"))
 	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "Error: No such network: nonexistent",
+		Err:      "Error response from daemon: network nonexistent not found",
 		Out:      "host",
 	})
 
@@ -494,7 +494,7 @@ func (s *DockerCLINetworkSuite) TestDockerInspectMultipleNetworksIncludingNonexi
 	result = cli.Docker(cli.Args("network", "inspect", "nonexistent"))
 	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "Error: No such network: nonexistent",
+		Err:      "Error response from daemon: network nonexistent not found",
 		Out:      "[]",
 	})
 
@@ -503,7 +503,7 @@ func (s *DockerCLINetworkSuite) TestDockerInspectMultipleNetworksIncludingNonexi
 	result = cli.Docker(cli.Args("network", "inspect", "nonexistent", "host"))
 	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "Error: No such network: nonexistent",
+		Err:      "Error response from daemon: network nonexistent not found",
 		Out:      "host",
 	})
 
@@ -1502,12 +1502,16 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectWithAliasOnDefaultNetworks(
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	defaults := []string{"bridge", "host", "none"}
-	out := cli.DockerCmd(c, "run", "-d", "--net=none", "busybox", "top").Stdout()
-	containerID := strings.TrimSpace(out)
+	cID := cli.DockerCmd(c, "run", "-d", "--net=none", "busybox", "top").Stdout()
+	cID = strings.TrimSpace(cID)
 	for _, nw := range defaults {
-		res, _, err := dockerCmdWithError("network", "connect", "--alias", "alias"+nw, nw, containerID)
-		assert.ErrorContains(c, err, "")
-		assert.Assert(c, is.Contains(res, "network-scoped alias is supported only for containers in user defined networks"))
+		c.Run(nw, func(t *testing.T) {
+			out, _, err := dockerCmdWithError("network", "connect", "--alias", "alias"+nw, nw, cID)
+			assert.Check(c, err != nil, "out: %s", out)
+
+			// TODO(thaJeztah): this validation should be on the daemon side (and already is?): https://github.com/moby/moby/blob/5856ec5348ccacf430f8b17fe8a6e30c579a7817/daemon/container_operations.go#L528-L539
+			assert.Assert(t, is.Contains(out, "network-scoped aliases are only supported for user-defined networks"))
+		})
 	}
 }
 
@@ -1557,12 +1561,15 @@ func (s *DockerCLINetworkSuite) TestUserDefinedNetworkConnectDisconnectAlias(c *
 
 	// verify the alias option is rejected when running on predefined network
 	out, _, err := dockerCmdWithError("run", "--rm", "--name=any", "--net-alias=any", "busybox:glibc", "true")
-	assert.Assert(c, err != nil, "out: %s", out)
-	assert.Assert(c, is.Contains(out, "network-scoped alias is supported only for containers in user defined networks"))
+	assert.Check(c, err != nil, "out: %s", out)
+	// TODO(thaJeztah): this validation should be on the daemon side (and already is?): https://github.com/moby/moby/blob/5856ec5348ccacf430f8b17fe8a6e30c579a7817/daemon/container_operations.go#L528-L539
+	assert.Assert(c, is.Contains(out, "network-scoped aliases are only supported for user-defined networks"))
 	// verify the alias option is rejected when connecting to predefined network
 	out, _, err = dockerCmdWithError("network", "connect", "--alias=any", "bridge", "first")
-	assert.Assert(c, err != nil, "out: %s", out)
-	assert.Assert(c, is.Contains(out, "network-scoped alias is supported only for containers in user defined networks"))
+	assert.Check(c, err != nil, "out: %s", out)
+
+	// TODO(thaJeztah): this validation should be on the daemon side (and already is?): https://github.com/moby/moby/blob/5856ec5348ccacf430f8b17fe8a6e30c579a7817/daemon/container_operations.go#L528-L539
+	assert.Assert(c, is.Contains(out, "network-scoped aliases are only supported for user-defined networks"))
 }
 
 func (s *DockerCLINetworkSuite) TestUserDefinedNetworkConnectivity(c *testing.T) {

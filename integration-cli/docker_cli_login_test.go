@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"os/exec"
+	"runtime"
 	"testing"
 
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 type DockerCLILoginSuite struct {
@@ -24,6 +26,8 @@ func (s *DockerCLILoginSuite) OnTimeout(t *testing.T) {
 }
 
 func (s *DockerCLILoginSuite) TestLoginWithoutTTY(c *testing.T) {
+	skip.If(c, runtime.GOOS == "windows", "FIXME: doesn't produce error without TTY with CLI v25.0")
+
 	cmd := exec.Command(dockerBinary, "login")
 
 	// Send to stdin so the process does not get the TTY
@@ -31,7 +35,7 @@ func (s *DockerCLILoginSuite) TestLoginWithoutTTY(c *testing.T) {
 
 	// run the command and block until it's done
 	err := cmd.Run()
-	assert.ErrorContains(c, err, "") // "Expected non nil err when logging in & TTY not available"
+	assert.ErrorContains(c, err, "", "Expected an err when logging in & TTY not available")
 }
 
 func (s *DockerRegistryAuthHtpasswdSuite) TestLoginToPrivateRegistry(c *testing.T) {

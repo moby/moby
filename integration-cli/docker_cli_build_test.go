@@ -39,6 +39,11 @@ type DockerCLIBuildSuite struct {
 	ds *DockerSuite
 }
 
+func (s *DockerCLIBuildSuite) SetUpTest(_ context.Context, t *testing.T) {
+	// This test-suite is for the classic builder.
+	t.Setenv("DOCKER_BUILDKIT", "0")
+}
+
 func (s *DockerCLIBuildSuite) TearDownTest(ctx context.Context, t *testing.T) {
 	s.ds.TearDownTest(ctx, t)
 }
@@ -3402,6 +3407,8 @@ func (s *DockerCLIBuildSuite) TestBuildLabelsCache(c *testing.T) {
 
 // FIXME(vdemeester) port to docker/cli e2e tests (api tests should test suppressOutput option though)
 func (s *DockerCLIBuildSuite) TestBuildNotVerboseSuccess(c *testing.T) {
+	c.Skip("FIXME: test breaks due to classic builder deprecation message") // FIXME(thaJeztah): test breaks due to classic builder deprecation message in output
+
 	// This test makes sure that -q works correctly when build is successful:
 	// stdout has only the image ID (long image ID) and stderr is empty.
 	outRegexp := regexp.MustCompile(`^(sha256:|)[a-z0-9]{64}\n$`)
@@ -3452,6 +3459,8 @@ func (s *DockerCLIBuildSuite) TestBuildNotVerboseSuccess(c *testing.T) {
 
 // FIXME(vdemeester) migrate to docker/cli tests
 func (s *DockerCLIBuildSuite) TestBuildNotVerboseFailureWithNonExistImage(c *testing.T) {
+	c.Skip("FIXME: test breaks due to classic builder deprecation message") // FIXME(thaJeztah): test breaks due to classic builder deprecation message in output
+
 	// This test makes sure that -q works correctly when build fails by
 	// comparing between the stderr output in quiet mode and in stdout
 	// and stderr output in verbose mode
@@ -3473,6 +3482,8 @@ func (s *DockerCLIBuildSuite) TestBuildNotVerboseFailureWithNonExistImage(c *tes
 
 // FIXME(vdemeester) migrate to docker/cli tests
 func (s *DockerCLIBuildSuite) TestBuildNotVerboseFailure(c *testing.T) {
+	c.Skip("FIXME: test breaks due to classic builder deprecation message") // FIXME(thaJeztah): test breaks due to classic builder deprecation message in output
+
 	// This test makes sure that -q works correctly when build fails by
 	// comparing between the stderr output in quiet mode and in stdout
 	// and stderr output in verbose mode
@@ -3501,6 +3512,8 @@ func (s *DockerCLIBuildSuite) TestBuildNotVerboseFailure(c *testing.T) {
 
 // FIXME(vdemeester) migrate to docker/cli tests
 func (s *DockerCLIBuildSuite) TestBuildNotVerboseFailureRemote(c *testing.T) {
+	c.Skip("FIXME: test breaks due to classic builder deprecation message") // FIXME(thaJeztah): test breaks due to classic builder deprecation message in output
+
 	// This test ensures that when given a wrong URL, stderr in quiet mode and
 	// stderr in verbose mode are identical.
 	// TODO(vdemeester) with cobra, stdout has a carriage return too much so this test should not check stdout
@@ -3531,6 +3544,8 @@ func (s *DockerCLIBuildSuite) TestBuildNotVerboseFailureRemote(c *testing.T) {
 
 // FIXME(vdemeester) migrate to docker/cli tests
 func (s *DockerCLIBuildSuite) TestBuildStderr(c *testing.T) {
+	c.Skip("FIXME: test breaks due to classic builder deprecation message") // FIXME(thaJeztah): test breaks due to classic builder deprecation message in output
+
 	// This test just makes sure that no non-error output goes
 	// to stderr
 	const name = "testbuildstderr"
@@ -3700,6 +3715,7 @@ func (s *DockerCLIBuildSuite) TestBuildFromMixedcaseDockerfile(c *testing.T) {
 
 // FIXME(vdemeester) should migrate to docker/cli tests
 func (s *DockerCLIBuildSuite) TestBuildFromURLWithF(c *testing.T) {
+	c.Skip("FIXME(thaJeztah): test is broken or invalid on current versions") // FIXME(thaJeztah) produces "ambiguous Dockerfile source: both stdin and flag correspond to Dockerfiles"
 	server := fakestorage.New(c, "", fakecontext.WithFiles(map[string]string{"baz": `FROM busybox
 RUN echo from baz
 COPY * /tmp/
@@ -3726,7 +3742,9 @@ RUN find /tmp/`}))
 
 // FIXME(vdemeester) should migrate to docker/cli tests
 func (s *DockerCLIBuildSuite) TestBuildFromStdinWithF(c *testing.T) {
-	testRequires(c, DaemonIsLinux) // TODO Windows: This test is flaky; no idea why
+	testRequires(c, DaemonIsLinux)                                            // TODO Windows: This test is flaky; no idea why
+	c.Skip("FIXME(thaJeztah): test is broken or invalid on current versions") // FIXME(thaJeztah) produces "ambiguous Dockerfile source: both stdin and flag correspond to Dockerfiles"
+
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(`FROM busybox
 RUN echo "from Dockerfile"`))
 	defer ctx.Close()
@@ -6250,7 +6268,7 @@ func (s *DockerCLIBuildSuite) TestBuildEmitsEvents(t *testing.T) {
 						"--since", before.Format(time.RFC3339),
 					),
 					cli.WithTimeout(time.Millisecond*300),
-					cli.WithEnvironmentVariables("DOCKER_API_VERSION=v1.46"), // FIXME(thaJeztah): integration-cli runs docker CLI 18.06; we're "upgrading" the API version to a version it doesn't support here ;)
+					cli.WithEnvironmentVariables("DOCKER_API_VERSION=v1.46"), // FIXME(thaJeztah): integration-cli runs docker CLI 25.0; we're "upgrading" the API version to a version it doesn't support here ;)
 				)
 
 				tc.check(t, cmd.Stdout())

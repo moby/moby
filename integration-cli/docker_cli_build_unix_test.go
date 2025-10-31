@@ -33,7 +33,18 @@ func (s *DockerCLIBuildSuite) TestBuildResourceConstraintsAreUsed(c *testing.T) 
 	RUN ["/hello"]
 	`))
 	cli.Docker(
-		cli.Args("build", "--no-cache", "--rm=false", "--memory=64m", "--memory-swap=-1", "--cpuset-cpus=0", "--cpuset-mems=0", "--cpu-shares=100", "--cpu-quota=8000", "--ulimit", "nofile=42", "--label="+buildLabel, "-t", name, "."),
+		cli.Args("build",
+			"--no-cache",
+			"--rm=false",
+			"--memory=64m",
+			"--memory-swap=-1",
+			"--cpuset-cpus=0",
+			"--cpuset-mems=0",
+			"--cpu-shares=100",
+			"--cpu-quota=8000",
+			"--ulimit", "nofile=42",
+			"--label="+buildLabel,
+			"-t", name, "."),
 		cli.InDir(ctx.Dir),
 	).Assert(c, icmd.Success)
 
@@ -80,7 +91,7 @@ func (s *DockerCLIBuildSuite) TestBuildResourceConstraintsAreUsed(c *testing.T) 
 	assert.Assert(c, c2.CpusetMems != "0", "resource leaked from build for CpusetMems")
 	assert.Assert(c, c2.CPUShares != int64(100), "resource leaked from build for CPUShares")
 	assert.Assert(c, c2.CPUQuota != int64(8000), "resource leaked from build for CPUQuota")
-	assert.Assert(c, c2.Ulimits == nil, "resource leaked from build for Ulimits")
+	assert.Assert(c, len(c2.Ulimits) == 0, "resource leaked from build for Ulimits")
 }
 
 func (s *DockerCLIBuildSuite) TestBuildAddChangeOwnership(c *testing.T) {

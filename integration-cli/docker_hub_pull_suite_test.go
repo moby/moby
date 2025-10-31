@@ -61,6 +61,7 @@ func (s *DockerHubPullSuite) TearDownTest(ctx context.Context, t *testing.T) {
 // Cmd executes a command against the suite daemon and returns the combined
 // output. The function fails the test when the command returns an error.
 func (s *DockerHubPullSuite) Cmd(t *testing.T, name string, arg ...string) string {
+	t.Helper()
 	out, err := s.CmdWithError(name, arg...)
 	assert.Assert(t, err == nil, "%q failed with errors: %s, %v", strings.Join(arg, " "), out, err)
 	return out

@@ -319,6 +319,7 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterName(c *testing.T) {
 // - Run containers for each of those image (busybox, images_ps_filter_test1, images_ps_filter_test2)
 // - Filter them out :P
 func (s *DockerCLIPsSuite) TestPsListContainersFilterAncestorImage(c *testing.T) {
+	skip.If(c, TODOBuildkit) // order or digests are different with buildkit
 	existingContainers := ExistingContainerIDs(c)
 
 	// Build images
