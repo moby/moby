@@ -2059,6 +2059,47 @@ definitions:
         x-nullable: true
         $ref: "#/definitions/OCIDescriptor"
 
+  ImagesDiskUsage:
+    type: "object"
+    description: |
+      ImagesDiskUsage represents system data usage for image resources.
+    properties:
+      ActiveImages:
+        description: |
+          Count of active images.
+        type: "integer"
+        format: "int64"
+        example: 1
+      TotalImages:
+        description: |
+          Count of all images.
+        type: "integer"
+        format: "int64"
+        example: 4
+      Reclaimable:
+        description: |
+          Disk space that can be reclaimed by removing unused images.
+        type: "integer"
+        format: "int64"
+        example: 12345678
+      TotalSize:
+        description: |
+          Disk space in use by images.
+        type: "integer"
+        format: "int64"
+        example: 98765432
+      Items:
+        description: |
+          List of image summaries.
+        type: "array"
+        x-omitempty: true
+        items:
+          x-nullable: true
+          x-go-type:
+            type: Summary
+            import:
+              package: github.com/moby/moby/api/types/image
+
   AuthConfig:
     type: "object"
     properties:
@@ -2200,6 +2241,47 @@ definitions:
               The number of containers referencing this volume. This field
               is set to `-1` if the reference-count is not available.
             x-nullable: false
+
+  VolumesDiskUsage:
+    type: "object"
+    description: |
+      VolumesDiskUsage represents system data usage for volume resources.
+    properties:
+      ActiveVolumes:
+        description: |
+          Count of active volumes.
+        type: "integer"
+        format: "int64"
+        example: 1
+      TotalVolumes:
+        description: |
+          Count of all volumes.
+        type: "integer"
+        format: "int64"
+        example: 4
+      Reclaimable:
+        description: |
+          Disk space that can be reclaimed by removing inactive volumes.
+        type: "integer"
+        format: "int64"
+        example: 12345678
+      TotalSize:
+        description: |
+          Disk space in use by volumes.
+        type: "integer"
+        format: "int64"
+        example: 98765432
+      Items:
+        description: |
+          List of volumes.
+        type: "array"
+        x-omitempty: true
+        items:
+          x-nullable: true
+          x-go-type:
+            type: Volume
+            import:
+              package: github.com/moby/moby/api/types/volume
 
   VolumeCreateRequest:
     description: "Volume configuration"
@@ -2773,6 +2855,47 @@ definitions:
       UsageCount:
         type: "integer"
         example: 26
+
+  BuildCacheDiskUsage:
+    type: "object"
+    description: |
+      BuildCacheDiskUsage represents system data usage for build cache resources.
+    properties:
+      ActiveBuildCacheRecords:
+        description: |
+          Count of active build cache records.
+        type: "integer"
+        format: "int64"
+        example: 1
+      TotalBuildCacheRecords:
+        description: |
+          Count of all build cache records.
+        type: "integer"
+        format: "int64"
+        example: 4
+      Reclaimable:
+        description: |
+          Disk space that can be reclaimed by removing inactive build cache records.
+        type: "integer"
+        format: "int64"
+        example: 12345678
+      TotalSize:
+        description: |
+          Disk space in use by build cache records.
+        type: "integer"
+        format: "int64"
+        example: 98765432
+      Items:
+        description: |
+          List of build cache records.
+        type: "array"
+        x-omitempty: true
+        items:
+          x-nullable: true
+          x-go-type:
+            type: CacheRecord
+            import:
+              package: github.com/moby/moby/api/types/build
 
   ImageID:
     type: "object"
@@ -5456,6 +5579,47 @@ definitions:
             description: "FailingStreak is the number of consecutive failures"
             type: "integer"
             example: 0
+
+  ContainersDiskUsage:
+    type: "object"
+    description: |
+      ContainersDiskUsage provides system data usage information for container resources.
+    properties:
+      ActiveContainers:
+        description: |
+          Count of active containers.
+        type: "integer"
+        format: "int64"
+        example: 1
+      TotalContainers:
+        description: |
+          Count of all containers.
+        type: "integer"
+        format: "int64"
+        example: 4
+      Reclaimable:
+        description: |
+          Disk space that can be reclaimed by removing inactive containers.
+        type: "integer"
+        format: "int64"
+        example: 12345678
+      TotalSize:
+        description: |
+          Disk space in use by containers.
+        type: "integer"
+        format: "int64"
+        example: 98765432
+      Items:
+        description: |
+          List of container summaries.
+        type: "array"
+        x-omitempty: true
+        items:
+          x-nullable: true
+          x-go-type:
+            type: Summary
+            import:
+              package: github.com/moby/moby/api/types/container
 
   Driver:
     description: "Driver represents a driver (network, logging, secrets)."
@@ -10337,24 +10501,46 @@ paths:
             title: "SystemDataUsageResponse"
             properties:
               LayersSize:
+                description: |
+                  Deprecated: Use ImagesDiskUsage.TotalSize instead.
                 type: "integer"
                 format: "int64"
               Images:
+                description: |
+                  Deprecated: Use ImagesDiskUsage.Items instead.
                 type: "array"
+                x-nullable: true
                 items:
                   $ref: "#/definitions/ImageSummary"
               Containers:
+                description: |
+                  Deprecated: Use ContainersDiskUsage.Items instead.
                 type: "array"
+                x-nullable: true
                 items:
                   $ref: "#/definitions/ContainerSummary"
               Volumes:
+                description: |
+                  Deprecated: Use VolumesDiskUsage.Items instead.
                 type: "array"
+                x-nullable: true
                 items:
                   $ref: "#/definitions/Volume"
               BuildCache:
+                description: |
+                  Deprecated: Use BuildCacheDiskUsage.Items instead.
                 type: "array"
+                x-nullable: true
                 items:
                   $ref: "#/definitions/BuildCache"
+              ImagesDiskUsage:
+                $ref: "#/definitions/ImagesDiskUsage"
+              ContainersDiskUsage:
+                $ref: "#/definitions/ContainersDiskUsage"
+              VolumesDiskUsage:
+                $ref: "#/definitions/VolumesDiskUsage"
+              BuildCacheDiskUsage:
+                $ref: "#/definitions/BuildCacheDiskUsage"
             example:
               LayersSize: 1092588
               Images:
@@ -10450,6 +10636,12 @@ paths:
           items:
             type: "string"
             enum: ["container", "image", "volume", "build-cache"]
+        - name: "verbose"
+          in: "query"
+          description: |
+            Show detailed information on space usage.
+          type: "boolean"
+          default: true
       tags: ["System"]
   /images/{name}/get:
     get:

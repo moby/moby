@@ -34,7 +34,6 @@ import (
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/moby/locker"
 	containertypes "github.com/moby/moby/api/types/container"
-	imagetypes "github.com/moby/moby/api/types/image"
 	networktypes "github.com/moby/moby/api/types/network"
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
@@ -134,7 +133,7 @@ type Daemon struct {
 	seccompProfilePath string
 
 	usageContainers singleflight.Group[struct{}, *backend.ContainerDiskUsage]
-	usageImages     singleflight.Group[struct{}, []*imagetypes.Summary]
+	usageImages     singleflight.Group[struct{}, *backend.ImageDiskUsage]
 	usageVolumes    singleflight.Group[struct{}, *backend.VolumeDiskUsage]
 	usageLayer      singleflight.Group[struct{}, int64]
 

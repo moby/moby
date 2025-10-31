@@ -17,6 +17,9 @@ type DiskUsageOptions struct {
 
 	// Volumes controls whether volume disk usage should be computed.
 	Volumes bool
+
+	// Verbose indicates whether to include detailed information.
+	Verbose bool
 }
 
 // DiskUsage contains the information returned by the backend for the
@@ -30,6 +33,8 @@ type DiskUsage struct {
 
 // BuildCacheDiskUsage contains disk usage for the build cache.
 type BuildCacheDiskUsage struct {
+	ActiveCount int64
+	TotalCount  int64
 	TotalSize   int64
 	Reclaimable int64
 	Items       []*build.CacheRecord
@@ -37,6 +42,8 @@ type BuildCacheDiskUsage struct {
 
 // ContainerDiskUsage contains disk usage for containers.
 type ContainerDiskUsage struct {
+	ActiveCount int64
+	TotalCount  int64
 	TotalSize   int64
 	Reclaimable int64
 	Items       []*container.Summary
@@ -44,6 +51,8 @@ type ContainerDiskUsage struct {
 
 // ImageDiskUsage contains disk usage for images.
 type ImageDiskUsage struct {
+	ActiveCount int64
+	TotalCount  int64
 	TotalSize   int64
 	Reclaimable int64
 	Items       []*image.Summary
@@ -51,6 +60,8 @@ type ImageDiskUsage struct {
 
 // VolumeDiskUsage contains disk usage for volumes.
 type VolumeDiskUsage struct {
+	ActiveCount int64
+	TotalCount  int64
 	TotalSize   int64
 	Reclaimable int64
 	Items       []*volume.Volume
