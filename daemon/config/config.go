@@ -97,6 +97,9 @@ var skipValidateOptions = map[string]bool{
 	"features": true,
 	"builder":  true,
 
+	// Only available in daemon.json, no flags
+	"min-api-version": true,
+
 	// Deprecated options that are safe to ignore if present.
 	"deprecated-key-path":              true,
 	"allow-nondistributable-artifacts": true,
@@ -287,9 +290,9 @@ type CommonConfig struct {
 	//
 	// API versions older than [defaultMinAPIVersion] are deprecated and
 	// to be removed in a future release. The "DOCKER_MIN_API_VERSION" env
-	// var should only be used for exceptional cases, and the MinAPIVersion
-	// field is therefore not included in the JSON representation.
-	MinAPIVersion string `json:"-"`
+	// var and this configuration option should only be used for exceptional
+	// cases.
+	MinAPIVersion string `json:"min-api-version,omitempty"`
 
 	// FIXME(vdemeester) This part is not that clear and is mainly dependent on cli flags
 	// It should probably be handled outside this package.
