@@ -3,7 +3,6 @@ package daemon
 import (
 	"context"
 
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/pkg/sysinfo"
@@ -18,7 +17,7 @@ WARNING: Feature flag "windows-dns-proxy" has been removed, forwarding to extern
 	return nil
 }
 
-func (daemon *Daemon) fillPlatformVersion(ctx context.Context, v *types.Version, cfg *configStore) error {
+func (daemon *Daemon) fillPlatformVersion(ctx context.Context, v *system.VersionResponse, cfg *configStore) error {
 	return nil
 }
 

@@ -11,7 +11,6 @@ import (
 
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
-	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/v2/daemon/command/debug"
 	"github.com/moby/moby/v2/daemon/config"
@@ -101,14 +100,14 @@ func (daemon *Daemon) SystemInfo(ctx context.Context) (*system.Info, error) {
 // Anything else should be logged and ignored because this is looking up
 // multiple things and is often used for debugging.
 // The only case valid early return is when the caller doesn't want the result anymore (ie context cancelled).
-func (daemon *Daemon) SystemVersion(ctx context.Context) (types.Version, error) {
+func (daemon *Daemon) SystemVersion(ctx context.Context) (system.VersionResponse, error) {
 	defer metrics.StartTimer(metrics.HostInfoFunctions.WithValues("system_version"))()
 
 	kernelVer := kernelVersion(ctx)
 	cfg := daemon.config()
 
-	v := types.Version{
-		Components: []types.ComponentVersion{
+	v := system.VersionResponse{
+		Components: []system.ComponentVersion{
 			{
 				Name:    "Engine",
 				Version: dockerversion.Version,
