@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/environment"
 	"go.opentelemetry.io/otel"
@@ -53,4 +54,12 @@ func setupTest(t *testing.T) context.Context {
 	environment.ProtectAll(ctx, t, testEnv)
 	t.Cleanup(func() { testEnv.Clean(ctx, t) })
 	return ctx
+}
+
+func DaemonIsLinux() bool {
+	return testEnv.DaemonInfo.OSType == "linux"
+}
+
+func SwarmInactive() bool {
+	return testEnv.DaemonInfo.Swarm.LocalNodeState == swarm.LocalNodeStateInactive
 }
