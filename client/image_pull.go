@@ -4,11 +4,13 @@ import (
 	"context"
 	"io"
 	"iter"
+	"net/http"
 	"net/url"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
 	"github.com/moby/moby/api/types/jsonstream"
+	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/client/internal"
 )
 
@@ -74,4 +76,18 @@ func getAPITagFromNamedRef(ref reference.Named) string {
 		return tagged.Tag()
 	}
 	return ""
+}
+
+func (cli *Client) tryImageCreate(ctx context.Context, query url.Values, resolveAuth registry.RequestAuthConfig) (*http.Response, error) {
+	hdr := http.Header{}
+	if resolveAuth != nil {
+		registryAuth, err := resolveAuth(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if registryAuth != "" {
+			hdr.Set(registry.AuthHeader, registryAuth)
+		}
+	}
+	return cli.post(ctx, "/images/create", query, nil, hdr)
 }
