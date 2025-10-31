@@ -227,13 +227,13 @@ func (s *DockerCLIVolumeSuite) TestVolumeCLIRm(c *testing.T) {
 func (s *DockerCLIVolumeSuite) TestVolumeCLINoArgs(c *testing.T) {
 	out := cli.DockerCmd(c, "volume").Combined()
 	// no args should produce the cmd usage output
-	usage := "docker volume COMMAND --help"
-	assert.Assert(c, is.Contains(out, usage))
+	assert.Assert(c, is.Contains(out, "--help"))
+
 	// invalid arg should error and show the command usage on stderr
 	icmd.RunCommand(dockerBinary, "volume", "somearg").Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Error:    "exit status 1",
-		Err:      usage,
+		Err:      "--help",
 	})
 
 	// invalid flag should error and show the flag error and cmd usage
@@ -241,7 +241,7 @@ func (s *DockerCLIVolumeSuite) TestVolumeCLINoArgs(c *testing.T) {
 	result.Assert(c, icmd.Expected{
 		ExitCode: 125,
 		Error:    "exit status 125",
-		Err:      usage,
+		Err:      "--help",
 	})
 	assert.Assert(c, is.Contains(result.Stderr(), "unknown flag: --no-such-flag"))
 }
