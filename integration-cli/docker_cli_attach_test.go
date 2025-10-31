@@ -195,6 +195,6 @@ func (s *DockerCLIAttachSuite) TestAttachPausedContainer(c *testing.T) {
 	result.Assert(c, icmd.Expected{
 		Error:    "exit status 1",
 		ExitCode: 1,
-		Err:      "You cannot attach to a paused container, unpause it first",
+		Err:      "cannot attach to a paused container",
 	})
 }

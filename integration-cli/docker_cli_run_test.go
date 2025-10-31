@@ -110,6 +110,7 @@ func (s *DockerCLIRunSuite) TestRunExitCodeOne(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunStdinPipe(c *testing.T) {
 	// TODO Windows: This needs some work to make compatible.
 	testRequires(c, DaemonIsLinux)
+	c.Skip("FIXME(thaJeztah): broken on current CLI versions due to change in behavior (does not stay attached or print container ID)")
 	result := icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "run", "-i", "-a", "stdin", "busybox", "cat"},
 		Stdin:   strings.NewReader("blahblah"),
@@ -3874,7 +3875,7 @@ func (s *DockerCLIRunSuite) TestRunRm(c *testing.T) {
 
 	cli.Docker(cli.Args("inspect", name), cli.Format(".name")).Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "No such object: " + name,
+		Err:      "such object: " + name, // [Nn]o such object
 	})
 }
 
@@ -3883,11 +3884,16 @@ func (s *DockerCLIRunSuite) TestRunRmPre125Api(c *testing.T) {
 	name := "miss-me-when-im-gone"
 	envs := appendBaseEnv(os.Getenv("DOCKER_TLS_VERIFY") != "", "DOCKER_API_VERSION=1.24")
 	cli.Docker(cli.Args("run", "--name="+name, "--rm", "busybox"), cli.WithEnvironmentVariables(envs...)).Assert(c, icmd.Success)
-
-	cli.Docker(cli.Args("inspect", name), cli.Format(".name")).Assert(c, icmd.Expected{
+	time.Sleep(5 * time.Second) // daemon may be in process of removing
+	result := cli.Docker(cli.Args("inspect", name), cli.Format(".State.Status"))
+	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "No such object: " + name,
 	})
+	assert.Check(c, result.Error != nil)
+	out := strings.ToLower(result.Stderr())
+	if !strings.Contains(out, "no such object: "+name) && !strings.Contains(out, "no such container: "+name) {
+		c.Error(fmt.Errorf("unexpected error: %s", result.Error))
+	}
 }
 
 // Test case for #23498
