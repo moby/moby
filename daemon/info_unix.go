@@ -147,6 +147,9 @@ func (daemon *Daemon) fillPlatformInfo(ctx context.Context, v *system.Info, sysI
 			}
 		}
 	}
+	if v.CgroupVersion == "1" {
+		v.Warnings = append(v.Warnings, "WARNING: Support for cgroup v1 is deprecated and planned to be removed by no later than May 2029 (https://github.com/moby/moby/issues/51111)")
+	}
 	if !v.IPv4Forwarding {
 		v.Warnings = append(v.Warnings, "WARNING: IPv4 forwarding is disabled")
 	}
