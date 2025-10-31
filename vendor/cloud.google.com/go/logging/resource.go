@@ -31,7 +31,10 @@ func CommonResource(r *mrpb.MonitoredResource) LoggerOption { return commonResou
 
 type commonResource struct{ *mrpb.MonitoredResource }
 
-func (r commonResource) set(l *Logger) { l.commonResource = r.MonitoredResource }
+func (r commonResource) set(l *Logger) {
+	l.commonResourceSet = true
+	l.commonResource = r.MonitoredResource
+}
 
 type resource struct {
 	pb    *mrpb.MonitoredResource

@@ -20,7 +20,9 @@ package metadata
 // doing network requests) suggests that we're running on GCE. If this
 // returns true, testOnGCE tries a bit harder to reach its metadata
 // server.
-func systemInfoSuggestsGCE() bool {
+//
+// NOTE: systemInfoSuggestsGCE is assigned to a varible for test stubbing purposes.
+var systemInfoSuggestsGCE = func() bool {
 	// We don't currently have checks for other GOOS
 	return false
 }
