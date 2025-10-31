@@ -155,9 +155,7 @@ func TestDefaultNetworkOpts(t *testing.T) {
 			networkName := "testnet"
 			networkId := network.CreateNoError(ctx, t, c, networkName, func(create *client.NetworkCreateOptions) {
 				if tc.configFrom {
-					create.ConfigFrom = &networktypes.ConfigReference{
-						Network: "from-net",
-					}
+					create.ConfigFrom = "from-net"
 				}
 			})
 			defer c.NetworkRemove(ctx, networkName, client.NetworkRemoveOptions{})

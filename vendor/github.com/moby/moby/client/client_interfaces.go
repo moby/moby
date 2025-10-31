@@ -5,7 +5,6 @@ import (
 	"io"
 	"net"
 
-	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/system"
 )
 
@@ -116,7 +115,7 @@ type ImageAPIClient interface {
 // NetworkAPIClient defines API client methods for the networks
 type NetworkAPIClient interface {
 	NetworkConnect(ctx context.Context, network string, options NetworkConnectOptions) (NetworkConnectResult, error)
-	NetworkCreate(ctx context.Context, name string, options NetworkCreateOptions) (network.CreateResponse, error)
+	NetworkCreate(ctx context.Context, name string, options NetworkCreateOptions) (NetworkCreateResult, error)
 	NetworkDisconnect(ctx context.Context, network string, options NetworkDisconnectOptions) (NetworkDisconnectResult, error)
 	NetworkInspect(ctx context.Context, network string, options NetworkInspectOptions) (NetworkInspectResult, error)
 	NetworkList(ctx context.Context, options NetworkListOptions) (NetworkListResult, error)
