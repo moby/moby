@@ -105,7 +105,7 @@ func (s *DockerAPISuite) TestLogsAPIUntilFutureFollow(c *testing.T) {
 		c.Fatal(err)
 	}
 
-	reader, err := apiClient.ContainerLogs(testutil.GetContext(c), name, client.ContainerLogsOptions{
+	res, err := apiClient.ContainerLogs(testutil.GetContext(c), name, client.ContainerLogsOptions{
 		Until:      until.Format(time.RFC3339Nano),
 		Follow:     true,
 		ShowStdout: true,
@@ -123,8 +123,8 @@ func (s *DockerAPISuite) TestLogsAPIUntilFutureFollow(c *testing.T) {
 	defer close(stop)
 
 	go func() {
-		bufReader := bufio.NewReader(reader)
-		defer reader.Close()
+		bufReader := bufio.NewReader(res.Body)
+		defer res.Body.Close()
 		for i := 0; i < untilSecs; i++ {
 			out, _, err := bufReader.ReadLine()
 			if err != nil {
@@ -171,12 +171,12 @@ func (s *DockerAPISuite) TestLogsAPIUntil(c *testing.T) {
 	}
 
 	extractBody := func(t *testing.T, cfg client.ContainerLogsOptions) []string {
-		reader, err := apiClient.ContainerLogs(testutil.GetContext(t), name, cfg)
+		res, err := apiClient.ContainerLogs(testutil.GetContext(t), name, cfg)
 		assert.NilError(t, err)
 
 		actualStdout := new(bytes.Buffer)
 		actualStderr := io.Discard
-		_, err = stdcopy.StdCopy(actualStdout, actualStderr, reader)
+		_, err = stdcopy.StdCopy(actualStdout, actualStderr, res.Body)
 		assert.NilError(t, err)
 
 		return strings.Split(actualStdout.String(), "\n")
@@ -208,12 +208,12 @@ func (s *DockerAPISuite) TestLogsAPIUntilDefaultValue(c *testing.T) {
 	}
 
 	extractBody := func(t *testing.T, cfg client.ContainerLogsOptions) []string {
-		reader, err := apiClient.ContainerLogs(testutil.GetContext(t), name, cfg)
+		res, err := apiClient.ContainerLogs(testutil.GetContext(t), name, cfg)
 		assert.NilError(t, err)
 
 		actualStdout := new(bytes.Buffer)
 		actualStderr := io.Discard
-		_, err = stdcopy.StdCopy(actualStdout, actualStderr, reader)
+		_, err = stdcopy.StdCopy(actualStdout, actualStderr, res.Body)
 		assert.NilError(t, err)
 
 		return strings.Split(actualStdout.String(), "\n")

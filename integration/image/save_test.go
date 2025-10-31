@@ -44,7 +44,7 @@ func tarIndexFS(t *testing.T, rdr io.Reader) fs.FS {
 	assert.NilError(t, err)
 
 	// Do not close at the end of this function otherwise the indexer won't work
-	t.Cleanup(func() { f.Close() })
+	t.Cleanup(func() { _ = f.Close() })
 
 	_, err = io.Copy(f, rdr)
 	assert.NilError(t, err)
@@ -64,8 +64,9 @@ func TestSaveCheckTimes(t *testing.T) {
 
 	rdr, err := apiClient.ImageSave(ctx, []string{repoName})
 	assert.NilError(t, err)
+	defer func() { _ = rdr.Body.Close() }()
 
-	tarfs := tarIndexFS(t, rdr)
+	tarfs := tarIndexFS(t, rdr.Body)
 
 	dt, err := fs.ReadFile(tarfs, "manifest.json")
 	assert.NilError(t, err)
@@ -136,9 +137,9 @@ func TestSaveOCI(t *testing.T) {
 
 			rdr, err := apiClient.ImageSave(ctx, []string{tc.image})
 			assert.NilError(t, err)
-			defer rdr.Close()
+			defer func() { _ = rdr.Body.Close() }()
 
-			tarfs := tarIndexFS(t, rdr)
+			tarfs := tarIndexFS(t, rdr.Body)
 
 			indexData, err := fs.ReadFile(tarfs, "index.json")
 			assert.NilError(t, err, "failed to read index.json")
@@ -172,7 +173,7 @@ func TestSaveOCI(t *testing.T) {
 					assert.NilError(t, err)
 
 					layerDigest, err := testutil.UncompressedTarDigest(f)
-					f.Close()
+					_ = f.Close()
 
 					assert.NilError(t, err)
 
@@ -342,13 +343,11 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 			assert.NilError(t, err)
 
 			// load the full exported image (all platforms in it)
-			resp, err := apiClient.ImageLoad(ctx, rdr)
+			resp, err := apiClient.ImageLoad(ctx, rdr.Body)
 			assert.NilError(t, err)
-			_, err = io.ReadAll(resp)
-			resp.Close()
-			assert.NilError(t, err)
-
-			rdr.Close()
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+			_ = rdr.Body.Close()
 
 			// verify the loaded image has all the expected platforms
 			for _, p := range tc.expectedSavedPlatforms {
@@ -364,10 +363,10 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 
 			// pull the image again (start fresh)
 			for _, p := range tc.pullPlatforms {
-				pullRes, err := apiClient.ImagePull(ctx, repoName, client.ImagePullOptions{Platforms: []ocispec.Platform{p}})
+				pullResp, err := apiClient.ImagePull(ctx, repoName, client.ImagePullOptions{Platforms: []ocispec.Platform{p}})
 				assert.NilError(t, err)
-				_, err = io.ReadAll(pullRes)
-				_ = pullRes.Close()
+				_, err = io.ReadAll(pullResp)
+				_ = pullResp.Close()
 				assert.NilError(t, err)
 			}
 
@@ -380,13 +379,11 @@ func TestSaveAndLoadPlatform(t *testing.T) {
 			assert.NilError(t, err)
 
 			// load the exported image on the specified platforms only
-			resp, err = apiClient.ImageLoad(ctx, rdr, client.ImageLoadWithPlatforms(tc.loadPlatforms...))
+			resp, err = apiClient.ImageLoad(ctx, rdr.Body, client.ImageLoadWithPlatforms(tc.loadPlatforms...))
 			assert.NilError(t, err)
-			_, err = io.ReadAll(resp)
-			resp.Close()
-			assert.NilError(t, err)
-
-			rdr.Close()
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+			_ = rdr.Body.Close()
 
 			// verify the image was loaded for the specified platforms
 			for _, p := range tc.expectedLoadedPlatforms {
@@ -431,9 +428,9 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 
 	rdr, err := apiClient.ImageSave(ctx, []string{repoName, "busybox:latest"})
 	assert.NilError(t, err)
-	defer rdr.Close()
+	defer func() { _ = rdr.Body.Close() }()
 
-	tarfs := tarIndexFS(t, rdr)
+	tarfs := tarIndexFS(t, rdr.Body)
 
 	dt, err := fs.ReadFile(tarfs, "manifest.json")
 	assert.NilError(t, err)
@@ -488,9 +485,9 @@ RUN touch /opt/a/b/c && chown user:user /opt/a/b/c`
 
 	rdr, err := apiClient.ImageSave(ctx, []string{imgID})
 	assert.NilError(t, err)
-	defer rdr.Close()
+	defer func() { _ = rdr.Body.Close() }()
 
-	tarfs := tarIndexFS(t, rdr)
+	tarfs := tarIndexFS(t, rdr.Body)
 
 	dt, err := fs.ReadFile(tarfs, "manifest.json")
 	assert.NilError(t, err)

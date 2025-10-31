@@ -77,10 +77,10 @@ func logsContains(ctx context.Context, apiClient client.APIClient, containerID s
 		if err != nil {
 			return poll.Error(err)
 		}
-		defer logs.Close()
+		defer logs.Body.Close()
 
 		var stdout bytes.Buffer
-		_, err = stdcopy.StdCopy(&stdout, io.Discard, logs)
+		_, err = stdcopy.StdCopy(&stdout, io.Discard, logs.Body)
 		if err != nil {
 			return poll.Error(err)
 		}

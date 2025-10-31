@@ -646,10 +646,10 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 
 			logs, err := c.ContainerLogs(ctx, cID2, client.ContainerLogsOptions{ShowStdout: true})
 			assert.NilError(t, err)
-			defer logs.Close()
+			defer logs.Body.Close()
 
 			var stdoutBuf bytes.Buffer
-			_, err = stdcopy.StdCopy(&stdoutBuf, io.Discard, logs)
+			_, err = stdcopy.StdCopy(&stdoutBuf, io.Discard, logs.Body)
 			assert.NilError(t, err)
 
 			assert.Check(t, is.Equal(strings.TrimSpace(stdoutBuf.String()), testContent))

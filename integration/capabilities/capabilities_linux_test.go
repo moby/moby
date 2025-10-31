@@ -79,15 +79,15 @@ func TestNoNewPrivileges(t *testing.T) {
 			poll.WaitOn(t, container.IsInState(ctx, apiClient, cid, containertypes.StateExited))
 
 			// Assert on outputs
-			logReader, err := apiClient.ContainerLogs(ctx, cid, client.ContainerLogsOptions{
+			res, err := apiClient.ContainerLogs(ctx, cid, client.ContainerLogsOptions{
 				ShowStdout: true,
 				ShowStderr: true,
 			})
 			assert.NilError(t, err)
-			defer logReader.Close()
+			defer res.Body.Close()
 
 			var actualStdout, actualStderr bytes.Buffer
-			_, err = stdcopy.StdCopy(&actualStdout, &actualStderr, logReader)
+			_, err = stdcopy.StdCopy(&actualStdout, &actualStderr, res.Body)
 			assert.NilError(t, err)
 
 			stdOut := strings.TrimSpace(actualStdout.String())

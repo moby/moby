@@ -75,13 +75,13 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 
 	reader, err := clientUserRemap.ImageSave(ctx, []string{imageTag})
 	assert.NilError(t, err, "failed to download capabilities image")
-	defer reader.Close()
+	defer func() { _ = reader.Body.Close() }()
 
 	tar, err := os.Create(filepath.Join(tmpDir, "image.tar"))
 	assert.NilError(t, err, "failed to create image tar file")
 	defer tar.Close()
 
-	_, err = io.Copy(tar, reader)
+	_, err = io.Copy(tar, reader.Body)
 	assert.NilError(t, err, "failed to write image tar file")
 
 	dUserRemap.Stop(t)
@@ -105,9 +105,9 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	tarReader := bufio.NewReader(tarFile)
 	loadResp, err := clientNoUserRemap.ImageLoad(ctx, tarReader)
 	assert.NilError(t, err, "failed to load image tar file")
-	defer loadResp.Close()
-	buf = bytes.NewBuffer(nil)
-	err = jsonmessage.DisplayJSONMessagesStream(loadResp, buf, 0, false, nil)
+	defer loadResp.Body.Close()
+	var buf2 bytes.Buffer
+	err = jsonmessage.DisplayJSONMessagesStream(loadResp.Body, &buf2, 0, false, nil)
 	assert.NilError(t, err)
 
 	cid := container.Run(ctx, t, clientNoUserRemap,
@@ -116,15 +116,15 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	)
 
 	poll.WaitOn(t, container.IsStopped(ctx, clientNoUserRemap, cid))
-	logReader, err := clientNoUserRemap.ContainerLogs(ctx, cid, client.ContainerLogsOptions{
+	res, err := clientNoUserRemap.ContainerLogs(ctx, cid, client.ContainerLogsOptions{
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)
-	defer logReader.Close()
+	defer res.Body.Close()
 
 	actualStdout := new(bytes.Buffer)
 	actualStderr := io.Discard
-	_, err = stdcopy.StdCopy(actualStdout, actualStderr, logReader)
+	_, err = stdcopy.StdCopy(actualStdout, actualStderr, res.Body)
 	assert.NilError(t, err)
 	if strings.TrimSpace(actualStdout.String()) != "/bin/sleep cap_net_bind_service=eip" {
 		t.Fatalf("run produced invalid output: %q, expected %q", actualStdout.String(), "/bin/sleep cap_net_bind_service=eip")

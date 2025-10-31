@@ -158,8 +158,8 @@ func TestContainerLogs(t *testing.T) {
 				return
 			}
 			assert.NilError(t, err)
-			defer func() { _ = res.Close() }()
-			content, err := io.ReadAll(res)
+			defer func() { _ = res.Body.Close() }()
+			content, err := io.ReadAll(res.Body)
 			assert.NilError(t, err)
 			assert.Check(t, is.Contains(string(content), "response"))
 		})
@@ -178,9 +178,9 @@ func ExampleClient_ContainerLogs_withTimeout() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer res.Close()
+	defer res.Body.Close()
 
-	_, err = io.Copy(os.Stdout, res)
+	_, err = io.Copy(os.Stdout, res.Body)
 	if err != nil && !errors.Is(err, io.EOF) {
 		log.Fatal(err)
 	}

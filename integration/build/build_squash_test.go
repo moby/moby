@@ -84,14 +84,14 @@ func TestBuildSquashParent(t *testing.T) {
 	)
 
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cid))
-	reader, err := apiClient.ContainerLogs(ctx, cid, client.ContainerLogsOptions{
+	res, err := apiClient.ContainerLogs(ctx, cid, client.ContainerLogsOptions{
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)
 
 	actualStdout := new(bytes.Buffer)
 	actualStderr := io.Discard
-	_, err = stdcopy.StdCopy(actualStdout, actualStderr, reader)
+	_, err = stdcopy.StdCopy(actualStdout, actualStderr, res.Body)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(strings.TrimSpace(actualStdout.String()), "hello\nworld"))
 
