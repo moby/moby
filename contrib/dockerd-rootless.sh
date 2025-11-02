@@ -131,6 +131,10 @@ if [ -z "$net" ]; then
 		exit 1
 	fi
 fi
+if [ "$net" = host ]; then
+	echo "Unsupported RootlessKit network driver: $net"
+	exit 1
+fi
 if [ -z "$mtu" ]; then
 	if [ "$net" = slirp4netns -o "$net" = pasta ]; then
 		mtu=65520
