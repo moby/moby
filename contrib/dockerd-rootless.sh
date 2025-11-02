@@ -128,6 +128,7 @@ if [ -z "$net" ]; then
 	fi
 	if [ -z "$net" ]; then
 		echo "One of slirp4netns (>= v0.4.0), pasta (passt >= 2023_12_04), or vpnkit needs to be installed"
+		exit 1
 	fi
 fi
 if [ -z "$mtu" ]; then
