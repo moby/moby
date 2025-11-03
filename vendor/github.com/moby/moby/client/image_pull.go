@@ -52,9 +52,9 @@ func (cli *Client) ImagePull(ctx context.Context, refStr string, options ImagePu
 		}
 		query.Set("platform", formatPlatform(options.Platforms[0]))
 	}
-	resp, err := cli.tryImageCreate(ctx, query, staticAuth(options.RegistryAuth))
+	resp, err := cli.tryImagePull(ctx, query, staticAuth(options.RegistryAuth))
 	if cerrdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
-		resp, err = cli.tryImageCreate(ctx, query, options.PrivilegeFunc)
+		resp, err = cli.tryImagePull(ctx, query, options.PrivilegeFunc)
 	}
 	if err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func getAPITagFromNamedRef(ref reference.Named) string {
 	return ""
 }
 
-func (cli *Client) tryImageCreate(ctx context.Context, query url.Values, resolveAuth registry.RequestAuthConfig) (*http.Response, error) {
+func (cli *Client) tryImagePull(ctx context.Context, query url.Values, resolveAuth registry.RequestAuthConfig) (*http.Response, error) {
 	hdr := http.Header{}
 	if resolveAuth != nil {
 		registryAuth, err := resolveAuth(ctx)
