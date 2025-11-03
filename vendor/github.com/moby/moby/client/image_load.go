@@ -7,14 +7,19 @@ import (
 	"net/url"
 )
 
+// ImageLoadResult returns information to the client about a load process.
+// It implements [io.ReadCloser] and must be closed to avoid a resource leak.
+type ImageLoadResult interface {
+	io.ReadCloser
+}
+
 // ImageLoad loads an image in the docker host from the client host. It's up
-// to the caller to close the [io.ReadCloser] in the [ImageLoadResult]
-// returned by this function.
+// to the caller to close the [ImageLoadResult] returned by this function.
 func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, loadOpts ...ImageLoadOption) (ImageLoadResult, error) {
 	var opts imageLoadOpts
 	for _, opt := range loadOpts {
 		if err := opt.Apply(&opts); err != nil {
-			return ImageLoadResult{}, err
+			return nil, err
 		}
 	}
 
@@ -25,12 +30,12 @@ func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, loadOpts ...I
 	}
 	if len(opts.apiOptions.Platforms) > 0 {
 		if err := cli.requiresVersion(ctx, "1.48", "platform"); err != nil {
-			return ImageLoadResult{}, err
+			return nil, err
 		}
 
 		p, err := encodePlatforms(opts.apiOptions.Platforms...)
 		if err != nil {
-			return ImageLoadResult{}, err
+			return nil, err
 		}
 		query["platform"] = p
 	}
@@ -39,25 +44,33 @@ func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, loadOpts ...I
 		"Content-Type": {"application/x-tar"},
 	})
 	if err != nil {
-		return ImageLoadResult{}, err
+		return nil, err
 	}
-	return ImageLoadResult{
+	return &imageLoadResult{
 		body: resp.Body,
 	}, nil
 }
 
-// ImageLoadResult returns information to the client about a load process.
-type ImageLoadResult struct {
-	// Body must be closed to avoid a resource leak
+// imageLoadResult returns information to the client about a load process.
+type imageLoadResult struct {
+	// body must be closed to avoid a resource leak
 	body io.ReadCloser
 }
 
-func (r ImageLoadResult) Read(p []byte) (n int, err error) {
+var (
+	_ io.ReadCloser   = (*imageLoadResult)(nil)
+	_ ImageLoadResult = (*imageLoadResult)(nil)
+)
+
+func (r *imageLoadResult) Read(p []byte) (int, error) {
+	if r == nil || r.body == nil {
+		return 0, io.EOF
+	}
 	return r.body.Read(p)
 }
 
-func (r ImageLoadResult) Close() error {
-	if r.body == nil {
+func (r *imageLoadResult) Close() error {
+	if r == nil || r.body == nil {
 		return nil
 	}
 	return r.body.Close()
