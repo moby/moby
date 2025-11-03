@@ -264,14 +264,14 @@ func (s *saveSession) save(ctx context.Context, outStream io.Writer) error {
 		if err := mkdirAllWithChtimes(filepath.Dir(mFile), 0o755, time.Unix(0, 0), time.Unix(0, 0)); err != nil {
 			return errors.Wrap(err, "error creating blob directory")
 		}
-		if err := system.Chtimes(filepath.Dir(mFile), time.Unix(0, 0), time.Unix(0, 0)); err != nil {
-			return errors.Wrap(err, "error setting blob directory timestamps")
-		}
 		if err := os.WriteFile(mFile, data, 0o644); err != nil {
 			return errors.Wrap(err, "error writing oci manifest file")
 		}
 		if err := system.Chtimes(mFile, time.Unix(0, 0), time.Unix(0, 0)); err != nil {
-			return errors.Wrap(err, "error setting blob directory timestamps")
+			return errors.Wrap(err, "error setting oci manifest timestamp")
+		}
+		if err := system.Chtimes(filepath.Dir(mFile), time.Unix(0, 0), time.Unix(0, 0)); err != nil {
+			return errors.Wrap(err, "error setting blob digest directory timestamp")
 		}
 
 		untaggedMfstDesc := ocispec.Descriptor{

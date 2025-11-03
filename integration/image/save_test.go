@@ -65,26 +65,25 @@ func TestSaveCheckTimes(t *testing.T) {
 	rdr, err := apiClient.ImageSave(ctx, []string{repoName})
 	assert.NilError(t, err)
 
-	tarfs := tarIndexFS(t, rdr)
-
-	dt, err := fs.ReadFile(tarfs, "manifest.json")
-	assert.NilError(t, err)
-
-	var ls []imageSaveManifestEntry
-	assert.NilError(t, json.Unmarshal(dt, &ls))
-	assert.Assert(t, is.Len(ls, 1))
-
-	info, err := fs.Stat(tarfs, ls[0].Config)
-	assert.NilError(t, err)
-
 	created, err := time.Parse(time.RFC3339, img.Created)
 	assert.NilError(t, err)
 
-	if testEnv.UsingSnapshotter() {
-		// containerd archive export sets the mod time to zero.
-		assert.Check(t, is.Equal(info.ModTime(), time.Unix(0, 0)))
-	} else {
-		assert.Check(t, is.Equal(info.ModTime().Format(time.RFC3339), created.Format(time.RFC3339)))
+	// containerd archive export sets mod times of all members to zero
+	// otherwise no member should be newer than the image created date
+	threshold := time.Unix(0, 0)
+	if !testEnv.UsingSnapshotter() {
+		threshold = created
+	}
+
+	tr := tar.NewReader(rdr)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		assert.NilError(t, err)
+		modtime := hdr.ModTime
+		assert.Check(t, !modtime.After(threshold), "%s has modtime %s after %s", hdr.Name, modtime, threshold)
 	}
 }
 
