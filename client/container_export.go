@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"net/url"
-	"sync"
 )
 
 // ContainerExportOptions specifies options for container export operations.
@@ -13,9 +12,8 @@ type ContainerExportOptions struct {
 }
 
 // ContainerExportResult represents the result of a container export operation.
-type ContainerExportResult struct {
-	rc    io.ReadCloser
-	close func() error
+type ContainerExportResult interface {
+	io.ReadCloser
 }
 
 // ContainerExport retrieves the raw contents of a container
@@ -24,39 +22,39 @@ type ContainerExportResult struct {
 func (cli *Client) ContainerExport(ctx context.Context, containerID string, options ContainerExportOptions) (ContainerExportResult, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
-		return ContainerExportResult{}, err
+		return nil, err
 	}
 
 	resp, err := cli.get(ctx, "/containers/"+containerID+"/export", url.Values{}, nil)
 	if err != nil {
-		return ContainerExportResult{}, err
+		return nil, err
 	}
 
-	return newContainerExportResult(resp.Body), nil
+	return &containerExportResult{
+		body: resp.Body,
+	}, nil
 }
 
-func newContainerExportResult(rc io.ReadCloser) ContainerExportResult {
-	if rc == nil {
-		panic("nil io.ReadCloser")
-	}
-	return ContainerExportResult{
-		rc:    rc,
-		close: sync.OnceValue(rc.Close),
-	}
+type containerExportResult struct {
+	// body must be closed to avoid a resource leak
+	body io.ReadCloser
 }
 
-// Read implements io.ReadCloser
-func (r ContainerExportResult) Read(p []byte) (n int, err error) {
-	if r.rc == nil {
+var (
+	_ io.ReadCloser         = (*containerExportResult)(nil)
+	_ ContainerExportResult = (*containerExportResult)(nil)
+)
+
+func (r *containerExportResult) Read(p []byte) (int, error) {
+	if r == nil || r.body == nil {
 		return 0, io.EOF
 	}
-	return r.rc.Read(p)
+	return r.body.Read(p)
 }
 
-// Close implements io.ReadCloser
-func (r ContainerExportResult) Close() error {
-	if r.close == nil {
+func (r *containerExportResult) Close() error {
+	if r == nil || r.body == nil {
 		return nil
 	}
-	return r.close()
+	return r.body.Close()
 }
