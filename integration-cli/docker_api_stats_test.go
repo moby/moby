@@ -13,10 +13,8 @@ import (
 	"testing"
 	"time"
 
-	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/system"
-	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/request"
@@ -176,26 +174,6 @@ func getNetworkStats(t *testing.T, id string) map[string]container.NetworkStats 
 	_ = body.Close()
 
 	return st.Networks
-}
-
-func (s *DockerAPISuite) TestAPIStatsContainerNotFound(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	apiClient, err := client.New(client.FromEnv)
-	assert.NilError(c, err)
-	defer func() { _ = apiClient.Close() }()
-
-	_, err = apiClient.ContainerStats(testutil.GetContext(c), "no-such-container", client.ContainerStatsOptions{
-		Stream: true,
-	})
-	assert.ErrorType(c, err, cerrdefs.IsNotFound)
-	assert.ErrorContains(c, err, "no-such-container")
-
-	_, err = apiClient.ContainerStats(testutil.GetContext(c), "no-such-container", client.ContainerStatsOptions{
-		Stream:                false,
-		IncludePreviousSample: true,
-	})
-	assert.ErrorType(c, err, cerrdefs.IsNotFound)
-	assert.ErrorContains(c, err, "no-such-container")
 }
 
 func (s *DockerAPISuite) TestAPIStatsNoStreamConnectedContainers(c *testing.T) {
