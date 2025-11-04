@@ -185,10 +185,11 @@ type DNSConfig struct {
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line use.
 type CommonConfig struct {
-	AuthorizationPlugins  []string `json:"authorization-plugins,omitempty"` // AuthorizationPlugins holds list of authorization plugins
-	AutoRestart           bool     `json:"-"`
-	DisableBridge         bool     `json:"-"`
-	ExecOptions           []string `json:"exec-opts,omitempty"`
+	AuthorizationPlugins []string `json:"authorization-plugins,omitempty"` // AuthorizationPlugins holds list of authorization plugins
+	AutoRestart          bool     `json:"-"`
+	DisableBridge        bool     `json:"-"`
+	ExecOptions          []string `json:"exec-opts,omitempty"`
+	// TODO: Should be renamed to StorageDriver
 	GraphDriver           string   `json:"storage-driver,omitempty"`
 	GraphOptions          []string `json:"storage-opts,omitempty"`
 	Labels                []string `json:"labels,omitempty"`
