@@ -68,39 +68,39 @@ func TestHandleMACAddressBC(t *testing.T) {
 			expCtrWideMAC:       network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
 		},
 		{
-			name:        "new api no macs",
+			name:        "api 1.44 no macs",
 			apiVersion:  "1.44",
 			networkMode: "aNetId",
 			epConfig:    map[string]*network.EndpointSettings{"aNetName": {}},
 		},
 		{
-			name:        "new api ep specific mac",
+			name:        "api 1.44 ep specific mac",
 			apiVersion:  "1.44",
 			networkMode: "aNetName",
 			epConfig:    map[string]*network.EndpointSettings{"aNetName": {MacAddress: network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66}}},
 		},
 		{
-			name:                "new api migrate ctr-wide mac to new ep",
+			name:                "api 1.44 migrate ctr-wide mac to new ep",
 			apiVersion:          "1.44",
 			ctrWideMAC:          network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
 			networkMode:         "aNetName",
 			epConfig:            map[string]*network.EndpointSettings{},
 			expEpWithCtrWideMAC: "aNetName",
 			expWarning:          "The container-wide MacAddress field is now deprecated",
-			expCtrWideMAC:       nil,
+			expCtrWideMAC:       network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
 		},
 		{
-			name:                "new api migrate ctr-wide mac to existing ep",
+			name:                "api 1.44 migrate ctr-wide mac to existing ep",
 			apiVersion:          "1.44",
 			ctrWideMAC:          network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
 			networkMode:         "aNetName",
 			epConfig:            map[string]*network.EndpointSettings{"aNetName": {}},
 			expEpWithCtrWideMAC: "aNetName",
 			expWarning:          "The container-wide MacAddress field is now deprecated",
-			expCtrWideMAC:       nil,
+			expCtrWideMAC:       network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
 		},
 		{
-			name:          "new api mode vs name mismatch",
+			name:          "api 1.44 mode vs name mismatch",
 			apiVersion:    "1.44",
 			ctrWideMAC:    network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
 			networkMode:   "aNetId",
@@ -109,13 +109,21 @@ func TestHandleMACAddressBC(t *testing.T) {
 			expCtrWideMAC: network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
 		},
 		{
-			name:          "new api mac mismatch",
+			name:          "api 1.44 mac mismatch",
 			apiVersion:    "1.44",
 			ctrWideMAC:    network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
 			networkMode:   "aNetName",
 			epConfig:      map[string]*network.EndpointSettings{"aNetName": {MacAddress: network.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}}},
 			expError:      "the container-wide MAC address must match the endpoint-specific MAC address",
 			expCtrWideMAC: network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+		},
+		{
+			name:        "api 1.52 reject ctr-wide mac",
+			apiVersion:  "1.52",
+			ctrWideMAC:  network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+			networkMode: "aNetName",
+			epConfig:    map[string]*network.EndpointSettings{},
+			expError:    "container-wide MAC address no longer supported; use endpoint-specific MAC address instead",
 		},
 	}
 
@@ -147,7 +155,7 @@ func TestHandleMACAddressBC(t *testing.T) {
 			}
 			if tc.expEpWithCtrWideMAC != "" {
 				got := netCfg.EndpointsConfig[tc.expEpWithCtrWideMAC].MacAddress
-				assert.Check(t, is.DeepEqual(got, tc.ctrWideMAC, cmpopts.EquateEmpty()))
+				assert.Check(t, is.DeepEqual(got, tc.expCtrWideMAC, cmpopts.EquateEmpty()))
 			}
 			if tc.expEpWithNoMAC != "" {
 				got := netCfg.EndpointsConfig[tc.expEpWithNoMAC].MacAddress
