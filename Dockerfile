@@ -260,9 +260,8 @@ WORKDIR /usr/src/runc
 RUN git init . && git remote add origin "https://github.com/opencontainers/runc.git"
 # RUNC_VERSION should match the version that is used by the containerd version
 # that is used. If you need to update runc, open a pull request in the containerd
-# project first, and update both after that is merged. When updating RUNC_VERSION,
-# consider updating runc in vendor.mod accordingly.
-ARG RUNC_VERSION=v1.3.0
+# project first, and update both after that is merged.
+ARG RUNC_VERSION=v1.3.3
 RUN git fetch -q --depth 1 origin "${RUNC_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
 FROM base AS runc-build
