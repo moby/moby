@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"golang.org/x/sys/unix"
 )
 
 // possibleCPUs returns the set of possible CPUs on the host (which is
@@ -52,4 +54,13 @@ func parsePossibleCPUs(content string) []int {
 	}
 
 	return cpus
+}
+
+// runtimeArchitecture gets the name of the current architecture (x86, x86_64, i86pc, sun4v, ...)
+func runtimeArchitecture() (string, error) {
+	utsname := &unix.Utsname{}
+	if err := unix.Uname(utsname); err != nil {
+		return "", err
+	}
+	return unix.ByteSliceToString(utsname.Machine[:]), nil
 }

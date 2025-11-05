@@ -1,4 +1,4 @@
-//go:build !windows
+//go:build !darwin && !windows
 
 // Package unix_noeintr provides wrappers for unix syscalls that retry on EINTR.
 //
