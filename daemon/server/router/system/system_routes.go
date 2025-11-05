@@ -13,10 +13,13 @@ import (
 	"github.com/moby/moby/api/pkg/authconfig"
 	"github.com/moby/moby/api/types"
 	buildtypes "github.com/moby/moby/api/types/build"
+	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/system"
+	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/v2/daemon/internal/compat"
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
@@ -216,7 +219,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 
 	var v system.DiskUsage
 	if systemDiskUsage != nil && systemDiskUsage.Images != nil {
-		v.ImageUsage = &system.ImagesDiskUsage{
+		v.ImageUsage = &image.DiskUsage{
 			ActiveImages: systemDiskUsage.Images.ActiveCount,
 			Reclaimable:  systemDiskUsage.Images.Reclaimable,
 			TotalImages:  systemDiskUsage.Images.TotalCount,
@@ -231,7 +234,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		}
 	}
 	if systemDiskUsage != nil && systemDiskUsage.Containers != nil {
-		v.ContainerUsage = &system.ContainersDiskUsage{
+		v.ContainerUsage = &container.DiskUsage{
 			ActiveContainers: systemDiskUsage.Containers.ActiveCount,
 			Reclaimable:      systemDiskUsage.Containers.Reclaimable,
 			TotalContainers:  systemDiskUsage.Containers.TotalCount,
@@ -245,7 +248,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		}
 	}
 	if systemDiskUsage != nil && systemDiskUsage.Volumes != nil {
-		v.VolumeUsage = &system.VolumesDiskUsage{
+		v.VolumeUsage = &volume.DiskUsage{
 			ActiveVolumes: systemDiskUsage.Volumes.ActiveCount,
 			TotalSize:     systemDiskUsage.Volumes.TotalSize,
 			Reclaimable:   systemDiskUsage.Volumes.Reclaimable,
@@ -259,7 +262,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		}
 	}
 	if getBuildCache {
-		v.BuildCacheUsage = &system.BuildCacheDiskUsage{
+		v.BuildCacheUsage = &buildtypes.DiskUsage{
 			TotalBuildCacheRecords: int64(len(buildCache)),
 		}
 

@@ -2061,8 +2061,10 @@ definitions:
 
   ImagesDiskUsage:
     type: "object"
+    x-go-name: "DiskUsage"
+    x-go-package: "github.com/moby/moby/api/types/image"
     description: |
-      ImagesDiskUsage represents system data usage for image resources.
+      represents system data usage for image resources.
     properties:
       ActiveImages:
         description: |
@@ -2097,8 +2099,6 @@ definitions:
           x-nullable: true
           x-go-type:
             type: Summary
-            import:
-              package: github.com/moby/moby/api/types/image
 
   AuthConfig:
     type: "object"
@@ -2244,8 +2244,10 @@ definitions:
 
   VolumesDiskUsage:
     type: "object"
+    x-go-name: "DiskUsage"
+    x-go-package: "github.com/moby/moby/api/types/volume"
     description: |
-      VolumesDiskUsage represents system data usage for volume resources.
+      represents system data usage for volume resources.
     properties:
       ActiveVolumes:
         description: |
@@ -2280,8 +2282,6 @@ definitions:
           x-nullable: true
           x-go-type:
             type: Volume
-            import:
-              package: github.com/moby/moby/api/types/volume
 
   VolumeCreateRequest:
     description: "Volume configuration"
@@ -2858,8 +2858,10 @@ definitions:
 
   BuildCacheDiskUsage:
     type: "object"
+    x-go-name: "DiskUsage"
+    x-go-package: "github.com/moby/moby/api/types/build"
     description: |
-      BuildCacheDiskUsage represents system data usage for build cache resources.
+      represents system data usage for build cache resources.
     properties:
       ActiveBuildCacheRecords:
         description: |
@@ -2894,8 +2896,6 @@ definitions:
           x-nullable: true
           x-go-type:
             type: CacheRecord
-            import:
-              package: github.com/moby/moby/api/types/build
 
   ImageID:
     type: "object"
@@ -5582,8 +5582,10 @@ definitions:
 
   ContainersDiskUsage:
     type: "object"
+    x-go-name: "DiskUsage"
+    x-go-package: "github.com/moby/moby/api/types/container"
     description: |
-      ContainersDiskUsage provides system data usage information for container resources.
+      represents system data usage information for container resources.
     properties:
       ActiveContainers:
         description: |
@@ -5618,8 +5620,6 @@ definitions:
           x-nullable: true
           x-go-type:
             type: Summary
-            import:
-              package: github.com/moby/moby/api/types/container
 
   Driver:
     description: "Driver represents a driver (network, logging, secrets)."

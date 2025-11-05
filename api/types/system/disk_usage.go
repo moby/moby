@@ -26,10 +26,10 @@ const (
 type DiskUsage struct {
 	LegacyDiskUsage
 
-	ImageUsage      *ImagesDiskUsage     `json:"ImageUsage,omitempty"`
-	ContainerUsage  *ContainersDiskUsage `json:"ContainerUsage,omitempty"`
-	VolumeUsage     *VolumesDiskUsage    `json:"VolumeUsage,omitempty"`
-	BuildCacheUsage *BuildCacheDiskUsage `json:"BuildCacheUsage,omitempty"`
+	ImageUsage      *image.DiskUsage     `json:"ImageUsage,omitempty"`
+	ContainerUsage  *container.DiskUsage `json:"ContainerUsage,omitempty"`
+	VolumeUsage     *volume.DiskUsage    `json:"VolumeUsage,omitempty"`
+	BuildCacheUsage *build.DiskUsage     `json:"BuildCacheUsage,omitempty"`
 }
 
 type LegacyDiskUsage struct {

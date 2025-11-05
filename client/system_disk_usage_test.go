@@ -28,7 +28,7 @@ func TestDiskUsage(t *testing.T) {
 		}
 
 		return mockJSONResponse(http.StatusOK, nil, system.DiskUsage{
-			ImageUsage: &system.ImagesDiskUsage{
+			ImageUsage: &image.DiskUsage{
 				ActiveImages: 0,
 				TotalImages:  0,
 				Reclaimable:  0,
