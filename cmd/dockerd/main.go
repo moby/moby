@@ -26,16 +26,14 @@ func main() {
 
 	// Set terminal emulation based on platform as required.
 	_, stdout, stderr := term.StdStreams()
-	onError := func(err error) {
-		_, _ = fmt.Fprintln(stderr, err)
-		os.Exit(1)
-	}
 
 	r, err := command.NewDaemonRunner(stdout, stderr)
 	if err != nil {
-		onError(err)
+		_, _ = fmt.Fprintln(stderr, err)
+		os.Exit(1)
 	}
 	if err := r.Run(ctx); err != nil {
-		onError(err)
+		_, _ = fmt.Fprintln(stderr, err)
+		os.Exit(1)
 	}
 }
