@@ -42,18 +42,30 @@ const (
 	// rs5 (version 1809, codename "Redstone 5") corresponds to Windows Server
 	// 2019 (ltsc2019), and Windows 10 (October 2018 Update).
 	rs5 = 17763
+	// ltsc2019 (Windows Server 2019) is an alias for [RS5].
+	ltsc2019 = rs5
 
 	// v21H2Server corresponds to Windows Server 2022 (ltsc2022).
 	v21H2Server = 20348
+	// ltsc2022 (Windows Server 2022) is an alias for [v21H2Server]
+	ltsc2022 = v21H2Server
 
 	// v22H2Win11 corresponds to Windows 11 (2022 Update).
 	v22H2Win11 = 22621
+
+	// v23H2 is the 23H2 release in the Windows Server annual channel.
+	v23H2 = 25398
+
+	// Windows Server 2025 build 26100
+	v25H1Server = 26100
+	ltsc2025    = v25H1Server
 )
 
 // List of stable ABI compliant ltsc releases
 // Note: List must be sorted in ascending order
 var compatLTSCReleases = []uint16{
-	v21H2Server,
+	ltsc2022,
+	ltsc2025,
 }
 
 // CheckHostAndContainerCompat checks if given host and container
@@ -70,18 +82,27 @@ func checkWindowsHostAndContainerCompat(host, ctr windowsOSVersion) bool {
 	}
 
 	// If host is < WS 2022, exact version match is required
-	if host.Build < v21H2Server {
+	if host.Build < ltsc2022 {
 		return host.Build == ctr.Build
 	}
 
-	var supportedLtscRelease uint16
+	// Find the latest LTSC version that is earlier than the host version.
+	// This is the earliest version of container that the host can run.
+	//
+	// If the host version is an LTSC, then it supports compatibility with
+	// everything from the previous LTSC up to itself, so we want supportedLTSCRelease
+	// to be the previous entry.
+	//
+	// If no match is found, then we know that the host is LTSC2022 exactly,
+	// since we already checked that it's not less than LTSC2022.
+	var supportedLTSCRelease uint16 = ltsc2022
 	for i := len(compatLTSCReleases) - 1; i >= 0; i-- {
-		if host.Build >= compatLTSCReleases[i] {
-			supportedLtscRelease = compatLTSCReleases[i]
+		if host.Build > compatLTSCReleases[i] {
+			supportedLTSCRelease = compatLTSCReleases[i]
 			break
 		}
 	}
-	return ctr.Build >= supportedLtscRelease && ctr.Build <= host.Build
+	return supportedLTSCRelease <= ctr.Build && ctr.Build <= host.Build
 }
 
 func getWindowsOSVersion(osVersionPrefix string) windowsOSVersion {
@@ -114,18 +135,6 @@ func getWindowsOSVersion(osVersionPrefix string) windowsOSVersion {
 	}
 }
 
-func winRevision(v string) int {
-	parts := strings.Split(v, ".")
-	if len(parts) < 4 {
-		return 0
-	}
-	r, err := strconv.Atoi(parts[3])
-	if err != nil {
-		return 0
-	}
-	return r
-}
-
 type windowsVersionMatcher struct {
 	windowsOSVersion
 }
@@ -149,8 +158,7 @@ type windowsMatchComparer struct {
 func (c *windowsMatchComparer) Less(p1, p2 specs.Platform) bool {
 	m1, m2 := c.Match(p1), c.Match(p2)
 	if m1 && m2 {
-		r1, r2 := winRevision(p1.OSVersion), winRevision(p2.OSVersion)
-		return r1 > r2
+		return p1.OSVersion > p2.OSVersion
 	}
 	return m1 && !m2
 }
