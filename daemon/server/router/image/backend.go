@@ -28,7 +28,7 @@ type imageBackend interface {
 	GetImage(ctx context.Context, refOrID string, options imagebackend.GetImageOpts) (*dockerimage.Image, error)
 	ImageInspect(ctx context.Context, refOrID string, options imagebackend.ImageInspectOpts) (*imagebackend.InspectData, error)
 	TagImage(ctx context.Context, id dockerimage.ID, newRef reference.Named) error
-	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*image.PruneReport, error)
+	ImagePrune(ctx context.Context, pruneFilters filters.Args) (*image.PruneReport, error)
 }
 
 type importExportBackend interface {

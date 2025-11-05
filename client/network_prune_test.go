@@ -11,17 +11,17 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func TestNetworksPruneError(t *testing.T) {
+func TestNetworkPruneError(t *testing.T) {
 	client, err := New(
 		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	)
 	assert.NilError(t, err)
 
-	_, err = client.NetworksPrune(context.Background(), NetworkPruneOptions{})
+	_, err = client.NetworkPrune(context.Background(), NetworkPruneOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
-func TestNetworksPrune(t *testing.T) {
+func TestNetworkPrune(t *testing.T) {
 	const expectedURL = "/networks/prune"
 
 	listCases := []struct {
@@ -82,7 +82,7 @@ func TestNetworksPrune(t *testing.T) {
 		)
 		assert.NilError(t, err)
 
-		res, err := client.NetworksPrune(context.Background(), NetworkPruneOptions{Filters: listCase.filters})
+		res, err := client.NetworkPrune(context.Background(), NetworkPruneOptions{Filters: listCase.filters})
 		assert.NilError(t, err)
 		assert.Check(t, is.Len(res.Report.NetworksDeleted, 2))
 	}

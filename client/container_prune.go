@@ -14,13 +14,13 @@ type ContainerPruneOptions struct {
 	Filters Filters
 }
 
-// ContainerPruneResult holds the result from the [Client.ContainersPrune] method.
+// ContainerPruneResult holds the result from the [Client.ContainerPrune] method.
 type ContainerPruneResult struct {
 	Report container.PruneReport
 }
 
-// ContainersPrune requests the daemon to delete unused data
-func (cli *Client) ContainersPrune(ctx context.Context, opts ContainerPruneOptions) (ContainerPruneResult, error) {
+// ContainerPrune requests the daemon to delete unused data
+func (cli *Client) ContainerPrune(ctx context.Context, opts ContainerPruneOptions) (ContainerPruneResult, error) {
 	query := url.Values{}
 	opts.Filters.updateURLValues(query)
 

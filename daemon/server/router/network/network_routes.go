@@ -334,7 +334,7 @@ func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter
 	return nil
 }
 
-func (n *networkRouter) postNetworksPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (n *networkRouter) postNetworkPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -344,7 +344,7 @@ func (n *networkRouter) postNetworksPrune(ctx context.Context, w http.ResponseWr
 		return err
 	}
 
-	pruneReport, err := n.backend.NetworksPrune(ctx, pruneFilters)
+	pruneReport, err := n.backend.NetworkPrune(ctx, pruneFilters)
 	if err != nil {
 		return err
 	}

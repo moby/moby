@@ -36,7 +36,7 @@ func (n *networkRouter) initRoutes() {
 		router.NewPostRoute("/networks/create", n.postNetworkCreate),
 		router.NewPostRoute("/networks/{id:.*}/connect", n.postNetworkConnect),
 		router.NewPostRoute("/networks/{id:.*}/disconnect", n.postNetworkDisconnect),
-		router.NewPostRoute("/networks/prune", n.postNetworksPrune, router.WithMinimumAPIVersion("1.25")),
+		router.NewPostRoute("/networks/prune", n.postNetworkPrune, router.WithMinimumAPIVersion("1.25")),
 		// DELETE
 		router.NewDeleteRoute("/networks/{id:.*}", n.deleteNetwork),
 	}

@@ -72,7 +72,7 @@ type ContainerAPIClient interface {
 	ContainerWait(ctx context.Context, container string, options ContainerWaitOptions) ContainerWaitResult
 	CopyFromContainer(ctx context.Context, container string, options CopyFromContainerOptions) (CopyFromContainerResult, error)
 	CopyToContainer(ctx context.Context, container string, options CopyToContainerOptions) (CopyToContainerResult, error)
-	ContainersPrune(ctx context.Context, opts ContainerPruneOptions) (ContainerPruneResult, error)
+	ContainerPrune(ctx context.Context, opts ContainerPruneOptions) (ContainerPruneResult, error)
 }
 
 type ExecAPIClient interface {
@@ -101,7 +101,7 @@ type ImageAPIClient interface {
 	ImageRemove(ctx context.Context, image string, options ImageRemoveOptions) (ImageRemoveResult, error)
 	ImageSearch(ctx context.Context, term string, options ImageSearchOptions) (ImageSearchResult, error)
 	ImageTag(ctx context.Context, options ImageTagOptions) (ImageTagResult, error)
-	ImagesPrune(ctx context.Context, opts ImagePruneOptions) (ImagePruneResult, error)
+	ImagePrune(ctx context.Context, opts ImagePruneOptions) (ImagePruneResult, error)
 
 	ImageInspect(ctx context.Context, image string, _ ...ImageInspectOption) (ImageInspectResult, error)
 	ImageHistory(ctx context.Context, image string, _ ...ImageHistoryOption) (ImageHistoryResult, error)
@@ -117,7 +117,7 @@ type NetworkAPIClient interface {
 	NetworkInspect(ctx context.Context, network string, options NetworkInspectOptions) (NetworkInspectResult, error)
 	NetworkList(ctx context.Context, options NetworkListOptions) (NetworkListResult, error)
 	NetworkRemove(ctx context.Context, network string, options NetworkRemoveOptions) (NetworkRemoveResult, error)
-	NetworksPrune(ctx context.Context, opts NetworkPruneOptions) (NetworkPruneResult, error)
+	NetworkPrune(ctx context.Context, opts NetworkPruneOptions) (NetworkPruneResult, error)
 }
 
 // NodeAPIClient defines API client methods for the nodes
@@ -181,7 +181,7 @@ type VolumeAPIClient interface {
 	VolumeInspect(ctx context.Context, volumeID string, options VolumeInspectOptions) (VolumeInspectResult, error)
 	VolumeList(ctx context.Context, options VolumeListOptions) (VolumeListResult, error)
 	VolumeRemove(ctx context.Context, volumeID string, options VolumeRemoveOptions) (VolumeRemoveResult, error)
-	VolumesPrune(ctx context.Context, options VolumePruneOptions) (VolumePruneResult, error)
+	VolumePrune(ctx context.Context, options VolumePruneOptions) (VolumePruneResult, error)
 	VolumeUpdate(ctx context.Context, volumeID string, options VolumeUpdateOptions) (VolumeUpdateResult, error)
 }
 

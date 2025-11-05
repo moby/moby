@@ -38,7 +38,7 @@ func TestPruneDontDeleteUsedDangling(t *testing.T) {
 		container.WithImage(danglingID),
 		container.WithCmd("sleep", "60"))
 
-	res, err := apiClient.ImagesPrune(ctx, client.ImagePruneOptions{
+	res, err := apiClient.ImagePrune(ctx, client.ImagePruneOptions{
 		Filters: make(client.Filters).Add("dangling", "true"),
 	})
 	assert.NilError(t, err)
@@ -87,7 +87,7 @@ func TestPruneLexographicalOrder(t *testing.T) {
 	cid := container.Create(ctx, t, apiClient, container.WithImage(id))
 	defer container.Remove(ctx, t, apiClient, cid, client.ContainerRemoveOptions{Force: true})
 
-	res, err := apiClient.ImagesPrune(ctx, client.ImagePruneOptions{
+	res, err := apiClient.ImagePrune(ctx, client.ImagePruneOptions{
 		Filters: make(client.Filters).Add("dangling", "false"),
 	})
 	assert.NilError(t, err)
@@ -219,7 +219,7 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 				defer container.Remove(ctx, t, apiClient, cid, client.ContainerRemoveOptions{Force: true})
 
 				// dangling=false also prunes unused images
-				res, err := apiClient.ImagesPrune(ctx, client.ImagePruneOptions{
+				res, err := apiClient.ImagePrune(ctx, client.ImagePruneOptions{
 					Filters: make(client.Filters).Add("dangling", "false"),
 				})
 				assert.NilError(t, err)

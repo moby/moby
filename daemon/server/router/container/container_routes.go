@@ -1160,7 +1160,7 @@ func (c *containerRouter) postContainersPrune(ctx context.Context, w http.Respon
 		return err
 	}
 
-	pruneReport, err := c.backend.ContainersPrune(ctx, pruneFilters)
+	pruneReport, err := c.backend.ContainerPrune(ctx, pruneFilters)
 	if err != nil {
 		return err
 	}

@@ -18,7 +18,7 @@ type Backend interface {
 	ConnectContainerToNetwork(ctx context.Context, containerName, networkName string, endpointConfig *network.EndpointSettings) error
 	DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error
 	DeleteNetwork(networkID string) error
-	NetworksPrune(ctx context.Context, pruneFilters filters.Args) (*network.PruneReport, error)
+	NetworkPrune(ctx context.Context, pruneFilters filters.Args) (*network.PruneReport, error)
 }
 
 // ClusterBackend is all the methods that need to be implemented

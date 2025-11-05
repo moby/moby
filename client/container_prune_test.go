@@ -11,15 +11,15 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func TestContainersPruneError(t *testing.T) {
+func TestContainerPruneError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.ContainersPrune(context.Background(), ContainerPruneOptions{})
+	_, err = client.ContainerPrune(context.Background(), ContainerPruneOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
-func TestContainersPrune(t *testing.T) {
+func TestContainerPrune(t *testing.T) {
 	const expectedURL = "/containers/prune"
 
 	listCases := []struct {
@@ -89,7 +89,7 @@ func TestContainersPrune(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 
-		req, err := client.ContainersPrune(context.Background(), ContainerPruneOptions{Filters: listCase.filters})
+		req, err := client.ContainerPrune(context.Background(), ContainerPruneOptions{Filters: listCase.filters})
 		assert.NilError(t, err)
 		assert.Check(t, is.Len(req.Report.ContainersDeleted, 2))
 		assert.Check(t, is.Equal(uint64(9999), req.Report.SpaceReclaimed))
