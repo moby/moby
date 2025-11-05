@@ -37,6 +37,10 @@ generate_operation() {
 
 #region -------- Models --------
 
+generate_model types/build <<- 'EOT'
+	BuildCacheDiskUsage
+EOT
+
 generate_model types/common <<- 'EOT'
 	ErrorResponse
 	IDResponse
@@ -49,12 +53,14 @@ generate_model types/container <<- 'EOT'
 	ContainerUpdateResponse
 	ContainerWaitExitError
 	ContainerWaitResponse
+	ContainersDiskUsage
 	FilesystemChange
 	PortSummary
 EOT
 
 generate_model types/image <<- 'EOT'
 	ImageDeleteResponseItem
+	ImagesDiskUsage
 EOT
 #	ImageSummary
 # TODO: Restore when go-swagger is updated
@@ -95,13 +101,6 @@ generate_model types/storage <<- 'EOT'
 	Storage
 EOT
 
-generate_model types/system <<- 'EOT'
-	BuildCacheDiskUsage
-	ContainersDiskUsage
-	ImagesDiskUsage
-	VolumesDiskUsage
-EOT
-
 generate_model types/swarm <<- 'EOT'
 	ServiceCreateResponse
 	ServiceUpdateResponse
@@ -111,6 +110,7 @@ generate_model types/volume <<- 'EOT'
 	Volume
 	VolumeCreateRequest
 	VolumeListResponse
+	VolumesDiskUsage
 EOT
 
 #endregion
