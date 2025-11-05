@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -20,14 +19,14 @@ func TestExecCreateError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ExecCreate(context.Background(), "container_id", ExecCreateOptions{})
+	_, err = client.ExecCreate(t.Context(), "container_id", ExecCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ExecCreate(context.Background(), "", ExecCreateOptions{})
+	_, err = client.ExecCreate(t.Context(), "", ExecCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ExecCreate(context.Background(), "    ", ExecCreateOptions{})
+	_, err = client.ExecCreate(t.Context(), "    ", ExecCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -40,7 +39,7 @@ func TestExecCreateConnectionError(t *testing.T) {
 	client, err := New(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
-	_, err = client.ExecCreate(context.Background(), "container_id", ExecCreateOptions{})
+	_, err = client.ExecCreate(t.Context(), "container_id", ExecCreateOptions{})
 	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
 
@@ -69,7 +68,7 @@ func TestExecCreate(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	res, err := client.ExecCreate(context.Background(), "container_id", ExecCreateOptions{
+	res, err := client.ExecCreate(t.Context(), "container_id", ExecCreateOptions{
 		User: "user",
 	})
 	assert.NilError(t, err)
@@ -82,7 +81,7 @@ func TestExecStartError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ExecStart(context.Background(), "nothing", ExecStartOptions{})
+	_, err = client.ExecStart(t.Context(), "nothing", ExecStartOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -108,7 +107,7 @@ func TestExecStart(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ExecStart(context.Background(), "exec_id", ExecStartOptions{
+	_, err = client.ExecStart(t.Context(), "exec_id", ExecStartOptions{
 		Detach: true,
 		TTY:    false,
 	})
@@ -116,20 +115,63 @@ func TestExecStart(t *testing.T) {
 }
 
 func TestExecStartConsoleSize(t *testing.T) {
-	client, err := New(
-		WithMockClient(func(req *http.Request) (*http.Response, error) {
-			return nil, nil
-		}),
-	)
-	assert.NilError(t, err)
+	tests := []struct {
+		doc     string
+		options ExecStartOptions
+		expErr  string
+		expReq  container.ExecStartRequest
+	}{
+		{
+			doc: "without TTY",
+			options: ExecStartOptions{
+				Detach:      true,
+				TTY:         false,
+				ConsoleSize: ConsoleSize{Height: 100, Width: 200},
+			},
+			expErr: "console size is only supported when TTY is enabled",
+		},
+		{
+			doc: "with TTY",
+			options: ExecStartOptions{
+				Detach:      true,
+				TTY:         true,
+				ConsoleSize: ConsoleSize{Height: 100, Width: 200},
+			},
+			expReq: container.ExecStartRequest{
+				Detach:      true,
+				Tty:         true,
+				ConsoleSize: &[2]uint{100, 200},
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			var actualReq container.ExecStartRequest
+			client, err := New(
+				WithMockClient(func(req *http.Request) (*http.Response, error) {
+					if tc.expErr != "" {
+						return nil, fmt.Errorf("should not have made API request")
+					}
+					if err := json.NewDecoder(req.Body).Decode(&actualReq); err != nil {
+						return nil, err
+					}
 
-	_, err = client.ExecStart(context.Background(), "exec_id", ExecStartOptions{
-		Detach:      true,
-		TTY:         false,
-		ConsoleSize: ConsoleSize{Height: 100, Width: 100},
-	})
-	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidArgument))
-	assert.Check(t, is.ErrorContains(err, "console size is only supported when TTY is enabled"))
+					return mockJSONResponse(http.StatusOK, nil, ExecStartResult{})(req)
+				}),
+			)
+			assert.NilError(t, err)
+
+			_, err = client.ExecStart(t.Context(), "exec_id", tc.options)
+			if tc.expErr != "" {
+				assert.Check(t, is.ErrorType(err, errdefs.IsInvalidArgument))
+				assert.Check(t, is.ErrorContains(err, tc.expErr))
+				assert.Check(t, is.DeepEqual(actualReq, tc.expReq))
+			} else {
+				assert.NilError(t, err)
+				assert.Check(t, is.DeepEqual(actualReq, tc.expReq))
+			}
+		})
+	}
 }
 
 func TestExecInspectError(t *testing.T) {
@@ -138,7 +180,7 @@ func TestExecInspectError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ExecInspect(context.Background(), "nothing", ExecInspectOptions{})
+	_, err = client.ExecInspect(t.Context(), "nothing", ExecInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -157,7 +199,7 @@ func TestExecInspect(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	inspect, err := client.ExecInspect(context.Background(), "exec_id", ExecInspectOptions{})
+	inspect, err := client.ExecInspect(t.Context(), "exec_id", ExecInspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(inspect.ID, "exec_id"))
 	assert.Check(t, is.Equal(inspect.ContainerID, "container_id"))
