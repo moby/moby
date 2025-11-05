@@ -127,7 +127,7 @@ func TestExecResize(t *testing.T) {
 		cmd = []string{"sleep", "240"}
 	}
 	res, err := apiClient.ExecCreate(ctx, cID, client.ExecCreateOptions{
-		Tty: true, // Windows requires a TTY for the resize to work, otherwise fails with "is not a tty: failed precondition", see https://github.com/moby/moby/pull/48665#issuecomment-2412530345
+		TTY: true, // Windows requires a TTY for the resize to work, otherwise fails with "is not a tty: failed precondition", see https://github.com/moby/moby/pull/48665#issuecomment-2412530345
 		Cmd: cmd,
 	})
 	assert.NilError(t, err)

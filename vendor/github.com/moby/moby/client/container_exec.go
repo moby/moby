@@ -14,7 +14,7 @@ import (
 type ExecCreateOptions struct {
 	User         string   // User that will run the command
 	Privileged   bool     // Is the container in privileged mode
-	Tty          bool     // Attach standard streams to a tty.
+	TTY          bool     // Attach standard streams to a tty.
 	ConsoleSize  *[2]uint `json:",omitempty"` // Initial console size [height, width]
 	AttachStdin  bool     // Attach the standard input, makes possible user interaction
 	AttachStderr bool     // Attach the standard error
@@ -40,7 +40,7 @@ func (cli *Client) ExecCreate(ctx context.Context, containerID string, options E
 	req := container.ExecCreateRequest{
 		User:         options.User,
 		Privileged:   options.Privileged,
-		Tty:          options.Tty,
+		Tty:          options.TTY,
 		ConsoleSize:  options.ConsoleSize,
 		AttachStdin:  options.AttachStdin,
 		AttachStderr: options.AttachStderr,
