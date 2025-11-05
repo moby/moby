@@ -17,7 +17,7 @@ type DiskUsage struct {
 
 	// List of image summaries.
 	//
-	Items []*Summary `json:"Items,omitempty"`
+	Items []Summary `json:"Items,omitempty"`
 
 	// Disk space that can be reclaimed by removing unused images.
 	//

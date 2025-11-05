@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"slices"
 
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
@@ -151,14 +152,7 @@ func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (Dis
 		return DiskUsageResult{}, fmt.Errorf("Error retrieving disk usage: %v", err)
 	}
 
-	var (
-		r              DiskUsageResult
-		imagesFrom     = []*image.Summary{}
-		containersFrom = []*container.Summary{}
-		volumesFrom    = []*volume.Volume{}
-		buildCacheFrom = []*build.CacheRecord{}
-	)
-
+	var r DiskUsageResult
 	if du.ImageUsage != nil {
 		r.Images = ImagesDiskUsage{
 			ActiveImages: du.ImageUsage.ActiveImages,
@@ -168,7 +162,7 @@ func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (Dis
 		}
 
 		if options.Verbose {
-			imagesFrom = du.ImageUsage.Items
+			r.Images.Items = slices.Clone(du.ImageUsage.Items)
 		}
 	} else {
 		// Fallback for legacy response.
@@ -176,14 +170,15 @@ func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (Dis
 			TotalSize: du.LayersSize,
 		}
 
-		if du.Images != nil && options.Verbose {
-			imagesFrom = du.Images
+		if options.Verbose {
+			r.Images.Items = slices.Collect(func(yield func(image.Summary) bool) {
+				for _, i := range du.Images {
+					if !yield(*i) {
+						return
+					}
+				}
+			})
 		}
-	}
-
-	r.Images.Items = make([]image.Summary, len(imagesFrom))
-	for i, ii := range imagesFrom {
-		r.Images.Items[i] = *ii
 	}
 
 	if du.ContainerUsage != nil {
@@ -195,16 +190,17 @@ func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (Dis
 		}
 
 		if options.Verbose {
-			containersFrom = du.ContainerUsage.Items
+			r.Containers.Items = slices.Clone(du.ContainerUsage.Items)
 		}
 	} else if du.Containers != nil && options.Verbose {
 		// Fallback for legacy response.
-		containersFrom = du.Containers
-	}
-
-	r.Containers.Items = make([]container.Summary, len(containersFrom))
-	for i, c := range containersFrom {
-		r.Containers.Items[i] = *c
+		r.Containers.Items = slices.Collect(func(yield func(container.Summary) bool) {
+			for _, c := range du.Containers {
+				if !yield(*c) {
+					return
+				}
+			}
+		})
 	}
 
 	if du.BuildCacheUsage != nil {
@@ -216,16 +212,17 @@ func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (Dis
 		}
 
 		if options.Verbose {
-			buildCacheFrom = du.BuildCacheUsage.Items
+			r.BuildCache.Items = slices.Clone(du.BuildCacheUsage.Items)
 		}
 	} else if du.BuildCache != nil && options.Verbose {
 		// Fallback for legacy response.
-		buildCacheFrom = du.BuildCache
-	}
-
-	r.BuildCache.Items = make([]build.CacheRecord, len(buildCacheFrom))
-	for i, b := range buildCacheFrom {
-		r.BuildCache.Items[i] = *b
+		r.BuildCache.Items = slices.Collect(func(yield func(build.CacheRecord) bool) {
+			for _, b := range du.BuildCache {
+				if !yield(*b) {
+					return
+				}
+			}
+		})
 	}
 
 	if du.VolumeUsage != nil {
@@ -237,16 +234,17 @@ func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (Dis
 		}
 
 		if options.Verbose {
-			volumesFrom = du.VolumeUsage.Items
+			r.Volumes.Items = slices.Clone(du.VolumeUsage.Items)
 		}
 	} else if du.Volumes != nil && options.Verbose {
 		// Fallback for legacy response.
-		volumesFrom = du.Volumes
-	}
-
-	r.Volumes.Items = make([]volume.Volume, len(volumesFrom))
-	for i, v := range volumesFrom {
-		r.Volumes.Items[i] = *v
+		r.Volumes.Items = slices.Collect(func(yield func(volume.Volume) bool) {
+			for _, v := range du.Volumes {
+				if !yield(*v) {
+					return
+				}
+			}
+		})
 	}
 
 	return r, nil

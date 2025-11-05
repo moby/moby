@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
@@ -230,7 +231,13 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 			v.LayersSize = systemDiskUsage.Images.TotalSize //nolint: staticcheck,SA1019: v.LayersSize is deprecated: kept to maintain backwards compatibility with API < v1.52, use [ImagesDiskUsage.TotalSize] instead.
 			v.Images = systemDiskUsage.Images.Items         //nolint: staticcheck,SA1019: v.Images is deprecated: kept to maintain backwards compatibility with API < v1.52, use [ImagesDiskUsage.Items] instead.
 		} else if verbose {
-			v.ImageUsage.Items = systemDiskUsage.Images.Items
+			v.ImageUsage.Items = slices.Collect(func(yield func(image.Summary) bool) {
+				for _, i := range systemDiskUsage.Images.Items {
+					if !yield(*i) {
+						return
+					}
+				}
+			})
 		}
 	}
 	if systemDiskUsage != nil && systemDiskUsage.Containers != nil {
@@ -244,7 +251,13 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		if legacyFields {
 			v.Containers = systemDiskUsage.Containers.Items //nolint: staticcheck,SA1019: v.Containers is deprecated: kept to maintain backwards compatibility with API < v1.52, use [ContainersDiskUsage.Items] instead.
 		} else if verbose {
-			v.ContainerUsage.Items = systemDiskUsage.Containers.Items
+			v.ContainerUsage.Items = slices.Collect(func(yield func(container.Summary) bool) {
+				for _, c := range systemDiskUsage.Containers.Items {
+					if !yield(*c) {
+						return
+					}
+				}
+			})
 		}
 	}
 	if systemDiskUsage != nil && systemDiskUsage.Volumes != nil {
@@ -258,7 +271,13 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		if legacyFields {
 			v.Volumes = systemDiskUsage.Volumes.Items //nolint: staticcheck,SA1019: v.Volumes is deprecated: kept to maintain backwards compatibility with API < v1.52, use [VolumesDiskUsage.Items] instead.
 		} else if verbose {
-			v.VolumeUsage.Items = systemDiskUsage.Volumes.Items
+			v.VolumeUsage.Items = slices.Collect(func(yield func(volume.Volume) bool) {
+				for _, v := range systemDiskUsage.Volumes.Items {
+					if !yield(*v) {
+						return
+					}
+				}
+			})
 		}
 	}
 	if getBuildCache {
@@ -289,7 +308,13 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		if legacyFields {
 			v.BuildCache = buildCache //nolint: staticcheck,SA1019: v.BuildCache is deprecated: kept to maintain backwards compatibility with API < v1.52, use [BuildCacheDiskUsage.Items] instead.
 		} else if verbose {
-			v.BuildCacheUsage.Items = buildCache
+			v.BuildCacheUsage.Items = slices.Collect(func(yield func(buildtypes.CacheRecord) bool) {
+				for _, b := range buildCache {
+					if !yield(*b) {
+						return
+					}
+				}
+			})
 		}
 	}
 	return httputils.WriteJSON(w, http.StatusOK, v)

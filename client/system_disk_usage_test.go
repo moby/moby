@@ -33,7 +33,7 @@ func TestDiskUsage(t *testing.T) {
 				TotalImages:  0,
 				Reclaimable:  0,
 				TotalSize:    4096,
-				Items:        []*image.Summary{},
+				Items:        []image.Summary{},
 			},
 		})(req)
 	}))

@@ -17,7 +17,7 @@ type DiskUsage struct {
 
 	// List of container summaries.
 	//
-	Items []*Summary `json:"Items,omitempty"`
+	Items []Summary `json:"Items,omitempty"`
 
 	// Disk space that can be reclaimed by removing inactive containers.
 	//
