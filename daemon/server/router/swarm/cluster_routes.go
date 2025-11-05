@@ -276,7 +276,14 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 
 	// Get returns "" if the header does not exist
 	flags.EncodedRegistryAuth = r.Header.Get(registry.AuthHeader)
-	flags.RegistryAuthFrom = r.URL.Query().Get("registryAuthFrom")
+	if v := r.URL.Query().Get("registryAuthFrom"); v != "" {
+		switch val := types.RegistryAuthSource(v); val {
+		case types.RegistryAuthFromSpec, types.RegistryAuthFromPreviousSpec:
+			flags.RegistryAuthFrom = val
+		default:
+			return errdefs.InvalidParameter(fmt.Errorf("invalid registryAuthFrom '%s'", v))
+		}
+	}
 	flags.Rollback = r.URL.Query().Get("rollback")
 	queryRegistry := false
 	if v := httputils.VersionFromContext(ctx); v != "" {

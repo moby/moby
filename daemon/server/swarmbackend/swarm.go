@@ -1,6 +1,9 @@
 package swarmbackend
 
-import "github.com/moby/moby/v2/daemon/internal/filters"
+import (
+	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/v2/daemon/internal/filters"
+)
 
 type ConfigListOptions struct {
 	Filters filters.Args
@@ -34,7 +37,7 @@ type ServiceUpdateOptions struct {
 	// RegistryAuthFrom specifies where to find the registry authorization
 	// credentials if they are not given in EncodedRegistryAuth. Valid
 	// values are "spec" and "previous-spec".
-	RegistryAuthFrom string
+	RegistryAuthFrom swarm.RegistryAuthSource
 
 	// Rollback indicates whether a server-side rollback should be
 	// performed. When this is set, the provided spec will be ignored.
