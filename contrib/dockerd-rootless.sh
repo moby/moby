@@ -128,7 +128,12 @@ if [ -z "$net" ]; then
 	fi
 	if [ -z "$net" ]; then
 		echo "One of slirp4netns (>= v0.4.0), pasta (passt >= 2023_12_04), or vpnkit needs to be installed"
+		exit 1
 	fi
+fi
+if [ "$net" = host ]; then
+	echo "Unsupported RootlessKit network driver: $net"
+	exit 1
 fi
 if [ -z "$mtu" ]; then
 	if [ "$net" = slirp4netns -o "$net" = pasta ]; then
