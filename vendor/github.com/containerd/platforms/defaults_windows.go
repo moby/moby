@@ -38,5 +38,5 @@ func DefaultSpec() specs.Platform {
 
 // Default returns the current platform's default platform specification.
 func Default() MatchComparer {
-	return Only(DefaultSpec())
+	return &windowsMatchComparer{Matcher: NewMatcher(DefaultSpec())}
 }
