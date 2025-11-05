@@ -4,8 +4,6 @@ import (
 	"context"
 	"io"
 	"net"
-
-	"github.com/moby/moby/api/types/system"
 )
 
 // APIClient is an interface that clients that talk with a docker server must implement.
@@ -173,7 +171,7 @@ type SystemAPIClient interface {
 	Events(ctx context.Context, options EventsListOptions) EventsResult
 	Info(ctx context.Context, options InfoOptions) (SystemInfoResult, error)
 	RegistryLogin(ctx context.Context, auth RegistryLoginOptions) (RegistryLoginResult, error)
-	DiskUsage(ctx context.Context, options DiskUsageOptions) (system.DiskUsage, error)
+	DiskUsage(ctx context.Context, options DiskUsageOptions) (DiskUsageResult, error)
 	Ping(ctx context.Context, options PingOptions) (PingResult, error)
 }
 

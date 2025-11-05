@@ -2059,6 +2059,47 @@ definitions:
         x-nullable: true
         $ref: "#/definitions/OCIDescriptor"
 
+  ImagesDiskUsage:
+    type: "object"
+    description: |
+      ImagesDiskUsage represents system data usage for image resources.
+    properties:
+      ActiveImages:
+        description: |
+          Count of active images.
+        type: "integer"
+        format: "int64"
+        example: 1
+      TotalImages:
+        description: |
+          Count of all images.
+        type: "integer"
+        format: "int64"
+        example: 4
+      Reclaimable:
+        description: |
+          Disk space that can be reclaimed by removing unused images.
+        type: "integer"
+        format: "int64"
+        example: 12345678
+      TotalSize:
+        description: |
+          Disk space in use by images.
+        type: "integer"
+        format: "int64"
+        example: 98765432
+      Items:
+        description: |
+          List of image summaries.
+        type: "array"
+        x-omitempty: true
+        items:
+          x-nullable: true
+          x-go-type:
+            type: Summary
+            import:
+              package: github.com/moby/moby/api/types/image
+
   AuthConfig:
     type: "object"
     properties:
@@ -2200,6 +2241,47 @@ definitions:
               The number of containers referencing this volume. This field
               is set to `-1` if the reference-count is not available.
             x-nullable: false
+
+  VolumesDiskUsage:
+    type: "object"
+    description: |
+      VolumesDiskUsage represents system data usage for volume resources.
+    properties:
+      ActiveVolumes:
+        description: |
+          Count of active volumes.
+        type: "integer"
+        format: "int64"
+        example: 1
+      TotalVolumes:
+        description: |
+          Count of all volumes.
+        type: "integer"
+        format: "int64"
+        example: 4
+      Reclaimable:
+        description: |
+          Disk space that can be reclaimed by removing inactive volumes.
+        type: "integer"
+        format: "int64"
+        example: 12345678
+      TotalSize:
+        description: |
+          Disk space in use by volumes.
+        type: "integer"
+        format: "int64"
+        example: 98765432
+      Items:
+        description: |
+          List of volumes.
+        type: "array"
+        x-omitempty: true
+        items:
+          x-nullable: true
+          x-go-type:
+            type: Volume
+            import:
+              package: github.com/moby/moby/api/types/volume
 
   VolumeCreateRequest:
     description: "Volume configuration"
@@ -2628,6 +2710,8 @@ definitions:
         type: "string"
         x-omitempty: false
         example: "02:42:ac:13:00:02"
+        x-go-type:
+          type: HardwareAddr
       IPv4Address:
         type: "string"
         x-omitempty: false
@@ -2772,6 +2856,47 @@ definitions:
         type: "integer"
         example: 26
 
+  BuildCacheDiskUsage:
+    type: "object"
+    description: |
+      BuildCacheDiskUsage represents system data usage for build cache resources.
+    properties:
+      ActiveBuildCacheRecords:
+        description: |
+          Count of active build cache records.
+        type: "integer"
+        format: "int64"
+        example: 1
+      TotalBuildCacheRecords:
+        description: |
+          Count of all build cache records.
+        type: "integer"
+        format: "int64"
+        example: 4
+      Reclaimable:
+        description: |
+          Disk space that can be reclaimed by removing inactive build cache records.
+        type: "integer"
+        format: "int64"
+        example: 12345678
+      TotalSize:
+        description: |
+          Disk space in use by build cache records.
+        type: "integer"
+        format: "int64"
+        example: 98765432
+      Items:
+        description: |
+          List of build cache records.
+        type: "array"
+        x-omitempty: true
+        items:
+          x-nullable: true
+          x-go-type:
+            type: CacheRecord
+            import:
+              package: github.com/moby/moby/api/types/build
+
   ImageID:
     type: "object"
     description: "Image ID or Digest"
@@ -2914,6 +3039,8 @@ definitions:
           MAC address for the endpoint on this network. The network driver might ignore this parameter.
         type: "string"
         example: "02:42:ac:11:00:04"
+        x-go-type:
+          type: HardwareAddr
       Aliases:
         type: "array"
         items:
@@ -5452,6 +5579,47 @@ definitions:
             description: "FailingStreak is the number of consecutive failures"
             type: "integer"
             example: 0
+
+  ContainersDiskUsage:
+    type: "object"
+    description: |
+      ContainersDiskUsage provides system data usage information for container resources.
+    properties:
+      ActiveContainers:
+        description: |
+          Count of active containers.
+        type: "integer"
+        format: "int64"
+        example: 1
+      TotalContainers:
+        description: |
+          Count of all containers.
+        type: "integer"
+        format: "int64"
+        example: 4
+      Reclaimable:
+        description: |
+          Disk space that can be reclaimed by removing inactive containers.
+        type: "integer"
+        format: "int64"
+        example: 12345678
+      TotalSize:
+        description: |
+          Disk space in use by containers.
+        type: "integer"
+        format: "int64"
+        example: 98765432
+      Items:
+        description: |
+          List of container summaries.
+        type: "array"
+        x-omitempty: true
+        items:
+          x-nullable: true
+          x-go-type:
+            type: Summary
+            import:
+              package: github.com/moby/moby/api/types/container
 
   Driver:
     description: "Driver represents a driver (network, logging, secrets)."
@@ -10332,106 +10500,14 @@ paths:
             type: "object"
             title: "SystemDataUsageResponse"
             properties:
-              LayersSize:
-                type: "integer"
-                format: "int64"
-              Images:
-                type: "array"
-                items:
-                  $ref: "#/definitions/ImageSummary"
-              Containers:
-                type: "array"
-                items:
-                  $ref: "#/definitions/ContainerSummary"
-              Volumes:
-                type: "array"
-                items:
-                  $ref: "#/definitions/Volume"
-              BuildCache:
-                type: "array"
-                items:
-                  $ref: "#/definitions/BuildCache"
-            example:
-              LayersSize: 1092588
-              Images:
-                -
-                  Id: "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749"
-                  ParentId: ""
-                  RepoTags:
-                    - "busybox:latest"
-                  RepoDigests:
-                    - "busybox@sha256:a59906e33509d14c036c8678d687bd4eec81ed7c4b8ce907b888c607f6a1e0e6"
-                  Created: 1466724217
-                  Size: 1092588
-                  SharedSize: 0
-                  Labels: {}
-                  Containers: 1
-              Containers:
-                -
-                  Id: "e575172ed11dc01bfce087fb27bee502db149e1a0fad7c296ad300bbff178148"
-                  Names:
-                    - "/top"
-                  Image: "busybox"
-                  ImageID: "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749"
-                  Command: "top"
-                  Created: 1472592424
-                  Ports: []
-                  SizeRootFs: 1092588
-                  Labels: {}
-                  State: "exited"
-                  Status: "Exited (0) 56 minutes ago"
-                  HostConfig:
-                    NetworkMode: "default"
-                  NetworkSettings:
-                    Networks:
-                      bridge:
-                        IPAMConfig: null
-                        Links: null
-                        Aliases: null
-                        NetworkID: "d687bc59335f0e5c9ee8193e5612e8aee000c8c62ea170cfb99c098f95899d92"
-                        EndpointID: "8ed5115aeaad9abb174f68dcf135b49f11daf597678315231a32ca28441dec6a"
-                        Gateway: "172.18.0.1"
-                        IPAddress: "172.18.0.2"
-                        IPPrefixLen: 16
-                        IPv6Gateway: ""
-                        GlobalIPv6Address: ""
-                        GlobalIPv6PrefixLen: 0
-                        MacAddress: "02:42:ac:12:00:02"
-                  Mounts: []
-              Volumes:
-                -
-                  Name: "my-volume"
-                  Driver: "local"
-                  Mountpoint: "/var/lib/docker/volumes/my-volume/_data"
-                  Labels: null
-                  Scope: "local"
-                  Options: null
-                  UsageData:
-                    Size: 10920104
-                    RefCount: 2
-              BuildCache:
-                -
-                  ID: "hw53o5aio51xtltp5xjp8v7fx"
-                  Parents: []
-                  Type: "regular"
-                  Description: "pulled from docker.io/library/debian@sha256:234cb88d3020898631af0ccbbcca9a66ae7306ecd30c9720690858c1b007d2a0"
-                  InUse: false
-                  Shared: true
-                  Size: 0
-                  CreatedAt: "2021-06-28T13:31:01.474619385Z"
-                  LastUsedAt: "2021-07-07T22:02:32.738075951Z"
-                  UsageCount: 26
-                -
-                  ID: "ndlpt0hhvkqcdfkputsk4cq9c"
-                  Parents: ["ndlpt0hhvkqcdfkputsk4cq9c"]
-                  Type: "regular"
-                  Description: "mount / from exec /bin/sh -c echo 'Binary::apt::APT::Keep-Downloaded-Packages \"true\";' > /etc/apt/apt.conf.d/keep-cache"
-                  InUse: false
-                  Shared: true
-                  Size: 51
-                  CreatedAt: "2021-06-28T13:31:03.002625487Z"
-                  LastUsedAt: "2021-07-07T22:02:32.773909517Z"
-                  UsageCount: 26
+              ImagesDiskUsage:
+                $ref: "#/definitions/ImagesDiskUsage"
+              ContainersDiskUsage:
+                $ref: "#/definitions/ContainersDiskUsage"
+              VolumesDiskUsage:
+                $ref: "#/definitions/VolumesDiskUsage"
+              BuildCacheDiskUsage:
+                $ref: "#/definitions/BuildCacheDiskUsage"
         500:
           description: "server error"
           schema:
@@ -10446,6 +10522,12 @@ paths:
           items:
             type: "string"
             enum: ["container", "image", "volume", "build-cache"]
+        - name: "verbose"
+          in: "query"
+          description: |
+            Show detailed information on space usage.
+          type: "boolean"
+          default: false
       tags: ["System"]
   /images/{name}/get:
     get:

@@ -71,6 +71,13 @@ keywords: "API, Docker, rcli, REST, documentation"
   part of the `Resource` requirements.
 * `GET /containers/{id}/stats` now returns an `os_type` field to allow platform-
   specific handling of the stats.
+* `GET /system/df` returns `ImagesUsage`, `ContainersUsage`, `VolumesUsage`, and
+  `BuildCacheUsage` fields with brief system disk usage data for each system object type.
+  The endpoint supports the `?verbose=1` query to return verbose system disk usage information.
+* Deprecated: `GET /system/df` response fields `LayersSize`, `Images`, `Containers`,
+  `Volumes`, and `BuildCache` are deprecated in favor of the type specific usage fields.
+  The legacy fields will not be populated for new API versions that specify the `verbose`
+  query.
 
 ## v1.51 API changes
 

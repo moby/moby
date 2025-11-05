@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/containerd/log"
@@ -161,6 +162,21 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		}
 	}
 
+	// To maintain backwards compatibility with older clients, when communicating with API versions prior to 1.52,
+	// verbose mode is always enabled. For API 1.52 and onwards, if the "verbose" query parameter is not set,
+	// assume legacy fields should be included.
+	var verbose, legacyFields bool
+	if v := r.Form.Get("verbose"); versions.GreaterThanOrEqualTo(version, "1.52") && v != "" {
+		var err error
+		verbose, err = strconv.ParseBool(v)
+		if err != nil {
+			return invalidRequestError{Err: fmt.Errorf("invalid value for verbose: %s", v)}
+		}
+	} else {
+		// In versions prior to 1.52, legacy fields were always included.
+		legacyFields, verbose = true, true
+	}
+
 	eg, ctx := errgroup.WithContext(ctx)
 
 	var systemDiskUsage *backend.DiskUsage
@@ -171,6 +187,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 				Containers: getContainers,
 				Images:     getImages,
 				Volumes:    getVolumes,
+				Verbose:    verbose,
 			})
 			return err
 		})
@@ -197,40 +214,80 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		return err
 	}
 
-	var builderSize int64
-	if versions.LessThan(version, "1.42") {
-		for _, b := range buildCache {
-			builderSize += b.Size
-		}
-	}
-
-	du := backend.DiskUsage{}
-	if getBuildCache {
-		du.BuildCache = &backend.BuildCacheDiskUsage{
-			TotalSize: builderSize,
-			Items:     buildCache,
-		}
-	}
-	if systemDiskUsage != nil {
-		du.Images = systemDiskUsage.Images
-		du.Containers = systemDiskUsage.Containers
-		du.Volumes = systemDiskUsage.Volumes
-	}
-
-	// Use the old struct for the API return value.
 	var v system.DiskUsage
-	if du.Images != nil {
-		v.LayersSize = du.Images.TotalSize
-		v.Images = du.Images.Items
+	if systemDiskUsage != nil && systemDiskUsage.Images != nil {
+		v.ImageUsage = &system.ImagesDiskUsage{
+			ActiveImages: systemDiskUsage.Images.ActiveCount,
+			Reclaimable:  systemDiskUsage.Images.Reclaimable,
+			TotalImages:  systemDiskUsage.Images.TotalCount,
+			TotalSize:    systemDiskUsage.Images.TotalSize,
+		}
+
+		if legacyFields {
+			v.LayersSize = systemDiskUsage.Images.TotalSize //nolint: staticcheck,SA1019: v.LayersSize is deprecated: kept to maintain backwards compatibility with API < v1.52, use [ImagesDiskUsage.TotalSize] instead.
+			v.Images = systemDiskUsage.Images.Items         //nolint: staticcheck,SA1019: v.Images is deprecated: kept to maintain backwards compatibility with API < v1.52, use [ImagesDiskUsage.Items] instead.
+		} else if verbose {
+			v.ImageUsage.Items = systemDiskUsage.Images.Items
+		}
 	}
-	if du.Containers != nil {
-		v.Containers = du.Containers.Items
+	if systemDiskUsage != nil && systemDiskUsage.Containers != nil {
+		v.ContainerUsage = &system.ContainersDiskUsage{
+			ActiveContainers: systemDiskUsage.Containers.ActiveCount,
+			Reclaimable:      systemDiskUsage.Containers.Reclaimable,
+			TotalContainers:  systemDiskUsage.Containers.TotalCount,
+			TotalSize:        systemDiskUsage.Containers.TotalSize,
+		}
+
+		if legacyFields {
+			v.Containers = systemDiskUsage.Containers.Items //nolint: staticcheck,SA1019: v.Containers is deprecated: kept to maintain backwards compatibility with API < v1.52, use [ContainersDiskUsage.Items] instead.
+		} else if verbose {
+			v.ContainerUsage.Items = systemDiskUsage.Containers.Items
+		}
 	}
-	if du.Volumes != nil {
-		v.Volumes = du.Volumes.Items
+	if systemDiskUsage != nil && systemDiskUsage.Volumes != nil {
+		v.VolumeUsage = &system.VolumesDiskUsage{
+			ActiveVolumes: systemDiskUsage.Volumes.ActiveCount,
+			TotalSize:     systemDiskUsage.Volumes.TotalSize,
+			Reclaimable:   systemDiskUsage.Volumes.Reclaimable,
+			TotalVolumes:  systemDiskUsage.Volumes.TotalCount,
+		}
+
+		if legacyFields {
+			v.Volumes = systemDiskUsage.Volumes.Items //nolint: staticcheck,SA1019: v.Volumes is deprecated: kept to maintain backwards compatibility with API < v1.52, use [VolumesDiskUsage.Items] instead.
+		} else if verbose {
+			v.VolumeUsage.Items = systemDiskUsage.Volumes.Items
+		}
 	}
-	if du.BuildCache != nil {
-		v.BuildCache = du.BuildCache.Items
+	if getBuildCache {
+		v.BuildCacheUsage = &system.BuildCacheDiskUsage{
+			TotalBuildCacheRecords: int64(len(buildCache)),
+		}
+
+		activeCount := v.BuildCacheUsage.TotalBuildCacheRecords
+		var totalSize, reclaimable int64
+
+		for _, b := range buildCache {
+			if versions.LessThan(version, "1.42") {
+				totalSize += b.Size
+			}
+
+			if !b.InUse {
+				activeCount--
+			}
+			if !b.InUse && !b.Shared {
+				reclaimable += b.Size
+			}
+		}
+
+		v.BuildCacheUsage.ActiveBuildCacheRecords = activeCount
+		v.BuildCacheUsage.TotalSize = totalSize
+		v.BuildCacheUsage.Reclaimable = reclaimable
+
+		if legacyFields {
+			v.BuildCache = buildCache //nolint: staticcheck,SA1019: v.BuildCache is deprecated: kept to maintain backwards compatibility with API < v1.52, use [BuildCacheDiskUsage.Items] instead.
+		} else if verbose {
+			v.BuildCacheUsage.Items = buildCache
+		}
 	}
 	return httputils.WriteJSON(w, http.StatusOK, v)
 }
