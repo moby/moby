@@ -630,7 +630,7 @@ func (ir *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWrite
 		return err
 	}
 
-	pruneReport, err := ir.backend.ImagesPrune(ctx, pruneFilters)
+	pruneReport, err := ir.backend.ImagePrune(ctx, pruneFilters)
 	if err != nil {
 		return err
 	}

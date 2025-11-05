@@ -14,13 +14,13 @@ type NetworkPruneOptions struct {
 	Filters Filters
 }
 
-// NetworkPruneResult holds the result from the [Client.NetworksPrune] method.
+// NetworkPruneResult holds the result from the [Client.NetworkPrune] method.
 type NetworkPruneResult struct {
 	Report network.PruneReport
 }
 
-// NetworksPrune requests the daemon to delete unused networks
-func (cli *Client) NetworksPrune(ctx context.Context, opts NetworkPruneOptions) (NetworkPruneResult, error) {
+// NetworkPrune requests the daemon to delete unused networks
+func (cli *Client) NetworkPrune(ctx context.Context, opts NetworkPruneOptions) (NetworkPruneResult, error) {
 	query := url.Values{}
 	opts.Filters.updateURLValues(query)
 

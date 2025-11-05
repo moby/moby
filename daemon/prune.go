@@ -31,8 +31,8 @@ var (
 	}
 )
 
-// ContainersPrune removes unused containers
-func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.Args) (*container.PruneReport, error) {
+// ContainerPrune removes unused containers
+func (daemon *Daemon) ContainerPrune(ctx context.Context, pruneFilters filters.Args) (*container.PruneReport, error) {
 	if !daemon.pruneRunning.CompareAndSwap(false, true) {
 		return nil, errPruneRunning
 	}
@@ -56,7 +56,7 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 	for _, c := range allContainers {
 		select {
 		case <-ctx.Done():
-			log.G(ctx).Debugf("ContainersPrune operation cancelled: %#v", *rep)
+			log.G(ctx).Debugf("ContainerPrune operation cancelled: %#v", *rep)
 			return rep, nil
 		default:
 		}
@@ -90,8 +90,8 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 	return rep, nil
 }
 
-// localNetworksPrune removes unused local networks
-func (daemon *Daemon) localNetworksPrune(ctx context.Context, pruneFilters dnetwork.Filter) *network.PruneReport {
+// localNetworkPrune removes unused local networks
+func (daemon *Daemon) localNetworkPrune(ctx context.Context, pruneFilters dnetwork.Filter) *network.PruneReport {
 	rep := &network.PruneReport{}
 
 	// When the function returns true, the walk will stop.
@@ -126,8 +126,8 @@ func (daemon *Daemon) localNetworksPrune(ctx context.Context, pruneFilters dnetw
 
 var networkIsInUse = lazyregexp.New(`network ([[:alnum:]]+) is in use`)
 
-// clusterNetworksPrune removes unused cluster networks
-func (daemon *Daemon) clusterNetworksPrune(ctx context.Context, pruneFilters dnetwork.Filter) (*network.PruneReport, error) {
+// clusterNetworkPrune removes unused cluster networks
+func (daemon *Daemon) clusterNetworkPrune(ctx context.Context, pruneFilters dnetwork.Filter) (*network.PruneReport, error) {
 	rep := &network.PruneReport{}
 
 	cluster := daemon.GetCluster()
@@ -168,8 +168,8 @@ func (daemon *Daemon) clusterNetworksPrune(ctx context.Context, pruneFilters dne
 	return rep, nil
 }
 
-// NetworksPrune removes unused networks
-func (daemon *Daemon) NetworksPrune(ctx context.Context, filterArgs filters.Args) (*network.PruneReport, error) {
+// NetworkPrune removes unused networks
+func (daemon *Daemon) NetworkPrune(ctx context.Context, filterArgs filters.Args) (*network.PruneReport, error) {
 	if !daemon.pruneRunning.CompareAndSwap(false, true) {
 		return nil, errPruneRunning
 	}
@@ -181,16 +181,16 @@ func (daemon *Daemon) NetworksPrune(ctx context.Context, filterArgs filters.Args
 	}
 
 	rep := &network.PruneReport{}
-	if clusterRep, err := daemon.clusterNetworksPrune(ctx, pruneFilters); err == nil {
+	if clusterRep, err := daemon.clusterNetworkPrune(ctx, pruneFilters); err == nil {
 		rep.NetworksDeleted = append(rep.NetworksDeleted, clusterRep.NetworksDeleted...)
 	}
 
-	localRep := daemon.localNetworksPrune(ctx, pruneFilters)
+	localRep := daemon.localNetworkPrune(ctx, pruneFilters)
 	rep.NetworksDeleted = append(rep.NetworksDeleted, localRep.NetworksDeleted...)
 
 	select {
 	case <-ctx.Done():
-		log.G(ctx).Debugf("NetworksPrune operation cancelled: %#v", *rep)
+		log.G(ctx).Debugf("NetworkPrune operation cancelled: %#v", *rep)
 		return rep, nil
 	default:
 	}

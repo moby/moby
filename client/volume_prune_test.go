@@ -79,7 +79,7 @@ func TestVolumePrune(t *testing.T) {
 			}))
 			assert.NilError(t, err)
 
-			_, err = client.VolumesPrune(t.Context(), tc.opts)
+			_, err = client.VolumePrune(t.Context(), tc.opts)
 			if tc.expectedError != "" {
 				assert.Check(t, is.ErrorType(err, errdefs.IsInvalidArgument))
 				assert.Check(t, is.Error(err, tc.expectedError))

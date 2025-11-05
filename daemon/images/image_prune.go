@@ -31,8 +31,8 @@ var imagesAcceptedFilters = map[string]bool{
 // one is in progress
 var errPruneRunning = errdefs.Conflict(errors.New("a prune operation is already running"))
 
-// ImagesPrune removes unused images
-func (i *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*imagetypes.PruneReport, error) {
+// ImagePrune removes unused images
+func (i *ImageService) ImagePrune(ctx context.Context, pruneFilters filters.Args) (*imagetypes.PruneReport, error) {
 	if !i.pruneRunning.CompareAndSwap(false, true) {
 		return nil, errPruneRunning
 	}
@@ -148,7 +148,7 @@ deleteImagesLoop:
 	}
 
 	if canceled {
-		log.G(ctx).Debugf("ImagesPrune operation cancelled: %#v", *rep)
+		log.G(ctx).Debugf("ImagePrune operation cancelled: %#v", *rep)
 	}
 	i.eventsService.Log(events.ActionPrune, events.ImageEventType, events.Actor{
 		Attributes: map[string]string{

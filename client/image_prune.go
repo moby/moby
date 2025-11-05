@@ -14,13 +14,13 @@ type ImagePruneOptions struct {
 	Filters Filters
 }
 
-// ImagePruneResult holds the result from the [Client.ImagesPrune] method.
+// ImagePruneResult holds the result from the [Client.ImagePrune] method.
 type ImagePruneResult struct {
 	Report image.PruneReport
 }
 
-// ImagesPrune requests the daemon to delete unused data
-func (cli *Client) ImagesPrune(ctx context.Context, opts ImagePruneOptions) (ImagePruneResult, error) {
+// ImagePrune requests the daemon to delete unused data
+func (cli *Client) ImagePrune(ctx context.Context, opts ImagePruneOptions) (ImagePruneResult, error) {
 	query := url.Values{}
 	opts.Filters.updateURLValues(query)
 

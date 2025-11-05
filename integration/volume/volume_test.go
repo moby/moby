@@ -273,7 +273,7 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	namedV := created.Volume
 
 	// Prune anonymous volumes
-	prune, err := apiClient.VolumesPrune(ctx, client.VolumePruneOptions{})
+	prune, err := apiClient.VolumePrune(ctx, client.VolumePruneOptions{})
 	assert.NilError(t, err)
 	report := prune.Report
 	assert.Check(t, is.Equal(len(report.VolumesDeleted), 1))
@@ -285,7 +285,7 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	// Prune all volumes
 	_, err = apiClient.VolumeCreate(ctx, client.VolumeCreateOptions{})
 	assert.NilError(t, err)
-	prune, err = apiClient.VolumesPrune(ctx, client.VolumePruneOptions{
+	prune, err = apiClient.VolumePrune(ctx, client.VolumePruneOptions{
 		All: true,
 	})
 	assert.NilError(t, err)
@@ -297,7 +297,7 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	_, err = apiClient.VolumeCreate(ctx, client.VolumeCreateOptions{Name: "test"})
 	assert.NilError(t, err)
 
-	prune, err = apiClient.VolumesPrune(ctx, client.VolumePruneOptions{
+	prune, err = apiClient.VolumePrune(ctx, client.VolumePruneOptions{
 		All: true,
 	})
 
@@ -318,7 +318,7 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	assert.NilError(t, err)
 	namedV = created.Volume
 
-	prune, err = clientOld.VolumesPrune(ctx, client.VolumePruneOptions{})
+	prune, err = clientOld.VolumePrune(ctx, client.VolumePruneOptions{})
 	assert.NilError(t, err)
 	report = prune.Report
 	assert.Check(t, is.Equal(len(report.VolumesDeleted), 2))
@@ -354,7 +354,7 @@ VOLUME ` + volDest
 	_, err = apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{})
 	assert.NilError(t, err)
 
-	res, err := apiClient.VolumesPrune(ctx, client.VolumePruneOptions{})
+	res, err := apiClient.VolumePrune(ctx, client.VolumePruneOptions{})
 	assert.NilError(t, err)
 	assert.Assert(t, is.Contains(res.Report.VolumesDeleted, volumeName))
 }
