@@ -2,10 +2,16 @@ package client
 
 import (
 	"context"
+	"io"
 	"net/url"
 
 	"github.com/distribution/reference"
 )
+
+// ImageImportResult holds the response body returned by the daemon for image import.
+type ImageImportResult interface {
+	io.ReadCloser
+}
 
 // ImageImport creates a new image based on the source options.
 // It returns the JSON content in the response body.
@@ -13,7 +19,7 @@ func (cli *Client) ImageImport(ctx context.Context, source ImageImportSource, re
 	if ref != "" {
 		// Check if the given image name can be resolved
 		if _, err := reference.ParseNormalizedNamed(ref); err != nil {
-			return ImageImportResult{}, err
+			return nil, err
 		}
 	}
 
@@ -40,7 +46,32 @@ func (cli *Client) ImageImport(ctx context.Context, source ImageImportSource, re
 
 	resp, err := cli.postRaw(ctx, "/images/create", query, source.Source, nil)
 	if err != nil {
-		return ImageImportResult{}, err
+		return nil, err
 	}
-	return ImageImportResult{rc: resp.Body}, nil
+	return &imageImportResult{body: resp.Body}, nil
+}
+
+// ImageImportResult holds the response body returned by the daemon for image import.
+type imageImportResult struct {
+	// body must be closed to avoid a resource leak
+	body io.ReadCloser
+}
+
+var (
+	_ io.ReadCloser     = (*imageImportResult)(nil)
+	_ ImageImportResult = (*imageImportResult)(nil)
+)
+
+func (r *imageImportResult) Read(p []byte) (int, error) {
+	if r == nil || r.body == nil {
+		return 0, io.EOF
+	}
+	return r.body.Read(p)
+}
+
+func (r *imageImportResult) Close() error {
+	if r == nil || r.body == nil {
+		return nil
+	}
+	return r.body.Close()
 }

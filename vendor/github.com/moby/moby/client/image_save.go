@@ -2,8 +2,13 @@ package client
 
 import (
 	"context"
+	"io"
 	"net/url"
 )
+
+type ImageSaveResult interface {
+	io.ReadCloser
+}
 
 // ImageSave retrieves one or more images from the docker host as an
 // [ImageSaveResult].
@@ -15,7 +20,7 @@ func (cli *Client) ImageSave(ctx context.Context, imageIDs []string, saveOpts ..
 	var opts imageSaveOpts
 	for _, opt := range saveOpts {
 		if err := opt.Apply(&opts); err != nil {
-			return ImageSaveResult{}, err
+			return nil, err
 		}
 	}
 
@@ -25,18 +30,44 @@ func (cli *Client) ImageSave(ctx context.Context, imageIDs []string, saveOpts ..
 
 	if len(opts.apiOptions.Platforms) > 0 {
 		if err := cli.requiresVersion(ctx, "1.48", "platform"); err != nil {
-			return ImageSaveResult{}, err
+			return nil, err
 		}
 		p, err := encodePlatforms(opts.apiOptions.Platforms...)
 		if err != nil {
-			return ImageSaveResult{}, err
+			return nil, err
 		}
 		query["platform"] = p
 	}
 
 	resp, err := cli.get(ctx, "/images/get", query, nil)
 	if err != nil {
-		return ImageSaveResult{}, err
+		return nil, err
 	}
-	return newImageSaveResult(resp.Body), nil
+	return &imageSaveResult{
+		body: resp.Body,
+	}, nil
+}
+
+type imageSaveResult struct {
+	// body must be closed to avoid a resource leak
+	body io.ReadCloser
+}
+
+var (
+	_ io.ReadCloser   = (*imageSaveResult)(nil)
+	_ ImageSaveResult = (*imageSaveResult)(nil)
+)
+
+func (r *imageSaveResult) Read(p []byte) (int, error) {
+	if r == nil || r.body == nil {
+		return 0, io.EOF
+	}
+	return r.body.Read(p)
+}
+
+func (r *imageSaveResult) Close() error {
+	if r == nil || r.body == nil {
+		return nil
+	}
+	return r.body.Close()
 }

@@ -38,6 +38,10 @@ func ImageLoadWithQuiet(quiet bool) ImageLoadOption {
 }
 
 // ImageLoadWithPlatforms sets the platforms to be loaded from the image.
+//
+// Platform is an optional parameter that specifies the platform to load from
+// the provided multi-platform image. Passing a platform only has an effect
+// if the input image is a multi-platform image.
 func ImageLoadWithPlatforms(platforms ...ocispec.Platform) ImageLoadOption {
 	return imageLoadOptionFunc(func(opt *imageLoadOpts) error {
 		if opt.apiOptions.Platforms != nil {
