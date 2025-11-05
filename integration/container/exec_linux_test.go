@@ -20,8 +20,11 @@ func TestExecConsoleSize(t *testing.T) {
 
 	result, err := container.Exec(ctx, apiClient, cID, []string{"stty", "size"},
 		func(ec *client.ExecCreateOptions) {
-			ec.Tty = true
-			ec.ConsoleSize = &[2]uint{57, 123}
+			ec.TTY = true
+			ec.ConsoleSize = client.ConsoleSize{
+				Height: 57,
+				Width:  123,
+			}
 		},
 	)
 
