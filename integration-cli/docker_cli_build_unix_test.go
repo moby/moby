@@ -33,7 +33,18 @@ func (s *DockerCLIBuildSuite) TestBuildResourceConstraintsAreUsed(c *testing.T) 
 	RUN ["/hello"]
 	`))
 	cli.Docker(
-		cli.Args("build", "--no-cache", "--rm=false", "--memory=64m", "--memory-swap=-1", "--cpuset-cpus=0", "--cpuset-mems=0", "--cpu-shares=100", "--cpu-quota=8000", "--ulimit", "nofile=42", "--label="+buildLabel, "-t", name, "."),
+		cli.Args("build",
+			"--no-cache",
+			"--rm=false",
+			"--memory=64m",
+			"--memory-swap=-1",
+			"--cpuset-cpus=0",
+			"--cpuset-mems=0",
+			"--cpu-shares=100",
+			"--cpu-quota=8000",
+			"--ulimit", "nofile=50",
+			"--label="+buildLabel,
+			"-t", name, "."),
 		cli.InDir(ctx.Dir),
 	).Assert(c, icmd.Success)
 
@@ -63,7 +74,7 @@ func (s *DockerCLIBuildSuite) TestBuildResourceConstraintsAreUsed(c *testing.T) 
 	assert.Equal(c, c1.CPUShares, int64(100), "resource constraints not set properly for CPUShares")
 	assert.Equal(c, c1.CPUQuota, int64(8000), "resource constraints not set properly for CPUQuota")
 	assert.Equal(c, c1.Ulimits[0].Name, "nofile", "resource constraints not set properly for Ulimits")
-	assert.Equal(c, c1.Ulimits[0].Hard, int64(42), "resource constraints not set properly for Ulimits")
+	assert.Equal(c, c1.Ulimits[0].Hard, int64(50), "resource constraints not set properly for Ulimits")
 
 	// Make sure constraints aren't saved to image
 	cli.DockerCmd(c, "run", "--name=test", name)

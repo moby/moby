@@ -391,7 +391,7 @@ func deleteInterface(t *testing.T, ifName string) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonUlimitDefaults(c *testing.T) {
-	s.d.StartWithBusybox(testutil.GetContext(c), c, "--default-ulimit", "nofile=42:42", "--default-ulimit", "nproc=1024:1024")
+	s.d.StartWithBusybox(testutil.GetContext(c), c, "--default-ulimit", "nofile=50:50", "--default-ulimit", "nproc=1024:1024")
 
 	out, err := s.d.Cmd("run", "--ulimit", "nproc=2048", "--name=test", "busybox", "/bin/sh", "-c", "echo $(ulimit -n); echo $(ulimit -u)")
 	if err != nil {
@@ -405,15 +405,15 @@ func (s *DockerDaemonSuite) TestDaemonUlimitDefaults(c *testing.T) {
 	nofile := strings.TrimSpace(outArr[0])
 	nproc := strings.TrimSpace(outArr[1])
 
-	if nofile != "42" {
-		c.Fatalf("expected `ulimit -n` to be `42`, got: %s", nofile)
+	if nofile != "50" {
+		c.Fatalf("expected `ulimit -n` to be `50`, got: %s", nofile)
 	}
 	if nproc != "2048" {
 		c.Fatalf("expected `ulimit -u` to be 2048, got: %s", nproc)
 	}
 
 	// Now restart daemon with a new default
-	s.d.Restart(c, "--default-ulimit", "nofile=43")
+	s.d.Restart(c, "--default-ulimit", "nofile=50")
 
 	out, err = s.d.Cmd("start", "-a", "test")
 	if err != nil {
@@ -427,8 +427,8 @@ func (s *DockerDaemonSuite) TestDaemonUlimitDefaults(c *testing.T) {
 	nofile = strings.TrimSpace(outArr[0])
 	nproc = strings.TrimSpace(outArr[1])
 
-	if nofile != "43" {
-		c.Fatalf("expected `ulimit -n` to be `43`, got: %s", nofile)
+	if nofile != "50" {
+		c.Fatalf("expected `ulimit -n` to be `50`, got: %s", nofile)
 	}
 	if nproc != "2048" {
 		c.Fatalf("expected `ulimit -u` to be 2048, got: %s", nproc)
