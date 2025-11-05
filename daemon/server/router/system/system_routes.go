@@ -163,11 +163,11 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 
 	eg, ctx := errgroup.WithContext(ctx)
 
-	var systemDiskUsage *backend.DiskUsage
+	var du *backend.DiskUsage
 	if getContainers || getImages || getVolumes {
 		eg.Go(func() error {
 			var err error
-			systemDiskUsage, err = s.backend.SystemDiskUsage(ctx, backend.DiskUsageOptions{
+			du, err = s.backend.SystemDiskUsage(ctx, backend.DiskUsageOptions{
 				Containers: getContainers,
 				Images:     getImages,
 				Volumes:    getVolumes,
@@ -197,40 +197,20 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		return err
 	}
 
-	var builderSize int64
-	if versions.LessThan(version, "1.42") {
-		for _, b := range buildCache {
-			builderSize += b.Size
-		}
-	}
-
-	du := backend.DiskUsage{}
-	if getBuildCache {
-		du.BuildCache = &backend.BuildCacheDiskUsage{
-			TotalSize: builderSize,
-			Items:     buildCache,
-		}
-	}
-	if systemDiskUsage != nil {
-		du.Images = systemDiskUsage.Images
-		du.Containers = systemDiskUsage.Containers
-		du.Volumes = systemDiskUsage.Volumes
-	}
-
 	// Use the old struct for the API return value.
 	var v system.DiskUsage
-	if du.Images != nil {
+	if du != nil && du.Images != nil {
 		v.LayersSize = du.Images.TotalSize
 		v.Images = du.Images.Items
 	}
-	if du.Containers != nil {
+	if du != nil && du.Containers != nil {
 		v.Containers = du.Containers.Items
 	}
-	if du.Volumes != nil {
+	if du != nil && du.Volumes != nil {
 		v.Volumes = du.Volumes.Items
 	}
-	if du.BuildCache != nil {
-		v.BuildCache = du.BuildCache.Items
+	if getBuildCache {
+		v.BuildCache = buildCache
 	}
 	return httputils.WriteJSON(w, http.StatusOK, v)
 }
