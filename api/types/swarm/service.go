@@ -118,11 +118,15 @@ const (
 	UpdateFailureActionRollback FailureAction = "rollback"
 )
 
+// UpdateOrder is the order of operations when rolling out or rolling back
+// an updated tasks for a service.
+type UpdateOrder string
+
 const (
 	// UpdateOrderStopFirst STOP_FIRST
-	UpdateOrderStopFirst = "stop-first"
+	UpdateOrderStopFirst UpdateOrder = "stop-first"
 	// UpdateOrderStartFirst START_FIRST
-	UpdateOrderStartFirst = "start-first"
+	UpdateOrderStartFirst UpdateOrder = "start-first"
 )
 
 // UpdateConfig represents the update configuration.
@@ -161,7 +165,7 @@ type UpdateConfig struct {
 	// Order indicates the order of operations when rolling out an updated
 	// task. Either the old task is shut down before the new task is
 	// started, or the new task is started before the old task is shut down.
-	Order string
+	Order UpdateOrder
 }
 
 // ServiceStatus represents the number of running tasks in a service and the

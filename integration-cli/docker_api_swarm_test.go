@@ -678,7 +678,7 @@ func setInstances(replicas int) testdaemon.ServiceConstructor {
 	}
 }
 
-func setUpdateOrder(order string) testdaemon.ServiceConstructor {
+func setUpdateOrder(order swarm.UpdateOrder) testdaemon.ServiceConstructor {
 	return func(s *swarm.Service) {
 		if s.Spec.UpdateConfig == nil {
 			s.Spec.UpdateConfig = &swarm.UpdateConfig{}
@@ -687,7 +687,7 @@ func setUpdateOrder(order string) testdaemon.ServiceConstructor {
 	}
 }
 
-func setRollbackOrder(order string) testdaemon.ServiceConstructor {
+func setRollbackOrder(order swarm.UpdateOrder) testdaemon.ServiceConstructor {
 	return func(s *swarm.Service) {
 		if s.Spec.RollbackConfig == nil {
 			s.Spec.RollbackConfig = &swarm.UpdateConfig{}
