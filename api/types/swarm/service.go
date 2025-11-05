@@ -106,14 +106,19 @@ type ReplicatedJob struct {
 // This type is deliberately empty.
 type GlobalJob struct{}
 
+// FailureAction is the action to perform when updating a service fails.
+type FailureAction string
+
 const (
 	// UpdateFailureActionPause PAUSE
-	UpdateFailureActionPause = "pause"
+	UpdateFailureActionPause FailureAction = "pause"
 	// UpdateFailureActionContinue CONTINUE
-	UpdateFailureActionContinue = "continue"
+	UpdateFailureActionContinue FailureAction = "continue"
 	// UpdateFailureActionRollback ROLLBACK
-	UpdateFailureActionRollback = "rollback"
+	UpdateFailureActionRollback FailureAction = "rollback"
+)
 
+const (
 	// UpdateOrderStopFirst STOP_FIRST
 	UpdateOrderStopFirst = "stop-first"
 	// UpdateOrderStartFirst START_FIRST
@@ -130,7 +135,7 @@ type UpdateConfig struct {
 	Delay time.Duration `json:",omitempty"`
 
 	// FailureAction is the action to take when an update failures.
-	FailureAction string `json:",omitempty"`
+	FailureAction FailureAction `json:",omitempty"`
 
 	// Monitor indicates how long to monitor a task for failure after it is
 	// created. If the task fails by ending up in one of the states

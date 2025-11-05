@@ -705,7 +705,7 @@ func setImage(image string) testdaemon.ServiceConstructor {
 	}
 }
 
-func setFailureAction(failureAction string) testdaemon.ServiceConstructor {
+func setFailureAction(failureAction swarm.FailureAction) testdaemon.ServiceConstructor {
 	return func(s *swarm.Service) {
 		s.Spec.UpdateConfig.FailureAction = failureAction
 	}
