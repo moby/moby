@@ -207,8 +207,12 @@ type JobStatus struct {
 	LastExecution time.Time `json:",omitempty"`
 }
 
+// RegistryAuthSource defines options for the "registryAuthFrom" query parameter
+// on service update.
+type RegistryAuthSource string
+
 // Values for RegistryAuthFrom in ServiceUpdateOptions
 const (
-	RegistryAuthFromSpec         = "spec"
-	RegistryAuthFromPreviousSpec = "previous-spec"
+	RegistryAuthFromSpec         RegistryAuthSource = "spec"
+	RegistryAuthFromPreviousSpec RegistryAuthSource = "previous-spec"
 )
