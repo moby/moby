@@ -88,7 +88,7 @@ func ipamFromGRPC(i *swarmapi.IPAMOptions) *types.IPAMOptions {
 		}
 
 		for _, config := range i.Configs {
-			// Best-effort parse of user suppplied values that have
+			// Best-effort parse of user supplied values that have
 			// been round-tripped through Swarm's Raft store. It is
 			// far too late to reject bogus values.
 			subnet, _ := netiputil.ParseCIDR(config.Subnet)
@@ -162,7 +162,7 @@ func BasicNetworkFromGRPC(n swarmapi.Network) network.Network {
 		}
 		ipam.Config = make([]network.IPAMConfig, 0, len(n.IPAM.Configs))
 		for _, ic := range n.IPAM.Configs {
-			// Best-effort parse of user suppplied values that have
+			// Best-effort parse of user supplied values that have
 			// been round-tripped through Swarm's Raft store. It is
 			// far too late to reject bogus values.
 			subnet, _ := netiputil.ParseCIDR(ic.Subnet)

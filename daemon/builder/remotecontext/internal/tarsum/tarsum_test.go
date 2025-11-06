@@ -297,7 +297,7 @@ var (
 	sha512Hash = NewTHash("sha512", sha512.New)
 )
 
-// Test all the build-in read size : buf8K, buf16K, buf32K and more
+// Test all the built-in read size : buf8K, buf16K, buf32K and more
 func TestTarSumsReadSize(t *testing.T) {
 	// Test always on the same layer (that is big enough)
 	layer := testLayers[0]

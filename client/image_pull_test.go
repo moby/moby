@@ -215,7 +215,7 @@ func TestImagePullResponse(t *testing.T) {
 		t.Fatal("expected message not received")
 	}
 
-	// Check context cancelation
+	// Check context cancellation
 	cancel()
 	ctxTO2, toCancel2 := context.WithTimeout(t.Context(), 100*time.Millisecond)
 	defer toCancel2()
