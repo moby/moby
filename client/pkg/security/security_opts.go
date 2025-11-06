@@ -1,8 +1,6 @@
 package security
 
 import (
-	"errors"
-	"fmt"
 	"strings"
 )
 
@@ -19,22 +17,14 @@ type KeyValue struct {
 
 // DecodeOptions decodes a security options string slice to a
 // type-safe [Option].
-func DecodeOptions(opts []string) ([]Option, error) {
-	so := []Option{}
+func DecodeOptions(opts []string) []Option {
+	so := make([]Option, 0, len(opts))
 	for _, opt := range opts {
-		// support output from a < 1.13 docker daemon
-		if !strings.Contains(opt, "=") {
-			so = append(so, Option{Name: opt})
-			continue
-		}
 		secopt := Option{}
 		for _, s := range strings.Split(opt, ",") {
-			k, v, ok := strings.Cut(s, "=")
-			if !ok {
-				return nil, fmt.Errorf("invalid security option %q", s)
-			}
-			if k == "" || v == "" {
-				return nil, errors.New("invalid empty security option")
+			k, v, _ := strings.Cut(s, "=")
+			if k == "" {
+				continue
 			}
 			if k == "name" {
 				secopt.Name = v
@@ -42,7 +32,9 @@ func DecodeOptions(opts []string) ([]Option, error) {
 			}
 			secopt.Options = append(secopt.Options, KeyValue{Key: k, Value: v})
 		}
-		so = append(so, secopt)
+		if secopt.Name != "" {
+			so = append(so, secopt)
+		}
 	}
-	return so, nil
+	return so
 }
