@@ -17,8 +17,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/opencontainers/selinux/pkg/pwalkdir"
+	"github.com/cyphar/filepath-securejoin/pathrs-lite"
+	"github.com/cyphar/filepath-securejoin/pathrs-lite/procfs"
 	"golang.org/x/sys/unix"
+
+	"github.com/opencontainers/selinux/pkg/pwalkdir"
 )
 
 const (
@@ -72,10 +75,6 @@ var (
 	state             = selinuxState{
 		mcsList: make(map[string]bool),
 	}
-
-	// for attrPath()
-	attrPathOnce   sync.Once
-	haveThreadSelf bool
 
 	// for policyRoot()
 	policyRootOnce sync.Once
@@ -256,48 +255,183 @@ func readConfig(target string) string {
 	return ""
 }
 
-func isProcHandle(fh *os.File) error {
-	var buf unix.Statfs_t
-
-	for {
-		err := unix.Fstatfs(int(fh.Fd()), &buf)
-		if err == nil {
-			break
-		}
-		if err != unix.EINTR {
-			return &os.PathError{Op: "fstatfs", Path: fh.Name(), Err: err}
-		}
-	}
-	if buf.Type != unix.PROC_SUPER_MAGIC {
-		return fmt.Errorf("file %q is not on procfs", fh.Name())
-	}
-
-	return nil
-}
-
-func readCon(fpath string) (string, error) {
-	if fpath == "" {
-		return "", ErrEmptyPath
-	}
-
-	in, err := os.Open(fpath)
-	if err != nil {
-		return "", err
-	}
-	defer in.Close()
-
-	if err := isProcHandle(in); err != nil {
-		return "", err
-	}
-	return readConFd(in)
-}
-
 func readConFd(in *os.File) (string, error) {
 	data, err := io.ReadAll(in)
 	if err != nil {
 		return "", err
 	}
 	return string(bytes.TrimSuffix(data, []byte{0})), nil
+}
+
+func writeConFd(out *os.File, val string) error {
+	var err error
+	if val != "" {
+		_, err = out.Write([]byte(val))
+	} else {
+		_, err = out.Write(nil)
+	}
+	return err
+}
+
+// openProcThreadSelf is a small wrapper around [procfs.Handle.OpenThreadSelf]
+// and [pathrs.Reopen] to make "one-shot opens" slightly more ergonomic. The
+// provided mode must be os.O_* flags to indicate what mode the returned file
+// should be opened with (flags like os.O_CREAT and os.O_EXCL are not
+// supported).
+//
+// If no error occurred, the returned handle is guaranteed to be exactly
+// /proc/thread-self/<subpath> with no tricky mounts or symlinks causing you to
+// operate on an unexpected path (with some caveats on pre-openat2 or
+// pre-fsopen kernels).
+func openProcThreadSelf(subpath string, mode int) (*os.File, procfs.ProcThreadSelfCloser, error) {
+	if subpath == "" {
+		return nil, nil, ErrEmptyPath
+	}
+
+	proc, err := procfs.OpenProcRoot()
+	if err != nil {
+		return nil, nil, err
+	}
+	defer proc.Close()
+
+	handle, closer, err := proc.OpenThreadSelf(subpath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("open /proc/thread-self/%s handle: %w", subpath, err)
+	}
+	defer handle.Close() // we will return a re-opened handle
+
+	file, err := pathrs.Reopen(handle, mode)
+	if err != nil {
+		closer()
+		return nil, nil, fmt.Errorf("reopen /proc/thread-self/%s handle (%#x): %w", subpath, mode, err)
+	}
+	return file, closer, nil
+}
+
+// Read the contents of /proc/thread-self/<fpath>.
+func readConThreadSelf(fpath string) (string, error) {
+	in, closer, err := openProcThreadSelf(fpath, os.O_RDONLY|unix.O_CLOEXEC)
+	if err != nil {
+		return "", err
+	}
+	defer closer()
+	defer in.Close()
+
+	return readConFd(in)
+}
+
+// Write <val> to /proc/thread-self/<fpath>.
+func writeConThreadSelf(fpath, val string) error {
+	if val == "" {
+		if !getEnabled() {
+			return nil
+		}
+	}
+
+	out, closer, err := openProcThreadSelf(fpath, os.O_WRONLY|unix.O_CLOEXEC)
+	if err != nil {
+		return err
+	}
+	defer closer()
+	defer out.Close()
+
+	return writeConFd(out, val)
+}
+
+// openProcSelf is a small wrapper around [procfs.Handle.OpenSelf] and
+// [pathrs.Reopen] to make "one-shot opens" slightly more ergonomic. The
+// provided mode must be os.O_* flags to indicate what mode the returned file
+// should be opened with (flags like os.O_CREAT and os.O_EXCL are not
+// supported).
+//
+// If no error occurred, the returned handle is guaranteed to be exactly
+// /proc/self/<subpath> with no tricky mounts or symlinks causing you to
+// operate on an unexpected path (with some caveats on pre-openat2 or
+// pre-fsopen kernels).
+func openProcSelf(subpath string, mode int) (*os.File, error) {
+	if subpath == "" {
+		return nil, ErrEmptyPath
+	}
+
+	proc, err := procfs.OpenProcRoot()
+	if err != nil {
+		return nil, err
+	}
+	defer proc.Close()
+
+	handle, err := proc.OpenSelf(subpath)
+	if err != nil {
+		return nil, fmt.Errorf("open /proc/self/%s handle: %w", subpath, err)
+	}
+	defer handle.Close() // we will return a re-opened handle
+
+	file, err := pathrs.Reopen(handle, mode)
+	if err != nil {
+		return nil, fmt.Errorf("reopen /proc/self/%s handle (%#x): %w", subpath, mode, err)
+	}
+	return file, nil
+}
+
+// Read the contents of /proc/self/<fpath>.
+func readConSelf(fpath string) (string, error) {
+	in, err := openProcSelf(fpath, os.O_RDONLY|unix.O_CLOEXEC)
+	if err != nil {
+		return "", err
+	}
+	defer in.Close()
+
+	return readConFd(in)
+}
+
+// Write <val> to /proc/self/<fpath>.
+func writeConSelf(fpath, val string) error {
+	if val == "" {
+		if !getEnabled() {
+			return nil
+		}
+	}
+
+	out, err := openProcSelf(fpath, os.O_WRONLY|unix.O_CLOEXEC)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	return writeConFd(out, val)
+}
+
+// openProcPid is a small wrapper around [procfs.Handle.OpenPid] and
+// [pathrs.Reopen] to make "one-shot opens" slightly more ergonomic. The
+// provided mode must be os.O_* flags to indicate what mode the returned file
+// should be opened with (flags like os.O_CREAT and os.O_EXCL are not
+// supported).
+//
+// If no error occurred, the returned handle is guaranteed to be exactly
+// /proc/self/<subpath> with no tricky mounts or symlinks causing you to
+// operate on an unexpected path (with some caveats on pre-openat2 or
+// pre-fsopen kernels).
+func openProcPid(pid int, subpath string, mode int) (*os.File, error) {
+	if subpath == "" {
+		return nil, ErrEmptyPath
+	}
+
+	proc, err := procfs.OpenProcRoot()
+	if err != nil {
+		return nil, err
+	}
+	defer proc.Close()
+
+	handle, err := proc.OpenPid(pid, subpath)
+	if err != nil {
+		return nil, fmt.Errorf("open /proc/%d/%s handle: %w", pid, subpath, err)
+	}
+	defer handle.Close() // we will return a re-opened handle
+
+	file, err := pathrs.Reopen(handle, mode)
+	if err != nil {
+		return nil, fmt.Errorf("reopen /proc/%d/%s handle (%#x): %w", pid, subpath, mode, err)
+	}
+	return file, nil
 }
 
 // classIndex returns the int index for an object class in the loaded policy,
@@ -393,78 +527,34 @@ func lFileLabel(fpath string) (string, error) {
 }
 
 func setFSCreateLabel(label string) error {
-	return writeCon(attrPath("fscreate"), label)
+	return writeConThreadSelf("attr/fscreate", label)
 }
 
 // fsCreateLabel returns the default label the kernel which the kernel is using
 // for file system objects created by this task. "" indicates default.
 func fsCreateLabel() (string, error) {
-	return readCon(attrPath("fscreate"))
+	return readConThreadSelf("attr/fscreate")
 }
 
 // currentLabel returns the SELinux label of the current process thread, or an error.
 func currentLabel() (string, error) {
-	return readCon(attrPath("current"))
+	return readConThreadSelf("attr/current")
 }
 
 // pidLabel returns the SELinux label of the given pid, or an error.
 func pidLabel(pid int) (string, error) {
-	return readCon(fmt.Sprintf("/proc/%d/attr/current", pid))
+	it, err := openProcPid(pid, "attr/current", os.O_RDONLY|unix.O_CLOEXEC)
+	if err != nil {
+		return "", nil
+	}
+	defer it.Close()
+	return readConFd(it)
 }
 
 // ExecLabel returns the SELinux label that the kernel will use for any programs
 // that are executed by the current process thread, or an error.
 func execLabel() (string, error) {
-	return readCon(attrPath("exec"))
-}
-
-func writeCon(fpath, val string) error {
-	if fpath == "" {
-		return ErrEmptyPath
-	}
-	if val == "" {
-		if !getEnabled() {
-			return nil
-		}
-	}
-
-	out, err := os.OpenFile(fpath, os.O_WRONLY, 0)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	if err := isProcHandle(out); err != nil {
-		return err
-	}
-
-	if val != "" {
-		_, err = out.Write([]byte(val))
-	} else {
-		_, err = out.Write(nil)
-	}
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func attrPath(attr string) string {
-	// Linux >= 3.17 provides this
-	const threadSelfPrefix = "/proc/thread-self/attr"
-
-	attrPathOnce.Do(func() {
-		st, err := os.Stat(threadSelfPrefix)
-		if err == nil && st.Mode().IsDir() {
-			haveThreadSelf = true
-		}
-	})
-
-	if haveThreadSelf {
-		return filepath.Join(threadSelfPrefix, attr)
-	}
-
-	return filepath.Join("/proc/self/task", strconv.Itoa(unix.Gettid()), "attr", attr)
+	return readConThreadSelf("exec")
 }
 
 // canonicalizeContext takes a context string and writes it to the kernel
@@ -728,17 +818,27 @@ func peerLabel(fd uintptr) (string, error) {
 // setKeyLabel takes a process label and tells the kernel to assign the
 // label to the next kernel keyring that gets created
 func setKeyLabel(label string) error {
-	err := writeCon("/proc/self/attr/keycreate", label)
+	// Rather than using /proc/thread-self, we want to use /proc/self to
+	// operate on the thread-group leader.
+	err := writeConSelf("attr/keycreate", label)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
 	if label == "" && errors.Is(err, os.ErrPermission) {
 		return nil
 	}
-	if errors.Is(err, unix.EACCES) && unix.Getuid() != unix.Gettid() {
+	if errors.Is(err, unix.EACCES) && unix.Getpid() != unix.Gettid() {
 		return ErrNotTGLeader
 	}
 	return err
+}
+
+// KeyLabel retrieves the current kernel keyring label setting for this
+// thread-group.
+func keyLabel() (string, error) {
+	// Rather than using /proc/thread-self, we want to use /proc/self to
+	// operate on the thread-group leader.
+	return readConSelf("attr/keycreate")
 }
 
 // get returns the Context as a string

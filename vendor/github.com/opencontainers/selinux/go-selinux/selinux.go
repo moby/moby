@@ -153,7 +153,7 @@ func CalculateGlbLub(sourceRange, targetRange string) (string, error) {
 // of the program is finished to guarantee another goroutine does not migrate to the current
 // thread before execution is complete.
 func SetExecLabel(label string) error {
-	return writeCon(attrPath("exec"), label)
+	return writeConThreadSelf("attr/exec", label)
 }
 
 // SetTaskLabel sets the SELinux label for the current thread, or an error.
@@ -161,7 +161,7 @@ func SetExecLabel(label string) error {
 // be wrapped in runtime.LockOSThread()/runtime.UnlockOSThread() to guarantee
 // the current thread does not run in a new mislabeled thread.
 func SetTaskLabel(label string) error {
-	return writeCon(attrPath("current"), label)
+	return writeConThreadSelf("attr/current", label)
 }
 
 // SetSocketLabel takes a process label and tells the kernel to assign the
@@ -170,12 +170,12 @@ func SetTaskLabel(label string) error {
 // the socket is created to guarantee another goroutine does not migrate
 // to the current thread before execution is complete.
 func SetSocketLabel(label string) error {
-	return writeCon(attrPath("sockcreate"), label)
+	return writeConThreadSelf("attr/sockcreate", label)
 }
 
 // SocketLabel retrieves the current socket label setting
 func SocketLabel() (string, error) {
-	return readCon(attrPath("sockcreate"))
+	return readConThreadSelf("attr/sockcreate")
 }
 
 // PeerLabel retrieves the label of the client on the other side of a socket
@@ -198,7 +198,7 @@ func SetKeyLabel(label string) error {
 
 // KeyLabel retrieves the current kernel keyring label setting
 func KeyLabel() (string, error) {
-	return readCon("/proc/self/attr/keycreate")
+	return keyLabel()
 }
 
 // Get returns the Context as a string

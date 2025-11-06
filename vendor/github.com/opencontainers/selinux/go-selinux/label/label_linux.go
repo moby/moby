@@ -18,7 +18,7 @@ var validOptions = map[string]bool{
 	"level":    true,
 }
 
-var ErrIncompatibleLabel = errors.New("Bad SELinux option z and Z can not be used together")
+var ErrIncompatibleLabel = errors.New("bad SELinux option: z and Z can not be used together")
 
 // InitLabels returns the process label and file labels to be used within
 // the container.  A list of options can be passed into this function to alter
@@ -52,11 +52,11 @@ func InitLabels(options []string) (plabel string, mlabel string, retErr error) {
 				return "", selinux.PrivContainerMountLabel(), nil
 			}
 			if i := strings.Index(opt, ":"); i == -1 {
-				return "", "", fmt.Errorf("Bad label option %q, valid options 'disable' or \n'user, role, level, type, filetype' followed by ':' and a value", opt)
+				return "", "", fmt.Errorf("bad label option %q, valid options 'disable' or \n'user, role, level, type, filetype' followed by ':' and a value", opt)
 			}
 			con := strings.SplitN(opt, ":", 2)
 			if !validOptions[con[0]] {
-				return "", "", fmt.Errorf("Bad label option %q, valid options 'disable, user, role, level, type, filetype'", con[0])
+				return "", "", fmt.Errorf("bad label option %q, valid options 'disable, user, role, level, type, filetype'", con[0])
 			}
 			if con[0] == "filetype" {
 				mcon["type"] = con[1]
