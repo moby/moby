@@ -659,9 +659,9 @@ func withErrorCheck(r *request, resp *http.Response) error {
 
 var errContentRangeIgnored = errors.New("content range requests ignored")
 
-func withOffsetCheck(offset int64) doChecks {
+func withOffsetCheck(offset, parallelism int64) doChecks {
 	return func(r *request, resp *http.Response) error {
-		if offset == 0 {
+		if parallelism <= 1 && offset == 0 {
 			return nil
 		}
 		if resp.StatusCode == http.StatusPartialContent {
