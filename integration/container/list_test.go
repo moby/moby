@@ -47,22 +47,27 @@ func TestContainerList(t *testing.T) {
 func TestContainerList_Annotations(t *testing.T) {
 	ctx := setupTest(t)
 
-	annotations := map[string]string{
-		"foo":                       "bar",
-		"io.kubernetes.docker.type": "container",
-	}
 	testcases := []struct {
 		apiVersion          string
 		expectedAnnotations map[string]string
 	}{
-		{apiVersion: "1.44", expectedAnnotations: nil},
-		{apiVersion: "1.46", expectedAnnotations: annotations},
+		{
+			apiVersion:          "1.44",
+			expectedAnnotations: nil,
+		},
+		{
+			apiVersion: "1.46",
+			expectedAnnotations: map[string]string{
+				"foo":                       "bar",
+				"io.kubernetes.docker.type": "container",
+			},
+		},
 	}
 
 	for _, tc := range testcases {
 		t.Run(fmt.Sprintf("run with version v%s", tc.apiVersion), func(t *testing.T) {
 			apiClient := request.NewAPIClient(t, client.WithAPIVersion(tc.apiVersion))
-			id := container.Create(ctx, t, apiClient, container.WithAnnotations(annotations))
+			id := container.Create(ctx, t, apiClient, container.WithAnnotations(tc.expectedAnnotations))
 			defer container.Remove(ctx, t, apiClient, id, client.ContainerRemoveOptions{Force: true})
 
 			list, err := apiClient.ContainerList(ctx, client.ContainerListOptions{

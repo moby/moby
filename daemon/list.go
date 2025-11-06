@@ -103,7 +103,7 @@ func (r byCreatedDescending) Less(i, j int) bool {
 }
 
 // Containers returns the list of containers to show given the user's filtering.
-func (daemon *Daemon) Containers(ctx context.Context, config *backend.ContainerListOptions) ([]*containertypes.Summary, error) {
+func (daemon *Daemon) Containers(ctx context.Context, config *backend.ContainerListOptions) ([]containertypes.Summary, error) {
 	if err := config.Filters.Validate(acceptedPsFilterTags); err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (daemon *Daemon) Containers(ctx context.Context, config *backend.ContainerL
 
 	// shortcut if there are no containers
 	if numContainers == 0 {
-		return []*containertypes.Summary{}, nil
+		return []containertypes.Summary{}, nil
 	}
 
 	// Get the info for each container in the list; this can be slow so we
@@ -140,7 +140,7 @@ func (daemon *Daemon) Containers(ctx context.Context, config *backend.ContainerL
 	}
 
 	resultsMut := sync.Mutex{}
-	results := make([]*containertypes.Summary, numContainers)
+	results := make([]containertypes.Summary, numContainers)
 
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(numWorkers)
@@ -174,7 +174,7 @@ func (daemon *Daemon) Containers(ctx context.Context, config *backend.ContainerL
 				// insert the result at the given index (so the output is in the
 				// same order as containerList above).
 				resultsMut.Lock()
-				results[idx] = newC
+				results[idx] = *newC
 				resultsMut.Unlock()
 
 				return nil

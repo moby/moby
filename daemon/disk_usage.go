@@ -8,7 +8,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
-	"github.com/moby/moby/v2/internal/sliceutil"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -26,30 +25,27 @@ func (daemon *Daemon) containerDiskUsage(ctx context.Context, verbose bool) (*ba
 			return nil, fmt.Errorf("failed to retrieve container list: %v", err)
 		}
 
-		isActive := func(ctr *container.Summary) bool {
-			return ctr.State == container.StateRunning ||
-				ctr.State == container.StatePaused ||
-				ctr.State == container.StateRestarting
-		}
-
 		du := &backend.ContainerDiskUsage{
 			ActiveCount: int64(len(containers)),
 			TotalCount:  int64(len(containers)),
 		}
-		for _, ctr := range containers {
-			du.TotalSize += ctr.SizeRw
-			if !isActive(ctr) {
-				du.Reclaimable += ctr.SizeRw
+		for i := range containers {
+			du.TotalSize += containers[i].SizeRw
+			switch containers[i].State {
+			case container.StateRunning, container.StatePaused, container.StateRestarting:
+				// active
+			default:
+				du.Reclaimable += containers[i].SizeRw
 				du.ActiveCount--
 			}
 
 			// Remove image manifest descriptor from the result as it should not be included.
 			// https://github.com/moby/moby/pull/49407#discussion_r1954396666
-			ctr.ImageManifestDescriptor = nil
+			containers[i].ImageManifestDescriptor = nil
 		}
 
 		if verbose {
-			du.Items = sliceutil.Deref(containers)
+			du.Items = containers
 		}
 
 		return du, nil
@@ -94,7 +90,7 @@ func (daemon *Daemon) imageDiskUsage(ctx context.Context, verbose bool) (*backen
 		}
 
 		if verbose {
-			du.Items = sliceutil.Deref(images)
+			du.Items = images
 		}
 
 		return du, nil
