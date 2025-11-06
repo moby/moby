@@ -22,6 +22,7 @@ on:
 env:
   GO_VERSION: "1.25.5"
   TESTSTAT_VERSION: v0.1.25
+  TEMPLATE_NAME: ${{ inputs.template }}
 
 jobs:
   integration:
@@ -147,7 +148,8 @@ jobs:
         run: |
           set -eux -o pipefail
           limactl cp -v -r default:/tmp/docker/bundles . || true
-          reportsName="$(basename ${{ inputs.template }})"
+          reportsName="${{ env.TEMPLATE_NAME }}"
+          reportsName="${reportsName#template:}"
           if [ -n "${{ matrix.mode }}" ]; then
             reportsName="$reportsName-${{ matrix.mode }}"
           fi
@@ -189,7 +191,10 @@ jobs:
           cache: false
       -
         name: Prepare reports
-        run: echo "TESTREPORTS_NAME=$(basename ${{ inputs.template }})*" >> $GITHUB_ENV
+        run: |
+          TEMPLATE="${{ env.TEMPLATE_NAME }}"
+          TEMPLATE="${TEMPLATE#template:}"
+          echo "TESTREPORTS_NAME=${TEMPLATE}*" >> $GITHUB_ENV
       -
         name: Download reports
         uses: actions/download-artifact@v6

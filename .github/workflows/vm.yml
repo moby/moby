@@ -40,7 +40,7 @@ jobs:
           # FIXME: use almalinux-8, then probably no need to keep oraclelinux-8 here.
           # On almalinux-8, port forwarding tests are failing:
           # https://github.com/moby/moby/pull/49819#issuecomment-2815676000
-          - template://oraclelinux-8  # Oracle's kernel 5.15
-          # - template://almalinux-8  # kernel 4.18
+          - template:oraclelinux-8  # Oracle's kernel 5.15
+          # - template:almalinux-8  # kernel 4.18
     with:
       template: ${{ matrix.template }}
