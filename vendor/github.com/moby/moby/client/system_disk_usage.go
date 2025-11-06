@@ -162,9 +162,9 @@ func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (Dis
 	var r DiskUsageResult
 	if idu := du.ImageUsage; idu != nil {
 		r.Images = ImagesDiskUsage{
-			ActiveImages: idu.ActiveImages,
+			ActiveImages: idu.ActiveCount,
 			Reclaimable:  idu.Reclaimable,
-			TotalImages:  idu.TotalImages,
+			TotalImages:  idu.TotalCount,
 			TotalSize:    idu.TotalSize,
 		}
 
@@ -175,9 +175,9 @@ func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (Dis
 
 	if cdu := du.ContainerUsage; cdu != nil {
 		r.Containers = ContainersDiskUsage{
-			ActiveContainers: cdu.ActiveContainers,
+			ActiveContainers: cdu.ActiveCount,
 			Reclaimable:      cdu.Reclaimable,
-			TotalContainers:  cdu.TotalContainers,
+			TotalContainers:  cdu.TotalCount,
 			TotalSize:        cdu.TotalSize,
 		}
 
@@ -188,9 +188,9 @@ func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (Dis
 
 	if bdu := du.BuildCacheUsage; bdu != nil {
 		r.BuildCache = BuildCacheDiskUsage{
-			ActiveBuildCacheRecords: bdu.ActiveBuildCacheRecords,
+			ActiveBuildCacheRecords: bdu.ActiveCount,
 			Reclaimable:             bdu.Reclaimable,
-			TotalBuildCacheRecords:  bdu.TotalBuildCacheRecords,
+			TotalBuildCacheRecords:  bdu.TotalCount,
 			TotalSize:               bdu.TotalSize,
 		}
 
@@ -201,9 +201,9 @@ func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (Dis
 
 	if vdu := du.VolumeUsage; vdu != nil {
 		r.Volumes = VolumesDiskUsage{
-			ActiveVolumes: vdu.ActiveVolumes,
+			ActiveVolumes: vdu.ActiveCount,
 			Reclaimable:   vdu.Reclaimable,
-			TotalVolumes:  vdu.TotalVolumes,
+			TotalVolumes:  vdu.TotalCount,
 			TotalSize:     vdu.TotalSize,
 		}
 

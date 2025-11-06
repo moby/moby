@@ -13,7 +13,7 @@ type DiskUsage struct {
 	// Count of active containers.
 	//
 	// Example: 1
-	ActiveContainers int64 `json:"ActiveContainers,omitempty"`
+	ActiveCount int64 `json:"ActiveCount,omitempty"`
 
 	// List of container summaries.
 	//
@@ -27,7 +27,7 @@ type DiskUsage struct {
 	// Count of all containers.
 	//
 	// Example: 4
-	TotalContainers int64 `json:"TotalContainers,omitempty"`
+	TotalCount int64 `json:"TotalCount,omitempty"`
 
 	// Disk space in use by containers.
 	//

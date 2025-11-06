@@ -13,7 +13,7 @@ type DiskUsage struct {
 	// Count of active build cache records.
 	//
 	// Example: 1
-	ActiveBuildCacheRecords int64 `json:"ActiveBuildCacheRecords,omitempty"`
+	ActiveCount int64 `json:"ActiveCount,omitempty"`
 
 	// List of build cache records.
 	//
@@ -27,7 +27,7 @@ type DiskUsage struct {
 	// Count of all build cache records.
 	//
 	// Example: 4
-	TotalBuildCacheRecords int64 `json:"TotalBuildCacheRecords,omitempty"`
+	TotalCount int64 `json:"TotalCount,omitempty"`
 
 	// Disk space in use by build cache records.
 	//

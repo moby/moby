@@ -29,11 +29,11 @@ func TestDiskUsage(t *testing.T) {
 
 		return mockJSONResponse(http.StatusOK, nil, system.DiskUsage{
 			ImageUsage: &image.DiskUsage{
-				ActiveImages: 0,
-				TotalImages:  0,
-				Reclaimable:  0,
-				TotalSize:    4096,
-				Items:        []image.Summary{},
+				ActiveCount: 0,
+				TotalCount:  0,
+				Reclaimable: 0,
+				TotalSize:   4096,
+				Items:       []image.Summary{},
 			},
 		})(req)
 	}))

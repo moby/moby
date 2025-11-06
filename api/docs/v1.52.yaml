@@ -2066,13 +2066,13 @@ definitions:
     description: |
       represents system data usage for image resources.
     properties:
-      ActiveImages:
+      ActiveCount:
         description: |
           Count of active images.
         type: "integer"
         format: "int64"
         example: 1
-      TotalImages:
+      TotalCount:
         description: |
           Count of all images.
         type: "integer"
@@ -2248,13 +2248,13 @@ definitions:
     description: |
       represents system data usage for volume resources.
     properties:
-      ActiveVolumes:
+      ActiveCount:
         description: |
           Count of active volumes.
         type: "integer"
         format: "int64"
         example: 1
-      TotalVolumes:
+      TotalCount:
         description: |
           Count of all volumes.
         type: "integer"
@@ -2861,13 +2861,13 @@ definitions:
     description: |
       represents system data usage for build cache resources.
     properties:
-      ActiveBuildCacheRecords:
+      ActiveCount:
         description: |
           Count of active build cache records.
         type: "integer"
         format: "int64"
         example: 1
-      TotalBuildCacheRecords:
+      TotalCount:
         description: |
           Count of all build cache records.
         type: "integer"
@@ -5584,13 +5584,13 @@ definitions:
     description: |
       represents system data usage information for container resources.
     properties:
-      ActiveContainers:
+      ActiveCount:
         description: |
           Count of active containers.
         type: "integer"
         format: "int64"
         example: 1
-      TotalContainers:
+      TotalCount:
         description: |
           Count of all containers.
         type: "integer"
