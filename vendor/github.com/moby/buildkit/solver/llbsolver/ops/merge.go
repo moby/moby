@@ -9,7 +9,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/moby/buildkit/cache"
-	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver/ops/opsutils"
 	"github.com/moby/buildkit/solver/pb"
@@ -35,7 +34,7 @@ func NewMergeOp(v solver.Vertex, op *pb.Op_Merge, w worker.Worker) (solver.Op, e
 	}, nil
 }
 
-func (m *mergeOp) CacheMap(ctx context.Context, group session.Group, index int) (*solver.CacheMap, bool, error) {
+func (m *mergeOp) CacheMap(ctx context.Context, jobCtx solver.JobContext, index int) (*solver.CacheMap, bool, error) {
 	dt, err := json.Marshal(struct {
 		Type  string
 		Merge *pb.MergeOp
@@ -63,7 +62,7 @@ func (m *mergeOp) CacheMap(ctx context.Context, group session.Group, index int) 
 	return cm, true, nil
 }
 
-func (m *mergeOp) Exec(ctx context.Context, g session.Group, inputs []solver.Result) ([]solver.Result, error) {
+func (m *mergeOp) Exec(ctx context.Context, jobCtx solver.JobContext, inputs []solver.Result) ([]solver.Result, error) {
 	refs := make([]cache.ImmutableRef, len(inputs))
 	var index int
 	for _, inp := range inputs {

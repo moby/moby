@@ -16,6 +16,7 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 )
 
 type vertex struct {
@@ -324,6 +325,7 @@ func loadLLB(ctx context.Context, def *pb.Definition, polEngine SourcePolicyEval
 	}
 
 	allOps := make(map[digest.Digest]*op)
+	sources := make(map[digest.Digest]struct{})
 
 	var lastDgst digest.Digest
 
@@ -333,16 +335,30 @@ func loadLLB(ctx context.Context, def *pb.Definition, polEngine SourcePolicyEval
 			return solver.Edge{}, errors.Wrap(err, "failed to parse llb proto op")
 		}
 		dgst := digest.FromBytes(dt)
-		if polEngine != nil {
-			if _, err := polEngine.Evaluate(ctx, pbop.GetSource()); err != nil {
-				return solver.Edge{}, errors.Wrap(err, "error evaluating the source policy")
-			}
+		if pbop.GetSource() != nil {
+			sources[dgst] = struct{}{}
 		}
 		allOps[dgst] = &op{
 			Op:       &pbop,
 			Metadata: def.Metadata[string(dgst)],
 		}
 		lastDgst = dgst
+	}
+
+	if polEngine != nil && len(sources) > 0 {
+		var eg errgroup.Group
+		for dgst := range sources {
+			eg.Go(func() error {
+				op := allOps[dgst]
+				if _, err := polEngine.Evaluate(ctx, op.Op); err != nil {
+					return errors.Wrap(err, "error evaluating the source policy")
+				}
+				return nil
+			})
+		}
+		if err := eg.Wait(); err != nil {
+			return solver.Edge{}, err
+		}
 	}
 
 	mutatedDigests := make(map[digest.Digest]digest.Digest) // key: old, val: new

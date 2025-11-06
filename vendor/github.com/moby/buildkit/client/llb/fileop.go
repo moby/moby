@@ -569,6 +569,7 @@ type CopyInfo struct {
 	CopyDirContentsOnly            bool
 	IncludePatterns                []string
 	ExcludePatterns                []string
+	RequiredPaths                  []string
 	AttemptUnpack                  bool
 	CreateDestPath                 bool
 	AllowWildcard                  bool
@@ -603,6 +604,7 @@ func (a *fileActionCopy) toProtoAction(ctx context.Context, parent string, base 
 		Owner:                            a.info.ChownOpt.marshal(base),
 		IncludePatterns:                  a.info.IncludePatterns,
 		ExcludePatterns:                  a.info.ExcludePatterns,
+		RequiredPaths:                    a.info.RequiredPaths,
 		AllowWildcard:                    a.info.AllowWildcard,
 		AllowEmptyWildcard:               a.info.AllowEmptyWildcard,
 		FollowSymlink:                    a.info.FollowSymlinks,
@@ -646,6 +648,9 @@ func (a *fileActionCopy) sourcePath(ctx context.Context) (string, error) {
 func (a *fileActionCopy) addCaps(f *FileOp) {
 	if len(a.info.IncludePatterns) != 0 || len(a.info.ExcludePatterns) != 0 {
 		addCap(&f.constraints, pb.CapFileCopyIncludeExcludePatterns)
+	}
+	if len(a.info.RequiredPaths) != 0 {
+		addCap(&f.constraints, pb.CapFileCopyRequiredPaths)
 	}
 	if a.info.AlwaysReplaceExistingDestPaths {
 		addCap(&f.constraints, pb.CapFileCopyAlwaysReplaceExistingDestPaths)

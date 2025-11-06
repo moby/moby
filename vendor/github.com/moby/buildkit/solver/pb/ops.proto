@@ -355,6 +355,9 @@ message FileActionCopy {
 	bool alwaysReplaceExistingDestPaths = 14;
 	// mode in non-octal format
 	string modeStr = 15;
+	// required paths that must be included in the copy. This is only used when
+	// include_patterns has at least one pattern.
+	repeated string required_paths = 16;
 }
 
 message FileActionMkFile {

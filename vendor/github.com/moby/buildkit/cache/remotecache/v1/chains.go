@@ -11,6 +11,7 @@ import (
 	"github.com/cespare/xxhash/v2"
 	"github.com/containerd/containerd/v2/core/content"
 	cerrdefs "github.com/containerd/errdefs"
+	cacheimporttypes "github.com/moby/buildkit/cache/remotecache/v1/types"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	digest "github.com/opencontainers/go-digest"
@@ -208,7 +209,7 @@ func IntersectAll[T comparable](
 // Marshal aims to validate, normalize and sort the output to ensure a
 // consistent digest (since cache configs are typically uploaded and stored in
 // content-addressable OCI registries).
-func (c *CacheChains) Marshal(ctx context.Context) (*CacheConfig, DescriptorProvider, error) {
+func (c *CacheChains) Marshal(ctx context.Context) (*cacheimporttypes.CacheConfig, DescriptorProvider, error) {
 	st := &marshalState{
 		chainsByID:    map[string]int{},
 		descriptors:   DescriptorProvider{},
@@ -221,7 +222,7 @@ func (c *CacheChains) Marshal(ctx context.Context) (*CacheConfig, DescriptorProv
 		}
 	}
 
-	cc := CacheConfig{
+	cc := cacheimporttypes.CacheConfig{
 		Layers:  st.layers,
 		Records: st.records,
 	}

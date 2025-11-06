@@ -55,7 +55,7 @@ require (
 	github.com/miekg/dns v1.1.66
 	github.com/mistifyio/go-zfs/v3 v3.0.1
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/moby/buildkit v0.25.2
+	github.com/moby/buildkit v0.26.0-rc2
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/go-archive v0.1.0
 	github.com/moby/ipvs v1.1.0
@@ -126,6 +126,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.18.2 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.11.2 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.5.0 // indirect
+	github.com/ProtonMail/go-crypto v1.3.0 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/anchore/go-struct-converter v0.0.0-20221118182256-c68fdcfa2092 // indirect
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2 // indirect
@@ -144,6 +145,7 @@ require (
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cilium/ebpf v0.17.3 // indirect
+	github.com/cloudflare/circl v1.6.0 // indirect
 	github.com/container-storage-interface/spec v1.5.0 // indirect
 	github.com/containerd/accelerated-container-image v1.3.0 // indirect
 	github.com/containerd/console v1.0.5 // indirect
@@ -185,12 +187,14 @@ require (
 	github.com/hashicorp/go-sockaddr v1.0.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
+	github.com/hiddeco/sshsig v0.2.0 // indirect
 	github.com/in-toto/in-toto-golang v0.9.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmoiron/sqlx v1.3.3 // indirect
 	github.com/klauspost/compress v1.18.1 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
+	github.com/moby/policy-helpers v0.0.0-20251105011237-bcaa71c99f14 // indirect
 	github.com/moby/sys/capability v0.4.0 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect

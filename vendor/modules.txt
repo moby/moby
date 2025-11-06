@@ -142,6 +142,30 @@ github.com/Microsoft/hcsshim/internal/wclayer
 github.com/Microsoft/hcsshim/internal/winapi
 github.com/Microsoft/hcsshim/osversion
 github.com/Microsoft/hcsshim/pkg/ociwclayer
+# github.com/ProtonMail/go-crypto v1.3.0
+## explicit; go 1.22.0
+github.com/ProtonMail/go-crypto/bitcurves
+github.com/ProtonMail/go-crypto/brainpool
+github.com/ProtonMail/go-crypto/eax
+github.com/ProtonMail/go-crypto/internal/byteutil
+github.com/ProtonMail/go-crypto/ocb
+github.com/ProtonMail/go-crypto/openpgp
+github.com/ProtonMail/go-crypto/openpgp/aes/keywrap
+github.com/ProtonMail/go-crypto/openpgp/armor
+github.com/ProtonMail/go-crypto/openpgp/ecdh
+github.com/ProtonMail/go-crypto/openpgp/ecdsa
+github.com/ProtonMail/go-crypto/openpgp/ed25519
+github.com/ProtonMail/go-crypto/openpgp/ed448
+github.com/ProtonMail/go-crypto/openpgp/eddsa
+github.com/ProtonMail/go-crypto/openpgp/elgamal
+github.com/ProtonMail/go-crypto/openpgp/errors
+github.com/ProtonMail/go-crypto/openpgp/internal/algorithm
+github.com/ProtonMail/go-crypto/openpgp/internal/ecc
+github.com/ProtonMail/go-crypto/openpgp/internal/encoding
+github.com/ProtonMail/go-crypto/openpgp/packet
+github.com/ProtonMail/go-crypto/openpgp/s2k
+github.com/ProtonMail/go-crypto/openpgp/x25519
+github.com/ProtonMail/go-crypto/openpgp/x448
 # github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91
 ## explicit
 github.com/RackSec/srslog
@@ -307,6 +331,20 @@ github.com/cloudflare/cfssl/log
 github.com/cloudflare/cfssl/ocsp/config
 github.com/cloudflare/cfssl/signer
 github.com/cloudflare/cfssl/signer/local
+# github.com/cloudflare/circl v1.6.0
+## explicit; go 1.22.0
+github.com/cloudflare/circl/dh/x25519
+github.com/cloudflare/circl/dh/x448
+github.com/cloudflare/circl/ecc/goldilocks
+github.com/cloudflare/circl/internal/conv
+github.com/cloudflare/circl/internal/sha3
+github.com/cloudflare/circl/math
+github.com/cloudflare/circl/math/fp25519
+github.com/cloudflare/circl/math/fp448
+github.com/cloudflare/circl/math/mlsbset
+github.com/cloudflare/circl/sign
+github.com/cloudflare/circl/sign/ed25519
+github.com/cloudflare/circl/sign/ed448
 # github.com/container-storage-interface/spec v1.5.0
 ## explicit; go 1.16
 github.com/container-storage-interface/spec/lib/go/csi
@@ -756,6 +794,9 @@ github.com/hashicorp/memberlist
 ## explicit
 github.com/hashicorp/serf/coordinate
 github.com/hashicorp/serf/serf
+# github.com/hiddeco/sshsig v0.2.0
+## explicit; go 1.23.0
+github.com/hiddeco/sshsig
 # github.com/in-toto/in-toto-golang v0.9.0
 ## explicit; go 1.20
 github.com/in-toto/in-toto-golang/in_toto
@@ -797,8 +838,8 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.25.2
-## explicit; go 1.24.0
+# github.com/moby/buildkit v0.26.0-rc2
+## explicit; go 1.24.3
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
 github.com/moby/buildkit/cache
@@ -811,6 +852,7 @@ github.com/moby/buildkit/cache/remotecache/inline
 github.com/moby/buildkit/cache/remotecache/local
 github.com/moby/buildkit/cache/remotecache/registry
 github.com/moby/buildkit/cache/remotecache/v1
+github.com/moby/buildkit/cache/remotecache/v1/types
 github.com/moby/buildkit/cache/util
 github.com/moby/buildkit/client
 github.com/moby/buildkit/client/buildid
@@ -858,6 +900,7 @@ github.com/moby/buildkit/frontend/gateway/forwarder
 github.com/moby/buildkit/frontend/gateway/grpcclient
 github.com/moby/buildkit/frontend/gateway/pb
 github.com/moby/buildkit/frontend/subrequests
+github.com/moby/buildkit/frontend/subrequests/convertllb
 github.com/moby/buildkit/frontend/subrequests/lint
 github.com/moby/buildkit/frontend/subrequests/outline
 github.com/moby/buildkit/frontend/subrequests/targets
@@ -899,6 +942,7 @@ github.com/moby/buildkit/source/local
 github.com/moby/buildkit/source/types
 github.com/moby/buildkit/sourcepolicy
 github.com/moby/buildkit/sourcepolicy/pb
+github.com/moby/buildkit/sourcepolicy/policysession
 github.com/moby/buildkit/util/apicaps
 github.com/moby/buildkit/util/apicaps/pb
 github.com/moby/buildkit/util/appdefaults
@@ -920,6 +964,8 @@ github.com/moby/buildkit/util/errutil
 github.com/moby/buildkit/util/estargz
 github.com/moby/buildkit/util/flightcontrol
 github.com/moby/buildkit/util/gitutil
+github.com/moby/buildkit/util/gitutil/gitobject
+github.com/moby/buildkit/util/gitutil/gitsign
 github.com/moby/buildkit/util/gogo/proto
 github.com/moby/buildkit/util/grpcerrors
 github.com/moby/buildkit/util/imageutil
@@ -1016,6 +1062,9 @@ github.com/moby/moby/client/pkg/versions
 ## explicit; go 1.19
 github.com/moby/patternmatcher
 github.com/moby/patternmatcher/ignorefile
+# github.com/moby/policy-helpers v0.0.0-20251105011237-bcaa71c99f14
+## explicit; go 1.24.3
+github.com/moby/policy-helpers/image
 # github.com/moby/profiles/apparmor v0.1.0
 ## explicit; go 1.23.0
 github.com/moby/profiles/apparmor
@@ -1496,7 +1545,10 @@ go.uber.org/zap/zapcore
 go.yaml.in/yaml/v2
 # golang.org/x/crypto v0.43.0
 ## explicit; go 1.24.0
+golang.org/x/crypto/argon2
+golang.org/x/crypto/blake2b
 golang.org/x/crypto/blowfish
+golang.org/x/crypto/cast5
 golang.org/x/crypto/chacha20
 golang.org/x/crypto/chacha20poly1305
 golang.org/x/crypto/cryptobyte
@@ -1513,6 +1565,7 @@ golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/pkcs12
 golang.org/x/crypto/pkcs12/internal/rc2
 golang.org/x/crypto/salsa20/salsa
+golang.org/x/crypto/sha3
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 # golang.org/x/mod v0.29.0

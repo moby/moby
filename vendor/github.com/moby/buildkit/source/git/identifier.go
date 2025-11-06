@@ -21,6 +21,15 @@ type GitIdentifier struct {
 	MountSSHSock     string
 	KnownSSHHosts    string
 	SkipSubmodules   bool
+
+	VerifySignature *GitSignatureVerifyOptions
+}
+
+type GitSignatureVerifyOptions struct {
+	PubKey            []byte
+	RejectExpiredKeys bool
+	RequireSignedTag  bool // signed tag must be present
+	IgnoreSignedTag   bool // even if signed tag is present, verify signature on commit object
 }
 
 func NewGitIdentifier(remoteURL string) (*GitIdentifier, error) {

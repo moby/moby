@@ -76,6 +76,7 @@ message SolveRequest {
 	moby.buildkit.v1.sourcepolicy.Policy SourcePolicy = 12;
 	repeated Exporter Exporters = 13;
 	bool EnableSessionExporter = 14;
+	string SourcePolicySession = 15;
 }
 
 message CacheOptions {

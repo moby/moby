@@ -3,6 +3,7 @@ package cacheimport
 import (
 	"encoding/json"
 
+	cacheimporttypes "github.com/moby/buildkit/cache/remotecache/v1/types"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/util/contentutil"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -10,7 +11,7 @@ import (
 )
 
 func Parse(configJSON []byte, provider DescriptorProvider, t solver.CacheExporterTarget) error {
-	var config CacheConfig
+	var config cacheimporttypes.CacheConfig
 	if err := json.Unmarshal(configJSON, &config); err != nil {
 		return errors.WithStack(err)
 	}
@@ -18,7 +19,7 @@ func Parse(configJSON []byte, provider DescriptorProvider, t solver.CacheExporte
 	return ParseConfig(config, provider, t)
 }
 
-func ParseConfig(config CacheConfig, provider DescriptorProvider, t solver.CacheExporterTarget) error {
+func ParseConfig(config cacheimporttypes.CacheConfig, provider DescriptorProvider, t solver.CacheExporterTarget) error {
 	cache := map[int]solver.CacheExporterRecord{}
 
 	for i := range config.Records {
@@ -29,7 +30,7 @@ func ParseConfig(config CacheConfig, provider DescriptorProvider, t solver.Cache
 	return nil
 }
 
-func parseRecord(cc CacheConfig, idx int, provider DescriptorProvider, t solver.CacheExporterTarget, cache map[int]solver.CacheExporterRecord) (solver.CacheExporterRecord, error) {
+func parseRecord(cc cacheimporttypes.CacheConfig, idx int, provider DescriptorProvider, t solver.CacheExporterTarget, cache map[int]solver.CacheExporterRecord) (solver.CacheExporterRecord, error) {
 	if r, ok := cache[idx]; ok {
 		if r == nil {
 			return nil, errors.Errorf("invalid looping record")
@@ -112,7 +113,7 @@ func parseRecord(cc CacheConfig, idx int, provider DescriptorProvider, t solver.
 	return r, nil
 }
 
-func getRemoteChain(layers []CacheLayer, idx int, provider DescriptorProvider, visited map[int]struct{}) (*solver.Remote, error) {
+func getRemoteChain(layers []cacheimporttypes.CacheLayer, idx int, provider DescriptorProvider, visited map[int]struct{}) (*solver.Remote, error) {
 	if _, ok := visited[idx]; ok {
 		return nil, errors.Errorf("invalid looping layer")
 	}

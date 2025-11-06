@@ -86,7 +86,11 @@ func mainManifestKey(desc ocispecs.Descriptor, platform ocispecs.Platform, layer
 	return cachedigest.FromBytes(dt, cachedigest.TypeJSON)
 }
 
-func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (cacheKey string, imgDigest string, cacheOpts solver.CacheOpts, cacheDone bool, err error) {
+func (p *puller) CacheKey(ctx context.Context, jobCtx solver.JobContext, index int) (cacheKey string, imgDigest string, cacheOpts solver.CacheOpts, cacheDone bool, err error) {
+	var g session.Group
+	if jobCtx != nil {
+		g = jobCtx.Session()
+	}
 	var getResolver pull.SessionResolver
 	switch p.ResolverType {
 	case ResolverTypeRegistry:
@@ -206,7 +210,11 @@ func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (cach
 	return p.configKey, p.manifest.MainManifestDesc.Digest.String(), cacheOpts, cacheDone, nil
 }
 
-func (p *puller) Snapshot(ctx context.Context, g session.Group) (ir cache.ImmutableRef, err error) {
+func (p *puller) Snapshot(ctx context.Context, jobCtx solver.JobContext) (ir cache.ImmutableRef, err error) {
+	var g session.Group
+	if jobCtx != nil {
+		g = jobCtx.Session()
+	}
 	var getResolver pull.SessionResolver
 	switch p.ResolverType {
 	case ResolverTypeRegistry:

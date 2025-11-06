@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package moby.buildkit.v1.sourcepolicy.policysession;
+
+option go_package = "github.com/moby/buildkit/sourcepolicy/policysession";
+
+import "github.com/moby/buildkit/frontend/gateway/pb/gateway.proto";
+import "github.com/moby/buildkit/solver/pb/ops.proto";
+import "github.com/moby/buildkit/sourcepolicy/pb/policy.proto";
+
+service PolicyVerifier {
+	rpc CheckPolicy(CheckPolicyRequest) returns (CheckPolicyResponse);
+}
+
+message CheckPolicyRequest {
+	pb.Platform Platform = 1;
+	moby.buildkit.v1.frontend.ResolveSourceMetaResponse Source = 2;
+	map<string, bool> caps = 3;
+}
+
+message CheckPolicyResponse {
+	oneof result {
+		DecisionResponse decision = 1;
+		moby.buildkit.v1.frontend.ResolveSourceMetaRequest request = 2;
+	}
+}
+
+message DecisionResponse {
+	moby.buildkit.v1.sourcepolicy.PolicyAction action = 1;
+	repeated DenyMessage denyMessages = 2;
+	pb.SourceOp update = 3;
+}
+
+message DenyMessage {
+	string message = 1;
+}
