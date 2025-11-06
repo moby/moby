@@ -15,7 +15,7 @@ import (
 
 var honorXDG bool
 
-func newDaemonCommand(stderr io.Writer) (*cobra.Command, error) {
+func newDaemonCommand() (*cobra.Command, error) {
 	// FIXME(thaJeztah): config.New also looks up default binary-path, but this code is also executed when running "--version".
 	cfg, err := config.New()
 	if err != nil {
@@ -38,7 +38,10 @@ func newDaemonCommand(stderr io.Writer) (*cobra.Command, error) {
 			}
 			if opts.Validate {
 				// If config wasn't OK we wouldn't have made it this far.
-				_, _ = fmt.Fprintln(stderr, "configuration OK")
+				//
+				// We print this message on STDERR, not STDOUT, to align
+				// with other tools, such as "nginx -t" or "sshd -t".
+				cmd.PrintErrln("configuration OK")
 				return nil
 			}
 
@@ -104,11 +107,12 @@ func NewDaemonRunner(stdout, stderr io.Writer) (Runner, error) {
 
 	initLogging(stdout, stderr)
 
-	cmd, err := newDaemonCommand(stderr)
+	cmd, err := newDaemonCommand()
 	if err != nil {
 		return nil, err
 	}
 	cmd.SetOut(stdout)
+	cmd.SetErr(stderr)
 
 	return daemonRunner{cmd}, nil
 }
