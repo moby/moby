@@ -8,6 +8,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
+	"github.com/moby/moby/v2/internal/sliceutil"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -51,7 +52,7 @@ func (daemon *Daemon) containerDiskUsage(ctx context.Context, verbose bool) (*ba
 		du.ActiveCount = activeCount
 
 		if verbose {
-			du.Items = containers
+			du.Items = sliceutil.Deref(containers)
 		}
 
 		return du, nil
@@ -96,7 +97,7 @@ func (daemon *Daemon) imageDiskUsage(ctx context.Context, verbose bool) (*backen
 		du.ActiveCount = activeCount
 
 		if verbose {
-			du.Items = images
+			du.Items = sliceutil.Deref(images)
 		}
 
 		return du, nil
@@ -130,7 +131,7 @@ func (daemon *Daemon) localVolumesSize(ctx context.Context, verbose bool) (*back
 		du.ActiveCount = activeCount
 
 		if verbose {
-			du.Items = volumes
+			du.Items = sliceutil.Deref(volumes)
 		}
 
 		return du, nil

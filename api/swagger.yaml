@@ -2096,7 +2096,6 @@ definitions:
         type: "array"
         x-omitempty: true
         items:
-          x-nullable: true
           x-go-type:
             type: Summary
 
@@ -2279,7 +2278,6 @@ definitions:
         type: "array"
         x-omitempty: true
         items:
-          x-nullable: true
           x-go-type:
             type: Volume
 
@@ -2893,7 +2891,6 @@ definitions:
         type: "array"
         x-omitempty: true
         items:
-          x-nullable: true
           x-go-type:
             type: CacheRecord
 
@@ -5617,7 +5614,6 @@ definitions:
         type: "array"
         x-omitempty: true
         items:
-          x-nullable: true
           x-go-type:
             type: Summary
 

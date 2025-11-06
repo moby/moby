@@ -196,18 +196,13 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		})
 	}
 
-	var buildCache []*buildtypes.CacheRecord
+	var buildCache []buildtypes.CacheRecord
 	if getBuildCache {
 		eg.Go(func() error {
 			var err error
 			buildCache, err = s.builder.DiskUsage(ctx)
 			if err != nil {
 				return errors.Wrap(err, "error getting build cache usage")
-			}
-			if buildCache == nil {
-				// Ensure empty `BuildCache` field is represented as empty JSON array(`[]`)
-				// instead of `null` to be consistent with `Images`, `Containers` etc.
-				buildCache = []*buildtypes.CacheRecord{}
 			}
 			return nil
 		})
@@ -227,8 +222,8 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		}
 
 		if legacyFields {
-			v.LayersSize = systemDiskUsage.Images.TotalSize //nolint: staticcheck,SA1019: v.LayersSize is deprecated: kept to maintain backwards compatibility with API < v1.52, use [ImagesDiskUsage.TotalSize] instead.
-			v.Images = systemDiskUsage.Images.Items         //nolint: staticcheck,SA1019: v.Images is deprecated: kept to maintain backwards compatibility with API < v1.52, use [ImagesDiskUsage.Items] instead.
+			v.LayersSize = systemDiskUsage.Images.TotalSize      //nolint: staticcheck,SA1019: v.LayersSize is deprecated: kept to maintain backwards compatibility with API < v1.52, use [ImagesDiskUsage.TotalSize] instead.
+			v.Images = nonNilSlice(systemDiskUsage.Images.Items) //nolint: staticcheck,SA1019: v.Images is deprecated: kept to maintain backwards compatibility with API < v1.52, use [ImagesDiskUsage.Items] instead.
 		} else if verbose {
 			v.ImageUsage.Items = systemDiskUsage.Images.Items
 		}
@@ -242,7 +237,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		}
 
 		if legacyFields {
-			v.Containers = systemDiskUsage.Containers.Items //nolint: staticcheck,SA1019: v.Containers is deprecated: kept to maintain backwards compatibility with API < v1.52, use [ContainersDiskUsage.Items] instead.
+			v.Containers = nonNilSlice(systemDiskUsage.Containers.Items) //nolint: staticcheck,SA1019: v.Containers is deprecated: kept to maintain backwards compatibility with API < v1.52, use [ContainersDiskUsage.Items] instead.
 		} else if verbose {
 			v.ContainerUsage.Items = systemDiskUsage.Containers.Items
 		}
@@ -256,7 +251,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		}
 
 		if legacyFields {
-			v.Volumes = systemDiskUsage.Volumes.Items //nolint: staticcheck,SA1019: v.Volumes is deprecated: kept to maintain backwards compatibility with API < v1.52, use [VolumesDiskUsage.Items] instead.
+			v.Volumes = nonNilSlice(systemDiskUsage.Volumes.Items) //nolint: staticcheck,SA1019: v.Volumes is deprecated: kept to maintain backwards compatibility with API < v1.52, use [VolumesDiskUsage.Items] instead.
 		} else if verbose {
 			v.VolumeUsage.Items = systemDiskUsage.Volumes.Items
 		}
@@ -287,12 +282,21 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		v.BuildCacheUsage.Reclaimable = reclaimable
 
 		if legacyFields {
-			v.BuildCache = buildCache //nolint: staticcheck,SA1019: v.BuildCache is deprecated: kept to maintain backwards compatibility with API < v1.52, use [BuildCacheDiskUsage.Items] instead.
+			v.BuildCache = nonNilSlice(buildCache) //nolint: staticcheck,SA1019: v.BuildCache is deprecated: kept to maintain backwards compatibility with API < v1.52, use [BuildCacheDiskUsage.Items] instead.
 		} else if verbose {
 			v.BuildCacheUsage.Items = buildCache
 		}
 	}
 	return httputils.WriteJSON(w, http.StatusOK, v)
+}
+
+// nonNilSlice is used for the legacy fields, which are either omitted
+// entirely, or (if set), must return an empty slice in the response.
+func nonNilSlice[T any](s []T) []T {
+	if s == nil {
+		return []T{}
+	}
+	return s
 }
 
 type invalidRequestError struct {

@@ -17,7 +17,7 @@ type DiskUsage struct {
 
 	// List of volumes.
 	//
-	Items []*Volume `json:"Items,omitempty"`
+	Items []Volume `json:"Items,omitempty"`
 
 	// Disk space that can be reclaimed by removing inactive volumes.
 	//

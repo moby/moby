@@ -17,7 +17,7 @@ type DiskUsage struct {
 
 	// List of build cache records.
 	//
-	Items []*CacheRecord `json:"Items,omitempty"`
+	Items []CacheRecord `json:"Items,omitempty"`
 
 	// Disk space that can be reclaimed by removing inactive build cache records.
 	//
