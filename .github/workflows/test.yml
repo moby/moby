@@ -23,7 +23,7 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.25.3"
+  GO_VERSION: "1.25.4"
   GIT_PAGER: "cat"
   PAGER: "cat"
   SETUP_BUILDX_VERSION: edge
