@@ -51,11 +51,11 @@ type DiskUsageResult struct {
 
 // ContainersDiskUsage contains disk usage information for containers.
 type ContainersDiskUsage struct {
-	// ActiveContainers is the number of active containers.
-	ActiveContainers int64
+	// ActiveCount is the number of active containers.
+	ActiveCount int64
 
-	// TotalContainers is the total number of containers.
-	TotalContainers int64
+	// TotalCount is the total number of containers.
+	TotalCount int64
 
 	// Reclaimable is the amount of disk space that can be reclaimed.
 	Reclaimable int64
@@ -69,11 +69,11 @@ type ContainersDiskUsage struct {
 
 // ImagesDiskUsage contains disk usage information for images.
 type ImagesDiskUsage struct {
-	// ActiveImages is the number of active images.
-	ActiveImages int64
+	// ActiveCount is the number of active images.
+	ActiveCount int64
 
-	// TotalImages is the total number of images.
-	TotalImages int64
+	// TotalCount is the total number of images.
+	TotalCount int64
 
 	// Reclaimable is the amount of disk space that can be reclaimed.
 	Reclaimable int64
@@ -87,11 +87,11 @@ type ImagesDiskUsage struct {
 
 // VolumesDiskUsage contains disk usage information for volumes.
 type VolumesDiskUsage struct {
-	// ActiveVolumes is the number of active volumes.
-	ActiveVolumes int64
+	// ActiveCount is the number of active volumes.
+	ActiveCount int64
 
-	// TotalVolumes is the total number of volumes.
-	TotalVolumes int64
+	// TotalCount is the total number of volumes.
+	TotalCount int64
 
 	// Reclaimable is the amount of disk space that can be reclaimed.
 	Reclaimable int64
@@ -105,11 +105,11 @@ type VolumesDiskUsage struct {
 
 // BuildCacheDiskUsage contains disk usage information for build cache.
 type BuildCacheDiskUsage struct {
-	// ActiveBuildCacheRecords is the number of active build cache records.
-	ActiveBuildCacheRecords int64
+	// ActiveCount is the number of active build cache records.
+	ActiveCount int64
 
-	// TotalBuildCacheRecords is the total number of build cache records.
-	TotalBuildCacheRecords int64
+	// TotalCount is the total number of build cache records.
+	TotalCount int64
 
 	// Reclaimable is the amount of disk space that can be reclaimed.
 	Reclaimable int64
@@ -162,10 +162,10 @@ func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (Dis
 	var r DiskUsageResult
 	if idu := du.ImageUsage; idu != nil {
 		r.Images = ImagesDiskUsage{
-			ActiveImages: idu.ActiveImages,
-			Reclaimable:  idu.Reclaimable,
-			TotalImages:  idu.TotalImages,
-			TotalSize:    idu.TotalSize,
+			ActiveCount: idu.ActiveCount,
+			Reclaimable: idu.Reclaimable,
+			TotalCount:  idu.TotalCount,
+			TotalSize:   idu.TotalSize,
 		}
 
 		if options.Verbose {
@@ -175,10 +175,10 @@ func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (Dis
 
 	if cdu := du.ContainerUsage; cdu != nil {
 		r.Containers = ContainersDiskUsage{
-			ActiveContainers: cdu.ActiveContainers,
-			Reclaimable:      cdu.Reclaimable,
-			TotalContainers:  cdu.TotalContainers,
-			TotalSize:        cdu.TotalSize,
+			ActiveCount: cdu.ActiveCount,
+			Reclaimable: cdu.Reclaimable,
+			TotalCount:  cdu.TotalCount,
+			TotalSize:   cdu.TotalSize,
 		}
 
 		if options.Verbose {
@@ -188,10 +188,10 @@ func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (Dis
 
 	if bdu := du.BuildCacheUsage; bdu != nil {
 		r.BuildCache = BuildCacheDiskUsage{
-			ActiveBuildCacheRecords: bdu.ActiveBuildCacheRecords,
-			Reclaimable:             bdu.Reclaimable,
-			TotalBuildCacheRecords:  bdu.TotalBuildCacheRecords,
-			TotalSize:               bdu.TotalSize,
+			ActiveCount: bdu.ActiveCount,
+			Reclaimable: bdu.Reclaimable,
+			TotalCount:  bdu.TotalCount,
+			TotalSize:   bdu.TotalSize,
 		}
 
 		if options.Verbose {
@@ -201,10 +201,10 @@ func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (Dis
 
 	if vdu := du.VolumeUsage; vdu != nil {
 		r.Volumes = VolumesDiskUsage{
-			ActiveVolumes: vdu.ActiveVolumes,
-			Reclaimable:   vdu.Reclaimable,
-			TotalVolumes:  vdu.TotalVolumes,
-			TotalSize:     vdu.TotalSize,
+			ActiveCount: vdu.ActiveCount,
+			Reclaimable: vdu.Reclaimable,
+			TotalCount:  vdu.TotalCount,
+			TotalSize:   vdu.TotalSize,
 		}
 
 		if options.Verbose {
@@ -226,15 +226,15 @@ func diskUsageResultFromLegacyAPI(du *system.DiskUsage) DiskUsageResult {
 
 func imageDiskUsageFromLegacyAPI(du *system.DiskUsage) ImagesDiskUsage {
 	idu := ImagesDiskUsage{
-		TotalSize:   du.LayersSize,
-		TotalImages: int64(len(du.Images)),
-		Items:       du.Images,
+		TotalSize:  du.LayersSize,
+		TotalCount: int64(len(du.Images)),
+		Items:      du.Images,
 	}
 
 	var used int64
 	for _, i := range idu.Items {
 		if i.Containers > 0 {
-			idu.ActiveImages++
+			idu.ActiveCount++
 
 			if i.Size == -1 || i.SharedSize == -1 {
 				continue
@@ -243,7 +243,7 @@ func imageDiskUsageFromLegacyAPI(du *system.DiskUsage) ImagesDiskUsage {
 		}
 	}
 
-	if idu.TotalImages > 0 {
+	if idu.TotalCount > 0 {
 		idu.Reclaimable = idu.TotalSize - used
 	}
 
@@ -252,8 +252,8 @@ func imageDiskUsageFromLegacyAPI(du *system.DiskUsage) ImagesDiskUsage {
 
 func containerDiskUsageFromLegacyAPI(du *system.DiskUsage) ContainersDiskUsage {
 	cdu := ContainersDiskUsage{
-		TotalContainers: int64(len(du.Containers)),
-		Items:           du.Containers,
+		TotalCount: int64(len(du.Containers)),
+		Items:      du.Containers,
 	}
 
 	var used int64
@@ -261,7 +261,7 @@ func containerDiskUsageFromLegacyAPI(du *system.DiskUsage) ContainersDiskUsage {
 		cdu.TotalSize += c.SizeRw
 		switch strings.ToLower(c.State) {
 		case "running", "paused", "restarting":
-			cdu.ActiveContainers++
+			cdu.ActiveCount++
 			used += c.SizeRw
 		}
 	}
@@ -272,8 +272,8 @@ func containerDiskUsageFromLegacyAPI(du *system.DiskUsage) ContainersDiskUsage {
 
 func buildCacheDiskUsageFromLegacyAPI(du *system.DiskUsage) BuildCacheDiskUsage {
 	bdu := BuildCacheDiskUsage{
-		TotalBuildCacheRecords: int64(len(du.BuildCache)),
-		Items:                  du.BuildCache,
+		TotalCount: int64(len(du.BuildCache)),
+		Items:      du.BuildCache,
 	}
 
 	var used int64
@@ -283,7 +283,7 @@ func buildCacheDiskUsageFromLegacyAPI(du *system.DiskUsage) BuildCacheDiskUsage 
 		}
 
 		if b.InUse {
-			bdu.ActiveBuildCacheRecords++
+			bdu.ActiveCount++
 			if !b.Shared {
 				used += b.Size
 			}
@@ -296,8 +296,8 @@ func buildCacheDiskUsageFromLegacyAPI(du *system.DiskUsage) BuildCacheDiskUsage 
 
 func volumeDiskUsageFromLegacyAPI(du *system.DiskUsage) VolumesDiskUsage {
 	vdu := VolumesDiskUsage{
-		TotalVolumes: int64(len(du.Volumes)),
-		Items:        du.Volumes,
+		TotalCount: int64(len(du.Volumes)),
+		Items:      du.Volumes,
 	}
 
 	var used int64
@@ -305,7 +305,7 @@ func volumeDiskUsageFromLegacyAPI(du *system.DiskUsage) VolumesDiskUsage {
 		// Ignore volumes with no usage data
 		if v.UsageData != nil {
 			if v.UsageData.RefCount > 0 {
-				vdu.ActiveVolumes++
+				vdu.ActiveCount++
 				used += v.UsageData.Size
 			}
 			if v.UsageData.Size > 0 {

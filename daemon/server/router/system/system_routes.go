@@ -215,10 +215,10 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 	var v system.DiskUsage
 	if systemDiskUsage != nil && systemDiskUsage.Images != nil {
 		v.ImageUsage = &image.DiskUsage{
-			ActiveImages: systemDiskUsage.Images.ActiveCount,
-			Reclaimable:  systemDiskUsage.Images.Reclaimable,
-			TotalImages:  systemDiskUsage.Images.TotalCount,
-			TotalSize:    systemDiskUsage.Images.TotalSize,
+			ActiveCount: systemDiskUsage.Images.ActiveCount,
+			Reclaimable: systemDiskUsage.Images.Reclaimable,
+			TotalCount:  systemDiskUsage.Images.TotalCount,
+			TotalSize:   systemDiskUsage.Images.TotalSize,
 		}
 
 		if legacyFields {
@@ -230,10 +230,10 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 	}
 	if systemDiskUsage != nil && systemDiskUsage.Containers != nil {
 		v.ContainerUsage = &container.DiskUsage{
-			ActiveContainers: systemDiskUsage.Containers.ActiveCount,
-			Reclaimable:      systemDiskUsage.Containers.Reclaimable,
-			TotalContainers:  systemDiskUsage.Containers.TotalCount,
-			TotalSize:        systemDiskUsage.Containers.TotalSize,
+			ActiveCount: systemDiskUsage.Containers.ActiveCount,
+			Reclaimable: systemDiskUsage.Containers.Reclaimable,
+			TotalCount:  systemDiskUsage.Containers.TotalCount,
+			TotalSize:   systemDiskUsage.Containers.TotalSize,
 		}
 
 		if legacyFields {
@@ -244,10 +244,10 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 	}
 	if systemDiskUsage != nil && systemDiskUsage.Volumes != nil {
 		v.VolumeUsage = &volume.DiskUsage{
-			ActiveVolumes: systemDiskUsage.Volumes.ActiveCount,
-			TotalSize:     systemDiskUsage.Volumes.TotalSize,
-			Reclaimable:   systemDiskUsage.Volumes.Reclaimable,
-			TotalVolumes:  systemDiskUsage.Volumes.TotalCount,
+			ActiveCount: systemDiskUsage.Volumes.ActiveCount,
+			TotalSize:   systemDiskUsage.Volumes.TotalSize,
+			Reclaimable: systemDiskUsage.Volumes.Reclaimable,
+			TotalCount:  systemDiskUsage.Volumes.TotalCount,
 		}
 
 		if legacyFields {
@@ -258,10 +258,10 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 	}
 	if getBuildCache {
 		v.BuildCacheUsage = &buildtypes.DiskUsage{
-			TotalBuildCacheRecords: int64(len(buildCache)),
+			TotalCount: int64(len(buildCache)),
 		}
 
-		activeCount := v.BuildCacheUsage.TotalBuildCacheRecords
+		activeCount := v.BuildCacheUsage.TotalCount
 		var totalSize, reclaimable int64
 
 		for _, b := range buildCache {
@@ -277,7 +277,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 			}
 		}
 
-		v.BuildCacheUsage.ActiveBuildCacheRecords = activeCount
+		v.BuildCacheUsage.ActiveCount = activeCount
 		v.BuildCacheUsage.TotalSize = totalSize
 		v.BuildCacheUsage.Reclaimable = reclaimable
 

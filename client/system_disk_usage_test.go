@@ -29,11 +29,11 @@ func TestDiskUsage(t *testing.T) {
 
 		return mockJSONResponse(http.StatusOK, nil, system.DiskUsage{
 			ImageUsage: &image.DiskUsage{
-				ActiveImages: 0,
-				TotalImages:  0,
-				Reclaimable:  0,
-				TotalSize:    4096,
-				Items:        []image.Summary{},
+				ActiveCount: 0,
+				TotalCount:  0,
+				Reclaimable: 0,
+				TotalSize:   4096,
+				Items:       []image.Summary{},
 			},
 		})(req)
 	}))
@@ -41,8 +41,8 @@ func TestDiskUsage(t *testing.T) {
 
 	du, err := client.DiskUsage(context.Background(), DiskUsageOptions{})
 	assert.NilError(t, err)
-	assert.Equal(t, du.Images.ActiveImages, int64(0))
-	assert.Equal(t, du.Images.TotalImages, int64(0))
+	assert.Equal(t, du.Images.ActiveCount, int64(0))
+	assert.Equal(t, du.Images.TotalCount, int64(0))
 	assert.Equal(t, du.Images.Reclaimable, int64(0))
 	assert.Equal(t, du.Images.TotalSize, int64(4096))
 	assert.Equal(t, len(du.Images.Items), 0)
@@ -151,8 +151,8 @@ func TestLegacyDiskUsage(t *testing.T) {
 
 	du, err := client.DiskUsage(context.Background(), DiskUsageOptions{})
 	assert.NilError(t, err)
-	assert.Equal(t, du.Images.ActiveImages, int64(0))
-	assert.Equal(t, du.Images.TotalImages, int64(0))
+	assert.Equal(t, du.Images.ActiveCount, int64(0))
+	assert.Equal(t, du.Images.TotalCount, int64(0))
 	assert.Equal(t, du.Images.Reclaimable, int64(0))
 	assert.Equal(t, du.Images.TotalSize, int64(4096))
 	assert.Equal(t, len(du.Images.Items), 0)

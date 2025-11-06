@@ -101,8 +101,8 @@ func TestDiskUsage(t *testing.T) {
 				})
 				assert.NilError(t, err)
 
-				assert.Equal(t, du.Containers.ActiveContainers, int64(1))
-				assert.Equal(t, du.Containers.TotalContainers, int64(1))
+				assert.Equal(t, du.Containers.ActiveCount, int64(1))
+				assert.Equal(t, du.Containers.TotalCount, int64(1))
 				assert.Equal(t, len(du.Containers.Items), 1)
 				assert.Equal(t, len(du.Containers.Items[0].Names), 1)
 				assert.Assert(t, len(prev.Images.Items) > 0)
@@ -111,8 +111,8 @@ func TestDiskUsage(t *testing.T) {
 				// Additional container layer could add to the size
 				assert.Check(t, du.Images.TotalSize >= prev.Images.TotalSize)
 
-				assert.Equal(t, du.Images.ActiveImages, int64(1))
-				assert.Equal(t, du.Images.TotalImages, int64(1))
+				assert.Equal(t, du.Images.ActiveCount, int64(1))
+				assert.Equal(t, du.Images.TotalCount, int64(1))
 				assert.Equal(t, len(du.Images.Items), 1)
 				assert.Equal(t, du.Images.Items[0].Containers, prev.Images.Items[0].Containers+1)
 
