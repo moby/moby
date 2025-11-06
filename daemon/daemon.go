@@ -57,7 +57,6 @@ import (
 	ctrd "github.com/moby/moby/v2/daemon/containerd"
 	"github.com/moby/moby/v2/daemon/containerd/migration"
 	"github.com/moby/moby/v2/daemon/events"
-	"github.com/moby/moby/v2/daemon/graphdriver"
 	_ "github.com/moby/moby/v2/daemon/graphdriver/register" // register graph drivers
 	"github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/daemon/internal/distribution"
@@ -796,10 +795,6 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 	return daemon.config().IsSwarmCompatible()
 }
 
-func useContainerdByDefault() bool {
-	return os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") == "" && runtime.GOOS != "windows"
-}
-
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
 func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.Store, authzMiddleware *authorization.Middleware) (_ *Daemon, retErr error) {
@@ -873,23 +868,12 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 	d.configStore.Store(cfgStore)
 
+	imgStoreChoice, err := determineImageStoreChoice(config)
+	if err != nil {
+		return nil, err
+	}
+
 	migrationThreshold := int64(-1)
-	isGraphDriver := func(driver string) (bool, error) {
-		if driver == "" {
-			if graphdriver.HasPriorDriver(config.Root) {
-				return true, nil
-			}
-		}
-		return graphdriver.IsRegistered(driver), nil
-	}
-	if enabled, ok := config.Features["containerd-snapshotter"]; (ok && !enabled) || os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") != "" {
-		isGraphDriver = func(driver string) (bool, error) {
-			if driver == "" || graphdriver.IsRegistered(driver) {
-				return true, nil
-			}
-			return false, fmt.Errorf("graphdriver is explicitly enabled but %q is not registered, %v %v", driver, config.Features, os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER"))
-		}
-	}
 	if config.Features["containerd-migration"] {
 		if ts := os.Getenv("DOCKER_MIGRATE_SNAPSHOTTER_THRESHOLD"); ts != "" {
 			v, err := units.FromHumanSize(ts)
@@ -908,9 +892,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		} else {
 			log.G(ctx).WithField("env", os.Environ()).Info("Migration to containerd is enabled, driver will be switched to snapshotter if there are no images or containers")
 		}
-	}
-	if config.Features["containerd-snapshotter"] && useContainerdByDefault() {
-		log.G(ctx).Warn(`"containerd-snapshotter" is now the default and no longer needed to be set`)
 	}
 
 	// Ensure the daemon is properly shutdown if there is a failure during
@@ -1112,43 +1093,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	// On Windows we don't support the environment variable, or a user supplied graphdriver,
-	// but it is allowed when using snapshotters.
-	// Unix platforms however run a single graphdriver for all containers, and it can
-	// be set through an environment variable, a daemon start parameter, or chosen through
-	// initialization of the layerstore through driver priority order for example.
-	driverName := os.Getenv("DOCKER_DRIVER")
-	if isWindows {
-		if driverName == "" {
-			driverName = cfgStore.GraphDriver
-		}
-		switch driverName {
-		case "windows":
-			// Docker WCOW snapshotters
-		case "windowsfilter":
-			// Docker WCOW graphdriver
-		case "":
-			// Use graph driver unless opted-in to containerd store
-			driverName = "windowsfilter"
-			if useContainerdByDefault() || config.Features["containerd-snapshotter"] {
-				driverName = "windows"
-			}
-		default:
-			log.G(ctx).Infof("Using non-default snapshotter %s", driverName)
-
-		}
-	} else if driverName != "" {
-		log.G(ctx).Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", driverName)
-	} else {
-		driverName = cfgStore.GraphDriver
-	}
+	driverName := chooseDriver(ctx, cfgStore.GraphDriver, imgStoreChoice)
 
 	var migrationConfig migration.Config
-	tryGraphDriver, err := isGraphDriver(driverName)
-	if err != nil {
-		return nil, err
-	}
-	if tryGraphDriver {
+	if imgStoreChoice.IsGraphDriver() {
 		layerStore, err := layer.NewStoreFromOptions(layer.StoreOptions{
 			Root:               cfgStore.Root,
 			GraphDriver:        driverName,
