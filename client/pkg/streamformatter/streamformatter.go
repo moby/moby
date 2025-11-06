@@ -22,18 +22,18 @@ func appendNewline(source []byte) []byte {
 	return append(source, []byte(streamNewline)...)
 }
 
-// FormatStatus formats the specified objects according to the specified format (and id).
-func FormatStatus(id, format string, a ...any) []byte {
+// formatStatus formats the specified objects according to the specified format (and id).
+func formatStatus(id, format string, a ...any) []byte {
 	str := fmt.Sprintf(format, a...)
 	b, err := json.Marshal(&jsonstream.Message{ID: id, Status: str})
 	if err != nil {
-		return FormatError(err)
+		return formatError(err)
 	}
 	return appendNewline(b)
 }
 
-// FormatError formats the error as a JSON object
-func FormatError(err error) []byte {
+// formatError formats the error as a JSON object
+func formatError(err error) []byte {
 	jsonError, ok := err.(*jsonstream.Error)
 	if !ok {
 		jsonError = &jsonstream.Error{Message: err.Error()}
@@ -45,7 +45,7 @@ func FormatError(err error) []byte {
 }
 
 func (sf *jsonProgressFormatter) formatStatus(id, format string, a ...any) []byte {
-	return FormatStatus(id, format, a...)
+	return formatStatus(id, format, a...)
 }
 
 // formatProgress formats the progress information for a specified action.
@@ -200,29 +200,4 @@ func (out *progressOutput) WriteProgress(prog progress.Progress) error {
 	}
 
 	return nil
-}
-
-// AuxFormatter is a streamFormatter that writes aux progress messages
-type AuxFormatter struct {
-	io.Writer
-}
-
-// Emit emits the given interface as an aux progress message
-func (sf *AuxFormatter) Emit(id string, aux any) error {
-	auxJSONBytes, err := json.Marshal(aux)
-	if err != nil {
-		return err
-	}
-	auxJSON := new(json.RawMessage)
-	*auxJSON = auxJSONBytes
-	msgJSON, err := json.Marshal(&jsonstream.Message{ID: id, Aux: auxJSON})
-	if err != nil {
-		return err
-	}
-	msgJSON = appendNewline(msgJSON)
-	n, err := sf.Writer.Write(msgJSON)
-	if n != len(msgJSON) {
-		return io.ErrShortWrite
-	}
-	return err
 }
