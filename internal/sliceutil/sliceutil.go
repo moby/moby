@@ -1,5 +1,18 @@
 package sliceutil
 
+func Deref[T any](slice []*T) []T {
+	if slice == nil {
+		return nil
+	}
+	out := make([]T, 0, len(slice))
+	for _, p := range slice {
+		if p != nil {
+			out = append(out, *p)
+		}
+	}
+	return out
+}
+
 func Dedup[T comparable](slice []T) []T {
 	keys := make(map[T]struct{})
 	out := make([]T, 0, len(slice))
