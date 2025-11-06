@@ -16,8 +16,11 @@ func (f imageSaveOptionFunc) Apply(o *imageSaveOpts) error {
 	return f(o)
 }
 
-// ImageSaveWithPlatforms sets the platforms to be saved from the image.
+// ImageSaveWithPlatforms sets the platforms to be saved from the image. It
+// produces an error if platforms are already set. This option only has an
+// effect if the input image is a multi-platform image.
 func ImageSaveWithPlatforms(platforms ...ocispec.Platform) ImageSaveOption {
+	// TODO(thaJeztah): verify the GoDoc; do we produce an error for a single-platform image without the given platform?
 	return imageSaveOptionFunc(func(opt *imageSaveOpts) error {
 		if opt.apiOptions.Platforms != nil {
 			return fmt.Errorf("platforms already set to %v", opt.apiOptions.Platforms)

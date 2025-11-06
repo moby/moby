@@ -43,6 +43,8 @@ type ContainerStatsResult struct {
 // ContainerStats retrieves live resource usage statistics for the specified
 // container. The caller must close the [io.ReadCloser] in the returned result
 // to release associated resources.
+//
+// The underlying [io.ReadCloser] is automatically closed if the context is canceled,
 func (cli *Client) ContainerStats(ctx context.Context, containerID string, options ContainerStatsOptions) (ContainerStatsResult, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
@@ -68,6 +70,6 @@ func (cli *Client) ContainerStats(ctx context.Context, containerID string, optio
 	}
 
 	return ContainerStatsResult{
-		Body: resp.Body,
+		Body: newCancelReadCloser(ctx, resp.Body),
 	}, nil
 }

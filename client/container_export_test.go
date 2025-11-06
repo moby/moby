@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"testing"
@@ -17,14 +16,14 @@ func TestContainerExportError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerExport(context.Background(), "nothing", ContainerExportOptions{})
+	_, err = client.ContainerExport(t.Context(), "nothing", ContainerExportOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ContainerExport(context.Background(), "", ContainerExportOptions{})
+	_, err = client.ContainerExport(t.Context(), "", ContainerExportOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ContainerExport(context.Background(), "    ", ContainerExportOptions{})
+	_, err = client.ContainerExport(t.Context(), "    ", ContainerExportOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -40,10 +39,10 @@ func TestContainerExport(t *testing.T) {
 		}),
 	)
 	assert.NilError(t, err)
-	body, err := client.ContainerExport(context.Background(), "container_id", ContainerExportOptions{})
+	res, err := client.ContainerExport(t.Context(), "container_id", ContainerExportOptions{})
 	assert.NilError(t, err)
-	defer body.Close()
-	content, err := io.ReadAll(body)
+	defer res.Close()
+	content, err := io.ReadAll(res)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(string(content), "response"))
 }

@@ -130,8 +130,8 @@ func TestMigrateSaveLoad(t *testing.T) {
 	rdr, err := apiClient.ImageSave(ctx, []string{"busybox:latest"})
 	assert.NilError(t, err)
 	buf := bytes.NewBuffer(nil)
-	io.Copy(buf, rdr)
-	rdr.Close()
+	_, _ = io.Copy(buf, rdr)
+	defer func() { _ = rdr.Close() }()
 
 	// Delete all images
 	list, err := apiClient.ImageList(ctx, client.ImageListOptions{})
@@ -146,10 +146,10 @@ func TestMigrateSaveLoad(t *testing.T) {
 	assert.Equal(t, info.Images, 0)
 
 	// Import
-	lr, err := apiClient.ImageLoad(ctx, bytes.NewReader(buf.Bytes()), client.ImageLoadWithQuiet(true))
+	resp, err := apiClient.ImageLoad(ctx, bytes.NewReader(buf.Bytes()), client.ImageLoadWithQuiet(true))
 	assert.NilError(t, err)
-	io.Copy(io.Discard, lr)
-	lr.Close()
+	_, _ = io.Copy(io.Discard, resp)
+	_ = resp.Close()
 
 	result := container.RunAttach(ctx, t, apiClient, func(c *container.TestContainerConfig) {
 		c.Name = "Migration-save-load-" + snapshotter

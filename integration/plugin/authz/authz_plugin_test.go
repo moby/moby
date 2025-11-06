@@ -363,13 +363,13 @@ func TestAuthZPluginEnsureLoadImportWorking(t *testing.T) {
 
 	cID := container.Run(ctx, t, c)
 
-	responseReader, err := c.ContainerExport(ctx, cID, client.ContainerExportOptions{})
+	res, err := c.ContainerExport(ctx, cID, client.ContainerExportOptions{})
 	assert.NilError(t, err)
-	defer responseReader.Close()
+	defer func() { _ = res.Close() }()
 	file, err := os.Create(exportedImagePath)
 	assert.NilError(t, err)
-	defer file.Close()
-	_, err = io.Copy(file, responseReader)
+	defer func() { _ = file.Close() }()
+	_, err = io.Copy(file, res)
 	assert.NilError(t, err)
 
 	err = imageImport(ctx, c, exportedImagePath)
@@ -425,17 +425,17 @@ func TestAuthzPluginEnsureContainerCopyToFrom(t *testing.T) {
 }
 
 func imageSave(ctx context.Context, apiClient client.APIClient, path, imgRef string) error {
-	responseReader, err := apiClient.ImageSave(ctx, []string{imgRef})
+	resp, err := apiClient.ImageSave(ctx, []string{imgRef})
 	if err != nil {
 		return err
 	}
-	defer responseReader.Close()
+	defer func() { _ = resp.Close() }()
 	file, err := os.Create(path)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
-	_, err = io.Copy(file, responseReader)
+	_, err = io.Copy(file, resp)
+	_ = file.Close()
 	return err
 }
 
@@ -445,11 +445,12 @@ func imageLoad(ctx context.Context, apiClient client.APIClient, path string) err
 		return err
 	}
 	defer file.Close()
-	response, err := apiClient.ImageLoad(ctx, file, client.ImageLoadWithQuiet(true))
+	resp, err := apiClient.ImageLoad(ctx, file, client.ImageLoadWithQuiet(true))
 	if err != nil {
 		return err
 	}
-	defer response.Close()
+	_, _ = io.Copy(io.Discard, resp)
+	_ = resp.Close()
 	return nil
 }
 
@@ -459,17 +460,17 @@ func imageImport(ctx context.Context, apiClient client.APIClient, path string) e
 		return err
 	}
 	defer file.Close()
-	options := client.ImageImportOptions{}
 	ref := ""
 	source := client.ImageImportSource{
 		Source:     file,
 		SourceName: "-",
 	}
-	responseReader, err := apiClient.ImageImport(ctx, source, ref, options)
+	resp, err := apiClient.ImageImport(ctx, source, ref, client.ImageImportOptions{})
 	if err != nil {
 		return err
 	}
-	defer responseReader.Close()
+	_, _ = io.Copy(io.Discard, resp)
+	_ = resp.Close()
 	return nil
 }
 

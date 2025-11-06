@@ -34,6 +34,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 		SourceName: "-",
 	}, reference, client.ImageImportOptions{})
 	assert.NilError(t, err)
+	defer func() { _ = importRes.Close() }()
 
 	// If the import is successfully, then the message output should contain
 	// the image ID and match with the output from `docker images`.
@@ -70,6 +71,7 @@ func TestExportContainerAfterDaemonRestart(t *testing.T) {
 
 	d.Restart(t)
 
-	_, err := c.ContainerExport(ctx, ctrID, client.ContainerExportOptions{})
+	res, err := c.ContainerExport(ctx, ctrID, client.ContainerExportOptions{})
 	assert.NilError(t, err)
+	_ = res.Close()
 }

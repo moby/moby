@@ -232,14 +232,14 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, instances), swarm.ServicePoll)
 
-	body, err := apiClient.ServiceLogs(ctx, serviceID, client.ServiceLogsOptions{
+	res, err := apiClient.ServiceLogs(ctx, serviceID, client.ServiceLogsOptions{
 		Tail:       "1",
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)
-	defer body.Close()
+	defer func() { _ = res.Close() }()
 
-	content, err := io.ReadAll(body)
+	content, err := io.ReadAll(res)
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(string(content), "-rwxrwxrwx"))
 
@@ -291,14 +291,14 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, instances))
 
-	body, err := apiClient.ServiceLogs(ctx, serviceID, client.ServiceLogsOptions{
+	res, err := apiClient.ServiceLogs(ctx, serviceID, client.ServiceLogsOptions{
 		Tail:       "1",
 		ShowStdout: true,
 	})
 	assert.NilError(t, err)
-	defer body.Close()
+	defer func() { _ = res.Close() }()
 
-	content, err := io.ReadAll(body)
+	content, err := io.ReadAll(res)
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(string(content), "-rwxrwxrwx"))
 

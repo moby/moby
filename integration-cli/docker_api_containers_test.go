@@ -103,11 +103,11 @@ func (s *DockerAPISuite) TestContainerAPIGetExport(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	body, err := apiClient.ContainerExport(testutil.GetContext(c), name, client.ContainerExportOptions{})
+	res, err := apiClient.ContainerExport(testutil.GetContext(c), name, client.ContainerExportOptions{})
 	assert.NilError(c, err)
-	defer body.Close()
+	defer res.Close()
 	found := false
-	for tarReader := tar.NewReader(body); ; {
+	for tarReader := tar.NewReader(res); ; {
 		h, err := tarReader.Next()
 		if errors.Is(err, io.EOF) {
 			break
