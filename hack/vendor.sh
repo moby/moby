@@ -42,15 +42,21 @@ replace() (
 
 dropreplace() (
 	set -x
+	ref=$1
+	if [ -z "$ref" ]; then
+		ref=master
+	fi
+
+	ref=$(git rev-parse "$ref")
 	go mod edit -dropreplace=github.com/moby/moby/api -dropreplace=github.com/moby/moby/client
 	go mod edit -modfile client/go.mod -dropreplace=github.com/moby/moby/api
 
-	go mod edit -modfile client/go.mod -require='github.com/moby/moby/api@master'
+	go mod edit -modfile client/go.mod -require="github.com/moby/moby/api@$ref"
 	(cd client; go mod tidy)
 
 	go mod edit \
-		-require='github.com/moby/moby/api@master' \
-		-require='github.com/moby/moby/client@master'
+		-require="github.com/moby/moby/api@$ref" \
+		-require="github.com/moby/moby/client@$ref"
 	go mod tidy
 	go mod vendor
 )
@@ -69,7 +75,7 @@ case "$1" in
 	tidy) tidy ;;
 	vendor) vendor ;;
 	replace) replace ;;
-	dropreplace) dropreplace ;;
+	dropreplace) dropreplace "$2" ;;
 	""|all) tidy && vendor ;;
 	*) help ;;
 esac
