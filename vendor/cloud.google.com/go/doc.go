@@ -161,6 +161,40 @@ setting a timeout on the context passed to NewClient. Dialing is non-blocking,
 so timeouts would be ineffective and would only interfere with credential
 refreshing, which uses the same context.
 
+# Headers
+
+Regardless of which transport is used, request headers can be set in the same
+way using [`callctx.SetHeaders`][setheaders].
+
+Here is a generic example:
+
+	// Set the header "key" to "value".
+	ctx := callctx.SetHeaders(context.Background(), "key", "value")
+
+	// Then use ctx in a subsequent request.
+	response, err := client.GetSecret(ctx, request)
+
+## Google-reserved headers
+
+There are a some header keys that Google reserves for internal use that must
+not be ovewritten. The following header keys are broadly considered reserved
+and should not be conveyed by client library users unless instructed to do so:
+
+* `x-goog-api-client`
+* `x-goog-request-params`
+
+Be sure to check the individual package documentation for other service-specific
+reserved headers. For example, Storage supports a specific auditing header that
+is mentioned in that [module's documentation][storagedocs].
+
+## Google Cloud system parameters
+
+Google Cloud services respect [system parameters][system parameters] that can be
+used to augment request and/or response behavior. For the most part, they are
+not needed when using one of the enclosed client libraries. However, those that
+may be necessary are made available via the [`callctx`][callctx] package. If not
+present there, consider opening an issue on that repo to request a new constant.
+
 # Connection Pooling
 
 Connection pooling differs in clients based on their transport. Cloud
@@ -250,7 +284,11 @@ situations, including:
 [testing against fake servers]: https://github.com/googleapis/google-cloud-go/blob/main/testing.md#testing-grpc-services-using-fakes
 [Vertex AI - Locations]: https://cloud.google.com/vertex-ai/docs/general/locations
 [Google Application Default Credentials]: https://cloud.google.com/docs/authentication/external/set-up-adc
-[Logging, Debugging and Telemetry Guide]: https://github.com/googleapis/google-cloud-go/blob/main/debug.md
 [Testing Guide]: https://github.com/googleapis/google-cloud-go/blob/main/testing.md
+[Debugging Guide]: https://github.com/googleapis/google-cloud-go/blob/main/debug.md
+[callctx]: https://pkg.go.dev/github.com/googleapis/gax-go/v2/callctx#pkg-constants
+[setheaders]: https://pkg.go.dev/github.com/googleapis/gax-go/v2/callctx#SetHeaders
+[storagedocs]: https://pkg.go.dev/cloud.google.com/go/storage#hdr-Sending_Custom_Headers
+[system parameters]: https://cloud.google.com/apis/docs/system-parameters
 */
 package cloud // import "cloud.google.com/go"

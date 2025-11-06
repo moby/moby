@@ -1,5 +1,54 @@
 # Changes
 
+## [1.12.0](https://github.com/googleapis/google-cloud-go/compare/logging/v1.11.0...logging/v1.12.0) (2024-10-16)
+
+
+### Features
+
+* **logging:** Add support for Go 1.23 iterators ([84461c0](https://github.com/googleapis/google-cloud-go/commit/84461c0ba464ec2f951987ba60030e37c8a8fc18))
+
+
+### Bug Fixes
+
+* **logging:** Bump dependencies ([2ddeb15](https://github.com/googleapis/google-cloud-go/commit/2ddeb1544a53188a7592046b98913982f1b0cf04))
+* **logging:** Fixed input validation for X-Cloud-Trace-Context; encoded spanID from XCTC header into hex string. ([#10979](https://github.com/googleapis/google-cloud-go/issues/10979)) ([a157558](https://github.com/googleapis/google-cloud-go/commit/a157558fd92adb1e6f608d5764316652e06dcd02))
+* **logging:** Update google.golang.org/api to v0.191.0 ([5b32644](https://github.com/googleapis/google-cloud-go/commit/5b32644eb82eb6bd6021f80b4fad471c60fb9d73))
+
+## [1.11.0](https://github.com/googleapis/google-cloud-go/compare/logging/v1.10.0...logging/v1.11.0) (2024-07-24)
+
+
+### Features
+
+* **logging:** OpenTelemetry trace/span ID integration for Go logging library ([#10030](https://github.com/googleapis/google-cloud-go/issues/10030)) ([c6711b8](https://github.com/googleapis/google-cloud-go/commit/c6711b83cb6f9f35032e69a40632b7268fcdbd0a))
+
+
+### Bug Fixes
+
+* **logging:** Bump google.golang.org/api@v0.187.0 ([8fa9e39](https://github.com/googleapis/google-cloud-go/commit/8fa9e398e512fd8533fd49060371e61b5725a85b))
+* **logging:** Bump google.golang.org/grpc@v1.64.1 ([8ecc4e9](https://github.com/googleapis/google-cloud-go/commit/8ecc4e9622e5bbe9b90384d5848ab816027226c5))
+* **logging:** Skip automatic resource detection if a CommonResource ([#10441](https://github.com/googleapis/google-cloud-go/issues/10441)) ([fc4c910](https://github.com/googleapis/google-cloud-go/commit/fc4c91099443385d3052e1d6cf1020c7918c0e5a))
+* **logging:** Update dependencies ([257c40b](https://github.com/googleapis/google-cloud-go/commit/257c40bd6d7e59730017cf32bda8823d7a232758))
+
+
+### Documentation
+
+* **logging:** Documentation for automatic trace/span ID extraction ([#10536](https://github.com/googleapis/google-cloud-go/issues/10536)) ([8cf89a3](https://github.com/googleapis/google-cloud-go/commit/8cf89a340ad75cc1c39e8a9b876b47af069aa273))
+
+## [1.10.0](https://github.com/googleapis/google-cloud-go/compare/logging/v1.9.0...logging/v1.10.0) (2024-05-15)
+
+
+### Features
+
+* **logging/logadmin:** Allow logging PageSize to override ([#9409](https://github.com/googleapis/google-cloud-go/issues/9409)) ([5ca0271](https://github.com/googleapis/google-cloud-go/commit/5ca0271f4354d51a968cf5819322d1c093944d1c))
+
+
+### Bug Fixes
+
+* **logging:** Bump x/net to v0.24.0 ([ba31ed5](https://github.com/googleapis/google-cloud-go/commit/ba31ed5fda2c9664f2e1cf972469295e63deb5b4))
+* **logging:** Enable universe domain resolution options ([fd1d569](https://github.com/googleapis/google-cloud-go/commit/fd1d56930fa8a747be35a224611f4797b8aeb698))
+* **logging:** Set default value for BundleByteLimit to 9.5 MiB to avoid payload size limits. ([#9662](https://github.com/googleapis/google-cloud-go/issues/9662)) ([d5815da](https://github.com/googleapis/google-cloud-go/commit/d5815da84dfb3fedd67bce4c7a24e2f0ab235811))
+* **logging:** Update protobuf dep to v1.33.0 ([30b038d](https://github.com/googleapis/google-cloud-go/commit/30b038d8cac0b8cd5dd4761c87f3f298760dd33a))
+
 ## [1.9.0](https://github.com/googleapis/google-cloud-go/compare/logging/v1.8.1...logging/v1.9.0) (2023-12-12)
 
 
