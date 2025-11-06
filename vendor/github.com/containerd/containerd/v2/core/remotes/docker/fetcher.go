@@ -459,7 +459,7 @@ func (r dockerFetcher) open(ctx context.Context, req *request, mediatype string,
 	if err := r.Acquire(ctx, 1); err != nil {
 		return nil, err
 	}
-	resp, err := req.doWithRetries(ctx, lastHost, withErrorCheck, withOffsetCheck(offset))
+	resp, err := req.doWithRetries(ctx, lastHost, withErrorCheck, withOffsetCheck(offset, parallelism))
 	switch err {
 	case nil:
 		// all good
