@@ -37,7 +37,7 @@ type BuildCacheDiskUsage struct {
 	TotalCount  int64
 	TotalSize   int64
 	Reclaimable int64
-	Items       []*build.CacheRecord
+	Items       []build.CacheRecord
 }
 
 // ContainerDiskUsage contains disk usage for containers.
@@ -46,7 +46,7 @@ type ContainerDiskUsage struct {
 	TotalCount  int64
 	TotalSize   int64
 	Reclaimable int64
-	Items       []*container.Summary
+	Items       []container.Summary
 }
 
 // ImageDiskUsage contains disk usage for images.
@@ -55,7 +55,7 @@ type ImageDiskUsage struct {
 	TotalCount  int64
 	TotalSize   int64
 	Reclaimable int64
-	Items       []*image.Summary
+	Items       []image.Summary
 }
 
 // VolumeDiskUsage contains disk usage for volumes.
@@ -64,5 +64,5 @@ type VolumeDiskUsage struct {
 	TotalCount  int64
 	TotalSize   int64
 	Reclaimable int64
-	Items       []*volume.Volume
+	Items       []volume.Volume
 }

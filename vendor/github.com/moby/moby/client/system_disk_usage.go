@@ -171,13 +171,7 @@ func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (Dis
 		}
 
 		if options.Verbose {
-			r.Images.Items = slices.Collect(func(yield func(image.Summary) bool) {
-				for _, i := range du.Images {
-					if !yield(*i) {
-						return
-					}
-				}
-			})
+			r.Images.Items = du.Images
 		}
 	}
 
@@ -194,13 +188,7 @@ func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (Dis
 		}
 	} else if du.Containers != nil && options.Verbose {
 		// Fallback for legacy response.
-		r.Containers.Items = slices.Collect(func(yield func(container.Summary) bool) {
-			for _, c := range du.Containers {
-				if !yield(*c) {
-					return
-				}
-			}
-		})
+		r.Containers.Items = du.Containers
 	}
 
 	if du.BuildCacheUsage != nil {
@@ -216,13 +204,7 @@ func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (Dis
 		}
 	} else if du.BuildCache != nil && options.Verbose {
 		// Fallback for legacy response.
-		r.BuildCache.Items = slices.Collect(func(yield func(build.CacheRecord) bool) {
-			for _, b := range du.BuildCache {
-				if !yield(*b) {
-					return
-				}
-			}
-		})
+		r.BuildCache.Items = du.BuildCache
 	}
 
 	if du.VolumeUsage != nil {
@@ -238,13 +220,7 @@ func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (Dis
 		}
 	} else if du.Volumes != nil && options.Verbose {
 		// Fallback for legacy response.
-		r.Volumes.Items = slices.Collect(func(yield func(volume.Volume) bool) {
-			for _, v := range du.Volumes {
-				if !yield(*v) {
-					return
-				}
-			}
-		})
+		r.Volumes.Items = du.Volumes
 	}
 
 	return r, nil

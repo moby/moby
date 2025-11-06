@@ -37,14 +37,14 @@ type LegacyDiskUsage struct {
 	LayersSize int64 `json:"LayersSize,omitempty"`
 
 	// Deprecated: kept to maintain backwards compatibility with API < v1.52, use [ImagesDiskUsage.Items] instead.
-	Images []*image.Summary `json:"Images,omitempty"`
+	Images []image.Summary `json:"Images,omitzero"`
 
 	// Deprecated: kept to maintain backwards compatibility with API < v1.52, use [ContainersDiskUsage.Items] instead.
-	Containers []*container.Summary `json:"Containers,omitempty"`
+	Containers []container.Summary `json:"Containers,omitzero"`
 
 	// Deprecated: kept to maintain backwards compatibility with API < v1.52, use [VolumesDiskUsage.Items] instead.
-	Volumes []*volume.Volume `json:"Volumes,omitempty"`
+	Volumes []volume.Volume `json:"Volumes,omitzero"`
 
 	// Deprecated: kept to maintain backwards compatibility with API < v1.52, use [BuildCacheDiskUsage.Items] instead.
-	BuildCache []*build.CacheRecord `json:"BuildCache,omitempty"`
+	BuildCache []build.CacheRecord `json:"BuildCache,omitzero"`
 }

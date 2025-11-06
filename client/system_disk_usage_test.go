@@ -140,7 +140,7 @@ func TestLegacyDiskUsage(t *testing.T) {
 		return mockJSONResponse(http.StatusOK, nil, system.DiskUsage{
 			LegacyDiskUsage: system.LegacyDiskUsage{
 				LayersSize: 4096,
-				Images:     []*image.Summary{},
+				Images:     []image.Summary{},
 			},
 		})(req)
 	}))
