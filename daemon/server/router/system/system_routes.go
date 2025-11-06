@@ -216,7 +216,31 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		return err
 	}
 
-	var v system.DiskUsage
+	var legacy system.LegacyDiskUsage
+	if legacyFields {
+		if diskUsage != nil {
+			if diskUsage.Images != nil {
+				legacy.LayersSize = diskUsage.Images.TotalSize      //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
+				legacy.Images = nonNilSlice(diskUsage.Images.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
+			}
+			if diskUsage.Containers != nil {
+				legacy.Containers = nonNilSlice(diskUsage.Containers.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
+			}
+			if diskUsage.Volumes != nil {
+				legacy.Volumes = nonNilSlice(diskUsage.Volumes.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
+			}
+		}
+		if buildCacheUsage != nil && buildCacheUsage.Items != nil {
+			legacy.BuildCache = nonNilSlice(buildCacheUsage.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
+		}
+	}
+	if versions.LessThan(version, "1.52") {
+		return httputils.WriteJSON(w, http.StatusOK, legacy)
+	}
+
+	v := system.DiskUsage{
+		LegacyDiskUsage: legacy,
+	}
 	if diskUsage != nil && diskUsage.Images != nil {
 		v.ImageUsage = &image.DiskUsage{
 			ActiveCount: diskUsage.Images.ActiveCount,
@@ -224,11 +248,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 			TotalCount:  diskUsage.Images.TotalCount,
 			TotalSize:   diskUsage.Images.TotalSize,
 		}
-
-		if legacyFields {
-			v.LayersSize = diskUsage.Images.TotalSize      //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
-			v.Images = nonNilSlice(diskUsage.Images.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
-		} else if verbose {
+		if verbose {
 			v.ImageUsage.Items = diskUsage.Images.Items
 		}
 	}
@@ -239,10 +259,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 			TotalCount:  diskUsage.Containers.TotalCount,
 			TotalSize:   diskUsage.Containers.TotalSize,
 		}
-
-		if legacyFields {
-			v.Containers = nonNilSlice(diskUsage.Containers.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
-		} else if verbose {
+		if verbose {
 			v.ContainerUsage.Items = diskUsage.Containers.Items
 		}
 	}
@@ -253,10 +270,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 			Reclaimable: diskUsage.Volumes.Reclaimable,
 			TotalCount:  diskUsage.Volumes.TotalCount,
 		}
-
-		if legacyFields {
-			v.Volumes = nonNilSlice(diskUsage.Volumes.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
-		} else if verbose {
+		if verbose {
 			v.VolumeUsage.Items = diskUsage.Volumes.Items
 		}
 	}
@@ -267,10 +281,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 			TotalCount:  buildCacheUsage.TotalCount,
 			TotalSize:   buildCacheUsage.TotalSize,
 		}
-
-		if legacyFields {
-			v.BuildCache = nonNilSlice(buildCacheUsage.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
-		} else if verbose {
+		if verbose {
 			v.BuildCacheUsage.Items = buildCacheUsage.Items
 		}
 	}
