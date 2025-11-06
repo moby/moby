@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -16,7 +15,7 @@ import (
 func TestDiskUsageError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	_, err = client.DiskUsage(context.Background(), DiskUsageOptions{})
+	_, err = client.DiskUsage(t.Context(), DiskUsageOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -39,7 +38,7 @@ func TestDiskUsage(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	du, err := client.DiskUsage(context.Background(), DiskUsageOptions{})
+	du, err := client.DiskUsage(t.Context(), DiskUsageOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, du.Images.ActiveCount, int64(0))
 	assert.Equal(t, du.Images.TotalCount, int64(0))
@@ -116,7 +115,7 @@ func TestDiskUsageWithOptions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("options=%+v", tt.options), func(t *testing.T) {
-			client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
 				if err := assertRequestWithQuery(req, http.MethodGet, expectedURL, tt.expectedQuery); err != nil {
 					return nil, err
 				}
@@ -133,7 +132,7 @@ func TestDiskUsageWithOptions(t *testing.T) {
 func TestLegacyDiskUsage(t *testing.T) {
 	const legacyVersion = "1.51"
 	const expectedURL = "/system/df"
-	client, err := NewClientWithOpts(
+	client, err := New(
 		WithVersion(legacyVersion),
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodGet, "/v"+legacyVersion+expectedURL); err != nil {
@@ -149,7 +148,7 @@ func TestLegacyDiskUsage(t *testing.T) {
 		}))
 	assert.NilError(t, err)
 
-	du, err := client.DiskUsage(context.Background(), DiskUsageOptions{})
+	du, err := client.DiskUsage(t.Context(), DiskUsageOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, du.Images.ActiveCount, int64(0))
 	assert.Equal(t, du.Images.TotalCount, int64(0))
