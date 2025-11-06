@@ -53,23 +53,6 @@ func newDaemonCommand(stderr io.Writer) (*cobra.Command, error) {
 		},
 	}
 
-	// Cobra's [Command.InitDefaultCompletionCmd] has a special-case for
-	// binaries/commands that don't have subcommands, and does not set up
-	// the default completion command in that case.
-	//
-	// Unfortunately, the definition of the default completion commands
-	// is not exported, and we don't want to replicate them. As a workaround,
-	// we're adding a hidden dummy-command to trick Cobra into applying
-	// the default.
-	//
-	// TODO(thaJeztah): consider contributing to Cobra to either allow explicitly enabling, or to export the default completion commands
-	//
-	// [Command.InitDefaultCompletionCmd]: https://github.com/spf13/cobra/blob/v1.8.1/completions.go#L685-L698
-	cmd.AddCommand(&cobra.Command{
-		Use:    "__dummy_command",
-		Hidden: true,
-	})
-
 	SetupRootCommand(cmd)
 
 	flags := cmd.Flags()
