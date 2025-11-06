@@ -131,19 +131,22 @@ func TestDiskUsageWithOptions(t *testing.T) {
 }
 
 func TestLegacyDiskUsage(t *testing.T) {
+	const legacyVersion = "1.51"
 	const expectedURL = "/system/df"
-	client, err := NewClientWithOpts(WithMockClient(func(req *http.Request) (*http.Response, error) {
-		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
-			return nil, err
-		}
+	client, err := NewClientWithOpts(
+		WithVersion(legacyVersion),
+		WithMockClient(func(req *http.Request) (*http.Response, error) {
+			if err := assertRequest(req, http.MethodGet, "/v"+legacyVersion+expectedURL); err != nil {
+				return nil, err
+			}
 
-		return mockJSONResponse(http.StatusOK, nil, system.DiskUsage{
-			LegacyDiskUsage: system.LegacyDiskUsage{
-				LayersSize: 4096,
-				Images:     []image.Summary{},
-			},
-		})(req)
-	}))
+			return mockJSONResponse(http.StatusOK, nil, system.DiskUsage{
+				LegacyDiskUsage: system.LegacyDiskUsage{
+					LayersSize: 4096,
+					Images:     []image.Summary{},
+				},
+			})(req)
+		}))
 	assert.NilError(t, err)
 
 	du, err := client.DiskUsage(context.Background(), DiskUsageOptions{})
