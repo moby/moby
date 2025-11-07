@@ -11,14 +11,10 @@ import (
 	"github.com/golang/gddo/httputil"
 	"github.com/moby/moby/api/pkg/authconfig"
 	"github.com/moby/moby/api/types"
-	buildtypes "github.com/moby/moby/api/types/build"
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/system"
-	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/v2/daemon/internal/compat"
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
@@ -184,17 +180,20 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 
 	eg, ctx := errgroup.WithContext(ctx)
 
-	var diskUsage *backend.DiskUsage
+	diskUsage := &backend.DiskUsage{}
 	if getContainers || getImages || getVolumes {
 		eg.Go(func() error {
-			var err error
-			diskUsage, err = s.backend.SystemDiskUsage(ctx, backend.DiskUsageOptions{
+			du, err := s.backend.SystemDiskUsage(ctx, backend.DiskUsageOptions{
 				Containers: getContainers,
 				Images:     getImages,
 				Volumes:    getVolumes,
 				Verbose:    verbose || legacyFields,
 			})
-			return err
+			if err != nil {
+				return err
+			}
+			diskUsage = du
+			return nil
 		})
 	}
 
@@ -215,77 +214,35 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 	if err := eg.Wait(); err != nil {
 		return err
 	}
+	diskUsage.BuildCache = buildCacheUsage
 
 	var legacy system.LegacyDiskUsage
 	if legacyFields {
-		if diskUsage != nil {
-			if diskUsage.Images != nil {
-				legacy.LayersSize = diskUsage.Images.TotalSize      //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
-				legacy.Images = nonNilSlice(diskUsage.Images.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
-			}
-			if diskUsage.Containers != nil {
-				legacy.Containers = nonNilSlice(diskUsage.Containers.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
-			}
-			if diskUsage.Volumes != nil {
-				legacy.Volumes = nonNilSlice(diskUsage.Volumes.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
-			}
+		if diskUsage.Images != nil {
+			legacy.LayersSize = diskUsage.Images.TotalSize      //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
+			legacy.Images = nonNilSlice(diskUsage.Images.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
 		}
-		if buildCacheUsage != nil && buildCacheUsage.Items != nil {
-			legacy.BuildCache = nonNilSlice(buildCacheUsage.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
+		if diskUsage.Containers != nil {
+			legacy.Containers = nonNilSlice(diskUsage.Containers.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
+		}
+		if diskUsage.Volumes != nil {
+			legacy.Volumes = nonNilSlice(diskUsage.Volumes.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
+		}
+		if diskUsage.BuildCache != nil {
+			legacy.BuildCache = nonNilSlice(diskUsage.BuildCache.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
 		}
 	}
 	if versions.LessThan(version, "1.52") {
 		return httputils.WriteJSON(w, http.StatusOK, legacy)
 	}
 
-	v := system.DiskUsage{
+	return httputils.WriteJSON(w, http.StatusOK, &system.DiskUsage{
 		LegacyDiskUsage: legacy,
-	}
-	if diskUsage != nil && diskUsage.Images != nil {
-		v.ImageUsage = &image.DiskUsage{
-			ActiveCount: diskUsage.Images.ActiveCount,
-			Reclaimable: diskUsage.Images.Reclaimable,
-			TotalCount:  diskUsage.Images.TotalCount,
-			TotalSize:   diskUsage.Images.TotalSize,
-		}
-		if verbose {
-			v.ImageUsage.Items = diskUsage.Images.Items
-		}
-	}
-	if diskUsage != nil && diskUsage.Containers != nil {
-		v.ContainerUsage = &container.DiskUsage{
-			ActiveCount: diskUsage.Containers.ActiveCount,
-			Reclaimable: diskUsage.Containers.Reclaimable,
-			TotalCount:  diskUsage.Containers.TotalCount,
-			TotalSize:   diskUsage.Containers.TotalSize,
-		}
-		if verbose {
-			v.ContainerUsage.Items = diskUsage.Containers.Items
-		}
-	}
-	if diskUsage != nil && diskUsage.Volumes != nil {
-		v.VolumeUsage = &volume.DiskUsage{
-			ActiveCount: diskUsage.Volumes.ActiveCount,
-			TotalSize:   diskUsage.Volumes.TotalSize,
-			Reclaimable: diskUsage.Volumes.Reclaimable,
-			TotalCount:  diskUsage.Volumes.TotalCount,
-		}
-		if verbose {
-			v.VolumeUsage.Items = diskUsage.Volumes.Items
-		}
-	}
-	if buildCacheUsage != nil {
-		v.BuildCacheUsage = &buildtypes.DiskUsage{
-			ActiveCount: buildCacheUsage.ActiveCount,
-			Reclaimable: buildCacheUsage.Reclaimable,
-			TotalCount:  buildCacheUsage.TotalCount,
-			TotalSize:   buildCacheUsage.TotalSize,
-		}
-		if verbose {
-			v.BuildCacheUsage.Items = buildCacheUsage.Items
-		}
-	}
-	return httputils.WriteJSON(w, http.StatusOK, v)
+		ImageUsage:      diskUsage.Images,
+		ContainerUsage:  diskUsage.Containers,
+		VolumeUsage:     diskUsage.Volumes,
+		BuildCacheUsage: diskUsage.BuildCache,
+	})
 }
 
 // nonNilSlice is used for the legacy fields, which are either omitted
