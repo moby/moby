@@ -5,7 +5,7 @@ import (
 )
 
 // ListResponse contains the response for the Engine API
-type ListResponse []*Plugin
+type ListResponse []Plugin
 
 // Privilege describes a permission the user has to accept
 // upon installing a plugin.
