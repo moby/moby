@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/containerd/log"
@@ -165,19 +164,21 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		}
 	}
 
-	// To maintain backwards compatibility with older clients, when communicating with API versions prior to 1.52,
-	// verbose mode is always enabled. For API 1.52 and onwards, if the "verbose" query parameter is not set,
-	// assume legacy fields should be included.
 	var verbose, legacyFields bool
-	if v := r.Form.Get("verbose"); versions.GreaterThanOrEqualTo(version, "1.52") && v != "" {
-		var err error
-		verbose, err = strconv.ParseBool(v)
-		if err != nil {
-			return invalidRequestError{Err: fmt.Errorf("invalid value for verbose: %s", v)}
-		}
+	if versions.LessThan(version, "1.52") {
+		legacyFields = true
 	} else {
-		// In versions prior to 1.52, legacy fields were always included.
-		legacyFields, verbose = true, true
+		verbose = httputils.BoolValue(r, "verbose")
+
+		// For API 1.52, we include both legacy and current fields, as some
+		// integrations (such as "docker-py") currently use "latest", non-versioned
+		// API version.
+		//
+		// However, if the "verbose" query parameter is set, we can assume
+		// the client is "API 1.52 aware", and we'll omit the legacy fields.
+		//
+		// FIXME(thaJeztah): remove legacy fields entirely for API 1.53
+		legacyFields = !verbose
 	}
 
 	eg, ctx := errgroup.WithContext(ctx)
@@ -190,7 +191,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 				Containers: getContainers,
 				Images:     getImages,
 				Volumes:    getVolumes,
-				Verbose:    verbose,
+				Verbose:    verbose || legacyFields,
 			})
 			return err
 		})
