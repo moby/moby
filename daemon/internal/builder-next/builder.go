@@ -150,15 +150,26 @@ func (b *Builder) Cancel(ctx context.Context, id string) error {
 }
 
 // DiskUsage returns a report about space used by build cache
-func (b *Builder) DiskUsage(ctx context.Context) ([]build.CacheRecord, error) {
+func (b *Builder) DiskUsage(ctx context.Context, options buildbackend.DiskUsageOptions) (*buildbackend.DiskUsage, error) {
 	duResp, err := b.controller.DiskUsage(ctx, &controlapi.DiskUsageRequest{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting build cache usage: %w", err)
 	}
 
-	var items []build.CacheRecord
+	var usage buildbackend.DiskUsage
 	for _, r := range duResp.Record {
-		items = append(items, build.CacheRecord{
+		usage.TotalCount++
+		usage.TotalSize += r.Size
+		if r.InUse {
+			usage.ActiveCount++
+		}
+		if !r.InUse && !r.Shared {
+			usage.Reclaimable += r.Size
+		}
+		if !options.Verbose {
+			continue
+		}
+		usage.Items = append(usage.Items, build.CacheRecord{
 			ID:          r.ID,
 			Parents:     r.Parents,
 			Type:        r.RecordType,
@@ -182,7 +193,7 @@ func (b *Builder) DiskUsage(ctx context.Context) ([]build.CacheRecord, error) {
 			UsageCount: int(r.UsageCount),
 		})
 	}
-	return items, nil
+	return &usage, nil
 }
 
 // Prune clears all reclaimable build cache.

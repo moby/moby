@@ -5,26 +5,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/containerd/log"
 	"github.com/golang/gddo/httputil"
 	"github.com/moby/moby/api/pkg/authconfig"
 	"github.com/moby/moby/api/types"
-	buildtypes "github.com/moby/moby/api/types/build"
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/api/types/system"
-	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/v2/daemon/internal/compat"
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/internal/versions"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/daemon/server/router/build"
 	"github.com/moby/moby/v2/pkg/ioutils"
@@ -165,42 +161,49 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		}
 	}
 
-	// To maintain backwards compatibility with older clients, when communicating with API versions prior to 1.52,
-	// verbose mode is always enabled. For API 1.52 and onwards, if the "verbose" query parameter is not set,
-	// assume legacy fields should be included.
 	var verbose, legacyFields bool
-	if v := r.Form.Get("verbose"); versions.GreaterThanOrEqualTo(version, "1.52") && v != "" {
-		var err error
-		verbose, err = strconv.ParseBool(v)
-		if err != nil {
-			return invalidRequestError{Err: fmt.Errorf("invalid value for verbose: %s", v)}
-		}
+	if versions.LessThan(version, "1.52") {
+		legacyFields = true
 	} else {
-		// In versions prior to 1.52, legacy fields were always included.
-		legacyFields, verbose = true, true
+		verbose = httputils.BoolValue(r, "verbose")
+
+		// For API 1.52, we include both legacy and current fields, as some
+		// integrations (such as "docker-py") currently use "latest", non-versioned
+		// API version.
+		//
+		// However, if the "verbose" query parameter is set, we can assume
+		// the client is "API 1.52 aware", and we'll omit the legacy fields.
+		//
+		// FIXME(thaJeztah): remove legacy fields entirely for API 1.53
+		legacyFields = !verbose
 	}
 
 	eg, ctx := errgroup.WithContext(ctx)
 
-	var systemDiskUsage *backend.DiskUsage
+	diskUsage := &backend.DiskUsage{}
 	if getContainers || getImages || getVolumes {
 		eg.Go(func() error {
-			var err error
-			systemDiskUsage, err = s.backend.SystemDiskUsage(ctx, backend.DiskUsageOptions{
+			du, err := s.backend.SystemDiskUsage(ctx, backend.DiskUsageOptions{
 				Containers: getContainers,
 				Images:     getImages,
 				Volumes:    getVolumes,
-				Verbose:    verbose,
+				Verbose:    verbose || legacyFields,
 			})
-			return err
+			if err != nil {
+				return err
+			}
+			diskUsage = du
+			return nil
 		})
 	}
 
-	var buildCache []buildtypes.CacheRecord
+	var buildCacheUsage *buildbackend.DiskUsage
 	if getBuildCache {
 		eg.Go(func() error {
 			var err error
-			buildCache, err = s.builder.DiskUsage(ctx)
+			buildCacheUsage, err = s.builder.DiskUsage(ctx, buildbackend.DiskUsageOptions{
+				Verbose: verbose || legacyFields,
+			})
 			if err != nil {
 				return errors.Wrap(err, "error getting build cache usage")
 			}
@@ -211,83 +214,35 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 	if err := eg.Wait(); err != nil {
 		return err
 	}
+	diskUsage.BuildCache = buildCacheUsage
 
-	var v system.DiskUsage
-	if systemDiskUsage != nil && systemDiskUsage.Images != nil {
-		v.ImageUsage = &image.DiskUsage{
-			ActiveCount: systemDiskUsage.Images.ActiveCount,
-			Reclaimable: systemDiskUsage.Images.Reclaimable,
-			TotalCount:  systemDiskUsage.Images.TotalCount,
-			TotalSize:   systemDiskUsage.Images.TotalSize,
+	var legacy system.LegacyDiskUsage
+	if legacyFields {
+		if diskUsage.Images != nil {
+			legacy.LayersSize = diskUsage.Images.TotalSize      //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
+			legacy.Images = nonNilSlice(diskUsage.Images.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
 		}
-
-		if legacyFields {
-			v.LayersSize = systemDiskUsage.Images.TotalSize      //nolint: staticcheck,SA1019: v.LayersSize is deprecated: kept to maintain backwards compatibility with API < v1.52, use [ImagesDiskUsage.TotalSize] instead.
-			v.Images = nonNilSlice(systemDiskUsage.Images.Items) //nolint: staticcheck,SA1019: v.Images is deprecated: kept to maintain backwards compatibility with API < v1.52, use [ImagesDiskUsage.Items] instead.
-		} else if verbose {
-			v.ImageUsage.Items = systemDiskUsage.Images.Items
+		if diskUsage.Containers != nil {
+			legacy.Containers = nonNilSlice(diskUsage.Containers.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
 		}
-	}
-	if systemDiskUsage != nil && systemDiskUsage.Containers != nil {
-		v.ContainerUsage = &container.DiskUsage{
-			ActiveCount: systemDiskUsage.Containers.ActiveCount,
-			Reclaimable: systemDiskUsage.Containers.Reclaimable,
-			TotalCount:  systemDiskUsage.Containers.TotalCount,
-			TotalSize:   systemDiskUsage.Containers.TotalSize,
+		if diskUsage.Volumes != nil {
+			legacy.Volumes = nonNilSlice(diskUsage.Volumes.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
 		}
-
-		if legacyFields {
-			v.Containers = nonNilSlice(systemDiskUsage.Containers.Items) //nolint: staticcheck,SA1019: v.Containers is deprecated: kept to maintain backwards compatibility with API < v1.52, use [ContainersDiskUsage.Items] instead.
-		} else if verbose {
-			v.ContainerUsage.Items = systemDiskUsage.Containers.Items
+		if diskUsage.BuildCache != nil {
+			legacy.BuildCache = nonNilSlice(diskUsage.BuildCache.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
 		}
 	}
-	if systemDiskUsage != nil && systemDiskUsage.Volumes != nil {
-		v.VolumeUsage = &volume.DiskUsage{
-			ActiveCount: systemDiskUsage.Volumes.ActiveCount,
-			TotalSize:   systemDiskUsage.Volumes.TotalSize,
-			Reclaimable: systemDiskUsage.Volumes.Reclaimable,
-			TotalCount:  systemDiskUsage.Volumes.TotalCount,
-		}
-
-		if legacyFields {
-			v.Volumes = nonNilSlice(systemDiskUsage.Volumes.Items) //nolint: staticcheck,SA1019: v.Volumes is deprecated: kept to maintain backwards compatibility with API < v1.52, use [VolumesDiskUsage.Items] instead.
-		} else if verbose {
-			v.VolumeUsage.Items = systemDiskUsage.Volumes.Items
-		}
+	if versions.LessThan(version, "1.52") {
+		return httputils.WriteJSON(w, http.StatusOK, legacy)
 	}
-	if getBuildCache {
-		v.BuildCacheUsage = &buildtypes.DiskUsage{
-			TotalCount: int64(len(buildCache)),
-		}
 
-		activeCount := v.BuildCacheUsage.TotalCount
-		var totalSize, reclaimable int64
-
-		for _, b := range buildCache {
-			if versions.LessThan(version, "1.42") {
-				totalSize += b.Size
-			}
-
-			if !b.InUse {
-				activeCount--
-			}
-			if !b.InUse && !b.Shared {
-				reclaimable += b.Size
-			}
-		}
-
-		v.BuildCacheUsage.ActiveCount = activeCount
-		v.BuildCacheUsage.TotalSize = totalSize
-		v.BuildCacheUsage.Reclaimable = reclaimable
-
-		if legacyFields {
-			v.BuildCache = nonNilSlice(buildCache) //nolint: staticcheck,SA1019: v.BuildCache is deprecated: kept to maintain backwards compatibility with API < v1.52, use [BuildCacheDiskUsage.Items] instead.
-		} else if verbose {
-			v.BuildCacheUsage.Items = buildCache
-		}
-	}
-	return httputils.WriteJSON(w, http.StatusOK, v)
+	return httputils.WriteJSON(w, http.StatusOK, &system.DiskUsage{
+		LegacyDiskUsage: legacy,
+		ImageUsage:      diskUsage.Images,
+		ContainerUsage:  diskUsage.Containers,
+		VolumeUsage:     diskUsage.Volumes,
+		BuildCacheUsage: diskUsage.BuildCache,
+	})
 }
 
 // nonNilSlice is used for the legacy fields, which are either omitted
