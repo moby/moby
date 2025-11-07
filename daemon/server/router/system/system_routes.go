@@ -183,11 +183,11 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 
 	eg, ctx := errgroup.WithContext(ctx)
 
-	var systemDiskUsage *backend.DiskUsage
+	var diskUsage *backend.DiskUsage
 	if getContainers || getImages || getVolumes {
 		eg.Go(func() error {
 			var err error
-			systemDiskUsage, err = s.backend.SystemDiskUsage(ctx, backend.DiskUsageOptions{
+			diskUsage, err = s.backend.SystemDiskUsage(ctx, backend.DiskUsageOptions{
 				Containers: getContainers,
 				Images:     getImages,
 				Volumes:    getVolumes,
@@ -214,47 +214,47 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 	}
 
 	var v system.DiskUsage
-	if systemDiskUsage != nil && systemDiskUsage.Images != nil {
+	if diskUsage != nil && diskUsage.Images != nil {
 		v.ImageUsage = &image.DiskUsage{
-			ActiveCount: systemDiskUsage.Images.ActiveCount,
-			Reclaimable: systemDiskUsage.Images.Reclaimable,
-			TotalCount:  systemDiskUsage.Images.TotalCount,
-			TotalSize:   systemDiskUsage.Images.TotalSize,
+			ActiveCount: diskUsage.Images.ActiveCount,
+			Reclaimable: diskUsage.Images.Reclaimable,
+			TotalCount:  diskUsage.Images.TotalCount,
+			TotalSize:   diskUsage.Images.TotalSize,
 		}
 
 		if legacyFields {
-			v.LayersSize = systemDiskUsage.Images.TotalSize      //nolint: staticcheck,SA1019: v.LayersSize is deprecated: kept to maintain backwards compatibility with API < v1.52, use [ImagesDiskUsage.TotalSize] instead.
-			v.Images = nonNilSlice(systemDiskUsage.Images.Items) //nolint: staticcheck,SA1019: v.Images is deprecated: kept to maintain backwards compatibility with API < v1.52, use [ImagesDiskUsage.Items] instead.
+			v.LayersSize = diskUsage.Images.TotalSize      //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
+			v.Images = nonNilSlice(diskUsage.Images.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
 		} else if verbose {
-			v.ImageUsage.Items = systemDiskUsage.Images.Items
+			v.ImageUsage.Items = diskUsage.Images.Items
 		}
 	}
-	if systemDiskUsage != nil && systemDiskUsage.Containers != nil {
+	if diskUsage != nil && diskUsage.Containers != nil {
 		v.ContainerUsage = &container.DiskUsage{
-			ActiveCount: systemDiskUsage.Containers.ActiveCount,
-			Reclaimable: systemDiskUsage.Containers.Reclaimable,
-			TotalCount:  systemDiskUsage.Containers.TotalCount,
-			TotalSize:   systemDiskUsage.Containers.TotalSize,
+			ActiveCount: diskUsage.Containers.ActiveCount,
+			Reclaimable: diskUsage.Containers.Reclaimable,
+			TotalCount:  diskUsage.Containers.TotalCount,
+			TotalSize:   diskUsage.Containers.TotalSize,
 		}
 
 		if legacyFields {
-			v.Containers = nonNilSlice(systemDiskUsage.Containers.Items) //nolint: staticcheck,SA1019: v.Containers is deprecated: kept to maintain backwards compatibility with API < v1.52, use [ContainersDiskUsage.Items] instead.
+			v.Containers = nonNilSlice(diskUsage.Containers.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
 		} else if verbose {
-			v.ContainerUsage.Items = systemDiskUsage.Containers.Items
+			v.ContainerUsage.Items = diskUsage.Containers.Items
 		}
 	}
-	if systemDiskUsage != nil && systemDiskUsage.Volumes != nil {
+	if diskUsage != nil && diskUsage.Volumes != nil {
 		v.VolumeUsage = &volume.DiskUsage{
-			ActiveCount: systemDiskUsage.Volumes.ActiveCount,
-			TotalSize:   systemDiskUsage.Volumes.TotalSize,
-			Reclaimable: systemDiskUsage.Volumes.Reclaimable,
-			TotalCount:  systemDiskUsage.Volumes.TotalCount,
+			ActiveCount: diskUsage.Volumes.ActiveCount,
+			TotalSize:   diskUsage.Volumes.TotalSize,
+			Reclaimable: diskUsage.Volumes.Reclaimable,
+			TotalCount:  diskUsage.Volumes.TotalCount,
 		}
 
 		if legacyFields {
-			v.Volumes = nonNilSlice(systemDiskUsage.Volumes.Items) //nolint: staticcheck,SA1019: v.Volumes is deprecated: kept to maintain backwards compatibility with API < v1.52, use [VolumesDiskUsage.Items] instead.
+			v.Volumes = nonNilSlice(diskUsage.Volumes.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
 		} else if verbose {
-			v.VolumeUsage.Items = systemDiskUsage.Volumes.Items
+			v.VolumeUsage.Items = diskUsage.Volumes.Items
 		}
 	}
 	if getBuildCache {
@@ -283,7 +283,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		v.BuildCacheUsage.Reclaimable = reclaimable
 
 		if legacyFields {
-			v.BuildCache = nonNilSlice(buildCache) //nolint: staticcheck,SA1019: v.BuildCache is deprecated: kept to maintain backwards compatibility with API < v1.52, use [BuildCacheDiskUsage.Items] instead.
+			v.BuildCache = nonNilSlice(buildCache) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
 		} else if verbose {
 			v.BuildCacheUsage.Items = buildCache
 		}
