@@ -11,6 +11,13 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/filters"
 )
 
+type DiskUsageOptions struct {
+	Verbose bool
+}
+
+// DiskUsage contains disk usage for the build cache.
+type DiskUsage = build.DiskUsage
+
 type CachePruneOptions struct {
 	All           bool
 	ReservedSpace int64

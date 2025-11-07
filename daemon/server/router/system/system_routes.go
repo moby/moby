@@ -24,6 +24,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/internal/versions"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/daemon/server/router/build"
 	"github.com/moby/moby/v2/pkg/ioutils"
@@ -197,11 +198,13 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		})
 	}
 
-	var buildCache []buildtypes.CacheRecord
+	var buildCacheUsage *buildbackend.DiskUsage
 	if getBuildCache {
 		eg.Go(func() error {
 			var err error
-			buildCache, err = s.builder.DiskUsage(ctx)
+			buildCacheUsage, err = s.builder.DiskUsage(ctx, buildbackend.DiskUsageOptions{
+				Verbose: verbose || legacyFields,
+			})
 			if err != nil {
 				return errors.Wrap(err, "error getting build cache usage")
 			}
@@ -257,35 +260,18 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 			v.VolumeUsage.Items = diskUsage.Volumes.Items
 		}
 	}
-	if getBuildCache {
+	if buildCacheUsage != nil {
 		v.BuildCacheUsage = &buildtypes.DiskUsage{
-			TotalCount: int64(len(buildCache)),
+			ActiveCount: buildCacheUsage.ActiveCount,
+			Reclaimable: buildCacheUsage.Reclaimable,
+			TotalCount:  buildCacheUsage.TotalCount,
+			TotalSize:   buildCacheUsage.TotalSize,
 		}
-
-		activeCount := v.BuildCacheUsage.TotalCount
-		var totalSize, reclaimable int64
-
-		for _, b := range buildCache {
-			if versions.LessThan(version, "1.42") {
-				totalSize += b.Size
-			}
-
-			if !b.InUse {
-				activeCount--
-			}
-			if !b.InUse && !b.Shared {
-				reclaimable += b.Size
-			}
-		}
-
-		v.BuildCacheUsage.ActiveCount = activeCount
-		v.BuildCacheUsage.TotalSize = totalSize
-		v.BuildCacheUsage.Reclaimable = reclaimable
 
 		if legacyFields {
-			v.BuildCache = nonNilSlice(buildCache) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
+			v.BuildCache = nonNilSlice(buildCacheUsage.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
 		} else if verbose {
-			v.BuildCacheUsage.Items = buildCache
+			v.BuildCacheUsage.Items = buildCacheUsage.Items
 		}
 	}
 	return httputils.WriteJSON(w, http.StatusOK, v)
