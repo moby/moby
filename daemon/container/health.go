@@ -23,7 +23,7 @@ func (s *Health) String() string {
 	case container.Starting:
 		return "health: starting"
 	default: // Healthy and Unhealthy are clear on their own
-		return status
+		return string(status)
 	}
 }
 

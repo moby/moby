@@ -244,7 +244,7 @@ func handleProbeResult(d *Daemon, c *container.Container, result *containertypes
 
 	current := h.Status()
 	if oldStatus != current {
-		d.LogContainerEvent(c, events.Action(string(events.ActionHealthStatus)+": "+current))
+		d.LogContainerEvent(c, events.Action(string(events.ActionHealthStatus)+": "+string(current)))
 	}
 }
 

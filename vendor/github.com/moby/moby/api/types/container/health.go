@@ -7,9 +7,7 @@ import (
 )
 
 // HealthStatus is a string representation of the container's health.
-//
-// It currently is an alias for string, but may become a distinct type in future.
-type HealthStatus = string
+type HealthStatus string
 
 // Health states
 const (
@@ -41,7 +39,10 @@ type HealthcheckResult struct {
 }
 
 var validHealths = []string{
-	NoHealthcheck, Starting, Healthy, Unhealthy,
+	string(NoHealthcheck),
+	string(Starting),
+	string(Healthy),
+	string(Unhealthy),
 }
 
 // ValidateHealthStatus checks if the provided string is a valid

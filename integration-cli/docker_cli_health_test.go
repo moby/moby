@@ -26,16 +26,17 @@ func (s *DockerCLIHealthSuite) OnTimeout(t *testing.T) {
 	s.ds.OnTimeout(t)
 }
 
-func waitForHealthStatus(t *testing.T, name string, prev string, expected string) {
-	prev = prev + "\n"
-	expected = expected + "\n"
+func waitForHealthStatus(t *testing.T, name string, prev container.HealthStatus, expected container.HealthStatus) {
 	for {
 		out := cli.DockerCmd(t, "inspect", "--format={{.State.Health.Status}}", name).Stdout()
-		if out == expected {
+		actual := container.HealthStatus(strings.TrimSpace(out))
+		if actual == expected {
 			return
 		}
-		assert.Equal(t, out, prev)
-		if out != prev {
+
+		// TODO(thaJeztah): this logic seems broken? assert.Assert would make it fail, so why the "actual != prev"?
+		assert.Equal(t, actual, prev)
+		if actual != prev {
 			return
 		}
 		time.Sleep(100 * time.Millisecond)
@@ -84,7 +85,7 @@ func (s *DockerCLIHealthSuite) TestHealth(c *testing.T) {
 
 	// Inspect the status
 	out = cli.DockerCmd(c, "inspect", "--format={{.State.Health.Status}}", name).Stdout()
-	assert.Equal(c, strings.TrimSpace(out), container.Unhealthy)
+	assert.Equal(c, container.HealthStatus(strings.TrimSpace(out)), container.Unhealthy)
 
 	// Make it healthy again
 	cli.DockerCmd(c, "exec", name, "touch", "/status")
