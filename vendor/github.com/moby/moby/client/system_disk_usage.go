@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/url"
 	"slices"
-	"strings"
 
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/container"
@@ -149,14 +148,19 @@ func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (Dis
 		return DiskUsageResult{}, err
 	}
 
-	var du system.DiskUsage
-	if err := json.NewDecoder(resp.Body).Decode(&du); err != nil {
-		return DiskUsageResult{}, fmt.Errorf("Error retrieving disk usage: %v", err)
+	if versions.LessThan(cli.version, "1.52") {
+		// Generate result from a legacy response.
+		var du legacyDiskUsage
+		if err := json.NewDecoder(resp.Body).Decode(&du); err != nil {
+			return DiskUsageResult{}, fmt.Errorf("retrieving disk usage: %v", err)
+		}
+
+		return diskUsageResultFromLegacyAPI(&du), nil
 	}
 
-	// Generate result from a legacy response.
-	if versions.LessThan(cli.version, "1.52") {
-		return diskUsageResultFromLegacyAPI(&du), nil
+	var du system.DiskUsage
+	if err := json.NewDecoder(resp.Body).Decode(&du); err != nil {
+		return DiskUsageResult{}, fmt.Errorf("retrieving disk usage: %v", err)
 	}
 
 	var r DiskUsageResult
@@ -215,7 +219,16 @@ func (cli *Client) DiskUsage(ctx context.Context, options DiskUsageOptions) (Dis
 	return r, nil
 }
 
-func diskUsageResultFromLegacyAPI(du *system.DiskUsage) DiskUsageResult {
+// legacyDiskUsage is the response as was used by API < v1.52.
+type legacyDiskUsage struct {
+	LayersSize int64               `json:"LayersSize,omitempty"`
+	Images     []image.Summary     `json:"Images,omitzero"`
+	Containers []container.Summary `json:"Containers,omitzero"`
+	Volumes    []volume.Volume     `json:"Volumes,omitzero"`
+	BuildCache []build.CacheRecord `json:"BuildCache,omitzero"`
+}
+
+func diskUsageResultFromLegacyAPI(du *legacyDiskUsage) DiskUsageResult {
 	return DiskUsageResult{
 		Images:     imageDiskUsageFromLegacyAPI(du),
 		Containers: containerDiskUsageFromLegacyAPI(du),
@@ -224,7 +237,7 @@ func diskUsageResultFromLegacyAPI(du *system.DiskUsage) DiskUsageResult {
 	}
 }
 
-func imageDiskUsageFromLegacyAPI(du *system.DiskUsage) ImagesDiskUsage {
+func imageDiskUsageFromLegacyAPI(du *legacyDiskUsage) ImagesDiskUsage {
 	idu := ImagesDiskUsage{
 		TotalSize:  du.LayersSize,
 		TotalCount: int64(len(du.Images)),
@@ -250,7 +263,7 @@ func imageDiskUsageFromLegacyAPI(du *system.DiskUsage) ImagesDiskUsage {
 	return idu
 }
 
-func containerDiskUsageFromLegacyAPI(du *system.DiskUsage) ContainersDiskUsage {
+func containerDiskUsageFromLegacyAPI(du *legacyDiskUsage) ContainersDiskUsage {
 	cdu := ContainersDiskUsage{
 		TotalCount: int64(len(du.Containers)),
 		Items:      du.Containers,
@@ -259,8 +272,8 @@ func containerDiskUsageFromLegacyAPI(du *system.DiskUsage) ContainersDiskUsage {
 	var used int64
 	for _, c := range cdu.Items {
 		cdu.TotalSize += c.SizeRw
-		switch strings.ToLower(c.State) {
-		case "running", "paused", "restarting":
+		switch c.State {
+		case container.StateRunning, container.StatePaused, container.StateRestarting:
 			cdu.ActiveCount++
 			used += c.SizeRw
 		}
@@ -270,7 +283,7 @@ func containerDiskUsageFromLegacyAPI(du *system.DiskUsage) ContainersDiskUsage {
 	return cdu
 }
 
-func buildCacheDiskUsageFromLegacyAPI(du *system.DiskUsage) BuildCacheDiskUsage {
+func buildCacheDiskUsageFromLegacyAPI(du *legacyDiskUsage) BuildCacheDiskUsage {
 	bdu := BuildCacheDiskUsage{
 		TotalCount: int64(len(du.BuildCache)),
 		Items:      du.BuildCache,
@@ -294,7 +307,7 @@ func buildCacheDiskUsageFromLegacyAPI(du *system.DiskUsage) BuildCacheDiskUsage 
 	return bdu
 }
 
-func volumeDiskUsageFromLegacyAPI(du *system.DiskUsage) VolumesDiskUsage {
+func volumeDiskUsageFromLegacyAPI(du *legacyDiskUsage) VolumesDiskUsage {
 	vdu := VolumesDiskUsage{
 		TotalCount: int64(len(du.Volumes)),
 		Items:      du.Volumes,
