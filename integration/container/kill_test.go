@@ -92,17 +92,17 @@ func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
 	testCases := []struct {
 		doc        string
 		stopsignal string
-		status     string
+		status     containertypes.ContainerState
 	}{
 		{
 			doc:        "same-signal-disables-restart-policy",
 			stopsignal: "TERM",
-			status:     "exited",
+			status:     containertypes.StateExited,
 		},
 		{
 			doc:        "different-signal-keep-restart-policy",
 			stopsignal: "CONT",
-			status:     "running",
+			status:     containertypes.StateRunning,
 		},
 	}
 

@@ -91,6 +91,7 @@ func (ctr *StateCounter) Get() (running int, paused int, stopped int) {
 	ctr.mu.RLock()
 	defer ctr.mu.RUnlock()
 
+	// FIXME(thaJeztah): there's no "container.StateStopped"; should we align these states with actual states?
 	for _, state := range ctr.states {
 		switch state {
 		case "running":

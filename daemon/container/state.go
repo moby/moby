@@ -31,7 +31,7 @@ type State struct {
 	//
 	// In a similar fashion, [State.Running] and [State.Restarting] can both
 	// be true in a situation where a container is in process of being restarted.
-	// Refer to [State.StateString] for order of precedence.
+	// Refer to [State.State] for order of precedence.
 	Running           bool
 	Paused            bool
 	Restarting        bool
@@ -114,10 +114,10 @@ func (s *State) String() string {
 	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 }
 
-// StateString returns the container's current [ContainerState], based on the
+// State returns the container's current [container.ContainerState], based on the
 // [State.Running], [State.Paused], [State.Restarting], [State.RemovalInProgress],
 // [State.StartedAt] and [State.Dead] fields.
-func (s *State) StateString() container.ContainerState {
+func (s *State) State() container.ContainerState {
 	if s.Running {
 		if s.Paused {
 			return container.StatePaused
@@ -221,7 +221,7 @@ func (s *State) conditionAlreadyMet(condition container.WaitCondition) bool {
 //
 // In a similar fashion, [State.Running] and [State.Restarting] can both
 // be true in a situation where a container is in process of being restarted.
-// Refer to [State.StateString] for order of precedence.
+// Refer to [State.State] for order of precedence.
 func (s *State) IsRunning() bool {
 	s.Lock()
 	defer s.Unlock()
@@ -327,7 +327,7 @@ func (s *State) SetError(err error) {
 //
 // In a similar fashion, [State.Running] and [State.Restarting] can both
 // be true in a situation where a container is in process of being restarted.
-// Refer to [State.StateString] for order of precedence.
+// Refer to [State.State] for order of precedence.
 func (s *State) IsPaused() bool {
 	s.Lock()
 	defer s.Unlock()
@@ -346,7 +346,7 @@ func (s *State) IsPaused() bool {
 //
 // In a similar fashion, [State.Running] and [State.Restarting] can both
 // be true in a situation where a container is in process of being restarted.
-// Refer to [State.StateString] for order of precedence.
+// Refer to [State.State] for order of precedence.
 func (s *State) IsRestarting() bool {
 	s.Lock()
 	defer s.Unlock()

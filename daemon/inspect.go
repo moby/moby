@@ -125,7 +125,7 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 		Path:    ctr.Path,
 		Args:    ctr.Args,
 		State: &containertypes.State{
-			Status:     ctr.State.StateString(),
+			Status:     ctr.State.State(),
 			Running:    ctr.State.Running,
 			Paused:     ctr.State.Paused,
 			Restarting: ctr.State.Restarting,

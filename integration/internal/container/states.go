@@ -39,15 +39,17 @@ func IsInState(ctx context.Context, apiClient client.APIClient, containerID stri
 		if err != nil {
 			return poll.Error(err)
 		}
+		var states []string
 		for _, v := range state {
+			states = append(states, string(v))
 			if inspect.Container.State.Status == v {
 				return poll.Success()
 			}
 		}
-		if len(state) == 1 {
+		if len(states) == 1 {
 			return poll.Continue("waiting for container State.Status to be '%s', currently '%s'", state[0], inspect.Container.State.Status)
 		} else {
-			return poll.Continue("waiting for container State.Status to be one of (%s), currently '%s'", strings.Join(state, ", "), inspect.Container.State.Status)
+			return poll.Continue("waiting for container State.Status to be one of (%s), currently '%s'", strings.Join(states, ", "), inspect.Container.State.Status)
 		}
 	}
 }

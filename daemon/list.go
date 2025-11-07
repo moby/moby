@@ -281,7 +281,7 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 	}
 
 	err = psFilters.WalkValues("status", func(value string) error {
-		if err := containertypes.ValidateContainerState(value); err != nil {
+		if err := containertypes.ValidateContainerState(containertypes.ContainerState(value)); err != nil {
 			return errdefs.InvalidParameter(fmt.Errorf("invalid filter 'status=%s': %w", value, err))
 		}
 		config.All = true
@@ -486,7 +486,7 @@ func includeContainerInList(container *container.Snapshot, filter *listContext) 
 	}
 
 	// Do not include container if its status doesn't match the filter
-	if !filter.filters.Match("status", container.State) {
+	if !filter.filters.Match("status", string(container.State)) {
 		return excludeContainer
 	}
 

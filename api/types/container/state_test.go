@@ -21,7 +21,7 @@ func TestValidateContainerState(t *testing.T) {
 		{state: "invalid-state-string", expectedErr: `invalid value for state (invalid-state-string): must be one of created, running, paused, restarting, removing, exited, dead`},
 	}
 	for _, tc := range tests {
-		t.Run(tc.state, func(t *testing.T) {
+		t.Run(string(tc.state), func(t *testing.T) {
 			err := ValidateContainerState(tc.state)
 			if tc.expectedErr == "" {
 				assert.NilError(t, err)
