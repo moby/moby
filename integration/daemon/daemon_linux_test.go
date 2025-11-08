@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/api/types/network"
@@ -517,4 +518,43 @@ func TestSwarmNoNftables(t *testing.T) {
 		err := d.RestartWithError("--firewall-backend=nftables")
 		assert.Check(t, is.ErrorContains(err, "daemon exited during startup"))
 	})
+}
+
+// TestDaemonShutsDownQuicklyDespiteEventsConnection checks whether the daemon
+// shuts down in less than 5 secs when there's an active API connection to the
+// '/events' endpoint.
+//
+// As this test verifies timing behavior, it may become flaky. Feel free to
+// delete it if it's too annoying.
+//
+// Regression test for https://github.com/moby/moby/issues/32357#issuecomment-3496848492
+func TestDaemonShutsDownQuicklyDespiteEventsConnection(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot start daemon on remote test run")
+	// The Engine is presumably working the same way on Windows and Linux.
+	// Avoid running on Windows as it may be more flaky there.
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	t.Parallel()
+
+	ctx := testutil.StartSpan(baseContext, t)
+
+	d := daemon.New(t)
+	defer d.Cleanup(t)
+
+	// This is a parallel test, disable iptables integration.
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
+	defer d.Stop(t)
+
+	apiClient := d.NewClientT(t)
+	// Open a connection to the '/events' endpoint.
+	apiClient.Events(ctx, client.EventsListOptions{})
+
+	// Kill the daemon
+	t0 := time.Now()
+	d.Stop(t)
+
+	dt := time.Since(t0)
+	if dt.Seconds() > 5 {
+		t.Error("the daemon took more than 5 secs to shutdown")
+	}
 }

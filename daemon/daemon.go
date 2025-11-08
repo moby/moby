@@ -1493,6 +1493,12 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 		daemon.mdDB.Close()
 	}
 
+	// At this point, everything has been shut down and no containers are
+	// running anymore. If there are still some open connections to the
+	// '/events' endpoint, closing the EventsService should tear them down
+	// immediately.
+	daemon.EventsService.Close()
+
 	return daemon.cleanupMounts(cfg)
 }
 
