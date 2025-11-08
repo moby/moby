@@ -1,7 +1,12 @@
-The `Dockerfile` supports building and cross compiling docker daemon and extra
+The `Dockerfile` supports building and cross compiling the Docker daemon and extra
 tools using [Docker Buildx](https://github.com/docker/buildx) and [BuildKit](https://github.com/moby/buildkit).
-A [bake definition](https://docs.docker.com/build/bake/file-definition/) named
-`docker-bake.hcl` is in place to ease the build process:
+A [bake definition](https://docs.docker.com/build/bake/reference/#file-definition) named
+`docker-bake.hcl` is in place to ease the build process.
+
+`docker buildx bake` is a high-level build command that uses BuildKit to orchestrate complex builds
+defined in the `docker-bake.hcl` file. It lets you define multiple build targets
+(like `binary`, `dynbinary`, or `all`) and build them consistently across different
+architectures and configurations with a single command.
 
 ```shell
 # build binaries for the current host platform

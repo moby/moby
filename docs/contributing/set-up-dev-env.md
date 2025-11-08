@@ -212,13 +212,13 @@ can take over 15 minutes to complete.
    Notice the split versions between client and server, which might be
    unexpected. In more recent times the Docker CLI component (which provides the
    `docker` command) has split out from the Moby project and is now maintained in [docker/cli](https://github.com/docker/cli).
-   
+
    The Moby project now defaults to a [fixed
    version](https://github.com/docker/cli/commits/v17.06.0-ce) of the
    `docker` CLI for integration tests.
 
    You may have noticed the following message when starting the container with the `shell` command:
-   
+
    ```none
    Makefile:123: The docker client CLI has moved to github.com/docker/cli. For a dev-test cycle involving the CLI, run:
    DOCKER_CLI_PATH=/host/path/to/cli/binary make shell
@@ -330,7 +330,7 @@ example, you'll edit the help for the `attach` subcommand.
 
 8. Stop Docker if it is running.
 
-9. Copy the binaries to **/usr/bin** by entering the following commands in the docker development container shell.
+9. Copy the binaries to **/usr/local/bin** by entering the following commands in the docker development container shell.
 
    ```
    hack/make.sh binary install-binary

@@ -7,8 +7,7 @@ about Moby's test infrastructure.
 
 This section describes tests you can run in the `dry-run-test` branch of your Docker
 fork. If you have followed along in this guide, you already have this branch.
-If you don't have this branch, you can create it or simply use another of your
-branches.
+If you don't have this branch, you can create it or simply use another branches.
 
 ## Understand how to test Moby
 
