@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -17,7 +16,7 @@ func TestCheckpointListError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.CheckpointList(context.Background(), "container_id", CheckpointListOptions{})
+	_, err = client.CheckpointList(t.Context(), "container_id", CheckpointListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -36,9 +35,9 @@ func TestCheckpointList(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	res, err := client.CheckpointList(context.Background(), "container_id", CheckpointListOptions{})
+	res, err := client.CheckpointList(t.Context(), "container_id", CheckpointListOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Len(res.Checkpoints, 1))
+	assert.Check(t, is.Len(res.Items, 1))
 }
 
 func TestCheckpointListContainerNotFound(t *testing.T) {
@@ -47,6 +46,6 @@ func TestCheckpointListContainerNotFound(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.CheckpointList(context.Background(), "unknown", CheckpointListOptions{})
+	_, err = client.CheckpointList(t.Context(), "unknown", CheckpointListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }

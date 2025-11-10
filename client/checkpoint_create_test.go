@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,18 +18,18 @@ func TestCheckpointCreateError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.CheckpointCreate(context.Background(), "nothing", CheckpointCreateOptions{
+	_, err = client.CheckpointCreate(t.Context(), "nothing", CheckpointCreateOptions{
 		CheckpointID: "noting",
 		Exit:         true,
 	})
 
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.CheckpointCreate(context.Background(), "", CheckpointCreateOptions{})
+	_, err = client.CheckpointCreate(t.Context(), "", CheckpointCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.CheckpointCreate(context.Background(), "    ", CheckpointCreateOptions{})
+	_, err = client.CheckpointCreate(t.Context(), "    ", CheckpointCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -65,7 +64,7 @@ func TestCheckpointCreate(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.CheckpointCreate(context.Background(), expectedContainerID, CheckpointCreateOptions{
+	_, err = client.CheckpointCreate(t.Context(), expectedContainerID, CheckpointCreateOptions{
 		CheckpointID: expectedCheckpointID,
 		Exit:         true,
 	})

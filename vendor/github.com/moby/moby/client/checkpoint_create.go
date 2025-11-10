@@ -13,11 +13,16 @@ type CheckpointCreateOptions struct {
 	Exit          bool
 }
 
+// CheckpointCreateResult holds the result from [client.CheckpointCreate].
+type CheckpointCreateResult struct {
+	// Add future fields here
+}
+
 // CheckpointCreate creates a checkpoint from the given container.
-func (cli *Client) CheckpointCreate(ctx context.Context, containerID string, options CheckpointCreateOptions) error {
+func (cli *Client) CheckpointCreate(ctx context.Context, containerID string, options CheckpointCreateOptions) (CheckpointCreateResult, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
-		return err
+		return CheckpointCreateResult{}, err
 	}
 	requestBody := checkpoint.CreateRequest{
 		CheckpointID:  options.CheckpointID,
@@ -27,5 +32,5 @@ func (cli *Client) CheckpointCreate(ctx context.Context, containerID string, opt
 
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/checkpoints", nil, requestBody, nil)
 	defer ensureReaderClosed(resp)
-	return err
+	return CheckpointCreateResult{}, err
 }

@@ -15,7 +15,7 @@ type CheckpointListOptions struct {
 
 // CheckpointListResult holds the result from the CheckpointList method.
 type CheckpointListResult struct {
-	Checkpoints []checkpoint.Summary
+	Items []checkpoint.Summary
 }
 
 // CheckpointList returns the checkpoints of the given container in the docker host.
@@ -33,6 +33,6 @@ func (cli *Client) CheckpointList(ctx context.Context, container string, options
 		return out, err
 	}
 
-	err = json.NewDecoder(resp.Body).Decode(&out.Checkpoints)
+	err = json.NewDecoder(resp.Body).Decode(&out.Items)
 	return out, err
 }
