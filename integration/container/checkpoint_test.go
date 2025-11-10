@@ -54,7 +54,7 @@ func TestCheckpoint(t *testing.T) {
 	}()
 
 	t.Log("Do a checkpoint and leave the container running")
-	err = apiClient.CheckpointCreate(ctx, cID, client.CheckpointCreateOptions{
+	_, err = apiClient.CheckpointCreate(ctx, cID, client.CheckpointCreateOptions{
 		Exit:         false,
 		CheckpointID: "test",
 	})
@@ -90,7 +90,7 @@ func TestCheckpoint(t *testing.T) {
 
 	// Do a second checkpoint
 	t.Log("Do a checkpoint and stop the container")
-	err = apiClient.CheckpointCreate(ctx, cID, client.CheckpointCreateOptions{
+	_, err = apiClient.CheckpointCreate(ctx, cID, client.CheckpointCreateOptions{
 		Exit:         true,
 		CheckpointID: "test2",
 	})

@@ -55,7 +55,7 @@ type HijackDialer interface {
 // and only available if the daemon is running with experimental features
 // enabled.
 type CheckpointAPIClient interface {
-	CheckpointCreate(ctx context.Context, container string, options CheckpointCreateOptions) error
+	CheckpointCreate(ctx context.Context, container string, options CheckpointCreateOptions) (CheckpointCreateResult, error)
 	CheckpointDelete(ctx context.Context, container string, options CheckpointDeleteOptions) error
 	CheckpointList(ctx context.Context, container string, options CheckpointListOptions) (CheckpointListResult, error)
 }
