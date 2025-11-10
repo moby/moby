@@ -161,6 +161,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 		cdiManager,
 		opt.ContainerdAddress,
 		opt.ContainerdNamespace,
+		opt.HyperVIsolation,
 	)
 	if err != nil {
 		return nil, err

@@ -31,6 +31,7 @@ func newExecutor(
 	cdiManager *cdidevices.Manager,
 	containerdAddr string,
 	containerdNamespace string,
+	hypervIsolation bool,
 ) (executor.Executor, error) {
 	netRoot := filepath.Join(root, "net")
 	np := map[pb.NetMode]network.Provider{
@@ -50,6 +51,7 @@ func newExecutor(
 		DNSConfig:        dns,
 		CDIManager:       cdiManager,
 		NetworkProviders: np,
+		HyperVIsolation:  hypervIsolation,
 	}
 	return containerdexecutor.New(executorOpts), nil
 }

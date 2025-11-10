@@ -424,6 +424,7 @@ func initBuildkit(ctx context.Context, d *daemon.Daemon, cdiCache *cdi.Cache) (_
 		Snapshotter:         d.ImageService().StorageDriver(),
 		ContainerdAddress:   cfg.ContainerdAddr,
 		ContainerdNamespace: cfg.ContainerdNamespace,
+		HyperVIsolation:     d.DefaultIsolation().IsHyperV(),
 		Callbacks: exporter.BuildkitCallbacks{
 			Exported: d.ImageExportedByBuildkit,
 			Named:    d.ImageNamedByBuildkit,
