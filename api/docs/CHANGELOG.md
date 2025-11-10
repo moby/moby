@@ -75,9 +75,11 @@ keywords: "API, Docker, rcli, REST, documentation"
   `BuildCacheUsage` fields with brief system disk usage data for each system object type.
   The endpoint supports the `?verbose=1` query to return verbose system disk usage information.
 * Deprecated: `GET /system/df` response fields `LayersSize`, `Images`, `Containers`,
-  `Volumes`, and `BuildCache` are deprecated in favor of the type specific usage fields.
-  The legacy fields will not be populated for new API versions that specify the `verbose`
-  query.
+  `Volumes`, and `BuildCache` have been removed in favor of the-type specific usage fields.
+  API v1.52 returns both the legacy and current fields to help existing integrations
+  to transition to the new response. The legacy fields are not populated if the
+  `verbose` query parameter is used. Starting with API v1.53, the legacy fields
+  will no longer be returned.
 
 ## v1.51 API changes
 

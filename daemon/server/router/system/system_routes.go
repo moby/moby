@@ -216,32 +216,34 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 	}
 	diskUsage.BuildCache = buildCacheUsage
 
-	var legacy system.LegacyDiskUsage
+	var legacy legacyDiskUsage
 	if legacyFields {
 		if diskUsage.Images != nil {
-			legacy.LayersSize = diskUsage.Images.TotalSize      //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
-			legacy.Images = nonNilSlice(diskUsage.Images.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
+			legacy.LayersSize = diskUsage.Images.TotalSize
+			legacy.Images = nonNilSlice(diskUsage.Images.Items)
 		}
 		if diskUsage.Containers != nil {
-			legacy.Containers = nonNilSlice(diskUsage.Containers.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
+			legacy.Containers = nonNilSlice(diskUsage.Containers.Items)
 		}
 		if diskUsage.Volumes != nil {
-			legacy.Volumes = nonNilSlice(diskUsage.Volumes.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
+			legacy.Volumes = nonNilSlice(diskUsage.Volumes.Items)
 		}
 		if diskUsage.BuildCache != nil {
-			legacy.BuildCache = nonNilSlice(diskUsage.BuildCache.Items) //nolint: staticcheck,SA1019: kept to maintain backwards compatibility with API < v1.52.
+			legacy.BuildCache = nonNilSlice(diskUsage.BuildCache.Items)
 		}
 	}
 	if versions.LessThan(version, "1.52") {
-		return httputils.WriteJSON(w, http.StatusOK, legacy)
+		return httputils.WriteJSON(w, http.StatusOK, &legacy)
 	}
 
-	return httputils.WriteJSON(w, http.StatusOK, &system.DiskUsage{
-		LegacyDiskUsage: legacy,
-		ImageUsage:      diskUsage.Images,
-		ContainerUsage:  diskUsage.Containers,
-		VolumeUsage:     diskUsage.Volumes,
-		BuildCacheUsage: diskUsage.BuildCache,
+	return httputils.WriteJSON(w, http.StatusOK, &diskUsageCompat{
+		legacyDiskUsage: &legacy,
+		DiskUsage: &system.DiskUsage{
+			ImageUsage:      diskUsage.Images,
+			ContainerUsage:  diskUsage.Containers,
+			VolumeUsage:     diskUsage.Volumes,
+			BuildCacheUsage: diskUsage.BuildCache,
+		},
 	})
 }
 
