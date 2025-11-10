@@ -8,6 +8,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
@@ -19,10 +20,10 @@ import (
 )
 
 func (daemon *Daemon) setStateCounter(c *container.Container) {
-	switch c.State.StateString() {
-	case "paused":
+	switch c.State.State() {
+	case containertypes.StatePaused:
 		metrics.StateCtr.Set(c.ID, "paused")
-	case "running":
+	case containertypes.StateRunning:
 		metrics.StateCtr.Set(c.ID, "running")
 	default:
 		metrics.StateCtr.Set(c.ID, "stopped")

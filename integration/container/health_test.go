@@ -140,10 +140,11 @@ func TestHealthStartInterval(t *testing.T) {
 			return poll.Error(err)
 		}
 		if inspect.Container.State.Health.Status != containertypes.Healthy {
+			var out string
 			if len(inspect.Container.State.Health.Log) > 0 {
-				t.Log(inspect.Container.State.Health.Log[len(inspect.Container.State.Health.Log)-1])
+				out = inspect.Container.State.Health.Log[len(inspect.Container.State.Health.Log)-1].Output
 			}
-			return poll.Continue("waiting on container to be ready")
+			return poll.Continue("waiting on container to be ready (%s): %s", inspect.Container.ID, out)
 		}
 		return poll.Success()
 	}, poll.WithTimeout(time.Until(dl)))
@@ -169,8 +170,7 @@ func TestHealthStartInterval(t *testing.T) {
 		if h1.Start.Sub(h2.Start) >= inspect.Container.Config.Healthcheck.Interval {
 			return poll.Success()
 		}
-		t.Log(h1.Start.Sub(h2.Start))
-		return poll.Continue("waiting for health check interval to switch from the start interval")
+		return poll.Continue("waiting for health check interval to switch from the start interval: %s", h1.Start.Sub(h2.Start))
 	}, poll.WithDelay(time.Second), poll.WithTimeout(time.Until(dl)))
 }
 

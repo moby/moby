@@ -305,7 +305,7 @@ func (v *View) transform(ctr *Container) *Snapshot {
 			ImageID: ctr.ImageID.String(),
 			Ports:   []container.PortSummary{},
 			Mounts:  ctr.GetMountPoints(),
-			State:   ctr.State.StateString(),
+			State:   ctr.State.State(),
 			Status:  ctr.State.String(),
 			Health: &container.HealthSummary{
 				Status:        health,

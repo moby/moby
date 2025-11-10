@@ -6,9 +6,7 @@ import (
 )
 
 // ContainerState is a string representation of the container's current state.
-//
-// It currently is an alias for string, but may become a distinct type in the future.
-type ContainerState = string
+type ContainerState string
 
 const (
 	StateCreated    ContainerState = "created"    // StateCreated indicates the container is created, but not (yet) started.
@@ -20,8 +18,14 @@ const (
 	StateDead       ContainerState = "dead"       // StateDead indicates that the container failed to be deleted. Containers in this state are attempted to be cleaned up when the daemon restarts.
 )
 
-var validStates = []ContainerState{
-	StateCreated, StateRunning, StatePaused, StateRestarting, StateRemoving, StateExited, StateDead,
+var validStates = []string{
+	string(StateCreated),
+	string(StateRunning),
+	string(StatePaused),
+	string(StateRestarting),
+	string(StateRemoving),
+	string(StateExited),
+	string(StateDead),
 }
 
 // ValidateContainerState checks if the provided string is a valid

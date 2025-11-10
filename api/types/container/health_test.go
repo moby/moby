@@ -19,7 +19,7 @@ func TestValidateHealthStatus(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.health, func(t *testing.T) {
+		t.Run(string(tc.health), func(t *testing.T) {
 			err := ValidateHealthStatus(tc.health)
 			if tc.expectedErr == "" {
 				assert.NilError(t, err)

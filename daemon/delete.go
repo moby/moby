@@ -92,7 +92,7 @@ func (daemon *Daemon) cleanupContainer(ctr *container.Container, config backend.
 			if ctr.State.Paused {
 				return errdefs.Conflict(errors.New("container is paused and must be unpaused first"))
 			} else {
-				return errdefs.Conflict(fmt.Errorf("container is %s: stop the container before removing or force remove", ctr.State.StateString()))
+				return errdefs.Conflict(fmt.Errorf("container is %s: stop the container before removing or force remove", ctr.State.State()))
 			}
 		}
 		if err := daemon.Kill(ctr); err != nil && !isNotRunning(err) {
