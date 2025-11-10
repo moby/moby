@@ -127,7 +127,7 @@ func (daemon *Daemon) localVolumesSize(ctx context.Context, verbose bool) (*back
 		}
 
 		if verbose {
-			du.Items = sliceutil.Deref(volumes)
+			du.Items = volumes
 		}
 
 		return du, nil

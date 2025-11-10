@@ -195,7 +195,7 @@ var acceptedListFilters = map[string]bool{
 // Note that this intentionally skips volumes which have mount options. Typically
 // volumes with mount options are not really local even if they are using the
 // local driver.
-func (s *VolumesService) LocalVolumesSize(ctx context.Context) ([]*volumetypes.Volume, error) {
+func (s *VolumesService) LocalVolumesSize(ctx context.Context) ([]volumetypes.Volume, error) {
 	ls, _, err := s.vs.Find(ctx, And(ByDriver(volume.DefaultDriverName), CustomFilter(func(v volume.Volume) bool {
 		dv, ok := v.(volume.DetailedVolume)
 		return ok && len(dv.Options()) == 0
@@ -262,7 +262,7 @@ func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*volum
 
 // List gets the list of volumes which match the past in filters
 // If filters is nil or empty all volumes are returned.
-func (s *VolumesService) List(ctx context.Context, filter filters.Args) (volumes []*volumetypes.Volume, warnings []string, _ error) {
+func (s *VolumesService) List(ctx context.Context, filter filters.Args) (volumes []volumetypes.Volume, warnings []string, _ error) {
 	by, err := filtersToBy(filter, acceptedListFilters)
 	if err != nil {
 		return nil, nil, err

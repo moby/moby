@@ -30,9 +30,9 @@ func (c *Cluster) GetVolume(nameOrID string) (volumetypes.Volume, error) {
 	return convert.VolumeFromGRPC(volume), nil
 }
 
-// GetVolumes returns all of the volumes matching the given options from a swarm cluster.
-func (c *Cluster) GetVolumes(options volumebackend.ListOptions) ([]*volumetypes.Volume, error) {
-	var volumes []*volumetypes.Volume
+// GetVolumes returns all volumes matching the given options from a swarm cluster.
+func (c *Cluster) GetVolumes(options volumebackend.ListOptions) ([]volumetypes.Volume, error) {
+	var volumes []volumetypes.Volume
 	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		r, err := state.controlClient.ListVolumes(
 			ctx, &swarmapi.ListVolumesRequest{},
@@ -42,10 +42,9 @@ func (c *Cluster) GetVolumes(options volumebackend.ListOptions) ([]*volumetypes.
 			return err
 		}
 
-		volumes = make([]*volumetypes.Volume, 0, len(r.Volumes))
+		volumes = make([]volumetypes.Volume, 0, len(r.Volumes))
 		for _, volume := range r.Volumes {
-			v := convert.VolumeFromGRPC(volume)
-			volumes = append(volumes, &v)
+			volumes = append(volumes, convert.VolumeFromGRPC(volume))
 		}
 
 		return nil

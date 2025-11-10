@@ -31,9 +31,9 @@ type pathCacher interface {
 	CachedPath() string
 }
 
-func (s *VolumesService) volumesToAPI(ctx context.Context, volumes []volume.Volume, opts ...convertOpt) []*volumetypes.Volume {
+func (s *VolumesService) volumesToAPI(ctx context.Context, volumes []volume.Volume, opts ...convertOpt) []volumetypes.Volume {
 	var (
-		out        = make([]*volumetypes.Volume, 0, len(volumes))
+		out        = make([]volumetypes.Volume, 0, len(volumes))
 		getSize    bool
 		cachedPath bool
 	)
@@ -75,7 +75,7 @@ func (s *VolumesService) volumesToAPI(ctx context.Context, volumes []volume.Volu
 			apiV.UsageData = &volumetypes.UsageData{Size: sz, RefCount: int64(s.vs.CountReferences(v))}
 		}
 
-		out = append(out, &apiV)
+		out = append(out, apiV)
 	}
 	return out
 }
