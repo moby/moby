@@ -132,7 +132,7 @@ func TestCheckpoint(t *testing.T) {
 	r.AssertSuccess(t)
 
 	for _, id := range []string{"test", "test2"} {
-		err = apiClient.CheckpointDelete(ctx, cID, client.CheckpointDeleteOptions{
+		_, err = apiClient.CheckpointRemove(ctx, cID, client.CheckpointRemoveOptions{
 			CheckpointID: id,
 		})
 		assert.NilError(t, err)

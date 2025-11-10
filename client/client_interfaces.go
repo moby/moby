@@ -56,7 +56,7 @@ type HijackDialer interface {
 // enabled.
 type CheckpointAPIClient interface {
 	CheckpointCreate(ctx context.Context, container string, options CheckpointCreateOptions) (CheckpointCreateResult, error)
-	CheckpointDelete(ctx context.Context, container string, options CheckpointDeleteOptions) error
+	CheckpointRemove(ctx context.Context, container string, options CheckpointRemoveOptions) (CheckpointRemoveResult, error)
 	CheckpointList(ctx context.Context, container string, options CheckpointListOptions) (CheckpointListResult, error)
 }
 

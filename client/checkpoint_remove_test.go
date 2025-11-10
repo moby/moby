@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -16,17 +15,17 @@ func TestCheckpointDeleteError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.CheckpointDelete(context.Background(), "container_id", CheckpointDeleteOptions{
+	_, err = client.CheckpointRemove(t.Context(), "container_id", CheckpointRemoveOptions{
 		CheckpointID: "checkpoint_id",
 	})
 
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	err = client.CheckpointDelete(context.Background(), "", CheckpointDeleteOptions{})
+	_, err = client.CheckpointRemove(t.Context(), "", CheckpointRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	err = client.CheckpointDelete(context.Background(), "    ", CheckpointDeleteOptions{})
+	_, err = client.CheckpointRemove(t.Context(), "    ", CheckpointRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -44,7 +43,7 @@ func TestCheckpointDelete(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.CheckpointDelete(context.Background(), "container_id", CheckpointDeleteOptions{
+	_, err = client.CheckpointRemove(t.Context(), "container_id", CheckpointRemoveOptions{
 		CheckpointID: "checkpoint_id",
 	})
 	assert.NilError(t, err)
