@@ -1044,96 +1044,87 @@ func (s *DockerCLIBuildSuite) TestBuildAddBadLinksVolume(c *testing.T) {
 // Issue #5270 - ensure we throw a better error than "unexpected EOF"
 // when we can't access files in the context.
 func (s *DockerCLIBuildSuite) TestBuildWithInaccessibleFilesInContext(c *testing.T) {
+	t := c
 	testRequires(c, DaemonIsLinux, UnixCli, testEnv.IsLocalDaemon) // test uses chown/chmod: not available on windows
 
-	{
+	t.Run("inaccessible files", func(t *testing.T) {
 		const name = "testbuildinaccessiblefiles"
-		ctx := fakecontext.New(c, "",
+		buildCTX := fakecontext.New(t, "",
 			fakecontext.WithDockerfile("FROM scratch\nADD . /foo/"),
 			fakecontext.WithFiles(map[string]string{"fileWithoutReadAccess": "foo"}),
 		)
-		defer ctx.Close()
+		defer buildCTX.Close()
 		// This is used to ensure we detect inaccessible files early during build in the cli client
-		pathToFileWithoutReadAccess := filepath.Join(ctx.Dir, "fileWithoutReadAccess")
+		pathToFileWithoutReadAccess := filepath.Join(buildCTX.Dir, "fileWithoutReadAccess")
 
 		if err := os.Chown(pathToFileWithoutReadAccess, 0, 0); err != nil {
-			c.Fatalf("failed to chown file to root: %s", err)
+			t.Fatalf("failed to chown file to root: %s", err)
 		}
 		if err := os.Chmod(pathToFileWithoutReadAccess, 0o700); err != nil {
-			c.Fatalf("failed to chmod file to 700: %s", err)
+			t.Fatalf("failed to chmod file to 700: %s", err)
 		}
 		result := icmd.RunCmd(icmd.Cmd{
-			Command: []string{"su", "unprivilegeduser", "-c", fmt.Sprintf("%s build -t %s .", dockerBinary, name)},
-			Dir:     ctx.Dir,
+			Command: []string{"su", "unprivilegeduser", "-c", fmt.Sprintf("DOCKER_BUILDKIT=0 %s build -t %s .", dockerBinary, name)},
+			Dir:     buildCTX.Dir,
 		})
 		if result.Error == nil {
-			c.Fatalf("build should have failed: %s %s", result.Error, result.Combined())
+			t.Fatalf("build should have failed: %s %s", result.Error, result.Combined())
 		}
 
 		// check if we've detected the failure before we started building
-		if !strings.Contains(result.Combined(), "no permission to read from ") {
-			c.Fatalf("output should've contained the string: no permission to read from but contained: %s", result.Combined())
-		}
-
-		if !strings.Contains(result.Combined(), "error checking context") {
-			c.Fatalf("output should've contained the string: error checking context")
-		}
-	}
-	{
+		assert.Check(t, is.Contains(result.Combined(), "no permission to read from"))
+		assert.Check(t, is.Contains(result.Combined(), "checking context"))
+	})
+	t.Run("inaccessible directory", func(t *testing.T) {
 		const name = "testbuildinaccessibledirectory"
-		ctx := fakecontext.New(c, "",
+		buildCTX := fakecontext.New(t, "",
 			fakecontext.WithDockerfile("FROM scratch\nADD . /foo/"),
 			fakecontext.WithFiles(map[string]string{"directoryWeCantStat/bar": "foo"}),
 		)
-		defer ctx.Close()
+		defer buildCTX.Close()
 		// This is used to ensure we detect inaccessible directories early during build in the cli client
-		pathToDirectoryWithoutReadAccess := filepath.Join(ctx.Dir, "directoryWeCantStat")
+		pathToDirectoryWithoutReadAccess := filepath.Join(buildCTX.Dir, "directoryWeCantStat")
 		pathToFileInDirectoryWithoutReadAccess := filepath.Join(pathToDirectoryWithoutReadAccess, "bar")
 
 		if err := os.Chown(pathToDirectoryWithoutReadAccess, 0, 0); err != nil {
-			c.Fatalf("failed to chown directory to root: %s", err)
+			t.Fatalf("failed to chown directory to root: %s", err)
 		}
 		if err := os.Chmod(pathToDirectoryWithoutReadAccess, 0o444); err != nil {
-			c.Fatalf("failed to chmod directory to 444: %s", err)
+			t.Fatalf("failed to chmod directory to 444: %s", err)
 		}
 		if err := os.Chmod(pathToFileInDirectoryWithoutReadAccess, 0o700); err != nil {
-			c.Fatalf("failed to chmod file to 700: %s", err)
+			t.Fatalf("failed to chmod file to 700: %s", err)
 		}
 
 		result := icmd.RunCmd(icmd.Cmd{
-			Command: []string{"su", "unprivilegeduser", "-c", fmt.Sprintf("%s build -t %s .", dockerBinary, name)},
-			Dir:     ctx.Dir,
+			Command: []string{"su", "unprivilegeduser", "-c", fmt.Sprintf("DOCKER_BUILDKIT=0 %s build -t %s .", dockerBinary, name)},
+			Dir:     buildCTX.Dir,
 		})
 		if result.Error == nil {
-			c.Fatalf("build should have failed: %s %s", result.Error, result.Combined())
+			t.Fatalf("build should have failed: %s %s", result.Error, result.Combined())
 		}
 
 		// check if we've detected the failure before we started building
-		if !strings.Contains(result.Combined(), "can't stat") {
-			c.Fatalf("output should've contained the string: can't access %s", result.Combined())
-		}
-
-		if !strings.Contains(result.Combined(), "error checking context") {
-			c.Fatalf("output should've contained the string: error checking context\ngot:%s", result.Combined())
-		}
-	}
-	{
+		assert.Check(t, is.Contains(result.Combined(), "can't stat"))
+		assert.Check(t, is.Contains(result.Combined(), "checking context"))
+	})
+	t.Run("links OK", func(t *testing.T) {
 		const name = "testlinksok"
-		ctx := fakecontext.New(c, "", fakecontext.WithDockerfile("FROM scratch\nADD . /foo/"))
-		defer ctx.Close()
+		buildCTX := fakecontext.New(t, "", fakecontext.WithDockerfile("FROM scratch\nADD . /foo/"))
+		defer buildCTX.Close()
 
 		target := "../../../../../../../../../../../../../../../../../../../azA"
-		if err := os.Symlink(filepath.Join(ctx.Dir, "g"), target); err != nil {
-			c.Fatal(err)
+		if err := os.Symlink(filepath.Join(buildCTX.Dir, "g"), target); err != nil {
+			t.Fatal(err)
 		}
 		defer os.Remove(target)
 		// This is used to ensure we don't follow links when checking if everything in the context is accessible
 		// This test doesn't require that we run commands as an unprivileged user
-		cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
-	}
-	{
+		cli.BuildCmd(t, name, build.WithExternalBuildContext(buildCTX))
+	})
+	t.Run("inaccessible ignored files", func(t *testing.T) {
 		const name = "testbuildignoredinaccessible"
-		ctx := fakecontext.New(c, "",
+		ctx := fakecontext.New(t, "",
 			fakecontext.WithDockerfile("FROM scratch\nADD . /foo/"),
 			fakecontext.WithFiles(map[string]string{
 				"directoryWeCantStat/bar": "foo",
@@ -1145,24 +1136,24 @@ func (s *DockerCLIBuildSuite) TestBuildWithInaccessibleFilesInContext(c *testing
 		pathToDirectoryWithoutReadAccess := filepath.Join(ctx.Dir, "directoryWeCantStat")
 		pathToFileInDirectoryWithoutReadAccess := filepath.Join(pathToDirectoryWithoutReadAccess, "bar")
 		if err := os.Chown(pathToDirectoryWithoutReadAccess, 0, 0); err != nil {
-			c.Fatalf("failed to chown directory to root: %s", err)
+			t.Fatalf("failed to chown directory to root: %s", err)
 		}
 		if err := os.Chmod(pathToDirectoryWithoutReadAccess, 0o444); err != nil {
-			c.Fatalf("failed to chmod directory to 444: %s", err)
+			t.Fatalf("failed to chmod directory to 444: %s", err)
 		}
 		if err := os.Chmod(pathToFileInDirectoryWithoutReadAccess, 0o700); err != nil {
-			c.Fatalf("failed to chmod file to 700: %s", err)
+			t.Fatalf("failed to chmod file to 700: %s", err)
 		}
 
 		result := icmd.RunCmd(icmd.Cmd{
 			Dir: ctx.Dir,
 			Command: []string{
 				"su", "unprivilegeduser", "-c",
-				fmt.Sprintf("%s build -t %s .", dockerBinary, name),
+				fmt.Sprintf("DOCKER_BUILDKIT=0 %s build -t %s .", dockerBinary, name),
 			},
 		})
-		result.Assert(c, icmd.Expected{})
-	}
+		result.Assert(t, icmd.Success)
+	})
 }
 
 func (s *DockerCLIBuildSuite) TestBuildForceRm(c *testing.T) {
