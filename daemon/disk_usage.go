@@ -16,7 +16,7 @@ import (
 // containerDiskUsage obtains information about container data disk usage
 // and makes sure that only one calculation is performed at the same time.
 func (daemon *Daemon) containerDiskUsage(ctx context.Context, verbose bool) (*backend.ContainerDiskUsage, error) {
-	res, _, err := daemon.usageContainers.Do(ctx, struct{}{}, func(ctx context.Context) (*backend.ContainerDiskUsage, error) {
+	res, _, err := daemon.usageContainers.Do(ctx, verbose, func(ctx context.Context) (*backend.ContainerDiskUsage, error) {
 		// Retrieve container list
 		containers, err := daemon.Containers(ctx, &backend.ContainerListOptions{
 			Size: true,
@@ -60,7 +60,7 @@ func (daemon *Daemon) containerDiskUsage(ctx context.Context, verbose bool) (*ba
 // imageDiskUsage obtains information about image data disk usage from image service
 // and makes sure that only one calculation is performed at the same time.
 func (daemon *Daemon) imageDiskUsage(ctx context.Context, verbose bool) (*backend.ImageDiskUsage, error) {
-	du, _, err := daemon.usageImages.Do(ctx, struct{}{}, func(ctx context.Context) (*backend.ImageDiskUsage, error) {
+	du, _, err := daemon.usageImages.Do(ctx, verbose, func(ctx context.Context) (*backend.ImageDiskUsage, error) {
 		// Get all top images with extra attributes
 		images, err := daemon.imageService.Images(ctx, imagebackend.ListOptions{
 			Filters:    filters.NewArgs(),
@@ -106,7 +106,7 @@ func (daemon *Daemon) imageDiskUsage(ctx context.Context, verbose bool) (*backen
 // localVolumesSize obtains information about volume disk usage from volumes service
 // and makes sure that only one size calculation is performed at the same time.
 func (daemon *Daemon) localVolumesSize(ctx context.Context, verbose bool) (*backend.VolumeDiskUsage, error) {
-	volumes, _, err := daemon.usageVolumes.Do(ctx, struct{}{}, func(ctx context.Context) (*backend.VolumeDiskUsage, error) {
+	volumes, _, err := daemon.usageVolumes.Do(ctx, verbose, func(ctx context.Context) (*backend.VolumeDiskUsage, error) {
 		volumes, err := daemon.volumes.LocalVolumesSize(ctx)
 		if err != nil {
 			return nil, err
