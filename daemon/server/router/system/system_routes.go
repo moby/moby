@@ -353,7 +353,12 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 
 	for {
 		select {
-		case ev := <-l:
+		case ev, ok := <-l:
+			if !ok {
+				log.G(ctx).Debug("event channel closed")
+				return nil
+			}
+
 			jev, ok := ev.(events.Message)
 			if !ok {
 				log.G(ctx).Warnf("unexpected event message: %q", ev)
