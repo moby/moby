@@ -13,7 +13,7 @@ package volume
 type ListResponse struct {
 
 	// List of volumes
-	Volumes []*Volume `json:"Volumes"`
+	Volumes []Volume `json:"Volumes"`
 
 	// Warnings that occurred when fetching the list of volumes.
 	//

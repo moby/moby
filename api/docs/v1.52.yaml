@@ -2149,6 +2149,7 @@ definitions:
   Volume:
     type: "object"
     required: [Name, Driver, Mountpoint, Labels, Scope, Options]
+    x-nullable: false
     properties:
       Name:
         type: "string"

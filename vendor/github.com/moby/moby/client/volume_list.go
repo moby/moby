@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/url"
-	"slices"
 
 	"github.com/moby/moby/api/types/volume"
 )
@@ -40,16 +39,8 @@ func (cli *Client) VolumeList(ctx context.Context, options VolumeListOptions) (V
 		return VolumeListResult{}, err
 	}
 
-	res := VolumeListResult{
-		Items:    make([]volume.Volume, 0, len(apiResp.Volumes)),
-		Warnings: slices.Clone(apiResp.Warnings),
-	}
-
-	for _, vol := range apiResp.Volumes {
-		if vol != nil {
-			res.Items = append(res.Items, *vol)
-		}
-	}
-
-	return res, nil
+	return VolumeListResult{
+		Items:    apiResp.Volumes,
+		Warnings: apiResp.Warnings,
+	}, nil
 }

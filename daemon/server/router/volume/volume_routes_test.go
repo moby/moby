@@ -589,10 +589,10 @@ type fakeVolumeBackend struct {
 	volumes map[string]*volume.Volume
 }
 
-func (b *fakeVolumeBackend) List(_ context.Context, _ filters.Args) ([]*volume.Volume, []string, error) {
-	var volumes []*volume.Volume
+func (b *fakeVolumeBackend) List(_ context.Context, _ filters.Args) ([]volume.Volume, []string, error) {
+	var volumes []volume.Volume
 	for _, v := range b.volumes {
-		volumes = append(volumes, v)
+		volumes = append(volumes, *v)
 	}
 	return volumes, nil, nil
 }
@@ -680,14 +680,14 @@ func (c *fakeClusterBackend) GetVolume(nameOrID string) (volume.Volume, error) {
 	return volume.Volume{}, errdefs.NotFound(fmt.Errorf("volume %s not found", nameOrID))
 }
 
-func (c *fakeClusterBackend) GetVolumes(_ volumebackend.ListOptions) ([]*volume.Volume, error) {
+func (c *fakeClusterBackend) GetVolumes(_ volumebackend.ListOptions) ([]volume.Volume, error) {
 	if err := c.checkSwarm(); err != nil {
 		return nil, err
 	}
 
-	var volumes []*volume.Volume
+	var volumes []volume.Volume
 	for _, v := range c.volumes {
-		volumes = append(volumes, v)
+		volumes = append(volumes, *v)
 	}
 	return volumes, nil
 }

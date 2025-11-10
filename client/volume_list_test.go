@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -16,7 +15,7 @@ func TestVolumeListError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.VolumeList(context.Background(), VolumeListOptions{})
+	_, err = client.VolumeList(t.Context(), VolumeListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -52,7 +51,7 @@ func TestVolumeList(t *testing.T) {
 				return nil, fmt.Errorf("filters not set in URL query properly. Expected '%s', got %s", listCase.expectedFilters, actualFilters)
 			}
 			return mockJSONResponse(http.StatusOK, nil, volume.ListResponse{
-				Volumes: []*volume.Volume{
+				Volumes: []volume.Volume{
 					{
 						Name:   "volume",
 						Driver: "local",
@@ -62,7 +61,7 @@ func TestVolumeList(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 
-		result, err := client.VolumeList(context.Background(), VolumeListOptions{Filters: listCase.filters})
+		result, err := client.VolumeList(t.Context(), VolumeListOptions{Filters: listCase.filters})
 		assert.NilError(t, err)
 		assert.Check(t, is.Len(result.Items, 1))
 	}
