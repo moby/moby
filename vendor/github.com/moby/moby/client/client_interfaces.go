@@ -49,6 +49,17 @@ type HijackDialer interface {
 	DialHijack(ctx context.Context, url, proto string, meta map[string][]string) (net.Conn, error)
 }
 
+// CheckpointAPIClient defines API client methods for the checkpoints.
+//
+// Experimental: checkpoint and restore is still an experimental feature,
+// and only available if the daemon is running with experimental features
+// enabled.
+type CheckpointAPIClient interface {
+	CheckpointCreate(ctx context.Context, container string, options CheckpointCreateOptions) error
+	CheckpointDelete(ctx context.Context, container string, options CheckpointDeleteOptions) error
+	CheckpointList(ctx context.Context, container string, options CheckpointListOptions) (CheckpointListResult, error)
+}
+
 // ContainerAPIClient defines API client methods for the containers
 type ContainerAPIClient interface {
 	ContainerCreate(ctx context.Context, options ContainerCreateOptions) (ContainerCreateResult, error)
