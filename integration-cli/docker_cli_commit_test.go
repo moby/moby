@@ -25,45 +25,35 @@ func (s *DockerCLICommitSuite) OnTimeout(t *testing.T) {
 
 func (s *DockerCLICommitSuite) TestCommitAfterContainerIsDone(c *testing.T) {
 	skip.If(c, RuntimeIsWindowsContainerd(), "FIXME: Broken on Windows + containerd combination")
-	out := cli.DockerCmd(c, "run", "-i", "-a", "stdin", "busybox", "echo", "foo").Combined()
-
-	cleanedContainerID := strings.TrimSpace(out)
-
-	cli.DockerCmd(c, "wait", cleanedContainerID)
-
-	out = cli.DockerCmd(c, "commit", cleanedContainerID).Combined()
-
-	cleanedImageID := strings.TrimSpace(out)
-
-	cli.DockerCmd(c, "inspect", cleanedImageID)
+	cID := cli.DockerCmd(c, "run", "-d", "busybox", "echo", c.Name()).Combined()
+	cID = strings.TrimSpace(cID)
+	imageID := cli.DockerCmd(c, "commit", cID).Combined()
+	imageID = strings.TrimSpace(imageID)
+	cli.DockerCmd(c, "inspect", imageID)
 }
 
 func (s *DockerCLICommitSuite) TestCommitWithoutPause(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	out := cli.DockerCmd(c, "run", "-i", "-a", "stdin", "busybox", "echo", "foo").Combined()
-
-	cleanedContainerID := strings.TrimSpace(out)
-
-	cli.DockerCmd(c, "wait", cleanedContainerID)
-
-	out = cli.DockerCmd(c, "commit", "-p=false", cleanedContainerID).Combined()
-
-	cleanedImageID := strings.TrimSpace(out)
-
-	cli.DockerCmd(c, "inspect", cleanedImageID)
+	cID := cli.DockerCmd(c, "run", "-dit", "busybox").Combined()
+	cID = strings.TrimSpace(cID)
+	imageID := cli.DockerCmd(c, "commit", "-p=false", cID).Combined()
+	imageID = strings.TrimSpace(imageID)
+	cli.DockerCmd(c, "inspect", imageID)
 }
 
 // TestCommitPausedContainer tests that a paused container is not unpaused after being committed
 func (s *DockerCLICommitSuite) TestCommitPausedContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	containerID := cli.DockerCmd(c, "run", "-i", "-d", "busybox").Stdout()
-	containerID = strings.TrimSpace(containerID)
+	cID := cli.DockerCmd(c, "run", "-dit", "busybox").Combined()
+	cID = strings.TrimSpace(cID)
+	cli.DockerCmd(c, "pause", cID)
 
-	cli.DockerCmd(c, "pause", containerID)
-	cli.DockerCmd(c, "commit", containerID)
+	imageID := cli.DockerCmd(c, "commit", cID).Combined()
+	imageID = strings.TrimSpace(imageID)
+	cli.DockerCmd(c, "inspect", imageID)
 
-	out := inspectField(c, containerID, "State.Paused")
 	// commit should not unpause a paused container
+	out := inspectField(c, cID, "State.Paused")
 	assert.Assert(c, is.Contains(out, "true"))
 }
 

@@ -1739,9 +1739,9 @@ func (s *DockerNetworkSuite) TestDockerNetworkValidateIP(c *testing.T) {
 	verifyIPAddresses(c, "mynet0", "mynet", "172.28.99.88", "2001:db8:1234::9988")
 
 	_, _, err = dockerCmdWithError("run", "--net=mynet", "--ip", "mynet_ip", "--ip6", "2001:db8:1234::9999", "busybox", "top")
-	assert.ErrorContains(c, err, "unable to parse IP")
+	assert.ErrorContains(c, err, "parse IP") // failed to / unable to parse IP
 	_, _, err = dockerCmdWithError("run", "--net=mynet", "--ip", "172.28.99.99", "--ip6", "mynet_ip6", "busybox", "top")
-	assert.ErrorContains(c, err, "unable to parse IP")
+	assert.ErrorContains(c, err, "parse IP") // failed to / unable to parse IP
 
 	// This is a case of IPv4 address to `--ip6`
 	_, _, err = dockerCmdWithError("run", "--net=mynet", "--ip6", "172.28.99.99", "busybox", "top")
