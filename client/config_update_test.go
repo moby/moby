@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -16,14 +15,14 @@ func TestConfigUpdateError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ConfigUpdate(context.Background(), "config_id", ConfigUpdateOptions{})
+	_, err = client.ConfigUpdate(t.Context(), "config_id", ConfigUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ConfigUpdate(context.Background(), "", ConfigUpdateOptions{})
+	_, err = client.ConfigUpdate(t.Context(), "", ConfigUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ConfigUpdate(context.Background(), "    ", ConfigUpdateOptions{})
+	_, err = client.ConfigUpdate(t.Context(), "    ", ConfigUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -41,6 +40,6 @@ func TestConfigUpdate(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ConfigUpdate(context.Background(), "config_id", ConfigUpdateOptions{})
+	_, err = client.ConfigUpdate(t.Context(), "config_id", ConfigUpdateOptions{})
 	assert.NilError(t, err)
 }

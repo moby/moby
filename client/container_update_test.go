@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -14,14 +13,14 @@ import (
 func TestContainerUpdateError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	_, err = client.ContainerUpdate(context.Background(), "nothing", ContainerUpdateOptions{})
+	_, err = client.ContainerUpdate(t.Context(), "nothing", ContainerUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ContainerUpdate(context.Background(), "", ContainerUpdateOptions{})
+	_, err = client.ContainerUpdate(t.Context(), "", ContainerUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ContainerUpdate(context.Background(), "    ", ContainerUpdateOptions{})
+	_, err = client.ContainerUpdate(t.Context(), "    ", ContainerUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -37,7 +36,7 @@ func TestContainerUpdate(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	_, err = client.ContainerUpdate(context.Background(), "container_id", ContainerUpdateOptions{
+	_, err = client.ContainerUpdate(t.Context(), "container_id", ContainerUpdateOptions{
 		Resources: &container.Resources{
 			CPUPeriod: 1,
 		},

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -15,7 +14,7 @@ import (
 func TestImageHistoryError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	_, err = client.ImageHistory(context.Background(), "nothing")
+	_, err = client.ImageHistory(t.Context(), "nothing")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -44,7 +43,7 @@ func TestImageHistory(t *testing.T) {
 		},
 	}
 
-	imageHistories, err := client.ImageHistory(context.Background(), "image_id", ImageHistoryWithPlatform(ocispec.Platform{
+	imageHistories, err := client.ImageHistory(t.Context(), "image_id", ImageHistoryWithPlatform(ocispec.Platform{
 		Architecture: "arm64",
 		OS:           "linux",
 		Variant:      "v8",

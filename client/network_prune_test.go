@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -17,7 +16,7 @@ func TestNetworkPruneError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.NetworkPrune(context.Background(), NetworkPruneOptions{})
+	_, err = client.NetworkPrune(t.Context(), NetworkPruneOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -82,7 +81,7 @@ func TestNetworkPrune(t *testing.T) {
 		)
 		assert.NilError(t, err)
 
-		res, err := client.NetworkPrune(context.Background(), NetworkPruneOptions{Filters: listCase.filters})
+		res, err := client.NetworkPrune(t.Context(), NetworkPruneOptions{Filters: listCase.filters})
 		assert.NilError(t, err)
 		assert.Check(t, is.Len(res.Report.NetworksDeleted, 2))
 	}

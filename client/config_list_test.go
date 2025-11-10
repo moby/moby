@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -18,7 +17,7 @@ func TestConfigListError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ConfigList(context.Background(), ConfigListOptions{})
+	_, err = client.ConfigList(t.Context(), ConfigListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -67,7 +66,7 @@ func TestConfigList(t *testing.T) {
 		)
 		assert.NilError(t, err)
 
-		result, err := client.ConfigList(context.Background(), listCase.options)
+		result, err := client.ConfigList(t.Context(), listCase.options)
 		assert.NilError(t, err)
 		assert.Check(t, is.Len(result.Items, 2))
 	}

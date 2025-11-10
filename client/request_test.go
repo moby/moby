@@ -64,7 +64,7 @@ func TestSetHostHeader(t *testing.T) {
 			}), WithHost(tc.host))
 			assert.NilError(t, err)
 
-			_, err = client.sendRequest(context.Background(), http.MethodGet, testEndpoint, nil, nil, nil)
+			_, err = client.sendRequest(t.Context(), http.MethodGet, testEndpoint, nil, nil, nil)
 			assert.NilError(t, err)
 		})
 	}
@@ -76,7 +76,7 @@ func TestSetHostHeader(t *testing.T) {
 func TestPlainTextError(t *testing.T) {
 	client, err := New(WithMockClient(mockResponse(http.StatusInternalServerError, nil, "Server error")))
 	assert.NilError(t, err)
-	_, err = client.ContainerList(context.Background(), ContainerListOptions{})
+	_, err = client.ContainerList(t.Context(), ContainerListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -235,7 +235,7 @@ func TestCanceledContext(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	_, err = client.sendRequest(ctx, http.MethodGet, testEndpoint, nil, nil, nil)
@@ -251,7 +251,7 @@ func TestDeadlineExceededContext(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now())
+	ctx, cancel := context.WithDeadline(t.Context(), time.Now())
 	defer cancel()
 
 	<-ctx.Done()

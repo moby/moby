@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"testing"
@@ -18,7 +17,7 @@ func TestConfigInspectNotFound(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ConfigInspect(context.Background(), "unknown", ConfigInspectOptions{})
+	_, err = client.ConfigInspect(t.Context(), "unknown", ConfigInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
@@ -29,11 +28,11 @@ func TestConfigInspectWithEmptyID(t *testing.T) {
 		}),
 	)
 	assert.NilError(t, err)
-	_, err = client.ConfigInspect(context.Background(), "", ConfigInspectOptions{})
+	_, err = client.ConfigInspect(t.Context(), "", ConfigInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ConfigInspect(context.Background(), "    ", ConfigInspectOptions{})
+	_, err = client.ConfigInspect(t.Context(), "    ", ConfigInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -44,7 +43,7 @@ func TestConfigInspectError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ConfigInspect(context.Background(), "nothing", ConfigInspectOptions{})
+	_, err = client.ConfigInspect(t.Context(), "nothing", ConfigInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -54,7 +53,7 @@ func TestConfigInspectConfigNotFound(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ConfigInspect(context.Background(), "unknown", ConfigInspectOptions{})
+	_, err = client.ConfigInspect(t.Context(), "unknown", ConfigInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
@@ -72,7 +71,7 @@ func TestConfigInspect(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	result, err := client.ConfigInspect(context.Background(), "config_id", ConfigInspectOptions{})
+	result, err := client.ConfigInspect(t.Context(), "config_id", ConfigInspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(result.Config.ID, "config_id"))
 }

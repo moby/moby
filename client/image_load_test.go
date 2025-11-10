@@ -2,7 +2,6 @@ package client
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -19,7 +18,7 @@ func TestImageLoadError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.ImageLoad(context.Background(), nil, ImageLoadWithQuiet(true))
+	_, err = client.ImageLoad(t.Context(), nil, ImageLoadWithQuiet(true))
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -81,7 +80,7 @@ func TestImageLoad(t *testing.T) {
 			assert.NilError(t, err)
 
 			input := bytes.NewReader([]byte(expectedInput))
-			imageLoadResponse, err := client.ImageLoad(context.Background(), input,
+			imageLoadResponse, err := client.ImageLoad(t.Context(), input,
 				ImageLoadWithQuiet(tc.quiet),
 				ImageLoadWithPlatforms(tc.platforms...),
 			)

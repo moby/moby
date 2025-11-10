@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net"
@@ -89,7 +88,7 @@ func TestTLSCloseWriter(t *testing.T) {
 	client, err := New(WithHost("tcp://"+serverURL.Host), WithHTTPClient(ts.Client()))
 	assert.NilError(t, err)
 
-	resp, err := client.postHijacked(context.Background(), "/asdf", url.Values{}, nil, map[string][]string{"Content-Type": {"text/plain"}})
+	resp, err := client.postHijacked(t.Context(), "/asdf", url.Values{}, nil, map[string][]string{"Content-Type": {"text/plain"}})
 	assert.NilError(t, err)
 	defer resp.Close()
 

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -16,14 +15,14 @@ func TestConfigRemoveError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ConfigRemove(context.Background(), "config_id", ConfigRemoveOptions{})
+	_, err = client.ConfigRemove(t.Context(), "config_id", ConfigRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ConfigRemove(context.Background(), "", ConfigRemoveOptions{})
+	_, err = client.ConfigRemove(t.Context(), "", ConfigRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ConfigRemove(context.Background(), "    ", ConfigRemoveOptions{})
+	_, err = client.ConfigRemove(t.Context(), "    ", ConfigRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -41,6 +40,6 @@ func TestConfigRemove(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ConfigRemove(context.Background(), "config_id", ConfigRemoveOptions{})
+	_, err = client.ConfigRemove(t.Context(), "config_id", ConfigRemoveOptions{})
 	assert.NilError(t, err)
 }

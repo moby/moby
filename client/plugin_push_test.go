@@ -16,14 +16,14 @@ func TestPluginPushError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.PluginPush(context.Background(), "plugin_name", PluginPushOptions{})
+	_, err = client.PluginPush(t.Context(), "plugin_name", PluginPushOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.PluginPush(context.Background(), "", PluginPushOptions{})
+	_, err = client.PluginPush(t.Context(), "", PluginPushOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.PluginPush(context.Background(), "    ", PluginPushOptions{})
+	_, err = client.PluginPush(t.Context(), "    ", PluginPushOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -43,6 +43,6 @@ func TestPluginPush(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	_, err = client.PluginPush(context.Background(), "plugin_name", PluginPushOptions{RegistryAuth: "authtoken"})
+	_, err = client.PluginPush(t.Context(), "plugin_name", PluginPushOptions{RegistryAuth: "authtoken"})
 	assert.NilError(t, err)
 }

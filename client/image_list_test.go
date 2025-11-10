@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -17,7 +16,7 @@ func TestImageListError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.ImageList(context.Background(), ImageListOptions{})
+	_, err = client.ImageList(t.Context(), ImageListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -29,7 +28,7 @@ func TestImageListConnectionError(t *testing.T) {
 	client, err := New(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
-	_, err = client.ImageList(context.Background(), ImageListOptions{})
+	_, err = client.ImageList(t.Context(), ImageListOptions{})
 	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
 
@@ -91,7 +90,7 @@ func TestImageList(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 
-		images, err := client.ImageList(context.Background(), listCase.options)
+		images, err := client.ImageList(t.Context(), listCase.options)
 		assert.NilError(t, err)
 		assert.Check(t, is.Len(images.Items, 2))
 	}
@@ -119,7 +118,7 @@ func TestImageListWithSharedSize(t *testing.T) {
 				return mockResponse(http.StatusOK, nil, "[]")(req)
 			}), WithVersion(tc.version))
 			assert.NilError(t, err)
-			_, err = client.ImageList(context.Background(), tc.options)
+			_, err = client.ImageList(t.Context(), tc.options)
 			assert.NilError(t, err)
 			expectedSet := tc.sharedSize != ""
 			assert.Check(t, is.Equal(query.Has(sharedSize), expectedSet))
