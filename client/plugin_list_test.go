@@ -64,7 +64,7 @@ func TestPluginList(t *testing.T) {
 					return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
 				}
 			}
-			return mockJSONResponse(http.StatusOK, nil, []*plugin.Plugin{
+			return mockJSONResponse(http.StatusOK, nil, []plugin.Plugin{
 				{ID: "plugin_id1"},
 				{ID: "plugin_id2"},
 			})(req)

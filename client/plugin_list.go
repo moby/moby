@@ -15,7 +15,7 @@ type PluginListOptions struct {
 
 // PluginListResult represents the result of a plugin list operation.
 type PluginListResult struct {
-	Items []*plugin.Plugin
+	Items []plugin.Plugin
 }
 
 // PluginList returns the installed plugins
