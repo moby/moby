@@ -11,9 +11,9 @@ import (
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/manager/encryption"
 	"github.com/pkg/errors"
-	"go.etcd.io/etcd/raft/v3/raftpb"
-	"go.etcd.io/etcd/server/v3/wal"
-	"go.etcd.io/etcd/server/v3/wal/walpb"
+	"go.etcd.io/etcd/server/v3/storage/wal"
+	"go.etcd.io/etcd/server/v3/storage/wal/walpb"
+	"go.etcd.io/raft/v3/raftpb"
 )
 
 // This package wraps the go.etcd.io/etcd/server/v3/storage/wal package, and encrypts

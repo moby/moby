@@ -68,7 +68,7 @@ func newStatusReporter(ctx context.Context, upstream Reporter) *statusReporter {
 	return r
 }
 
-func (sr *statusReporter) UpdateTaskStatus(ctx context.Context, taskID string, status *api.TaskStatus) error {
+func (sr *statusReporter) UpdateTaskStatus(_ context.Context, taskID string, status *api.TaskStatus) error {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
 
@@ -88,7 +88,7 @@ func (sr *statusReporter) UpdateTaskStatus(ctx context.Context, taskID string, s
 	return nil
 }
 
-func (sr *statusReporter) ReportVolumeUnpublished(ctx context.Context, volumeID string) error {
+func (sr *statusReporter) ReportVolumeUnpublished(_ context.Context, volumeID string) error {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
 

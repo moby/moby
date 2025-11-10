@@ -116,7 +116,7 @@ func (r *Orchestrator) handleNodeChange(ctx context.Context, n *api.Node) {
 }
 
 // handleTaskChange defines what orchestrator does when a task is updated by agent.
-func (r *Orchestrator) handleTaskChange(ctx context.Context, t *api.Task) {
+func (r *Orchestrator) handleTaskChange(_ context.Context, t *api.Task) {
 	// If we already set the desired state past TaskStateRunning, there is no
 	// further action necessary.
 	if t.DesiredState > api.TaskStateRunning {
@@ -148,7 +148,7 @@ func (r *Orchestrator) handleTaskChange(ctx context.Context, t *api.Task) {
 
 // FixTask validates a task with the current cluster settings, and takes
 // action to make it conformant. it's called at orchestrator initialization.
-func (r *Orchestrator) FixTask(ctx context.Context, batch *store.Batch, t *api.Task) {
+func (r *Orchestrator) FixTask(_ context.Context, batch *store.Batch, t *api.Task) {
 	// If we already set the desired state past TaskStateRunning, there is no
 	// further action necessary.
 	if t.DesiredState > api.TaskStateRunning {

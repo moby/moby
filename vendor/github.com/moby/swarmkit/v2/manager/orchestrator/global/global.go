@@ -200,7 +200,7 @@ func (g *Orchestrator) FixTask(ctx context.Context, batch *store.Batch, t *api.T
 }
 
 // handleTaskChange defines what orchestrator does when a task is updated by agent
-func (g *Orchestrator) handleTaskChange(ctx context.Context, t *api.Task) {
+func (g *Orchestrator) handleTaskChange(_ context.Context, t *api.Task) {
 	if _, exists := g.globalServices[t.ServiceID]; !exists {
 		return
 	}

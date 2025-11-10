@@ -1158,7 +1158,7 @@ func updatePortsInHostPublishMode(s *api.Service) {
 // allocateService takes care to align the desired state with the spec passed
 // the last parameter is true only during restart when the data is read from raft
 // and used to build internal state
-func (a *Allocator) allocateService(ctx context.Context, s *api.Service, existingAddressesOnly bool) error {
+func (a *Allocator) allocateService(_ context.Context, s *api.Service, existingAddressesOnly bool) error {
 	nc := a.netCtx
 
 	if s.Spec.Endpoint != nil {
@@ -1266,7 +1266,7 @@ func (a *Allocator) commitAllocatedService(ctx context.Context, batch *store.Bat
 	return nil
 }
 
-func (a *Allocator) allocateNetwork(ctx context.Context, n *api.Network) error {
+func (a *Allocator) allocateNetwork(_ context.Context, n *api.Network) error {
 	nc := a.netCtx
 
 	if err := nc.nwkAllocator.Allocate(n); err != nil {

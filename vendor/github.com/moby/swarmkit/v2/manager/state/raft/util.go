@@ -14,7 +14,7 @@ import (
 )
 
 // dial returns a grpc client connection
-func dial(addr string, protocol string, creds credentials.TransportCredentials, timeout time.Duration) (*grpc.ClientConn, error) {
+func dial(addr string, _ string, creds credentials.TransportCredentials, timeout time.Duration) (*grpc.ClientConn, error) {
 	// gRPC dialer connects to proxy first. Provide a custom dialer here avoid that.
 	grpcOptions := []grpc.DialOption{
 		grpc.WithBackoffMaxDelay(2 * time.Second),

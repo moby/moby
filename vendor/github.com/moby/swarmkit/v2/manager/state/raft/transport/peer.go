@@ -13,8 +13,8 @@ import (
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/manager/state/raft/membership"
 	"github.com/pkg/errors"
-	"go.etcd.io/etcd/raft/v3"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	"go.etcd.io/raft/v3"
+	"go.etcd.io/raft/v3/raftpb"
 	"google.golang.org/grpc/status"
 )
 
@@ -152,7 +152,7 @@ func raftMessagePayloadSize(m *raftpb.Message) int {
 // Split a large raft message into smaller messages.
 // Currently this means splitting the []Snapshot.Data into chunks whose size
 // is dictacted by MaxRaftMsgSize.
-func splitSnapshotData(ctx context.Context, m *raftpb.Message) []api.StreamRaftMessageRequest {
+func splitSnapshotData(_ context.Context, m *raftpb.Message) []api.StreamRaftMessageRequest {
 	var messages []api.StreamRaftMessageRequest
 	if m.Type != raftpb.MsgSnap {
 		return messages

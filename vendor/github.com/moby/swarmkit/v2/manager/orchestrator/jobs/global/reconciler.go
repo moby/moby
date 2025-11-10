@@ -268,7 +268,7 @@ func (r *Reconciler) IsRelatedService(service *api.Service) bool {
 //   - The task has failed and needs to be restarted.
 //
 // This implements the FixTask method of the taskinit.InitHandler interface.
-func (r *Reconciler) FixTask(ctx context.Context, batch *store.Batch, t *api.Task) {
+func (r *Reconciler) FixTask(_ context.Context, batch *store.Batch, t *api.Task) {
 	// tasks already desired to be shut down need no action.
 	if t.DesiredState > api.TaskStateCompleted {
 		return

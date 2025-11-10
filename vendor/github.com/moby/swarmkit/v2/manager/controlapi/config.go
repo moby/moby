@@ -29,7 +29,7 @@ func configFromConfigSpec(spec *api.ConfigSpec) *api.Config {
 // - Returns `NotFound` if the Config with the given id is not found.
 // - Returns `InvalidArgument` if the `GetConfigRequest.ConfigID` is empty.
 // - Returns an error if getting fails.
-func (s *Server) GetConfig(ctx context.Context, request *api.GetConfigRequest) (*api.GetConfigResponse, error) {
+func (s *Server) GetConfig(_ context.Context, request *api.GetConfigRequest) (*api.GetConfigResponse, error) {
 	if request.ConfigID == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "config ID must be provided")
 	}
@@ -52,7 +52,7 @@ func (s *Server) GetConfig(ctx context.Context, request *api.GetConfigRequest) (
 // - Returns an error if the update fails.
 func (s *Server) UpdateConfig(ctx context.Context, request *api.UpdateConfigRequest) (*api.UpdateConfigResponse, error) {
 	if request.ConfigID == "" || request.ConfigVersion == nil {
-		return nil, status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	var config *api.Config
@@ -95,7 +95,7 @@ func (s *Server) UpdateConfig(ctx context.Context, request *api.UpdateConfigRequ
 // name prefix in `ListConfigsRequest.NamePrefixes`, any id in
 // `ListConfigsRequest.ConfigIDs`, or any id prefix in `ListConfigsRequest.IDPrefixes`.
 // - Returns an error if listing fails.
-func (s *Server) ListConfigs(ctx context.Context, request *api.ListConfigsRequest) (*api.ListConfigsResponse, error) {
+func (s *Server) ListConfigs(_ context.Context, request *api.ListConfigsRequest) (*api.ListConfigsResponse, error) {
 	var (
 		configs     []*api.Config
 		respConfigs []*api.Config
@@ -234,7 +234,7 @@ func (s *Server) RemoveConfig(ctx context.Context, request *api.RemoveConfigRequ
 
 func validateConfigSpec(spec *api.ConfigSpec) error {
 	if spec == nil {
-		return status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 	if err := validateConfigOrSecretAnnotations(spec.Annotations); err != nil {
 		return err

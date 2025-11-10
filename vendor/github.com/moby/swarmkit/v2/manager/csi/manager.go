@@ -91,7 +91,7 @@ func (vm *Manager) run(pctx context.Context) {
 	)
 	defer ctxCancel()
 
-	watch, cancel, err := store.ViewAndWatch(vm.store, func(tx store.ReadTx) error {
+	watch, cancel, err := store.ViewAndWatch(vm.store, func(_ store.ReadTx) error {
 		// TODO(dperny): change this from ViewAndWatch to one that's just
 		// Watch.
 		return nil

@@ -12,7 +12,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (s *Server) CreateVolume(ctx context.Context, request *api.CreateVolumeRequest) (*api.CreateVolumeResponse, error) {
+func (s *Server) CreateVolume(_ context.Context, request *api.CreateVolumeRequest) (*api.CreateVolumeResponse, error) {
 	if request.Spec == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "spec must not be nil")
 	}
@@ -70,7 +70,7 @@ func (s *Server) CreateVolume(ctx context.Context, request *api.CreateVolumeRequ
 	}, nil
 }
 
-func (s *Server) UpdateVolume(ctx context.Context, request *api.UpdateVolumeRequest) (*api.UpdateVolumeResponse, error) {
+func (s *Server) UpdateVolume(_ context.Context, request *api.UpdateVolumeRequest) (*api.UpdateVolumeResponse, error) {
 	if request.VolumeID == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "VolumeID must not be empty")
 	}
@@ -134,7 +134,7 @@ func (s *Server) UpdateVolume(ctx context.Context, request *api.UpdateVolumeRequ
 	}, nil
 }
 
-func (s *Server) ListVolumes(ctx context.Context, request *api.ListVolumesRequest) (*api.ListVolumesResponse, error) {
+func (s *Server) ListVolumes(_ context.Context, request *api.ListVolumesRequest) (*api.ListVolumesResponse, error) {
 	var (
 		volumes []*api.Volume
 		err     error
@@ -219,7 +219,7 @@ func filterVolumes(candidates []*api.Volume, filters ...func(*api.Volume) bool) 
 	return result
 }
 
-func (s *Server) GetVolume(ctx context.Context, request *api.GetVolumeRequest) (*api.GetVolumeResponse, error) {
+func (s *Server) GetVolume(_ context.Context, request *api.GetVolumeRequest) (*api.GetVolumeResponse, error) {
 	var volume *api.Volume
 	s.store.View(func(tx store.ReadTx) {
 		volume = store.GetVolume(tx, request.VolumeID)
@@ -237,7 +237,7 @@ func (s *Server) GetVolume(ctx context.Context, request *api.GetVolumeRequest) (
 // volume, because some clean-up must occur before it can be removed. However,
 // calling RemoveVolume is an irrevocable action, and once it occurs, the
 // Volume can no longer be used in any way.
-func (s *Server) RemoveVolume(ctx context.Context, request *api.RemoveVolumeRequest) (*api.RemoveVolumeResponse, error) {
+func (s *Server) RemoveVolume(_ context.Context, request *api.RemoveVolumeRequest) (*api.RemoveVolumeResponse, error) {
 	err := s.store.Update(func(tx store.Tx) error {
 		volume := store.GetVolume(tx, request.VolumeID)
 		if volume == nil {

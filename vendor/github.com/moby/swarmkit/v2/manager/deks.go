@@ -81,8 +81,8 @@ func (r RaftDEKData) UnmarshalHeaders(headers map[string]string, kekData ca.KEKD
 func (r RaftDEKData) MarshalHeaders(kekData ca.KEKData) (map[string]string, error) {
 	headers := make(map[string]string)
 	for headerKey, contents := range map[string][]byte{
-		pemHeaderRaftDEK:        r.CurrentDEK,
-		pemHeaderRaftPendingDEK: r.PendingDEK,
+		pemHeaderRaftDEK:        r.EncryptionKeys.CurrentDEK,
+		pemHeaderRaftPendingDEK: r.EncryptionKeys.PendingDEK,
 	} {
 		if contents != nil {
 			dekStr, err := encodePEMHeaderValue(contents, kekData.KEK, r.FIPS)

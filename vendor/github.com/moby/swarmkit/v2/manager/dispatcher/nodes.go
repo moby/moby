@@ -35,7 +35,7 @@ func (rn *registeredNode) checkSessionID(sessionID string) error {
 	// changed. If it has, we will the stream and make the node
 	// re-register.
 	if sessionID == "" || rn.SessionID != sessionID {
-		return status.Errorf(codes.InvalidArgument, ErrSessionInvalid.Error())
+		return status.Error(codes.InvalidArgument, ErrSessionInvalid.Error())
 	}
 
 	return nil
@@ -135,7 +135,7 @@ func (s *nodeStore) Get(id string) (*registeredNode, error) {
 	rn, ok := s.nodes[id]
 	s.mu.RUnlock()
 	if !ok {
-		return nil, status.Errorf(codes.NotFound, ErrNodeNotRegistered.Error())
+		return nil, status.Error(codes.NotFound, ErrNodeNotRegistered.Error())
 	}
 	return rn, nil
 }
@@ -145,7 +145,7 @@ func (s *nodeStore) GetWithSession(id, sid string) (*registeredNode, error) {
 	rn, ok := s.nodes[id]
 	s.mu.RUnlock()
 	if !ok {
-		return nil, status.Errorf(codes.NotFound, ErrNodeNotRegistered.Error())
+		return nil, status.Error(codes.NotFound, ErrNodeNotRegistered.Error())
 	}
 	return rn, rn.checkSessionID(sid)
 }
