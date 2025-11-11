@@ -1,4 +1,4 @@
-//go:build unix
+//go:build !windows
 
 /*
    Copyright The containerd Authors.
@@ -16,15 +16,22 @@
    limitations under the License.
 */
 
-package defaults
+package local
 
-const (
-	// DefaultConfigDir is the default location for config files.
-	DefaultConfigDir = "/etc/containerd"
-	// DefaultRootDir is the default location used by containerd to store
-	// persistent data
-	DefaultRootDir = "/var/lib/containerd"
-
-	// DefaultConfigIncludePattern is the default location for drop-in configuration files.
-	DefaultConfigIncludePattern = "/etc/containerd/conf.d/*.toml"
+import (
+	"fmt"
+	"os"
 )
+
+func syncDir(dir string) error {
+	dirF, err := os.Open(dir)
+	if err != nil {
+		return fmt.Errorf("failed to open dir %s: %w", dir, err)
+	}
+	err = dirF.Sync()
+	dirF.Close()
+	if err != nil {
+		return fmt.Errorf("failed to sync dir %s: %w", dir, err)
+	}
+	return nil
+}

@@ -140,6 +140,7 @@ func (p *proxySnapshotter) Commit(ctx context.Context, name, key string, opts ..
 		Snapshotter: p.snapshotterName,
 		Name:        name,
 		Key:         key,
+		Parent:      local.Parent,
 		Labels:      local.Labels,
 	})
 	return errgrpc.ToNative(err)

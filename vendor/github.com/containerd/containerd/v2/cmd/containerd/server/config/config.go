@@ -213,6 +213,7 @@ type GRPCConfig struct {
 	GID            int    `toml:"gid"`
 	MaxRecvMsgSize int    `toml:"max_recv_message_size"`
 	MaxSendMsgSize int    `toml:"max_send_message_size"`
+	TCPTLSCName    string `toml:"tcp_tls_common_name"`
 }
 
 // TTRPCConfig provides TTRPC configuration for the socket

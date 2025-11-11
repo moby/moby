@@ -1,5 +1,3 @@
-//go:build unix
-
 /*
    Copyright The containerd Authors.
 
@@ -16,15 +14,4 @@
    limitations under the License.
 */
 
-package defaults
-
-const (
-	// DefaultConfigDir is the default location for config files.
-	DefaultConfigDir = "/etc/containerd"
-	// DefaultRootDir is the default location used by containerd to store
-	// persistent data
-	DefaultRootDir = "/var/lib/containerd"
-
-	// DefaultConfigIncludePattern is the default location for drop-in configuration files.
-	DefaultConfigIncludePattern = "/etc/containerd/conf.d/*.toml"
-)
+package mounts

@@ -1,6 +1,6 @@
 module github.com/moby/moby/v2
 
-go 1.24.2
+go 1.24.3
 
 require (
 	cloud.google.com/go/compute/metadata v0.8.0
@@ -22,7 +22,7 @@ require (
 	github.com/cloudflare/cfssl v1.6.4
 	github.com/containerd/cgroups/v3 v3.1.0
 	github.com/containerd/containerd/api v1.10.0
-	github.com/containerd/containerd/v2 v2.1.5
+	github.com/containerd/containerd/v2 v2.2.0
 	github.com/containerd/continuity v0.4.5
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/fifo v1.1.0

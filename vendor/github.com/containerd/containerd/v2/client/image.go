@@ -36,6 +36,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"golang.org/x/sync/semaphore"
 )
 
 // Image describes an image used by containers
@@ -258,6 +259,8 @@ type UnpackConfig struct {
 	// in-flight fetch request or unpack handler for a given descriptor's
 	// digest or chain ID.
 	DuplicationSuppressor kmutex.KeyedLocker
+	// Limiter is used to limit concurrent unpacks
+	Limiter *semaphore.Weighted
 }
 
 // UnpackOpt provides configuration for unpack
@@ -283,6 +286,14 @@ func WithUnpackDuplicationSuppressor(suppressor kmutex.KeyedLocker) UnpackOpt {
 func WithUnpackApplyOpts(opts ...diff.ApplyOpt) UnpackOpt {
 	return func(ctx context.Context, uc *UnpackConfig) error {
 		uc.ApplyOpts = append(uc.ApplyOpts, opts...)
+		return nil
+	}
+}
+
+// WithUnpackLimiter sets a semaphore to limit concurrent unpacks.
+func WithUnpackLimiter(limiter *semaphore.Weighted) UnpackOpt {
+	return func(ctx context.Context, uc *UnpackConfig) error {
+		uc.Limiter = limiter
 		return nil
 	}
 }

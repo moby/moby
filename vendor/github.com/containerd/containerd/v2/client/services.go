@@ -24,18 +24,20 @@ import (
 	imagesapi "github.com/containerd/containerd/api/services/images/v1"
 	namespacesapi "github.com/containerd/containerd/api/services/namespaces/v1"
 	"github.com/containerd/containerd/api/services/tasks/v1"
+	"github.com/containerd/plugin"
+
 	"github.com/containerd/containerd/v2/core/containers"
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/introspection"
 	"github.com/containerd/containerd/v2/core/leases"
+	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/containerd/v2/core/sandbox"
 	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/containerd/v2/core/transfer"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/containerd/v2/plugins"
 	srv "github.com/containerd/containerd/v2/plugins/services"
-	"github.com/containerd/plugin"
 )
 
 type services struct {
@@ -52,6 +54,7 @@ type services struct {
 	sandboxStore         sandbox.Store
 	sandboxers           map[string]sandbox.Controller
 	transferService      transfer.Transferrer
+	mountManager         mount.Manager
 }
 
 // ServicesOpt allows callers to set options on the services
@@ -172,6 +175,13 @@ func WithTransferService(tr transfer.Transferrer) ServicesOpt {
 	}
 }
 
+// WithMountManager sets the mount manager.
+func WithMountManager(mm mount.Manager) ServicesOpt {
+	return func(s *services) {
+		s.mountManager = mm
+	}
+}
+
 // WithInMemoryServices is suitable for cases when there is need to use containerd's client from
 // another (in-memory) containerd plugin (such as CRI).
 func WithInMemoryServices(ic *plugin.InitContext) Opt {
@@ -189,6 +199,9 @@ func WithInMemoryServices(ic *plugin.InitContext) Opt {
 			},
 			plugins.TransferPlugin: func(i interface{}) ServicesOpt {
 				return WithTransferService(i.(transfer.Transferrer))
+			},
+			plugins.MountManagerPlugin: func(i interface{}) ServicesOpt {
+				return WithMountManager(i.(mount.Manager))
 			},
 		} {
 			i, err := ic.GetSingle(t)
