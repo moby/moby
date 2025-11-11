@@ -12,6 +12,7 @@ message Metrics {
 	IOStat io = 6;
 	repeated HugeTlbStat hugetlb = 7;
 	MemoryEvents memory_events = 8;
+	repeated NetworkStat network = 9;
 }
 
 message PSIData {
@@ -39,6 +40,8 @@ message CPUStat {
 	uint64 nr_throttled = 5;
 	uint64 throttled_usec = 6;
 	PSIStats psi = 7;
+	uint64 nr_bursts = 8;
+	uint64 burst_usec = 9;
 }
 
 message MemoryStat {
@@ -119,4 +122,17 @@ message HugeTlbStat {
 	uint64 current = 1;
 	uint64 max = 2;
 	string pagesize = 3;
+	uint64 failcnt = 4;
+}
+
+message NetworkStat {
+	string name = 1;
+	uint64 rx_bytes = 2;
+	uint64 rx_packets = 3;
+	uint64 rx_errors  = 4;
+	uint64 rx_dropped = 5;
+	uint64 tx_bytes = 6;
+	uint64 tx_packets = 7;
+	uint64 tx_errors = 8;
+	uint64 tx_dropped = 9;
 }

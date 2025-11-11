@@ -59,6 +59,14 @@ file {
       type_name: ".io.containerd.cgroups.v2.MemoryEvents"
       json_name: "memoryEvents"
     }
+    field {
+      name: "network"
+      number: 9
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".io.containerd.cgroups.v2.NetworkStat"
+      json_name: "network"
+    }
   }
   message_type {
     name: "PSIData"
@@ -178,6 +186,20 @@ file {
       type: TYPE_MESSAGE
       type_name: ".io.containerd.cgroups.v2.PSIStats"
       json_name: "psi"
+    }
+    field {
+      name: "nr_bursts"
+      number: 8
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "nrBursts"
+    }
+    field {
+      name: "burst_usec"
+      number: 9
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "burstUsec"
     }
   }
   message_type {
@@ -617,6 +639,79 @@ file {
       label: LABEL_OPTIONAL
       type: TYPE_STRING
       json_name: "pagesize"
+    }
+    field {
+      name: "failcnt"
+      number: 4
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "failcnt"
+    }
+  }
+  message_type {
+    name: "NetworkStat"
+    field {
+      name: "name"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "name"
+    }
+    field {
+      name: "rx_bytes"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "rxBytes"
+    }
+    field {
+      name: "rx_packets"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "rxPackets"
+    }
+    field {
+      name: "rx_errors"
+      number: 4
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "rxErrors"
+    }
+    field {
+      name: "rx_dropped"
+      number: 5
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "rxDropped"
+    }
+    field {
+      name: "tx_bytes"
+      number: 6
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "txBytes"
+    }
+    field {
+      name: "tx_packets"
+      number: 7
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "txPackets"
+    }
+    field {
+      name: "tx_errors"
+      number: 8
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "txErrors"
+    }
+    field {
+      name: "tx_dropped"
+      number: 9
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "txDropped"
     }
   }
   options {
