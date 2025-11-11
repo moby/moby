@@ -97,6 +97,12 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (_ Ima
 			return nil, fmt.Errorf("unable to resolve snapshotter: %w", err)
 		}
 		span.SetAttributes(tracing.Attribute("snapshotter.name", snapshotterName))
+
+		snCapabilities, err := c.GetSnapshotterCapabilities(ctx, snapshotterName)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get snapshotter capabilities: %w", err)
+		}
+
 		var uconfig UnpackConfig
 		for _, opt := range pullCtx.UnpackOpts {
 			if err := opt(ctx, &uconfig); err != nil {
@@ -110,16 +116,20 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (_ Ima
 
 		// Check client Unpack config
 		platform := unpack.Platform{
-			Platform:       platformMatcher,
-			SnapshotterKey: snapshotterName,
-			Snapshotter:    c.SnapshotService(snapshotterName),
-			SnapshotOpts:   append(pullCtx.SnapshotterOpts, uconfig.SnapshotOpts...),
-			Applier:        c.DiffService(),
-			ApplyOpts:      uconfig.ApplyOpts,
+			Platform:                platformMatcher,
+			SnapshotterKey:          snapshotterName,
+			Snapshotter:             c.SnapshotService(snapshotterName),
+			SnapshotOpts:            append(pullCtx.SnapshotterOpts, uconfig.SnapshotOpts...),
+			Applier:                 c.DiffService(),
+			ApplyOpts:               uconfig.ApplyOpts,
+			SnapshotterCapabilities: snCapabilities,
 		}
 		uopts := []unpack.UnpackerOpt{unpack.WithUnpackPlatform(platform)}
 		if uconfig.DuplicationSuppressor != nil {
 			uopts = append(uopts, unpack.WithDuplicationSuppressor(uconfig.DuplicationSuppressor))
+		}
+		if uconfig.Limiter != nil {
+			uopts = append(uopts, unpack.WithUnpackLimiter(uconfig.Limiter))
 		}
 		unpacker, err = unpack.NewUnpacker(ctx, c.ContentStore(), uopts...)
 		if err != nil {
@@ -207,6 +217,9 @@ func (c *Client) fetch(ctx context.Context, rCtx *RemoteContext, ref string, lim
 	}
 	// Get all the children for a descriptor
 	childrenHandler := images.ChildrenHandler(store)
+	if rCtx.ReferrersProvider != nil {
+		childrenHandler = images.SetReferrers(rCtx.ReferrersProvider, childrenHandler)
+	}
 	// Set any children labels for that content
 	childrenHandler = images.SetChildrenMappedLabels(store, childrenHandler, rCtx.ChildLabelMap)
 	if rCtx.AllMetadata {

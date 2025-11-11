@@ -31,6 +31,9 @@ var (
 
 	// DefaultConfigDir is the default location for config files.
 	DefaultConfigDir = filepath.Join(os.Getenv("programfiles"), "containerd")
+
+	// DefaultConfigIncludePattern is the default location for drop-in configuration files.
+	DefaultConfigIncludePattern = filepath.Join(os.Getenv("programfiles"), "containerd\\conf.d\\*.toml")
 )
 
 const (

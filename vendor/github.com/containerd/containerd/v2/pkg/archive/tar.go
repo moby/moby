@@ -292,7 +292,7 @@ func applyNaive(ctx context.Context, root string, r io.Reader, options ApplyOpti
 		// the layer is also a directory. Then we want to merge them (i.e.
 		// just apply the metadata from the layer).
 		if fi, err := os.Lstat(path); err == nil {
-			if !(fi.IsDir() && hdr.Typeflag == tar.TypeDir) {
+			if !fi.IsDir() || hdr.Typeflag != tar.TypeDir {
 				if err := os.RemoveAll(path); err != nil {
 					return 0, err
 				}
@@ -337,7 +337,7 @@ func createTarFile(ctx context.Context, path, extractDir string, hdr *tar.Header
 	case tar.TypeDir:
 		// Create directory unless it exists as a directory already.
 		// In that case we just want to merge the two
-		if fi, err := os.Lstat(path); !(err == nil && fi.IsDir()) {
+		if fi, err := os.Lstat(path); err != nil || !fi.IsDir() {
 			if err := mkdir(path, hdrInfo.Mode()); err != nil {
 				return err
 			}

@@ -95,16 +95,16 @@ func IDMapMountWithAttrs(source, target string, usernsFd int, attrSet uint64, at
 
 	dFd, err := unix.OpenTree(-int(unix.EBADF), source, uint(unix.OPEN_TREE_CLONE|unix.OPEN_TREE_CLOEXEC|unix.AT_EMPTY_PATH))
 	if err != nil {
-		return fmt.Errorf("Unable to open tree for %s: %w", target, err)
+		return fmt.Errorf("unable to open tree for %s: %w", target, err)
 	}
 
 	defer unix.Close(dFd)
 	if err = unix.MountSetattr(dFd, "", unix.AT_EMPTY_PATH, &attr); err != nil {
-		return fmt.Errorf("Unable to shift GID/UID or set mount attrs for %s: %w", target, err)
+		return fmt.Errorf("unable to shift GID/UID or set mount attrs for %s: %w", target, err)
 	}
 
 	if err = unix.MoveMount(dFd, "", -int(unix.EBADF), target, unix.MOVE_MOUNT_F_EMPTY_PATH); err != nil {
-		return fmt.Errorf("Unable to attach mount tree to %s: %w", target, err)
+		return fmt.Errorf("unable to attach mount tree to %s: %w", target, err)
 	}
 	return nil
 }

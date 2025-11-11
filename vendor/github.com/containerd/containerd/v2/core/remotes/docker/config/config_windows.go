@@ -25,11 +25,11 @@ import (
 func hostPaths(root, host string) (hosts []string) {
 	ch := hostDirectory(host)
 	if ch != host {
-		hosts = append(hosts, filepath.Join(root, strings.Replace(ch, ":", "", -1)))
+		hosts = append(hosts, filepath.Join(root, strings.ReplaceAll(ch, ":", "")))
 	}
 
 	hosts = append(hosts,
-		filepath.Join(root, strings.Replace(host, ":", "", -1)),
+		filepath.Join(root, strings.ReplaceAll(host, ":", "")),
 		filepath.Join(root, "_default"),
 	)
 

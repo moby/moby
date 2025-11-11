@@ -159,7 +159,7 @@ func (m *Mount) mount(target string) (err error) {
 		// or remount with changed data
 		source := m.Source
 		if opt.losetup {
-			loFile, err := setupLoop(m.Source, loopParams)
+			loFile, err := SetupLoop(m.Source, loopParams)
 			if err != nil {
 				return err
 			}

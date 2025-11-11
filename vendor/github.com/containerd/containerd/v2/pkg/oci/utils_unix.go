@@ -25,7 +25,7 @@ import (
 	"path/filepath"
 
 	"github.com/moby/sys/userns"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/unix"
 )
 
@@ -55,7 +55,7 @@ func getDevices(path, containerPath string) ([]specs.LinuxDevice, error) {
 		dev, err := DeviceFromPath(path)
 		if err != nil {
 			// wrap error with detailed path and container path when it is ErrNotADevice
-			if err == ErrNotADevice {
+			if errors.Is(err, ErrNotADevice) {
 				return nil, fmt.Errorf("get device path: %q containerPath: %q error: %w", path, containerPath, err)
 			}
 			return nil, err
@@ -103,7 +103,7 @@ func getDevices(path, containerPath string) ([]specs.LinuxDevice, error) {
 		default:
 			device, err := DeviceFromPath(filepath.Join(path, f.Name()))
 			if err != nil {
-				if err == ErrNotADevice {
+				if errors.Is(err, ErrNotADevice) {
 					continue
 				}
 				if os.IsNotExist(err) {
