@@ -1,5 +1,20 @@
 # Changes
 
+## [0.117.0](https://github.com/googleapis/google-cloud-go/compare/v0.116.0...v0.117.0) (2024-12-16)
+
+
+### Features
+
+* **internal/trace:** Remove previously deprecated OpenCensus support ([#11230](https://github.com/googleapis/google-cloud-go/issues/11230)) ([40cf125](https://github.com/googleapis/google-cloud-go/commit/40cf1251c9d73be435585ce204a63588446c72b1)), refs [#10287](https://github.com/googleapis/google-cloud-go/issues/10287)
+* **transport:** Remove deprecated EXPERIMENTAL OpenCensus trace context propagation ([#11239](https://github.com/googleapis/google-cloud-go/issues/11239)) ([0d1ac87](https://github.com/googleapis/google-cloud-go/commit/0d1ac87174ed8526ea47d71a80e641ffbd687a6c)), refs [#10287](https://github.com/googleapis/google-cloud-go/issues/10287) [#11230](https://github.com/googleapis/google-cloud-go/issues/11230)
+
+## [0.116.0](https://github.com/googleapis/google-cloud-go/compare/v0.115.1...v0.116.0) (2024-10-09)
+
+
+### Features
+
+* **genai:** Add tokenizer package ([#10699](https://github.com/googleapis/google-cloud-go/issues/10699)) ([214af16](https://github.com/googleapis/google-cloud-go/commit/214af1604bf3837f68e96dbf81c1331b90c9375f))
+
 ## [0.115.1](https://github.com/googleapis/google-cloud-go/compare/v0.115.0...v0.115.1) (2024-08-13)
 
 

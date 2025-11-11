@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -27,6 +28,7 @@ import (
 	"cloud.google.com/go/auth/internal"
 	"cloud.google.com/go/auth/internal/credsfile"
 	"cloud.google.com/go/compute/metadata"
+	"github.com/googleapis/gax-go/v2/internallog"
 )
 
 const (
@@ -96,12 +98,17 @@ func DetectDefault(opts *DetectOptions) (*auth.Credentials, error) {
 	}
 
 	if OnGCE() {
+		metadataClient := metadata.NewWithOptions(&metadata.Options{
+			Logger: opts.logger(),
+		})
 		return auth.NewCredentials(&auth.CredentialsOptions{
-			TokenProvider: computeTokenProvider(opts),
+			TokenProvider: computeTokenProvider(opts, metadataClient),
 			ProjectIDProvider: auth.CredentialsPropertyFunc(func(ctx context.Context) (string, error) {
-				return metadata.ProjectIDWithContext(ctx)
+				return metadataClient.ProjectIDWithContext(ctx)
 			}),
-			UniverseDomainProvider: &internal.ComputeUniverseDomainProvider{},
+			UniverseDomainProvider: &internal.ComputeUniverseDomainProvider{
+				MetadataClient: metadataClient,
+			},
 		}), nil
 	}
 
@@ -158,6 +165,11 @@ type DetectOptions struct {
 	// The default value is "googleapis.com". This option is ignored for
 	// authentication flows that do not support universe domain. Optional.
 	UniverseDomain string
+	// Logger is used for debug logging. If provided, logging will be enabled
+	// at the loggers configured level. By default logging is disabled unless
+	// enabled by setting GOOGLE_SDK_GO_LOGGING_LEVEL in which case a default
+	// logger will be used. Optional.
+	Logger *slog.Logger
 }
 
 func (o *DetectOptions) validate() error {
@@ -191,6 +203,10 @@ func (o *DetectOptions) client() *http.Client {
 		return o.Client
 	}
 	return internal.DefaultClient()
+}
+
+func (o *DetectOptions) logger() *slog.Logger {
+	return internallog.New(o.Logger)
 }
 
 func readCredentialsFile(filename string, opts *DetectOptions) (*auth.Credentials, error) {
@@ -253,6 +269,7 @@ func clientCredConfigFromJSON(b []byte, opts *DetectOptions) *auth.Options3LO {
 		AuthURL:          c.AuthURI,
 		TokenURL:         c.TokenURI,
 		Client:           opts.client(),
+		Logger:           opts.logger(),
 		EarlyTokenExpiry: opts.EarlyTokenRefresh,
 		AuthHandlerOpts:  handleOpts,
 		// TODO(codyoss): refactor this out. We need to add in auto-detection

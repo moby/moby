@@ -187,9 +187,8 @@ for OpenCensus is now deprecated in the Google Cloud client libraries for Go.
 See [OpenCensus](#opencensus) below for details.
 
 The Google Cloud client libraries for Go now use the
-[OpenTelemetry](https://opentelemetry.io/docs/what-is-opentelemetry/) project by
-default. Temporary opt-in support for OpenCensus is still available. The
-transition from OpenCensus to OpenTelemetry is covered in the following
+[OpenTelemetry](https://opentelemetry.io/docs/what-is-opentelemetry/) project.
+The transition from OpenCensus to OpenTelemetry is covered in the following
 sections.
 
 ### Tracing (experimental)
@@ -207,8 +206,7 @@ hand-written clients are in scope for the discussion in this section:
 
 Currently, the spans created by these clients are for OpenTelemetry. OpenCensus
 users are urged to transition to OpenTelemetry as soon as possible, as explained
-in the next section. OpenCensus users can still opt-in to the deprecated
-OpenCensus support via an environment variable, as described below.
+in the next section.
 
 #### OpenCensus
 
@@ -229,23 +227,15 @@ On May 29, 2024, six months after the
 [release](https://github.com/googleapis/google-cloud-go/releases/tag/v0.111.0)
 of experimental, opt-in support for OpenTelemetry tracing, the default tracing
 support in the clients above was changed from OpenCensus to OpenTelemetry, and
-the experimental OpenCensus support was marked as deprecated. To continue
-using the OpenCensus support, set the environment variable
-`GOOGLE_API_GO_EXPERIMENTAL_TELEMETRY_PLATFORM_TRACING` to the case-insensitive
-value `opencensus` before loading the client library.
-
-```sh
-export GOOGLE_API_GO_EXPERIMENTAL_TELEMETRY_PLATFORM_TRACING=opencensus
-```
+the experimental OpenCensus support was marked as deprecated.
 
 On December 2nd, 2024, one year after the release of OpenTelemetry support, the
-experimental and deprecated support for OpenCensus tracing will be removed.
+experimental and deprecated support for OpenCensus tracing was removed.
 
 Please note that all Google Cloud Go clients currently provide experimental
 support for the propagation of both OpenCensus and OpenTelemetry trace context
 to their receiving endpoints. The experimental support for OpenCensus trace
-context propagation will be removed at the same time as the experimental
-OpenCensus tracing support.
+context propagation will be removed soon.
 
 Please refer to the following resources:
 

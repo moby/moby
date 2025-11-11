@@ -124,7 +124,13 @@ func resolveUniverseDomain(optsUniverseDomain, fileUniverseDomain string) string
 }
 
 func handleServiceAccount(f *credsfile.ServiceAccountFile, opts *DetectOptions) (auth.TokenProvider, error) {
+	ud := resolveUniverseDomain(opts.UniverseDomain, f.UniverseDomain)
 	if opts.UseSelfSignedJWT {
+		return configureSelfSignedJWT(f, opts)
+	} else if ud != "" && ud != internalauth.DefaultUniverseDomain {
+		// For non-GDU universe domains, token exchange is impossible and services
+		// must support self-signed JWTs.
+		opts.UseSelfSignedJWT = true
 		return configureSelfSignedJWT(f, opts)
 	}
 	opts2LO := &auth.Options2LO{
@@ -135,6 +141,7 @@ func handleServiceAccount(f *credsfile.ServiceAccountFile, opts *DetectOptions) 
 		TokenURL:     f.TokenURL,
 		Subject:      opts.Subject,
 		Client:       opts.client(),
+		Logger:       opts.logger(),
 	}
 	if opts2LO.TokenURL == "" {
 		opts2LO.TokenURL = jwtTokenURL
@@ -153,6 +160,7 @@ func handleUserCredential(f *credsfile.UserCredentialsFile, opts *DetectOptions)
 		EarlyTokenExpiry: opts.EarlyTokenRefresh,
 		RefreshToken:     f.RefreshToken,
 		Client:           opts.client(),
+		Logger:           opts.logger(),
 	}
 	return auth.New3LOTokenProvider(opts3LO)
 }
@@ -171,6 +179,7 @@ func handleExternalAccount(f *credsfile.ExternalAccountFile, opts *DetectOptions
 		Scopes:                         opts.scopes(),
 		WorkforcePoolUserProject:       f.WorkforcePoolUserProject,
 		Client:                         opts.client(),
+		Logger:                         opts.logger(),
 		IsDefaultClient:                opts.Client == nil,
 	}
 	if f.ServiceAccountImpersonation != nil {
@@ -189,6 +198,7 @@ func handleExternalAccountAuthorizedUser(f *credsfile.ExternalAccountAuthorizedU
 		ClientSecret: f.ClientSecret,
 		Scopes:       opts.scopes(),
 		Client:       opts.client(),
+		Logger:       opts.logger(),
 	}
 	return externalaccountuser.NewTokenProvider(externalOpts)
 }
@@ -208,6 +218,7 @@ func handleImpersonatedServiceAccount(f *credsfile.ImpersonatedServiceAccountFil
 		Tp:        tp,
 		Delegates: f.Delegates,
 		Client:    opts.client(),
+		Logger:    opts.logger(),
 	})
 }
 
@@ -215,5 +226,6 @@ func handleGDCHServiceAccount(f *credsfile.GDCHServiceAccountFile, opts *DetectO
 	return gdch.NewTokenProvider(f, &gdch.Options{
 		STSAudience: opts.STSAudience,
 		Client:      opts.client(),
+		Logger:      opts.logger(),
 	})
 }

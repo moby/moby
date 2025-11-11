@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.14.0](https://github.com/googleapis/gax-go/compare/v2.13.0...v2.14.0) (2024-11-13)
+
+
+### Features
+
+* **internallog:** add a logging support package ([#380](https://github.com/googleapis/gax-go/issues/380)) ([c877470](https://github.com/googleapis/gax-go/commit/c87747098135631a3de5865ed03aaf2c79fd9319))
+
 ## [2.13.0](https://github.com/googleapis/gax-go/compare/v2.12.5...v2.13.0) (2024-07-22)
 
 

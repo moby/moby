@@ -6,6 +6,11 @@
 package internaloption
 
 import (
+	"context"
+	"log/slog"
+
+	"cloud.google.com/go/auth"
+	"github.com/googleapis/gax-go/v2/internallog"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/internal"
 	"google.golang.org/api/option"
@@ -206,9 +211,79 @@ func (w enableNewAuthLibrary) Apply(o *internal.DialSettings) {
 	o.EnableNewAuthLibrary = bool(w)
 }
 
+// EnableAsyncRefreshDryRun returns a ClientOption that specifies if libraries in this
+// module should asynchronously refresh auth token in parallel to sync refresh.
+//
+// This option can be used to determine whether refreshing the token asymnchronously
+// prior to its actual expiry works without any issues in a particular environment.
+//
+// errHandler function will be called when there is an error while refreshing
+// the token asynchronously.
+//
+// This is an EXPERIMENTAL option and will be removed in the future.
+// TODO(b/372244283): Remove after b/358175516 has been fixed
+func EnableAsyncRefreshDryRun(errHandler func()) option.ClientOption {
+	return enableAsyncRefreshDryRun{
+		errHandler: errHandler,
+	}
+}
+
+// TODO(b/372244283): Remove after b/358175516 has been fixed
+type enableAsyncRefreshDryRun struct {
+	errHandler func()
+}
+
+// TODO(b/372244283): Remove after b/358175516 has been fixed
+func (w enableAsyncRefreshDryRun) Apply(o *internal.DialSettings) {
+	o.EnableAsyncRefreshDryRun = w.errHandler
+}
+
 // EmbeddableAdapter is a no-op option.ClientOption that allow libraries to
 // create their own client options by embedding this type into their own
 // client-specific option wrapper. See example for usage.
 type EmbeddableAdapter struct{}
 
 func (*EmbeddableAdapter) Apply(_ *internal.DialSettings) {}
+
+// GetLogger is a helper for client libraries to extract the [slog.Logger] from
+// the provided options or return a default logger if one is not found.
+//
+// It should only be used internally by generated clients. This is an EXPERIMENTAL API
+// and may be changed or removed in the future.
+func GetLogger(opts []option.ClientOption) *slog.Logger {
+	var ds internal.DialSettings
+	for _, opt := range opts {
+		opt.Apply(&ds)
+	}
+	return internallog.New(ds.Logger)
+}
+
+// AuthCreds returns [cloud.google.com/go/auth.Credentials] using the following
+// options provided via [option.ClientOption], including legacy oauth2/google
+// options, in this order:
+//
+// * [option.WithAuthCredentials]
+// * [option/internaloption.WithCredentials] (internal use only)
+// * [option.WithCredentials]
+// * [option.WithTokenSource]
+//
+// If there are no applicable credentials options, then it passes the
+// following options to [cloud.google.com/go/auth/credentials.DetectDefault] and
+// returns the result:
+//
+// * [option.WithAudiences]
+// * [option.WithCredentialsFile]
+// * [option.WithCredentialsJSON]
+// * [option.WithScopes]
+// * [option/internaloption.WithDefaultScopes] (internal use only)
+// * [option/internaloption.EnableJwtWithScope] (internal use only)
+//
+// This function should only be used internally by generated clients. This is an
+// EXPERIMENTAL API and may be changed or removed in the future.
+func AuthCreds(ctx context.Context, opts []option.ClientOption) (*auth.Credentials, error) {
+	var ds internal.DialSettings
+	for _, opt := range opts {
+		opt.Apply(&ds)
+	}
+	return internal.AuthCreds(ctx, &ds)
+}

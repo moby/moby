@@ -1,5 +1,19 @@
 # Changes
 
+## [1.13.0](https://github.com/googleapis/google-cloud-go/compare/logging/v1.12.0...logging/v1.13.0) (2025-01-02)
+
+
+### Features
+
+* **logging:** Change go gapic transport to grpc+rest in logging ([#11289](https://github.com/googleapis/google-cloud-go/issues/11289)) ([a5f250b](https://github.com/googleapis/google-cloud-go/commit/a5f250baf8085bdb07807869a7c4a3a0ca3f535d))
+
+
+### Bug Fixes
+
+* **logging:** Update golang.org/x/net to v0.33.0 ([e9b0b69](https://github.com/googleapis/google-cloud-go/commit/e9b0b69644ea5b276cacff0a707e8a5e87efafc9))
+* **logging:** Update google.golang.org/api to v0.203.0 ([8bb87d5](https://github.com/googleapis/google-cloud-go/commit/8bb87d56af1cba736e0fe243979723e747e5e11e))
+* **logging:** WARNING: On approximately Dec 1, 2024, an update to Protobuf will change service registration function signatures to use an interface instead of a concrete type in generated .pb.go files. This change is expected to affect very few if any users of this client library. For more information, see https://togithub.com/googleapis/google-cloud-go/issues/11020. ([8bb87d5](https://github.com/googleapis/google-cloud-go/commit/8bb87d56af1cba736e0fe243979723e747e5e11e))
+
 ## [1.12.0](https://github.com/googleapis/google-cloud-go/compare/logging/v1.11.0...logging/v1.12.0) (2024-10-16)
 
 

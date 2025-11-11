@@ -15,6 +15,7 @@ import (
 	"os"
 	"time"
 
+	"cloud.google.com/go/auth"
 	"cloud.google.com/go/auth/credentials"
 	"cloud.google.com/go/auth/oauth2adapt"
 	"golang.org/x/oauth2"
@@ -30,7 +31,7 @@ const quotaProjectEnvVar = "GOOGLE_CLOUD_QUOTA_PROJECT"
 // it returns default credential information.
 func Creds(ctx context.Context, ds *DialSettings) (*google.Credentials, error) {
 	if ds.IsNewAuthLibraryEnabled() {
-		return credsNewAuth(ctx, ds)
+		return credsNewAuth(ds)
 	}
 	creds, err := baseCreds(ctx, ds)
 	if err != nil {
@@ -40,6 +41,30 @@ func Creds(ctx context.Context, ds *DialSettings) (*google.Credentials, error) {
 		return impersonateCredentials(ctx, creds, ds)
 	}
 	return creds, nil
+}
+
+// AuthCreds returns [cloud.google.com/go/auth.Credentials] based on credentials
+// options provided via [option.ClientOption], including legacy oauth2/google
+// options. If there are no applicable options, then it returns the result of
+// [cloud.google.com/go/auth/credentials.DetectDefault].
+func AuthCreds(ctx context.Context, settings *DialSettings) (*auth.Credentials, error) {
+	if settings.AuthCredentials != nil {
+		return settings.AuthCredentials, nil
+	}
+	// Support oauth2/google options
+	var oauth2Creds *google.Credentials
+	if settings.InternalCredentials != nil {
+		oauth2Creds = settings.InternalCredentials
+	} else if settings.Credentials != nil {
+		oauth2Creds = settings.Credentials
+	} else if settings.TokenSource != nil {
+		oauth2Creds = &google.Credentials{TokenSource: settings.TokenSource}
+	}
+	if oauth2Creds != nil {
+		return oauth2adapt.AuthCredentialsFromOauth2Credentials(oauth2Creds), nil
+	}
+
+	return detectDefaultFromDialSettings(settings)
 }
 
 // GetOAuth2Configuration determines configurations for the OAuth2 transport, which is separate from the API transport.
@@ -62,7 +87,7 @@ func GetOAuth2Configuration(ctx context.Context, settings *DialSettings) (string
 	return tokenURL, oauth2Client, nil
 }
 
-func credsNewAuth(ctx context.Context, settings *DialSettings) (*google.Credentials, error) {
+func credsNewAuth(settings *DialSettings) (*google.Credentials, error) {
 	// Preserve old options behavior
 	if settings.InternalCredentials != nil {
 		return settings.InternalCredentials, nil
@@ -76,6 +101,14 @@ func credsNewAuth(ctx context.Context, settings *DialSettings) (*google.Credenti
 		return oauth2adapt.Oauth2CredentialsFromAuthCredentials(settings.AuthCredentials), nil
 	}
 
+	creds, err := detectDefaultFromDialSettings(settings)
+	if err != nil {
+		return nil, err
+	}
+	return oauth2adapt.Oauth2CredentialsFromAuthCredentials(creds), nil
+}
+
+func detectDefaultFromDialSettings(settings *DialSettings) (*auth.Credentials, error) {
 	var useSelfSignedJWT bool
 	var aud string
 	var scopes []string
@@ -100,18 +133,14 @@ func credsNewAuth(ctx context.Context, settings *DialSettings) (*google.Credenti
 		aud = settings.DefaultAudience
 	}
 
-	creds, err := credentials.DetectDefault(&credentials.DetectOptions{
+	return credentials.DetectDefault(&credentials.DetectOptions{
 		Scopes:           scopes,
 		Audience:         aud,
 		CredentialsFile:  settings.CredentialsFile,
 		CredentialsJSON:  settings.CredentialsJSON,
 		UseSelfSignedJWT: useSelfSignedJWT,
+		Logger:           settings.Logger,
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	return oauth2adapt.Oauth2CredentialsFromAuthCredentials(creds), nil
 }
 
 func baseCreds(ctx context.Context, ds *DialSettings) (*google.Credentials, error) {

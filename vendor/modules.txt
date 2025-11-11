@@ -1,7 +1,7 @@
-# cloud.google.com/go v0.115.1
-## explicit; go 1.20
+# cloud.google.com/go v0.117.0
+## explicit; go 1.21
 cloud.google.com/go
-# cloud.google.com/go/auth v0.9.3
+# cloud.google.com/go/auth v0.13.0
 ## explicit; go 1.21
 cloud.google.com/go/auth
 cloud.google.com/go/auth/credentials
@@ -13,23 +13,24 @@ cloud.google.com/go/auth/credentials/internal/stsexchange
 cloud.google.com/go/auth/grpctransport
 cloud.google.com/go/auth/httptransport
 cloud.google.com/go/auth/internal
+cloud.google.com/go/auth/internal/compute
 cloud.google.com/go/auth/internal/credsfile
 cloud.google.com/go/auth/internal/jwt
 cloud.google.com/go/auth/internal/transport
 cloud.google.com/go/auth/internal/transport/cert
-# cloud.google.com/go/auth/oauth2adapt v0.2.4
-## explicit; go 1.20
+# cloud.google.com/go/auth/oauth2adapt v0.2.6
+## explicit; go 1.21
 cloud.google.com/go/auth/oauth2adapt
 # cloud.google.com/go/compute/metadata v0.8.0
 ## explicit; go 1.23.0
 cloud.google.com/go/compute/metadata
-# cloud.google.com/go/logging v1.12.0
+# cloud.google.com/go/logging v1.13.0
 ## explicit; go 1.21
 cloud.google.com/go/logging
 cloud.google.com/go/logging/apiv2
 cloud.google.com/go/logging/apiv2/loggingpb
 cloud.google.com/go/logging/internal
-# cloud.google.com/go/longrunning v0.6.1
+# cloud.google.com/go/longrunning v0.6.2
 ## explicit; go 1.21
 cloud.google.com/go/longrunning
 cloud.google.com/go/longrunning/autogen
@@ -692,13 +693,16 @@ github.com/google/uuid
 ## explicit; go 1.19
 github.com/googleapis/enterprise-certificate-proxy/client
 github.com/googleapis/enterprise-certificate-proxy/client/util
-# github.com/googleapis/gax-go/v2 v2.13.0
-## explicit; go 1.20
+# github.com/googleapis/gax-go/v2 v2.14.0
+## explicit; go 1.21
 github.com/googleapis/gax-go/v2
 github.com/googleapis/gax-go/v2/apierror
 github.com/googleapis/gax-go/v2/apierror/internal/proto
 github.com/googleapis/gax-go/v2/callctx
 github.com/googleapis/gax-go/v2/internal
+github.com/googleapis/gax-go/v2/internallog
+github.com/googleapis/gax-go/v2/internallog/grpclog
+github.com/googleapis/gax-go/v2/internallog/internal
 github.com/googleapis/gax-go/v2/iterator
 # github.com/gorilla/mux v1.8.1
 ## explicit; go 1.20
@@ -1346,20 +1350,8 @@ go.etcd.io/etcd/server/v3/wal/walpb
 ## explicit; go 1.13
 go.opencensus.io
 go.opencensus.io/internal
-go.opencensus.io/internal/tagencoding
-go.opencensus.io/metric/metricdata
-go.opencensus.io/metric/metricproducer
-go.opencensus.io/plugin/ocgrpc
-go.opencensus.io/plugin/ochttp
-go.opencensus.io/plugin/ochttp/propagation/b3
-go.opencensus.io/resource
-go.opencensus.io/stats
-go.opencensus.io/stats/internal
-go.opencensus.io/stats/view
-go.opencensus.io/tag
 go.opencensus.io/trace
 go.opencensus.io/trace/internal
-go.opencensus.io/trace/propagation
 go.opencensus.io/trace/tracestate
 # go.opentelemetry.io/auto/sdk v1.1.0
 ## explicit; go 1.22.0
@@ -1586,7 +1578,7 @@ golang.org/x/tools/internal/stdlib
 golang.org/x/tools/internal/typeparams
 golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/versions
-# google.golang.org/api v0.197.0
+# google.golang.org/api v0.214.0
 ## explicit; go 1.21
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/transport
@@ -1600,8 +1592,7 @@ google.golang.org/api/option/internaloption
 google.golang.org/api/support/bundler
 google.golang.org/api/transport/grpc
 google.golang.org/api/transport/http
-google.golang.org/api/transport/http/internal/propagation
-# google.golang.org/genproto v0.0.0-20240903143218-8af14fe29dc1
+# google.golang.org/genproto v0.0.0-20241118233622-e639e219e697
 ## explicit; go 1.21
 google.golang.org/genproto/googleapis/logging/type
 # google.golang.org/genproto/googleapis/api v0.0.0-20250218202821-56aae31c358a
