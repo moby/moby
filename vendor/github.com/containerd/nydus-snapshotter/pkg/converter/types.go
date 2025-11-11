@@ -127,6 +127,9 @@ type MergeOption struct {
 	Encrypt Encrypter
 	// AppendFiles specifies the files that need to be appended to the bootstrap layer.
 	AppendFiles []File
+	// MergeManifest indicates that the resulting nydus manifest will be merged with the original
+	// OCI one into a single index manifest.
+	MergeManifest bool
 }
 
 type UnpackOption struct {
