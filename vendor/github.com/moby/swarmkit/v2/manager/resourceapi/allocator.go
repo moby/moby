@@ -98,7 +98,7 @@ func (ra *ResourceAllocator) AttachNetwork(ctx context.Context, request *api.Att
 // - Returns an error if the deletion fails.
 func (ra *ResourceAllocator) DetachNetwork(ctx context.Context, request *api.DetachNetworkRequest) (*api.DetachNetworkResponse, error) {
 	if request.AttachmentID == "" {
-		return nil, status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	nodeInfo, err := ca.RemoteNode(ctx)

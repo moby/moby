@@ -55,7 +55,7 @@ func WalkTasks(tx *bolt.Tx, fn func(task *api.Task) error) error {
 		return nil
 	}
 
-	return bkt.ForEach(func(k, v []byte) error {
+	return bkt.ForEach(func(k, _ []byte) error {
 		tbkt := bkt.Bucket(k)
 
 		p := tbkt.Get(bucketKeyData)
@@ -102,7 +102,7 @@ func WalkTaskStatus(tx *bolt.Tx, fn func(id string, status *api.TaskStatus) erro
 		return nil
 	}
 
-	return bkt.ForEach(func(k, v []byte) error {
+	return bkt.ForEach(func(k, _ []byte) error {
 		tbkt := bkt.Bucket(k)
 
 		p := tbkt.Get(bucketKeyStatus)

@@ -68,9 +68,9 @@ func (suite *testSuite) TestIPAMNotNil() {
 	defer suite.startAllocator(a)()
 
 	// Now verify if we get network and tasks updated properly
-	watchNetwork(suite.T(), netWatch, false, func(t assert.TestingT, n *api.Network) bool { return true })
-	watchNetwork(suite.T(), netWatch, false, func(t assert.TestingT, n *api.Network) bool { return true })
-	watchNetwork(suite.T(), netWatch, false, func(t assert.TestingT, n *api.Network) bool { return true })
+	watchNetwork(suite.T(), netWatch, false, func(_ assert.TestingT, _ *api.Network) bool { return true })
+	watchNetwork(suite.T(), netWatch, false, func(_ assert.TestingT, _ *api.Network) bool { return true })
+	watchNetwork(suite.T(), netWatch, false, func(_ assert.TestingT, _ *api.Network) bool { return true })
 
 	// Verify no allocation was done for the node-local networks
 	var (

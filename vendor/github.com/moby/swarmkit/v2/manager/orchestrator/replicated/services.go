@@ -75,7 +75,7 @@ func (r *Orchestrator) tickServices(ctx context.Context) {
 	}
 }
 
-func (r *Orchestrator) resolveService(ctx context.Context, task *api.Task) *api.Service {
+func (r *Orchestrator) resolveService(_ context.Context, task *api.Task) *api.Service {
 	if task.ServiceID == "" {
 		return nil
 	}

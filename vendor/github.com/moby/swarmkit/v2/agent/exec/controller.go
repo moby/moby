@@ -143,7 +143,7 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 	status := task.Status.Copy()
 
 	// stay in the current state.
-	noop := func(errs ...error) (*api.TaskStatus, error) {
+	noop := func(_ ...error) (*api.TaskStatus, error) {
 		return status, ErrTaskNoop
 	}
 

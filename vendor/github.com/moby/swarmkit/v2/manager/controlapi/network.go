@@ -70,7 +70,7 @@ func (s *Server) validateIPAM(ipam *api.IPAMOptions) error {
 
 func (s *Server) validateNetworkSpec(spec *api.NetworkSpec) error {
 	if spec == nil {
-		return status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	if spec.Attachable && spec.Ingress {
@@ -102,7 +102,7 @@ func (s *Server) validateNetworkSpec(spec *api.NetworkSpec) error {
 // CreateNetwork creates and returns a Network based on the provided NetworkSpec.
 // - Returns `InvalidArgument` if the NetworkSpec is malformed.
 // - Returns an error if the creation fails.
-func (s *Server) CreateNetwork(ctx context.Context, request *api.CreateNetworkRequest) (*api.CreateNetworkResponse, error) {
+func (s *Server) CreateNetwork(_ context.Context, request *api.CreateNetworkRequest) (*api.CreateNetworkResponse, error) {
 	if err := s.validateNetworkSpec(request.Spec); err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func (s *Server) CreateNetwork(ctx context.Context, request *api.CreateNetworkRe
 // - Returns `NotFound` if the Network is not found.
 func (s *Server) GetNetwork(ctx context.Context, request *api.GetNetworkRequest) (*api.GetNetworkResponse, error) {
 	if request.NetworkID == "" {
-		return nil, status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	var n *api.Network
@@ -160,9 +160,9 @@ func (s *Server) GetNetwork(ctx context.Context, request *api.GetNetworkRequest)
 // - Returns `InvalidArgument` if NetworkID is not provided.
 // - Returns `NotFound` if the Network is not found.
 // - Returns an error if the deletion fails.
-func (s *Server) RemoveNetwork(ctx context.Context, request *api.RemoveNetworkRequest) (*api.RemoveNetworkResponse, error) {
+func (s *Server) RemoveNetwork(_ context.Context, request *api.RemoveNetworkRequest) (*api.RemoveNetworkResponse, error) {
 	if request.NetworkID == "" {
-		return nil, status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	var (

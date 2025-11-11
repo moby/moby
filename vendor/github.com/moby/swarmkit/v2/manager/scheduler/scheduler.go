@@ -251,7 +251,7 @@ func (s *Scheduler) enqueue(t *api.Task) {
 	s.unassignedTasks[t.ID] = t
 }
 
-func (s *Scheduler) createTask(ctx context.Context, t *api.Task) bool {
+func (s *Scheduler) createTask(_ context.Context, t *api.Task) bool {
 	// Ignore all tasks that have not reached PENDING
 	// state, and tasks that no longer consume resources.
 	if t.Status.State < api.TaskStatePending || t.Status.State > api.TaskStateRunning {
@@ -643,7 +643,7 @@ func (s *Scheduler) applySchedulingDecisions(ctx context.Context, schedulingDeci
 }
 
 // taskFitNode checks if a node has enough resources to accommodate a task.
-func (s *Scheduler) taskFitNode(ctx context.Context, t *api.Task, nodeID string) *api.Task {
+func (s *Scheduler) taskFitNode(_ context.Context, t *api.Task, nodeID string) *api.Task {
 	nodeInfo, err := s.nodeSet.nodeInfo(nodeID)
 	if err != nil {
 		// node does not exist in set (it may have been deleted)

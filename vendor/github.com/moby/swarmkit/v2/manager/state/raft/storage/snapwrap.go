@@ -8,8 +8,8 @@ import (
 
 	"github.com/moby/swarmkit/v2/manager/encryption"
 	"github.com/pkg/errors"
-	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/etcdserver/api/snap"
+	"go.etcd.io/raft/v3/raftpb"
 )
 
 // This package wraps the go.etcd.io/etcd/server/v3/api/snap package, and encrypts

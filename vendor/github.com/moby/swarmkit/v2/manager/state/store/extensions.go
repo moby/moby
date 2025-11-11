@@ -96,7 +96,7 @@ func CreateExtension(tx Tx, e *api.Extension) error {
 
 // UpdateExtension updates an existing extension in the store.
 // Returns ErrNotExist if the object doesn't exist.
-func UpdateExtension(tx Tx, e *api.Extension) error {
+func UpdateExtension(_ Tx, _ *api.Extension) error {
 	// TODO(aaronl): For the moment, extensions are immutable
 	return errors.New("extensions are immutable")
 }

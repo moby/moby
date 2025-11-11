@@ -119,7 +119,7 @@ func (s *Server) SetRootReconciliationInterval(interval time.Duration) {
 
 // GetUnlockKey is responsible for returning the current unlock key used for encrypting TLS private keys and
 // other at rest data.  Access to this RPC call should only be allowed via mutual TLS from managers.
-func (s *Server) GetUnlockKey(ctx context.Context, request *api.GetUnlockKeyRequest) (*api.GetUnlockKeyResponse, error) {
+func (s *Server) GetUnlockKey(_ context.Context, _ *api.GetUnlockKeyRequest) (*api.GetUnlockKeyResponse, error) {
 	// This directly queries the store, rather than storing the unlock key and version on
 	// the `Server` object and updating it `updateCluster` is called, because we need this
 	// API to return the latest version of the key.  Otherwise, there might be a slight delay
@@ -147,7 +147,7 @@ func (s *Server) GetUnlockKey(ctx context.Context, request *api.GetUnlockKeyRequ
 // NodeCertificateStatus returns the current issuance status of an issuance request identified by the nodeID
 func (s *Server) NodeCertificateStatus(ctx context.Context, request *api.NodeCertificateStatusRequest) (*api.NodeCertificateStatusResponse, error) {
 	if request.NodeID == "" {
-		return nil, status.Errorf(codes.InvalidArgument, codes.InvalidArgument.String())
+		return nil, status.Error(codes.InvalidArgument, codes.InvalidArgument.String())
 	}
 
 	serverCtx, err := s.isRunningLocked()
@@ -178,7 +178,7 @@ func (s *Server) NodeCertificateStatus(ctx context.Context, request *api.NodeCer
 
 	// This node ID doesn't exist
 	if node == nil {
-		return nil, status.Errorf(codes.NotFound, codes.NotFound.String())
+		return nil, status.Error(codes.NotFound, codes.NotFound.String())
 	}
 
 	log.G(ctx).WithFields(log.Fields{
@@ -234,7 +234,7 @@ func (s *Server) NodeCertificateStatus(ctx context.Context, request *api.NodeCer
 func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNodeCertificateRequest) (*api.IssueNodeCertificateResponse, error) {
 	// First, let's see if the remote node is presenting a non-empty CSR
 	if len(request.CSR) == 0 {
-		return nil, status.Errorf(codes.InvalidArgument, codes.InvalidArgument.String())
+		return nil, status.Error(codes.InvalidArgument, codes.InvalidArgument.String())
 	}
 
 	if err := s.isReadyLocked(); err != nil {
@@ -402,7 +402,7 @@ func (s *Server) issueRenewCertificate(ctx context.Context, nodeID string, csr [
 // GetRootCACertificate returns the certificate of the Root CA. It is used as a convenience for distributing
 // the root of trust for the swarm. Clients should be using the CA hash to verify if they weren't target to
 // a MiTM. If they fail to do so, node bootstrap works with TOFU semantics.
-func (s *Server) GetRootCACertificate(ctx context.Context, request *api.GetRootCACertificateRequest) (*api.GetRootCACertificateResponse, error) {
+func (s *Server) GetRootCACertificate(ctx context.Context, _ *api.GetRootCACertificateRequest) (*api.GetRootCACertificateResponse, error) {
 	log.G(ctx).WithFields(log.Fields{
 		"method": "GetRootCACertificate",
 	})

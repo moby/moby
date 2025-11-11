@@ -64,7 +64,7 @@ func (s *Server) CreateResource(ctx context.Context, request *api.CreateResource
 // - Returns `NotFound` if the Resource with the given id is not found.
 // - Returns `InvalidArgument` if the `GetResourceRequest.Resource` is empty.
 // - Returns an error if getting fails.
-func (s *Server) GetResource(ctx context.Context, request *api.GetResourceRequest) (*api.GetResourceResponse, error) {
+func (s *Server) GetResource(_ context.Context, request *api.GetResourceRequest) (*api.GetResourceResponse, error) {
 	if request.ResourceID == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "resource ID must be present")
 	}
@@ -84,7 +84,7 @@ func (s *Server) GetResource(ctx context.Context, request *api.GetResourceReques
 // - Returns `InvalidArgument` if `RemoveResourceRequest.ResourceID` is empty.
 // - Returns `NotFound` if the a resource named `RemoveResourceRequest.ResourceID` is not found.
 // - Returns an error if the deletion fails.
-func (s *Server) RemoveResource(ctx context.Context, request *api.RemoveResourceRequest) (*api.RemoveResourceResponse, error) {
+func (s *Server) RemoveResource(_ context.Context, request *api.RemoveResourceRequest) (*api.RemoveResourceResponse, error) {
 	if request.ResourceID == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "resource ID must be present")
 	}
@@ -106,7 +106,7 @@ func (s *Server) RemoveResource(ctx context.Context, request *api.RemoveResource
 // name prefix in `ListResourcesRequest.NamePrefixes`, any id in
 // `ListResourcesRequest.ResourceIDs`, or any id prefix in `ListResourcesRequest.IDPrefixes`.
 // - Returns an error if listing fails.
-func (s *Server) ListResources(ctx context.Context, request *api.ListResourcesRequest) (*api.ListResourcesResponse, error) {
+func (s *Server) ListResources(_ context.Context, request *api.ListResourcesRequest) (*api.ListResourcesResponse, error) {
 	var (
 		resources     []*api.Resource
 		respResources []*api.Resource
@@ -187,7 +187,7 @@ func (s *Server) ListResources(ctx context.Context, request *api.ListResourcesRe
 // - Returns `NotFound` if the Resource with the given `UpdateResourceRequest.Resource.Id` is not found.
 // - Returns `InvalidArgument` if the UpdateResourceRequest.Resource.Id` is empty.
 // - Returns an error if updating fails.
-func (s *Server) UpdateResource(ctx context.Context, request *api.UpdateResourceRequest) (*api.UpdateResourceResponse, error) {
+func (s *Server) UpdateResource(_ context.Context, request *api.UpdateResourceRequest) (*api.UpdateResourceResponse, error) {
 	if request.ResourceID == "" || request.ResourceVersion == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "must include ID and version")
 	}

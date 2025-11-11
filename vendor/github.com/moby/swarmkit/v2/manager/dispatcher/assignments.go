@@ -183,7 +183,7 @@ func (a *assignmentSet) releaseDependency(mapKey typeAndID, assignment *api.Assi
 
 // releaseTaskDependencies needs a store transaction because volumes have
 // associated Secrets which need to be released.
-func (a *assignmentSet) releaseTaskDependencies(readTx store.ReadTx, t *api.Task) bool {
+func (a *assignmentSet) releaseTaskDependencies(_ store.ReadTx, t *api.Task) bool {
 	var modified bool
 
 	for _, resourceRef := range t.Spec.ResourceReferences {
@@ -376,7 +376,7 @@ func (a *assignmentSet) addOrUpdateVolume(readTx store.ReadTx, v *api.Volume) bo
 	return true
 }
 
-func (a *assignmentSet) removeVolume(readTx store.ReadTx, v *api.Volume) bool {
+func (a *assignmentSet) removeVolume(_ store.ReadTx, v *api.Volume) bool {
 	if _, exists := a.volumesMap[v.ID]; !exists {
 		return false
 	}
