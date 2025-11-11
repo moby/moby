@@ -24,12 +24,26 @@ import (
 
 type CPUMax string
 
+const (
+	// Default kernel value for cpu quota period is 100000 us (100 ms), same for v1 and v2.
+	// v1: https://www.kernel.org/doc/html/latest/scheduler/sched-bwc.html and
+	// v2: https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html
+	defaultCPUMax          = "max"
+	defaultCPUMaxPeriod    = 100000
+	defaultCPUMaxPeriodStr = "100000"
+)
+
 func NewCPUMax(quota *int64, period *uint64) CPUMax {
-	max := "max"
+	max := defaultCPUMax
 	if quota != nil {
 		max = strconv.FormatInt(*quota, 10)
 	}
-	return CPUMax(strings.Join([]string{max, strconv.FormatUint(*period, 10)}, " "))
+
+	duration := defaultCPUMaxPeriodStr
+	if period != nil {
+		duration = strconv.FormatUint(*period, 10)
+	}
+	return CPUMax(strings.Join([]string{max, duration}, " "))
 }
 
 type CPU struct {
@@ -39,19 +53,34 @@ type CPU struct {
 	Mems   string
 }
 
-func (c CPUMax) extractQuotaAndPeriod() (int64, uint64) {
+func (c CPUMax) extractQuotaAndPeriod() (int64, uint64, error) {
 	var (
-		quota  int64
-		period uint64
+		quota  int64  = math.MaxInt64
+		period uint64 = defaultCPUMaxPeriod
+		err    error
 	)
+
+	// value: quota [period]
 	values := strings.Split(string(c), " ")
-	if values[0] == "max" {
-		quota = math.MaxInt64
-	} else {
-		quota, _ = strconv.ParseInt(values[0], 10, 64)
+	if len(values) < 1 || len(values) > 2 {
+		return 0, 0, ErrInvalidFormat
 	}
-	period, _ = strconv.ParseUint(values[1], 10, 64)
-	return quota, period
+
+	if strings.ToLower(values[0]) != defaultCPUMax {
+		quota, err = strconv.ParseInt(values[0], 10, 64)
+		if err != nil {
+			return 0, 0, err
+		}
+	}
+
+	if len(values) == 2 {
+		period, err = strconv.ParseUint(values[1], 10, 64)
+		if err != nil {
+			return 0, 0, err
+		}
+	}
+
+	return quota, period, nil
 }
 
 func (r *CPU) Values() (o []Value) {

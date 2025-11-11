@@ -135,22 +135,44 @@ func parseCgroupFile(path string) (string, error) {
 func parseCgroupFromReader(r io.Reader) (string, error) {
 	s := bufio.NewScanner(r)
 	for s.Scan() {
-		var (
-			text  = s.Text()
-			parts = strings.SplitN(text, ":", 3)
-		)
-		if len(parts) < 3 {
-			return "", fmt.Errorf("invalid cgroup entry: %q", text)
-		}
-		// text is like "0::/user.slice/user-1001.slice/session-1.scope"
-		if parts[0] == "0" && parts[1] == "" {
-			return parts[2], nil
+		// "0::/user.slice/user-1001.slice/session-1.scope"
+		if path, ok := strings.CutPrefix(s.Text(), "0::"); ok {
+			return path, nil
 		}
 	}
 	if err := s.Err(); err != nil {
 		return "", err
 	}
 	return "", fmt.Errorf("cgroup path not found")
+}
+
+// ConvertCPUSharesToCgroupV2Value converts CPU shares, used by cgroup v1,
+// to CPU weight, used by cgroup v2.
+//
+// Cgroup v1 CPU shares has a range of [2^1...2^18], i.e. [2...262144],
+// and the default value is 1024.
+//
+// Cgroup v2 CPU weight has a range of [10^0...10^4], i.e. [1...10000],
+// and the default value is 100.
+//
+// Taken from https://github.com/opencontainers/cgroups/blob/v0.0.5/utils.go#L417-L441
+// (Apache License 2.0)
+func ConvertCPUSharesToCgroupV2Value(cpuShares uint64) uint64 {
+	// The value of 0 means "unset".
+	if cpuShares == 0 {
+		return 0
+	}
+	if cpuShares <= 2 {
+		return 1
+	}
+	if cpuShares >= 262144 {
+		return 10000
+	}
+	l := math.Log2(float64(cpuShares))
+	// Quadratic function which fits min, max, and default.
+	exponent := (l*l+125*l)/612.0 - 7.0/34.0
+
+	return uint64(math.Ceil(math.Pow(10, exponent)))
 }
 
 // ToResources converts the oci LinuxResources struct into a
@@ -166,7 +188,7 @@ func ToResources(spec *specs.LinuxResources) *Resources {
 			Mems: cpu.Mems,
 		}
 		if shares := cpu.Shares; shares != nil {
-			convertedWeight := 1 + ((*shares-2)*9999)/262142
+			convertedWeight := ConvertCPUSharesToCgroupV2Value(*shares)
 			resources.CPU.Weight = &convertedWeight
 		}
 		if period := cpu.Period; period != nil {
@@ -401,6 +423,7 @@ func readHugeTlbStats(path string) []*stats.HugeTlbStat {
 			Max:      getStatFileContentUint64(filepath.Join(path, "hugetlb."+pagesize+".max")),
 			Current:  getStatFileContentUint64(filepath.Join(path, "hugetlb."+pagesize+".current")),
 			Pagesize: pagesize,
+			Failcnt:  getStatFileContentUint64(filepath.Join(path, "hugetlb."+pagesize+".events")),
 		}
 	}
 	return usage
