@@ -29,16 +29,6 @@ type NodeDiscoveryData struct {
 	Self        bool
 }
 
-// DatastoreConfigData is the data for the datastore update event message
-//
-// Deprecated: no longer used.
-type DatastoreConfigData struct {
-	Scope    string
-	Provider string
-	Address  string
-	Config   any
-}
-
 // DriverEncryptionConfig contains the initial datapath encryption key(s)
 // Key in first position is the primary key, the one to be used in tx.
 // Original key and tag types are []byte and uint64
