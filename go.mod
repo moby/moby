@@ -3,7 +3,7 @@ module github.com/moby/moby/v2
 go 1.24.0
 
 require (
-	cloud.google.com/go/compute/metadata v0.7.0
+	cloud.google.com/go/compute/metadata v0.8.0
 	cloud.google.com/go/logging v1.12.0
 	code.cloudfoundry.org/clock v1.37.0
 	dario.cat/mergo v1.0.2
