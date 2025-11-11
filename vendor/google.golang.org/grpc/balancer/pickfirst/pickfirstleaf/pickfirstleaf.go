@@ -283,7 +283,7 @@ func (b *pickfirstBalancer) UpdateClientConnState(state balancer.ClientConnState
 		newAddrs = state.ResolverState.Addresses
 		if cfg.ShuffleAddressList {
 			newAddrs = append([]resolver.Address{}, newAddrs...)
-			internal.RandShuffle(len(endpoints), func(i, j int) { endpoints[i], endpoints[j] = endpoints[j], endpoints[i] })
+			internal.RandShuffle(len(newAddrs), func(i, j int) { newAddrs[i], newAddrs[j] = newAddrs[j], newAddrs[i] })
 		}
 	}
 
@@ -351,6 +351,13 @@ func (b *pickfirstBalancer) ExitIdle() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.state == connectivity.Idle {
+		// Move the balancer into CONNECTING state immediately. This is done to
+		// avoid staying in IDLE if a resolver update arrives before the first
+		// SubConn reports CONNECTING.
+		b.updateBalancerState(balancer.State{
+			ConnectivityState: connectivity.Connecting,
+			Picker:            &picker{err: balancer.ErrNoSubConnAvailable},
+		})
 		b.startFirstPassLocked()
 	}
 }
@@ -604,7 +611,7 @@ func (b *pickfirstBalancer) updateSubConnState(sd *scData, newState balancer.Sub
 		if !b.addressList.seekTo(sd.addr) {
 			// This should not fail as we should have only one SubConn after
 			// entering READY. The SubConn should be present in the addressList.
-			b.logger.Errorf("Address %q not found address list in  %v", sd.addr, b.addressList.addresses)
+			b.logger.Errorf("Address %q not found address list in %v", sd.addr, b.addressList.addresses)
 			return
 		}
 		if !b.healthCheckingEnabled {

@@ -1353,10 +1353,10 @@ func (t *http2Server) closeStream(s *ServerStream, rst bool, rstCode http2.ErrCo
 	// called to interrupt the potential blocking on other goroutines.
 	s.cancel()
 
-	oldState := s.swapState(streamDone)
-	if oldState == streamDone {
-		return
-	}
+	// We can't return early even if the stream's state is "done" as the state
+	// might have been set by the `finishStream` method. Deleting the stream via
+	// `finishStream` can get blocked on flow control.
+	s.swapState(streamDone)
 	t.deleteStream(s, eosReceived)
 
 	t.controlBuf.put(&cleanupStream{

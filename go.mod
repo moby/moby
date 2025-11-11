@@ -109,8 +109,8 @@ require (
 	golang.org/x/text v0.30.0
 	golang.org/x/time v0.14.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250825161204-c5933d9347a5
-	google.golang.org/grpc v1.75.0
-	google.golang.org/protobuf v1.36.9
+	google.golang.org/grpc v1.76.0
+	google.golang.org/protobuf v1.36.10
 	gotest.tools/v3 v3.5.2
 	pgregory.net/rapid v1.2.0
 	resenje.org/singleflight v0.4.3

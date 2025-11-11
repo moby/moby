@@ -456,7 +456,7 @@ func (cc *ClientConn) validateTransportCredentials() error {
 func (cc *ClientConn) channelzRegistration(target string) {
 	parentChannel, _ := cc.dopts.channelzParent.(*channelz.Channel)
 	cc.channelz = channelz.RegisterChannel(parentChannel, target)
-	cc.addTraceEvent("created")
+	cc.addTraceEvent(fmt.Sprintf("created for target %q", target))
 }
 
 // chainUnaryClientInterceptors chains all unary client interceptors into one.
