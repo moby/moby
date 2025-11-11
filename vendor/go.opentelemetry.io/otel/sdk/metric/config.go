@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -17,11 +18,14 @@ import (
 
 // config contains configuration options for a MeterProvider.
 type config struct {
-	res            *resource.Resource
-	readers        []Reader
-	views          []View
-	exemplarFilter exemplar.Filter
+	res              *resource.Resource
+	readers          []Reader
+	views            []View
+	exemplarFilter   exemplar.Filter
+	cardinalityLimit int
 }
+
+const defaultCardinalityLimit = 0
 
 // readerSignals returns a force-flush and shutdown function for a
 // MeterProvider to call in their respective options. All Readers c contains
@@ -69,8 +73,9 @@ func unifyShutdown(funcs []func(context.Context) error) func(context.Context) er
 // newConfig returns a config configured with options.
 func newConfig(options []Option) config {
 	conf := config{
-		res:            resource.Default(),
-		exemplarFilter: exemplar.TraceBasedFilter,
+		res:              resource.Default(),
+		exemplarFilter:   exemplar.TraceBasedFilter,
+		cardinalityLimit: cardinalityLimitFromEnv(),
 	}
 	for _, o := range meterProviderOptionsFromEnv() {
 		conf = o.apply(conf)
@@ -155,6 +160,21 @@ func WithExemplarFilter(filter exemplar.Filter) Option {
 	})
 }
 
+// WithCardinalityLimit sets the cardinality limit for the MeterProvider.
+//
+// The cardinality limit is the hard limit on the number of metric datapoints
+// that can be collected for a single instrument in a single collect cycle.
+//
+// Setting this to a zero or negative value means no limit is applied.
+func WithCardinalityLimit(limit int) Option {
+	// For backward compatibility, the environment variable `OTEL_GO_X_CARDINALITY_LIMIT`
+	// can also be used to set this value.
+	return optionFunc(func(cfg config) config {
+		cfg.cardinalityLimit = limit
+		return cfg
+	})
+}
+
 func meterProviderOptionsFromEnv() []Option {
 	var opts []Option
 	// https://github.com/open-telemetry/opentelemetry-specification/blob/d4b241f451674e8f611bb589477680341006ad2b/specification/configuration/sdk-environment-variables.md#exemplar
@@ -169,4 +189,18 @@ func meterProviderOptionsFromEnv() []Option {
 		opts = append(opts, WithExemplarFilter(exemplar.TraceBasedFilter))
 	}
 	return opts
+}
+
+func cardinalityLimitFromEnv() int {
+	const cardinalityLimitKey = "OTEL_GO_X_CARDINALITY_LIMIT"
+	v := strings.TrimSpace(os.Getenv(cardinalityLimitKey))
+	if v == "" {
+		return defaultCardinalityLimit
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		otel.Handle(err)
+		return defaultCardinalityLimit
+	}
+	return n
 }

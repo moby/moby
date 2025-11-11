@@ -15,16 +15,16 @@ import "time"
 // BackOff is a backoff policy for retrying an operation.
 type BackOff interface {
 	// NextBackOff returns the duration to wait before retrying the operation,
-	// or backoff. Stop to indicate that no more retries should be made.
+	// backoff.Stop to indicate that no more retries should be made.
 	//
 	// Example usage:
 	//
-	// 	duration := backoff.NextBackOff();
-	// 	if (duration == backoff.Stop) {
-	// 		// Do not retry operation.
-	// 	} else {
-	// 		// Sleep for duration and retry operation.
-	// 	}
+	//     duration := backoff.NextBackOff()
+	//     if duration == backoff.Stop {
+	//         // Do not retry operation.
+	//     } else {
+	//         // Sleep for duration and retry operation.
+	//     }
 	//
 	NextBackOff() time.Duration
 

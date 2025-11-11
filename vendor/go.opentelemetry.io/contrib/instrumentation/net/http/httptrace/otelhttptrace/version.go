@@ -5,13 +5,6 @@ package otelhttptrace // import "go.opentelemetry.io/contrib/instrumentation/net
 
 // Version is the current release version of the httptrace instrumentation.
 func Version() string {
-	return "0.60.0"
+	return "0.61.0"
 	// This string is updated by the pre_release.sh script during release
-}
-
-// SemVersion is the semantic version to be supplied to tracer/meter creation.
-//
-// Deprecated: Use [Version] instead.
-func SemVersion() string {
-	return Version()
 }
