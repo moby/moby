@@ -39,8 +39,9 @@ var (
 // uses the metadata service to retrieve tokens.
 func computeTokenProvider(opts *DetectOptions, client *metadata.Client) auth.TokenProvider {
 	return auth.NewCachedTokenProvider(&computeProvider{
-		scopes: opts.Scopes,
-		client: client,
+		scopes:           opts.Scopes,
+		client:           client,
+		tokenBindingType: opts.TokenBindingType,
 	}, &auth.CachedTokenProviderOptions{
 		ExpireEarly:         opts.EarlyTokenRefresh,
 		DisableAsyncRefresh: opts.DisableAsyncRefresh,
@@ -49,8 +50,9 @@ func computeTokenProvider(opts *DetectOptions, client *metadata.Client) auth.Tok
 
 // computeProvider fetches tokens from the google cloud metadata service.
 type computeProvider struct {
-	scopes []string
-	client *metadata.Client
+	scopes           []string
+	client           *metadata.Client
+	tokenBindingType TokenBindingType
 }
 
 type metadataTokenResp struct {
@@ -64,9 +66,19 @@ func (cs *computeProvider) Token(ctx context.Context) (*auth.Token, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(cs.scopes) > 0 {
+	hasScopes := len(cs.scopes) > 0
+	if hasScopes || cs.tokenBindingType != NoBinding {
 		v := url.Values{}
-		v.Set("scopes", strings.Join(cs.scopes, ","))
+		if hasScopes {
+			v.Set("scopes", strings.Join(cs.scopes, ","))
+		}
+		switch cs.tokenBindingType {
+		case MTLSHardBinding:
+			v.Set("transport", "mtls")
+			v.Set("binding-enforcement", "on")
+		case ALTSHardBinding:
+			v.Set("transport", "alts")
+		}
 		tokenURI.RawQuery = v.Encode()
 	}
 	tokenJSON, err := cs.client.GetWithContext(ctx, tokenURI.String())

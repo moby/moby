@@ -44,12 +44,28 @@ func (w withCredFile) Apply(o *internal.DialSettings) {
 // WithCredentialsFile returns a ClientOption that authenticates
 // API calls with the given service account or refresh token JSON
 // credentials file.
+//
+// Important: If you accept a credential configuration (credential
+// JSON/File/Stream) from an external source for authentication to Google
+// Cloud Platform, you must validate it before providing it to any Google
+// API or library. Providing an unvalidated credential configuration to
+// Google APIs can compromise the security of your systems and data. For
+// more information, refer to [Validate credential configurations from
+// external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
 func WithCredentialsFile(filename string) ClientOption {
 	return withCredFile(filename)
 }
 
 // WithServiceAccountFile returns a ClientOption that uses a Google service
 // account credentials file to authenticate.
+//
+// Important: If you accept a credential configuration (credential
+// JSON/File/Stream) from an external source for authentication to Google
+// Cloud Platform, you must validate it before providing it to any Google
+// API or library. Providing an unvalidated credential configuration to
+// Google APIs can compromise the security of your systems and data. For
+// more information, refer to [Validate credential configurations from
+// external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
 //
 // Deprecated: Use WithCredentialsFile instead.
 func WithServiceAccountFile(filename string) ClientOption {
@@ -59,6 +75,14 @@ func WithServiceAccountFile(filename string) ClientOption {
 // WithCredentialsJSON returns a ClientOption that authenticates
 // API calls with the given service account or refresh token JSON
 // credentials.
+//
+// Important: If you accept a credential configuration (credential
+// JSON/File/Stream) from an external source for authentication to Google
+// Cloud Platform, you must validate it before providing it to any Google
+// API or library. Providing an unvalidated credential configuration to
+// Google APIs can compromise the security of your systems and data. For
+// more information, refer to [Validate credential configurations from
+// external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
 func WithCredentialsJSON(p []byte) ClientOption {
 	return withCredentialsJSON(p)
 }
@@ -71,7 +95,14 @@ func (w withCredentialsJSON) Apply(o *internal.DialSettings) {
 }
 
 // WithEndpoint returns a ClientOption that overrides the default endpoint
-// to be used for a service.
+// to be used for a service. Please note that by default Google APIs only
+// accept HTTPS traffic.
+//
+// For a gRPC client, the port number is typically included in the endpoint.
+// Example: "us-central1-speech.googleapis.com:443".
+//
+// For a REST client, the port number is typically not included. Example:
+// "https://speech.googleapis.com".
 func WithEndpoint(url string) ClientOption {
 	return withEndpoint(url)
 }

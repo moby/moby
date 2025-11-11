@@ -413,7 +413,10 @@ func newSubjectTokenProvider(o *Options) (subjectTokenProvider, error) {
 		if cert.UseDefaultCertificateConfig && cert.CertificateConfigLocation != "" {
 			return nil, errors.New("credentials: \"certificate\" object cannot specify both a certificate_config_location and use_default_certificate_config=true")
 		}
-		return &x509Provider{}, nil
+		return &x509Provider{
+			TrustChainPath: o.CredentialSource.Certificate.TrustChainPath,
+			ConfigFilePath: o.CredentialSource.Certificate.CertificateConfigLocation,
+		}, nil
 	}
 	return nil, errors.New("credentials: unable to parse credential source")
 }

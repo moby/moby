@@ -217,3 +217,9 @@ func getMetadataUniverseDomain(ctx context.Context, client *metadata.Client) (st
 	}
 	return "", err
 }
+
+// FormatIAMServiceAccountResource sets a service account name in an IAM resource
+// name.
+func FormatIAMServiceAccountResource(name string) string {
+	return fmt.Sprintf("projects/-/serviceAccounts/%s", name)
+}

@@ -75,7 +75,7 @@ func GetTLSConfigurationForClient(serverHostname string, s2AStream stream.S2AStr
 		return nil, fmt.Errorf("failed to get TLS configuration from S2A: %d, %v", resp.GetStatus().Code, resp.GetStatus().Details)
 	}
 
-	// Extract TLS configiguration from SessionResp.
+	// Extract TLS configuration from SessionResp.
 	tlsConfig := resp.GetGetTlsConfigurationResp().GetClientTlsConfiguration()
 
 	var cert tls.Certificate

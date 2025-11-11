@@ -36,6 +36,8 @@ func fileCredentials(b []byte, opts *DetectOptions) (*auth.Credentials, error) {
 	var projectID, universeDomain string
 	var tp auth.TokenProvider
 	switch fileType {
+	case credsfile.UnknownCredType:
+		return nil, errors.New("credentials: unsupported unidentified file type")
 	case credsfile.ServiceAccountKey:
 		f, err := credsfile.ParseServiceAccount(b)
 		if err != nil {
