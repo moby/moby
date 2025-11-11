@@ -190,10 +190,7 @@ encodeLoop:
 					// and have to do special offset treatment.
 					startLimit := nextEmit + 1
 
-					tMin := s - e.maxMatchOff
-					if tMin < 0 {
-						tMin = 0
-					}
+					tMin := max(s-e.maxMatchOff, 0)
 					for repIndex > tMin && start > startLimit && src[repIndex-1] == src[start-1] && seq.matchLen < maxMatchLength-zstdMinMatch-1 {
 						repIndex--
 						start--
@@ -252,10 +249,7 @@ encodeLoop:
 					// and have to do special offset treatment.
 					startLimit := nextEmit + 1
 
-					tMin := s - e.maxMatchOff
-					if tMin < 0 {
-						tMin = 0
-					}
+					tMin := max(s-e.maxMatchOff, 0)
 					for repIndex > tMin && start > startLimit && src[repIndex-1] == src[start-1] && seq.matchLen < maxMatchLength-zstdMinMatch-1 {
 						repIndex--
 						start--
@@ -480,10 +474,7 @@ encodeLoop:
 		l := matched
 
 		// Extend backwards
-		tMin := s - e.maxMatchOff
-		if tMin < 0 {
-			tMin = 0
-		}
+		tMin := max(s-e.maxMatchOff, 0)
 		for t > tMin && s > nextEmit && src[t-1] == src[s-1] && l < maxMatchLength {
 			s--
 			t--
@@ -719,10 +710,7 @@ encodeLoop:
 					// and have to do special offset treatment.
 					startLimit := nextEmit + 1
 
-					tMin := s - e.maxMatchOff
-					if tMin < 0 {
-						tMin = 0
-					}
+					tMin := max(s-e.maxMatchOff, 0)
 					for repIndex > tMin && start > startLimit && src[repIndex-1] == src[start-1] && seq.matchLen < maxMatchLength-zstdMinMatch-1 {
 						repIndex--
 						start--
@@ -783,10 +771,7 @@ encodeLoop:
 					// and have to do special offset treatment.
 					startLimit := nextEmit + 1
 
-					tMin := s - e.maxMatchOff
-					if tMin < 0 {
-						tMin = 0
-					}
+					tMin := max(s-e.maxMatchOff, 0)
 					for repIndex > tMin && start > startLimit && src[repIndex-1] == src[start-1] && seq.matchLen < maxMatchLength-zstdMinMatch-1 {
 						repIndex--
 						start--
@@ -1005,10 +990,7 @@ encodeLoop:
 		l := matched
 
 		// Extend backwards
-		tMin := s - e.maxMatchOff
-		if tMin < 0 {
-			tMin = 0
-		}
+		tMin := max(s-e.maxMatchOff, 0)
 		for t > tMin && s > nextEmit && src[t-1] == src[s-1] && l < maxMatchLength {
 			s--
 			t--
