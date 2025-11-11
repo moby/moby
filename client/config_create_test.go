@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -17,7 +16,7 @@ func TestConfigCreateError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ConfigCreate(context.Background(), ConfigCreateOptions{Spec: swarm.ConfigSpec{}})
+	_, err = client.ConfigCreate(t.Context(), ConfigCreateOptions{Spec: swarm.ConfigSpec{}})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -35,7 +34,7 @@ func TestConfigCreate(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	r, err := client.ConfigCreate(context.Background(), ConfigCreateOptions{Spec: swarm.ConfigSpec{}})
+	r, err := client.ConfigCreate(t.Context(), ConfigCreateOptions{Spec: swarm.ConfigSpec{}})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(r.ID, "test_config"))
 }

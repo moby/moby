@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"testing"
@@ -16,7 +15,7 @@ func TestNodeInspectError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.NodeInspect(context.Background(), "nothing", NodeInspectOptions{})
+	_, err = client.NodeInspect(t.Context(), "nothing", NodeInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -24,7 +23,7 @@ func TestNodeInspectNodeNotFound(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusNotFound, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.NodeInspect(context.Background(), "unknown", NodeInspectOptions{})
+	_, err = client.NodeInspect(t.Context(), "unknown", NodeInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
@@ -33,11 +32,11 @@ func TestNodeInspectWithEmptyID(t *testing.T) {
 		return nil, errors.New("should not make request")
 	}))
 	assert.NilError(t, err)
-	_, err = client.NodeInspect(context.Background(), "", NodeInspectOptions{})
+	_, err = client.NodeInspect(t.Context(), "", NodeInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.NodeInspect(context.Background(), "    ", NodeInspectOptions{})
+	_, err = client.NodeInspect(t.Context(), "    ", NodeInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -54,7 +53,7 @@ func TestNodeInspect(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	result, err := client.NodeInspect(context.Background(), "node_id", NodeInspectOptions{})
+	result, err := client.NodeInspect(t.Context(), "node_id", NodeInspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(result.Node.ID, "node_id"))
 }

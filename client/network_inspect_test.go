@@ -52,39 +52,39 @@ func TestNetworkInspect(t *testing.T) {
 
 	t.Run("empty ID", func(t *testing.T) {
 		// verify that the client does not create a request if the network-ID/name is empty.
-		_, err := client.NetworkInspect(context.Background(), "", NetworkInspectOptions{})
+		_, err := client.NetworkInspect(t.Context(), "", NetworkInspectOptions{})
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 		assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-		_, err = client.NetworkInspect(context.Background(), "    ", NetworkInspectOptions{})
+		_, err = client.NetworkInspect(t.Context(), "    ", NetworkInspectOptions{})
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 		assert.Check(t, is.ErrorContains(err, "value is empty"))
 	})
 	t.Run("no options", func(t *testing.T) {
-		r, err := client.NetworkInspect(context.Background(), "network_id", NetworkInspectOptions{})
+		r, err := client.NetworkInspect(t.Context(), "network_id", NetworkInspectOptions{})
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal(r.Network.Name, "mynetwork"))
 	})
 	t.Run("verbose", func(t *testing.T) {
-		r, err := client.NetworkInspect(context.Background(), "network_id", NetworkInspectOptions{Verbose: true})
+		r, err := client.NetworkInspect(t.Context(), "network_id", NetworkInspectOptions{Verbose: true})
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal(r.Network.Name, "mynetwork"))
 		_, ok := r.Network.Services["web"]
 		assert.Check(t, ok, "expected service `web` missing in the verbose output")
 	})
 	t.Run("global scope", func(t *testing.T) {
-		_, err := client.NetworkInspect(context.Background(), "network_id", NetworkInspectOptions{Scope: "global"})
+		_, err := client.NetworkInspect(t.Context(), "network_id", NetworkInspectOptions{Scope: "global"})
 		assert.Check(t, is.ErrorContains(err, "Error: No such network: network_id"))
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	})
 	t.Run("unknown network", func(t *testing.T) {
-		_, err := client.NetworkInspect(context.Background(), "unknown", NetworkInspectOptions{})
+		_, err := client.NetworkInspect(t.Context(), "unknown", NetworkInspectOptions{})
 		assert.Check(t, is.ErrorContains(err, "Error: No such network: unknown"))
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	})
 	t.Run("server error", func(t *testing.T) {
 		// Just testing that an internal server error is converted correctly by the client
-		_, err := client.NetworkInspect(context.Background(), "test-500-response", NetworkInspectOptions{})
+		_, err := client.NetworkInspect(t.Context(), "test-500-response", NetworkInspectOptions{})
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 	})
 }

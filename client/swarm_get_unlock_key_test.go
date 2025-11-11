@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -15,7 +14,7 @@ func TestSwarmGetUnlockKeyError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.SwarmGetUnlockKey(context.Background())
+	_, err = client.SwarmGetUnlockKey(t.Context())
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -35,7 +34,7 @@ func TestSwarmGetUnlockKey(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	result, err := client.SwarmGetUnlockKey(context.Background())
+	result, err := client.SwarmGetUnlockKey(t.Context())
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(unlockKey, result.Key))
 }

@@ -15,20 +15,20 @@ func TestNodeUpdateError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.NodeUpdate(context.Background(), "node_id", NodeUpdateOptions{
+	_, err = client.NodeUpdate(t.Context(), "node_id", NodeUpdateOptions{
 		Version: swarm.Version{},
 		Spec:    swarm.NodeSpec{},
 	})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.NodeUpdate(context.Background(), "", NodeUpdateOptions{
+	_, err = client.NodeUpdate(t.Context(), "", NodeUpdateOptions{
 		Version: swarm.Version{},
 		Spec:    swarm.NodeSpec{},
 	})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.NodeUpdate(context.Background(), "    ", NodeUpdateOptions{
+	_, err = client.NodeUpdate(t.Context(), "    ", NodeUpdateOptions{
 		Version: swarm.Version{},
 		Spec:    swarm.NodeSpec{},
 	})
@@ -47,7 +47,7 @@ func TestNodeUpdate(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	_, err = client.NodeUpdate(context.Background(), "node_id", NodeUpdateOptions{
+	_, err = client.NodeUpdate(t.Context(), "node_id", NodeUpdateOptions{
 		Version: swarm.Version{},
 		Spec:    swarm.NodeSpec{},
 	})

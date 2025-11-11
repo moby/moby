@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -18,7 +17,7 @@ func TestContainerListError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerList(context.Background(), ContainerListOptions{})
+	_, err = client.ContainerList(t.Context(), ContainerListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -65,7 +64,7 @@ func TestContainerList(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	list, err := client.ContainerList(context.Background(), ContainerListOptions{
+	list, err := client.ContainerList(t.Context(), ContainerListOptions{
 		Size:  true,
 		All:   true,
 		Since: "container",

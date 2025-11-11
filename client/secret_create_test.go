@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -14,7 +13,7 @@ import (
 func TestSecretCreateError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	_, err = client.SecretCreate(context.Background(), SecretCreateOptions{})
+	_, err = client.SecretCreate(t.Context(), SecretCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -30,7 +29,7 @@ func TestSecretCreate(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	r, err := client.SecretCreate(context.Background(), SecretCreateOptions{})
+	r, err := client.SecretCreate(t.Context(), SecretCreateOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(r.ID, "test_secret"))
 }

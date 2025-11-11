@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -14,7 +13,7 @@ func TestSwarmJoinError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.SwarmJoin(context.Background(), SwarmJoinOptions{})
+	_, err = client.SwarmJoin(t.Context(), SwarmJoinOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -29,7 +28,7 @@ func TestSwarmJoin(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	_, err = client.SwarmJoin(context.Background(), SwarmJoinOptions{
+	_, err = client.SwarmJoin(t.Context(), SwarmJoinOptions{
 		ListenAddr: "0.0.0.0:2377",
 	})
 	assert.NilError(t, err)

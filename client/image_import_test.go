@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"net/url"
@@ -17,7 +16,7 @@ import (
 func TestImageImportError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	_, err = client.ImageImport(context.Background(), ImageImportSource{}, "image:tag", ImageImportOptions{})
+	_, err = client.ImageImport(t.Context(), ImageImportSource{}, "image:tag", ImageImportOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -77,7 +76,7 @@ func TestImageImport(t *testing.T) {
 				return mockResponse(http.StatusOK, nil, expectedOutput)(req)
 			}))
 			assert.NilError(t, err)
-			result, err := client.ImageImport(context.Background(), ImageImportSource{
+			result, err := client.ImageImport(t.Context(), ImageImportSource{
 				Source:     strings.NewReader("source"),
 				SourceName: "image_source",
 			}, "repository_name:imported", tc.options)

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -14,14 +13,14 @@ func TestSecretUpdateError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.SecretUpdate(context.Background(), "secret_id", SecretUpdateOptions{})
+	_, err = client.SecretUpdate(t.Context(), "secret_id", SecretUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.SecretUpdate(context.Background(), "", SecretUpdateOptions{})
+	_, err = client.SecretUpdate(t.Context(), "", SecretUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.SecretUpdate(context.Background(), "    ", SecretUpdateOptions{})
+	_, err = client.SecretUpdate(t.Context(), "    ", SecretUpdateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -37,6 +36,6 @@ func TestSecretUpdate(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	_, err = client.SecretUpdate(context.Background(), "secret_id", SecretUpdateOptions{})
+	_, err = client.SecretUpdate(t.Context(), "secret_id", SecretUpdateOptions{})
 	assert.NilError(t, err)
 }
