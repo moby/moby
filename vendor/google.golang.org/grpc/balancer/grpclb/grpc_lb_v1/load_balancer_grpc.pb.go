@@ -86,7 +86,7 @@ type LoadBalancerServer interface {
 type UnimplementedLoadBalancerServer struct{}
 
 func (UnimplementedLoadBalancerServer) BalanceLoad(grpc.BidiStreamingServer[LoadBalanceRequest, LoadBalanceResponse]) error {
-	return status.Errorf(codes.Unimplemented, "method BalanceLoad not implemented")
+	return status.Error(codes.Unimplemented, "method BalanceLoad not implemented")
 }
 func (UnimplementedLoadBalancerServer) testEmbeddedByValue() {}
 

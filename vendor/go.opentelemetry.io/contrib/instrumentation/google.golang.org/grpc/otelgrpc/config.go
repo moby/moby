@@ -9,18 +9,12 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/propagation"
-	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
-const (
-	// ScopeName is the instrumentation scope name.
-	ScopeName = "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	// GRPCStatusCodeKey is convention for numeric status code of a gRPC request.
-	GRPCStatusCodeKey = attribute.Key("rpc.grpc.status_code")
-)
+// ScopeName is the instrumentation scope name.
+const ScopeName = "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
 // InterceptorFilter is a predicate used to determine whether a given request in
 // interceptor info should be instrumented. A InterceptorFilter must return true if
@@ -47,15 +41,6 @@ type config struct {
 
 	ReceivedEvent bool
 	SentEvent     bool
-
-	tracer trace.Tracer
-	meter  metric.Meter
-
-	rpcDuration    metric.Float64Histogram
-	rpcInBytes     metric.Int64Histogram
-	rpcOutBytes    metric.Int64Histogram
-	rpcInMessages  metric.Int64Histogram
-	rpcOutMessages metric.Int64Histogram
 }
 
 // Option applies an option value for a config.
@@ -64,7 +49,7 @@ type Option interface {
 }
 
 // newConfig returns a config configured with all the passed Options.
-func newConfig(opts []Option, role string) *config {
+func newConfig(opts []Option) *config {
 	c := &config{
 		Propagators:    otel.GetTextMapPropagator(),
 		TracerProvider: otel.GetTracerProvider(),
@@ -73,87 +58,6 @@ func newConfig(opts []Option, role string) *config {
 	for _, o := range opts {
 		o.apply(c)
 	}
-
-	c.tracer = c.TracerProvider.Tracer(
-		ScopeName,
-		trace.WithInstrumentationVersion(SemVersion()),
-	)
-
-	c.meter = c.MeterProvider.Meter(
-		ScopeName,
-		metric.WithInstrumentationVersion(Version()),
-		metric.WithSchemaURL(semconv.SchemaURL),
-	)
-
-	var err error
-	c.rpcDuration, err = c.meter.Float64Histogram("rpc."+role+".duration",
-		metric.WithDescription("Measures the duration of inbound RPC."),
-		metric.WithUnit("ms"))
-	if err != nil {
-		otel.Handle(err)
-		if c.rpcDuration == nil {
-			c.rpcDuration = noop.Float64Histogram{}
-		}
-	}
-
-	rpcRequestSize, err := c.meter.Int64Histogram("rpc."+role+".request.size",
-		metric.WithDescription("Measures size of RPC request messages (uncompressed)."),
-		metric.WithUnit("By"))
-	if err != nil {
-		otel.Handle(err)
-		if rpcRequestSize == nil {
-			rpcRequestSize = noop.Int64Histogram{}
-		}
-	}
-
-	rpcResponseSize, err := c.meter.Int64Histogram("rpc."+role+".response.size",
-		metric.WithDescription("Measures size of RPC response messages (uncompressed)."),
-		metric.WithUnit("By"))
-	if err != nil {
-		otel.Handle(err)
-		if rpcResponseSize == nil {
-			rpcResponseSize = noop.Int64Histogram{}
-		}
-	}
-
-	rpcRequestsPerRPC, err := c.meter.Int64Histogram("rpc."+role+".requests_per_rpc",
-		metric.WithDescription("Measures the number of messages received per RPC. Should be 1 for all non-streaming RPCs."),
-		metric.WithUnit("{count}"))
-	if err != nil {
-		otel.Handle(err)
-		if rpcRequestsPerRPC == nil {
-			rpcRequestsPerRPC = noop.Int64Histogram{}
-		}
-	}
-
-	rpcResponsesPerRPC, err := c.meter.Int64Histogram("rpc."+role+".responses_per_rpc",
-		metric.WithDescription("Measures the number of messages received per RPC. Should be 1 for all non-streaming RPCs."),
-		metric.WithUnit("{count}"))
-	if err != nil {
-		otel.Handle(err)
-		if rpcResponsesPerRPC == nil {
-			rpcResponsesPerRPC = noop.Int64Histogram{}
-		}
-	}
-
-	switch role {
-	case "client":
-		c.rpcInBytes = rpcResponseSize
-		c.rpcInMessages = rpcResponsesPerRPC
-		c.rpcOutBytes = rpcRequestSize
-		c.rpcOutMessages = rpcRequestsPerRPC
-	case "server":
-		c.rpcInBytes = rpcRequestSize
-		c.rpcInMessages = rpcRequestsPerRPC
-		c.rpcOutBytes = rpcResponseSize
-		c.rpcOutMessages = rpcResponsesPerRPC
-	default:
-		c.rpcInBytes = noop.Int64Histogram{}
-		c.rpcInMessages = noop.Int64Histogram{}
-		c.rpcOutBytes = noop.Int64Histogram{}
-		c.rpcOutMessages = noop.Int64Histogram{}
-	}
-
 	return c
 }
 

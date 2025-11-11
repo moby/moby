@@ -16,7 +16,7 @@ import (
 func HistogramReservoirProvider(bounds []float64) ReservoirProvider {
 	cp := slices.Clone(bounds)
 	slices.Sort(cp)
-	return func(_ attribute.Set) Reservoir {
+	return func(attribute.Set) Reservoir {
 		return NewHistogramReservoir(cp)
 	}
 }
