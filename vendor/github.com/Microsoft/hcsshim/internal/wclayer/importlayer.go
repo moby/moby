@@ -70,7 +70,7 @@ func (r *legacyLayerWriterWrapper) Close() (err error) {
 	defer r.s.End()
 	defer func() { oc.SetSpanStatus(r.s, err) }()
 	defer os.RemoveAll(r.root.Name())
-	defer r.legacyLayerWriter.CloseRoots()
+	defer r.CloseRoots()
 
 	err = r.legacyLayerWriter.Close()
 	if err != nil {
