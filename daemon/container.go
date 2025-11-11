@@ -86,13 +86,6 @@ func (daemon *Daemon) load(id string) (*container.Container, error) {
 	return ctr, nil
 }
 
-// Register makes a container object usable by the daemon as <container.ID>
-//
-// Deprecated: this function is unused and will be removed in the next release.
-func (daemon *Daemon) Register(c *container.Container) error {
-	return daemon.register(context.TODO(), c)
-}
-
 // register makes a container object usable by the daemon as [container.Container.ID].
 func (daemon *Daemon) register(ctx context.Context, c *container.Container) error {
 	// Attach to stdout and stderr
