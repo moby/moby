@@ -1,5 +1,5 @@
 // Copyright 2015 Tim Heckman. All rights reserved.
-// Copyright 2018-2024 The Gofrs. All rights reserved.
+// Copyright 2018-2025 The Gofrs. All rights reserved.
 // Use of this source code is governed by the BSD 3-Clause
 // license that can be found in the LICENSE file.
 
@@ -23,6 +23,8 @@ const winLockfileSharedLock = 0x00000000
 
 // ErrorLockViolation is the error code returned from the Windows syscall when a lock would block,
 // and you ask to fail immediately.
+//
+//nolint:errname // It should be renamed to `ErrLockViolation`.
 const ErrorLockViolation windows.Errno = 0x21 // 33
 
 // Lock is a blocking call to try and take an exclusive file lock.

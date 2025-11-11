@@ -1,5 +1,12 @@
-run:
-  timeout: 10m
+version: "2"
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    gofumpt:
+      extra-rules: true
 
 linters:
   enable:
@@ -18,9 +25,7 @@ linters:
     - gocritic
     - godot
     - godox
-    - gofumpt
     - goheader
-    - goimports
     - gomoddirectives
     - goprintffuncname
     - gosec
@@ -31,84 +36,81 @@ linters:
     - misspell
     - nolintlint
     - revive
-    - stylecheck
-    - tenv
+    - staticcheck
     - testifylint
     - thelper
     - unconvert
     - unparam
     - usestdlibvars
     - whitespace
-
-linters-settings:
-  misspell:
-    locale: US
-  godox:
-    keywords:
-      - FIXME
-  goheader:
-    template: |-
-      Copyright 2015 Tim Heckman. All rights reserved.
-      Copyright 2018-{{ YEAR }} The Gofrs. All rights reserved.
-      Use of this source code is governed by the BSD 3-Clause
-      license that can be found in the LICENSE file.
-  gofumpt:
-    extra-rules: true
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - style
-      - performance
-    disabled-checks:
-      - paramTypeCombine # already handle by gofumpt.extra-rules
-      - whyNoLint # already handle by nonolint
-      - unnamedResult
-      - hugeParam
-      - sloppyReassign
-      - rangeValCopy
-      - octalLiteral
-      - ptrToRefParam
-      - appendAssign
-      - ruleguard
-      - httpNoBody
-      - exposedSyncMutex
-
-  revive:
-    rules:
-      - name: struct-tag
-      - name: blank-imports
-      - name: context-as-argument
-      - name: context-keys-type
-      - name: dot-imports
-      - name: error-return
-      - name: error-strings
-      - name: error-naming
-      - name: exported
-      - name: if-return
-      - name: increment-decrement
-      - name: var-naming
-      - name: var-declaration
-      - name: package-comments
-      - name: range
-      - name: receiver-naming
-      - name: time-naming
-      - name: unexported-return
-      - name: indent-error-flow
-      - name: errorf
-      - name: empty-block
-      - name: superfluous-else
-      - name: unused-parameter
-      - name: unreachable-code
-      - name: redefines-builtin-id
+    - wsl_v5
+  settings:
+    gocritic:
+      disabled-checks:
+        - paramTypeCombine # already handle by gofumpt.extra-rules
+        - whyNoLint # already handle by nonolint
+        - unnamedResult
+        - hugeParam
+        - sloppyReassign
+        - rangeValCopy
+        - octalLiteral
+        - ptrToRefParam
+        - appendAssign
+        - ruleguard
+        - httpNoBody
+        - exposedSyncMutex
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+    godox:
+      keywords:
+        - FIXME
+    goheader:
+      template: |-
+        Copyright 2015 Tim Heckman. All rights reserved.
+        Copyright 2018-{{ YEAR }} The Gofrs. All rights reserved.
+        Use of this source code is governed by the BSD 3-Clause
+        license that can be found in the LICENSE file.
+    gosec:
+      excludes:
+        - G115
+    misspell:
+      locale: US
+    revive:
+      rules:
+        - name: struct-tag
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+        - name: if-return
+        - name: increment-decrement
+        - name: var-naming
+        - name: var-declaration
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unused-parameter
+        - name: unreachable-code
+        - name: redefines-builtin-id
+  exclusions:
+    presets:
+      - comments
+      - common-false-positives
+      - std-error-handling
 
 issues:
-  exclude-use-default: true
   max-issues-per-linter: 0
   max-same-issues: 0
 
-output:
-  show-stats: true
-  sort-results: true
-  sort-order:
-    - linter
-    - file
