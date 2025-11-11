@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
 	"strconv"
+
+	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
 )
 
 var (
-	contentRangeRegexp = regexp.MustCompile(`bytes ([0-9]+)-([0-9]+)/([0-9]+|\\*)`)
+	contentRangeRegexp = lazyregexp.New(`bytes ([0-9]+)-([0-9]+)/([0-9]+|\\*)`)
 
 	// ErrWrongCodeForByteRange is returned if the client sends a request
 	// with a Range header but the server returns a 2xx or 3xx code other
@@ -168,7 +169,7 @@ func (hrs *httpReadSeeker) reader() (io.Reader, error) {
 		return hrs.rc, nil
 	}
 
-	req, err := http.NewRequest("GET", hrs.url, nil)
+	req, err := http.NewRequest(http.MethodGet, hrs.url, http.NoBody)
 	if err != nil {
 		return nil, err
 	}

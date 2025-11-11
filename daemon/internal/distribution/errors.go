@@ -12,9 +12,9 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/registry/api/errcode"
 	v2 "github.com/docker/distribution/registry/api/v2"
-	"github.com/docker/distribution/registry/client"
-	"github.com/docker/distribution/registry/client/auth"
 	"github.com/moby/moby/v2/daemon/internal/distribution/xfer"
+	client "github.com/moby/moby/v2/daemon/internal/registryclient"
+	"github.com/moby/moby/v2/daemon/internal/registryclient/auth"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 )

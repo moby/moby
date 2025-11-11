@@ -1,7 +1,7 @@
 package challenge
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -45,13 +45,13 @@ type Manager interface {
 // to a backend.
 func NewSimpleManager() Manager {
 	return &simpleManager{
-		Challenges: make(map[string][]Challenge),
+		challenges: make(map[string][]Challenge),
 	}
 }
 
 type simpleManager struct {
-	sync.RWMutex
-	Challenges map[string][]Challenge
+	mu         sync.RWMutex
+	challenges map[string][]Challenge
 }
 
 func normalizeURL(endpoint *url.URL) {
@@ -62,16 +62,16 @@ func normalizeURL(endpoint *url.URL) {
 func (m *simpleManager) GetChallenges(endpoint url.URL) ([]Challenge, error) {
 	normalizeURL(&endpoint)
 
-	m.RLock()
-	defer m.RUnlock()
-	challenges := m.Challenges[endpoint.String()]
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	challenges := m.challenges[endpoint.String()]
 	return challenges, nil
 }
 
 func (m *simpleManager) AddResponse(resp *http.Response) error {
 	challenges := ResponseChallenges(resp)
 	if resp.Request == nil {
-		return fmt.Errorf("missing request reference")
+		return errors.New("missing request reference")
 	}
 	urlCopy := url.URL{
 		Path:   resp.Request.URL.Path,
@@ -80,9 +80,9 @@ func (m *simpleManager) AddResponse(resp *http.Response) error {
 	}
 	normalizeURL(&urlCopy)
 
-	m.Lock()
-	defer m.Unlock()
-	m.Challenges[urlCopy.String()] = challenges
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.challenges[urlCopy.String()] = challenges
 	return nil
 }
 
@@ -156,7 +156,7 @@ func parseValueAndParams(header string) (value string, params map[string]string)
 	params = make(map[string]string)
 	value, s := expectToken(header)
 	if value == "" {
-		return
+		return value, params
 	}
 	value = strings.ToLower(value)
 	s = "," + skipSpace(s)
@@ -164,21 +164,21 @@ func parseValueAndParams(header string) (value string, params map[string]string)
 		var pkey string
 		pkey, s = expectToken(skipSpace(s[1:]))
 		if pkey == "" {
-			return
+			return value, params
 		}
 		if !strings.HasPrefix(s, "=") {
-			return
+			return value, params
 		}
 		var pvalue string
 		pvalue, s = expectTokenOrQuoted(s[1:])
 		if pvalue == "" {
-			return
+			return value, params
 		}
 		pkey = strings.ToLower(pkey)
 		params[pkey] = pvalue
 		s = skipSpace(s)
 	}
-	return
+	return value, params
 }
 
 func skipSpace(s string) (rest string) {

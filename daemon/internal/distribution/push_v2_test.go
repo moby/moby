@@ -15,6 +15,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/internal/progress"
 	refstore "github.com/moby/moby/v2/daemon/internal/refstore"
+	"github.com/moby/moby/v2/daemon/internal/registryclient"
 	registrypkg "github.com/moby/moby/v2/daemon/pkg/registry"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
@@ -525,7 +526,7 @@ func TestWhenEmptyAuthConfig(t *testing.T) {
 }
 
 type mockBlobStoreWithCreate struct {
-	mockBlobStore
+	mockBlobService
 	repo *mockRepoWithBlob
 }
 
@@ -537,9 +538,9 @@ type mockRepoWithBlob struct {
 	mockRepo
 }
 
-func (m *mockRepoWithBlob) Blobs(ctx context.Context) distribution.BlobStore {
+func (m *mockRepoWithBlob) Blobs(ctx context.Context) distribution.BlobService {
 	blob := &mockBlobStoreWithCreate{}
-	blob.mockBlobStore.repo = &m.mockRepo
+	blob.mockBlobService.repo = &m.mockRepo
 	blob.repo = m
 	return blob
 }
@@ -610,29 +611,29 @@ func taggedMetadata(key string, dgst string, sourceRepo string) metadata.V2Metad
 }
 
 type mockRepo struct {
-	distribution.Repository
+	registryclient.Repository
 	t        *testing.T
 	errors   map[digest.Digest]error
 	blobs    map[digest.Digest]distribution.Descriptor
 	requests []string
 }
 
-var _ distribution.Repository = &mockRepo{}
+var _ registryclient.Repository = &mockRepo{}
 
-func (m *mockRepo) Blobs(ctx context.Context) distribution.BlobStore {
-	return &mockBlobStore{
+func (m *mockRepo) Blobs(ctx context.Context) distribution.BlobService {
+	return &mockBlobService{
 		repo: m,
 	}
 }
 
-type mockBlobStore struct {
-	distribution.BlobStore
+type mockBlobService struct {
+	distribution.BlobService
 	repo *mockRepo
 }
 
-var _ distribution.BlobStore = &mockBlobStore{}
+var _ distribution.BlobService = &mockBlobService{}
 
-func (m *mockBlobStore) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
+func (m *mockBlobService) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
 	m.repo.requests = append(m.repo.requests, dgst.String())
 	if err, exists := m.repo.errors[dgst]; exists {
 		return distribution.Descriptor{}, err

@@ -8,11 +8,10 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
-	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/distribution/registry/client"
-	"github.com/docker/distribution/registry/client/auth"
 	registrytypes "github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/v2/daemon/internal/registryclient"
+	"github.com/moby/moby/v2/daemon/internal/registryclient/auth"
 	"github.com/moby/moby/v2/daemon/pkg/registry"
 	"github.com/moby/moby/v2/dockerversion"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -74,7 +73,7 @@ func init() {
 func newRepository(
 	ctx context.Context, ref reference.Named, endpoint registry.APIEndpoint,
 	metaHeaders http.Header, authConfig *registrytypes.AuthConfig, actions ...string,
-) (distribution.Repository, error) {
+) (registryclient.Repository, error) {
 	// Trim the hostname to form the RemoteName
 	repoName := reference.Path(ref)
 
@@ -137,7 +136,7 @@ func newRepository(
 		}
 	}
 
-	repo, err := client.NewRepository(repoNameRef, endpoint.URL.String(), tr)
+	repo, err := registryclient.NewRepository(repoNameRef, endpoint.URL.String(), tr)
 	if err != nil {
 		return nil, fallbackError{
 			err:         err,

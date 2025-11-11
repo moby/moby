@@ -28,7 +28,6 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	dist "github.com/docker/distribution"
 	"github.com/docker/go-units"
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/buildkit/util/tracing"
@@ -69,6 +68,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/metrics"
 	pluginexec "github.com/moby/moby/v2/daemon/internal/plugin/executor/containerd"
 	refstore "github.com/moby/moby/v2/daemon/internal/refstore"
+	"github.com/moby/moby/v2/daemon/internal/registryclient"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/moby/v2/daemon/libnetwork/cluster"
 	nwconfig "github.com/moby/moby/v2/daemon/libnetwork/config"
@@ -1829,7 +1829,7 @@ type imageBackend struct {
 //
 // It returns an error if it was unable to reach any of the registries for
 // the given reference, or if the provided reference is invalid.
-func (i *imageBackend) GetRepositories(ctx context.Context, ref reference.Named, authConfig *registrytypes.AuthConfig) ([]dist.Repository, error) {
+func (i *imageBackend) GetRepositories(ctx context.Context, ref reference.Named, authConfig *registrytypes.AuthConfig) ([]registryclient.Repository, error) {
 	return distribution.GetRepositories(ctx, ref, &distribution.ImagePullConfig{
 		Config: distribution.Config{
 			AuthConfig:      authConfig,

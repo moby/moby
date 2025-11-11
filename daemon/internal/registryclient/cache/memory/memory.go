@@ -2,11 +2,12 @@ package memory
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/registry/storage/cache"
+	"github.com/moby/moby/v2/daemon/internal/registryclient/cache"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -50,7 +51,7 @@ func (imbdcp *inMemoryBlobDescriptorCacheProvider) Clear(ctx context.Context, dg
 
 func (imbdcp *inMemoryBlobDescriptorCacheProvider) SetDescriptor(ctx context.Context, dgst digest.Digest, desc distribution.Descriptor) error {
 	_, err := imbdcp.Stat(ctx, dgst)
-	if err == distribution.ErrBlobUnknown {
+	if errors.Is(err, distribution.ErrBlobUnknown) {
 
 		if dgst.Algorithm() != desc.Digest.Algorithm() && dgst != desc.Digest {
 			// if the digests differ, set the other canonical mapping

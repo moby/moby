@@ -1,15 +1,15 @@
-package client
+package registryclient
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"mime"
 	"net/http"
 
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/distribution/registry/client/auth/challenge"
+	"github.com/moby/moby/v2/daemon/internal/registryclient/auth/challenge"
 )
 
 // ErrNoErrorsInBody is returned when an HTTP response body parses to an empty
@@ -39,8 +39,8 @@ func (e *UnexpectedHTTPResponseError) Error() string {
 }
 
 func parseHTTPErrorResponse(resp *http.Response) error {
-	var errors errcode.Errors
-	body, err := ioutil.ReadAll(resp.Body)
+	var errs errcode.Errors
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func parseHTTPErrorResponse(resp *http.Response) error {
 		return makeError(statusCode, detailsErr.Details)
 	}
 
-	if err := json.Unmarshal(body, &errors); err != nil {
+	if err := json.Unmarshal(body, &errs); err != nil {
 		return &UnexpectedHTTPResponseError{
 			ParseErr:   err,
 			StatusCode: statusCode,
@@ -79,7 +79,7 @@ func parseHTTPErrorResponse(resp *http.Response) error {
 		}
 	}
 
-	if len(errors) == 0 {
+	if len(errs) == 0 {
 		// If there was no error specified in the body, return
 		// UnexpectedHTTPResponseError.
 		return &UnexpectedHTTPResponseError{
@@ -89,7 +89,7 @@ func parseHTTPErrorResponse(resp *http.Response) error {
 		}
 	}
 
-	return errors
+	return errs
 }
 
 func makeError(statusCode int, details string) error {
@@ -106,8 +106,9 @@ func makeError(statusCode int, details string) error {
 }
 
 func makeErrorList(err error) []error {
-	if errL, ok := err.(errcode.Errors); ok {
-		return []error(errL)
+	var errL errcode.Errors
+	if errors.As(err, &errL) {
+		return errL
 	}
 	return []error{err}
 }
@@ -118,7 +119,7 @@ func mergeErrors(err1, err2 error) error {
 
 // HandleErrorResponse returns error parsed from HTTP response for an
 // unsuccessful HTTP response code (in the range 400 - 499 inclusive). An
-// UnexpectedHTTPStatusError returned for response code outside of expected
+// UnexpectedHTTPStatusError returned for response code outside expected
 // range.
 func HandleErrorResponse(resp *http.Response) error {
 	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
@@ -145,7 +146,8 @@ func HandleErrorResponse(resp *http.Response) error {
 			}
 		}
 		err := parseHTTPErrorResponse(resp)
-		if uErr, ok := err.(*UnexpectedHTTPResponseError); ok && resp.StatusCode == 401 {
+		var uErr *UnexpectedHTTPResponseError
+		if errors.As(err, &uErr) && resp.StatusCode == http.StatusUnauthorized {
 			return errcode.ErrorCodeUnauthorized.WithDetail(uErr.Response)
 		}
 		return err
