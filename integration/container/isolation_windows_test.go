@@ -18,8 +18,6 @@ import (
 
 // TestWindowsProcessIsolation validates process isolation on Windows.
 func TestWindowsProcessIsolation(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
-
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
@@ -136,8 +134,6 @@ func TestWindowsProcessIsolation(t *testing.T) {
 
 // TestWindowsHyperVIsolation validates Hyper-V isolation on Windows.
 func TestWindowsHyperVIsolation(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
-
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
@@ -226,8 +222,6 @@ func TestWindowsHyperVIsolation(t *testing.T) {
 // TestWindowsIsolationComparison validates that both isolation modes can coexist
 // and that containers can be created with different isolation modes on Windows.
 func TestWindowsIsolationComparison(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
-
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
@@ -266,8 +260,6 @@ func TestWindowsIsolationComparison(t *testing.T) {
 // TestWindowsProcessIsolationResourceConstraints validates resource constraints
 // work correctly with process isolation on Windows.
 func TestWindowsProcessIsolationResourceConstraints(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
-
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
@@ -346,8 +338,6 @@ func TestWindowsProcessIsolationResourceConstraints(t *testing.T) {
 
 // TestWindowsProcessIsolationVolumeMount validates volume mounting with process isolation on Windows.
 func TestWindowsProcessIsolationVolumeMount(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
-
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
@@ -398,7 +388,6 @@ func TestWindowsProcessIsolationVolumeMount(t *testing.T) {
 // TestWindowsHyperVIsolationResourceLimits validates resource limits work with Hyper-V isolation.
 // This ensures Windows can properly enforce resource constraints on Hyper-V containers.
 func TestWindowsHyperVIsolationResourceLimits(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
 	skip.If(t, !testEnv.RuntimeIsWindowsContainerd(), "Hyper-V isolation requires containerd runtime")
 
 	ctx := setupTest(t)

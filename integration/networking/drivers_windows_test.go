@@ -21,8 +21,6 @@ import (
 // TestWindowsNetworkDrivers validates Windows-specific network drivers for Windows.
 // Tests: NAT, Transparent, and L2Bridge network drivers.
 func TestWindowsNetworkDrivers(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
-
 	ctx := setupTest(t)
 	c := testEnv.APIClient()
 
@@ -85,8 +83,6 @@ func TestWindowsNetworkDrivers(t *testing.T) {
 
 // TestWindowsNATDriverPortMapping validates port mapping on Windows NAT driver.
 func TestWindowsNATDriverPortMapping(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
-
 	ctx := setupTest(t)
 	c := testEnv.APIClient()
 
@@ -115,8 +111,6 @@ func TestWindowsNATDriverPortMapping(t *testing.T) {
 
 // TestWindowsNetworkDNSResolution validates DNS resolution on Windows networks.
 func TestWindowsNetworkDNSResolution(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
-
 	ctx := setupTest(t)
 	c := testEnv.APIClient()
 
@@ -189,7 +183,6 @@ func TestWindowsNetworkDNSResolution(t *testing.T) {
 // TestWindowsNetworkLifecycle validates network lifecycle operations on Windows.
 // Tests network creation, container attachment, detachment, and deletion.
 func TestWindowsNetworkLifecycle(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
 	// Advanced network operations like NetworkDisconnect and NetworkConnect
 	// are not yet fully supported by containerd on Windows.
 	// Skip the test to avoid false failures due to known platform limitations.
@@ -250,8 +243,6 @@ func TestWindowsNetworkLifecycle(t *testing.T) {
 // TestWindowsNetworkIsolation validates network isolation between containers on different networks.
 // Ensures containers on different networks cannot communicate, validating Windows network driver isolation.
 func TestWindowsNetworkIsolation(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
-
 	ctx := setupTest(t)
 	c := testEnv.APIClient()
 
@@ -310,8 +301,6 @@ func TestWindowsNetworkIsolation(t *testing.T) {
 // TestWindowsNetworkEndpointManagement validates endpoint creation and management on Windows networks.
 // Tests that multiple containers can be created and managed on the same network.
 func TestWindowsNetworkEndpointManagement(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
-
 	ctx := setupTest(t)
 	c := testEnv.APIClient()
 
