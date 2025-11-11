@@ -1,4 +1,6 @@
-go 1.20
+go 1.21.13
+
+toolchain go1.23.0
 
 use (
 	.
@@ -12,6 +14,7 @@ use (
 	./apigateway
 	./apigeeconnect
 	./apigeeregistry
+	./apihub
 	./apikeys
 	./appengine
 	./apphub
@@ -115,6 +118,7 @@ use (
 	./networkservices
 	./notebooks
 	./optimization
+	./oracledatabase
 	./orchestration
 	./orgpolicy
 	./osconfig

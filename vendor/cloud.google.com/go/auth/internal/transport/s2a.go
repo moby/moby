@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"sync"
@@ -39,8 +40,8 @@ var (
 
 // GetS2AAddress returns the S2A address to be reached via plaintext connection.
 // Returns empty string if not set or invalid.
-func GetS2AAddress() string {
-	getMetadataMTLSAutoConfig()
+func GetS2AAddress(logger *slog.Logger) string {
+	getMetadataMTLSAutoConfig(logger)
 	if !mtlsConfiguration.valid() {
 		return ""
 	}
@@ -49,8 +50,8 @@ func GetS2AAddress() string {
 
 // GetMTLSS2AAddress returns the S2A address to be reached via MTLS connection.
 // Returns empty string if not set or invalid.
-func GetMTLSS2AAddress() string {
-	getMetadataMTLSAutoConfig()
+func GetMTLSS2AAddress(logger *slog.Logger) string {
+	getMetadataMTLSAutoConfig(logger)
 	if !mtlsConfiguration.valid() {
 		return ""
 	}
@@ -74,22 +75,25 @@ type s2aAddresses struct {
 	MTLSAddress string `json:"mtls_address"`
 }
 
-func getMetadataMTLSAutoConfig() {
+func getMetadataMTLSAutoConfig(logger *slog.Logger) {
 	var err error
 	mtlsOnce.Do(func() {
-		mtlsConfiguration, err = queryConfig()
+		mtlsConfiguration, err = queryConfig(logger)
 		if err != nil {
 			log.Printf("Getting MTLS config failed: %v", err)
 		}
 	})
 }
 
-var httpGetMetadataMTLSConfig = func() (string, error) {
-	return metadata.GetWithContext(context.Background(), configEndpointSuffix)
+var httpGetMetadataMTLSConfig = func(logger *slog.Logger) (string, error) {
+	metadataClient := metadata.NewWithOptions(&metadata.Options{
+		Logger: logger,
+	})
+	return metadataClient.GetWithContext(context.Background(), configEndpointSuffix)
 }
 
-func queryConfig() (*mtlsConfig, error) {
-	resp, err := httpGetMetadataMTLSConfig()
+func queryConfig(logger *slog.Logger) (*mtlsConfig, error) {
+	resp, err := httpGetMetadataMTLSConfig(logger)
 	if err != nil {
 		return nil, fmt.Errorf("querying MTLS config from MDS endpoint failed: %w", err)
 	}

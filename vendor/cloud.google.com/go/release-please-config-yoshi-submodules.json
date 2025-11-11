@@ -27,6 +27,9 @@
         "apigeeregistry": {
             "component": "apigeeregistry"
         },
+        "apihub": {
+            "component": "apihub"
+        },
         "apikeys": {
             "component": "apikeys"
         },
@@ -278,6 +281,9 @@
         },
         "optimization": {
             "component": "optimization"
+        },
+        "oracledatabase": {
+            "component": "oracledatabase"
         },
         "orchestration": {
             "component": "orchestration"
