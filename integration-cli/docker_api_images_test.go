@@ -109,7 +109,7 @@ func (s *DockerAPISuite) TestAPIImagesSizeCompatibility(c *testing.T) {
 		assert.Assert(c, img.Size != int64(-1))
 	}
 
-	apiclient, err = client.New(client.FromEnv, client.WithVersion("v1.24"))
+	apiclient, err = client.New(client.FromEnv, client.WithAPIVersion("v1.24"))
 	assert.NilError(c, err)
 	defer apiclient.Close()
 

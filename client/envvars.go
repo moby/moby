@@ -13,7 +13,7 @@ const (
 	// be used to override the API version to use. Value must be
 	// formatted as MAJOR.MINOR, for example, "1.19".
 	//
-	// This env-var is read by [FromEnv] and [WithVersionFromEnv] and when set to a
+	// This env-var is read by [FromEnv] and [WithAPIVersionFromEnv] and when set to a
 	// non-empty value, takes precedence over API version negotiation.
 	//
 	// This environment variable should be used for debugging purposes only, as

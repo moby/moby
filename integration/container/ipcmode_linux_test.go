@@ -328,7 +328,7 @@ func TestIpcModeOlderClient(t *testing.T) {
 	assert.Check(t, is.Equal(string(inspect.Container.HostConfig.IpcMode), "private"))
 
 	// main check: using older client creates "shareable" container
-	apiClient = request.NewAPIClient(t, client.WithVersion("1.39"))
+	apiClient = request.NewAPIClient(t, client.WithAPIVersion("1.39"))
 	cID = container.Create(ctx, t, apiClient, container.WithAutoRemove)
 
 	inspect, err = apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})

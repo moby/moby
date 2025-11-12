@@ -130,7 +130,7 @@ func TestInspectGraphDriverAPIBC(t *testing.T) {
 			d := daemon.New(t)
 			defer d.Stop(t)
 			d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false", "--storage-driver="+tc.storageDriver)
-			c := d.NewClientT(t, client.WithVersion(tc.apiVersion))
+			c := d.NewClientT(t, client.WithAPIVersion(tc.apiVersion))
 
 			// Check selection of containerd / storage-driver worked.
 			info := d.Info(t)

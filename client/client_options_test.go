@@ -44,8 +44,8 @@ func TestOptionWithTimeout(t *testing.T) {
 	assert.Check(t, is.Equal(c.client.Timeout, timeout))
 }
 
-func TestOptionWithVersionFromEnv(t *testing.T) {
-	c, err := New(WithVersionFromEnv())
+func TestOptionAPIWithVersionFromEnv(t *testing.T) {
+	c, err := New(WithAPIVersionFromEnv())
 	assert.NilError(t, err)
 	assert.Check(t, c.client != nil)
 	assert.Check(t, is.Equal(c.version, MaxAPIVersion))
@@ -53,7 +53,7 @@ func TestOptionWithVersionFromEnv(t *testing.T) {
 
 	t.Setenv("DOCKER_API_VERSION", "2.9999")
 
-	c, err = New(WithVersionFromEnv())
+	c, err = New(WithAPIVersionFromEnv())
 	assert.NilError(t, err)
 	assert.Check(t, c.client != nil)
 	assert.Check(t, is.Equal(c.version, "2.9999"))
