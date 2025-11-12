@@ -99,7 +99,7 @@ func (cli *Client) ping(ctx context.Context) (PingResult, error) {
 	// Using cli.buildRequest() + cli.doRequest() instead of cli.sendRequest()
 	// because ping requests are used during API version negotiation, so we want
 	// to hit the non-versioned /_ping endpoint, not /v1.xx/_ping
-	req, err := cli.buildRequest(ctx, http.MethodHead, path.Join(cli.basePath, "/_ping"), nil, nil)
+	req, err := cli.buildRequest(ctx, http.MethodHead, path.Join(cli.basePath, "/_ping"), http.NoBody, nil)
 	if err != nil {
 		return PingResult{}, err
 	}

@@ -97,6 +97,9 @@ func prepareJSONRequest(body any, headers http.Header) (io.Reader, http.Header, 
 }
 
 func (cli *Client) buildRequest(ctx context.Context, method, path string, body io.Reader, headers http.Header) (*http.Request, error) {
+	if body == nil {
+		body = http.NoBody
+	}
 	req, err := http.NewRequestWithContext(ctx, method, path, body)
 	if err != nil {
 		return nil, err
