@@ -38,6 +38,20 @@ func NewWrapper(exp exporter.Exporter, callbacks BuildkitCallbacks) (exporter.Ex
 	}, nil
 }
 
+// shouldUnpack returns true if the image should be unpacked
+func shouldUnpack(exporterAttrs map[string]string) string {
+	if unpack, has := exporterAttrs[string(exptypes.OptKeyUnpack)]; has {
+		return unpack
+	}
+
+	if push, has := exporterAttrs[string(exptypes.OptKeyPush)]; has {
+		if push == "true" {
+			return "false"
+		}
+	}
+	return "true"
+}
+
 // Resolve applies moby specific attributes to the request.
 func (e *imageExporterMobyWrapper) Resolve(ctx context.Context, id int, exporterAttrs map[string]string) (exporter.ExporterInstance, error) {
 	if exporterAttrs == nil {
@@ -49,9 +63,7 @@ func (e *imageExporterMobyWrapper) Resolve(ctx context.Context, id int, exporter
 	}
 	exporterAttrs[string(exptypes.OptKeyName)] = strings.Join(reposAndTags, ",")
 
-	if _, has := exporterAttrs[string(exptypes.OptKeyUnpack)]; !has {
-		exporterAttrs[string(exptypes.OptKeyUnpack)] = "true"
-	}
+	exporterAttrs[string(exptypes.OptKeyUnpack)] = shouldUnpack(exporterAttrs)
 	if _, has := exporterAttrs[string(exptypes.OptKeyDanglingPrefix)]; !has {
 		exporterAttrs[string(exptypes.OptKeyDanglingPrefix)] = "moby-dangling"
 	}
