@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/moby/moby/api/types/common"
+	"github.com/moby/moby/api/types/swarm"
 )
 
 // defaultAPIPath is the API path prefix for the default API version used.
@@ -82,6 +84,27 @@ func mockJSONResponse[T any](statusCode int, headers http.Header, resp T) func(r
 	}
 	hdr.Set("Content-Type", "application/json")
 	return mockResponse(statusCode, hdr, string(respBody))
+}
+
+// mockPingResponse mocks the headers set for a "/_ping" response.
+func mockPingResponse(statusCode int, ping PingResult) func(req *http.Request) (*http.Response, error) {
+	headers := http.Header{}
+	if s := ping.SwarmStatus; s != nil {
+		role := "worker"
+		if s.ControlAvailable {
+			role = "manager"
+		}
+		headers.Set("Swarm", fmt.Sprintf("%s/%s", string(swarm.LocalNodeStateActive), role))
+	}
+	headers.Set("Api-Version", ping.APIVersion)
+	headers.Set("Ostype", ping.OSType)
+	headers.Set("Docker-Experimental", strconv.FormatBool(ping.Experimental))
+	headers.Set("Builder-Version", string(ping.BuilderVersion))
+
+	headers.Set("Content-Type", "text/plain; charset=utf-8")
+	headers.Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	headers.Set("Pragma", "no-cache")
+	return mockResponse(statusCode, headers, "OK")
 }
 
 func mockResponse(statusCode int, headers http.Header, respBody string) func(req *http.Request) (*http.Response, error) {
