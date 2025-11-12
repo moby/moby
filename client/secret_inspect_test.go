@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"testing"
