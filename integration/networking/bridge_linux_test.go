@@ -2032,3 +2032,29 @@ func TestLegacyLinksEnvVars(t *testing.T) {
 		})
 	}
 }
+
+// TestDNSNamesForNonSwarmScopedNetworks checks that container names can be resolved for non-swarm-scoped networks once
+// a node has joined a Swarm cluster.
+//
+// Regression test for https://github.com/moby/moby/issues/51491.
+func TestDNSNamesForNonSwarmScopedNetworks(t *testing.T) {
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.StartAndSwarmInit(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const bridgeName = "dnsnames-with-swarm"
+	network.CreateNoError(ctx, t, c, bridgeName)
+	defer network.RemoveNoError(ctx, t, c, bridgeName)
+
+	res := container.RunAttach(ctx, t, c,
+		container.WithName("test"),
+		container.WithCmd("nslookup", "-type=a", "test."),
+		container.WithNetworkMode(bridgeName),
+		container.WithAutoRemove)
+	assert.Equal(t, res.ExitCode, 0, "exit code: %d, expected 0; stdout:\n%s", res.ExitCode, res.Stdout)
+}
