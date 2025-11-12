@@ -44,7 +44,7 @@ import (
 
 // New returns a new [slog.Logger] default logger, or the provided logger if
 // non-nil. The returned logger will be a no-op logger unless the environment
-// variable GOOGLE_SDK_DEBUG_LOGGING is set.
+// variable GOOGLE_SDK_GO_LOGGING_LEVEL is set.
 func New(l *slog.Logger) *slog.Logger {
 	if l != nil {
 		return l

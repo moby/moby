@@ -21,6 +21,7 @@ type Selector struct {
 	FollowLinks     bool
 	IncludePatterns []string
 	ExcludePatterns []string
+	RequiredPaths   []string
 }
 
 func (sel Selector) HasWildcardOrFilters() bool {
@@ -52,6 +53,7 @@ func NewContentHashFunc(selectors []Selector) solver.ResultBasedCacheFunc {
 						FollowLinks:     sel.FollowLinks,
 						IncludePatterns: sel.IncludePatterns,
 						ExcludePatterns: sel.ExcludePatterns,
+						RequiredPaths:   sel.RequiredPaths,
 					},
 					s,
 				)

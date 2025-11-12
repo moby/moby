@@ -64,13 +64,13 @@ type s2av2TransportCreds struct {
 	localIdentities           []*commonpb.Identity
 	verificationMode          s2av2pb.ValidatePeerCertificateChainReq_VerificationMode
 	fallbackClientHandshake   fallback.ClientHandshake
-	getS2AStream              func(ctx context.Context, s2av2Address string) (stream.S2AStream, error)
+	getS2AStream              stream.GetS2AStream
 	serverAuthorizationPolicy []byte
 }
 
 // NewClientCreds returns a client-side transport credentials object that uses
 // the S2Av2 to establish a secure connection with a server.
-func NewClientCreds(s2av2Address string, transportCreds credentials.TransportCredentials, localIdentity *commonpb.Identity, verificationMode s2av2pb.ValidatePeerCertificateChainReq_VerificationMode, fallbackClientHandshakeFunc fallback.ClientHandshake, getS2AStream func(ctx context.Context, s2av2Address string) (stream.S2AStream, error), serverAuthorizationPolicy []byte) (credentials.TransportCredentials, error) {
+func NewClientCreds(s2av2Address string, transportCreds credentials.TransportCredentials, localIdentity *commonpb.Identity, verificationMode s2av2pb.ValidatePeerCertificateChainReq_VerificationMode, fallbackClientHandshakeFunc fallback.ClientHandshake, getS2AStream stream.GetS2AStream, serverAuthorizationPolicy []byte) (credentials.TransportCredentials, error) {
 	// Create an AccessTokenManager instance to use to authenticate to S2Av2.
 	accessTokenManager, err := tokenmanager.NewSingleTokenAccessTokenManager()
 
@@ -101,7 +101,7 @@ func NewClientCreds(s2av2Address string, transportCreds credentials.TransportCre
 
 // NewServerCreds returns a server-side transport credentials object that uses
 // the S2Av2 to establish a secure connection with a client.
-func NewServerCreds(s2av2Address string, transportCreds credentials.TransportCredentials, localIdentities []*commonpb.Identity, verificationMode s2av2pb.ValidatePeerCertificateChainReq_VerificationMode, getS2AStream func(ctx context.Context, s2av2Address string) (stream.S2AStream, error)) (credentials.TransportCredentials, error) {
+func NewServerCreds(s2av2Address string, transportCreds credentials.TransportCredentials, localIdentities []*commonpb.Identity, verificationMode s2av2pb.ValidatePeerCertificateChainReq_VerificationMode, getS2AStream stream.GetS2AStream) (credentials.TransportCredentials, error) {
 	// Create an AccessTokenManager instance to use to authenticate to S2Av2.
 	accessTokenManager, err := tokenmanager.NewSingleTokenAccessTokenManager()
 	creds := &s2av2TransportCreds{
@@ -306,8 +306,9 @@ func NewClientTLSConfig(
 	tokenManager tokenmanager.AccessTokenManager,
 	verificationMode s2av2pb.ValidatePeerCertificateChainReq_VerificationMode,
 	serverName string,
-	serverAuthorizationPolicy []byte) (*tls.Config, error) {
-	s2AStream, err := createStream(ctx, s2av2Address, transportCreds, nil)
+	serverAuthorizationPolicy []byte,
+	getStream stream.GetS2AStream) (*tls.Config, error) {
+	s2AStream, err := createStream(ctx, s2av2Address, transportCreds, getStream)
 	if err != nil {
 		grpclog.Infof("Failed to connect to S2Av2: %v", err)
 		return nil, err
@@ -350,7 +351,7 @@ func (x s2AGrpcStream) CloseSend() error {
 	return x.stream.CloseSend()
 }
 
-func createStream(ctx context.Context, s2av2Address string, transportCreds credentials.TransportCredentials, getS2AStream func(ctx context.Context, s2av2Address string) (stream.S2AStream, error)) (stream.S2AStream, error) {
+func createStream(ctx context.Context, s2av2Address string, transportCreds credentials.TransportCredentials, getS2AStream stream.GetS2AStream) (stream.S2AStream, error) {
 	if getS2AStream != nil {
 		return getS2AStream(ctx, s2av2Address)
 	}

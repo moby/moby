@@ -8,17 +8,18 @@ import (
 	"sort"
 
 	cerrdefs "github.com/containerd/errdefs"
+	cacheimporttypes "github.com/moby/buildkit/cache/remotecache/v1/types"
 	"github.com/moby/buildkit/solver"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
 
 // sortConfig sorts the config structure to make sure it is deterministic
-func sortConfig(cc *CacheConfig) {
+func sortConfig(cc *cacheimporttypes.CacheConfig) {
 	type indexedLayer struct {
 		oldIndex int
 		newIndex int
-		l        CacheLayer
+		l        cacheimporttypes.CacheLayer
 	}
 
 	unsortedLayers := make([]*indexedLayer, len(cc.Layers))
@@ -36,7 +37,7 @@ func sortConfig(cc *CacheConfig) {
 		l.newIndex = i
 	}
 
-	layers := make([]CacheLayer, len(sortedLayers))
+	layers := make([]cacheimporttypes.CacheLayer, len(sortedLayers))
 	for i, l := range sortedLayers {
 		if pID := l.l.ParentIndex; pID != -1 {
 			l.l.ParentIndex = unsortedLayers[pID].newIndex
@@ -47,7 +48,7 @@ func sortConfig(cc *CacheConfig) {
 	type indexedRecord struct {
 		oldIndex int
 		newIndex int
-		r        CacheRecord
+		r        cacheimporttypes.CacheRecord
 	}
 
 	unsortedRecords := make([]*indexedRecord, len(cc.Records))
@@ -88,7 +89,7 @@ func sortConfig(cc *CacheConfig) {
 		l.newIndex = i
 	}
 
-	records := make([]CacheRecord, len(sortedRecords))
+	records := make([]cacheimporttypes.CacheRecord, len(sortedRecords))
 	for i, r := range sortedRecords {
 		for j := range r.r.Results {
 			r.r.Results[j].LayerIndex = unsortedLayers[r.r.Results[j].LayerIndex].newIndex
@@ -97,7 +98,7 @@ func sortConfig(cc *CacheConfig) {
 			for k := range inputs {
 				r.r.Inputs[j][k].LinkIndex = unsortedRecords[r.r.Inputs[j][k].LinkIndex].newIndex
 			}
-			slices.SortFunc(inputs, func(a, b CacheInput) int {
+			slices.SortFunc(inputs, func(a, b cacheimporttypes.CacheInput) int {
 				return cmp.Compare(a.LinkIndex, b.LinkIndex)
 			})
 		}
@@ -119,11 +120,11 @@ type nlink struct {
 }
 
 type marshalState struct {
-	layers      []CacheLayer
+	layers      []cacheimporttypes.CacheLayer
 	chainsByID  map[string]int
 	descriptors DescriptorProvider
 
-	records       []CacheRecord
+	records       []cacheimporttypes.CacheRecord
 	recordsByItem map[*item]int
 }
 
@@ -164,7 +165,7 @@ func marshalRemote(ctx context.Context, r *solver.Remote, state *marshalState) s
 	}
 
 	state.chainsByID[id] = len(state.layers)
-	l := CacheLayer{
+	l := cacheimporttypes.CacheLayer{
 		Blob:        desc.Digest,
 		ParentIndex: -1,
 	}
@@ -181,9 +182,9 @@ func marshalItem(ctx context.Context, it *item, state *marshalState) error {
 	}
 	state.recordsByItem[it] = -1
 
-	rec := CacheRecord{
+	rec := cacheimporttypes.CacheRecord{
 		Digest: it.dgst,
-		Inputs: make([][]CacheInput, len(it.parents)),
+		Inputs: make([][]cacheimporttypes.CacheInput, len(it.parents)),
 	}
 
 	for i, m := range it.parents {
@@ -198,7 +199,7 @@ func marshalItem(ctx context.Context, it *item, state *marshalState) error {
 			if idx == -1 {
 				continue
 			}
-			rec.Inputs[i] = append(rec.Inputs[i], CacheInput{
+			rec.Inputs[i] = append(rec.Inputs[i], cacheimporttypes.CacheInput{
 				Selector:  l.selector,
 				LinkIndex: idx,
 			})
@@ -212,7 +213,7 @@ func marshalItem(ctx context.Context, it *item, state *marshalState) error {
 			if !ok {
 				return errors.Errorf("parent chainid not found")
 			}
-			rec.Results = append(rec.Results, CacheResult{LayerIndex: idx, CreatedAt: res.CreatedAt})
+			rec.Results = append(rec.Results, cacheimporttypes.CacheResult{LayerIndex: idx, CreatedAt: res.CreatedAt})
 		}
 	}
 

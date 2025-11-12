@@ -166,13 +166,32 @@ type ReleaseFunc func()
 type Op interface {
 	// CacheMap returns structure describing how the operation is cached.
 	// Currently only roots are allowed to return multiple cache maps per op.
-	CacheMap(context.Context, session.Group, int) (*CacheMap, bool, error)
+	CacheMap(context.Context, JobContext, int) (*CacheMap, bool, error)
 
 	// Exec runs an operation given results from previous operations.
-	Exec(ctx context.Context, g session.Group, inputs []Result) (outputs []Result, err error)
+	Exec(ctx context.Context, jobCtx JobContext, inputs []Result) (outputs []Result, err error)
 
 	// Acquire acquires the necessary resources to execute the `Op`.
 	Acquire(ctx context.Context) (release ReleaseFunc, err error)
+}
+
+type JobContext interface {
+	// Session returns the session group associated with the clients building current step.
+	Session() session.Group
+	// Cleanup adds a function that is called when the job is done. This can be used to associate
+	// resources with the job and keep them from being released until the job is done.
+	Cleanup(func() error) error
+	// ResolverCache returns object for memorizing/synchronizing remote resolving decisions during the job.
+	// Steps from same build job will share the same resolver cache.
+	ResolverCache() ResolverCache
+}
+
+type ResolverCache interface {
+	// Lock locks a key until the returned release function is called.
+	// Release function can return value that will be returned to next callers.
+	// Lock can return multiple values because two steps can be merged once
+	// both have independently completed their resolution.
+	Lock(key any) (values []any, release func(any) error, err error)
 }
 
 type ProvenanceProvider interface {

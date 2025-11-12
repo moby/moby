@@ -86,8 +86,8 @@ func (imr *imageMetaResolver) ResolveImageConfig(ctx context.Context, ref string
 	defer imr.locker.Unlock(ref)
 
 	platform := imr.platform
-	if opt.Platform != nil {
-		platform = opt.Platform
+	if imgOpt := opt.ImageOpt; imgOpt != nil && imgOpt.Platform != nil {
+		platform = imgOpt.Platform
 	}
 
 	k := imr.key(ref, platform)

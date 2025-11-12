@@ -63,6 +63,7 @@ type DialSettings struct {
 	AllowNonDefaultServiceAccount bool
 	DefaultUniverseDomain         string
 	UniverseDomain                string
+	AllowHardBoundTokens          []string
 	Logger                        *slog.Logger
 	// Google API system parameters. For more information please read:
 	// https://cloud.google.com/apis/docs/system-parameters
@@ -107,6 +108,9 @@ func (ds *DialSettings) IsNewAuthLibraryEnabled() bool {
 		return false
 	}
 	if ds.EnableNewAuthLibrary {
+		return true
+	}
+	if ds.AuthCredentials != nil {
 		return true
 	}
 	if b, err := strconv.ParseBool(os.Getenv(newAuthLibEnvVar)); err == nil {

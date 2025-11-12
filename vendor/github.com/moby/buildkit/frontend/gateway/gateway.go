@@ -19,6 +19,7 @@ import (
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/containerd/v2/defaults"
 	"github.com/distribution/reference"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	apitypes "github.com/moby/buildkit/api/types"
 	"github.com/moby/buildkit/cache"
 	cacheutil "github.com/moby/buildkit/cache/util"
@@ -630,11 +631,24 @@ func (lbf *llbBridgeForwarder) ResolveSourceMeta(ctx context.Context, req *pb.Re
 	resolveopt := sourceresolver.Opt{
 		LogName:        req.LogName,
 		SourcePolicies: req.SourcePolicies,
-		Platform:       platform,
 	}
 	resolveopt.ImageOpt = &sourceresolver.ResolveImageOpt{
 		ResolveMode: req.ResolveMode,
+		Platform:    platform,
 	}
+	if req.Image != nil {
+		resolveopt.ImageOpt.NoConfig = req.Image.NoConfig
+		resolveopt.ImageOpt.AttestationChain = req.Image.AttestationChain
+	}
+	resolveopt.OCILayoutOpt = &sourceresolver.ResolveOCILayoutOpt{
+		Platform: platform,
+	}
+	if req.Git != nil {
+		resolveopt.GitOpt = &sourceresolver.ResolveGitOpt{
+			ReturnObject: req.Git.ReturnObject,
+		}
+	}
+
 	resp, err := lbf.llbBridge.ResolveSourceMetadata(ctx, req.Source, resolveopt)
 	if err != nil {
 		return nil, err
@@ -648,6 +662,31 @@ func (lbf *llbBridgeForwarder) ResolveSourceMeta(ctx context.Context, req *pb.Re
 		r.Image = &pb.ResolveSourceImageResponse{
 			Digest: string(resp.Image.Digest),
 			Config: resp.Image.Config,
+		}
+		if resp.Image.AttestationChain != nil {
+			r.Image.AttestationChain = toPBAttestationChain(resp.Image.AttestationChain)
+		}
+	}
+	if resp.Git != nil {
+		r.Git = &pb.ResolveSourceGitResponse{
+			Checksum:       resp.Git.Checksum,
+			Ref:            resp.Git.Ref,
+			CommitChecksum: resp.Git.CommitChecksum,
+			CommitObject:   resp.Git.CommitObject,
+			TagObject:      resp.Git.TagObject,
+		}
+	}
+	if resp.HTTP != nil {
+		var lastModified *timestamp.Timestamp
+		if resp.HTTP.LastModified != nil {
+			lastModified = &timestamp.Timestamp{
+				Seconds: resp.HTTP.LastModified.Unix(),
+			}
+		}
+		r.HTTP = &pb.ResolveSourceHTTPResponse{
+			Checksum:     resp.HTTP.Digest.String(),
+			Filename:     resp.HTTP.Filename,
+			LastModified: lastModified,
 		}
 	}
 	return r, nil
@@ -669,11 +708,11 @@ func (lbf *llbBridgeForwarder) ResolveImageConfig(ctx context.Context, req *pb.R
 	resolveopt := sourceresolver.Opt{
 		LogName:        req.LogName,
 		SourcePolicies: req.SourcePolicies,
-		Platform:       platform,
 	}
 	if sourceresolver.ResolverType(req.ResolverType) == sourceresolver.ResolverTypeRegistry {
 		resolveopt.ImageOpt = &sourceresolver.ResolveImageOpt{
 			ResolveMode: req.ResolveMode,
+			Platform:    platform,
 		}
 	} else if sourceresolver.ResolverType(req.ResolverType) == sourceresolver.ResolverTypeOCILayout {
 		resolveopt.OCILayoutOpt = &sourceresolver.ResolveOCILayoutOpt{
@@ -681,6 +720,7 @@ func (lbf *llbBridgeForwarder) ResolveImageConfig(ctx context.Context, req *pb.R
 				SessionID: req.SessionID,
 				StoreID:   req.StoreID,
 			},
+			Platform: platform,
 		}
 	}
 
@@ -1660,6 +1700,33 @@ func getCaps(label string) map[string]struct{} {
 		name := strings.SplitN(c, "+", 2)
 		if name[0] != "" {
 			out[name[0]] = struct{}{}
+		}
+	}
+	return out
+}
+
+func toPBAttestationChain(ac *sourceresolver.AttestationChain) *pb.AttestationChain {
+	if ac == nil {
+		return nil
+	}
+	out := &pb.AttestationChain{
+		Root:                string(ac.Root),
+		ImageManifest:       string(ac.ImageManifest),
+		AttestationManifest: string(ac.AttestationManifest),
+		Blobs:               make(map[string]*pb.Blob),
+	}
+	for _, s := range ac.SignatureManifests {
+		out.SignatureManifests = append(out.SignatureManifests, string(s))
+	}
+	for k, v := range ac.Blobs {
+		out.Blobs[k.String()] = &pb.Blob{
+			Descriptor_: &pb.Descriptor{
+				MediaType:   v.Descriptor.MediaType,
+				Size:        v.Descriptor.Size,
+				Digest:      string(v.Descriptor.Digest),
+				Annotations: maps.Clone(v.Descriptor.Annotations),
+			},
+			Data: v.Data,
 		}
 	}
 	return out

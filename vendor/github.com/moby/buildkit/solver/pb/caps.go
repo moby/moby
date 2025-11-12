@@ -24,15 +24,16 @@ const (
 	CapSourceLocalDiffer          apicaps.CapID = "source.local.differ"
 	CapSourceMetadataTransfer     apicaps.CapID = "source.local.metadatatransfer"
 
-	CapSourceGit               apicaps.CapID = "source.git"
-	CapSourceGitKeepDir        apicaps.CapID = "source.git.keepgitdir"
-	CapSourceGitFullURL        apicaps.CapID = "source.git.fullurl"
-	CapSourceGitHTTPAuth       apicaps.CapID = "source.git.httpauth"
-	CapSourceGitKnownSSHHosts  apicaps.CapID = "source.git.knownsshhosts"
-	CapSourceGitMountSSHSock   apicaps.CapID = "source.git.mountsshsock"
-	CapSourceGitSubdir         apicaps.CapID = "source.git.subdir"
-	CapSourceGitChecksum       apicaps.CapID = "source.git.checksum"
-	CapSourceGitSkipSubmodules apicaps.CapID = "source.git.skipsubmodules"
+	CapSourceGit                apicaps.CapID = "source.git"
+	CapSourceGitKeepDir         apicaps.CapID = "source.git.keepgitdir"
+	CapSourceGitFullURL         apicaps.CapID = "source.git.fullurl"
+	CapSourceGitHTTPAuth        apicaps.CapID = "source.git.httpauth"
+	CapSourceGitKnownSSHHosts   apicaps.CapID = "source.git.knownsshhosts"
+	CapSourceGitMountSSHSock    apicaps.CapID = "source.git.mountsshsock"
+	CapSourceGitSubdir          apicaps.CapID = "source.git.subdir"
+	CapSourceGitChecksum        apicaps.CapID = "source.git.checksum"
+	CapSourceGitSkipSubmodules  apicaps.CapID = "source.git.skipsubmodules"
+	CapSourceGitSignatureVerify apicaps.CapID = "source.git.signatureverify"
 
 	CapSourceHTTP         apicaps.CapID = "source.http"
 	CapSourceHTTPAuth     apicaps.CapID = "source.http.auth"
@@ -73,6 +74,7 @@ const (
 	CapFileBase                               apicaps.CapID = "file.base"
 	CapFileRmWildcard                         apicaps.CapID = "file.rm.wildcard"
 	CapFileCopyIncludeExcludePatterns         apicaps.CapID = "file.copy.includeexcludepatterns"
+	CapFileCopyRequiredPaths                  apicaps.CapID = "file.copy.requiredpaths"
 	CapFileRmNoFollowSymlink                  apicaps.CapID = "file.rm.nofollowsymlink"
 	CapFileCopyAlwaysReplaceExistingDestPaths apicaps.CapID = "file.copy.alwaysreplaceexistingdestpaths"
 	CapFileCopyModeStringFormat               apicaps.CapID = "file.copy.modestring"
@@ -101,7 +103,8 @@ const (
 	CapMultipleExporters apicaps.CapID = "exporter.multiple"
 	CapSessionExporter   apicaps.CapID = "exporter.session"
 
-	CapSourcePolicy apicaps.CapID = "source.policy"
+	CapSourcePolicy        apicaps.CapID = "source.policy"
+	CapSourcePolicySession apicaps.CapID = "source.policy.session"
 
 	// GC/Prune controls allow MinFreeSpace and MaxUsedSpace to be set
 	CapGCFreeSpaceFilter apicaps.CapID = "gc.freespacefilter"
@@ -239,6 +242,12 @@ func init() {
 
 	Caps.Init(apicaps.Cap{
 		ID:      CapSourceGitSkipSubmodules,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapSourceGitSignatureVerify,
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})
@@ -452,6 +461,12 @@ func init() {
 	})
 
 	Caps.Init(apicaps.Cap{
+		ID:      CapFileCopyRequiredPaths,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
 		ID:      CapFileCopyAlwaysReplaceExistingDestPaths,
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
@@ -556,6 +571,12 @@ func init() {
 
 	Caps.Init(apicaps.Cap{
 		ID:      CapSourcePolicy,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapSourcePolicySession,
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})

@@ -156,10 +156,13 @@ func (r *httpRetryer) Retry(err error) (time.Duration, bool) {
 	return 0, false
 }
 
-// Backoff implements exponential backoff. The wait time between retries is a
-// random value between 0 and the "retry period" - the time between retries. The
-// retry period starts at Initial and increases by the factor of Multiplier
-// every retry, but is capped at Max.
+// Backoff implements backoff logic for retries. The configuration for retries
+// is described in https://google.aip.dev/client-libraries/4221. The current
+// retry limit starts at Initial and increases by a factor of Multiplier every
+// retry, but is capped at Max. The actual wait time between retries is a
+// random value between 1ns and the current retry limit. The purpose of this
+// random jitter is explained in
+// https://www.awsarchitectureblog.com/2015/03/backoff.html.
 //
 // Note: MaxNumRetries / RPCDeadline is specifically not provided. These should
 // be built on top of Backoff.

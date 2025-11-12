@@ -55,7 +55,7 @@ require (
 	github.com/miekg/dns v1.1.66
 	github.com/mistifyio/go-zfs/v3 v3.0.1
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/moby/buildkit v0.25.2
+	github.com/moby/buildkit v0.26.0-rc2
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/go-archive v0.1.0
 	github.com/moby/ipvs v1.1.0
@@ -118,14 +118,15 @@ require (
 )
 
 require (
-	cloud.google.com/go v0.117.0 // indirect
-	cloud.google.com/go/auth v0.13.0 // indirect
-	cloud.google.com/go/auth/oauth2adapt v0.2.6 // indirect
-	cloud.google.com/go/longrunning v0.6.2 // indirect
+	cloud.google.com/go v0.121.6 // indirect
+	cloud.google.com/go/auth v0.16.5 // indirect
+	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
+	cloud.google.com/go/longrunning v0.6.7 // indirect
 	cyphar.com/go-pathrs v0.2.1 // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.16.0 // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/internal v1.10.0 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.18.2 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/internal v1.11.2 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.5.0 // indirect
+	github.com/ProtonMail/go-crypto v1.3.0 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/anchore/go-struct-converter v0.0.0-20221118182256-c68fdcfa2092 // indirect
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2 // indirect
@@ -144,15 +145,16 @@ require (
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cilium/ebpf v0.17.3 // indirect
+	github.com/cloudflare/circl v1.6.0 // indirect
 	github.com/container-storage-interface/spec v1.5.0 // indirect
 	github.com/containerd/accelerated-container-image v1.3.0 // indirect
 	github.com/containerd/console v1.0.5 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/go-cni v1.1.13 // indirect
 	github.com/containerd/go-runc v1.1.0 // indirect
-	github.com/containerd/nydus-snapshotter v0.15.2 // indirect
+	github.com/containerd/nydus-snapshotter v0.15.4 // indirect
 	github.com/containerd/plugin v1.0.0 // indirect
-	github.com/containerd/stargz-snapshotter/estargz v0.16.3 // indirect
+	github.com/containerd/stargz-snapshotter/estargz v0.17.0 // indirect
 	github.com/containerd/ttrpc v1.2.7 // indirect
 	github.com/containernetworking/cni v1.3.0 // indirect
 	github.com/containernetworking/plugins v1.8.0 // indirect
@@ -167,15 +169,15 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/gofrs/flock v0.12.1 // indirect
-	github.com/golang-jwt/jwt/v5 v5.2.2 // indirect
+	github.com/gofrs/flock v0.13.0 // indirect
+	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/btree v1.1.3 // indirect
-	github.com/google/certificate-transparency-go v1.1.4 // indirect
-	github.com/google/s2a-go v0.1.8 // indirect
+	github.com/google/certificate-transparency-go v1.3.2 // indirect
+	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
-	github.com/googleapis/gax-go/v2 v2.14.0 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
+	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.2 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
@@ -185,12 +187,14 @@ require (
 	github.com/hashicorp/go-sockaddr v1.0.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
+	github.com/hiddeco/sshsig v0.2.0 // indirect
 	github.com/in-toto/in-toto-golang v0.9.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmoiron/sqlx v1.3.3 // indirect
 	github.com/klauspost/compress v1.18.1 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
+	github.com/moby/policy-helpers v0.0.0-20251105011237-bcaa71c99f14 // indirect
 	github.com/moby/sys/capability v0.4.0 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
@@ -206,7 +210,7 @@ require (
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/sasha-s/go-deadlock v0.3.5 // indirect
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
-	github.com/secure-systems-lab/go-securesystemslib v0.6.0 // indirect
+	github.com/secure-systems-lab/go-securesystemslib v0.9.1 // indirect
 	github.com/shibumi/go-pathspec v1.3.0 // indirect
 	github.com/spdx/tools-golang v0.5.5 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
@@ -241,11 +245,10 @@ require (
 	golang.org/x/crypto v0.43.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/tools v0.37.0 // indirect
-	google.golang.org/api v0.214.0 // indirect
-	google.golang.org/genproto v0.0.0-20241118233622-e639e219e697 // indirect; TODO(thaJeztah): should we keep this one aligned with the other google.golang.org/genproto/xxx modules?
+	google.golang.org/api v0.248.0 // indirect
+	google.golang.org/genproto v0.0.0-20250603155806-513f23925822 // indirect; TODO(thaJeztah): should we keep this one aligned with the other google.golang.org/genproto/xxx modules?
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250825161204-c5933d9347a5 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/klog/v2 v2.130.1 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v1.0.0 // indirect
 )

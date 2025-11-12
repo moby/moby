@@ -94,9 +94,9 @@ func (nc *NamedContext) load(ctx context.Context, count int) (*llb.State, *docke
 		named = reference.TagNameOnly(named)
 
 		ref, dgst, data, err := nc.bc.client.ResolveImageConfig(ctx, named.String(), sourceresolver.Opt{
-			LogName:  fmt.Sprintf("[context %s] load metadata for %s", nc.nameWithPlatform, ref),
-			Platform: opt.Platform,
+			LogName: fmt.Sprintf("[context %s] load metadata for %s", nc.nameWithPlatform, ref),
 			ImageOpt: &sourceresolver.ResolveImageOpt{
+				Platform:    opt.Platform,
 				ResolveMode: opt.ResolveMode,
 			},
 		})
@@ -183,9 +183,9 @@ func (nc *NamedContext) load(ctx context.Context, count int) (*llb.State, *docke
 		}
 
 		_, dgst, data, err := nc.bc.client.ResolveImageConfig(ctx, dummyRef.String(), sourceresolver.Opt{
-			LogName:  fmt.Sprintf("[context %s] load metadata for %s", nc.nameWithPlatform, dummyRef.String()),
-			Platform: opt.Platform,
+			LogName: fmt.Sprintf("[context %s] load metadata for %s", nc.nameWithPlatform, dummyRef.String()),
 			OCILayoutOpt: &sourceresolver.ResolveOCILayoutOpt{
+				Platform: opt.Platform,
 				Store: sourceresolver.ResolveImageConfigOptStore{
 					SessionID: nc.bc.bopts.SessionID,
 					StoreID:   named.Name(),

@@ -30,10 +30,10 @@ type Source interface {
 // SourceInstance represents a cacheable vertex created by a Source.
 type SourceInstance interface {
 	// CacheKey returns the cache key for the instance.
-	CacheKey(ctx context.Context, g session.Group, index int) (key, pin string, opts solver.CacheOpts, done bool, err error)
+	CacheKey(ctx context.Context, jobCtx solver.JobContext, index int) (key, pin string, opts solver.CacheOpts, done bool, err error)
 
 	// Snapshot creates a cache ref for the instance. May return a nil ref if source points to empty content, e.g. image without any layers.
-	Snapshot(ctx context.Context, g session.Group) (cache.ImmutableRef, error)
+	Snapshot(ctx context.Context, jobCtx solver.JobContext) (cache.ImmutableRef, error)
 }
 
 type Manager struct {

@@ -51,6 +51,15 @@ func acquire(state acquiringResourceState) (newResource exported.AccessToken, ne
 	return tk, tk.ExpiresOn, nil
 }
 
+// shouldRefresh determines whether the token should be refreshed. It's a variable so tests can replace it.
+var shouldRefresh = func(tk exported.AccessToken, _ acquiringResourceState) bool {
+	if tk.RefreshOn.IsZero() {
+		return tk.ExpiresOn.Add(-5 * time.Minute).Before(time.Now())
+	}
+	// no offset in this case because the authority suggested a refresh window--between RefreshOn and ExpiresOn
+	return tk.RefreshOn.Before(time.Now())
+}
+
 // NewBearerTokenPolicy creates a policy object that authorizes requests with bearer tokens.
 // cred: an azcore.TokenCredential implementation such as a credential object from azidentity
 // scopes: the list of permission scopes required for the token.
@@ -69,11 +78,14 @@ func NewBearerTokenPolicy(cred exported.TokenCredential, scopes []string, opts *
 			return authNZ(policy.TokenRequestOptions{Scopes: scopes})
 		}
 	}
+	mr := temporal.NewResourceWithOptions(acquire, temporal.ResourceOptions[exported.AccessToken, acquiringResourceState]{
+		ShouldRefresh: shouldRefresh,
+	})
 	return &BearerTokenPolicy{
 		authzHandler: ah,
 		cred:         cred,
 		scopes:       scopes,
-		mainResource: temporal.NewResource(acquire),
+		mainResource: mr,
 		allowHTTP:    opts.InsecureAllowCredentialWithHTTP,
 	}
 }
@@ -85,7 +97,9 @@ func (b *BearerTokenPolicy) authenticateAndAuthorize(req *policy.Request) func(p
 		as := acquiringResourceState{p: b, req: req, tro: tro}
 		tk, err := b.mainResource.Get(as)
 		if err != nil {
-			return err
+			// consider this error non-retriable because if it could be resolved by
+			// retrying authentication, the credential would have done so already
+			return errorinfo.NonRetriableError(err)
 		}
 		req.Raw().Header.Set(shared.HeaderAuthorization, shared.BearerTokenPrefix+tk.Token)
 		return nil

@@ -638,7 +638,7 @@ func marshalField(out *bytes.Buffer, v reflect.Value, info *fieldInfo) error {
 			}
 		}
 		// Now we have seen all fields in the structure, check that all select(Enum) {..} selector
-		// fields found a source field get get their data from.
+		// fields found a source field to get their data from.
 		for selector, seen := range selectorSeen {
 			if !seen {
 				return syntaxError{info.fieldName(), selector + ": unhandled value for selector"}

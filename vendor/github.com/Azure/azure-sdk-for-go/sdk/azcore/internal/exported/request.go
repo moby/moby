@@ -71,7 +71,8 @@ func (ov opValues) get(value any) bool {
 // NewRequestFromRequest creates a new policy.Request with an existing *http.Request
 // Exported as runtime.NewRequestFromRequest().
 func NewRequestFromRequest(req *http.Request) (*Request, error) {
-	policyReq := &Request{req: req}
+	// populate values so that the same instance is propagated across policies
+	policyReq := &Request{req: req, values: opValues{}}
 
 	if req.Body != nil {
 		// we can avoid a body copy here if the underlying stream is already a
@@ -117,7 +118,8 @@ func NewRequest(ctx context.Context, httpMethod string, endpoint string) (*Reque
 	if !(req.URL.Scheme == "http" || req.URL.Scheme == "https") {
 		return nil, fmt.Errorf("unsupported protocol scheme %s", req.URL.Scheme)
 	}
-	return &Request{req: req}, nil
+	// populate values so that the same instance is propagated across policies
+	return &Request{req: req, values: opValues{}}, nil
 }
 
 // Body returns the original body specified when the Request was created.

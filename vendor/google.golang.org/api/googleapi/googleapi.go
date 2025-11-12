@@ -145,22 +145,54 @@ func CheckResponse(res *http.Response) error {
 	}
 	slurp, err := io.ReadAll(res.Body)
 	if err == nil {
-		jerr := new(errorReply)
-		err = json.Unmarshal(slurp, jerr)
-		if err == nil && jerr.Error != nil {
-			if jerr.Error.Code == 0 {
-				jerr.Error.Code = res.StatusCode
-			}
-			jerr.Error.Body = string(slurp)
-			jerr.Error.Header = res.Header
-			return jerr.Error
-		}
+		return CheckResponseWithBody(res, slurp)
 	}
 	return &Error{
 		Code:   res.StatusCode,
 		Body:   string(slurp),
 		Header: res.Header,
 	}
+
+}
+
+// CheckResponseWithBody returns an error (of type *Error) if the response
+// status code is not 2xx. Distinct from CheckResponse to allow for checking
+// a previously-read body to maintain error detail content.
+func CheckResponseWithBody(res *http.Response, body []byte) error {
+	if res.StatusCode >= 200 && res.StatusCode <= 299 {
+		return nil
+	}
+
+	jerr, err := errorReplyFromBody(body)
+	if err == nil && jerr.Error != nil {
+		if jerr.Error.Code == 0 {
+			jerr.Error.Code = res.StatusCode
+		}
+		jerr.Error.Body = string(body)
+		jerr.Error.Header = res.Header
+		return jerr.Error
+	}
+
+	return &Error{
+		Code:   res.StatusCode,
+		Body:   string(body),
+		Header: res.Header,
+	}
+}
+
+// errorReplyFromBody attempts to get the error from body. The body
+// may be a JSON object or JSON array, or may be something else.
+func errorReplyFromBody(body []byte) (*errorReply, error) {
+	jerr := new(errorReply)
+	if len(body) > 0 && body[0] == '[' {
+		// Attempt JSON array
+		jsonArr := []*errorReply{jerr}
+		err := json.Unmarshal(body, &jsonArr)
+		return jerr, err
+	}
+	// Attempt JSON object
+	err := json.Unmarshal(body, jerr)
+	return jerr, err
 }
 
 // IsNotModified reports whether err is the result of the

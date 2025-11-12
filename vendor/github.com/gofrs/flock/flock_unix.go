@@ -1,5 +1,5 @@
 // Copyright 2015 Tim Heckman. All rights reserved.
-// Copyright 2018-2024 The Gofrs. All rights reserved.
+// Copyright 2018-2025 The Gofrs. All rights reserved.
 // Use of this source code is governed by the BSD 3-Clause
 // license that can be found in the LICENSE file.
 
@@ -155,6 +155,7 @@ func (f *Flock) try(locked *bool, flag int) (bool, error) {
 	}
 
 	var retried bool
+
 retry:
 	err := unix.Flock(int(f.fh.Fd()), flag|unix.LOCK_NB)
 

@@ -95,6 +95,8 @@ type Worker struct {
 	imageWriter     *imageexporter.ImageWriter
 	ImageSource     *containerimage.Source
 	OCILayoutSource *containerimage.Source
+	GitSource       *git.Source
+	HTTPSource      *http.Source
 }
 
 // NewWorker instantiates a local worker
@@ -141,6 +143,7 @@ func NewWorker(ctx context.Context, opt WorkerOpt) (*Worker, error) {
 
 	sm.Register(is)
 
+	var gitSource *git.Source
 	if err := git.Supported(); err == nil {
 		gs, err := git.NewSource(git.Opt{
 			CacheAccessor: cm,
@@ -149,6 +152,7 @@ func NewWorker(ctx context.Context, opt WorkerOpt) (*Worker, error) {
 			return nil, err
 		}
 		sm.Register(gs)
+		gitSource = gs
 	} else {
 		bklog.G(ctx).Warnf("git source cannot be enabled: %v", err)
 	}
@@ -210,6 +214,8 @@ func NewWorker(ctx context.Context, opt WorkerOpt) (*Worker, error) {
 		imageWriter:     iw,
 		ImageSource:     is,
 		OCILayoutSource: os,
+		GitSource:       gitSource,
+		HTTPSource:      hs,
 	}, nil
 }
 
@@ -385,13 +391,20 @@ func (w *Worker) PruneCacheMounts(ctx context.Context, ids map[string]bool) erro
 	return nil
 }
 
-func (w *Worker) ResolveSourceMetadata(ctx context.Context, op *pb.SourceOp, opt sourceresolver.Opt, sm *session.Manager, g session.Group) (*sourceresolver.MetaResponse, error) {
+func (w *Worker) ResolveSourceMetadata(ctx context.Context, op *pb.SourceOp, opt sourceresolver.Opt, sm *session.Manager, jobCtx solver.JobContext) (*sourceresolver.MetaResponse, error) {
 	if opt.SourcePolicies != nil {
 		return nil, errors.New("source policies can not be set for worker")
 	}
 
+	var p *ocispecs.Platform
+	if imgOpt := opt.ImageOpt; imgOpt != nil && imgOpt.Platform != nil {
+		p = imgOpt.Platform
+	} else if ociOpt := opt.OCILayoutOpt; ociOpt != nil && ociOpt.Platform != nil {
+		p = ociOpt.Platform
+	}
+
 	var platform *pb.Platform
-	if p := opt.Platform; p != nil {
+	if p != nil {
 		platform = &pb.Platform{
 			Architecture: p.Architecture,
 			OS:           p.OS,
@@ -405,38 +418,78 @@ func (w *Worker) ResolveSourceMetadata(ctx context.Context, op *pb.SourceOp, opt
 		return nil, err
 	}
 
+	var g session.Group
+	if jobCtx != nil {
+		g = jobCtx.Session()
+	}
+
 	switch idt := id.(type) {
 	case *containerimage.ImageIdentifier:
 		if opt.ImageOpt == nil {
 			opt.ImageOpt = &sourceresolver.ResolveImageOpt{}
 		}
-		dgst, config, err := w.ImageSource.ResolveImageConfig(ctx, idt.Reference.String(), opt, sm, g)
+		if p != nil {
+			opt.ImageOpt.Platform = p
+		}
+		resp, err := w.ImageSource.ResolveImageMetadata(ctx, idt, opt.ImageOpt, sm, g)
 		if err != nil {
 			return nil, err
 		}
 		return &sourceresolver.MetaResponse{
-			Op: op,
-			Image: &sourceresolver.ResolveImageResponse{
-				Digest: dgst,
-				Config: config,
-			},
+			Op:    op,
+			Image: resp,
 		}, nil
 	case *containerimage.OCIIdentifier:
-		opt.OCILayoutOpt = &sourceresolver.ResolveOCILayoutOpt{
-			Store: sourceresolver.ResolveImageConfigOptStore{
-				StoreID:   idt.StoreID,
-				SessionID: idt.SessionID,
-			},
+		if opt.OCILayoutOpt == nil {
+			opt.OCILayoutOpt = &sourceresolver.ResolveOCILayoutOpt{}
 		}
-		dgst, config, err := w.OCILayoutSource.ResolveImageConfig(ctx, idt.Reference.String(), opt, sm, g)
+		if p != nil {
+			opt.OCILayoutOpt.Platform = p
+		}
+		resp, err := w.OCILayoutSource.ResolveOCILayoutMetadata(ctx, idt, opt.OCILayoutOpt, sm, g)
+		if err != nil {
+			return nil, err
+		}
+		return &sourceresolver.MetaResponse{
+			Op:    op,
+			Image: resp,
+		}, nil
+	case *git.GitIdentifier:
+		if w.GitSource == nil {
+			return nil, errors.New("git source is not supported")
+		}
+		mdOpt := git.MetadataOpts{}
+		if opt.GitOpt != nil {
+			mdOpt.ReturnObject = opt.GitOpt.ReturnObject
+		}
+		md, err := w.GitSource.ResolveMetadata(ctx, idt, sm, jobCtx, mdOpt)
 		if err != nil {
 			return nil, err
 		}
 		return &sourceresolver.MetaResponse{
 			Op: op,
-			Image: &sourceresolver.ResolveImageResponse{
-				Digest: dgst,
-				Config: config,
+			Git: &sourceresolver.ResolveGitResponse{
+				Checksum:       md.Checksum,
+				Ref:            md.Ref,
+				CommitChecksum: md.CommitChecksum,
+				CommitObject:   md.CommitObject,
+				TagObject:      md.TagObject,
+			},
+		}, nil
+	case *http.HTTPIdentifier:
+		if w.HTTPSource == nil {
+			return nil, errors.New("http source is not supported")
+		}
+		md, err := w.HTTPSource.ResolveMetadata(ctx, idt, sm, jobCtx)
+		if err != nil {
+			return nil, err
+		}
+		return &sourceresolver.MetaResponse{
+			Op: op,
+			HTTP: &sourceresolver.ResolveHTTPResponse{
+				Digest:       md.Digest,
+				Filename:     md.Filename,
+				LastModified: md.LastModified,
 			},
 		}, nil
 	}

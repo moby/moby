@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"os"
 	"strings"
@@ -25,6 +26,7 @@ import (
 	"github.com/moby/buildkit/util/imageutil"
 	"github.com/moby/sys/signal"
 	digest "github.com/opencontainers/go-digest"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	fstypes "github.com/tonistiigi/fsutil/types"
 	"golang.org/x/sync/errgroup"
@@ -497,8 +499,14 @@ func (c *grpcClient) ResolveSourceMetadata(ctx context.Context, op *opspb.Source
 		}, nil
 	}
 
+	var platform *ocispecs.Platform
+	if imgOpt := opt.ImageOpt; imgOpt != nil && imgOpt.Platform != nil {
+		platform = imgOpt.Platform
+	} else if ociOpt := opt.OCILayoutOpt; ociOpt != nil && ociOpt.Platform != nil {
+		platform = ociOpt.Platform
+	}
 	var p *opspb.Platform
-	if platform := opt.Platform; platform != nil {
+	if platform != nil {
 		p = &opspb.Platform{
 			OS:           platform.OS,
 			Architecture: platform.Architecture,
@@ -514,6 +522,19 @@ func (c *grpcClient) ResolveSourceMetadata(ctx context.Context, op *opspb.Source
 		LogName:        opt.LogName,
 		SourcePolicies: opt.SourcePolicies,
 	}
+	if opt.ImageOpt != nil {
+		req.Image = &pb.ResolveSourceImageRequest{
+			NoConfig:         opt.ImageOpt.NoConfig,
+			AttestationChain: opt.ImageOpt.AttestationChain,
+		}
+	}
+
+	if opt.GitOpt != nil {
+		req.Git = &pb.ResolveSourceGitRequest{
+			ReturnObject: opt.GitOpt.ReturnObject,
+		}
+	}
+
 	resp, err := c.client.ResolveSourceMeta(ctx, req)
 	if err != nil {
 		return nil, err
@@ -523,12 +544,72 @@ func (c *grpcClient) ResolveSourceMetadata(ctx context.Context, op *opspb.Source
 		Op: resp.Source,
 	}
 	if resp.Image != nil {
-		r.Image = &sourceresolver.ResolveImageResponse{
-			Digest: digest.Digest(resp.Image.Digest),
-			Config: resp.Image.Config,
+		r.Image = imgResponseFromPB(resp.Image)
+	}
+	if resp.Git != nil {
+		r.Git = &sourceresolver.ResolveGitResponse{
+			Checksum:       resp.Git.Checksum,
+			Ref:            resp.Git.Ref,
+			CommitChecksum: resp.Git.CommitChecksum,
+			CommitObject:   resp.Git.CommitObject,
+			TagObject:      resp.Git.TagObject,
+		}
+	}
+	if resp.HTTP != nil {
+		dgst, err := digest.Parse(resp.HTTP.Checksum)
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid http checksum digest %q", resp.HTTP.Checksum)
+		}
+
+		r.HTTP = &sourceresolver.ResolveHTTPResponse{
+			Digest:   dgst,
+			Filename: resp.HTTP.Filename,
+		}
+		if resp.HTTP.LastModified != nil {
+			tm := resp.HTTP.LastModified.AsTime()
+			r.HTTP.LastModified = &tm
 		}
 	}
 	return r, nil
+}
+
+func imgResponseFromPB(resp *pb.ResolveSourceImageResponse) *sourceresolver.ResolveImageResponse {
+	r := &sourceresolver.ResolveImageResponse{
+		Digest: digest.Digest(resp.Digest),
+		Config: resp.Config,
+	}
+	if resp.AttestationChain != nil {
+		ac := &sourceresolver.AttestationChain{
+			Root:                digest.Digest(resp.AttestationChain.Root),
+			ImageManifest:       digest.Digest(resp.AttestationChain.ImageManifest),
+			AttestationManifest: digest.Digest(resp.AttestationChain.AttestationManifest),
+			SignatureManifests:  []digest.Digest{},
+			Blobs:               map[digest.Digest]sourceresolver.Blob{},
+		}
+		for _, sm := range resp.AttestationChain.SignatureManifests {
+			ac.SignatureManifests = append(ac.SignatureManifests, digest.Digest(sm))
+		}
+		for k, v := range resp.AttestationChain.Blobs {
+			ac.Blobs[digest.Digest(k)] = sourceresolver.Blob{
+				Descriptor: descriptorFromPB(v.GetDescriptor_()),
+				Data:       v.Data,
+			}
+		}
+		r.AttestationChain = ac
+	}
+	return r
+}
+
+func descriptorFromPB(pbDesc *pb.Descriptor) ocispecs.Descriptor {
+	if pbDesc == nil {
+		return ocispecs.Descriptor{}
+	}
+	return ocispecs.Descriptor{
+		MediaType:   pbDesc.GetMediaType(),
+		Size:        pbDesc.GetSize(),
+		Digest:      digest.Digest(pbDesc.GetDigest()),
+		Annotations: maps.Clone(pbDesc.GetAnnotations()),
+	}
 }
 
 func (c *grpcClient) resolveImageConfigViaSourceMetadata(ctx context.Context, ref string, opt sourceresolver.Opt, p *opspb.Platform) (string, digest.Digest, []byte, error) {
@@ -566,8 +647,15 @@ func (c *grpcClient) resolveImageConfigViaSourceMetadata(ctx context.Context, re
 }
 
 func (c *grpcClient) ResolveImageConfig(ctx context.Context, ref string, opt sourceresolver.Opt) (string, digest.Digest, []byte, error) {
+	var platform *ocispecs.Platform
+	if imgOpt := opt.ImageOpt; imgOpt != nil && imgOpt.Platform != nil {
+		platform = imgOpt.Platform
+	} else if ociOpt := opt.OCILayoutOpt; ociOpt != nil && ociOpt.Platform != nil {
+		platform = ociOpt.Platform
+	}
+
 	var p *opspb.Platform
-	if platform := opt.Platform; platform != nil {
+	if platform != nil {
 		p = &opspb.Platform{
 			OS:           platform.OS,
 			Architecture: platform.Architecture,

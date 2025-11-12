@@ -7,6 +7,7 @@ import (
 
 	"github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/frontend/subrequests"
+	"github.com/moby/buildkit/frontend/subrequests/convertllb"
 	"github.com/moby/buildkit/frontend/subrequests/lint"
 	"github.com/moby/buildkit/frontend/subrequests/outline"
 	"github.com/moby/buildkit/frontend/subrequests/targets"
@@ -21,6 +22,7 @@ type RequestHandler struct {
 	Outline     func(context.Context) (*outline.Outline, error)
 	ListTargets func(context.Context) (*targets.List, error)
 	Lint        func(context.Context) (*lint.LintResults, error)
+	ConvertLLB  func(context.Context) (*convertllb.Result, error)
 	AllowOther  bool
 }
 
@@ -67,6 +69,16 @@ func (bc *Client) HandleSubrequest(ctx context.Context, h RequestHandler) (*clie
 				return nil, true, nil
 			}
 			res, err := warnings.ToResult(nil)
+			return res, true, err
+		}
+	case convertllb.SubrequestConvertLLBDefinition.Name:
+		if f := h.ConvertLLB; f != nil {
+			result, err := f(ctx)
+			if err != nil {
+				return nil, false, err
+			}
+
+			res, err := result.ToResult()
 			return res, true, err
 		}
 	}

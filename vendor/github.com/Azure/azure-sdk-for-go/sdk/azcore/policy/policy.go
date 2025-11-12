@@ -103,7 +103,7 @@ type RetryOptions struct {
 	// RetryDelay specifies the initial amount of delay to use before retrying an operation.
 	// The value is used only if the HTTP response does not contain a Retry-After header.
 	// The delay increases exponentially with each retry up to the maximum specified by MaxRetryDelay.
-	// The default value is four seconds.  A value less than zero means no delay between retries.
+	// The default value is 800 milliseconds.  A value less than zero means no delay between retries.
 	RetryDelay time.Duration
 
 	// MaxRetryDelay specifies the maximum delay allowed before retrying an operation.

@@ -1,5 +1,5 @@
 // Copyright 2015 Tim Heckman. All rights reserved.
-// Copyright 2018-2024 The Gofrs. All rights reserved.
+// Copyright 2018-2025 The Gofrs. All rights reserved.
 // Use of this source code is governed by the BSD 3-Clause
 // license that can be found in the LICENSE file.
 
@@ -62,6 +62,7 @@ type Flock struct {
 func New(path string, opts ...Option) *Flock {
 	// create it if it doesn't exist, and open the file read-only.
 	flags := os.O_CREATE
+
 	switch runtime.GOOS {
 	case "aix", "solaris", "illumos":
 		// AIX cannot preform write-lock (i.e. exclusive) on a read-only file.
@@ -124,6 +125,22 @@ func (f *Flock) RLocked() bool {
 	return f.r
 }
 
+// Stat returns the FileInfo structure describing the lock file.
+// If the lock file does not exist or cannot be accessed, an error is returned.
+//
+// This can be used to check the modification time of the lock file,
+// which is useful for detecting stale locks.
+func (f *Flock) Stat() (fs.FileInfo, error) {
+	f.m.RLock()
+	defer f.m.RUnlock()
+
+	if f.fh != nil {
+		return f.fh.Stat()
+	}
+
+	return os.Stat(f.path)
+}
+
 func (f *Flock) String() string {
 	return f.path
 }
@@ -158,7 +175,6 @@ func tryCtx(ctx context.Context, fn func() (bool, error), retryDelay time.Durati
 		case <-ctx.Done():
 			return false, ctx.Err()
 		case <-time.After(retryDelay):
-			// try again
 		}
 	}
 }

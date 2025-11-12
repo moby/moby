@@ -194,7 +194,7 @@ func (is *Source) resolveRemote(ctx context.Context, ref string, platform *ocisp
 }
 
 // ResolveImageConfig returns image config for an image
-func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt sourceresolver.Opt, sm *session.Manager, g session.Group) (digest.Digest, []byte, error) {
+func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt sourceresolver.Opt, sm *session.Manager, jobCtx solver.JobContext) (digest.Digest, []byte, error) {
 	if opt.ImageOpt == nil {
 		return "", nil, fmt.Errorf("can only resolve an image: %v, opt: %v", ref, opt)
 	}
@@ -206,9 +206,17 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt source
 	if err != nil {
 		return "", nil, err
 	}
+	var p *ocispec.Platform
+	if opt.ImageOpt != nil && opt.ImageOpt.Platform != nil {
+		p = opt.ImageOpt.Platform
+	}
+	var g session.Group
+	if jobCtx != nil {
+		g = jobCtx.Session()
+	}
 	switch resolveMode {
 	case resolver.ResolveModeForcePull:
-		return is.resolveRemote(ctx, ref, opt.Platform, sm, g)
+		return is.resolveRemote(ctx, ref, p, sm, g)
 		// TODO: pull should fallback to local in case of failure to allow offline behavior
 		// the fallback doesn't work currently
 		/*
@@ -226,9 +234,9 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt source
 	case resolver.ResolveModePreferLocal:
 		img, err := is.resolveLocal(ref)
 		if err == nil {
-			if opt.Platform != nil && !platformMatches(img, opt.Platform) {
+			if p != nil && !platformMatches(img, p) {
 				log.G(ctx).WithField("ref", ref).Debugf("Requested build platform %s does not match local image platform %s, checking remote",
-					path.Join(opt.Platform.OS, opt.Platform.Architecture, opt.Platform.Variant),
+					path.Join(p.OS, p.Architecture, p.Variant),
 					path.Join(img.OS, img.Architecture, img.Variant),
 				)
 			} else {
@@ -236,7 +244,7 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt source
 			}
 		}
 		// fallback to remote
-		return is.resolveRemote(ctx, ref, opt.Platform, sm, g)
+		return is.resolveRemote(ctx, ref, p, sm, g)
 	}
 	// should never happen
 	return "", nil, fmt.Errorf("builder cannot resolve image %s: invalid mode %q", ref, opt.ImageOpt.ResolveMode)
@@ -337,7 +345,7 @@ func (p *puller) resolveLocal() {
 	})
 }
 
-func (p *puller) resolve(ctx context.Context, g session.Group) error {
+func (p *puller) resolve(ctx context.Context, jobCtx solver.JobContext) error {
 	_, err := p.g.Do(ctx, "", func(ctx context.Context) (_ struct{}, retErr error) {
 		resolveProgressDone := oneOffProgress(ctx, "resolve "+p.src.Reference.String())
 		defer func() {
@@ -347,6 +355,10 @@ func (p *puller) resolve(ctx context.Context, g session.Group) error {
 		ref, err := reference.ParseNormalizedNamed(p.src.Reference.String())
 		if err != nil {
 			return struct{}{}, err
+		}
+		var g session.Group
+		if jobCtx != nil {
+			g = jobCtx.Session()
 		}
 
 		if p.desc.Digest == "" && p.config == nil {
@@ -370,11 +382,11 @@ func (p *puller) resolve(ctx context.Context, g session.Group) error {
 				return struct{}{}, err
 			}
 			_, dt, err := p.is.ResolveImageConfig(ctx, refWithDigest.String(), sourceresolver.Opt{
-				Platform: &p.platform,
 				ImageOpt: &sourceresolver.ResolveImageOpt{
 					ResolveMode: p.src.ResolveMode.String(),
+					Platform:    &p.platform,
 				},
-			}, p.sm, g)
+			}, p.sm, jobCtx)
 			if err != nil {
 				return struct{}{}, err
 			}
@@ -387,7 +399,7 @@ func (p *puller) resolve(ctx context.Context, g session.Group) error {
 	return err
 }
 
-func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (string, string, solver.CacheOpts, bool, error) {
+func (p *puller) CacheKey(ctx context.Context, jobCtx solver.JobContext, index int) (string, string, solver.CacheOpts, bool, error) {
 	p.resolveLocal()
 
 	if p.desc.Digest != "" && index == 0 {
@@ -406,7 +418,7 @@ func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (stri
 		return k, k, nil, true, nil
 	}
 
-	if err := p.resolve(ctx, g); err != nil {
+	if err := p.resolve(ctx, jobCtx); err != nil {
 		return "", "", nil, false, err
 	}
 
@@ -451,10 +463,10 @@ func (p *puller) getRef(ctx context.Context, diffIDs []layer.DiffID, opts ...cac
 	}, parent, opts...)
 }
 
-func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.ImmutableRef, error) {
+func (p *puller) Snapshot(ctx context.Context, jobCtx solver.JobContext) (cache.ImmutableRef, error) {
 	p.resolveLocal()
 	if len(p.config) == 0 {
-		if err := p.resolve(ctx, g); err != nil {
+		if err := p.resolve(ctx, jobCtx); err != nil {
 			return nil, err
 		}
 	}
@@ -503,6 +515,11 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 	defer func() {
 		<-progressDone
 	}()
+
+	var g session.Group
+	if jobCtx != nil {
+		g = jobCtx.Session()
+	}
 
 	fetcher, err := p.resolver(g).Fetcher(ctx, p.ref)
 	if err != nil {

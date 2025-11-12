@@ -51,6 +51,23 @@ var (
 	allowOnGCECheck = true
 )
 
+// TokenBindingType specifies the type of binding used when requesting a token
+// whether to request a hard-bound token using mTLS or an instance identity
+// bound token using ALTS.
+type TokenBindingType int
+
+const (
+	// NoBinding specifies that requested tokens are not required to have a
+	// binding. This is the default option.
+	NoBinding TokenBindingType = iota
+	// MTLSHardBinding specifies that a hard-bound token should be requested
+	// using an mTLS with S2A channel.
+	MTLSHardBinding
+	// ALTSHardBinding specifies that an instance identity bound token should
+	// be requested using an ALTS channel.
+	ALTSHardBinding
+)
+
 // OnGCE reports whether this process is running in Google Cloud.
 func OnGCE() bool {
 	// TODO(codyoss): once all libs use this auth lib move metadata check here
@@ -99,7 +116,8 @@ func DetectDefault(opts *DetectOptions) (*auth.Credentials, error) {
 
 	if OnGCE() {
 		metadataClient := metadata.NewWithOptions(&metadata.Options{
-			Logger: opts.logger(),
+			Logger:           opts.logger(),
+			UseDefaultClient: true,
 		})
 		return auth.NewCredentials(&auth.CredentialsOptions{
 			TokenProvider: computeTokenProvider(opts, metadataClient),
@@ -121,6 +139,10 @@ type DetectOptions struct {
 	// https://www.googleapis.com/auth/cloud-platform. Required if Audience is
 	// not provided.
 	Scopes []string
+	// TokenBindingType specifies the type of binding used when requesting a
+	// token whether to request a hard-bound token using mTLS or an instance
+	// identity bound token using ALTS. Optional.
+	TokenBindingType TokenBindingType
 	// Audience that credentials tokens should have. Only applicable for 2LO
 	// flows with service accounts. If specified, scopes should not be provided.
 	Audience string
@@ -149,10 +171,26 @@ type DetectOptions struct {
 	// CredentialsFile overrides detection logic and sources a credential file
 	// from the provided filepath. If provided, CredentialsJSON must not be.
 	// Optional.
+	//
+	// Important: If you accept a credential configuration (credential
+	// JSON/File/Stream) from an external source for authentication to Google
+	// Cloud Platform, you must validate it before providing it to any Google
+	// API or library. Providing an unvalidated credential configuration to
+	// Google APIs can compromise the security of your systems and data. For
+	// more information, refer to [Validate credential configurations from
+	// external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
 	CredentialsFile string
 	// CredentialsJSON overrides detection logic and uses the JSON bytes as the
 	// source for the credential. If provided, CredentialsFile must not be.
 	// Optional.
+	//
+	// Important: If you accept a credential configuration (credential
+	// JSON/File/Stream) from an external source for authentication to Google
+	// Cloud Platform, you must validate it before providing it to any Google
+	// API or library. Providing an unvalidated credential configuration to
+	// Google APIs can compromise the security of your systems and data. For
+	// more information, refer to [Validate credential configurations from
+	// external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
 	CredentialsJSON []byte
 	// UseSelfSignedJWT directs service account based credentials to create a
 	// self-signed JWT with the private key found in the file, skipping any

@@ -47,7 +47,13 @@ func Creds(ctx context.Context, ds *DialSettings) (*google.Credentials, error) {
 // options provided via [option.ClientOption], including legacy oauth2/google
 // options. If there are no applicable options, then it returns the result of
 // [cloud.google.com/go/auth/credentials.DetectDefault].
+// Note: If NoAuth is true, when [google.golang.org/api/option.WithoutAuthentication]
+// is passed, then no authentication will be performed and this function will
+// return nil, nil.
 func AuthCreds(ctx context.Context, settings *DialSettings) (*auth.Credentials, error) {
+	if settings.NoAuth {
+		return nil, nil
+	}
 	if settings.AuthCredentials != nil {
 		return settings.AuthCredentials, nil
 	}
