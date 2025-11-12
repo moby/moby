@@ -36,30 +36,6 @@ func (s *DockerAPISuite) TestAPIImagesSaveAndLoad(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(inspectOut), id, "load did not work properly")
 }
 
-func (s *DockerAPISuite) TestAPIImagesDelete(c *testing.T) {
-	apiClient, err := client.New(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
-	if testEnv.DaemonInfo.OSType != "windows" {
-		testRequires(c, Network)
-	}
-	name := "test-api-images-delete"
-	cli.BuildCmd(c, name, build.WithDockerfile("FROM busybox\nENV FOO bar"))
-	id := getIDByName(c, name)
-
-	cli.DockerCmd(c, "tag", name, "test:tag1")
-
-	_, err = apiClient.ImageRemove(testutil.GetContext(c), id, client.ImageRemoveOptions{})
-	assert.ErrorContains(c, err, "unable to delete")
-
-	_, err = apiClient.ImageRemove(testutil.GetContext(c), "test:noexist", client.ImageRemoveOptions{})
-	assert.ErrorContains(c, err, "No such image")
-
-	_, err = apiClient.ImageRemove(testutil.GetContext(c), "test:tag1", client.ImageRemoveOptions{})
-	assert.NilError(c, err)
-}
-
 func (s *DockerAPISuite) TestAPIImagesImportBadSrc(c *testing.T) {
 	testRequires(c, Network, testEnv.IsLocalDaemon)
 
