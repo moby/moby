@@ -458,19 +458,27 @@ func (d *driver) setKeys(keys []*key) error {
 	// Accept the encryption keys and clear any stale encryption map
 	d.secMap = encrMap{}
 	d.keys = keys
-	log.G(context.TODO()).Debugf("Initial encryption keys: %v", keys)
+
+	log.G(context.TODO()).WithFields(log.Fields{
+		"driver": "overlay",
+		"keys":   d.keys,
+	}).Debug("Set initial encryption keys")
 	return nil
 }
 
 // updateKeys allows to add a new key and/or change the primary key and/or prune an existing key
 // The primary key is the key used in transmission and will go in first position in the list.
-func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
+func (d *driver) updateKeys(newKey, primaryKey, pruneKey *key) error {
 	d.encrMu.Lock()
 	defer d.encrMu.Unlock()
 
-	log.G(context.TODO()).Debugf("Updating Keys. New: %v, Primary: %v, Pruned: %v", newKey, primary, pruneKey)
-
-	log.G(context.TODO()).Debugf("Current: %v", d.keys)
+	log.G(context.TODO()).WithFields(log.Fields{
+		"driver":  "overlay",
+		"current": d.keys,
+		"new":     newKey,
+		"primary": primaryKey,
+		"prune":   pruneKey,
+	}).Debug("Updating encryption keys")
 
 	var (
 		newIdx = -1
@@ -486,7 +494,7 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 		newIdx += len(d.keys)
 	}
 	for i, k := range d.keys {
-		if primary != nil && k.tag == primary.tag {
+		if primaryKey != nil && k.tag == primaryKey.tag {
 			priIdx = i
 		}
 		if pruneKey != nil && k.tag == pruneKey.tag {
@@ -495,7 +503,7 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 	}
 
 	if (newKey != nil && newIdx == -1) ||
-		(primary != nil && priIdx == -1) ||
+		(primaryKey != nil && priIdx == -1) ||
 		(pruneKey != nil && delIdx == -1) {
 		return types.InvalidParameterErrorf("cannot find proper key indices while processing key update:"+
 			"(newIdx,priIdx,delIdx):(%d, %d, %d)", newIdx, priIdx, delIdx)
@@ -524,8 +532,10 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 		d.keys = append(d.keys[:delIdx], d.keys[delIdx+1:]...)
 	}
 
-	log.G(context.TODO()).Debugf("Updated: %v", d.keys)
-
+	log.G(context.TODO()).WithFields(log.Fields{
+		"driver": "overlay",
+		"keys":   d.keys,
+	}).Debug("Updated encryption keys")
 	return nil
 }
 
