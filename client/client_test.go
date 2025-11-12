@@ -257,7 +257,6 @@ func TestNegotiateAPIVersionEmpty(t *testing.T) {
 	const expected = MinAPIVersion
 
 	client, err := New(FromEnv,
-		WithAPIVersionNegotiation(),
 		WithBaseMockClient(mockPingResponse(http.StatusOK, PingResult{APIVersion: expected})),
 	)
 	assert.NilError(t, err)
@@ -330,7 +329,6 @@ func TestNegotiateAPIVersion(t *testing.T) {
 		t.Run(tc.doc, func(t *testing.T) {
 			opts := []Opt{
 				FromEnv,
-				WithAPIVersionNegotiation(),
 				WithBaseMockClient(mockPingResponse(http.StatusOK, PingResult{APIVersion: tc.pingVersion})),
 			}
 
@@ -396,7 +394,6 @@ func TestNegotiateAPIVersionAutomatic(t *testing.T) {
 		WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
 			return mockPingResponse(http.StatusOK, PingResult{APIVersion: pingVersion})(req)
 		}),
-		WithAPIVersionNegotiation(),
 	)
 	assert.NilError(t, err)
 

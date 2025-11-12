@@ -8,10 +8,8 @@ https://docs.docker.com/reference/api/engine/
 
 You use the library by constructing a client object using [New]
 and calling methods on it. The client can be configured from environment
-variables by passing the [FromEnv] option, and the [WithAPIVersionNegotiation]
-option to allow downgrading the API version used when connecting with an older
-daemon version. Other options can be configured manually by passing any of
-the available [Opt] options.
+variables by passing the [FromEnv] option. Other options can be configured
+manually by passing any of the available [Opt] options.
 
 For example, to list running containers (the equivalent of "docker ps"):
 
@@ -30,7 +28,7 @@ For example, to list running containers (the equivalent of "docker ps"):
 		// for configuration (DOCKER_HOST, DOCKER_API_VERSION), and does
 		// API-version negotiation to allow downgrading the API version
 		// when connecting with an older daemon version.
-		apiClient, err := client.New(client.FromEnv, client.WithAPIVersionNegotiation())
+		apiClient, err := client.New(client.FromEnv)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -103,9 +101,9 @@ import (
 const DummyHost = "api.moby.localhost"
 
 // MaxAPIVersion is the highest REST API version supported by the client.
-// If API-version negotiation is enabled (see [WithAPIVersionNegotiation],
-// the client may downgrade its API version. Similarly, the [WithAPIVersion]
-// and [WithAPIVersionFromEnv] options allow overriding the version.
+// If API-version negotiation is enabled, the client may downgrade its API version.
+// Similarly, the [WithAPIVersion] and [WithAPIVersionFromEnv] options allow
+// overriding the version and disable API-version negotiation.
 //
 // This version may be lower than the version of the api library module used.
 const MaxAPIVersion = "1.52"
@@ -172,8 +170,13 @@ func NewClientWithOpts(ops ...Opt) (*Client, error) {
 // It takes an optional list of [Opt] functional arguments, which are applied in
 // the order they're provided, which allows modifying the defaults when creating
 // the client. For example, the following initializes a client that configures
-// itself with values from environment variables ([FromEnv]), and has automatic
-// API version negotiation enabled ([WithAPIVersionNegotiation]).
+// itself with values from environment variables ([FromEnv]).
+//
+// By default, the client automatically negotiates the API version to use when
+// making requests. API version negotiation is performed on the first request;
+// subsequent requests do not re-negotiate. Use [WithAPIVersion] or
+// [WithAPIVersionFromEnv] to configure the client with a fixed API version
+// and disable API version negotiation.
 //
 //	cli, err := client.New(
 //		client.FromEnv,
@@ -282,7 +285,7 @@ func (cli *Client) Close() error {
 // be negotiated when making the actual requests, and for which cases
 // we cannot do the negotiation lazily.
 func (cli *Client) checkVersion(ctx context.Context) error {
-	if cli.negotiated.Load() || !cli.negotiateVersion {
+	if cli.negotiated.Load() {
 		return nil
 	}
 	_, err := cli.Ping(ctx, PingOptions{
