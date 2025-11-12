@@ -38,14 +38,17 @@ if [ -n "${api_pkg_list}" ]; then
 	#   is not provided by any known module.
 	# - `-mod=readonly` tells the go command to ignore the vendor directory
 	#   and to report an error if `go.mod` needs to be updated.
-	gotestsum --format=standard-quiet --jsonfile=bundles/api-go-test-report.json --junitfile=bundles/api-junit-report.xml -- \
-		"${BUILDFLAGS[@]}" \
-		-cover \
-		-coverprofile=bundles/api-coverage.out \
-		-covermode=atomic \
-		-mod=readonly \
-		${TESTFLAGS} \
-		${api_pkg_list}
+	(
+		cd api
+		gotestsum --format=standard-quiet --jsonfile=../bundles/api-go-test-report.json --junitfile=../bundles/api-junit-report.xml -- \
+			"${BUILDFLAGS[@]}" \
+			-cover \
+			-coverprofile=../bundles/api-coverage.out \
+			-covermode=atomic \
+			-mod=readonly \
+			${TESTFLAGS} \
+			${api_pkg_list} || exit $?
+	)
 fi
 
 case "$TESTDIRS" in
@@ -65,14 +68,17 @@ if [ -n "${client_pkg_list}" ]; then
 	#   is not provided by any known module.
 	# - `-mod=readonly` tells the go command to ignore the vendor directory
 	#   and to report an error if `go.mod` needs to be updated.
-	gotestsum --format=standard-quiet --jsonfile=bundles/client-go-test-report.json --junitfile=bundles/client-junit-report.xml -- \
-		"${BUILDFLAGS[@]}" \
-		-cover \
-		-coverprofile=bundles/client-coverage.out \
-		-covermode=atomic \
-		-mod=readonly \
-		${TESTFLAGS} \
-		${client_pkg_list}
+	(
+		cd client
+		gotestsum --format=standard-quiet --jsonfile=../bundles/client-go-test-report.json --junitfile=../bundles/client-junit-report.xml -- \
+			"${BUILDFLAGS[@]}" \
+			-cover \
+			-coverprofile=../bundles/client-coverage.out \
+			-covermode=atomic \
+			-mod=readonly \
+			${TESTFLAGS} \
+			${client_pkg_list} || exit $?
+	)
 fi
 
 case "$TESTDIRS" in
