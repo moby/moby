@@ -24,7 +24,7 @@ func TestImageListError(t *testing.T) {
 //
 // Regression test for https://github.com/docker/cli/issues/4890
 func TestImageListConnectionError(t *testing.T) {
-	client, err := New(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	client, err := New(WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
 	_, err = client.ImageList(t.Context(), ImageListOptions{})
