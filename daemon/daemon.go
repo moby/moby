@@ -969,8 +969,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	backoffConfig.MaxDelay = connTimeout
 	connParams := grpc.ConnectParams{
 		Backoff: backoffConfig,
-		// TODO: Remove after https://github.com/containerd/containerd/pull/11508
-		MinConnectTimeout: connTimeout,
 	}
 	gopts := []grpc.DialOption{
 		// ------------------------------------------------------------------
