@@ -17,6 +17,7 @@ func ExampleNew() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer apiClient.Close()
 
 	// List all containers (both stopped and running).
 	result, err := apiClient.ContainerList(context.Background(), client.ContainerListOptions{
