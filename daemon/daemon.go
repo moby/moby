@@ -873,7 +873,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 	d.configStore.Store(cfgStore)
 
-	imgStoreChoice, err := determineImageStoreChoice(config)
+	imgStoreChoice, err := determineImageStoreChoice(config, determineImageStoreChoiceOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -1098,7 +1098,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	driverName := chooseDriver(ctx, cfgStore.GraphDriver, imgStoreChoice)
+	driverName := getDriverOverride(ctx, cfgStore.GraphDriver, imgStoreChoice)
 
 	var migrationConfig migration.Config
 	if imgStoreChoice.IsGraphDriver() {
