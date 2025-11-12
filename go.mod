@@ -51,6 +51,7 @@ require (
 	github.com/hashicorp/go-memdb v1.3.5
 	github.com/hashicorp/memberlist v0.4.0
 	github.com/hashicorp/serf v0.8.5
+	github.com/in-toto/in-toto-golang v0.9.0
 	github.com/ishidawataru/sctp v0.0.0-20250829011129-4b890084db30
 	github.com/miekg/dns v1.1.66
 	github.com/mistifyio/go-zfs/v3 v3.0.1
@@ -63,6 +64,7 @@ require (
 	github.com/moby/moby/api v1.52.0
 	github.com/moby/moby/client v0.1.0
 	github.com/moby/patternmatcher v0.6.0
+	github.com/moby/policy-helpers v0.0.0-20251105011237-bcaa71c99f14
 	github.com/moby/profiles/apparmor v0.1.0
 	github.com/moby/profiles/seccomp v0.1.0
 	github.com/moby/pubsub v1.0.0
@@ -188,13 +190,11 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/hiddeco/sshsig v0.2.0 // indirect
-	github.com/in-toto/in-toto-golang v0.9.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmoiron/sqlx v1.3.3 // indirect
 	github.com/klauspost/compress v1.18.1 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
-	github.com/moby/policy-helpers v0.0.0-20251105011237-bcaa71c99f14 // indirect
 	github.com/moby/sys/capability v0.4.0 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
