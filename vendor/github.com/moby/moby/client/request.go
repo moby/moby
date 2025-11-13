@@ -236,7 +236,11 @@ func checkResponseErr(serverResp *http.Response) (retErr error) {
 	if statusMsg == "" {
 		statusMsg = http.StatusText(serverResp.StatusCode)
 	}
-	if serverResp.Body != nil {
+	var reqMethod string
+	if serverResp.Request != nil {
+		reqMethod = serverResp.Request.Method
+	}
+	if serverResp.Body != nil && reqMethod != http.MethodHead {
 		bodyMax := 1 * 1024 * 1024 // 1 MiB
 		bodyR := &io.LimitedReader{
 			R: serverResp.Body,
