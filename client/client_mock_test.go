@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime"
 	"strconv"
 	"strings"
 
+	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/common"
 	"github.com/moby/moby/api/types/swarm"
 )
@@ -60,8 +62,70 @@ func ensureBody(f func(req *http.Request) (*http.Response, error)) testRoundTrip
 	}
 }
 
-// WithMockClient is a test helper that allows you to inject a mock client for testing.
+// makeTestRoundTripper makes sure the response has a Body, using [http.NoBody] if
+// none is present, and returns it as a testRoundTripper. If withDefaults is set,
+// it also mocks the "/_ping" endpoint and sets default headers as returned
+// by the daemon.
+func makeTestRoundTripper(f func(req *http.Request) (*http.Response, error)) testRoundTripper {
+	return func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path == "/_ping" {
+			return mockPingResponse(http.StatusOK, PingResult{
+				APIVersion:     MaxAPIVersion,
+				OSType:         runtime.GOOS,
+				Experimental:   true,
+				BuilderVersion: build.BuilderBuildKit,
+				SwarmStatus: &SwarmStatus{
+					NodeState:        swarm.LocalNodeStateActive,
+					ControlAvailable: true,
+				},
+			})(req)
+		}
+		resp, err := f(req)
+		if resp != nil {
+			if resp.Body == nil {
+				resp.Body = http.NoBody
+			}
+			if resp.Request == nil {
+				resp.Request = req
+			}
+		}
+		applyDefaultHeaders(resp)
+		return resp, err
+	}
+}
+
+// applyDefaultHeaders mocks the headers set by the daemon's VersionMiddleware.
+func applyDefaultHeaders(resp *http.Response) {
+	if resp == nil {
+		return
+	}
+	if resp.Header == nil {
+		resp.Header = make(http.Header)
+	}
+	if resp.Header.Get("Server") == "" {
+		resp.Header.Set("Server", fmt.Sprintf("Docker/%s (%s)", "v99.99.99", runtime.GOOS))
+	}
+	if resp.Header.Get("Api-Version") == "" {
+		resp.Header.Set("Api-Version", MaxAPIVersion)
+	}
+	if resp.Header.Get("Ostype") == "" {
+		resp.Header.Set("Ostype", runtime.GOOS)
+	}
+}
+
+// WithMockClient is a test helper that allows you to inject a mock client for
+// testing. By default, it mocks the "/_ping" endpoint, so allow the client
+// to perform API-version negotiation. Other endpoints are handled by "doer".
 func WithMockClient(doer func(*http.Request) (*http.Response, error)) Opt {
+	return WithHTTPClient(&http.Client{
+		Transport: makeTestRoundTripper(doer),
+	})
+}
+
+// WithBaseMockClient is a test helper that allows you to inject a mock client
+// for testing. It is identical to [WithMockClient], but does not mock the "/_ping"
+// endpoint, and doesn't set the default headers.
+func WithBaseMockClient(doer func(*http.Request) (*http.Response, error)) Opt {
 	return WithHTTPClient(&http.Client{
 		Transport: ensureBody(doer),
 	})
