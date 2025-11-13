@@ -104,9 +104,8 @@ const DummyHost = "api.moby.localhost"
 
 // MaxAPIVersion is the highest REST API version supported by the client.
 // If API-version negotiation is enabled (see [WithAPIVersionNegotiation],
-// [Client.NegotiateAPIVersion]), the client may downgrade its API version.
-// Similarly, the [WithVersion] and [WithVersionFromEnv] allow overriding
-// the version.
+// the client may downgrade its API version. Similarly, the [WithAPIVersion]
+// and [WithAPIVersionFromEnv] options allow overriding the version.
 //
 // This version may be lower than the version of the api library module used.
 const MaxAPIVersion = "1.52"

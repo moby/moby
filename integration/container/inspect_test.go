@@ -135,7 +135,7 @@ func TestInspectImageManifestPlatform(t *testing.T) {
 			assert.Check(t, is.DeepEqual(*inspect.ImageManifestDescriptor.Platform, hostPlatform))
 
 			t.Run("pre 1.48", func(t *testing.T) {
-				oldClient := request.NewAPIClient(t, client.WithVersion("1.47"))
+				oldClient := request.NewAPIClient(t, client.WithAPIVersion("1.47"))
 				inspect := container.Inspect(ctx, t, oldClient, ctr)
 				assert.Check(t, is.Nil(inspect.ImageManifestDescriptor))
 			})

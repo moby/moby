@@ -524,7 +524,7 @@ func TestContainerBindMountReadOnlyDefault(t *testing.T) {
 			skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), minDaemonVersion), "requires API v"+minDaemonVersion)
 
 			if tc.clientVersion != "" {
-				c, err := client.New(client.FromEnv, client.WithVersion(tc.clientVersion))
+				c, err := client.New(client.FromEnv, client.WithAPIVersion(tc.clientVersion))
 				assert.NilError(t, err, "failed to create client with version v%s", tc.clientVersion)
 				apiClient = c
 			}

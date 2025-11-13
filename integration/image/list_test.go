@@ -253,7 +253,7 @@ func TestAPIImagesListManifests(t *testing.T) {
 
 	t.Run("unsupported before 1.47", func(t *testing.T) {
 		// TODO: Remove when MinAPIVersion >= 1.47
-		c := d.NewClientT(t, client.WithVersion("1.46"))
+		c := d.NewClientT(t, client.WithAPIVersion("1.46"))
 
 		imageList, err := c.ImageList(ctx, client.ImageListOptions{Manifests: true})
 		assert.NilError(t, err)
@@ -262,7 +262,7 @@ func TestAPIImagesListManifests(t *testing.T) {
 		assert.Check(t, is.Nil(imageList.Items[0].Manifests))
 	})
 
-	api147 := d.NewClientT(t, client.WithVersion("1.47"))
+	api147 := d.NewClientT(t, client.WithAPIVersion("1.47"))
 
 	t.Run("no manifests if not requested", func(t *testing.T) {
 		imageList, err := api147.ImageList(ctx, client.ImageListOptions{})

@@ -139,7 +139,7 @@ func TestCgroupNamespacesRunOlderClient(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t, daemon.WithEnvVars("DOCKER_MIN_API_VERSION=1.39"), daemon.WithDefaultCgroupNamespaceMode("private"))
-	apiClient := d.NewClientT(t, client.WithVersion("1.39"))
+	apiClient := d.NewClientT(t, client.WithAPIVersion("1.39"))
 
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)

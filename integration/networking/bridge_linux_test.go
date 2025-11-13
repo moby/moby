@@ -1126,7 +1126,7 @@ func TestDisableIPv4(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			c := d.NewClientT(t, client.WithVersion(tc.apiVersion))
+			c := d.NewClientT(t, client.WithAPIVersion(tc.apiVersion))
 
 			const netName = "testnet"
 			network.CreateNoError(ctx, t, c, netName,
@@ -1277,7 +1277,7 @@ func TestSetInterfaceSysctl(t *testing.T) {
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
-	c := d.NewClientT(t, client.WithVersion("1.46"))
+	c := d.NewClientT(t, client.WithAPIVersion("1.46"))
 	defer c.Close()
 
 	const scName = "net.ipv4.conf.eth0.forwarding"

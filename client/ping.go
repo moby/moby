@@ -20,7 +20,7 @@ type PingOptions struct {
 	//
 	// If a manual override is in place, either through the "DOCKER_API_VERSION"
 	// ([EnvOverrideAPIVersion]) environment variable, or if the client is initialized
-	// with a fixed version ([WithVersion]), no negotiation is performed.
+	// with a fixed version ([WithAPIVersion]), no negotiation is performed.
 	//
 	// If the API server's ping response does not contain an API version, or if the
 	// client did not get a successful ping response, it assumes it is connected with
@@ -31,7 +31,7 @@ type PingOptions struct {
 	// ForceNegotiate forces the client to re-negotiate the API version, even if
 	// API-version negotiation already happened. This option cannot be
 	// used if the client is configured with a fixed version using (using
-	// [WithVersion] or [WithVersionFromEnv]).
+	// [WithAPIVersion] or [WithAPIVersionFromEnv]).
 	//
 	// This option has no effect if NegotiateAPIVersion is not set.
 	ForceNegotiate bool

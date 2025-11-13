@@ -254,7 +254,7 @@ func waitInspect(name, expr, expected string, timeout time.Duration) error {
 
 func getInspectBody(t *testing.T, version, id string) json.RawMessage {
 	t.Helper()
-	apiClient, err := client.New(client.FromEnv, client.WithVersion(version))
+	apiClient, err := client.New(client.FromEnv, client.WithAPIVersion(version))
 	assert.NilError(t, err)
 	defer apiClient.Close()
 	inspect, err := apiClient.ContainerInspect(testutil.GetContext(t), id, client.ContainerInspectOptions{})

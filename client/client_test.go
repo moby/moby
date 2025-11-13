@@ -175,7 +175,7 @@ func TestGetAPIPath(t *testing.T) {
 	ctx := context.TODO()
 	for _, tc := range tests {
 		client, err := New(
-			WithVersion(tc.version),
+			WithAPIVersion(tc.version),
 			WithHost("tcp://localhost:2375"),
 		)
 		assert.NilError(t, err)
@@ -338,7 +338,7 @@ func TestNegotiateAPIVersion(t *testing.T) {
 				// Note that this check is redundant, as WithVersion() considers
 				// an empty version equivalent to "not setting a version", but
 				// doing this just to be explicit we are using the default.
-				opts = append(opts, WithVersion(tc.clientVersion))
+				opts = append(opts, WithAPIVersion(tc.clientVersion))
 			}
 			client, err := New(opts...)
 			assert.NilError(t, err)
@@ -422,7 +422,7 @@ func TestNegotiateAPIVersionAutomatic(t *testing.T) {
 // with an empty version string does still allow API-version negotiation
 func TestNegotiateAPIVersionWithEmptyVersion(t *testing.T) {
 	client, err := New(
-		WithVersion(""),
+		WithAPIVersion(""),
 		WithMockClient(mockResponse(http.StatusOK, http.Header{"Api-Version": []string{"1.50"}}, "OK")),
 	)
 	assert.NilError(t, err)
@@ -439,7 +439,7 @@ func TestNegotiateAPIVersionWithEmptyVersion(t *testing.T) {
 func TestNegotiateAPIVersionWithFixedVersion(t *testing.T) {
 	const customVersion = "1.50"
 	client, err := New(
-		WithVersion(customVersion),
+		WithAPIVersion(customVersion),
 		WithMockClient(mockResponse(http.StatusOK, http.Header{"Api-Version": []string{"1.49"}}, "OK")),
 	)
 	assert.NilError(t, err)
@@ -515,12 +515,12 @@ func TestCustomAPIVersion(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			client, err := New(WithVersion(tc.version))
+			client, err := New(WithAPIVersion(tc.version))
 			assert.NilError(t, err)
 			assert.Check(t, is.Equal(client.ClientVersion(), tc.expected))
 
 			t.Setenv(EnvOverrideAPIVersion, tc.expected)
-			client, err = New(WithVersionFromEnv())
+			client, err = New(WithAPIVersionFromEnv())
 			assert.NilError(t, err)
 			assert.Check(t, is.Equal(client.ClientVersion(), tc.expected))
 		})

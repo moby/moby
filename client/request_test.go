@@ -199,7 +199,7 @@ func TestResponseErrors(t *testing.T) {
 				return mockResponse(http.StatusBadRequest, http.Header{"Content-Type": []string{tc.contentType}}, tc.response)(req)
 			}))
 			if tc.apiVersion != "" {
-				client, err = New(WithHTTPClient(client.client), WithVersion(tc.apiVersion))
+				client, err = New(WithHTTPClient(client.client), WithAPIVersion(tc.apiVersion))
 			}
 			assert.NilError(t, err)
 			_, err = client.Ping(t.Context(), PingOptions{})
