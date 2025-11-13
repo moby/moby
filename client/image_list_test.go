@@ -35,11 +35,13 @@ func TestImageListConnectionError(t *testing.T) {
 func TestImageList(t *testing.T) {
 	const expectedURL = "/images/json"
 
-	listCases := []struct {
+	tests := []struct {
+		doc                 string
 		options             ImageListOptions
 		expectedQueryParams map[string]string
 	}{
 		{
+			doc:     "no options",
 			options: ImageListOptions{},
 			expectedQueryParams: map[string]string{
 				"all":     "",
@@ -48,6 +50,7 @@ func TestImageList(t *testing.T) {
 			},
 		},
 		{
+			doc: "label filters and dangling",
 			options: ImageListOptions{
 				Filters: make(Filters).
 					Add("label", "label1").
@@ -61,6 +64,7 @@ func TestImageList(t *testing.T) {
 			},
 		},
 		{
+			doc: "label filters no dangling",
 			options: ImageListOptions{
 				Filters: make(Filters).Add("dangling", "false"),
 			},
@@ -71,28 +75,31 @@ func TestImageList(t *testing.T) {
 			},
 		},
 	}
-	for _, listCase := range listCases {
-		client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
-			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
-				return nil, err
-			}
-			query := req.URL.Query()
-			for key, expected := range listCase.expectedQueryParams {
-				actual := query.Get(key)
-				if actual != expected {
-					return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
+				if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+					return nil, err
 				}
-			}
-			return mockJSONResponse(http.StatusOK, nil, []image.Summary{
-				{ID: "image_id2"},
-				{ID: "image_id2"},
-			})(req)
-		}))
-		assert.NilError(t, err)
+				query := req.URL.Query()
+				for key, expected := range tc.expectedQueryParams {
+					actual := query.Get(key)
+					if actual != expected {
+						return nil, fmt.Errorf("%s not set in URL query properly. Expected '%s', got %s", key, expected, actual)
+					}
+				}
+				return mockJSONResponse(http.StatusOK, nil, []image.Summary{
+					{ID: "image_id2"},
+					{ID: "image_id2"},
+				})(req)
+			}))
+			assert.NilError(t, err)
+			defer func() { _ = client.Close() }()
 
-		images, err := client.ImageList(t.Context(), listCase.options)
-		assert.NilError(t, err)
-		assert.Check(t, is.Len(images.Items, 2))
+			images, err := client.ImageList(t.Context(), tc.options)
+			assert.NilError(t, err)
+			assert.Check(t, is.Len(images.Items, 2))
+		})
 	}
 }
 
