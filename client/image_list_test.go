@@ -120,10 +120,13 @@ func TestImageListWithSharedSize(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var query url.Values
-			client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
-				query = req.URL.Query()
-				return mockResponse(http.StatusOK, nil, "[]")(req)
-			}), WithAPIVersion(tc.version))
+			client, err := New(
+				WithAPIVersion(tc.version),
+				WithMockClient(func(req *http.Request) (*http.Response, error) {
+					query = req.URL.Query()
+					return mockResponse(http.StatusOK, nil, "[]")(req)
+				}),
+			)
 			assert.NilError(t, err)
 			_, err = client.ImageList(t.Context(), tc.options)
 			assert.NilError(t, err)
