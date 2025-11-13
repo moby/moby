@@ -40,13 +40,19 @@ func assertRequestWithQuery(req *http.Request, expMethod string, expectedPath st
 	return nil
 }
 
-// ensureBody makes sure the response has a Body, using [http.NoBody] if
-// none is present, and returns it as a testRoundTripper.
+// ensureBody makes sure the response has a Body (using [http.NoBody] if
+// none is present), and that the request is set on the response, then returns
+// it as a testRoundTripper.
 func ensureBody(f func(req *http.Request) (*http.Response, error)) testRoundTripper {
 	return func(req *http.Request) (*http.Response, error) {
 		resp, err := f(req)
-		if resp != nil && resp.Body == nil {
-			resp.Body = http.NoBody
+		if resp != nil {
+			if resp.Body == nil {
+				resp.Body = http.NoBody
+			}
+			if resp.Request == nil {
+				resp.Request = req
+			}
 		}
 		return resp, err
 	}
