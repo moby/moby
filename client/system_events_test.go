@@ -105,7 +105,7 @@ func TestEvents(t *testing.T) {
 	}
 
 	for _, eventsCase := range eventsCases {
-		client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := New(WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
 				return nil, err
 			}
