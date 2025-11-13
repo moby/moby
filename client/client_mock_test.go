@@ -85,20 +85,17 @@ func mockJSONResponse[T any](statusCode int, headers http.Header, resp T) func(r
 }
 
 func mockResponse(statusCode int, headers http.Header, respBody string) func(req *http.Request) (*http.Response, error) {
-	if headers == nil {
-		headers = make(http.Header)
-	}
-	var body io.ReadCloser
-	if respBody == "" {
-		body = http.NoBody
-	} else {
-		body = io.NopCloser(strings.NewReader(respBody))
-	}
 	return func(req *http.Request) (*http.Response, error) {
+		var body io.ReadCloser
+		if respBody == "" || req.Method == http.MethodHead {
+			body = http.NoBody
+		} else {
+			body = io.NopCloser(strings.NewReader(respBody))
+		}
 		return &http.Response{
 			Status:     fmt.Sprintf("%d %s", statusCode, http.StatusText(statusCode)),
 			StatusCode: statusCode,
-			Header:     headers,
+			Header:     headers.Clone(),
 			Body:       body,
 			Request:    req,
 		}, nil
