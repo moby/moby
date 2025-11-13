@@ -264,8 +264,17 @@ func (sb *Sandbox) loadResolvConf(path string) (*resolvconf.ResolvConf, error) {
 // be a copy of the host's file, with overrides for nameservers, options and search
 // domains applied.
 func (sb *Sandbox) setupDNS() error {
-	// Make sure the directory exists.
 	sb.restoreResolvConfPath()
+
+	// When the container is restarted, a new Sandbox is created but the same resolv.conf is re-used. If it was
+	// user-modified, do not attempt to overwrite it.
+	if !sb.config.useDefaultSandBox {
+		if mod, err := resolvconf.UserModified(sb.config.resolvConfPath, sb.config.resolvConfHashFile); err != nil || mod {
+			return err
+		}
+	}
+
+	// Make sure the directory exists.
 	dir, _ := filepath.Split(sb.config.resolvConfPath)
 	if err := createBasePath(dir); err != nil {
 		return err
