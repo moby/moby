@@ -15,7 +15,6 @@ import (
 	"github.com/moby/moby/v2/internal/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/skip"
 )
 
 // TestWindowsNetworkDrivers validates Windows-specific network drivers for Windows.
@@ -183,11 +182,9 @@ func TestWindowsNetworkDNSResolution(t *testing.T) {
 // TestWindowsNetworkLifecycle validates network lifecycle operations on Windows.
 // Tests network creation, container attachment, detachment, and deletion.
 func TestWindowsNetworkLifecycle(t *testing.T) {
-	// Advanced network operations like NetworkDisconnect and NetworkConnect
-	// are not yet fully supported by containerd on Windows.
 	// Skip the test to avoid false failures due to known platform limitations.
-	skip.If(t, testEnv.RuntimeIsWindowsContainerd(),
-		"Advanced network operations are not yet fully supported by containerd on Windows")
+	// skip.If(t, testEnv.RuntimeIsWindowsContainerd(),
+	// 	"Skipping network lifecycle test on Windows containerd runtime due to known limitations.")
 
 	ctx := setupTest(t)
 	c := testEnv.APIClient()
@@ -221,6 +218,9 @@ func TestWindowsNetworkLifecycle(t *testing.T) {
 
 	ctrInfo = container.Inspect(ctx, t, c, id)
 	assert.Check(t, ctrInfo.NetworkSettings.Networks[netName] == nil, "Container still connected after disconnect")
+
+	// Allow some time for the network state to update
+	time.Sleep(10 * time.Second)
 
 	// Reconnect container to network
 	_, err = c.NetworkConnect(ctx, netID, client.NetworkConnectOptions{
