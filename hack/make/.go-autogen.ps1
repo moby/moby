@@ -80,7 +80,7 @@ try {
       "0409": {
         "identity": {},
         "description": "Docker Engine",
-        "minimum-os": "vista",
+        "minimum-os": "win10",
         "execution-level": "",
         "ui-access": false,
         "auto-elevate": false,
