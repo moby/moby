@@ -116,10 +116,15 @@ func (cli *Client) ping(ctx context.Context) (PingResult, error) {
 		// response-body to get error details from.
 		return newPingResult(resp), nil
 	}
+	// close to allow reusing connection.
+	ensureReaderClosed(resp)
 
 	// HEAD failed or returned a non-OK status; fallback to GET.
-	req.Method = http.MethodGet
-	resp, err = cli.doRequest(req)
+	req2, err := cli.buildRequest(ctx, http.MethodGet, path.Join(cli.basePath, "/_ping"), nil, nil)
+	if err != nil {
+		return PingResult{}, err
+	}
+	resp, err = cli.doRequest(req2)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		// Failed to connect.
