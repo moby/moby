@@ -665,6 +665,8 @@ go.opentelemetry.io/contrib/processors/baggagecopy v0.4.0 h1:SUsGRzllvPRJK6VKn1S
 go.opentelemetry.io/contrib/processors/baggagecopy v0.4.0/go.mod h1:68LCyaHcLhUf3tciKAAbSFKkr4Pkrt24ei0/xHm0No8=
 go.opentelemetry.io/otel v1.38.0 h1:RkfdswUDRimDg0m2Az18RKOsnI8UDzppJAtj01/Ymk8=
 go.opentelemetry.io/otel v1.38.0/go.mod h1:zcmtmQ1+YmQM9wrNsTGV/q/uyusom3P8RxwExxkZhjM=
+go.opentelemetry.io/otel/bridge/opencensus v1.38.0 h1:LUFKh5lYqNalr6E2Wr54fymStzDmlDQoVWp5UlJ8yG0=
+go.opentelemetry.io/otel/bridge/opencensus v1.38.0/go.mod h1:84yBtJ/OnEa2I40lMyrGadED8nVH/JfzoK+5p7aYyIY=
 go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.38.0 h1:vl9obrcoWVKp/lwl8tRE33853I8Xru9HFbw/skNeLs8=
 go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.38.0/go.mod h1:GAXRxmLJcVM3u22IjTg74zWBrRCKq8BnOqUVLodpcpw=
 go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.38.0 h1:Oe2z/BCg5q7k4iXC3cqJxKYg0ieRiOqF0cecFYdPTwk=
