@@ -348,10 +348,8 @@ func (sb *Sandbox) populateNetworkResources(ctx context.Context, ep *Endpoint) (
 
 	// Populate DNS records.
 	n := ep.getNetwork()
-	if !n.getController().isAgent() {
-		if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
-			n.updateSvcRecord(context.WithoutCancel(ctx), ep, true)
-		}
+	if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
+		n.updateSvcRecord(context.WithoutCancel(ctx), ep, true)
 	}
 
 	if err := ep.addDriverInfoToCluster(); err != nil {
