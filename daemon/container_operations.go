@@ -149,6 +149,10 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 
 	sboxOptions = append(sboxOptions, libnetwork.OptionPortMapping(publishedPorts), libnetwork.OptionExposedPorts(exposedPorts))
 
+	if !ctr.State.StartedAt.IsZero() && !ctr.State.FinishedAt.IsZero() {
+		sboxOptions = append(sboxOptions, libnetwork.OptionCreateByRestart())
+	}
+
 	return sboxOptions, nil
 }
 
