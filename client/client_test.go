@@ -258,7 +258,7 @@ func TestNegotiateAPIVersionEmpty(t *testing.T) {
 
 	client, err := New(FromEnv,
 		WithAPIVersionNegotiation(),
-		WithMockClient(mockPingResponse(http.StatusOK, PingResult{APIVersion: expected})),
+		WithBaseMockClient(mockPingResponse(http.StatusOK, PingResult{APIVersion: expected})),
 	)
 	assert.NilError(t, err)
 
@@ -331,7 +331,7 @@ func TestNegotiateAPIVersion(t *testing.T) {
 			opts := []Opt{
 				FromEnv,
 				WithAPIVersionNegotiation(),
-				WithMockClient(mockPingResponse(http.StatusOK, PingResult{APIVersion: tc.pingVersion})),
+				WithBaseMockClient(mockPingResponse(http.StatusOK, PingResult{APIVersion: tc.pingVersion})),
 			}
 
 			if tc.clientVersion != "" {
@@ -363,7 +363,7 @@ func TestNegotiateAPIVersionOverride(t *testing.T) {
 
 	client, err := New(
 		FromEnv,
-		WithMockClient(mockPingResponse(http.StatusOK, PingResult{APIVersion: "1.45"})),
+		WithBaseMockClient(mockPingResponse(http.StatusOK, PingResult{APIVersion: "1.45"})),
 	)
 	assert.NilError(t, err)
 
@@ -393,7 +393,7 @@ func TestNegotiateAPIVersionAutomatic(t *testing.T) {
 
 	ctx := t.Context()
 	client, err := New(
-		WithMockClient(func(req *http.Request) (*http.Response, error) {
+		WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
 			return mockPingResponse(http.StatusOK, PingResult{APIVersion: pingVersion})(req)
 		}),
 		WithAPIVersionNegotiation(),
@@ -422,7 +422,7 @@ func TestNegotiateAPIVersionAutomatic(t *testing.T) {
 func TestNegotiateAPIVersionWithEmptyVersion(t *testing.T) {
 	client, err := New(
 		WithAPIVersion(""),
-		WithMockClient(mockPingResponse(http.StatusOK, PingResult{APIVersion: "1.50"})),
+		WithBaseMockClient(mockPingResponse(http.StatusOK, PingResult{APIVersion: "1.50"})),
 	)
 	assert.NilError(t, err)
 
@@ -442,7 +442,7 @@ func TestNegotiateAPIVersionWithFixedVersion(t *testing.T) {
 	)
 	client, err := New(
 		WithAPIVersion(customVersion),
-		WithMockClient(mockPingResponse(http.StatusOK, PingResult{APIVersion: pingVersion})),
+		WithBaseMockClient(mockPingResponse(http.StatusOK, PingResult{APIVersion: pingVersion})),
 	)
 	assert.NilError(t, err)
 
