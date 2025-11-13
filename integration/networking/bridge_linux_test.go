@@ -1092,7 +1092,7 @@ func TestDisableIPv6OnInterface(t *testing.T) {
 			// There should not be an IPv6 DNS or /etc/hosts entry.
 			runRes := container.RunAttach(ctx, t, c,
 				container.WithNetworkMode(tc.netName),
-				container.WithCmd("ping", "-6", ctrName),
+				container.WithCmd("ping", "-6", "-c1", ctrName),
 			)
 			assert.Check(t, is.Equal(runRes.ExitCode, 1))
 			assert.Check(t, is.Contains(runRes.Stderr.String(), "bad address"))
