@@ -221,11 +221,6 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 	container.Lock()
 	defer container.Unlock()
 
-	// Register any links from the host config before starting the container
-	if err := daemon.registerLinks(container, hostConfig); err != nil {
-		return err
-	}
-
 	if hostConfig != nil && hostConfig.NetworkMode == "" {
 		hostConfig.NetworkMode = networktypes.NetworkDefault
 	}
