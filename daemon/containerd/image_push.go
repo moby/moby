@@ -57,7 +57,11 @@ func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named,
 		platform = &p
 	}
 	out := streamformatter.NewJSONProgressOutput(options.OutStream, false)
-	progress.Messagef(out, "", "The push refers to repository [%s]", sourceRef.Name())
+	// TODO(laurazard): we can't respond with a 401 later if we start streaming messages back here.
+	// For now, disable this message if doing client auth handling.
+	if !options.ClientAuth {
+		progress.Messagef(out, "", "The push refers to repository [%s]", sourceRef.Name())
+	}
 
 	if _, tagged := sourceRef.(reference.Tagged); !tagged {
 		if _, digested := sourceRef.(reference.Digested); !digested {
@@ -84,7 +88,7 @@ func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named,
 					continue
 				}
 
-				if err := i.pushRef(ctx, named, platform, options.MetaHeaders, options.AuthConfig, out); err != nil {
+				if err := i.pushRef(ctx, named, platform, options.MetaHeaders, options.AuthConfig, out, options.ClientAuth); err != nil {
 					return err
 				}
 			}
@@ -93,10 +97,10 @@ func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named,
 		}
 	}
 
-	return i.pushRef(ctx, sourceRef, platform, options.MetaHeaders, options.AuthConfig, out)
+	return i.pushRef(ctx, sourceRef, platform, options.MetaHeaders, options.AuthConfig, out, options.ClientAuth)
 }
 
-func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, out progress.Output) (retErr error) {
+func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, out progress.Output, clientAuth bool) (retErr error) {
 	leasedCtx, release, err := i.client.WithLease(ctx)
 	if err != nil {
 		return err
@@ -124,7 +128,7 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 	}
 
 	store := i.content
-	resolver, tracker := i.newResolverFromAuthConfig(ctx, authConfig, targetRef, metaHeaders)
+	resolver, tracker := i.newResolverFromAuthConfig(ctx, authConfig, targetRef, metaHeaders, clientAuth)
 	pp := pushProgress{Tracker: tracker}
 	jobsQueue := newJobs()
 	finishProgress := jobsQueue.showProgress(ctx, out, combinedProgress([]progressUpdater{
@@ -208,6 +212,12 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 					})
 				}
 			}
+		}
+		var authChallengeErr *ErrAuthenticationChallenge
+		if errors.As(err, &authChallengeErr) {
+			// Return immediately if the request return an auth challenge
+			// so that we can surface that to the client.
+			return authChallengeErr
 		}
 
 		if err != nil {
