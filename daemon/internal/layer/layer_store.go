@@ -531,6 +531,17 @@ func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWL
 	if err := ls.driver.CreateReadWrite(m.mountID, parentID, createOpts); err != nil {
 		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			// cleanup on failure
+			if err := ls.driver.Remove(m.mountID); err != nil {
+				log.G(context.TODO()).WithFields(log.Fields{
+					"mountID": m.mountID,
+					"error":   err,
+				}).Warnf("Removing RWlayer after failure: %v", retErr)
+			}
+		}
+	}()
 	if err := ls.saveMount(m); err != nil {
 		return nil, err
 	}
@@ -642,7 +653,7 @@ func (ls *layerStore) saveMount(mount *mountedLayer) error {
 	return nil
 }
 
-func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc MountInit, storageOpt map[string]string) (string, error) {
+func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc MountInit, storageOpt map[string]string) (_ string, retErr error) {
 	// Use "<graph-id>-init" to maintain compatibility with graph drivers
 	// which are expecting this layer with this special name. If all
 	// graph drivers can be updated to not rely on knowing about this layer
@@ -657,6 +668,17 @@ func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc Mou
 	if err := ls.driver.CreateReadWrite(initID, parent, createOpts); err != nil {
 		return "", err
 	}
+	defer func() {
+		if retErr != nil {
+			// cleanup on failure
+			if err := ls.driver.Remove(initID); err != nil {
+				log.G(context.TODO()).WithFields(log.Fields{
+					"initID": initID,
+					"error":  err,
+				}).Warnf("Removing RWlayer after failure: %v", retErr)
+			}
+		}
+	}()
 	p, err := ls.driver.Get(initID, "")
 	if err != nil {
 		return "", err
