@@ -1618,10 +1618,11 @@ func (daemon *Daemon) setupSeccompProfile(cfg *config.Config) error {
 
 func getSysInfo(cfg *config.Config) *sysinfo.SysInfo {
 	var siOpts []sysinfo.Opt
-	if cgroupDriver(cfg) == cgroupSystemdDriver {
-		if euid := os.Getenv("ROOTLESSKIT_PARENT_EUID"); euid != "" {
-			siOpts = append(siOpts, sysinfo.WithCgroup2GroupPath("/user.slice/user-"+euid+".slice"))
-		}
+	if euid := os.Getenv("ROOTLESSKIT_PARENT_EUID"); cgroupDriver(cfg) == cgroupSystemdDriver && euid != "" {
+		siOpts = append(siOpts, sysinfo.WithCgroup2GroupPath("/user.slice/user-"+euid+".slice"))
+	} else {
+		// Use container cgroup parent for effective capabilities detection
+		siOpts = append(siOpts, sysinfo.WithCgroup2GroupPath(getCgroupParent(cfg)))
 	}
 	return sysinfo.New(siOpts...)
 }
@@ -1677,4 +1678,19 @@ func createCGroup2Root(ctx context.Context, daemonConfiguration *config.Config) 
 			log.G(ctx).Errorf("Error activating controllers on cgroup v2 %s: %s", cGroup2Parent, err)
 		}
 	}
+}
+
+// Returns the cgroup parent cgroup
+func getCgroupParent(config *config.Config) string {
+	parent := "/docker"
+	if UsingSystemd(config) {
+		parent = "system.slice"
+		if config.Rootless {
+			parent = "user.slice"
+		}
+	}
+	if config.CgroupParent != "" {
+		parent = config.CgroupParent
+	}
+	return parent
 }
