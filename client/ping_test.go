@@ -76,6 +76,7 @@ func TestPingSuccess(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(true, ping.Experimental))
 	assert.Check(t, is.Equal("awesome", ping.APIVersion))
+	assert.Check(t, is.Equal(MaxAPIVersion, client.version))
 	assert.Check(t, is.Equal(SwarmStatus{NodeState: "active", ControlAvailable: true}, *ping.SwarmStatus))
 }
 
