@@ -254,7 +254,7 @@ func TestNegotiateAPIVersionEmpty(t *testing.T) {
 
 	// if no version from server, expect the earliest
 	// version before APIVersion was implemented
-	const expected = fallbackAPIVersion
+	const expected = MinAPIVersion
 
 	client, err := New(FromEnv,
 		WithAPIVersionNegotiation(),
@@ -306,7 +306,7 @@ func TestNegotiateAPIVersion(t *testing.T) {
 			// a version.
 			doc:             "downgrade legacy",
 			pingVersion:     "",
-			expectedVersion: fallbackAPIVersion,
+			expectedVersion: MinAPIVersion,
 		},
 		{
 			// client should not downgrade to the version reported by the daemon
@@ -314,7 +314,7 @@ func TestNegotiateAPIVersion(t *testing.T) {
 			doc:             "no downgrade old",
 			pingVersion:     "1.19",
 			expectedVersion: MaxAPIVersion,
-			expectedErr:     "API version 1.19 is not supported by this client: the minimum supported API version is " + fallbackAPIVersion,
+			expectedErr:     "API version 1.19 is not supported by this client: the minimum supported API version is " + MinAPIVersion,
 		},
 		{
 			// client should not upgrade to a newer version if a version was set,
