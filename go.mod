@@ -101,6 +101,7 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.61.0
 	go.opentelemetry.io/contrib/processors/baggagecopy v0.4.0
 	go.opentelemetry.io/otel v1.38.0
+	go.opentelemetry.io/otel/bridge/opencensus v1.38.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.38.0
 	go.opentelemetry.io/otel/sdk v1.38.0
 	go.opentelemetry.io/otel/trace v1.38.0
