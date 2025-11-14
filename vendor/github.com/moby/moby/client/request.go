@@ -110,9 +110,6 @@ func (cli *Client) buildRequest(ctx context.Context, method, path string, body i
 		req.Host = DummyHost
 	}
 
-	if body != nil && req.Header.Get("Content-Type") == "" {
-		req.Header.Set("Content-Type", "text/plain")
-	}
 	return req, nil
 }
 
