@@ -110,10 +110,9 @@ const DummyHost = "api.moby.localhost"
 // This version may be lower than the version of the api library module used.
 const MaxAPIVersion = "1.52"
 
-// fallbackAPIVersion is the version to fall back to if API-version negotiation
-// fails. API versions below this version are not supported by the client,
-// and not considered when negotiating.
-const fallbackAPIVersion = "1.44"
+// MinAPIVersion is the minimum API version supported by the client. API versions
+// below this version are not considered when performing API-version negotiation.
+const MinAPIVersion = "1.44"
 
 // Ensure that Client always implements APIClient.
 var _ APIClient = &Client{}
@@ -312,9 +311,9 @@ func (cli *Client) negotiateAPIVersion(pingVersion string) error {
 	pingVersion = strings.TrimPrefix(pingVersion, "v")
 	if pingVersion == "" {
 		// TODO(thaJeztah): consider returning an error on empty value or not falling back; see https://github.com/moby/moby/pull/51119#discussion_r2413148487
-		pingVersion = fallbackAPIVersion
-	} else if versions.LessThan(pingVersion, fallbackAPIVersion) {
-		return cerrdefs.ErrInvalidArgument.WithMessage(fmt.Sprintf("API version %s is not supported by this client: the minimum supported API version is %s", pingVersion, fallbackAPIVersion))
+		pingVersion = MinAPIVersion
+	} else if versions.LessThan(pingVersion, MinAPIVersion) {
+		return cerrdefs.ErrInvalidArgument.WithMessage(fmt.Sprintf("API version %s is not supported by this client: the minimum supported API version is %s", pingVersion, MinAPIVersion))
 	}
 
 	// if the client is not initialized with a version, start with the latest supported version
