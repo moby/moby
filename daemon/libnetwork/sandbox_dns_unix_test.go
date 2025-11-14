@@ -14,12 +14,17 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func getResolvConfOptions(t *testing.T, rcPath string) []string {
+func getResolvConf(t *testing.T, rcPath string) resolvconf.ResolvConf {
 	t.Helper()
 	resolv, err := os.ReadFile(rcPath)
 	assert.NilError(t, err)
 	rc, err := resolvconf.Parse(bytes.NewBuffer(resolv), "")
 	assert.NilError(t, err)
+	return rc
+}
+
+func getResolvConfOptions(t *testing.T, rcPath string) []string {
+	rc := getResolvConf(t, rcPath)
 	return rc.Options()
 }
 
@@ -89,4 +94,70 @@ func TestDNSOptions(t *testing.T) {
 	assert.NilError(t, err)
 	dnsOptionsList = getResolvConfOptions(t, sb2.config.resolvConfPath)
 	assert.Check(t, is.DeepEqual([]string{"ndots:0"}, dnsOptionsList))
+}
+
+func TestNonHostNetDNSRestart(t *testing.T) {
+	c, err := New(context.Background(), config.OptionDataDir(t.TempDir()))
+	assert.NilError(t, err)
+
+	// Step 1: Create initial sandbox (simulating first container start)
+	sb, err := c.NewSandbox(context.Background(), "cnt1")
+	assert.NilError(t, err)
+
+	sb.startResolver(false)
+
+	err = sb.setupDNS()
+	assert.NilError(t, err)
+	err = sb.rebuildDNS()
+	assert.NilError(t, err)
+
+	// Step 2: Simulate cri-dockerd modifying the resolv.conf for a Kubernetes pause container.
+	// This mimics the behavior where external tools (like cri-dockerd) customize DNS
+	// settings for K8s pods, which should be preserved during container restart/unpause.
+	resolvConfPath := sb.config.resolvConfPath
+	modifiedContent := []byte(`nameserver 10.96.0.10
+search default.svc.cluster.local. svc.cluster.local. cluster.local.
+options ndots:5
+`)
+	err = os.WriteFile(resolvConfPath, modifiedContent, 0644)
+	assert.NilError(t, err)
+
+	// Step 3: Delete the sandbox (simulating container stop)
+	err = sb.Delete(context.Background())
+	assert.NilError(t, err)
+
+	// Step 4: Create a new sandbox with OptionRestartOperate (simulating container restart)
+	sbRestart, err := c.NewSandbox(context.Background(), "cnt1",
+		OptionCreateByRestart(),
+		OptionResolvConfPath(resolvConfPath),
+	)
+	assert.NilError(t, err)
+	defer func() {
+		if err := sbRestart.Delete(context.Background()); err != nil {
+			t.Error(err)
+		}
+	}()
+
+	sbRestart.startResolver(false)
+
+	// Step 5: Call setupDNS on restart - should preserve external modifications
+	err = sbRestart.setupDNS()
+	assert.NilError(t, err)
+
+	// Verify that the DNS settings modified by cri-dockerd are preserved
+	rc := getResolvConf(t, sbRestart.config.resolvConfPath)
+	assert.Check(t, is.Len(rc.Options(), 1))
+	assert.Check(t, is.Equal("10.96.0.10", rc.NameServers()[0].String()))
+	assert.Check(t, is.DeepEqual([]string{"default.svc.cluster.local.", "svc.cluster.local.", "cluster.local."}, rc.Search()))
+	assert.Check(t, is.Equal("ndots:5", rc.Options()[0]))
+
+	err = sbRestart.rebuildDNS()
+	assert.NilError(t, err)
+
+	rc = getResolvConf(t, sbRestart.config.resolvConfPath)
+	assert.Check(t, is.Len(rc.Options(), 1))
+	assert.Check(t, is.Equal("10.96.0.10", rc.NameServers()[0].String()))
+	assert.Check(t, is.DeepEqual([]string{"default.svc.cluster.local.", "svc.cluster.local.", "cluster.local."}, rc.Search()))
+	assert.Check(t, is.Equal("ndots:5", rc.Options()[0]))
+
 }
