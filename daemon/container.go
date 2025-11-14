@@ -221,9 +221,6 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 	container.Lock()
 	defer container.Unlock()
 
-	if hostConfig != nil && hostConfig.NetworkMode == "" {
-		hostConfig.NetworkMode = networktypes.NetworkDefault
-	}
 	container.HostConfig = hostConfig
 	return nil
 }
