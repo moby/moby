@@ -205,10 +205,10 @@ func (daemon *Daemon) GetDependentContainers(c *container.Container) []*containe
 	return append(dependentContainers, slices.Collect(maps.Values(daemon.linkIndex.children(c)))...)
 }
 
-func (daemon *Daemon) setSecurityOptions(cfg *config.Config, container *container.Container, hostConfig *containertypes.HostConfig) error {
+func (daemon *Daemon) setSecurityOptions(cfg *config.Config, container *container.Container) error {
 	container.Lock()
 	defer container.Unlock()
-	return daemon.parseSecurityOpt(cfg, &container.SecurityOptions, hostConfig)
+	return daemon.parseSecurityOpt(cfg, &container.SecurityOptions, container.HostConfig)
 }
 
 // verifyContainerSettings performs validation of the hostconfig and config
