@@ -16,6 +16,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/libnetwork/discoverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/overlay/overlayutils"
 	"github.com/moby/moby/v2/daemon/libnetwork/iptables"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
@@ -449,7 +450,14 @@ func buildAeadAlgo(k *key, s int) *netlink.XfrmStateAlgo {
 	}
 }
 
-func (d *driver) setKeys(keys []*key) error {
+func (d *driver) setKeys(ctx context.Context, encrData discoverapi.DriverEncryptionConfig) error {
+	keys := make([]*key, 0, len(encrData.Keys))
+	for i := 0; i < len(encrData.Keys); i++ {
+		keys = append(keys, &key{
+			value: encrData.Keys[i],
+			tag:   uint32(encrData.Tags[i]),
+		})
+	}
 	d.encrMu.Lock()
 	defer d.encrMu.Unlock()
 
@@ -458,19 +466,47 @@ func (d *driver) setKeys(keys []*key) error {
 	// Accept the encryption keys and clear any stale encryption map
 	d.secMap = encrMap{}
 	d.keys = keys
-	log.G(context.TODO()).Debugf("Initial encryption keys: %v", keys)
+
+	log.G(ctx).WithFields(log.Fields{
+		"driver": "overlay",
+		"keys":   d.keys,
+	}).Debug("Set initial encryption keys")
 	return nil
 }
 
 // updateKeys allows to add a new key and/or change the primary key and/or prune an existing key
 // The primary key is the key used in transmission and will go in first position in the list.
-func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
+func (d *driver) updateKeys(ctx context.Context, encrData discoverapi.DriverEncryptionUpdate) error {
+	var newKey, primaryKey, pruneKey *key
+	if encrData.Key != nil {
+		newKey = &key{
+			value: encrData.Key,
+			tag:   uint32(encrData.Tag),
+		}
+	}
+	if encrData.Primary != nil {
+		primaryKey = &key{
+			value: encrData.Primary,
+			tag:   uint32(encrData.PrimaryTag),
+		}
+	}
+	if encrData.Prune != nil {
+		pruneKey = &key{
+			value: encrData.Prune,
+			tag:   uint32(encrData.PruneTag),
+		}
+	}
+
 	d.encrMu.Lock()
 	defer d.encrMu.Unlock()
 
-	log.G(context.TODO()).Debugf("Updating Keys. New: %v, Primary: %v, Pruned: %v", newKey, primary, pruneKey)
-
-	log.G(context.TODO()).Debugf("Current: %v", d.keys)
+	log.G(ctx).WithFields(log.Fields{
+		"driver":  "overlay",
+		"current": d.keys,
+		"new":     newKey,
+		"primary": primaryKey,
+		"prune":   pruneKey,
+	}).Debug("Updating encryption keys")
 
 	var (
 		newIdx = -1
@@ -486,7 +522,7 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 		newIdx += len(d.keys)
 	}
 	for i, k := range d.keys {
-		if primary != nil && k.tag == primary.tag {
+		if primaryKey != nil && k.tag == primaryKey.tag {
 			priIdx = i
 		}
 		if pruneKey != nil && k.tag == pruneKey.tag {
@@ -495,7 +531,7 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 	}
 
 	if (newKey != nil && newIdx == -1) ||
-		(primary != nil && priIdx == -1) ||
+		(primaryKey != nil && priIdx == -1) ||
 		(pruneKey != nil && delIdx == -1) {
 		return types.InvalidParameterErrorf("cannot find proper key indices while processing key update:"+
 			"(newIdx,priIdx,delIdx):(%d, %d, %d)", newIdx, priIdx, delIdx)
@@ -524,8 +560,10 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 		d.keys = append(d.keys[:delIdx], d.keys[delIdx+1:]...)
 	}
 
-	log.G(context.TODO()).Debugf("Updated: %v", d.keys)
-
+	log.G(ctx).WithFields(log.Fields{
+		"driver": "overlay",
+		"keys":   d.keys,
+	}).Debug("Updated encryption keys")
 	return nil
 }
 

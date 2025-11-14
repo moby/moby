@@ -109,7 +109,7 @@ func resolveAddr(addrOrInterface string) (net.IP, error) {
 	return addr.IP, nil
 }
 
-func (c *Controller) handleKeyChange(keys []*types.EncryptionKey) error {
+func (c *Controller) handleKeyChange(encryptionKeys []*types.EncryptionKey) error {
 	drvEnc := discoverapi.DriverEncryptionUpdate{}
 
 	agent := c.getAgent()
@@ -126,7 +126,7 @@ func (c *Controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	j := len(c.keys)
 	for i := 0; i < j; {
 		same := false
-		for _, key := range keys {
+		for _, key := range encryptionKeys {
 			if same = key.LamportTime == c.keys[i].LamportTime; same {
 				break
 			}
@@ -150,7 +150,7 @@ func (c *Controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	c.keys = c.keys[:j]
 
 	// Find the new key and add it to the key ring
-	for _, key := range keys {
+	for _, key := range encryptionKeys {
 		same := false
 		for _, cKey := range c.keys {
 			if same = cKey.LamportTime == key.LamportTime; same {
@@ -198,16 +198,23 @@ func (c *Controller) handleKeyChange(keys []*types.EncryptionKey) error {
 			return false
 		}
 		if err := dr.DiscoverNew(discoverapi.EncryptionKeysUpdate, drvEnc); err != nil {
-			log.G(context.TODO()).Warnf("Failed to update datapath keys in driver %s: %v", name, err)
+			log.G(context.TODO()).WithFields(log.Fields{
+				"error":  err,
+				"driver": name,
+			}).Warn("Failed to update datapath keys; resetting datapath keys")
 			// Attempt to reconfigure keys in case of a update failure
 			// which can arise due to a mismatch of keys
 			// if worker nodes get temporarily disconnected
-			log.G(context.TODO()).Warnf("Reconfiguring datapath keys for  %s", name)
-			drvCfgEnc := discoverapi.DriverEncryptionConfig{}
-			drvCfgEnc.Keys, drvCfgEnc.Tags = c.getKeys(subsysIPSec)
-			err = dr.DiscoverNew(discoverapi.EncryptionKeysConfig, drvCfgEnc)
+			keys, tags := c.getKeys(subsysIPSec)
+			err = dr.DiscoverNew(discoverapi.EncryptionKeysConfig, discoverapi.DriverEncryptionConfig{
+				Keys: keys,
+				Tags: tags,
+			})
 			if err != nil {
-				log.G(context.TODO()).Warnf("Failed to reset datapath keys in driver %s: %v", name, err)
+				log.G(context.TODO()).WithFields(log.Fields{
+					"error":  err,
+					"driver": name,
+				}).Warn("Failed to reset datapath keys")
 			}
 		}
 		return false
