@@ -437,19 +437,28 @@ func TestNegotiateAPIVersionWithEmptyVersion(t *testing.T) {
 // TestNegotiateAPIVersionWithFixedVersion asserts that initializing a client
 // with a fixed version disables API-version negotiation
 func TestNegotiateAPIVersionWithFixedVersion(t *testing.T) {
-	const customVersion = "1.50"
+	const (
+		customVersion = "1.50"
+		pingVersion   = "1.49"
+	)
 	client, err := New(
 		WithAPIVersion(customVersion),
-		WithMockClient(mockResponse(http.StatusOK, http.Header{"Api-Version": []string{"1.49"}}, "OK")),
+		WithMockClient(mockResponse(http.StatusOK, http.Header{"Api-Version": []string{pingVersion}}, "OK")),
 	)
 	assert.NilError(t, err)
+
+	_, err = client.Ping(t.Context(), PingOptions{
+		NegotiateAPIVersion: true,
+	})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(client.ClientVersion(), customVersion))
 
 	_, err = client.Ping(t.Context(), PingOptions{
 		NegotiateAPIVersion: true,
 		ForceNegotiate:      true,
 	})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(client.ClientVersion(), customVersion))
+	assert.Check(t, is.Equal(client.ClientVersion(), pingVersion))
 }
 
 func TestClientRedirect(t *testing.T) {

@@ -29,9 +29,8 @@ type PingOptions struct {
 	NegotiateAPIVersion bool
 
 	// ForceNegotiate forces the client to re-negotiate the API version, even if
-	// API-version negotiation already happened. This option cannot be
-	// used if the client is configured with a fixed version using (using
-	// [WithAPIVersion] or [WithAPIVersionFromEnv]).
+	// API-version negotiation already happened or it the client is configured
+	// with a fixed version (using [WithAPIVersion] or [WithAPIVersionFromEnv]).
 	//
 	// This option has no effect if NegotiateAPIVersion is not set.
 	ForceNegotiate bool
@@ -72,7 +71,8 @@ type SwarmStatus struct {
 // for other non-success status codes, failing to connect to the API, or failing
 // to parse the API response.
 func (cli *Client) Ping(ctx context.Context, options PingOptions) (PingResult, error) {
-	if cli.manualOverride {
+	if (cli.manualOverride || cli.negotiated.Load()) && !options.ForceNegotiate {
+		// API version was already negotiated or manually set.
 		return cli.ping(ctx)
 	}
 	if !options.NegotiateAPIVersion && !cli.negotiateVersion {
