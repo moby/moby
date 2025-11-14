@@ -221,7 +221,7 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 		}
 	}()
 
-	if err := daemon.setSecurityOptions(daemonCfg, ctr, opts.params.HostConfig); err != nil {
+	if err := daemon.setSecurityOptions(daemonCfg, ctr); err != nil {
 		return nil, err
 	}
 
