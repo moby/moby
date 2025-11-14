@@ -7,7 +7,6 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
-	"strings"
 	"testing"
 	"time"
 
@@ -266,26 +265,25 @@ func TestPrepareJSONRequest(t *testing.T) {
 		body       any
 		headers    http.Header
 		expBody    string
-		expNilBody bool
 		expHeaders http.Header
 	}{
 		{
-			doc:        "nil body",
-			body:       nil,
-			headers:    http.Header{"Something": []string{"something"}},
-			expNilBody: true,
+			doc:     "nil body",
+			body:    nil,
+			headers: http.Header{"Something": []string{"something"}},
+			expBody: "",
 			expHeaders: http.Header{
-				// currently, no content-type is set on empty requests.
+				// no content-type is set on empty requests.
 				"Something": []string{"something"},
 			},
 		},
 		{
-			doc:        "nil interface body",
-			body:       (*struct{})(nil),
-			headers:    http.Header{"Something": []string{"something"}},
-			expNilBody: true,
+			doc:     "nil interface body",
+			body:    (*struct{})(nil),
+			headers: http.Header{"Something": []string{"something"}},
+			expBody: "",
 			expHeaders: http.Header{
-				// currently, no content-type is set on empty requests.
+				// no content-type is set on empty requests.
 				"Something": []string{"something"},
 			},
 		},
@@ -308,12 +306,16 @@ func TestPrepareJSONRequest(t *testing.T) {
 			},
 		},
 		{
-			doc:     "empty body",
-			body:    http.NoBody,
-			expBody: `{}`,
-			expHeaders: http.Header{
-				"Content-Type": []string{"application/json"},
-			},
+			doc:        "empty json raw message",
+			body:       json.RawMessage(""),
+			expBody:    "",
+			expHeaders: nil, // no content-type is set on empty requests.
+		},
+		{
+			doc:        "empty body",
+			body:       http.NoBody,
+			expBody:    "",
+			expHeaders: nil, // no content-type is set on empty requests.
 		},
 	}
 
@@ -322,16 +324,9 @@ func TestPrepareJSONRequest(t *testing.T) {
 			req, hdr, err := prepareJSONRequest(tc.body, tc.headers)
 			assert.NilError(t, err)
 
-			var body string
-			if tc.expNilBody {
-				assert.Check(t, is.Nil(req))
-			} else {
-				assert.Assert(t, req != nil)
-
-				resp, err := io.ReadAll(req)
-				assert.NilError(t, err)
-				body = strings.TrimSpace(string(resp))
-			}
+			resp, err := io.ReadAll(req)
+			assert.NilError(t, err)
+			body := string(resp)
 
 			assert.Check(t, is.Equal(body, tc.expBody))
 			assert.Check(t, is.DeepEqual(hdr, tc.expHeaders))
