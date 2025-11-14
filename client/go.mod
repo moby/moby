@@ -7,7 +7,7 @@ require (
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/errdefs/pkg v0.3.0
 	github.com/distribution/reference v0.6.0
-	github.com/docker/go-connections v0.6.0
+	github.com/docker/go-connections v0.6.1-0.20250815123248-c296721c0d56 // main
 	github.com/docker/go-units v0.5.0
 	github.com/google/go-cmp v0.7.0
 	github.com/moby/moby/api v1.52.0
