@@ -85,7 +85,7 @@ func (cli *Client) Ping(ctx context.Context, options PingOptions) (PingResult, e
 
 	ping, err := cli.ping(ctx)
 	if err != nil {
-		return cli.ping(ctx)
+		return ping, err
 	}
 
 	if cli.negotiated.Load() && !options.ForceNegotiate {
