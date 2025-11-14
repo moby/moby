@@ -19,6 +19,7 @@ package sctp
 import (
 	"errors"
 	"net"
+	"os"
 	"runtime"
 	"syscall"
 )
@@ -70,6 +71,10 @@ func ListenSCTPExt(net string, laddr *SCTPAddr, options InitMsg) (*SCTPListener,
 }
 
 func listenSCTPExtConfig(network string, laddr *SCTPAddr, options InitMsg, control func(network string, address string, c syscall.RawConn) error, handler NotificationHandler) (*SCTPListener, error) {
+	return nil, ErrUnsupported
+}
+
+func FileListener(file *os.File) (*SCTPListener, error) {
 	return nil, ErrUnsupported
 }
 
