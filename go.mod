@@ -52,7 +52,7 @@ require (
 	github.com/hashicorp/memberlist v0.4.0
 	github.com/hashicorp/serf v0.8.5
 	github.com/in-toto/in-toto-golang v0.9.0
-	github.com/ishidawataru/sctp v0.0.0-20250829011129-4b890084db30
+	github.com/ishidawataru/sctp v0.0.0-20251114114122-19ddcbc6aae2
 	github.com/miekg/dns v1.1.66
 	github.com/mistifyio/go-zfs/v3 v3.0.1
 	github.com/mitchellh/copystructure v1.2.0
