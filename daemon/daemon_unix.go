@@ -1504,12 +1504,12 @@ func getUnmountOnShutdownPath(config *config.Config) string {
 
 // registerLinks registers network links between container and other containers
 // with the daemon using the specification in hostConfig.
-func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *containertypes.HostConfig) error {
-	if hostConfig == nil || hostConfig.NetworkMode.IsUserDefined() {
+func (daemon *Daemon) registerLinks(ctr *container.Container) error {
+	if ctr.HostConfig == nil || ctr.HostConfig.NetworkMode.IsUserDefined() {
 		return nil
 	}
 
-	for _, l := range hostConfig.Links {
+	for _, l := range ctr.HostConfig.Links {
 		name, alias, err := opts.ParseLink(l)
 		if err != nil {
 			return err
@@ -1542,7 +1542,7 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 		if child.HostConfig.NetworkMode.IsHost() {
 			return cerrdefs.ErrInvalidArgument.WithMessage("conflicting options: host type networking can't be used with links. This would result in undefined behavior")
 		}
-		if err := daemon.registerLink(container, child, alias); err != nil {
+		if err := daemon.registerLink(ctr, child, alias); err != nil {
 			return err
 		}
 	}

@@ -247,7 +247,9 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	if err := daemon.setHostConfig(ctr, opts.params.HostConfig, opts.params.DefaultReadOnlyNonRecursive); err != nil {
 		return nil, err
 	}
-
+	if err := daemon.registerLinks(ctr); err != nil {
+		return nil, err
+	}
 	if err := daemon.createContainerOSSpecificSettings(ctx, ctr, opts.params.Config, opts.params.HostConfig); err != nil {
 		return nil, err
 	}
