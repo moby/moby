@@ -48,14 +48,14 @@ func (c imageStoreChoice) IsExplicit() bool {
 	}
 }
 
-// chooseDriver determines the storage driver name based on environment variables,
+// getDriverOverride determines the storage driver name based on environment variables,
 // configuration, and platform-specific logic.
 // On Windows we don't support the environment variable, or a user supplied graphdriver,
 // but it is allowed when using snapshotters.
 // Unix platforms however run a single graphdriver for all containers, and it can
 // be set through an environment variable, a daemon start parameter, or chosen through
 // initialization of the layerstore through driver priority order for example.
-func chooseDriver(ctx context.Context, cfgGraphDriver string, imgStoreChoice imageStoreChoice) string {
+func getDriverOverride(ctx context.Context, cfgGraphDriver string, imgStoreChoice imageStoreChoice) string {
 	driverName := os.Getenv("DOCKER_DRIVER")
 	if driverName == "" {
 		driverName = cfgGraphDriver
@@ -85,9 +85,25 @@ func chooseDriver(ctx context.Context, cfgGraphDriver string, imgStoreChoice ima
 	return driverName
 }
 
-func determineImageStoreChoice(cfgStore *config.Config) (imageStoreChoice, error) {
+type determineImageStoreChoiceOptions struct {
+	hasPriorDriver          func(root string) bool
+	isRegisteredGraphdriver func(driverName string) bool
+	runtimeOS               string
+}
+
+func determineImageStoreChoice(cfgStore *config.Config, opts determineImageStoreChoiceOptions) (imageStoreChoice, error) {
+	if opts.hasPriorDriver == nil {
+		opts.hasPriorDriver = graphdriver.HasPriorDriver
+	}
+	if opts.isRegisteredGraphdriver == nil {
+		opts.isRegisteredGraphdriver = graphdriver.IsRegistered
+	}
+	if opts.runtimeOS == "" {
+		opts.runtimeOS = runtime.GOOS
+	}
+
 	out := imageStoreChoiceContainerd
-	if runtime.GOOS == "windows" {
+	if opts.runtimeOS == "windows" {
 		out = imageStoreChoiceGraphdriver
 	}
 
@@ -111,43 +127,26 @@ func determineImageStoreChoice(cfgStore *config.Config) (imageStoreChoice, error
 		out = imageStoreChoiceGraphdriverExplicit
 	}
 
+	if out == imageStoreChoiceContainerd {
+		if opts.hasPriorDriver(cfgStore.Root) {
+			return imageStoreChoiceGraphdriverPrior, nil
+		}
+	}
+
 	if driverName != "" {
-		if !out.IsExplicit() {
-			switch driverName {
-			case "vfs", "overlay2":
-				out = imageStoreChoiceGraphdriverExplicit
-			case "btrfs":
-				// The btrfs driver is not heavily used in containerd and has no
-				// advantage over overlayfs anymore since overlay works fine.
-				// If btrfs is explicitly chosen, the user most likely means graphdrivers.
-				out = imageStoreChoiceGraphdriverExplicit
-			}
+		if !out.IsExplicit() && opts.isRegisteredGraphdriver(driverName) {
+			return imageStoreChoiceGraphdriverExplicit, nil
 		}
 		if out.IsGraphDriver() {
-			if graphdriver.IsRegistered(driverName) {
+			if opts.isRegisteredGraphdriver(driverName) {
 				return imageStoreChoiceGraphdriverExplicit, nil
-			} else {
+			} else if out.IsExplicit() {
 				return imageStoreChoiceGraphdriverExplicit, fmt.Errorf("graphdriver is explicitly enabled but %q is not registered, %v %v", driverName, cfgStore.Features, os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER"))
-			}
-		}
-
-		if runtime.GOOS == "windows" && !out.IsExplicit() {
-			switch driverName {
-			case "windows":
-				return imageStoreChoiceContainerdExplicit, nil
-			case "windowsfilter":
-				return imageStoreChoiceGraphdriverExplicit, nil
 			}
 		}
 
 		// Assume snapshotter is chosen
 		return imageStoreChoiceContainerdExplicit, nil
-	}
-
-	if out == imageStoreChoiceContainerd {
-		if graphdriver.HasPriorDriver(cfgStore.Root) {
-			return imageStoreChoiceGraphdriverPrior, nil
-		}
 	}
 
 	return out, nil
