@@ -211,6 +211,12 @@ func New(ops ...Opt) (*Client, error) {
 		}
 	}
 
+	if cfg.envAPIVersion != "" {
+		cfg.version = cfg.envAPIVersion
+	} else if cfg.manualAPIVersion != "" {
+		cfg.version = cfg.manualAPIVersion
+	}
+
 	if tr, ok := c.client.Transport.(*http.Transport); ok {
 		// Store the base transport before we wrap it in tracing libs below
 		// This is used, as an example, to close idle connections when the client is closed
@@ -314,6 +320,12 @@ func (cli *Client) negotiateAPIVersion(pingVersion string) error {
 		pingVersion = MinAPIVersion
 	} else if versions.LessThan(pingVersion, MinAPIVersion) {
 		return cerrdefs.ErrInvalidArgument.WithMessage(fmt.Sprintf("API version %s is not supported by this client: the minimum supported API version is %s", pingVersion, MinAPIVersion))
+	}
+
+	var err error
+	pingVersion, err = parseAPIVersion(pingVersion)
+	if err != nil {
+		return err
 	}
 
 	// if the client is not initialized with a version, start with the latest supported version

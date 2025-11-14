@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -30,6 +31,47 @@ func trimID(objType, id string) (string, error) {
 		return "", emptyIDError(objType)
 	}
 	return id, nil
+}
+
+// parseAPIVersion checks v to be a well-formed ("<major>.<minor>")
+// API version. It returns an error if the value is empty or does not
+// have the correct format, but does not validate if the API version is
+// within the supported range ([MinAPIVersion] <= v <= [MaxAPIVersion]).
+//
+// It returns version after normalizing, or an error if validation failed.
+func parseAPIVersion(version string) (string, error) {
+	if strings.TrimPrefix(strings.TrimSpace(version), "v") == "" {
+		return "", cerrdefs.ErrInvalidArgument.WithMessage("value is empty")
+	}
+	major, minor, err := parseMajorMinor(version)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%d.%d", major, minor), nil
+}
+
+// parseMajorMinor is a helper for parseAPIVersion.
+func parseMajorMinor(v string) (major, minor int, _ error) {
+	if strings.HasPrefix(v, "v") {
+		return 0, 0, cerrdefs.ErrInvalidArgument.WithMessage("must be formatted <major>.<minor>")
+	}
+	if strings.TrimSpace(v) == "" {
+		return 0, 0, cerrdefs.ErrInvalidArgument.WithMessage("value is empty")
+	}
+
+	majVer, minVer, ok := strings.Cut(v, ".")
+	if !ok {
+		return 0, 0, cerrdefs.ErrInvalidArgument.WithMessage("must be formatted <major>.<minor>")
+	}
+	major, err := strconv.Atoi(majVer)
+	if err != nil {
+		return 0, 0, cerrdefs.ErrInvalidArgument.WithMessage("invalid major version: must be formatted <major>.<minor>")
+	}
+	minor, err = strconv.Atoi(minVer)
+	if err != nil {
+		return 0, 0, cerrdefs.ErrInvalidArgument.WithMessage("invalid minor version: must be formatted <major>.<minor>")
+	}
+	return major, minor, nil
 }
 
 // encodePlatforms marshals the given platform(s) to JSON format, to

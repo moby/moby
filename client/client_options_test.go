@@ -3,6 +3,7 @@ package client
 import (
 	"net/http"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -44,20 +45,252 @@ func TestOptionWithTimeout(t *testing.T) {
 	assert.Check(t, is.Equal(c.client.Timeout, timeout))
 }
 
-func TestOptionAPIWithVersionFromEnv(t *testing.T) {
-	c, err := New(WithAPIVersionFromEnv())
-	assert.NilError(t, err)
-	assert.Check(t, c.client != nil)
-	assert.Check(t, is.Equal(c.version, MaxAPIVersion))
-	assert.Check(t, is.Equal(c.manualOverride, false))
+func TestOptionWithAPIVersion(t *testing.T) {
+	tests := []struct {
+		doc      string
+		version  string
+		expected string
+		expError string
+	}{
+		{
+			doc:      "empty version",
+			version:  "",
+			expected: MaxAPIVersion,
+		},
+		{
+			doc:      "custom lower version with whitespace, no v-prefix",
+			version:  "   1.50   ",
+			expected: "1.50",
+		},
+		{
+			// We currently allow downgrading the client to an unsupported lower version for testing.
+			doc:      "downgrade unsupported version, no v-prefix",
+			version:  "1.0",
+			expected: "1.0",
+		},
+		{
+			doc:      "custom lower version, no v-prefix",
+			version:  "1.50",
+			expected: "1.50",
+		},
+		{
+			// We currently allow upgrading the client to an unsupported higher version for testing.
+			doc:      "upgrade version, no v-prefix",
+			version:  "9.99",
+			expected: "9.99",
+		},
+		{
+			doc:      "empty version, with v-prefix",
+			version:  "v",
+			expected: MaxAPIVersion,
+		},
+		{
+			doc:      "whitespace, with v-prefix",
+			version:  "   v1.0   ",
+			expected: "1.0",
+		},
+		{
+			doc:      "downgrade unsupported version, with v-prefix",
+			version:  "v1.0",
+			expected: "1.0",
+		},
+		{
+			doc:      "custom lower version with whitespace and v-prefix",
+			version:  "   v1.50   ",
+			expected: "1.50",
+		},
+		{
+			doc:      "custom lower version, with v-prefix",
+			version:  "v1.50",
+			expected: "1.50",
+		},
+		{
+			doc:      "upgrade version, with v-prefix",
+			version:  "v9.99",
+			expected: "9.99",
+		},
+		{
+			doc:      "malformed version",
+			version:  "something-weird",
+			expError: "invalid API version (something-weird): must be formatted <major>.<minor>",
+		},
+		{
+			doc:      "no minor",
+			version:  "1",
+			expError: "invalid API version (1): must be formatted <major>.<minor>",
+		},
+		{
+			doc:      "too many digits",
+			version:  "1.2.3",
+			expError: "invalid API version (1.2.3): invalid minor version: must be formatted <major>.<minor>",
+		},
+		{
+			doc:      "embedded whitespace",
+			version:  "v 1.0",
+			expError: "invalid API version (v 1.0): invalid major version: must be formatted <major>.<minor>",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			client, err := New(WithAPIVersion(tc.version))
+			if tc.expError != "" {
+				assert.Check(t, is.ErrorContains(err, tc.expError))
+				assert.Check(t, client == nil)
+			} else {
+				assert.NilError(t, err)
+				assert.Check(t, client != nil)
+				assert.Check(t, is.Equal(client.ClientVersion(), tc.expected))
+				isNoOp := strings.TrimPrefix(strings.TrimSpace(tc.version), "v") == ""
+				assert.Check(t, is.Equal(client.manualOverride, !isNoOp))
+			}
+		})
+	}
+}
 
-	t.Setenv("DOCKER_API_VERSION", "2.9999")
+func TestOptionWithAPIVersionFromEnv(t *testing.T) {
+	tests := []struct {
+		doc      string
+		version  string
+		expected string
+		expError string
+	}{
+		{
+			doc:      "empty version",
+			version:  "",
+			expected: MaxAPIVersion,
+		},
+		{
+			doc:      "custom lower version with whitespace, no v-prefix",
+			version:  "   1.50   ",
+			expected: "1.50",
+		},
+		{
+			// We currently allow downgrading the client to an unsupported lower version for testing.
+			doc:      "downgrade unsupported version, no v-prefix",
+			version:  "1.0",
+			expected: "1.0",
+		},
+		{
+			doc:      "custom lower version, no v-prefix",
+			version:  "1.50",
+			expected: "1.50",
+		},
+		{
+			// We currently allow upgrading the client to an unsupported higher version for testing.
+			doc:      "upgrade version, no v-prefix",
+			version:  "9.99",
+			expected: "9.99",
+		},
+		{
+			doc:      "empty version, with v-prefix",
+			version:  "v",
+			expected: MaxAPIVersion,
+		},
+		{
+			doc:      "whitespace, with v-prefix",
+			version:  "   v1.0   ",
+			expected: "1.0",
+		},
+		{
+			doc:      "downgrade unsupported version, with v-prefix",
+			version:  "v1.0",
+			expected: "1.0",
+		},
+		{
+			doc:      "custom lower version with whitespace and v-prefix",
+			version:  "   v1.50   ",
+			expected: "1.50",
+		},
+		{
+			doc:      "custom lower version, with v-prefix",
+			version:  "v1.50",
+			expected: "1.50",
+		},
+		{
+			doc:      "upgrade version, with v-prefix",
+			version:  "v9.99",
+			expected: "9.99",
+		},
+		{
+			doc:      "malformed version",
+			version:  "something-weird",
+			expError: "invalid API version (something-weird): must be formatted <major>.<minor>",
+		},
+		{
+			doc:      "no minor",
+			version:  "1",
+			expError: "invalid API version (1): must be formatted <major>.<minor>",
+		},
+		{
+			doc:      "too many digits",
+			version:  "1.2.3",
+			expError: "invalid API version (1.2.3): invalid minor version: must be formatted <major>.<minor>",
+		},
+		{
+			doc:      "embedded whitespace",
+			version:  "v 1.0",
+			expError: "invalid API version (v 1.0): invalid major version: must be formatted <major>.<minor>",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			t.Setenv(EnvOverrideAPIVersion, tc.version)
+			client, err := New(WithAPIVersionFromEnv())
+			if tc.expError != "" {
+				assert.Check(t, is.ErrorContains(err, tc.expError))
+				assert.Check(t, client == nil)
+			} else {
+				assert.NilError(t, err)
+				assert.Check(t, client != nil)
+				assert.Check(t, is.Equal(client.ClientVersion(), tc.expected))
+				isNoOp := strings.TrimPrefix(strings.TrimSpace(tc.version), "v") == ""
+				assert.Check(t, is.Equal(client.manualOverride, !isNoOp))
+			}
+		})
+	}
+}
 
-	c, err = New(WithAPIVersionFromEnv())
-	assert.NilError(t, err)
-	assert.Check(t, c.client != nil)
-	assert.Check(t, is.Equal(c.version, "2.9999"))
-	assert.Check(t, is.Equal(c.manualOverride, true))
+// TestOptionOverridePriority validates that overriding the API version through
+// [WithAPIVersionFromEnv] takes precedence over other manual options, regardless
+// the order in which they're passed.
+func TestOptionOverridePriority(t *testing.T) {
+	t.Run("no env-var set", func(t *testing.T) {
+		client, err := New(WithAPIVersionFromEnv(), WithAPIVersion("1.50"))
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(client.ClientVersion(), "1.50"))
+		assert.Check(t, is.Equal(client.manualOverride, true))
+	})
+
+	const expected = "1.51"
+	t.Setenv(EnvOverrideAPIVersion, expected)
+
+	t.Run("WithAPIVersionFromEnv first", func(t *testing.T) {
+		client, err := New(WithAPIVersionFromEnv(), WithAPIVersion("1.50"))
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(client.ClientVersion(), expected))
+		assert.Check(t, is.Equal(client.manualOverride, true))
+	})
+
+	t.Run("WithAPIVersionFromEnv last", func(t *testing.T) {
+		client, err := New(WithAPIVersion("1.50"), WithAPIVersionFromEnv())
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(client.ClientVersion(), expected))
+		assert.Check(t, is.Equal(client.manualOverride, true))
+	})
+
+	t.Run("FromEnv first", func(t *testing.T) {
+		client, err := New(FromEnv, WithAPIVersion("1.50"))
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(client.ClientVersion(), expected))
+		assert.Check(t, is.Equal(client.manualOverride, true))
+	})
+
+	t.Run("FromEnv last", func(t *testing.T) {
+		client, err := New(WithAPIVersion("1.50"), FromEnv)
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(client.ClientVersion(), expected))
+		assert.Check(t, is.Equal(client.manualOverride, true))
+	})
 }
 
 func TestWithUserAgent(t *testing.T) {

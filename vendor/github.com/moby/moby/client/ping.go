@@ -85,10 +85,14 @@ func (cli *Client) Ping(ctx context.Context, options PingOptions) (PingResult, e
 
 	ping, err := cli.ping(ctx)
 	if err != nil {
-		return cli.ping(ctx)
+		return ping, err
 	}
 
 	if cli.negotiated.Load() && !options.ForceNegotiate {
+		// API version was already negotiated or manually set.
+		//
+		// We check cli.negotiated again under lock, to account for race
+		// conditions with the check at the start of this function.
 		return ping, nil
 	}
 
