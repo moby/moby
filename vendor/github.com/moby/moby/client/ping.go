@@ -97,6 +97,11 @@ func (cli *Client) Ping(ctx context.Context, options PingOptions) (PingResult, e
 		return ping, nil
 	}
 
+	if ping.APIVersion == "" {
+		cli.setAPIVersion(MaxAPIVersion)
+		return ping, nil
+	}
+
 	return ping, cli.negotiateAPIVersion(ping.APIVersion)
 }
 
