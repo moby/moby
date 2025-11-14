@@ -52,7 +52,7 @@ var acceptedImageFilterTags = map[string]bool{
 
 // byCreated is a temporary type used to sort a list of images by creation
 // time.
-type byCreated []*imagetypes.Summary
+type byCreated []imagetypes.Summary
 
 func (r byCreated) Len() int           { return len(r) }
 func (r byCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
@@ -62,7 +62,7 @@ func (r byCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 //
 // TODO(thaJeztah): verify behavior of `RepoDigests` and `RepoTags` for images without (untagged) or multiple tags; see https://github.com/moby/moby/issues/43861
 // TODO(thaJeztah): verify "Size" vs "VirtualSize" in images; see https://github.com/moby/moby/issues/43862
-func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions) ([]*imagetypes.Summary, error) {
+func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions) ([]imagetypes.Summary, error) {
 	if err := opts.Filters.Validate(acceptedImageFilterTags); err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 	eg.SetLimit(runtime.NumCPU() * 2)
 
 	var (
-		summaries = make([]*imagetypes.Summary, 0, len(imgs))
+		summaries = make([]imagetypes.Summary, 0, len(imgs))
 		root      []*[]digest.Digest
 		layers    map[digest.Digest]int
 	)
@@ -174,7 +174,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 				image.Manifests = nil
 			}
 			resultsMut.Lock()
-			summaries = append(summaries, image)
+			summaries = append(summaries, *image)
 
 			if opts.SharedSize {
 				root = append(root, &multiSummary.AllChainIDs)
@@ -452,11 +452,12 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		return nil, err
 	}
 
-	snapshotUsage, err := imageManifest.SnapshotUsage(ctx, i.snapshotterService(i.snapshotter))
-	if err != nil {
+	var unpackedSize int64
+	if snapshotUsage, err := imageManifest.SnapshotUsage(ctx, i.snapshotterService(i.snapshotter)); err != nil {
 		log.G(ctx).WithFields(log.Fields{"image": imageManifest.Name(), "error": err}).Warn("failed to calculate unpacked size of image")
+	} else {
+		unpackedSize = snapshotUsage.Size
 	}
-	unpackedSize := snapshotUsage.Size
 
 	contentSize, err := imageManifest.PresentContentSize(ctx)
 	if err != nil {

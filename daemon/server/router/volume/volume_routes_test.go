@@ -80,7 +80,7 @@ func TestGetVolumeByNameNotFound(t *testing.T) {
 func TestGetVolumeByNameFoundRegular(t *testing.T) {
 	v := &volumeRouter{
 		backend: &fakeVolumeBackend{
-			volumes: map[string]*volume.Volume{
+			volumes: map[string]volume.Volume{
 				"volume1": {
 					Name: "volume1",
 				},
@@ -99,7 +99,7 @@ func TestGetVolumeByNameFoundSwarm(t *testing.T) {
 		cluster: &fakeClusterBackend{
 			swarm:   true,
 			manager: true,
-			volumes: map[string]*volume.Volume{
+			volumes: map[string]volume.Volume{
 				"volume1": {
 					Name: "volume1",
 				},
@@ -114,7 +114,7 @@ func TestGetVolumeByNameFoundSwarm(t *testing.T) {
 func TestListVolumes(t *testing.T) {
 	v := &volumeRouter{
 		backend: &fakeVolumeBackend{
-			volumes: map[string]*volume.Volume{
+			volumes: map[string]volume.Volume{
 				"v1": {Name: "v1"},
 				"v2": {Name: "v2"},
 			},
@@ -122,7 +122,7 @@ func TestListVolumes(t *testing.T) {
 		cluster: &fakeClusterBackend{
 			swarm:   true,
 			manager: true,
-			volumes: map[string]*volume.Volume{
+			volumes: map[string]volume.Volume{
 				"v3": {Name: "v3"},
 				"v4": {Name: "v4"},
 			},
@@ -142,7 +142,7 @@ func TestListVolumes(t *testing.T) {
 func TestListVolumesNoSwarm(t *testing.T) {
 	v := &volumeRouter{
 		backend: &fakeVolumeBackend{
-			volumes: map[string]*volume.Volume{
+			volumes: map[string]volume.Volume{
 				"v1": {Name: "v1"},
 				"v2": {Name: "v2"},
 			},
@@ -157,7 +157,7 @@ func TestListVolumesNoSwarm(t *testing.T) {
 func TestListVolumesNoManager(t *testing.T) {
 	v := &volumeRouter{
 		backend: &fakeVolumeBackend{
-			volumes: map[string]*volume.Volume{
+			volumes: map[string]volume.Volume{
 				"v1": {Name: "v1"},
 				"v2": {Name: "v2"},
 			},
@@ -319,7 +319,7 @@ func TestUpdateVolume(t *testing.T) {
 	c := &fakeClusterBackend{
 		swarm:   true,
 		manager: true,
-		volumes: map[string]*volume.Volume{
+		volumes: map[string]volume.Volume{
 			"vol1": {
 				Name: "vo1",
 				ClusterVolume: &volume.ClusterVolume{
@@ -387,7 +387,7 @@ func TestUpdateVolumeNotFound(t *testing.T) {
 	c := &fakeClusterBackend{
 		swarm:   true,
 		manager: true,
-		volumes: map[string]*volume.Volume{},
+		volumes: map[string]volume.Volume{},
 	}
 
 	v := &volumeRouter{
@@ -416,7 +416,7 @@ func TestUpdateVolumeNotFound(t *testing.T) {
 
 func TestVolumeRemove(t *testing.T) {
 	b := &fakeVolumeBackend{
-		volumes: map[string]*volume.Volume{
+		volumes: map[string]volume.Volume{
 			"vol1": {
 				Name: "vol1",
 			},
@@ -443,7 +443,7 @@ func TestVolumeRemoveSwarm(t *testing.T) {
 	c := &fakeClusterBackend{
 		swarm:   true,
 		manager: true,
-		volumes: map[string]*volume.Volume{
+		volumes: map[string]volume.Volume{
 			"vol1": {
 				Name:          "vol1",
 				ClusterVolume: &volume.ClusterVolume{},
@@ -501,7 +501,7 @@ func TestVolumeRemoveNotFoundNoManager(t *testing.T) {
 
 func TestVolumeRemoveFoundNoSwarm(t *testing.T) {
 	b := &fakeVolumeBackend{
-		volumes: map[string]*volume.Volume{
+		volumes: map[string]volume.Volume{
 			"vol1": {
 				Name: "vol1",
 			},
@@ -525,7 +525,7 @@ func TestVolumeRemoveFoundNoSwarm(t *testing.T) {
 
 func TestVolumeRemoveNoSwarmInUse(t *testing.T) {
 	b := &fakeVolumeBackend{
-		volumes: map[string]*volume.Volume{
+		volumes: map[string]volume.Volume{
 			"inuse": {
 				Name: "inuse",
 			},
@@ -551,7 +551,7 @@ func TestVolumeRemoveSwarmForce(t *testing.T) {
 	c := &fakeClusterBackend{
 		swarm:   true,
 		manager: true,
-		volumes: map[string]*volume.Volume{
+		volumes: map[string]volume.Volume{
 			"vol1": {
 				Name:          "vol1",
 				ClusterVolume: &volume.ClusterVolume{},
@@ -586,20 +586,20 @@ func TestVolumeRemoveSwarmForce(t *testing.T) {
 }
 
 type fakeVolumeBackend struct {
-	volumes map[string]*volume.Volume
+	volumes map[string]volume.Volume
 }
 
 func (b *fakeVolumeBackend) List(_ context.Context, _ filters.Args) ([]volume.Volume, []string, error) {
 	var volumes []volume.Volume
 	for _, v := range b.volumes {
-		volumes = append(volumes, *v)
+		volumes = append(volumes, v)
 	}
 	return volumes, nil, nil
 }
 
 func (b *fakeVolumeBackend) Get(_ context.Context, name string, _ ...opts.GetOption) (*volume.Volume, error) {
 	if v, ok := b.volumes[name]; ok {
-		return v, nil
+		return &v, nil
 	}
 	return nil, errdefs.NotFound(fmt.Errorf("volume %s not found", name))
 }
@@ -610,19 +610,19 @@ func (b *fakeVolumeBackend) Create(_ context.Context, name, driverName string, _
 		return nil, errors.New("already exists")
 	}
 
-	v := &volume.Volume{
+	v := volume.Volume{
 		Name:   name,
 		Driver: driverName,
 	}
 	if b.volumes == nil {
-		b.volumes = map[string]*volume.Volume{
+		b.volumes = map[string]volume.Volume{
 			name: v,
 		}
 	} else {
 		b.volumes[name] = v
 	}
 
-	return v, nil
+	return &v, nil
 }
 
 func (b *fakeVolumeBackend) Remove(_ context.Context, name string, o ...opts.RemoveOption) error {
@@ -652,7 +652,7 @@ type fakeClusterBackend struct {
 	swarm   bool
 	manager bool
 	idCount int
-	volumes map[string]*volume.Volume
+	volumes map[string]volume.Volume
 }
 
 func (c *fakeClusterBackend) checkSwarm() error {
@@ -675,7 +675,7 @@ func (c *fakeClusterBackend) GetVolume(nameOrID string) (volume.Volume, error) {
 	}
 
 	if v, ok := c.volumes[nameOrID]; ok {
-		return *v, nil
+		return v, nil
 	}
 	return volume.Volume{}, errdefs.NotFound(fmt.Errorf("volume %s not found", nameOrID))
 }
@@ -687,7 +687,7 @@ func (c *fakeClusterBackend) GetVolumes(_ volumebackend.ListOptions) ([]volume.V
 
 	var volumes []volume.Volume
 	for _, v := range c.volumes {
-		volumes = append(volumes, *v)
+		volumes = append(volumes, v)
 	}
 	return volumes, nil
 }
@@ -702,29 +702,28 @@ func (c *fakeClusterBackend) CreateVolume(volumeCreate volume.CreateRequest) (*v
 		return nil, errors.New("already exists")
 	}
 
-	v := &volume.Volume{
+	v := volume.Volume{
 		Name:    volumeCreate.Name,
 		Driver:  volumeCreate.Driver,
 		Labels:  volumeCreate.Labels,
 		Options: volumeCreate.DriverOpts,
 		Scope:   "global",
-	}
-
-	v.ClusterVolume = &volume.ClusterVolume{
-		ID:   fmt.Sprintf("cluster_%d", c.idCount),
-		Spec: *volumeCreate.ClusterVolumeSpec,
+		ClusterVolume: &volume.ClusterVolume{
+			ID:   fmt.Sprintf("cluster_%d", c.idCount),
+			Spec: *volumeCreate.ClusterVolumeSpec,
+		},
 	}
 
 	c.idCount = c.idCount + 1
 	if c.volumes == nil {
-		c.volumes = map[string]*volume.Volume{
+		c.volumes = map[string]volume.Volume{
 			v.Name: v,
 		}
 	} else {
 		c.volumes[v.Name] = v
 	}
 
-	return v, nil
+	return &v, nil
 }
 
 func (c *fakeClusterBackend) RemoveVolume(nameOrID string, force bool) error {
