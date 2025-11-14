@@ -9,8 +9,11 @@ import (
 
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/stringid"
+	build "github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/integration/internal/container"
 	iimage "github.com/moby/moby/v2/integration/internal/image"
+	"github.com/moby/moby/v2/internal/testutil/fakecontext"
 	"github.com/moby/moby/v2/internal/testutil/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
@@ -175,4 +178,40 @@ func checkPlatformDeleted(t *testing.T, imageIdx *ocispec.Index, resp []image.De
 			}
 		}
 	}
+}
+
+func TestAPIImagesDelete(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	const name = "test-api-images-delete"
+
+	buildCtx := fakecontext.New(t, t.TempDir(),
+		fakecontext.WithDockerfile(`FROM busybox
+ENV FOO=bar`))
+	defer buildCtx.Close()
+
+	imgID := build.Do(ctx, t, apiClient, buildCtx)
+
+	// Cleanup always runs
+	defer func() {
+		_, _ = apiClient.ImageRemove(ctx, imgID, client.ImageRemoveOptions{Force: true})
+	}()
+
+	_, err := apiClient.ImageTag(ctx, client.ImageTagOptions{Source: imgID, Target: name})
+	assert.NilError(t, err)
+
+	_, err = apiClient.ImageTag(ctx, client.ImageTagOptions{Source: imgID, Target: "test:tag1"})
+	assert.NilError(t, err)
+
+	_, err = apiClient.ImageRemove(ctx, imgID, client.ImageRemoveOptions{})
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsConflict))
+	assert.Check(t, is.ErrorContains(err, "unable to delete "+stringid.TruncateID(imgID)))
+
+	_, err = apiClient.ImageRemove(ctx, "test:noexist", client.ImageRemoveOptions{})
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
+	assert.Check(t, is.ErrorContains(err, "No such image: test:noexist"))
+
+	_, err = apiClient.ImageRemove(ctx, "test:tag1", client.ImageRemoveOptions{})
+	assert.NilError(t, err)
 }
