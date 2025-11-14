@@ -313,19 +313,12 @@ func (cli *Client) ClientVersion() string {
 }
 
 // negotiateAPIVersion updates the version to match the API version from
-// the ping response. It falls back to the lowest version supported if the
-// API version is empty.
+// the ping response.
 //
 // It returns an error if version is invalid, or lower than the minimum
 // supported API version in which case the client's API version is not
 // updated, and negotiation is not marked as completed.
 func (cli *Client) negotiateAPIVersion(pingVersion string) error {
-	pingVersion = strings.TrimPrefix(pingVersion, "v")
-	if pingVersion == "" {
-		// TODO(thaJeztah): consider returning an error on empty value or not falling back; see https://github.com/moby/moby/pull/51119#discussion_r2413148487
-		pingVersion = MinAPIVersion
-	}
-
 	var err error
 	pingVersion, err = parseAPIVersion(pingVersion)
 	if err != nil {

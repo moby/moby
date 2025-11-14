@@ -300,12 +300,10 @@ func TestNegotiateAPIVersion(t *testing.T) {
 			expectedVersion: "1.51",
 		},
 		{
-			// client should downgrade to the last version before version
-			// negotiation was added (1.24) if the daemon does not report
-			// a version.
+			// client should not downgrade if the daemon didn't report a version.
 			doc:             "downgrade legacy",
 			pingVersion:     "",
-			expectedVersion: MinAPIVersion,
+			expectedVersion: MaxAPIVersion,
 		},
 		{
 			// client should not downgrade to the version reported by the daemon
