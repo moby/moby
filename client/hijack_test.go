@@ -40,12 +40,16 @@ func TestTLSCloseWriter(t *testing.T) {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			defer conn.Close()
+			defer func() { _ = conn.Close() }()
 
 			// Flush the options to make sure the client sets the raw mode
 			_, _ = conn.Write([]byte{})
 
-			fmt.Fprint(conn, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\n")
+			_, err = fmt.Fprint(conn, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\n")
+			if err != nil {
+				chErr <- fmt.Errorf("writing update response: %w", err)
+				return
+			}
 
 			buf := make([]byte, 5)
 			_, err = conn.Read(buf)
@@ -74,7 +78,7 @@ func TestTLSCloseWriter(t *testing.T) {
 	assert.NilError(t, err)
 
 	ts.Listener = l
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 
 	defer func() {
 		if chErr != nil {
@@ -88,7 +92,9 @@ func TestTLSCloseWriter(t *testing.T) {
 	serverURL, err := url.Parse(ts.URL)
 	assert.NilError(t, err)
 
-	client, err := New(WithHost("tcp://"+serverURL.Host), WithHTTPClient(ts.Client()))
+	httpClient := ts.Client()
+	defer httpClient.CloseIdleConnections()
+	client, err := New(WithHost("tcp://"+serverURL.Host), WithHTTPClient(httpClient), WithAPIVersion(MaxAPIVersion))
 	assert.NilError(t, err)
 
 	resp, err := client.postHijacked(ctx, "/asdf", url.Values{}, nil, map[string][]string{"Content-Type": {"text/plain"}})
