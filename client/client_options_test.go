@@ -250,6 +250,49 @@ func TestOptionWithAPIVersionFromEnv(t *testing.T) {
 	}
 }
 
+// TestOptionOverridePriority validates that overriding the API version through
+// [WithAPIVersionFromEnv] takes precedence over other manual options, regardless
+// the order in which they're passed.
+func TestOptionOverridePriority(t *testing.T) {
+	t.Run("no env-var set", func(t *testing.T) {
+		client, err := New(WithAPIVersionFromEnv(), WithAPIVersion("1.50"))
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(client.ClientVersion(), "1.50"))
+		assert.Check(t, is.Equal(client.manualOverride, true))
+	})
+
+	const expected = "1.51"
+	t.Setenv(EnvOverrideAPIVersion, expected)
+
+	t.Run("WithAPIVersionFromEnv first", func(t *testing.T) {
+		client, err := New(WithAPIVersionFromEnv(), WithAPIVersion("1.50"))
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(client.ClientVersion(), expected))
+		assert.Check(t, is.Equal(client.manualOverride, true))
+	})
+
+	t.Run("WithAPIVersionFromEnv last", func(t *testing.T) {
+		client, err := New(WithAPIVersion("1.50"), WithAPIVersionFromEnv())
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(client.ClientVersion(), expected))
+		assert.Check(t, is.Equal(client.manualOverride, true))
+	})
+
+	t.Run("FromEnv first", func(t *testing.T) {
+		client, err := New(FromEnv, WithAPIVersion("1.50"))
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(client.ClientVersion(), expected))
+		assert.Check(t, is.Equal(client.manualOverride, true))
+	})
+
+	t.Run("FromEnv last", func(t *testing.T) {
+		client, err := New(WithAPIVersion("1.50"), FromEnv)
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(client.ClientVersion(), expected))
+		assert.Check(t, is.Equal(client.manualOverride, true))
+	})
+}
+
 func TestWithUserAgent(t *testing.T) {
 	const userAgent = "Magic-Client/v1.2.3"
 	t.Run("user-agent", func(t *testing.T) {

@@ -211,6 +211,12 @@ func New(ops ...Opt) (*Client, error) {
 		}
 	}
 
+	if cfg.envAPIVersion != "" {
+		cfg.version = cfg.envAPIVersion
+	} else if cfg.manualAPIVersion != "" {
+		cfg.version = cfg.manualAPIVersion
+	}
+
 	if tr, ok := c.client.Transport.(*http.Transport); ok {
 		// Store the base transport before we wrap it in tracing libs below
 		// This is used, as an example, to close idle connections when the client is closed

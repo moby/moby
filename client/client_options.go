@@ -41,6 +41,22 @@ type clientConfig struct {
 	// manualOverride is set to true when the version was set by users.
 	manualOverride bool
 
+	// manualAPIVersion contains the API version set by users. This field
+	// will only be non-empty if a valid-formed version was set through
+	// [WithAPIVersion].
+	//
+	// If both manualAPIVersion and envAPIVersion are set, manualAPIVersion
+	// takes precedence. Either field disables API-version negotiation.
+	manualAPIVersion string
+
+	// envAPIVersion contains the API version set by users. This field
+	// will only be non-empty if a valid-formed version was set through
+	// [WithAPIVersionFromEnv].
+	//
+	// If both manualAPIVersion and envAPIVersion are set, manualAPIVersion
+	// takes precedence. Either field disables API-version negotiation.
+	envAPIVersion string
+
 	// negotiateVersion indicates if the client should automatically negotiate
 	// the API version to use when making requests. API version negotiation is
 	// performed on the first request, after which negotiated is set to "true"
@@ -250,6 +266,9 @@ func WithTLSClientConfigFromEnv() Opt {
 // WithAPIVersion does not validate if the client supports the given version,
 // and callers should verify if the version lower than the maximum supported
 // version as defined by [MaxAPIVersion].
+//
+// [WithAPIVersionFromEnv] takes precedence if [WithAPIVersion] and
+// [WithAPIVersionFromEnv] are both set.
 func WithAPIVersion(version string) Opt {
 	return func(c *clientConfig) error {
 		version = strings.TrimSpace(version)
@@ -258,7 +277,7 @@ func WithAPIVersion(version string) Opt {
 			if err != nil {
 				return fmt.Errorf("invalid API version (%s): %w", version, err)
 			}
-			c.version = ver
+			c.manualAPIVersion = ver
 			c.manualOverride = true
 		}
 		return nil
@@ -280,6 +299,9 @@ func WithVersion(version string) Opt {
 // WithAPIVersion does not validate if the client supports the given version,
 // and callers should verify if the version lower than the maximum supported
 // version as defined by [MaxAPIVersion].
+//
+// [WithAPIVersionFromEnv] takes precedence if [WithAPIVersion] and
+// [WithAPIVersionFromEnv] are both set.
 func WithAPIVersionFromEnv() Opt {
 	return func(c *clientConfig) error {
 		version := strings.TrimSpace(os.Getenv(EnvOverrideAPIVersion))
@@ -288,7 +310,7 @@ func WithAPIVersionFromEnv() Opt {
 			if err != nil {
 				return fmt.Errorf("invalid API version (%s): %w", version, err)
 			}
-			c.version = ver
+			c.envAPIVersion = ver
 			c.manualOverride = true
 		}
 		return nil
