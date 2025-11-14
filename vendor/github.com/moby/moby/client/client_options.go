@@ -38,8 +38,6 @@ type clientConfig struct {
 	userAgent *string
 	// custom HTTP headers configured by users.
 	customHTTPHeaders map[string]string
-	// manualOverride is set to true when the version was set by users.
-	manualOverride bool
 
 	// manualAPIVersion contains the API version set by users. This field
 	// will only be non-empty if a valid-formed version was set through
@@ -278,7 +276,6 @@ func WithAPIVersion(version string) Opt {
 				return fmt.Errorf("invalid API version (%s): %w", version, err)
 			}
 			c.manualAPIVersion = ver
-			c.manualOverride = true
 		}
 		return nil
 	}
@@ -311,7 +308,6 @@ func WithAPIVersionFromEnv() Opt {
 				return fmt.Errorf("invalid API version (%s): %w", version, err)
 			}
 			c.envAPIVersion = ver
-			c.manualOverride = true
 		}
 		return nil
 	}

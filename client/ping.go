@@ -71,7 +71,7 @@ type SwarmStatus struct {
 // for other non-success status codes, failing to connect to the API, or failing
 // to parse the API response.
 func (cli *Client) Ping(ctx context.Context, options PingOptions) (PingResult, error) {
-	if (cli.manualOverride || cli.negotiated.Load()) && !options.ForceNegotiate {
+	if cli.negotiated.Load() && !options.ForceNegotiate {
 		// API version was already negotiated or manually set.
 		return cli.ping(ctx)
 	}
