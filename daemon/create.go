@@ -225,7 +225,6 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 		return nil, err
 	}
 
-	ctr.HostConfig.StorageOpt = opts.params.HostConfig.StorageOpt
 	ctr.ImageManifest = imgManifest
 
 	// Set RWLayer for container after mount labels have been set
@@ -244,9 +243,6 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 		return nil, err
 	}
 
-	if err := daemon.setHostConfig(ctr, opts.params.HostConfig); err != nil {
-		return nil, err
-	}
 	if err := daemon.registerLinks(ctr); err != nil {
 		return nil, err
 	}

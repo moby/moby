@@ -143,7 +143,7 @@ func (daemon *Daemon) newContainer(name string, platform ocispec.Platform, confi
 	base.Path = entrypoint
 	base.Args = args // FIXME: de-duplicate from config
 	base.Config = config
-	base.HostConfig = &containertypes.HostConfig{}
+	base.HostConfig = hostConfig
 	base.ImageID = imgID
 	base.NetworkSettings = &network.Settings{}
 	base.Name = name
@@ -209,14 +209,6 @@ func (daemon *Daemon) setSecurityOptions(cfg *config.Config, container *containe
 	container.Lock()
 	defer container.Unlock()
 	return daemon.parseSecurityOpt(cfg, &container.SecurityOptions, hostConfig)
-}
-
-func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *containertypes.HostConfig) error {
-	container.Lock()
-	defer container.Unlock()
-
-	container.HostConfig = hostConfig
-	return nil
 }
 
 // verifyContainerSettings performs validation of the hostconfig and config
