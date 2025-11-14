@@ -25,6 +25,17 @@ func TestTLSCloseWriter(t *testing.T) {
 	ts := &httptest.Server{Config: &http.Server{
 		ReadHeaderTimeout: 5 * time.Minute, // "G112: Potential Slowloris Attack (gosec)"; not a real concern for our use, so setting a long timeout.
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == "/_ping" {
+				resp, err := mockPingResponse(http.StatusOK, PingResult{APIVersion: MaxAPIVersion})(req)
+				if err != nil {
+					chErr <- fmt.Errorf("sending ping response: %w", err)
+					return
+				}
+				_ = resp.Header.Write(w)
+				w.WriteHeader(resp.StatusCode)
+				return
+			}
+
 			chErr = make(chan error, 1)
 			defer close(chErr)
 
@@ -94,7 +105,7 @@ func TestTLSCloseWriter(t *testing.T) {
 
 	httpClient := ts.Client()
 	defer httpClient.CloseIdleConnections()
-	client, err := New(WithHost("tcp://"+serverURL.Host), WithHTTPClient(httpClient), WithAPIVersion(MaxAPIVersion))
+	client, err := New(WithHost("tcp://"+serverURL.Host), WithHTTPClient(httpClient), WithAPIVersionNegotiation())
 	assert.NilError(t, err)
 
 	resp, err := client.postHijacked(ctx, "/asdf", url.Values{}, nil, map[string][]string{"Content-Type": {"text/plain"}})
