@@ -2,6 +2,7 @@ package ns
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"syscall"
 	"testing"
@@ -28,12 +29,14 @@ func initHandles() {
 	if err != nil {
 		log.G(context.TODO()).Errorf("could not get initial namespace: %v", err)
 	}
+
 	initNl, err = nlwrap.NewHandle(getSupportedNlFamilies()...)
 	if err != nil {
-		log.G(context.TODO()).Errorf("could not create netlink handle on initial namespace: %v", err)
+		// Fail fast to keep the invariant: NlHandle must be a valid handle
+		panic(fmt.Sprintf("could not create netlink handle on initial (host) namespace: %v", err))
 	}
-	err = initNl.SetSocketTimeout(NetlinkSocketsTimeout)
-	if err != nil {
+
+	if err = initNl.SetSocketTimeout(NetlinkSocketsTimeout); err != nil {
 		log.G(context.TODO()).Warnf("Failed to set the timeout on the default netlink handle sockets: %v", err)
 	}
 }
