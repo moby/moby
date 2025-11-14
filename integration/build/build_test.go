@@ -475,6 +475,7 @@ RUN [ ! -f foo ]
 // #37581
 // #40444 (Windows Containers only)
 func TestBuildWithHugeFile(t *testing.T) {
+	t.Skip("Test is flaky, and often causes out of space issues on GitHub Actions")
 	ctx := setupTest(t)
 
 	var dockerfile string
