@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	containertypes "github.com/moby/moby/api/types/container"
 	mounttypes "github.com/moby/moby/api/types/mount"
 	volumetypes "github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/v2/daemon/container"
@@ -67,7 +66,10 @@ func sortMounts(m []container.Mount) []container.Mount {
 // 2. Select the volumes mounted from another containers. Overrides previously configured mount point destination.
 // 3. Select the bind mounts set by the client. Overrides previously configured mount point destinations.
 // 4. Cleanup old volumes that are about to be reassigned.
-func (daemon *Daemon) registerMountPoints(ctr *container.Container, hostConfig *containertypes.HostConfig, defaultReadOnlyNonRecursive bool) (retErr error) {
+//
+// Do not lock while creating volumes since this could be calling out to external plugins
+// Don't want to block other actions, like `docker ps` because we're waiting on an external plugin
+func (daemon *Daemon) registerMountPoints(ctr *container.Container, defaultReadOnlyNonRecursive bool) (retErr error) {
 	binds := map[string]bool{}
 	mountPoints := map[string]*volumemounts.MountPoint{}
 	parser := volumemounts.NewParser()
@@ -100,7 +102,7 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, hostConfig *
 	}
 
 	// 2. Read volumes from other containers.
-	for _, v := range hostConfig.VolumesFrom {
+	for _, v := range ctr.HostConfig.VolumesFrom {
 		containerID, mode, err := parser.ParseVolumesFrom(v)
 		if err != nil {
 			return errdefs.InvalidParameter(err)
@@ -137,8 +139,8 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, hostConfig *
 	}
 
 	// 3. Read bind mounts
-	for _, b := range hostConfig.Binds {
-		bind, err := parser.ParseMountRaw(b, hostConfig.VolumeDriver)
+	for _, b := range ctr.HostConfig.Binds {
+		bind, err := parser.ParseMountRaw(b, ctr.HostConfig.VolumeDriver)
 		if err != nil {
 			return err
 		}
@@ -151,7 +153,7 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, hostConfig *
 		}
 
 		// #10618
-		_, tmpfsExists := hostConfig.Tmpfs[bind.Destination]
+		_, tmpfsExists := ctr.HostConfig.Tmpfs[bind.Destination]
 		if binds[bind.Destination] || tmpfsExists {
 			return duplicateMountPointError(bind.Destination)
 		}
@@ -185,7 +187,7 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, hostConfig *
 		mountPoints[bind.Destination] = bind
 	}
 
-	for _, cfg := range hostConfig.Mounts {
+	for _, cfg := range ctr.HostConfig.Mounts {
 		mp, err := parser.ParseMountSpec(cfg)
 		if err != nil {
 			return errdefs.InvalidParameter(err)

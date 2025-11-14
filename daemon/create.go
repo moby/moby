@@ -244,7 +244,7 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 		return nil, err
 	}
 
-	if err := daemon.setHostConfig(ctr, opts.params.HostConfig, opts.params.DefaultReadOnlyNonRecursive); err != nil {
+	if err := daemon.setHostConfig(ctr, opts.params.HostConfig); err != nil {
 		return nil, err
 	}
 	if err := daemon.registerLinks(ctr); err != nil {
@@ -265,6 +265,9 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	}
 	daemon.updateContainerNetworkSettings(ctr, endpointsConfigs)
 
+	if err := daemon.registerMountPoints(ctr, opts.params.DefaultReadOnlyNonRecursive); err != nil {
+		return nil, err
+	}
 	if err := daemon.createContainerVolumesOS(ctx, ctr, opts.params.Config, opts.params.HostConfig); err != nil {
 		return nil, err
 	}
