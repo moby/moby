@@ -38,8 +38,6 @@ type clientConfig struct {
 	userAgent *string
 	// custom HTTP headers configured by users.
 	customHTTPHeaders map[string]string
-	// manualOverride is set to true when the version was set by users.
-	manualOverride bool
 
 	// manualAPIVersion contains the API version set by users. This field
 	// will only be non-empty if a valid-formed version was set through
@@ -56,12 +54,6 @@ type clientConfig struct {
 	// If both manualAPIVersion and envAPIVersion are set, manualAPIVersion
 	// takes precedence. Either field disables API-version negotiation.
 	envAPIVersion string
-
-	// negotiateVersion indicates if the client should automatically negotiate
-	// the API version to use when making requests. API version negotiation is
-	// performed on the first request, after which negotiated is set to "true"
-	// so that subsequent requests do not re-negotiate.
-	negotiateVersion bool
 
 	// traceOpts is a list of options to configure the tracing span.
 	traceOpts []otelhttp.Option
@@ -278,7 +270,6 @@ func WithAPIVersion(version string) Opt {
 				return fmt.Errorf("invalid API version (%s): %w", version, err)
 			}
 			c.manualAPIVersion = ver
-			c.manualOverride = true
 		}
 		return nil
 	}
@@ -311,7 +302,6 @@ func WithAPIVersionFromEnv() Opt {
 				return fmt.Errorf("invalid API version (%s): %w", version, err)
 			}
 			c.envAPIVersion = ver
-			c.manualOverride = true
 		}
 		return nil
 	}
@@ -329,9 +319,11 @@ func WithVersionFromEnv() Opt {
 // With this option enabled, the client automatically negotiates the API version
 // to use when making requests. API version negotiation is performed on the first
 // request; subsequent requests do not re-negotiate.
+//
+// Deprecated: API-version negotiation is now enabled by default. Use [WithAPIVersion]
+// or [WithAPIVersionFromEnv] to disable API version negotiation.
 func WithAPIVersionNegotiation() Opt {
 	return func(c *clientConfig) error {
-		c.negotiateVersion = true
 		return nil
 	}
 }

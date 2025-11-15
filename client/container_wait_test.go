@@ -41,7 +41,7 @@ func TestContainerWaitConnectionError(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	client, err := New(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	client, err := New(WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
 	wait := client.ContainerWait(ctx, "nothing", ContainerWaitOptions{})
