@@ -40,6 +40,10 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, req *backend.Containe
 	if ctr.State.IsRestarting() {
 		return errdefs.Conflict(fmt.Errorf("container %s is restarting, wait until the container is running", prefixOrName))
 	}
+	// Allow reading logs from stopped containers, but not streaming
+	if !ctr.State.IsRunning() && req.Stream {
+		return errdefs.Conflict(fmt.Errorf("container %s is not running", prefixOrName))
+	}
 
 	cfg := stream.AttachConfig{
 		UseStdin:   req.UseStdin,
