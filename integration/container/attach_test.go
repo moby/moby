@@ -63,6 +63,57 @@ func TestAttach(t *testing.T) {
 	}
 }
 
+func TestAttachToStoppedContainer(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	// Create a container that exits immediately
+	resp, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config: &container.Config{
+			Image: "busybox",
+			Cmd:   []string{"echo", "hello"},
+		},
+		HostConfig:       &container.HostConfig{},
+		NetworkingConfig: &network.NetworkingConfig{},
+	})
+	assert.NilError(t, err)
+	cID := resp.ID
+	defer apiClient.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{
+		Force: true,
+	})
+
+	// Start and wait for the container to stop
+	_, err = apiClient.ContainerStart(ctx, cID, client.ContainerStartOptions{})
+	assert.NilError(t, err)
+
+	waitResult := apiClient.ContainerWait(ctx, cID, client.ContainerWaitOptions{
+		Condition: container.WaitConditionNotRunning,
+	})
+	select {
+	case err := <-waitResult.Error:
+		assert.NilError(t, err)
+	case <-waitResult.Result:
+	}
+
+	// Trying to attach with stream=true should fail
+	_, err = apiClient.ContainerAttach(ctx, cID, client.ContainerAttachOptions{
+		Stream: true,
+		Stdout: true,
+		Stderr: true,
+	})
+	assert.Check(t, err != nil, "expected error when attaching with stream=true to stopped container")
+
+	// Attaching with logs=true (and stream=false) should still work
+	logsAttach, err := apiClient.ContainerAttach(ctx, cID, client.ContainerAttachOptions{
+		Logs:   true,
+		Stream: false,
+		Stdout: true,
+		Stderr: true,
+	})
+	assert.NilError(t, err, "attaching with logs=true to stopped container should work")
+	logsAttach.Close()
+}
+
 // Regression test for #37182
 func TestAttachDisconnectLeak(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "Bug still exists on Windows")
