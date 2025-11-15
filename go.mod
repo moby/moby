@@ -20,6 +20,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.58.5
 	github.com/aws/smithy-go v1.23.1
 	github.com/cloudflare/cfssl v1.6.4
+	github.com/container-storage-interface/spec v1.5.0
 	github.com/containerd/cgroups/v3 v3.1.0
 	github.com/containerd/containerd/api v1.10.0
 	github.com/containerd/containerd/v2 v2.2.0
@@ -148,7 +149,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cilium/ebpf v0.17.3 // indirect
 	github.com/cloudflare/circl v1.6.0 // indirect
-	github.com/container-storage-interface/spec v1.5.0 // indirect
 	github.com/containerd/accelerated-container-image v1.3.0 // indirect
 	github.com/containerd/console v1.0.5 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect

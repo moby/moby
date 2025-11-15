@@ -1,18 +1,23 @@
 package service
 
 import (
+	"bytes"
 	"io"
 	"path"
 	"strings"
 	"testing"
 
+	"github.com/moby/moby/api/pkg/stdcopy"
+	"github.com/moby/moby/api/types/mount"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/swarm"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"github.com/moby/moby/v2/internal/testutil/fixtures/plugin"
 	"github.com/moby/moby/v2/internal/testutil/registry"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
@@ -120,6 +125,72 @@ func TestServicePlugin(t *testing.T) {
 	poll.WaitOn(t, d3.PluginIsNotPresent(t, repo), swarm.ServicePoll)
 }
 
+func TestServiceCSIPlugin(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, testEnv.NotAmd64)
+	ctx := setupTest(t)
+
+	reg := registry.NewV2(t)
+	defer reg.Close()
+
+	name := "test-" + strings.ToLower(t.Name())
+	repo := path.Join(registry.DefaultURL, "swarm", name+":v1")
+	err := plugin.CreateInRegistry(ctx, repo, nil, plugin.WithCSI())
+	assert.NilError(t, err)
+
+	d1 := swarm.NewSwarm(ctx, t, testEnv)
+	defer d1.Stop(t)
+
+	apiclient := d1.NewClientT(t)
+	rdr, err := apiclient.PluginInstall(ctx, name, client.PluginInstallOptions{Disabled: false, RemoteRef: repo})
+	assert.NilError(t, err)
+	defer rdr.Close()
+
+	_, err = io.Copy(io.Discard, rdr)
+	assert.NilError(t, err)
+
+	p, _, err := apiclient.PluginInspectWithRaw(ctx, name)
+	assert.NilError(t, err)
+	assert.Assert(t, p.Enabled)
+
+	vName, err := d1.CreateVolume(ctx, t, makeVolume(name, name))
+	assert.NilError(t, err)
+	assert.Equal(t, vName, name)
+
+	poll.WaitOn(t, d1.PollCheckLogs(ctx, daemon.ScanLogsMatchString("using cluster volume")), swarm.ServicePoll)
+	poll.WaitOn(t, d1.PollCheckLogs(ctx, daemon.ScanLogsMatchString("updated volume")), swarm.ServicePoll)
+
+	v := d1.GetVolume(ctx, t, name)
+	assert.Assert(t, v.ClusterVolume.Info != nil)
+	assert.Equal(t, v.ClusterVolume.Info.VolumeID, name)
+
+	serviceID := swarm.CreateService(ctx, t, d1,
+		swarm.ServiceWithMounts([]mount.Mount{
+			{
+				Type:   mount.TypeCluster,
+				Source: name,
+				Target: "/data",
+			},
+		}),
+	)
+	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiclient, serviceID, 1), swarm.ServicePoll)
+
+	tasks := swarm.GetRunningTasks(ctx, t, apiclient, serviceID)
+	assert.Assert(t, len(tasks) > 0, "no running tasks found for service %s", serviceID)
+
+	resp := swarm.ExecTask(ctx, t, d1, tasks[0], client.ExecCreateOptions{
+		Cmd:          []string{"/bin/cat", "/data/data.txt"},
+		AttachStdout: true,
+		AttachStderr: true,
+	})
+	var outBuf, errBuf bytes.Buffer
+	_, err = stdcopy.StdCopy(&outBuf, &errBuf, resp.Reader)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(outBuf.String(), "this is a csi mounted file"))
+	assert.Check(t, is.Equal(errBuf.String(), ""))
+}
+
 func makePlugin(repo, name string, constraints []string) func(*swarmtypes.Service) {
 	return func(s *swarmtypes.Service) {
 		s.Spec.TaskTemplate.Runtime = swarmtypes.RuntimePlugin
@@ -135,6 +206,26 @@ func makePlugin(repo, name string, constraints []string) func(*swarmtypes.Servic
 			s.Spec.TaskTemplate.Placement = &swarmtypes.Placement{
 				Constraints: constraints,
 			}
+		}
+	}
+}
+
+func makeVolume(driver, name string) func(*volume.CreateOptions) {
+	return func(v *volume.CreateOptions) {
+		v.Driver = driver
+		v.Name = name
+		v.ClusterVolumeSpec = &volume.ClusterVolumeSpec{
+			AccessMode: &volume.AccessMode{
+				MountVolume: &volume.TypeMount{},
+				Scope:       volume.ScopeSingleNode,
+				Sharing:     volume.SharingNone,
+			},
+			AccessibilityRequirements: &volume.TopologyRequirement{},
+			Availability:              volume.AvailabilityActive,
+			CapacityRange: &volume.CapacityRange{
+				LimitBytes:    0,
+				RequiredBytes: 0,
+			},
 		}
 	}
 }
