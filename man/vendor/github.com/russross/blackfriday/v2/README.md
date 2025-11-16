@@ -192,7 +192,7 @@ Extensions
 In addition to the standard markdown syntax, this package
 implements the following extensions:
 
-*   **Intra-word emphasis suppression**. The `_` character is
+*   **Intra-word emphasis supression**. The `_` character is
     commonly used inside words when discussing code, so having
     markdown interpret it as an emphasis command is usually the
     wrong thing. Blackfriday lets you treat all emphasis markers as
