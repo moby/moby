@@ -22,7 +22,7 @@ import (
 )
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality
-func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
+func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, container *container.Container, hostConfig *containertypes.HostConfig) error {
 	if err := daemon.Mount(container); err != nil {
 		return err
 	}
@@ -41,7 +41,11 @@ func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, con
 		hostConfig.ReadonlyPaths = oci.DefaultSpec().Linux.ReadonlyPaths // Set it to the default if nil
 		container.HostConfig.ReadonlyPaths = hostConfig.ReadonlyPaths
 	}
+	return nil
+}
 
+// createContainerVolumesOS performs host-OS specific volume creation
+func (daemon *Daemon) createContainerVolumesOS(ctx context.Context, container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
 	for spec := range config.Volumes {
 		destination := filepath.Clean(spec)
 
