@@ -228,9 +228,10 @@ else
 	# When running with --firewall-backend=nftables, IP forwarding needs to be enabled
 	# because the daemon won't enable it. IP forwarding is harmless in the rootless
 	# netns, there's only a single external interface and only Docker uses the netns.
-	# So, always enable IPv4 and IPv6 forwarding.
+	# So, always enable IPv4 and IPv6 forwarding. But ignore failure to enable IPv6
+	# forwarding, for hosts with IPv6 disabled.
 	sysctl -w net.ipv4.ip_forward=1
-	sysctl -w net.ipv6.conf.all.forwarding=1
+	sysctl -w net.ipv6.conf.all.forwarding=1 || true
 
 	exec "$dockerd" "$@"
 fi
