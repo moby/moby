@@ -133,7 +133,7 @@ func TestTailFiles(t *testing.T) {
 		f1 := bytes.NewBuffer(nil)
 		writeMsg(f1, msg1)
 
-		_, err := f1.WriteString("some randome garbage")
+		_, err := f1.WriteString("some random garbage")
 		assert.NilError(t, err, "error writing garbage to log stream")
 
 		writeMsg(f1, msg2) // This won't be seen due to garbage written above
