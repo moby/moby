@@ -464,7 +464,7 @@ func initBridgeDriver(controller *libnetwork.Controller, config config.BridgeCon
 
 // registerLinks sets up links between containers and writes the
 // configuration out for persistence. As of Windows TP4, links are not supported.
-func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *containertypes.HostConfig) error {
+func (daemon *Daemon) registerLinks(container *container.Container) error {
 	return nil
 }
 
