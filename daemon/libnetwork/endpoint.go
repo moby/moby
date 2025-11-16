@@ -567,6 +567,16 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		if err := sb.populateNetworkResources(ctx, ep); err != nil {
 			return err
 		}
+
+		// If the old gateway was in the docker_gwbridge network, it's already been removed if
+		// the new endpoint provides a gateway. Don't try to remove it again.
+		if gwepBefore4 != nil && sb.GetEndpoint(gwepBefore4.ID()) == nil {
+			gwepBefore4 = nil
+		}
+		if gwepBefore6 != nil && sb.GetEndpoint(gwepBefore6.ID()) == nil {
+			gwepBefore6 = nil
+		}
+
 		if err := ep.updateExternalConnectivity(ctx, sb, gwepBefore4, gwepBefore6); err != nil {
 			return err
 		}
