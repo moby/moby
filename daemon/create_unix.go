@@ -22,16 +22,7 @@ import (
 )
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality
-func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
-	if err := daemon.Mount(container); err != nil {
-		return err
-	}
-	defer daemon.Unmount(container)
-
-	if err := container.SetupWorkingDirectory(daemon.idMapping.RootPair()); err != nil {
-		return err
-	}
-
+func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, container *container.Container, hostConfig *containertypes.HostConfig) error {
 	// Set the default masked and readonly paths with regard to the host config options if they are not set.
 	if hostConfig.MaskedPaths == nil && !hostConfig.Privileged {
 		hostConfig.MaskedPaths = oci.DefaultSpec().Linux.MaskedPaths // Set it to the default if nil
@@ -40,6 +31,19 @@ func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, con
 	if hostConfig.ReadonlyPaths == nil && !hostConfig.Privileged {
 		hostConfig.ReadonlyPaths = oci.DefaultSpec().Linux.ReadonlyPaths // Set it to the default if nil
 		container.HostConfig.ReadonlyPaths = hostConfig.ReadonlyPaths
+	}
+	return nil
+}
+
+// createContainerVolumesOS performs host-OS specific volume creation
+func (daemon *Daemon) createContainerVolumesOS(ctx context.Context, container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
+	if err := daemon.Mount(container); err != nil {
+		return err
+	}
+	defer daemon.Unmount(container)
+
+	if err := container.SetupWorkingDirectory(daemon.idMapping.RootPair()); err != nil {
+		return err
 	}
 
 	for spec := range config.Volumes {

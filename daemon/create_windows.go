@@ -11,11 +11,16 @@ import (
 )
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality
-func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
+func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, container *container.Container, hostConfig *containertypes.HostConfig) error {
 	if containertypes.Isolation.IsDefault(hostConfig.Isolation) {
 		// Make sure the host config has the default daemon isolation if not specified by caller.
 		hostConfig.Isolation = daemon.defaultIsolation
 	}
+	return nil
+}
+
+// createContainerVolumesOS performs host-OS specific volume creation
+func (daemon *Daemon) createContainerVolumesOS(ctx context.Context, container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
 	parser := volumemounts.NewParser()
 	for spec := range config.Volumes {
 

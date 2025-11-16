@@ -250,7 +250,7 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	if err := daemon.registerLinks(ctr); err != nil {
 		return nil, err
 	}
-	if err := daemon.createContainerOSSpecificSettings(ctx, ctr, opts.params.Config, opts.params.HostConfig); err != nil {
+	if err := daemon.createContainerOSSpecificSettings(ctx, ctr, opts.params.HostConfig); err != nil {
 		return nil, err
 	}
 
@@ -263,8 +263,12 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	if ctr.HostConfig != nil && ctr.HostConfig.NetworkMode == "" {
 		ctr.HostConfig.NetworkMode = networktypes.NetworkDefault
 	}
-
 	daemon.updateContainerNetworkSettings(ctr, endpointsConfigs)
+
+	if err := daemon.createContainerVolumesOS(ctx, ctr, opts.params.Config, opts.params.HostConfig); err != nil {
+		return nil, err
+	}
+
 	if err := daemon.register(ctx, ctr); err != nil {
 		return nil, err
 	}
