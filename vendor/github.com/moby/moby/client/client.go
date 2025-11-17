@@ -212,9 +212,9 @@ func New(ops ...Opt) (*Client, error) {
 	}
 
 	if cfg.envAPIVersion != "" {
-		cfg.version = cfg.envAPIVersion
+		c.setAPIVersion(cfg.envAPIVersion)
 	} else if cfg.manualAPIVersion != "" {
-		cfg.version = cfg.manualAPIVersion
+		c.setAPIVersion(cfg.manualAPIVersion)
 	}
 
 	if tr, ok := c.client.Transport.(*http.Transport); ok {
@@ -282,7 +282,7 @@ func (cli *Client) Close() error {
 // be negotiated when making the actual requests, and for which cases
 // we cannot do the negotiation lazily.
 func (cli *Client) checkVersion(ctx context.Context) error {
-	if cli.manualOverride || !cli.negotiateVersion || cli.negotiated.Load() {
+	if cli.negotiated.Load() || !cli.negotiateVersion {
 		return nil
 	}
 	_, err := cli.Ping(ctx, PingOptions{
@@ -311,15 +311,16 @@ func (cli *Client) ClientVersion() string {
 
 // negotiateAPIVersion updates the version to match the API version from
 // the ping response. It falls back to the lowest version supported if the
-// API version is empty, or returns an error if the API version is lower than
-// the lowest supported API version, in which case the version is not modified.
+// API version is empty.
+//
+// It returns an error if version is invalid, or lower than the minimum
+// supported API version in which case the client's API version is not
+// updated, and negotiation is not marked as completed.
 func (cli *Client) negotiateAPIVersion(pingVersion string) error {
 	pingVersion = strings.TrimPrefix(pingVersion, "v")
 	if pingVersion == "" {
 		// TODO(thaJeztah): consider returning an error on empty value or not falling back; see https://github.com/moby/moby/pull/51119#discussion_r2413148487
 		pingVersion = MinAPIVersion
-	} else if versions.LessThan(pingVersion, MinAPIVersion) {
-		return cerrdefs.ErrInvalidArgument.WithMessage(fmt.Sprintf("API version %s is not supported by this client: the minimum supported API version is %s", pingVersion, MinAPIVersion))
 	}
 
 	var err error
@@ -328,22 +329,33 @@ func (cli *Client) negotiateAPIVersion(pingVersion string) error {
 		return err
 	}
 
+	if versions.LessThan(pingVersion, MinAPIVersion) {
+		return cerrdefs.ErrInvalidArgument.WithMessage(fmt.Sprintf("API version %s is not supported by this client: the minimum supported API version is %s", pingVersion, MinAPIVersion))
+	}
+
 	// if the client is not initialized with a version, start with the latest supported version
-	if cli.version == "" {
-		cli.version = MaxAPIVersion
+	negotiatedVersion := cli.version
+	if negotiatedVersion == "" {
+		negotiatedVersion = MaxAPIVersion
 	}
 
 	// if server version is lower than the client version, downgrade
-	if versions.LessThan(pingVersion, cli.version) {
-		cli.version = pingVersion
+	if versions.LessThan(pingVersion, negotiatedVersion) {
+		negotiatedVersion = pingVersion
 	}
 
 	// Store the results, so that automatic API version negotiation (if enabled)
 	// won't be performed on the next request.
-	if cli.negotiateVersion {
-		cli.negotiated.Store(true)
-	}
+	cli.setAPIVersion(negotiatedVersion)
 	return nil
+}
+
+// setAPIVersion sets the client's API version and marks API version negotiation
+// as completed, so that automatic API version negotiation (if enabled) won't
+// be performed on the next request.
+func (cli *Client) setAPIVersion(version string) {
+	cli.version = version
+	cli.negotiated.Store(true)
 }
 
 // DaemonHost returns the host address used by the client
