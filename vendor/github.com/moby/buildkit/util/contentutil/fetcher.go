@@ -51,10 +51,6 @@ type readerAt struct {
 }
 
 func (r *readerAt) ReadAt(b []byte, off int64) (int, error) {
-	if ra, ok := r.Reader.(io.ReaderAt); ok {
-		return ra.ReadAt(b, off)
-	}
-
 	if r.offset != off {
 		if seeker, ok := r.Reader.(io.Seeker); ok {
 			if _, err := seeker.Seek(off, io.SeekStart); err != nil {
@@ -62,6 +58,9 @@ func (r *readerAt) ReadAt(b []byte, off int64) (int, error) {
 			}
 			r.offset = off
 		} else {
+			if ra, ok := r.Reader.(io.ReaderAt); ok {
+				return ra.ReadAt(b, off)
+			}
 			return 0, errors.Errorf("unsupported offset")
 		}
 	}
