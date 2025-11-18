@@ -614,6 +614,7 @@ COPY --link --from=dockercli /build/docker /usr/local/bin/
 COPY --link --from=buildx    /buildx /usr/local/libexec/docker/cli-plugins/docker-buildx
 COPY --link --from=compose   /docker-compose /usr/local/libexec/docker/cli-plugins/docker-compose
 COPY --link --from=all       / /usr/local/bin/
+RUN mkdir -p /var/run/docker/extensions.d
 
 # usage:
 # > make shell
