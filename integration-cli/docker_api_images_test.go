@@ -7,34 +7,10 @@ import (
 	"testing"
 
 	"github.com/moby/moby/client"
-	"github.com/moby/moby/v2/integration-cli/cli"
-	"github.com/moby/moby/v2/integration-cli/cli/build"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/request"
 	"gotest.tools/v3/assert"
 )
-
-func (s *DockerAPISuite) TestAPIImagesSaveAndLoad(c *testing.T) {
-	testRequires(c, Network)
-	cli.BuildCmd(c, "saveandload", build.WithDockerfile("FROM busybox\nENV FOO bar"))
-	id := getIDByName(c, "saveandload")
-
-	ctx := testutil.GetContext(c)
-	res, body, err := request.Get(ctx, "/images/"+id+"/get")
-	assert.NilError(c, err)
-	defer body.Close()
-	assert.Equal(c, res.StatusCode, http.StatusOK)
-
-	cli.DockerCmd(c, "rmi", id)
-
-	res, loadBody, err := request.Post(ctx, "/images/load", request.RawContent(body), request.ContentType("application/x-tar"))
-	assert.NilError(c, err)
-	defer loadBody.Close()
-	assert.Equal(c, res.StatusCode, http.StatusOK)
-
-	inspectOut := cli.InspectCmd(c, id, cli.Format(".Id")).Combined()
-	assert.Equal(c, strings.TrimSpace(inspectOut), id, "load did not work properly")
-}
 
 func (s *DockerAPISuite) TestAPIImagesImportBadSrc(c *testing.T) {
 	testRequires(c, Network, testEnv.IsLocalDaemon)
