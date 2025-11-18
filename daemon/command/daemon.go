@@ -44,6 +44,7 @@ import (
 	"github.com/moby/moby/v2/daemon/server/router/container"
 	debugrouter "github.com/moby/moby/v2/daemon/server/router/debug"
 	distributionrouter "github.com/moby/moby/v2/daemon/server/router/distribution"
+	extensionrouter "github.com/moby/moby/v2/daemon/server/router/extension"
 	grpcrouter "github.com/moby/moby/v2/daemon/server/router/grpc"
 	"github.com/moby/moby/v2/daemon/server/router/image"
 	"github.com/moby/moby/v2/daemon/server/router/network"
@@ -724,6 +725,26 @@ func buildRouters(opts routerOptions) []router.Router {
 
 	if opts.builder.backend != nil {
 		routers = append(routers, grpcrouter.NewRouter(opts.builder.backend))
+	}
+
+	// Load extension routers from /var/run/docker/extension.d
+	extensionDir := "/var/run/docker/extensions.d"
+	if entries, err := os.ReadDir(extensionDir); err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".sock") {
+				socketPath := filepath.Join(extensionDir, entry.Name())
+
+				// Get extension name without .sock extension
+				extensionName := strings.TrimSuffix(entry.Name(), ".sock")
+
+				// Create a router for this extension
+				routers = append(routers, extensionrouter.NewRouter(extensionName, socketPath))
+				log.G(context.TODO()).Infof("Loaded extension router for '%s' from %s", extensionName, socketPath)
+			}
+		}
+	} else if !os.IsNotExist(err) {
+		// Log error if it's not simply a missing directory
+		log.G(context.TODO()).WithError(err).Warnf("Failed to read extension directory %s", extensionDir)
 	}
 
 	if opts.daemon.HasExperimental() {
