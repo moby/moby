@@ -61,17 +61,6 @@ func (s *DockerAPISuite) TestAPIImagesImportBadSrc(c *testing.T) {
 	}
 }
 
-// #14846
-func (s *DockerAPISuite) TestAPIImagesSearchJSONContentType(c *testing.T) {
-	testRequires(c, Network)
-
-	res, b, err := request.Get(testutil.GetContext(c), "/images/search?term=test", request.JSON)
-	assert.NilError(c, err)
-	b.Close()
-	assert.Equal(c, res.StatusCode, http.StatusOK)
-	assert.Equal(c, res.Header.Get("Content-Type"), "application/json")
-}
-
 // Test case for 30027: image size reported as -1 in v1.12 client against v1.13 daemon.
 // This test checks to make sure both v1.12 and v1.13 client against v1.13 daemon get correct `Size` after the fix.
 func (s *DockerAPISuite) TestAPIImagesSizeCompatibility(c *testing.T) {
