@@ -19,7 +19,7 @@ else
 	false
 fi
 
-# Then validate GitHub actions workflows, and conditionally lint the swagger
+# Then validate GitHub actions workflows, and conditionally lint the openapi
 # files in the docs directory, as these are large files and take some time.
 if out=$(yamllint -f parsable -c "${SCRIPTDIR}"/yamllint.yaml .github/workflows/*.yml "${files[@]}"); then
 	echo "Congratulations! YAML files are formatted correctly"

@@ -118,7 +118,7 @@ DELVE_PORT_FORWARD := $(if $(DELVE_PORT),-p "$(DELVE_PORT)",)
 
 DOCKER_FLAGS := $(DOCKER) run --rm --privileged $(DOCKER_CONTAINER_NAME) $(DOCKER_ENVS) $(DOCKER_MOUNT) $(DOCKER_PORT_FORWARD) $(DELVE_PORT_FORWARD)
 
-SWAGGER_DOCS_PORT ?= 9000
+OPENAPI_DOCS_PORT ?= 9000
 
 define \n
 
@@ -258,21 +258,21 @@ validate-%: build ## validate specific check
 win: bundles ## cross build the binary for windows
 	$(BAKE_CMD) --set *.platform=windows/amd64 binary
 
-.PHONY: swagger-gen
-swagger-gen:
+.PHONY: openapi-gen
+openapi-gen: build
 	docker run --rm -v $(PWD):/go/src/github.com/docker/docker \
 		-w /go/src/github.com/docker/docker \
-		--entrypoint hack/generate-swagger-api.sh \
+		--entrypoint hack/generate-openapi.sh \
 		-e GOPATH=/go \
-		quay.io/goswagger/swagger:0.7.4
+		$(DOCKER_IMAGE)
 
 .PHONY: swagger-docs
-swagger-docs: ## preview the API documentation
-	@echo "API docs preview will be running at http://localhost:$(SWAGGER_DOCS_PORT)"
-	@docker run --rm -v $(PWD)/api/swagger.yaml:/usr/share/nginx/html/swagger.yaml \
+openapi-docs: ## preview the API documentation
+	@echo "API docs preview will be running at http://localhost:$(OPENAPI_DOCS_PORT)"
+	@docker run --rm -v $(PWD)/api/openapi.yaml:/usr/share/nginx/html/openapi.yaml \
 		-e 'REDOC_OPTIONS=hide-hostname="true" lazy-rendering' \
-		-p $(SWAGGER_DOCS_PORT):80 \
-		bfirsh/redoc:1.14.0
+		-p $(OPENAPI_DOCS_PORT):80 \
+		redocly/redoc:v2.5.1
 
 .PHONY: generate-files
 generate-files:

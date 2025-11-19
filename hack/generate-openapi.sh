@@ -1,25 +1,20 @@
 #!/bin/bash
 # vim: set noexpandtab:
 # -*- indent-tabs-mode: t -*-
-set -eu
+set +xeu
+
+env
+echo $PATH
+which go
+echo "--------"
 
 generate_model() {
 	local package="$1"
 	shift
 	mapfile
-	swagger generate model --spec=api/swagger.yaml \
+	openapi generate model --spec=api/openapi.yaml \
 		--target=api --model-package="$package" \
-		--config-file=api/swagger-gen.yaml \
-		--template-dir=api/templates --allow-template-override \
-		"$@" \
-		$(printf -- '--name=%s ' "${MAPFILE[@]}")
-}
-
-generate_operation() {
-	mapfile
-	swagger generate operation --spec=api/swagger.yaml \
-		--target=api --api-package=types --model-package=types \
-		--config-file=api/swagger-gen.yaml \
+		--config-file=api/openapi-gen.yaml \
 		--template-dir=api/templates --allow-template-override \
 		"$@" \
 		$(printf -- '--name=%s ' "${MAPFILE[@]}")
@@ -61,6 +56,7 @@ EOT
 generate_model types/image <<- 'EOT'
 	ImageDeleteResponseItem
 	ImagesDiskUsage
+	ImageHistoryResponseItem
 EOT
 #	ImageSummary
 # TODO: Restore when go-swagger is updated
@@ -111,15 +107,6 @@ generate_model types/volume <<- 'EOT'
 	VolumeCreateRequest
 	VolumeListResponse
 	VolumesDiskUsage
-EOT
-
-#endregion
-
-#region -------- Operations --------
-
-generate_operation --skip-responses --skip-parameters <<- 'EOT'
-	Authenticate
-	ImageHistory
 EOT
 
 #endregion

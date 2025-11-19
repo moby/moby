@@ -11,14 +11,14 @@ with some exceptions where features were deprecated. For an overview
 of changes for each version, refer to [CHANGELOG.md](CHANGELOG.md).
 
 The latest version of the API specification can be found [at the root directory
-of this module](../swagger.yaml) which may contain unreleased changes.
+of this module](../openapi.yaml) which may contain unreleased changes.
 
 For API version v1.24, documentation is only available in markdown
-format, for later versions [Swagger (OpenAPI) v2.0](https://swagger.io/specification/v2/)
+format, for later versions [OpenAPI v3](https://www.openapis.org/)
 specifications can be found in this directory. The Moby project itself
-primarily uses these swagger files to produce the API documentation;
+primarily uses these OpenAPI files to produce the API documentation;
 while we attempt to make these files match the actual implementation,
-the OpenAPI 2.0 specification has limitations that prevent us from
+the OpenAPI 3 specification has limitations that prevent us from
 expressing all options provided. There may be discrepancies (for which
 we welcome contributions). If you find bugs, or discrepancies, please
 open a ticket (or pull request).

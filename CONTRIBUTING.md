@@ -94,7 +94,7 @@ or `daemon` modules, or one of the integration test directories.
 Try to put a new package under the appropriate directories. The root directory is reserved for
 configuration and build files, no source files will be accepted in the root.
 
-- `api` - All types shared by client and daemon along with swagger definitions.
+- `api` - All types shared by client and daemon along with OpenAPI definitions.
 - `client` - All Go files for the docker client
 - `contrib` - Files, configurations, and packages related to external tools or libraries
 - `daemon` - All Go files and packages for building the daemon
