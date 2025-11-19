@@ -72,7 +72,7 @@
 
 TODO
 - Unify the head commit
-- Add golint and other checks (swagger maybe?)
+- Add golint and other checks (openapi maybe?)
 
 #>
 

@@ -78,6 +78,7 @@ keywords: "API, Docker, rcli, REST, documentation"
   to transition to the new response. The legacy fields are not populated if the
   `verbose` query parameter is used. Starting with API v1.53, the legacy fields
   will no longer be returned.
+* API definition has been migrated to adopt OpenAPI 3
 
 ## v1.51 API changes
 
