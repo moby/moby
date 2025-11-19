@@ -415,6 +415,7 @@ func (d *driver) ProgramExternalConnectivity(_ context.Context, nid, eid string,
 
 // revokeExternalConnectivity method is invoked to remove any external connectivity programming related to the endpoint.
 func (d *driver) revokeExternalConnectivity(nid, eid string) error {
+	d.nwEndpointsMu.Lock()
 	ep, ok := d.nwEndpoints[eid]
 	d.nwEndpointsMu.Unlock()
 	if !ok {
