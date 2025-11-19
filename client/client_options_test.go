@@ -141,7 +141,7 @@ func TestOptionWithAPIVersion(t *testing.T) {
 				assert.Check(t, client != nil)
 				assert.Check(t, is.Equal(client.ClientVersion(), tc.expected))
 				isNoOp := strings.TrimPrefix(strings.TrimSpace(tc.version), "v") == ""
-				assert.Check(t, is.Equal(client.manualOverride, !isNoOp))
+				assert.Check(t, is.Equal(client.negotiated.Load(), !isNoOp))
 			}
 		})
 	}
@@ -244,7 +244,7 @@ func TestOptionWithAPIVersionFromEnv(t *testing.T) {
 				assert.Check(t, client != nil)
 				assert.Check(t, is.Equal(client.ClientVersion(), tc.expected))
 				isNoOp := strings.TrimPrefix(strings.TrimSpace(tc.version), "v") == ""
-				assert.Check(t, is.Equal(client.manualOverride, !isNoOp))
+				assert.Check(t, is.Equal(client.negotiated.Load(), !isNoOp))
 			}
 		})
 	}
@@ -258,7 +258,7 @@ func TestOptionOverridePriority(t *testing.T) {
 		client, err := New(WithAPIVersionFromEnv(), WithAPIVersion("1.50"))
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal(client.ClientVersion(), "1.50"))
-		assert.Check(t, is.Equal(client.manualOverride, true))
+		assert.Check(t, is.Equal(client.negotiated.Load(), true))
 	})
 
 	const expected = "1.51"
@@ -268,28 +268,28 @@ func TestOptionOverridePriority(t *testing.T) {
 		client, err := New(WithAPIVersionFromEnv(), WithAPIVersion("1.50"))
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal(client.ClientVersion(), expected))
-		assert.Check(t, is.Equal(client.manualOverride, true))
+		assert.Check(t, is.Equal(client.negotiated.Load(), true))
 	})
 
 	t.Run("WithAPIVersionFromEnv last", func(t *testing.T) {
 		client, err := New(WithAPIVersion("1.50"), WithAPIVersionFromEnv())
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal(client.ClientVersion(), expected))
-		assert.Check(t, is.Equal(client.manualOverride, true))
+		assert.Check(t, is.Equal(client.negotiated.Load(), true))
 	})
 
 	t.Run("FromEnv first", func(t *testing.T) {
 		client, err := New(FromEnv, WithAPIVersion("1.50"))
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal(client.ClientVersion(), expected))
-		assert.Check(t, is.Equal(client.manualOverride, true))
+		assert.Check(t, is.Equal(client.negotiated.Load(), true))
 	})
 
 	t.Run("FromEnv last", func(t *testing.T) {
 		client, err := New(WithAPIVersion("1.50"), FromEnv)
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal(client.ClientVersion(), expected))
-		assert.Check(t, is.Equal(client.manualOverride, true))
+		assert.Check(t, is.Equal(client.negotiated.Load(), true))
 	})
 }
 

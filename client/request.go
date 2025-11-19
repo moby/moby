@@ -67,31 +67,22 @@ func (cli *Client) delete(ctx context.Context, path string, query url.Values, he
 // prepareJSONRequest encodes the given body to JSON and returns it as an [io.Reader], and sets the Content-Type
 // header. If body is nil, or a nil-interface, a "nil" body is returned without
 // error.
-//
-// TODO(thaJeztah): should this return an error if a different Content-Type is already set?
-// TODO(thaJeztah): is "nil" the appropriate approach for an empty body, or should we use [http.NoBody] (or similar)?
 func prepareJSONRequest(body any, headers http.Header) (io.Reader, http.Header, error) {
-	if body == nil {
-		return nil, headers, nil
-	}
-	// encoding/json encodes a nil pointer as the JSON document `null`,
-	// irrespective of whether the type implements json.Marshaler or encoding.TextMarshaler.
-	// That is almost certainly not what the caller intended as the request body.
-	//
-	// TODO(thaJeztah): consider moving this to jsonEncode, which would also allow returning an (empty) reader instead of nil.
-	if reflect.TypeOf(body).Kind() == reflect.Ptr && reflect.ValueOf(body).IsNil() {
-		return nil, headers, nil
-	}
-
 	jsonBody, err := jsonEncode(body)
 	if err != nil {
 		return nil, headers, err
 	}
+	if jsonBody == nil || jsonBody == http.NoBody {
+		// no content-type is set on empty requests.
+		return jsonBody, headers, nil
+	}
+
 	hdr := http.Header{}
 	if headers != nil {
 		hdr = headers.Clone()
 	}
 
+	// TODO(thaJeztah): should this return an error if a different Content-Type is already set?
 	hdr.Set("Content-Type", "application/json")
 	return jsonBody, hdr, nil
 }
@@ -110,9 +101,6 @@ func (cli *Client) buildRequest(ctx context.Context, method, path string, body i
 		req.Host = DummyHost
 	}
 
-	if body != nil && req.Header.Get("Content-Type") == "" {
-		req.Header.Set("Content-Type", "text/plain")
-	}
 	return req, nil
 }
 
@@ -333,13 +321,31 @@ func (cli *Client) addHeaders(req *http.Request, headers http.Header) *http.Requ
 }
 
 func jsonEncode(data any) (io.Reader, error) {
-	var params bytes.Buffer
-	if data != nil {
-		if err := json.NewEncoder(&params).Encode(data); err != nil {
-			return nil, err
+	switch x := data.(type) {
+	case nil:
+		return http.NoBody, nil
+	case io.Reader:
+		// http.NoBody or other readers
+		return x, nil
+	case json.RawMessage:
+		if len(x) == 0 {
+			return http.NoBody, nil
 		}
+		return bytes.NewReader(x), nil
 	}
-	return &params, nil
+
+	// encoding/json encodes a nil pointer as the JSON document `null`,
+	// irrespective of whether the type implements json.Marshaler or encoding.TextMarshaler.
+	// That is almost certainly not what the caller intended as the request body.
+	if v := reflect.ValueOf(data); v.Kind() == reflect.Ptr && v.IsNil() {
+		return http.NoBody, nil
+	}
+
+	b, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	return bytes.NewReader(b), nil
 }
 
 func ensureReaderClosed(response *http.Response) {

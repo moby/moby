@@ -27,15 +27,3 @@ func (s *DockerAPISuite) TestAPIOptionsRoute(c *testing.T) {
 	assert.NilError(c, err)
 	assert.Equal(c, resp.StatusCode, http.StatusOK)
 }
-
-func (s *DockerAPISuite) TestAPIGetEnabledCORS(c *testing.T) {
-	res, body, err := request.Get(testutil.GetContext(c), "/version")
-	assert.NilError(c, err)
-	assert.Equal(c, res.StatusCode, http.StatusOK)
-	body.Close()
-	// TODO: @runcom incomplete tests, why old integration tests had this headers
-	// and here none of the headers below are in the response?
-	// c.Log(res.Header)
-	// assert.Equal(c, res.Header.Get("Access-Control-Allow-Origin"), "*")
-	// assert.Equal(c, res.Header.Get("Access-Control-Allow-Headers"), "Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth")
-}
