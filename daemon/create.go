@@ -124,6 +124,10 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
+	if runtime.GOOS == "linux" && (opts.params.HostConfig.NetworkMode.IsDefault() || opts.params.HostConfig.NetworkMode.IsBridge()) && len(opts.params.HostConfig.Links) > 0 {
+		warnings = append(warnings, "Links on the default bridge network are deprecated and will be removed in a future release. You should use a custom network instead.")
+	}
+
 	ctr, err := daemon.create(ctx, &daemonCfg.Config, opts)
 	if err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, err
