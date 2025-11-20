@@ -391,7 +391,6 @@ github.com/containerd/containerd/api/types/transfer
 ## explicit; go 1.24.3
 github.com/containerd/containerd/v2/client
 github.com/containerd/containerd/v2/cmd/containerd/server/config
-github.com/containerd/containerd/v2/contrib/nvidia
 github.com/containerd/containerd/v2/core/containers
 github.com/containerd/containerd/v2/core/content
 github.com/containerd/containerd/v2/core/content/proxy
