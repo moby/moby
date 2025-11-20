@@ -1615,14 +1615,32 @@ func (daemon *Daemon) setupSeccompProfile(cfg *config.Config) error {
 
 func getSysInfo(cfg *config.Config) *sysinfo.SysInfo {
 	var siOpts []sysinfo.Opt
-	if cgroupDriver(cfg) == cgroupSystemdDriver {
-		if euid := os.Getenv("ROOTLESSKIT_PARENT_EUID"); euid != "" {
-			siOpts = append(siOpts, sysinfo.WithCgroup2GroupPath("/user.slice/user-"+euid+".slice"))
-		}
+	if euid := os.Getenv("ROOTLESSKIT_PARENT_EUID");
+			cgroupDriver(cfg) == cgroupSystemdDriver && euid != "" {
+		siOpts = append(siOpts, sysinfo.WithCgroup2GroupPath("/user.slice/user-"+euid+".slice"))
+	} else {
+		// Use container cgroup parent for effective capabilities detection
+		siOpts = append(siOpts, sysinfo.WithCgroup2GroupPath(getCgroupParent(cfg)))
 	}
 	return sysinfo.New(siOpts...)
 }
 
 func recursiveUnmount(target string) error {
 	return mount.RecursiveUnmount(target)
+}
+
+// Returns the cgroup parent cgroup
+func getCgroupParent(config *config.Config) string {
+	parent := "/docker"
+	if UsingSystemd(config) {
+		parent = "system.slice"
+		if config.Rootless {
+			parent = "user.slice"
+		}
+	}
+	if config.CgroupParent != "" {
+		parent = config.CgroupParent
+	}
+	log.G(context.TODO()).Infof("Got cgroup parent from configuration: %s", parent)
+	return parent
 }
