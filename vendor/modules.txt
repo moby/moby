@@ -1414,6 +1414,9 @@ go.etcd.io/raft/v3/tracker
 ## explicit; go 1.13
 go.opencensus.io
 go.opencensus.io/internal
+go.opencensus.io/metric/metricdata
+go.opencensus.io/metric/metricproducer
+go.opencensus.io/resource
 go.opencensus.io/trace
 go.opencensus.io/trace/internal
 go.opencensus.io/trace/tracestate
@@ -1455,6 +1458,13 @@ go.opentelemetry.io/otel/semconv/v1.26.0
 go.opentelemetry.io/otel/semconv/v1.30.0
 go.opentelemetry.io/otel/semconv/v1.37.0
 go.opentelemetry.io/otel/semconv/v1.37.0/otelconv
+# go.opentelemetry.io/otel/bridge/opencensus v1.38.0
+## explicit; go 1.23.0
+go.opentelemetry.io/otel/bridge/opencensus
+go.opentelemetry.io/otel/bridge/opencensus/internal
+go.opentelemetry.io/otel/bridge/opencensus/internal/oc2otel
+go.opentelemetry.io/otel/bridge/opencensus/internal/ocmetric
+go.opentelemetry.io/otel/bridge/opencensus/internal/otel2oc
 # go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.38.0
 ## explicit; go 1.23.0
 go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc

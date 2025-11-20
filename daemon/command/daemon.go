@@ -61,6 +61,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/bridge/opencensus"
 	"go.opentelemetry.io/otel/propagation"
 	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
@@ -240,6 +241,11 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	tp, otelShutdown := otelutil.NewTracerProvider(ctx, true)
 	otel.SetTracerProvider(tp)
 	log.G(ctx).Logger.AddHook(tracing.NewLogrusHook())
+	// The github.com/microsoft/hcsshim module is instrumented with
+	// OpenCensus, but we use OpenTelemetry for tracing in the daemon.
+	// Bridge OpenCensus to OpenTelemetry so OC trace spans are exported to
+	// the daemon's configured OTEL collector.
+	opencensus.InstallTraceBridge()
 
 	pluginStore := plugin.NewStore()
 
