@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil"
@@ -143,4 +144,76 @@ func TestAPINetworkFilter(t *testing.T) {
 		}
 	}
 	assert.Assert(t, found, fmt.Sprintf("%s is not found", networkName))
+}
+
+func TestAPINetworkConnectDisconnect(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	const name = "testnetwork"
+	const containerName = "test-container"
+
+	createNet, err := apiClient.NetworkCreate(ctx, name, client.NetworkCreateOptions{})
+	assert.NilError(t, err)
+
+	nr, err := apiClient.NetworkInspect(ctx, createNet.ID, client.NetworkInspectOptions{})
+	assert.NilError(t, err)
+
+	assert.Equal(t, nr.Network.Name, name)
+	assert.Equal(t, nr.Network.ID, createNet.ID)
+	assert.Equal(t, len(nr.Network.Containers), 0)
+
+	t.Cleanup(func() {
+		_, _ = apiClient.NetworkRemove(ctx, nr.Network.ID, client.NetworkRemoveOptions{})
+	})
+
+	createResp, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Name: containerName,
+		Config: &container.Config{
+			Image: "busybox",
+			Cmd:   []string{"top"},
+		},
+	})
+	assert.NilError(t, err)
+
+	t.Cleanup(func() {
+		_, _ = apiClient.ContainerRemove(ctx, createResp.ID, client.ContainerRemoveOptions{})
+	})
+
+	_, err = apiClient.ContainerStart(ctx, createResp.ID, client.ContainerStartOptions{})
+	assert.NilError(t, err)
+
+	_, err = apiClient.NetworkConnect(ctx, createNet.ID, client.NetworkConnectOptions{
+		Container: createResp.ID,
+	})
+	assert.NilError(t, err)
+
+	nr, err = apiClient.NetworkInspect(ctx, createNet.ID, client.NetworkInspectOptions{})
+	assert.NilError(t, err)
+	assert.Equal(t, len(nr.Network.Containers), 1)
+
+	_, exists := nr.Network.Containers[createResp.ID]
+	assert.Assert(t, exists)
+
+	contInspect, err := apiClient.ContainerInspect(ctx, createResp.ID, client.ContainerInspectOptions{})
+	assert.NilError(t, err)
+
+	var containerIP string
+	for n, settings := range contInspect.Container.NetworkSettings.Networks {
+		if n == name {
+			containerIP = settings.IPAddress.String()
+			break
+		}
+	}
+	assert.Assert(t, containerIP != "")
+	assert.Equal(t, nr.Network.Containers[createResp.ID].IPv4Address.Addr().String(), containerIP)
+
+	_, err = apiClient.NetworkDisconnect(ctx, createNet.ID, client.NetworkDisconnectOptions{
+		Container: createResp.ID,
+	})
+	assert.NilError(t, err)
+	nr, err = apiClient.NetworkInspect(ctx, createNet.ID, client.NetworkInspectOptions{})
+	assert.NilError(t, err)
+	assert.Equal(t, len(nr.Network.Containers), 0)
+
 }
