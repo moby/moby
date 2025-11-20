@@ -47,6 +47,7 @@ func (e *imageExporterMobyWrapper) Resolve(ctx context.Context, id int, exporter
 	if err != nil {
 		return nil, err
 	}
+
 	exporterAttrs[string(exptypes.OptKeyName)] = strings.Join(reposAndTags, ",")
 
 	if _, has := exporterAttrs[string(exptypes.OptKeyUnpack)]; !has {
