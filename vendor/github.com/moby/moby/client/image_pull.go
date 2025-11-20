@@ -52,7 +52,21 @@ func (cli *Client) ImagePull(ctx context.Context, refStr string, options ImagePu
 		}
 		query.Set("platform", formatPlatform(options.Platforms[0]))
 	}
+	if options.ChallengeHandlerFunc != nil {
+		query.Set("clientAuth", "1")
+	}
+
 	resp, err := cli.tryImageCreate(ctx, query, staticAuth(options.RegistryAuth))
+	if challenge := resp.Header.Get("WWW-Authenticate"); challenge != "" && err != nil {
+		if options.ChallengeHandlerFunc != nil {
+			var newAuthHeader string
+			newAuthHeader, err = options.ChallengeHandlerFunc(ctx, challenge)
+			if err != nil {
+				return nil, err
+			}
+			resp, err = cli.tryImageCreate(ctx, query, staticAuth(newAuthHeader))
+		}
+	}
 	if cerrdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
 		resp, err = cli.tryImageCreate(ctx, query, options.PrivilegeFunc)
 	}
