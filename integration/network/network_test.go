@@ -8,9 +8,12 @@ import (
 
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/v2/integration/internal/container"
+	"github.com/moby/moby/v2/integration/internal/network"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/request"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
 
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -143,4 +146,64 @@ func TestAPINetworkFilter(t *testing.T) {
 		}
 	}
 	assert.Assert(t, found, fmt.Sprintf("%s is not found", networkName))
+}
+
+func TestBridgeAndCustomNetworkAttach(t *testing.T) {
+	ctx := setupTest(t)
+
+	skip.If(t, testEnv.RuntimeIsWindowsContainerd(),
+		"Skipping test: fails on Containerd due to unsupported platform request error during NetworkConnect operations")
+
+	apiClient := testEnv.APIClient()
+
+	const name = "testnetwork"
+	const containerName = "test-container"
+
+	network.CreateNoError(ctx, t, apiClient, name)
+	defer network.RemoveNoError(ctx, t, apiClient, name)
+
+	nr, err := apiClient.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
+	assert.NilError(t, err)
+
+	assert.Equal(t, nr.Network.Name, name)
+	assert.Equal(t, len(nr.Network.Containers), 0)
+
+	id := container.Run(ctx, t, apiClient, container.WithName(containerName))
+	defer func() {
+		_, _ = apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{})
+	}()
+
+	_, err = apiClient.NetworkConnect(ctx, name, client.NetworkConnectOptions{
+		Container: id,
+	})
+	assert.NilError(t, err)
+
+	nr, err = apiClient.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
+	assert.NilError(t, err)
+	assert.Equal(t, len(nr.Network.Containers), 1)
+
+	_, exists := nr.Network.Containers[id]
+	assert.Assert(t, exists)
+
+	contInspect, err := apiClient.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
+	assert.NilError(t, err)
+
+	var containerIP string
+	for n, settings := range contInspect.Container.NetworkSettings.Networks {
+		if n == name {
+			containerIP = settings.IPAddress.String()
+			break
+		}
+	}
+	assert.Assert(t, containerIP != "")
+	assert.Equal(t, nr.Network.Containers[id].IPv4Address.Addr().String(), containerIP)
+
+	_, err = apiClient.NetworkDisconnect(ctx, name, client.NetworkDisconnectOptions{
+		Container: id,
+	})
+	assert.NilError(t, err)
+	nr, err = apiClient.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
+	assert.NilError(t, err)
+	assert.Equal(t, len(nr.Network.Containers), 0)
+
 }
