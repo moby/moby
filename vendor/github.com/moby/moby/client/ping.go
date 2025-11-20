@@ -71,11 +71,12 @@ type SwarmStatus struct {
 // for other non-success status codes, failing to connect to the API, or failing
 // to parse the API response.
 func (cli *Client) Ping(ctx context.Context, options PingOptions) (PingResult, error) {
-	if cli.negotiated.Load() && !options.ForceNegotiate {
-		// API version was already negotiated or manually set.
+	if !options.NegotiateAPIVersion {
+		// No API version negotiation needed; just return ping response.
 		return cli.ping(ctx)
 	}
-	if !options.NegotiateAPIVersion && !cli.negotiateVersion {
+	if cli.negotiated.Load() && !options.ForceNegotiate {
+		// API version was already negotiated or manually set.
 		return cli.ping(ctx)
 	}
 
@@ -93,6 +94,11 @@ func (cli *Client) Ping(ctx context.Context, options PingOptions) (PingResult, e
 		//
 		// We check cli.negotiated again under lock, to account for race
 		// conditions with the check at the start of this function.
+		return ping, nil
+	}
+
+	if ping.APIVersion == "" {
+		cli.setAPIVersion(MaxAPIVersion)
 		return ping, nil
 	}
 
@@ -116,10 +122,15 @@ func (cli *Client) ping(ctx context.Context) (PingResult, error) {
 		// response-body to get error details from.
 		return newPingResult(resp), nil
 	}
+	// close to allow reusing connection.
+	ensureReaderClosed(resp)
 
 	// HEAD failed or returned a non-OK status; fallback to GET.
-	req.Method = http.MethodGet
-	resp, err = cli.doRequest(req)
+	req2, err := cli.buildRequest(ctx, http.MethodGet, path.Join(cli.basePath, "/_ping"), nil, nil)
+	if err != nil {
+		return PingResult{}, err
+	}
+	resp, err = cli.doRequest(req2)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		// Failed to connect.

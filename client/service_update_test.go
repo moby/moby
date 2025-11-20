@@ -32,7 +32,7 @@ func TestServiceUpdateError(t *testing.T) {
 //
 // Regression test for https://github.com/docker/cli/issues/4890
 func TestServiceUpdateConnectionError(t *testing.T) {
-	client, err := New(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	client, err := New(WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
 	_, err = client.ServiceUpdate(t.Context(), "service_id", ServiceUpdateOptions{})
