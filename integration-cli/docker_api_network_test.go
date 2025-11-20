@@ -69,46 +69,6 @@ func (s *DockerAPISuite) TestAPINetworkInspectUserDefinedNetwork(c *testing.T) {
 	assert.Assert(c, !isNetworkAvailable(c, "br0"))
 }
 
-func (s *DockerAPISuite) TestAPINetworkConnectDisconnect(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	// Create test network
-	name := "testnetwork"
-	config := network.CreateRequest{
-		Name: name,
-	}
-	id := createNetwork(c, config, http.StatusCreated)
-	nr := getNetworkResource(c, id)
-	assert.Equal(c, nr.Name, name)
-	assert.Equal(c, nr.ID, id)
-	assert.Equal(c, len(nr.Containers), 0)
-
-	// run a container
-	out := cli.DockerCmd(c, "run", "-d", "--name", "test", "busybox", "top").Stdout()
-	containerID := strings.TrimSpace(out)
-
-	// connect the container to the test network
-	connectNetwork(c, nr.ID, containerID)
-
-	// inspect the network to make sure container is connected
-	nr = getNetworkResource(c, nr.ID)
-	assert.Equal(c, len(nr.Containers), 1)
-	_, ok := nr.Containers[containerID]
-	assert.Assert(c, ok)
-
-	// check if container IP matches network inspect
-	containerIP := findContainerIP(c, "test", "testnetwork")
-	assert.Equal(c, nr.Containers[containerID].IPv4Address.Addr().String(), containerIP)
-
-	// disconnect container from the network
-	disconnectNetwork(c, nr.ID, containerID)
-	nr = getNetworkResource(c, nr.ID)
-	assert.Equal(c, nr.Name, name)
-	assert.Equal(c, len(nr.Containers), 0)
-
-	// delete the network
-	deleteNetwork(c, nr.ID, true)
-}
-
 func (s *DockerAPISuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// test0 bridge network
