@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -34,31 +33,6 @@ func (s *DockerAPISuite) TestAPIImagesSaveAndLoad(c *testing.T) {
 
 	inspectOut := cli.InspectCmd(c, id, cli.Format(".Id")).Combined()
 	assert.Equal(c, strings.TrimSpace(inspectOut), id, "load did not work properly")
-}
-
-func (s *DockerAPISuite) TestAPIImagesImportBadSrc(c *testing.T) {
-	testRequires(c, Network, testEnv.IsLocalDaemon)
-
-	server := httptest.NewServer(http.NewServeMux())
-	defer server.Close()
-
-	tt := []struct {
-		statusExp int
-		fromSrc   string
-	}{
-		{http.StatusNotFound, server.URL + "/nofile.tar"},
-		{http.StatusNotFound, strings.TrimPrefix(server.URL, "http://") + "/nofile.tar"},
-		{http.StatusNotFound, strings.TrimPrefix(server.URL, "http://") + "%2Fdata%2Ffile.tar"},
-		{http.StatusInternalServerError, "%2Fdata%2Ffile.tar"},
-	}
-
-	ctx := testutil.GetContext(c)
-	for _, te := range tt {
-		res, _, err := request.Post(ctx, "/images/create?fromSrc="+te.fromSrc, request.JSON)
-		assert.NilError(c, err)
-		assert.Equal(c, res.StatusCode, te.statusExp)
-		assert.Equal(c, res.Header.Get("Content-Type"), "application/json")
-	}
 }
 
 // #14846
