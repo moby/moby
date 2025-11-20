@@ -151,3 +151,11 @@ func OptionLoadBalancer(nid string) SandboxOption {
 		sb.oslTypes = append(sb.oslTypes, osl.SandboxTypeLoadBalancer)
 	}
 }
+
+// OptionCreateByRestart function returns an option setter for marking a
+// sandbox was created by restart.
+func OptionCreateByRestart() SandboxOption {
+	return func(sb *Sandbox) {
+		sb.createdByRestart = true
+	}
+}
