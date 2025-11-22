@@ -387,7 +387,7 @@ func TestWindowsProcessIsolationVolumeMount(t *testing.T) {
 }
 
 // TestWindowsHyperVIsolationResourceLimits validates resource limits work with Hyper-V isolation.
-// This ensures Windows 2025 can properly enforce resource constraints on Hyper-V containers.
+// This ensures Windows can properly enforce resource constraints on Hyper-V containers.
 func TestWindowsHyperVIsolationResourceLimits(t *testing.T) {
 	skip.If(t, !testEnv.RuntimeIsWindowsContainerd(), "Hyper-V isolation requires containerd runtime")
 

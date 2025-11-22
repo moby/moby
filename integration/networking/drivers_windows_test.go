@@ -3,6 +3,8 @@ package networking
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -105,6 +107,74 @@ func TestWindowsNATDriverPortMapping(t *testing.T) {
 	assert.Check(t, ctrInfo.NetworkSettings.Ports[portKey] != nil, "Port mapping not found")
 	assert.Check(t, len(ctrInfo.NetworkSettings.Ports[portKey]) > 0, "No host port binding")
 	assert.Check(t, is.Equal(ctrInfo.NetworkSettings.Ports[portKey][0].HostPort, "8080"))
+}
+
+// TestWindowsNATDriverPortMapping1 validates NAT port mapping on Windows by actually testing host connectivity.
+func TestWindowsNATDriverPortMapping1(t *testing.T) {
+	// Skip if remote daemon, must test local host port
+	skip.If(t, testEnv.IsRemoteDaemon, "requires local daemon to test host -> container connectivity")
+
+	ctx := setupTest(t)
+	c := testEnv.APIClient()
+
+	// Use default NAT network
+	netName := "nat"
+
+	ctrName := fmt.Sprintf("port-mapping-%d", time.Now().UnixNano())
+
+	// PowerShell simple HTTP listener on port 80
+	psScript := `
+        $listener = New-Object System.Net.HttpListener
+        $listener.Prefixes.Add('http://+:80/')
+        $listener.Start()
+        while ($listener.IsListening) {
+            $context = $listener.GetContext()
+            $response = $context.Response
+            $content = [System.Text.Encoding]::UTF8.GetBytes('OK')
+            $response.ContentLength64 = $content.Length
+            $response.OutputStream.Write($content, 0, $content.Length)
+            $response.OutputStream.Close()
+        }
+    `
+
+	// Run container with port mapping
+	id := container.Run(ctx, t, c,
+		container.WithName(ctrName),
+		container.WithCmd("powershell", "-Command", psScript),
+		container.WithNetworkMode(netName),
+		container.WithExposedPorts("80/tcp"),
+		container.WithPortMap(nat.PortMap{
+			"80/tcp": []nat.PortBinding{{HostPort: "8080"}},
+		}),
+	)
+	defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
+
+	// Verify metadata first
+	ctrInfo := container.Inspect(ctx, t, c, id)
+	portKey := nat.Port("80/tcp")
+	assert.Check(t, ctrInfo.NetworkSettings.Ports[portKey] != nil, "Port mapping not found")
+	assert.Check(t, len(ctrInfo.NetworkSettings.Ports[portKey]) > 0, "No host port binding")
+	assert.Check(t, is.Equal(ctrInfo.NetworkSettings.Ports[portKey][0].HostPort, "8080"))
+
+	// Functional test: verify host -> container connectivity
+	var lastErr error
+	deadline := time.Now().Add(15 * time.Second)
+	for time.Now().Before(deadline) {
+		resp, err := http.Get("http://localhost:8080")
+		if err == nil {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			if strings.Contains(string(body), "OK") {
+				return
+			}
+			lastErr = fmt.Errorf("unexpected body: %s", string(body))
+		} else {
+			lastErr = err
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	t.Fatalf("host -> container connectivity failed: %v", lastErr)
 }
 
 // TestWindowsNetworkDNSResolution validates DNS resolution on Windows networks.
