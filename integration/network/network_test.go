@@ -6,11 +6,14 @@ import (
 	"net/http"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/v2/integration/internal/swarm"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/request"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
 
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -143,4 +146,53 @@ func TestAPINetworkFilter(t *testing.T) {
 		}
 	}
 	assert.Assert(t, found, fmt.Sprintf("%s is not found", networkName))
+}
+
+// func TestNetworkInspectWithScope(t *testing.T) {
+// 	ctx := setupTest(t)
+// 	apiClient := testEnv.APIClient()
+//
+//     d := swarm.NewSwarm(ctx, t, testEnv)
+//     defer d.Stop(t)
+//
+// 	// _, err := apiClient.SwarmInit(ctx, client.SwarmInitOptions{
+// 	// 	ListenAddr: "0.0.0.0:2377",
+// 	// })
+//
+// 	name := "test-scoped-network"
+// 	create, err := apiClient.NetworkCreate(ctx, name, client.NetworkCreateOptions{Driver: "overlay"})
+// 	assert.NilError(t, err)
+//
+// 	inspect, err := apiClient.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
+// 	assert.NilError(t, err)
+// 	assert.Check(t, is.Equal("swarm", inspect.Network.Scope))
+// 	assert.Check(t, is.Equal(create.ID, inspect.Network.ID))
+//
+// 	_, err = apiClient.NetworkInspect(ctx, name, client.NetworkInspectOptions{Scope: "local"})
+// 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
+//
+// }
+
+func TestNetworkInspectWithScope(t *testing.T) {
+	ctx := setupTest(t)
+
+	skip.If(t, testEnv.RuntimeIsWindowsContainerd(),
+		"Skipping test: fails on Containerd due to unsupported platform request error during NetworkConnect operations")
+
+	d := swarm.NewSwarm(ctx, t, testEnv)
+	defer d.Stop(t)
+
+	cli, _ := d.NewClient() // IMPORTANT: talk to swarm daemon
+
+	name := "test-scoped-network"
+	create, err := cli.NetworkCreate(ctx, name, client.NetworkCreateOptions{Driver: "overlay"})
+	assert.NilError(t, err)
+
+	inspect, err := cli.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("swarm", inspect.Network.Scope))
+	assert.Check(t, is.Equal(create.ID, inspect.Network.ID))
+
+	_, err = cli.NetworkInspect(ctx, name, client.NetworkInspectOptions{Scope: "local"})
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
