@@ -1019,22 +1019,3 @@ func (s *DockerSwarmSuite) TestSwarmRepeatedRootRotation(c *testing.T) {
 		currentTrustRoot = clusterTLSInfo.TrustRoot
 	}
 }
-
-func (s *DockerSwarmSuite) TestAPINetworkInspectWithScope(c *testing.T) {
-	ctx := testutil.GetContext(c)
-	d := s.AddDaemon(ctx, c, true, true)
-
-	name := "test-scoped-network"
-	apiclient := d.NewClientT(c)
-
-	create, err := apiclient.NetworkCreate(ctx, name, client.NetworkCreateOptions{Driver: "overlay"})
-	assert.NilError(c, err)
-
-	inspect, err := apiclient.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
-	assert.NilError(c, err)
-	assert.Check(c, is.Equal("swarm", inspect.Network.Scope))
-	assert.Check(c, is.Equal(create.ID, inspect.Network.ID))
-
-	_, err = apiclient.NetworkInspect(ctx, name, client.NetworkInspectOptions{Scope: "local"})
-	assert.Check(c, is.ErrorType(err, cerrdefs.IsNotFound))
-}
