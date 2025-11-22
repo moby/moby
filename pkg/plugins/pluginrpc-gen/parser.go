@@ -93,7 +93,7 @@ func Parse(filePath string, objName string) (*ParsedPkg, error) {
 		return nil, fmt.Errorf("could not find object %s in %s", objName, filePath)
 	}
 	if obj.Kind != ast.Typ {
-		return nil, fmt.Errorf("exected type, got %s", obj.Kind)
+		return nil, fmt.Errorf("expected type, got %s", obj.Kind)
 	}
 	spec, ok := obj.Decl.(*ast.TypeSpec)
 	if !ok {
