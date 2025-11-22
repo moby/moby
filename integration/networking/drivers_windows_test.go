@@ -9,13 +9,13 @@ import (
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
-	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/go-connections/nat"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 // TestWindowsNetworkDrivers validates Windows-specific network drivers for Windows.
@@ -101,7 +101,7 @@ func TestWindowsNATDriverPortMapping(t *testing.T) {
 	defer c.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
 
 	ctrInfo := container.Inspect(ctx, t, c, id)
-	portKey := "80/tcp"
+	portKey := nat.Port("80/tcp")
 	assert.Check(t, ctrInfo.NetworkSettings.Ports[portKey] != nil, "Port mapping not found")
 	assert.Check(t, len(ctrInfo.NetworkSettings.Ports[portKey]) > 0, "No host port binding")
 	assert.Check(t, is.Equal(ctrInfo.NetworkSettings.Ports[portKey][0].HostPort, "8080"))
@@ -164,7 +164,7 @@ func TestWindowsNetworkDNSResolution(t *testing.T) {
 			// Test DNS resolution by pinging container by name from another container
 			pingCmd := []string{"ping", "-n", "1", "-w", "3000", ctrName}
 
-			attachCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+			attachCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 			defer cancel()
 			res := container.RunAttach(attachCtx, t, c,
 				container.WithCmd(pingCmd...),
@@ -182,8 +182,8 @@ func TestWindowsNetworkDNSResolution(t *testing.T) {
 // Tests network creation, container attachment, detachment, and deletion.
 func TestWindowsNetworkLifecycle(t *testing.T) {
 	// Skip the test to avoid false failures due to known platform limitations.
-	// skip.If(t, testEnv.RuntimeIsWindowsContainerd(),
-	//     "Skipping network lifecycle test on Windows containerd runtime due to known limitations.")
+	skip.If(t, testEnv.RuntimeIsWindowsContainerd(),
+		"Skipping network lifecycle test on Windows containerd runtime due to known limitations.")
 
 	ctx := setupTest(t)
 	c := testEnv.APIClient()
@@ -216,7 +216,7 @@ func TestWindowsNetworkLifecycle(t *testing.T) {
 	assert.Check(t, ctrInfo.NetworkSettings.Networks[netName] == nil, "Container still connected after disconnect")
 
 	// Allow some time for the network state to update
-	time.Sleep(30 * time.Second)
+	// time.Sleep(30 * time.Second)
 
 	// Reconnect container to network
 	err = c.NetworkConnect(ctx, netID, id, nil)

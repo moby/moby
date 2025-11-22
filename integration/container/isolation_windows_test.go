@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/volume"
@@ -188,7 +189,7 @@ func TestWindowsHyperVIsolation(t *testing.T) {
 			description:         "Validate network works with Hyper-V isolation",
 			skipIfNotContainerd: true,
 			validate: func(t *testing.T, ctx context.Context, id string) {
-				execCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+				execCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 				defer cancel()
 
 				// Test localhost connectivity
@@ -267,14 +268,14 @@ func TestWindowsProcessIsolationResourceConstraints(t *testing.T) {
 		name           string
 		cpuShares      int64
 		memoryLimit    int64
-		validateConfig func(t *testing.T, ctrInfo containertypes.InspectResponse)
+		validateConfig func(t *testing.T, ctrInfo types.ContainerJSON)
 	}{
 		{
 			name:        "CPU shares constraint",
 			cpuShares:   512,
 			memoryLimit: 0,
 			// CPU shares provide relative CPU allocation between containers
-			validateConfig: func(t *testing.T, ctrInfo containertypes.InspectResponse) {
+			validateConfig: func(t *testing.T, ctrInfo types.ContainerJSON) {
 				assert.Check(t, is.Equal(ctrInfo.HostConfig.CPUShares, int64(512)))
 			},
 		},
@@ -283,7 +284,7 @@ func TestWindowsProcessIsolationResourceConstraints(t *testing.T) {
 			cpuShares:   0,
 			memoryLimit: 512 * 1024 * 1024, // 512MB
 			// Memory limits enforce hard limits on container memory usage
-			validateConfig: func(t *testing.T, ctrInfo containertypes.InspectResponse) {
+			validateConfig: func(t *testing.T, ctrInfo types.ContainerJSON) {
 				assert.Check(t, is.Equal(ctrInfo.HostConfig.Memory, int64(512*1024*1024)))
 			},
 		},
@@ -292,7 +293,7 @@ func TestWindowsProcessIsolationResourceConstraints(t *testing.T) {
 			cpuShares:   0,
 			memoryLimit: 0,
 			// CPU count limits the number of CPUs available to the container
-			validateConfig: func(t *testing.T, ctrInfo containertypes.InspectResponse) {
+			validateConfig: func(t *testing.T, ctrInfo types.ContainerJSON) {
 				// Verify CPU count is set (this will be set by the custom option below)
 				assert.Check(t, ctrInfo.HostConfig.CPUCount > 0, "CPU count should be set")
 			},
