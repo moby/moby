@@ -540,8 +540,8 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 	errs = normalizeEndpointIPAMConfig(errs, ipamConfig)
 
 	if nw != nil {
-		_, _, v4Configs, v6Configs := nw.IpamConfig()
-		errs = validateIPAMConfigIsInRange(errs, ipamConfig, v4Configs, v6Configs)
+		v4Info, v6Info := nw.IpamInfo()
+		errs = validateIPAMConfigIsInRange(errs, ipamConfig, v4Info, v6Info)
 	}
 
 	if sysctls, ok := epConfig.DriverOpts[netlabel.EndpointSysctls]; ok {
@@ -598,36 +598,28 @@ func normalizeEndpointIPAMConfig(errs []error, cfg *networktypes.EndpointIPAMCon
 }
 
 // validateIPAMConfigIsInRange checks whether static IP addresses are valid in a specific network.
-func validateIPAMConfigIsInRange(errs []error, cfg *networktypes.EndpointIPAMConfig, v4Subnets, v6Subnets []*libnetwork.IpamConf) []error {
-	if err := validateEndpointIPAddress(cfg.IPv4Address, v4Subnets); err != nil {
+func validateIPAMConfigIsInRange(errs []error, cfg *networktypes.EndpointIPAMConfig, v4Info, v6Info []*libnetwork.IpamInfo) []error {
+	if err := validateEndpointIPAddress(cfg.IPv4Address, v4Info); err != nil {
 		errs = append(errs, err)
 	}
-	if err := validateEndpointIPAddress(cfg.IPv6Address, v6Subnets); err != nil {
+	if err := validateEndpointIPAddress(cfg.IPv6Address, v6Info); err != nil {
 		errs = append(errs, err)
 	}
 	return errs
 }
 
-func validateEndpointIPAddress(epAddr netip.Addr, ipamSubnets []*libnetwork.IpamConf) error {
+func validateEndpointIPAddress(epAddr netip.Addr, ipamInfo []*libnetwork.IpamInfo) error {
 	if !epAddr.IsValid() {
 		return nil
 	}
 
-	var staticSubnet bool
-	for _, subnet := range ipamSubnets {
-		if subnet.IsStatic() {
-			staticSubnet = true
-			if subnet.Contains(epAddr) {
-				return nil
-			}
+	for _, subnet := range ipamInfo {
+		if subnet.Pool.Contains(epAddr.AsSlice()) {
+			return nil
 		}
 	}
 
-	if staticSubnet {
-		return fmt.Errorf("no configured subnet or ip-range contain the IP address %s", epAddr)
-	}
-
-	return errors.New("user specified IP address is supported only when connecting to networks with user configured subnets")
+	return fmt.Errorf("no configured subnet contains IP address %s", epAddr)
 }
 
 // cleanOperationalData resets the operational data from the passed endpoint settings

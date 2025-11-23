@@ -1357,10 +1357,10 @@ func (s *DockerNetworkSuite) TestDockerNetworkUnsupportedRequiredIP(c *testing.T
 
 	out, _, err := dockerCmdWithError("run", "-d", "--ip", "172.28.99.88", "--net", "n0", "busybox", "top")
 	assert.Assert(c, err != nil, "out: %s", out)
-	assert.Assert(c, is.Contains(out, "user specified IP address is supported only when connecting to networks with user configured subnets"))
+	assert.Assert(c, is.Contains(out, "no configured subnet contains IP address 172.28.99.88"))
 	out, _, err = dockerCmdWithError("run", "-d", "--ip6", "2001:db8:1234::9988", "--net", "n0", "busybox", "top")
 	assert.Assert(c, err != nil, "out: %s", out)
-	assert.Assert(c, is.Contains(out, "user specified IP address is supported only when connecting to networks with user configured subnets"))
+	assert.Assert(c, is.Contains(out, "no configured subnet contains IP address 2001:db8:1234::9988"))
 	cli.DockerCmd(c, "network", "rm", "n0")
 	assertNwNotAvailable(c, "n0")
 }

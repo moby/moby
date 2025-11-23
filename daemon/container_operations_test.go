@@ -3,6 +3,7 @@ package daemon
 import (
 	"encoding/json"
 	"errors"
+	"net"
 	"net/netip"
 	"testing"
 
@@ -10,6 +11,7 @@ import (
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/libnetwork"
+	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -57,12 +59,12 @@ func buildNetwork(t *testing.T, config map[string]any) *libnetwork.Network {
 	return nw
 }
 
-func TestEndpointIPAMConfigWithOutOfRangeAddrs(t *testing.T) {
+func TestEndpointIPAMInfoWithOutOfRangeAddrs(t *testing.T) {
 	tests := []struct {
 		name           string
 		ipamConfig     *networktypes.EndpointIPAMConfig
-		v4Subnets      []*libnetwork.IpamConf
-		v6Subnets      []*libnetwork.IpamConf
+		v4Pool         string
+		v6Pool         string
 		expectedErrors []string
 	}{
 		{
@@ -72,12 +74,8 @@ func TestEndpointIPAMConfigWithOutOfRangeAddrs(t *testing.T) {
 				IPv6Address:  netip.MustParseAddr("2a01:d2:af:420b:25c1:1816:bb33:855c"),
 				LinkLocalIPs: []netip.Addr{netip.MustParseAddr("169.254.169.254"), netip.MustParseAddr("fe80::42:a8ff:fe33:6230")},
 			},
-			v4Subnets: []*libnetwork.IpamConf{
-				{PreferredPool: "192.168.100.0/24"},
-			},
-			v6Subnets: []*libnetwork.IpamConf{
-				{PreferredPool: "2a01:d2:af:420b:25c1:1816:bb33::/112"},
-			},
+			v4Pool: "192.168.100.0/24",
+			v6Pool: "2a01:d2:af:420b:25c1:1816:bb33::/112",
 		},
 		{
 			name: "static addresses out of range",
@@ -85,39 +83,28 @@ func TestEndpointIPAMConfigWithOutOfRangeAddrs(t *testing.T) {
 				IPv4Address: netip.MustParseAddr("192.168.100.10"),
 				IPv6Address: netip.MustParseAddr("2a01:d2:af:420b:25c1:1816:bb33:855c"),
 			},
-			v4Subnets: []*libnetwork.IpamConf{
-				{PreferredPool: "192.168.255.0/24"},
-			},
-			v6Subnets: []*libnetwork.IpamConf{
-				{PreferredPool: "2001:db8::/112"},
-			},
+			v4Pool: "192.168.255.0/24",
+			v6Pool: "2001:db8::/112",
 			expectedErrors: []string{
-				"no configured subnet or ip-range contain the IP address 192.168.100.10",
-				"no configured subnet or ip-range contain the IP address 2a01:d2:af:420b:25c1:1816:bb33:855c",
-			},
-		},
-		{
-			name: "static addresses with dynamic network subnets",
-			ipamConfig: &networktypes.EndpointIPAMConfig{
-				IPv4Address: netip.MustParseAddr("192.168.100.10"),
-				IPv6Address: netip.MustParseAddr("2a01:d2:af:420b:25c1:1816:bb33:855c"),
-			},
-			v4Subnets: []*libnetwork.IpamConf{
-				{},
-			},
-			v6Subnets: []*libnetwork.IpamConf{
-				{},
-			},
-			expectedErrors: []string{
-				"user specified IP address is supported only when connecting to networks with user configured subnets",
-				"user specified IP address is supported only when connecting to networks with user configured subnets",
+				"no configured subnet contains IP address 192.168.100.10",
+				"no configured subnet contains IP address 2a01:d2:af:420b:25c1:1816:bb33:855c",
 			},
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			errs := validateIPAMConfigIsInRange(nil, tc.ipamConfig, tc.v4Subnets, tc.v6Subnets)
+			_, v4Pool, err := net.ParseCIDR(tc.v4Pool)
+			assert.NilError(t, err)
+			v4Info := []*libnetwork.IpamInfo{
+				{IPAMData: driverapi.IPAMData{Pool: v4Pool}},
+			}
+			_, v6Pool, err := net.ParseCIDR(tc.v6Pool)
+			assert.NilError(t, err)
+			v6Info := []*libnetwork.IpamInfo{
+				{IPAMData: driverapi.IPAMData{Pool: v6Pool}},
+			}
+			errs := validateIPAMConfigIsInRange(nil, tc.ipamConfig, v4Info, v6Info)
 			if tc.expectedErrors == nil {
 				assert.NilError(t, errors.Join(errs...))
 				return
@@ -125,7 +112,7 @@ func TestEndpointIPAMConfigWithOutOfRangeAddrs(t *testing.T) {
 
 			assert.Check(t, len(errs) == len(tc.expectedErrors), "errs: %+v", errs)
 
-			err := errors.Join(errs...)
+			err = errors.Join(errs...)
 			for _, expected := range tc.expectedErrors {
 				assert.Check(t, is.ErrorContains(err, expected))
 			}
