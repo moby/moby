@@ -2058,3 +2058,35 @@ func TestDNSNamesForNonSwarmScopedNetworks(t *testing.T) {
 		container.WithAutoRemove)
 	assert.Equal(t, res.ExitCode, 0, "exit code: %d, expected 0; stdout:\n%s", res.ExitCode, res.Stdout)
 }
+
+// Check that when a network is created with no --subnet, a container can be
+// started with a --ip in the subnet allocated from the default pools.
+//
+// Regression test for https://github.com/moby/moby/issues/51569
+func TestSetIPWithNoConfiguredSubnet(t *testing.T) {
+	ctx := setupTest(t)
+	c := testEnv.APIClient()
+
+	const bridgeName = "subnet-from-pools"
+	network.CreateNoError(ctx, t, c, bridgeName, network.WithIPv6())
+	defer network.RemoveNoError(ctx, t, c, bridgeName)
+
+	insp := network.InspectNoError(ctx, t, c, bridgeName, client.NetworkInspectOptions{})
+	assert.Assert(t, is.Len(insp.Network.IPAM.Config, 2))
+	ip4 := insp.Network.IPAM.Config[0].Subnet.Addr().Next().Next().String()
+	ip6 := insp.Network.IPAM.Config[1].Subnet.Addr().Next().Next().String()
+	if insp.Network.IPAM.Config[0].Subnet.Addr().Is6() {
+		ip4, ip6 = ip6, ip4
+	}
+
+	res := container.RunAttach(ctx, t, c,
+		container.WithCmd("ip", "addr", "show", "eth0"),
+		container.WithNetworkMode(bridgeName),
+		container.WithIPv4(bridgeName, ip4),
+		container.WithIPv6(bridgeName, ip6),
+	)
+	if assert.Check(t, is.Equal(res.ExitCode, 0)) {
+		assert.Check(t, is.Contains(res.Stdout.String(), ip4))
+		assert.Check(t, is.Contains(res.Stdout.String(), ip6))
+	}
+}
