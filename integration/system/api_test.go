@@ -21,3 +21,11 @@ func TestAPIErrorNotFoundJSON(t *testing.T) {
 	assert.NilError(t, request.ReadJSONResponse(httpResp, &respErr))
 	assert.Error(t, respErr, "page not found")
 }
+
+func TestAPIOptionsRoute(t *testing.T) {
+	ctx := setupTest(t)
+
+	resp, _, err := request.Do(ctx, "/", request.Method(http.MethodOptions))
+	assert.NilError(t, err)
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
+}

@@ -22,12 +22,6 @@ func (s *DockerAPISuite) OnTimeout(t *testing.T) {
 	s.ds.OnTimeout(t)
 }
 
-func (s *DockerAPISuite) TestAPIOptionsRoute(c *testing.T) {
-	resp, _, err := request.Do(testutil.GetContext(c), "/", request.Method(http.MethodOptions))
-	assert.NilError(c, err)
-	assert.Equal(c, resp.StatusCode, http.StatusOK)
-}
-
 func (s *DockerAPISuite) TestAPIGetEnabledCORS(c *testing.T) {
 	res, body, err := request.Get(testutil.GetContext(c), "/version")
 	assert.NilError(c, err)
