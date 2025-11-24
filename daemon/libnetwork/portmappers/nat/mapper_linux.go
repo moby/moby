@@ -95,7 +95,7 @@ func (pm PortMapper) MapPorts(ctx context.Context, cfg []portmapperapi.PortBindi
 		pb.PortBinding.HostPortEnd = pb.HostPort
 
 		childHIP, _ := netip.AddrFromSlice(cfg[i].ChildHostIP)
-		pb.NAT = netip.AddrPortFrom(childHIP, pb.PortBinding.HostPort)
+		pb.NAT = netip.AddrPortFrom(childHIP.Unmap(), pb.PortBinding.HostPort)
 
 		bindings = append(bindings, pb)
 	}
@@ -133,7 +133,7 @@ func setChildHostIP(pdc PortDriverClient, req portmapperapi.PortBindingReq) port
 		return req
 	}
 	hip, _ := netip.AddrFromSlice(req.HostIP)
-	req.ChildHostIP = pdc.ChildHostIP(hip).AsSlice()
+	req.ChildHostIP = pdc.ChildHostIP(hip.Unmap()).AsSlice()
 	return req
 }
 
@@ -153,7 +153,7 @@ func configPortDriver(ctx context.Context, pbs []portmapperapi.PortBinding, pdc 
 			if !ok {
 				return fmt.Errorf("invalid child host IP address %s in %s", b.ChildHostIP, b)
 			}
-			pbs[i].PortDriverRemove, err = pdc.AddPort(ctx, b.Proto.String(), hip, chip, int(b.HostPort))
+			pbs[i].PortDriverRemove, err = pdc.AddPort(ctx, b.Proto.String(), hip.Unmap(), chip.Unmap(), int(b.HostPort))
 			if err != nil {
 				var pErr *rlkclient.ProtocolUnsupportedError
 				if errors.As(err, &pErr) {
