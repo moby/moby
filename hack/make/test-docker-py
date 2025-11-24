@@ -4,7 +4,7 @@ set -e
 source hack/make/.integration-test-helpers
 
 # The commit or tag to use for testing
-: "${DOCKER_PY_COMMIT:=65f7f0c772577beb5e2cd6daac4e5ca806ccc4af}" # master (v7.2.0-dev)
+: "${DOCKER_PY_COMMIT:=df3f8e2abc5a03de482e37214dddef9e0cee1bb1}" # master (v7.2.0-dev)
 
 # custom options to pass py.test
 #
