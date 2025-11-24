@@ -68,13 +68,12 @@ jobs:
         name: Prepare reports
         if: always()
         run: |
+          docker stop otelcol
           mkdir -p bundles /tmp/reports
           find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
           tar -xzf /tmp/reports.tar.gz -C /tmp/reports
           sudo chown -R $(id -u):$(id -g) /tmp/reports
           tree -nh /tmp/reports
-
-          curl -sSLf localhost:16686/api/traces?service=integration-test-client > /tmp/reports/jaeger-trace.json
       -
         name: Test daemon logs
         if: always()
@@ -228,13 +227,13 @@ jobs:
           reportsPath="/tmp/reports/$reportsName"
           echo "TESTREPORTS_NAME=$reportsName" >> $GITHUB_ENV
           
+          docker stop otelcol
           mkdir -p bundles $reportsPath
           find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
           tar -xzf /tmp/reports.tar.gz -C $reportsPath
+          mv /tmp/reports/otel-trace*.jsonl $reportsPath/
           sudo chown -R $(id -u):$(id -g) $reportsPath
           tree -nh $reportsPath
-
-          curl -sSLf localhost:16686/api/traces?service=integration-test-client > $reportsPath/jaeger-trace.json
       -
         name: Send to Codecov
         uses: codecov/codecov-action@v4
@@ -443,14 +442,14 @@ jobs:
           reportsPath=/tmp/reports/$reportsName
           echo "TESTREPORTS_NAME=$reportsName" >> $GITHUB_ENV
           
+          docker stop otelcol
           mkdir -p bundles $reportsPath
           echo "${{ matrix.test }}" | tr -s '|' '\n' | tee -a "$reportsPath/tests.txt"
           find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
           tar -xzf /tmp/reports.tar.gz -C $reportsPath
+          mv /tmp/reports/otel-trace*.jsonl $reportsPath/
           sudo chown -R $(id -u):$(id -g) $reportsPath
           tree -nh $reportsPath
-
-          curl -sSLf localhost:16686/api/traces?service=integration-test-client > $reportsPath/jaeger-trace.json
       -
         name: Send to Codecov
         uses: codecov/codecov-action@v4
