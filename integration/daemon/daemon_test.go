@@ -499,7 +499,7 @@ func testLiveRestoreAutoRemove(t *testing.T) {
 		return d, finishContainer, cID
 	}
 
-	t.Run("engine restart shouldnt kill alive containers", func(t *testing.T) {
+	t.Run("engine restart shouldn't kill alive containers", func(t *testing.T) {
 		d, finishContainer, cID := run(t)
 
 		d.Restart(t, "--live-restore", "--iptables=false", "--ip6tables=false")
