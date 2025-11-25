@@ -745,10 +745,12 @@ func (ep *Endpoint) Leave(ctx context.Context, sb *Sandbox) error {
 
 func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force bool) error {
 	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
-		"nid": n.ID(),
+		"nid": stringid.TruncateID(n.ID()),
 		"net": n.Name(),
-		"eid": ep.ID(),
+		"eid": epShortId(ep),
 		"ep":  ep.Name(),
+		"sid": stringid.TruncateID(sb.ID()),
+		"cid": stringid.TruncateID(sb.ContainerID()),
 	}))
 
 	sb.mu.Lock()
@@ -829,7 +831,13 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 	if needNewGwEp {
 		gwepAfter4, gwepAfter6 = sb.getGatewayEndpoint()
 		if err := sb.updateGateway(gwepAfter4, gwepAfter6); err != nil {
-			return fmt.Errorf("updating gateway endpoint: %w", err)
+			// Don't return an error here without adding proper rollback of the work done above.
+			// See https://github.com/moby/moby/issues/51578
+			log.G(ctx).WithFields(log.Fields{
+				"gw4":   epShortId(gwepAfter4),
+				"gw6":   epShortId(gwepAfter6),
+				"error": err,
+			}).Warn("Configuring gateway after network disconnect")
 		}
 	}
 
