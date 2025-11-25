@@ -22,24 +22,26 @@ import (
 )
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality
-func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
-	if err := daemon.Mount(container); err != nil {
-		return err
-	}
-	defer daemon.Unmount(container)
-
-	if err := container.SetupWorkingDirectory(daemon.idMapping.RootPair()); err != nil {
-		return err
-	}
-
+func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, ctr *container.Container) error {
 	// Set the default masked and readonly paths with regard to the host config options if they are not set.
-	if hostConfig.MaskedPaths == nil && !hostConfig.Privileged {
-		hostConfig.MaskedPaths = oci.DefaultSpec().Linux.MaskedPaths // Set it to the default if nil
-		container.HostConfig.MaskedPaths = hostConfig.MaskedPaths
+	if ctr.HostConfig.MaskedPaths == nil && !ctr.HostConfig.Privileged {
+		ctr.HostConfig.MaskedPaths = oci.DefaultSpec().Linux.MaskedPaths // Set it to the default if nil
 	}
-	if hostConfig.ReadonlyPaths == nil && !hostConfig.Privileged {
-		hostConfig.ReadonlyPaths = oci.DefaultSpec().Linux.ReadonlyPaths // Set it to the default if nil
-		container.HostConfig.ReadonlyPaths = hostConfig.ReadonlyPaths
+	if ctr.HostConfig.ReadonlyPaths == nil && !ctr.HostConfig.Privileged {
+		ctr.HostConfig.ReadonlyPaths = oci.DefaultSpec().Linux.ReadonlyPaths // Set it to the default if nil
+	}
+	return nil
+}
+
+// createContainerVolumesOS performs host-OS specific volume creation
+func (daemon *Daemon) createContainerVolumesOS(ctx context.Context, ctr *container.Container, config *containertypes.Config) error {
+	if err := daemon.Mount(ctr); err != nil {
+		return err
+	}
+	defer daemon.Unmount(ctr)
+
+	if err := ctr.SetupWorkingDirectory(daemon.idMapping.RootPair()); err != nil {
+		return err
 	}
 
 	for spec := range config.Volumes {
@@ -47,12 +49,12 @@ func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, con
 
 		// Skip volumes for which we already have something mounted on that
 		// destination because of a --volume-from.
-		if container.HasMountFor(destination) {
-			log.G(ctx).WithField("container", container.ID).WithField("destination", spec).Debug("mountpoint already exists, skipping anonymous volume")
+		if ctr.HasMountFor(destination) {
+			log.G(ctx).WithField("container", ctr.ID).WithField("destination", spec).Debug("mountpoint already exists, skipping anonymous volume")
 			// Not an error, this could easily have come from the image config.
 			continue
 		}
-		path, err := container.GetResourcePath(destination)
+		path, err := ctr.GetResourcePath(destination)
 		if err != nil {
 			return err
 		}
@@ -62,18 +64,18 @@ func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, con
 			return fmt.Errorf("cannot mount volume over existing file, file exists %s", path)
 		}
 
-		v, err := daemon.volumes.Create(context.TODO(), "", hostConfig.VolumeDriver, volumeopts.WithCreateReference(container.ID))
+		v, err := daemon.volumes.Create(context.TODO(), "", ctr.HostConfig.VolumeDriver, volumeopts.WithCreateReference(ctr.ID))
 		if err != nil {
 			return err
 		}
 
-		if err := label.Relabel(v.Mountpoint, container.MountLabel, true); err != nil {
+		if err := label.Relabel(v.Mountpoint, ctr.MountLabel, true); err != nil {
 			return err
 		}
 
-		container.AddMountPointWithVolume(destination, &volumeWrapper{v: v, s: daemon.volumes}, true)
+		ctr.AddMountPointWithVolume(destination, &volumeWrapper{v: v, s: daemon.volumes}, true)
 	}
-	return daemon.populateVolumes(ctx, container)
+	return daemon.populateVolumes(ctx, ctr)
 }
 
 // populateVolumes copies data from the container's rootfs into the volume for non-binds.
