@@ -1010,7 +1010,7 @@ func (ep *Endpoint) getEtcHostsAddrs() []netip.Addr {
 	var addresses []netip.Addr
 	if ep.iface.addr != nil {
 		if addr, ok := netip.AddrFromSlice(ep.iface.addr.IP); ok {
-			addresses = append(addresses, addr)
+			addresses = append(addresses, addr.Unmap())
 		}
 	}
 	if ep.iface.addrv6 != nil {

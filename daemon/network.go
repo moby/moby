@@ -1146,8 +1146,11 @@ func getEndpointPortMapInfo(pm networktypes.PortMap, ep *libnetwork.Endpoint) {
 			if pp.HostPort > 0 {
 				hp = strconv.Itoa(int(pp.HostPort))
 			}
-			natBndg := networktypes.PortBinding{HostPort: hp}
-			natBndg.HostIP, _ = netip.AddrFromSlice(pp.HostIP)
+			hip, _ := netip.AddrFromSlice(pp.HostIP)
+			natBndg := networktypes.PortBinding{
+				HostIP:   hip.Unmap(),
+				HostPort: hp,
+			}
 			pm[natPort] = append(pm[natPort], natBndg)
 		}
 	}

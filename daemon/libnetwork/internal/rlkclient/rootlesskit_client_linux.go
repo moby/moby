@@ -64,7 +64,7 @@ func NewPortDriverClient(ctx context.Context) (*PortDriverClient, error) {
 			return nil, fmt.Errorf("unable to use child IP %s from network driver (%q)",
 				info.NetworkDriver.ChildIP, info.NetworkDriver.Driver)
 		}
-		pdc.childIP = childIP
+		pdc.childIP = childIP.Unmap()
 	}
 
 	pdc.protos = make(map[string]struct{}, len(info.PortDriver.Protos))

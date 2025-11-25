@@ -891,7 +891,7 @@ func setHostGatewayIP(controller *libnetwork.Controller, config *config.Config) 
 		v4Info, v6Info := n.IpamInfo()
 		if len(v4Info) > 0 {
 			addr, _ := netip.AddrFromSlice(v4Info[0].Gateway.IP)
-			config.HostGatewayIPs = append(config.HostGatewayIPs, addr)
+			config.HostGatewayIPs = append(config.HostGatewayIPs, addr.Unmap())
 		}
 		if len(v6Info) > 0 {
 			addr, _ := netip.AddrFromSlice(v6Info[0].Gateway.IP)
