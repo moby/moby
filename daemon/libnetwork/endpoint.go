@@ -751,6 +751,9 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 		"ep":  ep.Name(),
 	}))
 
+	sb.mu.Lock()
+	sbInDelete := sb.inDelete
+	sb.mu.Unlock()
 	ep.mu.Lock()
 	sid := ep.sandboxID
 	ep.mu.Unlock()
@@ -798,8 +801,9 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 	// before the endpoint is deleted, so that they can be removed from /etc/hosts.
 	etcHostsAddrs := ep.getEtcHostsAddrs()
 	// Before removing the Endpoint from the Sandbox's list of endpoints, check whether
-	// it's acting as a gateway so that new gateways can be selected if it is.
-	wasGwEp := sb.isGatewayEndpoint(ep.id)
+	// it's acting as a gateway so that new gateways can be selected if it is. If the
+	// sandbox is being deleted, skip the check as no new gateway will be needed.
+	needNewGwEp := !sbInDelete && sb.isGatewayEndpoint(ep.id)
 
 	// Remove the sb's references to ep.
 	sb.mu.Lock()
@@ -822,7 +826,7 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 
 	// Update gateway / static routes if the ep was the gateway.
 	var gwepAfter4, gwepAfter6 *Endpoint
-	if wasGwEp {
+	if needNewGwEp {
 		gwepAfter4, gwepAfter6 = sb.getGatewayEndpoint()
 		if err := sb.updateGateway(gwepAfter4, gwepAfter6); err != nil {
 			return fmt.Errorf("updating gateway endpoint: %w", err)
@@ -858,7 +862,7 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 	// the hosts entries with addresses on that network.
 	sb.deleteHostsEntries(etcHostsAddrs)
 
-	if !sb.inDelete && sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
+	if !sbInDelete && sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
 		return sb.setupDefaultGW()
 	}
 
@@ -867,17 +871,16 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 		sb.resolver.SetForwardingPolicy(sb.hasExternalAccess())
 	}
 
-	// Configure the endpoints that now provide external connectivity for the sandbox.
-	if wasGwEp {
-		if gwepAfter4 != nil {
-			if err := gwepAfter4.programExternalConnectivity(ctx, gwepAfter4, gwepAfter6); err != nil {
-				log.G(ctx).WithError(err).Error("Failed to set IPv4 gateway")
-			}
+	// Configure the endpoints that now provide external connectivity for the sandbox
+	// if endpoints have been selected.
+	if gwepAfter4 != nil {
+		if err := gwepAfter4.programExternalConnectivity(ctx, gwepAfter4, gwepAfter6); err != nil {
+			log.G(ctx).WithError(err).Error("Failed to set IPv4 gateway")
 		}
-		if gwepAfter6 != nil && gwepAfter6 != gwepAfter4 {
-			if err := gwepAfter6.programExternalConnectivity(ctx, gwepAfter4, gwepAfter6); err != nil {
-				log.G(ctx).WithError(err).Error("Failed to set IPv6 gateway")
-			}
+	}
+	if gwepAfter6 != nil && gwepAfter6 != gwepAfter4 {
+		if err := gwepAfter6.programExternalConnectivity(ctx, gwepAfter4, gwepAfter6); err != nil {
+			log.G(ctx).WithError(err).Error("Failed to set IPv6 gateway")
 		}
 	}
 
