@@ -124,6 +124,29 @@ func (daemon *Daemon) newContainer(name string, platform ocispec.Platform, confi
 		return nil, err
 	}
 
+	// Check if any mount is of type apisocket and set DOCKER_HOST environment variable
+	for i, mnt := range hostConfig.Mounts {
+		if mnt.Type == mount.TypeAPISocket {
+			// TODO(ndeloof) engineSocket should create a dedicated socket for id
+			// to be removed after container is destroyed. This will allow adding
+			// fine-grained access control on moby API
+			socket, err := daemon.engineSocket()
+			if err != nil {
+				return nil, err
+			}
+			mnt.Type = mount.TypeBind
+			target := mnt.Target
+			if target == "" {
+				target = "/var/run/docker.sock"
+			}
+			mnt.Source = socket
+			dockerHostEnv := "DOCKER_HOST=unix://" + target
+			config.Env = append(config.Env, dockerHostEnv)
+			hostConfig.Mounts[i] = mnt
+			break
+		}
+	}
+
 	if config.Hostname == "" {
 		if hostConfig.NetworkMode.IsHost() {
 			config.Hostname, err = os.Hostname()
