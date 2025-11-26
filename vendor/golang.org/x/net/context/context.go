@@ -2,42 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package context defines the Context type, which carries deadlines,
-// cancellation signals, and other request-scoped values across API boundaries
-// and between processes.
-// As of Go 1.7 this package is available in the standard library under the
-// name [context].
+// Package context has been superseded by the standard library [context] package.
 //
-// Incoming requests to a server should create a [Context], and outgoing
-// calls to servers should accept a Context. The chain of function
-// calls between them must propagate the Context, optionally replacing
-// it with a derived Context created using [WithCancel], [WithDeadline],
-// [WithTimeout], or [WithValue].
-//
-// Programs that use Contexts should follow these rules to keep interfaces
-// consistent across packages and enable static analysis tools to check context
-// propagation:
-//
-// Do not store Contexts inside a struct type; instead, pass a Context
-// explicitly to each function that needs it. This is discussed further in
-// https://go.dev/blog/context-and-structs. The Context should be the first
-// parameter, typically named ctx:
-//
-//	func DoSomething(ctx context.Context, arg Arg) error {
-//		// ... use ctx ...
-//	}
-//
-// Do not pass a nil [Context], even if a function permits it. Pass [context.TODO]
-// if you are unsure about which Context to use.
-//
-// Use context Values only for request-scoped data that transits processes and
-// APIs, not for passing optional parameters to functions.
-//
-// The same Context may be passed to functions running in different goroutines;
-// Contexts are safe for simultaneous use by multiple goroutines.
-//
-// See https://go.dev/blog/context for example code for a server that uses
-// Contexts.
+// Deprecated: Use the standard library context package instead.
 package context
 
 import (
