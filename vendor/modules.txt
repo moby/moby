@@ -353,7 +353,7 @@ github.com/container-storage-interface/spec/lib/go/csi
 github.com/containerd/accelerated-container-image/pkg/label
 github.com/containerd/accelerated-container-image/pkg/types
 github.com/containerd/accelerated-container-image/pkg/utils
-# github.com/containerd/cgroups/v3 v3.1.0
+# github.com/containerd/cgroups/v3 v3.1.2
 ## explicit; go 1.22.0
 github.com/containerd/cgroups/v3
 github.com/containerd/cgroups/v3/cgroup1
