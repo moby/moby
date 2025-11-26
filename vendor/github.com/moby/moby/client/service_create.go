@@ -95,35 +95,33 @@ func (cli *Client) ServiceCreate(ctx context.Context, options ServiceCreateOptio
 }
 
 func resolveContainerSpecImage(ctx context.Context, cli DistributionAPIClient, taskSpec *swarm.TaskSpec, encodedAuth string) string {
-	var warning string
-	if img, imgPlatforms, err := imageDigestAndPlatforms(ctx, cli, taskSpec.ContainerSpec.Image, encodedAuth); err != nil {
-		warning = digestWarning(taskSpec.ContainerSpec.Image)
-	} else {
-		taskSpec.ContainerSpec.Image = img
-		if len(imgPlatforms) > 0 {
-			if taskSpec.Placement == nil {
-				taskSpec.Placement = &swarm.Placement{}
-			}
-			taskSpec.Placement.Platforms = imgPlatforms
-		}
+	img, imgPlatforms, err := imageDigestAndPlatforms(ctx, cli, taskSpec.ContainerSpec.Image, encodedAuth)
+	if err != nil {
+		return digestWarning(taskSpec.ContainerSpec.Image)
 	}
-	return warning
+	taskSpec.ContainerSpec.Image = img
+	if len(imgPlatforms) > 0 {
+		if taskSpec.Placement == nil {
+			taskSpec.Placement = &swarm.Placement{}
+		}
+		taskSpec.Placement.Platforms = imgPlatforms
+	}
+	return ""
 }
 
 func resolvePluginSpecRemote(ctx context.Context, cli DistributionAPIClient, taskSpec *swarm.TaskSpec, encodedAuth string) string {
-	var warning string
-	if img, imgPlatforms, err := imageDigestAndPlatforms(ctx, cli, taskSpec.PluginSpec.Remote, encodedAuth); err != nil {
-		warning = digestWarning(taskSpec.PluginSpec.Remote)
-	} else {
-		taskSpec.PluginSpec.Remote = img
-		if len(imgPlatforms) > 0 {
-			if taskSpec.Placement == nil {
-				taskSpec.Placement = &swarm.Placement{}
-			}
-			taskSpec.Placement.Platforms = imgPlatforms
-		}
+	img, imgPlatforms, err := imageDigestAndPlatforms(ctx, cli, taskSpec.PluginSpec.Remote, encodedAuth)
+	if err != nil {
+		return digestWarning(taskSpec.PluginSpec.Remote)
 	}
-	return warning
+	taskSpec.PluginSpec.Remote = img
+	if len(imgPlatforms) > 0 {
+		if taskSpec.Placement == nil {
+			taskSpec.Placement = &swarm.Placement{}
+		}
+		taskSpec.Placement.Platforms = imgPlatforms
+	}
+	return ""
 }
 
 func imageDigestAndPlatforms(ctx context.Context, cli DistributionAPIClient, image, encodedAuth string) (string, []swarm.Platform, error) {
