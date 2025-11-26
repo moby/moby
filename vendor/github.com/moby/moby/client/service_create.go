@@ -59,16 +59,18 @@ func (cli *Client) ServiceCreate(ctx context.Context, options ServiceCreateOptio
 			options.Spec.TaskTemplate.ContainerSpec.Image = taggedImg
 		}
 		if options.QueryRegistry {
-			resolveWarning := resolveContainerSpecImage(ctx, cli, &options.Spec.TaskTemplate, options.EncodedRegistryAuth)
-			warnings = append(warnings, resolveWarning)
+			if warning := resolveContainerSpecImage(ctx, cli, &options.Spec.TaskTemplate, options.EncodedRegistryAuth); warning != "" {
+				warnings = append(warnings, warning)
+			}
 		}
 	case options.Spec.TaskTemplate.PluginSpec != nil:
 		if taggedImg := imageWithTagString(options.Spec.TaskTemplate.PluginSpec.Remote); taggedImg != "" {
 			options.Spec.TaskTemplate.PluginSpec.Remote = taggedImg
 		}
 		if options.QueryRegistry {
-			resolveWarning := resolvePluginSpecRemote(ctx, cli, &options.Spec.TaskTemplate, options.EncodedRegistryAuth)
-			warnings = append(warnings, resolveWarning)
+			if warning := resolvePluginSpecRemote(ctx, cli, &options.Spec.TaskTemplate, options.EncodedRegistryAuth); warning != "" {
+				warnings = append(warnings, warning)
+			}
 		}
 	}
 
