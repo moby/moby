@@ -236,6 +236,7 @@ definitions:
     description: |-
       The mount type. Available types:
 
+      - `apisocket` a mount of the engine API socket into the container.
       - `bind` a mount of a file or directory from the host into the container.
       - `cluster` a Swarm cluster volume.
       - `image` an OCI image.
@@ -244,6 +245,7 @@ definitions:
       - `volume` a docker volume with the given `Name`.
     type: "string"
     enum:
+      - "apisocket"
       - "bind"
       - "cluster"
       - "image"
@@ -262,6 +264,7 @@ definitions:
         description: |
           The mount type:
 
+          - `apisocket` a mount of the engine API socket into the container.
           - `bind` a mount of a file or directory from the host into the container.
           - `cluster` a Swarm cluster volume.
           - `image` an OCI image.
@@ -413,6 +416,7 @@ definitions:
         description: |
           The mount type. Available types:
 
+          - `apisocket` Mounts the engine API socket into the container.
           - `bind` Mounts a file or directory from the host into the container. The `Source` must exist prior to creating the container.
           - `cluster` a Swarm cluster volume
           - `image` Mounts an image.
@@ -529,6 +533,15 @@ definitions:
                 type: "string"
             example:
               [["noexec"]]
+      APISocketOptions:
+        description: |-
+          Optional configuration for the `apisocket` type.
+        type: object
+        required: ["access"]
+        properties:
+          access:
+            type: string
+            enum: ["unconfined"]
 
   RestartPolicy:
     description: |

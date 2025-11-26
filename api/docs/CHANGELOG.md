@@ -23,6 +23,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   identity and origin information for the image.
 * Deprecated: The `POST /grpc` and `POST /session` endpoints are deprecated and
   will be removed in a future version.
+* `POST /containers/create` accepts a new `apisocket` Mount type to automatically expose engine socket inside container.
+  `access` let user select the mechanism used to expose the engine socket to container. `unconfined` mounts the engine
+  socket without any restriction.
 
 ## v1.52 API changes
 

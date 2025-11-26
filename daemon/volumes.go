@@ -282,6 +282,12 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, defaultReadO
 			mp.Source = srcPath
 			mp.Layer = imgLayer
 			mp.RW = false
+		case mounttypes.TypeAPISocket:
+			socket, err := daemon.apiSocket(ctr.ID, cfg.APISocketOptions)
+			if err != nil {
+				return err
+			}
+			mp.Source = socket
 		case mounttypes.TypeTmpfs, mounttypes.TypeCluster, mounttypes.TypeNamedPipe:
 			// nothing to do
 		}
