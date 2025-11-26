@@ -10,7 +10,7 @@ You use the library by constructing a client object using [New]
 and calling methods on it. The client can be configured from environment
 variables by passing the [FromEnv] option, and the [WithAPIVersionNegotiation]
 option to allow downgrading the API version used when connecting with an older
-daemon version. Other options cen be configured manually by passing any of
+daemon version. Other options can be configured manually by passing any of
 the available [Opt] options.
 
 For example, to list running containers (the equivalent of "docker ps"):
