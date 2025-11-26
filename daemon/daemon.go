@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -187,6 +188,18 @@ func (daemon *Daemon) config() *configStore {
 // Config returns daemon's config.
 func (daemon *Daemon) Config() config.Config {
 	return daemon.config().Config
+}
+
+// engineSocket returns the first Unix socket from the daemon's configured hosts.
+// Returns an error if no Unix socket is configured.
+func (daemon *Daemon) engineSocket() (string, error) {
+	cfg := daemon.Config()
+	for _, host := range cfg.Hosts {
+		if proto, addr, ok := strings.Cut(host, "://"); ok && proto == "unix" {
+			return addr, nil
+		}
+	}
+	return "", errors.New("no unix socket configured in daemon hosts")
 }
 
 // HasExperimental returns whether the experimental features of the daemon are enabled or not

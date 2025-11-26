@@ -21,6 +21,8 @@ const (
 	TypeCluster Type = "cluster"
 	// TypeImage is the type for mounting another image's filesystem
 	TypeImage Type = "image"
+	// TypeAPISocket is the type for mounting the Docker engine socket
+	TypeAPISocket Type = "apisocket"
 )
 
 // Mount represents a mount (volume).
