@@ -47,10 +47,11 @@ func (p *pidsController) Create(path string, resources *specs.LinuxResources) er
 	if err := os.MkdirAll(p.Path(path), defaultDirPerm); err != nil {
 		return err
 	}
-	if resources.Pids != nil && resources.Pids.Limit > 0 {
+	if resources.Pids != nil && resources.Pids.Limit != nil &&
+		*resources.Pids.Limit > 0 {
 		return os.WriteFile(
 			filepath.Join(p.Path(path), "pids.max"),
-			[]byte(strconv.FormatInt(resources.Pids.Limit, 10)),
+			[]byte(strconv.FormatInt(*resources.Pids.Limit, 10)),
 			defaultFilePerm,
 		)
 	}
