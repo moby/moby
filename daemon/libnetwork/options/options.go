@@ -51,10 +51,12 @@ type Generic map[string]any
 //
 // The return value is of the same type than the model (including a potential
 // pointer qualifier).
-func GenerateFromModel(options Generic, model any) (any, error) {
-	modType := reflect.TypeOf(model)
+func GenerateFromModel[T any](options Generic) (T, error) {
+	var zero T
+
+	modType := reflect.TypeFor[T]()
 	if modType == nil {
-		return nil, errors.New("invalid model: model is nil")
+		return zero, errors.New("invalid model: model is nil")
 	}
 
 	isPtr := modType.Kind() == reflect.Ptr
@@ -72,21 +74,21 @@ func GenerateFromModel(options Generic, model any) (any, error) {
 	for name, value := range options {
 		field := resVal.FieldByName(name)
 		if !field.IsValid() {
-			return nil, NoSuchFieldError{Field: name, Type: resType.String()}
+			return zero, NoSuchFieldError{Field: name, Type: resType.String()}
 		}
 		if !field.CanSet() {
-			return nil, CannotSetFieldError{Field: name, Type: resType.String()}
+			return zero, CannotSetFieldError{Field: name, Type: resType.String()}
 		}
 		val := reflect.ValueOf(value)
 		if val.Type() != field.Type() {
-			return nil, TypeMismatchError{Field: name, ExpectType: field.Type().String(), ActualType: val.Type().String()}
+			return zero, TypeMismatchError{Field: name, ExpectType: field.Type().String(), ActualType: val.Type().String()}
 		}
 		field.Set(val)
 	}
 
 	// If the model is not of pointer type, return content of the result.
 	if isPtr {
-		return res.Interface(), nil
+		return res.Interface().(T), nil
 	}
-	return resVal.Interface(), nil
+	return resVal.Interface().(T), nil
 }
