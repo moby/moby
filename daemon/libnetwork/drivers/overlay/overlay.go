@@ -11,7 +11,6 @@ import (
 	"net/netip"
 	"sync"
 
-	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/libnetwork/discoverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
@@ -121,49 +120,18 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data any) error {
 	case discoverapi.EncryptionKeysConfig:
 		encrData, ok := data.(discoverapi.DriverEncryptionConfig)
 		if !ok {
-			return errors.New("invalid encryption key notification data")
+			return fmt.Errorf("invalid encryption key notification data type: %T", data)
 		}
-		keys := make([]*key, 0, len(encrData.Keys))
-		for i := 0; i < len(encrData.Keys); i++ {
-			k := &key{
-				value: encrData.Keys[i],
-				tag:   uint32(encrData.Tags[i]),
-			}
-			keys = append(keys, k)
-		}
-		if err := d.setKeys(keys); err != nil {
-			log.G(context.TODO()).Warn(err)
-		}
+		return d.setKeys(context.TODO(), encrData)
 	case discoverapi.EncryptionKeysUpdate:
-		var newKey, delKey, priKey *key
 		encrData, ok := data.(discoverapi.DriverEncryptionUpdate)
 		if !ok {
-			return errors.New("invalid encryption key notification data")
+			return fmt.Errorf("invalid encryption key notification data type: %T", data)
 		}
-		if encrData.Key != nil {
-			newKey = &key{
-				value: encrData.Key,
-				tag:   uint32(encrData.Tag),
-			}
-		}
-		if encrData.Primary != nil {
-			priKey = &key{
-				value: encrData.Primary,
-				tag:   uint32(encrData.PrimaryTag),
-			}
-		}
-		if encrData.Prune != nil {
-			delKey = &key{
-				value: encrData.Prune,
-				tag:   uint32(encrData.PruneTag),
-			}
-		}
-		if err := d.updateKeys(newKey, priKey, delKey); err != nil {
-			return err
-		}
+		return d.updateKeys(context.TODO(), encrData)
 	default:
+		return nil
 	}
-	return nil
 }
 
 // DiscoverDelete is a notification for a discovery delete event, such as a node leaving a cluster
