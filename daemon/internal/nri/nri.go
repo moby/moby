@@ -46,10 +46,10 @@ const (
 )
 
 type NRI struct {
-	cfg Config
-
-	// mu protects nri - read lock for container operations, write lock for sync and shutdown.
+	// mu protects cfg and adap
+	// Read lock for container operations, write lock for sync, config update and shutdown.
 	mu   sync.RWMutex
+	cfg  Config
 	adap *adaptation.Adaptation
 }
 
@@ -101,6 +101,43 @@ func (n *NRI) Shutdown(ctx context.Context) {
 	log.G(ctx).Info("Shutting down NRI")
 	n.adap.Stop()
 	n.adap = nil
+}
+
+// PrepareReload validates and prepares for a configuration reload. It returns
+// a function to perform the actual reload when called.
+func (n *NRI) PrepareReload(nriCfg opts.NRIOpts) (func() error, error) {
+	var newNRI *adaptation.Adaptation
+	newCfg := n.cfg
+	newCfg.DaemonConfig = nriCfg
+	if err := setDefaultPaths(&newCfg.DaemonConfig); err != nil {
+		return nil, err
+	}
+
+	if nriCfg.Enable {
+		var err error
+		newNRI, err = adaptation.New("docker", dockerversion.Version, n.syncFn, n.updateFn, nriOptions(newCfg.DaemonConfig)...)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return func() error {
+		n.mu.Lock()
+		if n.adap != nil {
+			log.G(context.TODO()).Info("Shutting down old NRI instance")
+			n.adap.Stop()
+		}
+		n.cfg = newCfg
+		n.adap = newNRI
+		// Release the lock before starting newNRI, because it'll call back to syncFn
+		// which will acquire the lock.
+		n.mu.Unlock()
+
+		if newNRI == nil {
+			return nil
+		}
+		return newNRI.Start()
+	}, nil
 }
 
 // CreateContainer notifies plugins of a "creation" NRI-lifecycle event for a container,
