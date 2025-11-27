@@ -194,7 +194,7 @@ func TestResponseErrors(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			client, err := New(WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
 				return mockResponse(http.StatusBadRequest, http.Header{"Content-Type": []string{tc.contentType}}, tc.response)(req)
 			}))
 			if tc.apiVersion != "" {
@@ -210,7 +210,7 @@ func TestResponseErrors(t *testing.T) {
 
 func TestInfiniteError(t *testing.T) {
 	infinitR := rand.New(rand.NewSource(42))
-	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
 		resp := &http.Response{
 			StatusCode: http.StatusInternalServerError,
 			Header:     http.Header{},

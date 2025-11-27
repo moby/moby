@@ -258,7 +258,7 @@ func TestNegotiateAPIVersionEmpty(t *testing.T) {
 
 	client, err := New(FromEnv,
 		WithAPIVersionNegotiation(),
-		WithMockClient(mockResponse(http.StatusOK, http.Header{"Api-Version": []string{expected}}, "OK")),
+		WithBaseMockClient(mockPingResponse(http.StatusOK, PingResult{APIVersion: expected})),
 	)
 	assert.NilError(t, err)
 
@@ -331,7 +331,7 @@ func TestNegotiateAPIVersion(t *testing.T) {
 			opts := []Opt{
 				FromEnv,
 				WithAPIVersionNegotiation(),
-				WithMockClient(mockResponse(http.StatusOK, http.Header{"Api-Version": []string{tc.pingVersion}}, "OK")),
+				WithBaseMockClient(mockPingResponse(http.StatusOK, PingResult{APIVersion: tc.pingVersion})),
 			}
 
 			if tc.clientVersion != "" {
@@ -363,7 +363,7 @@ func TestNegotiateAPIVersionOverride(t *testing.T) {
 
 	client, err := New(
 		FromEnv,
-		WithMockClient(mockResponse(http.StatusOK, http.Header{"Api-Version": []string{"1.45"}}, "OK")),
+		WithBaseMockClient(mockPingResponse(http.StatusOK, PingResult{APIVersion: "1.45"})),
 	)
 	assert.NilError(t, err)
 
@@ -393,9 +393,8 @@ func TestNegotiateAPIVersionAutomatic(t *testing.T) {
 
 	ctx := t.Context()
 	client, err := New(
-		WithMockClient(func(req *http.Request) (*http.Response, error) {
-			hdr := http.Header{"Api-Version": []string{pingVersion}}
-			return mockResponse(http.StatusOK, hdr, "OK")(req)
+		WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
+			return mockPingResponse(http.StatusOK, PingResult{APIVersion: pingVersion})(req)
 		}),
 		WithAPIVersionNegotiation(),
 	)
@@ -423,7 +422,7 @@ func TestNegotiateAPIVersionAutomatic(t *testing.T) {
 func TestNegotiateAPIVersionWithEmptyVersion(t *testing.T) {
 	client, err := New(
 		WithAPIVersion(""),
-		WithMockClient(mockResponse(http.StatusOK, http.Header{"Api-Version": []string{"1.50"}}, "OK")),
+		WithBaseMockClient(mockPingResponse(http.StatusOK, PingResult{APIVersion: "1.50"})),
 	)
 	assert.NilError(t, err)
 
@@ -443,7 +442,7 @@ func TestNegotiateAPIVersionWithFixedVersion(t *testing.T) {
 	)
 	client, err := New(
 		WithAPIVersion(customVersion),
-		WithMockClient(mockResponse(http.StatusOK, http.Header{"Api-Version": []string{pingVersion}}, "OK")),
+		WithBaseMockClient(mockPingResponse(http.StatusOK, PingResult{APIVersion: pingVersion})),
 	)
 	assert.NilError(t, err)
 

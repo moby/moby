@@ -236,7 +236,11 @@ func checkResponseErr(serverResp *http.Response) (retErr error) {
 	if statusMsg == "" {
 		statusMsg = http.StatusText(serverResp.StatusCode)
 	}
-	if serverResp.Body != nil {
+	var reqMethod string
+	if serverResp.Request != nil {
+		reqMethod = serverResp.Request.Method
+	}
+	if serverResp.Body != nil && reqMethod != http.MethodHead {
 		bodyMax := 1 * 1024 * 1024 // 1 MiB
 		bodyR := &io.LimitedReader{
 			R: serverResp.Body,
@@ -349,15 +353,21 @@ func jsonEncode(data any) (io.Reader, error) {
 }
 
 func ensureReaderClosed(response *http.Response) {
-	if response != nil && response.Body != nil {
-		// Drain up to 512 bytes and close the body to let the Transport reuse the connection
-		// see https://github.com/google/go-github/pull/317/files#r57536827
-		//
-		// TODO(thaJeztah): see if this optimization is still needed, or already implemented in stdlib,
-		//   and check if context-cancellation should handle this as well. If still needed, consider
-		//   wrapping response.Body, or returning a "closer()" from [Client.sendRequest] and related
-		//   methods.
-		_, _ = io.CopyN(io.Discard, response.Body, 512)
-		_ = response.Body.Close()
+	if response == nil || response.Body == nil {
+		return
 	}
+	if response.ContentLength == 0 || (response.Request != nil && response.Request.Method == http.MethodHead) {
+		// No need to drain head requests or zero-length responses.
+		_ = response.Body.Close()
+		return
+	}
+	// Drain up to 512 bytes and close the body to let the Transport reuse the connection
+	// see https://github.com/google/go-github/pull/317/files#r57536827
+	//
+	// TODO(thaJeztah): see if this optimization is still needed, or already implemented in stdlib,
+	//   and check if context-cancellation should handle this as well. If still needed, consider
+	//   wrapping response.Body, or returning a "closer()" from [Client.sendRequest] and related
+	//   methods.
+	_, _ = io.CopyN(io.Discard, response.Body, 512)
+	_ = response.Body.Close()
 }
