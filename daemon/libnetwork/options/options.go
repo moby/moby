@@ -3,6 +3,7 @@
 package options
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 )
@@ -52,32 +53,40 @@ type Generic map[string]any
 // pointer qualifier).
 func GenerateFromModel(options Generic, model any) (any, error) {
 	modType := reflect.TypeOf(model)
+	if modType == nil {
+		return nil, errors.New("invalid model: model is nil")
+	}
+
+	isPtr := modType.Kind() == reflect.Ptr
 
 	// If the model is of pointer type, we need to dereference for New.
-	resType := reflect.TypeOf(model)
-	if modType.Kind() == reflect.Ptr {
+	resType := modType
+	if isPtr {
 		resType = resType.Elem()
 	}
 
 	// Populate the result structure with the generic layout content.
 	res := reflect.New(resType)
+	resVal := res.Elem()
+
 	for name, value := range options {
-		field := res.Elem().FieldByName(name)
+		field := resVal.FieldByName(name)
 		if !field.IsValid() {
-			return nil, NoSuchFieldError{name, resType.String()}
+			return nil, NoSuchFieldError{Field: name, Type: resType.String()}
 		}
 		if !field.CanSet() {
-			return nil, CannotSetFieldError{name, resType.String()}
+			return nil, CannotSetFieldError{Field: name, Type: resType.String()}
 		}
-		if reflect.TypeOf(value) != field.Type() {
-			return nil, TypeMismatchError{name, field.Type().String(), reflect.TypeOf(value).String()}
+		val := reflect.ValueOf(value)
+		if val.Type() != field.Type() {
+			return nil, TypeMismatchError{Field: name, ExpectType: field.Type().String(), ActualType: val.Type().String()}
 		}
-		field.Set(reflect.ValueOf(value))
+		field.Set(val)
 	}
 
 	// If the model is not of pointer type, return content of the result.
-	if modType.Kind() == reflect.Ptr {
+	if isPtr {
 		return res.Interface(), nil
 	}
-	return res.Elem().Interface(), nil
+	return resVal.Interface(), nil
 }
