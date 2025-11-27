@@ -4,17 +4,15 @@ set -e
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPTDIR}/.validate"
 
-IFS=$'\n'
 api_files=$(validate_diff --diff-filter=ACMR --name-only -- 'api/' || true)
 client_files=$(validate_diff --diff-filter=ACMR --name-only -- 'client/' || true)
-unset IFS
 
 has_errors=0
 
 cat go.mod
 
 # Check if changes to ./api require a replace rule in go.mod
-if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ ${#api_files[@]} -gt 0 ]; then
+if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ -n "${api_files}" ]; then
 	echo "Detected changes in ./api directory, checking for replace rule..."
 	if ! go list -mod=readonly -m -json github.com/moby/moby/api | jq -e '.Replace'; then
 		echo >&2 "ERROR: Changes detected in ./api but go.mod is missing a replace rule for github.com/moby/moby/api"
@@ -26,7 +24,7 @@ if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ ${#api_files[@]} -gt 0 ]; then
 fi
 
 # Check if changes to ./client require a replace rule in go.mod
-if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ ${#client_files[@]} -gt 0 ]; then
+if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ -n "${client_files}" ]; then
 	echo "Detected changes in ./client directory, checking for replace rule..."
 	if ! go list -mod=readonly -m -json github.com/moby/moby/client | jq -e '.Replace'; then
 		echo >&2 "ERROR: Changes detected in ./client but go.mod is missing a replace rule for github.com/moby/moby/client"
