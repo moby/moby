@@ -25,7 +25,7 @@ func TestGenerate(t *testing.T) {
 		Rune:    'b',
 		Float64: 2.0,
 	}
-	result, err := GenerateFromModel(gen, Model{})
+	result, err := GenerateFromModel[Model](gen)
 	assert.Check(t, err)
 	assert.Check(t, is.DeepEqual(result, expected))
 }
@@ -49,7 +49,7 @@ func TestGeneratePtr(t *testing.T) {
 		Float64: 2.0,
 	}
 
-	result, err := GenerateFromModel(gen, &Model{})
+	result, err := GenerateFromModel[*Model](gen)
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(result, expected))
 }
@@ -57,7 +57,7 @@ func TestGeneratePtr(t *testing.T) {
 func TestGenerateMissingField(t *testing.T) {
 	type Model struct{}
 	gen := Generic{"foo": "bar"}
-	_, err := GenerateFromModel(gen, Model{})
+	_, err := GenerateFromModel[Model](gen)
 	const expected = `no field "foo" in type "options.Model"`
 	assert.Check(t, is.Error(err, expected))
 	assert.Check(t, is.ErrorType(err, NoSuchFieldError{}))
@@ -68,7 +68,7 @@ func TestFieldCannotBeSet(t *testing.T) {
 		foo int //nolint:nolintlint,unused // un-exported field is used to test error-handling
 	}
 	gen := Generic{"foo": "bar"}
-	_, err := GenerateFromModel(gen, Model{})
+	_, err := GenerateFromModel[Model](gen)
 	const expected = `cannot set field "foo" of type "options.Model"`
 	assert.Check(t, is.Error(err, expected))
 	assert.Check(t, is.ErrorType(err, CannotSetFieldError{}))
@@ -79,7 +79,7 @@ func TestTypeMismatchError(t *testing.T) {
 		Foo int
 	}
 	gen := Generic{"Foo": "bar"}
-	_, err := GenerateFromModel(gen, Model{})
+	_, err := GenerateFromModel[Model](gen)
 	const expected = `type mismatch, field Foo require type int, actual type string`
 	assert.Check(t, is.Error(err, expected))
 	assert.Check(t, is.ErrorType(err, TypeMismatchError{}))
