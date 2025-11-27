@@ -486,6 +486,14 @@ definitions:
                 type: "string"
             example:
               [["noexec"]]
+      APISocketOptions:
+        description: "Optional configuration for the `apisocket` type."
+        type: object
+        required: ["isolation"]
+        properties:
+          isolation:
+            type: string
+            enum: ["none"]
 
   RestartPolicy:
     description: |
