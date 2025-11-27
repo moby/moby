@@ -122,6 +122,7 @@ jobs:
       - validate-prepare
       - build-dev
     strategy:
+      fail-fast: false
       matrix:
         script: ${{ fromJson(needs.validate-prepare.outputs.matrix) }}
     steps:
