@@ -130,7 +130,7 @@ func (daemon *Daemon) newContainer(name string, platform ocispec.Platform, confi
 			// TODO(ndeloof) engineSocket should create a dedicated socket for id
 			// to be removed after container is destroyed. This will allow adding
 			// fine-grained access control on moby API
-			socket, err := daemon.engineSocket()
+			socket, err := daemon.engineSocket(id, mnt.APISocketOptions)
 			if err != nil {
 				return nil, err
 			}

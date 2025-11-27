@@ -36,11 +36,12 @@ type Mount struct {
 	ReadOnly    bool        `json:",omitempty"` // attempts recursive read-only if possible
 	Consistency Consistency `json:",omitempty"`
 
-	BindOptions    *BindOptions    `json:",omitempty"`
-	VolumeOptions  *VolumeOptions  `json:",omitempty"`
-	ImageOptions   *ImageOptions   `json:",omitempty"`
-	TmpfsOptions   *TmpfsOptions   `json:",omitempty"`
-	ClusterOptions *ClusterOptions `json:",omitempty"`
+	BindOptions      *BindOptions      `json:",omitempty"`
+	VolumeOptions    *VolumeOptions    `json:",omitempty"`
+	ImageOptions     *ImageOptions     `json:",omitempty"`
+	TmpfsOptions     *TmpfsOptions     `json:",omitempty"`
+	ClusterOptions   *ClusterOptions   `json:",omitempty"`
+	APISocketOptions *APISocketOptions `json:",omitempty"`
 }
 
 // Propagation represents the propagation of a mount.
@@ -157,3 +158,10 @@ type TmpfsOptions struct {
 type ClusterOptions struct {
 	// intentionally empty
 }
+
+// APISocketOptions specifies options specific to mounts of type "apisocket".
+type APISocketOptions struct {
+	Isolation string `json:"isolation"`
+}
+
+const IsolationNone = "none"

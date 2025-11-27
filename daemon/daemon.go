@@ -34,6 +34,7 @@ import (
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/moby/locker"
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
 	networktypes "github.com/moby/moby/api/types/network"
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
@@ -192,7 +193,10 @@ func (daemon *Daemon) Config() config.Config {
 
 // engineSocket returns the first Unix socket from the daemon's configured hosts.
 // Returns an error if no Unix socket is configured.
-func (daemon *Daemon) engineSocket() (string, error) {
+func (daemon *Daemon) engineSocket(_ string, opts *mount.APISocketOptions) (string, error) {
+	if opts != nil && opts.Isolation != mount.IsolationNone {
+		return "", fmt.Errorf("isolation %q is not supported", opts.Isolation)
+	}
 	cfg := daemon.Config()
 	for _, host := range cfg.Hosts {
 		if proto, addr, ok := strings.Cut(host, "://"); ok && proto == "unix" {
