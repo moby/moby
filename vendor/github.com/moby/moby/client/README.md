@@ -27,7 +27,7 @@ func main() {
 	// for configuration (DOCKER_HOST, DOCKER_API_VERSION), and does
 	// API-version negotiation to allow downgrading the API version
 	// when connecting with an older daemon version.
-	apiClient, err := client.New(client.FromEnv, client.WithAPIVersionNegotiation())
+	apiClient, err := client.New(client.FromEnv)
 	if err != nil {
 		panic(err)
 	}

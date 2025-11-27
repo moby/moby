@@ -257,7 +257,6 @@ func TestNegotiateAPIVersionEmpty(t *testing.T) {
 	const expected = MinAPIVersion
 
 	client, err := New(FromEnv,
-		WithAPIVersionNegotiation(),
 		WithBaseMockClient(mockPingResponse(http.StatusOK, PingResult{APIVersion: expected})),
 	)
 	assert.NilError(t, err)
@@ -301,12 +300,10 @@ func TestNegotiateAPIVersion(t *testing.T) {
 			expectedVersion: "1.51",
 		},
 		{
-			// client should downgrade to the last version before version
-			// negotiation was added (1.24) if the daemon does not report
-			// a version.
+			// client should not downgrade if the daemon didn't report a version.
 			doc:             "downgrade legacy",
 			pingVersion:     "",
-			expectedVersion: MinAPIVersion,
+			expectedVersion: MaxAPIVersion,
 		},
 		{
 			// client should not downgrade to the version reported by the daemon
@@ -330,7 +327,6 @@ func TestNegotiateAPIVersion(t *testing.T) {
 		t.Run(tc.doc, func(t *testing.T) {
 			opts := []Opt{
 				FromEnv,
-				WithAPIVersionNegotiation(),
 				WithBaseMockClient(mockPingResponse(http.StatusOK, PingResult{APIVersion: tc.pingVersion})),
 			}
 
@@ -396,7 +392,6 @@ func TestNegotiateAPIVersionAutomatic(t *testing.T) {
 		WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
 			return mockPingResponse(http.StatusOK, PingResult{APIVersion: pingVersion})(req)
 		}),
-		WithAPIVersionNegotiation(),
 	)
 	assert.NilError(t, err)
 
