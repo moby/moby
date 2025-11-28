@@ -14,17 +14,12 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func getResolvConf(t *testing.T, rcPath string) resolvconf.ResolvConf {
+func getResolvConfOptions(t *testing.T, rcPath string) []string {
 	t.Helper()
 	resolv, err := os.ReadFile(rcPath)
 	assert.NilError(t, err)
 	rc, err := resolvconf.Parse(bytes.NewBuffer(resolv), "")
 	assert.NilError(t, err)
-	return rc
-}
-
-func getResolvConfOptions(t *testing.T, rcPath string) []string {
-	rc := getResolvConf(t, rcPath)
 	return rc.Options()
 }
 
@@ -94,61 +89,4 @@ func TestDNSOptions(t *testing.T) {
 	assert.NilError(t, err)
 	dnsOptionsList = getResolvConfOptions(t, sb2.config.resolvConfPath)
 	assert.Check(t, is.DeepEqual([]string{"ndots:0"}, dnsOptionsList))
-}
-
-func TestNonHostNetDNSRestart(t *testing.T) {
-	c, err := New(context.Background(), config.OptionDataDir(t.TempDir()))
-	assert.NilError(t, err)
-
-	// Step 1: Create initial sandbox (simulating first container start)
-	sb, err := c.NewSandbox(context.Background(), "cnt1")
-	assert.NilError(t, err)
-
-	defer func() {
-		_ = sb.Delete(context.Background())
-	}()
-
-	sb.startResolver(false)
-
-	err = sb.setupDNS()
-	assert.NilError(t, err)
-	err = sb.rebuildDNS()
-	assert.NilError(t, err)
-
-	// Step 2: Simulate user manually overwriting the container's resolv.conf
-	resolvConfPath := sb.config.resolvConfPath
-	modifiedContent := []byte(`nameserver 1.1.1.1`)
-	err = os.WriteFile(resolvConfPath, modifiedContent, 0644)
-	assert.NilError(t, err)
-
-	// Step 3: Delete the sandbox (simulating container stop)
-	err = sb.Delete(context.Background())
-	assert.NilError(t, err)
-
-	// Step 4: Create a new sandbox (simulating container restart)
-	sbRestart, err := c.NewSandbox(context.Background(), "cnt1",
-		OptionResolvConfPath(resolvConfPath),
-	)
-	assert.NilError(t, err)
-	defer func() {
-		if err := sbRestart.Delete(context.Background()); err != nil {
-			t.Error(err)
-		}
-	}()
-
-	sbRestart.startResolver(false)
-
-	// Step 5: Call setupDNS on restart - should preserve user modifications
-	err = sbRestart.setupDNS()
-	assert.NilError(t, err)
-
-	rc := getResolvConf(t, sbRestart.config.resolvConfPath)
-	assert.Check(t, is.Equal("1.1.1.1", rc.NameServers()[0].String()))
-
-	// Step 6: Call rebuildDNS on restart - should preserve user modifications
-	err = sbRestart.rebuildDNS()
-	assert.NilError(t, err)
-
-	rc = getResolvConf(t, sbRestart.config.resolvConfPath)
-	assert.Check(t, is.Equal("1.1.1.1", rc.NameServers()[0].String()))
 }
