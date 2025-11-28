@@ -27,6 +27,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/nri/pkg/adaptation"
 	nrilog "github.com/containerd/nri/pkg/log"
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
@@ -245,7 +246,7 @@ func containerToNRI(ctr *container.Container) (*adaptation.PodSandbox, *adaptati
 		Id:           ctr.ID,
 		PodSandboxId: ctr.ID,
 		Name:         ctr.Name,
-		State:        adaptation.ContainerState_CONTAINER_UNKNOWN,
+		State:        stateToNRI(ctr.State),
 		Labels:       ctr.Config.Labels,
 		Annotations:  ctr.HostConfig.Annotations,
 		Args:         ctr.Config.Cmd,
@@ -273,6 +274,23 @@ func containerToNRI(ctr *container.Container) (*adaptation.PodSandbox, *adaptati
 		CDIDevices:    nil,
 	}
 	return nriPod, nriCtr, nil
+}
+
+func stateToNRI(state *container.State) adaptation.ContainerState {
+	log.G(context.TODO()).Errorf("Mapping container state %q to NRI", state.State())
+	switch state.State() {
+	case containertypes.StateCreated:
+		// CONTAINER_CREATED will be used before the container is started, including for the
+		// CreateContainer hook (during container creation).
+		return adaptation.ContainerState_CONTAINER_CREATED
+	case containertypes.StateRunning:
+		return adaptation.ContainerState_CONTAINER_RUNNING
+	case containertypes.StatePaused, containertypes.StateRestarting:
+		return adaptation.ContainerState_CONTAINER_PAUSED
+	case containertypes.StateRemoving, containertypes.StateExited, containertypes.StateDead:
+		return adaptation.ContainerState_CONTAINER_STOPPED
+	}
+	return adaptation.ContainerState_CONTAINER_UNKNOWN
 }
 
 func applyAdjustments(ctx context.Context, ctr *container.Container, adj *adaptation.ContainerAdjustment) error {
