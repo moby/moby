@@ -501,6 +501,7 @@ github.com/containerd/nri/pkg/log
 github.com/containerd/nri/pkg/net
 github.com/containerd/nri/pkg/net/multiplex
 github.com/containerd/nri/pkg/plugin
+github.com/containerd/nri/pkg/stub
 github.com/containerd/nri/plugins/default-validator
 github.com/containerd/nri/plugins/default-validator/builtin
 # github.com/containerd/nydus-snapshotter v0.15.4
