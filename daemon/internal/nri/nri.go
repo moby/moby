@@ -28,6 +28,7 @@ import (
 	"github.com/containerd/nri/pkg/adaptation"
 	nrilog "github.com/containerd/nri/pkg/log"
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
@@ -300,6 +301,9 @@ func applyAdjustments(ctx context.Context, ctr *container.Container, adj *adapta
 	if err := applyEnvVars(ctx, ctr, adj.Env); err != nil {
 		return fmt.Errorf("applying environment variable adjustments: %w", err)
 	}
+	if err := applyMounts(ctx, ctr, adj.Mounts); err != nil {
+		return fmt.Errorf("applying mount adjustments: %w", err)
+	}
 	return nil
 }
 
@@ -323,6 +327,28 @@ func applyEnvVars(ctx context.Context, ctr *container.Container, envVars []*adap
 		} else {
 			ctr.Config.Env = append(ctr.Config.Env, val)
 		}
+	}
+	return nil
+}
+
+func applyMounts(ctx context.Context, ctr *container.Container, mounts []*adaptation.Mount) error {
+	for _, m := range mounts {
+		var ro bool
+		for _, opt := range m.Options {
+			switch opt {
+			case "ro", "readonly":
+				ro = true
+			default:
+				return fmt.Errorf("mount option %q is not supported", opt)
+			}
+		}
+		log.G(ctx).Debugf("Applying NRI mount: type=%s source=%s target=%s ro=%t", m.Type, m.Source, m.Destination, ro)
+		ctr.HostConfig.Mounts = append(ctr.HostConfig.Mounts, mount.Mount{
+			Type:     mount.Type(m.Type),
+			Source:   m.Source,
+			Target:   m.Destination,
+			ReadOnly: ro,
+		})
 	}
 	return nil
 }
