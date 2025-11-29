@@ -17,3 +17,5 @@ func setupResolvConf(_ *any) {}
 func getSysInfo(_ *Daemon) *sysinfo.SysInfo {
 	return sysinfo.New()
 }
+
+func createCGroup2Root(_ context.Context, _ *config.Config) {}
