@@ -9,6 +9,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/nri/pkg/adaptation"
+	nrilog "github.com/containerd/nri/pkg/log"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
@@ -57,6 +58,7 @@ func NewNRI(ctx context.Context, cfg Config) (*NRI, error) {
 		"pluginConfigPath": n.cfg.DaemonConfig.PluginConfigPath,
 		"socketPath":       n.cfg.DaemonConfig.SocketPath,
 	}).Info("Starting NRI")
+	nrilog.Set(&logShim{})
 
 	var err error
 	n.nri, err = adaptation.New("docker", dockerversion.Version, n.syncFn, n.updateFn, nriOptions(n.cfg.DaemonConfig)...)
