@@ -103,8 +103,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 	}
 
 	var (
-		summaries     = make([]imagetypes.Summary, 0, len(selectedImages))
-		summaryMap    = make(map[*image.Image]imagetypes.Summary, len(selectedImages))
+		summaryMap    = make(map[*image.Image]*imagetypes.Summary, len(selectedImages))
 		allContainers []*container.Container
 	)
 	for id, img := range selectedImages {
@@ -210,8 +209,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 			}
 		}
 		summary.Containers = containersCount
-		summaryMap[img] = *summary
-		summaries = append(summaries, *summary)
+		summaryMap[img] = summary
 	}
 
 	if opts.SharedSize {
@@ -257,6 +255,10 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 		}
 	}
 
+	summaries := make([]imagetypes.Summary, 0, len(summaryMap))
+	for _, summary := range summaryMap {
+		summaries = append(summaries, *summary)
+	}
 	sort.Sort(sort.Reverse(byCreated(summaries)))
 
 	return summaries, nil
