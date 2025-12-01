@@ -71,6 +71,66 @@ func TestNRIContainerCreateEnvVarMod(t *testing.T) {
 	}
 }
 
+func TestNRIContainerCreateUnsupportedAdj(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot start a separate daemon with NRI enabled on Windows")
+	skip.If(t, testEnv.IsRootless)
+
+	ctx := testutil.StartSpan(baseContext, t)
+
+	sockPath := filepath.Join(t.TempDir(), "nri.sock")
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t,
+		"--nri-opts=enable=true,socket-path="+sockPath,
+		"--iptables=false", "--ip6tables=false",
+	)
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+
+	tests := []struct {
+		name         string
+		ctrCreateAdj *api.ContainerAdjustment
+		expErr       string
+	}{
+		{
+			name:         "hooks",
+			ctrCreateAdj: &api.ContainerAdjustment{Hooks: &api.Hooks{CreateRuntime: []*api.Hook{{Path: "/bin/true"}}}},
+			expErr:       "unsupported container adjustments: hooks",
+		},
+		{
+			name:         "cdi",
+			ctrCreateAdj: &api.ContainerAdjustment{CDIDevices: []*api.CDIDevice{{Name: "/dev/somedevice"}}},
+			expErr:       "unsupported container adjustments: CDI",
+		},
+		{
+			name: "cpu",
+			ctrCreateAdj: &api.ContainerAdjustment{Linux: &api.LinuxContainerAdjustment{Resources: &api.LinuxResources{
+				Cpu: &api.LinuxCPU{Shares: &api.OptionalUInt64{Value: 123}},
+			}}},
+			expErr: "unsupported container adjustments: linux.resources.cpu",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			stopPlugin := startBuiltinPlugin(ctx, t, builtinPluginConfig{
+				pluginName:   "nri-test-plugin",
+				pluginIdx:    "00",
+				sockPath:     sockPath,
+				ctrCreateAdj: tc.ctrCreateAdj,
+			})
+			defer stopPlugin()
+
+			res, err := c.ContainerCreate(ctx, client.ContainerCreateOptions{Image: "busybox:latest"})
+			if err != nil {
+				_, _ = c.ContainerRemove(ctx, res.ID, client.ContainerRemoveOptions{Force: true})
+			}
+			assert.Check(t, is.ErrorContains(err, tc.expErr))
+		})
+	}
+}
+
 func TestNRIContainerCreateAddMount(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot start a separate daemon with NRI enabled on Windows")
