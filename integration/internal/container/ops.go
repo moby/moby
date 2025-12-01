@@ -72,6 +72,13 @@ func WithSysctls(sysctls map[string]string) func(*TestContainerConfig) {
 	}
 }
 
+// WithPublishAllPorts sets PublishAllPorts.
+func WithPublishAllPorts(publishAll bool) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.PublishAllPorts = publishAll
+	}
+}
+
 // WithExposedPorts sets the exposed ports of the container
 func WithExposedPorts(ports ...string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
