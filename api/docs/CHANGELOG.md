@@ -13,6 +13,11 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.53 API changes
+
+* `GET /info` now includes an `NRI` field. If the Node Resource Interface (NRI)
+  is enabled, this field contains information describing it.
+
 ## v1.52 API changes
 
 * `GET /images/{name}/get` now accepts multiple `platform` query-arguments

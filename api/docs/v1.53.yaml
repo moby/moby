@@ -2943,6 +2943,31 @@ definitions:
           The unique identifier for the device within its source driver.
           For CDI devices, this would be an FQDN like "vendor.com/gpu=0".
 
+  NRIInfo:
+    description: |
+      Information about the Node Resource Interface (NRI).
+
+      This field is only present if NRI is enabled.
+    type: "object"
+    x-nullable: true
+    properties:
+      Info:
+        description: |
+          Information about NRI, provided as "label" / "value" pairs.
+
+          <p><br /></p>
+
+          > **Note**: The information returned in this field, including the
+          > formatting of values and labels, should not be considered stable,
+          > and may change without notice.
+        type: "array"
+        items:
+          type: "array"
+          items:
+            type: "string"
+        example:
+          - ["plugin-path", "/opt/docker/nri/plugins"]
+
   ErrorDetail:
     type: "object"
     properties:
@@ -6980,6 +7005,8 @@ definitions:
         type: "array"
         items:
           $ref: "#/definitions/DeviceInfo"
+      NRI:
+        $ref: "#/definitions/NRIInfo"
       Warnings:
         description: |
           List of warnings / informational messages about missing features, or
