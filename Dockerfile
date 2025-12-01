@@ -1,30 +1,37 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1.20.0@sha256:26147acbda4f14c5add9946e2fd2ed543fc402884fd75146bd342a7f6271dc1d
 
 ARG GO_VERSION=1.25.4
 ARG BASE_DEBIAN_DISTRO="bookworm"
+# NOTE: the image digest is not pinned to a specific version,
+# as the image is frequently updated with apt security updates.
+#
+# TODO: consider pinning for better build reproducibility.
+# A reproduction build will need executing apt-get with snapshot mode.
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 
 # XX_VERSION specifies the version of the xx utility to use.
 # It must be a valid tag in the docker.io/tonistiigi/xx image repository.
-ARG XX_VERSION=1.7.0
+ARG XX_VERSION=1.7.0@sha256:010d4b66aed389848b0694f91c7aaee9df59a6f20be7f5d12e53663a37bd14e2
 
 # VPNKIT_VERSION is the version of the vpnkit binary which is used as a fallback
 # network driver for rootless.
-ARG VPNKIT_VERSION=0.6.0
+ARG VPNKIT_VERSION=0.6.0@sha256:dd2c8adf5fe0298f1daf3014a45190933572492fe8a5dba11a56fd4c7ab4859b
 
 # DOCKERCLI_VERSION is the version of the CLI to install in the dev-container.
 ARG DOCKERCLI_VERSION=v29.0.1
+ARG DOCKERCLI_COMMIT=eedd9698e9c3ee3aa9100789ea4b4515443d2e50
 ARG DOCKERCLI_REPOSITORY="https://github.com/docker/cli.git"
 
 # cli version used for integration-cli tests
 ARG DOCKERCLI_INTEGRATION_REPOSITORY="https://github.com/docker/cli.git"
 ARG DOCKERCLI_INTEGRATION_VERSION=v25.0.5
+ARG DOCKERCLI_INTEGRATION_COMMIT=5dc9bcc5b78ed23f12cdd68e4285ea1c216ce2a1
 
 # BUILDX_VERSION is the version of buildx to install in the dev container.
-ARG BUILDX_VERSION=0.29.1
+ARG BUILDX_VERSION=0.29.1@sha256:6f7e32af76c687d477b9c271fcec24f49971ca6a6c980ad4352ed72dc75de617
 
 # COMPOSE_VERSION is the version of compose to install in the dev container.
-ARG COMPOSE_VERSION=v2.40.0
+ARG COMPOSE_VERSION=v2.40.0@sha256:2e23c7afaab8d4c8bff007913298cb3d26bc8212f212b7513ea8e9783bcab252
 
 ARG SYSTEMD="false"
 ARG FIREWALLD="false"
@@ -34,7 +41,7 @@ ARG DOCKER_STATIC=1
 # https://hub.docker.com/r/distribution/distribution. This version of
 # the registry is used to test schema 2 manifests. Generally,  the version
 # specified here should match a current release.
-ARG REGISTRY_VERSION=3.0.0
+ARG REGISTRY_VERSION=3.0.0@sha256:4ba3adf47f5c866e9a29288c758c5328ef03396cb8f5f6454463655fa8bc83e2
 
 # delve is currently only supported on linux/amd64 and linux/arm64;
 # https://github.com/go-delve/delve/blob/v1.25.0/pkg/proc/native/support_sentinel.go#L1
@@ -91,11 +98,14 @@ ARG TARGETPLATFORM
 # Go-swagger is used in CI for generating types from swagger.yaml in
 # hack/validate/swagger-gen
 ARG GO_SWAGGER_VERSION=v0.33.1
+ARG GO_SWAGGER_COMMIT=2af7725271cf99ace5d44ab134acb53bffcc5734
+# Checkout and discard the source; we only need it to verify the commit hash.
+ADD https://github.com/go-swagger/go-swagger.git?tag=${GO_SWAGGER_VERSION}&checksum=${GO_SWAGGER_COMMIT} /tmp/discarded
 RUN --mount=type=cache,target=/root/.cache/go-build,id=swagger-build-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=tmpfs,target=/go/src/ <<EOT
   set -e
-  GOBIN=/build CGO_ENABLED=0 xx-go install "github.com/go-swagger/go-swagger/cmd/swagger@${GO_SWAGGER_VERSION}"
+  GOBIN=/build CGO_ENABLED=0 xx-go install "github.com/go-swagger/go-swagger/cmd/swagger@${GO_SWAGGER_COMMIT}"
   xx-verify /build/swagger
 EOT
 
@@ -125,13 +135,13 @@ RUN /download-frozen-image-v2.sh /build \
 # delve
 FROM base AS delve-src
 WORKDIR /usr/src/delve
-RUN git init . && git remote add origin "https://github.com/go-delve/delve.git"
 # DELVE_VERSION specifies the version of the Delve debugger binary
 # from the https://github.com/go-delve/delve repository.
 # It can be used to run Docker with a possibility of
 # attaching debugger to it.
 ARG DELVE_VERSION=v1.25.2
-RUN git fetch -q --depth 1 origin "${DELVE_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ARG DELVE_COMMIT=498ee9c27223fed032af8856f7a62590a63b9439
+ADD https://github.com/go-delve/delve.git?tag=${DELVE_VERSION}&checksum=${DELVE_COMMIT}&keep-git-dir=1 .
 
 FROM base AS delve-supported
 WORKDIR /usr/src/delve
@@ -150,21 +160,24 @@ FROM delve-${DELVE_SUPPORTED} AS delve
 FROM base AS gowinres
 # GOWINRES_VERSION defines go-winres tool version
 ARG GOWINRES_VERSION=v0.3.1
+ARG GOWINRES_COMMIT=680a280b748f922282c10e6cbc355e19742d45a9
+# Checkout and discard the source; we only need it to verify the commit hash.
+ADD https://github.com/tc-hib/go-winres.git?tag=${GOWINRES_VERSION}&checksum=${GOWINRES_COMMIT} /tmp/discarded
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build CGO_ENABLED=0 go install "github.com/tc-hib/go-winres@${GOWINRES_VERSION}" \
+        GOBIN=/build CGO_ENABLED=0 go install "github.com/tc-hib/go-winres@${GOWINRES_COMMIT}" \
      && /build/go-winres --help
 
 # containerd
 FROM base AS containerd-src
 WORKDIR /usr/src/containerd
-RUN git init . && git remote add origin "https://github.com/containerd/containerd.git"
 # CONTAINERD_VERSION is used to build containerd binaries, and used for the
 # integration tests. The distributed docker .deb and .rpm packages depend on a
 # separate (containerd.io) package, which may be a different version as is
 # specified here.
 ARG CONTAINERD_VERSION=v2.2.0
-RUN git fetch -q --depth 1 origin "${CONTAINERD_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ARG CONTAINERD_COMMIT=1c4457e00facac03ce1d75f7b6777a7a851e5c41
+ADD https://github.com/containerd/containerd.git?tag=${CONTAINERD_VERSION}&checksum=${CONTAINERD_COMMIT}&keep-git-dir=1 .
 
 FROM base AS containerd-build
 WORKDIR /go/src/github.com/containerd/containerd
@@ -195,42 +208,56 @@ FROM containerd-${TARGETOS} AS containerd
 
 FROM base AS golangci_lint
 ARG GOLANGCI_LINT_VERSION=v2.1.5
+ARG GOLANGCI_LINT_COMMIT=8c14421d29bd005dee63044d07aa897b7d1bf8b0
+# Checkout and discard the source; we only need it to verify the commit hash.
+ADD https://github.com/golangci/golangci-lint.git?tag=${GOLANGCI_LINT_VERSION}&checksum=${GOLANGCI_LINT_COMMIT} /tmp/discarded
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build CGO_ENABLED=0 go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}" \
+        GOBIN=/build CGO_ENABLED=0 go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_COMMIT}" \
      && /build/golangci-lint --version
 
 FROM base AS gotestsum
 # GOTESTSUM_VERSION is the version of gotest.tools/gotestsum to install.
 ARG GOTESTSUM_VERSION=v1.13.0
+ARG GOTESTSUM_COMMIT=c4a0df2e75a225d979a444342dd3db752b53619f
+# Checkout and discard the source; we only need it to verify the commit hash.
+ADD https://github.com/gotestyourself/gotestsum.git?tag=${GOTESTSUM_VERSION}&checksum=${GOTESTSUM_COMMIT} /tmp/discarded
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build CGO_ENABLED=0 go install "gotest.tools/gotestsum@${GOTESTSUM_VERSION}" \
+        GOBIN=/build CGO_ENABLED=0 go install "gotest.tools/gotestsum@${GOTESTSUM_COMMIT}" \
      && /build/gotestsum --version
 
 FROM base AS shfmt
 ARG SHFMT_VERSION=v3.8.0
+ARG SHFMT_COMMIT=84baa08f139fb171b86ff7f25b834d4a3ef19c6f
+# Checkout and discard the source; we only need it to verify the commit hash.
+ADD https://github.com/mvdan/sh.git?tag=${SHFMT_VERSION}&checksum=${SHFMT_COMMIT} /tmp/discarded
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build CGO_ENABLED=0 go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}" \
+        GOBIN=/build CGO_ENABLED=0 go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_COMMIT}" \
      && /build/shfmt --version
 
 FROM base AS gopls
+ARG GOPLS_VERSION=v0.20.0
+ARG GOPLS_COMMIT=2e31135b736b96cd609904370c71563ce5447826
+# Checkout and discard the source; we only need it to verify the commit hash.
+ADD https://go.googlesource.com/tools.git?tag=gopls/${GOPLS_VERSION}&checksum=${GOPLS_COMMIT} /tmp/discarded
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build CGO_ENABLED=0 go install "golang.org/x/tools/gopls@latest" \
+        GOBIN=/build CGO_ENABLED=0 go install "golang.org/x/tools/gopls@${GOPLS_COMMIT}" \
      && /build/gopls version
 
 FROM base AS dockercli
 WORKDIR /go/src/github.com/docker/cli
 ARG DOCKERCLI_REPOSITORY
 ARG DOCKERCLI_VERSION
+ARG DOCKERCLI_COMMIT
 ARG TARGETPLATFORM
 RUN --mount=source=hack/dockerfile/cli.sh,target=/download-or-build-cli.sh \
     --mount=type=cache,id=dockercli-git-$TARGETPLATFORM,sharing=locked,target=./.git \
     --mount=type=cache,target=/root/.cache/go-build,id=dockercli-build-$TARGETPLATFORM \
         rm -f ./.git/*.lock \
-     && /download-or-build-cli.sh ${DOCKERCLI_VERSION} ${DOCKERCLI_REPOSITORY} /build \
+     && /download-or-build-cli.sh ${DOCKERCLI_VERSION} ${DOCKERCLI_COMMIT} ${DOCKERCLI_REPOSITORY} /build \
      && /build/docker --version \
      && /build/docker completion bash >/completion.bash
 
@@ -238,24 +265,25 @@ FROM base AS dockercli-integration
 WORKDIR /go/src/github.com/docker/cli
 ARG DOCKERCLI_INTEGRATION_REPOSITORY
 ARG DOCKERCLI_INTEGRATION_VERSION
+ARG DOCKERCLI_INTEGRATION_COMMIT
 ARG TARGETPLATFORM
 RUN --mount=source=hack/dockerfile/cli.sh,target=/download-or-build-cli.sh \
     --mount=type=cache,id=dockercli-git-$TARGETPLATFORM,sharing=locked,target=./.git \
     --mount=type=cache,target=/root/.cache/go-build,id=dockercli-build-$TARGETPLATFORM \
         rm -f ./.git/*.lock \
-     && /download-or-build-cli.sh ${DOCKERCLI_INTEGRATION_VERSION} ${DOCKERCLI_INTEGRATION_REPOSITORY} /build \
+     && /download-or-build-cli.sh ${DOCKERCLI_INTEGRATION_VERSION} ${DOCKERCLI_INTEGRATION_COMMIT} ${DOCKERCLI_INTEGRATION_REPOSITORY} /build \
      && /build/docker --version
 
 # runc
 FROM base AS runc-src
 WORKDIR /usr/src/runc
-RUN git init . && git remote add origin "https://github.com/opencontainers/runc.git"
 # RUNC_VERSION sets the version of runc to install in the dev-container.
 # This version should usually match the version that is used by the containerd version
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged.
 ARG RUNC_VERSION=v1.3.3
-RUN git fetch -q --depth 1 origin "${RUNC_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ARG RUNC_COMMIT=d842d7719497cc3b774fd71620278ac9e17710e0
+ADD https://github.com/opencontainers/runc.git?tag=${RUNC_VERSION}&checksum=${RUNC_COMMIT}&keep-git-dir=1 .
 
 FROM base AS runc-build
 WORKDIR /go/src/github.com/opencontainers/runc
@@ -285,11 +313,11 @@ FROM runc-${TARGETOS} AS runc
 # tini
 FROM base AS tini-src
 WORKDIR /usr/src/tini
-RUN git init . && git remote add origin "https://github.com/krallin/tini.git"
 # TINI_VERSION specifies the version of tini (docker-init) to build. This
 # binary is used when starting containers with the `--init` option.
 ARG TINI_VERSION=v0.19.0
-RUN git fetch -q --depth 1 origin "${TINI_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ARG TINI_COMMIT=de40ad007797e0dcd8b7126f27bb87401d224240
+ADD https://github.com/krallin/tini.git?tag=${TINI_VERSION}&checksum=${TINI_COMMIT}&keep-git-dir=1 .
 
 FROM base AS tini-build
 WORKDIR /go/src/github.com/krallin/tini
@@ -320,10 +348,10 @@ FROM tini-${TARGETOS} AS tini
 # rootlesskit
 FROM base AS rootlesskit-src
 WORKDIR /usr/src/rootlesskit
-RUN git init . && git remote add origin "https://github.com/rootless-containers/rootlesskit.git"
 # When updating, also update go.mod and hack/dockerfile/install/rootlesskit.installer accordingly.
 ARG ROOTLESSKIT_VERSION=v2.3.5
-RUN git fetch -q --depth 1 origin "${ROOTLESSKIT_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ARG ROOTLESSKIT_COMMIT=0cc0811acc6e4daee71817383e62fb811590bc13
+ADD https://github.com/rootless-containers/rootlesskit.git?tag=${ROOTLESSKIT_VERSION}&checksum=${ROOTLESSKIT_COMMIT}&keep-git-dir=1 .
 
 FROM base AS rootlesskit-build
 WORKDIR /go/src/github.com/rootless-containers/rootlesskit
@@ -353,6 +381,7 @@ FROM rootlesskit-${TARGETOS} AS rootlesskit
 FROM base AS crun
 # CRUN_VERSION is the version of crun to install in the dev-container.
 ARG CRUN_VERSION=1.21
+ARG CRUN_COMMIT=10269840aa07fb7e6b7e1acff6198692d8ff5c88
 RUN --mount=type=cache,sharing=locked,id=moby-crun-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-crun-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
@@ -367,11 +396,9 @@ RUN --mount=type=cache,sharing=locked,id=moby-crun-aptlib,target=/var/lib/apt \
             libyajl-dev \
             python3 \
             ;
-RUN --mount=type=tmpfs,target=/tmp/crun-build \
-    git clone https://github.com/containers/crun.git /tmp/crun-build && \
-    cd /tmp/crun-build && \
-    git checkout -q "${CRUN_VERSION}" && \
-    ./autogen.sh && \
+WORKDIR /tmp/crun-build
+ADD https://github.com/containers/crun.git?tag=${CRUN_VERSION}&checksum=${CRUN_COMMIT}&keep-git-dir=1 .
+RUN ./autogen.sh && \
     ./configure --bindir=/build && \
     make -j install
 
@@ -391,9 +418,8 @@ FROM vpnkit-${TARGETOS} AS vpnkit
 # containerutility
 FROM base AS containerutil-src
 WORKDIR /usr/src/containerutil
-RUN git init . && git remote add origin "https://github.com/docker-archive/windows-container-utility.git"
 ARG CONTAINERUTILITY_VERSION=aa1ba87e99b68e0113bd27ec26c60b88f9d4ccd9
-RUN git fetch -q --depth 1 origin "${CONTAINERUTILITY_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ADD https://github.com/docker-archive/windows-container-utility.git?commit=${CONTAINERUTILITY_VERSION}&keep-git-dir=1 .
 
 FROM base AS containerutil-build
 WORKDIR /usr/src/containerutil

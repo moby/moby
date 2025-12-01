@@ -2,6 +2,7 @@
 
 : ${DOCKERCLI_CHANNEL:=stable}
 : ${DOCKERCLI_VERSION:=18.06.3-ce}
+: ${DOCKERCLI_COMMIT:=c1ea761867553cea4e70d09e30bbba44ca1fc2ed}
 
 install_dockercli() {
 	echo "Install docker/cli version $DOCKERCLI_VERSION from $DOCKERCLI_CHANNEL"
@@ -24,6 +25,7 @@ build_dockercli() {
 	git clone https://github.com/docker/docker-ce "$GOPATH/tmp/docker-ce"
 	cd "$GOPATH/tmp/docker-ce"
 	git checkout -q "v$DOCKERCLI_VERSION"
+	[ "$(git rev-parse HEAD)" = "$DOCKERCLI_COMMIT" ]
 	mkdir -p "$GOPATH/src/github.com/docker"
 	mv components/cli "$GOPATH/src/github.com/docker/cli"
 	go build ${GO_BUILDMODE} -o "${PREFIX}/docker" "github.com/docker/cli/cmd/docker"

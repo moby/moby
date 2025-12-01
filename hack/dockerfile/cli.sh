@@ -2,8 +2,9 @@
 
 set -e
 version="$1"
-repository="$2"
-outdir="$3"
+commit="$2"
+repository="$3"
+outdir="$4"
 
 DOWNLOAD_URL="https://download.docker.com/linux/static/stable/$(xx-info march)/docker-${version#v}.tgz"
 
@@ -17,6 +18,7 @@ else
 	git remote add origin "${repository}"
 	git fetch -q --depth 1 origin "${version}" +refs/tags/*:refs/tags/*
 	git checkout -fq "${version}"
+	[ "$(git rev-parse HEAD)" = "${commit}" ]
 	if [ -d ./components/cli ]; then
 		mv ./components/cli/* ./
 		CGO_ENABLED=0 xx-go build -o "${outdir}/docker" ./cmd/docker

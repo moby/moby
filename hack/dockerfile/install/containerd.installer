@@ -11,12 +11,14 @@ set -e
 #
 # Generally, the commit specified here should match a tagged release.
 : "${CONTAINERD_VERSION:=v2.2.0}"
+: "${CONTAINERD_COMMIT:=1c4457e00facac03ce1d75f7b6777a7a851e5c41}"
 
 install_containerd() (
 	echo "Install containerd version $CONTAINERD_VERSION"
 	git clone https://github.com/containerd/containerd.git "$GOPATH/src/github.com/containerd/containerd"
 	cd "$GOPATH/src/github.com/containerd/containerd"
 	git checkout -q "$CONTAINERD_VERSION"
+	[ "$(git rev-parse HEAD)" = "$CONTAINERD_COMMIT" ]
 
 	export BUILDTAGS='netgo osusergo static_build'
 	export EXTRA_FLAGS=${GO_BUILDMODE}

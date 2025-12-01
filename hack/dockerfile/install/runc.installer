@@ -8,6 +8,7 @@ set -e
 # version that is used. If you need to update runc, open a pull request in
 # the containerd project first, and update both after that is merged.
 : "${RUNC_VERSION:=v1.3.3}"
+: "${RUNC_COMMIT:=d842d7719497cc3b774fd71620278ac9e17710e0}"
 
 install_runc() {
 	RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"seccomp"}"
@@ -16,6 +17,7 @@ install_runc() {
 	git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc"
 	cd "$GOPATH/src/github.com/opencontainers/runc"
 	git checkout -q "$RUNC_VERSION"
+	[ "$(git rev-parse HEAD)" = "$RUNC_COMMIT" ]
 	if [ -z "$1" ]; then
 		target=static
 	else

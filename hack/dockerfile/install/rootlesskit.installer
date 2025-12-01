@@ -2,6 +2,7 @@
 
 # When updating, also update go.mod and Dockerfile accordingly.
 : "${ROOTLESSKIT_VERSION:=v2.3.5}"
+: "${ROOTLESSKIT_COMMIT:=0cc0811acc6e4daee71817383e62fb811590bc13}"
 
 install_rootlesskit() {
 	case "$1" in
@@ -27,5 +28,6 @@ install_rootlesskit_dynamic() {
 
 _install_rootlesskit() (
 	echo "Install rootlesskit version ${ROOTLESSKIT_VERSION}"
-	GOBIN="${PREFIX}" go install ${BUILD_MODE} -ldflags="$ROOTLESSKIT_LDFLAGS" "github.com/rootless-containers/rootlesskit/v2/cmd/rootlesskit@${ROOTLESSKIT_VERSION}"
+	GOBIN="${PREFIX}" go install ${BUILD_MODE} -ldflags="$ROOTLESSKIT_LDFLAGS" "github.com/rootless-containers/rootlesskit/v2/cmd/rootlesskit@${ROOTLESSKIT_COMMIT}"
+	[ "$("${GOBIN}/rootlesskit" --version)" = "rootlesskit version ${ROOTLESSKIT_VERSION#v}" ]
 )
