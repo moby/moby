@@ -57,6 +57,7 @@ import (
 	"github.com/moby/moby/v2/pkg/homedir"
 	"github.com/moby/moby/v2/pkg/pidfile"
 	"github.com/moby/moby/v2/pkg/plugingetter"
+	"github.com/moby/sys/userns"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
@@ -668,7 +669,23 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 			}
 			conf.CDISpecDirs = append(conf.CDISpecDirs, filepath.Join(xch, "cdi"), filepath.Join(xrd, "cdi"))
 		}
-	} else if len(conf.CDISpecDirs) == 1 && conf.CDISpecDirs[0] == "" {
+	}
+	// Filter out CDI spec directories that are not readable, and log appropriately
+	var cdiSpecDirs []string
+	for _, dir := range conf.CDISpecDirs {
+		// Non-existing directories are not filtered out here, as CDI spec directories are allowed to not exist.
+		if _, err := os.ReadDir(dir); err == nil || errors.Is(err, os.ErrNotExist) {
+			cdiSpecDirs = append(cdiSpecDirs, dir)
+		} else {
+			logLevel := log.ErrorLevel
+			if userns.RunningInUserNS() && errors.Is(err, os.ErrPermission) {
+				logLevel = log.DebugLevel
+			}
+			log.L.WithField("dir", dir).WithError(err).Log(logLevel, "CDI spec directory cannot be accessed, skipping")
+		}
+	}
+	conf.CDISpecDirs = cdiSpecDirs
+	if len(conf.CDISpecDirs) == 1 && conf.CDISpecDirs[0] == "" {
 		// If CDISpecDirs is set to an empty string, we clear it to ensure that CDI is disabled.
 		conf.CDISpecDirs = nil
 	}
