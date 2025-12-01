@@ -333,7 +333,10 @@ definitions:
             type: "integer"
             format: "int64"
           Mode:
-            description: "The permission mode for the tmpfs mount in an integer."
+            description: |
+              The permission mode for the tmpfs mount in an integer.
+              The value must not be in octal format (e.g. 755) but rather
+              the decimal representation of the octal value (e.g. 493).
             type: "integer"
 
   RestartPolicy:
