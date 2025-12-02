@@ -121,6 +121,11 @@ require (
 )
 
 require (
+	github.com/balena-os/circbuf v0.1.3 // indirect
+	github.com/balena-os/librsync-go v0.8.5 // indirect
+)
+
+require (
 	cloud.google.com/go v0.121.6 // indirect
 	cloud.google.com/go/auth v0.16.5 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect

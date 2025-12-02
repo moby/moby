@@ -95,6 +95,10 @@ github.com/aws/aws-sdk-go-v2/service/sts v1.38.9 h1:Ekml5vGg6sHSZLZJQJagefnVe6Pm
 github.com/aws/aws-sdk-go-v2/service/sts v1.38.9/go.mod h1:/e15V+o1zFHWdH3u7lpI3rVBcxszktIKuHKCY2/py+k=
 github.com/aws/smithy-go v1.23.1 h1:sLvcH6dfAFwGkHLZ7dGiYF7aK6mg4CgKA/iDKjLDt9M=
 github.com/aws/smithy-go v1.23.1/go.mod h1:LEj2LM3rBRQJxPZTB4KuzZkaZYnZPnvgIhb4pu07mx0=
+github.com/balena-os/circbuf v0.1.3 h1:pLkTha46mQ2FOfB4l9sz4fckt8oorpVSWIp6N3xW+wE=
+github.com/balena-os/circbuf v0.1.3/go.mod h1:D8R+zPJf/Sfd43NP++rdNfGAf7KefcKG1b6k2Ww0ZzU=
+github.com/balena-os/librsync-go v0.8.5 h1:D6MYl54Zpe0oUeSrlu4+o+rF385PvWEbEFtZX6eA5xI=
+github.com/balena-os/librsync-go v0.8.5/go.mod h1:66OAWSdBh+x2Vh1KXFZiQJ7womKOO+qOYO3fYyALgxA=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+CedLV8=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
