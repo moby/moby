@@ -105,7 +105,7 @@ jobs:
           path: moby
       -
         name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -199,7 +199,7 @@ jobs:
           echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -312,7 +312,7 @@ jobs:
           path: moby
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
