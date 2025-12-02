@@ -61,6 +61,32 @@ func TestImageInspect(t *testing.T) {
 		}
 	})
 
+	t.Run("inspect image with one layer missing", func(t *testing.T) {
+		ctx := logtest.WithT(ctx, t)
+		service := fakeImageService(t, ctx, cs)
+
+		img := toContainerdImage(t, specialimage.MultiLayer)
+
+		_, err := service.images.Create(ctx, img)
+		assert.NilError(t, err)
+
+		// Get the manifest to access the layers
+		mfst, err := c8dimages.Manifest(ctx, cs, img.Target, nil)
+		assert.NilError(t, err)
+		assert.Check(t, len(mfst.Layers) > 0, "image should have at least one layer")
+
+		// Delete the last layer from the content store
+		lastLayer := mfst.Layers[len(mfst.Layers)-1]
+		err = cs.Delete(ctx, lastLayer.Digest)
+		assert.NilError(t, err)
+
+		inspect, err := service.ImageInspect(ctx, img.Name, imagebackend.ImageInspectOpts{})
+		assert.NilError(t, err)
+
+		assert.Check(t, inspect.Config != nil)
+		assert.Check(t, is.Len(inspect.RootFS.Layers, len(mfst.Layers)))
+	})
+
 	t.Run("inspect image with platform parameter", func(t *testing.T) {
 		ctx := logtest.WithT(ctx, t)
 		service := fakeImageService(t, ctx, cs)
