@@ -192,7 +192,7 @@ jobs:
         run: echo "TESTREPORTS_NAME=$(basename ${{ inputs.template }})*" >> $GITHUB_ENV
       -
         name: Download reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           path: /tmp/reports
           pattern: test-reports-integration-${{ env.TESTREPORTS_NAME }}

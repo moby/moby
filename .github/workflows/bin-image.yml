@@ -119,7 +119,7 @@ jobs:
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
       -
         name: Download meta bake definition
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: bake-meta
           path: /tmp
@@ -180,13 +180,13 @@ jobs:
     steps:
       -
         name: Download meta bake definition
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: bake-meta
           path: /tmp
       -
         name: Download digests
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           path: /tmp/digests
           pattern: digests-*

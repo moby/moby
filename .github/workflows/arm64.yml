@@ -168,7 +168,7 @@ jobs:
           cache: false
       -
         name: Download reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           pattern: test-reports-unit-arm64-*
           path: /tmp/reports
@@ -272,7 +272,7 @@ jobs:
           cache: false
       -
         name: Download reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           path: /tmp/reports
           pattern: test-reports-integration-arm64-*
