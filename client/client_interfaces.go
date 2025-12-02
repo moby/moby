@@ -136,6 +136,7 @@ type ImageAPIClient interface {
 
 	ImageLoad(ctx context.Context, input io.Reader, _ ...ImageLoadOption) (ImageLoadResult, error)
 	ImageSave(ctx context.Context, images []string, _ ...ImageSaveOption) (ImageSaveResult, error)
+	ImageDelta(ctx context.Context, baseImage, targetImage string, options ImageDeltaOptions) (ImageDeltaResult, error)
 }
 
 // NetworkAPIClient defines API client methods for the networks
