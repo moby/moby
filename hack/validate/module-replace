@@ -4,7 +4,15 @@ set -e
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPTDIR}/.validate"
 
-api_files=$(validate_diff --diff-filter=ACMR --name-only -- 'api/' || true)
+api_files=$(
+	validate_diff --diff-filter=ACMR --name-only -- \
+		'api/' \
+		':(exclude)api/README.md' \
+		':(exclude)api/swagger.yaml' \
+		':(exclude)api/docs/' \
+		|| true
+)
+
 client_files=$(validate_diff --diff-filter=ACMR --name-only -- 'client/' || true)
 
 has_errors=0
