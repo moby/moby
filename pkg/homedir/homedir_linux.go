@@ -103,3 +103,13 @@ func GetLibHome() (string, error) {
 	}
 	return filepath.Join(home, ".local/lib"), nil
 }
+
+// GetLibexecHome returns $HOME/.local/libexec
+// If HOME is not set, getpwent(3) is consulted to determine the users home directory.
+func GetLibexecHome() (string, error) {
+	home := Get()
+	if home == "" {
+		return "", errors.New("could not get HOME")
+	}
+	return filepath.Join(home, ".local/libexec"), nil
+}
