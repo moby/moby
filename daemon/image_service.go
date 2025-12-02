@@ -30,6 +30,7 @@ type ImageService interface {
 	PullImage(ctx context.Context, ref reference.Named, options imagebackend.PullOptions) error
 	PushImage(ctx context.Context, ref reference.Named, options imagebackend.PushOptions) error
 	CreateImage(ctx context.Context, config []byte, parent string, contentStoreDigest digest.Digest) (builder.Image, error)
+	CreateImageDelta(ctx context.Context, baseImage, targetImage, tag string, outStream io.Writer) error
 	ImageDelete(ctx context.Context, imageRef string, options imagebackend.RemoveOptions) ([]imagetype.DeleteResponse, error)
 	ExportImage(ctx context.Context, names []string, platformList []ocispec.Platform, outStream io.Writer) error
 	LoadImage(ctx context.Context, inTar io.ReadCloser, platformList []ocispec.Platform, outStream io.Writer, quiet bool) error

@@ -35,6 +35,7 @@ type importExportBackend interface {
 	LoadImage(ctx context.Context, inTar io.ReadCloser, platformList []ocispec.Platform, outStream io.Writer, quiet bool) error
 	ImportImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, msg string, layerReader io.Reader, changes []string) (dockerimage.ID, error)
 	ExportImage(ctx context.Context, names []string, platformList []ocispec.Platform, outStream io.Writer) error
+	CreateImageDelta(ctx context.Context, baseImage, targetImage, tag string, outStream io.Writer) error
 }
 
 type registryBackend interface {

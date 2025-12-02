@@ -313,6 +313,34 @@ func (ir *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter
 	return nil
 }
 
+func (ir *imageRouter) postImagesDelta(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	baseImage := r.Form.Get("src")
+	targetImage := r.Form.Get("dest")
+	tag := r.Form.Get("t")
+
+	if baseImage == "" || targetImage == "" {
+		return errdefs.InvalidParameter(errors.New("src and dest parameters are required"))
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	output := ioutils.NewWriteFlusher(w)
+	defer output.Close()
+
+	if err := ir.backend.CreateImageDelta(ctx, baseImage, targetImage, tag, output); err != nil {
+		if !output.Flushed() {
+			return err
+		}
+		_, _ = output.Write(streamformatter.FormatError(err))
+	}
+
+	return nil
+}
+
 type missingImageError struct{}
 
 func (missingImageError) Error() string {
