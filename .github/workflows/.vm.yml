@@ -39,7 +39,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       -
         name: Set up Lima
         uses: lima-vm/lima-actions/setup@03b96d61959e83b2c737e44162c3088e81de0886  # v1.0.1
@@ -167,7 +167,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: test-reports-integration-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
@@ -192,7 +192,7 @@ jobs:
         run: echo "TESTREPORTS_NAME=$(basename ${{ inputs.template }})*" >> $GITHUB_ENV
       -
         name: Download reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           path: /tmp/reports
           pattern: test-reports-integration-${{ env.TESTREPORTS_NAME }}

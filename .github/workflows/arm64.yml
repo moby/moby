@@ -101,7 +101,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -146,7 +146,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: test-reports-unit-arm64-graphdriver
           path: /tmp/reports/*
@@ -168,7 +168,7 @@ jobs:
           cache: false
       -
         name: Download reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           pattern: test-reports-unit-arm64-*
           path: /tmp/reports
@@ -191,7 +191,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -250,7 +250,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: test-reports-integration-arm64-graphdriver
           path: /tmp/reports/*
@@ -272,7 +272,7 @@ jobs:
           cache: false
       -
         name: Download reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           path: /tmp/reports
           pattern: test-reports-integration-arm64-*
