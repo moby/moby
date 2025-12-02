@@ -83,7 +83,7 @@ jobs:
           mv "${bakeFile#cwd://}" "/tmp/bake-meta.json"
       -
         name: Upload meta bake definition
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: bake-meta
           path: /tmp/bake-meta.json
@@ -164,7 +164,7 @@ jobs:
       -
         name: Upload digest
         if: github.event_name != 'pull_request' && github.repository == 'moby/moby'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: digests-${{ env.PLATFORM_PAIR }}
           path: /tmp/digests/*

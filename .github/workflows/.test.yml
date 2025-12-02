@@ -82,7 +82,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: test-reports-docker-py-${{ inputs.storage }}
           path: /tmp/reports/*
@@ -250,7 +250,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: test-reports-integration-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
@@ -466,7 +466,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: test-reports-integration-cli-${{ inputs.storage }}-${{ matrix.mode }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
