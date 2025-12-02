@@ -17,6 +17,7 @@ thumbs.db
 /bundles/
 /cmd/dockerd/winresources/winres.json
 /cmd/dockerd/*.syso
+/docker-delta
 
 # ci artifacts
 *.exe

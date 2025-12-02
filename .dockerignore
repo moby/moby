@@ -4,3 +4,5 @@
 /bundles/
 /cmd/dockerd/winresources/winres.json
 /cmd/dockerd/*.syso
+.claude
+/docker-delta
