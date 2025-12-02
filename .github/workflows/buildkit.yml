@@ -100,7 +100,7 @@ jobs:
         uses: crazy-max/ghaction-github-runtime@v3
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: moby
       -
@@ -116,7 +116,7 @@ jobs:
         working-directory: moby
       -
         name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ env.BUILDKIT_REPO }}
           ref: ${{ env.BUILDKIT_REF }}
@@ -184,7 +184,7 @@ jobs:
         working-directory: ${{ env.GOPATH }}/src/github.com/docker/docker
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: ${{ env.GOPATH }}/src/github.com/docker/docker
 
@@ -225,7 +225,7 @@ jobs:
           go install github.com/distribution/distribution/v3/cmd/registry@latest
 
       - name: Checkout BuildKit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: moby/buildkit
           ref: master
@@ -307,7 +307,7 @@ jobs:
         uses: crazy-max/ghaction-github-runtime@v3
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: moby
 
@@ -324,7 +324,7 @@ jobs:
         working-directory: moby
 
       - name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ env.BUILDKIT_REPO }}
           ref: ${{ env.BUILDKIT_REF }}

@@ -39,7 +39,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -95,7 +95,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -169,7 +169,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -295,7 +295,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       -
         name: Set up Go
         uses: actions/setup-go@v5
@@ -393,7 +393,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
