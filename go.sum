@@ -154,6 +154,8 @@ github.com/containerd/go-runc v1.1.0 h1:OX4f+/i2y5sUT7LhmcJH7GYrjjhHa1QI4e8yO0gG
 github.com/containerd/go-runc v1.1.0/go.mod h1:xJv2hFF7GvHtTJd9JqTS2UVxMkULUYw4JN5XAUZqH5U=
 github.com/containerd/log v0.1.0 h1:TCJt7ioM2cr/tfR8GPbGf9/VRAX8D2B4PjzCpfX540I=
 github.com/containerd/log v0.1.0/go.mod h1:VRRf09a7mHDIRezVKTRCrOq78v577GXq3bSa3EhrzVo=
+github.com/containerd/nri v0.10.0 h1:bt2NzfvlY6OJE0i+fB5WVeGQEycxY7iFVQpEbh7J3Go=
+github.com/containerd/nri v0.10.0/go.mod h1:5VyvLa/4uL8FjyO8nis1UjbCutXDpngil17KvBSL6BU=
 github.com/containerd/nydus-snapshotter v0.15.4 h1:l59kGRVMtwMLDLh322HsWhEsBCkRKMkGWYV5vBeLYCE=
 github.com/containerd/nydus-snapshotter v0.15.4/go.mod h1:eRJqnxQDr48HNop15kZdLZpFF5B6vf6Q11Aq1K0E4Ms=
 github.com/containerd/platforms v1.0.0-rc.2 h1:0SPgaNZPVWGEi4grZdV8VRYQn78y+nm6acgLGv/QzE4=
@@ -377,6 +379,8 @@ github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/klauspost/compress v1.18.2 h1:iiPHWW0YrcFgpBYhsA6D1+fqHssJscY/Tm/y2Uqnapk=
 github.com/klauspost/compress v1.18.2/go.mod h1:R0h/fSBs8DE4ENlcrlib3PsXS61voFxhIs2DeRhCvJ4=
+github.com/knqyf263/go-plugin v0.9.0 h1:CQs2+lOPIlkZVtcb835ZYDEoyyWJWLbSTWeCs0EwTwI=
+github.com/knqyf263/go-plugin v0.9.0/go.mod h1:2z5lCO1/pez6qGo8CvCxSlBFSEat4MEp1DrnA+f7w8Q=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
 github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515/go.mod h1:+0opPa2QZZtGFBFZlji/RkVcI2GknAs/DXo4wKdlNEc=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
@@ -598,6 +602,8 @@ github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/tedsuo/ifrit v0.0.0-20230516164442-7862c310ad26 h1:mWCRvpoEMVlslxEvvptKgIUb35va9yj9Oq5wGw/er5I=
 github.com/tedsuo/ifrit v0.0.0-20230516164442-7862c310ad26/go.mod h1:0uD3VMXkZ7Bw0ojGCwDzebBBzPBXtzEZeXai+56BLX4=
+github.com/tetratelabs/wazero v1.9.0 h1:IcZ56OuxrtaEz8UYNRHBrUa9bYeX9oVY93KspZZBf/I=
+github.com/tetratelabs/wazero v1.9.0/go.mod h1:TSbcXCfFP0L2FGkRPxHphadXPjo1T6W+CseNNY7EkjM=
 github.com/tinylib/msgp v1.3.0 h1:ULuf7GPooDaIlbyvgAxBV/FI7ynli6LZ1/nVUNu+0ww=
 github.com/tinylib/msgp v1.3.0/go.mod h1:ykjzy2wzgrlvpDCRc4LA8UXy6D8bzMSuAF3WD57Gok0=
 github.com/tonistiigi/dchapes-mode v0.0.0-20250318174251-73d941a28323 h1:r0p7fK56l8WPequOaR3i9LBqfPtEdXIQbUTzT55iqT4=
