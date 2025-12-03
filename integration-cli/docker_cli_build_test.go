@@ -5010,7 +5010,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestBuildWithExternalAuth(c *testing.T
 	testPath := fmt.Sprintf("%s%c%s", osPath, filepath.ListSeparator, absolute)
 	c.Setenv("PATH", testPath)
 
-	repoName := fmt.Sprintf("%v/dockercli/busybox:authtest", privateRegistryURL)
+	imgName := fmt.Sprintf("%v/dockercli/busybox:authtest", privateRegistryURL)
 
 	tmp, err := os.MkdirTemp("", "integration-cli-")
 	assert.NilError(c, err)
@@ -5026,15 +5026,15 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestBuildWithExternalAuth(c *testing.T
 	b, err := os.ReadFile(configPath)
 	assert.NilError(c, err)
 	assert.Assert(c, !strings.Contains(string(b), "\"auth\":"))
-	cli.DockerCmd(c, "--config", tmp, "tag", "busybox", repoName)
-	cli.DockerCmd(c, "--config", tmp, "push", repoName)
+	cli.DockerCmd(c, "--config", tmp, "tag", "busybox", imgName)
+	cli.DockerCmd(c, "--config", tmp, "push", imgName)
 
 	// make sure the image is pulled when building
-	cli.DockerCmd(c, "rmi", repoName)
+	cli.DockerCmd(c, "rmi", imgName)
 
 	icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "--config", tmp, "build", "-"},
-		Stdin:   strings.NewReader(fmt.Sprintf("FROM %s", repoName)),
+		Stdin:   strings.NewReader(fmt.Sprintf("FROM %s", imgName)),
 	}).Assert(c, icmd.Success)
 }
 
@@ -5784,7 +5784,7 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageImplicitFrom(c *testing.T) {
 }
 
 func (s *DockerRegistrySuite) TestBuildMultiStageImplicitPull(c *testing.T) {
-	repoName := fmt.Sprintf("%v/dockercli/testf", privateRegistryURL)
+	imgName := fmt.Sprintf("%v/dockercli/testf", privateRegistryURL)
 
 	dockerfile := `
 		FROM busybox
@@ -5796,16 +5796,16 @@ func (s *DockerRegistrySuite) TestBuildMultiStageImplicitPull(c *testing.T) {
 		}))
 	defer ctx.Close()
 
-	cli.BuildCmd(c, repoName, build.WithExternalBuildContext(ctx))
+	cli.BuildCmd(c, imgName, build.WithExternalBuildContext(ctx))
 
-	cli.DockerCmd(c, "push", repoName)
-	cli.DockerCmd(c, "rmi", repoName)
+	cli.DockerCmd(c, "push", imgName)
+	cli.DockerCmd(c, "rmi", imgName)
 
 	dockerfile = `
 		FROM busybox
 		COPY --from=%s bar baz`
 
-	ctx = fakecontext.New(c, "", fakecontext.WithDockerfile(fmt.Sprintf(dockerfile, repoName)))
+	ctx = fakecontext.New(c, "", fakecontext.WithDockerfile(fmt.Sprintf(dockerfile, imgName)))
 	defer ctx.Close()
 
 	cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx))
