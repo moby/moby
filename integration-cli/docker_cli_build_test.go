@@ -4614,60 +4614,39 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgDefinitionWithNoEnvInjection(
 	}
 }
 
+// TestBuildMultiStageArg verifies that build-args are scoped to the FROM
+// they're defined in. Test for https://github.com/moby/moby/issues/31892
 func (s *DockerCLIBuildSuite) TestBuildMultiStageArg(c *testing.T) {
 	imgName := strings.ToLower(c.Name())
-	dockerfile := `FROM busybox
-    ARG foo=abc
-    LABEL multifromtest=1
-    RUN env > /out
-    FROM busybox
-    ARG bar=def
-    RUN env > /out`
+	const dockerfile = `FROM busybox
+ARG stage_1_arg=AAAA
+LABEL multifromtest=1
+RUN env > /out
+FROM busybox
+ARG stage_2_arg=BBBB
+RUN env > /out
+`
 
-	result := cli.BuildCmd(c, imgName, build.WithDockerfile(dockerfile))
-	result.Assert(c, icmd.Success)
+	cli.BuildCmd(c, imgName, build.WithDockerfile(dockerfile))
 
-	result = cli.DockerCmd(c, "images", "-q", "-f", "label=multifromtest=1")
-	result.Assert(c, icmd.Success)
-
-	imgs := strings.Split(strings.TrimSpace(result.Stdout()), "\n")
-	assert.Assert(c, is.Len(imgs, 1), `only one image with "multifromtest" label is expected`)
-
-	parentID := imgs[0]
-
-	result = cli.DockerCmd(c, "run", "--rm", parentID, "cat", "/out")
-	assert.Assert(c, is.Contains(result.Stdout(), "foo=abc"))
-	result = cli.DockerCmd(c, "run", "--rm", imgName, "cat", "/out")
-	assert.Assert(c, !strings.Contains(result.Stdout(), "foo"))
-	assert.Assert(c, is.Contains(result.Stdout(), "bar=def"))
+	result := cli.DockerCmd(c, "run", "--rm", imgName, "cat", "/out")
+	assert.Check(c, !strings.Contains(result.Stdout(), "stage_1_arg"), "build arg leaked to second stage")
+	assert.Assert(c, is.Contains(result.Stdout(), "stage_2_arg=BBBB"), "build arg not applied to second stage")
 }
 
 func (s *DockerCLIBuildSuite) TestBuildMultiStageGlobalArg(c *testing.T) {
 	imgName := strings.ToLower(c.Name())
-	dockerfile := `ARG tag=nosuchtag
-     FROM busybox:${tag}
-     LABEL multifromtest2=1
-     RUN env > /out
-     FROM busybox:${tag}
-     ARG tag
-     RUN env > /out`
+	const dockerfile = `ARG tag=nosuchtag
+FROM busybox:${tag}
+LABEL multifromtest2=1
+RUN env > /out
+FROM busybox:${tag}
+ARG tag
+RUN env > /out`
 
-	result := cli.BuildCmd(c, imgName,
-		build.WithDockerfile(dockerfile),
-		cli.WithFlags("--build-arg", "tag=latest"))
-	result.Assert(c, icmd.Success)
+	cli.BuildCmd(c, imgName, build.WithDockerfile(dockerfile), cli.WithFlags("--build-arg", "tag=latest"))
 
-	result = cli.DockerCmd(c, "images", "-q", "-f", "label=multifromtest2=1")
-	result.Assert(c, icmd.Success)
-
-	imgs := strings.Split(strings.TrimSpace(result.Stdout()), "\n")
-	assert.Assert(c, is.Len(imgs, 1), `only one image with "multifromtest" label is expected`)
-
-	parentID := imgs[0]
-
-	result = cli.DockerCmd(c, "run", "--rm", parentID, "cat", "/out")
-	assert.Assert(c, !strings.Contains(result.Stdout(), "tag"))
-	result = cli.DockerCmd(c, "run", "--rm", imgName, "cat", "/out")
+	result := cli.DockerCmd(c, "run", "--rm", imgName, "cat", "/out")
 	assert.Assert(c, is.Contains(result.Stdout(), "tag=latest"))
 }
 
