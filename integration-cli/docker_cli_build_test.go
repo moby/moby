@@ -4689,6 +4689,7 @@ func (s *DockerCLIBuildSuite) TestBuildNoNamedVolume(c *testing.T) {
 
 	res := cli.Docker(cli.Args("build", "-t", imgName), build.WithDockerfile(dockerFile)).Assert(c, icmd.Expected{
 		ExitCode: 1,
+		Out:      `ls: /foo/oops: No such file or directory`,
 	})
 	assert.Check(c, is.Contains(res.Combined(), expError))
 }
