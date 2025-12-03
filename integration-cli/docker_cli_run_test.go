@@ -309,7 +309,11 @@ func (s *DockerCLIRunSuite) TestUserDefinedNetworkAlias(c *testing.T) {
 	cli.WaitRun(t, "first")
 
 	// Check if default short-id alias is added automatically
-	aliases := cli.DockerCmd(t, "container", "inspect", "--format", "{{.NetworkSettings.Networks.net1.Aliases}}", cid1).Stdout()
+	aliases := cli.Docker(
+		cli.Args("container", "inspect", "--format", "{{.NetworkSettings.Networks.net1.Aliases}}", cid1),
+		// API versions < v1.45 included the short-id in aliases. Newer versions only include it in DNSNames.
+		cli.WithEnvironmentVariables("DOCKER_API_VERSION=1.44"),
+	).Assert(t, icmd.Success).Stdout()
 	assert.Assert(t, is.Contains(aliases, stringid.TruncateID(cid1)))
 	assert.Assert(t, is.Contains(aliases, "foo1"))
 	assert.Assert(t, is.Contains(aliases, "foo2"))
@@ -319,7 +323,11 @@ func (s *DockerCLIRunSuite) TestUserDefinedNetworkAlias(c *testing.T) {
 	cli.WaitRun(t, "second")
 
 	// Check if default short-id alias is added automatically
-	aliases = cli.DockerCmd(t, "container", "inspect", "--format", "{{.NetworkSettings.Networks.net1.Aliases}}", cid2).Stdout()
+	aliases = cli.Docker(
+		cli.Args("container", "inspect", "--format", "{{.NetworkSettings.Networks.net1.Aliases}}", cid2),
+		// API versions < v1.45 included the short-id in aliases. Newer versions only include it in DNSNames.
+		cli.WithEnvironmentVariables("DOCKER_API_VERSION=1.44"),
+	).Assert(t, icmd.Success).Stdout()
 	assert.Assert(t, is.Contains(aliases, stringid.TruncateID(cid2)))
 
 	// ping to first and its network-scoped aliases
