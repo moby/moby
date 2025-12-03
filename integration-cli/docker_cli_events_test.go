@@ -351,6 +351,12 @@ func (s *DockerCLIEventSuite) TestEventsFilterImageLabels(c *testing.T) {
 		"--until", daemonUnixTime(c),
 		"--filter", fmt.Sprintf("label=%s", label),
 		"--filter", "type="+string(eventtypes.ImageEventType),
+
+		// Depending on the API version, 3 or 4 events are produced; 2 events from
+		// the "docker tag" command, and 1 or 2 events from "docker build";
+		// Image create events were added in API 1.46, and filtered out in older
+		// API versions.
+		"--filter", "event="+string(eventtypes.ActionTag),
 	).Stdout()
 
 	events := strings.Split(strings.TrimSpace(out), "\n")
@@ -573,6 +579,12 @@ func (s *DockerCLIEventSuite) TestEventsFilterType(c *testing.T) {
 		"--until", daemonUnixTime(c),
 		"--filter", "label="+label,
 		"--filter", "type="+string(eventtypes.ImageEventType),
+
+		// Depending on the API version, 3 or 4 events are produced; 2 events from
+		// the "docker tag" command, and 1 or 2 events from "docker build";
+		// Image create events were added in API 1.46, and filtered out in older
+		// API versions.
+		"--filter", "event="+string(eventtypes.ActionTag),
 	).Stdout()
 
 	events := strings.Split(strings.TrimSpace(out), "\n")
