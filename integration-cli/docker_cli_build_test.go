@@ -4699,6 +4699,8 @@ func (s *DockerCLIBuildSuite) TestBuildNoNamedVolume(c *testing.T) {
 	}
 	cli.DockerCmd(c, "run", "-v", volName, "busybox", "sh", "-c", "touch /foo/oops")
 
+	// Named volumes are not supported in VOLUME, so the `<volume-name>:<path>`
+	// should be used as-is and to be considered a path inside the image.
 	dockerFile := `FROM busybox
 	VOLUME ` + volName + `
 	RUN ls /foo/oops
@@ -4706,6 +4708,7 @@ func (s *DockerCLIBuildSuite) TestBuildNoNamedVolume(c *testing.T) {
 
 	cli.Docker(cli.Args("build", "-t", imgName), build.WithDockerfile(dockerFile)).Assert(c, icmd.Expected{
 		ExitCode: 1,
+		Out:      `ls: /foo/oops: No such file or directory`,
 	})
 }
 
