@@ -4693,20 +4693,25 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageUnusedArg(c *testing.T) {
 func (s *DockerCLIBuildSuite) TestBuildNoNamedVolume(c *testing.T) {
 	imgName := strings.ToLower(c.Name())
 	volName := "testname:/foo"
+	expError := `ls: /foo/oops: No such file or directory`
 
 	if testEnv.DaemonInfo.OSType == "windows" {
 		volName = "testname:C:\\foo"
+		expError = `invalid volume specification`
 	}
 	cli.DockerCmd(c, "run", "-v", volName, "busybox", "sh", "-c", "touch /foo/oops")
 
+	// Named volumes are not supported in VOLUME, so the `<volume-name>:<path>`
+	// should be used as-is and to be considered a path inside the image.
 	dockerFile := `FROM busybox
 	VOLUME ` + volName + `
 	RUN ls /foo/oops
 	`
 
-	cli.Docker(cli.Args("build", "-t", imgName), build.WithDockerfile(dockerFile)).Assert(c, icmd.Expected{
+	res := cli.Docker(cli.Args("build", "-t", imgName), build.WithDockerfile(dockerFile)).Assert(c, icmd.Expected{
 		ExitCode: 1,
 	})
+	assert.Check(c, is.Contains(res.Combined(), expError))
 }
 
 func (s *DockerCLIBuildSuite) TestBuildTagEvent(c *testing.T) {
