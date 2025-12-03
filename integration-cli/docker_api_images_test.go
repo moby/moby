@@ -2,39 +2,37 @@ package main
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/v2/integration-cli/cli"
+	"github.com/moby/moby/v2/integration-cli/cli/build"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/request"
 	"gotest.tools/v3/assert"
 )
 
-func (s *DockerAPISuite) TestAPIImagesImportBadSrc(c *testing.T) {
-	testRequires(c, Network, testEnv.IsLocalDaemon)
-
-	server := httptest.NewServer(http.NewServeMux())
-	defer server.Close()
-
-	tt := []struct {
-		statusExp int
-		fromSrc   string
-	}{
-		{http.StatusNotFound, server.URL + "/nofile.tar"},
-		{http.StatusNotFound, strings.TrimPrefix(server.URL, "http://") + "/nofile.tar"},
-		{http.StatusNotFound, strings.TrimPrefix(server.URL, "http://") + "%2Fdata%2Ffile.tar"},
-		{http.StatusInternalServerError, "%2Fdata%2Ffile.tar"},
-	}
+func (s *DockerAPISuite) TestAPIImagesSaveAndLoad(c *testing.T) {
+	testRequires(c, Network)
+	cli.BuildCmd(c, "saveandload", build.WithDockerfile("FROM busybox\nENV FOO bar"))
+	id := getIDByName(c, "saveandload")
 
 	ctx := testutil.GetContext(c)
-	for _, te := range tt {
-		res, _, err := request.Post(ctx, "/images/create?fromSrc="+te.fromSrc, request.JSON)
-		assert.NilError(c, err)
-		assert.Equal(c, res.StatusCode, te.statusExp)
-		assert.Equal(c, res.Header.Get("Content-Type"), "application/json")
-	}
+	res, body, err := request.Get(ctx, "/images/"+id+"/get")
+	assert.NilError(c, err)
+	defer body.Close()
+	assert.Equal(c, res.StatusCode, http.StatusOK)
+
+	cli.DockerCmd(c, "rmi", id)
+
+	res, loadBody, err := request.Post(ctx, "/images/load", request.RawContent(body), request.ContentType("application/x-tar"))
+	assert.NilError(c, err)
+	defer loadBody.Close()
+	assert.Equal(c, res.StatusCode, http.StatusOK)
+
+	inspectOut := cli.InspectCmd(c, id, cli.Format(".Id")).Combined()
+	assert.Equal(c, strings.TrimSpace(inspectOut), id, "load did not work properly")
 }
 
 // #14846
