@@ -199,19 +199,19 @@ func TestRCModify(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			tc := tc
-			var input string
+			var input strings.Builder
 			if len(tc.inputNS) != 0 {
 				for _, ns := range tc.inputNS {
-					input += "nameserver " + ns + "\n"
+					input.WriteString("nameserver " + ns + "\n")
 				}
 			}
 			if len(tc.inputSearch) != 0 {
-				input += "search " + strings.Join(tc.inputSearch, " ") + "\n"
+				input.WriteString("search " + strings.Join(tc.inputSearch, " ") + "\n")
 			}
 			if len(tc.inputOptions) != 0 {
-				input += "options " + strings.Join(tc.inputOptions, " ") + "\n"
+				input.WriteString("options " + strings.Join(tc.inputOptions, " ") + "\n")
 			}
-			rc, err := Parse(bytes.NewBufferString(input), "")
+			rc, err := Parse(bytes.NewBufferString(input.String()), "")
 			assert.NilError(t, err)
 			assert.Check(t, is.DeepEqual(a2s(rc.NameServers()), tc.inputNS, cmpopts.EquateEmpty()))
 			assert.Check(t, is.DeepEqual(rc.Search(), tc.inputSearch))
