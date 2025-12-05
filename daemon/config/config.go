@@ -88,6 +88,7 @@ var flatOptions = map[string]bool{
 	"default-ulimits":      true,
 	"features":             true,
 	"builder":              true,
+	"nri-opts":             true,
 }
 
 // skipValidateOptions contains configuration keys
@@ -283,6 +284,9 @@ type CommonConfig struct {
 
 	// CDISpecDirs is a list of directories in which CDI specifications can be found.
 	CDISpecDirs []string `json:"cdi-spec-dirs,omitempty"`
+
+	// NRIOpts defines configuration for NRI (Node Resource Interface).
+	NRIOpts opts.NRIOpts `json:"nri-opts,omitempty"`
 
 	// The minimum API version provided by the daemon. Defaults to [defaultMinAPIVersion].
 	//
