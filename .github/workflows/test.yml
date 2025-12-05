@@ -163,6 +163,29 @@ jobs:
         run: |
           make -o build validate-${{ matrix.script }}
 
+  validate-api-swagger:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10 # guardrails timeout for the whole job
+    defaults:
+      run:
+        working-directory: api
+    needs:
+      - validate-dco
+    name: validate (api-swagger)
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v4
+      - 
+        name: Build api module image
+        run: |
+          make build GO_VERSION=${{ env.GO_VERSION }}
+      - 
+        name: Validate swagger
+        run: |
+          make validate-swagger
+          make validate-swagger-gen
+
   smoke-prepare:
     runs-on: ubuntu-24.04
     timeout-minutes: 10 # guardrails timeout for the whole job
