@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -34,6 +35,7 @@ import (
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/moby/locker"
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
 	networktypes "github.com/moby/moby/api/types/network"
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
@@ -188,6 +190,18 @@ func (daemon *Daemon) config() *configStore {
 // Config returns daemon's config.
 func (daemon *Daemon) Config() config.Config {
 	return daemon.config().Config
+}
+
+// engineSocket returns the first Unix socket from the daemon's configured hosts.
+// Returns an error if no Unix socket is configured.
+func (daemon *Daemon) engineSocket(string, *mount.APISocketOptions) (string, error) {
+	cfg := daemon.Config()
+	for _, host := range cfg.Hosts {
+		if proto, addr, ok := strings.Cut(host, "://"); ok && proto == "unix" {
+			return addr, nil
+		}
+	}
+	return "", errors.New("no unix socket configured in daemon hosts")
 }
 
 // HasExperimental returns whether the experimental features of the daemon are enabled or not
