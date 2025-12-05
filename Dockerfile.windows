@@ -175,7 +175,7 @@ ARG CONTAINERD_VERSION=v2.0.7
 
 # Environment variable notes:
 #  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
-#  - CONTAINERD_VERSION must be consistent with 'hack/dockerfile/install/containerd.installer' used by Linux.
+#  - CONTAINERD_VERSION must be consistent with 'Dockerfile' used by Linux.
 #  - FROM_DOCKERFILE is used for detection of building within a container.
 ENV GO_VERSION=${GO_VERSION} `
     CONTAINERD_VERSION=${CONTAINERD_VERSION} `
