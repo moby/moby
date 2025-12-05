@@ -190,24 +190,6 @@ if [ -z "$_DOCKERD_ROOTLESS_CHILD" ]; then
 else
 	[ "$_DOCKERD_ROOTLESS_CHILD" = 1 ]
 
-	# The Container Device Interface (CDI) specs can be found by default
-	# under {/etc,/var/run}/cdi. More information at:
-	# https://github.com/cncf-tags/container-device-interface
-	#
-	# In order to use the Container Device Interface (CDI) integration,
-	# the CDI paths need to exist before the Docker daemon is started in
-	# order for it to read the CDI specification files. Otherwise, a
-	# Docker daemon restart will be required for the daemon to discover
-	# them.
-	#
-	# If another set of CDI paths (other than the default /etc/cdi and
-	# /var/run/cdi) are configured through the Docker configuration file
-	# (using "cdi-spec-dirs"), they need to be bind mounted in rootless
-	# mode; otherwise the Docker daemon won't have access to the CDI
-	# specification files.
-	mount_directory /etc/cdi
-	mount_directory /var/run/cdi
-
 	# remove the symlinks for the existing files in the parent namespace if any,
 	# so that we can create our own files in our mount namespace.
 	rm -f /run/docker /run/containerd /run/xtables.lock

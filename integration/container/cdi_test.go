@@ -2,6 +2,7 @@ package container
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -202,4 +203,65 @@ func TestCDIInfoDiscoveredDevices(t *testing.T) {
 
 	assert.Check(t, is.Equal(len(info.DiscoveredDevices), 1), "Expected one discovered device")
 	assert.Check(t, is.DeepEqual(info.DiscoveredDevices, []system.DeviceInfo{expectedDevice}))
+}
+
+// TestEtcCDI verifies that the daemon picks up CDI specs from /etc/cdi, even in rootless mode.
+// Added for https://github.com/moby/moby/pull/51624
+func TestEtcCDI(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "CDI not supported on Windows")
+
+	ctx := testutil.StartSpan(baseContext, t)
+
+	// Create a sample CDI spec file
+	specContent := `{
+		"cdiVersion": "0.5.0",
+		"kind": "test.mobyproject.org/device",
+		"devices": [
+			{
+				"name": "mygpu0",
+				"containerEdits": {
+					"deviceNodes": [
+						{"path": "/dev/null"}
+					]
+				}
+			}
+		]
+	}`
+
+	cdiDir := "/etc/cdi"
+	_, err := os.Stat(cdiDir)
+	cdiDirExisted := !errors.Is(err, os.ErrNotExist)
+	err = os.MkdirAll(cdiDir, 0o755)
+	assert.NilError(t, err, "Failed to create /etc/cdi directory")
+
+	t.Cleanup(func() {
+		if !cdiDirExisted {
+			rmErr := os.Remove(cdiDir)
+			assert.NilError(t, rmErr, "Failed to remove /etc/cdi directory")
+		}
+	})
+
+	specFilePath := filepath.Join(cdiDir, "moby-integration-test-device.json")
+	err = os.WriteFile(specFilePath, []byte(specContent), 0o644)
+	assert.NilError(t, err, "Failed to write sample CDI spec file")
+	t.Cleanup(func() {
+		rmErr := os.RemoveAll(specFilePath)
+		assert.NilError(t, rmErr, "Failed to remove sample CDI spec file")
+	})
+
+	d := daemon.New(t)
+	d.Start(t, "--feature", "cdi")
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	result, err := c.Info(ctx, client.InfoOptions{})
+	assert.NilError(t, err)
+	info := result.Info
+
+	expectedDevice := system.DeviceInfo{
+		Source: "cdi",
+		ID:     "test.mobyproject.org/device=mygpu0",
+	}
+	assert.Check(t, is.Contains(info.DiscoveredDevices, expectedDevice))
 }
