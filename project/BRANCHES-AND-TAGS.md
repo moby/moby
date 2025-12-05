@@ -20,7 +20,7 @@ Currently (and previously) maintained release branches are documented in the tab
 | 27.x                        |                                                | Unmaintained          |                             |                                           |
 | 26.1                        |                                                | Unmaintained          |                             |                                           |
 | 26.0                        |                                                | Unmaintained          |                             |                                           |
-| 25.0                        | @corhere                                       | Maintained            | TBD                         | [Amazon][al2023], [Mirantis][mcr]         |
+| 25.0                        | @corhere                                       | Maintained            | [2026-12-04][mcr25-maint]   | [Amazon][al2023], [Mirantis][mcr]         |
 | 24.0                        |                                                | Unmaintained          |                             |                                           |
 | 23.0                        |                                                | Unmaintained          | [2025-05-19][mcr23-maint]   |                                           |
 | Older than 23.0             |                                                | Unmaintained          |                             |                                           |
@@ -28,6 +28,7 @@ Currently (and previously) maintained release branches are documented in the tab
 [al2023]: https://docs.aws.amazon.com/linux/
 [docker]: https://docker.com
 [mcr23-maint]: https://docs.mirantis.com/mcr/23.0/compat-matrix/maintenance-lifecycle.html
+[mcr25-maint]: https://docs.mirantis.com/mcr/25.0/compat-matrix/maintenance-lifecycle.html#mirantis-container-runtime-mcr
 [mcr]: https://www.mirantis.com/software/mirantis-container-runtime/
 [msft]: https://microsoft.com
 
