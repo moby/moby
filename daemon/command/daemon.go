@@ -312,7 +312,19 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 		cluster:  c,
 		builder:  b,
 	})
-	httpServer.Handler = apiServer.CreateMux(ctx, routers...)
+	apiHandler := apiServer.CreateMux(ctx, routers...)
+	if grpcSupported, p := supportGRPC(ctx, lss, cli.apiTLSConfig != nil); grpcSupported {
+		gs := newGRPCServer(ctx)
+		// TODO: Initialize grpc server from plugin framework
+		b.backend.RegisterGRPC(gs)
+		httpServer.Protocols = &p
+		httpServer.Handler = newHTTPHandler(ctx, gs, apiHandler)
+	} else {
+		// TODO: Allow configurabtion to disallow this
+		log.G(ctx).Warn("grpc not enabled")
+		httpServer.Protocols = &p
+		httpServer.Handler = apiHandler
+	}
 
 	go d.ProcessClusterNotifications(ctx, c.GetWatchStream())
 
@@ -816,6 +828,7 @@ func newAPIServerTLSConfig(cfg *config.Config) (*tls.Config, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "invalid TLS configuration")
 		}
+		tlsConfig.NextProtos = []string{"h2", "http/1.1"}
 	}
 
 	return tlsConfig, nil
