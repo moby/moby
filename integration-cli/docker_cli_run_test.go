@@ -26,6 +26,7 @@ import (
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/stringid"
+	"github.com/moby/moby/client/pkg/versions"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/integration-cli/cli/build"
 	"github.com/moby/moby/v2/integration-cli/daemon"
@@ -110,6 +111,7 @@ func (s *DockerCLIRunSuite) TestRunExitCodeOne(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunStdinPipe(c *testing.T) {
 	// TODO Windows: This needs some work to make compatible.
 	testRequires(c, DaemonIsLinux)
+	c.Skip("FIXME(thaJeztah): broken on current CLI versions due to change in behavior (does not stay attached or print container ID)")
 	result := icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "run", "-i", "-a", "stdin", "busybox", "cat"},
 		Stdin:   strings.NewReader("blahblah"),
@@ -300,48 +302,55 @@ func (s *DockerCLIRunSuite) TestRunWithNetAliasOnDefaultNetworks(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestUserDefinedNetworkAlias(c *testing.T) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
-	cli.DockerCmd(c, "network", "create", "-d", "bridge", "net1")
+	t := c
+	testRequires(t, DaemonIsLinux, NotUserNamespace)
+	cli.DockerCmd(t, "network", "create", "-d", "bridge", "net1")
 
-	cid1 := cli.DockerCmd(c, "run", "-d", "--net=net1", "--name=first", "--net-alias=foo1", "--net-alias=foo2", "busybox:glibc", "top").Stdout()
-	cli.WaitRun(c, "first")
+	cid1 := cli.DockerCmd(t, "run", "-d", "--net=net1", "--name=first", "--net-alias=foo1", "--net-alias=foo2", "busybox:glibc", "top").Stdout()
+	cid1 = strings.TrimSpace(cid1)
+	cli.WaitRun(t, "first")
 
-	// Check if default short-id alias is added automatically
-	id := strings.TrimSpace(cid1)
-	aliases := inspectField(c, id, "NetworkSettings.Networks.net1.Aliases")
-	assert.Assert(c, is.Contains(aliases, stringid.TruncateID(id)))
-	cid2 := cli.DockerCmd(c, "run", "-d", "--net=net1", "--name=second", "busybox:glibc", "top").Stdout()
-	cli.WaitRun(c, "second")
+	cliAPIVersion := cli.DockerCmd(t, "version", "--format", "{{.Client.APIVersion}}").Stdout()
+	cliAPIVersion = strings.TrimSpace(cliAPIVersion)
 
 	// Check if default short-id alias is added automatically
-	id = strings.TrimSpace(cid2)
-	aliases = inspectField(c, id, "NetworkSettings.Networks.net1.Aliases")
-	assert.Assert(c, is.Contains(aliases, stringid.TruncateID(id)))
+	aliases := cli.DockerCmd(t, "container", "inspect", "--format", "{{.NetworkSettings.Networks.net1.Aliases}}", cid1).Stdout()
+
+	if versions.LessThan(cliAPIVersion, "1.45") {
+		// API versions <  v1.45 included the short-id in aliases. Newer versions only include it in DNSNames.
+		assert.Assert(t, is.Contains(aliases, stringid.TruncateID(cid1)))
+	}
+	assert.Assert(t, is.Contains(aliases, "foo1"))
+	assert.Assert(t, is.Contains(aliases, "foo2"))
+
+	cid2 := cli.DockerCmd(t, "run", "-d", "--net=net1", "--name=second", "busybox:glibc", "top").Stdout()
+	cid2 = strings.TrimSpace(cid2)
+	cli.WaitRun(t, "second")
+
+	// Check if default short-id alias is added automatically
+	if versions.LessThan(cliAPIVersion, "1.45") {
+		// API versions <  v1.45 included the short-id in aliases. Newer versions only include it in DNSNames.
+		aliases = cli.DockerCmd(t, "container", "inspect", "--format", "{{.NetworkSettings.Networks.net1.Aliases}}", cid2).Stdout()
+		assert.Assert(t, is.Contains(aliases, stringid.TruncateID(cid2)))
+	}
+
 	// ping to first and its network-scoped aliases
-	_, _, err := dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
-	assert.NilError(c, err)
-	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo1")
-	assert.NilError(c, err)
-	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo2")
-	assert.NilError(c, err)
+	cli.DockerCmd(t, "exec", "second", "ping", "-c", "1", "first")
+	cli.DockerCmd(t, "exec", "second", "ping", "-c", "1", "foo1")
+	cli.DockerCmd(t, "exec", "second", "ping", "-c", "1", "foo2")
 	// ping first container's short-id alias
-	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", stringid.TruncateID(cid1))
-	assert.NilError(c, err)
+	cli.DockerCmd(t, "exec", "second", "ping", "-c", "1", stringid.TruncateID(cid1))
 
 	// Restart first container
-	cli.DockerCmd(c, "restart", "first")
-	cli.WaitRun(c, "first")
+	cli.DockerCmd(t, "restart", "first")
+	cli.WaitRun(t, "first")
 
 	// ping to first and its network-scoped aliases must succeed
-	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
-	assert.NilError(c, err)
-	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo1")
-	assert.NilError(c, err)
-	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo2")
-	assert.NilError(c, err)
+	cli.DockerCmd(t, "exec", "second", "ping", "-c", "1", "first")
+	cli.DockerCmd(t, "exec", "second", "ping", "-c", "1", "foo1")
+	cli.DockerCmd(t, "exec", "second", "ping", "-c", "1", "foo2")
 	// ping first container's short-id alias
-	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", stringid.TruncateID(cid1))
-	assert.NilError(c, err)
+	cli.DockerCmd(t, "exec", "second", "ping", "-c", "1", stringid.TruncateID(cid1))
 }
 
 // Issue 9677.
@@ -1296,9 +1305,11 @@ func (s *DockerCLIRunSuite) TestRunDNSOptions(c *testing.T) {
 	result := cli.DockerCmd(c, "run", "--dns=127.0.0.1", "--dns-search=mydomain", "--dns-opt=ndots:9", "busybox", "cat", "/etc/resolv.conf")
 
 	// The client will get a warning on stderr when setting DNS to a localhost address; verify this:
-	if !strings.Contains(result.Stderr(), "Localhost DNS setting") {
-		c.Fatalf("Expected warning on stderr about localhost resolver, but got %q", result.Stderr())
-	}
+	//
+	// FIXME(thaJeztah): localhost DNS no longer produces a warning: remove this test?
+	// if !strings.Contains(result.Stderr(), "Localhost DNS setting") {
+	// 	c.Fatalf("Expected warning on stderr about localhost resolver, but got %q", result.Stderr())
+	// }
 
 	actual := regexp.MustCompile("(?m)^#.*$").ReplaceAllString(result.Stdout(), "")
 	actual = strings.ReplaceAll(strings.Trim(actual, "\r\n"), "\n", " ")
@@ -1539,11 +1550,12 @@ func (s *DockerCLIRunSuite) TestRunAttachStdOutAndErrTTYMode(c *testing.T) {
 // Test for #10388 - this will run the same test as TestRunAttachStdOutAndErrTTYMode
 // but using --attach instead of -a to make sure we read the flag correctly
 func (s *DockerCLIRunSuite) TestRunAttachWithDetach(c *testing.T) {
-	icmd.RunCommand(dockerBinary, "run", "-d", "--attach", "stdout", "busybox", "true").Assert(c, icmd.Expected{
+	result := icmd.RunCommand(dockerBinary, "run", "-d", "--attach", "stdout", "busybox", "true")
+	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Error:    "exit status 1",
-		Err:      "Conflicting options: -a and -d",
 	})
+	out := strings.ToLower(result.Combined())
+	assert.Check(c, is.Contains(out, "conflicting options"))
 }
 
 func (s *DockerCLIRunSuite) TestRunState(c *testing.T) {
@@ -3326,9 +3338,11 @@ func (s *DockerCLIRunSuite) TestRunNetworkNotInitializedNoneMode(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	id := cli.DockerCmd(c, "run", "-d", "--net=none", "busybox", "top").Stdout()
 	id = strings.TrimSpace(id)
-	res := inspectField(c, id, "NetworkSettings.Networks.none.IPAddress")
-	if res != "" {
-		c.Fatalf("For 'none' mode network must not be initialized, but container got IP: %s", res)
+
+	// Inspecting in JSON format, to prevent the "invalid IP" output from netip.Addr for empty IP-addresses.
+	res := cli.DockerCmd(c, "container", "inspect", "--format", "{{json .NetworkSettings.Networks.none.IPAddress}}", id).Combined()
+	if actual := strings.Trim(strings.TrimSpace(res), `"`); actual != "" {
+		c.Fatalf("For 'none' mode network must not be initialized, but container got IP: %q", actual)
 	}
 }
 
@@ -3640,13 +3654,15 @@ func (s *DockerCLIRunSuite) TestRunWithOomScoreAdjInvalidRange(c *testing.T) {
 
 	out, _, err := dockerCmdWithError("run", "--oom-score-adj", "1001", "busybox", "true")
 	assert.ErrorContains(c, err, "")
-	expected := "Invalid value 1001, range for oom score adj is [-1000, 1000]."
+	out = strings.ToLower(out)
+	expected := "invalid value 1001"
 	if !strings.Contains(out, expected) {
 		c.Fatalf("Expected output to contain %q, got %q instead", expected, out)
 	}
 	out, _, err = dockerCmdWithError("run", "--oom-score-adj", "-1001", "busybox", "true")
 	assert.ErrorContains(c, err, "")
-	expected = "Invalid value -1001, range for oom score adj is [-1000, 1000]."
+	out = strings.ToLower(out)
+	expected = "invalid value -1001"
 	if !strings.Contains(out, expected) {
 		c.Fatalf("Expected output to contain %q, got %q instead", expected, out)
 	}
@@ -3818,14 +3834,15 @@ func (s *DockerCLIRunSuite) TestRunVolumeCopyFlag(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunDNSInHostMode(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
-	expectedOutput := "nameserver 127.0.0.1"
-	expectedWarning := "Localhost DNS setting"
-	cli.DockerCmd(c, "run", "--dns=127.0.0.1", "--net=host", "busybox", "cat", "/etc/resolv.conf").Assert(c, icmd.Expected{
-		Out: expectedOutput,
-		Err: expectedWarning,
-	})
+	// FIXME(thaJeztah): localhost DNS no longer produces a warning: remove this test?
+	// expectedOutput := "nameserver 127.0.0.1"
+	// expectedWarning := "Localhost DNS setting"
+	// cli.DockerCmd(c, "run", "--dns=127.0.0.1", "--net=host", "busybox", "cat", "/etc/resolv.conf").Assert(c, icmd.Expected{
+	// 	Out: expectedOutput,
+	// 	Err: expectedWarning,
+	// })
 
-	expectedOutput = "nameserver 1.2.3.4"
+	expectedOutput := "nameserver 1.2.3.4"
 	cli.DockerCmd(c, "run", "--dns=1.2.3.4", "--net=host", "busybox", "cat", "/etc/resolv.conf").Assert(c, icmd.Expected{
 		Out: expectedOutput,
 	})
@@ -3874,7 +3891,7 @@ func (s *DockerCLIRunSuite) TestRunRm(c *testing.T) {
 
 	cli.Docker(cli.Args("inspect", name), cli.Format(".name")).Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "No such object: " + name,
+		Err:      "such object: " + name, // [Nn]o such object
 	})
 }
 
@@ -3883,11 +3900,16 @@ func (s *DockerCLIRunSuite) TestRunRmPre125Api(c *testing.T) {
 	name := "miss-me-when-im-gone"
 	envs := appendBaseEnv(os.Getenv("DOCKER_TLS_VERIFY") != "", "DOCKER_API_VERSION=1.24")
 	cli.Docker(cli.Args("run", "--name="+name, "--rm", "busybox"), cli.WithEnvironmentVariables(envs...)).Assert(c, icmd.Success)
-
-	cli.Docker(cli.Args("inspect", name), cli.Format(".name")).Assert(c, icmd.Expected{
+	time.Sleep(5 * time.Second) // daemon may be in process of removing
+	result := cli.Docker(cli.Args("inspect", name), cli.Format(".State.Status"))
+	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "No such object: " + name,
 	})
+	assert.Check(c, result.Error != nil)
+	out := strings.ToLower(result.Stderr())
+	if !strings.Contains(out, "no such object: "+name) && !strings.Contains(out, "no such container: "+name) {
+		c.Error(fmt.Errorf("unexpected error: %s", result.Error))
+	}
 }
 
 // Test case for #23498
