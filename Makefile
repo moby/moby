@@ -259,12 +259,12 @@ win: bundles ## cross build the binary for windows
 	$(BAKE_CMD) --set *.platform=windows/amd64 binary
 
 .PHONY: swagger-gen
-swagger-gen:
+swagger-gen: build
 	docker run --rm -v $(PWD):/go/src/github.com/docker/docker \
 		-w /go/src/github.com/docker/docker \
 		--entrypoint hack/generate-swagger-api.sh \
 		-e GOPATH=/go \
-		quay.io/goswagger/swagger:0.7.4
+		$(DOCKER_IMAGE)
 
 .PHONY: swagger-docs
 swagger-docs: ## preview the API documentation
