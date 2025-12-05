@@ -311,6 +311,7 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 	}
 
 	contentType := httputil.NegotiateContentType(r, []string{
+		types.MediaTypeJSONLines,
 		types.MediaTypeNDJSON,
 		types.MediaTypeJSONSequence,
 	}, types.MediaTypeJSON) // output isn't actually JSON but API used to  this content-type
