@@ -118,9 +118,10 @@ func getPidsLimit(config containertypes.Resources) *specs.LinuxPids {
 		// docker API allows 0 and negative values to unset this to be consistent
 		// with default values. When updating values, runc requires -1 to unset
 		// the previous limit.
-		return &specs.LinuxPids{Limit: -1}
+		val := int64(-1)
+		return &specs.LinuxPids{Limit: &val}
 	}
-	return &specs.LinuxPids{Limit: *config.PidsLimit}
+	return &specs.LinuxPids{Limit: config.PidsLimit}
 }
 
 func getCPUResources(config containertypes.Resources) (*specs.LinuxCPU, error) {
