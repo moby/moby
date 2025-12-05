@@ -4,11 +4,16 @@ package network
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"testing"
 
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil"
+	"github.com/moby/moby/v2/internal/testutil/request"
+	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 )
@@ -80,4 +85,38 @@ func IsNetworkNotAvailable(ctx context.Context, c client.NetworkAPIClient, name 
 		}
 		return is.ResultSuccess
 	}
+}
+
+func CreateNetwork(t *testing.T, ctx context.Context, config network.CreateRequest, expectedStatusCode int) string {
+	t.Helper()
+
+	resp, body, err := request.Post(ctx, "/networks/create", request.JSONBody(config))
+	assert.NilError(t, err)
+	defer resp.Body.Close()
+
+	if expectedStatusCode >= 0 {
+		assert.Equal(t, resp.StatusCode, expectedStatusCode)
+	} else {
+		assert.Assert(t, resp.StatusCode != -expectedStatusCode)
+	}
+
+	if expectedStatusCode == http.StatusCreated || expectedStatusCode < 0 {
+		var nr network.CreateResponse
+		err = json.NewDecoder(body).Decode(&nr)
+		assert.NilError(t, err)
+
+		return nr.ID
+	}
+	return ""
+}
+
+func DeleteNetwork(t *testing.T, ctx context.Context, id string, shouldSucceed bool) {
+	resp, _, err := request.Delete(ctx, "/networks/"+id)
+	assert.NilError(t, err)
+	defer resp.Body.Close()
+	if !shouldSucceed {
+		assert.Assert(t, resp.StatusCode != http.StatusOK)
+		return
+	}
+	assert.Equal(t, resp.StatusCode, http.StatusNoContent)
 }
