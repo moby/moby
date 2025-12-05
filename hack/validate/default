@@ -9,8 +9,8 @@ SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${SCRIPTDIR}"/default-seccomp
 . "${SCRIPTDIR}"/pkg-imports
 . "${SCRIPTDIR}"/yamllint
-. "${SCRIPTDIR}"/swagger
-. "${SCRIPTDIR}"/swagger-gen
+. "${SCRIPTDIR}"/openapi
+. "${SCRIPTDIR}"/openapi-gen
 . "${SCRIPTDIR}"/deprecate-integration-cli
 . "${SCRIPTDIR}"/golangci-lint
 . "${SCRIPTDIR}"/shfmt

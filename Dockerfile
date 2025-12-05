@@ -83,20 +83,20 @@ RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
 FROM distribution/distribution:$REGISTRY_VERSION AS registry
 RUN mkdir /build && mv /bin/registry /build/registry
 
-# go-swagger
-FROM base AS swagger
-WORKDIR /go/src/github.com/go-swagger/go-swagger
+# openapi
+FROM base AS openapi
+WORKDIR /go/src/github.com/allons-y/openapi
 ARG TARGETPLATFORM
-# GO_SWAGGER_VERSION specifies the version of the go-swagger binary to install.
-# Go-swagger is used in CI for generating types from swagger.yaml in
-# hack/validate/swagger-gen
-ARG GO_SWAGGER_VERSION=v0.33.1
-RUN --mount=type=cache,target=/root/.cache/go-build,id=swagger-build-$TARGETPLATFORM \
+# GO_SWAGGER_VERSION specifies the version of the openapi binary to install.
+# Go-swagger is used in CI for generating types from openapi.yaml in
+# hack/validate/openapi-gen
+ARG GO_SWAGGER_VERSION=7e1a0a06b95ff14bfd951b0e09ac241fe2309fa3
+RUN --mount=type=cache,target=/root/.cache/go-build,id=openapi-build-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=tmpfs,target=/go/src/ <<EOT
   set -e
-  GOBIN=/build CGO_ENABLED=0 xx-go install "github.com/go-swagger/go-swagger/cmd/swagger@${GO_SWAGGER_VERSION}"
-  xx-verify /build/swagger
+  GOBIN=/build CGO_ENABLED=0 xx-go install "github.com/allons-y/openapi/cmd/openapi@${GO_SWAGGER_VERSION}"
+  xx-verify /build/openapi
 EOT
 
 # frozen-images
@@ -421,7 +421,7 @@ FROM docker/compose-bin:${COMPOSE_VERSION} AS compose
 
 FROM base AS dev-systemd-false
 COPY --link --from=frozen-images /build/ /docker-frozen-images
-COPY --link --from=swagger       /build/ /usr/local/bin/
+COPY --link --from=openapi       /build/ /usr/local/bin/
 COPY --link --from=delve         /build/ /usr/local/bin/
 COPY --link --from=gowinres      /build/ /usr/local/bin/
 COPY --link --from=tini          /build/ /usr/local/bin/
