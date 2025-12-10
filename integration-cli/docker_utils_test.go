@@ -247,6 +247,7 @@ func appendBaseEnv(isTLS bool, env ...string) []string {
 // waitInspect will wait for the specified container to have the specified string
 // in the inspect output. It will wait until the specified timeout (in seconds)
 // is reached.
+//
 // Deprecated: use cli.WaitFor
 func waitInspect(name, expr, expected string, timeout time.Duration) error {
 	return daemon.WaitInspectWithArgs(dockerBinary, name, expr, expected, timeout)
