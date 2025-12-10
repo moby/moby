@@ -82,10 +82,46 @@ func rfc5424microformatterWithAppNameAsTag(p syslog.Priority, hostname, tag, con
 	return msg
 }
 
-// New creates a syslog logger using the configuration passed in on
-// the context. Supported context configuration variables are
-// syslog-address, syslog-facility, syslog-format.
-func New(info logger.Info) (logger.Logger, error) {
+// newSyslogger is a small helper that dials syslog using either plain TCP/UDP or
+// tcp+tls depending on proto and sets the formatter/framer.
+func newSyslogger(proto, address string, facility syslog.Priority, tag string, formatter syslog.Formatter, framer syslog.Framer, tlsCfg *tls.Config) (logger.Logger, error) {
+	var (
+		logWriter *syslog.Writer
+		err       error
+	)
+
+	if proto == secureProto {
+		if tlsCfg == nil {
+			return nil, errors.New("tls config is required for tcp+tls syslog")
+		}
+		logWriter, err = syslog.DialWithTLSConfig(proto, address, facility, tag, tlsCfg)
+	} else {
+		logWriter, err = syslog.Dial(proto, address, facility, tag)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	logWriter.SetFormatter(formatter)
+	logWriter.SetFramer(framer)
+
+	return &syslogger{writer: logWriter}, nil
+}
+
+// syslogParams holds the parsed parameters needed to construct a syslogger.
+type syslogParams struct {
+	tag       string
+	proto     string
+	address   string
+	facility  syslog.Priority
+	formatter syslog.Formatter
+	framer    syslog.Framer
+}
+
+// buildSyslogParams parses the common logger.Info fields (tag, address,
+// facility, format) into the concrete values needed to construct a syslogger.
+// It is shared by both New and NewWithTLSConfig so that they stay in sync.
+func buildSyslogParams(info logger.Info) (*syslogParams, error) {
 	tag, err := loggerutils.ParseLogTag(info, loggerutils.DefaultTemplate)
 	if err != nil {
 		return nil, err
@@ -101,32 +137,52 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, err
 	}
 
-	syslogFormatter, syslogFramer, err := parseLogFormat(info.Config["syslog-format"], proto)
+	formatter, framer, err := parseLogFormat(info.Config["syslog-format"], proto)
 	if err != nil {
 		return nil, err
 	}
 
-	var log *syslog.Writer
-	if proto == secureProto {
-		tlsConfig, tlsErr := parseTLSConfig(info.Config)
-		if tlsErr != nil {
-			return nil, tlsErr
-		}
-		log, err = syslog.DialWithTLSConfig(proto, address, facility, tag, tlsConfig)
-	} else {
-		log, err = syslog.Dial(proto, address, facility, tag)
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	log.SetFormatter(syslogFormatter)
-	log.SetFramer(syslogFramer)
-
-	return &syslogger{
-		writer: log,
+	return &syslogParams{
+		tag:       tag,
+		proto:     proto,
+		address:   address,
+		facility:  facility,
+		formatter: formatter,
+		framer:    framer,
 	}, nil
+}
+
+// New creates a syslog logger using the configuration passed in on
+// the context. Supported context configuration variables are
+// syslog-address, syslog-facility, syslog-format.
+func New(info logger.Info) (logger.Logger, error) {
+	params, err := buildSyslogParams(info)
+	if err != nil {
+		return nil, err
+	}
+
+	var tlsCfg *tls.Config
+	if params.proto == secureProto {
+		tlsCfg, err = parseTLSConfig(info.Config)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return newSyslogger(params.proto, params.address, params.facility, params.tag, params.formatter, params.framer, tlsCfg)
+}
+
+// NewWithTLSConfig is for programmatic use (not Docker engine). It allows the
+// caller to provide a pre-built *tls.Config (for example, using a custom
+// *x509.CertPool) instead of configuring TLS purely via file paths in
+// info.Config.
+func NewWithTLSConfig(info logger.Info, tlsCfg *tls.Config) (logger.Logger, error) {
+	params, err := buildSyslogParams(info)
+	if err != nil {
+		return nil, err
+	}
+
+	return newSyslogger(params.proto, params.address, params.facility, params.tag, params.formatter, params.framer, tlsCfg)
 }
 
 func (s *syslogger) Log(msg *logger.Message) error {
@@ -263,6 +319,6 @@ func parseLogFormat(logFormat, proto string) (syslog.Formatter, syslog.Framer, e
 		}
 		return rfc5424microformatterWithAppNameAsTag, syslog.DefaultFramer, nil
 	default:
-		return nil, nil, errors.New("Invalid syslog format")
+		return nil, nil, errors.New("invalid syslog format")
 	}
 }
