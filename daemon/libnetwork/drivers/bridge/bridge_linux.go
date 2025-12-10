@@ -1865,11 +1865,7 @@ func parseContainerOptions(cOptions map[string]any) (*containerConfiguration, er
 	}
 	switch opt := genericData.(type) {
 	case options.Generic:
-		opaqueConfig, err := options.GenerateFromModel(opt, &containerConfiguration{})
-		if err != nil {
-			return nil, err
-		}
-		return opaqueConfig.(*containerConfiguration), nil
+		return options.GenerateFromModel[*containerConfiguration](opt)
 	case *containerConfiguration:
 		return opt, nil
 	default:
