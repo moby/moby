@@ -300,48 +300,53 @@ func (s *DockerCLIRunSuite) TestRunWithNetAliasOnDefaultNetworks(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestUserDefinedNetworkAlias(c *testing.T) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
-	cli.DockerCmd(c, "network", "create", "-d", "bridge", "net1")
+	t := c
+	testRequires(t, DaemonIsLinux, NotUserNamespace)
+	cli.DockerCmd(t, "network", "create", "-d", "bridge", "net1")
 
-	cid1 := cli.DockerCmd(c, "run", "-d", "--net=net1", "--name=first", "--net-alias=foo1", "--net-alias=foo2", "busybox:glibc", "top").Stdout()
-	cli.WaitRun(c, "first")
-
-	// Check if default short-id alias is added automatically
-	id := strings.TrimSpace(cid1)
-	aliases := inspectField(c, id, "NetworkSettings.Networks.net1.Aliases")
-	assert.Assert(c, is.Contains(aliases, stringid.TruncateID(id)))
-	cid2 := cli.DockerCmd(c, "run", "-d", "--net=net1", "--name=second", "busybox:glibc", "top").Stdout()
-	cli.WaitRun(c, "second")
+	cid1 := cli.DockerCmd(t, "run", "-d", "--net=net1", "--name=first", "--net-alias=foo1", "--net-alias=foo2", "busybox:glibc", "top").Stdout()
+	cid1 = strings.TrimSpace(cid1)
+	cli.WaitRun(t, "first")
 
 	// Check if default short-id alias is added automatically
-	id = strings.TrimSpace(cid2)
-	aliases = inspectField(c, id, "NetworkSettings.Networks.net1.Aliases")
-	assert.Assert(c, is.Contains(aliases, stringid.TruncateID(id)))
+	aliases := cli.Docker(
+		cli.Args("container", "inspect", "--format", "{{.NetworkSettings.Networks.net1.Aliases}}", cid1),
+		// API versions < v1.45 included the short-id in aliases. Newer versions only include it in DNSNames.
+		cli.WithEnvironmentVariables("DOCKER_API_VERSION=1.44"),
+	).Assert(t, icmd.Success).Stdout()
+	assert.Assert(t, is.Contains(aliases, stringid.TruncateID(cid1)))
+	assert.Assert(t, is.Contains(aliases, "foo1"))
+	assert.Assert(t, is.Contains(aliases, "foo2"))
+
+	cid2 := cli.DockerCmd(t, "run", "-d", "--net=net1", "--name=second", "busybox:glibc", "top").Stdout()
+	cid2 = strings.TrimSpace(cid2)
+	cli.WaitRun(t, "second")
+
+	// Check if default short-id alias is added automatically
+	aliases = cli.Docker(
+		cli.Args("container", "inspect", "--format", "{{.NetworkSettings.Networks.net1.Aliases}}", cid2),
+		// API versions < v1.45 included the short-id in aliases. Newer versions only include it in DNSNames.
+		cli.WithEnvironmentVariables("DOCKER_API_VERSION=1.44"),
+	).Assert(t, icmd.Success).Stdout()
+	assert.Assert(t, is.Contains(aliases, stringid.TruncateID(cid2)))
+
 	// ping to first and its network-scoped aliases
-	_, _, err := dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
-	assert.NilError(c, err)
-	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo1")
-	assert.NilError(c, err)
-	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo2")
-	assert.NilError(c, err)
+	cli.DockerCmd(t, "exec", "second", "ping", "-c", "1", "first")
+	cli.DockerCmd(t, "exec", "second", "ping", "-c", "1", "foo1")
+	cli.DockerCmd(t, "exec", "second", "ping", "-c", "1", "foo2")
 	// ping first container's short-id alias
-	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", stringid.TruncateID(cid1))
-	assert.NilError(c, err)
+	cli.DockerCmd(t, "exec", "second", "ping", "-c", "1", stringid.TruncateID(cid1))
 
 	// Restart first container
-	cli.DockerCmd(c, "restart", "first")
-	cli.WaitRun(c, "first")
+	cli.DockerCmd(t, "restart", "first")
+	cli.WaitRun(t, "first")
 
 	// ping to first and its network-scoped aliases must succeed
-	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
-	assert.NilError(c, err)
-	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo1")
-	assert.NilError(c, err)
-	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo2")
-	assert.NilError(c, err)
+	cli.DockerCmd(t, "exec", "second", "ping", "-c", "1", "first")
+	cli.DockerCmd(t, "exec", "second", "ping", "-c", "1", "foo1")
+	cli.DockerCmd(t, "exec", "second", "ping", "-c", "1", "foo2")
 	// ping first container's short-id alias
-	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", stringid.TruncateID(cid1))
-	assert.NilError(c, err)
+	cli.DockerCmd(t, "exec", "second", "ping", "-c", "1", stringid.TruncateID(cid1))
 }
 
 // Issue 9677.
