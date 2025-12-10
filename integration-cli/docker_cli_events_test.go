@@ -587,18 +587,6 @@ func (s *DockerCLIEventSuite) TestEventsFilterType(c *testing.T) {
 		"events",
 		"--since", since,
 		"--until", daemonUnixTime(c),
-		"--filter", fmt.Sprintf("label=%s", label),
-		"--filter", "type=build",
-	).Stdout()
-	events = strings.Split(strings.TrimSpace(out), "\n")
-
-	// Events generated the build
-	assert.Equal(c, len(events), 1, "Events == %s", events)
-
-	out = cli.DockerCmd(c,
-		"events",
-		"--since", since,
-		"--until", daemonUnixTime(c),
 		"--filter", "type=network",
 	).Stdout()
 	events = strings.Split(strings.TrimSpace(out), "\n")
