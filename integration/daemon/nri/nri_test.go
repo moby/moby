@@ -16,13 +16,12 @@ import (
 
 func TestNRIContainerCreateEnvVarMod(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot start a separate daemon with NRI enabled on Windows")
 	skip.If(t, testEnv.IsRootless)
 
 	ctx := testutil.StartSpan(baseContext, t)
 
-	tmp := t.TempDir()
-	sockPath := filepath.Join(tmp, "nri.sock")
+	sockPath := filepath.Join(t.TempDir(), "nri.sock")
 
 	d := daemon.New(t)
 	d.StartWithBusybox(ctx, t,
@@ -32,7 +31,7 @@ func TestNRIContainerCreateEnvVarMod(t *testing.T) {
 	defer d.Stop(t)
 	c := d.NewClientT(t)
 
-	testcases := []struct {
+	tests := []struct {
 		name         string
 		ctrCreateAdj *api.ContainerAdjustment
 		expEnv       string
@@ -49,7 +48,7 @@ func TestNRIContainerCreateEnvVarMod(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testcases {
+	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			stopPlugin := startBuiltinPlugin(ctx, t, builtinPluginConfig{
 				pluginName:   "nri-test-plugin",
