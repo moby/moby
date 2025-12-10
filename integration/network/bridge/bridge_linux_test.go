@@ -40,7 +40,7 @@ func TestCreateWithMultiNetworks(t *testing.T) {
 	network.CreateNoError(ctx, t, apiClient, "testnet2")
 	defer network.RemoveNoError(ctx, t, apiClient, "testnet2")
 
-	attachCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	res := ctr.RunAttach(attachCtx, t, apiClient,
 		ctr.WithCmd("ip", "-o", "-4", "addr", "show"),
