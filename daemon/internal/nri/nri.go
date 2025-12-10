@@ -5,7 +5,7 @@
 // the same level of trust as the daemon itself, because they can make arbitrary
 // modifications to container settings.
 //
-// The NRI framework is implemented by https://github.com/containerd/nri - see that
+// The NRI framework is implemented by [github.com/containerd/nri] - see that
 // package for more details about NRI and the framework.
 //
 // Plugins are long-running processed (not instantiated per-request like runtime shims,
@@ -47,8 +47,8 @@ type NRI struct {
 	cfg Config
 
 	// mu protects nri - read lock for container operations, write lock for sync and shutdown.
-	mu  sync.RWMutex
-	nri *adaptation.Adaptation
+	mu   sync.RWMutex
+	adap *adaptation.Adaptation
 }
 
 type ContainerLister interface {
@@ -79,11 +79,11 @@ func NewNRI(ctx context.Context, cfg Config) (*NRI, error) {
 	nrilog.Set(&logShim{})
 
 	var err error
-	n.nri, err = adaptation.New("docker", dockerversion.Version, n.syncFn, n.updateFn, nriOptions(n.cfg.DaemonConfig)...)
+	n.adap, err = adaptation.New("docker", dockerversion.Version, n.syncFn, n.updateFn, nriOptions(n.cfg.DaemonConfig)...)
 	if err != nil {
 		return nil, err
 	}
-	if err := n.nri.Start(); err != nil {
+	if err := n.adap.Start(); err != nil {
 		return nil, err
 	}
 	return n, nil
@@ -93,20 +93,23 @@ func NewNRI(ctx context.Context, cfg Config) (*NRI, error) {
 func (n *NRI) Shutdown(ctx context.Context) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	if n.nri == nil {
+	if n.adap == nil {
 		return
 	}
 	log.G(ctx).Info("Shutting down NRI")
-	n.nri.Stop()
-	n.nri = nil
+	n.adap.Stop()
+	n.adap = nil
 }
 
 // CreateContainer notifies plugins of a "creation" NRI-lifecycle event for a container,
 // allowing the plugin to adjust settings before the container is created.
+//
+// No lock is acquired on ctr, CreateContainer the caller must ensure it cannot be
+// accessed from other threads.
 func (n *NRI) CreateContainer(ctx context.Context, ctr *container.Container) error {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
-	if n.nri == nil {
+	if n.adap == nil {
 		return nil
 	}
 	// ctr.State can safely be locked here, but there's no need because it's expected
@@ -119,7 +122,7 @@ func (n *NRI) CreateContainer(ctx context.Context, ctr *container.Container) err
 
 	// TODO(robmry): call RunPodSandbox?
 
-	resp, err := n.nri.CreateContainer(ctx, &adaptation.CreateContainerRequest{
+	resp, err := n.adap.CreateContainer(ctx, &adaptation.CreateContainerRequest{
 		Pod:       nriPod,
 		Container: nriCtr,
 	})
