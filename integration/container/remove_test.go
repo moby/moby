@@ -8,6 +8,7 @@ import (
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
+	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/fs"
@@ -106,4 +107,27 @@ func TestRemoveInvalidContainer(t *testing.T) {
 	_, err := apiClient.ContainerRemove(ctx, "unknown", client.ContainerRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	assert.Check(t, is.ErrorContains(err, "No such container"))
+}
+
+func TestRemoveDeadContainersOnDaemonRestart(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME: Windows CI does not support multiple daemons yet")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	apiClient := d.NewClientT(t)
+	container.Run(ctx, t, apiClient, container.WithCmd("top"), container.WithAutoRemove)
+
+	list, err := apiClient.ContainerList(ctx, client.ContainerListOptions{All: true})
+	assert.NilError(t, err)
+	assert.Check(t, is.Len(list.Items, 1))
+
+	d.Restart(t)
+
+	list, err = apiClient.ContainerList(ctx, client.ContainerListOptions{All: true})
+	assert.NilError(t, err)
+	assert.Check(t, is.Len(list.Items, 0))
 }
