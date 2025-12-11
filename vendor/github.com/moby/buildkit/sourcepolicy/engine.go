@@ -2,6 +2,7 @@ package sourcepolicy
 
 import (
 	"context"
+	"sync"
 
 	"github.com/moby/buildkit/solver/pb"
 	spb "github.com/moby/buildkit/sourcepolicy/pb"
@@ -25,31 +26,30 @@ var (
 // Rule matching is delegated to the `Matcher` interface.
 // Mutations are delegated to the `Mutater` interface.
 type Engine struct {
-	pol     []*spb.Policy
-	sources map[string]*selectorCache
+	pol       []*spb.Policy
+	sourcesMu sync.Mutex
+	sources   map[string]*selectorCache
 }
 
 // NewEngine creates a new source policy engine.
 func NewEngine(pol []*spb.Policy) *Engine {
 	return &Engine{
-		pol: pol,
+		pol:     pol,
+		sources: make(map[string]*selectorCache),
 	}
 }
 
 // TODO: The key here can't be used to cache attr constraint regexes.
 func (e *Engine) selectorCache(src *spb.Selector) *selectorCache {
-	if e.sources == nil {
-		e.sources = map[string]*selectorCache{}
-	}
-
 	key := src.MatchType.String() + " " + src.Identifier
 
+	e.sourcesMu.Lock()
+	defer e.sourcesMu.Unlock()
 	if s, ok := e.sources[key]; ok {
 		return s
 	}
 
 	s := &selectorCache{Selector: src}
-
 	e.sources[key] = s
 	return s
 }
@@ -130,7 +130,7 @@ func (e *Engine) evaluatePolicy(ctx context.Context, pol *spb.Policy, srcOp *pb.
 	var deny bool
 	for _, rule := range pol.Rules {
 		selector := e.selectorCache(rule.Selector)
-		matched, err := match(selector, ident, srcOp.Attrs)
+		matched, err := match(selector, ident, rule.Selector.Constraints, srcOp.Attrs)
 		if err != nil {
 			return false, errors.Wrap(err, "error matching source policy")
 		}

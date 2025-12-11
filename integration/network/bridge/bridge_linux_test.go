@@ -948,7 +948,7 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 	defer d.Stop(t)
 
 	createInspect := func(t *testing.T, version string, pbs []networktypes.PortBinding) (networktypes.PortMap, []string) {
-		apiClient := d.NewClientT(t, client.WithVersion(version))
+		apiClient := d.NewClientT(t, client.WithAPIVersion(version))
 		defer apiClient.Close()
 
 		// Skip this subtest if the daemon doesn't support the client version.
@@ -1074,7 +1074,7 @@ func TestBridgeIPAMStatus(t *testing.T) {
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
-	c := d.NewClientT(t, client.WithVersion("1.52"))
+	c := d.NewClientT(t, client.WithAPIVersion("1.52"))
 
 	checkSubnets := func(
 		netName string, want networktypes.SubnetStatuses,
@@ -1193,7 +1193,7 @@ func TestBridgeIPAMStatus(t *testing.T) {
 			},
 		})
 
-		oldc := d.NewClientT(t, client.WithVersion("1.51"))
+		oldc := d.NewClientT(t, client.WithAPIVersion("1.51"))
 		res, err := oldc.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
 		if assert.Check(t, err) {
 			assert.Check(t, res.Network.Status == nil, "expected nil Status with API version 1.51")

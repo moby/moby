@@ -32,6 +32,7 @@ type PagingHandler[T any] struct {
 }
 
 // Pager provides operations for iterating over paged responses.
+// Methods on this type are not safe for concurrent use.
 type Pager[T any] struct {
 	current   *T
 	handler   PagingHandler[T]

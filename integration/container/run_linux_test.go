@@ -277,7 +277,7 @@ func TestMacAddressIsAppliedToMainNetworkWithShortID(t *testing.T) {
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
-	apiClient := d.NewClientT(t, client.WithVersion("1.43"))
+	apiClient := d.NewClientT(t, client.WithAPIVersion("1.43"))
 
 	n := net.CreateNoError(ctx, t, apiClient, "testnet", net.WithIPAM("192.168.101.0/24", "192.168.101.1"))
 
@@ -309,7 +309,7 @@ func TestStaticIPOutsideSubpool(t *testing.T) {
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
-	apiClient, err := client.New(client.FromEnv, client.WithVersion("1.43"))
+	apiClient, err := client.New(client.FromEnv, client.WithAPIVersion("1.43"))
 	assert.NilError(t, err)
 
 	const netname = "subnet-range"

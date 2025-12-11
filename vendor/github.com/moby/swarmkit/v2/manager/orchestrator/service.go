@@ -72,6 +72,12 @@ func SetServiceTasksRemove(ctx context.Context, s *store.MemoryStore, service *a
 				// within the boundaries of a transaction
 				latestTask := store.GetTask(tx, t.ID)
 
+				// in case the task is deleted
+				if latestTask == nil {
+					log.G(ctx).WithField("task_id", t.ID).Debug("task no longer exists in store")
+					return nil
+				}
+
 				// time travel is not allowed. if the current desired state is
 				// above the one we're trying to go to we can't go backwards.
 				// we have nothing to do and we should skip to the next task

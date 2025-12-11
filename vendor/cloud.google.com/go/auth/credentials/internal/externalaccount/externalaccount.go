@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -28,6 +29,7 @@ import (
 	"cloud.google.com/go/auth/credentials/internal/impersonate"
 	"cloud.google.com/go/auth/credentials/internal/stsexchange"
 	"cloud.google.com/go/auth/internal/credsfile"
+	"github.com/googleapis/gax-go/v2/internallog"
 )
 
 const (
@@ -104,6 +106,11 @@ type Options struct {
 	// This is important for X509 credentials which should create a new client if the default was used
 	// but should respect a client explicitly passed in by the user.
 	IsDefaultClient bool
+	// Logger is used for debug logging. If provided, logging will be enabled
+	// at the loggers configured level. By default logging is disabled unless
+	// enabled by setting GOOGLE_SDK_GO_LOGGING_LEVEL in which case a default
+	// logger will be used. Optional.
+	Logger *slog.Logger
 }
 
 // SubjectTokenProvider can be used to supply a subject token to exchange for a
@@ -224,6 +231,7 @@ func NewTokenProvider(opts *Options) (auth.TokenProvider, error) {
 		return nil, err
 	}
 	opts.resolveTokenURL()
+	logger := internallog.New(opts.Logger)
 	stp, err := newSubjectTokenProvider(opts)
 	if err != nil {
 		return nil, err
@@ -238,6 +246,7 @@ func NewTokenProvider(opts *Options) (auth.TokenProvider, error) {
 		client: client,
 		opts:   opts,
 		stp:    stp,
+		logger: logger,
 	}
 
 	if opts.ServiceAccountImpersonationURL == "" {
@@ -254,6 +263,7 @@ func NewTokenProvider(opts *Options) (auth.TokenProvider, error) {
 		Scopes:               scopes,
 		Tp:                   auth.NewCachedTokenProvider(tp, nil),
 		TokenLifetimeSeconds: opts.ServiceAccountImpersonationLifetimeSeconds,
+		Logger:               logger,
 	})
 	if err != nil {
 		return nil, err
@@ -269,6 +279,7 @@ type subjectTokenProvider interface {
 // tokenProvider is the provider that handles external credentials. It is used to retrieve Tokens.
 type tokenProvider struct {
 	client *http.Client
+	logger *slog.Logger
 	opts   *Options
 	stp    subjectTokenProvider
 }
@@ -310,6 +321,7 @@ func (tp *tokenProvider) Token(ctx context.Context) (*auth.Token, error) {
 		Authentication: clientAuth,
 		Headers:        header,
 		ExtraOpts:      options,
+		Logger:         tp.logger,
 	})
 	if err != nil {
 		return nil, err
@@ -330,12 +342,14 @@ func (tp *tokenProvider) Token(ctx context.Context) (*auth.Token, error) {
 // newSubjectTokenProvider determines the type of credsfile.CredentialSource needed to create a
 // subjectTokenProvider
 func newSubjectTokenProvider(o *Options) (subjectTokenProvider, error) {
+	logger := internallog.New(o.Logger)
 	reqOpts := &RequestOptions{Audience: o.Audience, SubjectTokenType: o.SubjectTokenType}
 	if o.AwsSecurityCredentialsProvider != nil {
 		return &awsSubjectProvider{
 			securityCredentialsProvider: o.AwsSecurityCredentialsProvider,
 			TargetResource:              o.Audience,
 			reqOpts:                     reqOpts,
+			logger:                      logger,
 		}, nil
 	} else if o.SubjectTokenProvider != nil {
 		return &programmaticProvider{stp: o.SubjectTokenProvider, opts: reqOpts}, nil
@@ -352,6 +366,7 @@ func newSubjectTokenProvider(o *Options) (subjectTokenProvider, error) {
 				CredVerificationURL:         o.CredentialSource.URL,
 				TargetResource:              o.Audience,
 				Client:                      o.Client,
+				logger:                      logger,
 			}
 			if o.CredentialSource.IMDSv2SessionTokenURL != "" {
 				awsProvider.IMDSv2SessionTokenURL = o.CredentialSource.IMDSv2SessionTokenURL
@@ -362,7 +377,13 @@ func newSubjectTokenProvider(o *Options) (subjectTokenProvider, error) {
 	} else if o.CredentialSource.File != "" {
 		return &fileSubjectProvider{File: o.CredentialSource.File, Format: o.CredentialSource.Format}, nil
 	} else if o.CredentialSource.URL != "" {
-		return &urlSubjectProvider{URL: o.CredentialSource.URL, Headers: o.CredentialSource.Headers, Format: o.CredentialSource.Format, Client: o.Client}, nil
+		return &urlSubjectProvider{
+			URL:     o.CredentialSource.URL,
+			Headers: o.CredentialSource.Headers,
+			Format:  o.CredentialSource.Format,
+			Client:  o.Client,
+			Logger:  logger,
+		}, nil
 	} else if o.CredentialSource.Executable != nil {
 		ec := o.CredentialSource.Executable
 		if ec.Command == "" {
@@ -392,7 +413,10 @@ func newSubjectTokenProvider(o *Options) (subjectTokenProvider, error) {
 		if cert.UseDefaultCertificateConfig && cert.CertificateConfigLocation != "" {
 			return nil, errors.New("credentials: \"certificate\" object cannot specify both a certificate_config_location and use_default_certificate_config=true")
 		}
-		return &x509Provider{}, nil
+		return &x509Provider{
+			TrustChainPath: o.CredentialSource.Certificate.TrustChainPath,
+			ConfigFilePath: o.CredentialSource.Certificate.CertificateConfigLocation,
+		}, nil
 	}
 	return nil, errors.New("credentials: unable to parse credential source")
 }

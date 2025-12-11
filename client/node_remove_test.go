@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -15,14 +14,14 @@ func TestNodeRemoveError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.NodeRemove(context.Background(), "node_id", NodeRemoveOptions{Force: false})
+	_, err = client.NodeRemove(t.Context(), "node_id", NodeRemoveOptions{Force: false})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.NodeRemove(context.Background(), "", NodeRemoveOptions{Force: false})
+	_, err = client.NodeRemove(t.Context(), "", NodeRemoveOptions{Force: false})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.NodeRemove(context.Background(), "    ", NodeRemoveOptions{Force: false})
+	_, err = client.NodeRemove(t.Context(), "    ", NodeRemoveOptions{Force: false})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -57,7 +56,7 @@ func TestNodeRemove(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 
-		_, err = client.NodeRemove(context.Background(), "node_id", NodeRemoveOptions{Force: removeCase.force})
+		_, err = client.NodeRemove(t.Context(), "node_id", NodeRemoveOptions{Force: removeCase.force})
 		assert.NilError(t, err)
 	}
 }

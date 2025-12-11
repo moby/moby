@@ -9,8 +9,8 @@ import (
 )
 
 func TestMirrorsToHosts(t *testing.T) {
-	pullCaps := docker.HostCapabilityPull | docker.HostCapabilityResolve
-	allCaps := docker.HostCapabilityPull | docker.HostCapabilityResolve | docker.HostCapabilityPush
+	pullCaps := docker.HostCapabilityPull | docker.HostCapabilityResolve | docker.HostCapabilityReferrers
+	allCaps := docker.HostCapabilityPull | docker.HostCapabilityResolve | docker.HostCapabilityPush | docker.HostCapabilityReferrers
 	defaultRegistry := testRegistryHost("https", "registry-1.docker.com", "/v2", allCaps)
 	for _, tc := range []struct {
 		mirrors  []string

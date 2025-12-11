@@ -16,6 +16,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerui"
 	"github.com/moby/buildkit/frontend/gateway/client"
 	gwpb "github.com/moby/buildkit/frontend/gateway/pb"
+	"github.com/moby/buildkit/frontend/subrequests/convertllb"
 	"github.com/moby/buildkit/frontend/subrequests/lint"
 	"github.com/moby/buildkit/frontend/subrequests/outline"
 	"github.com/moby/buildkit/frontend/subrequests/targets"
@@ -95,6 +96,9 @@ func Build(ctx context.Context, c client.Client) (_ *client.Result, err error) {
 		},
 		Lint: func(ctx context.Context) (*lint.LintResults, error) {
 			return dockerfile2llb.DockerfileLint(ctx, src.Data, convertOpt)
+		},
+		ConvertLLB: func(ctx context.Context) (*convertllb.Result, error) {
+			return dockerfile2llb.DockerfileConvertLLB(ctx, src.Data, convertOpt)
 		},
 	}); err != nil {
 		return nil, err

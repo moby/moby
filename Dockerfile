@@ -13,7 +13,7 @@ ARG XX_VERSION=1.7.0
 ARG VPNKIT_VERSION=0.6.0
 
 # DOCKERCLI_VERSION is the version of the CLI to install in the dev-container.
-ARG DOCKERCLI_VERSION=v28.5.0
+ARG DOCKERCLI_VERSION=v29.0.1
 ARG DOCKERCLI_REPOSITORY="https://github.com/docker/cli.git"
 
 # cli version used for integration-cli tests
@@ -163,7 +163,7 @@ RUN git init . && git remote add origin "https://github.com/containerd/container
 # integration tests. The distributed docker .deb and .rpm packages depend on a
 # separate (containerd.io) package, which may be a different version as is
 # specified here.
-ARG CONTAINERD_VERSION=v2.1.5
+ARG CONTAINERD_VERSION=v2.2.0
 RUN git fetch -q --depth 1 origin "${CONTAINERD_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
 FROM base AS containerd-build

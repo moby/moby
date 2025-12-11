@@ -16,12 +16,13 @@ package gdch
 
 import (
 	"context"
-	"crypto/rsa"
+	"crypto"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -32,6 +33,7 @@ import (
 	"cloud.google.com/go/auth/internal"
 	"cloud.google.com/go/auth/internal/credsfile"
 	"cloud.google.com/go/auth/internal/jwt"
+	"github.com/googleapis/gax-go/v2/internallog"
 )
 
 const (
@@ -51,6 +53,7 @@ var (
 type Options struct {
 	STSAudience string
 	Client      *http.Client
+	Logger      *slog.Logger
 }
 
 // NewTokenProvider returns a [cloud.google.com/go/auth.TokenProvider] from a
@@ -62,7 +65,7 @@ func NewTokenProvider(f *credsfile.GDCHServiceAccountFile, o *Options) (auth.Tok
 	if o.STSAudience == "" {
 		return nil, errors.New("credentials: STSAudience must be set for the GDCH auth flows")
 	}
-	pk, err := internal.ParseKey([]byte(f.PrivateKey))
+	signer, err := internal.ParseKey([]byte(f.PrivateKey))
 	if err != nil {
 		return nil, err
 	}
@@ -75,10 +78,11 @@ func NewTokenProvider(f *credsfile.GDCHServiceAccountFile, o *Options) (auth.Tok
 		serviceIdentity: fmt.Sprintf("system:serviceaccount:%s:%s", f.Project, f.Name),
 		tokenURL:        f.TokenURL,
 		aud:             o.STSAudience,
-		pk:              pk,
+		signer:          signer,
 		pkID:            f.PrivateKeyID,
 		certPool:        certPool,
 		client:          o.Client,
+		logger:          internallog.New(o.Logger),
 	}
 	return tp, nil
 }
@@ -97,11 +101,12 @@ type gdchProvider struct {
 	serviceIdentity string
 	tokenURL        string
 	aud             string
-	pk              *rsa.PrivateKey
+	signer          crypto.Signer
 	pkID            string
 	certPool        *x509.CertPool
 
 	client *http.Client
+	logger *slog.Logger
 }
 
 func (g gdchProvider) Token(ctx context.Context) (*auth.Token, error) {
@@ -120,7 +125,7 @@ func (g gdchProvider) Token(ctx context.Context) (*auth.Token, error) {
 		Type:      jwt.HeaderType,
 		KeyID:     string(g.pkID),
 	}
-	payload, err := jwt.EncodeJWS(&h, &claims, g.pk)
+	payload, err := jwt.EncodeJWS(&h, &claims, g.signer)
 	if err != nil {
 		return nil, err
 	}
@@ -136,10 +141,12 @@ func (g gdchProvider) Token(ctx context.Context) (*auth.Token, error) {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	g.logger.DebugContext(ctx, "gdch token request", "request", internallog.HTTPRequest(req, []byte(v.Encode())))
 	resp, body, err := internal.DoRequest(g.client, req)
 	if err != nil {
 		return nil, fmt.Errorf("credentials: cannot fetch token: %w", err)
 	}
+	g.logger.DebugContext(ctx, "gdch token response", "response", internallog.HTTPResponse(resp, body))
 	if c := resp.StatusCode; c < http.StatusOK || c > http.StatusMultipleChoices {
 		return nil, &auth.Error{
 			Response: resp,

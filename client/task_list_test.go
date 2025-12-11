@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -16,7 +15,7 @@ func TestTaskListError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.TaskList(context.Background(), TaskListOptions{})
+	_, err = client.TaskList(t.Context(), TaskListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -61,7 +60,7 @@ func TestTaskList(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 
-		result, err := client.TaskList(context.Background(), listCase.options)
+		result, err := client.TaskList(t.Context(), listCase.options)
 		assert.NilError(t, err)
 		assert.Check(t, is.Len(result.Items, 2))
 	}

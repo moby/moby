@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -15,14 +14,14 @@ import (
 func TestContainerTopError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	_, err = client.ContainerTop(context.Background(), "nothing", ContainerTopOptions{})
+	_, err = client.ContainerTop(t.Context(), "nothing", ContainerTopOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ContainerTop(context.Background(), "", ContainerTopOptions{})
+	_, err = client.ContainerTop(t.Context(), "", ContainerTopOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ContainerTop(context.Background(), "    ", ContainerTopOptions{})
+	_, err = client.ContainerTop(t.Context(), "    ", ContainerTopOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -54,7 +53,7 @@ func TestContainerTop(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	processList, err := client.ContainerTop(context.Background(), "container_id", ContainerTopOptions{
+	processList, err := client.ContainerTop(t.Context(), "container_id", ContainerTopOptions{
 		Arguments: []string{"arg1", "arg2"},
 	})
 	assert.NilError(t, err)

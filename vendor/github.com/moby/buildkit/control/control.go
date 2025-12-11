@@ -425,15 +425,17 @@ func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*
 		expis = append(expis, expi)
 	}
 
-	if c, err := findDuplicateCacheOptions(req.Cache.Exports); err != nil {
+	rest, dupes, err := findDuplicateCacheOptions(req.Cache.Exports)
+	if err != nil {
 		return nil, err
-	} else if c != nil {
+	} else if len(dupes) > 0 {
 		types := []string{}
-		for _, c := range c {
+		for _, c := range dupes {
 			types = append(types, c.Type)
 		}
 		return nil, errors.Errorf("duplicate cache exports %s", types)
 	}
+	req.Cache.Exports = rest
 	var cacheExporters []llbsolver.RemoteCacheExporter
 	for _, e := range req.Cache.Exports {
 		cacheExporterFunc, ok := c.opt.ResolveCacheExporterFuncs[e.Type]
@@ -539,7 +541,7 @@ func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*
 		Exporters:             expis,
 		CacheExporters:        cacheExporters,
 		EnableSessionExporter: req.EnableSessionExporter,
-	}, entitlementsFromPB(req.Entitlements), procs, req.Internal, req.SourcePolicy)
+	}, entitlementsFromPB(req.Entitlements), procs, req.Internal, req.SourcePolicy, req.SourcePolicySession)
 	if err != nil {
 		return nil, err
 	}
@@ -727,25 +729,34 @@ func toPBCDIDevices(manager *cdidevices.Manager) []*apitypes.CDIDevice {
 	return out
 }
 
-func findDuplicateCacheOptions(cacheOpts []*controlapi.CacheOptionsEntry) ([]*controlapi.CacheOptionsEntry, error) {
+func findDuplicateCacheOptions(cacheOpts []*controlapi.CacheOptionsEntry) ([]*controlapi.CacheOptionsEntry, []*controlapi.CacheOptionsEntry, error) {
 	seen := map[string]*controlapi.CacheOptionsEntry{}
 	duplicate := map[string]struct{}{}
+	hasInline := false
+	rest := make([]*controlapi.CacheOptionsEntry, 0, len(cacheOpts))
 	for _, opt := range cacheOpts {
+		if opt.Type == "inline" && hasInline {
+			continue
+		}
 		k, err := cacheOptKey(opt)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if _, ok := seen[k]; ok {
 			duplicate[k] = struct{}{}
 		}
 		seen[k] = opt
+		if opt.Type == "inline" {
+			hasInline = true
+		}
+		rest = append(rest, opt)
 	}
 
 	var duplicates []*controlapi.CacheOptionsEntry
 	for k := range duplicate {
 		duplicates = append(duplicates, seen[k])
 	}
-	return duplicates, nil
+	return rest, duplicates, nil
 }
 
 func cacheOptKey(opt *controlapi.CacheOptionsEntry) (string, error) {

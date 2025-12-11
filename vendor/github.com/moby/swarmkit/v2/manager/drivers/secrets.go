@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/moby/swarmkit/v2/api"
@@ -80,7 +81,7 @@ func (d *SecretDriver) Get(spec *api.SecretSpec, task *api.Task) ([]byte, bool, 
 		return nil, false, err
 	}
 	if secretResp.Err != "" {
-		return nil, secretResp.DoNotReuse, fmt.Errorf(secretResp.Err)
+		return nil, secretResp.DoNotReuse, errors.New(secretResp.Err)
 	}
 	// Assign the secret value
 	return secretResp.Value, secretResp.DoNotReuse, nil

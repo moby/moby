@@ -9,6 +9,7 @@ import "github.com/moby/buildkit/solver/pb/ops.proto";
 import "github.com/moby/buildkit/sourcepolicy/pb/policy.proto";
 import "github.com/moby/buildkit/util/apicaps/pb/caps.proto";
 import "github.com/tonistiigi/fsutil/types/stat.proto";
+import "google/protobuf/timestamp.proto";
 import "google/rpc/status.proto";
 
 service LLBBridge {
@@ -134,17 +135,54 @@ message ResolveSourceMetaRequest {
 	pb.Platform Platform = 2;
 	string LogName = 3;
 	string ResolveMode = 4;
+	ResolveSourceGitRequest Git = 5;
+	ResolveSourceImageRequest Image = 6;
 	repeated moby.buildkit.v1.sourcepolicy.Policy SourcePolicies = 8;
 }
 
 message ResolveSourceMetaResponse {
 	pb.SourceOp Source = 1;
 	ResolveSourceImageResponse Image = 2;
+	ResolveSourceGitResponse Git = 3;
+	ResolveSourceHTTPResponse HTTP = 4;
+}
+
+message ResolveSourceImageRequest {
+	bool NoConfig = 1;
+	bool AttestationChain = 2;
+}
+
+message AttestationChain {
+	string Root = 1;
+	string ImageManifest = 2;
+	string AttestationManifest = 3;
+	repeated string SignatureManifests = 4;
+	map<string, Blob> Blobs = 5;
 }
 
 message ResolveSourceImageResponse {
 	string Digest = 1;
 	bytes Config = 2;
+	AttestationChain AttestationChain = 3;
+}
+
+message ResolveSourceGitRequest {
+	// Return full commit and tag object bytes.
+	bool ReturnObject = 1;
+}
+
+message ResolveSourceGitResponse {
+	string Checksum = 1;
+	string Ref = 2;
+	string CommitChecksum = 3;
+	bytes CommitObject = 4;
+	bytes TagObject = 5;
+}
+
+message ResolveSourceHTTPResponse {
+	string Checksum = 1;
+	string Filename = 2;
+	google.protobuf.Timestamp LastModified = 3;
 }
 
 message SolveRequest {
@@ -324,4 +362,16 @@ message SignalMessage {
 	// we only send name (ie HUP, INT) because the int values
 	// are platform dependent.
 	string Name = 1;
+}
+
+message Blob {
+	Descriptor descriptor = 1;
+	bytes data = 2;
+}
+
+message Descriptor {
+	string media_type = 1;
+	string digest = 2;
+	int64 size = 3;
+	map<string, string> annotations = 5;
 }

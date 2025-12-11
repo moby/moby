@@ -242,12 +242,12 @@ func TestImageList(t *testing.T) {
 		name   string
 		images []c8dimages.Image
 
-		check func(*testing.T, []*imagetypes.Summary)
+		check func(*testing.T, []imagetypes.Summary)
 	}{
 		{
 			name:   "one multi-layer image",
 			images: []c8dimages.Image{multilayer},
-			check: func(t *testing.T, all []*imagetypes.Summary) {
+			check: func(t *testing.T, all []imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 1))
 
 				if assert.Check(t, all[0].Descriptor != nil) {
@@ -264,7 +264,7 @@ func TestImageList(t *testing.T) {
 		{
 			name:   "one image with two platforms is still one entry",
 			images: []c8dimages.Image{twoplatform},
-			check: func(t *testing.T, all []*imagetypes.Summary) {
+			check: func(t *testing.T, all []imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 1))
 
 				if assert.Check(t, all[0].Descriptor != nil) {
@@ -290,7 +290,7 @@ func TestImageList(t *testing.T) {
 		{
 			name:   "two images are two entries",
 			images: []c8dimages.Image{multilayer, twoplatform},
-			check: func(t *testing.T, all []*imagetypes.Summary) {
+			check: func(t *testing.T, all []imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 2))
 
 				if assert.Check(t, all[0].Descriptor != nil) {
@@ -319,14 +319,14 @@ func TestImageList(t *testing.T) {
 		{
 			name:   "three images, one is an empty index",
 			images: []c8dimages.Image{multilayer, emptyIndex, twoplatform},
-			check: func(t *testing.T, all []*imagetypes.Summary) {
+			check: func(t *testing.T, all []imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 3))
 			},
 		},
 		{
 			name:   "one good image, second has config as a target",
 			images: []c8dimages.Image{multilayer, configTarget},
-			check: func(t *testing.T, all []*imagetypes.Summary) {
+			check: func(t *testing.T, all []imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 2))
 
 				sort.Slice(all, func(i, j int) bool {
@@ -349,7 +349,7 @@ func TestImageList(t *testing.T) {
 		{
 			name:   "a non-container image manifest",
 			images: []c8dimages.Image{textplain},
-			check: func(t *testing.T, all []*imagetypes.Summary) {
+			check: func(t *testing.T, all []imagetypes.Summary) {
 				assert.Check(t, is.Len(all, 1))
 
 				if assert.Check(t, all[0].Descriptor != nil) {
@@ -363,7 +363,7 @@ func TestImageList(t *testing.T) {
 		{
 			name:   "multi-platform with no platforms available locally",
 			images: []c8dimages.Image{missingMultiPlatform},
-			check: func(t *testing.T, all []*imagetypes.Summary) {
+			check: func(t *testing.T, all []imagetypes.Summary) {
 				assert.Assert(t, is.Len(all, 1))
 				assert.Check(t, is.Len(all[0].Manifests, 2))
 			},

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -17,14 +16,14 @@ func TestContainerDiffError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerDiff(context.Background(), "nothing", ContainerDiffOptions{})
+	_, err = client.ContainerDiff(t.Context(), "nothing", ContainerDiffOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ContainerDiff(context.Background(), "", ContainerDiffOptions{})
+	_, err = client.ContainerDiff(t.Context(), "", ContainerDiffOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ContainerDiff(context.Background(), "    ", ContainerDiffOptions{})
+	_, err = client.ContainerDiff(t.Context(), "    ", ContainerDiffOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -57,7 +56,7 @@ func TestContainerDiff(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	result, err := client.ContainerDiff(context.Background(), "container_id", ContainerDiffOptions{})
+	result, err := client.ContainerDiff(t.Context(), "container_id", ContainerDiffOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(result.Changes, expected))
 }

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -16,7 +15,7 @@ func TestImagePruneError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.ImagePrune(context.Background(), ImagePruneOptions{})
+	_, err = client.ImagePrune(t.Context(), ImagePruneOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -83,7 +82,7 @@ func TestImagePrune(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 
-		res, err := client.ImagePrune(context.Background(), ImagePruneOptions{Filters: listCase.filters})
+		res, err := client.ImagePrune(t.Context(), ImagePruneOptions{Filters: listCase.filters})
 		assert.NilError(t, err)
 		assert.Check(t, is.Len(res.Report.ImagesDeleted, 2))
 		assert.Check(t, is.Equal(uint64(9999), res.Report.SpaceReclaimed))

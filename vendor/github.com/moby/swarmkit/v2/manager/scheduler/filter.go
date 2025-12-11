@@ -381,7 +381,7 @@ func (f *MaxReplicasFilter) Check(n *NodeInfo) bool {
 }
 
 // Explain returns an explanation of a failure.
-func (f *MaxReplicasFilter) Explain(nodes int) string {
+func (f *MaxReplicasFilter) Explain(_ int) string {
 	return "max replicas per node limit exceed"
 }
 

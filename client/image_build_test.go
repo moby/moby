@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,7 +17,7 @@ import (
 func TestImageBuildError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	_, err = client.ImageBuild(context.Background(), nil, ImageBuildOptions{})
+	_, err = client.ImageBuild(t.Context(), nil, ImageBuildOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -188,7 +187,7 @@ func TestImageBuild(t *testing.T) {
 			return mockResponse(http.StatusOK, nil, "body")(req)
 		}))
 		assert.NilError(t, err)
-		buildResponse, err := client.ImageBuild(context.Background(), nil, buildCase.buildOptions)
+		buildResponse, err := client.ImageBuild(t.Context(), nil, buildCase.buildOptions)
 		assert.NilError(t, err)
 		response, err := io.ReadAll(buildResponse.Body)
 		assert.NilError(t, err)

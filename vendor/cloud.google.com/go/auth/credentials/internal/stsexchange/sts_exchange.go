@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -26,6 +27,7 @@ import (
 
 	"cloud.google.com/go/auth"
 	"cloud.google.com/go/auth/internal"
+	"github.com/googleapis/gax-go/v2/internallog"
 )
 
 const (
@@ -40,6 +42,7 @@ const (
 // Options stores the configuration for making an sts exchange request.
 type Options struct {
 	Client         *http.Client
+	Logger         *slog.Logger
 	Endpoint       string
 	Request        *TokenRequest
 	Authentication ClientAuthentication
@@ -80,6 +83,7 @@ func ExchangeToken(ctx context.Context, opts *Options) (*TokenResponse, error) {
 func doRequest(ctx context.Context, opts *Options, data url.Values) (*TokenResponse, error) {
 	opts.Authentication.InjectAuthentication(data, opts.Headers)
 	encodedData := data.Encode()
+	logger := internallog.New(opts.Logger)
 
 	req, err := http.NewRequestWithContext(ctx, "POST", opts.Endpoint, strings.NewReader(encodedData))
 	if err != nil {
@@ -93,10 +97,12 @@ func doRequest(ctx context.Context, opts *Options, data url.Values) (*TokenRespo
 	}
 	req.Header.Set("Content-Length", strconv.Itoa(len(encodedData)))
 
+	logger.DebugContext(ctx, "sts token request", "request", internallog.HTTPRequest(req, []byte(encodedData)))
 	resp, body, err := internal.DoRequest(opts.Client, req)
 	if err != nil {
 		return nil, fmt.Errorf("credentials: invalid response from Secure Token Server: %w", err)
 	}
+	logger.DebugContext(ctx, "sts token response", "response", internallog.HTTPResponse(resp, body))
 	if c := resp.StatusCode; c < http.StatusOK || c > http.StatusMultipleChoices {
 		return nil, fmt.Errorf("credentials: status code %d: %s", c, body)
 	}

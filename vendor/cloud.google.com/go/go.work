@@ -1,4 +1,4 @@
-go 1.20
+go 1.23.0
 
 use (
 	.
@@ -12,6 +12,7 @@ use (
 	./apigateway
 	./apigeeconnect
 	./apigeeregistry
+	./apihub
 	./apikeys
 	./appengine
 	./apphub
@@ -28,12 +29,14 @@ use (
 	./batch
 	./beyondcorp
 	./bigquery
+	./bigquery/v2
 	./bigtable
 	./billing
 	./binaryauthorization
 	./certificatemanager
 	./channel
 	./chat
+	./chronicle
 	./cloudbuild
 	./cloudcontrolspartner
 	./clouddms
@@ -45,6 +48,7 @@ use (
 	./compute/metadata
 	./confidentialcomputing
 	./config
+	./configdelivery
 	./contactcenterinsights
 	./container
 	./containeranalysis
@@ -60,6 +64,7 @@ use (
 	./datastream
 	./deploy
 	./developerconnect
+	./devicestreaming
 	./dialogflow
 	./discoveryengine
 	./dlp
@@ -71,6 +76,7 @@ use (
 	./essentialcontacts
 	./eventarc
 	./filestore
+	./financialservices
 	./firestore
 	./functions
 	./gkebackup
@@ -92,21 +98,27 @@ use (
 	./internal/gapicgen
 	./internal/generated/snippets
 	./internal/godocfx
+	./internal/librariangen
 	./internal/postprocessor
 	./internal/protoveneer
 	./iot
 	./kms
 	./language
+	./licensemanager
 	./lifesciences
 	./logging
 	./longrunning
+	./lustre
+	./maintenance
 	./managedidentities
 	./managedkafka
 	./maps
 	./mediatranslation
 	./memcache
+	./memorystore
 	./metastore
 	./migrationcenter
+	./modelarmor
 	./monitoring
 	./netapp
 	./networkconnectivity
@@ -115,11 +127,13 @@ use (
 	./networkservices
 	./notebooks
 	./optimization
+	./oracledatabase
 	./orchestration
 	./orgpolicy
 	./osconfig
 	./oslogin
 	./parallelstore
+	./parametermanager
 	./phishingprotection
 	./policysimulator
 	./policytroubleshooter
@@ -127,6 +141,7 @@ use (
 	./privilegedaccessmanager
 	./profiler
 	./pubsub
+	./pubsub/v2
 	./pubsublite
 	./rapidmigrationassessment
 	./recaptchaenterprise
@@ -134,7 +149,6 @@ use (
 	./recommender
 	./redis
 	./resourcemanager
-	./resourcesettings
 	./retail
 	./run
 	./scheduler
@@ -152,10 +166,12 @@ use (
 	./shell
 	./shopping
 	./spanner
+	./spanner/benchmarks
 	./spanner/test/opentelemetry/test
 	./speech
 	./storage
 	./storage/internal/benchmarks
+	./storagebatchoperations
 	./storageinsights
 	./storagetransfer
 	./streetview

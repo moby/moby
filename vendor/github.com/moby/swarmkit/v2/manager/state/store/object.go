@@ -18,7 +18,7 @@ type ObjectStoreConfig struct {
 // nodes, etc., which conform to the StoreObject interface) and replaces the
 // existing objects in the store of that type with the new objects.
 func RestoreTable(tx Tx, table string, newObjects []api.StoreObject) error {
-	checkType := func(by By) error {
+	checkType := func(_ By) error {
 		return nil
 	}
 	var oldObjects []api.StoreObject

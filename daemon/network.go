@@ -1036,7 +1036,20 @@ func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwor
 		exposedPorts   []lntypes.TransportPort
 		publishedPorts []lntypes.PortBinding
 	)
-	for p, bindings := range c.HostConfig.PortBindings {
+
+	ports := c.HostConfig.PortBindings
+	if c.HostConfig.PublishAllPorts {
+		// Add exposed ports to a copy of the map to make sure a "publishedPorts" entry is created
+		// for each exposed port, even if there's no specific binding.
+		ports = maps.Clone(c.HostConfig.PortBindings)
+		for p := range c.Config.ExposedPorts {
+			if _, exists := ports[p]; !exists {
+				ports[p] = nil
+			}
+		}
+	}
+
+	for p, bindings := range ports {
 		protocol := lntypes.ParseProtocol(string(p.Proto()))
 		exposedPorts = append(exposedPorts, lntypes.TransportPort{
 			Proto: protocol,
@@ -1133,8 +1146,11 @@ func getEndpointPortMapInfo(pm networktypes.PortMap, ep *libnetwork.Endpoint) {
 			if pp.HostPort > 0 {
 				hp = strconv.Itoa(int(pp.HostPort))
 			}
-			natBndg := networktypes.PortBinding{HostPort: hp}
-			natBndg.HostIP, _ = netip.AddrFromSlice(pp.HostIP)
+			hip, _ := netip.AddrFromSlice(pp.HostIP)
+			natBndg := networktypes.PortBinding{
+				HostIP:   hip.Unmap(),
+				HostPort: hp,
+			}
 			pm[natPort] = append(pm[natPort], natBndg)
 		}
 	}

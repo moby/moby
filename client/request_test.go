@@ -7,7 +7,6 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
-	"strings"
 	"testing"
 	"time"
 
@@ -64,7 +63,7 @@ func TestSetHostHeader(t *testing.T) {
 			}), WithHost(tc.host))
 			assert.NilError(t, err)
 
-			_, err = client.sendRequest(context.Background(), http.MethodGet, testEndpoint, nil, nil, nil)
+			_, err = client.sendRequest(t.Context(), http.MethodGet, testEndpoint, nil, nil, nil)
 			assert.NilError(t, err)
 		})
 	}
@@ -76,7 +75,7 @@ func TestSetHostHeader(t *testing.T) {
 func TestPlainTextError(t *testing.T) {
 	client, err := New(WithMockClient(mockResponse(http.StatusInternalServerError, nil, "Server error")))
 	assert.NilError(t, err)
-	_, err = client.ContainerList(context.Background(), ContainerListOptions{})
+	_, err = client.ContainerList(t.Context(), ContainerListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -195,11 +194,11 @@ func TestResponseErrors(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
+			client, err := New(WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
 				return mockResponse(http.StatusBadRequest, http.Header{"Content-Type": []string{tc.contentType}}, tc.response)(req)
 			}))
 			if tc.apiVersion != "" {
-				client, err = New(WithHTTPClient(client.client), WithVersion(tc.apiVersion))
+				client, err = New(WithHTTPClient(client.client), WithAPIVersion(tc.apiVersion))
 			}
 			assert.NilError(t, err)
 			_, err = client.Ping(t.Context(), PingOptions{})
@@ -211,7 +210,7 @@ func TestResponseErrors(t *testing.T) {
 
 func TestInfiniteError(t *testing.T) {
 	infinitR := rand.New(rand.NewSource(42))
-	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := New(WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
 		resp := &http.Response{
 			StatusCode: http.StatusInternalServerError,
 			Header:     http.Header{},
@@ -235,7 +234,7 @@ func TestCanceledContext(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	_, err = client.sendRequest(ctx, http.MethodGet, testEndpoint, nil, nil, nil)
@@ -251,7 +250,7 @@ func TestDeadlineExceededContext(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now())
+	ctx, cancel := context.WithDeadline(t.Context(), time.Now())
 	defer cancel()
 
 	<-ctx.Done()
@@ -266,26 +265,25 @@ func TestPrepareJSONRequest(t *testing.T) {
 		body       any
 		headers    http.Header
 		expBody    string
-		expNilBody bool
 		expHeaders http.Header
 	}{
 		{
-			doc:        "nil body",
-			body:       nil,
-			headers:    http.Header{"Something": []string{"something"}},
-			expNilBody: true,
+			doc:     "nil body",
+			body:    nil,
+			headers: http.Header{"Something": []string{"something"}},
+			expBody: "",
 			expHeaders: http.Header{
-				// currently, no content-type is set on empty requests.
+				// no content-type is set on empty requests.
 				"Something": []string{"something"},
 			},
 		},
 		{
-			doc:        "nil interface body",
-			body:       (*struct{})(nil),
-			headers:    http.Header{"Something": []string{"something"}},
-			expNilBody: true,
+			doc:     "nil interface body",
+			body:    (*struct{})(nil),
+			headers: http.Header{"Something": []string{"something"}},
+			expBody: "",
 			expHeaders: http.Header{
-				// currently, no content-type is set on empty requests.
+				// no content-type is set on empty requests.
 				"Something": []string{"something"},
 			},
 		},
@@ -308,12 +306,16 @@ func TestPrepareJSONRequest(t *testing.T) {
 			},
 		},
 		{
-			doc:     "empty body",
-			body:    http.NoBody,
-			expBody: `{}`,
-			expHeaders: http.Header{
-				"Content-Type": []string{"application/json"},
-			},
+			doc:        "empty json raw message",
+			body:       json.RawMessage(""),
+			expBody:    "",
+			expHeaders: nil, // no content-type is set on empty requests.
+		},
+		{
+			doc:        "empty body",
+			body:       http.NoBody,
+			expBody:    "",
+			expHeaders: nil, // no content-type is set on empty requests.
 		},
 	}
 
@@ -322,16 +324,9 @@ func TestPrepareJSONRequest(t *testing.T) {
 			req, hdr, err := prepareJSONRequest(tc.body, tc.headers)
 			assert.NilError(t, err)
 
-			var body string
-			if tc.expNilBody {
-				assert.Check(t, is.Nil(req))
-			} else {
-				assert.Assert(t, req != nil)
-
-				resp, err := io.ReadAll(req)
-				assert.NilError(t, err)
-				body = strings.TrimSpace(string(resp))
-			}
+			resp, err := io.ReadAll(req)
+			assert.NilError(t, err)
+			body := string(resp)
 
 			assert.Check(t, is.Equal(body, tc.expBody))
 			assert.Check(t, is.DeepEqual(hdr, tc.expHeaders))

@@ -15,29 +15,19 @@ var ErrNoSigners = errors.New("no signers provided")
 
 // EnvelopeSigner creates signed Envelopes.
 type EnvelopeSigner struct {
-	providers []SignerVerifier
+	providers []Signer
 }
 
 /*
 NewEnvelopeSigner creates an EnvelopeSigner that uses 1+ Signer algorithms to
-sign the data. Creates a verifier with threshold=1, at least one of the
-providers must validate signatures successfully.
+sign the data.
 */
-func NewEnvelopeSigner(p ...SignerVerifier) (*EnvelopeSigner, error) {
-	return NewMultiEnvelopeSigner(1, p...)
-}
+func NewEnvelopeSigner(p ...Signer) (*EnvelopeSigner, error) {
+	var providers []Signer
 
-/*
-NewMultiEnvelopeSigner creates an EnvelopeSigner that uses 1+ Signer
-algorithms to sign the data. Creates a verifier with threshold. Threshold
-indicates the amount of providers that must validate the envelope.
-*/
-func NewMultiEnvelopeSigner(threshold int, p ...SignerVerifier) (*EnvelopeSigner, error) {
-	var providers []SignerVerifier
-
-	for _, sv := range p {
-		if sv != nil {
-			providers = append(providers, sv)
+	for _, s := range p {
+		if s != nil {
+			providers = append(providers, s)
 		}
 	}
 
@@ -48,6 +38,17 @@ func NewMultiEnvelopeSigner(threshold int, p ...SignerVerifier) (*EnvelopeSigner
 	return &EnvelopeSigner{
 		providers: providers,
 	}, nil
+}
+
+/*
+NewMultiEnvelopeSigner creates an EnvelopeSigner that uses 1+ Signer
+algorithms to sign the data. The threshold parameter is legacy and is ignored.
+
+Deprecated: This function simply calls NewEnvelopeSigner, and that function should
+be preferred.
+*/
+func NewMultiEnvelopeSigner(threshold int, p ...Signer) (*EnvelopeSigner, error) {
+	return NewEnvelopeSigner(p...)
 }
 
 /*

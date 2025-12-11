@@ -7,8 +7,8 @@ import (
 	"github.com/containerd/platforms"
 	slsa "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/common"
 	slsa02 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.2"
+	"github.com/moby/buildkit/frontend/dockerfile/dfgitutil"
 	provenancetypes "github.com/moby/buildkit/solver/llbsolver/provenance/types"
-	"github.com/moby/buildkit/util/gitutil"
 	"github.com/moby/buildkit/util/purl"
 	"github.com/moby/buildkit/util/urlutil"
 	"github.com/package-url/packageurl-go"
@@ -70,35 +70,7 @@ func digestSetForCommit(commit string) slsa.DigestSet {
 }
 
 func findMaterial(srcs provenancetypes.Sources, uri string) (*slsa.ProvenanceMaterial, bool) {
-	// Git URLs in querystring format or subdir need to be converted to fragment format with only ref
-	gitRef, err := gitutil.ParseURL(uri)
-	if err == nil && gitRef != nil {
-		u := gitRef.Remote
-		var ref string
-		if gitRef.Opts != nil {
-			ref = gitRef.Opts.Ref
-		}
-		if len(gitRef.Query) > 0 {
-			for k, v := range gitRef.Query {
-				if len(v) == 0 {
-					continue
-				}
-				switch k {
-				case "ref":
-					ref = v[0]
-				case "branch":
-					ref = "refs/heads/" + v[0]
-				case "tag":
-					ref = "refs/tags/" + v[0]
-				}
-			}
-		}
-		if ref != "" {
-			u += "#" + ref
-		}
-		uri = u
-	}
-
+	uri, _ = dfgitutil.FragmentFormat(uri)
 	for _, s := range srcs.Git {
 		if s.URL == uri {
 			return &slsa.ProvenanceMaterial{

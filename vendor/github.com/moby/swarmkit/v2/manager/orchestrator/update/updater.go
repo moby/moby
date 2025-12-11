@@ -491,7 +491,7 @@ func (u *Updater) useExistingTask(ctx context.Context, slot orchestrator.Slot, e
 
 // removeOldTasks shuts down the given tasks and returns one of the tasks that
 // was shut down, or an error.
-func (u *Updater) removeOldTasks(ctx context.Context, batch *store.Batch, removeTasks []*api.Task) (*api.Task, error) {
+func (u *Updater) removeOldTasks(_ context.Context, batch *store.Batch, removeTasks []*api.Task) (*api.Task, error) {
 	var (
 		lastErr     error
 		removedTask *api.Task

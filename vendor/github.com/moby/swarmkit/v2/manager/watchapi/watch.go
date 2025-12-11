@@ -25,7 +25,7 @@ func (s *Server) Watch(request *api.WatchRequest, stream api.Watch_WatchServer) 
 
 	watchArgs, err := api.ConvertWatchArgs(request.Entries)
 	if err != nil {
-		return status.Errorf(codes.InvalidArgument, "%s", err.Error())
+		return status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	watchArgs = append(watchArgs, state.EventCommit{})

@@ -357,14 +357,15 @@ func compressBlob(t *testing.T, src *io.SectionReader, srcCompression int) *io.S
 	buf := new(bytes.Buffer)
 	var w io.WriteCloser
 	var err error
-	if srcCompression == gzipType {
+	switch srcCompression {
+	case gzipType:
 		w = gzip.NewWriter(buf)
-	} else if srcCompression == zstdType {
+	case zstdType:
 		w, err = zstd.NewWriter(buf)
 		if err != nil {
 			t.Fatalf("failed to init zstd writer: %v", err)
 		}
-	} else {
+	default:
 		return src
 	}
 	src.Seek(0, io.SeekStart)
@@ -445,7 +446,7 @@ func contains(t *testing.T, a, b stargzEntry) bool {
 			bbytes, bnext, bok := readOffset(t, bf, nr, b)
 			if !aok && !bok {
 				break
-			} else if !(aok && bok) || anext != bnext {
+			} else if !aok || !bok || anext != bnext {
 				t.Logf("%q != %q (offset=%d): chunk existence a=%v vs b=%v, anext=%v vs bnext=%v",
 					ae.Name, be.Name, nr, aok, bok, anext, bnext)
 				return false
@@ -2346,8 +2347,8 @@ func CheckGzipHasStreams(t *testing.T, b []byte, streams []int64) {
 			t.Fatalf("countStreams(gzip), Copy: %v", err)
 		}
 		var extra string
-		if len(zr.Header.Extra) > 0 {
-			extra = fmt.Sprintf("; extra=%q", zr.Header.Extra)
+		if len(zr.Extra) > 0 {
+			extra = fmt.Sprintf("; extra=%q", zr.Extra)
 		}
 		t.Logf("  [%d] at %d in stargz, uncompressed length %d%s", numStreams, zoff, n, extra)
 		delete(wants, int64(zoff))

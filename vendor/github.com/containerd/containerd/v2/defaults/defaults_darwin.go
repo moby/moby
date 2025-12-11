@@ -17,6 +17,23 @@
 package defaults
 
 const (
-	// DefaultRuntime would be a multiple of choices, thus empty
-	DefaultRuntime = ""
+	// DefaultRuntime is the default darwin runtime for running containers
+	DefaultRuntime = "io.containerd.nerdbox.v1"
+	// DefaultAddress is the default unix socket address
+	DefaultAddress = "/var/run/containerd/containerd.sock"
+	// DefaultDebugAddress is the default unix socket address for pprof data
+	DefaultDebugAddress = "/var/run/containerd/debug.sock"
+	// DefaultFIFODir is the default location used by client-side cio library
+	// to store FIFOs.
+	DefaultFIFODir = "/var/run/containerd/fifo"
+	// DefaultSnapshotter will set the default snapshotter for the platform.
+	// Since mounts are not supported on Darwin, use erofs as the default
+	// which does not require mount support.
+	DefaultSnapshotter = "erofs"
+	// DefaultStateDir is the default location used by containerd to store
+	// transient data
+	DefaultStateDir = "/var/run/containerd"
+	// DefaultDiffer will set the default differ for the platform, use the
+	// erofs differ which does not require mount support.
+	DefaultDiffer = "erofs"
 )

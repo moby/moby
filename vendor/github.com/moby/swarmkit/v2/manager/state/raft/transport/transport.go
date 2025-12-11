@@ -15,8 +15,8 @@ import (
 
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/pkg/errors"
-	"go.etcd.io/etcd/raft/v3"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	"go.etcd.io/raft/v3"
+	"go.etcd.io/raft/v3/raftpb"
 )
 
 // ErrIsNotFound indicates that peer was never added to transport.

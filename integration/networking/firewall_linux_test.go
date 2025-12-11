@@ -43,7 +43,7 @@ func TestInfoFirewallBackend(t *testing.T) {
 
 	// Check FirewallBackend is omitted for API <= 1.48.
 	t.Run("api 1.48", func(t *testing.T) {
-		c148 := request.NewAPIClient(t, client.WithVersion("1.48"))
+		c148 := request.NewAPIClient(t, client.WithAPIVersion("1.48"))
 		result, err := c148.Info(ctx, client.InfoOptions{})
 		assert.NilError(t, err)
 		info148 := result.Info

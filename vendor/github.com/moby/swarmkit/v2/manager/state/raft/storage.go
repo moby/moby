@@ -12,8 +12,8 @@ import (
 	"github.com/moby/swarmkit/v2/manager/state/raft/storage"
 	"github.com/moby/swarmkit/v2/manager/state/store"
 	"github.com/pkg/errors"
-	"go.etcd.io/etcd/raft/v3"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	"go.etcd.io/raft/v3"
+	"go.etcd.io/raft/v3/raftpb"
 )
 
 var (

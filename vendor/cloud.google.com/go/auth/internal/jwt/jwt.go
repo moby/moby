@@ -111,7 +111,7 @@ func (c *Claims) encode() (string, error) {
 }
 
 // EncodeJWS encodes the data using the provided key as a JSON web signature.
-func EncodeJWS(header *Header, c *Claims, key *rsa.PrivateKey) (string, error) {
+func EncodeJWS(header *Header, c *Claims, signer crypto.Signer) (string, error) {
 	head, err := header.encode()
 	if err != nil {
 		return "", err
@@ -123,7 +123,7 @@ func EncodeJWS(header *Header, c *Claims, key *rsa.PrivateKey) (string, error) {
 	ss := fmt.Sprintf("%s.%s", head, claims)
 	h := sha256.New()
 	h.Write([]byte(ss))
-	sig, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, h.Sum(nil))
+	sig, err := signer.Sign(rand.Reader, h.Sum(nil), crypto.SHA256)
 	if err != nil {
 		return "", err
 	}

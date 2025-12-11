@@ -19,10 +19,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"cloud.google.com/go/auth/internal"
 	"cloud.google.com/go/auth/internal/credsfile"
+	"github.com/googleapis/gax-go/v2/internallog"
 )
 
 const (
@@ -38,6 +40,7 @@ type urlSubjectProvider struct {
 	Headers map[string]string
 	Format  *credsfile.Format
 	Client  *http.Client
+	Logger  *slog.Logger
 }
 
 func (sp *urlSubjectProvider) subjectToken(ctx context.Context) (string, error) {
@@ -49,10 +52,12 @@ func (sp *urlSubjectProvider) subjectToken(ctx context.Context) (string, error) 
 	for key, val := range sp.Headers {
 		req.Header.Add(key, val)
 	}
+	sp.Logger.DebugContext(ctx, "url subject token request", "request", internallog.HTTPRequest(req, nil))
 	resp, body, err := internal.DoRequest(sp.Client, req)
 	if err != nil {
 		return "", fmt.Errorf("credentials: invalid response when retrieving subject token: %w", err)
 	}
+	sp.Logger.DebugContext(ctx, "url subject token response", "response", internallog.HTTPResponse(resp, body))
 	if c := resp.StatusCode; c < http.StatusOK || c >= http.StatusMultipleChoices {
 		return "", fmt.Errorf("credentials: status code %d: %s", c, body)
 	}

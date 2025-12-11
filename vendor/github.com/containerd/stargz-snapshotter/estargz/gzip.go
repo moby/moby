@@ -109,7 +109,7 @@ func gzipFooterBytes(tocOff int64) []byte {
 	header[0], header[1] = 'S', 'G'
 	subfield := fmt.Sprintf("%016xSTARGZ", tocOff)
 	binary.LittleEndian.PutUint16(header[2:4], uint16(len(subfield))) // little-endian per RFC1952
-	gz.Header.Extra = append(header, []byte(subfield)...)
+	gz.Extra = append(header, []byte(subfield)...)
 	gz.Close()
 	if buf.Len() != FooterSize {
 		panic(fmt.Sprintf("footer buffer = %d, not %d", buf.Len(), FooterSize))
@@ -136,7 +136,7 @@ func (gz *GzipDecompressor) ParseFooter(p []byte) (blobPayloadSize, tocOffset, t
 		return 0, 0, 0, err
 	}
 	defer zr.Close()
-	extra := zr.Header.Extra
+	extra := zr.Extra
 	si1, si2, subfieldlen, subfield := extra[0], extra[1], extra[2:4], extra[4:]
 	if si1 != 'S' || si2 != 'G' {
 		return 0, 0, 0, fmt.Errorf("invalid subfield IDs: %q, %q; want E, S", si1, si2)
@@ -181,7 +181,7 @@ func (gz *LegacyGzipDecompressor) ParseFooter(p []byte) (blobPayloadSize, tocOff
 		return 0, 0, 0, fmt.Errorf("legacy: failed to get footer gzip reader: %w", err)
 	}
 	defer zr.Close()
-	extra := zr.Header.Extra
+	extra := zr.Extra
 	if len(extra) != 16+len("STARGZ") {
 		return 0, 0, 0, fmt.Errorf("legacy: invalid stargz's extra field size")
 	}

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -14,14 +13,14 @@ import (
 func TestInfoServerError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	_, err = client.Info(context.Background(), InfoOptions{})
+	_, err = client.Info(t.Context(), InfoOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestInfoInvalidResponseJSONError(t *testing.T) {
 	client, err := New(WithMockClient(mockResponse(http.StatusOK, nil, "invalid json")))
 	assert.NilError(t, err)
-	_, err = client.Info(context.Background(), InfoOptions{})
+	_, err = client.Info(t.Context(), InfoOptions{})
 	assert.Check(t, is.ErrorContains(err, "invalid character"))
 }
 
@@ -38,7 +37,7 @@ func TestInfo(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	result, err := client.Info(context.Background(), InfoOptions{})
+	result, err := client.Info(t.Context(), InfoOptions{})
 	assert.NilError(t, err)
 	info := result.Info
 
@@ -69,7 +68,7 @@ func TestInfoWithDiscoveredDevices(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	result, err := client.Info(context.Background(), InfoOptions{})
+	result, err := client.Info(t.Context(), InfoOptions{})
 	assert.NilError(t, err)
 	info := result.Info
 

@@ -508,25 +508,25 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 	useNone := versions.LessThan(version, "1.43")
 	noDescriptor := versions.LessThan(version, "1.48")
 	noContainers := versions.LessThan(version, "1.51")
-	for _, img := range images {
+	for i := range images {
 		if useNone {
-			if len(img.RepoTags) == 0 && len(img.RepoDigests) == 0 {
-				img.RepoTags = append(img.RepoTags, "<none>:<none>")
-				img.RepoDigests = append(img.RepoDigests, "<none>@<none>")
+			if len(images[i].RepoTags) == 0 && len(images[i].RepoDigests) == 0 {
+				images[i].RepoTags = append(images[i].RepoTags, "<none>:<none>")
+				images[i].RepoDigests = append(images[i].RepoDigests, "<none>@<none>")
 			}
 		} else {
-			if img.RepoTags == nil {
-				img.RepoTags = []string{}
+			if images[i].RepoTags == nil {
+				images[i].RepoTags = []string{}
 			}
-			if img.RepoDigests == nil {
-				img.RepoDigests = []string{}
+			if images[i].RepoDigests == nil {
+				images[i].RepoDigests = []string{}
 			}
 		}
 		if noDescriptor {
-			img.Descriptor = nil
+			images[i].Descriptor = nil
 		}
 		if noContainers {
-			img.Containers = -1
+			images[i].Containers = -1
 		}
 	}
 

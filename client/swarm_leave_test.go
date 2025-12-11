@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -15,7 +14,7 @@ func TestSwarmLeaveError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.SwarmLeave(context.Background(), SwarmLeaveOptions{})
+	_, err = client.SwarmLeave(t.Context(), SwarmLeaveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -48,7 +47,7 @@ func TestSwarmLeave(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 
-		_, err = client.SwarmLeave(context.Background(), SwarmLeaveOptions{Force: leaveCase.force})
+		_, err = client.SwarmLeave(t.Context(), SwarmLeaveOptions{Force: leaveCase.force})
 		assert.NilError(t, err)
 	}
 }

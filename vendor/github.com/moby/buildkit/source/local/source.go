@@ -126,11 +126,11 @@ type localSourceHandler struct {
 	*localSource
 }
 
-func (ls *localSourceHandler) CacheKey(ctx context.Context, g session.Group, index int) (string, string, solver.CacheOpts, bool, error) {
+func (ls *localSourceHandler) CacheKey(ctx context.Context, jobCtx solver.JobContext, index int) (string, string, solver.CacheOpts, bool, error) {
 	sessionID := ls.src.SessionID
 
 	if sessionID == "" {
-		id := g.SessionIterator().NextSession()
+		id := jobCtx.Session().SessionIterator().NextSession()
 		if id == "" {
 			return "", "", nil, false, errors.New("could not access local files without session")
 		}
@@ -161,7 +161,8 @@ func (ls *localSourceHandler) CacheKey(ctx context.Context, g session.Group, ind
 	return "session:" + ls.src.Name + ":" + dgst.String(), dgst.String(), nil, true, nil
 }
 
-func (ls *localSourceHandler) Snapshot(ctx context.Context, g session.Group) (cache.ImmutableRef, error) {
+func (ls *localSourceHandler) Snapshot(ctx context.Context, jobCtx solver.JobContext) (cache.ImmutableRef, error) {
+	g := jobCtx.Session()
 	sessionID := ls.src.SessionID
 	if sessionID == "" {
 		return ls.snapshotWithAnySession(ctx, g)

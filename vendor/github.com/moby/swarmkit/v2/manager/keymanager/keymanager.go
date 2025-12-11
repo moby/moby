@@ -92,7 +92,7 @@ func New(store *store.MemoryStore, config *Config) *KeyManager {
 	}
 }
 
-func (k *KeyManager) allocateKey(ctx context.Context, subsys string) *api.EncryptionKey {
+func (k *KeyManager) allocateKey(_ context.Context, subsys string) *api.EncryptionKey {
 	key := make([]byte, k.config.Keylen)
 
 	_, err := cryptorand.Read(key)

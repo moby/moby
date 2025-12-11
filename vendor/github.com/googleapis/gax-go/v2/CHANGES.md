@@ -1,5 +1,38 @@
 # Changelog
 
+## [2.15.0](https://github.com/googleapis/gax-go/compare/v2.14.2...v2.15.0) (2025-07-09)
+
+
+### Features
+
+* **apierror:** improve gRPC status code mapping for HTTP errors ([#431](https://github.com/googleapis/gax-go/issues/431)) ([c207f2a](https://github.com/googleapis/gax-go/commit/c207f2a19ab91d3baee458b57d4aa992519025c7))
+
+## [2.14.2](https://github.com/googleapis/gax-go/compare/v2.14.1...v2.14.2) (2025-05-12)
+
+
+### Documentation
+
+* **v2:** Fix Backoff doc to accurately explain Multiplier ([#423](https://github.com/googleapis/gax-go/issues/423)) ([16d1791](https://github.com/googleapis/gax-go/commit/16d17917121ea9f5d84ba52b5c7c7f2ec0f9e784)), refs [#422](https://github.com/googleapis/gax-go/issues/422)
+
+## [2.14.1](https://github.com/googleapis/gax-go/compare/v2.14.0...v2.14.1) (2024-12-19)
+
+
+### Bug Fixes
+
+* update golang.org/x/net to v0.33.0 ([#391](https://github.com/googleapis/gax-go/issues/391)) ([547a5b4](https://github.com/googleapis/gax-go/commit/547a5b43aa6f376f71242da9f18e65fbdfb342f6))
+
+
+### Documentation
+
+* fix godoc to refer to the proper envvar ([#387](https://github.com/googleapis/gax-go/issues/387)) ([dc6baf7](https://github.com/googleapis/gax-go/commit/dc6baf75c1a737233739630b5af6c9759f08abcd))
+
+## [2.14.0](https://github.com/googleapis/gax-go/compare/v2.13.0...v2.14.0) (2024-11-13)
+
+
+### Features
+
+* **internallog:** add a logging support package ([#380](https://github.com/googleapis/gax-go/issues/380)) ([c877470](https://github.com/googleapis/gax-go/commit/c87747098135631a3de5865ed03aaf2c79fd9319))
+
 ## [2.13.0](https://github.com/googleapis/gax-go/compare/v2.12.5...v2.13.0) (2024-07-22)
 
 

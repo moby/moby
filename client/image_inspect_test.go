@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -18,7 +17,7 @@ func TestImageInspectError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.ImageInspect(context.Background(), "nothing")
+	_, err = client.ImageInspect(t.Context(), "nothing")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -26,7 +25,7 @@ func TestImageInspectImageNotFound(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusNotFound, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.ImageInspect(context.Background(), "unknown")
+	_, err = client.ImageInspect(t.Context(), "unknown")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
@@ -35,7 +34,7 @@ func TestImageInspectWithEmptyID(t *testing.T) {
 		return nil, errors.New("should not make request")
 	}))
 	assert.NilError(t, err)
-	_, err = client.ImageInspect(context.Background(), "")
+	_, err = client.ImageInspect(t.Context(), "")
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 
@@ -53,7 +52,7 @@ func TestImageInspect(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	imageInspect, err := client.ImageInspect(context.Background(), "image_id")
+	imageInspect, err := client.ImageInspect(t.Context(), "image_id")
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(imageInspect.ID, "image_id"))
 	assert.Check(t, is.DeepEqual(imageInspect.RepoTags, expectedTags))
@@ -88,7 +87,7 @@ func TestImageInspectWithPlatform(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	imageInspect, err := client.ImageInspect(context.Background(), "image_id", ImageInspectWithPlatform(requestedPlatform))
+	imageInspect, err := client.ImageInspect(t.Context(), "image_id", ImageInspectWithPlatform(requestedPlatform))
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(imageInspect.ID, "image_id"))
 	assert.Check(t, is.Equal(imageInspect.Architecture, "arm64"))

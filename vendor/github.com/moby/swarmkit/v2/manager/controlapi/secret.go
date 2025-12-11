@@ -27,7 +27,7 @@ func secretFromSecretSpec(spec *api.SecretSpec) *api.Secret {
 // - Returns `NotFound` if the Secret with the given id is not found.
 // - Returns `InvalidArgument` if the `GetSecretRequest.SecretID` is empty.
 // - Returns an error if getting fails.
-func (s *Server) GetSecret(ctx context.Context, request *api.GetSecretRequest) (*api.GetSecretResponse, error) {
+func (s *Server) GetSecret(_ context.Context, request *api.GetSecretRequest) (*api.GetSecretResponse, error) {
 	if request.SecretID == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "secret ID must be provided")
 	}
@@ -51,7 +51,7 @@ func (s *Server) GetSecret(ctx context.Context, request *api.GetSecretRequest) (
 // - Returns an error if the update fails.
 func (s *Server) UpdateSecret(ctx context.Context, request *api.UpdateSecretRequest) (*api.UpdateSecretResponse, error) {
 	if request.SecretID == "" || request.SecretVersion == nil {
-		return nil, status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 	var secret *api.Secret
 	err := s.store.Update(func(tx store.Tx) error {
@@ -95,7 +95,7 @@ func (s *Server) UpdateSecret(ctx context.Context, request *api.UpdateSecretRequ
 // name prefix in `ListSecretsRequest.NamePrefixes`, any id in
 // `ListSecretsRequest.SecretIDs`, or any id prefix in `ListSecretsRequest.IDPrefixes`.
 // - Returns an error if listing fails.
-func (s *Server) ListSecrets(ctx context.Context, request *api.ListSecretsRequest) (*api.ListSecretsResponse, error) {
+func (s *Server) ListSecrets(_ context.Context, request *api.ListSecretsRequest) (*api.ListSecretsResponse, error) {
 	var (
 		secrets     []*api.Secret
 		respSecrets []*api.Secret
@@ -242,7 +242,7 @@ func (s *Server) RemoveSecret(ctx context.Context, request *api.RemoveSecretRequ
 
 func validateSecretSpec(spec *api.SecretSpec) error {
 	if spec == nil {
-		return status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 	if err := validateConfigOrSecretAnnotations(spec.Annotations); err != nil {
 		return err
@@ -256,7 +256,7 @@ func validateSecretSpec(spec *api.SecretSpec) error {
 		return nil
 	}
 	if err := validation.ValidateSecretPayload(spec.Data); err != nil {
-		return status.Errorf(codes.InvalidArgument, "%s", err.Error())
+		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	return nil
 }

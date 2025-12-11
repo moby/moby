@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -14,14 +13,14 @@ func TestPluginSetError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.PluginSet(context.Background(), "plugin_name", PluginSetOptions{})
+	_, err = client.PluginSet(t.Context(), "plugin_name", PluginSetOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.PluginSet(context.Background(), "", PluginSetOptions{})
+	_, err = client.PluginSet(t.Context(), "", PluginSetOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.PluginSet(context.Background(), "    ", PluginSetOptions{})
+	_, err = client.PluginSet(t.Context(), "    ", PluginSetOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -37,6 +36,6 @@ func TestPluginSet(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	_, err = client.PluginSet(context.Background(), "plugin_name", PluginSetOptions{Args: []string{"arg1"}})
+	_, err = client.PluginSet(t.Context(), "plugin_name", PluginSetOptions{Args: []string{"arg1"}})
 	assert.NilError(t, err)
 }

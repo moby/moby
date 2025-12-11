@@ -86,13 +86,6 @@ func (daemon *Daemon) load(id string) (*container.Container, error) {
 	return ctr, nil
 }
 
-// Register makes a container object usable by the daemon as <container.ID>
-//
-// Deprecated: this function is unused and will be removed in the next release.
-func (daemon *Daemon) Register(c *container.Container) error {
-	return daemon.register(context.TODO(), c)
-}
-
 // register makes a container object usable by the daemon as [container.Container.ID].
 func (daemon *Daemon) register(ctx context.Context, c *container.Container) error {
 	// Attach to stdout and stderr
@@ -150,7 +143,7 @@ func (daemon *Daemon) newContainer(name string, platform ocispec.Platform, confi
 	base.Path = entrypoint
 	base.Args = args // FIXME: de-duplicate from config
 	base.Config = config
-	base.HostConfig = &containertypes.HostConfig{}
+	base.HostConfig = hostConfig
 	base.ImageID = imgID
 	base.NetworkSettings = &network.Settings{}
 	base.Name = name
@@ -212,32 +205,10 @@ func (daemon *Daemon) GetDependentContainers(c *container.Container) []*containe
 	return append(dependentContainers, slices.Collect(maps.Values(daemon.linkIndex.children(c)))...)
 }
 
-func (daemon *Daemon) setSecurityOptions(cfg *config.Config, container *container.Container, hostConfig *containertypes.HostConfig) error {
+func (daemon *Daemon) setSecurityOptions(cfg *config.Config, container *container.Container) error {
 	container.Lock()
 	defer container.Unlock()
-	return daemon.parseSecurityOpt(cfg, &container.SecurityOptions, hostConfig)
-}
-
-func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *containertypes.HostConfig, defaultReadOnlyNonRecursive bool) error {
-	// Do not lock while creating volumes since this could be calling out to external plugins
-	// Don't want to block other actions, like `docker ps` because we're waiting on an external plugin
-	if err := daemon.registerMountPoints(container, hostConfig, defaultReadOnlyNonRecursive); err != nil {
-		return err
-	}
-
-	container.Lock()
-	defer container.Unlock()
-
-	// Register any links from the host config before starting the container
-	if err := daemon.registerLinks(container, hostConfig); err != nil {
-		return err
-	}
-
-	if hostConfig != nil && hostConfig.NetworkMode == "" {
-		hostConfig.NetworkMode = networktypes.NetworkDefault
-	}
-	container.HostConfig = hostConfig
-	return nil
+	return daemon.parseSecurityOpt(cfg, &container.SecurityOptions, container.HostConfig)
 }
 
 // verifyContainerSettings performs validation of the hostconfig and config

@@ -146,9 +146,15 @@ func (b *provenanceBridge) ResolveSourceMetadata(ctx context.Context, op *pb.Sou
 		ref := strings.TrimPrefix(resp.Op.Identifier, "docker-image://")
 		ref = strings.TrimPrefix(ref, "oci-layout://")
 		b.mu.Lock()
+		var platform *ocispecs.Platform
+		if imgOpt := opt.ImageOpt; imgOpt != nil && imgOpt.Platform != nil {
+			platform = imgOpt.Platform
+		} else if ociOpt := opt.OCILayoutOpt; ociOpt != nil && ociOpt.Platform != nil {
+			platform = ociOpt.Platform
+		}
 		b.images = append(b.images, provenancetypes.ImageSource{
 			Ref:      ref,
-			Platform: opt.Platform,
+			Platform: platform,
 			Digest:   img.Digest,
 			Local:    local,
 		})

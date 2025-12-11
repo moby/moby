@@ -58,7 +58,9 @@ func (mr *ManualReader) temporality(kind InstrumentKind) metricdata.Temporality 
 }
 
 // aggregation returns what Aggregation to use for kind.
-func (mr *ManualReader) aggregation(kind InstrumentKind) Aggregation { // nolint:revive  // import-shadow for method scoped by type.
+func (mr *ManualReader) aggregation(
+	kind InstrumentKind,
+) Aggregation { // nolint:revive  // import-shadow for method scoped by type.
 	return mr.aggregationSelector(kind)
 }
 
@@ -127,7 +129,7 @@ func (mr *ManualReader) Collect(ctx context.Context, rm *metricdata.ResourceMetr
 }
 
 // MarshalLog returns logging data about the ManualReader.
-func (r *ManualReader) MarshalLog() interface{} {
+func (r *ManualReader) MarshalLog() any {
 	r.mu.Lock()
 	down := r.isShutdown
 	r.mu.Unlock()

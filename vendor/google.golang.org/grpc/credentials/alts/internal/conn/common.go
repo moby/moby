@@ -54,11 +54,10 @@ func SliceForAppend(in []byte, n int) (head, tail []byte) {
 func ParseFramedMsg(b []byte, maxLen uint32) ([]byte, []byte, error) {
 	// If the size field is not complete, return the provided buffer as
 	// remaining buffer.
-	if len(b) < MsgLenFieldSize {
+	length, sufficientBytes := parseMessageLength(b)
+	if !sufficientBytes {
 		return nil, b, nil
 	}
-	msgLenField := b[:MsgLenFieldSize]
-	length := binary.LittleEndian.Uint32(msgLenField)
 	if length > maxLen {
 		return nil, nil, fmt.Errorf("received the frame length %d larger than the limit %d", length, maxLen)
 	}
@@ -67,4 +66,15 @@ func ParseFramedMsg(b []byte, maxLen uint32) ([]byte, []byte, error) {
 		return nil, b, nil
 	}
 	return b[:MsgLenFieldSize+length], b[MsgLenFieldSize+length:], nil
+}
+
+// parseMessageLength returns the message length based on frame header. It also
+// returns a boolean indicating if the buffer contains sufficient bytes to parse
+// the length header. If there are insufficient bytes, (0, false) is returned.
+func parseMessageLength(b []byte) (uint32, bool) {
+	if len(b) < MsgLenFieldSize {
+		return 0, false
+	}
+	msgLenField := b[:MsgLenFieldSize]
+	return binary.LittleEndian.Uint32(msgLenField), true
 }

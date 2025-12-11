@@ -1,5 +1,191 @@
 # Changelog
 
+## [0.16.5](https://github.com/googleapis/google-cloud-go/compare/auth/v0.16.4...auth/v0.16.5) (2025-08-14)
+
+
+### Bug Fixes
+
+* **auth:** Improve error message for unknown credentials type ([#12673](https://github.com/googleapis/google-cloud-go/issues/12673)) ([558b164](https://github.com/googleapis/google-cloud-go/commit/558b16429f621276694405fa5f2091199f2d4c4d))
+* **auth:** Set Content-Type in userTokenProvider.exchangeToken ([#12634](https://github.com/googleapis/google-cloud-go/issues/12634)) ([1197ebc](https://github.com/googleapis/google-cloud-go/commit/1197ebcbca491f8c610da732c7361c90bc6f46d0))
+
+## [0.16.4](https://github.com/googleapis/google-cloud-go/compare/auth/v0.16.3...auth/v0.16.4) (2025-08-06)
+
+
+### Bug Fixes
+
+* **auth:** Add UseDefaultClient: true to metadata.Options ([#12666](https://github.com/googleapis/google-cloud-go/issues/12666)) ([1482191](https://github.com/googleapis/google-cloud-go/commit/1482191e88236693efef68769752638281566766)), refs [#11078](https://github.com/googleapis/google-cloud-go/issues/11078) [#12657](https://github.com/googleapis/google-cloud-go/issues/12657)
+
+## [0.16.3](https://github.com/googleapis/google-cloud-go/compare/auth/v0.16.2...auth/v0.16.3) (2025-07-17)
+
+
+### Bug Fixes
+
+* **auth:** Fix race condition in cachedTokenProvider.tokenAsync ([#12586](https://github.com/googleapis/google-cloud-go/issues/12586)) ([73867cc](https://github.com/googleapis/google-cloud-go/commit/73867ccc1e9808d65361bcfc0776bd95fe34dbb3))
+
+## [0.16.2](https://github.com/googleapis/google-cloud-go/compare/auth/v0.16.1...auth/v0.16.2) (2025-06-04)
+
+
+### Bug Fixes
+
+* **auth:** Add back DirectPath misconfiguration logging ([#11162](https://github.com/googleapis/google-cloud-go/issues/11162)) ([8d52da5](https://github.com/googleapis/google-cloud-go/commit/8d52da58da5a0ed77a0f6307d1b561bc045406a1))
+* **auth:** Remove s2a fallback option ([#12354](https://github.com/googleapis/google-cloud-go/issues/12354)) ([d5acc59](https://github.com/googleapis/google-cloud-go/commit/d5acc599cd775ddc404349e75906fa02e8ff133e))
+
+## [0.16.1](https://github.com/googleapis/google-cloud-go/compare/auth/v0.16.0...auth/v0.16.1) (2025-04-23)
+
+
+### Bug Fixes
+
+* **auth:** Clone detectopts before assigning TokenBindingType ([#11881](https://github.com/googleapis/google-cloud-go/issues/11881)) ([2167b02](https://github.com/googleapis/google-cloud-go/commit/2167b020fdc43b517c2b6ecca264a10e357ea035))
+
+## [0.16.0](https://github.com/googleapis/google-cloud-go/compare/auth/v0.15.0...auth/v0.16.0) (2025-04-14)
+
+
+### Features
+
+* **auth/credentials:** Return X.509 certificate chain as subject token ([#11948](https://github.com/googleapis/google-cloud-go/issues/11948)) ([d445a3f](https://github.com/googleapis/google-cloud-go/commit/d445a3f66272ffd5c39c4939af9bebad4582631c)), refs [#11757](https://github.com/googleapis/google-cloud-go/issues/11757)
+* **auth:** Configure DirectPath bound credentials from AllowedHardBoundTokens ([#11665](https://github.com/googleapis/google-cloud-go/issues/11665)) ([0fc40bc](https://github.com/googleapis/google-cloud-go/commit/0fc40bcf4e4673704df0973e9fa65957395d7bb4))
+
+
+### Bug Fixes
+
+* **auth:** Allow non-default SA credentials for DP ([#11828](https://github.com/googleapis/google-cloud-go/issues/11828)) ([3a996b4](https://github.com/googleapis/google-cloud-go/commit/3a996b4129e6d0a34dfda6671f535d5aefb26a82))
+* **auth:** Restore calling DialContext ([#11930](https://github.com/googleapis/google-cloud-go/issues/11930)) ([9ec9a29](https://github.com/googleapis/google-cloud-go/commit/9ec9a29494e93197edbaf45aba28984801e9770a)), refs [#11118](https://github.com/googleapis/google-cloud-go/issues/11118)
+
+## [0.15.0](https://github.com/googleapis/google-cloud-go/compare/auth/v0.14.1...auth/v0.15.0) (2025-02-19)
+
+
+### Features
+
+* **auth:** Add hard-bound token request to compute token provider. ([#11588](https://github.com/googleapis/google-cloud-go/issues/11588)) ([0e608bb](https://github.com/googleapis/google-cloud-go/commit/0e608bb5ac3d694c8ad36ca4340071d3a2c78699))
+
+## [0.14.1](https://github.com/googleapis/google-cloud-go/compare/auth/v0.14.0...auth/v0.14.1) (2025-01-24)
+
+
+### Documentation
+
+* **auth:** Add warning about externally-provided credentials ([#11462](https://github.com/googleapis/google-cloud-go/issues/11462)) ([49fb6ff](https://github.com/googleapis/google-cloud-go/commit/49fb6ff4d754895f82c9c4d502fc7547d3b5a941))
+
+## [0.14.0](https://github.com/googleapis/google-cloud-go/compare/auth/v0.13.0...auth/v0.14.0) (2025-01-08)
+
+
+### Features
+
+* **auth:** Add universe domain support to idtoken ([#11059](https://github.com/googleapis/google-cloud-go/issues/11059)) ([72add7e](https://github.com/googleapis/google-cloud-go/commit/72add7e9f8f455af695e8ef79212a4bd3122fb3a))
+
+
+### Bug Fixes
+
+* **auth/oauth2adapt:** Update golang.org/x/net to v0.33.0 ([e9b0b69](https://github.com/googleapis/google-cloud-go/commit/e9b0b69644ea5b276cacff0a707e8a5e87efafc9))
+* **auth:** Fix copy of delegates in impersonate.NewIDTokenCredentials ([#11386](https://github.com/googleapis/google-cloud-go/issues/11386)) ([ff7ef8e](https://github.com/googleapis/google-cloud-go/commit/ff7ef8e7ade7171bce3e4f30ff10a2e9f6c27ca0)), refs [#11379](https://github.com/googleapis/google-cloud-go/issues/11379)
+* **auth:** Update golang.org/x/net to v0.33.0 ([e9b0b69](https://github.com/googleapis/google-cloud-go/commit/e9b0b69644ea5b276cacff0a707e8a5e87efafc9))
+
+## [0.13.0](https://github.com/googleapis/google-cloud-go/compare/auth/v0.12.1...auth/v0.13.0) (2024-12-13)
+
+
+### Features
+
+* **auth:** Add logging support ([#11079](https://github.com/googleapis/google-cloud-go/issues/11079)) ([c80e31d](https://github.com/googleapis/google-cloud-go/commit/c80e31df5ecb33a810be3dfb9d9e27ac531aa91d))
+* **auth:** Pass logger from auth layer to metadata package ([#11288](https://github.com/googleapis/google-cloud-go/issues/11288)) ([b552efd](https://github.com/googleapis/google-cloud-go/commit/b552efd6ab34e5dfded18438e0fbfd925805614f))
+
+
+### Bug Fixes
+
+* **auth:** Check compute cred type before non-default flag for DP ([#11255](https://github.com/googleapis/google-cloud-go/issues/11255)) ([4347ca1](https://github.com/googleapis/google-cloud-go/commit/4347ca141892be8ae813399b4b437662a103bc90))
+
+## [0.12.1](https://github.com/googleapis/google-cloud-go/compare/auth/v0.12.0...auth/v0.12.1) (2024-12-10)
+
+
+### Bug Fixes
+
+* **auth:** Correct typo in link ([#11160](https://github.com/googleapis/google-cloud-go/issues/11160)) ([af6fb46](https://github.com/googleapis/google-cloud-go/commit/af6fb46d7cd694ddbe8c9d63bc4cdcd62b9fb2c1))
+
+## [0.12.0](https://github.com/googleapis/google-cloud-go/compare/auth/v0.11.0...auth/v0.12.0) (2024-12-04)
+
+
+### Features
+
+* **auth:** Add support for providing custom certificate URL ([#11006](https://github.com/googleapis/google-cloud-go/issues/11006)) ([ebf3657](https://github.com/googleapis/google-cloud-go/commit/ebf36579724afb375d3974cf1da38f703e3b7dbc)), refs [#11005](https://github.com/googleapis/google-cloud-go/issues/11005)
+
+
+### Bug Fixes
+
+* **auth:** Ensure endpoints are present in Validator ([#11209](https://github.com/googleapis/google-cloud-go/issues/11209)) ([106cd53](https://github.com/googleapis/google-cloud-go/commit/106cd53309facaef1b8ea78376179f523f6912b9)), refs [#11006](https://github.com/googleapis/google-cloud-go/issues/11006) [#11190](https://github.com/googleapis/google-cloud-go/issues/11190) [#11189](https://github.com/googleapis/google-cloud-go/issues/11189) [#11188](https://github.com/googleapis/google-cloud-go/issues/11188)
+
+## [0.11.0](https://github.com/googleapis/google-cloud-go/compare/auth/v0.10.2...auth/v0.11.0) (2024-11-21)
+
+
+### Features
+
+* **auth:** Add universe domain support to mTLS ([#11159](https://github.com/googleapis/google-cloud-go/issues/11159)) ([117748b](https://github.com/googleapis/google-cloud-go/commit/117748ba1cfd4ae62a6a4feb7e30951cb2bc9344))
+
+## [0.10.2](https://github.com/googleapis/google-cloud-go/compare/auth/v0.10.1...auth/v0.10.2) (2024-11-12)
+
+
+### Bug Fixes
+
+* **auth:** Restore use of grpc.Dial ([#11118](https://github.com/googleapis/google-cloud-go/issues/11118)) ([2456b94](https://github.com/googleapis/google-cloud-go/commit/2456b943b7b8aaabd4d8bfb7572c0f477ae0db45)), refs [#7556](https://github.com/googleapis/google-cloud-go/issues/7556)
+
+## [0.10.1](https://github.com/googleapis/google-cloud-go/compare/auth/v0.10.0...auth/v0.10.1) (2024-11-06)
+
+
+### Bug Fixes
+
+* **auth:** Restore Application Default Credentials support to idtoken ([#11083](https://github.com/googleapis/google-cloud-go/issues/11083)) ([8771f2e](https://github.com/googleapis/google-cloud-go/commit/8771f2ea9807ab822083808e0678392edff3b4f2))
+* **auth:** Skip impersonate universe domain check if empty ([#11086](https://github.com/googleapis/google-cloud-go/issues/11086)) ([87159c1](https://github.com/googleapis/google-cloud-go/commit/87159c1059d4a18d1367ce62746a838a94964ab6))
+
+## [0.10.0](https://github.com/googleapis/google-cloud-go/compare/auth/v0.9.9...auth/v0.10.0) (2024-10-30)
+
+
+### Features
+
+* **auth:** Add universe domain support to credentials/impersonate ([#10953](https://github.com/googleapis/google-cloud-go/issues/10953)) ([e06cb64](https://github.com/googleapis/google-cloud-go/commit/e06cb6499f7eda3aef08ab18ff197016f667684b))
+
+## [0.9.9](https://github.com/googleapis/google-cloud-go/compare/auth/v0.9.8...auth/v0.9.9) (2024-10-22)
+
+
+### Bug Fixes
+
+* **auth:** Fallback cert lookups for missing files ([#11013](https://github.com/googleapis/google-cloud-go/issues/11013)) ([bd76695](https://github.com/googleapis/google-cloud-go/commit/bd766957ec238b7c40ddbabb369e612dc9b07313)), refs [#10844](https://github.com/googleapis/google-cloud-go/issues/10844)
+* **auth:** Replace MDS endpoint universe_domain with universe-domain ([#11000](https://github.com/googleapis/google-cloud-go/issues/11000)) ([6a1586f](https://github.com/googleapis/google-cloud-go/commit/6a1586f2ce9974684affaea84e7b629313b4d114))
+
+## [0.9.8](https://github.com/googleapis/google-cloud-go/compare/auth/v0.9.7...auth/v0.9.8) (2024-10-09)
+
+
+### Bug Fixes
+
+* **auth:** Restore OpenTelemetry handling in transports ([#10968](https://github.com/googleapis/google-cloud-go/issues/10968)) ([08c6d04](https://github.com/googleapis/google-cloud-go/commit/08c6d04901c1a20e219b2d86df41dbaa6d7d7b55)), refs [#10962](https://github.com/googleapis/google-cloud-go/issues/10962)
+* **auth:** Try talk to plaintext S2A if credentials can not be found for mTLS-S2A ([#10941](https://github.com/googleapis/google-cloud-go/issues/10941)) ([0f0bf2d](https://github.com/googleapis/google-cloud-go/commit/0f0bf2d18c97dd8b65bcf0099f0802b5631c6287))
+
+## [0.9.7](https://github.com/googleapis/google-cloud-go/compare/auth/v0.9.6...auth/v0.9.7) (2024-10-01)
+
+
+### Bug Fixes
+
+* **auth:** Restore support for non-default service accounts for DirectPath ([#10937](https://github.com/googleapis/google-cloud-go/issues/10937)) ([a38650e](https://github.com/googleapis/google-cloud-go/commit/a38650edbf420223077498cafa537aec74b37aad)), refs [#10907](https://github.com/googleapis/google-cloud-go/issues/10907)
+
+## [0.9.6](https://github.com/googleapis/google-cloud-go/compare/auth/v0.9.5...auth/v0.9.6) (2024-09-30)
+
+
+### Bug Fixes
+
+* **auth:** Make aws credentials provider retrieve fresh credentials ([#10920](https://github.com/googleapis/google-cloud-go/issues/10920)) ([250fbf8](https://github.com/googleapis/google-cloud-go/commit/250fbf87d858d865e399a241b7e537c4ff0c3dd8))
+
+## [0.9.5](https://github.com/googleapis/google-cloud-go/compare/auth/v0.9.4...auth/v0.9.5) (2024-09-25)
+
+
+### Bug Fixes
+
+* **auth:** Restore support for GOOGLE_CLOUD_UNIVERSE_DOMAIN env ([#10915](https://github.com/googleapis/google-cloud-go/issues/10915)) ([94caaaa](https://github.com/googleapis/google-cloud-go/commit/94caaaa061362d0e00ef6214afcc8a0a3e7ebfb2))
+* **auth:** Skip directpath credentials overwrite when it's not on GCE ([#10833](https://github.com/googleapis/google-cloud-go/issues/10833)) ([7e5e8d1](https://github.com/googleapis/google-cloud-go/commit/7e5e8d10b761b0a6e43e19a028528db361bc07b1))
+* **auth:** Use new context for non-blocking token refresh ([#10919](https://github.com/googleapis/google-cloud-go/issues/10919)) ([cf7102d](https://github.com/googleapis/google-cloud-go/commit/cf7102d33a21be1e5a9d47a49456b3a57c43b350))
+
+## [0.9.4](https://github.com/googleapis/google-cloud-go/compare/auth/v0.9.3...auth/v0.9.4) (2024-09-11)
+
+
+### Bug Fixes
+
+* **auth:** Enable self-signed JWT for non-GDU universe domain ([#10831](https://github.com/googleapis/google-cloud-go/issues/10831)) ([f9869f7](https://github.com/googleapis/google-cloud-go/commit/f9869f7903cfd34d1b97c25d0dc5669d2c5138e6))
+
 ## [0.9.3](https://github.com/googleapis/google-cloud-go/compare/auth/v0.9.2...auth/v0.9.3) (2024-09-03)
 
 

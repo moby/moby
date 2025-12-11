@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -17,19 +16,19 @@ func TestNetworkConnectError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.NetworkConnect(context.Background(), "network_id", NetworkConnectOptions{
+	_, err = client.NetworkConnect(t.Context(), "network_id", NetworkConnectOptions{
 		Container: "container_id",
 	})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	// Empty network ID or container ID
-	_, err = client.NetworkConnect(context.Background(), "", NetworkConnectOptions{
+	_, err = client.NetworkConnect(t.Context(), "", NetworkConnectOptions{
 		Container: "container_id",
 	})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.NetworkConnect(context.Background(), "network_id", NetworkConnectOptions{})
+	_, err = client.NetworkConnect(t.Context(), "network_id", NetworkConnectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -59,7 +58,7 @@ func TestNetworkConnectEmptyNilEndpointSettings(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	_, err = client.NetworkConnect(context.Background(), "network_id", NetworkConnectOptions{
+	_, err = client.NetworkConnect(t.Context(), "network_id", NetworkConnectOptions{
 		Container: "container_id",
 	})
 	assert.NilError(t, err)
@@ -94,7 +93,7 @@ func TestNetworkConnect(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	_, err = client.NetworkConnect(context.Background(), "network_id", NetworkConnectOptions{
+	_, err = client.NetworkConnect(t.Context(), "network_id", NetworkConnectOptions{
 		Container: "container_id",
 		EndpointConfig: &network.EndpointSettings{
 			NetworkID: "NetworkID",

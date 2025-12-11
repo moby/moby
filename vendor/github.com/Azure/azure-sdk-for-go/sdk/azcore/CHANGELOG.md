@@ -1,5 +1,38 @@
 # Release History
 
+## 1.18.2 (2025-07-31)
+
+### Bugs Fixed
+
+* Fixed a case in which `BearerTokenPolicy` didn't ensure an authentication error is non-retriable
+
+## 1.18.1 (2025-07-10)
+
+### Bugs Fixed
+
+* Fixed incorrect request/response logging try info when logging a request that's being retried.
+* Fixed a data race in `ResourceID.String()`
+
+## 1.18.0 (2025-04-03)
+
+### Features Added
+
+* Added `AccessToken.RefreshOn` and updated `BearerTokenPolicy` to consider nonzero values of it when deciding whether to request a new token
+
+## 1.17.1 (2025-03-20)
+
+### Other Changes
+
+* Upgraded to Go 1.23
+* Upgraded dependencies
+
+## 1.17.0 (2025-01-07)
+
+### Features Added
+
+* Added field `OperationLocationResultPath` to `runtime.NewPollerOptions[T]` for LROs that use the `Operation-Location` pattern.
+* Support `encoding.TextMarshaler` and `encoding.TextUnmarshaler` interfaces in `arm.ResourceID`.
+
 ## 1.16.0 (2024-10-17)
 
 ### Features Added

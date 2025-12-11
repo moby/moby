@@ -8,10 +8,8 @@ https://docs.docker.com/reference/api/engine/
 
 You use the library by constructing a client object using [New]
 and calling methods on it. The client can be configured from environment
-variables by passing the [FromEnv] option, and the [WithAPIVersionNegotiation]
-option to allow downgrading the API version used when connecting with an older
-daemon version. Other options cen be configured manually by passing any of
-the available [Opt] options.
+variables by passing the [FromEnv] option. Other options can be configured
+manually by passing any of the available [Opt] options.
 
 For example, to list running containers (the equivalent of "docker ps"):
 
@@ -30,7 +28,7 @@ For example, to list running containers (the equivalent of "docker ps"):
 		// for configuration (DOCKER_HOST, DOCKER_API_VERSION), and does
 		// API-version negotiation to allow downgrading the API version
 		// when connecting with an older daemon version.
-		apiClient, err := client.New(client.FromEnv, client.WithAPIVersionNegotiation())
+		apiClient, err := client.New(client.FromEnv)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -103,18 +101,16 @@ import (
 const DummyHost = "api.moby.localhost"
 
 // MaxAPIVersion is the highest REST API version supported by the client.
-// If API-version negotiation is enabled (see [WithAPIVersionNegotiation],
-// [Client.NegotiateAPIVersion]), the client may downgrade its API version.
-// Similarly, the [WithVersion] and [WithVersionFromEnv] allow overriding
-// the version.
+// If API-version negotiation is enabled, the client may downgrade its API version.
+// Similarly, the [WithAPIVersion] and [WithAPIVersionFromEnv] options allow
+// overriding the version and disable API-version negotiation.
 //
 // This version may be lower than the version of the api library module used.
 const MaxAPIVersion = "1.52"
 
-// fallbackAPIVersion is the version to fall back to if API-version negotiation
-// fails. API versions below this version are not supported by the client,
-// and not considered when negotiating.
-const fallbackAPIVersion = "1.44"
+// MinAPIVersion is the minimum API version supported by the client. API versions
+// below this version are not considered when performing API-version negotiation.
+const MinAPIVersion = "1.44"
 
 // Ensure that Client always implements APIClient.
 var _ APIClient = &Client{}
@@ -174,8 +170,13 @@ func NewClientWithOpts(ops ...Opt) (*Client, error) {
 // It takes an optional list of [Opt] functional arguments, which are applied in
 // the order they're provided, which allows modifying the defaults when creating
 // the client. For example, the following initializes a client that configures
-// itself with values from environment variables ([FromEnv]), and has automatic
-// API version negotiation enabled ([WithAPIVersionNegotiation]).
+// itself with values from environment variables ([FromEnv]).
+//
+// By default, the client automatically negotiates the API version to use when
+// making requests. API version negotiation is performed on the first request;
+// subsequent requests do not re-negotiate. Use [WithAPIVersion] or
+// [WithAPIVersionFromEnv] to configure the client with a fixed API version
+// and disable API version negotiation.
 //
 //	cli, err := client.New(
 //		client.FromEnv,
@@ -211,6 +212,12 @@ func New(ops ...Opt) (*Client, error) {
 		if err := op(cfg); err != nil {
 			return nil, err
 		}
+	}
+
+	if cfg.envAPIVersion != "" {
+		c.setAPIVersion(cfg.envAPIVersion)
+	} else if cfg.manualAPIVersion != "" {
+		c.setAPIVersion(cfg.manualAPIVersion)
 	}
 
 	if tr, ok := c.client.Transport.(*http.Transport); ok {
@@ -278,7 +285,7 @@ func (cli *Client) Close() error {
 // be negotiated when making the actual requests, and for which cases
 // we cannot do the negotiation lazily.
 func (cli *Client) checkVersion(ctx context.Context) error {
-	if cli.manualOverride || !cli.negotiateVersion || cli.negotiated.Load() {
+	if cli.negotiated.Load() {
 		return nil
 	}
 	_, err := cli.Ping(ctx, PingOptions{
@@ -306,34 +313,45 @@ func (cli *Client) ClientVersion() string {
 }
 
 // negotiateAPIVersion updates the version to match the API version from
-// the ping response. It falls back to the lowest version supported if the
-// API version is empty, or returns an error if the API version is lower than
-// the lowest supported API version, in which case the version is not modified.
+// the ping response.
+//
+// It returns an error if version is invalid, or lower than the minimum
+// supported API version in which case the client's API version is not
+// updated, and negotiation is not marked as completed.
 func (cli *Client) negotiateAPIVersion(pingVersion string) error {
-	pingVersion = strings.TrimPrefix(pingVersion, "v")
-	if pingVersion == "" {
-		// TODO(thaJeztah): consider returning an error on empty value or not falling back; see https://github.com/moby/moby/pull/51119#discussion_r2413148487
-		pingVersion = fallbackAPIVersion
-	} else if versions.LessThan(pingVersion, fallbackAPIVersion) {
-		return cerrdefs.ErrInvalidArgument.WithMessage(fmt.Sprintf("API version %s is not supported by this client: the minimum supported API version is %s", pingVersion, fallbackAPIVersion))
+	var err error
+	pingVersion, err = parseAPIVersion(pingVersion)
+	if err != nil {
+		return err
+	}
+
+	if versions.LessThan(pingVersion, MinAPIVersion) {
+		return cerrdefs.ErrInvalidArgument.WithMessage(fmt.Sprintf("API version %s is not supported by this client: the minimum supported API version is %s", pingVersion, MinAPIVersion))
 	}
 
 	// if the client is not initialized with a version, start with the latest supported version
-	if cli.version == "" {
-		cli.version = MaxAPIVersion
+	negotiatedVersion := cli.version
+	if negotiatedVersion == "" {
+		negotiatedVersion = MaxAPIVersion
 	}
 
 	// if server version is lower than the client version, downgrade
-	if versions.LessThan(pingVersion, cli.version) {
-		cli.version = pingVersion
+	if versions.LessThan(pingVersion, negotiatedVersion) {
+		negotiatedVersion = pingVersion
 	}
 
 	// Store the results, so that automatic API version negotiation (if enabled)
 	// won't be performed on the next request.
-	if cli.negotiateVersion {
-		cli.negotiated.Store(true)
-	}
+	cli.setAPIVersion(negotiatedVersion)
 	return nil
+}
+
+// setAPIVersion sets the client's API version and marks API version negotiation
+// as completed, so that automatic API version negotiation (if enabled) won't
+// be performed on the next request.
+func (cli *Client) setAPIVersion(version string) {
+	cli.version = version
+	cli.negotiated.Store(true)
 }
 
 // DaemonHost returns the host address used by the client

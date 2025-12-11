@@ -133,7 +133,7 @@ func TestLegacyDiskUsage(t *testing.T) {
 	const legacyVersion = "1.51"
 	const expectedURL = "/system/df"
 	client, err := New(
-		WithVersion(legacyVersion),
+		WithAPIVersion(legacyVersion),
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodGet, "/v"+legacyVersion+expectedURL); err != nil {
 				return nil, err

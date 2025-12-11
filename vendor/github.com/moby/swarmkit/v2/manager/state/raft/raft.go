@@ -30,8 +30,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/etcd/pkg/v3/idutil"
-	"go.etcd.io/etcd/raft/v3"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	"go.etcd.io/raft/v3"
+	"go.etcd.io/raft/v3/raftpb"
 	"golang.org/x/time/rate"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -948,11 +948,11 @@ func (n *Node) Join(ctx context.Context, req *api.JoinRequest) (*api.JoinRespons
 	defer n.membershipLock.Unlock()
 
 	if !n.IsMember() {
-		return nil, status.Errorf(codes.FailedPrecondition, "%s", ErrNoRaftMember.Error())
+		return nil, status.Error(codes.FailedPrecondition, ErrNoRaftMember.Error())
 	}
 
 	if !n.isLeader() {
-		return nil, status.Errorf(codes.FailedPrecondition, "%s", ErrLostLeadership.Error())
+		return nil, status.Error(codes.FailedPrecondition, ErrLostLeadership.Error())
 	}
 
 	remoteAddr := req.Addr
@@ -1365,8 +1365,8 @@ func (n *Node) StreamRaftMessage(stream api.Raft_StreamRaftMessageServer) error 
 		if recvdMsg.Message.Index != raftMsgIndex {
 			errMsg := fmt.Sprintf("Raft message chunk with index %d is different from the previously received raft message index %d",
 				recvdMsg.Message.Index, raftMsgIndex)
-			log.G(stream.Context()).Errorf(errMsg)
-			return status.Errorf(codes.InvalidArgument, "%s", errMsg)
+			log.G(stream.Context()).Error(errMsg)
+			return status.Error(codes.InvalidArgument, errMsg)
 		}
 
 		// Verify that multiple message received on a stream
@@ -1374,8 +1374,8 @@ func (n *Node) StreamRaftMessage(stream api.Raft_StreamRaftMessageServer) error 
 		if recvdMsg.Message.Type != raftpb.MsgSnap {
 			errMsg := fmt.Sprintf("Raft message chunk is not of type %d",
 				raftpb.MsgSnap)
-			log.G(stream.Context()).Errorf(errMsg)
-			return status.Errorf(codes.InvalidArgument, "%s", errMsg)
+			log.G(stream.Context()).Error(errMsg)
+			return status.Error(codes.InvalidArgument, errMsg)
 		}
 
 		// Append the received snapshot data.
@@ -1408,7 +1408,7 @@ func (n *Node) ProcessRaftMessage(ctx context.Context, msg *api.ProcessRaftMessa
 	// a node in the remove set
 	if n.cluster.IsIDRemoved(msg.Message.From) {
 		n.processRaftMessageLogger(ctx, msg).Debug("received message from removed member")
-		return nil, status.Errorf(codes.NotFound, "%s", membership.ErrMemberRemoved.Error())
+		return nil, status.Error(codes.NotFound, membership.ErrMemberRemoved.Error())
 	}
 
 	ctx, cancel := n.WithContext(ctx)
@@ -1988,7 +1988,7 @@ func (n *Node) applyAddNode(cc raftpb.ConfChange) error {
 
 // applyUpdateNode is called when we receive a ConfChange from a member in the
 // raft cluster which update the address of an existing node.
-func (n *Node) applyUpdateNode(ctx context.Context, cc raftpb.ConfChange) error {
+func (n *Node) applyUpdateNode(_ context.Context, cc raftpb.ConfChange) error {
 	newMember := &api.RaftMember{}
 	err := proto.Unmarshal(cc.Context, newMember)
 	if err != nil {

@@ -104,15 +104,16 @@ func ImportIndex(ctx context.Context, store content.Store, reader io.Reader, opt
 		}
 
 		hdrName := path.Clean(hdr.Name)
-		if hdrName == ocispec.ImageLayoutFile {
+		switch hdrName {
+		case ocispec.ImageLayoutFile:
 			if err = onUntarJSON(tr, &ociLayout); err != nil {
 				return ocispec.Descriptor{}, fmt.Errorf("untar oci layout %q: %w", hdr.Name, err)
 			}
-		} else if hdrName == "manifest.json" {
+		case "manifest.json":
 			if err = onUntarJSON(tr, &mfsts); err != nil {
 				return ocispec.Descriptor{}, fmt.Errorf("untar manifest %q: %w", hdr.Name, err)
 			}
-		} else {
+		default:
 			dgst, err := onUntarBlob(ctx, tr, store, hdr.Size, "tar-"+hdrName)
 			if err != nil {
 				return ocispec.Descriptor{}, fmt.Errorf("failed to ingest %q: %w", hdr.Name, err)

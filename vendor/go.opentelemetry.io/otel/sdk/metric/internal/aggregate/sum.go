@@ -70,7 +70,9 @@ type sum[N int64 | float64] struct {
 	start     time.Time
 }
 
-func (s *sum[N]) delta(dest *metricdata.Aggregation) int {
+func (s *sum[N]) delta(
+	dest *metricdata.Aggregation, //nolint:gocritic // The pointer is needed for the ComputeAggregation interface
+) int {
 	t := now()
 
 	// If *dest is not a metricdata.Sum, memory reuse is missed. In that case,
@@ -105,7 +107,9 @@ func (s *sum[N]) delta(dest *metricdata.Aggregation) int {
 	return n
 }
 
-func (s *sum[N]) cumulative(dest *metricdata.Aggregation) int {
+func (s *sum[N]) cumulative(
+	dest *metricdata.Aggregation, //nolint:gocritic // The pointer is needed for the ComputeAggregation interface
+) int {
 	t := now()
 
 	// If *dest is not a metricdata.Sum, memory reuse is missed. In that case,
@@ -143,7 +147,11 @@ func (s *sum[N]) cumulative(dest *metricdata.Aggregation) int {
 // newPrecomputedSum returns an aggregator that summarizes a set of
 // observations as their arithmetic sum. Each sum is scoped by attributes and
 // the aggregation cycle the measurements were made in.
-func newPrecomputedSum[N int64 | float64](monotonic bool, limit int, r func(attribute.Set) FilteredExemplarReservoir[N]) *precomputedSum[N] {
+func newPrecomputedSum[N int64 | float64](
+	monotonic bool,
+	limit int,
+	r func(attribute.Set) FilteredExemplarReservoir[N],
+) *precomputedSum[N] {
 	return &precomputedSum[N]{
 		valueMap:  newValueMap[N](limit, r),
 		monotonic: monotonic,
@@ -161,7 +169,9 @@ type precomputedSum[N int64 | float64] struct {
 	reported map[attribute.Distinct]N
 }
 
-func (s *precomputedSum[N]) delta(dest *metricdata.Aggregation) int {
+func (s *precomputedSum[N]) delta(
+	dest *metricdata.Aggregation, //nolint:gocritic // The pointer is needed for the ComputeAggregation interface
+) int {
 	t := now()
 	newReported := make(map[attribute.Distinct]N)
 
@@ -202,7 +212,9 @@ func (s *precomputedSum[N]) delta(dest *metricdata.Aggregation) int {
 	return n
 }
 
-func (s *precomputedSum[N]) cumulative(dest *metricdata.Aggregation) int {
+func (s *precomputedSum[N]) cumulative(
+	dest *metricdata.Aggregation, //nolint:gocritic // The pointer is needed for the ComputeAggregation interface
+) int {
 	t := now()
 
 	// If *dest is not a metricdata.Sum, memory reuse is missed. In that case,

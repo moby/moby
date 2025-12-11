@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -16,7 +15,7 @@ func TestServiceListError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.ServiceList(context.Background(), ServiceListOptions{})
+	_, err = client.ServiceList(t.Context(), ServiceListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -62,7 +61,7 @@ func TestServiceList(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 
-		list, err := client.ServiceList(context.Background(), listCase.options)
+		list, err := client.ServiceList(t.Context(), listCase.options)
 		assert.NilError(t, err)
 		assert.Check(t, is.Len(list.Items, 2))
 	}

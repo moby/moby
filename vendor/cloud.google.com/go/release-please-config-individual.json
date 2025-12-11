@@ -5,12 +5,6 @@
   "separate-pull-requests": true,
   "tag-separator": "/",
   "packages": {
-    "ai": {
-      "component": "ai"
-    },
-    "aiplatform": {
-      "component": "aiplatform"
-    },
     "auth": {
       "component": "auth"
     },
@@ -19,6 +13,11 @@
     },
     "bigquery": {
       "component": "bigquery"
+    },
+    "bigquery/v2": {
+      "component": "bigquery/v2",
+      "prerelease": true,
+      "prerelease-type": "alpha"
     },
     "bigtable": {
       "component": "bigtable"
@@ -40,6 +39,9 @@
     },
     "pubsub": {
       "component": "pubsub"
+    },
+    "pubsub/v2": {
+      "component": "pubsub/v2"
     },
     "pubsublite": {
       "component": "pubsublite"

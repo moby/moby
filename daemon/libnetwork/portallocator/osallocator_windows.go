@@ -64,7 +64,7 @@ func (pa *OSAllocator) AllocateHostPort(hostIP net.IP, proto types.Protocol, hos
 		return 0, fmt.Errorf("invalid HostIP: %s", hostIP)
 	}
 
-	hAddrPort := netip.AddrPortFrom(addr, uint16(allocatedHostPort))
+	hAddrPort := netip.AddrPortFrom(addr.Unmap(), uint16(allocatedHostPort))
 	if _, exists := pa.osListeners[proto][hAddrPort]; exists {
 		return 0, ErrPortMappedForIP
 	}
@@ -132,7 +132,7 @@ func (pa *OSAllocator) Deallocate(hostIP net.IP, proto types.Protocol, hostPort 
 		return ErrPortNotMapped
 	}
 
-	hAddrPort := netip.AddrPortFrom(addr, uint16(hostPort))
+	hAddrPort := netip.AddrPortFrom(addr.Unmap(), uint16(hostPort))
 	osListener, exists := pa.osListeners[proto][hAddrPort]
 	if !exists {
 		return ErrPortNotMapped

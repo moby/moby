@@ -146,8 +146,8 @@ func Image(ref string, opts ...ImageOption) State {
 					p = c.Platform
 				}
 				_, _, dt, err := info.metaResolver.ResolveImageConfig(ctx, ref, sourceresolver.Opt{
-					Platform: p,
 					ImageOpt: &sourceresolver.ResolveImageOpt{
+						Platform:    p,
 						ResolveMode: info.resolveMode.String(),
 					},
 				})
@@ -163,8 +163,8 @@ func Image(ref string, opts ...ImageOption) State {
 				p = c.Platform
 			}
 			ref, dgst, dt, err := info.metaResolver.ResolveImageConfig(context.TODO(), ref, sourceresolver.Opt{
-				Platform: p,
 				ImageOpt: &sourceresolver.ResolveImageOpt{
+					Platform:    p,
 					ResolveMode: info.resolveMode.String(),
 				},
 			})

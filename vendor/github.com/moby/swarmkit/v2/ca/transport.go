@@ -59,7 +59,7 @@ func (c *MutableTLSCreds) OverrideServerName(name string) error {
 }
 
 // GetRequestMetadata implements the credentials.TransportCredentials interface
-func (c *MutableTLSCreds) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
+func (c *MutableTLSCreds) GetRequestMetadata(_ context.Context, _ ...string) (map[string]string, error) {
 	return nil, nil
 }
 

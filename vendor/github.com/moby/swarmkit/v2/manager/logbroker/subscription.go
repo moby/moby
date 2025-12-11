@@ -84,7 +84,7 @@ func (s *subscription) Stop() {
 	}
 }
 
-func (s *subscription) Wait(ctx context.Context) <-chan struct{} {
+func (s *subscription) Wait(_ context.Context) <-chan struct{} {
 	// Follow subscriptions never end
 	if s.follow() {
 		return nil

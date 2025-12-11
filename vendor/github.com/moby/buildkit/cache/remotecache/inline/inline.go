@@ -8,6 +8,7 @@ import (
 	"github.com/containerd/containerd/v2/pkg/labels"
 	"github.com/moby/buildkit/cache/remotecache"
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
+	cacheimporttypes "github.com/moby/buildkit/cache/remotecache/v1/types"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/util/bklog"
@@ -122,7 +123,7 @@ func (ce *exporter) ExportForLayers(ctx context.Context, layers []digest.Digest)
 			} else {
 				// The layers of the result are not in the same order as the image, so we
 				// have to use ChainedResult to specify each layer of the result individually.
-				chainedResult := v1.ChainedResult{}
+				chainedResult := cacheimporttypes.ChainedResult{}
 				for _, resultBlob := range resultBlobs {
 					idx, ok := blobIndexes[resultBlob]
 					if !ok {
@@ -130,13 +131,13 @@ func (ce *exporter) ExportForLayers(ctx context.Context, layers []digest.Digest)
 					}
 					chainedResult.LayerIndexes = append(chainedResult.LayerIndexes, idx)
 				}
-				r.Results[j] = v1.CacheResult{}
+				r.Results[j] = cacheimporttypes.CacheResult{}
 				r.ChainedResults = append(r.ChainedResults, chainedResult)
 			}
 			// remove any CacheResults that had to be converted to the ChainedResult format.
-			var filteredResults []v1.CacheResult
+			var filteredResults []cacheimporttypes.CacheResult
 			for _, rr := range r.Results {
-				if rr != (v1.CacheResult{}) {
+				if rr != (cacheimporttypes.CacheResult{}) {
 					filteredResults = append(filteredResults, rr)
 				}
 			}
@@ -154,7 +155,7 @@ func (ce *exporter) ExportForLayers(ctx context.Context, layers []digest.Digest)
 	return dt, nil
 }
 
-func layerToBlobs(idx int, layers []v1.CacheLayer) []digest.Digest {
+func layerToBlobs(idx int, layers []cacheimporttypes.CacheLayer) []digest.Digest {
 	var ds []digest.Digest
 	for idx != -1 {
 		layer := layers[idx]

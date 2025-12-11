@@ -21,7 +21,7 @@ type decisionTree struct {
 // of the decision tree.
 //
 // The caller may modify the nodes in the returned slice.
-func (dt *decisionTree) orderedNodes(meetsConstraints func(*NodeInfo) bool, nodeLess func(*NodeInfo, *NodeInfo) bool) []NodeInfo {
+func (dt *decisionTree) orderedNodes(meetsConstraints func(*NodeInfo) bool, _ func(*NodeInfo, *NodeInfo) bool) []NodeInfo {
 	if dt.nodeHeap.length != len(dt.nodeHeap.nodes) {
 		// We already collapsed the heap into a sorted slice, so
 		// re-heapify. There may have been modifications to the nodes

@@ -194,9 +194,9 @@ func TestInspectCfgdMAC(t *testing.T) {
 
 			var copts []client.Opt
 			if tc.ctrWide {
-				copts = append(copts, client.WithVersion("1.43"))
+				copts = append(copts, client.WithAPIVersion("1.43"))
 			} else {
-				copts = append(copts, client.WithVersion("1.51"))
+				copts = append(copts, client.WithAPIVersion("1.51"))
 			}
 			c := d.NewClientT(t, copts...)
 			defer c.Close()
@@ -267,7 +267,7 @@ func TestWatchtowerCreate(t *testing.T) {
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
-	c := d.NewClientT(t, client.WithVersion("1.25"))
+	c := d.NewClientT(t, client.WithAPIVersion("1.25"))
 	defer c.Close()
 
 	// Create a "/29" network, with a single address in iprange for IPAM to

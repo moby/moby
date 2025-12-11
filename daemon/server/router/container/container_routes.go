@@ -101,23 +101,23 @@ func (c *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 		return err
 	}
 
-	config := &backend.ContainerListOptions{
+	var limit int
+	if tmpLimit := r.Form.Get("limit"); tmpLimit != "" {
+		val, err := strconv.Atoi(tmpLimit)
+		if err != nil {
+			return err
+		}
+		limit = val
+	}
+
+	containers, err := c.backend.Containers(ctx, &backend.ContainerListOptions{
 		All:     httputils.BoolValue(r, "all"),
 		Size:    httputils.BoolValue(r, "size"),
 		Since:   r.Form.Get("since"),
 		Before:  r.Form.Get("before"),
+		Limit:   limit,
 		Filters: filter,
-	}
-
-	if tmpLimit := r.Form.Get("limit"); tmpLimit != "" {
-		limit, err := strconv.Atoi(tmpLimit)
-		if err != nil {
-			return err
-		}
-		config.Limit = limit
-	}
-
-	containers, err := c.backend.Containers(ctx, config)
+	})
 	if err != nil {
 		return err
 	}
@@ -125,22 +125,22 @@ func (c *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 	version := httputils.VersionFromContext(ctx)
 
 	if versions.LessThan(version, "1.46") {
-		for _, c := range containers {
+		for i := range containers {
 			// Ignore HostConfig.Annotations because it was added in API v1.46.
-			c.HostConfig.Annotations = nil
+			containers[i].HostConfig.Annotations = nil
 		}
 	}
 
 	if versions.LessThan(version, "1.48") {
 		// ImageManifestDescriptor information was added in API 1.48
-		for _, c := range containers {
-			c.ImageManifestDescriptor = nil
+		for i := range containers {
+			containers[i].ImageManifestDescriptor = nil
 		}
 	}
 
 	if versions.LessThan(version, "1.52") {
-		for _, c := range containers {
-			c.Health = nil
+		for i := range containers {
+			containers[i].Health = nil
 		}
 	}
 

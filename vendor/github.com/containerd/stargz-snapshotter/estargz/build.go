@@ -408,11 +408,11 @@ func readerFromEntries(entries ...*entry) io.Reader {
 		defer tw.Close()
 		for _, entry := range entries {
 			if err := tw.WriteHeader(entry.header); err != nil {
-				pw.CloseWithError(fmt.Errorf("Failed to write tar header: %v", err))
+				pw.CloseWithError(fmt.Errorf("failed to write tar header: %v", err))
 				return
 			}
 			if _, err := io.Copy(tw, entry.payload); err != nil {
-				pw.CloseWithError(fmt.Errorf("Failed to write tar payload: %v", err))
+				pw.CloseWithError(fmt.Errorf("failed to write tar payload: %v", err))
 				return
 			}
 		}
@@ -627,12 +627,12 @@ func (cr *countReadSeeker) Seek(offset int64, whence int) (int64, error) {
 
 	switch whence {
 	default:
-		return 0, fmt.Errorf("Unknown whence: %v", whence)
+		return 0, fmt.Errorf("unknown whence: %v", whence)
 	case io.SeekStart:
 	case io.SeekCurrent:
 		offset += *cr.cPos
 	case io.SeekEnd:
-		return 0, fmt.Errorf("Unsupported whence: %v", whence)
+		return 0, fmt.Errorf("unsupported whence: %v", whence)
 	}
 
 	if offset < 0 {

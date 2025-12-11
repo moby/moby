@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"testing"
@@ -16,6 +15,6 @@ func TestDistributionInspectWithEmptyID(t *testing.T) {
 		return nil, errors.New("should not make request")
 	}))
 	assert.NilError(t, err)
-	_, err = client.DistributionInspect(context.Background(), "", DistributionInspectOptions{})
+	_, err = client.DistributionInspect(t.Context(), "", DistributionInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }

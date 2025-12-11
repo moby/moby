@@ -14,12 +14,9 @@ type Discover interface {
 type DiscoveryType int
 
 const (
-	// NodeDiscovery represents Node join/leave events provided by discovery
-	NodeDiscovery = iota + 1
-	// EncryptionKeysConfig represents the initial key(s) for performing datapath encryption
-	EncryptionKeysConfig
-	// EncryptionKeysUpdate represents an update to the datapath encryption key(s)
-	EncryptionKeysUpdate
+	NodeDiscovery        DiscoveryType = 1 // NodeDiscovery represents Node join/leave events provided by discovery.
+	EncryptionKeysConfig DiscoveryType = 2 // EncryptionKeysConfig represents the initial key(s) for performing datapath encryption.
+	EncryptionKeysUpdate DiscoveryType = 3 // EncryptionKeysUpdate represents an update to the datapath encryption key(s).
 )
 
 // NodeDiscoveryData represents the structure backing the node discovery data json string
@@ -27,16 +24,6 @@ type NodeDiscoveryData struct {
 	Address     string
 	BindAddress string
 	Self        bool
-}
-
-// DatastoreConfigData is the data for the datastore update event message
-//
-// Deprecated: no longer used.
-type DatastoreConfigData struct {
-	Scope    string
-	Provider string
-	Address  string
-	Config   any
 }
 
 // DriverEncryptionConfig contains the initial datapath encryption key(s)

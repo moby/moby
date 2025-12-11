@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -14,14 +13,14 @@ func TestNetworkRemoveError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.NetworkRemove(context.Background(), "network_id", NetworkRemoveOptions{})
+	_, err = client.NetworkRemove(t.Context(), "network_id", NetworkRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.NetworkRemove(context.Background(), "", NetworkRemoveOptions{})
+	_, err = client.NetworkRemove(t.Context(), "", NetworkRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.NetworkRemove(context.Background(), "    ", NetworkRemoveOptions{})
+	_, err = client.NetworkRemove(t.Context(), "    ", NetworkRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -37,6 +36,6 @@ func TestNetworkRemove(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	_, err = client.NetworkRemove(context.Background(), "network_id", NetworkRemoveOptions{})
+	_, err = client.NetworkRemove(t.Context(), "network_id", NetworkRemoveOptions{})
 	assert.NilError(t, err)
 }

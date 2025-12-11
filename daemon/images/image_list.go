@@ -27,14 +27,14 @@ var acceptedImageFilterTags = map[string]bool{
 
 // byCreated is a temporary type used to sort a list of images by creation
 // time.
-type byCreated []*imagetypes.Summary
+type byCreated []imagetypes.Summary
 
 func (r byCreated) Len() int           { return len(r) }
 func (r byCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func (r byCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 
 // Images returns a filtered list of images.
-func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions) ([]*imagetypes.Summary, error) {
+func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions) ([]imagetypes.Summary, error) {
 	if err := opts.Filters.Validate(acceptedImageFilterTags); err != nil {
 		return nil, err
 	}
@@ -103,8 +103,8 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 	}
 
 	var (
-		summaries     = make([]*imagetypes.Summary, 0, len(selectedImages))
-		summaryMap    = make(map[*image.Image]*imagetypes.Summary, len(selectedImages))
+		summaries     = make([]imagetypes.Summary, 0, len(selectedImages))
+		summaryMap    = make(map[*image.Image]imagetypes.Summary, len(selectedImages))
 		allContainers []*container.Container
 	)
 	for id, img := range selectedImages {
@@ -210,8 +210,8 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 			}
 		}
 		summary.Containers = containersCount
-		summaryMap[img] = summary
-		summaries = append(summaries, summary)
+		summaryMap[img] = *summary
+		summaries = append(summaries, *summary)
 	}
 
 	if opts.SharedSize {

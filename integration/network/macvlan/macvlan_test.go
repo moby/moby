@@ -484,7 +484,7 @@ func TestMacvlanIPAM(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
-			c := d.NewClientT(t, client.WithVersion(tc.apiVersion))
+			c := d.NewClientT(t, client.WithAPIVersion(tc.apiVersion))
 
 			netOpts := []func(*client.NetworkCreateOptions){
 				net.WithMacvlan(""),
@@ -554,13 +554,13 @@ func TestMacvlanIPAM(t *testing.T) {
 			}
 			assert.Check(t, is.Equal(strings.TrimSpace(sysctlRes.Combined()), expDisableIPv6))
 
-			cc := d.NewClientT(t, client.WithVersion("1.52"))
+			cc := d.NewClientT(t, client.WithAPIVersion("1.52"))
 			res, err := cc.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
 			if assert.Check(t, err) && assert.Check(t, res.Network.Status != nil) {
 				assert.Check(t, is.DeepEqual(wantSubnetStatus, res.Network.Status.IPAM.Subnets, cmpopts.EquateEmpty()))
 			}
 			_ = cc.Close()
-			cc = d.NewClientT(t, client.WithVersion("1.51"))
+			cc = d.NewClientT(t, client.WithAPIVersion("1.51"))
 			res, err = cc.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
 			assert.Check(t, err)
 			assert.Check(t, res.Network.Status == nil)

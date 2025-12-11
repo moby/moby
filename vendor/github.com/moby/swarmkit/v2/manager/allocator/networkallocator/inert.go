@@ -68,7 +68,7 @@ func (Inert) Allocate(n *api.Network) error {
 }
 
 // AllocateAttachment unconditionally returns an error.
-func (Inert) AllocateAttachment(node *api.Node, networkAttachment *api.NetworkAttachment) error {
+func (Inert) AllocateAttachment(_ *api.Node, _ *api.NetworkAttachment) error {
 	return errUnavailable
 }
 
@@ -89,22 +89,22 @@ func (Inert) AllocateTask(t *api.Task) error {
 }
 
 // Deallocate does nothing, successfully.
-func (Inert) Deallocate(n *api.Network) error {
+func (Inert) Deallocate(_ *api.Network) error {
 	return nil
 }
 
 // DeallocateAttachment does nothing, successfully.
-func (Inert) DeallocateAttachment(node *api.Node, networkAttachment *api.NetworkAttachment) error {
+func (Inert) DeallocateAttachment(_ *api.Node, _ *api.NetworkAttachment) error {
 	return nil
 }
 
 // DeallocateService does nothing, successfully.
-func (Inert) DeallocateService(s *api.Service) error {
+func (Inert) DeallocateService(_ *api.Service) error {
 	return nil
 }
 
 // DeallocateTask does nothing, successfully.
-func (Inert) DeallocateTask(t *api.Task) error {
+func (Inert) DeallocateTask(_ *api.Task) error {
 	return nil
 }
 
@@ -114,12 +114,12 @@ func (Inert) IsAllocated(n *api.Network) bool {
 }
 
 // IsAttachmentAllocated returns false.
-func (Inert) IsAttachmentAllocated(node *api.Node, networkAttachment *api.NetworkAttachment) bool {
+func (Inert) IsAttachmentAllocated(_ *api.Node, _ *api.NetworkAttachment) bool {
 	return false
 }
 
 // IsServiceAllocated returns true iff [Inert.AllocateService] would return nil.
-func (Inert) IsServiceAllocated(s *api.Service, flags ...func(*ServiceAllocationOpts)) bool {
+func (Inert) IsServiceAllocated(s *api.Service, _ ...func(*ServiceAllocationOpts)) bool {
 	return (Inert{}).AllocateService(s) == nil
 }
 
