@@ -24,7 +24,6 @@ import (
 
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/defaults"
-	"github.com/containerd/containerd/v2/pkg/dialer"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
@@ -46,8 +45,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/backoff"
-	"google.golang.org/grpc/credentials/insecure"
 	"resenje.org/singleflight"
 	"tags.cncf.io/container-device-interface/pkg/cdi"
 
@@ -964,30 +961,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	const connTimeout = 60 * time.Second
 
-	// Set the max backoff delay to match our containerd.WithTimeout(),
-	// aligning with how containerd client's defaults sets this;
-	// https://github.com/containerd/containerd/blob/v2.0.2/client/client.go#L129-L136
-	backoffConfig := backoff.DefaultConfig
-	backoffConfig.MaxDelay = connTimeout
-	connParams := grpc.ConnectParams{
-		Backoff: backoffConfig,
-	}
 	gopts := []grpc.DialOption{
-		// ------------------------------------------------------------------
-		// options below are copied from containerd client's default options
-		//
-		// We need to set these options, because setting any custom DialOptions
-		// currently overwrites (not appends to) the defaults;
-		// https://github.com/containerd/containerd/blob/v2.0.2/client/client.go#L129-L141
-		//
-		// TODO(thaJeztah): use containerd.WithExtraDialOpts() once https://github.com/containerd/containerd/pull/11276 is merged and in a release.
-		// ------------------------------------------------------------------
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithConnectParams(connParams),
-		grpc.WithContextDialer(dialer.ContextDialer),
-		// ------------------------------------------------------------------
-		// end of options copied from containerd client's default
-		// ------------------------------------------------------------------
 		grpc.WithStatsHandler(tracing.ClientStatsHandler(otelgrpc.WithTracerProvider(otel.GetTracerProvider()))),
 		grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor),
 		grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor),
@@ -1001,7 +975,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		d.containerdClient, err = containerd.New(
 			cfgStore.ContainerdAddr,
 			containerd.WithDefaultNamespace(cfgStore.ContainerdNamespace),
-			containerd.WithDialOpts(gopts),
+			containerd.WithExtraDialOpts(gopts),
 			containerd.WithTimeout(connTimeout),
 		)
 		if err != nil {
@@ -1016,7 +990,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			pluginCli, err = containerd.New(
 				cfgStore.ContainerdAddr,
 				containerd.WithDefaultNamespace(cfgStore.ContainerdPluginNamespace),
-				containerd.WithDialOpts(gopts),
+				containerd.WithExtraDialOpts(gopts),
 				containerd.WithTimeout(connTimeout),
 			)
 			if err != nil {
