@@ -335,7 +335,7 @@ func validateHealthCheck(healthConfig *containertypes.HealthConfig) error {
 
 func validatePortBindings(ports networktypes.PortMap) error {
 	for port := range ports {
-		if !port.IsValid() {
+		if !port.IsValid() || port.Num() == 0 {
 			return errors.Errorf("invalid port specification: %q", port.String())
 		}
 
