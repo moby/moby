@@ -300,6 +300,18 @@ func TestValidateContainerIsolation(t *testing.T) {
 	assert.Check(t, is.Error(err, "invalid isolation 'invalid' on "+runtime.GOOS))
 }
 
+func TestInvalidContainerPort0(t *testing.T) {
+	d := Daemon{}
+
+	hc := containertypes.HostConfig{
+		PortBindings: map[network.Port][]network.PortBinding{
+			network.MustParsePort("0/tcp"): {},
+		},
+	}
+	_, err := d.verifyContainerSettings(&configStore{}, &hc, nil, false)
+	assert.Error(t, err, `invalid port specification: "0/tcp"`)
+}
+
 func TestFindNetworkErrorType(t *testing.T) {
 	d := Daemon{}
 	_, err := d.FindNetwork("fakeNet")
