@@ -82,6 +82,74 @@ func TestImageInspectDescriptor(t *testing.T) {
 	assert.Check(t, inspect.Descriptor.Size > 0)
 }
 
+// Regression test for: https://github.com/moby/moby/issues/51566
+//
+// This can be reproduced with two image that share the same uncompressed layer
+// but have a different compressed blob is pulled.
+//
+// Example:
+// ```
+// docker pull nginx@sha256:3b7732505933ca591ce4a6d860cb713ad96a3176b82f7979a8dfa9973486a0d6
+// docker pull gotenberg/gotenberg@sha256:b116a40a1c24917e2bf3e153692da5acd2e78e7cd67e1b2d243b47c178f31c90
+// ```
+//
+// In this case, it's the base debian trixie image that's used as a base.
+// They're effectively the same layer (unpacked diff ID
+// `sha256:1d46119d249f7719e1820e24a311aa7c453f166f714969cffe89504678eaa447`),
+// but different compressed blobs:
+//
+// # nginx
+// {
+// "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+// "size": 29777766,
+// "digest": "sha256:8c7716127147648c1751940b9709b6325f2256290d3201662eca2701cadb2cdf"
+// }
+//
+// # gotenberg
+// {
+// "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+// "size": 30781333,
+// "digest": "sha256:b96413fb491a5ed179bb2746ff3be6cbddd72e14c6503bea80d58e579a3b92bc"
+// },
+func TestImageInspectWithoutSomeBlobs(t *testing.T) {
+	t.Skip("TODO(vvoland): Come up with minimal images for this test")
+
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "The test images are Linux-only")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	const baseImage = "nginx@sha256:3b7732505933ca591ce4a6d860cb713ad96a3176b82f7979a8dfa9973486a0d6"
+	const childImage = "gotenberg/gotenberg:8.24@sha256:b116a40a1c24917e2bf3e153692da5acd2e78e7cd67e1b2d243b47c178f31c90"
+
+	// Pull the base image first and then the child image
+	for _, image := range []string{baseImage, childImage} {
+		rdr, err := apiClient.ImagePull(ctx, image, client.ImagePullOptions{})
+		assert.NilError(t, err)
+		assert.NilError(t, rdr.Wait(ctx))
+
+		t.Cleanup(func() {
+			_, _ = apiClient.ImageRemove(ctx, image, client.ImageRemoveOptions{})
+		})
+	}
+
+	var raw bytes.Buffer
+	inspect, err := apiClient.ImageInspect(ctx, childImage, client.ImageInspectWithRawResponse(&raw))
+	assert.NilError(t, err)
+
+	var rawJson map[string]any
+	err = json.Unmarshal(raw.Bytes(), &rawJson)
+	assert.NilError(t, err)
+
+	configVal, hasConfig := rawJson["Config"]
+	assert.Check(t, hasConfig, "Config field should exist in JSON response")
+	if assert.Check(t, configVal != nil, "Config should not be null in JSON response") {
+		assert.Check(t, is.DeepEqual(inspect.Config.Cmd, []string{"gotenberg"}))
+		assert.Check(t, inspect.Os != "")
+		assert.Check(t, inspect.Architecture != "")
+	}
+}
+
 func TestImageInspectWithPlatform(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "The test image is a Linux image")
 	ctx := setupTest(t)

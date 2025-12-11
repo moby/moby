@@ -42,6 +42,9 @@ func decodeCreateRequest(src io.Reader) (container.CreateRequest, error) {
 	if w.HostConfig == nil {
 		w.HostConfig = &container.HostConfig{}
 	}
+	if w.HostConfig.PortBindings == nil {
+		w.HostConfig.PortBindings = make(network.PortMap)
+	}
 	// Make sure NetworkMode has an acceptable value. We do this to ensure
 	// backwards compatible API behavior.
 	//

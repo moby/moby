@@ -305,34 +305,33 @@ func (i *ImageService) multiPlatformSummary(ctx context.Context, img c8dimages.I
 			mfstSummary.ImageData.Platform = *target.Platform
 		}
 
-		if !available {
-			return nil
-		}
-
 		var dockerImage dockerspec.DockerOCIImage
-		if err := img.ReadConfig(ctx, &dockerImage); err != nil {
+		if err := img.ReadConfig(ctx, &dockerImage); err != nil && !cerrdefs.IsNotFound(err) {
 			logger.WithError(err).Warn("failed to read image config")
-			return nil
 		}
 
-		if target.Platform == nil {
-			mfstSummary.ImageData.Platform = dockerImage.Platform
+		if dockerImage.Platform.OS != "" {
+			if target.Platform == nil {
+				mfstSummary.ImageData.Platform = dockerImage.Platform
+			}
+			logger = logger.WithField("platform", mfstSummary.ImageData.Platform)
 		}
-		logger = logger.WithField("platform", mfstSummary.ImageData.Platform)
 
-		chainIDs := identity.ChainIDs(dockerImage.RootFS.DiffIDs)
+		if dockerImage.RootFS.DiffIDs != nil {
+			chainIDs := identity.ChainIDs(dockerImage.RootFS.DiffIDs)
 
-		snapshotUsage, err := img.SnapshotUsage(ctx, i.snapshotterService(i.snapshotter))
-		if err != nil {
-			logger.WithFields(log.Fields{"error": err}).Warn("failed to determine platform specific unpacked size")
+			snapshotUsage, err := img.SnapshotUsage(ctx, i.snapshotterService(i.snapshotter))
+			if err != nil {
+				logger.WithFields(log.Fields{"error": err}).Warn("failed to determine platform specific unpacked size")
+			}
+			unpackedSize := snapshotUsage.Size
+
+			mfstSummary.ImageData.Size.Unpacked = unpackedSize
+			mfstSummary.Size.Total += unpackedSize
+			summary.TotalSize += unpackedSize
+
+			summary.AllChainIDs = append(summary.AllChainIDs, chainIDs...)
 		}
-		unpackedSize := snapshotUsage.Size
-
-		mfstSummary.ImageData.Size.Unpacked = unpackedSize
-		mfstSummary.Size.Total += unpackedSize
-		summary.TotalSize += unpackedSize
-
-		summary.AllChainIDs = append(summary.AllChainIDs, chainIDs...)
 
 		for _, c := range i.containers.List() {
 			if c.ImageManifest != nil && c.ImageManifest.Digest == target.Digest {
@@ -360,8 +359,9 @@ func (i *ImageService) multiPlatformSummary(ctx context.Context, img c8dimages.I
 	if err != nil {
 		if errors.Is(err, errNotManifestOrIndex) {
 			log.G(ctx).WithFields(log.Fields{
-				"error": err,
-				"image": img.Name,
+				"error":      err,
+				"image":      img.Name,
+				"descriptor": img.Target,
 			}).Warn("unexpected image target (neither a manifest nor index)")
 		} else {
 			return nil, err
@@ -443,15 +443,6 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		}
 	}
 
-	cfgDesc, err := imageManifest.Image.Config(ctx)
-	if err != nil {
-		return nil, err
-	}
-	var cfg configLabels
-	if err := readJSON(ctx, contentStore, cfgDesc, &cfg); err != nil {
-		return nil, err
-	}
-
 	var unpackedSize int64
 	if snapshotUsage, err := imageManifest.SnapshotUsage(ctx, i.snapshotterService(i.snapshotter)); err != nil {
 		log.G(ctx).WithFields(log.Fields{"image": imageManifest.Name(), "error": err}).Warn("failed to calculate unpacked size of image")
@@ -474,7 +465,6 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		RepoDigests: repoDigests,
 		RepoTags:    repoTags,
 		Size:        totalSize,
-		Labels:      cfg.Config.Labels,
 		// -1 indicates that the value has not been set (avoids ambiguity
 		// between 0 (default) and "not set". We cannot use a pointer (nil)
 		// for this, as the JSON representation uses "omitempty", which would
@@ -482,8 +472,24 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		SharedSize: -1,
 		Containers: -1,
 	}
+
+	var cfg configLabels
+	if err := imageManifest.ReadConfig(ctx, &cfg); err != nil {
+		if !cerrdefs.IsNotFound(err) {
+			log.G(ctx).WithFields(log.Fields{
+				"image": imageManifest.Name(),
+				"error": err,
+			}).Warn("failed to read image config")
+		}
+	}
+
 	if cfg.Created != nil {
 		summary.Created = cfg.Created.Unix()
+	}
+	if cfg.Config.Labels != nil {
+		summary.Labels = cfg.Config.Labels
+	} else {
+		summary.Labels = map[string]string{}
 	}
 
 	return summary, nil

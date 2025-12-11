@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -63,13 +64,6 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts im
 		}
 	}
 
-	var img dockerspec.DockerOCIImage
-	if multi.Best != nil {
-		if err := multi.Best.ReadConfig(ctx, &img); err != nil {
-			return nil, err
-		}
-	}
-
 	parent, err := i.getImageLabelByDigest(ctx, target.Digest, imageLabelClassicBuilderParent)
 	if err != nil {
 		log.G(ctx).WithError(err).Warn("failed to determine Parent property")
@@ -104,29 +98,36 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts im
 		GraphDriverLegacy: &storage.DriverData{Name: i.snapshotter},
 	}
 
+	var img dockerspec.DockerOCIImage
 	if multi.Best != nil {
-		imgConfig := img.Config
-		resp.Author = img.Author
-		resp.Config = &imgConfig
-		resp.Architecture = img.Architecture
-		resp.Variant = img.Variant
-		resp.Os = img.OS
-		resp.OsVersion = img.OSVersion
+		if err := multi.Best.ReadConfig(ctx, &img); err != nil && !cerrdefs.IsNotFound(err) {
+			return nil, fmt.Errorf("failed to read image config: %w", err)
+		}
+	}
 
-		if len(img.History) > 0 {
-			resp.Comment = img.History[len(img.History)-1].Comment
-		}
+	// Copy the config
+	imgConfig := img.Config
+	resp.Config = &imgConfig
 
-		if img.Created != nil {
-			resp.Created = img.Created.Format(time.RFC3339Nano)
-		}
+	resp.Author = img.Author
+	resp.Architecture = img.Architecture
+	resp.Variant = img.Variant
+	resp.Os = img.OS
+	resp.OsVersion = img.OSVersion
 
-		resp.RootFS = imagetypes.RootFS{
-			Type: img.RootFS.Type,
-		}
-		for _, layer := range img.RootFS.DiffIDs {
-			resp.RootFS.Layers = append(resp.RootFS.Layers, layer.String())
-		}
+	if len(img.History) > 0 {
+		resp.Comment = img.History[len(img.History)-1].Comment
+	}
+
+	if img.Created != nil {
+		resp.Created = img.Created.Format(time.RFC3339Nano)
+	}
+
+	resp.RootFS = imagetypes.RootFS{
+		Type: img.RootFS.Type,
+	}
+	for _, layer := range img.RootFS.DiffIDs {
+		resp.RootFS.Layers = append(resp.RootFS.Layers, layer.String())
 	}
 
 	return resp, nil

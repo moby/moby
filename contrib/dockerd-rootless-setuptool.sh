@@ -556,4 +556,5 @@ if ! command -v "cmd_entrypoint_${command}" > /dev/null 2>&1; then
 fi
 
 # main
+shift
 "cmd_entrypoint_${command}" "$@"

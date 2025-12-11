@@ -22,12 +22,14 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
 	"github.com/moby/moby/v2/daemon/libnetwork/iptables"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
+	"github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/integration/internal/network"
 	"github.com/moby/moby/v2/integration/internal/testutils/networking"
 	n "github.com/moby/moby/v2/integration/network"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
+	"github.com/moby/moby/v2/internal/testutil/fakecontext"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
@@ -2138,4 +2140,19 @@ func TestGatewayErrorOnNetDisconnect(t *testing.T) {
 	assert.Check(t, is.Len(ctrInsp.NetworkSettings.Networks, 2))
 	assert.Check(t, is.Contains(ctrInsp.NetworkSettings.Networks, "n1"))
 	assert.Check(t, is.Contains(ctrInsp.NetworkSettings.Networks, "n2"))
+}
+
+// Regression test for https://github.com/moby/moby/issues/51620
+func TestPublishAllWithNilPortBindings(t *testing.T) {
+	ctx := setupTest(t)
+	c := testEnv.APIClient()
+
+	imgWithExpose := container.WithImage(build.Do(ctx, t, c,
+		fakecontext.New(t, "", fakecontext.WithDockerfile("FROM busybox\nEXPOSE 80/tcp\n"))))
+
+	_ = container.Run(ctx, t, c,
+		container.WithAutoRemove,
+		container.WithPublishAllPorts(true),
+		imgWithExpose,
+	)
 }

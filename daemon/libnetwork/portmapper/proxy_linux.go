@@ -135,6 +135,7 @@ func StartProxy(pb types.PortBinding,
 			return nil
 		}
 		stopped.Store(true)
+		log.G(context.Background()).WithField("pb", pb).Debug("Stopping userland proxy")
 		if err := cmd.Process.Signal(os.Interrupt); err != nil {
 			return err
 		}
