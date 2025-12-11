@@ -53,7 +53,7 @@ func TestAPIClientVersionOldNotSupported(t *testing.T) {
 	assert.NilError(t, err)
 	vMinInt--
 	version := fmt.Sprintf("%s.%d", major, vMinInt)
-	apiClient := request.NewAPIClient(t, client.WithVersion(version))
+	apiClient := request.NewAPIClient(t, client.WithAPIVersion(version))
 
 	expectedErrorMessage := fmt.Sprintf("Error response from daemon: client version %s is too old. Minimum supported API version is %s, please upgrade your client to a newer version", version, minApiVersion)
 	_, err = apiClient.ServerVersion(ctx, client.ServerVersionOptions{})

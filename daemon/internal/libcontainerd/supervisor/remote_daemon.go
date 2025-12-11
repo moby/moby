@@ -280,19 +280,14 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				continue
 			}
 
-			const connTimeout = 60 * time.Second
 			client, err = containerd.New(
 				r.GRPC.Address,
-				containerd.WithTimeout(connTimeout),
+				containerd.WithTimeout(60*time.Second),
 				containerd.WithDialOpts([]grpc.DialOption{
 					grpc.WithTransportCredentials(insecure.NewCredentials()),
 					grpc.WithContextDialer(dialer.ContextDialer),
 					grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor),
 					grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor),
-					grpc.WithConnectParams(grpc.ConnectParams{
-						// TODO: Remove after https://github.com/containerd/containerd/pull/11508
-						MinConnectTimeout: connTimeout,
-					}),
 				}),
 			)
 			if err != nil {

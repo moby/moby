@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"mime"
 	"net/http"
 	"net/url"
@@ -28,6 +29,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/auth/internal"
+	"github.com/googleapis/gax-go/v2/internallog"
 )
 
 // AuthorizationHandler is a 3-legged-OAuth helper that prompts the user for
@@ -69,6 +71,11 @@ type Options3LO struct {
 	// AuthHandlerOpts provides a set of options for doing a
 	// 3-legged OAuth2 flow with a custom [AuthorizationHandler]. Optional.
 	AuthHandlerOpts *AuthorizationHandlerOptions
+	// Logger is used for debug logging. If provided, logging will be enabled
+	// at the loggers configured level. By default logging is disabled unless
+	// enabled by setting GOOGLE_SDK_GO_LOGGING_LEVEL in which case a default
+	// logger will be used. Optional.
+	Logger *slog.Logger
 }
 
 func (o *Options3LO) validate() error {
@@ -94,6 +101,10 @@ func (o *Options3LO) validate() error {
 		return errors.New("auth: refresh token must be provided")
 	}
 	return nil
+}
+
+func (o *Options3LO) logger() *slog.Logger {
+	return internallog.New(o.Logger)
 }
 
 // PKCEOptions holds parameters to support PKCE.
@@ -293,12 +304,15 @@ func fetchToken(ctx context.Context, o *Options3LO, v url.Values) (*Token, strin
 	if o.AuthStyle == StyleInHeader {
 		req.SetBasicAuth(url.QueryEscape(o.ClientID), url.QueryEscape(o.ClientSecret))
 	}
+	logger := o.logger()
 
+	logger.DebugContext(ctx, "3LO token request", "request", internallog.HTTPRequest(req, []byte(v.Encode())))
 	// Make request
 	resp, body, err := internal.DoRequest(o.client(), req)
 	if err != nil {
 		return nil, refreshToken, err
 	}
+	logger.DebugContext(ctx, "3LO token response", "response", internallog.HTTPResponse(resp, body))
 	failureStatus := resp.StatusCode < 200 || resp.StatusCode > 299
 	tokError := &Error{
 		Response: resp,

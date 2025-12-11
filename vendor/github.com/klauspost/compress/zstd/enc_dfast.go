@@ -13,7 +13,7 @@ const (
 	dFastLongLen       = 8                       // Bytes used for table hash
 
 	dLongTableShardCnt  = 1 << (dFastLongTableBits - dictShardBits) // Number of shards in the table
-	dLongTableShardSize = dFastLongTableSize / tableShardCnt        // Size of an individual shard
+	dLongTableShardSize = dFastLongTableSize / dLongTableShardCnt   // Size of an individual shard
 
 	dFastShortTableBits = tableBits                // Bits used in the short match table
 	dFastShortTableSize = 1 << dFastShortTableBits // Size of the table
@@ -149,10 +149,7 @@ encodeLoop:
 					// and have to do special offset treatment.
 					startLimit := nextEmit + 1
 
-					tMin := s - e.maxMatchOff
-					if tMin < 0 {
-						tMin = 0
-					}
+					tMin := max(s-e.maxMatchOff, 0)
 					for repIndex > tMin && start > startLimit && src[repIndex-1] == src[start-1] && seq.matchLen < maxMatchLength-zstdMinMatch-1 {
 						repIndex--
 						start--
@@ -266,10 +263,7 @@ encodeLoop:
 		l := e.matchlen(s+4, t+4, src) + 4
 
 		// Extend backwards
-		tMin := s - e.maxMatchOff
-		if tMin < 0 {
-			tMin = 0
-		}
+		tMin := max(s-e.maxMatchOff, 0)
 		for t > tMin && s > nextEmit && src[t-1] == src[s-1] && l < maxMatchLength {
 			s--
 			t--
@@ -462,10 +456,7 @@ encodeLoop:
 					// and have to do special offset treatment.
 					startLimit := nextEmit + 1
 
-					tMin := s - e.maxMatchOff
-					if tMin < 0 {
-						tMin = 0
-					}
+					tMin := max(s-e.maxMatchOff, 0)
 					for repIndex > tMin && start > startLimit && src[repIndex-1] == src[start-1] {
 						repIndex--
 						start--
@@ -576,10 +567,7 @@ encodeLoop:
 		l := int32(matchLen(src[s+4:], src[t+4:])) + 4
 
 		// Extend backwards
-		tMin := s - e.maxMatchOff
-		if tMin < 0 {
-			tMin = 0
-		}
+		tMin := max(s-e.maxMatchOff, 0)
 		for t > tMin && s > nextEmit && src[t-1] == src[s-1] {
 			s--
 			t--
@@ -809,10 +797,7 @@ encodeLoop:
 					// and have to do special offset treatment.
 					startLimit := nextEmit + 1
 
-					tMin := s - e.maxMatchOff
-					if tMin < 0 {
-						tMin = 0
-					}
+					tMin := max(s-e.maxMatchOff, 0)
 					for repIndex > tMin && start > startLimit && src[repIndex-1] == src[start-1] && seq.matchLen < maxMatchLength-zstdMinMatch-1 {
 						repIndex--
 						start--
@@ -927,10 +912,7 @@ encodeLoop:
 		l := e.matchlen(s+4, t+4, src) + 4
 
 		// Extend backwards
-		tMin := s - e.maxMatchOff
-		if tMin < 0 {
-			tMin = 0
-		}
+		tMin := max(s-e.maxMatchOff, 0)
 		for t > tMin && s > nextEmit && src[t-1] == src[s-1] && l < maxMatchLength {
 			s--
 			t--

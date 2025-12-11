@@ -1,5 +1,3 @@
-//go:build dfrunsecurity
-
 package instructions
 
 import (

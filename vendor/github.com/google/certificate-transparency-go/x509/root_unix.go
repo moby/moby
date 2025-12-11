@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build dragonfly || freebsd || linux || netbsd || openbsd || solaris
-// +build dragonfly freebsd linux netbsd openbsd solaris
+//go:build aix || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
+// +build aix dragonfly freebsd linux netbsd openbsd solaris zos
 
 package x509
 
@@ -19,6 +19,7 @@ var certDirectories = []string{
 	"/usr/local/share/certs",       // FreeBSD
 	"/etc/pki/tls/certs",           // Fedora/RHEL
 	"/etc/openssl/certs",           // NetBSD
+	"/var/ssl/certs",               // AIX
 }
 
 const (

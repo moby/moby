@@ -117,6 +117,12 @@ func unpackOciTar(ctx context.Context, dst string, reader io.Reader) error {
 		return errors.Wrap(err, "apply with convert whiteout")
 	}
 
+	// Read any trailing data for some tar formats, in case the
+	// PipeWriter of opposite side gets stuck.
+	if _, err := io.Copy(io.Discard, ds); err != nil {
+		return errors.Wrap(err, "trailing data after applying archive")
+	}
+
 	return nil
 }
 
@@ -815,6 +821,10 @@ func makeBlobDesc(ctx context.Context, cs content.Store, opt PackOption, sourceD
 // a nydus blob layer, and set the media type to "application/vnd.oci.image.layer.nydus.blob.v1".
 func LayerConvertFunc(opt PackOption) converter.ConvertFunc {
 	return func(ctx context.Context, cs content.Store, desc ocispec.Descriptor) (*ocispec.Descriptor, error) {
+		if ctx.Err() != nil {
+			// The context is already cancelled, no need to proceed.
+			return nil, ctx.Err()
+		}
 		if !images.IsLayerType(desc.MediaType) {
 			return nil, nil
 		}
@@ -864,13 +874,28 @@ func LayerConvertFunc(opt PackOption) converter.ConvertFunc {
 			return nil, errors.Wrap(err, "pack tar to nydus")
 		}
 
+		copyBufferDone := make(chan error, 1)
 		go func() {
-			defer pw.Close()
 			buffer := bufPool.Get().(*[]byte)
 			defer bufPool.Put(buffer)
-			if _, err := io.CopyBuffer(tw, tr, *buffer); err != nil {
-				pw.CloseWithError(err)
+			_, err := io.CopyBuffer(tw, tr, *buffer)
+			copyBufferDone <- err
+		}()
+
+		go func() {
+			defer pw.Close()
+			select {
+			case <-ctx.Done():
+				// The context was cancelled!
+				// Close the pipe with the context's error to signal
+				// the reader to stop.
+				pw.CloseWithError(ctx.Err())
 				return
+			case err := <-copyBufferDone:
+				if err != nil {
+					pw.CloseWithError(err)
+					return
+				}
 			}
 			if err := tr.Close(); err != nil {
 				pw.CloseWithError(err)
@@ -1015,6 +1040,12 @@ func convertManifest(ctx context.Context, cs content.Store, oldDesc ocispec.Desc
 	newConfigDesc, err := writeJSON(ctx, cs, config, manifest.Config, configLabels)
 	if err != nil {
 		return nil, errors.Wrap(err, "write image config")
+	}
+	// When manifests are merged, we need to put a special value for the config mediaType.
+	// This values must be one that containerd doesn't understand to ensure it doesn't try tu pull the nydus image
+	// but use the OCI one instead. And then if the nydus-snapshotter is used, it can pull the nydus image instead.
+	if opt.MergeManifest {
+		newConfigDesc.MediaType = ManifestConfigNydus
 	}
 	manifest.Config = *newConfigDesc
 	// Update the config gc label

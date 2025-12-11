@@ -23,7 +23,7 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.25.4"
+  GO_VERSION: "1.25.5"
   DESTDIR: ./build
   SETUP_BUILDX_VERSION: edge
   SETUP_BUILDKIT_IMAGE: moby/buildkit:latest
@@ -53,7 +53,7 @@ jobs:
           targets: binary
       -
         name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: binary
           path: ${{ env.DESTDIR }}
@@ -100,12 +100,12 @@ jobs:
         uses: crazy-max/ghaction-github-runtime@v3
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: moby
       -
         name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -116,7 +116,7 @@ jobs:
         working-directory: moby
       -
         name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ env.BUILDKIT_REPO }}
           ref: ${{ env.BUILDKIT_REF }}
@@ -133,7 +133,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Download binary artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: binary
           path: ./buildkit/build/moby/
@@ -184,7 +184,7 @@ jobs:
         working-directory: ${{ env.GOPATH }}/src/github.com/docker/docker
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: ${{ env.GOPATH }}/src/github.com/docker/docker
 
@@ -199,7 +199,7 @@ jobs:
           echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -225,7 +225,7 @@ jobs:
           go install github.com/distribution/distribution/v3/cmd/registry@latest
 
       - name: Checkout BuildKit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: moby/buildkit
           ref: master
@@ -248,7 +248,7 @@ jobs:
           cp ${{ env.GOPATH }}\bin\buildctl.exe ${{ env.BIN_OUT }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: build-windows
           path: ${{ env.BIN_OUT }}/*
@@ -307,12 +307,12 @@ jobs:
         uses: crazy-max/ghaction-github-runtime@v3
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: moby
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -324,14 +324,14 @@ jobs:
         working-directory: moby
 
       - name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ env.BUILDKIT_REPO }}
           ref: ${{ env.BUILDKIT_REF }}
           path: buildkit
 
       - name: Download Moby artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: build-windows
           path: ${{ env.BIN_OUT }}

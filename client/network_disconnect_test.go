@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -17,19 +16,19 @@ func TestNetworkDisconnectError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.NetworkDisconnect(context.Background(), "network_id", NetworkDisconnectOptions{
+	_, err = client.NetworkDisconnect(t.Context(), "network_id", NetworkDisconnectOptions{
 		Container: "container_id",
 	})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
 	// Empty network ID or container ID
-	_, err = client.NetworkDisconnect(context.Background(), "", NetworkDisconnectOptions{
+	_, err = client.NetworkDisconnect(t.Context(), "", NetworkDisconnectOptions{
 		Container: "container_id",
 	})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.NetworkDisconnect(context.Background(), "network_id", NetworkDisconnectOptions{})
+	_, err = client.NetworkDisconnect(t.Context(), "network_id", NetworkDisconnectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -59,6 +58,6 @@ func TestNetworkDisconnect(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	_, err = client.NetworkDisconnect(context.Background(), "network_id", NetworkDisconnectOptions{Container: "container_id", Force: true})
+	_, err = client.NetworkDisconnect(t.Context(), "network_id", NetworkDisconnectOptions{Container: "container_id", Force: true})
 	assert.NilError(t, err)
 }

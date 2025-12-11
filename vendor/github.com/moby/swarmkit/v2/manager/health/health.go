@@ -32,7 +32,7 @@ func NewHealthServer() *Server {
 }
 
 // Check checks if the grpc server is healthy and running.
-func (s *Server) Check(ctx context.Context, in *api.HealthCheckRequest) (*api.HealthCheckResponse, error) {
+func (s *Server) Check(_ context.Context, in *api.HealthCheckRequest) (*api.HealthCheckResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if in.Service == "" {

@@ -59,7 +59,8 @@ func (hrs *httpReadSeeker) Read(p []byte) (n int, err error) {
 	if n > 0 || err == nil {
 		hrs.errsWithNoProgress = 0
 	}
-	if err == io.ErrUnexpectedEOF {
+	switch err {
+	case io.ErrUnexpectedEOF:
 		// connection closed unexpectedly. try reconnecting.
 		if n == 0 {
 			hrs.errsWithNoProgress++
@@ -76,7 +77,7 @@ func (hrs *httpReadSeeker) Read(p []byte) (n int, err error) {
 		if _, err2 := hrs.reader(); err2 == nil {
 			return n, nil
 		}
-	} else if err == io.EOF {
+	case io.EOF:
 		// The CRI's imagePullProgressTimeout relies on responseBody.Close to
 		// update the process monitor's status. If the err is io.EOF, close
 		// the connection since there is no more available data.
@@ -100,6 +101,36 @@ func (hrs *httpReadSeeker) Close() error {
 	}
 
 	return nil
+}
+
+func (hrs *httpReadSeeker) ReadAt(p []byte, offset int64) (n int, err error) {
+	if hrs.closed {
+		return 0, fmt.Errorf("httpReadSeeker.ReadAt: closed: %w", errdefs.ErrUnavailable)
+	}
+
+	if offset < 0 {
+		return 0, fmt.Errorf("httpReadSeeker.ReadAt: negative offset: %w", errdefs.ErrInvalidArgument)
+	}
+
+	if hrs.size != -1 && offset >= hrs.size {
+		return 0, io.EOF
+	}
+
+	if hrs.open == nil {
+		return 0, fmt.Errorf("httpReadSeeker.ReadAt: cannot open: %w", errdefs.ErrNotImplemented)
+	}
+
+	rc, err := hrs.open(offset)
+	if err != nil {
+		return 0, fmt.Errorf("httpReadSeeker.ReadAt: failed to open at offset %d: %w", offset, err)
+	}
+	defer func() {
+		if closeErr := rc.Close(); closeErr != nil {
+			log.L.WithError(closeErr).Error("httpReadSeeker.ReadAt: failed to close ReadCloser")
+		}
+	}()
+
+	return io.ReadFull(rc, p)
 }
 
 func (hrs *httpReadSeeker) Seek(offset int64, whence int) (int64, error) {

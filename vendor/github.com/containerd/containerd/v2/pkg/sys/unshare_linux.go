@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -73,21 +72,6 @@ func UnshareAfterEnterUserns(uidMap, gidMap string, unshareFlags uintptr, f func
 		proc.Kill()
 		proc.Wait()
 		return fmt.Errorf("kernel doesn't support CLONE_PIDFD")
-	}
-
-	// Since go1.23.{0,1} has double close issue, we should dup it before using it.
-	//
-	// References:
-	// - https://github.com/golang/go/issues/68984
-	// - https://github.com/golang/go/milestone/371
-	if goVer := runtime.Version(); goVer == "go1.23.0" || goVer == "go1.23.1" {
-		dupPidfd, err := unix.FcntlInt(uintptr(pidfd), syscall.F_DUPFD_CLOEXEC, 0)
-		if err != nil {
-			proc.Kill()
-			proc.Wait()
-			return fmt.Errorf("failed to dupfd: %w", err)
-		}
-		pidfd = dupPidfd
 	}
 
 	defer unix.Close(pidfd)

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -15,7 +14,7 @@ func TestNetworkCreateError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.NetworkCreate(context.Background(), "mynetwork", NetworkCreateOptions{})
+	_, err = client.NetworkCreate(t.Context(), "mynetwork", NetworkCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -24,10 +23,10 @@ func TestNetworkCreateError(t *testing.T) {
 //
 // Regression test for https://github.com/docker/cli/issues/4890
 func TestNetworkCreateConnectionError(t *testing.T) {
-	client, err := New(WithAPIVersionNegotiation(), WithHost("tcp://no-such-host.invalid"))
+	client, err := New(WithHost("tcp://no-such-host.invalid"))
 	assert.NilError(t, err)
 
-	_, err = client.NetworkCreate(context.Background(), "mynetwork", NetworkCreateOptions{})
+	_, err = client.NetworkCreate(t.Context(), "mynetwork", NetworkCreateOptions{})
 	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
 }
 
@@ -46,7 +45,7 @@ func TestNetworkCreate(t *testing.T) {
 	assert.NilError(t, err)
 
 	enableIPv6 := true
-	networkResponse, err := client.NetworkCreate(context.Background(), "mynetwork", NetworkCreateOptions{
+	networkResponse, err := client.NetworkCreate(t.Context(), "mynetwork", NetworkCreateOptions{
 		Driver:     "mydriver",
 		EnableIPv6: &enableIPv6,
 		Internal:   true,

@@ -67,8 +67,9 @@ func (ResourceType) EnumDescriptor() ([]byte, []int) {
 // Only the manager create a NEW task, and move the task to PENDING and ASSIGNED.
 // Afterward, the manager must rely on the agent to update the task status
 // (pre-run: preparing, ready, starting;
-//  running;
-//  end-state: complete, shutdown, failed, rejected)
+//
+//	running;
+//	end-state: complete, shutdown, failed, rejected)
 type TaskState int32
 
 const (
@@ -1085,6 +1086,7 @@ var xxx_messageInfo_DiscreteGenericResource proto.InternalMessageInfo
 // be either an integer (e.g: SSD=3) or a string (e.g: SSD=sda1)
 type GenericResource struct {
 	// Types that are valid to be assigned to Resource:
+	//
 	//	*GenericResource_NamedResourceSpec
 	//	*GenericResource_DiscreteResourceSpec
 	Resource isGenericResource_Resource `protobuf_oneof:"resource"`
@@ -2114,6 +2116,7 @@ type TaskStatus struct {
 	// Container status contains container specific status information.
 	//
 	// Types that are valid to be assigned to RuntimeStatus:
+	//
 	//	*TaskStatus_Container
 	RuntimeStatus isTaskStatus_RuntimeStatus `protobuf_oneof:"runtime_status"`
 	// HostPorts provides a list of ports allocated at the host
@@ -2506,6 +2509,7 @@ type IssuanceStatus struct {
 	State IssuanceStatus_State `protobuf:"varint,1,opt,name=state,proto3,enum=docker.swarmkit.v1.IssuanceStatus_State" json:"state,omitempty"`
 	// Err is set if the Certificate Issuance is in an error state.
 	// The following states should report a companion error:
+	//
 	//	FAILED
 	Err string `protobuf:"bytes,2,opt,name=err,proto3" json:"err,omitempty"`
 }
@@ -3006,6 +3010,7 @@ var xxx_messageInfo_SpreadOver proto.InternalMessageInfo
 
 type PlacementPreference struct {
 	// Types that are valid to be assigned to Preference:
+	//
 	//	*PlacementPreference_Spread
 	Preference isPlacementPreference_Preference `protobuf_oneof:"Preference"`
 }
@@ -3437,6 +3442,7 @@ type SecretReference struct {
 	// Target specifies how this secret should be exposed to the task.
 	//
 	// Types that are valid to be assigned to Target:
+	//
 	//	*SecretReference_File
 	Target isSecretReference_Target `protobuf_oneof:"target"`
 }
@@ -3517,6 +3523,7 @@ type ConfigReference struct {
 	// Target specifies how this config should be exposed to the task.
 	//
 	// Types that are valid to be assigned to Target:
+	//
 	//	*ConfigReference_File
 	//	*ConfigReference_Runtime
 	Target isConfigReference_Target `protobuf_oneof:"target"`
@@ -3826,6 +3833,7 @@ var xxx_messageInfo_Privileges proto.InternalMessageInfo
 // CredentialSpec for managed service account (Windows only).
 type Privileges_CredentialSpec struct {
 	// Types that are valid to be assigned to Source:
+	//
 	//	*Privileges_CredentialSpec_File
 	//	*Privileges_CredentialSpec_Registry
 	//	*Privileges_CredentialSpec_Config
@@ -4113,6 +4121,7 @@ type VolumeAccessMode struct {
 	// but the upstream is free to do so. However, one of these MUST be set.
 	//
 	// Types that are valid to be assigned to AccessType:
+	//
 	//	*VolumeAccessMode_Block
 	//	*VolumeAccessMode_Mount
 	AccessType isVolumeAccessMode_AccessType `protobuf_oneof:"access_type"`
@@ -4338,12 +4347,12 @@ var xxx_messageInfo_VolumeSecret proto.InternalMessageInfo
 //
 // Without this two-step process, the following could happen:
 //
-//   1. ControllerPublishVolume is called and the Volume is successfully
-//      published.
-//   2. A crash or leadership change disrupts the cluster before
-//      the Volume with the updated VolumePublishStatus can be added to the
-//      store.
-//   3. The Task that required the Volume to be published is deleted.
+//  1. ControllerPublishVolume is called and the Volume is successfully
+//     published.
+//  2. A crash or leadership change disrupts the cluster before
+//     the Volume with the updated VolumePublishStatus can be added to the
+//     store.
+//  3. The Task that required the Volume to be published is deleted.
 //
 // In this case, the Volume would be published to the Node, but Swarm would be
 // unaware of this, and would additionally be unaware that the Volume _should_
@@ -4608,21 +4617,27 @@ type TopologyRequirement struct {
 	// accessible from at least one of the requisite topologies.
 	//
 	// Given
-	//   x = number of topologies provisioned volume is accessible from
-	//   n = number of requisite topologies
+	//
+	//	x = number of topologies provisioned volume is accessible from
+	//	n = number of requisite topologies
+	//
 	// The CO MUST ensure n >= 1. The SP MUST ensure x >= 1
 	// If x==n, then the SP MUST make the provisioned volume available to
 	// all topologies from the list of requisite topologies. If it is
 	// unable to do so, the SP MUST fail the CreateVolume call.
 	// For example, if a volume should be accessible from a single zone,
 	// and requisite =
-	//   {"region": "R1", "zone": "Z2"}
+	//
+	//	{"region": "R1", "zone": "Z2"}
+	//
 	// then the provisioned volume MUST be accessible from the "region"
 	// "R1" and the "zone" "Z2".
 	// Similarly, if a volume should be accessible from two zones, and
 	// requisite =
-	//   {"region": "R1", "zone": "Z2"},
-	//   {"region": "R1", "zone": "Z3"}
+	//
+	//	{"region": "R1", "zone": "Z2"},
+	//	{"region": "R1", "zone": "Z3"}
+	//
 	// then the provisioned volume MUST be accessible from the "region"
 	// "R1" and both "zone" "Z2" and "zone" "Z3".
 	//
@@ -4631,18 +4646,23 @@ type TopologyRequirement struct {
 	// the CreateVolume call.
 	// For example, if a volume should be accessible from a single zone,
 	// and requisite =
-	//   {"region": "R1", "zone": "Z2"},
-	//   {"region": "R1", "zone": "Z3"}
+	//
+	//	{"region": "R1", "zone": "Z2"},
+	//	{"region": "R1", "zone": "Z3"}
+	//
 	// then the SP may choose to make the provisioned volume available in
 	// either the "zone" "Z2" or the "zone" "Z3" in the "region" "R1".
 	// Similarly, if a volume should be accessible from two zones, and
 	// requisite =
-	//   {"region": "R1", "zone": "Z2"},
-	//   {"region": "R1", "zone": "Z3"},
-	//   {"region": "R1", "zone": "Z4"}
+	//
+	//	{"region": "R1", "zone": "Z2"},
+	//	{"region": "R1", "zone": "Z3"},
+	//	{"region": "R1", "zone": "Z4"}
+	//
 	// then the provisioned volume MUST be accessible from any combination
 	// of two unique topologies: e.g. "R1/Z2" and "R1/Z3", or "R1/Z2" and
-	//  "R1/Z4", or "R1/Z3" and "R1/Z4".
+	//
+	//	"R1/Z4", or "R1/Z3" and "R1/Z4".
 	//
 	// If x>n, then the SP MUST make the provisioned volume available from
 	// all topologies from the list of requisite topologies and MAY choose
@@ -4651,7 +4671,9 @@ type TopologyRequirement struct {
 	// CreateVolume call.
 	// For example, if a volume should be accessible from two zones, and
 	// requisite =
-	//   {"region": "R1", "zone": "Z2"}
+	//
+	//	{"region": "R1", "zone": "Z2"}
+	//
 	// then the provisioned volume MUST be accessible from the "region"
 	// "R1" and the "zone" "Z2" and the SP may select the second zone
 	// independently, e.g. "R1/Z4".
@@ -4680,10 +4702,14 @@ type TopologyRequirement struct {
 	// Example 1:
 	// Given a volume should be accessible from a single zone, and
 	// requisite =
-	//   {"region": "R1", "zone": "Z2"},
-	//   {"region": "R1", "zone": "Z3"}
+	//
+	//	{"region": "R1", "zone": "Z2"},
+	//	{"region": "R1", "zone": "Z3"}
+	//
 	// preferred =
-	//   {"region": "R1", "zone": "Z3"}
+	//
+	//	{"region": "R1", "zone": "Z3"}
+	//
 	// then the the SP SHOULD first attempt to make the provisioned volume
 	// available from "zone" "Z3" in the "region" "R1" and fall back to
 	// "zone" "Z2" in the "region" "R1" if that is not possible.
@@ -4691,13 +4717,17 @@ type TopologyRequirement struct {
 	// Example 2:
 	// Given a volume should be accessible from a single zone, and
 	// requisite =
-	//   {"region": "R1", "zone": "Z2"},
-	//   {"region": "R1", "zone": "Z3"},
-	//   {"region": "R1", "zone": "Z4"},
-	//   {"region": "R1", "zone": "Z5"}
+	//
+	//	{"region": "R1", "zone": "Z2"},
+	//	{"region": "R1", "zone": "Z3"},
+	//	{"region": "R1", "zone": "Z4"},
+	//	{"region": "R1", "zone": "Z5"}
+	//
 	// preferred =
-	//   {"region": "R1", "zone": "Z4"},
-	//   {"region": "R1", "zone": "Z2"}
+	//
+	//	{"region": "R1", "zone": "Z4"},
+	//	{"region": "R1", "zone": "Z2"}
+	//
 	// then the the SP SHOULD first attempt to make the provisioned volume
 	// accessible from "zone" "Z4" in the "region" "R1" and fall back to
 	// "zone" "Z2" in the "region" "R1" if that is not possible. If that
@@ -4710,13 +4740,17 @@ type TopologyRequirement struct {
 	// the volume is accessible from two zones, aka synchronously
 	// replicated), and
 	// requisite =
-	//   {"region": "R1", "zone": "Z2"},
-	//   {"region": "R1", "zone": "Z3"},
-	//   {"region": "R1", "zone": "Z4"},
-	//   {"region": "R1", "zone": "Z5"}
+	//
+	//	{"region": "R1", "zone": "Z2"},
+	//	{"region": "R1", "zone": "Z3"},
+	//	{"region": "R1", "zone": "Z4"},
+	//	{"region": "R1", "zone": "Z5"}
+	//
 	// preferred =
-	//   {"region": "R1", "zone": "Z5"},
-	//   {"region": "R1", "zone": "Z3"}
+	//
+	//	{"region": "R1", "zone": "Z5"},
+	//	{"region": "R1", "zone": "Z3"}
+	//
 	// then the the SP SHOULD first attempt to make the provisioned volume
 	// accessible from the combination of the two "zones" "Z5" and "Z3" in
 	// the "region" "R1". If that's not possible, it should fall back to
@@ -4831,6 +4865,7 @@ type VolumeCapability struct {
 	// following fields MUST be specified.
 	//
 	// Types that are valid to be assigned to AccessType:
+	//
 	//	*VolumeCapability_Block
 	//	*VolumeCapability_Mount
 	AccessType isVolumeCapability_AccessType `protobuf_oneof:"access_type"`

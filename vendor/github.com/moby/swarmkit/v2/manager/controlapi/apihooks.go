@@ -16,11 +16,11 @@ type NetworkViewResponseMutator interface {
 
 type NoopViewResponseMutator struct{}
 
-func (NoopViewResponseMutator) OnGetNetwork(ctx context.Context, n *api.Network, appdataTypeURL string, appdata []byte) error {
+func (NoopViewResponseMutator) OnGetNetwork(_ context.Context, _ *api.Network, _ string, _ []byte) error {
 	return nil
 }
 
-func (NoopViewResponseMutator) OnListNetworks(ctx context.Context, networks []*api.Network, appdataTypeURL string, appdata []byte) error {
+func (NoopViewResponseMutator) OnListNetworks(_ context.Context, _ []*api.Network, _ string, _ []byte) error {
 	return nil
 }
 

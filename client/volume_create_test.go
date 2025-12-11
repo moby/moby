@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -15,7 +14,7 @@ func TestVolumeCreateError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.VolumeCreate(context.Background(), VolumeCreateOptions{})
+	_, err = client.VolumeCreate(t.Context(), VolumeCreateOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -34,7 +33,7 @@ func TestVolumeCreate(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	res, err := client.VolumeCreate(context.Background(), VolumeCreateOptions{
+	res, err := client.VolumeCreate(t.Context(), VolumeCreateOptions{
 		Name:   "myvolume",
 		Driver: "mydriver",
 		DriverOpts: map[string]string{

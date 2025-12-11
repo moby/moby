@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/pkg/labels"
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
+	cacheimporttypes "github.com/moby/buildkit/cache/remotecache/v1/types"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/util/bklog"
@@ -69,7 +70,7 @@ func (ci *contentCacheImporter) Resolve(ctx context.Context, desc ocispecs.Descr
 		}
 
 		for _, m := range mfst.Manifests {
-			if m.MediaType == v1.CacheConfigMediaTypeV0 {
+			if m.MediaType == cacheimporttypes.CacheConfigMediaTypeV0 {
 				configDesc = m
 				continue
 			}
@@ -84,7 +85,7 @@ func (ci *contentCacheImporter) Resolve(ctx context.Context, desc ocispecs.Descr
 			return nil, err
 		}
 
-		if mfst.Config.MediaType == v1.CacheConfigMediaTypeV0 {
+		if mfst.Config.MediaType == cacheimporttypes.CacheConfigMediaTypeV0 {
 			configDesc = mfst.Config
 		}
 		for _, m := range mfst.Layers {
@@ -201,7 +202,7 @@ func (ci *contentCacheImporter) importInlineCache(ctx context.Context, dt []byte
 					return nil
 				}
 
-				var config v1.CacheConfig
+				var config cacheimporttypes.CacheConfig
 				if err := json.Unmarshal(img.Cache, &config.Records); err != nil {
 					return errors.WithStack(err)
 				}
@@ -227,7 +228,7 @@ func (ci *contentCacheImporter) importInlineCache(ctx context.Context, dt []byte
 						Descriptor: m,
 						Provider:   ci.provider,
 					}
-					config.Layers = append(config.Layers, v1.CacheLayer{
+					config.Layers = append(config.Layers, cacheimporttypes.CacheLayer{
 						Blob:        m.Digest,
 						ParentIndex: i - 1,
 					})

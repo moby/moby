@@ -302,7 +302,7 @@ func (nDB *NetworkDB) rejoinClusterBootStrap() {
 					continue
 				}
 				nodeIP, _ := netip.AddrFromSlice(node.Addr)
-				if bootstrapIP == netip.AddrPortFrom(nodeIP, node.Port) {
+				if bootstrapIP == netip.AddrPortFrom(nodeIP.Unmap(), node.Port) {
 					// One of the bootstrap nodes (and not myself) is part of the cluster, return
 					nDB.RUnlock()
 					return

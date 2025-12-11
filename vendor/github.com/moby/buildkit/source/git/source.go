@@ -28,6 +28,8 @@ import (
 	srctypes "github.com/moby/buildkit/source/types"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/gitutil"
+	"github.com/moby/buildkit/util/gitutil/gitobject"
+	"github.com/moby/buildkit/util/gitutil/gitsign"
 	"github.com/moby/buildkit/util/progress/logs"
 	"github.com/moby/buildkit/util/urlutil"
 	"github.com/moby/locker"
@@ -42,9 +44,22 @@ type Opt struct {
 	CacheAccessor cache.Accessor
 }
 
-type gitSource struct {
+type Source struct {
 	cache  cache.Accessor
 	locker *locker.Locker
+}
+
+type Metadata struct {
+	Ref            string
+	Checksum       string
+	CommitChecksum string
+
+	CommitObject []byte
+	TagObject    []byte
+}
+
+type MetadataOpts struct {
+	ReturnObject bool
 }
 
 // Supported returns nil if the system supports Git source
@@ -55,19 +70,19 @@ func Supported() error {
 	return nil
 }
 
-func NewSource(opt Opt) (source.Source, error) {
-	gs := &gitSource{
+func NewSource(opt Opt) (*Source, error) {
+	gs := &Source{
 		cache:  opt.CacheAccessor,
 		locker: locker.New(),
 	}
 	return gs, nil
 }
 
-func (gs *gitSource) Schemes() []string {
+func (gs *Source) Schemes() []string {
 	return []string{srctypes.GitScheme}
 }
 
-func (gs *gitSource) Identifier(scheme, ref string, attrs map[string]string, platform *pb.Platform) (source.Identifier, error) {
+func (gs *Source) Identifier(scheme, ref string, attrs map[string]string, platform *pb.Platform) (source.Identifier, error) {
 	id, err := NewGitIdentifier(ref)
 	if err != nil {
 		return nil, err
@@ -98,6 +113,26 @@ func (gs *gitSource) Identifier(scheme, ref string, attrs map[string]string, pla
 			if v == "true" {
 				id.SkipSubmodules = true
 			}
+		case pb.AttrGitSignatureVerifyPubKey:
+			if id.VerifySignature == nil {
+				id.VerifySignature = &GitSignatureVerifyOptions{}
+			}
+			id.VerifySignature.PubKey = []byte(v)
+		case pb.AttrGitSignatureVerifyRejectExpired:
+			if id.VerifySignature == nil {
+				id.VerifySignature = &GitSignatureVerifyOptions{}
+			}
+			id.VerifySignature.RejectExpiredKeys = v == "true"
+		case pb.AttrGitSignatureVerifyRequireSignedTag:
+			if id.VerifySignature == nil {
+				id.VerifySignature = &GitSignatureVerifyOptions{}
+			}
+			id.VerifySignature.RequireSignedTag = v == "true"
+		case pb.AttrGitSignatureVerifyIgnoreSignedTag:
+			if id.VerifySignature == nil {
+				id.VerifySignature = &GitSignatureVerifyOptions{}
+			}
+			id.VerifySignature.IgnoreSignedTag = v == "true"
 		}
 	}
 
@@ -105,7 +140,7 @@ func (gs *gitSource) Identifier(scheme, ref string, attrs map[string]string, pla
 }
 
 // needs to be called with repo lock
-func (gs *gitSource) mountRemote(ctx context.Context, remote string, authArgs []string, sha256 bool, g session.Group) (target string, release func() error, retErr error) {
+func (gs *Source) mountRemote(ctx context.Context, remote string, authArgs []string, sha256 bool, reset bool, g session.Group) (target string, release func() error, retErr error) {
 	sis, err := searchGitRemote(ctx, gs.cache, remote)
 	if err != nil {
 		return "", nil, errors.Wrapf(err, "failed to search metadata for %s", urlutil.RedactCredentials(remote))
@@ -113,16 +148,22 @@ func (gs *gitSource) mountRemote(ctx context.Context, remote string, authArgs []
 
 	var remoteRef cache.MutableRef
 	for _, si := range sis {
-		remoteRef, err = gs.cache.GetMutable(ctx, si.ID())
-		if err != nil {
-			if errors.Is(err, cache.ErrLocked) {
-				// should never really happen as no other function should access this metadata, but lets be graceful
-				bklog.G(ctx).Warnf("mutable ref for %s  %s was locked: %v", urlutil.RedactCredentials(remote), si.ID(), err)
-				continue
+		if reset {
+			if err := si.clearGitRemote(); err != nil {
+				bklog.G(ctx).Warnf("failed to clear git remote metadata for %s %s: %v", urlutil.RedactCredentials(remote), si.ID(), err)
 			}
-			return "", nil, errors.Wrapf(err, "failed to get mutable ref for %s", urlutil.RedactCredentials(remote))
+		} else {
+			remoteRef, err = gs.cache.GetMutable(ctx, si.ID())
+			if err != nil {
+				if errors.Is(err, cache.ErrLocked) {
+					// should never really happen as no other function should access this metadata, but lets be graceful
+					bklog.G(ctx).Warnf("mutable ref for %s  %s was locked: %v", urlutil.RedactCredentials(remote), si.ID(), err)
+					continue
+				}
+				return "", nil, errors.Wrapf(err, "failed to get mutable ref for %s", urlutil.RedactCredentials(remote))
+			}
+			break
 		}
-		break
 	}
 
 	initializeRepo := false
@@ -199,12 +240,13 @@ func (gs *gitSource) mountRemote(ctx context.Context, remote string, authArgs []
 }
 
 type gitSourceHandler struct {
-	*gitSource
-	src      GitIdentifier
-	cacheKey string
-	sha256   bool
-	sm       *session.Manager
-	authArgs []string
+	*Source
+	src         GitIdentifier
+	cacheKey    string
+	cacheCommit string
+	sha256      bool
+	sm          *session.Manager
+	authArgs    []string
 }
 
 func (gs *gitSourceHandler) shaToCacheKey(sha, ref string) string {
@@ -224,16 +266,88 @@ func (gs *gitSourceHandler) shaToCacheKey(sha, ref string) string {
 	return key
 }
 
-func (gs *gitSource) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager, _ solver.Vertex) (source.SourceInstance, error) {
+func (gs *Source) ResolveMetadata(ctx context.Context, id *GitIdentifier, sm *session.Manager, jobCtx solver.JobContext, opt MetadataOpts) (*Metadata, error) {
+	gsh := &gitSourceHandler{
+		src:    *id,
+		Source: gs,
+		sm:     sm,
+	}
+	md, err := gsh.resolveMetadata(ctx, jobCtx)
+	if err != nil {
+		return nil, err
+	}
+
+	if !opt.ReturnObject && id.VerifySignature == nil {
+		return md, nil
+	}
+
+	gsh.cacheCommit = md.Checksum
+	gsh.sha256 = len(md.Checksum) == 64
+
+	if err := gsh.addGitObjectsToMetadata(ctx, jobCtx, md); err != nil {
+		return nil, err
+	}
+
+	if id.VerifySignature != nil {
+		if err := verifyGitSignature(md, id.VerifySignature); err != nil {
+			return nil, err
+		}
+	}
+
+	return md, nil
+}
+
+func verifyGitSignature(md *Metadata, opts *GitSignatureVerifyOptions) error {
+	var tagVerifyError error
+	if !opts.IgnoreSignedTag {
+		if len(md.TagObject) > 0 {
+			tagObj, err := gitobject.Parse(md.TagObject)
+			if err != nil {
+				return errors.Wrap(err, "failed to parse git tag object")
+			}
+			if err := tagObj.VerifyChecksum(md.Checksum); err != nil {
+				return errors.Wrap(err, "tag object checksum verification failed")
+			}
+			tagVerifyError = gitsign.VerifySignature(tagObj, opts.PubKey, &gitsign.VerifyPolicy{
+				RejectExpiredKeys: opts.RejectExpiredKeys,
+			})
+			if tagVerifyError == nil {
+				return nil
+			}
+		}
+	}
+	if opts.RequireSignedTag {
+		if tagVerifyError != nil {
+			return tagVerifyError
+		}
+		return errors.New("signed tag required but no signed tag found")
+	}
+	commitObj, err := gitobject.Parse(md.CommitObject)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse git commit object")
+	}
+	expected := md.Checksum
+	if md.CommitChecksum != "" {
+		expected = md.CommitChecksum
+	}
+	if err := commitObj.VerifyChecksum(expected); err != nil {
+		return errors.Wrap(err, "commit object checksum verification failed")
+	}
+	return gitsign.VerifySignature(commitObj, opts.PubKey, &gitsign.VerifyPolicy{
+		RejectExpiredKeys: opts.RejectExpiredKeys,
+	})
+}
+
+func (gs *Source) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager, _ solver.Vertex) (source.SourceInstance, error) {
 	gitIdentifier, ok := id.(*GitIdentifier)
 	if !ok {
 		return nil, errors.Errorf("invalid git identifier %v", id)
 	}
 
 	return &gitSourceHandler{
-		src:       *gitIdentifier,
-		gitSource: gs,
-		sm:        sm,
+		src:    *gitIdentifier,
+		Source: gs,
+		sm:     sm,
 	}, nil
 }
 
@@ -358,7 +472,11 @@ func (gs *gitSourceHandler) mountKnownHosts() (string, func() error, error) {
 	return knownHosts.Name(), cleanup, nil
 }
 
-func (gs *gitSourceHandler) CacheKey(ctx context.Context, g session.Group, index int) (string, string, solver.CacheOpts, bool, error) {
+func (gs *gitSourceHandler) remoteKey() string {
+	return gs.src.Remote + "#" + gs.src.Ref
+}
+
+func (gs *gitSourceHandler) resolveMetadata(ctx context.Context, jobCtx solver.JobContext) (md *Metadata, retErr error) {
 	remote := gs.src.Remote
 	gs.locker.Lock(remote)
 	defer gs.locker.Unlock(remote)
@@ -366,31 +484,59 @@ func (gs *gitSourceHandler) CacheKey(ctx context.Context, g session.Group, index
 	if gs.src.Checksum != "" {
 		matched, err := regexp.MatchString("^[a-fA-F0-9]+$", gs.src.Checksum)
 		if err != nil || !matched {
-			return "", "", nil, false, errors.Errorf("invalid checksum %s for Git URL, expected hex commit hash", gs.src.Checksum)
+			return nil, errors.Errorf("invalid checksum %s for Git URL, expected hex commit hash", gs.src.Checksum)
 		}
 	}
 
-	var refCommitFullHash, ref2 string
-	if gitutil.IsCommitSHA(gs.src.Checksum) && !gs.src.KeepGitDir {
-		refCommitFullHash = gs.src.Checksum
-		ref2 = gs.src.Ref
+	if gitutil.IsCommitSHA(gs.src.Ref) {
+		if gs.src.Checksum != "" && !strings.HasPrefix(gs.src.Ref, gs.src.Checksum) {
+			return nil, errors.Errorf("expected checksum to match %s, got %s", gs.src.Checksum, gs.src.Ref)
+		}
+		return &Metadata{
+			Ref:      gs.src.Ref,
+			Checksum: gs.src.Ref,
+		}, nil
 	}
-	if refCommitFullHash == "" && gitutil.IsCommitSHA(gs.src.Ref) {
-		refCommitFullHash = gs.src.Ref
-	}
-	if refCommitFullHash != "" {
-		cacheKey := gs.shaToCacheKey(refCommitFullHash, ref2)
-		gs.cacheKey = cacheKey
-		gs.sha256 = len(refCommitFullHash) == 64
-		// gs.src.Checksum is verified when checking out the commit
-		return cacheKey, refCommitFullHash, nil, true, nil
+
+	var g session.Group
+	if jobCtx != nil {
+		g = jobCtx.Session()
+
+		if rc := jobCtx.ResolverCache(); rc != nil {
+			values, release, err := rc.Lock(gs.remoteKey())
+			if err != nil {
+				return nil, err
+			}
+			saveResolved := true
+			defer func() {
+				v := md
+				if retErr != nil || !saveResolved {
+					v = nil
+				}
+				if err := release(v); err != nil {
+					bklog.G(ctx).Warnf("failed to release resolver cache lock for %s: %v", gs.remoteKey(), err)
+				}
+			}()
+			for _, v := range values {
+				v2, ok := v.(*Metadata)
+				if !ok {
+					return nil, errors.Errorf("invalid resolver cache value for %s: %T", gs.remoteKey(), v)
+				}
+				if gs.src.Checksum != "" && !strings.HasPrefix(v2.Checksum, gs.src.Checksum) {
+					continue
+				}
+				saveResolved = false
+				clone := *v2
+				return &clone, nil
+			}
+		}
 	}
 
 	gs.getAuthToken(ctx, g)
 
 	tmpGit, cleanup, err := gs.emptyGitCli(ctx, g)
 	if err != nil {
-		return "", "", nil, false, err
+		return nil, err
 	}
 	defer cleanup()
 
@@ -398,7 +544,7 @@ func (gs *gitSourceHandler) CacheKey(ctx context.Context, g session.Group, index
 	if ref == "" {
 		ref, err = getDefaultBranch(ctx, tmpGit, gs.src.Remote)
 		if err != nil {
-			return "", "", nil, false, err
+			return nil, err
 		}
 	}
 
@@ -406,7 +552,7 @@ func (gs *gitSourceHandler) CacheKey(ctx context.Context, g session.Group, index
 
 	buf, err := tmpGit.Run(ctx, "ls-remote", gs.src.Remote, ref, ref+"^{}")
 	if err != nil {
-		return "", "", nil, false, errors.Wrapf(err, "failed to fetch remote %s", urlutil.RedactCredentials(remote))
+		return nil, errors.Wrapf(err, "failed to fetch remote %s", urlutil.RedactCredentials(remote))
 	}
 	lines := strings.Split(string(buf), "\n")
 
@@ -414,17 +560,20 @@ func (gs *gitSourceHandler) CacheKey(ctx context.Context, g session.Group, index
 		partialRef      = "refs/" + strings.TrimPrefix(ref, "refs/")
 		headRef         = "refs/heads/" + strings.TrimPrefix(ref, "refs/heads/")
 		tagRef          = "refs/tags/" + strings.TrimPrefix(ref, "refs/tags/")
-		annotatedTagRef = tagRef + "^{}"
+		annotatedTagRef = tagRef + "^{}" // dereferenced annotated tag
 	)
-	var sha, headSha, tagSha string
+	var sha, headSha, tagSha, annotatedTagSha string
 	var usedRef string
+
 	for _, line := range lines {
 		lineSha, lineRef, _ := strings.Cut(line, "\t")
 		switch lineRef {
 		case headRef:
 			headSha = lineSha
-		case tagRef, annotatedTagRef:
+		case tagRef:
 			tagSha = lineSha
+		case annotatedTagRef:
+			annotatedTagSha = lineSha
 		case partialRef:
 			sha = lineSha
 			usedRef = lineRef
@@ -436,35 +585,200 @@ func (gs *gitSourceHandler) CacheKey(ctx context.Context, g session.Group, index
 		sha = headSha
 		usedRef = headRef
 	}
+	if sha != "" {
+		annotatedTagSha = "" // ignore annotated tag if branch or commit matched
+	}
 	if sha == "" {
 		sha = tagSha
 		usedRef = tagRef
 	}
 	if sha == "" {
-		return "", "", nil, false, errors.Errorf("repository does not contain ref %s, output: %q", ref, string(buf))
+		return nil, errors.Errorf("repository does not contain ref %s, output: %q", ref, string(buf))
 	}
 	if !gitutil.IsCommitSHA(sha) {
-		return "", "", nil, false, errors.Errorf("invalid commit sha %q", sha)
+		return nil, errors.Errorf("invalid commit sha %q", sha)
 	}
-	if gs.src.Checksum != "" && !strings.HasPrefix(sha, gs.src.Checksum) {
-		return "", "", nil, false, errors.Errorf("expected checksum to match %s, got %s", gs.src.Checksum, sha)
+	if gs.src.Checksum != "" {
+		if !strings.HasPrefix(sha, gs.src.Checksum) && !strings.HasPrefix(annotatedTagSha, gs.src.Checksum) {
+			exp := sha
+			if annotatedTagSha != "" {
+				exp = " or " + annotatedTagSha
+			}
+			return nil, errors.Errorf("expected checksum to match %s, got %s", gs.src.Checksum, exp)
+		}
 	}
-	cacheKey := gs.shaToCacheKey(sha, usedRef)
-	gs.cacheKey = cacheKey
-	gs.sha256 = len(sha) == 64
-	return cacheKey, sha, nil, true, nil
+	md = &Metadata{
+		Ref:      usedRef,
+		Checksum: sha,
+	}
+	if annotatedTagSha != "" && !gs.src.KeepGitDir {
+		// prefer commit sha pointed by annotated tag if no git dir is kept for more matches
+		md.CommitChecksum = annotatedTagSha
+	}
+	return md, nil
 }
 
-func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out cache.ImmutableRef, retErr error) {
+func (gs *gitSourceHandler) addGitObjectsToMetadata(ctx context.Context, jobCtx solver.JobContext, md *Metadata) error {
+	repo, err := gs.remoteFetch(ctx, jobCtx)
+	if err != nil {
+		return err
+	}
+	defer repo.Release()
+
+	// if ref was commit sha then we don't know the type of the object yet
+	buf, err := repo.Run(ctx, "cat-file", "-t", md.Checksum)
+	if err != nil {
+		return err
+	}
+	objType := strings.TrimSpace(string(buf))
+
+	if objType != "commit" && objType != "tag" {
+		return errors.Errorf("expected commit or tag object, got %s", objType)
+	}
+
+	if objType == "tag" && md.CommitChecksum == "" {
+		buf, err := repo.Run(ctx, "rev-parse", md.Checksum+"^{commit}")
+		if err != nil {
+			return err
+		}
+		md.CommitChecksum = strings.TrimSpace(string(buf))
+	} else if objType == "commit" {
+		md.CommitChecksum = ""
+	}
+
+	commitChecksum := md.Checksum
+	if md.CommitChecksum != "" {
+		buf, err := repo.Run(ctx, "cat-file", "tag", md.Checksum)
+		if err != nil {
+			return err
+		}
+		md.TagObject = buf
+		commitChecksum = md.CommitChecksum
+	}
+
+	buf, err = repo.Run(ctx, "cat-file", "commit", commitChecksum)
+	if err != nil {
+		return err
+	}
+	md.CommitObject = buf
+	return nil
+}
+
+func (gs *gitSourceHandler) CacheKey(ctx context.Context, jobCtx solver.JobContext, index int) (string, string, solver.CacheOpts, bool, error) {
+	md, err := gs.resolveMetadata(ctx, jobCtx)
+	if err != nil {
+		return "", "", nil, false, err
+	}
+
+	gs.sha256 = len(md.Checksum) == 64
+
+	if gs.src.VerifySignature != nil {
+		gs.cacheCommit = md.Checksum
+		if err := gs.addGitObjectsToMetadata(ctx, jobCtx, md); err != nil {
+			return "", "", nil, false, err
+		}
+		if err := verifyGitSignature(md, gs.src.VerifySignature); err != nil {
+			return "", "", nil, false, err
+		}
+	}
+
+	if gitutil.IsCommitSHA(md.Ref) {
+		cacheKey := gs.shaToCacheKey(md.Ref, md.Ref)
+		gs.cacheKey = cacheKey
+		gs.cacheCommit = md.Ref
+		// gs.src.Checksum is verified when checking out the commit
+		return cacheKey, md.Ref, nil, true, nil
+	}
+
+	shaForCacheKey := md.Checksum
+	if md.CommitChecksum != "" && !gs.src.KeepGitDir {
+		// prefer commit sha pointed by annotated tag if no git dir is kept for more matches
+		shaForCacheKey = md.CommitChecksum
+	}
+	cacheKey := gs.shaToCacheKey(shaForCacheKey, md.Ref)
+	gs.cacheKey = cacheKey
+	gs.cacheCommit = md.Checksum
+	return cacheKey, md.Checksum, nil, true, nil
+}
+
+func (gs *gitSourceHandler) remoteFetch(ctx context.Context, jobCtx solver.JobContext) (_ *gitRepo, retErr error) {
+	gs.locker.Lock(gs.src.Remote)
+	cleanup := func() error { return gs.locker.Unlock(gs.src.Remote) }
+
+	defer func() {
+		if retErr != nil {
+			cleanup()
+		}
+	}()
+
+	var g session.Group
+	if jobCtx != nil {
+		g = jobCtx.Session()
+	}
+
+	repo, err := gs.tryRemoteFetch(ctx, g, false)
+	if err != nil {
+		var wce *wouldClobberExistingTagError
+		var ulre *unableToUpdateLocalRefError
+		if errors.As(err, &wce) || errors.As(err, &ulre) {
+			repo, err = gs.tryRemoteFetch(ctx, g, true)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
+	}
+	repo.releasers = append(repo.releasers, cleanup)
+
+	defer func() {
+		if retErr != nil {
+			repo.Release()
+			repo = nil
+		}
+	}()
+
+	ref := gs.src.Ref
+	git := repo.GitCLI
+	if gs.src.Checksum != "" {
+		actualHashBuf, err := repo.Run(ctx, "rev-parse", ref)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to rev-parse %s for %s", ref, urlutil.RedactCredentials(gs.src.Remote))
+		}
+		actualHash := strings.TrimSpace(string(actualHashBuf))
+		if !strings.HasPrefix(actualHash, gs.src.Checksum) {
+			retErr := errors.Errorf("expected checksum to match %s, got %s", gs.src.Checksum, actualHash)
+			actualHashBuf2, err := git.Run(ctx, "rev-parse", ref+"^{}")
+			if err != nil {
+				return nil, retErr
+			}
+			actualHash2 := strings.TrimSpace(string(actualHashBuf2))
+			if actualHash2 == actualHash {
+				return nil, retErr
+			}
+			if !strings.HasPrefix(actualHash2, gs.src.Checksum) {
+				return nil, errors.Errorf("expected checksum to match %s, got %s or %s", gs.src.Checksum, actualHash, actualHash2)
+			}
+		}
+	}
+
+	return repo, nil
+}
+
+func (gs *gitSourceHandler) Snapshot(ctx context.Context, jobCtx solver.JobContext) (cache.ImmutableRef, error) {
 	cacheKey := gs.cacheKey
 	if cacheKey == "" {
 		var err error
-		cacheKey, _, _, _, err = gs.CacheKey(ctx, g, 0)
+		cacheKey, _, _, _, err = gs.CacheKey(ctx, jobCtx, 0)
 		if err != nil {
 			return nil, err
 		}
 	}
 
+	var g session.Group
+	if jobCtx != nil {
+		g = jobCtx.Session()
+	}
 	gs.getAuthToken(ctx, g)
 
 	snapshotKey := cacheKey + ":" + gs.src.Subdir
@@ -479,21 +793,65 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 		return gs.cache.Get(ctx, sis[0].ID(), nil)
 	}
 
-	gs.locker.Lock(gs.src.Remote)
-	defer gs.locker.Unlock(gs.src.Remote)
+	repo, err := gs.remoteFetch(ctx, jobCtx)
+	if err != nil {
+		return nil, err
+	}
+	defer repo.Release()
+
+	ref, err := gs.checkout(ctx, repo, g)
+	if err != nil {
+		return nil, err
+	}
+
+	md := cacheRefMetadata{ref}
+	if err := md.setGitSnapshot(snapshotKey); err != nil {
+		return nil, err
+	}
+	return ref, nil
+}
+
+type gitRepo struct {
+	*gitutil.GitCLI
+	dir       string
+	releasers []func() error
+}
+
+func (g *gitRepo) Release() error {
+	var err error
+	for _, r := range g.releasers {
+		if err1 := r(); err == nil {
+			err = err1
+		}
+	}
+	return err
+}
+
+func (gs *gitSourceHandler) tryRemoteFetch(ctx context.Context, g session.Group, reset bool) (_ *gitRepo, retErr error) {
+	repo := &gitRepo{}
+
+	defer func() {
+		if retErr != nil {
+			repo.Release()
+			repo = nil
+		}
+	}()
 
 	git, cleanup, err := gs.emptyGitCli(ctx, g)
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	repo.releasers = append(repo.releasers, cleanup)
 
-	gitDir, unmountGitDir, err := gs.mountRemote(ctx, gs.src.Remote, gs.authArgs, gs.sha256, g)
+	gitDir, unmountGitDir, err := gs.mountRemote(ctx, gs.src.Remote, gs.authArgs, gs.sha256, reset, g)
 	if err != nil {
 		return nil, err
 	}
-	defer unmountGitDir()
+	repo.releasers = append(repo.releasers, unmountGitDir)
+	repo.dir = gitDir
+
 	git = git.New(gitutil.WithGitDir(gitDir))
+	repo.GitCLI = git
 
 	ref := gs.src.Ref
 	if ref == "" {
@@ -501,6 +859,7 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 		if err != nil {
 			return nil, err
 		}
+		gs.src.Ref = ref
 	}
 
 	doFetch := true
@@ -509,6 +868,14 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 		if _, err := git.Run(ctx, "cat-file", "-e", ref+"^{commit}"); err == nil {
 			doFetch = false
 		}
+	}
+
+	// local refs are needed so they would be advertised on next fetches. Force is used
+	// in case the ref is a branch and it now points to a different commit sha
+	// TODO: is there a better way to do this?
+	targetRef := ref
+	if !strings.HasPrefix(ref, "refs/tags/") {
+		targetRef = "tags/" + ref
 	}
 
 	if doFetch {
@@ -528,24 +895,74 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 		if gitutil.IsCommitSHA(ref) {
 			args = append(args, ref)
 		} else {
-			// local refs are needed so they would be advertised on next fetches. Force is used
-			// in case the ref is a branch and it now points to a different commit sha
-			// TODO: is there a better way to do this?
-			targetRef := ref
-			if !strings.HasPrefix(ref, "refs/tags/") {
-				targetRef = "tags/" + ref
-			}
 			args = append(args, "--force", ref+":"+targetRef)
 		}
 		if _, err := git.Run(ctx, args...); err != nil {
-			return nil, errors.Wrapf(err, "failed to fetch remote %s", urlutil.RedactCredentials(gs.src.Remote))
+			err := errors.Wrapf(err, "failed to fetch remote %s", urlutil.RedactCredentials(gs.src.Remote))
+			if strings.Contains(err.Error(), "rejected") && strings.Contains(err.Error(), "(would clobber existing tag)") {
+				// this can happen if a tag was mutated to another commit in remote.
+				// only hope is to abandon the existing shared repo and start a fresh one
+				return nil, &wouldClobberExistingTagError{err}
+			}
+			if strings.Contains(err.Error(), "(unable to update local ref)") && strings.Contains(err.Error(), "some local refs could not be updated;") {
+				// this can happen if a branch updated in remote so that old branch
+				// is now a parent dir of a new branch
+				return nil, &unableToUpdateLocalRefError{err}
+			}
+
+			return nil, err
 		}
-		_, err = git.Run(ctx, "reflog", "expire", "--all", "--expire=now")
+
+		// verify that commit matches the cache key commit
+		dt, err := git.Run(ctx, "rev-parse", ref)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to expire reflog for remote %s", urlutil.RedactCredentials(gs.src.Remote))
+			return nil, err
+		}
+		// if fetched ref does not match cache key, the remote side has changed the ref
+		// if possible we can try to force the commit that the cache key points to, otherwise we need to error
+		if strings.TrimSpace(string(dt)) != gs.cacheCommit {
+			uptRef := targetRef
+			if !strings.HasPrefix(uptRef, "refs/") {
+				uptRef = "refs/" + uptRef
+			}
+			// check if the commit still exists in the repo
+			if _, err := git.Run(ctx, "cat-file", "-e", gs.cacheCommit); err == nil {
+				// force the ref to point to the commit that the cache key points to
+				if _, err := git.Run(ctx, "update-ref", uptRef, gs.cacheCommit, "--no-deref"); err != nil {
+					return nil, err
+				}
+			} else {
+				// try to fetch the commit directly
+				args := []string{"fetch", "--tags"}
+				if _, err := os.Lstat(filepath.Join(gitDir, "shallow")); err == nil {
+					args = append(args, "--unshallow")
+				}
+				args = append(args, "origin", gs.cacheCommit)
+				if _, err := git.Run(ctx, args...); err != nil {
+					return nil, errors.Wrapf(err, "failed to fetch remote %s", urlutil.RedactCredentials(gs.src.Remote))
+				}
+
+				_, err = git.Run(ctx, "reflog", "expire", "--all", "--expire=now")
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to expire reflog for remote %s", urlutil.RedactCredentials(gs.src.Remote))
+				}
+				if _, err := git.Run(ctx, "cat-file", "-e", gs.cacheCommit); err == nil {
+					// force the ref to point to the commit that the cache key points to
+					if _, err := git.Run(ctx, "update-ref", uptRef, gs.cacheCommit, "--no-deref"); err != nil {
+						return nil, err
+					}
+				} else {
+					return nil, errors.Errorf("fetched ref %s does not match expected commit %s and commit can not be found in the repository", ref, gs.cacheCommit)
+				}
+			}
 		}
 	}
 
+	return repo, nil
+}
+
+func (gs *gitSourceHandler) checkout(ctx context.Context, repo *gitRepo, g session.Group) (_ cache.ImmutableRef, retErr error) {
+	ref := gs.src.Ref
 	checkoutRef, err := gs.cache.New(ctx, nil, g, cache.WithRecordType(client.UsageRecordTypeGitCheckout), cache.WithDescription(fmt.Sprintf("git snapshot for %s#%s", urlutil.RedactCredentials(gs.src.Remote), ref)))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create new mutable for %s", urlutil.RedactCredentials(gs.src.Remote))
@@ -556,6 +973,9 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 			checkoutRef.Release(context.WithoutCancel(ctx))
 		}
 	}()
+
+	git := repo.GitCLI
+	gitDir := repo.dir
 
 	mount, err := checkoutRef.Mount(ctx, false, g)
 	if err != nil {
@@ -575,17 +995,6 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 	subdir := path.Clean(gs.src.Subdir)
 	if subdir == "/" {
 		subdir = "."
-	}
-
-	if gs.src.Checksum != "" {
-		actualHashBuf, err := git.Run(ctx, "rev-parse", ref)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to rev-parse %s for %s", ref, urlutil.RedactCredentials(gs.src.Remote))
-		}
-		actualHash := strings.TrimSpace(string(actualHashBuf))
-		if !strings.HasPrefix(actualHash, gs.src.Checksum) {
-			return nil, errors.Errorf("expected checksum to match %s, got %s", gs.src.Checksum, actualHash)
-		}
 	}
 
 	cd := checkoutDir
@@ -728,11 +1137,23 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 		}
 	}()
 
-	md := cacheRefMetadata{snap}
-	if err := md.setGitSnapshot(snapshotKey); err != nil {
-		return nil, err
-	}
 	return snap, nil
+}
+
+type wouldClobberExistingTagError struct {
+	error
+}
+
+func (e *wouldClobberExistingTagError) Unwrap() error {
+	return e.error
+}
+
+type unableToUpdateLocalRefError struct {
+	error
+}
+
+func (e *unableToUpdateLocalRefError) Unwrap() error {
+	return e.error
 }
 
 func (gs *gitSourceHandler) emptyGitCli(ctx context.Context, g session.Group, opts ...gitutil.Option) (*gitutil.GitCLI, func() error, error) {
@@ -841,6 +1262,10 @@ func (md cacheRefMetadata) setGitSnapshot(key string) error {
 
 func (md cacheRefMetadata) setGitRemote(key string) error {
 	return md.SetString(keyGitRemote, key, gitRemoteIndex+key)
+}
+
+func (md cacheRefMetadata) clearGitRemote() error {
+	return md.ClearValueAndIndex(keyGitRemote, gitRemoteIndex)
 }
 
 func gitCLI(opts ...gitutil.Option) *gitutil.GitCLI {

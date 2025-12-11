@@ -395,3 +395,11 @@ func FilterInheritedLabels(labels map[string]string) map[string]string {
 	}
 	return filtered
 }
+
+// WithParent sets the parent of a snapshot
+func WithParent(parent string) Opt {
+	return func(info *Info) error {
+		info.Parent = parent
+		return nil
+	}
+}

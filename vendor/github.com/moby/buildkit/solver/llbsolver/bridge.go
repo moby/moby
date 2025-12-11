@@ -30,6 +30,7 @@ import (
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -49,7 +50,7 @@ type llbBridge struct {
 }
 
 func (b *llbBridge) Warn(ctx context.Context, dgst digest.Digest, msg string, opts frontend.WarnOpts) error {
-	return b.builder.InContext(ctx, func(ctx context.Context, g session.Group) error {
+	return b.builder.InContext(ctx, func(ctx context.Context, _ solver.JobContext) error {
 		pw, ok, _ := progress.NewFromContext(ctx, progress.WithMetadata("vertex", dgst))
 		if !ok {
 			return nil
@@ -84,7 +85,7 @@ func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImp
 	if err != nil {
 		return nil, err
 	}
-	var polEngine SourcePolicyEvaluator
+	var polEngine *sourcepolicy.Engine
 	if srcPol != nil || len(pol) > 0 {
 		for _, p := range pol {
 			if p == nil {
@@ -111,10 +112,14 @@ func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImp
 			func(cmID string, im gw.CacheOptionsEntry) {
 				cm = newLazyCacheManager(cmID, func() (solver.CacheManager, error) {
 					var cmNew solver.CacheManager
-					if err := inBuilderContext(context.TODO(), b.builder, "importing cache manifest from "+cmID, "", func(ctx context.Context, g session.Group) error {
+					if err := inBuilderContext(context.TODO(), b.builder, "importing cache manifest from "+cmID, "", func(ctx context.Context, jobCtx solver.JobContext) error {
 						resolveCI, ok := b.resolveCacheImporterFuncs[im.Type]
 						if !ok {
 							return errors.Errorf("unknown cache importer: %s", im.Type)
+						}
+						var g session.Group
+						if jobCtx != nil {
+							g = jobCtx.Session()
 						}
 						ci, desc, err := resolveCI(ctx, g, im.Attrs)
 						if err != nil {
@@ -138,7 +143,7 @@ func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImp
 	}
 	dpc := &detectPrunedCacheID{}
 
-	edge, err := Load(ctx, def, polEngine, dpc.Load, ValidateEntitlements(ent, w.CDIManager()), WithCacheSources(cms), NormalizeRuntimePlatforms(), WithValidateCaps())
+	edge, err := Load(ctx, def, b.policy(polEngine), dpc.Load, ValidateEntitlements(ent, w.CDIManager()), WithCacheSources(cms), NormalizeRuntimePlatforms(), WithValidateCaps())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load LLB")
 	}
@@ -156,6 +161,13 @@ func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImp
 		return nil, err
 	}
 	return res, nil
+}
+
+func (b *llbBridge) policy(engine *sourcepolicy.Engine) SourcePolicyEvaluator {
+	return &policyEvaluator{
+		llbBridge: b,
+		engine:    engine,
+	}
 }
 
 func (b *llbBridge) validateEntitlements(p executor.ProcessInfo) error {
@@ -344,6 +356,10 @@ func (rp *resultProxy) Result(ctx context.Context) (res solver.CachedResult, err
 }
 
 func (b *llbBridge) ResolveSourceMetadata(ctx context.Context, op *pb.SourceOp, opt sourceresolver.Opt) (resp *sourceresolver.MetaResponse, err error) {
+	return b.resolveSourceMetadata(ctx, op, opt, true)
+}
+
+func (b *llbBridge) resolveSourceMetadata(ctx context.Context, op *pb.SourceOp, opt sourceresolver.Opt, withPolicy bool) (resp *sourceresolver.MetaResponse, err error) {
 	w, err := b.resolveWorker()
 	if err != nil {
 		return nil, err
@@ -353,8 +369,16 @@ func (b *llbBridge) ResolveSourceMetadata(ctx context.Context, op *pb.SourceOp, 
 		opt.LogName = fmt.Sprintf("resolve image config for %s", op.Identifier)
 	}
 	id := op.Identifier
-	if opt.Platform != nil {
-		id += platforms.FormatAll(*opt.Platform)
+
+	var platform *ocispecs.Platform
+	if opt.ImageOpt != nil && opt.ImageOpt.Platform != nil {
+		platform = opt.ImageOpt.Platform
+	} else if opt.OCILayoutOpt != nil && opt.OCILayoutOpt.Platform != nil {
+		platform = opt.OCILayoutOpt.Platform
+	}
+
+	if platform != nil {
+		id += platforms.FormatAll(*platform)
 	} else {
 		id += platforms.FormatAll(platforms.DefaultSpec())
 	}
@@ -366,15 +390,32 @@ func (b *llbBridge) ResolveSourceMetadata(ctx context.Context, op *pb.SourceOp, 
 		opt.SourcePolicies = append(opt.SourcePolicies, pol)
 	}
 
-	if _, err := sourcepolicy.NewEngine(opt.SourcePolicies).Evaluate(ctx, op); err != nil {
-		return nil, errors.Wrap(err, "could not resolve image due to policy")
+	engine := sourcepolicy.NewEngine(opt.SourcePolicies)
+
+	if !withPolicy {
+		if _, err := engine.Evaluate(ctx, op); err != nil {
+			return nil, errors.Wrap(err, "could not resolve image due to policy")
+		}
+	} else {
+		var p *ocispecs.Platform
+		if opt.ImageOpt != nil {
+			p = opt.ImageOpt.Platform
+		} else if opt.OCILayoutOpt != nil {
+			p = opt.OCILayoutOpt.Platform
+		}
+		if _, err := b.policy(engine).Evaluate(ctx, &pb.Op{
+			Op:       &pb.Op_Source{Source: op},
+			Platform: toPBPlatform(p),
+		}); err != nil {
+			return nil, errors.Wrap(err, "could not resolve image due to policy")
+		}
 	}
 
 	// policy is evaluated, so we can remove it from the options
 	opt.SourcePolicies = nil
 
-	err = inBuilderContext(ctx, b.builder, opt.LogName, id, func(ctx context.Context, g session.Group) error {
-		resp, err = w.ResolveSourceMetadata(ctx, op, opt, b.sm, g)
+	err = inBuilderContext(ctx, b.builder, opt.LogName, id, func(ctx context.Context, jobCtx solver.JobContext) error {
+		resp, err = w.ResolveSourceMetadata(ctx, op, opt, b.sm, jobCtx)
 		return err
 	})
 	if err != nil {

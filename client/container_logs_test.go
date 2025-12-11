@@ -167,7 +167,7 @@ func TestContainerLogs(t *testing.T) {
 }
 
 func ExampleClient_ContainerLogs_withTimeout() {
-	client, err := New(FromEnv, WithAPIVersionNegotiation())
+	client, err := New(FromEnv)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -18,11 +18,24 @@ import (
 
 func TestTLSCloseWriter(t *testing.T) {
 	t.Parallel()
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
 
 	var chErr chan error
 	ts := &httptest.Server{Config: &http.Server{
 		ReadHeaderTimeout: 5 * time.Minute, // "G112: Potential Slowloris Attack (gosec)"; not a real concern for our use, so setting a long timeout.
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == "/_ping" {
+				resp, err := mockPingResponse(http.StatusOK, PingResult{APIVersion: MaxAPIVersion})(req)
+				if err != nil {
+					chErr <- fmt.Errorf("sending ping response: %w", err)
+					return
+				}
+				_ = resp.Header.Write(w)
+				w.WriteHeader(resp.StatusCode)
+				return
+			}
+
 			chErr = make(chan error, 1)
 			defer close(chErr)
 
@@ -38,12 +51,16 @@ func TestTLSCloseWriter(t *testing.T) {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			defer conn.Close()
+			defer func() { _ = conn.Close() }()
 
 			// Flush the options to make sure the client sets the raw mode
 			_, _ = conn.Write([]byte{})
 
-			fmt.Fprint(conn, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\n")
+			_, err = fmt.Fprint(conn, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\n")
+			if err != nil {
+				chErr <- fmt.Errorf("writing update response: %w", err)
+				return
+			}
 
 			buf := make([]byte, 5)
 			_, err = conn.Read(buf)
@@ -72,7 +89,7 @@ func TestTLSCloseWriter(t *testing.T) {
 	assert.NilError(t, err)
 
 	ts.Listener = l
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 
 	defer func() {
 		if chErr != nil {
@@ -86,10 +103,12 @@ func TestTLSCloseWriter(t *testing.T) {
 	serverURL, err := url.Parse(ts.URL)
 	assert.NilError(t, err)
 
-	client, err := New(WithHost("tcp://"+serverURL.Host), WithHTTPClient(ts.Client()))
+	httpClient := ts.Client()
+	defer httpClient.CloseIdleConnections()
+	client, err := New(WithHost("tcp://"+serverURL.Host), WithHTTPClient(httpClient))
 	assert.NilError(t, err)
 
-	resp, err := client.postHijacked(context.Background(), "/asdf", url.Values{}, nil, map[string][]string{"Content-Type": {"text/plain"}})
+	resp, err := client.postHijacked(ctx, "/asdf", url.Values{}, nil, map[string][]string{"Content-Type": {"text/plain"}})
 	assert.NilError(t, err)
 	defer resp.Close()
 

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package jsonclient provides a simple client for fetching and parsing
+// JSON CT structures from a log.
 package jsonclient
 
 import (
@@ -32,8 +34,6 @@ import (
 
 	ct "github.com/google/certificate-transparency-go"
 	"github.com/google/certificate-transparency-go/x509"
-	"golang.org/x/net/context/ctxhttp"
-	"k8s.io/klog/v2"
 )
 
 const maxJitter = 250 * time.Millisecond
@@ -54,12 +54,13 @@ type backoffer interface {
 // JSONClient provides common functionality for interacting with a JSON server
 // that uses cryptographic signatures.
 type JSONClient struct {
-	uri        string                // the base URI of the server. e.g. https://ct.googleapis/pilot
-	httpClient *http.Client          // used to interact with the server via HTTP
-	Verifier   *ct.SignatureVerifier // nil for no verification (e.g. no public key available)
-	logger     Logger                // interface to use for logging warnings and errors
-	backoff    backoffer             // object used to store and calculate backoff information
-	userAgent  string                // If set, this is sent as the UserAgent header.
+	uri           string                // the base URI of the server. e.g. https://ct.googleapis/pilot
+	httpClient    *http.Client          // used to interact with the server via HTTP
+	Verifier      *ct.SignatureVerifier // nil for no verification (e.g. no public key available)
+	logger        Logger                // interface to use for logging warnings and errors
+	backoff       backoffer             // object used to store and calculate backoff information
+	userAgent     string                // If set, this is sent as the UserAgent header.
+	authorization string                // If set, this is sent as the Authorization header.
 }
 
 // Logger is a simple logging interface used to log internal errors and warnings
@@ -79,6 +80,8 @@ type Options struct {
 	PublicKeyDER []byte
 	// UserAgent, if set, will be sent as the User-Agent header with each request.
 	UserAgent string
+	// If set, this is sent as the Authorization header with each request.
+	Authorization string
 }
 
 // ParsePublicKey parses and returns the public key contained in opts.
@@ -148,12 +151,13 @@ func New(uri string, hc *http.Client, opts Options) (*JSONClient, error) {
 		logger = &basicLogger{}
 	}
 	return &JSONClient{
-		uri:        strings.TrimRight(uri, "/"),
-		httpClient: hc,
-		Verifier:   verifier,
-		logger:     logger,
-		backoff:    &backoff{},
-		userAgent:  opts.UserAgent,
+		uri:           strings.TrimRight(uri, "/"),
+		httpClient:    hc,
+		Verifier:      verifier,
+		logger:        logger,
+		backoff:       &backoff{},
+		userAgent:     opts.UserAgent,
+		authorization: opts.Authorization,
 	}, nil
 }
 
@@ -165,7 +169,8 @@ func (c *JSONClient) BaseURI() string {
 // GetAndParse makes a HTTP GET call to the given path, and attempts to parse
 // the response as a JSON representation of the rsp structure.  Returns the
 // http.Response, the body of the response, and an error (which may be of
-// type RspError if the HTTP response was available).
+// type RspError if the HTTP response was available). It returns an error
+// if the response status code is not 200 OK.
 func (c *JSONClient) GetAndParse(ctx context.Context, path string, params map[string]string, rsp interface{}) (*http.Response, []byte, error) {
 	if ctx == nil {
 		return nil, nil, errors.New("context.Context required")
@@ -176,27 +181,28 @@ func (c *JSONClient) GetAndParse(ctx context.Context, path string, params map[st
 		vals.Add(k, v)
 	}
 	fullURI := fmt.Sprintf("%s%s?%s", c.uri, path, vals.Encode())
-	klog.V(2).Infof("GET %s", fullURI)
-	httpReq, err := http.NewRequest(http.MethodGet, fullURI, nil)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURI, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 	if len(c.userAgent) != 0 {
 		httpReq.Header.Set("User-Agent", c.userAgent)
 	}
+	if len(c.authorization) != 0 {
+		httpReq.Header.Add("Authorization", c.authorization)
+	}
 
-	httpRsp, err := ctxhttp.Do(ctx, c.httpClient, httpReq)
+	httpRsp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	// Read everything now so http.Client can reuse the connection.
 	body, err := io.ReadAll(httpRsp.Body)
-	httpRsp.Body.Close()
 	if err != nil {
-		return nil, nil, RspError{Err: fmt.Errorf("failed to read response body: %v", err), StatusCode: httpRsp.StatusCode, Body: body}
+		return nil, nil, RspError{Err: fmt.Errorf("failed to read response body: %w", err), StatusCode: httpRsp.StatusCode, Body: body}
 	}
-
+	if err := httpRsp.Body.Close(); err != nil {
+		return nil, nil, RspError{Err: fmt.Errorf("failed to close response body: %w", err), StatusCode: httpRsp.StatusCode, Body: body}
+	}
 	if httpRsp.StatusCode != http.StatusOK {
 		return nil, nil, RspError{Err: fmt.Errorf("got HTTP Status %q", httpRsp.Status), StatusCode: httpRsp.StatusCode, Body: body}
 	}
@@ -212,6 +218,7 @@ func (c *JSONClient) GetAndParse(ctx context.Context, path string, params map[st
 // parameters, and attempts to parse the response as a JSON representation of
 // the rsp structure. Returns the http.Response, the body of the response, and
 // an error (which may be of type RspError if the HTTP response was available).
+// It does NOT return an error if the response status code is not 200 OK.
 func (c *JSONClient) PostAndParse(ctx context.Context, path string, req, rsp interface{}) (*http.Response, []byte, error) {
 	if ctx == nil {
 		return nil, nil, errors.New("context.Context required")
@@ -222,33 +229,37 @@ func (c *JSONClient) PostAndParse(ctx context.Context, path string, req, rsp int
 		return nil, nil, err
 	}
 	fullURI := fmt.Sprintf("%s%s", c.uri, path)
-	klog.V(2).Infof("POST %s", fullURI)
-	httpReq, err := http.NewRequest(http.MethodPost, fullURI, bytes.NewReader(postBody))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURI, bytes.NewReader(postBody))
 	if err != nil {
 		return nil, nil, err
 	}
 	if len(c.userAgent) != 0 {
 		httpReq.Header.Set("User-Agent", c.userAgent)
 	}
+	if len(c.authorization) != 0 {
+		httpReq.Header.Add("Authorization", c.authorization)
+	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	httpRsp, err := ctxhttp.Do(ctx, c.httpClient, httpReq)
-
-	// Read all of the body, if there is one, so that the http.Client can do Keep-Alive.
-	var body []byte
-	if httpRsp != nil {
-		body, err = io.ReadAll(httpRsp.Body)
-		httpRsp.Body.Close()
-	}
+	httpRsp, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		if httpRsp != nil {
-			return nil, nil, RspError{StatusCode: httpRsp.StatusCode, Body: body, Err: err}
-		}
 		return nil, nil, err
+	}
+	body, err := io.ReadAll(httpRsp.Body)
+	if err != nil {
+		_ = httpRsp.Body.Close()
+		return nil, nil, err
+	}
+	if err := httpRsp.Body.Close(); err != nil {
+		return nil, nil, err
+	}
+	if httpRsp.Request.Method != http.MethodPost {
+		// https://developer.mozilla.org/en-US/docs/Web/HTTP/Redirections#permanent_redirections
+		return nil, nil, fmt.Errorf("POST request to %q was converted to %s request to %q", fullURI, httpRsp.Request.Method, httpRsp.Request.URL)
 	}
 
 	if httpRsp.StatusCode == http.StatusOK {
-		if err = json.Unmarshal(body, &rsp); err != nil {
+		if err := json.Unmarshal(body, &rsp); err != nil {
 			return nil, nil, RspError{StatusCode: httpRsp.StatusCode, Body: body, Err: err}
 		}
 	}
@@ -272,7 +283,7 @@ func (c *JSONClient) waitForBackoff(ctx context.Context) error {
 }
 
 // PostAndParseWithRetry makes a HTTP POST call, but retries (with backoff) on
-// retriable errors; the caller should set a deadline on the provided context
+// retryable errors; the caller should set a deadline on the provided context
 // to prevent infinite retries.  Return values are as for PostAndParse.
 func (c *JSONClient) PostAndParseWithRetry(ctx context.Context, path string, req, rsp interface{}) (*http.Response, []byte, error) {
 	if ctx == nil {
@@ -282,21 +293,21 @@ func (c *JSONClient) PostAndParseWithRetry(ctx context.Context, path string, req
 		httpRsp, body, err := c.PostAndParse(ctx, path, req, rsp)
 		if err != nil {
 			// Don't retry context errors.
-			if err == context.Canceled || err == context.DeadlineExceeded {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return nil, nil, err
 			}
 			wait := c.backoff.set(nil)
 			c.logger.Printf("Request to %s failed, backing-off %s: %s", c.uri, wait, err)
 		} else {
-			switch {
-			case httpRsp.StatusCode == http.StatusOK:
+			switch httpRsp.StatusCode {
+			case http.StatusOK:
 				return httpRsp, body, nil
-			case httpRsp.StatusCode == http.StatusRequestTimeout:
+			case http.StatusRequestTimeout:
 				// Request timeout, retry immediately
 				c.logger.Printf("Request to %s timed out, retrying immediately", c.uri)
-			case httpRsp.StatusCode == http.StatusServiceUnavailable:
+			case http.StatusServiceUnavailable:
 				fallthrough
-			case httpRsp.StatusCode == http.StatusTooManyRequests:
+			case http.StatusTooManyRequests:
 				var backoff *time.Duration
 				// Retry-After may be either a number of seconds as a int or a RFC 1123
 				// date string (RFC 7231 Section 7.1.3)

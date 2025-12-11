@@ -37,6 +37,7 @@ func hasSigningKey(a interface{}) bool {
 // Creates a cross-signed intermediate and new api.RootRotation object.
 // This function assumes that the root cert and key and the external CAs have already been validated.
 func newRootRotationObject(ctx context.Context, securityConfig *ca.SecurityConfig, apiRootCA *api.RootCA, newCARootCA ca.RootCA, extCAs []*api.ExternalCA, version uint64) (*api.RootCA, error) {
+	log.G(ctx).Info("calls newRootRotationObject")
 	var (
 		rootCert, rootKey, crossSignedCert []byte
 		newRootHasSigner                   bool
@@ -53,6 +54,7 @@ func newRootRotationObject(ctx context.Context, securityConfig *ca.SecurityConfi
 	// a root rotation is already in progress)
 	switch {
 	case hasSigningKey(apiRootCA):
+		log.G(ctx).Info("takes hasSigningKey branch")
 		var oldRootCA ca.RootCA
 		oldRootCA, err = ca.NewRootCA(apiRootCA.CACert, apiRootCA.CACert, apiRootCA.CAKey, ca.DefaultNodeCertExpiration, nil)
 		if err == nil {
@@ -175,8 +177,14 @@ func getNormalizedExtCAs(caConfig *api.CAConfig, normalizedCurrentRootCACert []b
 //     object as is
 //     - we want to generate a new internal CA cert and key (force rotation value has changed), and we return the updated RootCA
 //     object
-//  3. Signing cert and key have been provided: validate that these match (the cert and key match). Otherwise, return an error.
-//  4. Return the updated RootCA object according to the following criteria:
+//  3. Check if the cert is the same key. We cannot rotate to a cert with the same key. As of go 1.19, the logic for certificate
+//     trust chain validation changed, and a chain including two certs with the same key will not validate. This case would
+//     usually occur when reissuing the same cert with a later expiration date. Because of this validation failure, our root
+//     rotation algorithm fails. While it might be possible to adjust the rotation procedure to accommodate such a cert change,
+//     it is somewhat of an edge case, and, more importantly, we do not currently possess the cryptographic expertise to safely
+//     make such a change. So, as a result, this operation is disallowed. The new root cert must have a new key.
+//  4. Signing cert and key have been provided: validate that these match (the cert and key match). Otherwise, return an error.
+//  5. Return the updated RootCA object according to the following criteria:
 //     - If the desired cert is the same as the current CA cert then abort any outstanding rotations. The current signing key
 //     is replaced with the desired signing key (this could lets us switch between external->internal or internal->external
 //     without an actual CA rotation, which is not needed because any leaf cert issued with one CA cert can be validated using
@@ -233,7 +241,7 @@ func validateCAConfig(ctx context.Context, securityConfig *ca.SecurityConfig, cl
 		if cluster.RootCA.LastForcedRotation != newConfig.ForceRotate {
 			newRootCA, err := ca.CreateRootCA(ca.DefaultRootCN)
 			if err != nil {
-				return nil, status.Errorf(codes.Internal, err.Error())
+				return nil, status.Error(codes.Internal, err.Error())
 			}
 			return newRootRotationObject(ctx, securityConfig, &cluster.RootCA, newRootCA, oldCertExtCAs, newConfig.ForceRotate)
 		}
@@ -257,7 +265,7 @@ func validateCAConfig(ctx context.Context, securityConfig *ca.SecurityConfig, cl
 	}
 	newRootCA, err := ca.NewRootCA(newConfig.SigningCACert, signingCert, newConfig.SigningCAKey, ca.DefaultNodeCertExpiration, nil)
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	if len(newRootCA.Pool.Subjects()) != 1 {
@@ -287,6 +295,12 @@ func validateCAConfig(ctx context.Context, securityConfig *ca.SecurityConfig, cl
 		copied.RootRotation = nil
 		copied.LastForcedRotation = newConfig.ForceRotate
 		return copied, nil
+	}
+
+	// See step 3 in the doc comment. We cannot upgrade a cert with the same
+	// key.
+	if len(newConfig.SigningCAKey) > 0 && bytes.Equal(newConfig.SigningCAKey, cluster.RootCA.CAKey) {
+		return nil, status.Errorf(codes.InvalidArgument, "Cannot update to a cert with an identical key")
 	}
 
 	// check if this is the same desired cert as an existing root rotation

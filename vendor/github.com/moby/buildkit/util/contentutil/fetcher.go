@@ -6,11 +6,17 @@ import (
 
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/remotes"
+	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
-func FromFetcher(f remotes.Fetcher) content.Provider {
+type ReferrersProvider interface {
+	content.Provider
+	remotes.ReferrersFetcher
+}
+
+func FromFetcher(f remotes.Fetcher) ReferrersProvider {
 	return &fetchedProvider{
 		f: f,
 	}
@@ -29,6 +35,14 @@ func (p *fetchedProvider) ReaderAt(ctx context.Context, desc ocispecs.Descriptor
 	return &readerAt{Reader: rc, Closer: rc, size: desc.Size}, nil
 }
 
+func (p *fetchedProvider) FetchReferrers(ctx context.Context, dgst digest.Digest, opts ...remotes.FetchReferrersOpt) ([]ocispecs.Descriptor, error) {
+	refs, ok := p.f.(remotes.ReferrersFetcher)
+	if !ok {
+		return nil, errors.Errorf("fetcher does not support referrers")
+	}
+	return refs.FetchReferrers(ctx, dgst, opts...)
+}
+
 type readerAt struct {
 	io.Reader
 	io.Closer
@@ -37,10 +51,6 @@ type readerAt struct {
 }
 
 func (r *readerAt) ReadAt(b []byte, off int64) (int, error) {
-	if ra, ok := r.Reader.(io.ReaderAt); ok {
-		return ra.ReadAt(b, off)
-	}
-
 	if r.offset != off {
 		if seeker, ok := r.Reader.(io.Seeker); ok {
 			if _, err := seeker.Seek(off, io.SeekStart); err != nil {
@@ -48,6 +58,9 @@ func (r *readerAt) ReadAt(b []byte, off int64) (int, error) {
 			}
 			r.offset = off
 		} else {
+			if ra, ok := r.Reader.(io.ReaderAt); ok {
+				return ra.ReadAt(b, off)
+			}
 			return 0, errors.Errorf("unsupported offset")
 		}
 	}

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -16,7 +15,7 @@ func TestImageTagError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.ImageTag(context.Background(), ImageTagOptions{Source: "image_id", Target: "repo:tag"})
+	_, err = client.ImageTag(t.Context(), ImageTagOptions{Source: "image_id", Target: "repo:tag"})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -26,13 +25,13 @@ func TestImageTagInvalidReference(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.ImageTag(context.Background(), ImageTagOptions{Source: "image_id", Target: "aa/asdf$$^/aa"})
+	_, err = client.ImageTag(t.Context(), ImageTagOptions{Source: "image_id", Target: "aa/asdf$$^/aa"})
 	assert.Check(t, is.Error(err, `error parsing reference: "aa/asdf$$^/aa" is not a valid repository/tag: invalid reference format`))
 }
 
 // Ensure we don't allow the use of invalid repository names or tags; these tag operations should fail.
 func TestImageTagInvalidSourceImageName(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "client should not have made an API call")))
 	assert.NilError(t, err)
@@ -89,7 +88,7 @@ func TestImageTagHexSource(t *testing.T) {
 	client, err := New(WithMockClient(mockResponse(http.StatusOK, nil, "OK")))
 	assert.NilError(t, err)
 
-	_, err = client.ImageTag(context.Background(), ImageTagOptions{Source: "0d409d33b27e47423b049f7f863faa08655a8c901749c2b25b93ca67d01a470d", Target: "repo:tag"})
+	_, err = client.ImageTag(t.Context(), ImageTagOptions{Source: "0d409d33b27e47423b049f7f863faa08655a8c901749c2b25b93ca67d01a470d", Target: "repo:tag"})
 	assert.NilError(t, err)
 }
 
@@ -164,7 +163,7 @@ func TestImageTag(t *testing.T) {
 			return mockResponse(http.StatusOK, nil, "")(req)
 		}))
 		assert.NilError(t, err)
-		_, err = client.ImageTag(context.Background(), ImageTagOptions{Source: "image_id", Target: tagCase.reference})
+		_, err = client.ImageTag(t.Context(), ImageTagOptions{Source: "image_id", Target: tagCase.reference})
 		assert.NilError(t, err)
 	}
 }

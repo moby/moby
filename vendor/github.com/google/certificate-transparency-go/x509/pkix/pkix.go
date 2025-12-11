@@ -18,6 +18,7 @@ import (
 // AlgorithmIdentifier represents the ASN.1 structure of the same name. See RFC
 // 5280, section 4.1.1.2.
 type AlgorithmIdentifier struct {
+	Raw        asn1.RawContent
 	Algorithm  asn1.ObjectIdentifier
 	Parameters asn1.RawValue `asn1:"optional"`
 }

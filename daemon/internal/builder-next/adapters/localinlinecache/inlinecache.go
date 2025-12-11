@@ -12,6 +12,8 @@ import (
 	"github.com/moby/buildkit/cache/remotecache"
 	registryremotecache "github.com/moby/buildkit/cache/remotecache/registry"
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
+	cacheimporttypes "github.com/moby/buildkit/cache/remotecache/v1/types"
+
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/worker"
@@ -83,7 +85,7 @@ func (li *localImporter) importInlineCache(ctx context.Context, dt []byte, cc so
 		return nil
 	}
 
-	var config v1.CacheConfig
+	var config cacheimporttypes.CacheConfig
 	if err := json.Unmarshal(img.Cache, &config.Records); err != nil {
 		return err
 	}
@@ -113,7 +115,7 @@ func (li *localImporter) importInlineCache(ctx context.Context, dt []byte, cc so
 			Descriptor: desc,
 			Provider:   &emptyProvider{},
 		}
-		config.Layers = append(config.Layers, v1.CacheLayer{
+		config.Layers = append(config.Layers, cacheimporttypes.CacheLayer{
 			Blob:        dgst,
 			ParentIndex: i - 1,
 		})

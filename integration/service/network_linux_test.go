@@ -30,7 +30,7 @@ func TestDockerNetworkConnectAliasPreV144(t *testing.T) {
 
 	d := swarm.NewSwarm(ctx, t, testEnv, daemon.WithEnvVars("DOCKER_MIN_API_VERSION=1.43"))
 	defer d.Stop(t)
-	apiClient := d.NewClientT(t, client.WithVersion("1.43"))
+	apiClient := d.NewClientT(t, client.WithAPIVersion("1.43"))
 	defer apiClient.Close()
 
 	name := t.Name() + "test-alias"

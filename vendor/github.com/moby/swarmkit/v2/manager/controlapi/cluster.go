@@ -32,14 +32,14 @@ var (
 
 func validateClusterSpec(spec *api.ClusterSpec) error {
 	if spec == nil {
-		return status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	// Validate that expiry time being provided is valid, and over our minimum
 	if spec.CAConfig.NodeCertExpiry != nil {
 		expiry, err := gogotypes.DurationFromProto(spec.CAConfig.NodeCertExpiry)
 		if err != nil {
-			return status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+			return status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 		}
 		if expiry < ca.MinNodeCertExpiration {
 			return status.Errorf(codes.InvalidArgument, "minimum certificate expiry time is: %s", ca.MinNodeCertExpiration)
@@ -60,7 +60,7 @@ func validateClusterSpec(spec *api.ClusterSpec) error {
 	if spec.Dispatcher.HeartbeatPeriod != nil {
 		heartbeatPeriod, err := gogotypes.DurationFromProto(spec.Dispatcher.HeartbeatPeriod)
 		if err != nil {
-			return status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+			return status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 		}
 		if heartbeatPeriod < 0 {
 			return status.Errorf(codes.InvalidArgument, "heartbeat time period cannot be a negative duration")
@@ -77,9 +77,9 @@ func validateClusterSpec(spec *api.ClusterSpec) error {
 // GetCluster returns a Cluster given a ClusterID.
 // - Returns `InvalidArgument` if ClusterID is not provided.
 // - Returns `NotFound` if the Cluster is not found.
-func (s *Server) GetCluster(ctx context.Context, request *api.GetClusterRequest) (*api.GetClusterResponse, error) {
+func (s *Server) GetCluster(_ context.Context, request *api.GetClusterRequest) (*api.GetClusterResponse, error) {
 	if request.ClusterID == "" {
-		return nil, status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	var cluster *api.Cluster
@@ -105,7 +105,7 @@ func (s *Server) GetCluster(ctx context.Context, request *api.GetClusterRequest)
 // - Returns an error if the update fails.
 func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRequest) (*api.UpdateClusterResponse, error) {
 	if request.ClusterID == "" || request.ClusterVersion == nil {
-		return nil, status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 	if err := validateClusterSpec(request.Spec); err != nil {
 		return nil, err
@@ -203,7 +203,7 @@ func filterClusters(candidates []*api.Cluster, filters ...func(*api.Cluster) boo
 }
 
 // ListClusters returns a list of all clusters.
-func (s *Server) ListClusters(ctx context.Context, request *api.ListClustersRequest) (*api.ListClustersResponse, error) {
+func (s *Server) ListClusters(_ context.Context, request *api.ListClustersRequest) (*api.ListClustersResponse, error) {
 	var (
 		clusters []*api.Cluster
 		err      error

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"slices"
 	"strconv"
 
 	"github.com/containerd/log"
@@ -13,12 +14,13 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/portallocator"
 	"github.com/moby/moby/v2/daemon/libnetwork/portmapperapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/internal/sliceutil"
 )
 
 const driverName = "nat"
 
 type PortDriverClient interface {
-	ChildHostIP(hostIP netip.Addr) netip.Addr
+	ChildHostIP(proto string, hostIP netip.Addr) netip.Addr
 	AddPort(ctx context.Context, proto string, hostIP, childIP netip.Addr, hostPort int) (func() error, error)
 }
 
@@ -73,11 +75,17 @@ func (pm PortMapper) MapPorts(ctx context.Context, cfg []portmapperapi.PortBindi
 		}
 	}()
 
-	addrs := make([]net.IP, 0, len(cfg))
-	for i := range cfg {
-		cfg[i] = setChildHostIP(pm.pdc, cfg[i])
-		addrs = append(addrs, cfg[i].ChildHostIP)
+	for i := len(cfg) - 1; i >= 0; i-- {
+		var supported bool
+		if cfg[i], supported = setChildHostIP(pm.pdc, cfg[i]); !supported {
+			cfg = slices.Delete(cfg, i, i+1)
+			continue
+		}
 	}
+
+	addrs := sliceutil.Map(cfg, func(req portmapperapi.PortBindingReq) net.IP {
+		return req.ChildHostIP
+	})
 
 	pa := portallocator.NewOSAllocator()
 	allocatedPort, socks, err := pa.RequestPortsInRange(addrs, proto, int(hostPort), int(hostPortEnd))
@@ -95,7 +103,7 @@ func (pm PortMapper) MapPorts(ctx context.Context, cfg []portmapperapi.PortBindi
 		pb.PortBinding.HostPortEnd = pb.HostPort
 
 		childHIP, _ := netip.AddrFromSlice(cfg[i].ChildHostIP)
-		pb.NAT = netip.AddrPortFrom(childHIP, pb.PortBinding.HostPort)
+		pb.NAT = netip.AddrPortFrom(childHIP.Unmap(), pb.PortBinding.HostPort)
 
 		bindings = append(bindings, pb)
 	}
@@ -127,14 +135,21 @@ func (pm PortMapper) UnmapPorts(ctx context.Context, pbs []portmapperapi.PortBin
 	return errors.Join(errs...)
 }
 
-func setChildHostIP(pdc PortDriverClient, req portmapperapi.PortBindingReq) portmapperapi.PortBindingReq {
+// setChildHostIP returns a modified PortBindingReq that contains the IP
+// address that should be used for port allocation, firewall rules, etc. It
+// returns false when the PortBindingReq isn't supported by the PortDriverClient.
+func setChildHostIP(pdc PortDriverClient, req portmapperapi.PortBindingReq) (portmapperapi.PortBindingReq, bool) {
 	if pdc == nil {
 		req.ChildHostIP = req.HostIP
-		return req
+		return req, true
 	}
 	hip, _ := netip.AddrFromSlice(req.HostIP)
-	req.ChildHostIP = pdc.ChildHostIP(hip).AsSlice()
-	return req
+	chip := pdc.ChildHostIP(req.Proto.String(), hip.Unmap())
+	if !chip.IsValid() {
+		return req, false
+	}
+	req.ChildHostIP = chip.AsSlice()
+	return req, true
 }
 
 // configPortDriver passes the port binding's details to rootlesskit, and updates the
@@ -153,7 +168,7 @@ func configPortDriver(ctx context.Context, pbs []portmapperapi.PortBinding, pdc 
 			if !ok {
 				return fmt.Errorf("invalid child host IP address %s in %s", b.ChildHostIP, b)
 			}
-			pbs[i].PortDriverRemove, err = pdc.AddPort(ctx, b.Proto.String(), hip, chip, int(b.HostPort))
+			pbs[i].PortDriverRemove, err = pdc.AddPort(ctx, b.Proto.String(), hip.Unmap(), chip.Unmap(), int(b.HostPort))
 			if err != nil {
 				var pErr *rlkclient.ProtocolUnsupportedError
 				if errors.As(err, &pErr) {

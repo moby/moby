@@ -88,11 +88,16 @@ func (sv *ED25519SignerVerifier) Public() crypto.PublicKey {
 
 // LoadED25519KeyFromFile returns an SSLibKey instance for an ED25519 key stored
 // in a file in the custom securesystemslib format.
+//
+// Deprecated: use LoadKey(). The custom serialization format has been
+// deprecated. Use
+// https://github.com/secure-systems-lab/securesystemslib/blob/main/docs/migrate_key.py
+// to convert your key.
 func LoadED25519KeyFromFile(path string) (*SSLibKey, error) {
 	contents, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load ED25519 key from file: %w", err)
 	}
 
-	return loadKeyFromSSLibBytes(contents)
+	return LoadKeyFromSSLibBytes(contents)
 }

@@ -220,7 +220,7 @@ func TestAddPortMappings(t *testing.T) {
 		enableProxy  bool
 		hairpin      bool
 		busyPortIPv4 int
-		rootless     bool
+		newPDC       func() nat.PortDriverClient
 		hostAddrs    []string
 		noProxy6To4  bool
 
@@ -667,12 +667,27 @@ func TestAddPortMappings(t *testing.T) {
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80}},
 			},
 			enableProxy: true,
-			rootless:    true,
+			newPDC:      func() nat.PortDriverClient { return newMockPortDriverClient(true) },
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero, HostPort: firstEphemPort},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero, HostPort: firstEphemPort},
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: firstEphemPort + 1},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 80, HostIP: net.IPv6zero, HostPort: firstEphemPort + 1},
+			},
+		},
+		{
+			name:     "rootless, ipv6 not supported",
+			epAddrV4: ctrIP4,
+			epAddrV6: ctrIP6,
+			cfg: []portmapperapi.PortBindingReq{
+				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22}},
+				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80}},
+			},
+			enableProxy: true,
+			newPDC:      func() nat.PortDriverClient { return newMockPortDriverClient(false) },
+			expPBs: []types.PortBinding{
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero, HostPort: firstEphemPort},
+				{Proto: types.TCP, IP: ctrIP4.IP, Port: 80, HostIP: net.IPv4zero, HostPort: firstEphemPort + 1},
 			},
 		},
 		{
@@ -683,8 +698,8 @@ func TestAddPortMappings(t *testing.T) {
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 22}},
 				{PortBinding: types.PortBinding{Proto: types.TCP, Port: 80}},
 			},
-			rootless: true,
-			hairpin:  true,
+			newPDC:  func() nat.PortDriverClient { return newMockPortDriverClient(true) },
+			hairpin: true,
 			expPBs: []types.PortBinding{
 				{Proto: types.TCP, IP: ctrIP4.IP, Port: 22, HostIP: net.IPv4zero, HostPort: firstEphemPort},
 				{Proto: types.TCP, IP: ctrIP6.IP, Port: 22, HostIP: net.IPv6zero, HostPort: firstEphemPort},
@@ -745,8 +760,8 @@ func TestAddPortMappings(t *testing.T) {
 			}
 
 			var pdc nat.PortDriverClient
-			if tc.rootless {
-				pdc = newMockPortDriverClient()
+			if tc.newPDC != nil {
+				pdc = tc.newPDC()
 			}
 
 			pms := &drvregistry.PortMappers{}
@@ -780,7 +795,7 @@ func TestAddPortMappings(t *testing.T) {
 			n.firewallerNetwork = fwn
 
 			expChildIP := func(hostIP net.IP) net.IP {
-				if !tc.rootless {
+				if pdc == nil {
 					return hostIP
 				}
 				if hostIP.To4() == nil {
@@ -938,16 +953,21 @@ func (p mockPortDriverPort) String() string {
 
 type mockPortDriverClient struct {
 	openPorts map[mockPortDriverPort]bool
+	supportV6 bool
 }
 
-func newMockPortDriverClient() *mockPortDriverClient {
+func newMockPortDriverClient(supportV6 bool) *mockPortDriverClient {
 	return &mockPortDriverClient{
 		openPorts: map[mockPortDriverPort]bool{},
+		supportV6: supportV6,
 	}
 }
 
-func (c *mockPortDriverClient) ChildHostIP(hostIP netip.Addr) netip.Addr {
+func (c *mockPortDriverClient) ChildHostIP(proto string, hostIP netip.Addr) netip.Addr {
 	if hostIP.Is6() {
+		if !c.supportV6 {
+			return netip.Addr{}
+		}
 		return netip.IPv6Loopback()
 	}
 	return netip.MustParseAddr("127.0.0.1")

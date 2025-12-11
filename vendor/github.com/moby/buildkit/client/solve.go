@@ -51,6 +51,7 @@ type SolveOpt struct {
 	SessionPreInitialized bool             // TODO: refactor to better session syncing
 	Internal              bool
 	SourcePolicy          *spb.Policy
+	SourcePolicyProvider  session.Attachable
 	Ref                   string
 }
 
@@ -219,6 +220,10 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 			s.Allow(filesync.NewFSSyncTarget(syncTargets...))
 		}
 
+		if opt.SourcePolicyProvider != nil {
+			s.Allow(opt.SourcePolicyProvider)
+		}
+
 		eg.Go(func() error {
 			sd := c.sessionDialer
 			if sd == nil {
@@ -275,7 +280,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 			})
 		}
 
-		resp, err := c.ControlClient().Solve(ctx, &controlapi.SolveRequest{
+		sopt := &controlapi.SolveRequest{
 			Ref:                     ref,
 			Definition:              pbd,
 			Exporters:               exports,
@@ -290,7 +295,12 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 			Entitlements:            slices.Clone(opt.AllowedEntitlements),
 			Internal:                opt.Internal,
 			SourcePolicy:            opt.SourcePolicy,
-		})
+		}
+		if opt.SourcePolicyProvider != nil {
+			sopt.SourcePolicySession = s.ID()
+		}
+
+		resp, err := c.ControlClient().Solve(ctx, sopt)
 		if err != nil {
 			return errors.Wrap(err, "failed to solve")
 		}

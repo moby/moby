@@ -129,7 +129,7 @@ func TestServiceLogs(t *testing.T) {
 }
 
 func ExampleClient_ServiceLogs_withTimeout() {
-	client, err := New(FromEnv, WithAPIVersionNegotiation())
+	client, err := New(FromEnv)
 	if err != nil {
 		log.Fatal(err)
 	}

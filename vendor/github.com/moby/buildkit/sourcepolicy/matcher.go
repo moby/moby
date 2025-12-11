@@ -7,8 +7,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-func match(src *selectorCache, ref string, attrs map[string]string) (bool, error) {
-	for _, c := range src.Constraints {
+func match(src *selectorCache, ref string, constraints []*spb.AttrConstraint, attrs map[string]string) (bool, error) {
+	for _, c := range constraints {
 		if c == nil {
 			return false, errors.Errorf("invalid nil constraint for %v", src)
 		}

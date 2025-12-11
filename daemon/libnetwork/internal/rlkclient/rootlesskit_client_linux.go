@@ -64,7 +64,7 @@ func NewPortDriverClient(ctx context.Context) (*PortDriverClient, error) {
 			return nil, fmt.Errorf("unable to use child IP %s from network driver (%q)",
 				info.NetworkDriver.ChildIP, info.NetworkDriver.Driver)
 		}
-		pdc.childIP = childIP
+		pdc.childIP = childIP.Unmap()
 	}
 
 	pdc.protos = make(map[string]struct{}, len(info.PortDriver.Protos))
@@ -75,13 +75,37 @@ func NewPortDriverClient(ctx context.Context) (*PortDriverClient, error) {
 	return pdc, nil
 }
 
+// proto normalizes the protocol to match what the rootlesskit API expects.
+func (c *PortDriverClient) proto(proto string, hostIP netip.Addr) string {
+	// proto is like "tcp", but we need to convert it to "tcp4" or "tcp6" explicitly
+	// for libnetwork >= 20201216
+	//
+	// See https://github.com/moby/libnetwork/pull/2604/files#diff-8fa48beed55dd033bf8e4f8c40b31cf69d0b2cc5d4bb53cde8594670ea6c938aR20
+	// See also https://github.com/rootless-containers/rootlesskit/issues/231
+	apiProto := proto
+	if !strings.HasSuffix(apiProto, "4") && !strings.HasSuffix(apiProto, "6") {
+		if hostIP.Is6() {
+			apiProto += "6"
+		} else {
+			apiProto += "4"
+		}
+	}
+	return apiProto
+}
+
 // ChildHostIP returns the address that must be used in the child network
 // namespace in place of hostIP, a host IP address. In particular, port
 // mappings from host IP addresses, and DNAT rules, must use this child
-// address in place of the real host address.
-func (c *PortDriverClient) ChildHostIP(hostIP netip.Addr) netip.Addr {
+// address in place of the real host address. It may return an invalid
+// netip.Addr if the proto and IP family aren't supported.
+func (c *PortDriverClient) ChildHostIP(proto string, hostIP netip.Addr) netip.Addr {
 	if c == nil {
 		return hostIP
+	}
+	if _, ok := c.protos[c.proto(proto, hostIP)]; !ok {
+		// This happens when apiProto="tcp6", portDriverName="slirp4netns",
+		// because "slirp4netns" port driver does not support listening on IPv6 yet.
+		return netip.Addr{}
 	}
 	if c.childIP.IsValid() {
 		return c.childIP
@@ -117,20 +141,8 @@ func (c *PortDriverClient) AddPort(
 	if c == nil {
 		return func() error { return nil }, nil
 	}
-	// proto is like "tcp", but we need to convert it to "tcp4" or "tcp6" explicitly
-	// for libnetwork >= 20201216
-	//
-	// See https://github.com/moby/libnetwork/pull/2604/files#diff-8fa48beed55dd033bf8e4f8c40b31cf69d0b2cc5d4bb53cde8594670ea6c938aR20
-	// See also https://github.com/rootless-containers/rootlesskit/issues/231
-	apiProto := proto
-	if !strings.HasSuffix(apiProto, "4") && !strings.HasSuffix(apiProto, "6") {
-		if hostIP.Is6() {
-			apiProto += "6"
-		} else {
-			apiProto += "4"
-		}
-	}
 
+	apiProto := c.proto(proto, hostIP)
 	if _, ok := c.protos[apiProto]; !ok {
 		// This happens when apiProto="tcp6", portDriverName="slirp4netns",
 		// because "slirp4netns" port driver does not support listening on IPv6 yet.

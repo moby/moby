@@ -248,6 +248,21 @@ type CertificateChain struct {
 	Entries []ASN1Cert `tls:"minlen:0,maxlen:16777215"`
 }
 
+// PrecertChainEntryHash is an extended PrecertChainEntry type with the
+// IssuanceChainHash field added to store the hash of the
+// CertificateChain field of PrecertChainEntry.
+type PrecertChainEntryHash struct {
+	PreCertificate    ASN1Cert `tls:"minlen:1,maxlen:16777215"`
+	IssuanceChainHash []byte   `tls:"minlen:0,maxlen:256"`
+}
+
+// CertificateChainHash is an extended CertificateChain type with the
+// IssuanceChainHash field added to store the hash of the
+// Entries field of CertificateChain.
+type CertificateChainHash struct {
+	IssuanceChainHash []byte `tls:"minlen:0,maxlen:256"`
+}
+
 // JSONDataEntry holds arbitrary data.
 type JSONDataEntry struct {
 	Data []byte `tls:"minlen:0,maxlen:1677215"`
@@ -555,7 +570,7 @@ type LeafEntry struct {
 	ExtraData []byte `json:"extra_data"`
 }
 
-// GetEntriesResponse respresents the JSON response to the get-entries GET method
+// GetEntriesResponse represents the JSON response to the get-entries GET method
 // from section 4.6.
 type GetEntriesResponse struct {
 	Entries []LeafEntry `json:"entries"` // the list of returned entries

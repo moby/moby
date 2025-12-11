@@ -23,19 +23,28 @@ import (
 )
 
 func main() {
-	apiClient, err := client.New(client.FromEnv, client.WithAPIVersionNegotiation())
+	// Create a new client that handles common environment variables
+	// for configuration (DOCKER_HOST, DOCKER_API_VERSION), and does
+	// API-version negotiation to allow downgrading the API version
+	// when connecting with an older daemon version.
+	apiClient, err := client.New(client.FromEnv)
 	if err != nil {
 		panic(err)
 	}
 	defer apiClient.Close()
 
-	containers, err := apiClient.ContainerList(context.Background(), client.ContainerListOptions{All: true})
+	// List all containers (both stopped and running).
+	result, err := apiClient.ContainerList(context.Background(), client.ContainerListOptions{
+		All: true,
+	})
 	if err != nil {
 		panic(err)
 	}
 
-	for _, ctr := range containers {
-		fmt.Printf("%s %s (status: %s)\n", ctr.ID, ctr.Image, ctr.Status)
+	// Print each container's ID, status and the image it was created from.
+	fmt.Printf("%s  %-22s  %s\n", "ID", "STATUS", "IMAGE")
+	for _, ctr := range result.Items {
+		fmt.Printf("%s  %-22s  %s\n", ctr.ID, ctr.Status, ctr.Image)
 	}
 }
 ```

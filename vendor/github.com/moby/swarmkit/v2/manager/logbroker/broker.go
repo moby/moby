@@ -302,7 +302,7 @@ func (lb *LogBroker) nodeDisconnected(nodeID string) {
 }
 
 // ListenSubscriptions returns a stream of matching subscriptions for the current node
-func (lb *LogBroker) ListenSubscriptions(request *api.ListenSubscriptionsRequest, stream api.LogBroker_ListenSubscriptionsServer) error {
+func (lb *LogBroker) ListenSubscriptions(_ *api.ListenSubscriptionsRequest, stream api.LogBroker_ListenSubscriptionsServer) error {
 	remote, err := ca.RemoteNode(stream.Context())
 	if err != nil {
 		return err

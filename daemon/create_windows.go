@@ -11,30 +11,33 @@ import (
 )
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality
-func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
-	if containertypes.Isolation.IsDefault(hostConfig.Isolation) {
+func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, ctr *container.Container) error {
+	if containertypes.Isolation.IsDefault(ctr.HostConfig.Isolation) {
 		// Make sure the host config has the default daemon isolation if not specified by caller.
-		hostConfig.Isolation = daemon.defaultIsolation
+		ctr.HostConfig.Isolation = daemon.defaultIsolation
 	}
+	return nil
+}
+
+// createContainerVolumesOS performs host-OS specific volume creation
+func (daemon *Daemon) createContainerVolumesOS(ctx context.Context, ctr *container.Container, config *containertypes.Config) error {
 	parser := volumemounts.NewParser()
 	for spec := range config.Volumes {
 
-		mp, err := parser.ParseMountRaw(spec, hostConfig.VolumeDriver)
+		mp, err := parser.ParseMountRaw(spec, ctr.HostConfig.VolumeDriver)
 		if err != nil {
 			return fmt.Errorf("Unrecognised volume spec: %v", err)
 		}
 
 		// Skip volumes for which we already have something mounted on that
 		// destination because of a --volume-from.
-		if container.IsDestinationMounted(mp.Destination) {
+		if ctr.IsDestinationMounted(mp.Destination) {
 			continue
 		}
 
-		volumeDriver := hostConfig.VolumeDriver
-
 		// Create the volume in the volume driver. If it doesn't exist,
 		// a new one will be created.
-		v, err := daemon.volumes.Create(ctx, "", volumeDriver, volumeopts.WithCreateReference(container.ID))
+		v, err := daemon.volumes.Create(ctx, "", ctr.HostConfig.VolumeDriver, volumeopts.WithCreateReference(ctr.ID))
 		if err != nil {
 			return err
 		}
@@ -70,7 +73,7 @@ func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, con
 		//	}
 
 		// Add it to container.MountPoints
-		container.AddMountPointWithVolume(mp.Destination, &volumeWrapper{v: v, s: daemon.volumes}, mp.RW)
+		ctr.AddMountPointWithVolume(mp.Destination, &volumeWrapper{v: v, s: daemon.volumes}, mp.RW)
 	}
 	return nil
 }

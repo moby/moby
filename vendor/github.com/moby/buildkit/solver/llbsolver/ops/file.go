@@ -52,7 +52,7 @@ func NewFileOp(v solver.Vertex, op *pb.Op_File, cm cache.Manager, parallelism *s
 	}, nil
 }
 
-func (f *fileOp) CacheMap(ctx context.Context, g session.Group, index int) (*solver.CacheMap, bool, error) {
+func (f *fileOp) CacheMap(ctx context.Context, jobCtx solver.JobContext, index int) (*solver.CacheMap, bool, error) {
 	selectors := map[int][]opsutils.Selector{}
 	invalidSelectors := map[int]struct{}{}
 
@@ -105,7 +105,7 @@ func (f *fileOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 			markInvalid(action.Input)
 			processOwner(p.Owner, selectors)
 			if action.SecondaryInput != -1 && int(action.SecondaryInput) < f.numInputs {
-				addSelector(selectors, int(action.SecondaryInput), p.Src, p.AllowWildcard, p.FollowSymlink, p.IncludePatterns, p.ExcludePatterns)
+				addSelector(selectors, int(action.SecondaryInput), p.Src, p.AllowWildcard, p.FollowSymlink, p.IncludePatterns, p.ExcludePatterns, p.RequiredPaths)
 				p.Src = path.Base(p.Src)
 			}
 			dt, err = json.Marshal(p)
@@ -173,7 +173,7 @@ func (f *fileOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 	return cm, true, nil
 }
 
-func (f *fileOp) Exec(ctx context.Context, g session.Group, inputs []solver.Result) ([]solver.Result, error) {
+func (f *fileOp) Exec(ctx context.Context, jobCtx solver.JobContext, inputs []solver.Result) ([]solver.Result, error) {
 	inpRefs := make([]fileoptypes.Ref, 0, len(inputs))
 	for _, inp := range inputs {
 		workerRef, ok := inp.Sys().(*worker.WorkerRef)
@@ -189,7 +189,7 @@ func (f *fileOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 	}
 
 	fs := NewFileOpSolver(f.w, backend, f.refManager)
-	outs, err := fs.Solve(ctx, inpRefs, f.op.Actions, g)
+	outs, err := fs.Solve(ctx, inpRefs, f.op.Actions, jobCtx.Session())
 	if err != nil {
 		return nil, err
 	}
@@ -215,13 +215,14 @@ func (f *fileOp) Acquire(ctx context.Context) (solver.ReleaseFunc, error) {
 	}, nil
 }
 
-func addSelector(m map[int][]opsutils.Selector, idx int, sel string, wildcard, followLinks bool, includePatterns, excludePatterns []string) {
+func addSelector(m map[int][]opsutils.Selector, idx int, sel string, wildcard, followLinks bool, includePatterns, excludePatterns, requiredPaths []string) {
 	s := opsutils.Selector{
 		Path:            sel,
 		FollowLinks:     followLinks,
 		Wildcard:        wildcard && containsWildcards(sel),
 		IncludePatterns: includePatterns,
 		ExcludePatterns: excludePatterns,
+		RequiredPaths:   requiredPaths,
 	}
 
 	m[idx] = append(m[idx], s)
@@ -284,7 +285,7 @@ func processOwner(chopt *pb.ChownOpt, selectors map[int][]opsutils.Selector) err
 			if u.ByName.Input < 0 {
 				return errors.Errorf("invalid user index %d", u.ByName.Input)
 			}
-			addSelector(selectors, int(u.ByName.Input), "/etc/passwd", false, true, nil, nil)
+			addSelector(selectors, int(u.ByName.Input), "/etc/passwd", false, true, nil, nil, nil)
 		}
 	}
 	if chopt.Group != nil {
@@ -292,7 +293,7 @@ func processOwner(chopt *pb.ChownOpt, selectors map[int][]opsutils.Selector) err
 			if u.ByName.Input < 0 {
 				return errors.Errorf("invalid user index %d", u.ByName.Input)
 			}
-			addSelector(selectors, int(u.ByName.Input), "/etc/group", false, true, nil, nil)
+			addSelector(selectors, int(u.ByName.Input), "/etc/group", false, true, nil, nil, nil)
 		}
 	}
 	return nil

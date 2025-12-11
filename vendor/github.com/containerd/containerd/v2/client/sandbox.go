@@ -114,7 +114,7 @@ func (s *sandboxClient) Stop(ctx context.Context) error {
 }
 
 func (s *sandboxClient) Shutdown(ctx context.Context) error {
-	if err := s.client.SandboxController(s.metadata.Sandboxer).Shutdown(ctx, s.ID()); err != nil && errdefs.IsNotFound(err) {
+	if err := s.client.SandboxController(s.metadata.Sandboxer).Shutdown(ctx, s.ID()); err != nil && !errdefs.IsNotFound(err) {
 		return fmt.Errorf("failed to shutdown sandbox: %w", err)
 	}
 
@@ -131,10 +131,15 @@ func (c *Client) NewSandbox(ctx context.Context, sandboxID string, opts ...NewSa
 		return nil, errors.New("sandbox ID must be specified")
 	}
 
+	sandboxer, err := c.defaultSandboxer(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get default sandboxer: %w", err)
+	}
 	newSandbox := api.Sandbox{
 		ID:        sandboxID,
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
+		Sandboxer: sandboxer,
 	}
 
 	for _, opt := range opts {
@@ -146,6 +151,10 @@ func (c *Client) NewSandbox(ctx context.Context, sandboxID string, opts ...NewSa
 	metadata, err := c.SandboxStore().Create(ctx, newSandbox)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := c.SandboxController(sandboxer).Create(ctx, newSandbox); err != nil {
+		return nil, fmt.Errorf("failed to create sandbox with %s sandboxer: %w", sandboxer, err)
 	}
 
 	return &sandboxClient{

@@ -9,6 +9,11 @@ const AttrMountSSHSock = "git.mountsshsock"
 const AttrGitChecksum = "git.checksum"
 const AttrGitSkipSubmodules = "git.skipsubmodules"
 
+const AttrGitSignatureVerifyPubKey = "git.sig.pubkey"
+const AttrGitSignatureVerifyRejectExpired = "git.sig.rejectexpired"
+const AttrGitSignatureVerifyRequireSignedTag = "git.sig.requiresignedtag"
+const AttrGitSignatureVerifyIgnoreSignedTag = "git.sig.ignoresignedtag"
+
 const AttrLocalSessionID = "local.session"
 const AttrLocalUniqueID = "local.unique"
 const AttrIncludePatterns = "local.includepattern"

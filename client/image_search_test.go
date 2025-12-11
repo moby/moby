@@ -16,14 +16,14 @@ import (
 func TestImageSearchAnyError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
-	_, err = client.ImageSearch(context.Background(), "some-image", ImageSearchOptions{})
+	_, err = client.ImageSearch(t.Context(), "some-image", ImageSearchOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
 func TestImageSearchStatusUnauthorizedError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")))
 	assert.NilError(t, err)
-	_, err = client.ImageSearch(context.Background(), "some-image", ImageSearchOptions{})
+	_, err = client.ImageSearch(t.Context(), "some-image", ImageSearchOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsUnauthorized))
 }
 
@@ -33,7 +33,7 @@ func TestImageSearchWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 	privilegeFunc := func(_ context.Context) (string, error) {
 		return "", errors.New("Error requesting privilege")
 	}
-	_, err = client.ImageSearch(context.Background(), "some-image", ImageSearchOptions{
+	_, err = client.ImageSearch(t.Context(), "some-image", ImageSearchOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
 	assert.Check(t, is.Error(err, "Error requesting privilege"))
@@ -45,7 +45,7 @@ func TestImageSearchWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.
 	privilegeFunc := func(_ context.Context) (string, error) {
 		return "a-auth-header", nil
 	}
-	_, err = client.ImageSearch(context.Background(), "some-image", ImageSearchOptions{
+	_, err = client.ImageSearch(t.Context(), "some-image", ImageSearchOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsUnauthorized))
@@ -77,7 +77,7 @@ func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
 	privilegeFunc := func(_ context.Context) (string, error) {
 		return "IAmValid", nil
 	}
-	results, err := client.ImageSearch(context.Background(), "some-image", ImageSearchOptions{
+	results, err := client.ImageSearch(t.Context(), "some-image", ImageSearchOptions{
 		RegistryAuth:  "NotValid",
 		PrivilegeFunc: privilegeFunc,
 	})
@@ -107,7 +107,7 @@ func TestImageSearchWithoutErrors(t *testing.T) {
 		})(req)
 	}))
 	assert.NilError(t, err)
-	results, err := client.ImageSearch(context.Background(), "some-image", ImageSearchOptions{
+	results, err := client.ImageSearch(t.Context(), "some-image", ImageSearchOptions{
 		Filters: make(Filters).Add("is-automated", "true").Add("stars", "3"),
 	})
 	assert.NilError(t, err)

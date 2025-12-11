@@ -52,7 +52,7 @@ func (s *Server) CreateExtension(ctx context.Context, request *api.CreateExtensi
 // - Returns `NotFound` if the Extension with the given id is not found.
 // - Returns `InvalidArgument` if the `GetExtensionRequest.extension_id` is empty.
 // - Returns an error if the get fails.
-func (s *Server) GetExtension(ctx context.Context, request *api.GetExtensionRequest) (*api.GetExtensionResponse, error) {
+func (s *Server) GetExtension(_ context.Context, request *api.GetExtensionRequest) (*api.GetExtensionResponse, error) {
 	if request.ExtensionID == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "extension ID must be provided")
 	}

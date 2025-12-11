@@ -588,16 +588,16 @@ func (tx *tx) create(table string, o api.StoreObject) error {
 		return ErrExist
 	}
 
-	copy := o.CopyStoreObject()
-	meta := copy.GetMeta()
+	cp := o.CopyStoreObject()
+	meta := cp.GetMeta()
 	if err := touchMeta(&meta, tx.curVersion); err != nil {
 		return err
 	}
-	copy.SetMeta(meta)
+	cp.SetMeta(meta)
 
-	err := tx.memDBTx.Insert(table, copy)
+	err := tx.memDBTx.Insert(table, cp)
 	if err == nil {
-		tx.changelist = append(tx.changelist, copy.EventCreate())
+		tx.changelist = append(tx.changelist, cp.EventCreate())
 		o.SetMeta(meta)
 	}
 	return err
@@ -619,15 +619,15 @@ func (tx *tx) update(table string, o api.StoreObject) error {
 		}
 	}
 
-	copy := o.CopyStoreObject()
+	cp := o.CopyStoreObject()
 	if err := touchMeta(&meta, tx.curVersion); err != nil {
 		return err
 	}
-	copy.SetMeta(meta)
+	cp.SetMeta(meta)
 
-	err := tx.memDBTx.Insert(table, copy)
+	err := tx.memDBTx.Insert(table, cp)
 	if err == nil {
-		tx.changelist = append(tx.changelist, copy.EventUpdate(oldN))
+		tx.changelist = append(tx.changelist, cp.EventUpdate(oldN))
 		o.SetMeta(meta)
 	}
 	return err
@@ -936,7 +936,7 @@ func WatchFrom(store *MemoryStore, version *api.Version, specifiers ...api.Event
 		cancelWatch func()
 	)
 	// Using Update to lock the store
-	err := store.Update(func(tx Tx) error {
+	err := store.Update(func(_ Tx) error {
 		// Get current version
 		curVersion = store.proposer.GetVersion()
 		// Start the watch with the store locked so events cannot be

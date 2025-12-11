@@ -18,7 +18,6 @@ import (
 	"github.com/docker/distribution"
 	"github.com/moby/go-archive"
 	"github.com/opencontainers/go-digest"
-	"github.com/opencontainers/image-spec/identity"
 )
 
 var (
@@ -178,13 +177,6 @@ type Store interface {
 // descriptors for layers.
 type DescribableStore interface {
 	RegisterWithDescriptor(io.Reader, ChainID, distribution.Descriptor) (Layer, error)
-}
-
-// CreateChainID returns ID for a layerDigest slice.
-//
-// Deprecated: use [identity.ChainID].
-func CreateChainID(dgsts []DiffID) ChainID {
-	return identity.ChainID(dgsts)
 }
 
 // ReleaseAndLog releases the provided layer from the given layer

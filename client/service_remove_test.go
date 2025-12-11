@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -14,14 +13,14 @@ func TestServiceRemoveError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.ServiceRemove(context.Background(), "service_id", ServiceRemoveOptions{})
+	_, err = client.ServiceRemove(t.Context(), "service_id", ServiceRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ServiceRemove(context.Background(), "", ServiceRemoveOptions{})
+	_, err = client.ServiceRemove(t.Context(), "", ServiceRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ServiceRemove(context.Background(), "    ", ServiceRemoveOptions{})
+	_, err = client.ServiceRemove(t.Context(), "    ", ServiceRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -30,7 +29,7 @@ func TestServiceRemoveNotFoundError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusNotFound, "no such service: service_id")))
 	assert.NilError(t, err)
 
-	_, err = client.ServiceRemove(context.Background(), "service_id", ServiceRemoveOptions{})
+	_, err = client.ServiceRemove(t.Context(), "service_id", ServiceRemoveOptions{})
 	assert.Check(t, is.ErrorContains(err, "no such service: service_id"))
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
@@ -46,6 +45,6 @@ func TestServiceRemove(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	_, err = client.ServiceRemove(context.Background(), "service_id", ServiceRemoveOptions{})
+	_, err = client.ServiceRemove(t.Context(), "service_id", ServiceRemoveOptions{})
 	assert.NilError(t, err)
 }

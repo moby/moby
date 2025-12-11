@@ -27,6 +27,16 @@ Use the links above for more information on each.
 
 # changelog
 
+* Oct 20, 2025 - [1.18.1](https://github.com/klauspost/compress/releases/tag/v1.18.1)
+  * zstd: Add simple zstd EncodeTo/DecodeTo functions  https://github.com/klauspost/compress/pull/1079
+  * zstd: Fix incorrect buffer size in dictionary encodes https://github.com/klauspost/compress/pull/1059
+  * s2: check for cap, not len of buffer in EncodeBetter/Best by @vdarulis in https://github.com/klauspost/compress/pull/1080
+  * zlib: Avoiding extra allocation in zlib.reader.Reset by @travelpolicy in https://github.com/klauspost/compress/pull/1086
+  * gzhttp: remove redundant err check in zstdReader by @ryanfowler in https://github.com/klauspost/compress/pull/1090
+  * flate: Faster load+store https://github.com/klauspost/compress/pull/1104
+  * flate: Simplify matchlen https://github.com/klauspost/compress/pull/1101
+  * flate: Use exact sizes for huffman tables https://github.com/klauspost/compress/pull/1103
+
 * Feb 19th, 2025 - [1.18.0](https://github.com/klauspost/compress/releases/tag/v1.18.0)
   * Add unsafe little endian loaders https://github.com/klauspost/compress/pull/1036
   * fix: check `r.err != nil` but return a nil value error `err` by @alingse in https://github.com/klauspost/compress/pull/1028
@@ -35,6 +45,9 @@ Use the links above for more information on each.
   * s2: Improve small block compression speed w/o asm https://github.com/klauspost/compress/pull/1048
   * flate: Fix matchlen L5+L6 https://github.com/klauspost/compress/pull/1049
   * flate: Cleanup & reduce casts https://github.com/klauspost/compress/pull/1050
+
+<details>
+	<summary>See changes to v1.17.x</summary>
 
 * Oct 11th, 2024 - [1.17.11](https://github.com/klauspost/compress/releases/tag/v1.17.11)
   * zstd: Fix extra CRC written with multiple Close calls https://github.com/klauspost/compress/pull/1017
@@ -102,7 +115,8 @@ https://github.com/klauspost/compress/pull/919 https://github.com/klauspost/comp
 	* s2: Do 2 overlapping match checks https://github.com/klauspost/compress/pull/839
 	* flate: Add amd64 assembly matchlen https://github.com/klauspost/compress/pull/837
 	* gzip: Copy bufio.Reader on Reset by @thatguystone in https://github.com/klauspost/compress/pull/860
-
+   
+</details>
 <details>
 	<summary>See changes to v1.16.x</summary>
 
@@ -669,3 +683,4 @@ Here are other packages of good quality and pure Go (no cgo wrappers or autoconv
 # license
 
 This code is licensed under the same conditions as the original Go code. See LICENSE file.
+

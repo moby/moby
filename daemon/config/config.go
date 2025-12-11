@@ -825,7 +825,7 @@ func migrateHostGatewayIP(config *Config) {
 	hgip := config.HostGatewayIP //nolint:staticcheck // ignore SA1019: migrating to HostGatewayIPs.
 	if hgip != nil {
 		addr, _ := netip.AddrFromSlice(hgip)
-		config.HostGatewayIPs = []netip.Addr{addr}
+		config.HostGatewayIPs = []netip.Addr{addr.Unmap()}
 		config.HostGatewayIP = nil //nolint:staticcheck // ignore SA1019: clearing old value.
 	}
 }

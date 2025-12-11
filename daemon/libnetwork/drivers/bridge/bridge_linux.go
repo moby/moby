@@ -1796,10 +1796,12 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 			if !ok {
 				return fmt.Errorf("invalid parent endpoint IP: %s", parentEndpoint.addr.IP)
 			}
+			parentAddr = parentAddr.Unmap()
 			childAddr, ok := netip.AddrFromSlice(endpoint.addr.IP)
 			if !ok {
 				return fmt.Errorf("invalid parent endpoint IP: %s", endpoint.addr.IP)
 			}
+			childAddr = childAddr.Unmap()
 
 			if enable {
 				if err := network.firewallerNetwork.AddLink(context.TODO(), parentAddr, childAddr, ec.ExposedPorts); err != nil {
@@ -1826,10 +1828,12 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 		if !ok {
 			return fmt.Errorf("invalid parent endpoint IP: %s", endpoint.addr.IP)
 		}
+		parentAddr = parentAddr.Unmap()
 		childAddr, ok := netip.AddrFromSlice(childEndpoint.addr.IP)
 		if !ok {
 			return fmt.Errorf("invalid parent endpoint IP: %s", childEndpoint.addr.IP)
 		}
+		childAddr = childAddr.Unmap()
 
 		if enable {
 			if err := network.firewallerNetwork.AddLink(context.TODO(), parentAddr, childAddr, childEndpoint.extConnConfig.ExposedPorts); err != nil {

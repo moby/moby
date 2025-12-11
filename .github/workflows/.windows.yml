@@ -28,7 +28,7 @@ on:
         default: false
 
 env:
-  GO_VERSION: "1.25.4"
+  GO_VERSION: "1.25.5"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
   WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore
@@ -53,7 +53,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: ${{ env.GOPATH }}/src/github.com/docker/docker
       -
@@ -98,7 +98,7 @@ jobs:
           docker cp "${{ env.TEST_CTN_NAME }}`:c`:\containerd\bin\containerd-shim-runhcs-v1.exe" ${{ env.BIN_OUT }}\
       -
         name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: build-${{ inputs.storage }}-${{ inputs.os }}
           path: ${{ env.BIN_OUT }}/*
@@ -117,7 +117,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: ${{ env.GOPATH }}/src/github.com/docker/docker
       -
@@ -166,7 +166,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-unit-reports
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
@@ -181,13 +181,13 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
       -
         name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-unit-reports
           path: /tmp/artifacts
@@ -208,10 +208,10 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       -
         name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -264,24 +264,27 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: ${{ env.GOPATH }}/src/github.com/docker/docker
       -
         name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
       -
-        name: Set up Jaeger
+        name: Set up OpenTelemetry Collector
         run: |
-          # Jaeger is set up on Linux through the setup-tracing action. If you update Jaeger here, don't forget to
+          # The collectors is set up on Linux through the setup-tracing action. If you update the collector here, don't forget to
           # update the version set in .github/actions/setup-tracing/action.yml.
-          Invoke-WebRequest -Uri "https://github.com/jaegertracing/jaeger/releases/download/v1.46.0/jaeger-1.46.0-windows-amd64.tar.gz" -OutFile ".\jaeger-1.46.0-windows-amd64.tar.gz"
-          tar -zxvf ".\jaeger-1.46.0-windows-amd64.tar.gz"
-          Start-Process '.\jaeger-1.46.0-windows-amd64\jaeger-all-in-one.exe'
-          echo "OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+          New-Item -ItemType Directory -Force -Path bundles -ErrorAction Continue
+          Start-Process "msiexec" -ArgumentList "/i",
+              "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.140.0/otelcol_0.140.0_windows_x64.msi",
+              "/qn", "/l*v", "$(Join-Path (Get-Location) "bundles/otelcol-install.log")",
+              "COLLECTOR_SVC_ARGS=`"--config=`"`"file:$(Join-Path (Get-Location) "otelcol-ci-config.yml")`"`" --config=`"`"yaml:exporters::file::path: $(Join-Path (Get-Location) "bundles/otel-trace.jsonl")`"`"`"" `
+              -NoNewWindow -Wait
+          @("OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318", "OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf") | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
         shell: pwsh
       -
         name: Env
@@ -289,14 +292,14 @@ jobs:
           Get-ChildItem Env: | Out-String
       -
         name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: build-${{ inputs.storage }}-${{ inputs.os }}
           path: ${{ env.BIN_OUT }}
       -
         name: Init
         run: |
-          New-Item -ItemType "directory" -Path "bundles"
+          New-Item -ItemType "directory" -Path "bundles" -ErrorAction SilentlyContinue
           If ("${{ inputs.os }}" -eq "windows-2025") {
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2025 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           } ElseIf ("${{ inputs.os }}" -eq "windows-2022") {
@@ -342,14 +345,14 @@ jobs:
               "--exec-root=$env:TEMP\moby-exec", `
               "--pidfile=$env:TEMP\docker.pid", `
               "--register-service"
+          # Make the env-var visible to the service-managed dockerd, as there's no CLI flag for this option.
+          $dockerEnviron = @("DOCKER_MIN_API_VERSION=1.24")
+          $dockerEnviron += @(Get-Item Env:\OTEL_* | ForEach-Object { "$($_.Name)=$($_.Value)" })
           If ("${{ inputs.storage }}" -eq "graphdriver") {
-            # Make the env-var visible to the service-managed dockerd, as there's no CLI flag for this option.
-            & reg add "HKLM\SYSTEM\CurrentControlSet\Services\docker" /v Environment /t REG_MULTI_SZ /s '@' /d "DOCKER_MIN_API_VERSION=1.24@TEST_INTEGRATION_USE_GRAPHDRIVER=1"
+            $dockerEnviron += @("TEST_INTEGRATION_USE_GRAPHDRIVER=1")
             echo "TEST_INTEGRATION_USE_GRAPHDRIVER=1" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
-          } Else {
-            # Make the env-var visible to the service-managed dockerd, as there's no CLI flag for this option.
-            & reg add "HKLM\SYSTEM\CurrentControlSet\Services\docker" /v Environment /t REG_MULTI_SZ /s '@' /d DOCKER_MIN_API_VERSION=1.24
           }
+          New-ItemProperty -Name "Environment" -Path "HKLM:\SYSTEM\CurrentControlSet\Services\docker" -PropertyType MultiString -Value $dockerEnviron
           Write-Host "Starting service"
           Start-Service -Name docker
           Write-Host "Service started successfully!"
@@ -459,16 +462,14 @@ jobs:
               ForEach-Object {"$($_.TimeCreated.ToUniversalTime().ToString("o")) [$($_.LevelDisplayName)] $($_.Message)"} |
               Tee-Object -file ".\bundles\daemon.log"
       -
-        name: Download Jaeger traces
+        name: Stop OpenTelemetry Collector
         if: always()
         run: |
-          Invoke-WebRequest `
-            -Uri "http://127.0.0.1:16686/api/traces?service=integration-test-client" `
-            -OutFile ".\bundles\jaeger-trace.json"
+          (Stop-Service -DisplayName "OpenTelemetry Collector" -PassThru).WaitForStatus('Stopped', (New-TimeSpan -Seconds 30))
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-integration-reports-${{ matrix.runtime }}-${{ env.TESTREPORTS_NAME }}
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
@@ -495,13 +496,13 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
       -
         name: Download reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           path: /tmp/reports
           pattern: ${{ inputs.os }}-${{ inputs.storage }}-integration-reports-${{ matrix.runtime }}-*

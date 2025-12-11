@@ -886,6 +886,11 @@ func (m *FileActionCopy) CloneVT() *FileActionCopy {
 		copy(tmpContainer, rhs)
 		r.ExcludePatterns = tmpContainer
 	}
+	if rhs := m.RequiredPaths; rhs != nil {
+		tmpContainer := make([]string, len(rhs))
+		copy(tmpContainer, rhs)
+		r.RequiredPaths = tmpContainer
+	}
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = make([]byte, len(m.unknownFields))
 		copy(r.unknownFields, m.unknownFields)
@@ -2577,6 +2582,15 @@ func (this *FileActionCopy) EqualVT(that *FileActionCopy) bool {
 	}
 	if this.ModeStr != that.ModeStr {
 		return false
+	}
+	if len(this.RequiredPaths) != len(that.RequiredPaths) {
+		return false
+	}
+	for i, vx := range this.RequiredPaths {
+		vy := that.RequiredPaths[i]
+		if vx != vy {
+			return false
+		}
 	}
 	return string(this.unknownFields) == string(that.unknownFields)
 }
@@ -5183,6 +5197,17 @@ func (m *FileActionCopy) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
+	if len(m.RequiredPaths) > 0 {
+		for iNdEx := len(m.RequiredPaths) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.RequiredPaths[iNdEx])
+			copy(dAtA[i:], m.RequiredPaths[iNdEx])
+			i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.RequiredPaths[iNdEx])))
+			i--
+			dAtA[i] = 0x1
+			i--
+			dAtA[i] = 0x82
+		}
+	}
 	if len(m.ModeStr) > 0 {
 		i -= len(m.ModeStr)
 		copy(dAtA[i:], m.ModeStr)
@@ -6949,6 +6974,12 @@ func (m *FileActionCopy) SizeVT() (n int) {
 	l = len(m.ModeStr)
 	if l > 0 {
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
+	}
+	if len(m.RequiredPaths) > 0 {
+		for _, s := range m.RequiredPaths {
+			l = len(s)
+			n += 2 + l + protohelpers.SizeOfVarint(uint64(l))
+		}
 	}
 	n += len(m.unknownFields)
 	return n
@@ -13312,6 +13343,38 @@ func (m *FileActionCopy) UnmarshalVT(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.ModeStr = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 16:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RequiredPaths", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return protohelpers.ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return protohelpers.ErrInvalidLength
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return protohelpers.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.RequiredPaths = append(m.RequiredPaths, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

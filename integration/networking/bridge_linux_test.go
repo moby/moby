@@ -22,12 +22,14 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
 	"github.com/moby/moby/v2/daemon/libnetwork/iptables"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
+	"github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/integration/internal/network"
 	"github.com/moby/moby/v2/integration/internal/testutils/networking"
 	n "github.com/moby/moby/v2/integration/network"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
+	"github.com/moby/moby/v2/internal/testutil/fakecontext"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
@@ -1126,7 +1128,7 @@ func TestDisableIPv4(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			c := d.NewClientT(t, client.WithVersion(tc.apiVersion))
+			c := d.NewClientT(t, client.WithAPIVersion(tc.apiVersion))
 
 			const netName = "testnet"
 			network.CreateNoError(ctx, t, c, netName,
@@ -1277,7 +1279,7 @@ func TestSetInterfaceSysctl(t *testing.T) {
 	d.StartWithBusybox(ctx, t)
 	defer d.Stop(t)
 
-	c := d.NewClientT(t, client.WithVersion("1.46"))
+	c := d.NewClientT(t, client.WithAPIVersion("1.46"))
 	defer c.Close()
 
 	const scName = "net.ipv4.conf.eth0.forwarding"
@@ -2089,4 +2091,68 @@ func TestSetIPWithNoConfiguredSubnet(t *testing.T) {
 		assert.Check(t, is.Contains(res.Stdout.String(), ip4))
 		assert.Check(t, is.Contains(res.Stdout.String(), ip6))
 	}
+}
+
+// Regression test for https://github.com/moby/moby/issues/51578
+func TestGatewayErrorOnNetDisconnect(t *testing.T) {
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+
+	network.CreateNoError(ctx, t, c, "n1")
+	defer network.RemoveNoError(ctx, t, c, "n1")
+	network.CreateNoError(ctx, t, c, "n2")
+	defer network.RemoveNoError(ctx, t, c, "n2")
+
+	// Run a container attached to both networks, with n1 providing the default gateway
+	// and n2's interface named "eth2".
+	ctrID := container.Run(ctx, t, c,
+		container.WithEndpointSettings("n1", &networktypes.EndpointSettings{GwPriority: 1}),
+		container.WithEndpointSettings("n2", &networktypes.EndpointSettings{DriverOpts: map[string]string{
+			netlabel.Ifname: "eth2",
+		}}),
+		container.WithCapability("NET_ADMIN"),
+	)
+	defer container.Remove(ctx, t, c, ctrID, client.ContainerRemoveOptions{Force: true})
+
+	// Break n2 so it can't be used as a gateway (there will be no route).
+	execRes := container.ExecT(ctx, t, c, ctrID, []string{"ip", "link", "set", "eth2", "down"})
+	assert.Assert(t, is.Equal(execRes.ExitCode, 0))
+
+	// Disconnect n1, n2 will be selected as the gateway and its config will fail.
+	// The error is only logged and the disconnect proceeds.
+	_, err := c.NetworkDisconnect(ctx, "n1", client.NetworkDisconnectOptions{Container: ctrID})
+	assert.Check(t, err)
+
+	// Check n1 can be reconnected.
+	_, err = c.NetworkConnect(ctx, "n1", client.NetworkConnectOptions{Container: ctrID})
+	assert.Check(t, err)
+
+	// Check the container can be restarted.
+	timeout := 0
+	_, err = c.ContainerRestart(ctx, ctrID, client.ContainerRestartOptions{Timeout: &timeout})
+	assert.Check(t, err)
+
+	// Both networks should be attached.
+	ctrInsp := container.Inspect(ctx, t, c, ctrID)
+	assert.Check(t, is.Len(ctrInsp.NetworkSettings.Networks, 2))
+	assert.Check(t, is.Contains(ctrInsp.NetworkSettings.Networks, "n1"))
+	assert.Check(t, is.Contains(ctrInsp.NetworkSettings.Networks, "n2"))
+}
+
+// Regression test for https://github.com/moby/moby/issues/51620
+func TestPublishAllWithNilPortBindings(t *testing.T) {
+	ctx := setupTest(t)
+	c := testEnv.APIClient()
+
+	imgWithExpose := container.WithImage(build.Do(ctx, t, c,
+		fakecontext.New(t, "", fakecontext.WithDockerfile("FROM busybox\nEXPOSE 80/tcp\n"))))
+
+	_ = container.Run(ctx, t, c,
+		container.WithAutoRemove,
+		container.WithPublishAllPorts(true),
+		imgWithExpose,
+	)
 }

@@ -82,7 +82,7 @@ func (h *Hook) encode(e *logrus.Entry) {
 
 	formatTime := h.TimeFormat != ""
 	formatDuration := h.DurationFormat != nil
-	if !(h.EncodeAsJSON || formatTime || formatDuration) {
+	if !h.EncodeAsJSON && !formatTime && !formatDuration {
 		return
 	}
 

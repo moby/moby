@@ -27,6 +27,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/containerd/cgroups/v3/cgroup2/stats"
@@ -45,9 +46,17 @@ const (
 	typeFile           = "cgroup.type"
 	defaultCgroup2Path = "/sys/fs/cgroup"
 	defaultSlice       = "system.slice"
+
+	// systemd only supports CPUQuotaPeriodUSec since v2.42.0
+	cpuQuotaPeriodUSecSupportedVersion = 242
 )
 
-var canDelegate bool
+var (
+	canDelegate bool
+
+	versionOnce sync.Once
+	version     int
+)
 
 type Event struct {
 	Low     uint64
@@ -550,106 +559,132 @@ func (c *Manager) MoveTo(destination *Manager) error {
 }
 
 func (c *Manager) Stat() (*stats.Metrics, error) {
-	controllers, err := c.Controllers()
-	if err != nil {
-		return nil, err
-	}
-	// Sizing this avoids an allocation to increase the map at runtime;
-	// currently the default bucket size is 8 and we put 40+ elements
-	// in it so we'd always end up allocating.
-	out := make(map[string]uint64, 50)
-	for _, controller := range controllers {
-		switch controller {
-		case "cpu", "memory":
-			if err := readKVStatsFile(c.path, controller+".stat", out); err != nil {
-				if os.IsNotExist(err) {
-					continue
-				}
-				return nil, err
-			}
-		}
-	}
-	memoryEvents := make(map[string]uint64)
-	if err := readKVStatsFile(c.path, "memory.events", memoryEvents); err != nil {
-		if !os.IsNotExist(err) {
-			return nil, err
-		}
-	}
-
 	var metrics stats.Metrics
+	var err error
+
 	metrics.Pids = &stats.PidsStat{
 		Current: getStatFileContentUint64(filepath.Join(c.path, "pids.current")),
 		Limit:   getStatFileContentUint64(filepath.Join(c.path, "pids.max")),
 	}
-	metrics.CPU = &stats.CPUStat{
-		UsageUsec:     out["usage_usec"],
-		UserUsec:      out["user_usec"],
-		SystemUsec:    out["system_usec"],
-		NrPeriods:     out["nr_periods"],
-		NrThrottled:   out["nr_throttled"],
-		ThrottledUsec: out["throttled_usec"],
-		PSI:           getStatPSIFromFile(filepath.Join(c.path, "cpu.pressure")),
+
+	metrics.CPU, err = readCPUStats(c.path)
+	if err != nil {
+		return nil, err
 	}
-	metrics.Memory = &stats.MemoryStat{
-		Anon:                  out["anon"],
-		File:                  out["file"],
-		KernelStack:           out["kernel_stack"],
-		Slab:                  out["slab"],
-		Sock:                  out["sock"],
-		Shmem:                 out["shmem"],
-		FileMapped:            out["file_mapped"],
-		FileDirty:             out["file_dirty"],
-		FileWriteback:         out["file_writeback"],
-		AnonThp:               out["anon_thp"],
-		InactiveAnon:          out["inactive_anon"],
-		ActiveAnon:            out["active_anon"],
-		InactiveFile:          out["inactive_file"],
-		ActiveFile:            out["active_file"],
-		Unevictable:           out["unevictable"],
-		SlabReclaimable:       out["slab_reclaimable"],
-		SlabUnreclaimable:     out["slab_unreclaimable"],
-		Pgfault:               out["pgfault"],
-		Pgmajfault:            out["pgmajfault"],
-		WorkingsetRefault:     out["workingset_refault"],
-		WorkingsetActivate:    out["workingset_activate"],
-		WorkingsetNodereclaim: out["workingset_nodereclaim"],
-		Pgrefill:              out["pgrefill"],
-		Pgscan:                out["pgscan"],
-		Pgsteal:               out["pgsteal"],
-		Pgactivate:            out["pgactivate"],
-		Pgdeactivate:          out["pgdeactivate"],
-		Pglazyfree:            out["pglazyfree"],
-		Pglazyfreed:           out["pglazyfreed"],
-		ThpFaultAlloc:         out["thp_fault_alloc"],
-		ThpCollapseAlloc:      out["thp_collapse_alloc"],
-		Usage:                 getStatFileContentUint64(filepath.Join(c.path, "memory.current")),
-		UsageLimit:            getStatFileContentUint64(filepath.Join(c.path, "memory.max")),
-		MaxUsage:              getStatFileContentUint64(filepath.Join(c.path, "memory.peak")),
-		SwapUsage:             getStatFileContentUint64(filepath.Join(c.path, "memory.swap.current")),
-		SwapLimit:             getStatFileContentUint64(filepath.Join(c.path, "memory.swap.max")),
-		SwapMaxUsage:          getStatFileContentUint64(filepath.Join(c.path, "memory.swap.peak")),
-		PSI:                   getStatPSIFromFile(filepath.Join(c.path, "memory.pressure")),
+
+	metrics.Memory, err = readMemoryStats(c.path)
+	if err != nil {
+		return nil, err
 	}
-	if len(memoryEvents) > 0 {
-		metrics.MemoryEvents = &stats.MemoryEvents{
-			Low:     memoryEvents["low"],
-			High:    memoryEvents["high"],
-			Max:     memoryEvents["max"],
-			Oom:     memoryEvents["oom"],
-			OomKill: memoryEvents["oom_kill"],
-		}
+
+	metrics.MemoryEvents, err = readMemoryEvents(c.path)
+	if err != nil {
+		return nil, err
 	}
+
 	metrics.Io = &stats.IOStat{
 		Usage: readIoStats(c.path),
 		PSI:   getStatPSIFromFile(filepath.Join(c.path, "io.pressure")),
 	}
+
 	metrics.Rdma = &stats.RdmaStat{
 		Current: rdmaStats(filepath.Join(c.path, "rdma.current")),
 		Limit:   rdmaStats(filepath.Join(c.path, "rdma.max")),
 	}
+
 	metrics.Hugetlb = readHugeTlbStats(c.path)
 
 	return &metrics, nil
+}
+
+func readCPUStats(cgroupPath string) (*stats.CPUStat, error) {
+	cpuStat := make(map[string]uint64)
+	if err := readKVStatsFile(cgroupPath, "cpu.stat", cpuStat); err != nil {
+		if os.IsNotExist(err) {
+			return &stats.CPUStat{}, nil
+		}
+		return nil, err
+	}
+	return &stats.CPUStat{
+		UsageUsec:     cpuStat["usage_usec"],
+		UserUsec:      cpuStat["user_usec"],
+		SystemUsec:    cpuStat["system_usec"],
+		NrPeriods:     cpuStat["nr_periods"],
+		NrThrottled:   cpuStat["nr_throttled"],
+		ThrottledUsec: cpuStat["throttled_usec"],
+		NrBursts:      cpuStat["nr_bursts"],
+		BurstUsec:     cpuStat["burst_usec"],
+		PSI:           getStatPSIFromFile(filepath.Join(cgroupPath, "cpu.pressure")),
+	}, nil
+}
+
+func readMemoryStats(cgroupPath string) (*stats.MemoryStat, error) {
+	memoryStat := make(map[string]uint64, 40)
+	if err := readKVStatsFile(cgroupPath, "memory.stat", memoryStat); err != nil {
+		if os.IsNotExist(err) {
+			return &stats.MemoryStat{}, nil
+		}
+		return nil, err
+	}
+	return &stats.MemoryStat{
+		Anon:                  memoryStat["anon"],
+		File:                  memoryStat["file"],
+		KernelStack:           memoryStat["kernel_stack"],
+		Slab:                  memoryStat["slab"],
+		Sock:                  memoryStat["sock"],
+		Shmem:                 memoryStat["shmem"],
+		FileMapped:            memoryStat["file_mapped"],
+		FileDirty:             memoryStat["file_dirty"],
+		FileWriteback:         memoryStat["file_writeback"],
+		AnonThp:               memoryStat["anon_thp"],
+		InactiveAnon:          memoryStat["inactive_anon"],
+		ActiveAnon:            memoryStat["active_anon"],
+		InactiveFile:          memoryStat["inactive_file"],
+		ActiveFile:            memoryStat["active_file"],
+		Unevictable:           memoryStat["unevictable"],
+		SlabReclaimable:       memoryStat["slab_reclaimable"],
+		SlabUnreclaimable:     memoryStat["slab_unreclaimable"],
+		Pgfault:               memoryStat["pgfault"],
+		Pgmajfault:            memoryStat["pgmajfault"],
+		WorkingsetRefault:     memoryStat["workingset_refault"],
+		WorkingsetActivate:    memoryStat["workingset_activate"],
+		WorkingsetNodereclaim: memoryStat["workingset_nodereclaim"],
+		Pgrefill:              memoryStat["pgrefill"],
+		Pgscan:                memoryStat["pgscan"],
+		Pgsteal:               memoryStat["pgsteal"],
+		Pgactivate:            memoryStat["pgactivate"],
+		Pgdeactivate:          memoryStat["pgdeactivate"],
+		Pglazyfree:            memoryStat["pglazyfree"],
+		Pglazyfreed:           memoryStat["pglazyfreed"],
+		ThpFaultAlloc:         memoryStat["thp_fault_alloc"],
+		ThpCollapseAlloc:      memoryStat["thp_collapse_alloc"],
+		Usage:                 getStatFileContentUint64(filepath.Join(cgroupPath, "memory.current")),
+		UsageLimit:            getStatFileContentUint64(filepath.Join(cgroupPath, "memory.max")),
+		MaxUsage:              getStatFileContentUint64(filepath.Join(cgroupPath, "memory.peak")),
+		SwapUsage:             getStatFileContentUint64(filepath.Join(cgroupPath, "memory.swap.current")),
+		SwapLimit:             getStatFileContentUint64(filepath.Join(cgroupPath, "memory.swap.max")),
+		SwapMaxUsage:          getStatFileContentUint64(filepath.Join(cgroupPath, "memory.swap.peak")),
+		PSI:                   getStatPSIFromFile(filepath.Join(cgroupPath, "memory.pressure")),
+	}, nil
+}
+
+func readMemoryEvents(cgroupPath string) (*stats.MemoryEvents, error) {
+	memoryEvents := make(map[string]uint64)
+	if err := readKVStatsFile(cgroupPath, "memory.events", memoryEvents); err != nil {
+		if !os.IsNotExist(err) {
+			return nil, err
+		}
+	}
+	if len(memoryEvents) == 0 {
+		return nil, nil
+	}
+	return &stats.MemoryEvents{
+		Low:     memoryEvents["low"],
+		High:    memoryEvents["high"],
+		Max:     memoryEvents["max"],
+		Oom:     memoryEvents["oom"],
+		OomKill: memoryEvents["oom_kill"],
+	}, nil
 }
 
 func readKVStatsFile(path string, file string, out map[string]uint64) error {
@@ -710,7 +745,7 @@ func (c *Manager) isCgroupEmpty() bool {
 // MemoryEventFD returns inotify file descriptor and 'memory.events' inotify watch descriptor
 func (c *Manager) MemoryEventFD() (int, uint32, error) {
 	fpath := filepath.Join(c.path, "memory.events")
-	fd, err := unix.InotifyInit()
+	fd, err := unix.InotifyInit1(unix.IN_CLOEXEC)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to create inotify fd: %w", err)
 	}
@@ -729,32 +764,69 @@ func (c *Manager) MemoryEventFD() (int, uint32, error) {
 	return fd, uint32(wd), nil
 }
 
-func (c *Manager) EventChan() (<-chan Event, <-chan error) {
-	ec := make(chan Event)
-	errCh := make(chan error, 1)
-	go c.waitForEvents(ec, errCh)
+// memoryEventNonBlockFD returns a non-blocking inotify file descriptor monitoring memory.events.
+//
+// NOTE: Block FD is expensive because unix.Read will block that thread once there is
+// available data to read. In high scale scenarios, it will create a lot of threads.
+func (c *Manager) memoryEventNonBlockFD() (_ *os.File, retErr error) {
 
-	return ec, errCh
+	rawFd, err := unix.InotifyInit1(unix.IN_CLOEXEC | unix.IN_NONBLOCK)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create inotify fd: %w", err)
+	}
+
+	fd := os.NewFile(uintptr(rawFd), "inotifyfd")
+	defer func() {
+		if retErr != nil {
+			fd.Close()
+		}
+	}()
+
+	fpath := filepath.Join(c.path, "memory.events")
+	if _, err := unix.InotifyAddWatch(rawFd, fpath, unix.IN_MODIFY); err != nil {
+		return nil, fmt.Errorf("failed to add inotify watch for %q: %w", fpath, err)
+	}
+
+	// monitor to detect process exit/cgroup deletion
+	evpath := filepath.Join(c.path, "cgroup.events")
+	if _, err = unix.InotifyAddWatch(rawFd, evpath, unix.IN_MODIFY); err != nil {
+		return nil, fmt.Errorf("failed to add inotify watch for %q: %w", evpath, err)
+	}
+	return fd, nil
 }
 
-func (c *Manager) waitForEvents(ec chan<- Event, errCh chan<- error) {
-	defer close(errCh)
+func (c *Manager) EventChan() (<-chan Event, <-chan error) {
+	ec := make(chan Event, 1)
+	errCh := make(chan error, 1)
 
-	fd, _, err := c.MemoryEventFD()
+	fd, err := c.memoryEventNonBlockFD()
 	if err != nil {
 		errCh <- err
-		return
+		return ec, errCh
 	}
-	defer unix.Close(fd)
 
-	for {
-		buffer := make([]byte, unix.SizeofInotifyEvent*10)
-		bytesRead, err := unix.Read(fd, buffer)
-		if err != nil {
-			errCh <- err
-			return
-		}
-		if bytesRead >= unix.SizeofInotifyEvent {
+	go func() {
+		defer close(errCh)
+		defer fd.Close()
+
+		for {
+			buffer := make([]byte, unix.SizeofInotifyEvent*10)
+			bytesRead, err := fd.Read(buffer)
+			if err != nil {
+				errCh <- err
+				return
+			}
+
+			if bytesRead < unix.SizeofInotifyEvent {
+				continue
+			}
+
+			// Check cgroup.events first
+			shouldExit := false
+			if c.isCgroupEmpty() {
+				shouldExit = true
+			}
+
 			out := make(map[string]uint64)
 			if err := readKVStatsFile(c.path, "memory.events", out); err != nil {
 				// When cgroup is deleted read may return -ENODEV instead of -ENOENT from open.
@@ -763,6 +835,7 @@ func (c *Manager) waitForEvents(ec chan<- Event, errCh chan<- error) {
 				}
 				return
 			}
+
 			ec <- Event{
 				Low:     out["low"],
 				High:    out["high"],
@@ -770,11 +843,13 @@ func (c *Manager) waitForEvents(ec chan<- Event, errCh chan<- error) {
 				OOM:     out["oom"],
 				OOMKill: out["oom_kill"],
 			}
-			if c.isCgroupEmpty() {
+
+			if shouldExit {
 				return
 			}
 		}
-	}
+	}()
+	return ec, errCh
 }
 
 func setDevices(path string, devices []specs.LinuxDeviceCgroup) error {
@@ -875,7 +950,19 @@ func NewSystemd(slice, group string, pid int, resources *Resources) (*Manager, e
 	}
 
 	if resources.CPU != nil && resources.CPU.Max != "" {
-		quota, period := resources.CPU.Max.extractQuotaAndPeriod()
+		quota, period, err := resources.CPU.Max.extractQuotaAndPeriod()
+		if err != nil {
+			return &Manager{}, err
+		}
+
+		if period != 0 {
+			if sdVer := systemdVersion(conn); sdVer >= cpuQuotaPeriodUSecSupportedVersion {
+				properties = append(properties, newSystemdProperty("CPUQuotaPeriodUSec", period))
+			} else {
+				log.G(context.TODO()).WithField("version", sdVer).Debug("Systemd version is too old to support CPUQuotaPeriodUSec")
+			}
+		}
+
 		// cpu.cfs_quota_us and cpu.cfs_period_us are controlled by systemd.
 		// corresponds to USEC_INFINITY in systemd
 		// if USEC_INFINITY is provided, CPUQuota is left unbound by systemd
@@ -913,6 +1000,41 @@ func NewSystemd(slice, group string, pid int, resources *Resources) (*Manager, e
 	return &Manager{
 		path: path,
 	}, nil
+}
+
+// Adapted from https://github.com/opencontainers/cgroups/blob/9657f5a18b8d60a0f39fbb34d0cb7771e28e6278/systemd/common.go#L245-L281
+func systemdVersion(conn *systemdDbus.Conn) int {
+	versionOnce.Do(func() {
+		version = -1
+		verStr, err := conn.GetManagerProperty("Version")
+		if err == nil {
+			version, err = systemdVersionAtoi(verStr)
+		}
+
+		if err != nil {
+			log.G(context.TODO()).WithError(err).Error("Unable to get systemd version")
+		}
+	})
+
+	return version
+}
+
+func systemdVersionAtoi(str string) (int, error) {
+	// Unconditionally remove the leading prefix ("v).
+	str = strings.TrimLeft(str, `"v`)
+	// Match on the first integer we can grab.
+	for i := range len(str) {
+		if str[i] < '0' || str[i] > '9' {
+			// First non-digit: cut the tail.
+			str = str[:i]
+			break
+		}
+	}
+	ver, err := strconv.Atoi(str)
+	if err != nil {
+		return -1, fmt.Errorf("can't parse version: %w", err)
+	}
+	return ver, nil
 }
 
 func startUnit(conn *systemdDbus.Conn, group string, properties []systemdDbus.Property, ignoreExists bool) error {

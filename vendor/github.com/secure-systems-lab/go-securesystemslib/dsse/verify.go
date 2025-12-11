@@ -43,7 +43,8 @@ func (ev *EnvelopeVerifier) Verify(ctx context.Context, e *Envelope) ([]Accepted
 	// If *any* signature is found to be incorrect, it is skipped
 	var acceptedKeys []AcceptedKey
 	usedKeyids := make(map[string]string)
-	unverified_providers := ev.providers
+	unverified_providers := make([]Verifier, len(ev.providers))
+	copy(unverified_providers, ev.providers)
 	for _, s := range e.Signatures {
 		sig, err := b64Decode(s.Sig)
 		if err != nil {

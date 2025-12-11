@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -18,14 +17,14 @@ func TestContainerCommitError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	_, err = client.ContainerCommit(context.Background(), "nothing", ContainerCommitOptions{})
+	_, err = client.ContainerCommit(t.Context(), "nothing", ContainerCommitOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.ContainerCommit(context.Background(), "", ContainerCommitOptions{})
+	_, err = client.ContainerCommit(t.Context(), "", ContainerCommitOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.ContainerCommit(context.Background(), "    ", ContainerCommitOptions{})
+	_, err = client.ContainerCommit(t.Context(), "    ", ContainerCommitOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -83,7 +82,7 @@ func TestContainerCommit(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	r, err := client.ContainerCommit(context.Background(), expectedContainerID, ContainerCommitOptions{
+	r, err := client.ContainerCommit(t.Context(), expectedContainerID, ContainerCommitOptions{
 		Reference: specifiedReference,
 		Comment:   expectedComment,
 		Author:    expectedAuthor,

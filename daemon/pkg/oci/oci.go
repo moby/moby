@@ -17,21 +17,6 @@ import (
 // early for "a" (all); https://github.com/torvalds/linux/blob/v5.10/security/device_cgroup.c#L614-L642
 var deviceCgroupRuleRegex = lazyregexp.New("^([acb]) ([0-9]+|\\*):([0-9]+|\\*) ([rwm]{1,3})$")
 
-// SetCapabilities sets the provided capabilities on the spec.
-//
-// Deprecated: this function is no longer used and will be removed in the next release.
-func SetCapabilities(s *specs.Spec, caplist []string) error {
-	if s.Process == nil {
-		s.Process = &specs.Process{}
-	}
-	s.Process.Capabilities = &specs.LinuxCapabilities{
-		Effective: caplist,
-		Bounding:  caplist,
-		Permitted: caplist,
-	}
-	return nil
-}
-
 // AppendDevicePermissionsFromCgroupRules takes rules for the devices cgroup to append to the default set
 func AppendDevicePermissionsFromCgroupRules(devPermissions []specs.LinuxDeviceCgroup, rules []string) ([]specs.LinuxDeviceCgroup, error) {
 	for _, deviceCgroupRule := range rules {

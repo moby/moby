@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -14,14 +13,14 @@ func TestSecretRemoveError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.SecretRemove(context.Background(), "secret_id", SecretRemoveOptions{})
+	_, err = client.SecretRemove(t.Context(), "secret_id", SecretRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 
-	_, err = client.SecretRemove(context.Background(), "", SecretRemoveOptions{})
+	_, err = client.SecretRemove(t.Context(), "", SecretRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 
-	_, err = client.SecretRemove(context.Background(), "   ", SecretRemoveOptions{})
+	_, err = client.SecretRemove(t.Context(), "   ", SecretRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.ErrorContains(err, "value is empty"))
 }
@@ -37,6 +36,6 @@ func TestSecretRemove(t *testing.T) {
 	}))
 	assert.NilError(t, err)
 
-	_, err = client.SecretRemove(context.Background(), "secret_id", SecretRemoveOptions{})
+	_, err = client.SecretRemove(t.Context(), "secret_id", SecretRemoveOptions{})
 	assert.NilError(t, err)
 }

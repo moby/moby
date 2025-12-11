@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -27,6 +28,7 @@ import (
 	"cloud.google.com/go/auth/internal"
 	"cloud.google.com/go/auth/internal/credsfile"
 	"cloud.google.com/go/compute/metadata"
+	"github.com/googleapis/gax-go/v2/internallog"
 )
 
 const (
@@ -47,6 +49,23 @@ const (
 var (
 	// for testing
 	allowOnGCECheck = true
+)
+
+// TokenBindingType specifies the type of binding used when requesting a token
+// whether to request a hard-bound token using mTLS or an instance identity
+// bound token using ALTS.
+type TokenBindingType int
+
+const (
+	// NoBinding specifies that requested tokens are not required to have a
+	// binding. This is the default option.
+	NoBinding TokenBindingType = iota
+	// MTLSHardBinding specifies that a hard-bound token should be requested
+	// using an mTLS with S2A channel.
+	MTLSHardBinding
+	// ALTSHardBinding specifies that an instance identity bound token should
+	// be requested using an ALTS channel.
+	ALTSHardBinding
 )
 
 // OnGCE reports whether this process is running in Google Cloud.
@@ -96,12 +115,18 @@ func DetectDefault(opts *DetectOptions) (*auth.Credentials, error) {
 	}
 
 	if OnGCE() {
+		metadataClient := metadata.NewWithOptions(&metadata.Options{
+			Logger:           opts.logger(),
+			UseDefaultClient: true,
+		})
 		return auth.NewCredentials(&auth.CredentialsOptions{
-			TokenProvider: computeTokenProvider(opts),
+			TokenProvider: computeTokenProvider(opts, metadataClient),
 			ProjectIDProvider: auth.CredentialsPropertyFunc(func(ctx context.Context) (string, error) {
-				return metadata.ProjectIDWithContext(ctx)
+				return metadataClient.ProjectIDWithContext(ctx)
 			}),
-			UniverseDomainProvider: &internal.ComputeUniverseDomainProvider{},
+			UniverseDomainProvider: &internal.ComputeUniverseDomainProvider{
+				MetadataClient: metadataClient,
+			},
 		}), nil
 	}
 
@@ -114,6 +139,10 @@ type DetectOptions struct {
 	// https://www.googleapis.com/auth/cloud-platform. Required if Audience is
 	// not provided.
 	Scopes []string
+	// TokenBindingType specifies the type of binding used when requesting a
+	// token whether to request a hard-bound token using mTLS or an instance
+	// identity bound token using ALTS. Optional.
+	TokenBindingType TokenBindingType
 	// Audience that credentials tokens should have. Only applicable for 2LO
 	// flows with service accounts. If specified, scopes should not be provided.
 	Audience string
@@ -142,10 +171,26 @@ type DetectOptions struct {
 	// CredentialsFile overrides detection logic and sources a credential file
 	// from the provided filepath. If provided, CredentialsJSON must not be.
 	// Optional.
+	//
+	// Important: If you accept a credential configuration (credential
+	// JSON/File/Stream) from an external source for authentication to Google
+	// Cloud Platform, you must validate it before providing it to any Google
+	// API or library. Providing an unvalidated credential configuration to
+	// Google APIs can compromise the security of your systems and data. For
+	// more information, refer to [Validate credential configurations from
+	// external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
 	CredentialsFile string
 	// CredentialsJSON overrides detection logic and uses the JSON bytes as the
 	// source for the credential. If provided, CredentialsFile must not be.
 	// Optional.
+	//
+	// Important: If you accept a credential configuration (credential
+	// JSON/File/Stream) from an external source for authentication to Google
+	// Cloud Platform, you must validate it before providing it to any Google
+	// API or library. Providing an unvalidated credential configuration to
+	// Google APIs can compromise the security of your systems and data. For
+	// more information, refer to [Validate credential configurations from
+	// external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
 	CredentialsJSON []byte
 	// UseSelfSignedJWT directs service account based credentials to create a
 	// self-signed JWT with the private key found in the file, skipping any
@@ -158,6 +203,11 @@ type DetectOptions struct {
 	// The default value is "googleapis.com". This option is ignored for
 	// authentication flows that do not support universe domain. Optional.
 	UniverseDomain string
+	// Logger is used for debug logging. If provided, logging will be enabled
+	// at the loggers configured level. By default logging is disabled unless
+	// enabled by setting GOOGLE_SDK_GO_LOGGING_LEVEL in which case a default
+	// logger will be used. Optional.
+	Logger *slog.Logger
 }
 
 func (o *DetectOptions) validate() error {
@@ -191,6 +241,10 @@ func (o *DetectOptions) client() *http.Client {
 		return o.Client
 	}
 	return internal.DefaultClient()
+}
+
+func (o *DetectOptions) logger() *slog.Logger {
+	return internallog.New(o.Logger)
 }
 
 func readCredentialsFile(filename string, opts *DetectOptions) (*auth.Credentials, error) {
@@ -253,6 +307,7 @@ func clientCredConfigFromJSON(b []byte, opts *DetectOptions) *auth.Options3LO {
 		AuthURL:          c.AuthURI,
 		TokenURL:         c.TokenURI,
 		Client:           opts.client(),
+		Logger:           opts.logger(),
 		EarlyTokenExpiry: opts.EarlyTokenRefresh,
 		AuthHandlerOpts:  handleOpts,
 		// TODO(codyoss): refactor this out. We need to add in auto-detection

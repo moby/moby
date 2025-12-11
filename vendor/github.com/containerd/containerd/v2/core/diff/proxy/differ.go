@@ -56,7 +56,9 @@ func (r *diffRemote) Apply(ctx context.Context, desc ocispec.Descriptor, mounts 
 	for k, v := range config.ProcessorPayloads {
 		payloads[k] = typeurl.MarshalProto(v)
 	}
-
+	if config.Progress != nil {
+		config.Progress(0)
+	}
 	req := &diffapi.ApplyRequest{
 		Diff:     oci.DescriptorToProto(desc),
 		Mounts:   mount.ToProto(mounts),
@@ -66,6 +68,9 @@ func (r *diffRemote) Apply(ctx context.Context, desc ocispec.Descriptor, mounts 
 	resp, err := r.client.Apply(ctx, req)
 	if err != nil {
 		return ocispec.Descriptor{}, errgrpc.ToNative(err)
+	}
+	if config.Progress != nil {
+		config.Progress(desc.Size)
 	}
 	return oci.DescriptorFromProto(resp.Applied), nil
 }

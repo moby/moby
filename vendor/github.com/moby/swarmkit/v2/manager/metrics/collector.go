@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"context"
-
 	"strings"
 
 	"github.com/docker/go-events"
@@ -58,7 +57,7 @@ func NewCollector(store *store.MemoryStore) *Collector {
 }
 
 // Run contains the collector event loop
-func (c *Collector) Run(ctx context.Context) error {
+func (c *Collector) Run(_ context.Context) error {
 	defer close(c.doneChan)
 
 	watcher, cancel, err := store.ViewAndWatch(c.store, func(readTx store.ReadTx) error {

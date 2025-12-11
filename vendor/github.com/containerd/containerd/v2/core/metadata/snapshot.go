@@ -540,8 +540,10 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 	}
 
 	var (
-		bname string
-		rerr  error
+		bname   string
+		bparent string
+		rebase  bool
+		rerr    error
 	)
 	if err := update(ctx, s.db, func(tx *bolt.Tx) error {
 		bkt := getSnapshotterBucket(tx, ns, s.name)
@@ -581,6 +583,13 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 		}
 
 		parent := obkt.Get(bucketKeyParent)
+		if len(parent) == 0 && len(base.Parent) > 0 {
+			parent = []byte(base.Parent)
+			if err = obkt.Put(bucketKeyParent, parent); err != nil {
+				return err
+			}
+			rebase = true
+		}
 		if len(parent) > 0 {
 			pbkt := bkt.Bucket(parent)
 			if pbkt == nil {
@@ -601,6 +610,8 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 			if err := bbkt.Put(bucketKeyParent, parent); err != nil {
 				return err
 			}
+
+			bparent = string(pbkt.Get(bucketKeyName))
 		}
 		ts := time.Now().UTC()
 		if err := boltutil.WriteTimestamps(bbkt, ts, ts); err != nil {
@@ -617,7 +628,12 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 			return err
 		}
 
-		inheritedOpt := snapshots.WithLabels(snapshots.FilterInheritedLabels(base.Labels))
+		inheritedOpt := []snapshots.Opt{
+			snapshots.WithLabels(snapshots.FilterInheritedLabels(base.Labels)),
+		}
+		if rebase {
+			inheritedOpt = append(inheritedOpt, snapshots.WithParent(bparent))
+		}
 
 		// NOTE: Backend snapshotters should commit fast and reliably to
 		// prevent metadata store locking and minimizing rollbacks.
@@ -625,7 +641,7 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 		// risk of the committed keys becoming out of sync. If this operation
 		// succeed and the overall transaction fails then the risk of out of
 		// sync data is higher and may require manual cleanup.
-		if err := s.Snapshotter.Commit(ctx, nameKey, bkey, inheritedOpt); err != nil {
+		if err := s.Snapshotter.Commit(ctx, nameKey, bkey, inheritedOpt...); err != nil {
 			if errdefs.IsNotFound(err) {
 				log.G(ctx).WithField("snapshotter", s.name).WithField("key", key).WithError(err).Error("uncommittable snapshot: missing in backend, snapshot should be removed")
 			}

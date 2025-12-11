@@ -8,11 +8,25 @@ import (
 
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/images"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/util/resolver/limited"
 	"github.com/moby/buildkit/util/resolver/retryhandler"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
+
+type CopyInfo struct {
+	Referrers content.ReferrersProvider
+}
+
+type CopyOption func(*CopyInfo) error
+
+func WithReferrers(referrers content.ReferrersProvider) CopyOption {
+	return func(ci *CopyInfo) error {
+		ci.Referrers = referrers
+		return nil
+	}
+}
 
 func Copy(ctx context.Context, ingester content.Ingester, provider content.Provider, desc ocispecs.Descriptor, ref string, logger func([]byte)) error {
 	ctx = RegisterContentPayloadTypes(ctx)
@@ -59,13 +73,27 @@ func (r *rc) Seek(offset int64, whence int) (int64, error) {
 	}
 	return r.offset, nil
 }
+func CopyChain(ctx context.Context, ingester content.Ingester, provider content.Provider, desc ocispecs.Descriptor, opts ...CopyOption) error {
+	return copyChain(ctx, ingester, provider, desc, &sync.Map{}, opts...)
+}
 
-func CopyChain(ctx context.Context, ingester content.Ingester, provider content.Provider, desc ocispecs.Descriptor) error {
+func copyChain(ctx context.Context, ingester content.Ingester, provider content.Provider, desc ocispecs.Descriptor, visited *sync.Map, opts ...CopyOption) error {
+	ci := &CopyInfo{}
+	for _, o := range opts {
+		if err := o(ci); err != nil {
+			return err
+		}
+	}
+
 	ctx = RegisterContentPayloadTypes(ctx)
 	var m sync.Mutex
 	manifestStack := []ocispecs.Descriptor{}
 
 	filterHandler := images.HandlerFunc(func(ctx context.Context, desc ocispecs.Descriptor) ([]ocispecs.Descriptor, error) {
+		if _, ok := visited.Load(desc.Digest); ok {
+			return nil, images.ErrStopHandler
+		}
+		visited.Store(desc.Digest, struct{}{})
 		switch desc.MediaType {
 		case images.MediaTypeDockerSchema2Manifest, ocispecs.MediaTypeImageManifest,
 			images.MediaTypeDockerSchema2ManifestList, ocispecs.MediaTypeImageIndex:
@@ -88,8 +116,23 @@ func CopyChain(ctx context.Context, ingester content.Ingester, provider content.
 	}
 
 	for i := len(manifestStack) - 1; i >= 0; i-- {
-		if err := Copy(ctx, ingester, provider, manifestStack[i], "", nil); err != nil {
+		desc := manifestStack[i]
+		if err := Copy(ctx, ingester, provider, desc, "", nil); err != nil {
 			return errors.WithStack(err)
+		}
+		if ci.Referrers != nil {
+			referrers, err := ci.Referrers.Referrers(ctx, desc)
+			if err != nil {
+				if errors.Is(err, cerrdefs.ErrNotFound) {
+					continue
+				}
+				return errors.WithStack(err)
+			}
+			for _, r := range referrers {
+				if err := copyChain(ctx, ingester, provider, r, visited, opts...); err != nil {
+					return errors.WithStack(err)
+				}
+			}
 		}
 	}
 

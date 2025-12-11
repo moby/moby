@@ -86,11 +86,13 @@ func (c *cpusetController) Update(path string, resources *specs.LinuxResources) 
 }
 
 func (c *cpusetController) getValues(path string) (cpus []byte, mems []byte, err error) {
-	if cpus, err = os.ReadFile(filepath.Join(path, "cpuset.cpus")); err != nil && !os.IsNotExist(err) {
-		return
+	cpus, err = os.ReadFile(filepath.Join(path, "cpuset.cpus"))
+	if err != nil && !os.IsNotExist(err) {
+		return nil, nil, err
 	}
-	if mems, err = os.ReadFile(filepath.Join(path, "cpuset.mems")); err != nil && !os.IsNotExist(err) {
-		return
+	mems, err = os.ReadFile(filepath.Join(path, "cpuset.mems"))
+	if err != nil && !os.IsNotExist(err) {
+		return nil, nil, err
 	}
 	return cpus, mems, nil
 }

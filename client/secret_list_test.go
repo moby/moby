@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -16,7 +15,7 @@ func TestSecretListError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.SecretList(context.Background(), SecretListOptions{})
+	_, err = client.SecretList(t.Context(), SecretListOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -62,7 +61,7 @@ func TestSecretList(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 
-		res, err := client.SecretList(context.Background(), listCase.options)
+		res, err := client.SecretList(t.Context(), listCase.options)
 		assert.NilError(t, err)
 		assert.Check(t, is.Len(res.Items, 2))
 	}

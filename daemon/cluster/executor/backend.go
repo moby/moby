@@ -51,7 +51,7 @@ type Backend interface {
 	SetContainerSecretReferences(name string, refs []*swarm.SecretReference) error
 	SetContainerConfigReferences(name string, refs []*swarm.ConfigReference) error
 	SystemInfo(context.Context) (*system.Info, error)
-	Containers(ctx context.Context, config *backend.ContainerListOptions) ([]*container.Summary, error)
+	Containers(ctx context.Context, config *backend.ContainerListOptions) ([]container.Summary, error)
 	SetNetworkBootstrapKeys([]*networktypes.EncryptionKey) error
 	DaemonJoinsCluster(provider cluster.Provider)
 	DaemonLeavesCluster()

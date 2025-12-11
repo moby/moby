@@ -14,8 +14,8 @@
 
 /*
 Package cloud is the root of the packages used to access Google Cloud
-Services. See https://pkg.go.dev/cloud.google.com/go for a full list
-of sub-modules.
+Services. See https://pkg.go.dev/cloud.google.com/go#section-directories for a
+full list of sub-modules.
 
 # Client Options
 
@@ -79,12 +79,15 @@ are also provided in all auto-generated libraries: for example,
 cloud.google.com/go/secretmanager/apiv1 provides DefaultAuthScopes. Example:
 
 	ctx := context.Background()
-	// https://pkg.go.dev/golang.org/x/oauth2/google
-	creds, err := google.CredentialsFromJSON(ctx, []byte("JSON creds"), secretmanager.DefaultAuthScopes()...)
+	// https://pkg.go.dev/cloud.google.com/go/auth/credentials
+	creds, err := credentials.DetectDefault(&credentials.DetectOptions{
+		Scopes:          secretmanager.DefaultAuthScopes(),
+		CredentialsJSON: []byte("JSON creds")
+	}), secretmanager.DefaultAuthScopes()...)
 	if err != nil {
 		// TODO: handle error.
 	}
-	client, err := secretmanager.NewClient(ctx, option.WithCredentials(creds))
+	client, err := secretmanager.NewClient(ctx, option.WithAuthCredentials(creds))
 	if err != nil {
 		// TODO: handle error.
 	}
@@ -174,7 +177,7 @@ Here is a generic example:
 	// Then use ctx in a subsequent request.
 	response, err := client.GetSecret(ctx, request)
 
-## Google-reserved headers
+# Google-reserved headers
 
 There are a some header keys that Google reserves for internal use that must
 not be ovewritten. The following header keys are broadly considered reserved
@@ -187,7 +190,7 @@ Be sure to check the individual package documentation for other service-specific
 reserved headers. For example, Storage supports a specific auditing header that
 is mentioned in that [module's documentation][storagedocs].
 
-## Google Cloud system parameters
+# Google Cloud system parameters
 
 Google Cloud services respect [system parameters][system parameters] that can be
 used to augment request and/or response behavior. For the most part, they are
@@ -206,9 +209,9 @@ connections for later re-use. These are cached to the http.MaxIdleConns
 and http.MaxIdleConnsPerHost settings in http.DefaultTransport by default.
 
 For gRPC clients, connection pooling is configurable. Users of Cloud Client
-Libraries may specify option.WithGRPCConnectionPool(n) as a client option to
-NewClient calls. This configures the underlying gRPC connections to be pooled
-and accessed in a round robin fashion.
+Libraries may specify [google.golang.org/api/option.WithGRPCConnectionPool]
+as a client option to NewClient calls. This configures the underlying gRPC
+connections to be pooled and accessed in a round robin fashion.
 
 # Using the Libraries in Container environments(Docker)
 
@@ -244,19 +247,11 @@ errors can still be unwrapped using the APIError.
 	      log.Println(ae.Reason())
 	      log.Println(ae.Details().Help.GetLinks())
 	   }
-	}
-
-If the gRPC transport was used, the [google.golang.org/grpc/status.Status] can
-still be parsed using the [google.golang.org/grpc/status.FromError] function.
-
-	if err != nil {
-	   if s, ok := status.FromError(err); ok {
-	      log.Println(s.Message())
-	      for _, d := range s.Proto().Details {
-	         log.Println(d)
-	      }
+	   // If a gRPC transport was used you can extract the
+	   // google.golang.org/grpc/status.Status from the error
+	   s := ae.GRPCStatus()
+	   log.Println(s.Code())
 	   }
-	}
 
 # Client Stability
 

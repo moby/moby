@@ -4,7 +4,7 @@
 
 // Package jws provides a partial implementation
 // of JSON Web Signature encoding and decoding.
-// It exists to support the golang.org/x/oauth2 package.
+// It exists to support the [golang.org/x/oauth2] package.
 //
 // See RFC 7515.
 //
@@ -48,7 +48,7 @@ type ClaimSet struct {
 
 	// See http://tools.ietf.org/html/draft-jones-json-web-token-10#section-4.3
 	// This array is marshalled using custom code (see (c *ClaimSet) encode()).
-	PrivateClaims map[string]interface{} `json:"-"`
+	PrivateClaims map[string]any `json:"-"`
 }
 
 func (c *ClaimSet) encode() (string, error) {
@@ -152,7 +152,7 @@ func EncodeWithSigner(header *Header, c *ClaimSet, sg Signer) (string, error) {
 }
 
 // Encode encodes a signed JWS with provided header and claim set.
-// This invokes EncodeWithSigner using crypto/rsa.SignPKCS1v15 with the given RSA private key.
+// This invokes [EncodeWithSigner] using [crypto/rsa.SignPKCS1v15] with the given RSA private key.
 func Encode(header *Header, c *ClaimSet, key *rsa.PrivateKey) (string, error) {
 	sg := func(data []byte) (sig []byte, err error) {
 		h := sha256.New()

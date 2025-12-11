@@ -357,26 +357,52 @@ type Client struct {
 // Options for configuring a [Client].
 type Options struct {
 	// Client is the HTTP client used to make requests. Optional.
+	// If UseDefaultClient is true, this field is ignored.
+	// If this field is nil, a new default http.Client will be created.
 	Client *http.Client
 	// Logger is used to log information about HTTP request and responses.
 	// If not provided, nothing will be logged. Optional.
 	Logger *slog.Logger
+	// UseDefaultClient specifies that the client should use the same default
+	// internal http.Client that is used in functions such as GetWithContext.
+	// This is useful for sharing a single TCP connection pool across requests.
+	// The difference vs GetWithContext is the ability to use this struct
+	// to provide a custom logger. If this field is true, the Client
+	// field is ignored.
+	UseDefaultClient bool
 }
 
 // NewClient returns a Client that can be used to fetch metadata.
 // Returns the client that uses the specified http.Client for HTTP requests.
-// If nil is specified, returns the default client.
+// If nil is specified, returns the default internal Client that is
+// also used in functions such as GetWithContext. This is useful for sharing
+// a single TCP connection pool across requests.
 func NewClient(c *http.Client) *Client {
-	return NewWithOptions(&Options{
-		Client: c,
-	})
+	if c == nil {
+		// Preserve original behavior for nil argument.
+		return defaultClient
+	}
+	// Return a new client with a no-op logger for backward compatibility.
+	return &Client{hc: c, logger: slog.New(noOpHandler{})}
 }
 
 // NewWithOptions returns a Client that is configured with the provided Options.
 func NewWithOptions(opts *Options) *Client {
+	// Preserve original behavior for nil opts.
 	if opts == nil {
 		return defaultClient
 	}
+
+	// Handle explicit request for the internal default http.Client.
+	if opts.UseDefaultClient {
+		logger := opts.Logger
+		if logger == nil {
+			logger = slog.New(noOpHandler{})
+		}
+		return &Client{hc: defaultClient.hc, logger: logger}
+	}
+
+	// Handle isolated client creation.
 	client := opts.Client
 	if client == nil {
 		client = newDefaultHTTPClient()

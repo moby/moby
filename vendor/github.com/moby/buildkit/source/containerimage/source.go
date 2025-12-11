@@ -9,7 +9,6 @@ import (
 	"github.com/containerd/containerd/v2/core/diff"
 	"github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/leases"
-	"github.com/containerd/containerd/v2/core/remotes"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/containerd/platforms"
@@ -22,11 +21,13 @@ import (
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/source"
 	srctypes "github.com/moby/buildkit/source/types"
+	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/imageutil"
 	"github.com/moby/buildkit/util/pull"
 	"github.com/moby/buildkit/util/resolver"
 	"github.com/moby/buildkit/util/tracing"
+	policyimage "github.com/moby/policy-helpers/image"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -55,7 +56,8 @@ type SourceOpt struct {
 
 type Source struct {
 	SourceOpt
-	g flightcontrol.Group[*resolveImageResult]
+	gImageRes    flightcontrol.Group[*resolveImageResult]
+	gAttestChain flightcontrol.Group[*sourceresolver.AttestationChain]
 }
 
 var _ source.Source = &Source{}
@@ -64,7 +66,6 @@ func NewSource(opt SourceOpt) (*Source, error) {
 	is := &Source{
 		SourceOpt: opt,
 	}
-
 	return is, nil
 }
 
@@ -153,43 +154,133 @@ func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session
 	return p, nil
 }
 
-func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt sourceresolver.Opt, sm *session.Manager, g session.Group) (digest digest.Digest, config []byte, retErr error) {
+func (is *Source) ResolveImageMetadata(ctx context.Context, id *ImageIdentifier, opt *sourceresolver.ResolveImageOpt, sm *session.Manager, g session.Group) (_ *sourceresolver.ResolveImageResponse, retErr error) {
+	if is.ResolverType != ResolverTypeRegistry {
+		return nil, errors.Errorf("invalid resolver type for image metadata: %v", is.ResolverType)
+	}
+	ref := id.Reference.String()
+
 	span, ctx := tracing.StartSpan(ctx, "resolving "+ref)
 	defer func() {
 		tracing.FinishWithError(span, retErr)
 	}()
 
 	key := ref
-	var (
-		rm    resolver.ResolveMode
-		rslvr remotes.Resolver
-		err   error
-	)
+	if platform := opt.Platform; platform != nil {
+		key += platforms.FormatAll(*platform)
+	}
+	rm, err := resolver.ParseImageResolveMode(opt.ResolveMode)
+	if err != nil {
+		return nil, err
+	}
+	rslvr := resolver.DefaultPool.GetResolver(is.RegistryHosts, ref, "pull", sm, g).WithImageStore(is.ImageStore, rm)
+	key += rm.String()
+
+	ret := &sourceresolver.ResolveImageResponse{}
+	if !opt.NoConfig {
+		res, err := is.gImageRes.Do(ctx, key, func(ctx context.Context) (*resolveImageResult, error) {
+			dgst, dt, err := imageutil.Config(ctx, ref, rslvr, is.ContentStore, is.LeaseManager, opt.Platform)
+			if err != nil {
+				return nil, err
+			}
+			return &resolveImageResult{dgst: dgst, dt: dt}, nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		ret.Digest = res.dgst
+		ret.Config = res.dt
+	}
+	if opt.AttestationChain {
+		res, err := is.gAttestChain.Do(ctx, key, func(ctx context.Context) (*sourceresolver.AttestationChain, error) {
+			refStr, desc, err := rslvr.Resolve(ctx, ref)
+			if err != nil {
+				return nil, err
+			}
+			f, err := rslvr.Fetcher(ctx, refStr)
+			if err != nil {
+				return nil, err
+			}
+			prov := contentutil.FromFetcher(f)
+			sc, err := policyimage.ResolveSignatureChain(ctx, prov, desc, opt.Platform)
+			if err != nil {
+				return nil, err
+			}
+			ac := &sourceresolver.AttestationChain{
+				Root: desc.Digest,
+			}
+			descs := []ocispecs.Descriptor{desc}
+			if sc.ImageManifest != nil {
+				// not adding image manifest to descs as it is not really needed for verification
+				// still adding digest to provide hint of what the image manifest was resolved by platform
+				// for better debugging experience  and error messages
+				ac.ImageManifest = sc.ImageManifest.Digest
+			}
+			if sc.AttestationManifest != nil {
+				ac.AttestationManifest = sc.AttestationManifest.Digest
+				descs = append(descs, sc.AttestationManifest.Descriptor)
+			}
+			if sc.SignatureManifest != nil {
+				ac.SignatureManifests = []digest.Digest{sc.SignatureManifest.Digest}
+				descs = append(descs, sc.SignatureManifest.Descriptor)
+				mfst, err := sc.OCIManifest(ctx, sc.SignatureManifest)
+				if err != nil {
+					return nil, err
+				}
+				descs = append(descs, mfst.Layers...)
+			}
+			for _, desc := range descs {
+				dt, err := policyimage.ReadBlob(ctx, prov, desc)
+				if err != nil {
+					return nil, err
+				}
+				if ac.Blobs == nil {
+					ac.Blobs = make(map[digest.Digest]sourceresolver.Blob)
+				}
+				ac.Blobs[desc.Digest] = sourceresolver.Blob{
+					Descriptor: desc,
+					Data:       dt,
+				}
+			}
+			return ac, nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		ret.AttestationChain = res
+		if ret.Digest == "" {
+			ret.Digest = res.Root
+		} else if ret.Digest != res.Root {
+			return nil, errors.Errorf("attestation chain root digest %s does not match image digest %s", res.Root, ret.Digest)
+		}
+	}
+	return ret, nil
+}
+
+func (is *Source) ResolveOCILayoutMetadata(ctx context.Context, id *OCIIdentifier, opt *sourceresolver.ResolveOCILayoutOpt, sm *session.Manager, g session.Group) (_ *sourceresolver.ResolveImageResponse, retErr error) {
+	if is.ResolverType != ResolverTypeOCILayout {
+		return nil, errors.Errorf("invalid resolver type for image metadata: %v", is.ResolverType)
+	}
+	ref := id.Reference.String()
+
+	span, ctx := tracing.StartSpan(ctx, "resolving "+ref)
+	defer func() {
+		tracing.FinishWithError(span, retErr)
+	}()
+
+	key := ref
 	if platform := opt.Platform; platform != nil {
 		key += platforms.FormatAll(*platform)
 	}
 
-	switch is.ResolverType {
-	case ResolverTypeRegistry:
-		iopt := opt.ImageOpt
-		if iopt == nil {
-			return "", nil, errors.Errorf("missing imageopt for resolve")
-		}
-		rm, err = resolver.ParseImageResolveMode(iopt.ResolveMode)
-		if err != nil {
-			return "", nil, err
-		}
-		rslvr = resolver.DefaultPool.GetResolver(is.RegistryHosts, ref, "pull", sm, g).WithImageStore(is.ImageStore, rm)
-	case ResolverTypeOCILayout:
-		iopt := opt.OCILayoutOpt
-		if iopt == nil {
-			return "", nil, errors.Errorf("missing ocilayoutopt for resolve")
-		}
-		rm = resolver.ResolveModeForcePull
-		rslvr = getOCILayoutResolver(iopt.Store, sm, g)
+	if opt.Store.StoreID == "" {
+		opt.Store.StoreID = id.StoreID
 	}
-	key += rm.String()
-	res, err := is.g.Do(ctx, key, func(ctx context.Context) (*resolveImageResult, error) {
+
+	rslvr := getOCILayoutResolver(opt.Store, sm, g)
+	key += resolver.ResolveModeForcePull.String()
+
+	res, err := is.gImageRes.Do(ctx, key, func(ctx context.Context) (*resolveImageResult, error) {
 		dgst, dt, err := imageutil.Config(ctx, ref, rslvr, is.ContentStore, is.LeaseManager, opt.Platform)
 		if err != nil {
 			return nil, err
@@ -197,9 +288,12 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt source
 		return &resolveImageResult{dgst: dgst, dt: dt}, nil
 	})
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
-	return res.dgst, res.dt, nil
+	return &sourceresolver.ResolveImageResponse{
+		Digest: res.dgst,
+		Config: res.dt,
+	}, nil
 }
 
 type resolveImageResult struct {

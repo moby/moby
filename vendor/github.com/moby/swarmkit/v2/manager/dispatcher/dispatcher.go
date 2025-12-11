@@ -1099,7 +1099,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 			// matcher, we can discard the first argument (the prototype) and
 			// instead pass the desired node ID in as part of a closure.
 			Checks: []api.VolumeCheckFunc{
-				func(v1, v2 *api.Volume) bool {
+				func(_, v2 *api.Volume) bool {
 					for _, status := range v2.PublishStatus {
 						if status.NodeID == nodeID {
 							return true

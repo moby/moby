@@ -92,6 +92,8 @@ message CommitSnapshotRequest {
 	//
 	// The combined size of a key/value pair cannot exceed 4096 bytes.
 	map<string, string> labels  = 4;
+
+	string parent = 5;
 }
 
 message StatSnapshotRequest {

@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.2.8](https://github.com/googleapis/google-cloud-go/compare/auth/oauth2adapt/v0.2.7...auth/oauth2adapt/v0.2.8) (2025-03-17)
+
+
+### Bug Fixes
+
+* **auth/oauth2adapt:** Update golang.org/x/net to 0.37.0 ([1144978](https://github.com/googleapis/google-cloud-go/commit/11449782c7fb4896bf8b8b9cde8e7441c84fb2fd))
+
+## [0.2.7](https://github.com/googleapis/google-cloud-go/compare/auth/oauth2adapt/v0.2.6...auth/oauth2adapt/v0.2.7) (2025-01-09)
+
+
+### Bug Fixes
+
+* **auth/oauth2adapt:** Update golang.org/x/net to v0.33.0 ([e9b0b69](https://github.com/googleapis/google-cloud-go/commit/e9b0b69644ea5b276cacff0a707e8a5e87efafc9))
+
+## [0.2.6](https://github.com/googleapis/google-cloud-go/compare/auth/oauth2adapt/v0.2.5...auth/oauth2adapt/v0.2.6) (2024-11-21)
+
+
+### Bug Fixes
+
+* **auth/oauth2adapt:** Copy map in tokenSourceAdapter.Token ([#11164](https://github.com/googleapis/google-cloud-go/issues/11164)) ([8cb0cbc](https://github.com/googleapis/google-cloud-go/commit/8cb0cbccdc32886dfb3af49fee04012937d114d2)), refs [#11161](https://github.com/googleapis/google-cloud-go/issues/11161)
+
+## [0.2.5](https://github.com/googleapis/google-cloud-go/compare/auth/oauth2adapt/v0.2.4...auth/oauth2adapt/v0.2.5) (2024-10-30)
+
+
+### Bug Fixes
+
+* **auth/oauth2adapt:** Convert token metadata where possible ([#11062](https://github.com/googleapis/google-cloud-go/issues/11062)) ([34bf1c1](https://github.com/googleapis/google-cloud-go/commit/34bf1c164465d66745c0cfdf7cd10a8e2da92e52))
+
 ## [0.2.4](https://github.com/googleapis/google-cloud-go/compare/auth/oauth2adapt/v0.2.3...auth/oauth2adapt/v0.2.4) (2024-08-08)
 
 

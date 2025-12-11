@@ -134,6 +134,7 @@ func (fd *File) unmarshalFull(b []byte) {
 
 	var enumIdx, messageIdx, extensionIdx, serviceIdx int
 	var rawOptions []byte
+	var optionImports []string
 	fd.L2 = new(FileL2)
 	for len(b) > 0 {
 		num, typ, n := protowire.ConsumeTag(b)
@@ -157,6 +158,8 @@ func (fd *File) unmarshalFull(b []byte) {
 					imp = PlaceholderFile(path)
 				}
 				fd.L2.Imports = append(fd.L2.Imports, protoreflect.FileImport{FileDescriptor: imp})
+			case genid.FileDescriptorProto_OptionDependency_field_number:
+				optionImports = append(optionImports, sb.MakeString(v))
 			case genid.FileDescriptorProto_EnumType_field_number:
 				fd.L1.Enums.List[enumIdx].unmarshalFull(v, sb)
 				enumIdx++
@@ -178,6 +181,23 @@ func (fd *File) unmarshalFull(b []byte) {
 		}
 	}
 	fd.L2.Options = fd.builder.optionsUnmarshaler(&descopts.File, rawOptions)
+	if len(optionImports) > 0 {
+		var imps FileImports
+		var once sync.Once
+		fd.L2.OptionImports = func() protoreflect.FileImports {
+			once.Do(func() {
+				imps = make(FileImports, len(optionImports))
+				for i, path := range optionImports {
+					imp, _ := fd.builder.FileRegistry.FindFileByPath(path)
+					if imp == nil {
+						imp = PlaceholderFile(path)
+					}
+					imps[i] = protoreflect.FileImport{FileDescriptor: imp}
+				}
+			})
+			return &imps
+		}
+	}
 }
 
 func (ed *Enum) unmarshalFull(b []byte, sb *strs.Builder) {

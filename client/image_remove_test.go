@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -17,7 +16,7 @@ func TestImageRemoveError(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
 	assert.NilError(t, err)
 
-	_, err = client.ImageRemove(context.Background(), "image_id", ImageRemoveOptions{})
+	_, err = client.ImageRemove(t.Context(), "image_id", ImageRemoveOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 }
 
@@ -25,7 +24,7 @@ func TestImageRemoveImageNotFound(t *testing.T) {
 	client, err := New(WithMockClient(errorMock(http.StatusNotFound, "no such image: unknown")))
 	assert.NilError(t, err)
 
-	_, err = client.ImageRemove(context.Background(), "unknown", ImageRemoveOptions{})
+	_, err = client.ImageRemove(t.Context(), "unknown", ImageRemoveOptions{})
 	assert.Check(t, is.ErrorContains(err, "no such image: unknown"))
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
@@ -91,7 +90,7 @@ func TestImageRemove(t *testing.T) {
 			opts.Platforms = []ocispec.Platform{*removeCase.platform}
 		}
 
-		res, err := client.ImageRemove(context.Background(), "image_id", opts)
+		res, err := client.ImageRemove(t.Context(), "image_id", opts)
 		assert.NilError(t, err)
 		assert.Check(t, is.Len(res.Items, 2))
 	}

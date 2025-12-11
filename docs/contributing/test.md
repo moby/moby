@@ -7,8 +7,7 @@ about Moby's test infrastructure.
 
 This section describes tests you can run in the `dry-run-test` branch of your Docker
 fork. If you have followed along in this guide, you already have this branch.
-If you don't have this branch, you can create it or simply use another of your
-branches.
+If you don't have this branch, you can create it or simply use another branch.
 
 ## Understand how to test Moby
 
@@ -240,7 +239,7 @@ make any changes, just run these commands again.
 
 ## [Public CI infrastructure](ci.docker.com/public)
 
-The current infrastructure is maintained here: [Moby ci job](https://ci.docker.com/public/job/moby).  The Jenkins infrastructure is for the Moby project is maintained and
+The current infrastructure is maintained here: [Moby ci job](https://ci.docker.com/public/job/moby).  The Jenkins infrastructure for the Moby project is maintained and
 managed by Docker Inc.  All contributions against the Jenkinsfile are
 appreciated and welcomed!  However we might not be able to fully provide the
 infrastructure to test against various architectures in our CI pipelines.  All

@@ -53,7 +53,12 @@ type histValues[N int64 | float64] struct {
 	valuesMu sync.Mutex
 }
 
-func newHistValues[N int64 | float64](bounds []float64, noSum bool, limit int, r func(attribute.Set) FilteredExemplarReservoir[N]) *histValues[N] {
+func newHistValues[N int64 | float64](
+	bounds []float64,
+	noSum bool,
+	limit int,
+	r func(attribute.Set) FilteredExemplarReservoir[N],
+) *histValues[N] {
 	// The responsibility of keeping all buckets correctly associated with the
 	// passed boundaries is ultimately this type's responsibility. Make a copy
 	// here so we can always guarantee this. Or, in the case of failure, have
@@ -71,7 +76,12 @@ func newHistValues[N int64 | float64](bounds []float64, noSum bool, limit int, r
 
 // Aggregate records the measurement value, scoped by attr, and aggregates it
 // into a histogram.
-func (s *histValues[N]) measure(ctx context.Context, value N, fltrAttr attribute.Set, droppedAttr []attribute.KeyValue) {
+func (s *histValues[N]) measure(
+	ctx context.Context,
+	value N,
+	fltrAttr attribute.Set,
+	droppedAttr []attribute.KeyValue,
+) {
 	// This search will return an index in the range [0, len(s.bounds)], where
 	// it will return len(s.bounds) if value is greater than the last element
 	// of s.bounds. This aligns with the buckets in that the length of buckets
@@ -108,7 +118,12 @@ func (s *histValues[N]) measure(ctx context.Context, value N, fltrAttr attribute
 
 // newHistogram returns an Aggregator that summarizes a set of measurements as
 // an histogram.
-func newHistogram[N int64 | float64](boundaries []float64, noMinMax, noSum bool, limit int, r func(attribute.Set) FilteredExemplarReservoir[N]) *histogram[N] {
+func newHistogram[N int64 | float64](
+	boundaries []float64,
+	noMinMax, noSum bool,
+	limit int,
+	r func(attribute.Set) FilteredExemplarReservoir[N],
+) *histogram[N] {
 	return &histogram[N]{
 		histValues: newHistValues[N](boundaries, noSum, limit, r),
 		noMinMax:   noMinMax,
@@ -125,7 +140,9 @@ type histogram[N int64 | float64] struct {
 	start    time.Time
 }
 
-func (s *histogram[N]) delta(dest *metricdata.Aggregation) int {
+func (s *histogram[N]) delta(
+	dest *metricdata.Aggregation, //nolint:gocritic // The pointer is needed for the ComputeAggregation interface
+) int {
 	t := now()
 
 	// If *dest is not a metricdata.Histogram, memory reuse is missed. In that
@@ -175,7 +192,9 @@ func (s *histogram[N]) delta(dest *metricdata.Aggregation) int {
 	return n
 }
 
-func (s *histogram[N]) cumulative(dest *metricdata.Aggregation) int {
+func (s *histogram[N]) cumulative(
+	dest *metricdata.Aggregation, //nolint:gocritic // The pointer is needed for the ComputeAggregation interface
+) int {
 	t := now()
 
 	// If *dest is not a metricdata.Histogram, memory reuse is missed. In that

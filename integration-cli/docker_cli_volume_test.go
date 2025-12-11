@@ -223,29 +223,6 @@ func (s *DockerCLIVolumeSuite) TestVolumeCLIRm(c *testing.T) {
 	assert.Assert(c, exec.Command("volume", "rm", "doesnotexist").Run() != nil, "volume rm should fail with non-existent volume")
 }
 
-// FIXME(vdemeester) should be a unit test in cli/command/volume package
-func (s *DockerCLIVolumeSuite) TestVolumeCLINoArgs(c *testing.T) {
-	out := cli.DockerCmd(c, "volume").Combined()
-	// no args should produce the cmd usage output
-	usage := "docker volume COMMAND --help"
-	assert.Assert(c, is.Contains(out, usage))
-	// invalid arg should error and show the command usage on stderr
-	icmd.RunCommand(dockerBinary, "volume", "somearg").Assert(c, icmd.Expected{
-		ExitCode: 1,
-		Error:    "exit status 1",
-		Err:      usage,
-	})
-
-	// invalid flag should error and show the flag error and cmd usage
-	result := icmd.RunCommand(dockerBinary, "volume", "--no-such-flag")
-	result.Assert(c, icmd.Expected{
-		ExitCode: 125,
-		Error:    "exit status 125",
-		Err:      usage,
-	})
-	assert.Assert(c, is.Contains(result.Stderr(), "unknown flag: --no-such-flag"))
-}
-
 func (s *DockerCLIVolumeSuite) TestVolumeCLIInspectTmplError(c *testing.T) {
 	name := cli.DockerCmd(c, "volume", "create").Stdout()
 	name = strings.TrimSpace(name)
