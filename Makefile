@@ -212,6 +212,10 @@ build: validate-bind-dir bundles
 shell: build  ## start a shell inside the build env
 	$(DOCKER_RUN_DOCKER) bash
 
+.PHONY: dev
+dev: build  ## start a dev mode inside the build env
+	$(DOCKER_RUN_DOCKER) hack/dev.sh
+
 .PHONY: test
 test: build test-unit ## run the unit, integration and docker-py tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-integration test-docker-py
