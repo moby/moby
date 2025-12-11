@@ -1038,10 +1038,13 @@ func buildPortsRelatedCreateEndpointOptions(c *container.Container, n *libnetwor
 	)
 
 	ports := c.HostConfig.PortBindings
-	if c.HostConfig.PublishAllPorts {
+	if c.HostConfig.PublishAllPorts && len(c.Config.ExposedPorts) > 0 {
 		// Add exposed ports to a copy of the map to make sure a "publishedPorts" entry is created
 		// for each exposed port, even if there's no specific binding.
 		ports = maps.Clone(c.HostConfig.PortBindings)
+		if ports == nil {
+			ports = networktypes.PortMap{}
+		}
 		for p := range c.Config.ExposedPorts {
 			if _, exists := ports[p]; !exists {
 				ports[p] = nil
