@@ -641,18 +641,25 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 	}
 	group.Wait()
 
-	for id := range removeContainers {
+	for id, c := range removeContainers {
 		group.Add(1)
-		go func(cid string) {
+		go func(cid string, c *container.Container) {
 			_ = sem.Acquire(context.Background(), 1)
+			defer group.Done()
+			defer sem.Release(1)
+
+			if c.State.IsDead() {
+				if err := daemon.cleanupContainer(c, backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+					log.G(ctx).WithField("container", cid).WithError(err).Error("failed to remove dead container")
+				}
+				return
+			}
 
 			if err := daemon.containerRm(&cfg.Config, cid, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 				log.G(ctx).WithField("container", cid).WithError(err).Error("failed to remove container")
 			}
 
-			sem.Release(1)
-			group.Done()
-		}(id)
+		}(id, c)
 	}
 	group.Wait()
 
