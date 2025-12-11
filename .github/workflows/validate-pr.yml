@@ -81,13 +81,24 @@ jobs:
       - name: Check release branch
         id: title_branch
         run: |
+          # If PR targets a different branch than master, the PR title should mention the target branch in square brackets, for example:
+          # [27.1 backport] Some change that needs backporting to 27.1
+          # [27.1] Change directly targeting the 27.1 branch
+          # [docker-29.x] Change directly targeting the docker-29.x branch
+          # [docker-29.x backport] Some change that needs backporting to docker-29.x
+
           # get the intended major version prefix ("[27.1 backport]" -> "27.") from the PR title.
-          [[ "$PR_TITLE" =~ ^\[([0-9]*\.)[^]]*\] ]] && branch="${BASH_REMATCH[1]}"
+          target_branch=$(echo "$PR_TITLE" | sed -nE 's/^\[([^]]+)\].*/\1/p' | sed 's/ backport$//')
 
-          # get major version prefix from the release branch ("27.x -> "27.")
-          [[ "$GITHUB_BASE_REF" =~ ^([0-9]*\.) ]] && target_branch="${BASH_REMATCH[1]}" || target_branch="$GITHUB_BASE_REF"
+          echo "target_branch: $target_branch"
+          echo "GITHUB_BASE_REF: $GITHUB_BASE_REF"
 
-          if [[ "$target_branch" != "$branch" ]] && ! [[ "$GITHUB_BASE_REF" == "master" && "$branch" == "" ]]; then
+          # If the PR is opened against the master branch and the target branch is not specified, exit early.
+          if [[ "$GITHUB_BASE_REF" == "master" && "$target_branch" == "" ]]; then
+            exit 0
+          fi
+
+          if [[ "$target_branch" != "$GITHUB_BASE_REF" ]]; then
               echo "::error::PR is opened against the $GITHUB_BASE_REF branch, but its title suggests otherwise."
               exit 1
           fi
