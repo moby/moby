@@ -270,10 +270,6 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValid
 			}
 		}
 
-		if anonymousVolume && mnt.ReadOnly {
-			return &errMountConfig{mnt, errors.New("must not set ReadOnly mode when using anonymous volumes")}
-		}
-
 		if mnt.Source != "" {
 			if err := p.ValidateVolumeName(mnt.Source); err != nil {
 				return &errMountConfig{mnt, err}

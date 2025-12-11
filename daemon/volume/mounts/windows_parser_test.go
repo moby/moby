@@ -294,6 +294,81 @@ func TestWindowsParseMountRawSplit(t *testing.T) {
 	}
 }
 
+func TestWindowsValidateMounts(t *testing.T) {
+	tests := []struct {
+		mount    mount.Mount
+		expected *MountPoint
+		expErr   string
+	}{
+		{
+			mount: mount.Mount{
+				Source: `c:\`,
+				Target: `d:\mount`,
+				Type:   mount.TypeBind,
+			},
+			expected: &MountPoint{
+				Source:      `c:\`,
+				Destination: `d:\mount`,
+				RW:          true,
+				Type:        mount.TypeBind,
+				Spec: mount.Mount{
+					Source: `c:\`,
+					Target: `d:\mount`,
+					Type:   mount.TypeBind,
+				},
+			},
+		},
+		{
+			mount: mount.Mount{
+				Target:   `c:/data/anonymous-read-only-volume`,
+				ReadOnly: true,
+				Type:     mount.TypeVolume,
+			},
+			expected: &MountPoint{
+				Destination: `c:\data\anonymous-read-only-volume`,
+				Type:        mount.TypeVolume,
+				Spec: mount.Mount{
+					Target:   `c:/data/anonymous-read-only-volume`,
+					ReadOnly: true,
+					Type:     mount.TypeVolume,
+				},
+			},
+		},
+		{
+			mount: mount.Mount{
+				Source: "c:/bad/path",
+				Target: "d:/data/anonymous-read-only-volume",
+				Type:   mount.TypeBind,
+			},
+			expErr: `invalid mount config for type "bind": bind source path does not exist: c:/bad/path`,
+		},
+		{
+			mount: mount.Mount{
+				Target: "d:/data/invalid-type",
+				Type:   "invalid",
+			},
+			expErr: `invalid mount config for type "invalid": mount type unknown`,
+		},
+	}
+
+	parser := NewWindowsParser()
+	if p, ok := parser.(*windowsParser); ok {
+		p.fi = mockFiProvider{}
+	}
+
+	for _, tc := range tests {
+		m, err := parser.ParseMountSpec(tc.mount)
+		if tc.expErr != "" {
+			assert.Check(t, is.Nil(m))
+			assert.Check(t, is.Error(err, tc.expErr))
+			continue
+		}
+
+		assert.NilError(t, err)
+		assert.Check(t, is.DeepEqual(*m, *tc.expected, cmpopts.IgnoreUnexported(MountPoint{})))
+	}
+}
+
 // TestWindowsParseMountSpecBindWithFileinfoError makes sure that the parser returns
 // the error produced by the fileinfo provider.
 //

@@ -264,6 +264,80 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 	}
 }
 
+func TestLinuxValidateMounts(t *testing.T) {
+	tests := []struct {
+		mount    mount.Mount
+		expected *MountPoint
+		expErr   string
+	}{
+		{
+			mount: mount.Mount{
+				Source: "/tmp",
+				Target: "/tmp1",
+				Type:   mount.TypeBind,
+			},
+			expected: &MountPoint{
+				Source:      "/tmp",
+				Destination: "/tmp1",
+				RW:          true,
+				Type:        mount.TypeBind,
+				Propagation: "rprivate",
+				Spec: mount.Mount{
+					Source: "/tmp",
+					Target: "/tmp1",
+					Type:   mount.TypeBind,
+				},
+			},
+		},
+		{
+			mount: mount.Mount{
+				Target:   "/data/anonymous-read-only-volume",
+				ReadOnly: true,
+				Type:     mount.TypeVolume,
+			},
+			expected: &MountPoint{
+				Destination: "/data/anonymous-read-only-volume",
+				Type:        mount.TypeVolume,
+				CopyData:    true,
+				Spec: mount.Mount{
+					Target:   "/data/anonymous-read-only-volume",
+					ReadOnly: true,
+					Type:     mount.TypeVolume,
+				},
+			},
+		},
+		{
+			mount: mount.Mount{
+				Source: "/invalid/source/path",
+				Target: "/data/anonymous-read-only-volume",
+				Type:   mount.TypeBind,
+			},
+			expErr: `invalid mount config for type "bind": bind source path does not exist: /invalid/source/path`,
+		},
+		{
+			mount: mount.Mount{
+				Target: "/data/invalid-type",
+				Type:   "invalid",
+			},
+			expErr: `invalid mount config for type "invalid": mount type unknown`,
+		},
+	}
+
+	parser := NewLinuxParser()
+
+	for _, tc := range tests {
+		m, err := parser.ParseMountSpec(tc.mount)
+		if tc.expErr != "" {
+			assert.Check(t, is.Nil(m))
+			assert.Check(t, is.Error(err, tc.expErr))
+			continue
+		}
+
+		assert.NilError(t, err)
+		assert.Check(t, is.DeepEqual(*m, *tc.expected, cmpopts.IgnoreUnexported(MountPoint{})))
+	}
+}
+
 // TestLinuxParseMountSpecBindWithFileinfoError makes sure that the parser returns
 // the error produced by the fileinfo provider.
 //
