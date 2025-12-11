@@ -647,7 +647,10 @@ func (container *Container) BackfillEmptyPBs() {
 	if container.HostConfig == nil {
 		return
 	}
-
+	if container.HostConfig.PortBindings == nil {
+		container.HostConfig.PortBindings = networktypes.PortMap{}
+		return
+	}
 	for portProto, pb := range container.HostConfig.PortBindings {
 		if len(pb) > 0 || pb == nil {
 			continue
