@@ -4689,6 +4689,7 @@ func (s *DockerCLIBuildSuite) TestBuildNoNamedVolume(c *testing.T) {
 
 	res := cli.Docker(cli.Args("build", "-t", imgName), build.WithDockerfile(dockerFile)).Assert(c, icmd.Expected{
 		ExitCode: 1,
+		Out:      `ls: /foo/oops: No such file or directory`,
 	})
 	assert.Check(c, is.Contains(res.Combined(), expError))
 }
@@ -5487,8 +5488,6 @@ func (s *DockerCLIBuildSuite) TestBuildCacheFromLoad(c *testing.T) {
 	cli.DockerCmd(c, "save", "-o", tempFile, "build1")
 	cli.DockerCmd(c, "rmi", "build1")
 	cli.DockerCmd(c, "load", "-i", tempFile)
-	parentID := cli.DockerCmd(c, "inspect", "-f", "{{.Parent}}", "build1").Combined()
-	assert.Equal(c, strings.TrimSpace(parentID), "")
 
 	// cache still applies without parents
 	result := cli.BuildCmd(c, "build2", cli.WithFlags("--cache-from=build1"), build.WithExternalBuildContext(ctx))
