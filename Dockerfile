@@ -13,12 +13,10 @@ ARG XX_VERSION=1.7.0
 ARG VPNKIT_VERSION=0.6.0
 
 # DOCKERCLI_VERSION is the version of the CLI to install in the dev-container.
-ARG DOCKERCLI_VERSION=v29.1.2
-ARG DOCKERCLI_REPOSITORY="https://github.com/docker/cli.git"
+ARG DOCKERCLI_VERSION=29.1.2
 
 # cli version used for integration-cli tests
-ARG DOCKERCLI_INTEGRATION_REPOSITORY="https://github.com/docker/cli.git"
-ARG DOCKERCLI_INTEGRATION_VERSION=v25.0.5
+ARG DOCKERCLI_INTEGRATION_VERSION=25.0.5
 
 # BUILDX_VERSION is the version of buildx to install in the dev container.
 ARG BUILDX_VERSION=0.30.1
@@ -205,31 +203,6 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         GOBIN=/build CGO_ENABLED=0 go install "golang.org/x/tools/gopls@latest" \
      && /build/gopls version
 
-FROM base AS dockercli
-WORKDIR /go/src/github.com/docker/cli
-ARG DOCKERCLI_REPOSITORY
-ARG DOCKERCLI_VERSION
-ARG TARGETPLATFORM
-RUN --mount=source=hack/dockerfile/cli.sh,target=/download-or-build-cli.sh \
-    --mount=type=cache,id=dockercli-git-$TARGETPLATFORM,sharing=locked,target=./.git \
-    --mount=type=cache,target=/root/.cache/go-build,id=dockercli-build-$TARGETPLATFORM \
-        rm -f ./.git/*.lock \
-     && /download-or-build-cli.sh ${DOCKERCLI_VERSION} ${DOCKERCLI_REPOSITORY} /build \
-     && /build/docker --version \
-     && /build/docker completion bash >/completion.bash
-
-FROM base AS dockercli-integration
-WORKDIR /go/src/github.com/docker/cli
-ARG DOCKERCLI_INTEGRATION_REPOSITORY
-ARG DOCKERCLI_INTEGRATION_VERSION
-ARG TARGETPLATFORM
-RUN --mount=source=hack/dockerfile/cli.sh,target=/download-or-build-cli.sh \
-    --mount=type=cache,id=dockercli-git-$TARGETPLATFORM,sharing=locked,target=./.git \
-    --mount=type=cache,target=/root/.cache/go-build,id=dockercli-build-$TARGETPLATFORM \
-        rm -f ./.git/*.lock \
-     && /download-or-build-cli.sh ${DOCKERCLI_INTEGRATION_VERSION} ${DOCKERCLI_INTEGRATION_REPOSITORY} /build \
-     && /build/docker --version
-
 # runc
 FROM base AS runc-src
 WORKDIR /usr/src/runc
@@ -401,6 +374,8 @@ FROM containerutil-windows-${TARGETARCH} AS containerutil-windows
 FROM containerutil-${TARGETOS} AS containerutil
 FROM docker/buildx-bin:${BUILDX_VERSION} AS buildx
 FROM docker/compose-bin:${COMPOSE_VERSION} AS compose
+FROM docker:${DOCKERCLI_VERSION}-cli AS dockercli
+FROM docker:${DOCKERCLI_INTEGRATION_VERSION}-cli AS dockercli-integration
 
 FROM base AS dev-systemd-false
 COPY --link --from=frozen-images /build/ /docker-frozen-images
@@ -511,9 +486,9 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             libseccomp-dev \
             libsystemd-dev \
             yamllint
-COPY --link --from=dockercli             /build/ /usr/local/cli
-COPY --link --from=dockercli             /completion.bash /etc/bash_completion.d/docker
-COPY --link --from=dockercli-integration /build/ /usr/local/cli-integration
+COPY --link --from=dockercli             /usr/local/bin/docker /usr/local/cli/
+COPY --link --from=dockercli-integration /usr/local/bin/docker /usr/local/cli-integration/
+RUN /usr/local/cli/docker completion bash >/etc/bash_completion.d/docker
 
 FROM base AS build
 COPY --from=gowinres /build/ /usr/local/bin/
@@ -610,7 +585,7 @@ COPY --link --from=gopls         /build/ /usr/local/bin/
 # > docker buildx bake dind
 # > docker run -d --restart always --privileged --name devdind -p 12375:2375 docker-dind --debug --host=tcp://0.0.0.0:2375 --tlsverify=false
 FROM docker:dind AS dind
-COPY --link --from=dockercli /build/docker /usr/local/bin/
+COPY --link --from=dockercli /usr/local/bin/docker /usr/local/bin/
 COPY --link --from=buildx    /buildx /usr/local/libexec/docker/cli-plugins/docker-buildx
 COPY --link --from=compose   /docker-compose /usr/local/libexec/docker/cli-plugins/docker-compose
 COPY --link --from=all       / /usr/local/bin/
