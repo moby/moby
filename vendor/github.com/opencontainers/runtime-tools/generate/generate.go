@@ -26,6 +26,12 @@ var (
 	}
 )
 
+const (
+	// UnlimitedPidsLimit can be passed to SetLinuxResourcesPidsLimit to
+	// request unlimited PIDs.
+	UnlimitedPidsLimit int64 = -1
+)
+
 // Generator represents a generator for a container config.
 type Generator struct {
 	Config       *rspec.Spec
@@ -911,7 +917,7 @@ func (g *Generator) SetLinuxResourcesMemorySwap(swap int64) {
 // SetLinuxResourcesMemoryKernel sets g.Config.Linux.Resources.Memory.Kernel.
 func (g *Generator) SetLinuxResourcesMemoryKernel(kernel int64) {
 	g.initConfigLinuxResourcesMemory()
-	g.Config.Linux.Resources.Memory.Kernel = &kernel
+	g.Config.Linux.Resources.Memory.Kernel = &kernel //nolint:staticcheck // Ignore SA1019: g.Config.Linux.Resources.Memory.Kernel is deprecated
 }
 
 // SetLinuxResourcesMemoryKernelTCP sets g.Config.Linux.Resources.Memory.KernelTCP.
@@ -970,7 +976,7 @@ func (g *Generator) DropLinuxResourcesNetworkPriorities(name string) {
 // SetLinuxResourcesPidsLimit sets g.Config.Linux.Resources.Pids.Limit.
 func (g *Generator) SetLinuxResourcesPidsLimit(limit int64) {
 	g.initConfigLinuxResourcesPids()
-	g.Config.Linux.Resources.Pids.Limit = limit
+	g.Config.Linux.Resources.Pids.Limit = &limit
 }
 
 // ClearLinuxSysctl clears g.Config.Linux.Sysctl.
@@ -1060,13 +1066,13 @@ func (g *Generator) ClearPreStartHooks() {
 	if g.Config == nil || g.Config.Hooks == nil {
 		return
 	}
-	g.Config.Hooks.Prestart = []rspec.Hook{}
+	g.Config.Hooks.Prestart = []rspec.Hook{} //nolint:staticcheck // Ignore SA1019: g.Config.Hooks.Prestart is deprecated
 }
 
 // AddPreStartHook add a prestart hook into g.Config.Hooks.Prestart.
 func (g *Generator) AddPreStartHook(preStartHook rspec.Hook) {
 	g.initConfigHooks()
-	g.Config.Hooks.Prestart = append(g.Config.Hooks.Prestart, preStartHook)
+	g.Config.Hooks.Prestart = append(g.Config.Hooks.Prestart, preStartHook) //nolint:staticcheck // Ignore SA1019: g.Config.Hooks.Prestart is deprecated
 }
 
 // ClearPostStopHooks clear g.Config.Hooks.Poststop.
