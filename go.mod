@@ -73,7 +73,7 @@ require (
 	github.com/moby/sys/atomicwriter v0.1.0
 	github.com/moby/sys/mount v0.3.4
 	github.com/moby/sys/mountinfo v0.7.2
-	github.com/moby/sys/reexec v0.1.0
+	github.com/moby/sys/reexec v0.1.1-0.20250814194357-37e0dac92b16
 	github.com/moby/sys/sequential v0.6.0
 	github.com/moby/sys/signal v0.7.1
 	github.com/moby/sys/symlink v0.3.0
