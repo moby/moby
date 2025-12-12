@@ -1211,7 +1211,7 @@ func (i *instruction) encode(c backend.Compiler) (needsLabelResolution bool) {
 	case call:
 		c.EmitByte(0xe8)
 		// Meaning that the call target is a function value, and requires relocation.
-		c.AddRelocationInfo(ssa.FuncRef(i.u1))
+		c.AddRelocationInfo(ssa.FuncRef(i.u1), false)
 		// Note that this is zero as a placeholder for the call target if it's a function value.
 		c.Emit4Bytes(uint32(i.u2))
 
@@ -1238,6 +1238,37 @@ func (i *instruction) encode(c backend.Compiler) (needsLabelResolution bool) {
 				opcode, opcodeNum,
 				regEnc(2),
 				m,
+				rex,
+			)
+		default:
+			panic("BUG: invalid operand kind")
+		}
+
+	case tailCall:
+		// Encode as jmp.
+		c.EmitByte(0xe9)
+		// Meaning that the call target is a function value, and requires relocation.
+		c.AddRelocationInfo(ssa.FuncRef(i.u1), true)
+		// Note that this is zero as a placeholder for the call target if it's a function value.
+		c.Emit4Bytes(uint32(i.u2))
+
+	case tailCallIndirect:
+		op := i.op1
+
+		const opcodeNum = 1
+		const opcode = 0xff
+		const regMemSubOpcode = 4
+		rex := rexInfo(0).clearW()
+		switch op.kind {
+		// Indirect tail calls always take a register as the target.
+		// Note: the register should be a callee-saved register (usually r11).
+		case operandKindReg:
+			dst := regEncodings[op.reg().RealReg()]
+			encodeRegReg(c,
+				legacyPrefixesNone,
+				opcode, opcodeNum,
+				regMemSubOpcode,
+				dst,
 				rex,
 			)
 		default:

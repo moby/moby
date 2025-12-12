@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
+	"slices"
 	"sync"
 	"unsafe"
 
@@ -27,27 +28,37 @@ import (
 // The default value should suffice for most use cases. Those wishing to change this can via `go build -ldflags`.
 var callStackCeiling = 2000
 
+type compiledFunctionWithCount struct {
+	funcs    []compiledFunction
+	refCount int
+}
+
 // engine is an interpreter implementation of wasm.Engine
 type engine struct {
 	enabledFeatures   api.CoreFeatures
-	compiledFunctions map[wasm.ModuleID][]compiledFunction // guarded by mutex.
-	mux               sync.RWMutex
+	compiledFunctions map[wasm.ModuleID]*compiledFunctionWithCount // guarded by mutex.
+	mux               sync.Mutex
 }
 
 func NewEngine(_ context.Context, enabledFeatures api.CoreFeatures, _ filecache.Cache) wasm.Engine {
 	return &engine{
 		enabledFeatures:   enabledFeatures,
-		compiledFunctions: map[wasm.ModuleID][]compiledFunction{},
+		compiledFunctions: map[wasm.ModuleID]*compiledFunctionWithCount{},
 	}
 }
 
 // Close implements the same method as documented on wasm.Engine.
 func (e *engine) Close() (err error) {
+	e.mux.Lock()
+	defer e.mux.Unlock()
+	clear(e.compiledFunctions)
 	return
 }
 
 // CompiledModuleCount implements the same method as documented on wasm.Engine.
 func (e *engine) CompiledModuleCount() uint32 {
+	e.mux.Lock()
+	defer e.mux.Unlock()
 	return uint32(len(e.compiledFunctions))
 }
 
@@ -59,19 +70,33 @@ func (e *engine) DeleteCompiledModule(m *wasm.Module) {
 func (e *engine) deleteCompiledFunctions(module *wasm.Module) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
+	cf, ok := e.compiledFunctions[module.ID]
+	if !ok {
+		return
+	}
+	cf.refCount--
+	if cf.refCount > 0 {
+		return
+	}
 	delete(e.compiledFunctions, module.ID)
 }
 
 func (e *engine) addCompiledFunctions(module *wasm.Module, fs []compiledFunction) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
-	e.compiledFunctions[module.ID] = fs
+	e.compiledFunctions[module.ID] = &compiledFunctionWithCount{funcs: fs, refCount: 1}
 }
 
-func (e *engine) getCompiledFunctions(module *wasm.Module) (fs []compiledFunction, ok bool) {
-	e.mux.RLock()
-	defer e.mux.RUnlock()
-	fs, ok = e.compiledFunctions[module.ID]
+func (e *engine) getCompiledFunctions(module *wasm.Module, increaseRefCount bool) (fs []compiledFunction, ok bool) {
+	e.mux.Lock()
+	defer e.mux.Unlock()
+	cf, ok := e.compiledFunctions[module.ID]
+	if ok {
+		fs = cf.funcs
+		if increaseRefCount {
+			cf.refCount++
+		}
+	}
 	return
 }
 
@@ -242,15 +267,9 @@ type snapshot struct {
 
 // Snapshot implements the same method as documented on experimental.Snapshotter.
 func (ce *callEngine) Snapshot() experimental.Snapshot {
-	stack := make([]uint64, len(ce.stack))
-	copy(stack, ce.stack)
-
-	frames := make([]*callFrame, len(ce.frames))
-	copy(frames, ce.frames)
-
 	return &snapshot{
-		stack:  stack,
-		frames: frames,
+		stack:  slices.Clone(ce.stack),
+		frames: slices.Clone(ce.frames),
 		ce:     ce,
 	}
 }
@@ -356,7 +375,7 @@ const callFrameStackSize = 0
 
 // CompileModule implements the same method as documented on wasm.Engine.
 func (e *engine) CompileModule(_ context.Context, module *wasm.Module, listeners []experimental.FunctionListener, ensureTermination bool) error {
-	if _, ok := e.getCompiledFunctions(module); ok { // cache hit!
+	if _, ok := e.getCompiledFunctions(module, true); ok { // cache hit!
 		return nil
 	}
 
@@ -405,7 +424,7 @@ func (e *engine) NewModuleEngine(module *wasm.Module, instance *wasm.ModuleInsta
 		functions:    make([]function, len(module.FunctionSection)+int(module.ImportFunctionCount)),
 	}
 
-	codes, ok := e.getCompiledFunctions(module)
+	codes, ok := e.getCompiledFunctions(module, false)
 	if !ok {
 		return nil, errors.New("source module must be compiled before instantiation")
 	}
@@ -427,12 +446,10 @@ func (e *engine) NewModuleEngine(module *wasm.Module, instance *wasm.ModuleInsta
 // lowerIR lowers the interpreterir operations to engine friendly struct.
 func (e *engine) lowerIR(ir *compilationResult, ret *compiledFunction) error {
 	// Copy the body from the result.
-	ret.body = make([]unionOperation, len(ir.Operations))
-	copy(ret.body, ir.Operations)
+	ret.body = slices.Clone(ir.Operations)
 	// Also copy the offsets if necessary.
 	if offsets := ir.IROperationSourceOffsetsInWasmBinary; len(offsets) > 0 {
-		ret.offsetsInWasmBinary = make([]uint64, len(offsets))
-		copy(ret.offsetsInWasmBinary, offsets)
+		ret.offsetsInWasmBinary = slices.Clone(offsets)
 	}
 
 	labelAddressResolutions := [labelKindNum][]uint64{}
@@ -449,9 +466,7 @@ func (e *engine) lowerIR(ir *compilationResult, ret *compiledFunction) error {
 			frameToAddresses := labelAddressResolutions[label.Kind()]
 			// Expand the slice if necessary.
 			if diff := fid - len(frameToAddresses) + 1; diff > 0 {
-				for j := 0; j < diff; j++ {
-					frameToAddresses = append(frameToAddresses, 0)
-				}
+				frameToAddresses = append(frameToAddresses, make([]uint64, diff)...)
 			}
 			frameToAddresses[fid] = address
 			labelAddressResolutions[kind] = frameToAddresses
@@ -472,6 +487,8 @@ func (e *engine) lowerIR(ir *compilationResult, ret *compiledFunction) error {
 				target := op.Us[j]
 				e.setLabelAddress(&op.Us[j], label(target), labelAddressResolutions)
 			}
+		case operationKindTailCallReturnCallIndirect:
+			e.setLabelAddress(&op.Us[1], label(op.Us[1]), labelAddressResolutions)
 		}
 	}
 	return nil
@@ -761,18 +778,7 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, m *wasm.ModuleInstance
 		case operationKindCallIndirect:
 			offset := ce.popValue()
 			table := tables[op.U2]
-			if offset >= uint64(len(table.References)) {
-				panic(wasmruntime.ErrRuntimeInvalidTableAccess)
-			}
-			rawPtr := table.References[offset]
-			if rawPtr == 0 {
-				panic(wasmruntime.ErrRuntimeInvalidTableAccess)
-			}
-
-			tf := functionFromUintptr(rawPtr)
-			if tf.typeID != typeIDs[op.U1] {
-				panic(wasmruntime.ErrRuntimeIndirectCallTypeMismatch)
-			}
+			tf := ce.functionForOffset(table, offset, typeIDs[op.U1])
 
 			ce.callFunction(ctx, f.moduleInstance, tf)
 			frame.pc++
@@ -1725,12 +1731,17 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, m *wasm.ModuleInstance
 			if fillSize+offset > uint64(len(memoryInst.Buffer)) {
 				panic(wasmruntime.ErrRuntimeOutOfBoundsMemoryAccess)
 			} else if fillSize != 0 {
-				// Uses the copy trick for faster filling buffer.
-				// https://gist.github.com/taylorza/df2f89d5f9ab3ffd06865062a4cf015d
+				// Uses the copy trick for faster filling the buffer with the value.
+				// https://github.com/golang/go/blob/go1.24.0/src/bytes/bytes.go#L664-L673
 				buf := memoryInst.Buffer[offset : offset+fillSize]
-				buf[0] = value
-				for i := 1; i < len(buf); i *= 2 {
-					copy(buf[i:], buf[:i])
+				if value == 0 {
+					clear(buf)
+				} else {
+					buf[0] = value
+					for i := 1; i < len(buf); {
+						chunk := min(i, 8192)
+						i += copy(buf[i:], buf[:chunk])
+					}
 				}
 			}
 			frame.pc++
@@ -1804,7 +1815,7 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, m *wasm.ModuleInstance
 				panic(wasmruntime.ErrRuntimeInvalidTableAccess)
 			} else if num > 0 {
 				// Uses the copy trick for faster filling the region with the value.
-				// https://gist.github.com/taylorza/df2f89d5f9ab3ffd06865062a4cf015d
+				// https://github.com/golang/go/blob/go1.24.0/src/slices/slices.go#L514-L517
 				targetRegion := table.References[offset : offset+num]
 				targetRegion[0] = ref
 				for i := 1; i < len(targetRegion); i *= 2 {
@@ -4331,11 +4342,71 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, m *wasm.ModuleInstance
 			memoryInst.Mux.Unlock()
 			ce.pushValue(uint64(old))
 			frame.pc++
+		case operationKindTailCallReturnCall:
+			f := &functions[op.U1]
+			ce.dropForTailCall(frame, f)
+			body, bodyLen = ce.resetPc(frame, f)
+
+		case operationKindTailCallReturnCallIndirect:
+			offset := ce.popValue()
+			table := tables[op.U2]
+			tf := ce.functionForOffset(table, offset, typeIDs[op.U1])
+
+			// We are allowing proper tail calls only across functions that belong to the same
+			// module; for indirect calls, we have to enforce it at run-time.
+			// For details, see internal/engine/RATIONALE.md
+			if tf.moduleInstance != f.moduleInstance {
+				// Revert to a normal call.
+				ce.callFunction(ctx, f.moduleInstance, tf)
+				// Return
+				ce.drop(op.Us[0])
+				// Jump to the function frame (return)
+				frame.pc = op.Us[1]
+				continue
+			}
+
+			ce.dropForTailCall(frame, tf)
+			body, bodyLen = ce.resetPc(frame, tf)
+
 		default:
 			frame.pc++
 		}
 	}
 	ce.popFrame()
+}
+
+func (ce *callEngine) dropForTailCall(frame *callFrame, f *function) {
+	base := frame.base - frame.f.funcType.ParamNumInUint64
+	paramCount := f.funcType.ParamNumInUint64
+	ce.stack = append(ce.stack[:base], ce.stack[len(ce.stack)-paramCount:]...)
+}
+
+func (ce *callEngine) resetPc(frame *callFrame, f *function) (body []unionOperation, bodyLen uint64) {
+	// The compiler is currently allowing proper tail call only across functions
+	// that belong to the same module; thus, we can overwrite the frame in-place.
+	// For details, see internal/engine/RATIONALE.md
+	frame.f = f
+	frame.base = len(ce.stack)
+	frame.pc = 0
+	body = frame.f.parent.body
+	bodyLen = uint64(len(body))
+	return body, bodyLen
+}
+
+func (ce *callEngine) functionForOffset(table *wasm.TableInstance, offset uint64, expectedTypeID wasm.FunctionTypeID) *function {
+	if offset >= uint64(len(table.References)) {
+		panic(wasmruntime.ErrRuntimeInvalidTableAccess)
+	}
+	rawPtr := table.References[offset]
+	if rawPtr == 0 {
+		panic(wasmruntime.ErrRuntimeInvalidTableAccess)
+	}
+
+	tf := functionFromUintptr(rawPtr)
+	if tf.typeID != expectedTypeID {
+		panic(wasmruntime.ErrRuntimeIndirectCallTypeMismatch)
+	}
+	return tf
 }
 
 func wasmCompatMax32bits(v1, v2 uint32) uint64 {
@@ -4564,9 +4635,7 @@ func (ce *callEngine) callGoFuncWithStack(ctx context.Context, m *wasm.ModuleIns
 	// In the interpreter engine, ce.stack may only have capacity to store
 	// parameters. Grow when there are more results than parameters.
 	if growLen := resultLen - paramLen; growLen > 0 {
-		for i := 0; i < growLen; i++ {
-			ce.stack = append(ce.stack, 0)
-		}
+		ce.stack = append(ce.stack, make([]uint64, growLen)...)
 		stackLen += growLen
 	}
 

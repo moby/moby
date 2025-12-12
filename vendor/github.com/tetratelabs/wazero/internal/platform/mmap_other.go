@@ -5,7 +5,11 @@ package platform
 
 import "syscall"
 
-func mmapCodeSegment(size, prot int) ([]byte, error) {
+func mmapCodeSegment(size int) ([]byte, error) {
+	prot := syscall.PROT_READ | syscall.PROT_WRITE
+	if noopMprotectRX {
+		prot = syscall.PROT_READ | syscall.PROT_WRITE | syscall.PROT_EXEC
+	}
 	return syscall.Mmap(
 		-1,
 		0,

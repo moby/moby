@@ -69,7 +69,7 @@ type IDedPool[T any] struct {
 
 // NewIDedPool returns a new IDedPool.
 func NewIDedPool[T any](resetFn func(*T)) IDedPool[T] {
-	return IDedPool[T]{pool: NewPool[T](resetFn), maxIDEncountered: -1}
+	return IDedPool[T]{pool: NewPool(resetFn), maxIDEncountered: -1}
 }
 
 // GetOrAllocate returns the T with the given id.
@@ -134,10 +134,10 @@ type VarLength[T any] struct {
 // NewVarLengthPool returns a new VarLengthPool.
 func NewVarLengthPool[T any]() VarLengthPool[T] {
 	return VarLengthPool[T]{
-		arrayPool: NewPool[varLengthPoolArray[T]](func(v *varLengthPoolArray[T]) {
+		arrayPool: NewPool(func(v *varLengthPoolArray[T]) {
 			v.next = 0
 		}),
-		slicePool: NewPool[[]T](func(i *[]T) {
+		slicePool: NewPool(func(i *[]T) {
 			*i = (*i)[:0]
 		}),
 	}
@@ -155,6 +155,9 @@ func (p *VarLengthPool[T]) Allocate(knownMin int) VarLength[T] {
 		return VarLength[T]{arr: arr}
 	}
 	slc := p.slicePool.Allocate()
+	if cap(*slc) < knownMin {
+		*slc = make([]T, 0, knownMin)
+	}
 	return VarLength[T]{slc: slc}
 }
 
@@ -166,39 +169,36 @@ func (p *VarLengthPool[T]) Reset() {
 
 // Append appends items to the backing slice just like the `append` builtin function in Go.
 func (i VarLength[T]) Append(p *VarLengthPool[T], items ...T) VarLength[T] {
-	if i.slc != nil {
-		*i.slc = append(*i.slc, items...)
+	slc := i.slc
+	if slc != nil {
+		*slc = append(*slc, items...)
 		return i
 	}
 
-	if i.arr == nil {
-		i.arr = p.arrayPool.Allocate()
+	arr := i.arr
+	if arr == nil {
+		arr = p.arrayPool.Allocate()
+		i.arr = arr
 	}
 
-	arr := i.arr
 	if arr.next+len(items) <= arraySize {
-		for _, item := range items {
-			arr.arr[arr.next] = item
-			arr.next++
-		}
+		arr.next += copy(arr.arr[arr.next:], items)
 	} else {
-		slc := p.slicePool.Allocate()
+		slc = p.slicePool.Allocate()
 		// Copy the array to the slice.
-		for ptr := 0; ptr < arr.next; ptr++ {
-			*slc = append(*slc, arr.arr[ptr])
-		}
+		*slc = append(*slc, arr.arr[:arr.next]...)
+		*slc = append(*slc, items...)
 		i.slc = slc
-		*i.slc = append(*i.slc, items...)
 	}
 	return i
 }
 
 // View returns the backing slice.
 func (i VarLength[T]) View() []T {
-	if i.slc != nil {
+	if slc := i.slc; slc != nil {
 		return *i.slc
-	} else if i.arr != nil {
-		arr := i.arr
+	}
+	if arr := i.arr; arr != nil {
 		return arr.arr[:arr.next]
 	}
 	return nil
@@ -207,9 +207,9 @@ func (i VarLength[T]) View() []T {
 // Cut cuts the backing slice to the given length.
 // Precondition: n <= len(i.backing).
 func (i VarLength[T]) Cut(n int) {
-	if i.slc != nil {
-		*i.slc = (*i.slc)[:n]
-	} else if i.arr != nil {
-		i.arr.next = n
+	if slc := i.slc; slc != nil {
+		*slc = (*slc)[:n]
+	} else if arr := i.arr; arr != nil {
+		arr.next = n
 	}
 }

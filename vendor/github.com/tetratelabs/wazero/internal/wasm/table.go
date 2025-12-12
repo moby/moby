@@ -326,10 +326,14 @@ func (t *TableInstance) Grow(delta uint32, initialRef Reference) (currentLen uin
 	newLen >= math.MaxUint32 || (t.Max != nil && newLen > int64(*t.Max)) {
 		return 0xffffffff // = -1 in signed 32-bit integer.
 	}
+
 	t.References = append(t.References, make([]uintptr, delta)...)
+	if initialRef == 0 {
+		return
+	}
 
 	// Uses the copy trick for faster filling the new region with the initial value.
-	// https://gist.github.com/taylorza/df2f89d5f9ab3ffd06865062a4cf015d
+	// https://github.com/golang/go/blob/go1.24.0/src/slices/slices.go#L514-L517
 	newRegion := t.References[currentLen:]
 	newRegion[0] = initialRef
 	for i := 1; i < len(newRegion); i *= 2 {

@@ -174,20 +174,21 @@ func (m *moduleEngine) NewFunction(index wasm.Index) api.Function {
 		indexInModule:          index,
 		executable:             &p.executable[offset],
 		parent:                 m,
-		preambleExecutable:     &m.parent.entryPreambles[typIndex][0],
+		preambleExecutable:     p.entryPreamblesPtrs[typIndex],
 		sizeOfParamResultSlice: sizeOfParamResultSlice,
 		requiredParams:         typ.ParamNumInUint64,
 		numberOfResults:        typ.ResultNumInUint64,
 	}
 
-	ce.execCtx.memoryGrowTrampolineAddress = &m.parent.sharedFunctions.memoryGrowExecutable[0]
-	ce.execCtx.stackGrowCallTrampolineAddress = &m.parent.sharedFunctions.stackGrowExecutable[0]
-	ce.execCtx.checkModuleExitCodeTrampolineAddress = &m.parent.sharedFunctions.checkModuleExitCode[0]
-	ce.execCtx.tableGrowTrampolineAddress = &m.parent.sharedFunctions.tableGrowExecutable[0]
-	ce.execCtx.refFuncTrampolineAddress = &m.parent.sharedFunctions.refFuncExecutable[0]
-	ce.execCtx.memoryWait32TrampolineAddress = &m.parent.sharedFunctions.memoryWait32Executable[0]
-	ce.execCtx.memoryWait64TrampolineAddress = &m.parent.sharedFunctions.memoryWait64Executable[0]
-	ce.execCtx.memoryNotifyTrampolineAddress = &m.parent.sharedFunctions.memoryNotifyExecutable[0]
+	sharedFunctions := p.sharedFunctions
+	ce.execCtx.memoryGrowTrampolineAddress = sharedFunctions.memoryGrowAddress
+	ce.execCtx.stackGrowCallTrampolineAddress = sharedFunctions.stackGrowAddress
+	ce.execCtx.checkModuleExitCodeTrampolineAddress = sharedFunctions.checkModuleExitCodeAddress
+	ce.execCtx.tableGrowTrampolineAddress = sharedFunctions.tableGrowAddress
+	ce.execCtx.refFuncTrampolineAddress = sharedFunctions.refFuncAddress
+	ce.execCtx.memoryWait32TrampolineAddress = sharedFunctions.memoryWait32Address
+	ce.execCtx.memoryWait64TrampolineAddress = sharedFunctions.memoryWait64Address
+	ce.execCtx.memoryNotifyTrampolineAddress = sharedFunctions.memoryNotifyAddress
 	ce.execCtx.memmoveAddress = memmovPtr
 	ce.init()
 	return ce

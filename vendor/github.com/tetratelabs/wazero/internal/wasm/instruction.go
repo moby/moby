@@ -777,6 +777,16 @@ const (
 	OpcodeAtomicI64Rmw32CmpxchgU OpcodeAtomic = 0x4e
 )
 
+// OpcodeTailCall represents an opcode of a tail call instructions.
+//
+// These opcodes are toggled with CoreFeaturesTailCall.
+type OpcodeTailCall = byte
+
+const (
+	OpcodeTailCallReturnCall         OpcodeTailCall = 0x12
+	OpcodeTailCallReturnCallIndirect OpcodeTailCall = 0x13
+)
+
 const (
 	OpcodeUnreachableName       = "unreachable"
 	OpcodeNopName               = "nop"
@@ -1863,4 +1873,19 @@ var atomicInstructionName = map[OpcodeAtomic]string{
 // AtomicInstructionName returns the instruction name corresponding to the atomic Opcode.
 func AtomicInstructionName(oc OpcodeAtomic) (ret string) {
 	return atomicInstructionName[oc]
+}
+
+const (
+	OpcodeTailCallReturnCallName         = "return_call"
+	OpcodeTailCallReturnCallIndirectName = "return_call_indirect"
+)
+
+var tailCallInstructionName = map[OpcodeTailCall]string{
+	OpcodeTailCallReturnCall:         OpcodeTailCallReturnCallName,
+	OpcodeTailCallReturnCallIndirect: OpcodeTailCallReturnCallIndirectName,
+}
+
+// TailCallInstructionName returns the instruction name corresponding to the tail call Opcode.
+func TailCallInstructionName(oc OpcodeTailCall) (ret string) {
+	return tailCallInstructionName[oc]
 }

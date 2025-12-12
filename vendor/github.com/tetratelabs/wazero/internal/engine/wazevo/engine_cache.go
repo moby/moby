@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
-	"runtime"
 	"unsafe"
 
 	"github.com/tetratelabs/wazero/experimental"
@@ -33,7 +32,7 @@ func fileCacheKey(m *wasm.Module) (ret filecache.Key) {
 	s.Write(magic)
 	// Write the CPU features so that we can cache the compiled module for the same CPU.
 	// This prevents the incompatible CPU features from being used.
-	cpu := platform.CpuFeatures.Raw()
+	cpu := platform.CpuFeatures().Raw()
 	// Reuse the `ret` buffer to write the first 8 bytes of the CPU features so that we can avoid the allocation.
 	binary.LittleEndian.PutUint64(ret[:8], cpu)
 	s.Write(ret[:8])
@@ -51,7 +50,7 @@ func (e *engine) addCompiledModule(module *wasm.Module, cm *compiledModule) (err
 }
 
 func (e *engine) getCompiledModule(module *wasm.Module, listeners []experimental.FunctionListener, ensureTermination bool) (cm *compiledModule, ok bool, err error) {
-	cm, ok = e.getCompiledModuleFromMemory(module)
+	cm, ok = e.getCompiledModuleFromMemory(module, true)
 	if ok {
 		return
 	}
@@ -88,16 +87,23 @@ func (e *engine) getCompiledModule(module *wasm.Module, listeners []experimental
 func (e *engine) addCompiledModuleToMemory(m *wasm.Module, cm *compiledModule) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
-	e.compiledModules[m.ID] = cm
+	e.compiledModules[m.ID] = &compiledModuleWithCount{compiledModule: cm, refCount: 1}
 	if len(cm.executable) > 0 {
 		e.addCompiledModuleToSortedList(cm)
 	}
 }
 
-func (e *engine) getCompiledModuleFromMemory(module *wasm.Module) (cm *compiledModule, ok bool) {
-	e.mux.RLock()
-	defer e.mux.RUnlock()
-	cm, ok = e.compiledModules[module.ID]
+func (e *engine) getCompiledModuleFromMemory(module *wasm.Module, increaseRefCount bool) (cm *compiledModule, ok bool) {
+	e.mux.Lock()
+	defer e.mux.Unlock()
+
+	cmWithCount, ok := e.compiledModules[module.ID]
+	if ok {
+		cm = cmWithCount.compiledModule
+		if increaseRefCount {
+			cmWithCount.refCount++
+		}
+	}
 	return
 }
 
@@ -246,11 +252,8 @@ func deserializeCompiledModule(wazeroVersion string, reader io.ReadCloser) (cm *
 			return nil, false, fmt.Errorf("compilationcache: checksum mismatch (expected %d, got %d)", expected, checksum)
 		}
 
-		if runtime.GOARCH == "arm64" {
-			// On arm64, we cannot give all of rwx at the same time, so we change it to exec.
-			if err = platform.MprotectRX(executable); err != nil {
-				return nil, false, err
-			}
+		if err = platform.MprotectRX(executable); err != nil {
+			return nil, false, err
 		}
 		cm.executable = executable
 	}

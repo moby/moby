@@ -113,6 +113,7 @@ spectest_v1_testdata_dir := $(spectest_v1_dir)/testdata
 spec_version_v1 := wg-1.0
 spectest_v2_dir := $(spectest_base_dir)/v2
 spectest_v2_testdata_dir := $(spectest_v2_dir)/testdata
+
 # Latest draft state as of March 12, 2024.
 spec_version_v2 := 1c5e5d178bd75c79b7a12881c529098beaee2a05
 spectest_threads_dir := $(spectest_base_dir)/threads
@@ -120,6 +121,10 @@ spectest_threads_testdata_dir := $(spectest_threads_dir)/testdata
 # From https://github.com/WebAssembly/threads/tree/upstream-rebuild which has not been merged to main yet.
 # It will likely be renamed to main in the future - https://github.com/WebAssembly/threads/issues/216.
 spec_version_threads := 3635ca51a17e57e106988846c5b0e0cc48ac04fc
+
+spectest_tail_call_dir := $(spectest_base_dir)/tail-call
+spectest_tail_call_testdata_dir := $(spectest_tail_call_dir)/testdata
+spec_version_tail_call := 4fd2339b5e9709e74b326797f69a88b13eac4d47
 
 .PHONY: build.spectest
 build.spectest:
@@ -175,6 +180,15 @@ build.spectest.threads:
 		wast2json --enable-threads --debug-names $$f; \
 	done
 
+.PHONY: build.spectest.tail_call
+build.spectest.tail_call:
+	mkdir -p $(spectest_tail_call_testdata_dir)
+	cd $(spectest_tail_call_testdata_dir) \
+		&& curl -sSL 'https://api.github.com/repos/WebAssembly/testsuite/contents/proposals/tail-call?ref=$(spec_version_tail_call)' | jq -r '.[]| .download_url' | grep -E ".wast" | xargs -Iurl curl -sJL url -O
+	cd $(spectest_tail_call_testdata_dir) && for f in `find . -name '*.wast'`; do \
+		wast2json --enable-tail-call --debug-names $$f; \
+	done
+
 .PHONY: test
 test:
 	@go test $(go_test_options) ./...
@@ -220,13 +234,10 @@ check:
 	@GOARCH=wasm GOOS=wasip1 go build ./...
 # Ensure we build on aix. See #1723
 	@GOARCH=ppc64 GOOS=aix go build ./...
-# Ensure we build on windows:
-	@GOARCH=amd64 GOOS=windows go build ./...
-# Ensure we build on an arbitrary operating system:
-	@GOARCH=amd64 GOOS=dragonfly go build ./...
-# Ensure we build on solaris/illumos:
-	@GOARCH=amd64 GOOS=illumos go build ./...
-	@GOARCH=amd64 GOOS=solaris go build ./...
+# Ensure we build on linux s390x. See #2412
+	@GOARCH=s390x GOOS=linux go build ./...
+# Ensure we build on linux ppc64le. See #2412
+	@GOARCH=ppc64le GOOS=linux go build ./...
 # Ensure we build on linux arm for Dapr:
 #	gh release view -R dapr/dapr --json assets --jq 'first(.assets[] | select(.name = "daprd_linux_arm.tar.gz") | {url, downloadCount})'
 	@GOARCH=arm GOOS=linux go build ./...
@@ -274,22 +285,15 @@ libsodium:
 #### CLI release related ####
 
 VERSION ?= dev
-# Default to a dummy version 0.0.1.1, which is always lower than a real release.
-# Legal version values should look like 'x.x.x.x' where x is an integer from 0 to 65534.
-# https://learn.microsoft.com/en-us/windows/win32/msi/productversion?redirectedfrom=MSDN
-# https://stackoverflow.com/questions/9312221/msi-version-numbers
-MSI_VERSION ?= 0.0.1.1
 non_windows_platforms := darwin_amd64 darwin_arm64 linux_amd64 linux_arm64
 non_windows_archives  := $(non_windows_platforms:%=dist/wazero_$(VERSION)_%.tar.gz)
 windows_platforms     := windows_amd64 # TODO: add arm64 windows once we start testing on it.
-windows_archives      := $(windows_platforms:%=dist/wazero_$(VERSION)_%.zip) $(windows_platforms:%=dist/wazero_$(VERSION)_%.msi)
+windows_archives      := $(windows_platforms:%=dist/wazero_$(VERSION)_%.zip)
 checksum_txt          := dist/wazero_$(VERSION)_checksums.txt
 
 # define macros for multi-platform builds. these parse the filename being built
 go-arch = $(if $(findstring amd64,$1),amd64,arm64)
 go-os   = $(if $(findstring .exe,$1),windows,$(if $(findstring linux,$1),linux,darwin))
-# msi-arch is a macro so we can detect it based on the file naming convention
-msi-arch     = $(if $(findstring amd64,$1),x64,arm64)
 
 build/wazero_%/wazero:
 	$(call go-build,$@,$<)
@@ -314,51 +318,15 @@ define go-build
 	@echo build "ok"
 endef
 
-# this makes a marker file ending in .signed to avoid repeatedly calling codesign
-%.signed: %
-	$(call codesign,$<)
-	@touch $@
-
-# This requires osslsigncode package (apt or brew) or latest windows release from mtrojnar/osslsigncode
-#
-# Default is self-signed while production should be a Digicert signing key
-#
-# Ex.
-# ```bash
-# keytool -genkey -alias wazero -storetype PKCS12 -keyalg RSA -keysize 2048 -storepass wazero-bunch \
-# -keystore wazero.p12 -dname "O=wazero,CN=wazero.io" -validity 3650
-# ```
-WINDOWS_CODESIGN_P12      ?= packaging/msi/wazero.p12
-WINDOWS_CODESIGN_PASSWORD ?= wazero-bunch
-define codesign
-	@printf "$(ansi_format_dark)" codesign "signing $1"
-	@osslsigncode sign -h sha256 -pkcs12 ${WINDOWS_CODESIGN_P12} -pass "${WINDOWS_CODESIGN_PASSWORD}" \
-	-n "wazero is the zero dependency WebAssembly runtime for Go developers" -i https://wazero.io -t http://timestamp.digicert.com \
-	$(if $(findstring msi,$(1)),-add-msi-dse) -in $1 -out $1-signed
-	@mv $1-signed $1
-	@printf "$(ansi_format_bright)" codesign "ok"
-endef
-
-# This task is only supported on Windows, where we use candle.exe (compile wxs to wixobj) and light.exe (link to msi)
-dist/wazero_$(VERSION)_%.msi: build/wazero_%/wazero.exe.signed
-ifeq ($(OS),Windows_NT)
-	@echo msi "building $@"
-	@mkdir -p $(@D)
-	@candle -nologo -arch $(call msi-arch,$@) -dVersion=$(MSI_VERSION) -dBin=$(<:.signed=) -o build/wazero.wixobj packaging/msi/wazero.wxs
-	@light -nologo -o $@ build/wazero.wixobj -spdb
-	$(call codesign,$@)
-	@echo msi "ok"
-endif
-
-dist/wazero_$(VERSION)_%.zip: build/wazero_%/wazero.exe.signed
+dist/wazero_$(VERSION)_%.zip: build/wazero_%/wazero.exe
 	@echo zip "zipping $@"
 	@mkdir -p $(@D)
-	@zip -qj $@ $(<:.signed=)
+	@zip -qj $@ $<
 	@echo zip "ok"
 
 # Darwin doesn't have sha256sum. See https://github.com/actions/virtual-environments/issues/90
 sha256sum := $(if $(findstring darwin,$(shell go env GOOS)),shasum -a 256,sha256sum)
-$(checksum_txt):
-	@cd $(@D); touch $(@F); $(sha256sum) * >> $(@F)
+$(checksum_txt): $(non_windows_archives) $(windows_archives)
+	@cd $(@D); touch $(@F); $(sha256sum) * > $(@F)
 
-dist: $(non_windows_archives) $(if $(findstring Windows_NT,$(OS)),$(windows_archives),) $(checksum_txt)
+dist: $(non_windows_archives) $(windows_archives) $(checksum_txt)

@@ -469,7 +469,7 @@ func (c *Compiler) allocateVarLengthValues(_cap int, vs ...ssa.Value) ssa.Values
 	builder := c.ssaBuilder
 	pool := builder.VarLengthPool()
 	args := pool.Allocate(_cap)
-	args = args.Append(builder.VarLengthPool(), vs...)
+	args = args.Append(pool, vs...)
 	return args
 }
 
