@@ -507,7 +507,7 @@ inserted after exit: https://github.com/emscripten-core/emscripten/issues/12322
 
 ## WASI
 
-Unfortunately, (WASI Snapshot Preview 1)[https://github.com/WebAssembly/WASI/blob/snapshot-01/phases/snapshot/docs.md] is not formally defined enough, and has APIs with ambiguous semantics.
+Unfortunately, [WASI Snapshot Preview 1](https://github.com/WebAssembly/WASI/blob/snapshot-01/phases/snapshot/docs.md) is not formally defined enough, and has APIs with ambiguous semantics.
 This section describes how Wazero interprets and implements the semantics of several WASI APIs that may be interpreted differently by different wasm runtimes.
 Those APIs may affect the portability of a WASI application.
 

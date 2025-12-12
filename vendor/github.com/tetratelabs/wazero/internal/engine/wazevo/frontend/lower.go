@@ -123,8 +123,7 @@ func (c *Compiler) nPeekDup(n int) ssa.Values {
 	l := c.state()
 	tail := len(l.values)
 
-	args := c.allocateVarLengthValues(n)
-	args = args.Append(c.ssaBuilder.VarLengthPool(), l.values[tail-n:tail]...)
+	args := c.allocateVarLengthValues(n, l.values[tail-n:tail]...)
 	return args
 }
 
@@ -665,18 +664,21 @@ func (c *Compiler) lowerCurrentOpcode() {
 			tableBaseAddr := c.loadTableBaseAddr(tableInstancePtr)
 			addr := builder.AllocateInstruction().AsIadd(tableBaseAddr, offsetInBytes).Insert(builder).Return()
 
-			// Prepare the loop and following block.
-			beforeLoop := builder.AllocateBasicBlock()
-			loopBlk := builder.AllocateBasicBlock()
-			loopVar := loopBlk.AddParam(builder, ssa.TypeI64)
-			followingBlk := builder.AllocateBasicBlock()
-
 			// Uses the copy trick for faster filling buffer like memory.fill, but in this case we copy 8 bytes at a time.
+			// Tables are rarely huge, so ignore the 8KB maximum.
+			// https://github.com/golang/go/blob/go1.24.0/src/slices/slices.go#L514-L517
+			//
 			// 	buf := memoryInst.Buffer[offset : offset+fillSize]
 			// 	buf[0:8] = value
 			// 	for i := 8; i < fillSize; i *= 2 { Begin with 8 bytes.
 			// 		copy(buf[i:], buf[:i])
 			// 	}
+
+			// Prepare the loop and following block.
+			beforeLoop := builder.AllocateBasicBlock()
+			loopBlk := builder.AllocateBasicBlock()
+			loopVar := loopBlk.AddParam(builder, ssa.TypeI64)
+			followingBlk := builder.AllocateBasicBlock()
 
 			// Insert the jump to the beforeLoop block; If the fillSize is zero, then jump to the following block to skip entire logics.
 			zero := builder.AllocateInstruction().AsIconst64(0).Insert(builder).Return()
@@ -688,32 +690,24 @@ func (c *Compiler) lowerCurrentOpcode() {
 			// buf[0:8] = value
 			builder.SetCurrentBlock(beforeLoop)
 			builder.AllocateInstruction().AsStore(ssa.OpcodeStore, value, addr, 0).Insert(builder)
-			initValue := builder.AllocateInstruction().AsIconst64(8).Insert(builder).Return()
-			c.insertJumpToBlock(c.allocateVarLengthValues(1, initValue), loopBlk)
+			eight := builder.AllocateInstruction().AsIconst64(8).Insert(builder).Return()
+			c.insertJumpToBlock(c.allocateVarLengthValues(1, eight), loopBlk)
 
 			builder.SetCurrentBlock(loopBlk)
 			dstAddr := builder.AllocateInstruction().AsIadd(addr, loopVar).Insert(builder).Return()
 
-			// If loopVar*2 > fillSizeInBytes, then count must be fillSizeInBytes-loopVar.
-			var count ssa.Value
-			{
-				loopVarDoubled := builder.AllocateInstruction().AsIadd(loopVar, loopVar).Insert(builder).Return()
-				loopVarDoubledLargerThanFillSize := builder.
-					AllocateInstruction().AsIcmp(loopVarDoubled, fillSizeInBytes, ssa.IntegerCmpCondUnsignedGreaterThanOrEqual).
-					Insert(builder).Return()
-				diff := builder.AllocateInstruction().AsIsub(fillSizeInBytes, loopVar).Insert(builder).Return()
-				count = builder.AllocateInstruction().AsSelect(loopVarDoubledLargerThanFillSize, diff, loopVar).Insert(builder).Return()
-			}
+			newLoopVar := builder.AllocateInstruction().AsIadd(loopVar, loopVar).Insert(builder).Return()
+			newLoopVarLessThanFillSize := builder.AllocateInstruction().
+				AsIcmp(newLoopVar, fillSizeInBytes, ssa.IntegerCmpCondUnsignedLessThan).Insert(builder).Return()
+
+			// On the last iteration, count must be fillSizeInBytes-loopVar.
+			diff := builder.AllocateInstruction().AsIsub(fillSizeInBytes, loopVar).Insert(builder).Return()
+			count := builder.AllocateInstruction().AsSelect(newLoopVarLessThanFillSize, loopVar, diff).Insert(builder).Return()
 
 			c.callMemmove(dstAddr, addr, count)
 
-			shiftAmount := builder.AllocateInstruction().AsIconst64(1).Insert(builder).Return()
-			newLoopVar := builder.AllocateInstruction().AsIshl(loopVar, shiftAmount).Insert(builder).Return()
-			loopVarLessThanFillSize := builder.AllocateInstruction().
-				AsIcmp(newLoopVar, fillSizeInBytes, ssa.IntegerCmpCondUnsignedLessThan).Insert(builder).Return()
-
 			builder.AllocateInstruction().
-				AsBrnz(loopVarLessThanFillSize, c.allocateVarLengthValues(1, newLoopVar), loopBlk).
+				AsBrnz(newLoopVarLessThanFillSize, c.allocateVarLengthValues(1, newLoopVar), loopBlk).
 				Insert(builder)
 
 			c.insertJumpToBlock(ssa.ValuesNil, followingBlk)
@@ -741,11 +735,15 @@ func (c *Compiler) lowerCurrentOpcode() {
 			// Calculate the base address:
 			addr := builder.AllocateInstruction().AsIadd(c.getMemoryBaseValue(false), offset).Insert(builder).Return()
 
-			// Uses the copy trick for faster filling buffer: https://gist.github.com/taylorza/df2f89d5f9ab3ffd06865062a4cf015d
+			// Uses the copy trick for faster filling buffer, with a maximum chunk size of 8KB.
+			// https://github.com/golang/go/blob/go1.24.0/src/bytes/bytes.go#L664-L673
+			//
 			// 	buf := memoryInst.Buffer[offset : offset+fillSize]
 			// 	buf[0] = value
-			// 	for i := 1; i < fillSize; i *= 2 {
-			// 		copy(buf[i:], buf[:i])
+			// 	for i := 1; i < fillSize; {
+			// 		chunk := ((i - 1) & 8191) + 1
+			// 		copy(buf[i:], buf[:chunk])
+			// 		i += chunk
 			// 	}
 
 			// Prepare the loop and following block.
@@ -764,32 +762,31 @@ func (c *Compiler) lowerCurrentOpcode() {
 			// buf[0] = value
 			builder.SetCurrentBlock(beforeLoop)
 			builder.AllocateInstruction().AsStore(ssa.OpcodeIstore8, value, addr, 0).Insert(builder)
-			initValue := builder.AllocateInstruction().AsIconst64(1).Insert(builder).Return()
-			c.insertJumpToBlock(c.allocateVarLengthValues(1, initValue), loopBlk)
+			one := builder.AllocateInstruction().AsIconst64(1).Insert(builder).Return()
+			c.insertJumpToBlock(c.allocateVarLengthValues(1, one), loopBlk)
 
 			builder.SetCurrentBlock(loopBlk)
 			dstAddr := builder.AllocateInstruction().AsIadd(addr, loopVar).Insert(builder).Return()
 
-			// If loopVar*2 > fillSizeExt, then count must be fillSizeExt-loopVar.
-			var count ssa.Value
-			{
-				loopVarDoubled := builder.AllocateInstruction().AsIadd(loopVar, loopVar).Insert(builder).Return()
-				loopVarDoubledLargerThanFillSize := builder.
-					AllocateInstruction().AsIcmp(loopVarDoubled, fillSize, ssa.IntegerCmpCondUnsignedGreaterThanOrEqual).
-					Insert(builder).Return()
-				diff := builder.AllocateInstruction().AsIsub(fillSize, loopVar).Insert(builder).Return()
-				count = builder.AllocateInstruction().AsSelect(loopVarDoubledLargerThanFillSize, diff, loopVar).Insert(builder).Return()
-			}
+			// chunk := ((i - 1) & 8191) + 1
+			mask := builder.AllocateInstruction().AsIconst64(8191).Insert(builder).Return()
+			tmp1 := builder.AllocateInstruction().AsIsub(loopVar, one).Insert(builder).Return()
+			tmp2 := builder.AllocateInstruction().AsBand(tmp1, mask).Insert(builder).Return()
+			chunk := builder.AllocateInstruction().AsIadd(tmp2, one).Insert(builder).Return()
+
+			// i += chunk
+			newLoopVar := builder.AllocateInstruction().AsIadd(loopVar, chunk).Insert(builder).Return()
+			newLoopVarLessThanFillSize := builder.AllocateInstruction().
+				AsIcmp(newLoopVar, fillSize, ssa.IntegerCmpCondUnsignedLessThan).Insert(builder).Return()
+
+			// count = min(chunk, fillSize-loopVar)
+			diff := builder.AllocateInstruction().AsIsub(fillSize, loopVar).Insert(builder).Return()
+			count := builder.AllocateInstruction().AsSelect(newLoopVarLessThanFillSize, chunk, diff).Insert(builder).Return()
 
 			c.callMemmove(dstAddr, addr, count)
 
-			shiftAmount := builder.AllocateInstruction().AsIconst64(1).Insert(builder).Return()
-			newLoopVar := builder.AllocateInstruction().AsIshl(loopVar, shiftAmount).Insert(builder).Return()
-			loopVarLessThanFillSize := builder.AllocateInstruction().
-				AsIcmp(newLoopVar, fillSize, ssa.IntegerCmpCondUnsignedLessThan).Insert(builder).Return()
-
 			builder.AllocateInstruction().
-				AsBrnz(loopVarLessThanFillSize, c.allocateVarLengthValues(1, newLoopVar), loopBlk).
+				AsBrnz(newLoopVarLessThanFillSize, c.allocateVarLengthValues(1, newLoopVar), loopBlk).
 				Insert(builder)
 
 			c.insertJumpToBlock(ssa.ValuesNil, followingBlk)
@@ -1173,7 +1170,7 @@ func (c *Compiler) lowerCurrentOpcode() {
 				ssa.TypeI64,
 			).Insert(builder).Return()
 
-		args := c.allocateVarLengthValues(1, c.execCtxPtrValue, pages)
+		args := c.allocateVarLengthValues(2, c.execCtxPtrValue, pages)
 		callGrowRet := builder.
 			AllocateInstruction().
 			AsCallIndirect(memoryGrowPtr, &c.memoryGrowSig, args).
@@ -1343,8 +1340,7 @@ func (c *Compiler) lowerCurrentOpcode() {
 			blockType:                    bt,
 		})
 
-		args := c.allocateVarLengthValues(originalLen)
-		args = args.Append(builder.VarLengthPool(), state.values[originalLen:]...)
+		args := c.allocateVarLengthValues(len(bt.Params), state.values[originalLen:]...)
 
 		// Insert the jump to the header of loop.
 		br := builder.AllocateInstruction()
@@ -1383,8 +1379,7 @@ func (c *Compiler) lowerCurrentOpcode() {
 		// multiple definitions (one in Then and another in Else blocks).
 		c.addBlockParamsFromWasmTypes(bt.Results, followingBlk)
 
-		args := c.allocateVarLengthValues(len(bt.Params))
-		args = args.Append(builder.VarLengthPool(), state.values[len(state.values)-len(bt.Params):]...)
+		args := c.allocateVarLengthValues(len(bt.Params), state.values[len(state.values)-len(bt.Params):]...)
 
 		// Insert the conditional jump to the Else block.
 		brz := builder.AllocateInstruction()
@@ -1568,11 +1563,7 @@ func (c *Compiler) lowerCurrentOpcode() {
 			c.callListenerAfter()
 		}
 
-		results := c.nPeekDup(c.results())
-		instr := builder.AllocateInstruction()
-
-		instr.AsReturn(results)
-		builder.InsertInstruction(instr)
+		c.lowerReturn(builder)
 		state.unreachable = true
 
 	case wasm.OpcodeUnreachable:
@@ -1597,66 +1588,7 @@ func (c *Compiler) lowerCurrentOpcode() {
 		if state.unreachable {
 			break
 		}
-
-		var typIndex wasm.Index
-		if fnIndex < c.m.ImportFunctionCount {
-			// Before transfer the control to the callee, we have to store the current module's moduleContextPtr
-			// into execContext.callerModuleContextPtr in case when the callee is a Go function.
-			c.storeCallerModuleContext()
-			var fi int
-			for i := range c.m.ImportSection {
-				imp := &c.m.ImportSection[i]
-				if imp.Type == wasm.ExternTypeFunc {
-					if fi == int(fnIndex) {
-						typIndex = imp.DescFunc
-						break
-					}
-					fi++
-				}
-			}
-		} else {
-			typIndex = c.m.FunctionSection[fnIndex-c.m.ImportFunctionCount]
-		}
-		typ := &c.m.TypeSection[typIndex]
-
-		argN := len(typ.Params)
-		tail := len(state.values) - argN
-		vs := state.values[tail:]
-		state.values = state.values[:tail]
-		args := c.allocateVarLengthValues(2+len(vs), c.execCtxPtrValue)
-
-		sig := c.signatures[typ]
-		call := builder.AllocateInstruction()
-		if fnIndex >= c.m.ImportFunctionCount {
-			args = args.Append(builder.VarLengthPool(), c.moduleCtxPtrValue) // This case the callee module is itself.
-			args = args.Append(builder.VarLengthPool(), vs...)
-			call.AsCall(FunctionIndexToFuncRef(fnIndex), sig, args)
-			builder.InsertInstruction(call)
-		} else {
-			// This case we have to read the address of the imported function from the module context.
-			moduleCtx := c.moduleCtxPtrValue
-			loadFuncPtr, loadModuleCtxPtr := builder.AllocateInstruction(), builder.AllocateInstruction()
-			funcPtrOffset, moduleCtxPtrOffset, _ := c.offset.ImportedFunctionOffset(fnIndex)
-			loadFuncPtr.AsLoad(moduleCtx, funcPtrOffset.U32(), ssa.TypeI64)
-			loadModuleCtxPtr.AsLoad(moduleCtx, moduleCtxPtrOffset.U32(), ssa.TypeI64)
-			builder.InsertInstruction(loadFuncPtr)
-			builder.InsertInstruction(loadModuleCtxPtr)
-
-			args = args.Append(builder.VarLengthPool(), loadModuleCtxPtr.Return())
-			args = args.Append(builder.VarLengthPool(), vs...)
-			call.AsCallIndirect(loadFuncPtr.Return(), sig, args)
-			builder.InsertInstruction(call)
-		}
-
-		first, rest := call.Returns()
-		if first.Valid() {
-			state.push(first)
-		}
-		for _, v := range rest {
-			state.push(v)
-		}
-
-		c.reloadAfterCall()
+		c.lowerCall(fnIndex)
 
 	case wasm.OpcodeDrop:
 		if state.unreachable {
@@ -3190,7 +3122,7 @@ func (c *Compiler) lowerCurrentOpcode() {
 					ssa.TypeI64,
 				).Insert(builder).Return()
 
-			args := c.allocateVarLengthValues(3, c.execCtxPtrValue, timeout, exp, addr)
+			args := c.allocateVarLengthValues(4, c.execCtxPtrValue, timeout, exp, addr)
 			memoryWaitRet := builder.AllocateInstruction().
 				AsCallIndirect(memoryWaitPtr, sig, args).
 				Insert(builder).Return()
@@ -3211,7 +3143,7 @@ func (c *Compiler) lowerCurrentOpcode() {
 					wazevoapi.ExecutionContextOffsetMemoryNotifyTrampolineAddress.U32(),
 					ssa.TypeI64,
 				).Insert(builder).Return()
-			args := c.allocateVarLengthValues(2, c.execCtxPtrValue, count, addr)
+			args := c.allocateVarLengthValues(3, c.execCtxPtrValue, count, addr)
 			memoryNotifyRet := builder.AllocateInstruction().
 				AsCallIndirect(memoryNotifyPtr, &c.memoryNotifySig, args).
 				Insert(builder).Return()
@@ -3460,6 +3392,25 @@ func (c *Compiler) lowerCurrentOpcode() {
 		elementAddr := c.lowerAccessTableWithBoundsCheck(tableIndex, targetOffsetInTable)
 		loaded := builder.AllocateInstruction().AsLoad(elementAddr, 0, ssa.TypeI64).Insert(builder).Return()
 		state.push(loaded)
+
+	case wasm.OpcodeTailCallReturnCallIndirect:
+		typeIndex := c.readI32u()
+		tableIndex := c.readI32u()
+		if state.unreachable {
+			break
+		}
+		_, _ = typeIndex, tableIndex
+		c.lowerTailCallReturnCallIndirect(typeIndex, tableIndex)
+		state.unreachable = true
+
+	case wasm.OpcodeTailCallReturnCall:
+		fnIndex := c.readI32u()
+		if state.unreachable {
+			break
+		}
+		c.lowerTailCallReturnCall(fnIndex)
+		state.unreachable = true
+
 	default:
 		panic("TODO: unsupported in wazevo yet: " + wasm.InstructionName(op))
 	}
@@ -3471,6 +3422,14 @@ func (c *Compiler) lowerCurrentOpcode() {
 		fmt.Println("--------------------------")
 	}
 	c.loweringState.pc++
+}
+
+func (c *Compiler) lowerReturn(builder ssa.Builder) {
+	results := c.nPeekDup(c.results())
+	instr := builder.AllocateInstruction()
+
+	instr.AsReturn(results)
+	builder.InsertInstruction(instr)
 }
 
 func (c *Compiler) lowerExtMul(v1, v2 ssa.Value, from, to ssa.VecLane, signed, low bool) ssa.Value {
@@ -3533,7 +3492,83 @@ func (c *Compiler) lowerAccessTableWithBoundsCheck(tableIndex uint32, elementOff
 	return calcElementAddressInTable.Return()
 }
 
-func (c *Compiler) lowerCallIndirect(typeIndex, tableIndex uint32) {
+func (c *Compiler) prepareCall(fnIndex uint32) (isIndirect bool, sig *ssa.Signature, args ssa.Values, funcRefOrPtrValue uint64) {
+	builder := c.ssaBuilder
+	state := c.state()
+	var typIndex wasm.Index
+	if fnIndex < c.m.ImportFunctionCount {
+		// Before transfer the control to the callee, we have to store the current module's moduleContextPtr
+		// into execContext.callerModuleContextPtr in case when the callee is a Go function.
+		c.storeCallerModuleContext()
+		var fi int
+		for i := range c.m.ImportSection {
+			imp := &c.m.ImportSection[i]
+			if imp.Type == wasm.ExternTypeFunc {
+				if fi == int(fnIndex) {
+					typIndex = imp.DescFunc
+					break
+				}
+				fi++
+			}
+		}
+	} else {
+		typIndex = c.m.FunctionSection[fnIndex-c.m.ImportFunctionCount]
+	}
+	typ := &c.m.TypeSection[typIndex]
+
+	argN := len(typ.Params)
+	tail := len(state.values) - argN
+	vs := state.values[tail:]
+	state.values = state.values[:tail]
+	args = c.allocateVarLengthValues(2+len(vs), c.execCtxPtrValue)
+
+	sig = c.signatures[typ]
+	if fnIndex >= c.m.ImportFunctionCount {
+		args = args.Append(builder.VarLengthPool(), c.moduleCtxPtrValue) // This case the callee module is itself.
+		args = args.Append(builder.VarLengthPool(), vs...)
+		return false, sig, args, uint64(FunctionIndexToFuncRef(fnIndex))
+	} else {
+		// This case we have to read the address of the imported function from the module context.
+		moduleCtx := c.moduleCtxPtrValue
+		loadFuncPtr, loadModuleCtxPtr := builder.AllocateInstruction(), builder.AllocateInstruction()
+		funcPtrOffset, moduleCtxPtrOffset, _ := c.offset.ImportedFunctionOffset(fnIndex)
+		loadFuncPtr.AsLoad(moduleCtx, funcPtrOffset.U32(), ssa.TypeI64)
+		loadModuleCtxPtr.AsLoad(moduleCtx, moduleCtxPtrOffset.U32(), ssa.TypeI64)
+		builder.InsertInstruction(loadFuncPtr)
+		builder.InsertInstruction(loadModuleCtxPtr)
+
+		args = args.Append(builder.VarLengthPool(), loadModuleCtxPtr.Return())
+		args = args.Append(builder.VarLengthPool(), vs...)
+
+		return true, sig, args, uint64(loadFuncPtr.Return())
+	}
+}
+
+func (c *Compiler) lowerCall(fnIndex uint32) {
+	builder := c.ssaBuilder
+	state := c.state()
+	isIndirect, sig, args, funcRefOrPtrValue := c.prepareCall(fnIndex)
+
+	call := builder.AllocateInstruction()
+	if isIndirect {
+		call.AsCallIndirect(ssa.Value(funcRefOrPtrValue), sig, args)
+	} else {
+		call.AsCall(ssa.FuncRef(funcRefOrPtrValue), sig, args)
+	}
+	builder.InsertInstruction(call)
+
+	first, rest := call.Returns()
+	if first.Valid() {
+		state.push(first)
+	}
+	for _, v := range rest {
+		state.push(v)
+	}
+
+	c.reloadAfterCall()
+}
+
+func (c *Compiler) prepareCallIndirect(typeIndex, tableIndex uint32) (ssa.Value, *wasm.FunctionType, ssa.Values) {
 	builder := c.ssaBuilder
 	state := c.state()
 
@@ -3601,6 +3636,14 @@ func (c *Compiler) lowerCallIndirect(typeIndex, tableIndex uint32) {
 	// into execContext.callerModuleContextPtr in case when the callee is a Go function.
 	c.storeCallerModuleContext()
 
+	return executablePtr, typ, args
+}
+
+func (c *Compiler) lowerCallIndirect(typeIndex, tableIndex uint32) {
+	builder := c.ssaBuilder
+	state := c.state()
+	executablePtr, typ, args := c.prepareCallIndirect(typeIndex, tableIndex)
+
 	call := builder.AllocateInstruction()
 	call.AsCallIndirect(executablePtr, c.signatures[typ], args)
 	builder.InsertInstruction(call)
@@ -3614,6 +3657,62 @@ func (c *Compiler) lowerCallIndirect(typeIndex, tableIndex uint32) {
 	}
 
 	c.reloadAfterCall()
+}
+
+func (c *Compiler) lowerTailCallReturnCall(fnIndex uint32) {
+	isIndirect, sig, args, funcRefOrPtrValue := c.prepareCall(fnIndex)
+	builder := c.ssaBuilder
+	state := c.state()
+
+	call := builder.AllocateInstruction()
+	if isIndirect {
+		call.AsTailCallReturnCallIndirect(ssa.Value(funcRefOrPtrValue), sig, args)
+	} else {
+		call.AsTailCallReturnCall(ssa.FuncRef(funcRefOrPtrValue), sig, args)
+	}
+	builder.InsertInstruction(call)
+
+	// In a proper tail call, the following code is unreachable since execution
+	// transfers to the callee. However, sometimes the backend might need to fall back to
+	// a regular call, so we include return handling and let the backend delete it
+	// when redundant.
+	// For details, see internal/engine/RATIONALE.md
+	first, rest := call.Returns()
+	if first.Valid() {
+		state.push(first)
+	}
+	for _, v := range rest {
+		state.push(v)
+	}
+
+	c.reloadAfterCall()
+	c.lowerReturn(builder)
+}
+
+func (c *Compiler) lowerTailCallReturnCallIndirect(typeIndex, tableIndex uint32) {
+	builder := c.ssaBuilder
+	state := c.state()
+	executablePtr, typ, args := c.prepareCallIndirect(typeIndex, tableIndex)
+
+	call := builder.AllocateInstruction()
+	call.AsTailCallReturnCallIndirect(executablePtr, c.signatures[typ], args)
+	builder.InsertInstruction(call)
+
+	// In a proper tail call, the following code is unreachable since execution
+	// transfers to the callee. However, sometimes the backend might need to fall back to
+	// a regular call, so we include return handling and let the backend delete it
+	// when redundant.
+	// For details, see internal/engine/RATIONALE.md
+	first, rest := call.Returns()
+	if first.Valid() {
+		state.push(first)
+	}
+	for _, v := range rest {
+		state.push(v)
+	}
+
+	c.reloadAfterCall()
+	c.lowerReturn(builder)
 }
 
 // memOpSetup inserts the bounds check and calculates the address of the memory operation (loads/stores).

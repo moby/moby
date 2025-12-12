@@ -2,8 +2,9 @@
 
 package platform
 
-import "syscall"
+const noopMprotectRX = true
 
 func MprotectRX(b []byte) error {
-	return syscall.ENOTSUP
+	// Assume we already called mmap with at least RX.
+	return nil
 }

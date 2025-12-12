@@ -39,7 +39,7 @@ func (i *instruction) encode(m *machine) {
 		c.Emit4Bytes(encodeUnconditionalBranch(false, imm))
 	case call:
 		// We still don't know the exact address of the function to call, so we emit a placeholder.
-		c.AddRelocationInfo(i.callFuncRef())
+		c.AddRelocationInfo(i.callFuncRef(), false)
 		c.Emit4Bytes(encodeUnconditionalBranch(true, 0)) // 0 = placeholder
 	case callInd:
 		c.Emit4Bytes(encodeUnconditionalBranchReg(regNumberInEncoding[i.rn.realReg()], true))
@@ -417,6 +417,12 @@ func (i *instruction) encode(m *machine) {
 		))
 	case dmb:
 		c.Emit4Bytes(encodeDMB())
+	case tailCall:
+		// We still don't know the exact address of the function to call, so we emit a placeholder.
+		c.AddRelocationInfo(i.callFuncRef(), true)        // true = IsTailCall
+		c.Emit4Bytes(encodeUnconditionalBranch(false, 0)) // 0 = placeholder
+	case tailCallInd:
+		c.Emit4Bytes(encodeUnconditionalBranchReg(regNumberInEncoding[i.rn.realReg()], false))
 	default:
 		panic(i.String())
 	}

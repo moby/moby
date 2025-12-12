@@ -272,9 +272,9 @@ func (c *compiler) wasmOpcodeSignature(op wasm.Opcode, index uint32) (*signature
 		return signature_I32_None, nil
 	case wasm.OpcodeReturn:
 		return signature_None_None, nil
-	case wasm.OpcodeCall:
+	case wasm.OpcodeCall, wasm.OpcodeTailCallReturnCall:
 		return c.funcTypeToSigs.get(c.funcs[index], false /* direct */), nil
-	case wasm.OpcodeCallIndirect:
+	case wasm.OpcodeCallIndirect, wasm.OpcodeTailCallReturnCallIndirect:
 		return c.funcTypeToSigs.get(index, true /* call_indirect */), nil
 	case wasm.OpcodeDrop:
 		return signature_Unknown_None, nil

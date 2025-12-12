@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"slices"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/tetratelabs/wazero/api"
@@ -23,11 +25,15 @@ import (
 )
 
 type (
+	compiledModuleWithCount struct {
+		*compiledModule
+		refCount int
+	}
 	// engine implements wasm.Engine.
 	engine struct {
 		wazeroVersion   string
 		fileCache       filecache.Cache
-		compiledModules map[wasm.ModuleID]*compiledModule
+		compiledModules map[wasm.ModuleID]*compiledModuleWithCount
 		// sortedCompiledModules is a list of compiled modules sorted by the initial address of the executable.
 		sortedCompiledModules []*compiledModule
 		mux                   sync.RWMutex
@@ -42,25 +48,32 @@ type (
 	}
 
 	sharedFunctions struct {
-		// memoryGrowExecutable is a compiled trampoline executable for memory.grow builtin function.
-		memoryGrowExecutable []byte
-		// checkModuleExitCode is a compiled trampoline executable for checking module instance exit code. This
-		// is used when ensureTermination is true.
-		checkModuleExitCode []byte
-		// stackGrowExecutable is a compiled executable for growing stack builtin function.
-		stackGrowExecutable []byte
-		// tableGrowExecutable is a compiled trampoline executable for table.grow builtin function.
-		tableGrowExecutable []byte
-		// refFuncExecutable is a compiled trampoline executable for ref.func builtin function.
-		refFuncExecutable []byte
-		// memoryWait32Executable is a compiled trampoline executable for memory.wait32 builtin function
-		memoryWait32Executable []byte
-		// memoryWait64Executable is a compiled trampoline executable for memory.wait64 builtin function
-		memoryWait64Executable []byte
-		// memoryNotifyExecutable is a compiled trampoline executable for memory.notify builtin function
-		memoryNotifyExecutable    []byte
-		listenerBeforeTrampolines map[*wasm.FunctionType][]byte
-		listenerAfterTrampolines  map[*wasm.FunctionType][]byte
+		// The compiled trampolines executable.
+		executable []byte
+		// memoryGrowAddress is the address of memory.grow builtin function.
+		memoryGrowAddress *byte
+		// checkModuleExitCodeAddress is the address of checking module instance exit code.
+		// This is used when ensureTermination is true.
+		checkModuleExitCodeAddress *byte
+		// stackGrowAddress is the address of growing stack builtin function.
+		stackGrowAddress *byte
+		// tableGrowAddress is the address of table.grow builtin function.
+		tableGrowAddress *byte
+		// refFuncAddress is the address of ref.func builtin function.
+		refFuncAddress *byte
+		// memoryWait32Address is the address of memory.wait32 builtin function
+		memoryWait32Address *byte
+		// memoryWait64Address is the address of memory.wait64 builtin function
+		memoryWait64Address *byte
+		// memoryNotifyAddress is the address of memory.notify builtin function
+		memoryNotifyAddress *byte
+		listenerTrampolines listenerTrampolines
+	}
+
+	listenerTrampolines = map[*wasm.FunctionType]struct {
+		executable []byte
+		before     *byte
+		after      *byte
 	}
 
 	// compiledModule is a compiled variant of a wasm.Module and ready to be used for instantiation.
@@ -83,8 +96,9 @@ type (
 	}
 
 	executables struct {
-		executable     []byte
-		entryPreambles [][]byte
+		executable         []byte
+		entryPreambles     []byte
+		entryPreamblesPtrs []*byte
 	}
 )
 
@@ -105,7 +119,7 @@ func NewEngine(ctx context.Context, _ api.CoreFeatures, fc filecache.Cache) wasm
 	machine := newMachine()
 	be := backend.NewCompiler(ctx, machine, ssa.NewBuilder())
 	e := &engine{
-		compiledModules: make(map[wasm.ModuleID]*compiledModule),
+		compiledModules: make(map[wasm.ModuleID]*compiledModuleWithCount),
 		setFinalizer:    runtime.SetFinalizer,
 		machine:         machine,
 		be:              be,
@@ -164,23 +178,46 @@ func (e *engine) CompileModule(ctx context.Context, module *wasm.Module, listene
 }
 
 func (exec *executables) compileEntryPreambles(m *wasm.Module, machine backend.Machine, be backend.Compiler) {
-	exec.entryPreambles = make([][]byte, len(m.TypeSection))
-	for i := range m.TypeSection {
+	if len(m.TypeSection) == 0 {
+		return
+	}
+
+	var preambles []byte
+	sizes := make([]int, len(m.TypeSection))
+
+	for i := range sizes {
 		typ := &m.TypeSection[i]
 		sig := frontend.SignatureForWasmFunctionType(typ)
 		be.Init()
 		buf := machine.CompileEntryPreamble(&sig)
-		executable := mmapExecutable(buf)
-		exec.entryPreambles[i] = executable
+		preambles = append(preambles, buf...)
+		align := 15 & -len(preambles) // Align 16-bytes boundary.
+		preambles = append(preambles, make([]byte, align)...)
+		sizes[i] = len(buf) + align
+	}
+
+	exec.entryPreambles = mmapExecutable(preambles)
+	exec.entryPreamblesPtrs = make([]*byte, len(sizes))
+
+	offset := 0
+	for i, size := range sizes {
+		ptr := &exec.entryPreambles[offset]
+		exec.entryPreamblesPtrs[i] = ptr
+		offset += size
 
 		if wazevoapi.PerfMapEnabled {
-			wazevoapi.PerfMap.AddEntry(uintptr(unsafe.Pointer(&executable[0])),
-				uint64(len(executable)), fmt.Sprintf("entry_preamble::type=%s", typ.String()))
+			typ := &m.TypeSection[i]
+			wazevoapi.PerfMap.AddEntry(uintptr(unsafe.Pointer(ptr)),
+				uint64(size), fmt.Sprintf("entry_preamble::type=%s", typ.String()))
 		}
 	}
 }
 
 func (e *engine) compileModule(ctx context.Context, module *wasm.Module, listeners []experimental.FunctionListener, ensureTermination bool) (*compiledModule, error) {
+	if module.IsHostModule {
+		return e.compileHostModule(ctx, module, listeners)
+	}
+
 	withListener := len(listeners) > 0
 	cm := &compiledModule{
 		offsets: wazevoapi.NewModuleContextOffsetData(module, withListener), parent: e, module: module,
@@ -188,116 +225,137 @@ func (e *engine) compileModule(ctx context.Context, module *wasm.Module, listene
 		executables:       &executables{},
 	}
 
-	if module.IsHostModule {
-		return e.compileHostModule(ctx, module, listeners)
-	}
-
 	importedFns, localFns := int(module.ImportFunctionCount), len(module.FunctionSection)
 	if localFns == 0 {
 		return cm, nil
 	}
 
-	rels := make([]backend.RelocationInfo, 0)
-	refToBinaryOffset := make([]int, importedFns+localFns)
-
-	if wazevoapi.DeterministicCompilationVerifierEnabled {
-		// The compilation must be deterministic regardless of the order of functions being compiled.
-		wazevoapi.DeterministicCompilationVerifierRandomizeIndexes(ctx)
+	machine := newMachine()
+	relocator, err := newEngineRelocator(machine, importedFns, localFns)
+	if err != nil {
+		return nil, err
 	}
 
 	needSourceInfo := module.DWARFLines != nil
 
-	// Creates new compiler instances which are reused for each function.
 	ssaBuilder := ssa.NewBuilder()
-	fe := frontend.NewFrontendCompiler(module, ssaBuilder, &cm.offsets, ensureTermination, withListener, needSourceInfo)
-	machine := newMachine()
 	be := backend.NewCompiler(ctx, machine, ssaBuilder)
-
 	cm.executables.compileEntryPreambles(module, machine, be)
-
-	totalSize := 0 // Total binary size of the executable.
 	cm.functionOffsets = make([]int, localFns)
-	bodies := make([][]byte, localFns)
 
-	// Trampoline relocation related variables.
-	trampolineInterval, callTrampolineIslandSize, err := machine.CallTrampolineIslandInfo(localFns)
-	if err != nil {
-		return nil, err
+	var indexes []int
+	if wazevoapi.DeterministicCompilationVerifierEnabled {
+		// The compilation must be deterministic regardless of the order of functions being compiled.
+		indexes = wazevoapi.DeterministicCompilationVerifierRandomizeIndexes(ctx)
 	}
-	needCallTrampoline := callTrampolineIslandSize > 0
-	var callTrampolineIslandOffsets []int // Holds the offsets of trampoline islands.
 
-	for i := range module.CodeSection {
-		if wazevoapi.DeterministicCompilationVerifierEnabled {
-			i = wazevoapi.DeterministicCompilationVerifierGetRandomizedLocalFunctionIndex(ctx, i)
-		}
+	if workers := experimental.GetCompilationWorkers(ctx); workers <= 1 {
+		// Compile with a single goroutine.
+		fe := frontend.NewFrontendCompiler(module, ssaBuilder, &cm.offsets, ensureTermination, withListener, needSourceInfo)
 
-		fidx := wasm.Index(i + importedFns)
-
-		if wazevoapi.NeedFunctionNameInContext {
-			def := module.FunctionDefinition(fidx)
-			name := def.DebugName()
-			if len(def.ExportNames()) > 0 {
-				name = def.ExportNames()[0]
+		for i := range module.CodeSection {
+			if wazevoapi.DeterministicCompilationVerifierEnabled {
+				i = indexes[i]
 			}
-			ctx = wazevoapi.SetCurrentFunctionName(ctx, i, fmt.Sprintf("[%d/%d]%s", i, len(module.CodeSection)-1, name))
-		}
 
-		needListener := len(listeners) > 0 && listeners[i] != nil
-		body, relsPerFunc, err := e.compileLocalWasmFunction(ctx, module, wasm.Index(i), fe, ssaBuilder, be, needListener)
-		if err != nil {
-			return nil, fmt.Errorf("compile function %d/%d: %v", i, len(module.CodeSection)-1, err)
-		}
+			fidx := wasm.Index(i + importedFns)
+			fctx := functionContext(ctx, module, i, fidx)
 
-		// Align 16-bytes boundary.
-		totalSize = (totalSize + 15) &^ 15
-		cm.functionOffsets[i] = totalSize
-
-		if needSourceInfo {
-			// At the beginning of the function, we add the offset of the function body so that
-			// we can resolve the source location of the call site of before listener call.
-			cm.sourceMap.executableOffsets = append(cm.sourceMap.executableOffsets, uintptr(totalSize))
-			cm.sourceMap.wasmBinaryOffsets = append(cm.sourceMap.wasmBinaryOffsets, module.CodeSection[i].BodyOffsetInCodeSection)
-
-			for _, info := range be.SourceOffsetInfo() {
-				cm.sourceMap.executableOffsets = append(cm.sourceMap.executableOffsets, uintptr(totalSize)+uintptr(info.ExecutableOffset))
-				cm.sourceMap.wasmBinaryOffsets = append(cm.sourceMap.wasmBinaryOffsets, uint64(info.SourceOffset))
+			needListener := len(listeners) > i && listeners[i] != nil
+			body, relsPerFunc, err := e.compileLocalWasmFunction(fctx, module, wasm.Index(i), fe, ssaBuilder, be, needListener)
+			if err != nil {
+				return nil, fmt.Errorf("compile function %d/%d: %v", i, len(module.CodeSection)-1, err)
 			}
+
+			relocator.appendFunction(fctx, module, cm, i, fidx, body, relsPerFunc, be.SourceOffsetInfo())
+		}
+	} else {
+		// Compile with N worker goroutines.
+		// Collect compiled functions across workers in a slice,
+		// to be added to the relocator in-order and resolved serially at the end.
+		// This uses more memory and CPU (across cores), but can be significantly faster.
+		type compiledFunc struct {
+			fctx        context.Context
+			fnum        int
+			fidx        wasm.Index
+			body        []byte
+			relsPerFunc []backend.RelocationInfo
+			offsPerFunc []backend.SourceOffsetInfo
 		}
 
-		fref := frontend.FunctionIndexToFuncRef(fidx)
-		refToBinaryOffset[fref] = totalSize
+		compiledFuncs := make([]compiledFunc, len(module.CodeSection))
+		ctx, cancel := context.WithCancelCause(ctx)
+		defer cancel(nil)
 
-		// At this point, relocation offsets are relative to the start of the function body,
-		// so we adjust it to the start of the executable.
-		for _, r := range relsPerFunc {
-			r.Offset += int64(totalSize)
-			rels = append(rels, r)
+		var count atomic.Uint32
+		var wg sync.WaitGroup
+		wg.Add(workers)
+
+		for range workers {
+			go func() {
+				defer wg.Done()
+
+				// Creates new compiler instances which are reused for each function.
+				machine := newMachine()
+				ssaBuilder := ssa.NewBuilder()
+				be := backend.NewCompiler(ctx, machine, ssaBuilder)
+				fe := frontend.NewFrontendCompiler(module, ssaBuilder, &cm.offsets, ensureTermination, withListener, needSourceInfo)
+
+				for {
+					if err := ctx.Err(); err != nil {
+						// Compilation canceled!
+						return
+					}
+
+					i := int(count.Add(1)) - 1
+					if i >= len(module.CodeSection) {
+						return
+					}
+
+					if wazevoapi.DeterministicCompilationVerifierEnabled {
+						i = indexes[i]
+					}
+
+					fidx := wasm.Index(i + importedFns)
+					fctx := functionContext(ctx, module, i, fidx)
+
+					needListener := len(listeners) > i && listeners[i] != nil
+					body, relsPerFunc, err := e.compileLocalWasmFunction(fctx, module, wasm.Index(i), fe, ssaBuilder, be, needListener)
+					if err != nil {
+						cancel(fmt.Errorf("compile function %d/%d: %v", i, len(module.CodeSection)-1, err))
+						return
+					}
+
+					compiledFuncs[i] = compiledFunc{
+						fctx, i, fidx, body,
+						// These slices are internal to the backend compiler and since we are going to buffer them instead
+						// of process them immediately we need to copy the memory.
+						slices.Clone(relsPerFunc),
+						slices.Clone(be.SourceOffsetInfo()),
+					}
+				}
+			}()
 		}
 
-		bodies[i] = body
-		totalSize += len(body)
-		if wazevoapi.PrintMachineCodeHexPerFunction {
-			fmt.Printf("[[[machine code for %s]]]\n%s\n\n", wazevoapi.GetCurrentFunctionName(ctx), hex.EncodeToString(body))
+		wg.Wait()
+		if err := context.Cause(ctx); err != nil {
+			return nil, err
 		}
 
-		if needCallTrampoline {
-			// If the total size exceeds the trampoline interval, we need to add a trampoline island.
-			if totalSize/trampolineInterval > len(callTrampolineIslandOffsets) {
-				callTrampolineIslandOffsets = append(callTrampolineIslandOffsets, totalSize)
-				totalSize += callTrampolineIslandSize
-			}
+		for i := range compiledFuncs {
+			fn := &compiledFuncs[i]
+			relocator.appendFunction(fn.fctx, module, cm, fn.fnum, fn.fidx, fn.body, fn.relsPerFunc, fn.offsPerFunc)
 		}
 	}
 
 	// Allocate executable memory and then copy the generated machine code.
-	executable, err := platform.MmapCodeSegment(totalSize)
+	executable, err := platform.MmapCodeSegment(relocator.totalSize)
 	if err != nil {
 		panic(err)
 	}
 	cm.executable = executable
 
-	for i, b := range bodies {
+	for i, b := range relocator.bodies {
 		offset := cm.functionOffsets[i]
 		copy(executable[offset:], b)
 	}
@@ -312,20 +370,106 @@ func (e *engine) compileModule(ctx context.Context, module *wasm.Module, listene
 		}
 	}
 
-	// Resolve relocations for local function calls.
-	if len(rels) > 0 {
-		machine.ResolveRelocations(refToBinaryOffset, importedFns, executable, rels, callTrampolineIslandOffsets)
-	}
+	relocator.resolveRelocations(machine, executable, importedFns)
 
-	if runtime.GOARCH == "arm64" {
-		// On arm64, we cannot give all of rwx at the same time, so we change it to exec.
-		if err = platform.MprotectRX(executable); err != nil {
-			return nil, err
-		}
+	if err = platform.MprotectRX(executable); err != nil {
+		return nil, err
 	}
 	cm.sharedFunctions = e.sharedFunctions
 	e.setFinalizer(cm.executables, executablesFinalizer)
 	return cm, nil
+}
+
+func functionContext(ctx context.Context, module *wasm.Module, fnum int, fidx wasm.Index) context.Context {
+	if wazevoapi.NeedFunctionNameInContext {
+		def := module.FunctionDefinition(fidx)
+		name := def.DebugName()
+		if len(def.ExportNames()) > 0 {
+			name = def.ExportNames()[0]
+		}
+		ctx = wazevoapi.SetCurrentFunctionName(ctx, fnum, fmt.Sprintf("[%d/%d]%s", fnum, len(module.CodeSection)-1, name))
+	}
+	return ctx
+}
+
+type engineRelocator struct {
+	bodies                      [][]byte
+	refToBinaryOffset           []int
+	rels                        []backend.RelocationInfo
+	totalSize                   int // Total binary size of the executable.
+	trampolineInterval          int
+	callTrampolineIslandSize    int
+	callTrampolineIslandOffsets []int // Holds the offsets of trampoline islands.
+}
+
+func newEngineRelocator(
+	machine backend.Machine,
+	importedFns, localFns int,
+) (r engineRelocator, err error) {
+	// Trampoline relocation related variables.
+	r.trampolineInterval, r.callTrampolineIslandSize, err = machine.CallTrampolineIslandInfo(localFns)
+	r.refToBinaryOffset = make([]int, importedFns+localFns)
+	r.bodies = make([][]byte, 0, localFns)
+	return
+}
+
+func (r *engineRelocator) resolveRelocations(machine backend.Machine, executable []byte, importedFns int) {
+	// Resolve relocations for local function calls.
+	if len(r.rels) > 0 {
+		machine.ResolveRelocations(r.refToBinaryOffset, importedFns, executable, r.rels, r.callTrampolineIslandOffsets)
+	}
+}
+
+func (r *engineRelocator) appendFunction(
+	ctx context.Context,
+	module *wasm.Module,
+	cm *compiledModule,
+	fnum int, fidx wasm.Index,
+	body []byte,
+	relsPerFunc []backend.RelocationInfo,
+	offsPerFunc []backend.SourceOffsetInfo,
+) {
+	// Align 16-bytes boundary.
+	r.totalSize = (r.totalSize + 15) &^ 15
+	cm.functionOffsets[fnum] = r.totalSize
+
+	needSourceInfo := module.DWARFLines != nil
+	if needSourceInfo {
+		// At the beginning of the function, we add the offset of the function body so that
+		// we can resolve the source location of the call site of before listener call.
+		cm.sourceMap.executableOffsets = append(cm.sourceMap.executableOffsets, uintptr(r.totalSize))
+		cm.sourceMap.wasmBinaryOffsets = append(cm.sourceMap.wasmBinaryOffsets, module.CodeSection[fnum].BodyOffsetInCodeSection)
+
+		for _, info := range offsPerFunc {
+			cm.sourceMap.executableOffsets = append(cm.sourceMap.executableOffsets, uintptr(r.totalSize)+uintptr(info.ExecutableOffset))
+			cm.sourceMap.wasmBinaryOffsets = append(cm.sourceMap.wasmBinaryOffsets, uint64(info.SourceOffset))
+		}
+	}
+
+	fref := frontend.FunctionIndexToFuncRef(fidx)
+	r.refToBinaryOffset[fref] = r.totalSize
+
+	// At this point, relocation offsets are relative to the start of the function body,
+	// so we adjust it to the start of the executable.
+	r.rels = slices.Grow(r.rels, len(relsPerFunc))
+	for _, rel := range relsPerFunc {
+		rel.Offset += int64(r.totalSize)
+		r.rels = append(r.rels, rel)
+	}
+
+	r.totalSize += len(body)
+	r.bodies = append(r.bodies, body)
+	if wazevoapi.PrintMachineCodeHexPerFunction {
+		fmt.Printf("[[[machine code for %s]]]\n%s\n\n", wazevoapi.GetCurrentFunctionName(ctx), hex.EncodeToString(body))
+	}
+
+	if r.callTrampolineIslandSize > 0 {
+		// If the total size exceeds the trampoline interval, we need to add a trampoline island.
+		if r.totalSize/r.trampolineInterval > len(r.callTrampolineIslandOffsets) {
+			r.callTrampolineIslandOffsets = append(r.callTrampolineIslandOffsets, r.totalSize)
+			r.totalSize += r.callTrampolineIslandSize
+		}
+	}
 }
 
 func (e *engine) compileLocalWasmFunction(
@@ -374,9 +518,7 @@ func (e *engine) compileLocalWasmFunction(
 	}
 
 	// TODO: optimize as zero copy.
-	copied := make([]byte, len(original))
-	copy(copied, original)
-	return copied, rels, nil
+	return slices.Clone(original), rels, nil
 }
 
 func (e *engine) compileHostModule(ctx context.Context, module *wasm.Module, listeners []experimental.FunctionListener) (*compiledModule, error) {
@@ -448,9 +590,7 @@ func (e *engine) compileHostModule(ctx context.Context, module *wasm.Module, lis
 		}
 
 		// TODO: optimize as zero copy.
-		copied := make([]byte, len(body))
-		copy(copied, body)
-		bodies[i] = copied
+		bodies[i] = slices.Clone(body)
 		totalSize += len(body)
 	}
 
@@ -475,11 +615,8 @@ func (e *engine) compileHostModule(ctx context.Context, module *wasm.Module, lis
 		wazevoapi.PerfMap.Flush(uintptr(unsafe.Pointer(&executable[0])), cm.functionOffsets)
 	}
 
-	if runtime.GOARCH == "arm64" {
-		// On arm64, we cannot give all of rwx at the same time, so we change it to exec.
-		if err = platform.MprotectRX(executable); err != nil {
-			return nil, err
-		}
+	if err = platform.MprotectRX(executable); err != nil {
+		return nil, err
 	}
 	e.setFinalizer(cm.executables, executablesFinalizer)
 	return cm, nil
@@ -507,12 +644,17 @@ func (e *engine) DeleteCompiledModule(m *wasm.Module) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 	cm, ok := e.compiledModules[m.ID]
-	if ok {
-		if len(cm.executable) > 0 {
-			e.deleteCompiledModuleFromSortedList(cm)
-		}
-		delete(e.compiledModules, m.ID)
+	if !ok {
+		return
 	}
+	cm.refCount--
+	if cm.refCount > 0 {
+		return
+	}
+	if len(cm.executable) > 0 {
+		e.deleteCompiledModuleFromSortedList(cm.compiledModule)
+	}
+	delete(e.compiledModules, m.ID)
 }
 
 func (e *engine) addCompiledModuleToSortedList(cm *compiledModule) {
@@ -569,7 +711,7 @@ func (e *engine) NewModuleEngine(m *wasm.Module, mi *wasm.ModuleInstance) (wasm.
 	// Note: imported functions are resolved in moduleEngine.ResolveImportedFunction.
 	me.importedFunctions = make([]importedFunction, m.ImportFunctionCount)
 
-	compiled, ok := e.getCompiledModuleFromMemory(m)
+	compiled, ok := e.getCompiledModuleFromMemory(m, false)
 	if !ok {
 		return nil, errors.New("source module must be compiled before instantiation")
 	}
@@ -591,167 +733,123 @@ func (e *engine) NewModuleEngine(m *wasm.Module, mi *wasm.ModuleInstance) (wasm.
 }
 
 func (e *engine) compileSharedFunctions() {
-	e.sharedFunctions = &sharedFunctions{
-		listenerBeforeTrampolines: make(map[*wasm.FunctionType][]byte),
-		listenerAfterTrampolines:  make(map[*wasm.FunctionType][]byte),
+	var sizes [8]int
+	var trampolines []byte
+
+	addTrampoline := func(i int, buf []byte) {
+		trampolines = append(trampolines, buf...)
+		align := 15 & -len(trampolines) // Align 16-bytes boundary.
+		trampolines = append(trampolines, make([]byte, align)...)
+		sizes[i] = len(buf) + align
 	}
 
 	e.be.Init()
-	{
-		src := e.machine.CompileGoFunctionTrampoline(wazevoapi.ExitCodeGrowMemory, &ssa.Signature{
+	addTrampoline(0,
+		e.machine.CompileGoFunctionTrampoline(wazevoapi.ExitCodeGrowMemory, &ssa.Signature{
 			Params:  []ssa.Type{ssa.TypeI64 /* exec context */, ssa.TypeI32},
 			Results: []ssa.Type{ssa.TypeI32},
-		}, false)
-		e.sharedFunctions.memoryGrowExecutable = mmapExecutable(src)
-		if wazevoapi.PerfMapEnabled {
-			exe := e.sharedFunctions.memoryGrowExecutable
-			wazevoapi.PerfMap.AddEntry(uintptr(unsafe.Pointer(&exe[0])), uint64(len(exe)), "memory_grow_trampoline")
-		}
-	}
+		}, false))
 
 	e.be.Init()
-	{
-		src := e.machine.CompileGoFunctionTrampoline(wazevoapi.ExitCodeTableGrow, &ssa.Signature{
+	addTrampoline(1,
+		e.machine.CompileGoFunctionTrampoline(wazevoapi.ExitCodeTableGrow, &ssa.Signature{
 			Params:  []ssa.Type{ssa.TypeI64 /* exec context */, ssa.TypeI32 /* table index */, ssa.TypeI32 /* num */, ssa.TypeI64 /* ref */},
 			Results: []ssa.Type{ssa.TypeI32},
-		}, false)
-		e.sharedFunctions.tableGrowExecutable = mmapExecutable(src)
-		if wazevoapi.PerfMapEnabled {
-			exe := e.sharedFunctions.tableGrowExecutable
-			wazevoapi.PerfMap.AddEntry(uintptr(unsafe.Pointer(&exe[0])), uint64(len(exe)), "table_grow_trampoline")
-		}
-	}
+		}, false))
 
 	e.be.Init()
-	{
-		src := e.machine.CompileGoFunctionTrampoline(wazevoapi.ExitCodeCheckModuleExitCode, &ssa.Signature{
+	addTrampoline(2,
+		e.machine.CompileGoFunctionTrampoline(wazevoapi.ExitCodeCheckModuleExitCode, &ssa.Signature{
 			Params:  []ssa.Type{ssa.TypeI32 /* exec context */},
 			Results: []ssa.Type{ssa.TypeI32},
-		}, false)
-		e.sharedFunctions.checkModuleExitCode = mmapExecutable(src)
-		if wazevoapi.PerfMapEnabled {
-			exe := e.sharedFunctions.checkModuleExitCode
-			wazevoapi.PerfMap.AddEntry(uintptr(unsafe.Pointer(&exe[0])), uint64(len(exe)), "check_module_exit_code_trampoline")
-		}
-	}
+		}, false))
 
 	e.be.Init()
-	{
-		src := e.machine.CompileGoFunctionTrampoline(wazevoapi.ExitCodeRefFunc, &ssa.Signature{
+	addTrampoline(3,
+		e.machine.CompileGoFunctionTrampoline(wazevoapi.ExitCodeRefFunc, &ssa.Signature{
 			Params:  []ssa.Type{ssa.TypeI64 /* exec context */, ssa.TypeI32 /* function index */},
 			Results: []ssa.Type{ssa.TypeI64}, // returns the function reference.
-		}, false)
-		e.sharedFunctions.refFuncExecutable = mmapExecutable(src)
-		if wazevoapi.PerfMapEnabled {
-			exe := e.sharedFunctions.refFuncExecutable
-			wazevoapi.PerfMap.AddEntry(uintptr(unsafe.Pointer(&exe[0])), uint64(len(exe)), "ref_func_trampoline")
-		}
-	}
+		}, false))
 
 	e.be.Init()
-	{
-		src := e.machine.CompileStackGrowCallSequence()
-		e.sharedFunctions.stackGrowExecutable = mmapExecutable(src)
-		if wazevoapi.PerfMapEnabled {
-			exe := e.sharedFunctions.stackGrowExecutable
-			wazevoapi.PerfMap.AddEntry(uintptr(unsafe.Pointer(&exe[0])), uint64(len(exe)), "stack_grow_trampoline")
-		}
-	}
+	addTrampoline(4, e.machine.CompileStackGrowCallSequence())
 
 	e.be.Init()
-	{
-		src := e.machine.CompileGoFunctionTrampoline(wazevoapi.ExitCodeMemoryWait32, &ssa.Signature{
+	addTrampoline(5,
+		e.machine.CompileGoFunctionTrampoline(wazevoapi.ExitCodeMemoryWait32, &ssa.Signature{
 			// exec context, timeout, expected, addr
 			Params: []ssa.Type{ssa.TypeI64, ssa.TypeI64, ssa.TypeI32, ssa.TypeI64},
 			// Returns the status.
 			Results: []ssa.Type{ssa.TypeI32},
-		}, false)
-		e.sharedFunctions.memoryWait32Executable = mmapExecutable(src)
-		if wazevoapi.PerfMapEnabled {
-			exe := e.sharedFunctions.memoryWait32Executable
-			wazevoapi.PerfMap.AddEntry(uintptr(unsafe.Pointer(&exe[0])), uint64(len(exe)), "memory_wait32_trampoline")
-		}
-	}
+		}, false))
 
 	e.be.Init()
-	{
-		src := e.machine.CompileGoFunctionTrampoline(wazevoapi.ExitCodeMemoryWait64, &ssa.Signature{
+	addTrampoline(6,
+		e.machine.CompileGoFunctionTrampoline(wazevoapi.ExitCodeMemoryWait64, &ssa.Signature{
 			// exec context, timeout, expected, addr
 			Params: []ssa.Type{ssa.TypeI64, ssa.TypeI64, ssa.TypeI64, ssa.TypeI64},
 			// Returns the status.
 			Results: []ssa.Type{ssa.TypeI32},
-		}, false)
-		e.sharedFunctions.memoryWait64Executable = mmapExecutable(src)
-		if wazevoapi.PerfMapEnabled {
-			exe := e.sharedFunctions.memoryWait64Executable
-			wazevoapi.PerfMap.AddEntry(uintptr(unsafe.Pointer(&exe[0])), uint64(len(exe)), "memory_wait64_trampoline")
-		}
-	}
+		}, false))
 
 	e.be.Init()
-	{
-		src := e.machine.CompileGoFunctionTrampoline(wazevoapi.ExitCodeMemoryNotify, &ssa.Signature{
+	addTrampoline(7,
+		e.machine.CompileGoFunctionTrampoline(wazevoapi.ExitCodeMemoryNotify, &ssa.Signature{
 			// exec context, count, addr
 			Params: []ssa.Type{ssa.TypeI64, ssa.TypeI32, ssa.TypeI64},
 			// Returns the number notified.
 			Results: []ssa.Type{ssa.TypeI32},
-		}, false)
-		e.sharedFunctions.memoryNotifyExecutable = mmapExecutable(src)
-		if wazevoapi.PerfMapEnabled {
-			exe := e.sharedFunctions.memoryNotifyExecutable
-			wazevoapi.PerfMap.AddEntry(uintptr(unsafe.Pointer(&exe[0])), uint64(len(exe)), "memory_notify_trampoline")
-		}
+		}, false))
+
+	fns := &sharedFunctions{
+		executable:          mmapExecutable(trampolines),
+		listenerTrampolines: make(listenerTrampolines),
+	}
+	e.setFinalizer(fns, sharedFunctionsFinalizer)
+
+	offset := 0
+	fns.memoryGrowAddress = &fns.executable[offset]
+	offset += sizes[0]
+	fns.tableGrowAddress = &fns.executable[offset]
+	offset += sizes[1]
+	fns.checkModuleExitCodeAddress = &fns.executable[offset]
+	offset += sizes[2]
+	fns.refFuncAddress = &fns.executable[offset]
+	offset += sizes[3]
+	fns.stackGrowAddress = &fns.executable[offset]
+	offset += sizes[4]
+	fns.memoryWait32Address = &fns.executable[offset]
+	offset += sizes[5]
+	fns.memoryWait64Address = &fns.executable[offset]
+	offset += sizes[6]
+	fns.memoryNotifyAddress = &fns.executable[offset]
+
+	if wazevoapi.PerfMapEnabled {
+		wazevoapi.PerfMap.AddEntry(uintptr(unsafe.Pointer(fns.memoryGrowAddress)), uint64(sizes[0]), "memory_grow_trampoline")
+		wazevoapi.PerfMap.AddEntry(uintptr(unsafe.Pointer(fns.tableGrowAddress)), uint64(sizes[1]), "table_grow_trampoline")
+		wazevoapi.PerfMap.AddEntry(uintptr(unsafe.Pointer(fns.checkModuleExitCodeAddress)), uint64(sizes[2]), "check_module_exit_code_trampoline")
+		wazevoapi.PerfMap.AddEntry(uintptr(unsafe.Pointer(fns.refFuncAddress)), uint64(sizes[3]), "ref_func_trampoline")
+		wazevoapi.PerfMap.AddEntry(uintptr(unsafe.Pointer(fns.stackGrowAddress)), uint64(sizes[4]), "stack_grow_trampoline")
+		wazevoapi.PerfMap.AddEntry(uintptr(unsafe.Pointer(fns.memoryWait32Address)), uint64(sizes[5]), "memory_wait32_trampoline")
+		wazevoapi.PerfMap.AddEntry(uintptr(unsafe.Pointer(fns.memoryWait64Address)), uint64(sizes[6]), "memory_wait64_trampoline")
+		wazevoapi.PerfMap.AddEntry(uintptr(unsafe.Pointer(fns.memoryNotifyAddress)), uint64(sizes[7]), "memory_notify_trampoline")
 	}
 
-	e.setFinalizer(e.sharedFunctions, sharedFunctionsFinalizer)
+	e.sharedFunctions = fns
 }
 
 func sharedFunctionsFinalizer(sf *sharedFunctions) {
-	if err := platform.MunmapCodeSegment(sf.memoryGrowExecutable); err != nil {
+	if err := platform.MunmapCodeSegment(sf.executable); err != nil {
 		panic(err)
 	}
-	if err := platform.MunmapCodeSegment(sf.checkModuleExitCode); err != nil {
-		panic(err)
-	}
-	if err := platform.MunmapCodeSegment(sf.stackGrowExecutable); err != nil {
-		panic(err)
-	}
-	if err := platform.MunmapCodeSegment(sf.tableGrowExecutable); err != nil {
-		panic(err)
-	}
-	if err := platform.MunmapCodeSegment(sf.refFuncExecutable); err != nil {
-		panic(err)
-	}
-	if err := platform.MunmapCodeSegment(sf.memoryWait32Executable); err != nil {
-		panic(err)
-	}
-	if err := platform.MunmapCodeSegment(sf.memoryWait64Executable); err != nil {
-		panic(err)
-	}
-	if err := platform.MunmapCodeSegment(sf.memoryNotifyExecutable); err != nil {
-		panic(err)
-	}
-	for _, f := range sf.listenerBeforeTrampolines {
-		if err := platform.MunmapCodeSegment(f); err != nil {
-			panic(err)
-		}
-	}
-	for _, f := range sf.listenerAfterTrampolines {
-		if err := platform.MunmapCodeSegment(f); err != nil {
+	for _, f := range sf.listenerTrampolines {
+		if err := platform.MunmapCodeSegment(f.executable); err != nil {
 			panic(err)
 		}
 	}
 
-	sf.memoryGrowExecutable = nil
-	sf.checkModuleExitCode = nil
-	sf.stackGrowExecutable = nil
-	sf.tableGrowExecutable = nil
-	sf.refFuncExecutable = nil
-	sf.memoryWait32Executable = nil
-	sf.memoryWait64Executable = nil
-	sf.memoryNotifyExecutable = nil
-	sf.listenerBeforeTrampolines = nil
-	sf.listenerAfterTrampolines = nil
+	sf.executable = nil
+	sf.listenerTrampolines = nil
 }
 
 func executablesFinalizer(exec *executables) {
@@ -762,12 +860,13 @@ func executablesFinalizer(exec *executables) {
 	}
 	exec.executable = nil
 
-	for _, f := range exec.entryPreambles {
-		if err := platform.MunmapCodeSegment(f); err != nil {
+	if len(exec.entryPreambles) > 0 {
+		if err := platform.MunmapCodeSegment(exec.entryPreambles); err != nil {
 			panic(err)
 		}
 	}
 	exec.entryPreambles = nil
+	exec.entryPreamblesPtrs = nil
 }
 
 func mmapExecutable(src []byte) []byte {
@@ -778,11 +877,8 @@ func mmapExecutable(src []byte) []byte {
 
 	copy(executable, src)
 
-	if runtime.GOARCH == "arm64" {
-		// On arm64, we cannot give all of rwx at the same time, so we change it to exec.
-		if err = platform.MprotectRX(executable); err != nil {
-			panic(err)
-		}
+	if err = platform.MprotectRX(executable); err != nil {
+		panic(err)
 	}
 	return executable
 }
@@ -804,25 +900,30 @@ func (e *engine) getListenerTrampolineForType(functionType *wasm.FunctionType) (
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
-	beforeBuf, ok := e.sharedFunctions.listenerBeforeTrampolines[functionType]
-	afterBuf := e.sharedFunctions.listenerAfterTrampolines[functionType]
-	if ok {
-		return &beforeBuf[0], &afterBuf[0]
+	trampoline, ok := e.sharedFunctions.listenerTrampolines[functionType]
+	if !ok {
+		var executable []byte
+		beforeSig, afterSig := frontend.SignatureForListener(functionType)
+
+		e.be.Init()
+		buf := e.machine.CompileGoFunctionTrampoline(wazevoapi.ExitCodeCallListenerBefore, beforeSig, false)
+		executable = append(executable, buf...)
+
+		align := 15 & -len(executable) // Align 16-bytes boundary.
+		executable = append(executable, make([]byte, align)...)
+		offset := len(executable)
+
+		e.be.Init()
+		buf = e.machine.CompileGoFunctionTrampoline(wazevoapi.ExitCodeCallListenerAfter, afterSig, false)
+		executable = append(executable, buf...)
+
+		trampoline.executable = mmapExecutable(executable)
+		trampoline.before = &trampoline.executable[0]
+		trampoline.after = &trampoline.executable[offset]
+
+		e.sharedFunctions.listenerTrampolines[functionType] = trampoline
 	}
-
-	beforeSig, afterSig := frontend.SignatureForListener(functionType)
-
-	e.be.Init()
-	buf := e.machine.CompileGoFunctionTrampoline(wazevoapi.ExitCodeCallListenerBefore, beforeSig, false)
-	beforeBuf = mmapExecutable(buf)
-
-	e.be.Init()
-	buf = e.machine.CompileGoFunctionTrampoline(wazevoapi.ExitCodeCallListenerAfter, afterSig, false)
-	afterBuf = mmapExecutable(buf)
-
-	e.sharedFunctions.listenerBeforeTrampolines[functionType] = beforeBuf
-	e.sharedFunctions.listenerAfterTrampolines[functionType] = afterBuf
-	return &beforeBuf[0], &afterBuf[0]
+	return trampoline.before, trampoline.after
 }
 
 func (cm *compiledModule) getSourceOffset(pc uintptr) uint64 {

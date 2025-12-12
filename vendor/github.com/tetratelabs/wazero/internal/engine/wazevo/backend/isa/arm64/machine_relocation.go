@@ -59,13 +59,19 @@ func (m *machine) ResolveRelocations(
 		if diff < minUnconditionalBranchOffset || diff > maxUnconditionalBranchOffset {
 			// Find the near trampoline island from callTrampolineIslandOffsets.
 			islandOffset := searchTrampolineIsland(callTrampolineIslandOffsets, int(instrOffset))
-			islandTargetOffset := islandOffset + trampolineCallSize*int(r.FuncRef)
+			// Imported functions don't need trampolines, so we ignore them when we compute the offset
+			// (see also encodeCallTrampolineIsland)
+			funcOffset := int(r.FuncRef) - importedFns
+			islandTargetOffset := islandOffset + trampolineCallSize*funcOffset
 			diff = int64(islandTargetOffset) - (instrOffset)
 			if diff < minUnconditionalBranchOffset || diff > maxUnconditionalBranchOffset {
 				panic("BUG in trampoline placement")
 			}
 		}
-		binary.LittleEndian.PutUint32(executable[instrOffset:instrOffset+4], encodeUnconditionalBranch(true, diff))
+		// The unconditional branch instruction is usually encoded as a branch-and-link (BL),
+		// because it is a function call. However, if the instruction is a tail call,
+		// we encode it as a plain unconditional branch (B), so we won't overwrite the link register.
+		binary.LittleEndian.PutUint32(executable[instrOffset:instrOffset+4], encodeUnconditionalBranch(!r.IsTailCall, diff))
 	}
 }
 

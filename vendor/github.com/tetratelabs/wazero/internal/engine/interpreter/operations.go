@@ -445,6 +445,10 @@ func (o operationKind) String() (ret string) {
 		ret = "operationKindAtomicRMW8Cmpxchg"
 	case operationKindAtomicRMW16Cmpxchg:
 		ret = "operationKindAtomicRMW16Cmpxchg"
+	case operationKindTailCallReturnCall:
+		ret = "operationKindTailCallReturnCall"
+	case operationKindTailCallReturnCallIndirect:
+		ret = "operationKindTailCallReturnCallIndirect"
 	default:
 		panic(fmt.Errorf("unknown operation %d", o))
 	}
@@ -767,6 +771,11 @@ const (
 	operationKindAtomicRMW8Cmpxchg
 	// operationKindAtomicRMW16Cmpxchg is the kind for NewOperationAtomicRMW16Cmpxchg.
 	operationKindAtomicRMW16Cmpxchg
+
+	// operationKindTailCallReturnCall is the Kind for newOperationTailCallReturnCall.
+	operationKindTailCallReturnCall
+	// operationKindTailCallReturnCallIndirect is the Kind for newOperationKindTailCallReturnCallIndirect.
+	operationKindTailCallReturnCallIndirect
 
 	// operationKindEnd is always placed at the bottom of this iota definition to be used in the test.
 	operationKindEnd
@@ -1096,6 +1105,12 @@ func (o unionOperation) String() string {
 		operationKindAtomicRMW8Cmpxchg,
 		operationKindAtomicRMW16Cmpxchg:
 		return o.Kind.String()
+
+	case operationKindTailCallReturnCall:
+		return fmt.Sprintf("%s %d %s", o.Kind, o.U1, label(o.U2).String())
+
+	case operationKindTailCallReturnCallIndirect:
+		return fmt.Sprintf("%s %d %d", o.Kind, o.U1, o.U2)
 
 	default:
 		panic(fmt.Sprintf("TODO: %v", o.Kind))
@@ -2809,4 +2824,22 @@ func newOperationAtomicRMW8Cmpxchg(unsignedType unsignedType, arg memoryArg) uni
 //	wasm.OpcodeAtomicI32RMW16CmpxchgUName wasm.OpcodeAtomicI64Rmw16CmpxchgUName
 func newOperationAtomicRMW16Cmpxchg(unsignedType unsignedType, arg memoryArg) unionOperation {
 	return unionOperation{Kind: operationKindAtomicRMW16Cmpxchg, B1: byte(unsignedType), U1: uint64(arg.Alignment), U2: uint64(arg.Offset)}
+}
+
+// newOperationTailCallReturnCall is a constructor for unionOperation with operationKindTailCallReturnCall.
+//
+// This corresponds to
+//
+//	wasm.OpcodeTailCallReturnCall.
+func newOperationTailCallReturnCall(functionIndex uint32) unionOperation {
+	return unionOperation{Kind: operationKindTailCallReturnCall, U1: uint64(functionIndex)}
+}
+
+// NewOperationCallIndirect is a constructor for unionOperation with operationKindTailCallReturnCallIndirect.
+//
+// This corresponds to
+//
+//	wasm.OpcodeTailCallReturnCallIndirect.
+func newOperationTailCallReturnCallIndirect(typeIndex, tableIndex uint32, dropDepth inclusiveRange, l label) unionOperation {
+	return unionOperation{Kind: operationKindTailCallReturnCallIndirect, U1: uint64(typeIndex), U2: uint64(tableIndex), Us: []uint64{dropDepth.AsU64(), uint64(l)}}
 }

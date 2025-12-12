@@ -7,6 +7,8 @@ import (
 	"unsafe"
 )
 
+const noopMprotectRX = false
+
 // MprotectRX is like syscall.Mprotect with RX permission, defined locally so that BSD compiles.
 func MprotectRX(b []byte) (err error) {
 	var _p0 unsafe.Pointer

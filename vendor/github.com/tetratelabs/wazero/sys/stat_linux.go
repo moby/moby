@@ -1,4 +1,4 @@
-//go:build (amd64 || arm64 || riscv64) && linux
+//go:build (amd64 || arm64 || ppc64le || riscv64 || s390x) && linux
 
 // Note: This expression is not the same as compiler support, even if it looks
 // similar. Platform functions here are used in interpreter mode as well.

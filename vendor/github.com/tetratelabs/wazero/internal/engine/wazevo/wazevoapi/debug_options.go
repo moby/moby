@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -91,7 +92,7 @@ type (
 		initialCompilationDone bool
 		maybeRandomizedIndexes []int
 		r                      *rand.Rand
-		values                 map[string]string
+		values                 sync.Map
 	}
 	verifierStateContextKey struct{}
 	currentFunctionNameKey  struct{}
@@ -106,31 +107,24 @@ func NewDeterministicCompilationVerifierContext(ctx context.Context, localFuncti
 	}
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	return context.WithValue(ctx, verifierStateContextKey{}, &verifierState{
-		r: r, maybeRandomizedIndexes: maybeRandomizedIndexes, values: map[string]string{},
+		r: r, maybeRandomizedIndexes: maybeRandomizedIndexes, values: sync.Map{},
 	})
 }
 
 // DeterministicCompilationVerifierRandomizeIndexes randomizes the indexes for the deterministic compilation verifier.
-// To get the randomized index, use DeterministicCompilationVerifierGetRandomizedLocalFunctionIndex.
-func DeterministicCompilationVerifierRandomizeIndexes(ctx context.Context) {
+// Returns a slice that maps an index to the randomized index.
+func DeterministicCompilationVerifierRandomizeIndexes(ctx context.Context) []int {
 	state := ctx.Value(verifierStateContextKey{}).(*verifierState)
 	if !state.initialCompilationDone {
 		// If this is the first attempt, we use the index as-is order.
 		state.initialCompilationDone = true
-		return
+		return state.maybeRandomizedIndexes
 	}
 	r := state.r
 	r.Shuffle(len(state.maybeRandomizedIndexes), func(i, j int) {
 		state.maybeRandomizedIndexes[i], state.maybeRandomizedIndexes[j] = state.maybeRandomizedIndexes[j], state.maybeRandomizedIndexes[i]
 	})
-}
-
-// DeterministicCompilationVerifierGetRandomizedLocalFunctionIndex returns the randomized index for the given `index`
-// which is assigned by DeterministicCompilationVerifierRandomizeIndexes.
-func DeterministicCompilationVerifierGetRandomizedLocalFunctionIndex(ctx context.Context, index int) int {
-	state := ctx.Value(verifierStateContextKey{}).(*verifierState)
-	ret := state.maybeRandomizedIndexes[index]
-	return ret
+	return state.maybeRandomizedIndexes
 }
 
 // VerifyOrSetDeterministicCompilationContextValue verifies that the `newValue` is the same as the previous value for the given `scope`
@@ -141,9 +135,8 @@ func VerifyOrSetDeterministicCompilationContextValue(ctx context.Context, scope 
 	fn := ctx.Value(currentFunctionNameKey{}).(string)
 	key := fn + ": " + scope
 	verifierCtx := ctx.Value(verifierStateContextKey{}).(*verifierState)
-	oldValue, ok := verifierCtx.values[key]
-	if !ok {
-		verifierCtx.values[key] = newValue
+	oldValue, loaded := verifierCtx.values.LoadOrStore(key, newValue)
+	if !loaded {
 		return
 	}
 	if oldValue != newValue {
