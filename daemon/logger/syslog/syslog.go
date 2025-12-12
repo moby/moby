@@ -82,51 +82,92 @@ func rfc5424microformatterWithAppNameAsTag(p syslog.Priority, hostname, tag, con
 	return msg
 }
 
+// newSyslogger is a small helper that dials syslog using either plain TCP/UDP or
+// tcp+tls depending on proto and sets the formatter/framer.
+func newSyslogger(proto, address string, facility syslog.Priority, tag string, formatter syslog.Formatter, framer syslog.Framer, tlsCfg *tls.Config) (logger.Logger, error) {
+	var (
+		logWriter *syslog.Writer
+		err       error
+	)
+
+	if proto == secureProto {
+		if tlsCfg == nil {
+			return nil, errors.New("tls config is required for tcp+tls syslog")
+		}
+		logWriter, err = syslog.DialWithTLSConfig(proto, address, facility, tag, tlsCfg)
+	} else {
+		logWriter, err = syslog.Dial(proto, address, facility, tag)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	logWriter.SetFormatter(formatter)
+	logWriter.SetFramer(framer)
+
+	return &syslogger{writer: logWriter}, nil
+}
+
+// buildSyslogParams parses the common logger.Info fields (tag, address,
+// facility, format) into the concrete values needed to construct a syslogger.
+// It is shared by both New and NewWithTLSConfig so that they stay in sync.
+func buildSyslogParams(info logger.Info) (tag, proto, address string,
+	facility syslog.Priority, formatter syslog.Formatter, framer syslog.Framer,
+	err error) {
+	tag, err = loggerutils.ParseLogTag(info, loggerutils.DefaultTemplate)
+	if err != nil {
+		return
+	}
+
+	proto, address, err = parseAddress(info.Config["syslog-address"])
+	if err != nil {
+		return
+	}
+
+	facility, err = parseFacility(info.Config["syslog-facility"])
+	if err != nil {
+		return
+	}
+
+	formatter, framer, err = parseLogFormat(info.Config["syslog-format"], proto)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
 // New creates a syslog logger using the configuration passed in on
 // the context. Supported context configuration variables are
 // syslog-address, syslog-facility, syslog-format.
 func New(info logger.Info) (logger.Logger, error) {
-	tag, err := loggerutils.ParseLogTag(info, loggerutils.DefaultTemplate)
+	tag, proto, address, facility, syslogFormatter, syslogFramer, err := buildSyslogParams(info)
 	if err != nil {
 		return nil, err
 	}
 
-	proto, address, err := parseAddress(info.Config["syslog-address"])
-	if err != nil {
-		return nil, err
-	}
-
-	facility, err := parseFacility(info.Config["syslog-facility"])
-	if err != nil {
-		return nil, err
-	}
-
-	syslogFormatter, syslogFramer, err := parseLogFormat(info.Config["syslog-format"], proto)
-	if err != nil {
-		return nil, err
-	}
-
-	var log *syslog.Writer
+	var tlsCfg *tls.Config
 	if proto == secureProto {
-		tlsConfig, tlsErr := parseTLSConfig(info.Config)
-		if tlsErr != nil {
-			return nil, tlsErr
+		tlsCfg, err = parseTLSConfig(info.Config)
+		if err != nil {
+			return nil, err
 		}
-		log, err = syslog.DialWithTLSConfig(proto, address, facility, tag, tlsConfig)
-	} else {
-		log, err = syslog.Dial(proto, address, facility, tag)
 	}
 
+	return newSyslogger(proto, address, facility, tag, syslogFormatter, syslogFramer, tlsCfg)
+}
+
+// NewWithTLSConfig is for programmatic use (not Docker engine). It allows the
+// caller to provide a pre-built *tls.Config (for example, using a custom
+// *x509.CertPool) instead of configuring TLS purely via file paths in
+// info.Config.
+func NewWithTLSConfig(info logger.Info, tlsCfg *tls.Config) (logger.Logger, error) {
+	tag, proto, address, facility, syslogFormatter, syslogFramer, err := buildSyslogParams(info)
 	if err != nil {
 		return nil, err
 	}
 
-	log.SetFormatter(syslogFormatter)
-	log.SetFramer(syslogFramer)
-
-	return &syslogger{
-		writer: log,
-	}, nil
+	return newSyslogger(proto, address, facility, tag, syslogFormatter, syslogFramer, tlsCfg)
 }
 
 func (s *syslogger) Log(msg *logger.Message) error {
