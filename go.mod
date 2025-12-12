@@ -118,7 +118,7 @@ require (
 	gotest.tools/v3 v3.5.2
 	pgregory.net/rapid v1.2.0
 	resenje.org/singleflight v0.4.3
-	tags.cncf.io/container-device-interface v1.0.1
+	tags.cncf.io/container-device-interface v1.1.0
 )
 
 require (
@@ -254,7 +254,7 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250825161204-c5933d9347a5 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
-	tags.cncf.io/container-device-interface/specs-go v1.0.0 // indirect
+	tags.cncf.io/container-device-interface/specs-go v1.1.0 // indirect
 )
 
 replace github.com/moby/moby/api => ./api
