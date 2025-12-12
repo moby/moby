@@ -535,6 +535,9 @@ func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWL
 		return nil, err
 	}
 	if err := ls.saveMount(m); err != nil {
+		if removeErr := ls.driver.Remove(m.mountID); removeErr != nil {
+			log.G(context.TODO()).WithFields(log.Fields{"mount-id": m.mountID, "error": removeErr}).Error("Failed to clean up RW layer after mount save failure")
+		}
 		return nil, err
 	}
 
