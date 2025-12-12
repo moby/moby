@@ -18,6 +18,7 @@ package api
 
 import (
 	"os"
+	"slices"
 )
 
 //
@@ -68,6 +69,41 @@ func (o *OptionalString) Get() *string {
 		return nil
 	}
 	v := o.Value
+	return &v
+}
+
+// RepeatedString creates an Optional wrapper from its argument.
+func RepeatedString(v interface{}) *OptionalRepeatedString {
+	var value []string
+
+	switch o := v.(type) {
+	case []string:
+		value = o
+	case *[]string:
+		if o == nil {
+			return nil
+		}
+		value = *o
+	case *OptionalRepeatedString:
+		if o == nil {
+			return nil
+		}
+		value = o.Value
+	default:
+		return nil
+	}
+
+	return &OptionalRepeatedString{
+		Value: slices.Clone(value),
+	}
+}
+
+// Get returns nil if its value is unset or a pointer to a copy of the value.
+func (o *OptionalRepeatedString) Get() *[]string {
+	if o == nil {
+		return nil
+	}
+	v := slices.Clone(o.Value)
 	return &v
 }
 

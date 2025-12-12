@@ -43,7 +43,7 @@ const (
 	DefaultPluginPath = "/opt/nri/plugins"
 	// DefaultSocketPath is the default socket path for external plugins.
 	DefaultSocketPath = api.DefaultSocketPath
-	// PluginConfigDir is the drop-in directory for NRI-launched plugin configuration.
+	// DefaultPluginConfigPath is the drop-in directory for NRI-launched plugin configuration.
 	DefaultPluginConfigPath = "/etc/nri/conf.d"
 )
 
@@ -711,6 +711,7 @@ func (r *Adaptation) finishedPluginSync() {
 	r.syncLock.Unlock()
 }
 
+// PluginSyncBlock is a handle for blocking plugin synchronization.
 type PluginSyncBlock struct {
 	r *Adaptation
 }

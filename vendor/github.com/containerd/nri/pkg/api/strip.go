@@ -223,7 +223,7 @@ func (c *LinuxCPU) Strip() *LinuxCPU {
 		return nil
 	}
 
-	empty := true
+	empty := true //nolint:staticcheck // could merge conditional assignment below to variable definition
 
 	if c.Shares != nil {
 		empty = false
@@ -262,7 +262,7 @@ func (m *LinuxMemory) Strip() *LinuxMemory {
 		return nil
 	}
 
-	empty := true
+	empty := true //nolint:staticcheck // could merge conditional assignment below to variable definition
 
 	if m.Limit != nil {
 		empty = false

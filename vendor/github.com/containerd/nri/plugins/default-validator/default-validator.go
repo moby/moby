@@ -24,12 +24,14 @@ import (
 	"strconv"
 	"strings"
 
+	yaml "gopkg.in/yaml.v3"
+
 	"github.com/containerd/nri/pkg/api"
 	"github.com/containerd/nri/pkg/log"
 	"github.com/containerd/nri/pkg/plugin"
-	yaml "gopkg.in/yaml.v3"
 )
 
+// DefaultValidatorConfig is the configuration for the default validator plugin.
 type DefaultValidatorConfig struct {
 	// Enable the default validator plugin.
 	Enable bool `yaml:"enable" toml:"enable"`
@@ -46,6 +48,8 @@ type DefaultValidatorConfig struct {
 	RejectCustomSeccompAdjustment bool `yaml:"rejectCustomSeccompAdjustment" toml:"reject_custom_seccomp_adjustment"`
 	// RejectNamespaceAdjustment fails validation if any plugin adjusts Linux namespaces.
 	RejectNamespaceAdjustment bool `yaml:"rejectNamespaceAdjustment" toml:"reject_namespace_adjustment"`
+	// RejectSysctlAdjustment fails validation if any plugin adjusts sysctls
+	RejectSysctlAdjustment bool `yaml:"rejectSysctlAdjustment" toml:"reject_sysctl_adjustment"`
 	// RequiredPlugins list globally required plugins. These must be present
 	// or otherwise validation will fail.
 	// WARNING: This is a global setting and will affect all containers. In
@@ -110,6 +114,11 @@ func (v *DefaultValidator) ValidateContainerAdjustment(ctx context.Context, req 
 	}
 
 	if err := v.validateRequiredPlugins(req); err != nil {
+		log.Errorf(ctx, "rejecting adjustment: %v", err)
+		return err
+	}
+
+	if err := v.validateSysctl(req); err != nil {
 		log.Errorf(ctx, "rejecting adjustment: %v", err)
 		return err
 	}
@@ -200,6 +209,31 @@ func (v *DefaultValidator) validateNamespaces(req *api.ValidateContainerAdjustme
 
 	return fmt.Errorf("%w: attempted restricted namespace adjustment by %s",
 		ErrValidation, offenders)
+}
+
+func (v *DefaultValidator) validateSysctl(req *api.ValidateContainerAdjustmentRequest) error {
+	if req.Adjust == nil || req.Adjust.Linux == nil {
+		return nil
+	}
+
+	if !v.cfg.RejectSysctlAdjustment {
+		return nil
+	}
+
+	var owners []string
+	for key := range req.Adjust.Linux.Sysctl {
+		owner, claimed := req.Owners.SysctlOwner(req.Container.Id, key)
+		if !claimed {
+			continue
+		}
+		owners = append(owners, owner)
+	}
+
+	if len(owners) == 0 {
+		return nil
+	}
+
+	return fmt.Errorf("%w: attempted restricted sysctl adjustment by plugin(s) %s", ErrValidation, strings.Join(owners, ", "))
 }
 
 func (v *DefaultValidator) validateRequiredPlugins(req *api.ValidateContainerAdjustmentRequest) error {
