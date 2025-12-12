@@ -27,7 +27,7 @@ require (
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/log v0.1.0
-	github.com/containerd/nri v0.10.0
+	github.com/containerd/nri v0.10.1-0.20251211075827-dc0990d81d5e // main / v0.11.0-dev
 	github.com/containerd/platforms v1.0.0-rc.2
 	github.com/containerd/typeurl/v2 v2.2.3
 	github.com/coreos/go-systemd/v22 v22.6.0

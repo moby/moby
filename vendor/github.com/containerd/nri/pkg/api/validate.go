@@ -20,6 +20,7 @@ import (
 	"fmt"
 )
 
+// AddPlugin records a plugin for the validation request.
 func (v *ValidateContainerAdjustmentRequest) AddPlugin(name, index string) {
 	v.Plugins = append(v.Plugins, &PluginInstance{
 		Name:  name,
@@ -27,15 +28,18 @@ func (v *ValidateContainerAdjustmentRequest) AddPlugin(name, index string) {
 	})
 }
 
+// AddResponse records the container adjustments and updates to validate from a CreateContainerResponse.
 func (v *ValidateContainerAdjustmentRequest) AddResponse(rpl *CreateContainerResponse) {
 	v.Adjust = rpl.Adjust
 	v.Update = rpl.Update
 }
 
+// AddOwners sets the owning plugins for the container adjustment request.
 func (v *ValidateContainerAdjustmentRequest) AddOwners(owners *OwningPlugins) {
 	v.Owners = owners
 }
 
+// ValidationResult returns the validation result as an error (non-nil if rejected).
 func (v *ValidateContainerAdjustmentResponse) ValidationResult(plugin string) error {
 	if !v.Reject {
 		return nil
@@ -49,6 +53,7 @@ func (v *ValidateContainerAdjustmentResponse) ValidationResult(plugin string) er
 	return fmt.Errorf("validator %q rejected container adjustment, reason: %s", plugin, reason)
 }
 
+// GetPluginMap returns a map of plugin name to PluginInstance.
 func (v *ValidateContainerAdjustmentRequest) GetPluginMap() map[string]*PluginInstance {
 	if v == nil {
 		return nil

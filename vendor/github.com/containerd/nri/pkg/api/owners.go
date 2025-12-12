@@ -14,6 +14,9 @@
    limitations under the License.
 */
 
+// TODO: Add comments to exported methods and functions.
+//
+//nolint:revive // exported symbols should have comments
 package api
 
 import (
@@ -157,6 +160,10 @@ func (o *OwningPlugins) ClaimOomScoreAdj(id, plugin string) error {
 	return o.mustOwnersFor(id).ClaimOomScoreAdj(plugin)
 }
 
+func (o *OwningPlugins) ClaimLinuxScheduler(id, plugin string) error {
+	return o.mustOwnersFor(id).ClaimLinuxScheduler(plugin)
+}
+
 func (o *OwningPlugins) ClaimRlimit(id, typ, plugin string) error {
 	return o.mustOwnersFor(id).ClaimRlimit(typ, plugin)
 }
@@ -167,6 +174,14 @@ func (o *OwningPlugins) ClaimIOPriority(id, plugin string) error {
 
 func (o *OwningPlugins) ClaimSeccompPolicy(id, plugin string) error {
 	return o.mustOwnersFor(id).ClaimSeccompPolicy(plugin)
+}
+
+func (o *OwningPlugins) ClaimSysctl(id, key, plugin string) error {
+	return o.mustOwnersFor(id).ClaimSysctl(key, plugin)
+}
+
+func (o *OwningPlugins) ClaimLinuxNetDevice(id, path, plugin string) error {
+	return o.mustOwnersFor(id).ClaimLinuxNetDevice(path, plugin)
 }
 
 func (o *OwningPlugins) ClearAnnotation(id, key, plugin string) {
@@ -187,6 +202,14 @@ func (o *OwningPlugins) ClearEnv(id, key, plugin string) {
 
 func (o *OwningPlugins) ClearArgs(id, plugin string) {
 	o.mustOwnersFor(id).ClearArgs(plugin)
+}
+
+func (o *OwningPlugins) ClearSysctl(id, key, plugin string) {
+	o.mustOwnersFor(id).ClearSysctl(key, plugin)
+}
+
+func (o *OwningPlugins) ClearLinuxNetDevice(id, path, plugin string) {
+	o.mustOwnersFor(id).ClearLinuxNetDevice(path, plugin)
 }
 
 func (o *OwningPlugins) AnnotationOwner(id, key string) (string, bool) {
@@ -309,6 +332,10 @@ func (o *OwningPlugins) OomScoreAdjOwner(id string) (string, bool) {
 	return o.ownersFor(id).simpleOwner(Field_OomScoreAdj.Key())
 }
 
+func (o *OwningPlugins) LinuxScheduler(id string) (string, bool) {
+	return o.ownersFor(id).simpleOwner(Field_LinuxSched.Key())
+}
+
 func (o *OwningPlugins) RlimitOwner(id, typ string) (string, bool) {
 	return o.ownersFor(id).compoundOwner(Field_Rlimits.Key(), typ)
 }
@@ -319,6 +346,14 @@ func (o *OwningPlugins) IOPriorityOwner(id string) (string, bool) {
 
 func (o *OwningPlugins) SeccompPolicyOwner(id string) (string, bool) {
 	return o.ownersFor(id).simpleOwner(Field_SeccompPolicy.Key())
+}
+
+func (o *OwningPlugins) SysctlOwner(id, key string) (string, bool) {
+	return o.ownersFor(id).compoundOwner(Field_Sysctl.Key(), key)
+}
+
+func (o *OwningPlugins) LinuxNetDeviceOwner(id, path string) (string, bool) {
+	return o.ownersFor(id).compoundOwner(Field_LinuxNetDevices.Key(), path)
 }
 
 func (o *OwningPlugins) mustOwnersFor(id string) *FieldOwners {
@@ -531,6 +566,10 @@ func (f *FieldOwners) ClaimOomScoreAdj(plugin string) error {
 	return f.claimSimple(Field_OomScoreAdj.Key(), plugin)
 }
 
+func (f *FieldOwners) ClaimLinuxScheduler(plugin string) error {
+	return f.claimSimple(Field_LinuxSched.Key(), plugin)
+}
+
 func (f *FieldOwners) ClaimRlimit(typ, plugin string) error {
 	return f.claimCompound(Field_Rlimits.Key(), typ, plugin)
 }
@@ -541,6 +580,14 @@ func (f *FieldOwners) ClaimIOPriority(plugin string) error {
 
 func (f *FieldOwners) ClaimSeccompPolicy(plugin string) error {
 	return f.claimSimple(Field_SeccompPolicy.Key(), plugin)
+}
+
+func (f *FieldOwners) ClaimSysctl(key, plugin string) error {
+	return f.claimCompound(Field_Sysctl.Key(), key, plugin)
+}
+
+func (f *FieldOwners) ClaimLinuxNetDevice(path, plugin string) error {
+	return f.claimCompound(Field_LinuxNetDevices.Key(), path, plugin)
 }
 
 func (f *FieldOwners) clearCompound(field int32, key, plugin string) {
@@ -575,6 +622,14 @@ func (f *FieldOwners) ClearEnv(name, plugin string) {
 
 func (f *FieldOwners) ClearArgs(plugin string) {
 	f.clearSimple(Field_Args.Key(), plugin)
+}
+
+func (f *FieldOwners) ClearSysctl(key, plugin string) {
+	f.clearCompound(Field_Sysctl.Key(), key, plugin)
+}
+
+func (f *FieldOwners) ClearLinuxNetDevice(key, plugin string) {
+	f.clearCompound(Field_LinuxNetDevices.Key(), key, plugin)
 }
 
 func (f *FieldOwners) Conflict(field int32, plugin, other string, qualifiers ...string) error {
