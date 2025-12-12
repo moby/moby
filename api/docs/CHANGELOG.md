@@ -78,6 +78,7 @@ keywords: "API, Docker, rcli, REST, documentation"
   to transition to the new response. The legacy fields are not populated if the
   `verbose` query parameter is used. Starting with API v1.53, the legacy fields
   will no longer be returned.
+* `POST /containers/create` accepts a new `apisocket` Mount type to automatically expose engine socket inside container 
 
 ## v1.51 API changes
 
