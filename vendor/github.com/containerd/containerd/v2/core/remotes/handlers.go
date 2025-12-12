@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"strings"
 	"sync"
 
@@ -45,6 +46,7 @@ func WithMediaTypeKeyPrefix(ctx context.Context, mediaType, prefix string) conte
 	var values map[string]string
 	if v := ctx.Value(refKeyPrefix{}); v != nil {
 		values = v.(map[string]string)
+		values = maps.Clone(values)
 	} else {
 		values = make(map[string]string)
 	}

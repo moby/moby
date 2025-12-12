@@ -25,7 +25,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -125,8 +124,11 @@ func Attribute(k string, v any) attribute.KeyValue {
 	return keyValue(k, v)
 }
 
-// HTTPStatusCodeAttributes generates attributes of the HTTP namespace as specified by the OpenTelemetry
-// specification for a span.
+// HTTPStatusCodeAttributes generates HTTP response status code attributes
+// as specified by the current OpenTelemetry semantic conventions.
 func HTTPStatusCodeAttributes(code int) []attribute.KeyValue {
-	return []attribute.KeyValue{semconv.HTTPStatusCodeKey.Int(code)}
+	return []attribute.KeyValue{
+		attribute.Int("http.response.status_code", code),
+		attribute.Int("http.status_code", code), // Deprecated: SemConv <= v1.21
+	}
 }
