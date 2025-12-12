@@ -29,12 +29,12 @@ var _ ipamapi.PoolStatuser = &Allocator{}
 // Register registers the default ipam driver with libnetwork. It takes
 // two optional address pools respectively containing the list of user-defined
 // address pools for 'local' and 'global' address spaces.
-func Register(ic ipamapi.Registerer, lAddrPools, gAddrPools []*ipamutils.NetworkToSplit) error {
+func Register(ic ipamapi.Registerer, lAddrPools, gAddrPools []*ipamutils.NetworkToSplit, defaultSubnetSize *int) error {
 	if len(gAddrPools) == 0 {
 		gAddrPools = ipamutils.GetGlobalScopeDefaultNetworks()
 	}
 
-	a, err := NewAllocator(lAddrPools, gAddrPools)
+	a, err := NewAllocator(lAddrPools, gAddrPools, defaultSubnetSize)
 	if err != nil {
 		return err
 	}
@@ -48,26 +48,22 @@ func Register(ic ipamapi.Registerer, lAddrPools, gAddrPools []*ipamutils.Network
 type Allocator struct {
 	// The address spaces
 	local4, local6, global4, global6 *addrSpace
+	defaultSubnetSize                *int
 }
 
 // NewAllocator returns an instance of libnetwork ipam
-func NewAllocator(lcAs, glAs []*ipamutils.NetworkToSplit) (*Allocator, error) {
-	var (
-		a                          Allocator
-		err                        error
-		lcAs4, lcAs6, glAs4, glAs6 []*ipamutils.NetworkToSplit
-	)
-
-	lcAs4, lcAs6, err = splitByIPFamily(lcAs)
+func NewAllocator(lcAs, glAs []*ipamutils.NetworkToSplit, defaultSubnetSize *int) (*Allocator, error) {
+	lcAs4, lcAs6, err := splitByIPFamily(lcAs)
 	if err != nil {
 		return nil, fmt.Errorf("could not construct local address space: %w", err)
 	}
 
-	glAs4, glAs6, err = splitByIPFamily(glAs)
+	glAs4, glAs6, err := splitByIPFamily(glAs)
 	if err != nil {
 		return nil, fmt.Errorf("could not construct global address space: %w", err)
 	}
 
+	a := Allocator{defaultSubnetSize: defaultSubnetSize}
 	a.local4, err = newAddrSpace(lcAs4)
 	if err != nil {
 		return nil, fmt.Errorf("could not construct local v4 address space: %w", err)
@@ -137,7 +133,14 @@ func (a *Allocator) RequestPool(req ipamapi.PoolRequest) (ipamapi.AllocatedPool,
 
 	k := PoolID{AddressSpace: req.AddressSpace}
 
-	prefixLength := 0
+	var prefixLength int
+	if a.defaultSubnetSize != nil {
+		if req.V6 {
+			prefixLength = 64
+		} else {
+			prefixLength = *a.defaultSubnetSize
+		}
+	}
 
 	if req.Pool != "" {
 		prefix, err := netip.ParsePrefix(req.Pool)

@@ -36,13 +36,15 @@ type Config struct {
 	ClusterProvider        cluster.Provider
 	NetworkControlPlaneMTU int
 	DefaultAddressPool     []*ipamutils.NetworkToSplit
-	DatastoreBucket        string
-	ActiveSandboxes        map[string]any
-	PluginGetter           plugingetter.PluginGetter
-	FirewallBackend        string
-	Rootless               bool
-	EnableUserlandProxy    bool
-	UserlandProxyPath      string
+	// TODO(aker): make this a non-pointer once the feature flag 'global-default-subnet-size' is removed.
+	DefaultSubnetSize   *int
+	DatastoreBucket     string
+	ActiveSandboxes     map[string]any
+	PluginGetter        plugingetter.PluginGetter
+	FirewallBackend     string
+	Rootless            bool
+	EnableUserlandProxy bool
+	UserlandProxyPath   string
 }
 
 // New creates a new Config and initializes it with the given Options.
@@ -84,6 +86,15 @@ func OptionDefaultDriver(dd string) Option {
 func OptionDefaultAddressPoolConfig(addressPool []*ipamutils.NetworkToSplit) Option {
 	return func(c *Config) {
 		c.DefaultAddressPool = addressPool
+	}
+}
+
+// OptionDefaultSubnetSize defines a default subnet size that should be used for all dynamic subnet allocation. When
+// this option is not set, each address pool has its own default subnet size — dynamic subnet allocation doesn't yield
+// subnets of the same size across different address pools.
+func OptionDefaultSubnetSize(size int) Option {
+	return func(c *Config) {
+		c.DefaultSubnetSize = &size
 	}
 }
 

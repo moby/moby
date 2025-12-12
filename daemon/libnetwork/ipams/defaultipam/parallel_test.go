@@ -35,7 +35,7 @@ type testContext struct {
 }
 
 func newTestContext(t *testing.T, mask int, options map[string]string) *testContext {
-	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestDebug(t *testing.T) {
 func TestRequestPoolParallel(t *testing.T) {
 	a, err := NewAllocator([]*ipamutils.NetworkToSplit{
 		{Base: netip.MustParsePrefix("10.0.0.0/10"), Size: 24},
-	}, nil)
+	}, nil, nil)
 	assert.NilError(t, err)
 
 	var expected []string
