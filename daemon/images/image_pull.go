@@ -24,6 +24,9 @@ import (
 // PullImage initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
 func (i *ImageService) PullImage(ctx context.Context, ref reference.Named, options imagebackend.PullOptions) error {
+	if options.ClientAuth {
+		return cerrdefs.ErrNotImplemented.WithMessage("engine is using the graphdriver image store, which does not support client auth handling")
+	}
 	if len(options.Platforms) > 1 {
 		// TODO(thaJeztah): add support for pulling multiple platforms
 		return cerrdefs.ErrInvalidArgument.WithMessage("multiple platforms is not supported")
