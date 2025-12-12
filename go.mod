@@ -201,7 +201,7 @@ require (
 	github.com/moby/sys/capability v0.4.0 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/opencontainers/runtime-tools v0.9.1-0.20250523060157-0ea5ed0382a2 // indirect
+	github.com/opencontainers/runtime-tools v0.9.1-0.20251111083745-e5b454202754 // indirect
 	github.com/package-url/packageurl-go v0.1.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/petermattis/goid v0.0.0-20240813172612-4fcff4a6cae7 // indirect

@@ -1220,7 +1220,7 @@ github.com/opencontainers/image-spec/specs-go/v1
 ## explicit
 github.com/opencontainers/runtime-spec/specs-go
 github.com/opencontainers/runtime-spec/specs-go/features
-# github.com/opencontainers/runtime-tools v0.9.1-0.20250523060157-0ea5ed0382a2
+# github.com/opencontainers/runtime-tools v0.9.1-0.20251111083745-e5b454202754
 ## explicit; go 1.21
 github.com/opencontainers/runtime-tools/generate
 github.com/opencontainers/runtime-tools/generate/seccomp
