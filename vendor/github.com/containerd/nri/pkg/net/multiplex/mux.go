@@ -363,7 +363,6 @@ func (m *mux) setError(err error) {
 	})
 }
 
-// nolint
 func (m *mux) error() error {
 	m.errOnce.Do(func() {
 		if m.err == nil {

@@ -154,8 +154,8 @@ github.com/containerd/go-runc v1.1.0 h1:OX4f+/i2y5sUT7LhmcJH7GYrjjhHa1QI4e8yO0gG
 github.com/containerd/go-runc v1.1.0/go.mod h1:xJv2hFF7GvHtTJd9JqTS2UVxMkULUYw4JN5XAUZqH5U=
 github.com/containerd/log v0.1.0 h1:TCJt7ioM2cr/tfR8GPbGf9/VRAX8D2B4PjzCpfX540I=
 github.com/containerd/log v0.1.0/go.mod h1:VRRf09a7mHDIRezVKTRCrOq78v577GXq3bSa3EhrzVo=
-github.com/containerd/nri v0.10.0 h1:bt2NzfvlY6OJE0i+fB5WVeGQEycxY7iFVQpEbh7J3Go=
-github.com/containerd/nri v0.10.0/go.mod h1:5VyvLa/4uL8FjyO8nis1UjbCutXDpngil17KvBSL6BU=
+github.com/containerd/nri v0.11.0 h1:26mcQwNG58AZn0YkOrlJQ0yxQVmyZooflnVWJTqQrqQ=
+github.com/containerd/nri v0.11.0/go.mod h1:bjGTLdUA58WgghKHg8azFMGXr05n1wDHrt3NSVBHiGI=
 github.com/containerd/nydus-snapshotter v0.15.4 h1:l59kGRVMtwMLDLh322HsWhEsBCkRKMkGWYV5vBeLYCE=
 github.com/containerd/nydus-snapshotter v0.15.4/go.mod h1:eRJqnxQDr48HNop15kZdLZpFF5B6vf6Q11Aq1K0E4Ms=
 github.com/containerd/platforms v1.0.0-rc.2 h1:0SPgaNZPVWGEi4grZdV8VRYQn78y+nm6acgLGv/QzE4=

@@ -25,7 +25,7 @@ func (hooks *Hooks) Append(h *Hooks) *Hooks {
 	if h == nil {
 		return hooks
 	}
-	hooks.Prestart = append(hooks.Prestart, h.Prestart...)
+	hooks.Prestart = append(hooks.Prestart, h.Prestart...) //nolint:staticcheck // ignore SA1019: o.Prestart is deprecated
 	hooks.CreateRuntime = append(hooks.CreateRuntime, h.CreateRuntime...)
 	hooks.CreateContainer = append(hooks.CreateContainer, h.CreateContainer...)
 	hooks.StartContainer = append(hooks.StartContainer, h.StartContainer...)
@@ -79,7 +79,7 @@ func FromOCIHooks(o *rspec.Hooks) *Hooks {
 		return nil
 	}
 	return &Hooks{
-		Prestart:        FromOCIHookSlice(o.Prestart),
+		Prestart:        FromOCIHookSlice(o.Prestart), //nolint:staticcheck // ignore SA1019: o.Prestart is deprecated
 		CreateRuntime:   FromOCIHookSlice(o.CreateRuntime),
 		CreateContainer: FromOCIHookSlice(o.CreateContainer),
 		StartContainer:  FromOCIHookSlice(o.StartContainer),

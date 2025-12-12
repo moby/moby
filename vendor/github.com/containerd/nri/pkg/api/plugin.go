@@ -51,6 +51,7 @@ func CheckPluginIndex(idx string) error {
 	if len(idx) != 2 {
 		return fmt.Errorf("invalid plugin index %q, must be 2 digits", idx)
 	}
+	//nolint:staticcheck // could apply De Morgan's law
 	if !('0' <= idx[0] && idx[0] <= '9') || !('0' <= idx[1] && idx[1] <= '9') {
 		return fmt.Errorf("invalid plugin index %q (not [0-9][0-9])", idx)
 	}

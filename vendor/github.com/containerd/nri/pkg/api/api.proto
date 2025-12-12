@@ -329,6 +329,7 @@ message Container {
   string status_reason = 18;
   string status_message = 19;
   repeated CDIDevice CDI_devices = 20;
+  User user = 21;
 }
 
 // Possible container states.
@@ -376,6 +377,10 @@ message LinuxContainer {
   LinuxIOPriority io_priority = 6;
   SecurityProfile seccomp_profile = 7;
   LinuxSeccomp seccomp_policy = 8;
+  map<string, string> sysctl = 9;
+  map<string, LinuxNetDevice> net_devices = 10;
+  LinuxScheduler scheduler = 11;
+  LinuxRdt rdt = 12;
 }
 
 // A linux namespace.
@@ -407,6 +412,13 @@ message LinuxDeviceCgroup {
 // A CDI device reference.
 message CDIDevice {
   string name = 1;
+}
+
+// User and group IDs for the container.
+message User {
+  uint32 uid = 1;
+  uint32 gid = 2;
+  repeated uint32 additional_gids = 3;
 }
 
 // Container (linux) resources.
@@ -487,6 +499,44 @@ enum IOPrioClass {
   IOPRIO_CLASS_IDLE = 3;
 }
 
+// A linux network device.
+message LinuxNetDevice {
+  string name = 1;
+}
+
+// Linux process scheduling attributes.
+message LinuxScheduler {
+  LinuxSchedulerPolicy policy = 1;
+  int32 nice = 2;
+  int32 priority = 3;
+  repeated LinuxSchedulerFlag flags = 4;
+  uint64 runtime = 5;
+  uint64 deadline = 6;
+  uint64 period = 7;
+}
+
+// Linux scheduling policies.
+enum LinuxSchedulerPolicy {
+  SCHED_NONE = 0;
+  SCHED_OTHER = 1;
+  SCHED_FIFO = 2;
+  SCHED_RR = 3;
+  SCHED_BATCH = 4;
+  SCHED_ISO = 5;
+  SCHED_IDLE = 6;
+  SCHED_DEADLINE = 7;
+}
+
+enum LinuxSchedulerFlag {
+  SCHED_FLAG_RESET_ON_FORK = 0;
+  SCHED_FLAG_RECLAIM = 1;
+  SCHED_FLAG_DL_OVERRUN = 2;
+  SCHED_FLAG_KEEP_POLICY = 3;
+  SCHED_FLAG_KEEP_PARAMS = 4;
+  SCHED_FLAG_UTIL_CLAMP_MIN = 5;
+  SCHED_FLAG_UTIL_CLAMP_MAX = 6;
+}
+
 // Requested adjustments to a container being created.
 message ContainerAdjustment {
   map<string, string> annotations = 2;
@@ -508,6 +558,10 @@ message LinuxContainerAdjustment {
   LinuxIOPriority io_priority = 5;
   LinuxSeccomp seccomp_policy = 6;
   repeated LinuxNamespace namespaces = 7;
+  map<string, string> sysctl = 8;
+  map<string,LinuxNetDevice> net_devices = 9;
+  LinuxScheduler scheduler = 10;
+  LinuxRdt rdt = 11;
 }
 
 message LinuxSeccomp {
@@ -554,6 +608,14 @@ message ContainerEviction {
   string reason = 2;
 }
 
+message LinuxRdt {
+  OptionalString clos_id = 1;
+  OptionalRepeatedString schemata = 2;
+  OptionalBool enable_monitoring = 3;
+  // NRI specific field to mark the RDT config for removal.
+  bool remove = 4;
+}
+
 // KeyValue represents an environment variable.
 message KeyValue {
   string key = 1;
@@ -563,6 +625,11 @@ message KeyValue {
 // An optional string value.
 message OptionalString {
   string value = 1;
+}
+
+// An optional collection of strings.
+message OptionalRepeatedString {
+  repeated string value = 1;
 }
 
 // An optional signed integer value.
@@ -665,4 +732,11 @@ enum Field {
     IoPriority = 31;
     SeccompPolicy = 32;
     Namespace = 33;
+    Sysctl = 34;
+    LinuxNetDevices = 35;
+    // protoc scoping rules: calling this LinuxScheduler would conflict with message.
+    LinuxSched = 36;
+    RdtClosID = 37;
+    RdtSchemata = 38;
+    RdtEnableMonitoring = 39;
 }

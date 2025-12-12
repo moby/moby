@@ -104,6 +104,10 @@ func (r *Adaptation) newLaunchedPlugin(dir, idx, base, cfg string) (p *plugin, r
 	fullPath := filepath.Join(dir, name)
 
 	if isWasm(fullPath) {
+		if r.wasmService == nil {
+			return nil, fmt.Errorf("can't load WASM plugin %s: no WASM support", fullPath)
+		}
+
 		log.Infof(noCtx, "Found WASM plugin: %s", fullPath)
 		wasm, err := r.wasmService.Load(context.Background(), fullPath, wasmHostFunctions{})
 		if err != nil {

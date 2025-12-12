@@ -22,12 +22,19 @@ import (
 	"github.com/containerd/nri/pkg/api"
 )
 
+// BuiltinPlugin implements the NRI API and runs in-process
+// within the container runtime.
+//
+//nolint:revive // tautology builtin.Builtin*
 type BuiltinPlugin struct {
 	Base     string
 	Index    string
 	Handlers BuiltinHandlers
 }
 
+// BuiltinHandlers contains request handlers for the builtin plugin.
+//
+//nolint:revive // tautology builtin.Builtin*
 type BuiltinHandlers struct {
 	Configure            func(context.Context, *api.ConfigureRequest) (*api.ConfigureResponse, error)
 	Synchronize          func(context.Context, *api.SynchronizeRequest) (*api.SynchronizeResponse, error)
@@ -48,6 +55,7 @@ type BuiltinHandlers struct {
 	ValidateContainerAdjustment func(context.Context, *api.ValidateContainerAdjustmentRequest) error
 }
 
+// Configure implements PluginService of the NRI API.
 func (b *BuiltinPlugin) Configure(ctx context.Context, req *api.ConfigureRequest) (*api.ConfigureResponse, error) {
 	var (
 		rpl = &api.ConfigureResponse{}
@@ -110,6 +118,7 @@ func (b *BuiltinPlugin) Configure(ctx context.Context, req *api.ConfigureRequest
 	return rpl, err
 }
 
+// Synchronize implements PluginService of the NRI API.
 func (b *BuiltinPlugin) Synchronize(ctx context.Context, req *api.SynchronizeRequest) (*api.SynchronizeResponse, error) {
 	if b.Handlers.Synchronize != nil {
 		return b.Handlers.Synchronize(ctx, req)
@@ -117,10 +126,12 @@ func (b *BuiltinPlugin) Synchronize(ctx context.Context, req *api.SynchronizeReq
 	return &api.SynchronizeResponse{}, nil
 }
 
+// Shutdown implements PluginService of the NRI API.
 func (b *BuiltinPlugin) Shutdown(context.Context, *api.ShutdownRequest) (*api.ShutdownResponse, error) {
 	return &api.ShutdownResponse{}, nil
 }
 
+// CreateContainer implements PluginService of the NRI API.
 func (b *BuiltinPlugin) CreateContainer(ctx context.Context, req *api.CreateContainerRequest) (*api.CreateContainerResponse, error) {
 	if b.Handlers.CreateContainer != nil {
 		return b.Handlers.CreateContainer(ctx, req)
@@ -128,6 +139,7 @@ func (b *BuiltinPlugin) CreateContainer(ctx context.Context, req *api.CreateCont
 	return &api.CreateContainerResponse{}, nil
 }
 
+// UpdateContainer implements PluginService of the NRI API.
 func (b *BuiltinPlugin) UpdateContainer(ctx context.Context, req *api.UpdateContainerRequest) (*api.UpdateContainerResponse, error) {
 	if b.Handlers.UpdateContainer != nil {
 		return b.Handlers.UpdateContainer(ctx, req)
@@ -135,6 +147,7 @@ func (b *BuiltinPlugin) UpdateContainer(ctx context.Context, req *api.UpdateCont
 	return &api.UpdateContainerResponse{}, nil
 }
 
+// StopContainer implements PluginService of the NRI API.
 func (b *BuiltinPlugin) StopContainer(ctx context.Context, req *api.StopContainerRequest) (*api.StopContainerResponse, error) {
 	if b.Handlers.StopContainer != nil {
 		return b.Handlers.StopContainer(ctx, req)
@@ -142,6 +155,7 @@ func (b *BuiltinPlugin) StopContainer(ctx context.Context, req *api.StopContaine
 	return &api.StopContainerResponse{}, nil
 }
 
+// StateChange implements PluginService of the NRI API.
 func (b *BuiltinPlugin) StateChange(ctx context.Context, evt *api.StateChangeEvent) (*api.StateChangeResponse, error) {
 	var err error
 	switch evt.Event {
@@ -182,6 +196,7 @@ func (b *BuiltinPlugin) StateChange(ctx context.Context, evt *api.StateChangeEve
 	return &api.StateChangeResponse{}, err
 }
 
+// UpdatePodSandbox implements PluginService of the NRI API.
 func (b *BuiltinPlugin) UpdatePodSandbox(ctx context.Context, req *api.UpdatePodSandboxRequest) (*api.UpdatePodSandboxResponse, error) {
 	if b.Handlers.UpdatePodSandbox != nil {
 		return b.Handlers.UpdatePodSandbox(ctx, req)
@@ -189,6 +204,7 @@ func (b *BuiltinPlugin) UpdatePodSandbox(ctx context.Context, req *api.UpdatePod
 	return &api.UpdatePodSandboxResponse{}, nil
 }
 
+// PostUpdatePodSandbox is a handler for the PostUpdatePodSandbox event.
 func (b *BuiltinPlugin) PostUpdatePodSandbox(ctx context.Context, req *api.PostUpdatePodSandboxRequest) error {
 	if b.Handlers.PostUpdatePodSandbox != nil {
 		return b.Handlers.PostUpdatePodSandbox(ctx, req)
@@ -196,6 +212,7 @@ func (b *BuiltinPlugin) PostUpdatePodSandbox(ctx context.Context, req *api.PostU
 	return nil
 }
 
+// ValidateContainerAdjustment implements PluginService of the NRI API.
 func (b *BuiltinPlugin) ValidateContainerAdjustment(ctx context.Context, req *api.ValidateContainerAdjustmentRequest) (*api.ValidateContainerAdjustmentResponse, error) {
 	if b.Handlers.ValidateContainerAdjustment != nil {
 		if err := b.Handlers.ValidateContainerAdjustment(ctx, req); err != nil {

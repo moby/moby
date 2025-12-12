@@ -26,7 +26,7 @@ const (
 	ValidEvents = EventMask((1 << (Event_LAST - 1)) - 1)
 )
 
-// nolint
+//nolint:revive // exported type should have comment
 type (
 	// Define *Request/*Response type aliases for *Event/Empty pairs.
 
