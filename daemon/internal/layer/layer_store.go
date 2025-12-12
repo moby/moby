@@ -294,12 +294,15 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 		descriptor:     descriptor,
 	}
 
-	if cErr = ls.driver.Create(layer.cacheID, pid, nil); cErr != nil {
+	tx, cErr := ls.store.StartTransaction()
+	if cErr != nil {
 		return nil, cErr
 	}
 
-	tx, cErr := ls.store.StartTransaction()
-	if cErr != nil {
+	if cErr = ls.driver.Create(layer.cacheID, pid, nil); cErr != nil {
+		if err := tx.Cancel(); err != nil {
+			log.G(context.TODO()).WithFields(log.Fields{"cache-id": layer.cacheID, "error": err}).Error("Error canceling metadata transaction")
+		}
 		return nil, cErr
 	}
 
