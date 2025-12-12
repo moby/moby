@@ -10434,6 +10434,7 @@ paths:
 
       operationId: "SystemEvents"
       produces:
+        - "application/jsonl"
         - "application/x-ndjson"
         - "application/json-seq"
       responses:
