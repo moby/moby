@@ -27,6 +27,8 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/nri/pkg/adaptation"
 	nrilog "github.com/containerd/nri/pkg/log"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
@@ -44,10 +46,10 @@ const (
 )
 
 type NRI struct {
-	cfg Config
-
-	// mu protects nri - read lock for container operations, write lock for sync and shutdown.
+	// mu protects cfg and adap
+	// Read lock for container operations, write lock for sync, config update and shutdown.
 	mu   sync.RWMutex
+	cfg  Config
 	adap *adaptation.Adaptation
 }
 
@@ -101,6 +103,43 @@ func (n *NRI) Shutdown(ctx context.Context) {
 	n.adap = nil
 }
 
+// PrepareReload validates and prepares for a configuration reload. It returns
+// a function to perform the actual reload when called.
+func (n *NRI) PrepareReload(ctx context.Context, nriCfg opts.NRIOpts) (func() error, error) {
+	var newNRI *adaptation.Adaptation
+	newCfg := n.cfg
+	newCfg.DaemonConfig = nriCfg
+	if err := setDefaultPaths(&newCfg.DaemonConfig); err != nil {
+		return nil, err
+	}
+
+	if nriCfg.Enable {
+		var err error
+		newNRI, err = adaptation.New("docker", dockerversion.Version, n.syncFn, n.updateFn, nriOptions(newCfg.DaemonConfig)...)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return func() error {
+		n.mu.Lock()
+		if n.adap != nil {
+			log.G(ctx).Info("Shutting down old NRI instance")
+			n.adap.Stop()
+		}
+		n.cfg = newCfg
+		n.adap = newNRI
+		// Release the lock before starting newNRI, because it'll call back to syncFn
+		// which will acquire the lock.
+		n.mu.Unlock()
+
+		if newNRI == nil {
+			return nil
+		}
+		return newNRI.Start()
+	}, nil
+}
+
 // CreateContainer notifies plugins of a "creation" NRI-lifecycle event for a container,
 // allowing the plugin to adjust settings before the container is created.
 //
@@ -132,6 +171,9 @@ func (n *NRI) CreateContainer(ctx context.Context, ctr *container.Container) err
 
 	if resp.GetUpdate() != nil {
 		return errors.New("container update is not supported")
+	}
+	if resp.GetEvict() != nil {
+		return errors.New("container eviction is not supported")
 	}
 	if err := applyAdjustments(ctx, ctr, resp.GetAdjust()); err != nil {
 		return err
@@ -245,7 +287,7 @@ func containerToNRI(ctr *container.Container) (*adaptation.PodSandbox, *adaptati
 		Id:           ctr.ID,
 		PodSandboxId: ctr.ID,
 		Name:         ctr.Name,
-		State:        adaptation.ContainerState_CONTAINER_UNKNOWN,
+		State:        stateToNRI(ctr.State),
 		Labels:       ctr.Config.Labels,
 		Annotations:  ctr.HostConfig.Annotations,
 		Args:         ctr.Config.Cmd,
@@ -275,12 +317,97 @@ func containerToNRI(ctr *container.Container) (*adaptation.PodSandbox, *adaptati
 	return nriPod, nriCtr, nil
 }
 
+func stateToNRI(state *container.State) adaptation.ContainerState {
+	log.G(context.TODO()).Errorf("Mapping container state %q to NRI", state.State())
+	switch state.State() {
+	case containertypes.StateCreated:
+		// CONTAINER_CREATED will be used before the container is started, including for the
+		// CreateContainer hook (during container creation).
+		return adaptation.ContainerState_CONTAINER_CREATED
+	case containertypes.StateRunning:
+		return adaptation.ContainerState_CONTAINER_RUNNING
+	case containertypes.StatePaused, containertypes.StateRestarting:
+		return adaptation.ContainerState_CONTAINER_PAUSED
+	case containertypes.StateRemoving, containertypes.StateExited, containertypes.StateDead:
+		return adaptation.ContainerState_CONTAINER_STOPPED
+	}
+	return adaptation.ContainerState_CONTAINER_UNKNOWN
+}
+
 func applyAdjustments(ctx context.Context, ctr *container.Container, adj *adaptation.ContainerAdjustment) error {
 	if adj == nil {
 		return nil
 	}
+	if err := checkForUnsupportedAdjustments(adj); err != nil {
+		return err
+	}
 	if err := applyEnvVars(ctx, ctr, adj.Env); err != nil {
 		return fmt.Errorf("applying environment variable adjustments: %w", err)
+	}
+	if err := applyMounts(ctx, ctr, adj.Mounts); err != nil {
+		return fmt.Errorf("applying mount adjustments: %w", err)
+	}
+	return nil
+}
+
+func checkForUnsupportedAdjustments(adj *adaptation.ContainerAdjustment) error {
+	var unsupported []string
+	if len(adj.Annotations) > 0 {
+		unsupported = append(unsupported, "annotations")
+	}
+	if adj.Hooks != nil {
+		if len(adj.Hooks.Prestart) > 0 ||
+			len(adj.Hooks.CreateRuntime) > 0 ||
+			len(adj.Hooks.CreateContainer) > 0 ||
+			len(adj.Hooks.StartContainer) > 0 ||
+			len(adj.Hooks.Poststart) > 0 ||
+			len(adj.Hooks.Poststop) > 0 {
+			unsupported = append(unsupported, "hooks")
+		}
+	}
+	if adj.Linux != nil {
+		if len(adj.Linux.Devices) > 0 ||
+			adj.Linux.CgroupsPath != "" ||
+			adj.Linux.OomScoreAdj != nil ||
+			adj.Linux.IoPriority != nil ||
+			adj.Linux.SeccompPolicy != nil ||
+			len(adj.Linux.Namespaces) > 0 {
+			log.G(context.TODO()).Errorf("Linux adjustments: %+v", adj.Linux)
+			unsupported = append(unsupported, "linux")
+		}
+		if resMem := adj.Linux.GetResources().GetMemory(); resMem != nil &&
+			(resMem.GetLimit() != nil ||
+				resMem.GetReservation() != nil ||
+				resMem.GetSwap() != nil ||
+				resMem.GetKernel() != nil ||
+				resMem.GetKernelTcp() != nil ||
+				resMem.GetSwappiness() != nil ||
+				resMem.GetDisableOomKiller() != nil ||
+				resMem.GetUseHierarchy() != nil) {
+			unsupported = append(unsupported, "linux.resources.memory")
+		}
+		if resCPU := adj.Linux.GetResources().GetCpu(); resCPU != nil &&
+			(resCPU.GetShares() != nil ||
+				resCPU.GetQuota() != nil ||
+				resCPU.GetPeriod() != nil ||
+				resCPU.GetRealtimeRuntime() != nil ||
+				resCPU.GetRealtimePeriod() != nil ||
+				resCPU.GetCpus() != "" ||
+				resCPU.GetMems() != "") {
+			unsupported = append(unsupported, "linux.resources.cpu")
+		}
+	}
+	if len(adj.Rlimits) > 0 {
+		unsupported = append(unsupported, "rlimits")
+	}
+	if len(adj.CDIDevices) > 0 {
+		unsupported = append(unsupported, "CDI")
+	}
+	if len(adj.Args) > 0 {
+		unsupported = append(unsupported, "args")
+	}
+	if len(unsupported) > 0 {
+		return fmt.Errorf("unsupported container adjustments: %s", strings.Join(unsupported, ","))
 	}
 	return nil
 }
@@ -305,6 +432,28 @@ func applyEnvVars(ctx context.Context, ctr *container.Container, envVars []*adap
 		} else {
 			ctr.Config.Env = append(ctr.Config.Env, val)
 		}
+	}
+	return nil
+}
+
+func applyMounts(ctx context.Context, ctr *container.Container, mounts []*adaptation.Mount) error {
+	for _, m := range mounts {
+		var ro bool
+		for _, opt := range m.Options {
+			switch opt {
+			case "ro", "readonly":
+				ro = true
+			default:
+				return fmt.Errorf("mount option %q is not supported", opt)
+			}
+		}
+		log.G(ctx).Debugf("Applying NRI mount: type=%s source=%s target=%s ro=%t", m.Type, m.Source, m.Destination, ro)
+		ctr.HostConfig.Mounts = append(ctr.HostConfig.Mounts, mount.Mount{
+			Type:     mount.Type(m.Type),
+			Source:   m.Source,
+			Target:   m.Destination,
+			ReadOnly: ro,
+		})
 	}
 	return nil
 }
