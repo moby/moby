@@ -4,6 +4,10 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"path"
+	"reflect"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -25,4 +29,17 @@ func HasHubConnectivity(t *testing.T) bool {
 		resp.Body.Close()
 	}
 	return err == nil
+}
+
+// TestRequires checks if the environment satisfies the requirements
+// for the test to run or skips the tests.
+func TestRequires(t *testing.T, requirements ...func() bool) {
+	t.Helper()
+	for _, check := range requirements {
+		if !check() {
+			requirementFunc := runtime.FuncForPC(reflect.ValueOf(check).Pointer()).Name()
+			_, req, _ := strings.Cut(path.Base(requirementFunc), ".")
+			t.Skipf("unmatched requirement %s", req)
+		}
+	}
 }
