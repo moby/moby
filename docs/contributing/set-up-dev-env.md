@@ -1,5 +1,7 @@
 ### Work with a development container
 
+> **Note**: this document contains commands run on your host machine and commands run inside the development container. Host commands are shown with a leading "$" prompt (for example, `$ docker ps -a`). Commands intended to be executed inside the container are shown with a leading "#" prompt (for example, `# docker version`). If a command in a fenced block begins with `$`, run it on your host; if it begins with `#`, run it inside the container.
+
 In this section, you learn to develop like the Moby Engine core team.
 The `moby/moby` repository includes a `Dockerfile` at its root. This file defines
 Moby's development environment. The `Dockerfile` lists the environment's
