@@ -306,13 +306,23 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 		}
 	}
 
+	// Enable HTTP/1, HTTP/2 and h2c on the HTTP server. h2c won't be used for *tls.Conn listeners, and HTTP/2 won't be
+	// used for non-TLS connections.
+	var p http.Protocols
+	p.SetHTTP1(true)
+	p.SetHTTP2(true)
+	p.SetUnencryptedHTTP2(true)
+
 	routers := buildRouters(routerOptions{
 		features: d.Features,
 		daemon:   d,
 		cluster:  c,
 		builder:  b,
 	})
-	httpServer.Handler = apiServer.CreateMux(ctx, routers...)
+	gs := newGRPCServer(ctx)
+	b.backend.RegisterGRPC(gs)
+	httpServer.Protocols = &p
+	httpServer.Handler = newHTTPHandler(ctx, gs, apiServer.CreateMux(ctx, routers...))
 
 	go d.ProcessClusterNotifications(ctx, c.GetWatchStream())
 
@@ -816,6 +826,7 @@ func newAPIServerTLSConfig(cfg *config.Config) (*tls.Config, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "invalid TLS configuration")
 		}
+		tlsConfig.NextProtos = []string{"h2", "http/1.1"}
 	}
 
 	return tlsConfig, nil
