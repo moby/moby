@@ -520,7 +520,7 @@ func (w *watch) stop() {
 		return
 	}
 
-	w.watcher.Close()
+	_ = w.watcher.Close()
 	w.tracked = nil
 }
 
