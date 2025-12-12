@@ -118,6 +118,10 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 				"BridgeNfIp6tables": json.RawMessage("false"),
 			}))
 		}
+		if versions.LessThan(version, "1.53") {
+			// Field introduced in API v1.53.
+			info.NRI = nil
+		}
 		return compat.Wrap(info, legacyOptions...), nil
 	})
 
