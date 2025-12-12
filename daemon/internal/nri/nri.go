@@ -27,6 +27,8 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/nri/pkg/adaptation"
 	nrilog "github.com/containerd/nri/pkg/log"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
@@ -245,7 +247,7 @@ func containerToNRI(ctr *container.Container) (*adaptation.PodSandbox, *adaptati
 		Id:           ctr.ID,
 		PodSandboxId: ctr.ID,
 		Name:         ctr.Name,
-		State:        adaptation.ContainerState_CONTAINER_UNKNOWN,
+		State:        stateToNRI(ctr.State),
 		Labels:       ctr.Config.Labels,
 		Annotations:  ctr.HostConfig.Annotations,
 		Args:         ctr.Config.Cmd,
@@ -275,12 +277,32 @@ func containerToNRI(ctr *container.Container) (*adaptation.PodSandbox, *adaptati
 	return nriPod, nriCtr, nil
 }
 
+func stateToNRI(state *container.State) adaptation.ContainerState {
+	log.G(context.TODO()).Errorf("Mapping container state %q to NRI", state.State())
+	switch state.State() {
+	case containertypes.StateCreated:
+		// CONTAINER_CREATED will be used before the container is started, including for the
+		// CreateContainer hook (during container creation).
+		return adaptation.ContainerState_CONTAINER_CREATED
+	case containertypes.StateRunning:
+		return adaptation.ContainerState_CONTAINER_RUNNING
+	case containertypes.StatePaused, containertypes.StateRestarting:
+		return adaptation.ContainerState_CONTAINER_PAUSED
+	case containertypes.StateRemoving, containertypes.StateExited, containertypes.StateDead:
+		return adaptation.ContainerState_CONTAINER_STOPPED
+	}
+	return adaptation.ContainerState_CONTAINER_UNKNOWN
+}
+
 func applyAdjustments(ctx context.Context, ctr *container.Container, adj *adaptation.ContainerAdjustment) error {
 	if adj == nil {
 		return nil
 	}
 	if err := applyEnvVars(ctx, ctr, adj.Env); err != nil {
 		return fmt.Errorf("applying environment variable adjustments: %w", err)
+	}
+	if err := applyMounts(ctx, ctr, adj.Mounts); err != nil {
+		return fmt.Errorf("applying mount adjustments: %w", err)
 	}
 	return nil
 }
@@ -305,6 +327,28 @@ func applyEnvVars(ctx context.Context, ctr *container.Container, envVars []*adap
 		} else {
 			ctr.Config.Env = append(ctr.Config.Env, val)
 		}
+	}
+	return nil
+}
+
+func applyMounts(ctx context.Context, ctr *container.Container, mounts []*adaptation.Mount) error {
+	for _, m := range mounts {
+		var ro bool
+		for _, opt := range m.Options {
+			switch opt {
+			case "ro", "readonly":
+				ro = true
+			default:
+				return fmt.Errorf("mount option %q is not supported", opt)
+			}
+		}
+		log.G(ctx).Debugf("Applying NRI mount: type=%s source=%s target=%s ro=%t", m.Type, m.Source, m.Destination, ro)
+		ctr.HostConfig.Mounts = append(ctr.HostConfig.Mounts, mount.Mount{
+			Type:     mount.Type(m.Type),
+			Source:   m.Source,
+			Target:   m.Destination,
+			ReadOnly: ro,
+		})
 	}
 	return nil
 }
