@@ -302,7 +302,7 @@ func TestTarSumsReadSize(t *testing.T) {
 	// Test always on the same layer (that is big enough)
 	layer := testLayers[0]
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		reader, err := os.Open(layer.filename)
 		if err != nil {
 			t.Fatal(err)

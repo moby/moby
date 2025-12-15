@@ -87,7 +87,7 @@ func (daemon *Daemon) releaseName(name string) {
 
 func (daemon *Daemon) generateAndReserveName(id string) (string, error) {
 	var name string
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		name = namesgenerator.GetRandomName(i)
 		if name[0] != '/' {
 			name = "/" + name

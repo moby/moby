@@ -1127,7 +1127,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartContainerLinksRestart(c *testing.T)
 	maxChildren := 10
 	chErr := make(chan error, maxChildren)
 
-	for i := 0; i < maxChildren; i++ {
+	for i := range maxChildren {
 		wg.Add(1)
 		name := fmt.Sprintf("test%d", i)
 

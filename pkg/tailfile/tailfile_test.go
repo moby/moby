@@ -146,7 +146,7 @@ func BenchmarkTail(b *testing.B) {
 	}
 	defer f.Close()
 	defer os.RemoveAll(f.Name())
-	for i := 0; i < 10000; i++ {
+	for range 10000 {
 		if _, err := f.WriteString("tailfile pretty interesting line\n"); err != nil {
 			b.Fatal(err)
 		}
@@ -185,7 +185,7 @@ func TestNewTailReader(t *testing.T) {
 
 			s8 := `{"log":"Don't panic!\n","stream":"stdout","time":"2018-04-04T20:28:44.7207062Z"}`
 			jsonTest := make([]string, 0, 20)
-			for i := 0; i < 20; i++ {
+			for range 20 {
 				jsonTest = append(jsonTest, s8)
 			}
 

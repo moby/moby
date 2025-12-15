@@ -97,7 +97,7 @@ func TestV2MetadataService(t *testing.T) {
 
 func randomDigest() digest.Digest {
 	b := [32]byte{}
-	for i := 0; i < len(b); i++ {
+	for i := range len(b) {
 		b[i] = byte(rand.Intn(256))
 	}
 	d := hex.EncodeToString(b[:])

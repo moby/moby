@@ -1486,7 +1486,7 @@ func (s *DockerSwarmSuite) TestSwarmAlternateLockUnlock(c *testing.T) {
 	ctx := testutil.GetContext(c)
 	d := s.AddDaemon(ctx, c, true, true)
 
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		// set to lock
 		outs, err := d.Cmd("swarm", "update", "--autolock")
 		assert.Assert(c, err == nil, "out: %v", outs)
@@ -1790,7 +1790,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinLeave(c *testing.T) {
 
 	// Verify that back to back join/leave does not cause panics
 	d1 := s.AddDaemon(ctx, c, false, false)
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		out, err = d1.Cmd("swarm", "join", "--token", token, d.SwarmListenAddr())
 		assert.NilError(c, err)
 		assert.Assert(c, strings.TrimSpace(out) != "")
@@ -1808,7 +1808,7 @@ func waitForEvent(t *testing.T, d *daemon.Daemon, since string, filter string, e
 		return ""
 	}
 	var out string
-	for i := 0; i < retry; i++ {
+	for i := range retry {
 		until := daemonUnixTime(t)
 		var err error
 		if filter != "" {

@@ -1123,7 +1123,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c 
 	s.d.StartWithBusybox(ctx, c)
 
 	// Run a few containers on host network
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		cName := fmt.Sprintf("hostc-%d", i)
 		out, err := s.d.Cmd("run", "-d", "--name", cName, "--net=host", "--restart=always", "busybox", "top")
 		assert.NilError(c, err, out)
@@ -1138,7 +1138,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c 
 	s.d.Start(c)
 
 	// make sure all the containers are up and running
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		err := s.d.WaitRun(fmt.Sprintf("hostc-%d", i))
 		assert.NilError(c, err)
 	}

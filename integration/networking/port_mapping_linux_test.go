@@ -1468,7 +1468,7 @@ func TestAccessPortPublishedOnLoopbackAddress(t *testing.T) {
 func sendPayloadFromHost(t *testing.T, host networking.Host, daddr, dport, payload string, check func() bool) bool {
 	var res bool
 	host.Do(t, func() {
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			t.Logf("Sending probe #%d to %s:%s from host %s", i, daddr, dport, host.Name)
 			icmd.RunCommand("/bin/sh", "-c", fmt.Sprintf("echo '%s' | nc -w1 -u %s %s", payload, daddr, dport)).Assert(t, icmd.Success)
 

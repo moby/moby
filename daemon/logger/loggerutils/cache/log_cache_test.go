@@ -43,7 +43,7 @@ func TestLog(t *testing.T) {
 	defer l.Close()
 
 	var messages []logger.Message
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		messages = append(messages, logger.Message{
 			Timestamp: time.Now(),
 			Line:      append(bytes.Repeat([]byte("a"), 100), '\n'),

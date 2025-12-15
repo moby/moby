@@ -17,7 +17,7 @@ func compare(v1, v2 string) int {
 	)
 
 	maxVer := max(len(otherTab), len(currTab))
-	for i := 0; i < maxVer; i++ {
+	for i := range maxVer {
 		var currInt, otherInt int
 
 		if len(currTab) > i {

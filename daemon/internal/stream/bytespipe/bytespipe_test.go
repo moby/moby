@@ -193,7 +193,7 @@ func BenchmarkBytesPipeWrite(b *testing.B) {
 				_, err = buf.Read(readBuf)
 			}
 		}()
-		for j := 0; j < 1000; j++ {
+		for range 1000 {
 			_, _ = buf.Write(testData)
 		}
 		_ = buf.Close()
@@ -206,11 +206,11 @@ func BenchmarkBytesPipeRead(b *testing.B) {
 	for b.Loop() {
 		b.StopTimer()
 		buf := New()
-		for j := 0; j < 500; j++ {
+		for range 500 {
 			_, _ = buf.Write(make([]byte, 1024))
 		}
 		b.StartTimer()
-		for j := 0; j < 1000; j++ {
+		for range 1000 {
 			if n, _ := buf.Read(rd); n != 512 {
 				b.Fatalf("Wrong number of bytes: %d", n)
 			}

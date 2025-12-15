@@ -1590,8 +1590,8 @@ func (s *DockerCLIBuildSuite) TestBuildExposeMorePorts(c *testing.T) {
 	portList := make([]string, 50)
 	line := make([]string, 100)
 	expectedPorts := make([]int, len(portList)*len(line))
-	for i := 0; i < len(portList); i++ {
-		for j := 0; j < len(line); j++ {
+	for i := range portList {
+		for j := range line {
 			p := i*len(line) + j + 1
 			line[j] = strconv.Itoa(p)
 			expectedPorts[p-1] = p

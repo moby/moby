@@ -136,7 +136,7 @@ func assertContainerList(out string, expected []string) bool {
 	}
 
 	containerIDIndex := strings.Index(lines[0], "CONTAINER ID")
-	for i := 0; i < len(expected); i++ {
+	for i := range expected {
 		foundID := lines[i+1][containerIDIndex : containerIDIndex+12]
 		if foundID != expected[i][:12] {
 			return false

@@ -51,7 +51,7 @@ func TestRingLogger(t *testing.T) {
 
 func TestRingCap(t *testing.T) {
 	r := newRing(5)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		// queue messages with "0" to "10"
 		// the "5" to "10" messages should be dropped since we only allow 5 bytes in the buffer
 		if err := r.Enqueue(&Message{Line: []byte(strconv.Itoa(i))}); err != nil {
@@ -60,7 +60,7 @@ func TestRingCap(t *testing.T) {
 	}
 
 	// should have messages in the queue for "0" to "4"
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		m, err := r.Dequeue()
 		if err != nil {
 			t.Fatal(err)
@@ -119,7 +119,7 @@ func TestRingClose(t *testing.T) {
 
 func TestRingDrain(t *testing.T) {
 	r := newRing(5)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		if err := r.Enqueue(&Message{Line: []byte(strconv.Itoa(i))}); err != nil {
 			t.Fatal(err)
 		}
@@ -130,7 +130,7 @@ func TestRingDrain(t *testing.T) {
 		t.Fatal("got unexpected length after drain")
 	}
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		if string(ls[i].Line) != strconv.Itoa(i) {
 			t.Fatalf("got unexpected message at position %d: %s", i, string(ls[i].Line))
 		}
