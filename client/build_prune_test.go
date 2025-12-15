@@ -98,7 +98,7 @@ func TestBuildCachePrune(t *testing.T) {
 				assert.NilError(t, err)
 				
 				// BUG: opts.All=false but hardcoded to true
-				assert.Check(t, is.Equal(pruneReq.All, true), "BUG: All is hardcoded to true, expected false")
+				assert.Check(t, is.Equal(pruneReq.All, false))
 				assert.Check(t, is.Equal(pruneReq.ReservedSpace, int64(2048)))
 				assert.Check(t, is.Equal(pruneReq.MaxUsedSpace, int64(4096)))
 				assert.Check(t, is.Equal(pruneReq.MinFreeSpace, int64(0)))

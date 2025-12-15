@@ -46,7 +46,7 @@ func (cli *Client) BuildCachePrune(ctx context.Context, opts BuildCachePruneOpti
 
 	if versions.GreaterThanOrEqualTo(cli.version, "1.53") {
 		req := BuildCachePruneRequest{
-			All:			true,
+			All:			opts.All,
 			ReservedSpace:	opts.ReservedSpace,
 			MaxUsedSpace:	opts.MaxUsedSpace,
 			MinFreeSpace:	opts.MinFreeSpace,
