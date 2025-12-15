@@ -10,8 +10,8 @@ import (
 	"github.com/containerd/log"
 	"github.com/mitchellh/copystructure"
 	"github.com/moby/moby/api/types/events"
-
 	"github.com/moby/moby/v2/daemon/config"
+	"github.com/moby/moby/v2/daemon/pkg/opts"
 )
 
 // reloadTxn is used to defer side effects of a config reload.
@@ -71,6 +71,7 @@ func (tx *reloadTxn) Rollback() error {
 // - Insecure registries
 // - Registry mirrors
 // - Daemon live restore
+// - NRI enable and filesystem locations
 func (daemon *Daemon) Reload(conf *config.Config) error {
 	daemon.configReload.Lock()
 	defer daemon.configReload.Unlock()
@@ -107,6 +108,7 @@ func (daemon *Daemon) Reload(conf *config.Config) error {
 		daemon.reloadRegistryConfig,
 		daemon.reloadLiveRestore,
 		daemon.reloadNetworkDiagnosticPort,
+		daemon.reloadNRI,
 	} {
 		if err := reload(&txn, newCfg, conf, attributes); err != nil {
 			return errors.Join(err, txn.Rollback())
@@ -274,5 +276,29 @@ func (daemon *Daemon) reloadFeatures(txn *reloadTxn, newCfg *configStore, conf *
 
 	// prepare reload event attributes with updatable configurations
 	attributes["features"] = fmt.Sprintf("%v", newCfg.Features)
+	return nil
+}
+
+// reloadNRI updates NRI configuration
+func (daemon *Daemon) reloadNRI(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
+	if daemon.nri == nil {
+		// Daemon not initialised.
+		return nil
+	}
+	if conf.IsValueSet("nri-opts") {
+		newCfg.Config.NRIOpts = conf.NRIOpts
+	} else {
+		newCfg.Config.NRIOpts = opts.NRIOpts{}
+	}
+
+	commit, err := daemon.nri.PrepareReload(newCfg.NRIOpts)
+	if err != nil {
+		return err
+	}
+	if commit != nil {
+		txn.OnCommit(commit)
+	}
+
+	attributes["nri-opts"] = fmt.Sprintf("%v", newCfg.NRIOpts)
 	return nil
 }
