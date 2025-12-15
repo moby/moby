@@ -172,6 +172,34 @@ tags:
     x-displayName: "System"
 
 definitions:
+  ImageHistoryResponseItem:
+    type: "object"
+    x-go-name: HistoryResponseItem
+    title: "HistoryResponseItem"
+    description: "individual image layer information in response to ImageHistory operation"
+    required: [Id, Created, CreatedBy, Tags, Size, Comment]
+    properties:
+      Id:
+        type: "string"
+        x-nullable: false
+      Created:
+        type: "integer"
+        format: "int64"
+        x-nullable: false
+      CreatedBy:
+        type: "string"
+        x-nullable: false
+      Tags:
+        type: "array"
+        items:
+          type: "string"
+      Size:
+        type: "integer"
+        format: "int64"
+        x-nullable: false
+      Comment:
+        type: "string"
+        x-nullable: false
   PortSummary:
     type: "object"
     description: |
@@ -409,12 +437,12 @@ definitions:
             default: false
           ReadOnlyNonRecursive:
             description: |
-               Make the mount non-recursively read-only, but still leave the mount recursive
-               (unless NonRecursive is set to `true` in conjunction).
+              Make the mount non-recursively read-only, but still leave the mount recursive
+              (unless NonRecursive is set to `true` in conjunction).
 
-               Added in v1.44, before that version all read-only mounts were
-               non-recursive by default. To match the previous behaviour this
-               will default to `true` for clients on versions prior to v1.44.
+              Added in v1.44, before that version all read-only mounts were
+              non-recursive by default. To match the previous behaviour this
+              will default to `true` for clients on versions prior to v1.44.
             type: "boolean"
             default: false
           ReadOnlyForceRecursive:
@@ -1783,15 +1811,15 @@ definitions:
         $ref: "#/definitions/OCIDescriptor"
       Manifests:
         description: |
-            Manifests is a list of image manifests available in this image. It
-            provides a more detailed view of the platform-specific image manifests or
-            other image-attached data like build attestations.
+          Manifests is a list of image manifests available in this image. It
+          provides a more detailed view of the platform-specific image manifests or
+          other image-attached data like build attestations.
 
-            Only available if the daemon provides a multi-platform image store
-            and the `manifests` option is set in the inspect request.
+          Only available if the daemon provides a multi-platform image store
+          and the `manifests` option is set in the inspect request.
 
-            WARNING: This is experimental and may change at any time without any backward
-            compatibility.
+          WARNING: This is experimental and may change at any time without any backward
+          compatibility.
         type: "array"
         x-nullable: true
         items:
@@ -9848,33 +9876,7 @@ paths:
           schema:
             type: "array"
             items:
-              type: "object"
-              x-go-name: HistoryResponseItem
-              title: "HistoryResponseItem"
-              description: "individual image layer information in response to ImageHistory operation"
-              required: [Id, Created, CreatedBy, Tags, Size, Comment]
-              properties:
-                Id:
-                  type: "string"
-                  x-nullable: false
-                Created:
-                  type: "integer"
-                  format: "int64"
-                  x-nullable: false
-                CreatedBy:
-                  type: "string"
-                  x-nullable: false
-                Tags:
-                  type: "array"
-                  items:
-                    type: "string"
-                Size:
-                  type: "integer"
-                  format: "int64"
-                  x-nullable: false
-                Comment:
-                  type: "string"
-                  x-nullable: false
+              $ref: "#/definitions/ImageHistoryResponseItem"
           examples:
             application/json:
               - Id: "3db9c44f45209632d6050b35958829c3a2aa256d81b9a7be45b362ff85c54710"
