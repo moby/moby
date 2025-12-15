@@ -13548,6 +13548,9 @@ paths:
         Start a new interactive session with a server. Session allows server to
         call back to the client for advanced capabilities.
 
+        > **Deprecated**: This endpoint is deprecated and will be removed in a future version.
+        > Server should support gRPC directly on the listening socket.
+
         ### Hijacking
 
         This endpoint hijacks the HTTP connection to HTTP2 transport that allows

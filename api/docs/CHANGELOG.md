@@ -17,6 +17,8 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 * `GET /info` now includes an `NRI` field. If the Node Resource Interface (NRI)
   is enabled, this field contains information describing it.
+* Deprecated: The `POST /grpc` and `POST /session` endpoints are deprecated and
+  will be removed in a future version.
 
 ## v1.52 API changes
 
