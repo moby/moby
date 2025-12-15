@@ -16,7 +16,7 @@ import (
 // TimeoutFlag is the flag to set a per-test timeout when running tests. Defaults to `-timeout`.
 var TimeoutFlag = flag.Duration("timeout", 0, "DO NOT USE")
 
-var typTestingT = reflect.TypeOf(new(testing.T))
+var typTestingT = reflect.TypeFor[*testing.T]()
 
 // Run takes a testing suite and runs all of the tests attached to it.
 func Run(ctx context.Context, t *testing.T, suite any) {
