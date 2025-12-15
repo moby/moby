@@ -6,6 +6,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -468,12 +469,7 @@ var (
 // inSlice tests whether a string is contained in a slice of strings or not.
 // Comparison is case sensitive
 func inSlice(slice []string, s string) bool {
-	for _, ss := range slice {
-		if s == ss {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, s)
 }
 
 // withMounts sets the container's mounts

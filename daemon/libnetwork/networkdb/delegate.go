@@ -3,6 +3,7 @@ package networkdb
 import (
 	"context"
 	"net"
+	"slices"
 	"time"
 
 	"github.com/containerd/log"
@@ -154,11 +155,8 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 	// Check if the owner of the event is still part of the network
 	nodes := nDB.networkNodes[tEvent.NetworkID]
 	var nodePresent bool
-	for _, node := range nodes {
-		if node == tEvent.NodeName {
-			nodePresent = true
-			break
-		}
+	if slices.Contains(nodes, tEvent.NodeName) {
+		nodePresent = true
 	}
 
 	if !ok || network.leaving || !nodePresent {

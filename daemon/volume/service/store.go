@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
 
@@ -229,12 +230,7 @@ type VolumeStore struct {
 
 func filterByDriver(names []string) filterFunc {
 	return func(v volume.Volume) bool {
-		for _, name := range names {
-			if name == v.DriverName() {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(names, v.DriverName())
 	}
 }
 

@@ -49,6 +49,7 @@ import (
 	"net"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -831,10 +832,8 @@ func (c *Controller) Networks(ctx context.Context) []*Network {
 
 // WalkNetworks uses the provided function to walk the Network(s) managed by this controller.
 func (c *Controller) WalkNetworks(walker NetworkWalker) {
-	for _, n := range c.Networks(context.TODO()) {
-		if walker(n) {
-			return
-		}
+	if slices.ContainsFunc(c.Networks(context.TODO()), walker) {
+		return
 	}
 }
 

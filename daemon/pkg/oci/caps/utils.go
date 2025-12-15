@@ -2,6 +2,7 @@ package caps
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/moby/moby/v2/errdefs"
@@ -39,12 +40,7 @@ func knownCapabilities() map[string]*struct{} {
 
 // inSlice tests whether a string is contained in a slice of strings or not.
 func inSlice(slice []string, s string) bool {
-	for _, ss := range slice {
-		if s == ss {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, s)
 }
 
 const allCapabilities = "ALL"

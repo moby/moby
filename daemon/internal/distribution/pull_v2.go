@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 
@@ -452,10 +453,8 @@ func (p *puller) validateMediaType(mediaType string) error {
 	} else {
 		allowedMediaTypes = defaultImageTypes
 	}
-	for _, t := range allowedMediaTypes {
-		if mediaType == t {
-			return nil
-		}
+	if slices.Contains(allowedMediaTypes, mediaType) {
+		return nil
 	}
 
 	configClass := mediaTypeClasses[mediaType]

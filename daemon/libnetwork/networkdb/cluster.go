@@ -9,6 +9,7 @@ import (
 	rnd "math/rand"
 	"net"
 	"net/netip"
+	"slices"
 	"strings"
 	"time"
 
@@ -543,11 +544,8 @@ func (nDB *NetworkDB) bulkSyncTables() {
 		updatedNetworks := make([]string, 0, len(networks))
 		for _, nid := range networks {
 			var found bool
-			for _, completedNid := range completed {
-				if nid == completedNid {
-					found = true
-					break
-				}
+			if slices.Contains(completed, nid) {
+				found = true
 			}
 
 			if !found {

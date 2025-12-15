@@ -7,6 +7,7 @@ import (
 	"maps"
 	"net"
 	"net/netip"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -433,10 +434,8 @@ func (daemon *Daemon) pluginRefCount(driver, capability string, mode int) {
 		// other capabilities can be ignored for now
 	}
 
-	for _, d := range builtinDrivers {
-		if d == driver {
-			return
-		}
+	if slices.Contains(builtinDrivers, driver) {
+		return
 	}
 
 	if daemon.PluginStore != nil {

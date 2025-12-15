@@ -9,6 +9,7 @@ import (
 	"math/rand/v2"
 	"net/netip"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -730,10 +731,8 @@ func (nDB *NetworkDB) LeaveNetwork(nid string) error {
 // should hold the NetworkDB lock while calling this
 func (nDB *NetworkDB) addNetworkNode(nid string, nodeName string) {
 	nodes := nDB.networkNodes[nid]
-	for _, node := range nodes {
-		if node == nodeName {
-			return
-		}
+	if slices.Contains(nodes, nodeName) {
+		return
 	}
 
 	nDB.networkNodes[nid] = append(nDB.networkNodes[nid], nodeName)

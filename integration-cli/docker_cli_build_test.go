@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -4357,13 +4358,7 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgExpansion(c *testing.T) {
 	var resArr []string
 	inspectFieldAndUnmarshall(c, imgName, "Config.Env", &resArr)
 
-	found := false
-	for _, v := range resArr {
-		if fmt.Sprintf("%s=%s", envVar, envVal) == v {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(resArr, fmt.Sprintf("%s=%s", envVar, envVal))
 	if !found {
 		c.Fatalf("Config.Env value mismatch. Expected <key=value> to exist: %s=%s, got: %v",
 			envVar, envVal, resArr)
@@ -4707,11 +4702,8 @@ func (s *DockerCLIBuildSuite) TestBuildTagEvent(c *testing.T) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	actions := eventActionsByIDAndType(c, events, imgName+":latest", "image")
 	var foundTag bool
-	for _, a := range actions {
-		if a == "tag" {
-			foundTag = true
-			break
-		}
+	if slices.Contains(actions, "tag") {
+		foundTag = true
 	}
 
 	assert.Assert(c, foundTag, "No tag event found:\n%s", out)

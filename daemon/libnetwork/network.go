@@ -1275,10 +1275,8 @@ func (n *Network) HasContainerAttachments() bool {
 
 // WalkEndpoints uses the provided function to walk the Endpoints.
 func (n *Network) WalkEndpoints(walker EndpointWalker) {
-	for _, e := range n.Endpoints() {
-		if walker(e) {
-			return
-		}
+	if slices.ContainsFunc(n.Endpoints(), walker) {
+		return
 	}
 }
 
