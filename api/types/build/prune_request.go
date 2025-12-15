@@ -15,9 +15,9 @@ type Filters map[string]map[string]bool
 // This struct is used for API version 1.53 and later.
 // Earlier API versions use query parameters instead.
 type BuildCachePruneRequest struct {
-	All           bool		`json:"all,omitempty"`
-	ReservedSpace int64		`json:"reservedSpace,omitempty"`
-	MaxUsedSpace  int64		`json:"maxUsedSpace,omitempty"`
-	MinFreeSpace  int64		`json:"minFreeSpace,omitempty"`
-	Filters       Filters	`json:"filters,omitempty"`
+	All           bool				`json:"all,omitempty"`
+	ReservedSpace int64				`json:"reservedSpace,omitempty"`
+	MaxUsedSpace  int64				`json:"maxUsedSpace,omitempty"`
+	MinFreeSpace  int64				`json:"minFreeSpace,omitempty"`
+	Filters       json.RawMessage	`json:"filters,omitempty"`
 }

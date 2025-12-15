@@ -172,11 +172,11 @@ func parseVersion(s string) (build.BuilderVersion, error) {
 
 // For API  >= v1.53 BuildCachePruneRequest holds the arguments that were in query args for prior versions
 type BuildCachePruneRequest struct {
-	All           bool         `json:"all,omitempty"`
-	ReservedSpace int64        `json:"reservedSpace,omitempty"`
-	MaxUsedSpace  int64        `json:"maxUsedSpace,omitempty"`
-	MinFreeSpace  int64        `json:"minFreeSpace,omitempty"`
-	Filters       filters.Args `json:"filters,omitempty"`
+	All           bool            `json:"all,omitempty"`
+	ReservedSpace int64           `json:"reservedSpace,omitempty"`
+	MaxUsedSpace  int64           `json:"maxUsedSpace,omitempty"`
+	MinFreeSpace  int64           `json:"minFreeSpace,omitempty"`
+	Filters       json.RawMessage `json:"filters,omitempty"`
 }
 
 func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -190,12 +190,22 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			return fmt.Errorf("error parsing JSON body: %w", err)
 		}
+		// handle Filters separately
+		var fltrs filters.Args
+		if len(req.Filters) > 0 {
+			var err error
+			fltrs, err = filters.FromJSON(string(req.Filters))
+			if err != nil {
+				return fmt.Errorf("error parsing filters: %w", err)
+			}
+		}
+
 		opts = buildbackend.CachePruneOptions{
 			All:           req.All,
 			ReservedSpace: req.ReservedSpace,
 			MaxUsedSpace:  req.MaxUsedSpace,
 			MinFreeSpace:  req.MinFreeSpace,
-			Filters:       req.Filters,
+			Filters:       fltrs,
 		}
 	} else {
 		fltrs, err := filters.FromJSON(r.Form.Get("filters"))
