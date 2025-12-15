@@ -1,5 +1,9 @@
 package build
 
+import(
+	"encoding/json"
+)
+
 // Filters describes a predicate for an API request.
 //
 // Each entry in the map is a filter term.
