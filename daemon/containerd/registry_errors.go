@@ -26,7 +26,7 @@ func translateRegistryError(ctx context.Context, err error) error {
 		var derr docker.Error
 		if errors.As(err, &remoteErr) {
 			if jerr := json.Unmarshal(remoteErr.Body, &derrs); jerr != nil {
-				log.G(ctx).WithError(derrs).Debug("unable to unmarshal registry error")
+				log.G(ctx).WithError(jerr).Debug("unable to unmarshal registry error")
 				return fmt.Errorf("%w: %w", cerrdefs.ErrUnknown, err)
 			}
 			if len(derrs) == 0 && (remoteErr.StatusCode == http.StatusUnauthorized || remoteErr.StatusCode == http.StatusForbidden) {
