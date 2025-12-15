@@ -660,6 +660,17 @@ func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc Mou
 	if err := ls.driver.CreateReadWrite(initID, parent, createOpts); err != nil {
 		return "", err
 	}
+
+	// Clean up init layer if any subsequent operation fails
+	successful := false
+	defer func() {
+		if !successful {
+			if err := ls.driver.Remove(initID); err != nil {
+				log.G(context.TODO()).WithFields(log.Fields{"init-id": initID, "error": err}).Error("Failed to clean up init layer after error")
+			}
+		}
+	}()
+
 	p, err := ls.driver.Get(initID, "")
 	if err != nil {
 		return "", err
@@ -674,6 +685,7 @@ func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc Mou
 		return "", err
 	}
 
+	successful = true
 	return initID, nil
 }
 
