@@ -421,10 +421,7 @@ func (l *splunkLogger) postMessages(messages []*splunkMessage, lastChance bool) 
 
 	messagesLen := len(messages)
 	for i := 0; i < messagesLen; i += l.postMessagesBatchSize {
-		upperBound := i + l.postMessagesBatchSize
-		if upperBound > messagesLen {
-			upperBound = messagesLen
-		}
+		upperBound := min(i+l.postMessagesBatchSize, messagesLen)
 
 		if err := l.tryPostMessages(ctx, messages[i:upperBound]); err != nil {
 			log.G(ctx).WithError(err).WithField("module", "logger/splunk").Warn("Error while sending logs")

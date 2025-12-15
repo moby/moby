@@ -63,10 +63,7 @@ func TestV2MetadataService(t *testing.T) {
 		if err != nil {
 			t.Fatalf("error calling Get: %v", err)
 		}
-		expectedMetadataEntries := len(vec.metadata)
-		if expectedMetadataEntries > 50 {
-			expectedMetadataEntries = 50
-		}
+		expectedMetadataEntries := min(len(vec.metadata), 50)
 		if !reflect.DeepEqual(metadata, vec.metadata[len(vec.metadata)-expectedMetadataEntries:len(vec.metadata)]) {
 			t.Fatal("Get returned incorrect layer ID")
 		}

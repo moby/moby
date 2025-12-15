@@ -16,10 +16,7 @@ func compare(v1, v2 string) int {
 		otherTab = strings.Split(v2, ".")
 	)
 
-	maxVer := len(currTab)
-	if len(otherTab) > maxVer {
-		maxVer = len(otherTab)
-	}
+	maxVer := max(len(otherTab), len(currTab))
 	for i := 0; i < maxVer; i++ {
 		var currInt, otherInt int
 
