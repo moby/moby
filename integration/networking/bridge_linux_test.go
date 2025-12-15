@@ -1591,7 +1591,7 @@ func checkProxies(ctx context.Context, t *testing.T, c *client.Client, daemonPid
 		t.Error(res)
 		return
 	}
-	for _, line := range strings.Split(res.Stdout(), "\n") {
+	for line := range strings.SplitSeq(res.Stdout(), "\n") {
 		_, args, ok := strings.Cut(line, "docker-proxy")
 		if !ok {
 			continue
@@ -1785,7 +1785,7 @@ func TestAdvertiseAddresses(t *testing.T) {
 			// the associated MAC address.
 			findNeighMAC := func(neighOut, ip string) string {
 				t.Helper()
-				for _, line := range strings.Split(neighOut, "\n") {
+				for line := range strings.SplitSeq(neighOut, "\n") {
 					// Lines look like ...
 					// 172.22.22.22 dev eth0 lladdr 36:bc:ce:67:f3:e4 ref 1 used 0/7/0 probes 1 DELAY
 					fields := strings.Fields(line)
@@ -2015,7 +2015,7 @@ func TestLegacyLinksEnvVars(t *testing.T) {
 
 			// Check the list of environment variables set in the linking container.
 			var found bool
-			for _, l := range strings.Split(exportRes.Stdout.String(), "\n") {
+			for l := range strings.SplitSeq(exportRes.Stdout.String(), "\n") {
 				if strings.HasPrefix(l, "export CTR1_") {
 					// Legacy links env var found, but not expected.
 					if !tc.expectEnvVars {

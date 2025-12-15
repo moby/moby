@@ -408,7 +408,7 @@ const (
 // hasMountInfoOption checks if any of the passed any of the given option values
 // are set in the passed in option string.
 func hasMountInfoOption(opts string, vals ...string) bool {
-	for _, opt := range strings.Split(opts, " ") {
+	for opt := range strings.SplitSeq(opts, " ") {
 		for _, val := range vals {
 			if strings.HasPrefix(opt, val) {
 				return true

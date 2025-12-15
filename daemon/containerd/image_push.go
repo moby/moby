@@ -404,7 +404,7 @@ func extractDistributionSources(labels map[string]string) []distributionSource {
 	// if yes, read it as source
 	for k, v := range labels {
 		if reg := strings.TrimPrefix(k, containerdlabels.LabelDistributionSource); reg != k {
-			for _, repo := range strings.Split(v, ",") {
+			for repo := range strings.SplitSeq(v, ",") {
 				ref, err := reference.ParseNamed(reg + "/" + repo)
 				if err != nil {
 					continue

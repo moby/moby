@@ -100,7 +100,7 @@ func (i *imageExporterInstanceWrapper) processNamedCallback(ctx context.Context,
 		return
 	}
 
-	for _, name := range strings.Split(imageName, ",") {
+	for name := range strings.SplitSeq(imageName, ",") {
 		ref, err := reference.ParseNormalizedNamed(name)
 		if err != nil {
 			// Shouldn't happen, but log if it does and continue.

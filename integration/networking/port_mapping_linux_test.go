@@ -281,8 +281,8 @@ func enableIPv6OnAll(t *testing.T) func() {
 	ifaces := map[string]string{}
 	var allVal string
 
-	sysctls := strings.Split(string(out), "\n")
-	for _, sysctl := range sysctls {
+	sysctls := strings.SplitSeq(string(out), "\n")
+	for sysctl := range sysctls {
 		if sysctl == "" {
 			continue
 		}

@@ -361,8 +361,8 @@ func parseInitVersion(v string) (version string, commit string, _ error) {
 //	commit: 69663f0bd4b60df09991c08812a60108003fa340
 //	spec: 1.0.0
 func parseRuntimeVersion(v string) (runtime, version, commit string, _ error) {
-	lines := strings.Split(strings.TrimSpace(v), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(strings.TrimSpace(v), "\n")
+	for line := range lines {
 		if strings.Contains(line, "version") {
 			s := strings.Split(line, "version")
 			runtime = strings.TrimSpace(s[0])

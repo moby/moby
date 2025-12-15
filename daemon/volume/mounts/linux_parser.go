@@ -174,7 +174,7 @@ var linuxPropagationModes = map[mount.Propagation]bool{
 const linuxDefaultPropagationMode = mount.PropagationRPrivate
 
 func linuxGetPropagation(mode string) mount.Propagation {
-	for _, o := range strings.Split(mode, ",") {
+	for o := range strings.SplitSeq(mode, ",") {
 		prop := mount.Propagation(o)
 		if linuxPropagationModes[prop] {
 			return prop
@@ -184,7 +184,7 @@ func linuxGetPropagation(mode string) mount.Propagation {
 }
 
 func linuxHasPropagation(mode string) bool {
-	for _, o := range strings.Split(mode, ",") {
+	for o := range strings.SplitSeq(mode, ",") {
 		if linuxPropagationModes[mount.Propagation(o)] {
 			return true
 		}
@@ -203,7 +203,7 @@ func linuxValidMountMode(mode string) bool {
 	copyModeCount := 0
 	consistencyModeCount := 0
 
-	for _, o := range strings.Split(mode, ",") {
+	for o := range strings.SplitSeq(mode, ",") {
 		switch {
 		case rwModes[o]:
 			rwModeCount++
@@ -256,7 +256,7 @@ func (p *linuxParser) ReadWrite(mode string) bool {
 		return false
 	}
 
-	for _, o := range strings.Split(mode, ",") {
+	for o := range strings.SplitSeq(mode, ",") {
 		if o == "ro" {
 			return false
 		}

@@ -531,7 +531,7 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterCreated(c *testing.T) {
 	out = cli.DockerCmd(c, "ps", "-a").Stdout()
 
 	hits := 0
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if !strings.Contains(line, shortCID) {
 			continue
 		}

@@ -545,7 +545,7 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 	}
 
 	if sysctls, ok := epConfig.DriverOpts[netlabel.EndpointSysctls]; ok {
-		for _, sysctl := range strings.Split(sysctls, ",") {
+		for sysctl := range strings.SplitSeq(sysctls, ",") {
 			scname := strings.SplitN(sysctl, ".", 5)
 			// Allow "ifname" as well as "IFNAME", because the CLI converts to lower case.
 			if len(scname) != 5 ||
