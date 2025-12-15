@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
@@ -78,7 +79,7 @@ func (l *tarexporter) Load(ctx context.Context, inTar io.ReadCloser, outStream i
 	}
 
 	var parentLinks []parentLink
-	var imageIDsStr string
+	var imageIDsStr strings.Builder
 	var imageRefCount int
 
 	for _, m := range manifest {
@@ -142,7 +143,7 @@ func (l *tarexporter) Load(ctx context.Context, inTar io.ReadCloser, outStream i
 		if err != nil {
 			return err
 		}
-		imageIDsStr += fmt.Sprintf("Loaded image ID: %s\n", imgID)
+		imageIDsStr.WriteString(fmt.Sprintf("Loaded image ID: %s\n", imgID))
 
 		imageRefCount = 0
 		for _, repoTag := range m.RepoTags {
@@ -172,7 +173,7 @@ func (l *tarexporter) Load(ctx context.Context, inTar io.ReadCloser, outStream i
 	}
 
 	if imageRefCount == 0 {
-		outStream.Write([]byte(imageIDsStr))
+		outStream.Write([]byte(imageIDsStr.String()))
 	}
 
 	return nil
