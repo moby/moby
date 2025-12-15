@@ -3,7 +3,6 @@
 package container
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -59,8 +58,7 @@ func TestHealthStates(t *testing.T) {
 	}
 
 	errChan := make(chan error, 1)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	// fire checkHealth
 	go func() {
