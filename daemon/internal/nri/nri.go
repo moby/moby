@@ -155,6 +155,9 @@ func (n *NRI) CreateContainer(ctx context.Context, ctr *container.Container) err
 	if resp.GetUpdate() != nil {
 		return errors.New("container update is not supported")
 	}
+	if resp.GetEvict() != nil {
+		return errors.New("container eviction is not supported")
+	}
 	if err := applyAdjustments(ctx, ctr, resp.GetAdjust()); err != nil {
 		return err
 	}
@@ -318,11 +321,75 @@ func applyAdjustments(ctx context.Context, ctr *container.Container, adj *adapta
 	if adj == nil {
 		return nil
 	}
+	if err := checkForUnsupportedAdjustments(adj); err != nil {
+		return err
+	}
 	if err := applyEnvVars(ctx, ctr, adj.Env); err != nil {
 		return fmt.Errorf("applying environment variable adjustments: %w", err)
 	}
 	if err := applyMounts(ctx, ctr, adj.Mounts); err != nil {
 		return fmt.Errorf("applying mount adjustments: %w", err)
+	}
+	return nil
+}
+
+func checkForUnsupportedAdjustments(adj *adaptation.ContainerAdjustment) error {
+	var unsupported []string
+	if len(adj.Annotations) > 0 {
+		unsupported = append(unsupported, "annotations")
+	}
+	if adj.Hooks != nil {
+		if len(adj.Hooks.Prestart) > 0 ||
+			len(adj.Hooks.CreateRuntime) > 0 ||
+			len(adj.Hooks.CreateContainer) > 0 ||
+			len(adj.Hooks.StartContainer) > 0 ||
+			len(adj.Hooks.Poststart) > 0 ||
+			len(adj.Hooks.Poststop) > 0 {
+			unsupported = append(unsupported, "hooks")
+		}
+	}
+	if adj.Linux != nil {
+		if len(adj.Linux.Devices) > 0 ||
+			adj.Linux.CgroupsPath != "" ||
+			adj.Linux.OomScoreAdj != nil ||
+			adj.Linux.IoPriority != nil ||
+			adj.Linux.SeccompPolicy != nil ||
+			len(adj.Linux.Namespaces) > 0 {
+			unsupported = append(unsupported, "linux")
+		}
+		if resMem := adj.Linux.GetResources().GetMemory(); resMem != nil &&
+			(resMem.GetLimit() != nil ||
+				resMem.GetReservation() != nil ||
+				resMem.GetSwap() != nil ||
+				resMem.GetKernel() != nil ||
+				resMem.GetKernelTcp() != nil ||
+				resMem.GetSwappiness() != nil ||
+				resMem.GetDisableOomKiller() != nil ||
+				resMem.GetUseHierarchy() != nil) {
+			unsupported = append(unsupported, "linux.resources.memory")
+		}
+		if resCPU := adj.Linux.GetResources().GetCpu(); resCPU != nil &&
+			(resCPU.GetShares() != nil ||
+				resCPU.GetQuota() != nil ||
+				resCPU.GetPeriod() != nil ||
+				resCPU.GetRealtimeRuntime() != nil ||
+				resCPU.GetRealtimePeriod() != nil ||
+				resCPU.GetCpus() != "" ||
+				resCPU.GetMems() != "") {
+			unsupported = append(unsupported, "linux.resources.cpu")
+		}
+	}
+	if len(adj.Rlimits) > 0 {
+		unsupported = append(unsupported, "rlimits")
+	}
+	if len(adj.CDIDevices) > 0 {
+		unsupported = append(unsupported, "CDI")
+	}
+	if len(adj.Args) > 0 {
+		unsupported = append(unsupported, "args")
+	}
+	if len(unsupported) > 0 {
+		return fmt.Errorf("unsupported container adjustments: %s", strings.Join(unsupported, ","))
 	}
 	return nil
 }
