@@ -56,8 +56,8 @@ func getValueFromOsRelease(key string) (string, error) {
 	scanner := bufio.NewScanner(osReleaseFile)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasPrefix(line, key+"=") {
-			value = strings.TrimPrefix(line, key+"=")
+		if after, ok := strings.CutPrefix(line, key+"="); ok {
+			value = after
 			value = strings.Trim(value, `"' `) // remove leading/trailing quotes and whitespace
 		}
 	}
