@@ -158,7 +158,7 @@ func BenchmarkRingLoggerThroughputNoReceiver(b *testing.B) {
 	msg := &Message{Line: []byte("hello humans and everyone else!")}
 	b.SetBytes(int64(len(msg.Line)))
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := l.Log(msg); err != nil {
 			b.Fatal(err)
 		}
@@ -170,7 +170,7 @@ func BenchmarkRingLoggerThroughputWithReceiverDelay0(b *testing.B) {
 	msg := &Message{Line: []byte("hello humans and everyone else!")}
 	b.SetBytes(int64(len(msg.Line)))
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := l.Log(msg); err != nil {
 			b.Fatal(err)
 		}
@@ -206,7 +206,7 @@ func BenchmarkRingLoggerThroughputConsumeDelay1(b *testing.B) {
 	cancel := consumeWithDelay(1*time.Millisecond, mockLog.c)
 	defer cancel()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := l.Log(msg); err != nil {
 			b.Fatal(err)
 		}
@@ -223,7 +223,7 @@ func BenchmarkRingLoggerThroughputConsumeDelay10(b *testing.B) {
 	cancel := consumeWithDelay(10*time.Millisecond, mockLog.c)
 	defer cancel()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := l.Log(msg); err != nil {
 			b.Fatal(err)
 		}
@@ -240,7 +240,7 @@ func BenchmarkRingLoggerThroughputConsumeDelay50(b *testing.B) {
 	cancel := consumeWithDelay(50*time.Millisecond, mockLog.c)
 	defer cancel()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := l.Log(msg); err != nil {
 			b.Fatal(err)
 		}
@@ -257,7 +257,7 @@ func BenchmarkRingLoggerThroughputConsumeDelay100(b *testing.B) {
 	cancel := consumeWithDelay(100*time.Millisecond, mockLog.c)
 	defer cancel()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := l.Log(msg); err != nil {
 			b.Fatal(err)
 		}
@@ -274,7 +274,7 @@ func BenchmarkRingLoggerThroughputConsumeDelay300(b *testing.B) {
 	cancel := consumeWithDelay(300*time.Millisecond, mockLog.c)
 	defer cancel()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := l.Log(msg); err != nil {
 			b.Fatal(err)
 		}
@@ -291,7 +291,7 @@ func BenchmarkRingLoggerThroughputConsumeDelay500(b *testing.B) {
 	cancel := consumeWithDelay(500*time.Millisecond, mockLog.c)
 	defer cancel()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := l.Log(msg); err != nil {
 			b.Fatal(err)
 		}

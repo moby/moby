@@ -145,8 +145,8 @@ func BenchmarkUnbuffered(b *testing.B) {
 	buf.WriteString(testLine)
 	testText := buf.Bytes()
 	b.SetBytes(int64(5 * len(testText)))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		b.StopTimer()
 		setUpWriter()
 		b.StartTimer()

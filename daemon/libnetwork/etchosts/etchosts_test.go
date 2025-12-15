@@ -453,7 +453,7 @@ func benchDelete(b *testing.B) {
 }
 
 func BenchmarkDelete(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		benchDelete(b)
 	}
 }

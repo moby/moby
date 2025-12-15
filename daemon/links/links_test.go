@@ -143,8 +143,8 @@ func TestLinkMultipleEnv(t *testing.T) {
 
 func BenchmarkLinkMultipleEnv(b *testing.B) {
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = EnvVars("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, network.PortSet{
 			network.MustParsePort("6300/udp"): struct{}{},
 			network.MustParsePort("6379/tcp"): struct{}{},

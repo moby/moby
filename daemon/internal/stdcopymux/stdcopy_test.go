@@ -287,8 +287,8 @@ func BenchmarkWrite(b *testing.B) {
 	data := []byte("Test line for testing stdwriter performance\n")
 	data = bytes.Repeat(data, 100)
 	b.SetBytes(int64(len(data)))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		if _, err := w.Write(data); err != nil {
 			b.Fatal(err)
 		}

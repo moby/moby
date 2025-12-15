@@ -1331,7 +1331,7 @@ func BenchmarkPoolIDToString(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = k.String()
 	}
 }
@@ -1340,7 +1340,7 @@ func BenchmarkPoolIDFromString(b *testing.B) {
 	const poolIDString = "default/172.27.0.0/16/172.27.3.0/24"
 
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, err := PoolIDFromString(poolIDString)
 		if err != nil {
 			b.Fatal(err)

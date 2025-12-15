@@ -728,7 +728,7 @@ func TestCollectBatchMultilinePattern(t *testing.T) {
 }
 
 func BenchmarkCollectBatch(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		mockClient := &mockClient{}
 		stream := &logStream{
 			client:        mockClient,
@@ -759,7 +759,7 @@ func BenchmarkCollectBatch(b *testing.B) {
 }
 
 func BenchmarkCollectBatchMultilinePattern(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		mockClient := &mockClient{}
 		multilinePattern := regexp.MustCompile(`\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1,2][0-9]|3[0,1]) (?:[0,1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]`)
 		stream := &logStream{
@@ -1666,8 +1666,7 @@ func BenchmarkUnwrapEvents(b *testing.B) {
 		}
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		res := unwrapEvents(events)
 		assert.Check(b, is.Len(res, maximumLogEventsPerPut))
 	}

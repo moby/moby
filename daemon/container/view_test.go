@@ -350,8 +350,8 @@ func BenchmarkDBAdd100(b *testing.B) {
 	for i := 0; i < 100; i++ {
 		testSet = append(testSet, stringid.GenerateRandomID())
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		db, err := NewViewDB()
 		if err != nil {
 			b.Fatal(err)
@@ -381,8 +381,8 @@ func BenchmarkDBGetByPrefix100(b *testing.B) {
 		l := rand.Intn(12) + 12
 		testKeys = append(testKeys, id[:l])
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		for _, id := range testKeys {
 			if res, err := db.GetByPrefix(id); err != nil {
 				b.Fatal(res, err)
@@ -408,8 +408,8 @@ func BenchmarkDBGetByPrefix250(b *testing.B) {
 		l := rand.Intn(12) + 12
 		testKeys = append(testKeys, id[:l])
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		for _, id := range testKeys {
 			if res, err := db.GetByPrefix(id); err != nil {
 				b.Fatal(res, err)
@@ -435,8 +435,8 @@ func BenchmarkDBGetByPrefix500(b *testing.B) {
 		l := rand.Intn(12) + 12
 		testKeys = append(testKeys, id[:l])
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		for _, id := range testKeys {
 			if res, err := db.GetByPrefix(id); err != nil {
 				b.Fatal(res, err)
