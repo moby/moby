@@ -30,32 +30,33 @@ func translateRegistryError(ctx context.Context, err error) error {
 func extractOCIErrors(ctx context.Context, err error) (ociErrs docker.Errors, legacyErr error) {
 	// Check for registry specific error
 	var derrs docker.Errors
-	if !errors.As(err, &derrs) {
-		var remoteErr remoteerrors.ErrUnexpectedStatus
-		var derr docker.Error
-		if errors.As(err, &remoteErr) {
-			if jerr := json.Unmarshal(remoteErr.Body, &derrs); jerr != nil {
-				log.G(ctx).WithError(jerr).Debug("unable to unmarshal registry error")
-				return nil, fmt.Errorf("%w: %w", cerrdefs.ErrUnknown, err)
-			}
-			if len(derrs) == 0 && (remoteErr.StatusCode == http.StatusUnauthorized || remoteErr.StatusCode == http.StatusForbidden) {
-				// Some registries or token servers may use an old deprecated error format
-				// which only has a "details" field and not the OCI defined "errors" array.
-				var tokenErr struct {
-					Details string `json:"details"`
-				}
-				if jerr := json.Unmarshal(remoteErr.Body, &tokenErr); jerr == nil && tokenErr.Details != "" {
-					if remoteErr.StatusCode == http.StatusUnauthorized {
-						return nil, cerrdefs.ErrUnauthenticated.WithMessage(fmt.Sprintf("%s - %s", docker.ErrorCodeUnauthorized.Message(), tokenErr.Details))
-					}
-					return nil, cerrdefs.ErrPermissionDenied.WithMessage(fmt.Sprintf("%s - %s", docker.ErrorCodeDenied.Message(), tokenErr.Details))
-				}
-			}
-		} else if errors.As(err, &derr) {
-			derrs = append(derrs, derr)
-		} else {
-			return nil, err
+	if errors.As(err, &derrs) {
+		return derrs, nil
+	}
+	var remoteErr remoteerrors.ErrUnexpectedStatus
+	var derr docker.Error
+	if errors.As(err, &remoteErr) {
+		if jerr := json.Unmarshal(remoteErr.Body, &derrs); jerr != nil {
+			log.G(ctx).WithError(jerr).Debug("unable to unmarshal registry error")
+			return nil, fmt.Errorf("%w: %w", cerrdefs.ErrUnknown, err)
 		}
+		if len(derrs) == 0 && (remoteErr.StatusCode == http.StatusUnauthorized || remoteErr.StatusCode == http.StatusForbidden) {
+			// Some registries or token servers may use an old deprecated error format
+			// which only has a "details" field and not the OCI defined "errors" array.
+			var tokenErr struct {
+				Details string `json:"details"`
+			}
+			if jerr := json.Unmarshal(remoteErr.Body, &tokenErr); jerr == nil && tokenErr.Details != "" {
+				if remoteErr.StatusCode == http.StatusUnauthorized {
+					return nil, cerrdefs.ErrUnauthenticated.WithMessage(fmt.Sprintf("%s - %s", docker.ErrorCodeUnauthorized.Message(), tokenErr.Details))
+				}
+				return nil, cerrdefs.ErrPermissionDenied.WithMessage(fmt.Sprintf("%s - %s", docker.ErrorCodeDenied.Message(), tokenErr.Details))
+			}
+		}
+	} else if errors.As(err, &derr) {
+		derrs = append(derrs, derr)
+	} else {
+		return derrs, err
 	}
 	return derrs, nil
 }
