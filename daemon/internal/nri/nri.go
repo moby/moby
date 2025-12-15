@@ -29,6 +29,7 @@ import (
 	nrilog "github.com/containerd/nri/pkg/log"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
@@ -89,6 +90,25 @@ func NewNRI(ctx context.Context, cfg Config) (*NRI, error) {
 		return nil, err
 	}
 	return n, nil
+}
+
+// GetInfo returns status for inclusion in the system info API.
+func (n *NRI) GetInfo() *system.NRIInfo {
+	if n == nil {
+		return nil
+	}
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	if n.adap == nil {
+		return nil
+	}
+	info := system.NRIInfo{}
+	info.Info = append(info.Info, [2]string{"plugin-path", n.cfg.DaemonConfig.PluginPath})
+	info.Info = append(info.Info, [2]string{"plugin-config-path", n.cfg.DaemonConfig.PluginConfigPath})
+	if n.cfg.DaemonConfig.SocketPath != "" {
+		info.Info = append(info.Info, [2]string{"socket-path", n.cfg.DaemonConfig.SocketPath})
+	}
+	return &info
 }
 
 // Shutdown stops the NRI instance and releases its resources.
