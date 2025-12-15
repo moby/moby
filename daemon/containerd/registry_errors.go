@@ -19,6 +19,15 @@ func translateRegistryError(ctx context.Context, err error) error {
 		return nil
 	}
 
+	derrs, legacyErr := extractOCIErrors(ctx, err)
+	if legacyErr != nil {
+		return legacyErr
+	}
+
+	return convertOCIErrors(derrs, err)
+}
+
+func extractOCIErrors(ctx context.Context, err error) (ociErrs docker.Errors, legacyErr error) {
 	// Check for registry specific error
 	var derrs docker.Errors
 	if !errors.As(err, &derrs) {
@@ -27,7 +36,7 @@ func translateRegistryError(ctx context.Context, err error) error {
 		if errors.As(err, &remoteErr) {
 			if jerr := json.Unmarshal(remoteErr.Body, &derrs); jerr != nil {
 				log.G(ctx).WithError(jerr).Debug("unable to unmarshal registry error")
-				return fmt.Errorf("%w: %w", cerrdefs.ErrUnknown, err)
+				return nil, fmt.Errorf("%w: %w", cerrdefs.ErrUnknown, err)
 			}
 			if len(derrs) == 0 && (remoteErr.StatusCode == http.StatusUnauthorized || remoteErr.StatusCode == http.StatusForbidden) {
 				// Some registries or token servers may use an old deprecated error format
@@ -37,17 +46,21 @@ func translateRegistryError(ctx context.Context, err error) error {
 				}
 				if jerr := json.Unmarshal(remoteErr.Body, &tokenErr); jerr == nil && tokenErr.Details != "" {
 					if remoteErr.StatusCode == http.StatusUnauthorized {
-						return cerrdefs.ErrUnauthenticated.WithMessage(fmt.Sprintf("%s - %s", docker.ErrorCodeUnauthorized.Message(), tokenErr.Details))
+						return nil, cerrdefs.ErrUnauthenticated.WithMessage(fmt.Sprintf("%s - %s", docker.ErrorCodeUnauthorized.Message(), tokenErr.Details))
 					}
-					return cerrdefs.ErrPermissionDenied.WithMessage(fmt.Sprintf("%s - %s", docker.ErrorCodeDenied.Message(), tokenErr.Details))
+					return nil, cerrdefs.ErrPermissionDenied.WithMessage(fmt.Sprintf("%s - %s", docker.ErrorCodeDenied.Message(), tokenErr.Details))
 				}
 			}
 		} else if errors.As(err, &derr) {
 			derrs = append(derrs, derr)
 		} else {
-			return err
+			return nil, err
 		}
 	}
+	return derrs, nil
+}
+
+func convertOCIErrors(derrs docker.Errors, fallbackErr error) error {
 	var errs []error
 	for _, err := range derrs {
 		var derr docker.Error
@@ -83,9 +96,11 @@ func translateRegistryError(ctx context.Context, err error) error {
 		}
 		errs = append(errs, err)
 	}
+
+	var err error
 	switch len(errs) {
 	case 0:
-		err = cerrdefs.ErrUnknown.WithMessage(err.Error())
+		return cerrdefs.ErrUnknown.WithMessage(fallbackErr.Error())
 	case 1:
 		err = errs[0]
 	default:
