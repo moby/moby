@@ -293,10 +293,12 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 
 			rwlayer, err := daemon.imageService.GetLayerByID(c.ID)
 			if err != nil {
+				// A container without a rwlayer is in a bad state, but we must register that container to let users
+				// remove it. So, log the error but do not early-return.
 				logger.WithError(err).Error("failed to load container mount")
-				return
+			} else {
+				c.RWLayer = rwlayer
 			}
-			c.RWLayer = rwlayer
 			logger.WithFields(log.Fields{
 				"running": c.State.IsRunning(),
 				"paused":  c.State.IsPaused(),
