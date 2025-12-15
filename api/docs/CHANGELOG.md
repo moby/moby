@@ -33,7 +33,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * Deprecated: the Engine was automatically backfilling empty `PortBindings` lists with
   a PortBinding with an empty HostIP and HostPort when calling `POST /containers/{id}/start`.
   This behavior is now deprecated, and a warning is returned by `POST /containers/create`.
-  The next API version will drop empty `PortBindings` list altogether.
+  A future API version will drop empty `PortBindings` list altogether.
 * `GET /images/{name}/json` now omits the following `Config` fields when
   not set, to closer align with the implementation of the [OCI Image Specification](https://github.com/opencontainers/image-spec/blob/v1.1.1/specs-go/v1/config.go#L23-L62)
   `Cmd`, `Entrypoint`, `Env`, `Labels`, `OnBuild`, `User`, `Volumes`, and `WorkingDir`.

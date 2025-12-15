@@ -389,6 +389,8 @@ func TestBridgeINCRouted(t *testing.T) {
 			container.WithNetworkMode(netName),
 			container.WithName("ctr-"+gwMode),
 			container.WithExposedPorts("80/tcp"),
+			// TODO(robmry): this test supplies an empty list of PortBindings.
+			// https://github.com/moby/moby/issues/51727 will break it.
 			container.WithPortMap(networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {}}),
 		)
 		t.Cleanup(func() {
