@@ -5,6 +5,7 @@ package journald
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -129,9 +130,7 @@ func newJournald(info logger.Info) (*journald, error) {
 	if err != nil {
 		return nil, err
 	}
-	for k, v := range extraAttrs {
-		vars[k] = v
-	}
+	maps.Copy(vars, extraAttrs)
 	return &journald{
 		epoch:         epoch,
 		vars:          vars,
@@ -159,9 +158,7 @@ func validateLogOpt(cfg map[string]string) error {
 
 func (s *journald) Log(msg *logger.Message) error {
 	vars := map[string]string{}
-	for k, v := range s.vars {
-		vars[k] = v
-	}
+	maps.Copy(vars, s.vars)
 	if !msg.Timestamp.IsZero() {
 		vars[fieldSyslogTimestamp] = msg.Timestamp.Format(time.RFC3339Nano)
 	}

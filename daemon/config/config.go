@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/netip"
 	"net/url"
@@ -587,9 +588,7 @@ func configValuesSet(config map[string]any) map[string]any {
 	flatten := make(map[string]any)
 	for k, v := range config {
 		if m, isMap := v.(map[string]any); isMap && !flatOptions[k] {
-			for km, vm := range m {
-				flatten[km] = vm
-			}
+			maps.Copy(flatten, m)
 			continue
 		}
 

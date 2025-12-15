@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -985,9 +986,7 @@ func WithSysctls(c *container.Container) coci.SpecOpts {
 		}
 		// We merge the sysctls injected above with the HostConfig (latter takes
 		// precedence for backwards-compatibility reasons).
-		for k, v := range c.HostConfig.Sysctls {
-			s.Linux.Sysctl[k] = v
-		}
+		maps.Copy(s.Linux.Sysctl, c.HostConfig.Sysctls)
 		return nil
 	}
 }

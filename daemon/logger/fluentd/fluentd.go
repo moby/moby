@@ -4,6 +4,7 @@ package fluentd
 
 import (
 	"context"
+	"maps"
 	"math"
 	"net/url"
 	"strconv"
@@ -120,9 +121,7 @@ func (f *fluentd) Log(msg *logger.Message) error {
 		"source":         msg.Source,
 		"log":            string(msg.Line),
 	}
-	for k, v := range f.extra {
-		data[k] = v
-	}
+	maps.Copy(data, f.extra)
 	if msg.PLogMetaData != nil {
 		data["partial_message"] = "true"
 		data["partial_id"] = msg.PLogMetaData.ID

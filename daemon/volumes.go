@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"encoding/hex"
+	"maps"
 	"os"
 	"path/filepath"
 	"sort"
@@ -97,9 +98,7 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, defaultReadO
 	}
 
 	// 1. Read already configured mount points.
-	for destination, point := range ctr.MountPoints {
-		mountPoints[destination] = point
-	}
+	maps.Copy(mountPoints, ctr.MountPoints)
 
 	// 2. Read volumes from other containers.
 	for _, v := range ctr.HostConfig.VolumesFrom {

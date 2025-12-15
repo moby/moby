@@ -1036,9 +1036,7 @@ func (ep *Endpoint) getEtcHostsAddrs() []netip.Addr {
 // in a Dictionary of Key-Value pair
 func EndpointOptionGeneric(generic map[string]any) EndpointOption {
 	return func(ep *Endpoint) {
-		for k, v := range generic {
-			ep.generic[k] = v
-		}
+		maps.Copy(ep.generic, generic)
 	}
 }
 
