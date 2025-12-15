@@ -5645,7 +5645,7 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageCopyFromSyntax(c *testing.T) {
 	assert.Equal(c, strings.Count(result.Combined(), "Using cache"), 7)
 	assert.Equal(c, getIDByName(c, "build1"), getIDByName(c, "build2"))
 
-	err := os.WriteFile(filepath.Join(ctx.Dir, "Dockerfile"), []byte(fmt.Sprintf(dockerfile, "COPY baz/aa foo")), 0o644)
+	err := os.WriteFile(filepath.Join(ctx.Dir, "Dockerfile"), fmt.Appendf(nil, dockerfile, "COPY baz/aa foo"), 0o644)
 	assert.NilError(c, err)
 
 	// changing file in parent block should not affect last block

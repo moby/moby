@@ -324,14 +324,14 @@ func TestNetworkDBCRUDTableEntries(t *testing.T) {
 	for i := 1; i <= n; i++ {
 		err = dbs[0].CreateEntry("test_table", "network1",
 			fmt.Sprintf("test_key0%d", i),
-			[]byte(fmt.Sprintf("test_value0%d", i)))
+			fmt.Appendf(nil, "test_value0%d", i))
 		assert.NilError(t, err)
 	}
 
 	for i := 1; i <= n; i++ {
 		err = dbs[1].CreateEntry("test_table", "network1",
 			fmt.Sprintf("test_key1%d", i),
-			[]byte(fmt.Sprintf("test_value1%d", i)))
+			fmt.Appendf(nil, "test_value1%d", i))
 		assert.NilError(t, err)
 	}
 
@@ -445,7 +445,7 @@ func TestNetworkDBBulkSync(t *testing.T) {
 	for i := 1; i <= n; i++ {
 		err = dbs[0].CreateEntry("test_table", "network1",
 			fmt.Sprintf("test_key0%d", i),
-			[]byte(fmt.Sprintf("test_value0%d", i)))
+			fmt.Appendf(nil, "test_value0%d", i))
 		assert.NilError(t, err)
 	}
 
