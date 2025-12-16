@@ -1,0 +1,96 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "http://rekor.sigstore.dev/types/dsse/dsse_v0_0_1_schema.json",
+    "title": "DSSE v0.0.1 Schema",
+    "description": "Schema for DSSE envelopes",
+    "type": "object",
+    "properties": {
+        "proposedContent": {
+            "type": "object",
+            "properties": {
+                "envelope": {
+                    "description": "DSSE envelope specified as a stringified JSON object",
+                    "type": "string",
+                    "writeOnly": true
+                },
+                "verifiers": {
+                    "description": "collection of all verification material (e.g. public keys or certificates) used to verify signatures over envelope's payload, specified as base64-encoded strings",
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    },
+                    "writeOnly": true
+                }
+            },
+            "writeOnly": true,
+            "required": [ "envelope", "verifiers" ]
+        },
+        "signatures": {
+            "description": "extracted collection of all signatures of the envelope's payload; elements will be sorted by lexicographical order of the base64 encoded signature strings",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "description": "a signature of the envelope's payload along with the verification material for the signature",
+                "type": "object",
+                "properties": {
+                    "signature": {
+                        "description": "base64 encoded signature of the payload",
+                        "type": "string",
+                        "pattern": "^(?:[A-Za-z0-9+\\/]{4})*(?:[A-Za-z0-9+\\/]{2}==|[A-Za-z0-9+\\/]{3}=|[A-Za-z0-9+\\/]{4})$"
+                    },
+                    "verifier": {
+                        "description": "verification material that was used to verify the corresponding signature, specified as a base64 encoded string",
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "required": [ "signature", "verifier" ]
+            },
+            "readOnly": true
+        },
+        "envelopeHash": {
+            "description": "Specifies the hash algorithm and value encompassing the entire envelope sent to Rekor",
+            "type": "object",
+            "properties": {
+                "algorithm": {
+                    "description": "The hashing function used to compute the hash value",
+                    "type": "string",
+                    "enum": [ "sha256" ]
+                },
+                "value": {
+                    "description": "The value of the computed digest over the entire envelope",
+                    "type": "string"
+                }
+            },
+            "required": [ "algorithm", "value" ],
+            "readOnly": true
+        },
+        "payloadHash": {
+            "description": "Specifies the hash algorithm and value covering the payload within the DSSE envelope",
+            "type": "object",
+            "properties": {
+                "algorithm": {
+                    "description": "The hashing function used to compute the hash value",
+                    "type": "string",
+                    "enum": [ "sha256" ]
+                },
+                "value": {
+                    "description": "The value of the computed digest over the payload within the envelope",
+                    "type": "string"
+                }
+            },
+            "required": [ "algorithm", "value" ],
+            "readOnly": true
+        }
+    },
+    "oneOf": [
+        {
+            "required": [ "proposedContent" ]
+        },
+        {
+            "required": [ "signatures", "envelopeHash", "payloadHash" ]
+        }
+    ]
+}

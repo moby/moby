@@ -178,8 +178,8 @@ const (
 type ImageSignatureType string
 
 const (
-	ImageSignatureTypeBundleV03    ImageSignatureType = "bundle-v0.3"
-	ImageSignatureTypeHashedRecord ImageSignatureType = "hashedrecord"
+	ImageSignatureTypeBundleV03     ImageSignatureType = "bundle-v0.3"
+	ImageSignatureTypeSimpleSigning ImageSignatureType = "simplesigning-v1"
 )
 
 type KnownSigner string

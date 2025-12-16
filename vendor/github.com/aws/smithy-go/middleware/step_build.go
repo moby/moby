@@ -79,7 +79,7 @@ type BuildStep struct {
 // initialization added to it.
 func NewBuildStep() *BuildStep {
 	return &BuildStep{
-		ids: newOrderedIDs(),
+		ids: newOrderedIDs(baseOrderedItems),
 	}
 }
 

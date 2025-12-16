@@ -17,6 +17,7 @@
         "api_op_DecodeAuthorizationMessage.go",
         "api_op_GetAccessKeyInfo.go",
         "api_op_GetCallerIdentity.go",
+        "api_op_GetDelegatedAccessToken.go",
         "api_op_GetFederationToken.go",
         "api_op_GetSessionToken.go",
         "auth.go",

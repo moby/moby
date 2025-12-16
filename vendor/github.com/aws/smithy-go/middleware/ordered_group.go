@@ -23,12 +23,14 @@ type orderedIDs struct {
 	items map[string]ider
 }
 
-const baseOrderedItems = 5
+// selected based on the general upper bound of # of middlewares in each step
+// in the downstream aws-sdk-go-v2
+const baseOrderedItems = 8
 
-func newOrderedIDs() *orderedIDs {
+func newOrderedIDs(cap int) *orderedIDs {
 	return &orderedIDs{
-		order: newRelativeOrder(),
-		items: make(map[string]ider, baseOrderedItems),
+		order: newRelativeOrder(cap),
+		items: make(map[string]ider, cap),
 	}
 }
 
@@ -141,9 +143,9 @@ type relativeOrder struct {
 	order []string
 }
 
-func newRelativeOrder() *relativeOrder {
+func newRelativeOrder(cap int) *relativeOrder {
 	return &relativeOrder{
-		order: make([]string, 0, baseOrderedItems),
+		order: make([]string, 0, cap),
 	}
 }
 

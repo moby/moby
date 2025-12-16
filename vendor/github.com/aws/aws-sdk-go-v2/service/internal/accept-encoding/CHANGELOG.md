@@ -1,3 +1,7 @@
+# v1.13.3 (2025-11-04)
+
+* **Dependency Update**: Upgrade to smithy-go v1.23.2 which should convey some passive reduction of overall allocations, especially when not using the metrics system.
+
 # v1.13.2 (2025-10-16)
 
 * **Dependency Update**: Bump minimum Go version to 1.23.

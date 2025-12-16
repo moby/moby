@@ -6,7 +6,6 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
-
 	"io/ioutil"
 )
 
@@ -36,6 +35,7 @@ func (g *GzippedText) Scan(src interface{}) error {
 	case []byte:
 		source = src
 	default:
+		//lint:ignore ST1005 changing this could break consumers of this package
 		return errors.New("Incompatible type for GzippedText")
 	}
 	reader, err := gzip.NewReader(bytes.NewReader(source))
@@ -102,6 +102,7 @@ func (j *JSONText) Scan(src interface{}) error {
 	case nil:
 		*j = emptyJSON
 	default:
+		//lint:ignore ST1005 changing this could break consumers of this package
 		return errors.New("Incompatible type for JSONText")
 	}
 	*j = append((*j)[0:0], source...)
