@@ -53,7 +53,7 @@ jobs:
           targets: binary
       -
         name: Upload artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: binary
           path: ${{ env.DESTDIR }}
@@ -248,7 +248,7 @@ jobs:
           cp ${{ env.GOPATH }}\bin\buildctl.exe ${{ env.BIN_OUT }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: build-windows
           path: ${{ env.BIN_OUT }}/*

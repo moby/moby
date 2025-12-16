@@ -87,7 +87,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: test-reports-unit--${{ matrix.mode }}
           path: /tmp/reports/*
