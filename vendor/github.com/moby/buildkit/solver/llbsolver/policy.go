@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/moby/buildkit/client/llb/sourceresolver"
+	"github.com/moby/buildkit/frontend/gateway"
 	gatewaypb "github.com/moby/buildkit/frontend/gateway/pb"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/sourcepolicy"
@@ -88,19 +89,26 @@ func (p *policyEvaluator) Evaluate(ctx context.Context, op *pb.Op) (bool, error)
 					Platform: toOCIPlatform(metareq.Platform),
 				}
 			}
+
+			if metareq.Image != nil {
+				if op.ImageOpt == nil {
+					op.ImageOpt = &sourceresolver.ResolveImageOpt{}
+				}
+				op.ImageOpt.NoConfig = metareq.Image.NoConfig
+				op.ImageOpt.AttestationChain = metareq.Image.AttestationChain
+			}
+
+			if metareq.Git != nil {
+				op.GitOpt = &sourceresolver.ResolveGitOpt{
+					ReturnObject: metareq.Git.ReturnObject,
+				}
+			}
+
 			resp, err := p.resolveSourceMetadata(ctx, metareq.Source, op, false)
 			if err != nil {
 				return false, errors.Wrap(err, "error resolving source metadata from policy request")
 			}
-			req.Source = &gatewaypb.ResolveSourceMetaResponse{
-				Source: resp.Op,
-			}
-			if resp.Image != nil {
-				req.Source.Image = &gatewaypb.ResolveSourceImageResponse{
-					Digest: resp.Image.Digest.String(),
-					Config: resp.Image.Config,
-				}
-			}
+			req.Source = gateway.ToPBResolveSourceMetaResponse(resp)
 			continue
 		}
 
