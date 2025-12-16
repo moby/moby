@@ -44,7 +44,7 @@ import (
 	"github.com/moby/moby/v2/daemon/server/router/container"
 	debugrouter "github.com/moby/moby/v2/daemon/server/router/debug"
 	distributionrouter "github.com/moby/moby/v2/daemon/server/router/distribution"
-	grpcrouter "github.com/moby/moby/v2/daemon/server/router/grpc"
+	grpcrouter "github.com/moby/moby/v2/daemon/server/router/grpc" //nolint:staticcheck // Deprecated endpoint kept for backward compatibility
 	"github.com/moby/moby/v2/daemon/server/router/image"
 	"github.com/moby/moby/v2/daemon/server/router/network"
 	pluginrouter "github.com/moby/moby/v2/daemon/server/router/plugin"
@@ -730,7 +730,7 @@ func buildRouters(opts routerOptions) []router.Router {
 		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.builder.buildkit, opts.daemon.Features),
 		volume.NewRouter(opts.daemon.VolumesService(), opts.cluster),
 		build.NewRouter(opts.builder.backend, opts.daemon),
-		sessionrouter.NewRouter(opts.builder.sessionManager),
+		sessionrouter.NewRouter(opts.builder.sessionManager), //nolint:staticcheck // Deprecated endpoint kept for backward compatibility
 		swarmrouter.NewRouter(opts.cluster),
 		pluginrouter.NewRouter(opts.daemon.PluginManager()),
 		distributionrouter.NewRouter(opts.daemon.ImageBackend()),
@@ -739,7 +739,7 @@ func buildRouters(opts routerOptions) []router.Router {
 	}
 
 	if opts.builder.backend != nil {
-		routers = append(routers, grpcrouter.NewRouter(opts.builder.backend))
+		routers = append(routers, grpcrouter.NewRouter(opts.builder.backend)) //nolint:staticcheck // Deprecated endpoint kept for backward compatibility
 	}
 
 	if opts.daemon.HasExperimental() {
