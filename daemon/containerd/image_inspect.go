@@ -11,6 +11,7 @@ import (
 	"time"
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/pkg/labels"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
@@ -152,6 +153,8 @@ func (i *ImageService) imageIdentity(ctx context.Context, dgst digest.Digest) (*
 	}
 	identity := &imagetypes.ImageIdentity{}
 
+	seenRepos := make(map[string]struct{})
+
 	for k, v := range info.Labels {
 		if ref, ok := strings.CutPrefix(k, exporter.BuildRefLabel); ok {
 			var val exporter.BuildRefLabelValue
@@ -163,6 +166,23 @@ func (i *ImageService) imageIdentity(ctx context.Context, dgst digest.Digest) (*
 				identity.Build = append(identity.Build, imagetypes.ImageBuildIdentity{
 					Ref:       ref,
 					CreatedAt: createdAt,
+				})
+			}
+		}
+		if registry, ok := strings.CutPrefix(k, labels.LabelDistributionSource+"."); ok {
+			for repo := range strings.SplitSeq(v, ",") {
+				ref, err := reference.ParseNormalizedNamed(registry + "/" + repo)
+				if err != nil {
+					log.G(ctx).WithError(err).Error("failed to parse image name as reference")
+					continue
+				}
+				name := ref.Name()
+				if _, ok := seenRepos[name]; ok {
+					continue
+				}
+				seenRepos[name] = struct{}{}
+				identity.Pull = append(identity.Pull, imagetypes.ImagePullIdentity{
+					Repository: name,
 				})
 			}
 		}
