@@ -1,0 +1,31 @@
+#!/bin/sh
+
+# When updating, also update go.mod and Dockerfile accordingly.
+: "${ROOTLESSKIT_VERSION:=v2.3.5}"
+
+install_rootlesskit() {
+	case "$1" in
+		"dynamic")
+			install_rootlesskit_dynamic
+			return
+			;;
+		"")
+			export CGO_ENABLED=0
+			_install_rootlesskit
+			;;
+		*)
+			echo 'Usage: $0 [dynamic]'
+			;;
+	esac
+}
+
+install_rootlesskit_dynamic() {
+	export ROOTLESSKIT_LDFLAGS="-linkmode=external" install_rootlesskit
+	export BUILD_MODE=${GO_BUILDMODE}
+	_install_rootlesskit
+}
+
+_install_rootlesskit() (
+	echo "Install rootlesskit version ${ROOTLESSKIT_VERSION}"
+	GOBIN="${PREFIX}" go install ${BUILD_MODE} -ldflags="$ROOTLESSKIT_LDFLAGS" "github.com/rootless-containers/rootlesskit/v2/cmd/rootlesskit@${ROOTLESSKIT_VERSION}"
+)
