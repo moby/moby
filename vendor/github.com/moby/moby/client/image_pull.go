@@ -14,8 +14,15 @@ import (
 	"github.com/moby/moby/client/internal"
 )
 
+type OCIRegistryError struct {
+	Code    string      `json:"code"`
+	Message string      `json:"message,omitempty"`
+	Detail  interface{} `json:"detail,omitempty"`
+}
+
 type ImagePullJSONMessage struct {
 	jsonstream.Message
+	RegistryErrors []OCIRegistryError
 }
 
 type ImagePullResponse interface {
